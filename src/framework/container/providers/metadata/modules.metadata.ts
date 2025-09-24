@@ -1,6 +1,6 @@
-import { Constructor } from '../common';
-import { InjectionToken } from '../common';
-import { Provider } from './provider';
+import { Constructor } from '../../common';
+import { InjectionToken } from '../../common';
+import { Provider } from '../variants';
 
 /**
  * Configuration for a module

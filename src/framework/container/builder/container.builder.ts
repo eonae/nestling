@@ -1,10 +1,9 @@
 import { getLifecycleHooks, Hook } from '../lifecycle';
 import { Constructor } from '../common';
-import { Provider, ClassProvider, isClassProvider, isValueProvider, isFactoryProvider, isPlainProvider } from '../providers/provider';
+import { Provider, ClassProvider, isClassProvider, isValueProvider, isFactoryProvider, isPlainProvider } from '../providers/variants';
 import { stringifyToken } from '../common';
 import { BuiltContainer } from './container.built';
-import { ModuleMetadata, moduleMetaStorage } from '../providers/module';
-import { instantiableMetaStorage } from '../providers/providers.metadata';
+import { ModuleMetadata, moduleMetaStorage, instantiableMetaStorage } from '../providers';
 
 type ClassWithDependencies = { cls: Constructor; id: string; dependencies: string[] };
 

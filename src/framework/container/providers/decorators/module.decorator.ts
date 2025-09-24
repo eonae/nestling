@@ -1,6 +1,5 @@
 import { InjectionToken, makeToken, UnwrapInjectionTokens } from '../../common';
-import { instantiableMetaStorage } from '../providers.metadata';
-import { ModuleConfig, moduleMetaStorage } from '../module';
+import { ModuleConfig, moduleMetaStorage, instantiableMetaStorage } from '../../providers';
 
 /**
  * Decorator for defining modules.

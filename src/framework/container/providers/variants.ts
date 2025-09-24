@@ -1,5 +1,5 @@
 import { InjectionToken, TokenString, Constructor } from '../common';
-import { instantiableMetaStorage } from './providers.metadata';
+import { instantiableMetaStorage } from './metadata';
 
 /**
  * Base interface for all provider types

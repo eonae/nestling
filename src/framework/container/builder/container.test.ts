@@ -1,6 +1,6 @@
 import { Injectable } from '../providers/decorators/injectable.decorator';
 import { makeToken } from '../common';
-import { classProvider, valueProvider, factoryProvider } from '../providers/provider';
+import { classProvider, valueProvider, factoryProvider } from '../providers/variants';
 import { OnDestroy, OnInit, getLifecycleHooks } from '../lifecycle';
 import { Module } from '../providers/decorators/module.decorator';
 import { ContainerBuilder } from './container.builder';

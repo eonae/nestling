@@ -1,3 +1,3 @@
 export * from './decorators';
-export * from './module';
-export * from './provider';
+export * from './metadata';
+export * from './variants';

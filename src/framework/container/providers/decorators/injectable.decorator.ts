@@ -1,5 +1,5 @@
 import { Constructor, makeToken, InjectionToken, TokenString, UnwrapInjectionTokens } from '../../common';
-import { instantiableMetaStorage } from '../providers.metadata';
+import { instantiableMetaStorage } from '../../providers';
 
 /**
  * Decorate your class with @Injectable(id, dependencies)
