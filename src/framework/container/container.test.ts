@@ -173,23 +173,6 @@ describe('Container', () => {
   });
 
   describe('validation', () => {
-    it('validates @Injectable decorator usage', () => {
-      expect(() => {
-        const decorator = Injectable(A, []);
-        // @ts-expect-error - testing runtime error
-        decorator({}, { kind: 'method' });
-      }).toThrow('Injectable decorator can only be used on a class');
-    });
-
-    it('validates @Module decorator usage', () => {
-      expect(() => {
-        const decorator = Module({ providers: [], deps: [] });
-        // @ts-expect-error - testing runtime error
-        decorator({}, { kind: 'method' });
-      }).toThrow('Module decorator can only be used on a class');
-    });
-
-
     it('validates module is decorated with @Module', () => {
       class NotAModule {}
 

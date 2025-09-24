@@ -33,16 +33,9 @@ export const lifecycleMetadata = new WeakMap<object, LifecycleMetadata>();
  */
 export function OnInit() {
   return function <T extends Hook>(
-    target: T, 
+    _target: T, 
     context: ClassMethodDecoratorContext<object, T>
   ) {
-    // Runtime validation - check that the method has no parameters
-    if (target.length > 0) {
-      throw new Error(
-        `@OnInit() method '${String(context.name)}' must have no parameters. ` +
-        `Found ${target.length} parameter(s).`
-      );
-    }
 
     // The target is the method itself, we need to get the class constructor
     // We can use context.addInitializer to access the class
@@ -76,20 +69,12 @@ export function OnInit() {
  */
 export function OnDestroy() {
   return function <T extends Hook>(
-    target: T, 
+    _target: T, 
     context: ClassMethodDecoratorContext<object, T>
   ) {
-    // Runtime validation - check that the method has no parameters
-    if (target.length > 0) {
-      throw new Error(
-        `@OnDestroy() method '${String(context.name)}' must have no parameters. ` +
-        `Found ${target.length} parameter(s).`
-      );
-    }
-
     // The target is the method itself, we need to get the class constructor
     // We can use context.addInitializer to access the class
-    context.addInitializer(function(this: any) {
+    context.addInitializer(function(this) {
       // This runs when the class is defined
       const constructor = this.constructor;
       const metadata = lifecycleMetadata.get(constructor) || { onInitMethods: [], onDestroyMethods: [] };

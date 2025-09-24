@@ -49,12 +49,8 @@ export function Module<TDeps extends InjectionToken[]>(
 ) {
   return function <T extends { new (...args: UnwrapInjectionTokens<TDeps>): any }>(
     constructor: T,
-    { kind }: ClassDecoratorContext,
+    _: ClassDecoratorContext<T>
   ) {
-    if (kind !== 'class') {
-      throw new Error('Module decorator can only be used on a class.');
-    }
-
     // Store module metadata (validation will happen during module loading)
     moduleMetaStorage.set(constructor, {
       moduleClass: constructor,

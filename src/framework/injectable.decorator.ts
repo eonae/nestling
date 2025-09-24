@@ -6,23 +6,23 @@ import { instantiableMetaStorage } from './instantiable';
  * param id = InterfaceId of the interface implemented by your class (use createInterfaceId to create one)
  * param dependencies = List of InterfaceIds that will be injected into class' constructor
  */
-export function Injectable<I, TDependencies extends InterfaceId<unknown>[]>(
+export function Injectable<I, TDependencies extends InjectionToken[]>(
   id: InterfaceId<I>,
   dependencies: [...TDependencies], // we can add  `| [] = [],` to make dependencies optional, but the type checker messages are quite cryptic when the decorated class has some constructor arguments
 ): <T extends { new (...args: UnwrapInjectionTokens<TDependencies>): I }>(
   constructor: T,
-  context: ClassDecoratorContext,
+  context: ClassDecoratorContext<T>,
 ) => T;
 
 /**
  * Decorate your class with @Injectable(dependencies) - interfaceId will be auto-generated from class name
  * param dependencies = List of InterfaceIds that will be injected into class' constructor
  */
-export function Injectable<TDependencies extends InterfaceId<unknown>[]>(
+export function Injectable<TDependencies extends InjectionToken[]>(
   deps: [...TDependencies],
 ): <T extends { new (...args: UnwrapInjectionTokens<TDependencies>): any }>(
   constructor: T,
-  context: ClassDecoratorContext,
+  context: ClassDecoratorContext<T>,
 ) => T;
 
 /**
@@ -36,8 +36,8 @@ export function Injectable<TDependencies extends InjectionToken[]>(
   context: ClassDecoratorContext,
 ) => T;
 
-export function Injectable<I, TDependencies extends InterfaceId<unknown>[]>(
-  idOrDependencies: InterfaceId<I> | [...InjectionToken[]],
+export function Injectable<I, TDependencies extends InjectionToken[]>(
+  idOrDependencies: InterfaceId<I> | [...TDependencies],
   deps?: [...TDependencies],
 ) {
   // this is the trickiest part of the whole DI framework
@@ -49,7 +49,7 @@ export function Injectable<I, TDependencies extends InterfaceId<unknown>[]>(
   // and its constructor has arguments of same type and order as the dependencies argument to the decorator
   return function <T extends Constructor>(
     constructor: T,
-    _: ClassDecoratorContext<T>,
+    _: ClassDecoratorContext<T>
   ) {
     const id = typeof idOrDependencies === 'string'
       ? idOrDependencies
