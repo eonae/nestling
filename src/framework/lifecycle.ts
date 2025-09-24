@@ -17,6 +17,9 @@ export const lifecycleMetadata = new WeakMap<object, LifecycleMetadata>();
  * Decorator for marking a method as an initialization hook.
  * The method will be called when the instance is being initialized.
  * 
+ * The method MUST have no parameters and return void or Promise<void>.
+ * TypeScript will enforce this constraint at compile time.
+ * 
  * @example
  * ```typescript
  * @Injectable()
@@ -29,10 +32,21 @@ export const lifecycleMetadata = new WeakMap<object, LifecycleMetadata>();
  * ```
  */
 export function OnInit() {
-  return function (target: any, context: ClassMethodDecoratorContext) {
+  return function <T extends Hook>(
+    target: T, 
+    context: ClassMethodDecoratorContext<object, T>
+  ) {
+    // Runtime validation - check that the method has no parameters
+    if (target.length > 0) {
+      throw new Error(
+        `@OnInit() method '${String(context.name)}' must have no parameters. ` +
+        `Found ${target.length} parameter(s).`
+      );
+    }
+
     // The target is the method itself, we need to get the class constructor
     // We can use context.addInitializer to access the class
-    context.addInitializer(function(this: any) {
+    context.addInitializer(function(this) {
       // This runs when the class is defined
       const constructor = this.constructor;
       const metadata = lifecycleMetadata.get(constructor) || { onInitMethods: [], onDestroyMethods: [] };
@@ -46,6 +60,9 @@ export function OnInit() {
  * Decorator for marking a method as a destruction hook.
  * The method will be called when the instance is being destroyed.
  * 
+ * The method MUST have no parameters and return void or Promise<void>.
+ * TypeScript will enforce this constraint at compile time.
+ * 
  * @example
  * ```typescript
  * @Injectable()
@@ -58,7 +75,18 @@ export function OnInit() {
  * ```
  */
 export function OnDestroy() {
-  return function (target: any, context: ClassMethodDecoratorContext) {
+  return function <T extends Hook>(
+    target: T, 
+    context: ClassMethodDecoratorContext<object, T>
+  ) {
+    // Runtime validation - check that the method has no parameters
+    if (target.length > 0) {
+      throw new Error(
+        `@OnDestroy() method '${String(context.name)}' must have no parameters. ` +
+        `Found ${target.length} parameter(s).`
+      );
+    }
+
     // The target is the method itself, we need to get the class constructor
     // We can use context.addInitializer to access the class
     context.addInitializer(function(this: any) {
