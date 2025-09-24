@@ -1,7 +1,7 @@
 import { getLifecycleHooks, Hook } from '../lifecycle';
 import { Constructor } from '../common';
 import { Provider, ClassProvider, isClassProvider, isValueProvider, isFactoryProvider, isPlainProvider } from '../provider';
-import { createInterfaceId, getTokenId, InterfaceId, sanitizeId } from '../common';
+import { stringifyToken } from '../common';
 import { BuiltContainer } from './container.built';
 import { ModuleMetadata, moduleMetaStorage } from '../module';
 import { instantiableMetaStorage } from '../instantiable';
@@ -28,7 +28,7 @@ const noCircularDependencies = (cwds: ClassWithDependencies[], instanceIds: stri
       return false;
     }
 
-    if (!cwd) throw new Error(`assertion error: dependency ID missing ${sanitizeId(id)}`);
+    if (!cwd) throw new Error(`assertion error: dependency ID missing ${id}`);
 
     for (const dependencyId of cwd.dependencies) {
       if (hasCircularDependency(dependencyId)) {
@@ -43,7 +43,7 @@ const noCircularDependencies = (cwds: ClassWithDependencies[], instanceIds: stri
   for (const cwd of cwds) {
     if (hasCircularDependency(cwd.id)) {
       throw new Error(
-        `Circular dependency detected between interfaces (${Array.from(inStack).map(sanitizeId)}), starting with '${sanitizeId(cwd.id)}' (class: ${cwd.cls.name}).`,
+        `Circular dependency detected between interfaces (${Array.from(inStack).join(', ')}), starting with '${cwd.id}' (class: ${cwd.cls.name}).`,
       );
     }
   }
@@ -72,6 +72,10 @@ export class ContainerBuilder {
    * This is the main entry point for registering dependencies.
    */
   register(...items: (Provider | Constructor)[]): this {
+    if (this.#isBuilt) {
+      throw new Error('Cannot register providers or modules after container is built');
+    }
+
     for (const item of items) {
       if (isPlainProvider(item)) {
         this.registerProvider(item);
@@ -175,15 +179,11 @@ export class ContainerBuilder {
    * Register a provider in the container
    */
   private registerProvider(plainOrCls: Provider | Constructor): void {
-    if (this.#isBuilt) {
-      throw new Error('Cannot register providers after container is built');
-    }
-
     const provider = this.resolveProvider(plainOrCls);
-    const tokenId = getTokenId(provider.provide);
+    const tokenId = stringifyToken(provider.provide);
 
     if (this.#providers.has(tokenId)) {
-      throw new Error(`Provider for token '${sanitizeId(tokenId)}' is already registered`);
+      throw new Error(`Provider for token '${tokenId}' is already registered`);
     }
 
     // Store provider metadata for lazy instantiation
@@ -195,7 +195,7 @@ export class ContainerBuilder {
    */
   private createClassInstance(provider: ClassProvider): unknown {
     const deps = provider.deps || [];
-    const args = deps.map(dep => this.#instances.get(getTokenId(dep)));
+    const args = deps.map(dep => this.#instances.get(stringifyToken(dep)));
     
     // eslint-disable-next-line new-cap
     return new provider.useClass(...args);
@@ -211,7 +211,7 @@ export class ContainerBuilder {
     } else if (isValueProvider(provider)) {
       return provider.useValue;
     } else if (isFactoryProvider(provider)) {
-      const args = provider.deps.map(dep => this.#instances.get(getTokenId(dep)));
+      const args = provider.deps.map(dep => this.#instances.get(stringifyToken(dep)));
       return await provider.useFactory(...args);
     } else {
       throw new Error('Unknown provider type');
@@ -233,14 +233,14 @@ export class ContainerBuilder {
       if (provider && isClassProvider(provider)) {
         const deps = provider.deps || [];
         classesWithDeps.push({
-          cls: provider.useClass,
           id,
-          dependencies: deps.map(dep => getTokenId(dep))
+          cls: provider.useClass,
+          dependencies: deps.map(dep => stringifyToken(dep))
         });
 
         // Recursively collect dependencies
         for (const dep of deps) {
-          collectDependencies(getTokenId(dep));
+          collectDependencies(stringifyToken(dep));
         }
       }
     };
@@ -272,27 +272,22 @@ export class ContainerBuilder {
       }
 
       if (instantiating.has(tokenId)) {
-        throw new Error(`Circular dependency detected while instantiating '${sanitizeId(tokenId)}'`);
+        throw new Error(`Circular dependency detected while instantiating '${tokenId}'`);
       }
 
       instantiating.add(tokenId);
 
       const provider = this.#providers.get(tokenId);
       if (!provider) {
-        throw new Error(`Provider for token '${sanitizeId(tokenId)}' not found`);
+        throw new Error(`Provider for token '${tokenId}' not found`);
       }
 
-      // Instantiate dependencies first
-      if (isClassProvider(provider)) {
-        const deps = provider.deps || [];
-        for (const dep of deps) {
-          await instantiateProvider(getTokenId(dep));
-        }
-      } else if (isFactoryProvider(provider)) {
-        for (const dep of provider.deps) {
-          await instantiateProvider(getTokenId(dep));
+      if (!isValueProvider(provider)) {
+        for (const dep of provider.deps || []) {
+          await instantiateProvider(stringifyToken(dep));
         }
       }
+
 
       // Create instance
       const instance = await this.createInstance(provider);

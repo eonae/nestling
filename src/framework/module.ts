@@ -1,6 +1,6 @@
 import { Constructor } from './common';
 import { instantiableMetaStorage } from './instantiable';
-import { InjectionToken, createInterfaceId, UnwrapInjectionTokens } from './common';
+import { InjectionToken, makeToken, UnwrapInjectionTokens } from './common';
 import { Provider } from './provider';
 
 /**
@@ -62,7 +62,7 @@ export function Module<TDeps extends InjectionToken[]>(
 
     // Also register module as instantiable with dependencies
     instantiableMetaStorage.set(constructor, {
-      id: createInterfaceId(constructor.name),
+      id: makeToken(constructor.name),
       dependencies: config.deps || []
     });
     

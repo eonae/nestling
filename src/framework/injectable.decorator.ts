@@ -1,4 +1,4 @@
-import { Constructor, createInterfaceId, InjectionToken, InterfaceId, UnwrapInjectionTokens } from './common';
+import { Constructor, makeToken, InjectionToken, TokenString, UnwrapInjectionTokens } from './common';
 import { instantiableMetaStorage } from './instantiable';
 
 /**
@@ -7,7 +7,7 @@ import { instantiableMetaStorage } from './instantiable';
  * param dependencies = List of InterfaceIds that will be injected into class' constructor
  */
 export function Injectable<I, TDependencies extends InjectionToken[]>(
-  id: InterfaceId<I>,
+  id: TokenString<I>,
   dependencies: [...TDependencies], // we can add  `| [] = [],` to make dependencies optional, but the type checker messages are quite cryptic when the decorated class has some constructor arguments
 ): <T extends { new (...args: UnwrapInjectionTokens<TDependencies>): I }>(
   constructor: T,
@@ -37,7 +37,7 @@ export function Injectable<TDependencies extends InjectionToken[]>(
 ) => T;
 
 export function Injectable<I, TDependencies extends InjectionToken[]>(
-  idOrDependencies: InterfaceId<I> | [...TDependencies],
+  idOrDependencies: TokenString<I> | [...TDependencies],
   deps?: [...TDependencies],
 ) {
   // this is the trickiest part of the whole DI framework
@@ -53,7 +53,7 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
   ) {
     const id = typeof idOrDependencies === 'string'
       ? idOrDependencies
-      : createInterfaceId(constructor.name);
+      : makeToken(constructor.name);
 
     const dependencies = typeof idOrDependencies === 'string'
       ? deps || []

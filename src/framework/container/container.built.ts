@@ -1,5 +1,4 @@
-import { Constructor } from '../common';
-import { InterfaceId, sanitizeId } from '../common';
+import { InjectionToken } from '../common';
 import { Hook } from '../lifecycle';
 
 /**
@@ -39,17 +38,14 @@ export class BuiltContainer {
   /**
    * Get an instance from the container
    */
-  get<T>(id: InterfaceId<T>): T;
-  get<T>(cls: new (...args: any[]) => T): T;
-  get<T>(token: InterfaceId<T> | Constructor<T>): T;
-  get<T>(tokenOrId: InterfaceId<T> | Constructor<T> | string): T {
-    const id = typeof tokenOrId === 'string' ? tokenOrId : tokenOrId.name;
+  get<T>(token: InjectionToken<T>): T {
+    const id = typeof token === 'string' ? token : token.name;
 
     // Check if instance already exists
     if (this.#instances.has(id)) {
       return this.#instances.get(id) as T;
     }
 
-    throw new Error(`Instance for interface '${sanitizeId(id)}' is not in the container.`);
+    throw new Error(`Instance for interface '${id}' is not in the container.`);
   }
 }

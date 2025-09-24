@@ -1,5 +1,5 @@
 import { Injectable } from '../injectable';
-import { createInterfaceId } from '../common';
+import { makeToken } from '../common';
 import { classProvider, valueProvider, factoryProvider } from '../provider';
 import { OnDestroy, OnInit, getLifecycleHooks } from '../lifecycle';
 import { Module } from '../module';
@@ -18,9 +18,9 @@ describe('Container', () => {
     c(): string;
   }
 
-  const A = createInterfaceId<A>('A');
-  const B = createInterfaceId<B>('B');
-  const C = createInterfaceId<C>('C');
+  const A = makeToken<A>('A');
+  const B = makeToken<B>('B');
+  const C = makeToken<C>('C');
 
   @Injectable(A, [])
   class AImpl implements A {
@@ -126,7 +126,7 @@ describe('Container', () => {
       await builder.build();
 
       expect(() => builder.register(valueProvider(B, { b: () => 'b' }))).toThrow(
-        /Cannot register providers after container is built/
+        /Cannot register providers or modules after container is built/
       );
     });
 
@@ -513,7 +513,7 @@ describe('Container', () => {
         getValue(): string;
       }
 
-      const ExternalService = createInterfaceId<ExternalService>('ExternalService');
+      const ExternalService = makeToken<ExternalService>('ExternalService');
 
       @Injectable(B, [ExternalService])
       class BWithExternal implements B {
@@ -542,7 +542,7 @@ describe('Container', () => {
         apiUrl: string;
       }
 
-      const Config = createInterfaceId<Config>('Config');
+      const Config = makeToken<Config>('Config');
 
       @Injectable(C, [A, Config])
       class CWithConfig implements C {
@@ -758,8 +758,8 @@ describe('Container', () => {
         e(): string;
       }
 
-      const D = createInterfaceId<D>('D');
-      const E = createInterfaceId<E>('E');
+      const D = makeToken<D>('D');
+      const E = makeToken<E>('E');
 
       @Injectable(D, [A, B])
       class DImpl implements D {

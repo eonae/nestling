@@ -1,4 +1,4 @@
-import { InjectionToken, InterfaceId, Constructor } from './common';
+import { InjectionToken, TokenString, Constructor } from './common';
 import { instantiableMetaStorage } from './instantiable';
 
 /**
@@ -34,7 +34,7 @@ export interface FactoryProvider<T = unknown> extends BaseProvider {
   /** Factory function that creates the value */
   useFactory: (...args: any[]) => T;
   /** Dependencies to inject into the factory function */
-  deps: readonly (InterfaceId<unknown> | Constructor)[];
+  deps: readonly (TokenString<unknown> | Constructor)[];
 }
 
 /**
@@ -53,8 +53,8 @@ export type ProviderType<T extends Provider> = T extends Provider<infer U> ? U :
 /**
  * Helper type to unwrap mixed tokens (InterfaceId or Constructor) to their types
  */
-export type UnwrapTokens<T extends readonly (InterfaceId<unknown> | Constructor)[]> = {
-  [K in keyof T]: T[K] extends InterfaceId<infer U> 
+export type UnwrapTokens<T extends readonly (TokenString<unknown> | Constructor)[]> = {
+  [K in keyof T]: T[K] extends TokenString<infer U> 
     ? U 
     : T[K] extends Constructor<infer V>
     ? V
@@ -66,7 +66,7 @@ export type UnwrapTokens<T extends readonly (InterfaceId<unknown> | Constructor)
  */
 export type FactoryProviderWithDeps<
   T,
-  TDeps extends readonly (InterfaceId<unknown> | Constructor)[]
+  TDeps extends readonly (TokenString<unknown> | Constructor)[]
 > = FactoryProvider<T> & {
   useFactory: (...args: UnwrapTokens<TDeps>) => T;
   deps: TDeps;
@@ -76,7 +76,7 @@ export type FactoryProviderWithDeps<
  * Helper function to create a ClassProvider
  */
 export function classProvider<T>(
-  provide: InterfaceId<T> | Constructor<T>,
+  provide: TokenString<T> | Constructor<T>,
   useClass: Constructor<T>,
 ): ClassProvider<T> {
   const instantiableMetadata = instantiableMetaStorage.get(useClass);
@@ -95,7 +95,7 @@ export function classProvider<T>(
  * Helper function to create a ValueProvider
  */
 export function valueProvider<T>(
-  provide: InterfaceId<T> | Constructor<T>,
+  provide: TokenString<T> | Constructor<T>,
   useValue: T
 ): ValueProvider<T> {
   return {
@@ -109,9 +109,9 @@ export function valueProvider<T>(
  */
 export function factoryProvider<
   T,
-  TDeps extends readonly (InterfaceId<unknown> | Constructor)[]
+  TDeps extends readonly (TokenString<unknown> | Constructor)[]
 >(
-  provide: InterfaceId<T> | Constructor<T>,
+  provide: TokenString<T> | Constructor<T>,
   useFactory: (...args: UnwrapTokens<TDeps>) => T,
   deps: TDeps
 ): FactoryProviderWithDeps<T, TDeps> {

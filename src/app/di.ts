@@ -1,4 +1,4 @@
-import { createInterfaceId } from '../framework';
+import { makeToken } from '../framework';
 
 // Интерфейсы
 export interface ILogger {
@@ -20,7 +20,7 @@ export interface IApiClient {
 }
 
 // Создаем InterfaceId
-export const ILogger = createInterfaceId<ILogger>('Logger');
-export const IDatabase = createInterfaceId<IDatabase>('Database');
-export const IConfig = createInterfaceId<IConfig>('Config');
-export const IApiClient = createInterfaceId<IApiClient>('ApiClient');
+export const ILogger = makeToken<ILogger>('Logger');
+export const IDatabase = makeToken<IDatabase>('Database');
+export const IConfig = makeToken<IConfig>('Config');
+export const IApiClient = makeToken<IApiClient>('ApiClient');
