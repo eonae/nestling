@@ -4,7 +4,7 @@ import { Provider, ClassProvider, isClassProvider, isValueProvider, isFactoryPro
 import { stringifyToken } from '../common';
 import { BuiltContainer } from './container.built';
 import { ModuleMetadata, moduleMetaStorage } from '../module';
-import { instantiableMetaStorage } from '../instantiable';
+import { instantiableMetaStorage } from '../providers.metadata';
 
 type ClassWithDependencies = { cls: Constructor; id: string; dependencies: string[] };
 
@@ -169,7 +169,7 @@ export class ContainerBuilder {
     }
   
     return {
-      provide: meta.id,
+      provide: meta.injectionToken,
       useClass: plainOrCls,
       deps: meta.dependencies
     };

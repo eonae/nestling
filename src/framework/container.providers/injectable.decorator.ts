@@ -1,5 +1,5 @@
-import { Constructor, makeToken, InjectionToken, TokenString, UnwrapInjectionTokens } from './common';
-import { instantiableMetaStorage } from './instantiable';
+import { Constructor, makeToken, InjectionToken, TokenString, UnwrapInjectionTokens } from '../common';
+import { instantiableMetaStorage } from '../providers.metadata';
 
 /**
  * Decorate your class with @Injectable(id, dependencies)
@@ -51,7 +51,7 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
     constructor: T,
     _: ClassDecoratorContext<T>
   ) {
-    const id = typeof idOrDependencies === 'string'
+    const injectionToken = typeof idOrDependencies === 'string'
       ? idOrDependencies
       : makeToken(constructor.name);
 
@@ -59,7 +59,7 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
       ? deps || []
       : idOrDependencies;
 
-    instantiableMetaStorage.set(constructor, { id: id, dependencies });
+    instantiableMetaStorage.set(constructor, { injectionToken, dependencies });
     return constructor;
   };
 }

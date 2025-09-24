@@ -1,8 +1,8 @@
-import { Injectable } from '../injectable';
+import { Injectable } from '../container.providers/injectable.decorator';
 import { makeToken } from '../common';
 import { classProvider, valueProvider, factoryProvider } from '../provider';
 import { OnDestroy, OnInit, getLifecycleHooks } from '../lifecycle';
-import { Module } from '../module';
+import { Module } from '../container.providers/module.decorator';
 import { ContainerBuilder } from './container.builder';
 
 describe('Container', () => {
