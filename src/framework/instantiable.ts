@@ -1,5 +1,5 @@
 import { Constructor } from './common';
-import { InjectionToken, InterfaceId } from './interface-id';
+import { InjectionToken, InterfaceId } from './common';
 
 interface InstantiableMetadata<T = unknown> {
   id: InterfaceId<T>;

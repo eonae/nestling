@@ -36,6 +36,6 @@ export const sanitizeId = (idWithRandom: string) => idWithRandom.replace(/-[^-]+
     typeof token === 'string' ? token : token.name;
 
 
-export type InjectionToken = InterfaceId<unknown> | Constructor;
+export type InjectionToken<T = unknown> = InterfaceId<T> | Constructor;
 
-export const isInterfaceId = (x: InjectionToken): x is InterfaceId<unknown> => typeof x === 'string';
+export const isInterfaceId = <T = unknown>(x: InjectionToken<T>): x is InterfaceId<T> => typeof x === 'string';

@@ -1,5 +1,5 @@
 import { Injectable } from '../injectable';
-import { createInterfaceId } from '../interface-id';
+import { createInterfaceId } from '../common';
 import { classProvider, valueProvider, factoryProvider } from '../provider';
 import { OnDestroy, OnInit, getLifecycleHooks } from '../lifecycle';
 import { Module } from '../module';
