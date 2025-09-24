@@ -1,7 +1,7 @@
 import { getLifecycleHooks, Hook } from '../lifecycle';
 import { Constructor } from '../common';
 import { Provider, ClassProvider, isClassProvider, isValueProvider, isFactoryProvider, isPlainProvider } from '../provider';
-import { createInterfaceId, getTokenId, InterfaceId, sanitizeId } from '../interface-id';
+import { createInterfaceId, getTokenId, InterfaceId, sanitizeId } from '../common';
 import { BuiltContainer } from './container.built';
 import { ModuleMetadata, moduleMetaStorage } from '../module';
 import { instantiableMetaStorage } from '../instantiable';

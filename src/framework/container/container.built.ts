@@ -1,5 +1,5 @@
 import { Constructor } from '../common';
-import { InterfaceId, sanitizeId } from '../interface-id';
+import { InterfaceId, sanitizeId } from '../common';
 import { Hook } from '../lifecycle';
 
 /**

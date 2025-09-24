@@ -1,6 +1,5 @@
-import { Constructor } from './common';
+import { Constructor, createInterfaceId, InjectionToken, InterfaceId, UnwrapInjectionTokens } from './common';
 import { instantiableMetaStorage } from './instantiable';
-import { createInterfaceId, InjectionToken, InterfaceId, UnwrapInjectionTokens } from './common';
 
 /**
  * Decorate your class with @Injectable(id, dependencies)
@@ -50,12 +49,8 @@ export function Injectable<I, TDependencies extends InterfaceId<unknown>[]>(
   // and its constructor has arguments of same type and order as the dependencies argument to the decorator
   return function <T extends Constructor>(
     constructor: T,
-    { kind }: ClassDecoratorContext,
+    _: ClassDecoratorContext<T>,
   ) {
-    if (kind !== 'class') {
-      throw new Error('Injectable decorator can only be used on a class.');
-    }
-
     const id = typeof idOrDependencies === 'string'
       ? idOrDependencies
       : createInterfaceId(constructor.name);
@@ -64,7 +59,7 @@ export function Injectable<I, TDependencies extends InterfaceId<unknown>[]>(
       ? deps || []
       : idOrDependencies;
 
-    instantiableMetaStorage.set(constructor, { id, dependencies });
+    instantiableMetaStorage.set(constructor, { id: id, dependencies });
     return constructor;
   };
 }

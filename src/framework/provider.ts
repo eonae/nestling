@@ -1,5 +1,4 @@
-import { Constructor } from './common';
-import { InjectionToken, InterfaceId } from './interface-id';
+import { InjectionToken, InterfaceId, Constructor } from './common';
 import { instantiableMetaStorage } from './instantiable';
 
 /**

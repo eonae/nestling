@@ -1,4 +1,4 @@
-import { createInterfaceId } from '../framework/interface-id';
+import { createInterfaceId } from '../framework';
 
 // Интерфейсы
 export interface ILogger {

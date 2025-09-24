@@ -1,6 +1,6 @@
 import { Constructor } from './common';
 import { instantiableMetaStorage } from './instantiable';
-import { InjectionToken, createInterfaceId, UnwrapInjectionTokens } from './interface-id';
+import { InjectionToken, createInterfaceId, UnwrapInjectionTokens } from './common';
 import { Provider } from './provider';
 
 /**
