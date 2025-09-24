@@ -1,5 +1,5 @@
-import { Constructor } from './common';
-import { InjectionToken } from './common';
+import { Constructor } from '../common';
+import { InjectionToken } from '../common';
 
 interface InstantiableMetadata<T = unknown> {
   injectionToken: InjectionToken<T>;

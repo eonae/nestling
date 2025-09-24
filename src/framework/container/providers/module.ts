@@ -1,5 +1,5 @@
-import { Constructor } from './common';
-import { InjectionToken } from './common';
+import { Constructor } from '../common';
+import { InjectionToken } from '../common';
 import { Provider } from './provider';
 
 /**

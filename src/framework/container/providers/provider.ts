@@ -1,4 +1,4 @@
-import { InjectionToken, TokenString, Constructor } from './common';
+import { InjectionToken, TokenString, Constructor } from '../common';
 import { instantiableMetaStorage } from './providers.metadata';
 
 /**
