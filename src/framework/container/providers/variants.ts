@@ -1,5 +1,5 @@
 import { InjectionToken, TokenString, Constructor } from '../common';
-import { instantiableMetaStorage } from './metadata';
+import { injectableMetaStorage } from './injectable.metadata';
 
 /**
  * Base interface for all provider types
@@ -79,15 +79,15 @@ export function classProvider<T>(
   provide: TokenString<T> | Constructor<T>,
   useClass: Constructor<T>,
 ): ClassProvider<T> {
-  const instantiableMetadata = instantiableMetaStorage.get(useClass);
-  if (!instantiableMetadata) {
+  const metadata = injectableMetaStorage.get(useClass);
+  if (!metadata) {
     throw new Error(`Class ${useClass.name} can't be used in classProvider without @Injectable decorator. If you need register third party class prefer useFactory.`);
   }
 
   return {
     provide,
     useClass,
-    deps: instantiableMetadata.dependencies
+    deps: metadata.dependencies
   };
 }
 

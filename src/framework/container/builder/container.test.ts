@@ -1,8 +1,7 @@
-import { Injectable } from '../providers/decorators/injectable.decorator';
+import { classProvider, valueProvider, factoryProvider, Injectable } from '../providers';
 import { makeToken } from '../common';
-import { classProvider, valueProvider, factoryProvider } from '../providers/variants';
 import { OnDestroy, OnInit, getLifecycleHooks } from '../lifecycle';
-import { Module } from '../providers/decorators/module.decorator';
+import { makeModule } from '../modules';
 import { ContainerBuilder } from './container.builder';
 
 describe('Container', () => {
@@ -131,12 +130,11 @@ describe('Container', () => {
     });
 
     it('can mix providers and modules in single register call', async () => {
-      @Module({
-        deps: [],
+      const AModule = makeModule({
+        name: 'AModule',
         providers: [classProvider(A, AImpl)],
         exports: [A]
-      })
-      class AModule {}
+      });
 
       const container = await new ContainerBuilder()
         .register(
@@ -154,12 +152,11 @@ describe('Container', () => {
     });
 
     it('supports fluent interface with mixed items', async () => {
-      @Module({
-        deps: [],
+      const AModule = makeModule({
+        name: 'AModule',
         providers: [classProvider(A, AImpl)],
         exports: [A]
-      })
-      class AModule {}
+      });
 
       const container = await new ContainerBuilder()
         .register(AModule)
@@ -173,88 +170,26 @@ describe('Container', () => {
   });
 
   describe('validation', () => {
-    it('validates module is decorated with @Module', () => {
-      class NotAModule {}
+    it('validates class is decorated with @Injectable', () => {
+      class NotAnInjectable {}
 
       const container = new ContainerBuilder();
-      expect(() => container.register(NotAModule)).toThrow(
-        'Class NotAModule is not decorated with @Injectable or @Module provider'
+      expect(() => container.register(NotAnInjectable)).toThrow(
+        /Class NotAnInjectable is missing @Injectable decorator/
       );
     });
 
-    it('validates @Module decorator type checking', () => {
-      // This test verifies that TypeScript will catch type mismatches
-      // between constructor parameters and deps array
-      
-      // Valid usage - constructor matches deps
-      @Module({
-        providers: [],
-        exports: [],
-        deps: [A],
-      })
-      class ValidModule {
-        constructor(private a: A) {}
-      }
+    it('validates module structure', () => {
+      // Valid module structure
+      const validModule = makeModule({
+        name: 'ValidModule',
+        providers: [classProvider(A, AImpl)],
+        exports: [A]
+      });
 
-      // This should compile without errors
-      expect(ValidModule).toBeDefined();
-
-      // Valid usage - no constructor parameters, no deps
-      @Module({
-        deps: [],
-        providers: [],
-        exports: []
-      })
-      class NoDepsModule {
-        constructor() {}
-      }
-
-      expect(NoDepsModule).toBeDefined();
-
-      // Invalid usage - this should cause TypeScript error
-      // but we can't test it directly in runtime
-      // The TypeScript compiler will catch:
-      // - Missing deps when constructor has parameters
-      // - Wrong types in deps array
-      // - Wrong order of dependencies
-    });
-
-    it('validates @Module with multiple dependencies', () => {
-      // Test with multiple dependencies
-      @Module({
-        providers: [],
-        exports: [],
-        deps: [A, B],
-      })
-      class MultiDepsModule {
-        constructor(private a: A, private b: B) {}
-      }
-
-      expect(MultiDepsModule).toBeDefined();
-    });
-
-    it('validates @Module dependency injection works correctly', async () => {
-      // Test that module dependencies are actually injected
-      @Module({
-        providers: [],
-        exports: [],
-        deps: [A]
-      })
-      class TestModule {
-        constructor(private a: A) {}
-        
-        getA(): A {
-          return this.a;
-        }
-      }
-
-      const container = await new ContainerBuilder()
-        .register(classProvider(A, AImpl), TestModule)
-        .build();
-
-      const moduleInstance = container.get(TestModule);
-      expect(moduleInstance.getA()).toBeDefined();
-      expect(moduleInstance.getA().a()).toBe('a');
+      expect(validModule.name).toBe('ValidModule');
+      expect(validModule.providers).toHaveLength(1);
+      expect(validModule.exports).toEqual([A]);
     });
   });
 
@@ -353,119 +288,6 @@ describe('Container', () => {
   });
 
   describe('lifecycle hooks', () => {
-    it('can initialize modules with OnInit decorators', async () => {
-      let initOrder: string[] = [];
-      
-      @Module({
-        deps: [],
-        providers: [classProvider(A, AImpl)],
-        exports: [A]
-      })
-      class Module1 {
-        @OnInit()
-        async initialize() {
-          initOrder.push('Module1');
-        }
-      }
-      
-      @Module({
-        deps: [],
-        providers: [classProvider(B, BImpl)],
-        exports: [B]
-      })
-      class Module2 {
-        @OnInit()
-        async initialize() {
-          initOrder.push('Module2');
-        }
-      }
-
-      const container = await new ContainerBuilder()
-        .register(Module1, Module2)
-        .build();
-
-      await container.init();
-      
-      expect(initOrder).toEqual(['Module1', 'Module2']);
-    });
-
-    it('can destroy modules with OnDestroy decorators in reverse order', async () => {
-      let destroyOrder: string[] = [];
-      
-      @Module({
-        deps: [],
-        providers: [classProvider(A, AImpl)],
-        exports: [A]
-      })
-      class Module1 {
-        @OnDestroy()
-        async cleanup() {
-          destroyOrder.push('Module1');
-        }
-      }
-      
-      @Module({
-        deps: [],
-        providers: [classProvider(B, BImpl)],
-        exports: [B]
-      })
-      class Module2 {
-        @OnDestroy()
-        async cleanup() {
-          destroyOrder.push('Module2');
-        }
-      }
-
-      const container = await new ContainerBuilder()
-        .register(Module1, Module2)
-        .build();
-
-      await container.destroy();
-      
-      expect(destroyOrder).toEqual(['Module2', 'Module1']);
-    });
-
-    it('can handle mixed lifecycle hooks', async () => {
-      let lifecycleOrder: string[] = [];
-      
-      @Module({
-        deps: [],
-        providers: [classProvider(A, AImpl)],
-        exports: [A]
-      })
-      class Module1 {
-        @OnInit()
-        async initialize() {
-          lifecycleOrder.push('Module1-init');
-        }
-        
-        @OnDestroy()
-        async cleanup() {
-          lifecycleOrder.push('Module1-destroy');
-        }
-      }
-      
-      @Module({
-        deps: [],
-        providers: [classProvider(B, BImpl)],
-        exports: [B]
-      })
-      class Module2 {
-        @OnInit()
-        async initialize() {
-          lifecycleOrder.push('Module2-init');
-        }
-      }
-
-      const container = await new ContainerBuilder()
-        .register(Module1, Module2)
-        .build();
-
-      await container.init();
-      await container.destroy();
-      
-      expect(lifecycleOrder).toEqual(['Module1-init', 'Module2-init', 'Module1-destroy']);
-    });
 
     it('can initialize Injectable classes with OnInit decorators', async () => {
       let initOrder: string[] = [];
@@ -572,12 +394,11 @@ describe('Container', () => {
 
   describe('module system', () => {
     it('can load simple module', async () => {
-      @Module({
-        deps: [],
+      const TestModule = makeModule({
+        name: 'TestModule',
         providers: [classProvider(A, AImpl)],
         exports: [A]
-      })
-      class TestModule {}
+      });
 
       const container = await new ContainerBuilder()
         .register(TestModule)
@@ -588,20 +409,18 @@ describe('Container', () => {
     });
 
     it('can load module with imports', async () => {
-      @Module({
-        deps: [],
+      const AModule = makeModule({
+        name: 'AModule',
         providers: [classProvider(A, AImpl)],
         exports: [A]
-      })
-      class AModule {}
+      });
 
-      @Module({
-        deps: [],
+      const BModule = makeModule({
+        name: 'BModule',
         providers: [classProvider(B, BImpl)],
         exports: [B],
         imports: [AModule]
-      })
-      class BModule {}
+      });
 
       const container = await new ContainerBuilder()
         .register(BModule)
@@ -613,15 +432,14 @@ describe('Container', () => {
 
 
     it('can load module with factory provider', async () => {
-      @Module({
-        deps: [],
+      const FactoryModule = makeModule({
+        name: 'FactoryModule',
         providers: [
           classProvider(A, AImpl),
           factoryProvider(B, (a: A) => ({ b: () => `FactoryB(${a.a()})` }), [A])
         ],
         exports: [B]
-      })
-      class FactoryModule {}
+      });
 
       const container = await new ContainerBuilder()
         .register(FactoryModule)
@@ -631,36 +449,6 @@ describe('Container', () => {
       expect(bInstance.b()).toBe('FactoryB(a)');
     });
 
-    it('can load module with constructor dependencies', async () => {
-      @Module({
-        deps: [],
-        providers: [classProvider(A, AImpl)],
-        exports: [A]
-      })
-      class AModule {}
-
-      @Module({
-        providers: [classProvider(B, BImpl)],
-        exports: [B],
-        imports: [AModule],
-        deps: [A] // Module depends on A
-      })
-      class BModule {
-        constructor(private a: A) {}
-        
-        @OnInit()
-        init() {
-          console.log('BModule initialized with A:', this.a.a());
-        }
-      }
-
-      const container = await new ContainerBuilder()
-        .register(BModule)
-        .build();
-
-      const bInstance = container.get(B);
-      expect(bInstance.b()).toBe('B(a)');
-    });
 
     it('can register Injectable class with dependencies', async () => {
       @Injectable([A])

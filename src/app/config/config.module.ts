@@ -1,8 +1,8 @@
-import { valueProvider, OnInit, Module } from '../../framework';
-import { IConfig, ILogger } from '../di';
+import { valueProvider, Module, makeModule } from '../../framework';
+import { IConfig } from '../di';
 
-
-@Module({
+export const ConfigModule = makeModule({
+  name: 'module:config',
   providers: [
     valueProvider(IConfig, {
       databaseUrl: 'postgresql://localhost:5432/myapp',
@@ -10,17 +10,4 @@ import { IConfig, ILogger } from '../di';
     })
   ],
   exports: [IConfig],
-  deps: [ILogger]
-})
-export class ConfigModule {
-  readonly #logger: ILogger;
-
-  constructor(logger: ILogger) {
-    this.#logger = logger;
-  }
-
-  @OnInit()
-  async initialize(): Promise<void> {
-    this.#logger.log('ConfigModule initialized');
-  }
-}
+});

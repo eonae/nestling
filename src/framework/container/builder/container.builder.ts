@@ -3,7 +3,8 @@ import { Constructor } from '../common';
 import { Provider, ClassProvider, isClassProvider, isValueProvider, isFactoryProvider, isPlainProvider } from '../providers/variants';
 import { stringifyToken } from '../common';
 import { BuiltContainer } from './container.built';
-import { ModuleMetadata, moduleMetaStorage, instantiableMetaStorage } from '../providers';
+import { injectableMetaStorage } from '../providers';
+import { isModule, Module } from '../modules';
 
 type ClassWithDependencies = { cls: Constructor; id: string; dependencies: string[] };
 
@@ -61,7 +62,7 @@ const noCircularDependencies = (cwds: ClassWithDependencies[], instanceIds: stri
 export class ContainerBuilder {
   readonly #instances = new Map<string, unknown>();
   readonly #providers = new Map<string, Provider>();
-  readonly #modules = new Set<Constructor>();
+  readonly #modules = new Set<string>(); // Store module names instead of constructors
   readonly #initHooks: Hook[] = [];
   readonly #destroyHooks: Hook[] = [];
   #isBuilt = false;
@@ -70,30 +71,19 @@ export class ContainerBuilder {
    * Unified registration method that accepts either providers or modules.
    * This is the main entry point for registering dependencies.
    */
-  register(...items: (Provider | Constructor)[]): this {
+  register(...items: (Provider | Constructor | Module)[]): this {
     if (this.#isBuilt) {
       throw new Error('Cannot register providers or modules after container is built');
     }
 
-    for (const item of items) {
-      if (isPlainProvider(item)) {
+    for (const item of items) {      
+      // Check if it's a module config object
+      if (isModule(item)) {
+        this.registerModule(item);
+        continue;
+      } else {
         this.registerProvider(item);
-        continue;
       }
-
-      const moduleMeta = moduleMetaStorage.get(item);
-      if (moduleMeta) {
-        this.registerModule(item, moduleMeta);
-        continue;
-      }
-
-      const injectableMeta = instantiableMetaStorage.get(item);
-      if (injectableMeta) {
-        this.registerProvider(item);
-        continue;
-      }
-
-      throw new Error(`Class ${item.name} is not decorated with @Injectable or @Module provider`);
     }
 
     return this;
@@ -129,32 +119,24 @@ export class ContainerBuilder {
    * Load a module and all its dependencies.
    * This method handles module imports and registers providers.
    */
-  private registerModule(cls: Constructor, metadata?: ModuleMetadata): void {
+  private registerModule({ name, imports, providers }: Module): void {
     // Check if module is already loaded
-    if (this.#modules.has(cls)) {
+    if (this.#modules.has(name)) {
       return;
     }
 
-    const moduleMetadata = metadata ?? moduleMetaStorage.get(cls);
-
-    if (!moduleMetadata) {
-      throw new Error(`Class ${cls.name} is not decorated with @Module`);
-    }
-
-    // Load imported modules first
-    for (const importedModule of moduleMetadata.imports) {
+    // Load imported modules first (recursive)
+    for (const importedModule of imports || []) {
       this.registerModule(importedModule);
     }
 
-    // Register module itself as a provider (dependencies are now in instantiableMetaStorage)
-    this.registerProvider(cls);
-
-    for (const provider of moduleMetadata.providers) {
+    // Register all providers from this module
+    for (const provider of providers || []) {
       this.registerProvider(provider);
     }
 
     // Mark module as loaded
-    this.#modules.add(cls);
+    this.#modules.add(name);
   }
 
   private resolveProvider(plainOrCls: Provider | Constructor): Provider {
@@ -162,7 +144,7 @@ export class ContainerBuilder {
       return plainOrCls;
     }
 
-    const meta = instantiableMetaStorage.get(plainOrCls);
+    const meta = injectableMetaStorage.get(plainOrCls);
     if (!meta) {
       throw new Error(`Class ${plainOrCls.name} is missing @Injectable decorator`)
     }

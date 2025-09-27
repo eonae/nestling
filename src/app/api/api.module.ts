@@ -1,8 +1,9 @@
-import { factoryProvider, Module, OnInit } from '../../framework';
+import { factoryProvider, makeModule, Module } from '../../framework';
 import { ConfigModule } from '../config';
 import { IApiClient, IConfig, ILogger } from '../di';
 
-@Module({
+export const ApiModule = makeModule({
+  name: 'module:api',
   providers: [
     factoryProvider(
       IApiClient,
@@ -20,13 +21,4 @@ import { IApiClient, IConfig, ILogger } from '../di';
   ],
   exports: [IApiClient],
   imports: [ConfigModule],
-  deps: [ILogger],
-})
-export class ApiModule {
-  constructor(private readonly logger: ILogger) {}
-
-  @OnInit()
-  async initialize(): Promise<void> {
-    this.logger.log('ApiModule initialized');
-  }
-}
+});
