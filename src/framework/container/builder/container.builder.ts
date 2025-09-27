@@ -1,53 +1,11 @@
-import { getLifecycleHooks, Hook } from '../lifecycle';
+import { getLifecycleHooks } from '../lifecycle';
 import { Constructor } from '../common';
-import { Provider, ClassProvider, isClassProvider, isValueProvider, isFactoryProvider, isPlainProvider } from '../providers/variants';
+import { Provider, ClassProvider, isClassProvider, isValueProvider, isFactoryProvider, isPlainProvider } from '../providers';
+import { DINode, DINodeData, DINodeMetadata, DIGraph } from '../graph';
 import { stringifyToken } from '../common';
 import { BuiltContainer } from './container.built';
 import { injectableMetaStorage } from '../providers';
 import { isModule, Module } from '../modules';
-
-type ClassWithDependencies = { cls: Constructor; id: string; dependencies: string[] };
-
-/**
- * Uses depth first search to find out if the classes have circular dependency
- */
-const noCircularDependencies = (cwds: ClassWithDependencies[], instanceIds: string[], providerIds: string[]) => {
-  const inStack = new Set<string>();
-
-  const hasCircularDependency = (id: string): boolean => {
-    if (inStack.has(id)) {
-      return true;
-    }
-    inStack.add(id);
-
-    const cwd = cwds.find((c) => c.id === id);
-
-    // we reference existing instance, there won't be circular dependency past this one because instances don't have any dependencies
-    if (!cwd && (instanceIds.includes(id) || providerIds.includes(id))) {
-      inStack.delete(id);
-      return false;
-    }
-
-    if (!cwd) throw new Error(`assertion error: dependency ID missing ${id}`);
-
-    for (const dependencyId of cwd.dependencies) {
-      if (hasCircularDependency(dependencyId)) {
-        return true;
-      }
-    }
-
-    inStack.delete(id);
-    return false;
-  };
-
-  for (const cwd of cwds) {
-    if (hasCircularDependency(cwd.id)) {
-      throw new Error(
-        `Circular dependency detected between interfaces (${Array.from(inStack).join(', ')}), starting with '${cwd.id}' (class: ${cwd.cls.name}).`,
-      );
-    }
-  }
-};
 
 
 /**
@@ -60,11 +18,10 @@ const noCircularDependencies = (cwds: ClassWithDependencies[], instanceIds: stri
  * 3. Build: Instantiate all providers and return BuiltContainer
  */
 export class ContainerBuilder {
-  readonly #instances = new Map<string, unknown>();
   readonly #providers = new Map<string, Provider>();
   readonly #modules = new Set<string>(); // Store module names instead of constructors
-  readonly #initHooks: Hook[] = [];
-  readonly #destroyHooks: Hook[] = [];
+  readonly #providerToModule = new Map<string, string>(); // Отслеживание провайдеров по модулям
+  readonly #moduleExports = new Map<string, Set<string>>(); // Экспорты модулей
   #isBuilt = false;
 
   /**
@@ -77,10 +34,8 @@ export class ContainerBuilder {
     }
 
     for (const item of items) {      
-      // Check if it's a module config object
       if (isModule(item)) {
         this.registerModule(item);
-        continue;
       } else {
         this.registerProvider(item);
       }
@@ -90,53 +45,57 @@ export class ContainerBuilder {
   }
 
   /**
- * Build the container by validating dependencies and instantiating all providers.
- * This method must be called after all providers are registered.
- * Returns a BuiltContainer that provides access to instances.
- */
+* Build the container by validating dependencies and instantiating all providers.
+* This method must be called after all providers are registered.
+* Returns a BuiltContainer that provides access to instances.
+*/
   async build(): Promise<BuiltContainer> {
     if (this.#isBuilt) {
       throw new Error('Container is already built');
     }
 
-    // Step 1: Validate all dependencies for circular references
-    this.validateAllDependencies();
+    // Step 1: Instantiate all providers
+    const instances = await this.instantiateAllProviders();
 
-    // Step 2: Instantiate all providers
-    await this.instantiateAllProviders();
+    // Step 2: Build dependency graph from instances
+    const graph = this.buildDependencyGraph(instances);
+
+    // Step 3: Validate the built graph for circular dependencies
+    graph.ensureAcyclic();
 
     this.#isBuilt = true;
 
-    // Return a new BuiltContainer with the instances
-    return new BuiltContainer(
-      new Map(this.#instances),
-      this.#initHooks,
-      this.#destroyHooks
-    );
+    // Return a new BuiltContainer with the graph
+    return new BuiltContainer(graph);
   }
 
   /**
    * Load a module and all its dependencies.
    * This method handles module imports and registers providers.
    */
-  private registerModule({ name, imports, providers }: Module): void {
+  private registerModule(m: Module): void {
     // Check if module is already loaded
-    if (this.#modules.has(name)) {
+    if (this.#modules.has(m.name)) {
       return;
     }
 
     // Load imported modules first (recursive)
-    for (const importedModule of imports || []) {
+    for (const importedModule of m.imports || []) {
       this.registerModule(importedModule);
     }
 
+    // Сохраняем экспорты модуля
+    if (m.exports && m.exports.length > 0) {
+      this.#moduleExports.set(m.name, new Set(m.exports.map(token => stringifyToken(token))));
+    }
+
     // Register all providers from this module
-    for (const provider of providers || []) {
-      this.registerProvider(provider);
+    for (const provider of m.providers || []) {
+      this.registerProvider(provider, m.name);
     }
 
     // Mark module as loaded
-    this.#modules.add(name);
+    this.#modules.add(m.name);
   }
 
   private resolveProvider(plainOrCls: Provider | Constructor): Provider {
@@ -159,7 +118,7 @@ export class ContainerBuilder {
   /**
    * Register a provider in the container
    */
-  private registerProvider(plainOrCls: Provider | Constructor): void {
+  private registerProvider(plainOrCls: Provider | Constructor, moduleName?: string): void {
     const provider = this.resolveProvider(plainOrCls);
     const tokenId = stringifyToken(provider.provide);
 
@@ -169,14 +128,19 @@ export class ContainerBuilder {
 
     // Store provider metadata for lazy instantiation
     this.#providers.set(tokenId, provider);
+
+    // Отслеживаем принадлежность к модулю
+    if (moduleName) {
+      this.#providerToModule.set(tokenId, moduleName);
+    }
   }
 
   /**
    * Create instance from ClassProvider
    */
-  private createClassInstance(provider: ClassProvider): unknown {
+  private createClassInstance(provider: ClassProvider, instances: Map<string, unknown>): unknown {
     const deps = provider.deps || [];
-    const args = deps.map(dep => this.#instances.get(stringifyToken(dep)));
+    const args = deps.map(dep => instances.get(stringifyToken(dep)));
     
     // eslint-disable-next-line new-cap
     return new provider.useClass(...args);
@@ -186,69 +150,30 @@ export class ContainerBuilder {
   /**
    * Create instance from any provider type
    */
-  private async createInstance(provider: Provider): Promise<unknown> {
+  private async createInstance(provider: Provider, instances: Map<string, unknown>): Promise<unknown> {
     if (isClassProvider(provider)) {
-      return this.createClassInstance(provider);
+      return this.createClassInstance(provider, instances);
     } else if (isValueProvider(provider)) {
       return provider.useValue;
     } else if (isFactoryProvider(provider)) {
-      const args = provider.deps.map(dep => this.#instances.get(stringifyToken(dep)));
+      const args = provider.deps.map(dep => instances.get(stringifyToken(dep)));
       return await provider.useFactory(...args);
     } else {
       throw new Error('Unknown provider type');
     }
   }
 
-  /**
-   * Validate all dependencies for circular references
-   */
-  private validateAllDependencies(): void {
-    const classesWithDeps: ClassWithDependencies[] = [];
-    const visited = new Set<string>();
-
-    const collectDependencies = (id: string) => {
-      if (visited.has(id)) return;
-      visited.add(id);
-
-      const provider = this.#providers.get(id);
-      if (provider && isClassProvider(provider)) {
-        const deps = provider.deps || [];
-        classesWithDeps.push({
-          id,
-          cls: provider.useClass,
-          dependencies: deps.map(dep => stringifyToken(dep))
-        });
-
-        // Recursively collect dependencies
-        for (const dep of deps) {
-          collectDependencies(stringifyToken(dep));
-        }
-      }
-    };
-
-    // Collect dependencies for all registered providers
-    for (const tokenId of this.#providers.keys()) {
-      collectDependencies(tokenId);
-    }
-
-    if (classesWithDeps.length > 0) {
-      noCircularDependencies(
-        classesWithDeps,
-        Array.from(this.#instances.keys()),
-        Array.from(this.#providers.keys())
-      );
-    }
-  }
 
   /**
    * Instantiate all providers in dependency order
    */
-  private async instantiateAllProviders(): Promise<void> {
+  private async instantiateAllProviders(): Promise<Map<string, unknown>> {
+    const instances = new Map<string, unknown>();
     const visited = new Set<string>();
     const instantiating = new Set<string>();
 
     const instantiateProvider = async (tokenId: string): Promise<void> => {
-      if (this.#instances.has(tokenId)) {
+      if (instances.has(tokenId)) {
         return; // Already instantiated
       }
 
@@ -269,13 +194,9 @@ export class ContainerBuilder {
         }
       }
 
-
       // Create instance
-      const instance = await this.createInstance(provider);
-      this.#instances.set(tokenId, instance);
-
-      // Collect lifecycle hooks from the instance
-      this.collectLifecycleHooks(instance);
+      const instance = await this.createInstance(provider, instances);
+      instances.set(tokenId, instance);
 
       instantiating.delete(tokenId);
       visited.add(tokenId);
@@ -285,18 +206,89 @@ export class ContainerBuilder {
     for (const tokenId of this.#providers.keys()) {
       await instantiateProvider(tokenId);
     }
+
+    return instances;
   }
 
   /**
-   * Collect lifecycle hooks from an instance and add them to the appropriate arrays
+   * Build dependency graph from instantiated providers
    */
-  private collectLifecycleHooks(instance: any): void {
-    const hooks = getLifecycleHooks(instance);
+  private buildDependencyGraph(instances: Map<string, unknown>): DIGraph {
+    const graph = new DIGraph();
+    const nodes = new Map<string, DINode>();
     
-    // Add init hooks in registration order
-    this.#initHooks.push(...hooks.onInit);
+    // Prepare all node data first
+    const nodeData = new Map<string, DINodeData>();
+
+    // First pass: collect all node information
+    for (const [tokenId, instance] of instances) {
+      const provider = this.#providers.get(tokenId)!;
+      const moduleName = this.#providerToModule.get(tokenId);
+      
+      const hooks = getLifecycleHooks(instance);
+      
+      const metadata: DINodeMetadata = {
+        module: moduleName,
+        exported: moduleName ? 
+          this.#moduleExports.get(moduleName)?.has(tokenId) : 
+          undefined
+      };
+
+      const deps = isValueProvider(provider) 
+        ? [] 
+        : (provider.deps || []).map(dep => stringifyToken(dep));
+
+      nodeData.set(tokenId, {
+        instance,
+        metadata,
+        hooks,
+        deps
+      });
+    }
+
+    // Second pass: create nodes with dependencies
+
+    // Create nodes in topological order to ensure dependencies exist
+    const visited = new Set<string>();
+    const creating = new Set<string>();
     
-    // Add destroy hooks in reverse order (LIFO)
-    this.#destroyHooks.unshift(...hooks.onDestroy);
+    const createRecursive = (id: string): DINode => {
+      if (nodes.has(id)) {
+        return nodes.get(id)!;
+      }
+      
+      if (creating.has(id)) {
+        throw new Error(`Circular dependency detected during node creation: ${id}`);
+      }
+      
+      creating.add(id);
+      
+      const data = nodeData.get(id);
+      if (!data) {
+        throw new Error(`Node data not found for token: ${id}`);
+      }
+      
+      // Recursively create all dependencies first
+      const dependencies = data.deps.map(createRecursive);
+
+      const node = new DINode(id, dependencies, data);
+
+      graph.addNode(node);
+
+      nodes.set(id, node);
+      creating.delete(id);
+      visited.add(id);
+      
+      return node;
+    };
+    
+    // Create all nodes
+    for (const tokenId of nodeData.keys()) {
+      if (!visited.has(tokenId)) {
+        createRecursive(tokenId);
+      }
+    }
+
+    return graph;
   }
 }

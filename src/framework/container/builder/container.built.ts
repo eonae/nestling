@@ -1,38 +1,35 @@
+import { DAG } from '../../dag';
 import { InjectionToken } from '../common';
-import { Hook } from '../lifecycle';
+import { DINode } from '../graph';
 
 /**
  * BuiltContainer provides access to instantiated services.
  * This container is immutable and only allows getting instances.
  */
 export class BuiltContainer {
-  readonly #instances = new Map<string, unknown>();
-  readonly #initHooks: Hook[] = [];
-  readonly #destroyHooks: Hook[] = [];
+  readonly #graph: DAG<DINode>;
 
-  constructor(instances: Map<string, unknown>, initHooks: Hook[], destroyHooks: Hook[]) {
-    this.#instances = instances;
-    this.#initHooks = initHooks;
-    this.#destroyHooks = destroyHooks;
+  constructor(graph: DAG<DINode>) {
+    this.#graph = graph;
   }
 
 
   /**
-   * Initialize all modules by calling their onInit hooks in registration order
+   * Initialize all modules by calling their onInit hooks in topological order
    */
   async init(): Promise<void> {
-    for (const hook of this.#initHooks) {
-      await hook();
-    }
+    await this.#graph.traverse(async (node) => {
+      await node.runInitHooks();
+    }, { direction: 'topological' });
   }
 
   /**
-   * Destroy all modules by calling their onDestroy hooks in reverse order
+   * Destroy all modules by calling their onDestroy hooks in reverse topological order
    */
   async destroy(): Promise<void> {
-    for (const hook of this.#destroyHooks) {
-      await hook();
-    }
+    await this.#graph.traverse(async (node) => {
+      await node.runDestroyHooks();
+    }, { direction: 'reverse-topological' });
   }
 
   /**
@@ -41,11 +38,18 @@ export class BuiltContainer {
   get<T>(token: InjectionToken<T>): T {
     const id = typeof token === 'string' ? token : token.name;
 
-    // Check if instance already exists
-    if (this.#instances.has(id)) {
-      return this.#instances.get(id) as T;
+    const node = this.#graph.getNode(id);
+    if (!node) {
+      throw new Error(`Instance for interface '${id}' is not in the container.`);
     }
 
-    throw new Error(`Instance for interface '${id}' is not in the container.`);
+    return node.instance as T;
+  }
+
+  /**
+   * Get the dependency graph for advanced access
+   */
+  getGraph(): DAG<DINode> {
+    return this.#graph;
   }
 }

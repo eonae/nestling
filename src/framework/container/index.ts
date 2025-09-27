@@ -3,3 +3,4 @@ export * from './builder';
 export * from './providers';
 export * from './lifecycle';
 export * from './modules';
+export * from './graph';

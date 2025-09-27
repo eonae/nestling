@@ -1,11 +1,16 @@
 export type Hook = () => void | Promise<void>;
 
+export interface LifecycleHooks {
+  onInit: Hook[];
+  onDestroy: Hook[];
+}
+
 /**
  * Metadata for lifecycle hooks
  */
 export interface LifecycleMetadata {
-  onInitMethods: string[];
-  onDestroyMethods: string[];
+  onInit: string[];
+  onDestroy: string[];
 }
 
 /**
@@ -42,8 +47,8 @@ export function OnInit() {
     context.addInitializer(function(this) {
       // This runs when the class is defined
       const constructor = this.constructor;
-      const metadata = lifecycleMetadata.get(constructor) || { onInitMethods: [], onDestroyMethods: [] };
-      metadata.onInitMethods.push(context.name as string);
+      const metadata = lifecycleMetadata.get(constructor) || { onInit: [], onDestroy: [] };
+      metadata.onInit.push(context.name as string);
       lifecycleMetadata.set(constructor, metadata);
     });
   };
@@ -77,8 +82,8 @@ export function OnDestroy() {
     context.addInitializer(function(this) {
       // This runs when the class is defined
       const constructor = this.constructor;
-      const metadata = lifecycleMetadata.get(constructor) || { onInitMethods: [], onDestroyMethods: [] };
-      metadata.onDestroyMethods.push(context.name as string);
+      const metadata = lifecycleMetadata.get(constructor) || { onInit: [], onDestroy: [] };
+      metadata.onDestroy.push(context.name as string);
       lifecycleMetadata.set(constructor, metadata);
     });
   };
@@ -86,29 +91,21 @@ export function OnDestroy() {
 
 /**
  * Get lifecycle hooks for a given instance
+ * TODO: add correct type for instance
  */
-export function getLifecycleHooks(instance: any): { onInit: Hook[]; onDestroy: Hook[] } {
-  const metadata = lifecycleMetadata.get(instance.constructor);
+export function getLifecycleHooks(instance: any): LifecycleHooks {
+  const { onInit, onDestroy } = lifecycleMetadata.get(instance.constructor) || {};
   
-  if (!metadata) {
-    return { onInit: [], onDestroy: [] };
+  return {
+    onInit: (onInit || []).map(mname => resolveHook(instance, mname)),
+    onDestroy: (onDestroy || []).map(mname => resolveHook(instance, mname))
+  };
+}
+
+export function resolveHook(instance: any, methodName: string): Hook {
+  const method = instance[methodName];
+  if (typeof method !== 'function') {
+    throw new Error(`Method ${methodName} is not a function in ${instance.constructor.name}`);
   }
-
-  const onInitHooks: Hook[] = metadata.onInitMethods.map(methodName => {
-    const method = instance[methodName];
-    if (typeof method !== 'function') {
-      throw new Error(`Method ${methodName} is not a function in ${instance.constructor.name}`);
-    }
-    return method.bind(instance);
-  });
-
-  const onDestroyHooks: Hook[] = metadata.onDestroyMethods.map(methodName => {
-    const method = instance[methodName];
-    if (typeof method !== 'function') {
-      throw new Error(`Method ${methodName} is not a function in ${instance.constructor.name}`);
-    }
-    return method.bind(instance);
-  });
-
-  return { onInit: onInitHooks, onDestroy: onDestroyHooks };
+  return method.bind(instance);
 }

@@ -18,8 +18,8 @@ describe('Lifecycle metadata system', () => {
 
     // Вручную добавим метаданные
     lifecycleMetadata.set(TestClass, {
-      onInitMethods: ['initMethod'],
-      onDestroyMethods: ['destroyMethod']
+      onInit: ['initMethod'],
+      onDestroy: ['destroyMethod']
     });
 
     const instance = new TestClass();

@@ -29,12 +29,10 @@ export const makeToken = <T>(id: string): TokenString<T> => id as TokenString<T>
 
 export type InjectionToken<T = unknown> = TokenString<T> | Constructor<T>;
 
-export const isStringified = <T = unknown>(x: InjectionToken<T>): x is TokenString<T> => typeof x === 'string';
-
 /**
  * Get token ID from provider token
  */
 export const stringifyToken = <T>(token: TokenString<T> | Constructor<T>): TokenString<T> =>
-  isStringified(token) ? token : makeToken(token.name);
+  typeof token === 'string' ? token : makeToken(token.name);
 
 
