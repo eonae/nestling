@@ -1,0 +1,17 @@
+{
+  "name": "examples.simple-http-server",
+  "version": "0.1.0",
+  "description": "Simple HTTP server example using @nestling/transport",
+  "type": "module",
+  "scripts": {
+    "clear": "rm -rf dist",
+    "build": "yarn run clear && run -T tsc",
+    "start": "yarn run build && node dist/main.js",
+    "dev": "run -T tsx src/main.ts",
+    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint:fix": "yarn run lint --fix"
+  },
+  "dependencies": {
+    "@nestling/transport": "workspace:*"
+  }
+}
