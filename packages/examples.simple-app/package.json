@@ -1,0 +1,26 @@
+{
+  "name": "examples.simple-app",
+  "version": "0.1.0",
+  "description": "Simple nestling app example",
+  "type": "module",
+  "main": "dist/out.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/bundle.js"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc --noEmit",
+    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "start": "yarn run build && node dist/bundle.js",
+    "export-metadata": "tsx src/cli.ts",
+    "visualize": "node ../nestling.viz/dist/cli.js di-metadata.json",
+    "visualize:large": "node ../nestling.viz/dist/cli.js graph-data-large.json",
+    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint:fix": "yarn run lint --fix",
+    "test": "run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestling/container": "workspace:*"
+  }
+}

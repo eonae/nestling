@@ -1,0 +1,69 @@
+{
+  "nodes": [
+    {
+      "id": "Config",
+      "metadata": {
+        "module": "module:config",
+        "exported": true
+      },
+      "dependencies": []
+    },
+    {
+      "id": "Logger",
+      "metadata": {},
+      "dependencies": []
+    },
+    {
+      "id": "Database",
+      "metadata": {
+        "module": "module:database",
+        "exported": true
+      },
+      "dependencies": [
+        "Config",
+        "Logger"
+      ]
+    },
+    {
+      "id": "ApiClient",
+      "metadata": {
+        "module": "module:api",
+        "exported": true
+      },
+      "dependencies": [
+        "Config",
+        "Logger"
+      ]
+    },
+    {
+      "id": "AppService",
+      "metadata": {
+        "module": "module:app"
+      },
+      "dependencies": [
+        "Logger"
+      ]
+    },
+    {
+      "id": "UserRepository",
+      "metadata": {
+        "module": "module:users",
+        "exported": false
+      },
+      "dependencies": [
+        "Database"
+      ]
+    },
+    {
+      "id": "UserService",
+      "metadata": {
+        "module": "module:users",
+        "exported": true
+      },
+      "dependencies": [
+        "UserRepository",
+        "Logger"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "tsconfigs": [
+      "{projectRoot}/tsconfig.json",
+      "{projectRoot}/tsconfig.lint.json"
+    ],
+    "src": [
+      "{projectRoot}/src/**/*.ts"
+    ],
+    "test": [
+      "{projectRoot}/src/**/*",
+      "{projectRoot}/__test__/**/*",
+      "{projectRoot}/test/**/*",
+      "{projectRoot}/test.e2e/**/*",
+      "{projectRoot}/__test.e2e__/**/*",
+      "tsconfigs",
+      "{projectRoot}/jest.config.*",
+      "{projectRoot}/package.json"
+    ],
+    "build": [
+      "src",
+      "!{projectRoot}/**/*.{spec,test,test.e2e,spec.e2e}.ts",
+      "!{projectRoot}/__test__/**/*",
+      "!{projectRoot}/test/**/*",
+      "!{projectRoot}/test.e2e/**/*",
+      "!{projectRoot}/__test.e2e__/**/*",
+      "{projectRoot}/package.json",
+      "tsconfigs"
+    ],
+    "lint": [
+      "src",
+      "{projectRoot}/.eslint*",
+      "tsconfigs",
+      "{projectRoot}/package.json"
+    ]
+  },
+  "targetDefaults": {
+    "build": {
+      "inputs": [
+        "build"
+      ],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "cache": true
+    },
+    "lint": {
+      "inputs": [
+        "lint"
+      ],
+      "cache": true
+    },
+    "test": {
+      "inputs": [
+        "test"
+      ],
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": true
+    }
+  }
+}

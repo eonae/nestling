@@ -1,0 +1,1293 @@
+{
+  "nodes": [
+    {
+      "id": "AuthConfig",
+      "metadata": {
+        "module": "module:auth",
+        "exported": true
+      },
+      "dependencies": []
+    },
+    {
+      "id": "AuthProvider",
+      "metadata": {
+        "module": "module:auth",
+        "exported": true
+      },
+      "dependencies": ["AuthConfig", "CryptoService"]
+    },
+    {
+      "id": "TokenManager",
+      "metadata": {
+        "module": "module:auth",
+        "exported": false
+      },
+      "dependencies": ["AuthConfig", "RedisClient"]
+    },
+    {
+      "id": "SessionStore",
+      "metadata": {
+        "module": "module:auth",
+        "exported": false
+      },
+      "dependencies": ["TokenManager", "DatabaseClient"]
+    },
+    {
+      "id": "AuthMiddleware",
+      "metadata": {
+        "module": "module:auth",
+        "exported": true
+      },
+      "dependencies": ["AuthProvider", "TokenManager"]
+    },
+    {
+      "id": "PermissionChecker",
+      "metadata": {
+        "module": "module:auth",
+        "exported": false
+      },
+      "dependencies": ["AuthProvider"]
+    },
+    {
+      "id": "LoginController",
+      "metadata": {
+        "module": "module:auth",
+        "exported": true
+      },
+      "dependencies": ["AuthProvider", "SessionStore", "ValidationService"]
+    },
+    {
+      "id": "LogoutHandler",
+      "metadata": {
+        "module": "module:auth",
+        "exported": false
+      },
+      "dependencies": ["SessionStore", "TokenManager"]
+    },
+
+    {
+      "id": "DatabaseClient",
+      "metadata": {
+        "module": "module:database",
+        "exported": true
+      },
+      "dependencies": ["DatabaseConfig", "ConnectionPool"]
+    },
+    {
+      "id": "DatabaseConfig",
+      "metadata": {
+        "module": "module:database",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "ConnectionPool",
+      "metadata": {
+        "module": "module:database",
+        "exported": false
+      },
+      "dependencies": ["DatabaseConfig"]
+    },
+    {
+      "id": "QueryBuilder",
+      "metadata": {
+        "module": "module:database",
+        "exported": true
+      },
+      "dependencies": ["DatabaseClient"]
+    },
+    {
+      "id": "MigrationRunner",
+      "metadata": {
+        "module": "module:database",
+        "exported": true
+      },
+      "dependencies": ["DatabaseClient", "FileSystem"]
+    },
+    {
+      "id": "TransactionManager",
+      "metadata": {
+        "module": "module:database",
+        "exported": false
+      },
+      "dependencies": ["DatabaseClient"]
+    },
+    {
+      "id": "SchemaValidator",
+      "metadata": {
+        "module": "module:database",
+        "exported": false
+      },
+      "dependencies": ["QueryBuilder"]
+    },
+
+    {
+      "id": "RedisClient",
+      "metadata": {
+        "module": "module:cache",
+        "exported": true
+      },
+      "dependencies": ["CacheConfig"]
+    },
+    {
+      "id": "CacheConfig",
+      "metadata": {
+        "module": "module:cache",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "CacheManager",
+      "metadata": {
+        "module": "module:cache",
+        "exported": true
+      },
+      "dependencies": ["RedisClient", "Serializer"]
+    },
+    {
+      "id": "Serializer",
+      "metadata": {
+        "module": "module:cache",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "CacheMiddleware",
+      "metadata": {
+        "module": "module:cache",
+        "exported": true
+      },
+      "dependencies": ["CacheManager"]
+    },
+    {
+      "id": "InvalidationService",
+      "metadata": {
+        "module": "module:cache",
+        "exported": false
+      },
+      "dependencies": ["CacheManager", "EventBus"]
+    },
+
+    {
+      "id": "HttpClient",
+      "metadata": {
+        "module": "module:http",
+        "exported": true
+      },
+      "dependencies": ["HttpConfig", "RetryPolicy"]
+    },
+    {
+      "id": "HttpConfig",
+      "metadata": {
+        "module": "module:http",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "RetryPolicy",
+      "metadata": {
+        "module": "module:http",
+        "exported": false
+      },
+      "dependencies": ["HttpConfig"]
+    },
+    {
+      "id": "RequestInterceptor",
+      "metadata": {
+        "module": "module:http",
+        "exported": false
+      },
+      "dependencies": ["HttpClient"]
+    },
+    {
+      "id": "ResponseTransformer",
+      "metadata": {
+        "module": "module:http",
+        "exported": false
+      },
+      "dependencies": ["HttpClient"]
+    },
+    {
+      "id": "ApiGateway",
+      "metadata": {
+        "module": "module:http",
+        "exported": true
+      },
+      "dependencies": ["HttpClient", "AuthMiddleware", "RateLimiter"]
+    },
+    {
+      "id": "WebSocketClient",
+      "metadata": {
+        "module": "module:http",
+        "exported": true
+      },
+      "dependencies": ["HttpConfig", "EventBus"]
+    },
+
+    {
+      "id": "Logger",
+      "metadata": {
+        "module": "module:logging",
+        "exported": true
+      },
+      "dependencies": ["LogConfig", "LogTransport"]
+    },
+    {
+      "id": "LogConfig",
+      "metadata": {
+        "module": "module:logging",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "LogTransport",
+      "metadata": {
+        "module": "module:logging",
+        "exported": false
+      },
+      "dependencies": ["LogConfig"]
+    },
+    {
+      "id": "LogFormatter",
+      "metadata": {
+        "module": "module:logging",
+        "exported": false
+      },
+      "dependencies": ["LogConfig"]
+    },
+    {
+      "id": "LogAggregator",
+      "metadata": {
+        "module": "module:logging",
+        "exported": true
+      },
+      "dependencies": ["Logger", "DatabaseClient"]
+    },
+    {
+      "id": "AuditLogger",
+      "metadata": {
+        "module": "module:logging",
+        "exported": true
+      },
+      "dependencies": ["Logger", "EventBus"]
+    },
+
+    {
+      "id": "EventBus",
+      "metadata": {
+        "module": "module:events",
+        "exported": true
+      },
+      "dependencies": ["EventConfig"]
+    },
+    {
+      "id": "EventConfig",
+      "metadata": {
+        "module": "module:events",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "EventDispatcher",
+      "metadata": {
+        "module": "module:events",
+        "exported": false
+      },
+      "dependencies": ["EventBus"]
+    },
+    {
+      "id": "EventListener",
+      "metadata": {
+        "module": "module:events",
+        "exported": false
+      },
+      "dependencies": ["EventBus"]
+    },
+    {
+      "id": "EventStore",
+      "metadata": {
+        "module": "module:events",
+        "exported": true
+      },
+      "dependencies": ["EventBus", "DatabaseClient"]
+    },
+    {
+      "id": "EventReplay",
+      "metadata": {
+        "module": "module:events",
+        "exported": false
+      },
+      "dependencies": ["EventStore"]
+    },
+
+    {
+      "id": "ValidationService",
+      "metadata": {
+        "module": "module:validation",
+        "exported": true
+      },
+      "dependencies": ["ValidationConfig", "SchemaRegistry"]
+    },
+    {
+      "id": "ValidationConfig",
+      "metadata": {
+        "module": "module:validation",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "SchemaRegistry",
+      "metadata": {
+        "module": "module:validation",
+        "exported": false
+      },
+      "dependencies": ["ValidationConfig"]
+    },
+    {
+      "id": "ValidatorChain",
+      "metadata": {
+        "module": "module:validation",
+        "exported": false
+      },
+      "dependencies": ["ValidationService"]
+    },
+    {
+      "id": "CustomValidators",
+      "metadata": {
+        "module": "module:validation",
+        "exported": false
+      },
+      "dependencies": ["ValidationService"]
+    },
+    {
+      "id": "ValidationMiddleware",
+      "metadata": {
+        "module": "module:validation",
+        "exported": true
+      },
+      "dependencies": ["ValidationService"]
+    },
+
+    {
+      "id": "CryptoService",
+      "metadata": {
+        "module": "module:crypto",
+        "exported": true
+      },
+      "dependencies": ["CryptoConfig"]
+    },
+    {
+      "id": "CryptoConfig",
+      "metadata": {
+        "module": "module:crypto",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "HashService",
+      "metadata": {
+        "module": "module:crypto",
+        "exported": false
+      },
+      "dependencies": ["CryptoService"]
+    },
+    {
+      "id": "EncryptionService",
+      "metadata": {
+        "module": "module:crypto",
+        "exported": false
+      },
+      "dependencies": ["CryptoService"]
+    },
+    {
+      "id": "KeyManager",
+      "metadata": {
+        "module": "module:crypto",
+        "exported": true
+      },
+      "dependencies": ["CryptoConfig", "FileSystem"]
+    },
+    {
+      "id": "SignatureService",
+      "metadata": {
+        "module": "module:crypto",
+        "exported": true
+      },
+      "dependencies": ["CryptoService", "KeyManager"]
+    },
+
+    {
+      "id": "FileSystem",
+      "metadata": {
+        "module": "module:filesystem",
+        "exported": true
+      },
+      "dependencies": ["FileConfig"]
+    },
+    {
+      "id": "FileConfig",
+      "metadata": {
+        "module": "module:filesystem",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "FileUpload",
+      "metadata": {
+        "module": "module:filesystem",
+        "exported": true
+      },
+      "dependencies": ["FileSystem", "ValidationService"]
+    },
+    {
+      "id": "FileDownload",
+      "metadata": {
+        "module": "module:filesystem",
+        "exported": true
+      },
+      "dependencies": ["FileSystem", "AuthMiddleware"]
+    },
+    {
+      "id": "FileProcessor",
+      "metadata": {
+        "module": "module:filesystem",
+        "exported": false
+      },
+      "dependencies": ["FileSystem"]
+    },
+    {
+      "id": "ImageProcessor",
+      "metadata": {
+        "module": "module:filesystem",
+        "exported": true
+      },
+      "dependencies": ["FileProcessor"]
+    },
+
+    {
+      "id": "EmailService",
+      "metadata": {
+        "module": "module:email",
+        "exported": true
+      },
+      "dependencies": ["EmailConfig", "TemplateEngine"]
+    },
+    {
+      "id": "EmailConfig",
+      "metadata": {
+        "module": "module:email",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "TemplateEngine",
+      "metadata": {
+        "module": "module:email",
+        "exported": false
+      },
+      "dependencies": ["EmailConfig"]
+    },
+    {
+      "id": "EmailQueue",
+      "metadata": {
+        "module": "module:email",
+        "exported": false
+      },
+      "dependencies": ["EmailService", "QueueManager"]
+    },
+    {
+      "id": "EmailValidator",
+      "metadata": {
+        "module": "module:email",
+        "exported": false
+      },
+      "dependencies": ["ValidationService"]
+    },
+    {
+      "id": "SmtpClient",
+      "metadata": {
+        "module": "module:email",
+        "exported": false
+      },
+      "dependencies": ["EmailConfig"]
+    },
+
+    {
+      "id": "QueueManager",
+      "metadata": {
+        "module": "module:queue",
+        "exported": true
+      },
+      "dependencies": ["QueueConfig", "RedisClient"]
+    },
+    {
+      "id": "QueueConfig",
+      "metadata": {
+        "module": "module:queue",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "JobProcessor",
+      "metadata": {
+        "module": "module:queue",
+        "exported": false
+      },
+      "dependencies": ["QueueManager"]
+    },
+    {
+      "id": "JobScheduler",
+      "metadata": {
+        "module": "module:queue",
+        "exported": true
+      },
+      "dependencies": ["QueueManager", "CronParser"]
+    },
+    {
+      "id": "CronParser",
+      "metadata": {
+        "module": "module:queue",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "RetryHandler",
+      "metadata": {
+        "module": "module:queue",
+        "exported": false
+      },
+      "dependencies": ["QueueManager"]
+    },
+
+    {
+      "id": "UserService",
+      "metadata": {
+        "module": "module:users",
+        "exported": true
+      },
+      "dependencies": ["UserRepository", "ValidationService", "EventBus"]
+    },
+    {
+      "id": "UserRepository",
+      "metadata": {
+        "module": "module:users",
+        "exported": false
+      },
+      "dependencies": ["DatabaseClient", "QueryBuilder"]
+    },
+    {
+      "id": "UserController",
+      "metadata": {
+        "module": "module:users",
+        "exported": true
+      },
+      "dependencies": ["UserService", "AuthMiddleware"]
+    },
+    {
+      "id": "UserValidator",
+      "metadata": {
+        "module": "module:users",
+        "exported": false
+      },
+      "dependencies": ["ValidationService"]
+    },
+    {
+      "id": "ProfileService",
+      "metadata": {
+        "module": "module:users",
+        "exported": true
+      },
+      "dependencies": ["UserService", "FileUpload"]
+    },
+    {
+      "id": "UserPreferences",
+      "metadata": {
+        "module": "module:users",
+        "exported": false
+      },
+      "dependencies": ["UserService", "CacheManager"]
+    },
+
+    {
+      "id": "ProductService",
+      "metadata": {
+        "module": "module:products",
+        "exported": true
+      },
+      "dependencies": ["ProductRepository", "ValidationService"]
+    },
+    {
+      "id": "ProductRepository",
+      "metadata": {
+        "module": "module:products",
+        "exported": false
+      },
+      "dependencies": ["DatabaseClient", "QueryBuilder"]
+    },
+    {
+      "id": "ProductController",
+      "metadata": {
+        "module": "module:products",
+        "exported": true
+      },
+      "dependencies": ["ProductService", "AuthMiddleware"]
+    },
+    {
+      "id": "CategoryService",
+      "metadata": {
+        "module": "module:products",
+        "exported": true
+      },
+      "dependencies": ["ProductRepository", "CacheManager"]
+    },
+    {
+      "id": "PriceCalculator",
+      "metadata": {
+        "module": "module:products",
+        "exported": false
+      },
+      "dependencies": ["ProductService"]
+    },
+    {
+      "id": "InventoryTracker",
+      "metadata": {
+        "module": "module:products",
+        "exported": true
+      },
+      "dependencies": ["ProductService", "EventBus"]
+    },
+
+    {
+      "id": "OrderService",
+      "metadata": {
+        "module": "module:orders",
+        "exported": true
+      },
+      "dependencies": ["OrderRepository", "ProductService", "UserService"]
+    },
+    {
+      "id": "OrderRepository",
+      "metadata": {
+        "module": "module:orders",
+        "exported": false
+      },
+      "dependencies": ["DatabaseClient", "TransactionManager"]
+    },
+    {
+      "id": "OrderController",
+      "metadata": {
+        "module": "module:orders",
+        "exported": true
+      },
+      "dependencies": ["OrderService", "AuthMiddleware"]
+    },
+    {
+      "id": "OrderValidator",
+      "metadata": {
+        "module": "module:orders",
+        "exported": false
+      },
+      "dependencies": ["ValidationService", "ProductService"]
+    },
+    {
+      "id": "OrderProcessor",
+      "metadata": {
+        "module": "module:orders",
+        "exported": false
+      },
+      "dependencies": ["OrderService", "PaymentService"]
+    },
+    {
+      "id": "InvoiceGenerator",
+      "metadata": {
+        "module": "module:orders",
+        "exported": true
+      },
+      "dependencies": ["OrderService", "TemplateEngine"]
+    },
+
+    {
+      "id": "PaymentService",
+      "metadata": {
+        "module": "module:payment",
+        "exported": true
+      },
+      "dependencies": ["PaymentConfig", "CryptoService"]
+    },
+    {
+      "id": "PaymentConfig",
+      "metadata": {
+        "module": "module:payment",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "PaymentGateway",
+      "metadata": {
+        "module": "module:payment",
+        "exported": false
+      },
+      "dependencies": ["PaymentService", "HttpClient"]
+    },
+    {
+      "id": "PaymentProcessor",
+      "metadata": {
+        "module": "module:payment",
+        "exported": false
+      },
+      "dependencies": ["PaymentGateway", "EventBus"]
+    },
+    {
+      "id": "RefundService",
+      "metadata": {
+        "module": "module:payment",
+        "exported": true
+      },
+      "dependencies": ["PaymentService", "OrderService"]
+    },
+    {
+      "id": "PaymentValidator",
+      "metadata": {
+        "module": "module:payment",
+        "exported": false
+      },
+      "dependencies": ["ValidationService"]
+    },
+
+    {
+      "id": "NotificationService",
+      "metadata": {
+        "module": "module:notifications",
+        "exported": true
+      },
+      "dependencies": ["NotificationConfig", "TemplateEngine"]
+    },
+    {
+      "id": "NotificationConfig",
+      "metadata": {
+        "module": "module:notifications",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "PushNotificationService",
+      "metadata": {
+        "module": "module:notifications",
+        "exported": false
+      },
+      "dependencies": ["NotificationService", "HttpClient"]
+    },
+    {
+      "id": "EmailNotificationService",
+      "metadata": {
+        "module": "module:notifications",
+        "exported": false
+      },
+      "dependencies": ["NotificationService", "EmailService"]
+    },
+    {
+      "id": "SmsService",
+      "metadata": {
+        "module": "module:notifications",
+        "exported": true
+      },
+      "dependencies": ["NotificationService", "HttpClient"]
+    },
+    {
+      "id": "NotificationQueue",
+      "metadata": {
+        "module": "module:notifications",
+        "exported": false
+      },
+      "dependencies": ["NotificationService", "QueueManager"]
+    },
+
+    {
+      "id": "AnalyticsService",
+      "metadata": {
+        "module": "module:analytics",
+        "exported": true
+      },
+      "dependencies": ["AnalyticsConfig", "EventBus"]
+    },
+    {
+      "id": "AnalyticsConfig",
+      "metadata": {
+        "module": "module:analytics",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "MetricsCollector",
+      "metadata": {
+        "module": "module:analytics",
+        "exported": false
+      },
+      "dependencies": ["AnalyticsService", "DatabaseClient"]
+    },
+    {
+      "id": "ReportGenerator",
+      "metadata": {
+        "module": "module:analytics",
+        "exported": true
+      },
+      "dependencies": ["AnalyticsService", "TemplateEngine"]
+    },
+    {
+      "id": "DashboardService",
+      "metadata": {
+        "module": "module:analytics",
+        "exported": true
+      },
+      "dependencies": ["AnalyticsService", "CacheManager"]
+    },
+    {
+      "id": "DataExporter",
+      "metadata": {
+        "module": "module:analytics",
+        "exported": false
+      },
+      "dependencies": ["AnalyticsService", "FileSystem"]
+    },
+
+    {
+      "id": "SearchService",
+      "metadata": {
+        "module": "module:search",
+        "exported": true
+      },
+      "dependencies": ["SearchConfig", "ElasticsearchClient"]
+    },
+    {
+      "id": "SearchConfig",
+      "metadata": {
+        "module": "module:search",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "ElasticsearchClient",
+      "metadata": {
+        "module": "module:search",
+        "exported": false
+      },
+      "dependencies": ["SearchConfig"]
+    },
+    {
+      "id": "IndexManager",
+      "metadata": {
+        "module": "module:search",
+        "exported": false
+      },
+      "dependencies": ["ElasticsearchClient"]
+    },
+    {
+      "id": "SearchController",
+      "metadata": {
+        "module": "module:search",
+        "exported": true
+      },
+      "dependencies": ["SearchService", "ValidationService"]
+    },
+    {
+      "id": "AutocompleteService",
+      "metadata": {
+        "module": "module:search",
+        "exported": true
+      },
+      "dependencies": ["SearchService", "CacheManager"]
+    },
+
+    {
+      "id": "RateLimiter",
+      "metadata": {
+        "module": "module:ratelimit",
+        "exported": true
+      },
+      "dependencies": ["RateLimitConfig", "RedisClient"]
+    },
+    {
+      "id": "RateLimitConfig",
+      "metadata": {
+        "module": "module:ratelimit",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "RateLimitMiddleware",
+      "metadata": {
+        "module": "module:ratelimit",
+        "exported": true
+      },
+      "dependencies": ["RateLimiter"]
+    },
+    {
+      "id": "ThrottleService",
+      "metadata": {
+        "module": "module:ratelimit",
+        "exported": false
+      },
+      "dependencies": ["RateLimiter"]
+    },
+    {
+      "id": "QuotaManager",
+      "metadata": {
+        "module": "module:ratelimit",
+        "exported": true
+      },
+      "dependencies": ["RateLimiter", "UserService"]
+    },
+
+    {
+      "id": "SecurityService",
+      "metadata": {
+        "module": "module:security",
+        "exported": true
+      },
+      "dependencies": ["SecurityConfig", "CryptoService"]
+    },
+    {
+      "id": "SecurityConfig",
+      "metadata": {
+        "module": "module:security",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "SecurityMiddleware",
+      "metadata": {
+        "module": "module:security",
+        "exported": true
+      },
+      "dependencies": ["SecurityService", "RateLimiter"]
+    },
+    {
+      "id": "CsrfProtection",
+      "metadata": {
+        "module": "module:security",
+        "exported": false
+      },
+      "dependencies": ["SecurityService"]
+    },
+    {
+      "id": "XssProtection",
+      "metadata": {
+        "module": "module:security",
+        "exported": false
+      },
+      "dependencies": ["SecurityService"]
+    },
+    {
+      "id": "SqlInjectionProtection",
+      "metadata": {
+        "module": "module:security",
+        "exported": false
+      },
+      "dependencies": ["SecurityService", "ValidationService"]
+    },
+
+    {
+      "id": "MonitoringService",
+      "metadata": {
+        "module": "module:monitoring",
+        "exported": true
+      },
+      "dependencies": ["MonitoringConfig", "MetricsCollector"]
+    },
+    {
+      "id": "MonitoringConfig",
+      "metadata": {
+        "module": "module:monitoring",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "HealthChecker",
+      "metadata": {
+        "module": "module:monitoring",
+        "exported": true
+      },
+      "dependencies": ["MonitoringService", "DatabaseClient"]
+    },
+    {
+      "id": "AlertManager",
+      "metadata": {
+        "module": "module:monitoring",
+        "exported": false
+      },
+      "dependencies": ["MonitoringService", "NotificationService"]
+    },
+    {
+      "id": "PerformanceTracker",
+      "metadata": {
+        "module": "module:monitoring",
+        "exported": false
+      },
+      "dependencies": ["MonitoringService"]
+    },
+    {
+      "id": "ErrorTracker",
+      "metadata": {
+        "module": "module:monitoring",
+        "exported": true
+      },
+      "dependencies": ["MonitoringService", "Logger"]
+    },
+
+    {
+      "id": "ConfigService",
+      "metadata": {
+        "module": "module:config",
+        "exported": true
+      },
+      "dependencies": ["ConfigLoader", "EnvironmentReader"]
+    },
+    {
+      "id": "ConfigLoader",
+      "metadata": {
+        "module": "module:config",
+        "exported": false
+      },
+      "dependencies": ["FileSystem"]
+    },
+    {
+      "id": "EnvironmentReader",
+      "metadata": {
+        "module": "module:config",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "ConfigValidator",
+      "metadata": {
+        "module": "module:config",
+        "exported": false
+      },
+      "dependencies": ["ConfigService", "ValidationService"]
+    },
+    {
+      "id": "ConfigWatcher",
+      "metadata": {
+        "module": "module:config",
+        "exported": true
+      },
+      "dependencies": ["ConfigService", "FileSystem", "EventBus"]
+    },
+    {
+      "id": "SecretManager",
+      "metadata": {
+        "module": "module:config",
+        "exported": true
+      },
+      "dependencies": ["ConfigService", "CryptoService"]
+    },
+
+    {
+      "id": "ApiDocumentationService",
+      "metadata": {
+        "module": "module:documentation",
+        "exported": true
+      },
+      "dependencies": ["DocumentationConfig", "TemplateEngine"]
+    },
+    {
+      "id": "DocumentationConfig",
+      "metadata": {
+        "module": "module:documentation",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "SwaggerGenerator",
+      "metadata": {
+        "module": "module:documentation",
+        "exported": false
+      },
+      "dependencies": ["ApiDocumentationService"]
+    },
+    {
+      "id": "MarkdownProcessor",
+      "metadata": {
+        "module": "module:documentation",
+        "exported": false
+      },
+      "dependencies": ["ApiDocumentationService"]
+    },
+    {
+      "id": "DocumentationServer",
+      "metadata": {
+        "module": "module:documentation",
+        "exported": true
+      },
+      "dependencies": ["ApiDocumentationService", "HttpClient"]
+    },
+
+    {
+      "id": "TestRunner",
+      "metadata": {
+        "module": "module:testing",
+        "exported": true
+      },
+      "dependencies": ["TestConfig", "DatabaseClient"]
+    },
+    {
+      "id": "TestConfig",
+      "metadata": {
+        "module": "module:testing",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "MockService",
+      "metadata": {
+        "module": "module:testing",
+        "exported": false
+      },
+      "dependencies": ["TestRunner"]
+    },
+    {
+      "id": "TestDataGenerator",
+      "metadata": {
+        "module": "module:testing",
+        "exported": false
+      },
+      "dependencies": ["TestRunner", "CryptoService"]
+    },
+    {
+      "id": "AssertionHelper",
+      "metadata": {
+        "module": "module:testing",
+        "exported": true
+      },
+      "dependencies": ["TestRunner"]
+    },
+    {
+      "id": "CoverageReporter",
+      "metadata": {
+        "module": "module:testing",
+        "exported": true
+      },
+      "dependencies": ["TestRunner", "FileSystem"]
+    },
+
+    {
+      "id": "DeploymentService",
+      "metadata": {
+        "module": "module:deployment",
+        "exported": true
+      },
+      "dependencies": ["DeploymentConfig", "HttpClient"]
+    },
+    {
+      "id": "DeploymentConfig",
+      "metadata": {
+        "module": "module:deployment",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "DockerManager",
+      "metadata": {
+        "module": "module:deployment",
+        "exported": false
+      },
+      "dependencies": ["DeploymentService"]
+    },
+    {
+      "id": "KubernetesManager",
+      "metadata": {
+        "module": "module:deployment",
+        "exported": false
+      },
+      "dependencies": ["DeploymentService", "ConfigService"]
+    },
+    {
+      "id": "HealthCheckService",
+      "metadata": {
+        "module": "module:deployment",
+        "exported": true
+      },
+      "dependencies": ["DeploymentService", "MonitoringService"]
+    },
+    {
+      "id": "RollbackService",
+      "metadata": {
+        "module": "module:deployment",
+        "exported": true
+      },
+      "dependencies": ["DeploymentService", "Logger"]
+    },
+
+    {
+      "id": "BackupService",
+      "metadata": {
+        "module": "module:backup",
+        "exported": true
+      },
+      "dependencies": ["BackupConfig", "DatabaseClient"]
+    },
+    {
+      "id": "BackupConfig",
+      "metadata": {
+        "module": "module:backup",
+        "exported": false
+      },
+      "dependencies": []
+    },
+    {
+      "id": "BackupScheduler",
+      "metadata": {
+        "module": "module:backup",
+        "exported": false
+      },
+      "dependencies": ["BackupService", "CronParser"]
+    },
+    {
+      "id": "RestoreService",
+      "metadata": {
+        "module": "module:backup",
+        "exported": true
+      },
+      "dependencies": ["BackupService", "ValidationService"]
+    },
+    {
+      "id": "BackupValidator",
+      "metadata": {
+        "module": "module:backup",
+        "exported": false
+      },
+      "dependencies": ["BackupService"]
+    },
+    {
+      "id": "CompressionService",
+      "metadata": {
+        "module": "module:backup",
+        "exported": false
+      },
+      "dependencies": ["BackupService"]
+    }
+  ]
+}

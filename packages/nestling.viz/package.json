@@ -1,0 +1,43 @@
+{
+  "name": "@nestling/viz",
+  "version": "0.1.0",
+  "description": "Interactive 3D visualization tool for Nestling DI container",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "nestling-viz": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "build": "yarn run clear && yarn build:cli && yarn build:web",
+    "build:cli": "node esbuild.config.js",
+    "build:web": "run -T vite build",
+    "dev": "run -T vite",
+    "preview": "run -T vite preview",
+    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint:fix": "yarn run lint --fix",
+    "test": "run -T jest --passWithNoTests"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "3d-force-graph": "^1.71.0",
+    "@common/static-server": "workspace:*",
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "open": "^10.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0"
+  }
+}

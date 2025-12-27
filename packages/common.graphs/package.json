@@ -1,0 +1,23 @@
+{
+  "name": "@common/graphs",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/out.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "build": "yarn run clear && run -T tsc",
+    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint:fix": "yarn run lint --fix",
+    "test": "run -T jest --passWithNoTests"
+  },
+  "author": "",
+  "license": "MIT"
+}
