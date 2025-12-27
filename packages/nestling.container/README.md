@@ -1,18 +1,49 @@
 # @nestling/container
 
-A lightweight, type-safe dependency injection container for TypeScript. Inspired by NestJS but designed to be simpler and more explicit.
+A lightweight, type-safe dependency injection container for TypeScript with zero dependencies. Built on standard JavaScript decorators, it serves as the foundation for the Nestling.js framework.
 
-## Why Another DI Container?
+## Disclaimer
 
-If you've worked with NestJS, you know its DI system is powerful but comes with complexity - decorators on everything, modules as classes, metadata reflection, and a learning curve that can be steep.
+`Nestling` is my personal take on Nest.js - a framework I both love and find frustrating.
 
-**@nestling/container** takes the best ideas from NestJS (and Angular before it) but simplifies the implementation:
+Essentially, it takes what my teams and I actually use from Nest.js while leaving behind what we don't need. What's "unnecessary" is subjective, of course. The journey that led me to create yet another JS framework will be documented separately - it might be interesting.
 
-- ✅ Modules are plain objects, not classes - no unnecessary abstraction
-- ✅ Full TypeScript type safety without experimental decorators flags (uses stage 3 decorators)
-- ✅ Explicit provider definitions alongside convenient shortcuts
-- ✅ Built-in dependency graph for debugging and visualization
-- ✅ Lifecycle hooks where you need them - on services, not modules
+But not here.
+
+What matters here is that while Nest.js positions itself as an opinionated solution, `Nestling` is even more opinionated.
+
+## ECMAScript Decorators
+
+Before diving into detailed comparisons and container features, it's worth mentioning a key difference: `Nestling` doesn't use experimental TypeScript decorators. Instead, it uses standard JavaScript decorators from the ES specification.
+
+I miss parameter decorators too, but the standard actually has several advantages, discussed below.
+
+## How Nestling DI Differs from Nest.js (and What They Share)
+
+**What's NOT here:**
+- `ForwardRef` - because circular dependencies **should never exist!**
+- `REQUEST` and `TRANSIENT` scopes for providers. Strictly speaking, Scope.REQUEST can't really be a DI container's responsibility. It's a complex feature that tightly couples the container with the application using it. Instead, `@nestling/app` provides a convenient wrapper around AsyncLocalStorage. As for Scope.TRANSIENT, there's an On-Demand injection mechanism (described below).
+- Modules as classes. And consequently, no lifecycle hooks on modules, configure methods, or other Nest.js module features. In Nest, the order of hook execution is unclear, especially with module hooks. Few people can say off the top of their head whether `OnModuleInit` runs first on the module or on its services.
+
+**What IS here:**
+- Three familiar provider types: value, class, and factory
+- Simplified class provider declaration using the `@Injectable` decorator
+- Injection tokens, just like in Nest.js, can be class references or strings, but thanks to [branded types](https://dev.to/themuneebh/typescript-branded-types-in-depth-overview-and-use-cases-60e) and helper functions, working with strings is more convenient
+- Lifecycle methods `OnInit` and `OnDestroy` for providers. Unlike Nest.js, they execute in strict **topological order** when you call the corresponding methods (`init` and `destroy`) on the container.
+- A module system simpler than Nest.js, and optional. You can register providers without modules.
+- Auto-registration of providers and modules through decorators and relationships. If all your providers are organized into modules and those modules import into a root module, you only need to register the root module in the container. Dependencies are pulled in automatically.
+
+## Standalone Usage (Including in Browsers)
+
+Yes, another important difference. While the Nest container is built into the application and inseparable, `@nestling/container` is an independent, small package with zero dependencies that can be used anywhere: frontend, CLI applications, even with your favorite framework like Fastify or, God forbid, Express.
+
+> A frontend tech lead I know requested lazy provider initialization - so dependency subtrees in the container would be created when `container.get(...)` is called. Still thinking about this, as it somewhat complicates the implementation, which I desperately resist.
+
+## On Simplicity
+
+Few lines of code, good inline documentation via JSDoc and comments, zero dependencies, and clear algorithms - all valuable in themselves.
+
+But they're also foundations for security, which is becoming an increasingly pressing concern.
 
 ## Installation
 
@@ -22,9 +53,15 @@ npm install @nestling/container
 
 ## Core Concepts
 
+### DI → DIP → IoC → IoC Container
+
+If you've used Nest.js or libraries like InversifyJS, or if you're well-versed in theory, you don't need an explanation of what an IoC (DI) container is and what problem it solves.
+
+If not, I recommend reading something [like this](https://martinfowler.com/articles/injection.html).
+
 ### Providers: The Foundation
 
-In the DI world, a **provider** tells the container how to create an instance of something. Providers are plain objects with a `provide` field that specifies the **token** (the key) and one of three creation strategies:
+In the DI world, a **provider** is like a blueprint telling the container how to create an instance of something. In `Nestling`, just like in Nest.js, providers are either plain definition objects (`ProviderDefinition`) or classes with the `@Injectable` decorator.
 
 ```typescript
 import { classProvider, valueProvider, factoryProvider } from '@nestling/container';
@@ -71,6 +108,8 @@ const ILogger = makeToken<ILogger>('ILogger');
 // Use it to register and retrieve
 container.get(ILogger);
 ```
+
+**Why is this needed?** Interfaces and types in TypeScript are ephemeral - they disappear during transpilation to JavaScript. The `makeToken` function allows you to **materialize** them: create a runtime representation of the type that can be used as a key in the container. Essentially, it's a branded string with type information attached for TypeScript.
 
 This is exactly how NestJS does it with injection tokens, but here it's more explicit and type-safe.
 
@@ -226,12 +265,73 @@ The container calls these hooks in the right order:
 
 This is similar to NestJS's `OnModuleInit` and `OnModuleDestroy`, but without the module class ceremony.
 
+#### Important: Hook Registration and Testing
+
+Lifecycle hook metadata is registered when **each class instance is created** (via the `context.addInitializer` mechanism in decorators). This means if you create multiple instances of the same class, metadata can accumulate.
+
+In normal usage, this isn't a problem since the container creates singletons - one instance per class. However, in **tests** this can cause unexpected behavior if classes are reused between tests:
+
+```typescript
+// ❌ Problem: class defined outside beforeEach
+@Injectable(IService, [])
+class MyService {
+  @OnInit()
+  async init() { /* ... */ }
+}
+
+describe('Tests', () => {
+  it('test 1', async () => {
+    const container = await new ContainerBuilder()
+      .register(classProvider(IService, MyService))
+      .build();
+    // First instance creation - metadata registered
+  });
+
+  it('test 2', async () => {
+    const container = await new ContainerBuilder()
+      .register(classProvider(IService, MyService))
+      .build();
+    // Second instance creation - metadata added again!
+  });
+});
+
+// ✅ Solution: redefine classes in beforeEach
+describe('Tests', () => {
+  let MyService: any;
+
+  beforeEach(() => {
+    @Injectable(IService, [])
+    class MyServiceImpl {
+      @OnInit()
+      async init() { /* ... */ }
+    }
+    MyService = MyServiceImpl;
+  });
+
+  it('test 1', async () => {
+    const container = await new ContainerBuilder()
+      .register(classProvider(IService, MyService))
+      .build();
+    // Each test uses a fresh constructor
+  });
+});
+```
+
+Redefining classes in `beforeEach` ensures each test works with clean metadata.
+
+**See also**: the "Dynamic Providers" section below contains an additional warning about metadata accumulation when creating multiple instances of the same class.
+
 ### Dynamic Providers: Tokens with Parameters
 
 Sometimes you need multiple instances of the same interface with different configurations. For example, different loggers for different parts of your app:
 
 ```typescript
-// In @examples.simple-app
+// Define the logger interface
+interface ILogger {
+  log(message: string): void;
+}
+
+// Create a factory function for tokens (example from @examples.simple-app)
 const ILogger = (context: string) => makeToken<ILogger>(`ILogger:${context}`);
 
 // In a module, use a factory function to dynamically create providers:
@@ -259,6 +359,53 @@ The function form allows you to compute providers dynamically. This is especiall
 - You're loading providers asynchronously
 
 The function is called during the build phase, giving you a chance to set up dynamic dependencies before instantiation begins.
+
+**Important**: if you create multiple instances of the same class (e.g., `new ConsoleLogger('app')` and `new ConsoleLogger('db')`), each instance will execute its own lifecycle hooks. This is normal if each instance needs its own initialization (e.g., establish its own connection).
+
+However, if you need **shared initialization once for all instances** (e.g., a single connection pool), the right pattern is to extract the shared logic into a separate singleton dependency:
+
+```typescript
+// Define interface and token for connection pool
+interface IConnectionPool {
+  initialize(): Promise<void>;
+  cleanup(): Promise<void>;
+}
+
+const IConnectionPool = makeToken<IConnectionPool>('IConnectionPool');
+
+// Shared resource - singleton with lifecycle hooks
+@Injectable(IConnectionPool, [])
+class ConnectionPool implements IConnectionPool {
+  @OnInit()
+  async initialize() {
+    console.log('Initialize connection pool once');
+  }
+
+  @OnDestroy()
+  async cleanup() {
+    console.log('Close pool');
+  }
+}
+
+// Loggers use the shared resource
+const loggingModule = makeModule({
+  name: 'LoggingModule',
+  providers: () => [
+    ConnectionPool,
+    factoryProvider(
+      ILogger('app'),
+      (pool) => new ConsoleLogger('app', pool),
+      [IConnectionPool]
+    ),
+    factoryProvider(
+      ILogger('db'),
+      (pool) => new ConsoleLogger('db', pool),
+      [IConnectionPool]
+    )
+  ],
+  exports: [ILogger('app'), ILogger('db')]
+});
+```
 
 ## Complete Example
 
@@ -417,7 +564,7 @@ Use **@nestling/viz** for interactive visualization of your dependency tree.
 
 ### Provider Factories
 
-- `classProvider<T>(token, class)` - Create a class provider
+- `classProvider<T>(token, class)` - Create a class provider (class must be decorated with `@Injectable`)
 - `valueProvider<T>(token, value)` - Create a value provider
 - `factoryProvider<T>(token, factory, deps)` - Create a factory provider
 

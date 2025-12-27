@@ -5,10 +5,10 @@ import { makeContainer } from './container';
 export const main = async () => {
   const container = await makeContainer();
 
-  await writeFile(
-    'di-metadata.json',
-    JSON.stringify(await container.toJSON(), null, 2),
-  );
+  const metadata = await container.toJSON();
+  const json = JSON.stringify(metadata, null, 2);
+
+  await writeFile('di-metadata.json', json);
 };
 
 // eslint-disable-next-line no-console

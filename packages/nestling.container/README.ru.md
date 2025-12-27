@@ -14,7 +14,7 @@
 
 ## ECMAScript декораторы
 
-Прежде, чем окунуться в детальное сравнение и описания функцией контейнера, стоит сказать о ключевой особенности: `Nestling` не использует экспериментальные TS-декораторы. Взамен используются декораторы из стандарта JS.
+Прежде, чем окунуться в детальное сравнение и описания функций контейнера, стоит сказать о ключевой особенности: `Nestling` не использует экспериментальные TS-декораторы. Взамен используются декораторы из стандарта JS.
 
 Я тоже скучаю по декораторам для параметров, но на самом деле в стандарте есть ряд плюсов, о которых рассказано ниже.
 
@@ -59,43 +59,12 @@ npm install @nestling/container
 
 Если вы использовали Nest.js или библиотеки типа inversify, ну или просто хорошо подкованы в теории, то вам не нужно объяснять что такое IoC- (DI-) контейнер и какую задачу он решает.
 
-Но если нет, рекомендую прочитать статью: {{ССЫЛКА НА ХАБР}}
+Если же нет - рекомендую почитать что-то [типа этого](https://habr.com/ru/articles/131993/)
 
-### Провайдеры.
+
+### Провайдеры
 
 В мире DI **провайдер** - это что-то вроде чертежа, сообщающего контейнеру, как создать экземпляр чего-либо. В `Nestling`, как и в Nest.js провайдеры - это либо простые объекты-определения(`ProviderDefinition`), либо классы с декоратором `@Injectable`.
-
-### Регистрация провайдеров и DI-токены.
-
-Работа с контейнером всегда начинается с регистрации провайдера. В `Nestling` это делается при помощи метода `container.register(...)`, а в inversify - `container.bind(...)`.
-
-Суть регистрации в том, чтобы сказать контейнеру: "Когда тебя попросят инстанс A"
-
-
-### DI-Токены
-
-Суть **IoC** (Inversion Of Control) и **DI** (инъекции зависимостей) в том, что объекту необязательно знать о том, как конкретно 
-
-Провайдеры - это простые объекты с полем `provide`, которое указывает **токен** (ключ), и одной из трёх стратегий создания:
-
-```typescript
-import { classProvider, valueProvider, factoryProvider } from '@nestling/container';
-
-// Class Provider - создать экземпляр класса
-const logger = classProvider(ILogger, ConsoleLogger);
-
-// Value Provider - использовать готовое значение
-const config = valueProvider('CONFIG', { apiUrl: 'https://api.example.com' });
-
-// Factory Provider - использовать функцию для создания значения
-const apiClient = factoryProvider(
-  IApiClient,
-  (config) => new ApiClient(config.apiUrl),
-  ['CONFIG']
-);
-```
-
-Точно как в NestJS, но более явно. Никакой магии, никакой путаницы.
 
 ### Токены: как идентифицируются зависимости
 
@@ -124,7 +93,9 @@ const ILogger = makeToken<ILogger>('ILogger');
 container.get(ILogger);
 ```
 
-Именно так это работает в NestJS с injection tokens, но здесь более явно и типобезопасно.
+**Зачем это нужно?** Интерфейсы и типы в TypeScript эфемерны - они исчезают при транспиляции в JavaScript. Функция `makeToken` позволяет их **материализовать**: создать runtime-представление типа, которое можно использовать как ключ в контейнере. По сути, это брендированная строка с привязанной информацией о типе для TypeScript.
+
+Примерно также устроено и в NestJS, но здесь всё более явно и типобезопасно.
 
 ### Шорткат @Injectable
 
@@ -162,12 +133,12 @@ class ConsoleLogger implements ILogger {
 1. **Провайдеры резолвятся** в реальные экземпляры
 2. **Зависимости связываются** - каждый экземпляр получает свои зависимости
 3. **Строится DAG (направленный ациклический граф)**, представляющий дерево зависимостей
-4. **Циклические зависимости обнаруживаются** и отклоняются
+4. **Циклические зависимости обнаруживаются** и отклоняются, то есть вызывают ошибку сборки
 
 Это тот же трёхфазный подход, что и в NestJS:
 - Фаза регистрации (вы определяете провайдеры)
 - Фаза валидации (проверка циклических зависимостей)
-- Фаза инстанцирования (всё оживает)
+- Фаза инстанциирования (всё оживает)
 
 ```typescript
 import { ContainerBuilder } from '@nestling/container';
@@ -276,14 +247,75 @@ class DatabaseService {
 - `init()`: вызывает хуки `@OnInit` в топологическом порядке (сначала зависимости)
 - `destroy()`: вызывает хуки `@OnDestroy` в обратном топологическом порядке
 
-Это похоже на `OnModuleInit` и `OnModuleDestroy` из NestJS, но без церемонности с классами модулей.
+Это похоже на `OnModuleInit` и `OnModuleDestroy` из NestJS, но без церемоний с классами модулей.
+
+#### Важно: регистрация хуков и тестирование
+
+Метаданные lifecycle хуков регистрируются при **создании каждого экземпляра класса** (через механизм `context.addInitializer` в декораторах). Это означает, что если вы создаёте несколько экземпляров одного класса, метаданные могут накапливаться.
+
+В обычном использовании это не проблема, так как контейнер создаёт синглтоны - один экземпляр на класс. Однако в **тестах** это может вызвать неожиданное поведение, если классы переиспользуются между тестами:
+
+```typescript
+// ❌ Проблема: класс определён вне beforeEach
+@Injectable(IService, [])
+class MyService {
+  @OnInit()
+  async init() { /* ... */ }
+}
+
+describe('Tests', () => {
+  it('test 1', async () => {
+    const container = await new ContainerBuilder()
+      .register(classProvider(IService, MyService))
+      .build();
+    // Первое создание экземпляра - метаданные регистрируются
+  });
+
+  it('test 2', async () => {
+    const container = await new ContainerBuilder()
+      .register(classProvider(IService, MyService))
+      .build();
+    // Второе создание экземпляра - метаданные добавляются снова!
+  });
+});
+
+// ✅ Решение: переопределяйте классы в beforeEach
+describe('Tests', () => {
+  let MyService: any;
+
+  beforeEach(() => {
+    @Injectable(IService, [])
+    class MyServiceImpl {
+      @OnInit()
+      async init() { /* ... */ }
+    }
+    MyService = MyServiceImpl;
+  });
+
+  it('test 1', async () => {
+    const container = await new ContainerBuilder()
+      .register(classProvider(IService, MyService))
+      .build();
+    // Каждый тест использует свежий конструктор
+  });
+});
+```
+
+Переопределение классов в `beforeEach` гарантирует, что каждый тест работает с чистыми метаданными.
+
+**См. также**: раздел "Динамические провайдеры" ниже содержит дополнительное предупреждение о накоплении метаданных при создании нескольких экземпляров одного класса.
 
 ### Динамические провайдеры: токены с параметрами
 
 Иногда нужно несколько экземпляров одного интерфейса с разными конфигурациями. Например, разные логгеры для разных частей приложения:
 
 ```typescript
-// В @examples.simple-app
+// Определяем интерфейс логгера
+interface ILogger {
+  log(message: string): void;
+}
+
+// Создаём функцию-фабрику для токенов (пример из @examples.simple-app)
 const ILogger = (context: string) => makeToken<ILogger>(`ILogger:${context}`);
 
 // В модуле используйте функцию-фабрику для динамического создания провайдеров:
@@ -311,6 +343,53 @@ const loggingModule = makeModule({
 - Вы загружаете провайдеры асинхронно
 
 Функция вызывается в фазе сборки, давая вам шанс настроить динамические зависимости до начала инстанцирования.
+
+**Важно**: если вы создаёте несколько экземпляров одного класса (например, `new ConsoleLogger('app')` и `new ConsoleLogger('db')`), каждый экземпляр будет выполнять свои lifecycle хуки. Это нормально, если каждый экземпляр должен выполнить собственную инициализацию (например, установить своё соединение).
+
+Однако, если вам нужна **общая инициализация один раз для всех экземпляров** (например, один пул соединений), правильный паттерн - вынести общую логику в отдельную зависимость-синглтон:
+
+```typescript
+// Определяем интерфейс и токен для пула соединений
+interface IConnectionPool {
+  initialize(): Promise<void>;
+  cleanup(): Promise<void>;
+}
+
+const IConnectionPool = makeToken<IConnectionPool>('IConnectionPool');
+
+// Общий ресурс - синглтон с lifecycle хуками
+@Injectable(IConnectionPool, [])
+class ConnectionPool implements IConnectionPool {
+  @OnInit()
+  async initialize() {
+    console.log('Инициализируем пул соединений один раз');
+  }
+
+  @OnDestroy()
+  async cleanup() {
+    console.log('Закрываем пул');
+  }
+}
+
+// Логгеры используют общий ресурс
+const loggingModule = makeModule({
+  name: 'LoggingModule',
+  providers: () => [
+    ConnectionPool,
+    factoryProvider(
+      ILogger('app'),
+      (pool) => new ConsoleLogger('app', pool),
+      [IConnectionPool]
+    ),
+    factoryProvider(
+      ILogger('db'),
+      (pool) => new ConsoleLogger('db', pool),
+      [IConnectionPool]
+    )
+  ],
+  exports: [ILogger('app'), ILogger('db')]
+});
+```
 
 ## Полный пример
 
@@ -469,7 +548,7 @@ await container.traverse(
 
 ### Фабрики провайдеров
 
-- `classProvider<T>(token, class)` - Создать class provider
+- `classProvider<T>(token, class)` - Создать class provider (класс должен быть декорирован `@Injectable`)
 - `valueProvider<T>(token, value)` - Создать value provider
 - `factoryProvider<T>(token, factory, deps)` - Создать factory provider
 
