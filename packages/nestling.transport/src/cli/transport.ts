@@ -2,8 +2,9 @@
 import * as readline from 'node:readline';
 
 import type {
-  Handler,
   HandlerConfig,
+  HandlerFn,
+  MaybeSchema,
   RequestContext,
   ResponseContext,
   Transport,
@@ -20,11 +21,26 @@ export interface CliInput {
 }
 
 /**
+ * CLI-специфичная конфигурация handler'а
+ */
+export interface CliHandlerConfig<
+  TPayloadSchema extends MaybeSchema = undefined,
+  TMetadataSchema extends MaybeSchema = undefined,
+  TResponseSchema extends MaybeSchema = undefined,
+> extends HandlerConfig<TPayloadSchema, TMetadataSchema, TResponseSchema> {
+  command: string;
+  method?: never;
+}
+
+/**
  * CLI транспорт
  */
 export class CliTransport implements Transport {
   private readonly pipeline: Pipeline;
-  private readonly handlers = new Map<string, Handler>();
+  private readonly handlers = new Map<
+    string,
+    HandlerFn<MaybeSchema, MaybeSchema, MaybeSchema>
+  >();
   private repl?: readline.Interface;
 
   constructor() {
@@ -34,7 +50,13 @@ export class CliTransport implements Transport {
   /**
    * Регистрирует handler через конфигурацию
    */
-  registerHandler(config: HandlerConfig): void {
+  registerHandler<
+    TPayloadSchema extends MaybeSchema = undefined,
+    TMetadataSchema extends MaybeSchema = undefined,
+    TResponseSchema extends MaybeSchema = undefined,
+  >(
+    config: CliHandlerConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
+  ): void {
     const { handler, command } = config;
 
     if (!command) {
@@ -47,7 +69,10 @@ export class CliTransport implements Transport {
   /**
    * Регистрирует обработчик для команды (для обратной совместимости)
    */
-  command(command: string, handler: Handler): void {
+  command(
+    command: string,
+    handler: HandlerFn<MaybeSchema, MaybeSchema, MaybeSchema>,
+  ): void {
     this.handlers.set(command, handler);
   }
 

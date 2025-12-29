@@ -1,4 +1,8 @@
-import type { Handler, RequestContext, ResponseContext } from './interfaces.js';
+import type {
+  HandlerFn,
+  RequestContext,
+  ResponseContext,
+} from './interfaces.js';
 
 /**
  * Middleware для обработки запроса
@@ -13,7 +17,7 @@ export type Middleware = (
  */
 export class Pipeline {
   private readonly middlewares: Middleware[] = [];
-  private handler?: Handler;
+  private handler?: HandlerFn;
 
   /**
    * Добавляет middleware в пайплайн
@@ -25,7 +29,7 @@ export class Pipeline {
   /**
    * Устанавливает финальный handler
    */
-  setHandler(handler: Handler): void {
+  setHandler(handler: HandlerFn): void {
     this.handler = handler;
   }
 
@@ -51,7 +55,9 @@ export class Pipeline {
       if (!handler) {
         throw new Error('Handler is not set');
       }
-      return handler(ctx);
+      // Вызываем handler с двумя параметрами: payload и metadata
+      // payload и metadata будут undefined если схемы не были переданы
+      return handler(ctx.payload as any, ctx.metadata as any);
     };
 
     return next();

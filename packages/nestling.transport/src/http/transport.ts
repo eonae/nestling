@@ -9,11 +9,13 @@ import type { Readable } from 'node:stream';
 import type {
   FilePart,
   HandlerConfig,
+  MaybeSchema,
   RequestContext,
   RouteConfig,
   Transport,
 } from '../core/interfaces.js';
 import { Pipeline } from '../core/pipeline.js';
+import { parseMetadata, parsePayload } from '../schema/parse.js';
 
 import { sendResponse } from './adapter.js';
 import { mergePayload } from './merge.js';
@@ -46,30 +48,61 @@ export class HttpTransport implements Transport {
   /**
    * Регистрирует handler через конфигурацию
    */
-  registerHandler(config: HandlerConfig): void {
-    const { handler, method, path, input } = config;
+  registerHandler<
+    TPayloadSchema extends MaybeSchema = undefined,
+    TMetadataSchema extends MaybeSchema = undefined,
+    TResponseSchema extends MaybeSchema = undefined,
+  >(
+    config: HandlerConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
+  ): void {
+    const {
+      handler,
+      method,
+      path,
+      payloadSchema,
+      metadataSchema,
+      responseSchema,
+    } = config;
 
     if (!method || !path) {
       throw new Error('HTTP handler config must include method and path');
     }
 
-    const routeConfig: RouteConfig = {
+    const routeConfig: RouteConfig<
+      TPayloadSchema,
+      TMetadataSchema,
+      TResponseSchema
+    > = {
       method: String(method),
       path: String(path),
       handler,
     };
 
-    if (input && typeof input === 'object') {
-      routeConfig.input = input as RouteConfig['input'];
+    if (payloadSchema) {
+      routeConfig.payloadSchema = payloadSchema;
+    }
+
+    if (metadataSchema) {
+      routeConfig.metadataSchema = metadataSchema;
+    }
+
+    if (responseSchema) {
+      routeConfig.responseSchema = responseSchema;
     }
 
     this.router.route(routeConfig);
   }
 
   /**
-   * Регистрирует маршрут (для обратной совместимости)
+   * Регистрирует маршрут
    */
-  route(config: RouteConfig): void {
+  route<
+    TPayloadSchema extends MaybeSchema | undefined = undefined,
+    TMetadataSchema extends MaybeSchema | undefined = undefined,
+    TResponseSchema extends MaybeSchema | undefined = undefined,
+  >(
+    config: RouteConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
+  ): void {
     this.router.route(config);
   }
 
@@ -164,10 +197,24 @@ export class HttpTransport implements Transport {
           : {}),
       };
 
+      // Валидируем и парсим payload и metadata только если схемы указаны
+      // Создаем inputSources с исходными данными для парсинга
+      const inputSources = {
+        payload: payload as Record<string, unknown>,
+        metadata: requestContext.metadata as Record<string, unknown>,
+      };
+
+      requestContext.payload = route.config.payloadSchema
+        ? parsePayload(route.config.payloadSchema, inputSources)
+        : undefined;
+      requestContext.metadata = route.config.metadataSchema
+        ? parseMetadata(route.config.metadataSchema, inputSources)
+        : undefined;
+
       // Устанавливаем handler в пайплайн
       this.pipeline.setHandler(route.handler);
 
-      // Выполняем пайплайн
+      // Выполняем пайплайн с requestContext
       const responseContext = await this.pipeline.execute(requestContext);
 
       // Отправляем ответ

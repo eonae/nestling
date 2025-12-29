@@ -5,6 +5,50 @@ import { fromScratch } from '@nestling/models';
 import { App, CliTransport } from '@nestling/transport';
 import { z } from 'zod';
 
+// Схемы ответов
+const GreetResponseSchema = z.object({
+  greeting: z.string(),
+});
+
+const InfoResponseSchema = z.object({
+  platform: z.string(),
+  arch: z.string(),
+  nodeVersion: z.string(),
+  cwd: z.string(),
+  uptime: z.string(),
+  memory: z.object({
+    heapUsed: z.string(),
+    heapTotal: z.string(),
+  }),
+});
+
+const CalcResponseSchema = z.object({
+  a: z.number(),
+  b: z.number(),
+  operation: z.string(),
+  result: z.number(),
+});
+
+const CalcErrorResponseSchema = z.object({
+  error: z.string(),
+});
+
+const EchoResponseSchema = z.object({
+  message: z.string(),
+});
+
+const HelpResponseSchema = z.object({
+  message: z.string(),
+});
+
+// Типы ответов
+export type GreetResponse = z.infer<typeof GreetResponseSchema>;
+export type InfoResponse = z.infer<typeof InfoResponseSchema>;
+export type CalcResponse = z.infer<typeof CalcResponseSchema>;
+export type CalcErrorResponse = z.infer<typeof CalcErrorResponseSchema>;
+export type EchoResponse = z.infer<typeof EchoResponseSchema>;
+export type HelpResponse = z.infer<typeof HelpResponseSchema>;
+
 // Создаем CLI транспорт
 const cliTransport = new CliTransport();
 
@@ -29,13 +73,12 @@ const app = new App({
 app.registerHandler({
   transport: 'cli',
   command: 'greet',
-  handler: async (ctx) => {
-    const payload = ctx.payload as {
-      args: string[];
-      enthusiastic?: boolean;
-    };
-    const name = payload.args[0] || 'World';
-    const enthusiastic = payload.enthusiastic;
+  responseSchema: GreetResponseSchema,
+  handler: async (
+    payload: { args: string[]; enthusiastic?: boolean } | undefined,
+  ) => {
+    const name = payload?.args[0] || 'World';
+    const enthusiastic = payload?.enthusiastic;
 
     const greeting = enthusiastic ? `Hello, ${name}!!!` : `Hello, ${name}!`;
 
@@ -53,6 +96,7 @@ app.registerHandler({
 app.registerHandler({
   transport: 'cli',
   command: 'info',
+  responseSchema: InfoResponseSchema,
   handler: async () => {
     const info = {
       platform: process.platform,
@@ -87,14 +131,11 @@ app.registerHandler({
 app.registerHandler({
   transport: 'cli',
   command: 'calc',
-  handler: async (ctx) => {
-    const payload = ctx.payload as {
-      args: string[];
-      op?: string;
-    };
-    const operation = payload.op;
-    const a = Number.parseFloat(payload.args[0] || '0');
-    const b = Number.parseFloat(payload.args[1] || '0');
+  responseSchema: z.union([CalcResponseSchema, CalcErrorResponseSchema]),
+  handler: async (payload: { args: string[]; op?: string } | undefined) => {
+    const operation = payload?.op;
+    const a = Number.parseFloat(payload?.args[0] || '0');
+    const b = Number.parseFloat(payload?.args[1] || '0');
 
     let result: number;
     let op: string;
@@ -156,13 +197,12 @@ app.registerHandler({
 app.registerHandler({
   transport: 'cli',
   command: 'echo',
-  handler: async (ctx) => {
-    const payload = ctx.payload as {
-      args: string[];
-      uppercase?: boolean;
-    };
-    const message = payload.args.join(' ');
-    const uppercase = payload.uppercase;
+  responseSchema: EchoResponseSchema,
+  handler: async (
+    payload: { args: string[]; uppercase?: boolean } | undefined,
+  ) => {
+    const message = payload?.args.join(' ') || '';
+    const uppercase = payload?.uppercase;
 
     const output = uppercase ? message.toUpperCase() : message;
     console.log(output);
@@ -192,18 +232,13 @@ const CalcSchema = fromScratch().defineModel(
 app.registerHandler({
   transport: 'cli',
   command: 'calc-schema',
-  handler: async (ctx) => {
-    // Извлекаем данные из payload
-    const payload = ctx.payload as {
-      args: string[];
-      op?: string;
-    };
-
+  responseSchema: z.union([CalcResponseSchema, CalcErrorResponseSchema]),
+  handler: async (payload: { args: string[]; op?: string } | undefined) => {
     // Преобразуем CLI input в формат для схемы
     const input = {
-      a: Number.parseFloat(payload.args[0] || '0'),
-      b: Number.parseFloat(payload.args[1] || '0'),
-      operation: payload.op || 'add',
+      a: Number.parseFloat(payload?.args[0] || '0'),
+      b: Number.parseFloat(payload?.args[1] || '0'),
+      operation: payload?.op || 'add',
     };
 
     // Валидируем через схему
@@ -279,16 +314,14 @@ const GreetSchema = fromScratch().defineModel(
 app.registerHandler({
   transport: 'cli',
   command: 'greet-schema',
-  handler: async (ctx) => {
-    const payload = ctx.payload as {
-      args: string[];
-      enthusiastic?: boolean;
-    };
-
+  responseSchema: GreetResponseSchema,
+  handler: async (
+    payload: { args: string[]; enthusiastic?: boolean } | undefined,
+  ) => {
     // Преобразуем CLI input
     const input = {
-      name: payload.args[0] || 'World',
-      enthusiastic: Boolean(payload.enthusiastic),
+      name: payload?.args[0] || 'World',
+      enthusiastic: Boolean(payload?.enthusiastic),
     };
 
     // Валидируем
@@ -311,6 +344,7 @@ app.registerHandler({
 app.registerHandler({
   transport: 'cli',
   command: 'help',
+  responseSchema: HelpResponseSchema,
   handler: async () => {
     console.log('Available commands:');
     console.log('');

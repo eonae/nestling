@@ -5196,15 +5196,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"examples.schema-demo@workspace:packages/examples.schema-demo":
-  version: 0.0.0-use.local
-  resolution: "examples.schema-demo@workspace:packages/examples.schema-demo"
-  dependencies:
-    "@nestling/transport": "workspace:*"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
 "examples.simple-app@workspace:packages/examples.simple-app":
   version: 0.0.0-use.local
   resolution: "examples.simple-app@workspace:packages/examples.simple-app"
