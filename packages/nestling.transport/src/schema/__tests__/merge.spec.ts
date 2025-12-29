@@ -1,4 +1,4 @@
-import { mergePayload } from '../merge.js';
+import { mergePayload } from '../../http/merge.js';
 
 describe('mergePayload', () => {
   it('should merge body, query and params', () => {

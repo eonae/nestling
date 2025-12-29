@@ -5,7 +5,6 @@ import {
   type ServerResponse,
 } from 'node:http';
 import type { Readable } from 'node:stream';
-import { URL } from 'node:url';
 
 import type {
   FilePart,
@@ -15,9 +14,9 @@ import type {
   Transport,
 } from '../core/interfaces.js';
 import { Pipeline } from '../core/pipeline.js';
-import { mergePayload } from '../schema/merge.js';
 
 import { sendResponse } from './adapter.js';
+import { mergePayload } from './merge.js';
 import { parseJson, parseMultipart, parseRaw } from './parser.js';
 import { HttpRouter } from './router.js';
 

@@ -1,7 +1,5 @@
 import type { RequestContext } from '../../core/interfaces.js';
-import { createInputSources, extractDescription } from '../helpers.js';
-
-import { z } from 'zod';
+import { createInputSources } from '../helpers.js';
 
 describe('createInputSources', () => {
   it('should create InputSources from RequestContext', () => {
@@ -77,45 +75,5 @@ describe('createInputSources', () => {
       authorization: 'Bearer token',
       userId: '123',
     });
-  });
-});
-
-describe('extractDescription', () => {
-  it('should extract descriptions from schema', () => {
-    const schema = z.object({
-      name: z.string().describe('User name'),
-      email: z.string().describe('User email'),
-      age: z.number(),
-    });
-
-    const descriptions = extractDescription(schema);
-
-    expect(descriptions).toEqual({
-      name: 'User name',
-      email: 'User email',
-      age: undefined,
-    });
-  });
-
-  it('should handle schema without descriptions', () => {
-    const schema = z.object({
-      field1: z.string(),
-      field2: z.number(),
-    });
-
-    const descriptions = extractDescription(schema);
-
-    expect(descriptions).toEqual({
-      field1: undefined,
-      field2: undefined,
-    });
-  });
-
-  it('should handle empty schema', () => {
-    const schema = z.object({});
-
-    const descriptions = extractDescription(schema);
-
-    expect(descriptions).toEqual({});
   });
 });

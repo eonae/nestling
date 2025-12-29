@@ -242,21 +242,6 @@ type UserDomain = DomainType<typeof UserSchema>;
 
 Валидация гарантирует, что `address` не `undefined`.
 
-### Генерация документации
-
-Каждое поле в схеме имеет `description`. Можно извлекать описания для генерации OpenAPI или Markdown:
-
-```typescript
-import { extractDescription } from '@nestling/transport';
-
-const descriptions = extractDescription(CreateUserSchema);
-// {
-//   name: "Имя пользователя",
-//   email: "Email адрес",
-//   address: "Адрес пользователя"
-// }
-```
-
 ## API Reference
 
 ### `defineSchema<T>(fields)`
@@ -322,15 +307,6 @@ const schema = defineSchema<UserProto>({
 **Возвращает:** `InputSources`
 
 **Примечание:** Транспорты автоматически объединяют body, query и params в `ctx.payload`, поэтому эта функция просто извлекает payload и metadata из контекста.
-
-### `extractDescription(schema)`
-
-Извлекает описания полей из схемы для генерации документации.
-
-**Параметры:**
-- `schema` - схема
-
-**Возвращает:** `Record<string, string | undefined>`
 
 ## Best Practices
 

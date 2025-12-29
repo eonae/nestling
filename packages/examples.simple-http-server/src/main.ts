@@ -1,10 +1,9 @@
 /* eslint-disable no-console */
 
+import { fromScratch, fromType } from '@nestling/models';
 import {
   App,
   createInputSources,
-  define,
-  forType,
   HttpTransport,
   parseMetadata,
   parsePayload,
@@ -128,7 +127,7 @@ interface CreateUserProto {
 }
 
 // Определяем domain схему (сужаем типы: optional → required)
-const CreateUserSchema = forType<CreateUserProto>().defineModel(
+const CreateUserSchema = fromType<CreateUserProto>().defineModel(
   z.object({
     name: z
       .string()
@@ -178,7 +177,7 @@ app.registerHandler({
 });
 
 // Схема для получения пользователя по ID (params + query)
-const GetUserSchema = define(
+const GetUserSchema = fromScratch().defineModel(
   z.object({
     id: z
       .string()
@@ -224,7 +223,7 @@ app.registerHandler({
 });
 
 // Схема для metadata (авторизация)
-const AuthSchema = define(
+const AuthSchema = fromScratch().defineModel(
   z.object({
     authorization: z
       .string()

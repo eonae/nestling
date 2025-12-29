@@ -1,10 +1,11 @@
-import { defineModel, forType } from '../define.js';
+import { fromScratch } from './from-scratch.fn';
+import { fromType } from './from-type.fn';
 
 import { z } from 'zod';
 
 describe('defineModel', () => {
   it('should create schema without explicit type (type inference)', () => {
-    const schema = defineModel(
+    const schema = fromScratch().defineModel(
       z.object({
         a: z.number().describe('First number'),
         b: z.string().describe('Second value'),
@@ -17,7 +18,7 @@ describe('defineModel', () => {
   });
 
   it('should return zod schema directly', () => {
-    const schema = defineModel(
+    const schema = fromScratch().defineModel(
       z.object({
         field1: z.string().describe('Field 1'),
         field2: z.number().describe('Field 2'),
@@ -36,7 +37,7 @@ describe('forType().defineModel', () => {
       email?: string;
     }
 
-    const schema = forType<UserProto>().defineModel(
+    const schema = fromType<UserProto>().defineModel(
       z.object({
         name: z.string().min(1).describe('User name'),
         email: z.email().describe('User email'),
@@ -56,7 +57,7 @@ describe('forType().defineModel', () => {
       };
     }
 
-    const schema = forType<UserProto>().defineModel(
+    const schema = fromType<UserProto>().defineModel(
       z.object({
         address: z
           .object({
@@ -79,7 +80,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: optional → required
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           name: z.string().min(1),
           email: z.string().email(),
@@ -97,7 +98,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: string → enum
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           role: z.enum(['admin', 'user', 'guest']),
         }),
@@ -115,7 +116,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: использование подмножества полей
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           name: z.string(),
         }),
@@ -132,7 +133,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: добавление ограничений
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           age: z.number().min(0).max(120),
         }),
@@ -148,7 +149,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: unknown → string
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           data: z.string(),
         }),
@@ -165,7 +166,7 @@ describe('forType().defineModel', () => {
         name?: string;
       }
 
-      forType<UserProto>().defineModel(
+      fromType<UserProto>().defineModel(
         // @ts-expect-error - поле 'age' отсутствует в UserProto
         z.object({
           name: z.string(),
@@ -179,7 +180,7 @@ describe('forType().defineModel', () => {
         id?: string;
       }
 
-      forType<UserProto>().defineModel(
+      fromType<UserProto>().defineModel(
         // @ts-expect-error - id должен быть string, а не number
         z.object({
           id: z.number(), // несовместимый тип
@@ -192,7 +193,7 @@ describe('forType().defineModel', () => {
         name: string; // обязательное поле
       }
 
-      forType<UserProto>().defineModel(
+      fromType<UserProto>().defineModel(
         // @ts-expect-error - нельзя сделать обязательное поле optional
         z.object({
           name: z.string().optional(), // попытка сделать optional
@@ -205,7 +206,7 @@ describe('forType().defineModel', () => {
         name?: string;
       }
 
-      forType<UserProto>().defineModel(
+      fromType<UserProto>().defineModel(
         // @ts-expect-error - полностью другая структура
         z.object({
           email: z.string(),
@@ -221,7 +222,7 @@ describe('forType().defineModel', () => {
         };
       }
 
-      forType<UserProto>().defineModel(
+      fromType<UserProto>().defineModel(
         // @ts-expect-error - age должен быть number, а не string
         z.object({
           profile: z.object({
@@ -238,7 +239,7 @@ describe('forType().defineModel', () => {
         };
       }
 
-      forType<UserProto>().defineModel(
+      fromType<UserProto>().defineModel(
         // @ts-expect-error - поле 'language' отсутствует в settings
         z.object({
           settings: z.object({
@@ -256,7 +257,7 @@ describe('forType().defineModel', () => {
         id?: string;
       }
 
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           id: z.string().transform((val) => Number.parseInt(val, 10)),
         }),
@@ -272,7 +273,7 @@ describe('forType().defineModel', () => {
         page?: string;
       }
 
-      const schema = forType<GetUserProto>().defineModel(
+      const schema = fromType<GetUserProto>().defineModel(
         z.object({
           id: z
             .string()
@@ -298,7 +299,7 @@ describe('forType().defineModel', () => {
         authorization?: string;
       }
 
-      const schema = forType<AuthProto>().defineModel(
+      const schema = fromType<AuthProto>().defineModel(
         z.object({
           authorization: z
             .string()
@@ -318,7 +319,7 @@ describe('forType().defineModel', () => {
         email?: string;
       }
 
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           email: z
             .string()
@@ -340,7 +341,7 @@ describe('forType().defineModel', () => {
         };
       }
 
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           metadata: z.object({
             createdAt: z.string().transform((val) => new Date(val)),
@@ -361,7 +362,7 @@ describe('forType().defineModel', () => {
         age?: string;
       }
 
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           age: z
             .string()
@@ -387,7 +388,7 @@ describe('forType().defineModel', () => {
       }
 
       // Input: string, Output: Date | number
-      const schema = forType<ProtoType>().defineModel(
+      const schema = fromType<ProtoType>().defineModel(
         z.object({
           timestamp: z.string().transform((val) => new Date(val)),
           count: z.string().transform((val) => Number.parseInt(val, 10)),
@@ -411,7 +412,7 @@ describe('forType().defineModel', () => {
         phone?: string;
       }
 
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           phone: z
             .string()
@@ -434,7 +435,7 @@ describe('forType().defineModel', () => {
         tags?: string[];
       }
 
-      const schema = forType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().defineModel(
         z.object({
           tags: z
             .array(z.string())
@@ -451,7 +452,7 @@ describe('forType().defineModel', () => {
 
   describe('transforms with defineModel (without explicit type)', () => {
     it('should support transforms without type parameter', () => {
-      const schema = defineModel(
+      const schema = fromScratch().defineModel(
         z.object({
           id: z.string().transform((val) => Number.parseInt(val, 10)),
           name: z.string(),
@@ -466,16 +467,10 @@ describe('forType().defineModel', () => {
     });
 
     it('should support complex transforms', () => {
-      const schema = defineModel(
+      const schema = fromScratch().defineModel(
         z.object({
-          email: z
-            .string()
-            .email()
-            .transform((val) => val.toLowerCase()),
-          createdAt: z
-            .string()
-            .datetime()
-            .transform((val) => new Date(val)),
+          email: z.email().transform((val) => val.toLowerCase()),
+          createdAt: z.iso.datetime().transform((val) => new Date(val)),
         }),
       );
 

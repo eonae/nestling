@@ -1,7 +1,8 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
-import { App, CliTransport, defineSchema } from '@nestling/transport';
+import { fromScratch } from '@nestling/models';
+import { App, CliTransport } from '@nestling/transport';
 import { z } from 'zod';
 
 // Создаем CLI транспорт
@@ -177,7 +178,7 @@ app.registerHandler({
 // Schema-driven примеры
 
 // Схема для калькулятора со строгой типизацией
-const CalcSchema = defineSchema(
+const CalcSchema = fromScratch().defineModel(
   z.object({
     a: z.number().describe('Первое число'),
     b: z.number().describe('Второе число'),
@@ -267,7 +268,7 @@ app.registerHandler({
 });
 
 // Схема для команды greet
-const GreetSchema = defineSchema(
+const GreetSchema = fromScratch().defineModel(
   z.object({
     name: z.string().min(1).max(50).describe('Имя для приветствия'),
     enthusiastic: z.boolean().optional().describe('Энтузиастичное приветствие'),

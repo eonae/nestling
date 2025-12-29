@@ -1,0 +1,32 @@
+{
+  "name": "@nestling/models",
+  "version": "0.1.0",
+  "description": "Type-safe input/output models with validation, type inference, and transformations. Built on Zod v4.",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "build": "yarn run clear && run -T tsc",
+    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint:fix": "yarn run lint --fix",
+    "test": "run -T jest --passWithNoTests"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "find-my-way": "^8.2.0"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/busboy": "^1.5.4"
+  }
+}
