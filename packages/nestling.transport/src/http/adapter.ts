@@ -1,6 +1,6 @@
 import type { ServerResponse } from 'node:http';
 
-import type { ResponseContext } from '../core/interfaces.js';
+import type { ResponseContext } from '../core/types/context.js';
 
 /**
  * Отправляет ResponseContext в ServerResponse

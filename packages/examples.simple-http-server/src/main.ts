@@ -2,9 +2,9 @@
 
 import { ListProducts } from './handlers.class/list-products.handler';
 import { CreateUser } from './handlers.functional/create-user.handler';
-import { GetUserById } from './handlers.class';
+import { GetUserByIdHandler } from './handlers.class';
 import { SayHello } from './handlers.functional';
-import { RequestResponseLogging } from './middleware';
+import { RequestResponseLogging, TimingMiddleware } from './middleware';
 
 import { App, HttpTransport } from '@nestling/transport';
 
@@ -13,8 +13,11 @@ const httpTransport = new HttpTransport({
   port: Number(process.env.PORT) || 3000,
 });
 
-// Добавляем middleware для логирования
+// Добавляем middleware для логирования (функциональный стиль)
 httpTransport.use(RequestResponseLogging);
+
+// Добавляем middleware для измерения времени (классовый стиль)
+httpTransport.use(TimingMiddleware);
 
 // Создаем App с транспортами
 const app = new App({
@@ -32,7 +35,7 @@ app.registerHandler(CreateUser);
 // ПОДХОД 2: @Handler (классовый стиль)
 // ============================================================
 
-app.registerHandler(GetUserById);
+app.registerHandler(GetUserByIdHandler);
 app.registerHandler(ListProducts);
 
 const PORT = Number(process.env.PORT) || 3000;

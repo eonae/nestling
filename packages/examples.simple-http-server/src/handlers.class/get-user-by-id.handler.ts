@@ -3,7 +3,7 @@ import { Handler } from '@nestling/transport';
 import z from 'zod';
 
 // Схемы для GetUserById
-const GetUserByIdPayloadSchema = z.object({
+const GetUserById = z.object({
   id: z
     .string()
     .transform((val: string) => Number.parseInt(val, 10))
@@ -14,14 +14,14 @@ const GetUserByIdPayloadSchema = z.object({
     .describe('Дополнительные данные для включения'),
 });
 
-const GetUserByIdMetadataSchema = z.object({
+const GetUserByIdMetadata = z.object({
   authorization: z
     .string()
     .optional()
     .describe('Optional Bearer token из заголовка Authorization'),
 });
 
-const UserResponseSchema = z.object({
+const UserResponse = z.object({
   id: z.number(),
   name: z.string(),
   email: z.string(),
@@ -40,9 +40,9 @@ const UserResponseSchema = z.object({
     .optional(),
 });
 
-type GetUserByIdMetadataSchema = z.infer<typeof GetUserByIdMetadataSchema>;
-type GetUserByIdPayloadSchema = z.infer<typeof GetUserByIdPayloadSchema>;
-type UserResponseSchema = z.infer<typeof UserResponseSchema>;
+type GetUserByIdMetadata = z.infer<typeof GetUserByIdMetadata>;
+type GetUserById = z.infer<typeof GetUserById>;
+type UserResponse = z.infer<typeof UserResponse>;
 
 /**
  * Handler-класс с ПОЛНОЙ проверкой типов через декоратор @Handler
@@ -58,15 +58,15 @@ type UserResponseSchema = z.infer<typeof UserResponseSchema>;
   transport: 'http',
   method: 'GET',
   path: '/api/users/:id',
-  payloadSchema: GetUserByIdPayloadSchema,
-  metadataSchema: GetUserByIdMetadataSchema,
-  responseSchema: UserResponseSchema,
+  payloadSchema: GetUserById,
+  metadataSchema: GetUserByIdMetadata,
+  responseSchema: UserResponse,
 })
-export class GetUserById {
+export class GetUserByIdHandler {
   async handle(
-    payload: GetUserByIdPayloadSchema,
-    metadata: GetUserByIdMetadataSchema,
-  ): Promise<ResponseContext<UserResponseSchema>> {
+    payload: GetUserById,
+    metadata: GetUserByIdMetadata,
+  ): Promise<ResponseContext<UserResponse>> {
     // payload и metadata - типы проверяются компилятором!
     const user = {
       id: payload.id,

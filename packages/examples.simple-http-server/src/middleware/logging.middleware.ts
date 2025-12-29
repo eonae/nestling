@@ -1,11 +1,11 @@
 /* eslint-disable no-console */
 import type {
-  Middleware,
+  MiddlewareFn,
   RequestContext,
   ResponseContext,
 } from '@nestling/transport';
 
-export const RequestResponseLogging: Middleware = async (
+export const RequestResponseLogging: MiddlewareFn = async (
   ctx: RequestContext,
   next: () => Promise<ResponseContext>,
 ) => {

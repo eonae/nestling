@@ -72,7 +72,7 @@ const app = new App({
 // greet - приветствие
 app.registerHandler({
   transport: 'cli',
-  command: 'greet',
+  path: 'greet',
   responseSchema: GreetResponseSchema,
   handler: async (
     payload: { args: string[]; enthusiastic?: boolean } | undefined,
@@ -95,7 +95,7 @@ app.registerHandler({
 // info - информация о системе
 app.registerHandler({
   transport: 'cli',
-  command: 'info',
+  path: 'info',
   responseSchema: InfoResponseSchema,
   handler: async () => {
     const info = {
@@ -130,7 +130,7 @@ app.registerHandler({
 // calc - калькулятор (старый подход без схем)
 app.registerHandler({
   transport: 'cli',
-  command: 'calc',
+  path: 'calc',
   responseSchema: z.union([CalcResponseSchema, CalcErrorResponseSchema]),
   handler: async (payload: { args: string[]; op?: string } | undefined) => {
     const operation = payload?.op;
@@ -196,7 +196,7 @@ app.registerHandler({
 // echo - эхо аргументов
 app.registerHandler({
   transport: 'cli',
-  command: 'echo',
+  path: 'echo',
   responseSchema: EchoResponseSchema,
   handler: async (
     payload: { args: string[]; uppercase?: boolean } | undefined,
@@ -231,7 +231,7 @@ const CalcSchema = fromScratch().defineModel(
 // calc-schema - калькулятор со схемой
 app.registerHandler({
   transport: 'cli',
-  command: 'calc-schema',
+  path: 'calc-schema',
   responseSchema: z.union([CalcResponseSchema, CalcErrorResponseSchema]),
   handler: async (payload: { args: string[]; op?: string } | undefined) => {
     // Преобразуем CLI input в формат для схемы
@@ -313,7 +313,7 @@ const GreetSchema = fromScratch().defineModel(
 // greet-schema - приветствие со схемой
 app.registerHandler({
   transport: 'cli',
-  command: 'greet-schema',
+  path: 'greet-schema',
   responseSchema: GreetResponseSchema,
   handler: async (
     payload: { args: string[]; enthusiastic?: boolean } | undefined,
@@ -343,7 +343,7 @@ app.registerHandler({
 // help - справка
 app.registerHandler({
   transport: 'cli',
-  command: 'help',
+  path: 'help',
   responseSchema: HelpResponseSchema,
   handler: async () => {
     console.log('Available commands:');

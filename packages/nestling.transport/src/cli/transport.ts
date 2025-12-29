@@ -1,15 +1,14 @@
 /* eslint-disable no-console */
 import * as readline from 'node:readline';
 
+import type { HandlerConfig, Transport } from '../core/interfaces.js';
+import { Pipeline } from '../core/pipeline.js';
 import type {
-  HandlerConfig,
   HandlerFn,
   MaybeSchema,
   RequestContext,
   ResponseContext,
-  Transport,
-} from '../core/interfaces.js';
-import { Pipeline } from '../core/pipeline.js';
+} from '../core/types';
 
 /**
  * Входные данные для CLI транспорта
@@ -37,10 +36,7 @@ export interface CliHandlerConfig<
  */
 export class CliTransport implements Transport {
   private readonly pipeline: Pipeline;
-  private readonly handlers = new Map<
-    string,
-    HandlerFn<MaybeSchema, MaybeSchema, MaybeSchema>
-  >();
+  private readonly handlers = new Map<string, HandlerFn<any, any, any>>();
   private repl?: readline.Interface;
 
   constructor() {
@@ -51,12 +47,10 @@ export class CliTransport implements Transport {
    * Регистрирует handler через конфигурацию
    */
   registerHandler<
-    TPayloadSchema extends MaybeSchema = undefined,
-    TMetadataSchema extends MaybeSchema = undefined,
-    TResponseSchema extends MaybeSchema = undefined,
-  >(
-    config: CliHandlerConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
-  ): void {
+    P extends MaybeSchema = MaybeSchema,
+    M extends MaybeSchema = MaybeSchema,
+    R extends MaybeSchema = MaybeSchema,
+  >(config: CliHandlerConfig<P, M, R>): void {
     const { handler, command } = config;
 
     if (!command) {
@@ -69,10 +63,7 @@ export class CliTransport implements Transport {
   /**
    * Регистрирует обработчик для команды (для обратной совместимости)
    */
-  command(
-    command: string,
-    handler: HandlerFn<MaybeSchema, MaybeSchema, MaybeSchema>,
-  ): void {
+  command(command: string, handler: HandlerFn<any, any, any>): void {
     this.handlers.set(command, handler);
   }
 
@@ -108,11 +99,8 @@ export class CliTransport implements Transport {
       },
     };
 
-    // Устанавливаем handler в пайплайн
-    this.pipeline.setHandler(handler);
-
-    // Выполняем пайплайн
-    return this.pipeline.execute(requestContext);
+    // Выполняем пайплайн с handler
+    return this.pipeline.executeWithHandler(handler, requestContext);
   }
 
   /**

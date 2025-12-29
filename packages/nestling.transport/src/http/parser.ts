@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { FilePart } from '../core/interfaces.js';
+import type { FilePart } from '../core/types/context.js';
 
 import Busboy from 'busboy';
 

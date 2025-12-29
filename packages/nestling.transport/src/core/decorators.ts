@@ -1,11 +1,19 @@
-import type { MaybeSchema, ResponseContext } from './interfaces.js';
-
-import type { z } from 'zod';
+import type {
+  Constructor,
+  IMiddleware,
+  Infer,
+  MaybeSchema,
+  ResponseContext,
+} from './types';
 
 /**
  * Метаданные handler-класса
  */
-export interface HandlerMetadata {
+export interface HandlerMetadata<
+  P extends MaybeSchema = MaybeSchema,
+  M extends MaybeSchema = MaybeSchema,
+  R extends MaybeSchema = MaybeSchema,
+> {
   transport: string;
   method: string;
   path: string;
@@ -15,9 +23,9 @@ export interface HandlerMetadata {
       files: 'stream' | 'buffer';
     };
   };
-  payloadSchema?: MaybeSchema;
-  metadataSchema?: MaybeSchema;
-  responseSchema?: MaybeSchema;
+  payloadSchema?: P;
+  metadataSchema?: M;
+  responseSchema?: R;
   className: string;
 }
 
@@ -31,31 +39,12 @@ const HANDLER_KEY = Symbol.for('nestling:handler');
  * ============================================================ */
 
 /**
- * Контракт handler-класса.
- *
- * Класс ОБЯЗАН иметь метод handle с правильной сигнатурой.
- * TypeScript проверяет это на уровне типов!
- */
-export type HandlerClass<TPayload, TMetadata, TResponse> = new (
-  ...args: any[]
-) => {
-  /**
-   * Обязательный метод handler-а.
-   * Его сигнатура — часть type-level контракта.
-   */
-  handle(
-    payload: TPayload,
-    metadata: TMetadata,
-  ): Promise<ResponseContext<TResponse>>;
-};
-
-/**
  * Конфигурация handler-класса
  */
 export interface HandlerClassConfig<
-  TPayloadSchema extends MaybeSchema,
-  TMetadataSchema extends MaybeSchema,
-  TResponseSchema extends MaybeSchema,
+  P extends MaybeSchema = MaybeSchema,
+  M extends MaybeSchema = MaybeSchema,
+  R extends MaybeSchema = MaybeSchema,
 > {
   transport: string;
   method: string;
@@ -66,9 +55,9 @@ export interface HandlerClassConfig<
       files: 'stream' | 'buffer';
     };
   };
-  payloadSchema?: TPayloadSchema;
-  metadataSchema?: TMetadataSchema;
-  responseSchema?: TResponseSchema;
+  payloadSchema?: P;
+  metadataSchema?: M;
+  responseSchema?: R;
 }
 
 /**
@@ -109,18 +98,18 @@ export interface HandlerClassConfig<
  * ```
  */
 export function Handler<
-  TPayloadSchema extends MaybeSchema,
-  TMetadataSchema extends MaybeSchema,
-  TResponseSchema extends MaybeSchema,
->(
-  config: HandlerClassConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
-) {
-  // Выводим типы из схем
-  type Payload = z.infer<TPayloadSchema>;
-  type Metadata = z.infer<TMetadataSchema>;
-  type Response = z.infer<TResponseSchema>;
-
-  return <T extends HandlerClass<Payload, Metadata, Response>>(
+  P extends MaybeSchema = MaybeSchema,
+  M extends MaybeSchema = MaybeSchema,
+  R extends MaybeSchema = MaybeSchema,
+>(config: HandlerClassConfig<P, M, R>) {
+  return <
+    T extends Constructor<{
+      handle(
+        payload: Infer<P>,
+        metadata: Infer<M>,
+      ): Promise<ResponseContext<Infer<R>>>;
+    }>,
+  >(
     target: T,
     context: ClassDecoratorContext<T>,
   ): T => {
@@ -137,7 +126,68 @@ export function Handler<
 /**
  * Извлекает метаданные handler-класса
  */
-export function getHandlerMetadata(target: any): HandlerMetadata | null {
+export function getHandlerMetadata<
+  P extends MaybeSchema = MaybeSchema,
+  M extends MaybeSchema = MaybeSchema,
+  R extends MaybeSchema = MaybeSchema,
+>(target: any): HandlerMetadata<P, M, R> | null {
   const constructor = target.prototype ? target : target.constructor;
   return constructor[HANDLER_KEY] || null;
+}
+
+/* ============================================================
+ * Middleware-классы
+ * ============================================================ */
+
+/**
+ * Метаданные middleware-класса
+ */
+export interface MiddlewareMetadata {
+  className: string;
+}
+
+/**
+ * Symbol-ключ для хранения метаданных middleware-класса
+ */
+const MIDDLEWARE_KEY = Symbol.for('nestling:middleware');
+
+/**
+ * Декоратор для middleware-классов.
+ *
+ * @example
+ * ```typescript
+ * @Middleware()
+ * class TimingMiddleware {
+ *   async apply(ctx: RequestContext, next: () => Promise<ResponseContext>) {
+ *     const start = Date.now();
+ *     const response = await next();
+ *     response.meta = {
+ *       ...response.meta,
+ *       timing: Date.now() - start,
+ *     };
+ *     return response;
+ *   }
+ * }
+ * ```
+ */
+export function Middleware() {
+  return <T extends Constructor<IMiddleware>>(
+    target: T,
+    context: ClassDecoratorContext<T>,
+  ): T => {
+    // Сохраняем конфигурацию в метаданных класса
+    (target as any)[MIDDLEWARE_KEY] = {
+      className: context.name,
+    };
+
+    return target;
+  };
+}
+
+/**
+ * Извлекает метаданные middleware-класса
+ */
+export function getMiddlewareMetadata(target: any): MiddlewareMetadata | null {
+  const constructor = target.prototype ? target : target.constructor;
+  return constructor[MIDDLEWARE_KEY] || null;
 }

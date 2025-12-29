@@ -7,14 +7,19 @@ import {
 import type { Readable } from 'node:stream';
 
 import type {
-  FilePart,
   HandlerConfig,
-  MaybeSchema,
-  RequestContext,
   RouteConfig,
   Transport,
 } from '../core/interfaces.js';
 import { Pipeline } from '../core/pipeline.js';
+import type {
+  Constructor,
+  FilePart,
+  IMiddleware,
+  MaybeSchema,
+  MiddlewareFn,
+  RequestContext,
+} from '../core/types';
 import { parseMetadata, parsePayload } from '../schema/parse.js';
 
 import { sendResponse } from './adapter.js';
@@ -49,12 +54,10 @@ export class HttpTransport implements Transport {
    * Регистрирует handler через конфигурацию
    */
   registerHandler<
-    TPayloadSchema extends MaybeSchema = undefined,
-    TMetadataSchema extends MaybeSchema = undefined,
-    TResponseSchema extends MaybeSchema = undefined,
-  >(
-    config: HandlerConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
-  ): void {
+    P extends MaybeSchema = MaybeSchema,
+    M extends MaybeSchema = MaybeSchema,
+    R extends MaybeSchema = MaybeSchema,
+  >(config: HandlerConfig<P, M, R>): void {
     const {
       handler,
       method,
@@ -68,11 +71,7 @@ export class HttpTransport implements Transport {
       throw new Error('HTTP handler config must include method and path');
     }
 
-    const routeConfig: RouteConfig<
-      TPayloadSchema,
-      TMetadataSchema,
-      TResponseSchema
-    > = {
+    const routeConfig: RouteConfig<P, M, R> = {
       method: String(method),
       path: String(path),
       handler,
@@ -97,42 +96,40 @@ export class HttpTransport implements Transport {
    * Регистрирует маршрут
    */
   route<
-    TPayloadSchema extends MaybeSchema | undefined = undefined,
-    TMetadataSchema extends MaybeSchema | undefined = undefined,
-    TResponseSchema extends MaybeSchema | undefined = undefined,
-  >(
-    config: RouteConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
-  ): void {
+    P extends MaybeSchema = MaybeSchema,
+    M extends MaybeSchema = MaybeSchema,
+    R extends MaybeSchema = MaybeSchema,
+  >(config: RouteConfig<P, M, R>): void {
     this.router.route(config);
   }
 
   /**
    * Добавляет middleware в пайплайн
    */
-  use(middleware: Parameters<Pipeline['use']>[0]): void {
+  use(middleware: MiddlewareFn | Constructor<IMiddleware>): void {
     this.pipeline.use(middleware);
   }
 
   /**
    * Обрабатывает HTTP запрос (внутренний метод)
    */
-  private async handle(nativeReq: unknown, nativeRes: unknown): Promise<void> {
-    const req = nativeReq as IncomingMessage;
-    const res = nativeRes as ServerResponse;
-
+  private async handle(
+    nativeReq: IncomingMessage,
+    nativeRes: ServerResponse,
+  ): Promise<void> {
     try {
       // Находим маршрут
-      const route = this.router.find(req);
+      const route = this.router.find(nativeReq);
       if (!route) {
-        res.statusCode = 404;
-        res.end('Not Found');
+        nativeRes.statusCode = 404;
+        nativeRes.end('Not Found');
         return;
       }
 
       // Парсим URL для query параметров
       const url = new URL(
-        req.url || '/',
-        `http://${req.headers.host || 'localhost'}`,
+        nativeReq.url || '/',
+        `http://${nativeReq.headers.host || 'localhost'}`,
       );
       const query: Record<string, string> = {};
       for (const [key, value] of url.searchParams.entries()) {
@@ -148,15 +145,15 @@ export class HttpTransport implements Transport {
       if (route.config.input?.body) {
         switch (route.config.input.body) {
           case 'json': {
-            body = await parseJson(req);
+            body = await parseJson(nativeReq);
             break;
           }
           case 'raw': {
-            body = await parseRaw(req);
+            body = await parseRaw(nativeReq);
             break;
           }
           case 'stream': {
-            streamBody = req;
+            streamBody = nativeReq;
             break;
           }
           // No default
@@ -165,7 +162,7 @@ export class HttpTransport implements Transport {
 
       // Парсим multipart если нужно
       if (route.config.input?.multipart) {
-        const parsedFiles = await parseMultipart(req);
+        const parsedFiles = await parseMultipart(nativeReq);
         if (parsedFiles.length > 0) {
           files = parsedFiles;
         }
@@ -181,11 +178,11 @@ export class HttpTransport implements Transport {
       // Создаем RequestContext
       const requestContext: RequestContext = {
         transport: 'http',
-        method: req.method || 'GET',
+        method: nativeReq.method || 'GET',
         path: url.pathname,
         payload,
         metadata: {
-          headers: req.headers as Record<string, string>,
+          headers: nativeReq.headers as Record<string, string>,
         },
         ...(streamBody || files
           ? {
@@ -211,19 +208,19 @@ export class HttpTransport implements Transport {
         ? parseMetadata(route.config.metadataSchema, inputSources)
         : undefined;
 
-      // Устанавливаем handler в пайплайн
-      this.pipeline.setHandler(route.handler);
-
       // Выполняем пайплайн с requestContext
-      const responseContext = await this.pipeline.execute(requestContext);
+      const responseContext = await this.pipeline.executeWithHandler(
+        route.handler,
+        requestContext,
+      );
 
       // Отправляем ответ
-      sendResponse(res, responseContext);
+      sendResponse(nativeRes, responseContext);
     } catch (error) {
       // Обработка ошибок
-      res.statusCode = 500;
-      res.setHeader('content-type', 'application/json');
-      res.end(
+      nativeRes.statusCode = 500;
+      nativeRes.setHeader('content-type', 'application/json');
+      nativeRes.end(
         JSON.stringify({
           error:
             error instanceof Error ? error.message : 'Internal Server Error',

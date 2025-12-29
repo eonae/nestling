@@ -1,22 +1,15 @@
 import { getHandlerMetadata } from './decorators.js';
-import type {
-  HandlerConfig,
-  MaybeSchema,
-  ResponseContext,
-  Transport,
-} from './interfaces.js';
-
-/**
- * Тип для любого handler-класса (с любыми типами параметров)
- */
-type AnyHandlerClass = new (...args: unknown[]) => {
-  handle: (...args: any[]) => Promise<ResponseContext<any>>;
-};
+import type { HandlerConfig, Transport } from './interfaces.js';
+import type { Constructor, IHandler, MaybeSchema } from './types';
 
 /**
  * Type guard для проверки, является ли значение декорированным handler-классом
  */
-function isHandlerClass(value: unknown): value is AnyHandlerClass {
+function isHandlerClass<
+  P extends MaybeSchema = MaybeSchema,
+  M extends MaybeSchema = MaybeSchema,
+  R extends MaybeSchema = MaybeSchema,
+>(value: unknown): value is Constructor<IHandler<P, M, R>> {
   return typeof value === 'function' && getHandlerMetadata(value) !== null;
 }
 
@@ -37,60 +30,13 @@ export class App {
   }
 
   /**
-   * Регистрирует handler-класс с автоматической проверкой типов
-   *
-   * @param HandlerConstructor - класс, декорированный @Handler
-   *
-   * @example
-   * ```typescript
-   * @Handler({
-   *   transport: 'http',
-   *   method: 'GET',
-   *   path: '/users/:id',
-   *   payloadSchema: GetUserSchema,
-   *   metadataSchema: AuthSchema,
-   *   responseSchema: UserResponseSchema,
-   * })
-   * class GetUser {
-   *   async handle(payload, metadata) {
-   *     // типы выводятся автоматически!
-   *     return { status: 200, value: {...}, meta: {} };
-   *   }
-   * }
-   *
-   * app.registerHandler(GetUser);
-   * ```
-   */
-  registerHandler(HandlerConstructor: AnyHandlerClass): void;
-
-  /**
-   * Регистрирует handler через конфигурационный объект
-   *
-   * @param config - конфигурация handler'а
-   *
-   * @example
-   * ```typescript
-   * app.registerHandler({
-   *   transport: 'cli',
-   *   command: 'greet',
-   *   handler: async (payload, metadata) => {
-   *     return { status: 0, value: {...}, meta: {} };
-   *   },
-   * });
-   * ```
-   */
-  registerHandler<
-    TPayloadSchema extends MaybeSchema = undefined,
-    TMetadataSchema extends MaybeSchema = undefined,
-    TResponseSchema extends MaybeSchema = undefined,
-  >(
-    config: HandlerConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
-  ): void;
-
-  /**
    * Реализация registerHandler с поддержкой обоих API
    */
-  registerHandler(input: AnyHandlerClass | HandlerConfig): void {
+  registerHandler<
+    P extends MaybeSchema = MaybeSchema,
+    M extends MaybeSchema = MaybeSchema,
+    R extends MaybeSchema = MaybeSchema,
+  >(input: Constructor<IHandler<P, M, R>> | HandlerConfig<P, M, R>): void {
     if (isHandlerClass(input)) {
       this.registerHandlerClass(input);
     } else {
@@ -147,13 +93,15 @@ export class App {
   /**
    * Регистрирует handler-класс
    */
-  private registerHandlerClass(HandlerConstructor: AnyHandlerClass): void {
-    const metadata = getHandlerMetadata(HandlerConstructor);
+  private registerHandlerClass<
+    P extends MaybeSchema = MaybeSchema,
+    M extends MaybeSchema = MaybeSchema,
+    R extends MaybeSchema = MaybeSchema,
+  >(ctor: Constructor<IHandler<P, M, R>>): void {
+    const metadata = getHandlerMetadata<P, M, R>(ctor);
 
     if (!metadata) {
-      throw new Error(
-        `Class ${HandlerConstructor.name} is not decorated with @Handler`,
-      );
+      throw new Error(`Class ${ctor.name} is not decorated with @Handler`);
     }
 
     const transport = this.transports.get(metadata.transport);
@@ -164,10 +112,10 @@ export class App {
     }
 
     // Создаём инстанс handler-класса
-    const instance = new HandlerConstructor();
+    const instance = new ctor();
 
     // Регистрируем в транспорте
-    transport.registerHandler({
+    transport.registerHandler<P, M, R>({
       transport: metadata.transport,
       method: metadata.method,
       path: metadata.path,

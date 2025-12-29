@@ -1,9 +1,9 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { HandlerFn, RouteConfig } from '../core/interfaces.js';
+import type { RouteConfig } from '../core/interfaces.js';
+import type { HandlerFn, MaybeSchema } from '../core/types';
 
 import Router from 'find-my-way';
-import type { z } from 'zod';
 
 /**
  * Обертка над find-my-way для роутинга HTTP запросов
@@ -23,12 +23,10 @@ export class HttpRouter {
    * Регистрирует маршрут
    */
   route<
-    TPayloadSchema extends z.ZodType<any, any, any> | undefined = undefined,
-    TMetadataSchema extends z.ZodType<any, any, any> | undefined = undefined,
-    TResponseSchema extends z.ZodType<any, any, any> | undefined = undefined,
-  >(
-    config: RouteConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
-  ): void {
+    P extends MaybeSchema = MaybeSchema,
+    M extends MaybeSchema = MaybeSchema,
+    R extends MaybeSchema = MaybeSchema,
+  >(config: RouteConfig<P, M, R>): void {
     // Создаем store с handler и config
     const store = {
       handler: config.handler,
@@ -50,8 +48,8 @@ export class HttpRouter {
    * Находит маршрут для запроса
    */
   find(req: IncomingMessage): {
-    handler: HandlerFn<any, any, any>;
-    config: RouteConfig<any, any, any>;
+    handler: HandlerFn;
+    config: RouteConfig;
     params: Record<string, string>;
   } | null {
     const result = this.router.find(
@@ -64,9 +62,10 @@ export class HttpRouter {
     }
 
     const store = result.store as {
-      handler: HandlerFn<any, any, any>;
-      config: RouteConfig<any, any, any>;
+      handler: HandlerFn;
+      config: RouteConfig;
     };
+
     const params = result.params as Record<string, string>;
 
     return {
