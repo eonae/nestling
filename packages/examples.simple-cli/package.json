@@ -12,6 +12,7 @@
     "lint:fix": "yarn run lint --fix"
   },
   "dependencies": {
-    "@nestling/transport": "workspace:*"
+    "@nestling/transport": "workspace:*",
+    "zod": "^4.0.0"
   }
 }

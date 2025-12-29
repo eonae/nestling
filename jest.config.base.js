@@ -101,6 +101,7 @@ export function createJestConfig(fileUrl) {
       ],
     },
     moduleNameMapper: {
+      '^(\\.{1,2}/.*)\\.js$': '$1',
       '^lodash-es$': 'lodash',
       ...workspaceMapper,
     },

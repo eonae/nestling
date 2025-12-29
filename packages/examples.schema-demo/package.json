@@ -1,7 +1,7 @@
 {
-  "name": "examples.simple-http-server",
+  "name": "examples.schema-demo",
   "version": "0.1.0",
-  "description": "Simple HTTP server example using @nestling/transport",
+  "description": "Schema-driven input system demonstration",
   "type": "module",
   "scripts": {
     "clear": "rm -rf dist",

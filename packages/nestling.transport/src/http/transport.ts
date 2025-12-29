@@ -4,15 +4,18 @@ import {
   type Server,
   type ServerResponse,
 } from 'node:http';
+import type { Readable } from 'node:stream';
 import { URL } from 'node:url';
 
 import type {
+  FilePart,
   HandlerConfig,
   RequestContext,
   RouteConfig,
   Transport,
 } from '../core/interfaces.js';
 import { Pipeline } from '../core/pipeline.js';
+import { mergePayload } from '../schema/merge.js';
 
 import { sendResponse } from './adapter.js';
 import { parseJson, parseMultipart, parseRaw } from './parser.js';
@@ -79,9 +82,9 @@ export class HttpTransport implements Transport {
   }
 
   /**
-   * Обрабатывает HTTP запрос
+   * Обрабатывает HTTP запрос (внутренний метод)
    */
-  async handle(nativeReq: unknown, nativeRes: unknown): Promise<void> {
+  private async handle(nativeReq: unknown, nativeRes: unknown): Promise<void> {
     const req = nativeReq as IncomingMessage;
     const res = nativeRes as ServerResponse;
 
@@ -104,36 +107,24 @@ export class HttpTransport implements Transport {
         query[key] = value;
       }
 
-      // Создаем RequestContext
-      const requestContext: RequestContext = {
-        transport: 'http',
-        method: req.method || 'GET',
-        path: url.pathname,
-        headers: req.headers as Record<string, string>,
-        query: Object.keys(query).length > 0 ? query : undefined,
-        meta: {
-          params: route.params,
-        },
-      };
+      // Переменные для данных запроса
+      let body: unknown;
+      let streamBody: Readable | undefined;
+      let files: FilePart[] | undefined;
 
       // Парсим body согласно конфигурации маршрута
       if (route.config.input?.body) {
         switch (route.config.input.body) {
           case 'json': {
-            requestContext.body = await parseJson(req);
-
+            body = await parseJson(req);
             break;
           }
           case 'raw': {
-            requestContext.body = await parseRaw(req);
-
+            body = await parseRaw(req);
             break;
           }
           case 'stream': {
-            requestContext.streams = {
-              body: req,
-            };
-
+            streamBody = req;
             break;
           }
           // No default
@@ -142,14 +133,37 @@ export class HttpTransport implements Transport {
 
       // Парсим multipart если нужно
       if (route.config.input?.multipart) {
-        const files = await parseMultipart(req);
-        if (files.length > 0) {
-          if (!requestContext.streams) {
-            requestContext.streams = {};
-          }
-          requestContext.streams.files = files;
+        const parsedFiles = await parseMultipart(req);
+        if (parsedFiles.length > 0) {
+          files = parsedFiles;
         }
       }
+
+      // Объединяем body, query и params в payload
+      const payload = mergePayload(
+        body,
+        Object.keys(query).length > 0 ? query : undefined,
+        route.params,
+      );
+
+      // Создаем RequestContext
+      const requestContext: RequestContext = {
+        transport: 'http',
+        method: req.method || 'GET',
+        path: url.pathname,
+        payload,
+        metadata: {
+          headers: req.headers as Record<string, string>,
+        },
+        ...(streamBody || files
+          ? {
+              streams: {
+                ...(streamBody && { body: streamBody }),
+                ...(files && { files }),
+              },
+            }
+          : {}),
+      };
 
       // Устанавливаем handler в пайплайн
       this.pipeline.setHandler(route.handler);

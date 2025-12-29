@@ -1561,6 +1561,8 @@ __metadata:
     "@types/busboy": "npm:^1.5.4"
     busboy: "npm:^1.6.0"
     find-my-way: "npm:^8.2.0"
+  peerDependencies:
+    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -5182,6 +5184,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"examples.schema-demo@workspace:packages/examples.schema-demo":
+  version: 0.0.0-use.local
+  resolution: "examples.schema-demo@workspace:packages/examples.schema-demo"
+  dependencies:
+    "@nestling/transport": "workspace:*"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
 "examples.simple-app@workspace:packages/examples.simple-app":
   version: 0.0.0-use.local
   resolution: "examples.simple-app@workspace:packages/examples.simple-app"
@@ -5195,6 +5206,7 @@ __metadata:
   resolution: "examples.simple-cli@workspace:packages/examples.simple-cli"
   dependencies:
     "@nestling/transport": "workspace:*"
+    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -5203,6 +5215,7 @@ __metadata:
   resolution: "examples.simple-http-server@workspace:packages/examples.simple-http-server"
   dependencies:
     "@nestling/transport": "workspace:*"
+    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -8152,6 +8165,7 @@ __metadata:
     typescript: "npm:5.7.3"
     typescript-eslint: "npm:^8.5.0"
     vite: "npm:^5.0.0"
+    zod: "npm:^4.2.1"
   languageName: unknown
   linkType: soft
 
@@ -11343,5 +11357,12 @@ __metadata:
   version: 0.1.0
   resolution: "yocto-queue@npm:0.1.0"
   checksum: 10/f77b3d8d00310def622123df93d4ee654fc6a0096182af8bd60679ddcdfb3474c56c6c7190817c84a2785648cdee9d721c0154eb45698c62176c322fb46fc700
+  languageName: node
+  linkType: hard
+
+"zod@npm:^4.0.0, zod@npm:^4.2.1":
+  version: 4.2.1
+  resolution: "zod@npm:4.2.1"
+  checksum: 10/f21d106ce31e0f24040aa13b13fdd1300fcc8119622b28ca1b1b726ff70b75190dbcfeb927d34f19174683afa298e5df4d806f622abe9b037a0aadb9cdef6443
   languageName: node
   linkType: hard

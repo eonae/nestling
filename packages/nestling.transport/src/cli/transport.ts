@@ -72,13 +72,11 @@ export class CliTransport implements Transport {
       transport: 'cli',
       method: input.command,
       path: `/${input.command}`,
-      headers: {},
-      query: input.options,
-      body: {
+      payload: {
         args: input.args,
-        options: input.options,
+        ...input.options,
       },
-      meta: {
+      metadata: {
         command: input.command,
         args: input.args,
         options: input.options,
@@ -90,15 +88,6 @@ export class CliTransport implements Transport {
 
     // Выполняем пайплайн
     return this.pipeline.execute(requestContext);
-  }
-
-  /**
-   * Обрабатывает запрос (для совместимости с интерфейсом Transport)
-   * В CLI транспорте это просто обертка над execute
-   */
-  async handle(nativeReq: unknown): Promise<void> {
-    const input = nativeReq as CliInput;
-    await this.execute(input);
   }
 
   /**
@@ -118,6 +107,7 @@ export class CliTransport implements Transport {
     this.repl.prompt();
 
     return new Promise((resolve) => {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.repl!.on('line', async (line: string) => {
         const trimmed = line.trim();
 

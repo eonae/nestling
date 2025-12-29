@@ -14,11 +14,6 @@ export interface HandlerConfig {
  */
 export interface Transport {
   /**
-   * Обрабатывает запрос
-   */
-  handle(nativeReq: unknown, nativeRes?: unknown): Promise<void>;
-
-  /**
    * Регистрирует handler через конфигурацию
    */
   registerHandler(config: HandlerConfig): void;
@@ -51,17 +46,28 @@ export interface RequestContext {
   transport: string;
   method: string;
   path: string;
-  headers: Record<string, string>;
 
-  query?: unknown;
-  body?: unknown;
+  /**
+   * Структурированные данные (объединение body + query + params)
+   * Используется со schema-driven подходом
+   */
+  payload?: unknown;
 
+  /**
+   * Метаданные транспорта (headers + transport-specific meta)
+   * Используется для auth, tracing и т.п.
+   */
+  metadata: Record<string, unknown>;
+
+  /**
+   * Для streaming cases
+   */
   streams?: {
+    /** Streaming body (когда body не парсится в объект) */
     body?: Readable;
+    /** Multipart файлы */
     files?: FilePart[];
   };
-
-  meta: Record<string, unknown>;
 }
 
 /**

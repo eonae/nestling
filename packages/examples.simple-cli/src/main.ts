@@ -1,7 +1,8 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
-import { App, CliTransport } from '@nestling/transport';
+import { App, CliTransport, defineSchema } from '@nestling/transport';
+import { z } from 'zod';
 
 // Создаем CLI транспорт
 const cliTransport = new CliTransport();
@@ -28,12 +29,12 @@ app.registerHandler({
   transport: 'cli',
   command: 'greet',
   handler: async (ctx) => {
-    const body = ctx.body as {
+    const payload = ctx.payload as {
       args: string[];
-      options: Record<string, unknown>;
+      enthusiastic?: boolean;
     };
-    const name = body.args[0] || 'World';
-    const enthusiastic = body.options.enthusiastic as boolean | undefined;
+    const name = payload.args[0] || 'World';
+    const enthusiastic = payload.enthusiastic;
 
     const greeting = enthusiastic ? `Hello, ${name}!!!` : `Hello, ${name}!`;
 
@@ -81,18 +82,18 @@ app.registerHandler({
   },
 });
 
-// calc - калькулятор
+// calc - калькулятор (старый подход без схем)
 app.registerHandler({
   transport: 'cli',
   command: 'calc',
   handler: async (ctx) => {
-    const body = ctx.body as {
+    const payload = ctx.payload as {
       args: string[];
-      options: Record<string, unknown>;
+      op?: string;
     };
-    const operation = body.options.op as string | undefined;
-    const a = Number.parseFloat(body.args[0] || '0');
-    const b = Number.parseFloat(body.args[1] || '0');
+    const operation = payload.op;
+    const a = Number.parseFloat(payload.args[0] || '0');
+    const b = Number.parseFloat(payload.args[1] || '0');
 
     let result: number;
     let op: string;
@@ -155,12 +156,12 @@ app.registerHandler({
   transport: 'cli',
   command: 'echo',
   handler: async (ctx) => {
-    const body = ctx.body as {
+    const payload = ctx.payload as {
       args: string[];
-      options: Record<string, unknown>;
+      uppercase?: boolean;
     };
-    const message = body.args.join(' ');
-    const uppercase = body.options.uppercase as boolean | undefined;
+    const message = payload.args.join(' ');
+    const uppercase = payload.uppercase;
 
     const output = uppercase ? message.toUpperCase() : message;
     console.log(output);
@@ -168,6 +169,138 @@ app.registerHandler({
     return {
       status: 0,
       value: { message: output },
+      meta: {},
+    };
+  },
+});
+
+// Schema-driven примеры
+
+// Схема для калькулятора со строгой типизацией
+const CalcSchema = defineSchema(
+  z.object({
+    a: z.number().describe('Первое число'),
+    b: z.number().describe('Второе число'),
+    operation: z
+      .enum(['add', 'sub', 'mul', 'div', '+', '-', '*', '/'])
+      .describe('Операция: add/sub/mul/div или +/-/*//'),
+  }),
+);
+
+// calc-schema - калькулятор со схемой
+app.registerHandler({
+  transport: 'cli',
+  command: 'calc-schema',
+  handler: async (ctx) => {
+    // Извлекаем данные из payload
+    const payload = ctx.payload as {
+      args: string[];
+      op?: string;
+    };
+
+    // Преобразуем CLI input в формат для схемы
+    const input = {
+      a: Number.parseFloat(payload.args[0] || '0'),
+      b: Number.parseFloat(payload.args[1] || '0'),
+      operation: payload.op || 'add',
+    };
+
+    // Валидируем через схему
+    const validated = CalcSchema.parse(input);
+    const { a: validatedA, b: validatedB, operation: validatedOp } = validated;
+
+    // input строго типизирован после валидации!
+    let result: number;
+    let op: string;
+
+    switch (validatedOp) {
+      case 'add':
+      case '+': {
+        result = validatedA + validatedB;
+        op = '+';
+        break;
+      }
+      case 'sub':
+      case '-': {
+        result = validatedA - validatedB;
+        op = '-';
+        break;
+      }
+      case 'mul':
+      case '*': {
+        result = validatedA * validatedB;
+        op = '*';
+        break;
+      }
+      case 'div':
+      case '/': {
+        if (validatedB === 0) {
+          console.error('Error: Division by zero');
+          return {
+            status: 1,
+            value: { error: 'Division by zero' },
+            meta: {},
+          };
+        }
+        result = validatedA / validatedB;
+        op = '/';
+        break;
+      }
+      default: {
+        console.error('Error: Unknown operation');
+        return {
+          status: 1,
+          value: { error: 'Unknown operation' },
+          meta: {},
+        };
+      }
+    }
+
+    console.log(`Result: ${validatedA} ${op} ${validatedB} = ${result}`);
+
+    return {
+      status: 0,
+      value: { a: validatedA, b: validatedB, operation: op, result },
+      meta: {},
+    };
+  },
+});
+
+// Схема для команды greet
+const GreetSchema = defineSchema(
+  z.object({
+    name: z.string().min(1).max(50).describe('Имя для приветствия'),
+    enthusiastic: z.boolean().optional().describe('Энтузиастичное приветствие'),
+  }),
+);
+
+// greet-schema - приветствие со схемой
+app.registerHandler({
+  transport: 'cli',
+  command: 'greet-schema',
+  handler: async (ctx) => {
+    const payload = ctx.payload as {
+      args: string[];
+      enthusiastic?: boolean;
+    };
+
+    // Преобразуем CLI input
+    const input = {
+      name: payload.args[0] || 'World',
+      enthusiastic: Boolean(payload.enthusiastic),
+    };
+
+    // Валидируем
+    const validated = GreetSchema.parse(input);
+    const { name, enthusiastic = false } = validated;
+
+    const greeting = enthusiastic ? `Hello, ${name}!!!` : `Hello, ${name}!`;
+
+    console.log(greeting);
+
+    return {
+      status: 0,
+      value: { greeting },
       meta: {},
     };
   },
@@ -184,6 +317,10 @@ app.registerHandler({
     console.log('    Greet someone');
     console.log('    Example: yarn start greet Alice --enthusiastic');
     console.log('');
+    console.log('  greet-schema [name] [--enthusiastic]');
+    console.log('    Greet someone (with schema validation)');
+    console.log('    Example: yarn start greet-schema Alice --enthusiastic');
+    console.log('');
     console.log('  info');
     console.log('    Show system information');
     console.log('    Example: yarn start info');
@@ -192,6 +329,11 @@ app.registerHandler({
     console.log('    Calculate a math operation');
     console.log('    Operations: add, sub, mul, div (or +, -, *, /)');
     console.log('    Example: yarn start calc 10 5 --op add');
+    console.log('');
+    console.log('  calc-schema <a> <b> --op <operation>');
+    console.log('    Calculate a math operation (with schema validation)');
+    console.log('    Operations: add, sub, mul, div (or +, -, *, /)');
+    console.log('    Example: yarn start calc-schema 10 5 --op add');
     console.log('');
     console.log('  echo <text> [--uppercase]');
     console.log('    Echo text back');
