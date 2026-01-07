@@ -1,4 +1,3 @@
-export * from './core/index.js';
-export * from './http/index.js';
-export * from './cli/index.js';
-export * from './schema/index.js';
+export * from './core';
+export * from './schema';
+export * from './decorators';

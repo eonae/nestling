@@ -1,6 +1,6 @@
-import { getHandlerMetadata } from './decorators.js';
-import type { HandlerConfig, Transport } from './interfaces.js';
-import type { Constructor, IHandler, MaybeSchema } from './types';
+import type { Constructor, MaybeSchema } from '@common/misc';
+import type { HandlerConfig, IHandler, Transport } from '@nestling/transport';
+import { getHandlerMetadata } from '@nestling/transport';
 
 /**
  * Type guard для проверки, является ли значение декорированным handler-классом

@@ -1,6 +1,6 @@
 import type { ServerResponse } from 'node:http';
 
-import type { ResponseContext } from '../core/types/context.js';
+import type { ResponseContext } from '@nestling/transport';
 
 /**
  * Отправляет ResponseContext в ServerResponse

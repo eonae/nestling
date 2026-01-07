@@ -1,7 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { FilePart } from '../core/types/context.js';
-
+import type { FilePart } from '@nestling/transport';
 import Busboy from 'busboy';
 
 /**
@@ -39,7 +38,7 @@ export function parseMultipart(req: IncomingMessage): Promise<FilePart[]> {
     const files: FilePart[] = [];
 
     busboyInstance.on('file', (fieldname, stream, info) => {
-      const { filename, encoding, mimeType } = info;
+      const { filename, mimeType } = info;
       files.push({
         field: fieldname,
         filename: filename || 'unknown',

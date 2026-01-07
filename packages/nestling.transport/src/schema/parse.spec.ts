@@ -1,9 +1,5 @@
-import {
-  parseMetadata,
-  parsePayload,
-  SchemaValidationError,
-} from '../parse.js';
-import type { InputSources } from '../types.js';
+import { parseMetadata, parsePayload, SchemaValidationError } from './parse.js';
+import type { InputSources } from './types.js';
 
 import { z } from 'zod';
 

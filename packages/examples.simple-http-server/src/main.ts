@@ -1,12 +1,11 @@
 /* eslint-disable no-console */
 
-import { ListProducts } from './handlers.class/list-products.handler';
-import { CreateUser } from './handlers.functional/create-user.handler';
-import { GetUserByIdHandler } from './handlers.class';
-import { SayHello } from './handlers.functional';
+import { GetUserByIdHandler, ListProducts } from './handlers.class';
+import { CreateUser, SayHello } from './handlers.functional';
 import { RequestResponseLogging, TimingMiddleware } from './middleware';
 
-import { App, HttpTransport } from '@nestling/transport';
+import { App } from '@nestling/app';
+import { HttpTransport } from '@nestling/transport.http';
 
 // Создаем HTTP транспорт
 const httpTransport = new HttpTransport({

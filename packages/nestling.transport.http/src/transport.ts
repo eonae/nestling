@@ -6,26 +6,22 @@ import {
 } from 'node:http';
 import type { Readable } from 'node:stream';
 
-import type {
-  HandlerConfig,
-  RouteConfig,
-  Transport,
-} from '../core/interfaces.js';
-import { Pipeline } from '../core/pipeline.js';
-import type {
-  Constructor,
-  FilePart,
-  IMiddleware,
-  MaybeSchema,
-  MiddlewareFn,
-  RequestContext,
-} from '../core/types';
-import { parseMetadata, parsePayload } from '../schema/parse.js';
-
 import { sendResponse } from './adapter.js';
 import { mergePayload } from './merge.js';
 import { parseJson, parseMultipart, parseRaw } from './parser.js';
 import { HttpRouter } from './router.js';
+
+import type { Constructor, MaybeSchema } from '@common/misc';
+import type {
+  FilePart,
+  HandlerConfig,
+  IMiddleware,
+  MiddlewareFn,
+  RequestContext,
+  RouteConfig,
+  Transport,
+} from '@nestling/transport';
+import { parseMetadata, parsePayload, Pipeline } from '@nestling/transport';
 
 /**
  * Опции для HTTP транспорта

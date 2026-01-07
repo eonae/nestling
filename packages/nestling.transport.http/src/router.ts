@@ -1,8 +1,7 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { RouteConfig } from '../core/interfaces.js';
-import type { HandlerFn, MaybeSchema } from '../core/types';
-
+import type { MaybeSchema } from '@common/misc';
+import type { HandlerFn, RouteConfig } from '@nestling/transport';
 import Router from 'find-my-way';
 
 /**

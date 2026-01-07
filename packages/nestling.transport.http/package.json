@@ -1,5 +1,5 @@
 {
-  "name": "@nestling/transport",
+  "name": "@nestling/transport.http",
   "version": "0.1.0",
   "description": "",
   "type": "module",
@@ -20,9 +20,15 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*"
+    "@common/misc": "workspace:*",
+    "@nestling/transport": "workspace:*",
+    "busboy": "^1.6.0",
+    "find-my-way": "^8.2.0"
   },
   "peerDependencies": {
     "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/busboy": "^1.5.4"
   }
 }

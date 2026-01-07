@@ -1,5 +1,6 @@
-import type { Constructor } from './common.js';
 import type { RequestContext, ResponseContext } from './context.js';
+
+import type { Constructor } from '@common/misc';
 
 /**
  * Интерфейс для middleware-классов

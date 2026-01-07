@@ -14,6 +14,7 @@
   "dependencies": {
     "@nestling/models": "workspace:*",
     "@nestling/transport": "workspace:*",
+    "@nestling/transport.cli": "workspace:*",
     "zod": "^4.0.0"
   }
 }

@@ -1,5 +1,6 @@
-import type { Infer, MaybeSchema } from './common.js';
 import type { ResponseContext } from './context.js';
+
+import type { Infer, MaybeSchema } from '@common/misc';
 
 /**
  * Интерфейс для handler-классов

@@ -429,6 +429,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@common/misc@workspace:*, @common/misc@workspace:packages/common.misc":
+  version: 0.0.0-use.local
+  resolution: "@common/misc@workspace:packages/common.misc"
+  languageName: unknown
+  linkType: soft
+
 "@common/static-server@workspace:*, @common/static-server@workspace:packages/common.static-server":
   version: 0.0.0-use.local
   resolution: "@common/static-server@workspace:packages/common.static-server"
@@ -1544,6 +1550,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nestling/app@workspace:*, @nestling/app@workspace:packages/nestling.app":
+  version: 0.0.0-use.local
+  resolution: "@nestling/app@workspace:packages/nestling.app"
+  dependencies:
+    "@common/misc": "workspace:*"
+    "@nestling/transport": "workspace:*"
+  peerDependencies:
+    zod: ^4.0.0
+  languageName: unknown
+  linkType: soft
+
 "@nestling/container@workspace:*, @nestling/container@workspace:packages/nestling.container":
   version: 0.0.0-use.local
   resolution: "@nestling/container@workspace:packages/nestling.container"
@@ -1566,13 +1583,36 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nestling/transport.cli@workspace:*, @nestling/transport.cli@workspace:packages/nestling.transport.cli":
+  version: 0.0.0-use.local
+  resolution: "@nestling/transport.cli@workspace:packages/nestling.transport.cli"
+  dependencies:
+    "@common/misc": "workspace:*"
+    "@nestling/transport": "workspace:*"
+  peerDependencies:
+    zod: ^4.0.0
+  languageName: unknown
+  linkType: soft
+
+"@nestling/transport.http@workspace:*, @nestling/transport.http@workspace:packages/nestling.transport.http":
+  version: 0.0.0-use.local
+  resolution: "@nestling/transport.http@workspace:packages/nestling.transport.http"
+  dependencies:
+    "@common/misc": "workspace:*"
+    "@nestling/transport": "workspace:*"
+    "@types/busboy": "npm:^1.5.4"
+    busboy: "npm:^1.6.0"
+    find-my-way: "npm:^8.2.0"
+  peerDependencies:
+    zod: ^4.0.0
+  languageName: unknown
+  linkType: soft
+
 "@nestling/transport@workspace:*, @nestling/transport@workspace:packages/nestling.transport":
   version: 0.0.0-use.local
   resolution: "@nestling/transport@workspace:packages/nestling.transport"
   dependencies:
-    "@types/busboy": "npm:^1.5.4"
-    busboy: "npm:^1.6.0"
-    find-my-way: "npm:^8.2.0"
+    "@common/misc": "workspace:*"
   peerDependencies:
     zod: ^4.0.0
   languageName: unknown
@@ -5210,6 +5250,7 @@ __metadata:
   dependencies:
     "@nestling/models": "workspace:*"
     "@nestling/transport": "workspace:*"
+    "@nestling/transport.cli": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -5218,8 +5259,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "examples.simple-http-server@workspace:packages/examples.simple-http-server"
   dependencies:
+    "@nestling/app": "workspace:*"
     "@nestling/models": "workspace:*"
     "@nestling/transport": "workspace:*"
+    "@nestling/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft

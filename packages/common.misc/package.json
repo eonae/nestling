@@ -1,9 +1,10 @@
 {
-  "name": "@nestling/transport",
+  "name": "@common/misc",
   "version": "0.1.0",
   "description": "",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/out.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -18,11 +19,5 @@
     "test": "run -T jest --passWithNoTests"
   },
   "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "@common/misc": "workspace:*"
-  },
-  "peerDependencies": {
-    "zod": "^4.0.0"
-  }
+  "license": "MIT"
 }

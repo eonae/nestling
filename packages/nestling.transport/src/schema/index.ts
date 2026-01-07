@@ -1,5 +1,2 @@
-// Types
-export type { DomainType, InputSources } from './types.js';
-
-// Error class
-export { SchemaValidationError } from './parse.js';
+export type * from './types.js';
+export * from './parse.js';

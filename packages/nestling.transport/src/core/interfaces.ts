@@ -1,4 +1,6 @@
-import type { HandlerFn, MaybeSchema } from './types';
+import type { HandlerFn } from './types';
+
+import type { MaybeSchema } from '@common/misc';
 
 /**
  * Конфигурация для регистрации handler в транспорте

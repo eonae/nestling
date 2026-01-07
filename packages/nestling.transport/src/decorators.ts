@@ -1,10 +1,5 @@
-import type {
-  Constructor,
-  IMiddleware,
-  Infer,
-  MaybeSchema,
-  ResponseContext,
-} from './types';
+import type { Constructor, Infer, MaybeSchema } from '@common/misc';
+import type { IMiddleware, ResponseContext } from '@nestling/transport';
 
 /**
  * Метаданные handler-класса

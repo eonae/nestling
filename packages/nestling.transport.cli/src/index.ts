@@ -1,15 +1,15 @@
 /* eslint-disable no-console */
 import * as readline from 'node:readline';
 
-import type { HandlerConfig, Transport } from '../core/interfaces.js';
-import { Pipeline } from '../core/pipeline.js';
+import type { MaybeSchema } from '@common/misc';
 import type {
+  HandlerConfig,
   HandlerFn,
-  MaybeSchema,
   RequestContext,
   ResponseContext,
-} from '../core/types';
-
+  Transport,
+} from '@nestling/transport';
+import { Pipeline } from '@nestling/transport';
 /**
  * Входные данные для CLI транспорта
  */

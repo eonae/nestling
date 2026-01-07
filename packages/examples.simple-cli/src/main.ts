@@ -1,8 +1,9 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
+import { App } from '@nestling/app';
 import { fromScratch } from '@nestling/models';
-import { App, CliTransport } from '@nestling/transport';
+import { CliTransport } from '@nestling/transport.cli';
 import { z } from 'zod';
 
 // Схемы ответов

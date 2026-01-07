@@ -1,5 +1,4 @@
 import type {
-  Constructor,
   HandlerFn,
   IMiddleware,
   MiddlewareFn,
@@ -7,6 +6,8 @@ import type {
   ResponseContext,
 } from './types';
 import { isClass } from './types';
+
+import type { Constructor } from '@common/misc';
 /**
  * Класс для выполнения пайплайна middleware и handler
  */
