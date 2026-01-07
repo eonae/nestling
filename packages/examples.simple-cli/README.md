@@ -130,7 +130,7 @@ yarn dev echo "loud message" --uppercase
 
 Пример демонстрирует два подхода к регистрации handler'ов:
 
-### Подход 1: Функциональный стиль (`makeHandler`)
+### Подход 1: Функциональный стиль (`makeEndpoint`)
 
 Используется для простых команд без сложной логики валидации:
 
@@ -146,9 +146,9 @@ yarn dev echo "loud message" --uppercase
 **Пример:**
 
 ```typescript
-import { makeHandler } from '@nestling/transport';
+import { makeEndpoint } from '@nestling/transport';
 
-export const Greet = makeHandler({
+export const Greet = makeEndpoint({
   transport: 'cli',
   pattern: 'greet',
   responseSchema: GreetResponseSchema,
@@ -203,7 +203,7 @@ export class InfoHandler {
 
 ```
 src/
-├── handlers.functional/     # Функциональный стиль (makeHandler)
+├── handlers.functional/     # Функциональный стиль (makeEndpoint)
 │   ├── index.ts
 │   ├── greet.handler.ts
 │   ├── echo.handler.ts
@@ -225,7 +225,7 @@ src/
 
 ## Когда использовать какой подход?
 
-### Используйте функциональный стиль (`makeHandler`), когда:
+### Используйте функциональный стиль (`makeEndpoint`), когда:
 - Команда простая и не требует сложной валидации
 - Нужна быстрая разработка без создания классов
 - Логика команды умещается в одну функцию

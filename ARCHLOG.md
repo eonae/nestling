@@ -1,12 +1,12 @@
-[07.01.2026] Handler classes instead of Controllers.
+[07.01.2026] Endpoint classes instead of Controllers.
 
-Switched from @Controller with @Endpoint methods to @Handler on classes. Main reasons:
+Switched from @Controller with @Endpoint methods to @Endpoint on classes. Main reasons:
 1. TypeScript method decorators cannot check parameter types against schemas due to type system limitations
-2. @Handler on class constructors allows checking the entire class shape through constructor constraint
+2. @Endpoint on class constructors allows checking the entire class shape through constructor constraint
 3. One class = one endpoint (Single Responsibility) - better isolation and testability
-4. Both functional style (app.registerHandler) and class style (@Handler) provide full type checking
+4. Both functional style (app.endpoint) and class style (@Endpoint) provide full type checking
 
-Controller approach (multiple endpoints in one class) violates SRP and lacks compile-time type safety. Handler approach is more explicit and type-safe.
+Controller approach (multiple endpoints in one class) violates SRP and lacks compile-time type safety. Endpoint approach is more explicit and type-safe.
 
 [27.09.2025] Modules as plain objects.
 

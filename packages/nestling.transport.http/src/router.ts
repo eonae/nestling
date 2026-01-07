@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { MaybeSchema } from '@common/misc';
-import type { HandlerFn } from '@nestling/pipeline';
+import type { Optional, Schema } from '@common/misc';
+import type { HandlerFn, Input, Output } from '@nestling/pipeline';
 import type { RouteConfig } from '@nestling/transport';
 import Router from 'find-my-way';
 
@@ -23,10 +23,10 @@ export class HttpRouter {
    * Регистрирует маршрут
    */
   route<
-    P extends MaybeSchema = MaybeSchema,
-    M extends MaybeSchema = MaybeSchema,
-    R extends MaybeSchema = MaybeSchema,
-  >(config: RouteConfig<P, M, R>): void {
+    I extends Input = Schema,
+    O extends Output = Schema,
+    M extends Optional<Schema> = Optional<Schema>,
+  >(config: RouteConfig<I, O, M>): void {
     // Создаем store с handler и config
     const store = {
       handler: config.handle,

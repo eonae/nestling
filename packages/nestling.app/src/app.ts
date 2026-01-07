@@ -1,17 +1,22 @@
-import type { Constructor, MaybeSchema } from '@common/misc';
-import type { HandlerConfig, IHandler } from '@nestling/pipeline';
-import { getHandlerMetadata } from '@nestling/pipeline';
+import type { Constructor, Optional, Schema } from '@common/misc';
+import type {
+  HandlerConfig,
+  IEndpoint,
+  InferInput,
+  Input,
+  Output,
+} from '@nestling/pipeline';
+import { getEndpointMetadata } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
-
 /**
  * Type guard для проверки, является ли значение декорированным handler-классом
  */
 function isHandlerClass<
-  P extends MaybeSchema = MaybeSchema,
-  M extends MaybeSchema = MaybeSchema,
-  R extends MaybeSchema = MaybeSchema,
->(value: unknown): value is Constructor<IHandler<P, M, R>> {
-  return typeof value === 'function' && getHandlerMetadata(value) !== null;
+  I extends Input = Schema,
+  O extends Output = Schema,
+  M extends Optional<Schema> = Optional<Schema>,
+>(value: unknown): value is Constructor<IEndpoint<I, O, M>> {
+  return typeof value === 'function' && getEndpointMetadata(value) !== null;
 }
 
 /**
@@ -31,17 +36,17 @@ export class App {
   }
 
   /**
-   * Реализация registerHandler с поддержкой обоих API
+   * Реализация endpoint с поддержкой обоих API
    */
-  registerHandler<
-    P extends MaybeSchema = MaybeSchema,
-    M extends MaybeSchema = MaybeSchema,
-    R extends MaybeSchema = MaybeSchema,
-  >(input: Constructor<IHandler<P, M, R>> | HandlerConfig<P, M, R>): void {
-    if (isHandlerClass(input)) {
-      this.registerHandlerClass(input);
+  endpoint<
+    I extends Input = Schema,
+    O extends Output = Schema,
+    M extends Optional<Schema> = Optional<Schema>,
+  >(input: Constructor<IEndpoint<I, O, M>> | HandlerConfig<I, O, M>): void {
+    if (isHandlerClass<I, O, M>(input)) {
+      this.registerClass(input);
     } else {
-      this.registerHandlerConfig(input);
+      this.registerPlain(input);
     }
   }
 
@@ -74,13 +79,11 @@ export class App {
   /**
    * Регистрирует handler через конфигурацию
    */
-  private registerHandlerConfig<
-    TPayloadSchema extends MaybeSchema = undefined,
-    TMetadataSchema extends MaybeSchema = undefined,
-    TResponseSchema extends MaybeSchema = undefined,
-  >(
-    config: HandlerConfig<TPayloadSchema, TMetadataSchema, TResponseSchema>,
-  ): void {
+  private registerPlain<
+    I extends Input = Schema,
+    O extends Output = Schema,
+    M extends Optional<Schema> = Optional<Schema>,
+  >(config: HandlerConfig<I, O, M>): void {
     const transport = this.transports.get(config.transport);
     if (!transport) {
       throw new Error(
@@ -88,21 +91,25 @@ export class App {
       );
     }
 
-    transport.registerHandler(config);
+    transport.endpoint(config);
   }
 
   /**
    * Регистрирует handler-класс
    */
-  private registerHandlerClass<
-    P extends MaybeSchema = MaybeSchema,
-    M extends MaybeSchema = MaybeSchema,
-    R extends MaybeSchema = MaybeSchema,
-  >(ctor: Constructor<IHandler<P, M, R>>): void {
-    const metadata = getHandlerMetadata<P, M, R>(ctor);
+  private registerClass<
+    I extends Input = Schema,
+    O extends Output = Schema,
+    M extends Optional<Schema> = Optional<Schema>,
+  >(
+    ctor: Constructor<{
+      handle(payload: InferInput<I>, metadata: any): Promise<any>;
+    }>,
+  ): void {
+    const metadata = getEndpointMetadata<I, O, M>(ctor);
 
     if (!metadata) {
-      throw new Error(`Class ${ctor.name} is not decorated with @Handler`);
+      throw new Error(`Class ${ctor.name} is not decorated with @Endpoint`);
     }
 
     const transport = this.transports.get(metadata.transport);
@@ -116,13 +123,14 @@ export class App {
     const instance = new ctor();
 
     // Регистрируем в транспорте
-    transport.registerHandler<P, M, R>({
+    transport.endpoint({
       transport: metadata.transport,
       pattern: metadata.pattern,
-      payloadSchema: metadata.payloadSchema,
-      metadataSchema: metadata.metadataSchema,
-      responseSchema: metadata.responseSchema,
-      handle: (payload, metadata) => instance.handle(payload, metadata),
+      input: metadata.input,
+      metadata: metadata.metadata,
+      output: metadata.output,
+      handle: (payload, metadataParam) =>
+        instance.handle(payload, metadataParam),
     });
   }
 }

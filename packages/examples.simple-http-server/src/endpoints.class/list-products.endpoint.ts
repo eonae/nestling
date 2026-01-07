@@ -1,10 +1,10 @@
 import { Product } from '../common';
 
-import { Handler } from '@nestling/pipeline';
+import { Endpoint } from '@nestling/pipeline';
 import z from 'zod';
 
 // Схемы для ListProducts
-export const ListProductsResponse = z
+export const ListProductsOutput = z
   .object({
     products: z
       .array(Product.describe('Single Product'))
@@ -12,12 +12,12 @@ export const ListProductsResponse = z
   })
   .describe('Product list response');
 
-@Handler({
+@Endpoint({
   transport: 'http',
   pattern: 'GET /products',
-  responseSchema: ListProductsResponse,
+  output: ListProductsOutput,
 })
-export class ListProductsHandler {
+export class ListProductsEndpoint {
   async handle() {
     return {
       status: 200,

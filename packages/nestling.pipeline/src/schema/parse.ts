@@ -19,7 +19,7 @@ export class SchemaValidationError extends Error {
  * Парсит и валидирует payload согласно схеме
  *
  * Внутренняя функция для использования в транспортах.
- * Для публичного API используйте payloadSchema в registerHandler.
+ * Для публичного API используйте input в endpoint.
  *
  * @param schema - Zod схема для валидации
  * @param sources - Источники входных данных
@@ -47,7 +47,7 @@ export function parsePayload<S extends z.ZodType<any, any, any>>(
  * Парсит и валидирует metadata согласно схеме
  *
  * Внутренняя функция для использования в транспортах.
- * Для публичного API используйте metadataSchema в registerHandler.
+ * Для публичного API используйте metadata в endpoint.
  *
  * @param schema - Zod схема для валидации metadata
  * @param sources - Источники входных данных

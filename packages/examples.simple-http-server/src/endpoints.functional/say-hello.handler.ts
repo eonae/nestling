@@ -1,16 +1,16 @@
-import { makeHandler } from '@nestling/pipeline';
+import { makeEndpoint } from '@nestling/pipeline';
 import z from 'zod';
 
 // GET /
-const SayHelloResponse = z.object({
+const SayHelloOutput = z.object({
   message: z.string(),
   timestamp: z.string(),
 });
 
-export const SayHelloHandler = makeHandler({
+export const SayHello = makeEndpoint({
   transport: 'http',
   pattern: 'GET /',
-  responseSchema: SayHelloResponse,
+  output: SayHelloOutput,
   handle: async () => ({
     status: 200,
     value: {

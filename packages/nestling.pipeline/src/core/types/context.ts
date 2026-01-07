@@ -4,10 +4,20 @@ import type { Readable } from 'node:stream';
  * Описание файла в multipart запросе
  */
 export interface FilePart {
+  /** Имя поля формы */
   field: string;
+
+  /** Имя файла */
   filename: string;
+
+  /** MIME-тип */
   mime: string;
+
+  /** Поток данных файла */
   stream: Readable;
+
+  /** Размер файла (если известен) */
+  size?: number;
 }
 
 /**

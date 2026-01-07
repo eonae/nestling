@@ -2,7 +2,7 @@
 
 import { makeModel } from '@nestling/models';
 import type { ResponseContext } from '@nestling/pipeline';
-import { Handler } from '@nestling/pipeline';
+import { Endpoint } from '@nestling/pipeline';
 import { z } from 'zod';
 
 // Схема для калькулятора со строгой типизацией
@@ -31,16 +31,13 @@ type CalcPayload = z.infer<typeof CalcPayload>;
 type CalcResponse = z.infer<typeof CalcResponse>;
 type CalcErrorResponse = z.infer<typeof CalcErrorResponse>;
 
-/**
- * Handler-класс для команды calc-schema - калькулятор со схемой
- */
-@Handler({
+@Endpoint({
   transport: 'cli',
   pattern: 'calc-schema',
-  payloadSchema: CalcPayload,
-  responseSchema: z.union([CalcResponse, CalcErrorResponse]),
+  input: CalcPayload,
+  output: z.union([CalcResponse, CalcErrorResponse]),
 })
-export class CalcHandler {
+export class CalcEndpoint {
   async handle(
     payload: CalcPayload,
   ): Promise<ResponseContext<CalcResponse | CalcErrorResponse>> {

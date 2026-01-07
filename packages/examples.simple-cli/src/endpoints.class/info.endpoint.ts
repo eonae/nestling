@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import type { ResponseContext } from '@nestling/pipeline';
-import { Handler } from '@nestling/pipeline';
+import { Endpoint } from '@nestling/pipeline';
 import { z } from 'zod';
 
 export const InfoResponseSchema = z.object({
@@ -18,15 +18,12 @@ export const InfoResponseSchema = z.object({
 
 export type InfoResponse = z.infer<typeof InfoResponseSchema>;
 
-/**
- * Handler-класс для команды info - информация о системе
- */
-@Handler({
+@Endpoint({
   transport: 'cli',
   pattern: 'info',
-  responseSchema: InfoResponseSchema,
+  output: InfoResponseSchema,
 })
-export class InfoHandler {
+export class InfoEndpoint {
   async handle(): Promise<ResponseContext<InfoResponse>> {
     const info = {
       platform: process.platform,

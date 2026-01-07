@@ -1,13 +1,9 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
-import {
-  CalcHandler,
-  GreetHandler,
-  InfoHandler,
-} from './handlers.class/index.js';
-import { Help } from './handlers.functional/help.handler.js';
-import { LoggingMiddleware, TimingMiddleware } from './middleware/index.js';
+import { CalcEndpoint, GreetEndpoint, InfoEndpoint } from './endpoints.class';
+import { Help, ProcessStdin } from './endpoints.functional';
+import { LoggingMiddleware, TimingMiddleware } from './middleware';
 
 import { App } from '@nestling/app';
 import { CliTransport } from '@nestling/transport.cli';
@@ -27,18 +23,19 @@ const app = new App({
 });
 
 // ============================================================
-// ПОДХОД 1: app.registerHandler (функциональный стиль)
+// ПОДХОД 1: app.endpoint (функциональный стиль)
 // ============================================================
 
-app.registerHandler(Help);
+app.endpoint(Help);
+app.endpoint(ProcessStdin);
 
 // ============================================================
-// ПОДХОД 2: @Handler (классовый стиль)
+// ПОДХОД 2: @Endpoint (классовый стиль)
 // ============================================================
 
-app.registerHandler(InfoHandler);
-app.registerHandler(CalcHandler);
-app.registerHandler(GreetHandler);
+app.endpoint(InfoEndpoint);
+app.endpoint(CalcEndpoint);
+app.endpoint(GreetEndpoint);
 
 // ============================================================
 // Команда help (inline для простоты)

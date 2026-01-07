@@ -1,18 +1,18 @@
 /* eslint-disable no-console */
 
-import { makeHandler } from '@nestling/pipeline';
+import { makeEndpoint } from '@nestling/pipeline';
 import { z } from 'zod';
 
-export const HelpResponseSchema = z.object({
+export const HelpResponse = z.object({
   message: z.string(),
 });
 
-export type HelpResponse = z.infer<typeof HelpResponseSchema>;
+export type HelpResponse = z.infer<typeof HelpResponse>;
 
-export const Help = makeHandler({
+export const Help = makeEndpoint({
   transport: 'cli',
   pattern: 'help',
-  responseSchema: HelpResponseSchema,
+  output: HelpResponse,
   handle: async () => {
     console.log('Available commands:');
     console.log('');
@@ -41,6 +41,12 @@ export const Help = makeHandler({
     console.log('  echo <text> [--uppercase]');
     console.log('    Echo text back');
     console.log('    Example: yarn start echo "Hello World" --uppercase');
+    console.log('');
+    console.log('  process-stdin');
+    console.log('    Process streaming data from stdin');
+    console.log(
+      String.raw`    Example: echo "line1\nline2\nline3" | yarn start process-stdin`,
+    );
     console.log('');
     console.log('  help');
     console.log('    Show this help message');

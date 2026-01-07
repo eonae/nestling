@@ -188,7 +188,7 @@ const Model = fromType<UserProto>().makeModel(
 #### ✅ Интеграция с транспортами
 
 ```typescript
-app.registerHandler({
+app.endpoint({
   transport: 'http',
   pattern: 'POST /users',
   handler: async (ctx) => {
@@ -458,7 +458,7 @@ const CreateUserModel = fromType<CreateUserProto>().makeModel(
   })
 );
 
-app.registerHandler({
+app.endpoint({
   transport: 'http',
   pattern: 'POST /users',
   handler: async (ctx) => {

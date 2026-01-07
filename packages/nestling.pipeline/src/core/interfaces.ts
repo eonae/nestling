@@ -1,21 +1,29 @@
+import type { Input, Output } from './io/io.js';
 import type { HandlerFn } from './types';
 
-import type { MaybeSchema } from '@common/misc';
+import type { Optional, Schema } from '@common/misc';
 
 /**
  * Конфигурация для регистрации handler в транспорте
  */
 export interface HandlerConfig<
-  P extends MaybeSchema = MaybeSchema,
-  M extends MaybeSchema = MaybeSchema,
-  R extends MaybeSchema = MaybeSchema,
+  I extends Input = Schema,
+  O extends Output = Schema,
+  M extends Optional<Schema> = Optional<Schema>,
 > {
   transport: string;
   pattern: string;
-  payloadSchema?: P;
-  metadataSchema?: M;
-  responseSchema?: R;
-  handle: HandlerFn<P, M, R>;
+
+  /** Конфигурация входных данных */
+  input?: I;
+
+  /** Схема метаданных */
+  metadata?: M;
+
+  /** Конфигурация выходных данных */
+  output?: O;
+
+  handle: HandlerFn<I, O, M>;
 }
 
 /**
@@ -25,22 +33,22 @@ export interface HandlerConfig<
  *
  * @example
  * ```typescript
- * const config = makeHandler({
+ * const config = makeEndpoint({
  *   transport: 'http',
  *   pattern: '/users',
- *   payloadSchema: CreateUserSchema,
- *   responseSchema: CreateUserResponseSchema,
- *   handler: async (payload) => {
+ *   input: CreateUserSchema,
+ *   output: CreateUserResponseSchema,
+ *   handle: async (payload) => {
  *     // payload типизирован автоматически!
  *     return { status: 201, value: {...}, meta: {} };
  *   },
  * });
  * ```
  */
-export function makeHandler<
-  P extends MaybeSchema = MaybeSchema,
-  M extends MaybeSchema = MaybeSchema,
-  R extends MaybeSchema = MaybeSchema,
->(config: HandlerConfig<P, M, R>): HandlerConfig<P, M, R> {
-  return config as HandlerConfig<P, M, R>;
+export function makeEndpoint<
+  I extends Input = Schema,
+  O extends Output = Schema,
+  M extends Optional<Schema> = Optional<Schema>,
+>(config: HandlerConfig<I, O, M>): HandlerConfig<I, O, M> {
+  return config;
 }

@@ -1,7 +1,11 @@
 /* eslint-disable no-console */
 
-import { GetUserByIdHandler, ListProductsHandler } from './handlers.class';
-import { CreateUserHandler, SayHelloHandler } from './handlers.functional';
+import {
+  GetUserByIdEndpoint,
+  ListProductsEndpoint,
+  UploadFileEndpoint,
+} from './endpoints.class';
+import { CreateUser, SayHello, StreamLogs } from './endpoints.functional';
 import { RequestResponseLogging, TimingMiddleware } from './middleware';
 
 import { App } from '@nestling/app';
@@ -24,18 +28,20 @@ const app = new App({
 });
 
 // ============================================================
-// ПОДХОД 1: app.registerHandler (функциональный стиль)
+// ПОДХОД 1: app.endpoint (функциональный стиль)
 // ============================================================
 
-app.registerHandler(SayHelloHandler);
-app.registerHandler(CreateUserHandler);
+app.endpoint(SayHello);
+app.endpoint(CreateUser);
+app.endpoint(StreamLogs);
 
 // ============================================================
 // ПОДХОД 2: @Handler (классовый стиль)
 // ============================================================
 
-app.registerHandler(GetUserByIdHandler);
-app.registerHandler(ListProductsHandler);
+app.endpoint(GetUserByIdEndpoint);
+app.endpoint(ListProductsEndpoint);
+app.endpoint(UploadFileEndpoint);
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -49,6 +55,8 @@ app
     console.log('  POST /users           - Create user');
     console.log('  GET  /api/users/:id   - Get user by ID (@Handler)');
     console.log('  GET  /products        - List products (@Handler)');
+    console.log('  POST /logs/stream     - Stream logs processing');
+    console.log('  POST /upload          - Upload files with metadata');
 
     console.log('\nTry:');
     console.log(`  curl http://localhost:${PORT}/`);
@@ -63,6 +71,9 @@ app
       `  curl -H "Authorization: Bearer token123" http://localhost:${PORT}/api/users/42`,
     );
     console.log(`  curl http://localhost:${PORT}/products`);
+    console.log(
+      `  echo '{"timestamp":1234567890,"level":"info","message":"Test log"}' | curl -X POST http://localhost:${PORT}/logs/stream -H "Content-Type: application/json" -d @-`,
+    );
     console.log('');
   })
   .catch((error: unknown) => {

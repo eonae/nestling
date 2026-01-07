@@ -1,9 +1,9 @@
 import type { ResponseContext } from '@nestling/pipeline';
-import { Handler } from '@nestling/pipeline';
+import { Endpoint } from '@nestling/pipeline';
 import z from 'zod';
 
 // Схемы для GetUserById
-const GetUserByIdPayload = z.object({
+const GetUserByIdInput = z.object({
   id: z
     .string()
     .transform((val: string) => Number.parseInt(val, 10))
@@ -21,7 +21,7 @@ const GetUserByIdMetadata = z.object({
     .describe('Optional Bearer token из заголовка Authorization'),
 });
 
-const GetUserByIdResponse = z.object({
+const GetUserByIdOutput = z.object({
   id: z.number(),
   name: z.string(),
   email: z.string(),
@@ -41,8 +41,8 @@ const GetUserByIdResponse = z.object({
 });
 
 type GetUserByIdMetadata = z.infer<typeof GetUserByIdMetadata>;
-type GetUserByIdPayload = z.infer<typeof GetUserByIdPayload>;
-type GetUserByIdResponse = z.infer<typeof GetUserByIdResponse>;
+type GetUserByIdInput = z.infer<typeof GetUserByIdInput>;
+type GetUserByIdOutput = z.infer<typeof GetUserByIdOutput>;
 
 /**
  * Handler-класс с ПОЛНОЙ проверкой типов через декоратор @Handler
@@ -54,18 +54,18 @@ type GetUserByIdResponse = z.infer<typeof GetUserByIdResponse>;
  * - Изолированная логика handler'а в отдельном классе
  * - Один класс = один endpoint (Single Responsibility)
  */
-@Handler({
+@Endpoint({
   transport: 'http',
   pattern: 'GET /api/users/:id',
-  payloadSchema: GetUserByIdPayload,
-  metadataSchema: GetUserByIdMetadata,
-  responseSchema: GetUserByIdResponse,
+  input: GetUserByIdInput,
+  metadata: GetUserByIdMetadata,
+  output: GetUserByIdOutput,
 })
-export class GetUserByIdHandler {
+export class GetUserByIdEndpoint {
   async handle(
-    payload: GetUserByIdPayload,
+    payload: GetUserByIdInput,
     metadata: GetUserByIdMetadata,
-  ): Promise<ResponseContext<GetUserByIdResponse>> {
+  ): Promise<ResponseContext<GetUserByIdOutput>> {
     // payload и metadata - типы проверяются компилятором!
     const user = {
       id: payload.id,

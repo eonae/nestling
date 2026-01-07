@@ -8,18 +8,31 @@ import type { Readable } from 'node:stream';
 
 import { sendResponse } from './adapter.js';
 import { mergePayload } from './merge.js';
-import { parseJson, parseMultipart, parseRaw } from './parser.js';
+import {
+  parseFilesOnly,
+  parseJson,
+  parseRaw,
+  parseStream,
+  parseWithFiles,
+} from './parser.js';
 import { HttpRouter } from './router.js';
 
-import type { Constructor, MaybeSchema } from '@common/misc';
+import type { Constructor, Optional, Schema } from '@common/misc';
 import type {
   FilePart,
   HandlerConfig,
   IMiddleware,
+  Input,
   MiddlewareFn,
+  Output,
   RequestContext,
 } from '@nestling/pipeline';
-import { parseMetadata, parsePayload, Pipeline } from '@nestling/pipeline';
+import {
+  analyzeInput,
+  parseMetadata,
+  parsePayload,
+  Pipeline,
+} from '@nestling/pipeline';
 import type { ITransport, RouteConfig } from '@nestling/transport';
 
 /**
@@ -48,30 +61,20 @@ export class HttpTransport implements ITransport {
   /**
    * Регистрирует handler через конфигурацию
    */
-  registerHandler<
-    P extends MaybeSchema = MaybeSchema,
-    M extends MaybeSchema = MaybeSchema,
-    R extends MaybeSchema = MaybeSchema,
-  >(config: HandlerConfig<P, M, R>): void {
-    const { handle, pattern, payloadSchema, metadataSchema, responseSchema } =
-      config;
+  endpoint<
+    I extends Input = Schema,
+    O extends Output = Schema,
+    M extends Optional<Schema> = Optional<Schema>,
+  >(config: HandlerConfig<I, O, M>): void {
+    const { handle, pattern, input, metadata, output } = config;
 
-    const routeConfig: RouteConfig<P, M, R> = {
+    const routeConfig: RouteConfig<I, O, M> = {
       pattern,
       handle,
+      input,
+      metadata,
+      output,
     };
-
-    if (payloadSchema) {
-      routeConfig.payloadSchema = payloadSchema;
-    }
-
-    if (metadataSchema) {
-      routeConfig.metadataSchema = metadataSchema;
-    }
-
-    if (responseSchema) {
-      routeConfig.responseSchema = responseSchema;
-    }
 
     this.router.route(routeConfig);
   }
@@ -80,10 +83,10 @@ export class HttpTransport implements ITransport {
    * Регистрирует маршрут
    */
   route<
-    P extends MaybeSchema = MaybeSchema,
-    M extends MaybeSchema = MaybeSchema,
-    R extends MaybeSchema = MaybeSchema,
-  >(config: RouteConfig<P, M, R>): void {
+    I extends Input = Schema,
+    O extends Output = Schema,
+    M extends Optional<Schema> = Optional<Schema>,
+  >(config: RouteConfig<I, O, M>): void {
     this.router.route(config);
   }
 
@@ -120,44 +123,74 @@ export class HttpTransport implements ITransport {
         query[key] = value;
       }
 
+      // Анализируем input конфигурацию
+      const inputConfig = analyzeInput(route.config.input);
+
       // Переменные для данных запроса
-      let body: unknown;
+      let payload: unknown;
       let streamBody: Readable | undefined;
       let files: FilePart[] | undefined;
 
-      // Парсим body согласно конфигурации маршрута
-      if (route.config.input?.body) {
-        switch (route.config.input.body) {
-          case 'json': {
+      // Парсим входные данные согласно типу модификатора
+      switch (inputConfig.type) {
+        case 'stream': {
+          // Streaming данные
+          payload = parseStream(
+            nativeReq,
+            inputConfig.schema as Optional<Schema>,
+          );
+
+          break;
+        }
+        case 'withFiles': {
+          // Структурированные данные + файлы
+          const result = await parseWithFiles(
+            nativeReq,
+            inputConfig.schema as Optional<Schema>,
+          );
+          payload = result.data;
+          files = result.files;
+
+          break;
+        }
+        case 'files': {
+          // Только файлы
+          files = await parseFilesOnly(nativeReq);
+          payload = files;
+
+          break;
+        }
+        case 'primitive': {
+          // Примитивные типы
+          if (inputConfig.primitive === 'binary') {
+            payload = await parseRaw(nativeReq);
+          } else if (inputConfig.primitive === 'text') {
+            const chunks: Buffer[] = [];
+            for await (const chunk of nativeReq) {
+              chunks.push(chunk);
+            }
+            payload = Buffer.concat(chunks).toString();
+          }
+
+          break;
+        }
+        default: {
+          // Обычная схема или undefined - парсим как JSON и объединяем с query/params
+          let body: unknown;
+
+          if (inputConfig.schema) {
+            // Схема без модификатора - парсим как JSON
             body = await parseJson(nativeReq);
-            break;
           }
-          case 'raw': {
-            body = await parseRaw(nativeReq);
-            break;
-          }
-          case 'stream': {
-            streamBody = nativeReq;
-            break;
-          }
-          // No default
+
+          // Объединяем body, query и params в payload
+          payload = mergePayload(
+            body,
+            Object.keys(query).length > 0 ? query : undefined,
+            route.params,
+          );
         }
       }
-
-      // Парсим multipart если нужно
-      if (route.config.input?.multipart) {
-        const parsedFiles = await parseMultipart(nativeReq);
-        if (parsedFiles.length > 0) {
-          files = parsedFiles;
-        }
-      }
-
-      // Объединяем body, query и params в payload
-      const payload = mergePayload(
-        body,
-        Object.keys(query).length > 0 ? query : undefined,
-        route.params,
-      );
 
       // Создаем RequestContext
       const requestContext: RequestContext = {
@@ -178,18 +211,36 @@ export class HttpTransport implements ITransport {
       };
 
       // Валидируем и парсим payload и metadata только если схемы указаны
-      // Создаем inputSources с исходными данными для парсинга
-      const inputSources = {
-        payload: payload as Record<string, unknown>,
-        metadata: requestContext.metadata as Record<string, unknown>,
-      };
+      // Для stream, withFiles, files - payload уже готов, не валидируем повторно
+      if (
+        inputConfig.type !== 'stream' &&
+        inputConfig.type !== 'withFiles' &&
+        inputConfig.type !== 'files' &&
+        inputConfig.type === 'schema' &&
+        inputConfig.schema
+      ) {
+        const inputSources = {
+          payload: payload as Record<string, unknown>,
+          metadata: requestContext.metadata as Record<string, unknown>,
+        };
 
-      requestContext.payload = route.config.payloadSchema
-        ? parsePayload(route.config.payloadSchema, inputSources)
-        : undefined;
-      requestContext.metadata = route.config.metadataSchema
-        ? parseMetadata(route.config.metadataSchema, inputSources)
-        : undefined;
+        requestContext.payload = parsePayload(
+          inputConfig.schema as Schema,
+          inputSources,
+        );
+      }
+
+      if (route.config.metadata) {
+        const inputSources = {
+          payload: payload as Record<string, unknown>,
+          metadata: requestContext.metadata as Record<string, unknown>,
+        };
+
+        requestContext.metadata = parseMetadata(
+          route.config.metadata as Schema,
+          inputSources,
+        );
+      }
 
       // Выполняем пайплайн с requestContext
       const responseContext = await this.pipeline.executeWithHandler(

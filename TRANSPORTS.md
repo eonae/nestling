@@ -45,7 +45,7 @@
       │
       ▼
 ┌────────────┐
-│ Handler    │
+│ Endpoint   │
 └─────┬──────┘
       │ ResponseContext
       ▼

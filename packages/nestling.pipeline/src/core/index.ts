@@ -1,3 +1,4 @@
-export * from './interfaces.js';
-export { Pipeline } from './pipeline.js';
-export * from './types/index.js';
+export * from './io';
+export * from './interfaces';
+export * from './pipeline';
+export * from './types';
