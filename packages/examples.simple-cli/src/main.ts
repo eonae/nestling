@@ -218,7 +218,7 @@ app.registerHandler({
 // Schema-driven примеры
 
 // Схема для калькулятора со строгой типизацией
-const CalcSchema = fromScratch().defineModel(
+const CalcSchema = fromScratch().makeModel(
   z.object({
     a: z.number().describe('Первое число'),
     b: z.number().describe('Второе число'),
@@ -303,7 +303,7 @@ app.registerHandler({
 });
 
 // Схема для команды greet
-const GreetSchema = fromScratch().defineModel(
+const GreetSchema = fromScratch().makeModel(
   z.object({
     name: z.string().min(1).max(50).describe('Имя для приветствия'),
     enthusiastic: z.boolean().optional().describe('Энтузиастичное приветствие'),

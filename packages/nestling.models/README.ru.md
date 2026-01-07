@@ -27,7 +27,7 @@
 import { fromScratch } from '@nestling/models';
 import { z } from 'zod';
 
-const UserModel = fromScratch().defineModel(
+const UserModel = fromScratch().makeModel(
   z.object({
     name: z.string().min(1).max(100),
     email: z.string().email(),
@@ -63,7 +63,7 @@ interface UserProto {
   age?: number;
 }
 
-const UserModel = fromType<UserProto>().defineModel(
+const UserModel = fromType<UserProto>().makeModel(
   z.object({
     name: z.string().min(1).max(100),    // optional → required
     email: z.string().email(),            // optional → required
@@ -98,7 +98,7 @@ npm install @nestling/models zod
 import { fromScratch } from '@nestling/models';
 import { z } from 'zod';
 
-const UserModel = fromScratch().defineModel(
+const UserModel = fromScratch().makeModel(
   z.object({
     name: z.string(),
     email: z.string().email(),
@@ -121,7 +121,7 @@ interface UserProto {
   age?: number;
 }
 
-const UserModel = fromType<UserProto>().defineModel(
+const UserModel = fromType<UserProto>().makeModel(
   z.object({
     name: z.string(),      // ✅ optional → required (narrowing)
     email: z.string().email(),
@@ -148,7 +148,7 @@ try {
 #### ✅ Трансформации
 
 ```typescript
-const Model = fromScratch().defineModel(
+const Model = fromScratch().makeModel(
   z.object({
     id: z.string().transform(val => parseInt(val, 10)),
     createdAt: z.string().transform(val => new Date(val)),
@@ -173,7 +173,7 @@ required → optional
 #### ✅ Вложенные объекты
 
 ```typescript
-const Model = fromType<UserProto>().defineModel(
+const Model = fromType<UserProto>().makeModel(
   z.object({
     profile: z.object({
       firstName: z.string(),   // Narrowing работает рекурсивно
@@ -206,7 +206,7 @@ app.registerHandler({
 Создает модель без привязки к существующему типу. TypeScript автоматически выводит тип из схемы.
 
 ```typescript
-const CalcModel = fromScratch().defineModel(
+const CalcModel = fromScratch().makeModel(
   z.object({
     a: z.number().describe('Первое число'),
     b: z.number().describe('Второе число'),
@@ -238,7 +238,7 @@ interface CreateUserProto {
   age?: number;
 }
 
-const CreateUserModel = fromType<CreateUserProto>().defineModel(
+const CreateUserModel = fromType<CreateUserProto>().makeModel(
   z.object({
     name: z.string().min(1),              // ✅ optional → required
     email: z.string().email(),            // ✅ optional → required
@@ -258,7 +258,7 @@ interface UserProto {
 }
 
 // ❌ ОШИБКА: нельзя добавлять поля, которых нет в типе
-const BadModel = fromType<UserProto>().defineModel(
+const BadModel = fromType<UserProto>().makeModel(
   z.object({
     name: z.string(),
     age: z.number(),  // ← Поля 'age' нет в UserProto!
@@ -266,7 +266,7 @@ const BadModel = fromType<UserProto>().defineModel(
 );
 
 // ❌ ОШИБКА: нельзя менять тип несовместимым образом
-const BadModel2 = fromType<UserProto>().defineModel(
+const BadModel2 = fromType<UserProto>().makeModel(
   z.object({
     name: z.number(),  // ← name должен быть string, а не number
   })
@@ -277,7 +277,7 @@ interface UserWithRequired {
   name: string;  // обязательное поле
 }
 
-const BadModel3 = fromType<UserWithRequired>().defineModel(
+const BadModel3 = fromType<UserWithRequired>().makeModel(
   z.object({
     name: z.string().optional(),  // ← нельзя сделать optional
   })
@@ -300,7 +300,7 @@ interface UserProto {
   };
 }
 
-const UserModel = fromType<UserProto>().defineModel(
+const UserModel = fromType<UserProto>().makeModel(
   z.object({
     profile: z.object({
       firstName: z.string().min(1),      // ✅ optional → required
@@ -323,7 +323,7 @@ Zod позволяет трансформировать данные в проц
 ### Простые трансформации
 
 ```typescript
-const GetUserModel = fromScratch().defineModel(
+const GetUserModel = fromScratch().makeModel(
   z.object({
     id: z.string()
       .regex(/^\d+$/)
@@ -346,7 +346,7 @@ interface GetUserProto {
   createdAt?: string;
 }
 
-const GetUserModel = fromType<GetUserProto>().defineModel(
+const GetUserModel = fromType<GetUserProto>().makeModel(
   z.object({
     id: z.string().transform(val => parseInt(val, 10)),         // string → number
     createdAt: z.string().transform(val => new Date(val)),      // string → Date
@@ -367,7 +367,7 @@ interface AuthProto {
   authorization?: string;
 }
 
-const AuthModel = fromType<AuthProto>().defineModel(
+const AuthModel = fromType<AuthProto>().makeModel(
   z.object({
     authorization: z.string()
       .regex(/^Bearer .+$/)
@@ -382,7 +382,7 @@ const result = AuthModel.parse({ authorization: 'Bearer token123' });
 ### Цепочки трансформаций
 
 ```typescript
-const UserModel = fromScratch().defineModel(
+const UserModel = fromScratch().makeModel(
   z.object({
     email: z.string()
       .email()
@@ -400,7 +400,7 @@ const result = UserModel.parse({ email: '  ALICE@EXAMPLE.COM  ' });
 ```typescript
 import { z } from 'zod';
 
-const UserModel = fromScratch().defineModel(
+const UserModel = fromScratch().makeModel(
   z.object({
     name: z.string().min(1, 'Имя не может быть пустым'),
     age: z.number().min(0).max(150, 'Возраст должен быть от 0 до 150'),
@@ -425,7 +425,7 @@ try {
 Используйте `.describe()` для добавления описаний, которые можно использовать для генерации документации (OpenAPI, JSON Schema и т.д.):
 
 ```typescript
-const UserModel = fromScratch().defineModel(
+const UserModel = fromScratch().makeModel(
   z.object({
     name: z.string().min(1).max(100).describe('Имя пользователя (обязательное, 1-100 символов)'),
     email: z.string().email().describe('Email адрес пользователя'),
@@ -452,7 +452,7 @@ interface CreateUserProto {
   email?: string;
 }
 
-const CreateUserModel = fromType<CreateUserProto>().defineModel(
+const CreateUserModel = fromType<CreateUserProto>().makeModel(
   z.object({
     name: z.string().min(1).max(100),
     email: z.string().email(),
@@ -489,7 +489,7 @@ interface CreatePostProto {
   publishedAt?: string;
 }
 
-const CreatePostModel = fromType<CreatePostProto>().defineModel(
+const CreatePostModel = fromType<CreatePostProto>().makeModel(
   z.object({
     title: z.string().min(1).max(200),
     content: z.string().min(1),
@@ -504,7 +504,7 @@ const CreatePostModel = fromType<CreatePostProto>().defineModel(
 ### Пример 2: CLI аргументы
 
 ```typescript
-const CalcArgsModel = fromScratch().defineModel(
+const CalcArgsModel = fromScratch().makeModel(
   z.object({
     a: z.string().transform(val => parseFloat(val)),
     b: z.string().transform(val => parseFloat(val)),
@@ -529,7 +529,7 @@ interface AuthHeadersProto {
   'x-request-id'?: string;
 }
 
-const AuthHeadersModel = fromType<AuthHeadersProto>().defineModel(
+const AuthHeadersModel = fromType<AuthHeadersProto>().makeModel(
   z.object({
     authorization: z.string()
       .regex(/^Bearer .+$/)
@@ -580,7 +580,7 @@ try {
 Да, используйте `.parseAsync()` вместо `.parse()`:
 
 ```typescript
-const EmailModel = fromScratch().defineModel(
+const EmailModel = fromScratch().makeModel(
   z.object({
     email: z.string().email().refine(
       async (email) => await checkEmailUnique(email),

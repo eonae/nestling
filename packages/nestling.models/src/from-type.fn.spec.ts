@@ -1,43 +1,15 @@
-import { fromScratch } from './from-scratch.fn';
 import { fromType } from './from-type.fn';
 
 import { z } from 'zod';
 
-describe('defineModel', () => {
-  it('should create schema without explicit type (type inference)', () => {
-    const schema = fromScratch().defineModel(
-      z.object({
-        a: z.number().describe('First number'),
-        b: z.string().describe('Second value'),
-      }),
-    );
-
-    expect(schema).toBeDefined();
-    expect(schema.shape).toHaveProperty('a');
-    expect(schema.shape).toHaveProperty('b');
-  });
-
-  it('should return zod schema directly', () => {
-    const schema = fromScratch().defineModel(
-      z.object({
-        field1: z.string().describe('Field 1'),
-        field2: z.number().describe('Field 2'),
-      }),
-    );
-
-    expect(schema).toBeDefined();
-    expect(schema).toBeInstanceOf(z.ZodObject);
-  });
-});
-
-describe('forType().defineModel', () => {
+describe('forType().makeModel', () => {
   it('should create schema with explicit type and type narrowing', () => {
     interface UserProto {
       name?: string;
       email?: string;
     }
 
-    const schema = fromType<UserProto>().defineModel(
+    const schema = fromType<UserProto>().makeModel(
       z.object({
         name: z.string().min(1).describe('User name'),
         email: z.email().describe('User email'),
@@ -57,7 +29,7 @@ describe('forType().defineModel', () => {
       };
     }
 
-    const schema = fromType<UserProto>().defineModel(
+    const schema = fromType<UserProto>().makeModel(
       z.object({
         address: z
           .object({
@@ -80,7 +52,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: optional → required
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           name: z.string().min(1),
           email: z.string().email(),
@@ -98,7 +70,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: string → enum
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           role: z.enum(['admin', 'user', 'guest']),
         }),
@@ -116,7 +88,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: использование подмножества полей
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           name: z.string(),
         }),
@@ -133,7 +105,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: добавление ограничений
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           age: z.number().min(0).max(120),
         }),
@@ -149,7 +121,7 @@ describe('forType().defineModel', () => {
       }
 
       // Валидное сужение: unknown → string
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           data: z.string(),
         }),
@@ -166,7 +138,7 @@ describe('forType().defineModel', () => {
         name?: string;
       }
 
-      fromType<UserProto>().defineModel(
+      fromType<UserProto>().makeModel(
         // @ts-expect-error - поле 'age' отсутствует в UserProto
         z.object({
           name: z.string(),
@@ -180,7 +152,7 @@ describe('forType().defineModel', () => {
         id?: string;
       }
 
-      fromType<UserProto>().defineModel(
+      fromType<UserProto>().makeModel(
         // @ts-expect-error - id должен быть string, а не number
         z.object({
           id: z.number(), // несовместимый тип
@@ -193,7 +165,7 @@ describe('forType().defineModel', () => {
         name: string; // обязательное поле
       }
 
-      fromType<UserProto>().defineModel(
+      fromType<UserProto>().makeModel(
         // @ts-expect-error - нельзя сделать обязательное поле optional
         z.object({
           name: z.string().optional(), // попытка сделать optional
@@ -206,7 +178,7 @@ describe('forType().defineModel', () => {
         name?: string;
       }
 
-      fromType<UserProto>().defineModel(
+      fromType<UserProto>().makeModel(
         // @ts-expect-error - полностью другая структура
         z.object({
           email: z.string(),
@@ -222,7 +194,7 @@ describe('forType().defineModel', () => {
         };
       }
 
-      fromType<UserProto>().defineModel(
+      fromType<UserProto>().makeModel(
         // @ts-expect-error - age должен быть number, а не string
         z.object({
           profile: z.object({
@@ -239,12 +211,168 @@ describe('forType().defineModel', () => {
         };
       }
 
-      fromType<UserProto>().defineModel(
+      fromType<UserProto>().makeModel(
         // @ts-expect-error - поле 'language' отсутствует в settings
         z.object({
           settings: z.object({
             theme: z.string(),
             language: z.string(), // дополнительное поле
+          }),
+        }),
+      );
+    });
+
+    it('should show field-level error for invalid field type', () => {
+      interface UserProto {
+        email: string; // required field
+      }
+
+      fromType<UserProto>().makeModel(
+        // @ts-expect-error - ошибка должна быть на поле 'email'
+        // Field-level validation: error указывает на конкретное поле
+        z.object({
+          email: z.string().optional(), // попытка сделать required → optional
+        }),
+      );
+    });
+
+    it('should show field-level error for multiple invalid fields', () => {
+      interface UserProto {
+        name: string;
+        email: string;
+      }
+
+      fromType<UserProto>().makeModel(
+        // @ts-expect-error - ошибки должны быть на полях 'name' и 'email'
+        z.object({
+          name: z.string().optional(), // ошибка на name
+          email: z.number(), // ошибка на email (несовместимый тип)
+        }),
+      );
+    });
+  });
+
+  describe('deeply nested objects (field-level validation)', () => {
+    it('should validate 3-level nested objects', () => {
+      interface UserProto {
+        profile?: {
+          address?: {
+            city?: string;
+          };
+        };
+      }
+
+      const schema = fromType<UserProto>().makeModel(
+        z.object({
+          profile: z.object({
+            address: z.object({
+              city: z.string().min(1),
+            }),
+          }),
+        }),
+      );
+
+      expect(schema).toBeDefined();
+      expect(schema.shape.profile).toBeDefined();
+    });
+
+    it('should reject invalid type in 3-level nested object', () => {
+      interface UserProto {
+        profile?: {
+          address?: {
+            city?: string;
+          };
+        };
+      }
+
+      fromType<UserProto>().makeModel(
+        // @ts-expect-error - ошибка должна указывать на 'profile.address.city'
+        z.object({
+          profile: z.object({
+            address: z.object({
+              city: z.number(), // неверный тип на глубоком уровне
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should reject extra field in 3-level nested object', () => {
+      interface UserProto {
+        profile?: {
+          address?: {
+            city?: string;
+          };
+        };
+      }
+
+      fromType<UserProto>().makeModel(
+        // @ts-expect-error - ошибка должна указывать на 'profile.address.zipCode'
+        z.object({
+          profile: z.object({
+            address: z.object({
+              city: z.string(),
+              zipCode: z.string(), // лишнее поле на глубоком уровне
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should validate 4-level nested objects', () => {
+      interface UserProto {
+        data?: {
+          user?: {
+            profile?: {
+              avatar?: {
+                url?: string;
+              };
+            };
+          };
+        };
+      }
+
+      const schema = fromType<UserProto>().makeModel(
+        z.object({
+          data: z.object({
+            user: z.object({
+              profile: z.object({
+                avatar: z.object({
+                  url: z.string().url(),
+                }),
+              }),
+            }),
+          }),
+        }),
+      );
+
+      expect(schema).toBeDefined();
+    });
+
+    it('should reject invalid type in 4-level nested object', () => {
+      interface UserProto {
+        data?: {
+          user?: {
+            profile?: {
+              avatar?: {
+                url?: string;
+              };
+            };
+          };
+        };
+      }
+
+      fromType<UserProto>().makeModel(
+        // @ts-expect-error - ошибка должна указывать на полный путь к полю
+        z.object({
+          data: z.object({
+            user: z.object({
+              profile: z.object({
+                avatar: z.object({
+                  url: z.number(), // неверный тип на очень глубоком уровне
+                }),
+              }),
+            }),
           }),
         }),
       );
@@ -257,7 +385,7 @@ describe('forType().defineModel', () => {
         id?: string;
       }
 
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           id: z.string().transform((val) => Number.parseInt(val, 10)),
         }),
@@ -273,7 +401,7 @@ describe('forType().defineModel', () => {
         page?: string;
       }
 
-      const schema = fromType<GetUserProto>().defineModel(
+      const schema = fromType<GetUserProto>().makeModel(
         z.object({
           id: z
             .string()
@@ -299,7 +427,7 @@ describe('forType().defineModel', () => {
         authorization?: string;
       }
 
-      const schema = fromType<AuthProto>().defineModel(
+      const schema = fromType<AuthProto>().makeModel(
         z.object({
           authorization: z
             .string()
@@ -319,7 +447,7 @@ describe('forType().defineModel', () => {
         email?: string;
       }
 
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           email: z
             .string()
@@ -341,7 +469,7 @@ describe('forType().defineModel', () => {
         };
       }
 
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           metadata: z.object({
             createdAt: z.string().transform((val) => new Date(val)),
@@ -362,7 +490,7 @@ describe('forType().defineModel', () => {
         age?: string;
       }
 
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           age: z
             .string()
@@ -388,7 +516,7 @@ describe('forType().defineModel', () => {
       }
 
       // Input: string, Output: Date | number
-      const schema = fromType<ProtoType>().defineModel(
+      const schema = fromType<ProtoType>().makeModel(
         z.object({
           timestamp: z.string().transform((val) => new Date(val)),
           count: z.string().transform((val) => Number.parseInt(val, 10)),
@@ -412,7 +540,7 @@ describe('forType().defineModel', () => {
         phone?: string;
       }
 
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           phone: z
             .string()
@@ -435,7 +563,7 @@ describe('forType().defineModel', () => {
         tags?: string[];
       }
 
-      const schema = fromType<UserProto>().defineModel(
+      const schema = fromType<UserProto>().makeModel(
         z.object({
           tags: z
             .array(z.string())
@@ -447,42 +575,6 @@ describe('forType().defineModel', () => {
 
       const result = schema.parse({ tags: ['FOO', 'Bar', 'BAZ'] });
       expect(result.tags).toEqual(['foo', 'bar', 'baz']);
-    });
-  });
-
-  describe('transforms with defineModel (without explicit type)', () => {
-    it('should support transforms without type parameter', () => {
-      const schema = fromScratch().defineModel(
-        z.object({
-          id: z.string().transform((val) => Number.parseInt(val, 10)),
-          name: z.string(),
-        }),
-      );
-
-      expect(schema).toBeDefined();
-
-      const result = schema.parse({ id: '123', name: 'Alice' });
-      expect(result.id).toBe(123);
-      expect(result.name).toBe('Alice');
-    });
-
-    it('should support complex transforms', () => {
-      const schema = fromScratch().defineModel(
-        z.object({
-          email: z.email().transform((val) => val.toLowerCase()),
-          createdAt: z.iso.datetime().transform((val) => new Date(val)),
-        }),
-      );
-
-      expect(schema).toBeDefined();
-
-      const result = schema.parse({
-        email: 'USER@EXAMPLE.COM',
-        createdAt: '2024-01-01T00:00:00Z',
-      });
-
-      expect(result.email).toBe('user@example.com');
-      expect(result.createdAt).toBeInstanceOf(Date);
     });
   });
 });
