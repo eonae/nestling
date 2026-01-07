@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "clear": "rm -rf dist",
-    "build": "yarn run clear && run -T tsc",
-    "start": "yarn run build && node dist/main.js",
+    "typecheck": "run -T tsc --noEmit",
+    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "start": "yarn run build && node dist/bundle.js",
     "dev": "run -T tsx src/main.ts",
     "lint": "run -T eslint 'src/**/*.ts'",
     "lint:fix": "yarn run lint --fix"
