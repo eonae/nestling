@@ -2,8 +2,7 @@ import type { Optional, Schema } from '@common/misc';
 import type {
   AnyInput,
   AnyOutput,
-  HandlerConfig,
-  HandlerFn,
+  EndpointDefinition,
 } from '@nestling/pipeline';
 
 /**
@@ -18,7 +17,7 @@ export interface ITransport {
     O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(
-    config: HandlerConfig<I, O, M>,
+    definition: EndpointDefinition<I, O, M>,
   ): void;
 
   /**
@@ -30,26 +29,4 @@ export interface ITransport {
    * Останавливает транспорт
    */
   close?(): Promise<void>;
-}
-
-/**
- * Конфигурация маршрута
- */
-export interface RouteConfig<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
-  M extends Optional<Schema> = Optional<Schema>,
-> {
-  pattern: string;
-
-  /** Конфигурация входных данных */
-  input?: I;
-
-  /** Схема метаданных */
-  metadata?: M;
-
-  /** Конфигурация выходных данных */
-  output?: O;
-
-  handle: HandlerFn<I, O, M>;
 }

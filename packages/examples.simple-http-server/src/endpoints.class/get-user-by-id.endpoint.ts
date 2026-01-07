@@ -1,5 +1,6 @@
-import type { Output, ResponseContext } from '@nestling/pipeline';
-import { Endpoint } from '@nestling/pipeline';
+import type { Output } from '@nestling/pipeline';
+import { Fail } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
 import z from 'zod';
 
 // Схемы для GetUserById
@@ -44,8 +45,6 @@ type GetUserByIdMetadata = z.infer<typeof GetUserByIdMetadata>;
 type GetUserByIdInput = z.infer<typeof GetUserByIdInput>;
 type GetUserByIdOutput = z.infer<typeof GetUserByIdOutput>;
 
-export type Wrapped<T> = ResponseContext<T> | T;
-
 /**
  * Handler-класс с ПОЛНОЙ проверкой типов через декоратор @Handler
  *
@@ -56,9 +55,7 @@ export type Wrapped<T> = ResponseContext<T> | T;
  * - Изолированная логика handler'а в отдельном классе
  * - Один класс = один endpoint (Single Responsibility)
  */
-@Endpoint({
-  transport: 'http',
-  pattern: 'GET /api/users/:id',
+@HttpEndpoint('GET', '/api/users/:id', {
   input: GetUserByIdInput,
   metadata: GetUserByIdMetadata,
   output: GetUserByIdOutput,
@@ -69,10 +66,7 @@ export class GetUserByIdEndpoint {
     metadata: GetUserByIdMetadata,
   ): Output<GetUserByIdOutput> {
     if (metadata.authorization) {
-      return {
-        status: 'UNAUTHORIZED',
-        value: null,
-      };
+      throw Fail.unauthorized('Unauthorized');
     }
 
     // payload и metadata - типы проверяются компилятором!

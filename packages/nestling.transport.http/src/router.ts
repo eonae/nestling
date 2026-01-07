@@ -1,8 +1,12 @@
 import type { IncomingMessage } from 'node:http';
 
 import type { Optional, Schema } from '@common/misc';
-import type { AnyInput, AnyOutput, HandlerFn } from '@nestling/pipeline';
-import type { RouteConfig } from '@nestling/transport';
+import type {
+  AnyInput,
+  AnyOutput,
+  EndpointDefinition,
+  HandlerFn,
+} from '@nestling/pipeline';
 import Router from 'find-my-way';
 
 /**
@@ -26,14 +30,13 @@ export class HttpRouter {
     I extends AnyInput = Schema,
     O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
-  >(config: RouteConfig<I, O, M>): void {
-    // Создаем store с handler и config
+  >(definition: EndpointDefinition<I, O, M>): void {
     const store = {
-      handler: config.handle,
-      config,
+      handler: definition.handle,
+      definition: definition,
     };
 
-    const [method, path] = config.pattern.split(' ');
+    const [method, path] = definition.pattern.split(' ');
 
     this.router.on(
       method.toUpperCase() as Router.HTTPMethod,
@@ -51,7 +54,7 @@ export class HttpRouter {
    */
   find(req: IncomingMessage): {
     handler: HandlerFn;
-    config: RouteConfig;
+    definition: EndpointDefinition;
     params: Record<string, string>;
   } | null {
     const result = this.router.find(
@@ -65,14 +68,14 @@ export class HttpRouter {
 
     const store = result.store as {
       handler: HandlerFn;
-      config: RouteConfig;
+      definition: EndpointDefinition;
     };
 
     const params = result.params as Record<string, string>;
 
     return {
       handler: store.handler,
-      config: store.config,
+      definition: store.definition,
       params,
     };
   }

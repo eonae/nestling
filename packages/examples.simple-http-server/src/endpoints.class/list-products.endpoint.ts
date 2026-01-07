@@ -1,7 +1,7 @@
 import { Product } from '../common';
 
 import type { Output } from '@nestling/pipeline';
-import { Endpoint } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
 import z from 'zod';
 
 // Схемы для ListProducts
@@ -15,9 +15,7 @@ export const ListProductsOutput = z
 
 type ListProductsOutput = z.infer<typeof ListProductsOutput>;
 
-@Endpoint({
-  transport: 'http',
-  pattern: 'GET /products',
+@HttpEndpoint('GET', '/products', {
   output: ListProductsOutput,
 })
 export class ListProductsEndpoint {

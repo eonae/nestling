@@ -1,12 +1,7 @@
-import type {
-  AnyInput,
-  AnyOutput,
-  InferInput,
-  InferOutput,
-  ResponseContext,
-} from '../core';
+import type { AnyInput, AnyOutput, IEndpoint } from '../core';
+import type { HandlerFn } from '../core/types';
 
-import type { Constructor, Infer, Optional, Schema } from '@common/misc';
+import type { Constructor, Optional, Schema } from '@common/misc';
 
 /**
  * Symbol-ключ для хранения метаданных handler-класса
@@ -20,13 +15,15 @@ const HANDLER_KEY = Symbol.for('nestling:handler');
 /**
  * Конфигурация endpoint-класса
  */
-export interface EndpointMetadata<
+export interface EndpointDefinition<
   I extends AnyInput = Schema,
   O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 > {
   transport: string;
   pattern: string;
+
+  handle: HandlerFn<I, O, M>;
 
   /** Конфигурация входных данных */
   input?: I;
@@ -37,6 +34,12 @@ export interface EndpointMetadata<
   /** Конфигурация выходных данных */
   output?: O;
 }
+
+export type EndpointMetadata<
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
+  M extends Optional<Schema> = Optional<Schema>,
+> = Omit<EndpointDefinition<I, O, M>, 'handle'>;
 
 /**
  * Декоратор для handler-классов с полной проверкой типов.
@@ -97,21 +100,14 @@ export function Endpoint<
   I extends AnyInput = Schema,
   O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
->(config: EndpointMetadata<I, O, M>) {
-  return <
-    T extends Constructor<{
-      handle(
-        payload: InferInput<I>,
-        metadata: Infer<M>,
-      ): Promise<ResponseContext<InferOutput<O>> | InferOutput<O>>;
-    }>,
-  >(
+>(metadata: EndpointMetadata<I, O, M>) {
+  return <T extends Constructor<IEndpoint<I, O, M>>>(
     target: T,
     context: ClassDecoratorContext<T>,
   ): T => {
     // Сохраняем конфигурацию в метаданных класса
     (target as any)[HANDLER_KEY] = {
-      ...config,
+      ...metadata,
       className: context.name,
     };
 
@@ -129,4 +125,31 @@ export function getEndpointMetadata<
 >(target: any): EndpointMetadata<I, O, M> | null {
   const constructor = target.prototype ? target : target.constructor;
   return constructor[HANDLER_KEY] || null;
+}
+
+/**
+ * Вспомогательная функция для создания конфигурации handler'а с корректным выводом типов.
+ *
+ * Решает проблему вывода дженерик-типов при явной типизации объекта конфигурации.
+ *
+ * @example
+ * ```typescript
+ * const config = makeEndpoint({
+ *   transport: 'http',
+ *   pattern: '/users',
+ *   input: CreateUserSchema,
+ *   output: CreateUserResponseSchema,
+ *   handle: async (payload) => {
+ *     // payload типизирован автоматически!
+ *     return { status: 201, value: {...}, meta: {} };
+ *   },
+ * });
+ * ```
+ */
+export function makeEndpoint<
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
+  M extends Optional<Schema> = Optional<Schema>,
+>(definition: EndpointDefinition<I, O, M>): EndpointDefinition<I, O, M> {
+  return definition;
 }

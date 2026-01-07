@@ -2,9 +2,8 @@ import type { Constructor, Optional, Schema } from '@common/misc';
 import type {
   AnyInput,
   AnyOutput,
-  HandlerConfig,
+  EndpointDefinition,
   IEndpoint,
-  InferInput,
 } from '@nestling/pipeline';
 import { getEndpointMetadata } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
@@ -42,7 +41,9 @@ export class App {
     I extends AnyInput = Schema,
     O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
-  >(input: Constructor<IEndpoint<I, O, M>> | HandlerConfig<I, O, M>): void {
+  >(
+    input: Constructor<IEndpoint<I, O, M>> | EndpointDefinition<I, O, M>,
+  ): void {
     if (isHandlerClass<I, O, M>(input)) {
       this.registerClass(input);
     } else {
@@ -83,15 +84,15 @@ export class App {
     I extends AnyInput = Schema,
     O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
-  >(config: HandlerConfig<I, O, M>): void {
-    const transport = this.transports.get(config.transport);
+  >(definition: EndpointDefinition<I, O, M>): void {
+    const transport = this.transports.get(definition.transport);
     if (!transport) {
       throw new Error(
-        `Transport "${config.transport}" not found. Available transports: ${[...this.transports.keys()].join(', ')}`,
+        `Transport "${definition.transport}" not found. Available transports: ${[...this.transports.keys()].join(', ')}`,
       );
     }
 
-    transport.endpoint(config);
+    transport.endpoint(definition);
   }
 
   /**
@@ -101,11 +102,7 @@ export class App {
     I extends AnyInput = Schema,
     O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
-  >(
-    ctor: Constructor<{
-      handle(payload: InferInput<I>, metadata: any): Promise<any>;
-    }>,
-  ): void {
+  >(ctor: Constructor<IEndpoint<I, O, M>>): void {
     const metadata = getEndpointMetadata<I, O, M>(ctor);
 
     if (!metadata) {

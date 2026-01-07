@@ -1,13 +1,12 @@
 import type { AnyInput, AnyOutput, InferInput, InferOutput } from '../io';
-
-import type { ResponseContext } from './context.js';
+import type { Output, OutputSync } from '../result.js';
 
 import type { Infer, Optional, Schema } from '@common/misc';
 
 /**
  * Интерфейс для handler-классов
  * Используется для явной реализации контракта
- * Может возвращать либо полный ResponseContext, либо просто value (shorthand)
+ * Handler может вернуть Success или выбросить Failure
  */
 export interface IEndpoint<
   I extends AnyInput = Schema,
@@ -17,11 +16,11 @@ export interface IEndpoint<
   handle(
     payload: InferInput<I>,
     metadata: Infer<M>,
-  ): Promise<ResponseContext<InferOutput<O>> | InferOutput<O>>;
+  ): OutputSync<InferOutput<O>> | Output<InferOutput<O>>;
 }
 
 /**
- * Обработчик запроса (функциональный стиль)
+ * Функция-обработчик запроса
  */
 export type HandlerFn<
   I extends AnyInput = Schema,

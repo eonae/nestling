@@ -1,6 +1,6 @@
 import type { Readable } from 'node:stream';
 
-import type { ProcessingStatus } from '../status';
+import type { ErrorStatus, SuccessStatus } from '../status';
 
 /**
  * Описание файла в multipart запросе
@@ -41,19 +41,56 @@ export interface RequestContext {
 }
 
 /**
- * Абстрактный контекст ответа
+ * Детали ошибки в ResponseContext
  */
-export interface ResponseContext<TValue = unknown> {
-  /** Статус ответа (строковый для универсальности: 'ok', 'error', etc) */
-  status?: ProcessingStatus;
+export type ErrorDetails = Record<string, unknown>;
+
+/**
+ * ResponseContext для успешного ответа
+ */
+export interface SuccessResponseContext<TValue = unknown> {
+  /** Статус успешного ответа */
+  status: SuccessStatus;
 
   /** HTTP заголовки (для HTTP transport) */
   headers?: Record<string, string>;
 
-  /** Данные ответа (может быть AsyncIterableIterator для streaming) */
+  /** Данные успешного ответа (может быть AsyncIterableIterator для streaming) */
+  value: TValue;
+}
+
+/**
+ * ResponseContext для ошибки
+ */
+export interface ErrorResponseContext {
+  /** Статус ошибки */
+  status: ErrorStatus;
+
+  /** HTTP заголовки (для HTTP transport) */
+  headers?: Record<string, string>;
+
+  /** Детали ошибки */
+  value: ErrorDetails;
+}
+
+/**
+ * ResponseContext для случаев когда статус не указан (по умолчанию OK)
+ */
+export interface DefaultResponseContext<TValue = unknown> {
+  /** Статус не указан (по умолчанию будет OK) */
+  status?: undefined;
+
+  /** HTTP заголовки (для HTTP transport) */
+  headers?: Record<string, string>;
+
+  /** Данные ответа */
   value: TValue | null;
 }
 
-export type Output<TValue = unknown> = Promise<
-  ResponseContext<TValue> | TValue
->;
+/**
+ * Абстрактный контекст ответа (discriminated union)
+ */
+export type ResponseContext<TValue = unknown> =
+  | SuccessResponseContext<TValue>
+  | ErrorResponseContext
+  | DefaultResponseContext<TValue>;

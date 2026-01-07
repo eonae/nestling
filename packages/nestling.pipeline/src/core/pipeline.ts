@@ -1,4 +1,7 @@
+import type { OutputSync } from './result';
+import { Fail, Ok } from './result';
 import type {
+  ErrorDetails,
   HandlerFn,
   IMiddleware,
   MiddlewareFn,
@@ -29,55 +32,95 @@ export class Pipeline {
   }
 
   /**
-   * Нормализует ответ handler'а в ResponseContext
-   * Поддерживает shorthand синтаксис: можно вернуть просто value
+   * Нормализует результат handler'а в ResponseContext
+   * Поддерживает: Ok, примитивы/объекты (автоматически -> Success.ok)
+   * Ошибки обрабатываются через throw Fail в errorToResponse()
    */
-  private normalizeResponse<T>(
-    result: ResponseContext<T> | T,
-  ): ResponseContext<T> {
-    // Если уже ResponseContext - возвращаем как есть
-    if (
-      result &&
-      typeof result === 'object' &&
-      'value' in result &&
-      !Array.isArray(result)
-    ) {
-      return result as ResponseContext<T>;
+  private normalizeResponse<T>(result: OutputSync<T>): ResponseContext<T> {
+    // Если это Ok - преобразуем в SuccessResponseContext
+    if (result instanceof Ok) {
+      return {
+        status: result.status,
+        value: result.value,
+        headers: result.headers,
+      };
     }
 
-    // Иначе оборачиваем в ResponseContext
+    // Иначе оборачиваем в Success.ok и преобразуем
     return {
+      status: 'OK',
       value: result as T,
     };
   }
 
   /**
+   * Преобразует ошибку в ErrorResponseContext
+   */
+  private errorToResponse(error: unknown): ResponseContext {
+    if (error instanceof Fail) {
+      // Если это Failure - используем его статус и данные
+      const errorValue: ErrorDetails = {
+        error: error.message,
+      };
+      if (error.details) {
+        errorValue.details = error.details;
+      }
+      return {
+        status: error.status,
+        value: errorValue,
+      };
+    }
+
+    // Для обычных ошибок - INTERNAL_ERROR
+    // TODO: Переместить в конфигурацию
+    const isDevelopment = true; // временная константа
+
+    const errorValue: ErrorDetails = {
+      error: isDevelopment
+        ? error instanceof Error
+          ? error.message
+          : 'Unknown error'
+        : 'Internal server error',
+    };
+    if (isDevelopment && error instanceof Error && error.stack) {
+      errorValue.stack = error.stack;
+    }
+
+    return {
+      status: 'INTERNAL_ERROR',
+      value: errorValue,
+    };
+  }
+
+  /**
    * Выполняет пайплайн: middleware → handler
+   * Глобально перехватывает все ошибки
    */
   async executeWithHandler(
     handler: HandlerFn,
     ctx: RequestContext,
   ): Promise<ResponseContext> {
-    let index = 0;
+    try {
+      let index = 0;
 
-    const next = async (): Promise<ResponseContext> => {
-      if (index < this.middlewares.length) {
-        const middleware = this.middlewares[index++];
-        return middleware(ctx, next);
-      }
+      const next = async (): Promise<ResponseContext> => {
+        if (index < this.middlewares.length) {
+          const middleware = this.middlewares[index++];
+          return middleware(ctx, next);
+        }
 
-      // Все middleware выполнены, вызываем handler
-      if (!handler) {
-        throw new Error('Handler is not set');
-      }
+        if (!handler) {
+          throw new Error('Handler is not set');
+        }
 
-      // Вызываем handler с двумя параметрами: payload и metadata
-      const result = await handler(ctx.payload as any, ctx.metadata as any);
+        const result = await handler(ctx.payload as any, ctx.metadata as any);
+        return this.normalizeResponse(result);
+      };
 
-      // Нормализуем ответ (поддержка shorthand синтаксиса)
-      return this.normalizeResponse(result);
-    };
-
-    return next();
+      return await next();
+    } catch (error) {
+      // Глобальный перехват всех ошибок (из middleware или handler)
+      return this.errorToResponse(error);
+    }
   }
 }

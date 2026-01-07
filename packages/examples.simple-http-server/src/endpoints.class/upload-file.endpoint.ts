@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import type { FilePart, Output } from '@nestling/pipeline';
-import { Endpoint, withFiles } from '@nestling/pipeline';
+import { Ok, withFiles } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 // POST /upload - загрузка файла с метаданными
@@ -33,9 +34,7 @@ type UploadFileOutput = z.infer<typeof UploadFileOutput>;
  * Handler для загрузки файлов с метаданными
  * Демонстрирует использование withFiles() модификатора
  */
-@Endpoint({
-  transport: 'http',
-  pattern: 'POST /upload',
+@HttpEndpoint('POST', '/upload', {
   input: withFiles(UploadFileMetadata),
   output: UploadFileOutput,
 })
@@ -51,17 +50,18 @@ export class UploadFileEndpoint {
 
     console.log(`Uploading ${files.length} file(s) with metadata:`, data);
 
-    return {
-      status: 'CREATED',
-      value: {
-        message: 'Files uploaded successfully',
-        files: files.map((f) => ({
-          filename: f.filename,
-          size: undefined, // В реальности здесь был бы размер
-          mime: f.mime,
-        })),
-        metadata: data,
-      },
-    };
+    /**
+     * Класс Ok используется в случае, если нужно вернуть кастомный статус
+     * или заголовки.
+     */
+    return Ok.created({
+      message: 'Files uploaded successfully',
+      files: files.map((f) => ({
+        filename: f.filename,
+        size: undefined, // В реальности здесь был бы размер
+        mime: f.mime,
+      })),
+      metadata: data,
+    });
   }
 }

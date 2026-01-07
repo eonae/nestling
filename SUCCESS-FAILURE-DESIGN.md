@@ -43,9 +43,9 @@ async handle(payload, metadata): Output<UserData> {
   }
   
   // Вариант 1: Явный Success
-  return Success.ok(data);
+  return WrappedSuccess.ok(data);
   
-  // Вариант 2: Автоматический Success.ok
+  // Вариант 2: Автоматический WrappedSuccess.ok
   return data;
 }
 ```
@@ -223,6 +223,7 @@ export class Pipeline {
   /**
    * Нормализует результат handler'а в ResponseContext
    * Поддерживает: Success, примитивы/объекты (автоматически -> Success.ok)
+   * Ошибки обрабатываются только через throw Fail в errorToResponse()
    */
   private normalizeResponse<T>(
     result: Success<T> | T,
@@ -308,10 +309,10 @@ export class Pipeline {
 ```
 
 **Ключевые моменты:**
-- `normalizeResponse()` — преобразует Success или обычные данные в ResponseContext
-- `errorToResponse()` — преобразует Failure или обычные ошибки в ResponseContext
+- `normalizeResponse()` — преобразует Success или обычные данные в ResponseContext (ошибки не обрабатываются здесь)
+- `errorToResponse()` — преобразует Failure (из throw) или обычные ошибки в ResponseContext
 - `try-catch` оборачивает весь пайплайн (middleware + handler)
-- Любая ошибка автоматически превращается в корректный ответ
+- Все ошибки обрабатываются только через throw Fail, не через return
 
 ### 5. Обновленные типы
 
@@ -335,6 +336,7 @@ export interface ResponseContext<TValue = unknown> {
 /**
  * Тип возвращаемого значения из handler'а
  * Handler может вернуть Success или выбросить Failure
+ * Ошибки обрабатываются только через throw Fail, не через return
  */
 export type Output<TValue = unknown> = Promise<Success<TValue> | TValue>;
 ```
@@ -344,6 +346,7 @@ export type Output<TValue = unknown> = Promise<Success<TValue> | TValue>;
 
 /**
  * Функция-обработчик запроса
+ * Ошибки обрабатываются только через throw Fail
  */
 export type HandlerFn<TPayload = any, TMetadata = any, TOutput = any> = (
   payload: TPayload,
@@ -381,7 +384,7 @@ export class GetUserEndpoint {
       throw Failure.notFound('User not found');
     }
     
-    return Success.ok(user);
+    return WrappedSuccess.ok(user);
   }
 }
 ```
@@ -390,31 +393,31 @@ export class GetUserEndpoint {
 
 ```typescript
 // 1. Явный Success с OK статусом
-return Success.ok({ id: 1, name: 'John' });
+return WrappedSuccess.ok({ id: 1, name: 'John' });
 
 // 2. Success с другим статусом
-return Success.created({ id: 1, name: 'John' });
-return Success.accepted({ id: 1, name: 'John' });
-return Success.noContent();
+return WrappedSuccess.created({ id: 1, name: 'John' });
+return WrappedSuccess.accepted({ id: 1, name: 'John' });
+return WrappedSuccess.noContent();
 
 // 3. Success с заголовками
-return Success.ok(
+return WrappedSuccess.ok(
   { id: 1, name: 'John' },
   { 'X-Custom-Header': 'value' }
 );
 
-// 4. Автоматический Success.ok (просто возвращаем данные)
+// 4. Автоматический WrappedSuccess.ok (просто возвращаем данные)
 return { id: 1, name: 'John' };
 
 // 5. Возврат null (если типизация output это разрешает)
-return null; // → Success.ok(null)
+return null; // → WrappedSuccess.ok(null)
 
 // 6. Streaming response (для больших объемов данных)
 async function* generateData() {
   yield { chunk: 1 };
   yield { chunk: 2 };
 }
-return Success.ok(generateData());
+return WrappedSuccess.ok(generateData());
 ```
 
 **Примечания:** 
@@ -525,7 +528,7 @@ export class GetUserByIdEndpoint {
     }
 
     // Успешный ответ
-    return Success.ok(user);
+    return WrappedSuccess.ok(user);
   }
 
   private async validateToken(token: string): Promise<boolean> {
@@ -613,7 +616,7 @@ async handle(payload, metadata): Output<DataType> {
     throw Failure.notFound('Resource not found');
   }
   
-  return Success.ok(data);
+  return WrappedSuccess.ok(data);
   // или просто: return data;
 }
 ```
@@ -624,8 +627,8 @@ TypeScript обеспечивает следующие гарантии:
 
 1. **Success принимает только SuccessStatus**
    ```typescript
-   Success.ok(data);       // ✅
-   Success.created(data);  // ✅
+   WrappedSuccess.ok(data);       // ✅
+   WrappedSuccess.created(data);  // ✅
    new Success('NOT_FOUND', data); // ❌ Ошибка компиляции
    ```
 
@@ -640,9 +643,9 @@ TypeScript обеспечивает следующие гарантии:
    ```typescript
    // Handler должен вернуть Success<User> или User
    async handle(): Output<User> {
-     return Success.ok(user);  // ✅ user: User
+     return WrappedSuccess.ok(user);  // ✅ user: User
      return user;              // ✅ user: User
-     return Success.ok(123);   // ❌ number не User
+     return WrappedSuccess.ok(123);   // ❌ number не User
    }
    ```
 
@@ -775,7 +778,7 @@ describe('GetUserEndpoint', () => {
 describe('Pipeline', () => {
   it('should convert Success to ResponseContext', async () => {
     const pipeline = new Pipeline();
-    const handler = async () => Success.ok({ data: 'test' });
+    const handler = async () => WrappedSuccess.ok({ data: 'test' });
     
     const result = await pipeline.executeWithHandler(
       handler,
@@ -815,7 +818,7 @@ describe('Pipeline', () => {
 
 ```typescript
 // Оба варианта эквивалентны:
-return Success.ok(user);
+return WrappedSuccess.ok(user);
 return user;
 ```
 
@@ -824,9 +827,9 @@ return user;
 **A:** Используйте явный Success с нужным статусом:
 
 ```typescript
-return Success.created(newUser);
-return Success.accepted(task);
-return Success.noContent();
+return WrappedSuccess.created(newUser);
+return WrappedSuccess.accepted(task);
+return WrappedSuccess.noContent();
 ```
 
 ### Q: Можно ли обрабатывать ошибки в middleware?
@@ -851,7 +854,7 @@ Middleware может только генерировать собственны
 })
 export class GetUserEndpoint {
   async handle(): Output<User | null> {
-    return null; // ✅ будет обернуто в Success.ok(null)
+    return null; // ✅ будет обернуто в WrappedSuccess.ok(null)
   }
 }
 ```

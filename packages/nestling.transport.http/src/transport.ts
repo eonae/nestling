@@ -20,7 +20,7 @@ import type { Constructor, Optional, Schema } from '@common/misc';
 import type {
   AnyInput,
   AnyOutput,
-  HandlerConfig,
+  EndpointDefinition,
   IMiddleware,
   MiddlewareFn,
   RequestContext,
@@ -31,7 +31,7 @@ import {
   parsePayload,
   Pipeline,
 } from '@nestling/pipeline';
-import type { ITransport, RouteConfig } from '@nestling/transport';
+import type { ITransport } from '@nestling/transport';
 
 /**
  * Опции для HTTP транспорта
@@ -63,18 +63,8 @@ export class HttpTransport implements ITransport {
     I extends AnyInput = Schema,
     O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
-  >(config: HandlerConfig<I, O, M>): void {
-    const { handle, pattern, input, metadata, output } = config;
-
-    const routeConfig: RouteConfig<I, O, M> = {
-      pattern,
-      handle,
-      input,
-      metadata,
-      output,
-    };
-
-    this.router.route(routeConfig);
+  >(definition: EndpointDefinition<I, O, M>): void {
+    this.router.route(definition);
   }
 
   /**
@@ -84,8 +74,8 @@ export class HttpTransport implements ITransport {
     I extends AnyInput = Schema,
     O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
-  >(config: RouteConfig<I, O, M>): void {
-    this.router.route(config);
+  >(definition: EndpointDefinition<I, O, M>): void {
+    this.router.route(definition);
   }
 
   /**
@@ -122,7 +112,7 @@ export class HttpTransport implements ITransport {
       }
 
       // Анализируем input конфигурацию
-      const inputConfig = analyzeInput(route.config.input);
+      const inputConfig = analyzeInput(route.definition.input);
 
       // Переменные для данных запроса
       let payload: unknown;
@@ -219,14 +209,14 @@ export class HttpTransport implements ITransport {
         );
       }
 
-      if (route.config.metadata) {
+      if (route.definition.metadata) {
         const inputSources = {
           payload: payload as Record<string, unknown>,
           metadata: requestContext.metadata as Record<string, unknown>,
         };
 
         requestContext.metadata = parseMetadata(
-          route.config.metadata as Schema,
+          route.definition.metadata as Schema,
           inputSources,
         );
       }
