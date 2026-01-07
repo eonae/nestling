@@ -4,11 +4,11 @@ import type { Readable } from 'node:stream';
 
 import type { Optional, Schema } from '@common/misc';
 import type {
+  AnyInput,
+  AnyOutput,
   FilePart,
   HandlerConfig,
   HandlerFn,
-  Input,
-  Output,
   RequestContext,
   ResponseContext,
 } from '@nestling/pipeline';
@@ -32,8 +32,8 @@ export interface CliInput {
  * CLI-специфичная конфигурация handler'а
  */
 export interface CliHandlerConfig<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 > extends HandlerConfig<I, O, M> {
   command: string;
@@ -58,8 +58,8 @@ export class CliTransport implements ITransport {
    * Регистрирует handler через конфигурацию
    */
   endpoint<
-    I extends Input = Schema,
-    O extends Output = Schema,
+    I extends AnyInput = Schema,
+    O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(config: CliHandlerConfig<I, O, M>): void {
     const { handle, command } = config;
@@ -249,7 +249,13 @@ export class CliTransport implements ITransport {
           const input = this.parseCommand(trimmed);
           const result = await this.execute(input);
 
-          if (result.value !== undefined) {
+          // Парсим status для exit code
+          const exitCode = this.parseExitCode(result.status);
+          if (exitCode !== 0) {
+            process.exitCode = exitCode;
+          }
+
+          if (result.value !== null && result.value !== undefined) {
             console.log(JSON.stringify(result.value, null, 2));
           }
         } catch (error) {
@@ -257,6 +263,7 @@ export class CliTransport implements ITransport {
             'Error:',
             error instanceof Error ? error.message : error,
           );
+          process.exitCode = 1;
         }
 
         this.repl?.prompt();
@@ -276,6 +283,32 @@ export class CliTransport implements ITransport {
       this.repl.close();
       this.repl = undefined;
     }
+  }
+
+  /**
+   * Парсит строковый status в exit code
+   */
+  private parseExitCode(status?: string): number {
+    if (!status) {
+      return 0;
+    }
+
+    // Если число в виде строки - парсим
+    const asNumber = Number.parseInt(status, 10);
+    if (!Number.isNaN(asNumber)) {
+      return asNumber;
+    }
+
+    // Маппинг строковых статусов
+    if (status === 'ok') {
+      return 0;
+    }
+    if (status === 'error') {
+      return 1;
+    }
+
+    // По умолчанию для неизвестных статусов
+    return status === 'ok' ? 0 : 1;
   }
 
   /**

@@ -35,9 +35,8 @@ export class GreetEndpoint {
     console.log(greeting);
 
     return {
-      status: 0,
+      status: 'OK',
       value: { greeting },
-      meta: {},
     };
   }
 }

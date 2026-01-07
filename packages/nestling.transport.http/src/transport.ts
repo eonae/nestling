@@ -4,7 +4,6 @@ import {
   type Server,
   type ServerResponse,
 } from 'node:http';
-import type { Readable } from 'node:stream';
 
 import { sendResponse } from './adapter.js';
 import { mergePayload } from './merge.js';
@@ -19,12 +18,11 @@ import { HttpRouter } from './router.js';
 
 import type { Constructor, Optional, Schema } from '@common/misc';
 import type {
-  FilePart,
+  AnyInput,
+  AnyOutput,
   HandlerConfig,
   IMiddleware,
-  Input,
   MiddlewareFn,
-  Output,
   RequestContext,
 } from '@nestling/pipeline';
 import {
@@ -62,8 +60,8 @@ export class HttpTransport implements ITransport {
    * Регистрирует handler через конфигурацию
    */
   endpoint<
-    I extends Input = Schema,
-    O extends Output = Schema,
+    I extends AnyInput = Schema,
+    O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(config: HandlerConfig<I, O, M>): void {
     const { handle, pattern, input, metadata, output } = config;
@@ -83,8 +81,8 @@ export class HttpTransport implements ITransport {
    * Регистрирует маршрут
    */
   route<
-    I extends Input = Schema,
-    O extends Output = Schema,
+    I extends AnyInput = Schema,
+    O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(config: RouteConfig<I, O, M>): void {
     this.router.route(config);
@@ -128,13 +126,11 @@ export class HttpTransport implements ITransport {
 
       // Переменные для данных запроса
       let payload: unknown;
-      let streamBody: Readable | undefined;
-      let files: FilePart[] | undefined;
 
       // Парсим входные данные согласно типу модификатора
       switch (inputConfig.type) {
         case 'stream': {
-          // Streaming данные
+          // Streaming данные - payload будет AsyncIterableIterator
           payload = parseStream(
             nativeReq,
             inputConfig.schema as Optional<Schema>,
@@ -143,20 +139,21 @@ export class HttpTransport implements ITransport {
           break;
         }
         case 'withFiles': {
-          // Структурированные данные + файлы
+          // Структурированные данные + файлы - payload будет { data, files }
           const result = await parseWithFiles(
             nativeReq,
             inputConfig.schema as Optional<Schema>,
           );
-          payload = result.data;
-          files = result.files;
+          payload = {
+            data: result.data,
+            files: result.files,
+          };
 
           break;
         }
         case 'files': {
-          // Только файлы
-          files = await parseFilesOnly(nativeReq);
-          payload = files;
+          // Только файлы - payload будет FilePart[]
+          payload = await parseFilesOnly(nativeReq);
 
           break;
         }
@@ -196,18 +193,10 @@ export class HttpTransport implements ITransport {
       const requestContext: RequestContext = {
         transport: 'http',
         pattern: `${nativeReq.method || 'GET'} ${url.pathname}`,
-        payload,
+        payload: payload ?? undefined,
         metadata: {
           headers: nativeReq.headers as Record<string, string>,
         },
-        ...(streamBody || files
-          ? {
-              streams: {
-                ...(streamBody && { body: streamBody }),
-                ...(files && { files }),
-              },
-            }
-          : {}),
       };
 
       // Валидируем и парсим payload и metadata только если схемы указаны

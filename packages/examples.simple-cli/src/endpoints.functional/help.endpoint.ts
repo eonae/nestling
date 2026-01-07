@@ -53,9 +53,8 @@ export const Help = makeEndpoint({
     console.log('');
 
     return {
-      status: 0,
+      status: 'OK',
       value: { message: 'Help displayed' },
-      meta: {},
     };
   },
 });

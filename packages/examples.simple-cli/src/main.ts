@@ -94,8 +94,11 @@ async function main() {
         options,
       });
 
-      if (result.status && result.status !== 0) {
-        process.exit(result.status);
+      if (result.status) {
+        const exitCode = Number.parseInt(result.status, 10);
+        if (!Number.isNaN(exitCode) && exitCode !== 0) {
+          process.exit(exitCode);
+        }
       }
     } catch (error) {
       if (error instanceof Error && error.message.includes('not found')) {

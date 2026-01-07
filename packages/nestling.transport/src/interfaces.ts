@@ -1,9 +1,9 @@
 import type { Optional, Schema } from '@common/misc';
 import type {
+  AnyInput,
+  AnyOutput,
   HandlerConfig,
   HandlerFn,
-  Input,
-  Output,
 } from '@nestling/pipeline';
 
 /**
@@ -14,8 +14,8 @@ export interface ITransport {
    * Регистрирует handler через конфигурацию
    */
   endpoint<
-    I extends Input = Schema,
-    O extends Output = Schema,
+    I extends AnyInput = Schema,
+    O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(
     config: HandlerConfig<I, O, M>,
@@ -36,8 +36,8 @@ export interface ITransport {
  * Конфигурация маршрута
  */
 export interface RouteConfig<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 > {
   pattern: string;

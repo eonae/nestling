@@ -47,9 +47,8 @@ export class InfoEndpoint {
     console.log(`  Heap Total: ${info.memory.heapTotal}`);
 
     return {
-      status: 0,
+      status: 'OK',
       value: info,
-      meta: {},
     };
   }
 }

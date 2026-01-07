@@ -28,10 +28,14 @@ const MIDDLEWARE_KEY = Symbol.for('nestling:middleware');
  *   async apply(ctx: RequestContext, next: () => Promise<ResponseContext>) {
  *     const start = Date.now();
  *     const response = await next();
- *     response.meta = {
- *       ...response.meta,
- *       timing: Date.now() - start,
- *     };
+ *     const duration = Date.now() - start;
+ *
+ *     // Добавляем timing в headers для HTTP transport
+ *     if (!response.headers) {
+ *       response.headers = {};
+ *     }
+ *     response.headers['X-Response-Time'] = `${duration}ms`;
+ *
  *     return response;
  *   }
  * }

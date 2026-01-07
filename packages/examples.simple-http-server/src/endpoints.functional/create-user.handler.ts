@@ -33,7 +33,7 @@ export const CreateUser = makeEndpoint({
     // payload: { name: string; email: string; address: { street: string; city: string } }
     // Типы выводятся автоматически из CreateUserPayload!
     return {
-      status: 201,
+      status: 'CREATED',
       value: {
         message: 'User created',
         user: {
@@ -41,7 +41,6 @@ export const CreateUser = makeEndpoint({
           ...payload,
         },
       },
-      meta: {},
     };
   },
 });

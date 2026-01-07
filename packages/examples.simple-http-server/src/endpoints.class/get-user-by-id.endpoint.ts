@@ -1,4 +1,4 @@
-import type { ResponseContext } from '@nestling/pipeline';
+import type { Output, ResponseContext } from '@nestling/pipeline';
 import { Endpoint } from '@nestling/pipeline';
 import z from 'zod';
 
@@ -44,6 +44,8 @@ type GetUserByIdMetadata = z.infer<typeof GetUserByIdMetadata>;
 type GetUserByIdInput = z.infer<typeof GetUserByIdInput>;
 type GetUserByIdOutput = z.infer<typeof GetUserByIdOutput>;
 
+export type Wrapped<T> = ResponseContext<T> | T;
+
 /**
  * Handler-класс с ПОЛНОЙ проверкой типов через декоратор @Handler
  *
@@ -65,9 +67,16 @@ export class GetUserByIdEndpoint {
   async handle(
     payload: GetUserByIdInput,
     metadata: GetUserByIdMetadata,
-  ): Promise<ResponseContext<GetUserByIdOutput>> {
+  ): Output<GetUserByIdOutput> {
+    if (metadata.authorization) {
+      return {
+        status: 'UNAUTHORIZED',
+        value: null,
+      };
+    }
+
     // payload и metadata - типы проверяются компилятором!
-    const user = {
+    return {
       id: payload.id,
       name: `User ${payload.id}`,
       email: `user${payload.id}@example.com`,
@@ -80,14 +89,6 @@ export class GetUserByIdEndpoint {
           { id: 2, title: `Post 2 by user ${payload.id}` },
         ],
       }),
-    };
-
-    return {
-      status: 200,
-      value: user,
-      meta: {
-        authenticated: !!metadata.authorization,
-      },
     };
   }
 }

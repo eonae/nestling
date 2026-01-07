@@ -12,11 +12,10 @@ export const SayHello = makeEndpoint({
   pattern: 'GET /',
   output: SayHelloOutput,
   handle: async () => ({
-    status: 200,
+    status: 'OK',
     value: {
       message: 'Hello from Nestling HTTP Transport!',
       timestamp: new Date().toISOString(),
     },
-    meta: {},
   }),
 });

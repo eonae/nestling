@@ -1,5 +1,7 @@
 import type { Readable } from 'node:stream';
 
+import type { ProcessingStatus } from '../status';
+
 /**
  * Описание файла в multipart запросе
  */
@@ -28,37 +30,30 @@ export interface RequestContext {
   pattern: string;
 
   /**
-   * Структурированные данные (объединение body + query + params)
-   * Используется со schema-driven подходом
-   * undefined если схема не передана
+   * Данные запроса (тип выводится через InferInput)
    */
-  payload?: unknown;
+  payload: unknown;
 
   /**
-   * Метаданные транспорта (headers + transport-specific meta)
-   * Используется для auth, tracing и т.п.
-   * undefined если схема не передана
+   * Метаданные транспорта (headers, auth, tracing)
    */
   metadata?: unknown;
-
-  /**
-   * Для streaming cases
-   */
-  streams?: {
-    /** Streaming body (когда body не парсится в объект) */
-    body?: Readable;
-    /** Multipart файлы */
-    files?: FilePart[];
-  };
 }
 
 /**
  * Абстрактный контекст ответа
  */
 export interface ResponseContext<TValue = unknown> {
-  status?: number;
+  /** Статус ответа (строковый для универсальности: 'ok', 'error', etc) */
+  status?: ProcessingStatus;
+
+  /** HTTP заголовки (для HTTP transport) */
   headers?: Record<string, string>;
-  value?: TValue;
-  stream?: Readable;
-  meta: Record<string, unknown>;
+
+  /** Данные ответа (может быть AsyncIterableIterator для streaming) */
+  value: TValue | null;
 }
+
+export type Output<TValue = unknown> = Promise<
+  ResponseContext<TValue> | TValue
+>;

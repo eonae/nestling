@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import type { FilePart, ResponseContext } from '@nestling/pipeline';
+import type { FilePart, Output } from '@nestling/pipeline';
 import { Endpoint, withFiles } from '@nestling/pipeline';
 import { z } from 'zod';
 
@@ -43,7 +43,7 @@ export class UploadFileEndpoint {
   async handle(payload: {
     data: UploadFileMetadata;
     files: FilePart[];
-  }): Promise<ResponseContext<UploadFileOutput>> {
+  }): Output<UploadFileOutput> {
     const { data, files } = payload;
 
     // В реальном приложении здесь была бы обработка потоков файлов
@@ -52,7 +52,7 @@ export class UploadFileEndpoint {
     console.log(`Uploading ${files.length} file(s) with metadata:`, data);
 
     return {
-      status: 201,
+      status: 'CREATED',
       value: {
         message: 'Files uploaded successfully',
         files: files.map((f) => ({
@@ -62,7 +62,6 @@ export class UploadFileEndpoint {
         })),
         metadata: data,
       },
-      meta: {},
     };
   }
 }

@@ -13,6 +13,6 @@ export const RequestResponseLogging: MiddlewareFn = async (
   const start = Date.now();
   const response = await next();
   const duration = Date.now() - start;
-  console.log(`← ${ctx.pattern} - ${response.status || 200} (${duration}ms)`);
+  console.log(`← ${ctx.pattern} - ${response.status} (${duration}ms)`);
   return response;
 };

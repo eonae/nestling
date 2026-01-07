@@ -1,5 +1,6 @@
 import { Product } from '../common';
 
+import type { Output } from '@nestling/pipeline';
 import { Endpoint } from '@nestling/pipeline';
 import z from 'zod';
 
@@ -12,23 +13,21 @@ export const ListProductsOutput = z
   })
   .describe('Product list response');
 
+type ListProductsOutput = z.infer<typeof ListProductsOutput>;
+
 @Endpoint({
   transport: 'http',
   pattern: 'GET /products',
   output: ListProductsOutput,
 })
 export class ListProductsEndpoint {
-  async handle() {
+  async handle(): Output<ListProductsOutput> {
     return {
-      status: 200,
-      value: {
-        products: [
-          { id: 1, name: 'Laptop', price: 1000 },
-          { id: 2, name: 'Mouse', price: 25 },
-          { id: 3, name: 'Keyboard', price: 75 },
-        ],
-      },
-      meta: {},
+      products: [
+        { id: 1, name: 'Laptop', price: 1000 },
+        { id: 2, name: 'Mouse', price: 25 },
+        { id: 3, name: 'Keyboard', price: 75 },
+      ],
     };
   }
 }

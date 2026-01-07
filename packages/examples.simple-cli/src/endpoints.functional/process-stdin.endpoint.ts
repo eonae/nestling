@@ -45,12 +45,11 @@ export const ProcessStdin = makeEndpoint({
     }
 
     return {
-      status: 0,
+      status: 'OK',
       value: {
         linesProcessed,
         totalBytes,
       },
-      meta: {},
     };
   },
 });

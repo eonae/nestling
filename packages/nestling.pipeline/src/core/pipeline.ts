@@ -29,6 +29,29 @@ export class Pipeline {
   }
 
   /**
+   * Нормализует ответ handler'а в ResponseContext
+   * Поддерживает shorthand синтаксис: можно вернуть просто value
+   */
+  private normalizeResponse<T>(
+    result: ResponseContext<T> | T,
+  ): ResponseContext<T> {
+    // Если уже ResponseContext - возвращаем как есть
+    if (
+      result &&
+      typeof result === 'object' &&
+      'value' in result &&
+      !Array.isArray(result)
+    ) {
+      return result as ResponseContext<T>;
+    }
+
+    // Иначе оборачиваем в ResponseContext
+    return {
+      value: result as T,
+    };
+  }
+
+  /**
    * Выполняет пайплайн: middleware → handler
    */
   async executeWithHandler(
@@ -49,8 +72,10 @@ export class Pipeline {
       }
 
       // Вызываем handler с двумя параметрами: payload и metadata
-      // payload и metadata будут undefined если схемы не были переданы
-      return handler(ctx.payload as any, ctx.metadata as any);
+      const result = await handler(ctx.payload as any, ctx.metadata as any);
+
+      // Нормализуем ответ (поддержка shorthand синтаксиса)
+      return this.normalizeResponse(result);
     };
 
     return next();

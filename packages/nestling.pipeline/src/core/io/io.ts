@@ -53,7 +53,7 @@ export interface FilesModifier {
  * - Примитив ('binary' | 'text')
  * - Модификатор (stream, withFiles, etc)
  */
-export type Input<T extends Optional<Schema> = Optional<Schema>> =
+export type AnyInput<T extends Optional<Schema> = Optional<Schema>> =
   | T // Schema
   | IOPrimitive // Primitives
   | StreamModifier<T | IOPrimitive> // stream(schema)
@@ -66,7 +66,7 @@ export type Input<T extends Optional<Schema> = Optional<Schema>> =
  * - Примитив ('binary' | 'text')
  * - Stream модификатор
  */
-export type Output<T = unknown> =
+export type AnyOutput<T extends Optional<Schema> = Optional<Schema>> =
   | T // Schema
   | IOPrimitive // Primitives
   | StreamModifier<T>; // stream(schema)

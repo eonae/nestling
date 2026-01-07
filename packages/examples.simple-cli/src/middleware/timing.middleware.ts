@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import type {
   IMiddleware,
   RequestContext,
@@ -17,10 +18,8 @@ export class TimingMiddleware implements IMiddleware {
     const start = Date.now();
     const response = await next();
     const duration = Date.now() - start;
-    response.meta = {
-      ...response.meta,
-      timing: duration,
-    };
+
+    console.log(`⏱️  ${duration}ms`);
     return response;
   }
 }

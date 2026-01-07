@@ -1,4 +1,4 @@
-import type { Input, Output } from './io/io.js';
+import type { AnyInput, AnyOutput } from './io/io.js';
 import type { HandlerFn } from './types';
 
 import type { Optional, Schema } from '@common/misc';
@@ -7,8 +7,8 @@ import type { Optional, Schema } from '@common/misc';
  * Конфигурация для регистрации handler в транспорте
  */
 export interface HandlerConfig<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 > {
   transport: string;
@@ -46,8 +46,8 @@ export interface HandlerConfig<
  * ```
  */
 export function makeEndpoint<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 >(config: HandlerConfig<I, O, M>): HandlerConfig<I, O, M> {
   return config;

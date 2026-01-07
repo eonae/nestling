@@ -1,10 +1,10 @@
 import type { Constructor, Optional, Schema } from '@common/misc';
 import type {
+  AnyInput,
+  AnyOutput,
   HandlerConfig,
   IEndpoint,
   InferInput,
-  Input,
-  Output,
 } from '@nestling/pipeline';
 import { getEndpointMetadata } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
@@ -12,8 +12,8 @@ import type { ITransport } from '@nestling/transport';
  * Type guard для проверки, является ли значение декорированным handler-классом
  */
 function isHandlerClass<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 >(value: unknown): value is Constructor<IEndpoint<I, O, M>> {
   return typeof value === 'function' && getEndpointMetadata(value) !== null;
@@ -39,8 +39,8 @@ export class App {
    * Реализация endpoint с поддержкой обоих API
    */
   endpoint<
-    I extends Input = Schema,
-    O extends Output = Schema,
+    I extends AnyInput = Schema,
+    O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(input: Constructor<IEndpoint<I, O, M>> | HandlerConfig<I, O, M>): void {
     if (isHandlerClass<I, O, M>(input)) {
@@ -80,8 +80,8 @@ export class App {
    * Регистрирует handler через конфигурацию
    */
   private registerPlain<
-    I extends Input = Schema,
-    O extends Output = Schema,
+    I extends AnyInput = Schema,
+    O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(config: HandlerConfig<I, O, M>): void {
     const transport = this.transports.get(config.transport);
@@ -98,8 +98,8 @@ export class App {
    * Регистрирует handler-класс
    */
   private registerClass<
-    I extends Input = Schema,
-    O extends Output = Schema,
+    I extends AnyInput = Schema,
+    O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(
     ctor: Constructor<{

@@ -80,9 +80,8 @@ export class CalcEndpoint {
         if (validatedB === 0) {
           console.error('Error: Division by zero');
           return {
-            status: 1,
+            status: 'BAD_REQUEST',
             value: { error: 'Division by zero' },
-            meta: {},
           };
         }
         result = validatedA / validatedB;
@@ -92,9 +91,8 @@ export class CalcEndpoint {
       default: {
         console.error('Error: Unknown operation');
         return {
-          status: 1,
+          status: 'BAD_REQUEST',
           value: { error: 'Unknown operation' },
-          meta: {},
         };
       }
     }
@@ -102,9 +100,8 @@ export class CalcEndpoint {
     console.log(`Result: ${validatedA} ${op} ${validatedB} = ${result}`);
 
     return {
-      status: 0,
+      status: 'OK',
       value: { a: validatedA, b: validatedB, operation: op, result },
-      meta: {},
     };
   }
 }

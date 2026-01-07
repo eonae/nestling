@@ -41,12 +41,11 @@ export const StreamLogs = makeEndpoint({
     }
 
     return {
-      status: 200,
+      status: 'OK',
       value: {
         processed,
         summary: stats,
       },
-      meta: {},
     };
   },
 });

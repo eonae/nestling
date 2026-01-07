@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'node:http';
 
 import type { Optional, Schema } from '@common/misc';
-import type { HandlerFn, Input, Output } from '@nestling/pipeline';
+import type { AnyInput, AnyOutput, HandlerFn } from '@nestling/pipeline';
 import type { RouteConfig } from '@nestling/transport';
 import Router from 'find-my-way';
 
@@ -23,8 +23,8 @@ export class HttpRouter {
    * Регистрирует маршрут
    */
   route<
-    I extends Input = Schema,
-    O extends Output = Schema,
+    I extends AnyInput = Schema,
+    O extends AnyOutput = Schema,
     M extends Optional<Schema> = Optional<Schema>,
   >(config: RouteConfig<I, O, M>): void {
     // Создаем store с handler и config

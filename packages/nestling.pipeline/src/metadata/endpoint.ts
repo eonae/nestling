@@ -1,8 +1,8 @@
 import type {
+  AnyInput,
+  AnyOutput,
   InferInput,
   InferOutput,
-  Input,
-  Output,
   ResponseContext,
 } from '../core';
 
@@ -21,8 +21,8 @@ const HANDLER_KEY = Symbol.for('nestling:handler');
  * Конфигурация endpoint-класса
  */
 export interface EndpointMetadata<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 > {
   transport: string;
@@ -94,8 +94,8 @@ export interface EndpointMetadata<
  * ```
  */
 export function Endpoint<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 >(config: EndpointMetadata<I, O, M>) {
   return <
@@ -103,7 +103,7 @@ export function Endpoint<
       handle(
         payload: InferInput<I>,
         metadata: Infer<M>,
-      ): Promise<ResponseContext<InferOutput<O>>>;
+      ): Promise<ResponseContext<InferOutput<O>> | InferOutput<O>>;
     }>,
   >(
     target: T,
@@ -123,8 +123,8 @@ export function Endpoint<
  * Извлекает метаданные handler-класса
  */
 export function getEndpointMetadata<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 >(target: any): EndpointMetadata<I, O, M> | null {
   const constructor = target.prototype ? target : target.constructor;

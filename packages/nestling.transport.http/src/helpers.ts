@@ -1,11 +1,11 @@
 import type { Optional, Schema } from '@common/misc';
-import type { HandlerConfig, Input, Output } from '@nestling/pipeline';
+import type { AnyInput, AnyOutput, HandlerConfig } from '@nestling/pipeline';
 import { Endpoint, makeEndpoint } from '@nestling/pipeline';
 import type Router from 'find-my-way';
 
 export function makeHttpHandler<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 >(
   method: Router.HTTPMethod,
@@ -20,8 +20,8 @@ export function makeHttpHandler<
 }
 
 export function HttpEndpoint<
-  I extends Input = Schema,
-  O extends Output = Schema,
+  I extends AnyInput = Schema,
+  O extends AnyOutput = Schema,
   M extends Optional<Schema> = Optional<Schema>,
 >(
   method: Router.HTTPMethod,
