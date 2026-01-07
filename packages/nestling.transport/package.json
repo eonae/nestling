@@ -20,7 +20,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*"
+    "@common/misc": "workspace:*",
+    "@nestling/pipeline": "workspace:*"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

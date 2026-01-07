@@ -1,6 +1,7 @@
 import type { Constructor, MaybeSchema } from '@common/misc';
-import type { HandlerConfig, IHandler, Transport } from '@nestling/transport';
-import { getHandlerMetadata } from '@nestling/transport';
+import type { HandlerConfig, IHandler } from '@nestling/pipeline';
+import { getHandlerMetadata } from '@nestling/pipeline';
+import type { ITransport } from '@nestling/transport';
 
 /**
  * Type guard для проверки, является ли значение декорированным handler-классом
@@ -17,13 +18,13 @@ function isHandlerClass<
  * Класс приложения, управляющий транспортами
  */
 export class App {
-  private readonly transports = new Map<string, Transport>();
+  private readonly transports = new Map<string, ITransport>();
 
   /**
    * Создает экземпляр App с транспортами
    * @param transports - объект с транспортами {name: transport}
    */
-  constructor(transports: Record<string, Transport>) {
+  constructor(transports: Record<string, ITransport>) {
     for (const [name, transport] of Object.entries(transports)) {
       this.transports.set(name, transport);
     }
@@ -117,12 +118,11 @@ export class App {
     // Регистрируем в транспорте
     transport.registerHandler<P, M, R>({
       transport: metadata.transport,
-      method: metadata.method,
-      path: metadata.path,
+      pattern: metadata.pattern,
       payloadSchema: metadata.payloadSchema,
       metadataSchema: metadata.metadataSchema,
       responseSchema: metadata.responseSchema,
-      handler: (payload, metadata) => instance.handle(payload, metadata),
+      handle: (payload, metadata) => instance.handle(payload, metadata),
     });
   }
 }

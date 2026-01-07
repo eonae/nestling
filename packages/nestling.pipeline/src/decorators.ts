@@ -1,5 +1,6 @@
+import type { IMiddleware, ResponseContext } from './core';
+
 import type { Constructor, Infer, MaybeSchema } from '@common/misc';
-import type { IMiddleware, ResponseContext } from '@nestling/transport';
 
 /**
  * Метаданные handler-класса
@@ -10,8 +11,7 @@ export interface HandlerMetadata<
   R extends MaybeSchema = MaybeSchema,
 > {
   transport: string;
-  method: string;
-  path: string;
+  pattern: string;
   input?: {
     body?: 'json' | 'raw' | 'stream';
     multipart?: {
@@ -42,8 +42,7 @@ export interface HandlerClassConfig<
   R extends MaybeSchema = MaybeSchema,
 > {
   transport: string;
-  method: string;
-  path: string;
+  pattern: string;
   input?: {
     body?: 'json' | 'raw' | 'stream';
     multipart?: {
@@ -72,8 +71,7 @@ export interface HandlerClassConfig<
  *
  * @Handler({
  *   transport: 'http',
- *   method: 'GET',
- *   path: '/users/:id',
+ *   pattern: '/users/:id',
  *   payloadSchema: PayloadSchema,
  *   metadataSchema: MetadataSchema,
  *   responseSchema: ResponseSchema,

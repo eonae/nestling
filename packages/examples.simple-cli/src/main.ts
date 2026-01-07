@@ -1,391 +1,48 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
+import {
+  CalcHandler,
+  GreetHandler,
+  InfoHandler,
+} from './handlers.class/index.js';
+import { Help } from './handlers.functional/help.handler.js';
+import { LoggingMiddleware, TimingMiddleware } from './middleware/index.js';
+
 import { App } from '@nestling/app';
-import { fromScratch } from '@nestling/models';
 import { CliTransport } from '@nestling/transport.cli';
-import { z } from 'zod';
-
-// Схемы ответов
-const GreetResponseSchema = z.object({
-  greeting: z.string(),
-});
-
-const InfoResponseSchema = z.object({
-  platform: z.string(),
-  arch: z.string(),
-  nodeVersion: z.string(),
-  cwd: z.string(),
-  uptime: z.string(),
-  memory: z.object({
-    heapUsed: z.string(),
-    heapTotal: z.string(),
-  }),
-});
-
-const CalcResponseSchema = z.object({
-  a: z.number(),
-  b: z.number(),
-  operation: z.string(),
-  result: z.number(),
-});
-
-const CalcErrorResponseSchema = z.object({
-  error: z.string(),
-});
-
-const EchoResponseSchema = z.object({
-  message: z.string(),
-});
-
-const HelpResponseSchema = z.object({
-  message: z.string(),
-});
-
-// Типы ответов
-export type GreetResponse = z.infer<typeof GreetResponseSchema>;
-export type InfoResponse = z.infer<typeof InfoResponseSchema>;
-export type CalcResponse = z.infer<typeof CalcResponseSchema>;
-export type CalcErrorResponse = z.infer<typeof CalcErrorResponseSchema>;
-export type EchoResponse = z.infer<typeof EchoResponseSchema>;
-export type HelpResponse = z.infer<typeof HelpResponseSchema>;
 
 // Создаем CLI транспорт
 const cliTransport = new CliTransport();
 
-// Добавляем middleware для логирования
-cliTransport.use(async (ctx, next) => {
-  console.log(`\n→ Executing command: ${ctx.method}`);
-  const start = Date.now();
-  const response = await next();
-  const duration = Date.now() - start;
-  console.log(`← Command completed in ${duration}ms\n`);
-  return response;
-});
+// Добавляем middleware для логирования (функциональный стиль)
+cliTransport.use(LoggingMiddleware);
+
+// Добавляем middleware для измерения времени (классовый стиль)
+cliTransport.use(TimingMiddleware);
 
 // Создаем App с транспортами
 const app = new App({
   cli: cliTransport,
 });
 
-// Регистрируем команды
+// ============================================================
+// ПОДХОД 1: app.registerHandler (функциональный стиль)
+// ============================================================
 
-// greet - приветствие
-app.registerHandler({
-  transport: 'cli',
-  path: 'greet',
-  responseSchema: GreetResponseSchema,
-  handler: async (
-    payload: { args: string[]; enthusiastic?: boolean } | undefined,
-  ) => {
-    const name = payload?.args[0] || 'World';
-    const enthusiastic = payload?.enthusiastic;
+app.registerHandler(Help);
 
-    const greeting = enthusiastic ? `Hello, ${name}!!!` : `Hello, ${name}!`;
+// ============================================================
+// ПОДХОД 2: @Handler (классовый стиль)
+// ============================================================
 
-    console.log(greeting);
+app.registerHandler(InfoHandler);
+app.registerHandler(CalcHandler);
+app.registerHandler(GreetHandler);
 
-    return {
-      status: 0,
-      value: { greeting },
-      meta: {},
-    };
-  },
-});
-
-// info - информация о системе
-app.registerHandler({
-  transport: 'cli',
-  path: 'info',
-  responseSchema: InfoResponseSchema,
-  handler: async () => {
-    const info = {
-      platform: process.platform,
-      arch: process.arch,
-      nodeVersion: process.version,
-      cwd: process.cwd(),
-      uptime: `${Math.floor(process.uptime())}s`,
-      memory: {
-        heapUsed: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
-        heapTotal: `${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)}MB`,
-      },
-    };
-
-    console.log('System Information:');
-    console.log(`  Platform: ${info.platform}`);
-    console.log(`  Architecture: ${info.arch}`);
-    console.log(`  Node Version: ${info.nodeVersion}`);
-    console.log(`  Current Directory: ${info.cwd}`);
-    console.log(`  Process Uptime: ${info.uptime}`);
-    console.log(`  Heap Used: ${info.memory.heapUsed}`);
-    console.log(`  Heap Total: ${info.memory.heapTotal}`);
-
-    return {
-      status: 0,
-      value: info,
-      meta: {},
-    };
-  },
-});
-
-// calc - калькулятор (старый подход без схем)
-app.registerHandler({
-  transport: 'cli',
-  path: 'calc',
-  responseSchema: z.union([CalcResponseSchema, CalcErrorResponseSchema]),
-  handler: async (payload: { args: string[]; op?: string } | undefined) => {
-    const operation = payload?.op;
-    const a = Number.parseFloat(payload?.args[0] || '0');
-    const b = Number.parseFloat(payload?.args[1] || '0');
-
-    let result: number;
-    let op: string;
-
-    switch (operation) {
-      case 'add':
-      case '+': {
-        result = a + b;
-        op = '+';
-        break;
-      }
-      case 'sub':
-      case '-': {
-        result = a - b;
-        op = '-';
-        break;
-      }
-      case 'mul':
-      case '*': {
-        result = a * b;
-        op = '*';
-        break;
-      }
-      case 'div':
-      case '/': {
-        if (b === 0) {
-          console.error('Error: Division by zero');
-          return {
-            status: 1,
-            value: { error: 'Division by zero' },
-            meta: {},
-          };
-        }
-        result = a / b;
-        op = '/';
-        break;
-      }
-      default: {
-        console.error('Error: Unknown operation. Use --op add|sub|mul|div');
-        return {
-          status: 1,
-          value: { error: 'Unknown operation' },
-          meta: {},
-        };
-      }
-    }
-
-    console.log(`Result: ${a} ${op} ${b} = ${result}`);
-
-    return {
-      status: 0,
-      value: { a, b, operation: op, result },
-      meta: {},
-    };
-  },
-});
-
-// echo - эхо аргументов
-app.registerHandler({
-  transport: 'cli',
-  path: 'echo',
-  responseSchema: EchoResponseSchema,
-  handler: async (
-    payload: { args: string[]; uppercase?: boolean } | undefined,
-  ) => {
-    const message = payload?.args.join(' ') || '';
-    const uppercase = payload?.uppercase;
-
-    const output = uppercase ? message.toUpperCase() : message;
-    console.log(output);
-
-    return {
-      status: 0,
-      value: { message: output },
-      meta: {},
-    };
-  },
-});
-
-// Schema-driven примеры
-
-// Схема для калькулятора со строгой типизацией
-const CalcSchema = fromScratch().makeModel(
-  z.object({
-    a: z.number().describe('Первое число'),
-    b: z.number().describe('Второе число'),
-    operation: z
-      .enum(['add', 'sub', 'mul', 'div', '+', '-', '*', '/'])
-      .describe('Операция: add/sub/mul/div или +/-/*//'),
-  }),
-);
-
-// calc-schema - калькулятор со схемой
-app.registerHandler({
-  transport: 'cli',
-  path: 'calc-schema',
-  responseSchema: z.union([CalcResponseSchema, CalcErrorResponseSchema]),
-  handler: async (payload: { args: string[]; op?: string } | undefined) => {
-    // Преобразуем CLI input в формат для схемы
-    const input = {
-      a: Number.parseFloat(payload?.args[0] || '0'),
-      b: Number.parseFloat(payload?.args[1] || '0'),
-      operation: payload?.op || 'add',
-    };
-
-    // Валидируем через схему
-    const validated = CalcSchema.parse(input);
-    const { a: validatedA, b: validatedB, operation: validatedOp } = validated;
-
-    // input строго типизирован после валидации!
-    let result: number;
-    let op: string;
-
-    switch (validatedOp) {
-      case 'add':
-      case '+': {
-        result = validatedA + validatedB;
-        op = '+';
-        break;
-      }
-      case 'sub':
-      case '-': {
-        result = validatedA - validatedB;
-        op = '-';
-        break;
-      }
-      case 'mul':
-      case '*': {
-        result = validatedA * validatedB;
-        op = '*';
-        break;
-      }
-      case 'div':
-      case '/': {
-        if (validatedB === 0) {
-          console.error('Error: Division by zero');
-          return {
-            status: 1,
-            value: { error: 'Division by zero' },
-            meta: {},
-          };
-        }
-        result = validatedA / validatedB;
-        op = '/';
-        break;
-      }
-      default: {
-        console.error('Error: Unknown operation');
-        return {
-          status: 1,
-          value: { error: 'Unknown operation' },
-          meta: {},
-        };
-      }
-    }
-
-    console.log(`Result: ${validatedA} ${op} ${validatedB} = ${result}`);
-
-    return {
-      status: 0,
-      value: { a: validatedA, b: validatedB, operation: op, result },
-      meta: {},
-    };
-  },
-});
-
-// Схема для команды greet
-const GreetSchema = fromScratch().makeModel(
-  z.object({
-    name: z.string().min(1).max(50).describe('Имя для приветствия'),
-    enthusiastic: z.boolean().optional().describe('Энтузиастичное приветствие'),
-  }),
-);
-
-// greet-schema - приветствие со схемой
-app.registerHandler({
-  transport: 'cli',
-  path: 'greet-schema',
-  responseSchema: GreetResponseSchema,
-  handler: async (
-    payload: { args: string[]; enthusiastic?: boolean } | undefined,
-  ) => {
-    // Преобразуем CLI input
-    const input = {
-      name: payload?.args[0] || 'World',
-      enthusiastic: Boolean(payload?.enthusiastic),
-    };
-
-    // Валидируем
-    const validated = GreetSchema.parse(input);
-    const { name, enthusiastic = false } = validated;
-
-    const greeting = enthusiastic ? `Hello, ${name}!!!` : `Hello, ${name}!`;
-
-    console.log(greeting);
-
-    return {
-      status: 0,
-      value: { greeting },
-      meta: {},
-    };
-  },
-});
-
-// help - справка
-app.registerHandler({
-  transport: 'cli',
-  path: 'help',
-  responseSchema: HelpResponseSchema,
-  handler: async () => {
-    console.log('Available commands:');
-    console.log('');
-    console.log('  greet [name] [--enthusiastic]');
-    console.log('    Greet someone');
-    console.log('    Example: yarn start greet Alice --enthusiastic');
-    console.log('');
-    console.log('  greet-schema [name] [--enthusiastic]');
-    console.log('    Greet someone (with schema validation)');
-    console.log('    Example: yarn start greet-schema Alice --enthusiastic');
-    console.log('');
-    console.log('  info');
-    console.log('    Show system information');
-    console.log('    Example: yarn start info');
-    console.log('');
-    console.log('  calc <a> <b> --op <operation>');
-    console.log('    Calculate a math operation');
-    console.log('    Operations: add, sub, mul, div (or +, -, *, /)');
-    console.log('    Example: yarn start calc 10 5 --op add');
-    console.log('');
-    console.log('  calc-schema <a> <b> --op <operation>');
-    console.log('    Calculate a math operation (with schema validation)');
-    console.log('    Operations: add, sub, mul, div (or +, -, *, /)');
-    console.log('    Example: yarn start calc-schema 10 5 --op add');
-    console.log('');
-    console.log('  echo <text> [--uppercase]');
-    console.log('    Echo text back');
-    console.log('    Example: yarn start echo "Hello World" --uppercase');
-    console.log('');
-    console.log('  help');
-    console.log('    Show this help message');
-    console.log('');
-
-    return {
-      status: 0,
-      value: { message: 'Help displayed' },
-      meta: {},
-    };
-  },
-});
+// ============================================================
+// Команда help (inline для простоты)
+// ============================================================
 
 // Парсинг аргументов командной строки
 function parseArgs(): {

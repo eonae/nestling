@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { FilePart } from '@nestling/transport';
+import type { FilePart } from '@nestling/pipeline';
 import Busboy from 'busboy';
 
 /**

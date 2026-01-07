@@ -1,5 +1,5 @@
 {
-  "name": "@nestling/transport.cli",
+  "name": "@nestling/pipeline",
   "version": "0.1.0",
   "description": "",
   "type": "module",
@@ -20,9 +20,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*",
-    "@nestling/pipeline": "workspace:*",
-    "@nestling/transport": "workspace:*"
+    "@common/misc": "workspace:*"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

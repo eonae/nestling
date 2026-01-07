@@ -186,8 +186,7 @@ const Model = fromType<UserProto>().makeModel(
 ```typescript
 app.registerHandler({
   transport: 'http',
-  method: 'POST',
-  path: '/users',
+  pattern: 'POST /users',
   handler: async (ctx) => {
     const user = UserModel.parse(ctx.payload);  // Validation + type
     return { status: 201, value: { user } };
@@ -409,8 +408,8 @@ try {
   if (error instanceof z.ZodError) {
     console.error(error.issues);
     // [
-    //   { path: ['name'], message: 'Name cannot be empty' },
-    //   { path: ['age'], message: 'Age must be between 0 and 150' }
+    //   { pattern: ['name'], message: 'Name cannot be empty' },
+    //   { pattern: ['age'], message: 'Age must be between 0 and 150' }
     // ]
   }
 }
@@ -457,8 +456,7 @@ const CreateUserModel = fromType<CreateUserProto>().makeModel(
 
 app.registerHandler({
   transport: 'http',
-  method: 'POST',
-  path: '/users',
+  pattern: 'POST /users',
   handler: async (ctx) => {
     // Validation and parsing of input data
     const user = CreateUserModel.parse(ctx.payload);

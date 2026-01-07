@@ -7,9 +7,9 @@ import type {
   HandlerFn,
   RequestContext,
   ResponseContext,
-  Transport,
-} from '@nestling/transport';
-import { Pipeline } from '@nestling/transport';
+} from '@nestling/pipeline';
+import { Pipeline } from '@nestling/pipeline';
+import type { ITransport } from '@nestling/transport';
 /**
  * Входные данные для CLI транспорта
  */
@@ -28,13 +28,12 @@ export interface CliHandlerConfig<
   TResponseSchema extends MaybeSchema = undefined,
 > extends HandlerConfig<TPayloadSchema, TMetadataSchema, TResponseSchema> {
   command: string;
-  method?: never;
 }
 
 /**
  * CLI транспорт
  */
-export class CliTransport implements Transport {
+export class CliTransport implements ITransport {
   private readonly pipeline: Pipeline;
   private readonly handlers = new Map<string, HandlerFn<any, any, any>>();
   private repl?: readline.Interface;
@@ -51,13 +50,13 @@ export class CliTransport implements Transport {
     M extends MaybeSchema = MaybeSchema,
     R extends MaybeSchema = MaybeSchema,
   >(config: CliHandlerConfig<P, M, R>): void {
-    const { handler, command } = config;
+    const { handle, command } = config;
 
     if (!command) {
       throw new Error('CLI handler config must include command');
     }
 
-    this.handlers.set(String(command), handler);
+    this.handlers.set(String(command), handle);
   }
 
   /**
@@ -86,8 +85,7 @@ export class CliTransport implements Transport {
     // Создаем RequestContext
     const requestContext: RequestContext = {
       transport: 'cli',
-      method: input.command,
-      path: `/${input.command}`,
+      pattern: `${input.command}`,
       payload: {
         args: input.args,
         ...input.options,

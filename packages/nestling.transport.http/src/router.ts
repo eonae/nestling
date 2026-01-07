@@ -1,7 +1,8 @@
 import type { IncomingMessage } from 'node:http';
 
 import type { MaybeSchema } from '@common/misc';
-import type { HandlerFn, RouteConfig } from '@nestling/transport';
+import type { HandlerFn } from '@nestling/pipeline';
+import type { RouteConfig } from '@nestling/transport';
 import Router from 'find-my-way';
 
 /**
@@ -28,13 +29,15 @@ export class HttpRouter {
   >(config: RouteConfig<P, M, R>): void {
     // Создаем store с handler и config
     const store = {
-      handler: config.handler,
+      handler: config.handle,
       config,
     };
 
+    const [method, path] = config.pattern.split(' ');
+
     this.router.on(
-      config.method.toUpperCase() as Router.HTTPMethod,
-      config.path,
+      method.toUpperCase() as Router.HTTPMethod,
+      path,
       () => {
         // Handler вызывается при совпадении, но нам не нужна логика здесь
         // Все данные уже в store

@@ -1555,6 +1555,7 @@ __metadata:
   resolution: "@nestling/app@workspace:packages/nestling.app"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
     "@nestling/transport": "workspace:*"
   peerDependencies:
     zod: ^4.0.0
@@ -1583,11 +1584,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nestling/pipeline@workspace:*, @nestling/pipeline@workspace:packages/nestling.pipeline":
+  version: 0.0.0-use.local
+  resolution: "@nestling/pipeline@workspace:packages/nestling.pipeline"
+  dependencies:
+    "@common/misc": "workspace:*"
+  peerDependencies:
+    zod: ^4.0.0
+  languageName: unknown
+  linkType: soft
+
 "@nestling/transport.cli@workspace:*, @nestling/transport.cli@workspace:packages/nestling.transport.cli":
   version: 0.0.0-use.local
   resolution: "@nestling/transport.cli@workspace:packages/nestling.transport.cli"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
     "@nestling/transport": "workspace:*"
   peerDependencies:
     zod: ^4.0.0
@@ -1599,6 +1611,7 @@ __metadata:
   resolution: "@nestling/transport.http@workspace:packages/nestling.transport.http"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@types/busboy": "npm:^1.5.4"
     busboy: "npm:^1.6.0"
@@ -1613,6 +1626,7 @@ __metadata:
   resolution: "@nestling/transport@workspace:packages/nestling.transport"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
   peerDependencies:
     zod: ^4.0.0
   languageName: unknown
@@ -5248,8 +5262,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "examples.simple-cli@workspace:packages/examples.simple-cli"
   dependencies:
+    "@nestling/app": "workspace:*"
     "@nestling/models": "workspace:*"
-    "@nestling/transport": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
     "@nestling/transport.cli": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -5261,7 +5276,7 @@ __metadata:
   dependencies:
     "@nestling/app": "workspace:*"
     "@nestling/models": "workspace:*"
-    "@nestling/transport": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown

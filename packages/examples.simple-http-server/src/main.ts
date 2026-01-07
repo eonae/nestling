@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
-import { GetUserByIdHandler, ListProducts } from './handlers.class';
-import { CreateUser, SayHello } from './handlers.functional';
+import { GetUserByIdHandler, ListProductsHandler } from './handlers.class';
+import { CreateUserHandler, SayHelloHandler } from './handlers.functional';
 import { RequestResponseLogging, TimingMiddleware } from './middleware';
 
 import { App } from '@nestling/app';
@@ -27,15 +27,15 @@ const app = new App({
 // ПОДХОД 1: app.registerHandler (функциональный стиль)
 // ============================================================
 
-app.registerHandler(SayHello);
-app.registerHandler(CreateUser);
+app.registerHandler(SayHelloHandler);
+app.registerHandler(CreateUserHandler);
 
 // ============================================================
 // ПОДХОД 2: @Handler (классовый стиль)
 // ============================================================
 
 app.registerHandler(GetUserByIdHandler);
-app.registerHandler(ListProducts);
+app.registerHandler(ListProductsHandler);
 
 const PORT = Number(process.env.PORT) || 3000;
 

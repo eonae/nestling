@@ -18,10 +18,9 @@ import type {
   IMiddleware,
   MiddlewareFn,
   RequestContext,
-  RouteConfig,
-  Transport,
-} from '@nestling/transport';
-import { parseMetadata, parsePayload, Pipeline } from '@nestling/transport';
+} from '@nestling/pipeline';
+import { parseMetadata, parsePayload, Pipeline } from '@nestling/pipeline';
+import type { ITransport, RouteConfig } from '@nestling/transport';
 
 /**
  * Опции для HTTP транспорта
@@ -34,7 +33,7 @@ export interface HttpTransportOptions {
 /**
  * HTTP транспорт
  */
-export class HttpTransport implements Transport {
+export class HttpTransport implements ITransport {
   private readonly router: HttpRouter;
   private readonly pipeline: Pipeline;
   private server?: Server;
@@ -54,23 +53,12 @@ export class HttpTransport implements Transport {
     M extends MaybeSchema = MaybeSchema,
     R extends MaybeSchema = MaybeSchema,
   >(config: HandlerConfig<P, M, R>): void {
-    const {
-      handler,
-      method,
-      path,
-      payloadSchema,
-      metadataSchema,
-      responseSchema,
-    } = config;
-
-    if (!method || !path) {
-      throw new Error('HTTP handler config must include method and path');
-    }
+    const { handle, pattern, payloadSchema, metadataSchema, responseSchema } =
+      config;
 
     const routeConfig: RouteConfig<P, M, R> = {
-      method: String(method),
-      path: String(path),
-      handler,
+      pattern,
+      handle,
     };
 
     if (payloadSchema) {
@@ -174,8 +162,7 @@ export class HttpTransport implements Transport {
       // Создаем RequestContext
       const requestContext: RequestContext = {
         transport: 'http',
-        method: nativeReq.method || 'GET',
-        path: url.pathname,
+        pattern: `${nativeReq.method || 'GET'} ${url.pathname}`,
         payload,
         metadata: {
           headers: nativeReq.headers as Record<string, string>,

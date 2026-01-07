@@ -6,7 +6,7 @@ import type {
 import { Middleware } from '@nestling/pipeline';
 
 /**
- * Middleware-класс для измерения времени выполнения запроса
+ * Middleware-класс для измерения времени выполнения команды
  */
 @Middleware()
 export class TimingMiddleware implements IMiddleware {

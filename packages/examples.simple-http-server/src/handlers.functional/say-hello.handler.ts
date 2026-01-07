@@ -1,18 +1,17 @@
-import { defineHandler } from '@nestling/transport';
+import { makeHandler } from '@nestling/pipeline';
 import z from 'zod';
 
 // GET /
-const HelloResponseSchema = z.object({
+const SayHelloResponse = z.object({
   message: z.string(),
   timestamp: z.string(),
 });
 
-export const SayHello = defineHandler({
+export const SayHelloHandler = makeHandler({
   transport: 'http',
-  method: 'GET',
-  path: '/',
-  responseSchema: HelloResponseSchema,
-  handler: async () => ({
+  pattern: 'GET /',
+  responseSchema: SayHelloResponse,
+  handle: async () => ({
     status: 200,
     value: {
       message: 'Hello from Nestling HTTP Transport!',

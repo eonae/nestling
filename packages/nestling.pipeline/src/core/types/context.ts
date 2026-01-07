@@ -15,8 +15,7 @@ export interface FilePart {
  */
 export interface RequestContext {
   transport: string;
-  method: string;
-  path: string;
+  pattern: string;
 
   /**
    * Структурированные данные (объединение body + query + params)

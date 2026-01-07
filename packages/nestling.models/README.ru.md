@@ -190,8 +190,7 @@ const Model = fromType<UserProto>().makeModel(
 ```typescript
 app.registerHandler({
   transport: 'http',
-  method: 'POST',
-  path: '/users',
+  pattern: 'POST /users',
   handler: async (ctx) => {
     const user = UserModel.parse(ctx.payload);  // Валидация + тип
     return { status: 201, value: { user } };
@@ -461,8 +460,7 @@ const CreateUserModel = fromType<CreateUserProto>().makeModel(
 
 app.registerHandler({
   transport: 'http',
-  method: 'POST',
-  path: '/users',
+  pattern: 'POST /users',
   handler: async (ctx) => {
     // Валидация и парсинг входных данных
     const user = CreateUserModel.parse(ctx.payload);

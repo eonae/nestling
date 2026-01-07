@@ -1,6 +1,6 @@
 import type { ServerResponse } from 'node:http';
 
-import type { ResponseContext } from '@nestling/transport';
+import type { ResponseContext } from '@nestling/pipeline';
 
 /**
  * Отправляет ResponseContext в ServerResponse

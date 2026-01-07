@@ -1,8 +1,8 @@
-import { defineHandler } from '@nestling/transport';
+import { makeHandler } from '@nestling/pipeline';
 import z from 'zod';
 
 // POST /users/schema - создание пользователя со схемой
-const CreateUserSchema = z.object({
+const CreateUserPayload = z.object({
   name: z.string().min(1).max(100),
   email: z.email(),
   address: z.object({
@@ -11,7 +11,7 @@ const CreateUserSchema = z.object({
   }),
 });
 
-const CreateUserResponseSchema = z.object({
+const CreateUserResponse = z.object({
   message: z.string(),
   user: z.object({
     id: z.number(),
@@ -24,13 +24,12 @@ const CreateUserResponseSchema = z.object({
   }),
 });
 
-export const CreateUser = defineHandler({
+export const CreateUserHandler = makeHandler({
   transport: 'http',
-  method: 'POST',
-  path: '/users',
-  payloadSchema: CreateUserSchema,
-  responseSchema: CreateUserResponseSchema,
-  handler: async (payload) => {
+  pattern: 'POST /users',
+  payloadSchema: CreateUserPayload,
+  responseSchema: CreateUserResponse,
+  handle: async (payload) => {
     // payload: { name: string; email: string; address: { street: string; city: string } }
     // Типы выводятся автоматически из CreateUserSchema!
     return {

@@ -5,14 +5,17 @@ import type {
   ResponseContext,
 } from '@nestling/pipeline';
 
-export const RequestResponseLogging: MiddlewareFn = async (
+/**
+ * Middleware для логирования команд CLI
+ */
+export const LoggingMiddleware: MiddlewareFn = async (
   ctx: RequestContext,
   next: () => Promise<ResponseContext>,
 ) => {
-  console.log(`→ ${ctx.pattern}`);
+  console.log(`\n→ Executing command: ${ctx.pattern}`);
   const start = Date.now();
   const response = await next();
   const duration = Date.now() - start;
-  console.log(`← ${ctx.pattern} - ${response.status || 200} (${duration}ms)`);
+  console.log(`← Command completed in ${duration}ms\n`);
   return response;
 };

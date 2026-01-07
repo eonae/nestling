@@ -11,60 +11,11 @@ export interface HandlerConfig<
   R extends MaybeSchema = MaybeSchema,
 > {
   transport: string;
-  method?: string;
-  path: string;
+  pattern: string;
   payloadSchema?: P;
   metadataSchema?: M;
   responseSchema?: R;
-  handler: HandlerFn<P, M, R>;
-}
-
-/**
- * Базовый интерфейс транспорта
- */
-export interface Transport {
-  /**
-   * Регистрирует handler через конфигурацию
-   */
-  registerHandler<
-    P extends MaybeSchema = MaybeSchema,
-    M extends MaybeSchema = MaybeSchema,
-    R extends MaybeSchema = MaybeSchema,
-  >(
-    config: HandlerConfig<P, M, R>,
-  ): void;
-
-  /**
-   * Запускает транспорт (слушает входящие соединения/команды)
-   */
-  listen(...args: unknown[]): Promise<void>;
-
-  /**
-   * Останавливает транспорт
-   */
-  close?(): Promise<void>;
-}
-
-/**
- * Конфигурация маршрута
- */
-export interface RouteConfig<
-  P extends MaybeSchema = MaybeSchema,
-  M extends MaybeSchema = MaybeSchema,
-  R extends MaybeSchema = MaybeSchema,
-> {
-  method: string;
-  path: string;
-  input?: {
-    body?: 'json' | 'raw' | 'stream';
-    multipart?: {
-      files: 'stream' | 'buffer';
-    };
-  };
-  payloadSchema?: P;
-  metadataSchema?: M;
-  responseSchema?: R;
-  handler: HandlerFn<P, M, R>;
+  handle: HandlerFn<P, M, R>;
 }
 
 /**
@@ -74,10 +25,9 @@ export interface RouteConfig<
  *
  * @example
  * ```typescript
- * const config = defineHandler({
+ * const config = makeHandler({
  *   transport: 'http',
- *   method: 'POST',
- *   path: '/users',
+ *   pattern: '/users',
  *   payloadSchema: CreateUserSchema,
  *   responseSchema: CreateUserResponseSchema,
  *   handler: async (payload) => {
@@ -87,7 +37,7 @@ export interface RouteConfig<
  * });
  * ```
  */
-export function defineHandler<
+export function makeHandler<
   P extends MaybeSchema = MaybeSchema,
   M extends MaybeSchema = MaybeSchema,
   R extends MaybeSchema = MaybeSchema,

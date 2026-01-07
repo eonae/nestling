@@ -62,7 +62,7 @@
 ### 3.1 Transport
 
 ```ts
-interface Transport {
+interface ITransport {
   handle(nativeReq: unknown, nativeRes: unknown): Promise<void>
 }
 ```
@@ -74,8 +74,7 @@ interface Transport {
 ```ts
 interface RequestContext {
   transport: string
-  method: string
-  path: string
+  pattern: string
   headers: Record<string, string>
 
   query?: unknown
@@ -129,15 +128,14 @@ interface ResponseContext {
 
 ```ts
 interface RouteConfig {
-  method: string
-  path: string
+  pattern: string
   input?: {
     body?: 'json' | 'raw' | 'stream'
     multipart?: {
       files: 'stream' | 'buffer'
     }
   }
-  handler: Handler
+  handle: Handler
 }
 ```
 
