@@ -86,17 +86,20 @@ export class BuiltContainer {
    * const logger = container.get(ILogger);
    * ```
    */
-  get<T>(token: InjectionToken<T>): T {
+  get<T>(token: InjectionToken<T>): T | null {
     const id = typeof token === 'string' ? token : token.name;
 
     const node = this.#graph.getNode(id);
-    if (!node) {
-      throw new Error(
-        `Instance for interface '${id}' is not in the container.`,
-      );
-    }
 
-    return node.instance as T;
+    return (node?.instance as T) ?? null;
+  }
+
+  getOrThrow<T>(token: InjectionToken<T>): T {
+    const instance = this.get(token);
+    if (!instance) {
+      throw new Error(`Instance for token '${token}' not found`);
+    }
+    return instance;
   }
 
   /**

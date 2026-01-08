@@ -1,6 +1,8 @@
 import type { AnyInput, AnyOutput, IEndpoint } from '../core';
 import type { HandlerFn } from '../core/types';
 
+import { registerEndpoint } from './endpoint-registry';
+
 import type { Constructor, Optional, Schema } from '@common/misc';
 
 /**
@@ -16,8 +18,8 @@ const HANDLER_KEY = Symbol.for('nestling:handler');
  * Конфигурация endpoint-класса
  */
 export interface EndpointDefinition<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 > {
   transport: string;
@@ -36,8 +38,8 @@ export interface EndpointDefinition<
 }
 
 export type EndpointMetadata<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 > = Omit<EndpointDefinition<I, O, M>, 'handle'>;
 
@@ -97,8 +99,8 @@ export type EndpointMetadata<
  * ```
  */
 export function Endpoint<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 >(metadata: EndpointMetadata<I, O, M>) {
   return <T extends Constructor<IEndpoint<I, O, M>>>(
@@ -111,6 +113,9 @@ export function Endpoint<
       className: context.name,
     };
 
+    // Автоматически регистрируем endpoint в глобальном registry
+    registerEndpoint(target as Constructor<IEndpoint>);
+
     return target;
   };
 }
@@ -119,8 +124,8 @@ export function Endpoint<
  * Извлекает метаданные handler-класса
  */
 export function getEndpointMetadata<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 >(target: any): EndpointMetadata<I, O, M> | null {
   const constructor = target.prototype ? target : target.constructor;
@@ -147,8 +152,8 @@ export function getEndpointMetadata<
  * ```
  */
 export function makeEndpoint<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 >(definition: EndpointDefinition<I, O, M>): EndpointDefinition<I, O, M> {
   return definition;

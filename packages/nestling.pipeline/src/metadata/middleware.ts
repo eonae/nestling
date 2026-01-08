@@ -1,5 +1,7 @@
 import type { IMiddleware } from '../core';
 
+import { registerMiddleware } from './middleware-registry';
+
 import type { Constructor } from '@common/misc';
 
 /* ============================================================
@@ -50,6 +52,9 @@ export function Middleware() {
     (target as any)[MIDDLEWARE_KEY] = {
       className: context.name,
     };
+
+    // Автоматически регистрируем middleware в глобальном registry
+    registerMiddleware(target);
 
     return target;
   };

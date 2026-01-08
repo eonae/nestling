@@ -9,8 +9,8 @@ import type { Infer, Optional, Schema } from '@common/misc';
  * Handler может вернуть Success или выбросить Failure
  */
 export interface IEndpoint<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 > {
   handle(
@@ -23,7 +23,7 @@ export interface IEndpoint<
  * Функция-обработчик запроса
  */
 export type HandlerFn<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 > = IEndpoint<I, O, M>['handle'];

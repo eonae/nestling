@@ -1,41 +1,26 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
-import { CalcEndpoint, GreetEndpoint, InfoEndpoint } from './endpoints.class';
 import { Help, ProcessStdin } from './endpoints.functional';
 import { LoggingMiddleware, TimingMiddleware } from './middleware';
 
-import { App } from '@nestling/app';
 import { CliTransport } from '@nestling/transport.cli';
 
 // Создаем CLI транспорт
-const cliTransport = new CliTransport();
+const cli = new CliTransport();
 
 // Добавляем middleware для логирования (функциональный стиль)
-cliTransport.use(LoggingMiddleware);
+cli.use(LoggingMiddleware);
 
 // Добавляем middleware для измерения времени (классовый стиль)
-cliTransport.use(TimingMiddleware);
-
-// Создаем App с транспортами
-const app = new App({
-  cli: cliTransport,
-});
+cli.use(TimingMiddleware);
 
 // ============================================================
-// ПОДХОД 1: app.endpoint (функциональный стиль)
+// Регистрируем функциональные эндпоинты
 // ============================================================
 
-app.endpoint(Help);
-app.endpoint(ProcessStdin);
-
-// ============================================================
-// ПОДХОД 2: @Endpoint (классовый стиль)
-// ============================================================
-
-app.endpoint(InfoEndpoint);
-app.endpoint(CalcEndpoint);
-app.endpoint(GreetEndpoint);
+cli.endpoint(Help);
+cli.endpoint(ProcessStdin);
 
 // ============================================================
 // Команда help (inline для простоты)
@@ -88,7 +73,7 @@ async function main() {
     console.log('🚀 Nestling CLI Transport Example\n');
 
     try {
-      const result = await cliTransport.execute({
+      const result = await cli.execute({
         command,
         args: commandArgs,
         options,
@@ -116,7 +101,7 @@ async function main() {
     console.log('Type commands or "exit" to quit\n');
 
     try {
-      await app.listen();
+      await cli.listen();
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : error);
       process.exit(1);

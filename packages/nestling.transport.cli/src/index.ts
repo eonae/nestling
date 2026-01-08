@@ -6,9 +6,8 @@ import type { Optional, Schema } from '@common/misc';
 import type {
   AnyInput,
   AnyOutput,
+  EndpointDefinition,
   FilePart,
-  HandlerConfig,
-  HandlerFn,
   RequestContext,
   ResponseContext,
 } from '@nestling/pipeline';
@@ -29,25 +28,11 @@ export interface CliInput {
 }
 
 /**
- * CLI-специфичная конфигурация handler'а
- */
-export interface CliHandlerConfig<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
-  M extends Optional<Schema> = Optional<Schema>,
-> extends HandlerConfig<I, O, M> {
-  command: string;
-}
-
-/**
  * CLI транспорт
  */
 export class CliTransport implements ITransport {
   private readonly pipeline: Pipeline;
-  private readonly handlers = new Map<
-    string,
-    { handler: HandlerFn<any, any, any>; config: HandlerConfig<any, any, any> }
-  >();
+  private readonly handlers = new Map<string, EndpointDefinition>();
   private repl?: readline.Interface;
 
   constructor() {
@@ -58,27 +43,11 @@ export class CliTransport implements ITransport {
    * Регистрирует handler через конфигурацию
    */
   endpoint<
-    I extends AnyInput = Schema,
-    O extends AnyOutput = Schema,
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
     M extends Optional<Schema> = Optional<Schema>,
-  >(config: CliHandlerConfig<I, O, M>): void {
-    const { handle, command } = config;
-
-    if (!command) {
-      throw new Error('CLI handler config must include command');
-    }
-
-    this.handlers.set(String(command), { handler: handle, config });
-  }
-
-  /**
-   * Регистрирует обработчик для команды (для обратной совместимости)
-   */
-  command(command: string, handler: HandlerFn<any, any, any>): void {
-    this.handlers.set(command, {
-      handler,
-      config: { transport: 'cli', pattern: command, handle: handler },
-    });
+  >(definition: EndpointDefinition<I, O, M>): void {
+    this.handlers.set(definition.pattern, definition);
   }
 
   /**
@@ -92,15 +61,13 @@ export class CliTransport implements ITransport {
    * Выполняет команду
    */
   async execute(input: CliInput): Promise<ResponseContext> {
-    const handlerData = this.handlers.get(input.command);
-    if (!handlerData) {
+    const definition = this.handlers.get(input.command);
+    if (!definition) {
       throw new Error(`Command "${input.command}" not found`);
     }
 
-    const { handler, config } = handlerData;
-
     // Анализируем input конфигурацию
-    const inputConfig = analyzeInput(config.input);
+    const inputConfig = analyzeInput(definition.input);
 
     let payload: unknown;
 
@@ -168,17 +135,20 @@ export class CliTransport implements ITransport {
     };
 
     // Валидируем metadata если нужно
-    if (config.metadata) {
+    if (definition.metadata) {
       const inputSources = {
         payload: payload as Record<string, unknown>,
         metadata: requestContext.metadata as Record<string, unknown>,
       };
 
-      requestContext.metadata = parseMetadata(config.metadata, inputSources);
+      requestContext.metadata = parseMetadata(
+        definition.metadata,
+        inputSources,
+      );
     }
 
     // Выполняем пайплайн с handler
-    return this.pipeline.executeWithHandler(handler, requestContext);
+    return this.pipeline.executeWithHandler(definition.handle, requestContext);
   }
 
   /**

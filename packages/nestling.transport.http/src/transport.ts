@@ -60,8 +60,8 @@ export class HttpTransport implements ITransport {
    * Регистрирует handler через конфигурацию
    */
   endpoint<
-    I extends AnyInput = Schema,
-    O extends AnyOutput = Schema,
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
     M extends Optional<Schema> = Optional<Schema>,
   >(definition: EndpointDefinition<I, O, M>): void {
     this.router.route(definition);
@@ -71,8 +71,8 @@ export class HttpTransport implements ITransport {
    * Регистрирует маршрут
    */
   route<
-    I extends AnyInput = Schema,
-    O extends AnyOutput = Schema,
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
     M extends Optional<Schema> = Optional<Schema>,
   >(definition: EndpointDefinition<I, O, M>): void {
     this.router.route(definition);

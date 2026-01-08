@@ -27,8 +27,8 @@ export class HttpRouter {
    * Регистрирует маршрут
    */
   route<
-    I extends AnyInput = Schema,
-    O extends AnyOutput = Schema,
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
     M extends Optional<Schema> = Optional<Schema>,
   >(definition: EndpointDefinition<I, O, M>): void {
     const store = {

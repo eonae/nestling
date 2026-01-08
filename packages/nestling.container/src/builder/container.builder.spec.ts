@@ -66,7 +66,7 @@ describe('ContainerBuilder', () => {
         .register(classProvider(TokenA, ServiceA))
         .build();
 
-      const instance = container.get(TokenA);
+      const instance = container.getOrThrow(TokenA);
       expect(instance.id).toBe('A');
       expect(instance.a()).toBe('a');
     });
@@ -95,7 +95,7 @@ describe('ContainerBuilder', () => {
         .register(provider)
         .build();
 
-      const instance = container.get(TokenB);
+      const instance = container.getOrThrow(TokenB);
       expect(instance.b()).toBe('factory(a)');
     });
 
@@ -116,13 +116,13 @@ describe('ContainerBuilder', () => {
         .register(asyncProvider)
         .build();
 
-      expect(container.get(TokenB).b()).toBe('async(a)');
+      expect(container.getOrThrow(TokenB).b()).toBe('async(a)');
     });
 
     it('registers decorated class without explicit provider definition', async () => {
       const container = await new ContainerBuilder().register(ServiceA).build();
 
-      expect(container.get(TokenA).a()).toBe('a');
+      expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
     it('supports chaining registers with modules and providers', async () => {
@@ -137,7 +137,7 @@ describe('ContainerBuilder', () => {
         .register(classProvider(TokenC, ServiceC))
         .build();
 
-      expect(container.get(TokenC).c()).toBe('C(B(a), a)');
+      expect(container.getOrThrow(TokenC).c()).toBe('C(B(a), a)');
     });
 
     it('prevents duplicate provider registration', () => {
@@ -192,7 +192,7 @@ describe('ContainerBuilder', () => {
 
       const container = await new ContainerBuilder().register(ModuleB).build();
 
-      expect(container.get(TokenB).b()).toBe('B(a)');
+      expect(container.getOrThrow(TokenB).b()).toBe('B(a)');
     });
 
     it('calls providers factory functions', async () => {
@@ -229,7 +229,7 @@ describe('ContainerBuilder', () => {
         .register(ModuleWithAsyncFactory)
         .build();
 
-      expect(container.get(TokenA).a()).toBe('a');
+      expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
     it('ignores duplicate module registration', async () => {
@@ -250,7 +250,7 @@ describe('ContainerBuilder', () => {
         .build();
 
       expect(factoryRuns).toBe(1);
-      expect(container.get(TokenA).a()).toBe('a');
+      expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
   });
 

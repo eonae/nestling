@@ -9,8 +9,8 @@ import { Endpoint, makeEndpoint } from '@nestling/pipeline';
 import type Router from 'find-my-way';
 
 export function makeHttpEndpoint<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 >(
   method: Router.HTTPMethod,
@@ -25,8 +25,8 @@ export function makeHttpEndpoint<
 }
 
 export function HttpEndpoint<
-  I extends AnyInput = Schema,
-  O extends AnyOutput = Schema,
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
   M extends Optional<Schema> = Optional<Schema>,
 >(
   method: Router.HTTPMethod,

@@ -1,76 +1,46 @@
 /* eslint-disable no-console */
 
-import {
-  GetUserByIdEndpoint,
-  ListProductsEndpoint,
-  UploadFileEndpoint,
-} from './endpoints.class';
 import { CreateUser, SayHello, StreamLogs } from './endpoints.functional';
 import { RequestResponseLogging, TimingMiddleware } from './middleware';
 
-import { App } from '@nestling/app';
 import { HttpTransport } from '@nestling/transport.http';
 
 // Создаем HTTP транспорт
-const httpTransport = new HttpTransport({
+const server = new HttpTransport({
   port: Number(process.env.PORT) || 3000,
 });
 
 // Добавляем middleware для логирования (функциональный стиль)
-httpTransport.use(RequestResponseLogging);
+server.use(RequestResponseLogging);
 
 // Добавляем middleware для измерения времени (классовый стиль)
-httpTransport.use(TimingMiddleware);
-
-// Создаем App с транспортами
-const app = new App({
-  http: httpTransport,
-});
+server.use(TimingMiddleware);
 
 // ============================================================
-// ПОДХОД 1: app.endpoint (функциональный стиль)
+// Регистрируем функциональные эндпоинты
 // ============================================================
 
-app.endpoint(SayHello);
-app.endpoint(CreateUser);
-app.endpoint(StreamLogs);
-
-// ============================================================
-// ПОДХОД 2: @Handler (классовый стиль)
-// ============================================================
-
-app.endpoint(GetUserByIdEndpoint);
-app.endpoint(ListProductsEndpoint);
-app.endpoint(UploadFileEndpoint);
+server.endpoint(SayHello);
+server.endpoint(CreateUser);
+server.endpoint(StreamLogs);
 
 const PORT = Number(process.env.PORT) || 3000;
 
-// Запускаем приложение
-app
+// Запускаем HTTP сервер
+server
   .listen()
   .then(() => {
     console.log(`\n🚀 HTTP Server running on http://localhost:${PORT}\n`);
     console.log('Available routes:');
     console.log('  GET  /                - Hello message');
     console.log('  POST /users           - Create user');
-    console.log('  GET  /api/users/:id   - Get user by ID (@Handler)');
-    console.log('  GET  /products        - List products (@Handler)');
     console.log('  POST /logs/stream     - Stream logs processing');
-    console.log('  POST /upload          - Upload files with metadata');
 
     console.log('\nTry:');
     console.log(`  curl http://localhost:${PORT}/`);
     console.log(
       `  curl -X POST http://localhost:${PORT}/users -H "Content-Type: application/json" -d '{"name":"Alice","email":"alice@example.com","address":{"street":"Main St","city":"NYC"}}'`,
     );
-    console.log(`  curl http://localhost:${PORT}/api/users/42`);
-    console.log(
-      `  curl "http://localhost:${PORT}/api/users/42?include=profile"`,
-    );
-    console.log(
-      `  curl -H "Authorization: Bearer token123" http://localhost:${PORT}/api/users/42`,
-    );
-    console.log(`  curl http://localhost:${PORT}/products`);
     console.log(
       `  echo '{"timestamp":1234567890,"level":"info","message":"Test log"}' | curl -X POST http://localhost:${PORT}/logs/stream -H "Content-Type: application/json" -d @-`,
     );
@@ -85,14 +55,14 @@ app
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('\n👋 SIGTERM received, shutting down gracefully...');
-  await app.close();
+  await server.close();
   console.log('✅ Server closed');
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('\n👋 SIGINT received, shutting down gracefully...');
-  await app.close();
+  await server.close();
   console.log('✅ Server closed');
   process.exit(0);
 });

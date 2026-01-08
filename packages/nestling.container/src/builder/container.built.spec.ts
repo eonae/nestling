@@ -76,16 +76,16 @@ describe('BuiltContainer', () => {
   it('returns registered instances via get', async () => {
     const container = await buildContainer();
 
-    expect(container.get(TokenA).value()).toBe('a');
-    expect(container.get(TokenB).value()).toBe('B(a)');
+    expect(container.getOrThrow(TokenA).value()).toBe('a');
+    expect(container.getOrThrow(TokenB).value()).toBe('B(a)');
   });
 
   it('throws when instance is missing', async () => {
     const container = await buildContainer();
     const MissingToken = makeToken('Missing');
 
-    expect(() => container.get(MissingToken)).toThrow(
-      "Instance for interface 'Missing' is not in the container.",
+    expect(() => container.getOrThrow(MissingToken)).toThrow(
+      "Instance for token 'Missing' not found",
     );
   });
 

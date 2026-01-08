@@ -1,20 +1,25 @@
 {
-  "name": "examples.simple-cli",
-  "version": "0.1.0",
-  "description": "Simple CLI example using @nestling/transport",
+  "name": "examples.app-with-http",
+  "version": "1.0.0",
+  "private": true,
   "type": "module",
+  "main": "dist/bundle.js",
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc --noEmit",
     "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
     "start": "yarn run build && node dist/bundle.js",
-    "dev": "run -T tsx src/main.ts",
+    "start:dev": "run -T tsx src/main.ts",
     "lint": "run -T eslint 'src/**/*.ts'",
     "lint:fix": "yarn run lint --fix"
   },
   "dependencies": {
+    "@common/misc": "workspace:*",
+    "@nestling/app": "workspace:*",
+    "@nestling/container": "workspace:*",
     "@nestling/pipeline": "workspace:*",
-    "@nestling/transport.cli": "workspace:*",
+    "@nestling/transport": "workspace:*",
+    "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
   }
 }

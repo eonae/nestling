@@ -1,16 +1,17 @@
 # Simple CLI Example
 
-Простой пример использования `@nestling/transport` для создания CLI приложения.
+Простой пример использования `@nestling/transport.cli` напрямую, без `@nestling/app`.
 
 ## Возможности
 
+- ✅ Прямая работа с `CliTransport`
 - ✅ Middleware для логирования команд
-- ✅ Несколько команд с разной логикой
+- ✅ Функциональный стиль создания эндпоинтов (`makeEndpoint`)
 - ✅ Обработка аргументов и опций
 - ✅ Справка по командам
+- ✅ Обработка потоковых данных из stdin
 - ✅ Обработка ошибок
-- ✅ Два подхода к регистрации handler'ов (функциональный и классовый)
-- ✅ Декораторы для типобезопасной регистрации
+- ✅ REPL режим и single-shot режим
 
 ## Запуск
 
@@ -43,153 +44,78 @@ yarn workspace examples.simple-cli dev [command] [args]
 yarn dev help
 ```
 
-### greet [name] [--enthusiastic]
-Поприветствовать кого-то (функциональный стиль)
+### process-stdin
+Обработать потоковые данные из stdin
 
 ```bash
-yarn dev greet Alice
-yarn dev greet Bob --enthusiastic
-```
-
-### greet-schema [name] [--enthusiastic]
-Поприветствовать кого-то со схемой валидации (классовый стиль с декоратором)
-
-```bash
-yarn dev greet-schema Alice
-yarn dev greet-schema Bob --enthusiastic
-```
-
-### info
-Показать системную информацию (классовый стиль с декоратором)
-
-```bash
-yarn dev info
-```
-
-### calc <a> <b> --op <operation>
-Выполнить математическую операцию (функциональный стиль)
-
-Доступные операции: `add`, `sub`, `mul`, `div` (или `+`, `-`, `*`, `/`)
-
-```bash
-yarn dev calc 10 5 --op add
-yarn dev calc 10 5 --op +
-yarn dev calc 20 4 --op div
-```
-
-### calc-schema <a> <b> --op <operation>
-Выполнить математическую операцию со схемой валидации (классовый стиль с декоратором)
-
-Доступные операции: `add`, `sub`, `mul`, `div` (или `+`, `-`, `*`, `/`)
-
-```bash
-yarn dev calc-schema 10 5 --op add
-yarn dev calc-schema 10 5 --op +
-yarn dev calc-schema 20 4 --op div
-```
-
-### echo <text> [--uppercase]
-Повторить текст (функциональный стиль)
-
-```bash
-yarn dev echo "Hello World"
-yarn dev echo "Hello World" --uppercase
+echo "line1\nline2\nline3" | yarn dev process-stdin
 ```
 
 ## Примеры
 
 ```bash
-# Приветствие (функциональный стиль)
-yarn dev greet
+# Справка
+yarn dev help
 
-# Приветствие с именем
-yarn dev greet Sergey
+# Обработка потоковых данных
+echo "line1\nline2\nline3" | yarn dev process-stdin
 
-# Восторженное приветствие
-yarn dev greet Sergey --enthusiastic
-
-# Приветствие со схемой (классовый стиль)
-yarn dev greet-schema Sergey --enthusiastic
-
-# Системная информация (классовый стиль)
-yarn dev info
-
-# Калькулятор (функциональный стиль)
-yarn dev calc 15 3 --op mul
-yarn dev calc 100 25 --op div
-
-# Калькулятор со схемой (классовый стиль)
-yarn dev calc-schema 15 3 --op mul
-
-# Эхо
-yarn dev echo "Testing CLI transport"
-yarn dev echo "loud message" --uppercase
+# REPL режим (без аргументов)
+yarn dev
+> help
+> process-stdin
+> exit
 ```
 
 ## Архитектура
 
-Пример демонстрирует два подхода к регистрации handler'ов:
+Пример демонстрирует прямую работу с `CliTransport` без использования `@nestling/app`.
 
-### Подход 1: Функциональный стиль (`makeEndpoint`)
+### Функциональный стиль (`makeEndpoint`)
 
-Используется для простых команд без сложной логики валидации:
+Все эндпоинты создаются через `makeEndpoint`:
 
-- `greet` - приветствие
-- `echo` - эхо аргументов
-- `calc` - калькулятор без схемной валидации
+- `help` - справка по командам
+- `process-stdin` - обработка потоковых данных
 
 **Преимущества:**
 - Простота и читаемость
-- Минимум кода для простых команд
+- Минимум кода
 - Типы выводятся автоматически из схем
+- Не требует дополнительной инфраструктуры
 
 **Пример:**
 
 ```typescript
-import { makeEndpoint } from '@nestling/transport';
+import { makeEndpoint } from '@nestling/pipeline';
 
-export const Greet = makeEndpoint({
+export const Help = makeEndpoint({
   transport: 'cli',
-  pattern: 'greet',
-  responseSchema: GreetResponseSchema,
-  handler: async (payload) => {
-    // payload типизирован автоматически!
-    return { status: 0, value: {...}, meta: {} };
+  pattern: 'help',
+  output: HelpResponseSchema,
+  handle: async () => {
+    // Типы выводятся автоматически!
+    return { status: 'OK', value: {...} };
   },
 });
 ```
 
-### Подход 2: Классовый стиль (`@Handler`)
+### Регистрация эндпоинтов
 
-Используется для команд со сложной логикой и валидацией:
-
-- `info` - информация о системе
-- `calc-schema` - калькулятор со схемой валидации
-- `greet-schema` - приветствие со схемой валидации
-
-**Преимущества:**
-- TypeScript РЕАЛЬНО проверяет типы параметров `handle()`
-- Типы выводятся АВТОМАТИЧЕСКИ из схем
-- Нельзя ошибиться в типах - получишь ошибку компиляции!
-- Изолированная логика handler'а в отдельном классе
-- Один класс = одна команда (Single Responsibility)
-
-**Пример:**
+Эндпоинты регистрируются напрямую в транспорте:
 
 ```typescript
-import { Handler } from '@nestling/transport';
+import { CliTransport } from '@nestling/transport.cli';
+import { Help, ProcessStdin } from './endpoints.functional';
 
-@Handler({
-  transport: 'cli',
-  pattern: 'info',
-  responseSchema: InfoResponseSchema,
-})
-export class InfoHandler {
-  async handle(): Promise<ResponseContext<InfoResponse>> {
-    // Типы проверяются компилятором!
-    return { status: 0, value: {...}, meta: {} };
-  }
-}
+const cliTransport = new CliTransport();
+
+// Регистрируем эндпоинты
+cliTransport.endpoint(Help);
+cliTransport.endpoint(ProcessStdin);
+
+// Запускаем транспорт
+await cliTransport.listen();
 ```
 
 ### Middleware
@@ -197,50 +123,42 @@ export class InfoHandler {
 Пример демонстрирует два стиля middleware:
 
 1. **Функциональный стиль** (`LoggingMiddleware`) - простая функция
-2. **Классовый стиль** (`TimingMiddleware`) - класс с декоратором `@Middleware()`
+2. **Классовый стиль** (`TimingMiddleware`) - класс с методом `process()`
+
+Middleware добавляются напрямую в транспорт:
+
+```typescript
+cliTransport.use(LoggingMiddleware);
+cliTransport.use(TimingMiddleware);
+```
 
 ### Структура проекта
 
 ```
 src/
-├── handlers.functional/     # Функциональный стиль (makeEndpoint)
+├── endpoints.functional/    # Функциональные эндпоинты
 │   ├── index.ts
-│   ├── greet.handler.ts
-│   ├── echo.handler.ts
-│   └── calc.handler.ts
-├── handlers.class/          # Классовый стиль (@Handler)
-│   ├── index.ts
-│   ├── info.handler.ts
-│   ├── calc-schema.handler.ts
-│   └── greet-schema.handler.ts
-├── middleware/              # Middleware в отдельных файлах
+│   ├── help.endpoint.ts
+│   └── process-stdin.endpoint.ts
+├── middleware/              # Middleware
 │   ├── index.ts
 │   ├── logging.middleware.ts
 │   └── timing.middleware.ts
-├── common/                  # Общие типы и схемы
-│   ├── index.ts
-│   └── schemas.ts
-└── main.ts                  # Упрощенный entry point
+└── main.ts                  # Entry point
 ```
-
-## Когда использовать какой подход?
-
-### Используйте функциональный стиль (`makeEndpoint`), когда:
-- Команда простая и не требует сложной валидации
-- Нужна быстрая разработка без создания классов
-- Логика команды умещается в одну функцию
-
-### Используйте классовый стиль (`@Handler`), когда:
-- Нужна строгая типобезопасность на уровне компиляции
-- Команда требует сложной валидации через схемы
-- Хотите изолировать логику в отдельном классе
-- Планируете расширять функциональность команды
 
 ## Дополнительные возможности
 
-1. **Middleware** - логирование команд с измерением времени выполнения
-2. **Command routing** - регистрация обработчиков команд
-3. **Argument parsing** - простой парсер аргументов командной строки
-4. **Error handling** - обработка неизвестных команд и ошибок
-5. **Exit codes** - правильные коды выхода для успеха/ошибки
-6. **REPL режим** - интерактивный режим при запуске без аргументов
+1. **Прямая работа с транспортом** - без дополнительного слоя абстракции `App`
+2. **Middleware** - логирование команд с измерением времени выполнения
+3. **Command routing** - встроенный роутинг команд в `CliTransport`
+4. **Argument parsing** - встроенный парсер аргументов
+5. **Error handling** - обработка неизвестных команд и ошибок
+6. **Exit codes** - правильные коды выхода для успеха/ошибки
+7. **REPL режим** - интерактивный режим при запуске без аргументов
+8. **Stream processing** - обработка потоковых данных из stdin
+
+## См. также
+
+Для примеров с классовыми эндпоинтами и использованием `@nestling/app` см.:
+- `@examples.app-with-http` - полноценное приложение с HTTP транспортом и классовыми эндпоинтами
