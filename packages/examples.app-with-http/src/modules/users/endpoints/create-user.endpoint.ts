@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
+import { HttpEndpoint } from '@nestling/transport.http';
 
 const CreateUserInput = z.object({
   name: z.string().min(1),
@@ -24,9 +25,7 @@ type CreateUserOutput = z.infer<typeof CreateUserOutput>;
  * Endpoint для создания пользователя
  */
 @Injectable([UserService, ILogger])
-@Endpoint({
-  transport: 'http',
-  pattern: 'POST /api/users',
+@HttpEndpoint('POST', '/api/users', {
   input: CreateUserInput,
   output: CreateUserOutput,
 })
@@ -36,16 +35,16 @@ export class CreateUserEndpoint implements IEndpoint {
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: CreateUserInput): Output<CreateUserOutput> {
-    this.logger.log(`Handling POST /api/users - creating user ${payload.name}`);
+  async handle({ name, email }: CreateUserInput): Output<CreateUserOutput> {
+    this.logger.log(`Handling POST /api/users - creating user ${name}`);
 
     // Проверка на дубликат email
-    const existing = await this.users.findByEmail(payload.email);
+    const existing = await this.users.findByEmail(email);
     if (existing) {
       throw Fail.badRequest('Email already taken', { field: 'email' });
     }
 
-    const user = await this.users.create(payload);
+    const user = await this.users.create({ name, email });
 
     return Ok.created(user, {
       Location: `/api/users/${user.id}`,

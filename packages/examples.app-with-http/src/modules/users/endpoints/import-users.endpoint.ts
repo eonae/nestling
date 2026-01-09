@@ -1,32 +1,32 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Endpoint, Ok, stream } from '@nestling/pipeline';
+import { Ok, stream } from '@nestling/pipeline';
 import { z } from 'zod';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
+import { HttpEndpoint } from '@nestling/transport.http';
 
-const ImportUserSchema = z.object({
+const ImportUserInput = z.object({
   name: z.string(),
   email: z.string(), // Валидация email будет в UserService для обработки частичных ошибок
   avatarUrl: z.string().optional(),
 });
 
-const ImportUsersInput = stream(ImportUserSchema);
-
 const ImportUsersOutput = z.object({
   imported: z.number(),
   failed: z.number(),
   errors: z
-    .array(
-      z.object({
-        line: z.number(),
-        error: z.string(),
-      }),
-    )
-    .optional(),
+  .array(
+    z.object({
+      line: z.number(),
+      error: z.string(),
+    }),
+  )
+  .optional(),
 });
 
+type ImportUserInput = z.infer<typeof ImportUserInput>;
 type ImportUsersOutput = z.infer<typeof ImportUsersOutput>;
 
 /**
@@ -37,10 +37,8 @@ type ImportUsersOutput = z.infer<typeof ImportUsersOutput>;
  * - Возврат статистики импорта
  */
 @Injectable([UserService, ILogger])
-@Endpoint({
-  transport: 'http',
-  pattern: 'POST /api/users/import',
-  input: ImportUsersInput,
+@HttpEndpoint('POST', '/api/users/import', {
+  input: stream(ImportUserInput),
   output: ImportUsersOutput,
 })
 export class ImportUsersEndpoint implements IEndpoint {
@@ -50,7 +48,7 @@ export class ImportUsersEndpoint implements IEndpoint {
   ) {}
 
   async handle(
-    payload: AsyncIterableIterator<z.infer<typeof ImportUserSchema>>,
+    payload: AsyncIterableIterator<ImportUserInput>,
   ): Output<ImportUsersOutput> {
     this.logger.log('Handling POST /api/users/import');
 

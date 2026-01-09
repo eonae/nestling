@@ -3,15 +3,12 @@ import type {
   AnyInput,
   AnyOutput,
   EndpointDefinition,
-  MiddlewareFn,
 } from '@nestling/pipeline';
 
 /**
  * Базовый интерфейс транспорта
  */
 export interface ITransport {
-  use(middleware: MiddlewareFn): void;
-
   /**
    * Регистрирует handler через конфигурацию
    */

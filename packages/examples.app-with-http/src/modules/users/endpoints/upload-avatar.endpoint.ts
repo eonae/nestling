@@ -1,17 +1,16 @@
 import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output, FilePart } from '@nestling/pipeline';
-import { Endpoint, Fail, Ok, withFiles } from '@nestling/pipeline';
+import type { IEndpoint, Output, WithFiles } from '@nestling/pipeline';
+import { Fail, Ok, withFiles } from '@nestling/pipeline';
 import { z } from 'zod';
 import { MAX_AVATAR_SIZE } from '../../../common/constants';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
+import { HttpEndpoint } from '@nestling/transport.http';
 
-const UploadAvatarDataSchema = z.object({
+const UploadAvatarInput = z.object({
   id: z.string(), // userId из params
 });
-
-const UploadAvatarInput = withFiles(UploadAvatarDataSchema);
 
 const UploadAvatarOutput = z.object({
   id: z.string(),
@@ -20,10 +19,7 @@ const UploadAvatarOutput = z.object({
   avatarUrl: z.string().optional(),
 });
 
-type UploadAvatarInput = {
-  data: z.infer<typeof UploadAvatarDataSchema>;
-  files: FilePart[];
-};
+type UploadAvatarInput = z.infer<typeof UploadAvatarInput>;
 type UploadAvatarOutput = z.infer<typeof UploadAvatarOutput>;
 
 /**
@@ -34,10 +30,8 @@ type UploadAvatarOutput = z.infer<typeof UploadAvatarOutput>;
  * - Fail.badRequest() для невалидных файлов
  */
 @Injectable([UserService, ILogger])
-@Endpoint({
-  transport: 'http',
-  pattern: 'POST /api/users/:id/avatar',
-  input: UploadAvatarInput,
+@HttpEndpoint('POST', '/api/users/:id/avatar', {
+  input: withFiles(UploadAvatarInput),
   output: UploadAvatarOutput,
 })
 export class UploadAvatarEndpoint implements IEndpoint {
@@ -46,12 +40,11 @@ export class UploadAvatarEndpoint implements IEndpoint {
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: UploadAvatarInput): Output<UploadAvatarOutput> {
-    const { id } = payload.data;
+  async handle({ data: { id }, files }: WithFiles<UploadAvatarInput>): Output<UploadAvatarOutput> {
     this.logger.log(`Handling POST /api/users/${id}/avatar`);
 
     // Находим файл с именем поля 'avatar'
-    const avatarFile = payload.files.find((f) => f.field === 'avatar');
+    const avatarFile = files.find((f) => f.field === 'avatar');
 
     if (!avatarFile) {
       throw Fail.badRequest('Avatar file is required');

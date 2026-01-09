@@ -3,18 +3,21 @@
 import { CreateUser, SayHello, StreamLogs } from './endpoints.functional';
 import { RequestResponseLogging, TimingMiddleware } from './middleware';
 
+import { Pipeline } from '@nestling/pipeline';
 import { HttpTransport } from '@nestling/transport.http';
 
-// Создаем HTTP транспорт
-const server = new HttpTransport({
-  port: Number(process.env.PORT) || 3000,
-});
+const pipeline = new Pipeline();
 
 // Добавляем middleware для логирования (функциональный стиль)
-server.use(RequestResponseLogging);
+pipeline.use(RequestResponseLogging);
 
 // Добавляем middleware для измерения времени (классовый стиль)
-server.use(TimingMiddleware);
+pipeline.use(TimingMiddleware);
+
+// Создаем HTTP транспорт
+const server = new HttpTransport(pipeline, {
+  port: Number(process.env.PORT) || 3000,
+});
 
 // ============================================================
 // Регистрируем функциональные эндпоинты

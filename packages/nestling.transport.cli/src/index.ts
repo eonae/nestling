@@ -8,15 +8,11 @@ import type {
   AnyOutput,
   EndpointDefinition,
   FilePart,
+  Pipeline,
   RequestContext,
   ResponseContext,
 } from '@nestling/pipeline';
-import {
-  analyzeInput,
-  parseMetadata,
-  parsePayload,
-  Pipeline,
-} from '@nestling/pipeline';
+import { analyzeInput, parseMetadata, parsePayload } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 /**
  * Входные данные для CLI транспорта
@@ -31,13 +27,10 @@ export interface CliInput {
  * CLI транспорт
  */
 export class CliTransport implements ITransport {
-  private readonly pipeline: Pipeline;
   private readonly handlers = new Map<string, EndpointDefinition>();
   private repl?: readline.Interface;
 
-  constructor() {
-    this.pipeline = new Pipeline();
-  }
+  constructor(private readonly pipeline: Pipeline) {}
 
   /**
    * Регистрирует handler через конфигурацию
@@ -48,13 +41,6 @@ export class CliTransport implements ITransport {
     M extends Optional<Schema> = Optional<Schema>,
   >(definition: EndpointDefinition<I, O, M>): void {
     this.handlers.set(definition.pattern, definition);
-  }
-
-  /**
-   * Добавляет middleware в пайплайн
-   */
-  use(middleware: Parameters<Pipeline['use']>[0]): void {
-    this.pipeline.use(middleware);
   }
 
   /**

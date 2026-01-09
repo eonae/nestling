@@ -1,11 +1,12 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Endpoint, Ok, stream } from '@nestling/pipeline';
+import { Ok, stream } from '@nestling/pipeline';
 import { z } from 'zod';
 import type { User } from '../../../common/types';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
+import { HttpEndpoint } from '@nestling/transport.http';
 
 const ExportUsersOutput = z.object({
   id: z.string(),
@@ -22,9 +23,7 @@ type ExportUsersOutput = z.infer<typeof ExportUsersOutput>;
  * - Кастомные заголовки (Content-Type, Content-Disposition)
  */
 @Injectable([UserService, ILogger])
-@Endpoint({
-  transport: 'http',
-  pattern: 'GET /api/users/export',
+@HttpEndpoint('GET', '/api/users/export', {
   output: stream(ExportUsersOutput),
 })
 export class ExportUsersEndpoint implements IEndpoint {

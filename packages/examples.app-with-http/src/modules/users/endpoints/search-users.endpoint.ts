@@ -1,13 +1,14 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Endpoint, Fail, Ok } from '@nestling/pipeline';
+import { Fail, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
+import { HttpEndpoint } from '@nestling/transport.http';
 
 const SearchUsersInput = z.object({
-  q: z.string().min(1, 'Search query is required'),
+  search: z.string().min(1, 'Search query is required'),
   limit: z.string().transform(Number).optional(),
 });
 
@@ -30,9 +31,7 @@ type SearchUsersOutput = z.infer<typeof SearchUsersOutput>;
  * - Fail.badRequest() если query параметр отсутствует или невалидный
  */
 @Injectable([UserService, ILogger])
-@Endpoint({
-  transport: 'http',
-  pattern: 'GET /api/users/search',
+@HttpEndpoint('GET', '/api/users/search', {
   input: SearchUsersInput,
   output: SearchUsersOutput,
 })
@@ -42,18 +41,18 @@ export class SearchUsersEndpoint implements IEndpoint {
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: SearchUsersInput): Output<SearchUsersOutput> {
-    this.logger.log(`Handling GET /api/users/search?q=${payload.q}`);
+  async handle({ search, limit }: SearchUsersInput): Output<SearchUsersOutput> {
+    this.logger.log(`Handling GET /api/users/search?q=${search}`);
 
-    if (!payload.q || payload.q.trim().length === 0) {
+    if (!search || search.trim().length === 0) {
       throw Fail.badRequest('Query parameter required');
     }
 
-    let users = await this.userService.search(payload.q);
+    let users = await this.userService.search(search);
 
     // Применяем limit, если указан
-    if (payload.limit && payload.limit > 0) {
-      users = users.slice(0, payload.limit);
+    if (limit && limit > 0) {
+      users = users.slice(0, limit);
     }
 
     return new Ok(users, {

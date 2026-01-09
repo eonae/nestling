@@ -1,10 +1,11 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Endpoint, Fail } from '@nestling/pipeline';
+import { Fail } from '@nestling/pipeline';
 import { z } from 'zod';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
+import { HttpEndpoint } from '@nestling/transport.http';
 
 const UpdateUserInput = z.object({
   id: z.string(),
@@ -29,9 +30,7 @@ type UpdateUserOutput = z.infer<typeof UpdateUserOutput>;
  * - Fail.badRequest() если невалидные данные
  */
 @Injectable([UserService, ILogger])
-@Endpoint({
-  transport: 'http',
-  pattern: 'PATCH /api/users/:id',
+@HttpEndpoint('PATCH', '/api/users/:id', {
   input: UpdateUserInput,
   output: UpdateUserOutput,
 })
@@ -41,10 +40,8 @@ export class UpdateUserEndpoint implements IEndpoint {
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: UpdateUserInput): Output<UpdateUserOutput> {
-    this.logger.log(`Handling PATCH /api/users/${payload.id}`);
-
-    const { id, ...updateData } = payload;
+  async handle({ id, ...updateData }: UpdateUserInput): Output<UpdateUserOutput> {
+    this.logger.log(`Handling PATCH /api/users/${id}`);
 
     // Проверка на наличие данных для обновления
     if (Object.keys(updateData).length === 0) {

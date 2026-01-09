@@ -278,3 +278,8 @@ export function analyzeInput(input?: unknown): InputConfig {
   // Обычная схема (zod, yup, etc)
   return { type: 'schema' as const, schema: input };
 }
+
+export interface WithFiles<T> {
+  data: T;
+  files: FilePart[];
+}

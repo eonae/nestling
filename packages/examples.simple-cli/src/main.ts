@@ -4,16 +4,18 @@
 import { Help, ProcessStdin } from './endpoints.functional';
 import { LoggingMiddleware, TimingMiddleware } from './middleware';
 
+import { Pipeline } from '@nestling/pipeline';
 import { CliTransport } from '@nestling/transport.cli';
-
 // Создаем CLI транспорт
-const cli = new CliTransport();
+const pipeline = new Pipeline();
 
 // Добавляем middleware для логирования (функциональный стиль)
-cli.use(LoggingMiddleware);
+pipeline.use(LoggingMiddleware);
 
 // Добавляем middleware для измерения времени (классовый стиль)
-cli.use(TimingMiddleware);
+pipeline.use(TimingMiddleware);
+
+const cli = new CliTransport(pipeline);
 
 // ============================================================
 // Регистрируем функциональные эндпоинты

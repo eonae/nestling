@@ -16,21 +16,15 @@ import {
 } from './parser.js';
 import { HttpRouter } from './router.js';
 
-import type { Constructor, Optional, Schema } from '@common/misc';
+import type { Optional, Schema } from '@common/misc';
 import type {
   AnyInput,
   AnyOutput,
   EndpointDefinition,
-  IMiddleware,
-  MiddlewareFn,
+  Pipeline,
   RequestContext,
 } from '@nestling/pipeline';
-import {
-  analyzeInput,
-  parseMetadata,
-  parsePayload,
-  Pipeline,
-} from '@nestling/pipeline';
+import { analyzeInput, parseMetadata, parsePayload } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 
 /**
@@ -46,14 +40,13 @@ export interface HttpTransportOptions {
  */
 export class HttpTransport implements ITransport {
   private readonly router: HttpRouter;
-  private readonly pipeline: Pipeline;
   private server?: Server;
-  private readonly options: HttpTransportOptions;
 
-  constructor(options: HttpTransportOptions = {}) {
+  constructor(
+    private readonly pipeline: Pipeline,
+    private readonly options: HttpTransportOptions = {},
+  ) {
     this.router = new HttpRouter();
-    this.pipeline = new Pipeline();
-    this.options = options;
   }
 
   /**
@@ -79,69 +72,56 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Добавляет middleware в пайплайн
+   * Запускает HTTP сервер
    */
-  use(middleware: MiddlewareFn | Constructor<IMiddleware>): void {
-    this.pipeline.use(middleware);
+  async listen(port?: number, host?: string): Promise<void> {
+    if (this.server) {
+      throw new Error('Server is already listening');
+    }
+
+    const listenPort = port ?? this.options.port ?? 3000;
+    const listenHost = host ?? this.options.host ?? '0.0.0.0';
+
+    return new Promise((resolve, reject) => {
+      this.server = createServer((req, res) => {
+        this.handle(req, res).catch(() => {
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.end('Internal Server Error');
+          }
+        });
+      });
+
+      this.server.listen(listenPort, listenHost, () => {
+        resolve();
+      });
+
+      this.server.on('fail', (error) => {
+        reject(error);
+      });
+    });
   }
 
   /**
-   * Очищает непрочитанные file streams для предотвращения утечек памяти.
-   *
-   * Вызывается автоматически после обработки запроса (успешной или с ошибкой).
-   * Для каждого файла проверяет, был ли stream прочитан до конца:
-   * - Если stream.readableEnded === true, значит данные прочитаны, ничего не делаем
-   * - Если stream.readableEnded === false, вызываем stream.resume() для "слива" данных
-   *
-   * Это важно, потому что:
-   * 1. Непрочитанные streams могут привести к утечкам памяти
-   * 2. TCP буферы могут заполниться и зависнуть
-   * 3. Busboy может не завершиться корректно
-   *
-   * @param inputType - тип input из analyzeInput
-   * @param payload - payload с потенциальными file streams
+   * Останавливает HTTP сервер
    */
-  private cleanupFileStreams(
-    inputType: string | undefined,
-    payload: unknown,
-  ): void {
-    // Только для типов с файлами
-    if (inputType !== 'withFiles' && inputType !== 'files') {
+  async close(): Promise<void> {
+    if (!this.server) {
       return;
     }
 
-    try {
-      let files: { stream: NodeJS.ReadableStream }[] = [];
+    const server = this.server;
+    this.server = undefined;
 
-      if (inputType === 'withFiles') {
-        // Для withFiles: payload = { data, files }
-        const withFilesPayload = payload as {
-          files?: { stream: NodeJS.ReadableStream }[];
-        };
-        files = withFilesPayload.files || [];
-      } else if (inputType === 'files') {
-        // Для files: payload = FilePart[]
-        files = (payload as { stream: NodeJS.ReadableStream }[]) || [];
-      }
-
-      // Проходим по всем файлам и "сливаем" непрочитанные streams
-      for (const file of files) {
-        if (file.stream && 'readableEnded' in file.stream) {
-          const readableStream = file.stream as NodeJS.ReadableStream & {
-            readableEnded?: boolean;
-            resume?: () => void;
-          };
-
-          // Если stream не был прочитан до конца, сливаем его
-          if (!readableStream.readableEnded && readableStream.resume) {
-            readableStream.resume();
-          }
+    return new Promise((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
         }
-      }
-    } catch {
-      // Игнорируем ошибки cleanup - это не критично
-      // (возможно stream уже уничтожен или закрыт)
-    }
+      });
+    });
   }
 
   /**
@@ -169,6 +149,7 @@ export class HttpTransport implements ITransport {
         nativeReq.url || '/',
         `http://${nativeReq.headers.host || 'localhost'}`,
       );
+
       const query: Record<string, string> = {};
       for (const [key, value] of url.searchParams.entries()) {
         query[key] = value;
@@ -215,12 +196,14 @@ export class HttpTransport implements ITransport {
 
           break;
         }
+
         case 'files': {
           // Только файлы - payload будет FilePart[]
           payload = await parseFilesOnly(nativeReq);
 
           break;
         }
+
         case 'primitive': {
           // Примитивные типы
           if (inputConfig.primitive === 'binary') {
@@ -235,6 +218,7 @@ export class HttpTransport implements ITransport {
 
           break;
         }
+
         default: {
           // Обычная схема или undefined - парсим как JSON и объединяем с query/params
           let body: unknown;
@@ -325,55 +309,61 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Запускает HTTP сервер
+   * Очищает непрочитанные file streams для предотвращения утечек памяти.
+   *
+   * Вызывается автоматически после обработки запроса (успешной или с ошибкой).
+   * Для каждого файла проверяет, был ли stream прочитан до конца:
+   * - Если stream.readableEnded === true, значит данные прочитаны, ничего не делаем
+   * - Если stream.readableEnded === false, вызываем stream.resume() для "слива" данных
+   *
+   * Это важно, потому что:
+   * 1. Непрочитанные streams могут привести к утечкам памяти
+   * 2. TCP буферы могут заполниться и зависнуть
+   * 3. Busboy может не завершиться корректно
+   *
+   * @param inputType - тип input из analyzeInput
+   * @param payload - payload с потенциальными file streams
    */
-  async listen(port?: number, host?: string): Promise<void> {
-    if (this.server) {
-      throw new Error('Server is already listening');
-    }
-
-    const listenPort = port ?? this.options.port ?? 3000;
-    const listenHost = host ?? this.options.host ?? '0.0.0.0';
-
-    return new Promise((resolve, reject) => {
-      this.server = createServer((req, res) => {
-        this.handle(req, res).catch(() => {
-          if (!res.headersSent) {
-            res.statusCode = 500;
-            res.end('Internal Server Error');
-          }
-        });
-      });
-
-      this.server.listen(listenPort, listenHost, () => {
-        resolve();
-      });
-
-      this.server.on('fail', (error) => {
-        reject(error);
-      });
-    });
-  }
-
-  /**
-   * Останавливает HTTP сервер
-   */
-  async close(): Promise<void> {
-    if (!this.server) {
+  private cleanupFileStreams(
+    inputType: string | undefined,
+    payload: unknown,
+  ): void {
+    // Только для типов с файлами
+    if (inputType !== 'withFiles' && inputType !== 'files') {
       return;
     }
 
-    const server = this.server;
-    this.server = undefined;
+    try {
+      let files: { stream: NodeJS.ReadableStream }[] = [];
 
-    return new Promise((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
+      if (inputType === 'withFiles') {
+        // Для withFiles: payload = { data, files }
+        const withFilesPayload = payload as {
+          files?: { stream: NodeJS.ReadableStream }[];
+        };
+        files = withFilesPayload.files || [];
+      } else if (inputType === 'files') {
+        // Для files: payload = FilePart[]
+        files = (payload as { stream: NodeJS.ReadableStream }[]) || [];
+      }
+
+      // Проходим по всем файлам и "сливаем" непрочитанные streams
+      for (const file of files) {
+        if (file.stream && 'readableEnded' in file.stream) {
+          const readableStream = file.stream as NodeJS.ReadableStream & {
+            readableEnded?: boolean;
+            resume?: () => void;
+          };
+
+          // Если stream не был прочитан до конца, сливаем его
+          if (!readableStream.readableEnded && readableStream.resume) {
+            readableStream.resume();
+          }
         }
-      });
-    });
+      }
+    } catch {
+      // Игнорируем ошибки cleanup - это не критично
+      // (возможно stream уже уничтожен или закрыт)
+    }
   }
 }
