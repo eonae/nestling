@@ -1,8 +1,8 @@
 import { Injectable } from '@nestling/container';
 import type { IMiddleware, RequestContext, ResponseContext } from '@nestling/pipeline';
 import { Middleware } from '@nestling/pipeline';
-import type { ILoggerService } from './logger.service';
-import { ILogger } from './logger.service';
+import type { ILoggerService } from '../../logger/logger.service';
+import { ILogger } from '../../logger/logger.service';
 
 /**
  * Middleware для измерения времени обработки запросов

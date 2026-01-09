@@ -86,12 +86,75 @@ export class HttpTransport implements ITransport {
   }
 
   /**
+   * Очищает непрочитанные file streams для предотвращения утечек памяти.
+   *
+   * Вызывается автоматически после обработки запроса (успешной или с ошибкой).
+   * Для каждого файла проверяет, был ли stream прочитан до конца:
+   * - Если stream.readableEnded === true, значит данные прочитаны, ничего не делаем
+   * - Если stream.readableEnded === false, вызываем stream.resume() для "слива" данных
+   *
+   * Это важно, потому что:
+   * 1. Непрочитанные streams могут привести к утечкам памяти
+   * 2. TCP буферы могут заполниться и зависнуть
+   * 3. Busboy может не завершиться корректно
+   *
+   * @param inputType - тип input из analyzeInput
+   * @param payload - payload с потенциальными file streams
+   */
+  private cleanupFileStreams(
+    inputType: string | undefined,
+    payload: unknown,
+  ): void {
+    // Только для типов с файлами
+    if (inputType !== 'withFiles' && inputType !== 'files') {
+      return;
+    }
+
+    try {
+      let files: { stream: NodeJS.ReadableStream }[] = [];
+
+      if (inputType === 'withFiles') {
+        // Для withFiles: payload = { data, files }
+        const withFilesPayload = payload as {
+          files?: { stream: NodeJS.ReadableStream }[];
+        };
+        files = withFilesPayload.files || [];
+      } else if (inputType === 'files') {
+        // Для files: payload = FilePart[]
+        files = (payload as { stream: NodeJS.ReadableStream }[]) || [];
+      }
+
+      // Проходим по всем файлам и "сливаем" непрочитанные streams
+      for (const file of files) {
+        if (file.stream && 'readableEnded' in file.stream) {
+          const readableStream = file.stream as NodeJS.ReadableStream & {
+            readableEnded?: boolean;
+            resume?: () => void;
+          };
+
+          // Если stream не был прочитан до конца, сливаем его
+          if (!readableStream.readableEnded && readableStream.resume) {
+            readableStream.resume();
+          }
+        }
+      }
+    } catch {
+      // Игнорируем ошибки cleanup - это не критично
+      // (возможно stream уже уничтожен или закрыт)
+    }
+  }
+
+  /**
    * Обрабатывает HTTP запрос (внутренний метод)
    */
   private async handle(
     nativeReq: IncomingMessage,
     nativeRes: ServerResponse,
   ): Promise<void> {
+    // Объявляем переменные выше try блока, чтобы они были доступны в catch для cleanup
+    let inputConfigType: string | undefined;
+    let payload: unknown;
+
     try {
       // Находим маршрут
       const route = this.router.find(nativeReq);
@@ -113,9 +176,7 @@ export class HttpTransport implements ITransport {
 
       // Анализируем input конфигурацию
       const inputConfig = analyzeInput(route.definition.input);
-
-      // Переменные для данных запроса
-      let payload: unknown;
+      inputConfigType = inputConfig.type; // Сохраняем для cleanup
 
       // Парсим входные данные согласно типу модификатора
       switch (inputConfig.type) {
@@ -130,12 +191,25 @@ export class HttpTransport implements ITransport {
         }
         case 'withFiles': {
           // Структурированные данные + файлы - payload будет { data, files }
-          const result = await parseWithFiles(
-            nativeReq,
-            inputConfig.schema as Optional<Schema>,
+          const result = await parseWithFiles(nativeReq);
+
+          // Объединяем params с данными формы
+          const dataWithParams = mergePayload(
+            result.data,
+            undefined,
+            route.params,
           );
+
+          // Валидируем dataWithParams через схему (после merge с params)
+          const validatedData = inputConfig.schema
+            ? parsePayload(inputConfig.schema as Schema, {
+                payload: dataWithParams as Record<string, unknown>,
+                metadata: {},
+              })
+            : dataWithParams;
+
           payload = {
-            data: result.data,
+            data: validatedData,
             files: result.files,
           };
 
@@ -227,9 +301,17 @@ export class HttpTransport implements ITransport {
         requestContext,
       );
 
+      // Cleanup: автоматически сливаем непрочитанные file streams
+      // Это важно для предотвращения утечек памяти и зависаний,
+      // если endpoint не прочитал все файлы до конца
+      this.cleanupFileStreams(inputConfigType, payload);
+
       // Отправляем ответ
       sendResponse(nativeRes, responseContext);
     } catch (error) {
+      // Cleanup в случае ошибки - особенно важно, т.к. handler мог не запуститься
+      this.cleanupFileStreams(inputConfigType, payload);
+
       // Обработка ошибок
       nativeRes.statusCode = 500;
       nativeRes.setHeader('content-type', 'application/json');
@@ -267,7 +349,7 @@ export class HttpTransport implements ITransport {
         resolve();
       });
 
-      this.server.on('error', (error) => {
+      this.server.on('fail', (error) => {
         reject(error);
       });
     });

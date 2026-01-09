@@ -1,10 +1,10 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Endpoint, Ok } from '@nestling/pipeline';
+import { Endpoint } from '@nestling/pipeline';
 import { z } from 'zod';
-import type { ILoggerService } from './logger.service';
-import { ILogger } from './logger.service';
-import { UserService } from './user.service';
+import type { ILoggerService } from '../../logger/logger.service';
+import { ILogger } from '../../logger/logger.service';
+import { UserService } from '../user.service';
 
 const ListUsersOutput = z.array(
   z.object({
@@ -36,7 +36,8 @@ export class ListUsersEndpoint implements IEndpoint {
 
     const users = await this.users.getAll();
 
-    return new Ok(users);
+    // Возвращаем напрямую - автоматически обернется в Ok
+    return users;
   }
 }
 

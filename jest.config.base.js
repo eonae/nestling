@@ -1,10 +1,17 @@
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
 /**
  * Базовая конфигурация Jest для всех пакетов
  */
 export function createJestConfig(fileUrl) {
+  const __filename = fileURLToPath(fileUrl);
+  const rootDir = dirname(__filename);
+
   return {
     preset: 'ts-jest/presets/default-esm',
     testEnvironment: 'node',
+    rootDir,
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
     extensionsToTreatAsEsm: ['.ts'],
     transform: {

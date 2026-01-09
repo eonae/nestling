@@ -1,6 +1,6 @@
 import { App } from '@nestling/app';
 import { HttpTransport } from '@nestling/transport.http';
-import { LoggerModule } from './logger.module';
+import { LoggerModule } from './modules/logger/logger.module';
 import { UsersModule } from './users.module';
 
 /**
@@ -20,7 +20,16 @@ async function main() {
 
   console.log('🚀 App is running');
   console.log('📦 Modules: LoggerModule, UsersModule');
-  console.log('🔌 Endpoints: GetUser, ListUsers, CreateUser');
+  console.log('🔌 Endpoints:');
+  console.log('  - GET    /api/users              - List users');
+  console.log('  - GET    /api/users/:id          - Get user by ID');
+  console.log('  - POST   /api/users              - Create user');
+  console.log('  - PATCH  /api/users/:id          - Update user');
+  console.log('  - DELETE /api/users/:id          - Delete user');
+  console.log('  - GET    /api/users/search       - Search users');
+  console.log('  - GET    /api/users/export       - Export users (stream)');
+  console.log('  - POST   /api/users/import       - Import users (stream)');
+  console.log('  - POST   /api/users/:id/avatar   - Upload avatar');
   console.log('⚙️  Middleware: TimingMiddleware');
   console.log('');
   console.log('✅ Server listening on http://localhost:3000');

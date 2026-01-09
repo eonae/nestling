@@ -11,7 +11,12 @@
     "start": "yarn run build && node dist/bundle.js",
     "start:dev": "run -T tsx src/main.ts",
     "lint": "run -T eslint 'src/**/*.ts'",
-    "lint:fix": "yarn run lint --fix"
+    "lint:fix": "yarn run lint --fix",
+    "test": "run -T jest --config jest.config.js",
+    "test:e2e": "run -T jest --config jest.e2e.config.js",
+    "test:all": "yarn test && yarn test:e2e",
+    "test:watch": "run -T jest --watch",
+    "test:coverage": "run -T jest --coverage"
   },
   "dependencies": {
     "@common/misc": "workspace:*",

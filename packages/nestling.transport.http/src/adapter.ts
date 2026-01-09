@@ -64,7 +64,26 @@ export function sendResponse(
     typeof response.value === 'object' &&
     Symbol.asyncIterator in response.value
   ) {
-    Readable.from(response.value as AsyncIterable<any>).pipe(res);
+    const asyncIterator = response.value as AsyncIterable<any>;
+
+    // Создаем трансформирующий stream, который сериализует объекты в JSON
+    const transformedStream = Readable.from(
+      (async function* () {
+        for await (const item of asyncIterator) {
+          // Если элемент уже string или Buffer, отправляем как есть
+          if (typeof item === 'string') {
+            yield item;
+          } else if (Buffer.isBuffer(item) || item instanceof Uint8Array) {
+            yield item;
+          } else {
+            // Иначе сериализуем объект в JSON + перевод строки (для NDJSON)
+            yield JSON.stringify(item) + '\n';
+          }
+        }
+      })(),
+    );
+
+    transformedStream.pipe(res);
     return;
   }
 

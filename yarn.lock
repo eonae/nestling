@@ -7061,6 +7061,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jest-mock-extended@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "jest-mock-extended@npm:4.0.0"
+  dependencies:
+    ts-essentials: "npm:^10.0.2"
+  peerDependencies:
+    "@jest/globals": ^28.0.0 || ^29.0.0 || ^30.0.0
+    jest: ^24.0.0 || ^25.0.0 || ^26.0.0 || ^27.0.0 || ^28.0.0 || ^29.0.0 || ^30.0.0
+    typescript: ^3.0.0 || ^4.0.0 || ^5.0.0
+  checksum: 10/b2c1f8d28d671acabfc6f84ec0081e2a3793eb32dbb8a28950e235b9c0b691b0f920181b1852c2a37db8d6d19b828042f16615851faaf485b8ba6857050d6c79
+  languageName: node
+  linkType: hard
+
 "jest-mock@npm:^29.7.0":
   version: 29.7.0
   resolution: "jest-mock@npm:29.7.0"
@@ -8230,6 +8243,7 @@ __metadata:
     eslint-plugin-unicorn: "npm:^55.0.0"
     eslint-plugin-unused-imports: "npm:^4.2.0"
     jest: "npm:^29.7.0"
+    jest-mock-extended: "npm:^4.0.0"
     lerna: "npm:^8.0.0"
     open: "npm:^10.2.0"
     prettier: "npm:^3.3.1"
@@ -10548,6 +10562,18 @@ __metadata:
   peerDependencies:
     typescript: ">=4.8.4"
   checksum: 10/02e55b49d9617c6eebf8aadfa08d3ca03ca0cd2f0586ad34117fdfc7aa3cd25d95051843fde9df86665ad907f99baed179e7a117b11021417f379e4d2614eacd
+  languageName: node
+  linkType: hard
+
+"ts-essentials@npm:^10.0.2":
+  version: 10.1.1
+  resolution: "ts-essentials@npm:10.1.1"
+  peerDependencies:
+    typescript: ">=4.5.0"
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  checksum: 10/ab0a468175ba6a7162aa80a55fcd936a8d830ae302f5561ca918d29a5212b4cd2e619c447bf5bc253f9d1faf186f5728c4ef8684ceaace3a7c6bbdffa54dd1bd
   languageName: node
   linkType: hard
 

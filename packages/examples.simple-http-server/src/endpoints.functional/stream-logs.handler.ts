@@ -3,20 +3,18 @@
 import { makeEndpoint, stream } from '@nestling/pipeline';
 import z from 'zod';
 
+const LogLevel = z.enum(['info', 'warn', 'error']);
+
 // POST /logs/stream - потоковая обработка логов
 const LogChunk = z.object({
   timestamp: z.number(),
-  level: z.enum(['info', 'warn', 'error']),
+  level: LogLevel,
   message: z.string(),
 });
 
 const StreamLogsOutput = z.object({
   processed: z.number(),
-  summary: z.object({
-    info: z.number(),
-    warn: z.number(),
-    error: z.number(),
-  }),
+  summary: z.record(LogLevel, z.number()),
 });
 
 type LogChunk = z.infer<typeof LogChunk>;

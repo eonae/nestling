@@ -49,6 +49,9 @@ export type ErrorDetails = Record<string, unknown>;
  * ResponseContext для успешного ответа
  */
 export interface SuccessResponseContext<TValue = unknown> {
+  /** Флаг успешного ответа */
+  isSuccess: true;
+
   /** Статус успешного ответа */
   status: SuccessStatus;
 
@@ -63,6 +66,9 @@ export interface SuccessResponseContext<TValue = unknown> {
  * ResponseContext для ошибки
  */
 export interface ErrorResponseContext {
+  /** Флаг успешного ответа */
+  isSuccess: false;
+
   /** Статус ошибки */
   status: ErrorStatus;
 
@@ -74,23 +80,8 @@ export interface ErrorResponseContext {
 }
 
 /**
- * ResponseContext для случаев когда статус не указан (по умолчанию OK)
- */
-export interface DefaultResponseContext<TValue = unknown> {
-  /** Статус не указан (по умолчанию будет OK) */
-  status?: undefined;
-
-  /** HTTP заголовки (для HTTP transport) */
-  headers?: Record<string, string>;
-
-  /** Данные ответа */
-  value: TValue | null;
-}
-
-/**
  * Абстрактный контекст ответа (discriminated union)
  */
 export type ResponseContext<TValue = unknown> =
   | SuccessResponseContext<TValue>
-  | ErrorResponseContext
-  | DefaultResponseContext<TValue>;
+  | ErrorResponseContext;

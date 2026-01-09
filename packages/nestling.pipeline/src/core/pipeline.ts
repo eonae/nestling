@@ -32,6 +32,34 @@ export class Pipeline {
   }
 
   /**
+   * Выполняет пайплайн: middleware → handler
+   * Глобально перехватывает все ошибки
+   */
+  async executeWithHandler(
+    handler: HandlerFn,
+    ctx: RequestContext,
+  ): Promise<ResponseContext> {
+    try {
+      let index = 0;
+
+      const next = async (): Promise<ResponseContext> => {
+        if (index < this.middlewares.length) {
+          const middleware = this.middlewares[index++];
+          return middleware(ctx, next);
+        }
+
+        const result = await handler(ctx.payload, ctx.metadata);
+        return this.normalizeResponse(result);
+      };
+
+      return await next();
+    } catch (error) {
+      // Глобальный перехват всех ошибок (из middleware или handler)
+      return this.errorToResponse(error);
+    }
+  }
+
+  /**
    * Нормализует результат handler'а в ResponseContext
    * Поддерживает: Ok, примитивы/объекты (автоматически -> Success.ok)
    * Ошибки обрабатываются через throw Fail в errorToResponse()
@@ -40,14 +68,14 @@ export class Pipeline {
     // Если это Ok - преобразуем в SuccessResponseContext
     if (result instanceof Ok) {
       return {
-        status: result.status,
-        value: result.value,
-        headers: result.headers,
+        isSuccess: true,
+        ...result,
       };
     }
 
     // Иначе оборачиваем в Success.ok и преобразуем
     return {
+      isSuccess: true,
       status: 'OK',
       value: result as T,
     };
@@ -66,6 +94,7 @@ export class Pipeline {
         errorValue.details = error.details;
       }
       return {
+        isSuccess: false,
         status: error.status,
         value: errorValue,
       };
@@ -87,40 +116,9 @@ export class Pipeline {
     }
 
     return {
+      isSuccess: false,
       status: 'INTERNAL_ERROR',
       value: errorValue,
     };
-  }
-
-  /**
-   * Выполняет пайплайн: middleware → handler
-   * Глобально перехватывает все ошибки
-   */
-  async executeWithHandler(
-    handler: HandlerFn,
-    ctx: RequestContext,
-  ): Promise<ResponseContext> {
-    try {
-      let index = 0;
-
-      const next = async (): Promise<ResponseContext> => {
-        if (index < this.middlewares.length) {
-          const middleware = this.middlewares[index++];
-          return middleware(ctx, next);
-        }
-
-        if (!handler) {
-          throw new Error('Handler is not set');
-        }
-
-        const result = await handler(ctx.payload as any, ctx.metadata as any);
-        return this.normalizeResponse(result);
-      };
-
-      return await next();
-    } catch (error) {
-      // Глобальный перехват всех ошибок (из middleware или handler)
-      return this.errorToResponse(error);
-    }
   }
 }

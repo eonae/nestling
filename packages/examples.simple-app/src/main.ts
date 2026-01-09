@@ -11,11 +11,11 @@ export async function main() {
   await container.init();
 
   // Получаем сервисы из контейнера
-  const userService = container.get(UserService);
-  const database = container.get(IDatabase);
-  const apiClient = container.get(IApiClient);
-  const logger = container.get(ILogger('app'));
-  const appService = container.get(AppService);
+  const userService = container.getOrThrow(UserService);
+  const database = container.getOrThrow(IDatabase);
+  const apiClient = container.getOrThrow(IApiClient);
+  const logger = container.getOrThrow(ILogger('app'));
+  const appService = container.getOrThrow(AppService);
 
   // Используем сервисы
   await database.connect();
