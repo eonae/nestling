@@ -1,12 +1,15 @@
 import type { Readable } from 'node:stream';
 
-import type { AnyInput, AnyMeta } from '../io/io';
+import type { AnyInput, AnyMeta, EmptyMeta } from '../io/io';
 import type { ErrorStatus, SuccessStatus } from '../status';
 
 import type { Raw } from './raw.js';
 
 // Re-export Raw
 export * from './raw.js';
+
+// Re-export типы Meta для удобства
+export type { AnyMeta, EmptyMeta } from '../io/io.js';
 
 /**
  * Описание файла в multipart запросе
@@ -57,15 +60,15 @@ export interface EndpointMeta {
  * - Могут добавлять поля в meta
  * - Могут читать endpoint для конфигурации
  */
-export interface UnvalidatedContext<M extends AnyMeta = AnyMeta> {
+export interface UnvalidatedContext<M extends AnyMeta> {
+  /** Метаданные endpoint (readonly) */
+  readonly endpoint: EndpointMeta;
+
   /** Данные от транспорта */
   readonly raw: Raw;
 
   /** Метаданные, накапливаемые middleware */
   meta: M;
-
-  /** Метаданные endpoint (readonly) */
-  readonly endpoint: EndpointMeta;
 }
 
 /**
@@ -76,39 +79,37 @@ export interface UnvalidatedContext<M extends AnyMeta = AnyMeta> {
  *
  * Middleware после validate() работают с этим контекстом:
  * - Имеют доступ к input (провалидированные данные)
- * - НЕ имеют доступа к raw (он больше не нужен)
+ * - Имеют доступ к raw (всегда присутствует на всех стадиях)
  * - Могут добавлять поля в meta
  */
-export interface ValidatedContext<
-  I extends AnyInput = AnyInput,
-  M extends AnyMeta = AnyMeta,
-> {
-  /** Данные от транспорта */
-  readonly raw: Raw;
-
+export interface ValidatedContext<I extends AnyInput, M extends AnyMeta>
+  extends UnvalidatedContext<M> {
   /** Провалидированные входные данные */
   readonly input: I;
-
-  /** Метаданные, накапливаемые middleware */
-  meta: M;
-
-  /** Метаданные endpoint (readonly) */
-  readonly endpoint: EndpointMeta;
 }
 
-export type AnyContext<
-  I extends AnyInput = AnyInput,
-  M extends AnyMeta = AnyMeta,
-> = UnvalidatedContext<M> | ValidatedContext<I, M>;
+export type AnyContext<I extends AnyInput, M extends AnyMeta> =
+  | UnvalidatedContext<M>
+  | ValidatedContext<I, M>;
+
+export type EmptyContext = UnvalidatedContext<EmptyMeta>;
+
+export type NextContext<
+  C extends AnyContext<I, M>,
+  I extends AnyInput,
+  M extends AnyMeta,
+  N extends M,
+> =
+  C extends ValidatedContext<I, M> ? ValidatedContext<I, N> : AnyContext<I, N>;
 
 /**
  * Создаёт UnvalidatedContext из Raw
  * Вызывается транспортом после парсинга запроса
  */
-export function createUnvalidatedContext(
+export function makeEmptyContext(
   raw: Raw,
   endpoint: EndpointMeta,
-): UnvalidatedContext {
+): EmptyContext {
   return {
     raw,
     meta: {},

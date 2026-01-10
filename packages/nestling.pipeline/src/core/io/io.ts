@@ -285,3 +285,4 @@ export interface WithFiles<T> {
 }
 
 export type AnyMeta = Record<string, unknown>;
+export type EmptyMeta = Record<string, never>;

@@ -24,12 +24,15 @@ import type { MiddlewareFn, ValidatedContext } from '../core/types';
 export function withEntity<
   TKey extends string,
   TEntity,
-  I extends AnyInput = AnyInput,
-  M extends AnyMeta = AnyMeta,
+  I extends AnyInput,
+  M extends AnyMeta,
 >(
   key: TKey,
   loadEntity: (input: I) => Promise<TEntity> | TEntity,
 ): MiddlewareFn<
+  I,
+  M,
+  M & Record<TKey, TEntity>,
   ValidatedContext<I, M>,
   ValidatedContext<I, M & Record<TKey, TEntity>>
 > {
@@ -41,7 +44,7 @@ export function withEntity<
       meta: {
         ...ctx.meta,
         [key]: entity,
-      } as M & Record<TKey, TEntity>,
+      },
     });
   };
 }

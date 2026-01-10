@@ -1,4 +1,5 @@
-import type { AnyContext } from '../core/types';
+import type { AnyInput } from '../core';
+import type { AnyContext, AnyMeta, ResponseContext } from '../core/types';
 
 /**
  * Измеряет время выполнения запроса
@@ -14,10 +15,14 @@ import type { AnyContext } from '../core/types';
  *   .use(validate());
  * ```
  */
-export function withTiming<C extends AnyContext>(
+export function withTiming<
+  I extends AnyInput,
+  M extends AnyMeta,
+  C extends AnyContext<I, M>,
+>(
   ctx: C,
-  next: (ctx: C) => Promise<any>,
-): Promise<any> {
+  next: (ctx: C) => Promise<ResponseContext>,
+): Promise<ResponseContext> {
   return (async () => {
     const start = Date.now();
     const response = await next(ctx);

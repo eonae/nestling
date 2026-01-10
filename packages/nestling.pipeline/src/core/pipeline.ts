@@ -1,6 +1,10 @@
+import type { AnyInput } from './io/io.js';
 import type {
   AnyContext,
+  AnyMeta,
+  EmptyContext,
   ErrorDetails,
+  NextContext,
   ResponseContext,
   UnvalidatedContext,
   ValidatedContext,
@@ -8,7 +12,10 @@ import type {
 /**
  * Type helpers
  */
-import type { Middleware, MiddlewareFn } from './types/middleware.js';
+import type {
+  MiddlewareFn,
+  MiddlewareFnOrInstance,
+} from './types/middleware.js';
 import { normalizeMiddleware } from './types/middleware.js';
 import type { Output, OutputSync } from './result.js';
 import { Fail, Ok } from './result.js';
@@ -16,22 +23,28 @@ import { Fail, Ok } from './result.js';
 /**
  * Типизированный pipeline
  *
- * CIn  - входной тип контекста (обычно UnvalidatedContext<{}>)
+ * CIn  - входной тип контекста (всегда UnvalidatedContext<EmptyMeta> для нового pipeline)
  * COut - выходной тип контекста (ValidatedContext<I, M> или UnvalidatedContext<M>)
  *
  * Pipeline иммутабельный: каждый .use() возвращает новый экземпляр.
  * Это позволяет безопасно переиспользовать базовые pipeline'ы.
  */
-export class Pipeline<CIn extends UnvalidatedContext, COut extends AnyContext> {
+export class Pipeline<
+  I extends AnyInput,
+  M extends AnyMeta,
+  COut extends AnyContext<I, M>,
+> {
   /**
    * Приватный конструктор - создание только через static методы
    */
-  private constructor(private readonly middlewares: MiddlewareFn<any, any>[]) {}
+  private constructor(
+    private readonly middlewares: MiddlewareFn<any, any, any, any, any>[],
+  ) {}
 
   /**
-   * Создаёт пустой pipeline
+   * Создаёт пустой pipeline с пустым meta
    */
-  static empty(): Pipeline<UnvalidatedContext, UnvalidatedContext> {
+  static empty(): Pipeline<AnyInput, AnyMeta, EmptyContext> {
     return new Pipeline([]);
   }
 
@@ -39,9 +52,9 @@ export class Pipeline<CIn extends UnvalidatedContext, COut extends AnyContext> {
    * Добавляет middleware в конец цепочки
    * Возвращает новый pipeline с обновлённым типом
    */
-  use<CNext extends AnyContext>(
-    middleware: Middleware<COut, CNext>,
-  ): Pipeline<CIn, CNext> {
+  use<N extends M, CNext extends NextContext<COut, I, M, N>>(
+    middleware: MiddlewareFnOrInstance<I, M, N, COut, CNext>,
+  ): Pipeline<I, M, CNext> {
     return new Pipeline([...this.middlewares, normalizeMiddleware(middleware)]);
   }
 
@@ -52,16 +65,16 @@ export class Pipeline<CIn extends UnvalidatedContext, COut extends AnyContext> {
    * @param ctx - начальный контекст от транспорта
    */
   async executeWithHandler<TOutput>(
-    handler: (input: any, meta: any) => OutputSync<TOutput> | Output<TOutput>,
-    ctx: CIn,
+    handler: (input: I, meta: M) => OutputSync<TOutput> | Output<TOutput>,
+    ctx: COut,
   ): Promise<ResponseContext<TOutput>> {
     try {
-      let currentCtx: any = ctx;
+      let currentCtx: AnyContext<I, M> = ctx;
 
       // Выполняем цепочку middleware
       for (const middleware of this.middlewares) {
         let nextCalled = false;
-        let nextCtx: any;
+        let nextCtx: AnyContext<I, M> | undefined;
 
         const response = await middleware(currentCtx, async (newCtx) => {
           nextCalled = true;
@@ -75,15 +88,23 @@ export class Pipeline<CIn extends UnvalidatedContext, COut extends AnyContext> {
           return response as ResponseContext<TOutput>;
         }
 
+        if (!nextCtx) {
+          throw new Error(
+            'Middleware called next() but did not provide context',
+          );
+        }
+
         currentCtx = nextCtx;
       }
-
       // Вызываем handler только с input и meta
       // Handler НЕ получает raw и endpoint!
-      const result = await handler(currentCtx.input, currentCtx.meta);
+      const result = await handler(
+        (currentCtx as ValidatedContext<I, M>).input as I, // FIXME: Костыль
+        currentCtx.meta,
+      );
       return this.normalizeResponse(result);
     } catch (error) {
-      return this.errorToResponse(error) as ResponseContext<TOutput>;
+      return this.errorToResponse(error);
     }
   }
 
@@ -110,7 +131,7 @@ export class Pipeline<CIn extends UnvalidatedContext, COut extends AnyContext> {
   /**
    * Конвертирует ошибку в ResponseContext
    */
-  private errorToResponse(error: unknown): ResponseContext {
+  private errorToResponse(error: unknown): ResponseContext<never> {
     if (error instanceof Fail) {
       const errorValue: ErrorDetails = {
         error: error.message,
@@ -147,24 +168,21 @@ export class Pipeline<CIn extends UnvalidatedContext, COut extends AnyContext> {
 }
 
 /**
- * Создаёт пустой pipeline
+ * Создаёт пустой pipeline с пустым meta
  * Fluent API entry point
  */
-export function definePipeline(): Pipeline<
-  UnvalidatedContext,
-  UnvalidatedContext
-> {
+export function definePipeline(): Pipeline<AnyInput, AnyMeta, EmptyContext> {
   return Pipeline.empty();
 }
 
 /** Извлекает TMeta из pipeline */
 export type InferPipelineMeta<P> =
-  P extends Pipeline<any, ValidatedContext<any, infer M>>
+  P extends Pipeline<any, any, ValidatedContext<any, infer M>>
     ? M
-    : P extends Pipeline<any, UnvalidatedContext<infer M>>
+    : P extends Pipeline<any, any, UnvalidatedContext<infer M>>
       ? M
       : never;
 
 /** Проверяет, содержит ли pipeline validate() */
 export type HasValidation<P> =
-  P extends Pipeline<any, ValidatedContext<any, any>> ? true : false;
+  P extends Pipeline<any, any, ValidatedContext<any, any>> ? true : false;

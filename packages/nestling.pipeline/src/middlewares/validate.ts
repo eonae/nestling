@@ -39,7 +39,7 @@ interface ValidationSchema {
 export function validate<
   I extends AnyInput = AnyInput,
   M extends AnyMeta = AnyMeta,
->(): MiddlewareFn<UnvalidatedContext<M>, ValidatedContext<I, M>> {
+>(): MiddlewareFn<I, M, M, UnvalidatedContext<M>, ValidatedContext<I, M>> {
   return async (ctx, next) => {
     // Получаем схему из endpoint metadata
     const schema = ctx.endpoint.input as ValidationSchema | undefined;

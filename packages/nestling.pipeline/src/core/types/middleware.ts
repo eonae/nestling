@@ -1,4 +1,11 @@
-import type { AnyContext, ResponseContext } from './context.js';
+import type { AnyInput } from '../io/io.js';
+
+import type {
+  AnyContext,
+  AnyMeta,
+  NextContext,
+  ResponseContext,
+} from './context.js';
 
 /**
  * Функция middleware
@@ -9,8 +16,11 @@ import type { AnyContext, ResponseContext } from './context.js';
  * @returns ResponseContext (может быть возвращён напрямую для short-circuit)
  */
 export type MiddlewareFn<
-  CIn extends AnyContext = AnyContext,
-  COut extends AnyContext = AnyContext,
+  I extends AnyInput,
+  M extends AnyMeta,
+  N extends M,
+  CIn extends AnyContext<I, M>,
+  COut extends NextContext<CIn, I, M, N>,
 > = (
   ctx: CIn,
   next: (ctx: COut) => Promise<ResponseContext>,
@@ -20,30 +30,38 @@ export type MiddlewareFn<
  * Интерфейс для классовых middleware
  */
 export interface IMiddleware<
-  CIn extends AnyContext = AnyContext,
-  COut extends AnyContext = AnyContext,
+  I extends AnyInput,
+  M extends AnyMeta,
+  N extends M,
+  CIn extends AnyContext<I, M>,
+  COut extends NextContext<CIn, I, M, N>,
 > {
-  handle(
-    ctx: CIn,
-    next: (ctx: COut) => Promise<ResponseContext>,
-  ): Promise<ResponseContext>;
+  handle: MiddlewareFn<I, M, N, CIn, COut>;
 }
 
 /**
  * Middleware может быть функцией или классом
  */
-export type Middleware<
-  CIn extends AnyContext = AnyContext,
-  COut extends AnyContext = AnyContext,
-> = MiddlewareFn<CIn, COut> | IMiddleware<CIn, COut>;
+export type MiddlewareFnOrInstance<
+  I extends AnyInput,
+  M extends AnyMeta,
+  N extends M,
+  CIn extends AnyContext<I, M>,
+  COut extends NextContext<CIn, I, M, N>,
+> = MiddlewareFn<I, M, N, CIn, COut> | IMiddleware<I, M, N, CIn, COut>;
 
 /**
  * Приводит middleware к функциональной форме
  */
 export function normalizeMiddleware<
-  CIn extends AnyContext = AnyContext,
-  COut extends AnyContext = AnyContext,
->(mw: Middleware<CIn, COut>): MiddlewareFn<CIn, COut> {
+  I extends AnyInput,
+  M extends AnyMeta,
+  N extends M,
+  CIn extends AnyContext<I, M>,
+  COut extends NextContext<CIn, I, M, N>,
+>(
+  mw: MiddlewareFnOrInstance<I, M, N, CIn, COut>,
+): MiddlewareFn<I, M, N, CIn, COut> {
   if (typeof mw === 'function') {
     return mw;
   }
@@ -54,8 +72,13 @@ export function normalizeMiddleware<
  * Проверяет, является ли middleware классом
  */
 export function isMiddlewareClass<
-  CIn extends AnyContext = AnyContext,
-  COut extends AnyContext = AnyContext,
->(mw: Middleware<CIn, COut>): mw is IMiddleware<CIn, COut> {
+  I extends AnyInput,
+  M extends AnyMeta,
+  N extends M,
+  CIn extends AnyContext<I, M>,
+  COut extends NextContext<CIn, I, M, N>,
+>(
+  mw: MiddlewareFnOrInstance<I, M, N, CIn, COut>,
+): mw is IMiddleware<I, M, N, CIn, COut> {
   return typeof mw !== 'function' && typeof mw.handle === 'function';
 }

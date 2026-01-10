@@ -1,11 +1,12 @@
-import type { AnyMeta } from '../core';
-import type { MiddlewareFn, Raw, UnvalidatedContext } from '../core/types';
+import type { AnyInput, AnyMeta } from '../core';
+import type { AnyContext, MiddlewareFn, NextContext, Raw } from '../core/types';
+
+type WithIdentity<M extends AnyMeta, TUser> = M & { identity: TUser };
 
 /**
  * Добавляет identity в metadata
  *
  * Читает raw.attributes для извлечения токена/сессии.
- * Работает только с UnvalidatedContext (до validate).
  *
  * @param authenticate - функция аутентификации, получает Raw и возвращает identity
  *
@@ -30,11 +31,19 @@ import type { MiddlewareFn, Raw, UnvalidatedContext } from '../core/types';
  *   .use(validate());
  * ```
  */
-export function withIdentity<TUser, M extends AnyMeta = AnyMeta>(
+export function withIdentity<
+  TUser,
+  I extends AnyInput,
+  M extends AnyMeta,
+  C extends AnyContext<I, M>,
+>(
   authenticate: (raw: Raw) => Promise<TUser> | TUser,
 ): MiddlewareFn<
-  UnvalidatedContext<M>,
-  UnvalidatedContext<M & { identity: TUser }>
+  I,
+  M,
+  WithIdentity<M, TUser>,
+  C,
+  NextContext<C, I, M, WithIdentity<M, TUser>>
 > {
   return async (ctx, next) => {
     const identity = await authenticate(ctx.raw);
@@ -44,7 +53,7 @@ export function withIdentity<TUser, M extends AnyMeta = AnyMeta>(
       meta: {
         ...ctx.meta,
         identity,
-      } as M & { identity: TUser },
+      },
     });
   };
 }
