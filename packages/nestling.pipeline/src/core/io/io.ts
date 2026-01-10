@@ -53,7 +53,7 @@ export interface FilesModifier {
  * - Примитив ('binary' | 'text')
  * - Модификатор (stream, withFiles, etc)
  */
-export type AnyInput<T extends Optional<Schema> = Optional<Schema>> =
+export type AnyPayload<T extends Optional<Schema> = Optional<Schema>> =
   | T // Schema
   | IOPrimitive // Primitives
   | StreamModifier<T | IOPrimitive> // stream(schema)
@@ -131,7 +131,7 @@ type InferSchemaType<S> = S extends 'binary'
 /**
  * Результат анализа input конфигурации для транспорта
  */
-export type InputConfig =
+export type PayloadConfig =
   | {
       type: 'stream';
       schema?: unknown;
@@ -163,7 +163,7 @@ export type InputConfig =
  *
  * @example
  * ```typescript
- * input: stream(LogSchema)
+ * payload: stream(LogSchema)
  * → payload: AsyncIterableIterator<Log>
  * ```
  */
@@ -187,7 +187,7 @@ export function stream<T extends Schema | IOPrimitive>(
  *
  * @example
  * ```typescript
- * input: withFiles(FormSchema)
+ * payload: withFiles(FormSchema)
  * → payload: { data: Form; files: FilePart[] }
  * ```
  */
@@ -214,7 +214,7 @@ export function withFiles<T extends Schema>(
  *
  * @example
  * ```typescript
- * input: files()
+ * payload: files()
  * → payload: FilePart[]
  * ```
  */
@@ -232,25 +232,25 @@ export function files(opts?: { buffer?: boolean }): FilesModifier {
 }
 
 /**
- * Анализирует input конфигурацию и возвращает метаданные для транспорта
+ * Анализирует payload-конфигурацию и возвращает метаданные для транспорта
  *
- * @param input - Input конфигурация (Schema, модификатор или примитив)
+ * @param def - payload-конфигурация (Schema, модификатор или примитив)
  * @returns Нормализованная конфигурация для транспорта
  */
-export function analyzeInput(input?: unknown): InputConfig {
+export function analyzePayload(def?: unknown): PayloadConfig {
   // Undefined
-  if (input === undefined) {
+  if (def === undefined) {
     return { type: 'schema' as const, schema: undefined };
   }
 
   // Примитивы
-  if (input === 'binary' || input === 'text') {
-    return { type: 'primitive' as const, primitive: input };
+  if (def === 'binary' || def === 'text') {
+    return { type: 'primitive' as const, primitive: def };
   }
 
   // Модификаторы (проверяем __type поле)
-  if (typeof input === 'object' && input !== null) {
-    const modifier = input as any;
+  if (typeof def === 'object' && def !== null) {
+    const modifier = def as any;
 
     if (modifier.__type === 'stream') {
       return {
@@ -276,7 +276,7 @@ export function analyzeInput(input?: unknown): InputConfig {
   }
 
   // Обычная схема (zod, yup, etc)
-  return { type: 'schema' as const, schema: input };
+  return { type: 'schema' as const, schema: def };
 }
 
 export interface WithFiles<T> {
@@ -284,5 +284,5 @@ export interface WithFiles<T> {
   files: FilePart[];
 }
 
-export type AnyMeta = Record<string, unknown>;
-export type EmptyMeta = Record<string, never>;
+export type AnyInput = Record<string, unknown>;
+export type EmptyInput = Record<never, never>;

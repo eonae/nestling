@@ -1,16 +1,10 @@
-import type { AnyInput, AnyMeta } from '../core';
-import type {
-  MiddlewareFn,
-  UnvalidatedContext,
-  ValidatedContext,
-} from '../core/types';
+/* eslint-disable @typescript-eslint/consistent-type-definitions */
+import type { EmptyInput } from '../core';
+import type { MiddlewareFn } from '../core/types';
 
-/**
- * Интерфейс для схемы валидации (zod-совместимый)
- */
-interface ValidationSchema {
-  parse(data: unknown): unknown;
-}
+export type Addition = {
+  payload: unknown | undefined;
+};
 
 /**
  * Валидирует raw.payload и создаёт input
@@ -36,23 +30,13 @@ interface ValidationSchema {
  * class UpdateUser implements IEndpoint<UpdateUserInput, { identity: User }, User> { ... }
  * ```
  */
-export function validate<
-  I extends AnyInput = AnyInput,
-  M extends AnyMeta = AnyMeta,
->(): MiddlewareFn<I, M, M, UnvalidatedContext<M>, ValidatedContext<I, M>> {
-  return async (ctx, next) => {
-    // Получаем схему из endpoint metadata
-    const schema = ctx.endpoint.input as ValidationSchema | undefined;
+export function validate(): MiddlewareFn<EmptyInput, Addition> {
+  return async (ctx) => {
+    const schema = ctx.endpoint.input;
+    const payload = schema ? schema.parse(ctx.raw.payload) : undefined;
 
-    const input: unknown = schema ? schema.parse(ctx.raw.payload) : {};
-
-    // Создаём ValidatedContext с input
-    // raw больше не передаётся — он недоступен после валидации
-    return next({
-      raw: ctx.raw,
-      input: input as I, // TODO: Костылёк
-      meta: ctx.meta,
-      endpoint: ctx.endpoint,
-    });
+    return {
+      payload,
+    };
   };
 }

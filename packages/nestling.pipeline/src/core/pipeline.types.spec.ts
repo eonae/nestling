@@ -11,14 +11,14 @@
 
 import { validate, withIdentity, withMeta } from '../middlewares';
 import type { Logger } from '../middlewares/logging';
-import { withLogging } from '../middlewares/logging';
+import { withRequestLogging } from '../middlewares/logging';
 import { withTiming } from '../middlewares/timing';
 
 import type { HasValidation, InferPipelineMeta } from './pipeline';
 import { definePipeline } from './pipeline';
 import type {
   ResponseContext,
-  UnvalidatedContext,
+  ExtendableContext,
   ValidatedContext,
 } from './types';
 
@@ -58,7 +58,7 @@ describe('Pipeline type compatibility', () => {
     // ✅ Правильная последовательность
     const pipeline = definePipeline()
       .use(withTiming) // AnyContext → AnyContext
-      .use(withLogging(mockLogger)) // UnvalidatedContext<M> → UnvalidatedContext<M>
+      .use(withRequestLogging(mockLogger)) // UnvalidatedContext<M> → UnvalidatedContext<M>
       .use(withIdentity<User>(mockAuthenticator)) // UnvalidatedContext<M> → UnvalidatedContext<M & { identity: User }>
       .use(validate()); // UnvalidatedContext<M> → ValidatedContext<I, M>
 
@@ -244,7 +244,7 @@ describe('Pipeline type compatibility', () => {
   it('should work in realistic scenario', () => {
     const realisticPipeline = definePipeline()
       .use(withTiming) // Измерение времени
-      .use(withLogging(mockLogger)) // Логирование
+      .use(withRequestLogging(mockLogger)) // Логирование
       .use(withMeta('requestId', () => crypto.randomUUID())) // Request ID
       .use(withMeta('timestamp', () => Date.now())) // Timestamp
       .use(withIdentity<User>(mockAuthenticator)) // Аутентификация
@@ -273,7 +273,7 @@ describe('Pipeline type compatibility', () => {
     // Базовый pipeline для аутентификации
     const basePipeline = definePipeline()
       .use(withTiming)
-      .use(withLogging(mockLogger))
+      .use(withRequestLogging(mockLogger))
       .use(withIdentity<User>(mockAuthenticator));
 
     // Расширяем для обычных endpoint'ов
@@ -324,7 +324,7 @@ describe('Pipeline type compatibility', () => {
   it('should return false for HasValidation without validate', () => {
     const withoutValidate = definePipeline()
       .use(withTiming)
-      .use(withLogging(mockLogger))
+      .use(withRequestLogging(mockLogger))
       .use(withIdentity<User>(mockAuthenticator));
 
     type HasVal = HasValidation<typeof withoutValidate>;
@@ -389,15 +389,15 @@ describe('Pipeline edge cases', () => {
   it('should allow custom middleware with correct types', () => {
     // Custom middleware, который добавляет поле в meta
     const customMiddleware = async <M extends { identity: User }>(
-      ctx: UnvalidatedContext<M>,
+      ctx: ExtendableContext<M>,
       next: (
-        ctx: UnvalidatedContext<M & { customField: string }>,
+        ctx: ExtendableContext<M & { customField: string }>,
       ) => Promise<ResponseContext>,
     ): Promise<ResponseContext> => {
       return next({
         ...ctx,
-        meta: {
-          ...ctx.meta,
+        input: {
+          ...ctx.input,
           customField: 'custom-value',
         },
       });

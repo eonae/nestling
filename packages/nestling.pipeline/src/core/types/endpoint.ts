@@ -1,10 +1,4 @@
-import type {
-  AnyInput,
-  AnyMeta,
-  AnyOutput,
-  InferInput,
-  InferOutput,
-} from '../io/io.js';
+import type { AnyInput, AnyOutput, InferInput, InferOutput } from '../io/io.js';
 import type { Output, OutputSync } from '../result.js';
 
 /**
@@ -20,11 +14,9 @@ import type { Output, OutputSync } from '../result.js';
 export interface IEndpoint<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
 > {
   handle(
     input: InferInput<I>,
-    meta: M,
   ): OutputSync<InferOutput<O>> | Output<InferOutput<O>>;
 }
 
@@ -34,5 +26,4 @@ export interface IEndpoint<
 export type HandlerFn<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
-> = IEndpoint<I, O, M>['handle'];
+> = IEndpoint<I, O>['handle'];

@@ -1,4 +1,4 @@
-import { analyzeInput, files, stream, withFiles } from './io';
+import { analyzePayload, files, stream, withFiles } from './io';
 
 import { z } from 'zod';
 
@@ -83,7 +83,7 @@ describe('files', () => {
 
 describe('analyzeInput', () => {
   it('should analyze undefined input', () => {
-    const result = analyzeInput();
+    const result = analyzePayload();
 
     expect(result).toEqual({
       type: 'schema',
@@ -92,12 +92,12 @@ describe('analyzeInput', () => {
   });
 
   it('should analyze primitive input', () => {
-    expect(analyzeInput('binary')).toEqual({
+    expect(analyzePayload('binary')).toEqual({
       type: 'primitive',
       primitive: 'binary',
     });
 
-    expect(analyzeInput('text')).toEqual({
+    expect(analyzePayload('text')).toEqual({
       type: 'primitive',
       primitive: 'text',
     });
@@ -106,7 +106,7 @@ describe('analyzeInput', () => {
   it('should analyze stream modifier', () => {
     const schema = z.object({ id: z.string() });
     const modifier = stream(schema);
-    const result = analyzeInput(modifier);
+    const result = analyzePayload(modifier);
 
     expect(result).toEqual({
       type: 'stream',
@@ -117,7 +117,7 @@ describe('analyzeInput', () => {
   it('should analyze withFiles modifier', () => {
     const schema = z.object({ title: z.string() });
     const modifier = withFiles(schema, { buffer: true });
-    const result = analyzeInput(modifier);
+    const result = analyzePayload(modifier);
 
     expect(result).toEqual({
       type: 'withFiles',
@@ -128,7 +128,7 @@ describe('analyzeInput', () => {
 
   it('should analyze files modifier', () => {
     const modifier = files({ buffer: true });
-    const result = analyzeInput(modifier);
+    const result = analyzePayload(modifier);
 
     expect(result).toEqual({
       type: 'files',
@@ -138,7 +138,7 @@ describe('analyzeInput', () => {
 
   it('should analyze schema input', () => {
     const schema = z.object({ name: z.string() });
-    const result = analyzeInput(schema);
+    const result = analyzePayload(schema);
 
     expect(result).toEqual({
       type: 'schema',

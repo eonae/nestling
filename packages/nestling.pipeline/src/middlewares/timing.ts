@@ -1,4 +1,4 @@
-import type { AnyInput } from '../core';
+import type { AnyPayload } from '../core';
 import type { AnyContext, AnyMeta, ResponseContext } from '../core/types';
 
 /**
@@ -16,7 +16,7 @@ import type { AnyContext, AnyMeta, ResponseContext } from '../core/types';
  * ```
  */
 export function withTiming<
-  I extends AnyInput,
+  I extends AnyPayload,
   M extends AnyMeta,
   C extends AnyContext<I, M>,
 >(

@@ -1,24 +1,62 @@
-import type { AnyInput } from './io/io.js';
+import type { AnyInput, EmptyInput } from './io/io.js';
 import type {
-  AnyContext,
-  AnyMeta,
-  EmptyContext,
   ErrorDetails,
-  NextContext,
+  ExtendableContext,
   ResponseContext,
-  UnvalidatedContext,
-  ValidatedContext,
 } from './types/context.js';
 /**
  * Type helpers
  */
 import type {
+  AnyAddition,
+  IMiddleware,
   MiddlewareFn,
-  MiddlewareFnOrInstance,
-} from './types/middleware.js';
-import { normalizeMiddleware } from './types/middleware.js';
+  MiddlewareInstanceOrFunction,
+} from './types/middleware.before.js';
+import { normalizeMiddleware } from './types/middleware.before.js';
 import type { Output, OutputSync } from './result.js';
 import { Fail, Ok } from './result.js';
+
+type OverlapKeys<A, B> = keyof A & keyof B;
+
+/**
+ * Проверяет совместимость TReq и TAdd с TCurrentInput
+ */
+type CheckMiddlewareCompatibility<TCurrentInput, TReq, TAdd, M> =
+  TCurrentInput extends TReq
+    ? OverlapKeys<TCurrentInput, TAdd> extends never
+      ? M
+      : {
+          ERROR: 'Middleware is overriding fields in input';
+          CONFLICTING_KEYS: OverlapKeys<TCurrentInput, TAdd>;
+          CURRENT_INPUT: TCurrentInput;
+          MIDDLEWARE_ADDITION: TAdd;
+        }
+    : {
+        ERROR: 'Input is not assignable to middleware input';
+        CURRENT_INPUT: TCurrentInput;
+        MIDDLEWARE_EXPECTS: TReq;
+      };
+
+/**
+ * Валидирует совместимость middleware с текущим input
+ */
+type ValidateMiddleware<TCurrentInput extends AnyInput, M> =
+  M extends MiddlewareFn<infer TReq, infer TAdd>
+    ? CheckMiddlewareCompatibility<TCurrentInput, TReq, TAdd, M>
+    : M extends IMiddleware<infer TReq, infer TAdd>
+      ? CheckMiddlewareCompatibility<TCurrentInput, TReq, TAdd, M>
+      : never;
+
+/**
+ * Извлекает TAddition из middleware
+ */
+type ExtractAddition<M> =
+  M extends MiddlewareFn<any, infer TAdd>
+    ? TAdd
+    : M extends IMiddleware<any, infer TAdd>
+      ? TAdd
+      : never;
 
 /**
  * Типизированный pipeline
@@ -29,33 +67,30 @@ import { Fail, Ok } from './result.js';
  * Pipeline иммутабельный: каждый .use() возвращает новый экземпляр.
  * Это позволяет безопасно переиспользовать базовые pipeline'ы.
  */
-export class Pipeline<
-  I extends AnyInput,
-  M extends AnyMeta,
-  COut extends AnyContext<I, M>,
-> {
+export class Pipeline<TInput extends AnyInput> {
   /**
    * Приватный конструктор - создание только через static методы
    */
   private constructor(
-    private readonly middlewares: MiddlewareFn<any, any, any, any, any>[],
+    private readonly middlewares: ((
+      ctx: any,
+    ) => Promise<AnyAddition | undefined>)[] = [],
   ) {}
 
   /**
    * Создаёт пустой pipeline с пустым meta
    */
-  static empty(): Pipeline<AnyInput, AnyMeta, EmptyContext> {
+  static empty(): Pipeline<EmptyInput> {
     return new Pipeline([]);
   }
 
-  /**
-   * Добавляет middleware в конец цепочки
-   * Возвращает новый pipeline с обновлённым типом
-   */
-  use<N extends M, CNext extends NextContext<COut, I, M, N>>(
-    middleware: MiddlewareFnOrInstance<I, M, N, COut, CNext>,
-  ): Pipeline<I, M, CNext> {
-    return new Pipeline([...this.middlewares, normalizeMiddleware(middleware)]);
+  use<M extends MiddlewareInstanceOrFunction<any, any>>(
+    middleware: ValidateMiddleware<TInput, M>,
+  ): Pipeline<TInput & ExtractAddition<M>> {
+    return new Pipeline([
+      ...this.middlewares,
+      normalizeMiddleware(middleware as M),
+    ]);
   }
 
   /**
@@ -65,43 +100,28 @@ export class Pipeline<
    * @param ctx - начальный контекст от транспорта
    */
   async executeWithHandler<TOutput>(
-    handler: (input: I, meta: M) => OutputSync<TOutput> | Output<TOutput>,
-    ctx: COut,
+    handler: (input: TInput) => OutputSync<TOutput> | Output<TOutput>,
+    ctx: ExtendableContext<TInput>,
   ): Promise<ResponseContext<TOutput>> {
     try {
-      let currentCtx: AnyContext<I, M> = ctx;
+      let currentCtx: ExtendableContext<AnyInput> = ctx;
 
       // Выполняем цепочку middleware
       for (const middleware of this.middlewares) {
-        let nextCalled = false;
-        let nextCtx: AnyContext<I, M> | undefined;
+        const append = await middleware(currentCtx);
 
-        const response = await middleware(currentCtx, async (newCtx) => {
-          nextCalled = true;
-          nextCtx = newCtx;
-          // Возвращаем placeholder - реальный response будет от handler'а
-          return null as any;
-        });
-
-        // Если middleware вернул response напрямую (short-circuit)
-        if (!nextCalled) {
-          return response as ResponseContext<TOutput>;
-        }
-
-        if (!nextCtx) {
-          throw new Error(
-            'Middleware called next() but did not provide context',
-          );
-        }
-
-        currentCtx = nextCtx;
+        currentCtx = {
+          ...currentCtx,
+          input: {
+            ...currentCtx.input,
+            ...append,
+          },
+        };
       }
-      // Вызываем handler только с input и meta
-      // Handler НЕ получает raw и endpoint!
-      const result = await handler(
-        (currentCtx as ValidatedContext<I, M>).input as I, // FIXME: Костыль
-        currentCtx.meta,
-      );
+
+      // Здесь мы верим, что благодаря сильной типизации Use - последняя middleware
+      // действительно возвращает именно TInput.
+      const result = await handler(currentCtx.input as TInput);
       return this.normalizeResponse(result);
     } catch (error) {
       return this.errorToResponse(error);
@@ -171,18 +191,6 @@ export class Pipeline<
  * Создаёт пустой pipeline с пустым meta
  * Fluent API entry point
  */
-export function definePipeline(): Pipeline<AnyInput, AnyMeta, EmptyContext> {
+export function definePipeline(): Pipeline<EmptyInput> {
   return Pipeline.empty();
 }
-
-/** Извлекает TMeta из pipeline */
-export type InferPipelineMeta<P> =
-  P extends Pipeline<any, any, ValidatedContext<any, infer M>>
-    ? M
-    : P extends Pipeline<any, any, UnvalidatedContext<infer M>>
-      ? M
-      : never;
-
-/** Проверяет, содержит ли pipeline validate() */
-export type HasValidation<P> =
-  P extends Pipeline<any, any, ValidatedContext<any, any>> ? true : false;

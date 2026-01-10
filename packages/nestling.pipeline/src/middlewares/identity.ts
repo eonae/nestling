@@ -1,7 +1,7 @@
-import type { AnyInput, AnyMeta } from '../core';
-import type { AnyContext, MiddlewareFn, NextContext, Raw } from '../core/types';
+import type { AnyPayload, AnyInput } from '../core';
+import type { AnyContext, MiddlewareFnAppending, NextContext, Raw } from '../core/types';
 
-type WithIdentity<M extends AnyMeta, TUser> = M & { identity: TUser };
+type WithIdentity<M extends AnyInput, TUser> = M & { identity: TUser };
 
 /**
  * Добавляет identity в metadata
@@ -33,12 +33,12 @@ type WithIdentity<M extends AnyMeta, TUser> = M & { identity: TUser };
  */
 export function withIdentity<
   TUser,
-  I extends AnyInput,
-  M extends AnyMeta,
+  I extends AnyPayload,
+  M extends AnyInput,
   C extends AnyContext<I, M>,
 >(
   authenticate: (raw: Raw) => Promise<TUser> | TUser,
-): MiddlewareFn<
+): MiddlewareFnAppending<
   I,
   M,
   WithIdentity<M, TUser>,

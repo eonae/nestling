@@ -7,7 +7,7 @@
 
 import { validate, withIdentity, withMeta } from '../middlewares';
 import type { Logger } from '../middlewares/logging';
-import { withLogging } from '../middlewares/logging';
+import { withRequestLogging } from '../middlewares/logging';
 import { withTiming } from '../middlewares/timing';
 
 import type { InferPipelineMeta } from './pipeline';
@@ -121,7 +121,7 @@ describe('Pipeline advanced type safety', () => {
   // ============================================================================
 
   it('should not mutate base pipeline', () => {
-    const base = definePipeline().use(withLogging(mockLogger));
+    const base = definePipeline().use(withRequestLogging(mockLogger));
 
     // Создаём две разные ветки
     const branch1 = base.use(withIdentity<User>(mockAuthenticator));
@@ -209,7 +209,7 @@ describe('Pipeline advanced type safety', () => {
     // Базовый pipeline с общей логикой
     const basePipeline = definePipeline()
       .use(withTiming)
-      .use(withLogging(mockLogger))
+      .use(withRequestLogging(mockLogger))
       .use(withMeta('requestId', () => 'test-id'))
       .use(withIdentity<User>(mockAuthenticator));
 

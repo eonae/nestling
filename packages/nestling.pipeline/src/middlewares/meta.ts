@@ -1,5 +1,5 @@
-import type { AnyMeta } from '../core';
-import type { MiddlewareFn, UnvalidatedContext } from '../core/types';
+import type { AnyInput } from '../core';
+import type { MiddlewareFnAppending, ExtendableContext } from '../core/types';
 
 /**
  * Добавляет произвольное поле в metadata (до validate)
@@ -20,13 +20,13 @@ import type { MiddlewareFn, UnvalidatedContext } from '../core/types';
 export function withMeta<
   TKey extends string,
   TValue,
-  M extends AnyMeta = AnyMeta,
+  M extends AnyInput = AnyInput,
 >(
   key: TKey,
-  getValue: (ctx: UnvalidatedContext<M>) => Promise<TValue> | TValue,
-): MiddlewareFn<
-  UnvalidatedContext<M>,
-  UnvalidatedContext<M & Record<TKey, TValue>>
+  getValue: (ctx: ExtendableContext<M>) => Promise<TValue> | TValue,
+): MiddlewareFnAppending<
+  ExtendableContext<M>,
+  ExtendableContext<M & Record<TKey, TValue>>
 > {
   return async (ctx, next) => {
     const value = await getValue(ctx);

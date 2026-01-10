@@ -1,13 +1,13 @@
 import type {
+  AnyPayload,
   AnyInput,
-  AnyMeta,
   AnyOutput,
   IEndpoint,
   Pipeline,
 } from '../core';
 import type {
   HandlerFn,
-  UnvalidatedContext,
+  ExtendableContext,
   ValidatedContext,
 } from '../core/types';
 
@@ -24,9 +24,9 @@ const HANDLER_KEY = Symbol.for('nestling:handler');
  * Конфигурация endpoint-класса
  */
 export interface EndpointDefinition<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
+  M extends AnyInput = AnyInput,
 > {
   transport: string;
   pattern: string;
@@ -40,13 +40,13 @@ export interface EndpointDefinition<
   output?: O;
 
   /** Pipeline для этого endpoint */
-  pipeline?: Pipeline<UnvalidatedContext<M>, ValidatedContext<I, M>>;
+  pipeline?: Pipeline<ExtendableContext<M>, ValidatedContext<I, M>>;
 }
 
 export type EndpointMetadata<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
+  M extends AnyInput = AnyInput,
 > = Omit<EndpointDefinition<I, O, M>, 'handle'>;
 
 /**
@@ -75,9 +75,9 @@ export type EndpointMetadata<
  * ```
  */
 export function Endpoint<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
+  M extends AnyInput = AnyInput,
 >(metadata: EndpointMetadata<I, O, M>) {
   return <T extends Constructor<IEndpoint<I, O, M>>>(
     target: T,
@@ -100,9 +100,9 @@ export function Endpoint<
  * Извлекает метаданные handler-класса
  */
 export function getEndpointMetadata<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
+  M extends AnyInput = AnyInput,
 >(target: any): EndpointMetadata<I, O, M> | null {
   const constructor = target.prototype ? target : target.constructor;
   return constructor[HANDLER_KEY] || null;
@@ -112,9 +112,9 @@ export function getEndpointMetadata<
  * Вспомогательная функция для создания конфигурации endpoint'а с корректным выводом типов.
  */
 export function makeEndpoint<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
+  M extends AnyInput = AnyInput,
 >(definition: EndpointDefinition<I, O, M>): EndpointDefinition<I, O, M> {
   return definition;
 }

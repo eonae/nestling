@@ -1,5 +1,5 @@
 import { Injectable } from '@nestling/container';
-import type { AnyMeta, IEndpoint, Output } from '@nestling/pipeline';
+import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';

@@ -1,5 +1,5 @@
-import type { AnyInput, AnyMeta } from '../core';
-import type { AnyContext, MiddlewareFn, NextContext } from '../core/types';
+import type { AnyInput } from '../core';
+import type { ExtendableContext, MiddlewareFn } from '../core/types';
 
 /**
  * Интерфейс логгера
@@ -22,15 +22,11 @@ export interface Logger {
  *   .use(validate());
  * ```
  */
-export function withLogging<
+export function withRequestLogging<
   I extends AnyInput,
-  M extends AnyMeta,
-  C extends AnyContext<I, M>,
->(logger: Logger): MiddlewareFn<I, M, M, C, NextContext<C, I, M, M>> {
-  return async (ctx, next) => {
+  CNext extends ExtendableContext<I>,
+>(logger: Logger): MiddlewareFn<I, undefined, CNext> {
+  return async (ctx) => {
     logger.log(`[${ctx.raw.transport}] ${ctx.raw.pattern} - started`);
-    const response = await next(ctx as NextContext<C, I, M, M>);
-    logger.log(`[${ctx.raw.transport}] ${ctx.raw.pattern} - completed`);
-    return response;
   };
 }
