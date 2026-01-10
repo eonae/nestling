@@ -11,7 +11,7 @@ export const SayHello = makeEndpoint({
   transport: 'http',
   pattern: 'GET /',
   output: SayHelloOutput,
-  pipeline: definePipeline().use(withTiming()),
+  pipeline: definePipeline().use(withTiming),
   handle: async () => ({
     message: 'Hello from Nestling HTTP Transport!',
     timestamp: new Date().toISOString(),

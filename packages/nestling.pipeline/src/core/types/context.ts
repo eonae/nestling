@@ -1,6 +1,6 @@
 import type { Readable } from 'node:stream';
 
-import type { AnyInput, EmptyMeta } from '../io/io';
+import type { AnyInput, AnyMeta } from '../io/io';
 import type { ErrorStatus, SuccessStatus } from '../status';
 
 import type { Raw } from './raw.js';
@@ -57,12 +57,12 @@ export interface EndpointMeta {
  * - Могут добавлять поля в meta
  * - Могут читать endpoint для конфигурации
  */
-export interface UnvalidatedContext<TMeta extends EmptyMeta = EmptyMeta> {
+export interface UnvalidatedContext<M extends AnyMeta = AnyMeta> {
   /** Данные от транспорта */
   readonly raw: Raw;
 
   /** Метаданные, накапливаемые middleware */
-  meta: TMeta;
+  meta: M;
 
   /** Метаданные endpoint (readonly) */
   readonly endpoint: EndpointMeta;
@@ -81,8 +81,11 @@ export interface UnvalidatedContext<TMeta extends EmptyMeta = EmptyMeta> {
  */
 export interface ValidatedContext<
   I extends AnyInput = AnyInput,
-  M extends EmptyMeta = EmptyMeta,
+  M extends AnyMeta = AnyMeta,
 > {
+  /** Данные от транспорта */
+  readonly raw: Raw;
+
   /** Провалидированные входные данные */
   readonly input: I;
 
@@ -95,7 +98,7 @@ export interface ValidatedContext<
 
 export type AnyContext<
   I extends AnyInput = AnyInput,
-  M extends EmptyMeta = EmptyMeta,
+  M extends AnyMeta = AnyMeta,
 > = UnvalidatedContext<M> | ValidatedContext<I, M>;
 
 /**

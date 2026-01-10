@@ -19,9 +19,13 @@ import { HttpRouter } from './router.js';
 
 import type { Schema } from '@common/misc';
 import type {
+  AnyInput,
+  AnyMeta,
+  AnyOutput,
   EndpointDefinition,
   EndpointMeta,
   IEndpoint,
+  InferInput,
   Pipeline,
   Raw,
   UnvalidatedContext,
@@ -55,9 +59,13 @@ export class HttpTransport {
   /**
    * Регистрирует endpoint
    */
-  registerEndpoint<TInput, TMeta, TOutput>(
-    instance: IEndpoint<TInput, TMeta, TOutput>,
-    metadata: HttpEndpointMetadata<TInput, TOutput>,
+  registerEndpoint<
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
+    M extends AnyMeta = AnyMeta,
+  >(
+    instance: IEndpoint<I, O, M>,
+    metadata: HttpEndpointMetadata<I, O, M>,
   ): void {
     this.router.route({
       transport: 'http',
@@ -65,25 +73,29 @@ export class HttpTransport {
       input: metadata.input,
       output: metadata.output,
       pipeline: metadata.pipeline,
-      handle: (input: TInput, meta: TMeta) => instance.handle(input, meta),
-    } as any);
+      handle: (input: InferInput<I>, meta: M) => instance.handle(input, meta),
+    });
   }
 
   /**
    * Регистрирует маршрут через definition
    */
-  route<TInput, TMeta, TOutput>(
-    definition: EndpointDefinition<TInput, TMeta, TOutput>,
-  ): void {
-    this.router.route(definition as any);
+  route<
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
+    M extends AnyMeta = AnyMeta,
+  >(definition: EndpointDefinition<I, O, M>): void {
+    this.router.route(definition);
   }
 
   /**
    * Alias для route() - реализация ITransport интерфейса
    */
-  endpoint<TInput, TMeta, TOutput>(
-    definition: EndpointDefinition<TInput, TMeta, TOutput>,
-  ): void {
+  endpoint<
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
+    M extends AnyMeta = AnyMeta,
+  >(definition: EndpointDefinition<I, O, M>): void {
     this.route(definition);
   }
 
@@ -249,9 +261,9 @@ export class HttpTransport {
           output: route.definition.output,
         };
 
-        const ctx: UnvalidatedContext<Record<string, never>> = {
+        const ctx: UnvalidatedContext = {
           raw,
-          meta: {} as Record<string, never>,
+          meta: {},
           endpoint: endpointMeta,
         };
 

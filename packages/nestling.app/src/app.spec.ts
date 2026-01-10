@@ -29,9 +29,7 @@ describe('App Integration', () => {
       input: z.object({ id: z.string() }),
       output: z.object({ result: z.string() }),
     })
-    class TestEndpoint
-      implements IEndpoint<{ id: string }, {}, { result: string }>
-    {
+    class TestEndpoint implements IEndpoint {
       async handle(input: { id: string }) {
         return new Ok({ result: `test-${input.id}` });
       }
@@ -69,8 +67,8 @@ describe('App Integration', () => {
       transport: 'http',
       pattern: 'GET /test',
     })
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type
-    class BadEndpoint implements IEndpoint<unknown, {}, {}> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    class BadEndpoint implements IEndpoint {
       async handle() {
         return new Ok({});
       }
@@ -106,7 +104,7 @@ describe('App Integration', () => {
       transport: 'http',
       pattern: 'GET /data',
     })
-    class DataEndpoint implements IEndpoint<unknown, {}, { data: string }> {
+    class DataEndpoint implements IEndpoint {
       constructor(private service: TestService) {}
 
       async handle() {
@@ -126,7 +124,7 @@ describe('App Integration', () => {
     // Act
     const app = new App({
       transports: {
-        http: mockTransport as any,
+        http: mockTransport,
       },
       modules: [TestModule],
     });

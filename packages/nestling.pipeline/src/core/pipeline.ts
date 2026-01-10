@@ -22,10 +22,7 @@ import { Fail, Ok } from './result.js';
  * Pipeline иммутабельный: каждый .use() возвращает новый экземпляр.
  * Это позволяет безопасно переиспользовать базовые pipeline'ы.
  */
-export class Pipeline<
-  CIn extends UnvalidatedContext = UnvalidatedContext,
-  COut extends AnyContext = UnvalidatedContext,
-> {
+export class Pipeline<CIn extends UnvalidatedContext, COut extends AnyContext> {
   /**
    * Приватный конструктор - создание только через static методы
    */
@@ -42,7 +39,7 @@ export class Pipeline<
    * Добавляет middleware в конец цепочки
    * Возвращает новый pipeline с обновлённым типом
    */
-  use<CNext extends AnyContext = AnyContext>(
+  use<CNext extends AnyContext>(
     middleware: Middleware<COut, CNext>,
   ): Pipeline<CIn, CNext> {
     return new Pipeline([...this.middlewares, normalizeMiddleware(middleware)]);

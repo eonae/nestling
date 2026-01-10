@@ -1,3 +1,4 @@
+import type { AnyInput, AnyMeta } from '../core';
 import type { MiddlewareFn, ValidatedContext } from '../core/types';
 
 /**
@@ -20,12 +21,17 @@ import type { MiddlewareFn, ValidatedContext } from '../core/types';
  *   }));
  * ```
  */
-export function withEntity<TKey extends string, TEntity, TInput, TMeta>(
+export function withEntity<
+  TKey extends string,
+  TEntity,
+  I extends AnyInput = AnyInput,
+  M extends AnyMeta = AnyMeta,
+>(
   key: TKey,
-  loadEntity: (input: TInput) => Promise<TEntity> | TEntity,
+  loadEntity: (input: I) => Promise<TEntity> | TEntity,
 ): MiddlewareFn<
-  ValidatedContext<TInput, TMeta>,
-  ValidatedContext<TInput, TMeta & Record<TKey, TEntity>>
+  ValidatedContext<I, M>,
+  ValidatedContext<I, M & Record<TKey, TEntity>>
 > {
   return async (ctx, next) => {
     const entity = await loadEntity(ctx.input);
@@ -35,7 +41,7 @@ export function withEntity<TKey extends string, TEntity, TInput, TMeta>(
       meta: {
         ...ctx.meta,
         [key]: entity,
-      } as TMeta & Record<TKey, TEntity>,
+      } as M & Record<TKey, TEntity>,
     });
   };
 }

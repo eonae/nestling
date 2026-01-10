@@ -44,9 +44,7 @@ type ImportUsersOutput = z.infer<typeof ImportUsersOutput>;
   output: ImportUsersOutput,
   pipeline: noValidationPipeline,
 })
-export class ImportUsersEndpoint
-  implements
-    IEndpoint<AsyncIterableIterator<ImportUserInput>, {}, ImportUsersOutput>
+export class ImportUsersEndpoint implements IEndpoint
 {
   constructor(
     private userService: UserService,

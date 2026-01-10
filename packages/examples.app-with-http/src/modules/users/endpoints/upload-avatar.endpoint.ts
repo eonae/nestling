@@ -37,9 +37,7 @@ type UploadAvatarOutput = z.infer<typeof UploadAvatarOutput>;
   output: UploadAvatarOutput,
   pipeline: noValidationPipeline,
 })
-export class UploadAvatarEndpoint
-  implements
-    IEndpoint<WithFiles<UploadAvatarInput>, {}, UploadAvatarOutput>
+export class UploadAvatarEndpoint implements IEndpoint
 {
   constructor(
     private userService: UserService,

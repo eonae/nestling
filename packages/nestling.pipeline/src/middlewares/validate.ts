@@ -1,3 +1,4 @@
+import type { AnyInput, AnyMeta } from '../core';
 import type {
   MiddlewareFn,
   UnvalidatedContext,
@@ -35,10 +36,10 @@ interface ValidationSchema {
  * class UpdateUser implements IEndpoint<UpdateUserInput, { identity: User }, User> { ... }
  * ```
  */
-export function validate<TMeta>(): MiddlewareFn<
-  UnvalidatedContext<TMeta>,
-  ValidatedContext<unknown, TMeta>
-> {
+export function validate<
+  I extends AnyInput = AnyInput,
+  M extends AnyMeta = AnyMeta,
+>(): MiddlewareFn<UnvalidatedContext<M>, ValidatedContext<I, M>> {
   return async (ctx, next) => {
     // Получаем схему из endpoint metadata
     const schema = ctx.endpoint.input as ValidationSchema | undefined;
@@ -48,7 +49,8 @@ export function validate<TMeta>(): MiddlewareFn<
     // Создаём ValidatedContext с input
     // raw больше не передаётся — он недоступен после валидации
     return next({
-      input,
+      raw: ctx.raw,
+      input: input as I, // TODO: Костылёк
       meta: ctx.meta,
       endpoint: ctx.endpoint,
     });

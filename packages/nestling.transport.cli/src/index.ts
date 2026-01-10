@@ -4,6 +4,9 @@ import type { Readable } from 'node:stream';
 
 import type { Schema } from '@common/misc';
 import type {
+  AnyInput,
+  AnyMeta,
+  AnyOutput,
   EndpointDefinition,
   EndpointMeta,
   FilePart,
@@ -38,10 +41,12 @@ export class CliTransport implements ITransport {
   /**
    * Регистрирует handler через конфигурацию
    */
-  endpoint<TInput, TMeta, TOutput>(
-    definition: EndpointDefinition<TInput, TMeta, TOutput>,
-  ): void {
-    this.handlers.set(definition.pattern, definition as any);
+  endpoint<
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
+    M extends AnyMeta = AnyMeta,
+  >(definition: EndpointDefinition<I, O, M>): void {
+    this.handlers.set(definition.pattern, definition);
   }
 
   /**
@@ -132,9 +137,9 @@ export class CliTransport implements ITransport {
         output: definition.output,
       };
 
-      const ctx: UnvalidatedContext<Record<string, never>> = {
+      const ctx: UnvalidatedContext = {
         raw,
-        meta: {} as Record<string, never>,
+        meta: {},
         endpoint: endpointMeta,
       };
 

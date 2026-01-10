@@ -30,7 +30,7 @@ export const StreamLogs = makeEndpoint({
   pattern: 'POST /logs/stream',
   input: stream(LogChunk),
   output: StreamLogsOutput,
-  pipeline: definePipeline().use(withTiming()),
+  pipeline: definePipeline().use(withTiming),
   handle: async (
     payload: AsyncIterableIterator<LogChunk>,
   ): Promise<StreamLogsOutput> => {

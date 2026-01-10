@@ -7,7 +7,7 @@ import { definePipeline, withTiming } from '@nestling/pipeline';
 import { CliTransport } from '@nestling/transport.cli';
 
 // Создаем CLI транспорт с pipeline
-const pipeline = definePipeline().use(withTiming());
+const pipeline = definePipeline().use(withTiming);
 
 const cli = new CliTransport(pipeline);
 

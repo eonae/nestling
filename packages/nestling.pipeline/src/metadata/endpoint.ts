@@ -1,4 +1,10 @@
-import type { AnyInput, AnyOutput, IEndpoint, Pipeline } from '../core';
+import type {
+  AnyInput,
+  AnyMeta,
+  AnyOutput,
+  IEndpoint,
+  Pipeline,
+} from '../core';
 import type {
   HandlerFn,
   UnvalidatedContext,
@@ -20,12 +26,12 @@ const HANDLER_KEY = Symbol.for('nestling:handler');
 export interface EndpointDefinition<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends Record<string, never> = Record<string, never>,
+  M extends AnyMeta = AnyMeta,
 > {
   transport: string;
   pattern: string;
 
-  handle: HandlerFn<I, M, O>;
+  handle: HandlerFn<I, O, M>;
 
   /** Schema или модификатор для input */
   input?: I;
@@ -40,7 +46,7 @@ export interface EndpointDefinition<
 export type EndpointMetadata<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends Record<string, never> = Record<string, never>,
+  M extends AnyMeta = AnyMeta,
 > = Omit<EndpointDefinition<I, O, M>, 'handle'>;
 
 /**
@@ -71,7 +77,7 @@ export type EndpointMetadata<
 export function Endpoint<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends Record<string, never> = Record<string, never>,
+  M extends AnyMeta = AnyMeta,
 >(metadata: EndpointMetadata<I, O, M>) {
   return <T extends Constructor<IEndpoint<I, O, M>>>(
     target: T,
@@ -96,7 +102,7 @@ export function Endpoint<
 export function getEndpointMetadata<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends Record<string, never> = Record<string, never>,
+  M extends AnyMeta = AnyMeta,
 >(target: any): EndpointMetadata<I, O, M> | null {
   const constructor = target.prototype ? target : target.constructor;
   return constructor[HANDLER_KEY] || null;
@@ -108,7 +114,7 @@ export function getEndpointMetadata<
 export function makeEndpoint<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends Record<string, never> = Record<string, never>,
+  M extends AnyMeta = AnyMeta,
 >(definition: EndpointDefinition<I, O, M>): EndpointDefinition<I, O, M> {
   return definition;
 }

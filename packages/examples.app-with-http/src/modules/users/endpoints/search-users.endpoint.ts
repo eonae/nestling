@@ -38,8 +38,7 @@ type SearchUsersOutput = z.infer<typeof SearchUsersOutput>;
   output: SearchUsersOutput,
   pipeline: basePipeline,
 })
-export class SearchUsersEndpoint
-  implements IEndpoint<SearchUsersInput, {}, SearchUsersOutput>
+export class SearchUsersEndpoint implements IEndpoint
 {
   constructor(
     private userService: UserService,

@@ -1,3 +1,4 @@
+import type { AnyMeta } from '../core';
 import type { MiddlewareFn, Raw, UnvalidatedContext } from '../core/types';
 
 /**
@@ -29,11 +30,11 @@ import type { MiddlewareFn, Raw, UnvalidatedContext } from '../core/types';
  *   .use(validate());
  * ```
  */
-export function withIdentity<TUser, TMeta = Record<string, never>>(
+export function withIdentity<TUser, M extends AnyMeta = AnyMeta>(
   authenticate: (raw: Raw) => Promise<TUser> | TUser,
 ): MiddlewareFn<
-  UnvalidatedContext<TMeta>,
-  UnvalidatedContext<TMeta & { identity: TUser }>
+  UnvalidatedContext<M>,
+  UnvalidatedContext<M & { identity: TUser }>
 > {
   return async (ctx, next) => {
     const identity = await authenticate(ctx.raw);
@@ -43,7 +44,7 @@ export function withIdentity<TUser, TMeta = Record<string, never>>(
       meta: {
         ...ctx.meta,
         identity,
-      } as TMeta & { identity: TUser },
+      } as M & { identity: TUser },
     });
   };
 }

@@ -1,6 +1,12 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { EndpointDefinition, HandlerFn } from '@nestling/pipeline';
+import type {
+  AnyInput,
+  AnyMeta,
+  AnyOutput,
+  EndpointDefinition,
+  HandlerFn,
+} from '@nestling/pipeline';
 import Router from 'find-my-way';
 
 /**
@@ -20,9 +26,11 @@ export class HttpRouter {
   /**
    * Регистрирует маршрут
    */
-  route<TInput, TMeta, TOutput>(
-    definition: EndpointDefinition<TInput, TMeta, TOutput>,
-  ): void {
+  route<
+    I extends AnyInput = AnyInput,
+    O extends AnyOutput = AnyOutput,
+    M extends AnyMeta = AnyMeta,
+  >(definition: EndpointDefinition<I, O, M>): void {
     const store = {
       handler: definition.handle,
       definition: definition,

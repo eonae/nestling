@@ -37,8 +37,7 @@ type UpdateUserOutput = z.infer<typeof UpdateUserOutput>;
   output: UpdateUserOutput,
   pipeline: basePipeline,
 })
-export class UpdateUserEndpoint
-  implements IEndpoint<UpdateUserInput, {}, UpdateUserOutput>
+export class UpdateUserEndpoint implements IEndpoint
 {
   constructor(
     private userService: UserService,

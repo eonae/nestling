@@ -1,5 +1,5 @@
 import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
+import type { AnyMeta, IEndpoint, Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -32,8 +32,7 @@ type CreateUserOutput = z.infer<typeof CreateUserOutput>;
   output: CreateUserOutput,
   pipeline: basePipeline,
 })
-export class CreateUserEndpoint
-  implements IEndpoint<CreateUserInput, {}, CreateUserOutput>
+export class CreateUserEndpoint implements IEndpoint
 {
   constructor(
     private users: UserService,

@@ -20,14 +20,14 @@ import type { MiddlewareFn, UnvalidatedContext } from '../core/types';
  */
 export function withPermissions<
   TPermissions,
-  TMeta extends { identity: unknown } = { identity: unknown },
+  M extends { identity: unknown } = { identity: unknown },
 >(
   getPermissions: (
-    identity: TMeta['identity'],
+    identity: M['identity'],
   ) => Promise<TPermissions> | TPermissions,
 ): MiddlewareFn<
-  UnvalidatedContext<TMeta>,
-  UnvalidatedContext<TMeta & { permissions: TPermissions }>
+  UnvalidatedContext<M>,
+  UnvalidatedContext<M & { permissions: TPermissions }>
 > {
   return async (ctx, next) => {
     const permissions = await getPermissions(ctx.meta.identity);
@@ -37,7 +37,7 @@ export function withPermissions<
       meta: {
         ...ctx.meta,
         permissions,
-      } as TMeta & { permissions: TPermissions },
+      } as M & { permissions: TPermissions },
     });
   };
 }

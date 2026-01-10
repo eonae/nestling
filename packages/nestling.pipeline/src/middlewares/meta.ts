@@ -1,3 +1,4 @@
+import type { AnyMeta } from '../core';
 import type { MiddlewareFn, UnvalidatedContext } from '../core/types';
 
 /**
@@ -19,13 +20,13 @@ import type { MiddlewareFn, UnvalidatedContext } from '../core/types';
 export function withMeta<
   TKey extends string,
   TValue,
-  TMeta = Record<string, never>,
+  M extends AnyMeta = AnyMeta,
 >(
   key: TKey,
-  getValue: (ctx: UnvalidatedContext<TMeta>) => Promise<TValue> | TValue,
+  getValue: (ctx: UnvalidatedContext<M>) => Promise<TValue> | TValue,
 ): MiddlewareFn<
-  UnvalidatedContext<TMeta>,
-  UnvalidatedContext<TMeta & Record<TKey, TValue>>
+  UnvalidatedContext<M>,
+  UnvalidatedContext<M & Record<TKey, TValue>>
 > {
   return async (ctx, next) => {
     const value = await getValue(ctx);
@@ -35,7 +36,7 @@ export function withMeta<
       meta: {
         ...ctx.meta,
         [key]: value,
-      } as TMeta & Record<TKey, TValue>,
+      } as M & Record<TKey, TValue>,
     });
   };
 }

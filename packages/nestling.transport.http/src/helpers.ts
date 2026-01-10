@@ -1,8 +1,8 @@
 import type { Constructor } from '@common/misc';
 import type {
   AnyInput,
+  AnyMeta,
   AnyOutput,
-  EmptyMeta,
   EndpointDefinition,
   IEndpoint,
   Pipeline,
@@ -17,13 +17,13 @@ import type { HTTPMethod } from 'find-my-way';
  *
  * ✅ Требует pipeline с validate()
  */
-export interface HttpEndpointOptionsWithInput<
+export interface HttpEndpointOptions<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends EmptyMeta = EmptyMeta,
+  M extends AnyMeta = AnyMeta,
 > {
   /** Schema или модификатор для input (обязательно) */
-  input: I;
+  input?: I;
 
   /** Schema для output (опционально) */
   output?: O;
@@ -42,51 +42,12 @@ export interface HttpEndpointOptionsWithInput<
 }
 
 /**
- * Опции для HttpEndpoint декоратора (без input схемы)
- *
- * ✅ Допускает pipeline без validate()
- */
-export interface HttpEndpointOptionsWithoutInput<
-  O extends AnyOutput = AnyOutput,
-  M extends EmptyMeta = EmptyMeta,
-> {
-  /** Schema или модификатор для input (не задан) */
-  input?: never;
-
-  /** Schema для output (опционально) */
-  output?: O;
-
-  /** Pipeline для обработки запроса - может быть без validate() */
-  pipeline: Pipeline<UnvalidatedContext<M>, UnvalidatedContext<M>>;
-
-  /** Rate limit конфигурация */
-  rateLimit?: unknown;
-
-  /** Включить audit logging */
-  audit?: boolean;
-
-  /** Cache конфигурация */
-  cache?: unknown;
-}
-
-/**
- * Unified опции (для совместимости)
- */
-export type HttpEndpointOptions<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends EmptyMeta = EmptyMeta,
-> =
-  | HttpEndpointOptionsWithInput<I, O, M>
-  | HttpEndpointOptionsWithoutInput<O, M>;
-
-/**
  * Метаданные HTTP endpoint
  */
 export interface HttpEndpointMetadata<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends EmptyMeta = EmptyMeta,
+  M extends AnyMeta = AnyMeta,
 > {
   transport: 'http';
   pattern: string;
@@ -113,84 +74,11 @@ export interface HttpEndpointMetadata<
   [key: string]: unknown;
 }
 
-/**
- * HttpEndpoint с pipeline
- *
- * Pipeline - часть metadata endpoint'а (не отдельный декоратор!)
- *
- * @example С input схемой (требует validate())
- * ```typescript
- * const authPipeline = definePipeline()
- *   .use(withIdentity<User>(verifyToken))
- *   .use(validate());
- *
- * @Injectable([UserService])
- * @HttpEndpoint('POST', '/api/users', {
- *   input: CreateUserSchema,
- *   pipeline: authPipeline,
- * })
- * export class CreateUserEndpoint implements IEndpoint<
- *   CreateUserInput,
- *   { identity: User },
- *   CreateUserOutput
- * > {
- *   constructor(private users: UserService) {}
- *
- *   async handle(input: CreateUserInput, meta: { identity: User }) {
- *     const user = await this.users.create(input);
- *     return Ok.created(user);
- *   }
- * }
- * ```
- *
- * @example Без input схемы (validate() не нужен)
- * ```typescript
- * const simplePipeline = definePipeline().use(withTiming());
- *
- * @Injectable([])
- * @HttpEndpoint('GET', '/health', {
- *   pipeline: simplePipeline,
- * })
- * export class HealthCheck implements IEndpoint<{}, {}, { status: string }> {
- *   async handle() {
- *     return Ok({ status: 'ok' });
- *   }
- * }
- * ```
- */
-
-// Overload 1: с input схемой - требует validate()
-export function HttpEndpoint<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends EmptyMeta = EmptyMeta,
->(
-  method: HTTPMethod,
-  path: string,
-  options: HttpEndpointOptionsWithInput<I, O, M>,
-): <T extends Constructor<IEndpoint<I, O, M>>>(
-  target: T,
-  context: ClassDecoratorContext<T>,
-) => T;
-
-// Overload 3: без input схемы - validate() не нужен
-export function HttpEndpoint<
-  O extends AnyOutput = AnyOutput,
-  M extends EmptyMeta = EmptyMeta,
->(
-  method: HTTPMethod,
-  path: string,
-  options: HttpEndpointOptionsWithoutInput<O, M>,
-): <T extends Constructor<IEndpoint<any, O, M>>>(
-  target: T,
-  context: ClassDecoratorContext<T>,
-) => T;
-
 // Реализация
 export function HttpEndpoint<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends EmptyMeta = EmptyMeta,
+  M extends AnyMeta = AnyMeta,
 >(method: HTTPMethod, path: string, options: HttpEndpointOptions<I, O, M>) {
   return <T extends Constructor<IEndpoint<I, O, M>>>(
     target: T,
@@ -237,7 +125,7 @@ export function getHttpEndpointMetadata(
 export function makeHttpEndpoint<
   I extends AnyInput = AnyInput,
   O extends AnyOutput = AnyOutput,
-  M extends EmptyMeta = EmptyMeta,
+  M extends AnyMeta = AnyMeta,
 >(
   method: HTTPMethod,
   path: string,

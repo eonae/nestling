@@ -284,4 +284,4 @@ export interface WithFiles<T> {
   files: FilePart[];
 }
 
-export type EmptyMeta = Record<string, never>;
+export type AnyMeta = Record<string, unknown>;

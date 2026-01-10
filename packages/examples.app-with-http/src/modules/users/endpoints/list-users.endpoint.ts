@@ -26,16 +26,16 @@ type ListUsersOutput = z.infer<typeof ListUsersOutput>;
   output: ListUsersOutput,
   pipeline: noValidationPipeline,
 })
-export class ListUsersEndpoint
-  implements IEndpoint<unknown, {}, ListUsersOutput>
+export class ListUsersEndpoint implements IEndpoint
 {
   constructor(
     private users: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle(_input: unknown, _meta: {}): Output<ListUsersOutput> {
+  async handle(input: string): Output<ListUsersOutput> {
     this.logger.log('Handling GET /api/users');
+    console.log(input);
 
     const users = await this.users.getAll();
 

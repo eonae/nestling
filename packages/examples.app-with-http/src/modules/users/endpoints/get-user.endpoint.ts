@@ -31,8 +31,7 @@ type GetUserOutput = z.infer<typeof GetUserOutput>;
   output: GetUserOutput,
   pipeline: basePipeline,
 })
-export class GetUserEndpoint
-  implements IEndpoint<GetUserInput, {}, GetUserOutput>
+export class GetUserEndpoint implements IEndpoint
 {
   constructor(
     private userService: UserService,

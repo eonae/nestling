@@ -1,3 +1,4 @@
+import type { AnyMeta } from '../core';
 import type { MiddlewareFn, UnvalidatedContext } from '../core/types';
 
 /**
@@ -21,9 +22,9 @@ export interface Logger {
  *   .use(validate());
  * ```
  */
-export function withLogging<TMeta>(
+export function withLogging<M extends AnyMeta = AnyMeta>(
   logger: Logger,
-): MiddlewareFn<UnvalidatedContext<TMeta>, UnvalidatedContext<TMeta>> {
+): MiddlewareFn<UnvalidatedContext<M>, UnvalidatedContext<M>> {
   return async (ctx, next) => {
     logger.log(`[${ctx.raw.transport}] ${ctx.raw.pattern} - started`);
     const response = await next(ctx);

@@ -37,7 +37,7 @@ export const CreateUser = makeEndpoint({
   pattern: 'POST /users',
   input: CreateUserInput,
   output: CreateUserOutput,
-  pipeline: definePipeline().use(withTiming()).use(validate()),
+  pipeline: definePipeline().use(withTiming).use(validate()),
   handle: async (input: CreateUserInput): Promise<CreateUserOutput> => {
     // input типизирован после validate()
     return {

@@ -1,4 +1,4 @@
-import type { MiddlewareFn } from '../core/types';
+import type { AnyContext } from '../core/types';
 
 /**
  * Измеряет время выполнения запроса
@@ -9,13 +9,16 @@ import type { MiddlewareFn } from '../core/types';
  * @example
  * ```typescript
  * const pipeline = definePipeline()
- *   .use(withTiming())
+ *   .use(withTiming)
  *   .use(withIdentity(verifyToken))
  *   .use(validate());
  * ```
  */
-export function withTiming<C>(): MiddlewareFn<C, C> {
-  return async (ctx, next) => {
+export function withTiming<C extends AnyContext>(
+  ctx: C,
+  next: (ctx: C) => Promise<any>,
+): Promise<any> {
+  return (async () => {
     const start = Date.now();
     const response = await next(ctx);
     const duration = Date.now() - start;
@@ -26,5 +29,5 @@ export function withTiming<C>(): MiddlewareFn<C, C> {
     response.headers['X-Response-Time'] = `${duration}ms`;
 
     return response;
-  };
+  })();
 }

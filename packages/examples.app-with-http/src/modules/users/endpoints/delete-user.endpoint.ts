@@ -28,8 +28,7 @@ type DeleteUserInput = z.infer<typeof DeleteUserInput>;
   input: DeleteUserInput,
   pipeline: basePipeline,
 })
-export class DeleteUserEndpoint
-  implements IEndpoint<DeleteUserInput, {}, null>
+export class DeleteUserEndpoint implements IEndpoint
 {
   constructor(
     private userService: UserService,

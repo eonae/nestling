@@ -28,7 +28,7 @@ const ExportUsersOutput = z.object({
   pipeline: noValidationPipeline,
 })
 export class ExportUsersEndpoint
-  implements IEndpoint<unknown, {}, AsyncIterableIterator<User>>
+  implements IEndpoint
 {
   constructor(
     private userService: UserService,
