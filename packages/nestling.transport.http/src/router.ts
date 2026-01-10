@@ -1,12 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { Optional, Schema } from '@common/misc';
-import type {
-  AnyInput,
-  AnyOutput,
-  EndpointDefinition,
-  HandlerFn,
-} from '@nestling/pipeline';
+import type { EndpointDefinition, HandlerFn } from '@nestling/pipeline';
 import Router from 'find-my-way';
 
 /**
@@ -26,11 +20,9 @@ export class HttpRouter {
   /**
    * Регистрирует маршрут
    */
-  route<
-    I extends AnyInput = AnyInput,
-    O extends AnyOutput = AnyOutput,
-    M extends Optional<Schema> = Optional<Schema>,
-  >(definition: EndpointDefinition<I, O, M>): void {
+  route<TInput, TMeta, TOutput>(
+    definition: EndpointDefinition<TInput, TMeta, TOutput>,
+  ): void {
     const store = {
       handler: definition.handle,
       definition: definition,
@@ -53,8 +45,8 @@ export class HttpRouter {
    * Находит маршрут для запроса
    */
   find(req: IncomingMessage): {
-    handler: HandlerFn;
-    definition: EndpointDefinition;
+    handler: HandlerFn<any, any, any>;
+    definition: EndpointDefinition<any, any, any>;
     params: Record<string, string>;
   } | null {
     const result = this.router.find(
@@ -67,8 +59,8 @@ export class HttpRouter {
     }
 
     const store = result.store as {
-      handler: HandlerFn;
-      definition: EndpointDefinition;
+      handler: HandlerFn<any, any, any>;
+      definition: EndpointDefinition<any, any, any>;
     };
 
     const params = result.params as Record<string, string>;

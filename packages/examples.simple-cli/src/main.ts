@@ -2,18 +2,12 @@
 /* eslint-disable no-console */
 
 import { Help, ProcessStdin } from './endpoints.functional';
-import { LoggingMiddleware, TimingMiddleware } from './middleware';
 
-import { Pipeline } from '@nestling/pipeline';
+import { definePipeline, withTiming } from '@nestling/pipeline';
 import { CliTransport } from '@nestling/transport.cli';
-// Создаем CLI транспорт
-const pipeline = new Pipeline();
 
-// Добавляем middleware для логирования (функциональный стиль)
-pipeline.use(LoggingMiddleware);
-
-// Добавляем middleware для измерения времени (классовый стиль)
-pipeline.use(TimingMiddleware);
+// Создаем CLI транспорт с pipeline
+const pipeline = definePipeline().use(withTiming());
 
 const cli = new CliTransport(pipeline);
 
@@ -25,10 +19,9 @@ cli.endpoint(Help);
 cli.endpoint(ProcessStdin);
 
 // ============================================================
-// Команда help (inline для простоты)
+// Парсинг аргументов командной строки
 // ============================================================
 
-// Парсинг аргументов командной строки
 function parseArgs(): {
   command: string;
   args: string[];

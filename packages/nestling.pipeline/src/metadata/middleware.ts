@@ -26,25 +26,16 @@ const MIDDLEWARE_KEY = Symbol.for('nestling:middleware');
  * @example
  * ```typescript
  * @Middleware()
- * class TimingMiddleware {
- *   async apply(ctx: RequestContext, next: () => Promise<ResponseContext>) {
- *     const start = Date.now();
- *     const response = await next();
- *     const duration = Date.now() - start;
- *
- *     // Добавляем timing в headers для HTTP transport
- *     if (!response.headers) {
- *       response.headers = {};
- *     }
- *     response.headers['X-Response-Time'] = `${duration}ms`;
- *
- *     return response;
+ * class AuthMiddleware implements IMiddleware<UnvalidatedContext, UnvalidatedContext<{ identity: User }>> {
+ *   async handle(ctx, next) {
+ *     const identity = await verifyToken(ctx.raw.attributes);
+ *     return next({ ...ctx, meta: { ...ctx.meta, identity } });
  *   }
  * }
  * ```
  */
-export function Middleware() {
-  return <T extends Constructor<IMiddleware>>(
+export function MiddlewareDecorator() {
+  return <T extends Constructor<IMiddleware<any, any>>>(
     target: T,
     context: ClassDecoratorContext<T>,
   ): T => {

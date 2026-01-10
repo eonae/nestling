@@ -1,21 +1,11 @@
 /* eslint-disable no-console */
 
 import { CreateUser, SayHello, StreamLogs } from './endpoints.functional';
-import { RequestResponseLogging, TimingMiddleware } from './middleware';
 
-import { Pipeline } from '@nestling/pipeline';
 import { HttpTransport } from '@nestling/transport.http';
 
-const pipeline = new Pipeline();
-
-// Добавляем middleware для логирования (функциональный стиль)
-pipeline.use(RequestResponseLogging);
-
-// Добавляем middleware для измерения времени (классовый стиль)
-pipeline.use(TimingMiddleware);
-
 // Создаем HTTP транспорт
-const server = new HttpTransport(pipeline, {
+const server = new HttpTransport({
   port: Number(process.env.PORT) || 3000,
 });
 
@@ -23,9 +13,9 @@ const server = new HttpTransport(pipeline, {
 // Регистрируем функциональные эндпоинты
 // ============================================================
 
-server.endpoint(SayHello);
-server.endpoint(CreateUser);
-server.endpoint(StreamLogs);
+server.route(SayHello);
+server.route(CreateUser);
+server.route(StreamLogs);
 
 const PORT = Number(process.env.PORT) || 3000;
 

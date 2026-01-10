@@ -1,11 +1,13 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Fail } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
+
+import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
-import { HttpEndpoint } from '@nestling/transport.http';
 
 const UpdateUserInput = z.object({
   id: z.string(),
@@ -33,15 +35,20 @@ type UpdateUserOutput = z.infer<typeof UpdateUserOutput>;
 @HttpEndpoint('PATCH', '/api/users/:id', {
   input: UpdateUserInput,
   output: UpdateUserOutput,
+  pipeline: basePipeline,
 })
-export class UpdateUserEndpoint implements IEndpoint {
+export class UpdateUserEndpoint
+  implements IEndpoint<UpdateUserInput, {}, UpdateUserOutput>
+{
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle({ id, ...updateData }: UpdateUserInput): Output<UpdateUserOutput> {
-    this.logger.log(`Handling PATCH /api/users/${id}`);
+  async handle(input: UpdateUserInput): Output<UpdateUserOutput> {
+    this.logger.log(`Handling PATCH /api/users/${input.id}`);
+
+    const { id, ...updateData } = input;
 
     // Проверка на наличие данных для обновления
     if (Object.keys(updateData).length === 0) {
@@ -66,4 +73,3 @@ export class UpdateUserEndpoint implements IEndpoint {
     return user;
   }
 }
-

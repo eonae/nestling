@@ -7,7 +7,7 @@ import type { Constructor } from '@common/misc';
  *
  * Используется App для автоматического обнаружения и регистрации middleware
  */
-const middlewareRegistry = new Set<Constructor<IMiddleware>>();
+const middlewareRegistry = new Set<Constructor<IMiddleware<any, any>>>();
 
 /**
  * Регистрирует middleware-класс в глобальном registry
@@ -24,7 +24,9 @@ const middlewareRegistry = new Set<Constructor<IMiddleware>>();
  * // Класс автоматически регистрируется декоратором @Middleware
  * ```
  */
-export function registerMiddleware(ctor: Constructor<IMiddleware>): void {
+export function registerMiddleware(
+  ctor: Constructor<IMiddleware<any, any>>,
+): void {
   middlewareRegistry.add(ctor);
 }
 
@@ -42,7 +44,7 @@ export function registerMiddleware(ctor: Constructor<IMiddleware>): void {
  * }
  * ```
  */
-export function getAllMiddleware(): Constructor<IMiddleware>[] {
+export function getAllMiddleware(): Constructor<IMiddleware<any, any>>[] {
   return [...middlewareRegistry];
 }
 

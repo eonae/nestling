@@ -1,20 +1,20 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Ok, stream } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
+
+import { noValidationPipeline } from '../../../common/pipelines';
 import type { User } from '../../../common/types';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
-import { HttpEndpoint } from '@nestling/transport.http';
 
 const ExportUsersOutput = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string(),
 });
-
-type ExportUsersOutput = z.infer<typeof ExportUsersOutput>;
 
 /**
  * Endpoint для экспорта пользователей через streaming
@@ -25,8 +25,11 @@ type ExportUsersOutput = z.infer<typeof ExportUsersOutput>;
 @Injectable([UserService, ILogger])
 @HttpEndpoint('GET', '/api/users/export', {
   output: stream(ExportUsersOutput),
+  pipeline: noValidationPipeline,
 })
-export class ExportUsersEndpoint implements IEndpoint {
+export class ExportUsersEndpoint
+  implements IEndpoint<unknown, {}, AsyncIterableIterator<User>>
+{
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
@@ -35,12 +38,11 @@ export class ExportUsersEndpoint implements IEndpoint {
   async handle(): Output<AsyncIterableIterator<User>> {
     this.logger.log('Handling GET /api/users/export');
 
-    const stream = this.userService.exportAll();
+    const userStream = this.userService.exportAll();
 
-    return new Ok(stream, {
+    return new Ok(userStream, {
       'Content-Type': 'application/x-ndjson',
       'Content-Disposition': 'attachment; filename="users.ndjson"',
     });
   }
 }
-

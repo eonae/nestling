@@ -1,109 +1,69 @@
-import type { AnyInput, AnyOutput, IEndpoint } from '../core';
+import type { AnyInput, AnyOutput, IEndpoint, Pipeline } from '../core';
 import type { HandlerFn } from '../core/types';
 
 import { registerEndpoint } from './endpoint-registry';
 
-import type { Constructor, Optional, Schema } from '@common/misc';
+import type { Constructor } from '@common/misc';
 
 /**
  * Symbol-ключ для хранения метаданных handler-класса
  */
 const HANDLER_KEY = Symbol.for('nestling:handler');
 
-/* ============================================================
- * Handler-классы с полной проверкой типов
- * ============================================================ */
-
 /**
  * Конфигурация endpoint-класса
  */
-export interface EndpointDefinition<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends Optional<Schema> = Optional<Schema>,
-> {
+export interface EndpointDefinition<TInput = any, TMeta = any, TOutput = any> {
   transport: string;
   pattern: string;
 
-  handle: HandlerFn<I, O, M>;
+  handle: HandlerFn<TInput, TMeta, TOutput>;
 
-  /** Конфигурация входных данных */
-  input?: I;
-
-  /** Схема метаданных */
-  metadata?: M;
+  /** Schema или модификатор для input */
+  input?: AnyInput;
 
   /** Конфигурация выходных данных */
-  output?: O;
+  output?: AnyOutput;
+
+  /** Pipeline для этого endpoint */
+  pipeline?: Pipeline<any, any>;
 }
 
 export type EndpointMetadata<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends Optional<Schema> = Optional<Schema>,
-> = Omit<EndpointDefinition<I, O, M>, 'handle'>;
+  TInput = unknown,
+  TMeta = unknown,
+  TOutput = unknown,
+> = Omit<EndpointDefinition<TInput, TMeta, TOutput>, 'handle'>;
 
 /**
- * Декоратор для handler-классов с полной проверкой типов.
- *
- * КЛЮЧЕВОЕ ПРЕИМУЩЕСТВО:
- * - TypeScript РЕАЛЬНО проверяет сигнатуру handle()
- * - Типы выводятся АВТОМАТИЧЕСКИ из схем и модификаторов
- * - Нельзя ошибиться в типах параметров!
- * - Один класс = один endpoint (Single Responsibility)
+ * Декоратор для endpoint-классов с типизированным pipeline.
  *
  * @example
  * ```typescript
- * const UserSchema = z.object({ id: z.string() });
- * const MetadataSchema = z.object({ authToken: z.string() });
- * const ResponseSchema = z.object({ name: z.string() });
+ * const authPipeline = definePipeline()
+ *   .use(withIdentity<User>(verifyToken))
+ *   .use(validate());
  *
- * @Handler({
+ * @Injectable([UserService])
+ * @Endpoint({
  *   transport: 'http',
- *   pattern: '/users/:id',
- *   input: UserSchema,
- *   metadata: MetadataSchema,
- *   output: ResponseSchema,
+ *   pattern: 'POST /users',
+ *   input: CreateUserSchema,
+ *   pipeline: authPipeline,
  * })
- * class GetUser {
- *   async handle(payload, metadata) {
- *     // payload: { id: string } - выводится автоматически!
- *     // metadata: { authToken: string } - выводится автоматически!
+ * class CreateUserEndpoint implements IEndpoint<CreateUserInput, { identity: User }, User> {
+ *   constructor(private users: UserService) {}
  *
- *     return {
- *       status: 200,
- *       value: { name: "Alice" },
- *       meta: {},
- *     };
- *   }
- * }
- * ```
- *
- * @example
- * ```typescript
- * // Streaming endpoint
- * @Handler({
- *   transport: 'http',
- *   pattern: 'POST /logs/stream',
- *   input: stream(LogSchema),
- * })
- * class StreamLogsHandler {
- *   async handle(payload: AsyncIterableIterator<Log>) {
- *     // payload: AsyncIterableIterator<Log> - выводится автоматически!
- *     for await (const chunk of payload) {
- *       console.log(chunk);
- *     }
- *     return { status: 200, value: {}, meta: {} };
+ *   async handle(input: CreateUserInput, meta: { identity: User }) {
+ *     return Ok.created(await this.users.create(input));
  *   }
  * }
  * ```
  */
-export function Endpoint<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends Optional<Schema> = Optional<Schema>,
->(metadata: EndpointMetadata<I, O, M>) {
-  return <T extends Constructor<IEndpoint<I, O, M>>>(
+export function Endpoint<TInput = any, TMeta = any, TOutput = any>(
+  metadata: EndpointMetadata<TInput, TMeta, TOutput>,
+) {
+  return <T extends Constructor<IEndpoint<TInput, TMeta, TOutput>>>(
     target: T,
     context: ClassDecoratorContext<T>,
   ): T => {
@@ -114,7 +74,7 @@ export function Endpoint<
     };
 
     // Автоматически регистрируем endpoint в глобальном registry
-    registerEndpoint(target as Constructor<IEndpoint>);
+    registerEndpoint(target as Constructor<IEndpoint<any, any, any>>);
 
     return target;
   };
@@ -124,37 +84,19 @@ export function Endpoint<
  * Извлекает метаданные handler-класса
  */
 export function getEndpointMetadata<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends Optional<Schema> = Optional<Schema>,
->(target: any): EndpointMetadata<I, O, M> | null {
+  TInput = unknown,
+  TMeta = unknown,
+  TOutput = unknown,
+>(target: any): EndpointMetadata<TInput, TMeta, TOutput> | null {
   const constructor = target.prototype ? target : target.constructor;
   return constructor[HANDLER_KEY] || null;
 }
 
 /**
- * Вспомогательная функция для создания конфигурации handler'а с корректным выводом типов.
- *
- * Решает проблему вывода дженерик-типов при явной типизации объекта конфигурации.
- *
- * @example
- * ```typescript
- * const config = makeEndpoint({
- *   transport: 'http',
- *   pattern: '/users',
- *   input: CreateUserSchema,
- *   output: CreateUserResponseSchema,
- *   handle: async (payload) => {
- *     // payload типизирован автоматически!
- *     return { status: 201, value: {...}, meta: {} };
- *   },
- * });
- * ```
+ * Вспомогательная функция для создания конфигурации endpoint'а с корректным выводом типов.
  */
-export function makeEndpoint<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends Optional<Schema> = Optional<Schema>,
->(definition: EndpointDefinition<I, O, M>): EndpointDefinition<I, O, M> {
+export function makeEndpoint<TInput = any, TMeta = any, TOutput = any>(
+  definition: EndpointDefinition<TInput, TMeta, TOutput>,
+): EndpointDefinition<TInput, TMeta, TOutput> {
   return definition;
 }

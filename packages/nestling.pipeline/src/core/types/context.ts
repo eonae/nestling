@@ -2,6 +2,11 @@ import type { Readable } from 'node:stream';
 
 import type { ErrorStatus, SuccessStatus } from '../status';
 
+import type { Raw } from './raw.js';
+
+// Re-export Raw
+export * from './raw.js';
+
 /**
  * Описание файла в multipart запросе
  */
@@ -23,27 +28,93 @@ export interface FilePart {
 }
 
 /**
- * Абстрактный контекст запроса
+ * Метаданные endpoint (readonly)
+ * Доступны middleware для конфигурации (rate limit, audit, cache и т.д.)
  */
-export interface RequestContext {
+export interface EndpointMeta {
   transport: string;
   pattern: string;
 
-  /**
-   * Данные запроса (тип выводится через InferInput)
-   */
-  payload: unknown;
+  /** Schema для валидации input (zod, yup, etc) */
+  input?: unknown;
 
-  /**
-   * Метаданные транспорта (headers, auth, tracing)
-   */
-  metadata?: unknown;
+  /** Schema для output (опционально) */
+  output?: unknown;
+
+  /** Дополнительные опции для middleware */
+  [key: string]: unknown;
+}
+
+/**
+ * Контекст ДО валидации
+ *
+ * ❗ input НЕ существует на этом этапе
+ * ❗ Есть только raw.payload
+ *
+ * Middleware до validate() работают с этим контекстом:
+ * - Могут читать raw.payload и raw.attributes
+ * - Могут добавлять поля в meta
+ * - Могут читать endpoint для конфигурации
+ */
+export interface UnvalidatedContext<TMeta = Record<string, never>> {
+  /** Данные от транспорта */
+  readonly raw: Raw;
+
+  /** Метаданные, накапливаемые middleware */
+  meta: TMeta;
+
+  /** Метаданные endpoint (readonly) */
+  readonly endpoint: EndpointMeta;
+}
+
+/**
+ * Контекст ПОСЛЕ валидации
+ *
+ * ✅ input появляется ТОЛЬКО здесь
+ * ✅ input типизирован и провалидирован
+ *
+ * Middleware после validate() работают с этим контекстом:
+ * - Имеют доступ к input (провалидированные данные)
+ * - НЕ имеют доступа к raw (он больше не нужен)
+ * - Могут добавлять поля в meta
+ */
+export interface ValidatedContext<
+  TInput = unknown,
+  TMeta = Record<string, never>,
+> {
+  /** Провалидированные входные данные */
+  readonly input: TInput;
+
+  /** Метаданные, накапливаемые middleware */
+  meta: TMeta;
+
+  /** Метаданные endpoint (readonly) */
+  readonly endpoint: EndpointMeta;
+}
+
+/**
+ * Создаёт UnvalidatedContext из Raw
+ * Вызывается транспортом после парсинга запроса
+ */
+export function createUnvalidatedContext(
+  raw: Raw,
+  endpoint: EndpointMeta,
+): UnvalidatedContext<Record<string, never>> {
+  return {
+    raw,
+    meta: {} as Record<string, never>,
+    endpoint,
+  };
 }
 
 /**
  * Детали ошибки в ResponseContext
  */
-export type ErrorDetails = Record<string, unknown>;
+export interface ErrorDetails {
+  error: string;
+  details?: unknown;
+  stack?: string;
+}
 
 /**
  * ResponseContext для успешного ответа

@@ -2,17 +2,17 @@
 import * as readline from 'node:readline';
 import type { Readable } from 'node:stream';
 
-import type { Optional, Schema } from '@common/misc';
+import type { Schema } from '@common/misc';
 import type {
-  AnyInput,
-  AnyOutput,
   EndpointDefinition,
+  EndpointMeta,
   FilePart,
   Pipeline,
-  RequestContext,
+  Raw,
   ResponseContext,
+  UnvalidatedContext,
 } from '@nestling/pipeline';
-import { analyzeInput, parseMetadata, parsePayload } from '@nestling/pipeline';
+import { analyzeInput, parsePayload } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 /**
  * Входные данные для CLI транспорта
@@ -27,20 +27,21 @@ export interface CliInput {
  * CLI транспорт
  */
 export class CliTransport implements ITransport {
-  private readonly handlers = new Map<string, EndpointDefinition>();
+  private readonly handlers = new Map<
+    string,
+    EndpointDefinition<any, any, any>
+  >();
   private repl?: readline.Interface;
 
-  constructor(private readonly pipeline: Pipeline) {}
+  constructor(private readonly defaultPipeline?: Pipeline<any, any>) {}
 
   /**
    * Регистрирует handler через конфигурацию
    */
-  endpoint<
-    I extends AnyInput = AnyInput,
-    O extends AnyOutput = AnyOutput,
-    M extends Optional<Schema> = Optional<Schema>,
-  >(definition: EndpointDefinition<I, O, M>): void {
-    this.handlers.set(definition.pattern, definition);
+  endpoint<TInput, TMeta, TOutput>(
+    definition: EndpointDefinition<TInput, TMeta, TOutput>,
+  ): void {
+    this.handlers.set(definition.pattern, definition as any);
   }
 
   /**
@@ -108,33 +109,45 @@ export class CliTransport implements ITransport {
       }
     }
 
-    // Создаем RequestContext
-    const requestContext: RequestContext = {
-      transport: 'cli',
-      pattern: `${input.command}`,
-      payload,
-      metadata: {
-        command: input.command,
-        args: input.args,
-        options: input.options,
-      },
-    };
+    // Получаем pipeline из definition или используем default
+    const pipeline = definition.pipeline ?? this.defaultPipeline;
 
-    // Валидируем metadata если нужно
-    if (definition.metadata) {
-      const inputSources = {
-        payload: payload as Record<string, unknown>,
-        metadata: requestContext.metadata as Record<string, unknown>,
+    if (pipeline) {
+      // Новая архитектура с pipeline
+      const raw: Raw = {
+        transport: 'cli',
+        pattern: input.command,
+        payload,
+        attributes: {
+          command: input.command,
+          args: input.args,
+          options: input.options,
+        },
       };
 
-      requestContext.metadata = parseMetadata(
-        definition.metadata,
-        inputSources,
-      );
-    }
+      const endpointMeta: EndpointMeta = {
+        transport: 'cli',
+        pattern: definition.pattern,
+        input: definition.input,
+        output: definition.output,
+      };
 
-    // Выполняем пайплайн с handler
-    return this.pipeline.executeWithHandler(definition.handle, requestContext);
+      const ctx: UnvalidatedContext<Record<string, never>> = {
+        raw,
+        meta: {} as Record<string, never>,
+        endpoint: endpointMeta,
+      };
+
+      return pipeline.executeWithHandler(definition.handle, ctx);
+    } else {
+      // Fallback без pipeline - прямой вызов handler
+      const result = await definition.handle(payload, {});
+      return {
+        isSuccess: true,
+        status: 'OK',
+        value: result,
+      };
+    }
   }
 
   /**

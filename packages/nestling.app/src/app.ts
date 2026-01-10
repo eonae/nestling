@@ -2,11 +2,7 @@
 /* eslint-disable no-console */
 import type { BuiltContainer, Module, Provider } from '@nestling/container';
 import { ContainerBuilder } from '@nestling/container';
-import {
-  getAllEndpoints,
-  getAllMiddleware,
-  getEndpointMetadata,
-} from '@nestling/pipeline';
+import { getAllEndpoints, getEndpointMetadata } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 
 /**
@@ -67,11 +63,13 @@ export class App {
    * 1. Строит DI-контейнер из модулей и провайдеров
    * 2. Запускает lifecycle hooks (@OnInit)
    * 3. Автоматически обнаруживает и регистрирует endpoints через registry
-   * 4. Автоматически обнаруживает и регистрирует middleware через registry
+   *
+   * Middleware теперь добавляются через pipeline при определении endpoint'а,
+   * а не глобально на транспорт.
    *
    * Метод идемпотентен - можно вызывать повторно безопасно.
    *
-   * @throws {Error} Если endpoint/middleware в registry, но не в контейнере
+   * @throws {Error} Если endpoint в registry, но не в контейнере
    * @private
    */
   async #init(): Promise<void> {
@@ -98,10 +96,7 @@ export class App {
     // 2. Запускаем lifecycle hooks
     await this.#container.init();
 
-    // 3. Автоматически регистрируем middleware
-    this.#registerMiddleware();
-
-    // 4. Автоматически регистрируем endpoints
+    // 3. Автоматически регистрируем endpoints
     this.#registerEndpoints();
 
     this.#initialized = true;
@@ -128,7 +123,7 @@ export class App {
 
   /**
    * Запускает приложение полностью:
-   * 1. Инициализирует контейнер и регистрирует endpoints/middleware
+   * 1. Инициализирует контейнер и регистрирует endpoints
    * 2. Запускает все транспорты
    * 3. Настраивает graceful shutdown (SIGTERM, SIGINT)
    *
@@ -234,44 +229,15 @@ export class App {
       }
 
       // Регистрируем endpoint в транспорте
+      // В новой архитектуре metadata содержит pipeline
       transport.endpoint({
         transport: metadata.transport,
         pattern: metadata.pattern,
         input: metadata.input,
-        metadata: metadata.metadata,
         output: metadata.output,
-        handle: (payload, meta) => instance.handle(payload, meta),
-      });
-    }
-  }
-
-  /**
-   * Автоматически регистрирует все middleware из registry
-   *
-   * @private
-   */
-  #registerMiddleware(): void {
-    if (!this.#container) {
-      throw new Error('Container must be built before registering middleware');
-    }
-
-    const middlewareClasses = getAllMiddleware();
-
-    for (const MiddlewareClass of middlewareClasses) {
-      // Получаем инстанс из контейнера
-      const instance = this.#container.getOrThrow(MiddlewareClass);
-      if (!instance) {
-        throw new Error(
-          `Middleware '${MiddlewareClass.name}' is registered in the middleware registry, ` +
-            `but is not available in the DI container. ` +
-            `Make sure it is decorated with @Injectable and added to a module's providers or middleware array.`,
-        );
-      }
-
-      // Регистрируем middleware глобально во всех транспортах
-      for (const transport of this.transports.values()) {
-        transport.use((ctx, next) => instance.apply(ctx, next));
-      }
+        pipeline: (metadata as any).pipeline,
+        handle: (input: any, meta: any) => instance.handle(input, meta),
+      } as any);
     }
   }
 }

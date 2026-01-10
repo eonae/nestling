@@ -27,10 +27,10 @@ export interface AppModule extends Omit<Module, 'providers'> {
   providers?: Module['providers'];
 
   /** Endpoint-классы, декорированные @Injectable и @Endpoint */
-  endpoints?: Constructor<IEndpoint>[];
+  endpoints?: Constructor<IEndpoint<any, any, any>>[];
 
   /** Middleware-классы, декорированные @Injectable и @Middleware */
-  middleware?: Constructor<IMiddleware>[];
+  middleware?: Constructor<IMiddleware<any, any>>[];
 }
 
 /**

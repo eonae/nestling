@@ -1,9 +1,4 @@
-import type { Optional, Schema } from '@common/misc';
-import type {
-  AnyInput,
-  AnyOutput,
-  EndpointDefinition,
-} from '@nestling/pipeline';
+import type { EndpointDefinition } from '@nestling/pipeline';
 
 /**
  * Базовый интерфейс транспорта
@@ -12,12 +7,8 @@ export interface ITransport {
   /**
    * Регистрирует handler через конфигурацию
    */
-  endpoint<
-    I extends AnyInput = AnyInput,
-    O extends AnyOutput = AnyOutput,
-    M extends Optional<Schema> = Optional<Schema>,
-  >(
-    definition: EndpointDefinition<I, O, M>,
+  endpoint<TInput, TMeta, TOutput>(
+    definition: EndpointDefinition<TInput, TMeta, TOutput>,
   ): void;
 
   /**

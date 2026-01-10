@@ -1,6 +1,11 @@
 /* eslint-disable no-console */
 
-import { makeEndpoint, stream } from '@nestling/pipeline';
+import {
+  definePipeline,
+  makeEndpoint,
+  stream,
+  withTiming,
+} from '@nestling/pipeline';
 import z from 'zod';
 
 const LogLevel = z.enum(['info', 'warn', 'error']);
@@ -18,14 +23,17 @@ const StreamLogsOutput = z.object({
 });
 
 type LogChunk = z.infer<typeof LogChunk>;
+type StreamLogsOutput = z.infer<typeof StreamLogsOutput>;
 
 export const StreamLogs = makeEndpoint({
   transport: 'http',
   pattern: 'POST /logs/stream',
   input: stream(LogChunk),
   output: StreamLogsOutput,
-  handle: async (payload) => {
-    // payload: AsyncIterableIterator<LogChunk> - тип выводится автоматически!
+  pipeline: definePipeline().use(withTiming()),
+  handle: async (
+    payload: AsyncIterableIterator<LogChunk>,
+  ): Promise<StreamLogsOutput> => {
     const stats = { info: 0, warn: 0, error: 0 };
     let processed = 0;
 
@@ -39,11 +47,8 @@ export const StreamLogs = makeEndpoint({
     }
 
     return {
-      status: 'OK',
-      value: {
-        processed,
-        summary: stats,
-      },
+      processed,
+      summary: stats,
     };
   },
 });

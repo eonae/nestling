@@ -6,6 +6,7 @@ import {
 } from 'node:http';
 
 import { sendResponse } from './adapter.js';
+import type { HttpEndpointMetadata } from './helpers.js';
 import { mergePayload } from './merge.js';
 import {
   parseFilesOnly,
@@ -16,16 +17,16 @@ import {
 } from './parser.js';
 import { HttpRouter } from './router.js';
 
-import type { Optional, Schema } from '@common/misc';
+import type { Schema } from '@common/misc';
 import type {
-  AnyInput,
-  AnyOutput,
   EndpointDefinition,
+  EndpointMeta,
+  IEndpoint,
   Pipeline,
-  RequestContext,
+  Raw,
+  UnvalidatedContext,
 } from '@nestling/pipeline';
-import { analyzeInput, parseMetadata, parsePayload } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
+import { analyzeInput, parsePayload } from '@nestling/pipeline';
 
 /**
  * Опции для HTTP транспорта
@@ -37,38 +38,53 @@ export interface HttpTransportOptions {
 
 /**
  * HTTP транспорт
+ *
+ * Работает с новой архитектурой:
+ * - Создаёт Raw и UnvalidatedContext
+ * - Выполняет pipeline из endpoint metadata
+ * - Handler получает только (input, meta)
  */
-export class HttpTransport implements ITransport {
+export class HttpTransport {
   private readonly router: HttpRouter;
   private server?: Server;
 
-  constructor(
-    private readonly pipeline: Pipeline,
-    private readonly options: HttpTransportOptions = {},
-  ) {
+  constructor(private readonly options: HttpTransportOptions = {}) {
     this.router = new HttpRouter();
   }
 
   /**
-   * Регистрирует handler через конфигурацию
+   * Регистрирует endpoint
    */
-  endpoint<
-    I extends AnyInput = AnyInput,
-    O extends AnyOutput = AnyOutput,
-    M extends Optional<Schema> = Optional<Schema>,
-  >(definition: EndpointDefinition<I, O, M>): void {
-    this.router.route(definition);
+  registerEndpoint<TInput, TMeta, TOutput>(
+    instance: IEndpoint<TInput, TMeta, TOutput>,
+    metadata: HttpEndpointMetadata<TInput, TOutput>,
+  ): void {
+    this.router.route({
+      transport: 'http',
+      pattern: metadata.pattern,
+      input: metadata.input,
+      output: metadata.output,
+      pipeline: metadata.pipeline,
+      handle: (input: TInput, meta: TMeta) => instance.handle(input, meta),
+    } as any);
   }
 
   /**
-   * Регистрирует маршрут
+   * Регистрирует маршрут через definition
    */
-  route<
-    I extends AnyInput = AnyInput,
-    O extends AnyOutput = AnyOutput,
-    M extends Optional<Schema> = Optional<Schema>,
-  >(definition: EndpointDefinition<I, O, M>): void {
-    this.router.route(definition);
+  route<TInput, TMeta, TOutput>(
+    definition: EndpointDefinition<TInput, TMeta, TOutput>,
+  ): void {
+    this.router.route(definition as any);
+  }
+
+  /**
+   * Alias для route() - реализация ITransport интерфейса
+   */
+  endpoint<TInput, TMeta, TOutput>(
+    definition: EndpointDefinition<TInput, TMeta, TOutput>,
+  ): void {
+    this.route(definition);
   }
 
   /**
@@ -96,7 +112,7 @@ export class HttpTransport implements ITransport {
         resolve();
       });
 
-      this.server.on('fail', (error) => {
+      this.server.on('error', (error) => {
         reject(error);
       });
     });
@@ -157,55 +173,38 @@ export class HttpTransport implements ITransport {
 
       // Анализируем input конфигурацию
       const inputConfig = analyzeInput(route.definition.input);
-      inputConfigType = inputConfig.type; // Сохраняем для cleanup
+      inputConfigType = inputConfig.type;
 
       // Парсим входные данные согласно типу модификатора
       switch (inputConfig.type) {
         case 'stream': {
-          // Streaming данные - payload будет AsyncIterableIterator
-          payload = parseStream(
-            nativeReq,
-            inputConfig.schema as Optional<Schema>,
-          );
-
+          payload = parseStream(nativeReq, inputConfig.schema as Schema);
           break;
         }
         case 'withFiles': {
-          // Структурированные данные + файлы - payload будет { data, files }
           const result = await parseWithFiles(nativeReq);
-
-          // Объединяем params с данными формы
           const dataWithParams = mergePayload(
             result.data,
             undefined,
             route.params,
           );
-
-          // Валидируем dataWithParams через схему (после merge с params)
           const validatedData = inputConfig.schema
             ? parsePayload(inputConfig.schema as Schema, {
                 payload: dataWithParams as Record<string, unknown>,
                 metadata: {},
               })
             : dataWithParams;
-
           payload = {
             data: validatedData,
             files: result.files,
           };
-
           break;
         }
-
         case 'files': {
-          // Только файлы - payload будет FilePart[]
           payload = await parseFilesOnly(nativeReq);
-
           break;
         }
-
         case 'primitive': {
-          // Примитивные типы
           if (inputConfig.primitive === 'binary') {
             payload = await parseRaw(nativeReq);
           } else if (inputConfig.primitive === 'text') {
@@ -215,20 +214,13 @@ export class HttpTransport implements ITransport {
             }
             payload = Buffer.concat(chunks).toString();
           }
-
           break;
         }
-
         default: {
-          // Обычная схема или undefined - парсим как JSON и объединяем с query/params
           let body: unknown;
-
           if (inputConfig.schema) {
-            // Схема без модификатора - парсим как JSON
             body = await parseJson(nativeReq);
           }
-
-          // Объединяем body, query и params в payload
           payload = mergePayload(
             body,
             Object.keys(query).length > 0 ? query : undefined,
@@ -237,66 +229,71 @@ export class HttpTransport implements ITransport {
         }
       }
 
-      // Создаем RequestContext
-      const requestContext: RequestContext = {
-        transport: 'http',
-        pattern: `${nativeReq.method || 'GET'} ${url.pathname}`,
-        payload: payload ?? undefined,
-        metadata: {
-          headers: nativeReq.headers as Record<string, string>,
-        },
-      };
+      // Получаем pipeline из endpoint metadata
+      const definition = route.definition as any;
+      const pipeline = definition.pipeline as Pipeline<any, any> | undefined;
 
-      // Валидируем и парсим payload и metadata только если схемы указаны
-      // Для stream, withFiles, files - payload уже готов, не валидируем повторно
-      if (
-        inputConfig.type !== 'stream' &&
-        inputConfig.type !== 'withFiles' &&
-        inputConfig.type !== 'files' &&
-        inputConfig.type === 'schema' &&
-        inputConfig.schema
-      ) {
-        const inputSources = {
-          payload: payload as Record<string, unknown>,
-          metadata: requestContext.metadata as Record<string, unknown>,
+      if (pipeline) {
+        // Новая архитектура с pipeline
+        const raw: Raw = {
+          transport: 'http',
+          pattern: `${nativeReq.method || 'GET'} ${url.pathname}`,
+          payload,
+          attributes: nativeReq.headers as Record<string, string>,
         };
 
-        requestContext.payload = parsePayload(
-          inputConfig.schema as Schema,
-          inputSources,
-        );
-      }
-
-      if (route.definition.metadata) {
-        const inputSources = {
-          payload: payload as Record<string, unknown>,
-          metadata: requestContext.metadata as Record<string, unknown>,
+        const endpointMeta: EndpointMeta = {
+          transport: 'http',
+          pattern: route.definition.pattern,
+          input: route.definition.input,
+          output: route.definition.output,
         };
 
-        requestContext.metadata = parseMetadata(
-          route.definition.metadata as Schema,
-          inputSources,
+        const ctx: UnvalidatedContext<Record<string, never>> = {
+          raw,
+          meta: {} as Record<string, never>,
+          endpoint: endpointMeta,
+        };
+
+        const responseContext = await pipeline.executeWithHandler(
+          route.handler,
+          ctx,
         );
+
+        this.cleanupFileStreams(inputConfigType, payload);
+        sendResponse(nativeRes, responseContext);
+      } else {
+        // Fallback для endpoint'ов без pipeline (прямой вызов handler)
+        // Валидируем payload если есть schema
+        if (
+          inputConfig.type !== 'stream' &&
+          inputConfig.type !== 'withFiles' &&
+          inputConfig.type !== 'files' &&
+          inputConfig.type === 'schema' &&
+          inputConfig.schema
+        ) {
+          payload = parsePayload(inputConfig.schema as Schema, {
+            payload: payload as Record<string, unknown>,
+            metadata: {},
+          });
+        }
+
+        // Без pipeline meta пустая
+        const meta = {};
+
+        const result = await route.handler(payload, meta);
+
+        this.cleanupFileStreams(inputConfigType, payload);
+
+        // Нормализуем ответ
+        sendResponse(nativeRes, {
+          isSuccess: true,
+          status: 'OK',
+          value: result,
+        });
       }
-
-      // Выполняем пайплайн с requestContext
-      const responseContext = await this.pipeline.executeWithHandler(
-        route.handler,
-        requestContext,
-      );
-
-      // Cleanup: автоматически сливаем непрочитанные file streams
-      // Это важно для предотвращения утечек памяти и зависаний,
-      // если endpoint не прочитал все файлы до конца
-      this.cleanupFileStreams(inputConfigType, payload);
-
-      // Отправляем ответ
-      sendResponse(nativeRes, responseContext);
     } catch (error) {
-      // Cleanup в случае ошибки - особенно важно, т.к. handler мог не запуститься
       this.cleanupFileStreams(inputConfigType, payload);
-
-      // Обработка ошибок
       nativeRes.statusCode = 500;
       nativeRes.setHeader('content-type', 'application/json');
       nativeRes.end(
@@ -310,25 +307,11 @@ export class HttpTransport implements ITransport {
 
   /**
    * Очищает непрочитанные file streams для предотвращения утечек памяти.
-   *
-   * Вызывается автоматически после обработки запроса (успешной или с ошибкой).
-   * Для каждого файла проверяет, был ли stream прочитан до конца:
-   * - Если stream.readableEnded === true, значит данные прочитаны, ничего не делаем
-   * - Если stream.readableEnded === false, вызываем stream.resume() для "слива" данных
-   *
-   * Это важно, потому что:
-   * 1. Непрочитанные streams могут привести к утечкам памяти
-   * 2. TCP буферы могут заполниться и зависнуть
-   * 3. Busboy может не завершиться корректно
-   *
-   * @param inputType - тип input из analyzeInput
-   * @param payload - payload с потенциальными file streams
    */
   private cleanupFileStreams(
     inputType: string | undefined,
     payload: unknown,
   ): void {
-    // Только для типов с файлами
     if (inputType !== 'withFiles' && inputType !== 'files') {
       return;
     }
@@ -337,17 +320,14 @@ export class HttpTransport implements ITransport {
       let files: { stream: NodeJS.ReadableStream }[] = [];
 
       if (inputType === 'withFiles') {
-        // Для withFiles: payload = { data, files }
         const withFilesPayload = payload as {
           files?: { stream: NodeJS.ReadableStream }[];
         };
         files = withFilesPayload.files || [];
       } else if (inputType === 'files') {
-        // Для files: payload = FilePart[]
         files = (payload as { stream: NodeJS.ReadableStream }[]) || [];
       }
 
-      // Проходим по всем файлам и "сливаем" непрочитанные streams
       for (const file of files) {
         if (file.stream && 'readableEnded' in file.stream) {
           const readableStream = file.stream as NodeJS.ReadableStream & {
@@ -355,15 +335,13 @@ export class HttpTransport implements ITransport {
             resume?: () => void;
           };
 
-          // Если stream не был прочитан до конца, сливаем его
           if (!readableStream.readableEnded && readableStream.resume) {
             readableStream.resume();
           }
         }
       }
     } catch {
-      // Игнорируем ошибки cleanup - это не критично
-      // (возможно stream уже уничтожен или закрыт)
+      // Игнорируем ошибки cleanup
     }
   }
 }

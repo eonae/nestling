@@ -1,11 +1,13 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
+
+import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
-import { HttpEndpoint } from '@nestling/transport.http';
 
 const GetUserInput = z.object({
   id: z.string(),
@@ -19,6 +21,7 @@ const GetUserOutput = z.object({
 
 type GetUserInput = z.infer<typeof GetUserInput>;
 type GetUserOutput = z.infer<typeof GetUserOutput>;
+
 /**
  * Endpoint для получения пользователя по ID
  */
@@ -26,17 +29,20 @@ type GetUserOutput = z.infer<typeof GetUserOutput>;
 @HttpEndpoint('GET', '/api/users/:id', {
   input: GetUserInput,
   output: GetUserOutput,
+  pipeline: basePipeline,
 })
-export class GetUserEndpoint implements IEndpoint {
+export class GetUserEndpoint
+  implements IEndpoint<GetUserInput, {}, GetUserOutput>
+{
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle({ id }: GetUserInput): Output<GetUserOutput> {
-    this.logger.log(`Handling GET /api/users/${id}`);
+  async handle(input: GetUserInput): Output<GetUserOutput> {
+    this.logger.log(`Handling GET /api/users/${input.id}`);
 
-    const user = await this.userService.getById(id);
+    const user = await this.userService.getById(input.id);
 
     if (!user) {
       throw Fail.notFound('User not found');

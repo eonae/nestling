@@ -1,4 +1,4 @@
-import { makeEndpoint } from '@nestling/pipeline';
+import { definePipeline, makeEndpoint, withTiming } from '@nestling/pipeline';
 import z from 'zod';
 
 // GET /
@@ -11,11 +11,9 @@ export const SayHello = makeEndpoint({
   transport: 'http',
   pattern: 'GET /',
   output: SayHelloOutput,
+  pipeline: definePipeline().use(withTiming()),
   handle: async () => ({
-    status: 'OK',
-    value: {
-      message: 'Hello from Nestling HTTP Transport!',
-      timestamp: new Date().toISOString(),
-    },
+    message: 'Hello from Nestling HTTP Transport!',
+    timestamp: new Date().toISOString(),
   }),
 });

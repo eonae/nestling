@@ -1,29 +1,24 @@
-import type { AnyInput, AnyOutput, InferInput, InferOutput } from '../io';
 import type { Output, OutputSync } from '../result.js';
 
-import type { Infer, Optional, Schema } from '@common/misc';
-
 /**
- * Интерфейс для handler-классов
- * Используется для явной реализации контракта
- * Handler может вернуть Success или выбросить Failure
+ * Интерфейс endpoint с типизированным pipeline
+ *
+ * Handler получает ТОЛЬКО input и meta.
+ * Никакого raw, никакого endpoint metadata!
+ *
+ * @param TInput - тип провалидированных входных данных
+ * @param TMeta - тип метаданных от pipeline
+ * @param TOutput - тип выходных данных
  */
-export interface IEndpoint<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends Optional<Schema> = Optional<Schema>,
-> {
-  handle(
-    payload: InferInput<I>,
-    metadata: Infer<M>,
-  ): OutputSync<InferOutput<O>> | Output<InferOutput<O>>;
+export interface IEndpoint<TInput = any, TMeta = any, TOutput = any> {
+  handle(input: TInput, meta: TMeta): OutputSync<TOutput> | Output<TOutput>;
 }
 
 /**
  * Функция-обработчик запроса
  */
-export type HandlerFn<
-  I extends AnyInput = AnyInput,
-  O extends AnyOutput = AnyOutput,
-  M extends Optional<Schema> = Optional<Schema>,
-> = IEndpoint<I, O, M>['handle'];
+export type HandlerFn<TInput = any, TMeta = any, TOutput = any> = IEndpoint<
+  TInput,
+  TMeta,
+  TOutput
+>['handle'];

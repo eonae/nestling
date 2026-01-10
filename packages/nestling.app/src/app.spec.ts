@@ -4,17 +4,11 @@ import { makeAppModule } from './module';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { Injectable } from '@nestling/container';
-import type {
-  IEndpoint,
-  IMiddleware,
-  RequestContext,
-  ResponseContext,
-} from '@nestling/pipeline';
+import type { IEndpoint } from '@nestling/pipeline';
 import {
   clearEndpointRegistry,
   clearMiddlewareRegistry,
   Endpoint,
-  Middleware,
   Ok,
 } from '@nestling/pipeline';
 import { z } from 'zod';
@@ -35,9 +29,11 @@ describe('App Integration', () => {
       input: z.object({ id: z.string() }),
       output: z.object({ result: z.string() }),
     })
-    class TestEndpoint implements IEndpoint {
-      async handle(payload: { id: string }) {
-        return new Ok({ result: `test-${payload.id}` });
+    class TestEndpoint
+      implements IEndpoint<{ id: string }, {}, { result: string }>
+    {
+      async handle(input: { id: string }) {
+        return new Ok({ result: `test-${input.id}` });
       }
     }
 
@@ -67,49 +63,14 @@ describe('App Integration', () => {
     await app.close();
   });
 
-  it('should auto-discover and register middleware from modules', async () => {
-    // Arrange: создаём middleware
-    @Injectable([])
-    @Middleware()
-    class TestMiddleware implements IMiddleware {
-      async apply(ctx: RequestContext, next: () => Promise<ResponseContext>) {
-        return next();
-      }
-    }
-
-    // Создаём модуль с middleware
-    const TestModule = makeAppModule({
-      name: 'test-module',
-      middleware: [TestMiddleware],
-    });
-
-    const mockTransport = new MockTransport();
-
-    // Act: создаём и инициализируем App
-    const app = new App({
-      transports: {
-        http: mockTransport as any,
-      },
-      modules: [TestModule],
-    });
-
-    await app.run();
-
-    // Assert: middleware должен быть зарегистрирован
-    expect(mockTransport.middleware).toHaveLength(1);
-
-    // Cleanup
-    await app.close();
-  });
-
   it('should throw error if endpoint is in registry but not in container', async () => {
     // Arrange: создаём endpoint БЕЗ @Injectable
     @Endpoint({
       transport: 'http',
       pattern: 'GET /test',
     })
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    class BadEndpoint implements IEndpoint {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type
+    class BadEndpoint implements IEndpoint<unknown, {}, {}> {
       async handle() {
         return new Ok({});
       }
@@ -145,7 +106,7 @@ describe('App Integration', () => {
       transport: 'http',
       pattern: 'GET /data',
     })
-    class DataEndpoint implements IEndpoint {
+    class DataEndpoint implements IEndpoint<unknown, {}, { data: string }> {
       constructor(private service: TestService) {}
 
       async handle() {

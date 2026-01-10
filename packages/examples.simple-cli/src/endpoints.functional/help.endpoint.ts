@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { makeEndpoint } from '@nestling/pipeline';
+import { definePipeline, makeEndpoint } from '@nestling/pipeline';
 import { z } from 'zod';
 
 export const HelpResponse = z.object({
@@ -13,6 +13,7 @@ export const Help = makeEndpoint({
   transport: 'cli',
   pattern: 'help',
   output: HelpResponse,
+  pipeline: definePipeline(),
   handle: async () => {
     console.log('Available commands:');
     console.log('');
@@ -27,9 +28,6 @@ export const Help = makeEndpoint({
     );
     console.log('');
 
-    return {
-      status: 'OK',
-      value: { message: 'Help displayed' },
-    };
+    return { message: 'Help displayed' };
   },
 });

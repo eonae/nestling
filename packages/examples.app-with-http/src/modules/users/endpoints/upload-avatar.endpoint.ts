@@ -1,12 +1,14 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output, WithFiles } from '@nestling/pipeline';
 import { Fail, Ok, withFiles } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
+
+import { noValidationPipeline } from '../../../common/pipelines';
 import { MAX_AVATAR_SIZE } from '../../../common/constants';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
-import { HttpEndpoint } from '@nestling/transport.http';
 
 const UploadAvatarInput = z.object({
   id: z.string(), // userId из params
@@ -33,15 +35,22 @@ type UploadAvatarOutput = z.infer<typeof UploadAvatarOutput>;
 @HttpEndpoint('POST', '/api/users/:id/avatar', {
   input: withFiles(UploadAvatarInput),
   output: UploadAvatarOutput,
+  pipeline: noValidationPipeline,
 })
-export class UploadAvatarEndpoint implements IEndpoint {
+export class UploadAvatarEndpoint
+  implements
+    IEndpoint<WithFiles<UploadAvatarInput>, {}, UploadAvatarOutput>
+{
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle({ data: { id }, files }: WithFiles<UploadAvatarInput>): Output<UploadAvatarOutput> {
-    this.logger.log(`Handling POST /api/users/${id}/avatar`);
+  async handle(
+    input: WithFiles<UploadAvatarInput>,
+  ): Output<UploadAvatarOutput> {
+    const { data, files } = input;
+    this.logger.log(`Handling POST /api/users/${data.id}/avatar`);
 
     // Находим файл с именем поля 'avatar'
     const avatarFile = files.find((f) => f.field === 'avatar');
@@ -57,13 +66,15 @@ export class UploadAvatarEndpoint implements IEndpoint {
 
     // Валидация размера файла
     if (avatarFile.size && avatarFile.size > MAX_AVATAR_SIZE) {
-      throw Fail.badRequest(`File too large (max ${MAX_AVATAR_SIZE / 1_000_000}MB)`);
+      throw Fail.badRequest(
+        `File too large (max ${MAX_AVATAR_SIZE / 1_000_000}MB)`,
+      );
     }
 
     // Сохраняем файл (мок - просто сохраняем путь в памяти)
-    const avatarUrl = `/uploads/${id}/${avatarFile.filename}`;
+    const avatarUrl = `/uploads/${data.id}/${avatarFile.filename}`;
 
-    const user = await this.userService.updateAvatar(id, avatarUrl);
+    const user = await this.userService.updateAvatar(data.id, avatarUrl);
 
     if (!user) {
       throw Fail.notFound('User not found');
@@ -72,4 +83,3 @@ export class UploadAvatarEndpoint implements IEndpoint {
     return new Ok(user);
   }
 }
-

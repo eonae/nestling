@@ -1,10 +1,12 @@
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
+
+import { noValidationPipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
-import { HttpEndpoint } from '@nestling/transport.http';
 
 const ListUsersOutput = z.array(
   z.object({
@@ -22,14 +24,17 @@ type ListUsersOutput = z.infer<typeof ListUsersOutput>;
 @Injectable([UserService, ILogger])
 @HttpEndpoint('GET', '/api/users', {
   output: ListUsersOutput,
+  pipeline: noValidationPipeline,
 })
-export class ListUsersEndpoint implements IEndpoint {
+export class ListUsersEndpoint
+  implements IEndpoint<unknown, {}, ListUsersOutput>
+{
   constructor(
     private users: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle(): Output<ListUsersOutput> {
+  async handle(_input: unknown, _meta: {}): Output<ListUsersOutput> {
     this.logger.log('Handling GET /api/users');
 
     const users = await this.users.getAll();
@@ -38,4 +43,3 @@ export class ListUsersEndpoint implements IEndpoint {
     return users;
   }
 }
-

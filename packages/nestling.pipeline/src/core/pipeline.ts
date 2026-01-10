@@ -1,79 +1,109 @@
-import type { OutputSync } from './result';
-import { Fail, Ok } from './result';
 import type {
   ErrorDetails,
-  HandlerFn,
-  IMiddleware,
-  MiddlewareFn,
-  RequestContext,
   ResponseContext,
-} from './types';
-import { isClass } from './types';
-
-import type { Constructor } from '@common/misc';
+  UnvalidatedContext,
+  ValidatedContext,
+} from './types/context.js';
 /**
- * Класс для выполнения пайплайна middleware и handler
+ * Type helpers
  */
-export class Pipeline {
-  private readonly middlewares: MiddlewareFn[] = [];
+import type { Middleware, MiddlewareFn } from './types/middleware.js';
+import { normalizeMiddleware } from './types/middleware.js';
+import type { Output, OutputSync } from './result.js';
+import { Fail, Ok } from './result.js';
+
+/**
+ * Типизированный pipeline
+ *
+ * CIn  - входной тип контекста (обычно UnvalidatedContext<{}>)
+ * COut - выходной тип контекста (ValidatedContext<I, M> или UnvalidatedContext<M>)
+ *
+ * Pipeline иммутабельный: каждый .use() возвращает новый экземпляр.
+ * Это позволяет безопасно переиспользовать базовые pipeline'ы.
+ */
+export class Pipeline<CIn = any, COut = any> {
+  private readonly middlewares: MiddlewareFn<any, any>[];
 
   /**
-   * Добавляет middleware в пайплайн
-   * Поддерживает как функции, так и классы
+   * Приватный конструктор - создание только через static методы
    */
-  use(middleware: MiddlewareFn | Constructor<IMiddleware>): void {
-    if (isClass(middleware)) {
-      const instance = new middleware();
-      this.middlewares.push((ctx, next) => instance.apply(ctx, next));
-    } else {
-      // MiddlewareFn (функция)
-      this.middlewares.push(middleware);
-    }
+  private constructor(middlewares: MiddlewareFn<any, any>[]) {
+    this.middlewares = middlewares;
   }
 
   /**
-   * Выполняет пайплайн: middleware → handler
-   * Глобально перехватывает все ошибки
+   * Создаёт пустой pipeline
    */
-  async executeWithHandler(
-    handler: HandlerFn,
-    ctx: RequestContext,
-  ): Promise<ResponseContext> {
-    try {
-      let index = 0;
+  static empty(): Pipeline<
+    UnvalidatedContext<Record<string, never>>,
+    UnvalidatedContext<Record<string, never>>
+  > {
+    return new Pipeline([]);
+  }
 
-      const next = async (): Promise<ResponseContext> => {
-        if (index < this.middlewares.length) {
-          const middleware = this.middlewares[index++];
-          return middleware(ctx, next);
+  /**
+   * Добавляет middleware в конец цепочки
+   * Возвращает новый pipeline с обновлённым типом
+   */
+  use<CNext>(middleware: Middleware<COut, CNext>): Pipeline<CIn, CNext> {
+    return new Pipeline([...this.middlewares, normalizeMiddleware(middleware)]);
+  }
+
+  /**
+   * Выполняет pipeline с handler
+   *
+   * @param handler - бизнес-логика endpoint (получает только input и meta)
+   * @param ctx - начальный контекст от транспорта
+   */
+  async executeWithHandler<TOutput>(
+    handler: (input: any, meta: any) => OutputSync<TOutput> | Output<TOutput>,
+    ctx: CIn,
+  ): Promise<ResponseContext<TOutput>> {
+    try {
+      let currentCtx: any = ctx;
+
+      // Выполняем цепочку middleware
+      for (const middleware of this.middlewares) {
+        let nextCalled = false;
+        let nextCtx: any;
+
+        const response = await middleware(currentCtx, async (newCtx) => {
+          nextCalled = true;
+          nextCtx = newCtx;
+          // Возвращаем placeholder - реальный response будет от handler'а
+          return null as any;
+        });
+
+        // Если middleware вернул response напрямую (short-circuit)
+        if (!nextCalled) {
+          return response as ResponseContext<TOutput>;
         }
 
-        const result = await handler(ctx.payload, ctx.metadata);
-        return this.normalizeResponse(result);
-      };
+        currentCtx = nextCtx;
+      }
 
-      return await next();
+      // Вызываем handler только с input и meta
+      // Handler НЕ получает raw и endpoint!
+      const result = await handler(currentCtx.input, currentCtx.meta);
+      return this.normalizeResponse(result);
     } catch (error) {
-      // Глобальный перехват всех ошибок (из middleware или handler)
-      return this.errorToResponse(error);
+      return this.errorToResponse(error) as ResponseContext<TOutput>;
     }
   }
 
   /**
    * Нормализует результат handler'а в ResponseContext
-   * Поддерживает: Ok, примитивы/объекты (автоматически -> Success.ok)
-   * Ошибки обрабатываются через throw Fail в errorToResponse()
    */
   private normalizeResponse<T>(result: OutputSync<T>): ResponseContext<T> {
-    // Если это Ok - преобразуем в SuccessResponseContext
     if (result instanceof Ok) {
       return {
         isSuccess: true,
-        ...result,
+        status: result.status,
+        value: result.value,
+        headers: result.headers,
       };
     }
 
-    // Иначе оборачиваем в Success.ok и преобразуем
     return {
       isSuccess: true,
       status: 'OK',
@@ -82,17 +112,14 @@ export class Pipeline {
   }
 
   /**
-   * Преобразует ошибку в ErrorResponseContext
+   * Конвертирует ошибку в ResponseContext
    */
   private errorToResponse(error: unknown): ResponseContext {
     if (error instanceof Fail) {
-      // Если это Failure - используем его статус и данные
       const errorValue: ErrorDetails = {
         error: error.message,
       };
-      if (error.details) {
-        errorValue.details = error.details;
-      }
+
       return {
         isSuccess: false,
         status: error.status,
@@ -100,9 +127,8 @@ export class Pipeline {
       };
     }
 
-    // Для обычных ошибок - INTERNAL_ERROR
     // TODO: Переместить в конфигурацию
-    const isDevelopment = true; // временная константа
+    const isDevelopment = true;
 
     const errorValue: ErrorDetails = {
       error: isDevelopment
@@ -111,6 +137,7 @@ export class Pipeline {
           : 'Unknown error'
         : 'Internal server error',
     };
+
     if (isDevelopment && error instanceof Error && error.stack) {
       errorValue.stack = error.stack;
     }
@@ -122,3 +149,26 @@ export class Pipeline {
     };
   }
 }
+
+/**
+ * Создаёт пустой pipeline
+ * Fluent API entry point
+ */
+export function definePipeline(): Pipeline<
+  UnvalidatedContext<Record<string, never>>,
+  UnvalidatedContext<Record<string, never>>
+> {
+  return Pipeline.empty();
+}
+
+/** Извлекает TMeta из pipeline */
+export type InferPipelineMeta<P> =
+  P extends Pipeline<any, ValidatedContext<any, infer M>>
+    ? M
+    : P extends Pipeline<any, UnvalidatedContext<infer M>>
+      ? M
+      : never;
+
+/** Проверяет, содержит ли pipeline validate() */
+export type HasValidation<P> =
+  P extends Pipeline<any, ValidatedContext<any, any>> ? true : false;

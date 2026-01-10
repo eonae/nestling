@@ -8,18 +8,17 @@ import {
   ListUsersEndpoint,
   SearchUsersEndpoint,
   UpdateUserEndpoint,
-  UploadAvatarEndpoint
+  UploadAvatarEndpoint,
 } from './modules/users/endpoints';
-import { TimingMiddleware } from './modules/users/middleware/timing.middleware';
 import { UserService } from './modules/users/user.service';
 
 /**
- * Модуль пользователей с endpoints и middleware
+ * Модуль пользователей с endpoints
+ * Middleware теперь добавляются через pipeline в каждом endpoint'е
  */
 export const UsersModule = makeAppModule({
   name: 'module:users',
   providers: [UserService],
-  middleware: [TimingMiddleware],
   endpoints: [
     GetUserEndpoint,
     ListUsersEndpoint,
@@ -32,4 +31,3 @@ export const UsersModule = makeAppModule({
     UploadAvatarEndpoint,
   ],
 });
-

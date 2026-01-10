@@ -1,7 +1,12 @@
-import { makeEndpoint } from '@nestling/pipeline';
+import {
+  definePipeline,
+  makeEndpoint,
+  validate,
+  withTiming,
+} from '@nestling/pipeline';
 import z from 'zod';
 
-// POST /users/schema - создание пользователя со схемой
+// POST /users - создание пользователя со схемой
 const CreateUserInput = z.object({
   name: z.string().min(1).max(100),
   email: z.email(),
@@ -24,22 +29,22 @@ const CreateUserOutput = z.object({
   }),
 });
 
+type CreateUserInput = z.infer<typeof CreateUserInput>;
+type CreateUserOutput = z.infer<typeof CreateUserOutput>;
+
 export const CreateUser = makeEndpoint({
   transport: 'http',
   pattern: 'POST /users',
   input: CreateUserInput,
   output: CreateUserOutput,
-  handle: async (payload) => {
-    // payload: { name: string; email: string; address: { street: string; city: string } }
-    // Типы выводятся автоматически из CreateUserPayload!
+  pipeline: definePipeline().use(withTiming()).use(validate()),
+  handle: async (input: CreateUserInput): Promise<CreateUserOutput> => {
+    // input типизирован после validate()
     return {
-      status: 'CREATED',
-      value: {
-        message: 'User created',
-        user: {
-          id: Math.floor(Math.random() * 1000),
-          ...payload,
-        },
+      message: 'User created',
+      user: {
+        id: Math.floor(Math.random() * 1000),
+        ...input,
       },
     };
   },

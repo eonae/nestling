@@ -1,22 +1,52 @@
-import type { RequestContext, ResponseContext } from './context.js';
-
-import type { Constructor } from '@common/misc';
+import type { ResponseContext } from './context.js';
 
 /**
- * Интерфейс для middleware-классов
- * Используется для явной реализации контракта
+ * Функция middleware
+ * Преобразует контекст CIn → COut
+ *
+ * @param ctx - входной контекст
+ * @param next - функция для вызова следующего middleware с преобразованным контекстом
+ * @returns ResponseContext (может быть возвращён напрямую для short-circuit)
  */
-export interface IMiddleware {
-  apply(
-    ctx: RequestContext,
-    next: () => Promise<ResponseContext>,
+export type MiddlewareFn<CIn = any, COut = any> = (
+  ctx: CIn,
+  next: (ctx: COut) => Promise<ResponseContext>,
+) => Promise<ResponseContext>;
+
+/**
+ * Интерфейс для классовых middleware
+ */
+export interface IMiddleware<CIn = any, COut = any> {
+  handle(
+    ctx: CIn,
+    next: (ctx: COut) => Promise<ResponseContext>,
   ): Promise<ResponseContext>;
 }
 
-export type MiddlewareFn = IMiddleware['apply'];
+/**
+ * Middleware может быть функцией или классом
+ */
+export type Middleware<CIn = any, COut = any> =
+  | MiddlewareFn<CIn, COut>
+  | IMiddleware<CIn, COut>;
 
-export const isClass = (
-  value: MiddlewareFn | Constructor<IMiddleware>,
-): value is Constructor<IMiddleware> => {
-  return typeof value?.prototype?.apply === 'function';
-};
+/**
+ * Приводит middleware к функциональной форме
+ */
+export function normalizeMiddleware<CIn = any, COut = any>(
+  mw: Middleware<CIn, COut>,
+): MiddlewareFn<CIn, COut> {
+  if (typeof mw === 'function') {
+    return mw;
+  }
+  return mw.handle.bind(mw);
+}
+
+/**
+ * Проверяет, является ли middleware классом
+ */
+export function isMiddlewareClass<CIn = any, COut = any>(
+  mw: Middleware<CIn, COut>,
+): mw is IMiddleware<CIn, COut> {
+  return typeof mw !== 'function' && typeof mw.handle === 'function';
+}
