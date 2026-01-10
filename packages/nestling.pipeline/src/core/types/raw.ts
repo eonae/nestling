@@ -15,8 +15,8 @@ export interface Raw {
   pattern: string;
 
   /** Нормализованные входные данные */
-  payload: unknown;
+  payload: Record<string, unknown>;
 
   /** Транспортные атрибуты (headers | grpc metadata | cli flags) */
-  attributes: unknown;
+  attributes: Record<string, unknown>;
 }

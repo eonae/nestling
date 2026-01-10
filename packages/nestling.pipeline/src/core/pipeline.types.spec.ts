@@ -17,8 +17,8 @@ import { withTiming } from '../middlewares/timing';
 import type { HasValidation, InferPipelineMeta } from './pipeline';
 import { definePipeline } from './pipeline';
 import type {
-  ResponseContext,
   ExtendableContext,
+  ResponseContext,
   ValidatedContext,
 } from './types';
 

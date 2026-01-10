@@ -1,4 +1,4 @@
-import type { AnyInput } from '../io/io.js';
+import type { AnyInput, EmptyInput } from '../io/io.js';
 
 import type { ExtendableContext } from './context.js';
 
@@ -10,28 +10,28 @@ export type AnyAddition = Record<string, unknown>;
  * Интерфейс для классовых middleware
  */
 export interface IMiddleware<
-  TInput extends AnyInput,
-  TAddition extends Optional<AnyAddition>,
+  TInput extends AnyInput = EmptyInput,
+  TAddition extends Optional<AnyAddition> = undefined,
 > {
   handle: (ctx: ExtendableContext<TInput>) => Promise<TAddition | undefined>;
 }
 
 export type MiddlewareFn<
-  TInput extends AnyInput,
-  TAddition extends Optional<AnyAddition>,
+  TInput extends AnyInput = EmptyInput,
+  TAddition extends Optional<AnyAddition> = undefined,
 > = IMiddleware<TInput, TAddition>['handle'];
 
 export type MiddlewareInstanceOrFunction<
-  TInput extends AnyInput,
-  TAddition extends Optional<AnyAddition>,
+  TInput extends AnyInput = EmptyInput,
+  TAddition extends Optional<AnyAddition> = undefined,
 > = IMiddleware<TInput, TAddition> | MiddlewareFn<TInput, TAddition>;
 
 /**
  * Проверяет, является ли middleware классом
  */
 export function isMiddlewareClass<
-  TInput extends AnyInput,
-  TAddition extends Optional<AnyAddition>,
+  TInput extends AnyInput = EmptyInput,
+  TAddition extends Optional<AnyAddition> = undefined,
 >(
   mw: MiddlewareInstanceOrFunction<TInput, TAddition>,
 ): mw is IMiddleware<TInput, TAddition> {

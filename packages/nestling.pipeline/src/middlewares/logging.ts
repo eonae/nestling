@@ -1,5 +1,4 @@
-import type { AnyInput } from '../core';
-import type { ExtendableContext, MiddlewareFn } from '../core/types';
+import type { MiddlewareFn } from '../core/types';
 
 /**
  * Интерфейс логгера
@@ -22,10 +21,7 @@ export interface Logger {
  *   .use(validate());
  * ```
  */
-export function withRequestLogging<
-  I extends AnyInput,
-  CNext extends ExtendableContext<I>,
->(logger: Logger): MiddlewareFn<I, undefined, CNext> {
+export function withRequestLogging(logger: Logger): MiddlewareFn {
   return async (ctx) => {
     logger.log(`[${ctx.raw.transport}] ${ctx.raw.pattern} - started`);
   };

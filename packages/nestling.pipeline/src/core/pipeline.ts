@@ -19,6 +19,8 @@ import { Fail, Ok } from './result.js';
 
 type OverlapKeys<A, B> = keyof A & keyof B;
 
+type Simplify<T> = { [K in keyof T]: T[K] } & {};
+
 /**
  * Проверяет совместимость TReq и TAdd с TCurrentInput
  */
@@ -29,12 +31,12 @@ type CheckMiddlewareCompatibility<TCurrentInput, TReq, TAdd, M> =
       : {
           ERROR: 'Middleware is overriding fields in input';
           CONFLICTING_KEYS: OverlapKeys<TCurrentInput, TAdd>;
-          CURRENT_INPUT: TCurrentInput;
+          CURRENT_INPUT: Simplify<TCurrentInput>;
           MIDDLEWARE_ADDITION: TAdd;
         }
     : {
         ERROR: 'Input is not assignable to middleware input';
-        CURRENT_INPUT: TCurrentInput;
+        CURRENT_INPUT: Simplify<TCurrentInput>;
         MIDDLEWARE_EXPECTS: TReq;
       };
 

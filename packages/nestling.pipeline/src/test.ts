@@ -11,25 +11,25 @@
  */
 
 import { definePipeline } from './core';
-import { validate } from './middlewares';
+import { validate, withIdentity, withPermissions } from './middlewares';
 
 // ============================================================================
 // Пример 1: Базовый pipeline с аутентификацией
 // ============================================================================
 
+interface User {
+  userId: number;
+}
+
+interface Permissions {
+  permissions: string[];
+}
+
 const pipeline = definePipeline()
   .use(validate()) // Валидация входных данных
-  .use(validate()); // Валидация входных данных
-
-// .use(withTiming) // Измерение времени выполнения
-// .use(withRequestLogging(console)) // Логирование запросов
-// .use(
-//   withIdentity<User>(async () => {
-//     // Аутентификация пользователя
-//     return {
-//       id: '1',
-//       name: 'John Doe',
-//       email: 'john.doe@example.com',
-//     };
-//   }),
-// );
+  .use(withIdentity<User>(async () => ({ userId: 1 })))
+  .use(
+    withPermissions<Permissions, User>(async () => ({
+      permissions: ['r', 'w'],
+    })),
+  );

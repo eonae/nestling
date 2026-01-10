@@ -1,42 +1,36 @@
-import type { AnyInput } from '../core';
-import type { MiddlewareFnAppending, ExtendableContext } from '../core/types';
+import type { EmptyInput } from '../core';
+import type { MiddlewareFn } from '../core/types';
+
+import z from 'zod';
 
 /**
- * Добавляет произвольное поле в metadata (до validate)
+ * Добавляет requestId в metadata
  *
- * Работает только с UnvalidatedContext.
- *
- * @param key - ключ поля в meta
- * @param getValue - функция получения значения
+ * Извлекает requestId из headers или генерирует случайный
  *
  * @example
  * ```typescript
  * const pipeline = definePipeline()
- *   .use(withMeta('requestId', () => crypto.randomUUID()))
- *   .use(withMeta('timestamp', () => Date.now()))
- *   .use(validate());
+ *   .use(withRequestId())
+ *   .use(validate())
  * ```
  */
-export function withMeta<
-  TKey extends string,
-  TValue,
-  M extends AnyInput = AnyInput,
->(
-  key: TKey,
-  getValue: (ctx: ExtendableContext<M>) => Promise<TValue> | TValue,
-): MiddlewareFnAppending<
-  ExtendableContext<M>,
-  ExtendableContext<M & Record<TKey, TValue>>
+export function withRequestId(): MiddlewareFn<
+  EmptyInput,
+  { requestId: string }
 > {
-  return async (ctx, next) => {
-    const value = await getValue(ctx);
+  return async (ctx) => {
+    const { success, data: requestId } = z
+      .string()
+      .safeParse(ctx.raw.attributes['x-request-id']);
 
-    return next({
-      ...ctx,
-      meta: {
-        ...ctx.meta,
-        [key]: value,
-      } as M & Record<TKey, TValue>,
-    });
+    if (success) {
+      return {
+        requestId,
+      };
+    }
+    return {
+      requestId: crypto.randomUUID(),
+    };
   };
 }

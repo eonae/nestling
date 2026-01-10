@@ -1,7 +1,5 @@
-import type { AnyPayload, AnyInput } from '../core';
-import type { AnyContext, MiddlewareFnAppending, NextContext, Raw } from '../core/types';
-
-type WithIdentity<M extends AnyInput, TUser> = M & { identity: TUser };
+import type { EmptyInput } from '../core';
+import type { MiddlewareFn, Raw } from '../core/types';
 
 /**
  * Добавляет identity в metadata
@@ -31,29 +29,12 @@ type WithIdentity<M extends AnyInput, TUser> = M & { identity: TUser };
  *   .use(validate());
  * ```
  */
-export function withIdentity<
-  TUser,
-  I extends AnyPayload,
-  M extends AnyInput,
-  C extends AnyContext<I, M>,
->(
+export function withIdentity<TUser>(
   authenticate: (raw: Raw) => Promise<TUser> | TUser,
-): MiddlewareFnAppending<
-  I,
-  M,
-  WithIdentity<M, TUser>,
-  C,
-  NextContext<C, I, M, WithIdentity<M, TUser>>
-> {
-  return async (ctx, next) => {
+): MiddlewareFn<EmptyInput, { identity: TUser }> {
+  return async (ctx) => {
     const identity = await authenticate(ctx.raw);
 
-    return next({
-      ...ctx,
-      meta: {
-        ...ctx.meta,
-        identity,
-      },
-    });
+    return { identity };
   };
 }

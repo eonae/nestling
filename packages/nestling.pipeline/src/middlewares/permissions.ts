@@ -1,15 +1,9 @@
-import type { AnyInput } from '../core';
-import type { AnyContext, AnyMeta, MiddlewareFn } from '../core/types';
-
-type WithPermissions<M extends AnyMeta, TPermissions> = M & {
-  permissions: TPermissions;
-};
+import type { MiddlewareFn } from '../core/types';
 
 /**
  * Добавляет permissions в metadata
  *
  * Требует, чтобы identity уже была в meta.
- * Работает только с UnvalidatedContext (до validate).
  *
  * @param getPermissions - функция загрузки permissions по identity
  *
@@ -22,32 +16,13 @@ type WithPermissions<M extends AnyMeta, TPermissions> = M & {
  *   }))
  *   .use(validate());
  * ```
- */
-export function withPermissions<
-  TPermissions,
-  I extends AnyInput,
-  U,
-  M extends { identity: U },
->(
-  getPermissions: (
-    identity: M['identity'],
-  ) => Promise<TPermissions> | TPermissions,
-): MiddlewareFn<
-  I,
-  M,
-  WithPermissions<M, TPermissions>,
-  AnyContext<I, M>,
-  AnyContext<I, WithPermissions<M, TPermissions>>
-> {
-  return async (ctx, next) => {
-    const permissions = await getPermissions(ctx.meta.identity);
+ * */
+export function withPermissions<TPermissions, TIdentity>(
+  getPermissions: (identity: TIdentity) => Promise<TPermissions> | TPermissions,
+): MiddlewareFn<{ identity: TIdentity }, { permissions: TPermissions }> {
+  return async (ctx) => {
+    const permissions = await getPermissions(ctx.input.identity);
 
-    return next({
-      ...ctx,
-      meta: {
-        ...ctx.meta,
-        permissions,
-      },
-    });
+    return { permissions };
   };
 }
