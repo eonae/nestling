@@ -1,3 +1,4 @@
+import type { AnyInput, AnyOutput, EmptyMeta } from '../io/io.js';
 import type { Output, OutputSync } from '../result.js';
 
 /**
@@ -10,15 +11,19 @@ import type { Output, OutputSync } from '../result.js';
  * @param TMeta - тип метаданных от pipeline
  * @param TOutput - тип выходных данных
  */
-export interface IEndpoint<TInput = any, TMeta = any, TOutput = any> {
-  handle(input: TInput, meta: TMeta): OutputSync<TOutput> | Output<TOutput>;
+export interface IEndpoint<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+> {
+  handle(input: I, meta: M): OutputSync<O> | Output<O>;
 }
 
 /**
  * Функция-обработчик запроса
  */
-export type HandlerFn<TInput = any, TMeta = any, TOutput = any> = IEndpoint<
-  TInput,
-  TMeta,
-  TOutput
->['handle'];
+export type HandlerFn<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+> = IEndpoint<I, O, M>['handle'];

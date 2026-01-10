@@ -1,4 +1,5 @@
 import type {
+  AnyContext,
   ErrorDetails,
   ResponseContext,
   UnvalidatedContext,
@@ -21,23 +22,19 @@ import { Fail, Ok } from './result.js';
  * Pipeline иммутабельный: каждый .use() возвращает новый экземпляр.
  * Это позволяет безопасно переиспользовать базовые pipeline'ы.
  */
-export class Pipeline<CIn = any, COut = any> {
-  private readonly middlewares: MiddlewareFn<any, any>[];
-
+export class Pipeline<
+  CIn extends UnvalidatedContext = UnvalidatedContext,
+  COut extends AnyContext = UnvalidatedContext,
+> {
   /**
    * Приватный конструктор - создание только через static методы
    */
-  private constructor(middlewares: MiddlewareFn<any, any>[]) {
-    this.middlewares = middlewares;
-  }
+  private constructor(private readonly middlewares: MiddlewareFn<any, any>[]) {}
 
   /**
    * Создаёт пустой pipeline
    */
-  static empty(): Pipeline<
-    UnvalidatedContext<Record<string, never>>,
-    UnvalidatedContext<Record<string, never>>
-  > {
+  static empty(): Pipeline<UnvalidatedContext, UnvalidatedContext> {
     return new Pipeline([]);
   }
 
@@ -45,7 +42,9 @@ export class Pipeline<CIn = any, COut = any> {
    * Добавляет middleware в конец цепочки
    * Возвращает новый pipeline с обновлённым типом
    */
-  use<CNext>(middleware: Middleware<COut, CNext>): Pipeline<CIn, CNext> {
+  use<CNext extends AnyContext = AnyContext>(
+    middleware: Middleware<COut, CNext>,
+  ): Pipeline<CIn, CNext> {
     return new Pipeline([...this.middlewares, normalizeMiddleware(middleware)]);
   }
 
@@ -155,8 +154,8 @@ export class Pipeline<CIn = any, COut = any> {
  * Fluent API entry point
  */
 export function definePipeline(): Pipeline<
-  UnvalidatedContext<Record<string, never>>,
-  UnvalidatedContext<Record<string, never>>
+  UnvalidatedContext,
+  UnvalidatedContext
 > {
   return Pipeline.empty();
 }

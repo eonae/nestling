@@ -2,14 +2,12 @@ import type { Constructor } from '@common/misc';
 import type {
   AnyInput,
   AnyOutput,
+  EmptyMeta,
   EndpointDefinition,
-  FilesModifier,
   IEndpoint,
   Pipeline,
-  StreamModifier,
   UnvalidatedContext,
   ValidatedContext,
-  WithFilesModifier,
 } from '@nestling/pipeline';
 import { makeEndpoint, registerEndpoint } from '@nestling/pipeline';
 import type { HTTPMethod } from 'find-my-way';
@@ -19,18 +17,19 @@ import type { HTTPMethod } from 'find-my-way';
  *
  * ✅ Требует pipeline с validate()
  */
-export interface HttpEndpointOptionsWithInput<TInput, TMeta, TOutput> {
+export interface HttpEndpointOptionsWithInput<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+> {
   /** Schema или модификатор для input (обязательно) */
-  input: AnyInput;
+  input: I;
 
   /** Schema для output (опционально) */
-  output?: AnyOutput;
+  output?: O;
 
   /** Pipeline для обработки запроса - ДОЛЖЕН содержать validate() */
-  pipeline: Pipeline<
-    UnvalidatedContext<Record<string, never>>,
-    ValidatedContext<unknown, TMeta>
-  >;
+  pipeline: Pipeline<UnvalidatedContext<M>, ValidatedContext<I, M>>;
 
   /** Rate limit конфигурация */
   rateLimit?: unknown;
@@ -47,47 +46,18 @@ export interface HttpEndpointOptionsWithInput<TInput, TMeta, TOutput> {
  *
  * ✅ Допускает pipeline без validate()
  */
-export interface HttpEndpointOptionsWithoutInput<TMeta, TOutput> {
+export interface HttpEndpointOptionsWithoutInput<
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+> {
   /** Schema или модификатор для input (не задан) */
   input?: never;
 
   /** Schema для output (опционально) */
-  output?: AnyOutput;
+  output?: O;
 
   /** Pipeline для обработки запроса - может быть без validate() */
-  pipeline: Pipeline<
-    UnvalidatedContext<Record<string, never>>,
-    UnvalidatedContext<TMeta>
-  >;
-
-  /** Rate limit конфигурация */
-  rateLimit?: unknown;
-
-  /** Включить audit logging */
-  audit?: boolean;
-
-  /** Cache конфигурация */
-  cache?: unknown;
-}
-
-/**
- * Опции для HttpEndpoint декоратора (с модификаторами)
- *
- * ✅ Модификаторы (stream, withFiles, files) не требуют validate()
- * ✅ Валидация происходит на уровне транспорта
- */
-export interface HttpEndpointOptionsWithModifier<_TInput, TMeta, _TOutput> {
-  /** Модификатор для input (stream, withFiles, files) */
-  input: StreamModifier<any> | WithFilesModifier<any> | FilesModifier;
-
-  /** Schema для output (опционально) */
-  output?: AnyOutput;
-
-  /** Pipeline для обработки запроса - может быть без validate() */
-  pipeline: Pipeline<
-    UnvalidatedContext<Record<string, never>>,
-    UnvalidatedContext<TMeta>
-  >;
+  pipeline: Pipeline<UnvalidatedContext<M>, UnvalidatedContext<M>>;
 
   /** Rate limit конфигурация */
   rateLimit?: unknown;
@@ -102,28 +72,35 @@ export interface HttpEndpointOptionsWithModifier<_TInput, TMeta, _TOutput> {
 /**
  * Unified опции (для совместимости)
  */
-export type HttpEndpointOptions<TInput, TMeta, TOutput> =
-  | HttpEndpointOptionsWithInput<TInput, TMeta, TOutput>
-  | HttpEndpointOptionsWithoutInput<TMeta, TOutput>
-  | HttpEndpointOptionsWithModifier<TInput, TMeta, TOutput>;
+export type HttpEndpointOptions<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+> =
+  | HttpEndpointOptionsWithInput<I, O, M>
+  | HttpEndpointOptionsWithoutInput<O, M>;
 
 /**
  * Метаданные HTTP endpoint
  */
-export interface HttpEndpointMetadata<TInput = unknown, TOutput = unknown> {
+export interface HttpEndpointMetadata<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+> {
   transport: 'http';
   pattern: string;
   method: HTTPMethod;
   path: string;
 
   /** Schema для валидации input */
-  input?: AnyInput;
+  input?: I;
 
   /** Schema для output (опционально) */
-  output?: AnyOutput;
+  output?: O;
 
   /** Pipeline для этого endpoint */
-  pipeline: Pipeline<any, any>;
+  pipeline: Pipeline<UnvalidatedContext<M>, ValidatedContext<I, M>>;
 
   /** Дополнительные опции для middleware */
   rateLimit?: unknown;
@@ -183,48 +160,44 @@ export interface HttpEndpointMetadata<TInput = unknown, TOutput = unknown> {
  */
 
 // Overload 1: с input схемой - требует validate()
-export function HttpEndpoint<TInput, TMeta, TOutput>(
+export function HttpEndpoint<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+>(
   method: HTTPMethod,
   path: string,
-  options: HttpEndpointOptionsWithInput<TInput, TMeta, TOutput>,
-): <T extends Constructor<IEndpoint<TInput, TMeta, TOutput>>>(
-  target: T,
-  context: ClassDecoratorContext<T>,
-) => T;
-
-// Overload 2: с модификаторами (stream, withFiles) - validate() не нужен
-// eslint-disable-next-line @typescript-eslint/unified-signatures
-export function HttpEndpoint<TInput, TMeta, TOutput>(
-  method: HTTPMethod,
-  path: string,
-  options: HttpEndpointOptionsWithModifier<TInput, TMeta, TOutput>,
-): <T extends Constructor<IEndpoint<TInput, TMeta, TOutput>>>(
+  options: HttpEndpointOptionsWithInput<I, O, M>,
+): <T extends Constructor<IEndpoint<I, O, M>>>(
   target: T,
   context: ClassDecoratorContext<T>,
 ) => T;
 
 // Overload 3: без input схемы - validate() не нужен
-export function HttpEndpoint<TMeta, TOutput>(
+export function HttpEndpoint<
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+>(
   method: HTTPMethod,
   path: string,
-  options: HttpEndpointOptionsWithoutInput<TMeta, TOutput>,
-): <T extends Constructor<IEndpoint<Record<string, never>, TMeta, TOutput>>>(
+  options: HttpEndpointOptionsWithoutInput<O, M>,
+): <T extends Constructor<IEndpoint<any, O, M>>>(
   target: T,
   context: ClassDecoratorContext<T>,
 ) => T;
 
 // Реализация
-export function HttpEndpoint<TInput, TMeta, TOutput>(
-  method: HTTPMethod,
-  path: string,
-  options: HttpEndpointOptions<TInput, TMeta, TOutput>,
-) {
-  return <T extends Constructor<IEndpoint<any, TMeta, TOutput>>>(
+export function HttpEndpoint<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+>(method: HTTPMethod, path: string, options: HttpEndpointOptions<I, O, M>) {
+  return <T extends Constructor<IEndpoint<I, O, M>>>(
     target: T,
     context: ClassDecoratorContext<T>,
   ): T => {
     // Сохраняем метаданные
-    const metadata: HttpEndpointMetadata<TInput, TOutput> = {
+    const metadata: HttpEndpointMetadata<I, O, M> = {
       transport: 'http',
       pattern: `${method} ${path}`,
       method,
@@ -261,14 +234,15 @@ export function getHttpEndpointMetadata(
 /**
  * Создаёт endpoint definition для HTTP
  */
-export function makeHttpEndpoint<TInput, TMeta, TOutput>(
+export function makeHttpEndpoint<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends EmptyMeta = EmptyMeta,
+>(
   method: HTTPMethod,
   path: string,
-  meta: Omit<
-    EndpointDefinition<TInput, TMeta, TOutput>,
-    'transport' | 'pattern'
-  >,
-): EndpointDefinition<TInput, TMeta, TOutput> {
+  meta: Omit<EndpointDefinition<I, O, M>, 'transport' | 'pattern'>,
+): EndpointDefinition<I, O, M> {
   return makeEndpoint({
     transport: 'http',
     pattern: `${method} ${path}`,

@@ -1,5 +1,6 @@
 import type { Readable } from 'node:stream';
 
+import type { AnyInput, EmptyMeta } from '../io/io';
 import type { ErrorStatus, SuccessStatus } from '../status';
 
 import type { Raw } from './raw.js';
@@ -56,7 +57,7 @@ export interface EndpointMeta {
  * - Могут добавлять поля в meta
  * - Могут читать endpoint для конфигурации
  */
-export interface UnvalidatedContext<TMeta = Record<string, never>> {
+export interface UnvalidatedContext<TMeta extends EmptyMeta = EmptyMeta> {
   /** Данные от транспорта */
   readonly raw: Raw;
 
@@ -79,18 +80,23 @@ export interface UnvalidatedContext<TMeta = Record<string, never>> {
  * - Могут добавлять поля в meta
  */
 export interface ValidatedContext<
-  TInput = unknown,
-  TMeta = Record<string, never>,
+  I extends AnyInput = AnyInput,
+  M extends EmptyMeta = EmptyMeta,
 > {
   /** Провалидированные входные данные */
-  readonly input: TInput;
+  readonly input: I;
 
   /** Метаданные, накапливаемые middleware */
-  meta: TMeta;
+  meta: M;
 
   /** Метаданные endpoint (readonly) */
   readonly endpoint: EndpointMeta;
 }
+
+export type AnyContext<
+  I extends AnyInput = AnyInput,
+  M extends EmptyMeta = EmptyMeta,
+> = UnvalidatedContext<M> | ValidatedContext<I, M>;
 
 /**
  * Создаёт UnvalidatedContext из Raw
@@ -99,10 +105,10 @@ export interface ValidatedContext<
 export function createUnvalidatedContext(
   raw: Raw,
   endpoint: EndpointMeta,
-): UnvalidatedContext<Record<string, never>> {
+): UnvalidatedContext {
   return {
     raw,
-    meta: {} as Record<string, never>,
+    meta: {},
     endpoint,
   };
 }
@@ -153,6 +159,6 @@ export interface ErrorResponseContext {
 /**
  * Абстрактный контекст ответа (discriminated union)
  */
-export type ResponseContext<TValue = unknown> =
-  | SuccessResponseContext<TValue>
+export type ResponseContext<O = unknown> =
+  | SuccessResponseContext<O>
   | ErrorResponseContext;

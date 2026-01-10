@@ -7,7 +7,7 @@ import type { Constructor } from '@common/misc';
  *
  * Используется App для автоматического обнаружения и регистрации endpoints
  */
-const endpointRegistry = new Set<Constructor<IEndpoint<any, any, any>>>();
+const endpointRegistry = new Set<Constructor<IEndpoint>>();
 
 /**
  * Регистрирует endpoint-класс в глобальном registry
@@ -24,9 +24,7 @@ const endpointRegistry = new Set<Constructor<IEndpoint<any, any, any>>>();
  * // Класс автоматически регистрируется декоратором @Endpoint
  * ```
  */
-export function registerEndpoint(
-  ctor: Constructor<IEndpoint<any, any, any>>,
-): void {
+export function registerEndpoint(ctor: Constructor<IEndpoint>): void {
   endpointRegistry.add(ctor);
 }
 
@@ -44,7 +42,7 @@ export function registerEndpoint(
  * }
  * ```
  */
-export function getAllEndpoints(): Constructor<IEndpoint<any, any, any>>[] {
+export function getAllEndpoints(): Constructor<IEndpoint>[] {
   return [...endpointRegistry];
 }
 

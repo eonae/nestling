@@ -1,5 +1,9 @@
 import type { AnyInput, AnyOutput, IEndpoint, Pipeline } from '../core';
-import type { HandlerFn } from '../core/types';
+import type {
+  HandlerFn,
+  UnvalidatedContext,
+  ValidatedContext,
+} from '../core/types';
 
 import { registerEndpoint } from './endpoint-registry';
 
@@ -13,27 +17,31 @@ const HANDLER_KEY = Symbol.for('nestling:handler');
 /**
  * Конфигурация endpoint-класса
  */
-export interface EndpointDefinition<TInput = any, TMeta = any, TOutput = any> {
+export interface EndpointDefinition<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends Record<string, never> = Record<string, never>,
+> {
   transport: string;
   pattern: string;
 
-  handle: HandlerFn<TInput, TMeta, TOutput>;
+  handle: HandlerFn<I, M, O>;
 
   /** Schema или модификатор для input */
-  input?: AnyInput;
+  input?: I;
 
   /** Конфигурация выходных данных */
-  output?: AnyOutput;
+  output?: O;
 
   /** Pipeline для этого endpoint */
-  pipeline?: Pipeline<any, any>;
+  pipeline?: Pipeline<UnvalidatedContext<M>, ValidatedContext<I, M>>;
 }
 
 export type EndpointMetadata<
-  TInput = unknown,
-  TMeta = unknown,
-  TOutput = unknown,
-> = Omit<EndpointDefinition<TInput, TMeta, TOutput>, 'handle'>;
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends Record<string, never> = Record<string, never>,
+> = Omit<EndpointDefinition<I, O, M>, 'handle'>;
 
 /**
  * Декоратор для endpoint-классов с типизированным pipeline.
@@ -60,10 +68,12 @@ export type EndpointMetadata<
  * }
  * ```
  */
-export function Endpoint<TInput = any, TMeta = any, TOutput = any>(
-  metadata: EndpointMetadata<TInput, TMeta, TOutput>,
-) {
-  return <T extends Constructor<IEndpoint<TInput, TMeta, TOutput>>>(
+export function Endpoint<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends Record<string, never> = Record<string, never>,
+>(metadata: EndpointMetadata<I, O, M>) {
+  return <T extends Constructor<IEndpoint<I, O, M>>>(
     target: T,
     context: ClassDecoratorContext<T>,
   ): T => {
@@ -84,10 +94,10 @@ export function Endpoint<TInput = any, TMeta = any, TOutput = any>(
  * Извлекает метаданные handler-класса
  */
 export function getEndpointMetadata<
-  TInput = unknown,
-  TMeta = unknown,
-  TOutput = unknown,
->(target: any): EndpointMetadata<TInput, TMeta, TOutput> | null {
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends Record<string, never> = Record<string, never>,
+>(target: any): EndpointMetadata<I, O, M> | null {
   const constructor = target.prototype ? target : target.constructor;
   return constructor[HANDLER_KEY] || null;
 }
@@ -95,8 +105,10 @@ export function getEndpointMetadata<
 /**
  * Вспомогательная функция для создания конфигурации endpoint'а с корректным выводом типов.
  */
-export function makeEndpoint<TInput = any, TMeta = any, TOutput = any>(
-  definition: EndpointDefinition<TInput, TMeta, TOutput>,
-): EndpointDefinition<TInput, TMeta, TOutput> {
+export function makeEndpoint<
+  I extends AnyInput = AnyInput,
+  O extends AnyOutput = AnyOutput,
+  M extends Record<string, never> = Record<string, never>,
+>(definition: EndpointDefinition<I, O, M>): EndpointDefinition<I, O, M> {
   return definition;
 }
