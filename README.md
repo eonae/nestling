@@ -22,17 +22,27 @@ Right now, Nestling includes:
 
 ### ✅ @nestling/container
 
-A fully functional, type-safe dependency injection container with zero dependencies.
+A fully functional, type-safe dependency injection container with no third-party dependencies.
 
 **Key features:**
 - 🎯 Type-safe with excellent TypeScript inference
-- 🪶 Lightweight with zero dependencies
+- 🪶 Lightweight, no third-party dependencies
 - 🎪 Uses standard ECMAScript decorators (not experimental TypeScript ones)
 - 🔍 Transparent dependency graph with visualization support
 - 🎯 No circular dependencies allowed (by design)
 - 📦 Can be used standalone - frontend, CLI, any framework
 
 👉 **[Read the full documentation](./packages/nestling.container/README.md)** | **[Документация на русском](./packages/nestling.container/README.ru.md)**
+
+### 🚧 HTTP/CLI framework (active development, APIs changing)
+
+- **@nestling/pipeline** — typed, transport-agnostic request pipeline: schema-first endpoints (zod), typed middleware chains, `Ok`/`Fail` results, streaming io
+- **@nestling/app** — application assembly: container + transports, endpoint auto-discovery, lifecycle, graceful shutdown
+- **@nestling/transport.http** — HTTP transport on bare `node:http` (routing, JSON/multipart/NDJSON parsing)
+- **@nestling/transport.cli** — CLI transport: commands as endpoints, single-shot and REPL modes
+- **@nestling/models** — type-safe model definitions on top of zod
+
+The target design is evolving in [`docs/decisions/`](./docs/decisions/ideas.md); usage guides in [`docs/guides/`](./docs/README.md).
 
 ### 📊 @nestling/viz
 
@@ -46,14 +56,12 @@ Interactive visualization tool for your dependency graph.
 
 Generate a visualization of your container's dependency graph and explore it in your browser.
 
-### 📚 Example Application
+### 📚 Examples
 
-Want to see it in action? Check out the **[simple-app example](./packages/examples.simple-app/)** that demonstrates:
-- Module organization
-- Dependency injection patterns
-- Lifecycle hooks
-- Factory providers
-- Dynamic tokens
+- [simple-app](./packages/examples.simple-app/) — standalone DI: modules, factory providers, parameterized tokens, lifecycle hooks
+- [simple-http-server](./packages/examples.simple-http-server/) — functional HTTP endpoints ([guide](./docs/guides/http-functional.md))
+- [app-with-http](./packages/examples.app-with-http/) — full App with DI and class endpoints ([guide](./docs/guides/http-app-di.md))
+- [simple-cli](./packages/examples.simple-cli/) — CLI transport ([guide](./docs/guides/cli.md))
 
 ## Installation
 
@@ -88,7 +96,7 @@ const container = await new ContainerBuilder()
 
 await container.init();
 
-const userService = container.get(UserService);
+const userService = container.getOrThrow(UserService);
 console.log(userService.getUsers()); // ['Alice', 'Bob']
 
 await container.destroy();
@@ -108,7 +116,7 @@ await container.destroy();
 - ✅ Lifecycle hooks in strict topological order
 - ✅ Full access to dependency graph
 - ✅ Standard JavaScript decorators
-- ✅ Zero dependencies for better security
+- ✅ No third-party dependencies for better security
 - ✅ Explicit over implicit everywhere
 
 **[Read more about the philosophy →](./packages/nestling.container/README.md#how-nestling-di-differs-from-nestjs-and-what-they-share)**
@@ -117,23 +125,49 @@ await container.destroy();
 
 - [x] DI Container (`@nestling/container`)
 - [x] Dependency graph visualization (`@nestling/viz`)
-- [ ] HTTP framework (`@nestling/http`)
+- [x] Typed request pipeline (`@nestling/pipeline`) — evolving, see [docs/decisions](./docs/decisions/ideas.md)
+- [x] HTTP transport (`@nestling/transport.http`) — works, not production-hardened yet
+- [x] CLI transport (`@nestling/transport.cli`)
+- [x] Application assembly (`@nestling/app`)
+- [ ] Pipeline v2: phases, layers, `compose` ([design decisions](./docs/decisions/ideas.md))
+- [ ] Token families & module factories
 - [ ] Request context with AsyncLocalStorage (`@nestling/context`)
-- [ ] Common utilities and patterns
+- [ ] Subscriptions registry (`@nestling/subscriptions`)
 - [ ] CLI scaffolding tool
 - [ ] Testing utilities
+
+## Documentation
+
+All documentation lives in [`docs/`](./docs/README.md), organized by status:
+
+- [`docs/design/`](./docs/README.md) — target design (source of truth for the API)
+- [`docs/decisions/`](./docs/decisions/ideas.md) — architecture decision log with reasoning
+- `docs/history/` — frozen discussions, migrations, and work logs
+
+Package-level READMEs document the current state of the code.
 
 ## Project Structure
 
 This is a monorepo containing:
 
 ```
+docs/                          # Design docs, decisions, guides, history
 packages/
-├── nestling.container/     # Core DI container
-├── nestling.viz/          # Dependency graph visualization
-├── examples.simple-app/   # Example application
-├── common.graphs/         # Graph utilities
-└── common.static-server/  # Static file server
+├── nestling.container/        # Core DI container
+├── nestling.pipeline/         # Typed request pipeline & endpoints
+├── nestling.app/              # Application assembly & lifecycle
+├── nestling.transport/        # Transport abstraction
+├── nestling.transport.http/   # HTTP transport
+├── nestling.transport.cli/    # CLI transport
+├── nestling.models/           # Model definitions on top of zod
+├── nestling.viz/              # Dependency graph visualization
+├── examples.simple-app/       # Example: standalone DI
+├── examples.simple-http-server/  # Example: functional HTTP
+├── examples.app-with-http/    # Example: App + DI + HTTP
+├── examples.simple-cli/       # Example: CLI transport
+├── common.graphs/             # Internal: DAG utilities
+├── common.misc/               # Internal: shared helpers
+└── common.static-server/      # Internal: static file server (for viz)
 ```
 
 ## Contributing

@@ -592,7 +592,5 @@ MIT
 
 ## Additional resources
 
-- 📖 [EXAMPLES.md](./EXAMPLES.md) — large collection of practical examples
-- 📖 [SCHEMA.md](./SCHEMA.md) — details on working with schemas in the transport layer
 - 📖 [Zod Documentation](https://zod.dev/)
-- 📖 [Examples in repository](../../examples/)
+- 📖 [Examples in repository](../examples.simple-http-server/)

@@ -20,17 +20,27 @@ Nestling - это моя персональная версия Nest.js, фрей
 
 ### ✅ @nestling/container
 
-Полностью рабочий типобезопасный DI-контейнер с нулевыми зависимостями.
+Полностью рабочий типобезопасный DI-контейнер без сторонних зависимостей.
 
 **Ключевые возможности:**
 - 🎯 Типобезопасность с отличным выводом типов в TypeScript
-- 🪶 Лёгкий, без зависимостей
+- 🪶 Лёгкий, без сторонних зависимостей
 - 🎪 Использует стандартные ECMAScript-декораторы (не экспериментальные TypeScript)
 - 🔍 Прозрачный граф зависимостей с поддержкой визуализации
 - 🎯 Циклические зависимости запрещены (по дизайну)
 - 📦 Можно использовать отдельно - на фронтенде, в CLI, с любым фреймворком
 
 👉 **[Читать полную документацию](./packages/nestling.container/README.ru.md)** | **[English version](./packages/nestling.container/README.md)**
+
+### 🚧 HTTP/CLI-фреймворк (активная разработка, API меняются)
+
+- **@nestling/pipeline** — типизированный транспорт-агностичный пайплайн: schema-first endpoints (zod), типизированные цепочки middleware, результаты `Ok`/`Fail`, стриминг
+- **@nestling/app** — сборка приложения: контейнер + транспорты, авто-обнаружение endpoints, lifecycle, graceful shutdown
+- **@nestling/transport.http** — HTTP-транспорт на голом `node:http` (роутинг, JSON/multipart/NDJSON)
+- **@nestling/transport.cli** — CLI-транспорт: команды как endpoints, single-shot и REPL
+- **@nestling/models** — типобезопасные определения моделей поверх zod
+
+Целевой дизайн развивается в [`docs/decisions/`](./docs/decisions/ideas.md); гайды — в [`docs/guides/`](./docs/README.md).
 
 ### 📊 @nestling/viz
 
@@ -44,14 +54,12 @@ Nestling - это моя персональная версия Nest.js, фрей
 
 Сгенерируйте визуализацию графа зависимостей вашего контейнера и исследуйте её в браузере.
 
-### 📚 Пример приложения
+### 📚 Примеры
 
-Хотите увидеть в действии? Посмотрите **[пример simple-app](./packages/examples.simple-app/)**, который демонстрирует:
-- Организацию модулей
-- Паттерны инъекции зависимостей
-- Lifecycle-хуки
-- Factory-провайдеры
-- Динамические токены
+- [simple-app](./packages/examples.simple-app/) — standalone DI: модули, factory-провайдеры, параметризованные токены, lifecycle-хуки
+- [simple-http-server](./packages/examples.simple-http-server/) — функциональные HTTP-endpoints ([гайд](./docs/guides/http-functional.md))
+- [app-with-http](./packages/examples.app-with-http/) — полный App с DI и классовыми endpoints ([гайд](./docs/guides/http-app-di.md))
+- [simple-cli](./packages/examples.simple-cli/) — CLI-транспорт ([гайд](./docs/guides/cli.md))
 
 ## Установка
 
@@ -86,7 +94,7 @@ const container = await new ContainerBuilder()
 
 await container.init();
 
-const userService = container.get(UserService);
+const userService = container.getOrThrow(UserService);
 console.log(userService.getUsers()); // ['Алиса', 'Боб']
 
 await container.destroy();
@@ -106,7 +114,7 @@ await container.destroy();
 - ✅ Lifecycle-хуки в строгом топологическом порядке
 - ✅ Полный доступ к графу зависимостей
 - ✅ Стандартные JavaScript-декораторы
-- ✅ Нулевые зависимости для лучшей безопасности
+- ✅ Без сторонних зависимостей для лучшей безопасности
 - ✅ Явное лучше неявного везде
 
 **[Подробнее о философии →](./packages/nestling.container/README.ru.md#чем-отличается-di-nestling-и-что-у-него-общего-с-nest-контейнером)**
@@ -115,23 +123,49 @@ await container.destroy();
 
 - [x] DI-контейнер (`@nestling/container`)
 - [x] Визуализация графа зависимостей (`@nestling/viz`)
-- [ ] HTTP-фреймворк (`@nestling/http`)
+- [x] Типизированный пайплайн (`@nestling/pipeline`) — развивается, см. [docs/decisions](./docs/decisions/ideas.md)
+- [x] HTTP-транспорт (`@nestling/transport.http`) — работает, production-hardening впереди
+- [x] CLI-транспорт (`@nestling/transport.cli`)
+- [x] Сборка приложения (`@nestling/app`)
+- [ ] Pipeline v2: фазы, слои, `compose` ([решения](./docs/decisions/ideas.md))
+- [ ] Token families и модули-фабрики
 - [ ] Request-контекст с AsyncLocalStorage (`@nestling/context`)
-- [ ] Общие утилиты и паттерны
+- [ ] Реестр подписок (`@nestling/subscriptions`)
 - [ ] CLI-инструмент для scaffolding
 - [ ] Утилиты для тестирования
+
+## Документация
+
+Вся документация лежит в [`docs/`](./docs/README.md) и организована по статусу:
+
+- [`docs/design/`](./docs/README.md) — целевой дизайн (источник истины для API)
+- [`docs/decisions/`](./docs/decisions/ideas.md) — журнал архитектурных решений с логикой принятия
+- `docs/history/` — замороженные дискуссии, миграции и рабочие заметки
+
+Актуальное состояние кода документируют README пакетов.
 
 ## Структура проекта
 
 Это монорепозиторий, содержащий:
 
 ```
+docs/                          # Дизайн-доки, решения, гайды, история
 packages/
-├── nestling.container/     # Ядро DI-контейнера
-├── nestling.viz/          # Визуализация графа зависимостей
-├── examples.simple-app/   # Пример приложения
-├── common.graphs/         # Утилиты для работы с графами
-└── common.static-server/  # Сервер статических файлов
+├── nestling.container/        # Ядро DI-контейнера
+├── nestling.pipeline/         # Типизированный пайплайн и endpoints
+├── nestling.app/              # Сборка приложения и lifecycle
+├── nestling.transport/        # Абстракция транспорта
+├── nestling.transport.http/   # HTTP-транспорт
+├── nestling.transport.cli/    # CLI-транспорт
+├── nestling.models/           # Модели поверх zod
+├── nestling.viz/              # Визуализация графа зависимостей
+├── examples.simple-app/       # Пример: standalone DI
+├── examples.simple-http-server/  # Пример: функциональный HTTP
+├── examples.app-with-http/    # Пример: App + DI + HTTP
+├── examples.simple-cli/       # Пример: CLI-транспорт
+├── common.graphs/             # Внутреннее: утилиты DAG
+├── common.misc/               # Внутреннее: общие хелперы
+└── common.static-server/      # Внутреннее: статик-сервер (для viz)
 ```
 
 ## Contributing

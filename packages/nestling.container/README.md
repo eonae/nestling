@@ -1,6 +1,6 @@
 # @nestling/container
 
-A lightweight, type-safe dependency injection container for TypeScript with zero dependencies. Built on standard JavaScript decorators, it serves as the foundation for the Nestling.js framework.
+A lightweight, type-safe dependency injection container for TypeScript with no third-party dependencies. Built on standard JavaScript decorators, it serves as the foundation for the Nestling.js framework.
 
 ## Disclaimer
 
@@ -35,13 +35,13 @@ I miss parameter decorators too, but the standard actually has several advantage
 
 ## Standalone Usage (Including in Browsers)
 
-Yes, another important difference. While the Nest container is built into the application and inseparable, `@nestling/container` is an independent, small package with zero dependencies that can be used anywhere: frontend, CLI applications, even with your favorite framework like Fastify or, God forbid, Express.
+Yes, another important difference. While the Nest container is built into the application and inseparable, `@nestling/container` is an independent, small package with no third-party dependencies that can be used anywhere: frontend, CLI applications, even with your favorite framework like Fastify or, God forbid, Express.
 
 > A frontend tech lead I know requested lazy provider initialization - so dependency subtrees in the container would be created when `container.get(...)` is called. Still thinking about this, as it somewhat complicates the implementation, which I desperately resist.
 
 ## On Simplicity
 
-Few lines of code, good inline documentation via JSDoc and comments, zero dependencies, and clear algorithms - all valuable in themselves.
+Few lines of code, good inline documentation via JSDoc and comments, no third-party dependencies, and clear algorithms - all valuable in themselves.
 
 But they're also foundations for security, which is becoming an increasingly pressing concern.
 
@@ -573,7 +573,8 @@ Use **@nestling/viz** for interactive visualization of your dependency tree.
 - `new ContainerBuilder()` - Create a builder
 - `.register(...providers | ...modules)` - Register dependencies
 - `.build()` - Build the container (async)
-- `container.get<T>(token)` - Get an instance
+- `container.get<T>(token)` - Get an instance, or `null` if not registered
+- `container.getOrThrow<T>(token)` - Get an instance, throws if not registered
 - `container.init()` - Run initialization hooks
 - `container.destroy()` - Run destruction hooks
 - `container.toJSON()` - Export dependency graph
