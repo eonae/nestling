@@ -1,0 +1,25 @@
+schema: spec-driven
+
+context: |
+  Nestling — лёгкая, современная альтернатива NestJS. Монорепо: yarn workspaces (+lerna/nx).
+  Tech stack: TypeScript 5.7 strict, ESM, стандартные ES-декораторы (НЕ experimentalDecorators,
+  без reflect-metadata), zod v4 (peer dependency), Node.js 22, jest
+  (NODE_OPTIONS=--experimental-vm-modules; тесты запускаются per-package: `yarn test`).
+  Пакеты: @nestling/container (DI), @nestling/pipeline (типизированный пайплайн, Ok/Fail,
+  endpoints), @nestling/app (сборка приложения), @nestling/transport.http (node:http +
+  find-my-way + busboy), @nestling/transport.cli, @nestling/models, @nestling/viz.
+
+  Принципы: explicit over implicit; zero magic; минимум зависимостей; schema-first
+  (схемы описывают провод); стриминговые границы — стандартный AsyncIterable, не RxJS.
+
+  ВАЖНО: целевой дизайн и логика архитектурных решений — docs/decisions/ideas.md
+  (источник истины при расхождениях). Структура документации — docs/README.md.
+  Гайды по текущему API — docs/guides/. Обзор транспортной архитектуры —
+  docs/design/transports.md.
+
+rules:
+  proposal:
+    - В разделе Why ссылаться на секцию docs/decisions/ideas.md, если решение зафиксировано там
+    - Всегда включать раздел Non-goals
+  tasks:
+    - Для изменений в ядре pipeline обязательны рантайм-тесты (не только type-тесты)
