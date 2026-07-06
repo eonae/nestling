@@ -1,7 +1,7 @@
 import type {
   AnyInput,
-  AnyMeta,
   AnyOutput,
+  AnyPayload,
   EndpointDefinition,
 } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
@@ -11,10 +11,10 @@ export class MockTransport implements ITransport {
   endpoints: EndpointDefinition<any, any, any>[] = [];
 
   endpoint<
-    I extends AnyInput = AnyInput,
+    I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
-    M extends AnyMeta = AnyMeta,
-  >(definition: EndpointDefinition<I, O, M>): void {
+    P extends AnyInput = AnyInput,
+  >(definition: EndpointDefinition<I, O, P>): void {
     this.endpoints.push(definition);
   }
 

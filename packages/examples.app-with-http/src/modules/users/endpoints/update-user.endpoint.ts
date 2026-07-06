@@ -44,10 +44,10 @@ export class UpdateUserEndpoint implements IEndpoint
     private logger: ILoggerService,
   ) {}
 
-  async handle(input: UpdateUserInput): Output<UpdateUserOutput> {
-    this.logger.log(`Handling PATCH /api/users/${input.id}`);
+  async handle(payload: UpdateUserInput, meta: {}): Output<UpdateUserOutput> {
+    this.logger.log(`Handling PATCH /api/users/${payload.id}`);
 
-    const { id, ...updateData } = input;
+    const { id, ...updateData } = payload;
 
     // Проверка на наличие данных для обновления
     if (Object.keys(updateData).length === 0) {

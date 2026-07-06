@@ -14,8 +14,12 @@ export interface Raw {
   /** Паттерн маршрута */
   pattern: string;
 
-  /** Нормализованные входные данные */
-  payload: Record<string, unknown>;
+  /**
+   * Нормализованные входные данные.
+   * Форма зависит от input-конфигурации endpoint'а: объект (schema),
+   * Buffer/string (primitive), AsyncIterable (stream), файлы и т.д.
+   */
+  payload: unknown;
 
   /** Транспортные атрибуты (headers | grpc metadata | cli flags) */
   attributes: Record<string, unknown>;

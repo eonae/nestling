@@ -10,7 +10,7 @@ import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
 
 const SearchUsersInput = z.object({
-  search: z.string().min(1, 'Search query is required'),
+  q: z.string().min(1, 'Search query is required'),
   limit: z.string().transform(Number).optional(),
 });
 
@@ -45,18 +45,18 @@ export class SearchUsersEndpoint implements IEndpoint
     private logger: ILoggerService,
   ) {}
 
-  async handle(input: SearchUsersInput): Output<SearchUsersOutput> {
-    this.logger.log(`Handling GET /api/users/search?q=${input.search}`);
+  async handle(payload: SearchUsersInput, meta: {}): Output<SearchUsersOutput> {
+    this.logger.log(`Handling GET /api/users/search?q=${payload.q}`);
 
-    if (!input.search || input.search.trim().length === 0) {
+    if (!payload.q || payload.q.trim().length === 0) {
       throw Fail.badRequest('Query parameter required');
     }
 
-    let users = await this.userService.search(input.search);
+    let users = await this.userService.search(payload.q);
 
     // Применяем limit, если указан
-    if (input.limit && input.limit > 0) {
-      users = users.slice(0, input.limit);
+    if (payload.limit && payload.limit > 0) {
+      users = users.slice(0, payload.limit);
     }
 
     return new Ok(users, {

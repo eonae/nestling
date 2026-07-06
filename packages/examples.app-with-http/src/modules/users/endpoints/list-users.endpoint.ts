@@ -33,9 +33,8 @@ export class ListUsersEndpoint implements IEndpoint
     private logger: ILoggerService,
   ) {}
 
-  async handle(input: string): Output<ListUsersOutput> {
+  async handle(payload: undefined, meta: {}): Output<ListUsersOutput> {
     this.logger.log('Handling GET /api/users');
-    console.log(input);
 
     const users = await this.users.getAll();
 

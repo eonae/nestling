@@ -8,33 +8,24 @@ import type {
 import type { Output, OutputSync } from '../result.js';
 
 /**
- * Заменяет тип поля payload в объекте T на новый тип P
- *
- * Если поле payload существует в T, оно заменяется на P.
- * Если поля payload нет, тип T возвращается без изменений.
- */
-export type ReplacePayload<T, P> = T extends { payload: unknown }
-  ? Omit<T, 'payload'> & { payload: P }
-  : T;
-
-/**
  * Интерфейс endpoint с типизированным pipeline
  *
- * Handler получает:
- * - Все поля из выходного типа pipeline (TInput)
- * - Поле payload заменяется на типизированный InferInput<I>
+ * Handler получает два отдельных параметра:
+ * - payload: типизированные данные от пользователя (InferInput<I>)
+ * - meta: все остальные поля из pipeline (P без payload)
  *
- * @param I - схема input (для типизации payload)
- * @param O - схема output
- * @param TInput - выходной тип pipeline (по умолчанию пустой объект)
+ * @param I - конфигурация payload (schema, примитив или модификатор)
+ * @param O - конфигурация output
+ * @param P - тип результата pipeline (накопленный input, по умолчанию пустой объект)
  */
 export interface IEndpoint<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  P extends AnyPayload = AnyPayload,
+  P extends AnyInput = AnyInput,
 > {
   handle(
-    input: ReplacePayload<P, InferInput<I>>,
+    payload: InferInput<I>,
+    meta: P extends { payload: unknown } ? Omit<P, 'payload'> : P,
   ): OutputSync<InferOutput<O>> | Output<InferOutput<O>>;
 }
 
@@ -42,7 +33,7 @@ export interface IEndpoint<
  * Функция-обработчик запроса
  */
 export type HandlerFn<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  P extends AnyPayload = AnyPayload,
+  P extends AnyInput = AnyInput,
 > = IEndpoint<I, O, P>['handle'];

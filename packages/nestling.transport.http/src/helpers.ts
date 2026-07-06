@@ -1,35 +1,38 @@
 import type { Constructor } from '@common/misc';
 import type {
   AnyInput,
-  AnyMeta,
   AnyOutput,
+  AnyPayload,
   EndpointDefinition,
   IEndpoint,
   Pipeline,
-  UnvalidatedContext,
-  ValidatedContext,
 } from '@nestling/pipeline';
 import { makeEndpoint, registerEndpoint } from '@nestling/pipeline';
 import type { HTTPMethod } from 'find-my-way';
 
 /**
- * Опции для HttpEndpoint декоратора (с input схемой)
+ * Опции для HttpEndpoint декоратора
  *
- * ✅ Требует pipeline с validate()
+ * @param I - конфигурация payload (schema, примитив или модификатор)
+ * @param O - конфигурация output
+ * @param P - тип результата pipeline (накопленный input)
  */
 export interface HttpEndpointOptions<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
+  P extends AnyInput = AnyInput,
 > {
-  /** Schema или модификатор для input (обязательно) */
+  /** Schema или модификатор для input */
   input?: I;
 
   /** Schema для output (опционально) */
   output?: O;
 
-  /** Pipeline для обработки запроса - ДОЛЖЕН содержать validate() */
-  pipeline: Pipeline<UnvalidatedContext<M>, ValidatedContext<I, M>>;
+  /**
+   * Pipeline для обработки запроса.
+   * Для endpoint'ов с input схемой должен содержать validate().
+   */
+  pipeline?: Pipeline<P>;
 
   /** Rate limit конфигурация */
   rateLimit?: unknown;
@@ -45,9 +48,9 @@ export interface HttpEndpointOptions<
  * Метаданные HTTP endpoint
  */
 export interface HttpEndpointMetadata<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
+  P extends AnyInput = AnyInput,
 > {
   transport: 'http';
   pattern: string;
@@ -61,7 +64,7 @@ export interface HttpEndpointMetadata<
   output?: O;
 
   /** Pipeline для этого endpoint */
-  pipeline: Pipeline<UnvalidatedContext<M>, ValidatedContext<I, M>>;
+  pipeline?: Pipeline<P>;
 
   /** Дополнительные опции для middleware */
   rateLimit?: unknown;
@@ -76,23 +79,23 @@ export interface HttpEndpointMetadata<
 
 // Реализация
 export function HttpEndpoint<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
->(method: HTTPMethod, path: string, options: HttpEndpointOptions<I, O, M>) {
-  return <T extends Constructor<IEndpoint<I, O, M>>>(
+  P extends AnyInput = AnyInput,
+>(method: HTTPMethod, path: string, options: HttpEndpointOptions<I, O, P>) {
+  return <T extends Constructor<IEndpoint<I, O, P>>>(
     target: T,
     context: ClassDecoratorContext<T>,
   ): T => {
     // Сохраняем метаданные
-    const metadata: HttpEndpointMetadata<I, O, M> = {
+    const metadata: HttpEndpointMetadata<I, O, P> = {
       transport: 'http',
       pattern: `${method} ${path}`,
       method,
       path,
       input: options.input,
       output: options.output,
-      pipeline: options.pipeline as any,
+      pipeline: options.pipeline,
       rateLimit: options.rateLimit,
       audit: options.audit,
       cache: options.cache,
@@ -123,14 +126,14 @@ export function getHttpEndpointMetadata(
  * Создаёт endpoint definition для HTTP
  */
 export function makeHttpEndpoint<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  M extends AnyMeta = AnyMeta,
+  P extends AnyInput = AnyInput,
 >(
   method: HTTPMethod,
   path: string,
-  meta: Omit<EndpointDefinition<I, O, M>, 'transport' | 'pattern'>,
-): EndpointDefinition<I, O, M> {
+  meta: Omit<EndpointDefinition<I, O, P>, 'transport' | 'pattern'>,
+): EndpointDefinition<I, O, P> {
   return makeEndpoint({
     transport: 'http',
     pattern: `${method} ${path}`,

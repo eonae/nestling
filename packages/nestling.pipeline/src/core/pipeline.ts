@@ -22,23 +22,34 @@ type OverlapKeys<A, B> = keyof A & keyof B;
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 /**
+ * Общие ключи, у которых типы в A и B не идентичны.
+ *
+ * Повторное добавление поля с тем же типом (например, два withTiming
+ * в одной цепочке) конфликтом не считается: input от этого не меняется.
+ */
+type ConflictingKeys<A, B> = {
+  [K in OverlapKeys<A, B>]: [A[K], B[K]] extends [B[K], A[K]] ? never : K;
+}[OverlapKeys<A, B>];
+
+/**
  * Проверяет совместимость TReq и TAdd с TCurrentInput
  */
-type CheckMiddlewareCompatibility<TCurrentInput, TReq, TAdd, M> =
-  TCurrentInput extends TReq
-    ? OverlapKeys<TCurrentInput, TAdd> extends never
-      ? M
-      : {
-          ERROR: 'Middleware is overriding fields in input';
-          CONFLICTING_KEYS: OverlapKeys<TCurrentInput, TAdd>;
-          CURRENT_INPUT: Simplify<TCurrentInput>;
-          MIDDLEWARE_ADDITION: TAdd;
-        }
+type CheckMiddlewareCompatibility<TCurrentInput, TReq, TAdd, M> = [
+  TCurrentInput,
+] extends [TReq]
+  ? [ConflictingKeys<TCurrentInput, TAdd>] extends [never]
+    ? M
     : {
-        ERROR: 'Input is not assignable to middleware input';
+        ERROR: 'Middleware is overriding fields in input';
+        CONFLICTING_KEYS: ConflictingKeys<TCurrentInput, TAdd>;
         CURRENT_INPUT: Simplify<TCurrentInput>;
-        MIDDLEWARE_EXPECTS: TReq;
-      };
+        MIDDLEWARE_ADDITION: TAdd;
+      }
+  : {
+      ERROR: 'Input is not assignable to middleware input';
+      CURRENT_INPUT: Simplify<TCurrentInput>;
+      MIDDLEWARE_EXPECTS: TReq;
+    };
 
 /**
  * Валидирует совместимость middleware с текущим input
@@ -51,20 +62,32 @@ type ValidateMiddleware<TCurrentInput extends AnyInput, M> =
       : never;
 
 /**
+ * Middleware, ничего не добавляющий в input (TAddition = undefined),
+ * не должен менять тип pipeline: undefined/never приводятся к {}.
+ */
+type NormalizeAddition<TAdd> = [TAdd] extends [never]
+  ? // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+    {}
+  : TAdd extends AnyAddition
+    ? TAdd
+    : // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+      {};
+
+/**
  * Извлекает TAddition из middleware
  */
 type ExtractAddition<M> =
   M extends MiddlewareFn<any, infer TAdd>
-    ? TAdd
+    ? NormalizeAddition<TAdd>
     : M extends IMiddleware<any, infer TAdd>
-      ? TAdd
+      ? NormalizeAddition<TAdd>
       : never;
 
 /**
  * Типизированный pipeline
  *
- * CIn  - входной тип контекста (всегда UnvalidatedContext<EmptyMeta> для нового pipeline)
- * COut - выходной тип контекста (ValidatedContext<I, M> или UnvalidatedContext<M>)
+ * TInput - тип input-объекта, накопленного цепочкой middleware
+ * (начинается с EmptyInput, каждый .use() добавляет поля своего middleware).
  *
  * Pipeline иммутабельный: каждый .use() возвращает новый экземпляр.
  * Это позволяет безопасно переиспользовать базовые pipeline'ы.
@@ -98,11 +121,16 @@ export class Pipeline<TInput extends AnyInput> {
   /**
    * Выполняет pipeline с handler
    *
-   * @param handler - бизнес-логика endpoint (получает только input и meta)
+   * @param handler - бизнес-логика endpoint (получает payload и meta отдельно)
    * @param ctx - начальный контекст от транспорта
    */
   async executeWithHandler<TOutput>(
-    handler: (input: TInput) => OutputSync<TOutput> | Output<TOutput>,
+    handler: (
+      payload: TInput extends { payload: infer P } ? P : undefined,
+      meta: TInput extends { payload: unknown }
+        ? Omit<TInput, 'payload'>
+        : TInput,
+    ) => OutputSync<TOutput> | Output<TOutput>,
     ctx: ExtendableContext<TInput>,
   ): Promise<ResponseContext<TOutput>> {
     try {
@@ -121,9 +149,25 @@ export class Pipeline<TInput extends AnyInput> {
         };
       }
 
-      // Здесь мы верим, что благодаря сильной типизации Use - последняя middleware
-      // действительно возвращает именно TInput.
-      const result = await handler(currentCtx.input as TInput);
+      // Извлекаем payload и meta из накопленного input
+      const finalInput = currentCtx.input as TInput;
+      const { payload, ...meta } = finalInput as TInput & {
+        payload?: unknown;
+      };
+
+      // Если цепочка не добавила payload (нет validate() в pipeline),
+      // передаём handler'у сырой payload, подготовленный транспортом
+      // (stream, файлы, binary и т.д.)
+      const effectivePayload =
+        'payload' in finalInput ? payload : ctx.raw.payload;
+
+      // Вызываем handler с двумя параметрами: payload и meta
+      const result = await handler(
+        effectivePayload as TInput extends { payload: infer P } ? P : undefined,
+        meta as TInput extends { payload: unknown }
+          ? Omit<TInput, 'payload'>
+          : TInput,
+      );
       return this.normalizeResponse(result);
     } catch (error) {
       return this.errorToResponse(error);
@@ -158,6 +202,10 @@ export class Pipeline<TInput extends AnyInput> {
       const errorValue: ErrorDetails = {
         error: error.message,
       };
+
+      if (error.details !== undefined) {
+        errorValue.details = error.details;
+      }
 
       return {
         isSuccess: false,

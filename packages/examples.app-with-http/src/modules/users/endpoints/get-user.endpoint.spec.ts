@@ -21,7 +21,7 @@ describe('GetUserEndpoint', () => {
       const user = { id: '1', name: 'Alice', email: 'alice@test.com' };
       userService.getById.mockResolvedValue(user);
 
-      const result = await endpoint.handle({ id: '1' });
+      const result = await endpoint.handle({ id: '1' }, {});
 
       if (result instanceof Ok) {
         expect(result.value).toEqual(user);
@@ -38,9 +38,9 @@ describe('GetUserEndpoint', () => {
     it('должен бросить Fail.notFound если пользователь не найден', async () => {
       userService.getById.mockResolvedValue(null);
 
-      await expect(endpoint.handle({ id: '999' })).rejects.toThrow(Fail);
+      await expect(endpoint.handle({ id: '999' }, {})).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle({ id: '999' })).rejects.toMatchObject({
+      await expect(endpoint.handle({ id: '999' }, {})).rejects.toMatchObject({
         status: 'NOT_FOUND',
         message: 'User not found',
       });

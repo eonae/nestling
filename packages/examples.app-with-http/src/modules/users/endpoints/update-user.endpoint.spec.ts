@@ -22,7 +22,7 @@ describe('UpdateUserEndpoint', () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.update.mockResolvedValue(updatedUser);
 
-      const result = await endpoint.handle({ id: '1', name: 'Updated' });
+      const result = await endpoint.handle({ id: '1', name: 'Updated' }, {});
 
       // Возвращается напрямую, не через new Ok
       expect(result).toEqual(updatedUser);
@@ -34,9 +34,9 @@ describe('UpdateUserEndpoint', () => {
     it('должен бросить Fail.notFound если пользователь не найден', async () => {
       userService.update.mockResolvedValue(null);
 
-      await expect(endpoint.handle({ id: '999', name: 'Test' })).rejects.toThrow(Fail);
+      await expect(endpoint.handle({ id: '999', name: 'Test' }, {})).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle({ id: '999', name: 'Test' })).rejects.toMatchObject({
+      await expect(endpoint.handle({ id: '999', name: 'Test' }, {})).rejects.toMatchObject({
         status: 'NOT_FOUND',
         message: 'User not found',
       });
@@ -47,11 +47,11 @@ describe('UpdateUserEndpoint', () => {
       userService.findByEmail.mockResolvedValue(existingUser);
 
       await expect(
-        endpoint.handle({ id: '1', email: 'bob@test.com' }),
+        endpoint.handle({ id: '1', email: 'bob@test.com' }, {}),
       ).rejects.toThrow(Fail);
 
       await expect(
-        endpoint.handle({ id: '1', email: 'bob@test.com' }),
+        endpoint.handle({ id: '1', email: 'bob@test.com' }, {}),
       ).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         message: 'Email already taken',
@@ -59,9 +59,9 @@ describe('UpdateUserEndpoint', () => {
     });
 
     it('должен бросить Fail.badRequest если нет данных для обновления', async () => {
-      await expect(endpoint.handle({ id: '1' })).rejects.toThrow(Fail);
+      await expect(endpoint.handle({ id: '1' }, {})).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle({ id: '1' })).rejects.toMatchObject({
+      await expect(endpoint.handle({ id: '1' }, {})).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         message: 'No data to update',
       });

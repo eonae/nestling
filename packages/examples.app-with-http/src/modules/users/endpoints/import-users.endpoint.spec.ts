@@ -29,7 +29,7 @@ describe('ImportUsersEndpoint', () => {
 
     userService.importUsers.mockResolvedValue(importResult);
 
-    const result = await endpoint.handle(mockStream());
+    const result = await endpoint.handle(mockStream(), {});
 
     if (result instanceof Ok) {
       expect(result.value).toEqual(importResult);
@@ -53,7 +53,7 @@ describe('ImportUsersEndpoint', () => {
 
     userService.importUsers.mockResolvedValue(importResult);
 
-    const result = await endpoint.handle(mockStream());
+    const result = await endpoint.handle(mockStream(), {});
 
     if (result instanceof Ok) {
       expect(result.headers).toHaveProperty('X-Import-Status', 'partial');

@@ -35,15 +35,15 @@ export class DeleteUserEndpoint implements IEndpoint
     private logger: ILoggerService,
   ) {}
 
-  async handle(input: DeleteUserInput): Output<null> {
-    this.logger.log(`Handling DELETE /api/users/${input.id}`);
+  async handle(payload: DeleteUserInput, meta: {}): Output<null> {
+    this.logger.log(`Handling DELETE /api/users/${payload.id}`);
 
     // Проверка на защищенного пользователя
-    if (input.id === ADMIN_USER_ID) {
+    if (payload.id === ADMIN_USER_ID) {
       throw Fail.forbidden('Cannot delete admin user');
     }
 
-    const deleted = await this.userService.delete(input.id);
+    const deleted = await this.userService.delete(payload.id);
 
     if (!deleted) {
       throw Fail.notFound('User not found');

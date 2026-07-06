@@ -35,7 +35,7 @@ export class ExportUsersEndpoint
     private logger: ILoggerService,
   ) {}
 
-  async handle(): Output<AsyncIterableIterator<User>> {
+  async handle(payload: undefined, meta: {}): Output<AsyncIterableIterator<User>> {
     this.logger.log('Handling GET /api/users/export');
 
     const userStream = this.userService.exportAll();

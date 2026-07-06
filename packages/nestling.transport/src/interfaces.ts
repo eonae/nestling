@@ -1,7 +1,7 @@
 import type {
   AnyInput,
-  AnyMeta,
   AnyOutput,
+  AnyPayload,
   EndpointDefinition,
 } from '@nestling/pipeline';
 
@@ -13,11 +13,11 @@ export interface ITransport {
    * Регистрирует handler через конфигурацию
    */
   endpoint<
-    I extends AnyInput = AnyInput,
+    I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
-    M extends AnyMeta = AnyMeta,
+    P extends AnyInput = AnyInput,
   >(
-    definition: EndpointDefinition<I, O, M>,
+    definition: EndpointDefinition<I, O, P>,
   ): void;
 
   /**

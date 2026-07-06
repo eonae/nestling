@@ -23,7 +23,7 @@
     "preview": "run -T vite preview",
     "lint": "run -T eslint 'src/**/*.ts'",
     "lint:fix": "yarn run lint --fix",
-    "test": "run -T jest --passWithNoTests"
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
   "author": "",
   "license": "MIT",

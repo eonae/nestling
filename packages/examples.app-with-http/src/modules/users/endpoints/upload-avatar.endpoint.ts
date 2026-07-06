@@ -1,6 +1,6 @@
 import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output, WithFiles } from '@nestling/pipeline';
-import { Fail, Ok, withFiles } from '@nestling/pipeline';
+import type { IEndpoint, Output } from '@nestling/pipeline';
+import { Fail, Ok, withFiles, type FilePart } from '@nestling/pipeline';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -45,9 +45,10 @@ export class UploadAvatarEndpoint implements IEndpoint
   ) {}
 
   async handle(
-    input: WithFiles<UploadAvatarInput>,
+    payload: { data: UploadAvatarInput; files: FilePart[] },
+    meta: {},
   ): Output<UploadAvatarOutput> {
-    const { data, files } = input;
+    const { data, files } = payload;
     this.logger.log(`Handling POST /api/users/${data.id}/avatar`);
 
     // Находим файл с именем поля 'avatar'

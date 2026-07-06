@@ -1,11 +1,8 @@
 /* eslint-disable no-console */
 
-import {
-  definePipeline,
-  makeEndpoint,
-  stream,
-  withTiming,
-} from '@nestling/pipeline';
+import { withTiming } from '../common/middleware';
+
+import { definePipeline, makeEndpoint, stream } from '@nestling/pipeline';
 import z from 'zod';
 
 const LogLevel = z.enum(['info', 'warn', 'error']);

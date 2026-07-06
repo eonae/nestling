@@ -22,7 +22,7 @@ describe('ListUsersEndpoint', () => {
     ];
     userService.getAll.mockResolvedValue(users);
 
-    const result = await endpoint.handle();
+    const result = await endpoint.handle(undefined, {});
 
     // Проверяем, что возвращается напрямую (не new Ok)
     expect(result).toEqual(users);

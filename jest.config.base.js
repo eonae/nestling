@@ -24,6 +24,10 @@ export function createJestConfig(fileUrl) {
             useDefineForClassFields: true,
             experimentalDecorators: false,
             emitDecoratorMetadata: false,
+            // Пакетные tsconfig ограничивают rootDir своим src, но moduleNameMapper
+            // ниже мапит workspace-пакеты на исходники соседних пакетов.
+            // Поднимаем rootDir до корня монорепы, чтобы ts-jest их принимал.
+            rootDir: '../..',
           },
         },
       ],

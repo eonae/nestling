@@ -26,7 +26,7 @@ describe('CreateUserEndpoint', () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.create.mockResolvedValue(createdUser);
 
-      const result = await endpoint.handle(newUser);
+      const result = await endpoint.handle(newUser, {});
 
       if (result instanceof Ok) {
         expect(result.value).toEqual(createdUser);
@@ -48,9 +48,9 @@ describe('CreateUserEndpoint', () => {
       const existingUser = { id: '1', name: 'Existing', email: 'existing@example.com' };
       userService.findByEmail.mockResolvedValue(existingUser);
 
-      await expect(endpoint.handle(newUser)).rejects.toThrow(Fail);
+      await expect(endpoint.handle(newUser, {})).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle(newUser)).rejects.toMatchObject({
+      await expect(endpoint.handle(newUser, {})).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         message: 'Email already taken',
         details: { field: 'email' },

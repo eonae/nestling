@@ -1,4 +1,6 @@
-import { definePipeline, makeEndpoint, withTiming } from '@nestling/pipeline';
+import { withTiming } from '../common/middleware';
+
+import { definePipeline, makeEndpoint } from '@nestling/pipeline';
 import z from 'zod';
 
 // GET /

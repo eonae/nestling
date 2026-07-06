@@ -1,13 +1,8 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "es2022",
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "useDefineForClassFields": true
+    // Корневой конфиг используется только редактором и ad-hoc запусками tsc из корня.
+    // Сборка пакетов идёт через их собственные tsconfig, наследующие tsconfig.base.json.
+    "noEmit": true
   }
 }

@@ -1,9 +1,6 @@
-import {
-  definePipeline,
-  makeEndpoint,
-  validate,
-  withTiming,
-} from '@nestling/pipeline';
+import { withTiming } from '../common/middleware';
+
+import { definePipeline, makeEndpoint, validate } from '@nestling/pipeline';
 import z from 'zod';
 
 // POST /users - создание пользователя со схемой

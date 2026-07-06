@@ -19,14 +19,14 @@ const HANDLER_KEY = Symbol.for('nestling:handler');
 /**
  * Конфигурация endpoint-класса
  *
- * @param I - схема input
- * @param O - схема output
- * @param TInput - выходной тип pipeline (добавляемые middleware поля)
+ * @param I - конфигурация payload (schema, примитив или модификатор)
+ * @param O - конфигурация output
+ * @param P - выходной тип pipeline (накопленные middleware поля)
  */
 export interface EndpointDefinition<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  P extends AnyPayload = AnyPayload,
+  P extends AnyInput = AnyInput,
 > {
   transport: string;
   pattern: string;
@@ -34,19 +34,19 @@ export interface EndpointDefinition<
   handle: HandlerFn<I, O, P>;
 
   /** Schema или модификатор для input */
-  input?: P;
+  input?: I;
 
   /** Конфигурация выходных данных */
   output?: O;
 
   /** Pipeline для этого endpoint */
-  pipeline?: Pipeline<I>;
+  pipeline?: Pipeline<P>;
 }
 
 export type EndpointMetadata<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  P extends AnyPayload = AnyPayload,
+  P extends AnyInput = AnyInput,
 > = Omit<EndpointDefinition<I, O, P>, 'handle'>;
 
 /**
@@ -68,20 +68,20 @@ export type EndpointMetadata<
  * class CreateUserEndpoint implements IEndpoint<
  *   typeof CreateUserSchema,
  *   typeof UserSchema,
- *   { identity: User; payload: unknown }
+ *   { identity: User }
  * > {
  *   constructor(private users: UserService) {}
  *
- *   async handle(input: { identity: User; payload: CreateUserInput }) {
- *     return Ok.created(await this.users.create(input.payload));
+ *   async handle(payload: CreateUserInput, meta: { identity: User }) {
+ *     return Ok.created(await this.users.create(payload));
  *   }
  * }
  * ```
  */
 export function Endpoint<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  P extends AnyPayload = AnyPayload,
+  P extends AnyInput = AnyInput,
 >(metadata: EndpointMetadata<I, O, P>) {
   return <T extends Constructor<IEndpoint<I, O, P>>>(
     target: T,
@@ -104,9 +104,9 @@ export function Endpoint<
  * Извлекает метаданные handler-класса
  */
 export function getEndpointMetadata<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  P extends AnyPayload = AnyPayload,
+  P extends AnyInput = AnyInput,
 >(target: any): EndpointMetadata<I, O, P> | null {
   const constructor = target.prototype ? target : target.constructor;
   return constructor[HANDLER_KEY] || null;
@@ -116,9 +116,9 @@ export function getEndpointMetadata<
  * Вспомогательная функция для создания конфигурации endpoint'а с корректным выводом типов.
  */
 export function makeEndpoint<
-  I extends AnyInput = AnyInput,
+  I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-  P extends AnyPayload = AnyPayload,
+  P extends AnyInput = AnyInput,
 >(definition: EndpointDefinition<I, O, P>): EndpointDefinition<I, O, P> {
   return definition;
 }

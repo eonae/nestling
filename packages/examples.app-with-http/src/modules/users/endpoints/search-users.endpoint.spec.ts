@@ -23,7 +23,7 @@ describe('SearchUsersEndpoint', () => {
       ];
       userService.search.mockResolvedValue(users);
 
-      const result = await endpoint.handle({ search: 'Alice' });
+      const result = await endpoint.handle({ q: 'Alice' }, {});
 
       if (result instanceof Ok) {
         expect(result.value).toEqual(users);
@@ -38,7 +38,7 @@ describe('SearchUsersEndpoint', () => {
     it('должен вернуть пустой массив если ничего не найдено', async () => {
       userService.search.mockResolvedValue([]);
 
-      const result = await endpoint.handle({ search: 'NonExistent' });
+      const result = await endpoint.handle({ q: 'NonExistent' }, {});
 
       if (result instanceof Ok) {
         expect(result.value).toEqual([]);
@@ -51,9 +51,9 @@ describe('SearchUsersEndpoint', () => {
 
   describe('Ошибочные сценарии', () => {
     it('должен бросить Fail.badRequest если query отсутствует', async () => {
-      await expect(endpoint.handle({ search: '' })).rejects.toThrow(Fail);
+      await expect(endpoint.handle({ q: '' }, {})).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle({ search: '' })).rejects.toMatchObject({
+      await expect(endpoint.handle({ q: '' }, {})).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         message: 'Query parameter required',
       });

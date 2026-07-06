@@ -2,8 +2,8 @@ import type { IncomingMessage } from 'node:http';
 
 import type {
   AnyInput,
-  AnyMeta,
   AnyOutput,
+  AnyPayload,
   EndpointDefinition,
   HandlerFn,
 } from '@nestling/pipeline';
@@ -27,10 +27,10 @@ export class HttpRouter {
    * Регистрирует маршрут
    */
   route<
-    I extends AnyInput = AnyInput,
+    I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
-    M extends AnyMeta = AnyMeta,
-  >(definition: EndpointDefinition<I, O, M>): void {
+    P extends AnyInput = AnyInput,
+  >(definition: EndpointDefinition<I, O, P>): void {
     const store = {
       handler: definition.handle,
       definition: definition,

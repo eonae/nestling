@@ -12,11 +12,11 @@
     "start:dev": "run -T tsx src/main.ts",
     "lint": "run -T eslint 'src/**/*.ts'",
     "lint:fix": "yarn run lint --fix",
-    "test": "run -T jest --config jest.config.js",
-    "test:e2e": "run -T jest --config jest.e2e.config.js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.config.js",
+    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.e2e.config.js",
     "test:all": "yarn test && yarn test:e2e",
-    "test:watch": "run -T jest --watch",
-    "test:coverage": "run -T jest --coverage"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules run -T jest --watch",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules run -T jest --coverage"
   },
   "dependencies": {
     "@common/misc": "workspace:*",

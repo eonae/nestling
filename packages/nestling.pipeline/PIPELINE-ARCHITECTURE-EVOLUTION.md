@@ -679,6 +679,148 @@ function handler(input: HasPayload<Input & { user: User }>) {
 
 ---
 
+## Решение 5: Before-only middleware
+
+### Идея
+
+Упростить модель middleware до минимума: middleware только возвращают данные для добавления в input, без вызова `next()` и цепочек.
+
+### Проблема, которую решаем
+
+**Текущие риски:**
+- Middleware с `next()` создают сложные цепочки вызовов
+- После-middleware требуют отдельной модели
+- Сложность типизации цепочек с `next()`
+
+**Хотим:**
+- Простую модель: middleware возвращает данные
+- Pipeline сам управляет порядком выполнения
+- Единообразную модель для всех middleware
+
+### Ключевая концепция
+
+**Middleware = функция, возвращающая данные**
+
+#### Контракт middleware
+
+```typescript
+type MiddlewareFn<TInput, TAddition> = (
+  ctx: ExtendableContext<TInput>
+) => Promise<TAddition | undefined>;
+```
+
+- `ctx` — текущий контекст с накопленным `input`
+- Возвращает объект с полями для добавления (или `undefined`)
+- Никаких `next()`, никаких цепочек
+
+### Как реально выглядит pipeline
+
+#### Выполнение middleware
+
+```typescript
+let currentInput: AnyInput = {};
+
+for (const middleware of middlewares) {
+  const addition = await middleware({
+    ...ctx,
+    input: currentInput,
+  });
+  
+  if (addition) {
+    currentInput = { ...currentInput, ...addition };
+  }
+}
+
+// Передаём накопленный input в handler
+await handler(currentInput);
+```
+
+### Примеры middleware
+
+#### Простое добавление поля
+
+```typescript
+const withTiming: MiddlewareFn<EmptyInput, { timestamp: number }> = 
+  async () => ({ timestamp: Date.now() });
+```
+
+#### Использование контекста
+
+```typescript
+const withRequestId: MiddlewareFn<EmptyInput, { requestId: string }> = 
+  async (ctx) => {
+    const requestId = ctx.raw.attributes['x-request-id'] || crypto.randomUUID();
+    return { requestId };
+  };
+```
+
+#### Валидация и добавление payload
+
+```typescript
+const validate: MiddlewareFn<EmptyInput, { payload: unknown }> = 
+  async (ctx) => {
+    const schema = ctx.endpoint.input;
+    if (!schema) return undefined;
+    
+    const payload = schema.parse(ctx.raw.payload);
+    return { payload };
+  };
+```
+
+### Что это радикально упрощает
+
+**Уходит полностью:**
+- ❌ `next()` callback'ы
+- ❌ After-middleware hooks
+- ❌ Цепочки вызовов
+- ❌ Сложная типизация `NextContext`
+- ❌ Разделение на before/after фазы
+
+**Остаётся:**
+- ✅ Простая функция: `ctx → Promise<addition>`
+- ✅ Pipeline управляет порядком
+- ✅ Строгий контроль типов через generics
+- ✅ Легко тестировать и понимать
+
+### Типобезопасность сохраняется
+
+```typescript
+const pipeline = definePipeline()
+  .use(withTiming)                    // EmptyInput → { timestamp: number }
+  .use(withRequestId())               // { timestamp } → { timestamp, requestId: string }
+  .use(withIdentity<User>(auth))      // { timestamp, requestId } → { timestamp, requestId, identity: User }
+  .use(validate());                   // { timestamp, requestId, identity } → { timestamp, requestId, identity, payload: unknown }
+
+// Тип pipeline: Pipeline<{ timestamp: number; requestId: string; identity: User; payload: unknown }>
+```
+
+TypeScript гарантирует:
+- Правильный порядок типов
+- Отсутствие конфликтов полей
+- Корректность накопления input
+
+### После-middleware
+
+После-middleware будут реализованы отдельно, как отдельный механизм:
+- Либо через отдельный тип `AfterMiddleware`
+- Либо через hooks в handler'е
+- Либо через отдельный pipeline для обработки ответа
+
+Это сознательное разделение ответственности.
+
+### Архитектурный вывод
+
+**Модель:**
+> Middleware = pure data enrichment function
+
+Это:
+- Максимально простая модель
+- Легко понять и использовать
+- Идеально для TypeScript структурной типизации
+- Позволяет pipeline полностью контролировать выполнение
+
+---
+
 ## Итоговая архитектура
 
 ### Принципы
@@ -698,6 +840,10 @@ function handler(input: HasPayload<Input & { user: User }>) {
 5. **Структурная типизация вместо фазовой модели.**
    - Проверка наличия ключей (`HasPayload`) вместо состояний (`ValidatedContext`).
 
+6. **Before-only middleware — простая модель.**
+   - Middleware возвращают данные, не вызывают `next()`.
+   - Pipeline полностью контролирует порядок выполнения.
+
 ### Преимущества
 
 - ✅ Минус один фундаментальный дженерик
@@ -706,6 +852,8 @@ function handler(input: HasPayload<Input & { user: User }>) {
 - ✅ Защита от мутаций на уровне типов
 - ✅ Идеальное соответствие TypeScript структурной типизации
 - ✅ Прозрачная и понятная модель
+- ✅ Простая модель middleware без `next()` и цепочек
+- ✅ Pipeline полностью контролирует выполнение
 
 ### Следующие шаги
 

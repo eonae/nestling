@@ -10,13 +10,13 @@ export interface Logger {
 /**
  * Логирует запросы
  *
- * Работает только с UnvalidatedContext (до validate),
- * потому что использует raw.transport и raw.pattern.
+ * Ничего не добавляет в input: использует только raw.transport
+ * и raw.pattern, поэтому может стоять в любом месте цепочки.
  *
  * @example
  * ```typescript
  * const pipeline = definePipeline()
- *   .use(withLogging(console))
+ *   .use(withRequestLogging(console))
  *   .use(withIdentity(verifyToken))
  *   .use(validate());
  * ```

@@ -1,15 +1,13 @@
 import { UserService } from './user.service';
 import type { ILoggerService } from '../logger/logger.service';
+import { mock } from 'jest-mock-extended';
 
 describe('UserService', () => {
   let service: UserService;
   let logger: jest.Mocked<ILoggerService>;
 
   beforeEach(() => {
-    logger = {
-      log: jest.fn(),
-      error: jest.fn(),
-    } as any;
+    logger = mock<ILoggerService>();
     service = new UserService(logger);
   });
 

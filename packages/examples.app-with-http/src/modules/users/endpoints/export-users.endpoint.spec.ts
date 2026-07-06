@@ -24,7 +24,7 @@ describe('ExportUsersEndpoint', () => {
 
     userService.exportAll.mockReturnValue(mockStream());
 
-    const result = await endpoint.handle();
+    const result = await endpoint.handle(undefined, {});
 
     if (result instanceof Ok) {
       expect(result).toBeInstanceOf(Ok);

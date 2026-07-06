@@ -77,7 +77,7 @@ export interface ExtendableContext<I extends AnyInput> {
 export type InitialContext = ExtendableContext<EmptyInput>;
 
 /**
- * Создаёт UnvalidatedContext из Raw
+ * Создаёт начальный контекст с пустым input из Raw
  * Вызывается транспортом после парсинга запроса
  */
 export function makeEmptyContext(

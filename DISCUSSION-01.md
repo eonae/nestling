@@ -12,8 +12,11 @@
 
 **Текущая реализация:**
 ```typescript
-interface IEndpoint<I, O, M> {
-  handle(payload: InferInput<I>, metadata: Infer<M>): Output<O> | OutputSync<O>
+interface IEndpoint<I, O, P> {
+  handle(
+    payload: InferInput<I>,
+    meta: P extends { payload: unknown } ? Omit<P, 'payload'> : P
+  ): Output<O> | OutputSync<O>
 }
 ```
 

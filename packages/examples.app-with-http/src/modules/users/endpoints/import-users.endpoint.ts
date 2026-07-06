@@ -52,11 +52,12 @@ export class ImportUsersEndpoint implements IEndpoint
   ) {}
 
   async handle(
-    input: AsyncIterableIterator<ImportUserInput>,
+    payload: AsyncIterableIterator<ImportUserInput>,
+    meta: {},
   ): Output<ImportUsersOutput> {
     this.logger.log('Handling POST /api/users/import');
 
-    const result = await this.userService.importUsers(input);
+    const result = await this.userService.importUsers(payload);
 
     return new Ok(result, {
       'X-Import-Status': result.failed > 0 ? 'partial' : 'complete',

@@ -20,17 +20,19 @@ import { HttpRouter } from './router.js';
 import type { Schema } from '@common/misc';
 import type {
   AnyInput,
-  AnyMeta,
   AnyOutput,
+  AnyPayload,
   EndpointDefinition,
   EndpointMeta,
   IEndpoint,
-  InferInput,
   Pipeline,
   Raw,
-  UnvalidatedContext,
 } from '@nestling/pipeline';
-import { analyzeInput, parsePayload } from '@nestling/pipeline';
+import {
+  analyzePayload,
+  makeEmptyContext,
+  parsePayload,
+} from '@nestling/pipeline';
 
 /**
  * Опции для HTTP транспорта
@@ -44,9 +46,9 @@ export interface HttpTransportOptions {
  * HTTP транспорт
  *
  * Работает с новой архитектурой:
- * - Создаёт Raw и UnvalidatedContext
+ * - Создаёт Raw и начальный контекст с пустым input
  * - Выполняет pipeline из endpoint metadata
- * - Handler получает только (input, meta)
+ * - Handler получает (payload, meta)
  */
 export class HttpTransport {
   private readonly router: HttpRouter;
@@ -60,12 +62,12 @@ export class HttpTransport {
    * Регистрирует endpoint
    */
   registerEndpoint<
-    I extends AnyInput = AnyInput,
+    I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
-    M extends AnyMeta = AnyMeta,
+    P extends AnyInput = AnyInput,
   >(
-    instance: IEndpoint<I, O, M>,
-    metadata: HttpEndpointMetadata<I, O, M>,
+    instance: IEndpoint<I, O, P>,
+    metadata: HttpEndpointMetadata<I, O, P>,
   ): void {
     this.router.route({
       transport: 'http',
@@ -73,7 +75,7 @@ export class HttpTransport {
       input: metadata.input,
       output: metadata.output,
       pipeline: metadata.pipeline,
-      handle: (input: InferInput<I>, meta: M) => instance.handle(input, meta),
+      handle: instance.handle.bind(instance),
     });
   }
 
@@ -81,10 +83,10 @@ export class HttpTransport {
    * Регистрирует маршрут через definition
    */
   route<
-    I extends AnyInput = AnyInput,
+    I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
-    M extends AnyMeta = AnyMeta,
-  >(definition: EndpointDefinition<I, O, M>): void {
+    P extends AnyInput = AnyInput,
+  >(definition: EndpointDefinition<I, O, P>): void {
     this.router.route(definition);
   }
 
@@ -92,10 +94,10 @@ export class HttpTransport {
    * Alias для route() - реализация ITransport интерфейса
    */
   endpoint<
-    I extends AnyInput = AnyInput,
+    I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
-    M extends AnyMeta = AnyMeta,
-  >(definition: EndpointDefinition<I, O, M>): void {
+    P extends AnyInput = AnyInput,
+  >(definition: EndpointDefinition<I, O, P>): void {
     this.route(definition);
   }
 
@@ -184,7 +186,7 @@ export class HttpTransport {
       }
 
       // Анализируем input конфигурацию
-      const inputConfig = analyzeInput(route.definition.input);
+      const inputConfig = analyzePayload(route.definition.input);
       inputConfigType = inputConfig.type;
 
       // Парсим входные данные согласно типу модификатора
@@ -242,8 +244,9 @@ export class HttpTransport {
       }
 
       // Получаем pipeline из endpoint metadata
-      const definition = route.definition as any;
-      const pipeline = definition.pipeline as Pipeline<any, any> | undefined;
+      const pipeline = route.definition.pipeline as
+        | Pipeline<AnyInput>
+        | undefined;
 
       if (pipeline) {
         // Новая архитектура с pipeline
@@ -261,11 +264,7 @@ export class HttpTransport {
           output: route.definition.output,
         };
 
-        const ctx: UnvalidatedContext = {
-          raw,
-          meta: {},
-          endpoint: endpointMeta,
-        };
+        const ctx = makeEmptyContext(raw, endpointMeta);
 
         const responseContext = await pipeline.executeWithHandler(
           route.handler,
@@ -277,13 +276,7 @@ export class HttpTransport {
       } else {
         // Fallback для endpoint'ов без pipeline (прямой вызов handler)
         // Валидируем payload если есть schema
-        if (
-          inputConfig.type !== 'stream' &&
-          inputConfig.type !== 'withFiles' &&
-          inputConfig.type !== 'files' &&
-          inputConfig.type === 'schema' &&
-          inputConfig.schema
-        ) {
+        if (inputConfig.type === 'schema' && inputConfig.schema) {
           payload = parsePayload(inputConfig.schema as Schema, {
             payload: payload as Record<string, unknown>,
             metadata: {},

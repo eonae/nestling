@@ -126,7 +126,7 @@ export function parseMultipart(req: IncomingMessage): Promise<FilePart[]> {
           resolveFile();
         });
 
-        stream.on('fail', (error) => {
+        stream.on('error', (error) => {
           passThrough.destroy(error);
           rejectFile(error);
         });
@@ -145,7 +145,7 @@ export function parseMultipart(req: IncomingMessage): Promise<FilePart[]> {
       }
     });
 
-    busboyInstance.on('fail', reject);
+    busboyInstance.on('error', reject);
 
     req.pipe(busboyInstance);
   });
@@ -331,7 +331,7 @@ export function parseWithFiles<T>(
           resolveFile();
         });
 
-        stream.on('fail', (error) => {
+        stream.on('error', (error) => {
           passThrough.destroy(error);
           rejectFile(error);
         });
@@ -353,7 +353,7 @@ export function parseWithFiles<T>(
       }
     });
 
-    busboyInstance.on('fail', reject);
+    busboyInstance.on('error', reject);
 
     req.pipe(busboyInstance);
   });

@@ -26,10 +26,10 @@ const MIDDLEWARE_KEY = Symbol.for('nestling:middleware');
  * @example
  * ```typescript
  * @Middleware()
- * class AuthMiddleware implements IMiddleware<UnvalidatedContext, UnvalidatedContext<{ identity: User }>> {
- *   async handle(ctx, next) {
+ * class AuthMiddleware implements IMiddleware<EmptyInput, { identity: User }> {
+ *   async handle(ctx: ExtendableContext<EmptyInput>) {
  *     const identity = await verifyToken(ctx.raw.attributes);
- *     return next({ ...ctx, meta: { ...ctx.meta, identity } });
+ *     return { identity };
  *   }
  * }
  * ```

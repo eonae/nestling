@@ -1,8 +1,14 @@
 import type { EmptyInput } from '../core';
+import { analyzePayload, Fail } from '../core';
 import type { MiddlewareFn } from '../core/types';
 
 /**
  * Валидирует raw.payload и создаёт payload
+ *
+ * Работает только с schema-input: stream/files/withFiles/primitive
+ * подготавливаются транспортом, их payload передаётся handler'у как есть.
+ *
+ * При ошибке валидации бросает Fail.badRequest (HTTP 400).
  *
  * @example
  * ```typescript
@@ -15,16 +21,27 @@ export function validate(): MiddlewareFn<
   { payload: unknown | undefined }
 > {
   return async (ctx) => {
-    const schema = ctx.endpoint.input;
+    const config = analyzePayload(ctx.endpoint.input);
 
-    if (!schema) {
+    if (config.type !== 'schema' || !config.schema) {
       return;
     }
 
-    const payload = schema.parse(ctx.raw.payload);
+    const schema = config.schema as { parse(data: unknown): unknown };
 
-    return {
-      payload,
-    };
+    try {
+      const payload = schema.parse(ctx.raw.payload);
+
+      return {
+        payload,
+      };
+    } catch (error) {
+      const issues =
+        error && typeof error === 'object' && 'issues' in error
+          ? (error as { issues: unknown }).issues
+          : undefined;
+
+      throw Fail.badRequest('Validation failed', issues);
+    }
   };
 }

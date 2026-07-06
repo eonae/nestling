@@ -38,10 +38,10 @@ export class GetUserEndpoint implements IEndpoint
     private logger: ILoggerService,
   ) {}
 
-  async handle(input: GetUserInput): Output<GetUserOutput> {
-    this.logger.log(`Handling GET /api/users/${input.id}`);
+  async handle(payload: GetUserInput, meta: {}): Output<GetUserOutput> {
+    this.logger.log(`Handling GET /api/users/${payload.id}`);
 
-    const user = await this.userService.getById(input.id);
+    const user = await this.userService.getById(payload.id);
 
     if (!user) {
       throw Fail.notFound('User not found');

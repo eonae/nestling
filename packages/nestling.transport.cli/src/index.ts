@@ -5,17 +5,20 @@ import type { Readable } from 'node:stream';
 import type { Schema } from '@common/misc';
 import type {
   AnyInput,
-  AnyMeta,
   AnyOutput,
+  AnyPayload,
   EndpointDefinition,
   EndpointMeta,
   FilePart,
   Pipeline,
   Raw,
   ResponseContext,
-  UnvalidatedContext,
 } from '@nestling/pipeline';
-import { analyzeInput, parsePayload } from '@nestling/pipeline';
+import {
+  analyzePayload,
+  makeEmptyContext,
+  parsePayload,
+} from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 /**
  * Входные данные для CLI транспорта
@@ -36,16 +39,16 @@ export class CliTransport implements ITransport {
   >();
   private repl?: readline.Interface;
 
-  constructor(private readonly defaultPipeline?: Pipeline<any, any>) {}
+  constructor(private readonly defaultPipeline?: Pipeline<any>) {}
 
   /**
    * Регистрирует handler через конфигурацию
    */
   endpoint<
-    I extends AnyInput = AnyInput,
+    I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
-    M extends AnyMeta = AnyMeta,
-  >(definition: EndpointDefinition<I, O, M>): void {
+    P extends AnyInput = AnyInput,
+  >(definition: EndpointDefinition<I, O, P>): void {
     this.handlers.set(definition.pattern, definition);
   }
 
@@ -59,7 +62,7 @@ export class CliTransport implements ITransport {
     }
 
     // Анализируем input конфигурацию
-    const inputConfig = analyzeInput(definition.input);
+    const inputConfig = analyzePayload(definition.input);
 
     let payload: unknown;
 
@@ -137,11 +140,7 @@ export class CliTransport implements ITransport {
         output: definition.output,
       };
 
-      const ctx: UnvalidatedContext = {
-        raw,
-        meta: {},
-        endpoint: endpointMeta,
-      };
+      const ctx = makeEmptyContext(raw, endpointMeta);
 
       return pipeline.executeWithHandler(definition.handle, ctx);
     } else {
@@ -223,10 +222,8 @@ export class CliTransport implements ITransport {
           const input = this.parseCommand(trimmed);
           const result = await this.execute(input);
 
-          // Парсим status для exit code
-          const exitCode = this.parseExitCode(result.status);
-          if (exitCode !== 0) {
-            process.exitCode = exitCode;
+          if (!result.isSuccess) {
+            process.exitCode = 1;
           }
 
           if (result.value !== null && result.value !== undefined) {
@@ -257,32 +254,6 @@ export class CliTransport implements ITransport {
       this.repl.close();
       this.repl = undefined;
     }
-  }
-
-  /**
-   * Парсит строковый status в exit code
-   */
-  private parseExitCode(status?: string): number {
-    if (!status) {
-      return 0;
-    }
-
-    // Если число в виде строки - парсим
-    const asNumber = Number.parseInt(status, 10);
-    if (!Number.isNaN(asNumber)) {
-      return asNumber;
-    }
-
-    // Маппинг строковых статусов
-    if (status === 'ok') {
-      return 0;
-    }
-    if (status === 'error') {
-      return 1;
-    }
-
-    // По умолчанию для неизвестных статусов
-    return status === 'ok' ? 0 : 1;
   }
 
   /**

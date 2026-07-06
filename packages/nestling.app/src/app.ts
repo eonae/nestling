@@ -231,13 +231,9 @@ export class App {
       // Регистрируем endpoint в транспорте
       // В новой архитектуре metadata содержит pipeline
       transport.endpoint({
-        transport: metadata.transport,
-        pattern: metadata.pattern,
-        input: metadata.input,
-        output: metadata.output,
-        pipeline: (metadata as any).pipeline,
-        handle: (input: any, meta: any) => instance.handle(input, meta),
-      } as any);
+        ...metadata,
+        handle: instance.handle.bind(instance),
+      });
     }
   }
 }

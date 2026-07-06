@@ -18,7 +18,7 @@
     "visualize:large": "node ../nestling.viz/dist/cli.js graph-data-large.json",
     "lint": "run -T eslint 'src/**/*.ts'",
     "lint:fix": "yarn run lint --fix",
-    "test": "run -T jest --passWithNoTests"
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
   "dependencies": {
     "@nestling/container": "workspace:*"

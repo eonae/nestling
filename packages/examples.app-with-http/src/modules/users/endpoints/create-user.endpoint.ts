@@ -39,16 +39,16 @@ export class CreateUserEndpoint implements IEndpoint
     private logger: ILoggerService,
   ) {}
 
-  async handle(input: CreateUserInput): Output<CreateUserOutput> {
-    this.logger.log(`Handling POST /api/users - creating user ${input.name}`);
+  async handle(payload: CreateUserInput, meta: {}): Output<CreateUserOutput> {
+    this.logger.log(`Handling POST /api/users - creating user ${payload.name}`);
 
     // Проверка на дубликат email
-    const existing = await this.users.findByEmail(input.email);
+    const existing = await this.users.findByEmail(payload.email);
     if (existing) {
       throw Fail.badRequest('Email already taken', { field: 'email' });
     }
 
-    const user = await this.users.create(input);
+    const user = await this.users.create(payload);
 
     return Ok.created(user, {
       Location: `/api/users/${user.id}`,
