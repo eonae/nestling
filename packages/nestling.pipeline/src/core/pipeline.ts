@@ -17,6 +17,19 @@ import { normalizeMiddleware } from './types/middleware.before.js';
 import type { Output, OutputSync } from './result.js';
 import { Fail, Ok } from './result.js';
 
+/**
+ * Опции выполнения pipeline.
+ *
+ * exposeErrorDetails — раскрывать ли клиенту детали НЕобработанных ошибок
+ * (не `Fail`): `error.message` и `stack`. По умолчанию `false` — в тело
+ * уходит только generic-сообщение. Политика раскрытия — свойство окружения
+ * (транспорт/приложение), поэтому передаётся при вызове, а не хранится в
+ * самом (переиспользуемом) Pipeline.
+ */
+export interface ExecuteOptions {
+  exposeErrorDetails?: boolean;
+}
+
 type OverlapKeys<A, B> = keyof A & keyof B;
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
@@ -132,6 +145,7 @@ export class Pipeline<TInput extends AnyInput> {
         : TInput,
     ) => OutputSync<TOutput> | Output<TOutput>,
     ctx: ExtendableContext<TInput>,
+    options: ExecuteOptions = {},
   ): Promise<ResponseContext<TOutput>> {
     try {
       let currentCtx: ExtendableContext<AnyInput> = ctx;
@@ -170,7 +184,7 @@ export class Pipeline<TInput extends AnyInput> {
       );
       return this.normalizeResponse(result);
     } catch (error) {
-      return this.errorToResponse(error);
+      return this.errorToResponse(error, options.exposeErrorDetails ?? false);
     }
   }
 
@@ -196,8 +210,18 @@ export class Pipeline<TInput extends AnyInput> {
 
   /**
    * Конвертирует ошибку в ResponseContext
+   *
+   * `Fail` — осознанно брошенная ошибка: message/details автор раскрыл сам,
+   * поэтому они попадают в тело независимо от exposeErrorDetails.
+   *
+   * Любая другая ошибка считается необработанной (внутренней): по умолчанию
+   * (`exposeErrorDetails === false`) клиенту уходит только generic-сообщение
+   * без `message` и `stack`. Раскрытие включается явно окружением.
    */
-  private errorToResponse(error: unknown): ResponseContext<never> {
+  private errorToResponse(
+    error: unknown,
+    exposeErrorDetails: boolean,
+  ): ResponseContext<never> {
     if (error instanceof Fail) {
       const errorValue: ErrorDetails = {
         error: error.message,
@@ -214,18 +238,15 @@ export class Pipeline<TInput extends AnyInput> {
       };
     }
 
-    // TODO: Переместить в конфигурацию
-    const isDevelopment = true;
-
     const errorValue: ErrorDetails = {
-      error: isDevelopment
+      error: exposeErrorDetails
         ? error instanceof Error
           ? error.message
           : 'Unknown error'
         : 'Internal server error',
     };
 
-    if (isDevelopment && error instanceof Error && error.stack) {
+    if (exposeErrorDetails && error instanceof Error && error.stack) {
       errorValue.stack = error.stack;
     }
 

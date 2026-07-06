@@ -1,3 +1,5 @@
+import { PayloadConflictError } from './errors.js';
+
 /**
  * Объединяет body, query и params в единый payload объект
  *
@@ -5,7 +7,7 @@
  * @param query - Query параметры из URL
  * @param params - Path параметры из маршрута
  * @returns Объединённый объект payload
- * @throws Error если обнаружены дублирующиеся ключи между источниками
+ * @throws PayloadConflictError если обнаружены дублирующиеся ключи между источниками
  *
  * @example
  * const payload = mergePayload(
@@ -32,10 +34,7 @@ export function mergePayload(
     for (const key in source) {
       if (Object.prototype.hasOwnProperty.call(source, key)) {
         if (keys.has(key)) {
-          throw new Error(
-            `Duplicate key "${key}" found in payload sources. ` +
-              `Key exists in multiple sources (body, query, or params).`,
-          );
+          throw new PayloadConflictError(key);
         }
         keys.add(key);
         result[key] = (source as Record<string, unknown>)[key];

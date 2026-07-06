@@ -142,7 +142,10 @@ export class CliTransport implements ITransport {
 
       const ctx = makeEmptyContext(raw, endpointMeta);
 
-      return pipeline.executeWithHandler(definition.handle, ctx);
+      // CLI — локальный инструмент: детали ошибок (stack) в терминале полезны.
+      return pipeline.executeWithHandler(definition.handle, ctx, {
+        exposeErrorDetails: true,
+      });
     } else {
       // Fallback без pipeline - прямой вызов handler
       const result = await definition.handle(payload, {});

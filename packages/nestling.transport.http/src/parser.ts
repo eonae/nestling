@@ -1,6 +1,12 @@
 import type { IncomingMessage } from 'node:http';
 import { PassThrough, Readable } from 'node:stream';
 
+import {
+  ChunkTooLargeError,
+  JsonParseError,
+  PayloadTooLargeError,
+} from './errors.js';
+
 import type { Optional, Schema } from '@common/misc';
 import type { FilePart } from '@nestling/pipeline';
 import { SchemaValidationError } from '@nestling/pipeline';
@@ -15,29 +21,100 @@ import type { z, ZodError } from 'zod';
 const MAX_BUFFER_SIZE = 5 * 1024 * 1024; // 5MB
 
 /**
- * Парсинг JSON body
+ * Читает тело запроса в память с ранним прерыванием по лимиту.
+ *
+ * Байты считаются по мере чтения; при превышении `maxBytes` чтение
+ * прерывается сразу — поток ставится на паузу (не уничтожается), тело не
+ * буферизуется целиком. Пауза (а не `destroy`) позволяет транспорту доставить
+ * ответ 413 до закрытия соединения. `maxBytes <= 0` отключает лимит.
+ *
+ * @throws PayloadTooLargeError при превышении лимита
  */
-export async function parseJson(req: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-  const body = Buffer.concat(chunks).toString();
+export function readBody(req: IncomingMessage, maxBytes = 0): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let settled = false;
+
+    const cleanup = (): void => {
+      req.off('data', onData);
+      req.off('end', onEnd);
+      req.off('error', onError);
+    };
+
+    const onData = (chunk: Buffer): void => {
+      if (settled) {
+        return;
+      }
+      size += chunk.length;
+      if (maxBytes > 0 && size > maxBytes) {
+        settled = true;
+        cleanup();
+        req.pause();
+        reject(new PayloadTooLargeError(maxBytes));
+        return;
+      }
+      chunks.push(chunk);
+    };
+
+    const onEnd = (): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      resolve(Buffer.concat(chunks));
+    };
+
+    const onError = (error: Error): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
+  });
+}
+
+/**
+ * Парсинг JSON body
+ *
+ * @param maxBytes - лимит размера тела (0 = без лимита)
+ * @throws PayloadTooLargeError при превышении лимита
+ * @throws JsonParseError если тело не является валидным JSON
+ */
+export async function parseJson(
+  req: IncomingMessage,
+  maxBytes = 0,
+): Promise<unknown> {
+  const raw = await readBody(req, maxBytes);
+  const body = raw.toString();
   if (!body) {
     return undefined;
   }
-  return JSON.parse(body);
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    throw new JsonParseError({ cause: error });
+  }
 }
 
 /**
  * Парсинг raw body как Buffer
+ *
+ * @param maxBytes - лимит размера тела (0 = без лимита)
+ * @throws PayloadTooLargeError при превышении лимита
  */
-export async function parseRaw(req: IncomingMessage): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
+export async function parseRaw(
+  req: IncomingMessage,
+  maxBytes = 0,
+): Promise<Buffer> {
+  return readBody(req, maxBytes);
 }
 
 /**
@@ -51,14 +128,28 @@ export async function parseRaw(req: IncomingMessage): Promise<Buffer> {
  * не будут прочитаны. Поэтому мы либо буферизуем файл целиком, либо pipe'им
  * в PassThrough, который позволяет busboy завершиться, а данные читать позже.
  */
-export function parseMultipart(req: IncomingMessage): Promise<FilePart[]> {
+export function parseMultipart(
+  req: IncomingMessage,
+  maxFileSize = 0,
+): Promise<FilePart[]> {
   return new Promise((resolve, reject) => {
-    const busboyInstance = Busboy({ headers: req.headers });
+    const busboyInstance = Busboy({
+      headers: req.headers,
+      limits: maxFileSize > 0 ? { fileSize: maxFileSize } : undefined,
+    });
     const files: FilePart[] = [];
     const filePromises: Promise<void>[] = [];
 
     busboyInstance.on('file', (fieldname, stream, info) => {
       const { filename, mimeType } = info;
+
+      // Файл превысил limits.fileSize — busboy обрезает поток и эмитит 'limit'.
+      // Отвечаем 413, дренируя оставшийся вход, чтобы соединение не зависло.
+      stream.on('limit', () => {
+        req.unpipe(busboyInstance);
+        req.resume();
+        reject(new PayloadTooLargeError(maxFileSize));
+      });
 
       // Буферы для накопления данных (если файл маленький)
       const chunks: Buffer[] = [];
@@ -158,6 +249,7 @@ export function parseMultipart(req: IncomingMessage): Promise<FilePart[]> {
 export function parseStream<T>(
   req: IncomingMessage,
   schema?: Optional<Schema>,
+  maxLineBytes = 0,
 ): AsyncIterator<T> {
   async function* streamGenerator() {
     let buffer = '';
@@ -172,8 +264,19 @@ export function parseStream<T>(
       // Последняя строка может быть неполной, сохраняем её в буфере
       buffer = lines.pop() || '';
 
+      // Незавершённая строка не должна расти бесконечно (защита от DoS):
+      // если она уже превысила лимит до прихода '\n' — прерываем.
+      if (maxLineBytes > 0 && buffer.length > maxLineBytes) {
+        throw new ChunkTooLargeError(maxLineBytes);
+      }
+
       // Обрабатываем все полные строки
       for (const line of lines) {
+        // Полная строка тоже не должна превышать лимит
+        if (maxLineBytes > 0 && line.length > maxLineBytes) {
+          throw new ChunkTooLargeError(maxLineBytes);
+        }
+
         const trimmedLine = line.trim();
 
         // Пропускаем пустые строки
@@ -251,9 +354,13 @@ export function parseStream<T>(
  */
 export function parseWithFiles<T>(
   req: IncomingMessage,
+  maxFileSize = 0,
 ): Promise<{ data: T; files: FilePart[] }> {
   return new Promise((resolve, reject) => {
-    const busboyInstance = Busboy({ headers: req.headers });
+    const busboyInstance = Busboy({
+      headers: req.headers,
+      limits: maxFileSize > 0 ? { fileSize: maxFileSize } : undefined,
+    });
     const fields: Record<string, unknown> = {};
     const files: FilePart[] = [];
     const filePromises: Promise<void>[] = [];
@@ -264,6 +371,14 @@ export function parseWithFiles<T>(
 
     busboyInstance.on('file', (fieldname, stream, info) => {
       const { filename, mimeType } = info;
+
+      // Файл превысил limits.fileSize — busboy обрезает поток и эмитит 'limit'.
+      // Отвечаем 413, дренируя оставшийся вход, чтобы соединение не зависло.
+      stream.on('limit', () => {
+        req.unpipe(busboyInstance);
+        req.resume();
+        reject(new PayloadTooLargeError(maxFileSize));
+      });
 
       // Буферы для накопления данных (если файл маленький)
       const chunks: Buffer[] = [];
@@ -362,6 +477,9 @@ export function parseWithFiles<T>(
 /**
  * Парсинг только файлов без полей формы
  */
-export function parseFilesOnly(req: IncomingMessage): Promise<FilePart[]> {
-  return parseMultipart(req);
+export function parseFilesOnly(
+  req: IncomingMessage,
+  maxFileSize = 0,
+): Promise<FilePart[]> {
+  return parseMultipart(req, maxFileSize);
 }

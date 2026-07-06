@@ -1,3 +1,22 @@
+[07.07.2026] Internal 500 error details hidden by default (transport-hardening).
+
+Раньше `Pipeline.errorToResponse` под захардкоженным `isDevelopment = true`
+всегда клал `error.message` и `error.stack` в тело 500-ответа, а верхний catch
+HTTP-транспорта отдавал `error.message` для любых ошибок. Это утечка внутренних
+деталей на любом публичном окружении.
+
+Теперь необработанные (не `Fail`) ошибки по умолчанию дают
+`{ "error": "Internal server error" }` без message/stack. Раскрытие включается
+явной опцией `exposeErrorDetails` (свойство окружения: опция транспорта →
+`executeWithHandler`, а не поле переиспользуемого Pipeline). `CliTransport`
+передаёт `true` (локальный инструмент). `Fail` не затронут — его message/details
+автор раскрыл осознанно.
+
+Поведенческое изменение (не BREAKING по API): клиенты/тесты, полагавшиеся на
+текст 500-ответа, его больше не увидят. Заодно ошибки входа классифицированы
+корректно: битый JSON и конфликт ключей payload → `400`, превышение
+`maxBodySize` → `413` (вместо прежних `500`). См. change `transport-hardening`.
+
 [07.01.2026] Endpoint classes instead of Controllers.
 
 Switched from @Controller with @Endpoint methods to @Endpoint on classes. Main reasons:

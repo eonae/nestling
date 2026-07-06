@@ -5,9 +5,44 @@ HTTP transport for Nestling built on bare `node:http`: routing via
 (JSON, raw, NDJSON streams, multipart via `busboy`), NDJSON streaming
 responses.
 
-> 🚧 Active development. Works, but **not production-hardened yet**
-> (no body-size limits, timeouts, or CORS). Architecture:
+> 🚧 Active development. CORS, rate limiting and compression are still
+> out of scope. Architecture:
 > [`docs/design/transports.md`](../../docs/design/transports.md).
+
+## Security & limits
+
+By default the transport is safe to expose:
+
+- **Internal errors are hidden.** Unhandled (non-`Fail`) errors return
+  `{ "error": "Internal server error" }` with a `500` — no `message`, no
+  `stack`. Set `exposeErrorDetails: true` to surface them (dev only).
+  `Fail` responses always keep their `message`/`details` (the author opted in).
+- **Body size is limited.** Buffered bodies (JSON/raw/text), multipart file
+  size and NDJSON line length are capped at `maxBodySize` (default **1 MiB**);
+  reading aborts early and returns `413`. Set `maxBodySize: 0` to disable.
+- **Input errors map to 4xx.** Malformed JSON and payload key conflicts return
+  `400`; oversized payloads return `413` — not `500`.
+- **Graceful shutdown.** `close()` stops accepting connections, drops idle
+  keep-alive connections immediately, drains in-flight requests up to
+  `closeTimeout` (default **10s**), then force-closes the rest.
+
+### Options
+
+```ts
+new HttpTransport({
+  port: 3000,
+  host: '0.0.0.0',
+  maxBodySize: 1024 * 1024, // байт; 0 = без лимита
+  exposeErrorDetails: false, // раскрывать message/stack необработанных ошибок
+  requestTimeout: undefined, // node:http server.requestTimeout (мс)
+  headersTimeout: undefined, // node:http server.headersTimeout (мс)
+  keepAliveTimeout: undefined, // node:http server.keepAliveTimeout (мс)
+  closeTimeout: 10_000, // таймаут дренажа соединений при close() (мс)
+});
+```
+
+Таймауты, не заданные явно, используют дефолты Node. `close(timeout?)`
+принимает разовый override таймаута дренажа.
 
 Usage guides: [functional HTTP](../../docs/guides/http-functional.md),
 [App with DI](../../docs/guides/http-app-di.md).

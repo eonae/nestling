@@ -6,6 +6,12 @@ import {
 } from 'node:http';
 
 import { sendResponse } from './adapter.js';
+import {
+  ChunkTooLargeError,
+  JsonParseError,
+  PayloadConflictError,
+  PayloadTooLargeError,
+} from './errors.js';
 import type { HttpEndpointMetadata } from './helpers.js';
 import { mergePayload } from './merge.js';
 import {
@@ -14,6 +20,7 @@ import {
   parseRaw,
   parseStream,
   parseWithFiles,
+  readBody,
 } from './parser.js';
 import { HttpRouter } from './router.js';
 
@@ -30,9 +37,21 @@ import type {
 } from '@nestling/pipeline';
 import {
   analyzePayload,
+  Fail,
   makeEmptyContext,
   parsePayload,
+  SchemaValidationError,
 } from '@nestling/pipeline';
+
+/**
+ * Лимит размера буферизуемого тела запроса по умолчанию (1 MiB).
+ */
+const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
+
+/**
+ * Таймаут дренажа соединений при graceful close по умолчанию (10s).
+ */
+const DEFAULT_CLOSE_TIMEOUT = 10_000;
 
 /**
  * Опции для HTTP транспорта
@@ -40,6 +59,36 @@ import {
 export interface HttpTransportOptions {
   port?: number;
   host?: string;
+
+  /**
+   * Лимит размера буферизуемого тела запроса в байтах (JSON, raw, text),
+   * размера файла в multipart и длины строки NDJSON. По умолчанию 1 MiB.
+   * `0` отключает лимит.
+   */
+  maxBodySize?: number;
+
+  /**
+   * Раскрывать ли клиенту детали необработанных (не `Fail`) ошибок:
+   * `error.message` и `stack`. По умолчанию `false` — уходит только
+   * generic-сообщение. Включать только в доверенном окружении (dev).
+   */
+  exposeErrorDetails?: boolean;
+
+  /** `server.requestTimeout` (мс). Не задан — дефолт Node. */
+  requestTimeout?: number;
+
+  /** `server.headersTimeout` (мс). Не задан — дефолт Node. */
+  headersTimeout?: number;
+
+  /** `server.keepAliveTimeout` (мс). Не задан — дефолт Node. */
+  keepAliveTimeout?: number;
+
+  /**
+   * Таймаут дренажа активных соединений при `close()` (мс).
+   * По истечении оставшиеся соединения закрываются принудительно.
+   * По умолчанию 10s.
+   */
+  closeTimeout?: number;
 }
 
 /**
@@ -54,8 +103,16 @@ export class HttpTransport {
   private readonly router: HttpRouter;
   private server?: Server;
 
+  /** Резолвнутый лимит тела: `0` = без лимита. */
+  private readonly maxBodySize: number;
+
+  /** Резолвнутая политика раскрытия деталей ошибок. */
+  private readonly exposeErrorDetails: boolean;
+
   constructor(private readonly options: HttpTransportOptions = {}) {
     this.router = new HttpRouter();
+    this.maxBodySize = options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE;
+    this.exposeErrorDetails = options.exposeErrorDetails ?? false;
   }
 
   /**
@@ -122,6 +179,18 @@ export class HttpTransport {
         });
       });
 
+      // Таймауты node:http настраиваются, только если заданы явно —
+      // иначе сохраняются разумные дефолты Node.
+      if (this.options.requestTimeout !== undefined) {
+        this.server.requestTimeout = this.options.requestTimeout;
+      }
+      if (this.options.headersTimeout !== undefined) {
+        this.server.headersTimeout = this.options.headersTimeout;
+      }
+      if (this.options.keepAliveTimeout !== undefined) {
+        this.server.keepAliveTimeout = this.options.keepAliveTimeout;
+      }
+
       this.server.listen(listenPort, listenHost, () => {
         resolve();
       });
@@ -133,9 +202,15 @@ export class HttpTransport {
   }
 
   /**
-   * Останавливает HTTP сервер
+   * Останавливает HTTP сервер с дренажом соединений.
+   *
+   * Порядок: перестаём принимать новые соединения (`server.close`) →
+   * сразу закрываем простаивающие keep-alive (`closeIdleConnections`) →
+   * ждём завершения активных запросов до `closeTimeout` → принудительно
+   * закрываем оставшиеся (`closeAllConnections`). Гарантирует завершение
+   * за конечное время даже при живых keep-alive соединениях.
    */
-  async close(): Promise<void> {
+  async close(options: { timeout?: number } = {}): Promise<void> {
     if (!this.server) {
       return;
     }
@@ -143,14 +218,32 @@ export class HttpTransport {
     const server = this.server;
     this.server = undefined;
 
+    const closeTimeout =
+      options.timeout ?? this.options.closeTimeout ?? DEFAULT_CLOSE_TIMEOUT;
+
     return new Promise((resolve, reject) => {
+      // Активные in-flight запросы дренируем до closeTimeout, затем рубим.
+      // Таймер не должен держать процесс живым.
+      const timer = setTimeout(() => {
+        server.closeAllConnections();
+      }, closeTimeout);
+      if (typeof timer.unref === 'function') {
+        timer.unref();
+      }
+
+      // server.close ждёт завершения всех соединений; колбэк — когда закрылись
       server.close((error) => {
+        clearTimeout(timer);
         if (error) {
           reject(error);
         } else {
           resolve();
         }
       });
+
+      // Простаивающие keep-alive соединения закрываем немедленно, иначе
+      // server.close ждал бы их таймаута со стороны клиента.
+      server.closeIdleConnections();
     });
   }
 
@@ -192,11 +285,15 @@ export class HttpTransport {
       // Парсим входные данные согласно типу модификатора
       switch (inputConfig.type) {
         case 'stream': {
-          payload = parseStream(nativeReq, inputConfig.schema as Schema);
+          payload = parseStream(
+            nativeReq,
+            inputConfig.schema as Schema,
+            this.maxBodySize,
+          );
           break;
         }
         case 'withFiles': {
-          const result = await parseWithFiles(nativeReq);
+          const result = await parseWithFiles(nativeReq, this.maxBodySize);
           const dataWithParams = mergePayload(
             result.data,
             undefined,
@@ -215,25 +312,22 @@ export class HttpTransport {
           break;
         }
         case 'files': {
-          payload = await parseFilesOnly(nativeReq);
+          payload = await parseFilesOnly(nativeReq, this.maxBodySize);
           break;
         }
         case 'primitive': {
           if (inputConfig.primitive === 'binary') {
-            payload = await parseRaw(nativeReq);
+            payload = await parseRaw(nativeReq, this.maxBodySize);
           } else if (inputConfig.primitive === 'text') {
-            const chunks: Buffer[] = [];
-            for await (const chunk of nativeReq) {
-              chunks.push(chunk);
-            }
-            payload = Buffer.concat(chunks).toString();
+            const rawText = await readBody(nativeReq, this.maxBodySize);
+            payload = rawText.toString();
           }
           break;
         }
         default: {
           let body: unknown;
           if (inputConfig.schema) {
-            body = await parseJson(nativeReq);
+            body = await parseJson(nativeReq, this.maxBodySize);
           }
           payload = mergePayload(
             body,
@@ -269,6 +363,7 @@ export class HttpTransport {
         const responseContext = await pipeline.executeWithHandler(
           route.handler,
           ctx,
+          { exposeErrorDetails: this.exposeErrorDetails },
         );
 
         this.cleanupFileStreams(inputConfigType, payload);
@@ -299,15 +394,71 @@ export class HttpTransport {
       }
     } catch (error) {
       this.cleanupFileStreams(inputConfigType, payload);
-      nativeRes.statusCode = 500;
-      nativeRes.setHeader('content-type', 'application/json');
-      nativeRes.end(
-        JSON.stringify({
-          error:
-            error instanceof Error ? error.message : 'Internal Server Error',
-        }),
-      );
+      this.sendError(nativeRes, error);
     }
+  }
+
+  /**
+   * Отправляет ошибку парсинга/роутинга/fallback-ветки с корректным статусом.
+   *
+   * Классификация (D2):
+   * - `JsonParseError`, `PayloadConflictError`, `SchemaValidationError` → 400
+   * - `PayloadTooLargeError`, `ChunkTooLargeError` → 413
+   * - остальное → 500, детали скрыты, если не включён `exposeErrorDetails`
+   *
+   * Ошибки клиента (400/413) содержат безопасное сообщение, описывающее
+   * некорректный ввод; внутренние детали не раскрываются.
+   */
+  private sendError(res: ServerResponse, error: unknown): void {
+    if (res.headersSent) {
+      return;
+    }
+
+    // Fail из fallback-ветки (endpoint без pipeline) — осознанная ошибка автора:
+    // статус и детали сохраняем (как это делает pipeline через errorToResponse).
+    if (error instanceof Fail) {
+      sendResponse(res, {
+        isSuccess: false,
+        status: error.status,
+        value:
+          error.details !== undefined
+            ? { error: error.message, details: error.details }
+            : { error: error.message },
+      });
+      return;
+    }
+
+    let status = 500;
+    const body: { error: string; details?: unknown; stack?: string } = {
+      error: 'Internal server error',
+    };
+
+    if (
+      error instanceof JsonParseError ||
+      error instanceof PayloadConflictError
+    ) {
+      status = 400;
+      body.error = error.message;
+    } else if (error instanceof SchemaValidationError) {
+      status = 400;
+      body.error = 'Validation failed';
+      body.details = error.zodError.issues;
+    } else if (
+      error instanceof PayloadTooLargeError ||
+      error instanceof ChunkTooLargeError
+    ) {
+      status = 413;
+      body.error = 'Payload too large';
+    } else if (this.exposeErrorDetails) {
+      body.error = error instanceof Error ? error.message : 'Unknown error';
+      if (error instanceof Error && error.stack) {
+        body.stack = error.stack;
+      }
+    }
+
+    res.statusCode = status;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify(body));
   }
 
   /**

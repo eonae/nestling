@@ -9,6 +9,14 @@ busboy, парсинг по io-декларации), но детали (`RouteC
 разошлись с реализацией. Модель middleware описана здесь до pipeline v2 —
 при расхождении источник истины [decisions/ideas.md](../decisions/ideas.md).
 
+🔒 **Hardening (реализовано, change `transport-hardening`):** лимит размера тела
+`maxBodySize` (JSON/raw/text/multipart/NDJSON, дефолт 1 MiB) с ранним
+прерыванием → `413`; типизированные ошибки входа (битый JSON, конфликт ключей)
+→ `400`; настраиваемые таймауты `node:http`; graceful `close()` с дренажом
+соединений; детали необработанных 500-ошибок скрыты по умолчанию
+(`exposeErrorDetails`). Осталось вне scope: CORS, rate limiting, сжатие,
+проверка `Content-Type`. Опции — в README пакета.
+
 ---
 
 ## 1. Цели и ограничения

@@ -3,3 +3,5 @@ export * from './router.js';
 export * from './parser.js';
 export * from './adapter.js';
 export * from './helpers.js';
+export * from './errors.js';
+export * from './merge.js';

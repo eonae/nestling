@@ -1,3 +1,4 @@
+import { PayloadConflictError } from './errors.js';
 import { mergePayload } from './merge.js';
 
 describe('mergePayload', () => {
@@ -30,22 +31,29 @@ describe('mergePayload', () => {
     expect(result).toEqual({});
   });
 
-  it('should throw error on duplicate keys', () => {
+  it('should throw PayloadConflictError on duplicate keys', () => {
     const body = { id: '123' };
     const params = { id: '456' };
 
+    expect(() => mergePayload(body, undefined, params)).toThrow(
+      PayloadConflictError,
+    );
     expect(() => mergePayload(body, undefined, params)).toThrow(
       'Duplicate key "id" found in payload sources',
     );
   });
 
-  it('should throw error on duplicate keys between body and query', () => {
+  it('should expose the conflicting key on the error', () => {
     const body = { name: 'Alice' };
     const query = { name: 'Bob' };
 
-    expect(() => mergePayload(body, query)).toThrow(
-      'Duplicate key "name" found in payload sources',
-    );
+    try {
+      mergePayload(body, query);
+      throw new Error('expected mergePayload to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(PayloadConflictError);
+      expect((error as PayloadConflictError).key).toBe('name');
+    }
   });
 
   it('should handle non-object sources gracefully', () => {
