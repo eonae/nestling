@@ -1,7 +1,9 @@
-import { Fail, Ok } from '@nestling/pipeline';
-import { GetUserEndpoint } from './get-user.endpoint';
-import type { UserService } from '../user.service';
 import type { ILoggerService } from '../../logger/logger.service';
+import type { UserService } from '../user.service';
+
+import { GetUserEndpoint } from './get-user.endpoint';
+
+import { Fail, Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
 describe('GetUserEndpoint', () => {
@@ -21,7 +23,7 @@ describe('GetUserEndpoint', () => {
       const user = { id: '1', name: 'Alice', email: 'alice@test.com' };
       userService.getById.mockResolvedValue(user);
 
-      const result = await endpoint.handle({ id: '1' }, {});
+      const result = await endpoint.handle({ id: '1' });
 
       if (result instanceof Ok) {
         expect(result.value).toEqual(user);
@@ -38,13 +40,12 @@ describe('GetUserEndpoint', () => {
     it('должен бросить Fail.notFound если пользователь не найден', async () => {
       userService.getById.mockResolvedValue(null);
 
-      await expect(endpoint.handle({ id: '999' }, {})).rejects.toThrow(Fail);
+      await expect(endpoint.handle({ id: '999' })).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle({ id: '999' }, {})).rejects.toMatchObject({
+      await expect(endpoint.handle({ id: '999' })).rejects.toMatchObject({
         status: 'NOT_FOUND',
         message: 'User not found',
       });
     });
   });
 });
-

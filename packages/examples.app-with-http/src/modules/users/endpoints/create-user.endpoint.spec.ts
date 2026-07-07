@@ -1,7 +1,9 @@
-import { Fail, Ok } from '@nestling/pipeline';
-import { CreateUserEndpoint } from './create-user.endpoint';
-import type { UserService } from '../user.service';
 import type { ILoggerService } from '../../logger/logger.service';
+import type { UserService } from '../user.service';
+
+import { CreateUserEndpoint } from './create-user.endpoint';
+
+import { Fail, Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
 describe('CreateUserEndpoint', () => {
@@ -26,12 +28,14 @@ describe('CreateUserEndpoint', () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.create.mockResolvedValue(createdUser);
 
-      const result = await endpoint.handle(newUser, {});
+      const result = await endpoint.handle(newUser);
 
       if (result instanceof Ok) {
         expect(result.value).toEqual(createdUser);
         expect(result.headers).toHaveProperty('Location', '/api/users/3');
-        expect(userService.findByEmail).toHaveBeenCalledWith('test@example.com');
+        expect(userService.findByEmail).toHaveBeenCalledWith(
+          'test@example.com',
+        );
         expect(userService.create).toHaveBeenCalledWith(newUser);
       } else {
         expect(result).toBeInstanceOf(Ok); // Will fail
@@ -45,12 +49,16 @@ describe('CreateUserEndpoint', () => {
         name: 'Test',
         email: 'existing@example.com',
       };
-      const existingUser = { id: '1', name: 'Existing', email: 'existing@example.com' };
+      const existingUser = {
+        id: '1',
+        name: 'Existing',
+        email: 'existing@example.com',
+      };
       userService.findByEmail.mockResolvedValue(existingUser);
 
-      await expect(endpoint.handle(newUser, {})).rejects.toThrow(Fail);
+      await expect(endpoint.handle(newUser)).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle(newUser, {})).rejects.toMatchObject({
+      await expect(endpoint.handle(newUser)).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         message: 'Email already taken',
         details: { field: 'email' },
@@ -58,4 +66,3 @@ describe('CreateUserEndpoint', () => {
     });
   });
 });
-

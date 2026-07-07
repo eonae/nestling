@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import { Injectable, makeToken } from '@nestling/container';
 
 /**
@@ -23,4 +25,3 @@ export class ConsoleLogger implements ILoggerService {
     console.error('[ERROR]', ...args);
   }
 }
-

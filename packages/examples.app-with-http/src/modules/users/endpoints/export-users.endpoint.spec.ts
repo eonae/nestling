@@ -1,8 +1,15 @@
-import { Ok } from '@nestling/pipeline';
-import { ExportUsersEndpoint } from './export-users.endpoint';
-import type { UserService } from '../user.service';
 import type { ILoggerService } from '../../logger/logger.service';
+import type { UserService } from '../user.service';
+
+import { ExportUsersEndpoint } from './export-users.endpoint';
+
+import { Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
+
+async function* mockStream() {
+  yield { id: '1', name: 'Alice', email: 'alice@test.com' };
+  yield { id: '2', name: 'Bob', email: 'bob@test.com' };
+}
 
 describe('ExportUsersEndpoint', () => {
   let endpoint: ExportUsersEndpoint;
@@ -17,19 +24,20 @@ describe('ExportUsersEndpoint', () => {
   });
 
   it('должен вернуть AsyncIterableIterator с заголовками', async () => {
-    async function* mockStream() {
-      yield { id: '1', name: 'Alice', email: 'alice@test.com' };
-      yield { id: '2', name: 'Bob', email: 'bob@test.com' };
-    }
-
     userService.exportAll.mockReturnValue(mockStream());
 
-    const result = await endpoint.handle(undefined, {});
+    const result = await endpoint.handle();
 
     if (result instanceof Ok) {
       expect(result).toBeInstanceOf(Ok);
-      expect(result.headers).toHaveProperty('Content-Type', 'application/x-ndjson');
-      expect(result.headers).toHaveProperty('Content-Disposition', 'attachment; filename="users.ndjson"');
+      expect(result.headers).toHaveProperty(
+        'Content-Type',
+        'application/x-ndjson',
+      );
+      expect(result.headers).toHaveProperty(
+        'Content-Disposition',
+        'attachment; filename="users.ndjson"',
+      );
 
       // Проверяем, что это AsyncIterableIterator
       const iterator = result.value;
@@ -45,4 +53,3 @@ describe('ExportUsersEndpoint', () => {
     }
   });
 });
-

@@ -1,5 +1,6 @@
-import { makeModule } from '@nestling/container';
 import { ConsoleLogger, ILogger } from './logger.service';
+
+import { makeModule } from '@nestling/container';
 
 /**
  * Модуль логгера
@@ -9,4 +10,3 @@ export const LoggerModule = makeModule({
   providers: [ConsoleLogger],
   exports: [ILogger],
 });
-

@@ -1,14 +1,14 @@
+import { ADMIN_USER_ID } from '../../../common/constants';
+import { basePipeline } from '../../../common/pipelines';
+import type { ILoggerService } from '../../logger/logger.service';
+import { ILogger } from '../../logger/logger.service';
+import { UserService } from '../user.service';
+
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
-
-import { basePipeline } from '../../../common/pipelines';
-import { ADMIN_USER_ID } from '../../../common/constants';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
-import { UserService } from '../user.service';
 
 const DeleteUserInput = z.object({
   id: z.string(),
@@ -28,14 +28,13 @@ type DeleteUserInput = z.infer<typeof DeleteUserInput>;
   input: DeleteUserInput,
   pipeline: basePipeline,
 })
-export class DeleteUserEndpoint implements IEndpoint
-{
+export class DeleteUserEndpoint implements IEndpoint {
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: DeleteUserInput, meta: {}): Output<null> {
+  async handle(payload: DeleteUserInput): Output<null> {
     this.logger.log(`Handling DELETE /api/users/${payload.id}`);
 
     // Проверка на защищенного пользователя

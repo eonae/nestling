@@ -1,7 +1,10 @@
-import { App } from '@nestling/app';
-import { HttpTransport } from '@nestling/transport.http';
+/* eslint-disable no-console */
+
 import { LoggerModule } from './modules/logger/logger.module';
 import { UsersModule } from './users.module';
+
+import { App } from '@nestling/app';
+import { HttpTransport } from '@nestling/transport.http';
 
 /**
  * Пример использования App с HTTP транспортом, endpoints и middleware
@@ -38,12 +41,14 @@ async function main() {
   console.log('  GET  http://localhost:3000/api/users');
   console.log('  GET  http://localhost:3000/api/users/1');
   console.log('  POST http://localhost:3000/api/users');
-  console.log('       Body: {"name": "Charlie", "email": "charlie@example.com"}');
+  console.log(
+    '       Body: {"name": "Charlie", "email": "charlie@example.com"}',
+  );
   console.log('');
 }
 
 main().catch((error) => {
   console.error('Failed to start app:', error);
+  // eslint-disable-next-line unicorn/no-process-exit
   process.exit(1);
 });
-

@@ -1,4 +1,3 @@
-import { makeAppModule } from '@nestling/app';
 import {
   CreateUserEndpoint,
   DeleteUserEndpoint,
@@ -11,6 +10,8 @@ import {
   UploadAvatarEndpoint,
 } from './modules/users/endpoints';
 import { UserService } from './modules/users/user.service';
+
+import { makeAppModule } from '@nestling/app';
 
 /**
  * Модуль пользователей с endpoints

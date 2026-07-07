@@ -1,13 +1,13 @@
+import { basePipeline } from '../../../common/pipelines';
+import type { ILoggerService } from '../../logger/logger.service';
+import { ILogger } from '../../logger/logger.service';
+import { UserService } from '../user.service';
+
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
-
-import { basePipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
-import { UserService } from '../user.service';
 
 const SearchUsersInput = z.object({
   q: z.string().min(1, 'Search query is required'),
@@ -38,14 +38,13 @@ type SearchUsersOutput = z.infer<typeof SearchUsersOutput>;
   output: SearchUsersOutput,
   pipeline: basePipeline,
 })
-export class SearchUsersEndpoint implements IEndpoint
-{
+export class SearchUsersEndpoint implements IEndpoint {
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: SearchUsersInput, meta: {}): Output<SearchUsersOutput> {
+  async handle(payload: SearchUsersInput): Output<SearchUsersOutput> {
     this.logger.log(`Handling GET /api/users/search?q=${payload.q}`);
 
     if (!payload.q || payload.q.trim().length === 0) {

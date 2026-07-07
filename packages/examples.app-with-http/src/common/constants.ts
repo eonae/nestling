@@ -25,4 +25,3 @@ export const MAX_AVATAR_SIZE = 5_000_000;
  * ID защищенного admin пользователя
  */
 export const ADMIN_USER_ID = '1';
-

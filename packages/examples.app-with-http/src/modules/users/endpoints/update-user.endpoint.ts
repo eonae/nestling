@@ -1,13 +1,13 @@
+import { basePipeline } from '../../../common/pipelines';
+import type { ILoggerService } from '../../logger/logger.service';
+import { ILogger } from '../../logger/logger.service';
+import { UserService } from '../user.service';
+
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Fail } from '@nestling/pipeline';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
-
-import { basePipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
-import { UserService } from '../user.service';
 
 const UpdateUserInput = z.object({
   id: z.string(),
@@ -37,14 +37,13 @@ type UpdateUserOutput = z.infer<typeof UpdateUserOutput>;
   output: UpdateUserOutput,
   pipeline: basePipeline,
 })
-export class UpdateUserEndpoint implements IEndpoint
-{
+export class UpdateUserEndpoint implements IEndpoint {
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: UpdateUserInput, meta: {}): Output<UpdateUserOutput> {
+  async handle(payload: UpdateUserInput): Output<UpdateUserOutput> {
     this.logger.log(`Handling PATCH /api/users/${payload.id}`);
 
     const { id, ...updateData } = payload;

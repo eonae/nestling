@@ -18,9 +18,8 @@ export interface User {
 export interface ImportResult {
   imported: number;
   failed: number;
-  errors?: Array<{
+  errors?: {
     line: number;
     error: string;
-  }>;
+  }[];
 }
-

@@ -1,14 +1,14 @@
-import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Fail, Ok, withFiles, type FilePart } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
-import { z } from 'zod';
-
-import { noValidationPipeline } from '../../../common/pipelines';
 import { MAX_AVATAR_SIZE } from '../../../common/constants';
+import { noValidationPipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
+
+import { Injectable } from '@nestling/container';
+import type { FilePart, IEndpoint, Output } from '@nestling/pipeline';
+import { Fail, Ok, withFiles } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
+import { z } from 'zod';
 
 const UploadAvatarInput = z.object({
   id: z.string(), // userId из params
@@ -37,17 +37,16 @@ type UploadAvatarOutput = z.infer<typeof UploadAvatarOutput>;
   output: UploadAvatarOutput,
   pipeline: noValidationPipeline,
 })
-export class UploadAvatarEndpoint implements IEndpoint
-{
+export class UploadAvatarEndpoint implements IEndpoint {
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle(
-    payload: { data: UploadAvatarInput; files: FilePart[] },
-    meta: {},
-  ): Output<UploadAvatarOutput> {
+  async handle(payload: {
+    data: UploadAvatarInput;
+    files: FilePart[];
+  }): Output<UploadAvatarOutput> {
     const { data, files } = payload;
     this.logger.log(`Handling POST /api/users/${data.id}/avatar`);
 
@@ -64,7 +63,7 @@ export class UploadAvatarEndpoint implements IEndpoint
     }
 
     // Валидация размера файла
-    if (avatarFile.size && avatarFile.size > MAX_AVATAR_SIZE) {
+    if (avatarFile.size !== undefined && avatarFile.size > MAX_AVATAR_SIZE) {
       throw Fail.badRequest(
         `File too large (max ${MAX_AVATAR_SIZE / 1_000_000}MB)`,
       );

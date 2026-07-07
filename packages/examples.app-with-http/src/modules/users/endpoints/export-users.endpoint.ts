@@ -1,14 +1,14 @@
-import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Ok, stream } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
-import { z } from 'zod';
-
 import { noValidationPipeline } from '../../../common/pipelines';
 import type { User } from '../../../common/types';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
+
+import { Injectable } from '@nestling/container';
+import type { IEndpoint, Output } from '@nestling/pipeline';
+import { Ok, stream } from '@nestling/pipeline';
+import { HttpEndpoint } from '@nestling/transport.http';
+import { z } from 'zod';
 
 const ExportUsersOutput = z.object({
   id: z.string(),
@@ -27,15 +27,13 @@ const ExportUsersOutput = z.object({
   output: stream(ExportUsersOutput),
   pipeline: noValidationPipeline,
 })
-export class ExportUsersEndpoint
-  implements IEndpoint
-{
+export class ExportUsersEndpoint implements IEndpoint {
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: undefined, meta: {}): Output<AsyncIterableIterator<User>> {
+  async handle(): Output<AsyncIterableIterator<User>> {
     this.logger.log('Handling GET /api/users/export');
 
     const userStream = this.userService.exportAll();

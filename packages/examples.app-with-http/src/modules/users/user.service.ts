@@ -1,8 +1,9 @@
-import { Injectable } from '@nestling/container';
-import type { User, ImportResult } from '../../common/types';
 import { ADMIN_USER_ID } from '../../common/constants';
+import type { ImportResult, User } from '../../common/types';
 import type { ILoggerService } from '../logger/logger.service';
 import { ILogger } from '../logger/logger.service';
+
+import { Injectable } from '@nestling/container';
 
 /**
  * Сервис для работы с пользователями
@@ -40,7 +41,10 @@ export class UserService {
     return user;
   }
 
-  async update(id: string, data: Partial<Omit<User, 'id'>>): Promise<User | null> {
+  async update(
+    id: string,
+    data: Partial<Omit<User, 'id'>>,
+  ): Promise<User | null> {
     this.logger.log(`Updating user ${id}`);
     const userIndex = this.users.findIndex((u) => u.id === id);
     if (userIndex === -1) {
@@ -58,7 +62,7 @@ export class UserService {
 
   async delete(id: string): Promise<boolean> {
     this.logger.log(`Deleting user ${id}`);
-    
+
     // Защита admin пользователя
     if (id === ADMIN_USER_ID) {
       return false;
@@ -77,7 +81,7 @@ export class UserService {
   async search(query: string): Promise<User[]> {
     this.logger.log(`Searching users with query: ${query}`);
     const lowerQuery = query.toLowerCase();
-    
+
     return this.users.filter(
       (user) =>
         user.name.toLowerCase().includes(lowerQuery) ||
@@ -114,12 +118,12 @@ export class UserService {
     this.logger.log('Importing users from stream');
     let imported = 0;
     let failed = 0;
-    const errors: Array<{ line: number; error: string }> = [];
+    const errors: { line: number; error: string }[] = [];
     let lineNumber = 0;
 
     for await (const userData of stream) {
       lineNumber++;
-      
+
       try {
         // Валидация минимальных данных
         if (!userData.name || !userData.email) {
@@ -170,7 +174,7 @@ export class UserService {
     }
 
     this.logger.log(`Import completed: ${imported} imported, ${failed} failed`);
-    
+
     return {
       imported,
       failed,
@@ -178,4 +182,3 @@ export class UserService {
     };
   }
 }
-

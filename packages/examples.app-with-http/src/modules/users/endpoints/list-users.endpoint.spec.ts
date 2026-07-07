@@ -1,6 +1,8 @@
-import { ListUsersEndpoint } from './list-users.endpoint';
-import type { UserService } from '../user.service';
 import type { ILoggerService } from '../../logger/logger.service';
+import type { UserService } from '../user.service';
+
+import { ListUsersEndpoint } from './list-users.endpoint';
+
 import { mock } from 'jest-mock-extended';
 
 describe('ListUsersEndpoint', () => {
@@ -22,7 +24,7 @@ describe('ListUsersEndpoint', () => {
     ];
     userService.getAll.mockResolvedValue(users);
 
-    const result = await endpoint.handle(undefined, {});
+    const result = await endpoint.handle();
 
     // Проверяем, что возвращается напрямую (не new Ok)
     expect(result).toEqual(users);

@@ -1,10 +1,13 @@
-import { Fail, Ok } from '@nestling/pipeline';
-import type { FilePart } from '@nestling/pipeline';
-import { MAX_AVATAR_SIZE } from '../../../common/constants';
-import { UploadAvatarEndpoint } from './upload-avatar.endpoint';
-import type { UserService } from '../user.service';
-import type { ILoggerService } from '../../logger/logger.service';
 import { Readable } from 'node:stream';
+
+import { MAX_AVATAR_SIZE } from '../../../common/constants';
+import type { ILoggerService } from '../../logger/logger.service';
+import type { UserService } from '../user.service';
+
+import { UploadAvatarEndpoint } from './upload-avatar.endpoint';
+
+import type { FilePart } from '@nestling/pipeline';
+import { Fail, Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
 describe('UploadAvatarEndpoint', () => {
@@ -38,17 +41,17 @@ describe('UploadAvatarEndpoint', () => {
 
       userService.updateAvatar.mockResolvedValue(updatedUser);
 
-      const result = await endpoint.handle(
-        {
-          data: { id: '1' },
-          files: [avatarFile],
-        },
-        {},
-      );
+      const result = await endpoint.handle({
+        data: { id: '1' },
+        files: [avatarFile],
+      });
 
       if (result instanceof Ok) {
         expect(result.value).toEqual(updatedUser);
-        expect(userService.updateAvatar).toHaveBeenCalledWith('1', '/uploads/1/avatar.png');
+        expect(userService.updateAvatar).toHaveBeenCalledWith(
+          '1',
+          '/uploads/1/avatar.png',
+        );
       } else {
         expect(result).toBeInstanceOf(Ok);
       }
@@ -58,23 +61,17 @@ describe('UploadAvatarEndpoint', () => {
   describe('Ошибочные сценарии', () => {
     it('должен бросить Fail.badRequest если файл отсутствует', async () => {
       await expect(
-        endpoint.handle(
-          {
-            data: { id: '1' },
-            files: [],
-          },
-          {},
-        ),
+        endpoint.handle({
+          data: { id: '1' },
+          files: [],
+        }),
       ).rejects.toThrow(Fail);
 
       await expect(
-        endpoint.handle(
-          {
-            data: { id: '1' },
-            files: [],
-          },
-          {},
-        ),
+        endpoint.handle({
+          data: { id: '1' },
+          files: [],
+        }),
       ).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         message: 'Avatar file is required',
@@ -91,23 +88,17 @@ describe('UploadAvatarEndpoint', () => {
       };
 
       await expect(
-        endpoint.handle(
-          {
-            data: { id: '1' },
-            files: [textFile],
-          },
-          {},
-        ),
+        endpoint.handle({
+          data: { id: '1' },
+          files: [textFile],
+        }),
       ).rejects.toThrow(Fail);
 
       await expect(
-        endpoint.handle(
-          {
-            data: { id: '1' },
-            files: [textFile],
-          },
-          {},
-        ),
+        endpoint.handle({
+          data: { id: '1' },
+          files: [textFile],
+        }),
       ).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         message: 'Only images are allowed',
@@ -124,23 +115,17 @@ describe('UploadAvatarEndpoint', () => {
       };
 
       await expect(
-        endpoint.handle(
-          {
-            data: { id: '1' },
-            files: [largeFile],
-          },
-          {},
-        ),
+        endpoint.handle({
+          data: { id: '1' },
+          files: [largeFile],
+        }),
       ).rejects.toThrow(Fail);
 
       await expect(
-        endpoint.handle(
-          {
-            data: { id: '1' },
-            files: [largeFile],
-          },
-          {},
-        ),
+        endpoint.handle({
+          data: { id: '1' },
+          files: [largeFile],
+        }),
       ).rejects.toMatchObject({
         status: 'BAD_REQUEST',
       });
@@ -158,23 +143,17 @@ describe('UploadAvatarEndpoint', () => {
       userService.updateAvatar.mockResolvedValue(null);
 
       await expect(
-        endpoint.handle(
-          {
-            data: { id: '999' },
-            files: [avatarFile],
-          },
-          {},
-        ),
+        endpoint.handle({
+          data: { id: '999' },
+          files: [avatarFile],
+        }),
       ).rejects.toThrow(Fail);
 
       await expect(
-        endpoint.handle(
-          {
-            data: { id: '999' },
-            files: [avatarFile],
-          },
-          {},
-        ),
+        endpoint.handle({
+          data: { id: '999' },
+          files: [avatarFile],
+        }),
       ).rejects.toMatchObject({
         status: 'NOT_FOUND',
         message: 'User not found',
@@ -182,4 +161,3 @@ describe('UploadAvatarEndpoint', () => {
     });
   });
 });
-

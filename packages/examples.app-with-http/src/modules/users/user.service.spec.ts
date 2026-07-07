@@ -1,6 +1,19 @@
-import { UserService } from './user.service';
 import type { ILoggerService } from '../logger/logger.service';
+
+import { UserService } from './user.service';
+
 import { mock } from 'jest-mock-extended';
+
+async function* validUsersStream() {
+  yield { name: 'Import1', email: 'import1@test.com' };
+  yield { name: 'Import2', email: 'import2@test.com' };
+}
+
+async function* partiallyInvalidUsersStream() {
+  yield { name: 'Valid', email: 'valid@test.com' };
+  yield { name: '', email: 'invalid@test.com' }; // Отсутствует name
+  yield { name: 'Valid2', email: 'valid2@test.com' };
+}
 
 describe('UserService', () => {
   let service: UserService;
@@ -35,7 +48,8 @@ describe('UserService', () => {
 
   describe('create', () => {
     it('должен создать пользователя с автоинкрементным ID', async () => {
-      const initialLength = (await service.getAll()).length;
+      const initialUsers = await service.getAll();
+      const initialLength = initialUsers.length;
 
       const newUser = await service.create({
         name: 'Test',
@@ -140,25 +154,14 @@ describe('UserService', () => {
 
   describe('importUsers', () => {
     it('должен импортировать пользователей из стрима', async () => {
-      async function* userStream() {
-        yield { name: 'Import1', email: 'import1@test.com' };
-        yield { name: 'Import2', email: 'import2@test.com' };
-      }
-
-      const result = await service.importUsers(userStream());
+      const result = await service.importUsers(validUsersStream());
 
       expect(result.imported).toBe(2);
       expect(result.failed).toBe(0);
     });
 
     it('должен обработать частичный импорт с ошибками', async () => {
-      async function* userStream() {
-        yield { name: 'Valid', email: 'valid@test.com' };
-        yield { name: '', email: 'invalid@test.com' }; // Отсутствует name
-        yield { name: 'Valid2', email: 'valid2@test.com' };
-      }
-
-      const result = await service.importUsers(userStream());
+      const result = await service.importUsers(partiallyInvalidUsersStream());
 
       expect(result.imported).toBeGreaterThan(0);
       expect(result.failed).toBeGreaterThan(0);
@@ -175,4 +178,3 @@ describe('UserService', () => {
     });
   });
 });
-

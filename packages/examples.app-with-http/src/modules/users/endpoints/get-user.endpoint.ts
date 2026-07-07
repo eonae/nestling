@@ -1,13 +1,13 @@
+import { basePipeline } from '../../../common/pipelines';
+import type { ILoggerService } from '../../logger/logger.service';
+import { ILogger } from '../../logger/logger.service';
+import { UserService } from '../user.service';
+
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
-
-import { basePipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
-import { UserService } from '../user.service';
 
 const GetUserInput = z.object({
   id: z.string(),
@@ -31,14 +31,13 @@ type GetUserOutput = z.infer<typeof GetUserOutput>;
   output: GetUserOutput,
   pipeline: basePipeline,
 })
-export class GetUserEndpoint implements IEndpoint
-{
+export class GetUserEndpoint implements IEndpoint {
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: GetUserInput, meta: {}): Output<GetUserOutput> {
+  async handle(payload: GetUserInput): Output<GetUserOutput> {
     this.logger.log(`Handling GET /api/users/${payload.id}`);
 
     const user = await this.userService.getById(payload.id);

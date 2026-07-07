@@ -1,13 +1,13 @@
+import { noValidationPipeline } from '../../../common/pipelines';
+import type { ILoggerService } from '../../logger/logger.service';
+import { ILogger } from '../../logger/logger.service';
+import { UserService } from '../user.service';
+
 import { Injectable } from '@nestling/container';
 import type { IEndpoint, Output } from '@nestling/pipeline';
 import { Ok, stream } from '@nestling/pipeline';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
-
-import { noValidationPipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
-import { UserService } from '../user.service';
 
 const ImportUserInput = z.object({
   name: z.string(),
@@ -44,8 +44,7 @@ type ImportUsersOutput = z.infer<typeof ImportUsersOutput>;
   output: ImportUsersOutput,
   pipeline: noValidationPipeline,
 })
-export class ImportUsersEndpoint implements IEndpoint
-{
+export class ImportUsersEndpoint implements IEndpoint {
   constructor(
     private userService: UserService,
     private logger: ILoggerService,
@@ -53,7 +52,6 @@ export class ImportUsersEndpoint implements IEndpoint
 
   async handle(
     payload: AsyncIterableIterator<ImportUserInput>,
-    meta: {},
   ): Output<ImportUsersOutput> {
     this.logger.log('Handling POST /api/users/import');
 
