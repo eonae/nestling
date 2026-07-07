@@ -52,15 +52,12 @@ busboy, парсинг по io-декларации), но детали (`RouteC
 └─────┬──────┘
       │ RequestContext
       ▼
-┌─────────────────┐
-│ Global Pipeline │
-│ (middlewares)   │
-└─────┬───────────┘
-      │
-      ▼
-┌────────────┐
-│ Endpoint   │
-└─────┬──────┘
+┌───────────────────────┐
+│ Endpoint Pipeline     │
+│ (слои: pre → handler  │
+│  → ok/catch/after     │
+│  → finally)           │
+└─────┬─────────────────┘
       │ ResponseContext
       ▼
 ┌────────────┐
@@ -68,6 +65,9 @@ busboy, парсинг по io-декларации), но детали (`RouteC
 │ Adapter    │
 └────────────┘
 ```
+
+Пайплайн привязывается только к endpoint'у (глобального/модульного уровня
+нет — композиция константами через `compose`).
 
 ---
 
@@ -193,12 +193,22 @@ function parseMultipart(req: IncomingMessage): Promise<FilePart[]> {
 
 ## 7. Pipeline
 
+Модель v2 — плоские фазы без `next()`: `makePipeline()` со словарём
+`.pre/.ok/.catch/.after/.finally`, слои и `compose`. Pre-юниты монотонно
+накапливают типизированный input; ответные юниты применяются к текущему
+ответу и могут его заменить; `.finally` наблюдает исход
+(`completed | disconnected | aborted | failed`).
+
 ```ts
-type Middleware = (
-  ctx: RequestContext,
-  next: () => Promise<ResponseContext>
-) => Promise<ResponseContext>
+const pipeline = compose(
+  makePipeline().pre(withRequestId()).finally(audit),
+  makePipeline<{ requestId: string }>().pre(validate()),
+);
 ```
+
+Транспорт вызывает `pipeline.executeWithHandler(handler, ctx, options)` и
+не знает о фазах. Подробности и логика решений —
+[decisions/ideas.md](../decisions/ideas.md), раздел «Pipeline v2».
 
 ---
 

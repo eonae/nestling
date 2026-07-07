@@ -9,7 +9,7 @@
 ## Endpoint-команда
 
 ```typescript
-import { definePipeline, makeEndpoint, stream } from '@nestling/pipeline';
+import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
 import z from 'zod';
 
 export const ProcessStdin = makeEndpoint({
@@ -17,7 +17,7 @@ export const ProcessStdin = makeEndpoint({
   pattern: 'process',
   input: stream('binary'),          // stdin как поток
   output: z.object({ bytes: z.number() }),
-  pipeline: definePipeline(),
+  pipeline: makePipeline(),
   handle: async (chunks: AsyncIterableIterator<Buffer>) => {
     let bytes = 0;
     for await (const chunk of chunks) bytes += chunk.length;
@@ -29,12 +29,12 @@ export const ProcessStdin = makeEndpoint({
 ## Транспорт: два режима
 
 ```typescript
-import { definePipeline } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
 import { CliTransport } from '@nestling/transport.cli';
 import { Help, ProcessStdin } from './endpoints.functional';
 
 // дефолтный pipeline можно передать в конструктор
-const cli = new CliTransport(definePipeline());
+const cli = new CliTransport(makePipeline());
 
 cli.endpoint(Help);
 cli.endpoint(ProcessStdin);

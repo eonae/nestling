@@ -2,7 +2,7 @@
 
 import { withTiming } from '../common/middleware';
 
-import { definePipeline, makeEndpoint, stream } from '@nestling/pipeline';
+import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
 import z from 'zod';
 
 const LogLevel = z.enum(['info', 'warn', 'error']);
@@ -27,7 +27,7 @@ export const StreamLogs = makeEndpoint({
   pattern: 'POST /logs/stream',
   input: stream(LogChunk),
   output: StreamLogsOutput,
-  pipeline: definePipeline().use(withTiming),
+  pipeline: makePipeline().pre(withTiming),
   handle: async (
     payload: AsyncIterableIterator<LogChunk>,
   ): Promise<StreamLogsOutput> => {

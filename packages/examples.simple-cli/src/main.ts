@@ -3,18 +3,17 @@
 
 import { Help, ProcessStdin } from './endpoints.functional';
 
-import type { EmptyInput, MiddlewareFn } from '@nestling/pipeline';
-import { definePipeline } from '@nestling/pipeline';
+import type { EmptyInput, PreUnitFn } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
 import { CliTransport } from '@nestling/transport.cli';
 
 // Добавляет timestamp в input
-const withTiming: MiddlewareFn<
-  EmptyInput,
-  { timestamp: number }
-> = async () => ({ timestamp: Date.now() });
+const withTiming: PreUnitFn<EmptyInput, { timestamp: number }> = async () => ({
+  timestamp: Date.now(),
+});
 
 // Создаем CLI транспорт с pipeline
-const pipeline = definePipeline().use(withTiming);
+const pipeline = makePipeline().pre(withTiming);
 
 const cli = new CliTransport(pipeline);
 

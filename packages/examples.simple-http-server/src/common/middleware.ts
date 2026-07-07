@@ -1,9 +1,9 @@
-import type { EmptyInput, MiddlewareFn } from '@nestling/pipeline';
+import type { EmptyInput, PreUnitFn } from '@nestling/pipeline';
 
 /**
  * Добавляет timestamp в input
  */
-export const withTiming: MiddlewareFn<
+export const withTiming: PreUnitFn<
   EmptyInput,
   { timestamp: number }
 > = async () => ({ timestamp: Date.now() });

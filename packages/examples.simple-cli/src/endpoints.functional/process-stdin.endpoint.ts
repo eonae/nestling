@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { definePipeline, makeEndpoint, stream } from '@nestling/pipeline';
+import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
 import { z } from 'zod';
 
 // process-stdin - обработка потоковых данных из stdin
@@ -23,7 +23,7 @@ export const ProcessStdin = makeEndpoint({
   pattern: 'process-stdin',
   input: stream('binary'), // Читаем stdin как поток Buffer'ов
   output: ProcessStdinResponse,
-  pipeline: definePipeline(),
+  pipeline: makePipeline(),
   handle: async (payload: AsyncIterableIterator<Buffer>) => {
     let linesProcessed = 0;
     let totalBytes = 0;

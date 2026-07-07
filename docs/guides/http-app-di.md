@@ -51,7 +51,7 @@ export class CreateUserEndpoint implements IEndpoint {
 }
 ```
 
-Второй параметр `meta` — поля, накопленные middleware пайплайна; хендлер
+Второй параметр `meta` — поля, накопленные pre-юнитами пайплайна; хендлер
 декларирует только то, что использует. В `meta` всегда есть
 `signal: AbortSignal` — сигнал отмены запроса (взводится при дисконнекте
 клиента и при graceful shutdown; отмена кооперативная, ключ `signal`
@@ -61,10 +61,18 @@ export class CreateUserEndpoint implements IEndpoint {
 обернётся в `Ok`), ошибки — `throw Fail.badRequest / unauthorized / forbidden /
 notFound / internalError(...)`.
 
+Пайплайн endpoint'а — значение (`makePipeline` / `compose`), общие
+пайплайны экспортируются константами (см.
+`examples.app-with-http/src/common/pipelines.ts`). Классы-юниты
+(`.pre(WithTracing)` — класс, не инстанс) — обычные провайдеры: App
+резолвит их контейнером на старте; если класс не зарегистрирован
+в модулях — ошибка старта с именем юнита.
+
 ## Модуль
 
 Модуль — plain object через `makeAppModule`: провайдеры + endpoints.
-Middleware подключаются через `pipeline` каждого endpoint'а, не через модуль.
+Юниты пайплайнов подключаются через `pipeline` каждого endpoint'а,
+не через модуль (классы-юниты регистрируются в `providers`).
 
 ```typescript
 import { makeAppModule } from '@nestling/app';
@@ -105,8 +113,11 @@ DI не мешает тестам — endpoint тестируется как о�
 
 ```typescript
 const endpoint = new CreateUserEndpoint(mockUserService, mockLogger);
-const result = await endpoint.handle({ name: 'Alice', email: 'a@b.c' }, {});
+const result = await endpoint.handle(
+  { name: 'Alice', email: 'a@b.c' },
+  { signal: new AbortController().signal },
+);
 ```
 
 > Целевой дизайн развивается — см. [decisions/ideas.md](../decisions/ideas.md):
-> token families, модули-фабрики с параметром `pipeline`, pipeline v2.
+> token families, модули-фабрики с параметром `pipeline`.

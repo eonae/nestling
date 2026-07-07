@@ -77,15 +77,15 @@
 
 ## 6. Examples и доки
 
-- [ ] 6.1 `examples.app-with-http`: `common/pipelines.ts`
+- [x] 6.1 `examples.app-with-http`: `common/pipelines.ts`
   (`makePipeline().pre(validate())`), 9 endpoint'ов + спеки; e2e зелёные
-- [ ] 6.2 `examples.simple-http-server` (3 хендлера + `withTiming`) и
+- [x] 6.2 `examples.simple-http-server` (3 хендлера + `withTiming`) и
   `examples.simple-cli` (default-pipeline + 2 endpoint'а); в одном из
   примеров показать ответный тракт (`.finally`-аудит или `.catch`-маппер)
   и композицию слоёв
-- [ ] 6.3 Гайды: `http-functional.md` (раздел Middleware → юниты и фазы),
+- [x] 6.3 Гайды: `http-functional.md` (раздел Middleware → юниты и фазы),
   `http-app-di.md`, `cli.md`; `docs/design/transports.md` (раздел
   Pipeline, убрать «Global Pipeline» из диаграммы); README
   `nestling.pipeline`; переписать `core/TYPE-TESTS.md`
-- [ ] 6.4 Запись в `docs/decisions/archlog.md` (BREAKING: смена модели
+- [x] 6.4 Запись в `docs/decisions/archlog.md` (BREAKING: смена модели
   pipeline); статус #4 в `docs/decisions/roadmap.md`

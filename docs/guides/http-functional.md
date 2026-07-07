@@ -10,7 +10,7 @@
 ## Endpoint с валидацией
 
 ```typescript
-import { definePipeline, makeEndpoint, validate } from '@nestling/pipeline';
+import { makeEndpoint, makePipeline, validate } from '@nestling/pipeline';
 import z from 'zod';
 
 const CreateUserInput = z.object({
@@ -29,7 +29,7 @@ export const CreateUser = makeEndpoint({
   pattern: 'POST /users',
   input: CreateUserInput,
   output: CreateUserOutput,
-  pipeline: definePipeline().use(validate()),
+  pipeline: makePipeline().pre(validate()),
   handle: async (input: CreateUserInput): Promise<CreateUserOutput> => {
     // input уже провалидирован и типизирован (после validate())
     return { message: 'User created', user: { id: 1, ...input } };
@@ -37,14 +37,14 @@ export const CreateUser = makeEndpoint({
 });
 ```
 
-Ключевое: `pattern` — строка `"МЕТОД /путь"`; схема `input` + `validate()`
+Ключевое: `pattern` — строка `"МЕТОД /путь"`; схема `input` + `.pre(validate())`
 в пайплайне дают типизированный payload в хендлере; вернуть можно значение
 напрямую (обернётся в `Ok`) или явно `Ok.created(...)` / `throw Fail.badRequest(...)`.
 
 ## Streaming-вход
 
 ```typescript
-import { definePipeline, makeEndpoint, stream } from '@nestling/pipeline';
+import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
 
 const LogChunk = z.object({
   timestamp: z.number(),
@@ -57,7 +57,7 @@ export const StreamLogs = makeEndpoint({
   pattern: 'POST /logs/stream',
   input: stream(LogChunk),          // NDJSON: по одному JSON-объекту на строку
   output: z.object({ processed: z.number() }),
-  pipeline: definePipeline(),
+  pipeline: makePipeline(),
   handle: async (payload: AsyncIterableIterator<LogChunk>) => {
     let processed = 0;
     for await (const chunk of payload) processed++;
@@ -69,18 +69,49 @@ export const StreamLogs = makeEndpoint({
 Каждый chunk валидируется схемой при парсинге. Streaming-ответ — симметрично:
 хендлер возвращает `AsyncIterable`, транспорт отдаёт NDJSON.
 
-## Middleware
+## Юниты и фазы
 
-Middleware — функция, добавляющая данные в контекст (before-only):
+Pipeline — один слой с фазами. Вид юнита виден в декларации, она читается
+сверху вниз как порядок исполнения:
+
+| Метод | Когда вызывается | Контекст |
+|---|---|---|
+| `.pre(u)` | до хендлера, по порядку | накопленный, полный |
+| `.ok(u)` | ответ — успех | полный (весь pre-тракт прошёл) |
+| `.catch(u)` | ответ — `Fail` | свой слой `Partial` |
+| `.after(u)` | любой ответ | свой слой `Partial` |
+| `.finally(u)` | всегда, последним, с исходом | свой слой `Partial` |
+
+Pre-юнит — функция, добавляющая данные в контекст (монотонно, с проверкой
+типов):
 
 ```typescript
-import type { EmptyInput, MiddlewareFn } from '@nestling/pipeline';
+import type { EmptyInput, PreUnitFn } from '@nestling/pipeline';
 
-export const withTiming: MiddlewareFn<EmptyInput, { timestamp: number }> =
+export const withTiming: PreUnitFn<EmptyInput, { timestamp: number }> =
   async () => ({ timestamp: Date.now() });
 
-// подключение: definePipeline().use(withTiming).use(validate())
+// подключение: makePipeline().pre(withTiming).pre(validate())
 ```
+
+Ответные юниты получают текущий ответ и могут заменить его (ошибку —
+только ошибкой, успех — только успехом); `.finally` — наблюдатель исхода
+(`completed | disconnected | aborted | failed`):
+
+```typescript
+const audited = makePipeline()
+  .pre(withTiming)
+  .catch((res) => ({ ...res, value: { error: mapMessage(res.value.error) } }))
+  .finally((outcome, _res, ctx) => {
+    console.log(`${ctx.raw.pattern} → ${outcome}`);
+  });
+```
+
+Слои композируются константами — `compose(outer, ..., inner)` (снаружи
+внутрь); требования слоя к внешнему контексту объявляются
+`makePipeline<{ identity: User }>()` и проверяются компилятором в точке
+композиции. Пример композиции — в `examples.app-with-http`
+(`src/common/pipelines.ts`).
 
 ## Запуск
 
@@ -108,7 +139,5 @@ process.on('SIGINT', async () => {
 [`App` + классовые endpoints](./http-app-di.md): хендлеры при этом почти
 не меняются.
 
-> Целевой дизайн пайплайна развивается — см.
-> [decisions/ideas.md](../decisions/ideas.md) (pipeline v2: `makePipeline`,
-> фазы `.pre/.ok/.catch/.after/.finally`, `compose`). Текущий API —
-> `definePipeline().use(...)`.
+> Модель пайплайна (фазы, слои, логика решений) подробно описана в
+> [decisions/ideas.md](../decisions/ideas.md), раздел «Pipeline v2».

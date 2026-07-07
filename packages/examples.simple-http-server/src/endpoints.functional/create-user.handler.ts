@@ -1,6 +1,6 @@
 import { withTiming } from '../common/middleware';
 
-import { definePipeline, makeEndpoint, validate } from '@nestling/pipeline';
+import { makeEndpoint, makePipeline, validate } from '@nestling/pipeline';
 import z from 'zod';
 
 // POST /users - создание пользователя со схемой
@@ -34,7 +34,7 @@ export const CreateUser = makeEndpoint({
   pattern: 'POST /users',
   input: CreateUserInput,
   output: CreateUserOutput,
-  pipeline: definePipeline().use(withTiming).use(validate()),
+  pipeline: makePipeline().pre(withTiming).pre(validate()),
   handle: async (input: CreateUserInput): Promise<CreateUserOutput> => {
     // input типизирован после validate()
     return {

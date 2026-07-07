@@ -1,138 +1,110 @@
-# Типовые тесты Pipeline
+# Типовые тесты Pipeline v2
 
-Этот каталог содержит типовые тесты для проверки корректности типов в системе Pipeline.
+Этот каталог содержит типовые тесты для проверки корректности типов
+фазовой модели pipeline (`makePipeline`, слои, `compose`, `TNeeds`).
 
 ## Файлы
 
 ### `pipeline.spec.ts`
+
 Единый файл с типовыми тестами, проверяющий:
-- Правильную типизацию цепочки middleware
-- Накопление input-полей через middleware
-- Совместимость типов контекстов
-- Работу утилит типов (`InferPipelineInput`)
-- Граничные случаи и иммутабельность pipeline
+
+- накопление input-полей через pre-тракт (монотонно, с детектом конфликтов);
+- type-state билдера (`.pre` недоступен после первого ответного метода);
+- честную типизацию ctx по фазам (`.ok` — полный, `.catch`/`.after` —
+  свой слой `Partial`, требования `TReq` — гарантированы);
+- проверку требований слоёв в точке композиции (`compose`);
+- `TNeeds`: класс-юнит блокирует исполнение до `bind()`;
+- вывод типа меты хендлера (накопленный input без `payload` + `signal`).
 
 ## Как они работают
 
-Эти тесты **не выполняются в runtime**. Они проверяются только на этапе компиляции TypeScript.
-
-### Проверка типов
-
-Для проверки типов используйте TypeScript компилятор:
+Проверка — на этапе компиляции TypeScript (jest в проекте гоняет tsc,
+поэтому падение типов валит suite). Часть проверок дополнительно
+выполняется в рантайме (рантайм-guard'ы билдера).
 
 ```bash
-# Из корня проекта
-npx tsc --noEmit
-
-# Или из директории пакета
 cd packages/nestling.pipeline
 npx tsc --noEmit
 ```
 
-### Формат тестов
+### Паттерны
 
-Тесты используют несколько паттернов:
+#### 1. Извлечение тип-параметров через фантомное поле `$types`
 
-#### 1. Type Assertions
 ```typescript
-type InputType = InferPipelineInput<typeof pipeline>;
-type _Assert = InputType extends { identity: User; payload: unknown } ? true : never;
-const _check: _Assert = true; // ✅ Компилируется, если тип правильный
+type InferAcc<P> = P extends { $types?: PipelineTypes<any, infer A, any> }
+  ? A
+  : never;
+type InferNeeds<P> = P extends { $types?: PipelineTypes<any, any, infer N> }
+  ? N
+  : never;
 ```
 
-#### 2. Проверка наличия полей
-```typescript
-type HasField<T, K extends string> = K extends keyof T ? true : false;
+#### 2. Строгое равенство типов
 
-type Check = HasField<InputType, 'identity'>;
-const _assert: Check = true; // ✅ Поле есть
-const _assert: Check = false; // ❌ Ошибка компиляции, если поле есть
+```typescript
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B
+  ? 1
+  : 2
+  ? true
+  : false;
+type Expect<T extends true> = T;
+
+type _Identity = Expect<Equal<typeof ctx.input.identity, User | undefined>>;
 ```
 
-#### 3. Проверка отсутствия полей
+#### 3. Негативные случаи — `@ts-expect-error`
+
 ```typescript
-type Check = HasField<InputType, 'nonExistent'>;
-const _assert = false as const; // ✅ Проверяем, что поле отсутствует
-type _Validate = Check extends false ? true : never; // Дополнительная проверка
+// @ts-expect-error: Pre-unit is overriding fields in input
+pipeline.pre(addField({ userId: 42 }));
 ```
+
+Если ошибка компиляции исчезнет (регрессия типовой машинерии), tsc
+сообщит о неиспользованной директиве.
 
 ## Что проверяется
 
 ### ✅ Правильные комбинации
 
-1. **Цепочка middleware в правильном порядке**
-   ```typescript
-   definePipeline()
-     .use(withTiming)                    // input: { timestamp: number }
-     .use(withRequestLogging(logger))     // input: { timestamp: number }
-     .use(withIdentity<User>(auth))       // input: { timestamp: number, identity: User }
-     .use(validate());                    // input: { timestamp: number, identity: User, payload: unknown }
-   ```
+```typescript
+makePipeline()
+  .pre(withTiming)                      // TAcc: { timestamp }
+  .pre(withIdentity<User>(auth))        // TAcc: { timestamp, identity }
+  .pre(validate());                     // TAcc: { ..., payload }
 
-2. **Накопление input через цепочку**
-   ```typescript
-   definePipeline()
-     .use(addField({ requestId: 'id-1' }))  // input: { requestId: string }
-     .use(withIdentity<User>(...))           // input: { requestId: string, identity: User }
-     .use(validate());                       // input: { requestId: string, identity: User, payload: unknown }
-   ```
+compose(
+  makePipeline().pre(withRequestId()),
+  makePipeline<{ requestId: string }>().pre(withIdentity<User>(auth)),
+);
+```
 
-3. **withTiming работает везде**
-   ```typescript
-   definePipeline()
-     .use(withTiming)           // ✅ До validate
-     .use(validate())
-     .use(withTiming);          // ✅ После validate (добавляет timestamp в существующий input)
-   ```
+### ❌ Неправильные комбинации (ошибки компиляции)
 
-4. **Inline middleware для добавления полей**
-   ```typescript
-   definePipeline()
-     .use(addField({ sessionId: 'session-1' }))  // input: { sessionId: string }
-     .use(addField({ traceId: 'trace-1' }))      // input: { sessionId: string, traceId: string }
-     .use(validate());
-   ```
+```typescript
+// перезапись поля другим типом
+makePipeline().pre(addField({ userId: 'abc' })).pre(addField({ userId: 42 }));
 
-### ❌ Неправильные комбинации
+// юнит требует поле, которого ещё нет
+makePipeline().pre(withPermissions(...)); // identity не добавлена
 
-Эти комбинации **должны** вызывать ошибки TypeScript:
+// pre после ответного метода
+makePipeline().catch(u).pre(v);
 
-1. **Перезапись существующих полей**
-   ```typescript
-   definePipeline()
-     .use(withTiming)                    // input: { timestamp: number }
-     .use(addField({ timestamp: 123 })); // ❌ Ошибка: timestamp уже существует
-   ```
+// композиция без удовлетворения требований внутреннего слоя
+compose(base, makePipeline<{ identity: User }>().pre(...));
 
-2. **Неправильный порядок типов**
-   ```typescript
-   definePipeline()
-     .use(withIdentity<User>(auth))      // требует EmptyInput
-     .use(addField({ requestId: 'id' })) // требует EmptyInput, но получил { identity: User }
-     // ❌ Ошибка типовой несовместимости
-   ```
-
-## Интеграция с CI
-
-Типовые тесты автоматически проверяются при:
-- `tsc --noEmit` (проверка типов)
-- `eslint` (проверка стиля и корректности)
-- Build процессе
+// пайплайн с нерезолвленным классом-юнитом — транспорту нельзя
+acceptsExecutable(makePipeline().pre(WithTracing));
+```
 
 ## Добавление новых тестов
 
-При добавлении новых middleware или изменении типов Pipeline:
-
-1. Добавьте тест в `pipeline.spec.ts`
-2. Используйте `addField()` для создания inline middleware в тестах
-3. Проверьте, что тест компилируется: `npx tsc --noEmit`
-4. Убедитесь, что типы правильно накапливаются через цепочку
-
-## Примечания
-
-- Тесты используют `eslint-disable @typescript-eslint/no-unused-vars` т.к. переменные типов не используются в runtime
-- Префикс `_` в именах переменных указывает, что они используются только для проверки типов
-- `describe` и `it` блоки помогают организовать тесты, но не выполняются
-- Middleware теперь работают в режиме "before-only" - они возвращают объект с добавляемыми полями, не вызывают `next()`
-- `input` накапливается через цепочку middleware, включая `payload` после `validate()`
-- Используйте `InferPipelineInput<typeof pipeline>` для извлечения типа накопленного input
+1. Добавьте тест в `pipeline.spec.ts` (группа по смыслу: accumulation /
+   type-state / phase ctx / compose / TNeeds).
+2. Для inline pre-юнитов используйте `addField()`.
+3. Негативные случаи — через `@ts-expect-error` с текстом ожидаемой ошибки
+   в комментарии.
+4. Помните: `it`-блоки выполняются в рантайме — рантайм-guard'ы билдера
+   (throw) оборачивайте в `expect(...).toThrow`.

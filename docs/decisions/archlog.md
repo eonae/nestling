@@ -1,3 +1,30 @@
+[07.07.2026] Pipeline v2: плоские фазы, слои, compose (pipeline-v2). BREAKING.
+
+`definePipeline().use(middleware)` заменён на `makePipeline()` со словарём
+фаз `.pre/.ok/.catch/.after/.finally` (вид юнита виден в декларации, она
+читается сверху вниз как план исполнения). Ответный тракт появился в
+рантайме впервые: ответные юниты применяются к текущему ответу и могут
+его заменить (`.ok` — успех успехом, `.catch` — ошибку ошибкой; gate и
+восстановление Fail→Ok — осознанные ограничения v1). `.finally` наблюдает
+исход `completed | disconnected | aborted | failed` (v1: вычисляется после
+ответной фазы, до фактической отправки; точный момент «всё дотекло» —
+в streaming-v2). Честная опциональность: `.ok` видит полный ctx,
+`.catch`/`.after`/`.finally` — свой слой Partial, внешние слои — полными.
+
+Слои: один `makePipeline()` = один слой; `compose(outer, ..., inner)` —
+pre снаружи внутрь, ответные и finally изнутри наружу; требования слоя
+(`makePipeline<{identity: User}>()`) проверяются компилятором в точке
+композиции. `TNeeds` (третий тип-параметр): классы-юниты резолвятся
+контейнером на старте App (`bind`), standalone-транспорты принимают
+только исполнимый пайплайн — двухуровневость фреймворка видна в типах.
+
+`executeWithHandler` сохранил сигнатуру (миграция транспортов — типы);
+`meta.signal` и `exposeErrorDetails` перенесены без изменений; причины
+аборта типизированы (`ClientDisconnectedError`/`TransportClosingError`).
+Удалена мёртвая ветка `@Middleware`/middleware-registry/
+`AppModule.middleware` (DI-резолв не был реализован; роль занял `TNeeds`).
+Мигрированы транспорты, App, все examples и гайды. См. change `pipeline-v2`.
+
 [07.07.2026] meta.signal — сигнал отмены запроса насквозь (abort-signal).
 
 В `meta` каждого хендлера появился гарантированный `signal: AbortSignal`

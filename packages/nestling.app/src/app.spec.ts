@@ -7,7 +7,11 @@ import { makeAppModule } from './module';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { Injectable, OnDestroy } from '@nestling/container';
-import type { AnyInput, ExtendableContext, IEndpoint } from '@nestling/pipeline';
+import type {
+  AnyInput,
+  ExtendableContext,
+  IEndpoint,
+} from '@nestling/pipeline';
 import {
   clearEndpointRegistry,
   Endpoint,
@@ -301,7 +305,12 @@ describe('App Integration', () => {
 
     // Пайплайн пришёл в транспорт уже исполнимым: юнит зарезолвлен из DI
     const ctx = makeEmptyContext(
-      { transport: 'http', pattern: 'GET /traced', payload: undefined, attributes: {} },
+      {
+        transport: 'http',
+        pattern: 'GET /traced',
+        payload: undefined,
+        attributes: {},
+      },
       { transport: 'http', pattern: 'GET /traced' },
     );
     const response = await pipeline.executeWithHandler(
