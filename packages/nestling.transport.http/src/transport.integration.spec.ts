@@ -5,6 +5,7 @@
  * ошибок входа (400/413), лимиты размера тела и graceful close.
  */
 
+import { getEventListeners } from 'node:events';
 import type { Server } from 'node:http';
 import { type AddressInfo, connect } from 'node:net';
 
@@ -344,5 +345,170 @@ describe('HttpTransport — timeouts and graceful close', () => {
     expect(elapsedMs).toBeLessThan(2000);
 
     await pending;
+  });
+});
+
+/**
+ * Хендлер, который стартует и ждёт взведения meta.signal.
+ * Возвращает промисы «запрос дошёл до хендлера» и «сигнал взведён».
+ */
+function makeAwaitingHandler() {
+  let onStarted!: () => void;
+  let onAborted!: (reason: unknown) => void;
+  const started = new Promise<void>((r) => (onStarted = r));
+  const aborted = new Promise<unknown>((r) => (onAborted = r));
+
+  const handle = (_payload: unknown, meta: { signal: AbortSignal }) => {
+    onStarted();
+    meta.signal.addEventListener('abort', () => onAborted(meta.signal.reason), {
+      once: true,
+    });
+    return aborted.then(() => new Ok({ done: true }));
+  };
+
+  return { handle, started, aborted };
+}
+
+describe('HttpTransport — request cancellation (meta.signal)', () => {
+  it('дисконнект клиента взводит meta.signal', async () => {
+    const transport = new HttpTransport();
+    const { handle, started, aborted } = makeAwaitingHandler();
+    transport.route({
+      transport: 'http',
+      pattern: 'GET /slow',
+      pipeline: definePipeline(),
+      handle,
+    });
+    const baseUrl = await listen(transport);
+
+    const clientAbort = new AbortController();
+    const pending = fetch(`${baseUrl}/slow`, {
+      signal: clientAbort.signal,
+    }).catch(() => null);
+
+    await started;
+    clientAbort.abort();
+
+    const reason = await aborted;
+    expect(reason).toBeInstanceOf(Error);
+    expect((reason as Error).message).toBe('client disconnected');
+
+    await pending;
+    await transport.close();
+  });
+
+  it('штатное завершение (keep-alive) не взводит сигнал', async () => {
+    const transport = new HttpTransport();
+    let captured: AbortSignal | undefined;
+    transport.route({
+      transport: 'http',
+      pattern: 'GET /ping',
+      pipeline: definePipeline(),
+      handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
+        captured = meta.signal;
+        return new Ok({ pong: true });
+      },
+    });
+    const baseUrl = await listen(transport);
+
+    const response = await fetch(`${baseUrl}/ping`, {
+      headers: { connection: 'keep-alive' },
+    });
+    expect(response.status).toBe(200);
+    await response.json();
+
+    // Даём событию 'close' (если бы оно трактовалось как дисконнект) дойти.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(captured).toBeDefined();
+    expect(captured?.aborted).toBe(false);
+
+    await transport.close();
+  });
+
+  it('close(): кооперативный хендлер завершается заметно раньше closeTimeout', async () => {
+    const transport = new HttpTransport({ closeTimeout: 5000 });
+    const { handle, started, aborted } = makeAwaitingHandler();
+    transport.route({
+      transport: 'http',
+      pattern: 'POST /graceful',
+      pipeline: definePipeline(),
+      handle,
+    });
+    const baseUrl = await listen(transport);
+
+    const pending = fetch(`${baseUrl}/graceful`, { method: 'POST' }).catch(
+      () => null,
+    );
+    await started;
+
+    const startedAt = process.hrtime.bigint();
+    await transport.close();
+    const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+
+    // Дренаж по кооперативному завершению, а не force-close по таймауту.
+    expect(elapsedMs).toBeLessThan(2000);
+
+    const reason = await aborted;
+    expect((reason as Error).message).toBe('transport closing');
+
+    await pending;
+  });
+
+  it('fallback-endpoint без pipeline получает meta.signal при дисконнекте', async () => {
+    const transport = new HttpTransport();
+    const { handle, started, aborted } = makeAwaitingHandler();
+    transport.route({
+      transport: 'http',
+      pattern: 'GET /raw',
+      handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
+        const result = handle(_payload, meta);
+        return result.then((ok) => ok.value);
+      },
+    });
+    const baseUrl = await listen(transport);
+
+    const clientAbort = new AbortController();
+    const pending = fetch(`${baseUrl}/raw`, {
+      signal: clientAbort.signal,
+    }).catch(() => null);
+
+    await started;
+    clientAbort.abort();
+
+    const reason = await aborted;
+    expect((reason as Error).message).toBe('client disconnected');
+
+    await pending;
+    await transport.close();
+  });
+
+  it('серия запросов не накапливает слушателей transport-level сигнала', async () => {
+    const transport = new HttpTransport();
+    transport.route({
+      transport: 'http',
+      pattern: 'GET /ping',
+      pipeline: definePipeline(),
+      handle: () => new Ok({ pong: true }),
+    });
+    const baseUrl = await listen(transport);
+
+    const closeSignal = (
+      transport as unknown as { closeController: AbortController }
+    ).closeController.signal;
+
+    // Первый запрос — прогрев (базовый уровень внутренних слушателей).
+    const warmup = await fetch(`${baseUrl}/ping`);
+    await warmup.json();
+    const baseline = getEventListeners(closeSignal, 'abort').length;
+
+    for (let i = 0; i < 20; i++) {
+      const response = await fetch(`${baseUrl}/ping`);
+      await response.json();
+    }
+
+    const after = getEventListeners(closeSignal, 'abort').length;
+    expect(after).toBeLessThanOrEqual(baseline);
+
+    await transport.close();
   });
 });

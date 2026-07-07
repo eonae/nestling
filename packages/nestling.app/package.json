@@ -25,6 +25,9 @@
     "@nestling/pipeline": "workspace:*",
     "@nestling/transport": "workspace:*"
   },
+  "devDependencies": {
+    "@nestling/transport.http": "workspace:*"
+  },
   "peerDependencies": {
     "zod": "^4.0.0"
   }

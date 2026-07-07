@@ -51,6 +51,12 @@ export class CreateUserEndpoint implements IEndpoint {
 }
 ```
 
+Второй параметр `meta` — поля, накопленные middleware пайплайна; хендлер
+декларирует только то, что использует. В `meta` всегда есть
+`signal: AbortSignal` — сигнал отмены запроса (взводится при дисконнекте
+клиента и при graceful shutdown; отмена кооперативная, ключ `signal`
+зарезервирован).
+
 Результаты: `Ok.created / Ok.accepted / Ok.noContent` (или значение напрямую —
 обернётся в `Ok`), ошибки — `throw Fail.badRequest / unauthorized / forbidden /
 notFound / internalError(...)`.

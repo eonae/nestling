@@ -1,9 +1,12 @@
+import type { Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
 import { App } from './app';
 import { MockTransport } from './helpers';
 import { makeAppModule } from './module';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
-import { Injectable } from '@nestling/container';
+import { Injectable, OnDestroy } from '@nestling/container';
 import type { IEndpoint } from '@nestling/pipeline';
 import {
   clearEndpointRegistry,
@@ -11,6 +14,7 @@ import {
   Endpoint,
   Ok,
 } from '@nestling/pipeline';
+import { HttpTransport } from '@nestling/transport.http';
 import { z } from 'zod';
 
 describe('App Integration', () => {
@@ -136,10 +140,122 @@ describe('App Integration', () => {
 
     // Проверяем, что handler работает с DI
     const handler = mockTransport.endpoints[0].handle;
-    const result = await handler({}, {});
+    const result = await handler({}, { signal: new AbortController().signal });
     expect((result as Ok<unknown>).value).toHaveProperty('data');
 
     // Cleanup
     await app.close();
+  });
+
+  it('close() останавливает транспорты до уничтожения контейнера', async () => {
+    const order: string[] = [];
+
+    @Injectable([])
+    @Endpoint({
+      transport: 'http',
+      pattern: 'GET /order',
+    })
+    class OrderEndpoint implements IEndpoint {
+      async handle() {
+        return new Ok({});
+      }
+
+      @OnDestroy()
+      destroy() {
+        order.push('container-destroyed');
+      }
+    }
+
+    const TestModule = makeAppModule({
+      name: 'test-module',
+      endpoints: [OrderEndpoint],
+    });
+
+    const mockTransport = new MockTransport(() =>
+      order.push('transport-closed'),
+    );
+
+    const app = new App({
+      transports: {
+        http: mockTransport,
+      },
+      modules: [TestModule],
+    });
+
+    await app.run();
+    await app.close();
+
+    expect(mockTransport.closed).toBe(true);
+    expect(order).toEqual(['transport-closed', 'container-destroyed']);
+  });
+
+  it('close() взводит meta.signal in-flight HTTP-запроса до @OnDestroy', async () => {
+    const order: string[] = [];
+    let onStarted!: () => void;
+    const started = new Promise<void>((r) => (onStarted = r));
+    let onAborted!: (reason: unknown) => void;
+    const aborted = new Promise<unknown>((r) => (onAborted = r));
+
+    @Injectable([])
+    @Endpoint({
+      transport: 'http',
+      pattern: 'GET /wait',
+    })
+    class WaitEndpoint implements IEndpoint {
+      handle(_payload: unknown, meta: { signal: AbortSignal }) {
+        onStarted();
+        meta.signal.addEventListener(
+          'abort',
+          () => onAborted(meta.signal.reason),
+          { once: true },
+        );
+        return aborted.then(() => ({ done: true }));
+      }
+
+      @OnDestroy()
+      destroy() {
+        order.push('container-destroyed');
+      }
+    }
+
+    const TestModule = makeAppModule({
+      name: 'test-module',
+      endpoints: [WaitEndpoint],
+    });
+
+    class ObservableHttpTransport extends HttpTransport {
+      async close(): Promise<void> {
+        await super.close();
+        order.push('transport-closed');
+      }
+    }
+
+    const httpTransport = new ObservableHttpTransport({
+      port: 0,
+      host: '127.0.0.1',
+    });
+
+    const app = new App({
+      transports: {
+        http: httpTransport,
+      },
+      modules: [TestModule],
+    });
+
+    await app.run();
+
+    const server = (httpTransport as unknown as { server: Server }).server;
+    const { port } = server.address() as AddressInfo;
+
+    const pending = fetch(`http://127.0.0.1:${port}/wait`).catch(() => null);
+    await started;
+
+    await app.close();
+
+    const reason = await aborted;
+    expect((reason as Error).message).toBe('transport closing');
+    expect(order).toEqual(['transport-closed', 'container-destroyed']);
+
+    await pending;
   });
 });

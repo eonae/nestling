@@ -9,11 +9,12 @@
 import type { EmptyInput } from './io/io';
 import type { EndpointMeta, ExtendableContext } from './types/context';
 import { makeEmptyContext } from './types/context';
+import type { MiddlewareFn } from './types/middleware.before';
 import type { Raw } from './types/raw';
 import { definePipeline } from './pipeline';
 import { Fail, Ok } from './result';
 
-function makeCtx(): ExtendableContext<EmptyInput> {
+function makeCtx(signal?: AbortSignal): ExtendableContext<EmptyInput> {
   const raw: Raw = {
     transport: 'test',
     pattern: 'TEST /',
@@ -26,7 +27,7 @@ function makeCtx(): ExtendableContext<EmptyInput> {
     pattern: 'TEST /',
   };
 
-  return makeEmptyContext(raw, endpoint);
+  return makeEmptyContext(raw, endpoint, signal);
 }
 
 const failingHandler = (): never => {
@@ -62,6 +63,85 @@ describe('Pipeline.executeWithHandler — runtime', () => {
       status: 'CREATED',
       value: { id: 1 },
       headers: { 'x-test': '1' },
+    });
+  });
+
+  describe('meta.signal', () => {
+    it('сигнал транспорта доходит до хендлера', async () => {
+      const controller = new AbortController();
+      const pipeline = definePipeline();
+
+      const response = await pipeline.executeWithHandler(
+        (_, meta) => ({ same: meta.signal === controller.signal }),
+        makeCtx(controller.signal),
+      );
+
+      expect(response).toMatchObject({
+        isSuccess: true,
+        value: { same: true },
+      });
+    });
+
+    it('без сигнала транспорта — never-aborted дефолт', async () => {
+      const pipeline = definePipeline();
+
+      const response = await pipeline.executeWithHandler(
+        (_, meta) => ({
+          isSignal: meta.signal instanceof AbortSignal,
+          aborted: meta.signal.aborted,
+        }),
+        makeCtx(),
+      );
+
+      expect(response).toMatchObject({
+        isSuccess: true,
+        value: { isSignal: true, aborted: false },
+      });
+    });
+
+    it('ctx.signal доступен middleware и совпадает с meta.signal хендлера', async () => {
+      const controller = new AbortController();
+      let seenByMiddleware: AbortSignal | undefined;
+
+      const pipeline = definePipeline().use((ctx) => {
+        seenByMiddleware = ctx.signal;
+        return Promise.resolve({});
+      });
+
+      const response = await pipeline.executeWithHandler(
+        (_, meta) => ({ same: meta.signal === seenByMiddleware }),
+        makeCtx(controller.signal),
+      );
+
+      expect(seenByMiddleware).toBe(controller.signal);
+      expect(response).toMatchObject({
+        isSuccess: true,
+        value: { same: true },
+      });
+    });
+
+    it('поле signal из middleware перекрывается сигналом контекста', async () => {
+      const controller = new AbortController();
+
+      // Каст: middleware сознательно нарушает зарезервированный ключ,
+      // статически такой конфликт виден как несовместимость типа меты
+      const overridingSignal = (() =>
+        Promise.resolve({ signal: 'not-a-signal' })) as MiddlewareFn<
+        EmptyInput,
+        Record<string, unknown>
+      >;
+
+      const pipeline = definePipeline().use(overridingSignal);
+
+      const response = await pipeline.executeWithHandler(
+        (_, meta) => ({ same: meta.signal === controller.signal }),
+        makeCtx(controller.signal),
+      );
+
+      expect(response).toMatchObject({
+        isSuccess: true,
+        value: { same: true },
+      });
     });
   });
 

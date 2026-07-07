@@ -1,3 +1,23 @@
+[07.07.2026] meta.signal — сигнал отмены запроса насквозь (abort-signal).
+
+В `meta` каждого хендлера появился гарантированный `signal: AbortSignal`
+(ключ зарезервирован; без транспортного сигнала подставляется never-aborted).
+Его взводят: HTTP-транспорт при дисконнекте клиента (`'close'` на response
+при недописанном ответе) и `close()` транспорта при graceful shutdown —
+per-request и transport-level источники объединяются через `AbortSignal.any`,
+реестр in-flight контроллеров не нужен. `App.close()` не менялся: отмена
+in-flight — обязанность транспорта внутри его `close()`; `CliTransport`
+взводит свой сигнал при `close()`. Отмена кооперативная: force-close по
+`closeTimeout` остаётся fallback'ом.
+
+Поведенческое изменение `close()`: сигналы in-flight запросов взводятся
+до дренажа, кооперативное завершение — основной механизм. Попутно закрыта
+дыра дренажа: keep-alive соединение, освободившееся после начала `close()`,
+Node сам не закрывает — добавлена периодическая зачистка
+`closeIdleConnections()` в окно дренажа. Это предпосылка streaming-v2
+(item-цепочки и `events(T)` описаны в терминах `meta.signal`).
+См. change `abort-signal`.
+
 [07.07.2026] Internal 500 error details hidden by default (transport-hardening).
 
 Раньше `Pipeline.errorToResponse` под захардкоженным `isDevelopment = true`

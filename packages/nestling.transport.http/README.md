@@ -22,9 +22,15 @@ By default the transport is safe to expose:
   reading aborts early and returns `413`. Set `maxBodySize: 0` to disable.
 - **Input errors map to 4xx.** Malformed JSON and payload key conflicts return
   `400`; oversized payloads return `413` — not `500`.
-- **Graceful shutdown.** `close()` stops accepting connections, drops idle
-  keep-alive connections immediately, drains in-flight requests up to
-  `closeTimeout` (default **10s**), then force-closes the rest.
+- **Request cancellation.** Every request gets a `meta.signal`
+  (`AbortSignal`): it aborts when the client disconnects before the
+  response completes. Cancellation is cooperative — handlers (especially
+  long-running or streaming ones) should respect the signal.
+- **Graceful shutdown.** `close()` first aborts `meta.signal` of all
+  in-flight requests (cooperative completion is the primary drain
+  mechanism), stops accepting connections, drops idle keep-alive
+  connections, drains in-flight requests up to `closeTimeout`
+  (default **10s**), then force-closes the rest.
 
 ### Options
 

@@ -12,7 +12,9 @@ import type { Output, OutputSync } from '../result.js';
  *
  * Handler получает два отдельных параметра:
  * - payload: типизированные данные от пользователя (InferInput<I>)
- * - meta: все остальные поля из pipeline (P без payload)
+ * - meta: все остальные поля из pipeline (P без payload) плюс
+ *   гарантированный `signal: AbortSignal` — сигнал отмены запроса
+ *   (ключ `signal` зарезервирован pipeline'ом)
  *
  * @param I - конфигурация payload (schema, примитив или модификатор)
  * @param O - конфигурация output
@@ -25,7 +27,9 @@ export interface IEndpoint<
 > {
   handle(
     payload: InferInput<I>,
-    meta: P extends { payload: unknown } ? Omit<P, 'payload'> : P,
+    meta: (P extends { payload: unknown } ? Omit<P, 'payload'> : P) & {
+      signal: AbortSignal;
+    },
   ): OutputSync<InferOutput<O>> | Output<InferOutput<O>>;
 }
 

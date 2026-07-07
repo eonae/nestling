@@ -70,6 +70,16 @@ export interface ExtendableContext<I extends AnyInput> {
   /** Данные от транспорта */
   readonly raw: Raw;
 
+  /**
+   * Сигнал отмены запроса. Взводится транспортом (дисконнект клиента)
+   * и/или при остановке транспорта (graceful shutdown). Отмена
+   * кооперативная: хендлер обязан уважать сигнал сам.
+   *
+   * Ключ `signal` зарезервирован: pipeline инъецирует этот сигнал в meta
+   * хендлера, перекрывая одноимённое поле из input.
+   */
+  readonly signal: AbortSignal;
+
   /** Метаданные, накапливаемые middleware */
   input: I;
 }
@@ -77,16 +87,27 @@ export interface ExtendableContext<I extends AnyInput> {
 export type InitialContext = ExtendableContext<EmptyInput>;
 
 /**
+ * Сигнал, который никогда не взводится: дефолт для транспортов
+ * без собственной семантики отмены.
+ */
+const NEVER_ABORTED = new AbortController().signal;
+
+/**
  * Создаёт начальный контекст с пустым input из Raw
  * Вызывается транспортом после парсинга запроса
+ *
+ * @param signal - сигнал отмены запроса; если транспорт его не передал,
+ * подставляется never-aborted сигнал, так что `ctx.signal` есть всегда
  */
 export function makeEmptyContext(
   raw: Raw,
   endpoint: EndpointMeta,
+  signal?: AbortSignal,
 ): InitialContext {
   return {
     endpoint,
     raw,
+    signal: signal ?? NEVER_ABORTED,
     input: {},
   };
 }

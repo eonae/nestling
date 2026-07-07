@@ -140,9 +140,9 @@ export class Pipeline<TInput extends AnyInput> {
   async executeWithHandler<TOutput>(
     handler: (
       payload: TInput extends { payload: infer P } ? P : undefined,
-      meta: TInput extends { payload: unknown }
+      meta: (TInput extends { payload: unknown }
         ? Omit<TInput, 'payload'>
-        : TInput,
+        : TInput) & { signal: AbortSignal },
     ) => OutputSync<TOutput> | Output<TOutput>,
     ctx: ExtendableContext<TInput>,
     options: ExecuteOptions = {},
@@ -175,12 +175,17 @@ export class Pipeline<TInput extends AnyInput> {
       const effectivePayload =
         'payload' in finalInput ? payload : ctx.raw.payload;
 
-      // Вызываем handler с двумя параметрами: payload и meta
+      // Вызываем handler с двумя параметрами: payload и meta.
+      // Ключ `signal` зарезервирован: сигнал контекста перекрывает
+      // одноимённое поле, добавленное middleware.
       const result = await handler(
         effectivePayload as TInput extends { payload: infer P } ? P : undefined,
-        meta as TInput extends { payload: unknown }
-          ? Omit<TInput, 'payload'>
-          : TInput,
+        {
+          ...(meta as TInput extends { payload: unknown }
+            ? Omit<TInput, 'payload'>
+            : TInput),
+          signal: ctx.signal,
+        },
       );
       return this.normalizeResponse(result);
     } catch (error) {

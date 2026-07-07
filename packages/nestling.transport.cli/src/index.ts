@@ -39,6 +39,13 @@ export class CliTransport implements ITransport {
   >();
   private repl?: readline.Interface;
 
+  /**
+   * Transport-level канал отмены: сигнал попадает в meta каждой команды
+   * и взводится в `close()` — выполняющиеся команды могут завершиться
+   * кооперативно.
+   */
+  private readonly closeController = new AbortController();
+
   constructor(private readonly defaultPipeline?: Pipeline<any>) {}
 
   /**
@@ -140,7 +147,11 @@ export class CliTransport implements ITransport {
         output: definition.output,
       };
 
-      const ctx = makeEmptyContext(raw, endpointMeta);
+      const ctx = makeEmptyContext(
+        raw,
+        endpointMeta,
+        this.closeController.signal,
+      );
 
       // CLI — локальный инструмент: детали ошибок (stack) в терминале полезны.
       return pipeline.executeWithHandler(definition.handle, ctx, {
@@ -148,7 +159,9 @@ export class CliTransport implements ITransport {
       });
     } else {
       // Fallback без pipeline - прямой вызов handler
-      const result = await definition.handle(payload, {});
+      const result = await definition.handle(payload, {
+        signal: this.closeController.signal,
+      });
       return {
         isSuccess: true,
         status: 'OK',
@@ -250,9 +263,12 @@ export class CliTransport implements ITransport {
   }
 
   /**
-   * Останавливает REPL
+   * Останавливает REPL, предварительно взводя сигнал отмены
+   * выполняющихся команд
    */
   async close(): Promise<void> {
+    this.closeController.abort(new Error('transport closing'));
+
     if (this.repl) {
       this.repl.close();
       this.repl = undefined;

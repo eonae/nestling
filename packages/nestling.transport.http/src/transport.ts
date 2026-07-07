@@ -103,6 +103,12 @@ export class HttpTransport {
   private readonly router: HttpRouter;
   private server?: Server;
 
+  /**
+   * Transport-level канал отмены: взводится в `close()` и через
+   * `AbortSignal.any` доставляет отмену всем in-flight запросам.
+   */
+  private closeController?: AbortController;
+
   /** Резолвнутый лимит тела: `0` = без лимита. */
   private readonly maxBodySize: number;
 
@@ -169,6 +175,8 @@ export class HttpTransport {
     const listenPort = port ?? this.options.port ?? 3000;
     const listenHost = host ?? this.options.host ?? '0.0.0.0';
 
+    this.closeController = new AbortController();
+
     return new Promise((resolve, reject) => {
       this.server = createServer((req, res) => {
         this.handle(req, res).catch(() => {
@@ -204,11 +212,13 @@ export class HttpTransport {
   /**
    * Останавливает HTTP сервер с дренажом соединений.
    *
-   * Порядок: перестаём принимать новые соединения (`server.close`) →
-   * сразу закрываем простаивающие keep-alive (`closeIdleConnections`) →
-   * ждём завершения активных запросов до `closeTimeout` → принудительно
-   * закрываем оставшиеся (`closeAllConnections`). Гарантирует завершение
-   * за конечное время даже при живых keep-alive соединениях.
+   * Порядок: взводим сигналы всех in-flight запросов (кооперативное
+   * завершение — основной механизм дренажа) → перестаём принимать новые
+   * соединения (`server.close`) → сразу закрываем простаивающие keep-alive
+   * (`closeIdleConnections`) → ждём завершения активных запросов до
+   * `closeTimeout` → принудительно закрываем оставшиеся
+   * (`closeAllConnections`). Гарантирует завершение за конечное время
+   * даже при живых keep-alive соединениях.
    */
   async close(options: { timeout?: number } = {}): Promise<void> {
     if (!this.server) {
@@ -217,6 +227,11 @@ export class HttpTransport {
 
     const server = this.server;
     this.server = undefined;
+
+    // Кооперативная отмена in-flight запросов: AbortSignal.any доставит
+    // её каждому meta.signal без обхода реестра контроллеров.
+    this.closeController?.abort(new Error('transport closing'));
+    this.closeController = undefined;
 
     const closeTimeout =
       options.timeout ?? this.options.closeTimeout ?? DEFAULT_CLOSE_TIMEOUT;
@@ -231,9 +246,21 @@ export class HttpTransport {
         timer.unref();
       }
 
+      // Keep-alive соединение, освободившееся уже после начала close()
+      // (запрос дорешался — в т.ч. кооперативно по сигналу), Node сам
+      // не закрывает: без периодической зачистки дренаж ждал бы
+      // keep-alive таймаута клиента.
+      const idleSweep = setInterval(() => {
+        server.closeIdleConnections();
+      }, 100);
+      if (typeof idleSweep.unref === 'function') {
+        idleSweep.unref();
+      }
+
       // server.close ждёт завершения всех соединений; колбэк — когда закрылись
       server.close((error) => {
         clearTimeout(timer);
+        clearInterval(idleSweep);
         if (error) {
           reject(error);
         } else {
@@ -257,6 +284,21 @@ export class HttpTransport {
     // Объявляем переменные выше try блока, чтобы они были доступны в catch для cleanup
     let inputConfigType: string | undefined;
     let payload: unknown;
+
+    // Сигнал отмены запроса: per-request контроллер (дисконнект клиента)
+    // + transport-level канал (graceful close), composed через AbortSignal.any
+    const requestController = new AbortController();
+    const signal = this.closeController
+      ? AbortSignal.any([requestController.signal, this.closeController.signal])
+      : requestController.signal;
+
+    // 'close' на response приходит и после штатного завершения ответа,
+    // поэтому дисконнектом считаем только недописанный ответ
+    nativeRes.on('close', () => {
+      if (!nativeRes.writableFinished) {
+        requestController.abort(new Error('client disconnected'));
+      }
+    });
 
     try {
       // Находим маршрут
@@ -358,7 +400,7 @@ export class HttpTransport {
           output: route.definition.output,
         };
 
-        const ctx = makeEmptyContext(raw, endpointMeta);
+        const ctx = makeEmptyContext(raw, endpointMeta, signal);
 
         const responseContext = await pipeline.executeWithHandler(
           route.handler,
@@ -378,8 +420,8 @@ export class HttpTransport {
           });
         }
 
-        // Без pipeline meta пустая
-        const meta = {};
+        // Без pipeline в meta только сигнал отмены
+        const meta = { signal };
 
         const result = await route.handler(payload, meta);
 

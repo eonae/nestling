@@ -9,6 +9,9 @@ import type { ITransport } from '@nestling/transport';
 // Mock transport
 export class MockTransport implements ITransport {
   endpoints: EndpointDefinition<any, any, any>[] = [];
+  closed = false;
+
+  constructor(private readonly onClose?: () => void) {}
 
   endpoint<
     I extends AnyPayload = AnyPayload,
@@ -23,6 +26,7 @@ export class MockTransport implements ITransport {
   }
 
   async close(): Promise<void> {
-    // Mock
+    this.closed = true;
+    this.onClose?.();
   }
 }
