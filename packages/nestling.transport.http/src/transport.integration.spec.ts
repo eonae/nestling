@@ -11,7 +11,7 @@ import { type AddressInfo, connect } from 'node:net';
 
 import { HttpTransport } from './transport.js';
 
-import { definePipeline, Fail, Ok, stream, validate } from '@nestling/pipeline';
+import { Fail, makePipeline, Ok, stream, validate } from '@nestling/pipeline';
 import { z } from 'zod';
 
 /**
@@ -39,7 +39,7 @@ describe('HttpTransport — error response safety', () => {
     transport.route({
       transport: 'http',
       pattern: 'POST /boom',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       handle: () => {
         throw new Error('db password invalid');
       },
@@ -47,7 +47,7 @@ describe('HttpTransport — error response safety', () => {
     transport.route({
       transport: 'http',
       pattern: 'POST /fail',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       handle: () => {
         throw Fail.badRequest('Email already taken', { field: 'email' });
       },
@@ -58,7 +58,7 @@ describe('HttpTransport — error response safety', () => {
     exposed.route({
       transport: 'http',
       pattern: 'POST /boom',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       handle: () => {
         throw new Error('boom');
       },
@@ -114,7 +114,7 @@ describe('HttpTransport — request validation errors', () => {
       transport: 'http',
       pattern: 'POST /json',
       input: z.object({ name: z.string() }),
-      pipeline: definePipeline().use(validate()),
+      pipeline: makePipeline().pre(validate()),
       handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
     });
 
@@ -123,7 +123,7 @@ describe('HttpTransport — request validation errors', () => {
       transport: 'http',
       pattern: 'POST /conflict',
       input: z.object({ id: z.coerce.number() }),
-      pipeline: definePipeline().use(validate()),
+      pipeline: makePipeline().pre(validate()),
       handle: (payload: { id: number }) => new Ok(payload),
     });
 
@@ -203,7 +203,7 @@ describe('HttpTransport — body size limits', () => {
       transport: 'http',
       pattern: 'POST /json',
       input: z.object({ name: z.string() }),
-      pipeline: definePipeline().use(validate()),
+      pipeline: makePipeline().pre(validate()),
       handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
     });
     small.route({
@@ -226,7 +226,7 @@ describe('HttpTransport — body size limits', () => {
       transport: 'http',
       pattern: 'POST /json',
       input: z.object({ name: z.string() }),
-      pipeline: definePipeline().use(validate()),
+      pipeline: makePipeline().pre(validate()),
       handle: (payload: { name: string }) =>
         new Ok({ length: payload.name.length }),
     });
@@ -291,7 +291,7 @@ describe('HttpTransport — timeouts and graceful close', () => {
     transport.route({
       transport: 'http',
       pattern: 'GET /ping',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       handle: () => new Ok({ pong: true }),
     });
     const baseUrl = await listen(transport);
@@ -324,7 +324,7 @@ describe('HttpTransport — timeouts and graceful close', () => {
     transport.route({
       transport: 'http',
       pattern: 'POST /hang',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       handle: () => new Promise<never>(() => {}), // никогда не резолвится
     });
@@ -376,7 +376,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     transport.route({
       transport: 'http',
       pattern: 'GET /slow',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       handle,
     });
     const baseUrl = await listen(transport);
@@ -403,7 +403,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     transport.route({
       transport: 'http',
       pattern: 'GET /ping',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
         captured = meta.signal;
         return new Ok({ pong: true });
@@ -431,7 +431,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     transport.route({
       transport: 'http',
       pattern: 'POST /graceful',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       handle,
     });
     const baseUrl = await listen(transport);
@@ -487,7 +487,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     transport.route({
       transport: 'http',
       pattern: 'GET /ping',
-      pipeline: definePipeline(),
+      pipeline: makePipeline(),
       handle: () => new Ok({ pong: true }),
     });
     const baseUrl = await listen(transport);

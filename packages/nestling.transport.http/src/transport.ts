@@ -37,10 +37,12 @@ import type {
 } from '@nestling/pipeline';
 import {
   analyzePayload,
+  ClientDisconnectedError,
   Fail,
   makeEmptyContext,
   parsePayload,
   SchemaValidationError,
+  TransportClosingError,
 } from '@nestling/pipeline';
 
 /**
@@ -137,7 +139,10 @@ export class HttpTransport {
       pattern: metadata.pattern,
       input: metadata.input,
       output: metadata.output,
-      pipeline: metadata.pipeline,
+      // Метаданные декоратора допускают классы-юниты (их резолвит App);
+      // при прямой регистрации нерезолвленный пайплайн даст понятную
+      // ошибку выполнения ("call bind()").
+      pipeline: metadata.pipeline as EndpointDefinition<I, O, P>['pipeline'],
       handle: instance.handle.bind(instance),
     });
   }
@@ -230,7 +235,7 @@ export class HttpTransport {
 
     // Кооперативная отмена in-flight запросов: AbortSignal.any доставит
     // её каждому meta.signal без обхода реестра контроллеров.
-    this.closeController?.abort(new Error('transport closing'));
+    this.closeController?.abort(new TransportClosingError());
     this.closeController = undefined;
 
     const closeTimeout =
@@ -296,7 +301,7 @@ export class HttpTransport {
     // поэтому дисконнектом считаем только недописанный ответ
     nativeRes.on('close', () => {
       if (!nativeRes.writableFinished) {
-        requestController.abort(new Error('client disconnected'));
+        requestController.abort(new ClientDisconnectedError());
       }
     });
 
@@ -381,7 +386,7 @@ export class HttpTransport {
 
       // Получаем pipeline из endpoint metadata
       const pipeline = route.definition.pipeline as
-        | Pipeline<AnyInput>
+        | Pipeline<AnyInput, AnyInput, never>
         | undefined;
 
       if (pipeline) {

@@ -53,7 +53,15 @@ export type EndpointMetadata<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
-> = Omit<EndpointDefinition<I, O, P>, 'handle'>;
+> = Omit<EndpointDefinition<I, O, P>, 'handle' | 'pipeline'> & {
+  /**
+   * Pipeline endpoint'а. В отличие от `EndpointDefinition`, допускает
+   * классы-юниты (`TNeeds` ≠ never): App резолвит их контейнером
+   * на старте (`bind`). Standalone-транспорт принимает только
+   * исполнимый пайплайн.
+   */
+  pipeline?: Pipeline<AnyInput, P, unknown>;
+};
 
 /**
  * Декоратор для endpoint-классов с типизированным pipeline.

@@ -30,9 +30,11 @@ export interface HttpEndpointOptions<
 
   /**
    * Pipeline для обработки запроса.
-   * Для endpoint'ов с input схемой должен содержать validate().
+   * Для endpoint'ов с input схемой должен содержать `.pre(validate())`.
+   * Классы-юниты (`TNeeds` ≠ never) допустимы под App — он резолвит их
+   * контейнером на старте; standalone-использование требует `bind`.
    */
-  pipeline?: Pipeline<P>;
+  pipeline?: Pipeline<AnyInput, P, unknown>;
 
   /** Rate limit конфигурация */
   rateLimit?: unknown;
@@ -63,8 +65,8 @@ export interface HttpEndpointMetadata<
   /** Schema для output (опционально) */
   output?: O;
 
-  /** Pipeline для этого endpoint */
-  pipeline?: Pipeline<P>;
+  /** Pipeline для этого endpoint (классы-юниты резолвит App через bind) */
+  pipeline?: Pipeline<AnyInput, P, unknown>;
 
   /** Дополнительные опции для middleware */
   rateLimit?: unknown;

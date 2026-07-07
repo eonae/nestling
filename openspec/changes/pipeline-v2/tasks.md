@@ -58,21 +58,21 @@
 
 ## 4. Транспорты
 
-- [ ] 4.1 `transport.http`: типы в `transport.ts`/`helpers.ts`/`router.ts`
+- [x] 4.1 `transport.http`: типы в `transport.ts`/`helpers.ts`/`router.ts`
   (`Pipeline<_, _, never>` в definition); обе ветки `handle()` работают
   с новым рантаймом (вызов `executeWithHandler` не меняется)
-- [ ] 4.2 `transport.http/src/transport.integration.spec.ts`: миграция
+- [x] 4.2 `transport.http/src/transport.integration.spec.ts`: миграция
   14 использований `definePipeline` → `makePipeline` (+`.pre(validate())`)
-- [ ] 4.3 `transport.cli`: `defaultPipeline` в конструкторе —
+- [x] 4.3 `transport.cli`: `defaultPipeline` в конструкторе —
   `Pipeline<EmptyInput, _, never>`; `execute()` — миграция типов
 
 ## 5. App
 
-- [ ] 5.1 `#registerEndpoints`: `bind` пайплайна через контейнер
+- [x] 5.1 `#registerEndpoints`: `bind` пайплайна через контейнер
   (резолв классов-юнитов), ошибка старта с именем незарегистрированного
   юнита; тест в `app.spec.ts` (юнит-класс из модуля резолвится;
   незарегистрированный — падение до listen)
-- [ ] 5.2 Удаление `AppModule.middleware` из `module.ts`; чистка
+- [x] 5.2 Удаление `AppModule.middleware` из `module.ts`; чистка
   `clearMiddlewareRegistry` из тестов
 
 ## 6. Examples и доки

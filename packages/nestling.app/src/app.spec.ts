@@ -7,11 +7,12 @@ import { makeAppModule } from './module';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { Injectable, OnDestroy } from '@nestling/container';
-import type { IEndpoint } from '@nestling/pipeline';
+import type { AnyInput, ExtendableContext, IEndpoint } from '@nestling/pipeline';
 import {
   clearEndpointRegistry,
-  clearMiddlewareRegistry,
   Endpoint,
+  makeEmptyContext,
+  makePipeline,
   Ok,
 } from '@nestling/pipeline';
 import { HttpTransport } from '@nestling/transport.http';
@@ -21,7 +22,6 @@ describe('App Integration', () => {
   beforeEach(() => {
     // Очищаем registry перед каждым тестом
     clearEndpointRegistry();
-    clearMiddlewareRegistry();
   });
 
   it('should auto-discover and register endpoints from modules', async () => {
@@ -257,5 +257,100 @@ describe('App Integration', () => {
     expect(order).toEqual(['transport-closed', 'container-destroyed']);
 
     await pending;
+  });
+
+  it('резолвит классы-юниты пайплайна контейнером на старте (bind)', async () => {
+    @Injectable([])
+    class WithTracing {
+      handle(): { traceId: string } {
+        return { traceId: 'trace-from-di' };
+      }
+    }
+
+    @Injectable([])
+    @Endpoint({
+      transport: 'http',
+      pattern: 'GET /traced',
+      pipeline: makePipeline().pre(WithTracing),
+    })
+    class TracedEndpoint implements IEndpoint {
+      async handle() {
+        return new Ok({});
+      }
+    }
+
+    const TestModule = makeAppModule({
+      name: 'test-module',
+      providers: [WithTracing],
+      endpoints: [TracedEndpoint],
+    });
+
+    const mockTransport = new MockTransport();
+    const app = new App({
+      transports: { http: mockTransport },
+      modules: [TestModule],
+    });
+
+    await app.run();
+
+    const pipeline = mockTransport.endpoints[0]?.pipeline;
+    expect(pipeline).toBeDefined();
+    if (!pipeline) {
+      throw new Error('pipeline не зарегистрирован');
+    }
+
+    // Пайплайн пришёл в транспорт уже исполнимым: юнит зарезолвлен из DI
+    const ctx = makeEmptyContext(
+      { transport: 'http', pattern: 'GET /traced', payload: undefined, attributes: {} },
+      { transport: 'http', pattern: 'GET /traced' },
+    );
+    const response = await pipeline.executeWithHandler(
+      (_payload: unknown, meta: Record<string, unknown>) =>
+        new Ok({ traceId: meta.traceId }),
+      ctx as ExtendableContext<AnyInput>,
+    );
+
+    expect(response).toMatchObject({
+      isSuccess: true,
+      value: { traceId: 'trace-from-di' },
+    });
+
+    await app.close();
+  });
+
+  it('незарегистрированный класс-юнит — ошибка старта до приёма запросов', async () => {
+    class UnregisteredUnit {
+      handle(): { traceId: string } {
+        return { traceId: 'never' };
+      }
+    }
+
+    @Injectable([])
+    @Endpoint({
+      transport: 'http',
+      pattern: 'GET /broken',
+      pipeline: makePipeline().pre(UnregisteredUnit),
+    })
+    class BrokenEndpoint implements IEndpoint {
+      async handle() {
+        return new Ok({});
+      }
+    }
+
+    const TestModule = makeAppModule({
+      name: 'test-module',
+      endpoints: [BrokenEndpoint],
+    });
+
+    const mockTransport = new MockTransport();
+    const app = new App({
+      transports: { http: mockTransport },
+      modules: [TestModule],
+    });
+
+    await expect(app.run()).rejects.toThrow(
+      /Pipeline unit 'UnregisteredUnit'.*not available in the DI container/,
+    );
+    expect(mockTransport.endpoints).toHaveLength(0);
   });
 });

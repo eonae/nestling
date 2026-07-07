@@ -18,6 +18,7 @@ import {
   analyzePayload,
   makeEmptyContext,
   parsePayload,
+  TransportClosingError,
 } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 /**
@@ -46,7 +47,7 @@ export class CliTransport implements ITransport {
    */
   private readonly closeController = new AbortController();
 
-  constructor(private readonly defaultPipeline?: Pipeline<any>) {}
+  constructor(private readonly defaultPipeline?: Pipeline<any, any, never>) {}
 
   /**
    * Регистрирует handler через конфигурацию
@@ -267,7 +268,7 @@ export class CliTransport implements ITransport {
    * выполняющихся команд
    */
   async close(): Promise<void> {
-    this.closeController.abort(new Error('transport closing'));
+    this.closeController.abort(new TransportClosingError());
 
     if (this.repl) {
       this.repl.close();

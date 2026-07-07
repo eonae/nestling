@@ -1,17 +1,19 @@
 import type { Constructor } from '@common/misc';
 import type { Module } from '@nestling/container';
 import { makeModule } from '@nestling/container';
-import type { IEndpoint, IMiddleware } from '@nestling/pipeline';
+import type { IEndpoint } from '@nestling/pipeline';
 
 /**
- * Расширенная конфигурация модуля для приложений с endpoints и middleware
+ * Расширенная конфигурация модуля для приложений с endpoints
+ *
+ * Юниты пайплайнов (классы с handle) — обычные провайдеры: регистрируются
+ * в providers, а App резолвит их на старте при bind пайплайнов endpoint'ов.
  *
  * @example
  * ```typescript
  * const UsersModule = makeAppModule({
  *   name: 'module:users',
- *   providers: [UserService, UserRepository],
- *   middleware: [AuthMiddleware, LoggingMiddleware],
+ *   providers: [UserService, UserRepository, WithTracing],
  *   endpoints: [
  *     GetUserByIdEndpoint,
  *     CreateUserEndpoint,
@@ -23,52 +25,29 @@ import type { IEndpoint, IMiddleware } from '@nestling/pipeline';
  * ```
  */
 export interface AppModule extends Omit<Module, 'providers'> {
-  /** Провайдеры модуля (опционально, т.к. endpoints и middleware тоже провайдеры) */
+  /** Провайдеры модуля (опционально, т.к. endpoints тоже провайдеры) */
   providers?: Module['providers'];
 
   /** Endpoint-классы, декорированные @Injectable и @Endpoint */
   endpoints?: Constructor<IEndpoint<any, any, any>>[];
-
-  /** Middleware-классы, декорированные @Injectable и @Middleware */
-  middleware?: Constructor<IMiddleware<any, any>>[];
 }
 
 /**
- * Создаёт модуль приложения с поддержкой endpoints и middleware
+ * Создаёт модуль приложения с поддержкой endpoints
  *
  * Это высокоуровневое API поверх makeModule из @nestling/container.
- * Endpoints и middleware автоматически добавляются в providers модуля.
+ * Endpoints автоматически добавляются в providers модуля.
  *
  * @param config - Конфигурация модуля приложения
  * @returns Модуль, готовый для использования в контейнере
- *
- * @example
- * ```typescript
- * import { makeAppModule } from '@nestling/app';
- *
- * export const UsersModule = makeAppModule({
- *   name: 'module:users',
- *   providers: [UserService, UserRepository],
- *   middleware: [AuthMiddleware],
- *   endpoints: [GetUserByIdEndpoint, CreateUserEndpoint],
- *   imports: [DatabaseModule],
- *   exports: [UserService],
- * });
- * ```
  */
 export function makeAppModule(config: AppModule): Module {
-  const {
-    endpoints = [],
-    middleware = [],
-    providers,
-    ...moduleConfig
-  } = config;
+  const { endpoints = [], providers, ...moduleConfig } = config;
 
-  // Собираем все провайдеры: базовые + endpoints + middleware
+  // Собираем все провайдеры: базовые + endpoints
   const allProviders = [
     ...(Array.isArray(providers) ? providers : []),
     ...endpoints,
-    ...middleware,
   ];
 
   return makeModule({

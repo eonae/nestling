@@ -228,10 +228,25 @@ export class App {
         );
       }
 
+      // Резолвим классы-юниты пайплайна контейнером (bind): транспорт
+      // принимает только исполнимый пайплайн (TNeeds = never)
+      const pipeline = metadata.pipeline?.bind((ctor) => {
+        const unit = this.#container?.get(ctor);
+        if (!unit) {
+          throw new Error(
+            `Pipeline unit '${ctor.name}' used by endpoint '${EndpointClass.name}' ` +
+              `is not available in the DI container. ` +
+              `Make sure it is decorated with @Injectable and added to a module's providers.`,
+          );
+        }
+        return unit;
+      });
+
       // Регистрируем endpoint в транспорте
       // В новой архитектуре metadata содержит pipeline
       transport.endpoint({
         ...metadata,
+        pipeline,
         handle: instance.handle.bind(instance),
       });
     }
