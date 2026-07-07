@@ -59,13 +59,16 @@ export function OnInit() {
     // The target is the method itself, we need to get the class constructor
     // We can use context.addInitializer to access the class
     context.addInitializer(function (this) {
-      // This runs when the class is defined
+      // This runs on every instance construction, so the write
+      // must be idempotent: record each method name only once
       const constructor = this.constructor;
       const metadata = lifecycleMetadata.get(constructor) || {
         onInit: [],
         onDestroy: [],
       };
-      metadata.onInit.push(context.name as string);
+      if (!metadata.onInit.includes(context.name as string)) {
+        metadata.onInit.push(context.name as string);
+      }
       lifecycleMetadata.set(constructor, metadata);
     });
   };
@@ -97,13 +100,16 @@ export function OnDestroy() {
     // The target is the method itself, we need to get the class constructor
     // We can use context.addInitializer to access the class
     context.addInitializer(function (this) {
-      // This runs when the class is defined
+      // This runs on every instance construction, so the write
+      // must be idempotent: record each method name only once
       const constructor = this.constructor;
       const metadata = lifecycleMetadata.get(constructor) || {
         onInit: [],
         onDestroy: [],
       };
-      metadata.onDestroy.push(context.name as string);
+      if (!metadata.onDestroy.includes(context.name as string)) {
+        metadata.onDestroy.push(context.name as string);
+      }
       lifecycleMetadata.set(constructor, metadata);
     });
   };

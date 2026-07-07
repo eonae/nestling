@@ -232,6 +232,62 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
+    it('attributes providers from sync factory to their module', async () => {
+      const ModuleWithFactory = makeModule({
+        name: 'SyncFactoryModule',
+        providers: () => [
+          classProvider(TokenA, ServiceA),
+          valueProvider(TokenConfig, { feature: true }),
+        ],
+        exports: [TokenA],
+      });
+
+      const container = await new ContainerBuilder()
+        .register(ModuleWithFactory)
+        .build();
+
+      const json = await container.toJSON();
+
+      expect(json.nodes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'TokenA',
+            metadata: { module: 'SyncFactoryModule', exported: true },
+          }),
+          expect.objectContaining({
+            id: 'TokenConfig',
+            metadata: { module: 'SyncFactoryModule', exported: false },
+          }),
+        ]),
+      );
+    });
+
+    it('attributes providers from async factory to their module', async () => {
+      const ModuleWithAsyncFactory = makeModule({
+        name: 'AsyncFactoryModule',
+        providers: async () => {
+          await Promise.resolve();
+          return [classProvider(TokenA, ServiceA)];
+        },
+        exports: [TokenA],
+      });
+
+      const container = await new ContainerBuilder()
+        .register(ModuleWithAsyncFactory)
+        .build();
+
+      const json = await container.toJSON();
+
+      expect(json.nodes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'TokenA',
+            metadata: { module: 'AsyncFactoryModule', exported: true },
+          }),
+        ]),
+      );
+    });
+
     it('ignores duplicate module registration', async () => {
       let factoryRuns = 0;
 

@@ -75,10 +75,13 @@ export class BuiltContainer {
   /**
    * Gets a service instance from the container by token.
    *
+   * Never throws: if the token is not registered, returns `null`.
+   * Note that a registered `null`/`undefined` value is indistinguishable
+   * from an unregistered token; use {@link getOrThrow} to assert presence.
+   *
    * @template T - The type of the requested instance
    * @param token - The service token (class or string token)
-   * @returns The service instance
-   * @throws {Error} If the service is not registered in the container
+   * @returns The service instance, or `null` if the token is not registered
    *
    * @example
    * ```typescript
@@ -94,12 +97,31 @@ export class BuiltContainer {
     return (node?.instance as T) ?? null;
   }
 
+  /**
+   * Gets a service instance from the container by token, throwing if absent.
+   *
+   * Presence is determined by token registration, not by the instance value:
+   * registered falsy values (`0`, `''`, `false`) are returned as is.
+   *
+   * @template T - The type of the requested instance
+   * @param token - The service token (class or string token)
+   * @returns The service instance
+   * @throws {Error} If the token is not registered in the container
+   *
+   * @example
+   * ```typescript
+   * const userService = container.getOrThrow(UserService);
+   * ```
+   */
   getOrThrow<T>(token: InjectionToken<T>): T {
-    const instance = this.get(token);
-    if (!instance) {
-      throw new Error(`Instance for token '${token}' not found`);
+    const id = typeof token === 'string' ? token : token.name;
+
+    const node = this.#graph.getNode(id);
+    if (!node) {
+      throw new Error(`Instance for token '${id}' not found`);
     }
-    return instance;
+
+    return node.instance as T;
   }
 
   /**

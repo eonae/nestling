@@ -80,6 +80,13 @@ describe('BuiltContainer', () => {
     expect(container.getOrThrow(TokenB).value()).toBe('B(a)');
   });
 
+  it('returns null from get for unregistered token without throwing', async () => {
+    const container = await buildContainer();
+    const MissingToken = makeToken('Missing');
+
+    expect(container.get(MissingToken)).toBeNull();
+  });
+
   it('throws when instance is missing', async () => {
     const container = await buildContainer();
     const MissingToken = makeToken('Missing');
@@ -87,6 +94,22 @@ describe('BuiltContainer', () => {
     expect(() => container.getOrThrow(MissingToken)).toThrow(
       "Instance for token 'Missing' not found",
     );
+  });
+
+  it('returns registered falsy values from getOrThrow', async () => {
+    const ZeroToken = makeToken<number>('Zero');
+    const EmptyToken = makeToken<string>('Empty');
+    const FalseToken = makeToken<boolean>('False');
+
+    const container = await new ContainerBuilder()
+      .register(valueProvider(ZeroToken, 0))
+      .register(valueProvider(EmptyToken, ''))
+      .register(valueProvider(FalseToken, false))
+      .build();
+
+    expect(container.getOrThrow(ZeroToken)).toBe(0);
+    expect(container.getOrThrow(EmptyToken)).toBe('');
+    expect(container.getOrThrow(FalseToken)).toBe(false);
   });
 
   it('runs lifecycle hooks in correct order', async () => {

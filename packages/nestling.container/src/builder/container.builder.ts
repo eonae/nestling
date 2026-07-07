@@ -244,10 +244,10 @@ export class ContainerBuilder {
   }
 
   private async appendFactoryProviders(): Promise<void> {
-    for (const factory of this.#providersFactories.values()) {
+    for (const [moduleName, factory] of this.#providersFactories.entries()) {
       const providers = await factory();
       for (const provider of providers) {
-        this.registerProvider(provider);
+        this.registerProvider(provider, moduleName);
       }
     }
   }

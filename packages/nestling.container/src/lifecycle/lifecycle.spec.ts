@@ -36,6 +36,28 @@ describe('Lifecycle metadata system', () => {
     expect(hooks.onDestroy).toHaveLength(1);
   });
 
+  it('does not duplicate hooks across multiple instances', () => {
+    const token = makeToken('Repeated');
+
+    @Injectable(token, [])
+    class Repeated {
+      @OnInit()
+      init(): void {}
+
+      @OnDestroy()
+      dispose(): void {}
+    }
+
+    const instances = [new Repeated(), new Repeated(), new Repeated()];
+
+    for (const instance of instances) {
+      const hooks = getLifecycleHooks(instance);
+
+      expect(hooks.onInit).toHaveLength(1);
+      expect(hooks.onDestroy).toHaveLength(1);
+    }
+  });
+
   it('collects multiple lifecycle hooks', () => {
     const token = makeToken('Multi');
 
