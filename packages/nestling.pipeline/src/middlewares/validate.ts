@@ -1,6 +1,6 @@
 import type { EmptyInput } from '../core';
 import { analyzePayload, Fail } from '../core';
-import type { MiddlewareFn } from '../core/types';
+import type { PreUnitFn } from '../core/types';
 
 /**
  * Валидирует raw.payload и создаёт payload
@@ -12,11 +12,11 @@ import type { MiddlewareFn } from '../core/types';
  *
  * @example
  * ```typescript
- * const pipeline = definePipeline()
- *   .use(validate());
+ * const pipeline = makePipeline()
+ *   .pre(validate());
  * ```
  */
-export function validate(): MiddlewareFn<
+export function validate(): PreUnitFn<
   EmptyInput,
   { payload: unknown | undefined }
 > {

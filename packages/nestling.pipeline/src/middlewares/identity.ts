@@ -1,5 +1,5 @@
 import type { EmptyInput } from '../core';
-import type { MiddlewareFn, Raw } from '../core/types';
+import type { PreUnitFn, Raw } from '../core/types';
 
 /**
  * Добавляет identity в metadata
@@ -17,21 +17,14 @@ import type { MiddlewareFn, Raw } from '../core/types';
  *   return await verifyJWT(token);
  * });
  *
- * // gRPC
- * const grpcAuth = withIdentity<User>(async (raw) => {
- *   const metadata = raw.attributes as GrpcMetadata;
- *   const token = metadata.get('authorization')[0];
- *   return await verifyJWT(token);
- * });
- *
- * const pipeline = definePipeline()
- *   .use(httpAuth)
- *   .use(validate());
+ * const pipeline = makePipeline()
+ *   .pre(httpAuth)
+ *   .pre(validate());
  * ```
  */
 export function withIdentity<TUser>(
   authenticate: (raw: Raw) => Promise<TUser> | TUser,
-): MiddlewareFn<EmptyInput, { identity: TUser }> {
+): PreUnitFn<EmptyInput, { identity: TUser }> {
   return async (ctx) => {
     const identity = await authenticate(ctx.raw);
 

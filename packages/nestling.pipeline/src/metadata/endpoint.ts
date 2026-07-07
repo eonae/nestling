@@ -39,8 +39,14 @@ export interface EndpointDefinition<
   /** Конфигурация выходных данных */
   output?: O;
 
-  /** Pipeline для этого endpoint */
-  pipeline?: Pipeline<P>;
+  /**
+   * Pipeline для этого endpoint.
+   *
+   * `TNeeds = never`: пайплайн с классами-юнитами сначала резолвится
+   * (`bind`) — App делает это автоматически на старте; standalone-транспорт
+   * принимает только исполнимый пайплайн.
+   */
+  pipeline?: Pipeline<AnyInput, P, never>;
 }
 
 export type EndpointMetadata<
@@ -54,9 +60,9 @@ export type EndpointMetadata<
  *
  * @example
  * ```typescript
- * const authPipeline = definePipeline()
- *   .use(withIdentity<User>(verifyToken))
- *   .use(validate());
+ * const authPipeline = makePipeline()
+ *   .pre(withIdentity<User>(verifyToken))
+ *   .pre(validate());
  *
  * @Injectable([UserService])
  * @Endpoint({

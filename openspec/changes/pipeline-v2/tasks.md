@@ -2,20 +2,20 @@
 
 ## 1. Ядро: типы (type-first)
 
-- [ ] 1.1 Типы юнитов: `PreUnit`/`OkUnit`/`CatchUnit`/`AfterUnit`/`FinallyUnit`
+- [x] 1.1 Типы юнитов: `PreUnit`/`OkUnit`/`CatchUnit`/`AfterUnit`/`FinallyUnit`
   (функция/инстанс/класс), `Outcome = 'completed' | 'disconnected' |
   'aborted' | 'failed'`; типы ctx ответного тракта
   (`TReq & Partial<TOwn>`); файл(ы) `core/types/unit.ts` взамен
   `middleware.before.ts`
-- [ ] 1.2 Билдер `makePipeline<TReq>()`: `Pipeline<TReq, TAcc, TNeeds>`,
+- [x] 1.2 Билдер `makePipeline<TReq>()`: `Pipeline<TReq, TAcc, TNeeds>`,
   накопление `TAcc` в `.pre` (перенос машинерии
   `ConflictingKeys`/`ExtractAddition`), type-state (`.pre` недоступен
   после первого ответного метода), иммутабельность
-- [ ] 1.3 `compose(outer, ..., inner)`: попарная проверка
+- [x] 1.3 `compose(outer, ..., inner)`: попарная проверка
   `inner.TReq extends outer.TAcc` с читаемой ошибкой (паттерн
   `CheckMiddlewareCompatibility`), результат `TAcc`-пересечение +
   `TNeeds`-union; вариадическая форма
-- [ ] 1.4 Новые type-тесты (`pipeline.spec.ts` переписывается): перенос
+- [x] 1.4 Новые type-тесты (`pipeline.spec.ts` переписывается): перенос
   сценариев старых тестов (накопление, конфликты полей, порядок,
   переиспользование) на новый API + новые: type-state билдера,
   полный/Partial ctx по фазам, совместимая/несовместимая композиция,
@@ -24,18 +24,18 @@
 
 ## 2. Ядро: рантайм
 
-- [ ] 2.1 Исполнение одного слоя в `executeWithHandler` (сигнатура
+- [x] 2.1 Исполнение одного слоя в `executeWithHandler` (сигнатура
   сохраняется): pre по порядку → падение ⇒ ответная фаза с `Fail` →
   хендлер → ответные юниты по порядку с применимостью и заменой ответа;
   инъекция `meta.signal` и политика `exposeErrorDetails` — как сейчас
-- [ ] 2.2 Исполнение композиции: pre снаружи внутрь, ответные и `finally`
+- [x] 2.2 Исполнение композиции: pre снаружи внутрь, ответные и `finally`
   изнутри наружу; слой не исполняется, если pre внешних упал
-- [ ] 2.3 `.finally` с исходом: вычисление из `meta.signal`
+- [x] 2.3 `.finally` с исходом: вычисление из `meta.signal`
   (disconnected/aborted) и успешности ответа (completed/failed);
   вызов после ответной фазы (ограничение v1 — JSDoc)
-- [ ] 2.4 `bind(resolve)`: материализация классов-юнитов,
+- [x] 2.4 `bind(resolve)`: материализация классов-юнитов,
   `Pipeline<_, _, never>` на выходе
-- [ ] 2.5 Рантайм-тесты (`pipeline.runtime.spec.ts` переписывается):
+- [x] 2.5 Рантайм-тесты (`pipeline.runtime.spec.ts` переписывается):
   перенос текущих сценариев (нормализация Ok, meta.signal ×4,
   exposeErrorDetails ×4) + новые: порядок фаз при успехе/падении pre,
   замена ответа в `.catch`/`.after`, применимость `.ok`/`.catch`,
@@ -44,14 +44,14 @@
 
 ## 3. Метаданные и встроенные юниты
 
-- [ ] 3.1 `metadata/endpoint.ts`: тип `EndpointDefinition.pipeline` →
+- [x] 3.1 `metadata/endpoint.ts`: тип `EndpointDefinition.pipeline` →
   новый Pipeline (`TNeeds = never` для standalone); проверить вывод типа
   меты в `IEndpoint`/`HandlerFn` (контракт «накопленный input без payload
   + signal» сохраняется)
-- [ ] 3.2 `middlewares/` → pre-юниты: `validate`, `withRequestId`,
+- [x] 3.2 `middlewares/` → pre-юниты: `validate`, `withRequestId`,
   `withIdentity`, `withPermissions`, `withRequestLogging` (сигнатуры
   уже совпадают с формой pre; обновить типы и JSDoc)
-- [ ] 3.3 Удаление мёртвой ветки: `metadata/middleware.ts` (`@Middleware`),
+- [x] 3.3 Удаление мёртвой ветки: `metadata/middleware.ts` (`@Middleware`),
   middleware-registry (`registerMiddleware`/`getAllMiddleware`/
   `clearMiddlewareRegistry`), `middleware.before.ts`; чистка экспортов
   `src/index.ts`/`core/index.ts`

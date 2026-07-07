@@ -1,5 +1,5 @@
 import type { EmptyInput } from '../core';
-import type { MiddlewareFn } from '../core/types';
+import type { PreUnitFn } from '../core/types';
 
 import z from 'zod';
 
@@ -10,15 +10,12 @@ import z from 'zod';
  *
  * @example
  * ```typescript
- * const pipeline = definePipeline()
- *   .use(withRequestId())
- *   .use(validate())
+ * const pipeline = makePipeline()
+ *   .pre(withRequestId())
+ *   .pre(validate())
  * ```
  */
-export function withRequestId(): MiddlewareFn<
-  EmptyInput,
-  { requestId: string }
-> {
+export function withRequestId(): PreUnitFn<EmptyInput, { requestId: string }> {
   return async (ctx) => {
     const { success, data: requestId } = z
       .string()

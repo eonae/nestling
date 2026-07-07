@@ -1,3 +1,4 @@
+export * from './abort';
 export * from './io';
 export * from './pipeline';
 export * from './result';
