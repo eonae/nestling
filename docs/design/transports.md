@@ -3,11 +3,12 @@
 > Минималистичная, транспорт-ориентированная архитектура HTTP-фреймворка  
 > Цель — быть фундаментом для собственного фреймворка, а не готовым решением.
 
-⚠️ **Статус: частично реализовано, сверка с кодом не проводилась.**
-Транспорт `@nestling/transport.http` следует этой архитектуре (find-my-way,
-busboy, парсинг по io-декларации), но детали (`RouteConfig`, middleware-модель)
-разошлись с реализацией. Модель middleware описана здесь до pipeline v2 —
-при расхождении источник истины [decisions/ideas.md](../decisions/ideas.md).
+⚠️ **Статус: частично реализовано.** Транспорт `@nestling/transport.http` следует
+этой архитектуре (find-my-way, busboy, парсинг по io-декларации). Разделы
+§1/§3/§5/§7 приведены к pipeline v2 + abort-signal (2026-07); псевдокод §8–§10 —
+иллюстративные наброски, строчно с реализацией не сверялись. При расхождении
+источник истины — [decisions/ideas.md](../decisions/ideas.md) (Pipeline v2) и код
+пакета.
 
 🔒 **Hardening (реализовано, change `transport-hardening`):** лимит размера тела
 `maxBodySize` (JSON/raw/text/multipart/NDJSON, дефолт 1 MiB) с ранним
@@ -24,7 +25,7 @@ busboy, парсинг по io-декларации), но детали (`RouteC
 ### Цели
 
 - Минимальный HTTP-транспорт (routing + parsing)
-- Отсутствие middleware, завязанных на HTTP-специфику
+- Отсутствие юнитов пайплайна, завязанных на HTTP-специфику
 - Единый пайплайн для всех транспортов
 - Поддержка:
   - обычных запросов
@@ -35,11 +36,14 @@ busboy, парсинг по io-декларации), но детали (`RouteC
 
 ### Жёсткие ограничения
 
-- ❌ Нет middleware на уровне маршрутов
+- ❌ Нет привязки пайплайна на уровне App/модуля — только к endpoint'у (`compose`)
 - ❌ Нет IncomingMessage / ServerResponse вне транспорта
 - ❌ Нет multer / body-parser как middleware
 - ✅ Multipart и body parsing — ответственность транспорта
-- ✅ Middleware работают только с абстрактной моделью
+- ✅ Pipeline оперирует только абстрактной моделью — **значениями, не байтами**:
+  сжатие, CORS, content-negotiation — концерн транспорта, не пайплайна
+- ✅ Единицы пайплайна трёх видов — препроцессоры (`.pre`), постпроцессоры
+  (`.ok`/`.after`), обработчики ошибок (`.catch`); термина «middleware» нет
 
 ---
 
@@ -77,9 +81,25 @@ busboy, парсинг по io-декларации), но детали (`RouteC
 
 ```ts
 interface ITransport {
-  handle(nativeReq: unknown, nativeRes: unknown): Promise<void>
+  // регистрация endpoint'а (роутинг + io-декларация для парсинга)
+  endpoint(definition: EndpointDefinition): void
+  // go-live: слушать соединения/команды
+  listen(...args: unknown[]): Promise<void>
+  // graceful shutdown: дренаж активных соединений + отмена in-flight
+  close?(): Promise<void>
 }
 ```
+
+Транспорт строит `RequestContext` из провода и вызывает
+`pipeline.executeWithHandler(handler, ctx, options)` — о фазах пайплайна он не
+знает. Отмена (change `abort-signal`): транспорт взводит `meta.signal` при
+дисконнекте клиента, `close()` — при graceful shutdown; per-request и
+transport-level сигналы объединяются через `AbortSignal.any`.
+
+**Целевая эволюция (proposed, [composition-and-lifecycle](./composition-and-lifecycle.md)):**
+nullary `listen(...)` заменяется на `serve(dispatch, signal)` — go-live принимает
+готовый `dispatch` (рождается в фазе WIRE), поэтому «ранний `listen` на `@OnInit`»
+структурно невозможен (гарантия, не конвенция).
 
 ---
 
@@ -99,7 +119,7 @@ interface RequestContext {
     files?: FilePart[]
   }
 
-  meta: Record<string, unknown>
+  meta: Record<string, unknown>  // гарантирован meta.signal: AbortSignal (change abort-signal)
 }
 ```
 
@@ -138,18 +158,19 @@ interface ResponseContext {
 
 ---
 
-## 5. RouteConfig
+## 5. EndpointDefinition
+
+Роутинг и парсинг управляются **io-декларацией endpoint'а** (`input`/`output` —
+схема или модификатор `stream()`/`events()`), а не отдельным `RouteConfig`:
 
 ```ts
-interface RouteConfig {
-  pattern: string
-  input?: {
-    body?: 'json' | 'raw' | 'stream'
-    multipart?: {
-      files: 'stream' | 'buffer'
-    }
-  }
-  handle: Handler
+interface EndpointDefinition<I, O, P> {
+  transport: string                       // 'http' | 'cli' | 'nats' | ...
+  pattern: string                         // 'POST /users'
+  input?: I                               // схема или модификатор (stream/events)
+  output?: O                              // конфигурация выходных данных
+  pipeline?: Pipeline<AnyInput, P, never> // классы-юниты App резолвит на старте (bind)
+  handle: HandlerFn<I, O, P>              // возвращает Ok | Fail (Output)
 }
 ```
 
@@ -253,6 +274,6 @@ function sendHttp(res: ServerResponse, r: ResponseContext) {
 ## 11. Принципы
 
 - Multipart — ответственность транспорта
-- Middleware не знают о стримах
+- Юниты пайплайна не знают о нативных стримах транспорта
 - Handler управляет I/O
 - Один пайплайн — много транспортов

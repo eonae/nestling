@@ -64,6 +64,25 @@ HTTP-транспорта отдавал `error.message` для любых ош�
 корректно: битый JSON и конфликт ключей payload → `400`, превышение
 `maxBodySize` → `413` (вместо прежних `500`). См. change `transport-hardening`.
 
+[07.07.2026] Container: атрибуция провайдеров, идемпотентность lifecycle, контракт get() (container-fixes).
+
+Три точечных дефекта `@nestling/container` из аудита 2026-07-06, не зависящих от
+целевого дизайна (token families — отдельный change). (1) **Функциональные
+провайдеры модуля теряли принадлежность**: `appendFactoryProviders()` регистрировал
+их без имени модуля (`module: undefined` в графе → «ничьи» узлы, `strictExports` их
+не увидел бы). Теперь имя модуля прокидывается — метка и признак `exported` те же,
+что у провайдеров-массивом. (2) **Lifecycle-метаданные накапливались per-instance**:
+`@OnInit`/`@OnDestroy` писали имя метода в `addInitializer`, который по стандарту ES
+выполняется на каждый инстанс → N инстансов давали N дублей хука → `init()`/`destroy()`
+вызывался N раз (проявлялось при нескольких сборках/семействах). Запись сделана
+идемпотентной (раз на метод класса). (3) **Контракт аксессоров**: `get()` возвращает
+`T | null` (JSDoc ошибочно заявлял `@throws` — контракт `getOrThrow()`); `getOrThrow()`
+теперь проверяет наличие УЗЛА графа, а не truthiness — легитимные `0`/`''`/`false`
+больше не дают ложный not-found. Не BREAKING (публичный API не изменился; поправлено
+ошибочное поведение). Дельта-спеки влиты: `container-module-attribution`,
+`lifecycle-metadata-idempotency`, `container-accessor-contract`. См. change
+`container-fixes`.
+
 [07.01.2026] Endpoint classes instead of Controllers.
 
 Switched from @Controller with @Endpoint methods to @Endpoint on classes. Main reasons:

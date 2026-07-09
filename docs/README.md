@@ -36,12 +36,15 @@ docs/
 
 | Документ | О чём | Статус |
 |---|---|---|
-| [transports.md](./design/transports.md) | транспорт-центричная HTTP-архитектура | частично реализовано |
+| [composition-and-lifecycle.md](./design/composition-and-lifecycle.md) | composition root, фазы жизненного цикла, фичи/порты/конфиг L0–L4 | дизайн (целевое) |
+| [transports.md](./design/transports.md) | транспорт-центричная HTTP-архитектура | частично реализовано (⚠️ дрейф: §7 под pipeline v2, §1/§3/§5 — до-v2/до-abort-signal, сверка не проводилась) |
 | [rxjs.md](./design/rxjs.md) | граница с RxJS, dataflow в хендлерах | принято, ждёт pipeline v2 |
-| principles.md | философия и принципы-ограничители | планируется (дистилляция из decisions) |
-| container.md | DI: token families, модули, видимость | планируется (пока см. [decisions/ideas.md](./decisions/ideas.md)) |
-| pipeline.md | pipeline v2: фазы, слои, compose, TNeeds | планируется (пока см. [decisions/ideas.md](./decisions/ideas.md)) |
-| streaming.md | stream/events, item-цепочки, Topic, signal | планируется (пока см. [decisions/ideas.md](./decisions/ideas.md)) |
+
+**Отдельной дистилляции `pipeline.md` / `container.md` / `streaming.md` /
+`principles.md` не будет** (решение: без двойной бухгалтерии). Целевой дизайн этих
+подсистем живёт в [decisions/ideas.md](./decisions/ideas.md) (журнал с логикой
+и отвергнутыми вариантами) и в openspec-спеках (`openspec/specs/`,
+`openspec/changes/`) — повторять его в отдельных design-доках не станем.
 
 ## decisions/
 
