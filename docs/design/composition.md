@@ -3,7 +3,8 @@
 > **Целевое состояние V1.** Логика решений: [ideas.md](../decisions/ideas.md) —
 > «Модульный монолит: фичи, `select`, дискавери из дерева модулей» [2026-07-08],
 > «Жизненный цикл: фазы, `@OnStart`/go-live, гарантия `dispatch`» [2026-07-08],
-> «Kernel/user space; конфиг как token-families» [2026-07-08].
+> «Kernel/user space; конфиг как token-families» [2026-07-08],
+> «Policy-check на собранном графе» [2026-07-14].
 > Статус реализации — [roadmap](../decisions/roadmap.md).
 
 ## 1. Жизненный цикл
@@ -75,6 +76,7 @@ assemble({
   select?,      // L2
   transports?,  // L0+ провайдеры транспортов
   plugins?,     // L1+ ambient cross-cutting (тонкий root-bag)
+  policies?,    // инварианты на собранном графе (pipeline.md §7)
   dispatch?,    // L4  'local-first' | 'always-remote' | 'balanced'
 }): App         // → app.run()
 ```
@@ -132,15 +134,15 @@ await assemble({
 
 ### L1 — + типизированный config (никакого `process.env` в коде)
 
-Секция — только схема + ключи, source-agnostic; источники — в корне.
+Секция — рекорд полей, source-agnostic; источники — в корне.
 Полная модель конфига — [config.md](./config.md).
 
 ```typescript
 // orders.config.ts — из пакета наружу идёт только OrdersConfig.keys
-export const OrdersConfig = makeConfig('orders', z.object({
+export const OrdersConfig = makeConfig('orders', {
   maxItems:    z.coerce.number().default(100),   // ← ключ ORDERS_MAX_ITEMS
   databaseUrl: from('DATABASE_URL', z.url()),     // общий ключ, без префикса
-}));
+});
 
 // orders.service.ts — конфиг инжектится типизированным срезом
 @Injectable([OrdersConfig])
@@ -168,9 +170,9 @@ export const OrdersFeature  = makeFeature({ name: 'orders',  modules: [OrdersMod
 export const BillingFeature = makeFeature({ name: 'billing', modules: [BillingModule] });
 
 // config.ts — select читается в bootstrap (фаза 0, до контейнера)
-export const RootConfig = makeConfig('', z.object({
+export const RootConfig = makeConfig('', {
   FEATURES: z.string().default('all'), // 'all' | 'orders,billing'
-}));
+});
 
 // main.ts — load() делает примордиальное чтение select до контейнера
 const cfg = await load(RootConfig);

@@ -3,18 +3,19 @@
 > **Целевое состояние V1.** Логика решений: [ideas.md](../decisions/ideas.md) —
 > «Kernel/user space; конфиг как token-families» [2026-07-08] (+ финал
 > открытых вопросов), «Конфиг: keys-capability вместо `configs:`-владения»
-> [2026-07-10], «Конфиг: `secret()` и общие ключи» [2026-07-13].
+> [2026-07-10], «Конфиг: `secret()` и общие ключи» [2026-07-13],
+> «Конфиг: форма секции — рекорд полей» [2026-07-14].
 > Статус реализации — [roadmap](../decisions/roadmap.md).
 
-## 1. Секция: схема + ключи, source-agnostic
+## 1. Секция: рекорд полей, source-agnostic
 
 ```typescript
 // orders.config.ts — из пакета наружу идёт только хэндл ключей
-export const OrdersConfig = makeConfig('orders', z.object({
+export const OrdersConfig = makeConfig('orders', {
   maxItems:    z.coerce.number().default(100),     // ← ключ ORDERS_MAX_ITEMS
   databaseUrl: from('DATABASE_URL', z.url()),       // точное имя, общий ключ
   apiToken:    secret(z.string()),                  // редактируется в выводе
-}));
+});
 export const ordersKeys = OrdersConfig.keys;        // экспортируемая capability привязки
 
 @Injectable([OrdersConfig])
@@ -23,6 +24,11 @@ export class OrdersService {
 }
 ```
 
+- Секция — **рекорд полей**: перечислимость полей живёт на уровне
+  JS-объекта, листья — произвольные Standard Schema
+  ([schemas.md](./schemas.md)), `from()`/`secret()` — обёртки листьев.
+  Деривация ключей, реестр для доков и привязка не требуют интроспекции
+  вендорских схем. Поля валидируются независимо.
 - Префикс строит имена ключей (`maxItems` → `ORDERS_MAX_ITEMS`);
   `from('KEY')` задаёт точное имя. **Источник не называется** — секция
   провенанс-слепа: читает ключ, не зная, откуда пришло значение
@@ -72,10 +78,10 @@ await assemble({
 ## 4. Reloadable
 
 ```typescript
-export const Runtime = makeConfig.reloadable('runtime', z.object({
+export const Runtime = makeConfig.reloadable('runtime', {
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   rps:      z.coerce.number().default(100),
-}));
+});
 
 // (а) read-latest — читаем при каждом использовании, подписка не нужна
 @Injectable([Runtime])

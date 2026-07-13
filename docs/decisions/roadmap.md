@@ -14,7 +14,10 @@
 23–27 — 2026-07-13 по итогам критического ревью, пп. 5–7
 ([d/06](../history/discussions/06-critical-design-review.md)); 24
 (`endpoint-model`) детализирован дискуссией
-[d/08](../history/discussions/08-endpoint-declarations-and-styles.md).
+[d/08](../history/discussions/08-endpoint-declarations-and-styles.md);
+28 — 2026-07-14 по записи «Policy-check на собранном графе» (закрывает
+d/06 П.3). Состав breaking-окна фиксации публичного API V1 закрыт:
+17, 19, 21, 23, 24 ([ideas.md [2026-07-14]](./ideas.md) «Kernel 1.0»).
 
 | # | Change | Суть | Размер | Статус |
 |---|---|---|---|---|
@@ -26,7 +29,7 @@
 | 6 | `streaming-v2` | `stream` ≠ `events`, item-цепочки на io-декларации, `Topic`, `summary`, SSE; io-декларация как дерево форм (`value`/`stream`/`events`/`multipart` + `upload()`, листья — Standard Schema), поэлементная валидация; capability-валидация биндинга: формы контракта vs способности транспорта, fail-fast на ASSEMBLE | L | не начат |
 | 7 | `subscriptions-registry` | пакет реестра подписок поверх signal + finish-хуков (dogfooding публичных примитивов) | M | не начат |
 | 8 | `endpoint-discovery` | эндпоинты и транспорты — дискавери из дерева зарегистрированных модулей вместо глобального registry (чинит протечку глобального `Set` при любом импорте). Предпосылка фич | S | **spec-ready** — [d/05 §1](../history/discussions/05-modular-monolith-features-ports.md) |
-| 9 | `config-module` | `makeConfig('prefix', schema)` + `from`; источники = объекты `ConfigSource` в одной приватной читалке (env — база, координаты из примордиального env); приватность = keys-capability (токен секции не экспортируется, наружу — branded-хэндл `.keys`; без `configs:`-регистрации и build()-проверки владения); привязка в корне плоским списком `config: [[src, keys \| glob]]`; reloadable (`Topic`/`AbortSignal`, живой хэндл); on-demand/unbound + доки из реестра (тег фичи из графа + флаг). Поверх `token-families` (5) | M–L | **spec-ready** — [d/05 §11,§15](../history/discussions/05-modular-monolith-features-ports.md) + ревизия владения [ideas.md [2026-07-10]](./ideas.md) |
+| 9 | `config-module` | `makeConfig('prefix', schema)` + `from`; источники = объекты `ConfigSource` в одной приватной читалке (env — база, координаты из примордиального env); приватность = keys-capability (токен секции не экспортируется, наружу — branded-хэндл `.keys`; без `configs:`-регистрации и build()-проверки владения); привязка в корне плоским списком `config: [[src, keys \| glob]]`; reloadable (`Topic`/`AbortSignal`, живой хэндл); on-demand/unbound + доки из реестра (тег фичи из графа + флаг). Поверх `token-families` (5) | M–L | **spec-ready** — [d/05 §11,§15](../history/discussions/05-modular-monolith-features-ports.md) + ревизия владения [ideas.md [2026-07-10]](./ideas.md) + форма секции — рекорд полей [ideas.md [2026-07-14]](./ideas.md) |
 | 10 | `features` | `makeFeature`/`select`/`assemble`; `@OnStart`/go-live (гарантия `dispatch`: `serve(dispatch, signal)` вместо `listen()`); транспорты как провайдеры; capability = DI + fail-fast | L | design — [d/05 §2,§7–§10](../history/discussions/05-modular-monolith-features-ports.md) |
 | 11 | `ports` | `makeContract` (request/command/event), `Port`/`Emitter`, `IMessageBus`, `InProcessBus`, dispatch-policy; local/remote-биндинг на сборке (co-located, L3) | L | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
 | 12 | `transport.nats` | NATS как inbound+outbound транспорт; queue-groups для реплик; remote-биндинг портов; JetStream для `durable` (split, L4) | M | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
@@ -45,6 +48,7 @@
 | 25 | `config-secrets` | `secret(schema)` в `makeConfig` (редактирование в `explain()`/логах/доках); семантика общих ключей: независимая валидация каждой секцией, fail-fast на несогласованном `reloadable`, секретность по объединению, читатели ключа в `explain()` | S | идея — [ideas.md [2026-07-13]](./ideas.md) |
 | 26 | `contract-versioning` | версия явно в имени контракта; схемный дифф против снапшота опубликованных схем; отчёт breaking changes в `.check()`-матрице CI — подсвечивает, не блокирует | S–M | идея — [ideas.md [2026-07-13]](./ideas.md) |
 | 27 | `port-deadline-idempotency` | `meta.deadline` (gRPC-модель: абсолютный момент в процессе, относительный timeout по проводу, fail-fast `DeadlineExceededError` до вызова, встроенный код); `idempotencyKey` в meta для `command` (провоз через транспорт; дедупликация — satellite, не ядро) | M | идея — [ideas.md [2026-07-13]](./ideas.md) |
+| 28 | `policy-check` | инварианты на собранном графе: `assemble({ policies })`, `everyEndpoint(фильтр).hasLayer(ref)` (идентичность слоя — по ссылке); `detached: '<причина>'` (строка обязательна) + печать detached-ручек на старте; ESLint-правило как editor-фидбек; машинерия для 13 (plugins) и 16 (async-context), прогон в `.check()`-матрице (18) | S–M | идея — [ideas.md [2026-07-14]](./ideas.md) |
 
 ## Порядок и зависимости
 
@@ -76,6 +80,7 @@
   25 config-secrets — после 9 (makeConfig, explain(), реестр ключей)
   26 contract-versioning — после 11 (makeContract); отчёт живёт в .check()-матрице (18)
   27 port-deadline-idempotency — после 11 (dispatch); wire-часть — вместе с 12
+  28 policy-check — после 4 (слои-значения) и 8 (полный граф endpoints); используется 13 и 16
 ```
 
 Базовая ветка:
