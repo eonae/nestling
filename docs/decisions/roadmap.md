@@ -7,7 +7,8 @@
 
 Составлен 2026-07-06 по итогам аудита и серии архитектурных сессий;
 дополнен 2026-07-08 (changes 8–13) по сессии модульного монолита —
-логика в [discussions/05](../history/discussions/05-modular-monolith-features-ports.md).
+логика в [discussions/05](../history/discussions/05-modular-monolith-features-ports.md);
+14–18 добавлены 2026-07-10 по записям в [ideas.md](./ideas.md).
 
 | # | Change | Суть | Размер | Статус |
 |---|---|---|---|---|
@@ -28,6 +29,7 @@
 | 15 | `error-model` | Fail — значение (возврат ≡ бросок; фикс `normalizeResponse`: возвращённый `Fail` сейчас уезжает как `200 OK`); `Output<T>` включает `Fail`, дискриминант `isFail`; словарь статусов (`CONFLICT`, `TIMEOUT`, `TOO_MANY_REQUESTS`) + `code`/`cause`; `defineFail` (code-идентичность вместо instanceof); `errors:` в контракте endpoint'а, типизированный канал (`Output<T, E>` + бросатель `meta.fail`); граница нормализует незадекларированное в `UnknownError` → закрытый контракт `E ∪ UnknownError` | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
 | 16 | `async-context` | `contextVar<T>` + инжектируемые ридеры `Ctx(Var)` (token family); read-only ALS-проекция накопленного `input` (+ `signal`), писатель — только рантайм пайплайна; `get()/peek()` (зеркало полный/Partial); `propagate` через remote-порты; opt-in policy-check присутствия на `build()` | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
 | 17 | `pipeline-drop-after` | убрать `.after` из билдера/типов/рантайма (`ResponsePhase` = `'ok' \| 'catch'`); словарь ответного тракта — Promise-тройка `ok`/`catch`/`finally`; правка спеков и доков (`docs/preview`) | S, breaking | идея — [ideas.md [2026-07-10]](./ideas.md) |
+| 18 | `testing-package` | `@nestling/testing`: `assembleTest` (`overrides` только в тестовом корне; подстановка на ASSEMBLE + прунинг осиротевших поддеревьев; фазы 0–3 без START → in-proc `app.call`/`app.emit` по схемам; `await using` → SHUTDOWN), `vars()` (объектный `ConfigSource` c `watch`/`set`), `stub(Contract, impl)` (фейк-порт, валидируемый схемой контракта), `familyOverride`, `.check()` (фазы 0–1, матрица `select`-топологий в CI), `testModule()`; конвенция `./testing`-subpath (conditional export) | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
 
 ## Порядок и зависимости
 
@@ -49,6 +51,7 @@
   5 token-families ─→ 9 config-module ─┘        │
   4 pipeline-v2 ────────────────────────────────┼─→ 13 plugins
   6 streaming-v2 (Topic) ── переиспользуется 11 (InProcessBus) и 9 (reloadable)
+  18 testing-package — ядро после 9+10 (assemble, фазы, vars); stub(Contract) — после 11
 ```
 
 Базовая ветка:
@@ -78,6 +81,10 @@
 - **12 `transport.nats`** — после 11 (remote-биндинг, queue-groups, JetStream).
 - **13 `plugins`** — после 10 (feature-scoped инфра) и 4 (pipeline-слои);
   startup policy-check — из отложенного в pipeline-v2.
+- **18 `testing-package`** — ядро (`assembleTest`, `.check()`, `vars()`,
+  `testModule`) после 9 и 10 (нужны `assemble`, фазовый lifecycle, источники);
+  `stub(Contract)` — после 11; `familyOverride` — уже после 5. Можно доставлять
+  инкрементально вместе с соответствующими changes.
 - Рекомендуемый вход в ветку: **8 → 9 → 10 → 11 → 12**, `13` — параллельно после 10.
 
 ## Как работать
