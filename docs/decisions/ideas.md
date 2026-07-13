@@ -504,7 +504,7 @@ output: events(OrderEvent)
    всё равно неловко.
 
 Документация с полными примерами (мостики, отмена, backpressure,
-функциональный и классовый стили): [design/rxjs.md](../design/rxjs.md).
+функциональный и классовый стили): [design/rxjs.md](../history/superseded/rxjs-design-page.md).
 
 ### Открытые вопросы (сводно по pipeline v2 и item-цепочкам)
 
@@ -526,7 +526,7 @@ output: events(OrderEvent)
 ## [2026-07-08] Модульный монолит: фичи, `select`, дискавери из дерева модулей
 
 Полная логика сессии: [discussions/05](../history/discussions/05-modular-monolith-features-ports.md).
-Целевые примеры и схема жизненного цикла: [design/composition-and-lifecycle](../design/composition-and-lifecycle.md).
+Целевые примеры и схема жизненного цикла: [design/composition-and-lifecycle](../history/superseded/composition-and-lifecycle.md).
 
 ### Контекст
 
@@ -1259,7 +1259,7 @@ eager-валидация и reload держатся на token family (билд�
 Суперсид: пункт «приватность конфига» и цель привязки «токен группы» из финала
 §15 (запись [2026-07-08], «Kernel/user space; конфиг как token-families» →
 «Открытые вопросы»); соответствующие фрагменты
-[composition-and-lifecycle.md](../design/composition-and-lifecycle.md) и
+[composition-and-lifecycle.md](../history/superseded/composition-and-lifecycle.md) и
 roadmap item 9 обновлены этим же изменением.
 
 ---
@@ -1886,9 +1886,9 @@ DI/lifecycle/модульный монолит» — пуста.
 - Форма `implement` с deps: `implement(C, { deps, handle })` vs общий объект.
 
 Суперсид: двухстилевая прогрессия
-[composition-and-lifecycle](../design/composition-and-lifecycle.md) §4/§5
+[composition-and-lifecycle](../history/superseded/composition-and-lifecycle.md) §4/§5
 переработана этим же изменением (одна прогрессия + «Формы хендлера»);
-примеры [rxjs.md](../design/rxjs.md) приведены к канону.
+примеры [rxjs.md](../history/superseded/rxjs-design-page.md) приведены к канону.
 
 ---
 
@@ -2019,3 +2019,52 @@ tsserver, хрупкость при обновлениях TS. Без специ
   (queue-group-воркеры) + сантехника (wildcard-аудиторы), `natsEndpoint` как
   третье понятие не нужен. Проверить при реализации.
 - Streaming через шину — v2 (после 6, проектировать вместе с AsyncAPI).
+
+---
+
+## [2026-07-13] Документация: `design/` — полное целевое состояние V1
+
+### Контекст
+
+Полный аудит и внешняя критика доков (продолжение
+[d/06](../history/discussions/06-critical-design-review.md)) показали
+системный дрейф: после решения «дистилляции не будет — без двойной
+бухгалтерии» (фиксировалось в docs/README) целевой дизайн большинства
+подсистем (pipeline, контейнер, конфиг, ошибки, порты, стриминг) жил только
+в журнале решений; три design-дока покрывали лишь часть поверхности и
+отставали от свежих записей (Standard Schema, `secret()`, deadline,
+bind-карта — ни один не был отражён; path-параметры не показаны ни в одном
+примере). Одновременно в доках смешивались целевое состояние и порядок
+работ («до релиза pipeline v2», roadmap-номера в design-тексте) — при том,
+что разрабатывается V1 и никакого «v2» как имени API не существует.
+
+### Решение
+
+1. **`design/` = полное целевое состояние V1**, по одному доку на подсистему
+   (карта — `design/README.md`): principles, container, composition,
+   pipeline, endpoints, contracts, config, errors, schemas, streaming,
+   transports, testing. Доки пишутся в настоящем времени, «как будто
+   реализовано».
+2. **В design-доках нет порядка работ и статусов реализации** — только
+   плашка «Целевое состояние V1» со ссылками: записи ideas.md (логика,
+   отвергнутые варианты) и roadmap (статус). Дизайн без записи в журнале
+   в design/ не попадает.
+3. **Слова «v2» в целевых доках не существует**: осознанно исключённое из
+   V1 живёт в deferred.md и открытых вопросах записей. Имена changes
+   (`pipeline-v2`, `streaming-v2`) остаются идентификаторами изменений,
+   не версиями продукта; формулировки «до релиза pipeline v2» в roadmap
+   заменены на «до фиксации публичного API V1».
+4. Прежние design-доки распределены и перенесены в `history/superseded/`
+   с плашками (composition-and-lifecycle, transport-centric-http,
+   rxjs-страница).
+
+### Отвергнутые варианты
+
+- **Сохранить «журнал + спеки как единственное описание»** (решение
+  «без двойной бухгалтерии») — цена двойной бухгалтерии оказалась меньше
+  цены отсутствия целостного описания: журнал append-only и хронологичен,
+  читать целевую картину по 15 записям с суперсидами невозможно, дрейф
+  дизайна никем не замечается. Двойная бухгалтерия управляема правилом
+  «поменял решение → правь док тем же изменением» + `/docs-audit`.
+- **Статусные плашки «частично реализовано» в design/** — смешивают ось
+  «что хотим» с осью «что сделано»; вторая ось целиком уехала в roadmap.

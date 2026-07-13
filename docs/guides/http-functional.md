@@ -1,7 +1,10 @@
 # HTTP-сервер в функциональном стиле
 
 ✅ **Статус: актуально** — сверено с кодом `examples.simple-http-server`
-(2026-07-13). Запускаемый код — в
+(2026-07-13). ⚠️ В целевом V1 фаза `.after` уходит (roadmap 17), а канон
+деклараций — per-transport конструкторы (`httpEndpoint`,
+[design/endpoints.md](../design/endpoints.md), roadmap 24); `makeEndpoint`
+остаётся kernel-примитивом. Запускаемый код — в
 [`packages/examples.simple-http-server/`](../../packages/examples.simple-http-server/).
 
 Минимальный уровень фреймворка: без DI-контейнера, без классов и декораторов.

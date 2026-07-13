@@ -58,13 +58,13 @@
   14 multi-injection (Family.all) — после 5, аддитивно
   15 error-model — после 4 (normalizeResponse, Output); нужен 11 ports (ре-гидрация Fail)
   16 async-context — после 4 и 5 (Ctx — token family); propagate нужен 12 transport.nats
-  17 pipeline-drop-after — после 4, до релиза pipeline v2 (пока .after никто не использует)
-  19 standard-schema — после 4, до релиза pipeline v2 (breaking: SchemaValidationError)
+  17 pipeline-drop-after — после 4, до фиксации публичного API V1 (пока .after никто не использует)
+  19 standard-schema — после 4, до фиксации публичного API V1 (breaking: SchemaValidationError)
   21 input-bind — после 4 (декларации); несущий уровень для 20 и 22
   20 openapi — после 19, 8 (дискавери) и 21 (bind-карта); errors: → responses требует 15
   22 contract-clients — после 11 (makeContract), 15 (defineFail/errors:), 19 и 21
-  23 pipeline-type-dx — после 4, до релиза pipeline v2 (до фиксации публичного API)
-  24 endpoint-model — после 4, рядом с 8 (реестр умирает вместе с @Endpoint); до релиза pipeline v2
+  23 pipeline-type-dx — после 4, до фиксации публичного API V1
+  24 endpoint-model — после 4, рядом с 8 (реестр умирает вместе с @Endpoint); до фиксации публичного API V1
 
 ветка «модульный монолит» (сессия 2026-07-08):
   8 endpoint-discovery ─┐
@@ -94,7 +94,7 @@
 - **16 `async-context`** — после 5 (ридеры `Ctx(Var)` — члены семейства);
   `propagate` реализуется вместе с 12 (`transport.nats`); policy-check
   присутствия — та же машинерия, что startup policy-check в 13 (`plugins`).
-- **19 `standard-schema`** — после 4; желательно до релиза pipeline v2, пока
+- **19 `standard-schema`** — после 4; желательно до фиксации публичного API V1, пока
   на `SchemaValidationError.zodError` никто не опёрся (breaking сменой формата
   на стандартные `issues`).
 - **20 `openapi`** — после 19 (конвертеры), 8 (дискавери endpoints из дерева)
@@ -114,12 +114,12 @@
   на клиенте) и 21 (bind-карта). Streaming-клиент — v2, после 6. Логика —
   [ideas.md [2026-07-13]](./ideas.md) «Типизированные клиенты из контрактов»,
   дискуссия — [d/07](../history/discussions/07-typed-clients.md).
-- **23 `pipeline-type-dx`** — после 4, **до релиза pipeline v2**: типы-ошибки
+- **23 `pipeline-type-dx`** — после 4, **до фиксации публичного API V1**: типы-ошибки
   и пороги дешевле вводить до фиксации публичного API; после релиза упрощение
   типов — breaking. Логика — [ideas.md [2026-07-13]](./ideas.md)
   «Бюджет на DX типов pipeline».
 - **24 `endpoint-model`** — после 4; логично ехать в том же breaking-окне, что
-  17/19 (до релиза pipeline v2); делать рядом с 8 (глобальный реестр умирает
+  17/19 (до фиксации публичного API V1); делать рядом с 8 (глобальный реестр умирает
   вместе с `@Endpoint`). Согласован с 21 (bind-карта разворачивается в
   конструкторе декларации) и 22 (`httpEndpoint` — инлайн-форма контракта);
   желательно до 15 (типизированный канал `E` проектируется под единственную

@@ -1,6 +1,8 @@
 # CLI-транспорт
 
 ✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-13).
+⚠️ В целевом V1 канон деклараций — per-transport конструкторы (`cliEndpoint`,
+[design/endpoints.md](../design/endpoints.md), roadmap 24).
 Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).
 
 Те же endpoints и pipeline, что и в HTTP, — но команды вместо маршрутов.

@@ -51,13 +51,19 @@ const mdFiles = (dir) =>
 const head = (file, n = 12) =>
   readFileSync(file, 'utf8').split('\n').slice(0, n).join(' ');
 
-// ── 1. Плашка статуса в каждом design/*.md ──────────────────────────────────
+// ── 1. Плашка «Целевое состояние V1» в каждом design/*.md (кроме README) ────
+// В design/ нет статусов реализации: старая плашка «**Статус:**» — тоже ошибка.
 
 const designFiles = mdFiles(join(DOCS, 'design'));
-for (const f of designFiles) {
+for (const f of designFiles.filter((f) => f !== 'README.md')) {
   const file = join(DOCS, 'design', f);
-  if (!/\*\*Статус:?/i.test(head(file))) {
-    add('ERROR', 'design-plate', file, 'нет плашки «**Статус:**» в первых 12 строках');
+  if (!/\*\*Целевое состояние V1/i.test(head(file))) {
+    add('ERROR', 'design-plate', file,
+      'нет плашки «**Целевое состояние V1**» в первых 12 строках');
+  }
+  if (/\*\*Статус:?/i.test(head(file))) {
+    add('ERROR', 'design-plate', file,
+      'плашка «**Статус:**» в design/ запрещена — статусы реализации живут в roadmap');
   }
 }
 
@@ -89,22 +95,44 @@ for (const f of guideFiles) {
   }
 }
 
-// ── 3. Таблицы docs/README.md полны в обе стороны ───────────────────────────
+// ── 3. Карты полны в обе стороны ─────────────────────────────────────────────
+// Гайды — таблица в docs/README.md; design-доки — карта в docs/design/README.md.
 
 const readmePath = join(DOCS, 'README.md');
 const readme = readFileSync(readmePath, 'utf8');
-for (const [dir, files] of [['design', designFiles], ['guides', guideFiles]]) {
+{
   const listed = new Set(
-    [...readme.matchAll(new RegExp(`\\]\\(\\./${dir}/([^)#]+\\.md)`, 'g'))].map((m) => m[1]),
+    [...readme.matchAll(/\]\(\.\/guides\/([^)#]+\.md)/g)].map((m) => m[1]),
   );
-  for (const f of files) {
+  for (const f of guideFiles) {
     if (!listed.has(f)) {
-      add('ERROR', 'readme-table', readmePath, `docs/${dir}/${f} не упомянут в docs/README.md`);
+      add('ERROR', 'readme-table', readmePath, `docs/guides/${f} не упомянут в docs/README.md`);
     }
   }
   for (const f of listed) {
-    if (!files.includes(f)) {
-      add('ERROR', 'readme-table', readmePath, `ссылка на несуществующий docs/${dir}/${f}`);
+    if (!guideFiles.includes(f)) {
+      add('ERROR', 'readme-table', readmePath, `ссылка на несуществующий docs/guides/${f}`);
+    }
+  }
+}
+
+const designMapPath = join(DOCS, 'design', 'README.md');
+if (!existsSync(designMapPath)) {
+  add('ERROR', 'design-map', join(DOCS, 'design'), 'нет карты docs/design/README.md');
+} else {
+  const designMap = readFileSync(designMapPath, 'utf8');
+  const listed = new Set(
+    [...designMap.matchAll(/\]\(\.\/([^)#/]+\.md)/g)].map((m) => m[1]),
+  );
+  for (const f of designFiles.filter((f) => f !== 'README.md')) {
+    if (!listed.has(f)) {
+      add('ERROR', 'design-map', designMapPath,
+        `docs/design/${f} не упомянут в карте design/README.md`);
+    }
+  }
+  for (const f of listed) {
+    if (!designFiles.includes(f)) {
+      add('ERROR', 'design-map', designMapPath, `ссылка на несуществующий docs/design/${f}`);
     }
   }
 }
