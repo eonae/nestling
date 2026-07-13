@@ -135,17 +135,22 @@ assemble({
 
 ### Конфигурация: секции + одна центральная читалка (token-families)
 
-Модель конфига — **финальная (2026-07-08): конфиг как token-families,
-`sources`/merged-`Vars` убраны.** Полная логика — [ideas.md](../decisions/ideas.md)
-(«Kernel/user space; конфиг как token-families») и
+Модель конфига — **конфиг как token-families, `sources`/merged-`Vars` убраны
+(2026-07-08); владение и привязка пересмотрены на keys-capability (2026-07-10).**
+Полная логика — [ideas.md](../decisions/ideas.md) («Kernel/user space; конфиг как
+token-families» + «Конфиг: keys-capability вместо `configs:`-владения») и
 [discussions/05 §15](../history/discussions/05-modular-monolith-features-ports.md).
 
 Секция объявляется `makeConfig('prefix', schema)`: префикс строит имя ключа
 (`maxItems` → `ORDERS_MAX_ITEMS`), `from('KEY')` задаёт точное имя. **Источник не
 называется** — секция (user space) провенанс-слепа: читает ключ, не зная, откуда
-пришло значение (syscall-граница, как чтение `fd`). Владеет секцией модуль
-(`configs: [OrdersConfig]`); инжект секции **чужим** модулем → ошибка на `build()`
-(структурная, ловится в любом тесте/CI).
+пришло значение (syscall-граница, как чтение `fd`). Приватность — две capability
+у одной секции: **токен** (право инжекта) не экспортируется из пакета — чужой
+инжект невозможен синтаксически (ES-видимость, без отдельной регистрации
+`configs:` и проверки владения); **`OrdersConfig.keys`** (право привязки) —
+экспортируемый branded-хэндл набора ключей, инжектировать его нечем, поэтому
+экспорт безопасен. Привязка в корне адресует ключи (хэндлы и глобы), а не токены —
+читалка работает в своём домене.
 
 Источники — **не провайдеры**, а объекты `ConfigSource { get; init?; close?; watch? }`
 в одной приватной читалке (kernel). `env` — неявный пол; свои координаты (`path`,
@@ -156,24 +161,22 @@ assemble({
 
 ```typescript
 // секция — только схема + ключи, источник не называется
-export const OrdersConfig = makeConfig('orders', z.object({
+const OrdersConfig = makeConfig('orders', z.object({   // токен НЕ экспортируется из пакета
   maxItems:    z.coerce.number().default(100),   // ← ключ ORDERS_MAX_ITEMS
   databaseUrl: from('DATABASE_URL', z.url()),     // общий ключ, без префикса
 }));
-
-// модуль владеет секцией:
-//   makeAppModule({ name: 'module:orders', providers: [...], configs: [OrdersConfig] })
+export const ordersKeys = OrdersConfig.keys;      // наружу — только хэндл ключей
 
 // корень: только env → про конфиг ничего; появился второй источник → привязываешь
 await assemble({
   modules: [OrdersModule],
   transports: [http()],                            // порт — из HttpConfig, не литерал
 }).run();
-// с vault/файлом:  config: [[vault(), [OrdersConfig]], [file('config.yaml'), ['*_URL']]]
+// с vault/файлом:  config: [[vault(), [ordersKeys]], [file('config.yaml'), ['*_URL']]]
 ```
 
-Жадный контейнер инстанцирует все секции выбранных фич на `build()` → валидация
-eager → **невалидный конфиг на старте = FAIL-FAST**.
+Жадный контейнер инстанцирует все потреблённые секции выбранных фич на `build()`
+→ валидация eager → **невалидный конфиг на старте = FAIL-FAST**.
 
 ### Reloadable-конфиги
 
@@ -269,6 +272,7 @@ await assemble({
 
 ```typescript
 // orders.config.ts — секция: схема + ключи, БЕЗ источников
+// экспорт файла ≠ экспорт пакета: из пакета наружу идёт только OrdersConfig.keys
 export const OrdersConfig = makeConfig('orders', z.object({
   maxItems:    z.coerce.number().default(100),   // ← ключ ORDERS_MAX_ITEMS
   databaseUrl: from('DATABASE_URL', z.url()),     // общий ключ, без префикса
@@ -284,13 +288,13 @@ export class OrdersService {
   }
 }
 
-// orders.module.ts — модуль владеет секцией: configs: [OrdersConfig]
+// orders.module.ts — отдельной регистрации нет: секция авто-дискаверится из инжекта
 // main.ts — только env → про конфиг в корне ничего (env — неявный пол; валидация eager → FAIL-FAST)
 await assemble({
   modules: [OrdersModule],
   transports: [http({ port: 3000 })],
 }).run();
-// появился второй источник → привязываешь: config: [[file('config.yaml'), [OrdersConfig]]]
+// появился второй источник → привязываешь: config: [[file('config.yaml'), [OrdersConfig.keys]]]
 ```
 
 ### L2 — + features + select (модульный монолит с выбором)
@@ -434,14 +438,13 @@ export const makeOrdersService = (cfg: Config<typeof OrdersConfig>) => ({
 
 export const OrdersModule = makeModule({
   name: 'module:orders',
-  configs: [OrdersConfig],              // владение секцией
   providers: [
-    factoryProvider(OrdersService, makeOrdersService, [OrdersConfig]),
+    factoryProvider(OrdersService, makeOrdersService, [OrdersConfig]), // секция — обычная зависимость
     factoryProvider(CreateOrder, makeCreateOrder, [OrdersService]),
   ],
 });
 
-// только env → про конфиг в корне ничего; второй источник → config: [[file('config.yaml'), [OrdersConfig]]]
+// только env → про конфиг в корне ничего; второй источник → config: [[file('config.yaml'), [OrdersConfig.keys]]]
 await assemble({
   modules: [OrdersModule],
   transports: [http({ port: 3000 })],
