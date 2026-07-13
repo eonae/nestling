@@ -3,8 +3,9 @@
 > Как использовать RxJS внутри хендлеров — и почему он не нужен фреймворку.
 
 ⚠️ **Статус:** страница описывает целевой API из [decisions/ideas.md](../decisions/ideas.md)
-(`compose`, `events()`, item-цепочки, `meta.signal`, `Topic`). Часть этого
-API ещё не реализована. При расхождении — источник истины `docs/decisions/ideas.md`.
+(`compose`, `events()`, item-цепочки, `meta.signal`, `Topic`, единая модель
+endpoint-деклараций [2026-07-13]). Часть этого API ещё не реализована.
+При расхождении — источник истины `docs/decisions/ideas.md`.
 
 ---
 
@@ -58,7 +59,7 @@ Observable → `from()` перестаёт тянуть вход. Дополни
 (AbortSignal запроса: дисконнект клиента / graceful shutdown / админский
 abort подписки) закрывает подписки на источники независимо.
 
-## Пример 1: окна по времени (функциональный стиль)
+## Пример 1: окна по времени (хендлер без зависимостей)
 
 Клиент льёт поток метрик (NDJSON), ответ — агрегаты по секундным окнам.
 На голых итераторах «окно по времени» — это гонка таймера против
@@ -69,7 +70,8 @@ import { bufferTime, filter, from, map } from 'rxjs';
 import { eachValueFrom } from 'rxjs-for-await';
 import z from 'zod';
 
-import { makeEndpoint, stream } from '@nestling/pipeline';
+import { stream } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 import { base, guardedStream } from '../infra/pipelines';
 
 const MetricPoint = z.object({ name: z.string(), value: z.number(), ts: z.number() });
@@ -86,9 +88,9 @@ const summarize = (batch: MetricPoint[]): WindowAggregate => ({
   windowEnd: new Date().toISOString(),
 });
 
-export const AggregateMetrics = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /metrics/aggregate',
+export const AggregateMetrics = httpEndpoint({
+  method: 'POST',
+  path: '/metrics/aggregate',
   input: guardedStream(MetricPoint),   // item-цепочка: лимиты/таймауты — без Rx
   output: stream(WindowAggregate),
   pipeline: base,
@@ -110,7 +112,7 @@ export const guardedStream = <S extends ZodType>(schema: S) =>
   stream(schema).limit(50_000).gapTimeout(30_000);
 ```
 
-## Пример 2: слияние двух хабов (классовый стиль, DI)
+## Пример 2: слияние двух хабов (DI, класс-хендлер)
 
 Живая лента активности: заказы и платежи из двух горячих источников,
 слитые в одну SSE-подписку с троттлингом.
@@ -158,20 +160,15 @@ import { from, map, merge, throttleTime } from 'rxjs';
 import { eachValueFrom } from 'rxjs-for-await';
 
 import { Injectable } from '@nestling/container';
-import { Endpoint, events, type IEndpoint } from '@nestling/pipeline';
+import { events } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 
 import { ActivityEvent, type Order, type Payment } from './activity.model';
 import { OrdersHub, PaymentsHub } from './hubs';
 import { base } from '../../infra/pipelines';
 
 @Injectable([OrdersHub, PaymentsHub])
-@Endpoint({
-  transport: 'http',
-  pattern: 'GET /activity/live',
-  output: events(ActivityEvent).tap(e => console.debug('out:', e.kind)),
-  pipeline: base,
-})
-export class ActivityFeedEndpoint implements IEndpoint {
+export class ActivityFeedHandler {
   constructor(
     private readonly orders: OrdersHub,
     private readonly payments: PaymentsHub,
@@ -192,27 +189,35 @@ export class ActivityFeedEndpoint implements IEndpoint {
   #paymentToActivity = (p: Payment): ActivityEvent =>
     ({ kind: 'payment', summary: `Платёж ${p.id}: ${p.amount}₽`, at: new Date().toISOString() });
 }
+
+// декларация — значение; класс-хендлер App резолвит из контейнера
+export const ActivityFeed = httpEndpoint({
+  method: 'GET',
+  path: '/activity/live',
+  output: events(ActivityEvent).tap(e => console.debug('out:', e.kind)),
+  pipeline: base,
+  handle: ActivityFeedHandler,
+});
 ```
 
 ```typescript
 // module + bootstrap
-import { App, makeAppModule } from '@nestling/app';
-import { HttpTransport } from '@nestling/transport.http';
+import { assemble, makeModule } from '@nestling/app';
+import { http } from '@nestling/transport.http';
 
-import { ActivityFeedEndpoint } from './activity-feed.endpoint';
+import { ActivityFeed } from './activity-feed.endpoint';
 import { OrdersHub, PaymentsHub } from './hubs';
 
-export const ActivityModule = makeAppModule({
+export const ActivityModule = makeModule({
   name: 'module:activity',
   providers: [OrdersHub, PaymentsHub],
-  endpoints: [ActivityFeedEndpoint],
+  endpoints: [ActivityFeed],           // декларации — значения
 });
 
-const app = new App({
+await assemble({
   modules: [ActivityModule],
-  transports: { http: new HttpTransport({ port: 3000 }) },
-});
-await app.run();
+  transports: [http({ port: 3000 })],
+}).run();
 ```
 
 Обрати внимание на границу скоупов, ставшую физической:
@@ -229,11 +234,11 @@ await app.run();
 Хендлер с Rx внутри тестируется без фреймворка:
 
 ```typescript
-const endpoint = new ActivityFeedEndpoint(fakeOrdersHub, fakePaymentsHub);
+const handler = new ActivityFeedHandler(fakeOrdersHub, fakePaymentsHub);
 const controller = new AbortController();
 
 const events: ActivityEvent[] = [];
-for await (const e of endpoint.handle(undefined, { signal: controller.signal })) {
+for await (const e of handler.handle(undefined, { signal: controller.signal })) {
   events.push(e);
   if (events.length === 3) controller.abort();
 }

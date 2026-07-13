@@ -4,8 +4,12 @@
 `makeAppModule`/`makeModule`, `@HttpEndpoint`/`makeEndpoint`, `Ok`/`Fail`,
 `compose`/`makePipeline`, `meta.signal`. Проектируется (помечено `proposed`):
 `assemble`, `makeFeature` + `select`, `makeContract` + порты, config-модуль,
-транспорты-как-провайдеры, фазы `@OnStart`/go-live. Документ фиксирует, как эти
-слои складываются в один жизненный цикл и один composition root.
+транспорты-как-провайдеры, фазы `@OnStart`/go-live, единая модель
+endpoint-деклараций (`httpEndpoint` + `deps`; декораторные
+`@Endpoint`/`@HttpEndpoint` из целевой поверхности удалены —
+[ideas.md [2026-07-13]](../decisions/ideas.md) «Endpoint-декларации»).
+Документ фиксирует, как эти слои складываются в один жизненный цикл и один
+composition root.
 
 ---
 
@@ -100,9 +104,9 @@ assemble({
 }): App         // → app.run()
 ```
 
-Ниже — одна и та же прогрессия L0→L4 в двух стилях. Обрати внимание: **сам
-`assemble(...)` почти идентичен в обоих**; различаются строительные блоки
-(классы+декораторы против `make*`+factory-провайдеров), а не корень.
+Ниже — прогрессия L0→L4 в канонической форме: **сервисы — классы,
+endpoint-декларации — значения** (решение 2026-07-13, одна прогрессия вместо
+двух параллельных «стилей»); формы хендлера — §5.
 
 ---
 
@@ -223,36 +227,33 @@ await assemble({ config: [[reloadableFile('runtime.yaml'), [Runtime]]], /* ... *
 
 ---
 
-## 4. Классический стиль (классы + декораторы)
+## 4. Прогрессия L0–L4
 
 ### L0 — одна фича, как будто фич нет
 
 ```typescript
-// orders.service.ts
+// orders.service.ts — сервис: класс, сам себе токен
 @Injectable([])
 export class OrdersService {
   create(dto: NewOrder): Order { /* ... */ }
 }
 
-// create-order.endpoint.ts
-@Injectable([OrdersService])
-@HttpEndpoint('POST', '/orders', {
+// create-order.endpoint.ts — декларация: значение; словарь HTTP типизирован
+export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
   input: NewOrder,
   output: Order,
   pipeline: basePipeline,
-})
-export class CreateOrderEndpoint implements IEndpoint {
-  constructor(private orders: OrdersService) {}
-  async handle(input: NewOrder): Output<Order> {
-    return new Ok(this.orders.create(input));
-  }
-}
+  deps: [OrdersService],
+  handle: (orders) => async (input) => new Ok(orders.create(input)),
+});
 
 // orders.module.ts
-export const OrdersModule = makeAppModule({
+export const OrdersModule = makeModule({
   name: 'module:orders',
   providers: [OrdersService],
-  endpoints: [CreateOrderEndpoint],
+  endpoints: [CreateOrder],          // декларации — значения, не конструкторы
 });
 
 // main.ts — composition root
@@ -262,13 +263,24 @@ await assemble({
 }).run();
 ```
 
-Ни `feature`, ни `select`, ни `port`. Это сегодняшний
-`new App({ modules, transports })`, только транспорт — провайдер.
+Ни `feature`, ни `select`, ни `port`. `deps` — явный массив (как везде во
+фреймворке); внешняя функция `handle` вызывается один раз на сборке (аналог
+конструктора), замыкание — «инстанс» ручки. Endpoint — обычный узел графа с
+синтетическим id (`endpoint:POST /orders`): рёбра `deps` видны в визуализации,
+циклы и `strictExports` работают штатно.
+
+Онтологически `httpEndpoint` — сахар «анонимный контракт + `implement` одним
+жестом»: иерархия деклараций контракт-первична. Анонимность — нормальное
+состояние L0-поверхности (никто в процессе её не зовёт); вынес контракт в
+именованное значение и экспортировал — ручка стала portable (порты, клиенты,
+версии) без переписывания реализации — [ideas.md [2026-07-13]](../decisions/ideas.md)
+«Контракт первичен».
 
 ### L1 — + типизированный config (никакого `process.env` в коде)
 
 Источники — в корне (kernel), секция — только схема + ключи, source-agnostic
 (см. §3). `OrdersConfig` авто-дискаверится из провайдера, который его инжектит.
+Декларации endpoint'ов не меняются.
 
 ```typescript
 // orders.config.ts — секция: схема + ключи, БЕЗ источников
@@ -332,27 +344,28 @@ export const ChargeCard = makeContract({
   output: z.object({ chargeId: z.string() }),
 });
 
-// billing — реализует контракт (endpoint на messaging-транспорте)
-@Injectable([PaymentGateway])
-@ContractEndpoint(ChargeCard)
-export class ChargeCardEndpoint implements Handler<typeof ChargeCard> {
-  constructor(private gw: PaymentGateway) {}
-  async handle(input, meta) {
-    return new Ok({ chargeId: await this.gw.charge(input, meta.signal) });
-  }
-}
+// billing — реализует контракт (декларация без транспорта: биндинг на сборке)
+export const ChargeCardHandler = implement(ChargeCard, {
+  deps: [PaymentGateway],
+  handle: (gw) => async (input, meta) =>
+    new Ok({ chargeId: await gw.charge(input, meta.signal) }),
+});
 
-// orders — потребляет порт (не знает, локальный billing или за сетью)
-@Injectable([OrdersService, ChargeCard.port])
-@HttpEndpoint('POST', '/orders', { input: NewOrder, output: Order, pipeline: basePipeline })
-export class CreateOrderEndpoint implements IEndpoint {
-  constructor(private orders: OrdersService, private billing: Port<typeof ChargeCard>) {}
-  async handle(input: NewOrder, meta): Output<Order> {
-    const charge = await this.billing.call({ orderId: input.id, amount: input.total }, meta);
+// orders — потребляет порт: обычная зависимость декларации
+// (не знает, локальный billing или за сетью)
+export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
+  input: NewOrder,
+  output: Order,
+  pipeline: basePipeline,
+  deps: [OrdersService, ChargeCard.port],
+  handle: (orders, billing) => async (input, meta) => {
+    const charge = await billing.call({ orderId: input.id, amount: input.total }, meta);
     if (charge.isFail) return charge;    // отказ — нормальный Fail, не исключение
-    return new Ok(this.orders.create(input));
-  }
-}
+    return new Ok(orders.create(input));
+  },
+});
 
 // main.ts — не изменился с L2: биндинг порта вычисляется из графа.
 // billing выбран → ChargeCard.port биндится на локальный хендлер (in-proc).
@@ -381,143 +394,66 @@ await assemble({
 
 ---
 
-## 5. Функциональный стиль (`make*` + factory-провайдеры)
+## 5. Формы хендлера
 
-Тот же прогресс, без классов и декораторов. Сервисы — фабрики за токенами,
-эндпоинты — `makeEndpoint`, DI — через `factoryProvider(token, factory, deps)`.
+Декларация всегда одна (значение); форма `handle` — свободная, симметрично
+«четырём формам юнитов» пайплайна:
 
-### L0
+| Форма | Когда |
+|---|---|
+| `(input, meta) => …` | без зависимостей; единственная форма, которую принимают standalone-транспорты (`server.route`) — endpoint с `deps` туда не проходит по типам |
+| `deps: […]` + `(…deps) => (input, meta) => …` | каррированная фабрика: внешний вызов — один раз на сборке, замыкание = инстанс |
+| класс с `@Injectable` и методом `handle` | форма подключения DI (не «второй стиль» деклараций): App резолвит из контейнера — механизм классов-юнитов пайплайна |
 
-```typescript
-// orders.service.ts
-export const OrdersService = token<{ create(dto: NewOrder): Order }>('orders.service');
-export const makeOrdersService = () => ({ create: (dto: NewOrder) => ({ /* ... */ }) });
-
-// create-order.endpoint.ts — фабрика замыкает зависимости
-export const CreateOrder = token('orders.create-order');
-export const makeCreateOrder = (orders: Infer<typeof OrdersService>) =>
-  makeEndpoint({
-    transport: 'http',
-    pattern: 'POST /orders',
-    input: NewOrder,
-    output: Order,
-    pipeline: basePipeline,
-    handle: async (input: NewOrder) => new Ok(orders.create(input)),
-  });
-
-// orders.module.ts
-export const OrdersModule = makeModule({
-  name: 'module:orders',
-  providers: [
-    factoryProvider(OrdersService, makeOrdersService, []),
-    factoryProvider(CreateOrder, makeCreateOrder, [OrdersService]), // endpoint как провайдер
-  ],
-});
-
-// main.ts — корень идентичен классическому
-await assemble({
-  modules: [OrdersModule],
-  transports: [http({ port: 3000 })],
-}).run();
-```
-
-### L1 — + config
+Классовая форма эквивалентна каррированной строчка в строчку
+(`@Injectable([...])` ↔ `deps:`, конструктор ↔ внешняя функция, метод ↔
+замыкание) и сохраняет привычную после NestJS структуру:
 
 ```typescript
-// секция конфига — то же значение, что в классическом стиле
-export const OrdersConfig = makeConfig('orders', z.object({
-  maxItems: z.coerce.number().default(100),
-}));
+@Injectable([OrdersService, ChargeCard.port])
+export class CreateOrderHandler {
+  constructor(
+    private orders: OrdersService,
+    private billing: Port<typeof ChargeCard>,
+  ) {}
 
-export const makeOrdersService = (cfg: Config<typeof OrdersConfig>) => ({
-  create: (dto: NewOrder) => {
-    if (dto.items.length > cfg.maxItems) throw Fail.badRequest('too many');
-    return { /* ... */ };
-  },
-});
+  async handle(input: NewOrder, meta: { signal: AbortSignal }): Output<Order> {
+    /* как в L3 выше */
+  }
+}
 
-export const OrdersModule = makeModule({
-  name: 'module:orders',
-  providers: [
-    factoryProvider(OrdersService, makeOrdersService, [OrdersConfig]), // секция — обычная зависимость
-    factoryProvider(CreateOrder, makeCreateOrder, [OrdersService]),
-  ],
-});
-
-// только env → про конфиг в корне ничего; второй источник → config: [[file('config.yaml'), [OrdersConfig.keys]]]
-await assemble({
-  modules: [OrdersModule],
-  transports: [http({ port: 3000 })],
-}).run();
+export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
+  input: NewOrder,
+  output: Order,
+  pipeline: basePipeline,
+  handle: CreateOrderHandler,   // класс — поле типизированного вызова:
+});                             // handle сверяется со схемами в точке декларации
 ```
 
-### L2 — + features + select
+Проверка типов классовой формы происходит в точке декларации (класс — поле
+generic-вызова), `implements` не нужен. Unit-тест хендлера — без фреймворка:
+`CreateOrder.handle(fakeOrders, stubBilling)` для каррированной формы или
+`new CreateOrderHandler(fakes…)` для классовой — ноль импортов из
+`@nestling/*`. Один handler на несколько транспортов = несколько тонких
+деклараций, разделяющих одно значение/класс.
 
-```typescript
-export const OrdersFeature  = makeFeature({ name: 'orders',  modules: [OrdersModule] });
-export const BillingFeature = makeFeature({ name: 'billing', modules: [BillingModule] });
-
-const cfg = await load(RootConfig);      // примордиально — только select
-await assemble({
-  features: [OrdersFeature, BillingFeature],
-  select: cfg.FEATURES,
-  transports: [http({ port: 3000 })],
-}).run();
-```
-
-### L3 — + контракт + порт (co-located)
-
-```typescript
-// контракт — то же значение, что и в классическом стиле
-export const ChargeCard = makeContract({
-  name: 'billing.charge', kind: 'request',
-  input:  z.object({ orderId: z.string(), amount: z.number() }),
-  output: z.object({ chargeId: z.string() }),
-});
-
-// billing реализует функционально
-export const makeChargeCard = (gw: Infer<typeof PaymentGateway>) =>
-  implement(ChargeCard, async (input, meta) =>
-    new Ok({ chargeId: await gw.charge(input, meta.signal) }));
-
-// orders потребляет порт — порт как обычная зависимость фабрики
-export const makeCreateOrder = (
-  orders: Infer<typeof OrdersService>,
-  billing: Port<typeof ChargeCard>,
-) =>
-  makeEndpoint({
-    transport: 'http', pattern: 'POST /orders',
-    input: NewOrder, output: Order, pipeline: basePipeline,
-    handle: async (input, meta) => {
-      const charge = await billing.call({ orderId: input.id, amount: input.total }, meta);
-      if (charge.isFail) return charge;
-      return new Ok(orders.create(input));
-    },
-  });
-
-// в модуле: factoryProvider(CreateOrder, makeCreateOrder, [OrdersService, ChargeCard.port])
-// main.ts — не изменился с L2
-```
-
-### L4 — + NATS + policy
-
-```typescript
-const cfg = await load(RootConfig);      // примордиально — только select
-await assemble({
-  features: [OrdersFeature, BillingFeature],
-  select: cfg.FEATURES,
-  transports: [http(), nats()],          // порт/servers — из Http/NatsConfig
-  dispatch: 'local-first',
-}).run();
-```
-
-Идентично классическому L4 — потому что composition root оперирует значениями
-(features, transports, config), а не стилем их внутренней реализации.
+Прежний «функциональный стиль» (endpoint как токен + `factoryProvider`)
+остаётся низкоуровневой возможностью контейнера, но из канона ушёл: три
+артефакта на ручку и токен, который никто не инжектит. Логика и отвергнутые
+варианты — [ideas.md [2026-07-13]](../decisions/ideas.md)
+«Endpoint-декларации».
 
 ---
 
 ## Что из этого следует для реализации
 
+- **Единая модель деклараций** (`httpEndpoint`/`cliEndpoint`/`implement`,
+  `deps`, формы хендлера; удаление `@Endpoint`/`@HttpEndpoint`/`IEndpoint` и
+  endpoint-registry; онтология «контракт первичен»: конструктор = анонимный
+  контракт + `implement`) — roadmap 24, делать рядом с фиксом дискавери:
+  глобальный реестр умирает вместе с декоратором.
 - **Фикс дискавери** (эндпоинты/транспорты из дерева модулей, не из глобального
   registry) — предпосылка для L2+: без него невыбранная фича всё равно
   «протекает» в приложение. См. [roadmap](../decisions/roadmap.md).

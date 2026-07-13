@@ -53,6 +53,7 @@
       <li><a href="#config">Конфигурация</a></li>
       <li><a href="#context">Асинхронный контекст</a></li>
       <li><a href="#streaming">Стриминг</a></li>
+      <li><a href="#schemas">Схемы и OpenAPI</a></li>
       <li><a href="#testing">Тестирование</a></li>
     </ul>
   </div>
@@ -461,6 +462,80 @@ handle: async function* (_, meta) {
       <em>слияние потоков</em> (<code>merge</code>, <code>switchMap</code>, <code>combineLatest</code>) — это
       dataflow-программирование, ему место в хендлере, где ты волен взять хоть RxJS. Интероп тривиален:
       <code>from(asyncIterable)</code> и обратно, а отмена сшивается через <code>meta.signal</code> автоматически.
+    </p>
+  </div>
+
+  <!-- ============ SCHEMAS ============ -->
+  <h2 id="schemas">Схемы и OpenAPI</h2>
+  <p>
+    Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция
+    конфига, payload контракта. При этом Nestling <strong>не привязан к конкретному валидатору</strong>:
+    ядро принимает <a href="https://standardschema.dev">Standard Schema</a> — общий интерфейс,
+    спроектированный совместно авторами Zod, Valibot и ArkType. Любая схема, реализующая проперти
+    <code>~standard</code>, работает из коробки: Zod (v4, включая <code>zod/mini</code>), Valibot,
+    ArkType, Effect Schema.
+  </p>
+  <div class="code" data-file="orders.schema.ts" data-lang="typescript"><pre><code>// Zod — привычный дефолт…
+export const NewOrder = z.object({ items: z.array(OrderItem).min(1) });
+
+// …но контракт тот же на Valibot или ArkType — выбор валидатора за тобой:
+export const NewOrder = v.object({ items: v.pipe(v.array(OrderItem), v.minLength(1)) });
+export const NewOrder = type({ items: OrderItem.array().atLeastLength(1) });</code></pre></div>
+  <p>
+    Рантайму от схемы нужны ровно два свойства: <code>validate</code> (невалидный payload → 400 со
+    стандартным списком <code>issues: { message, path }[]</code> — формат гарантирован спекой, а не
+    вендором) и инференс типов для хендлера. Сам zod при этом — <em>не</em> зависимость ядра:
+    валидатор приносит приложение. Лёгкий бандл (<code>zod/mini</code>, Valibot) или богатый
+    синтаксис (ArkType) — твой трейд-офф, не наш.
+  </p>
+
+  <h3>OpenAPI: конвертер — явная зависимость</h3>
+  <p>
+    Standard Schema стандартизует <em>только валидацию</em>. Интроспекции в спеке нет: в рантайме
+    схема — чёрный ящик с непрозрачной функцией <code>validate</code>, и сгенерировать из неё
+    JSON Schema через общий интерфейс невозможно — нужно нырять во внутренности конкретного
+    валидатора (<code>z.toJSONSchema()</code>, <code>@valibot/to-json-schema</code>, …). Поэтому
+    модуль документации не «угадывает» валидатор — конвертер объявляется явно, в composition root:
+  </p>
+  <div class="code" data-file="main.ts" data-lang="typescript"><pre><code>import { openapi } from '@nestling/openapi';
+import { zodConverter } from '@nestling/openapi.zod';
+
+await assemble({
+  modules: [OrdersModule],
+  transports: [http()],
+  docs: openapi({
+    info: { title: 'Orders API', version: '1.0.0' },
+    converters: [zodConverter()],   // схемы какого вендора умеем документировать
+  }),
+}).run();</code></pre></div>
+  <p>
+    Дальше работает знакомая механика жадного старта. Все endpoints известны на <code>build()</code>,
+    у каждой схемы есть поле <code>~standard.vendor</code> — на инициализации модуль сверяет
+    вендоров со списком конвертеров. Схема, которую нечем конвертировать, — это
+    <strong>ошибка запуска</strong>, а не пустая секция в <code>/docs</code> через месяц.
+    Если документация включена, недокументируемых endpoint'ов не бывает.
+  </p>
+  <ul class="body">
+    <li><strong>Несколько валидаторов в одном приложении</strong> — законно: сторонний модуль может
+      быть написан на Valibot, пока твой код на Zod. Схема сама сообщает вендора,
+      <code>converters</code> — список.</li>
+    <li><strong>Escape hatch:</strong> явный <code>jsonSchema:</code> в декларации endpoint'а
+      перекрывает конвертер — для экзотического валидатора или ручной доводки.</li>
+    <li><strong>Ошибки — тоже контракт:</strong> <code>errors: [EmailTaken]</code> из декларации
+      превращается в <code>responses</code>, а неявный <code>UnknownError</code> — в default-ответ.</li>
+    <li><strong>Стриминг:</strong> для <code>stream</code>/<code>events</code> та же машинерия
+      генерирует AsyncAPI.</li>
+  </ul>
+
+  <div class="note">
+    <span class="note-t">Почему не универсальный генератор</span>
+    <p>
+      Поле <code>vendor</code> существует в спеке именно как дискриминант для безопасного даункаста:
+      авторы Standard Schema прямо признали, что потребителям иногда нужно спускаться под общий
+      интерфейс. Конвертер — это и есть оформленный даункаст: <code>@nestling/openapi.zod</code>
+      peer-зависит от zod и живёт в его мажорах. Если сообщество стандартизует ещё и
+      JSON Schema-выход, конвертеры выродятся в один универсальный — сигнатура
+      <code>openapi()</code> не изменится.
     </p>
   </div>
 

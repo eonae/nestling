@@ -1,6 +1,6 @@
 # CLI-транспорт
 
-✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-06).
+✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-13).
 Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).
 
 Те же endpoints и pipeline, что и в HTTP, — но команды вместо маршрутов.
@@ -10,18 +10,22 @@
 
 ```typescript
 import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
-import z from 'zod';
+import { z } from 'zod';
 
 export const ProcessStdin = makeEndpoint({
   transport: 'cli',
-  pattern: 'process',
-  input: stream('binary'),          // stdin как поток
-  output: z.object({ bytes: z.number() }),
+  pattern: 'process-stdin',
+  input: stream('binary'),          // stdin как поток Buffer'ов
+  output: z.object({ linesProcessed: z.number(), totalBytes: z.number() }),
   pipeline: makePipeline(),
   handle: async (chunks: AsyncIterableIterator<Buffer>) => {
-    let bytes = 0;
-    for await (const chunk of chunks) bytes += chunk.length;
-    return { bytes };
+    let linesProcessed = 0;
+    let totalBytes = 0;
+    for await (const chunk of chunks) {
+      totalBytes += chunk.length;
+      linesProcessed += chunk.toString().split('\n').filter((l) => l.trim()).length;
+    }
+    return { linesProcessed, totalBytes };
   },
 });
 ```
@@ -41,7 +45,7 @@ cli.endpoint(ProcessStdin);
 
 // 1) single-shot: разобрать argv, выполнить команду, выйти
 const result = await cli.execute({
-  command: 'process',
+  command: 'process-stdin',
   args: [],
   options: { verbose: true },
 });
@@ -55,13 +59,16 @@ await cli.listen();
 остальное → args. Встроенный парсер REPL такой же и не поддерживает
 `-x`-сокращения, `--key=value` и кавычки.
 
-Ненулевой exit-код: вернуть из хендлера ошибочный статус / бросить `Fail` —
-транспорт выставит `process.exitCode = 1`.
+Ненулевой exit-код: в REPL-режиме (`listen()`) транспорт сам выставляет
+`process.exitCode = 1` при ошибочном статусе / брошенном `Fail`; в single-shot
+(`execute()`) транспорт код выхода не трогает — его выставляет приложение по
+результату (см. `main.ts` примера).
 
 ## Ограничения (текущие)
 
-- `input: 'primitive'` (не-stream примитивы) в CLI не поддержан — бросит
-  ошибку регистрации.
+- `input: 'primitive'` (не-stream примитивы) в CLI не поддержан — регистрация
+  пройдёт молча, ошибка «Primitive input type … is not supported» бросится
+  при выполнении команды.
 - Пакет пока без тестов; API может меняться.
 
 > Целевой дизайн: единая модель endpoint'ов для всех транспортов сохранится;

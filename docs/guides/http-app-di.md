@@ -1,7 +1,7 @@
 # Приложение с DI: App, модули, классовые endpoints
 
 ✅ **Статус: актуально** — сверено с кодом `examples.app-with-http`
-(2026-07-06). Запускаемый код — в
+(2026-07-13). Запускаемый код — в
 [`packages/examples.app-with-http/`](../../packages/examples.app-with-http/).
 
 Полный уровень фреймворка: DI-контейнер, модули, классовые endpoints

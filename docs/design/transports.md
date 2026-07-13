@@ -5,10 +5,13 @@
 
 ⚠️ **Статус: частично реализовано.** Транспорт `@nestling/transport.http` следует
 этой архитектуре (find-my-way, busboy, парсинг по io-декларации). Разделы
-§1/§3/§5/§7 приведены к pipeline v2 + abort-signal (2026-07); псевдокод §8–§10 —
-иллюстративные наброски, строчно с реализацией не сверялись. При расхождении
-источник истины — [decisions/ideas.md](../decisions/ideas.md) (Pipeline v2) и код
-пакета.
+§1/§3/§5/§7 приведены к pipeline v2 + abort-signal (2026-07) и отказу от
+`.after` (2026-07-13); псевдокод §8–§10 — иллюстративные наброски, строчно с
+реализацией не сверялись. §5 описывает kernel-представление
+`EndpointDefinition`; пользовательский канон деклараций —
+per-transport конструкторы ([ideas.md [2026-07-13]](../decisions/ideas.md)
+«Endpoint-декларации»). При расхождении источник истины —
+[decisions/ideas.md](../decisions/ideas.md) (Pipeline v2) и код пакета.
 
 🔒 **Hardening (реализовано, change `transport-hardening`):** лимит размера тела
 `maxBodySize` (JSON/raw/text/multipart/NDJSON, дефолт 1 MiB) с ранним
@@ -42,8 +45,9 @@
 - ✅ Multipart и body parsing — ответственность транспорта
 - ✅ Pipeline оперирует только абстрактной моделью — **значениями, не байтами**:
   сжатие, CORS, content-negotiation — концерн транспорта, не пайплайна
-- ✅ Единицы пайплайна трёх видов — препроцессоры (`.pre`), постпроцессоры
-  (`.ok`/`.after`), обработчики ошибок (`.catch`); термина «middleware» нет
+- ✅ Единицы пайплайна — препроцессоры (`.pre`), постпроцессоры (`.ok`),
+  обработчики ошибок (`.catch`), наблюдатель исхода (`.finally`);
+  термина «middleware» нет
 
 ---
 
@@ -59,7 +63,7 @@
 ┌───────────────────────┐
 │ Endpoint Pipeline     │
 │ (слои: pre → handler  │
-│  → ok/catch/after     │
+│  → ok/catch           │
 │  → finally)           │
 └─────┬─────────────────┘
       │ ResponseContext
@@ -174,6 +178,27 @@ interface EndpointDefinition<I, O, P> {
 }
 ```
 
+Это kernel-уровень — то, что потребляет `ITransport.endpoint()`. Целевой
+пользовательский слой (2026-07-13) — конструкторы транспортов
+(`httpEndpoint({ method, path, deps?, handle })`): они собирают это
+представление, типизируют словарь транспорта (path-параметры, bind-карта) и
+ссылаются на транспорт токеном (fail-fast при отсутствии в графе);
+декораторные endpoint'ы (`@Endpoint`/`@HttpEndpoint`) из целевой поверхности
+удалены — [ideas.md [2026-07-13]](../decisions/ideas.md)
+«Endpoint-декларации».
+
+Онтологически конструктор — сахар «анонимный контракт + `implement`»:
+иерархия деклараций контракт-первична (именованный контракт = capability
+через экспорт, анонимный = чисто транспортная поверхность). Целевая
+io-декларация — **дерево форм** (`value`/`stream`/`events`/`multipart`,
+листья — Standard Schema); биндинг валидируется против способностей
+транспорта на ASSEMBLE (стримы умеет HTTP, шина v1 — только value).
+Сырые байты (webhook-подписи) — opt-in пометка `rawBody: true` в словаре
+HTTP, байты попадают в типизированный стартовый контекст пайплайна.
+Статика/CORS/сжатие — этаж **ниже** деклараций: сантехника транспорта,
+конфиг/плагины, без схем — [ideas.md [2026-07-13]](../decisions/ideas.md)
+«Контракт первичен».
+
 ---
 
 ## 6. HTTP Transport: parsing
@@ -215,7 +240,7 @@ function parseMultipart(req: IncomingMessage): Promise<FilePart[]> {
 ## 7. Pipeline
 
 Модель v2 — плоские фазы без `next()`: `makePipeline()` со словарём
-`.pre/.ok/.catch/.after/.finally`, слои и `compose`. Pre-юниты монотонно
+`.pre/.ok/.catch/.finally`, слои и `compose`. Pre-юниты монотонно
 накапливают типизированный input; ответные юниты применяются к текущему
 ответу и могут его заменить; `.finally` наблюдает исход
 (`completed | disconnected | aborted | failed`).

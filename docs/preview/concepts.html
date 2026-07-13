@@ -53,6 +53,7 @@
       <li><a href="fundamentals.html#config">Конфигурация</a></li>
       <li><a href="fundamentals.html#context">Асинхронный контекст</a></li>
       <li><a href="fundamentals.html#streaming">Стриминг</a></li>
+      <li><a href="fundamentals.html#schemas">Схемы и OpenAPI</a></li>
       <li><a href="fundamentals.html#testing">Тестирование</a></li>
     </ul>
   </div>
@@ -84,7 +85,7 @@
 
   <div class="code" data-file="create-order.endpoint.ts" data-lang="typescript"><pre><code>@Injectable([OrdersService])
 @HttpEndpoint('POST', '/orders', {
-  input: NewOrder,           // Zod-схема: валидация + типы + доки
+  input: NewOrder,           // схема: валидация + типы + доки
   output: Order,
   pipeline: basePipeline,
 })
@@ -103,6 +104,11 @@ export class CreateOrderEndpoint implements IEndpoint {
     <code>meta</code>, — это поля, которые накопили <code>.pre</code>-юниты пайплайна;
     хендлер декларирует только то, что использует. В <code>meta</code> всегда есть
     <code>signal: AbortSignal</code> — об этом в разделе про стриминг.
+  </p>
+  <p>
+    Схемы <code>input</code>/<code>output</code> — не обязательно Zod: ядро принимает любой
+    <a href="fundamentals.html#schemas">Standard Schema</a>-валидатор (Valibot, ArkType, …),
+    а модуль документации превращает те же схемы в OpenAPI.
   </p>
 
   <h3>Один endpoint — любой транспорт</h3>
