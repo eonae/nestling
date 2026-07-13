@@ -24,6 +24,10 @@
 | 11 | `ports` | `makeContract` (request/command/event), `Port`/`Emitter`, `IMessageBus`, `InProcessBus`, dispatch-policy; local/remote-биндинг на сборке (co-located, L3) | L | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
 | 12 | `transport.nats` | NATS как inbound+outbound транспорт; queue-groups для реплик; remote-биндинг портов; JetStream для `durable` (split, L4) | M | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
 | 13 | `plugins` | cross-cutting: инфра = параметризованные модули (конвенция, нового примитива нет); pipeline-слои + startup policy-check вместо ambient middleware; feature-scoped инфра едет с фичей | S | design — [d/05 §16](../history/discussions/05-modular-monolith-features-ports.md) |
+| 14 | `multi-injection` | `Family.all` — синтетический узел-агрегат: массив всех зарегистрированных членов семейства на `build()` (multi-injection без `multi: true`; вклады — обычные провайдеры с членскими токенами) | S | идея — [ideas.md [2026-07-10]](./ideas.md) |
+| 15 | `error-model` | Fail — значение (возврат ≡ бросок; фикс `normalizeResponse`: возвращённый `Fail` сейчас уезжает как `200 OK`); `Output<T>` включает `Fail`, дискриминант `isFail`; словарь статусов (`CONFLICT`, `TIMEOUT`, `TOO_MANY_REQUESTS`) + `code`/`cause`; `defineFail` (code-идентичность вместо instanceof); `errors:` в контракте endpoint'а, типизированный канал (`Output<T, E>` + бросатель `meta.fail`); граница нормализует незадекларированное в `UnknownError` → закрытый контракт `E ∪ UnknownError` | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
+| 16 | `async-context` | `contextVar<T>` + инжектируемые ридеры `Ctx(Var)` (token family); read-only ALS-проекция накопленного `input` (+ `signal`), писатель — только рантайм пайплайна; `get()/peek()` (зеркало полный/Partial); `propagate` через remote-порты; opt-in policy-check присутствия на `build()` | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
+| 17 | `pipeline-drop-after` | убрать `.after` из билдера/типов/рантайма (`ResponsePhase` = `'ok' \| 'catch'`); словарь ответного тракта — Promise-тройка `ok`/`catch`/`finally`; правка спеков и доков (`docs/preview`) | S, breaking | идея — [ideas.md [2026-07-10]](./ideas.md) |
 
 ## Порядок и зависимости
 
@@ -34,6 +38,10 @@
   3 abort-signal ────────┴─→ 6 streaming-v2 ─→ 7 subscriptions-registry
   4 pipeline-v2 ────────────↗
   5 token-families — после 4 (или параллельно)
+  14 multi-injection (Family.all) — после 5, аддитивно
+  15 error-model — после 4 (normalizeResponse, Output); нужен 11 ports (ре-гидрация Fail)
+  16 async-context — после 4 и 5 (Ctx — token family); propagate нужен 12 transport.nats
+  17 pipeline-drop-after — после 4, до релиза pipeline v2 (пока .after никто не использует)
 
 ветка «модульный монолит» (сессия 2026-07-08):
   8 endpoint-discovery ─┐
@@ -51,6 +59,11 @@
 - 4 — самый большой и ломающий; см. миграционную сложность в ideas.md.
 - 6 требует 3 (signal) и 4 (item-цепочки описаны в терминах новой модели).
 - 7 — последний: тест того, что публичных примитивов достаточно.
+- **15 `error-model`** — можно сразу после 4; ре-гидрация remote-`Fail` —
+  вклад в 11 (`ports`), но не блокирует ядро change'а.
+- **16 `async-context`** — после 5 (ридеры `Ctx(Var)` — члены семейства);
+  `propagate` реализуется вместе с 12 (`transport.nats`); policy-check
+  присутствия — та же машинерия, что startup policy-check в 13 (`plugins`).
 
 Ветка «модульный монолит»:
 
