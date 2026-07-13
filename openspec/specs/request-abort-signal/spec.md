@@ -31,23 +31,24 @@ Pipeline SHALL передавать хендлеру в `meta` поле `signal:
 ### Requirement: Сигнал доступен middleware через контекст
 
 `ExtendableContext` SHALL содержать `readonly signal: AbortSignal`,
-доступный каждому middleware в цепочке до вызова хендлера.
+доступный каждому юниту каждой фазы (`.pre`, `.ok`, `.catch`, `.after`,
+`.finally`) каждого слоя пайплайна.
 
-#### Scenario: Middleware читает сигнал
+#### Scenario: Юниты читают сигнал
 
-- **WHEN** middleware выполняется в цепочке pipeline
-- **THEN** `ctx.signal` доступен и указывает на тот же сигнал,
+- **WHEN** pre-юнит и finally-юнит выполняются в пайплайне запроса
+- **THEN** `ctx.signal` доступен обоим и указывает на тот же сигнал,
   который получит хендлер в `meta.signal`
 
 ### Requirement: Ключ signal в meta зарезервирован
 
-Pipeline SHALL инъецировать `signal` в `meta` после накопления input:
-одноимённое поле, добавленное middleware в input, SHALL быть перекрыто
+Pipeline SHALL инъецировать `signal` в `meta` хендлера: одноимённое
+поле, добавленное pre-юнитом в накопленный input, SHALL быть перекрыто
 сигналом контекста. Зарезервированность ключа SHALL быть задокументирована.
 
-#### Scenario: Middleware добавил поле signal в input
+#### Scenario: Pre-юнит добавил поле signal в input
 
-- **WHEN** middleware вернул `{ signal: <не-сигнал> }` и цепочка дошла
+- **WHEN** pre-юнит вернул `{ signal: <не-сигнал> }` и pre-тракт дошёл
   до хендлера
 - **THEN** `meta.signal` — это `AbortSignal` контекста запроса,
-  а не значение middleware
+  а не значение юнита

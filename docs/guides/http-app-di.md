@@ -40,7 +40,7 @@ export class CreateUserEndpoint implements IEndpoint {
     private logger: ILoggerService,
   ) {}
 
-  async handle(payload: CreateUserInput, meta: {}): Output<CreateUserOutput> {
+  async handle(payload: CreateUserInput): Output<CreateUserOutput> {
     const existing = await this.users.findByEmail(payload.email);
     if (existing) {
       throw Fail.badRequest('Email already taken', { field: 'email' });
@@ -51,8 +51,9 @@ export class CreateUserEndpoint implements IEndpoint {
 }
 ```
 
-Второй параметр `meta` — поля, накопленные pre-юнитами пайплайна; хендлер
-декларирует только то, что использует. В `meta` всегда есть
+Хендлер может объявить второй параметр `meta` — поля, накопленные pre-юнитами
+пайплайна; декларирует только то, что использует (в примере он не нужен,
+поэтому опущен). В `meta` всегда есть
 `signal: AbortSignal` — сигнал отмены запроса (взводится при дисконнекте
 клиента и при graceful shutdown; отмена кооперативная, ключ `signal`
 зарезервирован).
@@ -113,10 +114,7 @@ DI не мешает тестам — endpoint тестируется как о�
 
 ```typescript
 const endpoint = new CreateUserEndpoint(mockUserService, mockLogger);
-const result = await endpoint.handle(
-  { name: 'Alice', email: 'a@b.c' },
-  { signal: new AbortController().signal },
-);
+const result = await endpoint.handle({ name: 'Alice', email: 'a@b.c' });
 ```
 
 > Целевой дизайн развивается — см. [decisions/ideas.md](../decisions/ideas.md):
