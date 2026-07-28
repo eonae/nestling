@@ -8244,6 +8244,7 @@ __metadata:
     jest: "npm:^29.7.0"
     jest-mock-extended: "npm:^4.0.0"
     lerna: "npm:^8.0.0"
+    nx: "npm:20.8.2"
     open: "npm:^10.2.0"
     prettier: "npm:^3.3.1"
     ts-jest: "npm:^29.1.4"
@@ -8531,7 +8532,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nx@npm:>=17.1.2 < 21":
+"nx@npm:20.8.2, nx@npm:>=17.1.2 < 21":
   version: 20.8.2
   resolution: "nx@npm:20.8.2"
   dependencies:

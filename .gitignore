@@ -42,3 +42,6 @@ lerna-debug.log*
 .cursor
 
 memory-bank/
+
+# Логи автономных прогонов openspec-change'ей
+.openspec-runs/

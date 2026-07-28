@@ -7,6 +7,11 @@
   "workspaces": [
     "packages/*"
   ],
+  "scripts": {
+    "verify": "nx run-many -t build lint test",
+    "verify:fresh": "nx run-many -t build lint test --skip-nx-cache",
+    "docs:audit": "node .claude/skills/docs-audit/scripts/check.mjs"
+  },
   "devDependencies": {
     "@eslint/compat": "~1.1.1",
     "@eslint/js": "^9.10.0",
@@ -31,6 +36,7 @@
     "jest": "^29.7.0",
     "jest-mock-extended": "^4.0.0",
     "lerna": "^8.0.0",
+    "nx": "20.8.2",
     "open": "^10.2.0",
     "prettier": "^3.3.1",
     "ts-jest": "^29.1.4",
