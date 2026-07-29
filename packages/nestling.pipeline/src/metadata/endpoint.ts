@@ -7,8 +7,6 @@ import type {
 } from '../core';
 import type { HandlerFn } from '../core/types';
 
-import { registerEndpoint } from './endpoint-registry';
-
 import type { Constructor } from '@common/misc';
 
 /**
@@ -101,14 +99,13 @@ export function Endpoint<
     target: T,
     context: ClassDecoratorContext<T>,
   ): T => {
-    // Сохраняем конфигурацию в метаданных класса
+    // Сохраняем конфигурацию в метаданных класса. Дискавери идёт обходом
+    // дерева зарегистрированных модулей: декоратор только пишет метаданные
+    // и ни в какой глобальный реестр класс не кладёт
     (target as any)[HANDLER_KEY] = {
       ...metadata,
       className: context.name,
     };
-
-    // Автоматически регистрируем endpoint в глобальном registry
-    registerEndpoint(target as Constructor<IEndpoint<I, O, P>>);
 
     return target;
   };

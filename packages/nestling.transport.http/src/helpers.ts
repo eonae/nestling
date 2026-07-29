@@ -7,7 +7,7 @@ import type {
   IEndpoint,
   Pipeline,
 } from '@nestling/pipeline';
-import { makeEndpoint, registerEndpoint } from '@nestling/pipeline';
+import { makeEndpoint } from '@nestling/pipeline';
 import type { HTTPMethod } from 'find-my-way';
 
 /**
@@ -104,10 +104,10 @@ export function HttpEndpoint<
       className: context.name,
     };
 
+    // Декоратор только пишет метаданные класса: приложение собирает
+    // эндпоинты обходом дерева зарегистрированных модулей
     const HANDLER_KEY = Symbol.for('nestling:handler');
     (target as any)[HANDLER_KEY] = metadata;
-
-    registerEndpoint(target as Constructor<any>);
 
     return target;
   };

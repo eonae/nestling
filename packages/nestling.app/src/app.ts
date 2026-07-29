@@ -1,8 +1,10 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
+import type { EndpointDiscovery } from './discovery';
+import { assertEndpointsDeclared, discoverEndpoints } from './discovery';
+
 import type { BuiltContainer, Module, Provider } from '@nestling/container';
 import { ContainerBuilder } from '@nestling/container';
-import { getAllEndpoints, getEndpointMetadata } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 
 /**
@@ -62,14 +64,15 @@ export class App {
    * Инициализирует приложение:
    * 1. Строит DI-контейнер из модулей и провайдеров
    * 2. Запускает lifecycle hooks (@OnInit)
-   * 3. Автоматически обнаруживает и регистрирует endpoints через registry
+   * 3. Обнаруживает endpoints обходом дерева модулей и регистрирует их
+   *    в транспортах
    *
    * Middleware теперь добавляются через pipeline при определении endpoint'а,
    * а не глобально на транспорт.
    *
    * Метод идемпотентен - можно вызывать повторно безопасно.
    *
-   * @throws {Error} Если endpoint в registry, но не в контейнере
+   * @throws {Error} Если объявленный endpoint не резолвится контейнером
    * @private
    */
   async #init(): Promise<void> {
@@ -188,7 +191,10 @@ export class App {
   }
 
   /**
-   * Автоматически регистрирует все endpoints из registry
+   * Регистрирует endpoints, обнаруженные обходом дерева модулей
+   *
+   * Источник истины — что зарегистрировано в приложении, а не что
+   * импортировано процессом.
    *
    * @private
    */
@@ -197,36 +203,31 @@ export class App {
       throw new Error('Container must be built before registering endpoints');
     }
 
-    const endpointClasses = getAllEndpoints();
+    const discovery = discoverEndpoints(this.modules);
 
-    for (const EndpointClass of endpointClasses) {
-      const metadata = getEndpointMetadata(EndpointClass);
+    // Ручка с метаданными, не попавшая ни в один endpoints:, обслуживаться
+    // не будет — молчать про это нельзя
+    assertEndpointsDeclared(this.modules, this.providers);
 
-      if (!metadata) {
-        console.warn(
-          `Endpoint class ${EndpointClass.name} is in registry but has no metadata. Skipping.`,
-        );
-        continue;
-      }
+    this.#assertRequiredTransports(discovery);
 
+    for (const {
+      endpoint: EndpointClass,
+      metadata,
+      moduleName,
+    } of discovery.endpoints) {
       // Получаем инстанс из контейнера
       const instance = this.#container.get(EndpointClass);
       if (!instance) {
         throw new Error(
-          `Endpoint '${EndpointClass.name}' is registered in the endpoint registry, ` +
+          `Endpoint '${EndpointClass.name}' is declared in 'endpoints:' of module '${moduleName}', ` +
             `but is not available in the DI container. ` +
             `Make sure it is decorated with @Injectable and added to a module's providers or endpoints array.`,
         );
       }
 
-      // Находим соответствующий транспорт
-      const transport = this.transports.get(metadata.transport);
-      if (!transport) {
-        throw new Error(
-          `Transport "${metadata.transport}" not found for endpoint ${EndpointClass.name}. ` +
-            `Available transports: ${[...this.transports.keys()].join(', ')}`,
-        );
-      }
+      // Транспорт заведомо есть: множество требуемых сверено выше
+      const transport = this.transports.get(metadata.transport) as ITransport;
 
       // Резолвим классы-юниты пайплайна контейнером (bind): транспорт
       // принимает только исполнимый пайплайн (TNeeds = never)
@@ -249,6 +250,29 @@ export class App {
         pipeline,
         handle: instance.handle.bind(instance),
       });
+    }
+  }
+
+  /**
+   * Сверяет транспорты, затребованные деревом модулей, с переданными в
+   * конструктор. Обратное направление легально: у сконфигурированного
+   * транспорта есть маршруты и помимо дискавери.
+   *
+   * @private
+   */
+  #assertRequiredTransports(discovery: EndpointDiscovery): void {
+    for (const [name, endpoints] of discovery.transports) {
+      if (this.transports.has(name)) {
+        continue;
+      }
+
+      const [{ endpoint, metadata, moduleName }] = endpoints;
+
+      throw new Error(
+        `Transport '${name}' is required by endpoint '${endpoint.name}' ('${metadata.pattern}') ` +
+          `declared in module '${moduleName}', but is not configured. ` +
+          `Available transports: ${[...this.transports.keys()].join(', ')}`,
+      );
     }
   }
 }

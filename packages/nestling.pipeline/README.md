@@ -12,6 +12,11 @@ endpoints (`makeEndpoint` / `@Endpoint`) validated against any
 > Schema …). Design:
 > [`docs/design/schemas.md`](../../docs/design/schemas.md).
 
+`@Endpoint` only writes metadata onto the class — nothing is registered at
+import time. The set of served endpoints comes from the tree of registered
+modules (`@nestling/app`); the global endpoint registry (`registerEndpoint`,
+`getAllEndpoints`, `clearEndpointRegistry`) is gone.
+
 ## Schemas: Standard Schema at the boundaries
 
 Every schema boundary of the core — `input`/`output` of an endpoint,

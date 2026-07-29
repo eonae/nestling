@@ -1,6 +1,5 @@
 import type { Constructor } from '@common/misc';
 import type { Module } from '@nestling/container';
-import { makeModule } from '@nestling/container';
 import type { IEndpoint } from '@nestling/pipeline';
 
 /**
@@ -24,10 +23,7 @@ import type { IEndpoint } from '@nestling/pipeline';
  * });
  * ```
  */
-export interface AppModule extends Omit<Module, 'providers'> {
-  /** Провайдеры модуля (опционально, т.к. endpoints тоже провайдеры) */
-  providers?: Module['providers'];
-
+export interface AppModule extends Module {
   /** Endpoint-классы, декорированные @Injectable и @Endpoint */
   endpoints?: Constructor<IEndpoint<any, any, any>>[];
 }
@@ -36,22 +32,44 @@ export interface AppModule extends Omit<Module, 'providers'> {
  * Создаёт модуль приложения с поддержкой endpoints
  *
  * Это высокоуровневое API поверх makeModule из @nestling/container.
- * Endpoints автоматически добавляются в providers модуля.
+ * Возвращаемое значение **сохраняет** список `endpoints` — именно из него
+ * App собирает эндпоинты обходом дерева модулей (`discoverEndpoints`).
+ * Дополнительно endpoints добавляются в providers, чтобы контейнер их
+ * инстанцировал.
  *
  * @param config - Конфигурация модуля приложения
- * @returns Модуль, готовый для использования в контейнере
+ * @returns Модуль-значение, готовый и для контейнера, и для дискавери
  */
-export function makeAppModule(config: AppModule): Module {
-  const { endpoints = [], providers, ...moduleConfig } = config;
+export function makeAppModule(config: AppModule): AppModule {
+  const { endpoints, providers, ...moduleConfig } = config;
 
-  // Собираем все провайдеры: базовые + endpoints
-  const allProviders = [
-    ...(Array.isArray(providers) ? providers : []),
-    ...endpoints,
-  ];
-
-  return makeModule({
+  const module: AppModule = {
     ...moduleConfig,
-    providers: allProviders.length > 0 ? allProviders : undefined,
-  });
+    providers: withEndpoints(providers, endpoints),
+  };
+
+  if (endpoints) {
+    module.endpoints = endpoints;
+  }
+
+  return module;
+}
+
+/**
+ * Добавляет endpoints к провайдерам модуля, сохраняя форму `providers`:
+ * `ProvidersFactory` остаётся фабрикой, массив — массивом.
+ */
+function withEndpoints(
+  providers: Module['providers'],
+  endpoints: AppModule['endpoints'],
+): Module['providers'] {
+  if (!endpoints || endpoints.length === 0) {
+    return providers;
+  }
+
+  if (typeof providers === 'function') {
+    return async () => [...(await providers()), ...endpoints];
+  }
+
+  return [...(providers ?? []), ...endpoints];
 }
