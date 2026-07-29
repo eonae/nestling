@@ -81,6 +81,11 @@ trim() {
 }
 
 change_known() { openspec list --json | jq -e --arg c "$1" '[.changes[]|select(.name==$c)]|length>0' >/dev/null 2>&1; }
+
+# Заархивированный change исчезает из `openspec list`, поэтому без этой проверки
+# драйвер счёл бы его несуществующим и предложил заново — на повторном прогоне
+# манифеста это означало бы propose поверх уже сделанной работы.
+change_archived() { compgen -G "openspec/changes/archive/*-$1" >/dev/null 2>&1; }
 tasks_total()  { openspec list --json | jq -r --arg c "$1" '[.changes[]|select(.name==$c)]|first|.totalTasks     // 0' 2>/dev/null; }
 tasks_done()   { openspec list --json | jq -r --arg c "$1" '[.changes[]|select(.name==$c)]|first|.completedTasks // 0' 2>/dev/null; }
 
@@ -110,6 +115,11 @@ while IFS='|' read -r name description; do
   LOGFILE="$LOG_DIR/$name.log"
   HEAD_BEFORE=$(git rev-parse HEAD)
   log "change: $name"
+
+  if change_archived "$name"; then
+    printf '\033[32m✓ %s — уже в архиве, пропуск\033[0m\n' "$name"
+    continue
+  fi
 
   # 1. propose — только если change'а ещё нет
   if change_known "$name"; then
