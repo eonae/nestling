@@ -1,6 +1,8 @@
 import type { Constructor, InjectionToken, TokenString } from '../common';
 
 import { injectableMetaStorage } from './injectable.metadata';
+import type { TokenFamily } from './token-family';
+import { isTokenFamily } from './token-family';
 
 /**
  * Base interface for all provider types.
@@ -244,16 +246,98 @@ export function factoryProvider<T, TDeps extends readonly InjectionToken[]>(
 export type Provider<T = unknown> = ProviderDefinition<T> | Constructor<T>;
 
 /**
+ * A single recipe registered for a whole token family.
+ *
+ * The recipe returns an ordinary provider definition for the requested member;
+ * the builder validates that its `provide` matches the member token.
+ *
+ * @template T - The type provided by every member
+ * @template Params - Member parameters
+ */
+export interface FamilyProviderDefinition<
+  T = unknown,
+  Params extends [param: string] = [param: string],
+> {
+  /** The family this recipe serves */
+  family: TokenFamily<T, Params>;
+  /** Produces the provider definition for one member */
+  recipe: (...params: Params) => ProviderDefinition<T>;
+}
+
+/**
+ * Registers one recipe for an entire token family.
+ *
+ * Accepted by `ContainerBuilder.register()` and by a module's `providers`
+ * (array or factory form). On `build()` the container collects every member
+ * mentioned in the deps of registered providers and calls the recipe once per
+ * distinct parameter, registering the result as an ordinary graph node.
+ *
+ * @template T - The type provided by every member
+ * @template Params - Member parameters
+ * @param family - The family created by `makeTokenFamily`
+ * @param recipe - Produces a provider definition for a given member parameter
+ * @returns A registrable family provider definition
+ *
+ * @example
+ * ```typescript
+ * const LoggingModule = makeModule({
+ *   name: 'module:logging',
+ *   providers: [
+ *     familyProvider(ILogger, (scope) =>
+ *       factoryProvider(ILogger(scope), (cfg) => new Logger(scope, cfg), [IConfig]),
+ *     ),
+ *   ],
+ *   exports: [ILogger],
+ * });
+ * ```
+ */
+export function familyProvider<T, Params extends [param: string]>(
+  family: TokenFamily<T, Params>,
+  recipe: (...params: Params) => ProviderDefinition<T>,
+): FamilyProviderDefinition<T, Params> {
+  return { family, recipe };
+}
+
+/**
+ * Type guard to check if an item is a family provider definition.
+ *
+ * Checked before `isModule` in `register()`: a module is recognized by a string
+ * `name`, which a family definition does not have, but the explicit ordering
+ * keeps that heuristic from ever seeing family definitions.
+ *
+ * @param item - The item to check
+ * @returns true if the item is a FamilyProviderDefinition
+ */
+export const isFamilyDefinition = (
+  item: unknown,
+): item is FamilyProviderDefinition<any, any> =>
+  typeof item === 'object' &&
+  item !== null &&
+  'family' in item &&
+  'recipe' in item &&
+  isTokenFamily((item as FamilyProviderDefinition<any, any>).family);
+
+/**
+ * Anything a module's `providers` accepts - an ordinary provider or a family recipe.
+ *
+ * @template T - The type of the provided value
+ */
+export type ModuleProvider<T = unknown> =
+  | Provider<T>
+  | FamilyProviderDefinition<any, any>;
+
+/**
  * A providers factory - a function that returns an array of providers.
  *
  * Used for lazy loading of providers in modules. Supports both
- * synchronous and asynchronous factories.
+ * synchronous and asynchronous factories, and may return family recipes
+ * alongside ordinary providers.
  *
  * @template T - The type of provided values
  */
 export type ProvidersFactory<T = unknown> = () =>
-  | Provider<T>[]
-  | Promise<Provider<T>[]>;
+  | ModuleProvider<T>[]
+  | Promise<ModuleProvider<T>[]>;
 
 /**
  * Type guard to check if an object is a provider definition.

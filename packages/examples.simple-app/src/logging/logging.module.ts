@@ -1,14 +1,18 @@
-import { loggersRegistry } from './registry';
+import { ILogger } from './registry';
 
-import { makeModule, valueProvider } from '@nestling/container';
+import { familyProvider, makeModule, valueProvider } from '@nestling/container';
 
 export const LoggingModule = makeModule({
   name: 'module:logging',
-  providers: () =>
-    [...loggersRegistry.values()].map((token) => {
-      return valueProvider(token, {
+  providers: [
+    // Один рецепт на всё семейство — контейнер сам создаёт члена на каждый
+    // скоуп, упомянутый в deps зарегистрированных провайдеров.
+    familyProvider(ILogger, (scope) =>
+      valueProvider(ILogger(scope), {
         // eslint-disable-next-line no-console
-        log: (...args) => console.log('[LOG] ' + token, ...args),
-      });
-    }),
+        log: (...args) => console.log(`[LOG] Logger:${scope}`, ...args),
+      }),
+    ),
+  ],
+  exports: [ILogger],
 });

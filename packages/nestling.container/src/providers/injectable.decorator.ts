@@ -7,6 +7,7 @@ import type {
 import { makeToken } from '../common';
 
 import { injectableMetaStorage } from './injectable.metadata';
+import { resolveAutoDependency } from './token-family';
 
 /**
  * Decorator to register a class in the DI container with an explicit token.
@@ -100,8 +101,15 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
         ? idOrDependencies
         : makeToken(constructor.name);
 
-    const dependencies =
+    const declared =
       typeof idOrDependencies === 'string' ? deps || [] : idOrDependencies;
+
+    // `Family.auto` is resolved here, at decoration time: the consumer class is
+    // already available, so the metadata stores a plain member token and nothing
+    // downstream ever sees a sentinel.
+    const dependencies = declared.map((dep) =>
+      resolveAutoDependency(dep, constructor),
+    );
 
     injectableMetaStorage.set(constructor, { injectionToken, dependencies });
     return constructor;

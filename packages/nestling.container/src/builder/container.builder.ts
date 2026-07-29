@@ -7,19 +7,71 @@ import type { Module } from '../modules';
 import { isModule } from '../modules';
 import type {
   ClassProviderDefinition,
+  FamilyMemberRef,
+  FamilyProviderDefinition,
+  ModuleProvider,
   Provider,
   ProviderDefinition,
   ProvidersFactory,
 } from '../providers';
 import {
+  getAutoSentinelFamily,
   injectableMetaStorage,
   isClassDefinition,
   isDefinition,
   isFactoryProvider,
+  isFamilyDefinition,
+  isTokenFamily,
   isValueDefinition,
+  lookupFamilyMember,
+  suggestFamilyForToken,
 } from '../providers';
 
 import { BuiltContainer } from './container.built';
+
+/**
+ * Hard bound on the family materialization fixpoint loop.
+ *
+ * A recipe whose provider depends on a brand new member of the same family
+ * would otherwise materialize forever; the bound turns that into a diagnostic.
+ */
+const MAX_MATERIALIZATION_ROUNDS = 100;
+
+/**
+ * What a module declared in its `exports`.
+ *
+ * Families are kept apart from plain tokens: a family is a function, and running
+ * it through `stringifyToken` would export the string `"<familyName>"` instead of
+ * the family's members.
+ */
+interface ModuleExports {
+  /** Stringified tokens listed in `exports` */
+  tokens: Set<string>;
+  /** Names of token families listed in `exports` - all their members are exported */
+  families: Set<string>;
+}
+
+/**
+ * A registered family recipe together with the module that registered it.
+ */
+interface FamilyRecipeEntry {
+  /** Produces the provider definition for one member */
+  recipe: (param: string) => ProviderDefinition;
+  /** Module the recipe was registered through, if any */
+  moduleName?: string;
+}
+
+/**
+ * Options of {@link ContainerBuilder}.
+ */
+export interface ContainerBuilderOptions {
+  /**
+   * Opt-in build-time lint: every cross-module graph edge must point at a token
+   * the owning module lists in `exports`. Off by default; this is a check on the
+   * built graph, not runtime encapsulation.
+   */
+  strictExports?: boolean;
+}
 
 /**
  * DI container builder.
@@ -44,17 +96,26 @@ export class ContainerBuilder {
   readonly #providers = new Map<InjectionToken, ProviderDefinition>();
   readonly #providersFactories = new Map<string, ProvidersFactory>();
   readonly #providerToModule = new Map<InjectionToken, string>();
-  readonly #moduleExports = new Map<string, Set<InjectionToken>>();
+  readonly #moduleExports = new Map<string, ModuleExports>();
+  readonly #familyRecipes = new Map<string, FamilyRecipeEntry>();
   readonly #modules = new Set<string>();
+  readonly #strictExports: boolean;
 
   #isBuilt = false;
 
   /**
-   * Unified registration method that accepts providers or modules.
+   * @param options - Builder options; see {@link ContainerBuilderOptions}
+   */
+  constructor(options: ContainerBuilderOptions = {}) {
+    this.#strictExports = options.strictExports ?? false;
+  }
+
+  /**
+   * Unified registration method that accepts providers, family recipes or modules.
    *
    * This is the main entry point for registering dependencies.
    *
-   * @param items - Providers or modules to register
+   * @param items - Providers, family recipes or modules to register
    * @returns The current builder instance for method chaining
    * @throws {Error} If the container is already built
    *
@@ -62,11 +123,12 @@ export class ContainerBuilder {
    * ```typescript
    * builder
    *   .register(UserService, DatabaseService)
+   *   .register(familyProvider(ILogger, recipe))
    *   .register(userModule)
    *   .build();
    * ```
    */
-  register(...items: (Provider | Module)[]): this {
+  register(...items: (ModuleProvider | Module)[]): this {
     if (this.#isBuilt) {
       throw new Error(
         'Cannot register providers or modules after container is built',
@@ -74,7 +136,11 @@ export class ContainerBuilder {
     }
 
     for (const item of items) {
-      if (isModule(item)) {
+      // Family definitions are checked first: `isModule` recognizes a module by a
+      // string `name`, and we never want that heuristic near a family definition.
+      if (isFamilyDefinition(item)) {
+        this.registerFamilyProvider(item);
+      } else if (isModule(item)) {
         this.registerModule(item);
       } else {
         this.registerProvider(item);
@@ -89,9 +155,12 @@ export class ContainerBuilder {
    *
    * This method must be called after all providers are registered.
    * Performs the following steps:
-   * 1. Instantiates all providers
-   * 2. Builds the dependency graph
-   * 3. Validates the graph for circular dependencies
+   * 1. Expands module provider factories
+   * 2. Materializes the family members referenced in deps
+   * 3. Instantiates all providers
+   * 4. Builds the dependency graph
+   * 5. Validates the graph for circular dependencies
+   * 6. Lints cross-module edges against `exports` when `strictExports` is on
    *
    * @returns A built container with access to instances
    * @throws {Error} If the container is already built or circular dependencies are detected
@@ -110,14 +179,25 @@ export class ContainerBuilder {
       throw new Error('Container is already built');
     }
 
-    // Step 1: Instantiate all providers
+    // Step 1: Expand module provider factories into ordinary registrations
+    await this.appendFactoryProviders();
+
+    // Step 2: Turn referenced family members into ordinary providers
+    this.materializeFamilyMembers();
+
+    // Step 3: Instantiate all providers
     const instances = await this.instantiateAll();
 
-    // Step 2: Build dependency graph from instances
+    // Step 4: Build dependency graph from instances
     const graph = this.buildDependencyGraph(instances);
 
-    // Step 3: Validate the built graph for circular dependencies
+    // Step 5: Validate the built graph for circular dependencies
     graph.ensureAcyclic();
+
+    // Step 6: Opt-in visibility lint over the finished graph
+    if (this.#strictExports) {
+      await this.checkStrictExports(graph);
+    }
 
     this.#isBuilt = true;
 
@@ -142,15 +222,14 @@ export class ContainerBuilder {
 
     // Сохраняем экспорты модуля
     if (m.exports && m.exports.length > 0) {
-      const set = new Set(m.exports.map((token) => stringifyToken(token)));
-      this.#moduleExports.set(m.name, set);
+      this.#moduleExports.set(m.name, collectModuleExports(m.exports));
     }
 
     if (typeof m.providers === 'function') {
       this.#providersFactories.set(m.name, m.providers);
     } else {
       for (const provider of m.providers || []) {
-        this.registerProvider(provider, m.name);
+        this.registerModuleProvider(provider, m.name);
       }
     }
 
@@ -184,6 +263,45 @@ export class ContainerBuilder {
   }
 
   /**
+   * Register whatever a module's `providers` may contain: an ordinary provider
+   * or a family recipe.
+   */
+  private registerModuleProvider(
+    provider: ModuleProvider,
+    moduleName?: string,
+  ): void {
+    if (isFamilyDefinition(provider)) {
+      this.registerFamilyProvider(provider, moduleName);
+    } else {
+      this.registerProvider(provider, moduleName);
+    }
+  }
+
+  /**
+   * Register the single recipe of a token family.
+   *
+   * The recipe itself is not a graph node - it has no token of its own. It is
+   * kept aside and consulted during materialization on `build()`.
+   */
+  private registerFamilyProvider(
+    definition: FamilyProviderDefinition<any, any>,
+    moduleName?: string,
+  ): void {
+    const familyName = definition.family.familyName;
+
+    if (this.#familyRecipes.has(familyName)) {
+      throw new Error(
+        `Family provider for token family '${familyName}' is already registered`,
+      );
+    }
+
+    this.#familyRecipes.set(familyName, {
+      recipe: definition.recipe as (param: string) => ProviderDefinition,
+      moduleName,
+    });
+  }
+
+  /**
    * Register a provider in the container
    */
   private registerProvider<T>(
@@ -200,6 +318,8 @@ export class ContainerBuilder {
       );
     }
 
+    assertNoAutoSentinels(resolvedProvider, tokenId);
+
     // Store provider metadata for lazy instantiation
     this.#providers.set(tokenId, resolvedProvider);
 
@@ -207,6 +327,96 @@ export class ContainerBuilder {
     if (moduleName) {
       this.#providerToModule.set(tokenId, moduleName);
     }
+  }
+
+  /**
+   * Turn every referenced family member into an ordinary provider.
+   *
+   * Runs after provider factories are expanded and before instantiation: from
+   * this point on family members are indistinguishable from hand-registered
+   * providers - cycles, lifecycle hooks and module attribution all apply.
+   *
+   * A provider produced by a recipe may itself depend on family members, so the
+   * collection is repeated until a round finds nothing new.
+   */
+  private materializeFamilyMembers(): void {
+    for (let round = 1; ; round++) {
+      const pending = this.collectPendingMembers();
+
+      if (pending.size === 0) {
+        return;
+      }
+
+      if (round > MAX_MATERIALIZATION_ROUNDS) {
+        const sample = [...pending.keys()].slice(0, 5).join(', ');
+        throw new Error(
+          `Family member materialization did not converge after ${MAX_MATERIALIZATION_ROUNDS} rounds - a recipe keeps producing providers that depend on new members. Still pending: ${sample}`,
+        );
+      }
+
+      for (const [tokenId, ref] of pending) {
+        this.materializeMember(tokenId, ref);
+      }
+    }
+  }
+
+  /**
+   * Collect family members mentioned in deps of registered providers
+   * that have no provider yet.
+   */
+  private collectPendingMembers(): Map<string, FamilyMemberRef> {
+    const pending = new Map<string, FamilyMemberRef>();
+
+    for (const provider of this.#providers.values()) {
+      const deps = isValueDefinition(provider) ? [] : provider.deps || [];
+
+      for (const dep of deps) {
+        const depId = stringifyToken(dep);
+
+        if (this.#providers.has(depId)) {
+          continue;
+        }
+
+        const ref = lookupFamilyMember(depId);
+        if (ref) {
+          pending.set(depId, ref);
+        }
+      }
+    }
+
+    return pending;
+  }
+
+  /**
+   * Call the family recipe once for a member and register the result.
+   */
+  private materializeMember(tokenId: string, ref: FamilyMemberRef): void {
+    const entry = this.#familyRecipes.get(ref.familyName);
+
+    if (!entry) {
+      throw new Error(
+        `Member '${tokenId}' of token family '${ref.familyName}' (parameter '${ref.param}') is requested as a dependency, but no familyProvider for family '${ref.familyName}' is registered`,
+      );
+    }
+
+    let definition: ProviderDefinition;
+    try {
+      definition = entry.recipe(ref.param);
+    } catch (error) {
+      throw new Error(
+        `Recipe of token family '${ref.familyName}' failed for parameter '${ref.param}'`,
+        { cause: error },
+      );
+    }
+
+    const provided = stringifyToken(definition.provide);
+    if (provided !== tokenId) {
+      throw new Error(
+        `Recipe of token family '${ref.familyName}' for parameter '${ref.param}' returned a provider for token '${provided}', expected '${tokenId}'`,
+      );
+    }
+
+    this.registerProvider(definition, entry.moduleName);
   }
 
   /**
@@ -247,7 +457,7 @@ export class ContainerBuilder {
     for (const [moduleName, factory] of this.#providersFactories.entries()) {
       const providers = await factory();
       for (const provider of providers) {
-        this.registerProvider(provider, moduleName);
+        this.registerModuleProvider(provider, moduleName);
       }
     }
   }
@@ -256,7 +466,6 @@ export class ContainerBuilder {
    * Instantiate all providers in dependency order
    */
   private async instantiateAll(): Promise<Map<InjectionToken, unknown>> {
-    await this.appendFactoryProviders();
     const instances = new Map<InjectionToken, unknown>();
     const visited = new Set<InjectionToken>();
     const instantiating = new Set<InjectionToken>();
@@ -276,7 +485,9 @@ export class ContainerBuilder {
 
       const provider = this.#providers.get(token);
       if (!provider) {
-        throw new Error(`Provider for token '${token}' not found`);
+        throw new Error(
+          `Provider for token '${token}' not found${familyHint(String(token))}`,
+        );
       }
 
       if (!isValueDefinition(provider)) {
@@ -324,7 +535,7 @@ export class ContainerBuilder {
       const metadata: DINodeMetadata = {
         module: moduleName,
         exported: moduleName
-          ? this.#moduleExports.get(moduleName)?.has(token)
+          ? this.computeExported(moduleName, stringifyToken(token))
           : undefined,
       };
 
@@ -386,4 +597,128 @@ export class ContainerBuilder {
 
     return graph;
   }
+
+  /**
+   * Value of `metadata.exported` for a node owned by a module.
+   *
+   * A module that declared no `exports` at all keeps the historical
+   * `undefined` - "nothing was said" rather than "nothing is exported".
+   */
+  private computeExported(
+    moduleName: string,
+    tokenId: string,
+  ): boolean | undefined {
+    if (!this.#moduleExports.has(moduleName)) {
+      return undefined;
+    }
+
+    return this.isExportedFrom(moduleName, tokenId);
+  }
+
+  /**
+   * Does the module export this token, either directly or through a family?
+   *
+   * A missing or empty `exports` means nothing is exported.
+   */
+  private isExportedFrom(moduleName: string, tokenId: string): boolean {
+    const exports = this.#moduleExports.get(moduleName);
+    if (!exports) {
+      return false;
+    }
+
+    if (exports.tokens.has(tokenId)) {
+      return true;
+    }
+
+    const member = lookupFamilyMember(tokenId);
+
+    return member !== undefined && exports.families.has(member.familyName);
+  }
+
+  /**
+   * Opt-in lint of the finished graph: a dependency owned by module M may only
+   * be consumed from outside M when M exports its token.
+   *
+   * Intra-module edges and dependencies without a module are always allowed.
+   * All violations are reported at once - a strict build should tell you the
+   * whole story, not the first line of it.
+   */
+  private async checkStrictExports(graph: DIGraph): Promise<void> {
+    const violations: string[] = [];
+
+    await graph.traverse((node) => {
+      for (const dependency of node.dependencies) {
+        const owner = dependency.metadata.module;
+
+        if (!owner || owner === node.metadata.module) {
+          continue;
+        }
+
+        if (!this.isExportedFrom(owner, dependency.id)) {
+          violations.push(`${node.id} → ${dependency.id} (${owner})`);
+        }
+      }
+    });
+
+    if (violations.length > 0) {
+      throw new Error(
+        `strictExports: dependencies on tokens not exported by their module:\n${violations
+          .map((violation) => `  - ${violation}`)
+          .join('\n')}`,
+      );
+    }
+  }
 }
+
+/**
+ * Split a module's `exports` into plain tokens and whole families.
+ */
+const collectModuleExports = (
+  declared: NonNullable<Module['exports']>,
+): ModuleExports => {
+  const tokens = new Set<string>();
+  const families = new Set<string>();
+
+  for (const item of declared) {
+    if (isTokenFamily(item)) {
+      families.add(item.familyName);
+    } else {
+      tokens.add(stringifyToken(item));
+    }
+  }
+
+  return { tokens, families };
+};
+
+/**
+ * `Family.auto` only makes sense where a consumer class exists. Anywhere else
+ * the sentinel would have no name to resolve against, so we reject it early.
+ */
+const assertNoAutoSentinels = (
+  provider: ProviderDefinition,
+  tokenId: string,
+): void => {
+  const deps = isValueDefinition(provider) ? [] : provider.deps || [];
+
+  for (const dep of deps) {
+    const family = getAutoSentinelFamily(dep);
+
+    if (family) {
+      throw new Error(
+        `'${family.familyName}.auto' is only allowed in deps of a class decorated with @Injectable, but it appeared in deps of provider '${tokenId}'. Use an explicit '${family.familyName}('<name>')' member token instead`,
+      );
+    }
+  }
+};
+
+/**
+ * Extra hint for a token that looks like a family member but was not created by
+ * the family (typically built with `makeToken` by hand).
+ */
+const familyHint = (tokenId: string): string => {
+  const familyName = suggestFamilyForToken(tokenId);
+
+  return familyName
+    ? `. It looks like a member of token family '${familyName}' - family members must be created by calling the family, e.g. ${familyName}('<param>')`
+    : '';
+};

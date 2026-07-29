@@ -319,61 +319,82 @@ describe('Tests', () => {
 
 Redefining classes in `beforeEach` ensures each test works with clean metadata.
 
-**See also**: the "Dynamic Providers" section below contains an additional warning about metadata accumulation when creating multiple instances of the same class.
+**See also**: the "Dynamic Providers" section below explains how lifecycle hooks behave when one recipe produces many instances.
 
-### Dynamic Providers: Tokens with Parameters
+### Dynamic Providers: Token Families
 
-Sometimes you need multiple instances of the same interface with different configurations. For example, different loggers for different parts of your app:
+Sometimes you need multiple instances of the same interface with different configurations - different loggers for different parts of your app, a client per upstream, a queue per name. That is a **token family**: one recipe, many members addressed by a parameter.
 
 ```typescript
-// Define the logger interface
-interface ILogger {
+interface ILoggerService {
   log(message: string): void;
 }
 
-// Create a factory function for tokens (example from @examples.simple-app)
-const ILogger = (context: string) => makeToken<ILogger>(`ILogger:${context}`);
+// A family of tokens. Calling it produces an ordinary memoized token:
+// ILogger('users') === 'Logger:users'
+const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Logger');
+```
 
-// In a module, use a factory function to dynamically create providers:
+A member is a plain `TokenString`, so it works everywhere a token works - `@Injectable` deps, factory provider deps, `container.get()`:
+
+```typescript
+@Injectable([ILogger('users')])
+class UserService {
+  constructor(private logger: ILoggerService) {}
+}
+```
+
+You register **one recipe for the whole family**, not a provider per member. The recipe returns an ordinary provider definition:
+
+```typescript
 const loggingModule = makeModule({
   name: 'LoggingModule',
-  providers: () => [ // <- Function, not array!
-    factoryProvider(
-      ILogger('app'),
-      () => new ConsoleLogger('app'),
-      []
+  providers: [
+    familyProvider(ILogger, (scope) =>
+      factoryProvider(
+        ILogger(scope),
+        (config: IConfig) => new ConsoleLogger(scope, config),
+        [IConfig] as const,
+      ),
     ),
-    factoryProvider(
-      ILogger('db'),
-      () => new ConsoleLogger('db'),
-      []
-    )
   ],
-  exports: [ILogger('app'), ILogger('db')]
+  exports: [ILogger], // the whole family, not member by member
 });
 ```
 
-The function form allows you to compute providers dynamically. This is especially useful when:
-- You need parameterized tokens
-- Providers depend on runtime configuration
-- You're loading providers asynchronously
+On `build()` the container collects every family member mentioned in the deps of registered providers, calls the recipe **once per distinct parameter**, and registers the result as an ordinary graph node. From that point on a member is indistinguishable from a hand-registered provider: eager instantiation, deduplication (two consumers of `ILogger('users')` share one instance), cycle detection, lifecycle hooks, module attribution, visualization.
 
-The function is called during the build phase, giving you a chance to set up dynamic dependencies before instantiation begins.
+There is no runtime resolution. A member nobody depends on is never created, and `container.get()` returns `null` for it. If a recipe's own provider depends on another family member, the collection repeats until it finds nothing new.
 
-**Important**: if you create multiple instances of the same class (e.g., `new ConsoleLogger('app')` and `new ConsoleLogger('db')`), each instance will execute its own lifecycle hooks. This is normal if each instance needs its own initialization (e.g., establish its own connection).
+**Rule: members are created only by calling the family.** `makeToken<ILoggerService>('Logger:users')` produces a string that merely looks like a member - the container will report it as a missing provider (with a hint pointing at the family).
 
-However, if you need **shared initialization once for all instances** (e.g., a single connection pool), the right pattern is to extract the shared logic into a separate singleton dependency:
+The build fails with a targeted error when a member is requested but no `familyProvider` is registered for its family, when the recipe returns a provider for a different token, or when a second recipe is registered for the same family.
+
+#### Consumer-aware members: `Family.auto`
+
+`ILogger.auto` is a sentinel that `@Injectable` replaces with `ILogger('<DecoratedClassName>')` **at decoration time** - the consumer is known statically, so nothing is resolved at runtime:
 
 ```typescript
-// Define interface and token for connection pool
-interface IConnectionPool {
-  initialize(): Promise<void>;
-  cleanup(): Promise<void>;
+@Injectable([IDatabase, ILogger.auto])
+class UserRepository {
+  // gets the member 'Logger:UserRepository'
+  constructor(private db: IDatabase, private logger: ILoggerService) {}
 }
+```
 
+This covers the Nest `transient + INQUIRER` case without a transient scope. Two classes using `.auto` get two distinct members from the same recipe; an `.auto` member and an explicit `ILogger('UserRepository')` are the same node.
+
+Limitations in v1: `.auto` is only valid in the deps of a class decorated with `@Injectable`. In a factory provider's deps (there is no consumer class there) it is a registration error; on a class with an empty `constructor.name` it fails at decoration. The escape hatch is the explicit call. Because member ids come from `constructor.name`, minifiers that rename classes would rename members too - the target environment is server-side Node without minification.
+
+#### Lifecycle of members
+
+Each member is its own instance and runs its own lifecycle hooks. This is what you want when every instance owns a resource (its own connection, for example).
+
+If instead you need **shared initialization once for all members** (a single connection pool), extract the shared part into an ordinary singleton and depend on it from the recipe:
+
+```typescript
 const IConnectionPool = makeToken<IConnectionPool>('IConnectionPool');
 
-// Shared resource - singleton with lifecycle hooks
 @Injectable(IConnectionPool, [])
 class ConnectionPool implements IConnectionPool {
   @OnInit()
@@ -387,25 +408,43 @@ class ConnectionPool implements IConnectionPool {
   }
 }
 
-// Loggers use the shared resource
 const loggingModule = makeModule({
   name: 'LoggingModule',
-  providers: () => [
+  providers: [
     ConnectionPool,
-    factoryProvider(
-      ILogger('app'),
-      (pool) => new ConsoleLogger('app', pool),
-      [IConnectionPool]
+    familyProvider(ILogger, (scope) =>
+      factoryProvider(
+        ILogger(scope),
+        (pool: IConnectionPool) => new ConsoleLogger(scope, pool),
+        [IConnectionPool] as const,
+      ),
     ),
-    factoryProvider(
-      ILogger('db'),
-      (pool) => new ConsoleLogger('db', pool),
-      [IConnectionPool]
-    )
   ],
-  exports: [ILogger('app'), ILogger('db')]
+  exports: [ILogger],
 });
 ```
+
+### Module Visibility: strictExports
+
+Module `exports` are metadata by default - nothing is enforced, and visibility is really decided by ES modules: a token you do not export from your package cannot be requested from outside it.
+
+If you want the declarations checked, turn on the opt-in build-time lint:
+
+```typescript
+const container = await new ContainerBuilder({ strictExports: true })
+  .register(AppModule)
+  .build();
+```
+
+With `strictExports: true`, `build()` walks the finished graph and, for every edge `consumer → dependency` where the dependency belongs to module M and the consumer does not, requires the dependency token to be listed in M's `exports`. Rules:
+
+- edges inside a single module are always allowed;
+- dependencies that belong to no module are consumed freely;
+- a missing or empty `exports` means **nothing is exported** - if you opt into the strict mode, declare exports honestly;
+- a token family in `exports` exports all its materialized members;
+- all violations are reported in a single error as a list of `consumer → dependency (module)`.
+
+This is a lint over the built graph, not runtime encapsulation: there are no visibility checks in `get()` or during injection. The flag is off by default, so existing containers keep building unchanged.
 
 ## Complete Example
 
@@ -558,6 +597,7 @@ Use **@nestling/viz** for interactive visualization of your dependency tree.
 ### Core Functions
 
 - `makeToken<T>(id: string): TokenString<T>` - Create an injection token
+- `makeTokenFamily<T, [param: string]>(name): TokenFamily<T>` - Create a family of tokens; `Family(param)` returns the memoized member token `"<name>:<param>"`, `Family.auto` is the consumer-aware sentinel
 - `Injectable(deps: InjectionToken[])` - Decorate a class as injectable
 - `Injectable(token: TokenString, deps: InjectionToken[])` - Injectable with explicit token
 - `makeModule(config: Module): Module` - Create a module
@@ -567,11 +607,12 @@ Use **@nestling/viz** for interactive visualization of your dependency tree.
 - `classProvider<T>(token, class)` - Create a class provider (class must be decorated with `@Injectable`)
 - `valueProvider<T>(token, value)` - Create a value provider
 - `factoryProvider<T>(token, factory, deps)` - Create a factory provider
+- `familyProvider<T>(family, recipe)` - Register one recipe for a whole token family; the recipe `(param) => ProviderDefinition<T>` is called once per referenced member at build time
 
 ### Container API
 
-- `new ContainerBuilder()` - Create a builder
-- `.register(...providers | ...modules)` - Register dependencies
+- `new ContainerBuilder(options?: { strictExports?: boolean })` - Create a builder
+- `.register(...providers | ...familyProviders | ...modules)` - Register dependencies
 - `.build()` - Build the container (async)
 - `container.get<T>(token)` - Get an instance, or `null` if not registered
 - `container.getOrThrow<T>(token)` - Get an instance, throws if not registered
