@@ -15,6 +15,7 @@
 #
 # Переменные окружения:
 #   MAX_APPLY_ROUNDS  потолок раундов apply на один change (по умолчанию 8)
+#   STALL_TOLERANCE   сколько незакрытых задач при застое отдаём архивации (2)
 #   PERMISSION_MODE   режим прав для claude -p (по умолчанию auto)
 #   SKIP_ARCHIVE      1 — не архивировать (оставить change'и открытыми)
 #
@@ -24,6 +25,7 @@
 set -uo pipefail
 
 MAX_APPLY_ROUNDS=${MAX_APPLY_ROUNDS:-8}
+STALL_TOLERANCE=${STALL_TOLERANCE:-2}
 PERMISSION_MODE=${PERMISSION_MODE:-auto}
 SKIP_ARCHIVE=${SKIP_ARCHIVE:-0}
 DRY_RUN=0
@@ -145,7 +147,17 @@ while IFS='|' read -r name description; do
     (( round++ ))
     (( round > MAX_APPLY_ROUNDS )) && die "$name: исчерпан лимит раундов ($MAX_APPLY_ROUNDS) на $done_n/$total"
 
+    # Часть задач по своему тексту выполняется шагом archive («абзац в archlog
+    # на этапе archive», «статус в roadmap после archive»). Требовать 100%
+    # до архивации — дедлок: задача не закроется без archive, а archive
+    # не запустится без задачи. Поэтому застой с маленьким остатком отдаём
+    # архивации, а не считаем провалом; большой остаток — по-прежнему стоп.
     if (( done_n == prev_done && round > 1 )); then
+      local_remaining=$(( total - done_n ))
+      if (( local_remaining <= STALL_TOLERANCE )); then
+        warn "$name: застой на $done_n/$total, остаток $local_remaining — отдаём архивации"
+        break
+      fi
       die "$name: раунд без прогресса ($done_n/$total) — застряло, см. $LOGFILE"
     fi
     prev_done=$done_n
