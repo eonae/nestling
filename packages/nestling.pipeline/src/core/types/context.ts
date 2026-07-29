@@ -1,6 +1,6 @@
 import type { Readable } from 'node:stream';
 
-import type { AnyInput, EmptyInput } from '../io/io';
+import type { AnyInput, AnyOutput, AnyPayload, EmptyInput } from '../io/io';
 import type { ErrorStatus, SuccessStatus } from '../status';
 
 import type { Raw } from './raw.js';
@@ -28,13 +28,6 @@ export interface FilePart {
 }
 
 /**
- * Интерфейс для схемы валидации (zod-совместимый)
- */
-export interface Schema<T> {
-  parse(data: unknown): T;
-}
-
-/**
  * Метаданные endpoint (readonly)
  * Доступны middleware для конфигурации (rate limit, audit, cache и т.д.)
  */
@@ -42,11 +35,11 @@ export interface EndpointMeta {
   transport: string;
   pattern: string;
 
-  /** Schema для валидации input (zod, yup, etc) */
-  input?: Schema<unknown>;
+  /** Конфигурация input: схема, примитив или модификатор */
+  input?: AnyPayload;
 
-  /** Schema для output (опционально) */
-  output?: Schema<unknown>;
+  /** Конфигурация output: схема, примитив или stream-модификатор */
+  output?: AnyOutput;
 
   /** Дополнительные опции для middleware */
   [key: string]: unknown;

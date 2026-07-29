@@ -6,6 +6,14 @@
 
 A library for defining data models with validation, automatic type inference, documentation, and transformations. Built on top of [Zod v4](https://github.com/colinhacks/zod).
 
+> 🛰️ **Zod-specific satellite, outside the V1 core.** Nestling's core accepts
+> any [Standard Schema](https://standardschema.dev) (zod, valibot, arktype, …)
+> and never introspects it. This package deliberately does the opposite: its
+> central feature — checking a schema against an existing domain type field by
+> field — requires zod-native introspection (`z.ZodObject<infer Shape>`,
+> `z.input<S>`) that the spec does not provide. Hence its own explicit
+> `peerDependencies.zod`; the core has none.
+
 ## Why this library?
 
 When developing applications, we constantly work with input and output data. This data must:

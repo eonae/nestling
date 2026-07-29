@@ -1,7 +1,7 @@
 # HTTP-сервер в функциональном стиле
 
 ✅ **Статус: актуально** — сверено с кодом `examples.simple-http-server`
-(2026-07-13). ⚠️ В целевом V1 фаза `.after` уходит (roadmap 17), а канон
+(2026-07-29). ⚠️ В целевом V1 фаза `.after` уходит (roadmap 17), а канон
 деклараций — per-transport конструкторы (`httpEndpoint`,
 [design/endpoints.md](../design/endpoints.md), roadmap 24); `makeEndpoint`
 остаётся kernel-примитивом. Запускаемый код — в
@@ -43,6 +43,13 @@ export const CreateUser = makeEndpoint({
 Ключевое: `pattern` — строка `"МЕТОД /путь"`; схема `input` + `.pre(validate())`
 в пайплайне дают типизированный payload в хендлере; вернуть можно значение
 напрямую (обернётся в `Ok`) или явно `Ok.created(...)` / `throw Fail.badRequest(...)`.
+
+zod здесь — **один из вариантов**: ядро принимает любую
+[Standard Schema](https://standardschema.dev) (valibot, arktype, TypeBox,
+Effect Schema …) и валидатором не зависит. Отказ валидации возвращает `400`
+с `details` вида `[{ message, path }]` — форма гарантирована спекой, не
+вендором; async-refinement'ы в схемах endpoint'ов запрещены (валидация
+синхронна по гарантии).
 
 ## Streaming-вход
 

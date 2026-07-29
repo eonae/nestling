@@ -11,6 +11,7 @@ import { type AddressInfo, connect } from 'node:net';
 
 import { HttpTransport } from './transport.js';
 
+import type { Schema } from '@common/misc';
 import { Fail, makePipeline, Ok, stream, validate } from '@nestling/pipeline';
 import { z } from 'zod';
 
@@ -102,6 +103,20 @@ describe('HttpTransport — error response safety', () => {
   });
 });
 
+/** Схема с async-refinement: `~standard.validate` возвращает Promise. */
+const asyncSchema = {
+  '~standard': {
+    version: 1,
+    vendor: 'test',
+    validate: () => Promise.resolve({ value: { name: 'Alice' } }),
+  },
+} as unknown as Schema;
+
+/** Объект, не реализующий Standard Schema v1 (валидатор старой версии). */
+const notASchema = {
+  parse: (value: unknown) => value,
+} as unknown as Schema;
+
 describe('HttpTransport — request validation errors', () => {
   let transport: HttpTransport;
   let baseUrl: string;
@@ -133,6 +148,24 @@ describe('HttpTransport — request validation errors', () => {
       pattern: 'POST /fallback',
       input: z.object({ name: z.string() }),
       handle: (payload: { name: string }) => ({ ok: payload.name }),
+    });
+
+    // Схема с async-refinement: ошибка конфигурации приложения, не входа
+    transport.route({
+      transport: 'http',
+      pattern: 'POST /async-schema',
+      input: asyncSchema,
+      pipeline: makePipeline().pre(validate()),
+      handle: () => new Ok({ ok: true }),
+    });
+
+    // Объект, не реализующий Standard Schema: тоже не ошибка входа
+    transport.route({
+      transport: 'http',
+      pattern: 'POST /not-a-schema',
+      input: notASchema,
+      pipeline: makePipeline().pre(validate()),
+      handle: () => new Ok({ ok: true }),
     });
 
     baseUrl = await listen(transport);
@@ -178,6 +211,47 @@ describe('HttpTransport — request validation errors', () => {
     const body = await response.json();
     expect(body.error).toBe('Validation failed');
     expect(Array.isArray(body.details)).toBe(true);
+  });
+
+  it('details — стандартные issues { message, path } без вендорских полей', async () => {
+    for (const path of ['/json', '/fallback']) {
+      const response = await fetch(`${baseUrl}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 42 }),
+      });
+      expect(response.status).toBe(400);
+
+      const body = await response.json();
+      expect(body.details).toEqual([
+        { message: expect.any(String), path: ['name'] },
+      ]);
+      expect(body.details[0]).not.toHaveProperty('code');
+      expect(body.details[0]).not.toHaveProperty('expected');
+      expect(body.details[0]).not.toHaveProperty('received');
+    }
+  });
+
+  it('async-схема → 500, а не 400', async () => {
+    const response = await fetch(`${baseUrl}/async-schema`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Alice' }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: 'Internal server error' });
+  });
+
+  it('объект вместо схемы → 500, а не 400', async () => {
+    const response = await fetch(`${baseUrl}/not-a-schema`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Alice' }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: 'Internal server error' });
   });
 
   it('валидный JSON → 200', async () => {

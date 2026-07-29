@@ -26,10 +26,8 @@
     "busboy": "^1.6.0",
     "find-my-way": "^8.2.0"
   },
-  "peerDependencies": {
-    "zod": "^4.0.0"
-  },
   "devDependencies": {
-    "@types/busboy": "^1.5.4"
+    "@types/busboy": "^1.5.4",
+    "zod": "^4.0.0"
   }
 }

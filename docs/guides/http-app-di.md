@@ -1,7 +1,7 @@
 # Приложение с DI: App, модули, классовые endpoints
 
 ✅ **Статус: актуально** — сверено с кодом `examples.app-with-http`
-(2026-07-13). ⚠️ Описанный здесь стиль деклараций (`@HttpEndpoint`,
+(2026-07-29). ⚠️ Описанный здесь стиль деклараций (`@HttpEndpoint`,
 классовые endpoints) **уходит из целевого V1** — канон см. в
 [design/endpoints.md](../design/endpoints.md), план перевода — roadmap 24
 (`endpoint-model`); гайд будет переведён вместе с примером.
@@ -10,6 +10,9 @@
 
 Полный уровень фреймворка: DI-контейнер, модули, классовые endpoints
 с конструкторной инъекцией, автоматическая регистрация, graceful shutdown.
+zod в примерах — **один из вариантов**: ядро принимает любую
+[Standard Schema](https://standardschema.dev) (valibot, arktype, TypeBox,
+Effect Schema …) и валидатором не зависит.
 
 ## Классовый endpoint
 

@@ -23,8 +23,5 @@
     "@common/misc": "workspace:*",
     "@nestling/pipeline": "workspace:*",
     "@nestling/transport": "workspace:*"
-  },
-  "peerDependencies": {
-    "zod": "^4.0.0"
   }
 }

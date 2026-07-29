@@ -432,6 +432,8 @@ __metadata:
 "@common/misc@workspace:*, @common/misc@workspace:packages/common.misc":
   version: 0.0.0-use.local
   resolution: "@common/misc@workspace:packages/common.misc"
+  dependencies:
+    "@standard-schema/spec": "npm:^1.1.0"
   languageName: unknown
   linkType: soft
 
@@ -1559,8 +1561,7 @@ __metadata:
     "@nestling/pipeline": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.http": "workspace:*"
-  peerDependencies:
-    zod: ^4.0.0
+    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -1589,8 +1590,7 @@ __metadata:
   resolution: "@nestling/pipeline@workspace:packages/nestling.pipeline"
   dependencies:
     "@common/misc": "workspace:*"
-  peerDependencies:
-    zod: ^4.0.0
+    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -1601,8 +1601,6 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/transport": "workspace:*"
-  peerDependencies:
-    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -1616,8 +1614,7 @@ __metadata:
     "@types/busboy": "npm:^1.5.4"
     busboy: "npm:^1.6.0"
     find-my-way: "npm:^8.2.0"
-  peerDependencies:
-    zod: ^4.0.0
+    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -1627,8 +1624,6 @@ __metadata:
   dependencies:
     "@common/misc": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-  peerDependencies:
-    zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -2392,6 +2387,13 @@ __metadata:
   dependencies:
     "@sinonjs/commons": "npm:^3.0.0"
   checksum: 10/78155c7bd866a85df85e22028e046b8d46cf3e840f72260954f5e3ed5bd97d66c595524305a6841ffb3f681a08f6e5cef572a2cce5442a8a232dc29fb409b83e
+  languageName: node
+  linkType: hard
+
+"@standard-schema/spec@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@standard-schema/spec@npm:1.1.0"
+  checksum: 10/a209615c9e8b2ea535d7db0a5f6aa0f962fd4ab73ee86a46c100fb78116964af1f55a27c1794d4801e534a196794223daa25ff5135021e03c7828aa3d95e1763
   languageName: node
   linkType: hard
 

@@ -1395,6 +1395,16 @@ JSON Schema — это ровно обход структуры. Поле `vendo
 
 ### Решение 1: ядро принимает `StandardSchemaV1`
 
+> **РЕАЛИЗОВАНО 2026-07-29** — change `standard-schema` (#19 roadmap).
+> Реализация уточнила две вещи, не менявшие сути решения: (1) валидация
+> собрана в единственную функцию `validateSync(schema, value, message)`,
+> через которую идут `parsePayload`/`parseMetadata`, юнит `validate()`,
+> поэлементная валидация потока и fallback-ветки транспортов — иначе форма
+> отказа расходилась бы по четырём `catch`-ам; (2) `path` нормализуется при
+> конструировании ошибки (`{key}` → `key`, символ → строка, индекс — число),
+> потому что `issues` уезжают в тело HTTP-ответа и форма провода не должна
+> зависеть от упаковки пути вендором.
+
 - `parsePayload`/`parseMetadata`/`DomainType` переходят с `z.ZodType`/`z.infer`
   на `StandardSchemaV1`/`InferOutput`; валидация — через
   `schema['~standard'].validate(...)`.
@@ -1405,8 +1415,14 @@ JSON Schema — это ровно обход структуры. Поле `vendo
 - zod уходит из dependencies ядра в devDependencies (тесты, примеры);
   валидатор приносит пользователь: zod, `zod/mini`, valibot, arktype —
   на его вкус и бюджет бандла.
-- `validate`, вернувший Promise (async refinements), в синхронном пайплайне —
-  ошибка (`TypeError: async schemas are not supported`), не тихая деградация.
+- ~~`validate`, вернувший Promise (async refinements), в синхронном пайплайне —
+  ошибка (`TypeError: async schemas are not supported`), не тихая
+  деградация.~~ — **УТОЧНЕНО 2026-07-29**: тезис в силе, но класс ошибки
+  выбран иначе. Async-схема даёт `AsyncSchemaNotSupportedError`, объект без
+  `~standard` — `NotAStandardSchemaError`; оба намеренно **не** наследуют
+  `SchemaValidationError`, поскольку это ошибки конфигурации приложения, а не
+  входа: транспорт отдаёт на них 500, и общий `TypeError` замаскировал бы их
+  под 400 в `catch`-ветках.
 
 ### Решение 2: OpenAPI-модуль с явными конвертерами
 

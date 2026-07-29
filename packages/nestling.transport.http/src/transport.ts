@@ -489,7 +489,7 @@ export class HttpTransport {
     } else if (error instanceof SchemaValidationError) {
       status = 400;
       body.error = 'Validation failed';
-      body.details = error.zodError.issues;
+      body.details = error.issues;
     } else if (
       error instanceof PayloadTooLargeError ||
       error instanceof ChunkTooLargeError

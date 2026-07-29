@@ -19,5 +19,8 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@standard-schema/spec": "^1.1.0"
+  }
 }

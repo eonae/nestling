@@ -6,7 +6,9 @@ HTTP transport for Nestling built on bare `node:http`: routing via
 responses.
 
 > 🚧 Active development. CORS, rate limiting and compression are still
-> out of scope. Architecture:
+> out of scope. No validator among the dependencies — the transport
+> validates through `@nestling/pipeline` against any
+> [Standard Schema](https://standardschema.dev) you bring. Architecture:
 > [`docs/design/transports.md`](../../docs/design/transports.md).
 
 ## Security & limits
@@ -22,6 +24,12 @@ By default the transport is safe to expose:
   reading aborts early and returns `413`. Set `maxBodySize: 0` to disable.
 - **Input errors map to 4xx.** Malformed JSON and payload key conflicts return
   `400`; oversized payloads return `413` — not `500`.
+- **Validation failures return standard issues.** A schema failure returns
+  `400` with `details` shaped as `[{ "message": "…", "path": ["name"] }]` —
+  the Standard Schema guarantee, no vendor-specific `code`/`expected`/
+  `received`. An async schema or an object that is not a Standard Schema is
+  a configuration error, not bad input: those return `500`, masked by
+  `exposeErrorDetails` like any other unhandled error.
 - **Request cancellation.** Every request gets a `meta.signal`
   (`AbortSignal`): it aborts when the client disconnects before the
   response completes. Cancellation is cooperative — handlers (especially

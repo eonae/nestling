@@ -9,9 +9,8 @@ import {
 
 import type { Optional, Schema } from '@common/misc';
 import type { FilePart } from '@nestling/pipeline';
-import { SchemaValidationError } from '@nestling/pipeline';
+import { validateSync } from '@nestling/pipeline';
 import Busboy from 'busboy';
-import type { z, ZodError } from 'zod';
 
 /**
  * Максимальный размер файла для буферизации в память (5MB).
@@ -285,22 +284,15 @@ export function parseStream<T>(
         }
 
         if (schema) {
-          try {
-            // Парсим JSON строку
-            const chunkData = JSON.parse(trimmedLine);
+          // Парсим JSON строку
+          const chunkData = JSON.parse(trimmedLine);
 
-            // Валидируем через схему
-            const parsed = (schema as z.ZodTypeAny).parse(chunkData);
-            yield parsed as T;
-          } catch (error) {
-            if (error && typeof error === 'object' && 'issues' in error) {
-              throw new SchemaValidationError(
-                'Stream chunk validation failed',
-                error as ZodError,
-              );
-            }
-            throw error;
-          }
+          // Валидируем через схему
+          yield validateSync(
+            schema,
+            chunkData,
+            'Stream chunk validation failed',
+          ) as T;
         } else {
           // Без схемы возвращаем распарсенный JSON
           try {
@@ -316,19 +308,13 @@ export function parseStream<T>(
     // Обрабатываем последнюю строку в буфере, если она есть
     if (buffer.trim()) {
       if (schema) {
-        try {
-          const chunkData = JSON.parse(buffer.trim());
-          const parsed = schema.parse(chunkData);
-          yield parsed as T;
-        } catch (error) {
-          if (error && typeof error === 'object' && 'issues' in error) {
-            throw new SchemaValidationError(
-              'Stream chunk validation failed',
-              error as ZodError,
-            );
-          }
-          throw error;
-        }
+        const chunkData = JSON.parse(buffer.trim());
+
+        yield validateSync(
+          schema,
+          chunkData,
+          'Stream chunk validation failed',
+        ) as T;
       } else {
         try {
           yield JSON.parse(buffer.trim()) as T;

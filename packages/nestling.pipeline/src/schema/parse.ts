@@ -1,19 +1,7 @@
 import type { DomainType, InputSources } from './types.js';
+import { validateSync } from './validate.js';
 
-import type { z, ZodError } from 'zod';
-
-/**
- * Ошибка валидации схемы
- */
-export class SchemaValidationError extends Error {
-  constructor(
-    message: string,
-    public readonly zodError: ZodError,
-  ) {
-    super(message);
-    this.name = 'SchemaValidationError';
-  }
-}
+import type { StandardSchemaV1 } from '@common/misc';
 
 /**
  * Парсит и валидирует payload согласно схеме
@@ -21,26 +9,16 @@ export class SchemaValidationError extends Error {
  * Внутренняя функция для использования в транспортах.
  * Для публичного API используйте input в endpoint.
  *
- * @param schema - Zod схема для валидации
+ * @param schema - схема, реализующая Standard Schema v1
  * @param sources - Источники входных данных
  * @returns Строго типизированный domain объект
  * @throws SchemaValidationError если валидация не прошла
  */
-export function parsePayload<S extends z.ZodType<any, any, any>>(
+export function parsePayload<S extends StandardSchemaV1>(
   schema: S,
   sources: InputSources,
 ): DomainType<S> {
-  try {
-    return schema.parse(sources.payload) as DomainType<S>;
-  } catch (error) {
-    if (error && typeof error === 'object' && 'issues' in error) {
-      throw new SchemaValidationError(
-        'Payload validation failed',
-        error as ZodError,
-      );
-    }
-    throw error;
-  }
+  return validateSync(schema, sources.payload, 'Payload validation failed');
 }
 
 /**
@@ -49,24 +27,14 @@ export function parsePayload<S extends z.ZodType<any, any, any>>(
  * Внутренняя функция для использования в транспортах.
  * Для публичного API используйте metadata в endpoint.
  *
- * @param schema - Zod схема для валидации metadata
+ * @param schema - схема, реализующая Standard Schema v1
  * @param sources - Источники входных данных
  * @returns Строго типизированный metadata объект
  * @throws SchemaValidationError если валидация не прошла
  */
-export function parseMetadata<S extends z.ZodType<any, any, any>>(
+export function parseMetadata<S extends StandardSchemaV1>(
   schema: S,
   sources: InputSources,
 ): DomainType<S> {
-  try {
-    return schema.parse(sources.metadata) as DomainType<S>;
-  } catch (error) {
-    if (error && typeof error === 'object' && 'issues' in error) {
-      throw new SchemaValidationError(
-        'Metadata validation failed',
-        error as ZodError,
-      );
-    }
-    throw error;
-  }
+  return validateSync(schema, sources.metadata, 'Metadata validation failed');
 }

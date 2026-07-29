@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+import type { StandardSchemaV1 } from '@common/misc';
 
 /**
  * Объединённые источники входных данных
@@ -17,6 +17,7 @@ export interface InputSources {
 }
 
 /**
- * Выводит domain-тип из zod-схемы
+ * Выводит domain-тип из схемы — выход `~standard.types.output`
  */
-export type DomainType<S extends z.ZodType<any, any, any>> = z.infer<S>;
+export type DomainType<S extends StandardSchemaV1> =
+  StandardSchemaV1.InferOutput<S>;

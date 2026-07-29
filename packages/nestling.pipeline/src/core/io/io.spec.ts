@@ -1,6 +1,20 @@
+import type { FilePart } from '../types';
+
+import type { InferInput, InferOutput } from './io';
 import { analyzePayload, files, stream, withFiles } from './io';
 
 import { z } from 'zod';
+
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false;
+
+/**
+ * Тип-утверждение: инстанциация с ложным `Equal<…>` не проходит компиляцию
+ * (`false` не удовлетворяет ограничению `true`).
+ */
+const assertType = <T extends true>(assertion: T): T => assertion;
 
 describe('stream', () => {
   it('should create stream modifier with schema', () => {
@@ -78,6 +92,48 @@ describe('files', () => {
       type: 'files',
       buffer: true,
     });
+  });
+});
+
+describe('инференс типов из io-конфигурации', () => {
+  it('выводит выход схемы через ~standard, без вендорских ветвлений', () => {
+    const schema = z.object({
+      id: z.string().transform((value: string) => Number.parseInt(value, 10)),
+    });
+
+    // Инференс идёт по `~standard.types.output`: у трансформирующей схемы
+    // это выход, а не вход.
+    assertType<Equal<InferInput<typeof schema>, { id: number }>>(true);
+    assertType<
+      Equal<
+        InferInput<ReturnType<typeof stream<typeof schema>>>,
+        AsyncIterableIterator<{ id: number }>
+      >
+    >(true);
+    assertType<
+      Equal<
+        InferInput<ReturnType<typeof withFiles<typeof schema>>>,
+        { data: { id: number }; files: FilePart[] }
+      >
+    >(true);
+    assertType<Equal<InferOutput<typeof schema>, { id: number }>>(true);
+
+    expect(analyzePayload(schema).type).toBe('schema');
+  });
+
+  it('сохраняет ветки примитивов и undefined', () => {
+    assertType<Equal<InferInput<'binary'>, Buffer>>(true);
+    assertType<Equal<InferInput<'text'>, string>>(true);
+    assertType<Equal<InferInput<undefined>, undefined>>(true);
+    assertType<
+      Equal<
+        InferInput<ReturnType<typeof stream<'text'>>>,
+        AsyncIterableIterator<string>
+      >
+    >(true);
+    assertType<Equal<InferInput<ReturnType<typeof files>>, FilePart[]>>(true);
+
+    expect(analyzePayload('text').type).toBe('primitive');
   });
 });
 

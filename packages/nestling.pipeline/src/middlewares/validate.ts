@@ -1,6 +1,9 @@
 import type { EmptyInput } from '../core';
 import { analyzePayload, Fail } from '../core';
 import type { PreUnitFn } from '../core/types';
+import { SchemaValidationError, validateSync } from '../schema';
+
+import type { Schema } from '@common/misc';
 
 /**
  * Валидирует raw.payload и создаёт payload
@@ -9,6 +12,11 @@ import type { PreUnitFn } from '../core/types';
  * подготавливаются транспортом, их payload передаётся handler'у как есть.
  *
  * При ошибке валидации бросает Fail.badRequest (HTTP 400).
+ *
+ * Ошибки конфигурации приложения — async-схема
+ * (`AsyncSchemaNotSupportedError`) и объект-не-схема
+ * (`NotAStandardSchemaError`) — пробрасываются наружу как есть: это не
+ * ошибка входа, и 400 их бы замаскировал.
  *
  * @example
  * ```typescript
@@ -27,21 +35,22 @@ export function validate(): PreUnitFn<
       return;
     }
 
-    const schema = config.schema as { parse(data: unknown): unknown };
-
     try {
-      const payload = schema.parse(ctx.raw.payload);
+      const payload = validateSync(
+        config.schema as Schema,
+        ctx.raw.payload,
+        'Validation failed',
+      );
 
       return {
         payload,
       };
     } catch (error) {
-      const issues =
-        error && typeof error === 'object' && 'issues' in error
-          ? (error as { issues: unknown }).issues
-          : undefined;
+      if (error instanceof SchemaValidationError) {
+        throw Fail.badRequest(error.message, error.issues);
+      }
 
-      throw Fail.badRequest('Validation failed', issues);
+      throw error;
     }
   };
 }

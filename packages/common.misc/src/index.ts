@@ -1,15 +1,24 @@
-import type { z } from 'zod';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
+
+export type { StandardSchemaV1 } from '@standard-schema/spec';
 
 export type Constructor<T> = new (...args: any[]) => T;
 export type Optional<T> = T | undefined;
 export type Nullable<T> = T | null;
 export type Nullish<T> = Nullable<T> | undefined;
 
-export type Schema = z.ZodTypeAny;
+/**
+ * Схема валидации — любая реализация Standard Schema v1
+ * (zod ≥ 3.24, valibot ≥ 1.0, arktype, TypeBox, Effect Schema …).
+ *
+ * Ядро не интроспектирует схему: спека даёт только `validate` и фантомные
+ * типы для инференса.
+ */
+export type Schema = StandardSchemaV1;
 
 /**
- * Выводит тип из Zod схемы или возвращает undefined если схема не передана
+ * Выводит выходной тип схемы или возвращает undefined, если схема не передана
  */
-export type Infer<T extends Optional<Schema>> = T extends z.ZodTypeAny
-  ? z.infer<T>
+export type Infer<T extends Optional<Schema>> = T extends StandardSchemaV1
+  ? StandardSchemaV1.InferOutput<T>
   : undefined;

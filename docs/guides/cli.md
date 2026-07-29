@@ -1,12 +1,14 @@
 # CLI-транспорт
 
-✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-13).
+✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-29).
 ⚠️ В целевом V1 канон деклараций — per-transport конструкторы (`cliEndpoint`,
 [design/endpoints.md](../design/endpoints.md), roadmap 24).
 Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).
 
 Те же endpoints и pipeline, что и в HTTP, — но команды вместо маршрутов.
-`pattern` трактуется как имя команды.
+`pattern` трактуется как имя команды. zod в примерах — **один из вариантов**:
+ядро принимает любую [Standard Schema](https://standardschema.dev) (valibot,
+arktype, TypeBox, Effect Schema …) и валидатором не зависит.
 
 ## Endpoint-команда
 

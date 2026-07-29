@@ -114,19 +114,15 @@ export type InferOutput<O> =
             InferSchemaType<O>;
 
 /**
- * Вывод типа из схемы (zod, yup, etc) или примитива
+ * Вывод типа из схемы (любой Standard Schema) или примитива
  */
 type InferSchemaType<S> = S extends 'binary'
   ? Buffer
   : S extends 'text'
     ? string
-    : S extends { _output: infer O }
-      ? O // zod
-      : S extends { __outputType: infer O }
-        ? O // yup
-        : S extends Optional<Schema>
-          ? Infer<S>
-          : unknown;
+    : S extends Optional<Schema>
+      ? Infer<S>
+      : unknown;
 
 /**
  * Результат анализа input конфигурации для транспорта
