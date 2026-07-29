@@ -25,7 +25,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 2 | `container-fixes` | module-метаданные функциональных провайдеров, накопление lifecycle-метаданных per-instance, JSDoc `get()` | S | **done** — [архив](../../openspec/changes/archive/2026-07-07-container-fixes/) |
 | 3 | `abort-signal` | `meta.signal` (AbortSignal) насквозь: транспорт (дисконнект) + App (shutdown) | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-07-abort-signal/) |
 | 4 | `pipeline-v2` | фазы `.pre/.ok/.catch/.after/.finally`, `makePipeline`, слои + `compose`, `TNeeds`, рантайм-тесты ядра | L, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-13-pipeline-v2/) |
-| 5 | `token-families` | `makeTokenFamily`, `.auto`, `familyProvider`; опционально `strictExports`. **Покрывает и конфиг (`Config(key)`), и on-demand-клиенты (`GrpcClient(server)` + unbound properties)** — см. [discussions/05 §15](../history/discussions/05-modular-monolith-features-ports.md#15) | M | **proposed** — [артефакты](../../openspec/changes/token-families/), готов к apply |
+| 5 | `token-families` | `makeTokenFamily`, `.auto`, `familyProvider`; опционально `strictExports`. **Покрывает и конфиг (`Config(key)`), и on-demand-клиенты (`GrpcClient(server)` + unbound properties)** — см. [discussions/05 §15](../history/discussions/05-modular-monolith-features-ports.md#15) | M | **done** — [архив](../../openspec/changes/archive/2026-07-29-token-families/) |
 | 6 | `streaming-v2` | `stream` ≠ `events`, item-цепочки на io-декларации, `Topic`, `summary`, SSE; io-декларация как дерево форм (`value`/`stream`/`events`/`multipart` + `upload()`, листья — Standard Schema), поэлементная валидация; capability-валидация биндинга: формы контракта vs способности транспорта, fail-fast на ASSEMBLE | L | не начат |
 | 7 | `subscriptions-registry` | пакет реестра подписок поверх signal + finish-хуков (dogfooding публичных примитивов) | M | не начат |
 | 8 | `endpoint-discovery` | эндпоинты и транспорты — дискавери из дерева зарегистрированных модулей вместо глобального registry (чинит протечку глобального `Set` при любом импорте). Предпосылка фич | S | **spec-ready** — [d/05 §1](../history/discussions/05-modular-monolith-features-ports.md) |
@@ -198,7 +198,7 @@ breaking-окно едет вторым (а не после ветки моно�
 
 | # | Change | Размер | Почему здесь |
 |---|---|---|---|
-| 5 | `token-families` | M | артефакты готовы, `apply` хоть сейчас; разблокирует 9, 14, 16 |
+| 5 | `token-families` | M | разблокирует 9, 14, 16 — **done**, [архив](../../openspec/changes/archive/2026-07-29-token-families/) |
 | 14 | `multi-injection` | S | тот же файл-фронт в контейнере, что и 5 — дешевле сразу следом |
 
 Выход: контейнер умеет параметризованные провайдеры и агрегаты семейств;
