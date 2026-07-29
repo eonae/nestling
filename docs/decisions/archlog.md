@@ -1,3 +1,50 @@
+[29.07.2026] Схемы: Standard Schema вместо привязки к zod (standard-schema). BREAKING.
+
+Первый change breaking-окна волны 2. Ядро больше не знает про валидатор:
+`Schema` в `@common/misc` — это `StandardSchemaV1`, `Infer`/`DomainType` идут
+через `InferOutput`, а валидация — вызов `schema['~standard'].validate(value)`.
+Вендорские типы (`z.ZodType`, `z.infer`, `ZodError`) из публичных сигнатур
+ушли; `zod` убран из `peerDependencies` пяти пакетов ядра и из единственного
+рантайм-импорта (`middlewares/meta.ts`), оставшись devDependency там, где его
+импортируют тесты. Единственная схемная зависимость — types-only
+`@standard-schema/spec`, а сам тип реэкспортирован из `@common/misc`, чтобы
+потребителю не требовалось ставить пакет спеки.
+
+Ключевое свойство спеки, определившее дизайн: Standard Schema даёт валидацию
+и инференс, но **не интроспекцию**. Схема в рантайме — чёрный ящик, поэтому
+всё, что требует знания структуры, в ядро не попало (конвертеры в JSON Schema
+поедут отдельными пакетами с change `openapi`). Следствие: `InferSchemaType`
+схлопнут до `~standard` (yup, у которого спеки нет, выпал из поддержки), а
+дак-тайп `interface Schema<T> { parse(data): T }` из `EndpointMeta` удалён —
+он лгал (в `input` клали и модификаторы, и примитивы).
+
+Вся валидация сведена в одну функцию `validateSync` (`@nestling/pipeline`):
+через неё идут `parsePayload`/`parseMetadata`, юнит `validate()`, поэлементная
+валидация NDJSON-потока и fallback-ветки транспортов без pipeline — прямых
+`schema.parse(...)` в ядре и транспортах не осталось, так что одна и та же
+невалидная запись даёт одинаковую ошибку на любом пути. `SchemaValidationError`
+несёт `issues: readonly { message, path? }[]` вместо поля `zodError`; путь
+нормализуется при конструировании (сегмент-объект `{ key }` → `key`, символ →
+строка, индекс остаётся числом), поэтому `issues` JSON-сериализуемы и уезжают
+в `details` 400-ответа без вендорских `code`/`expected`/`received`.
+
+Граница «ошибка входа vs ошибка конфигурации» проведена явно. Синхронность
+валидации — гарантия: thenable из `validate` даёт `AsyncSchemaNotSupportedError`
+вместо Promise, уехавшего handler'у вместо значения. Объект без `~standard`
+(или с чужой версией) даёт `NotAStandardSchemaError` с внятной причиной, а не
+`TypeError` о чтении свойства у `undefined`. Оба класса намеренно **вне**
+иерархии `SchemaValidationError` — транспорт отдаёт на них 500 с маскировкой
+деталей по политике `error-response-safety`, а не 400.
+
+BREAKING по трём точкам: `SchemaValidationError.zodError` больше не существует
+(есть `issues`), схемы обязаны реализовывать Standard Schema v1 (zod ≥ 3.24 /
+4.x — да, yup — нет), async-схемы перестали молча работать. Дельта-спеки влиты:
+новая capability `standard-schema-validation`, уточнено требование «Schema
+validation failures keep 400» в `http-request-validation-errors`. Целевое
+состояние — [design/schemas.md](../design/schemas.md) §1; логика и отвергнутые
+варианты — ideas.md «[2026-07-13] Схемы: Standard Schema вместо привязки к
+zod». См. [архив change'а](../../openspec/changes/archive/2026-07-29-standard-schema/).
+
 [29.07.2026] Multi-injection: `Family.all` — узел-агрегат семейства (multi-injection).
 
 Инжект массива независимо зарегистрированных вкладов закрыт без флага

@@ -55,7 +55,7 @@
 - [x] 7.5 `docs/decisions/ideas.md`, секция «[2026-07-13] Схемы…»: пометить `~~строкой~~ — РЕШЕНО` то, что закрыто (Решение 1 реализовано); открытый вопрос про async оставить открытым; текст записи не переписывать (CLAUDE.md, append-only)
 - [x] 7.6 `docs/guides/{cli,http-app-di,http-functional}.md`: пересверить с кодом примеров, обновить дату в плашке «сверено с кодом»; добавить фразу «zod — один из вариантов, ядро принимает любую Standard Schema»
 - [x] 7.7 `docs/preview`: обновить упоминания zod/схем, если затронуты — не затронуты: preview уже описывает целевое состояние (Standard Schema, конвертеры), `zodError`/вендорских `details` там нет
-- [ ] 7.8 `docs/decisions/archlog.md` — абзац о переходе на Standard Schema (на этапе archive); статус change #19 в `docs/decisions/roadmap.md` (после archive)
+- [x] 7.8 `docs/decisions/archlog.md` — абзац о переходе на Standard Schema (на этапе archive); статус change #19 в `docs/decisions/roadmap.md` (после archive)
 
 ## 8. Definition of Done
 
