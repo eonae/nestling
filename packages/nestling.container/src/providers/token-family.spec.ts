@@ -1,4 +1,5 @@
 import { ContainerBuilder } from '../builder';
+import type { TokenString } from '../common';
 import { makeToken } from '../common';
 
 import { Injectable } from './injectable.decorator';
@@ -44,6 +45,16 @@ describe('makeTokenFamily', () => {
     expect(() => ILogger('{auto}')).toThrow(/reserved/);
   });
 
+  it('rejects the parameter reserved for the .all sentinel', () => {
+    const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
+      'ReservedAllLogger',
+    );
+
+    expect(() => ILogger('{all}')).toThrow(
+      /Parameter '{all}' is reserved for 'ReservedAllLogger\.all'/,
+    );
+  });
+
   it('recognizes families and family definitions', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'GuardLogger',
@@ -58,6 +69,45 @@ describe('makeTokenFamily', () => {
     expect(
       isFamilyDefinition(valueProvider(ILogger('users'), makeLogger('u'))),
     ).toBe(false);
+  });
+});
+
+describe('Family.all sentinel', () => {
+  it('has the "<family>:{all}" id', () => {
+    const IHealthCheck = makeTokenFamily<ILoggerService, [name: string]>(
+      'HealthCheck',
+    );
+
+    expect(IHealthCheck.all).toBe('HealthCheck:{all}');
+  });
+
+  it('is typed as a token of a readonly array of members', () => {
+    const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
+      'TypedAllLogger',
+    );
+
+    // Compile-time assertions: the sentinel carries `readonly T[]`, so a
+    // consumer declaring a mutable array would not typecheck.
+    const token: TokenString<readonly ILoggerService[]> = ILogger.all;
+
+    @Injectable([ILogger.all])
+    class Aggregator {
+      constructor(readonly loggers: readonly ILoggerService[]) {}
+    }
+
+    expect(token).toBe('TypedAllLogger:{all}');
+    expect(injectableMetaStorage.get(Aggregator)?.dependencies).toEqual([
+      'TypedAllLogger:{all}',
+    ]);
+  });
+
+  it('is not a family member: the sentinel is not memoized as one', () => {
+    const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
+      'DistinctAllLogger',
+    );
+
+    expect(ILogger.all).not.toBe(ILogger('all'));
+    expect(ILogger.all).not.toBe(ILogger.auto);
   });
 });
 

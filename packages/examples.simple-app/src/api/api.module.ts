@@ -1,8 +1,15 @@
 import { ConfigModule } from '../config';
+import { IHealthCheck } from '../health';
 import { IApiClient, IConfig } from '../interfaces';
 import { ILogger } from '../logging';
 
-import { factoryProvider, makeModule } from '@nestling/container';
+import { ApiHealthCheck } from './api.health';
+
+import {
+  classProvider,
+  factoryProvider,
+  makeModule,
+} from '@nestling/container';
 
 export const ApiModule = makeModule({
   name: 'module:api',
@@ -20,7 +27,9 @@ export const ApiModule = makeModule({
       },
       [IConfig, ILogger('api')] as const,
     ),
+    // Второй вклад в то же семейство — из другого модуля, без правки первого.
+    classProvider(IHealthCheck('api'), ApiHealthCheck),
   ],
-  exports: [IApiClient],
+  exports: [IApiClient, IHealthCheck],
   imports: [ConfigModule],
 });

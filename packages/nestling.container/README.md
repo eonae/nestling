@@ -386,6 +386,44 @@ This covers the Nest `transient + INQUIRER` case without a transient scope. Two 
 
 Limitations in v1: `.auto` is only valid in the deps of a class decorated with `@Injectable`. In a factory provider's deps (there is no consumer class there) it is a registration error; on a class with an empty `constructor.name` it fails at decoration. The escape hatch is the explicit call. Because member ids come from `constructor.name`, minifiers that rename classes would rename members too - the target environment is server-side Node without minification.
 
+#### Multi-injection: `Family.all`
+
+The mirror case of a recipe: many independently registered contributions, one aggregator that does not know the composition. A **contribution is an ordinary provider** with a member token, registered wherever it belongs:
+
+```typescript
+const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>('HealthCheck');
+
+// database.module.ts
+providers: [classProvider(IHealthCheck('database'), DatabaseHealthCheck)],
+exports: [IHealthCheck],
+
+// api.module.ts - a different module, no edit to the first one
+providers: [classProvider(IHealthCheck('api'), ApiHealthCheck)],
+exports: [IHealthCheck],
+```
+
+The aggregator depends on the sentinel `IHealthCheck.all`, typed as `TokenString<readonly HealthCheck[]>`:
+
+```typescript
+@Injectable([IHealthCheck.all])
+class HealthService {
+  constructor(private checks: readonly HealthCheck[]) {}
+}
+```
+
+On `build()` - after the member materialization fixpoint - the container registers a **synthetic aggregate node** whose deps are the tokens of every registered member of the family and whose instance is the array of their instances. From there it is an ordinary node: cycle detection, topological `init()`/`destroy()` (contributions initialize before the aggregate's consumers and are destroyed after them), `toJSON()`, visualization, `strictExports`.
+
+The rules worth knowing:
+
+- **composition** - every member that has a provider when the aggregate is created: explicit contributions, members materialized by the recipe, and members obtained from `.auto`. A `familyProvider` is not required: a family with nothing but explicit contributions aggregates just fine.
+- **`.all` forces no materialization** - a member created by calling `IHealthCheck('orphan')` but never depended on and never provided stays out of the array (and out of the graph);
+- **an unreferenced `.all` creates no node** - `container.get(IHealthCheck.all)` returns `null`;
+- **an empty family is an empty array**, not an error - "the feature was not selected, so its contributions are absent" is a normal state;
+- **order is registration order** - modules and providers in the order they were registered, then members added by the materialization fixpoint. It is deterministic and nothing more is promised: if the order carries meaning (a middleware chain), do not lean on `imports` order;
+- **the array is `readonly` and frozen** - it is a build snapshot shared by every consumer, so a mutation by one would be visible to the rest;
+- **the aggregate belongs to no module**, so under `strictExports` its edge to a contribution owned by module M requires M to export it - listing the family (`exports: [IHealthCheck]`) exports all its members at once;
+- **the token is reserved**: registering a provider with `provide: IHealthCheck.all` is an error, and so is the member parameter `'{all}'`.
+
 #### Lifecycle of members
 
 Each member is its own instance and runs its own lifecycle hooks. This is what you want when every instance owns a resource (its own connection, for example).
@@ -597,7 +635,7 @@ Use **@nestling/viz** for interactive visualization of your dependency tree.
 ### Core Functions
 
 - `makeToken<T>(id: string): TokenString<T>` - Create an injection token
-- `makeTokenFamily<T, [param: string]>(name): TokenFamily<T>` - Create a family of tokens; `Family(param)` returns the memoized member token `"<name>:<param>"`, `Family.auto` is the consumer-aware sentinel
+- `makeTokenFamily<T, [param: string]>(name): TokenFamily<T>` - Create a family of tokens; `Family(param)` returns the memoized member token `"<name>:<param>"`, `Family.auto` is the consumer-aware sentinel, `Family.all` (`TokenString<readonly T[]>`) is the multi-injection aggregate sentinel
 - `Injectable(deps: InjectionToken[])` - Decorate a class as injectable
 - `Injectable(token: TokenString, deps: InjectionToken[])` - Injectable with explicit token
 - `makeModule(config: Module): Module` - Create a module

@@ -1,4 +1,4 @@
-import type { Constructor, InjectionToken } from '../common';
+import type { Constructor, InjectionToken, TokenString } from '../common';
 import { stringifyToken } from '../common';
 import type { DINodeData, DINodeMetadata } from '../graph';
 import { DIGraph, DINode } from '../graph';
@@ -7,14 +7,17 @@ import type { Module } from '../modules';
 import { isModule } from '../modules';
 import type {
   ClassProviderDefinition,
+  FactoryProviderDefinition,
   FamilyMemberRef,
   FamilyProviderDefinition,
   ModuleProvider,
   Provider,
   ProviderDefinition,
   ProvidersFactory,
+  TokenFamily,
 } from '../providers';
 import {
+  getAllSentinelFamily,
   getAutoSentinelFamily,
   injectableMetaStorage,
   isClassDefinition,
@@ -157,10 +160,11 @@ export class ContainerBuilder {
    * Performs the following steps:
    * 1. Expands module provider factories
    * 2. Materializes the family members referenced in deps
-   * 3. Instantiates all providers
-   * 4. Builds the dependency graph
-   * 5. Validates the graph for circular dependencies
-   * 6. Lints cross-module edges against `exports` when `strictExports` is on
+   * 3. Creates a synthetic aggregate node per referenced `Family.all`
+   * 4. Instantiates all providers
+   * 5. Builds the dependency graph
+   * 6. Validates the graph for circular dependencies
+   * 7. Lints cross-module edges against `exports` when `strictExports` is on
    *
    * @returns A built container with access to instances
    * @throws {Error} If the container is already built or circular dependencies are detected
@@ -185,16 +189,19 @@ export class ContainerBuilder {
     // Step 2: Turn referenced family members into ordinary providers
     this.materializeFamilyMembers();
 
-    // Step 3: Instantiate all providers
+    // Step 3: Turn referenced `.all` sentinels into ordinary aggregate providers
+    this.materializeFamilyAggregates();
+
+    // Step 4: Instantiate all providers
     const instances = await this.instantiateAll();
 
-    // Step 4: Build dependency graph from instances
+    // Step 5: Build dependency graph from instances
     const graph = this.buildDependencyGraph(instances);
 
-    // Step 5: Validate the built graph for circular dependencies
+    // Step 6: Validate the built graph for circular dependencies
     graph.ensureAcyclic();
 
-    // Step 6: Opt-in visibility lint over the finished graph
+    // Step 7: Opt-in visibility lint over the finished graph
     if (this.#strictExports) {
       await this.checkStrictExports(graph);
     }
@@ -312,6 +319,8 @@ export class ContainerBuilder {
     const token = this.getToken(resolvedProvider);
     const tokenId = stringifyToken(token);
 
+    assertNotAggregateToken(token, tokenId);
+
     if (this.#providers.has(tokenId)) {
       throw new Error(
         `Provider for token '${stringifyToken(token)}' is already registered`,
@@ -420,6 +429,82 @@ export class ContainerBuilder {
   }
 
   /**
+   * Turn every referenced `Family.all` into an ordinary aggregate provider.
+   *
+   * Runs strictly after the member materialization fixpoint - the composition is
+   * only known once recipes have stopped producing new members - and before
+   * instantiation, so the aggregate is an ordinary node from there on: cycles,
+   * topological init/destroy, `toJSON()`, visualization, `strictExports`.
+   *
+   * No second fixpoint is needed: the deps of an aggregate are tokens that
+   * already have providers, so they materialize nothing new.
+   */
+  private materializeFamilyAggregates(): void {
+    const aggregates = new Map<TokenString<unknown>, TokenFamily<any, any>>();
+
+    // Deps-driven, exactly like member materialization: an aggregate nobody
+    // asked for would put a node in the graph that nobody requested, and would
+    // make the graph depend on which modules happen to be imported.
+    for (const provider of this.#providers.values()) {
+      const deps = isValueDefinition(provider) ? [] : provider.deps || [];
+
+      for (const dep of deps) {
+        const family = getAllSentinelFamily(dep);
+
+        if (family) {
+          aggregates.set(stringifyToken(dep), family);
+        }
+      }
+    }
+
+    for (const [tokenId, family] of aggregates) {
+      this.#providers.set(tokenId, this.makeAggregateProvider(family));
+    }
+  }
+
+  /**
+   * The provider behind an aggregate node - an ordinary factory provider over
+   * the tokens of every registered member of the family.
+   *
+   * The array is frozen: it is a build snapshot shared by every consumer of
+   * `Family.all`, so a mutation by one of them would be visible to the rest.
+   * It is registered without a module: consumers may live in several modules
+   * while the node is one, so attributing it to any of them would be arbitrary.
+   */
+  private makeAggregateProvider(
+    family: TokenFamily<any, any>,
+  ): FactoryProviderDefinition<readonly unknown[]> {
+    return {
+      provide: family.all,
+      useFactory: (...members: unknown[]): readonly unknown[] =>
+        Object.freeze(members),
+      deps: this.collectFamilyMemberTokens(family.familyName),
+    };
+  }
+
+  /**
+   * Tokens of the registered members of a family, in registration order.
+   *
+   * `#providers` is insertion-ordered, so this is: explicit contributions in the
+   * order their modules and providers were registered, then members produced by
+   * the materialization fixpoint, in the order of its rounds. Membership comes
+   * from the family registry, never from parsing the token id.
+   */
+  private collectFamilyMemberTokens(familyName: string): InjectionToken[] {
+    const tokens: InjectionToken[] = [];
+
+    for (const token of this.#providers.keys()) {
+      const ref = lookupFamilyMember(stringifyToken(token));
+
+      if (ref?.familyName === familyName) {
+        tokens.push(token);
+      }
+    }
+
+    return tokens;
+  }
+
+  /**
    * Create instance from ClassProvider
    */
   private createClassInstance(
@@ -476,8 +561,14 @@ export class ContainerBuilder {
       }
 
       if (instantiating.has(token)) {
+        // `instantiating` is a depth-first stack, so its tail from the repeated
+        // token onwards is the cycle itself. Spelling it out matters for nodes
+        // the user never wrote by hand - a family aggregate, for one.
         throw new Error(
-          `Circular dependency detected while instantiating '${token}'`,
+          `Circular dependency detected while instantiating '${String(token)}': ${cyclePath(
+            instantiating,
+            token,
+          )}`,
         );
       }
 
@@ -708,6 +799,44 @@ const assertNoAutoSentinels = (
         `'${family.familyName}.auto' is only allowed in deps of a class decorated with @Injectable, but it appeared in deps of provider '${tokenId}'. Use an explicit '${family.familyName}('<name>')' member token instead`,
       );
     }
+  }
+};
+
+/**
+ * Renders the cycle closed by re-entering `token`: the tail of the
+ * instantiation stack from that token onwards, plus the token again.
+ */
+const cyclePath = (
+  instantiating: ReadonlySet<InjectionToken>,
+  token: InjectionToken,
+): string => {
+  const stack = [...instantiating].map(String);
+  const start = stack.indexOf(String(token));
+
+  return [...stack.slice(start), String(token)].join(' → ');
+};
+
+/**
+ * `Family.all` names the node the builder itself creates on `build()`.
+ *
+ * Letting a hand-registered provider win would give one node two sources of
+ * truth - sometimes the graph, sometimes the registration. Substituting the
+ * composition in tests gets its own explicit path instead.
+ *
+ * Every registration path goes through `registerProvider`, so this covers a
+ * direct `register()`, a module's `providers` (array or factory) and anything a
+ * family recipe returns.
+ */
+const assertNotAggregateToken = (
+  token: InjectionToken,
+  tokenId: string,
+): void => {
+  const family = getAllSentinelFamily(token);
+
+  if (family) {
+    throw new Error(
+      `Token '${tokenId}' is reserved for the aggregate node of token family '${family.familyName}' and cannot be provided by hand. Contribute to the family with a member token, e.g. ${family.familyName}('<param>')`,
+    );
   }
 };
 

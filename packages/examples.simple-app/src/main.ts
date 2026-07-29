@@ -1,5 +1,6 @@
 import { AppService } from './app.service';
 import { makeContainer } from './container';
+import { HealthService } from './health';
 import { IApiClient, IDatabase } from './interfaces';
 import { ILogger } from './logging';
 import { UserService } from './users';
@@ -16,6 +17,7 @@ export async function main() {
   const apiClient = container.getOrThrow(IApiClient);
   const logger = container.getOrThrow(ILogger('app'));
   const appService = container.getOrThrow(AppService);
+  const healthService = container.getOrThrow(HealthService);
 
   // Используем сервисы
   await database.connect();
@@ -30,6 +32,11 @@ export async function main() {
   // Тестируем AppService с инъекцией зависимостей
   const appInfo = await appService.getAppInfo();
   logger.log('App Info:', appInfo);
+
+  // Multi-injection: вклады из module:database и module:api собраны в массив
+  // на build(), без центрального списка и без рантайм-резолюции
+  const health = await healthService.report();
+  logger.log('Health:', health);
 
   await container.destroy();
 }

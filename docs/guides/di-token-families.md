@@ -110,6 +110,92 @@ export class UserRepository {
 
 `.auto`-член и явный `ILogger('UserRepository')` — один и тот же узел графа.
 
+## `.all` — массив всех вкладов (multi-injection)
+
+Обратная задача к рецепту: вкладов много, регистрируются они независимо разными
+модулями, а потребитель один и состава не знает — health-check'и, миграции,
+валидаторы. **Вклад — обычный провайдер с членским токеном**, никакого
+центрального списка:
+
+```typescript
+// packages/examples.simple-app/src/health/registry.ts
+export interface IHealthCheck {
+  readonly name: string;
+  check(): Promise<string>;
+}
+
+export const IHealthCheck = makeTokenFamily<IHealthCheck, [name: string]>(
+  'HealthCheck',
+);
+```
+
+```typescript
+// packages/examples.simple-app/src/database/database.module.ts
+export const DatabaseModule = makeModule({
+  name: 'module:database',
+  providers: [
+    classProvider(IDatabase, Database),
+    classProvider(IHealthCheck('database'), DatabaseHealthCheck),
+  ],
+  exports: [IDatabase, IHealthCheck],
+  imports: [ConfigModule],
+});
+```
+
+Второй вклад живёт в `ApiModule` — `classProvider(IHealthCheck('api'), ApiHealthCheck)`;
+чтобы его добавить, первый модуль править не пришлось.
+
+Агрегатор зависит от сентинела `IHealthCheck.all`, типизированного как
+`TokenString<readonly IHealthCheck[]>`:
+
+```typescript
+// packages/examples.simple-app/src/health/health.service.ts
+@Injectable([IHealthCheck.all, ILogger.auto])
+export class HealthService {
+  constructor(
+    checks: readonly IHealthCheck[],
+    logger: ILogger,
+  ) { /* ... */ }
+}
+```
+
+Вывод прогона показывает оба вклада: `Running 2 health checks` и
+`Health: [ 'database: ok', 'api: ok' ]`.
+
+### Что делает `build()`
+
+После фикспоинта материализации членов билдер регистрирует **синтетический
+узел-агрегат**: его deps — токены всех зарегистрированных членов семейства,
+инстанс — массив их инстансов. Дальше это обычный узел графа: проверка циклов
+(в том числе `агрегат → член → агрегат`), топологические `init()`/`destroy()`,
+`toJSON()` и визуализация, `strictExports`.
+
+- **Состав** — все члены, у которых на этот момент есть провайдер: явные вклады,
+  члены, материализованные рецептом из deps, и члены из `.auto`. Рецепт
+  семейству **не обязателен** — семейство с одними явными вкладами агрегируется
+  штатно.
+- **`.all` не форсит материализацию.** Член, созданный вызовом
+  `IHealthCheck('orphan')`, но никем не запрошенный и без явного провайдера, в
+  массив не попадёт и узла не получит. Иначе агрегат материализовал бы всё, что
+  кто-либо где-либо вызвал при импорте.
+- **Неупомянутый `.all` не создаёт узла** — `container.get(IHealthCheck.all)`
+  вернёт `null`.
+- **Пустое семейство → пустой массив**, а не ошибка: «фичу не выбрали, её вкладов
+  нет» — штатное состояние. Опечатка в семействе выглядит так же, поэтому узел
+  агрегата с пустыми deps виден в `toJSON()` и визуализации.
+- **Порядок — порядок регистрации**: модули и провайдеры в порядке регистрации,
+  затем члены, добавленные фикспоинтом. Порядок детерминирован, и больше ничего
+  не обещано — если он несёт смысл (цепочка middleware), не опирайтесь на
+  порядок `imports`.
+- **Массив `readonly` и заморожен**: это снапшот сборки, общий для всех
+  потребителей `.all`, поэтому мутация одним была бы видна остальным.
+- **Агрегат не принадлежит модулю** (`metadata.module === undefined`), значит при
+  `strictExports` его ребро на вклад модуля M требует, чтобы M вклад
+  экспортировал. Семейство в `exports` (`exports: [IHealthCheck]`) закрывает это
+  разом — явный контракт «модуль контрибьютит в семейство».
+- **Токен зарезервирован**: провайдер с `provide: IHealthCheck.all` — ошибка
+  регистрации, как и членский параметр `'{all}'`.
+
 ## `strictExports` — проверка видимости на сборке
 
 Видимость в Nestling решают ES-модули; `exports` модуля — метаданные. Если нужно,
@@ -141,9 +227,10 @@ const container = await new ContainerBuilder({ strictExports: true })
 - Валидации параметра (enum допустимых скоупов) — оберните семейство своей
   функцией, если нужно.
 - Материализации члена без потребителя (seed-списка) — единственный источник
-  членов это deps.
-- `Family.all` (массив всех членов) — отдельная доработка, см.
-  [roadmap](../decisions/roadmap.md).
+  членов это deps; `.all` этого правила не меняет.
+- Явных весов и приоритетов вкладов в `.all` — порядок только регистрационный.
+- Агрегатов-подмножеств (`.all` с фильтром), форм `[param, T][]` / `Map` и
+  подмены состава агрегата в тестах — см. [roadmap](../decisions/roadmap.md).
 
 Целевое состояние подсистемы — [design/container.md](../design/container.md);
 логика решений — [decisions/ideas.md](../decisions/ideas.md), запись

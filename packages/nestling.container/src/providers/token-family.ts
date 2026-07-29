@@ -33,6 +33,15 @@ export interface TokenFamily<
    * Only valid in deps of a class decorated with `@Injectable`.
    */
   readonly auto: TokenString<T>;
+  /**
+   * Aggregate sentinel - multi-injection. Depending on `Family.all` makes
+   * `build()` create a synthetic node whose deps are every registered member of
+   * the family and whose instance is a frozen array of their instances.
+   *
+   * Valid in deps of any provider definition. The token is reserved: a
+   * hand-registered provider for it is a registration error.
+   */
+  readonly all: TokenString<readonly T[]>;
 }
 
 /**
@@ -54,6 +63,13 @@ export interface FamilyMemberRef {
  */
 const AUTO_PARAM = '{auto}';
 
+/**
+ * The parameter reserved for the `.all` aggregate sentinel.
+ *
+ * @internal
+ */
+const ALL_PARAM = '{all}';
+
 /** All family values ever created - the identity check behind `isTokenFamily`. */
 const families = new WeakSet<object>();
 
@@ -65,6 +81,15 @@ const memberIndex = new Map<string, FamilyMemberRef>();
 
 /** `.auto` sentinel token id -> the family that owns it. */
 const sentinelIndex = new Map<string, TokenFamily<any, any>>();
+
+/**
+ * `.all` sentinel token id -> the family that owns it.
+ *
+ * Deliberately separate from `memberIndex`: the aggregate is not a member, and
+ * a `{all}` entry there would make member materialization treat it as one and
+ * hand it to the family recipe.
+ */
+const allSentinelIndex = new Map<string, TokenFamily<any, any>>();
 
 /**
  * Creates a family of injection tokens.
@@ -100,6 +125,7 @@ export const makeTokenFamily = <
 ): TokenFamily<T, Params> => {
   const members = new Map<string, TokenString<T>>();
   const autoSentinel = `${name}:${AUTO_PARAM}`;
+  const allSentinel = `${name}:${ALL_PARAM}`;
 
   const family = (...params: Params): TokenString<T> => {
     const [param] = params;
@@ -107,6 +133,12 @@ export const makeTokenFamily = <
     if (param === AUTO_PARAM) {
       throw new Error(
         `Parameter '${AUTO_PARAM}' is reserved for '${name}.auto' and cannot be used as a member parameter of family '${name}'`,
+      );
+    }
+
+    if (param === ALL_PARAM) {
+      throw new Error(
+        `Parameter '${ALL_PARAM}' is reserved for '${name}.all' and cannot be used as a member parameter of family '${name}'`,
       );
     }
 
@@ -125,11 +157,13 @@ export const makeTokenFamily = <
   Object.defineProperties(family, {
     familyName: { value: name, enumerable: true },
     auto: { value: autoSentinel as TokenString<T>, enumerable: true },
+    all: { value: allSentinel as TokenString<readonly T[]>, enumerable: true },
   });
 
   families.add(family);
   familyNames.add(name);
   sentinelIndex.set(autoSentinel, family as TokenFamily<any, any>);
+  allSentinelIndex.set(allSentinel, family as TokenFamily<any, any>);
 
   return family as TokenFamily<T, Params>;
 };
@@ -164,6 +198,19 @@ export const getAutoSentinelFamily = (
   token: InjectionToken,
 ): TokenFamily<any, any> | undefined =>
   typeof token === 'string' ? sentinelIndex.get(token) : undefined;
+
+/**
+ * Returns the family owning the `.all` sentinel, if the token is one.
+ *
+ * The builder uses this both to decide which aggregate nodes to create and to
+ * reject a hand-registered provider for the reserved token.
+ *
+ * @internal
+ */
+export const getAllSentinelFamily = (
+  token: InjectionToken,
+): TokenFamily<any, any> | undefined =>
+  typeof token === 'string' ? allSentinelIndex.get(token) : undefined;
 
 /**
  * Suggests a family for a token id that looks like a member but is not one
