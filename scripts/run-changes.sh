@@ -108,6 +108,7 @@ while IFS='|' read -r name description; do
   description=$(trim "${description:-}")
 
   LOGFILE="$LOG_DIR/$name.log"
+  HEAD_BEFORE=$(git rev-parse HEAD)
   log "change: $name"
 
   # 1. propose — только если change'а ещё нет
@@ -156,16 +157,20 @@ while IFS='|' read -r name description; do
     claude_step "$LOGFILE" "/opsx:archive $name" || die "$name: archive упал (см. $LOGFILE)"
   fi
 
-  # 5. коммит — точка отката перед следующим change'ем
+  # 5. коммит — точка отката перед следующим change'ем.
+  # Сессии apply/archive обычно коммитят сами и осмысленнее, чем шаблон ниже;
+  # драйвер добирает только то, что осталось в дереве.
   if (( DRY_RUN )); then
     echo "  [dry-run] git commit"
+  elif [[ $HEAD_BEFORE != $(git rev-parse HEAD) && -z $(git status --porcelain) ]]; then
+    echo "  закоммичено сессиями change'а: $(git rev-list --count "$HEAD_BEFORE"..HEAD) коммит(ов)"
   elif [[ -n $(git status --porcelain) ]]; then
     git add -A && git commit -q -m "feat($name): реализация change $name" \
       -m "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>" \
       || die "$name: коммит не прошёл"
     echo "  закоммичено: $(git rev-parse --short HEAD)"
   else
-    warn "$name: коммитить нечего — change не оставил изменений в дереве"
+    warn "$name: change не оставил ни коммитов, ни изменений в дереве — проверь $LOGFILE"
   fi
 
   printf '\033[32m✓ %s готов\033[0m\n' "$name"
