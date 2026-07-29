@@ -5,7 +5,6 @@ import type {
   ResponseContext,
 } from './types/context.js';
 import type {
-  AfterUnitFn,
   AnyAddition,
   CatchUnitFn,
   FinallyUnitFn,
@@ -200,11 +199,6 @@ export interface PhasedPipeline<
     unit: M,
   ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>>;
 
-  /** Юнит на любой ответ: свой слой Partial, может заменить ответ */
-  after<M extends UnitLike<AfterUnitFn<ResponseTrackInput<TReq, TAcc>>>>(
-    unit: M,
-  ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>>;
-
   /** Наблюдатель исхода: вызывается всегда, последним */
   finally<M extends UnitLike<FinallyUnitFn<ResponseTrackInput<TReq, TAcc>>>>(
     unit: M,
@@ -274,7 +268,7 @@ interface UnitEntry {
   ctor?: Constructor<UnitInstance<AnyUnitFn>>;
 }
 
-type ResponsePhase = 'ok' | 'catch' | 'after';
+type ResponsePhase = 'ok' | 'catch';
 
 interface ResponseEntry extends UnitEntry {
   phase: ResponsePhase;
@@ -374,7 +368,7 @@ class PipelineImpl {
   pre(unit: unknown): PipelineImpl {
     if (this.sealed) {
       throw new Error(
-        'pre() is not available after a response-phase method (.ok/.catch/.after/.finally)',
+        'pre() is not available after a response-phase method (.ok/.catch/.finally)',
       );
     }
     return this.withOwnLayer((l) => l.pre.push(normalizeUnit(unit)), false);
@@ -390,13 +384,6 @@ class PipelineImpl {
   catch(unit: unknown): PipelineImpl {
     return this.withOwnLayer(
       (l) => l.responses.push({ ...normalizeUnit(unit), phase: 'catch' }),
-      true,
-    );
-  }
-
-  after(unit: unknown): PipelineImpl {
-    return this.withOwnLayer(
-      (l) => l.responses.push({ ...normalizeUnit(unit), phase: 'after' }),
       true,
     );
   }
@@ -503,9 +490,7 @@ class PipelineImpl {
     const innerToOuter = [...activated].reverse();
     for (const layer of innerToOuter) {
       for (const entry of layer.responses) {
-        const applicable =
-          entry.phase === 'after' ||
-          (entry.phase === 'ok') === response.isSuccess;
+        const applicable = (entry.phase === 'ok') === response.isSuccess;
         if (!applicable) {
           continue;
         }

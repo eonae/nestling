@@ -84,19 +84,6 @@ export type CatchUnitFn<TCtxInput extends AnyInput = AnyInput> = (
   | void;
 
 /**
- * After-юнит: вызывается для любого ответа. Поля собственного
- * pre-тракта — Partial. Может заменить ответ.
- */
-export type AfterUnitFn<TCtxInput extends AnyInput = AnyInput> = (
-  res: ResponseContext,
-  ctx: ExtendableContext<TCtxInput>,
-) =>
-  | Promise<ResponseContext | undefined | void>
-  | ResponseContext
-  | undefined
-  | void;
-
-/**
  * Finally-юнит: наблюдатель исхода. Вызывается всегда, последним,
  * с исходом и итоговым ответом. Не может менять ответ; брошенная им
  * ошибка не влияет на ответ (проглатывается рантаймом) — finally-юнит

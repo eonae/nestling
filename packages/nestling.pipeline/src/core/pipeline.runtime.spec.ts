@@ -91,7 +91,7 @@ describe('Pipeline v2 — normalization', () => {
 });
 
 describe('Pipeline v2 — порядок фаз одного слоя', () => {
-  it('успех: pre по порядку, ok и after исполняются, catch — нет', async () => {
+  it('успех: pre по порядку, ok исполняется, catch — нет', async () => {
     const events: string[] = [];
 
     const pipeline = makePipeline()
@@ -111,10 +111,6 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
         events.push('catch');
         return;
       })
-      .after(() => {
-        events.push('after');
-        return;
-      })
       .finally(() => {
         events.push('finally');
       });
@@ -125,14 +121,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     });
 
     expect(response.isSuccess).toBe(true);
-    expect(events).toEqual([
-      'pre1',
-      'pre2',
-      'handler',
-      'ok',
-      'after',
-      'finally',
-    ]);
+    expect(events).toEqual(['pre1', 'pre2', 'handler', 'ok', 'finally']);
   });
 
   it('падение pre: следующие pre и хендлер не вызываются, ответная фаза получает Fail', async () => {
@@ -193,8 +182,8 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
         seen.push(`catch2:${error.status}`);
         return;
       })
-      .after((res) => {
-        seen.push(`after:${res.isSuccess ? 'ok' : 'fail'}`);
+      .catch((error) => {
+        seen.push(`catch3:${error.status}`);
         return;
       });
 
@@ -209,7 +198,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     expect(seen).toEqual([
       'catch1:INTERNAL_ERROR',
       'catch2:BAD_REQUEST',
-      'after:fail',
+      'catch3:BAD_REQUEST',
     ]);
   });
 
@@ -252,6 +241,59 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     expect(JSON.stringify(response.value)).not.toContain('audit db');
     expect(events).toEqual(['ok', 'catch']);
   });
+
+  it('применимость считается по текущему ответу: ok бросил — catch ниже применим', async () => {
+    const events: string[] = [];
+
+    const pipeline = makePipeline()
+      .pre(() => {})
+      .ok(() => {
+        events.push('ok');
+        throw Fail.badRequest('Rejected on the response track');
+      })
+      .catch((error) => {
+        events.push(`catch:${error.status}`);
+        return;
+      });
+
+    const response = await run(pipeline, () => {
+      events.push('handler');
+      return new Ok({ id: 1 });
+    });
+
+    // Хендлер вернул успех, но ответ стал ошибкой на ответном тракте —
+    // объявленный НИЖЕ catch применим к текущему ответу.
+    expect(response).toMatchObject({
+      isSuccess: false,
+      status: 'BAD_REQUEST',
+    });
+    expect(events).toEqual(['handler', 'ok', 'catch:BAD_REQUEST']);
+  });
+
+  it('.ok(u).catch(u) с бросающим u вызывает его дважды (нюанс миграции с .after)', async () => {
+    let calls = 0;
+
+    // Миграция `.after(u)` → `.ok(u).catch(u)` эквивалентна, пока `u`
+    // не бросает: бросок в роли ok-юнита делает ответ ошибкой, и тот же
+    // `u` становится применим уже как catch-юнит.
+    const u = (): never => {
+      calls += 1;
+      throw Fail.badRequest('boom');
+    };
+
+    const pipeline = makePipeline()
+      .pre(() => {})
+      .ok(u)
+      .catch(u);
+
+    const response = await run(pipeline, () => new Ok({ id: 1 }));
+
+    expect(calls).toBe(2);
+    expect(response).toMatchObject({
+      isSuccess: false,
+      status: 'BAD_REQUEST',
+    });
+  });
 });
 
 describe('Pipeline v2 — слои и compose', () => {
@@ -263,8 +305,8 @@ describe('Pipeline v2 — слои и compose', () => {
         events.push('pre:base');
         return;
       })
-      .after(() => {
-        events.push('after:base');
+      .ok(() => {
+        events.push('ok:base');
         return;
       })
       .finally(() => {
@@ -276,8 +318,8 @@ describe('Pipeline v2 — слои и compose', () => {
         events.push('pre:inner');
         return;
       })
-      .after(() => {
-        events.push('after:inner');
+      .ok(() => {
+        events.push('ok:inner');
         return;
       })
       .finally(() => {
@@ -294,8 +336,50 @@ describe('Pipeline v2 — слои и compose', () => {
       'pre:base',
       'pre:inner',
       'handler',
-      'after:inner',
-      'after:base',
+      'ok:inner',
+      'ok:base',
+      'finally:inner',
+      'finally:base',
+    ]);
+  });
+
+  it('ответ-ошибка: catch изнутри наружу, ok-юниты слоёв не исполняются', async () => {
+    const events: string[] = [];
+
+    const base = makePipeline()
+      .pre(() => {})
+      .ok(() => {
+        events.push('ok:base');
+        return;
+      })
+      .catch(() => {
+        events.push('catch:base');
+        return;
+      })
+      .finally(() => {
+        events.push('finally:base');
+      });
+
+    const inner = makePipeline()
+      .pre(() => {})
+      .ok(() => {
+        events.push('ok:inner');
+        return;
+      })
+      .catch(() => {
+        events.push('catch:inner');
+        return;
+      })
+      .finally(() => {
+        events.push('finally:inner');
+      });
+
+    const response = await run(compose(base, inner), failingHandler);
+
+    expect(response.isSuccess).toBe(false);
+    expect(events).toEqual([
+      'catch:inner',
+      'catch:base',
       'finally:inner',
       'finally:base',
     ]);

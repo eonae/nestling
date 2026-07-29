@@ -3,7 +3,7 @@
 Typed, transport-agnostic request pipeline for Nestling: schema-first
 endpoints (`makeEndpoint` / `@Endpoint`) validated against any
 [Standard Schema](https://standardschema.dev), phased pipelines
-(`makePipeline().pre/.ok/.catch/.after/.finally`), layer composition
+(`makePipeline().pre/.ok/.catch/.finally`), layer composition
 (`compose`), `Ok`/`Fail` results, and streaming io modifiers
 (`stream()`, `withFiles()`, `files()`).
 
@@ -65,7 +65,6 @@ top-to-bottom as the execution plan:
 - `.catch(unit)` — error responses only; own-layer fields are `Partial`
   (enrichment may not have happened). May replace an error with an error —
   no `Fail → Ok` recovery (v1 constraint).
-- `.after(unit)` — any response; `Partial` own-layer ctx.
 - `.finally(unit)` — always, last, with the outcome
   (`completed | disconnected | aborted | failed`). Observer only.
 

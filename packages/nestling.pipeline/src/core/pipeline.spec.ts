@@ -11,6 +11,11 @@
  * 6. TNeeds: класс-юнит блокирует исполнение до bind()
  */
 
+// Публичная поверхность пакета: `AfterUnitFn` удалён вместе с фазой `.after`
+// (change pipeline-drop-after). Если тип вернётся в экспорт — директива
+// станет неиспользованной и tsc сообщит об этом.
+// @ts-expect-error: AfterUnitFn больше не экспортируется из @nestling/pipeline
+import type { AfterUnitFn } from '../index';
 import { validate, withIdentity, withPermissions } from '../middlewares';
 import type { Logger } from '../middlewares/logging';
 import { withRequestLogging } from '../middlewares/logging';
@@ -176,7 +181,10 @@ describe('Pipeline v2 — builder type-state', () => {
     expect(() => {
       // @ts-expect-error: pre отсутствует после ответного метода
       phased.pre(withRequestId());
-    }).toThrow(/pre\(\) is not available/);
+      // Текст guard'а перечисляет актуальный словарь ответных методов
+    }).toThrow(
+      'pre() is not available after a response-phase method (.ok/.catch/.finally)',
+    );
   });
 
   it('response methods stay available after each other', () => {
@@ -184,10 +192,16 @@ describe('Pipeline v2 — builder type-state', () => {
       .pre(withTiming)
       .ok(() => {})
       .catch(() => {})
-      .after(() => {})
       .finally(() => {});
 
     acceptsExecutable(pipeline);
+  });
+
+  it('after is no longer part of the builder', () => {
+    expect(() => {
+      // @ts-expect-error: метод .after удалён из словаря ответного тракта
+      makePipeline().after(() => {});
+    }).toThrow(TypeError);
   });
 });
 
@@ -208,7 +222,7 @@ describe('Pipeline v2 — phase ctx typing', () => {
       });
   });
 
-  it('catch and after see own-layer fields as Partial', () => {
+  it('catch and finally see own-layer fields as Partial', () => {
     makePipeline()
       .pre(withIdentity<User>(mockAuthenticator))
       .catch((error, ctx) => {
@@ -218,7 +232,7 @@ describe('Pipeline v2 — phase ctx typing', () => {
         type _Failure = Expect<Equal<typeof error.isSuccess, false>>;
         return;
       })
-      .after((res, ctx) => {
+      .finally((outcome, res, ctx) => {
         type _Identity = Expect<
           Equal<typeof ctx.input.identity, User | undefined>
         >;
