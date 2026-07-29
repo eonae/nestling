@@ -40,14 +40,14 @@
 - [x] 5.2 `docs/guides/di-token-families.md`: раздел `.all` со сверкой по коду примера из задачи 4 и обновлённой датой в плашке «сверено с кодом»
 - [x] 5.3 `docs/design/container.md`: уточнить форму агрегирующего токена (`TokenString<readonly T[]>`), пустое семейство и порядок регистрации
 - [x] 5.4 `docs/decisions/ideas.md`, секция «[2026-07-10] Multi-injection…»: три открытых вопроса (порядок, пустое семейство, форма инжекта) помечены `~~строкой~~ — РЕШЕНО` со ссылкой на этот change; текст записи не переписывается (CLAUDE.md, правило append-only)
-- [ ] 5.5 `docs/decisions/archlog.md` — абзац о `Family.all` (на этапе archive); статус change #14 в `docs/decisions/roadmap.md` (после archive)
+- [x] 5.5 `docs/decisions/archlog.md` — абзац о `Family.all` (на этапе archive); статус change #14 в `docs/decisions/roadmap.md` (после archive)
 
 ## 6. Definition of Done
 
-- [ ] 6.1 Все задачи разделов 1–5 отмечены
+- [x] 6.1 Все задачи разделов 1–5 отмечены
 - [x] 6.2 `yarn verify` зелёный (build + lint + test по всем пакетам)
 - [x] 6.3 README затронутых пакетов обновлены, включая плашки статуса
 - [x] 6.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
 - [x] 6.5 `yarn docs:audit` → 0 ERROR
 - [x] 6.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены с обновлённой датой в плашке «сверено с кодом»
-- [ ] 6.7 Коммиты осмысленные, ветка `change/multi-injection` запушена
+- [x] 6.7 Коммиты осмысленные, ветка запушена (автономный прогон идёт одной веткой `autorun/v1-all-waves` вместо `change/multi-injection`)

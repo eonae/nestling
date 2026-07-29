@@ -34,7 +34,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 11 | `ports` | `makeContract` (request/command/event), `Port`/`Emitter`, `IMessageBus`, `InProcessBus`, dispatch-policy; local/remote-биндинг на сборке (co-located, L3) | L | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
 | 12 | `transport.nats` | NATS как inbound+outbound транспорт; queue-groups для реплик; remote-биндинг портов; JetStream для `durable` (split, L4) | M | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
 | 13 | `plugins` | cross-cutting: инфра = параметризованные модули (конвенция, нового примитива нет); pipeline-слои + startup policy-check вместо ambient middleware; feature-scoped инфра едет с фичей | S | design — [d/05 §16](../history/discussions/05-modular-monolith-features-ports.md) |
-| 14 | `multi-injection` | `Family.all` — синтетический узел-агрегат: массив всех зарегистрированных членов семейства на `build()` (multi-injection без `multi: true`; вклады — обычные провайдеры с членскими токенами) | S | идея — [ideas.md [2026-07-10]](./ideas.md) |
+| 14 | `multi-injection` | `Family.all` — синтетический узел-агрегат: массив всех зарегистрированных членов семейства на `build()` (multi-injection без `multi: true`; вклады — обычные провайдеры с членскими токенами) | S | **done** — [ideas.md [2026-07-10]](./ideas.md); ссылка на архив — на шаге `/opsx:archive` |
 | 15 | `error-model` | Fail — значение (возврат ≡ бросок; фикс `normalizeResponse`: возвращённый `Fail` сейчас уезжает как `200 OK`); `Output<T>` включает `Fail`, дискриминант `isFail`; словарь статусов (`CONFLICT`, `TIMEOUT`, `TOO_MANY_REQUESTS`) + `code`/`cause`; `defineFail` (code-идентичность вместо instanceof); `errors:` в контракте endpoint'а, типизированный канал (`Output<T, E>` + бросатель `meta.fail`); граница нормализует незадекларированное в `UnknownError` → закрытый контракт `E ∪ UnknownError` | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
 | 16 | `async-context` | `contextVar<T>` + инжектируемые ридеры `Ctx(Var)` (token family); read-only ALS-проекция накопленного `input` (+ `signal`), писатель — только рантайм пайплайна; `get()/peek()` (зеркало полный/Partial); `propagate` через remote-порты; opt-in policy-check присутствия на `build()` | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
 | 17 | `pipeline-drop-after` | убрать `.after` из билдера/типов/рантайма (`ResponsePhase` = `'ok' \| 'catch'`); словарь ответного тракта — Promise-тройка `ok`/`catch`/`finally`; правка спеков и доков (`docs/preview`) | S, breaking | идея — [ideas.md [2026-07-10]](./ideas.md) |
@@ -199,7 +199,7 @@ breaking-окно едет вторым (а не после ветки моно�
 | # | Change | Размер | Почему здесь |
 |---|---|---|---|
 | 5 | `token-families` | M | разблокирует 9, 14, 16 — **done**, [архив](../../openspec/changes/archive/2026-07-29-token-families/) |
-| 14 | `multi-injection` | S | тот же файл-фронт в контейнере, что и 5 — дешевле сразу следом |
+| 14 | `multi-injection` | S | тот же файл-фронт в контейнере, что и 5 — дешевле сразу следом — **done** |
 
 Выход: контейнер умеет параметризованные провайдеры и агрегаты семейств;
 публичное API не сломано ни в одной точке.
