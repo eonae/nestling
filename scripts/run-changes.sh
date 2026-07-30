@@ -75,6 +75,13 @@ log "прогон $RUN_ID · ветка $BRANCH · логи $LOG_DIR"
 
 # Трим пробелов средствами bash. НЕ через `xargs`: он трактует апострофы
 # в описаниях («endpoint'а») как открывающую кавычку и падает.
+# Отличает «упёрлись в лимит» от настоящей поломки: диагноз разный,
+# в первом случае чинить нечего — нужно дождаться сброса и возобновить.
+limit_hint() {
+  grep -qiE "session limit|usage limit|rate limit" "$1" 2>/dev/null \
+    && printf ' — ЛИМИТ СЕССИИ, а не дефект: %s' "$(grep -ioE "resets [^·]*" "$1" | tail -1)"
+}
+
 trim() {
   local s=$1
   s=${s#"${s%%[![:space:]]*}"}
@@ -88,6 +95,14 @@ change_known() { openspec list --json | jq -e --arg c "$1" '[.changes[]|select(.
 # драйвер счёл бы его несуществующим и предложил заново — на повторном прогоне
 # манифеста это означало бы propose поверх уже сделанной работы.
 change_archived() { compgen -G "openspec/changes/archive/*-$1" >/dev/null 2>&1; }
+
+# `openspec new change` создаёт каталог с .openspec.yaml ДО того, как агент
+# напишет артефакты. Если propose оборвался (лимит, kill), остаётся заглушка:
+# change виден в `openspec list` как 0/0, но артефактов нет. Без этой проверки
+# драйвер пропустил бы propose, ушёл в apply впустую и — через застой
+# с остатком 0 — заархивировал бы пустой change как сделанный.
+change_stub() { [[ -d "openspec/changes/$1" ]] && ! compgen -G "openspec/changes/$1/*.md" >/dev/null 2>&1; }
+change_ready() { [[ -f "openspec/changes/$1/tasks.md" ]]; }
 tasks_total()  { openspec list --json | jq -r --arg c "$1" '[.changes[]|select(.name==$c)]|first|.totalTasks     // 0' 2>/dev/null; }
 tasks_done()   { openspec list --json | jq -r --arg c "$1" '[.changes[]|select(.name==$c)]|first|.completedTasks // 0' 2>/dev/null; }
 
@@ -123,16 +138,21 @@ while IFS='|' read -r name description; do
     continue
   fi
 
-  # 1. propose — только если change'а ещё нет
-  if change_known "$name"; then
+  if change_stub "$name"; then
+    warn "$name: каталог пуст — прошлый propose оборвался; удаляю заглушку"
+    rm -rf "openspec/changes/$name"
+  fi
+
+  # 1. propose — только если артефакты реально на месте
+  if change_known "$name" && change_ready "$name"; then
     echo "  артефакты на месте, propose пропущен"
   else
     [[ -z $description ]] && die "$name: нет артефактов и нет описания для propose"
     echo "  propose…"
     claude_step "$LOGFILE" "/opsx:propose \"$name: $description\"" \
-      || die "$name: propose упал (см. $LOGFILE)"
-    (( DRY_RUN )) || change_known "$name" \
-      || die "$name: propose отработал, но change не появился в openspec list"
+      || die "$name: propose упал$(limit_hint "$LOGFILE") (см. $LOGFILE)"
+    (( DRY_RUN )) || change_ready "$name" \
+      || die "$name: propose отработал, но артефакты неполные — нет tasks.md$(limit_hint "$LOGFILE")"
   fi
 
   # 2. apply — раундами, пока не закроются все чекбоксы
@@ -142,7 +162,12 @@ while IFS='|' read -r name description; do
     (( DRY_RUN )) && { echo "  [dry-run] apply-цикл"; break; }
 
     total=$(tasks_total "$name"); done_n=$(tasks_done "$name")
-    [[ $total -gt 0 && $done_n -eq $total ]] && { echo "  задачи закрыты ($done_n/$total)"; break; }
+
+    # Ноль задач — это не «всё сделано», а неполные артефакты. Без этой ветки
+    # застой на 0/0 попал бы в tolerance и уехал в archive пустым change'ем.
+    (( total == 0 )) && die "$name: в tasks.md нет задач — артефакты неполные, archive не запускаем"
+
+    [[ $done_n -eq $total ]] && { echo "  задачи закрыты ($done_n/$total)"; break; }
 
     (( round++ ))
     (( round > MAX_APPLY_ROUNDS )) && die "$name: исчерпан лимит раундов ($MAX_APPLY_ROUNDS) на $done_n/$total"
