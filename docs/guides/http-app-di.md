@@ -1,7 +1,7 @@
 # Приложение с DI: App, модули, декларации endpoint'ов
 
 ✅ **Статус: актуально** — сверено с кодом `examples.app-with-http`
-(2026-07-30). Канон деклараций описан в
+(2026-07-31). Канон деклараций описан в
 [design/endpoints.md](../design/endpoints.md).
 Запускаемый код — в
 [`packages/examples.app-with-http/`](../../packages/examples.app-with-http/).
@@ -98,12 +98,13 @@ path-параметре, `body()` у метода без тела, `bind` или
 
 ```typescript
 import type { Output } from '@nestling/pipeline';
-import { Fail, Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 import { basePipeline } from '../../../common/pipelines';
 import { ILogger, type ILoggerService } from '../../logger/logger.service';
+import { EmailTaken } from '../user.errors';
 import { UserService } from '../user.service';
 
 const CreateUserInput = z.object({ name: z.string().min(1), email: z.email() });
@@ -113,10 +114,12 @@ type CreateUserOutput = z.infer<typeof CreateUserOutput>;
 
 export const createUserHandler =
   (users: UserService, logger: ILoggerService) =>
-  async (payload: CreateUserInput): Output<CreateUserOutput> => {
+  async (
+    payload: CreateUserInput,
+  ): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> => {
     const existing = await users.findByEmail(payload.email);
     if (existing) {
-      throw Fail.badRequest('Email already taken', { field: 'email' });
+      return EmailTaken({ email: payload.email });
     }
     const user = await users.create(payload);
     return Ok.created(user, { Location: `/api/users/${user.id}` });
@@ -127,6 +130,7 @@ export const CreateUser = httpEndpoint({
   path: '/api/users',
   input: CreateUserInput,
   output: CreateUserOutput,
+  errors: [EmailTaken],              // ← множество отказов ручки
   bind: { dryRun: query() },
   pipeline: basePipeline,
   deps: [UserService, ILogger],
@@ -136,14 +140,34 @@ export const CreateUser = httpEndpoint({
 
 Хендлер может объявить второй параметр `meta` — поля, накопленные pre-юнитами
 пайплайна; декларирует только то, что использует (в примере он не нужен,
-поэтому опущен). В `meta` всегда есть
+поэтому опущен). В `meta` всегда есть два **зарезервированных** ключа:
 `signal: AbortSignal` — сигнал отмены запроса (взводится при дисконнекте
-клиента и при graceful shutdown; отмена кооперативная, ключ `signal`
-зарезервирован).
+клиента и при graceful shutdown; отмена кооперативная) — и
+`fail(e): never` — типизированный ранний выход, принимающий только отказы
+из `errors:`.
 
 Результаты: `Ok.created / Ok.accepted / Ok.noContent` (или значение напрямую —
-обернётся в `Ok`), ошибки — `throw Fail.badRequest / unauthorized / forbidden /
-notFound / internalError(...)`.
+обернётся в `Ok`).
+
+**Отказы — значения.** Доменный отказ объявляется `defineFail` и попадает
+в `errors:` декларации; отдать его можно и возвратом, и броском — для
+ответа это одно и то же:
+
+```typescript
+// packages/examples.app-with-http/src/modules/users/user.errors.ts
+export const EmailTaken = defineFail('EMAIL_TAKEN', {
+  status: 'CONFLICT',                        // → HTTP 409
+  details: z.object({ email: z.string() }),  // schema-first и для деталей
+  message: (d) => `Email ${d.email} already taken`,
+});
+```
+
+Клиент получает `{"error": "…", "code": "EMAIL_TAKEN", "details": {…}}`.
+Отказ, **не** объявленный в `errors:` (в том числе анонимный
+`Fail.badRequest(...)` — у него нет кода), граница пайплайна превращает в
+`UNKNOWN`/500 и отдаёт клиенту generic-тело; оригинал уходит в
+`onUnknownFail`. Забытая декларация ломается громко и сразу — на это и
+расчёт.
 
 ## DI хендлера: класс-хендлер
 
@@ -203,7 +227,7 @@ export const verifySignature = (
 ): PreUnitFn<{ rawBody: Uint8Array }, undefined> => (ctx) => {
   const expected = createHmac('sha256', secret).update(ctx.input.rawBody).digest('hex');
   if (String(ctx.raw.attributes['x-signature']) !== expected) {
-    throw Fail.unauthorized('Invalid webhook signature');
+    throw InvalidSignature();   // объявляется в `errors:` самой ручки
   }
 };
 
@@ -211,6 +235,7 @@ export const UserWebhook = httpEndpoint({
   method: 'POST',
   path: '/api/hooks/users',
   input: UserEventInput,
+  errors: [InvalidSignature],        // контракт принадлежит ручке, не слою
   rawBody: true,                     // ← без неё pipeline ниже не компилируется
   pipeline: compose(
     makePipeline<{ rawBody: Uint8Array }>().pre(verifySignature(SECRET)),

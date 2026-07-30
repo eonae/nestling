@@ -116,37 +116,40 @@
 
 ## 7. Документация
 
-- [ ] 7.1 Сверить `docs/design/errors.md` с реализацией: форма
+- [x] 7.1 Сверить `docs/design/errors.md` с реализацией: форма
       `defineFail` (аргумент — `details`), kernel-коды, место стража,
       хук диагностики; поправить по месту
-- [ ] 7.2 `docs/design/endpoints.md` — пример декларации с `errors:` и
+- [x] 7.2 `docs/design/endpoints.md` — пример декларации с `errors:` и
       упоминание `meta.fail` как второго зарезервированного ключа
-- [ ] 7.3 `docs/design/pipeline.md` — ответный тракт: возврат `Fail`,
+- [x] 7.3 `docs/design/pipeline.md` — ответный тракт: возврат `Fail`,
       возврат `Fail` из `.catch`, страж перед `.finally`
-- [ ] 7.4 README `@nestling/pipeline` (плашка статуса, раздел о модели
+- [x] 7.4 README `@nestling/pipeline` (плашка статуса, раздел о модели
       ошибок), README затронутых транспортов
-- [ ] 7.5 `docs/guides/*`: перевести примеры ошибок на `defineFail` +
+- [x] 7.5 `docs/guides/*`: перевести примеры ошибок на `defineFail` +
       `errors:`, обновить дату в плашке «сверено с кодом»
-- [ ] 7.6 `docs/preview/`: пример `Fail.badRequest('Email already taken')`
+- [x] 7.6 `docs/preview/`: пример `Fail.badRequest('Email already taken')`
       → отказ со статусом `CONFLICT` и кодом
-- [ ] 7.7 Запись в `docs/decisions/ideas.md` — **только по явной просьбе
+- [x] 7.7 Запись в `docs/decisions/ideas.md` — **только по явной просьбе
       пользователя**: предложить запись, закрывающую открытый вопрос
       «точный API `defineFail`» (аргумент — `details`, `message` — функция
       от них) и вопрос `new Ok(fail)`; иначе решения фиксируются
       артефактами openspec и абзацем в `archlog.md` при архивации
-- [ ] 7.8 Открытые вопросы design'а, оставшиеся нерешёнными после
+      — *запись предложена пользователю; сама правка ideas.md ждёт
+      явного «запиши». Пока решения зафиксированы design.md этого change
+      и `docs/design/errors.md`*
+- [x] 7.8 Открытые вопросы design'а, оставшиеся нерешёнными после
       реализации (`isOneOf`, `details` без схемы), — в `deferred.md`
       с триггером возврата
-- [ ] 7.9 Отметить статус change #15 в `docs/decisions/roadmap.md`
+- [x] 7.9 Отметить статус change #15 в `docs/decisions/roadmap.md`
 
 ## 8. Definition of Done
 
-- [ ] 8.1 Все задачи выше отмечены
-- [ ] 8.2 `yarn verify` зелёный (`build` + `lint` + `test` + `type-budget`
+- [x] 8.1 Все задачи выше отмечены
+- [x] 8.2 `yarn verify` зелёный (`build` + `lint` + `test` + `type-budget`
       по всем пакетам)
-- [ ] 8.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 8.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
-- [ ] 8.5 `yarn docs:audit` — 0 ERROR
-- [ ] 8.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены
+- [x] 8.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 8.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
+- [x] 8.5 `yarn docs:audit` — 0 ERROR
+- [x] 8.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены
       с обновлённой датой в плашке «сверено с кодом»
-- [ ] 8.7 Коммиты осмысленные, ветка запушена
+- [x] 8.7 Коммиты осмысленные, ветка запушена

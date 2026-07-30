@@ -253,16 +253,17 @@ makeLoggingModule({ level: 'debug' })</code></pre></div>
   <h2 id="result">Ok и Fail</h2>
   <p>
     Результат хендлера — <code>Ok</code> или <code>Fail</code>, и оба — <strong>значения</strong>, часть контракта:
-    <code>Output&lt;T&gt; = Promise&lt;Ok&lt;T&gt; | Fail | T&gt;</code>. При этом <code>Fail</code> можно не только
+    <code>Output&lt;T, E&gt; = Promise&lt;Ok&lt;T&gt; | E | T&gt;</code>, где <code>E</code> — множество отказов из
+    <code>errors:</code> декларации. При этом <code>Fail</code> можно не только
     вернуть, но и бросить: в JS нет <code>?</code>-оператора Rust'а, поэтому <code>throw</code> — легальный
     <em>ранний выход</em> со значением, а не «исключительная ситуация». Рантайм не различает пути.
     А вот брошенный <em>не</em>-<code>Fail</code> — это баг: клиент получит <code>UnknownError</code> (<code>INTERNAL_ERROR</code>) без деталей.
   </p>
 
-  <div class="code" data-lang="typescript"><pre><code>async handle(input: NewOrder): Output&lt;Order&gt; {
+  <div class="code" data-lang="typescript"><pre><code>async handle(input: NewOrder, meta): Output&lt;Order, EmailTaken&gt; {
   const existing = await this.orders.findByEmail(input.email);
   if (existing) {
-    throw Fail.conflict('Email already taken', { field: 'email' }); // свой отказ — ранний выход
+    meta.fail(EmailTaken({ email: input.email })); // ранний выход, типизированный errors:
   }
   const order = await this.orders.create(input);
   return Ok.created(order, { Location: `/orders/${order.id}` });
@@ -272,10 +273,10 @@ makeLoggingModule({ level: 'debug' })</code></pre></div>
   <table>
     <thead><tr><th>Успех</th><th>Провал</th></tr></thead>
     <tbody>
-      <tr><td><code>new Ok(value)</code> — или просто вернуть значение</td><td><code>Fail.badRequest(msg, details?)</code> / <code>conflict(...)</code></td></tr>
-      <tr><td><code>Ok.created(value, headers?)</code></td><td><code>Fail.unauthorized(...)</code> / <code>forbidden(...)</code> / <code>notFound(...)</code></td></tr>
-      <tr><td><code>Ok.accepted(...)</code></td><td><code>Fail.timeout(...)</code> / <code>tooManyRequests(...)</code></td></tr>
-      <tr><td><code>Ok.noContent()</code></td><td><code>Fail.internalError(...)</code> / <code>serviceUnavailable(...)</code></td></tr>
+      <tr><td><code>new Ok(value)</code> — или просто вернуть значение</td><td><code>defineFail('CODE', { status: 'BAD_REQUEST', … })</code> / <code>'CONFLICT'</code></td></tr>
+      <tr><td><code>Ok.created(value, headers?)</code></td><td><code>'UNAUTHORIZED'</code> / <code>'FORBIDDEN'</code> / <code>'NOT_FOUND'</code></td></tr>
+      <tr><td><code>Ok.accepted(...)</code></td><td><code>'TIMEOUT'</code> / <code>'TOO_MANY_REQUESTS'</code></td></tr>
+      <tr><td><code>Ok.noContent()</code></td><td><code>'INTERNAL_ERROR'</code> / <code>'SERVICE_UNAVAILABLE'</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -304,11 +305,12 @@ return new Ok(this.orders.create(input));</code></pre></div>
   </p>
   <div class="code" data-file="orders/errors.ts" data-lang="typescript"><pre><code>export const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
   status: 'NOT_FOUND',
-  message: (id: string) =&gt; `Order ${id} not found`,
   details: z.object({ orderId: z.string() }),  // schema-first — и для ошибок
+  message: (d) =&gt; `Order ${d.orderId} not found`,   // сообщение — от деталей
 });
 
-throw OrderNotFound('42');
+throw OrderNotFound({ orderId: '42' });
+throw OrderNotFound({ orderId: '42' }, { cause: dbError });
 
 // в .catch-юните — матчинг по code, работает и после провода:
 if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
@@ -317,6 +319,9 @@ if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
   <p>
     Endpoint декларирует свои отказы: <code>errors: [EmailTaken, OrderLimitReached]</code>.
     Из этого — OpenAPI-доки бесплатно, а потребители порта знают, какие <code>Fail</code> ждать.
+    Гарантия двухуровневая: компилятор не даёт вернуть отказ вне множества, а граница
+    пайплайна нормализует всё незадекларированное в <code>UnknownError</code> — так что ответ
+    ручки это <strong>закрытое множество</strong> <code>E ∪ UnknownError</code>, а не конвенция.
   </p>
   <div class="code" data-lang="typescript"><pre><code>export const CreateOrder = httpEndpoint({
   method: 'POST',

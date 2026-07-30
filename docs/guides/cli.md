@@ -1,6 +1,6 @@
 # CLI-транспорт
 
-✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-30).
+✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-31).
 Канон деклараций — per-transport конструкторы (`cliEndpoint`), см.
 [design/endpoints.md](../design/endpoints.md).
 Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).
@@ -69,6 +69,38 @@ await cli.listen();
 `process.exitCode = 1` при ошибочном статусе / брошенном `Fail`; в single-shot
 (`execute()`) транспорт код выхода не трогает — его выставляет приложение по
 результату (см. `main.ts` примера).
+
+## Отказы
+
+Модель ошибок одна на все транспорты ([design/errors.md](../design/errors.md)):
+отказ объявляется `defineFail`, перечисляется в `errors:` декларации и
+отдаётся возвратом либо броском. Статус CLI печатает как есть — маппинга на
+провод, в отличие от HTTP, ему не нужно:
+
+```typescript
+export const EmptyStdin = defineFail('EMPTY_STDIN', {
+  status: 'BAD_REQUEST',
+  message: 'No data received on stdin',
+});
+
+export const ProcessStdin = cliEndpoint({
+  command: 'process-stdin',
+  input: stream('binary'),
+  output: ProcessStdinResponse,
+  errors: [EmptyStdin],       // без объявления граница отдаст UNKNOWN/500
+  pipeline: makePipeline(),
+  handle: async (payload) => (await isEmpty(payload) ? EmptyStdin() : summarize(payload)),
+});
+```
+
+```
+$ printf '' | node dist/main.js process-stdin
+BAD_REQUEST: {"error":"No data received on stdin","code":"EMPTY_STDIN"}
+```
+
+Оригинал отказа, снятого стражем границы, уходит в
+`new CliTransport(pipeline, { onUnknownFail })`; без хука — в
+`console.error`.
 
 ## Ограничения (текущие)
 

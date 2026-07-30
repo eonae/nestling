@@ -248,7 +248,7 @@ export class OrdersService {
   constructor(private cfg: Config&lt;typeof OrdersConfig&gt;) {}
 
   create(dto: NewOrder): Order {
-    if (dto.items.length &gt; this.cfg.maxItems) throw Fail.badRequest('too many');
+    if (dto.items.length &gt; this.cfg.maxItems) throw TooManyItems({ max: this.cfg.maxItems });
     /* ... */
   }
 }</code></pre></div>

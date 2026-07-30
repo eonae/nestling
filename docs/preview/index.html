@@ -197,8 +197,8 @@ await server.listen();</code></pre></div>
   <p>
     Обрати внимание: схема <code>input</code> плюс <code>.pre(validate())</code> дают
     <strong>типизированный</strong> <code>input</code> в хендлере — не <code>any</code>, не ручной каст.
-    Вернуть можно просто значение (обернётся в <code>Ok</code>) или явно <code>Ok.created(...)</code> /
-    <code>throw Fail.badRequest(...)</code>. Та же операция на CLI объявляется
+    Вернуть можно просто значение (обернётся в <code>Ok</code>) или явно <code>Ok.created(...)</code>;
+    отказ объявляется <code>defineFail</code> и перечисляется в <code>errors:</code>. Та же операция на CLI объявляется
     <code>cliEndpoint({ command: 'create-user', ... })</code> — меняется только транспортный
     словарь, схемы, пайплайн и хендлер остаются теми же.
   </p>
@@ -212,8 +212,9 @@ await server.listen();</code></pre></div>
   </p>
 
   <div class="code" data-file="create-user.endpoint.ts" data-lang="typescript"><pre><code>import { httpEndpoint } from '@nestling/transport.http';
-import { Ok, Fail, type Output } from '@nestling/pipeline';
+import { Ok, type Output } from '@nestling/pipeline';
 import { basePipeline } from '../common/pipelines';
+import { EmailTaken } from './user.errors';
 import { UserService } from './user.service';
 
 export const CreateUser = httpEndpoint({
@@ -221,12 +222,13 @@ export const CreateUser = httpEndpoint({
   path: '/api/users',
   input: CreateUser,
   output: UserView,
+  errors: [EmailTaken],                      // множество отказов ручки
   pipeline: basePipeline,
   deps: [UserService],                       // явный массив токенов
-  handle: (users) =&gt; async (input: CreateUser): Output&lt;UserView&gt; =&gt; {
+  handle: (users) =&gt; async (input: CreateUser): Output&lt;UserView, EmailTaken&gt; =&gt; {
     // внешний вызов — один раз на сборке, замыкание = инстанс
     if (await users.findByEmail(input.email)) {
-      throw Fail.badRequest('Email already taken', { field: 'email' });
+      return EmailTaken({ email: input.email });   // 409 с кодом EMAIL_TAKEN
     }
     const user = await users.create(input);
     return Ok.created(user, { Location: `/api/users/${user.id}` });

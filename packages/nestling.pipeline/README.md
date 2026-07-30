@@ -4,7 +4,8 @@ Typed, transport-agnostic request pipeline for Nestling: schema-first
 endpoint declarations (`makeEndpoint`) validated against any
 [Standard Schema](https://standardschema.dev), phased pipelines
 (`makePipeline().pre/.ok/.catch/.finally`), layer composition
-(`compose`), `Ok`/`Fail` results, and streaming io modifiers
+(`compose`), `Ok`/`Fail` results with a closed error contract
+(`defineFail`, `errors:`), and streaming io modifiers
 (`stream()`, `withFiles()`, `files()`).
 
 > 🚧 Active development, API may change. The package ships **no validator
@@ -112,15 +113,22 @@ top-to-bottom as the execution plan:
 
 - `.pre(unit)` — before the handler, in order; monotonically accumulates
   a typed input. A failing pre skips the handler and enters the response
-  track with a `Fail`.
+  track with a `Fail`. A `Fail` **returned** by the handler enters it the
+  same way — returning a failure is equivalent to throwing one.
 - `.ok(unit)` — success responses only; sees the **full** accumulated ctx
   (success guarantees the whole pre track ran). May replace the response
   (success with success only).
 - `.catch(unit)` — error responses only; own-layer fields are `Partial`
   (enrichment may not have happened). May replace an error with an error —
-  no `Fail → Ok` recovery (v1 constraint).
+  either a full `ErrorResponseContext` or just a `Fail`, which the runtime
+  normalizes the same way as the handler's. No `Fail → Ok` recovery
+  (v1 constraint).
+- **the contract guard** — after the whole response track and *before*
+  `.finally`: a response whose code is not in `errors:` (nor a kernel code)
+  is replaced by `UnknownError`. See below.
 - `.finally(unit)` — always, last, with the outcome
-  (`completed | disconnected | aborted | failed`). Observer only.
+  (`completed | disconnected | aborted | failed`). Observer only; sees the
+  already-normalized response.
 
 Layers compose as constants — `compose(outer, ..., inner)` (pre runs
 outside-in, response phases and `finally` run inside-out). A layer declares
@@ -131,6 +139,52 @@ Units come in three forms: a function, an instance with `handle()`, or a
 class (constructor) — the latter adds the class to the pipeline's `TNeeds`
 and requires `bind()` (App resolves class units from the DI container on
 startup). Units are singletons; per-request state belongs in ctx only.
+
+## Errors are values, and the contract is closed
+
+A failure is an ordinary value with a stable machine `code`: `isFail` is a
+plain property (it survives the wire, `instanceof` does not), and identity
+is by `code`, not by class.
+
+```typescript
+export const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
+  status: 'NOT_FOUND',
+  details: z.object({ orderId: z.string() }),   // schema-first, as everywhere
+  message: (d) => `Order ${d.orderId} not found`,
+});
+
+export const GetOrder = httpEndpoint({
+  method: 'GET',
+  path: '/orders/:id',
+  input: OrderId,
+  output: Order,
+  errors: [OrderNotFound],                      // the typed failure channel
+  handle: async ({ id }, meta) => {
+    const order = await orders.find(id);
+    return order ? new Ok(order) : OrderNotFound({ orderId: id });
+    // …or `meta.fail(OrderNotFound({ orderId: id }))` for an early exit
+  },
+});
+```
+
+- `Output<T, E>` / `OutputSync<T, E>` admit `Ok<T>`, a bare `T` and a
+  failure from `E`. `E` defaults to **empty**: without `errors:` a handler
+  cannot return a failure at all, and `new Ok(fail)` is a compile error.
+- `meta.fail(e): never` is the second reserved meta key after `signal`:
+  a typed early exit that only accepts declared failures.
+- Anything reaching the boundary undeclared — a bare `throw`, a failure
+  from deep inside a service, an anonymous `Fail.notFound(...)` (no code ⇒
+  undeclared) — is normalized into `UnknownError` (`UNKNOWN`, 500). The
+  original goes to `ExecuteOptions.onUnknownFail` whole (default:
+  `console.error`); the client gets a generic body. No warn-and-pass.
+- Kernel codes are in every endpoint's contract implicitly: `UNKNOWN` and
+  `VALIDATION_FAILED` (the `validate()` unit) — otherwise the guard would
+  turn a routine 400 into a 500. The set is closed and grows with the
+  kernel only.
+- `ErrorStatus` is transport-neutral semantics (`CONFLICT`, `TIMEOUT`,
+  `TOO_MANY_REQUESTS`, …); mapping onto the wire is the transport's job.
+
+Design: [`docs/design/errors.md`](../../docs/design/errors.md).
 
 ## Type diagnostics are part of the API
 

@@ -117,20 +117,29 @@ under `App`.
 
 By default the transport is safe to expose:
 
-- **Internal errors are hidden.** Unhandled (non-`Fail`) errors return
-  `{ "error": "Internal server error" }` with a `500` — no `message`, no
-  `stack`. Set `exposeErrorDetails: true` to surface them (dev only).
-  `Fail` responses always keep their `message`/`details` (the author opted in).
+- **Internal errors are hidden.** Unhandled errors and *undeclared*
+  failures return `{ "error": "Internal server error", "code": "UNKNOWN" }`
+  with a `500` — no `message`, no `stack`. Set `exposeErrorDetails: true`
+  to surface them (dev only). Only a **declared** failure (its `code` is in
+  the endpoint's `errors:`, or it is a kernel code) keeps its
+  `message`/`code`/`details`: that disclosure is the author's opt-in. The
+  original of a normalized failure goes to `onUnknownFail` (default:
+  `console.error`).
 - **Body size is limited.** Buffered bodies (JSON/raw/text), multipart file
   size and NDJSON line length are capped at `maxBodySize` (default **1 MiB**);
   reading aborts early and returns `413`. Set `maxBodySize: 0` to disable.
 - **Input errors map to 4xx.** Malformed JSON returns `400`; oversized
   payloads return `413` — not `500`. There is no «payload source conflict»
   error any more: strict intake gives every field exactly one place.
+- **Semantic statuses map onto the wire here**, not in the kernel:
+  `CONFLICT → 409`, `TOO_MANY_REQUESTS → 429`, `TIMEOUT → 504` (a budget
+  overrun, not a client that failed to finish sending — that would be 408).
 - **Validation failures return standard issues.** A schema failure returns
-  `400` with `details` shaped as `[{ "message": "…", "path": ["name"] }]` —
-  the Standard Schema guarantee, no vendor-specific `code`/`expected`/
-  `received`. An async schema or an object that is not a Standard Schema is
+  `400` with `"code": "VALIDATION_FAILED"` and `details` shaped as
+  `[{ "message": "…", "path": ["name"] }]` — the Standard Schema guarantee,
+  no vendor-specific `code`/`expected`/`received` inside the items. The
+  code is set on both paths (the pipeline's `validate()` unit and the
+  no-pipeline fallback), so one concern does not answer with two bodies. An async schema or an object that is not a Standard Schema is
   a configuration error, not bad input: those return `500`, masked by
   `exposeErrorDetails` like any other unhandled error.
 - **Request cancellation.** Every request gets a `meta.signal`
@@ -151,6 +160,7 @@ new HttpTransport({
   host: '0.0.0.0',
   maxBodySize: 1024 * 1024, // байт; 0 = без лимита
   exposeErrorDetails: false, // раскрывать message/stack необработанных ошибок
+  onUnknownFail: undefined, // хук стража: оригинал снятого отказа (дефолт — console.error)
   requestTimeout: undefined, // node:http server.requestTimeout (мс)
   headersTimeout: undefined, // node:http server.headersTimeout (мс)
   keepAliveTimeout: undefined, // node:http server.keepAliveTimeout (мс)

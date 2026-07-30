@@ -1,7 +1,7 @@
 # HTTP-сервер без DI: standalone-транспорт
 
 ✅ **Статус: актуально** — сверено с кодом `examples.simple-http-server`
-(2026-07-30). Канон деклараций — per-transport конструкторы (`httpEndpoint`),
+(2026-07-31). Канон деклараций — per-transport конструкторы (`httpEndpoint`),
 см. [design/endpoints.md](../design/endpoints.md); транспорт-нейтральный
 `makeEndpoint` остаётся kernel-примитивом и в пользовательский канон не
 входит. Запускаемый код — в
@@ -47,7 +47,36 @@ export const CreateUser = httpEndpoint({
 path-параметр падают сразу, а не на старте приложения. Схема `input` +
 `.pre(validate())` в пайплайне дают типизированный payload в хендлере;
 вернуть можно значение напрямую (обернётся в `Ok`) или явно
-`Ok.created(...)` / `throw Fail.badRequest(...)`.
+`Ok.created(...)`.
+
+Отказ — тоже значение: он объявляется `defineFail`, перечисляется в
+`errors:` декларации и отдаётся возвратом или броском — для ответа это
+одно и то же. Возврат отказа вне объявленного множества — ошибка
+компиляции, а отказ, доехавший до границы незадекларированным, клиент
+получит как `UNKNOWN`/500:
+
+```typescript
+export const EmailTaken = defineFail('EMAIL_TAKEN', {
+  status: 'CONFLICT',                        // → HTTP 409
+  details: z.object({ email: z.string() }),
+  message: (d) => `Email ${d.email} already taken`,
+});
+
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/users',
+  input: CreateUserInput,
+  output: CreateUserOutput,
+  errors: [EmailTaken],
+  pipeline: makePipeline().pre(withTiming).pre(validate()),
+  handle: async (input): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> =>
+    taken.has(input.email)
+      ? EmailTaken({ email: input.email })
+      : { message: 'User created', user: { id: nextId(), ...input } },
+});
+```
+
+Подробности модели — [design/errors.md](../design/errors.md).
 
 ## Куда попадают поля запроса
 
