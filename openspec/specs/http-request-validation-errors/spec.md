@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Корректные HTTP-статусы для некорректного входа: битый JSON и конфликты ключей
-источников payload → 400, а не 500.
+Корректные HTTP-статусы для некорректного входа: битый JSON и поле,
+присланное не в каноническое место, → 400, а не 500.
 
 ## Requirements
 
@@ -19,16 +19,35 @@
 - **THEN** ответ имеет статус 400, тело содержит `"Invalid JSON body"`
   и не содержит stack trace
 
-### Requirement: Payload source key conflicts yield 400
+### Requirement: Поле не в каноническом месте даёт ошибку валидации, а не конфликт
 
-Конфликт одноимённых ключей body/query/path-параметров SHALL типизироваться
-(`PayloadConflictError` в `mergePayload`) и транслироваться
-в `400 Bad Request` с указанием конфликтующего ключа.
+Поле, присланное не в каноническое для него место (capability
+`http-input-binding`), SHALL NOT попадать в payload. Если схема требует
+это поле, запрос SHALL завершаться обычной ошибкой валидации —
+`400 Bad Request` с деталями issue'ов, называющими отсутствующее поле.
+Отдельного класса ошибок «конфликт источников payload» SHALL NOT
+существовать: `PayloadConflictError` и функция слияния источников
+`mergePayload` SHALL быть удалены из `@nestling/transport.http`.
 
-#### Scenario: Duplicate key in body and query
+#### Scenario: Обязательное поле прислано в query вместо тела
 
-- **WHEN** body содержит `{"id": 1}` и query-строка содержит `?id=2`
-- **THEN** ответ имеет статус 400 и называет конфликтующий ключ `id`
+- **WHEN** у `POST /users` (поля по канону — в теле) приходит `?name=Alice`
+  при пустом теле, а схема требует `name`
+- **THEN** ответ имеет статус 400 с `details`, называющими `name`, и не
+  упоминает конфликт источников
+
+#### Scenario: Одноимённые path-параметр и поле тела не конфликтуют
+
+- **WHEN** у `PATCH /users/:id` приходит путь `/users/42` и тело
+  `{"id": "7"}`
+- **THEN** запрос обрабатывается: `id` берётся из пути, ошибки 400 о
+  дублирующемся ключе нет
+
+#### Scenario: Класс ошибки конфликта недоступен
+
+- **WHEN** код импортирует `PayloadConflictError` или `mergePayload` из
+  `@nestling/transport.http`
+- **THEN** импорт не резолвится (ошибка компиляции)
 
 ### Requirement: Schema validation failures keep 400
 
