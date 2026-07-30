@@ -13,6 +13,7 @@ import type {
   HandlerFactory,
   HandlerFn,
   InferInput,
+  MissingFields,
   Pipeline,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
@@ -73,19 +74,21 @@ export type StartContext<RB extends boolean | undefined> = RB extends true
  * **недостаточно**: `TReq` у `Pipeline` ведёт себя ковариантно через фантомное
  * `$types`, поэтому `Pipeline<{ rawBody }, …>` присвоился бы слоту
  * `Pipeline<EmptyInput, …>` и забытая пометка `rawBody: true` прошла бы молча.
- * Условный тип в позиции параметра — та же техника, которой пользуется
- * `compose` (`ValidateCompose`).
+ * Условный тип в позиции слота — та же техника, которой пользуется сторож
+ * точки композиции в `@nestling/pipeline`.
+ *
+ * Форма литерала — общая для всех точек проверки pipeline (`__error` +
+ * `missing` рекордом полей с типами); `hint` добавлен здесь потому, что
+ * называет конкретное действие, а не только проблему.
  */
 type ValidateStart<PR extends AnyInput, Start extends AnyInput> = [
   Start,
 ] extends [PR]
   ? unknown
   : {
-      ERROR: 'Pipeline requires fields that the start context does not provide';
-      MISSING_FIELDS: Exclude<keyof PR, keyof Start>;
-      START_PROVIDES: Start;
-      PIPELINE_REQUIRES: PR;
-      HINT: "declare 'rawBody: true', or provide the fields from an outer layer";
+      __error: 'Pipeline requires context that the start context does not provide';
+      missing: MissingFields<Start, PR>;
+      hint: "declare 'rawBody: true', or provide the fields from an outer layer";
     };
 
 /**

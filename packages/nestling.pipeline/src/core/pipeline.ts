@@ -37,6 +37,61 @@ type OverlapKeys<A, B> = keyof A & keyof B;
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
+// ---------------------------------------------------------------------------
+// Форма типов-ошибок
+//
+// Тип-ошибка обязана быть **анонимным развёрнутым литералом в точке
+// печати**: именованный дженерик-алиас TypeScript печатает именем
+// (`ComposeError<…>`), и текст сообщения пропадает. Разворачивание даёт
+// `Simplify<…>` вокруг самого литерала, внутри алиаса — поэтому обёртка
+// здесь часть контракта диагностики, а не косметика. Исполнимая проверка
+// правила — снапшоты в `type-tests/`.
+// ---------------------------------------------------------------------------
+
+/**
+ * Недостающий контекст как **рекорд «имя поля → его тип»**.
+ *
+ * В результат попадают и поля, которых во внешнем контексте нет, и поля,
+ * которые есть, но несовместимого типа: второй случай юнион ключей
+ * (`Exclude<keyof Required, keyof Provided>`) схлопывал в `never`, и
+ * сообщение переставало называть причину.
+ */
+export type MissingFields<Provided, Required> = Simplify<{
+  [K in keyof Required as K extends keyof Provided
+    ? [Provided[K]] extends [Required[K]]
+      ? never
+      : K
+    : K]: Required[K];
+}>;
+
+/**
+ * Конфликтующие поля как рекорд «имя поля → [было, стало]»
+ */
+type ConflictingFields<A, B> = Simplify<{
+  [K in OverlapKeys<A, B> as [A[K], B[K]] extends [B[K], A[K]] ? never : K]: [
+    A[K],
+    B[K],
+  ];
+}>;
+
+/** Тип-ошибка точки композиции */
+type ComposeError<Provided, Required> = Simplify<{
+  __error: 'Layer requires context that outer layers do not provide';
+  missing: MissingFields<Provided, Required>;
+}>;
+
+/** Тип-ошибка pre-тракта: накопленный input не покрывает требования юнита */
+type PreRequirementError<TCurrentInput, TReq> = Simplify<{
+  __error: 'Pre-unit requires context that the accumulated input does not provide';
+  missing: MissingFields<TCurrentInput, TReq>;
+}>;
+
+/** Тип-ошибка pre-тракта: юнит перезаписывает уже накопленное поле */
+type PreConflictError<TCurrentInput, TAdd> = Simplify<{
+  __error: 'Pre-unit overrides fields that are already in the input';
+  conflicting: ConflictingFields<TCurrentInput, TAdd>;
+}>;
+
 /**
  * Общие ключи, у которых типы в A и B не идентичны.
  *
@@ -57,20 +112,8 @@ type CheckPreCompatibility<TCurrentInput, TReq, TAdd, M> = [
 ] extends [TReq]
   ? [ConflictingKeys<TCurrentInput, NormalizeAddition<TAdd>>] extends [never]
     ? M
-    : {
-        ERROR: 'Pre-unit is overriding fields in input';
-        CONFLICTING_KEYS: ConflictingKeys<
-          TCurrentInput,
-          NormalizeAddition<TAdd>
-        >;
-        CURRENT_INPUT: Simplify<TCurrentInput>;
-        UNIT_ADDITION: TAdd;
-      }
-  : {
-      ERROR: 'Input is not assignable to pre-unit input';
-      CURRENT_INPUT: Simplify<TCurrentInput>;
-      UNIT_EXPECTS: TReq;
-    };
+    : PreConflictError<TCurrentInput, NormalizeAddition<TAdd>>
+  : PreRequirementError<TCurrentInput, TReq>;
 
 /**
  * Валидирует совместимость pre-юнита (в любой из трёх форм)
@@ -219,41 +262,30 @@ export interface PipelineBuilder<
   ): PipelineBuilder<TReq, TAcc & ExtractAddition<M>, TNeeds | ExtractNeeds<M>>;
 }
 
+/**
+ * Пайплайн с любыми тип-параметрами.
+ *
+ * Остаётся публичным типом (им пользуются рантайм-сигнатура `compose` и
+ * внешний код), но **из сигнатур перегрузок ушёл**: слой одним
+ * тип-параметром заставлял компилятор переразворачивать всю цепочку на
+ * каждом уровне вложенности — см. `type-tests/BUDGET.md`.
+ */
 export type AnyPipeline = Pipeline<any, any, any>;
-
-type ReqOf<P> = P extends { $types?: PipelineTypes<infer R, any, any> }
-  ? R
-  : never;
-type AccOf<P> = P extends { $types?: PipelineTypes<any, infer A, any> }
-  ? A
-  : never;
-type NeedsOf<P> = P extends { $types?: PipelineTypes<any, any, infer N> }
-  ? N
-  : never;
 
 /**
  * Проверка точки композиции: внешние слои должны предоставлять всё,
- * что требует внутренний (`makePipeline<TReq>()`)
+ * что требует внутренний (`makePipeline<TReq>()`).
+ *
+ * В успешной ветке — `Pipeline<R, A, N>`, из которой TypeScript выводит
+ * тип-параметры внутреннего слоя; в неуспешной — **только** литерал
+ * ошибки, без пересечения с типом слоя: иначе первая строка диагностики
+ * тащит хвост `& PipelineBuilder<...>`.
  */
-type ValidateCompose<Outer extends AnyPipeline, Inner extends AnyPipeline> = [
-  AccOf<Outer>,
-] extends [ReqOf<Inner>]
-  ? Inner
-  : {
-      ERROR: 'Inner layer requirements are not satisfied by outer layers';
-      MISSING_FIELDS: Exclude<keyof ReqOf<Inner>, keyof AccOf<Outer>>;
-      OUTER_PROVIDES: Simplify<AccOf<Outer>>;
-      INNER_REQUIRES: Simplify<ReqOf<Inner>>;
-    };
-
-type ComposeResult<
-  Outer extends AnyPipeline,
-  Inner extends AnyPipeline,
-> = Pipeline<
-  ReqOf<Outer>,
-  AccOf<Outer> & AccOf<Inner>,
-  NeedsOf<Outer> | NeedsOf<Inner>
->;
+type Guard<Provided, R extends AnyInput, A extends AnyInput, N> = [
+  Provided,
+] extends [R]
+  ? Pipeline<R, A, N>
+  : ComposeError<Provided, R>;
 
 // ---------------------------------------------------------------------------
 // Рантайм
@@ -627,30 +659,51 @@ export function makePipeline<
  * изнутри наружу. Требования каждого слоя к внешнему контексту
  * проверяются компилятором в точке композиции.
  */
-export function compose<A extends AnyPipeline, B extends AnyPipeline>(
-  outer: A,
-  inner: ValidateCompose<A, B> & B,
-): ComposeResult<A, B>;
 export function compose<
-  A extends AnyPipeline,
-  B extends AnyPipeline,
-  C extends AnyPipeline,
+  RA extends AnyInput,
+  AA extends AnyInput,
+  NA,
+  RB extends AnyInput,
+  AB extends AnyInput,
+  NB,
 >(
-  outer: A,
-  middle: ValidateCompose<A, B> & B,
-  inner: ValidateCompose<ComposeResult<A, B>, C> & C,
-): ComposeResult<ComposeResult<A, B>, C>;
+  outer: Pipeline<RA, AA, NA>,
+  inner: Guard<AA, RB, AB, NB>,
+): Pipeline<RA, AA & AB, NA | NB>;
 export function compose<
-  A extends AnyPipeline,
-  B extends AnyPipeline,
-  C extends AnyPipeline,
-  D extends AnyPipeline,
+  RA extends AnyInput,
+  AA extends AnyInput,
+  NA,
+  RB extends AnyInput,
+  AB extends AnyInput,
+  NB,
+  RC extends AnyInput,
+  AC extends AnyInput,
+  NC,
 >(
-  a: A,
-  b: ValidateCompose<A, B> & B,
-  c: ValidateCompose<ComposeResult<A, B>, C> & C,
-  d: ValidateCompose<ComposeResult<ComposeResult<A, B>, C>, D> & D,
-): ComposeResult<ComposeResult<ComposeResult<A, B>, C>, D>;
+  outer: Pipeline<RA, AA, NA>,
+  middle: Guard<AA, RB, AB, NB>,
+  inner: Guard<AA & AB, RC, AC, NC>,
+): Pipeline<RA, AA & AB & AC, NA | NB | NC>;
+export function compose<
+  RA extends AnyInput,
+  AA extends AnyInput,
+  NA,
+  RB extends AnyInput,
+  AB extends AnyInput,
+  NB,
+  RC extends AnyInput,
+  AC extends AnyInput,
+  NC,
+  RD extends AnyInput,
+  AD extends AnyInput,
+  ND,
+>(
+  a: Pipeline<RA, AA, NA>,
+  b: Guard<AA, RB, AB, NB>,
+  c: Guard<AA & AB, RC, AC, NC>,
+  d: Guard<AA & AB & AC, RD, AD, ND>,
+): Pipeline<RA, AA & AB & AC & AD, NA | NB | NC | ND>;
 export function compose(...pipelines: AnyPipeline[]): AnyPipeline {
   if (pipelines.length < 2) {
     throw new Error('compose() expects at least two layers');

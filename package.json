@@ -8,8 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "verify": "nx run-many -t build lint test",
-    "verify:fresh": "nx run-many -t build lint test --skip-nx-cache",
+    "verify": "nx run-many -t build lint test type-budget",
+    "verify:fresh": "nx run-many -t build lint test type-budget --skip-nx-cache",
     "docs:audit": "node .claude/skills/docs-audit/scripts/check.mjs"
   },
   "devDependencies": {

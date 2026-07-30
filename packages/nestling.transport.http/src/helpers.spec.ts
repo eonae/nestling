@@ -214,7 +214,10 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       method: 'POST',
       path: '/hooks/stripe',
       input: z.object({ id: z.string() }),
-      // @ts-expect-error: слой требует { rawBody }, а 'rawBody: true' не объявлен
+      // @ts-expect-error: { __error; missing: { rawBody: Uint8Array }; hint }
+      // — слой требует { rawBody }, а 'rawBody: true' не объявлен.
+      // Текст диагностики зафиксирован снапшотом:
+      // packages/nestling.pipeline/type-tests/fixtures/endpoint-missing-rawbody.ts
       pipeline: makePipeline<{ rawBody: Uint8Array }>(),
       handle,
     });

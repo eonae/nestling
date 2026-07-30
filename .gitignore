@@ -45,3 +45,6 @@ memory-bank/
 
 # Логи автономных прогонов openspec-change'ей
 .openspec-runs/
+
+# Синтетический граф бюджета типов (генерируется type-tests/bench)
+type-tests/.generated

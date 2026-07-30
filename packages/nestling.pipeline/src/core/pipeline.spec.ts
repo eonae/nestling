@@ -54,6 +54,11 @@ const mockLogger: Logger = {
 // Утилиты для типовых проверок
 // ============================================================================
 
+// Извлекает требования слоя (TReq) из pipeline
+type InferReq<P> = P extends { $types?: PipelineTypes<infer R, any, any> }
+  ? R
+  : never;
+
 // Извлекает накопленный input (TAcc) из pipeline
 type InferAcc<P> = P extends { $types?: PipelineTypes<any, infer A, any> }
   ? A
@@ -322,6 +327,107 @@ describe('Pipeline v2 — compose', () => {
     type _HasPermissions = Expect<
       Acc extends { permissions: string[] } ? true : false
     >;
+  });
+
+  // Позитивный вывод типов на всех арностях. Тесты написаны до
+  // переписывания сигнатуры `compose` на прямой вывод (change #23) и
+  // обязаны остаться зелёными после: они и есть страховка, что правка
+  // горячей сигнатуры не поменяла наблюдаемые типы.
+  it('accumulates input across arities 2, 3 and 4', () => {
+    const base = makePipeline().pre(withRequestId());
+    const authed = makePipeline<{ requestId: string }>().pre(
+      withIdentity<User>(mockAuthenticator),
+    );
+    const authorized = makePipeline<{ identity: User }>().pre(
+      withPermissions<string[], User>(() => ['read']),
+    );
+    const timed = makePipeline<{ permissions: string[] }>().pre(withTiming);
+
+    const two = compose(base, authed);
+    const three = compose(base, authed, authorized);
+    const four = compose(base, authed, authorized, timed);
+
+    type Two = InferAcc<typeof two>;
+    type _TwoKeys = Expect<Equal<keyof Two, 'requestId' | 'identity'>>;
+    type _TwoRequestId = Expect<Equal<Two['requestId'], string>>;
+    type _TwoIdentity = Expect<Equal<Two['identity'], User>>;
+
+    type Three = InferAcc<typeof three>;
+    type _ThreeKeys = Expect<
+      Equal<keyof Three, 'requestId' | 'identity' | 'permissions'>
+    >;
+    type _ThreePermissions = Expect<Equal<Three['permissions'], string[]>>;
+
+    type Four = InferAcc<typeof four>;
+    type _FourKeys = Expect<
+      Equal<keyof Four, 'requestId' | 'identity' | 'permissions' | 'timestamp'>
+    >;
+    type _FourTimestamp = Expect<Equal<Four['timestamp'], number>>;
+
+    acceptsExecutable(two);
+    acceptsExecutable(three);
+    acceptsExecutable(four);
+  });
+
+  it('unions deferred dependencies of all layers', () => {
+    const base = makePipeline().pre(withRequestId());
+    const traced = makePipeline<{ requestId: string }>().pre(WithTracing);
+
+    const composed = compose(base, traced);
+
+    type Needs = InferNeeds<typeof composed>;
+    type _Needs = Expect<Equal<Needs, typeof WithTracing>>;
+
+    // @ts-expect-error: композиция с нерезолвленным классом-юнитом не исполнима
+    acceptsExecutable(composed);
+
+    type BoundNeeds = InferNeeds<ReturnType<(typeof composed)['bind']>>;
+    type _Bound = Expect<Equal<BoundNeeds, never>>;
+  });
+
+  it('handler meta of a composed pipeline carries the accumulated input', () => {
+    const base = makePipeline().pre(withRequestId());
+    const authed = makePipeline<{ requestId: string }>()
+      .pre(withIdentity<User>(mockAuthenticator))
+      .pre(validate());
+
+    const composed = compose(base, authed);
+
+    type Acc = InferAcc<typeof composed>;
+
+    const use = (): Promise<unknown> =>
+      composed.executeWithHandler(
+        (payload, meta) => {
+          type _RequestId = Expect<Equal<typeof meta.requestId, string>>;
+          type _Identity = Expect<Equal<typeof meta.identity, User>>;
+          type _Signal = Expect<Equal<typeof meta.signal, AbortSignal>>;
+          type _NoPayloadInMeta = Expect<
+            'payload' extends keyof typeof meta ? false : true
+          >;
+          return { ok: true };
+        },
+        undefined as unknown as ExtendableContext<Acc>,
+      );
+
+    expect(typeof use).toBe('function');
+  });
+
+  it('keeps TReq of the outer layer on the result', () => {
+    const rawLayer = makePipeline<{ rawBody: Uint8Array }>().pre(withTiming);
+    const inner = makePipeline<{ rawBody: Uint8Array; timestamp: number }>();
+
+    const composed = compose(rawLayer, inner);
+
+    type Req = InferReq<typeof composed>;
+    type _Req = Expect<Equal<Req, { rawBody: Uint8Array }>>;
+
+    // `TReq` едет на фантомном `$types` и ведёт себя **ковариантно**:
+    // пайплайн с требованиями присваивается слоту без них. Именно поэтому
+    // транспорту недостаточно типизировать слот `pipeline?: Pipeline<Start, …>`
+    // и появился сторож `ValidateStart` (@nestling/transport.http).
+    const slot: Pipeline<EmptyInput, AnyInput, never> = composed;
+
+    expect(slot).toBeDefined();
   });
 });
 
