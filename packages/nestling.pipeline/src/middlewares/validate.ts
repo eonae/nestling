@@ -1,5 +1,5 @@
 import type { EmptyInput } from '../core';
-import { analyzePayload, Fail } from '../core';
+import { analyzePayload, ValidationFailed } from '../core';
 import type { PreUnitFn } from '../core/types';
 import { SchemaValidationError, validateSync } from '../schema';
 
@@ -11,7 +11,10 @@ import type { Schema } from '@common/misc';
  * Работает только с schema-input: stream/files/withFiles/primitive
  * подготавливаются транспортом, их payload передаётся handler'у как есть.
  *
- * При ошибке валидации бросает Fail.badRequest (HTTP 400).
+ * При ошибке валидации бросает kernel-отказ `ValidationFailed`
+ * (`VALIDATION_FAILED`, HTTP 400). Kernel-код входит в контракт любой
+ * ручки неявно: страж границы пропускает его без объявления в `errors:` —
+ * иначе штатный 400 валидации превращался бы в 500.
  *
  * Ошибки конфигурации приложения — async-схема
  * (`AsyncSchemaNotSupportedError`) и объект-не-схема
@@ -47,7 +50,7 @@ export function validate(): PreUnitFn<
       };
     } catch (error) {
       if (error instanceof SchemaValidationError) {
-        throw Fail.badRequest(error.message, error.issues);
+        throw ValidationFailed(error.issues, { cause: error });
       }
 
       throw error;

@@ -17,6 +17,7 @@ import { HttpTransport } from './transport.js';
 import type { Schema } from '@common/misc';
 import type { FilePart, PreUnitFn } from '@nestling/pipeline';
 import {
+  defineFail,
   Fail,
   makePipeline,
   Ok,
@@ -81,6 +82,26 @@ function getServer(transport: HttpTransport): Server {
   return (transport as unknown as { server: Server }).server;
 }
 
+/** Доменные отказы фикстур: канон — определение + `errors:` декларации */
+const EmailTaken = defineFail('EMAIL_TAKEN', {
+  status: 'CONFLICT',
+  message: 'Email already taken',
+  details: z.object({ field: z.string() }),
+});
+
+const RateLimited = defineFail('RATE_LIMITED', {
+  status: 'TOO_MANY_REQUESTS',
+  message: 'Too many requests',
+});
+
+const UpstreamTimeout = defineFail('UPSTREAM_TIMEOUT', {
+  status: 'TIMEOUT',
+  message: 'Upstream did not answer in time',
+});
+
+/** Заглушка диагностики: дефолтный console.error шумит в выводе тестов */
+const silent = { onUnknownFail: (): void => undefined };
+
 describe('HttpTransport — error response safety', () => {
   let transport: HttpTransport;
   let exposed: HttpTransport;
@@ -88,7 +109,7 @@ describe('HttpTransport — error response safety', () => {
   let exposedUrl: string;
 
   beforeAll(async () => {
-    transport = new HttpTransport();
+    transport = new HttpTransport(silent);
     transport.route(
       httpEndpoint({
         method: 'POST',
@@ -104,14 +125,48 @@ describe('HttpTransport — error response safety', () => {
         method: 'POST',
         path: '/fail',
         pipeline: makePipeline(),
+        errors: [EmailTaken],
+        handle: () => {
+          throw EmailTaken({ field: 'email' });
+        },
+      }),
+    );
+    // Тот же отказ, но незадекларированный: страж границы снимет его
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/undeclared',
+        pipeline: makePipeline(),
         handle: () => {
           throw Fail.badRequest('Email already taken', { field: 'email' });
         },
       }),
     );
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/rate-limited',
+        pipeline: makePipeline(),
+        errors: [RateLimited],
+        handle: () => {
+          throw RateLimited();
+        },
+      }),
+    );
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/timeout',
+        pipeline: makePipeline(),
+        errors: [UpstreamTimeout],
+        handle: () => {
+          throw UpstreamTimeout();
+        },
+      }),
+    );
     baseUrl = await listen(transport);
 
-    exposed = new HttpTransport({ exposeErrorDetails: true });
+    exposed = new HttpTransport({ exposeErrorDetails: true, ...silent });
     exposed.route(
       httpEndpoint({
         method: 'POST',
@@ -135,7 +190,7 @@ describe('HttpTransport — error response safety', () => {
     expect(response.status).toBe(500);
 
     const body = await response.json();
-    expect(body).toEqual({ error: 'Internal server error' });
+    expect(body).toEqual({ error: 'Internal server error', code: 'UNKNOWN' });
     expect(JSON.stringify(body)).not.toContain('db password');
     expect(body.stack).toBeUndefined();
   });
@@ -149,15 +204,62 @@ describe('HttpTransport — error response safety', () => {
     expect(typeof body.stack).toBe('string');
   });
 
-  it('Fail.badRequest → 400 с message и details', async () => {
+  it('задекларированный отказ → свой статус, код и детали', async () => {
     const response = await fetch(`${baseUrl}/fail`, { method: 'POST' });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
 
     const body = await response.json();
     expect(body).toEqual({
       error: 'Email already taken',
+      code: 'EMAIL_TAKEN',
       details: { field: 'email' },
     });
+  });
+
+  it('незадекларированный отказ → 500 UNKNOWN, оригинал не раскрыт', async () => {
+    const response = await fetch(`${baseUrl}/undeclared`, { method: 'POST' });
+    expect(response.status).toBe(500);
+
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Internal server error', code: 'UNKNOWN' });
+    expect(JSON.stringify(body)).not.toContain('Email already taken');
+  });
+
+  it('новые статусы словаря доезжают до провода: 429 и 504', async () => {
+    const limited = await fetch(`${baseUrl}/rate-limited`, { method: 'POST' });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toMatchObject({ code: 'RATE_LIMITED' });
+
+    const timeout = await fetch(`${baseUrl}/timeout`, { method: 'POST' });
+    expect(timeout.status).toBe(504);
+    expect(await timeout.json()).toMatchObject({ code: 'UPSTREAM_TIMEOUT' });
+  });
+
+  it('хук получает оригинал снятого отказа', async () => {
+    const seen: unknown[] = [];
+    const hooked = new HttpTransport({
+      onUnknownFail: (info) => seen.push(info.error),
+    });
+    hooked.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/undeclared',
+        pipeline: makePipeline(),
+        handle: () => {
+          throw Fail.notFound('order 42');
+        },
+      }),
+    );
+    const url = await listen(hooked);
+
+    try {
+      const response = await fetch(`${url}/undeclared`, { method: 'POST' });
+      expect(response.status).toBe(500);
+      expect(seen).toHaveLength(1);
+      expect((seen[0] as Error).message).toBe('order 42');
+    } finally {
+      await hooked.close();
+    }
   });
 });
 
@@ -180,7 +282,7 @@ describe('HttpTransport — request validation errors', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
-    transport = new HttpTransport();
+    transport = new HttpTransport(silent);
 
     // JSON endpoint с pipeline validate()
     transport.route(
@@ -274,6 +376,8 @@ describe('HttpTransport — request validation errors', () => {
       expect(body.details[0]).not.toHaveProperty('code');
       expect(body.details[0]).not.toHaveProperty('expected');
       expect(body.details[0]).not.toHaveProperty('received');
+      // Kernel-код проставляется на обоих путях: пайплайн и fallback
+      expect(body.code).toBe('VALIDATION_FAILED');
     }
   });
 
@@ -285,7 +389,10 @@ describe('HttpTransport — request validation errors', () => {
     });
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({ error: 'Internal server error' });
+    expect(await response.json()).toEqual({
+      error: 'Internal server error',
+      code: 'UNKNOWN',
+    });
   });
 
   it('объект вместо схемы → 500, а не 400', async () => {
@@ -296,7 +403,10 @@ describe('HttpTransport — request validation errors', () => {
     });
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({ error: 'Internal server error' });
+    expect(await response.json()).toEqual({
+      error: 'Internal server error',
+      code: 'UNKNOWN',
+    });
   });
 
   it('валидный JSON → 200', async () => {

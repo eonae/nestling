@@ -17,9 +17,14 @@ const STATUS_MAP: Record<ProcessingStatus, number> = {
   'UNAUTHORIZED': 401,
   'FORBIDDEN': 403,
   'NOT_FOUND': 404,
+  'CONFLICT': 409,
+  'TOO_MANY_REQUESTS': 429,
   'INTERNAL_ERROR': 500,
   'NOT_IMPLEMENTED': 501,
   'SERVICE_UNAVAILABLE': 503,
+  // 504, а не 408: TIMEOUT в ядре — «операция не уложилась в бюджет»,
+  // тогда как 408 про то, что клиент не дослал запрос.
+  'TIMEOUT': 504,
 };
 /* eslint-enable prettier/prettier */
 

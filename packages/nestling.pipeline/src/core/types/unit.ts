@@ -2,6 +2,7 @@
  * void в union'ах возвратов — осознанно: юниты-наблюдатели пишутся как
  * обычные функции без return, и это поддерживаемая форма API */
 import type { AnyInput, EmptyInput } from '../io/io.js';
+import type { AnyFail } from '../result.js';
 
 import type {
   ErrorResponseContext,
@@ -73,13 +74,20 @@ export type OkUnitFn<TAcc extends AnyInput = AnyInput> = (
  * Catch-юнит: вызывается только для ответа-ошибки. Поля собственного
  * pre-тракта — Partial. Может заменить ошибку другой ошибкой;
  * восстановление `Fail → Ok` невозможно по типам (ограничение v1).
+ *
+ * Замена возвращается либо готовым `ErrorResponseContext`, либо просто
+ * отказом: `Fail` рантайм нормализует так же, как отказ хендлера —
+ * иначе юниту пришлось бы собирать контекст ответа руками. Это же
+ * легальное место, где недекларированный отказ становится контрактным:
+ * страж границы стоит после всего ответного тракта.
  */
 export type CatchUnitFn<TCtxInput extends AnyInput = AnyInput> = (
   res: ErrorResponseContext,
   ctx: ExtendableContext<TCtxInput>,
 ) =>
-  | Promise<ErrorResponseContext | undefined | void>
+  | Promise<ErrorResponseContext | AnyFail | undefined | void>
   | ErrorResponseContext
+  | AnyFail
   | undefined
   | void;
 

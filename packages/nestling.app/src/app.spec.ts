@@ -14,6 +14,7 @@ import {
 } from '@nestling/container';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import {
+  defineFail,
   makeEmptyContext,
   makeEndpoint,
   makePipeline,
@@ -50,6 +51,45 @@ describe('App Integration', () => {
 
     expect(mockTransport.endpoints).toHaveLength(1);
     expect(mockTransport.endpoints[0].pattern).toBe('GET /test');
+
+    await app.close();
+  });
+
+  it('объявленные отказы доезжают до транспорта через дискавери и гашение', async () => {
+    const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
+      status: 'TOO_MANY_REQUESTS',
+      message: 'Quota exceeded',
+    });
+
+    const IQuota = makeToken<{ left(): number }>('IQuota');
+
+    // Форма с deps: `errors:` обязан пережить `resolve` контейнером
+    const Charge = httpEndpoint({
+      method: 'POST',
+      path: '/charge',
+      output: z.object({ left: z.number() }),
+      errors: [QuotaExceeded],
+      deps: [IQuota],
+      handle: (quota) => async () =>
+        quota.left() > 0 ? new Ok({ left: quota.left() }) : QuotaExceeded(),
+    });
+
+    const QuotaModule = makeAppModule({
+      name: 'quota-module',
+      providers: [{ provide: IQuota, useValue: { left: () => 0 } }],
+      endpoints: [Charge],
+    });
+
+    const mockTransport = new MockTransport();
+
+    const app = new App({
+      transports: { http: mockTransport as any },
+      modules: [QuotaModule],
+    });
+
+    await app.run();
+
+    expect(mockTransport.endpoints[0].errors).toEqual([QuotaExceeded]);
 
     await app.close();
   });

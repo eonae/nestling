@@ -4,11 +4,13 @@ import { computeHttpBinding, readPathParams } from './binding.js';
 import type { InjectionToken } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
+  AnyFailDefinition,
   AnyInput,
   AnyOutput,
   AnyPayload,
   EmptyInput,
   EndpointDefinition,
+  FailsOf,
   HandlerClass,
   HandlerFactory,
   HandlerFn,
@@ -107,6 +109,7 @@ export interface HttpEndpointDictionary<
   PN = never,
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = AnyInput,
+  E extends readonly AnyFailDefinition[] = [],
 > {
   /** HTTP-метод ручки */
   method: HTTPMethod;
@@ -119,6 +122,13 @@ export interface HttpEndpointDictionary<
 
   /** Конфигурация выходных данных */
   output?: O;
+
+  /**
+   * Объявленные отказы ручки. Транспорт поле не интерпретирует — только
+   * пробрасывает в `makeEndpoint`, который выводит из него тип отказов
+   * хендлера и проверяет список при создании.
+   */
+  errors?: E;
 
   /**
    * Пометки размещения: «поле → место». Всё, что не помечено и не совпало с
@@ -253,10 +263,11 @@ export function httpEndpoint<
   PN = never,
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = EmptyInput,
+  E extends readonly AnyFailDefinition[] = [],
 >(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR> & {
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
     deps?: undefined;
-    handle: HandlerFn<I, O, P>;
+    handle: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function httpEndpoint<
@@ -268,10 +279,11 @@ export function httpEndpoint<
   D extends InjectionToken[] = InjectionToken[],
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = EmptyInput,
+  E extends readonly AnyFailDefinition[] = [],
 >(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR> & {
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
     deps: [...D];
-    handle: HandlerFactory<D, I, O, P>;
+    handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN | D[number]>;
 export function httpEndpoint<
@@ -280,11 +292,17 @@ export function httpEndpoint<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
-  C extends HandlerClass<I, O, P> = HandlerClass<I, O, P>,
+  E extends readonly AnyFailDefinition[] = [],
+  C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
+    I,
+    O,
+    P,
+    FailsOf<E>
+  >,
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = EmptyInput,
 >(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR> & {
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
     deps?: undefined;
     handle: C;
   },
@@ -297,7 +315,8 @@ export function httpEndpoint(
     any,
     unknown,
     boolean | undefined,
-    any
+    any,
+    readonly AnyFailDefinition[]
   > & {
     deps?: InjectionToken[];
     handle: unknown;

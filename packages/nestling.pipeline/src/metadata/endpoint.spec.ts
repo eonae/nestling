@@ -48,7 +48,13 @@ class UserService {
 const UserInput = z.object({ id: z.string() });
 const UserOutput = z.object({ id: z.string(), name: z.string() });
 
-const meta = { signal: new AbortController().signal };
+/** Оба зарезервированных ключа meta: их инъецирует рантайм пайплайна */
+const meta = {
+  signal: new AbortController().signal,
+  fail: (error: never): never => {
+    throw error;
+  },
+};
 
 // ============================================================================
 // Рантайм

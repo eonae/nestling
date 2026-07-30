@@ -36,15 +36,17 @@ import type {
   EndpointMeta,
   Pipeline,
   Raw,
+  UnknownFailInfo,
 } from '@nestling/pipeline';
 import {
   analyzePayload,
   ClientDisconnectedError,
-  Fail,
+  isFail,
   makeEmptyContext,
   parsePayload,
   SchemaValidationError,
   TransportClosingError,
+  ValidationFailed,
 } from '@nestling/pipeline';
 
 /**
@@ -77,6 +79,13 @@ export interface HttpTransportOptions {
    * generic-сообщение. Включать только в доверенном окружении (dev).
    */
   exposeErrorDetails?: boolean;
+
+  /**
+   * Диагностический хук стража границы: получает оригинал отказа,
+   * снятого нормализацией в `UnknownError`. Не задан — рантайм пишет в
+   * `console.error`.
+   */
+  onUnknownFail?: (info: UnknownFailInfo) => void;
 
   /** `server.requestTimeout` (мс). Не задан — дефолт Node. */
   requestTimeout?: number;
@@ -403,6 +412,9 @@ export class HttpTransport {
           pattern: route.definition.pattern,
           input: route.definition.input,
           output: route.definition.output,
+          // Объявленные отказы доезжают до стража только так: декларация →
+          // транспорт → контекст, без глобального реестра.
+          errors: route.definition.errors,
         };
 
         const ctx = makeEmptyContext(raw, endpointMeta, signal, startInput);
@@ -410,7 +422,10 @@ export class HttpTransport {
         const responseContext = await pipeline.executeWithHandler(
           route.handler,
           ctx,
-          { exposeErrorDetails: this.exposeErrorDetails },
+          {
+            exposeErrorDetails: this.exposeErrorDetails,
+            onUnknownFail: this.options.onUnknownFail,
+          },
         );
 
         this.cleanupFileStreams(inputConfigType, payload);
@@ -425,8 +440,13 @@ export class HttpTransport {
           });
         }
 
-        // Без pipeline в meta только сигнал отмены
-        const meta = { signal };
+        // Без pipeline в meta только зарезервированные ключи
+        const meta = {
+          signal,
+          fail: (error: never): never => {
+            throw error;
+          },
+        };
 
         const result = await route.handler(payload, meta);
 
@@ -455,6 +475,11 @@ export class HttpTransport {
    *
    * Ошибки клиента (400/413) содержат безопасное сообщение, описывающее
    * некорректный ввод; внутренние детали не раскрываются.
+   *
+   * Через страж контракта эта ветка не проходит (пайплайна тут нет),
+   * поэтому тела ошибок парсинга и лимитов остаются как есть. Исключение —
+   * отказ валидации: kernel-код `VALIDATION_FAILED` проставляется на обоих
+   * путях, чтобы один концерн не отвечал двумя разными телами.
    */
   private sendError(res: ServerResponse, error: unknown): void {
     if (res.headersSent) {
@@ -462,21 +487,28 @@ export class HttpTransport {
     }
 
     // Fail из fallback-ветки (endpoint без pipeline) — осознанная ошибка автора:
-    // статус и детали сохраняем (как это делает pipeline через errorToResponse).
-    if (error instanceof Fail) {
+    // статус, код и детали сохраняем (как это делает pipeline через
+    // errorToResponse).
+    if (isFail(error)) {
       sendResponse(res, {
         isSuccess: false,
-        status: error.status,
-        value:
-          error.details !== undefined
-            ? { error: error.message, details: error.details }
-            : { error: error.message },
+        status: error.status ?? 'INTERNAL_ERROR',
+        value: {
+          error: error.message ?? 'Error',
+          ...(error.code === undefined ? {} : { code: error.code }),
+          ...(error.details === undefined ? {} : { details: error.details }),
+        },
       });
       return;
     }
 
     let status = 500;
-    const body: { error: string; details?: unknown; stack?: string } = {
+    const body: {
+      error: string;
+      code?: string;
+      details?: unknown;
+      stack?: string;
+    } = {
       error: 'Internal server error',
     };
 
@@ -486,6 +518,7 @@ export class HttpTransport {
     } else if (error instanceof SchemaValidationError) {
       status = 400;
       body.error = 'Validation failed';
+      body.code = ValidationFailed.code;
       body.details = error.issues;
     } else if (
       error instanceof PayloadTooLargeError ||

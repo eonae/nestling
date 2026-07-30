@@ -6,11 +6,13 @@ import type { Schema } from '@common/misc';
 import type { InjectionToken } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
+  AnyFailDefinition,
   AnyInput,
   AnyOutput,
   AnyPayload,
   EndpointDefinition,
   EndpointMeta,
+  FailsOf,
   FilePart,
   HandlerClass,
   HandlerFactory,
@@ -18,6 +20,7 @@ import type {
   Pipeline,
   Raw,
   ResponseContext,
+  UnknownFailInfo,
 } from '@nestling/pipeline';
 import {
   analyzePayload,
@@ -40,6 +43,7 @@ export interface CliEndpointDictionary<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
+  E extends readonly AnyFailDefinition[] = [],
 > {
   /** Имя команды; оно же паттерн ручки */
   command: string;
@@ -49,6 +53,12 @@ export interface CliEndpointDictionary<
 
   /** Конфигурация выходных данных */
   output?: O;
+
+  /**
+   * Объявленные отказы команды. Транспорт поле не интерпретирует — только
+   * пробрасывает в `makeEndpoint` (см. `httpEndpoint`).
+   */
+  errors?: E;
 
   /**
    * Pipeline для этой команды. Классы-юниты допустимы: они попадают в
@@ -82,10 +92,11 @@ export function cliEndpoint<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
+  E extends readonly AnyFailDefinition[] = [],
 >(
-  declaration: CliEndpointDictionary<I, O, P, PN> & {
+  declaration: CliEndpointDictionary<I, O, P, PN, E> & {
     deps?: undefined;
-    handle: HandlerFn<I, O, P>;
+    handle: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function cliEndpoint<
@@ -93,11 +104,12 @@ export function cliEndpoint<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
+  E extends readonly AnyFailDefinition[] = [],
   D extends InjectionToken[] = InjectionToken[],
 >(
-  declaration: CliEndpointDictionary<I, O, P, PN> & {
+  declaration: CliEndpointDictionary<I, O, P, PN, E> & {
     deps: [...D];
-    handle: HandlerFactory<D, I, O, P>;
+    handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN | D[number]>;
 export function cliEndpoint<
@@ -105,15 +117,27 @@ export function cliEndpoint<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
-  C extends HandlerClass<I, O, P> = HandlerClass<I, O, P>,
+  E extends readonly AnyFailDefinition[] = [],
+  C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
+    I,
+    O,
+    P,
+    FailsOf<E>
+  >,
 >(
-  declaration: CliEndpointDictionary<I, O, P, PN> & {
+  declaration: CliEndpointDictionary<I, O, P, PN, E> & {
     deps?: undefined;
     handle: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function cliEndpoint(
-  declaration: CliEndpointDictionary<any, any, any, unknown> & {
+  declaration: CliEndpointDictionary<
+    any,
+    any,
+    any,
+    unknown,
+    readonly AnyFailDefinition[]
+  > & {
     deps?: InjectionToken[];
     handle: unknown;
   },
@@ -141,6 +165,18 @@ export interface CliInput {
 }
 
 /**
+ * Опции CLI транспорта
+ */
+export interface CliTransportOptions {
+  /**
+   * Диагностический хук стража границы: получает оригинал отказа,
+   * снятого нормализацией в `UnknownError`. Не задан — рантайм пишет в
+   * `console.error`.
+   */
+  onUnknownFail?: (info: UnknownFailInfo) => void;
+}
+
+/**
  * CLI транспорт
  */
 export class CliTransport implements ITransport {
@@ -157,7 +193,10 @@ export class CliTransport implements ITransport {
    */
   private readonly closeController = new AbortController();
 
-  constructor(private readonly defaultPipeline?: Pipeline<any, any, never>) {}
+  constructor(
+    private readonly defaultPipeline?: Pipeline<any, any, never>,
+    private readonly options: CliTransportOptions = {},
+  ) {}
 
   /**
    * Регистрирует handler через конфигурацию
@@ -256,6 +295,9 @@ export class CliTransport implements ITransport {
         pattern: definition.pattern,
         input: definition.input,
         output: definition.output,
+        // Объявленные отказы доезжают до стража только так: декларация →
+        // транспорт → контекст, без глобального реестра.
+        errors: definition.errors,
       };
 
       const ctx = makeEmptyContext(
@@ -267,11 +309,15 @@ export class CliTransport implements ITransport {
       // CLI — локальный инструмент: детали ошибок (stack) в терминале полезны.
       return pipeline.executeWithHandler(definition.handle, ctx, {
         exposeErrorDetails: true,
+        onUnknownFail: this.options.onUnknownFail,
       });
     } else {
       // Fallback без pipeline - прямой вызов handler
       const result = await definition.handle(payload, {
         signal: this.closeController.signal,
+        fail: (error: never): never => {
+          throw error;
+        },
       });
       return {
         isSuccess: true,

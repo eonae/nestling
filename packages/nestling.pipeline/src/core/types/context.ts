@@ -1,5 +1,6 @@
 import type { Readable } from 'node:stream';
 
+import type { AnyFailDefinition } from '../define-fail';
 import type { AnyInput, AnyOutput, AnyPayload, EmptyInput } from '../io/io';
 import type { ErrorStatus, SuccessStatus } from '../status';
 
@@ -40,6 +41,16 @@ export interface EndpointMeta {
 
   /** Конфигурация output: схема, примитив или stream-модификатор */
   output?: AnyOutput;
+
+  /**
+   * Объявленные отказы ручки (`errors:` декларации).
+   *
+   * Единственный источник множества для стража границы: декларация →
+   * транспорт → контекст. Глобального реестра отказов нет, поэтому
+   * пайплайн, исполненный без декларации, видит пустое множество и
+   * контрактными считает только kernel-коды.
+   */
+  errors?: readonly AnyFailDefinition[];
 
   /** Дополнительные опции для middleware */
   [key: string]: unknown;
@@ -114,6 +125,16 @@ export function makeEmptyContext<S extends AnyInput = EmptyInput>(
  */
 export interface ErrorDetails {
   error: string;
+
+  /**
+   * Машинный код отказа — ось, независимая от статуса.
+   *
+   * Заполняется рантаймом из `Fail.code`; у отказа без кода поле
+   * отсутствует (а не равно `null` или пустой строке). По нему же страж
+   * границы решает, контрактен ли ответ.
+   */
+  code?: string;
+
   details?: unknown;
   stack?: string;
 }

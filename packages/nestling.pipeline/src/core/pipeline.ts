@@ -1,6 +1,8 @@
 import type { AnyInput, EmptyInput } from './io/io.js';
 import type {
+  EndpointMeta,
   ErrorDetails,
+  ErrorResponseContext,
   ExtendableContext,
   ResponseContext,
 } from './types/context.js';
@@ -15,10 +17,24 @@ import type {
   UnitLike,
 } from './types/unit.js';
 import { computeOutcome } from './abort.js';
-import type { Output, OutputSync } from './result.js';
-import { Fail, Ok } from './result.js';
+import { isKernelFailCode, UnknownError } from './kernel-fails.js';
+import type { AnyFail, FailData, Output, OutputSync } from './result.js';
+import { isFail, Ok } from './result.js';
 
 import type { Constructor } from '@common/misc';
+
+/**
+ * Диагностика незадекларированного отказа, снятого стражем границы.
+ *
+ * Оригинал уходит сюда целиком — клиенту достаётся generic-тело.
+ */
+export interface UnknownFailInfo {
+  /** Исходный отказ или необработанная ошибка */
+  error: unknown;
+
+  /** Метаданные ручки: транспорт, паттерн, объявленные отказы */
+  endpoint: EndpointMeta;
+}
 
 /**
  * Опции выполнения pipeline.
@@ -28,9 +44,31 @@ import type { Constructor } from '@common/misc';
  * уходит только generic-сообщение. Политика раскрытия — свойство окружения
  * (транспорт/приложение), поэтому передаётся при вызове, а не хранится в
  * самом (переиспользуемом) Pipeline.
+ *
+ * onUnknownFail — диагностический хук стража границы. Дефолт —
+ * `console.error`: молчаливое проглатывание хуже шумного лога, а логгера
+ * в ядре нет по принципу минимума зависимостей.
  */
 export interface ExecuteOptions {
   exposeErrorDetails?: boolean;
+  onUnknownFail?: (info: UnknownFailInfo) => void;
+}
+
+/**
+ * Дефолтный наблюдатель нормализации: называет ручку, код и подсказывает
+ * `errors:` — забытая декларация не должна выглядеть загадочным 500.
+ */
+function reportUnknownFail(info: UnknownFailInfo): void {
+  const code = isFail(info.error) ? info.error.code : undefined;
+  const what = code ? `fail '${code}'` : 'unhandled error';
+
+  // eslint-disable-next-line no-console
+  console.error(
+    `[nestling] ${info.endpoint.transport} ${info.endpoint.pattern}: ` +
+      `undeclared ${what} normalized to '${UnknownError.code}'. ` +
+      `Declare it in 'errors:' or handle it in a .catch unit.`,
+    info.error,
+  );
 }
 
 type OverlapKeys<A, B> = keyof A & keyof B;
@@ -216,8 +254,8 @@ export interface Pipeline<
       payload: TAcc extends { payload: infer P } ? P : undefined,
       meta: (TAcc extends { payload: unknown }
         ? Omit<TAcc, 'payload'>
-        : TAcc) & { signal: AbortSignal },
-    ) => OutputSync<TOutput> | Output<TOutput>,
+        : TAcc) & { signal: AbortSignal; fail: (e: AnyFail) => never },
+    ) => OutputSync<TOutput, AnyFail> | Output<TOutput, AnyFail>,
     ctx: ExtendableContext<TAcc>,
     options?: ExecuteOptions,
   ): Promise<ResponseContext<TOutput>>;
@@ -470,10 +508,18 @@ class PipelineImpl {
     }
 
     const exposeErrorDetails = options.exposeErrorDetails ?? false;
+    const onUnknownFail = options.onUnknownFail ?? reportUnknownFail;
 
     let currentCtx: ExtendableContext<AnyInput> = ctx;
     let response: ResponseContext<unknown>;
     const activated: Layer[] = [];
+
+    /**
+     * Оригинал, породивший текущий ответ-ошибку: страж отдаёт его хуку
+     * целиком. Хранится отдельно от ответа, потому что в теле остаётся
+     * только то, что можно показать клиенту.
+     */
+    let originalError: unknown;
 
     try {
       // Pre-тракты слоёв: снаружи внутрь. Слой считается активированным,
@@ -506,14 +552,24 @@ class PipelineImpl {
       const effectivePayload =
         'payload' in finalInput ? payload : ctx.raw.payload;
 
-      // Ключ `signal` зарезервирован: сигнал контекста перекрывает
-      // одноимённое поле, добавленное pre-юнитом.
+      // Ключи `signal` и `fail` зарезервированы: инъекция пайплайна
+      // перекрывает одноимённые поля, добавленные pre-юнитом.
       const result = await handler(effectivePayload, {
         ...meta,
         signal: ctx.signal,
+        fail: throwFail,
       });
-      response = this.normalizeResponse(result);
+
+      // Возврат отказа эквивалентен броску: ответный тракт видит ошибку,
+      // и `.ok` не исполняется ни на одном из двух путей.
+      if (isFail(result)) {
+        originalError = result;
+        response = this.errorToResponse(result, exposeErrorDetails);
+      } else {
+        response = this.normalizeResponse(result);
+      }
     } catch (error) {
+      originalError = error;
       response = this.errorToResponse(error, exposeErrorDetails);
     }
 
@@ -530,17 +586,39 @@ class PipelineImpl {
         try {
           const replaced = (await materialized(entry)(response, currentCtx)) as
             | ResponseContext<unknown>
+            | AnyFail
             | undefined;
           if (replaced !== undefined && replaced !== null) {
-            response = replaced;
+            // `.catch` вправе вернуть просто отказ — рантайм нормализует
+            // его так же, как отказ хендлера.
+            if (isFail(replaced)) {
+              originalError = replaced;
+              response = this.errorToResponse(replaced, exposeErrorDetails);
+            } else {
+              originalError = replaced.isSuccess ? undefined : replaced;
+              response = replaced;
+            }
           }
         } catch (error) {
           // Падение ответного юнита — необработанная ошибка: ответ
           // заменяется по общей политике, остальные юниты продолжают.
+          originalError = error;
           response = this.errorToResponse(error, exposeErrorDetails);
         }
       }
     }
+
+    // Страж контракта: после всего ответного тракта (`.catch` — легальное
+    // место превращения недекларированного отказа в контрактный) и до
+    // `.finally` (наблюдатель обязан видеть ровно тот ответ, который уйдёт
+    // клиенту).
+    response = this.enforceContract(
+      response,
+      originalError,
+      ctx.endpoint,
+      exposeErrorDetails,
+      onUnknownFail,
+    );
 
     // Finally: изнутри наружу, всегда. Ошибки наблюдателей не влияют
     // на ответ (юнит обязан обрабатывать свои ошибки сам).
@@ -581,8 +659,11 @@ class PipelineImpl {
   /**
    * Конвертирует ошибку в ResponseContext
    *
-   * `Fail` — осознанно брошенная ошибка: message/details автор раскрыл сам,
-   * поэтому они попадают в тело независимо от exposeErrorDetails.
+   * Отказ (`Fail` или приехавшее данными значение с `isFail`) — осознанная
+   * ошибка автора: message/code/details он раскрыл сам, поэтому они
+   * попадают в тело независимо от exposeErrorDetails. Привилегия
+   * раскрытия при этом достаётся только **задекларированному** отказу:
+   * незадекларированный снимет страж границы.
    *
    * Любая другая ошибка считается необработанной (внутренней): по умолчанию
    * (`exposeErrorDetails === false`) клиенту уходит только generic-сообщение
@@ -591,11 +672,15 @@ class PipelineImpl {
   private errorToResponse(
     error: unknown,
     exposeErrorDetails: boolean,
-  ): ResponseContext<never> {
-    if (error instanceof Fail) {
+  ): ErrorResponseContext {
+    if (isFail(error)) {
       const errorValue: ErrorDetails = {
-        error: error.message,
+        error: typeof error.message === 'string' ? error.message : 'Error',
       };
+
+      if (error.code !== undefined) {
+        errorValue.code = error.code;
+      }
 
       if (error.details !== undefined) {
         errorValue.details = error.details;
@@ -603,29 +688,102 @@ class PipelineImpl {
 
       return {
         isSuccess: false,
-        status: error.status,
+        status: error.status ?? 'INTERNAL_ERROR',
         value: errorValue,
       };
-    }
-
-    const errorValue: ErrorDetails = {
-      error: exposeErrorDetails
-        ? error instanceof Error
-          ? error.message
-          : 'Unknown error'
-        : 'Internal server error',
-    };
-
-    if (exposeErrorDetails && error instanceof Error && error.stack) {
-      errorValue.stack = error.stack;
     }
 
     return {
       isSuccess: false,
       status: 'INTERNAL_ERROR',
-      value: errorValue,
+      value: unhandledBody(error, exposeErrorDetails),
     };
   }
+
+  /**
+   * Страж контракта отказов.
+   *
+   * Ответ считается контрактным, только если несёт код, объявленный в
+   * `errors:` ручки, либо kernel-код. Всё остальное — включая ответ вовсе
+   * без кода (анонимный `Fail.*`, необработанная ошибка) — заменяется на
+   * `UnknownError`: множество ответов ручки закрыто, warn-and-pass нет.
+   */
+  private enforceContract(
+    response: ResponseContext<unknown>,
+    originalError: unknown,
+    endpoint: EndpointMeta,
+    exposeErrorDetails: boolean,
+    onUnknownFail: (info: UnknownFailInfo) => void,
+  ): ResponseContext<unknown> {
+    if (response.isSuccess) {
+      return response;
+    }
+
+    const code = response.value.code;
+    const declared =
+      code !== undefined &&
+      (endpoint.errors ?? []).some((definition) => definition.code === code);
+
+    if (declared || isKernelFailCode(code)) {
+      return response;
+    }
+
+    // Оригинал мог не сохраниться (ответ собран `.catch`-юнитом руками) —
+    // тогда хук получает сам ответ: терять диагностику нельзя.
+    onUnknownFail({ error: originalError ?? response, endpoint });
+
+    // Тело — то же, что у необработанной ошибки: незадекларированный отказ
+    // привилегии раскрытия не имеет. `exposeErrorDetails` по-прежнему
+    // управляет только показом внутренностей в доверенном окружении.
+    return {
+      isSuccess: false,
+      status: UnknownError.status,
+      value: {
+        ...unhandledBody(originalError, exposeErrorDetails),
+        code: UnknownError.code,
+      },
+    };
+  }
+}
+
+/**
+ * Тело ответа на необработанное: generic-сообщение по умолчанию, детали
+ * оригинала — только при явно включённом раскрытии.
+ */
+function unhandledBody(
+  error: unknown,
+  exposeErrorDetails: boolean,
+): ErrorDetails {
+  const body: ErrorDetails = {
+    error: exposeErrorDetails
+      ? error instanceof Error
+        ? error.message
+        : 'Unknown error'
+      : 'Internal server error',
+  };
+
+  if (exposeErrorDetails && error instanceof Error && error.stack) {
+    body.stack = error.stack;
+  }
+
+  return body;
+}
+
+/**
+ * Бросатель `meta.fail`: вся сила в типе, рантайм тривиален.
+ *
+ * Проверка нужна для JS-потребителей, которых типы не сдерживают:
+ * `meta.fail('boom')` должен падать понятным `TypeError`, а не уезжать
+ * строкой в ответный тракт.
+ */
+function throwFail(error: AnyFail | FailData): never {
+  if (!isFail(error)) {
+    throw new TypeError(
+      'meta.fail(e) expects a Fail value (create one with defineFail), ' +
+        `got ${typeof error}.`,
+    );
+  }
+  throw error;
 }
 
 /**

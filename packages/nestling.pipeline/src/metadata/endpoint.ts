@@ -1,4 +1,13 @@
-import type { AnyInput, AnyOutput, AnyPayload, Pipeline } from '../core';
+import type {
+  AnyFail,
+  AnyFailDefinition,
+  AnyInput,
+  AnyOutput,
+  AnyPayload,
+  FailsOf,
+  Pipeline,
+} from '../core';
+import { isFailDefinition } from '../core';
 import type { HandlerFn } from '../core/types';
 
 import type { Constructor } from '@common/misc';
@@ -33,7 +42,8 @@ export type HandlerClass<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
-> = Constructor<{ handle: HandlerFn<I, O, P> }>;
+  E extends AnyFail = never,
+> = Constructor<{ handle: HandlerFn<I, O, P, E> }>;
 
 /**
  * Каррированная фабрика хендлера: внешний вызов — один раз на гашении
@@ -44,7 +54,8 @@ export type HandlerFactory<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
-> = (...deps: UnwrapInjectionTokens<D>) => HandlerFn<I, O, P>;
+  E extends AnyFail = never,
+> = (...deps: UnwrapInjectionTokens<D>) => HandlerFn<I, O, P, E>;
 
 /**
  * Декларация endpoint'а — значение.
@@ -97,6 +108,15 @@ export interface EndpointDefinition<
   readonly deps?: readonly InjectionToken[];
 
   /**
+   * Объявленные отказы ручки — список определений `defineFail`.
+   *
+   * В отличие от `binding`, поле **транспорт-нейтрально и интерпретируется
+   * ядром**: из него выводится тип отказов хендлера, а транспорт переносит
+   * его в `EndpointMeta`, откуда множество читает страж границы.
+   */
+  readonly errors?: readonly AnyFailDefinition[];
+
+  /**
    * Транспорт-специфичный биндинг декларации — **непрозрачное для ядра**
    * значение, которое кладёт транспортный конструктор (для HTTP это
    * bind-карта «поле → место»).
@@ -143,6 +163,7 @@ export interface EndpointOptions<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
+  E extends readonly AnyFailDefinition[] = [],
 > {
   transport: string;
   pattern: string;
@@ -152,6 +173,15 @@ export interface EndpointOptions<
 
   /** Конфигурация выходных данных */
   output?: O;
+
+  /**
+   * Объявленные отказы: список определений `defineFail`. Из него
+   * выводится множество `E` хендлера — вернуть отказ вне списка нельзя.
+   *
+   * Проверяется в момент создания декларации: не-определение и
+   * повторяющийся код — ошибка сразу, а не на сборке приложения.
+   */
+  errors?: E;
 
   /**
    * Pipeline для этого endpoint. Классы-юниты допустимы: они попадают в
@@ -185,6 +215,7 @@ interface EndpointState {
   output?: unknown;
   pipeline?: Pipeline<AnyInput, AnyInput, unknown>;
   binding?: unknown;
+  errors?: readonly AnyFailDefinition[];
   deps: readonly InjectionToken[];
   form: HandlerForm;
   /** Хендлер, полученный гашением зависимостей (форма `fn` исполнима сразу) */
@@ -237,6 +268,47 @@ function normalizeHandler(
   }
 
   return { kind: 'fn', fn: handle as AnyHandler };
+}
+
+/**
+ * Fail-fast списка `errors:` в момент создания декларации.
+ *
+ * Проверяется ровно то, что проверяемо без сборки приложения: элемент,
+ * не созданный `defineFail`, и повторяющийся код. Оба текста называют
+ * ручку и проблемное значение — как и остальные проверки словаря.
+ */
+function assertFailDefinitions(
+  errors: unknown,
+  pattern: string,
+): asserts errors is readonly AnyFailDefinition[] | undefined {
+  if (errors === undefined) {
+    return;
+  }
+
+  const where = `Endpoint '${pattern}'`;
+
+  if (!Array.isArray(errors)) {
+    throw new TypeError(
+      `${where}: 'errors' must be an array of defineFail() definitions.`,
+    );
+  }
+
+  const seen = new Set<string>();
+  for (const [index, definition] of errors.entries()) {
+    if (!isFailDefinition(definition)) {
+      throw new TypeError(
+        `${where}: errors[${index}] is not a fail definition — ` +
+          `expected a value created by defineFail().`,
+      );
+    }
+
+    if (seen.has(definition.code)) {
+      throw new Error(
+        `${where}: duplicate error code '${definition.code}' in 'errors'.`,
+      );
+    }
+    seen.add(definition.code);
+  }
 }
 
 /** Заглушка `handle` для декларации с неразрешёнными зависимостями */
@@ -389,6 +461,11 @@ function buildDefinition(state: EndpointState): AnyEndpointDefinition {
   if (state.binding !== undefined) {
     definition.binding = state.binding;
   }
+  // Как и биндинг, переживает гашение зависимостей: `resolve` строит новое
+  // значение из того же `state`.
+  if (state.errors !== undefined) {
+    definition.errors = state.errors;
+  }
   if (state.deps.length > 0) {
     definition.deps = state.deps;
   }
@@ -441,10 +518,11 @@ export function makeEndpoint<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
+  E extends readonly AnyFailDefinition[] = [],
 >(
-  options: EndpointOptions<I, O, P, PN> & {
+  options: EndpointOptions<I, O, P, PN, E> & {
     deps?: undefined;
-    handle: HandlerFn<I, O, P>;
+    handle: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function makeEndpoint<
@@ -452,11 +530,12 @@ export function makeEndpoint<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
+  E extends readonly AnyFailDefinition[] = [],
   D extends InjectionToken[] = InjectionToken[],
 >(
-  options: EndpointOptions<I, O, P, PN> & {
+  options: EndpointOptions<I, O, P, PN, E> & {
     deps: [...D];
-    handle: HandlerFactory<D, I, O, P>;
+    handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN | D[number]>;
 export function makeEndpoint<
@@ -464,20 +543,33 @@ export function makeEndpoint<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
-  C extends HandlerClass<I, O, P> = HandlerClass<I, O, P>,
+  E extends readonly AnyFailDefinition[] = [],
+  C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
+    I,
+    O,
+    P,
+    FailsOf<E>
+  >,
 >(
-  options: EndpointOptions<I, O, P, PN> & {
+  options: EndpointOptions<I, O, P, PN, E> & {
     deps?: undefined;
     handle: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function makeEndpoint(
-  options: EndpointOptions<any, any, any, unknown> & {
+  options: EndpointOptions<
+    any,
+    any,
+    any,
+    unknown,
+    readonly AnyFailDefinition[]
+  > & {
     deps?: InjectionToken[];
     handle: unknown;
   },
 ): AnyEndpointDefinition {
   const form = normalizeHandler(options.handle, options.deps, options.pattern);
+  assertFailDefinitions(options.errors, options.pattern);
 
   const state: EndpointState = {
     transport: options.transport,
@@ -488,6 +580,7 @@ export function makeEndpoint(
       | Pipeline<AnyInput, AnyInput, unknown>
       | undefined,
     binding: options.binding,
+    errors: options.errors,
     deps: options.deps ?? [],
     form,
     // Голая функция исполнима сразу; остальные формы ждут resolve()
