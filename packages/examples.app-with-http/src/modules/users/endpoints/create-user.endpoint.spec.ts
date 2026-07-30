@@ -1,9 +1,10 @@
 import type { ILoggerService } from '../../logger/logger.service';
+import { EmailTaken } from '../user.errors';
 import type { UserService } from '../user.service';
 
 import { createUserHandler } from './create-user.endpoint';
 
-import { Fail, Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
 describe('createUserHandler', () => {
@@ -57,7 +58,7 @@ describe('createUserHandler', () => {
   });
 
   describe('Ошибочные сценарии', () => {
-    it('должен бросить Fail.badRequest если email дублируется', async () => {
+    it('должен вернуть EmailTaken (409) если email дублируется', async () => {
       const newUser = {
         name: 'Test',
         email: 'existing@example.com',
@@ -69,12 +70,13 @@ describe('createUserHandler', () => {
       };
       userService.findByEmail.mockResolvedValue(existingUser);
 
-      await expect(handle(newUser)).rejects.toThrow(Fail);
+      const result = await handle(newUser);
 
-      await expect(handle(newUser)).rejects.toMatchObject({
-        status: 'BAD_REQUEST',
-        message: 'Email already taken',
-        details: { field: 'email' },
+      expect(EmailTaken.is(result)).toBe(true);
+      expect(result).toMatchObject({
+        status: 'CONFLICT',
+        code: EmailTaken.code,
+        details: { email: 'existing@example.com' },
       });
     });
   });

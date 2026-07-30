@@ -2,6 +2,7 @@ import { Readable } from 'node:stream';
 
 import { MAX_AVATAR_SIZE } from '../../../common/constants';
 import type { ILoggerService } from '../../logger/logger.service';
+import { InvalidAvatar, UserNotFound } from '../user.errors';
 import type { UserService } from '../user.service';
 
 import { UploadAvatarHandler } from './upload-avatar.endpoint';
@@ -74,7 +75,8 @@ describe('UploadAvatarHandler', () => {
         }),
       ).rejects.toMatchObject({
         status: 'BAD_REQUEST',
-        message: 'Avatar file is required',
+        code: InvalidAvatar.code,
+        details: { reason: 'file is required' },
       });
     });
 
@@ -101,7 +103,8 @@ describe('UploadAvatarHandler', () => {
         }),
       ).rejects.toMatchObject({
         status: 'BAD_REQUEST',
-        message: 'Only images are allowed',
+        code: InvalidAvatar.code,
+        details: { reason: 'only images are allowed' },
       });
     });
 
@@ -128,6 +131,7 @@ describe('UploadAvatarHandler', () => {
         }),
       ).rejects.toMatchObject({
         status: 'BAD_REQUEST',
+        code: InvalidAvatar.code,
       });
     });
 
@@ -156,7 +160,7 @@ describe('UploadAvatarHandler', () => {
         }),
       ).rejects.toMatchObject({
         status: 'NOT_FOUND',
-        message: 'User not found',
+        code: UserNotFound.code,
       });
     });
   });

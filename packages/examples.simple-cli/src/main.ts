@@ -80,11 +80,14 @@ async function main() {
         options,
       });
 
-      if (result.status) {
-        const exitCode = Number.parseInt(result.status, 10);
-        if (!Number.isNaN(exitCode) && exitCode !== 0) {
-          process.exit(exitCode);
-        }
+      // Статус — семантика, а не число: CLI печатает его как есть.
+      // Успех уходит в stdout, отказ — в stderr с ненулевым кодом выхода;
+      // тело отказа несёт машинный `code` объявленного определения.
+      if (result.isSuccess) {
+        console.log(JSON.stringify(result.value, null, 2));
+      } else {
+        console.error(`${result.status}:`, JSON.stringify(result.value));
+        process.exit(1);
       }
     } catch (error) {
       if (error instanceof Error && error.message.includes('not found')) {

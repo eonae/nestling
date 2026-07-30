@@ -1,9 +1,10 @@
 import type { ILoggerService } from '../../logger/logger.service';
+import { SearchQueryRequired } from '../user.errors';
 import type { UserService } from '../user.service';
 
 import { SearchUsersHandler } from './search-users.endpoint';
 
-import { Fail, Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
 describe('SearchUsersHandler', () => {
@@ -50,12 +51,13 @@ describe('SearchUsersHandler', () => {
   });
 
   describe('Ошибочные сценарии', () => {
-    it('должен бросить Fail.badRequest если query отсутствует', async () => {
-      await expect(endpoint.handle({ q: '' })).rejects.toThrow(Fail);
+    it('должен вернуть SearchQueryRequired если query отсутствует', async () => {
+      const result = await endpoint.handle({ q: '' });
 
-      await expect(endpoint.handle({ q: '' })).rejects.toMatchObject({
+      expect(SearchQueryRequired.is(result)).toBe(true);
+      expect(result).toMatchObject({
         status: 'BAD_REQUEST',
-        message: 'Query parameter required',
+        code: 'SEARCH_QUERY_REQUIRED',
       });
     });
   });

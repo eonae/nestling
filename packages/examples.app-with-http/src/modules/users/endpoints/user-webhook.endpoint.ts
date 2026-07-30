@@ -4,10 +4,11 @@ import { WEBHOOK_SECRET } from '../../../common/constants';
 import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
+import { InvalidSignature } from '../user.errors';
 import { UserService } from '../user.service';
 
 import type { Output, PreUnitFn } from '@nestling/pipeline';
-import { compose, Fail, makePipeline, Ok } from '@nestling/pipeline';
+import { compose, makePipeline, Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -49,7 +50,7 @@ export const verifySignature = (
       timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
 
     if (!matches) {
-      throw Fail.unauthorized('Invalid webhook signature');
+      throw InvalidSignature();
     }
   };
 };
@@ -77,6 +78,9 @@ export const UserWebhook = httpEndpoint({
   path: '/api/hooks/users',
   input: UserEventInput,
   output: UserEventOutput,
+  // Отказ бросает pre-юнит слоя, а не хендлер — объявлять его всё равно
+  // обязан endpoint: контракт принадлежит ручке, а не слою.
+  errors: [InvalidSignature],
   rawBody: true,
   pipeline: compose(
     makePipeline<{ rawBody: Uint8Array }>().pre(

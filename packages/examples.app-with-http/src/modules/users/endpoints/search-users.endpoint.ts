@@ -1,11 +1,12 @@
 import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
+import { SearchQueryRequired } from '../user.errors';
 import { UserService } from '../user.service';
 
 import { Injectable } from '@nestling/container';
 import type { Output } from '@nestling/pipeline';
-import { Fail, Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -39,11 +40,13 @@ export class SearchUsersHandler {
     private readonly logger: ILoggerService,
   ) {}
 
-  async handle(payload: SearchUsersInput): Output<SearchUsersOutput> {
+  async handle(
+    payload: SearchUsersInput,
+  ): Output<SearchUsersOutput, ReturnType<typeof SearchQueryRequired>> {
     this.logger.log(`Handling GET /api/users/search?q=${payload.q}`);
 
     if (!payload.q || payload.q.trim().length === 0) {
-      throw Fail.badRequest('Query parameter required');
+      return SearchQueryRequired();
     }
 
     let users = await this.users.search(payload.q);
@@ -65,13 +68,15 @@ export class SearchUsersHandler {
  * Демонстрирует:
  * - Работа с query параметрами
  * - Возврат с кастомными заголовками (X-Total-Count, Cache-Control)
- * - Fail.badRequest() если query параметр отсутствует или невалидный
+ * - объявленные отказы в класс-форме хендлера: вывод `E` из `errors:`
+ *   работает во всех трёх формах `handle`
  */
 export const SearchUsers = httpEndpoint({
   method: 'GET',
   path: '/api/users/search',
   input: SearchUsersInput,
   output: SearchUsersOutput,
+  errors: [SearchQueryRequired],
   pipeline: basePipeline,
   handle: SearchUsersHandler,
 });

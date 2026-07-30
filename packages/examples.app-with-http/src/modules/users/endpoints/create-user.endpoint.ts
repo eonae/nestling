@@ -1,10 +1,11 @@
 import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
+import { EmailTaken } from '../user.errors';
 import { UserService } from '../user.service';
 
 import type { Output } from '@nestling/pipeline';
-import { Fail, Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
 import { httpEndpoint, query } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -34,13 +35,16 @@ type CreateUserOutput = z.infer<typeof CreateUserOutput>;
  */
 export const createUserHandler =
   (users: UserService, logger: ILoggerService) =>
-  async (payload: CreateUserInput): Output<CreateUserOutput> => {
+  async (
+    payload: CreateUserInput,
+  ): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> => {
     logger.log(`Handling POST /api/users - creating user ${payload.name}`);
 
     // Проверка на дубликат email
     const existing = await users.findByEmail(payload.email);
     if (existing) {
-      throw Fail.badRequest('Email already taken', { field: 'email' });
+      // CONFLICT, а не BAD_REQUEST: словарь статусов теперь это выражает
+      return EmailTaken({ email: payload.email });
     }
 
     // `?dryRun=true` — только проверка, без записи
@@ -72,6 +76,7 @@ export const CreateUser = httpEndpoint({
   path: '/api/users',
   input: CreateUserInput,
   output: CreateUserOutput,
+  errors: [EmailTaken],
   bind: { dryRun: query() },
   pipeline: basePipeline,
   deps: [UserService, ILogger],

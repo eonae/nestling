@@ -1,9 +1,10 @@
 import type { ILoggerService } from '../../logger/logger.service';
+import { UserNotFound } from '../user.errors';
 import type { UserService } from '../user.service';
 
 import { getUserHandler } from './get-user.endpoint';
 
-import { Fail, Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
 describe('getUserHandler', () => {
@@ -37,14 +38,17 @@ describe('getUserHandler', () => {
   });
 
   describe('Ошибочные сценарии', () => {
-    it('должен бросить Fail.notFound если пользователь не найден', async () => {
+    it('должен вернуть UserNotFound если пользователь не найден', async () => {
       userService.getById.mockResolvedValue(null);
 
-      await expect(handle({ id: '999' })).rejects.toThrow(Fail);
+      // Канал возврата: отказ — значение, а не исключение
+      const result = await handle({ id: '999' });
 
-      await expect(handle({ id: '999' })).rejects.toMatchObject({
+      expect(UserNotFound.is(result)).toBe(true);
+      expect(result).toMatchObject({
         status: 'NOT_FOUND',
-        message: 'User not found',
+        code: 'USER_NOT_FOUND',
+        details: { id: '999' },
       });
     });
   });

@@ -2,11 +2,12 @@ import { MAX_AVATAR_SIZE } from '../../../common/constants';
 import { noValidationPipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
+import { InvalidAvatar, UserNotFound } from '../user.errors';
 import { UserService } from '../user.service';
 
 import { Injectable } from '@nestling/container';
 import type { FilePart, Output } from '@nestling/pipeline';
-import { Fail, Ok, withFiles } from '@nestling/pipeline';
+import { Ok, withFiles } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -34,7 +35,10 @@ export class UploadAvatarHandler {
   async handle(payload: {
     data: UploadAvatarInput;
     files: FilePart[];
-  }): Output<UploadAvatarOutput> {
+  }): Output<
+    UploadAvatarOutput,
+    ReturnType<typeof InvalidAvatar> | ReturnType<typeof UserNotFound>
+  > {
     const { data, files } = payload;
     this.logger.log(`Handling POST /api/users/${data.id}/avatar`);
 
@@ -42,19 +46,19 @@ export class UploadAvatarHandler {
     const avatarFile = files.find((f) => f.field === 'avatar');
 
     if (!avatarFile) {
-      throw Fail.badRequest('Avatar file is required');
+      throw InvalidAvatar({ reason: 'file is required' });
     }
 
     // Валидация типа файла
     if (!avatarFile.mime.startsWith('image/')) {
-      throw Fail.badRequest('Only images are allowed');
+      throw InvalidAvatar({ reason: 'only images are allowed' });
     }
 
     // Валидация размера файла
     if (avatarFile.size !== undefined && avatarFile.size > MAX_AVATAR_SIZE) {
-      throw Fail.badRequest(
-        `File too large (max ${MAX_AVATAR_SIZE / 1_000_000}MB)`,
-      );
+      throw InvalidAvatar({
+        reason: `file too large (max ${MAX_AVATAR_SIZE / 1_000_000}MB)`,
+      });
     }
 
     // Сохраняем файл (мок - просто сохраняем путь в памяти)
@@ -63,7 +67,7 @@ export class UploadAvatarHandler {
     const user = await this.users.updateAvatar(data.id, avatarUrl);
 
     if (!user) {
-      throw Fail.notFound('User not found');
+      throw UserNotFound({ id: data.id });
     }
 
     return new Ok(user);
@@ -75,13 +79,14 @@ export class UploadAvatarHandler {
  * Демонстрирует:
  * - Работа с файлами (multipart/form-data)
  * - Валидация типа и размера файла
- * - Fail.badRequest() для невалидных файлов
+ * - объявленные отказы для невалидных файлов
  */
 export const UploadAvatar = httpEndpoint({
   method: 'POST',
   path: '/api/users/:id/avatar',
   input: withFiles(UploadAvatarInput),
   output: UploadAvatarOutput,
+  errors: [InvalidAvatar, UserNotFound],
   pipeline: noValidationPipeline,
   handle: UploadAvatarHandler,
 });

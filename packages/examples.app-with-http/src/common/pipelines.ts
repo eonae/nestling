@@ -1,3 +1,5 @@
+import { UserNotDeletable } from '../modules/users/user.errors';
+
 import {
   compose,
   makePipeline,
@@ -43,3 +45,23 @@ export const basePipeline = compose(observability, validation);
  * ❌ НЕ содержит validate() - можно использовать только с endpoint'ами БЕЗ input схемы
  */
 export const noValidationPipeline = observability;
+
+/**
+ * Слой аудита удалений: разбирает ответ-ошибку по **коду отказа**.
+ *
+ * `.is()` — единственный способ различения отказов: `instanceof` на
+ * ответе не работает (в `.catch` приезжает контекст ответа, а не сам
+ * `Fail`) и не пережил бы провод. Юнит ничего не заменяет — ничего не
+ * возвращает, и ответ едет дальше как есть.
+ */
+export const auditDeletions = makePipeline<{ requestId: string }>().catch(
+  (error) => {
+    if (UserNotDeletable.is(error)) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[audit] отказ в удалении ${error.value.details.id}: ` +
+          `${error.value.details.reason}`,
+      );
+    }
+  },
+);

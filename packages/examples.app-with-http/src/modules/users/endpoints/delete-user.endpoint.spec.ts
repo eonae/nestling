@@ -1,5 +1,6 @@
 import { ADMIN_USER_ID } from '../../../common/constants';
 import type { ILoggerService } from '../../logger/logger.service';
+import { UserNotDeletable, UserNotFound } from '../user.errors';
 import type { UserService } from '../user.service';
 
 import { deleteUserHandler } from './delete-user.endpoint';
@@ -35,23 +36,25 @@ describe('deleteUserHandler', () => {
   });
 
   describe('Ошибочные сценарии', () => {
-    it('должен бросить Fail.notFound если пользователь не найден', async () => {
+    it('должен бросить UserNotFound если пользователь не найден', async () => {
       userService.delete.mockResolvedValue(false);
 
       await expect(handle({ id: '999' })).rejects.toThrow(Fail);
 
       await expect(handle({ id: '999' })).rejects.toMatchObject({
         status: 'NOT_FOUND',
-        message: 'User not found',
+        code: UserNotFound.code,
+        details: { id: '999' },
       });
     });
 
-    it('должен бросить Fail.forbidden при попытке удалить admin', async () => {
+    it('должен бросить UserNotDeletable при попытке удалить admin', async () => {
       await expect(handle({ id: ADMIN_USER_ID })).rejects.toThrow(Fail);
 
       await expect(handle({ id: ADMIN_USER_ID })).rejects.toMatchObject({
         status: 'FORBIDDEN',
-        message: 'Cannot delete admin user',
+        code: UserNotDeletable.code,
+        details: { id: ADMIN_USER_ID, reason: 'admin user' },
       });
     });
   });
