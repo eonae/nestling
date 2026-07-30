@@ -5,6 +5,24 @@ HTTP transport for Nestling built on bare `node:http`: routing via
 (JSON, raw, NDJSON streams, multipart via `busboy`), NDJSON streaming
 responses.
 
+## Declaring routes
+
+`httpEndpoint({ method, path, input, output, pipeline, deps, handle })` is
+the declaration constructor — a thin layer over `makeEndpoint` from
+`@nestling/pipeline` that adds the HTTP dictionary and assembles
+`pattern` as `` `${method} ${path}` ``. `path` is a literal type, and
+`PathParams<Path>` derives the `:param` names from it (the anchor the
+`input-bind` change will grow the bind map on). The dictionary is checked
+**when the declaration is created**: an empty `path`, a `path` without a
+leading `/` and a repeated path parameter all throw right there.
+
+The decorator API (`HttpEndpoint`, `HttpEndpointOptions`,
+`HttpEndpointMetadata`, `getHttpEndpointMetadata`, `makeHttpEndpoint`,
+`HttpTransport.registerEndpoint`) is **gone**. `route()`/`endpoint()` accept
+only a runnable declaration — resolve dependencies first
+(`endpoint.resolve(...)`) or declare the endpoint in a module and run it
+under `App`.
+
 > 🚧 Active development. CORS, rate limiting and compression are still
 > out of scope. No validator among the dependencies — the transport
 > validates through `@nestling/pipeline` against any

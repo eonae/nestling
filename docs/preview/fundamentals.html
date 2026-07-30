@@ -403,9 +403,9 @@ export class AuditLog {
   </table>
   </div>
 
-  <div class="code" data-lang="typescript"><pre><code>export const streamLogs = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /logs/stream',
+  <div class="code" data-lang="typescript"><pre><code>export const streamLogs = httpEndpoint({
+  method: 'POST',
+  path: '/logs/stream',
   input: stream(LogChunk),                  // NDJSON: объект на строку, каждый валидируется
   output: z.object({ processed: z.number() }),
   pipeline: makePipeline(),

@@ -1,24 +1,26 @@
 # CLI-транспорт
 
-✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-29).
-⚠️ В целевом V1 канон деклараций — per-transport конструкторы (`cliEndpoint`,
-[design/endpoints.md](../design/endpoints.md), roadmap 24).
+✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-30).
+Канон деклараций — per-transport конструкторы (`cliEndpoint`), см.
+[design/endpoints.md](../design/endpoints.md).
 Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).
 
-Те же endpoints и pipeline, что и в HTTP, — но команды вместо маршрутов.
-`pattern` трактуется как имя команды. zod в примерах — **один из вариантов**:
+Те же декларации и pipeline, что и в HTTP, — но команды вместо маршрутов.
+Транспортный словарь CLI — одно поле `command`, оно же становится `pattern`
+ручки; пустое имя команды — ошибка в момент создания декларации.
+zod в примерах — **один из вариантов**:
 ядро принимает любую [Standard Schema](https://standardschema.dev) (valibot,
 arktype, TypeBox, Effect Schema …) и валидатором не зависит.
 
 ## Endpoint-команда
 
 ```typescript
-import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
+import { makePipeline, stream } from '@nestling/pipeline';
+import { cliEndpoint } from '@nestling/transport.cli';
 import { z } from 'zod';
 
-export const ProcessStdin = makeEndpoint({
-  transport: 'cli',
-  pattern: 'process-stdin',
+export const ProcessStdin = cliEndpoint({
+  command: 'process-stdin',
   input: stream('binary'),          // stdin как поток Buffer'ов
   output: z.object({ linesProcessed: z.number(), totalBytes: z.number() }),
   pipeline: makePipeline(),
@@ -39,7 +41,7 @@ export const ProcessStdin = makeEndpoint({
 ```typescript
 import { makePipeline } from '@nestling/pipeline';
 import { CliTransport } from '@nestling/transport.cli';
-import { Help, ProcessStdin } from './endpoints.functional';
+import { Help, ProcessStdin } from './endpoints';
 
 // дефолтный pipeline можно передать в конструктор
 const cli = new CliTransport(makePipeline());
@@ -73,7 +75,9 @@ await cli.listen();
 - `input: 'primitive'` (не-stream примитивы) в CLI не поддержан — регистрация
   пройдёт молча, ошибка «Primitive input type … is not supported» бросится
   при выполнении команды.
-- Пакет пока без тестов; API может меняться.
+- `cli.endpoint()`, как и `server.route()`, принимает только deps-free
+  декларацию: ручку с `deps` или класс-хендлером сначала гасят
+  (`endpoint.resolve(...)`) — либо объявляют в модуле и поднимают под `App`.
 
 > Целевой дизайн: единая модель endpoint'ов для всех транспортов сохранится;
 > см. [decisions/ideas.md](../decisions/ideas.md).

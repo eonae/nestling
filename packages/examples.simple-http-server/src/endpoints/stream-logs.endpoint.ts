@@ -2,7 +2,8 @@
 
 import { withTiming } from '../common/middleware';
 
-import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
+import { makePipeline, stream } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 import z from 'zod';
 
 const LogLevel = z.enum(['info', 'warn', 'error']);
@@ -22,9 +23,9 @@ const StreamLogsOutput = z.object({
 type LogChunk = z.infer<typeof LogChunk>;
 type StreamLogsOutput = z.infer<typeof StreamLogsOutput>;
 
-export const StreamLogs = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /logs/stream',
+export const StreamLogs = httpEndpoint({
+  method: 'POST',
+  path: '/logs/stream',
   input: stream(LogChunk),
   output: StreamLogsOutput,
   pipeline: makePipeline().pre(withTiming),

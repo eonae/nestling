@@ -1,6 +1,7 @@
 import { withTiming } from '../common/middleware';
 
-import { makeEndpoint, makePipeline, validate } from '@nestling/pipeline';
+import { makePipeline, validate } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 import z from 'zod';
 
 // POST /users - создание пользователя со схемой
@@ -29,9 +30,9 @@ const CreateUserOutput = z.object({
 type CreateUserInput = z.infer<typeof CreateUserInput>;
 type CreateUserOutput = z.infer<typeof CreateUserOutput>;
 
-export const CreateUser = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /users',
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/users',
   input: CreateUserInput,
   output: CreateUserOutput,
   pipeline: makePipeline().pre(withTiming).pre(validate()),

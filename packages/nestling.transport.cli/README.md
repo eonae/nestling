@@ -5,7 +5,15 @@ but commands instead of routes. Supports single-shot execution
 (`cli.execute(...)`) and an interactive REPL (`cli.listen()`),
 with stdin as a streaming input.
 
-> 🚧 Active development, no tests yet, API may change. No validator among
+`cliEndpoint({ command, input, output, pipeline, deps, handle })` is the
+declaration constructor — a thin layer over `makeEndpoint` from
+`@nestling/pipeline`: `transport` is `'cli'` and the command name becomes
+the handler's `pattern`. An empty command name throws when the declaration
+is created. `endpoint()` accepts only a runnable declaration — resolve
+dependencies first (`endpoint.resolve(...)`) or declare the command in a
+module and run it under `App`.
+
+> 🚧 Active development, API may change. No validator among
 > the dependencies — commands are validated through `@nestling/pipeline`
 > against any [Standard Schema](https://standardschema.dev) you bring.
 

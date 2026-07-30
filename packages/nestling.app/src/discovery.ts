@@ -1,20 +1,13 @@
-import type { Constructor } from '@common/misc';
-import type { Module, Provider } from '@nestling/container';
-import type { EndpointMetadata, IEndpoint } from '@nestling/pipeline';
-import { getEndpointMetadata } from '@nestling/pipeline';
-
-/** Конструктор endpoint-класса, объявляемый в `endpoints:` модуля */
-export type EndpointClass = Constructor<IEndpoint<any, any, any>>;
+import type { Module } from '@nestling/container';
+import type { AnyEndpointDefinition } from '@nestling/pipeline';
+import { isEndpointDefinition } from '@nestling/pipeline';
 
 /**
  * Обнаруженный эндпоинт с атрибуцией к модулю-объявителю
  */
 export interface DiscoveredEndpoint {
-  /** Конструктор endpoint-класса */
-  endpoint: EndpointClass;
-
-  /** Метаданные, записанные декоратором `@Endpoint`/`@HttpEndpoint` */
-  metadata: EndpointMetadata;
+  /** Декларация-значение; `transport` и `pattern` читаются прямо с неё */
+  endpoint: AnyEndpointDefinition;
 
   /** Имя модуля, объявившего эндпоинт в `endpoints:` */
   moduleName: string;
@@ -65,14 +58,24 @@ function* visitModules(modules: readonly Module[]): Generator<Module> {
  * с результата `makeAppModule`: модуль, собранный вручную через `makeModule`,
  * тоже обнаруживается.
  */
-function readDeclaredEndpoints(module: Module): EndpointClass[] {
+function readDeclaredEndpoints(module: Module): unknown[] {
   const declared = (module as { endpoints?: unknown }).endpoints;
-  return Array.isArray(declared) ? (declared as EndpointClass[]) : [];
+  return Array.isArray(declared) ? (declared as unknown[]) : [];
 }
 
-/** Имя класса для текстов ошибок (значение может быть чем угодно) */
-function describeClass(value: unknown): string {
-  return typeof value === 'function' && value.name ? value.name : String(value);
+/** Краткое описание значения для текстов ошибок (там может быть что угодно) */
+function describeValue(value: unknown): string {
+  if (typeof value === 'function') {
+    return value.name ? `class/function '${value.name}'` : 'a function';
+  }
+  if (value === null) {
+    return 'null';
+  }
+  if (typeof value === 'object') {
+    const name = value.constructor?.name;
+    return name && name !== 'Object' ? `an instance of '${name}'` : 'an object';
+  }
+  return `${typeof value} (${String(value)})`;
 }
 
 /**
@@ -83,7 +86,7 @@ function describeClass(value: unknown): string {
  *
  * @param modules - Модули, переданные приложению (вместе с транзитивными `imports`)
  * @returns Эндпоинты с атрибуцией к модулю и карта требуемых транспортов
- * @throws {Error} Если класс в `endpoints:` не несёт метаданных эндпоинта
+ * @throws {Error} Если элемент `endpoints:` не является декларацией endpoint'а
  *
  * @example
  * ```typescript
@@ -99,98 +102,42 @@ export function discoverEndpoints(
   const transports = new Map<string, DiscoveredEndpoint[]>();
 
   for (const module of visitModules(modules)) {
-    const seen = new Set<EndpointClass>();
+    const seen = new Set<unknown>();
 
-    for (const endpoint of readDeclaredEndpoints(module)) {
-      // Повтор одного класса внутри модуля — одна регистрация
+    const declared = readDeclaredEndpoints(module);
+    for (const [index, endpoint] of declared.entries()) {
+      // Декларация — значение: без бренда опечатка (положили сервис вместо
+      // декларации) всплыла бы как undefined в рантайме транспорта
+      if (!isEndpointDefinition(endpoint)) {
+        throw new Error(
+          `'endpoints:' of module '${module.name}' contains ` +
+            `${describeValue(endpoint)} at index ${index}, which is not an ` +
+            `endpoint declaration. Declare it with a transport constructor ` +
+            `(httpEndpoint, cliEndpoint) and put the resulting value here.`,
+        );
+      }
+
+      // Повтор одной декларации внутри модуля — одна регистрация
       if (seen.has(endpoint)) {
         continue;
       }
       seen.add(endpoint);
 
-      const metadata = getEndpointMetadata(endpoint);
-      if (!metadata) {
-        throw new Error(
-          `Endpoint class '${describeClass(endpoint)}' is declared in 'endpoints:' ` +
-            `of module '${module.name}', but has no endpoint metadata. ` +
-            `Decorate it with @Endpoint or @HttpEndpoint.`,
-        );
-      }
-
       const discovered: DiscoveredEndpoint = {
         endpoint,
-        metadata,
         moduleName: module.name,
       };
 
       endpoints.push(discovered);
 
-      const group = transports.get(metadata.transport);
+      const group = transports.get(endpoint.transport);
       if (group) {
         group.push(discovered);
       } else {
-        transports.set(metadata.transport, [discovered]);
+        transports.set(endpoint.transport, [discovered]);
       }
     }
   }
 
   return { endpoints, transports };
-}
-
-/**
- * Проверяет, что ни один класс с метаданными эндпоинта не остался вне
- * `endpoints:`: иначе ручка молча не обслуживается.
- *
- * Провайдеры, порождаемые `ProvidersFactory` (модуль объявил `providers`
- * функцией), до `build()` не видны и этой проверке не подлежат.
- *
- * @param modules - Модули приложения
- * @param providers - Корневые провайдеры `AppConfig`
- * @throws {Error} Если endpoint-класс объявлен провайдером, но не в `endpoints:`
- */
-export function assertEndpointsDeclared(
-  modules: readonly Module[],
-  providers: readonly Provider[] = [],
-): void {
-  const tree = [...visitModules(modules)];
-
-  const declared = new Set<unknown>();
-  for (const module of tree) {
-    for (const endpoint of readDeclaredEndpoints(module)) {
-      declared.add(endpoint);
-    }
-  }
-
-  const check = (provider: unknown, where: string): void => {
-    if (typeof provider !== 'function' || declared.has(provider)) {
-      return;
-    }
-
-    const metadata = getEndpointMetadata(provider);
-    if (!metadata) {
-      return;
-    }
-
-    throw new Error(
-      `Endpoint class '${describeClass(provider)}' is registered as a provider ` +
-        `in ${where}, but is not declared in 'endpoints:' of any module — ` +
-        `handler '${metadata.pattern}' would never be served. ` +
-        `Add it to the 'endpoints:' array of its module.`,
-    );
-  };
-
-  for (const module of tree) {
-    // ProvidersFactory разворачивается билдером — до build() её содержимое неизвестно
-    if (typeof module.providers === 'function') {
-      continue;
-    }
-
-    for (const provider of module.providers ?? []) {
-      check(provider, `module '${module.name}'`);
-    }
-  }
-
-  for (const provider of providers) {
-    check(provider, "the app's root providers");
-  }
 }

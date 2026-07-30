@@ -4,14 +4,14 @@ import { MAX_AVATAR_SIZE } from '../../../common/constants';
 import type { ILoggerService } from '../../logger/logger.service';
 import type { UserService } from '../user.service';
 
-import { UploadAvatarEndpoint } from './upload-avatar.endpoint';
+import { UploadAvatarHandler } from './upload-avatar.endpoint';
 
 import type { FilePart } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
-describe('UploadAvatarEndpoint', () => {
-  let endpoint: UploadAvatarEndpoint;
+describe('UploadAvatarHandler', () => {
+  let endpoint: UploadAvatarHandler;
   let userService: jest.Mocked<UserService>;
   let logger: jest.Mocked<ILoggerService>;
 
@@ -19,7 +19,7 @@ describe('UploadAvatarEndpoint', () => {
     userService = mock<UserService>();
     logger = mock<ILoggerService>();
 
-    endpoint = new UploadAvatarEndpoint(userService, logger);
+    endpoint = new UploadAvatarHandler(userService, logger);
   });
 
   describe('Успешные сценарии', () => {

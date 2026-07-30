@@ -3,10 +3,9 @@ import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
 
-import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
+import type { Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({
@@ -24,33 +23,37 @@ type CreateUserInput = z.infer<typeof CreateUserInput>;
 type CreateUserOutput = z.infer<typeof CreateUserOutput>;
 
 /**
- * Endpoint для создания пользователя
+ * Каррированная фабрика: внешний вызов — один раз на гашении зависимостей,
+ * замыкание играет роль инстанса. Тестируется без фреймворка — вызовом с
+ * фейками, без контейнера и транспорта.
  */
-@Injectable([UserService, ILogger])
-@HttpEndpoint('POST', '/api/users', {
-  input: CreateUserInput,
-  output: CreateUserOutput,
-  pipeline: basePipeline,
-})
-export class CreateUserEndpoint implements IEndpoint {
-  constructor(
-    private users: UserService,
-    private logger: ILoggerService,
-  ) {}
-
-  async handle(payload: CreateUserInput): Output<CreateUserOutput> {
-    this.logger.log(`Handling POST /api/users - creating user ${payload.name}`);
+export const createUserHandler =
+  (users: UserService, logger: ILoggerService) =>
+  async (payload: CreateUserInput): Output<CreateUserOutput> => {
+    logger.log(`Handling POST /api/users - creating user ${payload.name}`);
 
     // Проверка на дубликат email
-    const existing = await this.users.findByEmail(payload.email);
+    const existing = await users.findByEmail(payload.email);
     if (existing) {
       throw Fail.badRequest('Email already taken', { field: 'email' });
     }
 
-    const user = await this.users.create(payload);
+    const user = await users.create(payload);
 
     return Ok.created(user, {
       Location: `/api/users/${user.id}`,
     });
-  }
-}
+  };
+
+/**
+ * Endpoint для создания пользователя
+ */
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/api/users',
+  input: CreateUserInput,
+  output: CreateUserOutput,
+  pipeline: basePipeline,
+  deps: [UserService, ILogger],
+  handle: createUserHandler,
+});

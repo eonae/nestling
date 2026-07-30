@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 
-import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
+import { makePipeline, stream } from '@nestling/pipeline';
+import { cliEndpoint } from '@nestling/transport.cli';
 import { z } from 'zod';
 
 // process-stdin - обработка потоковых данных из stdin
@@ -18,9 +19,8 @@ type ProcessStdinResponse = z.infer<typeof ProcessStdinResponse>;
  * Использование:
  *   echo "line1\nline2\nline3" | node dist/main.js process-stdin
  */
-export const ProcessStdin = makeEndpoint({
-  transport: 'cli',
-  pattern: 'process-stdin',
+export const ProcessStdin = cliEndpoint({
+  command: 'process-stdin',
   input: stream('binary'), // Читаем stdin как поток Buffer'ов
   output: ProcessStdinResponse,
   pipeline: makePipeline(),

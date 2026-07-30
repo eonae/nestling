@@ -5,9 +5,9 @@ import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
 
 import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
+import type { Output } from '@nestling/pipeline';
 import { Ok, stream } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const ExportUsersOutput = z.object({
@@ -16,27 +16,17 @@ const ExportUsersOutput = z.object({
   email: z.string(),
 });
 
-/**
- * Endpoint для экспорта пользователей через streaming
- * Демонстрирует:
- * - Streaming данных на выход через AsyncIterableIterator
- * - Кастомные заголовки (Content-Type, Content-Disposition)
- */
 @Injectable([UserService, ILogger])
-@HttpEndpoint('GET', '/api/users/export', {
-  output: stream(ExportUsersOutput),
-  pipeline: noValidationPipeline,
-})
-export class ExportUsersEndpoint implements IEndpoint {
+export class ExportUsersHandler {
   constructor(
-    private userService: UserService,
-    private logger: ILoggerService,
+    private readonly users: UserService,
+    private readonly logger: ILoggerService,
   ) {}
 
   async handle(): Output<AsyncIterableIterator<User>> {
     this.logger.log('Handling GET /api/users/export');
 
-    const userStream = this.userService.exportAll();
+    const userStream = this.users.exportAll();
 
     return new Ok(userStream, {
       'Content-Type': 'application/x-ndjson',
@@ -44,3 +34,17 @@ export class ExportUsersEndpoint implements IEndpoint {
     });
   }
 }
+
+/**
+ * Endpoint для экспорта пользователей через streaming
+ * Демонстрирует:
+ * - Streaming данных на выход через AsyncIterableIterator
+ * - Кастомные заголовки (Content-Type, Content-Disposition)
+ */
+export const ExportUsers = httpEndpoint({
+  method: 'GET',
+  path: '/api/users/export',
+  output: stream(ExportUsersOutput),
+  pipeline: noValidationPipeline,
+  handle: ExportUsersHandler,
+});

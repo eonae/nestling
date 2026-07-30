@@ -9,6 +9,7 @@ import { getEventListeners } from 'node:events';
 import type { Server } from 'node:http';
 import { type AddressInfo, connect } from 'node:net';
 
+import { httpEndpoint } from './helpers.js';
 import { HttpTransport } from './transport.js';
 
 import type { Schema } from '@common/misc';
@@ -37,33 +38,39 @@ describe('HttpTransport — error response safety', () => {
 
   beforeAll(async () => {
     transport = new HttpTransport();
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /boom',
-      pipeline: makePipeline(),
-      handle: () => {
-        throw new Error('db password invalid');
-      },
-    });
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /fail',
-      pipeline: makePipeline(),
-      handle: () => {
-        throw Fail.badRequest('Email already taken', { field: 'email' });
-      },
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/boom',
+        pipeline: makePipeline(),
+        handle: () => {
+          throw new Error('db password invalid');
+        },
+      }),
+    );
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/fail',
+        pipeline: makePipeline(),
+        handle: () => {
+          throw Fail.badRequest('Email already taken', { field: 'email' });
+        },
+      }),
+    );
     baseUrl = await listen(transport);
 
     exposed = new HttpTransport({ exposeErrorDetails: true });
-    exposed.route({
-      transport: 'http',
-      pattern: 'POST /boom',
-      pipeline: makePipeline(),
-      handle: () => {
-        throw new Error('boom');
-      },
-    });
+    exposed.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/boom',
+        pipeline: makePipeline(),
+        handle: () => {
+          throw new Error('boom');
+        },
+      }),
+    );
     exposedUrl = await listen(exposed);
   });
 
@@ -125,48 +132,58 @@ describe('HttpTransport — request validation errors', () => {
     transport = new HttpTransport();
 
     // JSON endpoint с pipeline validate()
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /json',
-      input: z.object({ name: z.string() }),
-      pipeline: makePipeline().pre(validate()),
-      handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/json',
+        input: z.object({ name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
+      }),
+    );
 
     // Конфликт ключей body/query
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /conflict',
-      input: z.object({ id: z.coerce.number() }),
-      pipeline: makePipeline().pre(validate()),
-      handle: (payload: { id: number }) => new Ok(payload),
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/conflict',
+        input: z.object({ id: z.coerce.number() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { id: number }) => new Ok(payload),
+      }),
+    );
 
     // Fallback без pipeline — валидация в транспорте
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /fallback',
-      input: z.object({ name: z.string() }),
-      handle: (payload: { name: string }) => ({ ok: payload.name }),
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/fallback',
+        input: z.object({ name: z.string() }),
+        handle: (payload: { name: string }) => ({ ok: payload.name }),
+      }),
+    );
 
     // Схема с async-refinement: ошибка конфигурации приложения, не входа
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /async-schema',
-      input: asyncSchema,
-      pipeline: makePipeline().pre(validate()),
-      handle: () => new Ok({ ok: true }),
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/async-schema',
+        input: asyncSchema,
+        pipeline: makePipeline().pre(validate()),
+        handle: () => new Ok({ ok: true }),
+      }),
+    );
 
     // Объект, не реализующий Standard Schema: тоже не ошибка входа
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /not-a-schema',
-      input: notASchema,
-      pipeline: makePipeline().pre(validate()),
-      handle: () => new Ok({ ok: true }),
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/not-a-schema',
+        input: notASchema,
+        pipeline: makePipeline().pre(validate()),
+        handle: () => new Ok({ ok: true }),
+      }),
+    );
 
     baseUrl = await listen(transport);
   });
@@ -273,37 +290,43 @@ describe('HttpTransport — body size limits', () => {
 
   beforeAll(async () => {
     small = new HttpTransport({ maxBodySize: 100 });
-    small.route({
-      transport: 'http',
-      pattern: 'POST /json',
-      input: z.object({ name: z.string() }),
-      pipeline: makePipeline().pre(validate()),
-      handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
-    });
-    small.route({
-      transport: 'http',
-      pattern: 'POST /stream',
-      input: stream(z.object({ n: z.number() })),
-      // Без pipeline: ошибка чанка всплывает в верхний catch → 413
-      handle: async (payload: AsyncIterable<unknown>) => {
-        let count = 0;
-        for await (const item of payload) {
-          count += item ? 1 : 0;
-        }
-        return { count };
-      },
-    });
+    small.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/json',
+        input: z.object({ name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
+      }),
+    );
+    small.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/stream',
+        input: stream(z.object({ n: z.number() })),
+        // Без pipeline: ошибка чанка всплывает в верхний catch → 413
+        handle: async (payload: AsyncIterable<unknown>) => {
+          let count = 0;
+          for await (const item of payload) {
+            count += item ? 1 : 0;
+          }
+          return { count };
+        },
+      }),
+    );
     smallUrl = await listen(small);
 
     unlimited = new HttpTransport({ maxBodySize: 0 });
-    unlimited.route({
-      transport: 'http',
-      pattern: 'POST /json',
-      input: z.object({ name: z.string() }),
-      pipeline: makePipeline().pre(validate()),
-      handle: (payload: { name: string }) =>
-        new Ok({ length: payload.name.length }),
-    });
+    unlimited.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/json',
+        input: z.object({ name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string }) =>
+          new Ok({ length: payload.name.length }),
+      }),
+    );
     unlimitedUrl = await listen(unlimited);
   });
 
@@ -362,12 +385,14 @@ describe('HttpTransport — timeouts and graceful close', () => {
 
   it('close() с идущим keep-alive завершается быстро', async () => {
     const transport = new HttpTransport({ keepAliveTimeout: 60_000 });
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /ping',
-      pipeline: makePipeline(),
-      handle: () => new Ok({ pong: true }),
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'GET',
+        path: '/ping',
+        pipeline: makePipeline(),
+        handle: () => new Ok({ pong: true }),
+      }),
+    );
     const baseUrl = await listen(transport);
     const port = Number(new URL(baseUrl).port);
 
@@ -395,13 +420,15 @@ describe('HttpTransport — timeouts and graceful close', () => {
 
   it('close() с зависшим запросом завершается по closeTimeout', async () => {
     const transport = new HttpTransport();
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /hang',
-      pipeline: makePipeline(),
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      handle: () => new Promise<never>(() => {}), // никогда не резолвится
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/hang',
+        pipeline: makePipeline(),
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        handle: () => new Promise<never>(() => {}), // никогда не резолвится
+      }),
+    );
     const baseUrl = await listen(transport);
 
     // Запускаем запрос, который зависнет в handler'е.
@@ -447,12 +474,14 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   it('дисконнект клиента взводит meta.signal', async () => {
     const transport = new HttpTransport();
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /slow',
-      pipeline: makePipeline(),
-      handle,
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'GET',
+        path: '/slow',
+        pipeline: makePipeline(),
+        handle,
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const clientAbort = new AbortController();
@@ -474,15 +503,17 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   it('штатное завершение (keep-alive) не взводит сигнал', async () => {
     const transport = new HttpTransport();
     let captured: AbortSignal | undefined;
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /ping',
-      pipeline: makePipeline(),
-      handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
-        captured = meta.signal;
-        return new Ok({ pong: true });
-      },
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'GET',
+        path: '/ping',
+        pipeline: makePipeline(),
+        handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
+          captured = meta.signal;
+          return new Ok({ pong: true });
+        },
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const response = await fetch(`${baseUrl}/ping`, {
@@ -502,12 +533,14 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   it('close(): кооперативный хендлер завершается заметно раньше closeTimeout', async () => {
     const transport = new HttpTransport({ closeTimeout: 5000 });
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /graceful',
-      pipeline: makePipeline(),
-      handle,
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/graceful',
+        pipeline: makePipeline(),
+        handle,
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const pending = fetch(`${baseUrl}/graceful`, { method: 'POST' }).catch(
@@ -531,14 +564,16 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   it('fallback-endpoint без pipeline получает meta.signal при дисконнекте', async () => {
     const transport = new HttpTransport();
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /raw',
-      handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
-        const result = handle(_payload, meta);
-        return result.then((ok) => ok.value);
-      },
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'GET',
+        path: '/raw',
+        handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
+          const result = handle(_payload, meta);
+          return result.then((ok) => ok.value);
+        },
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const clientAbort = new AbortController();
@@ -558,12 +593,14 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
 
   it('серия запросов не накапливает слушателей transport-level сигнала', async () => {
     const transport = new HttpTransport();
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /ping',
-      pipeline: makePipeline(),
-      handle: () => new Ok({ pong: true }),
-    });
+    transport.route(
+      httpEndpoint({
+        method: 'GET',
+        path: '/ping',
+        pipeline: makePipeline(),
+        handle: () => new Ok({ pong: true }),
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const closeSignal = (

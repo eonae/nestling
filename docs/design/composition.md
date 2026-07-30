@@ -36,8 +36,10 @@ flowchart TD
   способностей транспортов ([endpoints.md](./endpoints.md)).
 - **2 · INIT** (`@OnInit`, топологически) — захват ресурсов: DB-пул, connect
   NATS. Транспорты подключены, **не в эфире**. `dispatch` ещё не существует.
-- **3 · WIRE** — endpoints → instance из контейнера; таблица `pattern→handler`
-  на транспорт. **`dispatch` рождается здесь.**
+- **3 · WIRE** — декларации endpoint'ов гасят зависимости контейнером
+  (`endpoint.resolve(resolver)`: токены `deps`, класс-хендлер, классы-юниты
+  пайплайна); таблица `pattern→handler` на транспорт.
+  **`dispatch` рождается здесь.**
 - **4 · START** (`@OnStart`, топологически) — `serve(dispatch, signal)`, не
   `listen()`. HTTP слушает сокет, NATS — `subscribe` (queue-group для реплик).
 - **5 · RUN** — `port.call` / `emit` → local | bus (по policy); live config-refs

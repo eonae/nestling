@@ -3,8 +3,8 @@ import { makeAppModule } from './module';
 import { describe, expect, it } from '@jest/globals';
 import type { Module } from '@nestling/container';
 import { ContainerBuilder, Injectable, makeModule } from '@nestling/container';
-import type { IEndpoint } from '@nestling/pipeline';
-import { Endpoint, Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 
 @Injectable([])
 class UserService {
@@ -13,18 +13,15 @@ class UserService {
   }
 }
 
-@Injectable([UserService])
-@Endpoint({ transport: 'http', pattern: 'GET /users/:id' })
-class GetUser implements IEndpoint {
-  constructor(private readonly users: UserService) {}
-
-  async handle() {
-    return new Ok({ user: this.users.find() });
-  }
-}
+const GetUser = httpEndpoint({
+  method: 'GET',
+  path: '/users/:id',
+  deps: [UserService],
+  handle: (users) => async () => new Ok({ user: users.find() }),
+});
 
 describe('makeAppModule', () => {
-  it('сохраняет endpoints и дублирует их в providers', () => {
+  it('сохраняет endpoints и НЕ подмешивает их в providers', () => {
     const UsersModule = makeAppModule({
       name: 'module:users',
       providers: [UserService],
@@ -32,7 +29,7 @@ describe('makeAppModule', () => {
     });
 
     expect(UsersModule.endpoints).toEqual([GetUser]);
-    expect(UsersModule.providers).toEqual([UserService, GetUser]);
+    expect(UsersModule.providers).toEqual([UserService]);
   });
 
   it('значение присваиваемо Module и принимается imports и контейнером', async () => {
@@ -51,8 +48,8 @@ describe('makeAppModule', () => {
 
     const container = await new ContainerBuilder().register(RootModule).build();
 
-    // Контейнер лишнее поле игнорирует, но endpoint инстанцирует
-    expect(container.get(GetUser)).toBeInstanceOf(GetUser);
+    // Контейнер лишнее поле игнорирует и инстанцирует только провайдеры
+    expect(container.get(UserService)).toBeInstanceOf(UserService);
   });
 
   it('модуль без endpoints остаётся без поля endpoints', () => {
@@ -65,7 +62,7 @@ describe('makeAppModule', () => {
     expect(PlainModule.providers).toEqual([UserService]);
   });
 
-  it('ProvidersFactory сохраняется, endpoints дополняют её результат', async () => {
+  it('ProvidersFactory сохраняется как есть', async () => {
     const LazyModule = makeAppModule({
       name: 'module:lazy',
       providers: () => [UserService],
@@ -75,7 +72,7 @@ describe('makeAppModule', () => {
     expect(typeof LazyModule.providers).toBe('function');
     expect(LazyModule.endpoints).toEqual([GetUser]);
 
-    const factory = LazyModule.providers as () => Promise<unknown[]>;
-    await expect(factory()).resolves.toEqual([UserService, GetUser]);
+    const factory = LazyModule.providers as () => unknown[];
+    expect(factory()).toEqual([UserService]);
   });
 });

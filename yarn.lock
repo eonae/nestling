@@ -1590,6 +1590,7 @@ __metadata:
   resolution: "@nestling/pipeline@workspace:packages/nestling.pipeline"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/container": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1599,8 +1600,10 @@ __metadata:
   resolution: "@nestling/transport.cli@workspace:packages/nestling.transport.cli"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/transport": "workspace:*"
+    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -1609,6 +1612,7 @@ __metadata:
   resolution: "@nestling/transport.http@workspace:packages/nestling.transport.http"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@types/busboy": "npm:^1.5.4"

@@ -1,30 +1,37 @@
-# Приложение с DI: App, модули, классовые endpoints
+# Приложение с DI: App, модули, декларации endpoint'ов
 
 ✅ **Статус: актуально** — сверено с кодом `examples.app-with-http`
-(2026-07-29). ⚠️ Описанный здесь стиль деклараций (`@HttpEndpoint`,
-классовые endpoints) **уходит из целевого V1** — канон см. в
-[design/endpoints.md](../design/endpoints.md), план перевода — roadmap 24
-(`endpoint-model`); гайд будет переведён вместе с примером.
+(2026-07-30). Канон деклараций описан в
+[design/endpoints.md](../design/endpoints.md).
 Запускаемый код — в
 [`packages/examples.app-with-http/`](../../packages/examples.app-with-http/).
 
-Полный уровень фреймворка: DI-контейнер, модули, классовые endpoints
-с конструкторной инъекцией, регистрация ручек обходом дерева модулей,
-graceful shutdown.
+Полный уровень фреймворка: DI-контейнер, модули, декларации-значения
+с инъекцией зависимостей в хендлер, регистрация ручек обходом дерева
+модулей, graceful shutdown.
 zod в примерах — **один из вариантов**: ядро принимает любую
 [Standard Schema](https://standardschema.dev) (valibot, arktype, TypeBox,
 Effect Schema …) и валидатором не зависит.
 
-## Классовый endpoint
+## Декларация — значение
 
-Один класс = один endpoint. Два декоратора: `@Injectable` объявляет
-зависимости (явным массивом токенов), `@HttpEndpoint` — маршрут и контракт.
+Ручка объявляется конструктором своего транспорта: `httpEndpoint` для
+HTTP, `cliEndpoint` для CLI. Транспортный словарь (`method`, `path`)
+легален только здесь; пайплайн и хендлер остаются транспорт-слепыми.
+Декораторов эндпоинта и интерфейса `IEndpoint` нет — сверка сигнатуры
+`handle` со схемами `input`/`output` идёт в точке декларации.
+
+## DI хендлера: `deps` + каррированная фабрика
+
+Первая форма подключения зависимостей: `deps` — явный массив токенов,
+`handle` — фабрика, возвращающая хендлер. Внешний вызов происходит **один
+раз** при гашении зависимостей на старте App; замыкание играет роль
+инстанса.
 
 ```typescript
-import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
+import type { Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 import { basePipeline } from '../../../common/pipelines';
@@ -36,27 +43,26 @@ const CreateUserOutput = z.object({ id: z.string(), name: z.string(), email: z.s
 type CreateUserInput = z.infer<typeof CreateUserInput>;
 type CreateUserOutput = z.infer<typeof CreateUserOutput>;
 
-@Injectable([UserService, ILogger])
-@HttpEndpoint('POST', '/api/users', {
-  input: CreateUserInput,
-  output: CreateUserOutput,
-  pipeline: basePipeline,
-})
-export class CreateUserEndpoint implements IEndpoint {
-  constructor(
-    private users: UserService,
-    private logger: ILoggerService,
-  ) {}
-
-  async handle(payload: CreateUserInput): Output<CreateUserOutput> {
-    const existing = await this.users.findByEmail(payload.email);
+export const createUserHandler =
+  (users: UserService, logger: ILoggerService) =>
+  async (payload: CreateUserInput): Output<CreateUserOutput> => {
+    const existing = await users.findByEmail(payload.email);
     if (existing) {
       throw Fail.badRequest('Email already taken', { field: 'email' });
     }
-    const user = await this.users.create(payload);
+    const user = await users.create(payload);
     return Ok.created(user, { Location: `/api/users/${user.id}` });
-  }
-}
+  };
+
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/api/users',
+  input: CreateUserInput,
+  output: CreateUserOutput,
+  pipeline: basePipeline,
+  deps: [UserService, ILogger],
+  handle: createUserHandler,
+});
 ```
 
 Хендлер может объявить второй параметр `meta` — поля, накопленные pre-юнитами
@@ -70,43 +76,78 @@ export class CreateUserEndpoint implements IEndpoint {
 обернётся в `Ok`), ошибки — `throw Fail.badRequest / unauthorized / forbidden /
 notFound / internalError(...)`.
 
+## DI хендлера: класс-хендлер
+
+Вторая форма — класс с `@Injectable` и методом `handle`. Это **форма
+подключения DI, а не второй стиль деклараций**: сама декларация остаётся
+тем же значением. `implements` не нужен.
+
+```typescript
+import { Injectable } from '@nestling/container';
+
+@Injectable([UserService, ILogger])
+export class SearchUsersHandler {
+  constructor(
+    private readonly users: UserService,
+    private readonly logger: ILoggerService,
+  ) {}
+
+  async handle(payload: SearchUsersInput): Output<SearchUsersOutput> {
+    /* ... */
+  }
+}
+
+export const SearchUsers = httpEndpoint({
+  method: 'GET',
+  path: '/api/users/search',
+  input: SearchUsersInput,
+  output: SearchUsersOutput,
+  pipeline: basePipeline,
+  handle: SearchUsersHandler,
+});
+```
+
+Класс-хендлер — обычный провайдер: его **надо перечислить в `providers:`**
+модуля, как любую другую зависимость. Автоматической регистрации нет —
+это была бы асимметрия «класс волшебный, токен нет».
+
 Пайплайн endpoint'а — значение (`makePipeline` / `compose`), общие
 пайплайны экспортируются константами (см.
 `examples.app-with-http/src/common/pipelines.ts`). Классы-юниты
 (`.pre(WithTracing)` — класс, не инстанс) — обычные провайдеры: App
-резолвит их контейнером на старте; если класс не зарегистрирован
-в модулях — ошибка старта с именем юнита.
+резолвит их контейнером на старте вместе с `deps`; если класс не
+зарегистрирован в модулях — ошибка старта с именем зависимости, паттерном
+ручки и модулем-объявителем.
 
 ## Модуль
 
-Модуль — plain object через `makeAppModule`: провайдеры + endpoints.
-Юниты пайплайнов подключаются через `pipeline` каждого endpoint'а,
-не через модуль (классы-юниты регистрируются в `providers`).
+Модуль — plain object через `makeAppModule`: провайдеры + декларации.
+В `providers` идут зависимости хендлеров (токены из `deps`, классы-хендлеры,
+классы-юниты пайплайнов); в `endpoints` — сами декларации-значения.
+`makeAppModule` ничего в `providers` не подмешивает: инстанцировать
+декларацию не нужно.
 
 ```typescript
 import { makeAppModule } from '@nestling/app';
-import { CreateUserEndpoint, ListUsersEndpoint } from './modules/users/endpoints';
+import { CreateUser, SearchUsers, SearchUsersHandler } from './modules/users/endpoints';
 import { UserService } from './modules/users/user.service';
 
 export const UsersModule = makeAppModule({
   name: 'module:users',
-  providers: [UserService],
-  endpoints: [CreateUserEndpoint, ListUsersEndpoint],
+  providers: [UserService, SearchUsersHandler],
+  endpoints: [CreateUser, SearchUsers],
 });
 ```
 
-**`endpoints:` — единственный способ подключить ручку.** Декоратор
-`@HttpEndpoint` только пишет метаданные класса: приложение обслуживает
-ровно те endpoints, что перечислены в `endpoints:` модуля, переданного
-в `App` (вместе с транзитивными `imports`). Импорт файла с декларацией
-ничего не регистрирует — глобального реестра нет.
+**`endpoints:` — единственный способ подключить ручку.** Создание
+декларации не имеет побочных эффектов: приложение обслуживает ровно те
+ручки, что перечислены в `endpoints:` модуля, переданного в `App` (вместе
+с транзитивными `imports`). Импорт файла с декларацией ничего не
+регистрирует — глобального реестра нет.
 
-Оба молчаливых режима — ошибки старта:
-
-- класс в `endpoints:` без декоратора эндпоинта;
-- класс с декоратором эндпоинта, попавший только в `providers`
-  (провайдеры, порождаемые функцией-фабрикой `providers: () => [...]`,
-  этой проверке не подлежат — до `build()` их состав неизвестен).
+Элемент `endpoints:`, не являющийся декларацией (положили сервис,
+конфиг или `undefined`), — ошибка старта с именем модуля и индексом
+элемента: декларация помечена symbol-брендом, и молчаливого пропуска нет.
 
 ## Bootstrap
 
@@ -125,22 +166,32 @@ await app.run(); // build контейнера + init-хуки + listen + gracef
 ```
 
 `App.run()` делает всё: собирает контейнер, запускает `@OnInit`-хуки
-в топологическом порядке, обходит дерево `modules` + `imports` и
-регистрирует найденные endpoints в транспортах, вешает обработчики
+в топологическом порядке, обходит дерево `modules` + `imports`, гасит
+зависимости найденных деклараций контейнером (`endpoint.resolve(resolver)`)
+и регистрирует исполнимые значения в транспортах, вешает обработчики
 SIGTERM/SIGINT (на выходе — `@OnDestroy` в обратном порядке).
 Транспорт, затребованный ручкой, но не переданный в `transports`, —
 ошибка старта с именем транспорта, паттерном и модулем-объявителем.
 Обход доступен и отдельно, без поднятия приложения:
 `discoverEndpoints(modules)` из `@nestling/app`.
 
-## Тестирование endpoint'а
+## Тестирование хендлера
 
-DI не мешает тестам — endpoint тестируется как обычный класс:
+DI не мешает тестам — ни контейнера, ни транспорта, ни импортов из
+`@nestling/app` не нужно:
 
 ```typescript
-const endpoint = new CreateUserEndpoint(mockUserService, mockLogger);
-const result = await endpoint.handle({ name: 'Alice', email: 'a@b.c' });
+// каррированная фабрика — вызов с фейками
+const handle = createUserHandler(mockUserService, mockLogger);
+const result = await handle({ name: 'Alice', email: 'a@b.c' });
+
+// класс-хендлер — обычный new
+const handler = new SearchUsersHandler(mockUserService, mockLogger);
+const found = await handler.handle({ q: 'Alice' });
 ```
+
+Декларацию можно погасить и целиком — `CreateUser.resolve([users, logger])`
+возвращает **новое** исполнимое значение, исходное остаётся нетронутым.
 
 > Целевой дизайн развивается — см. [decisions/ideas.md](../decisions/ideas.md):
 > token families, модули-фабрики с параметром `pipeline`.

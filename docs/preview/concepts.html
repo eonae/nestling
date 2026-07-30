@@ -76,31 +76,31 @@
   <!-- ============ ENDPOINTS ============ -->
   <h2 id="endpoints">Endpoints</h2>
   <p>
-    В Nestling нет контроллеров. Базовая единица — <strong>endpoint</strong>: один класс (или одно значение) =
+    В Nestling нет контроллеров. Базовая единица — <strong>endpoint</strong>: одна декларация-значение =
     один маршрут. Это осознанное решение: контроллер в Nest — это мешок методов с
     общим префиксом, где реальные единицы (отдельные ручки) размазаны по методам.
     Endpoint делает единицу явной.
   </p>
   <p>Endpoint — <strong>schema-first</strong>. Он декларирует контракт: транспорт, паттерн, схему входа и выхода, пайплайн и хендлер.</p>
 
-  <div class="code" data-file="create-order.endpoint.ts" data-lang="typescript"><pre><code>@Injectable([OrdersService])
-@HttpEndpoint('POST', '/orders', {
+  <div class="code" data-file="create-order.endpoint.ts" data-lang="typescript"><pre><code>export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
   input: NewOrder,           // схема: валидация + типы + доки
   output: Order,
   pipeline: basePipeline,
-})
-export class CreateOrderEndpoint implements IEndpoint {
-  constructor(private orders: OrdersService) {}
-
-  async handle(input: NewOrder, meta): Output&lt;Order&gt; {
-    return new Ok(this.orders.create(input));
-  }
-}</code></pre></div>
+  deps: [OrdersService],     // явный массив токенов
+  handle: (orders) =&gt; async (input: NewOrder, meta): Output&lt;Order&gt; =&gt;
+    new Ok(orders.create(input)),
+});</code></pre></div>
 
   <p>
-    Два декоратора делят ответственность честно: <code>@Injectable</code> объявляет
-    <strong>зависимости</strong> (явным массивом токенов), <code>@HttpEndpoint</code> —
-    <strong>контракт</strong> (маршрут, схемы, пайплайн). Второй аргумент хендлера,
+    Словарь делит ответственность честно: <code>method</code>/<code>path</code> — это
+    <strong>транспорт</strong>, <code>input</code>/<code>output</code>/<code>pipeline</code> —
+    <strong>контракт</strong>, <code>deps</code> — <strong>зависимости</strong> (явным массивом
+    токенов). Декораторов эндпоинта и интерфейса <code>IEndpoint</code> нет:
+    декоратор не влияет на типы, а сверка хендлера со схемами идёт прямо в точке
+    декларации. Второй аргумент хендлера,
     <code>meta</code>, — это поля, которые накопили <code>.pre</code>-юниты пайплайна;
     хендлер декларирует только то, что использует. В <code>meta</code> всегда есть
     <code>signal: AbortSignal</code> — об этом в разделе про стриминг.
@@ -113,24 +113,36 @@ export class CreateOrderEndpoint implements IEndpoint {
 
   <h3>Один endpoint — любой транспорт</h3>
   <p>
-    Endpoint не знает, откуда пришёл запрос. Тот же контракт работает на HTTP
-    (<code>pattern: 'POST /orders'</code>), на CLI (<code>pattern</code> = имя команды) и
-    на шине сообщений. Меняется только строка <code>transport</code>. Это следствие
-    принципа «pipeline оперирует значениями»: транспорт превращает провод в
-    <code>RequestContext</code>, дальше endpoint работает с абстрактной моделью.
+    Пайплайн и хендлер не знают, откуда пришёл запрос: транспорт-слепы. Транспортный
+    словарь легален только в декларации — у HTTP это <code>method</code>/<code>path</code>,
+    у CLI <code>command</code>. Схемы, пайплайн и хендлер переносятся между ними без
+    правок; каждая декларация честно знает свой транспорт, никакого
+    <code>ExecutionContext</code>-маскарада.
   </p>
 
-  <h3>Функциональный стиль</h3>
-  <p>Тот же endpoint без классов — <code>makeEndpoint</code> возвращает обычное значение, зависимости замыкаются фабрикой:</p>
-  <div class="code" data-file="create-order.ts" data-lang="typescript"><pre><code>export const makeCreateOrder = (orders: Infer&lt;typeof OrdersService&gt;) =&gt;
-  makeEndpoint({
-    transport: 'http',
-    pattern: 'POST /orders',
-    input: NewOrder,
-    output: Order,
-    pipeline: basePipeline,
-    handle: async (input: NewOrder) =&gt; new Ok(orders.create(input)),
-  });</code></pre></div>
+  <h3>Класс — форма подключения DI</h3>
+  <p>
+    Привычная после Nest структура «конструктор + метод <code>handle</code>» никуда не делась —
+    но это <strong>форма подключения DI, а не второй стиль деклараций</strong>:
+    сама декларация остаётся тем же значением, <code>implements</code> не нужен.
+    Класс-хендлер — обычный провайдер и регистрируется в <code>providers:</code> явно.
+  </p>
+  <div class="code" data-file="create-order.endpoint.ts" data-lang="typescript"><pre><code>@Injectable([OrdersService])
+export class CreateOrderHandler {
+  constructor(private orders: OrdersService) {}
+  async handle(input: NewOrder, meta): Output&lt;Order&gt; {
+    return new Ok(this.orders.create(input));
+  }
+}
+
+export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
+  input: NewOrder,
+  output: Order,
+  pipeline: basePipeline,
+  handle: CreateOrderHandler,   // сверка со схемами — в точке декларации
+});</code></pre></div>
 
   <div class="note">
     <span class="note-t">Тестирование</span>
@@ -306,18 +318,19 @@ if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
     Endpoint декларирует свои отказы: <code>errors: [EmailTaken, OrderLimitReached]</code>.
     Из этого — OpenAPI-доки бесплатно, а потребители порта знают, какие <code>Fail</code> ждать.
   </p>
-  <div class="code" data-lang="typescript"><pre><code>@HttpEndpoint('POST', '/orders', {
+  <div class="code" data-lang="typescript"><pre><code>export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
   input: NewOrder, output: Order,
   errors: [EmailTaken, OrderLimitReached],
-})
-export class CreateOrderEndpoint implements IEndpoint {
-  async handle(input: NewOrder, meta): Output&lt;Order, EmailTaken | OrderLimitReached&gt; {
-    if (await this.orders.emailBusy(input.email)) {
+  deps: [OrdersService],
+  handle: (orders) =&gt; async (input: NewOrder, meta): Output&lt;Order, EmailTaken | OrderLimitReached&gt; =&gt; {
+    if (await orders.emailBusy(input.email)) {
       meta.fail(EmailTaken(input.email));  // типизированный ранний выход: только из errors
     }
-    return Ok.created(await this.orders.create(input));
-  }
-}</code></pre></div>
+    return Ok.created(await orders.create(input));
+  },
+});</code></pre></div>
   <p>
     Декларация — <strong>закрытое множество</strong>, и охраняется она на двух уровнях.
     <strong>Компилятор</strong> проверяет всё, что течёт <em>значениями</em>: возвраты — через

@@ -1,7 +1,7 @@
 import type { ILoggerService } from '../../logger/logger.service';
 import type { UserService } from '../user.service';
 
-import { ExportUsersEndpoint } from './export-users.endpoint';
+import { ExportUsersHandler } from './export-users.endpoint';
 
 import { Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
@@ -11,8 +11,8 @@ async function* mockStream() {
   yield { id: '2', name: 'Bob', email: 'bob@test.com' };
 }
 
-describe('ExportUsersEndpoint', () => {
-  let endpoint: ExportUsersEndpoint;
+describe('ExportUsersHandler', () => {
+  let endpoint: ExportUsersHandler;
   let userService: jest.Mocked<UserService>;
   let logger: jest.Mocked<ILoggerService>;
 
@@ -20,7 +20,7 @@ describe('ExportUsersEndpoint', () => {
     userService = mock<UserService>();
     logger = mock<ILoggerService>();
 
-    endpoint = new ExportUsersEndpoint(userService, logger);
+    endpoint = new ExportUsersHandler(userService, logger);
   });
 
   it('должен вернуть AsyncIterableIterator с заголовками', async () => {

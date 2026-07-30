@@ -1,35 +1,139 @@
-import type {
-  AnyInput,
-  AnyOutput,
-  AnyPayload,
-  IEndpoint,
-  Pipeline,
-} from '../core';
+import type { AnyInput, AnyOutput, AnyPayload, Pipeline } from '../core';
 import type { HandlerFn } from '../core/types';
 
 import type { Constructor } from '@common/misc';
+import type {
+  InjectionToken,
+  UnwrapInjectionTokens,
+} from '@nestling/container';
 
 /**
- * Symbol-ключ для хранения метаданных handler-класса
+ * Symbol-бренд декларации endpoint'а.
+ *
+ * Ставится неперечислимым свойством: декларация остаётся обычным значением
+ * (спред, `Object.keys`, сериализация её не замечают), но дискавери может
+ * отличить её от случайно попавшего в `endpoints:` сервиса или конфига.
  */
-const HANDLER_KEY = Symbol.for('nestling:handler');
+const ENDPOINT_BRAND = Symbol.for('nestling:endpoint');
 
 /**
- * Конфигурация endpoint-класса
+ * Резолвер зависимостей декларации: токен (строковый или класс) → инстанс.
+ *
+ * Под `App` это обёртка над DI-контейнером; в тестах — любая функция.
+ */
+export type DependencyResolver = (token: InjectionToken) => unknown;
+
+/**
+ * Класс-хендлер: конструктор с методом `handle`.
+ *
+ * Форма подключения DI, а не второй стиль деклараций: `implements` не нужен,
+ * сигнатура `handle` сверяется со схемами в точке декларации.
+ */
+export type HandlerClass<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+> = Constructor<{ handle: HandlerFn<I, O, P> }>;
+
+/**
+ * Каррированная фабрика хендлера: внешний вызов — один раз на гашении
+ * зависимостей, замыкание играет роль инстанса.
+ */
+export type HandlerFactory<
+  D extends InjectionToken[],
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+> = (...deps: UnwrapInjectionTokens<D>) => HandlerFn<I, O, P>;
+
+/**
+ * Декларация endpoint'а — значение.
+ *
+ * Создаётся конструктором своего транспорта (`httpEndpoint`, `cliEndpoint`),
+ * которые собраны над kernel-примитивом `makeEndpoint`. Значение неизменно:
+ * `resolve` возвращает новую декларацию, исходную не трогает.
  *
  * @param I - конфигурация payload (schema, примитив или модификатор)
  * @param O - конфигурация output
  * @param P - выходной тип pipeline (накопленные middleware поля)
+ * @param TNeeds - неразрешённые зависимости декларации: токены `deps`,
+ * класс-хендлер и классы-юниты пайплайна. `never` ⇔ декларация исполнима,
+ * симметрично `Pipeline<TReq, TAcc, TNeeds>`; транспорты принимают только
+ * такую.
  */
 export interface EndpointDefinition<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
+  TNeeds = never,
+> {
+  readonly transport: string;
+  readonly pattern: string;
+
+  /**
+   * Хендлер запроса.
+   *
+   * У декларации с неразрешёнными зависимостями (`TNeeds` ≠ `never`) поле
+   * заполнено заглушкой, бросающей понятную ошибку: до транспорта такая
+   * декларация не доходит — её отсекают типы.
+   */
+  readonly handle: HandlerFn<I, O, P>;
+
+  /** Schema или модификатор для input */
+  readonly input?: I;
+
+  /** Конфигурация выходных данных */
+  readonly output?: O;
+
+  /**
+   * Pipeline для этого endpoint.
+   *
+   * Классы-юниты пайплайна попадают в `TNeeds` декларации и гасятся тем же
+   * `resolve`, что и `deps`: транспорт получает исполнимый пайплайн.
+   */
+  readonly pipeline?: Pipeline<AnyInput, P, never>;
+
+  /** Токены зависимостей каррированной фабрики (в порядке объявления) */
+  readonly deps?: readonly InjectionToken[];
+
+  /** @internal фантомное поле для вывода типов */
+  readonly $needs?: TNeeds;
+
+  /**
+   * Гасит зависимости декларации и возвращает **новую** исполнимую
+   * декларацию; исходная остаётся неизменной.
+   *
+   * Резолвер-форма — каноническая: она работает для всех трёх форм
+   * `handle` и заодно связывает классы-юниты пайплайна. Позиционная форма
+   * (готовые инстансы в порядке `deps`) удобна в тестах, но класс-хендлер и
+   * пайплайн с классами-юнитами ей недоступны.
+   *
+   * Две перегрузки, а не объединённый параметр: формы различаются
+   * семантикой и набором доступных случаев, и IDE должна показывать их
+   * раздельно.
+   */
+  resolve(resolver: DependencyResolver): EndpointDefinition<I, O, P, never>;
+  /* eslint-disable-next-line @typescript-eslint/unified-signatures */
+  resolve(instances: readonly unknown[]): EndpointDefinition<I, O, P, never>;
+}
+
+/** Декларация с любыми параметрами — для мест, где они несущественны */
+export type AnyEndpointDefinition = EndpointDefinition<any, any, any, any>;
+
+/**
+ * Транспорт-нейтральная часть словаря декларации.
+ *
+ * Транспортные конструкторы добавляют к ней свой словарь (`method`/`path`
+ * для HTTP, `command` для CLI) и собирают `transport`/`pattern` сами.
+ */
+export interface EndpointOptions<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
 > {
   transport: string;
   pattern: string;
-
-  handle: HandlerFn<I, O, P>;
 
   /** Schema или модификатор для input */
   input?: I;
@@ -38,98 +142,332 @@ export interface EndpointDefinition<
   output?: O;
 
   /**
-   * Pipeline для этого endpoint.
-   *
-   * `TNeeds = never`: пайплайн с классами-юнитами сначала резолвится
-   * (`bind`) — App делает это автоматически на старте; standalone-транспорт
-   * принимает только исполнимый пайплайн.
+   * Pipeline для этого endpoint. Классы-юниты допустимы: они попадают в
+   * `TNeeds` декларации и гасятся вместе с `deps`.
    */
-  pipeline?: Pipeline<AnyInput, P, never>;
+  pipeline?: Pipeline<AnyInput, P, PN>;
 }
 
-export type EndpointMetadata<
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-> = Omit<EndpointDefinition<I, O, P>, 'handle' | 'pipeline'> & {
-  /**
-   * Pipeline endpoint'а. В отличие от `EndpointDefinition`, допускает
-   * классы-юниты (`TNeeds` ≠ never): App резолвит их контейнером
-   * на старте (`bind`). Standalone-транспорт принимает только
-   * исполнимый пайплайн.
-   */
-  pipeline?: Pipeline<AnyInput, P, unknown>;
-};
+// ---------------------------------------------------------------------------
+// Рантайм
+// ---------------------------------------------------------------------------
+
+type AnyHandler = HandlerFn<any, any, any>;
+
+/** Нормализованная форма хендлера: одна из трёх пользовательских */
+type HandlerForm =
+  | { kind: 'fn'; fn: AnyHandler }
+  | { kind: 'factory'; factory: (...deps: unknown[]) => AnyHandler }
+  | { kind: 'class'; ctor: HandlerClass };
+
+interface EndpointState {
+  transport: string;
+  pattern: string;
+  input?: unknown;
+  output?: unknown;
+  pipeline?: Pipeline<AnyInput, AnyInput, unknown>;
+  deps: readonly InjectionToken[];
+  form: HandlerForm;
+  /** Хендлер, полученный гашением зависимостей (форма `fn` исполнима сразу) */
+  handle?: AnyHandler;
+}
+
+/** Имя токена для текстов ошибок */
+function describeToken(token: unknown): string {
+  if (typeof token === 'string') {
+    return token;
+  }
+  return typeof token === 'function' && token.name ? token.name : String(token);
+}
+
+/** Класс-хендлер узнаётся по методу `handle` на прототипе */
+function isHandlerClass(value: unknown): value is HandlerClass {
+  if (typeof value !== 'function') {
+    return false;
+  }
+  const proto = (value as { prototype?: { handle?: unknown } }).prototype;
+  return Boolean(proto) && typeof proto?.handle === 'function';
+}
 
 /**
- * Декоратор для endpoint-классов с типизированным pipeline.
- *
- * @example
- * ```typescript
- * const authPipeline = makePipeline()
- *   .pre(withIdentity<User>(verifyToken))
- *   .pre(validate());
- *
- * @Injectable([UserService])
- * @Endpoint({
- *   transport: 'http',
- *   pattern: 'POST /users',
- *   input: CreateUserSchema,
- *   pipeline: authPipeline,
- * })
- * class CreateUserEndpoint implements IEndpoint<
- *   typeof CreateUserSchema,
- *   typeof UserSchema,
- *   { identity: User }
- * > {
- *   constructor(private users: UserService) {}
- *
- *   async handle(payload: CreateUserInput, meta: { identity: User }) {
- *     return Ok.created(await this.users.create(payload));
- *   }
- * }
- * ```
+ * Различает три формы `handle`. Класс проверяется первым: у каррированной
+ * фабрики (стрелочной функции) прототипа нет, у голого хендлера на
+ * прототипе нет `handle`.
  */
-export function Endpoint<
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
->(metadata: EndpointMetadata<I, O, P>) {
-  return <T extends Constructor<IEndpoint<I, O, P>>>(
-    target: T,
-    context: ClassDecoratorContext<T>,
-  ): T => {
-    // Сохраняем конфигурацию в метаданных класса. Дискавери идёт обходом
-    // дерева зарегистрированных модулей: декоратор только пишет метаданные
-    // и ни в какой глобальный реестр класс не кладёт
-    (target as any)[HANDLER_KEY] = {
-      ...metadata,
-      className: context.name,
-    };
+function normalizeHandler(
+  handle: unknown,
+  deps: readonly InjectionToken[] | undefined,
+  pattern: string,
+): HandlerForm {
+  if (isHandlerClass(handle)) {
+    return { kind: 'class', ctor: handle };
+  }
 
-    return target;
+  if (typeof handle !== 'function') {
+    throw new TypeError(
+      `Endpoint '${pattern}': 'handle' must be a function, a curried factory ` +
+        `with 'deps', or a class with a handle() method.`,
+    );
+  }
+
+  if (Array.isArray(deps)) {
+    return {
+      kind: 'factory',
+      factory: handle as (...deps: unknown[]) => AnyHandler,
+    };
+  }
+
+  return { kind: 'fn', fn: handle as AnyHandler };
+}
+
+/** Заглушка `handle` для декларации с неразрешёнными зависимостями */
+function unresolvedHandler(state: EndpointState): AnyHandler {
+  return () => {
+    throw new Error(
+      `Endpoint '${state.pattern}' has unresolved dependencies; ` +
+        `call endpoint.resolve(resolver) before serving it ` +
+        `(App does this automatically for endpoints declared in a module).`,
+    );
   };
 }
 
 /**
- * Извлекает метаданные handler-класса
+ * Материализует зависимости резолвером, требуя непустой результат для
+ * каждого токена.
  */
-export function getEndpointMetadata<
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
->(target: any): EndpointMetadata<I, O, P> | null {
-  const constructor = target.prototype ? target : target.constructor;
-  return constructor[HANDLER_KEY] || null;
+function resolveWith(
+  resolver: DependencyResolver,
+  state: EndpointState,
+): unknown[] {
+  return state.deps.map((token) => {
+    const instance = resolver(token);
+    if (instance === undefined || instance === null) {
+      throw new Error(
+        `Endpoint '${state.pattern}': dependency '${describeToken(token)}' ` +
+          `was not provided by the resolver.`,
+      );
+    }
+    return instance;
+  });
 }
 
 /**
- * Вспомогательная функция для создания конфигурации endpoint'а с корректным выводом типов.
+ * Связывает классы-юниты пайплайна тем же резолвером, которым гасятся
+ * `deps`: транспорт получает исполнимый пайплайн.
+ */
+function bindPipeline(
+  state: EndpointState,
+  resolver: DependencyResolver | null,
+): Pipeline<AnyInput, AnyInput, never> | undefined {
+  if (!state.pipeline) {
+    return undefined;
+  }
+
+  return state.pipeline.bind((ctor) => {
+    if (!resolver) {
+      throw new Error(
+        `Endpoint '${state.pattern}': its pipeline uses the class unit ` +
+          `'${describeToken(ctor)}', which positional resolve([...]) cannot ` +
+          `materialize — use resolve(resolver) instead.`,
+      );
+    }
+    return resolver(ctor);
+  });
+}
+
+function resolveDefinition(
+  state: EndpointState,
+  argument: DependencyResolver | readonly unknown[],
+): AnyEndpointDefinition {
+  const positional = Array.isArray(argument);
+  const resolver = positional ? null : (argument as DependencyResolver);
+
+  // Декларация уже исполнима (голая функция или результат прошлого
+  // `resolve`): гасить нечего, остаётся связать классы-юниты пайплайна.
+  // Благодаря этому повторный `resolve` не вызывает фабрику второй раз.
+  if (state.handle) {
+    return buildDefinition({
+      ...state,
+      pipeline: bindPipeline(state, resolver),
+    });
+  }
+
+  if (positional && state.form.kind === 'class') {
+    throw new Error(
+      `Endpoint '${state.pattern}': class handler ` +
+        `'${describeToken(state.form.ctor)}' can only be materialized by ` +
+        `resolve(resolver) — positional resolve([...]) has nothing to ` +
+        `instantiate it with.`,
+    );
+  }
+
+  let instances: unknown[];
+  if (positional) {
+    instances = [...(argument as readonly unknown[])];
+    if (instances.length !== state.deps.length) {
+      throw new Error(
+        `Endpoint '${state.pattern}': resolve([...]) got ${instances.length} ` +
+          `instance(s) for ${state.deps.length} declared dependency(-ies).`,
+      );
+    }
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    instances = resolveWith(resolver!, state);
+  }
+
+  let handle: AnyHandler;
+  switch (state.form.kind) {
+    case 'fn': {
+      handle = state.form.fn;
+      break;
+    }
+    case 'factory': {
+      handle = state.form.factory(...instances);
+      break;
+    }
+    default: {
+      const ctor = state.form.ctor;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const instance = resolver!(ctor) as { handle?: AnyHandler } | undefined;
+      if (!instance || typeof instance.handle !== 'function') {
+        throw new Error(
+          `Endpoint '${state.pattern}': class handler ` +
+            `'${describeToken(ctor)}' was not provided by the resolver.`,
+        );
+      }
+      handle = instance.handle.bind(instance);
+    }
+  }
+
+  return buildDefinition({
+    ...state,
+    pipeline: bindPipeline(state, resolver),
+    handle,
+  });
+}
+
+/** Собирает значение-декларацию: перечислимые поля + неперечислимый бренд */
+function buildDefinition(state: EndpointState): AnyEndpointDefinition {
+  const definition: Record<string, unknown> = {
+    transport: state.transport,
+    pattern: state.pattern,
+    handle: state.handle ?? unresolvedHandler(state),
+    resolve: (argument: DependencyResolver | readonly unknown[]) =>
+      resolveDefinition(state, argument),
+  };
+
+  if (state.input !== undefined) {
+    definition.input = state.input;
+  }
+  if (state.output !== undefined) {
+    definition.output = state.output;
+  }
+  if (state.pipeline !== undefined) {
+    definition.pipeline = state.pipeline;
+  }
+  if (state.deps.length > 0) {
+    definition.deps = state.deps;
+  }
+
+  Object.defineProperty(definition, ENDPOINT_BRAND, {
+    value: true,
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+
+  return definition as unknown as AnyEndpointDefinition;
+}
+
+/**
+ * Проверяет, что значение — декларация endpoint'а, а не случайно попавший
+ * в `endpoints:` сервис, конфиг или `undefined`.
+ */
+export function isEndpointDefinition(
+  value: unknown,
+): value is AnyEndpointDefinition {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<symbol, unknown>)[ENDPOINT_BRAND] === true
+  );
+}
+
+/**
+ * Kernel-примитив деклараций: нормализует три формы `handle`, запоминает
+ * `deps`, ставит бренд и выдаёт `resolve`.
+ *
+ * В пользовательский канон не входит — там per-transport конструкторы
+ * (`httpEndpoint`, `cliEndpoint`), которые являются тонкими надстройками
+ * над ним и добавляют только свой словарь.
+ *
+ * @example
+ * ```typescript
+ * const Ping = makeEndpoint({
+ *   transport: 'http',
+ *   pattern: 'GET /ping',
+ *   output: PingOutput,
+ *   pipeline: basePipeline,
+ *   handle: async () => Ok.of({ pong: true }),
+ * });
+ * ```
  */
 export function makeEndpoint<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
->(definition: EndpointDefinition<I, O, P>): EndpointDefinition<I, O, P> {
-  return definition;
+  PN = never,
+>(
+  options: EndpointOptions<I, O, P, PN> & {
+    deps?: undefined;
+    handle: HandlerFn<I, O, P>;
+  },
+): EndpointDefinition<I, O, P, PN>;
+export function makeEndpoint<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  D extends InjectionToken[] = InjectionToken[],
+>(
+  options: EndpointOptions<I, O, P, PN> & {
+    deps: [...D];
+    handle: HandlerFactory<D, I, O, P>;
+  },
+): EndpointDefinition<I, O, P, PN | D[number]>;
+export function makeEndpoint<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  C extends HandlerClass<I, O, P> = HandlerClass<I, O, P>,
+>(
+  options: EndpointOptions<I, O, P, PN> & {
+    deps?: undefined;
+    handle: C;
+  },
+): EndpointDefinition<I, O, P, PN | C>;
+export function makeEndpoint(
+  options: EndpointOptions<any, any, any, unknown> & {
+    deps?: InjectionToken[];
+    handle: unknown;
+  },
+): AnyEndpointDefinition {
+  const form = normalizeHandler(options.handle, options.deps, options.pattern);
+
+  const state: EndpointState = {
+    transport: options.transport,
+    pattern: options.pattern,
+    input: options.input,
+    output: options.output,
+    pipeline: options.pipeline as
+      | Pipeline<AnyInput, AnyInput, unknown>
+      | undefined,
+    deps: options.deps ?? [],
+    form,
+    // Голая функция исполнима сразу; остальные формы ждут resolve()
+    handle: form.kind === 'fn' ? form.fn : undefined,
+  };
+
+  return buildDefinition(state);
 }

@@ -12,7 +12,6 @@ import {
   PayloadConflictError,
   PayloadTooLargeError,
 } from './errors.js';
-import type { HttpEndpointMetadata } from './helpers.js';
 import { mergePayload } from './merge.js';
 import {
   parseFilesOnly,
@@ -31,7 +30,6 @@ import type {
   AnyPayload,
   EndpointDefinition,
   EndpointMeta,
-  IEndpoint,
   Pipeline,
   Raw,
 } from '@nestling/pipeline';
@@ -124,37 +122,18 @@ export class HttpTransport {
   }
 
   /**
-   * Регистрирует endpoint
-   */
-  registerEndpoint<
-    I extends AnyPayload = AnyPayload,
-    O extends AnyOutput = AnyOutput,
-    P extends AnyInput = AnyInput,
-  >(
-    instance: IEndpoint<I, O, P>,
-    metadata: HttpEndpointMetadata<I, O, P>,
-  ): void {
-    this.router.route({
-      transport: 'http',
-      pattern: metadata.pattern,
-      input: metadata.input,
-      output: metadata.output,
-      // Метаданные декоратора допускают классы-юниты (их резолвит App);
-      // при прямой регистрации нерезолвленный пайплайн даст понятную
-      // ошибку выполнения ("call bind()").
-      pipeline: metadata.pipeline as EndpointDefinition<I, O, P>['pipeline'],
-      handle: instance.handle.bind(instance),
-    });
-  }
-
-  /**
-   * Регистрирует маршрут через definition
+   * Регистрирует маршрут по декларации-значению.
+   *
+   * Принимается только **исполнимая** декларация (`TNeeds = never`):
+   * standalone-путь не знает про контейнер, поэтому декларация с `deps`,
+   * класс-хендлером или классами-юнитами пайплайна сюда не проходит по
+   * типам — её сначала гасят `endpoint.resolve(resolver)`.
    */
   route<
     I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
     P extends AnyInput = AnyInput,
-  >(definition: EndpointDefinition<I, O, P>): void {
+  >(definition: EndpointDefinition<I, O, P, never>): void {
     this.router.route(definition);
   }
 
@@ -165,7 +144,7 @@ export class HttpTransport {
     I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
     P extends AnyInput = AnyInput,
-  >(definition: EndpointDefinition<I, O, P>): void {
+  >(definition: EndpointDefinition<I, O, P, never>): void {
     this.route(definition);
   }
 

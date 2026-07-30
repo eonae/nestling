@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 
-import { makeEndpoint, makePipeline } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
+import { cliEndpoint } from '@nestling/transport.cli';
 import { z } from 'zod';
 
 export const HelpResponse = z.object({
@@ -9,9 +10,8 @@ export const HelpResponse = z.object({
 
 export type HelpResponse = z.infer<typeof HelpResponse>;
 
-export const Help = makeEndpoint({
-  transport: 'cli',
-  pattern: 'help',
+export const Help = cliEndpoint({
+  command: 'help',
   output: HelpResponse,
   pipeline: makePipeline(),
   handle: async () => {

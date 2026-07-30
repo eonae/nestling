@@ -1,144 +1,213 @@
-import type { Constructor } from '@common/misc';
+import type { InjectionToken } from '@nestling/container';
 import type {
+  AnyEndpointDefinition,
   AnyInput,
   AnyOutput,
   AnyPayload,
   EndpointDefinition,
-  IEndpoint,
+  HandlerClass,
+  HandlerFactory,
+  HandlerFn,
   Pipeline,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
 import type { HTTPMethod } from 'find-my-way';
 
 /**
- * Опции для HttpEndpoint декоратора
+ * Имена path-параметров шаблона (`:param`-сегментов).
  *
- * @param I - конфигурация payload (schema, примитив или модификатор)
- * @param O - конфигурация output
- * @param P - тип результата pipeline (накопленный input)
+ * @example
+ * ```typescript
+ * PathParams<'/users/:id/orders/:orderId'>  // 'id' | 'orderId'
+ * PathParams<'/health'>                     // never
+ * ```
  */
-export interface HttpEndpointOptions<
+export type PathParams<Path extends string> =
+  Path extends `${string}:${infer Rest}`
+    ? Rest extends `${infer Name}/${infer Tail}`
+      ? Name | PathParams<`/${Tail}`>
+      : Rest
+    : never;
+
+/**
+ * Транспортный словарь HTTP-декларации.
+ *
+ * Легален и типизирован **только здесь**: пайплайн и хендлер остаются
+ * транспорт-слепыми. `path` — литеральный тип, из которого выводятся
+ * path-параметры (`PathParams<Path>`).
+ */
+export interface HttpEndpointDictionary<
+  Path extends string = string,
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
+  PN = never,
 > {
+  /** HTTP-метод ручки */
+  method: HTTPMethod;
+
+  /** Шаблон пути; path-параметры объявляются `:name` */
+  path: Path;
+
   /** Schema или модификатор для input */
   input?: I;
 
-  /** Schema для output (опционально) */
+  /** Конфигурация выходных данных */
   output?: O;
 
   /**
-   * Pipeline для обработки запроса.
-   * Для endpoint'ов с input схемой должен содержать `.pre(validate())`.
-   * Классы-юниты (`TNeeds` ≠ never) допустимы под App — он резолвит их
-   * контейнером на старте; standalone-использование требует `bind`.
+   * Pipeline для этого endpoint. Классы-юниты допустимы: они попадают в
+   * `TNeeds` декларации и гасятся вместе с `deps`.
    */
-  pipeline?: Pipeline<AnyInput, P, unknown>;
+  pipeline?: Pipeline<AnyInput, P, PN>;
 
-  /** Rate limit конфигурация */
-  rateLimit?: unknown;
+  // --- Точка расширения словаря: bind-карта (change `input-bind`, #21) ----
+  //
+  // Сюда придут канон размещения input и плоская карта «поле → место»:
+  //   bind?: BindMap<Path, I>;   // 'id' → path, 'expand' → query, …
+  //   rawBody?: boolean;         // сырые байты в стартовом контексте
+  //
+  // Тип `PathParams<Path>` уже выведен выше и станет источником правила
+  // «имя поля совпало с path-параметром → путь». В этом change'е словарь
+  // ограничен `method`/`path`, а сборка payload (`mergePayload`) не
+  // меняется — иначе change съел бы предмет следующего.
+}
 
-  /** Включить audit logging */
-  audit?: boolean;
-
-  /** Cache конфигурация */
-  cache?: unknown;
+/** Разбирает шаблон пути в список имён path-параметров (в порядке следования) */
+function readPathParams(path: string): string[] {
+  return path
+    .split('/')
+    .filter((segment) => segment.startsWith(':'))
+    .map((segment) => segment.slice(1));
 }
 
 /**
- * Метаданные HTTP endpoint
+ * Fail-fast транспортного словаря в момент создания декларации.
+ *
+ * Проверяется только то, что проверяемо без интроспекции схемы: Standard
+ * Schema перечня ключей не отдаёт, поэтому «path-параметр без поля в схеме»
+ * приезжает вместе с bind-картой (change `input-bind`).
  */
-export interface HttpEndpointMetadata<
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-> {
-  transport: 'http';
-  pattern: string;
-  method: HTTPMethod;
-  path: string;
+function assertHttpPath(method: string, path: unknown): asserts path is string {
+  const where = `httpEndpoint({ method: '${method}', … })`;
 
-  /** Schema для валидации input */
-  input?: I;
+  if (typeof path !== 'string' || path.length === 0) {
+    throw new Error(`${where}: 'path' must be a non-empty string.`);
+  }
 
-  /** Schema для output (опционально) */
-  output?: O;
+  if (!path.startsWith('/')) {
+    throw new Error(`${where}: 'path' must start with '/', got '${path}'.`);
+  }
 
-  /** Pipeline для этого endpoint (классы-юниты резолвит App через bind) */
-  pipeline?: Pipeline<AnyInput, P, unknown>;
-
-  /** Дополнительные опции для middleware */
-  rateLimit?: unknown;
-  audit?: boolean;
-  cache?: unknown;
-
-  /** Имя класса (для отладки) */
-  className?: string;
-
-  [key: string]: unknown;
-}
-
-// Реализация
-export function HttpEndpoint<
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
->(method: HTTPMethod, path: string, options: HttpEndpointOptions<I, O, P>) {
-  return <T extends Constructor<IEndpoint<I, O, P>>>(
-    target: T,
-    context: ClassDecoratorContext<T>,
-  ): T => {
-    // Сохраняем метаданные
-    const metadata: HttpEndpointMetadata<I, O, P> = {
-      transport: 'http',
-      pattern: `${method} ${path}`,
-      method,
-      path,
-      input: options.input,
-      output: options.output,
-      pipeline: options.pipeline,
-      rateLimit: options.rateLimit,
-      audit: options.audit,
-      cache: options.cache,
-      className: context.name,
-    };
-
-    // Декоратор только пишет метаданные класса: приложение собирает
-    // эндпоинты обходом дерева зарегистрированных модулей
-    const HANDLER_KEY = Symbol.for('nestling:handler');
-    (target as any)[HANDLER_KEY] = metadata;
-
-    return target;
-  };
+  const seen = new Set<string>();
+  for (const name of readPathParams(path)) {
+    if (seen.has(name)) {
+      throw new Error(
+        `${where}: path parameter ':${name}' is declared twice in '${path}'.`,
+      );
+    }
+    seen.add(name);
+  }
 }
 
 /**
- * Извлекает метаданные HTTP endpoint класса
+ * Конструктор HTTP-деклараций.
+ *
+ * Тонкая надстройка над kernel-примитивом `makeEndpoint`: добавляет
+ * транспортный словарь, собирает `pattern` как `` `${method} ${path}` `` и
+ * проверяет словарь при создании. Вся общая машинерия деклараций (`deps`,
+ * три формы `handle`, `resolve`, бренд) живёт в `makeEndpoint`.
+ *
+ * @example Голая функция — декларация исполнима сразу
+ * ```typescript
+ * export const Health = httpEndpoint({
+ *   method: 'GET',
+ *   path: '/health',
+ *   output: HealthOutput,
+ *   pipeline: basePipeline,
+ *   handle: async () => Ok.of({ status: 'up' }),
+ * });
+ * ```
+ *
+ * @example Каррированная фабрика — внешний вызов один раз на сборке
+ * ```typescript
+ * export const GetUser = httpEndpoint({
+ *   method: 'GET',
+ *   path: '/users/:id',
+ *   input: GetUserInput,
+ *   output: User,
+ *   pipeline: basePipeline,
+ *   deps: [UserService],
+ *   handle: (users) => async ({ id }) => new Ok(await users.getById(id)),
+ * });
+ * ```
+ *
+ * @example Класс-хендлер — форма подключения DI (регистрируется в `providers:`)
+ * ```typescript
+ * export const CreateUser = httpEndpoint({
+ *   method: 'POST',
+ *   path: '/users',
+ *   input: CreateUserInput,
+ *   output: User,
+ *   pipeline: basePipeline,
+ *   handle: CreateUserHandler,
+ * });
+ * ```
+ *
+ * @throws {Error} Пустой `path`, `path` без ведущего `/`, повторяющееся
+ * имя path-параметра
  */
-export function getHttpEndpointMetadata(
-  target: any,
-): HttpEndpointMetadata | null {
-  const HANDLER_KEY = Symbol.for('nestling:handler');
-  const constructor = target.prototype ? target : target.constructor;
-  return constructor[HANDLER_KEY] || null;
-}
-
-/**
- * Создаёт endpoint definition для HTTP
- */
-export function makeHttpEndpoint<
+export function httpEndpoint<
+  Path extends string,
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
+  PN = never,
 >(
-  method: HTTPMethod,
-  path: string,
-  meta: Omit<EndpointDefinition<I, O, P>, 'transport' | 'pattern'>,
-): EndpointDefinition<I, O, P> {
-  return makeEndpoint({
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN> & {
+    deps?: undefined;
+    handle: HandlerFn<I, O, P>;
+  },
+): EndpointDefinition<I, O, P, PN>;
+export function httpEndpoint<
+  Path extends string,
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  D extends InjectionToken[] = InjectionToken[],
+>(
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN> & {
+    deps: [...D];
+    handle: HandlerFactory<D, I, O, P>;
+  },
+): EndpointDefinition<I, O, P, PN | D[number]>;
+export function httpEndpoint<
+  Path extends string,
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  C extends HandlerClass<I, O, P> = HandlerClass<I, O, P>,
+>(
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN> & {
+    deps?: undefined;
+    handle: C;
+  },
+): EndpointDefinition<I, O, P, PN | C>;
+export function httpEndpoint(
+  declaration: HttpEndpointDictionary<string, any, any, any, unknown> & {
+    deps?: InjectionToken[];
+    handle: unknown;
+  },
+): AnyEndpointDefinition {
+  const { method, path, ...rest } = declaration;
+
+  assertHttpPath(method, path);
+
+  return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
+    ...rest,
     transport: 'http',
     pattern: `${method} ${path}`,
-    ...meta,
   });
 }

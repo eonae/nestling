@@ -8,7 +8,7 @@ import type { ITransport } from '@nestling/transport';
 
 // Mock transport
 export class MockTransport implements ITransport {
-  endpoints: EndpointDefinition<any, any, any>[] = [];
+  endpoints: EndpointDefinition<any, any, any, never>[] = [];
   listening = false;
   closed = false;
 
@@ -18,7 +18,7 @@ export class MockTransport implements ITransport {
     I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
     P extends AnyInput = AnyInput,
-  >(definition: EndpointDefinition<I, O, P>): void {
+  >(definition: EndpointDefinition<I, O, P, never>): void {
     this.endpoints.push(definition);
   }
 

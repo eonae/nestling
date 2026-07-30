@@ -1,13 +1,13 @@
 import type { ILoggerService } from '../../logger/logger.service';
 import type { UserService } from '../user.service';
 
-import { SearchUsersEndpoint } from './search-users.endpoint';
+import { SearchUsersHandler } from './search-users.endpoint';
 
 import { Fail, Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
-describe('SearchUsersEndpoint', () => {
-  let endpoint: SearchUsersEndpoint;
+describe('SearchUsersHandler', () => {
+  let endpoint: SearchUsersHandler;
   let userService: jest.Mocked<UserService>;
   let logger: jest.Mocked<ILoggerService>;
 
@@ -15,7 +15,7 @@ describe('SearchUsersEndpoint', () => {
     userService = mock<UserService>();
     logger = mock<ILoggerService>();
 
-    endpoint = new SearchUsersEndpoint(userService, logger);
+    endpoint = new SearchUsersHandler(userService, logger);
   });
 
   describe('Успешные сценарии', () => {

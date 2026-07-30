@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { CreateUser, SayHello, StreamLogs } from './endpoints.functional';
+import { CreateUser, SayHello, StreamLogs } from './endpoints';
 
 import { HttpTransport } from '@nestling/transport.http';
 
@@ -10,7 +10,7 @@ const server = new HttpTransport({
 });
 
 // ============================================================
-// Регистрируем функциональные эндпоинты
+// Регистрируем декларации: deps-free — идут в route() как есть
 // ============================================================
 
 server.route(SayHello);

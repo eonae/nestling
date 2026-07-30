@@ -1,7 +1,7 @@
 # @nestling/pipeline
 
 Typed, transport-agnostic request pipeline for Nestling: schema-first
-endpoints (`makeEndpoint` / `@Endpoint`) validated against any
+endpoint declarations (`makeEndpoint`) validated against any
 [Standard Schema](https://standardschema.dev), phased pipelines
 (`makePipeline().pre/.ok/.catch/.finally`), layer composition
 (`compose`), `Ok`/`Fail` results, and streaming io modifiers
@@ -12,10 +12,39 @@ endpoints (`makeEndpoint` / `@Endpoint`) validated against any
 > Schema …). Design:
 > [`docs/design/schemas.md`](../../docs/design/schemas.md).
 
-`@Endpoint` only writes metadata onto the class — nothing is registered at
-import time. The set of served endpoints comes from the tree of registered
-modules (`@nestling/app`); the global endpoint registry (`registerEndpoint`,
-`getAllEndpoints`, `clearEndpointRegistry`) is gone.
+## Endpoint declarations are values
+
+An endpoint declaration is a **value**, not a decorated class. `makeEndpoint`
+is the kernel primitive carrying all the shared machinery; users declare
+through per-transport constructors built on top of it (`httpEndpoint` from
+`@nestling/transport.http`, `cliEndpoint` from `@nestling/transport.cli`).
+Decorator declarations (`@Endpoint`, `@HttpEndpoint`), the `IEndpoint`
+interface, `getEndpointMetadata`/`EndpointMetadata` and the global endpoint
+registry are **gone**; creating a declaration has no side effects, and the
+set of served endpoints comes from the tree of registered modules
+(`@nestling/app`).
+
+`handle` is accepted in three forms, told apart by its type:
+
+| Form | Shape |
+|---|---|
+| plain function | `(input, meta) => …` — no dependencies, runnable as is |
+| curried factory | `deps: [Token, …]` + `(…deps) => (input, meta) => …`; the outer call happens **once**, on resolution |
+| class handler | a class with `@Injectable` and a `handle` method, resolved from the container |
+
+`EndpointDefinition<I, O, P, TNeeds>` carries unresolved dependencies in
+`TNeeds` (default `never`), symmetrically to `Pipeline<TReq, TAcc, TNeeds>`:
+`deps` tokens, the handler class and the pipeline's class units all land
+there. Transports accept only `TNeeds = never`, so handing an unresolved
+declaration to `server.route(...)` is a compile error.
+`endpoint.resolve(resolver)` returns a **new** runnable declaration (the
+original is untouched) and binds the pipeline's class units with the same
+resolver; `endpoint.resolve([instance, …])` is the positional form for
+curried handlers outside a container.
+
+Each declaration is branded with a non-enumerable
+`Symbol.for('nestling:endpoint')`; `isEndpointDefinition(value)` is the
+predicate discovery uses to reject anything else found in `endpoints:`.
 
 ## Schemas: Standard Schema at the boundaries
 

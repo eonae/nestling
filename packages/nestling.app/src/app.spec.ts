@@ -6,38 +6,32 @@ import { MockTransport } from './helpers';
 import { makeAppModule } from './module';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeModule, OnDestroy } from '@nestling/container';
-import type {
-  AnyInput,
-  ExtendableContext,
-  IEndpoint,
-} from '@nestling/pipeline';
 import {
-  Endpoint,
+  Injectable,
+  makeModule,
+  makeToken,
+  OnDestroy,
+} from '@nestling/container';
+import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
+import {
   makeEmptyContext,
+  makeEndpoint,
   makePipeline,
   Ok,
 } from '@nestling/pipeline';
-import { HttpTransport } from '@nestling/transport.http';
+import { httpEndpoint, HttpTransport } from '@nestling/transport.http';
 import { z } from 'zod';
 
 describe('App Integration', () => {
-  it('should auto-discover and register endpoints from modules', async () => {
-    // Arrange: создаём endpoint
-    @Injectable([])
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /test',
+  it('обнаруживает декларации в дереве модулей и регистрирует их', async () => {
+    const TestEndpoint = httpEndpoint({
+      method: 'GET',
+      path: '/test',
       input: z.object({ id: z.string() }),
       output: z.object({ result: z.string() }),
-    })
-    class TestEndpoint implements IEndpoint {
-      async handle(input: { id: string }) {
-        return new Ok({ result: `test-${input.id}` });
-      }
-    }
+      handle: async (input) => new Ok({ result: `test-${input.id}` }),
+    });
 
-    // Создаём модуль с endpoint
     const TestModule = makeAppModule({
       name: 'test-module',
       endpoints: [TestEndpoint],
@@ -45,7 +39,6 @@ describe('App Integration', () => {
 
     const mockTransport = new MockTransport();
 
-    // Act: создаём и инициализируем App
     const app = new App({
       transports: {
         http: mockTransport as any,
@@ -55,62 +48,82 @@ describe('App Integration', () => {
 
     await app.run();
 
-    // Assert: endpoint должен быть зарегистрирован
     expect(mockTransport.endpoints).toHaveLength(1);
     expect(mockTransport.endpoints[0].pattern).toBe('GET /test');
 
-    // Cleanup
     await app.close();
   });
 
-  it('объявленный в endpoints: эндпоинт обязан резолвиться контейнером', async () => {
-    // Arrange: endpoint объявлен в модуле, но БЕЗ @Injectable
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /test',
-    })
-    class BadEndpoint implements IEndpoint {
+  it('токен из deps без провайдера — ошибка старта с паттерном и модулем', async () => {
+    const ILogger = makeToken<{ log(message: string): void }>('ILogger');
+
+    const NeedsLogger = httpEndpoint({
+      method: 'GET',
+      path: '/logged',
+      deps: [ILogger],
+      handle: (logger) => async () => {
+        logger.log('served');
+        return new Ok({});
+      },
+    });
+
+    const BadModule = makeAppModule({
+      name: 'module:bad',
+      endpoints: [NeedsLogger],
+    });
+
+    const mockTransport = new MockTransport();
+
+    const app = new App({
+      transports: { http: mockTransport },
+      modules: [BadModule],
+    });
+
+    await expect(app.run()).rejects.toThrow(
+      /Dependency 'ILogger'.*GET \/logged.*module:bad.*not available in the DI container/s,
+    );
+    expect(mockTransport.endpoints).toHaveLength(0);
+  });
+
+  it('класс-хендлер без регистрации провайдером — ошибка старта', async () => {
+    @Injectable([])
+    class CreateUserHandler {
       async handle() {
         return new Ok({});
       }
     }
 
-    // Модуль собран вручную: контейнер эндпоинт не регистрирует,
-    // дискавери его видит
-    const BadModule = {
-      ...makeModule({ name: 'module:bad' }),
-      endpoints: [BadEndpoint],
-    };
+    const CreateUser = httpEndpoint({
+      method: 'POST',
+      path: '/users',
+      handle: CreateUserHandler,
+    });
+
+    // Класс в providers: не перечислен — контейнер о нём не знает
+    const BadModule = makeAppModule({
+      name: 'module:bad-class',
+      endpoints: [CreateUser],
+    });
 
     const mockTransport = new MockTransport();
 
-    // Act & Assert
     const app = new App({
-      transports: {
-        http: mockTransport,
-      },
+      transports: { http: mockTransport },
       modules: [BadModule],
     });
 
     await expect(app.run()).rejects.toThrow(
-      /BadEndpoint.*module:bad.*not available in the DI container/s,
+      /Dependency 'CreateUserHandler'.*POST \/users.*module:bad-class/s,
     );
     expect(mockTransport.endpoints).toHaveLength(0);
   });
 
   it('эндпоинт из модуля, не переданного в App, не регистрируется', async () => {
-    // Arrange: класс декорирован и импортирован процессом, но его модуль
-    // приложению не передан
-    @Injectable([])
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /foreign',
-    })
-    class ForeignEndpoint implements IEndpoint {
-      async handle() {
-        return new Ok({});
-      }
-    }
+    const ForeignEndpoint = httpEndpoint({
+      method: 'GET',
+      path: '/foreign',
+      handle: async () => new Ok({}),
+    });
 
     makeAppModule({
       name: 'module:foreign',
@@ -124,7 +137,7 @@ describe('App Integration', () => {
       modules: [], // модуль с эндпоинтом не зарегистрирован
     });
 
-    // Act & Assert: старт проходит, транспорт пуст
+    // Старт проходит, транспорт пуст: импорт файла ни на что не влияет
     await app.run();
 
     expect(mockTransport.endpoints).toHaveLength(0);
@@ -133,16 +146,11 @@ describe('App Integration', () => {
   });
 
   it('требуемый, но не переданный транспорт — ошибка старта', async () => {
-    @Injectable([])
-    @Endpoint({
+    const CliEndpoint = makeEndpoint({
       transport: 'cli',
       pattern: 'users:list',
-    })
-    class CliEndpoint implements IEndpoint {
-      async handle() {
-        return new Ok({});
-      }
-    }
+      handle: async () => new Ok({}),
+    });
 
     const CliModule = makeAppModule({
       name: 'module:cli',
@@ -178,38 +186,7 @@ describe('App Integration', () => {
     await app.close();
   });
 
-  it('endpoint-класс в providers мимо endpoints: — ошибка старта', async () => {
-    @Injectable([])
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /smuggled',
-    })
-    class SmuggledEndpoint implements IEndpoint {
-      async handle() {
-        return new Ok({});
-      }
-    }
-
-    const SmugglingModule = makeModule({
-      name: 'module:smuggling',
-      providers: [SmuggledEndpoint],
-    });
-
-    const mockTransport = new MockTransport();
-
-    const app = new App({
-      transports: { http: mockTransport },
-      modules: [SmugglingModule],
-    });
-
-    await expect(app.run()).rejects.toThrow(
-      /SmuggledEndpoint.*module:smuggling.*'endpoints:'/s,
-    );
-    expect(mockTransport.endpoints).toHaveLength(0);
-  });
-
-  it('should support endpoints with DI', async () => {
-    // Arrange: сервис
+  it('гасит deps контейнером: хендлер получает инстанс из DI', async () => {
     @Injectable([])
     class TestService {
       getData() {
@@ -217,20 +194,12 @@ describe('App Integration', () => {
       }
     }
 
-    // Endpoint с зависимостью
-    @Injectable([TestService])
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /data',
-    })
-    class DataEndpoint implements IEndpoint {
-      constructor(private service: TestService) {}
-
-      async handle() {
-        const data = this.service.getData();
-        return new Ok({ data });
-      }
-    }
+    const DataEndpoint = httpEndpoint({
+      method: 'GET',
+      path: '/data',
+      deps: [TestService],
+      handle: (service) => async () => new Ok({ data: service.getData() }),
+    });
 
     const TestModule = makeAppModule({
       name: 'test-module',
@@ -240,7 +209,6 @@ describe('App Integration', () => {
 
     const mockTransport = new MockTransport();
 
-    // Act
     const app = new App({
       transports: {
         http: mockTransport,
@@ -250,15 +218,56 @@ describe('App Integration', () => {
 
     await app.run();
 
-    // Assert: endpoint зарегистрирован
     expect(mockTransport.endpoints).toHaveLength(1);
 
-    // Проверяем, что handler работает с DI
     const handler = mockTransport.endpoints[0].handle;
     const result = await handler({}, { signal: new AbortController().signal });
-    expect((result as Ok<unknown>).value).toHaveProperty('data');
+    expect((result as Ok<unknown>).value).toEqual({ data: 'service-data' });
 
-    // Cleanup
+    await app.close();
+  });
+
+  it('класс-хендлер резолвится контейнером как обычный провайдер', async () => {
+    @Injectable([])
+    class Greeter {
+      greet() {
+        return 'hi';
+      }
+    }
+
+    @Injectable([Greeter])
+    class GreetHandler {
+      constructor(private readonly greeter: Greeter) {}
+
+      async handle() {
+        return new Ok({ greeting: this.greeter.greet() });
+      }
+    }
+
+    const Greet = httpEndpoint({
+      method: 'GET',
+      path: '/greet',
+      handle: GreetHandler,
+    });
+
+    const TestModule = makeAppModule({
+      name: 'test-module',
+      providers: [Greeter, GreetHandler],
+      endpoints: [Greet],
+    });
+
+    const mockTransport = new MockTransport();
+    const app = new App({
+      transports: { http: mockTransport },
+      modules: [TestModule],
+    });
+
+    await app.run();
+
+    const handler = mockTransport.endpoints[0].handle;
+    const result = await handler({}, { signal: new AbortController().signal });
+    expect((result as Ok<unknown>).value).toEqual({ greeting: 'hi' });
+
     await app.close();
   });
 
@@ -266,11 +275,7 @@ describe('App Integration', () => {
     const order: string[] = [];
 
     @Injectable([])
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /order',
-    })
-    class OrderEndpoint implements IEndpoint {
+    class OrderHandler {
       async handle() {
         return new Ok({});
       }
@@ -283,7 +288,14 @@ describe('App Integration', () => {
 
     const TestModule = makeAppModule({
       name: 'test-module',
-      endpoints: [OrderEndpoint],
+      providers: [OrderHandler],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/order',
+          handle: OrderHandler,
+        }),
+      ],
     });
 
     const mockTransport = new MockTransport(() =>
@@ -312,11 +324,7 @@ describe('App Integration', () => {
     const aborted = new Promise<unknown>((r) => (onAborted = r));
 
     @Injectable([])
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /wait',
-    })
-    class WaitEndpoint implements IEndpoint {
+    class WaitHandler {
       handle(_payload: unknown, meta: { signal: AbortSignal }) {
         onStarted();
         meta.signal.addEventListener(
@@ -335,7 +343,14 @@ describe('App Integration', () => {
 
     const TestModule = makeAppModule({
       name: 'test-module',
-      endpoints: [WaitEndpoint],
+      providers: [WaitHandler],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/wait',
+          handle: WaitHandler,
+        }),
+      ],
     });
 
     class ObservableHttpTransport extends HttpTransport {
@@ -382,17 +397,12 @@ describe('App Integration', () => {
       }
     }
 
-    @Injectable([])
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /traced',
+    const TracedEndpoint = httpEndpoint({
+      method: 'GET',
+      path: '/traced',
       pipeline: makePipeline().pre(WithTracing),
-    })
-    class TracedEndpoint implements IEndpoint {
-      async handle() {
-        return new Ok({});
-      }
-    }
+      handle: async () => new Ok({}),
+    });
 
     const TestModule = makeAppModule({
       name: 'test-module',
@@ -445,17 +455,12 @@ describe('App Integration', () => {
       }
     }
 
-    @Injectable([])
-    @Endpoint({
-      transport: 'http',
-      pattern: 'GET /broken',
+    const BrokenEndpoint = httpEndpoint({
+      method: 'GET',
+      path: '/broken',
       pipeline: makePipeline().pre(UnregisteredUnit),
-    })
-    class BrokenEndpoint implements IEndpoint {
-      async handle() {
-        return new Ok({});
-      }
-    }
+      handle: async () => new Ok({}),
+    });
 
     const TestModule = makeAppModule({
       name: 'test-module',
@@ -469,7 +474,26 @@ describe('App Integration', () => {
     });
 
     await expect(app.run()).rejects.toThrow(
-      /Pipeline unit 'UnregisteredUnit'.*not available in the DI container/,
+      /Dependency 'UnregisteredUnit'.*GET \/broken.*not available in the DI container/s,
+    );
+    expect(mockTransport.endpoints).toHaveLength(0);
+  });
+
+  it('элемент endpoints: без бренда — ошибка старта', async () => {
+    const SmugglingModule = {
+      ...makeModule({ name: 'module:smuggling' }),
+      endpoints: [{ transport: 'http', pattern: 'GET /smuggled' }],
+    };
+
+    const mockTransport = new MockTransport();
+
+    const app = new App({
+      transports: { http: mockTransport },
+      modules: [SmugglingModule],
+    });
+
+    await expect(app.run()).rejects.toThrow(
+      /module:smuggling.*index 0.*not an endpoint declaration/s,
     );
     expect(mockTransport.endpoints).toHaveLength(0);
   });

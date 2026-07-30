@@ -10,14 +10,19 @@ import type {
  */
 export interface ITransport {
   /**
-   * Регистрирует handler через конфигурацию
+   * Регистрирует handler через декларацию-значение.
+   *
+   * Принимается только **исполнимая** декларация (`TNeeds = never`):
+   * неразрешённые зависимости хендлера и классы-юниты пайплайна гасит
+   * `endpoint.resolve(resolver)` — под `App` это происходит автоматически
+   * на старте, standalone — руками.
    */
   endpoint<
     I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
     P extends AnyInput = AnyInput,
   >(
-    definition: EndpointDefinition<I, O, P>,
+    definition: EndpointDefinition<I, O, P, never>,
   ): void;
 
   /**

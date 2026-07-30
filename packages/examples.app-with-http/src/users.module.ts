@@ -1,13 +1,17 @@
 import {
-  CreateUserEndpoint,
-  DeleteUserEndpoint,
-  ExportUsersEndpoint,
-  GetUserEndpoint,
-  ImportUsersEndpoint,
-  ListUsersEndpoint,
-  SearchUsersEndpoint,
-  UpdateUserEndpoint,
-  UploadAvatarEndpoint,
+  CreateUser,
+  DeleteUser,
+  ExportUsers,
+  ExportUsersHandler,
+  GetUser,
+  ImportUsers,
+  ImportUsersHandler,
+  ListUsers,
+  SearchUsers,
+  SearchUsersHandler,
+  UpdateUser,
+  UploadAvatar,
+  UploadAvatarHandler,
 } from './modules/users/endpoints';
 import { UserService } from './modules/users/user.service';
 
@@ -15,20 +19,31 @@ import { makeAppModule } from '@nestling/app';
 
 /**
  * Модуль пользователей с endpoints
- * Middleware теперь добавляются через pipeline в каждом endpoint'е
+ *
+ * `endpoints:` — список деклараций-значений; инстанцировать в них нечего.
+ * Зависимости хендлеров регистрируются явно, как любые другие провайдеры:
+ * `UserService` (токен из `deps` каррированных ручек) и класс-хендлеры
+ * (форма подключения DI). Middleware добавляются через pipeline в каждой
+ * декларации.
  */
 export const UsersModule = makeAppModule({
   name: 'module:users',
-  providers: [UserService],
+  providers: [
+    UserService,
+    SearchUsersHandler,
+    ExportUsersHandler,
+    ImportUsersHandler,
+    UploadAvatarHandler,
+  ],
   endpoints: [
-    GetUserEndpoint,
-    ListUsersEndpoint,
-    CreateUserEndpoint,
-    UpdateUserEndpoint,
-    DeleteUserEndpoint,
-    SearchUsersEndpoint,
-    ExportUsersEndpoint,
-    ImportUsersEndpoint,
-    UploadAvatarEndpoint,
+    GetUser,
+    ListUsers,
+    CreateUser,
+    UpdateUser,
+    DeleteUser,
+    SearchUsers,
+    ExportUsers,
+    ImportUsers,
+    UploadAvatar,
   ],
 });

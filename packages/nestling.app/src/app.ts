@@ -1,9 +1,14 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 import type { EndpointDiscovery } from './discovery';
-import { assertEndpointsDeclared, discoverEndpoints } from './discovery';
+import { discoverEndpoints } from './discovery';
 
-import type { BuiltContainer, Module, Provider } from '@nestling/container';
+import type {
+  BuiltContainer,
+  InjectionToken,
+  Module,
+  Provider,
+} from '@nestling/container';
 import { ContainerBuilder } from '@nestling/container';
 import type { ITransport } from '@nestling/transport';
 
@@ -194,7 +199,9 @@ export class App {
    * Регистрирует endpoints, обнаруженные обходом дерева модулей
    *
    * Источник истины — что зарегистрировано в приложении, а не что
-   * импортировано процессом.
+   * импортировано процессом. Декларация — значение: инстанцировать нечего,
+   * гасятся только её зависимости (токены `deps`, класс-хендлер и
+   * классы-юниты пайплайна) — контейнером, до приёма запросов.
    *
    * @private
    */
@@ -205,52 +212,51 @@ export class App {
 
     const discovery = discoverEndpoints(this.modules);
 
-    // Ручка с метаданными, не попавшая ни в один endpoints:, обслуживаться
-    // не будет — молчать про это нельзя
-    assertEndpointsDeclared(this.modules, this.providers);
-
     this.#assertRequiredTransports(discovery);
 
-    for (const {
-      endpoint: EndpointClass,
-      metadata,
-      moduleName,
-    } of discovery.endpoints) {
-      // Получаем инстанс из контейнера
-      const instance = this.#container.get(EndpointClass);
-      if (!instance) {
-        throw new Error(
-          `Endpoint '${EndpointClass.name}' is declared in 'endpoints:' of module '${moduleName}', ` +
-            `but is not available in the DI container. ` +
-            `Make sure it is decorated with @Injectable and added to a module's providers or endpoints array.`,
-        );
-      }
-
+    for (const { endpoint, moduleName } of discovery.endpoints) {
       // Транспорт заведомо есть: множество требуемых сверено выше
-      const transport = this.transports.get(metadata.transport) as ITransport;
+      const transport = this.transports.get(endpoint.transport) as ITransport;
 
-      // Резолвим классы-юниты пайплайна контейнером (bind): транспорт
-      // принимает только исполнимый пайплайн (TNeeds = never)
-      const pipeline = metadata.pipeline?.bind((ctor) => {
-        const unit = this.#container?.get(ctor);
-        if (!unit) {
-          throw new Error(
-            `Pipeline unit '${ctor.name}' used by endpoint '${EndpointClass.name}' ` +
-              `is not available in the DI container. ` +
-              `Make sure it is decorated with @Injectable and added to a module's providers.`,
-          );
-        }
-        return unit;
-      });
-
-      // Регистрируем endpoint в транспорте
-      // В новой архитектуре metadata содержит pipeline
-      transport.endpoint({
-        ...metadata,
-        pipeline,
-        handle: instance.handle.bind(instance),
-      });
+      // Гасим зависимости декларации контейнером: транспорт принимает
+      // только исполнимое значение (TNeeds = never)
+      transport.endpoint(
+        endpoint.resolve((token) =>
+          this.#requireDependency(token, endpoint.pattern, moduleName),
+        ),
+      );
     }
+  }
+
+  /**
+   * Достаёт зависимость декларации из контейнера, называя в ошибке ручку,
+   * модуль-объявитель и способ починки.
+   *
+   * Одинаково обслуживает все три источника: токен из `deps`,
+   * класс-хендлер и класс-юнит пайплайна — для автора это одна и та же
+   * незарегистрированная зависимость.
+   *
+   * @private
+   */
+  #requireDependency(
+    token: InjectionToken,
+    pattern: string,
+    moduleName: string,
+  ): unknown {
+    const instance = this.#container?.get(token);
+
+    if (!instance) {
+      const name = typeof token === 'string' ? token : token.name;
+
+      throw new Error(
+        `Dependency '${name}' required by endpoint '${pattern}' ` +
+          `declared in module '${moduleName}' is not available in the DI ` +
+          `container. Register it in 'providers:' of a module ` +
+          `(classes — with @Injectable).`,
+      );
+    }
+
+    return instance;
   }
 
   /**
@@ -266,10 +272,10 @@ export class App {
         continue;
       }
 
-      const [{ endpoint, metadata, moduleName }] = endpoints;
+      const [{ endpoint, moduleName }] = endpoints;
 
       throw new Error(
-        `Transport '${name}' is required by endpoint '${endpoint.name}' ('${metadata.pattern}') ` +
+        `Transport '${name}' is required by endpoint '${endpoint.pattern}' ` +
           `declared in module '${moduleName}', but is not configured. ` +
           `Available transports: ${[...this.transports.keys()].join(', ')}`,
       );

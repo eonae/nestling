@@ -3,13 +3,18 @@ import * as readline from 'node:readline';
 import type { Readable } from 'node:stream';
 
 import type { Schema } from '@common/misc';
+import type { InjectionToken } from '@nestling/container';
 import type {
+  AnyEndpointDefinition,
   AnyInput,
   AnyOutput,
   AnyPayload,
   EndpointDefinition,
   EndpointMeta,
   FilePart,
+  HandlerClass,
+  HandlerFactory,
+  HandlerFn,
   Pipeline,
   Raw,
   ResponseContext,
@@ -17,10 +22,115 @@ import type {
 import {
   analyzePayload,
   makeEmptyContext,
+  makeEndpoint,
   parsePayload,
   TransportClosingError,
 } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
+
+/**
+ * Транспортный словарь CLI-декларации.
+ *
+ * Легален и типизирован только здесь; пайплайн и хендлер остаются
+ * транспорт-слепыми. Стратегия сбора недостающего input (`missing:
+ * 'prompt'`) — политика биндинга, приезжает отдельной работой.
+ */
+export interface CliEndpointDictionary<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
+> {
+  /** Имя команды; оно же паттерн ручки */
+  command: string;
+
+  /** Schema или модификатор для input */
+  input?: I;
+
+  /** Конфигурация выходных данных */
+  output?: O;
+
+  /**
+   * Pipeline для этой команды. Классы-юниты допустимы: они попадают в
+   * `TNeeds` декларации и гасятся вместе с `deps`.
+   */
+  pipeline?: Pipeline<AnyInput, P, PN>;
+}
+
+/**
+ * Конструктор CLI-деклараций.
+ *
+ * Тонкая надстройка над kernel-примитивом `makeEndpoint`: `transport` —
+ * `'cli'`, `pattern` — имя команды. Общая машинерия деклараций (`deps`,
+ * три формы `handle`, `resolve`, бренд) живёт в `makeEndpoint`.
+ *
+ * @example
+ * ```typescript
+ * export const ProcessStdin = cliEndpoint({
+ *   command: 'process-stdin',
+ *   input: stream('binary'),
+ *   output: ProcessStdinResponse,
+ *   pipeline: makePipeline(),
+ *   handle: async (chunks) => summarize(chunks),
+ * });
+ * ```
+ *
+ * @throws {Error} Пустое имя команды
+ */
+export function cliEndpoint<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
+>(
+  declaration: CliEndpointDictionary<I, O, P, PN> & {
+    deps?: undefined;
+    handle: HandlerFn<I, O, P>;
+  },
+): EndpointDefinition<I, O, P, PN>;
+export function cliEndpoint<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  D extends InjectionToken[] = InjectionToken[],
+>(
+  declaration: CliEndpointDictionary<I, O, P, PN> & {
+    deps: [...D];
+    handle: HandlerFactory<D, I, O, P>;
+  },
+): EndpointDefinition<I, O, P, PN | D[number]>;
+export function cliEndpoint<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  C extends HandlerClass<I, O, P> = HandlerClass<I, O, P>,
+>(
+  declaration: CliEndpointDictionary<I, O, P, PN> & {
+    deps?: undefined;
+    handle: C;
+  },
+): EndpointDefinition<I, O, P, PN | C>;
+export function cliEndpoint(
+  declaration: CliEndpointDictionary<any, any, any, unknown> & {
+    deps?: InjectionToken[];
+    handle: unknown;
+  },
+): AnyEndpointDefinition {
+  const { command, ...rest } = declaration;
+
+  if (typeof command !== 'string' || command.length === 0) {
+    throw new Error("cliEndpoint({ … }): 'command' must be a non-empty name.");
+  }
+
+  return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
+    ...rest,
+    transport: 'cli',
+    pattern: command,
+  });
+}
+
 /**
  * Входные данные для CLI транспорта
  */
@@ -56,7 +166,7 @@ export class CliTransport implements ITransport {
     I extends AnyPayload = AnyPayload,
     O extends AnyOutput = AnyOutput,
     P extends AnyInput = AnyInput,
-  >(definition: EndpointDefinition<I, O, P>): void {
+  >(definition: EndpointDefinition<I, O, P, never>): void {
     this.handlers.set(definition.pattern, definition);
   }
 

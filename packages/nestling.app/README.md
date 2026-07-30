@@ -13,14 +13,37 @@ const app = new App({
 await app.run();
 ```
 
+`endpoints:` holds **declaration values** (`httpEndpoint`, `cliEndpoint`),
+not class constructors. `makeAppModule` keeps that list and adds nothing to
+`providers`: there is nothing to instantiate. A handler's dependencies —
+tokens listed in `deps`, a class handler, a pipeline's class units — are
+ordinary providers and must be registered in `providers:` explicitly.
+
 An endpoint is served only when it is listed in the `endpoints:` array of a
 module reachable from `modules` — importing the file that declares it has no
-effect (there is no global registry). Start fails fast when a class in
-`endpoints:` carries no endpoint metadata, when a class carrying endpoint
-metadata is registered as a provider but declared in no `endpoints:`
-(providers produced by a `ProvidersFactory` are not linted — they are
-unknown until `build()`), or when a required transport is missing from
+effect (there is no global registry). Start fails fast when an element of
+`endpoints:` is not a declaration (the error names the module and the index
+in the array), when a dependency of a declaration is missing from the
+container (the error names the dependency, the handler's pattern and the
+declaring module), or when a required transport is missing from
 `transports`.
+
+On startup `App` calls `endpoint.resolve(resolver)` for every discovered
+declaration and hands the transport a runnable value.
+
+### Migrating from decorator endpoints
+
+- `@Injectable([...]) @HttpEndpoint(method, path, opts) class X implements
+  IEndpoint` → `httpEndpoint({ method, path, …, deps: [...], handle })`, or
+  keep the class as a handler and pass it as `handle: X`.
+- Class handlers now have to be listed in `providers:` — `makeAppModule` no
+  longer copies `endpoints` into `providers`.
+- `DiscoveredEndpoint` carries the declaration itself (`endpoint`) plus
+  `moduleName`; `transport`/`pattern` are read off the declaration, and the
+  separate `metadata` field is gone.
+- `assertEndpointsDeclared` is gone: with no metadata on classes there is
+  nothing that distinguishes a "forgotten endpoint class" from a plain
+  provider.
 
 The traversal is also a public value: `discoverEndpoints(modules)` returns
 the endpoints (with the declaring module's name) and the map of required

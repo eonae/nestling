@@ -5,9 +5,9 @@ import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
 
 import { Injectable } from '@nestling/container';
-import type { FilePart, IEndpoint, Output } from '@nestling/pipeline';
+import type { FilePart, Output } from '@nestling/pipeline';
 import { Fail, Ok, withFiles } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const UploadAvatarInput = z.object({
@@ -24,23 +24,11 @@ const UploadAvatarOutput = z.object({
 type UploadAvatarInput = z.infer<typeof UploadAvatarInput>;
 type UploadAvatarOutput = z.infer<typeof UploadAvatarOutput>;
 
-/**
- * Endpoint для загрузки аватара пользователя
- * Демонстрирует:
- * - Работа с файлами (multipart/form-data)
- * - Валидация типа и размера файла
- * - Fail.badRequest() для невалидных файлов
- */
 @Injectable([UserService, ILogger])
-@HttpEndpoint('POST', '/api/users/:id/avatar', {
-  input: withFiles(UploadAvatarInput),
-  output: UploadAvatarOutput,
-  pipeline: noValidationPipeline,
-})
-export class UploadAvatarEndpoint implements IEndpoint {
+export class UploadAvatarHandler {
   constructor(
-    private userService: UserService,
-    private logger: ILoggerService,
+    private readonly users: UserService,
+    private readonly logger: ILoggerService,
   ) {}
 
   async handle(payload: {
@@ -72,7 +60,7 @@ export class UploadAvatarEndpoint implements IEndpoint {
     // Сохраняем файл (мок - просто сохраняем путь в памяти)
     const avatarUrl = `/uploads/${data.id}/${avatarFile.filename}`;
 
-    const user = await this.userService.updateAvatar(data.id, avatarUrl);
+    const user = await this.users.updateAvatar(data.id, avatarUrl);
 
     if (!user) {
       throw Fail.notFound('User not found');
@@ -81,3 +69,19 @@ export class UploadAvatarEndpoint implements IEndpoint {
     return new Ok(user);
   }
 }
+
+/**
+ * Endpoint для загрузки аватара пользователя
+ * Демонстрирует:
+ * - Работа с файлами (multipart/form-data)
+ * - Валидация типа и размера файла
+ * - Fail.badRequest() для невалидных файлов
+ */
+export const UploadAvatar = httpEndpoint({
+  method: 'POST',
+  path: '/api/users/:id/avatar',
+  input: withFiles(UploadAvatarInput),
+  output: UploadAvatarOutput,
+  pipeline: noValidationPipeline,
+  handle: UploadAvatarHandler,
+});

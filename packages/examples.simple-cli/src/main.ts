@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
-import { Help, ProcessStdin } from './endpoints.functional';
+import { Help, ProcessStdin } from './endpoints';
 
 import type { EmptyInput, PreUnitFn } from '@nestling/pipeline';
 import { makePipeline } from '@nestling/pipeline';
@@ -18,7 +18,7 @@ const pipeline = makePipeline().pre(withTiming);
 const cli = new CliTransport(pipeline);
 
 // ============================================================
-// Регистрируем функциональные эндпоинты
+// Регистрируем декларации: deps-free — идут в endpoint() как есть
 // ============================================================
 
 cli.endpoint(Help);

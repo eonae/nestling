@@ -1,34 +1,27 @@
-import { assertEndpointsDeclared, discoverEndpoints } from './discovery';
+import { discoverEndpoints } from './discovery';
 import type { AppModule } from './module';
 import { makeAppModule } from './module';
 
 import { describe, expect, it } from '@jest/globals';
 import { Injectable, makeModule } from '@nestling/container';
-import type { IEndpoint } from '@nestling/pipeline';
-import { Endpoint, Ok } from '@nestling/pipeline';
+import { makeEndpoint, Ok } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 
-const endpointClass = (
-  transport: string,
-  pattern: string,
-  name = 'TestEndpoint',
-) => {
-  @Injectable([])
-  @Endpoint({ transport, pattern })
-  class TestEndpoint implements IEndpoint {
-    async handle() {
-      return new Ok({});
-    }
-  }
-
-  // Имя класса участвует в текстах ошибок — задаём его явно
-  Object.defineProperty(TestEndpoint, 'name', { value: name });
-
-  return TestEndpoint;
-};
+/** Декларация-значение: единица дискавери */
+const endpoint = (transport: string, pattern: string) =>
+  makeEndpoint({
+    transport,
+    pattern,
+    handle: async () => new Ok({}),
+  });
 
 describe('discoverEndpoints', () => {
   it('несёт атрибуцию к модулю-объявителю', () => {
-    const GetUser = endpointClass('http', 'GET /users/:id');
+    const GetUser = httpEndpoint({
+      method: 'GET',
+      path: '/users/:id',
+      handle: async () => new Ok({}),
+    });
 
     const UsersModule = makeAppModule({
       name: 'module:users',
@@ -42,17 +35,17 @@ describe('discoverEndpoints', () => {
       endpoint: GetUser,
       moduleName: 'module:users',
     });
-    expect(endpoints[0].metadata).toMatchObject({
-      transport: 'http',
-      pattern: 'GET /users/:id',
-    });
+
+    // Транспорт и паттерн читаются с самой декларации
+    expect(endpoints[0].endpoint.transport).toBe('http');
+    expect(endpoints[0].endpoint.pattern).toBe('GET /users/:id');
   });
 
   it('обнаруживает эндпоинты на модуле, собранном makeModule вручную', () => {
-    const Handmade = endpointClass('http', 'GET /handmade');
+    const Handmade = endpoint('http', 'GET /handmade');
 
     const HandmadeModule = {
-      ...makeModule({ name: 'module:handmade', providers: [Handmade] }),
+      ...makeModule({ name: 'module:handmade' }),
       endpoints: [Handmade],
     };
 
@@ -63,8 +56,8 @@ describe('discoverEndpoints', () => {
   });
 
   it('цикл в imports не зацикливает обход', () => {
-    const FromA = endpointClass('http', 'GET /a');
-    const FromB = endpointClass('http', 'GET /b');
+    const FromA = endpoint('http', 'GET /a');
+    const FromB = endpoint('http', 'GET /b');
 
     const ModuleA: AppModule = makeAppModule({
       name: 'module:a',
@@ -83,7 +76,7 @@ describe('discoverEndpoints', () => {
   });
 
   it('общий модуль, импортированный в двух ветках, обходится один раз', () => {
-    const SharedEndpoint = endpointClass('http', 'GET /shared');
+    const SharedEndpoint = endpoint('http', 'GET /shared');
 
     const SharedModule = makeAppModule({
       name: 'module:shared',
@@ -105,8 +98,8 @@ describe('discoverEndpoints', () => {
   });
 
   it('два разных объекта модуля с одним name считаются одним модулем', () => {
-    const First = endpointClass('http', 'GET /first');
-    const Second = endpointClass('http', 'GET /second');
+    const First = endpoint('http', 'GET /first');
+    const Second = endpoint('http', 'GET /second');
 
     const ModuleFirst = makeAppModule({
       name: 'module:same-name',
@@ -124,9 +117,9 @@ describe('discoverEndpoints', () => {
   });
 
   it('порядок воспроизводим: imports раньше собственных эндпоинтов', () => {
-    const Imported = endpointClass('http', 'GET /imported');
-    const Own = endpointClass('http', 'GET /own');
-    const Other = endpointClass('http', 'GET /other');
+    const Imported = endpoint('http', 'GET /imported');
+    const Own = endpoint('http', 'GET /own');
+    const Other = endpoint('http', 'GET /other');
 
     const ImportedModule = makeAppModule({
       name: 'module:imported',
@@ -151,8 +144,8 @@ describe('discoverEndpoints', () => {
     );
   });
 
-  it('повтор класса внутри endpoints: одного модуля даёт одну запись', () => {
-    const Duplicated = endpointClass('http', 'GET /dup');
+  it('повтор одной декларации внутри endpoints: даёт одну запись', () => {
+    const Duplicated = endpoint('http', 'GET /dup');
 
     const DupModule = makeAppModule({
       name: 'module:dup',
@@ -165,13 +158,13 @@ describe('discoverEndpoints', () => {
   });
 
   it('группирует ручки по требуемому транспорту', () => {
-    const HttpOne = endpointClass('http', 'GET /one');
-    const HttpTwo = endpointClass('http', 'GET /two');
-    const CliOne = endpointClass('cli', 'do-something');
-
     const MixedModule = makeAppModule({
       name: 'module:mixed',
-      endpoints: [HttpOne, HttpTwo, CliOne],
+      endpoints: [
+        endpoint('http', 'GET /one'),
+        endpoint('http', 'GET /two'),
+        endpoint('cli', 'do-something'),
+      ],
     });
 
     const { transports } = discoverEndpoints([MixedModule]);
@@ -181,7 +174,7 @@ describe('discoverEndpoints', () => {
     expect(transports.get('cli')).toHaveLength(1);
   });
 
-  it('класс в endpoints: без метаданных — ошибка с именем класса и модуля', () => {
+  it('элемент endpoints: без бренда — ошибка с модулем и индексом', () => {
     @Injectable([])
     class NotAnEndpoint {
       async handle() {
@@ -191,68 +184,33 @@ describe('discoverEndpoints', () => {
 
     const BrokenModule = makeAppModule({
       name: 'module:broken',
-      endpoints: [NotAnEndpoint],
+      // Опечатка автора: в endpoints: попал сервис вместо декларации
+      endpoints: [endpoint('http', 'GET /ok'), NotAnEndpoint as never],
     });
 
     expect(() => discoverEndpoints([BrokenModule])).toThrow(
-      /NotAnEndpoint.*module:broken.*no endpoint metadata/s,
+      /module:broken.*NotAnEndpoint.*index 1.*not an endpoint declaration/s,
+    );
+  });
+
+  it('undefined в endpoints: тоже ошибка, а не молчаливый пропуск', () => {
+    const BrokenModule = makeAppModule({
+      name: 'module:undefined',
+      endpoints: [undefined as never],
+    });
+
+    expect(() => discoverEndpoints([BrokenModule])).toThrow(
+      /module:undefined.*index 0/s,
     );
   });
 
   it('не требует контейнера и транспортов', () => {
-    const Standalone = endpointClass('http', 'GET /standalone');
-
     const StandaloneModule = makeAppModule({
       name: 'module:standalone',
-      endpoints: [Standalone],
+      endpoints: [endpoint('http', 'GET /standalone')],
     });
 
     // Ни build(), ни транспортов — только значение-модуль
     expect(discoverEndpoints([StandaloneModule]).endpoints).toHaveLength(1);
-  });
-});
-
-describe('assertEndpointsDeclared', () => {
-  it('класс с метаданными в providers мимо endpoints: — ошибка', () => {
-    const Smuggled = endpointClass('http', 'GET /smuggled', 'Smuggled');
-
-    const SmugglingModule = makeModule({
-      name: 'module:smuggling',
-      providers: [Smuggled],
-    });
-
-    expect(() => assertEndpointsDeclared([SmugglingModule])).toThrow(
-      /Smuggled.*module:smuggling.*'endpoints:'/s,
-    );
-  });
-
-  it('та же конфигурация через ProvidersFactory не линтуется', () => {
-    const Smuggled = endpointClass('http', 'GET /smuggled-lazy');
-
-    const LazyModule = makeModule({
-      name: 'module:lazy',
-      providers: () => [Smuggled],
-    });
-
-    expect(() => assertEndpointsDeclared([LazyModule])).not.toThrow();
-  });
-
-  it('эндпоинт, объявленный в endpoints:, провайдером быть может', () => {
-    const Declared = endpointClass('http', 'GET /declared');
-
-    const DeclaredModule = makeAppModule({
-      name: 'module:declared',
-      endpoints: [Declared],
-    });
-
-    expect(() => assertEndpointsDeclared([DeclaredModule])).not.toThrow();
-  });
-
-  it('корневые providers приложения линтуются наравне с модулями', () => {
-    const RootSmuggled = endpointClass('http', 'GET /root', 'RootSmuggled');
-
-    expect(() => assertEndpointsDeclared([], [RootSmuggled])).toThrow(
-      /RootSmuggled.*'endpoints:'/s,
-    );
   });
 });

@@ -1,13 +1,13 @@
 import type { ILoggerService } from '../../logger/logger.service';
 import type { UserService } from '../user.service';
 
-import { CreateUserEndpoint } from './create-user.endpoint';
+import { createUserHandler } from './create-user.endpoint';
 
 import { Fail, Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
-describe('CreateUserEndpoint', () => {
-  let endpoint: CreateUserEndpoint;
+describe('createUserHandler', () => {
+  let handle: ReturnType<typeof createUserHandler>;
   let userService: jest.Mocked<UserService>;
   let logger: jest.Mocked<ILoggerService>;
 
@@ -15,7 +15,7 @@ describe('CreateUserEndpoint', () => {
     userService = mock<UserService>();
     logger = mock<ILoggerService>();
 
-    endpoint = new CreateUserEndpoint(userService, logger);
+    handle = createUserHandler(userService, logger);
   });
 
   describe('Успешные сценарии', () => {
@@ -28,7 +28,7 @@ describe('CreateUserEndpoint', () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.create.mockResolvedValue(createdUser);
 
-      const result = await endpoint.handle(newUser);
+      const result = await handle(newUser);
 
       if (result instanceof Ok) {
         expect(result.value).toEqual(createdUser);
@@ -56,9 +56,9 @@ describe('CreateUserEndpoint', () => {
       };
       userService.findByEmail.mockResolvedValue(existingUser);
 
-      await expect(endpoint.handle(newUser)).rejects.toThrow(Fail);
+      await expect(handle(newUser)).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle(newUser)).rejects.toMatchObject({
+      await expect(handle(newUser)).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         message: 'Email already taken',
         details: { field: 'email' },

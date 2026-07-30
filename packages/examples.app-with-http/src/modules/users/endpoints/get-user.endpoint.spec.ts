@@ -1,13 +1,13 @@
 import type { ILoggerService } from '../../logger/logger.service';
 import type { UserService } from '../user.service';
 
-import { GetUserEndpoint } from './get-user.endpoint';
+import { getUserHandler } from './get-user.endpoint';
 
 import { Fail, Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
-describe('GetUserEndpoint', () => {
-  let endpoint: GetUserEndpoint;
+describe('getUserHandler', () => {
+  let handle: ReturnType<typeof getUserHandler>;
   let userService: jest.Mocked<UserService>;
   let logger: jest.Mocked<ILoggerService>;
 
@@ -15,7 +15,7 @@ describe('GetUserEndpoint', () => {
     userService = mock<UserService>();
     logger = mock<ILoggerService>();
 
-    endpoint = new GetUserEndpoint(userService, logger);
+    handle = getUserHandler(userService, logger);
   });
 
   describe('Успешные сценарии', () => {
@@ -23,7 +23,7 @@ describe('GetUserEndpoint', () => {
       const user = { id: '1', name: 'Alice', email: 'alice@test.com' };
       userService.getById.mockResolvedValue(user);
 
-      const result = await endpoint.handle({ id: '1' });
+      const result = await handle({ id: '1' });
 
       if (result instanceof Ok) {
         expect(result.value).toEqual(user);
@@ -40,9 +40,9 @@ describe('GetUserEndpoint', () => {
     it('должен бросить Fail.notFound если пользователь не найден', async () => {
       userService.getById.mockResolvedValue(null);
 
-      await expect(endpoint.handle({ id: '999' })).rejects.toThrow(Fail);
+      await expect(handle({ id: '999' })).rejects.toThrow(Fail);
 
-      await expect(endpoint.handle({ id: '999' })).rejects.toMatchObject({
+      await expect(handle({ id: '999' })).rejects.toMatchObject({
         status: 'NOT_FOUND',
         message: 'User not found',
       });

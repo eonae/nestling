@@ -1,19 +1,20 @@
-# HTTP-сервер в функциональном стиле
+# HTTP-сервер без DI: standalone-транспорт
 
 ✅ **Статус: актуально** — сверено с кодом `examples.simple-http-server`
-(2026-07-29). ⚠️ В целевом V1 канон
-деклараций — per-transport конструкторы (`httpEndpoint`,
-[design/endpoints.md](../design/endpoints.md), roadmap 24); `makeEndpoint`
-остаётся kernel-примитивом. Запускаемый код — в
+(2026-07-30). Канон деклараций — per-transport конструкторы (`httpEndpoint`),
+см. [design/endpoints.md](../design/endpoints.md); транспорт-нейтральный
+`makeEndpoint` остаётся kernel-примитивом и в пользовательский канон не
+входит. Запускаемый код — в
 [`packages/examples.simple-http-server/`](../../packages/examples.simple-http-server/).
 
-Минимальный уровень фреймворка: без DI-контейнера, без классов и декораторов.
+Минимальный уровень фреймворка: без DI-контейнера и без модулей.
 Транспорт создаётся напрямую, endpoints — обычные значения.
 
 ## Endpoint с валидацией
 
 ```typescript
-import { makeEndpoint, makePipeline, validate } from '@nestling/pipeline';
+import { makePipeline, validate } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 import z from 'zod';
 
 const CreateUserInput = z.object({
@@ -27,9 +28,9 @@ const CreateUserOutput = z.object({
 type CreateUserInput = z.infer<typeof CreateUserInput>;
 type CreateUserOutput = z.infer<typeof CreateUserOutput>;
 
-export const CreateUser = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /users',
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/users',
   input: CreateUserInput,
   output: CreateUserOutput,
   pipeline: makePipeline().pre(validate()),
@@ -40,9 +41,19 @@ export const CreateUser = makeEndpoint({
 });
 ```
 
-Ключевое: `pattern` — строка `"МЕТОД /путь"`; схема `input` + `.pre(validate())`
-в пайплайне дают типизированный payload в хендлере; вернуть можно значение
-напрямую (обернётся в `Ok`) или явно `Ok.created(...)` / `throw Fail.badRequest(...)`.
+Ключевое: `method` + `path` — транспортный словарь HTTP (`pattern` ручки
+собирается из них как `"МЕТОД /путь"`); `path` проверяется в момент создания
+декларации — пустой путь, путь без ведущего `/` и повторяющийся
+path-параметр падают сразу, а не на старте приложения. Схема `input` +
+`.pre(validate())` в пайплайне дают типизированный payload в хендлере;
+вернуть можно значение напрямую (обернётся в `Ok`) или явно
+`Ok.created(...)` / `throw Fail.badRequest(...)`.
+
+`server.route()` принимает **только deps-free декларацию**: у ручки с
+`deps`, класс-хендлером или классами-юнитами в пайплайне тип несёт
+неразрешённые зависимости, и standalone-путь её не примет — это ошибка
+компиляции, а не рантайма. Погасить руками можно
+`endpoint.resolve([...])` / `endpoint.resolve(resolver)`.
 
 zod здесь — **один из вариантов**: ядро принимает любую
 [Standard Schema](https://standardschema.dev) (valibot, arktype, TypeBox,
@@ -54,7 +65,8 @@ Effect Schema …) и валидатором не зависит. Отказ в�
 ## Streaming-вход
 
 ```typescript
-import { makeEndpoint, makePipeline, stream } from '@nestling/pipeline';
+import { makePipeline, stream } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 
 const LogChunk = z.object({
   timestamp: z.number(),
@@ -62,9 +74,9 @@ const LogChunk = z.object({
   message: z.string(),
 });
 
-export const StreamLogs = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /logs/stream',
+export const StreamLogs = httpEndpoint({
+  method: 'POST',
+  path: '/logs/stream',
   input: stream(LogChunk),          // NDJSON: по одному JSON-объекту на строку
   output: z.object({ processed: z.number() }),
   pipeline: makePipeline(),
@@ -126,7 +138,7 @@ const audited = makePipeline()
 
 ```typescript
 import { HttpTransport } from '@nestling/transport.http';
-import { CreateUser, StreamLogs } from './endpoints.functional';
+import { CreateUser, StreamLogs } from './endpoints';
 
 const server = new HttpTransport({ port: Number(process.env.PORT) || 3000 });
 
@@ -145,8 +157,9 @@ process.on('SIGINT', async () => {
 ## Куда расти
 
 Когда появляется потребность в DI, модулях и lifecycle-хуках — переходи на
-[`App` + классовые endpoints](./http-app-di.md): хендлеры при этом почти
-не меняются.
+[`App` + модули](./http-app-di.md): декларация не меняется вообще, к ней
+добавляются `deps` (или класс-хендлер), а гашение зависимостей берёт на
+себя App.
 
 > Модель пайплайна (фазы, слои, логика решений) подробно описана в
 > [decisions/ideas.md](../decisions/ideas.md), раздел «Pipeline v2».

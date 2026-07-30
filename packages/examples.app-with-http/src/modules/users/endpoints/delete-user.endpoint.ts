@@ -4,10 +4,9 @@ import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
 import { UserService } from '../user.service';
 
-import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
+import type { Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const DeleteUserInput = z.object({
@@ -16,6 +15,25 @@ const DeleteUserInput = z.object({
 
 type DeleteUserInput = z.infer<typeof DeleteUserInput>;
 
+export const deleteUserHandler =
+  (users: UserService, logger: ILoggerService) =>
+  async (payload: DeleteUserInput): Output<null> => {
+    logger.log(`Handling DELETE /api/users/${payload.id}`);
+
+    // Проверка на защищенного пользователя
+    if (payload.id === ADMIN_USER_ID) {
+      throw Fail.forbidden('Cannot delete admin user');
+    }
+
+    const deleted = await users.delete(payload.id);
+
+    if (!deleted) {
+      throw Fail.notFound('User not found');
+    }
+
+    return Ok.noContent();
+  };
+
 /**
  * Endpoint для удаления пользователя
  * Демонстрирует:
@@ -23,31 +41,11 @@ type DeleteUserInput = z.infer<typeof DeleteUserInput>;
  * - Fail.notFound() если пользователь не найден
  * - Fail.forbidden() если нельзя удалить (admin user)
  */
-@Injectable([UserService, ILogger])
-@HttpEndpoint('DELETE', '/api/users/:id', {
+export const DeleteUser = httpEndpoint({
+  method: 'DELETE',
+  path: '/api/users/:id',
   input: DeleteUserInput,
   pipeline: basePipeline,
-})
-export class DeleteUserEndpoint implements IEndpoint {
-  constructor(
-    private userService: UserService,
-    private logger: ILoggerService,
-  ) {}
-
-  async handle(payload: DeleteUserInput): Output<null> {
-    this.logger.log(`Handling DELETE /api/users/${payload.id}`);
-
-    // Проверка на защищенного пользователя
-    if (payload.id === ADMIN_USER_ID) {
-      throw Fail.forbidden('Cannot delete admin user');
-    }
-
-    const deleted = await this.userService.delete(payload.id);
-
-    if (!deleted) {
-      throw Fail.notFound('User not found');
-    }
-
-    return Ok.noContent();
-  }
-}
+  deps: [UserService, ILogger],
+  handle: deleteUserHandler,
+});

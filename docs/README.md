@@ -29,8 +29,8 @@ docs/
 
 | Гайд | О чём | Пример-источник |
 |---|---|---|
-| [http-functional.md](./guides/http-functional.md) | HTTP без DI: `makeEndpoint`, валидация, стриминг | `examples.simple-http-server` |
-| [http-app-di.md](./guides/http-app-di.md) | `App`, модули, классовые endpoints, `Ok`/`Fail` | `examples.app-with-http` |
+| [http-functional.md](./guides/http-functional.md) | HTTP без DI: `httpEndpoint`, валидация, стриминг | `examples.simple-http-server` |
+| [http-app-di.md](./guides/http-app-di.md) | `App`, модули, `deps`/класс-хендлер, `Ok`/`Fail` | `examples.app-with-http` |
 | [di-token-families.md](./guides/di-token-families.md) | Семейства токенов: `makeTokenFamily`, `familyProvider`, `.auto`, `strictExports` | `examples.simple-app` |
 | [cli.md](./guides/cli.md) | CLI-транспорт: single-shot и REPL | `examples.simple-cli` |
 
