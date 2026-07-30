@@ -16,6 +16,8 @@
 # Переменные окружения:
 #   MAX_APPLY_ROUNDS  потолок раундов apply на один change (по умолчанию 8)
 #   STALL_TOLERANCE   сколько незакрытых задач при застое отдаём архивации (2)
+#   LIMIT_RETRY_MINUTES   пауза перед повтором шага при лимите сессии (15)
+#   LIMIT_MAX_WAIT_HOURS  общий бюджет ожидания лимита на один шаг (8)
 #   PERMISSION_MODE   режим прав для claude -p (по умолчанию auto)
 #   SKIP_ARCHIVE      1 — не архивировать (оставить change'и открытыми)
 #
@@ -26,6 +28,8 @@ set -uo pipefail
 
 MAX_APPLY_ROUNDS=${MAX_APPLY_ROUNDS:-8}
 STALL_TOLERANCE=${STALL_TOLERANCE:-2}
+LIMIT_RETRY_MINUTES=${LIMIT_RETRY_MINUTES:-15}
+LIMIT_MAX_WAIT_HOURS=${LIMIT_MAX_WAIT_HOURS:-8}
 PERMISSION_MODE=${PERMISSION_MODE:-auto}
 SKIP_ARCHIVE=${SKIP_ARCHIVE:-0}
 DRY_RUN=0
@@ -73,8 +77,6 @@ log "прогон $RUN_ID · ветка $BRANCH · логи $LOG_DIR"
 
 # --- helpers -----------------------------------------------------------------
 
-# Трим пробелов средствами bash. НЕ через `xargs`: он трактует апострофы
-# в описаниях («endpoint'а») как открывающую кавычку и падает.
 # Отличает «упёрлись в лимит» от настоящей поломки: диагноз разный,
 # в первом случае чинить нечего — нужно дождаться сброса и возобновить.
 limit_hint() {
@@ -82,6 +84,8 @@ limit_hint() {
     && printf ' — ЛИМИТ СЕССИИ, а не дефект: %s' "$(grep -ioE "resets [^·]*" "$1" | tail -1)"
 }
 
+# Трим пробелов средствами bash. НЕ через `xargs`: он трактует апострофы
+# в описаниях («endpoint'а») как открывающую кавычку и падает.
 trim() {
   local s=$1
   s=${s#"${s%%[![:space:]]*}"}
@@ -113,6 +117,23 @@ claude_step() { # <лог-файл> <промпт>
     return 0
   fi
   claude -p "$prompt" --permission-mode "$PERMISSION_MODE" >>"$logfile" 2>&1
+}
+
+# Лимит сессии — не поломка, а пауза: чинить нечего, надо дождаться сброса.
+# Точное время сброса не парсим (формат строки — не контракт), просто
+# повторяем с интервалом, пока не пройдёт или не выйдет общий бюджет ожидания.
+is_limit() { tail -5 "$1" 2>/dev/null | grep -qiE "session limit|usage limit|rate limit"; }
+
+claude_step_retrying() { # <лог-файл> <промпт>
+  local logfile=$1 prompt=$2 waited=0 max=$(( LIMIT_MAX_WAIT_HOURS * 60 ))
+  while : ; do
+    claude_step "$logfile" "$prompt" && return 0
+    is_limit "$logfile" || return 1
+    (( waited >= max )) && { warn "лимит держится $waited мин — сдаёмся"; return 1; }
+    warn "лимит сессии; ждём ${LIMIT_RETRY_MINUTES} мин и повторяем (ждём уже $waited мин)"
+    sleep $(( LIMIT_RETRY_MINUTES * 60 ))
+    waited=$(( waited + LIMIT_RETRY_MINUTES ))
+  done
 }
 
 gate() { # <лог-файл>
@@ -149,7 +170,7 @@ while IFS='|' read -r name description; do
   else
     [[ -z $description ]] && die "$name: нет артефактов и нет описания для propose"
     echo "  propose…"
-    claude_step "$LOGFILE" "/opsx:propose \"$name: $description\"" \
+    claude_step_retrying "$LOGFILE" "/opsx:propose \"$name: $description\"" \
       || die "$name: propose упал$(limit_hint "$LOGFILE") (см. $LOGFILE)"
     (( DRY_RUN )) || change_ready "$name" \
       || die "$name: propose отработал, но артефакты неполные — нет tasks.md$(limit_hint "$LOGFILE")"
@@ -188,7 +209,7 @@ while IFS='|' read -r name description; do
     prev_done=$done_n
 
     echo "  apply, раунд $round ($done_n/$total)…"
-    claude_step "$LOGFILE" "/opsx:apply $name" \
+    claude_step_retrying "$LOGFILE" "/opsx:apply $name" \
       || die "$name: apply упал на раунде $round (см. $LOGFILE)"
   done
 
@@ -201,7 +222,7 @@ while IFS='|' read -r name description; do
     echo "  archive пропущен (SKIP_ARCHIVE=1)"
   else
     echo "  archive…"
-    claude_step "$LOGFILE" "/opsx:archive $name" || die "$name: archive упал (см. $LOGFILE)"
+    claude_step_retrying "$LOGFILE" "/opsx:archive $name" || die "$name: archive упал (см. $LOGFILE)"
   fi
 
   # 5. коммит — точка отката перед следующим change'ем.
