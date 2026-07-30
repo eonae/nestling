@@ -57,24 +57,34 @@
 Детали SHALL иметь стандартизованную спекой Standard Schema форму:
 `details` — массив объектов `{ message: string; path?: (string|number)[] }`;
 вендор-специфичные поля (`code`, `expected`, `received` и подобные)
-SHALL NOT попадать в тело ответа.
+SHALL NOT попадать в элементы `details`.
+
+Отказ валидации SHALL нести kernel-код `VALIDATION_FAILED` (capability
+`domain-fail-definitions`): тело ответа SHALL содержать верхнеуровневое
+поле `"code": "VALIDATION_FAILED"` на обоих путях. На пути pipeline такой
+отказ SHALL проходить страж контракта без нормализации и SHALL NOT
+требовать объявления в `errors:` ручки.
 
 #### Scenario: Invalid field in fallback path (endpoint without pipeline)
 
 - **WHEN** endpoint зарегистрирован без pipeline и payload не проходит схему
-- **THEN** ответ имеет статус 400 (а не 500) с деталями валидации
+- **THEN** ответ имеет статус 400 (а не 500) с деталями валидации и
+  кодом `VALIDATION_FAILED`
 
 #### Scenario: Invalid payload via validate() unit
 
 - **WHEN** endpoint использует `makePipeline().pre(validate())` и payload
   не проходит схему
-- **THEN** ответ имеет статус 400 с деталями issue'ов
+- **THEN** ответ имеет статус 400 с деталями issue'ов и кодом
+  `VALIDATION_FAILED`, независимо от того, что объявлено в `errors:`
 
 #### Scenario: Форма details в теле ответа
 
 - **WHEN** схема требует `name: string`, а приходит `{ "name": 42 }`
 - **THEN** тело 400-ответа содержит `details` вида
-  `[{ "message": "…", "path": ["name"] }]` и не содержит поля `code`
+  `[{ "message": "…", "path": ["name"] }]`, элементы `details` не содержат
+  вендор-специфичного поля `code`, а верхнеуровневое поле `code` тела
+  равно `"VALIDATION_FAILED"`
 
 #### Scenario: Async-схема — не ошибка входа
 
