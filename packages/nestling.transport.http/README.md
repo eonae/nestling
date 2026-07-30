@@ -88,7 +88,16 @@ export const Hook = httpEndpoint({
 
 A forgotten mark is a **compile error at the declaration**, not a runtime
 500: the start context type depends on `rawBody`, and the `pipeline` slot
-checks it. The body is read once (the value is parsed from the same bytes),
+checks it. The diagnostic uses the same shape as the rest of the pipeline
+machinery (see `@nestling/pipeline`), plus a `hint` naming the fix:
+
+```
+'{ __error: "Pipeline requires context that the start context does not
+provide"; missing: { rawBody: Uint8Array; }; hint: "declare 'rawBody: true',
+or provide the fields from an outer layer"; }'
+```
+
+The body is read once (the value is parsed from the same bytes),
 `maxBodySize` applies as usual, and memory is paid only where requested.
 
 The decorator API (`HttpEndpoint`, `HttpEndpointOptions`,

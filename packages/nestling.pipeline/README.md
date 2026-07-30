@@ -132,6 +132,45 @@ class (constructor) — the latter adds the class to the pipeline's `TNeeds`
 and requires `bind()` (App resolves class units from the DI container on
 startup). Units are singletons; per-request state belongs in ctx only.
 
+## Type diagnostics are part of the API
+
+When a layer's requirements are not met, the parameter type collapses into
+a readable literal instead of a generics trace:
+
+```
+Argument of type 'PipelineBuilder<{ identity: User; requestId: string; }, …>'
+is not assignable to parameter of type '{ __error: "Layer requires context
+that outer layers do not provide"; missing: { identity: User; }; }'.
+```
+
+`missing` is a **record of field name → its type**, not a union of keys: a
+field that is present but of an incompatible type lands there too (with the
+type the layer expects). The same shape is used everywhere the pipeline
+machinery rejects an argument — the composition site, the pre track (where
+overriding a field yields `conflicting: { field: [was, now] }` instead) and
+the `pipeline` slot of a transport declaration (where the literal also
+carries a `hint` naming the fix). In the failing branch the parameter is
+**only** the error literal — no `& Pipeline<…>` tail.
+
+The texts are pinned by snapshot tests, and the cost of the type machinery
+has a budget — both live in [`type-tests/`](./type-tests):
+
+| Path | What it is |
+|---|---|
+| `type-tests/fixtures/` | one file per deliberately wrong composition |
+| `type-tests/__snapshots__/` | the pinned diagnostic texts; a diff catches a message degrading on a TypeScript upgrade or a types refactor |
+| `type-tests/bench/` | generator of a synthetic ~50-layer graph and the budget runner |
+| `type-tests/BUDGET.md` | thresholds (the runner reads them from there), the measurement log and the reasoning behind every number |
+
+```bash
+yarn workspace @nestling/pipeline type-budget          # the budget alone
+yarn workspace @nestling/pipeline type-budget --report # measure, do not fail
+yarn verify                                            # build + lint + test + type-budget
+```
+
+The fixtures are **meant** not to compile, so the directory is excluded
+from the package `build` and `lint`.
+
 ## Cancellation: `meta.signal`
 
 Every handler invocation receives a guaranteed `meta.signal: AbortSignal`
