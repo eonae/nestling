@@ -5,12 +5,17 @@ import { UserService } from '../user.service';
 
 import type { Output } from '@nestling/pipeline';
 import { Fail, Ok } from '@nestling/pipeline';
-import { httpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint, query } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({
   name: z.string().min(1),
   email: z.email(),
+
+  // Поле-флаг: по канону POST оно уехало бы в тело, пометка `query()`
+  // ниже переносит его в query-строку. Коерсия провод-строки — забота
+  // автора схемы: `z.stringbool()` понимает 'true'/'false'/'1'/'0'.
+  dryRun: z.stringbool().optional(),
 });
 
 const CreateUserOutput = z.object({
@@ -38,6 +43,15 @@ export const createUserHandler =
       throw Fail.badRequest('Email already taken', { field: 'email' });
     }
 
+    // `?dryRun=true` — только проверка, без записи
+    if (payload.dryRun) {
+      return new Ok({
+        id: 'dry-run',
+        name: payload.name,
+        email: payload.email,
+      });
+    }
+
     const user = await users.create(payload);
 
     return Ok.created(user, {
@@ -46,13 +60,19 @@ export const createUserHandler =
   };
 
 /**
- * Endpoint для создания пользователя
+ * Endpoint для создания пользователя.
+ *
+ * Демонстрирует пометку размещения: `name`/`email` едут по канону POST в
+ * теле, а `dryRun` вытянут пометкой в query-строку
+ * (`POST /api/users?dryRun=true`). Присланный не в своё место `dryRun`
+ * (в теле) в payload не попадёт — strict-приём.
  */
 export const CreateUser = httpEndpoint({
   method: 'POST',
   path: '/api/users',
   input: CreateUserInput,
   output: CreateUserOutput,
+  bind: { dryRun: query() },
   pipeline: basePipeline,
   deps: [UserService, ILogger],
   handle: createUserHandler,

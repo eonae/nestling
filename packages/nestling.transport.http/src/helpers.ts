@@ -1,13 +1,18 @@
+import type { BindMark } from './binding.js';
+import { computeHttpBinding, readPathParams } from './binding.js';
+
 import type { InjectionToken } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
   AnyInput,
   AnyOutput,
   AnyPayload,
+  EmptyInput,
   EndpointDefinition,
   HandlerClass,
   HandlerFactory,
   HandlerFn,
+  InferInput,
   Pipeline,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
@@ -30,11 +35,66 @@ export type PathParams<Path extends string> =
     : never;
 
 /**
+ * Ключи, которые можно пометить в `bind`: поля схемы `input` за вычетом
+ * path-параметров шаблона.
+ *
+ * Рантайм перечня ключей у Standard Schema не получит, но **типы его
+ * знают** — этой асимметрией пользуемся: опечатка в имени поля и пометка на
+ * path-параметре становятся ошибками компиляции. Непрозрачный `input`
+ * (`AnyPayload` без вывода ключей) деградирует до отсутствия подсказок, а
+ * не до ошибки: там правила проверяет рантайм.
+ */
+export type BindMap<Path extends string, I> = [
+  Extract<keyof InferInput<I>, string>,
+] extends [never]
+  ? Readonly<Record<string, BindMark>>
+  : Partial<
+      Readonly<
+        Record<
+          Exclude<Extract<keyof InferInput<I>, string>, PathParams<Path>>,
+          BindMark
+        >
+      >
+    >;
+
+/**
+ * Стартовый контекст декларации — то, что транспорт кладёт в контекст ещё до
+ * первого pre-юнита. `rawBody: true` добавляет туда сырые байты тела.
+ */
+export type StartContext<RB extends boolean | undefined> = RB extends true
+  ? { rawBody: Uint8Array }
+  : EmptyInput;
+
+/**
+ * Сторож слота `pipeline`: требования пайплайна к внешнему контексту должны
+ * покрываться стартовым контекстом декларации.
+ *
+ * Простой типизации слота (`pipeline?: Pipeline<Start, P, PN>`)
+ * **недостаточно**: `TReq` у `Pipeline` ведёт себя ковариантно через фантомное
+ * `$types`, поэтому `Pipeline<{ rawBody }, …>` присвоился бы слоту
+ * `Pipeline<EmptyInput, …>` и забытая пометка `rawBody: true` прошла бы молча.
+ * Условный тип в позиции параметра — та же техника, которой пользуется
+ * `compose` (`ValidateCompose`).
+ */
+type ValidateStart<PR extends AnyInput, Start extends AnyInput> = [
+  Start,
+] extends [PR]
+  ? unknown
+  : {
+      ERROR: 'Pipeline requires fields that the start context does not provide';
+      MISSING_FIELDS: Exclude<keyof PR, keyof Start>;
+      START_PROVIDES: Start;
+      PIPELINE_REQUIRES: PR;
+      HINT: "declare 'rawBody: true', or provide the fields from an outer layer";
+    };
+
+/**
  * Транспортный словарь HTTP-декларации.
  *
  * Легален и типизирован **только здесь**: пайплайн и хендлер остаются
  * транспорт-слепыми. `path` — литеральный тип, из которого выводятся
- * path-параметры (`PathParams<Path>`).
+ * path-параметры (`PathParams<Path>`): они же — источник правила размещения
+ * «имя поля совпало с path-параметром → путь».
  */
 export interface HttpEndpointDictionary<
   Path extends string = string,
@@ -42,6 +102,8 @@ export interface HttpEndpointDictionary<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
+  RB extends boolean | undefined = undefined,
+  PR extends AnyInput = AnyInput,
 > {
   /** HTTP-метод ручки */
   method: HTTPMethod;
@@ -56,37 +118,44 @@ export interface HttpEndpointDictionary<
   output?: O;
 
   /**
+   * Пометки размещения: «поле → место». Всё, что не помечено и не совпало с
+   * path-параметром, размещается по канону — query для методов без тела,
+   * body для остальных.
+   *
+   * @example
+   * ```typescript
+   * bind: { expand: query(), tags: query({ multiple: true }) }
+   * ```
+   */
+  bind?: BindMap<Path, I>;
+
+  /**
+   * Сырые байты тела в стартовом контексте (`{ rawBody: Uint8Array }`) —
+   * для проверки webhook-подписей. Тело читается один раз, значение
+   * парсится из тех же байтов; лимит `maxBodySize` действует как обычно.
+   *
+   * Меняет тип стартового контекста: слой, объявленный
+   * `makePipeline<{ rawBody: Uint8Array }>()`, без этой пометки не
+   * компилируется.
+   */
+  rawBody?: RB;
+
+  /**
    * Pipeline для этого endpoint. Классы-юниты допустимы: они попадают в
    * `TNeeds` декларации и гасятся вместе с `deps`.
    */
-  pipeline?: Pipeline<AnyInput, P, PN>;
-
-  // --- Точка расширения словаря: bind-карта (change `input-bind`, #21) ----
-  //
-  // Сюда придут канон размещения input и плоская карта «поле → место»:
-  //   bind?: BindMap<Path, I>;   // 'id' → path, 'expand' → query, …
-  //   rawBody?: boolean;         // сырые байты в стартовом контексте
-  //
-  // Тип `PathParams<Path>` уже выведен выше и станет источником правила
-  // «имя поля совпало с path-параметром → путь». В этом change'е словарь
-  // ограничен `method`/`path`, а сборка payload (`mergePayload`) не
-  // меняется — иначе change съел бы предмет следующего.
-}
-
-/** Разбирает шаблон пути в список имён path-параметров (в порядке следования) */
-function readPathParams(path: string): string[] {
-  return path
-    .split('/')
-    .filter((segment) => segment.startsWith(':'))
-    .map((segment) => segment.slice(1));
+  pipeline?: Pipeline<PR, P, PN> & ValidateStart<PR, StartContext<RB>>;
 }
 
 /**
- * Fail-fast транспортного словаря в момент создания декларации.
+ * Fail-fast шаблона пути в момент создания декларации.
  *
  * Проверяется только то, что проверяемо без интроспекции схемы: Standard
- * Schema перечня ключей не отдаёт, поэтому «path-параметр без поля в схеме»
- * приезжает вместе с bind-картой (change `input-bind`).
+ * Schema перечня ключей не отдаёт, поэтому «path-параметр объявлен в
+ * шаблоне, но поля с таким именем в схеме нет» не диагностируется —
+ * известное ограничение, кандидат на проверку в `@nestling/openapi`, где
+ * вендор-конвертер структуру схемы уже знает. Правила размещения (пометки,
+ * `rawBody`, неструктурный `input`) проверяет `computeHttpBinding`.
  */
 function assertHttpPath(method: string, path: unknown): asserts path is string {
   const where = `httpEndpoint({ method: '${method}', … })`;
@@ -154,8 +223,24 @@ function assertHttpPath(method: string, path: unknown): asserts path is string {
  * });
  * ```
  *
+ * @example Пометка и сырые байты тела
+ * ```typescript
+ * export const StripeHook = httpEndpoint({
+ *   method: 'POST',
+ *   path: '/hooks/stripe',
+ *   input: HookEvent,
+ *   bind: { verbose: query() },              // вытащить из тела в query
+ *   rawBody: true,                           // байты в стартовом контексте
+ *   pipeline: compose(makePipeline<{ rawBody: Uint8Array }>()
+ *     .pre(verifySignature(secret)), basePipeline),
+ *   handle: async (event) => Ok.of({ received: event.id }),
+ * });
+ * ```
+ *
  * @throws {Error} Пустой `path`, `path` без ведущего `/`, повторяющееся
- * имя path-параметра
+ * имя path-параметра, нарушение правила размещения (пометка на
+ * path-параметре, `body()` у метода без тела, `bind`/path-параметр при
+ * неструктурном `input`, `rawBody` при потоковой или multipart-форме)
  */
 export function httpEndpoint<
   Path extends string,
@@ -163,8 +248,10 @@ export function httpEndpoint<
   O extends AnyOutput = AnyOutput,
   P extends AnyInput = AnyInput,
   PN = never,
+  RB extends boolean | undefined = undefined,
+  PR extends AnyInput = EmptyInput,
 >(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN> & {
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR> & {
     deps?: undefined;
     handle: HandlerFn<I, O, P>;
   },
@@ -176,8 +263,10 @@ export function httpEndpoint<
   P extends AnyInput = AnyInput,
   PN = never,
   D extends InjectionToken[] = InjectionToken[],
+  RB extends boolean | undefined = undefined,
+  PR extends AnyInput = EmptyInput,
 >(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN> & {
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR> & {
     deps: [...D];
     handle: HandlerFactory<D, I, O, P>;
   },
@@ -189,25 +278,47 @@ export function httpEndpoint<
   P extends AnyInput = AnyInput,
   PN = never,
   C extends HandlerClass<I, O, P> = HandlerClass<I, O, P>,
+  RB extends boolean | undefined = undefined,
+  PR extends AnyInput = EmptyInput,
 >(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN> & {
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR> & {
     deps?: undefined;
     handle: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function httpEndpoint(
-  declaration: HttpEndpointDictionary<string, any, any, any, unknown> & {
+  declaration: HttpEndpointDictionary<
+    string,
+    any,
+    any,
+    any,
+    unknown,
+    boolean | undefined,
+    any
+  > & {
     deps?: InjectionToken[];
     handle: unknown;
   },
 ): AnyEndpointDefinition {
-  const { method, path, ...rest } = declaration;
+  const { method, path, bind, rawBody, ...rest } = declaration;
 
   assertHttpPath(method, path);
+
+  // Канон разворачивается здесь, в момент создания значения: карта обязана
+  // ехать на декларации — её читают транспорт, OpenAPI и клиент, а клиенту
+  // она нужна из одного импорта, без серверного кода.
+  const binding = computeHttpBinding({
+    method,
+    path,
+    bind: bind as Readonly<Record<string, BindMark>> | undefined,
+    rawBody,
+    input: declaration.input,
+  });
 
   return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
     ...rest,
     transport: 'http',
     pattern: `${method} ${path}`,
+    binding,
   });
 }

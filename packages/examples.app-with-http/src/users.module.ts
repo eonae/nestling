@@ -12,6 +12,7 @@ import {
   UpdateUser,
   UploadAvatar,
   UploadAvatarHandler,
+  UserWebhook,
 } from './modules/users/endpoints';
 import { UserService } from './modules/users/user.service';
 
@@ -45,5 +46,6 @@ export const UsersModule = makeAppModule({
     ExportUsers,
     ImportUsers,
     UploadAvatar,
+    UserWebhook,
   ],
 });

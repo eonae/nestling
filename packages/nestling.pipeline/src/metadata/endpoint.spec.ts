@@ -313,6 +313,74 @@ describe('makeEndpoint — бренд', () => {
   });
 });
 
+describe('makeEndpoint — носитель binding', () => {
+  // Форма карты транспорта ядру неизвестна: здесь это произвольное значение
+  const binding = { fields: { id: { in: 'path' } }, rest: 'body' };
+
+  it('binding доезжает до значения декларации как есть', () => {
+    const UpdateUser = makeEndpoint({
+      transport: 'http',
+      pattern: 'PATCH /users/:id',
+      binding,
+      handle: async () => new Ok({}),
+    });
+
+    expect(UpdateUser.binding).toBe(binding);
+  });
+
+  it('binding переживает гашение зависимостей', () => {
+    const GetUser = makeEndpoint({
+      transport: 'http',
+      pattern: 'GET /users/:id',
+      binding,
+      deps: [UserService],
+      handle: (users) => async () => new Ok(users.getById('1')),
+    });
+
+    const resolved = GetUser.resolve([new UserService()]);
+
+    expect(resolved.binding).toBe(binding);
+    // Декларация иммутабельна: исходная не тронута
+    expect(GetUser.binding).toBe(binding);
+  });
+
+  it('без binding поле на значении не появляется', () => {
+    const Ping = makeEndpoint({
+      transport: 'http',
+      pattern: 'GET /ping',
+      handle: async () => new Ok({ pong: true }),
+    });
+
+    expect('binding' in Ping).toBe(false);
+  });
+
+  it('ядро в носитель не заглядывает: годится любое значение', () => {
+    const opaque = Symbol('transport-specific');
+
+    const Weird = makeEndpoint({
+      transport: 'nats',
+      pattern: 'users.get',
+      binding: opaque,
+      handle: async () => new Ok({}),
+    });
+
+    expect(Weird.binding).toBe(opaque);
+  });
+});
+
+describe('@nestling/pipeline — HTTP-слепота ядра', () => {
+  it('публичные экспорты не содержат понятий частей HTTP-запроса', async () => {
+    const kernel = await import('../index.js');
+
+    // Ядро не знает слов path/query/body: их вводит транспорт над `binding`
+    const httpish = Object.keys(kernel).filter((name) =>
+      /^(path|query|body|header)/i.test(name),
+    );
+
+    expect(httpish).toEqual([]);
+  });
+});
+
 // ============================================================================
 // Типовые тесты
 // ============================================================================

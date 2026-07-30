@@ -96,6 +96,18 @@ export interface EndpointDefinition<
   /** Токены зависимостей каррированной фабрики (в порядке объявления) */
   readonly deps?: readonly InjectionToken[];
 
+  /**
+   * Транспорт-специфичный биндинг декларации — **непрозрачное для ядра**
+   * значение, которое кладёт транспортный конструктор (для HTTP это
+   * bind-карта «поле → место»).
+   *
+   * Ядро переносит его на значение и сохраняет при `resolve`, но никогда не
+   * интерпретирует: понятий частей HTTP-запроса в `@nestling/pipeline` нет.
+   * Типизирует и читает биндинг тот транспорт, который его положил
+   * (`httpBindingOf` в `@nestling/transport.http`).
+   */
+  readonly binding?: unknown;
+
   /** @internal фантомное поле для вывода типов */
   readonly $needs?: TNeeds;
 
@@ -146,6 +158,12 @@ export interface EndpointOptions<
    * `TNeeds` декларации и гасятся вместе с `deps`.
    */
   pipeline?: Pipeline<AnyInput, P, PN>;
+
+  /**
+   * Транспорт-специфичный биндинг. Переносится на значение декларации как
+   * есть; ядро в него не заглядывает (см. `EndpointDefinition.binding`).
+   */
+  binding?: unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +184,7 @@ interface EndpointState {
   input?: unknown;
   output?: unknown;
   pipeline?: Pipeline<AnyInput, AnyInput, unknown>;
+  binding?: unknown;
   deps: readonly InjectionToken[];
   form: HandlerForm;
   /** Хендлер, полученный гашением зависимостей (форма `fn` исполнима сразу) */
@@ -365,6 +384,11 @@ function buildDefinition(state: EndpointState): AnyEndpointDefinition {
   if (state.pipeline !== undefined) {
     definition.pipeline = state.pipeline;
   }
+  // Непрозрачный носитель: переносится как есть — `resolve` строит новое
+  // значение из того же `state`, поэтому карта переживает гашение.
+  if (state.binding !== undefined) {
+    definition.binding = state.binding;
+  }
   if (state.deps.length > 0) {
     definition.deps = state.deps;
   }
@@ -463,6 +487,7 @@ export function makeEndpoint(
     pipeline: options.pipeline as
       | Pipeline<AnyInput, AnyInput, unknown>
       | undefined,
+    binding: options.binding,
     deps: options.deps ?? [],
     form,
     // Голая функция исполнима сразу; остальные формы ждут resolve()

@@ -21,6 +21,74 @@ HTTP, `cliEndpoint` для CLI. Транспортный словарь (`method
 Декораторов эндпоинта и интерфейса `IEndpoint` нет — сверка сигнатуры
 `handle` со схемами `input`/`output` идёт в точке декларации.
 
+## Куда попадают поля: канон размещения
+
+`input` — одна схема на всю ручку; куда каждое поле кладётся в HTTP-запросе,
+определяет детерминированное правило:
+
+1. имя поля совпало с path-параметром шаблона (`:id`) → **путь**;
+2. поле помечено в `bind` → указанное пометкой место;
+3. всё остальное → **query** для методов без тела (`GET`, `HEAD`, `DELETE`,
+   `OPTIONS`, `TRACE`) и **тело** для остальных.
+
+```typescript
+export const GetUser = httpEndpoint({
+  method: 'GET',
+  path: '/api/users/:id',
+  input: GetUserInput,   // { id } → путь
+  …
+});
+
+export const UpdateUser = httpEndpoint({
+  method: 'PATCH',
+  path: '/api/users/:id',
+  input: UpdateUserInput,  // { id } → путь, { name, email } → тело
+  …
+});
+```
+
+**Приём strict.** Payload собирается только из канонических мест: поле,
+присланное не туда, в payload не попадает и падает обычной ошибкой
+валидации (400 с `issues`). Слияния «поле принимается отовсюду» нет, как
+и ошибок конфликта источников. Одноимённые path-параметр и поле тела не
+соревнуются: `PATCH /api/users/42` с телом `{"id":"7"}` даёт `id: '42'`.
+
+**Повторный query-ключ даёт массив**: `?tag=a&tag=b` → `['a','b']`; одно
+вхождение — скаляр. Чтобы поле было массивом всегда, помечают
+`query({ multiple: true })`. Коерсию провод-строк (`?page=2` → число)
+делает схема (`z.coerce`, `z.stringbool()`), а не транспорт.
+
+## Пометка `query()`: поле не из канонического места
+
+Пометки — значения из `@nestling/transport.http`, а не строки. Ключи `bind`
+типизированы полями схемы за вычетом path-параметров: опечатка и пометка на
+path-параметре — ошибки компиляции.
+
+```typescript
+import { httpEndpoint, query } from '@nestling/transport.http';
+
+const CreateUserInput = z.object({
+  name: z.string().min(1),
+  email: z.email(),
+  dryRun: z.stringbool().optional(),   // POST → уехало бы в тело…
+});
+
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/api/users',
+  input: CreateUserInput,
+  bind: { dryRun: query() },           // …пометка переносит его в query
+  …
+});
+```
+
+`POST /api/users?dryRun=true` с телом `{"name":…,"email":…}`. Тот же
+`dryRun`, присланный в теле, в payload не попадёт — место у поля ровно одно.
+
+Словарь проверяется **в момент создания значения**: пометка на
+path-параметре, `body()` у метода без тела, `bind` или path-параметр при
+потоковом/файловом `input` — ошибка сразу, а не на первом запросе.
+
 ## DI хендлера: `deps` + каррированная фабрика
 
 Первая форма подключения зависимостей: `deps` — явный массив токенов,
@@ -59,6 +127,7 @@ export const CreateUser = httpEndpoint({
   path: '/api/users',
   input: CreateUserInput,
   output: CreateUserOutput,
+  bind: { dryRun: query() },
   pipeline: basePipeline,
   deps: [UserService, ILogger],
   handle: createUserHandler,
@@ -118,6 +187,46 @@ export const SearchUsers = httpEndpoint({
 резолвит их контейнером на старте вместе с `deps`; если класс не
 зарегистрирован в модулях — ошибка старта с именем зависимости, паттерном
 ручки и модулем-объявителем.
+
+## Сырые байты тела: `rawBody` и webhook-подписи
+
+Проверка HMAC-подписи требует **исходных байтов**: пересериализованный JSON
+дал бы другой хеш. `rawBody: true` кладёт их в **стартовый контекст** —
+то, что транспорт добавляет в контекст ещё до первого pre-юнита.
+
+```typescript
+import { compose, makePipeline } from '@nestling/pipeline';
+
+// Слой объявляет требование к стартовому контексту
+export const verifySignature = (
+  secret: string,
+): PreUnitFn<{ rawBody: Uint8Array }, undefined> => (ctx) => {
+  const expected = createHmac('sha256', secret).update(ctx.input.rawBody).digest('hex');
+  if (String(ctx.raw.attributes['x-signature']) !== expected) {
+    throw Fail.unauthorized('Invalid webhook signature');
+  }
+};
+
+export const UserWebhook = httpEndpoint({
+  method: 'POST',
+  path: '/api/hooks/users',
+  input: UserEventInput,
+  rawBody: true,                     // ← без неё pipeline ниже не компилируется
+  pipeline: compose(
+    makePipeline<{ rawBody: Uint8Array }>().pre(verifySignature(SECRET)),
+    basePipeline,
+  ),
+  deps: [UserService, ILogger],
+  handle: userWebhookHandler,        // получает уже разобранный payload
+});
+```
+
+Забытая пометка — **ошибка компиляции в точке декларации**, а не 500 в
+рантайме: тип стартового контекста зависит от `rawBody`, и слот `pipeline`
+это проверяет. Тело читается один раз (значение парсится из тех же байтов),
+лимит `maxBodySize` действует как обычно, а память платится только там, где
+байты запрошены. С потоковыми и multipart-формами `rawBody` несовместим —
+ошибка при создании декларации.
 
 ## Модуль
 

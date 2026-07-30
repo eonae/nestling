@@ -41,6 +41,19 @@ describe('createUserHandler', () => {
         expect(result).toBeInstanceOf(Ok); // Will fail
       }
     });
+
+    it('dryRun из query-строки проверяет, но не создаёт', async () => {
+      userService.findByEmail.mockResolvedValue(null);
+
+      const result = await handle({
+        name: 'Test',
+        email: 'test@example.com',
+        dryRun: true,
+      });
+
+      expect(result).toBeInstanceOf(Ok);
+      expect(userService.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('Ошибочные сценарии', () => {

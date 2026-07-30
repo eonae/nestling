@@ -5,6 +5,7 @@ import type { Module } from '@nestling/container';
 import { ContainerBuilder, Injectable, makeModule } from '@nestling/container';
 import { Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
+import { z } from 'zod';
 
 @Injectable([])
 class UserService {
@@ -16,6 +17,8 @@ class UserService {
 const GetUser = httpEndpoint({
   method: 'GET',
   path: '/users/:id',
+  // Path-параметру нужно поле в схеме: иначе класть его некуда
+  input: z.object({ id: z.string() }),
   deps: [UserService],
   handle: (users) => async () => new Ok({ user: users.find() }),
 });

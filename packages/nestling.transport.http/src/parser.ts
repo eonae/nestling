@@ -81,6 +81,27 @@ export function readBody(req: IncomingMessage, maxBytes = 0): Promise<Buffer> {
 }
 
 /**
+ * Разбирает JSON из уже прочитанных байтов тела.
+ *
+ * Отдельная функция нужна для `rawBody: true`: байты читаются один раз,
+ * кладутся в стартовый контекст и разбираются из того же буфера — второго
+ * чтения потока не бывает.
+ *
+ * @throws JsonParseError если байты не являются валидным JSON
+ */
+export function parseJsonBuffer(raw: Buffer): unknown {
+  const body = raw.toString();
+  if (!body) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    throw new JsonParseError({ cause: error });
+  }
+}
+
+/**
  * Парсинг JSON body
  *
  * @param maxBytes - лимит размера тела (0 = без лимита)
@@ -91,16 +112,7 @@ export async function parseJson(
   req: IncomingMessage,
   maxBytes = 0,
 ): Promise<unknown> {
-  const raw = await readBody(req, maxBytes);
-  const body = raw.toString();
-  if (!body) {
-    return undefined;
-  }
-  try {
-    return JSON.parse(body);
-  } catch (error) {
-    throw new JsonParseError({ cause: error });
-  }
+  return parseJsonBuffer(await readBody(req, maxBytes));
 }
 
 /**

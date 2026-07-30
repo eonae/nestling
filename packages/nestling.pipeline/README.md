@@ -46,6 +46,26 @@ Each declaration is branded with a non-enumerable
 `Symbol.for('nestling:endpoint')`; `isEndpointDefinition(value)` is the
 predicate discovery uses to reject anything else found in `endpoints:`.
 
+### `binding` — an opaque carrier for the transport
+
+`EndpointOptions`/`EndpointDefinition` accept `binding?: unknown`, which
+`makeEndpoint` puts on the value and `resolve` preserves. It is where a
+transport constructor stores its own binding (`httpEndpoint` puts the HTTP
+bind map there, and `httpBindingOf` reads it back). **The kernel never
+interprets it**: `@nestling/pipeline` knows no `path`/`query`/`body`, and
+adding a transport with a different binding shape needs no kernel change.
+
+### The start context
+
+`makeEmptyContext(raw, endpoint, signal?, input?)` builds the initial
+context. The fourth argument is the **start input** — what the transport
+knows before the first pre-unit runs; it defaults to `{}`, so the context
+type is `ExtendableContext<EmptyInput>` unless a transport passes
+something. `@nestling/transport.http` uses it for `rawBody: true`, which
+also makes the declaration's start context type non-empty — a pipeline
+layer declared as `makePipeline<{ rawBody: Uint8Array }>()` then only
+compiles where the bytes are actually requested.
+
 ## Schemas: Standard Schema at the boundaries
 
 Every schema boundary of the core — `input`/`output` of an endpoint,

@@ -7,13 +7,23 @@
 
 import { getEventListeners } from 'node:events';
 import type { Server } from 'node:http';
+import { request } from 'node:http';
 import { type AddressInfo, connect } from 'node:net';
 
+import { query } from './binding.js';
 import { httpEndpoint } from './helpers.js';
 import { HttpTransport } from './transport.js';
 
 import type { Schema } from '@common/misc';
-import { Fail, makePipeline, Ok, stream, validate } from '@nestling/pipeline';
+import type { FilePart, PreUnitFn } from '@nestling/pipeline';
+import {
+  Fail,
+  makePipeline,
+  Ok,
+  stream,
+  validate,
+  withFiles,
+} from '@nestling/pipeline';
 import { z } from 'zod';
 
 /**
@@ -24,6 +34,47 @@ async function listen(transport: HttpTransport): Promise<string> {
   const server = (transport as unknown as { server: Server }).server;
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+/**
+ * Запрос с телом при любом методе (fetch не даёт послать тело с GET).
+ *
+ * Нужен, чтобы проверить: тело, которое карта не требует, транспорт не
+ * буферизует — иначе лимит `maxBodySize` отдал бы 413.
+ */
+function requestWithBody(
+  baseUrl: string,
+  options: { method: string; path: string; body: string },
+): Promise<{ status: number; body: string }> {
+  const url = new URL(options.path, baseUrl);
+
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        method: options.method,
+        hostname: url.hostname,
+        port: url.port,
+        path: `${url.pathname}${url.search}`,
+        headers: {
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(options.body),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString(),
+          }),
+        );
+      },
+    );
+
+    req.on('error', reject);
+    req.end(options.body);
+  });
 }
 
 function getServer(transport: HttpTransport): Server {
@@ -142,17 +193,6 @@ describe('HttpTransport — request validation errors', () => {
       }),
     );
 
-    // Конфликт ключей body/query
-    transport.route(
-      httpEndpoint({
-        method: 'POST',
-        path: '/conflict',
-        input: z.object({ id: z.coerce.number() }),
-        pipeline: makePipeline().pre(validate()),
-        handle: (payload: { id: number }) => new Ok(payload),
-      }),
-    );
-
     // Fallback без pipeline — валидация в транспорте
     transport.route(
       httpEndpoint({
@@ -203,18 +243,6 @@ describe('HttpTransport — request validation errors', () => {
     const body = await response.json();
     expect(body.error).toBe('Invalid JSON body');
     expect(body.stack).toBeUndefined();
-  });
-
-  it('конфликт ключей body/query → 400 с именем ключа', async () => {
-    const response = await fetch(`${baseUrl}/conflict?id=2`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: 1 }),
-    });
-    expect(response.status).toBe(400);
-
-    const body = await response.json();
-    expect(body.error).toContain('id');
   });
 
   it('невалидный payload в fallback-ветке → 400 с деталями', async () => {
@@ -279,6 +307,255 @@ describe('HttpTransport — request validation errors', () => {
     });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: 'Alice' });
+  });
+});
+
+describe('HttpTransport — strict-приём по bind-карте', () => {
+  let transport: HttpTransport;
+  let baseUrl: string;
+  let seenRawBody: Uint8Array | undefined;
+
+  /** Слой проверки подписи: объявляет требование к стартовому контексту */
+  const captureRawBody: PreUnitFn<{ rawBody: Uint8Array }, undefined> = (
+    ctx,
+  ) => {
+    seenRawBody = ctx.input.rawBody;
+  };
+
+  beforeAll(async () => {
+    transport = new HttpTransport();
+
+    // POST: поля по канону — в теле
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/users',
+        input: z.object({ name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string }) => new Ok(payload),
+      }),
+    );
+
+    // PATCH: одноимённые path-параметр и поле тела
+    transport.route(
+      httpEndpoint({
+        method: 'PATCH',
+        path: '/users/:id',
+        input: z.object({ id: z.string(), name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { id: string; name: string }) => new Ok(payload),
+      }),
+    );
+
+    // GET: повтор ключа даёт массив
+    transport.route(
+      httpEndpoint({
+        method: 'GET',
+        path: '/tags',
+        input: z.object({ tag: z.array(z.string()) }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { tag: string[] }) => new Ok(payload),
+      }),
+    );
+
+    // GET: пометка multiple даёт массив и при одном вхождении
+    transport.route(
+      httpEndpoint({
+        method: 'GET',
+        path: '/multi',
+        input: z.object({ tag: z.array(z.string()) }),
+        bind: { tag: query({ multiple: true }) },
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { tag: string[] }) => new Ok(payload),
+      }),
+    );
+
+    // POST: поле вытянуто пометкой из тела в query
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/marked',
+        input: z.object({ name: z.string(), dryRun: z.string().optional() }),
+        bind: { dryRun: query() },
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string; dryRun?: string }) => new Ok(payload),
+      }),
+    );
+
+    // Multipart с path-параметром
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/users/:id/avatar',
+        input: withFiles(z.object({ id: z.string() })),
+        pipeline: makePipeline(),
+        handle: (payload: { data: { id: string }; files: FilePart[] }) =>
+          new Ok({
+            id: payload.data.id,
+            files: payload.files.map((file) => file.field),
+          }),
+      }),
+    );
+
+    // Webhook: сырые байты в типизированном стартовом контексте
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/hooks/stripe',
+        input: z.object({ event: z.string() }),
+        rawBody: true,
+        pipeline: makePipeline<{ rawBody: Uint8Array }>()
+          .pre(captureRawBody)
+          .pre(validate()),
+        handle: (payload: { event: string }) => new Ok(payload),
+      }),
+    );
+
+    baseUrl = await listen(transport);
+  });
+
+  afterAll(async () => {
+    await transport.close();
+  });
+
+  it('поле, присланное не в своё место, отбрасывается → 400 с именем поля', async () => {
+    const response = await fetch(`${baseUrl}/users?name=Alice`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(response.status).toBe(400);
+
+    const body = await response.json();
+    expect(body.error).toBe('Validation failed');
+    expect(body.details).toEqual([
+      { message: expect.any(String), path: ['name'] },
+    ]);
+    // Конфликта источников больше не существует
+    expect(JSON.stringify(body)).not.toContain('Duplicate key');
+  });
+
+  it('одноимённые path-параметр и поле тела → значение из пути', async () => {
+    const response = await fetch(`${baseUrl}/users/42`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: '7', name: 'Alice' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ id: '42', name: 'Alice' });
+  });
+
+  it('повторный query-ключ становится массивом', async () => {
+    const response = await fetch(`${baseUrl}/tags?tag=a&tag=b`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ tag: ['a', 'b'] });
+  });
+
+  it('query({ multiple: true }) даёт массив и при одном вхождении', async () => {
+    const response = await fetch(`${baseUrl}/multi?tag=a`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ tag: ['a'] });
+  });
+
+  it('помеченное поле читается из query, остальные — из тела', async () => {
+    const response = await fetch(`${baseUrl}/marked?dryRun=yes`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Alice', dryRun: 'no' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ name: 'Alice', dryRun: 'yes' });
+  });
+
+  it('multipart с path-параметром: id в data до валидации схемой', async () => {
+    const form = new FormData();
+    form.append('avatar', new Blob([Buffer.from('png')]), 'a.png');
+
+    const response = await fetch(`${baseUrl}/users/7/avatar`, {
+      method: 'POST',
+      body: form,
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ id: '7', files: ['avatar'] });
+  });
+
+  it('webhook: слой видит байты, хендлер — разобранный payload', async () => {
+    seenRawBody = undefined;
+    const payload = JSON.stringify({ event: 'charge.succeeded' });
+
+    const response = await fetch(`${baseUrl}/hooks/stripe`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: payload,
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ event: 'charge.succeeded' });
+
+    const seen: Uint8Array | undefined = seenRawBody;
+    expect(seen).toBeInstanceOf(Uint8Array);
+    expect(Buffer.from(seen ?? new Uint8Array()).toString()).toBe(payload);
+  });
+});
+
+describe('HttpTransport — тело читается только по требованию карты', () => {
+  let transport: HttpTransport;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    // Лимит меньше присылаемого тела: если транспорт его прочитает — 413
+    transport = new HttpTransport({ maxBodySize: 100 });
+    transport.route(
+      httpEndpoint({
+        method: 'GET',
+        path: '/search',
+        input: z.object({ q: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { q: string }) => new Ok(payload),
+      }),
+    );
+    transport.route(
+      httpEndpoint({
+        method: 'POST',
+        path: '/hooks',
+        input: z.object({ event: z.string() }),
+        rawBody: true,
+        pipeline: makePipeline<{ rawBody: Uint8Array }>().pre(validate()),
+        handle: (payload: { event: string }) => new Ok(payload),
+      }),
+    );
+    baseUrl = await listen(transport);
+  });
+
+  afterAll(async () => {
+    await transport.close();
+  });
+
+  it('тело у GET не буферизуется: запрос обрабатывается по query', async () => {
+    const { status, body } = await requestWithBody(baseUrl, {
+      method: 'GET',
+      path: '/search?q=Alice',
+      body: 'x'.repeat(500),
+    });
+
+    expect(status).toBe(200);
+    expect(JSON.parse(body)).toEqual({ q: 'Alice' });
+  });
+
+  it('лимит тела действует и для сырых байтов → 413', async () => {
+    const response = await fetch(`${baseUrl}/hooks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ event: 'x'.repeat(500) }),
+    });
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: 'Payload too large' });
   });
 });
 

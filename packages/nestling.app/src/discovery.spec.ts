@@ -6,6 +6,7 @@ import { describe, expect, it } from '@jest/globals';
 import { Injectable, makeModule } from '@nestling/container';
 import { makeEndpoint, Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
+import { z } from 'zod';
 
 /** Декларация-значение: единица дискавери */
 const endpoint = (transport: string, pattern: string) =>
@@ -20,6 +21,7 @@ describe('discoverEndpoints', () => {
     const GetUser = httpEndpoint({
       method: 'GET',
       path: '/users/:id',
+      input: z.object({ id: z.string() }),
       handle: async () => new Ok({}),
     });
 

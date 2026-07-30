@@ -4,11 +4,12 @@
  * создании и типизация пути (`PathParams`).
  */
 
+import { body, httpBindingOf, query } from './binding';
 import type { PathParams } from './helpers';
 import { httpEndpoint } from './helpers';
 
 import { describe, expect, it } from '@jest/globals';
-import { isEndpointDefinition, Ok } from '@nestling/pipeline';
+import { isEndpointDefinition, makePipeline, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 type Equal<A, B> =
@@ -55,6 +56,7 @@ describe('httpEndpoint', () => {
     const GetOrder = httpEndpoint({
       method: 'GET',
       path: '/users/:id/orders/:orderId',
+      input: z.object({ id: z.string(), orderId: z.string() }),
       handle,
     });
 
@@ -79,13 +81,192 @@ describe('PathParams', () => {
     const GetUser = httpEndpoint({
       method: 'GET',
       path: '/users/:id',
+      input: z.object({ id: z.string() }),
       handle,
     });
 
-    // Литерал сохранён: следующий change (`input-bind`) строит из него
-    // правило «имя поля совпало с path-параметром → путь»
+    // Литерал сохранён: из него построено правило «имя поля совпало с
+    // path-параметром → путь»
     type _Pattern = Expect<Equal<typeof GetUser.pattern, string>>;
 
     expect(GetUser.pattern).toBe('GET /users/:id');
+  });
+});
+
+describe('httpEndpoint — bind-карта на значении', () => {
+  it('карта вычислена при создании и лежит на декларации', () => {
+    const UpdateUser = httpEndpoint({
+      method: 'PATCH',
+      path: '/api/users/:id',
+      input: z.object({
+        id: z.string(),
+        name: z.string().optional(),
+        expand: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+      }),
+      bind: { expand: query(), tags: query({ multiple: true }) },
+      handle,
+    });
+
+    // Карта доступна из одного импорта декларации — без App и без сервера
+    expect(httpBindingOf(UpdateUser)).toEqual({
+      method: 'PATCH',
+      path: '/api/users/:id',
+      fields: {
+        id: { in: 'path' },
+        expand: { in: 'query' },
+        tags: { in: 'query', multiple: true },
+      },
+      rest: 'body',
+      rawBody: false,
+    });
+  });
+
+  it('гашение зависимостей карту не теряет', () => {
+    class UserService {
+      get(id: string) {
+        return { id };
+      }
+    }
+
+    const GetUser = httpEndpoint({
+      method: 'GET',
+      path: '/api/users/:id',
+      input: z.object({ id: z.string() }),
+      deps: [UserService],
+      handle:
+        (users) =>
+        async ({ id }) =>
+          new Ok(users.get(id)),
+    });
+
+    const resolved = GetUser.resolve([new UserService()]);
+
+    expect(httpBindingOf(resolved)).toEqual(httpBindingOf(GetUser));
+  });
+
+  it('нарушение правила размещения — ошибка в момент создания', () => {
+    expect(() =>
+      httpEndpoint({
+        method: 'GET',
+        path: '/api/users',
+        input: z.object({ filter: z.string() }),
+        // По типам легально (место с методом не сверяется) — правило
+        // проверяется в рантайме, при создании значения
+        bind: { filter: body() },
+        handle,
+      }),
+    ).toThrow(/'filter' is bound to the body, but 'GET' has no request body/);
+  });
+});
+
+// ============================================================================
+// Типовые тесты словаря
+// ============================================================================
+
+describe('httpEndpoint — типы bind и rawBody', () => {
+  const UpdateUserInput = z.object({
+    id: z.string(),
+    name: z.string().optional(),
+    expand: z.string().optional(),
+  });
+
+  it('неизвестное поле в bind не компилируется', () => {
+    httpEndpoint({
+      method: 'PATCH',
+      path: '/users/:id',
+      input: UpdateUserInput,
+      // @ts-expect-error: поля 'expnd' в схеме нет
+      bind: { expnd: query() },
+      handle,
+    });
+
+    expect(true).toBe(true);
+  });
+
+  it('пометка на path-параметре не компилируется (и падает в рантайме)', () => {
+    expect(() =>
+      httpEndpoint({
+        method: 'PATCH',
+        path: '/users/:id',
+        input: UpdateUserInput,
+        // @ts-expect-error: 'id' — path-параметр шаблона, перебиндить нельзя
+        bind: { id: query() },
+        handle,
+      }),
+    ).toThrow(/'id' is the path parameter ':id'/);
+  });
+
+  it('известное поле в bind компилируется', () => {
+    const Ok200 = httpEndpoint({
+      method: 'PATCH',
+      path: '/users/:id',
+      input: UpdateUserInput,
+      bind: { expand: query() },
+      handle,
+    });
+
+    expect(Ok200.pattern).toBe('PATCH /users/:id');
+  });
+
+  it('pipeline с требованием rawBody без пометки не компилируется', () => {
+    httpEndpoint({
+      method: 'POST',
+      path: '/hooks/stripe',
+      input: z.object({ id: z.string() }),
+      // @ts-expect-error: слой требует { rawBody }, а 'rawBody: true' не объявлен
+      pipeline: makePipeline<{ rawBody: Uint8Array }>(),
+      handle,
+    });
+
+    expect(true).toBe(true);
+  });
+
+  it('он же с rawBody: true компилируется', () => {
+    const Hook = httpEndpoint({
+      method: 'POST',
+      path: '/hooks/stripe',
+      input: z.object({ id: z.string() }),
+      rawBody: true,
+      pipeline: makePipeline<{ rawBody: Uint8Array }>(),
+      handle,
+    });
+
+    expect(httpBindingOf(Hook).rawBody).toBe(true);
+  });
+
+  it('обычный pipeline остаётся совместим с любым словарём', () => {
+    const WithRawBody = httpEndpoint({
+      method: 'POST',
+      path: '/hooks/plain',
+      input: z.object({ id: z.string() }),
+      rawBody: true,
+      pipeline: makePipeline(),
+      handle,
+    });
+
+    const WithoutRawBody = httpEndpoint({
+      method: 'POST',
+      path: '/plain',
+      input: z.object({ id: z.string() }),
+      pipeline: makePipeline(),
+      handle,
+    });
+
+    expect(httpBindingOf(WithRawBody).rawBody).toBe(true);
+    expect(httpBindingOf(WithoutRawBody).rawBody).toBe(false);
+  });
+
+  it('непрозрачный input деградирует до отсутствия подсказок, а не до ошибки', () => {
+    // Схемы нет — ключей не вывести; `bind` принимает любые имена, правила
+    // остаются за рантаймом
+    const Opaque = httpEndpoint({
+      method: 'POST',
+      path: '/opaque',
+      input: 'text',
+      handle,
+    });
+
+    expect(Opaque.pattern).toBe('POST /opaque');
   });
 });

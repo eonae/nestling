@@ -3,7 +3,8 @@
  * Содержит нормализованные данные входа транспорта
  *
  * Transport создаёт Raw из сырого запроса:
- * - HTTP: payload = merge(body, params, query), attributes = headers
+ * - HTTP: payload собран по bind-карте декларации (каждое поле — из своего
+ *   канонического места), attributes = headers
  * - gRPC: payload = decoded message, attributes = metadata
  * - CLI: payload = parsed args, attributes = { env, flags }
  */

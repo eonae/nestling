@@ -86,22 +86,26 @@ export type InitialContext = ExtendableContext<EmptyInput>;
 const NEVER_ABORTED = new AbortController().signal;
 
 /**
- * Создаёт начальный контекст с пустым input из Raw
- * Вызывается транспортом после парсинга запроса
+ * Создаёт начальный контекст из Raw.
+ * Вызывается транспортом после парсинга запроса.
  *
  * @param signal - сигнал отмены запроса; если транспорт его не передал,
  * подставляется never-aborted сигнал, так что `ctx.signal` есть всегда
+ * @param input - стартовый input: то, что транспорт кладёт в контекст ещё
+ * до первого pre-юнита (например, сырые байты тела при `rawBody: true`).
+ * По умолчанию пуст — тип стартового контекста тогда `EmptyInput`.
  */
-export function makeEmptyContext(
+export function makeEmptyContext<S extends AnyInput = EmptyInput>(
   raw: Raw,
   endpoint: EndpointMeta,
   signal?: AbortSignal,
-): InitialContext {
+  input?: S,
+): ExtendableContext<S> {
   return {
     endpoint,
     raw,
     signal: signal ?? NEVER_ABORTED,
-    input: {},
+    input: input ?? ({} as S),
   };
 }
 

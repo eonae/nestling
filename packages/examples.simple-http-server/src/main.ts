@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { CreateUser, SayHello, StreamLogs } from './endpoints';
+import { CreateUser, SayHello, SearchUsers, StreamLogs } from './endpoints';
 
 import { HttpTransport } from '@nestling/transport.http';
 
@@ -15,6 +15,7 @@ const server = new HttpTransport({
 
 server.route(SayHello);
 server.route(CreateUser);
+server.route(SearchUsers);
 server.route(StreamLogs);
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -27,6 +28,7 @@ server
     console.log('Available routes:');
     console.log('  GET  /                - Hello message');
     console.log('  POST /users           - Create user');
+    console.log('  GET  /users           - Search users (query-параметры)');
     console.log('  POST /logs/stream     - Stream logs processing');
 
     console.log('\nTry:');
@@ -36,6 +38,9 @@ server
     );
     console.log(
       `  echo '{"timestamp":1234567890,"level":"info","message":"Test log"}' | curl -X POST http://localhost:${PORT}/logs/stream -H "Content-Type: application/json" -d @-`,
+    );
+    console.log(
+      `  curl 'http://localhost:${PORT}/users?q=ali&tag=admin&tag=ops&limit=5'`,
     );
     console.log('');
   })

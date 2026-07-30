@@ -49,6 +49,50 @@ path-параметр падают сразу, а не на старте при�
 вернуть можно значение напрямую (обернётся в `Ok`) или явно
 `Ok.created(...)` / `throw Fail.badRequest(...)`.
 
+## Куда попадают поля запроса
+
+Размещение полей `input` по частям запроса — детерминированное правило:
+имя поля совпало с path-параметром шаблона → **путь**; поле помечено в
+`bind` → указанное место; всё остальное → **query** для методов без тела
+(`GET`, `HEAD`, `DELETE`, `OPTIONS`, `TRACE`) и **тело** для остальных.
+У `POST /users` выше `name` и `email` читаются из тела; те же поля,
+присланные в query-строке, в payload не попадут и дадут обычную ошибку
+валидации — приём strict, слияния «отовсюду» нет.
+
+```typescript
+import { httpEndpoint, query } from '@nestling/transport.http';
+
+const SearchUsersInput = z.object({
+  q: z.string().min(1),                     // GET → query
+  tag: z.array(z.string()).optional(),      // ?tag=a&tag=b
+  limit: z.coerce.number().int().positive().optional(),
+});
+
+export const SearchUsers = httpEndpoint({
+  method: 'GET',
+  path: '/users',
+  input: SearchUsersInput,
+  output: SearchUsersOutput,
+  bind: { tag: query({ multiple: true }) }, // массив и при одном ?tag=a
+  pipeline: makePipeline().pre(withTiming).pre(validate()),
+  handle: async (input: SearchUsersInput) => ({
+    query: input.q,
+    tags: input.tag ?? [],
+    limit: input.limit ?? 20,
+  }),
+});
+```
+
+Повтор query-ключа даёт массив в порядке следования, одно вхождение —
+скаляр (пометка `multiple` делает массив всегда), ноль вхождений — поля
+нет. Коерсию провод-строк в числа и булевы делает схема (`z.coerce`,
+`z.stringbool()`). Тело читается только тогда, когда его требует карта: у
+`GET` без `body()`-пометок оно не буферизуется вовсе.
+
+Для webhook-подписей есть `rawBody: true` — сырые байты тела в
+типизированном стартовом контексте
+([гайд с DI](./http-app-di.md#сырые-байты-тела-rawbody-и-webhook-подписи)).
+
 `server.route()` принимает **только deps-free декларацию**: у ручки с
 `deps`, класс-хендлером или классами-юнитами в пайплайне тип несёт
 неразрешённые зависимости, и standalone-путь её не примет — это ошибка

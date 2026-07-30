@@ -7,16 +7,20 @@ import {
 
 import { sendResponse } from './adapter.js';
 import {
+  assemblePayload,
+  bindingNeedsBody,
+  httpBindingOf,
+  readQuery,
+} from './binding.js';
+import {
   ChunkTooLargeError,
   JsonParseError,
-  PayloadConflictError,
   PayloadTooLargeError,
 } from './errors.js';
-import { mergePayload } from './merge.js';
 import {
   parseFilesOnly,
   parseJson,
-  parseRaw,
+  parseJsonBuffer,
   parseStream,
   parseWithFiles,
   readBody,
@@ -269,6 +273,9 @@ export class HttpTransport {
     let inputConfigType: string | undefined;
     let payload: unknown;
 
+    // Стартовый input контекста: пуст, если декларация не просила `rawBody`
+    let startInput: AnyInput | undefined;
+
     // Сигнал отмены запроса: per-request контроллер (дисконнект клиента)
     // + transport-level канал (graceful close), composed через AbortSignal.any
     const requestController = new AbortController();
@@ -299,10 +306,11 @@ export class HttpTransport {
         `http://${nativeReq.headers.host || 'localhost'}`,
       );
 
-      const query: Record<string, string> = {};
-      for (const [key, value] of url.searchParams.entries()) {
-        query[key] = value;
-      }
+      // Bind-карта декларации: единственный источник правды о том, где
+      // живёт каждое поле. Декларация от kernel-примитива карты не несёт —
+      // тогда считается тот же канон без пометок из `pattern`.
+      const binding = httpBindingOf(route.definition);
+      const query = readQuery(url.searchParams, binding.fields);
 
       // Анализируем input конфигурацию
       const inputConfig = analyzePayload(route.definition.input);
@@ -320,17 +328,20 @@ export class HttpTransport {
         }
         case 'withFiles': {
           const result = await parseWithFiles(nativeReq, this.maxBodySize);
-          const dataWithParams = mergePayload(
-            result.data,
-            undefined,
-            route.params,
-          );
+          // Поля формы играют роль источника «остальное»: эта форма
+          // body-ориентирована по построению
+          const data = assemblePayload(binding, {
+            query,
+            body: result.data,
+            params: route.params,
+            rest: 'body',
+          });
           const validatedData = inputConfig.schema
             ? parsePayload(inputConfig.schema as Schema, {
-                payload: dataWithParams as Record<string, unknown>,
+                payload: data as Record<string, unknown>,
                 metadata: {},
               })
-            : dataWithParams;
+            : data;
           payload = {
             data: validatedData,
             files: result.files,
@@ -342,24 +353,34 @@ export class HttpTransport {
           break;
         }
         case 'primitive': {
-          if (inputConfig.primitive === 'binary') {
-            payload = await parseRaw(nativeReq, this.maxBodySize);
-          } else if (inputConfig.primitive === 'text') {
-            const rawText = await readBody(nativeReq, this.maxBodySize);
-            payload = rawText.toString();
+          // Байты читаются один раз: они же уходят в стартовый контекст
+          const raw = await readBody(nativeReq, this.maxBodySize);
+          if (binding.rawBody) {
+            startInput = { rawBody: raw };
           }
+          payload = inputConfig.primitive === 'binary' ? raw : raw.toString();
           break;
         }
         default: {
           let body: unknown;
-          if (inputConfig.schema) {
+
+          if (binding.rawBody) {
+            // Одно чтение: байты в стартовый контекст, значение парсится
+            // из того же буфера
+            const raw = await readBody(nativeReq, this.maxBodySize);
+            startInput = { rawBody: raw };
+            body = parseJsonBuffer(raw);
+          } else if (inputConfig.schema && bindingNeedsBody(binding)) {
+            // Тело читается только тогда, когда его требует карта: у GET
+            // без body-пометок оно не буферизуется вовсе
             body = await parseJson(nativeReq, this.maxBodySize);
           }
-          payload = mergePayload(
+
+          payload = assemblePayload(binding, {
+            query,
             body,
-            Object.keys(query).length > 0 ? query : undefined,
-            route.params,
-          );
+            params: route.params,
+          });
         }
       }
 
@@ -384,7 +405,7 @@ export class HttpTransport {
           output: route.definition.output,
         };
 
-        const ctx = makeEmptyContext(raw, endpointMeta, signal);
+        const ctx = makeEmptyContext(raw, endpointMeta, signal, startInput);
 
         const responseContext = await pipeline.executeWithHandler(
           route.handler,
@@ -428,7 +449,7 @@ export class HttpTransport {
    * Отправляет ошибку парсинга/роутинга/fallback-ветки с корректным статусом.
    *
    * Классификация (D2):
-   * - `JsonParseError`, `PayloadConflictError`, `SchemaValidationError` → 400
+   * - `JsonParseError`, `SchemaValidationError` → 400
    * - `PayloadTooLargeError`, `ChunkTooLargeError` → 413
    * - остальное → 500, детали скрыты, если не включён `exposeErrorDetails`
    *
@@ -459,10 +480,7 @@ export class HttpTransport {
       error: 'Internal server error',
     };
 
-    if (
-      error instanceof JsonParseError ||
-      error instanceof PayloadConflictError
-    ) {
+    if (error instanceof JsonParseError) {
       status = 400;
       body.error = error.message;
     } else if (error instanceof SchemaValidationError) {

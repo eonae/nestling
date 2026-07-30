@@ -7,3 +7,4 @@ export * from './list-users.endpoint';
 export * from './search-users.endpoint';
 export * from './update-user.endpoint';
 export * from './upload-avatar.endpoint';
+export * from './user-webhook.endpoint';

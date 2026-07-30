@@ -25,3 +25,11 @@ export const MAX_AVATAR_SIZE = 5_000_000;
  * ID защищенного admin пользователя
  */
 export const ADMIN_USER_ID = '1';
+
+/**
+ * Секрет для подписи входящих webhook'ов.
+ *
+ * В примере — литерал; в приложении это конфиг-секция
+ * (`docs/design/config.md`), а не константа в коде.
+ */
+export const WEBHOOK_SECRET = 'example-webhook-secret';

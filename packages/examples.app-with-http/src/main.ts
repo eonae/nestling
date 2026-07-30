@@ -26,13 +26,16 @@ async function main() {
   console.log('🔌 Endpoints:');
   console.log('  - GET    /api/users              - List users');
   console.log('  - GET    /api/users/:id          - Get user by ID');
-  console.log('  - POST   /api/users              - Create user');
+  console.log(
+    '  - POST   /api/users              - Create user (?dryRun=true — только проверка)',
+  );
   console.log('  - PATCH  /api/users/:id          - Update user');
   console.log('  - DELETE /api/users/:id          - Delete user');
   console.log('  - GET    /api/users/search       - Search users');
   console.log('  - GET    /api/users/export       - Export users (stream)');
   console.log('  - POST   /api/users/import       - Import users (stream)');
   console.log('  - POST   /api/users/:id/avatar   - Upload avatar');
+  console.log('  - POST   /api/hooks/users        - Webhook (rawBody + HMAC)');
   console.log('⚙️  Middleware: TimingMiddleware');
   console.log('');
   console.log('✅ Server listening on http://localhost:3000');

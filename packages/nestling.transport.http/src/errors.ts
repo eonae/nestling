@@ -2,8 +2,12 @@
  * Типизированные ошибки входа HTTP-транспорта.
  *
  * Позволяют верхнему catch в `HttpTransport.handle` различать ошибки клиента
- * (битый JSON, конфликт ключей, превышение лимита) и отвечать корректным
- * статусом (400/413) вместо 500, не раскрывая внутренних деталей.
+ * (битый JSON, превышение лимита) и отвечать корректным статусом (400/413)
+ * вместо 500, не раскрывая внутренних деталей.
+ *
+ * Класса «конфликт источников payload» здесь нет и не будет: payload
+ * собирается strict-приёмом по bind-карте, у каждого поля ровно одно
+ * каноническое место — соревноваться источникам не за что.
  *
  * Сообщения этих ошибок безопасны для отправки клиенту: они описывают
  * некорректный ввод, а не внутреннее состояние сервера.
@@ -17,21 +21,6 @@ export class JsonParseError extends Error {
   constructor(options?: { cause?: unknown }) {
     super('Invalid JSON body', options);
     this.name = 'JsonParseError';
-  }
-}
-
-/**
- * Одноимённый ключ встречается в нескольких источниках payload
- * (body / query / path-параметры).
- * → `400 Bad Request` с указанием конфликтующего ключа.
- */
-export class PayloadConflictError extends Error {
-  constructor(public readonly key: string) {
-    super(
-      `Duplicate key "${key}" found in payload sources ` +
-        `(body, query, or params).`,
-    );
-    this.name = 'PayloadConflictError';
   }
 }
 
