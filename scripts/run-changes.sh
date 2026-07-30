@@ -140,7 +140,7 @@ while IFS='|' read -r name description; do
 
   if change_stub "$name"; then
     warn "$name: каталог пуст — прошлый propose оборвался; удаляю заглушку"
-    rm -rf "openspec/changes/$name"
+    (( DRY_RUN )) || rm -rf "openspec/changes/$name"
   fi
 
   # 1. propose — только если артефакты реально на месте
