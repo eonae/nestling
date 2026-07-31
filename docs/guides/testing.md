@@ -11,7 +11,7 @@ composition root, который ведёт **то же самое** прило�
 import { assembleTest, unwrap, vars } from '@nestling/testing';
 
 await using app = await assembleTest({
-  features: [UsersFeature, LoggingFeature],
+  features: [UsersFeature, OpsFeature],
   transports: [http({ port: 0 })],
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
   config: vars({ HTTP_PORT: '0' }),
@@ -105,8 +105,8 @@ expect(app.get(UsersStore)).toBeNull();
 import { checkTopologies } from '@nestling/testing';
 
 await checkTopologies(
-  { features: [UsersFeature, LoggingFeature], transports: [http({ port: 0 })] },
-  ['all', 'users', 'logging'],
+  { features: [UsersFeature, OpsFeature], transports: [http({ port: 0 })] },
+  ['all', 'users', 'ops'],
 );
 ```
 

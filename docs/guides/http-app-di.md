@@ -103,7 +103,7 @@ import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 import { basePipeline } from '../../../common/pipelines';
-import { ILogger, type ILoggerService } from '../../logger/logger.service';
+import { ILogger, type ILoggerService } from '../../logger';
 import { EmailTaken } from '../user.errors';
 import { UserService } from '../user.service';
 
@@ -380,11 +380,12 @@ export const UsersModule = makeAppModule({
 ```typescript
 import { assemble } from '@nestling/app';
 import { http } from '@nestling/transport.http';
-import { LoggerModule } from './modules/logger/logger.module';
 import { UsersModule } from './users.module';
 
 const app = assemble({
-  modules: [LoggerModule, UsersModule],
+  // логирование приезжает импортом модуля внутри UsersModule:
+  // инфраструктура — обычный модуль, отдельного поля под неё нет
+  modules: [UsersModule],
   transports: [http({ port: 3000 })],   // провайдер, а не инстанс
 });
 

@@ -77,15 +77,15 @@ await assemble({
 
 ```typescript
 // packages/examples.app-with-http/src/features.ts
-export const LoggingFeature = makeFeature({
-  name: 'logging',
-  modules: [LoggerModule],
+export const OpsFeature = makeFeature({
+  name: 'ops',
+  modules: [OpsModule],
 });
 
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],
-  dependsOn: [LoggingFeature],   // выбрал users → logging приедет сам
+  dependsOn: [OpsFeature],   // выбрал users → ops приедет сам
 });
 ```
 
@@ -103,7 +103,7 @@ const RootConfig = makeConfig('app', {
 const cfg = load(RootConfig);
 
 const app = assemble({
-  features: [UsersFeature, LoggingFeature],
+  features: [UsersFeature, OpsFeature],
   select: cfg.features,          // 'all' | 'users' | 'users,billing'
   transports: [http({ port: 3000 })],
 });
@@ -128,8 +128,109 @@ await app.run();
 фич, получаешь обе.
 
 `modules:` корня и модули выбранных фич совмещаются; дедупликация модулей —
-по имени, как в `ContainerBuilder`. Порядок регистрации: kernel-модуль
-конфига → `modules:` корня → модули выбранных фич в порядке выбора.
+**по значению**, как в `ContainerBuilder`: одно и то же значение, встреченное
+несколько раз, регистрируется один раз, а два разных значения с одним `name`
+роняют сборку (см. «Инфраструктура: параметризованные модули»). Порядок
+регистрации: kernel-модуль конфига → `modules:` корня → модули выбранных фич
+в порядке выбора.
+
+## Инфраструктура: параметризованные модули
+
+Отдельного примитива «плагин» в ядре нет: ни типа, ни поля `plugins:` в
+корне, ни `DynamicModule`/`forRoot`, ни хука конфигурации. Перечень полей
+`assemble` закрыт, и сквозная инфраструктура приезжает в граф теми же
+`modules:`/`providers:`, что и всё остальное.
+
+**Как объявить.** Параметризованная инфраструктура — функция, возвращающая
+модуль:
+
+```typescript
+// packages/examples.app-with-http/src/modules/logger/logger.module.ts
+export const logging = (options: LoggingOptions): Module =>
+  makeModule({
+    name: 'module:logging',
+    providers: [
+      factoryProvider(
+        ILogger,
+        (config: Config<typeof LoggerConfig>) =>
+          new ConsoleLogger(options.service, config.level),
+        [LoggerConfig],
+      ),
+      AuditOutcome,          // юнит слоя едет вместе с модулем
+    ],
+    exports: [ILogger],
+  });
+```
+
+**Где создаётся значение.** Один раз — и дальше разделяется импортом:
+
+```typescript
+// packages/examples.app-with-http/src/infrastructure.ts
+export const appLogging = logging({ service: 'app-with-http' });
+
+// packages/examples.app-with-http/src/users.module.ts
+export const UsersModule = makeAppModule({
+  name: 'module:users',
+  imports: [appLogging],       // инфраструктура едет вместе с фичей
+  /* ... */
+});
+```
+
+Повторный вызов фабрики — **другое значение под тем же именем**, и сборка на
+этом падает:
+
+```
+Two different modules are named 'module:logging'. A module name is the
+attribution key of its providers and exports, so it must be unique. Either
+share one module value between its consumers (create it once and import that
+value), or give the two configurations different names. If neither is the
+case, check for a duplicated package in your dependencies - two copies give
+two values of the same module.
+```
+
+Структурного сравнения опций нет: «одинаковые опции — один модуль» требовало
+бы обхода произвольных значений в рантайме и превращало бы тихую потерю в
+тихое слияние.
+
+**Что параметр, а что секция.** Параметр функции — решение composition root
+(какие провайдеры существуют, какая реализация выбрана, как назван инстанс).
+Всё, что меняется без пересборки образа — адреса, уровни, таймауты, — живёт
+в конфиг-секции, которую модуль объявляет сам и наружу отдаёт только
+`.keys`:
+
+```typescript
+// packages/examples.app-with-http/src/modules/logger/logger.config.ts
+export const LoggerConfig = makeConfig('log', {
+  level: z.enum(['debug', 'info', 'error']).default('info'),  // LOG_LEVEL
+});
+
+export const loggerConfigKeys = LoggerConfig.keys;
+```
+
+**Как выражается требование окружения.** Обычной зависимостью: инфра-модулю
+нужен HTTP-транспорт — он инжектит его токен, и невыполненное требование
+падает на ASSEMBLE как неудовлетворённая зависимость. Отдельного механизма
+(«только для этих транспортов») не существует.
+
+**Как гарантируется вездесущность слоя.** Инфра-модуль экспортирует
+pipeline-слой значением, ручки композируют его явно, а инвариант в корне
+требует его от всех — см. «Инварианты сборки: `policies`» ниже. Ambient
+middleware, который навесил бы слой невидимо, в ядре нет.
+
+**Feature-scoped против ambient.** Импортировала фича — приедет вместе с ней
+и уедет, если фича не выбрана, даже когда её файлы импортированы процессом.
+Две co-located фичи, импортирующие одно значение, делят один инстанс; при
+разнесении по процессам каждый получает свой. Процесс-глобальная
+инфраструктура объявляется в `modules:` корня — и «глобальность» означает
+ровно наличие провайдера в графе: инжектнуть его сможет лишь тот, кто
+импортировал токен.
+
+```typescript
+// packages/examples.app-with-http/src/app.spec.ts
+await using app = await assembleTest({ ...spec, select: 'ops' });
+
+expect(app.get(ILogger)).toBeNull();   // фичу не выбрали — инфры нет
+```
 
 ## Фазы жизненного цикла
 
@@ -208,7 +309,7 @@ SHUTDOWN, и снимает их по завершении `close()`. Оба м�
 каждую ручку, выведенную из-под инвариантов (если такие есть):
 
 ```
-[nestling] features: users, logging; transports: http
+[nestling] features: users, ops; transports: http
 [nestling] detached from policies: GET /health (http) — liveness-проба балансировщика: строка аудита на каждый удар — шум, а не наблюдаемость
 ```
 
@@ -224,10 +325,10 @@ auth-слоем, и без него. Инвариант объявляется �
 import { everyEndpoint } from '@nestling/pipeline';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
-import { observability } from './common/pipelines';
+import { observability } from './modules/logger';
 
 const app = assemble({
-  features: [UsersFeature, LoggingFeature],
+  features: [UsersFeature, OpsFeature],
   select: cfg.features,
   transports: [http({ port: 3000 })],
   policies: [
