@@ -4,6 +4,9 @@ import { dirname } from 'path';
 /**
  * Базовая конфигурация Jest для всех пакетов
  */
+/** Корень монорепы: базовая конфигурация лежит именно в нём */
+const repoRoot = dirname(fileURLToPath(import.meta.url));
+
 export function createJestConfig(fileUrl) {
   const __filename = fileURLToPath(fileUrl);
   const rootDir = dirname(__filename);
@@ -11,7 +14,17 @@ export function createJestConfig(fileUrl) {
   return {
     preset: 'ts-jest/presets/default-esm',
     testEnvironment: 'node',
+    // Условие `"testing"` включено во всех тестах репозитория: тестовые
+    // subpath'ы пакетов (`@nestling/app/testing` и его аналоги в
+    // пользовательских модулях) резолвятся только здесь, а прод-импорт
+    // падает на резолве
+    testEnvironmentOptions: {
+      customExportConditions: ['testing', 'node', 'node-addons'],
+    },
     rootDir,
+    // `Symbol.dispose`/`Symbol.asyncDispose` в vm-контексте теста — без них
+    // `await using` падает в хелпере, который эмитит ts-jest
+    setupFiles: [`${repoRoot}/.config/jest.setup.disposable.cjs`],
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
     extensionsToTreatAsEsm: ['.ts'],
     transform: {
@@ -21,6 +34,10 @@ export function createJestConfig(fileUrl) {
           useESM: true,
           tsconfig: {
             target: 'es2022',
+            // `await using` в тестах: `Symbol.asyncDispose` есть в рантайме
+            // Node 20+, но типам нужна отдельная библиотека. `dom` —
+            // то, что подтягивал бы умолчательный `es2022.full`
+            lib: ['es2022', 'dom', 'dom.iterable', 'esnext.disposable'],
             useDefineForClassFields: true,
             experimentalDecorators: false,
             emitDecoratorMetadata: false,
@@ -35,6 +52,9 @@ export function createJestConfig(fileUrl) {
     moduleNameMapper: {
       '^(\\.{1,2}/.*)\\.js$': '$1',
       '^lodash-es$': 'lodash',
+      // Тестовый subpath — до общего правила ниже: иначе `@nestling/app/testing`
+      // уехал бы в несуществующий `nestling.app/testing/src/index.ts`
+      '^@nestling/([^/]*)/testing$': '<rootDir>/../nestling.$1/src/testing/index.ts',
       // Маппинг всех workspace пакетов на исходники
       '^@nestling/(.*)$': '<rootDir>/../nestling.$1/src/index.ts',
       '^@common/(.*)$': '<rootDir>/../common.$1/src/index.ts',
