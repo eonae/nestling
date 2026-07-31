@@ -151,5 +151,8 @@
       а не в `change/config-module`. Push не прошёл по той же причине, что
       у changes 15 и 6: `git@github.com` отвергает единственный доступный
       ключ (`Permission denied (publickey)`, ssh-agent пуст), `gh` не
-      установлен. Требуется push с машины пользователя*
+      установлен. Перепроверено 2026-07-31: HTTPS-путь тоже закрыт —
+      `GH_TOKEN`/`GITHUB_TOKEN` не заданы, в osxkeychain записи для
+      github.com нет (анонимный `ls-remote` проходит, push — нет).
+      Требуется push с машины пользователя либо добавленный ключ/токен*
 </content>
