@@ -3,8 +3,6 @@
  * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { InProcessBus } from './bus.js';
-import { makeContract } from './contract.js';
-import type { Emitter, Port } from './families.js';
 import { implement } from './implement.js';
 import type { InvokerContext } from './invoker.js';
 import {
@@ -20,6 +18,8 @@ import { PortRuntime } from './runtime.js';
 // Только `jest`: остальные глобали инъектируются раннером, а объект
 // `jest` в ESM-режиме — нет
 import { jest } from '@jest/globals';
+import type { Emitter, Port } from '@nestling/contracts';
+import { makeContract } from '@nestling/contracts';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import {
   contextVar,

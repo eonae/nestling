@@ -6,8 +6,8 @@
  * а не при написании кода.
  */
 
+import { makeContract } from '@nestling/contracts';
 import { defineFail } from '@nestling/pipeline';
-import { makeContract } from '@nestling/ports';
 import { z } from 'zod';
 
 /** Квота исчерпана — задекларированный отказ, переживающий провод по коду */

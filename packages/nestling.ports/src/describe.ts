@@ -14,10 +14,10 @@
  * лежит в репозитории и читается диффом чужого прогона.
  */
 
-import type { AnyContract, ContractKind } from './contract.js';
 import type { BusBindingBearer } from './transport.js';
 import { busBindingOf } from './transport.js';
 
+import type { AnyContract, ContractKind } from '@nestling/contracts';
 import type {
   FormKind,
   SchemaDocConverter,

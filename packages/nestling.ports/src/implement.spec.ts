@@ -2,11 +2,11 @@
  * Реализация контракта без `output` возвращает `undefined` явно: так
  * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
-import { makeContract } from './contract.js';
 import { implement } from './implement.js';
 import { busBindingOf, BusTransport$ } from './transport.js';
 
 import { makeToken } from '@nestling/container';
+import { makeContract } from '@nestling/contracts';
 import { isEndpointDefinition, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 

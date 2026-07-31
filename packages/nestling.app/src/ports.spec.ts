@@ -23,6 +23,7 @@ import {
   OnStart,
   valueProvider,
 } from '@nestling/container';
+import { makeContract } from '@nestling/contracts';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import { makeEmptyContext, Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
@@ -30,7 +31,6 @@ import {
   BusTransport$,
   implement,
   InProcessBus,
-  makeContract,
   portsConfigKeys,
 } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';

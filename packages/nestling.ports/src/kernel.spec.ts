@@ -5,9 +5,6 @@
 import type { InProcessBus } from './bus.js';
 import { InProcessBus as InProcessBusClass, MessageBus$ } from './bus.js';
 import { portsConfigKeys } from './config.js';
-import { makeContract } from './contract.js';
-import type { Emitter, Port } from './families.js';
-import { EmitterFamily, PortFamily } from './families.js';
 import { implement } from './implement.js';
 import { bindPorts, portsKernel, undurableContracts } from './kernel.js';
 import { collectImplementations } from './topology.js';
@@ -20,6 +17,8 @@ import {
   factoryProvider,
   makeToken,
 } from '@nestling/container';
+import type { Emitter, Port } from '@nestling/contracts';
+import { EmitterFamily, makeContract, PortFamily } from '@nestling/contracts';
 import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import type { Dispatch } from '@nestling/transport';

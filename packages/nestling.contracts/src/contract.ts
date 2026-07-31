@@ -7,20 +7,21 @@
  * имени в приватный реестр пакета, потому что имя есть идентичность.
  */
 
-import type { EmitterToken, PortToken } from './families.js';
-import { EmitterFamily, PortFamily } from './families.js';
-import { registerContract } from './registry.js';
-
 import type {
-  AnyFailDefinition,
   AnyOutput,
   AnyPayload,
-  FailsOf as FailsOfDefinitions,
   InferInput,
   InferOutput,
   ValidateOutputForm,
-} from '@nestling/pipeline';
-import { isFailDefinition } from '@nestling/pipeline';
+} from './io/index.js';
+import type {
+  AnyFailDefinition,
+  FailsOf as FailsOfDefinitions,
+} from './define-fail.js';
+import { isFailDefinition } from './define-fail.js';
+import type { EmitterToken, PortToken } from './families.js';
+import { EmitterFamily, PortFamily } from './families.js';
+import { registerContract } from './registry.js';
 
 /**
  * Вид контракта: он же семантика доставки.
@@ -144,8 +145,13 @@ export type OutputOf<C extends AnyContract> =
  *
  * Для контракта без `errors:` даёт `never`: незадекларированный отказ
  * доезжает до потребителя только `UnknownError`'ом.
+ *
+ * Имя с приставкой, потому что в одном пакете живут обе проекции множества
+ * отказов: `FailsOf<E>` считает его от **списка определений** (его берёт
+ * словарь декларации), а эта — от **контракта**. Раньше они не встречались,
+ * потому что жили в разных пакетах.
  */
-export type FailsOf<C extends AnyContract> =
+export type ContractFailsOf<C extends AnyContract> =
   C extends Contract<any, any, infer E, any>
     ? E extends readonly AnyFailDefinition[]
       ? FailsOfDefinitions<E>

@@ -10,8 +10,6 @@
  * Тип call-site у обоих клиентов идентичен — в этом весь смысл порта.
  */
 
-import type { AnyContract } from './contract.js';
-import type { CommandMeta, Emitter, Port, PortMeta } from './families.js';
 import type { CallBudget } from './profile.js';
 import {
   isExhausted,
@@ -26,6 +24,13 @@ import { WireCopyError } from './wire.js';
 
 import type { Schema } from '@common/misc';
 import { SchemaValidationError } from '@common/misc';
+import type {
+  AnyContract,
+  CommandMeta,
+  Emitter,
+  Port,
+  PortMeta,
+} from '@nestling/contracts';
 import type {
   AnyFail,
   AnyFailDefinition,

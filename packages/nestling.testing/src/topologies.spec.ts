@@ -8,13 +8,13 @@ import { checkTopologies } from './topologies';
 import { describe, expect, it } from '@jest/globals';
 import { makeAppModule, makeFeature } from '@nestling/app';
 import { Injectable, makeToken, valueProvider } from '@nestling/container';
+import { makeContract } from '@nestling/contracts';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import {
   diffContracts,
   formatCompatibility,
   implement,
-  makeContract,
   snapshotContracts,
 } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';

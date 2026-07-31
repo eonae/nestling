@@ -44,13 +44,13 @@
       заменить тип `HTTPMethod` из `find-my-way` на локальный строковый союз;
       потребляющая половина (`assemblePayload`, `readQuery`,
       `bindingNeedsBody`, `httpBindingOf`) остаётся; реэкспорт; `yarn verify`
-- [ ] 3.6 Перенести из `@nestling/ports` `contract.ts`, `registry.ts` и
+- [x] 3.6 Перенести из `@nestling/ports` `contract.ts`, `registry.ts` и
       семейства вызывателей (`PortFamily`/`EmitterFamily` и типы
       `Port`/`Emitter`/`PortMeta`/`CommandMeta`, которые от них неотделимы);
       `@nestling/ports` импортирует их из `@nestling/contracts` и **не**
       реэкспортирует `makeContract`; `yarn verify`
-- [ ] 3.7 Прогнать тест границы пакета (2.2) — замыкание чистое
-- [ ] 3.8 Проверить, что перенесённые тесты переехали вместе с модулями и
+- [x] 3.7 Прогнать тест границы пакета (2.2) — замыкание чистое
+- [x] 3.8 Проверить, что перенесённые тесты переехали вместе с модулями и
       покрытие не потерялось (`define-fail.spec`, `result.spec`,
       `forms.spec`, `binding.spec`, `contract.spec`)
 

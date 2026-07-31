@@ -3,10 +3,10 @@
  * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { httpLikeDeclaration } from './__test-helpers__/foreign-declaration.js';
-import { makeContract } from './contract.js';
 import { implement } from './implement.js';
 import { collectImplementations } from './topology.js';
 
+import { makeContract } from '@nestling/contracts';
 import { Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 

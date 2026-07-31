@@ -7,9 +7,8 @@
  * топология портов (кто чей владелец).
  */
 
-import type { ContractKind } from './contract.js';
-
 import { makeToken } from '@nestling/container';
+import type { ContractKind } from '@nestling/contracts';
 import { transportNameOf } from '@nestling/pipeline';
 import type { TransportToken } from '@nestling/transport';
 

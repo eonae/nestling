@@ -3,9 +3,9 @@
  * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { InProcessBus } from './bus.js';
-import { makeContract } from './contract.js';
 import { implement } from './implement.js';
 
+import { makeContract } from '@nestling/contracts';
 import { makePipeline, Ok, stream } from '@nestling/pipeline';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';

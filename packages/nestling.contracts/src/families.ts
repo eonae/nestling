@@ -8,22 +8,22 @@
 
 import type {
   AnyContract,
+  ContractFailsOf,
   EmittingContract,
-  FailsOf,
   InputOf,
   OutputOf,
   RequestContract,
 } from './contract.js';
-
-import type { TokenString } from '@nestling/container';
-import { makeTokenFamily } from '@nestling/container';
+import type { FailOf } from './define-fail.js';
 import type {
   DeadlineExceeded,
-  FailOf,
-  Ok,
   UnknownError,
   ValidationFailed,
-} from '@nestling/pipeline';
+} from './kernel-fails.js';
+import type { Ok } from './result.js';
+
+import type { TokenString } from '@nestling/container/tokens';
+import { makeTokenFamily } from '@nestling/container/tokens';
 
 /**
  * Словарь вызова — эксплуатационный профиль, а не транспортные настройки.
@@ -106,7 +106,7 @@ export type KernelPortFail =
  */
 export type PortResult<C extends AnyContract> =
   | Ok<OutputOf<C>>
-  | FailsOf<C>
+  | ContractFailsOf<C>
   | KernelPortFail;
 
 /**

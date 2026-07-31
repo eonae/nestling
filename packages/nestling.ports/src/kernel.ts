@@ -14,9 +14,6 @@ import type { IMessageBus, InProcessBusOptions } from './bus.js';
 import { InProcessBus, MessageBus$ } from './bus.js';
 import type { DispatchPolicy, PortsConfig } from './config.js';
 import { NestlingPortsConfig } from './config.js';
-import type { AnyContract } from './contract.js';
-import type { Emitter, Port } from './families.js';
-import { EmitterFamily, PortFamily } from './families.js';
 import type { InvokerContext } from './invoker.js';
 import {
   makeLocalEmitter,
@@ -24,7 +21,6 @@ import {
   makeRemoteEmitter,
   makeRemotePort,
 } from './invoker.js';
-import { lookupContract } from './registry.js';
 import type { PortFailureInfo } from './runtime.js';
 import { PortRuntime } from './runtime.js';
 import type { ContractTopology } from './topology.js';
@@ -45,6 +41,8 @@ import {
   makeToken,
   makeTokenFamily,
 } from '@nestling/container';
+import type { AnyContract, Emitter, Port } from '@nestling/contracts';
+import { EmitterFamily, lookupContract, PortFamily } from '@nestling/contracts';
 import type { TransportRef } from '@nestling/pipeline';
 import type { Dispatch, ITransport } from '@nestling/transport';
 

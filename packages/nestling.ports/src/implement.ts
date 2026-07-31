@@ -8,10 +8,10 @@
  * pipeline, страж границы, `policies`, `app.call`) достаётся даром.
  */
 
-import type { AnyContract, Contract, ContractKind } from './contract.js';
 import { BusTransport$, makeBusBinding } from './transport.js';
 
 import type { InjectionToken } from '@nestling/container';
+import type { AnyContract, Contract, ContractKind } from '@nestling/contracts';
 import type {
   AnyEndpointDefinition,
   AnyFailDefinition,

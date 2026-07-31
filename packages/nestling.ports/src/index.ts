@@ -39,22 +39,6 @@ export type {
 } from './compatibility.js';
 export { portsConfigKeys } from './config.js';
 export type { DispatchPolicy, PortsConfig } from './config.js';
-export { makeContract } from './contract.js';
-export type {
-  AnyContract,
-  CommandContract,
-  Contract,
-  ContractKind,
-  ContractSpec,
-  EmittingContract,
-  EventContract,
-  FailsOf,
-  InputFormOf,
-  InputOf,
-  OutputFormOf,
-  OutputOf,
-  RequestContract,
-} from './contract.js';
 export { canonicalizeJson, describeContract } from './describe.js';
 export type {
   ContractDescriptor,
@@ -66,6 +50,17 @@ export type {
   JsonValue,
   SchemaDescriptor,
 } from './describe.js';
+/**
+ * Типы вызывателей реэкспортируются, а `makeContract` и типы контракта —
+ * **нет**.
+ *
+ * Разница не в аккуратности, а в направлении: `Port`/`Emitter` разбирает
+ * потребитель порта, у которого сервер уже под рукой, — импортировать их из
+ * того же пакета, что `implement`, ему естественно. А реэкспорт
+ * `makeContract` вернул бы объявление контракта в пакет с серверными
+ * зависимостями и снова сделал бы «контракт импортируется во фронт»
+ * вопросом дисциплины импортов. Канонический импорт — `@nestling/contracts`.
+ */
 export type {
   CommandMeta,
   Emitter,
@@ -77,7 +72,7 @@ export type {
   PortMeta,
   PortResult,
   PortToken,
-} from './families.js';
+} from '@nestling/contracts';
 export { implement } from './implement.js';
 export type { ImplementDictionary } from './implement.js';
 export { bindPorts, portsKernel, undurableContracts } from './kernel.js';

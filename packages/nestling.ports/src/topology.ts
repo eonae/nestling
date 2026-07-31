@@ -8,8 +8,9 @@
  * приложения.
  */
 
-import type { ContractKind } from './contract.js';
 import { busBindingOf } from './transport.js';
+
+import type { ContractKind } from '@nestling/contracts';
 
 /** Одна co-located реализация контракта */
 export interface ContractImplementation {

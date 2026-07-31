@@ -6,10 +6,10 @@
  * настолько, насколько их раскрыл конвертер.
  */
 
-import { makeContract } from './contract.js';
 import { canonicalizeJson, describeContract } from './describe.js';
 import { implement } from './implement.js';
 
+import { makeContract } from '@nestling/contracts';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import {
   defineFail,

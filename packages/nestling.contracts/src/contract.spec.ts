@@ -1,7 +1,7 @@
 import { makeContract } from './contract.js';
+import { defineFail } from './define-fail.js';
 import { EmitterFamily, PortFamily } from './families.js';
 
-import { defineFail } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const CardDeclined = defineFail('CARD_DECLINED', {

@@ -12,8 +12,6 @@
  */
 
 import { InProcessBus } from './bus.js';
-import { makeContract } from './contract.js';
-import type { Emitter, Port } from './families.js';
 import { implement } from './implement.js';
 import { makeLocalEmitter, makeLocalPort } from './invoker.js';
 import {
@@ -32,6 +30,8 @@ import { PortRuntime } from './runtime.js';
 import { BusTransport$ } from './transport.js';
 
 import { ContainerBuilder, makeToken } from '@nestling/container';
+import type { Emitter, Port } from '@nestling/contracts';
+import { makeContract } from '@nestling/contracts';
 import type {
   AnyEndpointDefinition,
   AnyInput,

@@ -20,9 +20,10 @@ import {
   OnStart,
   valueProvider,
 } from '@nestling/container';
+import { makeContract } from '@nestling/contracts';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { defineFail, makeEndpoint, Ok } from '@nestling/pipeline';
-import { implement, makeContract } from '@nestling/ports';
+import { implement } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';

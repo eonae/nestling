@@ -18,8 +18,9 @@
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
+import { makeContract } from '@nestling/contracts';
 import { defineFail, makePipeline, Ok } from '@nestling/pipeline';
-import { implement, makeContract } from '@nestling/ports';
+import { implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
