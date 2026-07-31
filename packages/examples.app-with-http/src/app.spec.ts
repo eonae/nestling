@@ -17,20 +17,27 @@ import { OpsFeature, UsersFeature } from './features';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
 import { describe, expect, it } from '@jest/globals';
-import { everyEndpoint } from '@nestling/pipeline';
-import { assembleTest, checkTopologies, unwrap, vars } from '@nestling/testing';
+import { everyEndpoint, RequestId } from '@nestling/pipeline';
+import {
+  assembleTest,
+  checkTopologies,
+  contextValue,
+  unwrap,
+  vars,
+} from '@nestling/testing';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
 /** Сборка примера без транспортного go-live — тот же словарь, что в `main.ts` */
 const spec = {
   features: [UsersFeature, OpsFeature],
   transports: [http({ port: 0 })],
-  // Тот же инвариант, что в бою: тестовый корень его не ослабляет
+  // Те же инварианты, что в бою: тестовый корень их не ослабляет
   policies: [
     everyEndpoint({ transport: HttpTransport$ }).hasLayer(
       observability,
       'observability',
     ),
+    everyEndpoint({ transport: HttpTransport$ }).hasVar(RequestId, 'requestId'),
   ],
 };
 
@@ -96,6 +103,59 @@ describe('пример: app-тесты через assembleTest', () => {
 
     expect(app.pruned).toEqual([]);
     expect(unwrap(await app.call(ListUsers))).toHaveLength(2);
+  });
+});
+
+/** Тихий сток для уровней, которые тесту не интересны */
+const drop = (): void => undefined;
+
+/** Логгер-шпион: репозиторий пишет корреляцию через него */
+const spyLogger = () => {
+  const lines: string[] = [];
+
+  return {
+    lines,
+    logger: {
+      debug: (...args: unknown[]) => void lines.push(args.join(' ')),
+      log: drop,
+      error: drop,
+    },
+  };
+};
+
+describe('пример: ambient-контекст в глубине графа', () => {
+  it('репозиторий видит requestId, положенный слоем наблюдаемости', async () => {
+    const spy = spyLogger();
+
+    // Репозиторий боевой: подменён только логгер, чтобы прочитать то, что
+    // он написал. Значение `requestId` в графе никто не подставляет — оно
+    // приезжает по-настоящему, слоем `observability`
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[ILogger, spy.logger]],
+    });
+
+    unwrap(await app.call(GetUser, { id: '1' }));
+
+    // Ручка вызвана без единого упоминания requestId, а глубокий сервис,
+    // не получивший его параметром, всё равно им подписался
+    expect(spy.lines).toContainEqual(expect.stringMatching(/^\[.+] byId 1$/));
+    expect(spy.lines).not.toContainEqual(expect.stringContaining('[n/a]'));
+  });
+
+  it('contextValue подставляет значение в тестовом корне', async () => {
+    const spy = spyLogger();
+
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[ILogger, spy.logger], contextValue(RequestId, 'req-fixed')],
+    });
+
+    unwrap(await app.call(GetUser, { id: '1' }));
+
+    // Подменён ридер, а не контекст: пайплайн по-прежнему кладёт свой
+    // requestId, но сервис читает то, что объявил тест
+    expect(spy.lines).toContain('[req-fixed] byId 1');
   });
 });
 

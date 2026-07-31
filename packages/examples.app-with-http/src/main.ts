@@ -5,7 +5,7 @@ import { OpsFeature, UsersFeature } from './features';
 
 import { assemble } from '@nestling/app';
 import { load, makeConfig } from '@nestling/config';
-import { everyEndpoint } from '@nestling/pipeline';
+import { everyEndpoint, RequestId } from '@nestling/pipeline';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -45,10 +45,19 @@ async function main() {
     // и до открытия сокета. Идентичность слоя ссылочная, поэтому
     // одноимённая копия из соседнего файла политику не удовлетворит.
     // Исключение ровно одно и с причиной: `Health` помечена `detached`.
+    //
+    // Второй инвариант — про ambient-контекст: репозиторий читает
+    // `Ctx(RequestId)` из глубины графа, где типов входа уже нет, и типами
+    // такое чтение не подстрахуешь. Политика закрывает ровно эту дыру:
+    // ручка, чей пайплайн переменную не кладёт, роняет сборку, а не запрос.
     policies: [
       everyEndpoint({ transport: HttpTransport$ }).hasLayer(
         observability,
         'observability',
+      ),
+      everyEndpoint({ transport: HttpTransport$ }).hasVar(
+        RequestId,
+        'requestId',
       ),
     ],
   });
