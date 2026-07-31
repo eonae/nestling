@@ -10,15 +10,18 @@
 
 import type { EndpointDiscovery } from './discovery';
 import { discoverEndpoints } from './discovery';
-import type { Feature, FeatureSelection } from './feature';
-import { modulesOf, resolveSelection } from './feature';
+import type {
+  AssemblyPlan,
+  AssemblySpec,
+  WiredApp,
+  WiredEndpoint,
+} from './plan';
+import { makePlan, TEST_SEAM } from './plan';
 
-import type { ConfigBinding } from '@nestling/config';
 import { configKernel } from '@nestling/config';
 import type {
   BuiltContainer,
   InjectionToken,
-  Module,
   Provider,
 } from '@nestling/container';
 import { ContainerBuilder } from '@nestling/container';
@@ -31,70 +34,35 @@ import type {
 } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
 
-/**
- * Словарь сборки приложения.
- *
- * Каждое поле опционально: приложение уровня L0 (модули + транспорт) не
- * упоминает ни фичу, ни `select`, ни конфиг.
- */
-export interface AssemblySpec {
-  /** Модули корня — они регистрируются наравне с модулями выбранных фич */
-  modules?: readonly Module[];
+export type { AssemblySpec } from './plan';
 
-  /** Провайдеры корня (когда заводить модуль незачем) */
-  providers?: readonly Provider[];
+/** Ручка в отчёте `check()`: чем обслуживается и кем объявлена */
+export interface CheckedEndpoint {
+  /** Паттерн декларации — то же, что увидит транспорт */
+  readonly pattern: string;
 
-  /** Фичи приложения; подмножество выбирается полем `select` */
-  features?: readonly Feature[];
+  /** Имя транспорта, обслуживающего ручку */
+  readonly transport: string;
 
-  /**
-   * Выбор фич: `'all'`, `'orders,billing'` или `['orders','billing']`.
-   * Отсутствует при заданных `features` — выбраны все.
-   */
-  select?: FeatureSelection;
-
-  /**
-   * Транспорты корня — **провайдеры** (`http()`, `cli()`), а не инстансы.
-   * Сахар регистрации: тот же провайдер легально объявить в `providers:`
-   * модуля, в том числе infra-модуля фичи.
-   */
-  transports?: readonly Provider<ITransport>[];
-
-  /**
-   * Привязки источников конфигурации: `[источник, таргет | таргет[]]`.
-   *
-   * Порядок задаёт приоритет; `process.env` — неявный пол и в списке не
-   * упоминается. Приложению, которому хватает env, поле не нужно вовсе:
-   * kernel-модуль конфига регистрируется всегда.
-   */
-  config?: readonly ConfigBinding[];
+  /** Модуль, объявивший ручку в `endpoints:` */
+  readonly module: string;
 }
 
 /**
- * Нормализованный план сборки.
+ * Отчёт структурной проверки: из чего собралось приложение.
  *
- * Тип **не экспортируется** из пакета: так `new App({ … })` невыразим по
- * типам, и единственной публичной точкой сборки остаётся `assemble`.
- *
- * @internal
+ * Отчёт — не лог, а значение: тест матрицы топологий сравнивает состав,
+ * а не парсит stdout.
  */
-interface AssemblyPlan {
-  readonly modules: readonly Module[];
-  readonly providers: readonly Provider[];
-  readonly transports: readonly Provider<ITransport>[];
-  readonly transportTokens: readonly TransportRef[];
-  readonly config: readonly ConfigBinding[];
-  readonly features: readonly Feature[];
-}
+export interface CheckReport {
+  /** Имена выбранных фич, включая приехавшие по `dependsOn` */
+  readonly features: readonly string[];
 
-/** Токен, под которым провайдер регистрируется в контейнере */
-function tokenOf(provider: Provider<ITransport>): TransportRef {
-  const token =
-    typeof provider === 'function'
-      ? provider
-      : (provider.provide as InjectionToken<ITransport>);
+  /** Обнаруженные дискавери ручки с их транспортами */
+  readonly endpoints: readonly CheckedEndpoint[];
 
-  return (typeof token === 'string' ? token : token.name) as TransportRef;
+  /** Транспорты приложения: перечисленные в корне и требуемые ручками */
+  readonly transports: readonly string[];
 }
 
 /**
@@ -125,27 +93,16 @@ function tokenOf(provider: Provider<ITransport>): TransportRef {
  * ```
  */
 export function assemble(spec: AssemblySpec = {}): App {
-  // Фаза 1 начинается здесь: резолв выбора идёт до построения контейнера,
-  // поэтому опечатка в имени фичи падает раньше любого `@OnInit`
-  const features = resolveSelection(spec.features, spec.select);
-
-  return new App({
-    modules: [...(spec.modules ?? []), ...modulesOf(features)],
-    providers: [...(spec.providers ?? [])],
-    transports: [...(spec.transports ?? [])],
-    transportTokens: (spec.transports ?? []).map((provider) =>
-      tokenOf(provider),
-    ),
-    config: [...(spec.config ?? [])],
-    features,
-  });
+  // Подстановок здесь нет и не будет: `assemble` не принимает `overrides`
+  // даже как соблазн — это ключ тестового корня
+  return new App(makePlan(spec));
 }
 
 /**
  * Приложение: результат `assemble`.
  *
- * Публичная поверхность — `run()` и `close()`; конструктор принимает
- * внутренний план сборки, тип которого пакет не экспортирует.
+ * Публичная поверхность — `run()`, `check()` и `close()`; конструктор
+ * принимает внутренний план сборки, тип которого пакет не экспортирует.
  */
 export class App {
   readonly #plan: AssemblyPlan;
@@ -183,12 +140,13 @@ export class App {
 
     // 1 ASSEMBLE — граф, дискавери и все fail-fast'ы до захвата ресурсов
     const { container, discovery } = await this.#assemble();
+    this.#container = container;
 
     // 2 INIT
     await container.init();
 
     // 3 WIRE — гашение зависимостей деклараций и `dispatch` на транспорт
-    const dispatches = this.#wire(container, discovery);
+    const { dispatches } = this.#wire(container, discovery);
 
     // 4 START — сначала хуки графа, затем go-live транспортов
     await container.start();
@@ -205,6 +163,82 @@ export class App {
 
     this.#announce();
     this.#attachSignals();
+  }
+
+  /**
+   * Структурный смок: фазы 0 BOOTSTRAP и 1 ASSEMBLE — и остановка.
+   *
+   * Выполняется: резолв `select`, регистрация модулей и провайдеров,
+   * дискавери, построение графа (конструкторы отрабатывают), сверка
+   * требуемых транспортов и проверка форм io против их способностей.
+   *
+   * Не выполняется: `@OnInit`, WIRE, `@OnStart`, `serve` и `@OnDestroy` —
+   * значит, ресурсы не захватываются (при условии, что их не захватывают
+   * конструкторы, что и так нарушение фазовой модели).
+   *
+   * Собственный граф `check()` не сохраняет: на последующий `run()` вызов
+   * не влияет, и гонять его можно по матрице `select`-топологий.
+   *
+   * @returns Отчёт о составе: фичи, ручки с транспортами, транспорты
+   * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах
+   *
+   * @example
+   * ```typescript
+   * for (const select of ['all', 'users', 'logging'] as const) {
+   *   await assemble({ features, select, transports: [http()] }).check();
+   * }
+   * ```
+   */
+  async check(): Promise<CheckReport> {
+    const { discovery } = await this.#assemble();
+
+    return {
+      features: this.#plan.features.map((feature) => feature.name),
+      endpoints: discovery.endpoints.map(({ endpoint, moduleName }) => ({
+        pattern: endpoint.pattern,
+        transport: transportNameOf(endpoint.transport),
+        module: moduleName,
+      })),
+      transports: this.#transportOrder(discovery).map((token) =>
+        transportNameOf(token),
+      ),
+    };
+  }
+
+  /**
+   * Внутренний шов тестового корня: фазы 0–3 и остановка.
+   *
+   * Ключ — символ из непубличного модуля, поэтому назвать этот метод из
+   * прод-кода нечем; единственный его вызыватель — `@nestling/app/testing`.
+   *
+   * @internal
+   */
+  async [TEST_SEAM](): Promise<WiredApp> {
+    if (this.#started) {
+      throw new Error('Application is already running');
+    }
+    this.#started = true;
+
+    // 1 ASSEMBLE — те же fail-fast'ы, что и в бою
+    const { container, discovery } = await this.#assemble();
+    this.#container = container;
+
+    // 2 INIT
+    await container.init();
+
+    // 3 WIRE — и остановка: START, `#announce()` и `#attachSignals()` не
+    // выполняются, поэтому тест не выходит в эфир и не трогает процесс
+    const { wired } = this.#wire(container, discovery);
+
+    this.#shutdown = new AbortController();
+
+    return {
+      container,
+      endpoints: wired,
+      features: this.#plan.features,
+      signal: this.#shutdown.signal,
+      close: () => this.close(),
+    };
   }
 
   /**
@@ -243,12 +277,19 @@ export class App {
    *
    * Всё, что может не сойтись, сходится здесь: до `@OnInit` не доходит ни
    * одна неудовлетворённая потребность.
+   *
+   * Общий метод для `run()`, `check()` и шва: собранный контейнер он
+   * возвращает, но не запоминает — иначе `check()` оставлял бы за собой
+   * граф, который никто не будет ни инициализировать, ни разрушать.
    */
   async #assemble(): Promise<{
     container: BuiltContainer;
     discovery: EndpointDiscovery;
   }> {
-    const builder = new ContainerBuilder();
+    const builder = new ContainerBuilder({
+      overrides: this.#plan.overrides,
+      familyOverrides: this.#plan.familyOverrides,
+    });
 
     // Kernel-модуль конфига регистрируется всегда: иначе «только env → в
     // корне про конфиг не пишешь ничего» не работало бы. Без привязок
@@ -273,7 +314,6 @@ export class App {
     const discovery = discoverEndpoints(this.#plan.modules);
 
     const container = await builder.build();
-    this.#container = container;
 
     this.#assertRequiredTransports(container, discovery);
     this.#assertFormsSupported(container, discovery);
@@ -286,12 +326,27 @@ export class App {
    * на каждый транспорт.
    *
    * Один `dispatch` — один транспорт: транспорт получает только свои ручки.
+   *
+   * Попутно строится карта «исходная декларация → её исполнимая копия и
+   * диспетчер её транспорта»: боевому прогону она не нужна, а тестовому
+   * даёт адресацию ручки по идентичности значения.
    */
   #wire(
     container: BuiltContainer,
     discovery: EndpointDiscovery,
-  ): Map<TransportRef, Dispatch> {
+  ): {
+    dispatches: Map<TransportRef, Dispatch>;
+    wired: Map<AnyEndpointDefinition, WiredEndpoint>;
+  } {
     const executable = new Map<TransportRef, ExecutableDeclaration[]>();
+    const resolvedByDeclaration = new Map<
+      AnyEndpointDefinition,
+      {
+        executable: ExecutableDeclaration;
+        transport: TransportRef;
+        moduleName: string;
+      }
+    >();
 
     // Транспорт без единой обнаруженной ручки легален: у него пустой
     // `dispatch`, и он всё равно выходит в эфир
@@ -305,14 +360,35 @@ export class App {
       );
 
       executable.get(endpoint.transport)?.push(resolved);
+      resolvedByDeclaration.set(endpoint, {
+        executable: resolved,
+        transport: endpoint.transport,
+        moduleName,
+      });
     }
 
-    return new Map(
+    const dispatches = new Map(
       [...executable].map(([token, endpoints]) => [
         token,
         makeDispatch(endpoints),
       ]),
     );
+
+    const wired = new Map<AnyEndpointDefinition, WiredEndpoint>();
+    for (const [declaration, resolved] of resolvedByDeclaration) {
+      const dispatch = dispatches.get(resolved.transport);
+
+      if (dispatch) {
+        wired.set(declaration, {
+          declaration,
+          executable: resolved.executable,
+          dispatch,
+          moduleName: resolved.moduleName,
+        });
+      }
+    }
+
+    return { dispatches, wired };
   }
 
   /**
