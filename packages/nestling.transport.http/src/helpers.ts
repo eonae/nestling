@@ -3,7 +3,14 @@ import { assertHttpPath, computeHttpBinding } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
 import type { InjectionToken } from '@nestling/container';
-import type { HttpMethod, SseConfig } from '@nestling/contracts';
+import type {
+  AnyContract,
+  ContractFailsOf,
+  HttpMethod,
+  InputFormOf,
+  OutputFormOf,
+  SseConfig,
+} from '@nestling/contracts';
 import type {
   AnyEndpointDefinition,
   AnyFailDefinition,
@@ -157,6 +164,145 @@ export interface HttpEndpointDictionary<
 }
 
 /**
+ * Контракт-форма HTTP-словаря: интерфейс операции и адрес берутся с
+ * контракта.
+ *
+ * Без неё секция `http:` описывала бы адрес, который никто не обязан
+ * обслуживать: автор писал бы `httpEndpoint({ method, path, input, … })`
+ * руками и рано или поздно разъехался бы с контрактом. Это форма записи, а
+ * не новый примитив: наружу выходит обычная HTTP-декларация, и дискавери,
+ * `policies`, визуализация и pipeline работают с ней как с любой другой.
+ *
+ * Слот `pipeline` типизирован так же, как у `implement`, — без сторожа
+ * стартового контекста. Стартовый контекст зависит от `rawBody`, а контракт
+ * несёт его **данными**, не типом; сторож на этом месте отвергал бы законную
+ * webhook-реализацию. Ровно тот же компромисс уже принят на шине.
+ */
+export interface HttpContractDictionary<
+  C extends AnyContract = AnyContract,
+  P extends AnyInput = AnyInput,
+  PN = never,
+> {
+  /** Контракт, объявленный `makeContract` с секцией `http:` */
+  contract: C;
+
+  /**
+   * Pipeline этой декларации. Классы-юниты допустимы: они попадают в
+   * `TNeeds` декларации и гасятся вместе с `deps`.
+   */
+  pipeline?: Pipeline<AnyInput, P, PN>;
+
+  /** Причина вывода ручки из-под инвариантов сборки */
+  detached?: string;
+
+  /** @internal адрес операции принадлежит контракту */
+  method?: never;
+
+  /** @internal адрес операции принадлежит контракту */
+  path?: never;
+
+  /** @internal размещение полей принадлежит контракту */
+  bind?: never;
+
+  /** @internal размещение полей принадлежит контракту */
+  rawBody?: never;
+
+  /** @internal специфика провода принадлежит контракту */
+  sse?: never;
+
+  /** @internal интерфейс операции принадлежит контракту */
+  input?: never;
+
+  /** @internal интерфейс операции принадлежит контракту */
+  output?: never;
+
+  /** @internal интерфейс операции принадлежит контракту */
+  errors?: never;
+}
+
+/** Поля, которые в контракт-форме объявляет сам контракт */
+const CONTRACT_OWNED = [
+  'method',
+  'path',
+  'bind',
+  'rawBody',
+  'sse',
+  'input',
+  'output',
+  'errors',
+] as const;
+
+/** Значение — контракт `makeContract`, а не что-то похожее */
+function assertContract(contract: unknown): asserts contract is AnyContract {
+  const name = (contract as { name?: unknown } | undefined)?.name;
+  const kind = (contract as { kind?: unknown } | undefined)?.kind;
+
+  if (typeof name !== 'string' || typeof kind !== 'string') {
+    throw new TypeError(
+      `httpEndpoint({ contract, … }): 'contract' must be a contract value ` +
+        `created by makeContract().`,
+    );
+  }
+}
+
+/**
+ * Fail-fast переобъявления — для JS-потребителей.
+ *
+ * Типы делают `input:` в контракт-форме невыразимым, но без рантайм-проверки
+ * тихо проигнорированное поле выглядело бы как «схема есть, а не
+ * применяется».
+ */
+function assertContractOwned(
+  declaration: Record<string, unknown>,
+  contract: AnyContract,
+): void {
+  for (const field of CONTRACT_OWNED) {
+    if (declaration[field] !== undefined) {
+      throw new TypeError(
+        `httpEndpoint({ contract: ${contract.name}, … }): '${field}' belongs ` +
+          `to the contract and cannot be redeclared by its implementation.`,
+      );
+    }
+  }
+}
+
+/**
+ * Строит декларацию из контракта: карта, схемы и `errors:` берутся с него.
+ *
+ * Карта **не пересчитывается** — на декларацию едет то же значение, что
+ * несёт контракт. Иначе «одна карта на оба конца провода» держалась бы на
+ * совпадении двух вычислений, а не на тождестве.
+ */
+function fromContract(
+  declaration: Record<string, unknown> & { contract: unknown },
+): AnyEndpointDefinition {
+  const { contract, ...rest } = declaration;
+
+  assertContract(contract);
+  assertContractOwned(rest, contract);
+
+  const binding = contract.http;
+  if (!binding) {
+    throw new Error(
+      `httpEndpoint({ contract: ${contract.name}, … }): the contract has no ` +
+        `'http:' section, so it carries no HTTP address. Declare ` +
+        `'http: <METHOD> <path>' on the contract, or implement it on the bus ` +
+        `with implement(${contract.name}, { … }).`,
+    );
+  }
+
+  return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
+    ...rest,
+    transport: HttpTransport$,
+    pattern: `${binding.method} ${binding.path}`,
+    binding,
+    input: contract.input,
+    output: contract.output,
+    errors: contract.errors,
+  });
+}
+
+/**
  * Конструктор HTTP-деклараций.
  *
  * Тонкая надстройка над kernel-примитивом `makeEndpoint`: добавляет
@@ -219,6 +365,66 @@ export interface HttpEndpointDictionary<
  * path-параметре, `body()` у метода без тела, `bind`/path-параметр при
  * неструктурном `input`, `rawBody` при потоковой или multipart-форме)
  */
+/**
+ * Порядок перегрузок держат два ограничения, и они тянут в разные стороны.
+ *
+ * **Резолвинг.** Форма с голой функцией обязана стоять раньше формы с
+ * класс-хендлером: аргумент `handle` контекстно-чувствителен, первый проход
+ * резолвинга его не проверяет, и класс-форма, окажись она раньше, победила
+ * бы — параметр функции остался бы без контекстного типа.
+ *
+ * **Диагностика.** При числе перегрузок больше трёх TypeScript перестаёт
+ * перечислять их все и печатает ошибку только последней. Последней в силу
+ * первого ограничения стоит класс-форма, поэтому её элаборация приезжает
+ * вместе с настоящей причиной (несошедшийся `bind`, литерал `__error` слота
+ * `pipeline`), но добавляет к ней шум про `HandlerClass`.
+ *
+ * Контракт-форма стоит первой: её словарь не пересекается с анонимным
+ * (`contract` против `method`/`path`), поэтому на резолвинг она не влияет.
+ */
+export function httpEndpoint<
+  C extends AnyContract,
+  P extends AnyInput = AnyInput,
+  PN = never,
+>(
+  declaration: HttpContractDictionary<C, P, PN> & {
+    deps?: undefined;
+    handle: HandlerFn<InputFormOf<C>, OutputFormOf<C>, P, ContractFailsOf<C>>;
+  },
+): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN>;
+export function httpEndpoint<
+  C extends AnyContract,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  D extends InjectionToken[] = InjectionToken[],
+>(
+  declaration: HttpContractDictionary<C, P, PN> & {
+    deps: [...D];
+    handle: HandlerFactory<
+      D,
+      InputFormOf<C>,
+      OutputFormOf<C>,
+      P,
+      ContractFailsOf<C>
+    >;
+  },
+): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN | D[number]>;
+export function httpEndpoint<
+  C extends AnyContract,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  H extends HandlerClass<
+    InputFormOf<C>,
+    OutputFormOf<C>,
+    P,
+    ContractFailsOf<C>
+  > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, ContractFailsOf<C>>,
+>(
+  declaration: HttpContractDictionary<C, P, PN> & {
+    deps?: undefined;
+    handle: H;
+  },
+): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN | H>;
 export function httpEndpoint<
   Path extends string,
   I extends AnyPayload = AnyPayload,
@@ -272,20 +478,31 @@ export function httpEndpoint<
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function httpEndpoint(
-  declaration: HttpEndpointDictionary<
-    string,
-    any,
-    any,
-    any,
-    unknown,
-    boolean | undefined,
-    any,
-    readonly AnyFailDefinition[]
-  > & {
+  declaration: (
+    | HttpEndpointDictionary<
+        string,
+        any,
+        any,
+        any,
+        unknown,
+        boolean | undefined,
+        any,
+        readonly AnyFailDefinition[]
+      >
+    | HttpContractDictionary<any, any, unknown>
+  ) & {
     deps?: InjectionToken[];
     handle: unknown;
   },
 ): AnyEndpointDefinition {
+  // Контракт-форма распознаётся наличием ключа: словари не пересекаются —
+  // в анонимной форме `contract` нет, в контракт-форме нет `method`/`path`
+  if ('contract' in declaration) {
+    return fromContract(
+      declaration as unknown as Record<string, unknown> & { contract: unknown },
+    );
+  }
+
   const { method, path, bind, rawBody, sse, ...rest } = declaration;
 
   assertHttpPath(path, `httpEndpoint({ method: '${method}', … })`);
