@@ -99,8 +99,11 @@ assemble({
   policies?,    // инварианты на собранном графе: проверяются в конце
                 //     фазы 1 ASSEMBLE — в run(), check() и assembleTest
                 //     (pipeline.md §7)
-  dispatch?,    // L4  'local-first' | 'always-remote' | 'balanced'
 }): App         // → app.run() · app.check() · app.close()
+
+// Поля `dispatch` здесь нет: политика диспатча — конфиг
+// (`NESTLING_PORTS_DISPATCH`), а не ось корня. Шина тоже не поле, а
+// транспорт: брокер приезжает `nats()` в `transports:` (L4).
 ```
 
 Поля `overrides` в этом словаре нет и не будет: подстановка узла графа есть
@@ -134,7 +137,7 @@ assemble({
 | **L1** | типизированный config-модуль | features, select, порты, шина |
 | **L2** | `makeFeature` + `select` (`--features=all\|subset`) | порты, шина — всё co-located |
 | **L3** | `makeContract` + порты (co-located) | шина — in-proc dispatch |
-| **L4** | NATS-транспорт + `dispatch`-policy | — split-развёртывание |
+| **L4** | `nats()` в `transports:` | — split-развёртывание |
 
 Ключевое: **код фич и эндпоинтов между L3 и L4 не меняется.** Разнесение по
 процессам — разница в composition root и конфиге, не в бизнес-коде. L0 нигде
@@ -306,9 +309,18 @@ await assemble({
 ```
 
 `select='orders'` + billing не выбран → `ChargeCard.port` биндится на
-remote-клиент поверх NATS; billing в своём поде экспонирует `billing.charge`
-(queue-group для реплик). `select='all'` без NATS → всё co-located, порт
-локальный. Один бинарник, разные топологии — за счёт конфига.
+remote-клиент поверх NATS: раньше это было ошибкой ASSEMBLE, теперь
+«владельца не выбрали здесь» означает «он в другом поде». Billing в своём
+поде экспонирует `billing.charge` (queue-group для реплик). `select='all'` с
+тем же корнем поднимает обе фичи одним процессом: `request`/`command`
+зовутся co-located через `dispatch`, а событие всё равно уходит через шину —
+множество подписчиков открыто, и молча потерять того, кто живёт в соседнем
+поде, нельзя. Убрать `nats()` из `transports:` — вернуться на in-proc шину,
+не тронув ни декларации, ни call-site. Один бинарник, разные топологии — за
+счёт `select` и конфига.
+
+Живой пример обеих топологий — `packages/examples.split-nats`: один корень,
+одни декларации, разный `select`.
 
 ## 4. Транспорты — провайдеры
 

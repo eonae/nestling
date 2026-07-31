@@ -466,6 +466,19 @@ export class UsersRepository {
   `@nestling/container`). Two copies of the package in the dependency graph
   mean two stores, and reads silently return `undefined` — keep a single
   version resolved in the workspace.
+- **Crossing a port boundary is opt-in per variable.**
+  `contextVar<string>()('tenantId', { propagate: true })` makes the variable
+  **propagated**: a port invoker collects the values of propagated variables
+  from the current request cell and puts them into the bus envelope, and the
+  receiver exposes them in `ctx.raw.attributes` unconditionally. The ambient
+  projection on the receiving side is switched on by a second regular writer
+  built by the variable itself — `TenantId.propagated()` — which carries the
+  same runtime mark as `provide`, so `hasVar` counts it. The flag is a
+  property of the **declaration**, not of a wiring point: there is no general
+  leak of the caller's context, and `propagate` is the named exception to it.
+  Propagated values are **not validated** — an ambient variable has no
+  schema, and the runtime does not invent one. Read-only variables (`Signal`)
+  are never propagated.
 - **Presence is checkable at assembly**, opt-in:
   `everyEndpoint(…).hasVar(RequestId)`. Types already cover a unit reading
   `ctx.input.requestId` (it demands the field); the policy covers reads from

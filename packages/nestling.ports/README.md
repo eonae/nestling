@@ -39,6 +39,16 @@ injects its invoker.
 | `command` | fire-and-forget | exactly one | `.emitter` → `emit(payload, meta?)` |
 | `event` | broadcast fact | 0..N subscribers | `.emitter` → `emit(payload, meta?)` |
 
+`durable: true` is allowed on `command` and `event` and rejected on
+`request` at declaration time (a request-reply has a live caller waiting,
+so there is nothing to outlive). Durability is a property of the
+**operation**, known to both sides — the publisher waits for the write to be
+acknowledged, the subscriber reads durably, and they live in different
+processes — so the contract is the only value available to both. How it is
+served is the transport's business (`@nestling/transport.nats`); a bus
+without that capability starts anyway and prints one line on go-live listing
+the contracts it serves without persistence.
+
 The version is part of the name (`users.create.v2`) — the name *is* the
 address, so a separate version field would be a second address. A duplicate
 name is an error at declaration time.
@@ -179,9 +189,11 @@ handle: (deadline, charge) => async (input) =>
 NESTLING_PORTS_DISPATCH=always-remote node dist/main.js
 ```
 
-`always-remote` is a rehearsal of the wire, not a running broker: whatever
-does not survive `structuredClone` breaks here, in dev and in tests, instead
-of in production after the split. The call site does not change.
+Without a broker, `always-remote` is a rehearsal of the wire: whatever does
+not survive `structuredClone` breaks here, in dev and in tests, instead of in
+production after the split. With a broker registered it becomes what it
+promises — everything is a message over a real wire. The call site does not
+change either way.
 
 The policy lives in the kernel config section `nestlingPorts`, read through
 the ordinary configuration mechanism — so it is switchable by a bound source
@@ -192,10 +204,17 @@ no `dispatch:` field in `assemble`: the root's field list is closed.
 
 Phase ASSEMBLE fails fast on everything checkable without a network: a
 `request`/`command` with no co-located implementation among the selected
-features, a second owner (naming both modules), two `event` subscribers with
-the same name, a missing or forbidden `subscriber`, and a contract whose io
-forms are `stream`/`events` (the bus supports `value` only). An event with
-zero subscribers is legal — broadcast into an empty room is a normal state.
+features **and** a bus that does not deliver outside the process, a second
+owner (naming both modules), two `event` subscribers with the same name, a
+missing or forbidden `subscriber`, and a contract whose io forms are
+`stream`/`events` (the bus supports `value` only). An event with zero
+subscribers is legal — broadcast into an empty room is a normal state.
+
+Binding an invoker has three inputs: topology, **the nature of the bus** and
+the dispatch policy. A remote bus turns "no owner selected here" into "the
+owner lives elsewhere": `request`/`command` binds remote instead of failing,
+and `event` always goes through the bus — the set of subscribers is open,
+and a local dispatch would silently lose the ones in other processes.
 
 ## Phases
 
@@ -209,14 +228,22 @@ works.
 `IMessageBus` is the least common denominator of broker verbs
 (`request`/`publish`/`subscribe` with a delivery group); no broker specifics
 leak past it. `InProcessBus` implements it *and* `ITransport` — one value
-with two capabilities, which is the shape the NATS transport will take.
-Broadcast is built on `Topic` from `@nestling/streams`, so publishing never
-waits for a slow subscriber; `durable`, retries and persistence are out of
-V1 — without an external broker they have nowhere to live.
+with two capabilities, the same shape `NatsBus` takes.
 
-The composition root says nothing about the bus: the ports kernel module
-registers it, and it appears in the graph only when the application has at
-least one contract implementation.
+The interface declares two capabilities **as values**: `remote` (does it
+deliver outside the process — an input of invoker binding) and `durable`
+(can it deliver durably). `InProcessBus` declares both false: broadcast is
+built on `Topic` from `@nestling/streams`, so publishing never waits for a
+slow subscriber, but retries and persistence have nowhere to live without an
+external broker.
+
+The composition root need say nothing about the bus: the ports kernel module
+registers `InProcessBus` when the application has at least one contract
+implementation. A root **may** supply the bus itself — that is how a broker
+is connected (`nats()` in `transports:`, see
+[`@nestling/transport.nats`](../nestling.transport.nats/README.md)) — and
+then the kernel module registers nothing: an application has exactly one
+bus, and both tokens resolve to the very same instance.
 
 ## Versioning: the name carries it, the report highlights it
 

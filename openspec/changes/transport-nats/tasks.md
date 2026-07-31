@@ -141,38 +141,38 @@
 
 ## 9. Документация
 
-- [ ] 9.1 `docs/design/transports.md` §7 — по факту реализованного: шина
+- [x] 9.1 `docs/design/transports.md` §7 — по факту реализованного: шина
   поставляется корнем, фазовая раскладка, subject и группы, потолок
   req-reply, границы вендорской специфики
-- [ ] 9.2 `docs/design/contracts.md` §3 — реализации шины и её способности;
+- [x] 9.2 `docs/design/contracts.md` §3 — реализации шины и её способности;
   обещание «`balanced` приедет вместе с настоящей remote-шиной» правится:
   политика уезжает в `deferred.md`; §4 — пропагация контекста по факту
-- [ ] 9.3 `docs/design/container.md` — абзац «`propagate` через remote-порты
+- [x] 9.3 `docs/design/container.md` — абзац «`propagate` через remote-порты
   в V1 отсутствует» переписывается на реализованное поведение
-- [ ] 9.4 `docs/design/composition.md` §3 L4 — сверить пример с фактическим
+- [x] 9.4 `docs/design/composition.md` §3 L4 — сверить пример с фактическим
   API корня
-- [ ] 9.5 Запись в `docs/decisions/ideas.md`: NATS **является** шиной, а не
+- [x] 9.5 Запись в `docs/decisions/ideas.md`: NATS **является** шиной, а не
   встаёт рядом; `event` при remote-шине всегда через шину; `durable` — в
   контракте, с обоснованием и отвергнутыми вариантами; `propagate` по
   образцу профиля вызова (два канала) и почему не сеяние в input; коннектор
   как шов тестируемости; закрытие открытого вопроса про `natsEndpoint`
-- [ ] 9.6 `docs/decisions/deferred.md`: политика `balanced` с триггером
+- [x] 9.6 `docs/decisions/deferred.md`: политика `balanced` с триггером
   возврата; отметить, что этот change — триггер к пересмотру outbox
-- [ ] 9.7 `docs/guides/ports.md`: разделы про split-развёртывание и
+- [x] 9.7 `docs/guides/ports.md`: разделы про split-развёртывание и
   `propagate` вместо сегодняшних «приедет с NATS», сверено с кодом примера,
   дата в плашке обновлена
-- [ ] 9.8 README пакетов: новый `@nestling/transport.nats`, а также
+- [x] 9.8 README пакетов: новый `@nestling/transport.nats`, а также
   `@nestling/ports`, `@nestling/pipeline`, `@nestling/app` — включая плашки
   статуса
-- [ ] 9.9 Статус change #12 в `docs/decisions/roadmap.md`
+- [x] 9.9 Статус change #12 в `docs/decisions/roadmap.md`
 
 ## 10. Definition of Done
 
-- [ ] 10.1 Все задачи выше отмечены
-- [ ] 10.2 `yarn verify` зелёный (build + lint + test по всем пакетам)
-- [ ] 10.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 10.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
-- [ ] 10.5 `yarn docs:audit` — 0 ERROR
-- [ ] 10.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены с
+- [x] 10.1 Все задачи выше отмечены
+- [x] 10.2 `yarn verify` зелёный (build + lint + test по всем пакетам)
+- [x] 10.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 10.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
+- [x] 10.5 `yarn docs:audit` — 0 ERROR
+- [x] 10.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены с
   обновлённой датой в плашке «сверено с кодом»
 - [ ] 10.7 Коммиты осмысленные, ветка запушена

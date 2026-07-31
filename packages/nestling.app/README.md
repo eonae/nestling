@@ -48,10 +48,14 @@ Three kernel modules are registered unconditionally — config, ambient
 context and **ports** ([`@nestling/ports`](../nestling.ports)) — so the root
 never has to mention them. They cost nothing when unused: their nodes are
 token-family members, materialized only when something injects them, and
-the bus transport is registered only when the app has at least one contract
-implementation. Discovery runs before module registration because the ports
-kernel needs the topology of implementations at registration time; the
-function is pure, so the order changes nothing else.
+the in-process bus is registered only when the app has at least one contract
+implementation **and** the root did not supply a bus transport itself. That
+last condition is how a broker is connected: `nats()` in `transports:`
+registers under the same token, and then the kernel module registers no bus
+of its own — an application has exactly one. Discovery runs before module
+registration because the ports kernel needs the topology of implementations
+at registration time; the function is pure, so the order changes nothing
+else.
 
 ### `policies` — invariants over the assembled graph
 
@@ -89,6 +93,12 @@ startup, one line each, right after the assembly summary:
 [nestling] features: users, ops; transports: http
 [nestling] detached from policies: GET /health (http) — liveness probe of the load balancer
 ```
+
+The same surface carries one more line: an application declaring `durable`
+contracts on a bus that cannot deliver durably prints, once, the list of
+contracts it serves without persistence. The build does not fail — otherwise
+a local run without a broker would be impossible — but the degradation is
+never silent.
 
 ## `check()` — a structural smoke test
 
