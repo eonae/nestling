@@ -43,6 +43,8 @@ export class DINode implements INode<DINode> {
   readonly metadata: DINodeMetadata;
   /** Initialization hooks for this instance */
   readonly onInit: readonly Hook[];
+  /** Start hooks for this instance (phase START, after WIRE) */
+  readonly onStart: readonly Hook[];
   /** Destruction hooks for this instance */
   readonly onDestroy: readonly Hook[];
   /** Dependencies - child nodes */
@@ -53,6 +55,7 @@ export class DINode implements INode<DINode> {
     this.instance = data.instance;
     this.metadata = { ...data.metadata };
     this.onInit = [...data.hooks.onInit];
+    this.onStart = [...(data.hooks.onStart ?? [])];
     this.onDestroy = [...data.hooks.onDestroy];
     this.dependencies = [...dependencies];
   }
@@ -87,6 +90,15 @@ export class DINode implements INode<DINode> {
    */
   async runInitHooks(): Promise<void> {
     for (const hook of this.onInit) {
+      await hook();
+    }
+  }
+
+  /**
+   * Runs all start hooks for this node.
+   */
+  async runStartHooks(): Promise<void> {
+    for (const hook of this.onStart) {
       await hook();
     }
   }

@@ -29,7 +29,7 @@ I miss parameter decorators too, but the standard actually has several advantage
 - Three familiar provider types: value, class, and factory
 - Simplified class provider declaration using the `@Injectable` decorator
 - Injection tokens, just like in Nest.js, can be class references or strings, but thanks to [branded types](https://dev.to/themuneebh/typescript-branded-types-in-depth-overview-and-use-cases-60e) and helper functions, working with strings is more convenient
-- Lifecycle methods `OnInit` and `OnDestroy` for providers. Unlike Nest.js, they execute in strict **topological order** when you call the corresponding methods (`init` and `destroy`) on the container.
+- Lifecycle methods `OnInit`, `OnStart` and `OnDestroy` for providers. Unlike Nest.js, they execute in strict **topological order** when you call the corresponding methods (`init`, `start` and `destroy`) on the container.
 - A module system simpler than Nest.js, and optional. You can register providers without modules.
 - Auto-registration of providers and modules through decorators and relationships. If all your providers are organized into modules and those modules import into a root module, you only need to register the root module in the container. Dependencies are pulled in automatically.
 
@@ -238,7 +238,7 @@ Cleaner. Simpler. Just configuration.
 
 ### Lifecycle Hooks: Where They Belong
 
-Lifecycle hooks (`@OnInit`, `@OnDestroy`) are for services, not modules:
+Lifecycle hooks (`@OnInit`, `@OnStart`, `@OnDestroy`) are for services, not modules:
 
 ```typescript
 import { Injectable, OnInit, OnDestroy } from '@nestling/container';
@@ -261,6 +261,10 @@ class DatabaseService {
 
 The container calls these hooks in the right order:
 - `init()`: calls `@OnInit` hooks in topological order (dependencies first)
+- `start()`: calls `@OnStart` hooks in topological order — after `@OnInit`
+  of the **whole** graph, so a start hook sees a fully wired application
+  (schedulers, consumers, subscriptions belong here). Idempotent: a repeated
+  call runs nothing
 - `destroy()`: calls `@OnDestroy` hooks in reverse topological order
 
 This is similar to NestJS's `OnModuleInit` and `OnModuleDestroy`, but without the module class ceremony.

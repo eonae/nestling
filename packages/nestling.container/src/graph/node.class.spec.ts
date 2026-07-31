@@ -10,14 +10,14 @@ describe('DINode', () => {
     const child = new DINode(TokenB, [], {
       instance: { value: 1 },
       metadata: { module: 'ModuleB', exported: true },
-      hooks: { onInit: [], onDestroy: [] },
+      hooks: { onInit: [], onStart: [], onDestroy: [] },
       deps: [],
     });
 
     const node = new DINode(TokenA, [child], {
       instance: { value: 2 },
       metadata: { module: 'ModuleA' },
-      hooks: { onInit: [], onDestroy: [] },
+      hooks: { onInit: [], onStart: [], onDestroy: [] },
       deps: [TokenB],
     });
 
@@ -30,14 +30,14 @@ describe('DINode', () => {
     const leaf = new DINode(TokenB, [], {
       instance: {},
       metadata: {},
-      hooks: { onInit: [], onDestroy: [] },
+      hooks: { onInit: [], onStart: [], onDestroy: [] },
       deps: [],
     });
 
     const root = new DINode(TokenA, [leaf], {
       instance: {},
       metadata: {},
-      hooks: { onInit: [], onDestroy: [] },
+      hooks: { onInit: [], onStart: [], onDestroy: [] },
       deps: [TokenB],
     });
 

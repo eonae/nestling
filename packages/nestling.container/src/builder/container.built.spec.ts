@@ -1,5 +1,5 @@
 import { makeToken } from '../common';
-import { getLifecycleHooks, OnDestroy, OnInit } from '../lifecycle';
+import { getLifecycleHooks, OnDestroy, OnInit, OnStart } from '../lifecycle';
 import { makeModule } from '../modules';
 import { classProvider, Injectable, valueProvider } from '../providers';
 
@@ -36,6 +36,11 @@ describe('BuiltContainer', () => {
         lifecycleLog.push('A:init');
       }
 
+      @OnStart()
+      async startHook(): Promise<void> {
+        lifecycleLog.push('A:start');
+      }
+
       @OnDestroy()
       async destroyHook(): Promise<void> {
         lifecycleLog.push('A:destroy');
@@ -53,6 +58,11 @@ describe('BuiltContainer', () => {
       @OnInit()
       async initHook(): Promise<void> {
         lifecycleLog.push('B:init');
+      }
+
+      @OnStart()
+      async startHook(): Promise<void> {
+        lifecycleLog.push('B:start');
       }
 
       @OnDestroy()
@@ -125,6 +135,58 @@ describe('BuiltContainer', () => {
       'B:destroy',
       'A:destroy',
     ]);
+  });
+
+  it('runs start hooks topologically, after every init hook', async () => {
+    const container = await buildContainer();
+
+    await container.init();
+    await container.start();
+
+    expect(lifecycleLog).toEqual(['A:init', 'B:init', 'A:start', 'B:start']);
+  });
+
+  it('runs start hooks once on a repeated start()', async () => {
+    const container = await buildContainer();
+
+    await container.init();
+    await container.start();
+    await container.start();
+
+    expect(lifecycleLog.filter((entry) => entry.endsWith(':start'))).toEqual([
+      'A:start',
+      'B:start',
+    ]);
+  });
+
+  it('succeeds when no provider declares a start hook', async () => {
+    const Token = makeToken<{ ok: boolean }>('NoHooks');
+
+    const container = await new ContainerBuilder()
+      .register(valueProvider(Token, { ok: true }))
+      .build();
+
+    await expect(container.start()).resolves.toBeUndefined();
+  });
+
+  it('propagates an error thrown by a start hook', async () => {
+    const Token = makeToken('Failing');
+
+    @Injectable(Token, [])
+    class Failing {
+      @OnStart()
+      async startHook(): Promise<void> {
+        throw new Error('start failed');
+      }
+    }
+
+    const container = await new ContainerBuilder()
+      .register(classProvider(Token, Failing))
+      .build();
+
+    await container.init();
+
+    await expect(container.start()).rejects.toThrow('start failed');
   });
 
   it('supports direct lifecycle hook discovery for external instances', () => {
