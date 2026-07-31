@@ -6,6 +6,12 @@
  * ES-модулей, а не рантайм-проверкой. Публично — объявление контракта,
  * его реализация, интерфейс шины и точки, которыми пользуется композиционный
  * корень.
+ *
+ * Отдельная группа экспортов — то, что нужно **автору реализации шины**:
+ * биндинг декларации, пересчёт конверта профиля и сборка ответа границы.
+ * Без них сторонний транспорт (`@nestling/transport.nats` и любой другой)
+ * не смог бы вести себя так же, как in-proc шина, а «альтернативная
+ * реализация пишется без правок ядра» осталась бы обещанием.
  */
 
 export { InProcessBus, MessageBus$ } from './bus.js';
@@ -78,11 +84,17 @@ export { bindPorts, portsKernel, undurableContracts } from './kernel.js';
 export type { PortsKernelOptions } from './kernel.js';
 export {
   Deadline,
+  deadlineFromTimeout,
   deadlineIn,
   IdempotencyKey,
+  isExhausted,
+  profileAttributes,
+  startBudget,
   withDeadline,
   withIdempotencyKey,
 } from './profile.js';
+export type { CallBudget } from './profile.js';
+export { failureResponse } from './response.js';
 export type { PortFailureInfo } from './runtime.js';
 export {
   serializeSnapshot,
