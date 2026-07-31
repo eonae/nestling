@@ -47,7 +47,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 24 | `endpoint-model` | уход классовых endpoint-деклараций: канон — декларации-значения через per-transport конструкторы (`httpEndpoint`/`cliEndpoint` — типизированный словарь: path-параметры, bind-карта из 21); `deps`-инжект + формы хендлера (функция / каррированная фабрика / класс-хендлер через контейнер); `endpoints:` модуля принимает значения; удаление `@Endpoint`/`@HttpEndpoint`/`IEndpoint`/endpoint-registry; standalone-гарантия в типах (`route` — только deps-free); перевод `examples.app-with-http` и гайдов; классы остаются DI-формой провайдеров/юнитов/хендлеров; онтология — контракт первичен: конструкторы = сахар «анонимный контракт + `implement`»; CLI-биндинг — политика сбора недостающего input из схемы (`missing: 'prompt'`) — **вне scope этого change'а** | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-30-endpoint-model/), [ideas.md [2026-07-13]](./ideas.md) |
 | 25 | `config-secrets` | `secret(schema)` в `makeConfig` (редактирование в `explain()`/логах/доках); семантика общих ключей: независимая валидация каждой секцией, fail-fast на несогласованном `reloadable`, секретность по объединению, читатели ключа в `explain()` | S | идея — [ideas.md [2026-07-13]](./ideas.md) |
 | 26 | `contract-versioning` | версия явно в имени контракта; схемный дифф против снапшота опубликованных схем; отчёт breaking changes в `.check()`-матрице CI — подсвечивает, не блокирует | S–M | идея — [ideas.md [2026-07-13]](./ideas.md) |
-| 27 | `port-deadline-idempotency` | `meta.deadline` (gRPC-модель: абсолютный момент в процессе, относительный timeout по проводу, fail-fast `DeadlineExceededError` до вызова, встроенный код); `idempotencyKey` в meta для `command` (провоз через транспорт; дедупликация — satellite, не ядро) | M | идея — [ideas.md [2026-07-13]](./ideas.md) |
+| 27 | `port-deadline-idempotency` | `meta.deadline` (gRPC-модель: абсолютный момент `Date` в процессе, относительный `timeoutMs` по проводу, пересчёт на приёме; fail-fast до вызова и до обработки, отмена в полёте; встроенный код `DEADLINE_EXCEEDED`, определение `DeadlineExceeded` — в `@nestling/pipeline`, где живёт закрытый набор); `idempotencyKey` в meta **только** у `command` (`MetaOf<C>` по виду; ключ чеканит вызыватель, если не дан; провоз конвертом шины; дедупликация — satellite, не ядро); профиль двумя каналами — `raw.attributes` и переменные `Deadline`/`IdempotencyKey` | M | **реализован**, ждёт архива — [гайд](../guides/ports.md), [ideas.md [2026-07-31]](./ideas.md), [ideas.md [2026-07-13]](./ideas.md) |
 | 28 | `policy-check` | инварианты на собранном графе: `assemble({ policies })`, `everyEndpoint(фильтр).hasLayer(ref)` (идентичность слоя — по ссылке); `detached: '<причина>'` (строка обязательна) + печать detached-ручек на старте; ESLint-правило как editor-фидбек; машинерия для 13 (plugins) и 16 (async-context), прогон в `.check()`-матрице (18) | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-policy-check/), новый пакет [`@nestling/eslint-plugin`](../../packages/nestling.eslint-plugin/), [ideas.md [2026-07-14]](./ideas.md) |
 
 ## Порядок и зависимости
@@ -171,8 +171,11 @@ d/06 П.3). Состав breaking-окна фиксации публичного
   Логика — [ideas.md [2026-07-13]](./ideas.md) «Порты: deadline,
   идемпотентность, версионирование контрактов».
 - **27 `port-deadline-idempotency`** — после 11 (dispatch, meta); провоз по
-  сети (относительный timeout, NATS headers) — вместе с 12. Дедупликация —
-  satellite, вне скоупа. Логика — там же ([ideas.md [2026-07-13]](./ideas.md)).
+  сети (кодирование конверта в NATS headers) — вместе с 12. Дедупликация —
+  satellite, вне скоупа. Автонаследование бюджета вглубь отвергнуто и
+  отложено ([deferred.md [2026-07-31]](./deferred.md)). Логика —
+  [ideas.md [2026-07-13]](./ideas.md) и, по факту реализованного,
+  [ideas.md [2026-07-31]](./ideas.md).
 - Рекомендуемый вход в ветку: **8 → 9 → 10 → 11 → 12**, `13` — параллельно после 10.
 
 ## Волны реализации
@@ -279,7 +282,7 @@ breaking-окно едет вторым (а не после ветки моно�
 | # | Change | Размер | Почему здесь |
 |---|---|---|---|
 | 11 | `ports` | L | **done** — [архив](../../openspec/changes/archive/2026-07-31-ports/); `makeContract`, `Port`/`Emitter`, `InProcessBus`, dispatch-политики |
-| 27 | `port-deadline-idempotency` | M | meta-слой поверх готового dispatch |
+| 27 | `port-deadline-idempotency` | M | **реализован**, ждёт архива — meta-слой поверх готового dispatch |
 | 26 | `contract-versioning` | S–M | отчёт совместимости — расширение `.check()`-матрицы (18) |
 | 12 | `transport.nats` | M | remote-биндинг, queue-groups, JetStream; сюда же wire-часть `propagate` из 16 |
 | 22 | `contract-clients` | M | `@nestling/contracts` + `@nestling/client` — все предпосылки (11, 15, 19, 21) закрыты |
