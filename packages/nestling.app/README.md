@@ -31,6 +31,14 @@ declaring module), or when a required transport is missing from
 On startup `App` calls `endpoint.resolve(resolver)` for every discovered
 declaration and hands the transport a runnable value.
 
+Before that, each declaration's io **forms** are checked against the
+transport's `capabilities` — richness is declared in the contract and
+reconciled at assembly, so `events` on CLI or `multipart` on a
+value-only transport fails at startup rather than on the first request.
+The message names the endpoint, the declaring module, the transport, the
+slot and the form; the same check runs on the standalone path inside the
+transport itself (see [`@nestling/transport`](../nestling.transport)).
+
 ### Migrating from decorator endpoints
 
 - `@Injectable([...]) @HttpEndpoint(method, path, opts) class X implements

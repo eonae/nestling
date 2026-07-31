@@ -10,6 +10,7 @@ import type {
   Provider,
 } from '@nestling/container';
 import { ContainerBuilder } from '@nestling/container';
+import { assertFormsSupported } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 
 /**
@@ -217,6 +218,15 @@ export class App {
     for (const { endpoint, moduleName } of discovery.endpoints) {
       // Транспорт заведомо есть: множество требуемых сверено выше
       const transport = this.transports.get(endpoint.transport) as ITransport;
+
+      // Формы контракта против способностей транспорта — до гашения
+      // зависимостей и до приёма запросов: богатство объявляется в
+      // контракте, согласуется проверкой биндинга на сборке
+      assertFormsSupported(
+        endpoint,
+        transport.capabilities,
+        `declared in module '${moduleName}'`,
+      );
 
       // Гасим зависимости декларации контейнером: транспорт принимает
       // только исполнимое значение (TNeeds = never)

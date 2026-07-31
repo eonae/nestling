@@ -3,8 +3,15 @@ import type {
   AnyOutput,
   AnyPayload,
   EndpointDefinition,
+  TransportCapabilities,
 } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
+
+/** Способности мока по умолчанию: всё, кроме потоков и файлов */
+const VALUE_ONLY: TransportCapabilities = {
+  input: new Set(['value']),
+  output: new Set(['value']),
+};
 
 // Mock transport
 export class MockTransport implements ITransport {
@@ -12,7 +19,14 @@ export class MockTransport implements ITransport {
   listening = false;
   closed = false;
 
-  constructor(private readonly onClose?: () => void) {}
+  readonly capabilities: TransportCapabilities;
+
+  constructor(
+    private readonly onClose?: () => void,
+    capabilities: TransportCapabilities = VALUE_ONLY,
+  ) {
+    this.capabilities = capabilities;
+  }
 
   endpoint<
     I extends AnyPayload = AnyPayload,

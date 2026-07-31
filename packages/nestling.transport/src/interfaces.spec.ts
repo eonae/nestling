@@ -32,6 +32,10 @@ describe('ITransport.endpoint', () => {
   const received: string[] = [];
 
   const transport: ITransport = {
+    capabilities: {
+      input: new Set(['value']),
+      output: new Set(['value']),
+    },
     endpoint(definition) {
       received.push(definition.pattern);
     },
