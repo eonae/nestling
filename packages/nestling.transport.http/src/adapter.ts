@@ -1,5 +1,6 @@
 import type { ServerResponse } from 'node:http';
 
+import type { SseConfig } from '@nestling/contracts';
 import type {
   FormKind,
   ProcessingStatus,
@@ -43,21 +44,13 @@ export const DEFAULT_SSE_HEARTBEAT = 15_000;
 export const SSE_ERROR_EVENT = 'error';
 
 /**
- * SSE-специфика декларации.
+ * SSE-специфика носителя декларации.
  *
- * Живёт в HTTP-словаре, а не в форме `events(T)`: форма транспортно
- * нейтральна, а `id`/`event`/`heartbeat` — свойства провода.
+ * Определение живёт в `@nestling/contracts` рядом с bind-картой, которая
+ * его и везёт; здесь оно реэкспортируется, чтобы автор HTTP-декларации брал
+ * тип оттуда же, откуда `httpEndpoint`.
  */
-export interface SseConfig<T = any> {
-  /** Значение поля `id:` кадра; не задано — поле не пишется */
-  id?: (item: T) => string | number;
-
-  /** Имя события; не задано — поле не пишется. `error` зарезервировано */
-  event?: (item: T) => string;
-
-  /** Период heartbeat-комментариев; не задан — опция транспорта */
-  heartbeat?: number;
-}
+export type { SseConfig } from '@nestling/contracts';
 
 /** Что транспорт знает об отправляемом ответе помимо самого значения */
 export interface SendOptions {

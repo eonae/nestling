@@ -9,13 +9,14 @@
  * неизменности исполнения: провенанс не участвует в рантайме.
  */
 
-import type { AnyInput, EmptyInput } from './io/io';
 import type { EndpointMeta, ExtendableContext } from './types/context';
 import { makeEmptyContext } from './types/context';
 import type { Raw } from './types/raw';
 import type { AnyPipeline, Pipeline } from './pipeline';
 import { compose, derivesFrom, makePipeline } from './pipeline';
-import { Ok } from './result';
+
+import type { AnyInput, EmptyInput } from '@nestling/contracts';
+import { Ok } from '@nestling/contracts';
 
 function makeCtx(): ExtendableContext<EmptyInput> {
   const raw: Raw = {

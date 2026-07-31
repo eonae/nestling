@@ -13,21 +13,28 @@
  * meta.signal и политика раскрытия ошибок (exposeErrorDetails).
  */
 
-import type { AnyInput, EmptyInput } from './io/io';
 import type { EndpointMeta, ExtendableContext } from './types/context';
 import { makeEmptyContext } from './types/context';
 import type { Raw } from './types/raw';
 import type { PreUnitFn } from './types/unit';
 import { ClientDisconnectedError, TransportClosingError } from './abort';
-import type { AnyFailDefinition } from './define-fail';
-import { defineFail } from './define-fail';
-import { DeadlineExceeded, ValidationFailed } from './kernel-fails';
 import type { AnyPipeline, ExecuteOptions, Pipeline } from './pipeline';
 import { compose, makePipeline } from './pipeline';
-import type { AnyFail } from './result';
-import { Fail, Ok } from './result';
 
 import { jest } from '@jest/globals';
+import type {
+  AnyFail,
+  AnyFailDefinition,
+  AnyInput,
+  EmptyInput,
+} from '@nestling/contracts';
+import {
+  DeadlineExceeded,
+  defineFail,
+  Fail,
+  Ok,
+  ValidationFailed,
+} from '@nestling/contracts';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------

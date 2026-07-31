@@ -1,9 +1,9 @@
-import type { SseConfig } from './adapter.js';
 import type { BindMark } from './binding.js';
 import { computeHttpBinding, readPathParams } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
 import type { InjectionToken } from '@nestling/container';
+import type { HttpMethod, SseConfig } from '@nestling/contracts';
 import type {
   AnyEndpointDefinition,
   AnyFailDefinition,
@@ -23,7 +23,6 @@ import type {
   ValidateOutputForm,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
-import type { HTTPMethod } from 'find-my-way';
 
 /**
  * Имена path-параметров шаблона (`:param`-сегментов).
@@ -128,7 +127,7 @@ export interface HttpEndpointDictionary<
   E extends readonly AnyFailDefinition[] = [],
 > {
   /** HTTP-метод ручки */
-  method: HTTPMethod;
+  method: HttpMethod;
 
   /** Шаблон пути; path-параметры объявляются `:name` */
   path: Path;
@@ -369,6 +368,7 @@ export function httpEndpoint(
     input: declaration.input,
     output: declaration.output,
     sse,
+    where: `httpEndpoint({ method: '${method}', path: '${path}' })`,
   });
 
   return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({

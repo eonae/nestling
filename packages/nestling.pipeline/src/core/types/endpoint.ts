@@ -1,11 +1,13 @@
 import type {
+  AnyFail,
   AnyInput,
   AnyOutput,
   AnyPayload,
   InferInput,
   InferOutput,
-} from '../io/io.js';
-import type { AnyFail, Output, OutputSync } from '../result.js';
+  Output,
+  OutputSync,
+} from '@nestling/contracts';
 
 /**
  * Функция-обработчик запроса.

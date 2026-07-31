@@ -1,10 +1,34 @@
-import type { ErrorResponseContext, ResponseContext } from './types/context.js';
 import type { AnyFail } from './result.js';
 import { Fail, isFail } from './result.js';
 import type { ErrorStatus } from './status.js';
 
 import type { StandardSchemaV1 } from '@common/misc';
 import { validateSync } from '@common/misc';
+
+/**
+ * Контекст ответа с точки зрения предиката — **минимальный структурный
+ * тип**, а не `ResponseContext` пайплайна.
+ *
+ * Определение отказа обязано жить в пакете без серверного кода, а тип
+ * контекста ответа принадлежит рантайму пайплайна. Пересечение двух миров
+ * здесь ровно одно: у ответа есть дискриминант `isSuccess` и носитель кода
+ * в `value`. `ResponseContext` этому типу удовлетворяет, поэтому сужение в
+ * `.catch`-юните работает как прежде.
+ *
+ * Тип принимает **обе ветки** дискриминанта: сузить `ResponseContext` можно
+ * только предикатом, чей параметр принимает и успех, и отказ — иначе
+ * контекст не подошёл бы под перегрузку и уехал бы в `unknown`-вариант.
+ */
+export interface ResponseLike {
+  readonly isSuccess: boolean;
+  readonly value?: unknown;
+}
+
+/** Ответ-отказ, сузившийся до конкретного определения */
+export type FailResponseOf<TCode extends string, TDetails> = ResponseLike & {
+  readonly isSuccess: false;
+  readonly value: { readonly code: TCode; readonly details: TDetails };
+};
 
 /**
  * Symbol-бренд определения отказа.
@@ -62,9 +86,7 @@ export interface FailDefinitionProps<
    * прототип потерян) и контекстом ответа-ошибки, который видит
    * `.catch`-юнит. Обе сужают ровно то, что действительно есть в рантайме.
    */
-  is(value: ResponseContext): value is ErrorResponseContext & {
-    value: { code: TCode; details: TDetails };
-  };
+  is(value: ResponseLike): value is FailResponseOf<TCode, TDetails>;
   is(value: unknown): value is DeclaredFail<TCode, TDetails>;
 }
 
@@ -157,8 +179,15 @@ export function isFailDefinition(value: unknown): value is AnyFailDefinition {
   );
 }
 
-/** Контекст ответа-ошибки как носитель кода */
-function isErrorResponse(value: unknown): value is ErrorResponseContext {
+/**
+ * Контекст ответа-ошибки как носитель кода.
+ *
+ * Рантайм и до переезда смотрел только на `isSuccess === false` — сужение
+ * от смены типа не изменилось.
+ */
+function isErrorResponse(
+  value: unknown,
+): value is { isSuccess: false; value?: { code?: string } } {
   return (
     typeof value === 'object' &&
     value !== null &&

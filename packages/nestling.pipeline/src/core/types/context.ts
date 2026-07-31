@@ -1,34 +1,18 @@
-import type { Readable } from 'node:stream';
-
-import type { AnyFailDefinition } from '../define-fail';
-import type { AnyInput, AnyOutput, AnyPayload, EmptyInput } from '../io/io';
-import type { StreamSummary } from '../io/summary.js';
-import { makeSummary } from '../io/summary.js';
-import type { ErrorStatus, SuccessStatus } from '../status';
-
 import type { Raw } from './raw.js';
 
+import type {
+  AnyFailDefinition,
+  AnyInput,
+  AnyOutput,
+  AnyPayload,
+  EmptyInput,
+  ErrorStatus,
+  StreamSummary,
+  SuccessStatus,
+} from '@nestling/contracts';
+import { makeSummary } from '@nestling/contracts';
+
 export * from './raw.js';
-
-/**
- * Описание файла в multipart запросе
- */
-export interface FilePart {
-  /** Имя поля формы */
-  field: string;
-
-  /** Имя файла */
-  filename: string;
-
-  /** MIME-тип */
-  mime: string;
-
-  /** Поток данных файла */
-  stream: Readable;
-
-  /** Размер файла (если известен) */
-  size?: number;
-}
 
 /**
  * Метаданные endpoint (readonly)

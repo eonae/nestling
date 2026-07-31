@@ -11,11 +11,11 @@
  */
 
 import { contextVar } from './context/variable.js';
-import type { EmptyInput } from './io/io.js';
 import type { Pipeline } from './pipeline.js';
 import { compose, declaresVar, makePipeline } from './pipeline.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { EmptyInput } from '@nestling/contracts';
 
 const RequestId = contextVar<string>()('requestId');
 const TenantId = contextVar<string>()('tenantId');

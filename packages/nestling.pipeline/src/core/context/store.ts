@@ -14,7 +14,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-import type { AnyInput } from '../io/io.js';
+import type { AnyInput } from '@nestling/contracts';
 
 /**
  * Фаза исполнения — только для диагностики `get()`: по ней ридер

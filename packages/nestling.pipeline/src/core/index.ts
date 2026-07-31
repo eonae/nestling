@@ -1,9 +1,95 @@
 export * from './abort';
 export * from './context';
-export * from './define-fail';
 export * from './io';
-export * from './kernel-fails';
 export * from './pipeline';
-export * from './result';
 export * from './types';
-export * from './status';
+
+/**
+ * Реэкспорт декларативного слоя, переехавшего в `@nestling/contracts`.
+ *
+ * Поверхность пакета сохраняется: `Ok`/`Fail` и словарь статусов — рабочий
+ * словарь любого хендлера, и заставлять его автора добавлять импорт из
+ * другого пакета было бы налогом без выигрыша. Реэкспорт ES-модульный, то
+ * есть **тот же модуль**: идентичность значений не двоится.
+ */
+export {
+  assertFormsSupported,
+  assertFormSlots,
+  DeadlineExceeded,
+  defineFail,
+  describeForm,
+  errorStatuses,
+  events,
+  Fail,
+  isFail,
+  isFailDefinition,
+  isForm,
+  isKernelFailCode,
+  isPrimitiveLeaf,
+  isStreamKind,
+  isUploadSpec,
+  makeSummary,
+  mediaTypeOf,
+  multipart,
+  nameOfForm,
+  Ok,
+  statuses,
+  stream,
+  StreamGapTimeout,
+  StreamLimitExceeded,
+  successStatuses,
+  UnknownError,
+  upload,
+  ValidationFailed,
+} from '@nestling/contracts';
+export type {
+  AnyFail,
+  AnyFailDefinition,
+  AnyInput,
+  AnyMultipartForm,
+  AnyOutput,
+  AnyPayload,
+  AnyStreamForm,
+  BindableFields,
+  ChainStep,
+  DeclaredFail,
+  EmptyInput,
+  ErrorStatus,
+  FailCreateOptions,
+  FailData,
+  FailDefinitionProps,
+  FailDefinitionWithDetails,
+  FailDefinitionWithoutDetails,
+  FailOf,
+  FailOptions,
+  FailResponseOf,
+  FailsOf,
+  FailSpecWithDetails,
+  FailSpecWithoutDetails,
+  FilePart,
+  FilesOf,
+  FormBearingDefinition,
+  FormDescriptor,
+  FormKind,
+  FormLeaf,
+  FormSlot,
+  InferInput,
+  InferOutput,
+  IOPrimitive,
+  ItemOptions,
+  LeafType,
+  MultipartForm,
+  Output,
+  OutputSync,
+  ProcessingStatus,
+  ResponseLike,
+  StreamForm,
+  StreamFormOptions,
+  StreamKind,
+  StreamSummary,
+  SuccessStatus,
+  TransportCapabilities,
+  UploadOptions,
+  UploadSpec,
+  ValidateOutputForm,
+} from '@nestling/contracts';

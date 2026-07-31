@@ -55,6 +55,9 @@ export function createJestConfig(fileUrl) {
       // Тестовый subpath — до общего правила ниже: иначе `@nestling/app/testing`
       // уехал бы в несуществующий `nestling.app/testing/src/index.ts`
       '^@nestling/([^/]*)/testing$': '<rootDir>/../nestling.$1/src/testing/index.ts',
+      // Subpath токенов (`@nestling/container/tokens`) — тоже до общего
+      // правила: его точка входа лежит файлом `src/tokens.ts`, а не каталогом
+      '^@nestling/([^/]*)/tokens$': '<rootDir>/../nestling.$1/src/tokens.ts',
       // Маппинг всех workspace пакетов на исходники
       '^@nestling/(.*)$': '<rootDir>/../nestling.$1/src/index.ts',
       '^@common/(.*)$': '<rootDir>/../common.$1/src/index.ts',

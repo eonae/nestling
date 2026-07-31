@@ -22,11 +22,12 @@ import { withRequestLogging } from '../middlewares/logging';
 import { withRequestId } from '../middlewares/meta';
 
 import { withTiming } from './__test-helpers__/middleware';
-import type { AnyInput, EmptyInput } from './io/io';
 import type { ExtendableContext } from './types/context';
 import type { PreUnitFn } from './types/unit';
 import type { AnyPipeline, Pipeline, PipelineTypes } from './pipeline';
 import { compose, makePipeline } from './pipeline';
+
+import type { AnyInput, EmptyInput } from '@nestling/contracts';
 
 // ============================================================================
 // Mock типы для тестов

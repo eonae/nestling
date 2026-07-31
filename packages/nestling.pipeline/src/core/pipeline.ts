@@ -8,14 +8,7 @@ import {
 } from './context/store.js';
 import type { AnyContextVar } from './context/variable.js';
 import { declaredVarOf, isContextVar } from './context/variable.js';
-import {
-  bindOutputStream,
-  describeForm,
-  isAsyncIterable,
-  isStreamKind,
-  withFinish,
-} from './io/index.js';
-import type { AnyInput, EmptyInput } from './io/io.js';
+import { bindOutputStream, isAsyncIterable, withFinish } from './io/index.js';
 import type {
   EndpointMeta,
   ErrorDetails,
@@ -35,11 +28,24 @@ import type {
   UnitLike,
 } from './types/unit.js';
 import { computeOutcome } from './abort.js';
-import { isKernelFailCode, UnknownError } from './kernel-fails.js';
-import type { AnyFail, FailData, Output, OutputSync } from './result.js';
-import { isFail, Ok } from './result.js';
 
 import type { Constructor } from '@common/misc';
+import type {
+  AnyFail,
+  AnyInput,
+  EmptyInput,
+  FailData,
+  Output,
+  OutputSync,
+} from '@nestling/contracts';
+import {
+  describeForm,
+  isFail,
+  isKernelFailCode,
+  isStreamKind,
+  Ok,
+  UnknownError,
+} from '@nestling/contracts';
 
 /**
  * Отказ, возникший **после начала отдачи** потокового ответа.

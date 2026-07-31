@@ -10,14 +10,14 @@
  * по коду и kernel-набор.
  */
 
-import { defineFail, isFailDefinition } from './define-fail';
+import { defineFail, isFailDefinition } from './define-fail.js';
 import {
   DeadlineExceeded,
   isKernelFailCode,
   UnknownError,
   ValidationFailed,
-} from './kernel-fails';
-import { Fail } from './result';
+} from './kernel-fails.js';
+import { Fail } from './result.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { z } from 'zod';

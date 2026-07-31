@@ -10,9 +10,9 @@
  * стороны описывают один и тот же контракт значения.
  */
 
-import { defineFail } from './define-fail';
-import type { AnyFail, Output, OutputSync } from './result';
-import { Fail, isFail, Ok } from './result';
+import { defineFail } from './define-fail.js';
+import type { AnyFail, Output, OutputSync } from './result.js';
+import { Fail, isFail, Ok } from './result.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { z } from 'zod';

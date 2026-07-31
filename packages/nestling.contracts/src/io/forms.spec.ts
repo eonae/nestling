@@ -3,8 +3,6 @@
  * media types.
  */
 
-import type { FilePart } from '../types';
-
 import {
   describeForm,
   events,
@@ -15,7 +13,7 @@ import {
   stream,
   upload,
 } from './forms.js';
-import type { InferInput, InferOutput } from './io.js';
+import type { FilePart, InferInput, InferOutput } from './io.js';
 
 import { z } from 'zod';
 

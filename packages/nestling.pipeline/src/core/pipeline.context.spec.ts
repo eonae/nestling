@@ -10,16 +10,15 @@
 import type { CtxReader } from './context/reader.js';
 import { makeCtxReader } from './context/reader.js';
 import { RequestId, Signal } from './context/well-known.js';
-import { events, stream } from './io/forms.js';
-import type { AnyInput, AnyOutput, EmptyInput } from './io/io.js';
 import type { EndpointMeta, ExtendableContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
 import type { AnyPipeline, Pipeline } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
-import { Ok } from './result.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { AnyInput, AnyOutput, EmptyInput } from '@nestling/contracts';
+import { events, Ok, stream } from '@nestling/contracts';
 import { z } from 'zod';
 
 /** Схема-лист потоковых форм: предмет теста — scope, а не валидация */

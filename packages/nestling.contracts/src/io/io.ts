@@ -1,5 +1,3 @@
-import type { FilePart } from '../types';
-
 import type {
   AnyMultipartForm,
   AnyStreamForm,
@@ -36,6 +34,35 @@ export type AnyOutput<T extends Optional<Schema> = Optional<Schema>> =
   | IOPrimitive // 'binary' | 'text'
   | AnyStreamForm // stream(T) / events(T)
   | AnyMultipartForm; // отвергается ValidateOutputForm
+
+/**
+ * Описание файла в multipart-запросе.
+ *
+ * Живёт здесь, а не в рантайме пайплайна, потому что это **тип payload'а**,
+ * выводимый из формы `multipart(...)`: без него `InferInput` неполон, а
+ * форма — часть декларации.
+ *
+ * Поле `stream` объявлено структурно (`AsyncIterable<Uint8Array>`), а не
+ * `Readable` из `node:stream`: пакет обязан типизироваться в проекте без
+ * Node-типов. Node'овский `Readable` этому типу удовлетворяет, поэтому
+ * транспорт кладёт в поле ровно то же значение, что и прежде.
+ */
+export interface FilePart {
+  /** Имя поля формы */
+  field: string;
+
+  /** Имя файла */
+  filename: string;
+
+  /** MIME-тип */
+  mime: string;
+
+  /** Поток данных файла */
+  stream: AsyncIterable<Uint8Array>;
+
+  /** Размер файла (если известен) */
+  size?: number;
+}
 
 /** Файлы multipart по именам объявленных полей */
 export type FilesOf<FS> = {

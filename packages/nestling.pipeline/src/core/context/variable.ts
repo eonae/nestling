@@ -7,11 +7,12 @@
  * строит сама переменная, значит «объявлено» и «положено» — одно действие.
  */
 
-import type { AnyInput, EmptyInput } from '../io/io.js';
 import type { ExtendableContext } from '../types/context.js';
 import type { PreUnitFn } from '../types/unit.js';
 
 import { currentCell } from './store.js';
+
+import type { AnyInput, EmptyInput } from '@nestling/contracts';
 
 /**
  * Ключ, зарезервированный под well-known `Signal`.

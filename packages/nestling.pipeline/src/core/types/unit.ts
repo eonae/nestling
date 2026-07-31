@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/no-invalid-void-type --
  * void в union'ах возвратов — осознанно: юниты-наблюдатели пишутся как
  * обычные функции без return, и это поддерживаемая форма API */
-import type { AnyInput, EmptyInput } from '../io/io.js';
-import type { AnyFail } from '../result.js';
-
 import type {
   ErrorResponseContext,
   ExtendableContext,
@@ -12,6 +9,7 @@ import type {
 } from './context.js';
 
 import type { Constructor, Optional } from '@common/misc';
+import type { AnyFail, AnyInput, EmptyInput } from '@nestling/contracts';
 
 /**
  * Добавка pre-юнита к накопленному input

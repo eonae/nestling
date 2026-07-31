@@ -7,18 +7,20 @@
  * переводчиком байтов.
  */
 
+import type { Schema } from '@common/misc';
+import { SchemaValidationError, validateSync } from '@common/misc';
+import type {
+  ChainStep,
+  FormDescriptor,
+  FormLeaf,
+  StreamSummary,
+} from '@nestling/contracts';
 import {
+  isPrimitiveLeaf,
   StreamGapTimeout,
   StreamLimitExceeded,
   ValidationFailed,
-} from '../kernel-fails.js';
-
-import type { ChainStep, FormDescriptor, FormLeaf } from './forms.js';
-import { isPrimitiveLeaf } from './forms.js';
-import type { StreamSummary } from './summary.js';
-
-import type { Schema } from '@common/misc';
-import { SchemaValidationError, validateSync } from '@common/misc';
+} from '@nestling/contracts';
 import {
   batch,
   filter,
