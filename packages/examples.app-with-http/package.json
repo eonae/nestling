@@ -21,6 +21,7 @@
   "dependencies": {
     "@common/misc": "workspace:*",
     "@nestling/app": "workspace:*",
+    "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/pipeline": "workspace:*",
     "@nestling/streams": "workspace:*",

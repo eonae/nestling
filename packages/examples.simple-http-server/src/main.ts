@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
 import {
@@ -9,29 +10,34 @@ import {
   UploadReport,
 } from './endpoints';
 
+import { makeDispatch } from '@nestling/transport';
 import { HttpTransport } from '@nestling/transport.http';
-
-// Создаем HTTP транспорт
-const server = new HttpTransport({
-  port: Number(process.env.PORT) || 3000,
-});
-
-// ============================================================
-// Регистрируем декларации: deps-free — идут в route() как есть
-// ============================================================
-
-server.route(SayHello);
-server.route(CreateUser);
-server.route(SearchUsers);
-server.route(StreamLogs);
-server.route(ExportLogs);
-server.route(UploadReport);
 
 const PORT = Number(process.env.PORT) || 3000;
 
-// Запускаем HTTP сервер
+// Создаем HTTP транспорт
+const server = new HttpTransport({ port: PORT });
+
+// ============================================================
+// Standalone-путь: те же примитивы, что под App. Декларации deps-free,
+// поэтому `makeDispatch` принимает их как есть — гасить нечего.
+// ============================================================
+
+const dispatch = makeDispatch([
+  SayHello,
+  CreateUser,
+  SearchUsers,
+  StreamLogs,
+  ExportLogs,
+  UploadReport,
+]);
+
+// Канал остановки: его взвод — «новые запросы не принимаем»
+const shutdown = new AbortController();
+
+// Выходим в эфир: иначе транспорту нечего маршрутизировать
 server
-  .listen()
+  .serve(dispatch, shutdown.signal)
   .then(() => {
     console.log(`\n🚀 HTTP Server running on http://localhost:${PORT}\n`);
     console.log('Available routes:');
@@ -65,17 +71,14 @@ server
     process.exit(1);
   });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('\n👋 SIGTERM received, shutting down gracefully...');
+// Graceful shutdown: сигнал отменяет in-flight, close() дренирует соединения
+const stop = async (signal: string): Promise<void> => {
+  console.log(`\n👋 ${signal} received, shutting down gracefully...`);
+  shutdown.abort();
   await server.close();
   console.log('✅ Server closed');
   process.exit(0);
-});
+};
 
-process.on('SIGINT', async () => {
-  console.log('\n👋 SIGINT received, shutting down gracefully...');
-  await server.close();
-  console.log('✅ Server closed');
-  process.exit(0);
-});
+process.on('SIGTERM', () => void stop('SIGTERM'));
+process.on('SIGINT', () => void stop('SIGINT'));

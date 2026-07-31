@@ -55,7 +55,7 @@ describe('Users CRUD (E2E)', () => {
       expect(response.status).toBe(404);
 
       const error = await response.json();
-      expect(error).toHaveProperty('error', 'User not found');
+      expect(error).toHaveProperty('error', 'User 999 not found');
     });
   });
 
@@ -78,7 +78,7 @@ describe('Users CRUD (E2E)', () => {
       expect(user.email).toBe(newUser.email);
     });
 
-    it('должен вернуть 400 если email дублируется', async () => {
+    it('должен вернуть 409 если email дублируется', async () => {
       const duplicate = {
         name: 'Duplicate',
         email: 'alice@example.com', // Уже существует
@@ -86,11 +86,17 @@ describe('Users CRUD (E2E)', () => {
 
       const response = await client.post('/api/users', duplicate);
 
-      expect(response.status).toBe(400);
+      // Отказ объявлен со статусом CONFLICT (см. user.errors.ts)
+      expect(response.status).toBe(409);
 
       const error = await response.json();
-      expect(error).toHaveProperty('error', 'Email already taken');
-      expect(error).toHaveProperty('details', { field: 'email' });
+      expect(error).toHaveProperty(
+        'error',
+        'Email alice@example.com already taken',
+      );
+      expect(error).toHaveProperty('details', {
+        email: 'alice@example.com',
+      });
     });
 
     it('должен вернуть 400 для невалидного email', async () => {
@@ -136,15 +142,18 @@ describe('Users CRUD (E2E)', () => {
       expect(response.status).toBe(404);
     });
 
-    it('должен вернуть 400 если email занят', async () => {
+    it('должен вернуть 409 если email занят', async () => {
       const response = await client.patch('/api/users/2', {
         email: 'alice@example.com', // Уже занят пользователем с id=1
       });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(409);
 
       const error = await response.json();
-      expect(error).toHaveProperty('error', 'Email already taken');
+      expect(error).toHaveProperty(
+        'error',
+        'Email alice@example.com already taken',
+      );
     });
 
     it('должен вернуть 400 если нет данных для обновления', async () => {
@@ -189,7 +198,10 @@ describe('Users CRUD (E2E)', () => {
       expect(response.status).toBe(403);
 
       const error = await response.json();
-      expect(error).toHaveProperty('error', 'Cannot delete admin user');
+      expect(error).toHaveProperty(
+        'error',
+        'User 1 cannot be deleted: admin user',
+      );
     });
   });
 });

@@ -1,28 +1,45 @@
 /* eslint-disable no-console */
 
-import { LoggerModule } from './modules/logger/logger.module';
-import { UsersModule } from './users.module';
+import { LoggingFeature, UsersFeature } from './features';
 
-import { App } from '@nestling/app';
-import { HttpTransport } from '@nestling/transport.http';
+import { assemble } from '@nestling/app';
+import { load, makeConfig } from '@nestling/config';
+import { http } from '@nestling/transport.http';
+import { z } from 'zod';
 
 /**
- * Пример использования App с HTTP транспортом, endpoints и middleware
+ * Секция корня: что читается **до** сборки.
+ *
+ * Единственное пред-сборочное чтение конфига — `load(section)`: выбор фич
+ * нужен раньше контейнера, поэтому он и живёт в фазе 0 (BOOTSTRAP).
+ */
+const RootConfig = makeConfig('app', {
+  features: z.string().default('all'),
+});
+
+/**
+ * Пример: `assemble` как единственный composition root.
+ *
+ * Уровень L2 — фичи и выбор подмножества: `APP_FEATURES=users` поднимает
+ * только пользователей (с транзитивно приезжающим `logging`),
+ * `APP_FEATURES=all` — всё дерево.
  */
 async function main() {
-  // Создаём приложение
-  const app = new App({
-    modules: [LoggerModule, UsersModule],
-    transports: {
-      http: new HttpTransport({ port: 3000 }),
-    },
+  // Фаза 0: выбор фич считается до построения контейнера
+  const cfg = load(RootConfig);
+
+  const app = assemble({
+    features: [UsersFeature, LoggingFeature],
+    select: cfg.features,
+    // Транспорт — провайдер: порт приезжает из его конфиг-секции
+    // (`HTTP_PORT`), явная опция её перекрывает
+    transports: [http({ port: 3000 })],
   });
 
-  // Запускаем приложение (init + listen + graceful shutdown)
   await app.run();
 
   console.log('🚀 App is running');
-  console.log('📦 Modules: LoggerModule, UsersModule');
+  console.log(`📦 Features: ${cfg.features}`);
   console.log('🔌 Endpoints:');
   console.log('  - GET    /api/users              - List users');
   console.log('  - GET    /api/users/:id          - Get user by ID');
@@ -39,7 +56,6 @@ async function main() {
     '  - POST   /api/users/:id/avatar   - Upload avatar (multipart + upload)',
   );
   console.log('  - POST   /api/hooks/users        - Webhook (rawBody + HMAC)');
-  console.log('⚙️  Middleware: TimingMiddleware');
   console.log('');
   console.log('✅ Server listening on http://localhost:3000');
   console.log('');
@@ -61,6 +77,10 @@ async function main() {
   console.log(
     '  curl -F avatar=@photo.png http://localhost:3000/api/users/1/avatar',
   );
+  console.log('');
+  console.log('Выбор подмножества фич:');
+  console.log('  APP_FEATURES=users yarn start   — только пользователи');
+  console.log('  APP_FEATURES=all   yarn start   — всё дерево (по умолчанию)');
   console.log('');
 }
 

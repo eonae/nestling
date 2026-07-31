@@ -1638,6 +1638,7 @@ __metadata:
   resolution: "@nestling/transport.http@workspace:packages/nestling.transport.http"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/streams": "workspace:*"
@@ -1654,7 +1655,9 @@ __metadata:
   resolution: "@nestling/transport@workspace:packages/nestling.transport"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
+    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -5289,6 +5292,7 @@ __metadata:
   dependencies:
     "@common/misc": "workspace:*"
     "@nestling/app": "workspace:*"
+    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/streams": "workspace:*"
@@ -5302,6 +5306,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "examples.simple-app@workspace:packages/examples.simple-app"
   dependencies:
+    "@nestling/app": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     zod: "npm:^4.0.0"
@@ -5313,6 +5318,7 @@ __metadata:
   resolution: "examples.simple-cli@workspace:packages/examples.simple-cli"
   dependencies:
     "@nestling/pipeline": "workspace:*"
+    "@nestling/transport": "workspace:*"
     "@nestling/transport.cli": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
