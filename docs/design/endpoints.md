@@ -18,7 +18,9 @@
 2. **Контракты** — все schema-first операции: интерфейс (`input`/`output`/
    `errors`) + адреса (`name`, `http:`, `cli:`, …)
    ([contracts.md](./contracts.md)).
-3. **Реализации** — `implement(Contract, { pipeline?, deps?, handle })`.
+3. **Реализации** — `implement(Contract, { pipeline?, deps?, handle, subscriber? })`;
+   `subscriber` — адрес подписки, обязательный у контракта-события и
+   запрещённый у остальных ([contracts.md](./contracts.md)).
 
 **Иерархия деклараций — контракт первичен.** Per-transport конструкторы
 (`httpEndpoint`, `cliEndpoint`, …) — сахар «анонимный контракт + implement

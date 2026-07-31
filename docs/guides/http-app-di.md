@@ -113,14 +113,24 @@ type CreateUserInput = z.infer<typeof CreateUserInput>;
 type CreateUserOutput = z.infer<typeof CreateUserOutput>;
 
 export const createUserHandler =
-  (users: UserService, logger: ILoggerService) =>
+  (users: UserService, logger: ILoggerService, quotas: Port<typeof ClaimQuota>) =>
   async (
     payload: CreateUserInput,
-  ): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> => {
+  ): Output<
+    CreateUserOutput,
+    ReturnType<typeof EmailTaken> | ReturnType<typeof QuotaExceeded>
+  > => {
     const existing = await users.findByEmail(payload.email);
     if (existing) {
       return EmailTaken({ email: payload.email });
     }
+
+    // Соседняя фича зовётся портом — обычная зависимость (см. ports.md)
+    const claimed = await quotas.call({ email: payload.email });
+    if (claimed.isFail) {
+      return claimed;
+    }
+
     const user = await users.create(payload);
     return Ok.created(user, { Location: `/api/users/${user.id}` });
   };
@@ -130,13 +140,17 @@ export const CreateUser = httpEndpoint({
   path: '/api/users',
   input: CreateUserInput,
   output: CreateUserOutput,
-  errors: [EmailTaken],              // ← множество отказов ручки
+  errors: [EmailTaken, QuotaExceeded],   // ← множество отказов ручки
   bind: { dryRun: query() },
   pipeline: basePipeline,
-  deps: [UserService, ILogger],
+  deps: [UserService, ILogger, ClaimQuota.port],
   handle: createUserHandler,
 });
 ```
+
+`ClaimQuota.port` — такая же зависимость, как токен сервиса, только за ней
+стоит **контракт** соседней фичи: вызов всегда async и Fail-able, и переезд
+той фичи в другой процесс call-site не тронет ([ports.md](./ports.md)).
 
 Хендлер может объявить второй параметр `meta` — поля, накопленные pre-юнитами
 пайплайна; декларирует только то, что использует (в примере он не нужен,
@@ -504,7 +518,7 @@ DI не мешает тестам — ни контейнера, ни транс
 
 ```typescript
 // каррированная фабрика — вызов с фейками
-const handle = createUserHandler(mockUserService, mockLogger);
+const handle = createUserHandler(mockUserService, mockLogger, fakePort);
 const result = await handle({ name: 'Alice', email: 'a@b.c' });
 
 // класс-хендлер — обычный new
@@ -512,7 +526,7 @@ const handler = new SearchUsersHandler(mockUserService, mockLogger);
 const found = await handler.handle({ q: 'Alice' });
 ```
 
-Декларацию можно погасить и целиком — `CreateUser.resolve([users, logger])`
+Декларацию можно погасить и целиком — `CreateUser.resolve([users, logger, port])`
 возвращает **новое** исполнимое значение, исходное остаётся нетронутым.
 
 > Целевой дизайн развивается — см. [decisions/ideas.md](../decisions/ideas.md):

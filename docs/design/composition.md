@@ -44,7 +44,12 @@ flowchart TD
 - **3 · WIRE** — декларации endpoint'ов гасят зависимости контейнером
   (`endpoint.resolve(resolver)`: токены `deps`, класс-хендлер, классы-юниты
   пайплайна); таблица `pattern→handler` строится по одному `dispatch` на
-  транспорт. **`dispatch` рождается здесь**, но никому ещё не передан.
+  транспорт. **`dispatch` рождается здесь**, но никому ещё не передан —
+  кроме одного явного шага: вызыватели контрактов связываются с `dispatch`
+  шины, и шина подписывается на subject'ы своих маршрутов
+  ([contracts.md](./contracts.md)). Иначе `@OnStart`, который уже вправе
+  звать порт, оказался бы раньше go-live шины. Вызов порта до WIRE —
+  внятная ошибка.
 - **4 · START** (`@OnStart` топологически, затем go-live транспортов) —
   `serve(dispatch, signal)`, не `listen()`. Транспорт получает **один
   объект**: проекции маршрутов (`routes` — роутинг и io-декларация, без
@@ -293,8 +298,11 @@ await assemble({
     http(),
     nats(),                              // outbound-транспорт для портов
   ],                                     // порт/servers — из Http/NatsConfig
-  dispatch: 'local-first',               // co-located → in-proc, иначе → NATS
 }).run();
+
+// Политика диспатча — конфиг, а не поле корня: перечень полей `assemble`
+// закрыт. `NESTLING_PORTS_DISPATCH=local-first` (умолчание) — co-located
+// зовётся in-proc, остальное уходит через шину.
 ```
 
 `select='orders'` + billing не выбран → `ChargeCard.port` биндится на

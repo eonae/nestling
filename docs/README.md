@@ -34,6 +34,7 @@ docs/
 | [composition.md](./guides/composition.md) | Composition root: `assemble`, фичи и `select`, фазы, `@OnStart`, standalone | `examples.app-with-http` |
 | [di-token-families.md](./guides/di-token-families.md) | Семейства токенов: `makeTokenFamily`, `familyProvider`, `.auto`, `strictExports` | `examples.simple-app` |
 | [config.md](./guides/config.md) | Конфиг: `makeConfig`, `.keys`, источники и привязка, fail-fast, reloadable | `examples.simple-app` |
+| [ports.md](./guides/ports.md) | Порты: `makeContract`, `implement`, `.port`/`.emitter`, политика диспатча, шина | `examples.app-with-http` |
 | [cli.md](./guides/cli.md) | CLI-транспорт: single-shot и REPL | `examples.simple-cli` |
 | [testing.md](./guides/testing.md) | App-тесты: `assembleTest`, `overrides` + прунинг, `.check()`-матрица, `vars()`, `./testing`-subpath | `examples.app-with-http` |
 

@@ -82,12 +82,22 @@ export const OpsFeature = makeFeature({
   modules: [OpsModule],
 });
 
+export const QuotasFeature = makeFeature({
+  name: 'quotas',
+  modules: [QuotasModule],   // владеет контрактом, который зовёт users
+});
+
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],
-  dependsOn: [OpsFeature],   // выбрал users → ops приедет сам
+  dependsOn: [OpsFeature, QuotasFeature],   // выбрал users → приедут сами
 });
 ```
+
+`quotas` в `dependsOn` — не вкусовщина: `users` зовёт её контрактом, а
+`request` без co-located реализации это ошибка **сборки**
+([ports.md](./ports.md)). Топология «users без quotas» падает на ASSEMBLE,
+а не на первом запросе.
 
 Выбор подмножества считается **до** сборки — это фаза 0 (BOOTSTRAP), и
 единственное пред-сборочное чтение конфига делает `load(section)`:
@@ -103,7 +113,7 @@ const RootConfig = makeConfig('app', {
 const cfg = load(RootConfig);
 
 const app = assemble({
-  features: [UsersFeature, OpsFeature],
+  features: [UsersFeature, OpsFeature, QuotasFeature],
   select: cfg.features,          // 'all' | 'users' | 'users,billing'
   transports: [http({ port: 3000 })],
 });
@@ -309,7 +319,7 @@ SHUTDOWN, и снимает их по завершении `close()`. Оба м�
 каждую ручку, выведенную из-под инвариантов (если такие есть):
 
 ```
-[nestling] features: users, ops; transports: http
+[nestling] features: users, ops, quotas; transports: http, bus
 [nestling] detached from policies: GET /health (http) — liveness-проба балансировщика: строка аудита на каждый удар — шум, а не наблюдаемость
 ```
 
@@ -328,7 +338,7 @@ import { http, HttpTransport$ } from '@nestling/transport.http';
 import { observability } from './modules/logger';
 
 const app = assemble({
-  features: [UsersFeature, OpsFeature],
+  features: [UsersFeature, OpsFeature, QuotasFeature],
   select: cfg.features,
   transports: [http({ port: 3000 })],
   policies: [

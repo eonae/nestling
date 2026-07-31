@@ -256,7 +256,9 @@ describe('assemble — порты', () => {
       async onStart(): Promise<void> {
         // Фаза 4: WIRE позади, вызов исполняется
         const charge = await this.billing.call({ amount: 7 });
-        seen.push(charge.isFail ? 'start: fail' : `start: ${charge.value.chargeId}`);
+        seen.push(
+          charge.isFail ? 'start: fail' : `start: ${charge.value.chargeId}`,
+        );
       }
     }
 

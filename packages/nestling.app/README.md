@@ -36,13 +36,22 @@ the test composition root only ([`@nestling/testing`](../nestling.testing)).
 | 0 BOOTSTRAP | outside `assemble`: `load(section)` in the root computes `select` |
 | 1 ASSEMBLE | selection → module tree → discovery → `build()` → transport tokens and io forms are checked → declared `policies` are checked |
 | 2 INIT | `@OnInit` in topological order; `dispatch` does not exist yet |
-| 3 WIRE | declarations resolve their deps; one `dispatch` per transport |
+| 3 WIRE | declarations resolve their deps; one `dispatch` per transport; contract invokers are bound and the bus subscribes to its subjects |
 | 4 START | `@OnStart` in topological order, then `serve(dispatch, signal)` |
 | 6 SHUTDOWN | `abort(signal)` → `close()` of transports in reverse → `container.destroy()` |
 
 Phases 0 and 1 are fail-fast: a missing transport, an unsupported io form or
 an unregistered dependency of a declaration kills startup **before** any
 `@OnInit` grabs a resource. Both `run()` and `close()` are idempotent.
+
+Three kernel modules are registered unconditionally — config, ambient
+context and **ports** ([`@nestling/ports`](../nestling.ports)) — so the root
+never has to mention them. They cost nothing when unused: their nodes are
+token-family members, materialized only when something injects them, and
+the bus transport is registered only when the app has at least one contract
+implementation. Discovery runs before module registration because the ports
+kernel needs the topology of implementations at registration time; the
+function is pure, so the order changes nothing else.
 
 ### `policies` — invariants over the assembled graph
 

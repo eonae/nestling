@@ -107,18 +107,18 @@
 
 ## 8. Примеры, гайды, документация
 
-- [ ] 8.1 Витрина в `packages/examples.app-with-http`: две фичи, общающиеся
+- [x] 8.1 Витрина в `packages/examples.app-with-http`: две фичи, общающиеся
   `request`-контрактом и `event`-контрактом; переключение политики
   переменной окружения без правки call-site
-- [ ] 8.2 Новый гайд `docs/guides/ports.md`, сверенный с кодом примера
+- [x] 8.2 Новый гайд `docs/guides/ports.md`, сверенный с кодом примера
   (плашка «сверено с кодом <пример> (дата)»)
-- [ ] 8.3 Уточнить `docs/design/contracts.md` по факту реализованного (форма
+- [x] 8.3 Уточнить `docs/design/contracts.md` по факту реализованного (форма
   `implement`, `subscriber`, шаг WIRE, состав V1-политик) и
   `docs/design/composition.md`/`transports.md` там, где появляется шина
-- [ ] 8.4 Запись в `docs/decisions/ideas.md` о принятых здесь решениях
+- [x] 8.4 Запись в `docs/decisions/ideas.md` о принятых здесь решениях
   (адрес подписки, политика как конфиг, sim-режим, `emit: Promise<void>`) —
   с логикой и отвергнутыми вариантами
-- [ ] 8.5 README нового пакета и `@nestling/app`; статус change #11 в
+- [x] 8.5 README нового пакета и `@nestling/app`; статус change #11 в
   `docs/decisions/roadmap.md`
 
 ## 9. Definition of Done
