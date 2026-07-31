@@ -17,6 +17,8 @@ import {
   UserWebhook,
 } from './modules/users/endpoints';
 import { UserService } from './modules/users/user.service';
+import { StoredUsersRepository } from './modules/users/users.repository';
+import { UsersStore } from './modules/users/users.store';
 
 import { makeAppModule } from '@nestling/app';
 
@@ -32,6 +34,8 @@ import { makeAppModule } from '@nestling/app';
 export const UsersModule = makeAppModule({
   name: 'module:users',
   providers: [
+    UsersStore,
+    StoredUsersRepository,
     UserService,
     ActivityHub,
     SearchUsersHandler,

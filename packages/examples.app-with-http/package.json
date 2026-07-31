@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "main": "dist/bundle.js",
+  "exports": {
+    ".": "./dist/bundle.js",
+    "./testing": {
+      "testing": "./src/testing/index.ts"
+    }
+  },
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc --noEmit",
@@ -28,5 +34,8 @@
     "@nestling/transport": "workspace:*",
     "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@nestling/testing": "workspace:*"
   }
 }
