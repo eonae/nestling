@@ -1,5 +1,5 @@
-import type { BindMark } from './binding.js';
-import { computeHttpBinding, readPathParams } from './binding.js';
+import type { BindMap, BindMark } from './binding.js';
+import { assertHttpPath, computeHttpBinding } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
 import type { InjectionToken } from '@nestling/container';
@@ -10,7 +10,6 @@ import type {
   AnyInput,
   AnyOutput,
   AnyPayload,
-  BindableFields,
   EmptyInput,
   EndpointDefinition,
   FailsOf,
@@ -24,44 +23,10 @@ import type {
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
 
-/**
- * Имена path-параметров шаблона (`:param`-сегментов).
- *
- * @example
- * ```typescript
- * PathParams<'/users/:id/orders/:orderId'>  // 'id' | 'orderId'
- * PathParams<'/health'>                     // never
- * ```
- */
-export type PathParams<Path extends string> =
-  Path extends `${string}:${infer Rest}`
-    ? Rest extends `${infer Name}/${infer Tail}`
-      ? Name | PathParams<`/${Tail}`>
-      : Rest
-    : never;
-
-/**
- * Ключи, которые можно пометить в `bind`: поля схемы `input` за вычетом
- * path-параметров шаблона.
- *
- * Рантайм перечня ключей у Standard Schema не получит, но **типы его
- * знают** — этой асимметрией пользуемся: опечатка в имени поля и пометка на
- * path-параметре становятся ошибками компиляции. Непрозрачный `input`
- * (`AnyPayload` без вывода ключей) деградирует до отсутствия подсказок, а
- * не до ошибки: там правила проверяет рантайм.
- */
-export type BindMap<Path extends string, I> = [
-  Extract<keyof BindableFields<I>, string>,
-] extends [never]
-  ? Readonly<Record<string, BindMark>>
-  : Partial<
-      Readonly<
-        Record<
-          Exclude<Extract<keyof BindableFields<I>, string>, PathParams<Path>>,
-          BindMark
-        >
-      >
-    >;
+// Разметка пути и ключи `bind` (`PathParams`, `BindMap`) — общие с секцией
+// `http:` контракта: правило размещения одно на оба носителя, поэтому и типы
+// живут в одном месте. Реэкспортирует их `./binding.js` вместе с остальной
+// декларативной половиной карты.
 
 /**
  * Стартовый контекст декларации — то, что транспорт кладёт в контекст ещё до
@@ -189,38 +154,6 @@ export interface HttpEndpointDictionary<
    * непустую строку (формы `detached: true` не существует).
    */
   detached?: string;
-}
-
-/**
- * Fail-fast шаблона пути в момент создания декларации.
- *
- * Проверяется только то, что проверяемо без интроспекции схемы: Standard
- * Schema перечня ключей не отдаёт, поэтому «path-параметр объявлен в
- * шаблоне, но поля с таким именем в схеме нет» не диагностируется —
- * известное ограничение, кандидат на проверку в `@nestling/openapi`, где
- * вендор-конвертер структуру схемы уже знает. Правила размещения (пометки,
- * `rawBody`, неструктурный `input`) проверяет `computeHttpBinding`.
- */
-function assertHttpPath(method: string, path: unknown): asserts path is string {
-  const where = `httpEndpoint({ method: '${method}', … })`;
-
-  if (typeof path !== 'string' || path.length === 0) {
-    throw new Error(`${where}: 'path' must be a non-empty string.`);
-  }
-
-  if (!path.startsWith('/')) {
-    throw new Error(`${where}: 'path' must start with '/', got '${path}'.`);
-  }
-
-  const seen = new Set<string>();
-  for (const name of readPathParams(path)) {
-    if (seen.has(name)) {
-      throw new Error(
-        `${where}: path parameter ':${name}' is declared twice in '${path}'.`,
-      );
-    }
-    seen.add(name);
-  }
 }
 
 /**
@@ -355,7 +288,7 @@ export function httpEndpoint(
 ): AnyEndpointDefinition {
   const { method, path, bind, rawBody, sse, ...rest } = declaration;
 
-  assertHttpPath(method, path);
+  assertHttpPath(path, `httpEndpoint({ method: '${method}', … })`);
 
   // Канон разворачивается здесь, в момент создания значения: карта обязана
   // ехать на декларации — её читают транспорт, OpenAPI и клиент, а клиенту

@@ -4,8 +4,8 @@
  * создании и типизация пути (`PathParams`).
  */
 
+import type { PathParams } from './binding';
 import { body, httpBindingOf, query } from './binding';
-import type { PathParams } from './helpers';
 import { httpEndpoint } from './helpers';
 import { HttpTransport$ } from './token';
 

@@ -7,6 +7,10 @@
  * имени в приватный реестр пакета, потому что имя есть идентичность.
  */
 
+import type { HttpBinding } from './http/binding.js';
+import { assertHttpPath, computeHttpBinding } from './http/binding.js';
+import type { ContractHttp } from './http/section.js';
+import { parseHttpSection } from './http/section.js';
 import type {
   AnyOutput,
   AnyPayload,
@@ -84,6 +88,19 @@ export interface Contract<
    * вызывающий, и переживать нечего.
    */
   readonly durable?: boolean;
+
+  /**
+   * Адрес контракта на HTTP-проводе — **уже развёрнутая bind-карта**.
+   *
+   * В словаре `http:` пишется сахаром (`'POST /users/:id'`) или записью; на
+   * значении живёт результат разворачивания канона, потому что читателю
+   * нужна именно карта: клиент собирает по ней запрос, транспорт разбирает,
+   * генератор документации раскладывает параметры.
+   *
+   * Отсутствие поля не значит ничего, кроме «внешнему HTTP-клиенту этот
+   * контракт недоступен»: на шине он адресуется своим `name` как прежде.
+   */
+  readonly http?: HttpBinding;
 }
 
 /** Контракт вида `request`: у него есть `.port` и нет `.emitter` */
@@ -164,6 +181,7 @@ export interface ContractSpec<
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   K extends ContractKind = ContractKind,
+  Path extends string = string,
 > {
   /** Имя-адрес: subject шины и ключ дискавери */
   name: string;
@@ -192,6 +210,17 @@ export interface ContractSpec<
    * `request` отвергается в момент создания.
    */
   durable?: K extends 'request' ? never : boolean;
+
+  /**
+   * Адресация на HTTP-проводе: `'POST /users/:id'` либо развёрнутая запись
+   * `{ method, path, bind?, rawBody?, sse? }`.
+   *
+   * Разворачивается в bind-карту **в момент создания контракта**, тем же
+   * кодом, что обслуживает HTTP-декларацию: клиенту карта нужна из одного
+   * импорта, без сервера, поэтому привязывать разворачивание к регистрации
+   * endpoint'а нельзя.
+   */
+  http?: ContractHttp<Path, I, O>;
 }
 
 /** Fail-fast имени: пустое имя не адресует ничего */
@@ -287,6 +316,40 @@ function assertDurable(
 }
 
 /**
+ * Разворачивает секцию `http:` в bind-карту.
+ *
+ * Все проверки — те же самые, что применяет конструктор HTTP-декларации:
+ * один код правила, два места вызова. Разница только в адресате жалобы:
+ * дефектную секцию правит владелец контракта, и текст обязан называть
+ * контракт.
+ */
+function httpBindingFor(
+  name: string,
+  http: unknown,
+  input: unknown,
+  output: unknown,
+): HttpBinding {
+  const where = `Contract '${name}'`;
+  const section = parseHttpSection(http, where);
+
+  assertHttpPath(section.path, where);
+
+  return computeHttpBinding({
+    method: section.method,
+    path: section.path,
+    bind: section.bind as ComputeHttpBindingBind,
+    rawBody: section.rawBody,
+    input,
+    output,
+    sse: section.sse,
+    where,
+  });
+}
+
+/** Тип пометок в позиции аргумента: рантайм проверяет их сам */
+type ComputeHttpBindingBind = Parameters<typeof computeHttpBinding>[0]['bind'];
+
+/**
  * Ставит на контракт вызыватель его вида и запрещающий геттер — другого.
  *
  * Типы делают обращение к чужому свойству невыразимым, но JS-потребителей
@@ -365,21 +428,24 @@ export function makeContract<
   I extends AnyPayload = undefined,
   O extends AnyOutput = undefined,
   E extends readonly AnyFailDefinition[] = [],
->(spec: ContractSpec<I, O, E, 'request'>): RequestContract<I, O, E>;
+  Path extends string = string,
+>(spec: ContractSpec<I, O, E, 'request', Path>): RequestContract<I, O, E>;
 export function makeContract<
   I extends AnyPayload = undefined,
   O extends AnyOutput = undefined,
   E extends readonly AnyFailDefinition[] = [],
->(spec: ContractSpec<I, O, E, 'command'>): CommandContract<I, O, E>;
+  Path extends string = string,
+>(spec: ContractSpec<I, O, E, 'command', Path>): CommandContract<I, O, E>;
 export function makeContract<
   I extends AnyPayload = undefined,
   O extends AnyOutput = undefined,
   E extends readonly AnyFailDefinition[] = [],
->(spec: ContractSpec<I, O, E, 'event'>): EventContract<I, O, E>;
+  Path extends string = string,
+>(spec: ContractSpec<I, O, E, 'event', Path>): EventContract<I, O, E>;
 export function makeContract(
   spec: ContractSpec<any, any, readonly AnyFailDefinition[], ContractKind>,
 ): AnyContract {
-  const { name, kind, input, output, errors, durable } = spec;
+  const { name, kind, input, output, errors, durable, http } = spec;
 
   assertName(name);
   assertKind(kind, name);
@@ -399,6 +465,9 @@ export function makeContract(
   }
   if (durable !== undefined) {
     value.durable = durable;
+  }
+  if (http !== undefined) {
+    value.http = httpBindingFor(name, http, input, output);
   }
 
   defineInvokers(value, kind);

@@ -135,5 +135,14 @@ type InferSchemaType<S> = S extends 'binary'
       ? Infer<S>
       : unknown;
 
+/**
+ * Тип элемента потоковой формы — им типизируются колбэки секции `sse`.
+ *
+ * Живёт рядом с формами, а не в транспорте: секция `sse` объявляется и в
+ * HTTP-словаре декларации, и в секции `http:` контракта.
+ */
+export type InferStreamItem<O> =
+  O extends StreamForm<any, infer TItem, any> ? TItem : never;
+
 export type AnyInput = Record<string, unknown>;
 export type EmptyInput = Record<never, never>;

@@ -16,6 +16,7 @@ import type { BindPlacement, HttpBinding } from '@nestling/contracts';
 import { buildHttpBinding, isHttpBinding } from '@nestling/contracts';
 
 export {
+  assertHttpPath,
   body,
   buildHttpBinding,
   computeHttpBinding,
@@ -26,12 +27,14 @@ export {
   readPathParams,
 } from '@nestling/contracts';
 export type {
+  BindMap,
   BindMark,
   BindPlace,
   BindPlacement,
   ComputeHttpBindingOptions,
   HttpBinding,
   HttpMethod,
+  PathParams,
 } from '@nestling/contracts';
 
 /**

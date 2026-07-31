@@ -20,6 +20,7 @@
  */
 
 import { describeForm, isPrimitiveLeaf } from '../io/forms.js';
+import type { BindableFields } from '../io/io.js';
 
 /**
  * HTTP-метод — локальный строковый союз.
@@ -163,6 +164,48 @@ export function isBindMark(value: unknown): value is BindMark {
 }
 
 /**
+ * Имена path-параметров шаблона (`:param`-сегментов) — на уровне типов.
+ *
+ * @example
+ * ```typescript
+ * PathParams<'/users/:id/orders/:orderId'>  // 'id' | 'orderId'
+ * PathParams<'/health'>                     // never
+ * ```
+ */
+export type PathParams<Path extends string> =
+  Path extends `${string}:${infer Rest}`
+    ? Rest extends `${infer Name}/${infer Tail}`
+      ? Name | PathParams<`/${Tail}`>
+      : Rest
+    : never;
+
+/**
+ * Ключи, которые можно пометить в `bind`: поля схемы `input` за вычетом
+ * path-параметров шаблона.
+ *
+ * Рантайм перечня ключей у Standard Schema не получит, но **типы его
+ * знают** — этой асимметрией пользуемся: опечатка в имени поля и пометка на
+ * path-параметре становятся ошибками компиляции. Непрозрачный `input`
+ * (`AnyPayload` без вывода ключей) деградирует до отсутствия подсказок, а
+ * не до ошибки: там правила проверяет рантайм.
+ *
+ * Тип общий для обоих носителей карты — словаря `httpEndpoint` и секции
+ * `http:` контракта: правило размещения у них одно.
+ */
+export type BindMap<Path extends string, I> = [
+  Extract<keyof BindableFields<I>, string>,
+] extends [never]
+  ? Readonly<Record<string, BindMark>>
+  : Partial<
+      Readonly<
+        Record<
+          Exclude<Extract<keyof BindableFields<I>, string>, PathParams<Path>>,
+          BindMark
+        >
+      >
+    >;
+
+/**
  * Разбирает шаблон пути в список имён path-параметров (в порядке следования).
  */
 export function readPathParams(path: string): string[] {
@@ -170,6 +213,41 @@ export function readPathParams(path: string): string[] {
     .split('/')
     .filter((segment) => segment.startsWith(':'))
     .map((segment) => segment.slice(1));
+}
+
+/**
+ * Fail-fast шаблона пути в момент создания значения.
+ *
+ * Проверяется только то, что проверяемо без интроспекции схемы: Standard
+ * Schema перечня ключей не отдаёт, поэтому «path-параметр объявлен в
+ * шаблоне, но поля с таким именем в схеме нет» не диагностируется —
+ * известное ограничение, кандидат на проверку в `@nestling/openapi`, где
+ * вендор-конвертер структуру схемы уже знает. Правила размещения (пометки,
+ * `rawBody`, неструктурный `input`) проверяет `computeHttpBinding`.
+ *
+ * @param where - как назвать носителя в тексте ошибки
+ */
+export function assertHttpPath(
+  path: unknown,
+  where: string,
+): asserts path is string {
+  if (typeof path !== 'string' || path.length === 0) {
+    throw new Error(`${where}: 'path' must be a non-empty string.`);
+  }
+
+  if (!path.startsWith('/')) {
+    throw new Error(`${where}: 'path' must start with '/', got '${path}'.`);
+  }
+
+  const seen = new Set<string>();
+  for (const name of readPathParams(path)) {
+    if (seen.has(name)) {
+      throw new Error(
+        `${where}: path parameter ':${name}' is declared twice in '${path}'.`,
+      );
+    }
+    seen.add(name);
+  }
 }
 
 /** Опции разворачивания канона в карту */

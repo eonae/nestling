@@ -25,6 +25,15 @@ const OrderPlaced = makeContract({
   input: z.object({ orderId: z.string() }),
 });
 
+/** Контракт, адресуемый на обоих проводах: по шине и по HTTP */
+const AddressedBoth = makeContract({
+  name: 'impl.billing.charge.http',
+  kind: 'request',
+  http: 'POST /charges',
+  input: z.object({ amount: z.number() }),
+  output: z.object({ chargeId: z.string() }),
+});
+
 /** Бросатель `meta.fail`: ни один хендлер этих тестов его не зовёт */
 const unusedFail = (): never => {
   throw new Error('meta.fail is not used in these tests');
@@ -161,5 +170,18 @@ describe('implement', () => {
         handle: async () => new Ok({ chargeId: 'c-1' }),
       }),
     ).toThrow(/'input' belongs to the contract/);
+  });
+
+  it('секция http: в реализации по шине не участвует', () => {
+    const declaration = implement(AddressedBoth, {
+      handle: async () => new Ok({ chargeId: 'c-2' }),
+    });
+
+    // Транспорт шины, subject — имя контракта: HTTP-адрес на этот путь не
+    // влияет никак, он адресует другой провод
+    expect(declaration.transport).toBe(BusTransport$);
+    expect(busBindingOf(declaration)?.subject).toBe(AddressedBoth.name);
+    expect(declaration.pattern).toBe(AddressedBoth.name);
+    expect(declaration.binding).not.toBe(AddressedBoth.http);
   });
 });
