@@ -29,7 +29,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 6 | `streaming-v2` | `stream` ≠ `events`, item-цепочки на io-декларации, `Topic`, `summary`, SSE; io-декларация как дерево форм (`value`/`stream`/`events`/`multipart` + `upload()`, листья — Standard Schema), поэлементная валидация; capability-валидация биндинга: формы контракта vs способности транспорта, fail-fast на ASSEMBLE | L | **done** — [архив](../../openspec/changes/archive/2026-07-31-streaming-v2/), [ideas.md [2026-07-06]](./ideas.md), новый пакет [`@nestling/streams`](../../packages/nestling.streams/) |
 | 7 | `subscriptions-registry` | пакет реестра подписок поверх signal + finish-хуков (dogfooding публичных примитивов) | M | не начат |
 | 8 | `endpoint-discovery` | эндпоинты и транспорты — дискавери из дерева зарегистрированных модулей вместо глобального registry (чинит протечку глобального `Set` при любом импорте). Предпосылка фич | S | **done** — [архив](../../openspec/changes/archive/2026-07-29-endpoint-discovery/), [d/05 §1](../history/discussions/05-modular-monolith-features-ports.md) |
-| 9 | `config-module` | `makeConfig('prefix', schema)` + `from`; источники = объекты `ConfigSource` в одной приватной читалке (env — база, координаты из примордиального env); приватность = keys-capability (токен секции не экспортируется, наружу — branded-хэндл `.keys`; без `configs:`-регистрации и build()-проверки владения); привязка в корне плоским списком `config: [[src, keys \| glob]]`; reloadable (`Topic`/`AbortSignal`, живой хэндл); on-demand/unbound + доки из реестра (тег фичи из графа + флаг). Поверх `token-families` (5) | M–L | **spec-ready** — [d/05 §11,§15](../history/discussions/05-modular-monolith-features-ports.md) + ревизия владения [ideas.md [2026-07-10]](./ideas.md) + форма секции — рекорд полей [ideas.md [2026-07-14]](./ideas.md) |
+| 9 | `config-module` | `makeConfig('prefix', schema)` + `from`; источники = объекты `ConfigSource` в одной приватной читалке (env — база, координаты из примордиального env); приватность = keys-capability (токен секции не экспортируется, наружу — branded-хэндл `.keys`; без `configs:`-регистрации и build()-проверки владения); привязка в корне плоским списком `config: [[src, keys \| glob]]`; reloadable (`Topic`/`AbortSignal`, живой хэндл); on-demand/unbound + доки из реестра (тег фичи из графа + флаг). Поверх `token-families` (5) | M–L | **done** — [change](../../openspec/changes/config-module/), новый пакет [`@nestling/config`](../../packages/nestling.config/), [d/05 §11,§15](../history/discussions/05-modular-monolith-features-ports.md), ревизия владения [ideas.md [2026-07-10]](./ideas.md), форма секции — рекорд полей [ideas.md [2026-07-14]](./ideas.md) |
 | 10 | `features` | `makeFeature`/`select`/`assemble`; `@OnStart`/go-live (гарантия `dispatch`: `serve(dispatch, signal)` вместо `listen()`); транспорты как провайдеры; capability = DI + fail-fast | L | design — [d/05 §2,§7–§10](../history/discussions/05-modular-monolith-features-ports.md) |
 | 11 | `ports` | `makeContract` (request/command/event), `Port`/`Emitter`, `IMessageBus`, `InProcessBus`, dispatch-policy; local/remote-биндинг на сборке (co-located, L3) | L | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
 | 12 | `transport.nats` | NATS как inbound+outbound транспорт; queue-groups для реплик; remote-биндинг портов; JetStream для `durable` (split, L4) | M | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
@@ -143,8 +143,10 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 
 - **8 `endpoint-discovery`** — независим, S; предпосылка для 10 и баг-фикс сам по
   себе. Делаем первым.
-- **9 `config-module`** — поверх 5 (token-families); детально спроектирован
-  (spec-ready). Может идти параллельно 8/10; нужен `assemble` для полной картины.
+- **9 `config-module`** — поверх 5 (token-families) — **done**,
+  [change](../../openspec/changes/config-module/). Точка
+  привязки временно живёт в `AppConfig.config`; переезд в `assemble()` — одна
+  строка в 10.
 - **10 `features`** — после 8 (дискавери) и 9 (конфиг в `assemble`); включает
   `@OnStart`/go-live и транспорты-провайдеры.
 - **11 `ports`** — после 10 (биндинг по топологии/`select`) и 4 (endpoints);
@@ -245,7 +247,7 @@ breaking-окно едет вторым (а не после ветки моно�
 
 | # | Change | Размер | Почему здесь |
 |---|---|---|---|
-| 9 | `config-module` | M–L | spec-ready, поверх 5 и `Topic` из 6 |
+| 9 | `config-module` | M–L | **done** — [change](../../openspec/changes/config-module/); поверх 5 и `Topic` из 6 |
 | 10 | `features` | L | `assemble`, фазовый lifecycle, `@OnStart`/go-live, транспорты-провайдеры |
 | 18 | `testing-package` (ядро) | M | **раньше, чем требует граф**: `assembleTest`/`vars()`/`.check()` удешевляют каждый следующий change; `stub(Contract)` — в волне 6 |
 | 28 | `policy-check` | S–M | нужен полный граф: после 8 (дискавери) и 10 (assemble) |

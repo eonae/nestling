@@ -1,6 +1,6 @@
 # Семейства токенов в DI
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-07-29).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-07-31).
 
 Параметризованные зависимости — логгер на скоуп, клиент на upstream, очередь на
 имя — в Nestling делаются **семейством токенов**: один рецепт, много членов,
@@ -34,22 +34,31 @@ export const ILogger = makeTokenFamily<ILogger, [scope: string]>('Logger');
 
 ```typescript
 // packages/examples.simple-app/src/logging/logging.module.ts
-import { familyProvider, makeModule, valueProvider } from '@nestling/container';
+import { factoryProvider, familyProvider, makeModule } from '@nestling/container';
 
+import { AppConfig } from '../config/app.config';
 import { ILogger } from './registry';
 
 export const LoggingModule = makeModule({
   name: 'module:logging',
   providers: [
     familyProvider(ILogger, (scope) =>
-      valueProvider(ILogger(scope), {
-        log: (...args) => console.log(`[LOG] Logger:${scope}`, ...args),
-      }),
+      factoryProvider(
+        ILogger(scope),
+        (config: Config<typeof AppConfig>) => ({
+          log: (...args) =>
+            console.log(`[${config.logLevel}] Logger:${scope}`, ...args),
+        }),
+        [AppConfig] as const,
+      ),
     ),
   ],
   exports: [ILogger],
 });
 ```
+
+Рецепт — обычный провайдер, поэтому у него есть свои `deps`: здесь член
+семейства зависит от секции конфига (см. [config.md](./config.md)).
 
 Рецепт — `(param) => ProviderDefinition<T>`: возвращает обычное определение
 (`valueProvider` / `factoryProvider` / `classProvider`), поэтому в тестах член
@@ -138,7 +147,6 @@ export const DatabaseModule = makeModule({
     classProvider(IHealthCheck('database'), DatabaseHealthCheck),
   ],
   exports: [IDatabase, IHealthCheck],
-  imports: [ConfigModule],
 });
 ```
 

@@ -235,10 +235,10 @@ export class HealthEndpoint {
     жадно на старте: <strong>невалидный конфиг = FAIL-FAST</strong>.
   </p>
 
-  <div class="code" data-file="orders.config.ts" data-lang="typescript"><pre><code>export const OrdersConfig = makeConfig('orders', z.object({
+  <div class="code" data-file="orders.config.ts" data-lang="typescript"><pre><code>export const OrdersConfig = makeConfig('orders', {
   maxItems:    z.coerce.number().default(100),   // ← ключ ORDERS_MAX_ITEMS
   databaseUrl: from('DATABASE_URL', z.url()),    // точное имя ключа, без префикса
-}));
+});
 
 // наружу из пакета — только хэндл ключей; сам токен не реэкспортируется
 export const ordersKeys = OrdersConfig.keys;</code></pre></div>
@@ -297,10 +297,10 @@ await assemble({
     <li><strong>старт:</strong> невалидный конфиг → die. <strong>reload:</strong> невалидный → keep last-good + warn. Живой процесс не падает из-за плохого горячего значения.</li>
     <li><strong>вступит ли изменение в силу</strong> — ответственность потребителя. Поэтому reloadable — opt-in.</li>
   </ul>
-  <div class="code" data-lang="typescript"><pre><code>export const Runtime = makeConfig.reloadable('runtime', z.object({
+  <div class="code" data-lang="typescript"><pre><code>export const Runtime = makeConfig.reloadable('runtime', {
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   rps:      z.coerce.number().default(100),
-}));
+});
 
 @Injectable([Runtime])
 class RateLimiter {
