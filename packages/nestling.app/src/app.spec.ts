@@ -823,6 +823,37 @@ describe('assemble — фичи в приложении', () => {
     await app.close();
   });
 
+  it('одноимённые разные модули корня и фичи — ошибка от контейнера', async () => {
+    const Orders = makeFeature({
+      name: 'orders',
+      modules: [
+        makeAppModule({
+          name: 'module:logging',
+          endpoints: [
+            httpEndpoint({
+              method: 'GET',
+              path: '/from-feature',
+              handle: async () => new Ok({}),
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const app = assemble({
+      modules: [makeAppModule({ name: 'module:logging' })],
+      features: [Orders],
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+    // Регистрация модулей идёт раньше дискавери, поэтому диагностику даёт
+    // контейнер: его текст говорит о провайдерах и экспортах, дискавери —
+    // ещё и об эндпоинтах. Порядок проверок фазы ASSEMBLE не изменился.
+    await expect(app.check()).rejects.toThrow(
+      /Two different modules are named 'module:logging'\. A module name is the attribution key of its providers and exports/,
+    );
+  });
+
   it('транспорт невыбранной фичи не поднимается', async () => {
     const started: string[] = [];
 

@@ -104,7 +104,7 @@ describe('discoverEndpoints', () => {
     expect(endpoints[0].endpoint).toBe(SharedEndpoint);
   });
 
-  it('два разных объекта модуля с одним name считаются одним модулем', () => {
+  it('два разных модуля с одним name — ошибка обхода', () => {
     const First = endpoint(Http$, 'GET /first');
     const Second = endpoint(Http$, 'GET /second');
 
@@ -117,10 +117,24 @@ describe('discoverEndpoints', () => {
       endpoints: [Second],
     });
 
-    const { endpoints } = discoverEndpoints([ModuleFirst, ModuleSecond]);
+    // Пропустить второе значение значило бы потерять `GET /second` молча —
+    // контейнер на этом падает, дискавери зеркалит правило
+    expect(() => discoverEndpoints([ModuleFirst, ModuleSecond])).toThrow(
+      /Two different modules are named 'module:same-name'/,
+    );
+  });
 
-    // Контейнер молча игнорирует второй одноимённый модуль — дискавери тоже
-    expect(endpoints.map((found) => found.endpoint)).toEqual([First]);
+  it('то же значение модуля, переданное дважды, обходится один раз', () => {
+    const Only = endpoint(Http$, 'GET /only');
+
+    const Shared = makeAppModule({
+      name: 'module:shared-value',
+      endpoints: [Only],
+    });
+
+    const { endpoints } = discoverEndpoints([Shared, Shared]);
+
+    expect(endpoints.map((found) => found.endpoint)).toEqual([Only]);
   });
 
   it('порядок воспроизводим: imports раньше собственных эндпоинтов', () => {

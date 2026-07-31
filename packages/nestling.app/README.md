@@ -7,14 +7,19 @@ graceful shutdown (SIGTERM/SIGINT).
 
 ```typescript
 const app = assemble({
-  modules: [LoggerModule, UsersModule],
+  modules: [LoggingModule, UsersModule],
   transports: [http({ port: 3000 })],   // a provider, not an instance
 });
 await app.run();
 ```
 
 Every field of the spec is optional (`modules`, `providers`, `features`,
-`select`, `transports`, `config`, `policies`). There is **no public constructor**: `App`
+`select`, `transports`, `config`, `policies`), and **that list is closed**.
+There is no `plugins:` field — nor any other bag for cross-cutting
+infrastructure: process-global infrastructure arrives through the same
+`modules:`/`providers:`, feature-scoped infrastructure through the modules of
+its feature, and there is no `Plugin` primitive to declare in the first
+place. There is **no public constructor**: `App`
 is the result type with `run()`, `check()` and `close()`, and its constructor
 takes an internal plan whose type is not exported — `new App({ … })` is not
 expressible. `overrides` is not a field of this spec and never will be:
@@ -71,14 +76,14 @@ Endpoints marked `detached` are excluded from every policy and printed at
 startup, one line each, right after the assembly summary:
 
 ```
-[nestling] features: users, logging; transports: http
+[nestling] features: users, ops; transports: http
 [nestling] detached from policies: GET /health (http) — liveness probe of the load balancer
 ```
 
 ## `check()` — a structural smoke test
 
 ```typescript
-for (const select of ['all', 'users', 'logging'] as const) {
+for (const select of ['all', 'users', 'ops'] as const) {
   const report = await assemble({ features, select, transports: [http()] }).check();
   // report: { features, endpoints: [{ pattern, transport, module, detached? }], transports }
 }
@@ -109,16 +114,16 @@ Use [`@nestling/testing`](../nestling.testing) instead of the seam directly.
 ## Features and `select`
 
 ```typescript
-export const LoggingFeature = makeFeature({ name: 'logging', modules: [LoggerModule] });
+export const OpsFeature = makeFeature({ name: 'ops', modules: [OpsModule] });
 export const UsersFeature = makeFeature({
   name: 'users',
-  modules: [UsersModule],
-  dependsOn: [LoggingFeature],      // values, not names
+  modules: [UsersModule],           // UsersModule imports its infrastructure
+  dependsOn: [OpsFeature],          // values, not names
 });
 
 const cfg = load(RootConfig);       // phase 0: only process.env
 await assemble({
-  features: [UsersFeature, LoggingFeature],
+  features: [UsersFeature, OpsFeature],
   select: cfg.features,             // 'all' | 'users' | ['users', 'billing']
   transports: [http()],
 }).run();
@@ -135,6 +140,14 @@ Selection mismatches fail on phase ASSEMBLE: an unknown name (the error
 lists the available ones), two different features with the same `name`, an
 empty selection (`''`/`[]` — "nothing" is written by declaring no features)
 and `select` without `features`.
+
+`modules:` of the root and the modules of the selected features are merged;
+modules are deduplicated **by value**, exactly as in `ContainerBuilder`. Two
+different module values with one `name` fail the build — and discovery
+applies the same rule when it walks the tree, so "what is discovered" never
+drifts from "what is registered" by silently dropping a module together with
+its endpoints. In an `assemble` run the message comes from the container:
+modules are registered before discovery walks them.
 
 ## Transports
 

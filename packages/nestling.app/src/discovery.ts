@@ -32,19 +32,37 @@ export interface EndpointDiscovery {
 
 /**
  * Обходит дерево модулей в том же порядке, что `ContainerBuilder.registerModule`:
- * depth-first, `imports` — до самого модуля, дедупликация по имени модуля.
+ * depth-first, `imports` — до самого модуля, дедупликация **по значению**.
+ *
+ * Идентичность модуля — его значение: то же значение, встреченное повторно,
+ * обходится один раз, а другое значение под занятым именем — ошибка, как в
+ * контейнере. Молча пропустить одноимённый модуль значило бы потерять вместе
+ * с ним его эндпоинты — «обнаружено» разошлось бы с «собрано».
  *
  * Модуль помечается посещённым на входе, поэтому цикл в `imports`
  * (`A → B → A`) завершает обход, а не зацикливает его.
  */
 function* visitModules(modules: readonly Module[]): Generator<Module> {
-  const visited = new Set<string>();
+  const visited = new Map<string, Module>();
 
   function* visit(module: Module): Generator<Module> {
-    if (visited.has(module.name)) {
+    const seen = visited.get(module.name);
+
+    if (seen) {
+      if (seen !== module) {
+        throw new Error(
+          `Two different modules are named '${module.name}'. ` +
+            `A module name is the attribution key of its providers, exports and endpoints, ` +
+            `so it must be unique. Either share one module value between its consumers ` +
+            `(create it once and import that value), or give the two configurations ` +
+            `different names. If neither is the case, check for a duplicated package in ` +
+            `your dependencies - two copies give two values of the same module.`,
+        );
+      }
+
       return;
     }
-    visited.add(module.name);
+    visited.set(module.name, module);
 
     for (const imported of module.imports ?? []) {
       yield* visit(imported);

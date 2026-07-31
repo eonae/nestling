@@ -139,7 +139,7 @@ export class ContainerBuilder {
   readonly #providerToModule = new Map<InjectionToken, string>();
   readonly #moduleExports = new Map<string, ModuleExports>();
   readonly #familyRecipes = new Map<string, FamilyRecipeEntry>();
-  readonly #modules = new Set<string>();
+  readonly #modules = new Map<string, Module>();
   readonly #strictExports: boolean;
   readonly #overrides: readonly TokenOverride<any>[];
   readonly #familyOverrides: readonly FamilyOverrideEntry<any, any>[];
@@ -275,12 +275,27 @@ export class ContainerBuilder {
   /**
    * Load a module and all its dependencies.
    * This method handles module imports and registers providers.
+   *
+   * Identity of a module is its **value**: the same value met again - through
+   * `imports`, through the root and a feature, through two features sharing one
+   * infrastructure module - is a no-op. A *different* value under a taken name
+   * is an error: the name is the attribution key of providers and exports, so
+   * silently dropping the second value would drop its providers with it.
    */
   private registerModule(m: Module): void {
-    // Check if module is already loaded
-    if (this.#modules.has(m.name)) {
+    const loaded = this.#modules.get(m.name);
+
+    if (loaded) {
+      if (loaded !== m) {
+        throw new Error(moduleNameCollisionMessage(m.name));
+      }
+
       return;
     }
+
+    // Mark the module as loaded before descending into `imports`: a cycle
+    // (`A → B → A`) has to terminate the walk, not re-enter it
+    this.#modules.set(m.name, m);
 
     // Load imported modules first (recursive)
     for (const importedModule of m.imports || []) {
@@ -299,9 +314,6 @@ export class ContainerBuilder {
         this.registerModuleProvider(provider, m.name);
       }
     }
-
-    // Mark module as loaded
-    this.#modules.add(m.name);
   }
 
   private resolveProvider(
@@ -1093,6 +1105,22 @@ const overrideMissingHint = (tokenId: string): string => {
 
   return ` Check that it is registered by the modules and features this application selected.`;
 };
+
+/**
+ * Two different module values registered under one name.
+ *
+ * Comparison is referential on purpose: "same options - same module" would
+ * mean walking arbitrary values (functions, live clients) at build time, and
+ * it would turn a silent loss into a silent merge. The canonical way to share
+ * a parameterized module is to create its value once and import that value.
+ */
+const moduleNameCollisionMessage = (name: string): string =>
+  `Two different modules are named '${name}'. ` +
+  `A module name is the attribution key of its providers and exports, so it must be unique. ` +
+  `Either share one module value between its consumers (create it once and import that value), ` +
+  `or give the two configurations different names. ` +
+  `If neither is the case, check for a duplicated package in your dependencies - ` +
+  `two copies give two values of the same module.`;
 
 /**
  * Split a module's `exports` into plain tokens and whole families.

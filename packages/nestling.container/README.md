@@ -2,6 +2,9 @@
 
 A lightweight, type-safe dependency injection container for TypeScript with no third-party dependencies. Built on standard JavaScript decorators, it serves as the foundation for the Nestling.js framework.
 
+> 🚧 Active development, API evolving. Target design in
+> [`docs/design/container.md`](../../docs/design/container.md).
+
 ## Disclaimer
 
 `Nestling` is my personal take on Nest.js - a framework I both love and find frustrating.
@@ -279,6 +282,51 @@ const userModule = makeModule({
 ```
 
 Cleaner. Simpler. Just configuration.
+
+#### Module Identity Is the Value
+
+A module is identified by its **value**, not by its name. The same value met
+again - through `imports`, through the root and a feature, through two
+features sharing one infrastructure module - is registered once: the
+providers factory does not run twice and no duplicate nodes appear.
+
+The name is the **attribution key** of the module's providers, exports and
+endpoints, so two *different* values under one name are a build error, not a
+silent win for the first one:
+
+```
+Two different modules are named 'module:logging'. A module name is the
+attribution key of its providers and exports, so it must be unique. Either
+share one module value between its consumers (create it once and import that
+value), or give the two configurations different names. If neither is the
+case, check for a duplicated package in your dependencies - two copies give
+two values of the same module.
+```
+
+Comparison is referential. There is no structural comparison of options and
+no memoization of parameterized modules by arguments: walking arbitrary
+values at build time is exactly the runtime magic this container avoids, and
+it would turn a silent loss into a silent merge.
+
+#### Parameterized Modules
+
+A parameterized module is just a function returning a module - no
+`DynamicModule`, no `forRoot`, no configuration stage:
+
+```typescript
+export const logging = (options: { service: string }) =>
+  makeModule({
+    name: 'module:logging',
+    providers: [/* ... */],
+    exports: [ILogger],
+  });
+
+// create the value once, share it by importing it
+export const appLogging = logging({ service: 'orders-api' });
+```
+
+Calling the factory a second time - even with equal options - produces
+another value under the same name, and the build fails as above.
 
 ### Lifecycle Hooks: Where They Belong
 
