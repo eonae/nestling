@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 import * as readline from 'node:readline';
-import type { Readable } from 'node:stream';
 
 import type { Schema } from '@common/misc';
 import type { InjectionToken } from '@nestling/container';
@@ -13,22 +12,27 @@ import type {
   EndpointDefinition,
   EndpointMeta,
   FailsOf,
-  FilePart,
   HandlerClass,
   HandlerFactory,
   HandlerFn,
   Pipeline,
   Raw,
   ResponseContext,
+  TransportCapabilities,
   UnknownFailInfo,
+  ValidateOutputForm,
 } from '@nestling/pipeline';
 import {
-  analyzePayload,
+  assertFormsSupported,
+  bindInputStream,
+  describeForm,
+  isAsyncIterable,
   makeEmptyContext,
   makeEndpoint,
   parsePayload,
   TransportClosingError,
 } from '@nestling/pipeline';
+import { untilAborted } from '@nestling/streams';
 import type { ITransport } from '@nestling/transport';
 
 /**
@@ -48,11 +52,11 @@ export interface CliEndpointDictionary<
   /** Имя команды; оно же паттерн ручки */
   command: string;
 
-  /** Schema или модификатор для input */
+  /** Форма io для input: значение или `stream(...)` */
   input?: I;
 
-  /** Конфигурация выходных данных */
-  output?: O;
+  /** Форма io для output (см. `ValidateOutputForm`) */
+  output?: O & ValidateOutputForm<O>;
 
   /**
    * Объявленные отказы команды. Транспорт поле не интерпретирует — только
@@ -177,9 +181,24 @@ export interface CliTransportOptions {
 }
 
 /**
+ * Формы io, которые умеет CLI.
+ *
+ * `events` нет: у команды нет открытого соединения, дисконнект которого
+ * был бы нормальным завершением. `multipart` нет: файлы приходят путями в
+ * аргументах, а не полями формы.
+ */
+const CLI_CAPABILITIES: TransportCapabilities = {
+  input: new Set(['value', 'stream']),
+  output: new Set(['value', 'stream']),
+};
+
+/**
  * CLI транспорт
  */
 export class CliTransport implements ITransport {
+  /** Способности транспорта: читает `assertFormsSupported` на сборке */
+  readonly capabilities: TransportCapabilities = CLI_CAPABILITIES;
+
   private readonly handlers = new Map<
     string,
     EndpointDefinition<any, any, any>
@@ -206,6 +225,8 @@ export class CliTransport implements ITransport {
     O extends AnyOutput = AnyOutput,
     P extends AnyInput = AnyInput,
   >(definition: EndpointDefinition<I, O, P, never>): void {
+    // Та же проверка, что делает `App`: и standalone-путь под гарантией
+    assertFormsSupported(definition, this.capabilities);
     this.handlers.set(definition.pattern, definition);
   }
 
@@ -218,145 +239,151 @@ export class CliTransport implements ITransport {
       throw new Error(`Command "${input.command}" not found`);
     }
 
-    // Анализируем input конфигурацию
-    const inputConfig = analyzePayload(definition.input);
+    // Форма input определяет, как читается вход команды
+    const inputForm = describeForm(definition.input);
+    const outputForm = describeForm(definition.output);
 
     let payload: unknown;
+    let streamSource: AsyncIterable<unknown> | undefined;
 
-    // Парсим входные данные согласно типу модификатора
-    switch (inputConfig.type) {
+    switch (inputForm.kind) {
       case 'stream': {
-        // Streaming данные из stdin
-        payload = this.streamStdin();
-
+        // Поток stdin; поэлементную валидацию навесит ядро
+        streamSource = this.streamStdin(inputForm.leaf === 'binary');
         break;
-      }
-      case 'withFiles': {
-        // Args + stdin как file
-        const data = parsePayload(inputConfig.schema as Schema, {
-          payload: {
-            args: input.args,
-            ...input.options,
-          },
-          metadata: {},
-        });
-        const files = await this.parseStdin();
-        payload = { data, files };
-
-        break;
-      }
-      case 'files': {
-        // Только stdin как file
-        const files = await this.parseStdin();
-        payload = files;
-
-        break;
-      }
-      case 'primitive': {
-        // Примитивные типы (binary/text) не поддерживаются в CLI
-        throw new Error(
-          `Primitive input type "${inputConfig.primitive}" is not supported in CLI transport`,
-        );
       }
       default: {
-        // Обычная схема или undefined - парсим только args
+        // Обычная схема, примитив или отсутствие input — парсим только args
         const rawPayload = {
           args: input.args,
           ...input.options,
         };
 
-        payload = inputConfig.schema
-          ? parsePayload(inputConfig.schema as Schema, {
-              payload: rawPayload,
-              metadata: {},
-            })
-          : rawPayload;
+        payload =
+          inputForm.leaf &&
+          inputForm.leaf !== 'binary' &&
+          inputForm.leaf !== 'text'
+            ? parsePayload(inputForm.leaf as Schema, {
+                payload: rawPayload,
+                metadata: {},
+              })
+            : rawPayload;
       }
     }
 
     // Получаем pipeline из definition или используем default
     const pipeline = definition.pipeline ?? this.defaultPipeline;
 
-    if (pipeline) {
-      // Новая архитектура с pipeline
-      const raw: Raw = {
-        transport: 'cli',
-        pattern: input.command,
-        payload,
-        attributes: {
-          command: input.command,
-          args: input.args,
-          options: input.options,
-        },
-      };
+    const raw: Raw = {
+      transport: 'cli',
+      pattern: input.command,
+      payload,
+      attributes: {
+        command: input.command,
+        args: input.args,
+        options: input.options,
+      },
+    };
 
-      const endpointMeta: EndpointMeta = {
-        transport: 'cli',
-        pattern: definition.pattern,
-        input: definition.input,
-        output: definition.output,
-        // Объявленные отказы доезжают до стража только так: декларация →
-        // транспорт → контекст, без глобального реестра.
-        errors: definition.errors,
-      };
+    const endpointMeta: EndpointMeta = {
+      transport: 'cli',
+      pattern: definition.pattern,
+      input: definition.input,
+      output: definition.output,
+      // Объявленные отказы доезжают до стража только так: декларация →
+      // транспорт → контекст, без глобального реестра.
+      errors: definition.errors,
+    };
 
-      const ctx = makeEmptyContext(
-        raw,
-        endpointMeta,
-        this.closeController.signal,
-      );
+    const ctx = makeEmptyContext(
+      raw,
+      endpointMeta,
+      this.closeController.signal,
+    );
 
-      // CLI — локальный инструмент: детали ошибок (stack) в терминале полезны.
-      return pipeline.executeWithHandler(definition.handle, ctx, {
-        exposeErrorDetails: true,
-        onUnknownFail: this.options.onUnknownFail,
-      });
-    } else {
-      // Fallback без pipeline - прямой вызов handler
-      const result = await definition.handle(payload, {
-        signal: this.closeController.signal,
-        fail: (error: never): never => {
-          throw error;
-        },
-      });
-      return {
-        isSuccess: true,
-        status: 'OK',
-        value: result,
-      };
+    if (streamSource) {
+      // Обёртка ядра доступна только теперь: счётчики живут в контексте
+      raw.payload = bindInputStream(inputForm, streamSource, ctx);
     }
+
+    const response = pipeline
+      ? // CLI — локальный инструмент: детали ошибок (stack) в терминале полезны
+        await pipeline.executeWithHandler(definition.handle, ctx, {
+          exposeErrorDetails: true,
+          onUnknownFail: this.options.onUnknownFail,
+        })
+      : ({
+          isSuccess: true,
+          status: 'OK',
+          value: await definition.handle(raw.payload, {
+            signal: this.closeController.signal,
+            fail: (error: never): never => {
+              throw error;
+            },
+          }),
+        } as ResponseContext);
+
+    // Потоковый выход: NDJSON в stdout, завершение по концу потока и по
+    // сигналу. Итератор обязан быть либо потреблён, либо закрыт — иначе
+    // отложенные `.finally`-юниты не выполнятся.
+    if (
+      outputForm.kind === 'stream' &&
+      response.isSuccess &&
+      isAsyncIterable(response.value)
+    ) {
+      await this.writeNdjson(response.value);
+      return { ...response, value: null };
+    }
+
+    return response;
   }
 
   /**
-   * Стримит stdin как AsyncIterator
+   * Стримит stdin как AsyncIterable.
+   *
+   * Форма `stream('binary')` отдаёт чанки как есть, схема-лист —
+   * NDJSON-строки: ядро валидирует их поэлементно.
    */
-  private async *streamStdin(): AsyncIterator<Buffer | string> {
+  private async *streamStdin(binary: boolean): AsyncIterableIterator<unknown> {
     if (process.stdin.isTTY) {
       return; // Нет данных в stdin
     }
 
+    if (binary) {
+      yield* process.stdin;
+      return;
+    }
+
+    let buffer = '';
     for await (const chunk of process.stdin) {
-      yield chunk;
+      buffer += (chunk as Buffer).toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed) {
+          yield JSON.parse(trimmed);
+        }
+      }
+    }
+
+    const tail = buffer.trim();
+    if (tail) {
+      yield JSON.parse(tail);
     }
   }
 
-  /**
-   * Парсит stdin как FilePart
-   */
-  private async parseStdin(): Promise<FilePart[]> {
-    if (process.stdin.isTTY) {
-      return [];
+  /** NDJSON в stdout: по одному JSON-объекту на строку */
+  private async writeNdjson(source: AsyncIterable<unknown>): Promise<void> {
+    for await (const item of untilAborted(
+      source,
+      this.closeController.signal,
+    )) {
+      const line =
+        typeof item === 'string' ? item : `${JSON.stringify(item)}\n`;
+      process.stdout.write(line);
     }
-
-    // Создаем FilePart из stdin
-    return [
-      {
-        field: 'stdin',
-        filename: 'stdin',
-        mime: 'application/octet-stream',
-        stream: process.stdin as Readable,
-      },
-    ];
   }
 
   /**
