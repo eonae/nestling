@@ -408,6 +408,95 @@ await app.run(); // фазы 0–5: сборка, @OnInit, wiring, @OnStart, go-
 Фичи и `select`, фазы жизненного цикла и standalone-путь — отдельный гайд
 [composition.md](./composition.md).
 
+## Ambient-контекст: `Ctx` в глубине
+
+Хендлер видит накопленный `input` — а репозиторий тремя слоями ниже уже нет.
+Чтобы не протаскивать `requestId` параметром через все сигнатуры, есть
+**ambient-переменная**: значение едет неявно, но зависимость от него
+объявляется явно.
+
+**1. Объявить переменную.** Вызов двойной: первый фиксирует тип, второй —
+ключ. Ключ — это имя поля в накопленном `input`, а не ячейка отдельного
+хранилища:
+
+```typescript
+import { contextVar } from '@nestling/pipeline';
+
+export const TenantId = contextVar<string>()('tenantId');
+```
+
+`RequestId` объявлять не нужно — она well-known и экспортируется ядром
+рядом с `Signal` (сигнал отмены запроса; он read-only).
+
+**2. Положить значение слоем.** Писатель — сама переменная: `Var.provide()`
+возвращает обычный pre-юнит, поэтому накопительная типизация, конфликты и
+требования работают как всегда:
+
+```typescript
+export const observability = makePipeline()
+  .pre(withRequestId())            // штатный юнит = RequestId.provide(…)
+  .pre(TenantId.provide((ctx) => ctx.raw.attributes['x-tenant'] as string))
+  .finally(AuditOutcome);
+```
+
+Только `Var.provide(…)` считается объявителем. Юнит, кладущий то же поле
+«вручную» (`return { tenantId }`), для чтения работает, но политику из шага 4
+не удовлетворит.
+
+**3. Прочитать ридером.** `Ctx(Var)` — обычный токен: он годится в `deps`
+класса, фабрики и декларации, виден в `explain()` и подменяется в тестах:
+
+```typescript
+@Injectable(UsersRepository, [UsersStore, ILogger, Ctx(RequestId)])
+export class StoredUsersRepository implements IUsersRepository {
+  constructor(
+    private readonly store: UsersStore,
+    private readonly logger: ILoggerService,
+    private readonly requestId: CtxReader<string>,
+  ) {}
+
+  async byId(id: string) {
+    this.logger.debug(`[${this.requestId.peek() ?? 'n/a'}] byId ${id}`);
+    // …
+  }
+}
+```
+
+**`get()` или `peek()`** — по месту вызова, а не по вкусу:
+
+| | `get(): T` | `peek(): T \| undefined` |
+| --- | --- | --- |
+| pre-юнит, хендлер | значение | значение |
+| `.catch`/`.finally`, поток | бросает, если pre не дошёл до писателя | `undefined` |
+| `@OnInit`/`@OnStart`, cron, фон | бросает: scope'а нет | `undefined` |
+
+Правило: `get()` там, где переменная обязана быть по инварианту (и текст
+ошибки прямо назовёт починку); `peek()` — в коде, который легитимно живёт на
+обоих путях. Логирование — как раз второй случай.
+
+**4. Закрепить инвариант политикой.** Компилятор ловит только чтение из
+юнита: pre-юнит, читающий `ctx.input.requestId`, потребует переменную типом.
+Чтение из глубины графа типами не выражается — там за него отвечает
+проверка на собранном графе:
+
+```typescript
+assemble({
+  policies: [
+    everyEndpoint({ transport: HttpTransport$ }).hasVar(RequestId, 'requestId'),
+  ],
+  /* … */
+});
+```
+
+Ручка, чей пайплайн переменную не кладёт, роняет **сборку** (до `@OnInit` и
+до открытия сокета), а не запрос; opt-out — `detached: '<причина>'` в
+декларации. Подробности словаря политик — [design/pipeline.md
+§7](../design/pipeline.md).
+
+В тесте ридер подменяется как любой другой провайдер:
+`overrides: [contextValue(RequestId, 'req-1')]` — см.
+[testing.md](./testing.md).
+
 ## Тестирование хендлера
 
 DI не мешает тестам — ни контейнера, ни транспорта, ни импортов из
