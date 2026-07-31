@@ -1588,6 +1588,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nestling/eslint-plugin@workspace:*, @nestling/eslint-plugin@workspace:packages/nestling.eslint-plugin":
+  version: 0.0.0-use.local
+  resolution: "@nestling/eslint-plugin@workspace:packages/nestling.eslint-plugin"
+  dependencies:
+    eslint: "npm:^9.2.5"
+    typescript: "npm:5.7.3"
+  peerDependencies:
+    eslint: ">=9"
+  languageName: unknown
+  linkType: soft
+
 "@nestling/models@workspace:packages/nestling.models":
   version: 0.0.0-use.local
   resolution: "@nestling/models@workspace:packages/nestling.models"
@@ -5309,6 +5320,7 @@ __metadata:
     "@nestling/app": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
+    "@nestling/eslint-plugin": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/streams": "workspace:*"
     "@nestling/testing": "workspace:*"
