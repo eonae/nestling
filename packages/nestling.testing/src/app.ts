@@ -26,6 +26,7 @@ import type {
   ExtendableContext,
   InferInput,
   InferOutput,
+  Policy,
   Raw,
   ResponseContext,
 } from '@nestling/pipeline';
@@ -84,6 +85,14 @@ export interface TestAssemblySpec<
 
   /** Конфиг: источник, одна привязка или их список */
   config?: TestConfig;
+
+  /**
+   * Инварианты сборки — те же значения, что в бою.
+   *
+   * Тестовый корень их **не ослабляет**: приложение, которое не собирается
+   * в проде, не должно собираться и в тесте.
+   */
+  policies?: readonly Policy[];
 
   /**
    * Подстановки: пары «токен → фейк» и подмены рецептов семейств.
@@ -260,7 +269,7 @@ type CallArgs<I extends AnyPayload> =
  *
  * Тот же словарь сборки, что у `assemble`, плюс `overrides` и `stubs`; те
  * же fail-fast'ы ASSEMBLE — сверка требуемых транспортов, формы io против
- * способностей транспорта, ацикличность графа.
+ * способностей транспорта, ацикличность графа и объявленные политики.
  *
  * @param spec - Словарь сборки с подстановками
  * @returns Приложение с `call`/`get`/`pruned`/`close`
@@ -298,6 +307,7 @@ export async function assembleTest<const L extends readonly TestOverride[]>(
     select: spec.select,
     transports: spec.transports,
     config: toBindings(spec.config),
+    policies: spec.policies,
     overrides: tokens,
     familyOverrides: families,
   });

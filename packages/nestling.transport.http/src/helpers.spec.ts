@@ -268,6 +268,25 @@ describe('httpEndpoint — типы bind и rawBody', () => {
     expect(httpBindingOf(WithoutRawBody).rawBody).toBe(false);
   });
 
+  it('detached доезжает до значения декларации, пустая причина отвергается', () => {
+    const reason = 'liveness-проба балансировщика: до auth не доходит';
+
+    const Health = httpEndpoint({
+      method: 'GET',
+      path: '/health',
+      detached: reason,
+      handle,
+    });
+
+    expect(Health.detached).toBe(reason);
+
+    // Текст — тот же, что у kernel-примитива: транспорт причину не
+    // интерпретирует и своей проверки не заводит
+    expect(() =>
+      httpEndpoint({ method: 'GET', path: '/health', detached: '  ', handle }),
+    ).toThrow(/'detached' must state a reason/);
+  });
+
   it('непрозрачный input деградирует до отсутствия подсказок, а не до ошибки', () => {
     // Схемы нет — ключей не вывести; `bind` принимает любые имена, правила
     // остаются за рантаймом

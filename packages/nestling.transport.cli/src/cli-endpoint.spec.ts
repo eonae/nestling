@@ -36,6 +36,26 @@ describe('cliEndpoint', () => {
     ).toThrow(/'command' must be a non-empty name/);
   });
 
+  it('detached доезжает до значения декларации, пустая причина отвергается', () => {
+    const reason = 'служебная команда обслуживания: политик auth не касается';
+
+    const Vacuum = cliEndpoint({
+      command: 'vacuum',
+      detached: reason,
+      handle: async () => new Ok({}),
+    });
+
+    expect(Vacuum.detached).toBe(reason);
+
+    expect(() =>
+      cliEndpoint({
+        command: 'vacuum',
+        detached: '',
+        handle: async () => new Ok({}),
+      }),
+    ).toThrow(/'detached' must state a reason/);
+  });
+
   it('CliTransport обслуживает объявленную команду', async () => {
     const Greet = cliEndpoint({
       command: 'greet',

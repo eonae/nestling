@@ -183,6 +183,13 @@ export interface HttpEndpointDictionary<
    * `TNeeds` декларации и гасятся вместе с `deps`.
    */
   pipeline?: Pipeline<PR, P, PN> & ValidateStart<PR, StartContext<RB, O>>;
+
+  /**
+   * Причина вывода ручки из-под инвариантов сборки. Транспорт поле не
+   * интерпретирует — только пробрасывает в `makeEndpoint`, который требует
+   * непустую строку (формы `detached: true` не существует).
+   */
+  detached?: string;
 }
 
 /**

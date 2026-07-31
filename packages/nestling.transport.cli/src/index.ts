@@ -88,6 +88,13 @@ export interface CliEndpointDictionary<
    * `TNeeds` декларации и гасятся вместе с `deps`.
    */
   pipeline?: Pipeline<AnyInput, P, PN>;
+
+  /**
+   * Причина вывода команды из-под инвариантов сборки. Транспорт поле не
+   * интерпретирует — только пробрасывает в `makeEndpoint` (см.
+   * `httpEndpoint`).
+   */
+  detached?: string;
 }
 
 /**

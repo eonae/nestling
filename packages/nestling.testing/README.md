@@ -17,6 +17,8 @@ await using app = await assembleTest({
   transports: [http({ port: 0 })],
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
   config: vars({ USERS_PAGE_SIZE: '10' }),
+  // the same invariants as production: the test root does not weaken them
+  policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)],
 });
 
 expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual({ id: '1', name: 'Alice' });
@@ -32,7 +34,7 @@ in `afterEach`) works too, and `close()` is idempotent.
 | Runs | Does not run |
 |---|---|
 | selection, registration, discovery, `build()` | `container.start()` (`@OnStart`) |
-| every ASSEMBLE fail-fast: transports, io forms, cycles | `transport.serve(...)` — no socket |
+| every ASSEMBLE fail-fast: transports, io forms, cycles, `policies` | `transport.serve(...)` — no socket |
 | `@OnInit` in topological order | `SIGTERM`/`SIGINT` handlers |
 | WIRE: declarations resolve deps, `dispatch` per transport | the startup summary line |
 
@@ -114,6 +116,21 @@ await checkTopologies(
 
 The kernel fails fast; the helper tells the whole story — it collects **all**
 failures and throws one message naming each topology with its cause.
+
+A `spec` carrying `policies:` gets them checked in **every** topology of the
+matrix, so an invariant that holds under `select: 'all'` but breaks on a
+subset is caught in CI. The `detached` reasons travel as values in the
+report, so a test compares the set of opted-out handles instead of parsing
+stdout:
+
+```typescript
+const [{ report }] = await checkTopologies(spec, ['all']);
+
+expect(
+  report.endpoints.filter(({ detached }) => detached !== undefined)
+    .map(({ pattern }) => pattern),
+).toEqual(['GET /health']);
+```
 
 ## `vars()` — config as an object
 
