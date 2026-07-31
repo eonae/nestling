@@ -1693,7 +1693,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestling/transport.nats@workspace:packages/nestling.transport.nats":
+"@nestling/transport.nats@workspace:*, @nestling/transport.nats@workspace:packages/nestling.transport.nats":
   version: 0.0.0-use.local
   resolution: "@nestling/transport.nats@workspace:packages/nestling.transport.nats"
   dependencies:
@@ -5392,6 +5392,21 @@ __metadata:
   dependencies:
     "@nestling/pipeline": "workspace:*"
     "@nestling/transport.http": "workspace:*"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"examples.split-nats@workspace:packages/examples.split-nats":
+  version: 0.0.0-use.local
+  resolution: "examples.split-nats@workspace:packages/examples.split-nats"
+  dependencies:
+    "@nestling/app": "workspace:*"
+    "@nestling/config": "workspace:*"
+    "@nestling/container": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
+    "@nestling/ports": "workspace:*"
+    "@nestling/transport": "workspace:*"
+    "@nestling/transport.nats": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft

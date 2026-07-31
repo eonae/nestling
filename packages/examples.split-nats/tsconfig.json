@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    // Двойник брокера живёт по ту сторону условия `testing`: без него
+    // subpath-шов не резолвится при typecheck
+    "customConditions": ["testing"]
+  },
+  "include": ["src/**/*"]
+}
