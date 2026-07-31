@@ -155,6 +155,7 @@ docs/                          # Design docs, decisions, guides, history
 packages/
 ├── nestling.container/        # Core DI container
 ├── nestling.pipeline/         # Typed request pipeline & endpoints
+├── nestling.streams/          # Topic, item-chain combinators, AbortSignal helpers
 ├── nestling.app/              # Application assembly & lifecycle
 ├── nestling.transport/        # Transport abstraction
 ├── nestling.transport.http/   # HTTP transport

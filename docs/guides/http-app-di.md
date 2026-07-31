@@ -253,6 +253,98 @@ export const UserWebhook = httpEndpoint({
 байты запрошены. С потоковыми и multipart-формами `rawBody` несовместим —
 ошибка при создании декларации.
 
+## Загрузка файлов: `multipart` + `upload`
+
+```typescript
+export const UploadAvatar = httpEndpoint({
+  method: 'POST',
+  path: '/api/users/:id/avatar',
+  input: multipart({
+    fields: z.object({ id: z.string() }),   // :id подмешивается к полям формы
+    files: {
+      avatar: upload({
+        maxSize: MAX_AVATAR_SIZE,
+        mime: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
+      }),
+    },
+  }),
+  output: UploadAvatarOutput,
+  errors: [InvalidAvatar, UserNotFound],
+  pipeline: noValidationPipeline,
+  handle: UploadAvatarHandler,              // класс-хендлер: DI как обычно
+});
+```
+
+Хендлер получает `{ fields, files }` с файлами **по именам объявленных
+полей** (`files.avatar: FilePart`). Размер и MIME проверил транспорт во
+время разбора — `413` и `400` до того, как файл попал в память целиком;
+ручке остаётся домен. Для `multipart` роль структурного input играют
+`fields`: path-параметры и помеченные query-поля подмешиваются именно
+туда.
+
+## Лента событий: `events` + `Topic`
+
+Источник событий — **обычный singleton-провайдер**, а не особый вид
+ручки: он живёт в `providers:` и публикует независимо от того, есть ли
+подписчики.
+
+```typescript
+@Injectable([ILogger])
+export class ActivityHub {
+  readonly #topic = new Topic<ActivityEvent>({ buffer: 256 });
+
+  publish(kind: ActivityEvent['kind'], userId: string): void {
+    this.#topic.push({ id: nextId(), kind, userId, at: new Date().toISOString() });
+  }
+
+  subscribe(signal?: AbortSignal): AsyncIterableIterator<ActivityEvent> {
+    return this.#topic.subscribe(signal);   // отписка — по сигналу запроса
+  }
+}
+
+export const ActivityStream = httpEndpoint({
+  method: 'GET',
+  path: '/api/users/activity',
+  output: events(ActivityEventSchema),      // framing — SSE
+  sse: { id: (e) => e.id, event: (e) => e.kind },
+  pipeline: compose(noValidationPipeline, subscriptionObserver),
+  deps: [ActivityHub],
+  handle:
+    (hub: ActivityHub) =>
+    async (_payload, meta: { signal: AbortSignal; lastEventId?: string }) =>
+      new Ok(hub.subscribe(meta.signal)),
+});
+```
+
+- `events(T)` — открытая подписка: нормальное завершение — дисконнект,
+  исход `.finally` — `disconnected`. Конечные данные — это `stream(T)`
+  (NDJSON), другая форма.
+- Всё SSE-специфичное живёт в **HTTP-словаре** (`sse`), а не в форме:
+  форма транспортно нейтральна. `id`/`event` не заданы — поля кадра не
+  пишутся; heartbeat берётся из опции транспорта (`sseHeartbeat`, 15s).
+- `Last-Event-ID` приезжает в **типизированном стартовом контексте**
+  (`meta.lastEventId`) — тем же механизмом, что `rawBody`. Откуда
+  продолжить, решает хендлер.
+- Отмена сквозная: клиент ушёл → `meta.signal` взведён → итерация
+  подписки завершилась → `Topic` снял подписку. Ничего закрывать руками
+  не нужно.
+
+Наблюдатель подписки — обычный `.finally`-юнит, но для потоковой формы он
+вызывается **после** того, как поток дотёк или оборвался:
+
+```typescript
+const subscriptionObserver = makePipeline<{ requestId: string }>().finally(
+  (outcome, _res, ctx) => {
+    console.log(`подписка завершена: ${outcome}, отдано: ${ctx.summary.itemsOut}`);
+  },
+);
+```
+
+```bash
+curl -N http://localhost:3000/api/users/activity
+curl -F avatar=@photo.png http://localhost:3000/api/users/1/avatar
+```
+
 ## Модуль
 
 Модуль — plain object через `makeAppModule`: провайдеры + декларации.

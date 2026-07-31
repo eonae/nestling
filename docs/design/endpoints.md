@@ -190,8 +190,10 @@ export const CreateUser = httpEndpoint({
   читается только тогда, когда его требует карта.
 - **Fail-fast при создании**: пометка на поле-path-параметре; `body()` у
   метода без тела; `bind` или path-параметр при неструктурном `input`
-  (`stream`/`files`/примитивы); path-параметр при отсутствии `input`;
-  `rawBody` вместе с потоковой или multipart-формой. Случай «path-параметр
+  (потоковая форма, примитивы); path-параметр при отсутствии `input`;
+  `rawBody` вместе с потоковой или multipart-формой. У `multipart` роль
+  структурного input играют **поля формы**: path-параметры и помеченные
+  query-поля подмешиваются к `fields`. Случай «path-параметр
   объявлен, а поля с таким именем в схеме нет» в общем виде **не
   диагностируется**: Standard Schema перечня ключей не отдаёт
   ([schemas.md](./schemas.md)) — известное ограничение, закрываемое там,
@@ -217,11 +219,65 @@ export const CreateUser = httpEndpoint({
 | `events(T)` | открытая подписка | `text/event-stream` (SSE) |
 | `multipart({ fields, files })` | поля + файлы | `multipart/form-data` |
 
+Форма — неизменяемое брендированное значение: случайный объект с полем
+`kind` за форму не принимается. Схема без обёртки (и отсутствие `input`) —
+это форма значения; вводить `value(...)` не нужно.
+
 - Валидация по форме: значение — целиком; `stream`/`events` — поэлементно;
   `multipart` — поля схемой, файлы (`upload({ maxSize, mime })`) лимитирует
   транспорт **во время** парсинга, не буферизуя. Семантика потоков и
   item-цепочки — [streaming.md](./streaming.md).
 - Маппинг форм на media types детерминирован — вход для OpenAPI-генерации.
+- **Fail-fast формы при создании декларации**: `multipart` в `output`;
+  `upload()` вне `multipart`; потоковая форма без листа; тип-меняющий шаг
+  item-цепочки (`.batch`) в `output`. Тексты называют ручку, слот и форму.
+
+### `multipart({ fields, files })` и `upload(...)`
+
+```typescript
+input: multipart({
+  fields: z.object({ id: z.string(), title: z.string() }),  // необязателен
+  files: { avatar: upload({ maxSize: 5 * MiB, mime: ['image/png', 'image/jpeg'] }) },
+})
+// payload: { fields: { id: string; title: string }, files: { avatar: FilePart } }
+```
+
+- `upload({ maxSize, mime, multiple })` — спецификация файлового поля;
+  `multiple: true` даёт `FilePart[]`, иначе один `FilePart` (второй файл с
+  тем же именем — отказ). Незаявленное файловое поле отвергается.
+- Лимиты применяются **во время** разбора: превышение `maxSize` прерывает
+  чтение конкретного файла (`PAYLOAD_TOO_LARGE`, 413), несовпадение
+  `mime` — отказ до чтения тела (400).
+- Ключи `files` типизируют payload: имена файловых полей известны
+  статически. Совпадение имени файлового поля с полем `fields` — ошибка
+  компиляции.
+- Форма легальна только во входе: значения у неё нет.
+
+### SSE-специфика — в HTTP-словаре, не в форме
+
+Форма `events(T)` транспортно нейтральна, поэтому всё специфичное для
+провода объявляется там, где транспортная специфика легальна:
+
+```typescript
+export const ActivityStream = httpEndpoint({
+  method: 'GET',
+  path: '/activity/live',
+  output: events(ActivityEvent),
+  sse: { id: (e) => e.id, event: (e) => e.kind, heartbeat: 15_000 },
+  pipeline: basePipeline,
+  handle: (hub) => async (_payload, meta: { signal: AbortSignal; lastEventId?: string }) =>
+    Ok.of(hub.subscribe(meta.signal)),
+});
+```
+
+- `id`/`event` не заданы — соответствующие поля кадра не пишутся;
+  `heartbeat` не задан — берётся опция транспорта. Имя события `error`
+  зарезервировано за mid-stream отказом и отвергается при создании
+  декларации; `sse` без `events`-выхода — тоже ошибка.
+- **Реконнект**: заголовок `Last-Event-ID` приезжает в **типизированный
+  стартовый контекст** (`lastEventId?: string`) деклараций с
+  `events`-выходом — тем же механизмом, что `rawBody: true`, без
+  отдельного канала. Откуда продолжить, решает хендлер.
 - **Сырые байты — opt-in** `rawBody: true` в HTTP-словаре (webhook-подписи,
   HMAC): транспорт кладёт байты в типизированный стартовый контекст; слой
   проверки объявляет `makePipeline<{ rawBody: Uint8Array }>()` — забытая

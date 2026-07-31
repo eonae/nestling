@@ -36,6 +36,45 @@ export const ProcessStdin = cliEndpoint({
 });
 ```
 
+## Формы io: что CLI умеет
+
+Формы одни на все транспорты, но каждый транспорт объявляет, какие из них
+умеет нести:
+
+| Слот | CLI умеет |
+|---|---|
+| `input` | значение (из `args`/`options`), `stream(T)`, `stream('binary')` |
+| `output` | значение, `stream(T)` |
+
+`events` и `multipart` CLI **не** умеет: у команды нет открытого
+соединения, дисконнект которого был бы нормальным завершением, а файлы
+приходят путями в аргументах. Декларация с такой формой отвергается **при
+регистрации**, до выполнения хоть одной команды:
+
+```
+Endpoint 'watch': transport 'cli' does not support form 'events'
+in 'output' (supported: value, stream).
+```
+
+- `stream('binary')` — чанки stdin как есть: примитивный лист описывает
+  байты, валидировать нечего;
+- `stream(T)` со схемой — stdin читается как NDJSON, и ядро валидирует
+  каждую строку схемой-листом, применяет item-цепочку и считает
+  `ctx.summary.itemsIn`:
+
+  ```typescript
+  export const Import = cliEndpoint({
+    command: 'import',
+    input: stream(Row).limit(10_000).gapTimeout(30_000),
+    output: z.object({ imported: z.number() }),
+    pipeline: makePipeline(),
+    handle: async (rows: AsyncIterableIterator<Row>) => { … },
+  });
+  ```
+
+- `stream(T)` на выходе — NDJSON в stdout по мере того, как хендлер
+  отдаёт элементы; `.finally` сработает после последнего.
+
 ## Транспорт: два режима
 
 ```typescript

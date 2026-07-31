@@ -135,7 +135,14 @@ Effect Schema …) и валидатором не зависит. Отказ в�
 вендором; async-refinement'ы в схемах endpoint'ов запрещены (валидация
 синхронна по гарантии).
 
-## Streaming-вход
+## Формы io: значение, поток, multipart
+
+Верхний уровень `input`/`output` — **форма**, листья — схемы. Схема без
+обёртки (как во всех примерах выше) — это форма значения; поток и
+multipart объявляются явно, и от формы зависит и парсинг, и framing
+ответа, и media type.
+
+### Streaming-вход
 
 ```typescript
 import { makePipeline, stream } from '@nestling/pipeline';
@@ -150,7 +157,9 @@ const LogChunk = z.object({
 export const StreamLogs = httpEndpoint({
   method: 'POST',
   path: '/logs/stream',
-  input: stream(LogChunk),          // NDJSON: по одному JSON-объекту на строку
+  // NDJSON: по одному JSON-объекту на строку; лимит и таймаут молчания —
+  // item-цепочка на декларации, а не код в хендлере
+  input: stream(LogChunk).limit(50_000).gapTimeout(30_000),
   output: z.object({ processed: z.number() }),
   pipeline: makePipeline(),
   handle: async (payload: AsyncIterableIterator<LogChunk>) => {
@@ -161,8 +170,73 @@ export const StreamLogs = httpEndpoint({
 });
 ```
 
-Каждый chunk валидируется схемой при парсинге. Streaming-ответ — симметрично:
-хендлер возвращает `AsyncIterable`, транспорт отдаёт NDJSON.
+Каждый элемент валидируется схемой-листом **до** цепочки — этим занимается
+ядро, а не транспорт и не хендлер. Дефолт — `{ validate: true, onInvalid:
+'fail' }`: невалидная строка даёт `400 VALIDATION_FAILED`. Явный opt-out —
+`stream(LogChunk, { validate: false })`, «пропускать невалидные» —
+`{ onInvalid: 'skip' }`.
+
+`.limit(n)` отказывает `413 STREAM_LIMIT_EXCEEDED`, `.gapTimeout(ms)` —
+`504 STREAM_GAP_TIMEOUT`. Это kernel-коды, поэтому объявлять их в
+`errors:` не нужно и страж границы не превращает их в `500 UNKNOWN`.
+
+### Streaming-ответ
+
+```typescript
+export const ExportLogs = httpEndpoint({
+  method: 'GET',
+  path: '/logs/export',
+  output: stream(LogLine).limit(1000),     // только тип-сохраняющие шаги
+  pipeline: makePipeline(),
+  handle: async () => new Ok(generate(5)), // обычный AsyncIterable
+});
+```
+
+Хендлер возвращает обычный `AsyncIterable` — транспорт отдаёт
+`application/x-ndjson`, chunked; заголовки руками ставить не нужно.
+Выходная цепочка может быть только `T → T`: оба конца зафиксированы
+схемой, поэтому `.batch(100)` здесь — ошибка компиляции **в точке
+декларации**. Открытая подписка (SSE) объявляется формой `events(T)` —
+пример с DI и `Topic` в [гайде по App](./http-app-di.md).
+
+Для потоковой ручки `.finally` вызывается **после** того, как поток дотёк
+или оборвался, — исход честен, а `ctx.summary.itemsOut` уже досчитан.
+
+### Загрузка файлов
+
+```typescript
+import { multipart, upload } from '@nestling/pipeline';
+
+export const UploadReport = httpEndpoint({
+  method: 'POST',
+  path: '/reports',
+  input: multipart({
+    fields: z.object({ title: z.string().min(1) }),
+    files: { report: upload({ maxSize: 2 * MiB, mime: ['application/pdf'] }) },
+  }),
+  output: UploadReportOutput,
+  pipeline: makePipeline(),
+  handle: async (payload: {
+    fields: { title: string };
+    files: { report: FilePart };
+  }) => ({ title: payload.fields.title, filename: payload.files.report.filename }),
+});
+```
+
+- payload — `{ fields, files }`, файлы **по именам объявленных полей**:
+  `upload()` даёт один `FilePart`, `upload({ multiple: true })` — массив;
+- лимит и MIME-фильтр объявлены на самом поле и применяются **во время**
+  разбора: файл сверх `maxSize` не буферизуется целиком ради того, чтобы
+  потом быть отвергнутым (`413`), чужой MIME отвергается до чтения тела
+  (`400`);
+- форма закрыта: незаявленное файловое поле и второй файл в поле без
+  `multiple` отвергаются (`400`);
+- path-параметры и помеченные query-поля подмешиваются к `fields`.
+
+```bash
+curl -N http://localhost:3000/logs/export
+curl -F title=Q3 -F 'report=@q3.pdf;type=application/pdf' http://localhost:3000/reports
+```
 
 ## Юниты и фазы
 
