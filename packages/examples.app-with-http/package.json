@@ -36,6 +36,16 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@nestling/eslint-plugin": "workspace:*",
     "@nestling/testing": "workspace:*"
+  },
+  "nx": {
+    "targets": {
+      "lint": {
+        "dependsOn": [
+          "@nestling/eslint-plugin:build"
+        ]
+      }
+    }
   }
 }

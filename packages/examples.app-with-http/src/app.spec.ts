@@ -6,6 +6,7 @@
  * трогается. Мокается один архитектурный шов — порт репозитория.
  */
 
+import { observability } from './common/pipelines';
 import {
   CreateUser,
   DeleteUser,
@@ -16,6 +17,7 @@ import { LoggingFeature, UsersFeature } from './features';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
 import { describe, expect, it } from '@jest/globals';
+import { everyEndpoint } from '@nestling/pipeline';
 import { assembleTest, checkTopologies, unwrap, vars } from '@nestling/testing';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
@@ -23,6 +25,13 @@ import { http, HttpTransport$ } from '@nestling/transport.http';
 const spec = {
   features: [UsersFeature, LoggingFeature],
   transports: [http({ port: 0 })],
+  // Тот же инвариант, что в бою: тестовый корень его не ослабляет
+  policies: [
+    everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+      observability,
+      'observability',
+    ),
+  ],
 };
 
 describe('пример: app-тесты через assembleTest', () => {
@@ -100,10 +109,31 @@ describe('пример: матрица select-топологий', () => {
       'logging',
     ]);
 
-    // `users` тянет `logging` через `dependsOn`, а сам `logging` ручек не
-    // объявляет — это и проверяет матрица
+    // `users` тянет `logging` через `dependsOn`; сам `logging` объявляет
+    // только эксплуатационную ручку — это и проверяет матрица
     expect(reports[1].report.features).toEqual(['users', 'logging']);
-    expect(reports[2].report.endpoints).toEqual([]);
-    expect(reports[0].report.endpoints.length).toBeGreaterThan(0);
+    expect(reports[2].report.endpoints.map(({ pattern }) => pattern)).toEqual([
+      'GET /health',
+    ]);
+    expect(reports[0].report.endpoints.length).toBeGreaterThan(1);
+  });
+
+  it('прогоняет инварианты и отдаёт состав detached-ручек значением', async () => {
+    const [{ report }] = await checkTopologies(spec, ['all']);
+
+    // Матрица гоняет `policies` в каждой топологии — сюда мы доходим
+    // только потому, что инвариант соблюдён во всех. Состав opt-out'ов
+    // сравнивается значением из отчёта, а не парсингом stdout.
+    expect(
+      report.endpoints
+        .filter(({ detached }) => detached !== undefined)
+        .map(({ pattern, detached }) => ({ pattern, detached })),
+    ).toEqual([
+      {
+        pattern: 'GET /health',
+        detached:
+          'liveness-проба балансировщика: строка аудита на каждый удар — шум, а не наблюдаемость',
+      },
+    ]);
   });
 });

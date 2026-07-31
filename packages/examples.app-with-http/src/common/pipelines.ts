@@ -10,12 +10,16 @@ import {
 /**
  * Внешний слой: наблюдаемость.
  *
+ * Экспортируется, потому что служит **инвариантом приложения**: политика в
+ * `main.ts` требует его от каждой HTTP-ручки, и требование адресует именно
+ * это значение (идентичность слоя ссылочная).
+ *
  * Демонстрирует ответный тракт pipeline v2: `.finally` — наблюдатель
  * исхода (completed | disconnected | aborted | failed), вызывается всегда,
  * последним. На error-path собственные поля слоя опциональны (requestId
  * мог не успеть добавиться), поэтому `?? 'n/a'`.
  */
-const observability = makePipeline()
+export const observability = makePipeline()
   .pre(withRequestId())
   .finally((outcome, _res, ctx) => {
     // eslint-disable-next-line no-console
