@@ -7,7 +7,7 @@
  * руками, ровно в той форме, в какой их отдаёт дискавери.
  */
 
-import { compose, makePipeline, Ok } from '../core';
+import { compose, contextVar, makePipeline, Ok } from '../core';
 
 import { makeEndpoint } from './endpoint';
 import type { PolicySubject } from './policy';
@@ -184,6 +184,102 @@ describe('hasLayer — идентичность слоя по ссылке', () 
         .describe(),
     ).toBe(
       "every endpoint (transport 'http', pattern /^GET/) has layer 'authedBase'",
+    );
+  });
+});
+
+describe('hasVar — присутствие ambient-переменной', () => {
+  const RequestId = contextVar<string>()('requestId');
+  const observability = makePipeline().pre(RequestId.provide(() => 'req-1'));
+  const policy = everyEndpoint({ transport: HttpTransport$ }).hasVar(
+    RequestId,
+    'requestId',
+  );
+
+  it('ручка, композированная от слоя-писателя, инвариант соблюдает', () => {
+    const subjects = [
+      subject({
+        pattern: 'GET /users',
+        pipeline: compose(base, observability),
+      }),
+      subject({ pattern: 'GET /me', pipeline: observability }),
+      subject({
+        pattern: 'GET /orders',
+        pipeline: observability.pre(() => {}),
+      }),
+    ];
+
+    expect(policy.check(subjects)).toEqual([]);
+  });
+
+  it('ручка без писателя перечислена с координатами и починкой', () => {
+    const violations = policy.check([
+      subject({
+        pattern: 'GET /users',
+        pipeline: compose(base, other),
+        moduleName: 'module:users',
+      }),
+    ]);
+
+    expect(violations).toEqual([
+      {
+        pattern: 'GET /users',
+        transport: 'http',
+        moduleName: 'module:users',
+        detail:
+          "its pipeline does not declare context variable 'requestId' — " +
+          "compose a layer with <Var>.provide(…) into its 'pipeline:', or " +
+          "opt out with detached: '<reason>'",
+      },
+    ]);
+  });
+
+  it('ручка без пайплайна нарушает', () => {
+    const [violation] = policy.check([subject({ pattern: 'GET /health' })]);
+
+    expect(violation.detail).toContain('declares no pipeline');
+    expect(violation.detail).toContain("context variable 'requestId'");
+  });
+
+  it('detached исключается', () => {
+    expect(
+      policy.check([
+        subject({
+          pattern: 'GET /health',
+          detached: 'liveness-проба: до слоя наблюдаемости не доходит',
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('юнит, кладущий поле вручную, политику не удовлетворяет', () => {
+    const manual = makePipeline().pre(async () => ({ requestId: 'req-1' }));
+
+    const [violation] = policy.check([
+      subject({ pattern: 'GET /users', pipeline: manual }),
+    ]);
+
+    expect(violation.detail).toContain('<Var>.provide');
+  });
+
+  it('переменная-омоним политику не удовлетворяет', () => {
+    const twin = contextVar<string>()('requestId');
+    const twinPolicy = everyEndpoint().hasVar(twin);
+
+    expect(
+      twinPolicy.check([
+        subject({ pattern: 'GET /users', pipeline: observability }),
+      ]),
+    ).toHaveLength(1);
+  });
+
+  it('без метки диагностика называет ключ переменной', () => {
+    const unlabeled = everyEndpoint({ transport: HttpTransport$ }).hasVar(
+      RequestId,
+    );
+
+    expect(unlabeled.describe()).toBe(
+      "every endpoint (transport 'http') declares context variable 'requestId'",
     );
   });
 });

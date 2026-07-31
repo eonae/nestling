@@ -18,7 +18,13 @@ import type {
   ResponseContext,
   UnknownFailInfo,
 } from '@nestling/pipeline';
-import { describeForm, isFail, Ok, parsePayload } from '@nestling/pipeline';
+import {
+  describeForm,
+  isFail,
+  Ok,
+  parsePayload,
+  runInRequestScope,
+} from '@nestling/pipeline';
 
 /**
  * Проекция декларации для транспорта: всё нужное для роутинга и парсинга,
@@ -109,8 +115,21 @@ export const toRouteDeclaration = (
   return Object.freeze(route) as RouteDeclaration;
 };
 
-/** Ветка «без pipeline»: одна на все транспорты */
+/**
+ * Ветка «без pipeline»: одна на все транспорты.
+ *
+ * Scope запроса открывается и здесь — с пустой проекцией и сигналом
+ * запроса: глубокий сервис ведёт себя одинаково на обоих путях исполнения,
+ * `peek()` даёт `undefined` вместо «контекста нет», а `Ctx(Signal)` —
+ * сигнал этого запроса.
+ */
 const callDirectly = async (
+  definition: AnyEndpointDefinition,
+  ctx: ExtendableContext<AnyInput>,
+): Promise<ResponseContext> =>
+  runInRequestScope(ctx.signal, () => executeDirectly(definition, ctx));
+
+const executeDirectly = async (
   definition: AnyEndpointDefinition,
   ctx: ExtendableContext<AnyInput>,
 ): Promise<ResponseContext> => {

@@ -1,10 +1,16 @@
 import type { EmptyInput } from '../core';
+import { RequestId } from '../core';
 import type { PreUnitFn } from '../core/types';
 
 /**
  * Добавляет requestId в metadata
  *
  * Извлекает requestId из headers или генерирует случайный
+ *
+ * Писатель — сама переменная {@link RequestId}: слой, композированный от
+ * этого юнита, автоматически удовлетворяет политике
+ * `everyEndpoint(…).hasVar(RequestId)`, а глубокий сервис читает значение
+ * через `Ctx(RequestId)` — без протаскивания параметром.
  *
  * @example
  * ```typescript
@@ -14,16 +20,9 @@ import type { PreUnitFn } from '../core/types';
  * ```
  */
 export function withRequestId(): PreUnitFn<EmptyInput, { requestId: string }> {
-  return async (ctx) => {
+  return RequestId.provide((ctx) => {
     const requestId = ctx.raw.attributes['x-request-id'];
 
-    if (typeof requestId === 'string') {
-      return {
-        requestId,
-      };
-    }
-    return {
-      requestId: crypto.randomUUID(),
-    };
-  };
+    return typeof requestId === 'string' ? requestId : crypto.randomUUID();
+  });
 }

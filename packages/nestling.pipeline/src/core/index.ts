@@ -1,4 +1,5 @@
 export * from './abort';
+export * from './context';
 export * from './define-fail';
 export * from './io';
 export * from './kernel-fails';

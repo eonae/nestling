@@ -8,7 +8,8 @@
  * содержимое политики не заглядывает.
  */
 
-import { derivesFrom } from '../core';
+import type { AnyContextVar } from '../core';
+import { declaresVar, derivesFrom } from '../core';
 
 import type { AnyEndpointDefinition, TransportRef } from './endpoint';
 import { transportNameOf } from './endpoint';
@@ -94,6 +95,23 @@ export interface EndpointPolicyBuilder {
    * вывод имени из переменной или стека — runtime magic, его нет
    */
   hasLayer(layer: unknown, label?: string): Policy;
+
+  /**
+   * Каждая ручка под фильтром **объявила** ambient-переменную — то есть её
+   * пайплайн содержит pre-юнит формы `<Var>.provide(…)`.
+   *
+   * Требование объявляется явно, значением: автоматического вывода «кто-то
+   * в поддереве инжектит `Ctx(X)` ⇒ ручка обязана класть X» в V1 нет.
+   * Идентичность переменной ссылочная, как и у слоя: одноимённая переменная
+   * из другого вызова `contextVar` политику не удовлетворяет. Ручка без
+   * пайплайна нарушает — «нет пайплайна» и «нет переменной» для инварианта
+   * неразличимы.
+   *
+   * @param variable - Само значение переменной (`contextVar<T>()('key')`)
+   * @param label - Человекочитаемая метка **только** для диагностики; без
+   * неё диагностика называет ключ переменной
+   */
+  hasVar(variable: AnyContextVar, label?: string): Policy;
 }
 
 /** Описание фильтра для текста диагностики */
@@ -214,6 +232,41 @@ export function everyEndpoint(
                   violationOf(
                     subject,
                     `its pipeline is not composed from ${named}`,
+                  ),
+                ];
+          }),
+      };
+    },
+
+    hasVar(variable: AnyContextVar, label?: string): Policy {
+      const named = `context variable '${label ?? variable.key}'`;
+      const fix =
+        `compose a layer with <Var>.provide(…) into its 'pipeline:', or ` +
+        `opt out with detached: '<reason>'`;
+
+      return {
+        describe: () =>
+          `every endpoint${describeFilter(filter)} declares ${named}`,
+
+        check: (subjects) =>
+          subjectsUnder(subjects).flatMap((subject) => {
+            const { pipeline } = subject.endpoint;
+
+            if (pipeline === undefined) {
+              return [
+                violationOf(
+                  subject,
+                  `it declares no pipeline, so it cannot declare ${named} — ${fix}`,
+                ),
+              ];
+            }
+
+            return declaresVar(pipeline, variable)
+              ? []
+              : [
+                  violationOf(
+                    subject,
+                    `its pipeline does not declare ${named} — ${fix}`,
                   ),
                 ];
           }),

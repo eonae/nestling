@@ -5,8 +5,9 @@ endpoint declarations (`makeEndpoint`) validated against any
 [Standard Schema](https://standardschema.dev), phased pipelines
 (`makePipeline().pre/.ok/.catch/.finally`), layer composition
 (`compose`), `Ok`/`Fail` results with a closed error contract
-(`defineFail`, `errors:`), and io declared as a **tree of forms**
-(`stream()`, `events()`, `multipart()`/`upload()`) with item chains.
+(`defineFail`, `errors:`), io declared as a **tree of forms**
+(`stream()`, `events()`, `multipart()`/`upload()`) with item chains, and a
+read-only ambient projection of the request context (`contextVar`, `Ctx`).
 
 > 🚧 Active development, API may change. The package ships **no validator
 > of its own** — bring your own (zod, valibot, arktype, TypeBox, Effect
@@ -179,6 +180,11 @@ assemble({
   transitive, and `authedBase.pre(withTenant())` passes too (the pre track
   is monotonic). A same-named copy from another file does not: identity is
   referential, never by name. `label` only shows up in the violation text.
+- `.hasVar(variable, label?)` holds when the endpoint's pipeline **declares**
+  an ambient variable — that is, contains a pre unit of the form
+  `<Var>.provide(…)`. The declared set lives next to the provenance and
+  behaves the same way: `compose` unions it, builder derivations and `bind()`
+  keep it. See "Ambient request context" below.
 - An endpoint **without** a `pipeline` violates the policy: for "this handle
   is protected", no pipeline and no layer are indistinguishable.
 - `detached: '<reason>'` on the declaration takes an endpoint out of **every**
@@ -357,6 +363,74 @@ yarn verify                                            # build + lint + test + t
 
 The fixtures are **meant** not to compile, so the directory is excluded
 from the package `build` and `lint`.
+
+## Ambient request context
+
+A handler sees the accumulated `input`; a repository three layers below does
+not. Instead of threading `requestId` through every signature, declare an
+**ambient variable** — a typed key of that same accumulated `input`, so there
+is no second state that could drift from the first:
+
+```typescript
+import { contextVar, Ctx, RequestId, Signal } from '@nestling/pipeline';
+import type { CtxReader } from '@nestling/pipeline';
+
+export const TenantId = contextVar<string>()('tenantId');   // type, then key
+
+// Writer: the variable builds the addition from its own key, so "declared"
+// and "written" are one action and cannot diverge
+const withTenant = () =>
+  TenantId.provide((ctx) => ctx.raw.attributes['x-tenant'] as string);
+
+// Reader: a member of the private `Ctx` token family — an ordinary graph node
+@Injectable([Ctx(RequestId), ILogger])
+export class UsersRepository {
+  constructor(
+    private readonly requestId: CtxReader<string>,
+    private readonly logger: ILoggerService,
+  ) {}
+
+  async byId(id: string) {
+    this.logger.debug(`[${this.requestId.peek() ?? 'n/a'}] select ${id}`);
+  }
+}
+```
+
+- **The reader is a graph edge, not a global**: it shows up in `explain()` and
+  in the visualization, the full set of ambient reads is known at `build()`,
+  and tests substitute it with a plain `valueProvider` (`contextValue` in
+  `@nestling/testing`) — no ALS needed. `Ctx` is typed by the variable value,
+  so `Ctx('requestId')` with a string does not compile.
+- **`get()` vs `peek()`** mirrors the pipeline's own asymmetry: `get(): T`
+  throws a `ContextVarUnavailableError` whose text depends on what the runtime
+  knows (no scope at all / response track, so the projection is `Partial` /
+  no writer composed) and names the fix; `peek(): T | undefined` is for the
+  response track, `@OnStart`, cron and background paths.
+- **The cell holds** the accumulated `input`, the `signal` and the phase —
+  `raw`, `endpoint` and `summary` are not exposed: the transport does not leak
+  into the domain. `Signal` is a read-only well-known variable (`Ctx(Signal)`);
+  the `'signal'` key is reserved, and `contextVar('signal')` fails fast.
+- **The only writer of the cell is the pipeline runtime.** There is no public
+  setter: ALS is a projection, not a second write channel. A scope is opened
+  around the whole execution — pre track, handler, response track, `finally` —
+  and, for streaming responses, around every `next()` of the returned
+  iterator, so lazy generators and item chains still see it. Code deferred
+  inside a request that outlives it (a timer, fire-and-forget) keeps seeing the
+  cell with the final `input`; `capture()` is not part of V1.
+- **`@nestling/app` registers the reader kernel module always**, the way it
+  does for config: with no `Ctx(...)` in any `deps`, the family materializes
+  nothing, so "always" costs nothing and the composition root says nothing
+  about ambient context. An endpoint invoked without a pipeline still gets a
+  scope (empty `input` + the request signal) from `@nestling/transport`.
+- **One copy of the package — one ALS.** The store is module state of
+  `@nestling/pipeline` (the same trick as the family registries in
+  `@nestling/container`). Two copies of the package in the dependency graph
+  mean two stores, and reads silently return `undefined` — keep a single
+  version resolved in the workspace.
+- **Presence is checkable at assembly**, opt-in:
+  `everyEndpoint(…).hasVar(RequestId)`. Types already cover a unit reading
+  `ctx.input.requestId` (it demands the field); the policy covers reads from
+  the depth of the graph, where there are no input types at all.
 
 ## Cancellation: `meta.signal`
 

@@ -43,6 +43,13 @@ TokenString<ITransport>`. The short name a pipeline layer reads
 (`meta.transport === 'http'`) is derived from the token id by
 `transportNameOf`.
 
+Both branches of `call` open an **ambient request scope**
+([`@nestling/pipeline`](../nestling.pipeline)): the pipeline runtime does it
+for declarations that have one, and the "no pipeline" branch does it here,
+with an empty projection and the request's signal. So a deep service behaves
+identically on both paths — `peek()` returns `undefined` instead of throwing
+"no request context", and `Ctx(Signal)` yields this request's signal.
+
 ## `capabilities`
 
 ```ts

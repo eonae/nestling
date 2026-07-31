@@ -1,3 +1,13 @@
+import type { RequestCell } from './context/store.js';
+import {
+  iterateInScope,
+  makeCell,
+  runInScope,
+  setPhase,
+  updateInput,
+} from './context/store.js';
+import type { AnyContextVar } from './context/variable.js';
+import { declaredVarOf, isContextVar } from './context/variable.js';
 import {
   bindOutputStream,
   describeForm,
@@ -447,6 +457,15 @@ class PipelineImpl {
      * ({@link PipelineImpl.derivesFrom}), на котором стоит policy-check.
      */
     private readonly sources: readonly PipelineImpl[] = [],
+    /**
+     * Ambient-переменные, объявленные pre-юнитами этого пайплайна.
+     *
+     * Живёт рядом с провенансом и по тем же правилам: `compose` объединяет
+     * множества, деривация билдера и `bind()` их сохраняют. В исполнении не
+     * участвует — только в предикате `hasVar`
+     * ({@link PipelineImpl.declaresVar}).
+     */
+    private readonly declared: ReadonlySet<AnyContextVar> = new Set(),
   ) {}
 
   static emptyLayer(): PipelineImpl {
@@ -461,6 +480,9 @@ class PipelineImpl {
       // Сами аргументы, без разворачивания их провенанса: транзитивность —
       // дело обхода, а не записи
       [...pipelines],
+      // Множества объявленных переменных, наоборот, объединяются здесь:
+      // предикат обходить провенанс не должен
+      new Set(pipelines.flatMap((p) => [...p.declared])),
     );
   }
 
@@ -494,9 +516,21 @@ class PipelineImpl {
     return false;
   }
 
+  /**
+   * Пайплайн объявил ambient-переменную: множество из решения о писателе,
+   * идентичность переменной — ссылочная.
+   *
+   * Обхода провенанса здесь нет и не нужно: множества объединяются в
+   * момент композиции.
+   */
+  static declaresVar(pipeline: PipelineImpl, variable: AnyContextVar): boolean {
+    return pipeline.declared.has(variable);
+  }
+
   private withOwnLayer(
     mutate: (layer: Layer) => void,
     sealed: boolean,
+    declares?: AnyContextVar,
   ): PipelineImpl {
     if (this.composed) {
       throw new Error(
@@ -506,9 +540,15 @@ class PipelineImpl {
     // Builder всегда владеет ровно одним слоем
     const layer = cloneLayer(this.layers[0]);
     mutate(layer);
+    // Иммутабельность: новое множество заводится только когда есть что
+    // добавить, иначе разделяется ссылкой — менять его всё равно нечем
+    const declared = declares
+      ? new Set([...this.declared, declares])
+      : this.declared;
+
     // Деривация помнит предшественника: pre-тракт монотонен, поэтому
     // `authed.pre(x)` для инварианта — по-прежнему `authed`
-    return new PipelineImpl([layer], sealed, false, [this]);
+    return new PipelineImpl([layer], sealed, false, [this], declared);
   }
 
   pre(unit: unknown): PipelineImpl {
@@ -517,7 +557,13 @@ class PipelineImpl {
         'pre() is not available after a response-phase method (.ok/.catch/.finally)',
       );
     }
-    return this.withOwnLayer((l) => l.pre.push(normalizeUnit(unit)), false);
+    // Объявителем считается только юнит, созданный `<Var>.provide(…)`:
+    // декларация привязана к форме, поэтому разойтись с фактом не может
+    return this.withOwnLayer(
+      (l) => l.pre.push(normalizeUnit(unit)),
+      false,
+      declaredVarOf(unit),
+    );
   }
 
   ok(unit: unknown): PipelineImpl {
@@ -568,10 +614,31 @@ class PipelineImpl {
       // Связанный пайплайн помнит несвязанный оригинал: инвариант держится
       // и до WIRE, и после
       [this],
+      this.declared,
     );
   }
 
+  /**
+   * Открывает scope запроса вокруг **всего** исполнения ручки: pre-тракт,
+   * хендлер, ответный тракт, страж контракта и `finally`.
+   *
+   * Scope открывается безусловно — приложением без единого ридера цена
+   * (одна ячейка и `als.run` на запрос) платится ради простоты правила
+   * «проекция есть всегда»: условное открытие связало бы рантайм пайплайна
+   * со сборкой графа.
+   */
   async executeWithHandler(
+    handler: (payload: unknown, meta: AnyAddition) => unknown,
+    ctx: ExtendableContext<AnyInput>,
+    options: ExecuteOptions = {},
+  ): Promise<ResponseContext<unknown>> {
+    const cell = makeCell(ctx.signal, ctx.input);
+
+    return runInScope(cell, () => this.execute(cell, handler, ctx, options));
+  }
+
+  private async execute(
+    cell: RequestCell,
     handler: (payload: unknown, meta: AnyAddition) => unknown,
     ctx: ExtendableContext<AnyInput>,
     options: ExecuteOptions = {},
@@ -617,6 +684,10 @@ class PipelineImpl {
               ...append,
             },
           };
+
+          // Проекция догоняет pre-тракт: сервис, вызванный следующим
+          // юнитом, видит ровно то же, что и сам юнит
+          updateInput(cell, currentCtx.input);
         }
       }
 
@@ -630,6 +701,8 @@ class PipelineImpl {
       // handler'у сырой payload, подготовленный транспортом
       const effectivePayload =
         'payload' in finalInput ? payload : ctx.raw.payload;
+
+      setPhase(cell, 'handler');
 
       // Ключи `signal` и `fail` зарезервированы: инъекция пайплайна
       // перекрывает одноимённые поля, добавленные pre-юнитом.
@@ -651,6 +724,8 @@ class PipelineImpl {
       originalError = error;
       response = this.errorToResponse(error, exposeErrorDetails);
     }
+
+    setPhase(cell, 'response');
 
     // Ответный тракт: активированные слои изнутри наружу; юниты слоя —
     // в порядке объявления, по применимости к ТЕКУЩЕМУ ответу.
@@ -725,6 +800,11 @@ class PipelineImpl {
       isAsyncIterable(response.value)
     ) {
       const delivered = response;
+
+      // Шаги потока и его финализация — та же проекция, своя фаза: тело
+      // ленивого генератора исполняется уже после возврата итератора
+      setPhase(cell, 'stream');
+
       const stream = withFinish(
         response.value as AsyncIterable<unknown>,
         async (error) => {
@@ -749,8 +829,15 @@ class PipelineImpl {
         },
       );
 
-      return { ...delivered, value: stream } as ResponseContext<unknown>;
+      // Обёртка scope'а — **самая внешняя**: под ячейкой исполняются и
+      // шаги потока, и его финализация вместе с `finally`-юнитами
+      return {
+        ...delivered,
+        value: iterateInScope(cell, stream),
+      } as ResponseContext<unknown>;
     }
+
+    setPhase(cell, 'finally');
 
     await runFinals(computeOutcome(ctx.signal, response), response);
 
@@ -1026,4 +1113,24 @@ export function derivesFrom(pipeline: unknown, layer: unknown): boolean {
   }
 
   return PipelineImpl.derivesFrom(pipeline, layer);
+}
+
+/**
+ * Пайплайн объявил ambient-переменную.
+ *
+ * Объявителем считается **только** pre-юнит формы `<Var>.provide(…)`: юнит,
+ * кладущий то же поле обычной функцией, работает как прежде (читатели видят
+ * поле через проекцию), но декларацией не считается — иначе она жила бы
+ * отдельно от факта. Идентичность переменной ссылочная: одноимённая
+ * переменная из соседнего вызова `contextVar` — другое значение.
+ *
+ * @internal основание предиката `hasVar` словаря политик; наружу поведение
+ * видно через `everyEndpoint(...).hasVar(...)`
+ */
+export function declaresVar(pipeline: unknown, variable: unknown): boolean {
+  if (!(pipeline instanceof PipelineImpl) || !isContextVar(variable)) {
+    return false;
+  }
+
+  return PipelineImpl.declaresVar(pipeline, variable);
 }

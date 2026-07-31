@@ -9,17 +9,49 @@
 import { makeDispatch } from './dispatch';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeToken } from '@nestling/container';
-import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
+import { ContainerBuilder, makeToken } from '@nestling/container';
+import type {
+  AnyInput,
+  CtxReader,
+  ExtendableContext,
+} from '@nestling/pipeline';
 import {
+  contextKernel,
+  Ctx,
   makeEmptyContext,
   makeEndpoint,
   makePipeline,
   Ok,
+  RequestId,
+  Signal,
 } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const TestTransport$ = makeToken('transport:test');
+
+/**
+ * Ридеры из настоящего графа: kernel-модуль контекста регистрируется
+ * корнем, поэтому и в тесте они приезжают тем же путём, а не фейком.
+ */
+async function contextReaders(): Promise<{
+  requestId: CtxReader<string>;
+  signal: CtxReader<AbortSignal>;
+}> {
+  const builder = new ContainerBuilder();
+  builder.register(contextKernel());
+  builder.register({
+    provide: makeToken('probe'),
+    useFactory: (...args: unknown[]) => args,
+    deps: [Ctx(RequestId), Ctx(Signal)],
+  });
+
+  const container = await builder.build();
+
+  return {
+    requestId: container.getOrThrow(Ctx(RequestId)),
+    signal: container.getOrThrow(Ctx(Signal)),
+  };
+}
 
 class UserService {
   getAll(): string[] {
@@ -129,6 +161,48 @@ describe('makeDispatch', () => {
     expect(response.isSuccess).toBe(false);
     expect(response.value).toMatchObject({ error: 'secret detail' });
     expect(seen).toEqual(['GET /boom']);
+  });
+
+  it('ручка без пайплайна исполняется под тем же scope запроса', async () => {
+    const controller = new AbortController();
+    const seen: { requestId?: string; sameSignal?: boolean } = {};
+
+    const Probe = makeEndpoint({
+      transport: TestTransport$,
+      pattern: 'GET /probe',
+      deps: [Ctx(RequestId), Ctx(Signal)],
+      handle:
+        (requestId: CtxReader<string>, signal: CtxReader<AbortSignal>) =>
+        async () => {
+          // Пайплайна нет — переменную никто не клал; но контекст запроса
+          // открыт, поэтому это `undefined`, а не «контекста нет»
+          seen.requestId = requestId.peek();
+          seen.sameSignal = signal.get() === controller.signal;
+
+          return new Ok({ ok: true });
+        },
+    });
+
+    const readers = await contextReaders();
+    const dispatch = makeDispatch([
+      Probe.resolve([readers.requestId, readers.signal]),
+    ]);
+
+    const ctx = makeEmptyContext(
+      {
+        transport: 'test',
+        pattern: 'GET /probe',
+        payload: undefined,
+        attributes: {},
+      },
+      { transport: 'test', pattern: 'GET /probe' },
+      controller.signal,
+    );
+
+    const response = await dispatch.call('GET /probe', ctx);
+
+    expect(response).toMatchObject({ isSuccess: true });
+    expect(seen).toEqual({ requestId: undefined, sameSignal: true });
   });
 
   it('декларация с непогашенными зависимостями не проходит по типам', () => {
