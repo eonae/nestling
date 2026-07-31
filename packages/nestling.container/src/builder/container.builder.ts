@@ -65,6 +65,30 @@ interface FamilyRecipeEntry {
 }
 
 /**
+ * Test composition root seam: a graph node substituted by a value.
+ *
+ * The pair is positional - you can only override a token you hold a reference
+ * to. There is no string-addressed form on purpose: it would be a hole in ES
+ * visibility and would devalue the kernel/user boundary.
+ */
+export type TokenOverride<T = unknown> = readonly [
+  token: InjectionToken<T>,
+  value: T,
+];
+
+/**
+ * Test composition root seam: the recipe of a whole token family replaced.
+ *
+ * Shape-identical to `familyProvider(family, recipe)` - the same
+ * "family -> recipe" pair, only applied on top of the registered one and
+ * strictly before member materialization.
+ */
+export type FamilyOverrideEntry<
+  T = unknown,
+  Params extends [param: string] = [param: string],
+> = FamilyProviderDefinition<T, Params>;
+
+/**
  * Options of {@link ContainerBuilder}.
  */
 export interface ContainerBuilderOptions {
@@ -74,6 +98,20 @@ export interface ContainerBuilderOptions {
    * built graph, not runtime encapsulation.
    */
   strictExports?: boolean;
+
+  /**
+   * Test composition root seam: graph nodes substituted before instantiation.
+   *
+   * `assemble` does not forward this option and never will - substitution is a
+   * property of a test run, not of a production one. See {@link TokenOverride}.
+   */
+  overrides?: readonly TokenOverride<any>[];
+
+  /**
+   * Test composition root seam: family recipes replaced before members are
+   * materialized. See {@link FamilyOverrideEntry}.
+   */
+  familyOverrides?: readonly FamilyOverrideEntry<any, any>[];
 }
 
 /**
@@ -103,6 +141,8 @@ export class ContainerBuilder {
   readonly #familyRecipes = new Map<string, FamilyRecipeEntry>();
   readonly #modules = new Set<string>();
   readonly #strictExports: boolean;
+  readonly #overrides: readonly TokenOverride<any>[];
+  readonly #familyOverrides: readonly FamilyOverrideEntry<any, any>[];
 
   #isBuilt = false;
 
@@ -111,6 +151,8 @@ export class ContainerBuilder {
    */
   constructor(options: ContainerBuilderOptions = {}) {
     this.#strictExports = options.strictExports ?? false;
+    this.#overrides = options.overrides ?? [];
+    this.#familyOverrides = options.familyOverrides ?? [];
   }
 
   /**
@@ -159,12 +201,16 @@ export class ContainerBuilder {
    * This method must be called after all providers are registered.
    * Performs the following steps:
    * 1. Expands module provider factories
-   * 2. Materializes the family members referenced in deps
-   * 3. Creates a synthetic aggregate node per referenced `Family.all`
-   * 4. Instantiates all providers
-   * 5. Builds the dependency graph
-   * 6. Validates the graph for circular dependencies
-   * 7. Lints cross-module edges against `exports` when `strictExports` is on
+   * 2. Replaces overridden family recipes - before any member is born
+   * 3. Materializes the family members referenced in deps
+   * 4. Substitutes overridden nodes by value providers
+   * 5. Prunes subtrees orphaned by the substitution
+   * 6. Creates a synthetic aggregate node per referenced `Family.all`
+   * 7. Reports every dependency left without a provider, at once
+   * 8. Instantiates all providers
+   * 9. Builds the dependency graph
+   * 10. Validates the graph for circular dependencies
+   * 11. Lints cross-module edges against `exports` when `strictExports` is on
    *
    * @returns A built container with access to instances
    * @throws {Error} If the container is already built or circular dependencies are detected
@@ -186,22 +232,36 @@ export class ContainerBuilder {
     // Step 1: Expand module provider factories into ordinary registrations
     await this.appendFactoryProviders();
 
-    // Step 2: Turn referenced family members into ordinary providers
+    // Step 2: Replace overridden family recipes - strictly before
+    // materialization, or members would be born from the production recipe
+    this.applyFamilyOverrides();
+
+    // Step 3: Turn referenced family members into ordinary providers
     this.materializeFamilyMembers();
 
-    // Step 3: Turn referenced `.all` sentinels into ordinary aggregate providers
+    // Step 4: Substitute overridden nodes, remembering what they used to need
+    const dependenciesBeforeOverrides = this.applyOverrides();
+
+    // Step 5: Drop the subtrees the substitution orphaned
+    const pruned = this.pruneOrphans(dependenciesBeforeOverrides);
+
+    // Step 6: Turn referenced `.all` sentinels into ordinary aggregate
+    // providers - after pruning, so an aggregate is built from the survivors
     this.materializeFamilyAggregates();
 
-    // Step 4: Instantiate all providers
+    // Step 7: Name every dependency left without a provider, all at once
+    this.assertDependenciesSatisfied();
+
+    // Step 8: Instantiate all providers
     const instances = await this.instantiateAll();
 
-    // Step 5: Build dependency graph from instances
+    // Step 9: Build dependency graph from instances
     const graph = this.buildDependencyGraph(instances);
 
-    // Step 6: Validate the built graph for circular dependencies
+    // Step 10: Validate the built graph for circular dependencies
     graph.ensureAcyclic();
 
-    // Step 7: Opt-in visibility lint over the finished graph
+    // Step 11: Opt-in visibility lint over the finished graph
     if (this.#strictExports) {
       await this.checkStrictExports(graph);
     }
@@ -209,7 +269,7 @@ export class ContainerBuilder {
     this.#isBuilt = true;
 
     // Return a new BuiltContainer with the graph
-    return new BuiltContainer(graph);
+    return new BuiltContainer(graph, pruned);
   }
 
   /**
@@ -505,6 +565,225 @@ export class ContainerBuilder {
   }
 
   /**
+   * Replace the recipes named by `familyOverrides`.
+   *
+   * Runs before materialization: a member born from the production recipe
+   * could not be un-born, and the whole point of overriding the recipe is that
+   * no member is ever produced by it.
+   */
+  private applyFamilyOverrides(): void {
+    const seen = new Set<string>();
+
+    for (const { family, recipe } of this.#familyOverrides) {
+      const familyName = family.familyName;
+
+      if (seen.has(familyName)) {
+        throw new Error(
+          `Token family '${familyName}' is overridden twice - 'last one wins' is not applied; leave a single familyOverride for it`,
+        );
+      }
+      seen.add(familyName);
+
+      // The module of the production recipe is kept: members stay attributed
+      // to the module that owns the family, so `strictExports` and the
+      // visualization keep naming the same owner.
+      const registered = this.#familyRecipes.get(familyName);
+
+      this.#familyRecipes.set(familyName, {
+        recipe: recipe as (param: string) => ProviderDefinition,
+        moduleName: registered?.moduleName,
+      });
+    }
+  }
+
+  /**
+   * Replace the provider of every overridden token by a value provider.
+   *
+   * Module attribution is untouched: it lives in a separate map keyed by token
+   * id, so the graph node keeps naming its owner and `strictExports` keeps
+   * linting the same edge.
+   *
+   * @returns The deps each replaced token had *before* the substitution - the
+   * left half of the pruning input
+   */
+  private applyOverrides(): Map<string, readonly string[]> {
+    const before = new Map<string, readonly string[]>();
+
+    for (const [token, value] of this.#overrides) {
+      const tokenId = stringifyToken(token);
+
+      if (before.has(tokenId)) {
+        throw new Error(
+          `Token '${tokenId}' is overridden twice - 'last one wins' is not applied; leave a single override for it`,
+        );
+      }
+
+      const provider = this.#providers.get(tokenId as InjectionToken);
+      if (!provider) {
+        throw new Error(
+          `Override targets token '${tokenId}', but no provider for it is registered.${overrideMissingHint(
+            tokenId,
+          )}`,
+        );
+      }
+
+      before.set(tokenId, dependencyIdsOf(provider));
+
+      this.#providers.set(tokenId as InjectionToken, {
+        provide: token,
+        useValue: value,
+      });
+    }
+
+    return before;
+  }
+
+  /**
+   * Drop the nodes reachable only through the dependencies of a replaced one.
+   *
+   * The greedy container has no notion of a root - registered means needed -
+   * so roots are derived instead: tokens nobody points at in the union of the
+   * dependency relations before and after the substitution, plus the tokens
+   * unreachable from those (cycle participants, which must reach the cycle
+   * detector rather than vanish).
+   *
+   * The union is what gives the asymmetry we want: a pool the repository used
+   * to need is not a root, and after the substitution nobody needs it - so it
+   * goes. Without `overrides` the two relations coincide, every node is
+   * reachable from the zero-in-degree set, and pruning is the identity.
+   *
+   * @param before - deps of the replaced tokens as they were before substitution
+   * @returns ids of the dropped nodes, in registration order
+   */
+  private pruneOrphans(
+    before: ReadonlyMap<string, readonly string[]>,
+  ): string[] {
+    const all = [...this.#providers.keys()].map(String);
+    const registered = new Set(all);
+
+    const after = new Map<string, readonly string[]>();
+    const union = new Map<string, Set<string>>();
+
+    for (const id of all) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const provider = this.#providers.get(id as InjectionToken)!;
+      const edges = this.expandAggregateEdges(dependencyIdsOf(provider));
+
+      after.set(id, edges);
+      union.set(id, new Set(edges));
+    }
+
+    for (const [id, deps] of before) {
+      const edges = union.get(id);
+
+      if (edges) {
+        for (const dep of this.expandAggregateEdges(deps)) {
+          edges.add(dep);
+        }
+      }
+    }
+
+    const pointedAt = new Set<string>();
+    for (const deps of union.values()) {
+      for (const dep of deps) {
+        pointedAt.add(dep);
+      }
+    }
+
+    const roots = all.filter((id) => !pointedAt.has(id));
+    const reachedByUnion = reachableFrom(roots, union);
+    const seeds = [
+      ...roots,
+      ...all.filter((id) => !reachedByUnion.has(id) && registered.has(id)),
+    ];
+
+    const keep = reachableFrom(seeds, after);
+
+    // A replaced node is never pruned: the test named it explicitly, and a
+    // substitution that silently disappeared would be the worst of both worlds
+    for (const id of before.keys()) {
+      keep.add(id);
+    }
+
+    const pruned = all.filter((id) => !keep.has(id));
+
+    for (const id of pruned) {
+      this.#providers.delete(id as InjectionToken);
+      this.#providerToModule.delete(id as InjectionToken);
+    }
+
+    return pruned;
+  }
+
+  /**
+   * An edge to `Family.all` stands for edges to every member of the family.
+   *
+   * The aggregate node itself does not exist yet during pruning (it is created
+   * from the survivors afterwards), so without this expansion a consumer of
+   * `Family.all` would lose exactly the members it asked for.
+   */
+  private expandAggregateEdges(deps: readonly string[]): readonly string[] {
+    const expanded: string[] = [];
+
+    for (const dep of deps) {
+      const family = getAllSentinelFamily(dep as InjectionToken);
+
+      if (family) {
+        for (const token of this.collectFamilyMemberTokens(family.familyName)) {
+          expanded.push(stringifyToken(token));
+        }
+      } else {
+        expanded.push(dep);
+      }
+    }
+
+    return expanded;
+  }
+
+  /**
+   * Report every dependency left without a provider - before instantiation.
+   *
+   * Instantiation fails on the first missing token it happens to reach, which
+   * makes "stub every unsatisfied import" an exercise in re-running the test.
+   * Same style as `checkStrictExports`: a strict build tells the whole story.
+   */
+  private assertDependenciesSatisfied(): void {
+    const missing = new Map<string, string[]>();
+
+    for (const [token, provider] of this.#providers) {
+      for (const dep of dependencyIdsOf(provider)) {
+        if (this.#providers.has(dep as InjectionToken)) {
+          continue;
+        }
+
+        const consumers = missing.get(dep);
+        if (consumers) {
+          consumers.push(String(token));
+        } else {
+          missing.set(dep, [String(token)]);
+        }
+      }
+    }
+
+    if (missing.size === 0) {
+      return;
+    }
+
+    const lines = [...missing].map(
+      ([dep, consumers]) =>
+        `  - '${dep}' required by ${consumers
+          .map((consumer) => `'${consumer}'`)
+          .join(', ')}${familyHint(dep)}`,
+    );
+
+    throw new Error(
+      `Unsatisfied dependencies (${missing.size}):\n${lines.join(
+        '\n',
+      )}\nRegister a provider for each of them (in 'providers:' of a module, or via register()).`,
+    );
+  }
+
+  /**
    * Create instance from ClassProvider
    */
   private createClassInstance(
@@ -760,6 +1039,60 @@ export class ContainerBuilder {
     }
   }
 }
+
+/**
+ * Dependency token ids of a provider; a value provider depends on nothing.
+ */
+const dependencyIdsOf = (provider: ProviderDefinition): readonly string[] =>
+  isValueDefinition(provider)
+    ? []
+    : (provider.deps || []).map((dep) => stringifyToken(dep));
+
+/**
+ * Tokens reachable from `seeds` over `relation`, seeds included.
+ */
+const reachableFrom = (
+  seeds: readonly string[],
+  relation: ReadonlyMap<string, Iterable<string>>,
+): Set<string> => {
+  const reached = new Set<string>();
+  const queue = [...seeds];
+
+  while (queue.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const id = queue.pop()!;
+
+    if (reached.has(id)) {
+      continue;
+    }
+    reached.add(id);
+
+    for (const dep of relation.get(id) ?? []) {
+      if (!reached.has(dep)) {
+        queue.push(dep);
+      }
+    }
+  }
+
+  return reached;
+};
+
+/**
+ * Why an override found nothing to replace.
+ *
+ * A member token is the interesting case: it becomes a graph node only once
+ * something injects it, so "not registered" reads as a typo when it is really
+ * "nobody asked for this member".
+ */
+const overrideMissingHint = (tokenId: string): string => {
+  const member = lookupFamilyMember(tokenId);
+
+  if (member) {
+    return ` It is a member of token family '${member.familyName}': a member token becomes a graph node only once something injects it. Override the family recipe instead (familyOverride) or override a member that is actually injected.`;
+  }
+
+  return ` Check that it is registered by the modules and features this application selected.`;
+};
 
 /**
  * Split a module's `exports` into plain tokens and whole families.

@@ -328,7 +328,7 @@ describe('ContainerBuilder', () => {
       );
 
       await expect(builder.build()).rejects.toThrow(
-        "Provider for token 'TokenA' not found",
+        /Unsatisfied dependencies \(1\):\n {2}- 'TokenA' required by 'TokenB'/,
       );
     });
 

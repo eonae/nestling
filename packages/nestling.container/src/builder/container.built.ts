@@ -22,12 +22,26 @@ import type { VisitCallback, VisitOptions } from '@common/graphs';
  */
 export class BuiltContainer {
   readonly #graph: DIGraph;
+  readonly #pruned: readonly string[];
 
   /** Start hooks run once per application run, not once per `start()` call */
   #started = false;
 
-  constructor(graph: DIGraph) {
+  constructor(graph: DIGraph, pruned: readonly string[] = []) {
     this.#graph = graph;
+    this.#pruned = Object.freeze([...pruned]);
+  }
+
+  /**
+   * Ids of the nodes dropped as subtrees orphaned by an `overrides`
+   * substitution.
+   *
+   * Empty on any build without `overrides` - pruning is the identity there.
+   * Exposed because "why did my `@OnInit` not run" deserves an answer in data
+   * rather than in the sources.
+   */
+  get pruned(): readonly string[] {
+    return this.#pruned;
   }
 
   /**
