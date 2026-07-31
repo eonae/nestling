@@ -8,6 +8,14 @@
  * именно это проверяет `boundary.spec.ts`.
  */
 
+/**
+ * Типы Standard Schema — единственная внешняя зависимость пакета, и она
+ * типовая. Реэкспортируются потому, что клиенту и генератору документации
+ * нужен тот же тип схемы, каким объявлен лист формы, а тянуть ради него
+ * `@common/misc` (пакет с рантаймом валидации) внешнему потребителю незачем.
+ */
+export type { Schema, SchemaIssue, StandardSchemaV1 } from '@common/misc';
+
 export * from './contract.js';
 export * from './define-fail.js';
 export * from './families.js';

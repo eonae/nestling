@@ -1570,6 +1570,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nestling/client@workspace:*, @nestling/client@workspace:packages/nestling.client":
+  version: 0.0.0-use.local
+  resolution: "@nestling/client@workspace:packages/nestling.client"
+  dependencies:
+    "@nestling/contracts": "workspace:*"
+    typescript: "npm:5.7.3"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@nestling/config@workspace:*, @nestling/config@workspace:packages/nestling.config":
   version: 0.0.0-use.local
   resolution: "@nestling/config@workspace:packages/nestling.config"
@@ -1697,6 +1707,7 @@ __metadata:
   resolution: "@nestling/transport.http@workspace:packages/nestling.transport.http"
   dependencies:
     "@common/misc": "workspace:*"
+    "@nestling/client": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/contracts": "workspace:*"

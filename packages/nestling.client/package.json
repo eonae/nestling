@@ -1,7 +1,7 @@
 {
-  "name": "@nestling/transport.http",
+  "name": "@nestling/client",
   "version": "0.1.0",
-  "description": "",
+  "description": "Typed HTTP client built from Nestling contracts — no server code, no runtime dependencies beyond @nestling/contracts",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -20,19 +20,20 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*",
-    "@nestling/config": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/contracts": "workspace:*",
-    "@nestling/pipeline": "workspace:*",
-    "@nestling/streams": "workspace:*",
-    "@nestling/transport": "workspace:*",
-    "busboy": "^1.6.0",
-    "find-my-way": "^8.2.0",
-    "zod": "^4.0.0"
+    "@nestling/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/client": "workspace:*",
-    "@types/busboy": "^1.5.4"
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "^build",
+          "build"
+        ]
+      }
+    }
   }
 }
