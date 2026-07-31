@@ -2,7 +2,7 @@
  * Конструктор CLI-деклараций и обслуживание команды транспортом.
  */
 
-import { cliEndpoint, CliTransport } from './index';
+import { cliEndpoint, CliTransport, CliTransport$ } from './index';
 
 import { describe, expect, it } from '@jest/globals';
 import {
@@ -10,7 +10,9 @@ import {
   isEndpointDefinition,
   makePipeline,
   Ok,
+  transportNameOf,
 } from '@nestling/pipeline';
+import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 describe('cliEndpoint', () => {
@@ -21,7 +23,9 @@ describe('cliEndpoint', () => {
       handle: async () => new Ok({ lines: 0 }),
     });
 
-    expect(ProcessStdin.transport).toBe('cli');
+    // Ссылка на транспорт — токен; строковое имя выводится из его id
+    expect(ProcessStdin.transport).toBe(CliTransport$);
+    expect(transportNameOf(ProcessStdin.transport)).toBe('cli');
     expect(ProcessStdin.pattern).toBe('process-stdin');
     expect(isEndpointDefinition(ProcessStdin)).toBe(true);
   });
@@ -40,8 +44,8 @@ describe('cliEndpoint', () => {
       handle: async () => new Ok({ message: 'hello' }),
     });
 
-    const cli = new CliTransport();
-    cli.endpoint(Greet);
+    const cli = new CliTransport({ argv: [] });
+    await cli.serve(makeDispatch([Greet]), new AbortController().signal);
 
     const response = await cli.execute({
       command: 'greet',
@@ -72,8 +76,11 @@ describe('cliEndpoint', () => {
       handle: (clock) => async () => new Ok({ now: clock.now() }),
     });
 
-    const cli = new CliTransport();
-    cli.endpoint(Now.resolve([new Clock()]));
+    const cli = new CliTransport({ argv: [] });
+    await cli.serve(
+      makeDispatch([Now.resolve([new Clock()])]),
+      new AbortController().signal,
+    );
 
     const response = await cli.execute({
       command: 'now',
@@ -108,8 +115,8 @@ describe('cliEndpoint — объявленные отказы', () => {
 
     expect(Count.errors).toEqual([TooManyLines]);
 
-    const cli = new CliTransport();
-    cli.endpoint(Count);
+    const cli = new CliTransport({ argv: [] });
+    await cli.serve(makeDispatch([Count]), new AbortController().signal);
 
     const response = await cli.execute({
       command: 'count',
@@ -138,10 +145,10 @@ describe('cliEndpoint — объявленные отказы', () => {
     });
 
     const seen: unknown[] = [];
-    const cli = new CliTransport(undefined, {
+    const cli = new CliTransport({
       onUnknownFail: (info) => seen.push(info.error),
     });
-    cli.endpoint(Count);
+    await cli.serve(makeDispatch([Count]), new AbortController().signal);
 
     const response = await cli.execute({
       command: 'count',

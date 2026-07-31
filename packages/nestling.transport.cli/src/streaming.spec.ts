@@ -20,6 +20,7 @@ import {
   stream,
   upload,
 } from '@nestling/pipeline';
+import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
@@ -92,8 +93,8 @@ describe('потоковый вход через stdin', () => {
       },
     });
 
-    const cli = new CliTransport();
-    cli.endpoint(Import);
+    const cli = new CliTransport({ argv: [] });
+    await cli.serve(makeDispatch([Import]), new AbortController().signal);
 
     try {
       const response = await cli.execute({
@@ -130,10 +131,10 @@ describe('потоковый вход через stdin', () => {
       },
     });
 
-    const cli = new CliTransport(undefined, {
+    const cli = new CliTransport({
       onUnknownFail: (): void => undefined,
     });
-    cli.endpoint(Import);
+    await cli.serve(makeDispatch([Import]), new AbortController().signal);
 
     try {
       const response = await cli.execute({
@@ -170,8 +171,8 @@ describe('потоковый вход через stdin', () => {
       },
     });
 
-    const cli = new CliTransport();
-    cli.endpoint(Count);
+    const cli = new CliTransport({ argv: [] });
+    await cli.serve(makeDispatch([Count]), new AbortController().signal);
 
     try {
       const response = await cli.execute({
@@ -206,8 +207,8 @@ describe('потоковый выход в stdout', () => {
         ),
     });
 
-    const cli = new CliTransport();
-    cli.endpoint(Export);
+    const cli = new CliTransport({ argv: [] });
+    await cli.serve(makeDispatch([Export]), new AbortController().signal);
 
     try {
       const response = await cli.execute({
@@ -228,7 +229,7 @@ describe('потоковый выход в stdout', () => {
 });
 
 describe('отказ регистрации несовместимых форм', () => {
-  it('events в output отвергается: у команды нет открытого соединения', () => {
+  it('events в output отвергается: у команды нет открытого соединения', async () => {
     const Watch = cliEndpoint({
       command: 'watch',
       output: events(Row),
@@ -241,14 +242,16 @@ describe('отказ регистрации несовместимых форм'
         ),
     });
 
-    const cli = new CliTransport();
+    const cli = new CliTransport({ argv: [] });
 
-    expect(() => cli.endpoint(Watch)).toThrow(
+    await expect(
+      cli.serve(makeDispatch([Watch]), new AbortController().signal),
+    ).rejects.toThrow(
       /transport 'cli' does not support form 'events' in 'output' \(supported: value, stream\)/,
     );
   });
 
-  it('multipart в input отвергается: файлы приходят путями в аргументах', () => {
+  it('multipart в input отвергается: файлы приходят путями в аргументах', async () => {
     const Upload = cliEndpoint({
       command: 'upload',
       input: multipart({ files: { report: upload() } }),
@@ -256,9 +259,11 @@ describe('отказ регистрации несовместимых форм'
       handle: async () => new Ok({}),
     });
 
-    const cli = new CliTransport();
+    const cli = new CliTransport({ argv: [] });
 
-    expect(() => cli.endpoint(Upload)).toThrow(
+    await expect(
+      cli.serve(makeDispatch([Upload]), new AbortController().signal),
+    ).rejects.toThrow(
       /transport 'cli' does not support form 'multipart' in 'input'/,
     );
   });

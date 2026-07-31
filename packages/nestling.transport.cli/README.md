@@ -1,17 +1,38 @@
 # @nestling/transport.cli
 
 CLI transport for Nestling: the same endpoints and pipelines as HTTP,
-but commands instead of routes. Supports single-shot execution
-(`cli.execute(...)`) and an interactive REPL (`cli.listen()`),
-with stdin as a streaming input.
+but commands instead of routes, with stdin as a streaming input.
 
 `cliEndpoint({ command, input, output, errors, pipeline, deps, handle })` is
 the declaration constructor — a thin layer over `makeEndpoint` from
-`@nestling/pipeline`: `transport` is `'cli'` and the command name becomes
-the handler's `pattern`. An empty command name throws when the declaration
-is created. `endpoint()` accepts only a runnable declaration — resolve
-dependencies first (`endpoint.resolve(...)`) or declare the command in a
-module and run it under `App`.
+`@nestling/pipeline`: `transport` is the package's token (`CliTransport$`,
+whose short name is `'cli'`) and the command name becomes the handler's
+`pattern`. An empty command name throws when the declaration is created.
+
+## Going live: `serve(dispatch, signal)`
+
+```ts
+const argv = process.argv.slice(2);
+const cli = new CliTransport({ mode: argv.length > 0 ? 'argv' : 'repl', argv });
+
+await cli.serve(makeDispatch([Help, ProcessStdin]), new AbortController().signal);
+```
+
+`serve` is the only entry point; what "going live" means for a command line
+is decided by the mode:
+
+- `'argv'` (default) — single-shot: one command from the process arguments,
+  then `serve` returns;
+- `'repl'` — commands are read from stdin until `exit`/`quit`/EOF.
+
+Both branches run the endpoint through `dispatch.call`; the transport has no
+copy of the execution branch. `execute({ command, args, options })` stays
+public as the single-shot entry a root (or a test) can drive itself.
+
+`makeDispatch` accepts only runnable declarations — resolve dependencies
+first (`endpoint.resolve(...)`) or declare the command in a module and run
+it under `assemble`, where `cli()` registers the transport as an ordinary
+provider.
 
 > 🚧 Active development, API may change. No validator among
 > the dependencies — commands are validated through `@nestling/pipeline`
