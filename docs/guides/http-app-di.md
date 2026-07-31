@@ -1,4 +1,4 @@
-# Приложение с DI: App, модули, декларации endpoint'ов
+# Приложение с DI: `assemble`, модули, декларации endpoint'ов
 
 ✅ **Статус: актуально** — сверено с кодом `examples.app-with-http`
 (2026-07-31). Канон деклараций описан в
@@ -378,28 +378,34 @@ export const UsersModule = makeAppModule({
 ## Bootstrap
 
 ```typescript
-import { App } from '@nestling/app';
-import { HttpTransport } from '@nestling/transport.http';
+import { assemble } from '@nestling/app';
+import { http } from '@nestling/transport.http';
 import { LoggerModule } from './modules/logger/logger.module';
 import { UsersModule } from './users.module';
 
-const app = new App({
+const app = assemble({
   modules: [LoggerModule, UsersModule],
-  transports: { http: new HttpTransport({ port: 3000 }) },
+  transports: [http({ port: 3000 })],   // провайдер, а не инстанс
 });
 
-await app.run(); // build контейнера + init-хуки + listen + graceful shutdown
+await app.run(); // фазы 0–5: сборка, @OnInit, wiring, @OnStart, go-live
 ```
 
-`App.run()` делает всё: собирает контейнер, запускает `@OnInit`-хуки
-в топологическом порядке, обходит дерево `modules` + `imports`, гасит
-зависимости найденных деклараций контейнером (`endpoint.resolve(resolver)`)
-и регистрирует исполнимые значения в транспортах, вешает обработчики
-SIGTERM/SIGINT (на выходе — `@OnDestroy` в обратном порядке).
-Транспорт, затребованный ручкой, но не переданный в `transports`, —
-ошибка старта с именем транспорта, паттерном и модулем-объявителем.
+`assemble` — единственный публичный composition root: конструктора `App` не
+существует. `app.run()` проводит приложение по фазам — собирает контейнер,
+запускает `@OnInit` по топосорту, обходит дерево `modules` + `imports`,
+гасит зависимости найденных деклараций контейнером
+(`endpoint.resolve(resolver)`), строит `dispatch` на каждый транспорт,
+выполняет `@OnStart` и только потом выводит транспорты в эфир
+(`serve(dispatch, signal)`); заодно вешает обработчики SIGTERM/SIGINT
+(на выходе — `close()` транспортов в реверсе, затем `@OnDestroy`).
+Транспорт, затребованный ручкой, но не зарегистрированный в графе, — ошибка
+фазы ASSEMBLE с именем транспорта, паттерном и модулем-объявителем.
 Обход доступен и отдельно, без поднятия приложения:
 `discoverEndpoints(modules)` из `@nestling/app`.
+
+Фичи и `select`, фазы жизненного цикла и standalone-путь — отдельный гайд
+[composition.md](./composition.md).
 
 ## Тестирование хендлера
 

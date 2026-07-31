@@ -38,10 +38,13 @@ flowchart TD
   NATS. Транспорты подключены, **не в эфире**. `dispatch` ещё не существует.
 - **3 · WIRE** — декларации endpoint'ов гасят зависимости контейнером
   (`endpoint.resolve(resolver)`: токены `deps`, класс-хендлер, классы-юниты
-  пайплайна); таблица `pattern→handler` на транспорт.
-  **`dispatch` рождается здесь.**
-- **4 · START** (`@OnStart`, топологически) — `serve(dispatch, signal)`, не
-  `listen()`. HTTP слушает сокет, NATS — `subscribe` (queue-group для реплик).
+  пайплайна); таблица `pattern→handler` строится по одному `dispatch` на
+  транспорт. **`dispatch` рождается здесь**, но никому ещё не передан.
+- **4 · START** (`@OnStart` топологически, затем go-live транспортов) —
+  `serve(dispatch, signal)`, не `listen()`. Транспорт получает **один
+  объект**: проекции маршрутов (`routes` — роутинг и io-декларация, без
+  `handle`/`pipeline`) и исполнение (`call`). HTTP слушает сокет, NATS —
+  `subscribe` (queue-group для реплик).
 - **5 · RUN** — `port.call` / `emit` → local | bus (по policy); live config-refs
   обновляются (opt-in).
 - **6 · SHUTDOWN** (обратный порядок) — stop serving (реверс START) → abort
@@ -64,6 +67,12 @@ flowchart TD
 Ось всей защиты от «listen на `@OnInit`» — `dispatch` рождается строго между
 INIT и START. WIRE нельзя слить с ASSEMBLE: `dispatch` стал бы доступен
 слишком рано и гарантия сломалась бы. Порядок 2→3→4 — несущий.
+
+Гарантию держит **состав данных**, а не время передачи: второго канала
+(«регистрация деклараций отдельно от `dispatch`») не существует, потому что
+он отдавал бы транспорту полную декларацию с `handle` — и «не исполняй
+раньше времени» снова стало бы конвенцией. Транспорту, вышедшему в эфир до
+START, маршрутизировать нечего.
 
 ## 2. `assemble` — один composition root
 
@@ -167,20 +176,24 @@ await assemble({
 ### L2 — + features + select (модульный монолит с выбором)
 
 ```typescript
-// features.ts
-export const OrdersFeature  = makeFeature({ name: 'orders',  modules: [OrdersModule] });
+// features.ts — фича есть значение; `dependsOn` ссылается на значения,
+// а не на имена: глобального реестра фич нет
+export const SharedFeature  = makeFeature({ name: 'shared',  modules: [SharedModule] });
+export const OrdersFeature  = makeFeature({ name: 'orders',  modules: [OrdersModule],
+                                            dependsOn: [SharedFeature] });
 export const BillingFeature = makeFeature({ name: 'billing', modules: [BillingModule] });
 
 // config.ts — select читается в bootstrap (фаза 0, до контейнера)
-export const RootConfig = makeConfig('', {
-  FEATURES: z.string().default('all'), // 'all' | 'orders,billing'
+export const RootConfig = makeConfig('app', {
+  features: z.string().default('all'), // ключ APP_FEATURES: 'all' | 'orders,billing'
 });
 
-// main.ts — load() делает примордиальное чтение select до контейнера
-const cfg = await load(RootConfig);
+// main.ts — load() делает примордиальное чтение select до контейнера:
+// синхронно, только из process.env, привязанные источники не участвуют
+const cfg = load(RootConfig);
 await assemble({
   features: [OrdersFeature, BillingFeature],
-  select: cfg.FEATURES,          // 'all' локально, 'orders' в отдельном поде
+  select: cfg.features,          // 'all' локально, 'orders' в отдельном поде
   transports: [http({ port: 3000 })],
 }).run();
 ```
@@ -188,6 +201,15 @@ await assemble({
 Не выбрал фичу → её провайдеры не построились (жадный контейнер), её
 эндпоинтов нет (дискавери из дерева выбранных модулей). Один процесс,
 шина не нужна.
+
+Формы `select`: `'all'`, `'orders,billing'` (пробелы по краям имён
+игнорируются) и `['orders','billing']`; отсутствует при заданных `features`
+— выбраны все. Фичи, транзитивно достижимые по `dependsOn`, участвуют в
+сборке, даже если не перечислены в `features:`; цикл в `dependsOn` легален
+(поле описывает необходимость, а не порядок построения). Fail-fast на
+ASSEMBLE: неизвестное имя (с перечнем доступных), две разные фичи с одним
+именем, пустой выбор (`''`/`[]` — «ничего» пишется отсутствием фич) и
+`select` без `features`.
 
 ### L3 — + контракт + порт (co-located, in-proc)
 
@@ -232,10 +254,10 @@ export const CreateOrder = httpEndpoint({
 
 ```typescript
 // main.ts — меняется ТОЛЬКО корень и конфиг, не эндпоинты
-const cfg = await load(RootConfig);      // примордиально — только select
+const cfg = load(RootConfig);            // примордиально — только select
 await assemble({
   features: [OrdersFeature, BillingFeature],
-  select: cfg.FEATURES,                  // 'orders' здесь, 'billing' в другом поде
+  select: cfg.features,                  // 'orders' здесь, 'billing' в другом поде
   transports: [
     http(),
     nats(),                              // outbound-транспорт для портов

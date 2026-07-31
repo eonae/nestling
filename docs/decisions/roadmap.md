@@ -30,7 +30,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 7 | `subscriptions-registry` | пакет реестра подписок поверх signal + finish-хуков (dogfooding публичных примитивов) | M | не начат |
 | 8 | `endpoint-discovery` | эндпоинты и транспорты — дискавери из дерева зарегистрированных модулей вместо глобального registry (чинит протечку глобального `Set` при любом импорте). Предпосылка фич | S | **done** — [архив](../../openspec/changes/archive/2026-07-29-endpoint-discovery/), [d/05 §1](../history/discussions/05-modular-monolith-features-ports.md) |
 | 9 | `config-module` | `makeConfig('prefix', schema)` + `from`; источники = объекты `ConfigSource` в одной приватной читалке (env — база, координаты из примордиального env); приватность = keys-capability (токен секции не экспортируется, наружу — branded-хэндл `.keys`; без `configs:`-регистрации и build()-проверки владения); привязка в корне плоским списком `config: [[src, keys \| glob]]`; reloadable (`Topic`/`AbortSignal`, живой хэндл); on-demand/unbound + доки из реестра (тег фичи из графа + флаг). Поверх `token-families` (5) | M–L | **done** — [архив](../../openspec/changes/archive/2026-07-31-config-module/), новый пакет [`@nestling/config`](../../packages/nestling.config/), [d/05 §11,§15](../history/discussions/05-modular-monolith-features-ports.md), ревизия владения [ideas.md [2026-07-10]](./ideas.md), форма секции — рекорд полей [ideas.md [2026-07-14]](./ideas.md) |
-| 10 | `features` | `makeFeature`/`select`/`assemble`; `@OnStart`/go-live (гарантия `dispatch`: `serve(dispatch, signal)` вместо `listen()`); транспорты как провайдеры; capability = DI + fail-fast | L | design — [d/05 §2,§7–§10](../history/discussions/05-modular-monolith-features-ports.md) |
+| 10 | `features` | `makeFeature`/`select`/`assemble`; `@OnStart`/go-live (гарантия `dispatch`: `serve(dispatch, signal)` вместо `listen()`); транспорты как провайдеры; capability = DI + fail-fast | L | **реализован**, архив после `/opsx:archive` — [change](../../openspec/changes/features/), [d/05 §2,§7–§10](../history/discussions/05-modular-monolith-features-ports.md) |
 | 11 | `ports` | `makeContract` (request/command/event), `Port`/`Emitter`, `IMessageBus`, `InProcessBus`, dispatch-policy; local/remote-биндинг на сборке (co-located, L3) | L | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
 | 12 | `transport.nats` | NATS как inbound+outbound транспорт; queue-groups для реплик; remote-биндинг портов; JetStream для `durable` (split, L4) | M | design — [d/05 §3](../history/discussions/05-modular-monolith-features-ports.md) |
 | 13 | `plugins` | cross-cutting: инфра = параметризованные модули (конвенция, нового примитива нет); pipeline-слои + startup policy-check вместо ambient middleware; feature-scoped инфра едет с фичей | S | design — [d/05 §16](../history/discussions/05-modular-monolith-features-ports.md) |
@@ -248,11 +248,21 @@ breaking-окно едет вторым (а не после ветки моно�
 | # | Change | Размер | Почему здесь |
 |---|---|---|---|
 | 9 | `config-module` | M–L | **done** — [архив](../../openspec/changes/archive/2026-07-31-config-module/); поверх 5 и `Topic` из 6 |
-| 10 | `features` | L | `assemble`, фазовый lifecycle, `@OnStart`/go-live, транспорты-провайдеры |
+| 10 | `features` | L | **реализован** — `assemble`, фазовый lifecycle, `@OnStart`/go-live, транспорты-провайдеры |
 | 18 | `testing-package` (ядро) | M | **раньше, чем требует граф**: `assembleTest`/`vars()`/`.check()` удешевляют каждый следующий change; `stub(Contract)` — в волне 6 |
 | 28 | `policy-check` | S–M | нужен полный граф: после 8 (дискавери) и 10 (assemble) |
 | 13 | `plugins` | S | поверх 10 и машинерии 28 |
 | 16 | `async-context` | M | ридеры `Ctx(Var)` — семейство из 5; policy-check присутствия — машинерия 28 |
+
+**Оговорка о BREAKING в аддитивной волне.** Волна 4 объявлена аддитивной,
+но change #10 ломает три публичные поверхности сразу: исчезает конструктор
+`new App({ transports: Record })` (корень — только `assemble`), исчезает
+нульарный `listen()` вместе с точками регистрации ручки на транспорте
+(go-live — только `serve(dispatch, signal)`), и поле `transport` декларации
+несёт токен вместо строки (`Raw.transport`/`EndpointMeta.transport`
+остаются строками — имя выводится из id токена, слои не ломаются). Все три
+предписаны целевым design'ом и приезжают одним change'ом, а не
+размазываются по волне: после #10 публичный корень зафиксирован.
 
 ### Волна 5 — порты и распределённость
 

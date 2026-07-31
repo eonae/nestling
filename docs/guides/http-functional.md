@@ -122,7 +122,7 @@ export const SearchUsers = httpEndpoint({
 типизированном стартовом контексте
 ([гайд с DI](./http-app-di.md#сырые-байты-тела-rawbody-и-webhook-подписи)).
 
-`server.route()` принимает **только deps-free декларацию**: у ручки с
+`makeDispatch()` принимает **только deps-free декларации**: у ручки с
 `deps`, класс-хендлером или классами-юнитами в пайплайне тип несёт
 неразрешённые зависимости, и standalone-путь её не примет — это ошибка
 компиляции, а не рантайма. Погасить руками можно
@@ -284,18 +284,22 @@ const audited = makePipeline()
 ## Запуск
 
 ```typescript
+import { makeDispatch } from '@nestling/transport';
 import { HttpTransport } from '@nestling/transport.http';
 import { CreateUser, StreamLogs } from './endpoints';
 
 const server = new HttpTransport({ port: Number(process.env.PORT) || 3000 });
 
-server.route(CreateUser);
-server.route(StreamLogs);
+// Маршруты приезжают одним объектом: своей копии исполнения у транспорта нет
+const dispatch = makeDispatch([CreateUser, StreamLogs]);
+const shutdown = new AbortController();
 
-await server.listen();
+await server.serve(dispatch, shutdown.signal);
 
-// graceful shutdown — вручную (в standalone-режиме App нет)
+// graceful shutdown — вручную (в standalone-режиме App нет): сигнал
+// отменяет in-flight, close() дренирует соединения
 process.on('SIGINT', async () => {
+  shutdown.abort();
   await server.close();
   process.exit(0);
 });
@@ -304,9 +308,10 @@ process.on('SIGINT', async () => {
 ## Куда расти
 
 Когда появляется потребность в DI, модулях и lifecycle-хуках — переходи на
-[`App` + модули](./http-app-di.md): декларация не меняется вообще, к ней
-добавляются `deps` (или класс-хендлер), а гашение зависимостей берёт на
-себя App.
+[`assemble` + модули](./http-app-di.md): декларация не меняется вообще, к
+ней добавляются `deps` (или класс-хендлер), а гашение зависимостей и
+построение `dispatch` берёт на себя приложение
+([composition.md](./composition.md)).
 
 > Модель пайплайна (фазы, слои, логика решений) подробно описана в
 > [decisions/ideas.md](../decisions/ideas.md), раздел «Pipeline v2».

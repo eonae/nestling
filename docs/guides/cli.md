@@ -78,36 +78,39 @@ in 'output' (supported: value, stream).
 ## Транспорт: два режима
 
 ```typescript
-import { makePipeline } from '@nestling/pipeline';
+import { makeDispatch } from '@nestling/transport';
 import { CliTransport } from '@nestling/transport.cli';
 import { Help, ProcessStdin } from './endpoints';
 
-// дефолтный pipeline можно передать в конструктор
-const cli = new CliTransport(makePipeline());
+const argv = process.argv.slice(2);
 
-cli.endpoint(Help);
-cli.endpoint(ProcessStdin);
-
-// 1) single-shot: разобрать argv, выполнить команду, выйти
-const result = await cli.execute({
-  command: 'process-stdin',
-  args: [],
-  options: { verbose: true },
+// Что значит «выйти в эфир» для командной строки, решает режим
+const cli = new CliTransport({
+  mode: argv.length > 0 ? 'argv' : 'repl',
+  argv,
 });
 
-// 2) REPL: интерактивный цикл (exit/quit для выхода)
-await cli.listen();
+// Маршруты приезжают одним объектом; исполнение ручки — в ядре
+const shutdown = new AbortController();
+await cli.serve(makeDispatch([Help, ProcessStdin]), shutdown.signal);
 ```
 
-Разбор `process.argv` в single-shot режиме — на стороне приложения
-(см. `parseArgs()` в примере): `--key value` → options, `--flag` → `true`,
-остальное → args. Встроенный парсер REPL такой же и не поддерживает
-`-x`-сокращения, `--key=value` и кавычки.
+- **`mode: 'argv'`** (по умолчанию) — single-shot: транспорт разбирает
+  аргументы, выполняет одну команду и возвращается из `serve`;
+- **`mode: 'repl'`** — интерактивный цикл до `exit`/`quit`/EOF.
 
-Ненулевой exit-код: в REPL-режиме (`listen()`) транспорт сам выставляет
-`process.exitCode = 1` при ошибочном статусе / брошенном `Fail`; в single-shot
-(`execute()`) транспорт код выхода не трогает — его выставляет приложение по
-результату (см. `main.ts` примера).
+Обе ветки исполняют ручку через `dispatch.call`. Встроенный разбор
+аргументов (`parseArgv`, он же экспортируется пакетом): `--key value` →
+options, `--flag` → `true`, остальное → args; `-x`-сокращения,
+`--key=value` и кавычки не поддерживаются.
+
+Отдельную команду можно выполнить и руками — `execute({ command, args,
+options })` после `serve`: это тот же single-shot, но `CliInput` строит
+корень (или тест).
+
+Ненулевой exit-код: транспорт выставляет `process.exitCode = 1` при
+ошибочном статусе команды в обоих режимах go-live; вызвав `execute()`
+напрямую, код выхода выставляет приложение по результату.
 
 ## Отказы
 
@@ -146,7 +149,7 @@ BAD_REQUEST: {"error":"No data received on stdin","code":"EMPTY_STDIN"}
 - `input: 'primitive'` (не-stream примитивы) в CLI не поддержан — регистрация
   пройдёт молча, ошибка «Primitive input type … is not supported» бросится
   при выполнении команды.
-- `cli.endpoint()`, как и `server.route()`, принимает только deps-free
+- `makeDispatch()` для CLI, как и для HTTP, принимает только deps-free
   декларацию: ручку с `deps` или класс-хендлером сначала гасят
   (`endpoint.resolve(...)`) — либо объявляют в модуле и поднимают под `App`.
 

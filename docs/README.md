@@ -30,7 +30,8 @@ docs/
 | Гайд | О чём | Пример-источник |
 |---|---|---|
 | [http-functional.md](./guides/http-functional.md) | HTTP без DI: `httpEndpoint`, валидация, стриминг | `examples.simple-http-server` |
-| [http-app-di.md](./guides/http-app-di.md) | `App`, модули, `deps`/класс-хендлер, `Ok`/`Fail` | `examples.app-with-http` |
+| [http-app-di.md](./guides/http-app-di.md) | `assemble`, модули, `deps`/класс-хендлер, `Ok`/`Fail` | `examples.app-with-http` |
+| [composition.md](./guides/composition.md) | Composition root: `assemble`, фичи и `select`, фазы, `@OnStart`, standalone | `examples.app-with-http` |
 | [di-token-families.md](./guides/di-token-families.md) | Семейства токенов: `makeTokenFamily`, `familyProvider`, `.auto`, `strictExports` | `examples.simple-app` |
 | [config.md](./guides/config.md) | Конфиг: `makeConfig`, `.keys`, источники и привязка, fail-fast, reloadable | `examples.simple-app` |
 | [cli.md](./guides/cli.md) | CLI-транспорт: single-shot и REPL | `examples.simple-cli` |

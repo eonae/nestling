@@ -139,11 +139,23 @@ await new ContainerBuilder()
 Приложению, которому хватает env, про конфиг в корне писать нечего:
 
 ```typescript
-const app = new App({ transports: { http }, modules: [UsersModule] });
+const app = assemble({ modules: [UsersModule], transports: [http()] });
 ```
 
-`App` регистрирует kernel-модуль конфига **всегда**; поле `config:` в
-`AppConfig` приложения — та же плоская форма `[[source, target]]`.
+Kernel-модуль конфига регистрируется **всегда**; поле `config:` функции
+`assemble` — та же плоская форма `[[source, target]]`.
+
+Единственное чтение конфига **до** сборки — `load(section)`: синхронное
+чтение ключей секции из `process.env` с валидацией и fail-fast, без
+контейнера и без привязанных источников. Оно нужно ровно там, где значение
+требуется раньше графа, — прежде всего для `select`
+([composition.md](./composition.md)):
+
+```typescript
+const RootConfig = makeConfig('app', { features: z.string().default('all') });
+
+const cfg = load(RootConfig);   // читает APP_FEATURES из process.env
+```
 
 ## Fail-fast на старте
 
