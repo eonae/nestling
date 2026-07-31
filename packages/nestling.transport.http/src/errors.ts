@@ -45,3 +45,18 @@ export class ChunkTooLargeError extends Error {
     this.name = 'ChunkTooLargeError';
   }
 }
+
+/**
+ * Multipart-запрос не соответствует форме декларации: незаявленное
+ * файловое поле, неверный MIME, второй файл в single-поле.
+ * → `400 Bad Request`; сообщение называет поле и правило.
+ *
+ * Молча брать первый (или последний) файл транспорт не будет: форма —
+ * контракт, а не подсказка.
+ */
+export class MultipartFieldError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MultipartFieldError';
+  }
+}

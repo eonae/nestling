@@ -13,8 +13,10 @@
  * `fields` (path-параметры и пометки), либо `rest`.
  */
 
+import type { SseConfig } from './adapter.js';
+
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
-import { analyzePayload } from '@nestling/pipeline';
+import { describeForm, isPrimitiveLeaf } from '@nestling/pipeline';
 import type { HTTPMethod } from 'find-my-way';
 
 /** Часть HTTP-запроса, в которой живёт поле payload */
@@ -46,6 +48,13 @@ export interface HttpBinding {
 
   /** Запрошены ли сырые байты тела в стартовом контексте */
   readonly rawBody: boolean;
+
+  /**
+   * Секция `sse` HTTP-словаря — едет тем же носителем, что и размещение
+   * полей: это транспортная специфика декларации, и ядру о ней знать
+   * нечего.
+   */
+  readonly sse?: SseConfig;
 }
 
 /**
@@ -139,11 +148,17 @@ export interface ComputeHttpBindingOptions {
   rawBody?: boolean;
 
   /**
-   * Конфигурация `input` — нужна только для fail-fast: у потоковой,
-   * файловой и примитивной форм payload не объект, и класть в него
-   * path-параметры и помеченные поля некуда.
+   * Конфигурация `input` — нужна только для fail-fast: у потоковой и
+   * примитивной форм payload не объект, и класть в него path-параметры и
+   * помеченные поля некуда.
    */
   input?: unknown;
+
+  /** Конфигурация `output` — нужна для проверок секции `sse` */
+  output?: unknown;
+
+  /** Секция `sse` HTTP-словаря */
+  sse?: SseConfig;
 }
 
 /** Форма `input` с точки зрения размещения полей */
@@ -152,33 +167,36 @@ type InputShape = 'absent' | 'structured' | 'unstructured';
 /** Бренд карты: отличает нашу карту от постороннего значения в `binding` */
 const HTTP_BINDING = Symbol.for('nestling:http:binding');
 
+/**
+ * Форма `input` с точки зрения размещения полей.
+ *
+ * `multipart` **структурна**: path-параметры и помеченные query-поля
+ * подмешиваются к полям формы (`fields`) до валидации схемой. Потоковые
+ * формы неструктурны: payload не объект, и класть в него поля некуда.
+ */
 function describeInput(input: unknown): {
   shape: InputShape;
   kind: string;
 } {
-  if (input === undefined) {
-    return { shape: 'absent', kind: 'none' };
-  }
+  const form = describeForm(input);
 
-  const config = analyzePayload(input);
-
-  switch (config.type) {
-    case 'schema': {
-      return config.schema === undefined
-        ? { shape: 'absent', kind: 'none' }
-        : { shape: 'structured', kind: 'schema' };
-    }
-    case 'withFiles': {
-      return { shape: 'structured', kind: 'withFiles(...)' };
+  switch (form.kind) {
+    case 'multipart': {
+      return { shape: 'structured', kind: 'multipart(...)' };
     }
     case 'stream': {
       return { shape: 'unstructured', kind: 'stream(...)' };
     }
-    case 'files': {
-      return { shape: 'unstructured', kind: 'files()' };
+    case 'events': {
+      return { shape: 'unstructured', kind: 'events(...)' };
     }
     default: {
-      return { shape: 'unstructured', kind: `'${config.primitive}'` };
+      if (form.leaf === undefined) {
+        return { shape: 'absent', kind: 'none' };
+      }
+      return isPrimitiveLeaf(form.leaf)
+        ? { shape: 'unstructured', kind: `'${form.leaf}'` }
+        : { shape: 'structured', kind: 'schema' };
     }
   }
 }
@@ -241,7 +259,7 @@ function assertBindable(options: ComputeHttpBindingOptions): void {
     );
   }
 
-  if (rawBody && (shape === 'unstructured' || kind === 'withFiles(...)')) {
+  if (rawBody && (shape === 'unstructured' || kind === 'multipart(...)')) {
     throw new Error(
       `${where}: 'rawBody: true' is not compatible with ${kind} input — ` +
         `the request body is consumed by the parser.`,
@@ -249,9 +267,59 @@ function assertBindable(options: ComputeHttpBindingOptions): void {
   }
 }
 
+/**
+ * Зонд для `sse.event`: элемента на момент создания декларации ещё нет.
+ *
+ * Отдельная константа, а не литерал в аргументе, — иначе автофиксер
+ * вычищает «бесполезный undefined» и ломает зонд.
+ */
+const NO_ITEM = undefined as never;
+
+/**
+ * Fail-fast секции `sse`.
+ *
+ * Имя события `error` зарезервировано за mid-stream отказом. Проверить
+ * функцию в общем виде нельзя — она считает имя от элемента, — поэтому
+ * зондируем её безопасно: константа `() => 'error'` отвечает и на
+ * `undefined`, а `e => e.kind` на нём бросает, и это не наше дело.
+ * Вторая линия обороны — проверка при сборке кадра.
+ */
+function assertSse(options: ComputeHttpBindingOptions): void {
+  const { method, path, sse, output } = options;
+  if (!sse) {
+    return;
+  }
+
+  const where = `httpEndpoint({ method: '${method}', path: '${path}' })`;
+
+  if (describeForm(output).kind !== 'events') {
+    throw new Error(
+      `${where}: 'sse' is only meaningful for an events(...) output — the ` +
+        `section describes SSE frames.`,
+    );
+  }
+
+  if (sse.event) {
+    let probed: unknown;
+    try {
+      probed = sse.event(NO_ITEM);
+    } catch {
+      // Имя считается от элемента — на зонде это нормально
+      return;
+    }
+
+    if (probed === 'error') {
+      throw new Error(
+        `${where}: SSE event name 'error' is reserved for mid-stream ` +
+          `failures — pick another name in 'sse.event'.`,
+      );
+    }
+  }
+}
+
 /** Собирает карту без проверок (канон полностью определён аргументами) */
 function buildBinding(options: ComputeHttpBindingOptions): HttpBinding {
-  const { method, path, bind, rawBody = false } = options;
+  const { method, path, bind, rawBody = false, sse } = options;
 
   const fields: Record<string, BindPlacement> = {};
 
@@ -274,6 +342,7 @@ function buildBinding(options: ComputeHttpBindingOptions): HttpBinding {
     fields: Object.freeze(fields),
     rest: METHODS_WITHOUT_BODY.has(method.toUpperCase()) ? 'query' : 'body',
     rawBody: Boolean(rawBody),
+    ...(sse === undefined ? {} : { sse: Object.freeze({ ...sse }) }),
   };
 
   Object.defineProperty(binding, HTTP_BINDING, {
@@ -300,6 +369,7 @@ export function computeHttpBinding(
   options: ComputeHttpBindingOptions,
 ): HttpBinding {
   assertBindable(options);
+  assertSse(options);
   return buildBinding(options);
 }
 
@@ -343,14 +413,14 @@ export interface PayloadSources {
   /** Разобранная query-строка */
   query: Record<string, unknown>;
 
-  /** Разобранное тело (или поля формы для `withFiles`); не читалось — `undefined` */
+  /** Разобранное тело (или поля формы для `multipart`); не читалось — `undefined` */
   body?: unknown;
 
   /** Path-параметры из совпадения с маршрутом */
   params: Record<string, string>;
 
   /**
-   * Источник «остальное». Обычно `binding.rest`; для `withFiles` всегда
+   * Источник «остальное». Обычно `binding.rest`; для `multipart` всегда
    * `'body'` — эта форма body-ориентирована по построению.
    */
   rest?: 'query' | 'body';

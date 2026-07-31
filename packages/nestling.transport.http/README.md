@@ -2,8 +2,9 @@
 
 HTTP transport for Nestling built on bare `node:http`: routing via
 `find-my-way`, body parsing driven by the endpoint's io declaration
-(JSON, raw, NDJSON streams, multipart via `busboy`), NDJSON streaming
-responses.
+(JSON, raw, NDJSON streams, multipart via `busboy`), and response framing
+picked from the same declaration — NDJSON for `stream(T)`, SSE for
+`events(T)`.
 
 ## Declaring routes
 
@@ -63,8 +64,11 @@ export const CreateMember = httpEndpoint({
   `body()` mark, or `rawBody` is set) — a `GET` body is never buffered.
 - **Fail-fast at creation**: a mark on a path parameter; `body()` on a
   bodyless method; `bind` or a path parameter with a non-structural `input`
-  (`stream`/`files`/primitives); a path parameter with no `input`;
-  `rawBody` together with `stream`/`files`/`withFiles`.
+  (a streaming form, primitives); a path parameter with no `input`;
+  `rawBody` together with a streaming or multipart form; an `sse` section
+  without an `events` output, or an `sse.event` producing the reserved name
+  `error`. For `multipart` the structural part is `fields`: path parameters
+  and marked query fields are mixed into it.
 
 ### `rawBody`: raw bytes in a typed start context
 
@@ -100,6 +104,59 @@ or provide the fields from an outer layer"; }'
 The body is read once (the value is parsed from the same bytes),
 `maxBodySize` applies as usual, and memory is paid only where requested.
 
+## Streaming: NDJSON, SSE and multipart
+
+The transport declares what it can carry, and registration is checked
+against it **before the server starts listening**:
+
+```ts
+capabilities = {
+  input:  new Set(['value', 'stream', 'multipart']),
+  output: new Set(['value', 'stream', 'events']),
+};
+```
+
+- **`stream(T)` out** → `application/x-ndjson`, chunked, one JSON per line.
+- **`events(T)` out** → `text/event-stream` with `cache-control: no-cache`.
+  Frame fields come from the declaration's `sse` section, which is where
+  wire specifics belong — the form itself stays transport-neutral:
+
+  ```ts
+  export const Activity = httpEndpoint({
+    method: 'GET',
+    path: '/activity/live',
+    output: events(ActivityEvent),
+    sse: { id: (e) => e.id, event: (e) => e.kind, heartbeat: 15_000 },
+    handle: (hub) => async (_p, meta: { signal: AbortSignal; lastEventId?: string }) =>
+      new Ok(hub.subscribe(meta.signal)),
+  });
+  ```
+
+  Heartbeat defaults to the transport's `sseHeartbeat` (15s; `0` disables)
+  and is written as an SSE comment, so it never counts as an item.
+  `Last-Event-ID` arrives in the **typed start context** (`lastEventId?:
+  string`) of any declaration with an `events` output — the same mechanism
+  as `rawBody`, no separate channel.
+- **`stream(T)` in** → NDJSON is decoded into a stream of values; per-item
+  validation, the item chain and the counters are the kernel's job
+  (`bindInputStream`), not the parser's.
+- **`multipart({ fields, files })` in** → files are delivered under the
+  declared field names, and each `upload({ maxSize, mime })` is enforced
+  **while parsing**: an oversized file aborts its own read (`413`), a wrong
+  MIME is rejected before the body is read (`400`), an undeclared file
+  field and a second file in a single-valued field are rejected (`400`).
+
+**Mid-stream failures.** Once the headers are out the status cannot change,
+so NDJSON responses are cut off (the client sees an unterminated chunked
+body) and SSE responses get an `event: error` frame carrying the failure
+body before the connection closes. Either way `.finally` sees `failed`, and
+an undeclared failure is normalized into `UnknownError` as usual.
+
+**Closing the iterator.** On disconnect, on a write error and on `close()`
+the transport closes the response iterator (`return()`), which is what runs
+the deferred `.finally` units and detaches `Topic` subscriptions. Input
+streams are drained on failure so the connection is not left half-read.
+
 The decorator API (`HttpEndpoint`, `HttpEndpointOptions`,
 `HttpEndpointMetadata`, `getHttpEndpointMetadata`, `makeHttpEndpoint`,
 `HttpTransport.registerEndpoint`) is **gone**. `route()`/`endpoint()` accept
@@ -125,15 +182,20 @@ By default the transport is safe to expose:
   `message`/`code`/`details`: that disclosure is the author's opt-in. The
   original of a normalized failure goes to `onUnknownFail` (default:
   `console.error`).
-- **Body size is limited.** Buffered bodies (JSON/raw/text), multipart file
-  size and NDJSON line length are capped at `maxBodySize` (default **1 MiB**);
-  reading aborts early and returns `413`. Set `maxBodySize: 0` to disable.
+- **Body size is limited.** Buffered bodies (JSON/raw/text) and NDJSON line
+  length are capped at `maxBodySize` (default **1 MiB**); reading aborts
+  early and returns `413`. Set `maxBodySize: 0` to disable. A multipart file
+  is capped by its own `upload({ maxSize })` and falls back to `maxBodySize`
+  when the field declares none. Heartbeat comments do not count towards any
+  limit.
 - **Input errors map to 4xx.** Malformed JSON returns `400`; oversized
   payloads return `413` — not `500`. There is no «payload source conflict»
   error any more: strict intake gives every field exactly one place.
 - **Semantic statuses map onto the wire here**, not in the kernel:
-  `CONFLICT → 409`, `TOO_MANY_REQUESTS → 429`, `TIMEOUT → 504` (a budget
-  overrun, not a client that failed to finish sending — that would be 408).
+  `CONFLICT → 409`, `PAYLOAD_TOO_LARGE → 413`, `TOO_MANY_REQUESTS → 429`,
+  `TIMEOUT → 504` (a budget overrun, not a client that failed to finish
+  sending — that would be 408). An item chain's `.limit(n)` and
+  `.gapTimeout(ms)` land on 413 and 504 through those.
 - **Validation failures return standard issues.** A schema failure returns
   `400` with `"code": "VALIDATION_FAILED"` and `details` shaped as
   `[{ "message": "…", "path": ["name"] }]` — the Standard Schema guarantee,
@@ -150,7 +212,9 @@ By default the transport is safe to expose:
   in-flight requests (cooperative completion is the primary drain
   mechanism), stops accepting connections, drops idle keep-alive
   connections, drains in-flight requests up to `closeTimeout`
-  (default **10s**), then force-closes the rest.
+  (default **10s**), then force-closes the rest. Open `events`
+  connections end this way too: the signal closes the response iterator,
+  and `.finally` observes `aborted`.
 
 ### Options
 
@@ -165,6 +229,7 @@ new HttpTransport({
   headersTimeout: undefined, // node:http server.headersTimeout (мс)
   keepAliveTimeout: undefined, // node:http server.keepAliveTimeout (мс)
   closeTimeout: 10_000, // таймаут дренажа соединений при close() (мс)
+  sseHeartbeat: 15_000, // период heartbeat-комментариев SSE (мс); 0 = выключить
 });
 ```
 

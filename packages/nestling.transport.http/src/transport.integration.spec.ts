@@ -20,10 +20,11 @@ import {
   defineFail,
   Fail,
   makePipeline,
+  multipart,
   Ok,
   stream,
+  upload,
   validate,
-  withFiles,
 } from '@nestling/pipeline';
 import { z } from 'zod';
 
@@ -497,12 +498,18 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
       httpEndpoint({
         method: 'POST',
         path: '/users/:id/avatar',
-        input: withFiles(z.object({ id: z.string() })),
+        input: multipart({
+          fields: z.object({ id: z.string() }),
+          files: { avatar: upload() },
+        }),
         pipeline: makePipeline(),
-        handle: (payload: { data: { id: string }; files: FilePart[] }) =>
+        handle: (payload: {
+          fields: { id: string };
+          files: { avatar: FilePart };
+        }) =>
           new Ok({
-            id: payload.data.id,
-            files: payload.files.map((file) => file.field),
+            id: payload.fields.id,
+            files: [payload.files.avatar.field],
           }),
       }),
     );

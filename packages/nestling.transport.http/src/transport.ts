@@ -5,7 +5,7 @@ import {
   type ServerResponse,
 } from 'node:http';
 
-import { sendResponse } from './adapter.js';
+import { DEFAULT_SSE_HEARTBEAT, sendResponse } from './adapter.js';
 import {
   assemblePayload,
   bindingNeedsBody,
@@ -15,14 +15,15 @@ import {
 import {
   ChunkTooLargeError,
   JsonParseError,
+  MultipartFieldError,
   PayloadTooLargeError,
 } from './errors.js';
+import type { MultipartResult } from './parser.js';
 import {
-  parseFilesOnly,
-  parseJson,
+  collectFileParts,
   parseJsonBuffer,
-  parseStream,
-  parseWithFiles,
+  parseMultipartForm,
+  parseNdjson,
   readBody,
 } from './parser.js';
 import { HttpRouter } from './router.js';
@@ -36,11 +37,15 @@ import type {
   EndpointMeta,
   Pipeline,
   Raw,
+  StreamSummary,
+  TransportCapabilities,
   UnknownFailInfo,
 } from '@nestling/pipeline';
 import {
-  analyzePayload,
+  assertFormsSupported,
+  bindInputStream,
   ClientDisconnectedError,
+  describeForm,
   isFail,
   makeEmptyContext,
   parsePayload,
@@ -102,7 +107,26 @@ export interface HttpTransportOptions {
    * По умолчанию 10s.
    */
   closeTimeout?: number;
+
+  /**
+   * Период heartbeat-комментариев SSE по умолчанию (мс). `0` отключает.
+   * Декларация может переопределить его секцией `sse: { heartbeat }`.
+   * По умолчанию 15s.
+   */
+  sseHeartbeat?: number;
 }
+
+/**
+ * Формы io, которые умеет HTTP.
+ *
+ * `events` во входе нет: клиент, льющий SSE, — кандидат для
+ * WebSocket-транспорта, а не для этого. `multipart` в выходе нет:
+ * форма input-only по построению.
+ */
+const HTTP_CAPABILITIES: TransportCapabilities = {
+  input: new Set(['value', 'stream', 'multipart']),
+  output: new Set(['value', 'stream', 'events']),
+};
 
 /**
  * HTTP транспорт
@@ -113,6 +137,12 @@ export interface HttpTransportOptions {
  * - Handler получает (payload, meta)
  */
 export class HttpTransport {
+  /**
+   * Способности транспорта — данные, а не конвенция: их читает
+   * `assertFormsSupported` до приёма первого запроса.
+   */
+  readonly capabilities: TransportCapabilities = HTTP_CAPABILITIES;
+
   private readonly router: HttpRouter;
   private server?: Server;
 
@@ -128,10 +158,14 @@ export class HttpTransport {
   /** Резолвнутая политика раскрытия деталей ошибок. */
   private readonly exposeErrorDetails: boolean;
 
+  /** Резолвнутый период heartbeat SSE: `0` = без heartbeat. */
+  private readonly sseHeartbeat: number;
+
   constructor(private readonly options: HttpTransportOptions = {}) {
     this.router = new HttpRouter();
     this.maxBodySize = options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE;
     this.exposeErrorDetails = options.exposeErrorDetails ?? false;
+    this.sseHeartbeat = options.sseHeartbeat ?? DEFAULT_SSE_HEARTBEAT;
   }
 
   /**
@@ -147,6 +181,9 @@ export class HttpTransport {
     O extends AnyOutput = AnyOutput,
     P extends AnyInput = AnyInput,
   >(definition: EndpointDefinition<I, O, P, never>): void {
+    // Та же проверка, что делает `App`: standalone-путь не остаётся без
+    // гарантии, и текст ошибки один на оба пути
+    assertFormsSupported(definition, this.capabilities);
     this.router.route(definition);
   }
 
@@ -278,12 +315,26 @@ export class HttpTransport {
     nativeReq: IncomingMessage,
     nativeRes: ServerResponse,
   ): Promise<void> {
-    // Объявляем переменные выше try блока, чтобы они были доступны в catch для cleanup
-    let inputConfigType: string | undefined;
+    // Объявляем переменные выше try блока, чтобы они были доступны в catch
+    // для дренажа непрочитанных файловых потоков
+    let multipart: MultipartResult | undefined;
     let payload: unknown;
 
-    // Стартовый input контекста: пуст, если декларация не просила `rawBody`
+    // Стартовый input контекста: пуст, если декларация не просила ни
+    // `rawBody`, ни реконнекта SSE
     let startInput: AnyInput | undefined;
+
+    // Байты входа: до создания контекста копятся локально, после —
+    // дописываются прямо в живой `summary`
+    let summary: StreamSummary | undefined;
+    let bufferedBytesIn = 0;
+    const addBytesIn = (bytes: number): void => {
+      if (summary) {
+        summary.bytesIn = (summary.bytesIn ?? 0) + bytes;
+      } else {
+        bufferedBytesIn += bytes;
+      }
+    };
 
     // Сигнал отмены запроса: per-request контроллер (дисконнект клиента)
     // + transport-level канал (graceful close), composed через AbortSignal.any
@@ -321,68 +372,76 @@ export class HttpTransport {
       const binding = httpBindingOf(route.definition);
       const query = readQuery(url.searchParams, binding.fields);
 
-      // Анализируем input конфигурацию
-      const inputConfig = analyzePayload(route.definition.input);
-      inputConfigType = inputConfig.type;
+      // Форма input определяет, как читается тело
+      const inputForm = describeForm(route.definition.input);
+      const outputForm = describeForm(route.definition.output);
 
-      // Парсим входные данные согласно типу модификатора
-      switch (inputConfig.type) {
-        case 'stream': {
-          payload = parseStream(
-            nativeReq,
-            inputConfig.schema as Schema,
-            this.maxBodySize,
-          );
+      // Сырой источник потокового входа: обернём его ядром, как только
+      // появится контекст (счётчики живут в нём)
+      let streamSource: AsyncIterable<unknown> | undefined;
+
+      switch (inputForm.kind) {
+        case 'stream':
+        case 'events': {
+          // Поэлементной валидации здесь нет: её делает `bindInputStream`
+          streamSource = parseNdjson(nativeReq, this.maxBodySize, addBytesIn);
           break;
         }
-        case 'withFiles': {
-          const result = await parseWithFiles(nativeReq, this.maxBodySize);
+        case 'multipart': {
+          multipart = await parseMultipartForm(
+            nativeReq,
+            inputForm.files ?? {},
+            this.maxBodySize,
+          );
+
           // Поля формы играют роль источника «остальное»: эта форма
-          // body-ориентирована по построению
-          const data = assemblePayload(binding, {
+          // body-ориентирована по построению. Path-параметры и помеченные
+          // query-поля подмешиваются к ним до валидации схемой.
+          const fields = assemblePayload(binding, {
             query,
-            body: result.data,
+            body: multipart.fields,
             params: route.params,
             rest: 'body',
           });
-          const validatedData = inputConfig.schema
-            ? parsePayload(inputConfig.schema as Schema, {
-                payload: data as Record<string, unknown>,
-                metadata: {},
-              })
-            : data;
+
           payload = {
-            data: validatedData,
-            files: result.files,
+            fields: inputForm.fields
+              ? parsePayload(inputForm.fields, {
+                  payload: fields as Record<string, unknown>,
+                  metadata: {},
+                })
+              : fields,
+            files: multipart.files,
           };
           break;
         }
-        case 'files': {
-          payload = await parseFilesOnly(nativeReq, this.maxBodySize);
-          break;
-        }
-        case 'primitive': {
-          // Байты читаются один раз: они же уходят в стартовый контекст
-          const raw = await readBody(nativeReq, this.maxBodySize);
-          if (binding.rawBody) {
-            startInput = { rawBody: raw };
-          }
-          payload = inputConfig.primitive === 'binary' ? raw : raw.toString();
-          break;
-        }
         default: {
+          if (inputForm.leaf === 'binary' || inputForm.leaf === 'text') {
+            // Байты читаются один раз: они же уходят в стартовый контекст
+            const raw = await readBody(nativeReq, this.maxBodySize);
+            addBytesIn(raw.length);
+            if (binding.rawBody) {
+              startInput = { rawBody: raw };
+            }
+            payload = inputForm.leaf === 'binary' ? raw : raw.toString();
+            break;
+          }
+
           let body: unknown;
 
           if (binding.rawBody) {
             // Одно чтение: байты в стартовый контекст, значение парсится
             // из того же буфера
             const raw = await readBody(nativeReq, this.maxBodySize);
+            addBytesIn(raw.length);
             startInput = { rawBody: raw };
             body = parseJsonBuffer(raw);
-          } else if (inputConfig.schema && bindingNeedsBody(binding)) {
+          } else if (inputForm.leaf && bindingNeedsBody(binding)) {
             // Тело читается только тогда, когда его требует карта: у GET
             // без body-пометок оно не буферизуется вовсе
-            body = await parseJson(nativeReq, this.maxBodySize);
+            const raw = await readBody(nativeReq, this.maxBodySize);
+            addBytesIn(raw.length);
+            body = parseJsonBuffer(raw);
           }
 
           payload = assemblePayload(binding, {
@@ -393,32 +452,59 @@ export class HttpTransport {
         }
       }
 
+      // Реконнект SSE: заголовок доезжает тем же механизмом, что `rawBody`
+      if (outputForm.kind === 'events') {
+        const lastEventId = nativeReq.headers['last-event-id'];
+        if (typeof lastEventId === 'string') {
+          startInput = { ...startInput, lastEventId };
+        }
+      }
+
       // Получаем pipeline из endpoint metadata
       const pipeline = route.definition.pipeline as
         | Pipeline<AnyInput, AnyInput, never>
         | undefined;
 
+      const raw: Raw = {
+        transport: 'http',
+        pattern: `${nativeReq.method || 'GET'} ${url.pathname}`,
+        payload,
+        attributes: nativeReq.headers as Record<string, string>,
+      };
+
+      const endpointMeta: EndpointMeta = {
+        transport: 'http',
+        pattern: route.definition.pattern,
+        input: route.definition.input,
+        output: route.definition.output,
+        // Объявленные отказы доезжают до стража только так: декларация →
+        // транспорт → контекст, без глобального реестра.
+        errors: route.definition.errors,
+      };
+
+      const ctx = makeEmptyContext(raw, endpointMeta, signal, startInput);
+      summary = ctx.summary;
+      if (bufferedBytesIn > 0) {
+        summary.bytesIn = bufferedBytesIn;
+      }
+
+      if (streamSource) {
+        // Обёртка ядра доступна только теперь: счётчики и сигнал живут в
+        // контексте, а сам поток ленив — до первого `for await` в хендлере
+        // не потреблён ни один элемент
+        raw.payload = bindInputStream(inputForm, streamSource, ctx);
+      }
+
+      const send = (response: Parameters<typeof sendResponse>[1]) =>
+        sendResponse(nativeRes, response, {
+          kind: outputForm.kind,
+          sse: binding.sse,
+          heartbeat: this.sseHeartbeat,
+          summary: ctx.summary,
+          signal,
+        });
+
       if (pipeline) {
-        // Новая архитектура с pipeline
-        const raw: Raw = {
-          transport: 'http',
-          pattern: `${nativeReq.method || 'GET'} ${url.pathname}`,
-          payload,
-          attributes: nativeReq.headers as Record<string, string>,
-        };
-
-        const endpointMeta: EndpointMeta = {
-          transport: 'http',
-          pattern: route.definition.pattern,
-          input: route.definition.input,
-          output: route.definition.output,
-          // Объявленные отказы доезжают до стража только так: декларация →
-          // транспорт → контекст, без глобального реестра.
-          errors: route.definition.errors,
-        };
-
-        const ctx = makeEmptyContext(raw, endpointMeta, signal, startInput);
-
         const responseContext = await pipeline.executeWithHandler(
           route.handler,
           ctx,
@@ -428,14 +514,18 @@ export class HttpTransport {
           },
         );
 
-        this.cleanupFileStreams(inputConfigType, payload);
-        sendResponse(nativeRes, responseContext);
+        await send(responseContext);
+        this.drainFileStreams(multipart);
       } else {
         // Fallback для endpoint'ов без pipeline (прямой вызов handler)
-        // Валидируем payload если есть schema
-        if (inputConfig.type === 'schema' && inputConfig.schema) {
-          payload = parsePayload(inputConfig.schema as Schema, {
-            payload: payload as Record<string, unknown>,
+        if (
+          inputForm.kind === 'value' &&
+          inputForm.leaf &&
+          inputForm.leaf !== 'binary' &&
+          inputForm.leaf !== 'text'
+        ) {
+          raw.payload = parsePayload(inputForm.leaf as Schema, {
+            payload: raw.payload as Record<string, unknown>,
             metadata: {},
           });
         }
@@ -448,19 +538,13 @@ export class HttpTransport {
           },
         };
 
-        const result = await route.handler(payload, meta);
+        const result = await route.handler(raw.payload, meta);
 
-        this.cleanupFileStreams(inputConfigType, payload);
-
-        // Нормализуем ответ
-        sendResponse(nativeRes, {
-          isSuccess: true,
-          status: 'OK',
-          value: result,
-        });
+        await send({ isSuccess: true, status: 'OK', value: result });
+        this.drainFileStreams(multipart);
       }
     } catch (error) {
-      this.cleanupFileStreams(inputConfigType, payload);
+      this.drainFileStreams(multipart);
       this.sendError(nativeRes, error);
     }
   }
@@ -469,7 +553,7 @@ export class HttpTransport {
    * Отправляет ошибку парсинга/роутинга/fallback-ветки с корректным статусом.
    *
    * Классификация (D2):
-   * - `JsonParseError`, `SchemaValidationError` → 400
+   * - `JsonParseError`, `MultipartFieldError`, `SchemaValidationError` → 400
    * - `PayloadTooLargeError`, `ChunkTooLargeError` → 413
    * - остальное → 500, детали скрыты, если не включён `exposeErrorDetails`
    *
@@ -490,7 +574,7 @@ export class HttpTransport {
     // статус, код и детали сохраняем (как это делает pipeline через
     // errorToResponse).
     if (isFail(error)) {
-      sendResponse(res, {
+      void sendResponse(res, {
         isSuccess: false,
         status: error.status ?? 'INTERNAL_ERROR',
         value: {
@@ -512,7 +596,10 @@ export class HttpTransport {
       error: 'Internal server error',
     };
 
-    if (error instanceof JsonParseError) {
+    if (
+      error instanceof JsonParseError ||
+      error instanceof MultipartFieldError
+    ) {
       status = 400;
       body.error = error.message;
     } else if (error instanceof SchemaValidationError) {
@@ -539,42 +626,27 @@ export class HttpTransport {
   }
 
   /**
-   * Очищает непрочитанные file streams для предотвращения утечек памяти.
+   * Дренирует непрочитанные файловые потоки: хендлер вправе не читать
+   * файл, а незакрытый поток удерживал бы память до GC.
    */
-  private cleanupFileStreams(
-    inputType: string | undefined,
-    payload: unknown,
-  ): void {
-    if (inputType !== 'withFiles' && inputType !== 'files') {
+  private drainFileStreams(result: MultipartResult | undefined): void {
+    if (!result) {
       return;
     }
 
     try {
-      let files: { stream: NodeJS.ReadableStream }[] = [];
-
-      if (inputType === 'withFiles') {
-        const withFilesPayload = payload as {
-          files?: { stream: NodeJS.ReadableStream }[];
+      for (const file of collectFileParts(result)) {
+        const stream = file.stream as NodeJS.ReadableStream & {
+          readableEnded?: boolean;
+          resume?: () => void;
         };
-        files = withFilesPayload.files || [];
-      } else if (inputType === 'files') {
-        files = (payload as { stream: NodeJS.ReadableStream }[]) || [];
-      }
 
-      for (const file of files) {
-        if (file.stream && 'readableEnded' in file.stream) {
-          const readableStream = file.stream as NodeJS.ReadableStream & {
-            readableEnded?: boolean;
-            resume?: () => void;
-          };
-
-          if (!readableStream.readableEnded && readableStream.resume) {
-            readableStream.resume();
-          }
+        if (stream && !stream.readableEnded && stream.resume) {
+          stream.resume();
         }
       }
     } catch {
-      // Игнорируем ошибки cleanup
+      // Игнорируем ошибки дренажа
     }
   }
 }

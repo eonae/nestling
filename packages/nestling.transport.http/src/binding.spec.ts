@@ -14,7 +14,14 @@ import {
 } from './binding';
 
 import { describe, expect, it } from '@jest/globals';
-import { files, makeEndpoint, Ok, stream, withFiles } from '@nestling/pipeline';
+import {
+  events,
+  makeEndpoint,
+  multipart,
+  Ok,
+  stream,
+  upload,
+} from '@nestling/pipeline';
 import { z } from 'zod';
 
 const Input = z.object({
@@ -127,9 +134,9 @@ describe('computeHttpBinding — fail-fast словаря', () => {
 
     expect(() =>
       computeHttpBinding({
-        method: 'POST',
-        path: '/upload',
-        input: files(),
+        method: 'GET',
+        path: '/live',
+        input: events(Input),
         bind: { name: query() },
       }),
     ).toThrow(/'bind' is not applicable to a non-structural input/);
@@ -162,7 +169,7 @@ describe('computeHttpBinding — fail-fast словаря', () => {
     );
   });
 
-  it('rawBody вместе со stream / files / withFiles', () => {
+  it('rawBody вместе со stream / events / multipart', () => {
     expect(() =>
       computeHttpBinding({
         method: 'POST',
@@ -174,9 +181,9 @@ describe('computeHttpBinding — fail-fast словаря', () => {
 
     expect(() =>
       computeHttpBinding({
-        method: 'POST',
+        method: 'GET',
         path: '/hooks',
-        input: files(),
+        input: events(Input),
         rawBody: true,
       }),
     ).toThrow(/'rawBody: true' is not compatible/);
@@ -185,7 +192,7 @@ describe('computeHttpBinding — fail-fast словаря', () => {
       computeHttpBinding({
         method: 'POST',
         path: '/hooks',
-        input: withFiles(Input),
+        input: multipart({ files: { blob: upload() } }),
         rawBody: true,
       }),
     ).toThrow(/'rawBody: true' is not compatible/);
@@ -202,11 +209,11 @@ describe('computeHttpBinding — fail-fast словаря', () => {
     ).toThrow(/must be a mark created by query\(\) or body\(\)/);
   });
 
-  it('withFiles структурен: path-параметры и пометки легальны', () => {
+  it('multipart структурен: path-параметры и пометки легальны', () => {
     const binding = computeHttpBinding({
       method: 'POST',
       path: '/users/:id/avatar',
-      input: withFiles(Input),
+      input: multipart({ fields: Input, files: { avatar: upload() } }),
       bind: { name: query() },
     });
 

@@ -1,3 +1,4 @@
+import type { SseConfig } from './adapter.js';
 import type { BindMark } from './binding.js';
 import { computeHttpBinding, readPathParams } from './binding.js';
 
@@ -8,15 +9,17 @@ import type {
   AnyInput,
   AnyOutput,
   AnyPayload,
+  BindableFields,
   EmptyInput,
   EndpointDefinition,
   FailsOf,
   HandlerClass,
   HandlerFactory,
   HandlerFn,
-  InferInput,
   MissingFields,
   Pipeline,
+  StreamForm,
+  ValidateOutputForm,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
 import type { HTTPMethod } from 'find-my-way';
@@ -48,13 +51,13 @@ export type PathParams<Path extends string> =
  * не до ошибки: там правила проверяет рантайм.
  */
 export type BindMap<Path extends string, I> = [
-  Extract<keyof InferInput<I>, string>,
+  Extract<keyof BindableFields<I>, string>,
 ] extends [never]
   ? Readonly<Record<string, BindMark>>
   : Partial<
       Readonly<
         Record<
-          Exclude<Extract<keyof InferInput<I>, string>, PathParams<Path>>,
+          Exclude<Extract<keyof BindableFields<I>, string>, PathParams<Path>>,
           BindMark
         >
       >
@@ -62,11 +65,19 @@ export type BindMap<Path extends string, I> = [
 
 /**
  * Стартовый контекст декларации — то, что транспорт кладёт в контекст ещё до
- * первого pre-юнита. `rawBody: true` добавляет туда сырые байты тела.
+ * первого pre-юнита.
+ *
+ * `rawBody: true` добавляет туда сырые байты тела; `output: events(...)` —
+ * заголовок реконнекта `Last-Event-ID`. Оба поля приезжают одним и тем же
+ * механизмом: изобретать под реконнект отдельный канал незачем.
  */
-export type StartContext<RB extends boolean | undefined> = RB extends true
-  ? { rawBody: Uint8Array }
-  : EmptyInput;
+export type StartContext<
+  RB extends boolean | undefined,
+  O = unknown,
+> = (RB extends true ? { rawBody: Uint8Array } : EmptyInput) &
+  (O extends StreamForm<any, any, 'events'>
+    ? { lastEventId?: string }
+    : EmptyInput);
 
 /**
  * Сторож слота `pipeline`: требования пайплайна к внешнему контексту должны
@@ -93,6 +104,10 @@ type ValidateStart<PR extends AnyInput, Start extends AnyInput> = [
       hint: "declare 'rawBody: true', or provide the fields from an outer layer";
     };
 
+/** Тип элемента потоковой формы — им типизируются колбэки `sse` */
+type InferStreamItem<O> =
+  O extends StreamForm<any, infer TItem, any> ? TItem : never;
+
 /**
  * Транспортный словарь HTTP-декларации.
  *
@@ -117,11 +132,20 @@ export interface HttpEndpointDictionary<
   /** Шаблон пути; path-параметры объявляются `:name` */
   path: Path;
 
-  /** Schema или модификатор для input */
+  /** Форма io для input: значение, `stream`/`events` или `multipart` */
   input?: I;
 
-  /** Конфигурация выходных данных */
-  output?: O;
+  /** Форма io для output (см. `ValidateOutputForm`) */
+  output?: O & ValidateOutputForm<O>;
+
+  /**
+   * SSE-специфика ответа: `id`/`event` кадра и период heartbeat.
+   *
+   * Легальна только при `output: events(...)` — форма транспортно
+   * нейтральна, а всё специфичное для провода объявляется здесь.
+   * Имя события `error` зарезервировано за mid-stream отказом.
+   */
+  sse?: SseConfig<InferStreamItem<O>>;
 
   /**
    * Объявленные отказы ручки. Транспорт поле не интерпретирует — только
@@ -157,7 +181,7 @@ export interface HttpEndpointDictionary<
    * Pipeline для этого endpoint. Классы-юниты допустимы: они попадают в
    * `TNeeds` декларации и гасятся вместе с `deps`.
    */
-  pipeline?: Pipeline<PR, P, PN> & ValidateStart<PR, StartContext<RB>>;
+  pipeline?: Pipeline<PR, P, PN> & ValidateStart<PR, StartContext<RB, O>>;
 }
 
 /**
@@ -322,7 +346,7 @@ export function httpEndpoint(
     handle: unknown;
   },
 ): AnyEndpointDefinition {
-  const { method, path, bind, rawBody, ...rest } = declaration;
+  const { method, path, bind, rawBody, sse, ...rest } = declaration;
 
   assertHttpPath(method, path);
 
@@ -335,6 +359,8 @@ export function httpEndpoint(
     bind: bind as Readonly<Record<string, BindMark>> | undefined,
     rawBody,
     input: declaration.input,
+    output: declaration.output,
+    sse,
   });
 
   return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
