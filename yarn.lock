@@ -1620,6 +1620,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nestling/testing@workspace:*, @nestling/testing@workspace:packages/nestling.testing":
+  version: 0.0.0-use.local
+  resolution: "@nestling/testing@workspace:packages/nestling.testing"
+  dependencies:
+    "@nestling/app": "workspace:*"
+    "@nestling/config": "workspace:*"
+    "@nestling/container": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
+    "@nestling/transport": "workspace:*"
+    "@nestling/transport.http": "workspace:*"
+    typescript: "npm:5.7.3"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@nestling/transport.cli@workspace:*, @nestling/transport.cli@workspace:packages/nestling.transport.cli":
   version: 0.0.0-use.local
   resolution: "@nestling/transport.cli@workspace:packages/nestling.transport.cli"
@@ -5296,6 +5311,7 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/streams": "workspace:*"
+    "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     zod: "npm:^4.0.0"

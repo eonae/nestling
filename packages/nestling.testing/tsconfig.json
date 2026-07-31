@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // `await using` в публичном API `TestApp`: рантайм даёт
+    // `Symbol.asyncDispose` начиная с Node 20, типам нужна библиотека
+    // `dom`/`dom.iterable` — то, что подтягивал бы умолчательный
+    // `es2022.full`: перечислив `lib` явно, приходится назвать и их
+    "lib": ["es2022", "dom", "dom.iterable", "esnext.disposable"],
+    // Пакет живёт по ту сторону условия: `@nestling/app/testing` резолвится
+    // только с ним — ровно та граница, которую пакет и предлагает
+    // пользовательским модулям
+    "customConditions": ["testing"]
+  },
+  "include": ["src"]
+}
