@@ -30,6 +30,7 @@
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/pipeline": "workspace:*",
+    "@nestling/ports": "workspace:*",
     "@nestling/streams": "workspace:*",
     "@nestling/transport": "workspace:*",
     "@nestling/transport.http": "workspace:*",

@@ -7,13 +7,15 @@
  */
 
 import { ILogger, observability } from './modules/logger';
+import { ClaimQuotaImpl } from './modules/quotas/quotas.module';
 import {
   CreateUser,
   DeleteUser,
   GetUser,
   ListUsers,
 } from './modules/users/endpoints';
-import { OpsFeature, UsersFeature } from './features';
+import { QuotaExceeded } from './contracts';
+import { OpsFeature, QuotasFeature, UsersFeature } from './features';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
 import { describe, expect, it } from '@jest/globals';
@@ -29,7 +31,7 @@ import { http, HttpTransport$ } from '@nestling/transport.http';
 
 /** Сборка примера без транспортного go-live — тот же словарь, что в `main.ts` */
 const spec = {
-  features: [UsersFeature, OpsFeature],
+  features: [UsersFeature, OpsFeature, QuotasFeature],
   transports: [http({ port: 0 })],
   // Те же инварианты, что в бою: тестовый корень их не ослабляет
   policies: [
@@ -188,6 +190,70 @@ describe('пример: инфраструктура едет вместе с ф
   });
 });
 
+/** Создаёт пользователя через полный пайплайн ручки */
+const createUser = (
+  app: Awaited<ReturnType<typeof assembleTest>>,
+  suffix: string,
+) =>
+  app.call(CreateUser, {
+    name: `User ${suffix}`,
+    email: `user-${suffix}@example.com`,
+  });
+
+describe('пример: фичи общаются контрактами', () => {
+  it.each<['local-first' | 'always-remote']>([
+    ['local-first'],
+    ['always-remote'],
+  ])('политика %s меняет путь вызова, но не call-site', async (dispatch) => {
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+      // Политика — конфиг: в тесте она задаётся `vars()`, в бою —
+      // переменной окружения или привязанным источником
+      config: vars({ NESTLING_PORTS_DISPATCH: dispatch }),
+    });
+
+    expect(unwrap(await createUser(app, dispatch))).toMatchObject({
+      name: `User ${dispatch}`,
+    });
+  });
+
+  it('исчерпанная квота приезжает настоящим отказом соседней фичи', async () => {
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    // Лимит фичи квот — пять мест
+    for (const index of [1, 2, 3, 4, 5]) {
+      unwrap(await createUser(app, String(index)));
+    }
+
+    const refused = await createUser(app, 'sixth');
+
+    // Код доехал до границы вызывающей ручки и остался в её контракте:
+    // `errors:` объявляет отказ соседней фичи наравне со своими
+    expect(refused).toMatchObject({
+      isSuccess: false,
+      status: 'TOO_MANY_REQUESTS',
+      value: { code: QuotaExceeded.code, details: { limit: 5 } },
+    });
+  });
+
+  it('реализация контракта вызывается в тесте по значению — как ручка', async () => {
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    // Никакой отдельной машинерии: та же `app.call` по идентичности
+    // декларации, что и для HTTP-ручки
+    expect(unwrap(await app.call(ClaimQuotaImpl, { email: 'a@b.c' }))).toEqual({
+      remaining: 4,
+    });
+  });
+});
+
 describe('пример: матрица select-топологий', () => {
   it('собирает каждый вариант деплоя без сокетов', async () => {
     const reports = await checkTopologies(spec, ['all', 'users', 'ops']);
@@ -198,9 +264,9 @@ describe('пример: матрица select-топологий', () => {
       'ops',
     ]);
 
-    // `users` тянет `ops` через `dependsOn`; сам `ops` объявляет
+    // `users` тянет `ops` и `quotas` через `dependsOn`; сам `ops` объявляет
     // только эксплуатационную ручку — это и проверяет матрица
-    expect(reports[1].report.features).toEqual(['users', 'ops']);
+    expect(reports[1].report.features).toEqual(['users', 'ops', 'quotas']);
     expect(reports[2].report.endpoints.map(({ pattern }) => pattern)).toEqual([
       'GET /health',
     ]);

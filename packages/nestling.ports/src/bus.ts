@@ -213,7 +213,14 @@ export class InProcessBus implements IMessageBus, ITransport {
   /** Канал остановки самой шины; композируется с сигналом `serve` */
   readonly #closing = new AbortController();
 
-  #signal: AbortSignal = this.#closing.signal;
+  /**
+   * Канал остановки доставки.
+   *
+   * Всегда собственный: сигнал приложения `serve` транслирует сюда, а не
+   * подменяет — иначе подписки, заведённые на WIRE (до `serve`), остались
+   * бы на старом сигнале и пережили бы shutdown.
+   */
+  readonly #signal: AbortSignal = this.#closing.signal;
 
   #dispatch?: Dispatch;
 
@@ -222,23 +229,34 @@ export class InProcessBus implements IMessageBus, ITransport {
   constructor(private readonly options: InProcessBusOptions = {}) {}
 
   /**
-   * Выводит шину в эфир: подписывает маршруты своих реализаций.
+   * Подписывает маршруты своих реализаций — шаг фазы WIRE.
    *
-   * Формы io проверяются здесь же — до первой доставки: на standalone-пути
-   * это единственная точка проверки, и текст ошибки тот же, что у сборки
-   * приложения.
+   * Отдельно от `serve`, потому что «эфир» и «маршрутизация» у шины
+   * разъезжаются во времени: `@OnStart` уже вправе звать порт (гарантия
+   * фазовой модели), а `serve` всех транспортов идёт **после** `@OnStart`.
+   * Подписка на WIRE закрывает это окно и заодно делает `always-remote`
+   * работоспособным в тестовом корне, который до START не доходит вовсе.
+   *
+   * Идемпотентна: повторный вызов с тем же диспетчером ничего не делает.
+   *
+   * @param dispatch - Диспетчер транспорта шины, рождённый в WIRE
    */
-  async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
-    if (this.#dispatch) {
-      throw new Error('Bus transport is already serving');
+  attach(dispatch: Dispatch): void {
+    if (this.#dispatch === dispatch) {
+      return;
     }
 
+    if (this.#dispatch) {
+      throw new Error('Bus transport is already routing another dispatch');
+    }
+
+    // Формы io — до первой доставки: на standalone-пути это единственная
+    // точка проверки, и текст ошибки тот же, что у сборки приложения
     for (const route of dispatch.routes) {
       assertFormsSupported(route, this.capabilities);
     }
 
     this.#dispatch = dispatch;
-    this.#signal = AbortSignal.any([signal, this.#closing.signal]);
 
     for (const route of dispatch.routes) {
       const binding = busBindingOf(route);
@@ -259,6 +277,27 @@ export class InProcessBus implements IMessageBus, ITransport {
         { group },
       );
     }
+  }
+
+  /**
+   * Выводит шину в эфир.
+   *
+   * Маршруты к этому моменту уже подписаны (`attach` на WIRE), поэтому
+   * здесь остаётся одно: связать сигнал приложения с собственным каналом
+   * остановки, чтобы взвод сигнала прекращал доставку так же, как `close()`.
+   */
+  async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
+    this.attach(dispatch);
+
+    if (signal.aborted) {
+      this.#closing.abort();
+
+      return;
+    }
+
+    signal.addEventListener('abort', () => this.#closing.abort(), {
+      once: true,
+    });
   }
 
   /**

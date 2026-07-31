@@ -38,11 +38,13 @@ export type {
 } from './contract.js';
 export type {
   Emitter,
+  EmitterToken,
   InvokeArgs,
   KernelPortFail,
   Port,
   PortMeta,
   PortResult,
+  PortToken,
 } from './families.js';
 export { implement } from './implement.js';
 export type { ImplementDictionary } from './implement.js';

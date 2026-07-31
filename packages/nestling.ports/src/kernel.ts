@@ -269,10 +269,29 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
 };
 
 /**
+ * Шина, умеющая подписать свои маршруты до выхода в эфир.
+ *
+ * Структурная проверка, а не `instanceof`: сторонняя реализация
+ * `IMessageBus` вправе не иметь inbound-стороны вовсе (её маршруты придут
+ * от брокера), и тогда шаг просто пропускается.
+ */
+interface RoutableBus {
+  attach(dispatch: Dispatch): void;
+}
+
+const isRoutable = (bus: unknown): bus is RoutableBus =>
+  typeof (bus as RoutableBus | null)?.attach === 'function';
+
+/**
  * Связывает вызыватели с исполнителями — шаг фазы WIRE.
  *
- * Зовётся корнем после `makeDispatch` и до START. Приложение без единого
- * вызывателя проходит его вхолостую: держателя в графе просто нет.
+ * Зовётся корнем после `makeDispatch` и до START. Делает две вещи:
+ * наполняет держатель исполнителей и подписывает шину на subject'ы её
+ * маршрутов. Второе — здесь, а не в `serve`, потому что `@OnStart` уже
+ * вправе звать порт, а go-live транспортов идёт после `@OnStart`.
+ *
+ * Приложение без единого вызывателя проходит шаг вхолостую: держателя в
+ * графе просто нет.
  *
  * @param container - Собранный контейнер приложения
  * @param dispatches - Диспетчеры транспортов, рождённые в WIRE
@@ -288,11 +307,14 @@ export function bindPorts(
   }
 
   const bus = container.get(MessageBus$);
+  const dispatch = dispatches.get(BusTransport$ as TransportRef);
+
+  if (dispatch && isRoutable(bus)) {
+    bus.attach(dispatch);
+  }
 
   runtime.bind({
-    ...(dispatches.get(BusTransport$ as TransportRef) === undefined
-      ? {}
-      : { dispatch: dispatches.get(BusTransport$ as TransportRef) }),
+    ...(dispatch === undefined ? {} : { dispatch }),
     ...(bus === null ? {} : { bus }),
   });
 }

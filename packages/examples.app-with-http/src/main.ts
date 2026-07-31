@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import { observability } from './modules/logger';
-import { OpsFeature, UsersFeature } from './features';
+import { OpsFeature, QuotasFeature, UsersFeature } from './features';
 
 import { assemble } from '@nestling/app';
 import { load, makeConfig } from '@nestling/config';
@@ -33,7 +33,7 @@ async function main() {
   const cfg = load(RootConfig);
 
   const app = assemble({
-    features: [UsersFeature, OpsFeature],
+    features: [UsersFeature, OpsFeature, QuotasFeature],
     select: cfg.features,
     // Транспорт — провайдер: порт приезжает из его конфиг-секции
     // (`HTTP_PORT`), явная опция её перекрывает
@@ -110,6 +110,18 @@ async function main() {
   console.log('Выбор подмножества фич:');
   console.log('  APP_FEATURES=users yarn start   — только пользователи');
   console.log('  APP_FEATURES=all   yarn start   — всё дерево (по умолчанию)');
+  console.log('');
+  console.log('Порты между фичами (users ↔ quotas):');
+  console.log(
+    '  POST /api/users зовёт контракт quotas.claim и публикует users.registered',
+  );
+  console.log(
+    '  NESTLING_PORTS_DISPATCH=always-remote yarn start — те же вызовы через шину',
+  );
+  console.log(
+    '  (репетиция split: async-барьер, структурная копия, валидация ответа;',
+  );
+  console.log('   call-site при этом не меняется ни на строчку)');
   console.log('');
 }
 

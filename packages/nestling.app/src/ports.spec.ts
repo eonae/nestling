@@ -13,7 +13,13 @@ import { makeAppModule } from './module';
 
 import { describe, expect, it } from '@jest/globals';
 import { objectSource } from '@nestling/config';
-import { makeToken, valueProvider } from '@nestling/container';
+import {
+  Injectable,
+  makeToken,
+  OnInit,
+  OnStart,
+  valueProvider,
+} from '@nestling/container';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import { makeEmptyContext, Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
@@ -229,6 +235,48 @@ describe('assemble — порты', () => {
     await expect(app.check()).rejects.toThrow(
       /'app\.lonely\.request'.*no selected module implements it/s,
     );
+  });
+
+  it('порт связан к моменту `@OnStart` и не связан в `@OnInit`', async () => {
+    const seen: string[] = [];
+
+    @Injectable([ChargeCard.port])
+    class Warmup {
+      constructor(private readonly billing: Port<typeof ChargeCard>) {}
+
+      @OnInit()
+      async onInit(): Promise<void> {
+        // Фаза 2: `dispatch` ещё не рождён, связывать вызыватель не с чем
+        await this.billing
+          .call({ amount: 1 })
+          .catch((error: Error) => void seen.push(`init: ${error.message}`));
+      }
+
+      @OnStart()
+      async onStart(): Promise<void> {
+        // Фаза 4: WIRE позади, вызов исполняется
+        const charge = await this.billing.call({ amount: 7 });
+        seen.push(charge.isFail ? 'start: fail' : `start: ${charge.value.chargeId}`);
+      }
+    }
+
+    const WarmupFeature = makeFeature({
+      name: 'warmup',
+      modules: [makeAppModule({ name: 'module:warmup', providers: [Warmup] })],
+    });
+
+    const app = assemble({
+      features: [WarmupFeature, BillingFeature],
+      transports: [asHttpTransport(new MockTransport())],
+      config: portsConfig(),
+    });
+
+    await app.run();
+
+    expect(seen[0]).toMatch(/init: .*before phase 3 WIRE/);
+    expect(seen[1]).toBe('start: c-7');
+
+    await app.close();
   });
 
   it('эмиттер доставляет событие подписчику соседней фичи', async () => {

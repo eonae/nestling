@@ -1,4 +1,9 @@
 import { basePipeline } from '../../../common/pipelines';
+import {
+  ClaimQuota,
+  QuotaExceeded as QuotaExceededDefinition,
+  UserRegistered,
+} from '../../../contracts';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
 import { ActivityHub } from '../activity.hub';
@@ -7,6 +12,7 @@ import { UserService } from '../user.service';
 
 import type { Output } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
+import type { Emitter, Port } from '@nestling/ports';
 import { httpEndpoint, query } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -35,10 +41,19 @@ type CreateUserOutput = z.infer<typeof CreateUserOutput>;
  * фейками, без контейнера и транспорта.
  */
 export const createUserHandler =
-  (users: UserService, logger: ILoggerService, activity?: ActivityHub) =>
+  (
+    users: UserService,
+    logger: ILoggerService,
+    quotas: Port<typeof ClaimQuota>,
+    registered: Emitter<typeof UserRegistered>,
+    activity?: ActivityHub,
+  ) =>
   async (
     payload: CreateUserInput,
-  ): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> => {
+  ): Output<
+    CreateUserOutput,
+    ReturnType<typeof EmailTaken> | ReturnType<typeof QuotaExceededDefinition>
+  > => {
     logger.log(`Handling POST /api/users - creating user ${payload.name}`);
 
     // Проверка на дубликат email
@@ -57,7 +72,22 @@ export const createUserHandler =
       });
     }
 
+    // Соседняя фича зовётся портом: всегда async, всегда `Ok | Fail`, даже
+    // co-located. Разбирать отказ обязан вызывающий — и это ровно та
+    // дисциплина, из-за которой переезд `quotas` в другой процесс не
+    // потребует править ни строчки здесь
+    const claimed = await quotas.call({ email: payload.email });
+    if (claimed.isFail) {
+      return claimed as ReturnType<typeof QuotaExceededDefinition>;
+    }
+
+    logger.log(`quota claimed, ${claimed.value.remaining} place(s) left`);
+
     const user = await users.create(payload);
+
+    // Событие — fire-and-forget: `emit` резолвится по факту доставки, а не
+    // обработки, и отказ подписчика сюда не всплывает
+    await registered.emit({ id: user.id, email: user.email });
 
     // Публикация в ленту: `push` не ждёт подписчиков, поэтому создание
     // пользователя не замедляется ни на одного SSE-клиента
@@ -81,9 +111,20 @@ export const CreateUser = httpEndpoint({
   path: '/api/users',
   input: CreateUserInput,
   output: CreateUserOutput,
-  errors: [EmailTaken],
+  // Отказ соседней фичи объявляется здесь наравне со своими: ре-гидрация
+  // по коду делает его настоящим `Fail`, и множество ответов ручки
+  // остаётся закрытым
+  errors: [EmailTaken, QuotaExceededDefinition],
   bind: { dryRun: query() },
   pipeline: basePipeline,
-  deps: [UserService, ILogger, ActivityHub],
+  deps: [
+    UserService,
+    ILogger,
+    // Вызыватели инжектятся как обычные зависимости: узел появляется
+    // только потому, что его здесь упомянули
+    ClaimQuota.port,
+    UserRegistered.emitter,
+    ActivityHub,
+  ],
   handle: createUserHandler,
 });

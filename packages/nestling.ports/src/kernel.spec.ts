@@ -18,7 +18,7 @@ import {
 } from '@nestling/container';
 import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
-import type { Dispatch, ITransport } from '@nestling/transport';
+import type { Dispatch } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
@@ -151,13 +151,8 @@ async function assemble(options: {
     [BusTransport$ as TransportRef, dispatch],
   ]);
 
-  if (bus) {
-    await (bus as unknown as ITransport).serve(
-      dispatch,
-      new AbortController().signal,
-    );
-  }
-
+  // `bindPorts` — тот же шаг, что делает `App` на WIRE: он и наполняет
+  // держатель, и подписывает шину на её маршруты
   bindPorts(container, dispatches);
 
   return {

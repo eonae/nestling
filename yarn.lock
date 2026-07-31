@@ -5338,6 +5338,7 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/eslint-plugin": "workspace:*"
     "@nestling/pipeline": "workspace:*"
+    "@nestling/ports": "workspace:*"
     "@nestling/streams": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
