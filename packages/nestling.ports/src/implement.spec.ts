@@ -129,6 +129,31 @@ describe('implement', () => {
     ).toThrow(/'request' contract has exactly one owner/);
   });
 
+  it('переносит долговечность контракта в биндинг реализации', () => {
+    const Durable = makeContract({
+      name: 'impl.durable.placed',
+      kind: 'event',
+      durable: true,
+      input: z.object({ id: z.string() }),
+    });
+
+    const declaration = implement(Durable, {
+      subscriber: 'billing',
+      handle: async () => undefined,
+    });
+
+    expect(busBindingOf(declaration)?.durable).toBe(true);
+  });
+
+  it('биндинг недолговечного контракта поля не несёт', () => {
+    const declaration = implement(OrderPlaced, {
+      subscriber: 'audit',
+      handle: async () => undefined,
+    });
+
+    expect('durable' in (busBindingOf(declaration) as object)).toBe(false);
+  });
+
   it('запрещает переобъявление интерфейса контракта', () => {
     expect(() =>
       implement(ChargeCard, {

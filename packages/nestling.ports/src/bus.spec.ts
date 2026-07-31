@@ -381,6 +381,120 @@ describe('InProcessBus', () => {
     await bus.close();
   });
 
+  it('объявляет способности значением: ни remote, ни durable', () => {
+    const bus = new InProcessBus();
+
+    expect(bus.remote).toBe(false);
+    expect(bus.durable).toBe(false);
+  });
+
+  it('провозит контекст конвертом запроса и кладёт его в атрибуты', async () => {
+    const Ask = makeContract({
+      name: 'bus.context.ask',
+      kind: 'request',
+      input: z.object({ id: z.number() }),
+      output: z.object({ ok: z.boolean() }),
+    });
+
+    const seen: Record<string, unknown>[] = [];
+    const payloads: unknown[] = [];
+    const declaration = implement(Ask, {
+      pipeline: makePipeline().pre((ctx) => {
+        seen.push(ctx.raw.attributes);
+        payloads.push(ctx.raw.payload);
+      }),
+      handle: async () => new Ok({ ok: true }),
+    });
+
+    const bus = new InProcessBus();
+    await bus.serve(makeDispatch([declaration]), new AbortController().signal);
+
+    await bus.request(
+      'bus.context.ask',
+      { id: 1 },
+      { context: { tenantId: 'acme' } },
+    );
+
+    expect(seen[0]).toMatchObject({
+      subject: 'bus.context.ask',
+      tenantId: 'acme',
+    });
+    // Провоз конвертом, а не подмешиванием во вход
+    expect(payloads[0]).toEqual({ id: 1 });
+
+    await bus.close();
+  });
+
+  it('провозит контекст конвертом публикации', async () => {
+    const bus = new InProcessBus();
+    const seen: (Record<string, unknown> | undefined)[] = [];
+
+    bus.subscribe('bus.context.note', (_payload, meta) => {
+      seen.push(meta.context);
+    });
+
+    await bus.publish(
+      'bus.context.note',
+      { id: 1 },
+      { context: { tenantId: 'acme' } },
+    );
+    await settle();
+
+    expect(seen).toEqual([{ tenantId: 'acme' }]);
+
+    await bus.close();
+  });
+
+  it('копирует провозимый контекст, как копирует payload', async () => {
+    const bus = new InProcessBus();
+    const seen: (Record<string, unknown> | undefined)[] = [];
+
+    bus.subscribe('bus.context.copy', (_payload, meta) => {
+      seen.push(meta.context);
+    });
+
+    const context = { tags: ['a'] };
+    await bus.publish('bus.context.copy', { id: 1 }, { context });
+    context.tags.push('b');
+    await settle();
+
+    expect(seen).toEqual([{ tags: ['a'] }]);
+
+    await bus.close();
+  });
+
+  it('отвергает несериализуемое провозимое значение', async () => {
+    const bus = new InProcessBus();
+
+    await expect(
+      bus.request(
+        'bus.context.unserializable',
+        { id: 1 },
+        { context: { onDone: (): void => undefined } },
+      ),
+    ).rejects.toThrow(
+      /Propagated context of 'bus.context.unserializable': field 'onDone'/,
+    );
+
+    await bus.close();
+  });
+
+  it('без провозимого контекста атрибуты остаются прежними', async () => {
+    const bus = new InProcessBus();
+    const seen: (Record<string, unknown> | undefined)[] = [];
+
+    bus.subscribe('bus.context.absent', (_payload, meta) => {
+      seen.push(meta.context);
+    });
+
+    await bus.publish('bus.context.absent', { id: 1 });
+    await settle();
+
+    expect(seen).toEqual([undefined]);
+
+    await bus.close();
+  });
+
   it('отвергает потоковую форму существующей проверкой способностей', async () => {
     const Feed = makeContract({
       name: 'bus.serve.feed',

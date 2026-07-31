@@ -70,6 +70,19 @@ export interface Contract<
 
   /** Объявленные отказы — список определений `defineFail` */
   readonly errors?: E;
+
+  /**
+   * Долговечная доставка: факт не должен потеряться, пока подписчик лежит.
+   *
+   * Свойство **операции**, а не подписки и не развёртывания: издатель обязан
+   * дождаться подтверждения записи, подписчик — читать долговечно, а живут
+   * они в разных процессах. Единственное значение, доступное обоим, — сам
+   * контракт, поэтому объявляется он здесь и больше нигде.
+   *
+   * Допустим только у `command`/`event`: у `request` ответа ждёт живой
+   * вызывающий, и переживать нечего.
+   */
+  readonly durable?: boolean;
 }
 
 /** Контракт вида `request`: у него есть `.port` и нет `.emitter` */
@@ -167,6 +180,12 @@ export interface ContractSpec<
    * а не сборку приложения.
    */
   errors?: E;
+
+  /**
+   * Долговечность доставки. Допустима только у `command`/`event`; у
+   * `request` отвергается в момент создания.
+   */
+  durable?: K extends 'request' ? never : boolean;
 }
 
 /** Fail-fast имени: пустое имя не адресует ничего */
@@ -225,6 +244,39 @@ function assertFailDefinitions(
       );
     }
     seen.add(definition.code);
+  }
+}
+
+/**
+ * Fail-fast долговечности: у `request` её не бывает.
+ *
+ * Отвергается в момент объявления, а не на сборке: контракт видят обе
+ * стороны провода, и «долговечный req-reply» — дефект самой декларации, а
+ * не конкретного развёртывания.
+ */
+function assertDurable(
+  durable: unknown,
+  name: string,
+  kind: ContractKind,
+): asserts durable is boolean | undefined {
+  if (durable === undefined) {
+    return;
+  }
+
+  if (typeof durable !== 'boolean') {
+    throw new TypeError(
+      `Contract '${name}': 'durable' must be a boolean, got ` +
+        `${JSON.stringify(durable)}.`,
+    );
+  }
+
+  if (kind === 'request') {
+    throw new Error(
+      `Contract '${name}' (kind 'request'): 'durable' applies only to ` +
+        `'command' and 'event' contracts — a request-reply has a live caller ` +
+        `waiting for the answer, so there is nothing to outlive. Drop the ` +
+        `flag, or make the contract a 'command'.`,
+    );
   }
 }
 
@@ -321,11 +373,12 @@ export function makeContract<
 export function makeContract(
   spec: ContractSpec<any, any, readonly AnyFailDefinition[], ContractKind>,
 ): AnyContract {
-  const { name, kind, input, output, errors } = spec;
+  const { name, kind, input, output, errors, durable } = spec;
 
   assertName(name);
   assertKind(kind, name);
   assertFailDefinitions(errors, name);
+  assertDurable(durable, name, kind);
 
   const value: Record<string, unknown> = { name, kind };
 
@@ -337,6 +390,9 @@ export function makeContract(
   }
   if (errors !== undefined) {
     value.errors = errors;
+  }
+  if (durable !== undefined) {
+    value.durable = durable;
   }
 
   defineInvokers(value, kind);

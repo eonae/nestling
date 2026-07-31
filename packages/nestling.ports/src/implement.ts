@@ -229,6 +229,10 @@ export function implement(
       subject: contract.name,
       kind: contract.kind,
       ...(typeof subscriber === 'string' ? { subscriber } : {}),
+      // Долговечность приезжает из контракта и только из него: у реализации
+      // нет способа её объявить, потому что издатель в другом процессе о
+      // такой декларации не узнал бы и опубликовал бы мимо потока
+      ...(contract.durable === undefined ? {} : { durable: contract.durable }),
     }),
   });
 }

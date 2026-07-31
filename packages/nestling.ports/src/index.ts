@@ -74,7 +74,7 @@ export type {
 } from './families.js';
 export { implement } from './implement.js';
 export type { ImplementDictionary } from './implement.js';
-export { bindPorts, portsKernel } from './kernel.js';
+export { bindPorts, portsKernel, undurableContracts } from './kernel.js';
 export type { PortsKernelOptions } from './kernel.js';
 export {
   Deadline,

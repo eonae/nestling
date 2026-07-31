@@ -75,19 +75,28 @@ export function deadlineFromTimeout(timeoutMs?: number): Date | undefined {
 }
 
 /**
- * Транспортные атрибуты доставленного сообщения: адрес плюс профиль.
+ * Транспортные атрибуты доставленного сообщения: адрес, профиль и
+ * провозимый контекст.
  *
  * Одна процедура на оба пути биндинга — поэтому обработчик видит одни и те
  * же атрибуты независимо от того, где живёт вызывающий. Поля, которых в
  * конверте не было, в атрибутах не появляются: `'deadline' in attributes`
  * означает «бюджет был», а не «ключ есть, значение undefined».
+ *
+ * Провозимые значения ложатся **под своими ключами**, рядом с `subject`:
+ * `Var.propagated()` читает их оттуда тем же способом, что `withDeadline()`
+ * читает бюджет. Ключи профиля кладутся последними и потому сильнее: их
+ * смысл фиксирован ядром, и провозимая переменная с именем `deadline`
+ * подменить бюджет не может.
  */
 export function profileAttributes(meta: {
   readonly subject: string;
   readonly deadline?: Date;
   readonly idempotencyKey?: string;
+  readonly context?: Record<string, unknown>;
 }): Record<string, unknown> {
   return {
+    ...meta.context,
     subject: meta.subject,
     ...(meta.deadline === undefined
       ? {}

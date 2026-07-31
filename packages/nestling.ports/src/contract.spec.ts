@@ -108,6 +108,39 @@ describe('makeContract', () => {
     ).toThrow(/Contract 'spec\.duplicate\.code'.*'CARD_DECLINED'/);
   });
 
+  it('несёт флаг долговечности у события и у команды', () => {
+    const placed = makeContract({
+      name: 'spec.durable.placed',
+      kind: 'event',
+      durable: true,
+    });
+    const charge = makeContract({
+      name: 'spec.durable.charge',
+      kind: 'command',
+      durable: true,
+    });
+
+    expect(placed.durable).toBe(true);
+    expect(charge.durable).toBe(true);
+  });
+
+  it('контракт без флага долговечности его не несёт', () => {
+    const plain = makeContract({ name: 'spec.durable.plain', kind: 'event' });
+
+    expect('durable' in plain).toBe(false);
+  });
+
+  it('отвергает `durable` у request, называя контракт и вид', () => {
+    expect(() =>
+      makeContract({
+        name: 'spec.durable.request',
+        kind: 'request',
+        // JS-потребителя типы не сдерживают: проверка обязана быть в рантайме
+        durable: true as never,
+      }),
+    ).toThrow(/Contract 'spec\.durable\.request' \(kind 'request'\)/);
+  });
+
   it('отвергает второй контракт с занятым именем', () => {
     makeContract({ name: 'spec.taken.name', kind: 'request' });
 

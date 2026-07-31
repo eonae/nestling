@@ -15,7 +15,14 @@ export { runInRequestScope } from './store.js';
 export type {
   AnyContextVar,
   ContextVar,
+  ContextVarDeclarator,
+  ContextVarOptions,
+  PropagatedContextVar,
   ReadonlyContextVar,
 } from './variable.js';
-export { contextVar } from './variable.js';
+export {
+  collectPropagatedContext,
+  contextVar,
+  propagatedKeys,
+} from './variable.js';
 export { RequestId, Signal } from './well-known.js';

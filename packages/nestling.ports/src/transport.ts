@@ -44,6 +44,15 @@ export interface BusBinding {
 
   /** Имя подписчика — есть только у `event`; оно же имя группы доставки */
   readonly subscriber?: string;
+
+  /**
+   * Долговечность доставки, скопированная из контракта.
+   *
+   * Входящий канал признака: транспорт читает его отсюда, решая, чем
+   * обслужить подписку. Слова «JetStream» здесь нет и быть не может —
+   * биндинг остаётся транспортно-нейтральным значением декларации.
+   */
+  readonly durable?: boolean;
 }
 
 /** Строит биндинг реализации, ставя бренд неперечислимым свойством */
@@ -55,6 +64,10 @@ export function makeBusBinding(binding: BusBinding): BusBinding {
 
   if (binding.subscriber !== undefined) {
     value.subscriber = binding.subscriber;
+  }
+
+  if (binding.durable !== undefined) {
+    value.durable = binding.durable;
   }
 
   Object.defineProperty(value, BUS_BINDING, {

@@ -11,6 +11,8 @@ import type { AnyInput, EmptyInput } from '../io/io.js';
 import type { ExtendableContext } from '../types/context.js';
 import type { PreUnitFn } from '../types/unit.js';
 
+import { currentCell } from './store.js';
+
 /**
  * Ключ, зарезервированный под well-known `Signal`.
  *
@@ -34,6 +36,20 @@ export interface ReadonlyContextVar<T, K extends string = string> {
   readonly $type?: T;
 }
 
+/** Словарь опций объявления переменной */
+export interface ContextVarOptions {
+  /**
+   * Переменная провозится через границу порта.
+   *
+   * Свойство **объявления**, а не точки подключения: провозится именно
+   * переменная, и решение об этом обязано быть видно там же, где она
+   * объявлена. Переменная без флага не провозится ни при каких
+   * обстоятельствах — общей протечки ambient-контекста вызывающего в
+   * реализацию не существует, `propagate` есть именованное исключение.
+   */
+  propagate?: boolean;
+}
+
 /**
  * Ambient-переменная: ключ, рантайм-идентичность, тип значения и
  * единственный канонический писатель.
@@ -43,6 +59,8 @@ export interface ReadonlyContextVar<T, K extends string = string> {
  */
 export interface ContextVar<T, K extends string = string>
   extends ReadonlyContextVar<T, K> {
+  /** Провозится ли переменная через границу порта */
+  readonly propagate?: boolean;
   /**
    * Строит **pre-юнит** обычной формы: накопительная типизация, проверка
    * требований и конфликтов — прежняя машинерия пайплайна.
@@ -62,6 +80,32 @@ export interface ContextVar<T, K extends string = string>
   provide<TReq extends AnyInput = EmptyInput>(
     compute: (ctx: ExtendableContext<TReq>) => T | Promise<T>,
   ): PreUnitFn<TReq, Record<K, T>>;
+}
+
+/**
+ * Провозимая переменная: та же переменная плюс **второй** штатный писатель.
+ *
+ * Писателя по-прежнему строит сама переменная, поэтому инвариант «объявлено
+ * и положено — одно действие» держится и на приёмной стороне.
+ */
+export interface PropagatedContextVar<T, K extends string = string>
+  extends ContextVar<T, K> {
+  readonly propagate: true;
+
+  /**
+   * Строит pre-юнит, кладущий в накопленный `input` значение **с провода**
+   * (`ctx.raw.attributes[key]`) вместо вычисленного.
+   *
+   * Значение не валидируется: схемы у ambient-переменной нет, и рантайм её
+   * не изобретает — провоз пересекает границу доверия, и ответственность за
+   * провезённое остаётся на приложении.
+   *
+   * @example
+   * ```typescript
+   * const scoped = makePipeline().pre(TenantId.propagated());
+   * ```
+   */
+  propagated(): PreUnitFn<EmptyInput, Record<K, T>>;
 }
 
 /** Переменная с любым ключом: форма аргумента `Ctx` и предиката `hasVar` */
@@ -118,12 +162,70 @@ function assertKey(key: string): void {
   }
 }
 
+/**
+ * Реестр провозимых переменных — модульное состояние пакета.
+ *
+ * Тот же приём, что реестр контрактов в `@nestling/ports`: множество
+ * провозимого известно из объявлений, а не из конфигурации, и вызывателю
+ * нужно знать его целиком, ничего не инжектя. Ключ, объявленный
+ * провозимым дважды, — одна и та же ячейка `input`, поэтому Map по ключу.
+ */
+const propagatedVars = new Map<string, AnyContextVar>();
+
+/** Ключи провозимых переменных — то, что вызыватель ищет в ячейке запроса */
+export const propagatedKeys = (): readonly string[] => [
+  ...propagatedVars.keys(),
+];
+
+/**
+ * Значения провозимых переменных из ячейки **текущего** запроса.
+ *
+ * То, чем пользуется вызыватель порта: сбор идёт на его стороне, потому что
+ * только там известна ячейка вызывающего. Вне запроса (`@OnStart`, фоновая
+ * задача) ячейки нет — и это легальное состояние: провозить просто нечего.
+ *
+ * @returns Словарь «ключ → значение» или `undefined`, если провозить нечего
+ *
+ * @internal единственный потребитель — вызыватель `@nestling/ports`
+ */
+export function collectPropagatedContext():
+  | Record<string, unknown>
+  | undefined {
+  if (propagatedVars.size === 0) {
+    return undefined;
+  }
+
+  const cell = currentCell();
+  if (!cell) {
+    return undefined;
+  }
+
+  const input = cell.input as Record<string, unknown>;
+  let collected: Record<string, unknown> | undefined;
+
+  for (const key of propagatedVars.keys()) {
+    const value = input[key];
+
+    // Переменная, до которой pre-тракт не дошёл, не провозится: `undefined`
+    // в конверте неотличим от «не было», и класть его незачем
+    if (value === undefined) {
+      continue;
+    }
+
+    collected ??= {};
+    collected[key] = value;
+  }
+
+  return collected;
+}
+
 /** Общий конструктор значения-переменной; `provide` подмешивается отдельно */
 function makeVar<T, K extends string>(
   key: K,
   provide: ContextVar<T, K>['provide'] | (() => never),
+  extra: Record<string, unknown> = {},
 ): ContextVar<T, K> {
-  const variable = { key, provide } as ContextVar<T, K>;
+  const variable = { key, provide, ...extra } as ContextVar<T, K>;
 
   return Object.freeze(variable);
 }
@@ -148,9 +250,7 @@ function makeVar<T, K extends string>(
  *   .pre(RequestId.provide(() => crypto.randomUUID()));
  * ```
  */
-export function contextVar<T>(
-  ...misuse: []
-): <const K extends string>(key: K) => ContextVar<T, K> {
+export function contextVar<T>(...misuse: []): ContextVarDeclarator<T> {
   if (misuse.length > 0) {
     throw new TypeError(
       `contextVar<T>() takes no arguments: declare a variable as ` +
@@ -159,28 +259,91 @@ export function contextVar<T>(
     );
   }
 
-  return <const K extends string>(key: K): ContextVar<T, K> => {
+  return (<const K extends string>(
+    key: K,
+    options: ContextVarOptions = {},
+  ): ContextVar<T, K> => {
     assertKey(key);
 
-    const variable: ContextVar<T, K> = makeVar<T, K>(key, ((
-      compute: (ctx: ExtendableContext<AnyInput>) => unknown,
-    ) => {
-      const unit = async (
-        ctx: ExtendableContext<AnyInput>,
-      ): Promise<Record<string, unknown>> => ({ [key]: await compute(ctx) });
+    const propagate = options.propagate === true;
 
+    /** Ставит пометку переменной на юнит-писатель — любой из двух */
+    const mark = (
+      unit: (ctx: ExtendableContext<AnyInput>) => unknown,
+      variable: ContextVar<T, K>,
+    ): typeof unit => {
       // Пометка — на значении юнита: декларация переменной и факт её
-      // добавления рождаются одним действием и разойтись не могут
+      // добавления рождаются одним действием и разойтись не могут.
+      // Одна и та же у `provide` и у `propagated`, поэтому `hasVar`
+      // засчитывает обоих: способ получить значение политику не интересует
       Object.defineProperty(unit, DECLARED_VAR, {
         value: variable,
         enumerable: false,
       });
 
       return unit;
-    }) as ContextVar<T, K>['provide']);
+    };
+
+    const provide = ((compute: (ctx: ExtendableContext<AnyInput>) => unknown) =>
+      mark(
+        async (ctx: ExtendableContext<AnyInput>) => ({
+          [key]: await compute(ctx),
+        }),
+        variable,
+      )) as ContextVar<T, K>['provide'];
+
+    const propagated = (): unknown => {
+      if (!propagate) {
+        throw new TypeError(
+          `Context variable '${key}' is not propagated: declare it as ` +
+            `contextVar<T>()('${key}', { propagate: true }) to let port ` +
+            `invokers carry it across the boundary. Without the flag nothing ` +
+            `arrives on the wire, so there would be nothing for this writer ` +
+            `to read.`,
+        );
+      }
+
+      return mark(
+        (ctx: ExtendableContext<AnyInput>) => ({
+          // Значение не валидируется: схемы у переменной нет, и рантайм её
+          // не изобретает — см. capability `context-propagation`
+          [key]: ctx.raw.attributes[key],
+        }),
+        variable,
+      );
+    };
+
+    const variable: ContextVar<T, K> = makeVar<T, K>(key, provide, {
+      propagated,
+      ...(propagate ? { propagate: true } : {}),
+    });
+
+    if (propagate) {
+      propagatedVars.set(key, variable as AnyContextVar);
+    }
 
     return variable;
-  };
+  }) as ContextVarDeclarator<T>;
+}
+
+/**
+ * Объявитель переменной: две перегрузки, различающиеся ровно флагом.
+ *
+ * Отдельный тип, потому что `propagated()` обязан отсутствовать **в типе**
+ * непровозимой переменной: у неё этого писателя нет, и это должно быть
+ * ошибкой компиляции, а не отказом в рантайме (рантайм-отказ остаётся для
+ * JS-потребителей).
+ */
+export interface ContextVarDeclarator<T> {
+  <const K extends string>(
+    key: K,
+    options: ContextVarOptions & { propagate: true },
+  ): PropagatedContextVar<T, K>;
+
+  <const K extends string>(
+    key: K,
+    options?: ContextVarOptions,
+  ): ContextVar<T, K>;
 }
 
 /**
@@ -192,13 +355,18 @@ export function contextVar<T>(
 export function readonlyContextVar<T, K extends string>(
   key: K,
 ): ReadonlyContextVar<T, K> {
-  const variable = makeVar<T, K>(key, () => {
+  const readOnly = (): never => {
     throw new TypeError(
       `Context variable '${key}' is read-only: its value comes from the ` +
         `request runtime, not from the accumulated input, so there is nothing ` +
         `for a pre-unit to provide.`,
     );
-  });
+  };
+
+  // Провозимой read-only переменная быть не может по той же причине, по
+  // которой у неё нет писателя: её значение поставляет рантайм запроса
+  // получателя, и привезённое с провода ему не замена
+  const variable = makeVar<T, K>(key, readOnly, { propagated: readOnly });
 
   return variable as ReadonlyContextVar<T, K>;
 }

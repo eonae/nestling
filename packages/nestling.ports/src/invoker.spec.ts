@@ -21,7 +21,14 @@ import { PortRuntime } from './runtime.js';
 // `jest` в ESM-режиме — нет
 import { jest } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
-import { defineFail, Fail, isFail, makePipeline, Ok } from '@nestling/pipeline';
+import {
+  contextVar,
+  defineFail,
+  Fail,
+  isFail,
+  makePipeline,
+  Ok,
+} from '@nestling/pipeline';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
@@ -492,6 +499,132 @@ function metaDictionaryTypeTests(
   // @ts-expect-error: `500` неразличимо читается как epoch и как «через 500 мс»
   void request.call({ amount: 1 }, { deadline: 500 });
 }
+
+/**
+ * Провоз ambient-контекста: внешняя ручка кладёт переменные в свой input,
+ * её обработчик зовёт внутренний порт, а внутренняя реализация смотрит,
+ * что доехало.
+ *
+ * Цепочка настоящая, а не смоделированная: единственный способ получить
+ * ячейку запроса у вызывающего — исполнить его через `dispatch`.
+ */
+const TenantId = contextVar<string>()('tenantId', { propagate: true });
+const TraceId = contextVar<string>()('traceId');
+
+const Inner = makeContract({
+  name: 'invoker.propagate.inner',
+  kind: 'request',
+  input: z.object({ id: z.string() }),
+  output: z.object({ ok: z.boolean() }),
+});
+
+let innerAttributes: Record<string, unknown> = {};
+let innerPayload: unknown;
+
+const InnerImpl = implement(Inner, {
+  pipeline: makePipeline().pre((ctx) => {
+    innerAttributes = ctx.raw.attributes;
+    innerPayload = ctx.raw.payload;
+  }),
+  handle: async () => new Ok({ ok: true }),
+});
+
+const Outer = makeContract({
+  name: 'invoker.propagate.outer',
+  kind: 'request',
+  input: z.object({ id: z.string() }),
+  output: z.object({ ok: z.boolean() }),
+});
+
+let innerPort: Port<any> | undefined;
+let innerResult: unknown;
+let tenantValue: unknown = 'acme';
+
+const OuterImpl = implement(Outer, {
+  pipeline: makePipeline()
+    .pre(TenantId.provide(() => tenantValue as string))
+    .pre(TraceId.provide(() => 'trace-1')),
+  handle: async () => {
+    innerResult = await innerPort?.call({ id: 'x' });
+
+    return new Ok({ ok: true });
+  },
+});
+
+describe.each([
+  [
+    'local',
+    (h: Harness) =>
+      makeLocalPort({
+        contract: Inner,
+        runtime: h.runtime,
+        patterns: [InnerImpl.pattern],
+      }) as Port<any>,
+  ],
+  [
+    'remote',
+    (h: Harness) =>
+      makeRemotePort({
+        contract: Inner,
+        runtime: h.runtime,
+        patterns: [InnerImpl.pattern],
+      }) as Port<any>,
+  ],
+])('%s port — провоз контекста', (_name, build) => {
+  let harnessed: Harness;
+  let outer: Port<any>;
+
+  beforeEach(async () => {
+    innerAttributes = {};
+    innerPayload = undefined;
+    innerResult = undefined;
+    tenantValue = 'acme';
+    harnessed = await harness([InnerImpl, OuterImpl]);
+    innerPort = build(harnessed);
+    outer = makeLocalPort({
+      contract: Outer,
+      runtime: harnessed.runtime,
+      patterns: [OuterImpl.pattern],
+    }) as Port<any>;
+  });
+
+  afterEach(async () => {
+    innerPort = undefined;
+    await harnessed.close();
+  });
+
+  it('провозит объявленную переменную и не провозит остальные', async () => {
+    expect(await outer.call({ id: 'o-1' })).toBeInstanceOf(Ok);
+
+    expect(innerAttributes.tenantId).toBe('acme');
+    expect(innerAttributes.traceId).toBeUndefined();
+  });
+
+  it('не подмешивает провозимое во вход контракта', async () => {
+    await outer.call({ id: 'o-1' });
+
+    expect(innerPayload).toEqual({ id: 'x' });
+  });
+
+  it('вызов вне запроса проходит, провозить просто нечего', async () => {
+    expect(await innerPort?.call({ id: 'y' })).toBeInstanceOf(Ok);
+    expect(innerAttributes.tenantId).toBeUndefined();
+  });
+
+  it('несериализуемое провозимое значение отвергает вызов, называя переменную', async () => {
+    tenantValue = (): void => undefined;
+
+    await outer.call({ id: 'o-1' });
+
+    // Вызов внутреннего не состоялся, а вызывающий получил отказ, в тексте
+    // которого названа переменная — тот же приём, что у payload'а
+    expect(innerAttributes.tenantId).toBeUndefined();
+    expect(isFail(innerResult)).toBe(true);
+    expect(JSON.stringify(innerResult)).toContain(
+      "propagated context variable 'tenantId'",
+    );
+  });
+});
 
 describe('несвязанный рантайм', () => {
   it('вызов до фазы WIRE — ошибка с именем контракта и фазой', async () => {

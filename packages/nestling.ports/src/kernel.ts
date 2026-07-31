@@ -28,7 +28,8 @@ import { lookupContract } from './registry.js';
 import type { PortFailureInfo } from './runtime.js';
 import { PortRuntime } from './runtime.js';
 import type { ContractTopology } from './topology.js';
-import { BusTransport$ } from './transport.js';
+import type { BusBindingBearer } from './transport.js';
+import { busBindingOf, BusTransport$ } from './transport.js';
 
 import type {
   BuiltContainer,
@@ -94,6 +95,16 @@ export interface PortsKernelOptions {
   /** Опции in-proc шины */
   bus?: InProcessBusOptions;
 
+  /**
+   * Корень поставил транспорт шины сам (`nats()` в `transports:`).
+   *
+   * Тогда kernel-модуль свою реализацию **не** регистрирует: шина в
+   * приложении ровно одна, и брокер не «добавляется» к in-proc шине, а
+   * является ею. Признак выводится корнем из состава `transports:` — сам
+   * kernel-модуль о словаре сборки не знает.
+   */
+  rootSuppliesBus?: boolean;
+
   /** Диагностический хук вызывателей */
   onPortFailure?: (info: PortFailureInfo) => void;
 }
@@ -124,34 +135,75 @@ function patternsOf(topology: ContractTopology, name: string): string[] {
  * Fail-fast недостижимого контракта.
  *
  * Вызов, который заведомо некому обслужить, — ошибка **компоновки**, а не
- * рантайма: в V1 remote-биндинга не существует (единственная шина
- * in-proc), поэтому отсутствие co-located реализации у `request`/`command`
- * означает, что фича собрана без своего соседа.
+ * рантайма. «Заведомо» держится на двух условиях сразу: co-located
+ * реализации нет **и** шина не доставляет за пределы процесса. При
+ * remote-шине «владельца не выбрали здесь» перестаёт означать «владельца
+ * нет»: он живёт в другом процессе, и его недоступность в рантайме —
+ * обычный отказ доставки, а не ошибка сборки. Проверять состав кластера на
+ * сборке модель не станет: это service discovery, которого она избегает.
  */
 function assertReachable(
   contract: AnyContract,
   patterns: readonly string[],
   invoker: 'port' | 'emitter',
+  remote: boolean,
 ): void {
-  if (patterns.length > 0 || contract.kind === 'event') {
+  if (patterns.length > 0 || contract.kind === 'event' || remote) {
     return;
   }
 
   throw new Error(
     `Contract '${contract.name}' (kind '${contract.kind}') is injected as ` +
-      `'.${invoker}', but no selected module implements it: there is nothing ` +
-      `to call. Declare the implementation with ` +
-      `implement(${contract.name}, { … }) in 'endpoints:' of a module, or ` +
-      `check that the feature owning it is part of 'select'.`,
+      `'.${invoker}', but no selected module implements it and the bus of ` +
+      `this application does not deliver outside the process: there is ` +
+      `nothing to call. Either declare the implementation with ` +
+      `implement(${contract.name}, { … }) in 'endpoints:' of a module (check ` +
+      `that the feature owning it is part of 'select'), or register a remote ` +
+      `bus transport (for example nats()) if the owner lives in another ` +
+      `process.`,
   );
 }
 
-/** Строит вызыватель `request`-контракта по топологии и политике */
+/**
+ * Три входа биндинга — топология, природа шины и политика — сведённые в
+ * один вопрос: уходит вызов через шину или через `dispatch`.
+ *
+ * Порядок условий и есть правило:
+ *
+ * 1. **`event` при remote-шине — всегда через шину.** Множество подписчиков
+ *    события открыто, часть их живёт в других процессах, и локальный
+ *    dispatch доставил бы только своим, молча потеряв остальных. Co-located
+ *    подписчик при этом не остаётся без сообщения и не получает двух: он
+ *    подписан на свой же subject у брокера, и публикация возвращается ему
+ *    обычной доставкой, ровно одной копией на группу.
+ * 2. **Нет co-located реализации при remote-шине — через шину.** До сюда
+ *    доходят только те, кого пропустил `assertReachable`.
+ * 3. **Иначе решает политика** — ровно как до появления второй стороны
+ *    провода: `always-remote` на in-proc шине остаётся репетицией split'а.
+ */
+function bindsRemote(
+  contract: AnyContract,
+  patterns: readonly string[],
+  policy: DispatchPolicy,
+  remote: boolean,
+): boolean {
+  if (remote && (contract.kind === 'event' || patterns.length === 0)) {
+    return true;
+  }
+
+  return policy === 'always-remote';
+}
+
+/** Природа шины как вход биндинга: её нет — значит и remote-доставки нет */
+const isRemote = (bus?: IMessageBus): boolean => bus?.remote === true;
+
+/** Строит вызыватель `request`-контракта по топологии, шине и политике */
 function buildPort(
   name: string,
   topology: ContractTopology,
   runtime: PortRuntime,
   policy: DispatchPolicy,
+  remote: boolean,
 ): Port<any> {
   const contract = requireContract(name);
 
@@ -163,23 +215,24 @@ function buildPort(
   }
 
   const patterns = patternsOf(topology, name);
-  assertReachable(contract, patterns, 'port');
+  assertReachable(contract, patterns, 'port', remote);
 
   const context: InvokerContext = { contract, runtime, patterns };
 
   // Решение принимается один раз — здесь, при инстанцировании узла — и
   // замыкается в константу: на вызове выбора уже не происходит
-  return policy === 'always-remote'
+  return bindsRemote(contract, patterns, policy, remote)
     ? makeRemotePort(context)
     : makeLocalPort(context);
 }
 
-/** Строит эмиттер `command`/`event`-контракта по топологии и политике */
+/** Строит эмиттер `command`/`event`-контракта по топологии, шине и политике */
 function buildEmitter(
   name: string,
   topology: ContractTopology,
   runtime: PortRuntime,
   policy: DispatchPolicy,
+  remote: boolean,
 ): Emitter<any> {
   const contract = requireContract(name);
 
@@ -191,11 +244,11 @@ function buildEmitter(
   }
 
   const patterns = patternsOf(topology, name);
-  assertReachable(contract, patterns, 'emitter');
+  assertReachable(contract, patterns, 'emitter', remote);
 
   const context: InvokerContext = { contract, runtime, patterns };
 
-  return policy === 'always-remote'
+  return bindsRemote(contract, patterns, policy, remote)
     ? makeRemoteEmitter(context)
     : makeLocalEmitter(context);
 }
@@ -213,6 +266,24 @@ function buildEmitter(
 export const portsKernel = (options: PortsKernelOptions = {}): Module => {
   const topology: ContractTopology = options.implementations ?? new Map();
 
+  // Шина в графе есть, если её поставил корень **или** если есть что
+  // обслуживать. Приложение без реализаций и без корневой шины не платит за
+  // порты ни одним узлом графа — как и прежде
+  const rootSuppliesBus = options.rootSuppliesBus === true;
+  const busInGraph = rootSuppliesBus || topology.size > 0;
+
+  /**
+   * Зависимости рецепта вызывателя.
+   *
+   * Шина в них появляется только когда она в графе есть: природа шины —
+   * третий вход биндинга, и читать его нужно значением
+   * (`IMessageBus.remote`), а не проверкой класса. Шины нет — читать нечего,
+   * и биндинг остаётся тем же, каким был до второй стороны провода.
+   */
+  const invokerDeps = busInGraph
+    ? [PortRuntimeToken, NestlingPortsConfig, MessageBus$]
+    : [PortRuntimeToken, NestlingPortsConfig];
+
   const providers: ModuleProvider[] = [
     factoryProvider(
       PortRuntimeToken,
@@ -221,15 +292,22 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
     ),
     familyProvider(PortFamily, (name) => ({
       provide: PortFamily(name),
-      useFactory: (runtime: PortRuntime, config: PortsConfig) =>
-        buildPort(name, topology, runtime, config.dispatch),
-      deps: [PortRuntimeToken, NestlingPortsConfig],
+      useFactory: (
+        runtime: PortRuntime,
+        config: PortsConfig,
+        bus?: IMessageBus,
+      ) => buildPort(name, topology, runtime, config.dispatch, isRemote(bus)),
+      deps: invokerDeps,
     })),
     familyProvider(EmitterFamily, (name) => ({
       provide: EmitterFamily(name),
-      useFactory: (runtime: PortRuntime, config: PortsConfig) =>
-        buildEmitter(name, topology, runtime, config.dispatch),
-      deps: [PortRuntimeToken, NestlingPortsConfig],
+      useFactory: (
+        runtime: PortRuntime,
+        config: PortsConfig,
+        bus?: IMessageBus,
+      ) =>
+        buildEmitter(name, topology, runtime, config.dispatch, isRemote(bus)),
+      deps: invokerDeps,
     })),
   ];
 
@@ -248,15 +326,23 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
     providers.push(factoryProvider(PortAnchorToken, () => ({}), anchored));
   }
 
-  // Шина заводится только там, где есть что обслуживать: приложение без
-  // реализаций контрактов не платит за порты ни одним узлом графа
-  if (topology.size > 0) {
+  if (busInGraph) {
+    // Транспорт шины — первичный узел, `MessageBus$` — алиас его инстанса.
+    // Направление именно такое, потому что поставщик может быть не один:
+    // корень вправе зарегистрировать под этим токеном брокера, и тогда
+    // in-proc реализации в графе нет вовсе. Шина в приложении одна, и оба
+    // токена дают один и тот же инстанс независимо от того, кто его поставил
+    if (!rootSuppliesBus) {
+      providers.push(
+        factoryProvider(BusTransport$, () => new InProcessBus(options.bus), []),
+      );
+    }
+
     providers.push(
-      factoryProvider(MessageBus$, () => new InProcessBus(options.bus), []),
       factoryProvider(
-        BusTransport$,
-        (bus: IMessageBus) => bus as unknown as ITransport,
-        [MessageBus$],
+        MessageBus$,
+        (transport: ITransport) => transport as unknown as IMessageBus,
+        [BusTransport$],
       ),
     );
   }
@@ -317,4 +403,43 @@ export function bindPorts(
     ...(dispatch === undefined ? {} : { dispatch }),
     ...(bus === null ? {} : { bus }),
   });
+}
+
+/**
+ * Контракты, которые эта сборка обслуживает **недолговечно**.
+ *
+ * Долговечность объявлена контрактом, а способность — шиной; их расхождение
+ * не роняет сборку (иначе локальный запуск `--features=all` без брокера был
+ * бы невозможен), но обязано быть видимым. Возврат — значение, а не печать:
+ * тест читает состав, а не парсит stdout, — тот же приём, что у отчёта
+ * `check()`.
+ *
+ * Пустой список означает одно из трёх: долговечных контрактов нет, шина
+ * долговечность умеет, или шины в графе нет вовсе.
+ *
+ * @param container - Собранный контейнер приложения
+ * @param declarations - Обнаруженные декларации (носители биндинга)
+ * @returns Имена контрактов по алфавиту, без повторов
+ */
+export function undurableContracts(
+  container: BuiltContainer,
+  declarations: readonly BusBindingBearer[],
+): readonly string[] {
+  const bus = container.get(MessageBus$);
+
+  if (!bus || bus.durable) {
+    return [];
+  }
+
+  const subjects = new Set<string>();
+
+  for (const declaration of declarations) {
+    const binding = busBindingOf(declaration);
+
+    if (binding?.durable) {
+      subjects.add(binding.subject);
+    }
+  }
+
+  return [...subjects].sort();
 }

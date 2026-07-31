@@ -40,9 +40,11 @@ import type { ContractDescriptor } from '@nestling/ports';
 import {
   bindPorts,
   busBindingOf,
+  BusTransport$,
   collectImplementations,
   describeContract,
   portsKernel,
+  undurableContracts,
 } from '@nestling/ports';
 import type {
   Dispatch,
@@ -408,6 +410,12 @@ export class App {
         requested: discovery.endpoints.flatMap(
           ({ endpoint }) => endpoint.deps ?? [],
         ),
+        // Транспорт шины в `transports:` корня — единственный вход ветки
+        // «шину поставил корень»: так подключается брокер, и in-proc
+        // реализация тогда не регистрируется вовсе
+        rootSuppliesBus: this.#plan.transportTokens.includes(
+          BusTransport$ as TransportRef,
+        ),
       }),
     );
 
@@ -684,6 +692,26 @@ export class App {
       `[nestling] features: ${features.join(', ') || '(none)'}; ` +
         `transports: ${transports.join(', ') || '(none)'}`,
     );
+
+    // Деградация долговечности — рядом с составом и по тем же основаниям,
+    // что список detached-ручек: расхождение объявленного с обслуживаемым
+    // обязано быть поверхностью для аудита, а не тихим «как-нибудь
+    // доставится»
+    const undurable = this.#container
+      ? undurableContracts(
+          this.#container,
+          discovery.endpoints.map(({ endpoint }) => endpoint),
+        )
+      : [];
+
+    if (undurable.length > 0) {
+      console.log(
+        `[nestling] durable delivery is not available on this bus: ` +
+          `${undurable.join(', ')} — served without persistence. Register a ` +
+          `bus transport that supports it (for example nats()) to make the ` +
+          `guarantee real.`,
+      );
+    }
 
     for (const { endpoint } of discovery.endpoints) {
       if (endpoint.detached === undefined) {

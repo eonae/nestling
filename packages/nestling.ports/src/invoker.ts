@@ -37,6 +37,7 @@ import type {
   ResponseContext,
 } from '@nestling/pipeline';
 import {
+  collectPropagatedContext,
   DeadlineExceeded,
   describeForm,
   makeEmptyContext,
@@ -53,6 +54,42 @@ const ABORTED = Symbol('nestling:port-aborted');
 interface CallProfile {
   readonly deadline?: Date;
   readonly idempotencyKey?: string;
+  readonly context?: Record<string, unknown>;
+}
+
+/**
+ * Провозимые значения из ячейки текущего запроса.
+ *
+ * Собираются **вызывателем**, потому что только здесь известна ячейка
+ * вызывающего; едут конвертом, а не payload'ом. Сериализуемость
+ * проверяется на **обоих** путях биндинга: иначе `local-first` пропускал бы
+ * то, на чём `always-remote` падает, и разъезд фич по процессам менял бы
+ * поведение — ровно то, чего порт не допускает.
+ *
+ * @throws {WireCopyError} Значение, не переживающее провод; текст называет
+ * переменную
+ */
+function propagatedContext(): Record<string, unknown> | undefined {
+  const context = collectPropagatedContext();
+
+  if (context === undefined) {
+    return undefined;
+  }
+
+  for (const [key, value] of Object.entries(context)) {
+    try {
+      structuredClone(value);
+    } catch (error) {
+      throw new WireCopyError(
+        `propagated context variable '${key}' cannot be structurally ` +
+          `cloned, so it would not survive the wire. Propagated values must ` +
+          `be plain data.`,
+        { cause: error },
+      );
+    }
+  }
+
+  return context;
 }
 
 /** Что известно вызывателю о своём контракте и биндинге */
@@ -316,6 +353,17 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
         return DeadlineExceeded() as never;
       }
 
+      // Сбор — до `startBudget`: несериализуемое провозимое значение это
+      // дефект вызывающего, и таймер под него заводить незачем
+      let context: Record<string, unknown> | undefined;
+      try {
+        context = propagatedContext();
+      } catch (error) {
+        return validationFail(
+          `Contract '${contract.name}': ${(error as Error).message}`,
+        ) as never;
+      }
+
       const dispatch = runtime.requireDispatch(contract.name);
       const budget = startBudget(meta?.deadline, meta?.signal);
       const [pattern] = patterns;
@@ -327,6 +375,7 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
         budget.signal,
         {
           deadline: meta?.deadline,
+          ...(context === undefined ? {} : { context }),
         },
       );
 
@@ -409,6 +458,8 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
 
       let response: ResponseContext | typeof ABORTED;
       try {
+        const context = propagatedContext();
+
         response = await raceAbort(
           // По проводу едет **остаток**, а не момент: получатель превратит
           // его обратно в момент по своим часам, и рассинхрон часов между
@@ -416,13 +467,15 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
           bus.request(contract.name, input.value, {
             signal: budget.signal,
             timeoutMs,
+            ...(context === undefined ? {} : { context }),
           }),
           budget.signal,
         );
       } catch (error) {
-        // Единственная ошибка этого пути, за которую отвечает вызывающий, —
-        // payload, не переживающий провод: она возвращается отказом
-        // валидации с текстом, называющим контракт и поле
+        // Единственные ошибки этого пути, за которые отвечает вызывающий, —
+        // payload и провозимое значение, не переживающие провод: обе
+        // возвращаются отказом валидации с текстом, называющим контракт и
+        // поле (переменную)
         if (error instanceof WireCopyError) {
           return validationFail(
             `Contract '${contract.name}': ${error.message}`,
@@ -477,9 +530,11 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
       }
 
       const dispatch = runtime.requireDispatch(contract.name);
+      const context = requirePropagatable(contract);
       const profile: CallProfile = {
         deadline: meta?.deadline,
         idempotencyKey: idempotencyKeyOf(contract, meta),
+        ...(context === undefined ? {} : { context }),
       };
 
       for (const pattern of patterns) {
@@ -523,6 +578,7 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
       const input = requireValidPayload(contract, payload);
       requireLiveBudget(meta);
 
+      const context = requirePropagatable(contract);
       const bus = runtime.optionalBus(contract.name);
 
       if (!bus) {
@@ -534,6 +590,12 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
       await bus.publish(contract.name, input, {
         timeoutMs: remainingMs(meta?.deadline),
         idempotencyKey: idempotencyKeyOf(contract, meta),
+        ...(context === undefined ? {} : { context }),
+        // Долговечность приезжает из контракта: обе стороны знают о ней из
+        // одного значения, и вызыватель лишь кладёт признак в конверт
+        ...(contract.durable === undefined
+          ? {}
+          : { durable: contract.durable }),
       });
     },
   };
@@ -561,6 +623,24 @@ function idempotencyKeyOf(
   }
 
   return meta?.idempotencyKey ?? crypto.randomUUID();
+}
+
+/**
+ * Собирает провозимый контекст для `emit`, бросая отказ.
+ *
+ * У `emit` нет канала результата, поэтому непровозимое значение —
+ * исключение, а не тихая недоставка: это дефект вызывающего кода.
+ */
+function requirePropagatable(
+  contract: AnyContract,
+): Record<string, unknown> | undefined {
+  try {
+    return propagatedContext();
+  } catch (error) {
+    throw validationFail(
+      `Contract '${contract.name}': ${(error as Error).message}`,
+    );
+  }
 }
 
 /**

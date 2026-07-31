@@ -57,6 +57,14 @@ export interface BusMessageMeta {
 
   /** Ключ идемпотентности доставленной команды */
   readonly idempotencyKey?: string;
+
+  /**
+   * Провозимый контекст: значения ambient-переменных, объявленных
+   * `{ propagate: true }`, собранные вызывателем из ячейки его запроса.
+   *
+   * Часть конверта, а не payload'а: вход контракта провоз не трогает.
+   */
+  readonly context?: Record<string, unknown>;
 }
 
 /**
@@ -100,6 +108,13 @@ export interface RequestOptions {
    * рассинхрон часов между процессами на семантику бюджета не влияет.
    */
   timeoutMs?: number;
+
+  /**
+   * Провозимый контекст: значения переменных, объявленных
+   * `{ propagate: true }`. Едет конвертом, а не payload'ом, — вход
+   * контракта провоз не подмешивает.
+   */
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -113,6 +128,20 @@ export interface PublishOptions {
 
   /** Ключ идемпотентности команды: провозится, но не дедуплицируется */
   idempotencyKey?: string;
+
+  /** Провозимый контекст (см. `RequestOptions.context`) */
+  context?: Record<string, unknown>;
+
+  /**
+   * Долговечная доставка: сообщение обязано пережить простой подписчика.
+   *
+   * Признак приезжает из контракта — долговечность есть свойство операции,
+   * известное обеим сторонам. Слово «JetStream» здесь не появляется: как
+   * обслужить признак, решает транспорт, а шина без такой способности
+   * (`durable === false`) обслуживает контракт недолговечно и говорит об
+   * этом строкой на go-live.
+   */
+  durable?: boolean;
 }
 
 /** Хэндл подписки: единственное, что с ней можно сделать, — снять */
@@ -133,6 +162,25 @@ export interface BusSubscription {
  * провод потребовал бы менять этот интерфейс, то есть LCD оказался бы не LCD.
  */
 export interface IMessageBus {
+  /**
+   * Доставляет ли шина **за пределы процесса**.
+   *
+   * Объявляется значением, а не выводится из типа реализации: это вход
+   * биндинга вызывателей, и `instanceof InProcessBus` там был бы
+   * зависимостью ядра от конкретной реализации. Транспорт знает о себе то,
+   * чего не знает композиция, — поэтому признак принадлежит ему.
+   */
+  readonly remote: boolean;
+
+  /**
+   * Умеет ли шина долговечную доставку (`PublishOptions.durable`).
+   *
+   * Тоже значение: приложение с долговечными контрактами на шине без этой
+   * способности стартует — иначе локальный запуск без брокера был бы
+   * невозможен, — но деградация печатается строкой на go-live.
+   */
+  readonly durable: boolean;
+
   /** Req-reply: ответ приходит от единственного получателя */
   request(
     subject: string,
@@ -179,6 +227,22 @@ const BUS_CAPABILITIES: TransportCapabilities = {
   output: new Set<FormKind>(['value']),
 };
 
+/**
+ * Копия провозимого контекста — той же процедурой, что payload.
+ *
+ * Тема это репетиция провода, и контекст пересекает её ровно так же, как
+ * пересёк бы NATS: значение, не переживающее копирование, отвергает вызов
+ * здесь, а не приезжает получателю ссылкой на объект вызывающего.
+ */
+function copyContext(
+  subject: string,
+  context: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  return context === undefined
+    ? undefined
+    : structuralCopy(context, `Propagated context of '${subject}'`);
+}
+
 /** Одна подписка: обработчик и группа доставки, к которой он принадлежит */
 interface Entry {
   readonly handler: BusHandler;
@@ -196,6 +260,7 @@ interface Envelope {
   readonly payload: unknown;
   readonly timeoutMs?: number;
   readonly idempotencyKey?: string;
+  readonly context?: Record<string, unknown>;
 }
 
 /**
@@ -275,6 +340,20 @@ class SubjectHub {
 export class InProcessBus implements IMessageBus, ITransport {
   /** Способности транспорта: читает `assertFormsSupported` на сборке */
   readonly capabilities: TransportCapabilities = BUS_CAPABILITIES;
+
+  /**
+   * Доставки за пределы процесса у неё нет по построению: тема живёт в
+   * куче этого процесса. Отсюда fail-fast недостижимого контракта на
+   * сборке — «владельца не выбрали здесь» здесь и означает «владельца нет».
+   */
+  readonly remote: boolean = false;
+
+  /**
+   * Долговечности тоже нет: без внешнего брокера персистентности негде
+   * жить, а изобретать её (файл, sqlite, ретраи в памяти) значило бы
+   * обещать переживание падения процесса, которого нет.
+   */
+  readonly durable: boolean = false;
 
   readonly #hubs = new Map<string, SubjectHub>();
 
@@ -381,6 +460,7 @@ export class InProcessBus implements IMessageBus, ITransport {
     options: RequestOptions = {},
   ): Promise<ResponseContext> {
     const wire = structuralCopy(payload, `Request to '${subject}'`);
+    const context = copyContext(subject, options.context);
 
     // Барьер: получатель не начинает работу внутри синхронной части вызова
     await Promise.resolve();
@@ -403,7 +483,12 @@ export class InProcessBus implements IMessageBus, ITransport {
     // получателя. Точка приёма у req-reply одна, и она здесь
     const deadline = deadlineFromTimeout(options.timeoutMs);
 
-    const response = await entry.handler(wire, { subject, signal, deadline });
+    const response = await entry.handler(wire, {
+      subject,
+      signal,
+      deadline,
+      ...(context === undefined ? {} : { context }),
+    });
 
     if (!response) {
       return this.#undeliverable(subject, 'the subscriber returned no reply');
@@ -425,15 +510,20 @@ export class InProcessBus implements IMessageBus, ITransport {
     options: PublishOptions = {},
   ): Promise<void> {
     const wire = structuralCopy(payload, `Message to '${subject}'`);
+    const context = copyContext(subject, options.context);
 
     if (this.#closed || this.#signal.aborted) {
       return;
     }
 
+    // `options.durable` здесь читать нечем: долговечности у in-proc шины
+    // нет, и признак сознательно игнорируется — вместо тихого «как-нибудь
+    // доставится» приложение печатает строку деградации на go-live
     this.#hubs.get(subject)?.topic.push({
       payload: wire,
       timeoutMs: options.timeoutMs,
       idempotencyKey: options.idempotencyKey,
+      context,
     });
   }
 
@@ -509,6 +599,9 @@ export class InProcessBus implements IMessageBus, ITransport {
           // съедает бюджет ровно так же, как съел бы транзит по проводу
           deadline: deadlineFromTimeout(envelope.timeoutMs),
           idempotencyKey: envelope.idempotencyKey,
+          ...(envelope.context === undefined
+            ? {}
+            : { context: envelope.context }),
         });
       } catch (error) {
         this.#report(hub.subject, error);

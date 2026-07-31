@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-empty-function --
+ * noop-заглушка `console.log`: тест смотрит на состав напечатанного, а не
+ * на сам вывод. */
 /* eslint-disable unicorn/no-useless-undefined --
  * Реализация контракта без `output` возвращает `undefined` явно: так
  * записан контракт хендлера в ядре (`Output<undefined>`). */
@@ -11,7 +14,7 @@ import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 import { makeAppModule } from './module';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { objectSource } from '@nestling/config';
 import {
   Injectable,
@@ -23,7 +26,13 @@ import {
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import { makeEmptyContext, Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
-import { implement, makeContract, portsConfigKeys } from '@nestling/ports';
+import {
+  BusTransport$,
+  implement,
+  InProcessBus,
+  makeContract,
+  portsConfigKeys,
+} from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -134,6 +143,39 @@ const LonelyFeature = makeFeature({
     }),
   ],
 });
+
+/** Долговечное событие: на in-proc шине оно обслуживается недолговечно */
+const DurablePlaced = makeContract({
+  name: 'app.durable.placed',
+  kind: 'event',
+  durable: true,
+  input: z.object({ orderId: z.string() }),
+});
+
+const DurableFeature = makeFeature({
+  name: 'durable',
+  modules: [
+    makeAppModule({
+      name: 'module:durable',
+      endpoints: [
+        implement(DurablePlaced, {
+          subscriber: 'archive',
+          handle: async () => undefined,
+        }),
+      ],
+    }),
+  ],
+});
+
+/**
+ * Шина, объявившая себя remote, — то, чем в бою будет `nats()`.
+ *
+ * Тест не о брокере, а о композиции: корень поставил транспорт шины, и
+ * приложение обязано собраться даже без единой реализации контракта.
+ */
+class RemoteBus extends InProcessBus {
+  override readonly remote: boolean = true;
+}
 
 const portsConfig = (dispatch?: 'local-first' | 'always-remote') =>
   [
@@ -342,5 +384,100 @@ describe('assemble — порты', () => {
     expect(notified).toEqual(['o-1']);
 
     await app.close();
+  });
+
+  it('печатает деградацию долговечности на go-live — и только при ней', async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      const degraded = assemble({
+        features: [DurableFeature],
+        transports: [asHttpTransport(new MockTransport())],
+        config: portsConfig(),
+      });
+
+      await degraded.run();
+      await degraded.close();
+
+      const lines = log.mock.calls.filter(([line]) =>
+        String(line).includes('durable delivery is not available'),
+      );
+
+      expect(lines).toHaveLength(1);
+      expect(String(lines[0][0])).toContain('app.durable.placed');
+
+      log.mockClear();
+
+      // То же приложение без долговечных контрактов молчит
+      const plain = assemble({
+        features: [BillingFeature],
+        transports: [asHttpTransport(new MockTransport())],
+        config: portsConfig(),
+      });
+
+      await plain.run();
+      await plain.close();
+
+      expect(
+        log.mock.calls.some(([line]) =>
+          String(line).includes('durable delivery is not available'),
+        ),
+      ).toBe(false);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it('корень поставил шину: приложение обслуживается ею, а не in-proc', async () => {
+    const bus = new RemoteBus();
+    const app = assemble({
+      features: [BillingFeature],
+      transports: [
+        asHttpTransport(new MockTransport()),
+        valueProvider(BusTransport$, bus),
+      ],
+      config: portsConfig(),
+    });
+
+    await app.run();
+
+    // Маршруты реализаций подписаны на шину, поставленную корнем: своей
+    // in-proc шины kernel-модуль не завёл, иначе публикация ушла бы в пустоту
+    await bus.publish('app.orders.placed', { orderId: 'o-9' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(notified).toEqual(['o-9']);
+
+    await app.close();
+  });
+
+  it('чистый потребитель собирается при корневой remote-шине', async () => {
+    const bus = new RemoteBus();
+    const app = assemble({
+      features: [LonelyFeature],
+      transports: [
+        asHttpTransport(new MockTransport()),
+        valueProvider(BusTransport$, bus),
+      ],
+      config: portsConfig(),
+    });
+
+    // Ни одной реализации контракта в сборке нет, а вызыватель есть:
+    // владелец живёт в другом процессе, и это больше не ошибка сборки
+    await expect(app.run()).resolves.toBeUndefined();
+
+    await app.close();
+  });
+
+  it('без remote-шины тот же потребитель по-прежнему валит сборку', async () => {
+    const app = assemble({
+      features: [LonelyFeature],
+      transports: [asHttpTransport(new MockTransport())],
+      config: portsConfig(),
+    });
+
+    await expect(app.run()).rejects.toThrow(
+      /'app\.lonely\.request'.*no selected module implements it/s,
+    );
   });
 });
