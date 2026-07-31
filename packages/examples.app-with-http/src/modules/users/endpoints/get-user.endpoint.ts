@@ -1,3 +1,5 @@
+import type { User } from '../../../api.contracts';
+import { GetUser as GetUserContract } from '../../../api.contracts';
 import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
@@ -7,20 +9,12 @@ import { UserService } from '../user.service';
 import type { Output } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
-import { z } from 'zod';
+import type { z } from 'zod';
 
-const GetUserInput = z.object({
-  id: z.string(),
-});
-
-const GetUserOutput = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string(),
-});
-
-type GetUserInput = z.infer<typeof GetUserInput>;
-type GetUserOutput = z.infer<typeof GetUserOutput>;
+interface GetUserInput {
+  id: string;
+}
+type GetUserOutput = z.infer<typeof User>;
 
 export const getUserHandler =
   (users: UserService, logger: ILoggerService) =>
@@ -48,17 +42,17 @@ export const getUserHandler =
   };
 
 /**
- * Endpoint для получения пользователя по ID.
+ * Endpoint для получения пользователя по ID — **контракт-форма**.
  *
- * Демонстрирует канал `return`: множество отказов объявлено в `errors:`,
+ * Адрес, схемы и `errors:` принадлежат контракту: переобъявить их здесь —
+ * ошибка компиляции. Тот же контракт импортирует внешний клиент, поэтому
+ * разъехаться серверу и потребителю негде.
+ *
+ * Демонстрирует и канал `return`: множество отказов объявлено контрактом,
  * и компилятор не пропустит возврат отказа вне него.
  */
 export const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/api/users/:id',
-  input: GetUserInput,
-  output: GetUserOutput,
-  errors: [UserNotFound],
+  contract: GetUserContract,
   pipeline: basePipeline,
   deps: [UserService, ILogger],
   handle: getUserHandler,

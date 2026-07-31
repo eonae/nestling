@@ -5380,6 +5380,7 @@ __metadata:
   dependencies:
     "@common/misc": "workspace:*"
     "@nestling/app": "workspace:*"
+    "@nestling/client": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/contracts": "workspace:*"

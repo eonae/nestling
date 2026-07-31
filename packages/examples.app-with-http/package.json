@@ -22,11 +22,13 @@
     "test:e2e": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.e2e.config.js",
     "test:all": "yarn test && yarn test:e2e",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules run -T jest --watch",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules run -T jest --coverage"
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules run -T jest --coverage",
+    "client": "run -T tsx src/api.client.ts"
   },
   "dependencies": {
     "@common/misc": "workspace:*",
     "@nestling/app": "workspace:*",
+    "@nestling/client": "workspace:*",
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/contracts": "workspace:*",

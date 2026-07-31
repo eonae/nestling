@@ -8,8 +8,7 @@
  * одинаков для co-located и split.
  */
 
-import { makeContract } from '@nestling/contracts';
-import { defineFail } from '@nestling/pipeline';
+import { defineFail, makeContract } from '@nestling/contracts';
 import { z } from 'zod';
 
 /**

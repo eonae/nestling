@@ -1,4 +1,4 @@
-import { defineFail } from '@nestling/pipeline';
+import { defineFail } from '@nestling/contracts';
 import { z } from 'zod';
 
 /**

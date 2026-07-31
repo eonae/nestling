@@ -1,11 +1,9 @@
+import type { CreateUserInput, User } from '../../../api.contracts';
+import { CreateUser as CreateUserContract } from '../../../api.contracts';
 import { QUOTA_CALL_BUDGET_MS } from '../../../common/constants';
 import { basePipeline } from '../../../common/pipelines';
-import {
-  ClaimQuota,
-  QuotaExceeded as QuotaExceededDefinition,
-  SignupRecorded,
-  UserRegistered,
-} from '../../../contracts';
+import type { QuotaExceeded as QuotaExceededDefinition } from '../../../contracts';
+import { ClaimQuota, SignupRecorded, UserRegistered } from '../../../contracts';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
 import { ActivityHub } from '../activity.hub';
@@ -16,27 +14,11 @@ import type { Output } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import type { Emitter, Port } from '@nestling/ports';
 import { deadlineIn } from '@nestling/ports';
-import { httpEndpoint, query } from '@nestling/transport.http';
-import { z } from 'zod';
+import { httpEndpoint } from '@nestling/transport.http';
+import type { z } from 'zod';
 
-const CreateUserInput = z.object({
-  name: z.string().min(1),
-  email: z.email(),
-
-  // Поле-флаг: по канону POST оно уехало бы в тело, пометка `query()`
-  // ниже переносит его в query-строку. Коерсия провод-строки — забота
-  // автора схемы: `z.stringbool()` понимает 'true'/'false'/'1'/'0'.
-  dryRun: z.stringbool().optional(),
-});
-
-const CreateUserOutput = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string(),
-});
-
-type CreateUserInput = z.infer<typeof CreateUserInput>;
-type CreateUserOutput = z.infer<typeof CreateUserOutput>;
+type CreateUserPayload = z.infer<typeof CreateUserInput>;
+type CreateUserOutput = z.infer<typeof User>;
 
 /**
  * Каррированная фабрика: внешний вызов — один раз на гашении зависимостей,
@@ -53,7 +35,7 @@ export const createUserHandler =
     activity?: ActivityHub,
   ) =>
   async (
-    payload: CreateUserInput,
+    payload: CreateUserPayload,
   ): Output<
     CreateUserOutput,
     ReturnType<typeof EmailTaken> | ReturnType<typeof QuotaExceededDefinition>
@@ -125,23 +107,17 @@ export const createUserHandler =
   };
 
 /**
- * Endpoint для создания пользователя.
+ * Endpoint для создания пользователя — **контракт-форма**.
  *
- * Демонстрирует пометку размещения: `name`/`email` едут по канону POST в
- * теле, а `dryRun` вытянут пометкой в query-строку
- * (`POST /api/users?dryRun=true`). Присланный не в своё место `dryRun`
- * (в теле) в payload не попадёт — strict-приём.
+ * Адрес, схемы и `errors:` живут в контракте `api.contracts.ts`; здесь
+ * остаётся только исполнение. Пометку размещения (`dryRun` вытянут в
+ * query-строку, `POST /api/users?dryRun=true`) объявляет тот же контракт,
+ * поэтому клиент собирает запрос по той же карте, по которой транспорт его
+ * разбирает. Присланный не в своё место `dryRun` (в теле) в payload не
+ * попадёт — strict-приём.
  */
 export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/api/users',
-  input: CreateUserInput,
-  output: CreateUserOutput,
-  // Отказ соседней фичи объявляется здесь наравне со своими: ре-гидрация
-  // по коду делает его настоящим `Fail`, и множество ответов ручки
-  // остаётся закрытым
-  errors: [EmailTaken, QuotaExceededDefinition],
-  bind: { dryRun: query() },
+  contract: CreateUserContract,
   pipeline: basePipeline,
   deps: [
     UserService,

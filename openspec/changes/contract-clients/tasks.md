@@ -128,10 +128,10 @@
 
 ## 8. Примеры и документация
 
-- [ ] 8.1 `packages/examples.app-with-http`: контракты обзаводятся `http:`,
+- [x] 8.1 `packages/examples.app-with-http`: контракты обзаводятся `http:`,
       реализация переводится на контракт-форму `httpEndpoint`, добавляется
       клиентский скрипт-потребитель, импортирующий только контракты и клиент
-- [ ] 8.2 `packages/examples.split-nats`: импорт `makeContract` переводится на
+- [x] 8.2 `packages/examples.split-nats`: импорт `makeContract` переводится на
       `@nestling/contracts`
 - [ ] 8.3 Новый гайд `docs/guides/typed-client.md`, сверенный с примером;
       плашка «сверено с кодом» с датой
