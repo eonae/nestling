@@ -237,9 +237,14 @@ export const GetOrder = httpEndpoint({
   `console.error`); the client gets a generic body. No warn-and-pass.
 - Kernel codes are in every endpoint's contract implicitly: `UNKNOWN`,
   `VALIDATION_FAILED` (the `validate()` unit and per-item validation),
-  `STREAM_LIMIT_EXCEEDED` and `STREAM_GAP_TIMEOUT` (item-chain guards) —
-  otherwise the guard would turn a routine 400/413 into a 500. The set is
-  closed and grows with the kernel only.
+  `STREAM_LIMIT_EXCEEDED` and `STREAM_GAP_TIMEOUT` (item-chain guards) and
+  `DEADLINE_EXCEEDED` (the call budget of `@nestling/ports`) — otherwise the
+  guard would turn a routine 400/413/504 into a 500. The set is closed and
+  grows with the kernel only: it grows together with the mechanism that
+  produces the failure, and there is no public way to mark a user code as
+  built-in. `DeadlineExceeded` is defined here, not in `@nestling/ports`,
+  because registering a code from another package would mean mutating a set
+  that is promised closed.
 - `ErrorStatus` is transport-neutral semantics (`CONFLICT`, `TIMEOUT`,
   `TOO_MANY_REQUESTS`, `PAYLOAD_TOO_LARGE`, …); mapping onto the wire is
   the transport's job.

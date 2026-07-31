@@ -14,7 +14,7 @@ import {
   GetUser,
   ListUsers,
 } from './modules/users/endpoints';
-import { QuotaExceeded } from './contracts';
+import { ClaimQuota, QuotaExceeded } from './contracts';
 import { OpsFeature, QuotasFeature, UsersFeature } from './features';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
@@ -251,6 +251,60 @@ describe('пример: фичи общаются контрактами', () =>
     expect(unwrap(await app.call(ClaimQuotaImpl, { email: 'a@b.c' }))).toEqual({
       remaining: 4,
     });
+  });
+});
+
+describe('пример: эксплуатационный профиль вызова', () => {
+  it('исчерпанный бюджет отказывает, не тронув соседнюю фичу', async () => {
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    // Вызыватель — обычный узел графа, поэтому в тесте он достаётся тем же
+    // `app.get`, что транспорт или логгер
+    const quotas = app.get(ClaimQuota.port);
+
+    const refused = await quotas?.call(
+      { email: 'late@example.com' },
+      // Момент в прошлом: бюджет исчерпан ещё до вызова
+      { deadline: new Date(Date.now() - 1) },
+    );
+
+    // Kernel-код, а не `UNKNOWN`: множество ответов порта закрыто и им тоже
+    expect(refused).toMatchObject({
+      status: 'TIMEOUT',
+      code: 'DEADLINE_EXCEEDED',
+    });
+
+    // Реализация не исполнялась — место в квоте не занято: следующий вызов
+    // видит нетронутый лимит
+    expect(unwrap(await app.call(ClaimQuotaImpl, { email: 'a@b.c' }))).toEqual({
+      remaining: 4,
+    });
+  });
+
+  it('ключ идемпотентности команды доезжает до сервиса в глубине', async () => {
+    const spy = spyLogger();
+
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [
+        [UsersRepository, inMemoryUsersRepo()],
+        [ILogger, spy.logger],
+      ],
+    });
+
+    unwrap(await createUser(app, 'signed'));
+
+    // `emit` резолвится по факту доставки, а не обработки
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Ключом взят id пользователя — журнал подписан идентичностью
+    // намерения, которую задал вызывающий, а не отчеканил вызыватель
+    expect(spy.lines).toContainEqual(
+      expect.stringMatching(/^signup (\d+) recorded, intent \1$/),
+    );
   });
 });
 

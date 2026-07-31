@@ -1,8 +1,12 @@
+/* eslint-disable unicorn/no-useless-undefined --
+ * Реализация контракта без `output` возвращает `undefined` явно: так
+ * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
+ * ему не соответствует. */
 import { InProcessBus } from './bus.js';
 import { makeContract } from './contract.js';
 import { implement } from './implement.js';
 
-import { Ok, stream } from '@nestling/pipeline';
+import { makePipeline, Ok, stream } from '@nestling/pipeline';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
@@ -206,6 +210,173 @@ describe('InProcessBus', () => {
     const response = await bus.request('bus.serve.ping', { value: 21 });
 
     expect(response).toMatchObject({ isSuccess: true, value: { doubled: 42 } });
+
+    await bus.close();
+  });
+
+  it('пересчитывает относительный timeout в момент по своим часам', async () => {
+    const bus = new InProcessBus();
+    const seen: (Date | undefined)[] = [];
+
+    bus.subscribe(
+      'bus.deadline.request',
+      (_payload, meta) => {
+        seen.push(meta.deadline);
+
+        return { isSuccess: true, status: 'OK', value: {} } as const;
+      },
+      { group: 'owner' },
+    );
+
+    const before = Date.now();
+    await bus.request('bus.deadline.request', {}, { timeoutMs: 500 });
+
+    const [deadline] = seen;
+    expect(deadline).toBeInstanceOf(Date);
+
+    // Момент отсчитан от **приёма**, а не приехал от отправителя: он лежит
+    // в окне [приём, приём + timeoutMs] по часам получателя
+    const received = (deadline as Date).getTime();
+    expect(received).toBeGreaterThanOrEqual(before);
+    expect(received).toBeLessThanOrEqual(Date.now() + 500);
+
+    await bus.close();
+  });
+
+  it('вызов без конверта доезжает без профиля — как раньше', async () => {
+    const bus = new InProcessBus();
+    const seen: unknown[] = [];
+
+    bus.subscribe('bus.envelope.absent', (_payload, meta) => {
+      seen.push([meta.deadline, meta.idempotencyKey]);
+    });
+
+    await bus.publish('bus.envelope.absent', { id: 1 });
+    await settle();
+
+    expect(seen).toEqual([[undefined, undefined]]);
+
+    await bus.close();
+  });
+
+  it('провозит ключ идемпотентности до обработчика подписки', async () => {
+    const bus = new InProcessBus();
+    const seen: (string | undefined)[] = [];
+
+    bus.subscribe('bus.idempotency', (_payload, meta) => {
+      seen.push(meta.idempotencyKey);
+    });
+
+    await bus.publish(
+      'bus.idempotency',
+      { id: 1 },
+      { idempotencyKey: 'order-42' },
+    );
+    await settle();
+
+    expect(seen).toEqual(['order-42']);
+
+    await bus.close();
+  });
+
+  it('бюджет, исчерпанный в транзите, не доводит сообщение до ручки', async () => {
+    const Ping = makeContract({
+      name: 'bus.deadline.ping',
+      kind: 'request',
+      input: z.object({ value: z.number() }),
+      output: z.object({ doubled: z.number() }),
+    });
+
+    let executed = false;
+    const declaration = implement(Ping, {
+      handle: async (input) => {
+        executed = true;
+
+        return new Ok({ doubled: input.value * 2 });
+      },
+    });
+
+    const bus = new InProcessBus();
+    await bus.serve(makeDispatch([declaration]), new AbortController().signal);
+
+    // Отрицательный timeout — бюджет, истёкший ещё в транзите
+    const response = await bus.request(
+      'bus.deadline.ping',
+      { value: 21 },
+      { timeoutMs: -1 },
+    );
+
+    expect(response).toMatchObject({
+      isSuccess: false,
+      status: 'TIMEOUT',
+      value: { code: 'DEADLINE_EXCEEDED' },
+    });
+    expect(executed).toBe(false);
+
+    await bus.close();
+  });
+
+  it('кладёт профиль в транспортные атрибуты рядом с subject', async () => {
+    const Note = makeContract({
+      name: 'bus.attributes.note',
+      kind: 'command',
+      input: z.object({ text: z.string() }),
+    });
+
+    const seen: Record<string, unknown>[] = [];
+    const declaration = implement(Note, {
+      pipeline: makePipeline().pre((ctx) => {
+        seen.push(ctx.raw.attributes);
+      }),
+      handle: async () => undefined,
+    });
+
+    const bus = new InProcessBus();
+    await bus.serve(makeDispatch([declaration]), new AbortController().signal);
+
+    await bus.publish(
+      'bus.attributes.note',
+      { text: 'hi' },
+      { timeoutMs: 1000, idempotencyKey: 'note-1' },
+    );
+    await settle();
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      subject: 'bus.attributes.note',
+      idempotencyKey: 'note-1',
+    });
+    expect(seen[0].deadline).toBeInstanceOf(Date);
+
+    await bus.close();
+  });
+
+  it('живой бюджет взводит сигнал обработчика', async () => {
+    const Slow = makeContract({
+      name: 'bus.deadline.inflight',
+      kind: 'command',
+      input: z.object({ id: z.number() }),
+    });
+
+    let aborted = false;
+    const declaration = implement(Slow, {
+      handle: async (_input, meta) => {
+        await new Promise((resolve) => {
+          meta.signal.addEventListener('abort', resolve, { once: true });
+        });
+        aborted = meta.signal.aborted;
+
+        return undefined;
+      },
+    });
+
+    const bus = new InProcessBus();
+    await bus.serve(makeDispatch([declaration]), new AbortController().signal);
+
+    await bus.publish('bus.deadline.inflight', { id: 1 }, { timeoutMs: 10 });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(aborted).toBe(true);
 
     await bus.close();
   });

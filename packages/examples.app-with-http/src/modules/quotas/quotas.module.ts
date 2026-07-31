@@ -1,16 +1,22 @@
 /* eslint-disable unicorn/no-useless-undefined --
  * Реализация контракта без `output` возвращает `undefined` явно: так
  * записан контракт хендлера в ядре (`Output<undefined>`). */
-import { ClaimQuota, QuotaExceeded, UserRegistered } from '../../contracts';
+import {
+  ClaimQuota,
+  QuotaExceeded,
+  SignupRecorded,
+  UserRegistered,
+} from '../../contracts';
 import { appLogging } from '../../infrastructure';
 import type { ILoggerService } from '../logger';
 import { ILogger } from '../logger';
 
 import { QuotaService } from './quota.service';
+import { SignupJournal } from './signup.journal';
 
 import { makeAppModule } from '@nestling/app';
-import { Ok } from '@nestling/pipeline';
-import { implement } from '@nestling/ports';
+import { makePipeline, Ok } from '@nestling/pipeline';
+import { implement, withIdempotencyKey } from '@nestling/ports';
 
 /**
  * Реализация запроса: обычная декларация на транспорте шины.
@@ -60,6 +66,31 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 });
 
 /**
+ * Реализация команды: ключ идемпотентности читается из глубины.
+ *
+ * Профиль вызова доезжает двумя каналами. Безусловный — транспортные
+ * атрибуты (`ctx.raw.attributes.idempotencyKey`), их кладут оба пути
+ * биндинга рядом с `subject`. Второй — ambient-проекция: штатный писатель
+ * `withIdempotencyKey()` кладёт ключ в контекст, и любой код произвольной
+ * глубины читает его через `Ctx(IdempotencyKey)`, не протаскивая
+ * параметром. Присутствие писателя проверяемо на сборке —
+ * `everyEndpoint(…).hasVar(IdempotencyKey)`.
+ */
+export const SignupRecordedImpl = implement(SignupRecorded, {
+  pipeline: makePipeline().pre(withIdempotencyKey()),
+  deps: [SignupJournal],
+  handle:
+    (journal: SignupJournal) =>
+    async (payload: { userId: string; email: string }) => {
+      // Ключ есть всегда: переданный вызывающим либо отчеканенный
+      // вызывателем. Читает его сервис в глубине — не через параметр
+      journal.record(payload.userId);
+
+      return undefined;
+    },
+});
+
+/**
  * Модуль фичи квот.
  *
  * В `providers:` — только собственный сервис; наружу фича отдаёт не токен,
@@ -69,6 +100,6 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 export const QuotasModule = makeAppModule({
   name: 'module:quotas',
   imports: [appLogging],
-  providers: [QuotaService],
-  endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas],
+  providers: [QuotaService, SignupJournal],
+  endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
 });

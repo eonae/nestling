@@ -1,7 +1,9 @@
+import { QUOTA_CALL_BUDGET_MS } from '../../../common/constants';
 import { basePipeline } from '../../../common/pipelines';
 import {
   ClaimQuota,
   QuotaExceeded as QuotaExceededDefinition,
+  SignupRecorded,
   UserRegistered,
 } from '../../../contracts';
 import type { ILoggerService } from '../../logger';
@@ -13,6 +15,7 @@ import { UserService } from '../user.service';
 import type { Output } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import type { Emitter, Port } from '@nestling/ports';
+import { deadlineIn } from '@nestling/ports';
 import { httpEndpoint, query } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -46,6 +49,7 @@ export const createUserHandler =
     logger: ILoggerService,
     quotas: Port<typeof ClaimQuota>,
     registered: Emitter<typeof UserRegistered>,
+    signup: Emitter<typeof SignupRecorded>,
     activity?: ActivityHub,
   ) =>
   async (
@@ -75,9 +79,21 @@ export const createUserHandler =
     // Соседняя фича зовётся портом: всегда async, всегда `Ok | Fail`, даже
     // co-located. Разбирать отказ обязан вызывающий — и это ровно та
     // дисциплина, из-за которой переезд `quotas` в другой процесс не
-    // потребует править ни строчки здесь
-    const claimed = await quotas.call({ email: payload.email });
+    // потребует править ни строчки здесь.
+    //
+    // `deadline` — бюджет вызова **моментом**, а не длительностью: момент
+    // не «протухает» на await'ах и переживает передачу дальше. Дефолта нет
+    // (неявный таймаут однажды обрежет легальную длинную операцию), поэтому
+    // владелец ручки задаёт его явно: регистрация не должна висеть, сколько
+    // захочет соседка
+    const claimed = await quotas.call(
+      { email: payload.email },
+      { deadline: deadlineIn(QUOTA_CALL_BUDGET_MS) },
+    );
     if (claimed.isFail) {
+      // Исчерпанный бюджет приезжает сюда kernel-кодом `DEADLINE_EXCEEDED`
+      // (504) и проходит стража границы нетронутым — декларировать его в
+      // `errors:` не нужно, он в контракте любой ручки неявно
       return claimed as ReturnType<typeof QuotaExceededDefinition>;
     }
 
@@ -88,6 +104,16 @@ export const createUserHandler =
     // Событие — fire-and-forget: `emit` резолвится по факту доставки, а не
     // обработки, и отказ подписчика сюда не всплывает
     await registered.emit({ id: user.id, email: user.email });
+
+    // Команда — у неё ровно один владелец, поэтому у её `meta` есть
+    // `idempotencyKey`. Ключом взят `user.id`: идентичность намерения тут
+    // шире одного `emit` — повторная отправка после падения процесса
+    // обязана нести тот же ключ. Не передай мы его, вызыватель отчеканил бы
+    // свой, и ретрай стал бы новым намерением
+    await signup.emit(
+      { userId: user.id, email: user.email },
+      { idempotencyKey: user.id },
+    );
 
     // Публикация в ленту: `push` не ждёт подписчиков, поэтому создание
     // пользователя не замедляется ни на одного SSE-клиента
@@ -124,6 +150,7 @@ export const CreateUser = httpEndpoint({
     // только потому, что его здесь упомянули
     ClaimQuota.port,
     UserRegistered.emitter,
+    SignupRecorded.emitter,
     ActivityHub,
   ],
   handle: createUserHandler,

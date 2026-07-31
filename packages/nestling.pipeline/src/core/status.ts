@@ -23,8 +23,8 @@ export const errorStatuses = [
   'INTERNAL_ERROR', // 500
   'NOT_IMPLEMENTED', // 501
   'SERVICE_UNAVAILABLE', // 503
-  // «операция не уложилась в бюджет» (в т.ч. будущий DeadlineExceeded
-  // портов) — это 504, а не 408: 408 про то, что клиент не дослал запрос.
+  // «операция не уложилась в бюджет» (в т.ч. DeadlineExceeded портов) —
+  // это 504, а не 408: 408 про то, что клиент не дослал запрос.
   'TIMEOUT', // 504
 ] as const;
 

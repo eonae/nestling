@@ -13,11 +13,15 @@ import {
   makeRemoteEmitter,
   makeRemotePort,
 } from './invoker.js';
+import { deadlineIn } from './profile.js';
 import type { PortFailureInfo } from './runtime.js';
 import { PortRuntime } from './runtime.js';
 
+// Только `jest`: остальные глобали инъектируются раннером, а объект
+// `jest` в ESM-режиме — нет
+import { jest } from '@jest/globals';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
-import { defineFail, Fail, isFail, Ok } from '@nestling/pipeline';
+import { defineFail, Fail, isFail, makePipeline, Ok } from '@nestling/pipeline';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
@@ -38,6 +42,12 @@ const ChargeCard = makeContract({
 const OrderPlaced = makeContract({
   name: 'invoker.orders.placed',
   kind: 'event',
+  input: z.object({ orderId: z.string() }),
+});
+
+const ShipOrder = makeContract({
+  name: 'invoker.orders.ship',
+  kind: 'command',
   input: z.object({ orderId: z.string() }),
 });
 
@@ -75,6 +85,18 @@ const ChargeCardImpl = implement(ChargeCard, {
       }
     }
   },
+});
+
+/** Ключи идемпотентности, доехавшие до реализации команды */
+const shippedKeys: (string | undefined)[] = [];
+
+const ShipOrderImpl = implement(ShipOrder, {
+  // Канал провода: ключ лежит в транспортных атрибутах рядом с `subject`,
+  // и юнит видит его без всякой композиции — на обоих путях биндинга
+  pipeline: makePipeline().pre((ctx) => {
+    shippedKeys.push(ctx.raw.attributes.idempotencyKey as string | undefined);
+  }),
+  handle: async () => undefined,
 });
 
 const subscribers: string[] = [];
@@ -138,6 +160,16 @@ const emitterContext = (
   runtime: harnessed.runtime,
   patterns,
 });
+
+const commandContext = (harnessed: Harness): InvokerContext => ({
+  contract: ShipOrder,
+  runtime: harnessed.runtime,
+  patterns: [ShipOrderImpl.pattern],
+});
+
+/** Даёт обработчикам, поставленным в очередь, доработать */
+const settle = (ms = 0): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 describe.each([
   ['local', (h: Harness) => makeLocalPort(portContext(h)) as Port<any>],
@@ -223,6 +255,97 @@ describe.each([
 
     expect(seenSignal).toBeDefined();
   });
+
+  it('бюджет, исчерпанный к вызову, не трогает ни исполнителя, ни шину', async () => {
+    const request = jest.spyOn(harnessed.bus, 'request');
+    const before = seenSignal;
+
+    const result = await port.call(
+      { amount: 10 },
+      { deadline: new Date(Date.now() - 1) },
+    );
+
+    expect((result as { code: string }).code).toBe('DEADLINE_EXCEEDED');
+    expect((result as { status: string }).status).toBe('TIMEOUT');
+    // Ни один из двух исполнителей не тронут: обработчик не видел вызова,
+    // шина не получила сообщения
+    expect(seenSignal).toBe(before);
+    expect(request).not.toHaveBeenCalled();
+
+    request.mockRestore();
+  });
+
+  it('обрывает не уложившуюся в бюджет реализацию отказом бюджета', async () => {
+    behaviour = { kind: 'slow' };
+
+    const result = await port.call(
+      { amount: 10 },
+      { deadline: deadlineIn(10) },
+    );
+
+    expect((result as { code: string }).code).toBe('DEADLINE_EXCEEDED');
+  });
+
+  it('обработчик видит исчерпание бюджета своим сигналом', async () => {
+    behaviour = { kind: 'slow' };
+
+    await port.call({ amount: 10 }, { deadline: deadlineIn(10) });
+
+    expect(seenSignal?.aborted).toBe(true);
+  });
+
+  it('отмена вызывающим остаётся UnknownError даже при живом бюджете', async () => {
+    behaviour = { kind: 'slow' };
+    const controller = new AbortController();
+
+    const pending = port.call(
+      { amount: 10 },
+      // Бюджет заведомо переживёт вызов: оборвать успевает только вызывающий
+      { deadline: deadlineIn(10_000), signal: controller.signal },
+    );
+    controller.abort();
+
+    expect(((await pending) as { code: string }).code).toBe('UNKNOWN');
+  });
+
+  it('вызов без бюджета таймера не заводит', async () => {
+    const timers = jest.spyOn(globalThis, 'setTimeout');
+
+    await port.call({ amount: 1 });
+
+    expect(timers).not.toHaveBeenCalled();
+
+    timers.mockRestore();
+  });
+});
+
+describe('идентичность путей биндинга', () => {
+  let harnessed: Harness;
+
+  beforeEach(async () => {
+    behaviour = { kind: 'slow' };
+    harnessed = await harness([ChargeCardImpl]);
+  });
+
+  afterEach(async () => {
+    await harnessed.close();
+  });
+
+  it('та же пара «бюджет → медленная реализация» даёт тот же результат', async () => {
+    const local = makeLocalPort(portContext(harnessed)) as Port<any>;
+    const remote = makeRemotePort(portContext(harnessed)) as Port<any>;
+
+    const results = await Promise.all(
+      [local, remote].map((port) =>
+        port.call({ amount: 10 }, { deadline: deadlineIn(10) }),
+      ),
+    );
+
+    expect(results.map((result) => (result as { code: string }).code)).toEqual([
+      'DEADLINE_EXCEEDED',
+      'DEADLINE_EXCEEDED',
+    ]);
+  });
 });
 
 describe('emitter', () => {
@@ -286,6 +409,89 @@ describe('emitter', () => {
     });
   });
 });
+
+describe.each([
+  [
+    'local',
+    (h: Harness) => makeLocalEmitter(commandContext(h)) as Emitter<any>,
+  ],
+  [
+    'remote',
+    (h: Harness) => makeRemoteEmitter(commandContext(h)) as Emitter<any>,
+  ],
+])('ключ идемпотентности (%s)', (_name, build) => {
+  let harnessed: Harness;
+  let emitter: Emitter<any>;
+
+  beforeEach(async () => {
+    shippedKeys.length = 0;
+    harnessed = await harness([ShipOrderImpl]);
+    emitter = build(harnessed);
+  });
+
+  afterEach(async () => {
+    await harnessed.close();
+  });
+
+  it('ключ вызывающего доезжает до обработчика без подмены', async () => {
+    await emitter.emit({ orderId: 'o-1' }, { idempotencyKey: 'order-42' });
+    await settle();
+
+    expect(shippedKeys).toEqual(['order-42']);
+  });
+
+  it('emit без ключа едет со своим: два вызова — два разных ключа', async () => {
+    await emitter.emit({ orderId: 'o-1' });
+    await emitter.emit({ orderId: 'o-2' });
+    await settle();
+
+    const [first, second] = shippedKeys;
+
+    expect(typeof first).toBe('string');
+    expect(typeof second).toBe('string');
+    expect(first).not.toBe(second);
+  });
+
+  it('повторный ключ доставляется как обычное сообщение', async () => {
+    // Ядро хранилища ключей не тянет: дедупликация — satellite, и ядро
+    // гарантирует только провоз ключа
+    await emitter.emit({ orderId: 'o-1' }, { idempotencyKey: 'order-42' });
+    await emitter.emit({ orderId: 'o-1' }, { idempotencyKey: 'order-42' });
+    await settle();
+
+    expect(shippedKeys).toEqual(['order-42', 'order-42']);
+  });
+});
+
+/**
+ * Тип-тесты словаря `meta`: предмет проверки — компилятор, а не рантайм.
+ *
+ * Функция не вызывается ни разу: `@ts-expect-error` проверяет `tsc`, и
+ * исполнять эти вызовы незачем (вызыватели здесь — фикции параметров).
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function metaDictionaryTypeTests(
+  command: Emitter<typeof ShipOrder>,
+  event: Emitter<typeof OrderPlaced>,
+  request: Port<typeof ChargeCard>,
+): void {
+  // Компилируется: идентичность намерения есть у вида `command`
+  void command.emit({ orderId: 'o-1' }, { idempotencyKey: 'k' });
+
+  // @ts-expect-error: у вида `event` идентичности намерения нет
+  void event.emit({ orderId: 'o-1' }, { idempotencyKey: 'k' });
+
+  // @ts-expect-error: у вида `request` поле не введено (открытый вопрос)
+  void request.call({ amount: 1 }, { idempotencyKey: 'k' });
+
+  // Бюджет есть у всех трёх видов — и только моментом
+  void command.emit({ orderId: 'o-1' }, { deadline: deadlineIn(10) });
+  void event.emit({ orderId: 'o-1' }, { deadline: deadlineIn(10) });
+  void request.call({ amount: 1 }, { deadline: deadlineIn(10) });
+
+  // @ts-expect-error: `500` неразличимо читается как epoch и как «через 500 мс»
+  void request.call({ amount: 1 }, { deadline: 500 });
+}
 
 describe('несвязанный рантайм', () => {
   it('вызов до фазы WIRE — ошибка с именем контракта и фазой', async () => {

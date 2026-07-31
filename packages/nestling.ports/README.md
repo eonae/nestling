@@ -106,6 +106,68 @@ A declared failure is re-hydrated from its `code` into a real `Fail`, so
 becomes `UnknownError`; the original goes to the diagnostic hook, never
 across the port boundary.
 
+## Operational profile — `meta`
+
+`meta` is the **envelope of the call**, not ambient state: `signal`,
+`deadline` and — for `command` only — `idempotencyKey`.
+
+```typescript
+import { deadlineIn } from '@nestling/ports';
+
+await quotas.call({ email }, { deadline: deadlineIn(500) });
+await ship.emit({ orderId }, { idempotencyKey: orderId });
+```
+
+`deadline` is an **absolute moment** (`Date`), never a duration: a duration
+goes stale at every `await` between computing it and making the call, a
+moment does not. `deadline: 500` does not compile — `500` reads equally well
+as epoch milliseconds and as "in 500 ms", and `deadlineIn(ms)` is the sugar
+that removes the ambiguity. There is **no default budget**: a call without
+`deadline` runs unbounded, exactly as it did before.
+
+The budget is checked at three points, and the failure is always the same
+kernel code `DEADLINE_EXCEEDED` (status `TIMEOUT` → 504):
+
+| Point | When | What happens |
+|---|---|---|
+| before the call | `call`/`emit` | remainder ≤ 0 → `DeadlineExceeded`, neither `dispatch` nor the bus is touched |
+| before handling | message received | remainder ≤ 0 → `DeadlineExceeded`, `dispatch.call` is not invoked |
+| in flight | while the call runs | the handler's `ctx.signal` fires and the call ends with `DeadlineExceeded` |
+
+An abort by the **caller's** `meta.signal` stays `UnknownError`, as before:
+the two are told apart by who owns the timer, not by `signal.reason`.
+
+Over the wire the envelope carries a **relative** `timeoutMs`, recomputed
+into an absolute moment by the receiver's own clock — the gRPC model, so
+clock skew between processes never affects the budget, only transit does.
+The behaviour is identical under `local-first` and `always-remote`.
+
+`idempotencyKey` exists in the `meta` of `command` contracts only; on
+`request` and `event` it is a compile error rather than a silently ignored
+field. A command's `emit` always travels with a key — the caller's, or one
+minted by the invoker. The kernel guarantees exactly two things: the key
+arrives, and it is visible to the handler. **Deduplication is not in the
+kernel** — that is a satellite over a store.
+
+The profile reaches deep code through two channels:
+
+| Channel | What it is | Availability |
+|---|---|---|
+| `ctx.raw.attributes` | the wire, next to `subject` | always, no composition needed |
+| `Ctx(Deadline)` / `Ctx(IdempotencyKey)` | ambient projection | when `withDeadline()` / `withIdempotencyKey()` is composed into the pipeline |
+
+The variables are exported **as values**, so
+`everyEndpoint(…).hasVar(IdempotencyKey)` makes their presence an
+assembly-time invariant. A nested call does **not** inherit the budget — a
+handler that wants to pass the remainder on does it explicitly, exactly as
+it must with `signal`:
+
+```typescript
+deps: [Ctx(Deadline), ChargeCard.port],
+handle: (deadline, charge) => async (input) =>
+  charge.call(input, { deadline: deadline.peek() }),
+```
+
 ## Dispatch policy — configuration, not code
 
 | Policy | Behaviour |
@@ -160,7 +222,11 @@ least one contract implementation.
 
 Public: `makeContract`, `implement`, `Port`/`Emitter` types, `IMessageBus`,
 `MessageBus$`, `InProcessBus`, `BusTransport$`, `busBindingOf`,
-`portsKernel`, `bindPorts`, `collectImplementations`, `portsConfigKeys`.
+`portsKernel`, `bindPorts`, `collectImplementations`, `portsConfigKeys`,
+plus the operational profile: `deadlineIn`, `Deadline`, `IdempotencyKey`,
+`withDeadline`, `withIdempotencyKey` and the re-exported `DeadlineExceeded`
+(it is defined in `@nestling/pipeline`, where the closed set of kernel codes
+lives).
 
 Deliberately **not** exported: the contract registry, the `Port`/`Emitter`
 families and their recipes, the executor holder and its token, and the

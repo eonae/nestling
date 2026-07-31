@@ -12,6 +12,7 @@
 
 import { defineFail, isFailDefinition } from './define-fail';
 import {
+  DeadlineExceeded,
   isKernelFailCode,
   UnknownError,
   ValidationFailed,
@@ -151,6 +152,15 @@ describe('kernel-коды', () => {
     ).toThrow(/VALIDATION_FAILED/);
   });
 
+  it('DeadlineExceeded — определение ядра со статусом TIMEOUT', () => {
+    expect(DeadlineExceeded.code).toBe('DEADLINE_EXCEEDED');
+    expect(DeadlineExceeded.status).toBe('TIMEOUT');
+
+    // Деталей у него нет: бюджет уже назван статусом и кодом
+    expect(DeadlineExceeded.schema).toBeUndefined();
+    expect(DeadlineExceeded().details).toBeUndefined();
+  });
+
   it('набор закрыт: пользовательский код в него не входит', () => {
     const Mine = defineFail('MY_CODE', {
       status: 'CONFLICT',
@@ -159,7 +169,16 @@ describe('kernel-коды', () => {
 
     expect(isKernelFailCode('UNKNOWN')).toBe(true);
     expect(isKernelFailCode('VALIDATION_FAILED')).toBe(true);
+    expect(isKernelFailCode('DEADLINE_EXCEEDED')).toBe(true);
     expect(isKernelFailCode(Mine.code)).toBe(false);
+
+    // Пометить своё определение встроенным нечем: публичная поверхность
+    // не даёт ни функции регистрации, ни поля в словаре `defineFail`
+    const marked = defineFail('MY_KERNEL_CODE', {
+      status: 'TIMEOUT',
+      message: 'mine',
+    });
+    expect(isKernelFailCode(marked.code)).toBe(false);
 
     // Ответ без кода (анонимный отказ) встроенным не считается
     const noCode: string | undefined = undefined;

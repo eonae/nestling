@@ -15,6 +15,7 @@ export type {
   BusSubscription,
   IMessageBus,
   InProcessBusOptions,
+  PublishOptions,
   RequestOptions,
   SubscribeOptions,
 } from './bus.js';
@@ -37,10 +38,12 @@ export type {
   RequestContract,
 } from './contract.js';
 export type {
+  CommandMeta,
   Emitter,
   EmitterToken,
   InvokeArgs,
   KernelPortFail,
+  MetaOf,
   Port,
   PortMeta,
   PortResult,
@@ -50,6 +53,13 @@ export { implement } from './implement.js';
 export type { ImplementDictionary } from './implement.js';
 export { bindPorts, portsKernel } from './kernel.js';
 export type { PortsKernelOptions } from './kernel.js';
+export {
+  Deadline,
+  deadlineIn,
+  IdempotencyKey,
+  withDeadline,
+  withIdempotencyKey,
+} from './profile.js';
 export type { PortFailureInfo } from './runtime.js';
 export { collectImplementations } from './topology.js';
 export type {
@@ -64,3 +74,13 @@ export {
   busBindingOf,
 } from './transport.js';
 export type { BusBinding } from './transport.js';
+
+/**
+ * Реэкспорт определения отказа бюджета.
+ *
+ * Само определение живёт в `@nestling/pipeline`, где живёт закрытый набор
+ * kernel-кодов; здесь оно повторно экспортируется потому, что разбирает
+ * результат `call` потребитель порта — и импортировать `DeadlineExceeded`
+ * ему естественно из того же пакета, что и всё остальное.
+ */
+export { DeadlineExceeded } from '@nestling/pipeline';

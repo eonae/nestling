@@ -11,7 +11,14 @@
  */
 
 import type { AnyContract } from './contract.js';
-import type { Emitter, Port, PortMeta } from './families.js';
+import type { CommandMeta, Emitter, Port, PortMeta } from './families.js';
+import type { CallBudget } from './profile.js';
+import {
+  isExhausted,
+  profileAttributes,
+  remainingMs,
+  startBudget,
+} from './profile.js';
 import { failureResponse } from './response.js';
 import type { PortRuntime } from './runtime.js';
 import { BUS_TRANSPORT_NAME } from './transport.js';
@@ -30,6 +37,7 @@ import type {
   ResponseContext,
 } from '@nestling/pipeline';
 import {
+  DeadlineExceeded,
   describeForm,
   makeEmptyContext,
   Ok,
@@ -38,11 +46,14 @@ import {
   ValidationFailed,
 } from '@nestling/pipeline';
 
-/** Сигнал, который никогда не взводится: вызов без `meta.signal` */
-const NEVER_ABORTED = new AbortController().signal;
-
 /** Маркер отмены: вызов не ждёт обработчика, проигнорировавшего сигнал */
 const ABORTED = Symbol('nestling:port-aborted');
+
+/** Профиль, доезжающий до обработчика транспортными атрибутами */
+interface CallProfile {
+  readonly deadline?: Date;
+  readonly idempotencyKey?: string;
+}
 
 /** Что известно вызывателю о своём контракте и биндинге */
 export interface InvokerContext {
@@ -151,6 +162,7 @@ export function normalizePortResponse(
   const definitions: readonly AnyFailDefinition[] = [
     ...(contract.errors ?? []),
     ValidationFailed,
+    DeadlineExceeded,
   ];
   const definition =
     code === undefined
@@ -240,18 +252,32 @@ async function raceAbort<T>(
   });
 }
 
+/**
+ * Отказ отменённого вызова.
+ *
+ * Различение по владению таймером, а не по `signal.reason`: `reason`
+ * приходит из кода вызывающего и доверенным источником не является. Отмена
+ * вызывающим остаётся `UnknownError`, какой была до появления бюджета.
+ */
+function abortedFail(budget: CallBudget): AnyFail {
+  return budget.expired ? DeadlineExceeded() : UnknownError();
+}
+
 /** Кадр запроса порта: тот же контекст, что построил бы транспорт */
 function makeCallContext(
   contract: AnyContract,
   pattern: string,
   payload: unknown,
   signal: AbortSignal,
+  profile: CallProfile,
 ): ExtendableContext<AnyInput> {
   const raw: Raw = {
     transport: BUS_TRANSPORT_NAME,
     pattern,
     payload,
-    attributes: { subject: contract.name },
+    // Тот же безусловный канал, что у шины: local- и remote-путь кладут
+    // профиль одной процедурой, поэтому юнит видит одно и то же
+    attributes: profileAttributes({ subject: contract.name, ...profile }),
   };
 
   const endpoint: EndpointMeta = {
@@ -284,11 +310,25 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
         return input.fail as never;
       }
 
+      // Fail-fast до вызова: бюджет, исчерпанный к этому моменту, означает,
+      // что `dispatch` трогать незачем — обработчик не исполняется вовсе
+      if (isExhausted(meta?.deadline)) {
+        return DeadlineExceeded() as never;
+      }
+
       const dispatch = runtime.requireDispatch(contract.name);
-      const signal = meta?.signal ?? NEVER_ABORTED;
+      const budget = startBudget(meta?.deadline, meta?.signal);
       const [pattern] = patterns;
 
-      const ctx = makeCallContext(contract, pattern, input.value, signal);
+      const ctx = makeCallContext(
+        contract,
+        pattern,
+        input.value,
+        budget.signal,
+        {
+          deadline: meta?.deadline,
+        },
+      );
 
       let response: ResponseContext | typeof ABORTED;
       try {
@@ -299,7 +339,7 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
             onUnknownFail: (info) =>
               runtime.report({ contract: contract.name, error: info.error }),
           }),
-          signal,
+          budget.signal,
         );
       } catch (error) {
         // Реализация без pipeline отказ бросает: собираем ответ границы той
@@ -310,6 +350,8 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
           runtime,
           error,
         ) as never;
+      } finally {
+        budget.release();
       }
 
       if (response === ABORTED) {
@@ -318,7 +360,7 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
           error: new Error(`Port '${contract.name}' call was aborted`),
         });
 
-        return UnknownError() as never;
+        return abortedFail(budget) as never;
       }
 
       return normalizePortResponse(contract, response, runtime) as never;
@@ -343,8 +385,12 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
         return input.fail as never;
       }
 
+      // Fail-fast до вызова: шина не трогается, сообщение не отправляется
+      if (isExhausted(meta?.deadline)) {
+        return DeadlineExceeded() as never;
+      }
+
       const bus = runtime.optionalBus(contract.name);
-      const signal = meta?.signal ?? NEVER_ABORTED;
 
       if (!bus) {
         runtime.report({
@@ -358,11 +404,20 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
         return UnknownError() as never;
       }
 
+      const budget = startBudget(meta?.deadline, meta?.signal);
+      const timeoutMs = remainingMs(meta?.deadline);
+
       let response: ResponseContext | typeof ABORTED;
       try {
         response = await raceAbort(
-          bus.request(contract.name, input.value, { signal }),
-          signal,
+          // По проводу едет **остаток**, а не момент: получатель превратит
+          // его обратно в момент по своим часам, и рассинхрон часов между
+          // процессами семантику бюджета не изменит
+          bus.request(contract.name, input.value, {
+            signal: budget.signal,
+            timeoutMs,
+          }),
+          budget.signal,
         );
       } catch (error) {
         // Единственная ошибка этого пути, за которую отвечает вызывающий, —
@@ -380,6 +435,8 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
           runtime,
           error,
         ) as never;
+      } finally {
+        budget.release();
       }
 
       if (response === ABORTED) {
@@ -388,7 +445,7 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
           error: new Error(`Port '${contract.name}' call was aborted`),
         });
 
-        return UnknownError() as never;
+        return abortedFail(budget) as never;
       }
 
       return validateOutput(
@@ -410,8 +467,9 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
   const { contract, runtime, patterns } = context;
 
   return {
-    async emit(payload?: unknown, meta?: PortMeta) {
+    async emit(payload?: unknown, meta?: CommandMeta) {
       const input = requireValidPayload(contract, payload);
+      requireLiveBudget(meta);
 
       if (patterns.length === 0) {
         // Broadcast с нулём подписчиков — легальное состояние
@@ -419,10 +477,22 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
       }
 
       const dispatch = runtime.requireDispatch(contract.name);
-      const signal = meta?.signal ?? NEVER_ABORTED;
+      const profile: CallProfile = {
+        deadline: meta?.deadline,
+        idempotencyKey: idempotencyKeyOf(contract, meta),
+      };
 
       for (const pattern of patterns) {
-        const ctx = makeCallContext(contract, pattern, input, signal);
+        // Бюджет ограничивает **обработчика**, а не ожидание вызывающего:
+        // ждать здесь нечего, `emit` резолвится по факту доставки
+        const budget = startBudget(meta?.deadline, meta?.signal);
+        const ctx = makeCallContext(
+          contract,
+          pattern,
+          input,
+          budget.signal,
+          profile,
+        );
 
         void dispatch
           .call(pattern, ctx, {
@@ -437,7 +507,8 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
           })
           .catch((error: unknown) => {
             runtime.report({ contract: contract.name, error });
-          });
+          })
+          .finally(() => budget.release());
       }
     },
   };
@@ -448,8 +519,10 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
   const { contract, runtime } = context;
 
   return {
-    async emit(payload?: unknown) {
+    async emit(payload?: unknown, meta?: CommandMeta) {
       const input = requireValidPayload(contract, payload);
+      requireLiveBudget(meta);
+
       const bus = runtime.optionalBus(contract.name);
 
       if (!bus) {
@@ -458,9 +531,48 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
         return;
       }
 
-      await bus.publish(contract.name, input);
+      await bus.publish(contract.name, input, {
+        timeoutMs: remainingMs(meta?.deadline),
+        idempotencyKey: idempotencyKeyOf(contract, meta),
+      });
     },
   };
+}
+
+/**
+ * Ключ идемпотентности отправляемой команды.
+ *
+ * `emit` команды **всегда** едет с ключом: переданным вызывающим либо
+ * сгенерированным здесь. Ключ рождается в вызывателе, а не в транспорте,
+ * потому что стабилен он должен быть относительно **ретраев доставки**:
+ * ретрай одного и того же `emit` обязан нести тот же ключ, два разных
+ * `emit` — разные. Транспорт не знает, где кончается один `emit`, и такой
+ * гарантии дать не может.
+ *
+ * У `event` ключа нет: у факта, доставляемого 0..N подписчикам, нет
+ * идентичности намерения, которую можно было бы дедуплицировать.
+ */
+function idempotencyKeyOf(
+  contract: AnyContract,
+  meta: CommandMeta | undefined,
+): string | undefined {
+  if (contract.kind !== 'command') {
+    return undefined;
+  }
+
+  return meta?.idempotencyKey ?? crypto.randomUUID();
+}
+
+/**
+ * Fail-fast бюджета у `emit`.
+ *
+ * Отказ **бросается**: канала результата у `emit` нет, и это тот же приём,
+ * которым сигнализируется невалидный payload.
+ */
+function requireLiveBudget(meta: PortMeta | undefined): void {
+  if (isExhausted(meta?.deadline)) {
+    throw DeadlineExceeded();
+  }
 }
 
 /**

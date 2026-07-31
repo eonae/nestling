@@ -9,6 +9,12 @@
  * V1-шина не заглушка, а репетиция интерфейса.
  */
 
+import {
+  deadlineFromTimeout,
+  isExhausted,
+  profileAttributes,
+  startBudget,
+} from './profile.js';
 import { failureResponse } from './response.js';
 import { BUS_TRANSPORT_NAME, busBindingOf } from './transport.js';
 import { structuralCopy } from './wire.js';
@@ -22,7 +28,11 @@ import type {
   TransportCapabilities,
   UnknownFailInfo,
 } from '@nestling/pipeline';
-import { assertFormsSupported, makeEmptyContext } from '@nestling/pipeline';
+import {
+  assertFormsSupported,
+  DeadlineExceeded,
+  makeEmptyContext,
+} from '@nestling/pipeline';
 import { Topic } from '@nestling/streams';
 import type {
   Dispatch,
@@ -37,6 +47,16 @@ export interface BusMessageMeta {
 
   /** Канал отмены: сигнал вызова, композированный с сигналом остановки */
   readonly signal: AbortSignal;
+
+  /**
+   * Бюджет обработки — **абсолютный момент по часам получателя**,
+   * пересчитанный из относительного `timeoutMs` конверта в момент приёма.
+   * Момент отправителя границу процесса не пересекает.
+   */
+  readonly deadline?: Date;
+
+  /** Ключ идемпотентности доставленной команды */
+  readonly idempotencyKey?: string;
 }
 
 /**
@@ -64,10 +84,35 @@ export interface SubscribeOptions {
   group?: string;
 }
 
-/** Опции запроса */
+/**
+ * Опции запроса — конверт эксплуатационного профиля.
+ *
+ * `idempotencyKey` здесь нет: у вида `request` его нет и в `meta` вызова.
+ * Конверт описывает то, что бывает, а не декартово произведение полей.
+ */
 export interface RequestOptions {
   /** Канал отмены вызова */
   signal?: AbortSignal;
+
+  /**
+   * Остаток бюджета в миллисекундах, посчитанный **отправителем по своим
+   * часам**. Относительный, а не абсолютный, именно ради провода: так
+   * рассинхрон часов между процессами на семантику бюджета не влияет.
+   */
+  timeoutMs?: number;
+}
+
+/**
+ * Опции публикации — тот же конверт fire-and-forget.
+ *
+ * `signal` здесь нет: после постановки сообщения отменять нечего.
+ */
+export interface PublishOptions {
+  /** Остаток бюджета **обработчика** в миллисекундах (см. `RequestOptions`) */
+  timeoutMs?: number;
+
+  /** Ключ идемпотентности команды: провозится, но не дедуплицируется */
+  idempotencyKey?: string;
 }
 
 /** Хэндл подписки: единственное, что с ней можно сделать, — снять */
@@ -81,6 +126,11 @@ export interface BusSubscription {
  * Специфика конкретного брокера (JetStream, ack-семантика,
  * wildcard-subject'ы, KV) за эту границу не протекает: ядро зависит только
  * от интерфейса, реализации — обычные провайдеры.
+ *
+ * Относительный timeout и ключ идемпотентности — часть LCD, а не вендорская
+ * специфика: они есть у любого брокера, а **кодирование** конверта
+ * (headers, metadata) остаётся делом транспорта. Иначе первый же настоящий
+ * провод потребовал бы менять этот интерфейс, то есть LCD оказался бы не LCD.
  */
 export interface IMessageBus {
   /** Req-reply: ответ приходит от единственного получателя */
@@ -91,7 +141,11 @@ export interface IMessageBus {
   ): Promise<ResponseContext>;
 
   /** Fire-and-forget: резолвится по факту доставки, не обработки */
-  publish(subject: string, payload: unknown): Promise<void>;
+  publish(
+    subject: string,
+    payload: unknown,
+    options?: PublishOptions,
+  ): Promise<void>;
 
   /** Подписка на subject; `options.group` делит доставку между членами */
   subscribe(
@@ -131,9 +185,17 @@ interface Entry {
   readonly group: string;
 }
 
-/** Сообщение в теме subject'а */
+/**
+ * Сообщение в теме subject'а.
+ *
+ * Профиль едет здесь **относительным** timeout'ом — той же формой, что по
+ * проводу: тема это репетиция провода, и абсолютный момент через неё не
+ * пересекает границу так же, как не пересёк бы её через NATS.
+ */
 interface Envelope {
   readonly payload: unknown;
+  readonly timeoutMs?: number;
+  readonly idempotencyKey?: string;
 }
 
 /**
@@ -203,6 +265,12 @@ class SubjectHub {
  * bounded-буфером и политикой медленного подписчика, поэтому публикация
  * никогда не ждёт обработчика. `durable`-доставки, ретраев и
  * персистентности в V1 нет: без внешнего брокера им негде жить.
+ *
+ * Конверт профиля реализован целиком — как репетиция провода: относительный
+ * `timeoutMs` становится абсолютным моментом **на приёме** по часам
+ * получателя, исчерпанный к этому моменту бюджет отвечает
+ * `DeadlineExceeded`, не тронув `dispatch.call`, а ключ идемпотентности
+ * попадает в транспортные атрибуты рядом с `subject`.
  */
 export class InProcessBus implements IMessageBus, ITransport {
   /** Способности транспорта: читает `assertFormsSupported` на сборке */
@@ -331,7 +399,11 @@ export class InProcessBus implements IMessageBus, ITransport {
         ? this.#signal
         : AbortSignal.any([options.signal, this.#signal]);
 
-    const response = await entry.handler(wire, { subject, signal });
+    // Приём: относительный timeout снова становится моментом — по часам
+    // получателя. Точка приёма у req-reply одна, и она здесь
+    const deadline = deadlineFromTimeout(options.timeoutMs);
+
+    const response = await entry.handler(wire, { subject, signal, deadline });
 
     if (!response) {
       return this.#undeliverable(subject, 'the subscriber returned no reply');
@@ -343,15 +415,26 @@ export class InProcessBus implements IMessageBus, ITransport {
   /**
    * Fire-and-forget: резолвится по факту постановки сообщения в очереди
    * подписчиков, а не по факту обработки.
+   *
+   * Бюджет конверта ограничивает **обработчика**, а не ожидание
+   * вызывающего: ждать здесь нечего, публикация возвращается сразу.
    */
-  async publish(subject: string, payload: unknown): Promise<void> {
+  async publish(
+    subject: string,
+    payload: unknown,
+    options: PublishOptions = {},
+  ): Promise<void> {
     const wire = structuralCopy(payload, `Message to '${subject}'`);
 
     if (this.#closed || this.#signal.aborted) {
       return;
     }
 
-    this.#hubs.get(subject)?.topic.push({ payload: wire });
+    this.#hubs.get(subject)?.topic.push({
+      payload: wire,
+      timeoutMs: options.timeoutMs,
+      idempotencyKey: options.idempotencyKey,
+    });
   }
 
   /**
@@ -421,6 +504,11 @@ export class InProcessBus implements IMessageBus, ITransport {
         await entry.handler(envelope.payload, {
           subject: hub.subject,
           signal: this.#signal,
+          // Приём — здесь: бюджет отсчитывается от момента, когда сообщение
+          // снято с темы, а не от момента публикации. Ожидание в буфере
+          // съедает бюджет ровно так же, как съел бы транзит по проводу
+          deadline: deadlineFromTimeout(envelope.timeoutMs),
+          idempotencyKey: envelope.idempotencyKey,
         });
       } catch (error) {
         this.#report(hub.subject, error);
@@ -442,11 +530,20 @@ export class InProcessBus implements IMessageBus, ITransport {
       );
     }
 
+    // Fail-fast до обработки: бюджет, исчерпанный в транзите, означает, что
+    // ответа уже никто не ждёт — исполнять ручку незачем
+    if (isExhausted(meta.deadline)) {
+      return failureResponse(DeadlineExceeded());
+    }
+
     const raw: Raw = {
       transport: BUS_TRANSPORT_NAME,
       pattern: route.pattern,
       payload,
-      attributes: { subject: meta.subject },
+      // Профиль — рядом с `subject`: это провод, и он безусловен. Юнит,
+      // читающий атрибуты, видит его без всякой композиции. Поля, которых
+      // в конверте не было, не появляются и в атрибутах
+      attributes: profileAttributes(meta),
     };
 
     const endpoint: EndpointMeta = {
@@ -459,7 +556,10 @@ export class InProcessBus implements IMessageBus, ITransport {
       errors: route.errors,
     };
 
-    const ctx = makeEmptyContext(raw, endpoint, meta.signal);
+    // Живой бюджет композируется с сигналом доставки: кооперативный
+    // обработчик видит исчерпание бюджета своим `ctx.signal`
+    const budget = startBudget(meta.deadline, meta.signal);
+    const ctx = makeEmptyContext(raw, endpoint, budget.signal);
 
     try {
       return await dispatch.call(route.pattern, ctx, {
@@ -471,6 +571,8 @@ export class InProcessBus implements IMessageBus, ITransport {
       // Ручка без pipeline отказ бросает: страж границы живёт в пайплайне,
       // поэтому ответ собирает транспорт — как это делает HTTP
       return failureResponse(error);
+    } finally {
+      budget.release();
     }
   }
 

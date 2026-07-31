@@ -18,6 +18,7 @@ import type {
 import type { TokenString } from '@nestling/container';
 import { makeTokenFamily } from '@nestling/container';
 import type {
+  DeadlineExceeded,
   FailOf,
   Ok,
   UnknownError,
@@ -25,11 +26,10 @@ import type {
 } from '@nestling/pipeline';
 
 /**
- * Словарь вызова.
+ * Словарь вызова — эксплуатационный профиль, а не транспортные настройки.
  *
- * Открыт под эксплуатационный профиль: `deadline` и `idempotencyKey`
- * приезжают отдельным change'ем и встают сюда, не меняя ни одного
- * call-site — поля добавляются, а не заменяются.
+ * Остаётся открытым под поля, добавляемые следующими change'ами: они
+ * встают сюда, не меняя ни одного call-site.
  */
 export interface PortMeta {
   /**
@@ -37,7 +37,54 @@ export interface PortMeta {
    * `meta.signal` — этот сигнал, а не сигнал чужого запроса.
    */
   signal?: AbortSignal;
+
+  /**
+   * Бюджет вызова — **абсолютный момент**, а не длительность: длительность
+   * «протухает» на каждом await'е между её вычислением и вызовом, момент —
+   * нет. Число не принимается: `500` одинаково правдоподобно читается и как
+   * epoch-миллисекунды, и как «через 500 мс». Сахар — `deadlineIn(ms)`.
+   *
+   * Дефолта нет: вызов без бюджета не ограничен по времени. Вложенный вызов
+   * бюджет **не наследует** — ровно как не наследует `signal`.
+   */
+  deadline?: Date;
 }
+
+/**
+ * Словарь вызова команды: тот же профиль плюс ключ идемпотентности.
+ *
+ * Отдельный тип, потому что поле есть только у вида `command`: у `request`
+ * и `event` его нет даже в типе, и `{ idempotencyKey }` там — ошибка
+ * компиляции, а не молчаливо проигнорированное поле. Код, выглядящий
+ * идемпотентным и не являющийся им, — худший из исходов.
+ */
+export interface CommandMeta extends PortMeta {
+  /**
+   * Идентичность намерения. Если не задан — вызыватель чеканит свой:
+   * `emit` команды **всегда** едет с ключом.
+   *
+   * Ядро гарантирует ровно две вещи: ключ доедет через транспорт и будет
+   * доступен обработчику. Дедупликация — satellite поверх хранилища.
+   */
+  idempotencyKey?: string;
+}
+
+/**
+ * Словарь `meta`, выбранный по виду контракта.
+ *
+ * Вид известен статически, поэтому и различие словарей статическое:
+ * рантайм-проверка вида была бы ошибкой запроса там, где возможна ошибка
+ * компиляции.
+ *
+ * Условие смотрит на **поле `kind`**, а не на `C extends CommandContract`:
+ * контракт несёт токен вызывателя, вызыватель — `InvokeArgs`, а тот снова
+ * `MetaOf`, поэтому структурная проверка контракта целиком уходит в
+ * бесконечную рекурсию и роняет `tsc` на первом же `Port<typeof C>`.
+ * Дискриминант этой петли не имеет.
+ */
+export type MetaOf<C extends AnyContract> = C extends { kind: 'command' }
+  ? CommandMeta
+  : PortMeta;
 
 /**
  * Отказы, которые вызов может вернуть помимо объявленных в контракте.
@@ -49,7 +96,8 @@ export interface PortMeta {
  */
 export type KernelPortFail =
   | FailOf<typeof UnknownError>
-  | FailOf<typeof ValidationFailed>;
+  | FailOf<typeof ValidationFailed>
+  | FailOf<typeof DeadlineExceeded>;
 
 /**
  * Множество ответов вызова: успех, объявленный отказ или kernel-отказ.
@@ -69,8 +117,8 @@ export type PortResult<C extends AnyContract> =
  */
 export type InvokeArgs<C extends AnyContract> =
   undefined extends InputOf<C>
-    ? [payload?: InputOf<C>, meta?: PortMeta]
-    : [payload: InputOf<C>, meta?: PortMeta];
+    ? [payload?: InputOf<C>, meta?: MetaOf<C>]
+    : [payload: InputOf<C>, meta?: MetaOf<C>];
 
 /**
  * Вызыватель контракта вида `request`.

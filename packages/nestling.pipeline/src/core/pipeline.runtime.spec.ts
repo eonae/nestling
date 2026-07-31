@@ -21,7 +21,7 @@ import type { PreUnitFn } from './types/unit';
 import { ClientDisconnectedError, TransportClosingError } from './abort';
 import type { AnyFailDefinition } from './define-fail';
 import { defineFail } from './define-fail';
-import { ValidationFailed } from './kernel-fails';
+import { DeadlineExceeded, ValidationFailed } from './kernel-fails';
 import type { AnyPipeline, ExecuteOptions, Pipeline } from './pipeline';
 import { compose, makePipeline } from './pipeline';
 import type { AnyFail } from './result';
@@ -965,6 +965,22 @@ describe('Pipeline v2 — страж контракта отказов', () => {
         code: 'VALIDATION_FAILED',
         details: [{ message: 'name must be a string' }],
       },
+    });
+  });
+
+  it('DEADLINE_EXCEEDED проходит страж нетронутым, не становясь UNKNOWN', async () => {
+    const response = await run(
+      makePipeline(),
+      () => {
+        throw DeadlineExceeded();
+      },
+      { errors: [] },
+    );
+
+    expect(response).toMatchObject({
+      isSuccess: false,
+      status: 'TIMEOUT',
+      value: { code: 'DEADLINE_EXCEEDED' },
     });
   });
 

@@ -50,3 +50,21 @@ export const UserRegistered = makeContract({
   kind: 'event',
   input: z.object({ id: z.string(), email: z.string() }),
 });
+
+/**
+ * Команда: «зафиксируй регистрацию в журнале квот».
+ *
+ * `command`, а не `event`: владелец ровно один, и повторная доставка
+ * (ретрай брокера, перезапуск процесса) обязана быть отличима от новой
+ * регистрации. Отличает её `idempotencyKey` — поле, которое есть в словаре
+ * `meta` **только** у этого вида: на `event` и `request` обращение к нему
+ * не компилируется.
+ *
+ * Дедупликации ядро не делает: оно гарантирует, что ключ доедет и будет
+ * доступен обработчику, — а что с ним делать, решает владелец команды.
+ */
+export const SignupRecorded = makeContract({
+  name: 'quotas.record-signup',
+  kind: 'command',
+  input: z.object({ userId: z.string(), email: z.string() }),
+});
