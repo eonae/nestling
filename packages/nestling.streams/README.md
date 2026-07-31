@@ -6,9 +6,11 @@ the implementation of the closed **item-chain** combinator vocabulary
 and iteration helpers driven by `AbortSignal`.
 
 The package has **no dependencies** — not even on `@nestling/pipeline`.
-That is deliberate: `Topic` is what the config module builds `reloadable`
-on and what the in-process port bus is built from, and neither of them
-needs a request pipeline.
+That is deliberate: `Topic` is what [`@nestling/config`](../nestling.config)
+builds `reloadable` on (the `onChange(signal, cb)` subscription of a
+reloadable section is a `Topic` subscription released by `AbortSignal`) and
+what the in-process port bus will be built from, and neither of them needs a
+request pipeline.
 
 > 🚧 Active development, API may change. Design:
 > [`docs/design/streaming.md`](../../docs/design/streaming.md).
