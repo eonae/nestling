@@ -1,6 +1,7 @@
 import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
+import { ActivityHub } from '../activity.hub';
 import { EmailTaken } from '../user.errors';
 import { UserService } from '../user.service';
 
@@ -34,7 +35,7 @@ type CreateUserOutput = z.infer<typeof CreateUserOutput>;
  * фейками, без контейнера и транспорта.
  */
 export const createUserHandler =
-  (users: UserService, logger: ILoggerService) =>
+  (users: UserService, logger: ILoggerService, activity?: ActivityHub) =>
   async (
     payload: CreateUserInput,
   ): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> => {
@@ -58,6 +59,10 @@ export const createUserHandler =
 
     const user = await users.create(payload);
 
+    // Публикация в ленту: `push` не ждёт подписчиков, поэтому создание
+    // пользователя не замедляется ни на одного SSE-клиента
+    activity?.publish('created', user.id);
+
     return Ok.created(user, {
       Location: `/api/users/${user.id}`,
     });
@@ -79,6 +84,6 @@ export const CreateUser = httpEndpoint({
   errors: [EmailTaken],
   bind: { dryRun: query() },
   pipeline: basePipeline,
-  deps: [UserService, ILogger],
+  deps: [UserService, ILogger, ActivityHub],
   handle: createUserHandler,
 });

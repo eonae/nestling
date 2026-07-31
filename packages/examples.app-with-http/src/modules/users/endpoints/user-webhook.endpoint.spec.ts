@@ -26,6 +26,7 @@ function makeContext(signature: string): ExtendableContext<{
       attributes: { 'x-signature': signature },
     },
     signal: new AbortController().signal,
+    summary: { itemsIn: 0, itemsOut: 0 },
     input: { rawBody },
   };
 }

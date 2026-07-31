@@ -32,9 +32,12 @@ async function main() {
   console.log('  - PATCH  /api/users/:id          - Update user');
   console.log('  - DELETE /api/users/:id          - Delete user');
   console.log('  - GET    /api/users/search       - Search users');
-  console.log('  - GET    /api/users/export       - Export users (stream)');
-  console.log('  - POST   /api/users/import       - Import users (stream)');
-  console.log('  - POST   /api/users/:id/avatar   - Upload avatar');
+  console.log('  - GET    /api/users/export       - Export users (NDJSON)');
+  console.log('  - POST   /api/users/import       - Import users (NDJSON)');
+  console.log('  - GET    /api/users/activity     - Activity feed (SSE)');
+  console.log(
+    '  - POST   /api/users/:id/avatar   - Upload avatar (multipart + upload)',
+  );
   console.log('  - POST   /api/hooks/users        - Webhook (rawBody + HMAC)');
   console.log('⚙️  Middleware: TimingMiddleware');
   console.log('');
@@ -46,6 +49,17 @@ async function main() {
   console.log('  POST http://localhost:3000/api/users');
   console.log(
     '       Body: {"name": "Charlie", "email": "charlie@example.com"}',
+  );
+  console.log('');
+  console.log('Потоковые формы:');
+  console.log('  curl -N     http://localhost:3000/api/users/export');
+  console.log('  curl -N     http://localhost:3000/api/users/activity');
+  console.log(
+    '  curl -H "content-type: application/x-ndjson" --data-binary @rows.ndjson \\',
+  );
+  console.log('       http://localhost:3000/api/users/import');
+  console.log(
+    '  curl -F avatar=@photo.png http://localhost:3000/api/users/1/avatar',
   );
   console.log('');
 }

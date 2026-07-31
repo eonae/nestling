@@ -23,6 +23,7 @@
     "@nestling/app": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/pipeline": "workspace:*",
+    "@nestling/streams": "workspace:*",
     "@nestling/transport": "workspace:*",
     "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"

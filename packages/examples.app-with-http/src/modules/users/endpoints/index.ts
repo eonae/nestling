@@ -1,3 +1,4 @@
+export * from './activity-stream.endpoint';
 export * from './create-user.endpoint';
 export * from './delete-user.endpoint';
 export * from './export-users.endpoint';

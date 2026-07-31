@@ -1,4 +1,6 @@
+import { ActivityHub } from './modules/users/activity.hub';
 import {
+  ActivityStream,
   CreateUser,
   DeleteUser,
   ExportUsers,
@@ -31,6 +33,7 @@ export const UsersModule = makeAppModule({
   name: 'module:users',
   providers: [
     UserService,
+    ActivityHub,
     SearchUsersHandler,
     ExportUsersHandler,
     ImportUsersHandler,
@@ -45,6 +48,7 @@ export const UsersModule = makeAppModule({
     SearchUsers,
     ExportUsers,
     ImportUsers,
+    ActivityStream,
     UploadAvatar,
     UserWebhook,
   ],

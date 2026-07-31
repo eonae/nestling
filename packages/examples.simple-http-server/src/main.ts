@@ -1,6 +1,13 @@
 /* eslint-disable no-console */
 
-import { CreateUser, SayHello, SearchUsers, StreamLogs } from './endpoints';
+import {
+  CreateUser,
+  ExportLogs,
+  SayHello,
+  SearchUsers,
+  StreamLogs,
+  UploadReport,
+} from './endpoints';
 
 import { HttpTransport } from '@nestling/transport.http';
 
@@ -17,6 +24,8 @@ server.route(SayHello);
 server.route(CreateUser);
 server.route(SearchUsers);
 server.route(StreamLogs);
+server.route(ExportLogs);
+server.route(UploadReport);
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -29,7 +38,9 @@ server
     console.log('  GET  /                - Hello message');
     console.log('  POST /users           - Create user');
     console.log('  GET  /users           - Search users (query-параметры)');
-    console.log('  POST /logs/stream     - Stream logs processing');
+    console.log('  POST /logs/stream     - Stream logs processing (NDJSON in)');
+    console.log('  GET  /logs/export     - Stream logs export (NDJSON out)');
+    console.log('  POST /reports         - Upload a report (multipart)');
 
     console.log('\nTry:');
     console.log(`  curl http://localhost:${PORT}/`);
@@ -41,6 +52,10 @@ server
     );
     console.log(
       `  curl 'http://localhost:${PORT}/users?q=ali&tag=admin&tag=ops&limit=5'`,
+    );
+    console.log(`  curl -N http://localhost:${PORT}/logs/export`);
+    console.log(
+      `  curl -F title=Q3 -F 'report=@q3.pdf;type=application/pdf' http://localhost:${PORT}/reports`,
     );
     console.log('');
   })

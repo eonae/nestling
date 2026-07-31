@@ -30,10 +30,8 @@ describe('ExportUsersHandler', () => {
 
     if (result instanceof Ok) {
       expect(result).toBeInstanceOf(Ok);
-      expect(result.headers).toHaveProperty(
-        'Content-Type',
-        'application/x-ndjson',
-      );
+      // Content-Type ставит framing по форме `stream(...)`, а не хендлер
+      expect(result.headers).not.toHaveProperty('Content-Type');
       expect(result.headers).toHaveProperty(
         'Content-Disposition',
         'attachment; filename="users.ndjson"',

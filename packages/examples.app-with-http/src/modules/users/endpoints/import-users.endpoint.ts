@@ -1,6 +1,7 @@
 import { noValidationPipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger/logger.service';
 import { ILogger } from '../../logger/logger.service';
+import { importMetrics } from '../import-metrics';
 import { UserService } from '../user.service';
 
 import { Injectable } from '@nestling/container';
@@ -51,17 +52,29 @@ export class ImportUsersHandler {
   }
 }
 
+/** Верхняя граница строк одного импорта: `.limit` отказывает 413 */
+const MAX_IMPORT_ROWS = 10_000;
+
+/** Сколько секунд ждём следующую строку, прежде чем отказать 504 */
+const IMPORT_GAP_TIMEOUT = 30_000;
+
 /**
  * Endpoint для импорта пользователей из стрима
  * Демонстрирует:
  * - Streaming данных на вход (обработка входящего stream)
- * - Валидация каждого chunk'а стрима
- * - Возврат статистики импорта
+ * - поэлементную валидацию по схеме-листу — её делает ядро, не хендлер
+ * - item-цепочку на декларации: наблюдение, лимит и таймаут молчания
+ *   действуют без единой строки в теле хендлера
  */
 export const ImportUsers = httpEndpoint({
   method: 'POST',
   path: '/api/users/import',
-  input: stream(ImportUserInput),
+  input: stream(ImportUserInput)
+    .tap(() => {
+      importMetrics.rowsSeen += 1;
+    })
+    .limit(MAX_IMPORT_ROWS)
+    .gapTimeout(IMPORT_GAP_TIMEOUT),
   output: ImportUsersOutput,
   pipeline: noValidationPipeline,
   handle: ImportUsersHandler,

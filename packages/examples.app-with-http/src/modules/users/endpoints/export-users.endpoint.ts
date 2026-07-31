@@ -28,23 +28,29 @@ export class ExportUsersHandler {
 
     const userStream = this.users.exportAll();
 
+    // Content-Type ставит framing по форме `stream(...)` — руками его
+    // задавать больше не нужно
     return new Ok(userStream, {
-      'Content-Type': 'application/x-ndjson',
       'Content-Disposition': 'attachment; filename="users.ndjson"',
     });
   }
 }
 
+/** Верхняя граница строк одного экспорта */
+const MAX_EXPORT_ROWS = 100_000;
+
 /**
  * Endpoint для экспорта пользователей через streaming
  * Демонстрирует:
- * - Streaming данных на выход через AsyncIterableIterator
- * - Кастомные заголовки (Content-Type, Content-Disposition)
+ * - `stream(T)` на выходе: framing NDJSON выбирает форма, а не хендлер
+ * - выходную item-цепочку (только тип-сохраняющую: оба конца зафиксированы
+ *   схемой) — `.batch(...)` здесь не скомпилировался бы
+ * - Кастомные заголовки (Content-Disposition)
  */
 export const ExportUsers = httpEndpoint({
   method: 'GET',
   path: '/api/users/export',
-  output: stream(ExportUsersOutput),
+  output: stream(ExportUsersOutput).limit(MAX_EXPORT_ROWS),
   pipeline: noValidationPipeline,
   handle: ExportUsersHandler,
 });

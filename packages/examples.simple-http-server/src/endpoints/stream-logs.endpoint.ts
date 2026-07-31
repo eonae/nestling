@@ -23,10 +23,21 @@ const StreamLogsOutput = z.object({
 type LogChunk = z.infer<typeof LogChunk>;
 type StreamLogsOutput = z.infer<typeof StreamLogsOutput>;
 
+/** Верхняя граница строк одной пачки: `.limit` отказывает 413 */
+const MAX_LOG_LINES = 50_000;
+
+/** Сколько ждём следующую строку, прежде чем отказать 504 */
+const LOG_GAP_TIMEOUT = 30_000;
+
+/**
+ * Демонстрирует форму `stream(T)` на входе и item-цепочку на декларации:
+ * поэлементную валидацию делает ядро, а лимит и таймаут молчания
+ * действуют без единой строки в теле хендлера.
+ */
 export const StreamLogs = httpEndpoint({
   method: 'POST',
   path: '/logs/stream',
-  input: stream(LogChunk),
+  input: stream(LogChunk).limit(MAX_LOG_LINES).gapTimeout(LOG_GAP_TIMEOUT),
   output: StreamLogsOutput,
   pipeline: makePipeline().pre(withTiming),
   handle: async (
