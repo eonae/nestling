@@ -1,19 +1,13 @@
 {
-  "name": "@nestling/app",
+  "name": "@nestling/ports",
   "version": "0.1.0",
-  "description": "",
+  "description": "Contracts, ports and the in-process message bus for Nestling",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./testing": {
-      "testing": {
-        "types": "./dist/testing/index.d.ts",
-        "import": "./dist/testing/index.js"
-      }
     }
   },
   "scripts": {
@@ -30,12 +24,11 @@
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/pipeline": "workspace:*",
-    "@nestling/ports": "workspace:*",
+    "@nestling/streams": "workspace:*",
     "@nestling/transport": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/transport.cli": "workspace:*",
-    "@nestling/transport.http": "workspace:*",
+    "typescript": "5.7.3",
     "zod": "^4.0.0"
   }
 }

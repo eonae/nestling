@@ -1,0 +1,475 @@
+/**
+ * Шина: `IMessageBus` как LCD глаголов брокера и `InProcessBus` как одно
+ * значение с двумя способностями.
+ *
+ * Дихотомия «messaging vs transports» ложная: шина — транспорт с двумя
+ * способностями. Inbound: `serve(dispatch, signal)` подписывает маршруты
+ * своих реализаций на их subject'ы. Outbound: `request`/`publish` для
+ * вызывателей. Ровно та форма, которую примет NATS-транспорт, — поэтому
+ * V1-шина не заглушка, а репетиция интерфейса.
+ */
+
+import { failureResponse } from './response.js';
+import { BUS_TRANSPORT_NAME, busBindingOf } from './transport.js';
+import { structuralCopy } from './wire.js';
+
+import { makeToken } from '@nestling/container';
+import type {
+  EndpointMeta,
+  FormKind,
+  Raw,
+  ResponseContext,
+  TransportCapabilities,
+  UnknownFailInfo,
+} from '@nestling/pipeline';
+import { assertFormsSupported, makeEmptyContext } from '@nestling/pipeline';
+import { Topic } from '@nestling/streams';
+import type {
+  Dispatch,
+  ITransport,
+  RouteDeclaration,
+} from '@nestling/transport';
+
+/** Что известно обработчику о доставленном сообщении */
+export interface BusMessageMeta {
+  /** Subject, на который пришло сообщение */
+  readonly subject: string;
+
+  /** Канал отмены: сигнал вызова, композированный с сигналом остановки */
+  readonly signal: AbortSignal;
+}
+
+/**
+ * Обработчик сообщения шины.
+ *
+ * Возвращает контекст ответа для req-reply и ничего — для доставки
+ * fire-and-forget.
+ */
+export type BusHandler = (
+  payload: unknown,
+  meta: BusMessageMeta,
+) => /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type --
+ * `void` в union'е возврата осознан: подписчик fire-and-forget пишется
+ * обычной функцией без return, и требовать от него `undefined` значило бы
+ * ломать поддерживаемую форму (тот же приём, что у юнитов пайплайна) */
+Promise<ResponseContext | void> | ResponseContext | void;
+
+/** Опции подписки */
+export interface SubscribeOptions {
+  /**
+   * Группа доставки — in-proc аналог queue-group: сообщение получает ровно
+   * один член группы. Подписки без группы независимы, то есть получают
+   * каждое сообщение (broadcast).
+   */
+  group?: string;
+}
+
+/** Опции запроса */
+export interface RequestOptions {
+  /** Канал отмены вызова */
+  signal?: AbortSignal;
+}
+
+/** Хэндл подписки: единственное, что с ней можно сделать, — снять */
+export interface BusSubscription {
+  unsubscribe(): void;
+}
+
+/**
+ * Шина сообщений — наименьший общий знаменатель глаголов брокера.
+ *
+ * Специфика конкретного брокера (JetStream, ack-семантика,
+ * wildcard-subject'ы, KV) за эту границу не протекает: ядро зависит только
+ * от интерфейса, реализации — обычные провайдеры.
+ */
+export interface IMessageBus {
+  /** Req-reply: ответ приходит от единственного получателя */
+  request(
+    subject: string,
+    payload: unknown,
+    options?: RequestOptions,
+  ): Promise<ResponseContext>;
+
+  /** Fire-and-forget: резолвится по факту доставки, не обработки */
+  publish(subject: string, payload: unknown): Promise<void>;
+
+  /** Подписка на subject; `options.group` делит доставку между членами */
+  subscribe(
+    subject: string,
+    handler: BusHandler,
+    options?: SubscribeOptions,
+  ): BusSubscription;
+}
+
+/** Токен шины: ядро зависит от интерфейса, а не от реализации */
+export const MessageBus$ = makeToken<IMessageBus>('MessageBus');
+
+/** Опции in-proc шины */
+export interface InProcessBusOptions {
+  /** Размер буфера на подписчика (см. `Topic`) */
+  buffer?: number;
+
+  /**
+   * Диагностический хук: отказ доставки (упавший подписчик, отсутствующий
+   * получатель). Не задан — рантайм пишет в `console.error`.
+   */
+  onDeliveryFailure?: (info: { subject: string; error: unknown }) => void;
+
+  /** Диагностический хук стража границы для входящих сообщений */
+  onUnknownFail?: (info: UnknownFailInfo) => void;
+}
+
+/** Способности шины по формам io: только value с обеих сторон */
+const BUS_CAPABILITIES: TransportCapabilities = {
+  input: new Set<FormKind>(['value']),
+  output: new Set<FormKind>(['value']),
+};
+
+/** Одна подписка: обработчик и группа доставки, к которой он принадлежит */
+interface Entry {
+  readonly handler: BusHandler;
+  readonly group: string;
+}
+
+/** Сообщение в теме subject'а */
+interface Envelope {
+  readonly payload: unknown;
+}
+
+/**
+ * Группа доставки: сообщение получает ровно один её член.
+ *
+ * Насос группы — единственный подписчик темы: буфер и политика медленного
+ * подписчика принадлежат `Topic`, круговой выбор члена — группе.
+ */
+class DeliveryGroup {
+  readonly entries: Entry[] = [];
+
+  #cursor = 0;
+
+  /** Насос запущен: повторная подписка члена его не удваивает */
+  pumping = false;
+
+  next(): Entry | undefined {
+    if (this.entries.length === 0) {
+      return undefined;
+    }
+
+    const entry = this.entries[this.#cursor % this.entries.length];
+    this.#cursor = (this.#cursor + 1) % this.entries.length;
+
+    return entry;
+  }
+}
+
+/** Всё, что известно об одном subject'е */
+class SubjectHub {
+  readonly topic: Topic<Envelope>;
+  readonly groups = new Map<string, DeliveryGroup>();
+
+  /** Круговой курсор req-reply: реплики владельца делят нагрузку */
+  #cursor = 0;
+
+  constructor(
+    readonly subject: string,
+    buffer?: number,
+  ) {
+    this.topic = new Topic<Envelope>(buffer === undefined ? {} : { buffer });
+  }
+
+  /** Все обработчики subject'а в порядке подписки — получатели req-reply */
+  entries(): Entry[] {
+    return [...this.groups.values()].flatMap((group) => group.entries);
+  }
+
+  /** Следующий получатель req-reply или `undefined`, если их нет */
+  nextResponder(): Entry | undefined {
+    const entries = this.entries();
+    if (entries.length === 0) {
+      return undefined;
+    }
+
+    const entry = entries[this.#cursor % entries.length];
+    this.#cursor = (this.#cursor + 1) % entries.length;
+
+    return entry;
+  }
+}
+
+/**
+ * In-proc шина: `IMessageBus` плюс `ITransport`.
+ *
+ * Broadcast построен на `Topic` из `@nestling/streams` — с его
+ * bounded-буфером и политикой медленного подписчика, поэтому публикация
+ * никогда не ждёт обработчика. `durable`-доставки, ретраев и
+ * персистентности в V1 нет: без внешнего брокера им негде жить.
+ */
+export class InProcessBus implements IMessageBus, ITransport {
+  /** Способности транспорта: читает `assertFormsSupported` на сборке */
+  readonly capabilities: TransportCapabilities = BUS_CAPABILITIES;
+
+  readonly #hubs = new Map<string, SubjectHub>();
+
+  /** Канал остановки самой шины; композируется с сигналом `serve` */
+  readonly #closing = new AbortController();
+
+  #signal: AbortSignal = this.#closing.signal;
+
+  #dispatch?: Dispatch;
+
+  #closed = false;
+
+  constructor(private readonly options: InProcessBusOptions = {}) {}
+
+  /**
+   * Выводит шину в эфир: подписывает маршруты своих реализаций.
+   *
+   * Формы io проверяются здесь же — до первой доставки: на standalone-пути
+   * это единственная точка проверки, и текст ошибки тот же, что у сборки
+   * приложения.
+   */
+  async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
+    if (this.#dispatch) {
+      throw new Error('Bus transport is already serving');
+    }
+
+    for (const route of dispatch.routes) {
+      assertFormsSupported(route, this.capabilities);
+    }
+
+    this.#dispatch = dispatch;
+    this.#signal = AbortSignal.any([signal, this.#closing.signal]);
+
+    for (const route of dispatch.routes) {
+      const binding = busBindingOf(route);
+      if (!binding) {
+        continue;
+      }
+
+      // Адрес подписки: у события — имя подписчика, у запроса и команды
+      // владелец один, и его группа общая для всех реплик subject'а
+      const group =
+        binding.kind === 'event'
+          ? (binding.subscriber ?? route.pattern)
+          : `owner:${binding.subject}`;
+
+      this.subscribe(
+        binding.subject,
+        (payload, meta) => this.#execute(route, payload, meta),
+        { group },
+      );
+    }
+  }
+
+  /**
+   * Req-reply: сообщение уходит ровно одному получателю.
+   *
+   * Async-барьер безусловен: доставка никогда не синхронна, потому что по
+   * проводу она синхронной не бывает. Payload и ответ копируются
+   * структурно — это и есть репетиция split'а.
+   */
+  async request(
+    subject: string,
+    payload: unknown,
+    options: RequestOptions = {},
+  ): Promise<ResponseContext> {
+    const wire = structuralCopy(payload, `Request to '${subject}'`);
+
+    // Барьер: получатель не начинает работу внутри синхронной части вызова
+    await Promise.resolve();
+
+    if (this.#closed || this.#signal.aborted) {
+      return this.#undeliverable(subject, 'the bus is closed');
+    }
+
+    const entry = this.#hubs.get(subject)?.nextResponder();
+    if (!entry) {
+      return this.#undeliverable(subject, 'no subscriber is listening');
+    }
+
+    const signal =
+      options.signal === undefined
+        ? this.#signal
+        : AbortSignal.any([options.signal, this.#signal]);
+
+    const response = await entry.handler(wire, { subject, signal });
+
+    if (!response) {
+      return this.#undeliverable(subject, 'the subscriber returned no reply');
+    }
+
+    return structuralCopy(response, `Reply of '${subject}'`);
+  }
+
+  /**
+   * Fire-and-forget: резолвится по факту постановки сообщения в очереди
+   * подписчиков, а не по факту обработки.
+   */
+  async publish(subject: string, payload: unknown): Promise<void> {
+    const wire = structuralCopy(payload, `Message to '${subject}'`);
+
+    if (this.#closed || this.#signal.aborted) {
+      return;
+    }
+
+    this.#hubs.get(subject)?.topic.push({ payload: wire });
+  }
+
+  /**
+   * Подписывает обработчик на subject.
+   *
+   * Подписки одной группы делят доставку (in-proc queue-group), подписки
+   * разных групп получают каждое сообщение.
+   */
+  subscribe(
+    subject: string,
+    handler: BusHandler,
+    options: SubscribeOptions = {},
+  ): BusSubscription {
+    const hub = this.#hub(subject);
+    const name = options.group ?? `anonymous:${hub.groups.size}`;
+
+    let group = hub.groups.get(name);
+    if (!group) {
+      group = new DeliveryGroup();
+      hub.groups.set(name, group);
+    }
+
+    const entry: Entry = { handler, group: name };
+    group.entries.push(entry);
+
+    if (!group.pumping) {
+      group.pumping = true;
+      void this.#pump(hub, group);
+    }
+
+    return {
+      unsubscribe: () => {
+        const index = group.entries.indexOf(entry);
+        if (index !== -1) {
+          group.entries.splice(index, 1);
+        }
+      },
+    };
+  }
+
+  /**
+   * Останавливает шину: доставки больше нет, темы закрыты, насосы
+   * завершились нормально.
+   */
+  async close(): Promise<void> {
+    this.#closed = true;
+    this.#closing.abort();
+
+    for (const hub of this.#hubs.values()) {
+      hub.topic.close();
+    }
+    this.#hubs.clear();
+    this.#dispatch = undefined;
+  }
+
+  /** Насос группы: единственный подписчик темы, раздающий по кругу */
+  async #pump(hub: SubjectHub, group: DeliveryGroup): Promise<void> {
+    for await (const envelope of hub.topic.subscribe(this.#signal)) {
+      const entry = group.next();
+      if (!entry) {
+        continue;
+      }
+
+      try {
+        // Отказ одного подписчика не влияет на доставку остальным: они
+        // разбирают свои темы независимо
+        await entry.handler(envelope.payload, {
+          subject: hub.subject,
+          signal: this.#signal,
+        });
+      } catch (error) {
+        this.#report(hub.subject, error);
+      }
+    }
+  }
+
+  /** Маршрутизирует входящее сообщение в исполнение ручки */
+  async #execute(
+    route: RouteDeclaration,
+    payload: unknown,
+    meta: BusMessageMeta,
+  ): Promise<ResponseContext> {
+    const dispatch = this.#dispatch;
+
+    if (!dispatch) {
+      throw new Error(
+        'Bus transport is not serving: call serve(dispatch, signal) first.',
+      );
+    }
+
+    const raw: Raw = {
+      transport: BUS_TRANSPORT_NAME,
+      pattern: route.pattern,
+      payload,
+      attributes: { subject: meta.subject },
+    };
+
+    const endpoint: EndpointMeta = {
+      transport: BUS_TRANSPORT_NAME,
+      pattern: route.pattern,
+      input: route.input,
+      output: route.output,
+      // Объявленные отказы доезжают до стража только так: декларация →
+      // транспорт → контекст, без глобального реестра
+      errors: route.errors,
+    };
+
+    const ctx = makeEmptyContext(raw, endpoint, meta.signal);
+
+    try {
+      return await dispatch.call(route.pattern, ctx, {
+        // Через шину stack не уезжает — ровно как не уехал бы по проводу
+        exposeErrorDetails: false,
+        onUnknownFail: this.options.onUnknownFail,
+      });
+    } catch (error) {
+      // Ручка без pipeline отказ бросает: страж границы живёт в пайплайне,
+      // поэтому ответ собирает транспорт — как это делает HTTP
+      return failureResponse(error);
+    }
+  }
+
+  /** Тема subject'а, заводимая по первой подписке */
+  #hub(subject: string): SubjectHub {
+    const existing = this.#hubs.get(subject);
+    if (existing) {
+      return existing;
+    }
+
+    const hub = new SubjectHub(subject, this.options.buffer);
+    this.#hubs.set(subject, hub);
+
+    return hub;
+  }
+
+  /** Ответ на запрос, который некому обслужить */
+  #undeliverable(subject: string, reason: string): ResponseContext {
+    const error = new Error(
+      `Bus request to '${subject}' was not delivered: ${reason}.`,
+    );
+    this.#report(subject, error);
+
+    return {
+      isSuccess: false,
+      status: 'SERVICE_UNAVAILABLE',
+      value: { error: error.message },
+    };
+  }
+
+  /** Диагностический канал отказов доставки */
+  #report(subject: string, error: unknown): void {
+    if (this.options.onDeliveryFailure) {
+      this.options.onDeliveryFailure({ subject, error });
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.error(`[nestling] bus delivery failed on '${subject}':`, error);
+  }
+}

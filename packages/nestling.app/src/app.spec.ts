@@ -846,11 +846,12 @@ describe('assemble — фичи в приложении', () => {
       transports: [asHttpTransport(new MockTransport())],
     });
 
-    // Регистрация модулей идёт раньше дискавери, поэтому диагностику даёт
-    // контейнер: его текст говорит о провайдерах и экспортах, дискавери —
-    // ещё и об эндпоинтах. Порядок проверок фазы ASSEMBLE не изменился.
+    // Дискавери идёт раньше регистрации модулей (её результат нужен
+    // kernel-модулю портов уже на регистрации), поэтому диагностику даёт
+    // она: тот же инвариант, тот же класс ошибки, текст ещё и про
+    // эндпоинты. Фаза остаётся прежней — ASSEMBLE, до любого `@OnInit`.
     await expect(app.check()).rejects.toThrow(
-      /Two different modules are named 'module:logging'\. A module name is the attribution key of its providers and exports/,
+      /Two different modules are named 'module:logging'\. A module name is the attribution key of its providers, exports and endpoints/,
     );
   });
 

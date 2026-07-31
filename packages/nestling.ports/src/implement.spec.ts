@@ -1,0 +1,140 @@
+/* eslint-disable unicorn/no-useless-undefined --
+ * Реализация контракта без `output` возвращает `undefined` явно: так
+ * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
+ * ему не соответствует. */
+import { makeContract } from './contract.js';
+import { implement } from './implement.js';
+import { busBindingOf, BusTransport$ } from './transport.js';
+
+import { makeToken } from '@nestling/container';
+import { isEndpointDefinition, Ok } from '@nestling/pipeline';
+import { z } from 'zod';
+
+const Ledger = makeToken<{ charge: (amount: number) => string }>('Ledger');
+
+const ChargeCard = makeContract({
+  name: 'impl.billing.charge',
+  kind: 'request',
+  input: z.object({ amount: z.number() }),
+  output: z.object({ chargeId: z.string() }),
+});
+
+const OrderPlaced = makeContract({
+  name: 'impl.orders.placed',
+  kind: 'event',
+  input: z.object({ orderId: z.string() }),
+});
+
+/** Бросатель `meta.fail`: ни один хендлер этих тестов его не зовёт */
+const unusedFail = (): never => {
+  throw new Error('meta.fail is not used in these tests');
+};
+
+describe('implement', () => {
+  it('строит обычную декларацию на транспорте шины', () => {
+    const declaration = implement(ChargeCard, {
+      handle: async () => new Ok({ chargeId: 'c-1' }),
+    });
+
+    expect(isEndpointDefinition(declaration)).toBe(true);
+    expect(declaration.transport).toBe(BusTransport$);
+    expect(declaration.pattern).toBe('impl.billing.charge');
+    expect(declaration.input).toBe(ChargeCard.input);
+    expect(declaration.output).toBe(ChargeCard.output);
+    expect(busBindingOf(declaration)).toEqual({
+      subject: 'impl.billing.charge',
+      kind: 'request',
+    });
+  });
+
+  it('принимает три формы `handle` и гасит их тем же `resolve`', async () => {
+    const ledger = { charge: (amount: number) => `c-${amount}` };
+
+    const asFunction = implement(ChargeCard, {
+      handle: async () => new Ok({ chargeId: 'fn' }),
+    });
+
+    const asFactory = implement(ChargeCard, {
+      deps: [Ledger],
+      handle: (deps) => async (input: { amount: number }) =>
+        new Ok({ chargeId: deps.charge(input.amount) }),
+    });
+
+    class ChargeHandler {
+      async handle(input: { amount: number }) {
+        return new Ok({ chargeId: `class-${input.amount}` });
+      }
+    }
+
+    const asClass = implement(ChargeCard, { handle: ChargeHandler });
+
+    const resolver = (token: unknown): unknown =>
+      token === Ledger ? ledger : new ChargeHandler();
+
+    const meta = { signal: new AbortController().signal, fail: unusedFail };
+
+    await expect(
+      asFunction.resolve(resolver).handle({ amount: 1 }, meta),
+    ).resolves.toEqual(new Ok({ chargeId: 'fn' }));
+
+    await expect(
+      asFactory.resolve(resolver).handle({ amount: 7 }, meta),
+    ).resolves.toEqual(new Ok({ chargeId: 'c-7' }));
+
+    await expect(
+      asClass.resolve(resolver).handle({ amount: 3 }, meta),
+    ).resolves.toEqual(new Ok({ chargeId: 'class-3' }));
+  });
+
+  it('переносит `detached` на декларацию', () => {
+    const declaration = implement(ChargeCard, {
+      detached: 'внутренний вызов: до auth не доходит',
+      handle: async () => new Ok({ chargeId: 'c-1' }),
+    });
+
+    expect(declaration.detached).toBe('внутренний вызов: до auth не доходит');
+  });
+
+  it('разводит адрес в процессе и адрес на шине для события', () => {
+    const billing = implement(OrderPlaced, {
+      subscriber: 'billing',
+      handle: async () => undefined,
+    });
+
+    const analytics = implement(OrderPlaced, {
+      subscriber: 'analytics',
+      handle: async () => undefined,
+    });
+
+    expect(billing.pattern).toBe('impl.orders.placed@billing');
+    expect(analytics.pattern).toBe('impl.orders.placed@analytics');
+    expect(busBindingOf(billing)?.subject).toBe('impl.orders.placed');
+    expect(busBindingOf(analytics)?.subject).toBe('impl.orders.placed');
+  });
+
+  it('требует `subscriber` у события', () => {
+    expect(() =>
+      implement(OrderPlaced, {
+        handle: async () => undefined,
+      }),
+    ).toThrow(/'event' contract has 0\.\.N subscribers.*subscriber/s);
+  });
+
+  it('запрещает `subscriber` у запроса', () => {
+    expect(() =>
+      implement(ChargeCard, {
+        subscriber: 'billing' as never,
+        handle: async () => new Ok({ chargeId: 'c-1' }),
+      }),
+    ).toThrow(/'request' contract has exactly one owner/);
+  });
+
+  it('запрещает переобъявление интерфейса контракта', () => {
+    expect(() =>
+      implement(ChargeCard, {
+        input: z.object({ other: z.string() }) as never,
+        handle: async () => new Ok({ chargeId: 'c-1' }),
+      }),
+    ).toThrow(/'input' belongs to the contract/);
+  });
+});

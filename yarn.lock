@@ -1561,6 +1561,7 @@ __metadata:
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
+    "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.cli": "workspace:*"
     "@nestling/transport.http": "workspace:*"
@@ -1618,6 +1619,21 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/streams": "workspace:*"
+    typescript: "npm:5.7.3"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@nestling/ports@workspace:*, @nestling/ports@workspace:packages/nestling.ports":
+  version: 0.0.0-use.local
+  resolution: "@nestling/ports@workspace:packages/nestling.ports"
+  dependencies:
+    "@common/misc": "workspace:*"
+    "@nestling/config": "workspace:*"
+    "@nestling/container": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
+    "@nestling/streams": "workspace:*"
+    "@nestling/transport": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown

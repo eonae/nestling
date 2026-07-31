@@ -35,6 +35,11 @@ import {
   contextKernel,
   transportNameOf,
 } from '@nestling/pipeline';
+import {
+  bindPorts,
+  collectImplementations,
+  portsKernel,
+} from '@nestling/ports';
 import type {
   Dispatch,
   ExecutableDeclaration,
@@ -324,6 +329,28 @@ export class App {
     // зато в корне про request-контекст не пишется ни строки
     builder.register(contextKernel());
 
+    // Дискавери — по дереву модулей, отобранных `select`: невыбранные
+    // фичи в нём не участвуют вовсе. Считается до регистрации модулей,
+    // потому что топология реализаций контрактов нужна kernel-модулю
+    // портов уже на регистрации: функция чистая, порядок ни на что не
+    // влияет
+    const discovery = discoverEndpoints(this.#plan.modules);
+
+    // Kernel-модуль портов — по тем же правилам, что конфиг и контекст:
+    // регистрируется всегда, а узлы заводит только под запрошенные
+    // вызыватели и под реально объявленные реализации
+    builder.register(
+      portsKernel({
+        implementations: collectImplementations(discovery.endpoints),
+        // Зависимости деклараций — тоже потребность: ручка, зовущая порт,
+        // обязана получить вызыватель наравне с провайдером, который его
+        // инжектит
+        requested: discovery.endpoints.flatMap(
+          ({ endpoint }) => endpoint.deps ?? [],
+        ),
+      }),
+    );
+
     if (this.#plan.modules.length > 0) {
       builder.register(...this.#plan.modules);
     }
@@ -335,10 +362,6 @@ export class App {
     if (this.#plan.transports.length > 0) {
       builder.register(...(this.#plan.transports as Provider[]));
     }
-
-    // Дискавери — по дереву модулей, отобранных `select`: невыбранные
-    // фичи в нём не участвуют вовсе
-    const discovery = discoverEndpoints(this.#plan.modules);
 
     const container = await builder.build();
 
@@ -404,6 +427,12 @@ export class App {
         makeDispatch(endpoints),
       ]),
     );
+
+    // Связывание вызывателей контрактов с исполнителем — здесь и только
+    // здесь: `dispatch` рождается в WIRE, поэтому раньше связывать не с
+    // чем, а позже транспорт уже вышел бы в эфир. Приложение без единого
+    // порта проходит шаг вхолостую: держателя в графе просто нет.
+    bindPorts(container, dispatches);
 
     const wired = new Map<AnyEndpointDefinition, WiredEndpoint>();
     for (const [declaration, resolved] of resolvedByDeclaration) {
