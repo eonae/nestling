@@ -170,10 +170,26 @@ multipart-формах.
 определением `defineFail`, и повторяющийся `code` SHALL быть ошибкой в
 момент создания декларации.
 
+К этому же набору SHALL относиться проверки форм io (правила и тексты —
+capability `io-forms`): `multipart` или `upload()` в слоте `output`,
+`upload()` вне `multipart`, потоковая форма без схемы-листа и без
+примитива, конфликт имени файлового поля с полем `fields`. Для HTTP сюда
+же SHALL входить проверка секции `sse` (capability
+`http-streaming-framing`): `sse` при не-`events`-выходе и имя события
+`error`, зарезервированное за mid-stream отказом.
+
+Тип-меняющий шаг item-цепочки в слоте `output` SHALL диагностироваться
+типами в точке декларации (capability `stream-item-chains`); рантайм
+SHALL дублировать эту проверку для JS-потребителей.
+
 Проверки, требующие перечня ключей схемы `input`, SHALL NOT входить в этот
 набор: Standard Schema не отдаёт перечня ключей. В частности, случай
 «path-параметр объявлен в шаблоне, а поля с таким именем в схеме нет» в
 общем виде SHALL NOT диагностироваться при создании декларации.
+
+Проверка соответствия форм способностям транспорта SHALL NOT входить в
+этот набор: транспорт выбирается на сборке, поэтому она выполняется при
+регистрации (capability `transport-form-capabilities`).
 
 #### Scenario: Путь без ведущего слэша
 
@@ -200,6 +216,17 @@ multipart-формах.
 
 - **WHEN** вызвано `httpEndpoint({ …, errors: [CardDeclined, CardDeclined] })`
 - **THEN** вызов бросает ошибку в момент создания декларации, называя код
+
+#### Scenario: Нарушение правила формы io
+
+- **WHEN** вызвано `httpEndpoint({ method: 'POST', path: '/reports', output: multipart({ files: { report: upload() } }), … })`
+- **THEN** вызов бросает ошибку в момент создания декларации, называя
+  слот `output` и форму `multipart`
+
+#### Scenario: SSE-словарь без events-выхода
+
+- **WHEN** вызвано `httpEndpoint({ …, output: Report, sse: { heartbeat: 5000 } })`
+- **THEN** вызов бросает ошибку в момент создания декларации
 
 ### Requirement: `makeEndpoint` — kernel-примитив транспортных конструкторов
 

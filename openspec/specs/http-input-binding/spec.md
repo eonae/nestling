@@ -116,10 +116,16 @@ bind-карту **в момент создания значения** — не �
 - пометку на поле, совпадающем с path-параметром шаблона;
 - пометку `body()` у метода без тела;
 - непустой `bind` при неструктурном `input`
-  (`stream(...)`, `files()`, примитивы `'binary'`/`'text'`);
+  (`stream(...)`, `events(...)`, примитивы `'binary'`/`'text'`);
 - path-параметр в шаблоне при неструктурном `input`;
 - path-параметр в шаблоне при отсутствии `input`;
-- `rawBody: true` вместе с `stream(...)`, `files()` или `withFiles(...)`.
+- `rawBody: true` вместе с `stream(...)`, `events(...)` или
+  `multipart(...)`.
+
+Форма `multipart({ fields, files })` SHALL считаться **структурной**:
+path-параметры и помеченные query-поля подмешиваются к полям формы
+(`fields`) до валидации схемой. Формы `stream`/`events` SHALL считаться
+неструктурными: payload не объект, и класть в него поля некуда.
 
 Ошибка SHALL называть нарушенное правило и проблемное имя (поля, параметра
 или метода).
@@ -138,6 +144,11 @@ bind-карту **в момент создания значения** — не �
 
 - **WHEN** вызвано `httpEndpoint({ method: 'POST', path: '/users/:id/logs', input: stream(LogChunk), … })`
 - **THEN** вызов бросает ошибку: path-параметру негде оказаться в payload
+
+#### Scenario: Path-параметр при multipart допустим
+
+- **WHEN** вызвано `httpEndpoint({ method: 'POST', path: '/users/:id/avatar', input: multipart({ fields: z.object({ id: z.string() }), files: { avatar: upload() } }), … })`
+- **THEN** декларация создаётся: `multipart` — структурная форма
 
 #### Scenario: `rawBody` со стримом
 
@@ -159,9 +170,10 @@ HTTP-транспорт SHALL собирать payload по bind-карте: pat
 Тело запроса SHALL читаться только тогда, когда оно требуется картой
 (источник «остальное» — body, есть `body()`-пометка или взведён `rawBody`).
 
-Для формы `withFiles(...)` правило SHALL применяться к полям формы:
-path-параметры и помеченные query-поля подмешиваются к разобранным полям
-до валидации схемой.
+Для формы `multipart({ fields, files })` правило SHALL применяться к полям
+формы: path-параметры и помеченные query-поля подмешиваются к разобранным
+полям до валидации схемой `fields`; файлы SHALL приходить отдельно, под
+именами объявленных файловых полей, и SHALL NOT участвовать в bind-карте.
 
 #### Scenario: Поле, присланное не в своё место, отбрасывается
 
@@ -184,10 +196,10 @@ path-параметры и помеченные query-поля подмешив�
 
 #### Scenario: Multipart с path-параметром
 
-- **WHEN** на `POST /users/:id/avatar` с `input: withFiles(schema)`
+- **WHEN** на `POST /users/:id/avatar` с `input: multipart({ fields, files: { avatar: upload() } })`
   приходит multipart-запрос
-- **THEN** `id` из пути присутствует в `data` до валидации схемой, файлы
-  доступны отдельно
+- **THEN** `id` из пути присутствует в `fields` до валидации схемой, а
+  файл доступен как `files.avatar`
 
 ### Requirement: Повторный query-ключ даёт массив
 
