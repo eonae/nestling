@@ -3,6 +3,8 @@
 import type { EndpointDiscovery } from './discovery';
 import { discoverEndpoints } from './discovery';
 
+import type { ConfigBinding } from '@nestling/config';
+import { configKernel } from '@nestling/config';
 import type {
   BuiltContainer,
   InjectionToken,
@@ -25,6 +27,17 @@ export interface AppConfig {
 
   /** Провайдеры приложения (опционально, если не используются модули) */
   providers?: Provider[];
+
+  /**
+   * Привязки источников конфигурации: `[источник, таргет | таргет[]]`.
+   *
+   * Порядок задаёт приоритет; `process.env` — неявный пол и в списке не
+   * упоминается. Приложению, которому хватает env, поле не нужно вовсе:
+   * kernel-модуль конфига регистрируется всегда.
+   *
+   * До появления `assemble()` точка привязки живёт здесь.
+   */
+  config?: ConfigBinding[];
 }
 
 /**
@@ -48,6 +61,12 @@ export class App {
   private readonly modules: Module[];
   private readonly providers: Provider[];
 
+  /**
+   * Привязки конфига. Держатся отдельно от `modules`, чтобы kernel-модуль
+   * не попадал в дискавери эндпоинтов: он ничего не объявляет.
+   */
+  private readonly configBindings: ConfigBinding[];
+
   #container?: BuiltContainer;
   #initialized = false;
 
@@ -64,11 +83,14 @@ export class App {
 
     this.modules = config.modules ?? [];
     this.providers = config.providers ?? [];
+    this.configBindings = config.config ?? [];
   }
 
   /**
    * Инициализирует приложение:
-   * 1. Строит DI-контейнер из модулей и провайдеров
+   * 1. Строит DI-контейнер из kernel-модуля конфига, модулей и провайдеров;
+   *    потреблённые секции конфига валидируются здесь же — невалидный
+   *    конфиг убивает старт до того, как транспорт начнёт слушать
    * 2. Запускает lifecycle hooks (@OnInit)
    * 3. Обнаруживает endpoints обходом дерева модулей и регистрирует их
    *    в транспортах
@@ -88,6 +110,12 @@ export class App {
 
     // 1. Строим контейнер
     const builder = new ContainerBuilder();
+
+    // Kernel-модуль конфига регистрируется всегда: иначе «только env → в
+    // корне про конфиг не пишешь ничего» не работало бы. Без привязок
+    // читалка тривиальна, а рецепты семейств не материализуют ничего,
+    // пока никто не инжектит секцию.
+    builder.register(configKernel(this.configBindings));
 
     // Регистрируем модули
     if (this.modules.length > 0) {
