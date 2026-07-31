@@ -14,7 +14,7 @@ await app.run();
 ```
 
 Every field of the spec is optional (`modules`, `providers`, `features`,
-`select`, `transports`, `config`). There is **no public constructor**: `App`
+`select`, `transports`, `config`, `policies`). There is **no public constructor**: `App`
 is the result type with `run()`, `check()` and `close()`, and its constructor
 takes an internal plan whose type is not exported — `new App({ … })` is not
 expressible. `overrides` is not a field of this spec and never will be:
@@ -29,7 +29,7 @@ the test composition root only ([`@nestling/testing`](../nestling.testing)).
 | Phase | What happens |
 |---|---|
 | 0 BOOTSTRAP | outside `assemble`: `load(section)` in the root computes `select` |
-| 1 ASSEMBLE | selection → module tree → discovery → `build()` → transport tokens and io forms are checked |
+| 1 ASSEMBLE | selection → module tree → discovery → `build()` → transport tokens and io forms are checked → declared `policies` are checked |
 | 2 INIT | `@OnInit` in topological order; `dispatch` does not exist yet |
 | 3 WIRE | declarations resolve their deps; one `dispatch` per transport |
 | 4 START | `@OnStart` in topological order, then `serve(dispatch, signal)` |
@@ -39,17 +39,54 @@ Phases 0 and 1 are fail-fast: a missing transport, an unsupported io form or
 an unregistered dependency of a declaration kills startup **before** any
 `@OnInit` grabs a resource. Both `run()` and `close()` are idempotent.
 
+### `policies` — invariants over the assembled graph
+
+```typescript
+assemble({
+  features: [UsersFeature],
+  transports: [http()],
+  policies: [
+    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase, 'authedBase'),
+  ],
+});
+```
+
+The dictionary of predicates lives in
+[`@nestling/pipeline`](../nestling.pipeline); this package only collects the
+subjects from discovery, calls `check` and formats the result — it never
+inspects a policy. Three properties are worth stating:
+
+- **Last check of the phase.** Policies run after the transport and io-form
+  checks: a policy complaining about an endpoint whose transport is missing
+  would point the author at the wrong problem. Nothing reaches `@OnInit`.
+- **One aggregated diagnostic.** Every policy runs to the end; violations are
+  grouped per policy, and the message names their number, the policy
+  description, each offending endpoint (pattern, transport, declaring module)
+  and both fixes — compose the layer, or mark `detached: '<reason>'`.
+- **Only endpoints of the selected topology** are checked: discovery walks
+  the tree of registered modules, so an endpoint of a feature `select` left
+  out is not in the set at all.
+
+Endpoints marked `detached` are excluded from every policy and printed at
+startup, one line each, right after the assembly summary:
+
+```
+[nestling] features: users, logging; transports: http
+[nestling] detached from policies: GET /health (http) — liveness probe of the load balancer
+```
+
 ## `check()` — a structural smoke test
 
 ```typescript
 for (const select of ['all', 'users', 'logging'] as const) {
   const report = await assemble({ features, select, transports: [http()] }).check();
-  // report: { features, endpoints: [{ pattern, transport, module }], transports }
+  // report: { features, endpoints: [{ pattern, transport, module, detached? }], transports }
 }
 ```
 
 `check()` runs phases 0–1 only: selection, registration, discovery, `build()`
-(constructors do run), the transport check and the io form check. It does
+(constructors do run), the transport check, the io form check and the
+declared `policies`. It does
 **not** run `@OnInit`, `@OnStart`, `serve` or `@OnDestroy`, so nothing grabs a
 resource — provided constructors do not, which the phase model forbids
 anyway. It throws exactly the errors `run()` would throw on those phases, and

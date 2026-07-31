@@ -25,7 +25,11 @@ import type {
   Provider,
 } from '@nestling/container';
 import { ContainerBuilder } from '@nestling/container';
-import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
+import type {
+  AnyEndpointDefinition,
+  PolicySubject,
+  TransportRef,
+} from '@nestling/pipeline';
 import { assertFormsSupported, transportNameOf } from '@nestling/pipeline';
 import type {
   Dispatch,
@@ -46,6 +50,15 @@ export interface CheckedEndpoint {
 
   /** Модуль, объявивший ручку в `endpoints:` */
   readonly module: string;
+
+  /**
+   * Причина вывода ручки из-под инвариантов, если она помечена
+   * `detached: '<причина>'`.
+   *
+   * Отчёт — значение: тест матрицы топологий сравнивает состав
+   * detached-ручек, а не парсит stdout.
+   */
+  readonly detached?: string;
 }
 
 /**
@@ -161,7 +174,7 @@ export class App {
       this.#serving.push({ token, transport });
     }
 
-    this.#announce();
+    this.#announce(discovery);
     this.#attachSignals();
   }
 
@@ -170,7 +183,8 @@ export class App {
    *
    * Выполняется: резолв `select`, регистрация модулей и провайдеров,
    * дискавери, построение графа (конструкторы отрабатывают), сверка
-   * требуемых транспортов и проверка форм io против их способностей.
+   * требуемых транспортов, проверка форм io против их способностей и
+   * проверка объявленных политик.
    *
    * Не выполняется: `@OnInit`, WIRE, `@OnStart`, `serve` и `@OnDestroy` —
    * значит, ресурсы не захватываются (при условии, что их не захватывают
@@ -198,6 +212,9 @@ export class App {
         pattern: endpoint.pattern,
         transport: transportNameOf(endpoint.transport),
         module: moduleName,
+        ...(endpoint.detached === undefined
+          ? {}
+          : { detached: endpoint.detached }),
       })),
       transports: this.#transportOrder(discovery).map((token) =>
         transportNameOf(token),
@@ -273,7 +290,8 @@ export class App {
   }
 
   /**
-   * Фаза 1: дерево модулей → дискавери → граф → сверка транспортов и форм.
+   * Фаза 1: дерево модулей → дискавери → граф → сверка транспортов и форм
+   * → инварианты сборки.
    *
    * Всё, что может не сойтись, сходится здесь: до `@OnInit` не доходит ни
    * одна неудовлетворённая потребность.
@@ -317,6 +335,10 @@ export class App {
 
     this.#assertRequiredTransports(container, discovery);
     this.#assertFormsSupported(container, discovery);
+    // Инварианты — последними: сперва «граф вообще собирается», потом
+    // утверждения на нём. Политика, ругающаяся на ручку незарегистрированного
+    // транспорта, увела бы автора не туда.
+    this.#assertPolicies(discovery);
 
     return { container, discovery };
   }
@@ -497,8 +519,66 @@ export class App {
     }
   }
 
-  /** Состав сборки одной строкой: что выбрано и что вышло в эфир */
-  #announce(): void {
+  /**
+   * Проверяет объявленные инварианты на обнаруженных ручках.
+   *
+   * Содержимое политики `App` не разбирает: его дело — собрать субъекты из
+   * дискавери (`{ endpoint, moduleName }` уже структурно совпадает с
+   * `PolicySubject`), позвать `check` и отформатировать результат.
+   *
+   * Прогоняются **все** политики: чинить инварианты по одной ручке за
+   * прогон — не режим работы, поэтому нарушения складываются и уезжают
+   * одним броском.
+   */
+  #assertPolicies(discovery: EndpointDiscovery): void {
+    if (this.#plan.policies.length === 0) {
+      return;
+    }
+
+    const subjects: readonly PolicySubject[] = discovery.endpoints;
+
+    const groups: string[] = [];
+    let total = 0;
+
+    for (const policy of this.#plan.policies) {
+      const violations = policy.check(subjects);
+      if (violations.length === 0) {
+        continue;
+      }
+
+      total += violations.length;
+      groups.push(
+        `policy: ${policy.describe()}\n` +
+          violations
+            .map(
+              ({ pattern, transport, moduleName, detail }) =>
+                `  - ${pattern} (${transport}, module '${moduleName}'): ${detail}`,
+            )
+            .join('\n'),
+      );
+    }
+
+    if (total === 0) {
+      return;
+    }
+
+    throw new Error(
+      `${total} endpoint violation(s) of assembly policies:\n\n` +
+        `${groups.join('\n\n')}\n\n` +
+        `Fix each handle by composing the required layer into its ` +
+        `'pipeline:', or opt out deliberately with ` +
+        `detached: '<reason>' in its declaration.`,
+    );
+  }
+
+  /**
+   * Состав сборки одной строкой: что выбрано и что вышло в эфир.
+   *
+   * Плюс список detached-ручек с причинами: opt-out из инвариантов обязан
+   * быть поверхностью для аудита, а не строчкой в diff'е одного файла.
+   * Пустой список не печатается вовсе.
+   */
+  #announce(discovery: EndpointDiscovery): void {
     const features = this.#plan.features.map((feature) => feature.name);
     const transports = this.#serving.map(({ token }) => transportNameOf(token));
 
@@ -506,6 +586,17 @@ export class App {
       `[nestling] features: ${features.join(', ') || '(none)'}; ` +
         `transports: ${transports.join(', ') || '(none)'}`,
     );
+
+    for (const { endpoint } of discovery.endpoints) {
+      if (endpoint.detached === undefined) {
+        continue;
+      }
+
+      console.log(
+        `[nestling] detached from policies: ${endpoint.pattern} ` +
+          `(${transportNameOf(endpoint.transport)}) — ${endpoint.detached}`,
+      );
+    }
   }
 
   /** Graceful shutdown по сигналам процесса; снимается в `close()` */

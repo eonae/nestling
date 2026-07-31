@@ -19,7 +19,11 @@ import type {
   Provider,
   TokenOverride,
 } from '@nestling/container';
-import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
+import type {
+  AnyEndpointDefinition,
+  Policy,
+  TransportRef,
+} from '@nestling/pipeline';
 import type {
   Dispatch,
   ExecutableDeclaration,
@@ -63,6 +67,16 @@ export interface AssemblySpec {
    * kernel-модуль конфига регистрируется всегда.
    */
   config?: readonly ConfigBinding[];
+
+  /**
+   * Инварианты приложения — значения словаря политик
+   * (`everyEndpoint({ … }).hasLayer(…)`).
+   *
+   * Проверяются на фазе 1 ASSEMBLE, последними из fail-fast'ов сборки: до
+   * `@OnInit` не доходит ни одно нарушение. Поле опционально — приложение
+   * без инвариантов собирается ровно как прежде.
+   */
+  policies?: readonly Policy[];
 }
 
 /**
@@ -94,6 +108,7 @@ export interface AssemblyPlan {
   readonly transports: readonly Provider<ITransport>[];
   readonly transportTokens: readonly TransportRef[];
   readonly config: readonly ConfigBinding[];
+  readonly policies: readonly Policy[];
   readonly features: readonly Feature[];
   readonly overrides: readonly TokenOverride<any>[];
   readonly familyOverrides: readonly FamilyOverrideEntry<any, any>[];
@@ -131,6 +146,7 @@ export function makePlan(
       tokenOf(provider),
     ),
     config: [...(spec.config ?? [])],
+    policies: [...(spec.policies ?? [])],
     features,
     overrides: [...(substitutions.overrides ?? [])],
     familyOverrides: [...(substitutions.familyOverrides ?? [])],
