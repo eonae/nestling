@@ -21,6 +21,10 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
   "dependencies": {
+    "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*"
+  },
+  "devDependencies": {
+    "zod": "^4.0.0"
   }
 }

@@ -1,4 +1,3 @@
-import { ConfigModule } from '../config';
 import { IHealthCheck } from '../health';
 import { IDatabase } from '../interfaces';
 
@@ -17,5 +16,6 @@ export const DatabaseModule = makeModule({
   // Семейство в exports — контракт «модуль контрибьютит в HealthCheck»:
   // без него узел-агрегат не смог бы забрать вклад при strictExports.
   exports: [IDatabase, IHealthCheck],
-  imports: [ConfigModule],
+  // `imports: [ConfigModule]` больше нет: секция конфига — не провайдер
+  // модуля, а член семейства, материализуемый инжектом.
 });

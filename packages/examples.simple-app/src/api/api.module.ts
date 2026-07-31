@@ -1,10 +1,11 @@
-import { ConfigModule } from '../config';
+import { AppConfig } from '../config/app.config';
 import { IHealthCheck } from '../health';
-import { IApiClient, IConfig } from '../interfaces';
+import { IApiClient } from '../interfaces';
 import { ILogger } from '../logging';
 
 import { ApiHealthCheck } from './api.health';
 
+import type { Config } from '@nestling/config';
 import {
   classProvider,
   factoryProvider,
@@ -16,7 +17,7 @@ export const ApiModule = makeModule({
   providers: [
     factoryProvider(
       IApiClient,
-      (config: IConfig, logger: ILogger): IApiClient => {
+      (config: Config<typeof AppConfig>, logger: ILogger): IApiClient => {
         logger.log(`Creating API client for ${config.databaseUrl}`);
         return {
           get: async (url: string) => {
@@ -25,11 +26,12 @@ export const ApiModule = makeModule({
           },
         };
       },
-      [IConfig, ILogger('api')] as const,
+      // Ту же секцию читает и `module:database` — общий ключ не требует
+      // ни владельца, ни согласования: право читать ≠ владение.
+      [AppConfig, ILogger('api')] as const,
     ),
     // Второй вклад в то же семейство — из другого модуля, без правки первого.
     classProvider(IHealthCheck('api'), ApiHealthCheck),
   ],
   exports: [IApiClient, IHealthCheck],
-  imports: [ConfigModule],
 });
