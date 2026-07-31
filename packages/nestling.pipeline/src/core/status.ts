@@ -17,6 +17,8 @@ export const errorStatuses = [
   'FORBIDDEN', // 403
   'NOT_FOUND', // 404
   'CONFLICT', // 409
+  // «вход больше допустимого»: лимит item-цепочки, файл сверх upload({maxSize})
+  'PAYLOAD_TOO_LARGE', // 413
   'TOO_MANY_REQUESTS', // 429
   'INTERNAL_ERROR', // 500
   'NOT_IMPLEMENTED', // 501

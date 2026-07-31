@@ -1,3 +1,10 @@
+import {
+  bindOutputStream,
+  describeForm,
+  isAsyncIterable,
+  isStreamKind,
+  withFinish,
+} from './io/index.js';
 import type { AnyInput, EmptyInput } from './io/io.js';
 import type {
   EndpointMeta,
@@ -11,6 +18,7 @@ import type {
   CatchUnitFn,
   FinallyUnitFn,
   OkUnitFn,
+  Outcome,
   PreUnitFn,
   ResponseTrackInput,
   UnitInstance,
@@ -22,6 +30,29 @@ import type { AnyFail, FailData, Output, OutputSync } from './result.js';
 import { isFail, Ok } from './result.js';
 
 import type { Constructor } from '@common/misc';
+
+/**
+ * Отказ, возникший **после начала отдачи** потокового ответа.
+ *
+ * Заголовки уже ушли, статус сменить нельзя — поэтому наружу летит не
+ * оригинал, а нормализованный контекст ответа: транспорт из него собирает
+ * mid-stream кадр (`event: error` для SSE) или обрывает соединение
+ * (NDJSON). Оригинал к этому моменту уже ушёл в `onUnknownFail`.
+ */
+export class MidStreamFailure extends Error {
+  constructor(
+    public readonly response: ErrorResponseContext,
+    options?: { cause?: unknown },
+  ) {
+    super(response.value.error, options);
+    this.name = 'MidStreamFailure';
+  }
+}
+
+/** Значение — mid-stream отказ, несущий готовое тело ответа */
+export function isMidStreamFailure(value: unknown): value is MidStreamFailure {
+  return value instanceof MidStreamFailure;
+}
 
 /**
  * Диагностика незадекларированного отказа, снятого стражем границы.
@@ -566,7 +597,7 @@ class PipelineImpl {
         originalError = result;
         response = this.errorToResponse(result, exposeErrorDetails);
       } else {
-        response = this.normalizeResponse(result);
+        response = this.normalizeResponse(result, ctx);
       }
     } catch (error) {
       originalError = error;
@@ -622,37 +653,96 @@ class PipelineImpl {
 
     // Finally: изнутри наружу, всегда. Ошибки наблюдателей не влияют
     // на ответ (юнит обязан обрабатывать свои ошибки сам).
-    const outcome = computeOutcome(ctx.signal, response);
-    for (const layer of innerToOuter) {
-      for (const entry of layer.finals) {
-        try {
-          await materialized(entry)(outcome, response, currentCtx);
-        } catch {
-          // намеренно проглатывается: finally — наблюдатель
+    const runFinals = async (
+      outcome: Outcome,
+      settled: ResponseContext<unknown>,
+    ): Promise<void> => {
+      for (const layer of innerToOuter) {
+        for (const entry of layer.finals) {
+          try {
+            await materialized(entry)(outcome, settled, currentCtx);
+          } catch {
+            // намеренно проглатывается: finally — наблюдатель
+          }
         }
       }
+    };
+
+    // Потоковый ответ: исход честен только по факту доставки, поэтому
+    // финализация откладывается до закрытия итератора. Контракт с
+    // транспортом — потребить итератор либо закрыть его `return()`.
+    if (
+      response.isSuccess &&
+      isStreamKind(describeForm(ctx.endpoint.output).kind) &&
+      isAsyncIterable(response.value)
+    ) {
+      const delivered = response;
+      const stream = withFinish(
+        response.value as AsyncIterable<unknown>,
+        async (error) => {
+          if (error === undefined) {
+            await runFinals(computeOutcome(ctx.signal, delivered), delivered);
+            return;
+          }
+
+          // Тот же страж и тот же диагностический хук, что на обычном
+          // пути: mid-stream отказ не выпадает из модели ошибок
+          const failure = this.enforceContract(
+            this.errorToResponse(error, exposeErrorDetails),
+            error,
+            ctx.endpoint,
+            exposeErrorDetails,
+            onUnknownFail,
+          ) as ErrorResponseContext;
+
+          await runFinals(computeOutcome(ctx.signal, delivered, true), failure);
+
+          return new MidStreamFailure(failure, { cause: error });
+        },
+      );
+
+      return { ...delivered, value: stream } as ResponseContext<unknown>;
     }
+
+    await runFinals(computeOutcome(ctx.signal, response), response);
 
     return response;
   }
 
   /**
-   * Нормализует результат handler'а в ResponseContext
+   * Нормализует результат handler'а в ResponseContext.
+   *
+   * При потоковой форме `output` возвращённый `AsyncIterable` оборачивается
+   * здесь: шаги выходной item-цепочки → поэлементная валидация схемой-листом
+   * → счётчик `itemsOut`. Транспорт получает готовый итератор и занимается
+   * только framing'ом.
    */
-  private normalizeResponse<T>(result: T): ResponseContext<T> {
-    if (result instanceof Ok) {
-      return {
-        isSuccess: true,
-        status: result.status,
-        value: result.value as T,
-        headers: result.headers,
-      };
+  private normalizeResponse<T>(
+    result: T,
+    ctx: ExtendableContext<AnyInput>,
+  ): ResponseContext<T> {
+    const base: ResponseContext<T> =
+      result instanceof Ok
+        ? {
+            isSuccess: true,
+            status: result.status,
+            value: result.value as T,
+            headers: result.headers,
+          }
+        : {
+            isSuccess: true,
+            status: 'OK',
+            value: result,
+          };
+
+    const form = describeForm(ctx.endpoint.output);
+    if (!isStreamKind(form.kind) || !isAsyncIterable(base.value)) {
+      return base;
     }
 
     return {
-      isSuccess: true,
-      status: 'OK',
-      value: result,
+      ...base,
+      value: bindOutputStream(form, base.value, ctx) as T,
     };
   }
 

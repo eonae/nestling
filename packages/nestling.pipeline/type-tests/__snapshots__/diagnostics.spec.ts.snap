@@ -43,6 +43,23 @@ exports[`pipeline type diagnostics endpoint-undeclared-fail 1`] = `
       Type '() => Promise<Fail<"CARD_DECLINED", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, Fail<"ORDER_LIMIT_REACHED", undefined>>; }'."
 `;
 
+exports[`pipeline type diagnostics output-chain-type-changing 1`] = `
+"packages/nestling.pipeline/type-tests/fixtures/output-chain-type-changing.ts(18,3): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(declaration: HttpEndpointDictionary<"/rows", AnyPayload, StreamForm<{ id: string; }, { id: string; }[], "stream">, EmptyInput, never, undefined, EmptyInput, []> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' is not assignable to type 'StreamForm<{ id: string; }, { id: string; }[], "stream"> & { __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'.
+      Property '__error' is missing in type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' but required in type '{ __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'."
+`;
+
+exports[`pipeline type diagnostics output-multipart-form 1`] = `
+"packages/nestling.pipeline/type-tests/fixtures/output-multipart-form.ts(12,28): error TS2769: No overload matches this call.
+  Overload 3 of 3, '(declaration: HttpEndpointDictionary<"/reports", AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, EmptyInput, never, undefined, EmptyInput, []> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'MultipartForm<undefined, { report: UploadSpec<false>; }>' is not assignable to type 'MultipartForm<undefined, { report: UploadSpec<false>; }> & { __error: "'multipart' is an input-only form and cannot be declared in 'output'"; }'.
+      Property '__error' is missing in type 'MultipartForm<undefined, { report: UploadSpec<false>; }>' but required in type '{ __error: "'multipart' is an input-only form and cannot be declared in 'output'"; }'.
+  Overload 3 of 3, '(declaration: HttpEndpointDictionary<"/reports", AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, EmptyInput, never, undefined, EmptyInput, []> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type '() => Promise<Ok<undefined>>' is not assignable to type 'HandlerClass<AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, EmptyInput, never>'.
+      Type '() => Promise<Ok<undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, EmptyInput, never>; }'."
+`;
+
 exports[`pipeline type diagnostics pre-after-response 1`] = `"packages/nestling.pipeline/type-tests/fixtures/pre-after-response.ts(14,4): error TS2339: Property 'pre' does not exist on type 'PhasedPipeline<EmptyInput, EmptyInput, never>'."`;
 
 exports[`pipeline type diagnostics pre-overrides-field 1`] = `"packages/nestling.pipeline/type-tests/fixtures/pre-overrides-field.ts(12,8): error TS2345: Argument of type 'PreUnitFn<AnyInput, { userId: number; }>' is not assignable to parameter of type '{ __error: "Pre-unit overrides fields that are already in the input"; conflicting: { userId: [string, number]; }; }'."`;

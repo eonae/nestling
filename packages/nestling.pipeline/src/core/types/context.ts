@@ -2,6 +2,8 @@ import type { Readable } from 'node:stream';
 
 import type { AnyFailDefinition } from '../define-fail';
 import type { AnyInput, AnyOutput, AnyPayload, EmptyInput } from '../io/io';
+import type { StreamSummary } from '../io/summary.js';
+import { makeSummary } from '../io/summary.js';
 import type { ErrorStatus, SuccessStatus } from '../status';
 
 import type { Raw } from './raw.js';
@@ -84,6 +86,17 @@ export interface ExtendableContext<I extends AnyInput> {
    */
   readonly signal: AbortSignal;
 
+  /**
+   * Итог запроса: счётчики элементов (заполняет рантайм цепочек) и байты
+   * (заполняет транспорт, где знает их).
+   *
+   * Ссылка read-only, значения — актуальные на момент чтения: объект
+   * мутируется рантаймом по мере течения потока. Существует у любой ручки:
+   * у не-потоковой счётчики остаются нулями, чтобы наблюдатель не
+   * ветвился.
+   */
+  readonly summary: StreamSummary;
+
   /** Метаданные, накапливаемые middleware */
   input: I;
 }
@@ -116,6 +129,7 @@ export function makeEmptyContext<S extends AnyInput = EmptyInput>(
     endpoint,
     raw,
     signal: signal ?? NEVER_ABORTED,
+    summary: makeSummary(),
     input: input ?? ({} as S),
   };
 }

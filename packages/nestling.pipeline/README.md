@@ -5,8 +5,8 @@ endpoint declarations (`makeEndpoint`) validated against any
 [Standard Schema](https://standardschema.dev), phased pipelines
 (`makePipeline().pre/.ok/.catch/.finally`), layer composition
 (`compose`), `Ok`/`Fail` results with a closed error contract
-(`defineFail`, `errors:`), and streaming io modifiers
-(`stream()`, `withFiles()`, `files()`).
+(`defineFail`, `errors:`), and io declared as a **tree of forms**
+(`stream()`, `events()`, `multipart()`/`upload()`) with item chains.
 
 > 🚧 Active development, API may change. The package ships **no validator
 > of its own** — bring your own (zod, valibot, arktype, TypeBox, Effect
@@ -128,7 +128,8 @@ top-to-bottom as the execution plan:
   is replaced by `UnknownError`. See below.
 - `.finally(unit)` — always, last, with the outcome
   (`completed | disconnected | aborted | failed`). Observer only; sees the
-  already-normalized response.
+  already-normalized response. For a **streaming** `output` it is deferred
+  until the stream has finished (see below).
 
 Layers compose as constants — `compose(outer, ..., inner)` (pre runs
 outside-in, response phases and `finally` run inside-out). A layer declares
@@ -177,14 +178,95 @@ export const GetOrder = httpEndpoint({
   undeclared) — is normalized into `UnknownError` (`UNKNOWN`, 500). The
   original goes to `ExecuteOptions.onUnknownFail` whole (default:
   `console.error`); the client gets a generic body. No warn-and-pass.
-- Kernel codes are in every endpoint's contract implicitly: `UNKNOWN` and
-  `VALIDATION_FAILED` (the `validate()` unit) — otherwise the guard would
-  turn a routine 400 into a 500. The set is closed and grows with the
-  kernel only.
+- Kernel codes are in every endpoint's contract implicitly: `UNKNOWN`,
+  `VALIDATION_FAILED` (the `validate()` unit and per-item validation),
+  `STREAM_LIMIT_EXCEEDED` and `STREAM_GAP_TIMEOUT` (item-chain guards) —
+  otherwise the guard would turn a routine 400/413 into a 500. The set is
+  closed and grows with the kernel only.
 - `ErrorStatus` is transport-neutral semantics (`CONFLICT`, `TIMEOUT`,
-  `TOO_MANY_REQUESTS`, …); mapping onto the wire is the transport's job.
+  `TOO_MANY_REQUESTS`, `PAYLOAD_TOO_LARGE`, …); mapping onto the wire is
+  the transport's job.
 
 Design: [`docs/design/errors.md`](../../docs/design/errors.md).
+
+## io is a tree of forms
+
+The top level of `input`/`output` is a **form**; the leaves are Standard
+Schemas or the primitives `'binary'`/`'text'`. A schema on its own (and no
+`input` at all) *is* the value form — there is no `value(...)` to write.
+
+| Form | Payload | Media type |
+|---|---|---|
+| a schema | the value | `application/json` |
+| `stream(T)` | `AsyncIterableIterator<T>`, finite data | `application/x-ndjson` |
+| `events(T)` | `AsyncIterableIterator<T>`, an open subscription | `text/event-stream` |
+| `multipart({ fields, files })` | `{ fields, files }` | `multipart/form-data` |
+
+A form is an immutable value with a non-enumerable brand, so a stray
+`{ kind: 'stream' }` is not mistaken for one; `describeForm(io)` is what
+transports, doc generators and the runtime read, and `mediaTypeOf(io)` is
+the deterministic form → media type function. `withFiles()`/`files()` and
+`analyzePayload`/`PayloadConfig` are **gone**.
+
+```typescript
+input: multipart({
+  fields: z.object({ id: z.string() }),
+  files: { avatar: upload({ maxSize: 5 * MiB, mime: ['image/png'] }) },
+}),
+// payload: { fields: { id: string }, files: { avatar: FilePart } }
+```
+
+Forms are checked when the declaration is created: `multipart` in `output`,
+`upload()` outside `multipart`, a streaming form without a leaf, a
+type-changing chain step in `output` — each fails naming the endpoint, the
+slot and the form.
+
+### Item chains
+
+The combinator vocabulary is closed and infrastructural — `.tap`,
+`.filter`, `.limit`, `.gapTimeout`, `.throttle`, `.batch`, `.through`
+(implemented in [`@nestling/streams`](../nestling.streams)). Every
+combinator returns a **new** form, so chains are reusable through helper
+functions:
+
+```typescript
+const guarded = <T extends Schema>(s: T) => stream(s).limit(50_000).gapTimeout(30_000);
+
+input: guarded(LogChunk).batch(100),   // handler receives LogChunk[]
+output: stream(Row).limit(100_000),    // T → T only
+```
+
+The asymmetry is expressed by the **slot type**, not by two builders:
+`output` takes `StreamForm<T, T>`, `input` takes `StreamForm<T, any>`. So
+`.batch(100)` in `output` is a compile error at the declaration site, and
+`.through` is allowed there only in its `T → T` shape.
+
+Per-item validation is symmetric: on input an item is validated **before**
+the chain, on output **after** it (both ends of an output stream are the
+wire). The policy is the form's second argument, defaulting to
+`{ validate: true, onInvalid: 'fail' }`; `onInvalid: 'skip'` drops the item
+on input, and on output it is ignored — silently dropping data from a
+response is not on offer.
+
+### Streaming responses finish late
+
+For a streaming `output` the pipeline hands the transport an iterator
+wrapper; closing it (normal end, error, or the consumer's `return()`) is
+what computes the outcome and runs `.finally` — exactly once. Hence the
+contract every transport is tested against: **consume the iterator or close
+it**, including on a write error and on disconnect. Non-streaming responses
+finalize as before.
+
+`ctx.summary` (`itemsIn`/`itemsOut`, plus `bytesIn`/`bytesOut` where the
+transport knows them) is a live object created with the context — available
+to any unit, zeros for a non-streaming endpoint so observers never branch.
+
+`assertFormsSupported(definition, capabilities, where?)` is the kernel-side
+check a transport's `capabilities` are matched against at registration —
+see [`@nestling/transport`](../nestling.transport).
+
+Design: [`docs/design/streaming.md`](../../docs/design/streaming.md),
+[`docs/design/endpoints.md`](../../docs/design/endpoints.md).
 
 ## Type diagnostics are part of the API
 

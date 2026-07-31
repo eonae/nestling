@@ -6,8 +6,9 @@ import type {
   AnyPayload,
   FailsOf,
   Pipeline,
+  ValidateOutputForm,
 } from '../core';
-import { isFailDefinition } from '../core';
+import { assertFormSlots, isFailDefinition } from '../core';
 import type { HandlerFn } from '../core/types';
 
 import type { Constructor } from '@common/misc';
@@ -168,11 +169,18 @@ export interface EndpointOptions<
   transport: string;
   pattern: string;
 
-  /** Schema или модификатор для input */
+  /** Форма io для input: значение, `stream`/`events` или `multipart` */
   input?: I;
 
-  /** Конфигурация выходных данных */
-  output?: O;
+  /**
+   * Форма io для output.
+   *
+   * `ValidateOutputForm` закрывает слот для `multipart` и для
+   * тип-меняющего шага item-цепочки: оба конца выходного потока
+   * зафиксированы схемой, поэтому `.batch(...)` здесь — ошибка компиляции
+   * в точке декларации, а не рантайм-сюрприз.
+   */
+  output?: O & ValidateOutputForm<O>;
 
   /**
    * Объявленные отказы: список определений `defineFail`. Из него
@@ -570,6 +578,10 @@ export function makeEndpoint(
 ): AnyEndpointDefinition {
   const form = normalizeHandler(options.handle, options.deps, options.pattern);
   assertFailDefinitions(options.errors, options.pattern);
+  // Формы io проверяются здесь, а не в транспортных конструкторах: правило
+  // транспорт-нейтрально, и kernel-примитив обязан быть под той же
+  // гарантией, что `httpEndpoint`/`cliEndpoint`
+  assertFormSlots(options.pattern, options.input, options.output);
 
   const state: EndpointState = {
     transport: options.transport,

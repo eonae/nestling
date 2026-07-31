@@ -61,9 +61,53 @@ export const ValidationFailed = defineFail('VALIDATION_FAILED', {
 });
 
 /**
+ * Схема деталей отказа лимита — тоже написана руками (см. `issuesSchema`).
+ */
+function numberFieldSchema<K extends string>(
+  field: K,
+): StandardSchemaV1<unknown, Record<K, number>> {
+  return {
+    '~standard': {
+      version: 1,
+      vendor: 'nestling',
+      validate: (value) => {
+        const candidate = (value as Record<string, unknown> | undefined)?.[
+          field
+        ];
+        return typeof candidate === 'number'
+          ? { value: { [field]: candidate } as Record<K, number> }
+          : {
+              issues: [{ message: `Expected \`${field}\` to be a number` }],
+            };
+      },
+    },
+  };
+}
+
+/**
+ * Отказ лимита item-цепочки (`.limit(max)`).
+ *
+ * Kernel-код по той же причине, что и `ValidationFailed`: штатный 413 не
+ * должен превращаться стражем границы в 500 `UNKNOWN`.
+ */
+export const StreamLimitExceeded = defineFail('STREAM_LIMIT_EXCEEDED', {
+  status: 'PAYLOAD_TOO_LARGE',
+  details: numberFieldSchema('max'),
+  message: (d) => `Stream limit of ${d.max} item(s) exceeded`,
+});
+
+/** Отказ таймаута молчания источника (`.gapTimeout(ms)`) */
+export const StreamGapTimeout = defineFail('STREAM_GAP_TIMEOUT', {
+  status: 'TIMEOUT',
+  details: numberFieldSchema('ms'),
+  message: (d) => `Stream produced no item within ${d.ms}ms`,
+});
+
+/**
  * Закрытый набор встроенных кодов.
  *
- * Растёт только вместе с ядром (у портов сюда добавится
+ * Растёт только вместе с ядром — вместе с механизмами, которые эти отказы
+ * порождают (валидация, лимиты item-цепочек, у портов добавится
  * `DEADLINE_EXCEEDED`); публичного способа пометить пользовательский код
  * встроенным нет — иначе закрытость множества ответов снова стала бы
  * конвенцией.
@@ -71,6 +115,8 @@ export const ValidationFailed = defineFail('VALIDATION_FAILED', {
 const KERNEL_FAIL_CODES: ReadonlySet<string> = new Set([
   UnknownError.code,
   ValidationFailed.code,
+  StreamLimitExceeded.code,
+  StreamGapTimeout.code,
 ]);
 
 /**

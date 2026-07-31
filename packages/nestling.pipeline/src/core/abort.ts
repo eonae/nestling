@@ -23,17 +23,32 @@ export class TransportClosingError extends Error {
 }
 
 /**
- * Вычисляет исход выполнения для `.finally`-юнитов (семантика v1:
- * после ответной фазы, до фактической отправки транспортом).
+ * Вычисляет исход выполнения для `.finally`-юнитов.
+ *
+ * Для не-потоковой формы `output` зовётся сразу после ответной фазы; для
+ * потоковой — из обёртки завершения, когда поток дотёк, оборвался или был
+ * закрыт потребителем. Вид формы отдельным аргументом не нужен: различие
+ * `stream`/`events` уже выражено сигналом — «нормальное завершение
+ * подписки» это и есть дисконнект, взводящий `ClientDisconnectedError`, а
+ * источник, закончившийся сам, даёт `completed` и для `events`.
+ *
+ * @param streamFailed - поток оборвался ошибкой (для потоковых форм);
+ * ответная фаза при этом уже завершилась успехом, поэтому по `response`
+ * отказ не виден
  */
 export function computeOutcome(
   signal: AbortSignal,
   response: ResponseContext,
+  streamFailed = false,
 ): Outcome {
   if (signal.aborted) {
     return signal.reason instanceof ClientDisconnectedError
       ? 'disconnected'
       : 'aborted';
+  }
+
+  if (streamFailed) {
+    return 'failed';
   }
 
   return response.isSuccess ? 'completed' : 'failed';

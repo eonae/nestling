@@ -10,7 +10,7 @@ import type { StandardSchemaV1 } from '@common/misc';
 /**
  * Проверяет, что объект реализует Standard Schema v1.
  *
- * Живёт только здесь: `analyzePayload()` остаётся классификатором и
+ * Живёт только здесь: `describeForm()` остаётся классификатором формы и
  * вызывается на каждом запросе, платить проверкой на горячем пути незачем.
  *
  * @throws NotAStandardSchemaError если `~standard` нет либо версия не 1
