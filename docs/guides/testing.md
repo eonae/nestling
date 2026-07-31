@@ -116,6 +116,25 @@ await checkTopologies(
 называя топологию для каждого; отчёты по успешным — обычное значение
 (`features`, `endpoints`, `transports`), которое можно проверить ассертом.
 
+Инварианты сборки едут сюда же: `spec` с полем `policies:` проверяется в
+**каждой** топологии матрицы, поэтому нарушение, возникающее только на
+подмножестве фич, ловится до деплоя (`policies:` принимает и `assembleTest`
+— тестовый корень инварианты не ослабляет, см.
+[гайд по композиции](./composition.md)). Причины `detached` приезжают в
+отчёте значением, поэтому состав выведенных из-под политик ручек
+сравнивается ассертом, а не парсингом вывода:
+
+```typescript
+// packages/examples.app-with-http/src/app.spec.ts
+const [{ report }] = await checkTopologies(spec, ['all']);
+
+expect(
+  report.endpoints
+    .filter(({ detached }) => detached !== undefined)
+    .map(({ pattern }) => pattern),
+).toEqual(['GET /health']);
+```
+
 Ограничение: конструктор с побочкой ломает `.check()`. Это и так нарушение
 фазовой модели — ресурсы захватываются в `@OnInit`.
 

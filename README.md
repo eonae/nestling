@@ -41,6 +41,8 @@ A fully functional, type-safe dependency injection container with no third-party
 - **@nestling/transport.http** — HTTP transport on bare `node:http` (routing, JSON/multipart/NDJSON parsing)
 - **@nestling/transport.cli** — CLI transport: commands as endpoints, single-shot and REPL modes
 - **@nestling/models** — type-safe model definitions on top of zod
+- **@nestling/testing** — test composition root: `assembleTest`, overrides with pruning, `checkTopologies`
+- **@nestling/eslint-plugin** — editor hints for endpoint declarations (`endpoint-has-layer`); the guarantee stays the assembly policy check
 
 The target design is evolving in [`docs/decisions/`](./docs/decisions/ideas.md); usage guides in [`docs/guides/`](./docs/README.md).
 
@@ -161,6 +163,8 @@ packages/
 ├── nestling.transport.http/   # HTTP transport
 ├── nestling.transport.cli/    # CLI transport
 ├── nestling.models/           # Model definitions on top of zod
+├── nestling.testing/          # Test composition root
+├── nestling.eslint-plugin/    # ESLint hints for endpoint declarations
 ├── nestling.viz/              # Dependency graph visualization
 ├── examples.simple-app/       # Example: standalone DI
 ├── examples.simple-http-server/  # Example: functional HTTP

@@ -138,7 +138,7 @@ await app.run();
 | Фаза | Что происходит |
 |---|---|
 | **0 BOOTSTRAP** | `load(section)` в корне: `select` считается до контейнера |
-| **1 ASSEMBLE** | резолв выбора → дерево модулей → дискавери → `build()` → сверка транспортов и форм io |
+| **1 ASSEMBLE** | резолв выбора → дерево модулей → дискавери → `build()` → сверка транспортов и форм io → проверка `policies:` |
 | **2 INIT** | `@OnInit` по топосорту; `dispatch` ещё не существует |
 | **3 WIRE** | гашение зависимостей деклараций, `dispatch` на каждый транспорт |
 | **4 START** | `@OnStart` по топосорту, затем `serve(dispatch, signal)` |
@@ -204,11 +204,147 @@ Go-live — единственный метод `serve(dispatch, signal)`. Ну�
 `run()` ставит обработчики `SIGTERM`/`SIGINT`, переводящие приложение в
 SHUTDOWN, и снимает их по завершении `close()`. Оба метода идемпотентны.
 
-На старте печатается одна строка состава сборки:
+На старте печатается одна строка состава сборки, а следом — по строке на
+каждую ручку, выведенную из-под инвариантов (если такие есть):
 
 ```
 [nestling] features: users, logging; transports: http
+[nestling] detached from policies: GET /health (http) — liveness-проба балансировщика: строка аудита на каждый удар — шум, а не наблюдаемость
 ```
+
+## Инварианты сборки: `policies`
+
+Пайплайн объявляется на каждой ручке своим значением, и типы не ловят
+забытый слой: хендлер, не использующий `identity`, типобезопасен и с
+auth-слоем, и без него. Инвариант объявляется значением в корне и
+проверяется на собранном графе:
+
+```typescript
+// packages/examples.app-with-http/src/main.ts
+import { everyEndpoint } from '@nestling/pipeline';
+import { http, HttpTransport$ } from '@nestling/transport.http';
+
+import { observability } from './common/pipelines';
+
+const app = assemble({
+  features: [UsersFeature, LoggingFeature],
+  select: cfg.features,
+  transports: [http({ port: 3000 })],
+  policies: [
+    everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+      observability,
+      'observability',
+    ),
+  ],
+});
+```
+
+`everyEndpoint(filter)` сужает множество ручек двумя опциональными полями:
+`transport` — **токен** транспорта (`HttpTransport$`, а не провайдер
+`http()`), `pattern` — `RegExp` по строке паттерна (`'GET /api/users'`).
+Оба вместе сужают конъюнктивно, пустой фильтр берёт все ручки приложения.
+
+`hasLayer(layer, label?)` требует, чтобы пайплайн ручки **происходил** от
+переданного значения-слоя. Идентичность ссылочная: одноимённая копия слоя из
+соседнего файла политику не удовлетворит, а `compose(base, authedBase)`,
+`compose(compose(base, authedBase), extra)` и `authedBase.pre(withTenant())`
+— удовлетворят. Второй аргумент — только метка для текста ошибки: имя слоя
+из переменной не выводится.
+
+### Как читать сообщение о нарушении
+
+Проверка идёт последней в фазе ASSEMBLE — после сверки транспортов и форм
+io, до `@OnInit`: ни один ресурс не захвачен, ни один сокет не открыт.
+Прогоняются все политики сразу, поэтому чинить приходится не по одной ручке
+за прогон:
+
+```
+2 endpoint violation(s) of assembly policies:
+
+policy: every endpoint (transport 'http') has layer 'observability'
+  - GET /api/users (http, module 'module:users'): its pipeline is not composed from layer 'observability'
+  - GET /metrics (http, module 'module:ops'): it declares no pipeline, so it cannot be composed from layer 'observability'
+
+Fix each handle by composing the required layer into its 'pipeline:', or opt
+out deliberately with detached: '<reason>' in its declaration.
+```
+
+Ручка без `pipeline` — нарушение, а не пропуск: для инварианта «ручка
+защищена» отсутствие пайплайна и отсутствие слоя неразличимы.
+
+### Когда законен `detached`
+
+Ручка, которой инвариант мешает по делу, помечается причиной прямо в
+декларации:
+
+```typescript
+// packages/examples.app-with-http/src/modules/ops/health.endpoint.ts
+export const Health = httpEndpoint({
+  method: 'GET',
+  path: '/health',
+  output: HealthOutput,
+  detached:
+    'liveness-проба балансировщика: строка аудита на каждый удар — шум, а не наблюдаемость',
+  handle: async () => new Ok({ status: 'up' }),
+});
+```
+
+Правила ровно три:
+
+- **причина обязательна** — тип поля `string`, поэтому `detached: true`
+  невыразим, а пустая строка отвергается в момент создания декларации;
+- **opt-out тотален** — помеченная ручка выпадает из **всех** политик
+  приложения; адресации политики по имени нет;
+- **opt-out виден** — `App` печатает список detached-ручек на старте, а
+  `check()` возвращает их значением, поэтому тест сравнивает состав, а не
+  парсит вывод:
+
+```typescript
+// packages/examples.app-with-http/src/app.spec.ts
+const [{ report }] = await checkTopologies(spec, ['all']);
+
+expect(
+  report.endpoints
+    .filter(({ detached }) => detached !== undefined)
+    .map(({ pattern }) => pattern),
+).toEqual(['GET /health']);
+```
+
+Инварианты проверяются везде, где строится граф: `run()`, `check()` (значит,
+и `checkTopologies` по каждой топологии матрицы) и `assembleTest`. Тестовый
+корень их не ослабляет.
+
+### ESLint-правило — подсказка, не гарантия
+
+`@nestling/eslint-plugin` даёт правило `endpoint-has-layer`: оно
+подсвечивает декларацию в редакторе, пока автор её пишет.
+
+```javascript
+// packages/examples.app-with-http/eslint.config.js
+import nestling from '@nestling/eslint-plugin';
+
+export default [
+  ...base,
+  {
+    files: ['src/**/*.ts'],
+    plugins: { '@nestling': nestling },
+    rules: {
+      '@nestling/endpoint-has-layer': [
+        'warn',
+        { layer: 'observability', constructorName: 'httpEndpoint' },
+      ],
+    },
+  },
+];
+```
+
+Разница с политикой принципиальная. Правило синтаксическое: оно видит только
+буквальные случаи в том же файле и **молчит** везде, где значение
+непрозрачно — пайплайн приехал параметром фабрики, вернулся из неизвестной
+функции, импортирован без локального объявления или спрятан за spread'ом.
+Ложное срабатывание на легальном коде хуже пропуска, потому что пропущенный
+случай всё равно ловит policy-check. Отсюда и рекомендованный уровень
+`warn`: красный CI создавал бы ощущение гарантии, которой у правила нет.
 
 ## Standalone: транспорт без `App`
 

@@ -48,7 +48,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 25 | `config-secrets` | `secret(schema)` в `makeConfig` (редактирование в `explain()`/логах/доках); семантика общих ключей: независимая валидация каждой секцией, fail-fast на несогласованном `reloadable`, секретность по объединению, читатели ключа в `explain()` | S | идея — [ideas.md [2026-07-13]](./ideas.md) |
 | 26 | `contract-versioning` | версия явно в имени контракта; схемный дифф против снапшота опубликованных схем; отчёт breaking changes в `.check()`-матрице CI — подсвечивает, не блокирует | S–M | идея — [ideas.md [2026-07-13]](./ideas.md) |
 | 27 | `port-deadline-idempotency` | `meta.deadline` (gRPC-модель: абсолютный момент в процессе, относительный timeout по проводу, fail-fast `DeadlineExceededError` до вызова, встроенный код); `idempotencyKey` в meta для `command` (провоз через транспорт; дедупликация — satellite, не ядро) | M | идея — [ideas.md [2026-07-13]](./ideas.md) |
-| 28 | `policy-check` | инварианты на собранном графе: `assemble({ policies })`, `everyEndpoint(фильтр).hasLayer(ref)` (идентичность слоя — по ссылке); `detached: '<причина>'` (строка обязательна) + печать detached-ручек на старте; ESLint-правило как editor-фидбек; машинерия для 13 (plugins) и 16 (async-context), прогон в `.check()`-матрице (18) | S–M | идея — [ideas.md [2026-07-14]](./ideas.md) |
+| 28 | `policy-check` | инварианты на собранном графе: `assemble({ policies })`, `everyEndpoint(фильтр).hasLayer(ref)` (идентичность слоя — по ссылке); `detached: '<причина>'` (строка обязательна) + печать detached-ручек на старте; ESLint-правило как editor-фидбек; машинерия для 13 (plugins) и 16 (async-context), прогон в `.check()`-матрице (18) | S–M | **реализовано** (архивируется) — новый пакет [`@nestling/eslint-plugin`](../../packages/nestling.eslint-plugin/), [ideas.md [2026-07-14]](./ideas.md) |
 
 ## Порядок и зависимости
 
@@ -253,7 +253,7 @@ breaking-окно едет вторым (а не после ветки моно�
 | 9 | `config-module` | M–L | **done** — [архив](../../openspec/changes/archive/2026-07-31-config-module/); поверх 5 и `Topic` из 6 |
 | 10 | `features` | L | **done** — [архив](../../openspec/changes/archive/2026-07-31-features/); `assemble`, фазовый lifecycle, `@OnStart`/go-live, транспорты-провайдеры |
 | 18 | `testing-package` (ядро) | M | **done** — [архив](../../openspec/changes/archive/2026-07-31-testing-package/); поставлен **раньше, чем требует граф**: `assembleTest`/`vars()`/`.check()` удешевляют каждый следующий change; `stub(Contract)` и `app.emit` — в волне 6 |
-| 28 | `policy-check` | S–M | нужен полный граф: после 8 (дискавери) и 10 (assemble) |
+| 28 | `policy-check` | S–M | **реализовано**: нужен был полный граф — после 8 (дискавери) и 10 (assemble) |
 | 13 | `plugins` | S | поверх 10 и машинерии 28 |
 | 16 | `async-context` | M | ридеры `Ctx(Var)` — семейство из 5; policy-check присутствия — машинерия 28 |
 
