@@ -108,11 +108,20 @@ Schema v1 (нет `~standard` либо `~standard.version !== 1`), ядро SHAL
 ### Requirement: Validation logic has a single implementation
 
 Валидация SHALL выполняться единственной функцией `validateSync`
-(`@nestling/pipeline`), через которую проходят `parsePayload`,
-`parseMetadata`, pipeline-юнит `validate()`, поэлементная валидация
-элементов потока в транспорте и fallback-ветки транспортов без pipeline.
+(`@common/misc`; `@nestling/pipeline` SHALL реэкспортировать её и
+сопутствующие `SchemaValidationError`, `SchemaIssue`, `normalizeIssues`,
+`assertStandardSchema`, `AsyncSchemaNotSupportedError`,
+`NotAStandardSchemaError` из прежнего места, чтобы публичный API не менялся).
+Через неё проходят `parsePayload`, `parseMetadata`, pipeline-юнит `validate()`,
+поэлементная валидация элементов потока в транспорте, fallback-ветки
+транспортов без pipeline и валидация полей секций конфига.
 Прямые вызовы `schema.parse(...)` и дак-тайп-интерфейсы вида
 `{ parse(data: unknown): T }` SHALL быть удалены из ядра и транспортов.
+
+Дом функции — `@common/misc`, а не `@nestling/pipeline`, потому что
+конфигурация читается и валидируется до существования запроса: зависимость
+`@nestling/config → @nestling/pipeline` инвертировала бы порядок фаз
+жизненного цикла.
 
 #### Scenario: Одинаковая ошибка на разных путях
 
@@ -127,15 +136,29 @@ Schema v1 (нет `~standard` либо `~standard.version !== 1`), ядро SHAL
 - **THEN** бросается `SchemaValidationError` с теми же нормализованными
   `issues`, что и при валидации обычного payload'а
 
+#### Scenario: Прежние импорты продолжают работать
+
+- **WHEN** код импортирует `validateSync` или `SchemaValidationError` из
+  `@nestling/pipeline`
+- **THEN** импорт разрешается реэкспортом, поведение идентично прямому импорту
+  из `@common/misc`
+
+#### Scenario: Конфиг валидирует той же функцией
+
+- **WHEN** поле секции конфига не проходит свою схему
+- **THEN** issues имеют ту же нормализованную форму, что и у отказа валидации
+  запроса
+
 ### Requirement: Core does not depend on a validator
 
-Пакеты ядра (`@common/misc`, `@nestling/pipeline`, `@nestling/app`,
-`@nestling/transport`, `@nestling/transport.http`,
-`@nestling/transport.cli`) SHALL NOT объявлять валидатор схем в
-`dependencies` или `peerDependencies` и SHALL NOT импортировать его в
-рантайме. Единственной схемной зависимостью SHALL быть types-only
-`@standard-schema/spec`, а тип `StandardSchemaV1` SHALL реэкспортироваться
-из `@common/misc` — чтобы потребителю не требовалось ставить пакет спеки.
+Пакеты ядра (`@common/misc`, `@nestling/container`, `@nestling/config`,
+`@nestling/pipeline`, `@nestling/app`, `@nestling/transport`,
+`@nestling/transport.http`, `@nestling/transport.cli`) SHALL NOT объявлять
+валидатор схем в `dependencies` или `peerDependencies` и SHALL NOT
+импортировать его в рантайме. Единственной схемной зависимостью SHALL быть
+types-only `@standard-schema/spec`, а тип `StandardSchemaV1` SHALL
+реэкспортироваться из `@common/misc` — чтобы потребителю не требовалось ставить
+пакет спеки.
 
 #### Scenario: Установка без валидатора
 
@@ -155,3 +178,9 @@ Schema v1 (нет `~standard` либо `~standard.version !== 1`), ядро SHAL
   `Schema`, импортированного из `@common/misc`
 - **THEN** код компилируется без прямой зависимости на
   `@standard-schema/spec`
+
+#### Scenario: Конфиг принимает схему любого вендора
+
+- **WHEN** секция объявлена со схемами разных валидаторов в разных полях
+- **THEN** `@nestling/config` работает с ними одинаково и не объявляет ни один
+  валидатор в зависимостях
