@@ -1,11 +1,10 @@
-import { validateSync } from '../schema/validate.js';
-
 import type { ErrorResponseContext, ResponseContext } from './types/context.js';
 import type { AnyFail } from './result.js';
 import { Fail, isFail } from './result.js';
 import type { ErrorStatus } from './status.js';
 
 import type { StandardSchemaV1 } from '@common/misc';
+import { validateSync } from '@common/misc';
 
 /**
  * Symbol-бренд определения отказа.

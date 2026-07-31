@@ -22,5 +22,8 @@
   "license": "MIT",
   "dependencies": {
     "@standard-schema/spec": "^1.1.0"
+  },
+  "devDependencies": {
+    "zod": "^4.0.0"
   }
 }

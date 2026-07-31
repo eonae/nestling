@@ -1,7 +1,7 @@
-import type { DomainType, InputSources } from './types.js';
-import { validateSync } from './validate.js';
+import type { InputSources } from './types.js';
 
-import type { StandardSchemaV1 } from '@common/misc';
+import type { DomainType, StandardSchemaV1 } from '@common/misc';
+import { validateSync } from '@common/misc';
 
 /**
  * Парсит и валидирует payload согласно схеме

@@ -1,8 +1,6 @@
-import type { SchemaIssue } from '../schema/errors.js';
-
 import { defineFail } from './define-fail.js';
 
-import type { StandardSchemaV1 } from '@common/misc';
+import type { SchemaIssue, StandardSchemaV1 } from '@common/misc';
 
 /**
  * Схема деталей отказа валидации — **написана руками**.

@@ -7,8 +7,6 @@
  * переводчиком байтов.
  */
 
-import { SchemaValidationError } from '../../schema/errors.js';
-import { validateSync } from '../../schema/validate.js';
 import {
   StreamGapTimeout,
   StreamLimitExceeded,
@@ -20,6 +18,7 @@ import { isPrimitiveLeaf } from './forms.js';
 import type { StreamSummary } from './summary.js';
 
 import type { Schema } from '@common/misc';
+import { SchemaValidationError, validateSync } from '@common/misc';
 import {
   batch,
   filter,

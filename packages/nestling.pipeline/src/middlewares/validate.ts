@@ -1,9 +1,9 @@
 import type { EmptyInput } from '../core';
 import { describeForm, isPrimitiveLeaf, ValidationFailed } from '../core';
 import type { PreUnitFn } from '../core/types';
-import { SchemaValidationError, validateSync } from '../schema';
 
 import type { Schema } from '@common/misc';
+import { SchemaValidationError, validateSync } from '@common/misc';
 
 /**
  * Валидирует raw.payload и создаёт payload

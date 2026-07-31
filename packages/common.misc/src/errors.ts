@@ -1,4 +1,4 @@
-import type { StandardSchemaV1 } from '@common/misc';
+import type { StandardSchemaV1 } from './types.js';
 
 /**
  * Нормализованный issue валидации.

@@ -3,12 +3,11 @@ import {
   NotAStandardSchemaError,
   SchemaValidationError,
 } from './errors.js';
+// Спека — единственная зависимость пакета, и она types-only: потребителям
+// тип приезжает реэкспортом отсюда, ставить `@standard-schema/spec` не нужно.
+import type { Infer, Schema, StandardSchemaV1 } from './types.js';
 import { validateSync } from './validate.js';
 
-// Импорт спеки напрямую отсутствует намеренно: у `@nestling/pipeline` нет
-// зависимости на `@standard-schema/spec`, тип приезжает реэкспортом
-// из `@common/misc`.
-import type { Infer, Schema, StandardSchemaV1 } from '@common/misc';
 import { z } from 'zod';
 
 type Equal<A, B> =

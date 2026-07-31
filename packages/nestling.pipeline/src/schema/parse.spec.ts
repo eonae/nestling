@@ -1,7 +1,7 @@
-import { SchemaValidationError } from './errors.js';
 import { parseMetadata, parsePayload } from './parse.js';
 import type { InputSources } from './types.js';
 
+import { SchemaValidationError } from '@common/misc';
 import { z } from 'zod';
 
 describe('parsePayload', () => {

@@ -2,14 +2,14 @@ import type { AnyPayload, EmptyInput } from '../core';
 import { Fail } from '../core';
 import type { EndpointMeta, ExtendableContext } from '../core/types/context';
 import { makeEmptyContext } from '../core/types/context';
-import {
-  AsyncSchemaNotSupportedError,
-  NotAStandardSchemaError,
-} from '../schema';
 
 import { validate } from './validate.js';
 
 import type { Schema, StandardSchemaV1 } from '@common/misc';
+import {
+  AsyncSchemaNotSupportedError,
+  NotAStandardSchemaError,
+} from '@common/misc';
 import { z } from 'zod';
 
 function makeCtx(

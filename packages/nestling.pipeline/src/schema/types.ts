@@ -1,5 +1,3 @@
-import type { StandardSchemaV1 } from '@common/misc';
-
 /**
  * Объединённые источники входных данных
  */
@@ -15,9 +13,3 @@ export interface InputSources {
    */
   metadata: Record<string, unknown>;
 }
-
-/**
- * Выводит domain-тип из схемы — выход `~standard.types.output`
- */
-export type DomainType<S extends StandardSchemaV1> =
-  StandardSchemaV1.InferOutput<S>;

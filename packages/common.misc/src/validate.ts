@@ -4,8 +4,7 @@ import {
   NotAStandardSchemaError,
   SchemaValidationError,
 } from './errors.js';
-
-import type { StandardSchemaV1 } from '@common/misc';
+import type { StandardSchemaV1 } from './types.js';
 
 /**
  * Проверяет, что объект реализует Standard Schema v1.
@@ -38,8 +37,14 @@ export function assertStandardSchema(
  * Единственная точка валидации в ядре и транспортах.
  *
  * Через неё проходят `parsePayload`, `parseMetadata`, pipeline-юнит
- * `validate()`, поэлементная валидация элементов потока и fallback-ветки
- * транспортов — чтобы форма отказа была одна на всех путях.
+ * `validate()`, поэлементная валидация элементов потока, fallback-ветки
+ * транспортов и валидация полей секций конфига — чтобы форма отказа была
+ * одна на всех путях.
+ *
+ * Дом функции — `@common/misc`, а не `@nestling/pipeline`: конфигурация
+ * читается и валидируется до существования запроса, и стрелка
+ * `@nestling/config → @nestling/pipeline` инвертировала бы порядок фаз.
+ * `@nestling/pipeline` реэкспортирует её из прежнего места.
  *
  * @param schema - любая схема, реализующая Standard Schema v1
  * @param value - проверяемое значение

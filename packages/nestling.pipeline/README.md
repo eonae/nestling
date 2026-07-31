@@ -80,7 +80,17 @@ schema — the spec gives validation and inference, nothing else.
 All validation funnels through a single function, `validateSync(schema,
 value, message)`, so the shape of a failure is identical on every path
 (`validate()` unit, transport fallback without a pipeline, per-item
-validation of NDJSON chunks):
+validation of NDJSON chunks, config section fields):
+
+**The schema kernel now lives in [`@common/misc`](../common.misc).**
+`validateSync`, `assertStandardSchema`, `normalizeIssues`, `DomainType` and
+the three error classes below moved down a layer, because configuration is
+read and validated before a request exists and `@nestling/config →
+@nestling/pipeline` would invert the phase order. `@nestling/pipeline`
+re-exports all of them from `./schema`, so nothing changes for a consumer:
+`import { validateSync } from '@nestling/pipeline'` still resolves, to the
+very same function object.
+
 
 - `SchemaValidationError` — the value failed the schema. Carries
   `issues: readonly { message: string; path?: (string | number)[] }[]`,
