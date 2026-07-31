@@ -30,6 +30,11 @@ export type { Config as ConfigProjection } from './families.js';
 export { ConfigKeys } from './keys.js';
 export type { ConfigGlob, ConfigTarget } from './keys.js';
 export { configKernel } from './kernel.js';
+/**
+ * Примордиальное чтение секции — фаза 0: `select` считается до сборки, а
+ * значит до читалки и привязанных источников.
+ */
+export { load } from './load.js';
 export type { ConfigKernelOptions } from './kernel.js';
 export type { ConfigWarn } from './reader.js';
 export { describeConfig, keysGlob } from './registry.js';

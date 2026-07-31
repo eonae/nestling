@@ -89,8 +89,22 @@ The reader is an ordinary graph node with an async factory, so `init()` of
 every source finishes before any section is projected — that is topology, not
 a separate phase; `@OnDestroy` closes the sources on shutdown.
 
-`@nestling/app` registers the kernel module **always**, so an application that
-is happy with env writes nothing about config in its root.
+`assemble({ config })` passes the list to this kernel module, which
+`@nestling/app` registers **always** — so an application that is happy with
+env writes nothing about config in its root.
+
+## Primordial read: `load(section)`
+
+```typescript
+const RootConfig = makeConfig('app', { features: z.string().default('all') });
+
+const cfg = load(RootConfig);       // synchronous, process.env only
+```
+
+`load` is the single pre-assembly read: the feature selection is needed
+before the container exists, so phase 0 has no reader and no bound sources.
+Validation is the same as for a projection from the graph — independent per
+field, all failures in one `ConfigValidationError`, fail-fast.
 
 ## Fail-fast and reloadable
 
