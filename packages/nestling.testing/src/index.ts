@@ -13,6 +13,7 @@ export { assembleTest, TestApp } from './app.js';
 export type { TestAssemblySpec, TestCallOptions, TestStub } from './app.js';
 export { vars } from './config.js';
 export type { TestConfig } from './config.js';
+export { contextValue } from './context.js';
 export { testModule } from './module.js';
 export type { TestModuleOptions } from './module.js';
 export { familyOverride } from './overrides.js';

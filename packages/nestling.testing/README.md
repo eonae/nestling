@@ -79,6 +79,7 @@ is not part of the application (module not registered, feature left out by
 overrides: [
   [UsersRepository, inMemoryUsersRepo()],      // token -> fake
   familyOverride(ILogger, () => noopLogger),   // the whole family recipe
+  contextValue(RequestId, 'req-1'),            // an ambient request variable
 ]
 ```
 
@@ -92,7 +93,15 @@ only; `assemble` does not accept it.
   provider and the test breaks instead of silently mocking nothing;
 - overriding the same token twice fails the build;
 - there is no string-addressed form (`overrideByName('…')`): you can only
-  override a token you hold a reference to.
+  override a token you hold a reference to;
+- `contextValue(variable, value)` is sugar over `valueProvider(Ctx(variable),
+  reader)` — the reader of an ambient variable
+  ([`@nestling/pipeline`](../nestling.pipeline)) is an ordinary graph node, so
+  it is substituted like any other. The fixed value is readable **without a
+  request** (call the service directly; no ALS needed) and outranks the family
+  recipe: on `app.call` the service reads what the test declared, not what the
+  pipeline wrote. Leave it out and you get the production projection —
+  the layer's value inside the call, `undefined` from `peek()` outside it.
 
 **Pruning** drops the subtree orphaned by the substitution: mock the
 repository and the pg pool is never instantiated, never connects, and is not
@@ -194,5 +203,5 @@ plain `[token, value]` pairs.
 - `assembleTest(spec)` → `TestApp`; `testModule(module, options)` → `TestApp`
 - `TestApp`: `call`, `get`, `pruned`, `features`, `close`, `Symbol.asyncDispose`
 - `unwrap(response)`, `UnwrapFailedError`
-- `vars(record)`, `familyOverride(family, make)`
+- `vars(record)`, `familyOverride(family, make)`, `contextValue(variable, value)`
 - `checkTopologies(spec, selections)`

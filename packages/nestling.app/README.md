@@ -52,6 +52,7 @@ assemble({
   transports: [http()],
   policies: [
     everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase, 'authedBase'),
+    everyEndpoint({ transport: HttpTransport$ }).hasVar(RequestId, 'requestId'),
   ],
 });
 ```
@@ -201,6 +202,18 @@ Config sections consumed by the graph are projected and validated during
 `build()`, so an invalid config kills startup **before** any transport starts
 listening. `ConfigBinding` and `ConfigTarget` are re-exported here, so a root
 does not have to import `@nestling/config` for one annotation.
+
+## Ambient request context
+
+The reader kernel module of the ambient context
+([`@nestling/pipeline`](../nestling.pipeline)) is registered **always**, for
+the same reason and at the same price as the config one: members of the `Ctx`
+family materialize by the `deps` fixpoint, so with no `Ctx(...)` anywhere the
+graph gains no node — and the composition root says nothing about request
+context. A class with `Ctx(RequestId)` in its `deps` just assembles and works;
+the dependency is an ordinary graph edge, visible in `explain()` and in the
+serialized graph. Presence of a variable is an opt-in invariant of the same
+`policies:` list — `everyEndpoint(…).hasVar(RequestId)`.
 
 Each declaration's io **forms** is checked against the transport's
 `capabilities` in phase ASSEMBLE — richness is declared in the contract and

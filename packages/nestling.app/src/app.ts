@@ -30,7 +30,11 @@ import type {
   PolicySubject,
   TransportRef,
 } from '@nestling/pipeline';
-import { assertFormsSupported, transportNameOf } from '@nestling/pipeline';
+import {
+  assertFormsSupported,
+  contextKernel,
+  transportNameOf,
+} from '@nestling/pipeline';
 import type {
   Dispatch,
   ExecutableDeclaration,
@@ -314,6 +318,11 @@ export class App {
     // читалка тривиальна, а рецепты семейств не материализуют ничего,
     // пока никто не инжектит секцию.
     builder.register(configKernel([...this.#plan.config]));
+
+    // Kernel-модуль ambient-контекста — по той же причине и с той же ценой:
+    // без единого `Ctx(...)` в `deps` он не материализует ни одного узла,
+    // зато в корне про request-контекст не пишется ни строки
+    builder.register(contextKernel());
 
     if (this.#plan.modules.length > 0) {
       builder.register(...this.#plan.modules);
