@@ -3,7 +3,7 @@ import { assemble } from '@nestling/app';
 import { valueProvider } from '@nestling/container';
 import { HttpTransport, HttpTransport$ } from '@nestling/transport.http';
 
-import { LoggingFeature, UsersFeature } from '../../src/features';
+import { OpsFeature, UsersFeature } from '../../src/features';
 
 export interface TestAppContext {
   app: App;
@@ -21,7 +21,7 @@ export async function createTestApp(): Promise<TestAppContext> {
   const transport = new HttpTransport({ port: 0, host: '127.0.0.1' });
 
   const app = assemble({
-    features: [UsersFeature, LoggingFeature],
+    features: [UsersFeature, OpsFeature],
     select: 'users',
     transports: [valueProvider(HttpTransport$, transport)],
   });

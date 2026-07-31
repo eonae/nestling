@@ -1,4 +1,4 @@
-import type { ILoggerService } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
 import type { UserService } from '../user.service';
 
 import { listUsersHandler } from './list-users.endpoint';

@@ -1,5 +1,5 @@
 import { inMemoryUsersRepo } from '../../testing';
-import type { ILoggerService } from '../logger/logger.service';
+import type { ILoggerService } from '../logger';
 
 import { UserService } from './user.service';
 

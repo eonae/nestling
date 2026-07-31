@@ -1,4 +1,4 @@
-import type { ILoggerService } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
 import { UserNotFound } from '../user.errors';
 import type { UserService } from '../user.service';
 

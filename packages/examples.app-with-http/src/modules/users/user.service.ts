@@ -1,7 +1,7 @@
 import { ADMIN_USER_ID } from '../../common/constants';
 import type { ImportResult, User } from '../../common/types';
-import type { ILoggerService } from '../logger/logger.service';
-import { ILogger } from '../logger/logger.service';
+import type { ILoggerService } from '../logger';
+import { ILogger } from '../logger';
 
 import type { IUsersRepository } from './users.repository';
 import { UsersRepository } from './users.repository';

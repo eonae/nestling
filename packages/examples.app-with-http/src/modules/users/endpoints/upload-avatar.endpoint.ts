@@ -1,7 +1,7 @@
 import { MAX_AVATAR_SIZE } from '../../../common/constants';
 import { noValidationPipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
+import { ILogger } from '../../logger';
 import { InvalidAvatar, UserNotFound } from '../user.errors';
 import { UserService } from '../user.service';
 

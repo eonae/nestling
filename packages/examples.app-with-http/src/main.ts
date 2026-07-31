@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
-import { observability } from './common/pipelines';
-import { LoggingFeature, UsersFeature } from './features';
+import { observability } from './modules/logger';
+import { OpsFeature, UsersFeature } from './features';
 
 import { assemble } from '@nestling/app';
 import { load, makeConfig } from '@nestling/config';
@@ -23,22 +23,26 @@ const RootConfig = makeConfig('app', {
  * Пример: `assemble` как единственный composition root.
  *
  * Уровень L2 — фичи и выбор подмножества: `APP_FEATURES=users` поднимает
- * только пользователей (с транзитивно приезжающим `logging`),
- * `APP_FEATURES=all` — всё дерево.
+ * только пользователей (с транзитивно приезжающим `ops`),
+ * `APP_FEATURES=all` — всё дерево. Поля корня перечислены здесь целиком:
+ * никакого `plugins:` в словаре нет — сквозная инфраструктура приезжает
+ * теми же `modules:`/`providers:`, что и всё остальное, или модулем фичи.
  */
 async function main() {
   // Фаза 0: выбор фич считается до построения контейнера
   const cfg = load(RootConfig);
 
   const app = assemble({
-    features: [UsersFeature, LoggingFeature],
+    features: [UsersFeature, OpsFeature],
     select: cfg.features,
     // Транспорт — провайдер: порт приезжает из его конфиг-секции
     // (`HTTP_PORT`), явная опция её перекрывает
     transports: [http({ port: 3000 })],
     // Инвариант приложения: каждая HTTP-ручка обязана быть композирована
-    // от слоя наблюдаемости. Проверяется на фазе ASSEMBLE — до `@OnInit`
-    // и до открытия сокета; идентичность слоя ссылочная, поэтому
+    // от слоя наблюдаемости, который поставляет инфра-модуль логирования.
+    // Так выражается «ambient middleware»: слой композируют явно, а
+    // вездесущность гарантирует проверка на собранном графе — до `@OnInit`
+    // и до открытия сокета. Идентичность слоя ссылочная, поэтому
     // одноимённая копия из соседнего файла политику не удовлетворит.
     // Исключение ровно одно и с причиной: `Health` помечена `detached`.
     policies: [

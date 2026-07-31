@@ -1,6 +1,6 @@
 import { noValidationPipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
+import { ILogger } from '../../logger';
 import { importMetrics } from '../import-metrics';
 import { UserService } from '../user.service';
 

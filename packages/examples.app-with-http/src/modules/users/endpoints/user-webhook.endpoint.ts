@@ -2,8 +2,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { WEBHOOK_SECRET } from '../../../common/constants';
 import { basePipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
+import { ILogger } from '../../logger';
 import { InvalidSignature } from '../user.errors';
 import { UserService } from '../user.service';
 

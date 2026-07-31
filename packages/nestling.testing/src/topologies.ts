@@ -31,7 +31,7 @@ export interface TopologyReport {
  * строкой: мокаешь — проверь топологию.
  *
  * @param spec - Тот же словарь сборки, что уедет в прод, без `select`
- * @param selections - Варианты деплоя: `['all', 'users', 'logging']`
+ * @param selections - Варианты деплоя: `['all', 'users', 'ops']`
  * @returns Отчёты по каждой топологии в порядке перечисления
  * @throws {Error} Если хотя бы одна топология не собралась; в сообщении
  * названы все несобравшиеся с их причинами
@@ -39,8 +39,8 @@ export interface TopologyReport {
  * @example
  * ```typescript
  * await checkTopologies(
- *   { features: [UsersFeature, LoggingFeature], transports: [http()] },
- *   ['all', 'users', 'logging'],
+ *   { features: [UsersFeature, OpsFeature], transports: [http()] },
+ *   ['all', 'users', 'ops'],
  * );
  * ```
  */

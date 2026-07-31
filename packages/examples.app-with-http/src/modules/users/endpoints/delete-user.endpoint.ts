@@ -1,7 +1,7 @@
 import { ADMIN_USER_ID } from '../../../common/constants';
 import { auditDeletions, basePipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
+import { ILogger } from '../../logger';
 import { UserNotDeletable, UserNotFound } from '../user.errors';
 import { UserService } from '../user.service';
 

@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 
-import type { ILoggerService } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
 import { InvalidAvatar, UserNotFound } from '../user.errors';
 import type { UserService } from '../user.service';
 

@@ -1,5 +1,5 @@
-import type { ILoggerService } from '../logger/logger.service';
-import { ILogger } from '../logger/logger.service';
+import type { ILoggerService } from '../logger';
+import { ILogger } from '../logger';
 
 import { Injectable } from '@nestling/container';
 import { Topic } from '@nestling/streams';

@@ -1,4 +1,4 @@
-import type { ILoggerService } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
 import { SearchQueryRequired } from '../user.errors';
 import type { UserService } from '../user.service';
 

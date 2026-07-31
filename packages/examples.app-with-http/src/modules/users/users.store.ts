@@ -1,6 +1,6 @@
 import type { User } from '../../common/types';
-import type { ILoggerService } from '../logger/logger.service';
-import { ILogger } from '../logger/logger.service';
+import type { ILoggerService } from '../logger';
+import { ILogger } from '../logger';
 
 import { Injectable, OnDestroy, OnInit } from '@nestling/container';
 

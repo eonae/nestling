@@ -1,32 +1,7 @@
+import { observability } from '../modules/logger';
 import { UserNotDeletable } from '../modules/users/user.errors';
 
-import {
-  compose,
-  makePipeline,
-  validate,
-  withRequestId,
-} from '@nestling/pipeline';
-
-/**
- * Внешний слой: наблюдаемость.
- *
- * Экспортируется, потому что служит **инвариантом приложения**: политика в
- * `main.ts` требует его от каждой HTTP-ручки, и требование адресует именно
- * это значение (идентичность слоя ссылочная).
- *
- * Демонстрирует ответный тракт pipeline v2: `.finally` — наблюдатель
- * исхода (completed | disconnected | aborted | failed), вызывается всегда,
- * последним. На error-path собственные поля слоя опциональны (requestId
- * мог не успеть добавиться), поэтому `?? 'n/a'`.
- */
-export const observability = makePipeline()
-  .pre(withRequestId())
-  .finally((outcome, _res, ctx) => {
-    // eslint-disable-next-line no-console
-    console.log(
-      `[audit] ${ctx.raw.pattern} → ${outcome} (requestId=${ctx.input.requestId ?? 'n/a'})`,
-    );
-  });
+import { compose, makePipeline, validate } from '@nestling/pipeline';
 
 /**
  * Внутренний слой: валидация payload.
@@ -40,15 +15,11 @@ const validation = makePipeline<{ requestId: string }>().pre(validate());
  * Базовый pipeline с валидацией
  *
  * ✅ Содержит validate() - можно использовать с endpoint'ами, у которых есть input схема
+ *
+ * Внешний слой приезжает от инфра-модуля логирования: сквозное поведение
+ * композируется явно, а не навешивается ambient middleware.
  */
 export const basePipeline = compose(observability, validation);
-
-/**
- * Pipeline без валидации (для endpoint'ов без input или streaming)
- *
- * ❌ НЕ содержит validate() - можно использовать только с endpoint'ами БЕЗ input схемы
- */
-export const noValidationPipeline = observability;
 
 /**
  * Слой аудита удалений: разбирает ответ-ошибку по **коду отказа**.
@@ -69,3 +40,11 @@ export const auditDeletions = makePipeline<{ requestId: string }>().catch(
     }
   },
 );
+
+/**
+ * Pipeline без валидации (для endpoint'ов без input или streaming) — тот же
+ * слой наблюдаемости и ничего сверх него.
+ *
+ * ❌ НЕ содержит validate() - можно использовать только с endpoint'ами БЕЗ input схемы
+ */
+export { observability as noValidationPipeline } from '../modules/logger';

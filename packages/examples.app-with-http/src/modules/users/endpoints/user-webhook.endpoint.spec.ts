@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 
 import { WEBHOOK_SECRET } from '../../../common/constants';
-import type { ILoggerService } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
 import type { UserService } from '../user.service';
 
 import { userWebhookHandler, verifySignature } from './user-webhook.endpoint';

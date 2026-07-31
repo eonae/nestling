@@ -13,7 +13,7 @@ matchers, no snapshot machinery — jest stays jest.
 import { assembleTest, unwrap, vars } from '@nestling/testing';
 
 await using app = await assembleTest({
-  features: [UsersFeature, LoggingFeature],
+  features: [UsersFeature, OpsFeature],
   transports: [http({ port: 0 })],
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
   config: vars({ USERS_PAGE_SIZE: '10' }),
@@ -109,8 +109,8 @@ into a matrix:
 
 ```typescript
 await checkTopologies(
-  { features: [UsersFeature, LoggingFeature], transports: [http({ port: 0 })] },
-  ['all', 'users', 'logging'],
+  { features: [UsersFeature, OpsFeature], transports: [http({ port: 0 })] },
+  ['all', 'users', 'ops'],
 );
 ```
 

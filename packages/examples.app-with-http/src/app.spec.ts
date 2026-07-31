@@ -6,14 +6,14 @@
  * трогается. Мокается один архитектурный шов — порт репозитория.
  */
 
-import { observability } from './common/pipelines';
+import { ILogger, observability } from './modules/logger';
 import {
   CreateUser,
   DeleteUser,
   GetUser,
   ListUsers,
 } from './modules/users/endpoints';
-import { LoggingFeature, UsersFeature } from './features';
+import { OpsFeature, UsersFeature } from './features';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
 import { describe, expect, it } from '@jest/globals';
@@ -23,7 +23,7 @@ import { http, HttpTransport$ } from '@nestling/transport.http';
 
 /** Сборка примера без транспортного go-live — тот же словарь, что в `main.ts` */
 const spec = {
-  features: [UsersFeature, LoggingFeature],
+  features: [UsersFeature, OpsFeature],
   transports: [http({ port: 0 })],
   // Тот же инвариант, что в бою: тестовый корень его не ослабляет
   policies: [
@@ -99,19 +99,48 @@ describe('пример: app-тесты через assembleTest', () => {
   });
 });
 
+describe('пример: инфраструктура едет вместе с фичей', () => {
+  it('без выбранной фичи провайдеров инфра-модуля нет в графе', async () => {
+    // `ops` — единственная ручка вне инвариантов (detached), слой
+    // наблюдаемости ей не нужен, логгер не импортирует никто из выбранного
+    await using app = await assembleTest({ ...spec, select: 'ops' });
+
+    expect(app.get(ILogger)).toBeNull();
+    expect(app.get(HttpTransport$)).not.toBeNull();
+  });
+
+  it('выбранная фича привозит свою инфраструктуру', async () => {
+    await using app = await assembleTest({ ...spec, select: 'users' });
+
+    expect(app.get(ILogger)).not.toBeNull();
+  });
+
+  it('co-located фичи, импортирующие одно значение, делят инстанс', async () => {
+    // Обе фичи импортируют **одно значение** `appLogging`: модуль
+    // регистрируется один раз, и логгер у них общий. Вызови любая из них
+    // `logging({ … })` заново — сборка упала бы на коллизии имён
+    await using app = await assembleTest(spec);
+
+    const logger = app.get(ILogger);
+
+    expect(logger).not.toBeNull();
+    expect(app.get(ILogger)).toBe(logger);
+  });
+});
+
 describe('пример: матрица select-топологий', () => {
   it('собирает каждый вариант деплоя без сокетов', async () => {
-    const reports = await checkTopologies(spec, ['all', 'users', 'logging']);
+    const reports = await checkTopologies(spec, ['all', 'users', 'ops']);
 
     expect(reports.map(({ select }) => select)).toEqual([
       'all',
       'users',
-      'logging',
+      'ops',
     ]);
 
-    // `users` тянет `logging` через `dependsOn`; сам `logging` объявляет
+    // `users` тянет `ops` через `dependsOn`; сам `ops` объявляет
     // только эксплуатационную ручку — это и проверяет матрица
-    expect(reports[1].report.features).toEqual(['users', 'logging']);
+    expect(reports[1].report.features).toEqual(['users', 'ops']);
     expect(reports[2].report.endpoints.map(({ pattern }) => pattern)).toEqual([
       'GET /health',
     ]);
