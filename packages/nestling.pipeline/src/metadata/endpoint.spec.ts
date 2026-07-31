@@ -9,12 +9,19 @@ import { Ok } from '../core';
 import { makePipeline } from '../core/pipeline';
 
 import type { EndpointDefinition } from './endpoint';
-import { isEndpointDefinition, makeEndpoint } from './endpoint';
+import {
+  isEndpointDefinition,
+  makeEndpoint,
+  transportNameOf,
+} from './endpoint';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import type { TokenString } from '@nestling/container';
 import { makeToken } from '@nestling/container';
 import { z } from 'zod';
+
+/** Токен транспорта фикстур: декларация ссылается на транспорт значением */
+const HttpTransport$ = makeToken('transport:http');
 
 // ============================================================================
 // Утилиты для типовых проверок
@@ -63,7 +70,7 @@ const meta = {
 describe('makeEndpoint — формы handle', () => {
   it('голая функция исполнима сразу, без гашения', async () => {
     const Ping = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /ping',
       handle: async () => new Ok({ pong: true }),
     });
@@ -75,7 +82,7 @@ describe('makeEndpoint — формы handle', () => {
 
   it('каррированная фабрика исполняется после resolve', async () => {
     const GetUser = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users/:id',
       input: UserInput,
       output: UserOutput,
@@ -100,7 +107,7 @@ describe('makeEndpoint — формы handle', () => {
     }
 
     const GetUser = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users/:id',
       input: UserInput,
       output: UserOutput,
@@ -117,7 +124,7 @@ describe('makeEndpoint — формы handle', () => {
 
   it('до гашения handle бросает понятную ошибку, а не отдаёт undefined', () => {
     const GetUser = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users/:id',
       deps: [UserService],
       handle: (users) => async () => new Ok(users.getById('1')),
@@ -132,7 +139,7 @@ describe('makeEndpoint — формы handle', () => {
     const factory = jest.fn((users: UserService) => async () => new Ok({}));
 
     const Endpoint = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /counted',
       deps: [UserService],
       handle: factory,
@@ -150,7 +157,7 @@ describe('makeEndpoint — формы handle', () => {
 
 describe('makeEndpoint — resolve', () => {
   const declaration = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'GET /users/:id',
     input: UserInput,
     deps: [UserService],
@@ -175,7 +182,7 @@ describe('makeEndpoint — resolve', () => {
 
   it('резолвер, не отдавший зависимость, — ошибка с именем токена', () => {
     const NeedsLogger = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /logged',
       deps: [ILogger],
       handle: (logger) => async () => {
@@ -203,7 +210,7 @@ describe('makeEndpoint — resolve', () => {
     }
 
     const WithClass = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /class',
       handle: Handler,
     });
@@ -221,7 +228,7 @@ describe('makeEndpoint — resolve', () => {
     }
 
     const Traced = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /traced',
       pipeline: makePipeline().pre(WithTracing),
       handle: async () => new Ok({}),
@@ -242,7 +249,7 @@ describe('makeEndpoint — resolve', () => {
     }
 
     const Traced = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /traced',
       pipeline: makePipeline().pre(WithTracing),
       handle: async () => new Ok({}),
@@ -257,7 +264,7 @@ describe('makeEndpoint — resolve', () => {
     const factory = jest.fn((users: UserService) => async () => new Ok({}));
 
     const Endpoint = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /twice',
       deps: [UserService],
       handle: factory,
@@ -274,7 +281,7 @@ describe('makeEndpoint — resolve', () => {
 
 describe('makeEndpoint — бренд', () => {
   const Ping = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'GET /ping',
     handle: async () => new Ok({ pong: true }),
   });
@@ -290,9 +297,9 @@ describe('makeEndpoint — бренд', () => {
       }
     }
 
-    expect(isEndpointDefinition({ transport: 'http', pattern: 'GET /' })).toBe(
-      false,
-    );
+    expect(
+      isEndpointDefinition({ transport: HttpTransport$, pattern: 'GET /' }),
+    ).toBe(false);
     expect(isEndpointDefinition(NotAnEndpoint)).toBe(false);
     expect(isEndpointDefinition(undefined)).toBe(false);
     expect(isEndpointDefinition(null)).toBe(false);
@@ -308,14 +315,44 @@ describe('makeEndpoint — бренд', () => {
 
   it('создание декларации не имеет побочных эффектов', () => {
     const created = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /side-effect-free',
       handle: async () => new Ok({}),
     });
 
     // Никаких реестров: значение существует ровно там, куда его положили
-    expect(created.transport).toBe('http');
+    expect(created.transport).toBe(HttpTransport$);
     expect(created.pattern).toBe('GET /side-effect-free');
+  });
+});
+
+describe('ссылка на транспорт — токен', () => {
+  it('декларация несёт именно токен, а имя выводится из его id', () => {
+    const Ping = makeEndpoint({
+      transport: HttpTransport$,
+      pattern: 'GET /ping',
+      handle: async () => new Ok({}),
+    });
+
+    expect(Ping.transport).toBe(HttpTransport$);
+    expect(transportNameOf(Ping.transport)).toBe('http');
+  });
+
+  it('два транспорта различимы по токену, а не по имени', () => {
+    const Cli$ = makeToken('transport:cli');
+
+    const Command = makeEndpoint({
+      transport: Cli$,
+      pattern: 'sync',
+      handle: async () => new Ok({}),
+    });
+
+    expect(Command.transport).not.toBe(HttpTransport$);
+    expect(transportNameOf(Command.transport)).toBe('cli');
+  });
+
+  it('токен без префикса остаётся своим же именем', () => {
+    expect(transportNameOf(makeToken('bus'))).toBe('bus');
   });
 });
 
@@ -325,7 +362,7 @@ describe('makeEndpoint — носитель binding', () => {
 
   it('binding доезжает до значения декларации как есть', () => {
     const UpdateUser = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'PATCH /users/:id',
       binding,
       handle: async () => new Ok({}),
@@ -336,7 +373,7 @@ describe('makeEndpoint — носитель binding', () => {
 
   it('binding переживает гашение зависимостей', () => {
     const GetUser = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users/:id',
       binding,
       deps: [UserService],
@@ -352,7 +389,7 @@ describe('makeEndpoint — носитель binding', () => {
 
   it('без binding поле на значении не появляется', () => {
     const Ping = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /ping',
       handle: async () => new Ok({ pong: true }),
     });
@@ -364,7 +401,7 @@ describe('makeEndpoint — носитель binding', () => {
     const opaque = Symbol('transport-specific');
 
     const Weird = makeEndpoint({
-      transport: 'nats',
+      transport: makeToken('transport:nats'),
       pattern: 'users.get',
       binding: opaque,
       handle: async () => new Ok({}),
@@ -394,13 +431,13 @@ describe('@nestling/pipeline — HTTP-слепота ядра', () => {
 describe('makeEndpoint — типы', () => {
   it('TNeeds отражает форму хендлера', () => {
     const DepsFree = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /ping',
       handle: async () => new Ok({ pong: true }),
     });
 
     const Curried = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users/:id',
       deps: [UserService, ILogger],
       handle: (users, logger) => async () => new Ok({}),
@@ -413,7 +450,7 @@ describe('makeEndpoint — типы', () => {
     }
 
     const WithClass = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /class',
       handle: GetUserHandler,
     });
@@ -445,7 +482,7 @@ describe('makeEndpoint — типы', () => {
     }
 
     const Traced = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /traced',
       pipeline: makePipeline().pre(WithTracing),
       handle: async () => new Ok({}),
@@ -458,13 +495,13 @@ describe('makeEndpoint — типы', () => {
 
   it('исполнимая декларация присваиваема, декларация с deps — нет', () => {
     const DepsFree = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /ping',
       handle: async () => new Ok({}),
     });
 
     const Curried = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users',
       deps: [UserService],
       handle: (users) => async () => new Ok({}),
@@ -480,7 +517,7 @@ describe('makeEndpoint — типы', () => {
 
   it('несовпадение сигнатуры handle со схемами — ошибка компиляции', () => {
     makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users/:id',
       input: UserInput,
       output: UserOutput,
@@ -490,7 +527,7 @@ describe('makeEndpoint — типы', () => {
 
     // @ts-expect-error: output требует { id, name }, хендлер отдаёт другое
     makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users/:id',
       input: UserInput,
       output: UserOutput,
@@ -502,7 +539,7 @@ describe('makeEndpoint — типы', () => {
 
   it('deps без каррированной формы хендлера — ошибка компиляции', () => {
     makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users',
       deps: [UserService],
       // @ts-expect-error: с deps хендлер обязан быть каррированной фабрикой

@@ -16,6 +16,9 @@ import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
 import { z } from 'zod';
 
+/** Токен транспорта фикстур: декларация ссылается на транспорт значением */
+const HttpTransport$ = makeToken('transport:http');
+
 const OrderLimitReached = defineFail('ORDER_LIMIT_REACHED', {
   status: 'CONFLICT',
   details: z.object({ limit: z.number() }),
@@ -37,7 +40,7 @@ const IBillingToken = makeToken<IBilling>('IBilling');
 describe('errors: — проверка при создании декларации', () => {
   it('список переносится на значение декларации', () => {
     const Endpoint = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'POST /orders',
       errors: [OrderLimitReached, CardDeclined],
       handle: async () => new Ok({ id: '1' }),
@@ -48,7 +51,7 @@ describe('errors: — проверка при создании декларац�
 
   it('список переживает гашение зависимостей', () => {
     const Endpoint = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'POST /orders',
       errors: [OrderLimitReached],
       deps: [IBillingToken],
@@ -65,7 +68,7 @@ describe('errors: — проверка при создании декларац�
   it('не-определение в списке → ошибка с позицией элемента', () => {
     const create = () =>
       makeEndpoint({
-        transport: 'http',
+        transport: HttpTransport$,
         pattern: 'POST /orders',
         // Класс ошибки — не определение отказа
         errors: [OrderLimitReached, Fail as never],
@@ -79,7 +82,7 @@ describe('errors: — проверка при создании декларац�
   it('дубль кода → ошибка, называющая код', () => {
     const create = () =>
       makeEndpoint({
-        transport: 'http',
+        transport: HttpTransport$,
         pattern: 'POST /orders',
         errors: [CardDeclined, CardDeclined],
         handle: async () => new Ok({ id: '1' }),
@@ -92,7 +95,7 @@ describe('errors: — проверка при создании декларац�
   it('errors не массив → ошибка', () => {
     const create = () =>
       makeEndpoint({
-        transport: 'http',
+        transport: HttpTransport$,
         pattern: 'POST /orders',
         errors: OrderLimitReached as never,
         handle: async () => new Ok({ id: '1' }),
@@ -109,7 +112,7 @@ describe('errors: — проверка при создании декларац�
 // Форма 1 — голая функция
 {
   const Declared = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [OrderLimitReached],
@@ -117,7 +120,7 @@ describe('errors: — проверка при создании декларац�
   });
 
   const WithMetaFail = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [OrderLimitReached],
@@ -130,7 +133,7 @@ describe('errors: — проверка при создании декларац�
 
   // @ts-expect-error: CardDeclined не объявлен в errors:
   const Foreign = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [OrderLimitReached],
@@ -138,7 +141,7 @@ describe('errors: — проверка при создании декларац�
   });
 
   const ForeignInMetaFail = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [OrderLimitReached],
@@ -151,7 +154,7 @@ describe('errors: — проверка при создании декларац�
 
   // @ts-expect-error: без errors: множество пусто — отказ вернуть нельзя
   const NoErrorsDeclared = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     handle: async () => OrderLimitReached({ limit: 10 }),
@@ -161,7 +164,7 @@ describe('errors: — проверка при создании декларац�
 // Форма 2 — каррированная фабрика
 {
   const Declared = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [CardDeclined],
@@ -173,7 +176,7 @@ describe('errors: — проверка при создании декларац�
   });
 
   const Foreign = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [CardDeclined],
@@ -198,7 +201,7 @@ describe('errors: — проверка при создании декларац�
   }
 
   const Declared = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [CardDeclined],
@@ -206,7 +209,7 @@ describe('errors: — проверка при создании декларац�
   });
 
   const Foreign = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [CardDeclined],
@@ -218,7 +221,7 @@ describe('errors: — проверка при создании декларац�
 // Пайплайн и errors: сочетаются без потери вывода
 {
   const WithPipeline = makeEndpoint({
-    transport: 'http',
+    transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     pipeline: makePipeline().pre(() => ({ requestId: 'r-1' })),

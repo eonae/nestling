@@ -14,8 +14,34 @@ import type { HandlerFn } from '../core/types';
 import type { Constructor } from '@common/misc';
 import type {
   InjectionToken,
+  TokenString,
   UnwrapInjectionTokens,
 } from '@nestling/container';
+
+/**
+ * Ссылка декларации на её транспорт — **токен**, а не строка.
+ *
+ * Ядро типизирует его неуточнённо (`TokenString<any>`), потому что
+ * `ITransport` живёт в `@nestling/transport`, который зависит от ядра:
+ * уточнение до `TokenString<ITransport>` делает транспортный пакет
+ * (`TransportToken`). Строковое имя выводится из id токена
+ * (`transportNameOf`) и продолжает ехать в `Raw`/`EndpointMeta`.
+ */
+export type TransportRef = TokenString<any>;
+
+/**
+ * Имя транспорта из id его токена: часть после последнего `:`.
+ *
+ * Токены транспортов именуются `transport:http` — префикс отделяет их от
+ * пользовательских токенов в графе, а слоям пайплайна нужно то же короткое
+ * `'http'`, которое они читали до перехода на токены.
+ */
+export const transportNameOf = (ref: TransportRef): string => {
+  const id = String(ref);
+  const separator = id.lastIndexOf(':');
+
+  return separator === -1 ? id : id.slice(separator + 1);
+};
 
 /**
  * Symbol-бренд декларации endpoint'а.
@@ -79,7 +105,8 @@ export interface EndpointDefinition<
   P extends AnyInput = AnyInput,
   TNeeds = never,
 > {
-  readonly transport: string;
+  /** Токен транспорта, обслуживающего ручку (см. {@link TransportRef}) */
+  readonly transport: TransportRef;
   readonly pattern: string;
 
   /**
@@ -166,7 +193,8 @@ export interface EndpointOptions<
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
 > {
-  transport: string;
+  /** Токен транспорта: его проставляет транспортный конструктор */
+  transport: TransportRef;
   pattern: string;
 
   /** Форма io для input: значение, `stream`/`events` или `multipart` */
@@ -217,7 +245,7 @@ type HandlerForm =
   | { kind: 'class'; ctor: HandlerClass };
 
 interface EndpointState {
-  transport: string;
+  transport: TransportRef;
   pattern: string;
   input?: unknown;
   output?: unknown;
@@ -513,7 +541,7 @@ export function isEndpointDefinition(
  * @example
  * ```typescript
  * const Ping = makeEndpoint({
- *   transport: 'http',
+ *   transport: HttpTransport$,          // токен транспорта, не строка
  *   pattern: 'GET /ping',
  *   output: PingOutput,
  *   pipeline: basePipeline,

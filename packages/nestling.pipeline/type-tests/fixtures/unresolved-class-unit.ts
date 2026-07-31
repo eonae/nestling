@@ -2,13 +2,14 @@
  * Фикстура: декларация с нерезолвленным классом-юнитом отдаётся транспорту.
  *
  * Класс-юнит попадает в `TNeeds` пайплайна и через него — в `TNeeds`
- * декларации; `route()` принимает только `TNeeds = never`. Гасится
+ * декларации; `makeDispatch` принимает только `TNeeds = never`. Гасится
  * `endpoint.resolve(resolver)` или запуском под `App`.
  */
 
 import type { ExtendableContext, EmptyInput } from '@nestling/pipeline';
 import { makePipeline, Ok } from '@nestling/pipeline';
-import { httpEndpoint, HttpTransport } from '@nestling/transport.http';
+import { makeDispatch } from '@nestling/transport';
+import { httpEndpoint } from '@nestling/transport.http';
 
 class WithTracing {
   handle(_ctx: ExtendableContext<EmptyInput>): { traceId: string } {
@@ -23,6 +24,4 @@ const endpoint = httpEndpoint({
   handle: async () => new Ok({ status: 'up' }),
 });
 
-const transport = new HttpTransport();
-
-transport.route(endpoint);
+makeDispatch([endpoint]);

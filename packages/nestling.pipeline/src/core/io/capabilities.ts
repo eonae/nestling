@@ -22,13 +22,30 @@ export interface TransportCapabilities {
   readonly output: ReadonlySet<FormKind>;
 }
 
-/** Декларация с точки зрения проверки способностей */
+/**
+ * Декларация с точки зрения проверки способностей.
+ *
+ * `transport` — токен (у проекции маршрута он тот же, что у декларации);
+ * в текст ошибки уходит короткое имя, выведенное из его id.
+ */
 export interface FormBearingDefinition {
   readonly transport: string;
   readonly pattern: string;
   readonly input?: unknown;
   readonly output?: unknown;
 }
+
+/**
+ * Короткое имя транспорта из id токена (`transport:http` → `'http'`).
+ *
+ * Дублирует `transportNameOf` из `../../metadata`: импорт оттуда завёл бы
+ * цикл модулей (`metadata` строится над `core`), а правило — одна строчка.
+ */
+const shortTransportName = (id: string): string => {
+  const separator = id.lastIndexOf(':');
+
+  return separator === -1 ? id : id.slice(separator + 1);
+};
 
 function listForms(kinds: ReadonlySet<FormKind>): string {
   return [...kinds].join(', ');
@@ -71,7 +88,8 @@ export function assertFormsSupported(
 
     throw new Error(
       `Endpoint '${definition.pattern}'${where ? ` ${where}` : ''}: ` +
-        `transport '${definition.transport}' does not support form ` +
+        `transport '${shortTransportName(definition.transport)}' ` +
+        `does not support form ` +
         `'${kind}' in '${slot}' (supported: ${listForms(allowed)}).`,
     );
   }

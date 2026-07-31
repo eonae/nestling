@@ -6,8 +6,11 @@
  * "ORDER_LIMIT_REACHED"», а не тонуть в раскрытии дженериков.
  */
 
+import { makeToken } from '@nestling/container';
 import { defineFail, makeEndpoint } from '@nestling/pipeline';
 import { z } from 'zod';
+
+const HttpTransport$ = makeToken('transport:http');
 
 const OrderOutput = z.object({ id: z.string() });
 
@@ -22,7 +25,7 @@ const CardDeclined = defineFail('CARD_DECLINED', {
 });
 
 export const CreateOrder = makeEndpoint({
-  transport: 'http',
+  transport: HttpTransport$,
   pattern: 'POST /orders',
   output: OrderOutput,
   errors: [OrderLimitReached],

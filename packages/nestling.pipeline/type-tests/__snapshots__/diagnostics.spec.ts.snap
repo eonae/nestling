@@ -28,7 +28,7 @@ exports[`pipeline type diagnostics endpoint-missing-rawbody 1`] = `
 `;
 
 exports[`pipeline type diagnostics endpoint-undeclared-fail 1`] = `
-"packages/nestling.pipeline/type-tests/fixtures/endpoint-undeclared-fail.ts(24,28): error TS2769: No overload matches this call.
+"packages/nestling.pipeline/type-tests/fixtures/endpoint-undeclared-fail.ts(27,28): error TS2769: No overload matches this call.
   Overload 1 of 3, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"ORDER_LIMIT_REACHED">[]> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type 'Promise<Fail<"CARD_DECLINED", undefined>>' is not assignable to type 'OutputSync<{ id: string; }, Fail<"ORDER_LIMIT_REACHED", undefined>> | Output<{ id: string; }, Fail<"ORDER_LIMIT_REACHED", undefined>>'.
       Type 'Promise<Fail<"CARD_DECLINED", undefined>>' is not assignable to type 'Output<{ id: string; }, Fail<"ORDER_LIMIT_REACHED", undefined>>'.
@@ -67,7 +67,7 @@ exports[`pipeline type diagnostics pre-overrides-field 1`] = `"packages/nestling
 exports[`pipeline type diagnostics pre-requires-missing 1`] = `"packages/nestling.pipeline/type-tests/fixtures/pre-requires-missing.ts(11,3): error TS2345: Argument of type 'PreUnitFn<{ identity: User; }, { permissions: string[]; }>' is not assignable to parameter of type '{ __error: "Pre-unit requires context that the accumulated input does not provide"; missing: { identity: User; }; }'."`;
 
 exports[`pipeline type diagnostics unresolved-class-unit 1`] = `
-"packages/nestling.pipeline/type-tests/fixtures/unresolved-class-unit.ts(28,17): error TS2345: Argument of type 'EndpointDefinition<AnyPayload, AnyOutput, EmptyInput & { traceId: string; }, typeof WithTracing>' is not assignable to parameter of type 'EndpointDefinition<AnyPayload, AnyOutput, EmptyInput & { traceId: string; }, never>'.
+"packages/nestling.pipeline/type-tests/fixtures/unresolved-class-unit.ts(27,15): error TS2322: Type 'EndpointDefinition<AnyPayload, AnyOutput, EmptyInput & { traceId: string; }, typeof WithTracing>' is not assignable to type 'ExecutableDeclaration'.
   Types of property '$needs' are incompatible.
     Type 'typeof WithTracing | undefined' is not assignable to type 'undefined'.
       Type 'typeof WithTracing' is not assignable to type 'undefined'."

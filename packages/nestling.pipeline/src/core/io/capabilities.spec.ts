@@ -9,9 +9,13 @@ import type { TransportCapabilities } from './capabilities.js';
 import { assertFormsSupported } from './capabilities.js';
 import { events, multipart, stream, upload } from './forms.js';
 
+import { makeToken } from '@nestling/container';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
+
+/** Токен транспорта фикстур: декларация ссылается на транспорт значением */
+const TestTransport$ = makeToken('transport:test');
 
 /** Пустой поток строк — легальный возврат ручки с `output: stream(Row)` */
 async function* noRows(): AsyncIterableIterator<{ id: string }> {
@@ -80,7 +84,7 @@ describe('assertFormsSupported', () => {
 
 describe('fail-fast форм в конструкторе декларации', () => {
   const base = {
-    transport: 'test',
+    transport: TestTransport$,
     pattern: 'POST /x',
     handle: async () => new Ok({}),
   };
@@ -120,7 +124,7 @@ describe('fail-fast форм в конструкторе декларации', 
   it('легальные формы проходят', () => {
     expect(() =>
       makeEndpoint({
-        transport: 'test',
+        transport: TestTransport$,
         pattern: 'POST /x',
         input: multipart({ files: { report: upload() } }),
         output: stream(Row).tap((): void => undefined),
