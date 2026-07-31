@@ -156,6 +156,16 @@ export interface EndpointDefinition<
    */
   readonly binding?: unknown;
 
+  /**
+   * Причина, по которой ручка выведена из-под инвариантов сборки
+   * (policy-check).
+   *
+   * Транспорт-нейтральна и интерпретируется ядром: помеченная ручка
+   * исключается из проверки **всех** политик приложения, а `App` печатает
+   * её на старте и кладёт в отчёт `check()` — opt-out виден, а не спрятан.
+   */
+  readonly detached?: string;
+
   /** @internal фантомное поле для вывода типов */
   readonly $needs?: TNeeds;
 
@@ -230,6 +240,21 @@ export interface EndpointOptions<
    * есть; ядро в него не заглядывает (см. `EndpointDefinition.binding`).
    */
   binding?: unknown;
+
+  /**
+   * Вывод ручки из-под инвариантов сборки — **только с причиной**.
+   *
+   * Формы `detached: true` не существует: тип — `string`, а рантайм
+   * отвергает не-строку и пустую строку в момент создания декларации.
+   * Opt-out тотален (ручка выпадает из всех политик) и потому обязан быть
+   * читаемым в diff'е, в выводе старта и в отчёте `check()`.
+   *
+   * @example
+   * ```typescript
+   * detached: 'liveness-проба балансировщика: до auth не доходит'
+   * ```
+   */
+  detached?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +277,7 @@ interface EndpointState {
   pipeline?: Pipeline<AnyInput, AnyInput, unknown>;
   binding?: unknown;
   errors?: readonly AnyFailDefinition[];
+  detached?: string;
   deps: readonly InjectionToken[];
   form: HandlerForm;
   /** Хендлер, полученный гашением зависимостей (форма `fn` исполнима сразу) */
@@ -344,6 +370,40 @@ function assertFailDefinitions(
       );
     }
     seen.add(definition.code);
+  }
+}
+
+/**
+ * Fail-fast пометки `detached` в момент создания декларации.
+ *
+ * Типы делают `detached: true` невыразимым, но JS-потребителей типы не
+ * сдерживают: тихий `detached: true` вывел бы ручку из-под всех политик,
+ * не оставив в коде ни строчки о том, почему. Текст называет ручку и
+ * требование причины — как остальные проверки словаря.
+ */
+function assertDetached(
+  detached: unknown,
+  pattern: string,
+): asserts detached is string | undefined {
+  if (detached === undefined) {
+    return;
+  }
+
+  const where = `Endpoint '${pattern}'`;
+
+  if (typeof detached !== 'string') {
+    throw new TypeError(
+      `${where}: 'detached' must be a non-empty string — the reason this ` +
+        `handle is exempt from assembly policies. There is no ` +
+        `'detached: true'.`,
+    );
+  }
+
+  if (detached.trim().length === 0) {
+    throw new Error(
+      `${where}: 'detached' must state a reason; an empty string exempts ` +
+        `the handle from every policy without saying why.`,
+    );
   }
 }
 
@@ -502,6 +562,11 @@ function buildDefinition(state: EndpointState): AnyEndpointDefinition {
   if (state.errors !== undefined) {
     definition.errors = state.errors;
   }
+  // Причина opt-out'а переживает гашение по той же причине: интроспекция
+  // исполнимой декларации обязана видеть то же, что и исходной
+  if (state.detached !== undefined) {
+    definition.detached = state.detached;
+  }
   if (state.deps.length > 0) {
     definition.deps = state.deps;
   }
@@ -532,7 +597,8 @@ export function isEndpointDefinition(
 
 /**
  * Kernel-примитив деклараций: нормализует три формы `handle`, запоминает
- * `deps`, ставит бренд и выдаёт `resolve`.
+ * `deps`, переносит транспорт-нейтральные `errors:` и `detached`, ставит
+ * бренд и выдаёт `resolve`.
  *
  * В пользовательский канон не входит — там per-transport конструкторы
  * (`httpEndpoint`, `cliEndpoint`), которые являются тонкими надстройками
@@ -606,6 +672,7 @@ export function makeEndpoint(
 ): AnyEndpointDefinition {
   const form = normalizeHandler(options.handle, options.deps, options.pattern);
   assertFailDefinitions(options.errors, options.pattern);
+  assertDetached(options.detached, options.pattern);
   // Формы io проверяются здесь, а не в транспортных конструкторах: правило
   // транспорт-нейтрально, и kernel-примитив обязан быть под той же
   // гарантией, что `httpEndpoint`/`cliEndpoint`
@@ -621,6 +688,7 @@ export function makeEndpoint(
       | undefined,
     binding: options.binding,
     errors: options.errors,
+    detached: options.detached,
     deps: options.deps ?? [],
     form,
     // Голая функция исполнима сразу; остальные формы ждут resolve()

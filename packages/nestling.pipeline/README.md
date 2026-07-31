@@ -151,6 +151,47 @@ class (constructor) — the latter adds the class to the pipeline's `TNeeds`
 and requires `bind()` (App resolves class units from the DI container on
 startup). Units are singletons; per-request state belongs in ctx only.
 
+### Composition provenance and assembly policies
+
+A pipeline value remembers **what it was made from**: `compose(a, b)` keeps
+references to its arguments, a builder derivation (`.pre`/`.ok`/`.catch`/
+`.finally`) and `bind()` keep a reference to their predecessor. Nothing in
+execution reads it — the provenance exists so that layer identity can be
+**by reference**, which is what the policy dictionary is built on:
+
+```typescript
+import { everyEndpoint } from '@nestling/pipeline';
+
+assemble({
+  policies: [
+    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase, 'authedBase'),
+  ],
+  /* … */
+});
+```
+
+- `everyEndpoint({ transport?, pattern? })` — the filter narrows the set
+  conjunctively: `transport` is the transport **token** compared by
+  reference, `pattern` is a `RegExp` over `endpoint.pattern`. An empty
+  filter means every endpoint of the application.
+- `.hasLayer(layer, label?)` holds when the endpoint's pipeline **derives
+  from** that value. So `compose(base, authedBase)` passes, nesting is
+  transitive, and `authedBase.pre(withTenant())` passes too (the pre track
+  is monotonic). A same-named copy from another file does not: identity is
+  referential, never by name. `label` only shows up in the violation text.
+- An endpoint **without** a `pipeline` violates the policy: for "this handle
+  is protected", no pipeline and no layer are indistinguishable.
+- `detached: '<reason>'` on the declaration takes an endpoint out of **every**
+  policy. The reason is mandatory and non-empty (`detached: true` is not
+  expressible), it survives `resolve`, and `@nestling/app` prints it at
+  startup and puts it in the `check()` report.
+
+`Policy` (`describe()` + `check(subjects)`) is an open interface: a new
+predicate is a value of the same type, so it needs neither a second pass over
+discovery nor a second field in the composition root. Policies are run by
+`@nestling/app` at the end of phase ASSEMBLE — see
+[`docs/design/pipeline.md`](../../docs/design/pipeline.md) §7.
+
 ## Errors are values, and the contract is closed
 
 A failure is an ordinary value with a stable machine `code`: `isFail` is a

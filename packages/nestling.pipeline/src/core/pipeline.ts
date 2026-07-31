@@ -437,6 +437,16 @@ class PipelineImpl {
     private readonly sealed: boolean,
     /** true для результата compose: юниты добавлять больше нельзя */
     private readonly composed = false,
+    /**
+     * Ссылки на значения, из которых произошёл этот пайплайн, —
+     * **единственный источник истины для идентичности слоя**.
+     *
+     * `compose` плющит и клонирует слои, поэтому по `layers` исходное
+     * значение невосстановимо: провенанс заводится явно. В исполнении не
+     * участвует — только в предикате принадлежности слоя
+     * ({@link PipelineImpl.derivesFrom}), на котором стоит policy-check.
+     */
+    private readonly sources: readonly PipelineImpl[] = [],
   ) {}
 
   static emptyLayer(): PipelineImpl {
@@ -448,7 +458,40 @@ class PipelineImpl {
       pipelines.flatMap((p) => p.layers.map(cloneLayer)),
       true,
       true,
+      // Сами аргументы, без разворачивания их провенанса: транзитивность —
+      // дело обхода, а не записи
+      [...pipelines],
     );
+  }
+
+  /**
+   * Достижимость значения-слоя по провенансу: обход DAG в ширину со
+   * ссылочным равенством.
+   *
+   * Стартовый узел включён — ручка с `pipeline: authedBase` содержит
+   * `authedBase`. Защита от повторного посещения обязательна: одно и то же
+   * значение легально встречается в нескольких ветках композиции.
+   */
+  static derivesFrom(pipeline: PipelineImpl, layer: PipelineImpl): boolean {
+    const queue: PipelineImpl[] = [pipeline];
+    const visited = new Set<PipelineImpl>(queue);
+
+    // Итератор массива видит элементы, дописанные в ходе обхода: очередь
+    // растёт по мере раскрытия провенанса
+    for (const node of queue) {
+      if (node === layer) {
+        return true;
+      }
+
+      for (const source of node.sources) {
+        if (!visited.has(source)) {
+          visited.add(source);
+          queue.push(source);
+        }
+      }
+    }
+
+    return false;
   }
 
   private withOwnLayer(
@@ -463,7 +506,9 @@ class PipelineImpl {
     // Builder всегда владеет ровно одним слоем
     const layer = cloneLayer(this.layers[0]);
     mutate(layer);
-    return new PipelineImpl([layer], sealed);
+    // Деривация помнит предшественника: pre-тракт монотонен, поэтому
+    // `authed.pre(x)` для инварианта — по-прежнему `authed`
+    return new PipelineImpl([layer], sealed, false, [this]);
   }
 
   pre(unit: unknown): PipelineImpl {
@@ -520,6 +565,9 @@ class PipelineImpl {
       })),
       this.sealed,
       this.composed,
+      // Связанный пайплайн помнит несвязанный оригинал: инвариант держится
+      // и до WIRE, и после
+      [this],
     );
   }
 
@@ -959,4 +1007,23 @@ export function compose(...pipelines: AnyPipeline[]): AnyPipeline {
   return PipelineImpl.compose(
     pipelines as unknown as PipelineImpl[],
   ) as unknown as AnyPipeline;
+}
+
+/**
+ * Пайплайн произошёл от значения-слоя.
+ *
+ * Идентичность слоя **ссылочная**: сравнения по имени, по идентичности
+ * юнитов и по структуре слоёв не существует. Отношение транзитивно
+ * (`compose(compose(base, authed), extra)` содержит все три) и рефлексивно
+ * (пайплайн содержит сам себя).
+ *
+ * @internal основание предиката `hasLayer` словаря политик; наружу
+ * поведение видно через `everyEndpoint(...).hasLayer(...)`
+ */
+export function derivesFrom(pipeline: unknown, layer: unknown): boolean {
+  if (!(pipeline instanceof PipelineImpl) || !(layer instanceof PipelineImpl)) {
+    return false;
+  }
+
+  return PipelineImpl.derivesFrom(pipeline, layer);
 }
