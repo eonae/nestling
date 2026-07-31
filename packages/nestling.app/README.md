@@ -15,9 +15,11 @@ await app.run();
 
 Every field of the spec is optional (`modules`, `providers`, `features`,
 `select`, `transports`, `config`). There is **no public constructor**: `App`
-is the result type with `run()` and `close()`, and its constructor takes an
-internal plan whose type is not exported — `new App({ … })` is not
-expressible.
+is the result type with `run()`, `check()` and `close()`, and its constructor
+takes an internal plan whose type is not exported — `new App({ … })` is not
+expressible. `overrides` is not a field of this spec and never will be:
+substituting a graph node is a property of a test run, and the key lives on
+the test composition root only ([`@nestling/testing`](../nestling.testing)).
 
 ## Phases
 
@@ -36,6 +38,36 @@ expressible.
 Phases 0 and 1 are fail-fast: a missing transport, an unsupported io form or
 an unregistered dependency of a declaration kills startup **before** any
 `@OnInit` grabs a resource. Both `run()` and `close()` are idempotent.
+
+## `check()` — a structural smoke test
+
+```typescript
+for (const select of ['all', 'users', 'logging'] as const) {
+  const report = await assemble({ features, select, transports: [http()] }).check();
+  // report: { features, endpoints: [{ pattern, transport, module }], transports }
+}
+```
+
+`check()` runs phases 0–1 only: selection, registration, discovery, `build()`
+(constructors do run), the transport check and the io form check. It does
+**not** run `@OnInit`, `@OnStart`, `serve` or `@OnDestroy`, so nothing grabs a
+resource — provided constructors do not, which the phase model forbids
+anyway. It throws exactly the errors `run()` would throw on those phases, and
+it neither stores its container nor affects a later `run()` of the same
+application, which is what makes it usable as a CI matrix over `select`
+topologies ([`checkTopologies`](../nestling.testing)).
+
+## `./testing` — the test seam
+
+The seam that drives an application through phases 0–3 and stops lives in a
+conditional subpath, `@nestling/app/testing`, not in the main export. The
+`"testing"` condition is enabled by the test runner only, so a production
+import does not resolve **at the Node level** — the boundary is structural
+rather than a convention. Package authors are asked to follow the same
+convention for their own test surfaces, so the kernel dogfoods it.
+
+Application code therefore sees no `overrides` and no way to stop at WIRE.
+Use [`@nestling/testing`](../nestling.testing) instead of the seam directly.
 
 ## Features and `select`
 

@@ -38,7 +38,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 15 | `error-model` | Fail — значение (возврат ≡ бросок; фикс `normalizeResponse`: возвращённый `Fail` сейчас уезжает как `200 OK`); `Output<T>` включает `Fail`, дискриминант `isFail`; словарь статусов (`CONFLICT`, `TIMEOUT`, `TOO_MANY_REQUESTS`) + `code`/`cause`; `defineFail` (code-идентичность вместо instanceof); `errors:` в контракте endpoint'а, типизированный канал (`Output<T, E>` + бросатель `meta.fail`); граница нормализует незадекларированное в `UnknownError` → закрытый контракт `E ∪ UnknownError` | M | **done** — [архив](../../openspec/changes/archive/2026-07-31-error-model/), [ideas.md [2026-07-10]](./ideas.md) |
 | 16 | `async-context` | `contextVar<T>` + инжектируемые ридеры `Ctx(Var)` (token family); read-only ALS-проекция накопленного `input` (+ `signal`), писатель — только рантайм пайплайна; `get()/peek()` (зеркало полный/Partial); `propagate` через remote-порты; opt-in policy-check присутствия на `build()` | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
 | 17 | `pipeline-drop-after` | убрать `.after` из билдера/типов/рантайма (`ResponsePhase` = `'ok' \| 'catch'`); словарь ответного тракта — Promise-тройка `ok`/`catch`/`finally`; правка спеков и доков (`docs/preview`) | S, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-29-pipeline-drop-after/), [ideas.md [2026-07-10]](./ideas.md) |
-| 18 | `testing-package` | `@nestling/testing`: `assembleTest` (`overrides` только в тестовом корне; подстановка на ASSEMBLE + прунинг осиротевших поддеревьев; фазы 0–3 без START → in-proc `app.call`/`app.emit` по схемам; `await using` → SHUTDOWN), `vars()` (объектный `ConfigSource` c `watch`/`set`), `stub(Contract, impl)` (фейк-порт, валидируемый схемой контракта), `familyOverride`, `.check()` (фазы 0–1, матрица `select`-топологий в CI), `testModule()`; конвенция `./testing`-subpath (conditional export) | M | идея — [ideas.md [2026-07-10]](./ideas.md) |
+| 18 | `testing-package` | `@nestling/testing`: `assembleTest` (`overrides` только в тестовом корне; подстановка на ASSEMBLE + прунинг осиротевших поддеревьев; фазы 0–3 без START → in-proc `app.call`/`app.emit` по схемам; `await using` → SHUTDOWN), `vars()` (объектный `ConfigSource` c `watch`/`set`), `stub(Contract, impl)` (фейк-порт, валидируемый схемой контракта), `familyOverride`, `.check()` (фазы 0–1, матрица `select`-топологий в CI), `testModule()`; конвенция `./testing`-subpath (conditional export) | M | **ядро done** — [change](../../openspec/changes/testing-package/), новый пакет [`@nestling/testing`](../../packages/nestling.testing/), [ideas.md [2026-07-10]](./ideas.md); `stub(Contract)` **и `app.emit`** — остаток в волне 6, после 11 |
 | 19 | `standard-schema` | ядро принимает `StandardSchemaV1` вместо `z.ZodType`: `parsePayload`/`DomainType` через `~standard.validate`/`InferOutput`; `SchemaValidationError` несёт стандартные `issues` вместо `ZodError`; zod → devDependency; Promise из `validate` = ошибка | S–M, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-29-standard-schema/), [ideas.md [2026-07-13]](./ideas.md) |
 | 20 | `openapi` | `@nestling/openapi`: генерация OpenAPI из деклараций endpoints; конвертеры `SchemaDocConverter` — явные, по `~standard.vendor`, отдельными пакетами (`@nestling/openapi.zod`, …); boot-time проверка конвертируемости всех схем; `jsonSchema`-override; `errors:` → responses; предпосылка — bind-карта (21) | M–L | идея — [ideas.md [2026-07-13]](./ideas.md) |
 | 21 | `input-bind` | канон размещения HTTP-input + bind-карта: детерминированное `(pattern, метод, пометки) → path/query/body`; сахар-пометки `query()` (заголовки — только по пометке, `header()` отложен в deferred.md) → плоская bind-карта — несущий уровень для транспорта/OpenAPI/клиента; разворачивание и fail-fast на создании декларации; strict-приём вместо merge (уходит `PayloadConflictError`); query-массивы (фикс last-wins); opt-in `rawBody: true` в HTTP-словаре — байты в типизированном стартовом контексте (webhook-подписи) | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-30-input-bind/), [ideas.md [2026-07-13]](./ideas.md) |
@@ -157,9 +157,12 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 - **13 `plugins`** — после 10 (feature-scoped инфра) и 4 (pipeline-слои);
   startup policy-check — из отложенного в pipeline-v2.
 - **18 `testing-package`** — ядро (`assembleTest`, `.check()`, `vars()`,
-  `testModule`) после 9 и 10 (нужны `assemble`, фазовый lifecycle, источники);
-  `stub(Contract)` — после 11; `familyOverride` — уже после 5. Можно доставлять
-  инкрементально вместе с соответствующими changes.
+  `familyOverride`, `checkTopologies`, `testModule`, `unwrap`) **сделано**
+  после 9 и 10 (нужны `assemble`, фазовый lifecycle, источники);
+  `stub(Contract)` — после 11. Вместе с ним в остаток уехал **`app.emit`**:
+  понятия `Event` (контракт вида `event`, `Emitter`, шина) в ядре нет, и
+  эмитить нечего; форма `app.call` выбрана так, чтобы `emit` встал рядом без
+  переделки. Это единственный пункт исходного скоупа, который перенесён.
 - **25 `config-secrets`** — аддитивно поверх 9; в спеку 9 не вносится
   (9 spec-ready, расширять скоуп задним числом не хотим). Логика —
   [ideas.md [2026-07-13]](./ideas.md) «Конфиг: `secret()` и общие ключи».
@@ -249,7 +252,7 @@ breaking-окно едет вторым (а не после ветки моно�
 |---|---|---|---|
 | 9 | `config-module` | M–L | **done** — [архив](../../openspec/changes/archive/2026-07-31-config-module/); поверх 5 и `Topic` из 6 |
 | 10 | `features` | L | **done** — [архив](../../openspec/changes/archive/2026-07-31-features/); `assemble`, фазовый lifecycle, `@OnStart`/go-live, транспорты-провайдеры |
-| 18 | `testing-package` (ядро) | M | **раньше, чем требует граф**: `assembleTest`/`vars()`/`.check()` удешевляют каждый следующий change; `stub(Contract)` — в волне 6 |
+| 18 | `testing-package` (ядро) | M | **done** — [change](../../openspec/changes/testing-package/); поставлен **раньше, чем требует граф**: `assembleTest`/`vars()`/`.check()` удешевляют каждый следующий change; `stub(Contract)` и `app.emit` — в волне 6 |
 | 28 | `policy-check` | S–M | нужен полный граф: после 8 (дискавери) и 10 (assemble) |
 | 13 | `plugins` | S | поверх 10 и машинерии 28 |
 | 16 | `async-context` | M | ридеры `Ctx(Var)` — семейство из 5; policy-check присутствия — машинерия 28 |
@@ -280,7 +283,7 @@ breaking-окно едет вторым (а не после ветки моно�
 |---|---|---|---|
 | 20 | `openapi` | M–L | все предпосылки закрыты: 19 (конвертеры), 8, 21 (bind-карта), 15 (`errors:`) |
 | 25 | `config-secrets` | S | аддитивно поверх 9 |
-| 18 | `stub(Contract)` (остаток) | S | после 11 |
+| 18 | `stub(Contract)` + `app.emit` (остаток) | S | после 11 |
 | 7 | `subscriptions-registry` | M | финальная проверка тезиса: satellite пишется, не трогая ядро |
 
 ### Порядок величины

@@ -168,6 +168,50 @@ const container = await new ContainerBuilder()
 await container.init(); // <- lifecycle hooks run here
 ```
 
+**Missing dependencies are reported all at once.** Before instantiation the
+builder walks the `deps` of every provider and collects the tokens that have
+no provider, together with who asked for them:
+
+```
+Unsatisfied dependencies (2):
+  - 'IClock' required by 'ReportService'
+  - 'UsersRepository' required by 'ReportService', 'ExportService'
+Register a provider for each of them (in 'providers:' of a module, or via register()).
+```
+
+### Test seam: `overrides` and pruning
+
+Two builder options exist for the test composition root and are documented as
+such — `assemble` does not forward them, and production code has no reason to:
+
+```typescript
+const container = await new ContainerBuilder({
+  overrides: [[UsersRepository, inMemoryUsersRepo()]],
+  familyOverrides: [{ family: ILogger, recipe: (scope) => valueProvider(ILogger(scope), noop) }],
+}).register(UsersModule).build();
+
+container.pruned; // ['UsersStore'] — nodes dropped as orphaned subtrees
+```
+
+- **`overrides`** replaces a provider by a value provider **before**
+  instantiation, keeping the node's module attribution intact (so
+  `strictExports`, the visualization and diagnostics keep naming the owner).
+  A fake with `@OnInit`/`@OnDestroy` is an ordinary node. Overriding a token
+  that has no provider, or overriding one token twice, fails the build.
+- **`familyOverrides`** replaces the recipe of a whole family, strictly
+  before member materialization, so the production recipe is never called.
+- **Pruning** drops the nodes reachable only through the dependencies of a
+  replaced one: they are not instantiated, they are not in the graph, and
+  their lifecycle hooks do not run. Roots are the tokens with zero in-degree
+  in the union of the dependency relations before and after the substitution,
+  plus the tokens unreachable from those (cycle participants still have to
+  reach the cycle detector). Aggregates (`Family.all`) are materialized after
+  pruning, and an edge to `Family.all` expands to every current member.
+- The invariant that makes this safe: **without `overrides` the two relations
+  coincide, so pruning is the identity** — a production build keeps every
+  registered node, including the ones nobody references. `container.pruned`
+  is empty there.
+
 ### Manual Registration vs Modules
 
 You can register dependencies manually, one by one:
@@ -653,11 +697,12 @@ Use **@nestling/viz** for interactive visualization of your dependency tree.
 
 ### Container API
 
-- `new ContainerBuilder(options?: { strictExports?: boolean })` - Create a builder
+- `new ContainerBuilder(options?: { strictExports?, overrides?, familyOverrides? })` - Create a builder; `overrides`/`familyOverrides` are the test composition root seam (see above)
 - `.register(...providers | ...familyProviders | ...modules)` - Register dependencies
 - `.build()` - Build the container (async)
 - `container.get<T>(token)` - Get an instance, or `null` if not registered
 - `container.getOrThrow<T>(token)` - Get an instance, throws if not registered
+- `container.pruned` - Ids of the nodes dropped as subtrees orphaned by `overrides`; empty on any build without them
 - `container.init()` - Run initialization hooks
 - `container.destroy()` - Run destruction hooks
 - `container.toJSON()` - Export dependency graph
