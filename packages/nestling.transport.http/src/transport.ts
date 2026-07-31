@@ -12,6 +12,7 @@ import {
   httpBindingOf,
   readQuery,
 } from './binding.js';
+import { HttpConfig } from './config.js';
 import {
   ChunkTooLargeError,
   JsonParseError,
@@ -27,15 +28,17 @@ import {
   readBody,
 } from './parser.js';
 import { HttpRouter } from './router.js';
+import { HTTP_TRANSPORT_NAME, HttpTransport$ } from './token.js';
 
-import type { Schema } from '@common/misc';
+import type { ConfigProjection } from '@nestling/config';
+import type {
+  FactoryProviderWithDeps,
+  InjectionToken,
+} from '@nestling/container';
+import { factoryProvider } from '@nestling/container';
 import type {
   AnyInput,
-  AnyOutput,
-  AnyPayload,
-  EndpointDefinition,
   EndpointMeta,
-  Pipeline,
   Raw,
   StreamSummary,
   TransportCapabilities,
@@ -53,11 +56,15 @@ import {
   TransportClosingError,
   ValidationFailed,
 } from '@nestling/pipeline';
+import type { Dispatch, ITransport } from '@nestling/transport';
 
 /**
  * Лимит размера буферизуемого тела запроса по умолчанию (1 MiB).
  */
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
+
+/** Проекция конфиг-секции транспорта — то, что инжектится в фабрику */
+type HttpConfigValues = ConfigProjection<typeof HttpConfig>;
 
 /**
  * Таймаут дренажа соединений при graceful close по умолчанию (10s).
@@ -129,14 +136,14 @@ const HTTP_CAPABILITIES: TransportCapabilities = {
 };
 
 /**
- * HTTP транспорт
+ * HTTP транспорт.
  *
- * Работает с новой архитектурой:
- * - Создаёт Raw и начальный контекст с пустым input
- * - Выполняет pipeline из endpoint metadata
- * - Handler получает (payload, meta)
+ * Переводчик провода в значения и обратно: роутит, парсит вход по
+ * io-декларации и bind-карте, строит контекст и отдаёт его `dispatch.call`.
+ * Своей копии исполнения ручки у транспорта нет — ни ветки с пайплайном,
+ * ни без него.
  */
-export class HttpTransport {
+export class HttpTransport implements ITransport {
   /**
    * Способности транспорта — данные, а не конвенция: их читает
    * `assertFormsSupported` до приёма первого запроса.
@@ -145,6 +152,12 @@ export class HttpTransport {
 
   private readonly router: HttpRouter;
   private server?: Server;
+
+  /** Диспетчер, полученный в `serve`: до go-live исполнять нечего */
+  private dispatch?: Dispatch;
+
+  /** Фактический адрес после go-live; `null` до `serve` и после `close()` */
+  private listening?: { host: string; port: number };
 
   /**
    * Transport-level канал отмены: взводится в `close()` и через
@@ -169,47 +182,37 @@ export class HttpTransport {
   }
 
   /**
-   * Регистрирует маршрут по декларации-значению.
+   * Выводит транспорт в эфир.
    *
-   * Принимается только **исполнимая** декларация (`TNeeds = never`):
-   * standalone-путь не знает про контейнер, поэтому декларация с `deps`,
-   * класс-хендлером или классами-юнитами пайплайна сюда не проходит по
-   * типам — её сначала гасят `endpoint.resolve(resolver)`.
+   * Единственный вход: маршруты приезжают проекциями в `dispatch`, ручку
+   * исполняет `dispatch.call`. Формы io сверяются со способностями
+   * транспорта **до** открытия сокета — на standalone-пути это та же
+   * проверка и тот же текст ошибки, что делает `App` на фазе ASSEMBLE.
+   *
+   * @param dispatch - Маршруты этого транспорта и исполнение ручки
+   * @param signal - Канал остановки (`App` взводит его первым делом
+   * на SHUTDOWN)
    */
-  route<
-    I extends AnyPayload = AnyPayload,
-    O extends AnyOutput = AnyOutput,
-    P extends AnyInput = AnyInput,
-  >(definition: EndpointDefinition<I, O, P, never>): void {
-    // Та же проверка, что делает `App`: standalone-путь не остаётся без
-    // гарантии, и текст ошибки один на оба пути
-    assertFormsSupported(definition, this.capabilities);
-    this.router.route(definition);
-  }
-
-  /**
-   * Alias для route() - реализация ITransport интерфейса
-   */
-  endpoint<
-    I extends AnyPayload = AnyPayload,
-    O extends AnyOutput = AnyOutput,
-    P extends AnyInput = AnyInput,
-  >(definition: EndpointDefinition<I, O, P, never>): void {
-    this.route(definition);
-  }
-
-  /**
-   * Запускает HTTP сервер
-   */
-  async listen(port?: number, host?: string): Promise<void> {
+  async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
     if (this.server) {
       throw new Error('Server is already listening');
     }
 
-    const listenPort = port ?? this.options.port ?? 3000;
-    const listenHost = host ?? this.options.host ?? '0.0.0.0';
+    for (const route of dispatch.routes) {
+      assertFormsSupported(route, this.capabilities);
+      this.router.route(route);
+    }
+
+    this.dispatch = dispatch;
+
+    const listenPort = this.options.port ?? 3000;
+    const listenHost = this.options.host ?? '0.0.0.0';
 
     this.closeController = new AbortController();
+
+    // Внешний сигнал — второй канал остановки рядом с `close()`: его взвод
+    // означает «новых запросов не принимаем, in-flight отменяем».
+    signal.addEventListener('abort', () => void this.close(), { once: true });
 
     return new Promise((resolve, reject) => {
       this.server = createServer((req, res) => {
@@ -234,6 +237,14 @@ export class HttpTransport {
       }
 
       this.server.listen(listenPort, listenHost, () => {
+        // Фактический адрес известен только теперь: при `port: 0` его
+        // выбирает ядро ОС
+        const address = this.server?.address();
+        this.listening =
+          address && typeof address === 'object'
+            ? { host: address.address, port: address.port }
+            : { host: listenHost, port: listenPort };
+
         resolve();
       });
 
@@ -241,6 +252,17 @@ export class HttpTransport {
         reject(error);
       });
     });
+  }
+
+  /**
+   * Фактический адрес транспорта после go-live.
+   *
+   * `null` до `serve` и после `close()`. Нужен всем, кто поднимается на
+   * порту `0` — прежде всего интеграционным тестам: аргументов у `serve`,
+   * кроме `dispatch` и `signal`, нет.
+   */
+  address(): { host: string; port: number } | null {
+    return this.listening ?? null;
   }
 
   /**
@@ -261,6 +283,8 @@ export class HttpTransport {
 
     const server = this.server;
     this.server = undefined;
+    this.listening = undefined;
+    this.dispatch = undefined;
 
     // Кооперативная отмена in-flight запросов: AbortSignal.any доставит
     // её каждому meta.signal без обхода реестра контроллеров.
@@ -354,7 +378,8 @@ export class HttpTransport {
     try {
       // Находим маршрут
       const route = this.router.find(nativeReq);
-      if (!route) {
+      const dispatch = this.dispatch;
+      if (!route || !dispatch) {
         nativeRes.statusCode = 404;
         nativeRes.end('Not Found');
         return;
@@ -369,12 +394,12 @@ export class HttpTransport {
       // Bind-карта декларации: единственный источник правды о том, где
       // живёт каждое поле. Декларация от kernel-примитива карты не несёт —
       // тогда считается тот же канон без пометок из `pattern`.
-      const binding = httpBindingOf(route.definition);
+      const binding = httpBindingOf(route.declaration);
       const query = readQuery(url.searchParams, binding.fields);
 
       // Форма input определяет, как читается тело
-      const inputForm = describeForm(route.definition.input);
-      const outputForm = describeForm(route.definition.output);
+      const inputForm = describeForm(route.declaration.input);
+      const outputForm = describeForm(route.declaration.output);
 
       // Сырой источник потокового входа: обернём его ядром, как только
       // появится контекст (счётчики живут в нём)
@@ -460,26 +485,21 @@ export class HttpTransport {
         }
       }
 
-      // Получаем pipeline из endpoint metadata
-      const pipeline = route.definition.pipeline as
-        | Pipeline<AnyInput, AnyInput, never>
-        | undefined;
-
       const raw: Raw = {
-        transport: 'http',
+        transport: HTTP_TRANSPORT_NAME,
         pattern: `${nativeReq.method || 'GET'} ${url.pathname}`,
         payload,
         attributes: nativeReq.headers as Record<string, string>,
       };
 
       const endpointMeta: EndpointMeta = {
-        transport: 'http',
-        pattern: route.definition.pattern,
-        input: route.definition.input,
-        output: route.definition.output,
+        transport: HTTP_TRANSPORT_NAME,
+        pattern: route.declaration.pattern,
+        input: route.declaration.input,
+        output: route.declaration.output,
         // Объявленные отказы доезжают до стража только так: декларация →
         // транспорт → контекст, без глобального реестра.
-        errors: route.definition.errors,
+        errors: route.declaration.errors,
       };
 
       const ctx = makeEmptyContext(raw, endpointMeta, signal, startInput);
@@ -504,45 +524,20 @@ export class HttpTransport {
           signal,
         });
 
-      if (pipeline) {
-        const responseContext = await pipeline.executeWithHandler(
-          route.handler,
-          ctx,
-          {
-            exposeErrorDetails: this.exposeErrorDetails,
-            onUnknownFail: this.options.onUnknownFail,
-          },
-        );
+      // Исполнение ручки — в ядре: выбор ветки «с пайплайном / без него»
+      // и её выполнение одинаковы для всех транспортов. Транспорту
+      // остаётся сантехника ответа.
+      const responseContext = await dispatch.call(
+        route.declaration.pattern,
+        ctx,
+        {
+          exposeErrorDetails: this.exposeErrorDetails,
+          onUnknownFail: this.options.onUnknownFail,
+        },
+      );
 
-        await send(responseContext);
-        this.drainFileStreams(multipart);
-      } else {
-        // Fallback для endpoint'ов без pipeline (прямой вызов handler)
-        if (
-          inputForm.kind === 'value' &&
-          inputForm.leaf &&
-          inputForm.leaf !== 'binary' &&
-          inputForm.leaf !== 'text'
-        ) {
-          raw.payload = parsePayload(inputForm.leaf as Schema, {
-            payload: raw.payload as Record<string, unknown>,
-            metadata: {},
-          });
-        }
-
-        // Без pipeline в meta только зарезервированные ключи
-        const meta = {
-          signal,
-          fail: (error: never): never => {
-            throw error;
-          },
-        };
-
-        const result = await route.handler(raw.payload, meta);
-
-        await send({ isSuccess: true, status: 'OK', value: result });
-        this.drainFileStreams(multipart);
-      }
+      await send(responseContext);
+      this.drainFileStreams(multipart);
     } catch (error) {
       this.drainFileStreams(multipart);
       this.sendError(nativeRes, error);
@@ -650,3 +645,36 @@ export class HttpTransport {
     }
   }
 }
+
+/**
+ * Фабрика провайдера HTTP-транспорта.
+ *
+ * Возвращает **провайдер**, а не инстанс: транспорт — обычный узел графа,
+ * его зависимости инжектит контейнер, а lifecycle гоняется наравне с
+ * прочими. `assemble({ transports: [http()] })` — сахар регистрации, и
+ * ровно тот же провайдер легально объявить в `providers:` infra-модуля
+ * фичи.
+ *
+ * Приоритет значений: явные опции фабрики > конфиг (`HTTP_PORT`,
+ * `HTTP_HOST`) > дефолт транспорта.
+ *
+ * @example
+ * ```typescript
+ * await assemble({ modules: [UsersModule], transports: [http()] }).run();
+ * await assemble({ modules: [UsersModule], transports: [http({ port: 3000 })] }).run();
+ * ```
+ */
+export const http = (
+  options: HttpTransportOptions = {},
+): FactoryProviderWithDeps<ITransport, [InjectionToken<HttpConfigValues>]> =>
+  factoryProvider(
+    HttpTransport$,
+    (config: HttpConfigValues) =>
+      new HttpTransport({
+        port: config.port,
+        host: config.host,
+        // Явные опции сильнее конфига: спред идёт последним
+        ...options,
+      }),
+    [HttpConfig as unknown as InjectionToken<HttpConfigValues>],
+  );

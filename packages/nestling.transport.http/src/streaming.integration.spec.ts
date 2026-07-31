@@ -6,11 +6,10 @@
  * «транспорт закрывает итератор».
  */
 
-import type { Server } from 'node:http';
 import { request } from 'node:http';
-import type { AddressInfo } from 'node:net';
 
 import { httpEndpoint } from './helpers.js';
+import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
 import type { FilePart, Outcome, PhasedPipeline } from '@nestling/pipeline';
@@ -23,6 +22,8 @@ import {
   upload,
 } from '@nestling/pipeline';
 import { Topic } from '@nestling/streams';
+import type { ExecutableDeclaration } from '@nestling/transport';
+import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
@@ -34,10 +35,46 @@ type Event = z.infer<typeof Event>;
 /** Заглушка диагностики: дефолтный console.error шумит в выводе тестов */
 const silent = { onUnknownFail: (): void => undefined };
 
+/**
+ * Транспорт для теста: эфемерный порт и loopback-хост.
+ *
+ * Аргументов у `serve` кроме `dispatch` и `signal` нет, поэтому адрес
+ * задаётся опциями, а фактический порт читается через `address()`.
+ */
+function makeTransport(options: HttpTransportOptions = {}): HttpTransport {
+  return new HttpTransport({ port: 0, host: '127.0.0.1', ...options });
+}
+
+/**
+ * Декларации, накопленные тестом до go-live: транспорт получает их одним
+ * `dispatch` в `serve`, а не по одной.
+ */
+const pending = new WeakMap<HttpTransport, ExecutableDeclaration[]>();
+
+function routesOf(transport: HttpTransport): ExecutableDeclaration[] {
+  const known = pending.get(transport);
+  if (known) {
+    return known;
+  }
+
+  const created: ExecutableDeclaration[] = [];
+  pending.set(transport, created);
+
+  return created;
+}
+
+/** Поднимает транспорт на эфемерном порту, возвращает базовый URL */
 async function listen(transport: HttpTransport): Promise<string> {
-  await transport.listen(0, '127.0.0.1');
-  const server = (transport as unknown as { server: Server }).server;
-  const address = server.address() as AddressInfo;
+  await transport.serve(
+    makeDispatch(routesOf(transport)),
+    new AbortController().signal,
+  );
+
+  const address = transport.address();
+  if (!address) {
+    throw new Error('transport did not report an address after serve()');
+  }
+
   return `http://127.0.0.1:${address.port}`;
 }
 
@@ -172,7 +209,7 @@ function multipartBody(
 /**
  * Пайплайн-наблюдатель исхода — **значение**, а не инлайн в декларации.
  *
- * В позиции аргумента `transport.route(...)` контекстный тип фиксирует
+ * В позиции аргумента `routesOf(transport).push(...)` контекстный тип фиксирует
  * `TNeeds = never`, и вывод типа юнита в цепочке `.finally` схлопывается.
  * Общий пайплайн значением — и без того канонический стиль (`basePipeline`
  * в примерах), поэтому тесты пишутся так же.
@@ -187,9 +224,9 @@ describe('framing по форме output', () => {
   const outcomes: string[] = [];
 
   beforeAll(async () => {
-    transport = new HttpTransport({ ...silent, sseHeartbeat: 0 });
+    transport = makeTransport({ ...silent, sseHeartbeat: 0 });
 
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/rows',
@@ -199,7 +236,7 @@ describe('framing по форме output', () => {
       }),
     );
 
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/live',
@@ -265,9 +302,9 @@ describe('SSE: heartbeat, реконнект, дисконнект', () => {
 
   beforeAll(async () => {
     hub = new Topic<Event>({ buffer: 8 });
-    transport = new HttpTransport({ ...silent, sseHeartbeat: 20 });
+    transport = makeTransport({ ...silent, sseHeartbeat: 20 });
 
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/hub',
@@ -347,9 +384,9 @@ describe('mid-stream политика', () => {
   const outcomes: string[] = [];
 
   beforeAll(async () => {
-    transport = new HttpTransport({ ...silent, sseHeartbeat: 0 });
+    transport = makeTransport({ ...silent, sseHeartbeat: 0 });
 
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/rows-broken',
@@ -365,7 +402,7 @@ describe('mid-stream политика', () => {
       }),
     );
 
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/live-broken',
@@ -418,13 +455,13 @@ describe('приём потокового входа и multipart', () => {
   let lastSummary: { itemsIn: number; bytesIn?: number } | undefined;
 
   beforeAll(async () => {
-    transport = new HttpTransport({ ...silent, maxBodySize: 64 * 1024 });
+    transport = makeTransport({ ...silent, maxBodySize: 64 * 1024 });
 
     const summarizing = makePipeline().finally((_outcome, _res, ctx) => {
       lastSummary = { ...ctx.summary };
     });
 
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/import',
@@ -441,7 +478,7 @@ describe('приём потокового входа и multipart', () => {
       }),
     );
 
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/avatars/:id',
@@ -594,9 +631,9 @@ describe('close() завершает открытые events-соединени�
   it('сигнал взводится, итератор закрывается, соединение завершается', async () => {
     const hub = new Topic<Event>({ buffer: 4 });
     const outcomes: string[] = [];
-    const transport = new HttpTransport({ ...silent, sseHeartbeat: 0 });
+    const transport = makeTransport({ ...silent, sseHeartbeat: 0 });
 
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/hub',

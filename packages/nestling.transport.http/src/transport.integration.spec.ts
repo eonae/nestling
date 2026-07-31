@@ -8,10 +8,11 @@
 import { getEventListeners } from 'node:events';
 import type { Server } from 'node:http';
 import { request } from 'node:http';
-import { type AddressInfo, connect } from 'node:net';
+import { connect } from 'node:net';
 
 import { query } from './binding.js';
 import { httpEndpoint } from './helpers.js';
+import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
 import type { Schema } from '@common/misc';
@@ -26,15 +27,55 @@ import {
   upload,
   validate,
 } from '@nestling/pipeline';
+import type { ExecutableDeclaration } from '@nestling/transport';
+import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
+
+/**
+ * Транспорт для теста: эфемерный порт и loopback-хост.
+ *
+ * Аргументов у `serve` кроме `dispatch` и `signal` нет, поэтому адрес
+ * задаётся опциями, а фактический порт читается через `address()`.
+ */
+function makeTransport(options: HttpTransportOptions = {}): HttpTransport {
+  return new HttpTransport({ port: 0, host: '127.0.0.1', ...options });
+}
+
+/**
+ * Декларации, накопленные тестом до go-live: транспорт получает их одним
+ * `dispatch` в `serve`, а не по одной.
+ */
+const pending = new WeakMap<HttpTransport, ExecutableDeclaration[]>();
+
+function routesOf(transport: HttpTransport): ExecutableDeclaration[] {
+  const known = pending.get(transport);
+  if (known) {
+    return known;
+  }
+
+  const created: ExecutableDeclaration[] = [];
+  pending.set(transport, created);
+
+  return created;
+}
+
+/** Контроллеры `serve`: их взвод — второй канал остановки рядом с close() */
+const controllers = new WeakMap<HttpTransport, AbortController>();
 
 /**
  * Поднимает транспорт на эфемерном порту, возвращает базовый URL.
  */
 async function listen(transport: HttpTransport): Promise<string> {
-  await transport.listen(0, '127.0.0.1');
-  const server = (transport as unknown as { server: Server }).server;
-  const address = server.address() as AddressInfo;
+  const controller = new AbortController();
+  controllers.set(transport, controller);
+
+  await transport.serve(makeDispatch(routesOf(transport)), controller.signal);
+
+  const address = transport.address();
+  if (!address) {
+    throw new Error('transport did not report an address after serve()');
+  }
+
   return `http://127.0.0.1:${address.port}`;
 }
 
@@ -110,8 +151,8 @@ describe('HttpTransport — error response safety', () => {
   let exposedUrl: string;
 
   beforeAll(async () => {
-    transport = new HttpTransport(silent);
-    transport.route(
+    transport = makeTransport(silent);
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/boom',
@@ -121,7 +162,7 @@ describe('HttpTransport — error response safety', () => {
         },
       }),
     );
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/fail',
@@ -133,7 +174,7 @@ describe('HttpTransport — error response safety', () => {
       }),
     );
     // Тот же отказ, но незадекларированный: страж границы снимет его
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/undeclared',
@@ -143,7 +184,7 @@ describe('HttpTransport — error response safety', () => {
         },
       }),
     );
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/rate-limited',
@@ -154,7 +195,7 @@ describe('HttpTransport — error response safety', () => {
         },
       }),
     );
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/timeout',
@@ -167,8 +208,8 @@ describe('HttpTransport — error response safety', () => {
     );
     baseUrl = await listen(transport);
 
-    exposed = new HttpTransport({ exposeErrorDetails: true, ...silent });
-    exposed.route(
+    exposed = makeTransport({ exposeErrorDetails: true, ...silent });
+    routesOf(exposed).push(
       httpEndpoint({
         method: 'POST',
         path: '/boom',
@@ -238,10 +279,10 @@ describe('HttpTransport — error response safety', () => {
 
   it('хук получает оригинал снятого отказа', async () => {
     const seen: unknown[] = [];
-    const hooked = new HttpTransport({
+    const hooked = makeTransport({
       onUnknownFail: (info) => seen.push(info.error),
     });
-    hooked.route(
+    routesOf(hooked).push(
       httpEndpoint({
         method: 'POST',
         path: '/undeclared',
@@ -283,10 +324,10 @@ describe('HttpTransport — request validation errors', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
-    transport = new HttpTransport(silent);
+    transport = makeTransport(silent);
 
     // JSON endpoint с pipeline validate()
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/json',
@@ -297,7 +338,7 @@ describe('HttpTransport — request validation errors', () => {
     );
 
     // Fallback без pipeline — валидация в транспорте
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/fallback',
@@ -307,7 +348,7 @@ describe('HttpTransport — request validation errors', () => {
     );
 
     // Схема с async-refinement: ошибка конфигурации приложения, не входа
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/async-schema',
@@ -318,7 +359,7 @@ describe('HttpTransport — request validation errors', () => {
     );
 
     // Объект, не реализующий Standard Schema: тоже не ошибка входа
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/not-a-schema',
@@ -434,10 +475,10 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
   };
 
   beforeAll(async () => {
-    transport = new HttpTransport();
+    transport = makeTransport();
 
     // POST: поля по канону — в теле
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/users',
@@ -448,7 +489,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     );
 
     // PATCH: одноимённые path-параметр и поле тела
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'PATCH',
         path: '/users/:id',
@@ -459,7 +500,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     );
 
     // GET: повтор ключа даёт массив
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/tags',
@@ -470,7 +511,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     );
 
     // GET: пометка multiple даёт массив и при одном вхождении
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/multi',
@@ -482,7 +523,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     );
 
     // POST: поле вытянуто пометкой из тела в query
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/marked',
@@ -494,7 +535,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     );
 
     // Multipart с path-параметром
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/users/:id/avatar',
@@ -515,7 +556,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     );
 
     // Webhook: сырые байты в типизированном стартовом контексте
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/hooks/stripe',
@@ -626,8 +667,8 @@ describe('HttpTransport — тело читается только по треб
 
   beforeAll(async () => {
     // Лимит меньше присылаемого тела: если транспорт его прочитает — 413
-    transport = new HttpTransport({ maxBodySize: 100 });
-    transport.route(
+    transport = makeTransport({ maxBodySize: 100 });
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/search',
@@ -636,7 +677,7 @@ describe('HttpTransport — тело читается только по треб
         handle: (payload: { q: string }) => new Ok(payload),
       }),
     );
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/hooks',
@@ -683,8 +724,8 @@ describe('HttpTransport — body size limits', () => {
   let unlimitedUrl: string;
 
   beforeAll(async () => {
-    small = new HttpTransport({ maxBodySize: 100 });
-    small.route(
+    small = makeTransport({ maxBodySize: 100 });
+    routesOf(small).push(
       httpEndpoint({
         method: 'POST',
         path: '/json',
@@ -693,7 +734,7 @@ describe('HttpTransport — body size limits', () => {
         handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
     );
-    small.route(
+    routesOf(small).push(
       httpEndpoint({
         method: 'POST',
         path: '/stream',
@@ -710,8 +751,8 @@ describe('HttpTransport — body size limits', () => {
     );
     smallUrl = await listen(small);
 
-    unlimited = new HttpTransport({ maxBodySize: 0 });
-    unlimited.route(
+    unlimited = makeTransport({ maxBodySize: 0 });
+    routesOf(unlimited).push(
       httpEndpoint({
         method: 'POST',
         path: '/json',
@@ -762,7 +803,7 @@ describe('HttpTransport — body size limits', () => {
 
 describe('HttpTransport — timeouts and graceful close', () => {
   it('таймауты применяются к серверу', async () => {
-    const transport = new HttpTransport({
+    const transport = makeTransport({
       requestTimeout: 5000,
       headersTimeout: 2000,
       keepAliveTimeout: 1000,
@@ -778,8 +819,8 @@ describe('HttpTransport — timeouts and graceful close', () => {
   });
 
   it('close() с идущим keep-alive завершается быстро', async () => {
-    const transport = new HttpTransport({ keepAliveTimeout: 60_000 });
-    transport.route(
+    const transport = makeTransport({ keepAliveTimeout: 60_000 });
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/ping',
@@ -813,8 +854,8 @@ describe('HttpTransport — timeouts and graceful close', () => {
   });
 
   it('close() с зависшим запросом завершается по closeTimeout', async () => {
-    const transport = new HttpTransport();
-    transport.route(
+    const transport = makeTransport();
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/hang',
@@ -866,9 +907,9 @@ function makeAwaitingHandler() {
 
 describe('HttpTransport — request cancellation (meta.signal)', () => {
   it('дисконнект клиента взводит meta.signal', async () => {
-    const transport = new HttpTransport();
+    const transport = makeTransport();
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/slow',
@@ -895,9 +936,9 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   });
 
   it('штатное завершение (keep-alive) не взводит сигнал', async () => {
-    const transport = new HttpTransport();
+    const transport = makeTransport();
     let captured: AbortSignal | undefined;
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/ping',
@@ -925,9 +966,9 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   });
 
   it('close(): кооперативный хендлер завершается заметно раньше closeTimeout', async () => {
-    const transport = new HttpTransport({ closeTimeout: 5000 });
+    const transport = makeTransport({ closeTimeout: 5000 });
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/graceful',
@@ -956,9 +997,9 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   });
 
   it('fallback-endpoint без pipeline получает meta.signal при дисконнекте', async () => {
-    const transport = new HttpTransport();
+    const transport = makeTransport();
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route(
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/raw',
@@ -986,8 +1027,8 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   });
 
   it('серия запросов не накапливает слушателей transport-level сигнала', async () => {
-    const transport = new HttpTransport();
-    transport.route(
+    const transport = makeTransport();
+    routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
         path: '/ping',

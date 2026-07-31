@@ -7,9 +7,15 @@
 import { body, httpBindingOf, query } from './binding';
 import type { PathParams } from './helpers';
 import { httpEndpoint } from './helpers';
+import { HttpTransport$ } from './token';
 
 import { describe, expect, it } from '@jest/globals';
-import { isEndpointDefinition, makePipeline, Ok } from '@nestling/pipeline';
+import {
+  isEndpointDefinition,
+  makePipeline,
+  Ok,
+  transportNameOf,
+} from '@nestling/pipeline';
 import { z } from 'zod';
 
 type Equal<A, B> =
@@ -29,7 +35,9 @@ describe('httpEndpoint', () => {
       handle: async (input) => new Ok({ name: input.name }),
     });
 
-    expect(CreateUser.transport).toBe('http');
+    // Ссылка на транспорт — токен; строковое имя выводится из его id
+    expect(CreateUser.transport).toBe(HttpTransport$);
+    expect(transportNameOf(CreateUser.transport)).toBe('http');
     expect(CreateUser.pattern).toBe('POST /api/users');
     expect(isEndpointDefinition(CreateUser)).toBe(true);
   });

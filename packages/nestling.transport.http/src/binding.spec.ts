@@ -12,6 +12,7 @@ import {
   query,
   readQuery,
 } from './binding';
+import { HttpTransport$ } from './token';
 
 import { describe, expect, it } from '@jest/globals';
 import {
@@ -227,7 +228,7 @@ describe('computeHttpBinding — fail-fast словаря', () => {
 describe('httpBindingOf — фолбэк на канон', () => {
   it('kernel-декларация без карты считает тот же канон из pattern', () => {
     const Ping = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /ping',
       handle: async () => new Ok({ pong: true }),
     });
@@ -243,7 +244,7 @@ describe('httpBindingOf — фолбэк на канон', () => {
 
   it('фолбэк не бросает даже там, где конструктор отверг бы декларацию', () => {
     const Raw = makeEndpoint({
-      transport: 'http',
+      transport: HttpTransport$,
       pattern: 'GET /users/:id',
       handle: async () => new Ok({}),
     });

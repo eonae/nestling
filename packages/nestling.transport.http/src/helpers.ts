@@ -1,6 +1,7 @@
 import type { SseConfig } from './adapter.js';
 import type { BindMark } from './binding.js';
 import { computeHttpBinding, readPathParams } from './binding.js';
+import { HttpTransport$ } from './token.js';
 
 import type { InjectionToken } from '@nestling/container';
 import type {
@@ -365,7 +366,10 @@ export function httpEndpoint(
 
   return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
     ...rest,
-    transport: 'http',
+    // Токен, а не строка: множество транспортов приложения выводится из
+    // графа, поэтому ссылка обязана быть тем же значением, которым
+    // транспорт зарегистрирован
+    transport: HttpTransport$,
     pattern: `${method} ${path}`,
     binding,
   });

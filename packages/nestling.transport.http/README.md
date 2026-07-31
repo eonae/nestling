@@ -157,12 +157,46 @@ the transport closes the response iterator (`return()`), which is what runs
 the deferred `.finally` units and detaches `Topic` subscriptions. Input
 streams are drained on failure so the connection is not left half-read.
 
-The decorator API (`HttpEndpoint`, `HttpEndpointOptions`,
-`HttpEndpointMetadata`, `getHttpEndpointMetadata`, `makeHttpEndpoint`,
-`HttpTransport.registerEndpoint`) is **gone**. `route()`/`endpoint()` accept
-only a runnable declaration — resolve dependencies first
+## Going live: `serve(dispatch, signal)`
+
+```ts
+const server = new HttpTransport({ port: 3000 });
+const shutdown = new AbortController();
+
+await server.serve(makeDispatch([SayHello, CreateUser]), shutdown.signal);
+```
+
+`serve` is the **only** entry point: neither a nullary `listen()` nor a
+per-endpoint registration method exists. Routes arrive as projections in
+`dispatch.routes`, and the endpoint is executed by `dispatch.call` — the
+transport keeps the plumbing (parsing, framing, `sendResponse`, multipart
+draining) and no copy of the execution branch. Under `assemble` the same
+`dispatch` is built in phase WIRE.
+
+`address()` returns the actual bound address after go-live (`null` before
+`serve` and after `close()`) — which is what a `port: 0` test needs, since
+`serve` takes no host/port arguments.
+
+The registration and decorator APIs (`route()`, `endpoint()`,
+`HttpEndpoint`, `HttpEndpointOptions`, `HttpEndpointMetadata`,
+`getHttpEndpointMetadata`, `makeHttpEndpoint`,
+`HttpTransport.registerEndpoint`) are **gone**. `makeDispatch` accepts only
+runnable declarations — resolve dependencies first
 (`endpoint.resolve(...)`) or declare the endpoint in a module and run it
-under `App`.
+under `assemble`.
+
+## As a provider: `http(options?)`
+
+```ts
+await assemble({ modules: [UsersModule], transports: [http({ port: 3000 })] }).run();
+```
+
+`http()` returns a **provider**, not an instance: the transport is an
+ordinary graph node whose dependencies the container injects and whose
+lifecycle runs with the rest. Port and host come from the package's own
+config section (`HTTP_PORT`, `HTTP_HOST`); the priority is explicit factory
+options > config > transport default. Only the `keys` handle
+(`httpConfigKeys`) is exported — the section token stays private.
 
 > 🚧 Active development. CORS, rate limiting and compression are still
 > out of scope. No validator among the dependencies — the transport
@@ -237,4 +271,5 @@ new HttpTransport({
 принимает разовый override таймаута дренажа.
 
 Usage guides: [functional HTTP](../../docs/guides/http-functional.md),
-[App with DI](../../docs/guides/http-app-di.md).
+[app with DI](../../docs/guides/http-app-di.md),
+[composition root](../../docs/guides/composition.md).

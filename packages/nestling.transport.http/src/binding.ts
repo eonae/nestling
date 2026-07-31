@@ -15,7 +15,6 @@
 
 import type { SseConfig } from './adapter.js';
 
-import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import { describeForm, isPrimitiveLeaf } from '@nestling/pipeline';
 import type { HTTPMethod } from 'find-my-way';
 
@@ -493,6 +492,17 @@ export function bindingNeedsBody(binding: HttpBinding): boolean {
 }
 
 /**
+ * Носитель карты: декларация или её проекция для транспорта.
+ *
+ * Транспорт читает карту с `RouteDeclaration`, `@nestling/openapi` и
+ * клиент — с самой декларации; структурно им нужны одни и те же два поля.
+ */
+export interface BindingBearer {
+  readonly pattern: string;
+  readonly binding?: unknown;
+}
+
+/**
  * Читает bind-карту с декларации.
  *
  * Декларация, созданная kernel-примитивом `makeEndpoint`, карты не несёт —
@@ -500,7 +510,7 @@ export function bindingNeedsBody(binding: HttpBinding): boolean {
  * в нём уже есть). Fail-fast здесь неуместен: канон полностью определён
  * парой (метод, путь), и запрещать kernel-примитив ради церемонии незачем.
  */
-export function httpBindingOf(definition: AnyEndpointDefinition): HttpBinding {
+export function httpBindingOf(definition: BindingBearer): HttpBinding {
   const carried: unknown = definition.binding;
   if (isHttpBinding(carried)) {
     return carried;
