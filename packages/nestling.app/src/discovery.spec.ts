@@ -3,13 +3,18 @@ import type { AppModule } from './module';
 import { makeAppModule } from './module';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeModule } from '@nestling/container';
-import { makeEndpoint, Ok } from '@nestling/pipeline';
+import { Injectable, makeModule, makeToken } from '@nestling/container';
+import type { TransportRef } from '@nestling/pipeline';
+import { makeEndpoint, Ok, transportNameOf } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
+/** Токены транспортов фикстур: ссылка декларации — значение, а не строка */
+const Http$ = makeToken('transport:http') as TransportRef;
+const Cli$ = makeToken('transport:cli') as TransportRef;
+
 /** Декларация-значение: единица дискавери */
-const endpoint = (transport: string, pattern: string) =>
+const endpoint = (transport: TransportRef, pattern: string) =>
   makeEndpoint({
     transport,
     pattern,
@@ -38,13 +43,13 @@ describe('discoverEndpoints', () => {
       moduleName: 'module:users',
     });
 
-    // Транспорт и паттерн читаются с самой декларации
-    expect(endpoints[0].endpoint.transport).toBe('http');
+    // Транспорт и паттерн читаются с самой декларации; транспорт — токен
+    expect(transportNameOf(endpoints[0].endpoint.transport)).toBe('http');
     expect(endpoints[0].endpoint.pattern).toBe('GET /users/:id');
   });
 
   it('обнаруживает эндпоинты на модуле, собранном makeModule вручную', () => {
-    const Handmade = endpoint('http', 'GET /handmade');
+    const Handmade = endpoint(Http$, 'GET /handmade');
 
     const HandmadeModule = {
       ...makeModule({ name: 'module:handmade' }),
@@ -58,8 +63,8 @@ describe('discoverEndpoints', () => {
   });
 
   it('цикл в imports не зацикливает обход', () => {
-    const FromA = endpoint('http', 'GET /a');
-    const FromB = endpoint('http', 'GET /b');
+    const FromA = endpoint(Http$, 'GET /a');
+    const FromB = endpoint(Http$, 'GET /b');
 
     const ModuleA: AppModule = makeAppModule({
       name: 'module:a',
@@ -78,7 +83,7 @@ describe('discoverEndpoints', () => {
   });
 
   it('общий модуль, импортированный в двух ветках, обходится один раз', () => {
-    const SharedEndpoint = endpoint('http', 'GET /shared');
+    const SharedEndpoint = endpoint(Http$, 'GET /shared');
 
     const SharedModule = makeAppModule({
       name: 'module:shared',
@@ -100,8 +105,8 @@ describe('discoverEndpoints', () => {
   });
 
   it('два разных объекта модуля с одним name считаются одним модулем', () => {
-    const First = endpoint('http', 'GET /first');
-    const Second = endpoint('http', 'GET /second');
+    const First = endpoint(Http$, 'GET /first');
+    const Second = endpoint(Http$, 'GET /second');
 
     const ModuleFirst = makeAppModule({
       name: 'module:same-name',
@@ -119,9 +124,9 @@ describe('discoverEndpoints', () => {
   });
 
   it('порядок воспроизводим: imports раньше собственных эндпоинтов', () => {
-    const Imported = endpoint('http', 'GET /imported');
-    const Own = endpoint('http', 'GET /own');
-    const Other = endpoint('http', 'GET /other');
+    const Imported = endpoint(Http$, 'GET /imported');
+    const Own = endpoint(Http$, 'GET /own');
+    const Other = endpoint(Http$, 'GET /other');
 
     const ImportedModule = makeAppModule({
       name: 'module:imported',
@@ -147,7 +152,7 @@ describe('discoverEndpoints', () => {
   });
 
   it('повтор одной декларации внутри endpoints: даёт одну запись', () => {
-    const Duplicated = endpoint('http', 'GET /dup');
+    const Duplicated = endpoint(Http$, 'GET /dup');
 
     const DupModule = makeAppModule({
       name: 'module:dup',
@@ -163,17 +168,18 @@ describe('discoverEndpoints', () => {
     const MixedModule = makeAppModule({
       name: 'module:mixed',
       endpoints: [
-        endpoint('http', 'GET /one'),
-        endpoint('http', 'GET /two'),
-        endpoint('cli', 'do-something'),
+        endpoint(Http$, 'GET /one'),
+        endpoint(Http$, 'GET /two'),
+        endpoint(Cli$, 'do-something'),
       ],
     });
 
     const { transports } = discoverEndpoints([MixedModule]);
 
-    expect([...transports.keys()].sort()).toEqual(['cli', 'http']);
-    expect(transports.get('http')).toHaveLength(2);
-    expect(transports.get('cli')).toHaveLength(1);
+    // Ключ карты — токен транспорта, а не его строковое имя
+    expect([...transports.keys()].sort()).toEqual([Cli$, Http$].sort());
+    expect(transports.get(Http$)).toHaveLength(2);
+    expect(transports.get(Cli$)).toHaveLength(1);
   });
 
   it('элемент endpoints: без бренда — ошибка с модулем и индексом', () => {
@@ -187,7 +193,7 @@ describe('discoverEndpoints', () => {
     const BrokenModule = makeAppModule({
       name: 'module:broken',
       // Опечатка автора: в endpoints: попал сервис вместо декларации
-      endpoints: [endpoint('http', 'GET /ok'), NotAnEndpoint as never],
+      endpoints: [endpoint(Http$, 'GET /ok'), NotAnEndpoint as never],
     });
 
     expect(() => discoverEndpoints([BrokenModule])).toThrow(
@@ -209,7 +215,7 @@ describe('discoverEndpoints', () => {
   it('не требует контейнера и транспортов', () => {
     const StandaloneModule = makeAppModule({
       name: 'module:standalone',
-      endpoints: [endpoint('http', 'GET /standalone')],
+      endpoints: [endpoint(Http$, 'GET /standalone')],
     });
 
     // Ни build(), ни транспортов — только значение-модуль

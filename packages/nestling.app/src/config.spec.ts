@@ -3,7 +3,7 @@
  * fail-fast на старте — до того, как транспорт начнёт слушать.
  */
 
-import { App } from './app';
+import { assemble } from './app';
 import { MockTransport } from './helpers';
 
 import { describe, expect, it } from '@jest/globals';
@@ -13,7 +13,8 @@ import {
   makeConfig,
   objectSource,
 } from '@nestling/config';
-import { Injectable, makeModule } from '@nestling/container';
+import { Injectable, makeModule, valueProvider } from '@nestling/container';
+import { HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const RootConfig = makeConfig('rootapp', {
@@ -63,18 +64,18 @@ beforeEach(() => {
   projected.length = 0;
 });
 
-describe('AppConfig.config', () => {
+describe('привязка конфига в assemble', () => {
   it('прогрессивность: без поля config секции читаются из process.env', async () => {
     await withEnv({ ROOTAPP_RETRIES: '3' }, async () => {
       const transport = new MockTransport();
-      const app = new App({
-        transports: { http: transport as never },
+      const app = assemble({
         modules: [GreeterModule],
+        transports: [valueProvider(HttpTransport$, transport)],
       });
 
       await app.run();
 
-      expect(transport.listening).toBe(true);
+      expect(transport.serving).toBe(true);
       expect(projected).toEqual([{ greeting: 'hi', retries: 3 }]);
 
       await app.close();
@@ -85,9 +86,9 @@ describe('AppConfig.config', () => {
     await withEnv(
       { ROOTAPP_RETRIES: '1', ROOTAPP_GREETING: 'from-env' },
       async () => {
-        const app = new App({
-          transports: { http: new MockTransport() as never },
+        const app = assemble({
           modules: [GreeterModule],
+          transports: [valueProvider(HttpTransport$, new MockTransport())],
           config: [
             [objectSource({ ROOTAPP_RETRIES: '5' }, 'high'), '*'],
             [
@@ -111,26 +112,26 @@ describe('AppConfig.config', () => {
     );
   });
 
-  it('невалидный конфиг роняет старт до listen()', async () => {
+  it('невалидный конфиг роняет старт до go-live', async () => {
     const transport = new MockTransport();
-    const app = new App({
-      transports: { http: transport as never },
+    const app = assemble({
       modules: [GreeterModule],
+      transports: [valueProvider(HttpTransport$, transport)],
       config: [[objectSource({ ROOTAPP_RETRIES: 'abc' }, 'test'), '*']],
     });
 
     await expect(app.run()).rejects.toThrow(ConfigValidationError);
-    expect(transport.listening).toBe(false);
+    expect(transport.serving).toBe(false);
   });
 
   it('обязательный ключ, которого нет нигде, роняет старт', async () => {
     const transport = new MockTransport();
-    const app = new App({
-      transports: { http: transport as never },
+    const app = assemble({
       modules: [GreeterModule],
+      transports: [valueProvider(HttpTransport$, transport)],
     });
 
     await expect(app.run()).rejects.toThrow(/ROOTAPP_RETRIES/);
-    expect(transport.listening).toBe(false);
+    expect(transport.serving).toBe(false);
   });
 });

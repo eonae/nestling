@@ -1,5 +1,5 @@
 import type { Module } from '@nestling/container';
-import type { AnyEndpointDefinition } from '@nestling/pipeline';
+import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
 import { isEndpointDefinition } from '@nestling/pipeline';
 
 /**
@@ -21,8 +21,13 @@ export interface EndpointDiscovery {
   /** Эндпоинты в детерминированном порядке обхода дерева модулей */
   endpoints: DiscoveredEndpoint[];
 
-  /** Требуемый транспорт → объявленные на нём эндпоинты */
-  transports: Map<string, DiscoveredEndpoint[]>;
+  /**
+   * Требуемый транспорт → объявленные на нём эндпоинты.
+   *
+   * Ключ — **токен** транспорта с декларации, а не строковое имя: по нему
+   * же `App` берёт инстанс из собранного графа.
+   */
+  transports: Map<TransportRef, DiscoveredEndpoint[]>;
 }
 
 /**
@@ -92,14 +97,14 @@ function describeValue(value: unknown): string {
  * ```typescript
  * const { endpoints, transports } = discoverEndpoints([UsersModule]);
  * // endpoints[0].moduleName === 'module:users'
- * // transports.get('http')?.length === 9
+ * // transports.get(HttpTransport$)?.length === 9
  * ```
  */
 export function discoverEndpoints(
   modules: readonly Module[],
 ): EndpointDiscovery {
   const endpoints: DiscoveredEndpoint[] = [];
-  const transports = new Map<string, DiscoveredEndpoint[]>();
+  const transports = new Map<TransportRef, DiscoveredEndpoint[]>();
 
   for (const module of visitModules(modules)) {
     const seen = new Set<unknown>();

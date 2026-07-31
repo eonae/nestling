@@ -1,5 +1,6 @@
 export * from './app.js';
 export * from './discovery.js';
+export * from './feature.js';
 export * from './module.js';
 
 /**
