@@ -1655,6 +1655,7 @@ __metadata:
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
+    "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     typescript: "npm:5.7.3"

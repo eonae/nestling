@@ -141,6 +141,38 @@ expect(
 ).toEqual(['GET /health']);
 ```
 
+### Contract compatibility, out of the same matrix
+
+Every topology report carries `contracts` — descriptors of the contracts that
+topology **publishes** — so the compatibility check needs no second assembly
+and no second import:
+
+```typescript
+import {
+  checkTopologies, diffContracts, formatCompatibility, snapshotContracts,
+} from '@nestling/testing';
+
+const reports = await checkTopologies(spec, ['all', 'users', 'ops'], {
+  converters: [zodConverter()],
+});
+
+const report = diffContracts(readBaseline(), snapshotContracts(reports));
+
+console.log(formatCompatibility(report));
+expect(report.breaking).toEqual([]);
+```
+
+`checkTopologies(spec, selections, options?)` forwards `options` into every
+topology's `check()`; the two-argument call behaves exactly as before.
+Without converters the descriptors are still built — the structural part
+(kind, io forms, failure codes and statuses) is exact — and leaf schemas are
+honestly marked opaque, which yields the `unknown` verdict.
+
+The failing line here is the test's own `expect`: `diffContracts` is a pure
+function of two values, takes no part in assembly and never throws on a
+comparison result. Verdict rules and baseline maintenance live in
+[`@nestling/ports`](../nestling.ports).
+
 ## `vars()` — config as an object
 
 `vars(record)` is a named object `ConfigSource` with `watch`/`set`/`assign`.
@@ -204,4 +236,7 @@ plain `[token, value]` pairs.
 - `TestApp`: `call`, `get`, `pruned`, `features`, `close`, `Symbol.asyncDispose`
 - `unwrap(response)`, `UnwrapFailedError`
 - `vars(record)`, `familyOverride(family, make)`, `contextValue(variable, value)`
-- `checkTopologies(spec, selections)`
+- `checkTopologies(spec, selections, options?)`
+- re-exported from [`@nestling/ports`](../nestling.ports), so a CI test is
+  one import: `snapshotContracts`, `serializeSnapshot`, `diffContracts`,
+  `formatCompatibility`

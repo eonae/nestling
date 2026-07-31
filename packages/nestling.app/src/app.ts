@@ -28,6 +28,7 @@ import { ContainerBuilder } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
   PolicySubject,
+  SchemaDocConverter,
   TransportRef,
 } from '@nestling/pipeline';
 import {
@@ -35,9 +36,12 @@ import {
   contextKernel,
   transportNameOf,
 } from '@nestling/pipeline';
+import type { ContractDescriptor } from '@nestling/ports';
 import {
   bindPorts,
+  busBindingOf,
   collectImplementations,
+  describeContract,
   portsKernel,
 } from '@nestling/ports';
 import type {
@@ -85,6 +89,29 @@ export interface CheckReport {
 
   /** Транспорты приложения: перечисленные в корне и требуемые ручками */
   readonly transports: readonly string[];
+
+  /**
+   * Дескрипторы контрактов, **опубликованных** этой топологией.
+   *
+   * Строятся из дискавери — по декларациям с bus-биндингом, — а не из
+   * приватного реестра `makeContract`: источник истины о составе
+   * приложения один, и это дерево модулей. В реестр попало бы всё, что
+   * импортировано, включая контракты соседних фич, которые это
+   * приложение не публикует.
+   */
+  readonly contracts: readonly ContractDescriptor[];
+}
+
+/** Опции структурной проверки */
+export interface CheckOptions {
+  /**
+   * Конвертеры листовых схем (`SchemaDocConverter`).
+   *
+   * Отсутствие конвертера для вендора — не ошибка: лист дескриптора
+   * помечается непрозрачным, и `check()` из-за этого не падает.
+   * Строгость выбирает потребитель дескриптора, а не проверка.
+   */
+  readonly converters?: readonly SchemaDocConverter[];
 }
 
 /**
@@ -118,6 +145,35 @@ export function assemble(spec: AssemblySpec = {}): App {
   // Подстановок здесь нет и не будет: `assemble` не принимает `overrides`
   // даже как соблазн — это ключ тестового корня
   return new App(makePlan(spec));
+}
+
+/**
+ * Дескрипторы контрактов, опубликованных этой сборкой.
+ *
+ * Источник — дискавери: декларация с bus-биндингом и есть «я это
+ * обслуживаю». У события подписчиков может быть несколько, а контракт
+ * один, поэтому дескрипторы сводятся по имени; порядок — по имени, чтобы
+ * отчёт не зависел от обхода дерева модулей.
+ */
+function publishedContracts(
+  discovery: EndpointDiscovery,
+  options: CheckOptions,
+): readonly ContractDescriptor[] {
+  const byName = new Map<string, ContractDescriptor>();
+
+  for (const { endpoint } of discovery.endpoints) {
+    const binding = busBindingOf(endpoint);
+
+    if (!binding || byName.has(binding.subject)) {
+      continue;
+    }
+
+    byName.set(binding.subject, describeContract(endpoint, options));
+  }
+
+  return [...byName.values()].sort((left, right) =>
+    left.name < right.name ? -1 : 1,
+  );
 }
 
 /**
@@ -202,7 +258,10 @@ export class App {
    * Собственный граф `check()` не сохраняет: на последующий `run()` вызов
    * не влияет, и гонять его можно по матрице `select`-топологий.
    *
-   * @returns Отчёт о составе: фичи, ручки с транспортами, транспорты
+   * @param options - Конвертеры схем для дескрипторов контрактов; вызов
+   * без аргумента ведёт себя ровно как прежде
+   * @returns Отчёт о составе: фичи, ручки с транспортами, транспорты и
+   * дескрипторы опубликованных контрактов
    * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах
    *
    * @example
@@ -212,7 +271,7 @@ export class App {
    * }
    * ```
    */
-  async check(): Promise<CheckReport> {
+  async check(options: CheckOptions = {}): Promise<CheckReport> {
     const { discovery } = await this.#assemble();
 
     return {
@@ -228,6 +287,7 @@ export class App {
       transports: this.#transportOrder(discovery).map((token) =>
         transportNameOf(token),
       ),
+      contracts: publishedContracts(discovery, options),
     };
   }
 

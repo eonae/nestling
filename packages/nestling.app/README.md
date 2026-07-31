@@ -95,7 +95,12 @@ startup, one line each, right after the assembly summary:
 ```typescript
 for (const select of ['all', 'users', 'ops'] as const) {
   const report = await assemble({ features, select, transports: [http()] }).check();
-  // report: { features, endpoints: [{ pattern, transport, module, detached? }], transports }
+  // report: {
+  //   features,
+  //   endpoints: [{ pattern, transport, module, detached? }],
+  //   transports,
+  //   contracts: [ContractDescriptor],
+  // }
 }
 ```
 
@@ -108,6 +113,23 @@ anyway. It throws exactly the errors `run()` would throw on those phases, and
 it neither stores its container nor affects a later `run()` of the same
 application, which is what makes it usable as a CI matrix over `select`
 topologies ([`checkTopologies`](../nestling.testing)).
+
+`check(options?)` takes an optional dictionary carrying schema converters:
+
+```typescript
+const report = await assemble(spec).check({ converters: [zodConverter()] });
+```
+
+`report.contracts` holds descriptors of the contracts this topology
+**publishes** — built from discovery, by declarations carrying a bus binding,
+and never read from the private `makeContract` registry: the tree of modules
+is the single source of truth about what an application serves, and an
+imported-but-unimplemented contract does not appear. A missing converter for
+a leaf's vendor is not an error — the leaf is marked opaque and `check()`
+does not fail. Descriptors are values
+([`@nestling/ports`](../nestling.ports)); feeding a matrix of them to
+`snapshotContracts`/`diffContracts` is how the contract compatibility report
+is produced. Calling `check()` with no argument behaves exactly as before.
 
 ## `./testing` — the test seam
 

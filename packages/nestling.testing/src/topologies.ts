@@ -4,6 +4,7 @@
 
 import type {
   AssemblySpec,
+  CheckOptions,
   CheckReport,
   FeatureSelection,
 } from '@nestling/app';
@@ -30,23 +31,31 @@ export interface TopologyReport {
  * матрица и компенсирует прунинг тестового корня. Правило для гайда одной
  * строкой: мокаешь — проверь топологию.
  *
+ * Отчёты матрицы пригодны для сведения в снапшот контрактов
+ * (`snapshotContracts`) без пересборки приложения: дескрипторы уже лежат
+ * в отчёте каждой топологии.
+ *
  * @param spec - Тот же словарь сборки, что уедет в прод, без `select`
  * @param selections - Варианты деплоя: `['all', 'users', 'ops']`
+ * @param options - Опции `check()`; прокидываются в каждую топологию без
+ * изменений. Вызов из двух аргументов ведёт себя ровно как прежде
  * @returns Отчёты по каждой топологии в порядке перечисления
  * @throws {Error} Если хотя бы одна топология не собралась; в сообщении
  * названы все несобравшиеся с их причинами
  *
  * @example
  * ```typescript
- * await checkTopologies(
+ * const reports = await checkTopologies(
  *   { features: [UsersFeature, OpsFeature], transports: [http()] },
  *   ['all', 'users', 'ops'],
+ *   { converters: [zodConverter()] },
  * );
  * ```
  */
 export async function checkTopologies(
   spec: AssemblySpec,
   selections: readonly FeatureSelection[],
+  options: CheckOptions = {},
 ): Promise<TopologyReport[]> {
   const reports: TopologyReport[] = [];
   const failures: string[] = [];
@@ -55,7 +64,7 @@ export async function checkTopologies(
     try {
       reports.push({
         select,
-        report: await assemble({ ...spec, select }).check(),
+        report: await assemble({ ...spec, select }).check(options),
       });
     } catch (error) {
       failures.push(

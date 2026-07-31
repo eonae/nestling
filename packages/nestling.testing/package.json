@@ -24,6 +24,7 @@
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/pipeline": "workspace:*",
+    "@nestling/ports": "workspace:*",
     "@nestling/transport": "workspace:*"
   },
   "devDependencies": {

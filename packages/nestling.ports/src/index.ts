@@ -19,6 +19,18 @@ export type {
   RequestOptions,
   SubscribeOptions,
 } from './bus.js';
+export {
+  diffContracts,
+  formatCompatibility,
+  suggestBump,
+} from './compatibility.js';
+export type {
+  CompatibilityChange,
+  CompatibilityReport,
+  CompatibilityVerdict,
+  ContractCompatibility,
+  ContractSlot,
+} from './compatibility.js';
 export { portsConfigKeys } from './config.js';
 export type { DispatchPolicy, PortsConfig } from './config.js';
 export { makeContract } from './contract.js';
@@ -37,6 +49,17 @@ export type {
   OutputOf,
   RequestContract,
 } from './contract.js';
+export { canonicalizeJson, describeContract } from './describe.js';
+export type {
+  ContractDescriptor,
+  DescribeOptions,
+  DescribeSource,
+  FailDescriptor,
+  FileFieldDescriptor,
+  FormDescriptorValue,
+  JsonValue,
+  SchemaDescriptor,
+} from './describe.js';
 export type {
   CommandMeta,
   Emitter,
@@ -61,6 +84,18 @@ export {
   withIdempotencyKey,
 } from './profile.js';
 export type { PortFailureInfo } from './runtime.js';
+export {
+  serializeSnapshot,
+  SNAPSHOT_VERSION,
+  snapshotContracts,
+} from './snapshot.js';
+export type {
+  ContractReport,
+  ContractSnapshot,
+  SnapshotContract,
+  SnapshotSource,
+  TopologyContractReport,
+} from './snapshot.js';
 export { collectImplementations } from './topology.js';
 export type {
   ContractImplementation,

@@ -20,12 +20,26 @@ import {
   OnStart,
   valueProvider,
 } from '@nestling/container';
-import { makeEndpoint, Ok } from '@nestling/pipeline';
+import type { SchemaDocConverter } from '@nestling/pipeline';
+import { defineFail, makeEndpoint, Ok } from '@nestling/pipeline';
+import { implement, makeContract } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
   valueProvider(HttpTransport$, transport);
+
+/** Конвертер-фикстура: те же десять строк, что показывает гайд */
+const zodConverter = (): SchemaDocConverter => ({
+  vendor: 'zod',
+  toJsonSchema: (schema) => z.toJSONSchema(schema as z.ZodType),
+});
+
+const CardDeclined = defineFail('CARD_DECLINED', {
+  status: 'PAYMENT_REQUIRED',
+  message: 'Card declined',
+});
 
 describe('App.check() — фазы 0–1', () => {
   it('строит граф, не выполняя @OnInit и не выходя в эфир', async () => {
@@ -162,6 +176,142 @@ describe('App.check() — фазы 0–1', () => {
     ]);
 
     await app.close();
+  });
+});
+
+describe('App.check() — опубликованные контракты в отчёте', () => {
+  const ChargeCard = makeContract({
+    name: 'check.billing.charge',
+    kind: 'request',
+    input: z.object({ amount: z.number() }),
+    output: z.object({ chargeId: z.string() }),
+    errors: [CardDeclined],
+  });
+
+  /** Контракт, который импортирован, но этой сборкой не реализуется */
+  const NeverImplemented = makeContract({
+    name: 'check.billing.refund',
+    kind: 'command',
+    input: z.object({ chargeId: z.string() }),
+  });
+
+  const billingModule = makeAppModule({
+    name: 'module:billing',
+    endpoints: [
+      implement(ChargeCard, {
+        handle: async () => new Ok({ chargeId: 'c-1' }),
+      }),
+    ],
+  });
+
+  const assembleBilling = () =>
+    assemble({
+      modules: [billingModule],
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+  it('несёт дескриптор с видом, формами и кодами отказов', async () => {
+    const report = await assembleBilling().check({
+      converters: [zodConverter()],
+    });
+
+    expect(report.contracts).toHaveLength(1);
+
+    const [descriptor] = report.contracts;
+
+    expect(descriptor.name).toBe('check.billing.charge');
+    expect(descriptor.kind).toBe('request');
+    expect(descriptor.errors).toEqual([
+      { code: 'CARD_DECLINED', status: 'PAYMENT_REQUIRED' },
+    ]);
+    expect(descriptor.output.leaf).toMatchObject({
+      leaf: 'schema',
+      vendor: 'zod',
+      jsonSchema: { properties: { chargeId: { type: 'string' } } },
+    });
+  });
+
+  it('без конвертеров даёт ту же структурную часть и непрозрачные листья', async () => {
+    const report = await assembleBilling().check();
+
+    const [descriptor] = report.contracts;
+
+    expect(descriptor.kind).toBe('request');
+    expect(descriptor.errors).toHaveLength(1);
+    expect(descriptor.input.leaf).toEqual({ leaf: 'opaque', vendor: 'zod' });
+  });
+
+  it('импортированный, но не реализованный контракт в отчёт не попадает', async () => {
+    const report = await assembleBilling().check();
+
+    // Значение импортировано этим файлом и лежит в приватном реестре
+    // пакета — но приложение его не публикует, и отчёт это знает
+    expect(NeverImplemented.name).toBe('check.billing.refund');
+    expect(report.contracts.map(({ name }) => name)).toEqual([
+      'check.billing.charge',
+    ]);
+  });
+
+  it('у приложения без контрактов поле пусто, а не отсутствует', async () => {
+    const report = await assemble({
+      modules: [
+        makeAppModule({
+          name: 'module:http-only',
+          endpoints: [
+            httpEndpoint({
+              method: 'GET',
+              path: '/ping',
+              handle: async () => new Ok({}),
+            }),
+          ],
+        }),
+      ],
+      transports: [asHttpTransport(new MockTransport())],
+    }).check();
+
+    expect(report.contracts).toEqual([]);
+  });
+
+  it('событие с двумя подписчиками даёт один дескриптор', async () => {
+    const OrderPlaced = makeContract({
+      name: 'check.orders.placed',
+      kind: 'event',
+      input: z.object({ orderId: z.string() }),
+    });
+
+    const report = await assemble({
+      modules: [
+        makeAppModule({
+          name: 'module:orders',
+          endpoints: [
+            implement(OrderPlaced, {
+              subscriber: 'billing',
+              handle: async () => new Ok(undefined),
+            }),
+            implement(OrderPlaced, {
+              subscriber: 'analytics',
+              handle: async () => new Ok(undefined),
+            }),
+          ],
+        }),
+      ],
+      transports: [asHttpTransport(new MockTransport())],
+    }).check();
+
+    expect(report.contracts.map(({ name }) => name)).toEqual([
+      'check.orders.placed',
+    ]);
+    expect(report.contracts[0].kind).toBe('event');
+  });
+
+  it('не выполняет @OnInit и не влияет на последующий run()', async () => {
+    const app = assembleBilling();
+
+    const first = await app.check({ converters: [zodConverter()] });
+    const second = await app.check({ converters: [zodConverter()] });
+
+    // Отчёт — значение: два прогона на одном графе равны как значения
+    expect(second.contracts).toEqual(first.contracts);
   });
 });
 

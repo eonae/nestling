@@ -1,4 +1,5 @@
 export type * from './types.js';
+export * from './converter.js';
 export * from './parse.js';
 
 /**

@@ -107,6 +107,40 @@ very same function object.
   zod 3.24 / valibot 1.0). Also `500`, with a diagnostic naming the
   likely cause.
 
+### Vendor converters: the only way to look inside a schema
+
+The spec gives validation and inference and nothing else, so anything that
+needs the *structure* of a schema goes through an explicit converter:
+
+```typescript
+export interface SchemaDocConverter {
+  readonly vendor: string;                       // matched against `~standard.vendor`
+  toJsonSchema(schema: StandardSchemaV1): unknown;
+}
+
+const zodConverter = (): SchemaDocConverter => ({
+  vendor: 'zod',
+  toJsonSchema: (schema) => z.toJSONSchema(schema as z.ZodType),
+});
+```
+
+The contract lives here — on the schema layer — rather than in the package
+that first needed it, because it has **two** consumers with **different
+strictness** when no converter matches a vendor:
+
+| Consumer | No converter for the vendor |
+|---|---|
+| documentation (`@nestling/openapi`) | fail-fast at boot: an undocumentable handle must not exist |
+| contract snapshot ([`@nestling/ports`](../nestling.ports)) | the leaf is opaque → verdict `unknown` |
+
+So the dispatcher does not bake strictness in: `pickConverter(converters,
+schema)` returns `undefined` as an observable outcome and lets the caller
+decide. The list of converters is the caller's data — there is no global
+registry — and `assertConverters(list)` fails fast, at the point the list is
+handed over, when two entries claim the same vendor. Converters have nothing
+to do with validation: an application without a single one validates exactly
+as before.
+
 ### Migrating from the zod-bound version
 
 - `SchemaValidationError.zodError` is gone — read `issues` instead.

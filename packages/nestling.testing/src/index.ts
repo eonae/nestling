@@ -23,7 +23,33 @@ export type { TopologyReport } from './topologies.js';
 export { unwrap, UnwrapFailedError } from './unwrap.js';
 
 /**
- * Отчёт `App.check()` — реэкспорт типа: матрица топологий возвращает его,
- * и тест не должен ради одной аннотации импортировать `@nestling/app`.
+ * Отчёт `App.check()` и его опции — реэкспорт типов: матрица топологий
+ * их принимает и возвращает, и тест не должен ради одной аннотации
+ * импортировать `@nestling/app`.
  */
-export type { CheckReport } from '@nestling/app';
+export type { CheckOptions, CheckReport } from '@nestling/app';
+
+/**
+ * Снапшот и дифф контрактов — реэкспорт из `@nestling/ports`.
+ *
+ * CI-тест матрицы («собери снапшот, сравни с baseline, напечатай отчёт»)
+ * пишется одним импортом: топологии, сведение и сравнение живут в разных
+ * пакетах, но для автора теста это одна операция.
+ */
+export {
+  diffContracts,
+  formatCompatibility,
+  serializeSnapshot,
+  snapshotContracts,
+} from '@nestling/ports';
+export type {
+  CompatibilityChange,
+  CompatibilityReport,
+  CompatibilityVerdict,
+  ContractDescriptor,
+  ContractSnapshot,
+  SnapshotContract,
+} from '@nestling/ports';
+
+/** Контракт вендор-конвертера: его принимает `checkTopologies` */
+export type { SchemaDocConverter } from '@nestling/pipeline';

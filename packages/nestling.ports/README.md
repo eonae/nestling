@@ -218,15 +218,71 @@ The composition root says nothing about the bus: the ports kernel module
 registers it, and it appears in the graph only when the application has at
 least one contract implementation.
 
+## Versioning: the name carries it, the report highlights it
+
+A contract has no version field. The version lives **in the name**
+(`user.create.v2`), because the name is already the address; `makeContract`
+neither requires nor parses the `.vN` suffix, so an unversioned name is
+perfectly legal.
+
+What remembers yesterday's shape is a **snapshot** — a plain value you store
+wherever you like:
+
+```typescript
+const descriptor = describeContract(ClaimQuota, { converters: [zodConverter()] });
+// { name, kind, input: { kind, leaf }, output: { … }, errors: [{ code, status }] }
+
+const snapshot = snapshotContracts(await checkTopologies(spec, ['all', 'users'], {
+  converters: [zodConverter()],
+}));
+
+const report = diffContracts(readBaseline(), snapshot);
+console.log(formatCompatibility(report));
+```
+
+- **`describeContract`** turns a contract (or its `implement` declaration)
+  into a JSON value. Leaf schemas go through a vendor converter
+  (`SchemaDocConverter`, defined in `@nestling/pipeline` so that
+  `@nestling/openapi` can share it); without one, a leaf is marked *opaque* —
+  and "there is no leaf" and "there is a leaf we could not convert" are
+  distinct markers, never conflated.
+- **`snapshotContracts`** merges the reports of a `select`-topology matrix by
+  **union**, so a contract missing from one topology is a deselected feature,
+  not a deleted contract; each descriptor names the topologies that published
+  it. `serializeSnapshot` is byte-deterministic: contracts by name, failures
+  by code, JSON Schema keys sorted.
+- **`diffContracts`** assigns every discrepancy exactly one verdict from a
+  closed set — `breaking` | `additive` | `unknown`. Direction comes from the
+  **slot**: `input` flows into the implementation (a new required property, a
+  removed property, a narrowing — `breaking`), `output` flows out of it (a
+  removed property, `required` → `optional` — `breaking`). Anything the
+  published rules do not cover — unfamiliar JSON Schema keywords,
+  `oneOf`/`allOf`/`$ref`, a changed vendor, an opaque leaf — is `unknown`
+  with a JSON path, never a silent "compatible".
+- **The report is a value**; `formatCompatibility` prints it for a human, and
+  a contract with at least one `breaking` carries a **suggested** name
+  (`quotas.claim` → `quotas.claim.v2`). That suggestion is the only place
+  where the `.vN` suffix is recognised, and nothing is renamed.
+
+**It cannot fail your build.** `diffContracts` is a pure function of two
+values: it takes no part in assembly, is never called from `run()`/`check()`
+and never throws on the result of a comparison, however many `breaking` it
+found. There is no `failOnBreaking` flag — turning the report into a failing
+test is `expect(report.breaking).toEqual([])` in *your* test. The one thing
+it does throw on is an unreadable baseline (an unknown `snapshotVersion`):
+that is the checker author's mistake, not a breaking change.
+
 ## Kernel / user space
 
 Public: `makeContract`, `implement`, `Port`/`Emitter` types, `IMessageBus`,
 `MessageBus$`, `InProcessBus`, `BusTransport$`, `busBindingOf`,
 `portsKernel`, `bindPorts`, `collectImplementations`, `portsConfigKeys`,
-plus the operational profile: `deadlineIn`, `Deadline`, `IdempotencyKey`,
-`withDeadline`, `withIdempotencyKey` and the re-exported `DeadlineExceeded`
-(it is defined in `@nestling/pipeline`, where the closed set of kernel codes
-lives).
+the operational profile (`deadlineIn`, `Deadline`, `IdempotencyKey`,
+`withDeadline`, `withIdempotencyKey` and the re-exported `DeadlineExceeded`,
+defined in `@nestling/pipeline` where the closed set of kernel codes lives),
+and the compatibility surface: `describeContract`, `snapshotContracts`,
+`serializeSnapshot`, `diffContracts`, `formatCompatibility`, `suggestBump`,
+`canonicalizeJson` and their types.
 
 Deliberately **not** exported: the contract registry, the `Port`/`Emitter`
 families and their recipes, the executor holder and its token, and the
