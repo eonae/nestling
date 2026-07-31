@@ -94,7 +94,7 @@
       пользователя (правило `CLAUDE.md`) — предложить её текст в отчёте:
       «плагина как примитива нет; `plugins:`-bag отменён; идентичность модуля
       — значение, коллизия имён — ошибка»
-- [ ] 7.3 `docs/decisions/roadmap.md`: статус change #13 и ссылка на архив
+- [x] 7.3 `docs/decisions/roadmap.md`: статус change #13 и ссылка на архив
       после `/opsx:archive`
 
 ## 8. Definition of Done
