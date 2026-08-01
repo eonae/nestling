@@ -125,7 +125,7 @@ needs the *structure* of a schema goes through an explicit converter:
 ```typescript
 export interface SchemaDocConverter {
   readonly vendor: string;                       // matched against `~standard.vendor`
-  toJsonSchema(schema: StandardSchemaV1): unknown;
+  toJsonSchema(schema: StandardSchemaV1, options?: SchemaDocOptions): unknown;
 }
 
 const zodConverter = (): SchemaDocConverter => ({
@@ -133,6 +133,15 @@ const zodConverter = (): SchemaDocConverter => ({
   toJsonSchema: (schema) => z.toJSONSchema(schema as z.ZodType),
 });
 ```
+
+`SchemaDocOptions` carries one optional hint — `io: 'input' | 'output'`.
+A schema with a transform (`z.string().transform(Number)`) describes two
+shapes: what arrives on the wire and what the handler gets. A request body
+must be documented as the first, a response body as the second, and a
+direction-blind converter would always be wrong about one of them. The hint
+is optional on both sides: a one-argument converter stays a valid converter,
+and a consumer to whom direction is irrelevant (the contract snapshot
+compares a shape against itself) simply does not pass it.
 
 The contract lives here — on the schema layer — rather than in the package
 that first needed it, because it has **two** consumers with **different
@@ -143,9 +152,32 @@ strictness** when no converter matches a vendor:
 | documentation (`@nestling/openapi`) | fail-fast at boot: an undocumentable handle must not exist |
 | contract snapshot ([`@nestling/ports`](../nestling.ports)) | the leaf is opaque → verdict `unknown` |
 
-So the dispatcher does not bake strictness in: `pickConverter(converters,
-schema)` returns `undefined` as an observable outcome and lets the caller
-decide. The list of converters is the caller's data — there is no global
+So the dispatcher does not bake strictness in: `leafJsonSchema(converters,
+leaf, options?)` returns one of three distinguishable outcomes — `declared`
+(the leaf carries an explicit annotation), `converted`, `unconvertible` —
+and lets the caller decide what to do with the third. (`pickConverter` is
+still there for callers that only need the converter itself.)
+
+### `jsonSchema(schema, json)` — the escape hatch
+
+An annotation, not a field of a declaration: it returns a value that
+validates exactly like the original (the same `~standard`, inherited through
+the prototype) and carries a declared JSON Schema on a non-enumerable symbol.
+The original schema is not mutated and there is no global registry of
+annotations.
+
+```typescript
+input: z.object({ payload: jsonSchema(ExoticSchema, { type: 'object' }) })
+```
+
+It works in **any** schema position — `input`, `output`, a stream leaf, the
+`fields` of a `multipart` form, the `details` of a failure definition — which
+a field on the declaration could not: an override there would have to encode
+a path into the tree of forms. The dispatcher prefers the annotation over a
+converter, so an annotated leaf is convertible whether or not a converter for
+its vendor was passed. The kernel failure schemas (`VALIDATION_FAILED` and
+friends) are declared this way — they are hand-written and no vendor
+converter understands them. The list of converters is the caller's data — there is no global
 registry — and `assertConverters(list)` fails fast, at the point the list is
 handed over, when two entries claim the same vendor. Converters have nothing
 to do with validation: an application without a single one validates exactly

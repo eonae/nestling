@@ -141,6 +141,46 @@ describe('makeContract', () => {
     ).toThrow(/Contract 'spec\.durable\.request' \(kind 'request'\)/);
   });
 
+  it('несёт секцию `doc` и отдаёт её вместе с интерфейсом операции', () => {
+    const Create = makeContract({
+      name: 'spec.doc.create',
+      kind: 'request',
+      doc: { summary: 'Create user', tags: ['users'], status: 'CREATED' },
+    });
+
+    expect(Create.doc).toEqual({
+      summary: 'Create user',
+      tags: ['users'],
+      status: 'CREATED',
+    });
+  });
+
+  it('контракт без секции её не несёт', () => {
+    const plain = makeContract({ name: 'spec.doc.plain', kind: 'event' });
+
+    expect('doc' in plain).toBe(false);
+  });
+
+  it('проверяет `doc` теми же правилами, но называет контракт', () => {
+    expect(() =>
+      makeContract({
+        name: 'spec.doc.broken',
+        kind: 'request',
+        doc: { hidden: '' },
+      }),
+    ).toThrow(
+      /Contract 'spec\.doc\.broken': 'doc\.hidden' must state a reason/,
+    );
+
+    expect(() =>
+      makeContract({
+        name: 'spec.doc.status',
+        kind: 'request',
+        doc: { status: 'PARTIAL_CONTENT' as never },
+      }),
+    ).toThrow(/Contract 'spec\.doc\.status': 'doc\.status' must be one of/);
+  });
+
   it('отвергает второй контракт с занятым именем', () => {
     makeContract({ name: 'spec.taken.name', kind: 'request' });
 

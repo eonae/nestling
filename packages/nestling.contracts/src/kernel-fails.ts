@@ -1,4 +1,5 @@
 import { defineFail } from './define-fail.js';
+import { jsonSchema } from './json-schema.js';
 
 import type { SchemaIssue, StandardSchemaV1 } from '@common/misc';
 
@@ -9,8 +10,13 @@ import type { SchemaIssue, StandardSchemaV1 } from '@common/misc';
  * чтобы объявить схему. Так `ValidationFailed` остаётся schema-first
  * наравне с пользовательскими определениями, а `@nestling/pipeline` —
  * без зависимости от валидатора.
+ *
+ * Вендор `nestling` не понимает ни один конвертер — и не должен: схемы
+ * ядра объявляют свою JSON Schema аннотацией. Без неё генератор
+ * документации требовал бы от пользователя конвертер для схемы, которую
+ * тот не писал.
  */
-const issuesSchema: StandardSchemaV1<unknown, readonly SchemaIssue[]> = {
+const rawIssuesSchema: StandardSchemaV1<unknown, readonly SchemaIssue[]> = {
   '~standard': {
     version: 1,
     vendor: 'nestling',
@@ -33,6 +39,22 @@ const issuesSchema: StandardSchemaV1<unknown, readonly SchemaIssue[]> = {
     },
   },
 };
+
+/** Форма провода `issues` — она же контракт спеки Standard Schema */
+const issuesSchema = jsonSchema(rawIssuesSchema, {
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      message: { type: 'string' },
+      path: {
+        type: 'array',
+        items: { type: ['string', 'number'] },
+      },
+    },
+    required: ['message'],
+  },
+});
 
 /**
  * Незадекларированный отказ, приведённый границей к контракту.
@@ -59,12 +81,13 @@ export const ValidationFailed = defineFail('VALIDATION_FAILED', {
 });
 
 /**
- * Схема деталей отказа лимита — тоже написана руками (см. `issuesSchema`).
+ * Схема деталей отказа лимита — тоже написана руками и тоже аннотирована
+ * (см. `issuesSchema`).
  */
 function numberFieldSchema<K extends string>(
   field: K,
 ): StandardSchemaV1<unknown, Record<K, number>> {
-  return {
+  const schema: StandardSchemaV1<unknown, Record<K, number>> = {
     '~standard': {
       version: 1,
       vendor: 'nestling',
@@ -80,6 +103,12 @@ function numberFieldSchema<K extends string>(
       },
     },
   };
+
+  return jsonSchema(schema, {
+    type: 'object',
+    properties: { [field]: { type: 'number' } },
+    required: [field],
+  });
 }
 
 /**

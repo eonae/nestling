@@ -4,11 +4,12 @@ import type {
   AnyInput,
   AnyOutput,
   AnyPayload,
+  DeclarationDoc,
   FailsOf,
   Pipeline,
   ValidateOutputForm,
 } from '../core';
-import { assertFormSlots, isFailDefinition } from '../core';
+import { assertDoc, assertFormSlots, isFailDefinition } from '../core';
 import type { HandlerFn } from '../core/types';
 
 import type { Constructor } from '@common/misc';
@@ -157,6 +158,16 @@ export interface EndpointDefinition<
   readonly binding?: unknown;
 
   /**
+   * Документация операции — транспорт- и формат-нейтральная секция.
+   *
+   * Ядро её **переносит и не интерпретирует**, как `binding`: ни один путь
+   * исполнения запроса от `doc` не зависит. Читают её генераторы описаний
+   * (`@nestling/openapi` сегодня, AsyncAPI позже), поэтому полей,
+   * осмысленных только для одного формата, в ней нет.
+   */
+  readonly doc?: DeclarationDoc;
+
+  /**
    * Причина, по которой ручка выведена из-под инвариантов сборки
    * (policy-check).
    *
@@ -242,6 +253,21 @@ export interface EndpointOptions<
   binding?: unknown;
 
   /**
+   * Документация операции: `summary`, `description`, `tags`, `deprecated`,
+   * успешный статус и `hidden: '<причина>'`.
+   *
+   * Проверяется в момент создания декларации — неизвестное поле секции,
+   * `hidden: true` и статус вне словаря успешных валят объявление, а не
+   * сборку приложения.
+   *
+   * @example
+   * ```typescript
+   * doc: { summary: 'List users', tags: ['users'], status: 'OK' }
+   * ```
+   */
+  doc?: DeclarationDoc;
+
+  /**
    * Вывод ручки из-под инвариантов сборки — **только с причиной**.
    *
    * Формы `detached: true` не существует: тип — `string`, а рантайм
@@ -277,6 +303,7 @@ interface EndpointState {
   pipeline?: Pipeline<AnyInput, AnyInput, unknown>;
   binding?: unknown;
   errors?: readonly AnyFailDefinition[];
+  doc?: DeclarationDoc;
   detached?: string;
   deps: readonly InjectionToken[];
   form: HandlerForm;
@@ -562,6 +589,12 @@ function buildDefinition(state: EndpointState): AnyEndpointDefinition {
   if (state.errors !== undefined) {
     definition.errors = state.errors;
   }
+  // Документация переживает гашение наравне с биндингом и отказами: иначе
+  // документ, построенный по погашенным декларациям, отличался бы от
+  // построенного по объявленным
+  if (state.doc !== undefined) {
+    definition.doc = state.doc;
+  }
   // Причина opt-out'а переживает гашение по той же причине: интроспекция
   // исполнимой декларации обязана видеть то же, что и исходной
   if (state.detached !== undefined) {
@@ -597,8 +630,8 @@ export function isEndpointDefinition(
 
 /**
  * Kernel-примитив деклараций: нормализует три формы `handle`, запоминает
- * `deps`, переносит транспорт-нейтральные `errors:` и `detached`, ставит
- * бренд и выдаёт `resolve`.
+ * `deps`, переносит транспорт-нейтральные `errors:`, `doc` и `detached`,
+ * ставит бренд и выдаёт `resolve`.
  *
  * В пользовательский канон не входит — там per-transport конструкторы
  * (`httpEndpoint`, `cliEndpoint`), которые являются тонкими надстройками
@@ -673,6 +706,9 @@ export function makeEndpoint(
   const form = normalizeHandler(options.handle, options.deps, options.pattern);
   assertFailDefinitions(options.errors, options.pattern);
   assertDetached(options.detached, options.pattern);
+  // Правило словаря `doc` одно на декларацию и на контракт — реализация
+  // общая, различается только адресат жалобы
+  assertDoc(options.doc, `Endpoint '${options.pattern}'`);
   // Формы io проверяются здесь, а не в транспортных конструкторах: правило
   // транспорт-нейтрально, и kernel-примитив обязан быть под той же
   // гарантией, что `httpEndpoint`/`cliEndpoint`
@@ -688,6 +724,7 @@ export function makeEndpoint(
       | undefined,
     binding: options.binding,
     errors: options.errors,
+    doc: options.doc,
     detached: options.detached,
     deps: options.deps ?? [],
     form,

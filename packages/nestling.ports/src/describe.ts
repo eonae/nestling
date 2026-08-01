@@ -27,7 +27,7 @@ import {
   assertConverters,
   describeForm,
   isPrimitiveLeaf,
-  pickConverter,
+  leafJsonSchema,
   schemaVendorOf,
 } from '@nestling/pipeline';
 
@@ -53,7 +53,10 @@ export type SchemaDescriptor =
   | { readonly leaf: 'none' }
   /** Примитивный лист: тело как есть */
   | { readonly leaf: 'primitive'; readonly primitive: 'binary' | 'text' }
-  /** Схема, переведённая конвертером своего вендора */
+  /**
+   * Схема, переведённая конвертером своего вендора — либо объявленная
+   * аннотацией `jsonSchema(schema, json)` рядом с самой схемой
+   */
   | {
       readonly leaf: 'schema';
       readonly vendor: string;
@@ -203,16 +206,20 @@ function describeLeaf(
     return NO_LEAF;
   }
 
-  const converter = pickConverter(converters, leaf);
+  // Диспетчер схемного слоя: аннотация → конвертер → «конвертера нет».
+  // Аннотированный лист непрозрачным не считается независимо от списка
+  // конвертеров: `jsonSchema(...)` и есть ответ на вопрос «как выглядит эта
+  // схема», и помечать его непрозрачным значило бы терять уже данный ответ.
+  const resolved = leafJsonSchema(converters, leaf);
 
-  if (!converter) {
+  if (!resolved || resolved.outcome === 'unconvertible') {
     return { leaf: 'opaque', vendor };
   }
 
   return {
     leaf: 'schema',
-    vendor,
-    jsonSchema: canonicalizeJson(converter.toJsonSchema(leaf as never)),
+    vendor: resolved.vendor,
+    jsonSchema: canonicalizeJson(resolved.json),
   };
 }
 

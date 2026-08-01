@@ -90,6 +90,20 @@ export interface HttpBinding {
   readonly rawBody: boolean;
 
   /**
+   * Имя контракта, которому принадлежит адрес, — есть только у карты,
+   * построенной `makeContract`.
+   *
+   * Едет здесь, потому что карта — **то же значение** на контракте и на
+   * реализующей его декларации (`httpEndpoint({ contract })` карту не
+   * пересчитывает). Другого канала, по которому имя контракта дошло бы до
+   * интроспекции HTTP-декларации, нет: bus-биндинга у неё не бывает, а
+   * заводить второе поле на декларации значило бы дублировать то, что уже
+   * есть в её адресе. Читает имя генератор документации — из него выводится
+   * `operationId`.
+   */
+  readonly contract?: string;
+
+  /**
    * Секция `sse` — едет тем же носителем, что и размещение полей: это
    * специфика провода, и ядру о ней знать нечего.
    */
@@ -277,6 +291,12 @@ export interface ComputeHttpBindingOptions {
   sse?: SseConfig;
 
   /**
+   * Имя контракта-владельца адреса. Заполняет только `makeContract`: у
+   * анонимной декларации владельца-контракта нет.
+   */
+  contract?: string;
+
+  /**
    * Как назвать носителя в тексте ошибки.
    *
    * Мест вызова два, и владелец дефектной декларации у них разный:
@@ -461,7 +481,7 @@ function assertSse(options: ComputeHttpBindingOptions): void {
 export function buildHttpBinding(
   options: ComputeHttpBindingOptions,
 ): HttpBinding {
-  const { method, path, bind, rawBody = false, sse } = options;
+  const { method, path, bind, rawBody = false, sse, contract } = options;
 
   const fields: Record<string, BindPlacement> = {};
 
@@ -485,6 +505,7 @@ export function buildHttpBinding(
     rest: METHODS_WITHOUT_BODY.has(method.toUpperCase()) ? 'query' : 'body',
     rawBody: Boolean(rawBody),
     ...(sse === undefined ? {} : { sse: Object.freeze({ ...sse }) }),
+    ...(contract === undefined ? {} : { contract }),
   };
 
   Object.defineProperty(binding, HTTP_BINDING, {

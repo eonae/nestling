@@ -9,12 +9,14 @@
 import type { SchemaDocConverter } from './converter.js';
 import {
   assertConverters,
+  leafJsonSchema,
   pickConverter,
   schemaVendorOf,
 } from './converter.js';
 import { parsePayload } from './parse.js';
 
 import { SchemaValidationError, validateSync } from '@common/misc';
+import { jsonSchema, jsonSchemaOf } from '@nestling/contracts';
 import { z } from 'zod';
 
 const zodConverter = (): SchemaDocConverter => ({
@@ -87,6 +89,94 @@ describe('assertConverters', () => {
     expect(() => assertConverters([{ vendor: 'zod' } as never])).toThrow(
       /vendor 'zod' has no 'toJsonSchema'/,
     );
+  });
+});
+
+describe('jsonSchema — аннотация схемного слоя', () => {
+  const Exotic = z.object({ id: z.string() });
+
+  it('аннотированная схема валидирует ровно как исходная', () => {
+    const annotated = jsonSchema(Exotic, { type: 'object' });
+
+    expect(validateSync(annotated, { id: '1' }, 'failed')).toEqual({ id: '1' });
+    expect(() => validateSync(annotated, { id: 1 }, 'failed')).toThrow(
+      SchemaValidationError,
+    );
+  });
+
+  it('issues аннотированной схемы совпадают с issues исходной', () => {
+    const annotated = jsonSchema(Exotic, { type: 'object' });
+
+    const issuesOf = (schema: typeof Exotic): unknown => {
+      try {
+        validateSync(schema, { id: 1 }, 'failed');
+      } catch (error) {
+        return (error as SchemaValidationError).issues;
+      }
+      return undefined;
+    };
+
+    expect(issuesOf(annotated)).toEqual(issuesOf(Exotic));
+  });
+
+  it('исходная схема не мутирована', () => {
+    jsonSchema(Exotic, { type: 'object' });
+
+    expect(jsonSchemaOf(Exotic)).toBeUndefined();
+    expect(
+      Object.getOwnPropertySymbols(Exotic).map((s) => s.toString()),
+    ).not.toContain('Symbol(nestling:json-schema)');
+  });
+
+  it('аннотация читается диспетчером при пустом списке конвертеров', () => {
+    const annotated = jsonSchema(Exotic, { type: 'object', title: 'Exotic' });
+
+    expect(leafJsonSchema([], annotated)).toEqual({
+      outcome: 'declared',
+      vendor: 'zod',
+      json: { type: 'object', title: 'Exotic' },
+    });
+  });
+
+  it('аннотация приоритетнее подходящего конвертера', () => {
+    let calls = 0;
+    const counting: SchemaDocConverter = {
+      vendor: 'zod',
+      toJsonSchema: (schema) => {
+        calls += 1;
+        return z.toJSONSchema(schema as z.ZodType);
+      },
+    };
+    const annotated = jsonSchema(Exotic, { type: 'object', title: 'declared' });
+
+    expect(leafJsonSchema([counting], annotated)).toMatchObject({
+      outcome: 'declared',
+      json: { title: 'declared' },
+    });
+    expect(calls).toBe(0);
+  });
+
+  it('без аннотации диспетчер зовёт конвертер, а без него сообщает вендор', () => {
+    expect(leafJsonSchema([zodConverter()], Exotic)).toMatchObject({
+      outcome: 'converted',
+      vendor: 'zod',
+    });
+    expect(leafJsonSchema([], Exotic)).toEqual({
+      outcome: 'unconvertible',
+      vendor: 'zod',
+    });
+    expect(leafJsonSchema([], 'binary')).toBeUndefined();
+  });
+
+  it('не-схема и отсутствующая JSON Schema отвергаются в точке аннотации', () => {
+    expect(() => jsonSchema({} as never, { type: 'object' })).toThrow(
+      /must be a Standard Schema value/,
+    );
+    // JS-потребителя типы не сдерживают: забытый второй аргумент обязан
+    // падать понятным текстом, а не молча давать схему без аннотации
+    expect(() =>
+      (jsonSchema as (schema: unknown, json?: unknown) => unknown)(Exotic),
+    ).toThrow(/declared JSON Schema is required/);
   });
 });
 

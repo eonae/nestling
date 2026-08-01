@@ -19,6 +19,7 @@
  */
 
 import type { StandardSchemaV1 } from '@common/misc';
+import { jsonSchemaOf } from '@nestling/contracts';
 
 /**
  * Конвертер схем одного вендора в JSON Schema.
@@ -40,8 +41,32 @@ export interface SchemaDocConverter {
   /** Значение `~standard.vendor` схем, которые конвертер понимает */
   readonly vendor: string;
 
-  /** Переводит схему этого вендора в JSON Schema */
-  toJsonSchema(schema: StandardSchemaV1): unknown;
+  /**
+   * Переводит схему этого вендора в JSON Schema.
+   *
+   * Второй параметр опционален с обеих сторон: конвертер вправе его
+   * игнорировать (функция одного аргумента остаётся валидным конвертером),
+   * а вызывающий — не передавать, если направление ему безразлично.
+   */
+  toJsonSchema(schema: StandardSchemaV1, options?: SchemaDocOptions): unknown;
+}
+
+/**
+ * Направление конвертации: какую сторону схемы описывает результат.
+ *
+ * Различие не педантизм, а свойство провода. Схема с преобразованием
+ * (`z.string().transform(Number)`, `z.stringbool()`) описывает **две**
+ * формы: то, что приходит по проводу, и то, что получает хендлер. Документ
+ * запроса обязан описывать первую, документ ответа — вторую, и без подсказки
+ * конвертер выбрал бы одну на оба случая.
+ *
+ * Подсказка **необязательна**: потребителю, которому направление
+ * безразлично (снапшот контрактов сравнивает форму с самой собой), передавать
+ * её незачем.
+ */
+export interface SchemaDocOptions {
+  /** `input` — форма на проводе; `output` — форма после преобразований */
+  readonly io?: 'input' | 'output';
 }
 
 /**
@@ -139,4 +164,70 @@ export function pickConverter(
   }
 
   return converters.find((converter) => converter.vendor === vendor);
+}
+
+// ---------------------------------------------------------------------------
+// Диспетчер: аннотация → конвертер → «конвертера нет»
+// ---------------------------------------------------------------------------
+
+/**
+ * Как получить JSON Schema для листа — **три различимых исхода**.
+ *
+ * «Схему объявили аннотацией», «схему сконвертировали» и «конвертера нет»
+ * разведены намеренно: первые два дают JSON Schema, но приезжают из разных
+ * источников (и разница видна в диагностике), а третий это ровно та
+ * ситуация, строгость к которой выбирает потребитель.
+ */
+export type LeafJsonSchema =
+  /** Объявлена аннотацией `jsonSchema(schema, json)` */
+  | {
+      readonly outcome: 'declared';
+      readonly vendor: string;
+      readonly json: unknown;
+    }
+  /** Получена конвертером своего вендора */
+  | {
+      readonly outcome: 'converted';
+      readonly vendor: string;
+      readonly json: unknown;
+    }
+  /** Конвертера для вендора нет и аннотации тоже */
+  | { readonly outcome: 'unconvertible'; readonly vendor: string };
+
+/**
+ * Диспетчер листа: аннотация → конвертер → «конвертера нет».
+ *
+ * Единственная точка, где эти три исхода различаются, — и оба потребителя
+ * контракта (снапшот контрактов и генератор документации) читают её, а не
+ * повторяют порядок предпочтений у себя.
+ *
+ * @param converters - Список конвертеров вызывающего
+ * @param leaf - Лист формы
+ * @returns Исход или `undefined`, если лист вообще не Standard Schema
+ */
+export function leafJsonSchema(
+  converters: readonly SchemaDocConverter[] | undefined,
+  leaf: unknown,
+  options?: SchemaDocOptions,
+): LeafJsonSchema | undefined {
+  const vendor = schemaVendorOf(leaf);
+  if (vendor === undefined) {
+    return undefined;
+  }
+
+  const declared = jsonSchemaOf(leaf);
+  if (declared !== undefined) {
+    return { outcome: 'declared', vendor, json: declared };
+  }
+
+  const converter = pickConverter(converters, leaf);
+  if (!converter) {
+    return { outcome: 'unconvertible', vendor };
+  }
+
+  return {
+    outcome: 'converted',
+    vendor,
+    json: converter.toJsonSchema(leaf as StandardSchemaV1, options),
+  };
 }

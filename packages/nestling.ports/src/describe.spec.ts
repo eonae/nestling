@@ -14,6 +14,7 @@ import type { SchemaDocConverter } from '@nestling/pipeline';
 import {
   defineFail,
   events,
+  jsonSchema,
   multipart,
   Ok,
   stream,
@@ -83,6 +84,25 @@ describe('describeContract', () => {
       { code: 'CARD_DECLINED', status: 'PAYMENT_REQUIRED' },
       { code: 'QUOTA_EXCEEDED', status: 'TOO_MANY_REQUESTS' },
     ]);
+  });
+
+  it('аннотированный лист описан схемой даже без конвертеров', () => {
+    const Annotated = makeContract({
+      name: 'describe.annotated',
+      kind: 'request',
+      input: jsonSchema(z.object({ id: z.string() }), {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+      }),
+    });
+
+    // Ни одного конвертера не передано: ответ на вопрос «как выглядит эта
+    // схема» уже дан аннотацией, и терять его незачем
+    expect(describeContract(Annotated).input.leaf).toEqual({
+      leaf: 'schema',
+      vendor: 'zod',
+      jsonSchema: { properties: { id: { type: 'string' } }, type: 'object' },
+    });
   });
 
   it('различает «листа нет» и «лист непрозрачен»', () => {

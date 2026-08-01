@@ -18,9 +18,11 @@ export type { Schema, SchemaIssue, StandardSchemaV1 } from '@common/misc';
 
 export * from './contract.js';
 export * from './define-fail.js';
+export * from './doc.js';
 export * from './families.js';
 export * from './http/index.js';
 export * from './io/index.js';
+export * from './json-schema.js';
 export * from './kernel-fails.js';
 export * from './result.js';
 export * from './status.js';

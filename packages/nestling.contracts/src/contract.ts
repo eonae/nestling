@@ -23,6 +23,8 @@ import type {
   FailsOf as FailsOfDefinitions,
 } from './define-fail.js';
 import { isFailDefinition } from './define-fail.js';
+import type { DeclarationDoc } from './doc.js';
+import { assertDoc } from './doc.js';
 import type { EmitterToken, PortToken } from './families.js';
 import { EmitterFamily, PortFamily } from './families.js';
 import { registerContract } from './registry.js';
@@ -75,6 +77,15 @@ export interface Contract<
 
   /** Объявленные отказы — список определений `defineFail` */
   readonly errors?: E;
+
+  /**
+   * Документация операции — часть её **интерфейса**, а не реализации.
+   *
+   * Поэтому она принадлежит контракту наравне с `input`/`output`/`errors`:
+   * две реализации одного контракта не могут описывать его по-разному, а
+   * внешний потребитель видит описание из того же импорта, что и схемы.
+   */
+  readonly doc?: DeclarationDoc;
 
   /**
    * Долговечная доставка: факт не должен потеряться, пока подписчик лежит.
@@ -204,6 +215,15 @@ export interface ContractSpec<
    * а не сборку приложения.
    */
   errors?: E;
+
+  /**
+   * Документация операции: `summary`, `description`, `tags`, `deprecated`,
+   * успешный статус и `hidden: '<причина>'`.
+   *
+   * Проверяется в момент создания контракта теми же правилами, что и
+   * словарь декларации, — реализация проверки общая.
+   */
+  doc?: DeclarationDoc;
 
   /**
    * Долговечность доставки. Допустима только у `command`/`event`; у
@@ -342,6 +362,9 @@ function httpBindingFor(
     input,
     output,
     sse: section.sse,
+    // Имя владельца едет на карте: реализация получает её тем же значением,
+    // и интроспекция HTTP-декларации узнаёт контракт, которому та служит
+    contract: name,
     where,
   });
 }
@@ -445,11 +468,12 @@ export function makeContract<
 export function makeContract(
   spec: ContractSpec<any, any, readonly AnyFailDefinition[], ContractKind>,
 ): AnyContract {
-  const { name, kind, input, output, errors, durable, http } = spec;
+  const { name, kind, input, output, errors, doc, durable, http } = spec;
 
   assertName(name);
   assertKind(kind, name);
   assertFailDefinitions(errors, name);
+  assertDoc(doc, `Contract '${name}'`);
   assertDurable(durable, name, kind);
 
   const value: Record<string, unknown> = { name, kind };
@@ -462,6 +486,9 @@ export function makeContract(
   }
   if (errors !== undefined) {
     value.errors = errors;
+  }
+  if (doc !== undefined) {
+    value.doc = doc;
   }
   if (durable !== undefined) {
     value.durable = durable;

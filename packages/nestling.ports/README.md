@@ -279,9 +279,13 @@ console.log(formatCompatibility(report));
 - **`describeContract`** turns a contract (or its `implement` declaration)
   into a JSON value. Leaf schemas go through a vendor converter
   (`SchemaDocConverter`, defined in `@nestling/pipeline` so that
-  `@nestling/openapi` can share it); without one, a leaf is marked *opaque* —
-  and "there is no leaf" and "there is a leaf we could not convert" are
-  distinct markers, never conflated.
+  [`@nestling/openapi`](../nestling.openapi) shares the same type); without
+  one, a leaf is marked *opaque* — and "there is no leaf" and "there is a leaf
+  we could not convert" are distinct markers, never conflated. A leaf
+  annotated with `jsonSchema(schema, json)` is described by its declared
+  schema **whether or not** a converter was passed: the annotation is the
+  answer to "what does this schema look like", and marking such a leaf opaque
+  would throw away an answer already given.
 - **`snapshotContracts`** merges the reports of a `select`-topology matrix by
   **union**, so a contract missing from one topology is a deselected feature,
   not a deleted contract; each descriptor names the topologies that published

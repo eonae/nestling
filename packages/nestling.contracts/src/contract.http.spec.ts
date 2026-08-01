@@ -264,7 +264,14 @@ describe('карта контракта совпадает с картой од�
       where: `httpEndpoint({ method: '${method}', path: '${path}' })`,
     });
 
-    expect({ ...Contract.http }).toEqual({ ...declaration });
+    // Имя владельца из сравнения вычитается намеренно: оно не часть правила
+    // размещения. У анонимной декларации владельца-контракта нет, а карта
+    // контракта его несёт — из него генератор документации выводит
+    // `operationId`.
+    const { contract: owner, ...placement } = Contract.http ?? {};
+
+    expect(owner).toBe(Contract.name);
+    expect(placement).toEqual({ ...declaration });
   });
 });
 

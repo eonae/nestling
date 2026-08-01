@@ -13,6 +13,7 @@ export * from './types';
  * есть **тот же модуль**: идентичность значений не двоится.
  */
 export {
+  assertDoc,
   assertFormsSupported,
   assertFormSlots,
   DeadlineExceeded,
@@ -28,6 +29,8 @@ export {
   isPrimitiveLeaf,
   isStreamKind,
   isUploadSpec,
+  jsonSchema,
+  jsonSchemaOf,
   makeSummary,
   mediaTypeOf,
   multipart,
@@ -52,6 +55,7 @@ export type {
   AnyStreamForm,
   BindableFields,
   ChainStep,
+  DeclarationDoc,
   DeclaredFail,
   EmptyInput,
   ErrorStatus,
