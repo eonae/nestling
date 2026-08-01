@@ -36,6 +36,7 @@ docs/
 | [config.md](./guides/config.md) | Конфиг: `makeConfig`, `.keys`, источники и привязка, fail-fast, reloadable | `examples.simple-app` |
 | [ports.md](./guides/ports.md) | Порты: `makeContract`, `implement`, `.port`/`.emitter`, политика диспатча, шина | `examples.app-with-http` |
 | [typed-client.md](./guides/typed-client.md) | Внешний потребитель: секция `http:`, контракт-форма `httpEndpoint`, `makeClient` | `examples.app-with-http` |
+| [openapi.md](./guides/openapi.md) | Документ OpenAPI 3.1 из деклараций: модуль `openapi()`, слот `doc:`, конвертеры, `jsonSchema()` | `examples.app-with-http` |
 | [cli.md](./guides/cli.md) | CLI-транспорт: single-shot и REPL | `examples.simple-cli` |
 | [testing.md](./guides/testing.md) | App-тесты: `assembleTest`, `overrides` + прунинг, `.check()`-матрица, `vars()`, `./testing`-subpath | `examples.app-with-http` |
 

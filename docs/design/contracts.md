@@ -17,6 +17,7 @@ export const ChargeCard = makeContract({
   input:  z.object({ orderId: z.string(), amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
   errors: [CardDeclined],            // типизированный канал E (errors.md)
+  doc: { summary: 'Charge a card', tags: ['billing'] },  // schemas.md §2.2
 });
 ```
 
@@ -25,6 +26,12 @@ export const ChargeCard = makeContract({
   другого провода. Bind-карта HTTP-биндинга разворачивается при
   `makeContract` (fail-fast у владельца) — все потребители (транспорт,
   OpenAPI, клиент) едят готовую карту из одного импорта.
+- **`doc:` принадлежит контракту** наравне с `input`/`output`/`errors`:
+  документация операции — часть её **интерфейса**, а не реализации, и две
+  реализации одного контракта не могут описывать его по-разному. Внешний
+  потребитель видит её из того же импорта, что и схемы; в контракт-форме
+  декларации переобъявить секцию нельзя — ни типами, ни в рантайме. Состав
+  полей и правила проверки — [schemas.md §2.2](./schemas.md).
 - **Три вида** (различие нужно горизонтальному масштабированию):
   `request` — req-reply, Fail-able, один владелец; `command` —
   fire-and-forget, один обработчик (queue-group); `event` — broadcast,
