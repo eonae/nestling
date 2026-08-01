@@ -1,5 +1,9 @@
 # @nestling/testing
 
+> 🚧 Active development, API may change. Design:
+> [`docs/design/testing.md`](../../docs/design/testing.md).
+> Guide: [`docs/guides/testing.md`](../../docs/guides/testing.md).
+
 The test composition root: it drives **the same** `App` through phases
 `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE` and stops there. `dispatch` is
 born, sockets are not opened, `SIGTERM`/`SIGINT` handlers are not installed
@@ -10,12 +14,14 @@ architecture, not of machinery in this package. There is no runner, no
 matchers, no snapshot machinery — jest stays jest.
 
 ```typescript
-import { assembleTest, unwrap, vars } from '@nestling/testing';
+import { assembleTest, stub, unwrap, vars } from '@nestling/testing';
 
 await using app = await assembleTest({
   features: [UsersFeature, OpsFeature],
   transports: [http({ port: 0 })],
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
+  // a fake invoker for a contract this assembly does not implement
+  stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
   config: vars({ USERS_PAGE_SIZE: '10' }),
   // the same invariants as production: the test root does not weaken them
   policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)],
@@ -37,6 +43,7 @@ in `afterEach`) works too, and `close()` is idempotent.
 | every ASSEMBLE fail-fast: transports, io forms, cycles, `policies` | `transport.serve(...)` — no socket |
 | `@OnInit` in topological order | `SIGTERM`/`SIGINT` handlers |
 | WIRE: declarations resolve deps, `dispatch` per transport | the startup summary line |
+| `app.call` / `app.emit` through the full pipeline | the wire: transport binding, headers, sockets |
 
 A consequence worth stating out loud: **a resource acquired in `@OnStart` is
 not acquired in an app test.** That is the price of the phase model, not a
@@ -108,6 +115,71 @@ repository and the pg pool is never instantiated, never connects, and is not
 in the graph. `app.pruned` lists the ids that dropped out, and `app.get(token)`
 returns `null` for them. Without `overrides` pruning is the identity — the
 graph is exactly the production one.
+
+## `stub(Contract, impl)` — a feature without its neighbours
+
+A feature injecting `ChargeCard.port` does not even assemble without the
+neighbour: the invoker recipe fails the reachability check. `stub` returns the
+pair "invoker token -> fake" (`[C.port, …]` for a `request` contract,
+`[C.emitter, …]` for `command`/`event`), and the pair travels in `stubs:`
+alongside plain `[token, value]` ones — there is no separate field for it.
+
+```typescript
+stubs: [
+  stub(ClaimQuota, async ({ amount }) => ({ granted: amount })),  // Port<C>
+  stub(OrderPlaced, (fact) => void seen.push(fact)),              // Emitter<C>
+]
+```
+
+The mechanism is an existing property of the container rather than an
+exception carved out for tests: an explicit provider for a family member
+**outranks** the recipe, so the production `buildPort`/`buildEmitter` is never
+called for a stubbed contract — and neither is its reachability check.
+
+**The fake is validated by the schemas of its own contract on every call** —
+that is the whole point of it:
+
+- the input is parsed by the contract's `input` form: an invalid payload is a
+  `VALIDATION_FAILED` and `impl` is not called;
+- a successful result is parsed by the `output` form, so a fake that drifted
+  from the contract fails on itself instead of on its consumer. This is
+  deliberately stricter than the production co-located port: a real reply has
+  already been through the implementation's pipeline, a stub has none;
+- a returned or thrown failure has to be in the contract's `errors:` (plus the
+  kernel codes `VALIDATION_FAILED`, `UNKNOWN`, `DEADLINE_EXCEEDED`). An
+  undeclared code is a defect of the test, so the stub **throws**, naming the
+  contract, the code and the allowed set, instead of quietly turning it into
+  an `UnknownError`;
+- a non-`Fail` exception from `impl` propagates as is: "the fake blew up" must
+  not read as "the neighbour answered UNKNOWN".
+
+The operational profile is reproduced too: an exhausted `meta.deadline` yields
+`DEADLINE_EXCEEDED` **before** `impl` runs, and `emit` of a `command` always
+carries an `idempotencyKey` — the caller's or one minted by the stub.
+
+The call site is identical to the production one (`Port<C>` / `Emitter<C>`,
+result `PortResult<C>`), and a fake that does not fit the contract is a
+compile error at `stub(...)`. There is no spy of our own: `impl` is a plain
+function, so `jest.fn()` works there with zero lines of support here.
+
+## `app.emit` — driving the app from the outside
+
+```typescript
+const [{ subscriber, response }] = await app.emit(PlaceOrder, { orderId: 'o-1' });
+```
+
+`emit` delivers a fact or a command to **every** co-located subscriber, each
+through its own full pipeline, and returns their answers with the name of
+each. It returns them rather than `void` on purpose: a publisher is not
+responsible for the handling, a test is — and awaiting is safe here, since
+there is no socket and the subscribers are co-located.
+
+- transport attributes carry the call profile, `idempotencyKey` included;
+- zero subscribers on an `event` is a legal broadcast and an empty list; on a
+  `command` it is an addressing error listing the available subjects;
+- a `request` contract is a compile error — it has one owner, not subscribers;
+- a stubbed emitter does not get in the way: the stub replaces what the app
+  calls **outwards**, `emit` drives it from the outside in.
 
 ## `.check()` — mock something, check the topology
 
@@ -194,7 +266,11 @@ gets no sugar — there a binding is an act with priorities.
 
 ```typescript
 await using app = await testModule(ReportsModule, {
-  stubs: [[ILogger, noopLogger], [IClock, { now: () => 42 }]],
+  stubs: [
+    [ILogger, noopLogger],
+    [IClock, { now: () => 42 }],
+    stub(ChargeCard, async () => ({ chargeId: 'c1' })),
+  ],
   transports: [http({ port: 0 })],
 });
 ```
@@ -204,7 +280,8 @@ kernel module and the listed stubs; the same phases 0–3 and the same
 `TestApp`. Every unsatisfied import has to be stubbed explicitly — the error
 lists **all** missing tokens with the consumer of each, not the first one it
 hits. `stubs` are "supply what is missing" rather than "replace what is
-there", and the shape is the one `stub(Contract, impl)` will slot into.
+there", and the field is the same one `stub(Contract, impl)` slots into — a
+cross-feature call declared by the module is supplied like any other gap.
 
 ## Repository wiring for the `"testing"` condition
 
@@ -224,16 +301,20 @@ A package that imports such a subpath at build time also needs
 `lib: ['es2022', 'dom', 'dom.iterable', 'esnext.disposable']` for
 `await using`.
 
-## Not here yet
+## Not here
 
-`stub(Contract, impl)` and `app.emit(Event, payload)` need contracts
-(`makeContract`), which V1 does not have yet. Until then `stubs:` accepts
-plain `[token, value]` pairs.
+`app.port(Contract)` — a typed port for testing a consumer — is an open
+question of the design journal: the consumer side is covered by a stub, so
+there is nothing to reach for yet. `.check()` takes no substitutions and never
+will: it exists to run the honest graph that pruning and stubs are compensated
+against.
 
 ## Exports
 
 - `assembleTest(spec)` → `TestApp`; `testModule(module, options)` → `TestApp`
-- `TestApp`: `call`, `get`, `pruned`, `features`, `close`, `Symbol.asyncDispose`
+- `TestApp`: `call`, `emit`, `get`, `pruned`, `stubbed`, `features`, `close`,
+  `Symbol.asyncDispose`
+- `stub(contract, impl)` → the `[invoker token, fake]` pair for `stubs:`
 - `unwrap(response)`, `UnwrapFailedError`
 - `vars(record)`, `familyOverride(family, make)`, `contextValue(variable, value)`
 - `checkTopologies(spec, selections, options?)`

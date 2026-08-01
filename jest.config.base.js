@@ -32,6 +32,14 @@ export function createJestConfig(fileUrl) {
         'ts-jest',
         {
           useESM: true,
+          // Диагностики — только по файлам пакета под тестом. Исходники
+          // соседей приезжают сюда через `moduleNameMapper` и компилируются
+          // **чужим** tsconfig'ом, у которого нет ни их `customConditions`,
+          // ни их путей: тестовый subpath соседа из такого прогона не
+          // резолвится, и падение зависит от состояния кэша. Проверять их
+          // здесь и незачем — каждый пакет тайпчекается своим `tsc` на
+          // таргете `build`, и `yarn verify` гоняет его для всех.
+          diagnostics: { exclude: [`!${rootDir}/**`] },
           tsconfig: {
             target: 'es2022',
             // `await using` в тестах: `Symbol.asyncDispose` есть в рантайме

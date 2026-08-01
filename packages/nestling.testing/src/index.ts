@@ -10,7 +10,12 @@
  */
 
 export { assembleTest, TestApp } from './app.js';
-export type { TestAssemblySpec, TestCallOptions, TestStub } from './app.js';
+export type {
+  EmitDelivery,
+  TestAssemblySpec,
+  TestCallOptions,
+  TestStub,
+} from './app.js';
 export { vars } from './config.js';
 export type { TestConfig } from './config.js';
 export { contextValue } from './context.js';
@@ -18,6 +23,13 @@ export { testModule } from './module.js';
 export type { TestModuleOptions } from './module.js';
 export { familyOverride } from './overrides.js';
 export type { TestOverride } from './overrides.js';
+export { stub } from './stub.js';
+export type {
+  ContractStub,
+  EmitStubImpl,
+  RequestStubImpl,
+  StubOutput,
+} from './stub.js';
 export { checkTopologies } from './topologies.js';
 export type { TopologyReport } from './topologies.js';
 export { unwrap, UnwrapFailedError } from './unwrap.js';

@@ -5469,6 +5469,7 @@ __metadata:
     "@nestling/contracts": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
+    "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.nats": "workspace:*"
     zod: "npm:^4.0.0"

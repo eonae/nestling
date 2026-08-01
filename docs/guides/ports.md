@@ -565,8 +565,12 @@ const scoped = makePipeline().pre(TenantId.propagated());
 
 ## Что дальше
 
-- `stub(Contract, impl)` для тестов без соседней фичи — остаток
-  `testing-package`.
+- Тест фичи без соседней — есть: `stub(Contract, impl)` в
+  `@nestling/testing` даёт фейк-вызыватель, валидируемый схемами контракта,
+  а `app.emit` драйвит приложение снаружи, как издатель. Рецепт целиком —
+  [`testing.md` §4](./testing.md); живой пример — тест
+  `packages/examples.split-nats/src/isolated.spec.ts`, где `orders`
+  собирается без `quotas` и без брокера.
 - Внешний клиент из контракта (`makeClient`) — есть:
   [`typed-client.md`](./typed-client.md). Контракт с секцией `http:`
   адресуется и по шине, и по HTTP; `makeContract` живёт в

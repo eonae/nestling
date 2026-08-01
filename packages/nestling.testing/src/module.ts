@@ -12,11 +12,12 @@ import type { ITransport } from '@nestling/transport';
 /** Словарь `testModule` */
 export interface TestModuleOptions {
   /**
-   * Поставка недостающего: пары «токен → значение».
+   * Поставка недостающего: пары «токен → значение» и контрактные стабы.
    *
    * Для модуля в изоляции это не подмена, а именно поставка — сосед, чьи
-   * провайдеры сюда не приехали. Форма совместима с будущим
-   * `stub(Contract, impl)`.
+   * провайдеры сюда не приехали. Меж-фичевый вызов, объявленный модулем,
+   * поставляется тем же полем: `stub(Contract, impl)` возвращает пару
+   * «токен вызывателя → фейк».
    */
   stubs?: readonly TestStub[];
 
@@ -48,7 +49,7 @@ export interface TestModuleOptions {
  * @example
  * ```typescript
  * await using app = await testModule(UsersModule, {
- *   stubs: [[ILogger, noopLogger]],
+ *   stubs: [[ILogger, noopLogger], stub(ChargeCard, async () => ({ id: 'c1' }))],
  *   transports: [http()],
  * });
  * ```

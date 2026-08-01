@@ -10,12 +10,19 @@ import type { TestConfig } from './config.js';
 import { toBindings } from './config.js';
 import type { TestOverride, ValidatedOverrides } from './overrides.js';
 import { splitOverrides } from './overrides.js';
+import type { ContractStub } from './stub.js';
+import { stubbedContracts } from './stub.js';
 
 import type { Feature } from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
 import { wireApp } from '@nestling/app/testing';
 import type { InjectionToken, Module, Provider } from '@nestling/container';
 import { valueProvider } from '@nestling/container';
+import type {
+  CommandMeta,
+  EmittingContract,
+  InvokeArgs,
+} from '@nestling/contracts';
 import type {
   AnyEndpointDefinition,
   AnyInput,
@@ -31,6 +38,7 @@ import type {
   ResponseContext,
 } from '@nestling/pipeline';
 import { makeEmptyContext, transportNameOf } from '@nestling/pipeline';
+import { busBindingOf, profileAttributes } from '@nestling/ports';
 import type { DispatchOptions, ITransport } from '@nestling/transport';
 
 /**
@@ -50,8 +58,32 @@ export interface TestCallOptions extends DispatchOptions {
   attributes?: Record<string, unknown>;
 }
 
-/** Пара «токен → значение» для поставки недостающего провайдера */
-export type TestStub = readonly [token: InjectionToken<any>, value: any];
+/**
+ * Элемент списка `stubs:`: пара «токен → значение» либо контрактный стаб.
+ *
+ * Одно поле на обе формы, потому что решение у теста одно и то же —
+ * «здесь боевого кода не будет»; контрактный стаб есть та же пара, только
+ * токен в ней — член семейства вызывателей ([stub.ts](./stub.ts)).
+ */
+export type TestStub =
+  | readonly [token: InjectionToken<any>, value: any]
+  | ContractStub;
+
+/**
+ * Доставка `app.emit` одному подписчику.
+ *
+ * Ответ возвращается, а не проглатывается: боевой `emit` — fire-and-forget,
+ * потому что издатель не отвечает за обработку, а тест отвечает ровно за
+ * неё, и «доставлено, а обработалось ли — неизвестно» превращает проверку
+ * подписчика в гонку.
+ */
+export interface EmitDelivery {
+  /** Имя подписчика из биндинга; у `command` — имя контракта */
+  readonly subscriber: string;
+
+  /** Ответ границы этого подписчика — то же, что вернул бы `app.call` */
+  readonly response: ResponseContext;
+}
 
 /**
  * Словарь тестовой сборки: боевой плюс `overrides` и `stubs`.
@@ -107,8 +139,8 @@ export interface TestAssemblySpec<
    * Поставка недостающего: пары «токен → значение», регистрируемые
    * обычными провайдерами.
    *
-   * Форма выбрана совместимой с будущим `stub(Contract, impl)` — он
-   * приедет элементом того же списка.
+   * Той же формы контрактный стаб: `stub(Contract, impl)` возвращает пару
+   * «токен вызывателя → фейк» и едет элементом этого же списка.
    */
   stubs?: readonly TestStub[];
 }
@@ -125,9 +157,12 @@ export interface TestAssemblySpec<
 export class TestApp {
   readonly #wired: WiredApp;
 
+  readonly #stubbed: readonly string[];
+
   /** @internal конструируется только `assembleTest`/`testModule` */
-  constructor(wired: WiredApp) {
+  constructor(wired: WiredApp, stubbed: readonly string[] = []) {
     this.#wired = wired;
+    this.#stubbed = stubbed;
   }
 
   /**
@@ -138,6 +173,27 @@ export class TestApp {
    */
   get pruned(): readonly string[] {
     return this.#wired.container.pruned;
+  }
+
+  /**
+   * Имена контрактов, застабанных в этой сборке — по алфавиту.
+   *
+   * Отчёт — значение, а не печать (симметрично {@link pruned}): им сверяют
+   * состав подстановок с матрицей `.check()`. Каждый застабанный контракт
+   * обязан быть опубликован хотя бы одной честной топологией, иначе стаб
+   * прикрывает отсутствующую реализацию:
+   *
+   * ```typescript
+   * const published = new Set(
+   *   (await checkTopologies(spec, ['all', 'orders', 'quotas']))
+   *     .flatMap(({ report }) => report.contracts.map((c) => c.name)),
+   * );
+   *
+   * expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
+   * ```
+   */
+  get stubbed(): readonly string[] {
+    return this.#stubbed;
   }
 
   /** Имена выбранных фич — включая приехавшие по `dependsOn` */
@@ -185,12 +241,117 @@ export class TestApp {
     const [input, options = {}] = args;
 
     const wired = this.#requireEndpoint(endpoint as AnyEndpointDefinition);
+    const response = await this.#execute(wired, input, options);
+
+    return response as ResponseContext<InferOutput<O>>;
+  }
+
+  /**
+   * Доставляет факт или команду **всем** co-located подписчикам.
+   *
+   * Тест драйвит приложение снаружи внутрь — как издатель: находятся все
+   * ручки, чей bus-биндинг несёт `subject`, равный имени контракта, и
+   * каждая гонится через **полный пайплайн** тем же кодом, что `call`.
+   * Транспортные атрибуты кадра несут профиль вызова так же, как их несёт
+   * боевой эмиттер, включая `idempotencyKey` у вида `command`.
+   *
+   * Через граф это сделать нельзя: `container.get(C.emitter)` вернул бы
+   * вызыватель, только если его кто-то инжектит, а тест-драйвер по
+   * определению внешний. Стаб эмиттера и `emit` поэтому ортогональны:
+   * первый заменяет то, что приложение зовёт **наружу**, второй драйвит его
+   * снаружи внутрь, и застабанный эмиттер доставке не мешает.
+   *
+   * Ждать здесь безопасно: сокета нет, подписчики co-located.
+   *
+   * @param contract - Контракт вида `command` или `event`
+   * @returns Ответы подписчиков с именем каждого, в порядке дискавери
+   * @throws {TypeError} Если контракт — `request` (у него нет подписчиков)
+   * @throws {Error} Если у команды нет владельца в этой сборке; у события
+   * ноль подписчиков — легальный broadcast и пустой список
+   *
+   * @example
+   * ```typescript
+   * const [{ subscriber, response }] = await app.emit(PlaceOrder, {
+   *   orderId: 'o-1',
+   *   amount: 10,
+   * });
+   * ```
+   */
+  async emit<C extends EmittingContract<any, any, any, any>>(
+    contract: C,
+    ...args: InvokeArgs<C>
+  ): Promise<readonly EmitDelivery[]> {
+    const [payload, meta] = args;
+
+    assertEmitting(contract);
+
+    const subscribers = this.#busEndpoints(contract.name);
+
+    if (subscribers.length === 0) {
+      if (contract.kind === 'event') {
+        // Broadcast с нулём подписчиков — легальное состояние
+        return [];
+      }
+
+      throw new Error(
+        `Contract '${contract.name}' (kind 'command') has no owner in the ` +
+          `assembled application: no registered module declares ` +
+          `implement(${contract.name}, { … }) — check that the feature ` +
+          `owning it is part of 'select'. Available subjects: ` +
+          `${this.#busSubjects().join(', ') || '(none)'}.`,
+      );
+    }
+
+    const attributes = profileAttributes({
+      subject: contract.name,
+      deadline: meta?.deadline,
+      ...(contract.kind === 'command'
+        ? {
+            idempotencyKey:
+              (meta as CommandMeta | undefined)?.idempotencyKey ??
+              crypto.randomUUID(),
+          }
+        : {}),
+    });
+
+    return await Promise.all(
+      subscribers.map(async ({ wired, subscriber }) => ({
+        subscriber,
+        response: await this.#execute(wired, payload, { attributes }),
+      })),
+    );
+  }
+
+  /**
+   * SHUTDOWN тестового прогона: взвод общего сигнала, затем `@OnDestroy`
+   * в реверсе топосорта. Идемпотентен.
+   */
+  async close(): Promise<void> {
+    await this.#wired.close();
+  }
+
+  /** `await using app = await assembleTest({ … })` */
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
+  }
+
+  /**
+   * Кадр запроса и его исполнение — одна процедура на `call` и `emit`.
+   *
+   * Второй сборки кадра не существует: `emit` отличается от `call` только
+   * тем, откуда взялись ручка и атрибуты, а не тем, как выглядит запрос.
+   */
+  async #execute(
+    wired: WiredEndpoint,
+    payload: unknown,
+    options: TestCallOptions,
+  ): Promise<ResponseContext> {
     const { executable } = wired;
 
     const raw: Raw = {
       transport: transportNameOf(executable.transport),
       pattern: executable.pattern,
-      payload: input,
+      payload,
       attributes: options.attributes ?? {},
     };
 
@@ -210,25 +371,44 @@ export class TestApp {
       this.#wired.signal,
     ) as ExtendableContext<AnyInput>;
 
-    const response = await wired.dispatch.call(executable.pattern, ctx, {
+    return await wired.dispatch.call(executable.pattern, ctx, {
       exposeErrorDetails: options.exposeErrorDetails ?? true,
       onUnknownFail: options.onUnknownFail,
     });
-
-    return response as ResponseContext<InferOutput<O>>;
   }
 
-  /**
-   * SHUTDOWN тестового прогона: взвод общего сигнала, затем `@OnDestroy`
-   * в реверсе топосорта. Идемпотентен.
-   */
-  async close(): Promise<void> {
-    await this.#wired.close();
+  /** Ручки, подписанные на subject шины, с именем подписчика каждой */
+  #busEndpoints(
+    subject: string,
+  ): { wired: WiredEndpoint; subscriber: string }[] {
+    const found: { wired: WiredEndpoint; subscriber: string }[] = [];
+
+    for (const wired of this.#wired.endpoints.values()) {
+      const binding = busBindingOf(wired.declaration);
+
+      if (binding?.subject === subject) {
+        // Имя подписчика есть только у `event`: у команды владелец один, и
+        // его имя — имя самого контракта
+        found.push({ wired, subscriber: binding.subscriber ?? subject });
+      }
+    }
+
+    return found;
   }
 
-  /** `await using app = await assembleTest({ … })` */
-  async [Symbol.asyncDispose](): Promise<void> {
-    await this.close();
+  /** Subject'ы шины, обслуживаемые сборкой — для текста ошибки адресации */
+  #busSubjects(): readonly string[] {
+    const subjects = new Set<string>();
+
+    for (const wired of this.#wired.endpoints.values()) {
+      const binding = busBindingOf(wired.declaration);
+
+      if (binding) {
+        subjects.add(binding.subject);
+      }
+    }
+
+    return [...subjects].sort();
   }
 
   /** Ручка приложения или ошибка с перечнем доступных */
@@ -263,6 +443,35 @@ type CallArgs<I extends AnyPayload> =
   undefined extends InferInput<I>
     ? [input?: InferInput<I>, options?: TestCallOptions]
     : [input: InferInput<I>, options?: TestCallOptions];
+
+/**
+ * Fail-fast `emit` для JS-потребителей.
+ *
+ * Типы делают `request` в этой позиции невыразимым, но JS-потребителей типы
+ * не сдерживают: без проверки вызов ушёл бы в поиск подписчиков и вернул бы
+ * пустой список, ничего не сказав про вид контракта.
+ */
+function assertEmitting(
+  contract: unknown,
+): asserts contract is EmittingContract<any, any, any, any> {
+  const kind = (contract as { kind?: unknown } | undefined)?.kind;
+  const name = (contract as { name?: unknown } | undefined)?.name;
+
+  if (typeof name !== 'string' || typeof kind !== 'string') {
+    throw new TypeError(
+      `app.emit(contract, …): the first argument must be a contract value ` +
+        `created by makeContract().`,
+    );
+  }
+
+  if (kind === 'request') {
+    throw new TypeError(
+      `app.emit(${name}, …): '${name}' is a 'request' contract — it has one ` +
+        `owner answering a caller, not subscribers to broadcast to. Drive its ` +
+        `implementation with app.call(...) instead.`,
+    );
+  }
+}
 
 /**
  * Собирает тестовое приложение и останавливает его после фазы 3 WIRE.
@@ -312,5 +521,5 @@ export async function assembleTest<const L extends readonly TestOverride[]>(
     familyOverrides: families,
   });
 
-  return new TestApp(wired);
+  return new TestApp(wired, stubbedContracts(spec.stubs));
 }
