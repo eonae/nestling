@@ -1,0 +1,37 @@
+{
+  "name": "@nestling/subscriptions",
+  "version": "0.1.0",
+  "description": "Registry of active subscriptions — a satellite package built entirely on public primitives",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "build": "yarn run clear && run -T tsc",
+    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@common/misc": "workspace:*",
+    "@nestling/container": "workspace:*",
+    "@nestling/contracts": "workspace:*",
+    "@nestling/pipeline": "workspace:*",
+    "@nestling/streams": "workspace:*"
+  },
+  "devDependencies": {
+    "@nestling/app": "workspace:*",
+    "@nestling/ports": "workspace:*",
+    "@nestling/testing": "workspace:*",
+    "@nestling/transport": "workspace:*",
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
+  }
+}
