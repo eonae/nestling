@@ -291,7 +291,20 @@ breaking-окно едет вторым (а не после ветки моно�
 | 27 | `port-deadline-idempotency` | M | **done** — [архив](../../openspec/changes/archive/2026-07-31-port-deadline-idempotency/); `meta.deadline` моментом, `idempotencyKey` у команд, конверт шины |
 | 26 | `contract-versioning` | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-contract-versioning/); снапшот из дискавери, дифф с тремя вердиктами, отчёт в `.check()`-матрице (18) |
 | 12 | `transport.nats` | M | **done** — [архив](../../openspec/changes/archive/2026-07-31-transport-nats/); remote-биндинг, queue-groups, JetStream, wire-часть `propagate` из 16; пакет `@nestling/transport.nats` и пример `examples.split-nats` |
-| 22 | `contract-clients` | M → **L** | **done** — `@nestling/contracts` (переезд декларативного слоя, секция `http:`, контракт-форма `httpEndpoint`) + `@nestling/client`; оценка M не сошлась: цена не в новой логике, а в физическом переезде слоя между пакетами |
+| 22 | `contract-clients` | M → **L** | **done** — [архив](../../openspec/changes/archive/2026-08-01-contract-clients/); `@nestling/contracts` (переезд декларативного слоя, секция `http:`, контракт-форма `httpEndpoint`) + `@nestling/client`; оценка M не сошлась: цена не в новой логике, а в физическом переезде слоя между пакетами |
+
+**Волна 5 закрыта** (2026-08-01): все пять change'ей реализованы и
+заархивированы. Межфичевое общение выражено контрактом, а не вызовом соседа;
+биндинг «local или remote» выбирается на сборке, и `examples.split-nats`
+держит один код фич при двух корнях — тезис L4 проверен кодом, а не
+обещанием. Контракт стал двусторонним значением: та же декларация адресует
+шину именем и HTTP-провод секцией `http:`, и внешний клиент читает её из
+zero-deps пакета.
+
+Волна 6 получает готовыми обе предпосылки, которых ей не хватало: bind-карту
+на контракте и в декларации (#21 плюс #22) — несущий уровень для генератора
+OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остаток) и реестра
+подписок (#7).
 
 ### Волна 6 — экосистема и выход
 

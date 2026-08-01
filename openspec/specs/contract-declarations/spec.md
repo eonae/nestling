@@ -13,12 +13,16 @@
 
 ### Requirement: Контракт — направление-нейтральное значение с тремя видами
 
-`@nestling/ports` SHALL экспортировать
-`makeContract({ name, kind, input?, output?, errors?, durable? })`,
+`@nestling/contracts` SHALL экспортировать
+`makeContract({ name, kind, input?, output?, errors?, durable?, http? })`,
 возвращающий значение-контракт. Значение SHALL быть неизменяемым и SHALL NOT
 регистрироваться ни в модуле, ни в приложении: на приложение контракт влияет
 только через `implement(...)` (реализация) и через инжект вызывателя
 (потребление).
+
+`@nestling/ports` SHALL NOT реэкспортировать `makeContract` и типы
+контракта: дом декларации — пакет без серверных зависимостей (capability
+`contracts-package-boundary`).
 
 Поле `kind` SHALL принимать ровно три значения:
 
@@ -39,6 +43,12 @@ subject шины, оно же ключ дискавери. Версия конт
 только у видов `command` и `event`; у `request` оно SHALL отвергаться в
 момент создания. Семантика флага и его обслуживание транспортом —
 capability `durable-delivery`.
+
+Поле `http` SHALL объявлять адресацию контракта на HTTP-проводе — так же,
+как `name` объявляет адрес на шине. Форма записи, разворачивание в
+bind-карту в момент создания и набор проверок — capability
+`contract-http-binding`; поле необязательно, и его отсутствие SHALL NOT
+влиять ни на что, кроме доступности контракта внешнему HTTP-клиенту.
 
 #### Scenario: Объявление request-контракта
 
@@ -70,6 +80,17 @@ capability `durable-delivery`.
 
 - **WHEN** объявлено `makeContract({ name: 'billing.charge', kind: 'request', durable: true })`
 - **THEN** вызов бросает ошибку в точке создания, называя контракт и вид
+
+#### Scenario: Контракт объявлен с HTTP-адресом
+
+- **WHEN** объявлено `makeContract({ name: 'users.create', kind: 'request', http: 'POST /users', input: CreateUser, output: User })`
+- **THEN** значение несёт HTTP-адресацию и bind-карту, оставаясь тем же
+  контрактом шины под именем `users.create`
+
+#### Scenario: Импорт из `@nestling/ports` не резолвится
+
+- **WHEN** код импортирует `makeContract` из `@nestling/ports`
+- **THEN** это ошибка компиляции
 
 ### Requirement: Имя контракта — ключ идентичности
 
