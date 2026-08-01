@@ -1,9 +1,11 @@
+import { AppConfig } from './config/app.config';
 import { AppService } from './app.service';
 import { HealthService } from './health';
 import { IApiClient, IDatabase } from './interfaces';
 import { ILogger } from './logging';
 import { UserService } from './users';
 
+import type { Config } from '@nestling/config';
 import { Injectable, OnStart } from '@nestling/container';
 
 /**
@@ -21,6 +23,7 @@ import { Injectable, OnStart } from '@nestling/container';
   ILogger('app'),
   AppService,
   HealthService,
+  AppConfig,
 ])
 export class Demo {
   constructor(
@@ -30,11 +33,19 @@ export class Demo {
     private readonly logger: ILogger,
     private readonly app: AppService,
     private readonly health: HealthService,
+    private readonly config: Config<typeof AppConfig>,
   ) {}
 
   @OnStart()
   async show(): Promise<void> {
     await this.database.connect();
+
+    // Секретное поле напечатано как `'***'`: `console.log` инспектирует
+    // объект, а у проекции с секретами есть `inspect.custom`. Спред
+    // (`{ ...this.config }`) хук обошёл бы — это названная граница
+    // гарантии, а не дефект: фреймворк отвечает за то, что печатает сам.
+    this.logger.log('Config (printed):', this.config);
+    this.logger.log('Config (as JSON):', JSON.stringify(this.config));
 
     this.logger.log('Users:', await this.users.getUsers());
     this.logger.log('API Response:', await this.api.get('/api/users'));

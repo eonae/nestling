@@ -1,4 +1,4 @@
-import { from, makeConfig } from '@nestling/config';
+import { from, makeConfig, secret } from '@nestling/config';
 import { z } from 'zod';
 
 /**
@@ -10,16 +10,25 @@ import { z } from 'zod';
  *
  * Ключи выводятся из префикса (`logLevel` → `APP_LOG_LEVEL`);
  * `from('DATABASE_URL', …)` задаёт точное имя — так объявляют ключ,
- * который читает не только это приложение.
+ * который читает не только это приложение: второй его читатель —
+ * секция `health` (см. `../health/health.config`).
+ *
+ * `secret()` снаружи, `from()` внутри — порядок единственный: секретность
+ * есть свойство **поля**, `from()` лишь называет его **ключ**. Для
+ * потребителя не меняется ничего (`config.databaseUrl` — та же строка);
+ * меняется то, что печатает фреймворк: `console.log(cfg)` и
+ * `JSON.stringify(cfg)` отдают `'***'`, а сообщение
+ * `ConfigValidationError` — `<redacted>` вместо текста валидатора.
+ * Секретность ключа при этом действует и на **чужую** секцию, читающую
+ * тот же `DATABASE_URL`, — она считается объединением по всем читателям.
  *
  * Уберите `.default(...)` у `DATABASE_URL` и запустите без переменной
  * окружения — приложение не поднимется: невалидный конфиг на старте
  * это fail-fast, а не «undefined где-то в рантайме».
  */
 export const AppConfig = makeConfig('app', {
-  databaseUrl: from(
-    'DATABASE_URL',
-    z.url().default('postgresql://localhost:5432/myapp'),
+  databaseUrl: secret(
+    from('DATABASE_URL', z.url().default('postgresql://localhost:5432/myapp')),
   ),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });

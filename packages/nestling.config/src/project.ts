@@ -6,6 +6,11 @@ import type { SectionDeclaration } from './declaration.js';
 import type { ConfigFieldFailure } from './errors.js';
 import { ConfigValidationError } from './errors.js';
 import type { ConfigReader, Reloadable } from './reader.js';
+import {
+  defineDisplayHooks,
+  secretFieldsOf,
+  toFieldFailure,
+} from './redact.js';
 
 import { SchemaValidationError, validateSync } from '@common/misc';
 import { Topic } from '@nestling/streams';
@@ -29,10 +34,12 @@ const readValues = (
   const failures: ConfigFieldFailure[] = [];
 
   for (const field of declaration.fields) {
+    const rawValue = reader.read(field.key);
+
     try {
       values[field.name] = validateSync(
         field.schema,
-        reader.read(field.key),
+        rawValue,
         `Config key ${field.key} is invalid`,
       );
     } catch (error) {
@@ -43,11 +50,7 @@ const readValues = (
         throw error;
       }
 
-      failures.push({
-        field: field.name,
-        key: field.key,
-        issues: error.issues,
-      });
+      failures.push(toFieldFailure(field, rawValue, error.issues));
     }
   }
 
@@ -138,6 +141,15 @@ class ReloadableSection implements Reloadable {
       },
     });
 
+    // Печать редактирует **актуальный** снапшот, а не тот, что был на
+    // создании вида: `onChange` продолжает получать объект, чтение полей
+    // которого даёт настоящие новые значения.
+    defineDisplayHooks(
+      view,
+      secretFieldsOf(this.#declaration.fields),
+      () => this.#snapshot,
+    );
+
     return Object.freeze(view);
   }
 
@@ -175,8 +187,21 @@ export const projectSection = (
   declaration: SectionDeclaration,
   reader: ConfigReader,
 ): unknown => {
+  // Раньше чтения значений: конфликт общего ключа обязан обнаруживаться до
+  // того, как провалится валидация, — иначе он объяснялся бы через ошибку,
+  // которая к нему отношения не имеет.
+  reader.claimKeys(declaration);
+
   if (!declaration.reloadable) {
-    return Object.freeze(readValues(declaration, reader));
+    const values = readValues(declaration, reader);
+
+    defineDisplayHooks(
+      values,
+      secretFieldsOf(declaration.fields),
+      () => values,
+    );
+
+    return Object.freeze(values);
   }
 
   const section = new ReloadableSection(declaration, reader);

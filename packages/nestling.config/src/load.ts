@@ -9,6 +9,11 @@
 import type { ConfigSectionToken } from './declaration.js';
 import type { ConfigFieldFailure } from './errors.js';
 import { ConfigValidationError } from './errors.js';
+import {
+  defineDisplayHooks,
+  secretFieldsOf,
+  toFieldFailure,
+} from './redact.js';
 import { lookupSection } from './registry.js';
 
 import { SchemaValidationError, validateSync } from '@common/misc';
@@ -51,10 +56,12 @@ export const load = <Values>(
   const failures: ConfigFieldFailure[] = [];
 
   for (const field of declaration.fields) {
+    const rawValue = process.env[field.key];
+
     try {
       values[field.name] = validateSync(
         field.schema,
-        process.env[field.key],
+        rawValue,
         `Config key ${field.key} is invalid`,
       );
     } catch (error) {
@@ -62,17 +69,19 @@ export const load = <Values>(
         throw error;
       }
 
-      failures.push({
-        field: field.name,
-        key: field.key,
-        issues: error.issues,
-      });
+      // Редактирование — то же правило, что у проекции из контейнера:
+      // примордиальное чтение не заводит второй копии.
+      failures.push(toFieldFailure(field, rawValue, error.issues));
     }
   }
 
   if (failures.length > 0) {
     throw new ConfigValidationError(prefix, failures, ['process.env']);
   }
+
+  // Примордиальная проекция — такая же проекция секции: печать редактируется
+  // тем же правилом, что и у секции из контейнера.
+  defineDisplayHooks(values, secretFieldsOf(declaration.fields), () => values);
 
   return Object.freeze(values) as Values;
 };

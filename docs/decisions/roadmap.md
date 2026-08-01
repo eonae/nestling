@@ -45,7 +45,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 22 | `contract-clients` | `@nestling/contracts` (`makeContract` с `http:`-биндингом, `defineFail`; zero runtime deps — только Standard Schema types) + `@nestling/client`: `makeClient(record, { baseUrl, headers })` → API-объект, возврат `Ok\|Fail` (call-site ≡ порту); рематериализация `Fail` по `code`; валидация ответа по `output`-схеме (`~standard.validate`); streaming-клиент — v2 (после 6) | M → L | **done** — идея [ideas.md [2026-07-13]](./ideas.md), реализация [ideas.md [2026-08-01]](./ideas.md) |
 | 23 | `pipeline-type-dx` | бюджет на DX типов pipeline: типы-ошибки в точке `compose` (читаемый литерал `__error` + `missing` вместо трассировки дженериков), snapshot-тесты текстов диагностик по фикстурам неправильных композиций, бенчмарк tsserver (~50 слоёв) с порогом в CI; попутно — сигнатура `compose` на прямой вывод тип-параметров (`TS2589` на 20 слоях уходит) | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-pipeline-type-dx/), [ideas.md [2026-07-13]](./ideas.md) |
 | 24 | `endpoint-model` | уход классовых endpoint-деклараций: канон — декларации-значения через per-transport конструкторы (`httpEndpoint`/`cliEndpoint` — типизированный словарь: path-параметры, bind-карта из 21); `deps`-инжект + формы хендлера (функция / каррированная фабрика / класс-хендлер через контейнер); `endpoints:` модуля принимает значения; удаление `@Endpoint`/`@HttpEndpoint`/`IEndpoint`/endpoint-registry; standalone-гарантия в типах (`route` — только deps-free); перевод `examples.app-with-http` и гайдов; классы остаются DI-формой провайдеров/юнитов/хендлеров; онтология — контракт первичен: конструкторы = сахар «анонимный контракт + `implement`»; CLI-биндинг — политика сбора недостающего input из схемы (`missing: 'prompt'`) — **вне scope этого change'а** | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-30-endpoint-model/), [ideas.md [2026-07-13]](./ideas.md) |
-| 25 | `config-secrets` | `secret(schema)` в `makeConfig` (редактирование в `explain()`/логах/доках); семантика общих ключей: независимая валидация каждой секцией, fail-fast на несогласованном `reloadable`, секретность по объединению, читатели ключа в `explain()` | S | идея — [ideas.md [2026-07-13]](./ideas.md) |
+| 25 | `config-secrets` | `secret(leaf)` в `makeConfig` (каноническая композиция `secret(from(...))`; редактирование в трёх поверхностях: текст **и объект** `ConfigValidationError`, display-хуки проекции `toJSON`/`inspect.custom`, снимок реестра; незаданный ключ не редактируется); семантика общих ключей: независимая валидация каждой секцией, fail-fast на несогласованном `reloadable` в границах сборки, секретность по объединению **объявленных** читателей, перечень читателей в `describeConfig()` | S | **done** — идея [ideas.md [2026-07-13]](./ideas.md), реализация [ideas.md [2026-08-01]](./ideas.md) |
 | 26 | `contract-versioning` | версия явно в имени контракта; `describeContract` → дескриптор-значение (листья — через `SchemaDocConverter`, без конвертера честно непрозрачны); `snapshotContracts` сводит `.check()`-матрицу объединением топологий; `diffContracts` с закрытым словарём `breaking`/`additive`/`unknown` и направлением по слоту; отчёт-значение плюс `formatCompatibility` и подсказка bump'а — подсвечивает, не блокирует (флага блокировки не существует) | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-contract-versioning/), [гайд](../guides/ports.md), [ideas.md [2026-07-31]](./ideas.md), [ideas.md [2026-07-13]](./ideas.md) |
 | 27 | `port-deadline-idempotency` | `meta.deadline` (gRPC-модель: абсолютный момент `Date` в процессе, относительный `timeoutMs` по проводу, пересчёт на приёме; fail-fast до вызова и до обработки, отмена в полёте; встроенный код `DEADLINE_EXCEEDED`, определение `DeadlineExceeded` — в `@nestling/pipeline`, где живёт закрытый набор); `idempotencyKey` в meta **только** у `command` (`MetaOf<C>` по виду; ключ чеканит вызыватель, если не дан; провоз конвертом шины; дедупликация — satellite, не ядро); профиль двумя каналами — `raw.attributes` и переменные `Deadline`/`IdempotencyKey` | M | **done** — [архив](../../openspec/changes/archive/2026-07-31-port-deadline-idempotency/), [гайд](../guides/ports.md), [ideas.md [2026-07-31]](./ideas.md), [ideas.md [2026-07-13]](./ideas.md) |
 | 28 | `policy-check` | инварианты на собранном графе: `assemble({ policies })`, `everyEndpoint(фильтр).hasLayer(ref)` (идентичность слоя — по ссылке); `detached: '<причина>'` (строка обязательна) + печать detached-ручек на старте; ESLint-правило как editor-фидбек; машинерия для 13 (plugins) и 16 (async-context), прогон в `.check()`-матрице (18) | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-policy-check/), новый пакет [`@nestling/eslint-plugin`](../../packages/nestling.eslint-plugin/), [ideas.md [2026-07-14]](./ideas.md) |
@@ -77,7 +77,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
   4 pipeline-v2 ────────────────────────────────┼─→ 13 plugins
   6 streaming-v2 (Topic) ── переиспользуется 11 (InProcessBus) и 9 (reloadable)
   18 testing-package — ядро после 9+10 (assemble, фазы, vars); stub(Contract) — после 11
-  25 config-secrets — после 9 (makeConfig, explain(), реестр ключей)
+  25 config-secrets — после 9 (makeConfig, describeConfig(), реестр ключей)
   26 contract-versioning — после 11 (makeContract); отчёт живёт в .check()-матрице (18)
   27 port-deadline-idempotency — после 11 (dispatch); wire-часть — вместе с 12
   28 policy-check — после 4 (слои-значения) и 8 (полный граф endpoints); используется 13 и 16
@@ -165,9 +165,16 @@ d/06 П.3). Состав breaking-окна фиксации публичного
   понятия `Event` (контракт вида `event`, `Emitter`, шина) в ядре нет, и
   эмитить нечего; форма `app.call` выбрана так, чтобы `emit` встал рядом без
   переделки. Это единственный пункт исходного скоупа, который перенесён.
-- **25 `config-secrets`** — аддитивно поверх 9; в спеку 9 не вносится
-  (9 spec-ready, расширять скоуп задним числом не хотим). Логика —
-  [ideas.md [2026-07-13]](./ideas.md) «Конфиг: `secret()` и общие ключи».
+- **25 `config-secrets`** — **сделан**. Аддитивно поверх 9; в спеку 9 не
+  вносится (9 spec-ready, расширять скоуп задним числом не хотим). Реализация
+  уточнила две вещи, которых запись не называла: редактируется **объект**
+  ошибки, а не только её текст (`failures` — публичное поле), и области
+  считаются по-разному — секретность по **объявленным** секциям, конфликт
+  `reloadable` по **материализованным** (редактирование ошибается в
+  безопасную сторону, запрет — в опасную). Обещанные «читатели ключа в
+  `explain()`» приземлились в `describeConfig()`: графового `explain()` в
+  коде нет. Логика — [ideas.md [2026-07-13]](./ideas.md) «Конфиг: `secret()`
+  и общие ключи» + блок реализации [2026-08-01].
 - **26 `contract-versioning`** — после 11; отчёт совместимости — расширение
   `.check()`-матрицы (18). Открытым остаётся, где живёт снапшот схем
   (репо vs registry): форма API выбрана так, что ответ не меняет ни одной
@@ -311,7 +318,7 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | # | Change | Размер | Почему здесь |
 |---|---|---|---|
 | 20 | `openapi` | M–L | все предпосылки закрыты: 19 (конвертеры), 8, 21 (bind-карта), 15 (`errors:`) |
-| 25 | `config-secrets` | S | аддитивно поверх 9 |
+| 25 | `config-secrets` | S | **done** — `secret(from(...))`, три поверхности редактирования, общий ключ и конфликт `reloadable` в границах сборки; ядро не тронуто нигде, кроме `@nestling/config` |
 | 18 | `stub(Contract)` + `app.emit` (остаток) | S | после 11 |
 | 7 | `subscriptions-registry` | M | финальная проверка тезиса: satellite пишется, не трогая ядро |
 

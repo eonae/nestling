@@ -1,6 +1,8 @@
-import { from } from './declaration.js';
+import { from, secret } from './declaration.js';
+import { ConfigValidationError } from './errors.js';
 import type { Config } from './families.js';
 import { ConfigKeys } from './keys.js';
+import { load } from './load.js';
 import { describeConfig } from './registry.js';
 import { makeConfig } from './section.js';
 
@@ -62,10 +64,100 @@ describe('форма секции — рекорд полей', () => {
       consumed: false,
     });
     expect(section?.keys).toEqual([
-      { key: 'ORDERS_MAX_ITEMS', field: 'maxItems', exact: false },
-      { key: 'ORDERS_HTTP_URL', field: 'httpURL', exact: false },
-      { key: 'DATABASE_URL', field: 'databaseUrl', exact: true },
+      {
+        key: 'ORDERS_MAX_ITEMS',
+        field: 'maxItems',
+        exact: false,
+        secret: false,
+      },
+      { key: 'ORDERS_HTTP_URL', field: 'httpURL', exact: false, secret: false },
+      { key: 'DATABASE_URL', field: 'databaseUrl', exact: true, secret: false },
     ]);
+  });
+});
+
+/** Обратный порядок обёрток: `from()` требует схему, `secret()` ею не является. */
+const reversedOrder = (): unknown =>
+  // @ts-expect-error — тип отвергает `from(key, secret(...))` без приведения
+  from('X', secret(z.string()));
+
+describe('обёртка secret()', () => {
+  const VaultConfig = makeConfig('vault', {
+    apiToken: secret(z.string()),
+    databaseUrl: secret(from('SECRET_DATABASE_URL', z.string())),
+    logLevel: z.string().default('info'),
+  });
+
+  it('ключ секретного поля выводится по общему правилу', () => {
+    expect(VaultConfig.keys.names).toEqual([
+      'VAULT_API_TOKEN',
+      'SECRET_DATABASE_URL',
+      'VAULT_LOG_LEVEL',
+    ]);
+  });
+
+  it('секретность попадает в реестр пополевно', () => {
+    const section = describeConfig().sections.find(
+      (item) => item.prefix === 'vault',
+    );
+
+    expect(section?.keys).toEqual([
+      { key: 'VAULT_API_TOKEN', field: 'apiToken', exact: false, secret: true },
+      {
+        key: 'SECRET_DATABASE_URL',
+        field: 'databaseUrl',
+        exact: true,
+        secret: true,
+      },
+      {
+        key: 'VAULT_LOG_LEVEL',
+        field: 'logLevel',
+        exact: false,
+        secret: false,
+      },
+    ]);
+  });
+
+  it('обёртка прозрачна для вывода типа: `Secret<T>` в API нет', () => {
+    type Values = Config<typeof VaultConfig>;
+
+    assertType<Equal<Values['apiToken'], string>>(true);
+    assertType<Equal<Values['databaseUrl'], string>>(true);
+  });
+
+  it('обратный порядок обёрток не проходит по типам', () => {
+    expect(typeof reversedOrder).toBe('function');
+  });
+
+  it('обратный порядок обёрток отвергается в рантайме, называя починку', () => {
+    expect(() =>
+      makeConfig('reversed', {
+        databaseUrl: from('REVERSED_DATABASE_URL', secret(z.string()) as never),
+      }),
+    ).toThrow(
+      /Field 'databaseUrl' of config section 'reversed'.+secret\(from\('KEY', schema\)\)/s,
+    );
+  });
+
+  it('обёртка не участвует в валидации: обе секции принимают одно и то же', () => {
+    const Plain = makeConfig('plainmirror', { token: z.string().min(4) });
+    const Secret = makeConfig('secretmirror', {
+      token: secret(z.string().min(4)),
+    });
+
+    process.env.PLAINMIRROR_TOKEN = 'good';
+    process.env.SECRETMIRROR_TOKEN = 'good';
+
+    expect(load(Secret).token).toBe(load(Plain).token);
+
+    process.env.PLAINMIRROR_TOKEN = 'no';
+    process.env.SECRETMIRROR_TOKEN = 'no';
+
+    expect(() => load(Plain)).toThrow(ConfigValidationError);
+    expect(() => load(Secret)).toThrow(ConfigValidationError);
+
+    delete process.env.PLAINMIRROR_TOKEN;
+    delete process.env.SECRETMIRROR_TOKEN;
   });
 });
 

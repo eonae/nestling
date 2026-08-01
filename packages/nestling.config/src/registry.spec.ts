@@ -11,26 +11,36 @@ import {
 
 const declaration = (
   prefix: string,
-  fields: readonly string[],
+  fields: readonly (
+    | string
+    | { name: string; key?: string; secret?: boolean }
+  )[],
   reloadable = false,
 ): SectionDeclaration => ({
   prefix,
   reloadable,
-  fields: fields.map((name) => ({
-    name,
-    key: deriveKey(prefix, name),
-    exact: false,
-    schema: {
-      '~standard': {
-        version: 1,
-        vendor: 'test',
-        validate: () => ({ value: 1 }),
+  fields: fields
+    .map((field) => (typeof field === 'string' ? { name: field } : field))
+    .map((field) => ({
+      name: field.name,
+      key: field.key ?? deriveKey(prefix, field.name),
+      exact: field.key !== undefined,
+      secret: field.secret ?? false,
+      schema: {
+        '~standard': {
+          version: 1,
+          vendor: 'test',
+          validate: () => ({ value: 1 }),
+        },
       },
-    },
-  })),
+    })),
   keys: new ConfigKeys(
     prefix,
-    fields.map((name) => deriveKey(prefix, name)),
+    fields.map((field) =>
+      typeof field === 'string'
+        ? deriveKey(prefix, field)
+        : (field.key ?? deriveKey(prefix, field.name)),
+    ),
   ),
   consumed: false,
 });
@@ -83,7 +93,14 @@ describe('describeConfig()', () => {
         prefix: 'runtime',
         reloadable: true,
         consumed: false,
-        keys: [{ key: 'RUNTIME_LOG_LEVEL', field: 'logLevel', exact: false }],
+        keys: [
+          {
+            key: 'RUNTIME_LOG_LEVEL',
+            field: 'logLevel',
+            exact: false,
+            secret: false,
+          },
+        ],
       },
     ]);
     expect(JSON.stringify(snapshot)).not.toContain('value');
@@ -112,5 +129,126 @@ describe('describeConfig()', () => {
     keysGlob('*_GRPC_ADDRESS');
 
     expect(describeConfig().globs).toEqual(['*_GRPC_ADDRESS']);
+  });
+});
+
+/** Две секции на одном ключе: секретным его объявляет только `vault`. */
+const declareSharedKey = (): void => {
+  registerSection(
+    declaration('vault', [
+      { name: 'dbUrl', key: 'DATABASE_URL', secret: true },
+    ]),
+  );
+  registerSection(
+    declaration('orders', [{ name: 'databaseUrl', key: 'DATABASE_URL' }]),
+  );
+};
+
+describe('эффективная секретность и индекс читателей', () => {
+  it('секретность объединяется: флаг виден у обоих читателей ключа', () => {
+    declareSharedKey();
+
+    const secretFlags = describeConfig().sections.flatMap((section) =>
+      section.keys.map((key) => [section.prefix, key.secret]),
+    );
+
+    expect(secretFlags).toEqual([
+      ['vault', true],
+      ['orders', true],
+    ]);
+  });
+
+  it('индекс перечисляет всех объявленных читателей ключа', () => {
+    declareSharedKey();
+
+    expect(describeConfig().keys).toEqual([
+      {
+        key: 'DATABASE_URL',
+        secret: true,
+        readers: [
+          {
+            section: 'vault',
+            field: 'dbUrl',
+            exact: true,
+            reloadable: false,
+            secret: true,
+          },
+          {
+            section: 'orders',
+            field: 'databaseUrl',
+            exact: true,
+            reloadable: false,
+            secret: false,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('читатель остаётся в индексе, даже если секция не потреблена', () => {
+    declareSharedKey();
+
+    const [entry] = describeConfig().keys;
+
+    expect(
+      describeConfig().sections.every((section) => !section.consumed),
+    ).toBe(true);
+    expect(entry?.readers).toHaveLength(2);
+  });
+
+  it('ключ с единственным читателем тоже в индексе', () => {
+    registerSection(declaration('orders', ['maxItems']));
+
+    expect(describeConfig().keys).toEqual([
+      {
+        key: 'ORDERS_MAX_ITEMS',
+        secret: false,
+        readers: [
+          {
+            section: 'orders',
+            field: 'maxItems',
+            exact: false,
+            reloadable: false,
+            secret: false,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('непомеченный никем ключ не становится секретным сам', () => {
+    registerSection(declaration('orders', ['maxItems']));
+
+    expect(describeConfig().keys[0]?.secret).toBe(false);
+  });
+
+  it('значений в снимке нет — ни секретных, ни обычных', () => {
+    declareSharedKey();
+
+    expect(JSON.stringify(describeConfig())).not.toContain('value');
+  });
+
+  it('сброс реестра чистит и индекс, и множество секретных ключей', () => {
+    declareSharedKey();
+    resetConfigRegistry();
+    registerSection(
+      declaration('orders', [{ name: 'databaseUrl', key: 'DATABASE_URL' }]),
+    );
+
+    expect(describeConfig().keys).toEqual([
+      {
+        key: 'DATABASE_URL',
+        secret: false,
+        readers: [
+          {
+            section: 'orders',
+            field: 'databaseUrl',
+            exact: true,
+            reloadable: false,
+            secret: false,
+          },
+        ],
+      },
+    ]);
   });
 });

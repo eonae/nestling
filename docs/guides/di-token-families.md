@@ -1,6 +1,6 @@
 # Семейства токенов в DI
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-07-31).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-08-01).
 
 Параметризованные зависимости — логгер на скоуп, клиент на upstream, очередь на
 имя — в Nestling делаются **семейством токенов**: один рецепт, много членов,
@@ -158,17 +158,21 @@ export const DatabaseModule = makeModule({
 
 ```typescript
 // packages/examples.simple-app/src/health/health.service.ts
-@Injectable([IHealthCheck.all, ILogger.auto])
+@Injectable([IHealthCheck.all, HealthConfig, ILogger.auto])
 export class HealthService {
   constructor(
     checks: readonly IHealthCheck[],
+    config: Config<typeof HealthConfig>,
     logger: ILogger,
   ) { /* ... */ }
 }
 ```
 
-Вывод прогона показывает оба вклада: `Running 2 health checks` и
-`Health: [ 'database: ok', 'api: ok' ]`.
+Сентинел стоит в `deps` рядом с обычными токенами — секцией конфига и членом
+семейства логгеров: агрегат ничем не привилегирован.
+
+Вывод прогона показывает оба вклада: `Running 2 health checks against db:5432`
+и `Health: [ 'database: ok', 'api: ok' ]`.
 
 ### Что делает `build()`
 

@@ -12,15 +12,16 @@ export type {
   ConfigRecord,
   ConfigSectionToken,
   ConfigValues,
-  // Тип обёртки `from()` виден снаружи не для ручного конструирования, а
-  // потому что он попадает в выведенный тип секции: без него объявление
-  // с `from()` нельзя было бы назвать в `.d.ts` потребителя.
+  // Типы обёрток `from()` и `secret()` видны снаружи не для ручного
+  // конструирования, а потому что попадают в выведенный тип секции: без них
+  // объявление с обёрткой нельзя было бы назвать в `.d.ts` потребителя.
   FromField,
   ReloadableConfig,
+  SecretField,
 } from './declaration.js';
-export { from } from './declaration.js';
-export { ConfigValidationError } from './errors.js';
-export type { ConfigFieldFailure } from './errors.js';
+export { from, secret } from './declaration.js';
+export { ConfigSharedKeyError, ConfigValidationError } from './errors.js';
+export type { ConfigFieldFailure, SharedKeyReader } from './errors.js';
 /**
  * `Config` — и семейство одиночных ключей (значение), и тип проекции
  * секции (`Config<typeof OrdersConfig>`). Обе формы взяты из design-дока.
@@ -41,7 +42,9 @@ export { describeConfig, keysGlob } from './registry.js';
 export type {
   ConfigDescription,
   ConfigKeyDescription,
+  ConfigKeyReader,
   ConfigSectionDescription,
+  ConfigSharedKeyDescription,
 } from './registry.js';
 export { makeConfig } from './section.js';
 export { objectSource } from './source.js';

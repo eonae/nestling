@@ -18,7 +18,12 @@ export const ApiModule = makeModule({
     factoryProvider(
       IApiClient,
       (config: Config<typeof AppConfig>, logger: ILogger): IApiClient => {
-        logger.log(`Creating API client for ${config.databaseUrl}`);
+        // Печатается **хост**, а не URL целиком: поле секретное, а
+        // интерполяция значения в свою строку — ровно тот путь, который
+        // фреймворк не контролирует (названная граница гарантии).
+        logger.log(
+          `Creating API client for ${new URL(config.databaseUrl).host}`,
+        );
         return {
           get: async (url: string) => {
             logger.log(`API call to ${url}`);

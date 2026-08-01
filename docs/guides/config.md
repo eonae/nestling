@@ -1,6 +1,6 @@
 # Конфигурация
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-07-31).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-08-01).
 
 Конфигурация в Nestling — не сервис и не модуль, а **секция**: рекорд полей со
 схемами. Объявление секции есть значение; узел графа появляется ровно тогда,
@@ -11,13 +11,12 @@
 
 ```typescript
 // packages/examples.simple-app/src/config/app.config.ts
-import { from, makeConfig } from '@nestling/config';
+import { from, makeConfig, secret } from '@nestling/config';
 import { z } from 'zod';
 
 export const AppConfig = makeConfig('app', {
-  databaseUrl: from(
-    'DATABASE_URL',
-    z.url().default('postgresql://localhost:5432/myapp'),
+  databaseUrl: secret(
+    from('DATABASE_URL', z.url().default('postgresql://localhost:5432/myapp')),
   ),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
@@ -38,6 +37,8 @@ export const appConfigKeys = AppConfig.keys;
 
 `from('DATABASE_URL', schema)` отменяет префикс целиком и задаёт **точное**
 имя — так объявляют ключ, который читает не только эта секция.
+`secret(...)` помечает поле секретным (раздел «[Секреты](#секреты)»); порядок
+обёрток единственный: `secret()` снаружи, `from()` внутри.
 
 Лист — любая схема [Standard Schema v1](./../design/schemas.md): zod, valibot,
 arktype, что угодно. Пакет не интроспектирует схему и не ветвится по вендору;
@@ -175,6 +176,129 @@ Sources consulted, in priority order: defaults, process.env
 Отсутствие значения отдельным видом отказа не является: читалка отдаёт
 `undefined`, а `.default()`/`.optional()` в схеме решают, ошибка это или нет.
 
+## Секреты
+
+`secret(leaf)` помечает поле секретным. Обёртка принимает и схему, и результат
+`from()`, и порядок вложения **единственный** — `secret()` снаружи, `from()`
+внутри: секретность есть свойство поля, `from()` лишь называет его ключ.
+
+```typescript
+export const AppConfig = makeConfig('app', {
+  apiToken: secret(z.string()),                            // APP_API_TOKEN
+  databaseUrl: secret(from('DATABASE_URL', z.url())),      // DATABASE_URL
+});
+```
+
+Обратный порядок (`from('KEY', secret(schema))`) не проходит по типам, а если
+обойти их приведением — падает в точке объявления с текстом, называющим
+секцию, поле и канонический порядок.
+
+Для потребителя не меняется **ничего**: тип поля — по-прежнему `string`,
+`Secret<T>` в API нет, валидация та же самая (обёртка в проверке значения не
+участвует). Меняется то, что печатает фреймворк. Поверхностей ровно три.
+
+**1. Ошибка валидации.** Сообщения issue'ев секретного поля заменяются на
+`<redacted>` — и в тексте, и в объекте `error.failures[].issues`: вендор волен
+вставить в своё сообщение полученное значение, а `failures` читает чужой
+логгер.
+
+```
+ConfigValidationError: Config section 'app' is invalid:
+  - DATABASE_URL (field 'databaseUrl'): <redacted>
+  - APP_LOG_LEVEL (field 'logLevel'): Invalid option: expected one of "debug"|…
+Sources consulted, in priority order: defaults, process.env
+```
+
+Имя ключа, имя поля и число отказов остаются всегда. Важное исключение: если
+ключ **не задан вовсе**, редактировать нечего — сообщение показывается
+целиком, и `Invalid input: expected string, received undefined` вы увидите
+как есть. Это самая частая ошибка с секретами, и прятать её незачем.
+
+**2. Печать проекции.** У секции с секретами появляются неперечислимые
+`toJSON()` и `nodejs.util.inspect.custom`, отдающие копию с `'***'`:
+
+```typescript
+console.log(cfg);              // { databaseUrl: '***', logLevel: 'debug' }
+JSON.stringify(cfg);           // {"databaseUrl":"***","logLevel":"debug"}
+cfg.databaseUrl;               // 'postgresql://user:hunter2@db:5432/app'
+```
+
+Редактируется **печать**, а не значение: чтение поля отдаёт настоящее.
+`Object.keys(cfg)` и форма объекта не меняются, а секция без единого
+секретного поля не получает этих членов вовсе — её поведение прежнее.
+
+**3. Снимок `describeConfig()`.** Ключ несёт флаг `secret`; значений в снимке
+нет и не было.
+
+**Граница гарантии.** Фреймворк отвечает за то, что печатает сам. Спред,
+`Object.values` и ваша собственная интерполяция обходят редактирование:
+
+```typescript
+console.log({ ...cfg });                       // настоящее значение
+logger.log(`connecting to ${cfg.databaseUrl}`); // и здесь тоже
+```
+
+Это документированное свойство v1, а не дефект: закрыть его мог бы только
+брендированный `Secret<T>` с `.reveal()`, который заражает типы потребителя и
+потому отвергнут. В примере `examples.simple-app` видно, как с этим жить: в
+лог уходит `new URL(cfg.databaseUrl).host`, а не URL целиком.
+
+## Общие ключи
+
+Один ключ могут читать сколько угодно секций: право читать ключ не означает
+владения им. Второй читатель объявляется без ведома первого — ошибки «ключ
+уже занят» не существует.
+
+```typescript
+// app.config.ts
+export const AppConfig = makeConfig('app', {
+  databaseUrl: secret(from('DATABASE_URL', z.url())),
+});
+
+// health/health.config.ts — тот же ключ, своя схема, без пометки
+export const HealthConfig = makeConfig('health', {
+  databaseUrl: from('DATABASE_URL', z.string()),
+});
+```
+
+Правила:
+
+- **валидация независима.** Каждая секция проверяет сырое значение своей
+  схемой; две секции законно видят ключ по-разному (`z.url()` и `z.string()`,
+  `z.string()` и `z.coerce.number()`). Отказ у любого читателя — fail-fast на
+  сборке, с именем именно его секции;
+- **секретность считается по объединению.** Хоть одна секция пометила ключ
+  `secret()` → ключ секретен везде: печать `HealthConfig` выше редактирована,
+  хотя `secret()` в ней не написано. Объединение считается по **объявленным**
+  секциям, а не по потреблённым: лишний `'***'` не стоит ничего, недостающий
+  стоит утечки;
+- **единственный конфликт — несогласованный `reloadable`.** Объявите
+  `HealthConfig` через `makeConfig.reloadable`, и сборка упадёт:
+
+```
+ConfigSharedKeyError: Config key 'DATABASE_URL' is read by sections with
+different 'reloadable' flags:
+  - section 'app' (field 'databaseUrl'): not reloadable
+  - section 'health' (field 'databaseUrl'): reloadable
+A shared key has one value for all its readers, so «the value may change under
+your feet» must be agreed by all of them. Fix it either way: declare 'app'
+with makeConfig.reloadable, or drop makeConfig.reloadable from 'health'.
+```
+
+Проверка живёт в границах **одной сборки** и считает только фактически
+материализованные секции: объявление, не попавшее в выбранную топологию,
+конфликта не создаёт, а две `build()` в одном процессе независимы.
+
+Кто читает ключ — видно в снимке реестра, по объявленным секциям:
+
+```typescript
+describeConfig().keys;
+// [{ key: 'DATABASE_URL', secret: true, readers: [
+//     { section: 'app',    field: 'databaseUrl', exact: true, reloadable: false, secret: true  },
+//     { section: 'health', field: 'databaseUrl', exact: true, reloadable: false, secret: false },
+//   ] }]
+```
+
 ## Reloadable
 
 ```typescript
@@ -254,9 +378,18 @@ familyProvider(GrpcClient, (server) => ({
 (`configKernel(bindings, { onWarn })`), по умолчанию — `console.warn` с
 префиксом `[nestling/config]`.
 
-`describeConfig()` отдаёт снимок реестра: секции, их ключи, флаг `reloadable`,
-признак «потреблена графом» и объявленные глобы. Без значений и без сети —
-снимок пригоден для генерации документации на этапе сборки артефактов.
+`describeConfig()` отдаёт снимок реестра двумя проекциями одних данных:
+
+- `sections` — что читает каждая секция: её ключи (с полем, признаком точного
+  имени и эффективным флагом `secret`), `reloadable` и признак «потреблена
+  графом»;
+- `keys` — кто читает каждый ключ: сам ключ, его эффективная секретность и
+  перечень читателей. `readers.length > 1` и означает «ключ общий»;
+- `globs` — объявленные unbound-глобы.
+
+Без значений и без сети — снимок пригоден для генерации документации на этапе
+сборки артефактов, когда графа ещё не существует. Именно поэтому секретность и
+перечень читателей считаются по **объявленным** секциям.
 
 ## Тестовый источник
 

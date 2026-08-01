@@ -42,19 +42,56 @@ export class FromField<S extends Schema = Schema> {
 export const from = <S extends Schema>(key: string, schema: S): FromField<S> =>
   new FromField(key, schema);
 
-/** Лист рекорда: схема или обёртка `from()` */
-export type ConfigField = Schema | FromField;
+/**
+ * Обёртка листа, помечающая поле **секретным**: значение не появляется ни в
+ * одном тексте, произведённом фреймворком.
+ *
+ * Тот же класс-а-не-литерал, что у {@link FromField}, и по той же причине.
+ */
+export class SecretField<L extends Schema | FromField = Schema | FromField> {
+  constructor(readonly leaf: L) {
+    Object.freeze(this);
+  }
+}
+
+/**
+ * Помечает поле секции секретным.
+ *
+ * Порядок вложения единственный: `secret()` снаружи, `from()` внутри —
+ * секретность есть свойство **поля**, а `from()` лишь называет его **ключ**.
+ * Для потребителя тип значения не меняется: `secret(z.string())` — это
+ * `string`, брендированного `Secret<T>` в v1 нет.
+ *
+ * @param leaf - Схема Standard Schema v1 или результат `from(key, schema)`
+ *
+ * @example
+ * ```typescript
+ * const OrdersConfig = makeConfig('orders', {
+ *   apiToken: secret(z.string()),                    // ORDERS_API_TOKEN
+ *   databaseUrl: secret(from('DATABASE_URL', z.url())), // DATABASE_URL
+ * });
+ * ```
+ */
+export const secret = <L extends Schema | FromField>(leaf: L): SecretField<L> =>
+  new SecretField(leaf);
+
+/** Лист рекорда: схема, обёртка `from()` или `secret()` поверх любой из них */
+export type ConfigField = Schema | FromField | SecretField;
 
 /** Рекорд полей секции */
 export type ConfigRecord = Record<string, ConfigField>;
 
-/** Выход схемы поля; обёртка `from()` прозрачна для вывода */
-type FieldOutput<F> =
+/** Выход схемы листа; обёртка `from()` прозрачна для вывода */
+type LeafOutput<F> =
   F extends FromField<infer S>
     ? StandardSchemaV1.InferOutput<S>
     : F extends StandardSchemaV1
       ? StandardSchemaV1.InferOutput<F>
       : never;
+
+/** Выход схемы поля; обе обёртки прозрачны для вывода */
+type FieldOutput<F> =
+  F extends SecretField<infer L> ? LeafOutput<L> : LeafOutput<F>;
 
 /**
  * Проекция секции: объект, где тип каждого поля — выход его схемы.
@@ -109,6 +146,13 @@ export interface SectionField {
   readonly exact: boolean;
   /** Схема поля */
   readonly schema: Schema;
+  /**
+   * Поле объявлено `secret()` **этой** секцией.
+   *
+   * Эффективная секретность ключа шире: она считается объединением по всем
+   * объявленным читателям — см. `isSecretKey()` в реестре.
+   */
+  readonly secret: boolean;
 }
 
 /** Запись реестра: всё, что известно о секции без обращения к источникам */

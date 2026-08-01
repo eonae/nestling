@@ -15,7 +15,7 @@ import type {
   SectionDeclaration,
   SectionField,
 } from './declaration.js';
-import { FromField } from './declaration.js';
+import { FromField, SecretField } from './declaration.js';
 import { ConfigSection } from './families.js';
 import { ConfigKeys, deriveKey } from './keys.js';
 import { registerSection } from './registry.js';
@@ -31,10 +31,29 @@ import { assertStandardSchema } from '@common/misc';
  */
 const RELOADABLE_RESERVED = 'onChange';
 
-/** Разбирает лист рекорда в поле секции, называя секцию и поле в ошибке */
+/**
+ * Разбирает лист рекорда в поле секции, называя секцию и поле в ошибке.
+ *
+ * Обёртки разворачиваются в каноническом порядке: `secret()` снаружи,
+ * `from()` внутри. Обратный порядок уже отвергается типами (`from()` требует
+ * схему, а `SecretField` её не реализует), но JS-потребитель и `as any` мимо
+ * типов проходят — им ветка ниже называет починку, иначе они получили бы
+ * невнятное «is not a Standard Schema v1 value».
+ */
 const toField = (prefix: string, name: string, leaf: unknown): SectionField => {
-  const exact = leaf instanceof FromField;
-  const schema: unknown = exact ? (leaf as FromField).schema : leaf;
+  const secret = leaf instanceof SecretField;
+  const named: unknown = secret ? leaf.leaf : leaf;
+
+  const exact = named instanceof FromField;
+  const schema: unknown = exact ? (named as FromField).schema : named;
+
+  if (schema instanceof SecretField) {
+    throw new TypeError(
+      `Field '${name}' of config section '${prefix}' wraps from() around secret(). ` +
+        `The order is fixed: secret() outside, from() inside — secret(from('KEY', schema)). ` +
+        `Secrecy is a property of the field, from() only names its key.`,
+    );
+  }
 
   try {
     assertStandardSchema(schema);
@@ -47,9 +66,10 @@ const toField = (prefix: string, name: string, leaf: unknown): SectionField => {
 
   return {
     name,
-    key: exact ? (leaf as FromField).key : deriveKey(prefix, name),
+    key: exact ? (named as FromField).key : deriveKey(prefix, name),
     exact,
     schema: schema as Schema,
+    secret,
   };
 };
 

@@ -5,6 +5,9 @@
  * токен, поэтому инжектить её пользовательскому коду нечем.
  */
 
+import type { SectionDeclaration } from './declaration.js';
+import type { SharedKeyReader } from './errors.js';
+import { ConfigSharedKeyError } from './errors.js';
 import type { ConfigTarget } from './keys.js';
 import { describeTarget, targetCovers } from './keys.js';
 import { declaredKeys } from './registry.js';
@@ -57,6 +60,16 @@ export class ConfigReader {
   readonly #bindings: readonly ResolvedBinding[];
   readonly #warn: ConfigWarn;
   readonly #reloadable = new Set<Reloadable>();
+
+  /**
+   * Ключ → первый заявивший его читатель.
+   *
+   * Живёт на экземпляре читалки, то есть ровно одну сборку: проверка
+   * согласованности `reloadable` обязана видеть только фактически
+   * материализованные секции и не протекать в следующую сборку того же
+   * процесса (несколько `assembleTest` в одном тестовом файле).
+   */
+  readonly #claims = new Map<string, SharedKeyReader>();
 
   /**
    * Живая ссылка на `process.env`, а не снимок: единственный контакт ядра
@@ -118,6 +131,43 @@ export class ConfigReader {
     }
 
     return this.#env[key];
+  }
+
+  /**
+   * Заявляет ключи материализуемой секции и сверяет их с уже заявленными.
+   *
+   * Право читать ключ не означает владения им: второй читатель объявляется
+   * без ведома первого, схемы читателей независимы. Расходиться нельзя ровно
+   * в одном — во флаге `reloadable`, потому что это свойство ключа, а не
+   * объявления.
+   *
+   * @throws {ConfigSharedKeyError} Если флаг разошёлся с первым читателем
+   */
+  claimKeys(declaration: SectionDeclaration): void {
+    for (const field of declaration.fields) {
+      const claimed = this.#claims.get(field.key);
+
+      if (!claimed) {
+        this.#claims.set(field.key, {
+          section: declaration.prefix,
+          field: field.name,
+          reloadable: declaration.reloadable,
+        });
+
+        continue;
+      }
+
+      if (claimed.reloadable !== declaration.reloadable) {
+        throw new ConfigSharedKeyError(field.key, [
+          claimed,
+          {
+            section: declaration.prefix,
+            field: field.name,
+            reloadable: declaration.reloadable,
+          },
+        ]);
+      }
+    }
   }
 
   /** Источники в порядке приоритета, включая env-пол — для текста ошибки */

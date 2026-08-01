@@ -15,7 +15,13 @@ const declaration = (prefix: string, keys: readonly string[]) =>
   ({
     prefix,
     reloadable: false,
-    fields: keys.map((key) => ({ name: key, key, exact: true, schema })),
+    fields: keys.map((key) => ({
+      name: key,
+      key,
+      exact: true,
+      schema,
+      secret: false,
+    })),
     keys: new ConfigKeys(prefix, keys),
     consumed: false,
   }) satisfies SectionDeclaration;

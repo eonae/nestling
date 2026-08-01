@@ -18,7 +18,12 @@ export class Database implements IDatabase {
   }
 
   async connect(): Promise<void> {
-    this.#logger.log(`Connecting to database: ${this.#config.databaseUrl}`);
+    // Значение читается настоящим (иначе подключаться было бы не к чему), а
+    // в лог уходит только хост: секретность защищает вывод фреймворка, за
+    // свои строки отвечает потребитель.
+    this.#logger.log(
+      `Connecting to database: ${new URL(this.#config.databaseUrl).host}`,
+    );
   }
 
   async query(sql: string): Promise<any[]> {
