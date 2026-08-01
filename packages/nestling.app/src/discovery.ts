@@ -1,4 +1,5 @@
-import type { Module } from '@nestling/container';
+import type { InjectionToken, Module } from '@nestling/container';
+import { makeToken } from '@nestling/container';
 import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
 import { isEndpointDefinition } from '@nestling/pipeline';
 
@@ -15,11 +16,17 @@ export interface DiscoveredEndpoint {
 
 /**
  * Результат дискавери: что обслуживает приложение и какие транспорты для
- * этого требуются
+ * этого требуются.
+ *
+ * Значение **только для чтения** — и в типах, и в рантайме (`Object.freeze`
+ * на списках и карте). Причина не в аккуратности: результат отдаётся графу
+ * под токеном `Discovery$`, а инжектируемая дискавери это поверхность
+ * интроспекции, а не точка расширения. Состав приложения определяется
+ * деревом модулей и `select`, и менять его из графа нельзя.
  */
 export interface EndpointDiscovery {
   /** Эндпоинты в детерминированном порядке обхода дерева модулей */
-  endpoints: DiscoveredEndpoint[];
+  readonly endpoints: readonly DiscoveredEndpoint[];
 
   /**
    * Требуемый транспорт → объявленные на нём эндпоинты.
@@ -27,8 +34,35 @@ export interface EndpointDiscovery {
    * Ключ — **токен** транспорта с декларации, а не строковое имя: по нему
    * же `App` берёт инстанс из собранного графа.
    */
-  transports: Map<TransportRef, DiscoveredEndpoint[]>;
+  readonly transports: ReadonlyMap<TransportRef, readonly DiscoveredEndpoint[]>;
 }
+
+/**
+ * Токен инжектируемой дискавери: состав приложения как узел графа.
+ *
+ * Регистрируется `assemble` **всегда и без условий** — провайдер-значение
+ * ничего не стоит, а его отсутствие делало бы satellite-модуль зависимым от
+ * флага в корне. Значение то же самое, которое `App` вычисляет до
+ * построения графа: второй дискавери не выполняется.
+ *
+ * Это поверхность **интроспекции**, а не точка расширения: значение
+ * заморожено, менять состав приложения из графа нельзя. Единственный способ
+ * для модуля увидеть **выбранную** топологию целиком, не дублируя `select`
+ * в корне.
+ *
+ * @example
+ * ```typescript
+ * providers: [
+ *   factoryProvider(
+ *     Report$,
+ *     (discovery) => summarize(discovery.endpoints),
+ *     [Discovery$],
+ *   ),
+ * ]
+ * ```
+ */
+export const Discovery$: InjectionToken<EndpointDiscovery> =
+  makeToken<EndpointDiscovery>('nestling:discovery');
 
 /**
  * Обходит дерево модулей в том же порядке, что `ContainerBuilder.registerModule`:
@@ -162,5 +196,41 @@ export function discoverEndpoints(
     }
   }
 
-  return { endpoints, transports };
+  // Заморозка — не церемония: это же значение уезжает в граф под
+  // `Discovery$`, и «поменять состав приложения из провайдера» должно быть
+  // невозможно, а не просто не принято
+  for (const group of transports.values()) {
+    Object.freeze(group);
+  }
+
+  return Object.freeze({
+    endpoints: Object.freeze(endpoints),
+    transports: freezeMap(transports),
+  });
+}
+
+/** Мутатор карты, подменённый броском с внятной причиной */
+const rejectMutation = (method: string) => (): never => {
+  throw new TypeError(
+    `Endpoint discovery is read-only: '${method}' would change what the ` +
+      `application serves. The set of endpoints comes from the tree of ` +
+      `registered modules (and 'select'), not from the graph.`,
+  );
+};
+
+/**
+ * Замораживает карту, отбирая у неё мутаторы.
+ *
+ * `Object.freeze` на `Map` не запрещает `set`/`delete` — состояние живёт во
+ * внутреннем слоте, а не в свойствах. Поэтому мутаторы подменяются
+ * броском: read-only обещан значением, а не соглашением.
+ */
+function freezeMap<K, V>(map: Map<K, V>): ReadonlyMap<K, V> {
+  Object.defineProperties(map, {
+    set: { value: rejectMutation('set') },
+    delete: { value: rejectMutation('delete') },
+    clear: { value: rejectMutation('clear') },
+  });
+
+  return Object.freeze(map);
 }

@@ -9,7 +9,7 @@
  */
 
 import type { EndpointDiscovery } from './discovery';
-import { discoverEndpoints } from './discovery';
+import { discoverEndpoints, Discovery$ } from './discovery';
 import type {
   AssemblyPlan,
   AssemblySpec,
@@ -24,7 +24,7 @@ import type {
   InjectionToken,
   Provider,
 } from '@nestling/container';
-import { ContainerBuilder } from '@nestling/container';
+import { ContainerBuilder, valueProvider } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
   PolicySubject,
@@ -397,6 +397,14 @@ export class App {
     // портов уже на регистрации: функция чистая, порядок ни на что не
     // влияет
     const discovery = discoverEndpoints(this.#plan.modules);
+
+    // Состав приложения — узел графа. Регистрируется всегда и без условий:
+    // провайдер-значение ничего не стоит, а условная регистрация сделала бы
+    // satellite-модуль (генератор документации, реестр) зависимым от флага в
+    // корне. Значение то самое, что вычислено строкой выше, — второй
+    // дискавери не выполняется, и разъехаться «обнаруженному» с
+    // «инжектированным» негде.
+    builder.register(valueProvider(Discovery$, discovery));
 
     // Kernel-модуль портов — по тем же правилам, что конфиг и контекст:
     // регистрируется всегда, а узлы заводит только под запрошенные

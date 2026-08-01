@@ -142,6 +142,31 @@ describe('httpEndpoint({ contract, … })', () => {
     );
   });
 
+  it('документация приезжает с контракта вместе с адресом и схемами', () => {
+    const Documented = makeContract({
+      name: 'contract-form.users.documented',
+      kind: 'request',
+      http: 'GET /documented/:id',
+      input: z.object({ id: z.string() }),
+      output: User,
+      doc: { summary: 'Documented operation', tags: ['users'] },
+    });
+
+    const declaration = httpEndpoint({
+      contract: Documented,
+      handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
+    });
+
+    expect(declaration.doc).toEqual({
+      summary: 'Documented operation',
+      tags: ['users'],
+    });
+    // Имя владельца едет на карте — из него генератор выводит operationId
+    expect(httpBindingOf(declaration).contract).toBe(
+      'contract-form.users.documented',
+    );
+  });
+
   it('не-контракт в слоте отвергается', () => {
     const declare = httpEndpoint as unknown as (
       options: Record<string, unknown>,
@@ -160,7 +185,14 @@ describe('httpEndpoint({ contract, … })', () => {
       options: Record<string, unknown>,
     ) => unknown;
 
-    for (const field of ['input', 'output', 'errors', 'method', 'path']) {
+    for (const field of [
+      'input',
+      'output',
+      'errors',
+      'method',
+      'path',
+      'doc',
+    ]) {
       expect(() =>
         declare({
           contract: CreateUser,

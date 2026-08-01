@@ -10,17 +10,18 @@ picked from the same declaration — NDJSON for `stream(T)`, SSE for
 
 Two forms of the same constructor. The **contract form**
 `httpEndpoint({ contract, deps?, pipeline?, handle, detached? })` takes the
-address, the schemas and `errors:` from a contract that carries an `http:`
-section — `method`/`path`/`bind`/`rawBody`/`sse`/`input`/`output`/`errors`
-are declared `never` in its dictionary, so redeclaring what belongs to the
-contract is a compile error. The bind map is carried over from the contract
+address, the schemas, `errors:` and `doc:` from a contract that carries an
+`http:` section — `method`/`path`/`bind`/`rawBody`/`sse`/`input`/`output`/
+`errors`/`doc` are declared `never` in its dictionary, so redeclaring what
+belongs to the contract is a compile error (and a runtime one for a JS
+consumer). The bind map is carried over from the contract
 **as the same value**, never recomputed: that is what makes "one map on both
 ends of the wire" a matter of identity rather than of two computations
 agreeing.
 
 The **anonymous form**
 `httpEndpoint({ method, path, input, output, bind, rawBody, pipeline, deps,
-handle })` is the declaration constructor — a thin layer over `makeEndpoint`
+doc, handle })` is the declaration constructor — a thin layer over `makeEndpoint`
 from `@nestling/pipeline` that adds the HTTP dictionary and assembles
 `pattern` as `` `${method} ${path}` ``. The placement marks `query()`/`body()`
 and the bind map type live in [`@nestling/contracts`](../nestling.contracts)
@@ -28,8 +29,10 @@ and the bind map type live in [`@nestling/contracts`](../nestling.contracts)
 author of a declaration takes them from the same place as `httpEndpoint`. `path` is a literal type, and
 `PathParams<Path>` derives the `:param` names from it. The dictionary is
 checked **when the declaration is created**: an empty `path`, a `path`
-without a leading `/`, a repeated path parameter and every placement rule
-below all throw right there.
+without a leading `/`, a repeated path parameter, a malformed `doc:` section
+and every placement rule below all throw right there. The transport does not
+interpret `doc:` — it only forwards it to `makeEndpoint`; reading it is the
+business of a document generator ([`@nestling/openapi`](../nestling.openapi)).
 
 ## Input placement: the canon and the bind map
 
@@ -243,7 +246,10 @@ By default the transport is safe to expose:
   `CONFLICT → 409`, `PAYLOAD_TOO_LARGE → 413`, `TOO_MANY_REQUESTS → 429`,
   `TIMEOUT → 504` (a budget overrun, not a client that failed to finish
   sending — that would be 408). An item chain's `.limit(n)` and
-  `.gapTimeout(ms)` land on 413 and 504 through those.
+  `.gapTimeout(ms)` land on 413 and 504 through those. The table is exported
+  as `httpCodeOf(status)` for its second reader — the OpenAPI generator: a
+  document must name the codes that actually go out, and a second copy of the
+  table would drift from this one at the first addition to the vocabulary.
 - **Validation failures return standard issues.** A schema failure returns
   `400` with `"code": "VALIDATION_FAILED"` and `details` shaped as
   `[{ "message": "…", "path": ["name"] }]` — the Standard Schema guarantee,

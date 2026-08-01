@@ -10,7 +10,7 @@ import { familyOverride } from './overrides';
 import { unwrap, UnwrapFailedError } from './unwrap';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import { makeAppModule, makeFeature } from '@nestling/app';
+import { Discovery$, makeAppModule, makeFeature } from '@nestling/app';
 import type { Config } from '@nestling/config';
 import { makeConfig } from '@nestling/config';
 import {
@@ -493,5 +493,26 @@ describe('vars и familyOverride', () => {
 
     expect(productionCalls).toBe(0);
     expect(app.get(Sink)).toEqual([noop, noop]);
+  });
+});
+
+describe('Discovery$ в тестовом корне', () => {
+  it('тестовый корень видит тот же состав приложения, что и боевой', async () => {
+    const Ping = httpEndpoint({
+      method: 'GET',
+      path: '/ping',
+      handle: async () => new Ok({ pong: true }),
+    });
+
+    await using app = await assembleTest({
+      modules: [makeAppModule({ name: 'module:discovery', endpoints: [Ping] })],
+      transports: [asHttpTransport(new SpyTransport())],
+    });
+
+    const discovery = app.get(Discovery$);
+
+    expect(discovery?.endpoints).toEqual([
+      { endpoint: Ping, moduleName: 'module:discovery' },
+    ]);
   });
 });

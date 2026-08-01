@@ -57,6 +57,17 @@ registration because the ports kernel needs the topology of implementations
 at registration time; the function is pure, so the order changes nothing
 else.
 
+The result of that discovery is also registered as a value under the public
+token **`Discovery$`** — always and unconditionally, because a value provider
+costs nothing and a conditional registration would make a satellite module
+(the OpenAPI generator, a registry) depend on a flag in the root. It is the
+only way for a module to see the **selected** topology in full without
+duplicating `select`. The value is read-only in both the types and the
+runtime (frozen lists, `set`/`delete`/`clear` replaced by a throw): injected
+discovery is a surface for introspection, not an extension point — what the
+application serves comes from the tree of registered modules, not from the
+graph.
+
 ### `policies` — invariants over the assembled graph
 
 ```typescript

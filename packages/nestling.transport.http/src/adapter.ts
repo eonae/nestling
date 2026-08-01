@@ -71,14 +71,26 @@ export interface SendOptions {
 }
 
 /**
- * Парсит строковый статус в HTTP код
+ * Переводит транспортно-нейтральный статус в код HTTP-провода.
+ *
+ * Публична ради второго читателя таблицы — генератора документации
+ * (`@nestling/openapi`): документ обязан называть те же коды, что уходят в
+ * бою, а вторая копия таблицы разошлась бы с первой при первом же
+ * пополнении словаря статусов. Сама таблица остаётся здесь: перевод — дело
+ * транспорта, и в ядре ей места нет.
+ *
+ * Неизвестный статус даёт `200` — та же деградация, что и на горячем пути:
+ * словарь статусов закрыт, поэтому случай недостижим из типизированного
+ * кода.
+ *
+ * @param status - Статус ответа (`'CREATED'`, `'CONFLICT'`, …)
+ * @returns Код HTTP-ответа
  */
-function parseStatus(status?: ProcessingStatus): number {
+export function httpCodeOf(status?: ProcessingStatus): number {
   if (!status) {
     return 200;
   }
 
-  // Иначе используем маппинг
   return STATUS_MAP[status] ?? 200;
 }
 
@@ -266,7 +278,7 @@ export async function sendResponse(
   response: ResponseContext,
   options: SendOptions = {},
 ): Promise<void> {
-  res.statusCode = parseStatus(response.status);
+  res.statusCode = httpCodeOf(response.status);
 
   if (response.headers) {
     for (const [key, value] of Object.entries(response.headers)) {

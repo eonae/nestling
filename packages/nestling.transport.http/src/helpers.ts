@@ -6,6 +6,7 @@ import type { InjectionToken } from '@nestling/container';
 import type {
   AnyContract,
   ContractFailsOf,
+  DeclarationDoc,
   HttpMethod,
   InputFormOf,
   OutputFormOf,
@@ -156,6 +157,17 @@ export interface HttpEndpointDictionary<
   pipeline?: Pipeline<PR, P, PN> & ValidateStart<PR, StartContext<RB, O>>;
 
   /**
+   * Документация операции. Транспорт поле не интерпретирует — только
+   * пробрасывает в `makeEndpoint`, который проверяет словарь секции.
+   *
+   * @example
+   * ```typescript
+   * doc: { summary: 'Create user', tags: ['users'], status: 'CREATED' }
+   * ```
+   */
+  doc?: DeclarationDoc;
+
+  /**
    * Причина вывода ручки из-под инвариантов сборки. Транспорт поле не
    * интерпретирует — только пробрасывает в `makeEndpoint`, который требует
    * непустую строку (формы `detached: true` не существует).
@@ -218,6 +230,12 @@ export interface HttpContractDictionary<
 
   /** @internal интерфейс операции принадлежит контракту */
   errors?: never;
+
+  /**
+   * @internal документация операции принадлежит контракту: две реализации
+   * одного контракта не могут описывать его по-разному
+   */
+  doc?: never;
 }
 
 /** Поля, которые в контракт-форме объявляет сам контракт */
@@ -230,6 +248,7 @@ const CONTRACT_OWNED = [
   'input',
   'output',
   'errors',
+  'doc',
 ] as const;
 
 /** Значение — контракт `makeContract`, а не что-то похожее */
@@ -299,6 +318,7 @@ function fromContract(
     input: contract.input,
     output: contract.output,
     errors: contract.errors,
+    doc: contract.doc,
   });
 }
 
