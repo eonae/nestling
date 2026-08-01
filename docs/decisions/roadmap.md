@@ -318,7 +318,7 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | # | Change | Размер | Почему здесь |
 |---|---|---|---|
 | 20 | `openapi` | M–L | все предпосылки закрыты: 19 (конвертеры), 8, 21 (bind-карта), 15 (`errors:`) |
-| 25 | `config-secrets` | S | **done** — `secret(from(...))`, три поверхности редактирования, общий ключ и конфликт `reloadable` в границах сборки; ядро не тронуто нигде, кроме `@nestling/config` |
+| 25 | `config-secrets` | S | **done** — [архив](../../openspec/changes/archive/2026-08-01-config-secrets/); `secret(from(...))`, три поверхности редактирования, общий ключ и конфликт `reloadable` в границах сборки; ядро не тронуто нигде, кроме `@nestling/config` |
 | 18 | `stub(Contract)` + `app.emit` (остаток) | S | после 11 |
 | 7 | `subscriptions-registry` | M | финальная проверка тезиса: satellite пишется, не трогая ядро |
 
