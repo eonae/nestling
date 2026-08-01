@@ -3,6 +3,8 @@ import { ActivityHub } from '../activity.hub';
 
 import type { Output } from '@nestling/pipeline';
 import { compose, events, makePipeline, Ok } from '@nestling/pipeline';
+import type { TrackedSubscription } from '@nestling/subscriptions';
+import { tracked } from '@nestling/subscriptions';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -41,8 +43,10 @@ const subscriptionObserver = makePipeline<{ requestId: string }>().finally(
  *   завершение — дисконнект;
  * - SSE-специфику в HTTP-словаре (`sse`), а не в транспорт-нейтральной
  *   форме;
- * - `meta.signal` как единственный механизм отмены: подписка снимается
- *   сама, когда клиент уходит;
+ * - слой `tracked`: подписка попадает в реестр, и её видно в
+ *   `GET /api/ops/subscriptions`;
+ * - `meta.subscription.signal` как **единственный** источник отмены для
+ *   хендлера;
  * - `Last-Event-ID`: заголовок реконнекта приезжает в **типизированном**
  *   стартовом контексте, и решение «откуда продолжить» принимает хендлер.
  */
@@ -54,13 +58,16 @@ export const ActivityStream = httpEndpoint({
     id: (event) => event.id,
     event: (event) => event.kind,
   },
-  pipeline: compose(noValidationPipeline, subscriptionObserver),
+  pipeline: compose(noValidationPipeline, tracked, subscriptionObserver),
   deps: [ActivityHub],
   handle:
     (hub: ActivityHub) =>
     async (
       _payload: unknown,
-      meta: { signal: AbortSignal; lastEventId?: string },
+      meta: {
+        subscription: TrackedSubscription;
+        lastEventId?: string;
+      },
     ): Output<AsyncIterable<ActivityEventOut>> => {
       if (meta.lastEventId) {
         // Реальная лента отдала бы историю с этого места; пример только
@@ -69,6 +76,12 @@ export const ActivityStream = httpEndpoint({
         console.log(`[activity] реконнект с id=${meta.lastEventId}`);
       }
 
-      return new Ok(hub.subscribe(meta.signal));
+      // Именно `meta.subscription.signal`, а не `meta.signal`: он
+      // комбинирует сигнал запроса (дисконнект, shutdown) с
+      // административным контроллером записи, поэтому одна подписка на него
+      // закрывает и `DELETE /api/ops/subscriptions/:id`. Ключ `signal` в
+      // `meta` зарезервирован пайплайном и подмене не подлежит — админский
+      // канал обязан быть вторым полем
+      return new Ok(hub.subscribe(meta.subscription.signal));
     },
 });

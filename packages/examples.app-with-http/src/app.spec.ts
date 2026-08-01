@@ -7,8 +7,15 @@
  */
 
 import { ILogger, observability } from './modules/logger';
-import { ClaimQuotaImpl } from './modules/quotas/quotas.module';
 import {
+  KillSubscription,
+  ListSubscriptions,
+  WatchSubscriptions,
+} from './modules/ops/subscriptions.endpoint';
+import { ClaimQuotaImpl } from './modules/quotas/quotas.module';
+import { ActivityHub } from './modules/users/activity.hub';
+import {
+  ActivityStream,
   CreateUser,
   DeleteUser,
   GetUser,
@@ -25,6 +32,7 @@ import type { OpenApiDocument } from '@nestling/openapi';
 import { openapi, OpenApiDocument$ } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 import { everyEndpoint, RequestId } from '@nestling/pipeline';
+import { SubscriptionRegistry } from '@nestling/subscriptions';
 import {
   assembleTest,
   checkTopologies,
@@ -167,12 +175,15 @@ describe('пример: ambient-контекст в глубине графа', 
 });
 
 describe('пример: инфраструктура едет вместе с фичей', () => {
-  it('без выбранной фичи провайдеров инфра-модуля нет в графе', async () => {
-    // `ops` — единственная ручка вне инвариантов (detached), слой
-    // наблюдаемости ей не нужен, логгер не импортирует никто из выбранного
+  it('фича привозит ровно ту инфраструктуру, которую импортирует', async () => {
+    // `ops` импортирует логирование и реестр подписок: её админские ручки
+    // живут под теми же политиками, что и прикладные. Прикладных
+    // провайдеров фичи `users` при этом в графе нет — их никто не выбрал
     await using app = await assembleTest({ ...spec, select: 'ops' });
 
-    expect(app.get(ILogger)).toBeNull();
+    expect(app.get(ILogger)).not.toBeNull();
+    expect(app.get(SubscriptionRegistry)).not.toBeNull();
+    expect(app.get(ActivityHub)).toBeNull();
     expect(app.get(HttpTransport$)).not.toBeNull();
   });
 
@@ -180,6 +191,7 @@ describe('пример: инфраструктура едет вместе с ф
     await using app = await assembleTest({ ...spec, select: 'users' });
 
     expect(app.get(ILogger)).not.toBeNull();
+    expect(app.get(ActivityHub)).not.toBeNull();
   });
 
   it('co-located фичи, импортирующие одно значение, делят инстанс', async () => {
@@ -324,10 +336,18 @@ describe('пример: матрица select-топологий', () => {
     ]);
 
     // `users` тянет `ops` и `quotas` через `dependsOn`; сам `ops` объявляет
-    // только эксплуатационную ручку — это и проверяет матрица
+    // эксплуатационные ручки — liveness-пробу и админ-плоскость подписок,
+    // включая двух подписчиков фактов на шине
     expect(reports[1].report.features).toEqual(['users', 'ops', 'quotas']);
-    expect(reports[2].report.endpoints.map(({ pattern }) => pattern)).toEqual([
+    expect(
+      reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
+    ).toEqual([
+      'DELETE /api/ops/subscriptions/:id',
+      'GET /api/ops/subscriptions',
+      'GET /api/ops/subscriptions/live',
       'GET /health',
+      'subscriptions.closed@ops',
+      'subscriptions.opened@ops',
     ]);
     expect(reports[0].report.endpoints.length).toBeGreaterThan(1);
   });
@@ -393,6 +413,9 @@ describe('пример: документ OpenAPI', () => {
 
     expect(Object.keys(paths).sort()).toEqual([
       '/api/hooks/users',
+      '/api/ops/subscriptions',
+      '/api/ops/subscriptions/live',
+      '/api/ops/subscriptions/{id}',
       '/api/users',
       '/api/users/activity',
       '/api/users/export',
@@ -460,5 +483,104 @@ describe('пример: документ OpenAPI', () => {
         }
       ).properties.code.const,
     ).toBe('EMAIL_TAKEN');
+  });
+});
+
+/** Поток из ответа границы: у `events`-ручки значение — итератор */
+const streamOf = <T>(response: unknown): AsyncIterableIterator<T> =>
+  (response as { value: AsyncIterableIterator<T> }).value;
+
+/**
+ * Реестр подписок — satellite-пакет в работе.
+ *
+ * Тест драйвит ровно тот сценарий, ради которого пакет и существует:
+ * подписка открылась, её видно списком, администратор её завершил, поток
+ * закрылся, запись снялась. Ни одной строки ядра при этом не задействовано
+ * иначе, чем через публичные примитивы.
+ */
+describe('пример: реестр подписок', () => {
+  it('показывает подписку, убивает её и снимает запись', async () => {
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    const subscription = streamOf<{ kind: string }>(
+      await app.call(ActivityStream),
+    );
+
+    // Подписка видна администратору до того, как ушёл первый элемент
+    const [listed] = unwrap(await app.call(ListSubscriptions));
+    expect(listed).toMatchObject({
+      transport: 'http',
+      pattern: 'GET /api/users/activity',
+      kind: 'events',
+      itemsOut: 0,
+    });
+    // `identity` считает экстрактор композиции — здесь это requestId слоя
+    expect(typeof listed.identity).toBe('string');
+
+    // Событие в ленте: подписка отдаёт элемент, счётчик догоняет
+    unwrap(await createUser(app, 'subscriber'));
+    const delivered = await subscription.next();
+    expect(delivered.value).toMatchObject({ kind: 'created' });
+    expect(unwrap(await app.call(ListSubscriptions))[0].itemsOut).toBe(1);
+
+    // Административное завершение: ответ 204, поток закрывается сам
+    const killed = await app.call(KillSubscription, { id: listed.id });
+    expect(killed.status).toBe('NO_CONTENT');
+
+    // Итерация завершается сама: хендлер слушает `meta.subscription.signal`
+    const tail: unknown[] = [];
+    for await (const event of subscription) {
+      tail.push(event);
+    }
+    expect(tail).toEqual([]);
+
+    // Запись снял `.finally` пайплайна, а не `abort()`
+    expect(unwrap(await app.call(ListSubscriptions))).toEqual([]);
+  });
+
+  it('отказывает объявленным отказом на неизвестную подписку', async () => {
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    const refused = await app.call(KillSubscription, { id: 'нет-такой' });
+
+    expect(refused).toMatchObject({
+      isSuccess: false,
+      status: 'NOT_FOUND',
+      value: { code: 'SUBSCRIPTION_NOT_FOUND' },
+    });
+  });
+
+  it('живой просмотр сам является подпиской и не видит своего opened', async () => {
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    const feed = streamOf<{ type: string; subscription: { pattern: string } }>(
+      await app.call(WatchSubscriptions),
+    );
+
+    // Собственная запись в реестре есть...
+    expect(
+      unwrap(await app.call(ListSubscriptions)).map(({ pattern }) => pattern),
+    ).toEqual(['GET /api/ops/subscriptions/live']);
+
+    // ...а в ленте её нет: `opened` опубликовано до вызова хендлера,
+    // то есть до того, как хендлер подписался
+    await app.call(ActivityStream);
+
+    const first = await feed.next();
+    expect(first.value).toMatchObject({
+      type: 'opened',
+      subscription: { pattern: 'GET /api/users/activity' },
+    });
+
+    await feed.return?.();
   });
 });

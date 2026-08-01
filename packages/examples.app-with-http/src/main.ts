@@ -2,7 +2,7 @@
 
 import { observability } from './modules/logger';
 import { OpsFeature, QuotasFeature, UsersFeature } from './features';
-import { appLogging } from './infrastructure';
+import { appLogging, appSubscriptions } from './infrastructure';
 
 import { assemble } from '@nestling/app';
 import { load, makeConfig } from '@nestling/config';
@@ -50,6 +50,10 @@ async function main() {
     // сюда именно поэтому, а не «на всякий случай».
     modules: [
       appLogging,
+      // Реестр подписок — satellite-пакет, подключённый той же конвенцией
+      // параметризованного модуля: ни поля корня, ни «плагина» под него не
+      // появилось. Значение создаётся один раз в `infrastructure.ts`
+      appSubscriptions,
       openapi({
         info: {
           title: 'Users API',
@@ -104,11 +108,20 @@ async function main() {
   console.log('  - GET    /api/users/search       - Search users');
   console.log('  - GET    /api/users/export       - Export users (NDJSON)');
   console.log('  - POST   /api/users/import       - Import users (NDJSON)');
-  console.log('  - GET    /api/users/activity     - Activity feed (SSE)');
+  console.log(
+    '  - GET    /api/users/activity     - Activity feed (SSE, трекается реестром)',
+  );
   console.log(
     '  - POST   /api/users/:id/avatar   - Upload avatar (multipart + upload)',
   );
   console.log('  - POST   /api/hooks/users        - Webhook (rawBody + HMAC)');
+  console.log('  - GET    /api/ops/subscriptions  - Активные подписки узла');
+  console.log(
+    '  - DELETE /api/ops/subscriptions/:id - Завершить подписку (админский kill)',
+  );
+  console.log(
+    '  - GET    /api/ops/subscriptions/live - Лента изменений реестра (SSE)',
+  );
   console.log(
     '  - GET    /health                 - Liveness (detached: вне политик)',
   );
@@ -136,6 +149,18 @@ async function main() {
   console.log(
     '  curl -F avatar=@photo.png http://localhost:3000/api/users/1/avatar',
   );
+  console.log('');
+  console.log('Реестр подписок (satellite поверх публичных примитивов):');
+  console.log(
+    '  curl -N  http://localhost:3000/api/users/activity   — открыть подписку',
+  );
+  console.log(
+    '  curl     http://localhost:3000/api/ops/subscriptions — увидеть её',
+  );
+  console.log(
+    '  curl -X DELETE http://localhost:3000/api/ops/subscriptions/<id>',
+  );
+  console.log('  curl -N  http://localhost:3000/api/ops/subscriptions/live');
   console.log('');
   console.log('Выбор подмножества фич:');
   console.log('  APP_FEATURES=users yarn start   — только пользователи');

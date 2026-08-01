@@ -13,6 +13,7 @@
  */
 
 import type { StandardSchemaV1 } from '@common/misc';
+import { jsonSchema } from '@nestling/contracts';
 
 /** Тип листа: ровно то, что встречается в фактах пакета */
 type FieldType = 'string' | 'number';
@@ -63,6 +64,13 @@ function checkField(spec: FieldSpec, value: unknown): string | undefined {
   return undefined;
 }
 
+/** JSON Schema поля — та же таблица, прочитанная документацией */
+function describeField(spec: FieldSpec): Record<string, unknown> {
+  return spec.values
+    ? { type: spec.type, enum: [...spec.values] }
+    : { type: spec.type };
+}
+
 /**
  * Рекорд плоских полей как Standard Schema.
  *
@@ -70,13 +78,18 @@ function checkField(spec: FieldSpec, value: unknown): string | undefined {
  * отбрасываются — факт не должен возить с собой то, чего нет в его
  * описании.
  *
+ * Значение сразу аннотируется `jsonSchema(...)`: вендора `nestling` не
+ * понимает ни один конвертер, и без аннотации факт уезжал бы в OpenAPI и в
+ * схемный дифф непрозрачным листом. Аннотация здесь бесплатна — таблица
+ * полей и есть описание.
+ *
  * @param T - Проекция рекорда; объявляется рядом с самим рекордом, потому
  * что вывода типа из значения тут не будет — вендор не подключён
  */
 export function record<T>(
   fields: Readonly<Record<string, FieldSpec>>,
 ): StandardSchemaV1<unknown, T> {
-  return {
+  const base: StandardSchemaV1<unknown, T> = {
     '~standard': {
       version: 1,
       vendor: 'nestling',
@@ -108,4 +121,15 @@ export function record<T>(
       },
     },
   };
+
+  const entries = Object.entries(fields);
+
+  return jsonSchema(base, {
+    type: 'object',
+    additionalProperties: false,
+    properties: Object.fromEntries(
+      entries.map(([key, spec]) => [key, describeField(spec)]),
+    ),
+    required: entries.filter(([, spec]) => !spec.optional).map(([key]) => key),
+  });
 }

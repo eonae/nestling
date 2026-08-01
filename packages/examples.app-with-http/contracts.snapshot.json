@@ -95,6 +95,125 @@
       ]
     },
     {
+      "name": "subscriptions.closed",
+      "kind": "event",
+      "input": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "schema",
+          "vendor": "nestling",
+          "jsonSchema": {
+            "additionalProperties": false,
+            "properties": {
+              "closedAt": {
+                "type": "number"
+              },
+              "id": {
+                "type": "string"
+              },
+              "itemsOut": {
+                "type": "number"
+              },
+              "node": {
+                "type": "string"
+              },
+              "reason": {
+                "enum": [
+                  "completed",
+                  "disconnected",
+                  "aborted",
+                  "failed",
+                  "killed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "reason",
+              "itemsOut",
+              "closedAt"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "output": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "none"
+        }
+      },
+      "errors": [],
+      "topologies": [
+        "all",
+        "users",
+        "ops"
+      ]
+    },
+    {
+      "name": "subscriptions.opened",
+      "kind": "event",
+      "input": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "schema",
+          "vendor": "nestling",
+          "jsonSchema": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "identity": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "value",
+                  "stream",
+                  "events"
+                ],
+                "type": "string"
+              },
+              "node": {
+                "type": "string"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "startedAt": {
+                "type": "number"
+              },
+              "transport": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "transport",
+              "pattern",
+              "kind",
+              "startedAt"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "output": {
+        "kind": "value",
+        "leaf": {
+          "leaf": "none"
+        }
+      },
+      "errors": [],
+      "topologies": [
+        "all",
+        "users",
+        "ops"
+      ]
+    },
+    {
       "name": "users.registered",
       "kind": "event",
       "input": {

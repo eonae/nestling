@@ -10,10 +10,12 @@
  * фабрика модуля и типы модели — плюс два `event`-контракта, которыми
  * пакет публикует факты жизненного цикла.
  *
- * Внутри остаются класс-юниты слоя (`TrackSubscription`/
- * `UntrackSubscription`): их регистрирует модуль, и никакой другой код с
- * ними не работает — граница держится видимостью ES-модулей, а не
- * рантайм-проверкой.
+ * Класс-юниты слоя (`TrackSubscription`/`UntrackSubscription`) тоже
+ * экспортируются, но звать их руками не нужно: их регистрирует модуль.
+ * Экспорт вынужденный и потому честный — класс-юнит попадает в `TNeeds`
+ * слоя, а через него в тип декларации, композированной от `tracked`. Не
+ * будь имени в публичной поверхности пакета, такая декларация в чужом
+ * пакете не тайпчекалась бы («inferred type cannot be named», TS2742).
  */
 
 export { SubscriptionClosed, SubscriptionOpened } from './contracts.js';
@@ -22,7 +24,7 @@ export type {
   SubscriptionOpenedFact,
 } from './contracts.js';
 export { SubscriptionKilledError } from './errors.js';
-export { tracked } from './layer.js';
+export { tracked, TrackSubscription, UntrackSubscription } from './layer.js';
 export { subscriptions } from './module.js';
 export type { SubscriptionsOptions } from './module.js';
 export { SubscriptionRegistry } from './registry.js';

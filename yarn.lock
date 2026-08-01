@@ -1702,7 +1702,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestling/subscriptions@workspace:packages/nestling.subscriptions":
+"@nestling/subscriptions@workspace:*, @nestling/subscriptions@workspace:packages/nestling.subscriptions":
   version: 0.0.0-use.local
   resolution: "@nestling/subscriptions@workspace:packages/nestling.subscriptions"
   dependencies:
@@ -5438,6 +5438,7 @@ __metadata:
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/streams": "workspace:*"
+    "@nestling/subscriptions": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.http": "workspace:*"

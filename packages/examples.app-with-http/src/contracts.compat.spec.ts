@@ -98,15 +98,38 @@ describe('пример: отчёт совместимости контракто
     expect(snapshot.contracts.map(({ name }) => name)).toEqual([
       'quotas.claim',
       'quotas.record-signup',
+      'subscriptions.closed',
+      'subscriptions.opened',
       'users.registered',
     ]);
 
-    // Топология `ops` контрактов не публикует вовсе, `users` тянет квоты
-    // через `dependsOn` — и это видно в снапшоте, а не додумывается
+    // `users` тянет квоты через `dependsOn` — и это видно в снапшоте, а не
+    // додумывается
     expect(
       snapshot.contracts.find(({ name }) => name === 'quotas.claim')
         ?.topologies,
     ).toEqual(['all', 'users']);
+
+    // Факты подписок публикует эксплуатационная фича, а она есть в каждой
+    // топологии: наблюдение за подписками не зависит от того, какие
+    // прикладные фичи подняли на узле
+    expect(
+      snapshot.contracts.find(({ name }) => name === 'subscriptions.opened')
+        ?.topologies,
+    ).toEqual(['all', 'users', 'ops']);
+
+    // Схемы фактов написаны руками (`vendor: 'nestling'`), конвертера для
+    // них нет ни одного — и всё равно они в снапшоте не непрозрачны:
+    // satellite аннотировал их `jsonSchema(...)`. Так независимость от
+    // вендора не стоит ни документации, ни схемного диффа
+    expect(
+      snapshot.contracts.find(({ name }) => name === 'subscriptions.opened')
+        ?.input.leaf,
+    ).toMatchObject({
+      leaf: 'schema',
+      vendor: 'nestling',
+      jsonSchema: { type: 'object' },
+    });
   });
 
   it('breaking подсвечивается с подсказкой bump’а — и ничего не роняет', async () => {
