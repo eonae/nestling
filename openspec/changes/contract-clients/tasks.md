@@ -133,35 +133,35 @@
       клиентский скрипт-потребитель, импортирующий только контракты и клиент
 - [x] 8.2 `packages/examples.split-nats`: импорт `makeContract` переводится на
       `@nestling/contracts`
-- [ ] 8.3 Новый гайд `docs/guides/typed-client.md`, сверенный с примером;
+- [x] 8.3 Новый гайд `docs/guides/typed-client.md`, сверенный с примером;
       плашка «сверено с кодом» с датой
-- [ ] 8.4 `docs/guides/ports.md` и `docs/guides/http-*.md` — обновить импорты
+- [x] 8.4 `docs/guides/ports.md` и `docs/guides/http-*.md` — обновить импорты
       и пересверить плашки с датой
-- [ ] 8.5 `docs/design/contracts.md` — секция `http:`, внешний потребитель,
+- [x] 8.5 `docs/design/contracts.md` — секция `http:`, внешний потребитель,
       контракт-форма `httpEndpoint`, пакетная граница
-- [ ] 8.6 `docs/design/errors.md` — рематериализация отказа по проводу и
+- [x] 8.6 `docs/design/errors.md` — рематериализация отказа по проводу и
       закрытый контракт `E ∪ UnknownError` на клиенте
-- [ ] 8.7 `docs/design/schemas.md` — валидация ответа клиентом через
+- [x] 8.7 `docs/design/schemas.md` — валидация ответа клиентом через
       `~standard.validate`
-- [ ] 8.8 `docs/decisions/ideas.md` — запись с решениями change'а: пакетная
+- [x] 8.8 `docs/decisions/ideas.md` — запись с решениями change'а: пакетная
       граница и subpath токенов, контракт-форма `httpEndpoint`, валидация
       ответа по умолчанию, правила коерсии query, отвергнутые варианты;
       закрыть в записи [2026-07-13] два открытых вопроса пометкой «РЕШЕНО»
-- [ ] 8.9 `docs/decisions/deferred.md` — `idempotencyKey`/`deadline` по HTTP,
+- [x] 8.9 `docs/decisions/deferred.md` — `idempotencyKey`/`deadline` по HTTP,
       content-negotiation; триггеры возврата
-- [ ] 8.10 README пакетов: новые `@nestling/contracts` и `@nestling/client`
+- [x] 8.10 README пакетов: новые `@nestling/contracts` и `@nestling/client`
       (включая предупреждение о двух копиях пакета в одном приложении),
       обновление плашек статуса у `@nestling/pipeline`, `@nestling/ports`,
       `@nestling/transport.http`, `@nestling/container`
 
 ## 9. Definition of Done
 
-- [ ] 9.1 Все задачи `tasks.md` отмечены
-- [ ] 9.2 `yarn verify` зелёный (`build` + `lint` + `test` по всем пакетам)
-- [ ] 9.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 9.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
-- [ ] 9.5 `yarn docs:audit` — 0 ERROR
-- [ ] 9.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены с
+- [x] 9.1 Все задачи `tasks.md` отмечены
+- [x] 9.2 `yarn verify` зелёный (`build` + `lint` + `test` по всем пакетам)
+- [x] 9.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 9.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
+- [x] 9.5 `yarn docs:audit` — 0 ERROR
+- [x] 9.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены с
       обновлённой датой в плашке «сверено с кодом»
-- [ ] 9.7 Коммиты осмысленные, ветка запушена
-- [ ] 9.8 Обновить статус change #22 в `docs/decisions/roadmap.md`
+- [x] 9.7 Коммиты осмысленные, ветка запушена
+- [x] 9.8 Обновить статус change #22 в `docs/decisions/roadmap.md`

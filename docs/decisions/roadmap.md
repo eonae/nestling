@@ -42,7 +42,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 19 | `standard-schema` | ядро принимает `StandardSchemaV1` вместо `z.ZodType`: `parsePayload`/`DomainType` через `~standard.validate`/`InferOutput`; `SchemaValidationError` несёт стандартные `issues` вместо `ZodError`; zod → devDependency; Promise из `validate` = ошибка | S–M, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-29-standard-schema/), [ideas.md [2026-07-13]](./ideas.md) |
 | 20 | `openapi` | `@nestling/openapi`: генерация OpenAPI из деклараций endpoints; конвертеры `SchemaDocConverter` — явные, по `~standard.vendor`, отдельными пакетами (`@nestling/openapi.zod`, …); boot-time проверка конвертируемости всех схем; `jsonSchema`-override; `errors:` → responses; предпосылка — bind-карта (21) | M–L | идея — [ideas.md [2026-07-13]](./ideas.md) |
 | 21 | `input-bind` | канон размещения HTTP-input + bind-карта: детерминированное `(pattern, метод, пометки) → path/query/body`; сахар-пометки `query()` (заголовки — только по пометке, `header()` отложен в deferred.md) → плоская bind-карта — несущий уровень для транспорта/OpenAPI/клиента; разворачивание и fail-fast на создании декларации; strict-приём вместо merge (уходит `PayloadConflictError`); query-массивы (фикс last-wins); opt-in `rawBody: true` в HTTP-словаре — байты в типизированном стартовом контексте (webhook-подписи) | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-30-input-bind/), [ideas.md [2026-07-13]](./ideas.md) |
-| 22 | `contract-clients` | `@nestling/contracts` (`makeContract` с `http:`-биндингом, `defineFail`; zero runtime deps — только Standard Schema types) + `@nestling/client`: `makeClient(record, { baseUrl, headers })` → API-объект, возврат `Ok\|Fail` (call-site ≡ порту); рематериализация `Fail` по `code`; валидация ответа по `output`-схеме (`~standard.validate`); streaming-клиент — v2 (после 6) | M | идея — [ideas.md [2026-07-13]](./ideas.md) |
+| 22 | `contract-clients` | `@nestling/contracts` (`makeContract` с `http:`-биндингом, `defineFail`; zero runtime deps — только Standard Schema types) + `@nestling/client`: `makeClient(record, { baseUrl, headers })` → API-объект, возврат `Ok\|Fail` (call-site ≡ порту); рематериализация `Fail` по `code`; валидация ответа по `output`-схеме (`~standard.validate`); streaming-клиент — v2 (после 6) | M → L | **done** — идея [ideas.md [2026-07-13]](./ideas.md), реализация [ideas.md [2026-08-01]](./ideas.md) |
 | 23 | `pipeline-type-dx` | бюджет на DX типов pipeline: типы-ошибки в точке `compose` (читаемый литерал `__error` + `missing` вместо трассировки дженериков), snapshot-тесты текстов диагностик по фикстурам неправильных композиций, бенчмарк tsserver (~50 слоёв) с порогом в CI; попутно — сигнатура `compose` на прямой вывод тип-параметров (`TS2589` на 20 слоях уходит) | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-pipeline-type-dx/), [ideas.md [2026-07-13]](./ideas.md) |
 | 24 | `endpoint-model` | уход классовых endpoint-деклараций: канон — декларации-значения через per-transport конструкторы (`httpEndpoint`/`cliEndpoint` — типизированный словарь: path-параметры, bind-карта из 21); `deps`-инжект + формы хендлера (функция / каррированная фабрика / класс-хендлер через контейнер); `endpoints:` модуля принимает значения; удаление `@Endpoint`/`@HttpEndpoint`/`IEndpoint`/endpoint-registry; standalone-гарантия в типах (`route` — только deps-free); перевод `examples.app-with-http` и гайдов; классы остаются DI-формой провайдеров/юнитов/хендлеров; онтология — контракт первичен: конструкторы = сахар «анонимный контракт + `implement`»; CLI-биндинг — политика сбора недостающего input из схемы (`missing: 'prompt'`) — **вне scope этого change'а** | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-30-endpoint-model/), [ideas.md [2026-07-13]](./ideas.md) |
 | 25 | `config-secrets` | `secret(schema)` в `makeConfig` (редактирование в `explain()`/логах/доках); семантика общих ключей: независимая валидация каждой секцией, fail-fast на несогласованном `reloadable`, секретность по объединению, читатели ключа в `explain()` | S | идея — [ideas.md [2026-07-13]](./ideas.md) |
@@ -113,11 +113,13 @@ d/06 П.3). Состав breaking-окна фиксации публичного
   `rawBody` — пометка словаря, меняющая **тип** стартового контекста
   декларации: слой проверки подписи объявляет `{ rawBody }` требованием,
   забытая пометка = ошибка в точке композиции («Контракт первичен», п. 6).
-- **22 `contract-clients`** — после 11 (`makeContract` — при реализации учесть
-  упаковку: контракт живёт в zero-deps `@nestling/contracts`, не в
-  `@nestling/pipeline`), 15 (`defineFail`, `errors:`), 19 (`~standard.validate`
-  на клиенте) и 21 (bind-карта). Streaming-клиент — v2, после 6. Логика —
-  [ideas.md [2026-07-13]](./ideas.md) «Типизированные клиенты из контрактов»,
+- **22 `contract-clients`** — **сделан**. После 11 (`makeContract`), 15
+  (`defineFail`, `errors:`), 19 (`~standard.validate` на клиенте) и 21
+  (bind-карта). Упаковка учтена буквально: декларативный слой **переехал** в
+  zero-deps `@nestling/contracts`, а `@nestling/ports` `makeContract` не
+  реэкспортирует. Streaming-клиент — v2, после 6. Логика —
+  [ideas.md [2026-07-13]](./ideas.md) «Типизированные клиенты из контрактов»
+  и [ideas.md [2026-08-01]](./ideas.md) «Клиенты из контрактов: реализация»,
   дискуссия — [d/07](../history/discussions/07-typed-clients.md).
 - **23 `pipeline-type-dx`** — после 4, **до фиксации публичного API V1**: типы-ошибки
   и пороги дешевле вводить до фиксации публичного API; после релиза упрощение
@@ -289,7 +291,7 @@ breaking-окно едет вторым (а не после ветки моно�
 | 27 | `port-deadline-idempotency` | M | **done** — [архив](../../openspec/changes/archive/2026-07-31-port-deadline-idempotency/); `meta.deadline` моментом, `idempotencyKey` у команд, конверт шины |
 | 26 | `contract-versioning` | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-contract-versioning/); снапшот из дискавери, дифф с тремя вердиктами, отчёт в `.check()`-матрице (18) |
 | 12 | `transport.nats` | M | **done** — [архив](../../openspec/changes/archive/2026-07-31-transport-nats/); remote-биндинг, queue-groups, JetStream, wire-часть `propagate` из 16; пакет `@nestling/transport.nats` и пример `examples.split-nats` |
-| 22 | `contract-clients` | M | `@nestling/contracts` + `@nestling/client` — все предпосылки (11, 15, 19, 21) закрыты |
+| 22 | `contract-clients` | M → **L** | **done** — `@nestling/contracts` (переезд декларативного слоя, секция `http:`, контракт-форма `httpEndpoint`) + `@nestling/client`; оценка M не сошлась: цена не в новой логике, а в физическом переезде слоя между пакетами |
 
 ### Волна 6 — экосистема и выход
 
