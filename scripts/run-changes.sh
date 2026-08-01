@@ -223,6 +223,10 @@ while IFS='|' read -r name description; do
   else
     echo "  archive…"
     claude_step_retrying "$LOGFILE" "/opsx:archive $name" || die "$name: archive упал (см. $LOGFILE)"
+    # Нулевой код возврата не значит «заархивировано»: сессия может влить
+    # дельта-спеки и закончить ход, не доделав перенос. Проверяем факт.
+    (( DRY_RUN )) || change_archived "$name" \
+      || warn "$name: archive отработал, но change не в архиве — доархивируй вручную: openspec archive $name -y"
   fi
 
   # 5. коммит — точка отката перед следующим change'ем.
