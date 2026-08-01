@@ -128,4 +128,7 @@
 - [x] 8.5 `yarn docs:audit` — 0 ERROR
 - [x] 8.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены с
       обновлённой датой в плашке «сверено с кодом»
-- [ ] 8.7 Коммиты осмысленные, ветка запушена
+- [x] 8.7 Коммиты осмысленные; **push не выполнен** — у окружения нет прав
+      на `git@github.com:eonae/nestling.git` (`Please make sure you have the
+      correct access rights`). Работа идёт в ветке `autorun/v1-all-waves`
+      (все волны подряд), она готова к пушу
