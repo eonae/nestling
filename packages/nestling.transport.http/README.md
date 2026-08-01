@@ -8,10 +8,24 @@ picked from the same declaration — NDJSON for `stream(T)`, SSE for
 
 ## Declaring routes
 
+Two forms of the same constructor. The **contract form**
+`httpEndpoint({ contract, deps?, pipeline?, handle, detached? })` takes the
+address, the schemas and `errors:` from a contract that carries an `http:`
+section — `method`/`path`/`bind`/`rawBody`/`sse`/`input`/`output`/`errors`
+are declared `never` in its dictionary, so redeclaring what belongs to the
+contract is a compile error. The bind map is carried over from the contract
+**as the same value**, never recomputed: that is what makes "one map on both
+ends of the wire" a matter of identity rather than of two computations
+agreeing.
+
+The **anonymous form**
 `httpEndpoint({ method, path, input, output, bind, rawBody, pipeline, deps,
 handle })` is the declaration constructor — a thin layer over `makeEndpoint`
 from `@nestling/pipeline` that adds the HTTP dictionary and assembles
-`pattern` as `` `${method} ${path}` ``. `path` is a literal type, and
+`pattern` as `` `${method} ${path}` ``. The placement marks `query()`/`body()`
+and the bind map type live in [`@nestling/contracts`](../nestling.contracts)
+(the map is needed by the client too) and are re-exported from here, so the
+author of a declaration takes them from the same place as `httpEndpoint`. `path` is a literal type, and
 `PathParams<Path>` derives the `:param` names from it. The dictionary is
 checked **when the declaration is created**: an empty `path`, a `path`
 without a leading `/`, a repeated path parameter and every placement rule

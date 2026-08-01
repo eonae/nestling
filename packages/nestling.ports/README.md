@@ -6,10 +6,19 @@ which is what makes the call survive the day the two features move into
 separate processes: it is already async, already `Fail`-able and already
 outside the caller's transaction.
 
-Dependencies: `@nestling/container`, `@nestling/pipeline`,
-`@nestling/transport`, `@nestling/streams`, `@nestling/config`,
-`@common/misc`. No schema validator is declared — a contract leaf is any
-[Standard Schema v1](https://standardschema.dev) value.
+Dependencies: `@nestling/container`, `@nestling/contracts`,
+`@nestling/pipeline`, `@nestling/transport`, `@nestling/streams`,
+`@nestling/config`, `@common/misc`. No schema validator is declared — a
+contract leaf is any [Standard Schema v1](https://standardschema.dev) value.
+
+> **`makeContract` is imported from [`@nestling/contracts`](../nestling.contracts),
+> not from here.** The contract declaration lives in a package with no server
+> dependencies, so it can be imported into a frontend bundle; re-exporting it
+> from this package would put it right back among them and turn the packaging
+> guarantee into a matter of import discipline. What this package does
+> re-export are the **invoker types** (`Port`, `Emitter`, `PortMeta`,
+> `CommandMeta`): they are read by the consumer of a port, who already has the
+> server at hand.
 
 > 🚧 Active development, API may change. Design:
 > [`docs/design/contracts.md`](../../docs/design/contracts.md).

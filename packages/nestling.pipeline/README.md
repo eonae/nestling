@@ -14,6 +14,16 @@ read-only ambient projection of the request context (`contextVar`, `Ctx`).
 > Schema …). Design:
 > [`docs/design/schemas.md`](../../docs/design/schemas.md).
 
+> **Where the declarative layer lives.** `Ok`/`Fail`, the status vocabulary,
+> `defineFail` with the kernel failure codes and the io forms now live in
+> [`@nestling/contracts`](../nestling.contracts) — a package with no server
+> code in its import closure, so a contract is importable into a browser
+> bundle. This package **re-exports** all of them: they are the working
+> vocabulary of any handler, and making its author import from another
+> package would be a tax without a win. The re-export is ES-module, i.e. the
+> same module — value identity does not double. What stays here is the
+> runtime: the pipeline itself, the boundary guard and `bind-stream`.
+
 ## Endpoint declarations are values
 
 An endpoint declaration is a **value**, not a decorated class. `makeEndpoint`

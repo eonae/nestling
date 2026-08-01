@@ -5,6 +5,16 @@ A lightweight, type-safe dependency injection container for TypeScript with no t
 > 🚧 Active development, API evolving. Target design in
 > [`docs/design/container.md`](../../docs/design/container.md).
 
+> **Subpath `@nestling/container/tokens`.** Besides the barrel, the package
+> exports the injection-token primitive on its own: `common.ts` (the token
+> and its stringification) and `providers/token-family.ts` (token families).
+> Both are leaf modules with no runtime imports, so the subpath's closure
+> never reaches the graph builder or `@common/graphs`. It exists for
+> [`@nestling/contracts`](../nestling.contracts): a contract puts
+> `.port`/`.emitter` on itself, and membership has to be registered in the
+> family itself — a token that merely looks like a member is not one. The
+> barrel's surface is unchanged; the same symbols are still exported from it.
+
 ## Disclaimer
 
 `Nestling` is my personal take on Nest.js - a framework I both love and find frustrating.

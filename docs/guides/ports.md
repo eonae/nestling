@@ -1,6 +1,6 @@
 # Порты: общение фич контрактами
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-07-31);
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-08-01);
 > разделы про split-развёртывание и провоз контекста — с `examples.split-nats`.
 
 Соседняя фича зовётся не токеном её сервиса, а **контрактом**. Разница
@@ -9,7 +9,7 @@
 уже не транзакционен.
 
 ```typescript
-import { makeContract } from '@nestling/ports';
+import { makeContract } from '@nestling/contracts';
 
 export const ClaimQuota = makeContract({
   name: 'quotas.claim',                        // адрес: subject шины и ключ дискавери
@@ -567,6 +567,10 @@ const scoped = makePipeline().pre(TenantId.propagated());
 
 - `stub(Contract, impl)` для тестов без соседней фичи — остаток
   `testing-package`.
-- Внешний клиент из контракта (`makeClient`) — change `contract-clients`.
+- Внешний клиент из контракта (`makeClient`) — есть:
+  [`typed-client.md`](./typed-client.md). Контракт с секцией `http:`
+  адресуется и по шине, и по HTTP; `makeContract` живёт в
+  `@nestling/contracts` — пакете без серверных зависимостей, поэтому
+  контракт импортируется во фронт.
 
 Целевое состояние подсистемы целиком — [`design/contracts.md`](../design/contracts.md).
