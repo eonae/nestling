@@ -56,6 +56,17 @@ export const CreateUser = makeContract({
   input: CreateUserInput,
   output: User,
   errors: [EmailTaken, QuotaExceeded],
+  // Документация — часть интерфейса операции, а не её реализации: она
+  // объявлена здесь и приезжает на декларацию вместе со схемами. Статус
+  // назван явно, потому что хендлер отвечает `Ok.created(...)`
+  doc: {
+    summary: 'Создать пользователя',
+    description:
+      'Занимает квоту у соседней фичи и публикует событие регистрации. ' +
+      '`?dryRun=true` — только проверка, без записи.',
+    tags: ['users'],
+    status: 'CREATED',
+  },
 });
 
 /** Чтение пользователя по идентификатору */
@@ -66,4 +77,5 @@ export const GetUser = makeContract({
   input: z.object({ id: z.string() }),
   output: User,
   errors: [UserNotFound],
+  doc: { summary: 'Прочитать пользователя по идентификатору', tags: ['users'] },
 });

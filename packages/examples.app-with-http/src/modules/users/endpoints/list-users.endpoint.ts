@@ -33,6 +33,7 @@ export const ListUsers = httpEndpoint({
   method: 'GET',
   path: '/api/users',
   output: ListUsersOutput,
+  doc: { summary: 'Список пользователей', tags: ['users'] },
   pipeline: noValidationPipeline,
   deps: [UserService, ILogger],
   handle: listUsersHandler,

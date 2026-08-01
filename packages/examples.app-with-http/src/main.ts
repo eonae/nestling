@@ -2,9 +2,12 @@
 
 import { observability } from './modules/logger';
 import { OpsFeature, QuotasFeature, UsersFeature } from './features';
+import { appLogging } from './infrastructure';
 
 import { assemble } from '@nestling/app';
 import { load, makeConfig } from '@nestling/config';
+import { openapi } from '@nestling/openapi';
+import { zodConverter } from '@nestling/openapi.zod';
 import { everyEndpoint, RequestId } from '@nestling/pipeline';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -35,6 +38,30 @@ async function main() {
   const app = assemble({
     features: [UsersFeature, OpsFeature, QuotasFeature],
     select: cfg.features,
+    // Документация — обычный параметризованный модуль, а не поле корня и не
+    // «плагин»: примитива под неё в ядре нет. Документ строится на фазе
+    // ASSEMBLE провайдером жадного контейнера, поэтому схема без конвертера
+    // роняет старт до открытия сокета — недокументируемых ручек в
+    // приложении не бывает, пока документация включена.
+    //
+    // `pipeline: observability` — потому что корень требует этот слой от
+    // каждой HTTP-ручки, а satellite-модуль про него ничего не знает.
+    // Вместе со слоем корень берёт на себя и его юнит: `appLogging` едет
+    // сюда именно поэтому, а не «на всякий случай».
+    modules: [
+      appLogging,
+      openapi({
+        info: {
+          title: 'Users API',
+          version: '1.0.0',
+          description:
+            'Пример HTTP-приложения Nestling: документ выведен из тех же ' +
+            'деклараций, которые обслуживают запросы.',
+        },
+        converters: [zodConverter()],
+        pipeline: observability,
+      }),
+    ],
     // Транспорт — провайдер: порт приезжает из его конфиг-секции
     // (`HTTP_PORT`), явная опция её перекрывает
     transports: [http({ port: 3000 })],
@@ -84,6 +111,9 @@ async function main() {
   console.log('  - POST   /api/hooks/users        - Webhook (rawBody + HMAC)');
   console.log(
     '  - GET    /health                 - Liveness (detached: вне политик)',
+  );
+  console.log(
+    '  - GET    /openapi.json           - OpenAPI 3.1 (выведен из деклараций)',
   );
   console.log('');
   console.log('✅ Server listening on http://localhost:3000');

@@ -32,6 +32,8 @@
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/contracts": "workspace:*",
+    "@nestling/openapi": "workspace:*",
+    "@nestling/openapi.zod": "workspace:*",
     "@nestling/pipeline": "workspace:*",
     "@nestling/ports": "workspace:*",
     "@nestling/streams": "workspace:*",

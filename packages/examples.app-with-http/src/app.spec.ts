@@ -16,9 +16,14 @@ import {
 } from './modules/users/endpoints';
 import { ClaimQuota, QuotaExceeded } from './contracts';
 import { OpsFeature, QuotasFeature, UsersFeature } from './features';
+import { appLogging } from './infrastructure';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
 import { describe, expect, it } from '@jest/globals';
+import type { InjectionToken } from '@nestling/container';
+import type { OpenApiDocument } from '@nestling/openapi';
+import { openapi, OpenApiDocument$ } from '@nestling/openapi';
+import { zodConverter } from '@nestling/openapi.zod';
 import { everyEndpoint, RequestId } from '@nestling/pipeline';
 import {
   assembleTest,
@@ -344,5 +349,116 @@ describe('пример: матрица select-топологий', () => {
           'liveness-проба балансировщика: строка аудита на каждый удар — шум, а не наблюдаемость',
       },
     ]);
+  });
+});
+
+/**
+ * Документ выводится из тех же деклараций, которые обслуживают запросы, —
+ * и это проверяется буквально: коды ответов сверяются с ответами, которые
+ * даёт транспорт на живых вызовах.
+ */
+/** Документ из собранного графа: он построен на ASSEMBLE и лежит значением */
+const documentOf = (app: {
+  get: <T>(token: InjectionToken<T>) => T | null;
+}): OpenApiDocument => {
+  const document = app.get(OpenApiDocument$);
+  if (!document) {
+    throw new Error('OpenApiDocument$ is not in the graph');
+  }
+  return document;
+};
+
+describe('пример: документ OpenAPI', () => {
+  /** Тот же корень, что в `main.ts`, плюс модуль документации */
+  const documented = {
+    ...spec,
+    modules: [
+      appLogging,
+      openapi({
+        info: { title: 'Users API', version: '1.0.0' },
+        converters: [zodConverter()],
+        pipeline: observability,
+        announceHidden: false,
+      }),
+    ],
+  };
+
+  it('описывает все публичные ручки и ни одной скрытой', async () => {
+    await using app = await assembleTest({
+      ...documented,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    const { paths } = documentOf(app);
+
+    expect(Object.keys(paths).sort()).toEqual([
+      '/api/hooks/users',
+      '/api/users',
+      '/api/users/activity',
+      '/api/users/export',
+      '/api/users/import',
+      '/api/users/search',
+      '/api/users/{id}',
+      '/api/users/{id}/avatar',
+    ]);
+
+    // Обе служебные ручки скрыты причиной: liveness-проба и сам документ
+    expect(paths['/health']).toBeUndefined();
+    expect(paths['/openapi.json']).toBeUndefined();
+  });
+
+  it('берёт имя операции и документацию с контракта', async () => {
+    await using app = await assembleTest({
+      ...documented,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    const { paths } = documentOf(app);
+
+    expect(paths['/api/users'].post).toMatchObject({
+      operationId: 'api.users.create',
+      summary: 'Создать пользователя',
+      tags: ['users'],
+    });
+
+    // Пометка `query()` контракта разложена: `dryRun` — параметр, а не поле
+    // тела
+    expect(
+      paths['/api/users'].post.parameters?.map(({ name, in: where }) => [
+        name,
+        where,
+      ]),
+    ).toEqual([['dryRun', 'query']]);
+  });
+
+  it('коды ответов совпадают с тем, что реально отвечает транспорт', async () => {
+    await using app = await assembleTest({
+      ...documented,
+      overrides: [[UsersRepository, inMemoryUsersRepo()]],
+    });
+
+    const { responses } = documentOf(app).paths['/api/users'].post;
+
+    // 201: успешный статус объявлен `doc.status: 'CREATED'`
+    const created = await app.call(CreateUser, {
+      name: 'Charlie',
+      email: 'charlie@example.com',
+    });
+    expect(created.status).toBe('CREATED');
+    expect(responses['201']).toBeDefined();
+
+    // 409: тот же email второй раз — объявленный отказ `EMAIL_TAKEN`
+    const conflict = await app.call(CreateUser, {
+      name: 'Charlie II',
+      email: 'charlie@example.com',
+    });
+    expect(conflict.status).toBe('CONFLICT');
+    expect(
+      (
+        responses['409'].content?.['application/json'].schema as {
+          properties: { code: { const: string } };
+        }
+      ).properties.code.const,
+    ).toBe('EMAIL_TAKEN');
   });
 });
