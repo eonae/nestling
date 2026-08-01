@@ -16,9 +16,16 @@
 Pull-модель даёт backpressure бесплатно: медленный клиент просто не
 запрашивает следующий элемент.
 
-Отмена — сквозная: `meta.signal` взводится транспортом при дисконнекте,
-приложением при shutdown, админски — через реестр подписок. Хендлер обязан
-уважать signal; для `for await` по подписке это происходит естественно.
+Отмена — сквозная: `meta.signal` взводится транспортом при дисконнекте и
+приложением при shutdown. Ключ `signal` в `meta` **зарезервирован**
+пайплайном (`request-abort-signal`), поэтому третья причина отмены —
+административное завершение — приезжает не в него, а **вторым полем**:
+слой `tracked` реестра подписок кладёт в `meta.subscription` комбинацию
+`AbortSignal.any([сигнал запроса, административный контроллер])`
+([§4.1](#41-реестр-подписок)). Хендлер трекаемой ручки слушает
+`meta.subscription.signal` и одной подпиской закрывает все три причины;
+хендлер обычной ручки — `meta.signal`. Уважать сигнал хендлер обязан сам;
+для `for await` по подписке это происходит естественно.
 
 ## 2. `stream(T)` ≠ `events(T)`
 
@@ -201,9 +208,69 @@ class Topic<T> {
 снимается с темы: по взведённому `signal`, по `close()` темы и по выходу
 потребителя из итерации (`break`/`return()`).
 
-**Реестр подписок** (посмотреть активные, завершить конкретную) — отдельный
-satellite-пакет поверх публичных примитивов (DI + signal + finish-хук),
-не ядро; его signal — `AbortSignal.any(транспортный, админский)`.
+### 4.1 Реестр подписок
+
+**Реестр подписок** — satellite-пакет `@nestling/subscriptions`, а не часть
+ядра: посмотреть активные подписки, завершить конкретную и наблюдать ленту
+изменений он умеет целиком поверх публичных примитивов (фазы
+`.pre`/`.finally`, класс-форма юнита, `AbortSignal`, DI, `Topic` и
+контракты). Ядро о нём не знает ни строкой — это проверяемое свойство, а не
+пожелание.
+
+Поверхность пакета:
+
+```typescript
+const appSubscriptions = subscriptions({          // параметризованный модуль
+  identity: (ctx) => (ctx.input as { userId?: string }).userId,
+  labels: (ctx) => ({ transport: ctx.endpoint.transport }),
+  publish: true,                                  // факты контрактами, opt-in
+  node: process.env.HOSTNAME,
+});
+
+export const Feed = httpEndpoint({
+  method: 'GET',
+  path: '/api/feed',
+  output: events(Event),
+  pipeline: compose(base, tracked),               // слой ставится композицией
+  deps: [EventHub],
+  handle: (hub: EventHub) => async (_payload, meta) =>
+    new Ok(hub.subscribe(meta.subscription.signal)),
+});
+
+interface SubscriptionRegistry {
+  list(filter?: SubscriptionFilter): readonly SubscriptionInfo[];
+  get(id: string): SubscriptionInfo | undefined;
+  abort(id: string, reason?: string): boolean;
+  abortAll(filter?: SubscriptionFilter, reason?: string): number;
+  watch(signal?: AbortSignal): AsyncIterableIterator<SubscriptionEvent>;
+  get size(): number;
+}
+```
+
+Свойства, важные для модели:
+
+- **Административный канал — второе поле, а не `meta.signal`.** Ключ
+  `signal` зарезервирован пайплайном, и слой его не перекрывает: `meta.signal`
+  остаётся сигналом *запроса*, а `meta.subscription.signal` комбинирует его с
+  контроллером записи.
+- **Свой словарь причин закрытия:** `CloseReason = Outcome | 'killed'`.
+  Пайплайн административное завершение выразить не может — его
+  `computeOutcome` смотрит на сигнал запроса, — поэтому для наблюдателей
+  ядра убитая подписка честно выглядит как `completed`, а реестр говорит
+  `killed` своим словарём. `Outcome` ядра пятым значением **не**
+  расширяется.
+- **Снятие записи — обычным путём.** `abort()` только взводит сигнал;
+  запись снимает `.finally`, когда поток действительно закончился. Реестр
+  отражает факт, а не опережает его.
+- **Node-local управление, кластерное наблюдение.** `list()`/`abort()`
+  действуют в своём процессе; `event`-контракты `subscriptions.opened` /
+  `subscriptions.closed` (opt-in) несут имя узла, поэтому картина по
+  кластеру собирается приёмником фактов. Кластерного kill в V1 нет —
+  см. [deferred.md](../decisions/deferred.md).
+- **Вездесущность слоя — политикой, а не ambient-механизмом:**
+  `everyEndpoint({ … }).hasLayer(tracked)` ([composition.md](./composition.md)).
+
+Гайд: [guides/subscriptions.md](../guides/subscriptions.md).
 
 ## 5. Граница с RxJS
 

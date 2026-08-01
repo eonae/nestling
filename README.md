@@ -136,7 +136,7 @@ await container.destroy();
 - [ ] Pipeline v2: phases, layers, `compose` ([design decisions](./docs/decisions/ideas.md))
 - [ ] Token families & module factories
 - [ ] Request context with AsyncLocalStorage (`@nestling/context`)
-- [ ] Subscriptions registry (`@nestling/subscriptions`)
+- [x] Subscriptions registry (`@nestling/subscriptions`) — satellite over public primitives
 - [ ] CLI scaffolding tool
 - [ ] Testing utilities
 
@@ -165,6 +165,7 @@ packages/
 ├── nestling.transport.http/   # HTTP transport
 ├── nestling.transport.cli/    # CLI transport
 ├── nestling.ports/            # Contracts, ports, in-process bus
+├── nestling.subscriptions/    # Registry of active subscriptions (satellite)
 ├── nestling.transport.nats/   # NATS bus transport (split deployment)
 ├── nestling.models/           # Model definitions on top of zod
 ├── nestling.testing/          # Test composition root

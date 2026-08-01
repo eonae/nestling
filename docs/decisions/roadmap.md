@@ -27,7 +27,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 4 | `pipeline-v2` | фазы `.pre/.ok/.catch/.after/.finally`, `makePipeline`, слои + `compose`, `TNeeds`, рантайм-тесты ядра | L, breaking | **done** — [архив](../../openspec/changes/archive/2026-07-13-pipeline-v2/) |
 | 5 | `token-families` | `makeTokenFamily`, `.auto`, `familyProvider`; опционально `strictExports`. **Покрывает и конфиг (`Config(key)`), и on-demand-клиенты (`GrpcClient(server)` + unbound properties)** — см. [discussions/05 §15](../history/discussions/05-modular-monolith-features-ports.md#15) | M | **done** — [архив](../../openspec/changes/archive/2026-07-29-token-families/) |
 | 6 | `streaming-v2` | `stream` ≠ `events`, item-цепочки на io-декларации, `Topic`, `summary`, SSE; io-декларация как дерево форм (`value`/`stream`/`events`/`multipart` + `upload()`, листья — Standard Schema), поэлементная валидация; capability-валидация биндинга: формы контракта vs способности транспорта, fail-fast на ASSEMBLE | L | **done** — [архив](../../openspec/changes/archive/2026-07-31-streaming-v2/), [ideas.md [2026-07-06]](./ideas.md), новый пакет [`@nestling/streams`](../../packages/nestling.streams/) |
-| 7 | `subscriptions-registry` | пакет реестра подписок поверх signal + finish-хуков (dogfooding публичных примитивов) | M | не начат |
+| 7 | `subscriptions-registry` | пакет реестра подписок поверх signal + finish-хуков (dogfooding публичных примитивов): слой `tracked` из двух класс-юнитов, `meta.subscription.signal` = `AbortSignal.any(запрос, админский)`, `CloseReason = Outcome \| 'killed'`, лента на `Topic`, факты `event`-контрактами (opt-in), параметризованный модуль; ядро не тронуто ни строкой | M | **done** — новый пакет [`@nestling/subscriptions`](../../packages/nestling.subscriptions/), [гайд](../guides/subscriptions.md), отчёт о замере [ideas.md [2026-08-01]](./ideas.md) |
 | 8 | `endpoint-discovery` | эндпоинты и транспорты — дискавери из дерева зарегистрированных модулей вместо глобального registry (чинит протечку глобального `Set` при любом импорте). Предпосылка фич | S | **done** — [архив](../../openspec/changes/archive/2026-07-29-endpoint-discovery/), [d/05 §1](../history/discussions/05-modular-monolith-features-ports.md) |
 | 9 | `config-module` | `makeConfig('prefix', schema)` + `from`; источники = объекты `ConfigSource` в одной приватной читалке (env — база, координаты из примордиального env); приватность = keys-capability (токен секции не экспортируется, наружу — branded-хэндл `.keys`; без `configs:`-регистрации и build()-проверки владения); привязка в корне плоским списком `config: [[src, keys \| glob]]`; reloadable (`Topic`/`AbortSignal`, живой хэндл); on-demand/unbound + доки из реестра (тег фичи из графа + флаг). Поверх `token-families` (5) | M–L | **done** — [архив](../../openspec/changes/archive/2026-07-31-config-module/), новый пакет [`@nestling/config`](../../packages/nestling.config/), [d/05 §11,§15](../history/discussions/05-modular-monolith-features-ports.md), ревизия владения [ideas.md [2026-07-10]](./ideas.md), форма секции — рекорд полей [ideas.md [2026-07-14]](./ideas.md) |
 | 10 | `features` | `makeFeature`/`select`/`assemble`; `@OnStart`/go-live (гарантия `dispatch`: `serve(dispatch, signal)` вместо `listen()`); транспорты как провайдеры; capability = DI + fail-fast | L | **done** — [архив](../../openspec/changes/archive/2026-07-31-features/), [`@nestling/app`](../../packages/nestling.app/), [d/05 §2,§7–§10](../history/discussions/05-modular-monolith-features-ports.md) |
@@ -93,7 +93,12 @@ d/06 П.3). Состав breaking-окна фиксации публичного
   io-формы и capability-валидация биндинга — [ideas.md [2026-07-13]](./ideas.md)
   «Контракт первичен» (формы = вход для media types в 20 и fail-fast
   порта/шины в 11).
-- 7 — последний: тест того, что публичных примитивов достаточно.
+- **7 `subscriptions-registry`** — **сделан**, последним по плану: тест того, что
+  публичных примитивов достаточно. Результат: пакет собран целиком поверх них,
+  `git diff` по kernel-пакетам за весь change пуст, внешних зависимостей нет.
+  Четыре находки (зарезервированный `signal`, `Outcome` без `killed`, кластерное
+  управление, `.finally` у непрочитанного потока) закрыты записями журнала, а не
+  правками ядра — [ideas.md [2026-08-01]](./ideas.md).
 - **15 `error-model`** — можно сразу после 4; ре-гидрация remote-`Fail` —
   вклад в 11 (`ports`), но не блокирует ядро change'а.
 - **16 `async-context`** — после 5 (ридеры `Ctx(Var)` — члены семейства);
@@ -327,7 +332,19 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | 20 | `openapi` | M–L | все предпосылки закрыты: 19 (конвертеры), 8, 21 (bind-карта), 15 (`errors:`) |
 | 25 | `config-secrets` | S | **done** — [архив](../../openspec/changes/archive/2026-08-01-config-secrets/); `secret(from(...))`, три поверхности редактирования, общий ключ и конфликт `reloadable` в границах сборки; ядро не тронуто нигде, кроме `@nestling/config` |
 | 18 | `stub(Contract)` + `app.emit` (остаток) | S | **done** — [архив](../../openspec/changes/archive/2026-08-01-testing-stub-contract/); фейк-вызыватель, валидируемый схемами контракта, `app.emit` как драйвер снаружи и `app.stubbed` для сверки с матрицей; ядро не тронуто нигде |
-| 7 | `subscriptions-registry` | M | финальная проверка тезиса: satellite пишется, не трогая ядро |
+| 7 | `subscriptions-registry` | M | **done** — финальная проверка тезиса состоялась: satellite написан, ядро не тронуто, четыре находки — в журнале |
+
+**Волна 6 закрыта** (2026-08-01), а с ней и план до целевого состояния V1.
+Последний change был не про новую способность, а про **проверку**: реестр
+подписок — тот самый satellite, на котором проверялся тезис «всё, что требует
+стораджа или внешних систем, пишется поверх публичных примитивов, не трогая
+ядро» ([ideas.md [2026-07-14]](./ideas.md) «Kernel 1.0», п. 1). Тезис
+подтвердился буквально: пять workspace-зависимостей, ноль внешних, ноль
+`@nestling/app`, пустой `git diff` по kernel-пакетам. Границы, в которые
+пакет упёрся, зафиксированы отчётом, а не заклеены: три известные находки
+подтвердились кодом, четвёртая (`.finally` не выполняется у потокового
+ответа, закрытого до первого элемента) найдена по ходу и осталась дефектом
+ядра под отдельный change — правка ядра здесь обесценила бы сам замер.
 
 ### Порядок величины
 

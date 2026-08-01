@@ -129,80 +129,80 @@
 
 ## 7. Пример `examples.app-with-http`
 
-- [ ] 7.1 `src/infrastructure.ts`: `export const appSubscriptions = subscriptions({ … })`
+- [x] 7.1 `src/infrastructure.ts`: `export const appSubscriptions = subscriptions({ … })`
       — один вызов на приложение, с `identity`-экстрактором и
       `publish: true`; подключить в `modules:` корня (`src/main.ts`)
-- [ ] 7.2 `modules/users/endpoints/activity-stream.endpoint.ts`: переезд на
+- [x] 7.2 `modules/users/endpoints/activity-stream.endpoint.ts`: переезд на
       `meta.subscription.signal`, композиция `compose(noValidationPipeline, tracked, …)`;
       комментарий-пояснение, почему сигнал именно этот
-- [ ] 7.3 Админские ручки в `modules/ops/`: `GET /api/ops/subscriptions`
+- [x] 7.3 Админские ручки в `modules/ops/`: `GET /api/ops/subscriptions`
       (список со снимками), `DELETE /api/ops/subscriptions/:id` (kill,
       404-отказ `SubscriptionNotFound` при отсутствии),
       `GET /api/ops/subscriptions/live` (`events(SubscriptionEvent)` поверх
       `watch`, сама композирована от `tracked` — рекурсивный случай)
-- [ ] 7.4 Подписчик фактов в `modules/ops/`: `implement(SubscriptionOpened, { subscriber: 'ops', … })`
+- [x] 7.4 Подписчик фактов в `modules/ops/`: `implement(SubscriptionOpened, { subscriber: 'ops', … })`
       — показывает, что наблюдение работает контрактом
-- [ ] 7.5 Обновить перечень ручек в выводе `main.ts` и e2e/интеграционные
+- [x] 7.5 Обновить перечень ручек в выводе `main.ts` и e2e/интеграционные
       тесты примера: открыть SSE-подписку, увидеть её в списке, убить,
       убедиться, что поток закрылся и запись снята; живой просмотр
       не видит собственного `opened`
-- [ ] 7.6 Проверить, что политики корня (`hasLayer(observability)`,
+- [x] 7.6 Проверить, что политики корня (`hasLayer(observability)`,
       `hasVar(RequestId)`) выполняются новыми ручками и `yarn verify`
       примера зелёный
 
 ## 8. Инвариант «ядро не тронуто» и отчёт о замере
 
-- [ ] 8.1 Проверить и зафиксировать в сообщении коммита:
+- [x] 8.1 Проверить и зафиксировать в сообщении коммита:
       `git diff --stat` по `packages/nestling.{pipeline,app,container,ports,contracts,streams,transport,transport.http,transport.cli,transport.nats,testing}`
       пуст за весь change
-- [ ] 8.2 Если по ходу реализации обнаружится место, где примитивов не
+- [x] 8.2 Если по ходу реализации обнаружится место, где примитивов не
       хватает, — не править ядро, а дописать находку в отчёт (раздел 9) с
       вердиктом
-- [ ] 8.3 Сверить три известные находки с фактом реализации: №1
+- [x] 8.3 Сверить три известные находки с фактом реализации: №1
       (зарезервированный `signal`), №2 (`Outcome` без `killed`), №3
       (кластерное управление); уточнить формулировки по коду
 
 ## 9. Документация
 
-- [ ] 9.1 README пакета `@nestling/subscriptions`: назначение, плашка
+- [x] 9.1 README пакета `@nestling/subscriptions`: назначение, плашка
       статуса со ссылкой на `docs/design/streaming.md`, публичный API,
       перечень зависимостей с объяснением, почему их именно столько,
       и раздел «Чего в пакете нет» (кластерный kill, история, метрики)
-- [ ] 9.2 `docs/decisions/ideas.md` — новая запись `[2026-08-01]` «Реестр
+- [x] 9.2 `docs/decisions/ideas.md` — новая запись `[2026-08-01]` «Реестр
       подписок: результат dogfooding-замера»: контекст, три находки с
       вердиктами, положительные результаты, отвергнутые варианты
       (`request`-контракты админ-операций, расширение `ctx.signal`,
       расширение `Outcome`, `WeakMap` вместо поля input)
-- [ ] 9.3 `docs/decisions/ideas.md` — суперсид строки «(в будущем) кто
+- [x] 9.3 `docs/decisions/ideas.md` — суперсид строки «(в будущем) кто
       угодно ещё — например, админский kill подписки» в записи
       `[2026-07-06]` со ссылкой на новую запись (append-only: помечаем, не
       переписываем)
-- [ ] 9.4 `docs/design/streaming.md`: правка §1 (админский канал — это
+- [x] 9.4 `docs/design/streaming.md`: правка §1 (админский канал — это
       `meta.subscription.signal` satellite'а, `meta.signal` остаётся
       транспортным и приложенческим) и новая секция «Реестр подписок»
       с целевым описанием пакета
-- [ ] 9.5 `docs/design/principles.md` — ссылка на пакет в перечне
+- [x] 9.5 `docs/design/principles.md` — ссылка на пакет в перечне
       satellite'ов
-- [ ] 9.6 `docs/decisions/deferred.md` — запись про кластерную
+- [x] 9.6 `docs/decisions/deferred.md` — запись про кластерную
       админ-плоскость (находка №3) с триггером возврата
-- [ ] 9.7 Новый гайд `docs/guides/subscriptions.md` (плашка «сверено с кодом
+- [x] 9.7 Новый гайд `docs/guides/subscriptions.md` (плашка «сверено с кодом
       `examples.app-with-http` (дата)»): подключение модуля, слой на ручке,
       правильный сигнал, админские ручки, живая лента, факты контрактами,
       квоты подписок как приложенческий pre-юнит поверх `list(filter)`
-- [ ] 9.8 Таблица гайдов в `docs/README.md` — строка нового гайда
-- [ ] 9.9 `README.md` корня: чекбокс `Subscriptions registry
+- [x] 9.8 Таблица гайдов в `docs/README.md` — строка нового гайда
+- [x] 9.9 `README.md` корня: чекбокс `Subscriptions registry
       (@nestling/subscriptions)` и строка пакета в перечне
-- [ ] 9.10 `docs/decisions/roadmap.md`: статус #7 во всех трёх местах
+- [x] 9.10 `docs/decisions/roadmap.md`: статус #7 во всех трёх местах
       (таблица changes, ветка порядка, таблица волны 6) и абзац о закрытии
       волны 6 — с формулировкой результата замера
 
 ## 10. Definition of Done
 
-- [ ] 10.1 Все задачи выше отмечены
-- [ ] 10.2 `yarn verify` зелёный (build + lint + test по всем пакетам)
-- [ ] 10.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 10.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
-- [ ] 10.5 `yarn docs:audit` — 0 ERROR
-- [ ] 10.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены
+- [x] 10.1 Все задачи выше отмечены
+- [x] 10.2 `yarn verify` зелёный (build + lint + test по всем пакетам)
+- [x] 10.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 10.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
+- [x] 10.5 `yarn docs:audit` — 0 ERROR
+- [x] 10.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены
       с обновлённой датой в плашке «сверено с кодом»
 - [ ] 10.7 Коммиты осмысленные, ветка запушена

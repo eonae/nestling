@@ -39,6 +39,7 @@ docs/
 | [openapi.md](./guides/openapi.md) | Документ OpenAPI 3.1 из деклараций: модуль `openapi()`, слот `doc:`, конвертеры, `jsonSchema()` | `examples.app-with-http` |
 | [cli.md](./guides/cli.md) | CLI-транспорт: single-shot и REPL | `examples.simple-cli` |
 | [testing.md](./guides/testing.md) | App-тесты: `assembleTest`, `overrides` + прунинг, `.check()`-матрица, `vars()`, `./testing`-subpath | `examples.app-with-http` |
+| [subscriptions.md](./guides/subscriptions.md) | Реестр подписок: модуль `subscriptions()`, слой `tracked`, `meta.subscription.signal`, админ-ручки, факты контрактами | `examples.app-with-http` |
 
 ## design/ — целевое состояние V1
 
