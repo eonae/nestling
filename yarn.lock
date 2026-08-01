@@ -1635,6 +1635,36 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nestling/openapi.zod@workspace:*, @nestling/openapi.zod@workspace:packages/nestling.openapi.zod":
+  version: 0.0.0-use.local
+  resolution: "@nestling/openapi.zod@workspace:packages/nestling.openapi.zod"
+  dependencies:
+    "@nestling/pipeline": "workspace:*"
+    typescript: "npm:5.7.3"
+    zod: "npm:^4.0.0"
+  peerDependencies:
+    zod: ^4.0.0
+  languageName: unknown
+  linkType: soft
+
+"@nestling/openapi@workspace:*, @nestling/openapi@workspace:packages/nestling.openapi":
+  version: 0.0.0-use.local
+  resolution: "@nestling/openapi@workspace:packages/nestling.openapi"
+  dependencies:
+    "@nestling/app": "workspace:*"
+    "@nestling/container": "workspace:*"
+    "@nestling/contracts": "workspace:*"
+    "@nestling/openapi.zod": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
+    "@nestling/ports": "workspace:*"
+    "@nestling/transport": "workspace:*"
+    "@nestling/transport.cli": "workspace:*"
+    "@nestling/transport.http": "workspace:*"
+    typescript: "npm:5.7.3"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@nestling/pipeline@workspace:*, @nestling/pipeline@workspace:packages/nestling.pipeline":
   version: 0.0.0-use.local
   resolution: "@nestling/pipeline@workspace:packages/nestling.pipeline"
@@ -5385,6 +5415,8 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/contracts": "workspace:*"
     "@nestling/eslint-plugin": "workspace:*"
+    "@nestling/openapi": "workspace:*"
+    "@nestling/openapi.zod": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/streams": "workspace:*"

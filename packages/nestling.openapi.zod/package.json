@@ -1,0 +1,42 @@
+{
+  "name": "@nestling/openapi.zod",
+  "version": "0.1.0",
+  "description": "zod converter for @nestling/openapi — ten lines over z.toJSONSchema()",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "build": "yarn run clear && run -T tsc",
+    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@nestling/pipeline": "workspace:*"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "^build",
+          "build"
+        ]
+      }
+    }
+  }
+}
