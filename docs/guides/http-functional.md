@@ -1,7 +1,7 @@
 # HTTP-сервер без DI: standalone-транспорт
 
 ✅ **Статус: актуально** — сверено с кодом `examples.simple-http-server`
-(2026-07-31). Канон деклараций — per-transport конструкторы (`httpEndpoint`),
+(2026-08-27). Канон деклараций — per-transport конструкторы (`httpEndpoint`),
 см. [design/endpoints.md](../design/endpoints.md); транспорт-нейтральный
 `makeEndpoint` остаётся kernel-примитивом и в пользовательский канон не
 входит. Запускаемый код — в

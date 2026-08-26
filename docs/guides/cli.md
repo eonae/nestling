@@ -1,6 +1,6 @@
 # CLI-транспорт
 
-✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-07-31).
+✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-08-27).
 Канон деклараций — per-transport конструкторы (`cliEndpoint`), см.
 [design/endpoints.md](../design/endpoints.md).
 Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).

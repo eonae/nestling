@@ -1,7 +1,7 @@
 # Приложение с DI: `assemble`, модули, декларации endpoint'ов
 
 ✅ **Статус: актуально** — сверено с кодом `examples.app-with-http`
-(2026-08-01). Канон деклараций описан в
+(2026-08-27). Канон деклараций описан в
 [design/endpoints.md](../design/endpoints.md).
 Запускаемый код — в
 [`packages/examples.app-with-http/`](../../packages/examples.app-with-http/).
