@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/preview/src/. Правки вносить в src/*.md. -->
 <html lang="ru" data-theme="">
 <head>
 <meta charset="utf-8">
@@ -24,7 +25,7 @@
 <div class="layout">
 <aside class="sidebar">
   <div class="nav-group">
-    <p class="nav-title">Введение</p>
+  <p class="nav-title">Введение</p>
     <ul>
       <li><a href="index.html" class="active">Обзор</a></li>
     </ul>
@@ -37,7 +38,7 @@
     </ul>
   </div>
   <div class="nav-group">
-    <p class="nav-title">Основные концепции</p>
+  <p class="nav-title">Основные концепции</p>
     <ul>
       <li><a href="concepts.html#endpoints">Endpoints</a></li>
       <li><a href="concepts.html#di">Провайдеры и DI</a></li>
@@ -47,7 +48,7 @@
     </ul>
   </div>
   <div class="nav-group">
-    <p class="nav-title">Основы</p>
+  <p class="nav-title">Основы</p>
     <ul>
       <li><a href="fundamentals.html#container">Контейнер</a></li>
       <li><a href="fundamentals.html#multi">Multi-injection</a></li>
@@ -60,7 +61,7 @@
     </ul>
   </div>
   <div class="nav-group">
-    <p class="nav-title">Масштабирование</p>
+  <p class="nav-title">Масштабирование</p>
     <ul>
       <li><a href="scaling.html#monolith">Модульный монолит</a></li>
       <li><a href="scaling.html#ports">Порты и контракты</a></li>
@@ -72,98 +73,145 @@
 <main class="content">
 <article class="article">
 
-  <section class="hero">
-    <h1>Nestling</h1>
-    <p class="lead">TypeScript-фреймворк для бэкенда: меньше, современнее и архитектурно честнее, чем NestJS. Без рантайм-магии — <strong>гарантии вместо конвенций</strong>.</p>
-    <div class="hero-cta">
-      <a class="btn primary" href="#first-steps">Первые шаги →</a>
-      <a class="btn ghost" href="#vs-nest">Чем отличается от NestJS</a>
-    </div>
-    <p style="color:var(--text-dim);font-size:14px;margin-top:8px">
-      <span class="pill target">preview</span>&nbsp; Это превью целевой модели: API показан так, будто уже реализован полностью.
-    </p>
-  </section>
-
-  <div class="grid">
-    <div class="card"><span class="ic">🧩</span><h3>Модули — это значения</h3><p>Не классы с декораторами, а plain-объекты. Видимость — через ES-экспорты, а не рантайм-инкапсуляцию.</p></div>
-    <div class="card"><span class="ic">📐</span><h3>Schema-first endpoints</h3><p>Контракт (вход/выход) объявлен схемой — Zod, Valibot или любой Standard Schema-валидатор. Валидация, типы и документация — из одного источника.</p></div>
-    <div class="card"><span class="ic">🌊</span><h3>Pipeline вместо middleware</h3><p>Плоские фазы <code>pre / ok / catch / finally</code>. Никаких <code>next()</code>, «луковицы» и скрытого control flow.</p></div>
-    <div class="card"><span class="ic">⚡</span><h3>Жадный контейнер</h3><p>Весь граф строится на старте. Циклы, недостающие зависимости и битый конфиг — ошибка запуска, а не 3 часа ночи.</p></div>
-  </div>
-
-  <h2 id="what">Что такое Nestling</h2>
-  <p>
-    Nestling — это backend-фреймворк на TypeScript для тех, кто любит структуру NestJS,
-    но устал платить за неё рантайм-магией. Автор описывает его прямо:
-    «мой личный взгляд на Nest.js — фреймворк, который я одновременно люблю и нахожу раздражающим».
-    Nestling берёт из Nest то, что команды реально используют, и выбрасывает остальное.
-  </p>
-  <p>
-    Ключевая ставка — <strong>no runtime magic</strong>. Всё, что Nest делает через
-    скрытую рефлексию и отложенную сборку, Nestling делает явно и на этапе сборки графа.
-    Не потому что «магия — это плохо» как эстетика, а потому что явный граф даёт то,
-    чего у Nest нет: полная визуализация, топологический порядок init/destroy,
-    проверка циклов и <strong>fail-fast на старте</strong> вместо падения в проде.
-  </p>
-
-  <div class="note">
-    <span class="note-t">Почему «nestling»</span>
-    <p>Nestling — птенец: младший, лёгкий родственник большого Nest. Пакеты публикуются под скоупом <code>@nestling/*</code>, а DI-ядро (<code>@nestling/container</code>) не тянет ни одной сторонней зависимости и работает даже в браузере.</p>
-  </div>
-
-  <h2 id="philosophy">Семь принципов</h2>
-  <p>Всё в дизайне Nestling выводится из небольшого набора опорных принципов. Если решение им противоречит — оно отвергается, как бы удобно ни выглядело.</p>
-
-  <div class="tbl-wrap">
-  <table>
-    <thead><tr><th>Принцип</th><th>Что означает на практике</th></tr></thead>
-    <tbody>
-      <tr><td><strong>No runtime magic</strong></td><td>Зависимости объявляются явным массивом токенов. Никакой скрытой рефлексии типов, никакой отложенной резолюции — граф известен на <code>build()</code>.</td></tr>
-      <tr><td><strong>Guarantee over convention</strong></td><td>Если что-то нельзя нарушить — это должно быть структурно невозможно, а не «мы договорились так не делать». Пример: ранний <code>listen()</code> в <code>@OnInit</code> невозможен, потому что <code>dispatch</code> физически ещё не существует.</td></tr>
-      <tr><td><strong>Explicit over implicit</strong></td><td>Порядок раскрутки ресурсов, состав пайплайна, границы модулей — всё видно в коде. Ничего не «навешивается» глобально за твоей спиной.</td></tr>
-      <tr><td><strong>Модули — plain values</strong></td><td>Модуль = обычный объект. Значит, «параметризованный модуль» — просто функция; концепции <code>DynamicModule</code> / <code>forRoot</code> / <code>forRootAsync</code> не нужны вообще.</td></tr>
-      <tr><td><strong>Жадный контейнер</strong></td><td>Все провайдеры инстанцируются на старте. «Не выбрал фичу → её код не построился» получается само собой.</td></tr>
-      <tr><td><strong>Schema-first endpoints</strong></td><td>Endpoint объявляет вход и выход схемой (любой Standard Schema-валидатор). Схема — единый источник для валидации, типов TS и OpenAPI/AsyncAPI.</td></tr>
-      <tr><td><strong>Pipeline оперирует значениями</strong></td><td>Pipeline знает только про абстрактную модель данных. Байты, сжатие, CORS, парсинг multipart — концерн транспорта, а не пайплайна.</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <h2 id="vs-nest">Что мы убрали из NestJS</h2>
-  <p>
-    Nestling позиционируется как «ещё более opinionated, чем Nest». Проще всего понять его через
-    <em>вычитание</em>: список того, чего в нём осознанно нет, и что стоит на этом месте.
-  </p>
-
-  <div class="tbl-wrap">
-  <table>
-    <thead><tr><th>В NestJS есть</th><th>В Nestling</th><th>Что вместо</th></tr></thead>
-    <tbody>
-      <tr><td><code>forwardRef</code> / циклические зависимости</td><td class="no">нет</td><td>Циклов не должно существовать в принципе — они ловятся на <code>build()</code>.</td></tr>
-      <tr><td><code>REQUEST</code> / <code>TRANSIENT</code> scope</td><td class="no">нет</td><td>Request-состояние живёт в типизированном контексте пайплайна, а не в контейнере. Для глубоких сервисов — <a href="fundamentals.html#context">read-only ALS-проекция</a> с инжектируемыми ридерами <code>Ctx(RequestId)</code>.</td></tr>
-      <tr><td>Модули-классы, <code>@Module</code>, хуки модуля</td><td class="no">нет</td><td>Модуль — plain object. Никакой путаницы «что раньше — <code>OnModuleInit</code> модуля или сервиса».</td></tr>
-      <tr><td><code>DynamicModule</code> / <code>forRoot</code></td><td class="no">нет</td><td>Модуль — значение ⇒ <code>LoggingModule({ level: 'debug' })</code> это просто функция.</td></tr>
-      <tr><td>Middleware</td><td class="no">нет</td><td>Слово выброшено: оно врёт (подразумевает wrapping и <code>next()</code>). Честный словарь — <code>.pre</code> / <code>.ok</code> / <code>.catch</code> / <code>.finally</code>.</td></tr>
-      <tr><td>Interceptors (на RxJS)</td><td class="no">нет</td><td>Фазы пайплайна. RxJS не в ядре — он доступен внутри хендлера как обычная зависимость.</td></tr>
-      <tr><td>Exception filters (подсистема)</td><td class="no">нет</td><td>Централизованный маппинг ошибок — это обычный <code>.catch</code>-юнит. Отдельной подсистемы нет.</td></tr>
-      <tr><td>Guards, Pipes как отдельные сущности</td><td class="no">нет</td><td>Всё это — <code>.pre</code>-юниты, монотонно наполняющие типизированный контекст.</td></tr>
-      <tr><td>Экспериментальные декораторы TS + <code>reflect-metadata</code></td><td class="no">нет</td><td>Стандартные декораторы ECMAScript. Ноль зависимостей в ядре контейнера.</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <div class="note good">
-    <span class="note-t">Что осталось</span>
-    <p>Три знакомых типа провайдеров (value / class / factory), <code>@Injectable</code>, инъекционные токены, lifecycle-хуки <code>@OnInit</code>/<code>@OnDestroy</code> (в строгом топологическом порядке), модульная система — но проще и опциональная. Контейнер можно использовать standalone: во фронтенде, в CLI, рядом с Fastify.</p>
-  </div>
-
-  <h2 id="first-steps">Первые шаги</h2>
-  <p>
-    У Nestling два уровня входа. Начнём с минимального — <strong>без DI, классов и декораторов</strong>.
-    Транспорт создаётся напрямую, endpoint — обычное значение через <code>makeEndpoint</code>.
-  </p>
-
-  <div class="code" data-file="endpoints.ts" data-lang="typescript"><pre><code>import { makeEndpoint, makePipeline, validate } from '@nestling/pipeline';
+<!-- Первый экран: единственный кусок сырой вёрстки. Внутри не должно быть
+     пустых строк — они разорвут HTML-блок markdown. Текст правится по месту. -->
+<section class="hero">
+<h1>Nestling</h1>
+<p class="lead">TypeScript-фреймворк для бэкенда: меньше, современнее и архитектурно честнее, чем NestJS. Без рантайм-магии — <strong>гарантии вместо конвенций</strong>.</p>
+<div class="hero-cta">
+<a class="btn primary" href="#first-steps">Первые шаги →</a>
+<a class="btn ghost" href="#vs-nest">Чем отличается от NestJS</a>
+</div>
+<p style="color:var(--text-dim);font-size:14px;margin-top:8px">
+<span class="pill target">preview</span>&nbsp; Это превью целевой модели: API показан так, будто уже реализован полностью.
+</p>
+</section>
+<div class="grid">
+<div class="card"><span class="ic">🧩</span><h3>Модули — это значения</h3><p>Не классы с декораторами, а plain-объекты. Видимость — через ES-экспорты, а не рантайм-инкапсуляцию.</p>
+</div>
+<div class="card"><span class="ic">📐</span><h3>Schema-first endpoints</h3><p>Контракт (вход/выход) объявлен схемой — Zod, Valibot или любой Standard Schema-валидатор. Валидация, типы и документация — из одного источника.</p>
+</div>
+<div class="card"><span class="ic">🌊</span><h3>Pipeline вместо middleware</h3><p>Плоские фазы <code>pre / ok / catch / finally</code>. Никаких <code>next()</code>, «луковицы» и скрытого control flow.</p>
+</div>
+<div class="card"><span class="ic">⚡</span><h3>Жадный контейнер</h3><p>Весь граф строится на старте. Циклы, недостающие зависимости и битый конфиг — ошибка запуска, а не 3 часа ночи.</p>
+</div>
+</div>
+<h2 id="what">Что такое Nestling</h2>
+<p>Nestling — это backend-фреймворк на TypeScript для тех, кто любит структуру NestJS, но устал платить за неё рантайм-магией. Автор описывает его прямо: «мой личный взгляд на Nest.js — фреймворк, который я одновременно люблю и нахожу раздражающим». Nestling берёт из Nest то, что команды реально используют, и выбрасывает остальное.</p>
+<p>Ключевая ставка — <strong>no runtime magic</strong>. Всё, что Nest делает через скрытую рефлексию и отложенную сборку, Nestling делает явно и на этапе сборки графа. Не потому что «магия — это плохо» как эстетика, а потому что явный граф даёт то, чего у Nest нет: полная визуализация, топологический порядок init/destroy, проверка циклов и <strong>fail-fast на старте</strong> вместо падения в проде.</p>
+<div class="note">
+<span class="note-t">Почему «nestling»</span>
+<p>Nestling — птенец: младший, лёгкий родственник большого Nest. Пакеты публикуются под скоупом <code>@nestling/*</code>, а DI-ядро (<code>@nestling/container</code>) не тянет ни одной сторонней зависимости и работает даже в браузере.</p>
+</div>
+<h2 id="philosophy">Семь принципов</h2>
+<p>Всё в дизайне Nestling выводится из небольшого набора опорных принципов. Если решение им противоречит — оно отвергается, как бы удобно ни выглядело.</p>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Принцип</th>
+<th>Что означает на практике</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>No runtime magic</strong></td>
+<td>Зависимости объявляются явным массивом токенов. Никакой скрытой рефлексии типов, никакой отложенной резолюции — граф известен на <code>build()</code>.</td>
+</tr>
+<tr>
+<td><strong>Guarantee over convention</strong></td>
+<td>Если что-то нельзя нарушить — это должно быть структурно невозможно, а не «мы договорились так не делать». Пример: ранний <code>listen()</code> в <code>@OnInit</code> невозможен, потому что <code>dispatch</code> физически ещё не существует.</td>
+</tr>
+<tr>
+<td><strong>Explicit over implicit</strong></td>
+<td>Порядок раскрутки ресурсов, состав пайплайна, границы модулей — всё видно в коде. Ничего не «навешивается» глобально за твоей спиной.</td>
+</tr>
+<tr>
+<td><strong>Модули — plain values</strong></td>
+<td>Модуль = обычный объект. Значит, «параметризованный модуль» — просто функция; концепции <code>DynamicModule</code> / <code>forRoot</code> / <code>forRootAsync</code> не нужны вообще.</td>
+</tr>
+<tr>
+<td><strong>Жадный контейнер</strong></td>
+<td>Все провайдеры инстанцируются на старте. «Не выбрал фичу → её код не построился» получается само собой.</td>
+</tr>
+<tr>
+<td><strong>Schema-first endpoints</strong></td>
+<td>Endpoint объявляет вход и выход схемой (любой Standard Schema-валидатор). Схема — единый источник для валидации, типов TS и OpenAPI/AsyncAPI.</td>
+</tr>
+<tr>
+<td><strong>Pipeline оперирует значениями</strong></td>
+<td>Pipeline знает только про абстрактную модель данных. Байты, сжатие, CORS, парсинг multipart — концерн транспорта, а не пайплайна.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="vs-nest">Что мы убрали из NestJS</h2>
+<p>Nestling позиционируется как «ещё более opinionated, чем Nest». Проще всего понять его через <em>вычитание</em>: список того, чего в нём осознанно нет, и что стоит на этом месте.</p>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>В NestJS есть</th>
+<th>В Nestling</th>
+<th>Что вместо</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>forwardRef</code> / циклические зависимости</td>
+<td class="no">нет</td>
+<td>Циклов не должно существовать в принципе — они ловятся на <code>build()</code>.</td>
+</tr>
+<tr>
+<td><code>REQUEST</code> / <code>TRANSIENT</code> scope</td>
+<td class="no">нет</td>
+<td>Request-состояние живёт в типизированном контексте пайплайна, а не в контейнере. Для глубоких сервисов — <a href="fundamentals.html#context">read-only ALS-проекция</a> с инжектируемыми ридерами <code>Ctx(RequestId)</code>.</td>
+</tr>
+<tr>
+<td>Модули-классы, <code>@Module</code>, хуки модуля</td>
+<td class="no">нет</td>
+<td>Модуль — plain object. Никакой путаницы «что раньше — <code>OnModuleInit</code> модуля или сервиса».</td>
+</tr>
+<tr>
+<td><code>DynamicModule</code> / <code>forRoot</code></td>
+<td class="no">нет</td>
+<td>Модуль — значение ⇒ <code>LoggingModule({ level: 'debug' })</code> это просто функция.</td>
+</tr>
+<tr>
+<td>Middleware</td>
+<td class="no">нет</td>
+<td>Слово выброшено: оно врёт (подразумевает wrapping и <code>next()</code>). Честный словарь — <code>.pre</code> / <code>.ok</code> / <code>.catch</code> / <code>.finally</code>.</td>
+</tr>
+<tr>
+<td>Interceptors (на RxJS)</td>
+<td class="no">нет</td>
+<td>Фазы пайплайна. RxJS не в ядре — он доступен внутри хендлера как обычная зависимость.</td>
+</tr>
+<tr>
+<td>Exception filters (подсистема)</td>
+<td class="no">нет</td>
+<td>Централизованный маппинг ошибок — это обычный <code>.catch</code>-юнит. Отдельной подсистемы нет.</td>
+</tr>
+<tr>
+<td>Guards, Pipes как отдельные сущности</td>
+<td class="no">нет</td>
+<td>Всё это — <code>.pre</code>-юниты, монотонно наполняющие типизированный контекст.</td>
+</tr>
+<tr>
+<td>Экспериментальные декораторы TS + <code>reflect-metadata</code></td>
+<td class="no">нет</td>
+<td>Стандартные декораторы ECMAScript. Ноль зависимостей в ядре контейнера.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="note good">
+<span class="note-t">Что осталось</span>
+<p>Три знакомых типа провайдеров (value / class / factory), <code>@Injectable</code>, инъекционные токены, lifecycle-хуки <code>@OnInit</code>/<code>@OnDestroy</code> (в строгом топологическом порядке), модульная система — но проще и опциональная. Контейнер можно использовать standalone: во фронтенде, в CLI, рядом с Fastify.</p>
+</div>
+<h2 id="first-steps">Первые шаги</h2>
+<p>У Nestling два уровня входа. Начнём с минимального — <strong>без DI, классов и декораторов</strong>. Транспорт создаётся напрямую, endpoint — обычное значение через <code>makeEndpoint</code>.</p>
+<div class="code" data-file="endpoints.ts" data-lang="typescript"><pre><code>import { makeEndpoint, makePipeline, validate } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const CreateUser = z.object({
@@ -183,33 +231,17 @@ export const createUser = makeEndpoint({
     return { id: crypto.randomUUID(), name: input.name };
   },
 });</code></pre></div>
-
-  <p>Запуск такого endpoint'а на HTTP-транспорте — три строки:</p>
-
-  <div class="code" data-file="main.ts" data-lang="typescript"><pre><code>import { HttpTransport } from '@nestling/transport.http';
+<p>Запуск такого endpoint'а на HTTP-транспорте — три строки:</p>
+<div class="code" data-file="main.ts" data-lang="typescript"><pre><code>import { HttpTransport } from '@nestling/transport.http';
 import { createUser } from './endpoints';
 
 const server = new HttpTransport({ port: 3000 });
 server.route(createUser);
 await server.listen();</code></pre></div>
-
-  <p>
-    Обрати внимание: схема <code>input</code> плюс <code>.pre(validate())</code> дают
-    <strong>типизированный</strong> <code>input</code> в хендлере — не <code>any</code>, не ручной каст.
-    Вернуть можно просто значение (обернётся в <code>Ok</code>) или явно <code>Ok.created(...)</code> /
-    <code>throw Fail.badRequest(...)</code>. Тот же endpoint без единой правки работает на CLI-транспорте —
-    там <code>pattern</code> становится именем команды.
-  </p>
-
-  <h2 id="two-levels">Два уровня фреймворка</h2>
-  <p>
-    Минимальный уровень выше — это ещё «не фреймворк, а библиотека». Когда появляется
-    потребность в DI, модулях, lifecycle-хуках и graceful shutdown, ты переходишь на
-    полный уровень: <code>App</code> + классовые endpoints. <strong>Хендлеры при этом почти не меняются</strong> —
-    добавляется только конструкторная инъекция.
-  </p>
-
-  <div class="code" data-file="create-user.endpoint.ts" data-lang="typescript"><pre><code>import { Injectable } from '@nestling/container';
+<p>Обрати внимание: схема <code>input</code> плюс <code>.pre(validate())</code> дают <strong>типизированный</strong><code>input</code> в хендлере — не <code>any</code>, не ручной каст. Вернуть можно просто значение (обернётся в <code>Ok</code>) или явно <code>Ok.created(...)</code> / <code>throw Fail.badRequest(...)</code>. Тот же endpoint без единой правки работает на CLI-транспорте — там <code>pattern</code> становится именем команды.</p>
+<h2 id="two-levels">Два уровня фреймворка</h2>
+<p>Минимальный уровень выше — это ещё «не фреймворк, а библиотека». Когда появляется потребность в DI, модулях, lifecycle-хуках и graceful shutdown, ты переходишь на полный уровень: <code>App</code> + классовые endpoints. <strong>Хендлеры при этом почти не меняются</strong> — добавляется только конструкторная инъекция.</p>
+<div class="code" data-file="create-user.endpoint.ts" data-lang="typescript"><pre><code>import { Injectable } from '@nestling/container';
 import { HttpEndpoint } from '@nestling/transport.http';
 import { Ok, Fail, type IEndpoint, type Output } from '@nestling/pipeline';
 import { basePipeline } from '../common/pipelines';
@@ -232,22 +264,11 @@ export class CreateUserEndpoint implements IEndpoint {
     return Ok.created(user, { Location: `/api/users/${user.id}` });
   }
 }</code></pre></div>
-
-  <p>
-    Двухуровневость — не случайность, а часть дизайна: она <strong>видна в системе типов</strong>.
-    Standalone-транспорты принимают только «чистые» пайплайны без DI-зависимостей;
-    пайплайны с классами-юнитами требуют <code>App</code>, который резолвит их из контейнера на старте.
-    Компилятор не даст смешать миры молча.
-  </p>
-
-  <div class="note">
-    <span class="note-t">Куда дальше</span>
-    <p>
-      <a href="concepts.html#endpoints">Основные концепции</a> — endpoints, DI, модули, <code>Ok</code>/<code>Fail</code> и pipeline подробно.
-      <a href="fundamentals.html#lifecycle">Основы</a> — контейнер, жизненный цикл, конфигурация, стриминг, схемы и OpenAPI, тестирование.
-      <a href="scaling.html#monolith">Масштабирование</a> — модульный монолит, порты и разнесение по процессам без переписывания кода.
-    </p>
-  </div>
+<p>Двухуровневость — не случайность, а часть дизайна: она <strong>видна в системе типов</strong>. Standalone-транспорты принимают только «чистые» пайплайны без DI-зависимостей; пайплайны с классами-юнитами требуют <code>App</code>, который резолвит их из контейнера на старте. Компилятор не даст смешать миры молча.</p>
+<div class="note">
+<span class="note-t">Куда дальше</span>
+<p><a href="concepts.html#endpoints">Основные концепции</a> — endpoints, DI, модули, <code>Ok</code>/<code>Fail</code> и pipeline подробно. <a href="fundamentals.html#lifecycle">Основы</a> — контейнер, жизненный цикл, конфигурация, стриминг, схемы и OpenAPI, тестирование. <a href="scaling.html#monolith">Масштабирование</a> — модульный монолит, порты и разнесение по процессам без переписывания кода.</p>
+</div>
 
   <nav class="pager">
     <span></span>
