@@ -31,7 +31,7 @@ Pipeline SHALL передавать хендлеру в `meta` поле `signal:
 ### Requirement: Сигнал доступен middleware через контекст
 
 `ExtendableContext` SHALL содержать `readonly signal: AbortSignal`,
-доступный каждому юниту каждой фазы (`.pre`, `.ok`, `.catch`, `.after`,
+доступный каждому юниту каждой фазы (`.pre`, `.ok`, `.catch`,
 `.finally`) каждого слоя пайплайна.
 
 #### Scenario: Юниты читают сигнал

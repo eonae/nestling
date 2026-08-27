@@ -1,38 +1,18 @@
-import type { Readable } from 'node:stream';
-
-import type { AnyInput, EmptyInput } from '../io/io';
-import type { ErrorStatus, SuccessStatus } from '../status';
-
 import type { Raw } from './raw.js';
 
+import type {
+  AnyFailDefinition,
+  AnyInput,
+  AnyOutput,
+  AnyPayload,
+  EmptyInput,
+  ErrorStatus,
+  StreamSummary,
+  SuccessStatus,
+} from '@nestling/contracts';
+import { makeSummary } from '@nestling/contracts';
+
 export * from './raw.js';
-
-/**
- * Описание файла в multipart запросе
- */
-export interface FilePart {
-  /** Имя поля формы */
-  field: string;
-
-  /** Имя файла */
-  filename: string;
-
-  /** MIME-тип */
-  mime: string;
-
-  /** Поток данных файла */
-  stream: Readable;
-
-  /** Размер файла (если известен) */
-  size?: number;
-}
-
-/**
- * Интерфейс для схемы валидации (zod-совместимый)
- */
-export interface Schema<T> {
-  parse(data: unknown): T;
-}
 
 /**
  * Метаданные endpoint (readonly)
@@ -42,11 +22,21 @@ export interface EndpointMeta {
   transport: string;
   pattern: string;
 
-  /** Schema для валидации input (zod, yup, etc) */
-  input?: Schema<unknown>;
+  /** Конфигурация input: схема, примитив или модификатор */
+  input?: AnyPayload;
 
-  /** Schema для output (опционально) */
-  output?: Schema<unknown>;
+  /** Конфигурация output: схема, примитив или stream-модификатор */
+  output?: AnyOutput;
+
+  /**
+   * Объявленные отказы ручки (`errors:` декларации).
+   *
+   * Единственный источник множества для стража границы: декларация →
+   * транспорт → контекст. Глобального реестра отказов нет, поэтому
+   * пайплайн, исполненный без декларации, видит пустое множество и
+   * контрактными считает только kernel-коды.
+   */
+  errors?: readonly AnyFailDefinition[];
 
   /** Дополнительные опции для middleware */
   [key: string]: unknown;
@@ -80,6 +70,17 @@ export interface ExtendableContext<I extends AnyInput> {
    */
   readonly signal: AbortSignal;
 
+  /**
+   * Итог запроса: счётчики элементов (заполняет рантайм цепочек) и байты
+   * (заполняет транспорт, где знает их).
+   *
+   * Ссылка read-only, значения — актуальные на момент чтения: объект
+   * мутируется рантаймом по мере течения потока. Существует у любой ручки:
+   * у не-потоковой счётчики остаются нулями, чтобы наблюдатель не
+   * ветвился.
+   */
+  readonly summary: StreamSummary;
+
   /** Метаданные, накапливаемые middleware */
   input: I;
 }
@@ -93,22 +94,27 @@ export type InitialContext = ExtendableContext<EmptyInput>;
 const NEVER_ABORTED = new AbortController().signal;
 
 /**
- * Создаёт начальный контекст с пустым input из Raw
- * Вызывается транспортом после парсинга запроса
+ * Создаёт начальный контекст из Raw.
+ * Вызывается транспортом после парсинга запроса.
  *
  * @param signal - сигнал отмены запроса; если транспорт его не передал,
  * подставляется never-aborted сигнал, так что `ctx.signal` есть всегда
+ * @param input - стартовый input: то, что транспорт кладёт в контекст ещё
+ * до первого pre-юнита (например, сырые байты тела при `rawBody: true`).
+ * По умолчанию пуст — тип стартового контекста тогда `EmptyInput`.
  */
-export function makeEmptyContext(
+export function makeEmptyContext<S extends AnyInput = EmptyInput>(
   raw: Raw,
   endpoint: EndpointMeta,
   signal?: AbortSignal,
-): InitialContext {
+  input?: S,
+): ExtendableContext<S> {
   return {
     endpoint,
     raw,
     signal: signal ?? NEVER_ABORTED,
-    input: {},
+    summary: makeSummary(),
+    input: input ?? ({} as S),
   };
 }
 
@@ -117,6 +123,16 @@ export function makeEmptyContext(
  */
 export interface ErrorDetails {
   error: string;
+
+  /**
+   * Машинный код отказа — ось, независимая от статуса.
+   *
+   * Заполняется рантаймом из `Fail.code`; у отказа без кода поле
+   * отсутствует (а не равно `null` или пустой строке). По нему же страж
+   * границы решает, контрактен ли ответ.
+   */
+  code?: string;
+
   details?: unknown;
   stack?: string;
 }

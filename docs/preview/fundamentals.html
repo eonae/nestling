@@ -171,10 +171,10 @@ export class HealthEndpoint {
 <p>При <code>SIGTERM</code>/<code>SIGINT</code> shutdown идёт в обратном порядке: остановить приём → прервать in-flight через <code>meta.signal</code> → закрыть ресурсы. Graceful shutdown встроен, не прикручен сбоку.</p>
 <h2 id="config">Конфигурация</h2>
 <p>Конфиг в Nestling — не отдельная подсистема и не «стадия конфигурации». Это <strong>частный случай зависимости</strong>. Секция объявляется схемой, инжектится как типизированный срез, и валидируется жадно на старте: <strong>невалидный конфиг = FAIL-FAST</strong>.</p>
-<div class="code" data-file="orders.config.ts" data-lang="typescript"><pre><code>export const OrdersConfig = makeConfig('orders', z.object({
+<div class="code" data-file="orders.config.ts" data-lang="typescript"><pre><code>export const OrdersConfig = makeConfig('orders', {
   maxItems:    z.coerce.number().default(100),   // ← ключ ORDERS_MAX_ITEMS
   databaseUrl: from('DATABASE_URL', z.url()),    // точное имя ключа, без префикса
-}));
+});
 
 // наружу из пакета — только хэндл ключей; сам токен не реэкспортируется
 export const ordersKeys = OrdersConfig.keys;</code></pre></div>
@@ -183,7 +183,7 @@ export class OrdersService {
   constructor(private cfg: Config&lt;typeof OrdersConfig&gt;) {}
 
   create(dto: NewOrder): Order {
-    if (dto.items.length &gt; this.cfg.maxItems) throw Fail.badRequest('too many');
+    if (dto.items.length &gt; this.cfg.maxItems) throw TooManyItems({ max: this.cfg.maxItems });
     /* ... */
   }
 }</code></pre></div>
@@ -210,10 +210,10 @@ await assemble({
 <li><strong>старт:</strong> невалидный конфиг → die. <strong>reload:</strong> невалидный → keep last-good + warn. Живой процесс не падает из-за плохого горячего значения.</li>
 <li><strong>вступит ли изменение в силу</strong> — ответственность потребителя. Поэтому reloadable — opt-in.</li>
 </ul>
-<div class="code" data-lang="typescript"><pre><code>export const Runtime = makeConfig.reloadable('runtime', z.object({
+<div class="code" data-lang="typescript"><pre><code>export const Runtime = makeConfig.reloadable('runtime', {
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   rps:      z.coerce.number().default(100),
-}));
+});
 
 @Injectable([Runtime])
 class RateLimiter {
@@ -257,8 +257,9 @@ export class AuditLog {
 </div>
 <h2 id="streaming">Стриминг</h2>
 <p>Стриминг — на стандартном <code>AsyncIterable</code>, а не на библиотечном типе. Pull-модель даёт backpressure бесплатно: медленный клиент просто не запрашивает следующий элемент. Именно поэтому RxJS нет на границах фреймворка (он push, backpressure надо докручивать) — но он полностью доступен <em>внутри</em> хендлера.</p>
+<p>Верхний уровень <code>input</code>/<code>output</code> — это <strong>форма</strong>, а листья — схемы: значение (схема как есть), <code>stream(T)</code>, <code>events(T)</code>, <code>multipart({ fields, files })</code>. Форма определяет и способ валидации (значение — целиком, поток — поэлементно в обе стороны), и media type, и framing ответа. Файловое поле объявляется <code>upload({ maxSize, mime, multiple })</code>, и лимиты применяются <em>во время</em> разбора — файл сверх лимита не буферизуется целиком ради того, чтобы потом быть отвергнутым.</p>
 <h3><code>stream(T)</code> ≠ <code>events(T)</code></h3>
-<p>Два разных модификатора io-декларации с разной семантикой:</p>
+<p>Две разные формы io-декларации с разной семантикой:</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -292,9 +293,9 @@ export class AuditLog {
 </tbody>
 </table>
 </div>
-<div class="code" data-lang="typescript"><pre><code>export const streamLogs = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /logs/stream',
+<div class="code" data-lang="typescript"><pre><code>export const streamLogs = httpEndpoint({
+  method: 'POST',
+  path: '/logs/stream',
   input: stream(LogChunk),                  // NDJSON: объект на строку, каждый валидируется
   output: z.object({ processed: z.number() }),
   pipeline: makePipeline(),
@@ -304,6 +305,11 @@ export class AuditLog {
     return { processed };
   },
 });</code></pre></div>
+<div class="note">
+<span class="note-t">Исход потока честен только по факту доставки</span>
+<p>Для потоковой формы <code>.finally</code> вызывается <strong>после</strong> того, как поток дотёк, оборвался ошибкой или был закрыт потребителем, — а не после ответной фазы, когда не ушёл ещё ни один байт. Пайплайн отдаёт транспорту итератор-обёртку, и её закрытие ровно один раз считает исход и выполняет наблюдателей; отсюда обязанность транспорта <em>потребить итератор либо закрыть его</em>. Счётчики <code>ctx.summary</code> (<code>itemsIn</code>/<code>itemsOut</code>, плюс байты там, где транспорт их знает) к этому моменту досчитаны.</p>
+<p>Отказ <em>посреди</em> потока статус сменить уже не может: NDJSON-ответ обрывается (клиент видит незавершённый chunked), SSE получает кадр <code>event: error</code> с телом отказа и закрывается. В обоих случаях исход — <code>failed</code>, а <code>.catch</code> не вызывается: заменять ответ физически не на что.</p>
+</div>
 <h3>AbortSignal — first-class примитив</h3>
 <p>В <code>meta</code> каждого запроса есть <code>signal: AbortSignal</code>. Его взводят: транспорт (клиент отвалился), приложение (graceful shutdown), администратор (kill подписки). Это <strong>единый механизм отмены для всего</strong> — без него бесконечные подписки не завершаются, а <code>close()</code> виснет на живых соединениях.</p>
 <h3>Источники событий — это DI</h3>

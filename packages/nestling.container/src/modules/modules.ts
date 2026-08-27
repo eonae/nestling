@@ -1,5 +1,9 @@
 import type { InjectionToken } from '../common';
-import type { Provider, ProvidersFactory } from '../providers';
+import type {
+  ModuleProvider,
+  ProvidersFactory,
+  TokenFamily,
+} from '../providers';
 
 /**
  * Configuration for a module as a plain object.
@@ -20,12 +24,20 @@ import type { Provider, ProvidersFactory } from '../providers';
 export interface Module {
   /** Unique name for the module */
   name: string;
-  /** Classes decorated with @Injectable or Provider objects that this module provides */
-  providers?: Provider[] | ProvidersFactory;
+  /**
+   * Classes decorated with @Injectable, Provider objects, or family recipes
+   * (`familyProvider(...)`) that this module provides
+   */
+  providers?: ModuleProvider[] | ProvidersFactory;
   /** Other modules that this module depends on */
   imports?: Module[];
-  /** Classes or tokens that this module exports for other modules to use */
-  exports?: InjectionToken[];
+  /**
+   * Classes or tokens that this module exports for other modules to use.
+   *
+   * A token family in `exports` means "all materialized members of this family
+   * are exported". Only consulted when the builder runs with `strictExports`.
+   */
+  exports?: (InjectionToken | TokenFamily<any, any>)[];
 }
 
 /**

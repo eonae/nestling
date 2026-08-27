@@ -1,32 +1,68 @@
-import type {
-  AnyInput,
-  AnyOutput,
-  AnyPayload,
-  EndpointDefinition,
-} from '@nestling/pipeline';
+import type { Dispatch } from './dispatch.js';
+
+import type { TokenString } from '@nestling/container';
+import type { TransportCapabilities } from '@nestling/pipeline';
+
+/**
+ * Способности транспорта по формам io.
+ *
+ * Тип объявлен ядром (`@nestling/pipeline`), потому что множество форм —
+ * kernel-понятие, и проверка биндинга (`assertFormsSupported`) обязана
+ * быть одной реализацией для всех путей регистрации. Здесь он
+ * реэкспортируется, чтобы автору транспорта хватило одного импорта.
+ */
+export type { TransportCapabilities } from '@nestling/pipeline';
+
+/**
+ * Токен транспорта: уточнение kernel-типа `TransportRef` до `ITransport`.
+ *
+ * Транспортный пакет объявляет свой токен именно так; декларации ссылаются
+ * на транспорт этим значением, а `App` резолвит по нему инстанс из графа.
+ */
+export type TransportToken = TokenString<ITransport>;
+
+/**
+ * Короткое имя транспорта из id его токена (`transport:http` → `'http'`).
+ *
+ * Реэкспорт ядра: имя нужно транспорту для `Raw`/`EndpointMeta`, и правило
+ * вывода обязано быть одно.
+ */
 
 /**
  * Базовый интерфейс транспорта
  */
 export interface ITransport {
   /**
-   * Регистрирует handler через конфигурацию
+   * Формы io, которые транспорт умеет принимать и отдавать.
+   *
+   * Обязательное поле: способности — данные транспорта, а не конвенция и
+   * не рантайм-проверка в момент обработки первого запроса. Декларация с
+   * формой вне этого множества отвергается **на сборке**, до приёма
+   * запросов.
    */
-  endpoint<
-    I extends AnyPayload = AnyPayload,
-    O extends AnyOutput = AnyOutput,
-    P extends AnyInput = AnyInput,
-  >(
-    definition: EndpointDefinition<I, O, P>,
-  ): void;
+  readonly capabilities: TransportCapabilities;
 
   /**
-   * Запускает транспорт (слушает входящие соединения/команды)
+   * Выводит транспорт в эфир.
+   *
+   * Единственный вход: нульарного `listen()` и точки регистрации отдельной
+   * ручки в контракте нет. Всё, чем транспорт обслуживает запросы, приезжает
+   * `dispatch`'ем — а он существует только с фазы WIRE, поэтому «уйти в
+   * эфир на `@OnInit`» бесполезно: маршрутизировать было бы нечего.
+   *
+   * @param dispatch - Маршруты этого транспорта и исполнение ручки
+   * @param signal - Канал остановки: взвод означает «новые запросы не
+   * принимаются, in-flight отменяются кооперативно»
    */
-  listen(...args: unknown[]): Promise<void>;
+  serve(dispatch: Dispatch, signal: AbortSignal): Promise<void>;
 
   /**
-   * Останавливает транспорт
+   * Останавливает транспорт (дренаж соединений с таймаутом).
+   *
+   * Второй канал остановки рядом с `signal`: сигнал отменяет работу,
+   * `close()` отпускает ресурсы.
    */
   close?(): Promise<void>;
 }
+
+export { transportNameOf } from '@nestling/pipeline';

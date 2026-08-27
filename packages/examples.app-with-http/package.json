@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "main": "dist/bundle.js",
+  "exports": {
+    ".": "./dist/bundle.js",
+    "./testing": {
+      "testing": "./src/testing/index.ts"
+    }
+  },
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc --noEmit",
@@ -16,15 +22,37 @@
     "test:e2e": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.e2e.config.js",
     "test:all": "yarn test && yarn test:e2e",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules run -T jest --watch",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules run -T jest --coverage"
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules run -T jest --coverage",
+    "client": "run -T tsx src/api.client.ts"
   },
   "dependencies": {
     "@common/misc": "workspace:*",
     "@nestling/app": "workspace:*",
+    "@nestling/client": "workspace:*",
+    "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
+    "@nestling/contracts": "workspace:*",
+    "@nestling/openapi": "workspace:*",
+    "@nestling/openapi.zod": "workspace:*",
     "@nestling/pipeline": "workspace:*",
+    "@nestling/ports": "workspace:*",
+    "@nestling/streams": "workspace:*",
+    "@nestling/subscriptions": "workspace:*",
     "@nestling/transport": "workspace:*",
     "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@nestling/eslint-plugin": "workspace:*",
+    "@nestling/testing": "workspace:*"
+  },
+  "nx": {
+    "targets": {
+      "lint": {
+        "dependsOn": [
+          "@nestling/eslint-plugin:build"
+        ]
+      }
+    }
   }
 }

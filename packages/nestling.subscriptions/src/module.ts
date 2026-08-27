@@ -1,0 +1,86 @@
+/**
+ * Модуль реестра — параметризованная фабрика, а не новый примитив.
+ *
+ * Ровно конвенция инфраструктурных модулей: функция, возвращающая обычный
+ * модуль контейнера. Ни `plugins:` в корне, ни `forRoot`, ни
+ * `DynamicModule` — их в модели нет.
+ *
+ * `makeModule` из `@nestling/container`, а не `makeAppModule` из
+ * `@nestling/app`: деклараций у модуля нет, и зависимость от пакета сборки
+ * satellite'у не нужна — это часть измерения, а не вкусовщина.
+ */
+
+import { SubscriptionClosed, SubscriptionOpened } from './contracts.js';
+import { TrackSubscription, UntrackSubscription } from './layer.js';
+import type { RegistryOptions } from './registry.js';
+import { SubscriptionRegistry } from './registry.js';
+
+import type {
+  FactoryProviderDefinition,
+  InjectionToken,
+  Module,
+} from '@nestling/container';
+import { makeModule } from '@nestling/container';
+import type { Emitter } from '@nestling/contracts';
+
+/**
+ * Опции модуля — только решения композиции.
+ *
+ * Ничего «из среды» здесь нет: имя узла при желании привязывается конфигом
+ * в корне и приезжает сюда обычным значением.
+ */
+export interface SubscriptionsOptions extends RegistryOptions {
+  /**
+   * Публиковать ли факты жизненного цикла контрактами.
+   *
+   * Выключено по умолчанию: у `event` ноль подписчиков легален, но на
+   * remote-шине каждый факт — сетевая публикация, и платить ею на каждой
+   * подписке должно быть решением композиции. При выключенной публикации
+   * вызывателей контрактов в графе нет вовсе — их не запросил ни один
+   * `deps`.
+   */
+  readonly publish?: boolean;
+}
+
+/**
+ * Реестр подписок как инфраструктурный модуль.
+ *
+ * Значение создаётся композиционным корнем **один раз** и импортируется
+ * теми, кому нужно: повторный вызов даст другое значение под тем же именем
+ * и уронит сборку (идентичность модуля — значение).
+ *
+ * @example
+ * ```typescript
+ * // src/infrastructure.ts
+ * export const appSubscriptions = subscriptions({
+ *   identity: (ctx) => (ctx.input as { userId?: string }).userId,
+ *   publish: true,
+ *   node: process.env.HOSTNAME,
+ * });
+ * ```
+ */
+export const subscriptions = (options: SubscriptionsOptions = {}): Module => {
+  // Условный список зависимостей — тот же приём, которым `portsKernel`
+  // добавляет шину в `invokerDeps`: выключенная публикация не порождает
+  // ни одного узла
+  const deps: readonly InjectionToken[] = options.publish
+    ? [SubscriptionOpened.emitter, SubscriptionClosed.emitter]
+    : [];
+
+  const registry: FactoryProviderDefinition<SubscriptionRegistry> = {
+    provide: SubscriptionRegistry,
+    useFactory: (
+      opened?: Emitter<typeof SubscriptionOpened>,
+      closed?: Emitter<typeof SubscriptionClosed>,
+    ) => new SubscriptionRegistry(options, opened, closed),
+    deps,
+  };
+
+  return makeModule({
+    name: 'module:subscriptions',
+    // Юниты слоя едут вместе с модулем: слой без своего реестра не
+    // соберётся, и это отказ на ASSEMBLE, а не на первом запросе
+    providers: [registry, TrackSubscription, UntrackSubscription],
+    exports: [SubscriptionRegistry],
+  });
+};

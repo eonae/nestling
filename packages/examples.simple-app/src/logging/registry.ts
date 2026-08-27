@@ -1,14 +1,12 @@
-import type { InjectionToken } from '@nestling/container';
-import { makeToken } from '@nestling/container';
+import { makeTokenFamily } from '@nestling/container';
 
 export interface ILogger {
   log(...args: unknown[]): void;
 }
 
-export const loggersRegistry = new Set<InjectionToken<ILogger>>();
-
-export const ILogger = (scope: string) => {
-  const token = makeToken<ILogger>(`Logger:${scope}`);
-  loggersRegistry.add(token);
-  return token;
-};
+/**
+ * Семейство токенов логгера: `ILogger('users')` — обычный мемоизированный токен
+ * `Logger:users`. Рецепт на всё семейство регистрирует `LoggingModule`;
+ * билдер материализует ровно те скоупы, которые кто-то запросил в deps.
+ */
+export const ILogger = makeTokenFamily<ILogger, [scope: string]>('Logger');

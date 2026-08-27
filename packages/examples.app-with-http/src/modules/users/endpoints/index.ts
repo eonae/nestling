@@ -1,3 +1,4 @@
+export * from './activity-stream.endpoint';
 export * from './create-user.endpoint';
 export * from './delete-user.endpoint';
 export * from './export-users.endpoint';
@@ -7,3 +8,4 @@ export * from './list-users.endpoint';
 export * from './search-users.endpoint';
 export * from './update-user.endpoint';
 export * from './upload-avatar.endpoint';
+export * from './user-webhook.endpoint';

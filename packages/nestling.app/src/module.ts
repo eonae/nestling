@@ -1,57 +1,51 @@
-import type { Constructor } from '@common/misc';
 import type { Module } from '@nestling/container';
-import { makeModule } from '@nestling/container';
-import type { IEndpoint } from '@nestling/pipeline';
+import type { AnyEndpointDefinition } from '@nestling/pipeline';
 
 /**
  * Расширенная конфигурация модуля для приложений с endpoints
  *
- * Юниты пайплайнов (классы с handle) — обычные провайдеры: регистрируются
- * в providers, а App резолвит их на старте при bind пайплайнов endpoint'ов.
+ * `endpoints` — список **деклараций-значений**, созданных конструктором
+ * своего транспорта (`httpEndpoint`, `cliEndpoint`). Инстанцировать в них
+ * нечего, поэтому в `providers` они не попадают. Зависимости хендлера
+ * (токены `deps`, класс-хендлер) и юниты пайплайнов — обычные провайдеры:
+ * регистрируются в `providers` явно, а App резолвит их на старте.
  *
  * @example
  * ```typescript
  * const UsersModule = makeAppModule({
  *   name: 'module:users',
- *   providers: [UserService, UserRepository, WithTracing],
- *   endpoints: [
- *     GetUserByIdEndpoint,
- *     CreateUserEndpoint,
- *     UpdateUserEndpoint,
- *   ],
+ *   providers: [UserService, UserRepository, WithTracing, CreateUserHandler],
+ *   endpoints: [GetUser, CreateUser, UpdateUser],
  *   imports: [DatabaseModule],
  *   exports: [UserService],
  * });
  * ```
  */
-export interface AppModule extends Omit<Module, 'providers'> {
-  /** Провайдеры модуля (опционально, т.к. endpoints тоже провайдеры) */
-  providers?: Module['providers'];
-
-  /** Endpoint-классы, декорированные @Injectable и @Endpoint */
-  endpoints?: Constructor<IEndpoint<any, any, any>>[];
+export interface AppModule extends Module {
+  /** Декларации-значения, созданные конструктором своего транспорта */
+  endpoints?: AnyEndpointDefinition[];
 }
 
 /**
  * Создаёт модуль приложения с поддержкой endpoints
  *
  * Это высокоуровневое API поверх makeModule из @nestling/container.
- * Endpoints автоматически добавляются в providers модуля.
+ * Возвращаемое значение **сохраняет** список `endpoints` — именно из него
+ * App собирает эндпоинты обходом дерева модулей (`discoverEndpoints`).
+ * В `providers` ничего не подмешивается: декларация — значение, а её
+ * зависимости регистрируются так же явно, как любые другие.
  *
  * @param config - Конфигурация модуля приложения
- * @returns Модуль, готовый для использования в контейнере
+ * @returns Модуль-значение, готовый и для контейнера, и для дискавери
  */
-export function makeAppModule(config: AppModule): Module {
-  const { endpoints = [], providers, ...moduleConfig } = config;
+export function makeAppModule(config: AppModule): AppModule {
+  const { endpoints, ...moduleConfig } = config;
 
-  // Собираем все провайдеры: базовые + endpoints
-  const allProviders = [
-    ...(Array.isArray(providers) ? providers : []),
-    ...endpoints,
-  ];
+  const module: AppModule = { ...moduleConfig };
 
-  return makeModule({
-    ...moduleConfig,
-    providers: allProviders.length > 0 ? allProviders : undefined,
-  });
+  if (endpoints) {
+    module.endpoints = endpoints;
+  }
+
+  return module;
 }

@@ -11,6 +11,19 @@ import {
 
 import { ContainerBuilder } from './container.builder';
 
+/** Опции параметризованного инфра-модуля из тестов идентичности */
+const LoggingOptions$ = makeToken<{ pretty: boolean }>('LoggingOptions');
+
+/**
+ * Канон параметризованной инфраструктуры: функция, возвращающая модуль.
+ * Каждый вызов — **новое значение**, и в этом вся суть правила идентичности.
+ */
+const logging = (options: { pretty: boolean }) =>
+  makeModule({
+    name: 'module:logging',
+    providers: [valueProvider(LoggingOptions$, options)],
+  });
+
 describe('ContainerBuilder', () => {
   interface IServiceA {
     readonly id: string;
@@ -308,6 +321,69 @@ describe('ContainerBuilder', () => {
       expect(factoryRuns).toBe(1);
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
+
+    it('registers a module shared by two import branches once', async () => {
+      let factoryRuns = 0;
+
+      const Shared = makeModule({
+        name: 'SharedModule',
+        providers: () => {
+          factoryRuns += 1;
+          return [classProvider(TokenA, ServiceA)];
+        },
+        exports: [TokenA],
+      });
+
+      const Left = makeModule({ name: 'LeftModule', imports: [Shared] });
+      const Right = makeModule({ name: 'RightModule', imports: [Shared] });
+
+      const container = await new ContainerBuilder()
+        .register(Left, Right)
+        .build();
+
+      expect(factoryRuns).toBe(1);
+      expect(container.getOrThrow(TokenA).id).toBe('A');
+    });
+
+    it('terminates on a cycle in imports', async () => {
+      const Left = makeModule({
+        name: 'CycleLeft',
+        providers: [classProvider(TokenA, ServiceA)],
+      });
+      const Right = makeModule({ name: 'CycleRight', imports: [Left] });
+      Left.imports = [Right];
+
+      const container = await new ContainerBuilder().register(Left).build();
+
+      expect(container.getOrThrow(TokenA).a()).toBe('a');
+    });
+
+    it('rejects two different modules under one name', () => {
+      const First = makeModule({
+        name: 'module:logging',
+        providers: [classProvider(TokenA, ServiceA)],
+      });
+      const Second = makeModule({
+        name: 'module:logging',
+        providers: [classProvider(TokenB, ServiceB)],
+      });
+
+      const builder = new ContainerBuilder();
+
+      expect(() => builder.register(First, Second)).toThrow(
+        /Two different modules are named 'module:logging'\..*attribution key.*share one module value.*different names.*duplicated package/s,
+      );
+    });
+
+    it('rejects a parameterized module called twice with equal options', () => {
+      // Каждый вызов фабрики — новое значение: структурного сравнения опций
+      // нет и не будет, канон — создать значение один раз и импортировать
+      const builder = new ContainerBuilder();
+
+      expect(() =>
+        builder.register(logging({ pretty: true }), logging({ pretty: true })),
+      ).toThrow("Two different modules are named 'module:logging'");
+    });
   });
 
   describe('validation and errors', () => {
@@ -328,7 +404,7 @@ describe('ContainerBuilder', () => {
       );
 
       await expect(builder.build()).rejects.toThrow(
-        "Provider for token 'TokenA' not found",
+        /Unsatisfied dependencies \(1\):\n {2}- 'TokenA' required by 'TokenB'/,
       );
     });
 

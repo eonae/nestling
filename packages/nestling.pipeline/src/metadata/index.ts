@@ -1,2 +1,2 @@
 export * from './endpoint';
-export * from './endpoint-registry';
+export * from './policy';

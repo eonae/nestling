@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    // `await using` в app-тестах примера
+    "lib": ["es2022", "dom", "dom.iterable", "esnext.disposable"],
+    // Двойник брокера живёт по ту сторону условия `testing`: без него
+    // subpath-шов не резолвится при typecheck
+    "customConditions": ["testing"]
+  },
+  "include": ["src/**/*"]
+}

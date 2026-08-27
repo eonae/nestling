@@ -7,26 +7,142 @@
 
 import { getEventListeners } from 'node:events';
 import type { Server } from 'node:http';
-import { type AddressInfo, connect } from 'node:net';
+import { request } from 'node:http';
+import { connect } from 'node:net';
 
+import { query } from './binding.js';
+import { httpEndpoint } from './helpers.js';
+import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
-import { Fail, makePipeline, Ok, stream, validate } from '@nestling/pipeline';
+import type { Schema } from '@common/misc';
+import type { FilePart, PreUnitFn } from '@nestling/pipeline';
+import {
+  defineFail,
+  Fail,
+  makePipeline,
+  multipart,
+  Ok,
+  stream,
+  upload,
+  validate,
+} from '@nestling/pipeline';
+import type { ExecutableDeclaration } from '@nestling/transport';
+import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
+
+/**
+ * Транспорт для теста: эфемерный порт и loopback-хост.
+ *
+ * Аргументов у `serve` кроме `dispatch` и `signal` нет, поэтому адрес
+ * задаётся опциями, а фактический порт читается через `address()`.
+ */
+function makeTransport(options: HttpTransportOptions = {}): HttpTransport {
+  return new HttpTransport({ port: 0, host: '127.0.0.1', ...options });
+}
+
+/**
+ * Декларации, накопленные тестом до go-live: транспорт получает их одним
+ * `dispatch` в `serve`, а не по одной.
+ */
+const pending = new WeakMap<HttpTransport, ExecutableDeclaration[]>();
+
+function routesOf(transport: HttpTransport): ExecutableDeclaration[] {
+  const known = pending.get(transport);
+  if (known) {
+    return known;
+  }
+
+  const created: ExecutableDeclaration[] = [];
+  pending.set(transport, created);
+
+  return created;
+}
+
+/** Контроллеры `serve`: их взвод — второй канал остановки рядом с close() */
+const controllers = new WeakMap<HttpTransport, AbortController>();
 
 /**
  * Поднимает транспорт на эфемерном порту, возвращает базовый URL.
  */
 async function listen(transport: HttpTransport): Promise<string> {
-  await transport.listen(0, '127.0.0.1');
-  const server = (transport as unknown as { server: Server }).server;
-  const address = server.address() as AddressInfo;
+  const controller = new AbortController();
+  controllers.set(transport, controller);
+
+  await transport.serve(makeDispatch(routesOf(transport)), controller.signal);
+
+  const address = transport.address();
+  if (!address) {
+    throw new Error('transport did not report an address after serve()');
+  }
+
   return `http://127.0.0.1:${address.port}`;
+}
+
+/**
+ * Запрос с телом при любом методе (fetch не даёт послать тело с GET).
+ *
+ * Нужен, чтобы проверить: тело, которое карта не требует, транспорт не
+ * буферизует — иначе лимит `maxBodySize` отдал бы 413.
+ */
+function requestWithBody(
+  baseUrl: string,
+  options: { method: string; path: string; body: string },
+): Promise<{ status: number; body: string }> {
+  const url = new URL(options.path, baseUrl);
+
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        method: options.method,
+        hostname: url.hostname,
+        port: url.port,
+        path: `${url.pathname}${url.search}`,
+        headers: {
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(options.body),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString(),
+          }),
+        );
+      },
+    );
+
+    req.on('error', reject);
+    req.end(options.body);
+  });
 }
 
 function getServer(transport: HttpTransport): Server {
   return (transport as unknown as { server: Server }).server;
 }
+
+/** Доменные отказы фикстур: канон — определение + `errors:` декларации */
+const EmailTaken = defineFail('EMAIL_TAKEN', {
+  status: 'CONFLICT',
+  message: 'Email already taken',
+  details: z.object({ field: z.string() }),
+});
+
+const RateLimited = defineFail('RATE_LIMITED', {
+  status: 'TOO_MANY_REQUESTS',
+  message: 'Too many requests',
+});
+
+const UpstreamTimeout = defineFail('UPSTREAM_TIMEOUT', {
+  status: 'TIMEOUT',
+  message: 'Upstream did not answer in time',
+});
+
+/** Заглушка диагностики: дефолтный console.error шумит в выводе тестов */
+const silent = { onUnknownFail: (): void => undefined };
 
 describe('HttpTransport — error response safety', () => {
   let transport: HttpTransport;
@@ -35,34 +151,74 @@ describe('HttpTransport — error response safety', () => {
   let exposedUrl: string;
 
   beforeAll(async () => {
-    transport = new HttpTransport();
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /boom',
-      pipeline: makePipeline(),
-      handle: () => {
-        throw new Error('db password invalid');
-      },
-    });
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /fail',
-      pipeline: makePipeline(),
-      handle: () => {
-        throw Fail.badRequest('Email already taken', { field: 'email' });
-      },
-    });
+    transport = makeTransport(silent);
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/boom',
+        pipeline: makePipeline(),
+        handle: () => {
+          throw new Error('db password invalid');
+        },
+      }),
+    );
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/fail',
+        pipeline: makePipeline(),
+        errors: [EmailTaken],
+        handle: () => {
+          throw EmailTaken({ field: 'email' });
+        },
+      }),
+    );
+    // Тот же отказ, но незадекларированный: страж границы снимет его
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/undeclared',
+        pipeline: makePipeline(),
+        handle: () => {
+          throw Fail.badRequest('Email already taken', { field: 'email' });
+        },
+      }),
+    );
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/rate-limited',
+        pipeline: makePipeline(),
+        errors: [RateLimited],
+        handle: () => {
+          throw RateLimited();
+        },
+      }),
+    );
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/timeout',
+        pipeline: makePipeline(),
+        errors: [UpstreamTimeout],
+        handle: () => {
+          throw UpstreamTimeout();
+        },
+      }),
+    );
     baseUrl = await listen(transport);
 
-    exposed = new HttpTransport({ exposeErrorDetails: true });
-    exposed.route({
-      transport: 'http',
-      pattern: 'POST /boom',
-      pipeline: makePipeline(),
-      handle: () => {
-        throw new Error('boom');
-      },
-    });
+    exposed = makeTransport({ exposeErrorDetails: true, ...silent });
+    routesOf(exposed).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/boom',
+        pipeline: makePipeline(),
+        handle: () => {
+          throw new Error('boom');
+        },
+      }),
+    );
     exposedUrl = await listen(exposed);
   });
 
@@ -76,7 +232,7 @@ describe('HttpTransport — error response safety', () => {
     expect(response.status).toBe(500);
 
     const body = await response.json();
-    expect(body).toEqual({ error: 'Internal server error' });
+    expect(body).toEqual({ error: 'Internal server error', code: 'UNKNOWN' });
     expect(JSON.stringify(body)).not.toContain('db password');
     expect(body.stack).toBeUndefined();
   });
@@ -90,50 +246,128 @@ describe('HttpTransport — error response safety', () => {
     expect(typeof body.stack).toBe('string');
   });
 
-  it('Fail.badRequest → 400 с message и details', async () => {
+  it('задекларированный отказ → свой статус, код и детали', async () => {
     const response = await fetch(`${baseUrl}/fail`, { method: 'POST' });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
 
     const body = await response.json();
     expect(body).toEqual({
       error: 'Email already taken',
+      code: 'EMAIL_TAKEN',
       details: { field: 'email' },
     });
   });
+
+  it('незадекларированный отказ → 500 UNKNOWN, оригинал не раскрыт', async () => {
+    const response = await fetch(`${baseUrl}/undeclared`, { method: 'POST' });
+    expect(response.status).toBe(500);
+
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Internal server error', code: 'UNKNOWN' });
+    expect(JSON.stringify(body)).not.toContain('Email already taken');
+  });
+
+  it('новые статусы словаря доезжают до провода: 429 и 504', async () => {
+    const limited = await fetch(`${baseUrl}/rate-limited`, { method: 'POST' });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toMatchObject({ code: 'RATE_LIMITED' });
+
+    const timeout = await fetch(`${baseUrl}/timeout`, { method: 'POST' });
+    expect(timeout.status).toBe(504);
+    expect(await timeout.json()).toMatchObject({ code: 'UPSTREAM_TIMEOUT' });
+  });
+
+  it('хук получает оригинал снятого отказа', async () => {
+    const seen: unknown[] = [];
+    const hooked = makeTransport({
+      onUnknownFail: (info) => seen.push(info.error),
+    });
+    routesOf(hooked).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/undeclared',
+        pipeline: makePipeline(),
+        handle: () => {
+          throw Fail.notFound('order 42');
+        },
+      }),
+    );
+    const url = await listen(hooked);
+
+    try {
+      const response = await fetch(`${url}/undeclared`, { method: 'POST' });
+      expect(response.status).toBe(500);
+      expect(seen).toHaveLength(1);
+      expect((seen[0] as Error).message).toBe('order 42');
+    } finally {
+      await hooked.close();
+    }
+  });
 });
+
+/** Схема с async-refinement: `~standard.validate` возвращает Promise. */
+const asyncSchema = {
+  '~standard': {
+    version: 1,
+    vendor: 'test',
+    validate: () => Promise.resolve({ value: { name: 'Alice' } }),
+  },
+} as unknown as Schema;
+
+/** Объект, не реализующий Standard Schema v1 (валидатор старой версии). */
+const notASchema = {
+  parse: (value: unknown) => value,
+} as unknown as Schema;
 
 describe('HttpTransport — request validation errors', () => {
   let transport: HttpTransport;
   let baseUrl: string;
 
   beforeAll(async () => {
-    transport = new HttpTransport();
+    transport = makeTransport(silent);
 
     // JSON endpoint с pipeline validate()
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /json',
-      input: z.object({ name: z.string() }),
-      pipeline: makePipeline().pre(validate()),
-      handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
-    });
-
-    // Конфликт ключей body/query
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /conflict',
-      input: z.object({ id: z.coerce.number() }),
-      pipeline: makePipeline().pre(validate()),
-      handle: (payload: { id: number }) => new Ok(payload),
-    });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/json',
+        input: z.object({ name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
+      }),
+    );
 
     // Fallback без pipeline — валидация в транспорте
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /fallback',
-      input: z.object({ name: z.string() }),
-      handle: (payload: { name: string }) => ({ ok: payload.name }),
-    });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/fallback',
+        input: z.object({ name: z.string() }),
+        handle: (payload: { name: string }) => ({ ok: payload.name }),
+      }),
+    );
+
+    // Схема с async-refinement: ошибка конфигурации приложения, не входа
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/async-schema',
+        input: asyncSchema,
+        pipeline: makePipeline().pre(validate()),
+        handle: () => new Ok({ ok: true }),
+      }),
+    );
+
+    // Объект, не реализующий Standard Schema: тоже не ошибка входа
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/not-a-schema',
+        input: notASchema,
+        pipeline: makePipeline().pre(validate()),
+        handle: () => new Ok({ ok: true }),
+      }),
+    );
 
     baseUrl = await listen(transport);
   });
@@ -155,18 +389,6 @@ describe('HttpTransport — request validation errors', () => {
     expect(body.stack).toBeUndefined();
   });
 
-  it('конфликт ключей body/query → 400 с именем ключа', async () => {
-    const response = await fetch(`${baseUrl}/conflict?id=2`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: 1 }),
-    });
-    expect(response.status).toBe(400);
-
-    const body = await response.json();
-    expect(body.error).toContain('id');
-  });
-
   it('невалидный payload в fallback-ветке → 400 с деталями', async () => {
     const response = await fetch(`${baseUrl}/fallback`, {
       method: 'POST',
@@ -180,6 +402,55 @@ describe('HttpTransport — request validation errors', () => {
     expect(Array.isArray(body.details)).toBe(true);
   });
 
+  it('details — стандартные issues { message, path } без вендорских полей', async () => {
+    for (const path of ['/json', '/fallback']) {
+      const response = await fetch(`${baseUrl}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 42 }),
+      });
+      expect(response.status).toBe(400);
+
+      const body = await response.json();
+      expect(body.details).toEqual([
+        { message: expect.any(String), path: ['name'] },
+      ]);
+      expect(body.details[0]).not.toHaveProperty('code');
+      expect(body.details[0]).not.toHaveProperty('expected');
+      expect(body.details[0]).not.toHaveProperty('received');
+      // Kernel-код проставляется на обоих путях: пайплайн и fallback
+      expect(body.code).toBe('VALIDATION_FAILED');
+    }
+  });
+
+  it('async-схема → 500, а не 400', async () => {
+    const response = await fetch(`${baseUrl}/async-schema`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Alice' }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: 'Internal server error',
+      code: 'UNKNOWN',
+    });
+  });
+
+  it('объект вместо схемы → 500, а не 400', async () => {
+    const response = await fetch(`${baseUrl}/not-a-schema`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Alice' }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: 'Internal server error',
+      code: 'UNKNOWN',
+    });
+  });
+
   it('валидный JSON → 200', async () => {
     const response = await fetch(`${baseUrl}/json`, {
       method: 'POST',
@@ -191,6 +462,261 @@ describe('HttpTransport — request validation errors', () => {
   });
 });
 
+describe('HttpTransport — strict-приём по bind-карте', () => {
+  let transport: HttpTransport;
+  let baseUrl: string;
+  let seenRawBody: Uint8Array | undefined;
+
+  /** Слой проверки подписи: объявляет требование к стартовому контексту */
+  const captureRawBody: PreUnitFn<{ rawBody: Uint8Array }, undefined> = (
+    ctx,
+  ) => {
+    seenRawBody = ctx.input.rawBody;
+  };
+
+  beforeAll(async () => {
+    transport = makeTransport();
+
+    // POST: поля по канону — в теле
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/users',
+        input: z.object({ name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string }) => new Ok(payload),
+      }),
+    );
+
+    // PATCH: одноимённые path-параметр и поле тела
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'PATCH',
+        path: '/users/:id',
+        input: z.object({ id: z.string(), name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { id: string; name: string }) => new Ok(payload),
+      }),
+    );
+
+    // GET: повтор ключа даёт массив
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/tags',
+        input: z.object({ tag: z.array(z.string()) }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { tag: string[] }) => new Ok(payload),
+      }),
+    );
+
+    // GET: пометка multiple даёт массив и при одном вхождении
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/multi',
+        input: z.object({ tag: z.array(z.string()) }),
+        bind: { tag: query({ multiple: true }) },
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { tag: string[] }) => new Ok(payload),
+      }),
+    );
+
+    // POST: поле вытянуто пометкой из тела в query
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/marked',
+        input: z.object({ name: z.string(), dryRun: z.string().optional() }),
+        bind: { dryRun: query() },
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string; dryRun?: string }) => new Ok(payload),
+      }),
+    );
+
+    // Multipart с path-параметром
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/users/:id/avatar',
+        input: multipart({
+          fields: z.object({ id: z.string() }),
+          files: { avatar: upload() },
+        }),
+        pipeline: makePipeline(),
+        handle: (payload: {
+          fields: { id: string };
+          files: { avatar: FilePart };
+        }) =>
+          new Ok({
+            id: payload.fields.id,
+            files: [payload.files.avatar.field],
+          }),
+      }),
+    );
+
+    // Webhook: сырые байты в типизированном стартовом контексте
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/hooks/stripe',
+        input: z.object({ event: z.string() }),
+        rawBody: true,
+        pipeline: makePipeline<{ rawBody: Uint8Array }>()
+          .pre(captureRawBody)
+          .pre(validate()),
+        handle: (payload: { event: string }) => new Ok(payload),
+      }),
+    );
+
+    baseUrl = await listen(transport);
+  });
+
+  afterAll(async () => {
+    await transport.close();
+  });
+
+  it('поле, присланное не в своё место, отбрасывается → 400 с именем поля', async () => {
+    const response = await fetch(`${baseUrl}/users?name=Alice`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(response.status).toBe(400);
+
+    const body = await response.json();
+    expect(body.error).toBe('Validation failed');
+    expect(body.details).toEqual([
+      { message: expect.any(String), path: ['name'] },
+    ]);
+    // Конфликта источников больше не существует
+    expect(JSON.stringify(body)).not.toContain('Duplicate key');
+  });
+
+  it('одноимённые path-параметр и поле тела → значение из пути', async () => {
+    const response = await fetch(`${baseUrl}/users/42`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: '7', name: 'Alice' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ id: '42', name: 'Alice' });
+  });
+
+  it('повторный query-ключ становится массивом', async () => {
+    const response = await fetch(`${baseUrl}/tags?tag=a&tag=b`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ tag: ['a', 'b'] });
+  });
+
+  it('query({ multiple: true }) даёт массив и при одном вхождении', async () => {
+    const response = await fetch(`${baseUrl}/multi?tag=a`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ tag: ['a'] });
+  });
+
+  it('помеченное поле читается из query, остальные — из тела', async () => {
+    const response = await fetch(`${baseUrl}/marked?dryRun=yes`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Alice', dryRun: 'no' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ name: 'Alice', dryRun: 'yes' });
+  });
+
+  it('multipart с path-параметром: id в data до валидации схемой', async () => {
+    const form = new FormData();
+    form.append('avatar', new Blob([Buffer.from('png')]), 'a.png');
+
+    const response = await fetch(`${baseUrl}/users/7/avatar`, {
+      method: 'POST',
+      body: form,
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ id: '7', files: ['avatar'] });
+  });
+
+  it('webhook: слой видит байты, хендлер — разобранный payload', async () => {
+    seenRawBody = undefined;
+    const payload = JSON.stringify({ event: 'charge.succeeded' });
+
+    const response = await fetch(`${baseUrl}/hooks/stripe`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: payload,
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ event: 'charge.succeeded' });
+
+    const seen: Uint8Array | undefined = seenRawBody;
+    expect(seen).toBeInstanceOf(Uint8Array);
+    expect(Buffer.from(seen ?? new Uint8Array()).toString()).toBe(payload);
+  });
+});
+
+describe('HttpTransport — тело читается только по требованию карты', () => {
+  let transport: HttpTransport;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    // Лимит меньше присылаемого тела: если транспорт его прочитает — 413
+    transport = makeTransport({ maxBodySize: 100 });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/search',
+        input: z.object({ q: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { q: string }) => new Ok(payload),
+      }),
+    );
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/hooks',
+        input: z.object({ event: z.string() }),
+        rawBody: true,
+        pipeline: makePipeline<{ rawBody: Uint8Array }>().pre(validate()),
+        handle: (payload: { event: string }) => new Ok(payload),
+      }),
+    );
+    baseUrl = await listen(transport);
+  });
+
+  afterAll(async () => {
+    await transport.close();
+  });
+
+  it('тело у GET не буферизуется: запрос обрабатывается по query', async () => {
+    const { status, body } = await requestWithBody(baseUrl, {
+      method: 'GET',
+      path: '/search?q=Alice',
+      body: 'x'.repeat(500),
+    });
+
+    expect(status).toBe(200);
+    expect(JSON.parse(body)).toEqual({ q: 'Alice' });
+  });
+
+  it('лимит тела действует и для сырых байтов → 413', async () => {
+    const response = await fetch(`${baseUrl}/hooks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ event: 'x'.repeat(500) }),
+    });
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: 'Payload too large' });
+  });
+});
+
 describe('HttpTransport — body size limits', () => {
   let small: HttpTransport;
   let unlimited: HttpTransport;
@@ -198,38 +724,44 @@ describe('HttpTransport — body size limits', () => {
   let unlimitedUrl: string;
 
   beforeAll(async () => {
-    small = new HttpTransport({ maxBodySize: 100 });
-    small.route({
-      transport: 'http',
-      pattern: 'POST /json',
-      input: z.object({ name: z.string() }),
-      pipeline: makePipeline().pre(validate()),
-      handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
-    });
-    small.route({
-      transport: 'http',
-      pattern: 'POST /stream',
-      input: stream(z.object({ n: z.number() })),
-      // Без pipeline: ошибка чанка всплывает в верхний catch → 413
-      handle: async (payload: AsyncIterable<unknown>) => {
-        let count = 0;
-        for await (const item of payload) {
-          count += item ? 1 : 0;
-        }
-        return { count };
-      },
-    });
+    small = makeTransport({ maxBodySize: 100 });
+    routesOf(small).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/json',
+        input: z.object({ name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
+      }),
+    );
+    routesOf(small).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/stream',
+        input: stream(z.object({ n: z.number() })),
+        // Без pipeline: ошибка чанка всплывает в верхний catch → 413
+        handle: async (payload: AsyncIterable<unknown>) => {
+          let count = 0;
+          for await (const item of payload) {
+            count += item ? 1 : 0;
+          }
+          return { count };
+        },
+      }),
+    );
     smallUrl = await listen(small);
 
-    unlimited = new HttpTransport({ maxBodySize: 0 });
-    unlimited.route({
-      transport: 'http',
-      pattern: 'POST /json',
-      input: z.object({ name: z.string() }),
-      pipeline: makePipeline().pre(validate()),
-      handle: (payload: { name: string }) =>
-        new Ok({ length: payload.name.length }),
-    });
+    unlimited = makeTransport({ maxBodySize: 0 });
+    routesOf(unlimited).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/json',
+        input: z.object({ name: z.string() }),
+        pipeline: makePipeline().pre(validate()),
+        handle: (payload: { name: string }) =>
+          new Ok({ length: payload.name.length }),
+      }),
+    );
     unlimitedUrl = await listen(unlimited);
   });
 
@@ -271,7 +803,7 @@ describe('HttpTransport — body size limits', () => {
 
 describe('HttpTransport — timeouts and graceful close', () => {
   it('таймауты применяются к серверу', async () => {
-    const transport = new HttpTransport({
+    const transport = makeTransport({
       requestTimeout: 5000,
       headersTimeout: 2000,
       keepAliveTimeout: 1000,
@@ -287,13 +819,15 @@ describe('HttpTransport — timeouts and graceful close', () => {
   });
 
   it('close() с идущим keep-alive завершается быстро', async () => {
-    const transport = new HttpTransport({ keepAliveTimeout: 60_000 });
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /ping',
-      pipeline: makePipeline(),
-      handle: () => new Ok({ pong: true }),
-    });
+    const transport = makeTransport({ keepAliveTimeout: 60_000 });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/ping',
+        pipeline: makePipeline(),
+        handle: () => new Ok({ pong: true }),
+      }),
+    );
     const baseUrl = await listen(transport);
     const port = Number(new URL(baseUrl).port);
 
@@ -320,14 +854,16 @@ describe('HttpTransport — timeouts and graceful close', () => {
   });
 
   it('close() с зависшим запросом завершается по closeTimeout', async () => {
-    const transport = new HttpTransport();
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /hang',
-      pipeline: makePipeline(),
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      handle: () => new Promise<never>(() => {}), // никогда не резолвится
-    });
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/hang',
+        pipeline: makePipeline(),
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        handle: () => new Promise<never>(() => {}), // никогда не резолвится
+      }),
+    );
     const baseUrl = await listen(transport);
 
     // Запускаем запрос, который зависнет в handler'е.
@@ -371,14 +907,16 @@ function makeAwaitingHandler() {
 
 describe('HttpTransport — request cancellation (meta.signal)', () => {
   it('дисконнект клиента взводит meta.signal', async () => {
-    const transport = new HttpTransport();
+    const transport = makeTransport();
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /slow',
-      pipeline: makePipeline(),
-      handle,
-    });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/slow',
+        pipeline: makePipeline(),
+        handle,
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const clientAbort = new AbortController();
@@ -398,17 +936,19 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   });
 
   it('штатное завершение (keep-alive) не взводит сигнал', async () => {
-    const transport = new HttpTransport();
+    const transport = makeTransport();
     let captured: AbortSignal | undefined;
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /ping',
-      pipeline: makePipeline(),
-      handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
-        captured = meta.signal;
-        return new Ok({ pong: true });
-      },
-    });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/ping',
+        pipeline: makePipeline(),
+        handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
+          captured = meta.signal;
+          return new Ok({ pong: true });
+        },
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const response = await fetch(`${baseUrl}/ping`, {
@@ -426,14 +966,16 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   });
 
   it('close(): кооперативный хендлер завершается заметно раньше closeTimeout', async () => {
-    const transport = new HttpTransport({ closeTimeout: 5000 });
+    const transport = makeTransport({ closeTimeout: 5000 });
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route({
-      transport: 'http',
-      pattern: 'POST /graceful',
-      pipeline: makePipeline(),
-      handle,
-    });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/graceful',
+        pipeline: makePipeline(),
+        handle,
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const pending = fetch(`${baseUrl}/graceful`, { method: 'POST' }).catch(
@@ -455,16 +997,18 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   });
 
   it('fallback-endpoint без pipeline получает meta.signal при дисконнекте', async () => {
-    const transport = new HttpTransport();
+    const transport = makeTransport();
     const { handle, started, aborted } = makeAwaitingHandler();
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /raw',
-      handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
-        const result = handle(_payload, meta);
-        return result.then((ok) => ok.value);
-      },
-    });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/raw',
+        handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
+          const result = handle(_payload, meta);
+          return result.then((ok) => ok.value);
+        },
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const clientAbort = new AbortController();
@@ -483,13 +1027,15 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
   });
 
   it('серия запросов не накапливает слушателей transport-level сигнала', async () => {
-    const transport = new HttpTransport();
-    transport.route({
-      transport: 'http',
-      pattern: 'GET /ping',
-      pipeline: makePipeline(),
-      handle: () => new Ok({ pong: true }),
-    });
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/ping',
+        pipeline: makePipeline(),
+        handle: () => new Ok({ pong: true }),
+      }),
+    );
     const baseUrl = await listen(transport);
 
     const closeSignal = (

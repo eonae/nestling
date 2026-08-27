@@ -21,9 +21,10 @@
   "license": "MIT",
   "dependencies": {
     "@common/misc": "workspace:*",
+    "@nestling/container": "workspace:*",
     "@nestling/pipeline": "workspace:*"
   },
-  "peerDependencies": {
+  "devDependencies": {
     "zod": "^4.0.0"
   }
 }

@@ -1,49 +1,35 @@
+import type { User } from '../../../api.contracts';
+import { GetUser as GetUserContract } from '../../../api.contracts';
 import { basePipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
+import { ILogger } from '../../logger';
+import { UserNotFound } from '../user.errors';
 import { UserService } from '../user.service';
 
-import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Fail, Ok } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
-import { z } from 'zod';
+import type { Output } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
+import type { z } from 'zod';
 
-const GetUserInput = z.object({
-  id: z.string(),
-});
+interface GetUserInput {
+  id: string;
+}
+type GetUserOutput = z.infer<typeof User>;
 
-const GetUserOutput = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string(),
-});
+export const getUserHandler =
+  (users: UserService, logger: ILoggerService) =>
+  async (
+    payload: GetUserInput,
+  ): Output<GetUserOutput, ReturnType<typeof UserNotFound>> => {
+    logger.log(`Handling GET /api/users/${payload.id}`);
 
-type GetUserInput = z.infer<typeof GetUserInput>;
-type GetUserOutput = z.infer<typeof GetUserOutput>;
+    const user = await users.getById(payload.id);
 
-/**
- * Endpoint для получения пользователя по ID
- */
-@Injectable([UserService, ILogger])
-@HttpEndpoint('GET', '/api/users/:id', {
-  input: GetUserInput,
-  output: GetUserOutput,
-  pipeline: basePipeline,
-})
-export class GetUserEndpoint implements IEndpoint {
-  constructor(
-    private userService: UserService,
-    private logger: ILoggerService,
-  ) {}
-
-  async handle(payload: GetUserInput): Output<GetUserOutput> {
-    this.logger.log(`Handling GET /api/users/${payload.id}`);
-
-    const user = await this.userService.getById(payload.id);
-
+    // Канал возврата: отказ — обычное значение, `throw` не обязателен.
+    // Рантайм трактует его ровно как бросок — `.ok`-юниты не увидят его
+    // ни на одном из путей.
     if (!user) {
-      throw Fail.notFound('User not found');
+      return UserNotFound({ id: payload.id });
     }
 
     // Генерируем ETag на основе данных
@@ -53,5 +39,21 @@ export class GetUserEndpoint implements IEndpoint {
       ETag: etag,
       'Cache-Control': 'max-age=300',
     });
-  }
-}
+  };
+
+/**
+ * Endpoint для получения пользователя по ID — **контракт-форма**.
+ *
+ * Адрес, схемы и `errors:` принадлежат контракту: переобъявить их здесь —
+ * ошибка компиляции. Тот же контракт импортирует внешний клиент, поэтому
+ * разъехаться серверу и потребителю негде.
+ *
+ * Демонстрирует и канал `return`: множество отказов объявлено контрактом,
+ * и компилятор не пропустит возврат отказа вне него.
+ */
+export const GetUser = httpEndpoint({
+  contract: GetUserContract,
+  pipeline: basePipeline,
+  deps: [UserService, ILogger],
+  handle: getUserHandler,
+});

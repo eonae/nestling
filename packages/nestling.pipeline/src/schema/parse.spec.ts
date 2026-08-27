@@ -1,6 +1,7 @@
-import { parseMetadata, parsePayload, SchemaValidationError } from './parse.js';
+import { parseMetadata, parsePayload } from './parse.js';
 import type { InputSources } from './types.js';
 
+import { SchemaValidationError } from '@common/misc';
 import { z } from 'zod';
 
 describe('parsePayload', () => {
@@ -134,18 +135,44 @@ describe('parseMetadata', () => {
 });
 
 describe('SchemaValidationError', () => {
-  it('should contain zod error', () => {
-    const parseResult = z.string().min(5).safeParse('ab');
-    if (!parseResult.error) {
-      throw new Error('Expected validation error');
-    }
-    const zodError = parseResult.error;
+  it('несёт стандартные issues', () => {
+    const issues = [{ message: 'too short', path: ['name'] }];
 
-    const error = new SchemaValidationError('Test error', zodError);
+    const error = new SchemaValidationError('Test error', issues);
 
     expect(error).toBeInstanceOf(Error);
     expect(error.name).toBe('SchemaValidationError');
-    expect(error.zodError).toBe(zodError);
+    expect(error.issues).toBe(issues);
     expect(error.message).toBe('Test error');
+  });
+
+  it('parsePayload нормализует issues в стандартную форму', () => {
+    const schema = z.object({ name: z.string().min(5) });
+    const sources: InputSources = { payload: { name: 'Ab' }, metadata: {} };
+
+    try {
+      parsePayload(schema, sources);
+      throw new Error('Ожидалась SchemaValidationError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(SchemaValidationError);
+      const { issues, message } = error as SchemaValidationError;
+      expect(message).toBe('Payload validation failed');
+      expect(issues[0].path).toEqual(['name']);
+      expect(issues[0]).not.toHaveProperty('code');
+    }
+  });
+
+  it('parseMetadata помечает отказ своим сообщением', () => {
+    const schema = z.object({ authorization: z.string() });
+    const sources: InputSources = { payload: {}, metadata: {} };
+
+    try {
+      parseMetadata(schema, sources);
+      throw new Error('Ожидалась SchemaValidationError');
+    } catch (error) {
+      expect((error as SchemaValidationError).message).toBe(
+        'Metadata validation failed',
+      );
+    }
   });
 });

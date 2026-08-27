@@ -1,37 +1,43 @@
-import { AppService } from './app.service';
-import { makeContainer } from './container';
-import { IApiClient, IDatabase } from './interfaces';
-import { ILogger } from './logging';
-import { UserService } from './users';
+import { AppModule } from './app.module';
+import { appConfigKeys } from './config';
+import { Demo } from './demo';
+import { LoggingModule } from './logging';
 
-// Пример использования
+import { assemble } from '@nestling/app';
+import { objectSource } from '@nestling/config';
+
+/**
+ * Композиционный корень: `assemble` — единственная публичная сборка.
+ *
+ * Обе капли конфига видны здесь:
+ *
+ * - **привязка источника** — объектный источник отдаёт `APP_LOG_LEVEL`;
+ *   привязан хэндлом `appConfigKeys`, то есть опрашивается только для
+ *   ключей этой секции и ни для каких других;
+ * - **чтение из env** — `DATABASE_URL` в списке не упомянут вовсе и
+ *   приезжает из `process.env`: env — неявный пол, объявлять его нельзя
+ *   и не нужно.
+ *
+ * Порядок списка = приоритет. Приложению, которому хватает env, про
+ * конфиг в корне писать нечего: kernel-машинерия конфига регистрируется
+ * всегда.
+ *
+ * Транспортов у примера нет — это легально: приложение проходит фазы и
+ * остаётся в RUN. Сама демонстрация живёт в `@OnStart` провайдера `Demo`:
+ * под `assemble` контейнер не является публичной поверхностью, и «достать
+ * инстанс в корне» больше не способ.
+ */
 export async function main() {
-  const container = await makeContainer();
+  const app = assemble({
+    modules: [LoggingModule, AppModule],
+    providers: [Demo],
+    config: [
+      [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+    ],
+  });
 
-  await container.init();
-
-  // Получаем сервисы из контейнера
-  const userService = container.getOrThrow(UserService);
-  const database = container.getOrThrow(IDatabase);
-  const apiClient = container.getOrThrow(IApiClient);
-  const logger = container.getOrThrow(ILogger('app'));
-  const appService = container.getOrThrow(AppService);
-
-  // Используем сервисы
-  await database.connect();
-  const users = await userService.getUsers();
-
-  logger.log('Users:', users);
-
-  // Тестируем API клиент
-  const apiResponse = await apiClient.get('/api/users');
-  logger.log('API Response:', apiResponse);
-
-  // Тестируем AppService с инъекцией зависимостей
-  const appInfo = await appService.getAppInfo();
-  logger.log('App Info:', appInfo);
-
-  await container.destroy();
+  await app.run();
+  await app.close();
 }
 
 // eslint-disable-next-line no-console

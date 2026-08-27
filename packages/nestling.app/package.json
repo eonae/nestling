@@ -8,6 +8,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "testing": {
+        "types": "./dist/testing/index.d.ts",
+        "import": "./dist/testing/index.js"
+      }
     }
   },
   "scripts": {
@@ -21,14 +27,16 @@
   "license": "MIT",
   "dependencies": {
     "@common/misc": "workspace:*",
+    "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
+    "@nestling/contracts": "workspace:*",
     "@nestling/pipeline": "workspace:*",
+    "@nestling/ports": "workspace:*",
     "@nestling/transport": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/transport.http": "workspace:*"
-  },
-  "peerDependencies": {
+    "@nestling/transport.cli": "workspace:*",
+    "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
   }
 }

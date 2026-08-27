@@ -1,14 +1,27 @@
 import type { EmptyInput } from '../core';
-import { analyzePayload, Fail } from '../core';
+import { describeForm, isPrimitiveLeaf, ValidationFailed } from '../core';
 import type { PreUnitFn } from '../core/types';
+
+import type { Schema } from '@common/misc';
+import { SchemaValidationError, validateSync } from '@common/misc';
 
 /**
  * Валидирует raw.payload и создаёт payload
  *
- * Работает только с schema-input: stream/files/withFiles/primitive
- * подготавливаются транспортом, их payload передаётся handler'у как есть.
+ * Работает только с формой значения (`kind: 'value'`) и схемой-листом:
+ * потоковые формы валидируются поэлементно обёртками форм
+ * (`bindInputStream`), `multipart` — транспортом при разборе, примитивы —
+ * это байты, схемы у них нет.
  *
- * При ошибке валидации бросает Fail.badRequest (HTTP 400).
+ * При ошибке валидации бросает kernel-отказ `ValidationFailed`
+ * (`VALIDATION_FAILED`, HTTP 400). Kernel-код входит в контракт любой
+ * ручки неявно: страж границы пропускает его без объявления в `errors:` —
+ * иначе штатный 400 валидации превращался бы в 500.
+ *
+ * Ошибки конфигурации приложения — async-схема
+ * (`AsyncSchemaNotSupportedError`) и объект-не-схема
+ * (`NotAStandardSchemaError`) — пробрасываются наружу как есть: это не
+ * ошибка входа, и 400 их бы замаскировал.
  *
  * @example
  * ```typescript
@@ -21,27 +34,32 @@ export function validate(): PreUnitFn<
   { payload: unknown | undefined }
 > {
   return async (ctx) => {
-    const config = analyzePayload(ctx.endpoint.input);
+    const form = describeForm(ctx.endpoint.input);
 
-    if (config.type !== 'schema' || !config.schema) {
+    if (
+      form.kind !== 'value' ||
+      form.leaf === undefined ||
+      isPrimitiveLeaf(form.leaf)
+    ) {
       return;
     }
 
-    const schema = config.schema as { parse(data: unknown): unknown };
-
     try {
-      const payload = schema.parse(ctx.raw.payload);
+      const payload = validateSync(
+        form.leaf as Schema,
+        ctx.raw.payload,
+        'Validation failed',
+      );
 
       return {
         payload,
       };
     } catch (error) {
-      const issues =
-        error && typeof error === 'object' && 'issues' in error
-          ? (error as { issues: unknown }).issues
-          : undefined;
+      if (error instanceof SchemaValidationError) {
+        throw ValidationFailed(error.issues, { cause: error });
+      }
 
-      throw Fail.badRequest('Validation failed', issues);
+      throw error;
     }
   };
 }

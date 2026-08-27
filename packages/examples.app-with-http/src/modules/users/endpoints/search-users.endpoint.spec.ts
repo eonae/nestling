@@ -1,13 +1,14 @@
-import type { ILoggerService } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
+import { SearchQueryRequired } from '../user.errors';
 import type { UserService } from '../user.service';
 
-import { SearchUsersEndpoint } from './search-users.endpoint';
+import { SearchUsersHandler } from './search-users.endpoint';
 
-import { Fail, Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
 
-describe('SearchUsersEndpoint', () => {
-  let endpoint: SearchUsersEndpoint;
+describe('SearchUsersHandler', () => {
+  let endpoint: SearchUsersHandler;
   let userService: jest.Mocked<UserService>;
   let logger: jest.Mocked<ILoggerService>;
 
@@ -15,7 +16,7 @@ describe('SearchUsersEndpoint', () => {
     userService = mock<UserService>();
     logger = mock<ILoggerService>();
 
-    endpoint = new SearchUsersEndpoint(userService, logger);
+    endpoint = new SearchUsersHandler(userService, logger);
   });
 
   describe('Успешные сценарии', () => {
@@ -50,12 +51,13 @@ describe('SearchUsersEndpoint', () => {
   });
 
   describe('Ошибочные сценарии', () => {
-    it('должен бросить Fail.badRequest если query отсутствует', async () => {
-      await expect(endpoint.handle({ q: '' })).rejects.toThrow(Fail);
+    it('должен вернуть SearchQueryRequired если query отсутствует', async () => {
+      const result = await endpoint.handle({ q: '' });
 
-      await expect(endpoint.handle({ q: '' })).rejects.toMatchObject({
+      expect(SearchQueryRequired.is(result)).toBe(true);
+      expect(result).toMatchObject({
         status: 'BAD_REQUEST',
-        message: 'Query parameter required',
+        code: 'SEARCH_QUERY_REQUIRED',
       });
     });
   });

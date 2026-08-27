@@ -1,7 +1,9 @@
-import { App } from '@nestling/app';
-import { HttpTransport } from '@nestling/transport.http';
-import { LoggerModule } from '../../src/modules/logger/logger.module';
-import { UsersModule } from '../../src/users.module';
+import type { App } from '@nestling/app';
+import { assemble } from '@nestling/app';
+import { valueProvider } from '@nestling/container';
+import { HttpTransport, HttpTransport$ } from '@nestling/transport.http';
+
+import { OpsFeature, UsersFeature } from '../../src/features';
 
 export interface TestAppContext {
   app: App;
@@ -9,23 +11,29 @@ export interface TestAppContext {
 }
 
 /**
- * Создает тестовое приложение на случайном порту
+ * Создает тестовое приложение на эфемерном порту.
+ *
+ * Транспорт конструируется вручную и регистрируется значением: тесту нужен
+ * фактический адрес, а порт `0` отдаёт его только после go-live —
+ * `transport.address()`.
  */
 export async function createTestApp(): Promise<TestAppContext> {
-  const port = 3000 + Math.floor(Math.random() * 1000); // Случайный порт 3000-4000
+  const transport = new HttpTransport({ port: 0, host: '127.0.0.1' });
 
-  const app = new App({
-    modules: [LoggerModule, UsersModule],
-    transports: {
-      http: new HttpTransport({ port }),
-    },
+  const app = assemble({
+    features: [UsersFeature, OpsFeature],
+    select: 'users',
+    transports: [valueProvider(HttpTransport$, transport)],
   });
 
   await app.run();
 
-  const baseUrl = `http://localhost:${port}`;
+  const address = transport.address();
+  if (!address) {
+    throw new Error('transport did not report an address after serve()');
+  }
 
-  return { app, baseUrl };
+  return { app, baseUrl: `http://127.0.0.1:${address.port}` };
 }
 
 /**
@@ -36,4 +44,3 @@ export async function closeTestApp(context: TestAppContext): Promise<void> {
     await context.app.close();
   }
 }
-

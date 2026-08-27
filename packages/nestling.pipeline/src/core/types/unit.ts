@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-invalid-void-type --
  * void в union'ах возвратов — осознанно: юниты-наблюдатели пишутся как
  * обычные функции без return, и это поддерживаемая форма API */
-import type { AnyInput, EmptyInput } from '../io/io.js';
-
 import type {
   ErrorResponseContext,
   ExtendableContext,
@@ -11,6 +9,7 @@ import type {
 } from './context.js';
 
 import type { Constructor, Optional } from '@common/misc';
+import type { AnyFail, AnyInput, EmptyInput } from '@nestling/contracts';
 
 /**
  * Добавка pre-юнита к накопленному input
@@ -25,9 +24,11 @@ export type AnyAddition = Record<string, unknown>;
  * - `disconnected` — клиент отвалился (сигнал взведён причиной дисконнекта);
  * - `aborted` — отменено иным образом (graceful shutdown и т.п.).
  *
- * Ограничение v1: исход вычисляется после ответной фазы, до фактической
- * отправки байтов транспортом. Точная семантика «всё дотекло» появится
- * вместе со стриминговой моделью (streaming-v2).
+ * Момент вычисления зависит от формы `output`: у не-потоковой — сразу
+ * после ответной фазы; у потоковой (`stream`/`events`) — **после
+ * завершения отдачи потока**, когда он дотёк, оборвался ошибкой или был
+ * закрыт потребителем. Для потоков прежний момент был просто неверным:
+ * «completed» печатался до того, как ушёл первый байт.
  */
 export type Outcome = 'completed' | 'disconnected' | 'aborted' | 'failed';
 
@@ -73,26 +74,20 @@ export type OkUnitFn<TAcc extends AnyInput = AnyInput> = (
  * Catch-юнит: вызывается только для ответа-ошибки. Поля собственного
  * pre-тракта — Partial. Может заменить ошибку другой ошибкой;
  * восстановление `Fail → Ok` невозможно по типам (ограничение v1).
+ *
+ * Замена возвращается либо готовым `ErrorResponseContext`, либо просто
+ * отказом: `Fail` рантайм нормализует так же, как отказ хендлера —
+ * иначе юниту пришлось бы собирать контекст ответа руками. Это же
+ * легальное место, где недекларированный отказ становится контрактным:
+ * страж границы стоит после всего ответного тракта.
  */
 export type CatchUnitFn<TCtxInput extends AnyInput = AnyInput> = (
   res: ErrorResponseContext,
   ctx: ExtendableContext<TCtxInput>,
 ) =>
-  | Promise<ErrorResponseContext | undefined | void>
+  | Promise<ErrorResponseContext | AnyFail | undefined | void>
   | ErrorResponseContext
-  | undefined
-  | void;
-
-/**
- * After-юнит: вызывается для любого ответа. Поля собственного
- * pre-тракта — Partial. Может заменить ответ.
- */
-export type AfterUnitFn<TCtxInput extends AnyInput = AnyInput> = (
-  res: ResponseContext,
-  ctx: ExtendableContext<TCtxInput>,
-) =>
-  | Promise<ResponseContext | undefined | void>
-  | ResponseContext
+  | AnyFail
   | undefined
   | void;
 

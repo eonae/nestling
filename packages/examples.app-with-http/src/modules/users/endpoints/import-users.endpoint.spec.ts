@@ -1,7 +1,7 @@
-import type { ILoggerService } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
 import type { UserService } from '../user.service';
 
-import { ImportUsersEndpoint } from './import-users.endpoint';
+import { ImportUsersHandler } from './import-users.endpoint';
 
 import { Ok } from '@nestling/pipeline';
 import { mock } from 'jest-mock-extended';
@@ -15,8 +15,8 @@ async function* mockOneUserStream() {
   yield { name: 'User1', email: 'user1@test.com' };
 }
 
-describe('ImportUsersEndpoint', () => {
-  let endpoint: ImportUsersEndpoint;
+describe('ImportUsersHandler', () => {
+  let endpoint: ImportUsersHandler;
   let userService: jest.Mocked<UserService>;
   let logger: jest.Mocked<ILoggerService>;
 
@@ -24,7 +24,7 @@ describe('ImportUsersEndpoint', () => {
     userService = mock<UserService>();
     logger = mock<ILoggerService>();
 
-    endpoint = new ImportUsersEndpoint(userService, logger);
+    endpoint = new ImportUsersHandler(userService, logger);
   });
 
   it('должен импортировать пользователей и вернуть статистику', async () => {

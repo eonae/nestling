@@ -3,7 +3,7 @@
 import { makeToken } from '../common';
 import { Injectable } from '../providers';
 
-import { getLifecycleHooks, OnDestroy, OnInit } from './lifecycle';
+import { getLifecycleHooks, OnDestroy, OnInit, OnStart } from './lifecycle';
 
 describe('Lifecycle metadata system', () => {
   it('collects OnInit hooks', () => {
@@ -80,5 +80,63 @@ describe('Lifecycle metadata system', () => {
 
     expect(hooks.onInit).toHaveLength(2);
     expect(hooks.onDestroy).toHaveLength(2);
+  });
+
+  it('collects OnStart hooks', () => {
+    const token = makeToken('Started');
+
+    @Injectable(token, [])
+    class Started {
+      @OnStart()
+      start(): void {}
+    }
+
+    const hooks = getLifecycleHooks(new Started());
+
+    expect(hooks.onInit).toHaveLength(0);
+    expect(hooks.onStart).toHaveLength(1);
+    expect(hooks.onDestroy).toHaveLength(0);
+  });
+
+  it('collects all three kinds of hooks on one class', () => {
+    const token = makeToken('ThreePhase');
+
+    @Injectable(token, [])
+    class ThreePhase {
+      @OnInit()
+      init(): void {}
+
+      @OnStart()
+      start(): void {}
+
+      @OnDestroy()
+      dispose(): void {}
+    }
+
+    const hooks = getLifecycleHooks(new ThreePhase());
+
+    expect(hooks.onInit).toHaveLength(1);
+    expect(hooks.onStart).toHaveLength(1);
+    expect(hooks.onDestroy).toHaveLength(1);
+  });
+
+  it('does not duplicate start hooks across multiple instances', () => {
+    const token = makeToken('RepeatedStart');
+
+    @Injectable(token, [])
+    class RepeatedStart {
+      @OnStart()
+      start(): void {}
+    }
+
+    const instances = [
+      new RepeatedStart(),
+      new RepeatedStart(),
+      new RepeatedStart(),
+    ];
+
+    for (const instance of instances) {
+      expect(getLifecycleHooks(instance).onStart).toHaveLength(1);
+    }
   });
 });

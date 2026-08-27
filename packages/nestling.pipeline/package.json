@@ -15,14 +15,19 @@
     "build": "yarn run clear && run -T tsc",
     "lint": "run -T eslint 'src/**/*.ts'",
     "lint:fix": "yarn run lint --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
+    "type-budget": "run -T tsx type-tests/bench/run.ts"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*"
+    "@common/misc": "workspace:*",
+    "@nestling/container": "workspace:*",
+    "@nestling/contracts": "workspace:*",
+    "@nestling/streams": "workspace:*"
   },
-  "peerDependencies": {
+  "devDependencies": {
+    "typescript": "5.7.3",
     "zod": "^4.0.0"
   }
 }

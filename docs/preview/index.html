@@ -97,8 +97,8 @@
 </div>
 </div>
 <h2 id="what">Что такое Nestling</h2>
-<p>Nestling — это backend-фреймворк на TypeScript для тех, кто любит структуру NestJS, но устал платить за неё рантайм-магией. Автор описывает его прямо: «мой личный взгляд на Nest.js — фреймворк, который я одновременно люблю и нахожу раздражающим». Nestling берёт из Nest то, что команды реально используют, и выбрасывает остальное.</p>
-<p>Ключевая ставка — <strong>no runtime magic</strong>. Всё, что Nest делает через скрытую рефлексию и отложенную сборку, Nestling делает явно и на этапе сборки графа. Не потому что «магия — это плохо» как эстетика, а потому что явный граф даёт то, чего у Nest нет: полная визуализация, топологический порядок init/destroy, проверка циклов и <strong>fail-fast на старте</strong> вместо падения в проде.</p>
+<p>Nestling — это backend-фреймворк на TypeScript для тех, кто привык к структуре и принципам NestJS, но устал за неё платить. Мы берём из Nest то, что команды реально используют, выбрасываем лишнее и добавляем много современных удобств.</p>
+<p>Одна из главных идей — <strong>no runtime magic</strong>. Всё, что Nest делает через скрытую рефлексию и отложенную сборку, мы делаем явно и на этапе сборки графа. Не потому что магия плоха и сама по себе, а потому что явный граф даёт то, чего у Nest нет: полная визуализация, топологический порядок init/destroy, проверка циклов и <strong>fail-fast на старте</strong> вместо падения в проде.</p>
 <div class="note">
 <span class="note-t">Почему «nestling»</span>
 <p>Nestling — птенец: младший, лёгкий родственник большого Nest. Пакеты публикуются под скоупом <code>@nestling/*</code>, а DI-ядро (<code>@nestling/container</code>) не тянет ни одной сторонней зависимости и работает даже в браузере.</p>
@@ -116,7 +116,7 @@
 <tbody>
 <tr>
 <td><strong>No runtime magic</strong></td>
-<td>Зависимости объявляются явным массивом токенов. Никакой скрытой рефлексии типов, никакой отложенной резолюции — граф известен на <code>build()</code>.</td>
+<td>Зависимости объявляются явным массивом токенов. Никакой скрытой рефлексии типов, никакой отложенной сборки - граф известен на <code>build()</code>.</td>
 </tr>
 <tr>
 <td><strong>Guarantee over convention</strong></td>
@@ -210,8 +210,9 @@
 <p>Три знакомых типа провайдеров (value / class / factory), <code>@Injectable</code>, инъекционные токены, lifecycle-хуки <code>@OnInit</code>/<code>@OnDestroy</code> (в строгом топологическом порядке), модульная система — но проще и опциональная. Контейнер можно использовать standalone: во фронтенде, в CLI, рядом с Fastify.</p>
 </div>
 <h2 id="first-steps">Первые шаги</h2>
-<p>У Nestling два уровня входа. Начнём с минимального — <strong>без DI, классов и декораторов</strong>. Транспорт создаётся напрямую, endpoint — обычное значение через <code>makeEndpoint</code>.</p>
-<div class="code" data-file="endpoints.ts" data-lang="typescript"><pre><code>import { makeEndpoint, makePipeline, validate } from '@nestling/pipeline';
+<p>У Nestling два уровня входа. Начнём с минимального — <strong>без DI, классов и декораторов</strong>. Транспорт создаётся напрямую, endpoint — обычное значение через конструктор своего транспорта (<code>httpEndpoint</code>).</p>
+<div class="code" data-file="endpoints.ts" data-lang="typescript"><pre><code>import { makePipeline, validate } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const CreateUser = z.object({
@@ -220,9 +221,9 @@ const CreateUser = z.object({
 });
 type CreateUser = z.infer&lt;typeof CreateUser&gt;;
 
-export const createUser = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /users',            // "МЕТОД /путь"
+export const createUser = httpEndpoint({
+  method: 'POST',
+  path: '/users',                    // литерал: path-параметры видны типам
   input: CreateUser,                 // схема входа
   output: z.object({ id: z.string(), name: z.string() }),
   pipeline: makePipeline().pre(validate()),
@@ -238,33 +239,33 @@ import { createUser } from './endpoints';
 const server = new HttpTransport({ port: 3000 });
 server.route(createUser);
 await server.listen();</code></pre></div>
-<p>Обрати внимание: схема <code>input</code> плюс <code>.pre(validate())</code> дают <strong>типизированный</strong><code>input</code> в хендлере — не <code>any</code>, не ручной каст. Вернуть можно просто значение (обернётся в <code>Ok</code>) или явно <code>Ok.created(...)</code> / <code>throw Fail.badRequest(...)</code>. Тот же endpoint без единой правки работает на CLI-транспорте — там <code>pattern</code> становится именем команды.</p>
+<p>Обрати внимание: схема <code>input</code> плюс <code>.pre(validate())</code> дают <strong>типизированный</strong><code>input</code> в хендлере — не <code>any</code>, не ручной каст. Вернуть можно просто значение (обернётся в <code>Ok</code>) или явно <code>Ok.created(...)</code>; отказ объявляется <code>defineFail</code> и перечисляется в <code>errors:</code>. Та же операция на CLI объявляется <code>cliEndpoint({ command: 'create-user', ... })</code> — меняется только транспортный словарь, схемы, пайплайн и хендлер остаются теми же.</p>
 <h2 id="two-levels">Два уровня фреймворка</h2>
-<p>Минимальный уровень выше — это ещё «не фреймворк, а библиотека». Когда появляется потребность в DI, модулях, lifecycle-хуках и graceful shutdown, ты переходишь на полный уровень: <code>App</code> + классовые endpoints. <strong>Хендлеры при этом почти не меняются</strong> — добавляется только конструкторная инъекция.</p>
-<div class="code" data-file="create-user.endpoint.ts" data-lang="typescript"><pre><code>import { Injectable } from '@nestling/container';
-import { HttpEndpoint } from '@nestling/transport.http';
-import { Ok, Fail, type IEndpoint, type Output } from '@nestling/pipeline';
+<p>Минимальный уровень выше — это ещё «не фреймворк, а библиотека». Когда появляется потребность в DI, модулях, lifecycle-хуках и graceful shutdown, ты переходишь на полный уровень: <code>App</code> + модули. <strong>Декларация при этом не меняется вообще</strong> — к ней добавляется <code>deps</code> (или класс-хендлер), а гашение зависимостей берёт на себя App.</p>
+<div class="code" data-file="create-user.endpoint.ts" data-lang="typescript"><pre><code>import { httpEndpoint } from '@nestling/transport.http';
+import { Ok, type Output } from '@nestling/pipeline';
 import { basePipeline } from '../common/pipelines';
+import { EmailTaken } from './user.errors';
 import { UserService } from './user.service';
 
-@Injectable([UserService])
-@HttpEndpoint('POST', '/api/users', {
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/api/users',
   input: CreateUser,
   output: UserView,
+  errors: [EmailTaken],                      // множество отказов ручки
   pipeline: basePipeline,
-})
-export class CreateUserEndpoint implements IEndpoint {
-  constructor(private users: UserService) {}
-
-  async handle(input: CreateUser): Output&lt;UserView&gt; {
-    if (await this.users.findByEmail(input.email)) {
-      throw Fail.badRequest('Email already taken', { field: 'email' });
+  deps: [UserService],                       // явный массив токенов
+  handle: (users) =&gt; async (input: CreateUser): Output&lt;UserView, EmailTaken&gt; =&gt; {
+    // внешний вызов — один раз на сборке, замыкание = инстанс
+    if (await users.findByEmail(input.email)) {
+      return EmailTaken({ email: input.email });   // 409 с кодом EMAIL_TAKEN
     }
-    const user = await this.users.create(input);
+    const user = await users.create(input);
     return Ok.created(user, { Location: `/api/users/${user.id}` });
-  }
-}</code></pre></div>
-<p>Двухуровневость — не случайность, а часть дизайна: она <strong>видна в системе типов</strong>. Standalone-транспорты принимают только «чистые» пайплайны без DI-зависимостей; пайплайны с классами-юнитами требуют <code>App</code>, который резолвит их из контейнера на старте. Компилятор не даст смешать миры молча.</p>
+  },
+});</code></pre></div>
+<p>Двухуровневость — не случайность, а часть дизайна: она <strong>видна в системе типов</strong>. Standalone-транспорты принимают только «чистые» декларации без неразрешённых зависимостей; декларация с <code>deps</code>, класс-хендлером или классами-юнитами в пайплайне требует <code>App</code>, который гасит их из контейнера на старте. Компилятор не даст смешать миры молча.</p>
 <div class="note">
 <span class="note-t">Куда дальше</span>
 <p><a href="concepts.html#endpoints">Основные концепции</a> — endpoints, DI, модули, <code>Ok</code>/<code>Fail</code> и pipeline подробно. <a href="fundamentals.html#lifecycle">Основы</a> — контейнер, жизненный цикл, конфигурация, стриминг, схемы и OpenAPI, тестирование. <a href="scaling.html#monolith">Масштабирование</a> — модульный монолит, порты и разнесение по процессам без переписывания кода.</p>

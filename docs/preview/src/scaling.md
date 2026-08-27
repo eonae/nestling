@@ -95,26 +95,26 @@ Inbound («я обрабатываю контракт») — это **буква
 
 ```ts
 // billing РЕАЛИЗУЕТ контракт как endpoint
-@Injectable([PaymentGateway])
-@ContractEndpoint(ChargeCard)
-export class ChargeCardEndpoint implements Handler<typeof ChargeCard> {
-  constructor(private gw: PaymentGateway) {}
-  async handle(input, meta) {
-    return new Ok({ chargeId: await this.gw.charge(input, meta.signal) });
-  }
-}
+export const ChargeCardImpl = implement(ChargeCard, {
+  deps: [PaymentGateway],
+  handle: (gw) => async (input, meta) =>
+    new Ok({ chargeId: await gw.charge(input, meta.signal) }),
+});
 
 // orders ПОТРЕБЛЯЕТ порт — не зная, локальный billing или за сетью
-@Injectable([OrdersService, ChargeCard.port])
-@HttpEndpoint('POST', '/orders', { input: NewOrder, output: Order, pipeline: base })
-export class CreateOrderEndpoint implements IEndpoint {
-  constructor(private orders: OrdersService, private billing: Port<typeof ChargeCard>) {}
-  async handle(input: NewOrder, meta): Output<Order> {
-    const charge = await this.billing.call({ orderId: input.id, amount: input.total }, meta);
+export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
+  input: NewOrder,
+  output: Order,
+  pipeline: base,
+  deps: [OrdersService, ChargeCard.port],
+  handle: (orders, billing: Port<typeof ChargeCard>) => async (input: NewOrder, meta): Output<Order> => {
+    const charge = await billing.call({ orderId: input.id, amount: input.total }, meta);
     if (charge.isFail) return charge;     // отказ — обычный Fail, не исключение
-    return new Ok(this.orders.create(input));
-  }
-}
+    return new Ok(orders.create(input));
+  },
+});
 ```
 
 :::note warn Жёсткая дисциплина

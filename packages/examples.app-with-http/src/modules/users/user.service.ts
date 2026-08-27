@@ -1,42 +1,41 @@
 import { ADMIN_USER_ID } from '../../common/constants';
 import type { ImportResult, User } from '../../common/types';
-import type { ILoggerService } from '../logger/logger.service';
-import { ILogger } from '../logger/logger.service';
+import type { ILoggerService } from '../logger';
+import { ILogger } from '../logger';
+
+import type { IUsersRepository } from './users.repository';
+import { UsersRepository } from './users.repository';
 
 import { Injectable } from '@nestling/container';
 
 /**
- * Сервис для работы с пользователями
+ * Сервис для работы с пользователями.
+ *
+ * Хранилище — за портом {@link UsersRepository}: это и архитектурный шов
+ * (сервис не знает, чем хранят), и шов тестовый — app-тест подменяет
+ * именно его, а не сервис целиком.
  */
-@Injectable([ILogger])
+@Injectable([ILogger, UsersRepository])
 export class UserService {
-  private users: User[] = [
-    { id: '1', name: 'Alice', email: 'alice@example.com' },
-    { id: '2', name: 'Bob', email: 'bob@example.com' },
-  ];
-  private nextId = 3;
-
-  constructor(private logger: ILoggerService) {
+  constructor(
+    private logger: ILoggerService,
+    private repository: IUsersRepository,
+  ) {
     this.logger.log('UserService initialized');
   }
 
   async getById(id: string): Promise<User | null> {
     this.logger.log(`Getting user ${id}`);
-    const user = this.users.find((u) => u.id === id) || null;
-    return user;
+    return this.repository.byId(id);
   }
 
   async getAll(): Promise<User[]> {
     this.logger.log('Getting all users');
-    return this.users;
+    return this.repository.all();
   }
 
   async create(data: Omit<User, 'id'>): Promise<User> {
-    const user: User = {
-      id: String(this.nextId++),
-      ...data,
-    };
-    this.users.push(user);
+    const user = await this.repository.insert(data);
     this.logger.log(`Created user ${user.id}`);
     return user;
   }
@@ -46,18 +45,13 @@ export class UserService {
     data: Partial<Omit<User, 'id'>>,
   ): Promise<User | null> {
     this.logger.log(`Updating user ${id}`);
-    const userIndex = this.users.findIndex((u) => u.id === id);
-    if (userIndex === -1) {
-      return null;
+
+    const updated = await this.repository.patch(id, data);
+    if (updated) {
+      this.logger.log(`Updated user ${id}`);
     }
 
-    this.users[userIndex] = {
-      ...this.users[userIndex],
-      ...data,
-    };
-
-    this.logger.log(`Updated user ${id}`);
-    return this.users[userIndex];
+    return updated;
   }
 
   async delete(id: string): Promise<boolean> {
@@ -68,21 +62,20 @@ export class UserService {
       return false;
     }
 
-    const userIndex = this.users.findIndex((u) => u.id === id);
-    if (userIndex === -1) {
-      return false;
+    const deleted = await this.repository.remove(id);
+    if (deleted) {
+      this.logger.log(`Deleted user ${id}`);
     }
 
-    this.users.splice(userIndex, 1);
-    this.logger.log(`Deleted user ${id}`);
-    return true;
+    return deleted;
   }
 
   async search(query: string): Promise<User[]> {
     this.logger.log(`Searching users with query: ${query}`);
     const lowerQuery = query.toLowerCase();
+    const users = await this.repository.all();
 
-    return this.users.filter(
+    return users.filter(
       (user) =>
         user.name.toLowerCase().includes(lowerQuery) ||
         user.email.toLowerCase().includes(lowerQuery),
@@ -91,7 +84,7 @@ export class UserService {
 
   async findByEmail(email: string): Promise<User | null> {
     this.logger.log(`Finding user by email: ${email}`);
-    return this.users.find((u) => u.email === email) || null;
+    return this.repository.byEmail(email);
   }
 
   async updateAvatar(userId: string, avatarUrl: string): Promise<User | null> {
@@ -104,7 +97,7 @@ export class UserService {
    */
   async *exportAll(): AsyncIterableIterator<User> {
     this.logger.log('Exporting all users');
-    for (const user of this.users) {
+    for (const user of await this.repository.all()) {
       yield user;
     }
   }

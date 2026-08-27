@@ -118,10 +118,10 @@ export class HealthEndpoint {
 Конфиг в Nestling — не отдельная подсистема и не «стадия конфигурации». Это **частный случай зависимости**. Секция объявляется схемой, инжектится как типизированный срез, и валидируется жадно на старте: **невалидный конфиг = FAIL-FAST**.
 
 ```ts orders.config.ts
-export const OrdersConfig = makeConfig('orders', z.object({
+export const OrdersConfig = makeConfig('orders', {
   maxItems:    z.coerce.number().default(100),   // ← ключ ORDERS_MAX_ITEMS
   databaseUrl: from('DATABASE_URL', z.url()),    // точное имя ключа, без префикса
-}));
+});
 
 // наружу из пакета — только хэндл ключей; сам токен не реэкспортируется
 export const ordersKeys = OrdersConfig.keys;
@@ -133,7 +133,7 @@ export class OrdersService {
   constructor(private cfg: Config<typeof OrdersConfig>) {}
 
   create(dto: NewOrder): Order {
-    if (dto.items.length > this.cfg.maxItems) throw Fail.badRequest('too many');
+    if (dto.items.length > this.cfg.maxItems) throw TooManyItems({ max: this.cfg.maxItems });
     /* ... */
   }
 }
@@ -172,10 +172,10 @@ await assemble({
 - **вступит ли изменение в силу** — ответственность потребителя. Поэтому reloadable — opt-in.
 
 ```ts
-export const Runtime = makeConfig.reloadable('runtime', z.object({
+export const Runtime = makeConfig.reloadable('runtime', {
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   rps:      z.coerce.number().default(100),
-}));
+});
 
 @Injectable([Runtime])
 class RateLimiter {
@@ -228,9 +228,11 @@ export class AuditLog {
 
 Стриминг — на стандартном `AsyncIterable`, а не на библиотечном типе. Pull-модель даёт backpressure бесплатно: медленный клиент просто не запрашивает следующий элемент. Именно поэтому RxJS нет на границах фреймворка (он push, backpressure надо докручивать) — но он полностью доступен *внутри* хендлера.
 
+Верхний уровень `input`/`output` — это **форма**, а листья — схемы: значение (схема как есть), `stream(T)`, `events(T)`, `multipart({ fields, files })`. Форма определяет и способ валидации (значение — целиком, поток — поэлементно в обе стороны), и media type, и framing ответа. Файловое поле объявляется `upload({ maxSize, mime, multiple })`, и лимиты применяются *во время* разбора — файл сверх лимита не буферизуется целиком ради того, чтобы потом быть отвергнутым.
+
 ### `stream(T)` ≠ `events(T)`
 
-Два разных модификатора io-декларации с разной семантикой:
+Две разные формы io-декларации с разной семантикой:
 
 |  | `stream(T)` | `events(T)` |
 | --- | --- | --- |
@@ -240,9 +242,9 @@ export class AuditLog {
 | Доки | OpenAPI | AsyncAPI |
 
 ```ts
-export const streamLogs = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /logs/stream',
+export const streamLogs = httpEndpoint({
+  method: 'POST',
+  path: '/logs/stream',
   input: stream(LogChunk),                  // NDJSON: объект на строку, каждый валидируется
   output: z.object({ processed: z.number() }),
   pipeline: makePipeline(),
@@ -253,6 +255,12 @@ export const streamLogs = makeEndpoint({
   },
 });
 ```
+
+:::note Исход потока честен только по факту доставки
+Для потоковой формы `.finally` вызывается **после** того, как поток дотёк, оборвался ошибкой или был закрыт потребителем, — а не после ответной фазы, когда не ушёл ещё ни один байт. Пайплайн отдаёт транспорту итератор-обёртку, и её закрытие ровно один раз считает исход и выполняет наблюдателей; отсюда обязанность транспорта *потребить итератор либо закрыть его*. Счётчики `ctx.summary` (`itemsIn`/`itemsOut`, плюс байты там, где транспорт их знает) к этому моменту досчитаны.
+
+Отказ *посреди* потока статус сменить уже не может: NDJSON-ответ обрывается (клиент видит незавершённый chunked), SSE получает кадр `event: error` с телом отказа и закрывается. В обоих случаях исход — `failed`, а `.catch` не вызывается: заменять ответ физически не на что.
+:::
 
 ### AbortSignal — first-class примитив
 

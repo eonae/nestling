@@ -73,10 +73,11 @@ Nestling позиционируется как «ещё более opinionated, 
 
 ## Первые шаги {#first-steps}
 
-У Nestling два уровня входа. Начнём с минимального — **без DI, классов и декораторов**. Транспорт создаётся напрямую, endpoint — обычное значение через `makeEndpoint`.
+У Nestling два уровня входа. Начнём с минимального — **без DI, классов и декораторов**. Транспорт создаётся напрямую, endpoint — обычное значение через конструктор своего транспорта (`httpEndpoint`).
 
 ```ts endpoints.ts
-import { makeEndpoint, makePipeline, validate } from '@nestling/pipeline';
+import { makePipeline, validate } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const CreateUser = z.object({
@@ -85,9 +86,9 @@ const CreateUser = z.object({
 });
 type CreateUser = z.infer<typeof CreateUser>;
 
-export const createUser = makeEndpoint({
-  transport: 'http',
-  pattern: 'POST /users',            // "МЕТОД /путь"
+export const createUser = httpEndpoint({
+  method: 'POST',
+  path: '/users',                    // литерал: path-параметры видны типам
   input: CreateUser,                 // схема входа
   output: z.object({ id: z.string(), name: z.string() }),
   pipeline: makePipeline().pre(validate()),
@@ -109,39 +110,39 @@ server.route(createUser);
 await server.listen();
 ```
 
-Обрати внимание: схема `input` плюс `.pre(validate())` дают **типизированный**`input` в хендлере — не `any`, не ручной каст. Вернуть можно просто значение (обернётся в `Ok`) или явно `Ok.created(...)` / `throw Fail.badRequest(...)`. Тот же endpoint без единой правки работает на CLI-транспорте — там `pattern` становится именем команды.
+Обрати внимание: схема `input` плюс `.pre(validate())` дают **типизированный**`input` в хендлере — не `any`, не ручной каст. Вернуть можно просто значение (обернётся в `Ok`) или явно `Ok.created(...)`; отказ объявляется `defineFail` и перечисляется в `errors:`. Та же операция на CLI объявляется `cliEndpoint({ command: 'create-user', ... })` — меняется только транспортный словарь, схемы, пайплайн и хендлер остаются теми же.
 
 ## Два уровня фреймворка {#two-levels}
 
-Минимальный уровень выше — это ещё «не фреймворк, а библиотека». Когда появляется потребность в DI, модулях, lifecycle-хуках и graceful shutdown, ты переходишь на полный уровень: `App` + классовые endpoints. **Хендлеры при этом почти не меняются** — добавляется только конструкторная инъекция.
+Минимальный уровень выше — это ещё «не фреймворк, а библиотека». Когда появляется потребность в DI, модулях, lifecycle-хуках и graceful shutdown, ты переходишь на полный уровень: `App` + модули. **Декларация при этом не меняется вообще** — к ней добавляется `deps` (или класс-хендлер), а гашение зависимостей берёт на себя App.
 
 ```ts create-user.endpoint.ts
-import { Injectable } from '@nestling/container';
-import { HttpEndpoint } from '@nestling/transport.http';
-import { Ok, Fail, type IEndpoint, type Output } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
+import { Ok, type Output } from '@nestling/pipeline';
 import { basePipeline } from '../common/pipelines';
+import { EmailTaken } from './user.errors';
 import { UserService } from './user.service';
 
-@Injectable([UserService])
-@HttpEndpoint('POST', '/api/users', {
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/api/users',
   input: CreateUser,
   output: UserView,
+  errors: [EmailTaken],                      // множество отказов ручки
   pipeline: basePipeline,
-})
-export class CreateUserEndpoint implements IEndpoint {
-  constructor(private users: UserService) {}
-
-  async handle(input: CreateUser): Output<UserView> {
-    if (await this.users.findByEmail(input.email)) {
-      throw Fail.badRequest('Email already taken', { field: 'email' });
+  deps: [UserService],                       // явный массив токенов
+  handle: (users) => async (input: CreateUser): Output<UserView, EmailTaken> => {
+    // внешний вызов — один раз на сборке, замыкание = инстанс
+    if (await users.findByEmail(input.email)) {
+      return EmailTaken({ email: input.email });   // 409 с кодом EMAIL_TAKEN
     }
-    const user = await this.users.create(input);
+    const user = await users.create(input);
     return Ok.created(user, { Location: `/api/users/${user.id}` });
-  }
-}
+  },
+});
 ```
 
-Двухуровневость — не случайность, а часть дизайна: она **видна в системе типов**. Standalone-транспорты принимают только «чистые» пайплайны без DI-зависимостей; пайплайны с классами-юнитами требуют `App`, который резолвит их из контейнера на старте. Компилятор не даст смешать миры молча.
+Двухуровневость — не случайность, а часть дизайна: она **видна в системе типов**. Standalone-транспорты принимают только «чистые» декларации без неразрешённых зависимостей; декларация с `deps`, класс-хендлером или классами-юнитами в пайплайне требует `App`, который гасит их из контейнера на старте. Компилятор не даст смешать миры молча.
 
 :::note Куда дальше
 [Основные концепции](concepts.html#endpoints) — endpoints, DI, модули, `Ok`/`Fail` и pipeline подробно. [Основы](fundamentals.html#lifecycle) — контейнер, жизненный цикл, конфигурация, стриминг, схемы и OpenAPI, тестирование. [Масштабирование](scaling.html#monolith) — модульный монолит, порты и разнесение по процессам без переписывания кода.

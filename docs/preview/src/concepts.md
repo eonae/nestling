@@ -8,52 +8,56 @@
 
 ## Endpoints {#endpoints}
 
-В Nestling нет контроллеров. Базовая единица — **endpoint**: один класс (или одно значение) = один маршрут. Это осознанное решение: контроллер в Nest — это мешок методов с общим префиксом, где реальные единицы (отдельные ручки) размазаны по методам. Endpoint делает единицу явной.
+В Nestling нет контроллеров. Базовая единица — **endpoint**: одна декларация-значение = один маршрут. Это осознанное решение: контроллер в Nest — это мешок методов с общим префиксом, где реальные единицы (отдельные ручки) размазаны по методам. Endpoint делает единицу явной.
 
 Endpoint — **schema-first**. Он декларирует контракт: транспорт, паттерн, схему входа и выхода, пайплайн и хендлер.
 
 ```ts create-order.endpoint.ts
-@Injectable([OrdersService])
-@HttpEndpoint('POST', '/orders', {
+export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
   input: NewOrder,           // схема: валидация + типы + доки
   output: Order,
   pipeline: basePipeline,
-})
-export class CreateOrderEndpoint implements IEndpoint {
-  constructor(private orders: OrdersService) {}
-
-  async handle(input: NewOrder, meta): Output<Order> {
-    return new Ok(this.orders.create(input));
-  }
-}
+  deps: [OrdersService],     // явный массив токенов
+  handle: (orders) => async (input: NewOrder, meta): Output<Order> =>
+    new Ok(orders.create(input)),
+});
 ```
 
-Два декоратора делят ответственность честно: `@Injectable` объявляет **зависимости** (явным массивом токенов), `@HttpEndpoint` — **контракт** (маршрут, схемы, пайплайн). Второй аргумент хендлера, `meta`, — это поля, которые накопили `.pre`-юниты пайплайна; хендлер декларирует только то, что использует. В `meta` всегда есть `signal: AbortSignal` — об этом в разделе про стриминг.
+Словарь делит ответственность честно: `method`/`path` — это **транспорт**, `input`/`output`/`pipeline` — **контракт**, `deps` — **зависимости** (явным массивом токенов). Декораторов эндпоинта и интерфейса `IEndpoint` нет: декоратор не влияет на типы, а сверка хендлера со схемами идёт прямо в точке декларации. Второй аргумент хендлера, `meta`, — это поля, которые накопили `.pre`-юниты пайплайна; хендлер декларирует только то, что использует. В `meta` всегда есть `signal: AbortSignal` — об этом в разделе про стриминг.
 
 Схемы `input`/`output` — не обязательно Zod: ядро принимает любой [Standard Schema](fundamentals.html#schemas)-валидатор (Valibot, ArkType, …), а модуль документации превращает те же схемы в OpenAPI.
 
 ### Один endpoint — любой транспорт
 
-Endpoint не знает, откуда пришёл запрос. Тот же контракт работает на HTTP (`pattern: 'POST /orders'`), на CLI (`pattern` = имя команды) и на шине сообщений. Меняется только строка `transport`. Это следствие принципа «pipeline оперирует значениями»: транспорт превращает провод в `RequestContext`, дальше endpoint работает с абстрактной моделью.
+Пайплайн и хендлер не знают, откуда пришёл запрос: транспорт-слепы. Транспортный словарь легален только в декларации — у HTTP это `method`/`path`, у CLI `command`. Схемы, пайплайн и хендлер переносятся между ними без правок; каждая декларация честно знает свой транспорт, никакого `ExecutionContext`-маскарада.
 
-### Функциональный стиль
+### Класс — форма подключения DI
 
-Тот же endpoint без классов — `makeEndpoint` возвращает обычное значение, зависимости замыкаются фабрикой:
+Привычная после Nest структура «конструктор + метод `handle`» никуда не делась — но это **форма подключения DI, а не второй стиль деклараций**: сама декларация остаётся тем же значением, `implements` не нужен. Класс-хендлер — обычный провайдер и регистрируется в `providers:` явно.
 
-```ts create-order.ts
-export const makeCreateOrder = (orders: Infer<typeof OrdersService>) =>
-  makeEndpoint({
-    transport: 'http',
-    pattern: 'POST /orders',
-    input: NewOrder,
-    output: Order,
-    pipeline: basePipeline,
-    handle: async (input: NewOrder) => new Ok(orders.create(input)),
-  });
+```ts create-order.endpoint.ts
+@Injectable([OrdersService])
+export class CreateOrderHandler {
+  constructor(private orders: OrdersService) {}
+  async handle(input: NewOrder, meta): Output<Order> {
+    return new Ok(this.orders.create(input));
+  }
+}
+
+export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
+  input: NewOrder,
+  output: Order,
+  pipeline: basePipeline,
+  handle: CreateOrderHandler,   // сверка со схемами — в точке декларации
+});
 ```
 
 :::note Тестирование
-DI не мешает тестам: классовый endpoint — обычный класс. `new CreateOrderEndpoint(mockOrders)`, затем `endpoint.handle(input, { signal })`. Ни контейнера, ни транспорта.
+DI не мешает тестам: класс-хендлер — обычный класс. `new CreateOrderHandler(mockOrders)`, затем `handler.handle(input, { signal })`. Ни контейнера, ни транспорта.
 :::
 
 ## Провайдеры и DI {#di}
@@ -132,13 +136,13 @@ makeLoggingModule({ level: 'debug' })
 
 ## Ok и Fail {#result}
 
-Результат хендлера — `Ok` или `Fail`, и оба — **значения**, часть контракта: `Output<T> = Promise<Ok<T> | Fail | T>`. При этом `Fail` можно не только вернуть, но и бросить: в JS нет `?`-оператора Rust'а, поэтому `throw` — легальный *ранний выход* со значением, а не «исключительная ситуация». Рантайм не различает пути. А вот брошенный *не*-`Fail` — это баг: клиент получит `UnknownError` (`INTERNAL_ERROR`) без деталей.
+Результат хендлера — `Ok` или `Fail`, и оба — **значения**, часть контракта: `Output<T, E> = Promise<Ok<T> | E | T>`, где `E` — множество отказов из `errors:` декларации. При этом `Fail` можно не только вернуть, но и бросить: в JS нет `?`-оператора Rust'а, поэтому `throw` — легальный *ранний выход* со значением, а не «исключительная ситуация». Рантайм не различает пути. А вот брошенный *не*-`Fail` — это баг: клиент получит `UnknownError` (`INTERNAL_ERROR`) без деталей.
 
 ```ts
-async handle(input: NewOrder): Output<Order> {
+async handle(input: NewOrder, meta): Output<Order, EmailTaken> {
   const existing = await this.orders.findByEmail(input.email);
   if (existing) {
-    throw Fail.conflict('Email already taken', { field: 'email' }); // свой отказ — ранний выход
+    meta.fail(EmailTaken({ email: input.email })); // ранний выход, типизированный errors:
   }
   const order = await this.orders.create(input);
   return Ok.created(order, { Location: `/orders/${order.id}` });
@@ -147,10 +151,10 @@ async handle(input: NewOrder): Output<Order> {
 
 | Успех | Провал |
 | --- | --- |
-| `new Ok(value)` — или просто вернуть значение | `Fail.badRequest(msg, details?)` / `conflict(...)` |
-| `Ok.created(value, headers?)` | `Fail.unauthorized(...)` / `forbidden(...)` / `notFound(...)` |
-| `Ok.accepted(...)` | `Fail.timeout(...)` / `tooManyRequests(...)` |
-| `Ok.noContent()` | `Fail.internalError(...)` / `serviceUnavailable(...)` |
+| `new Ok(value)` — или просто вернуть значение | `defineFail('CODE', { status: 'BAD_REQUEST', … })` / `'CONFLICT'` |
+| `Ok.created(value, headers?)` | `'UNAUTHORIZED'` / `'FORBIDDEN'` / `'NOT_FOUND'` |
+| `Ok.accepted(...)` | `'TIMEOUT'` / `'TOO_MANY_REQUESTS'` |
+| `Ok.noContent()` | `'INTERNAL_ERROR'` / `'SERVICE_UNAVAILABLE'` |
 
 Статусы — **семантические**, а не HTTP-коды: как ответить на провод (404 или gRPC-код) — решает транспорт. Помимо статуса, у `Fail` есть `code` — стабильный машинный код для клиента (`'ORDER_NOT_FOUND'`) — и `cause` — обёрнутая исходная ошибка.
 
@@ -169,11 +173,12 @@ return new Ok(this.orders.create(input));
 ```ts orders/errors.ts
 export const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
   status: 'NOT_FOUND',
-  message: (id: string) => `Order ${id} not found`,
   details: z.object({ orderId: z.string() }),  // schema-first — и для ошибок
+  message: (d) => `Order ${d.orderId} not found`,   // сообщение — от деталей
 });
 
-throw OrderNotFound('42');
+throw OrderNotFound({ orderId: '42' });
+throw OrderNotFound({ orderId: '42' }, { cause: dbError });
 
 // в .catch-юните — матчинг по code, работает и после провода:
 if (OrderNotFound.is(res)) { /* ... */ }
@@ -181,21 +186,22 @@ if (OrderNotFound.is(res)) { /* ... */ }
 
 ### Ошибки — часть контракта
 
-Endpoint декларирует свои отказы: `errors: [EmailTaken, OrderLimitReached]`. Из этого — OpenAPI-доки бесплатно, а потребители порта знают, какие `Fail` ждать.
+Endpoint декларирует свои отказы: `errors: [EmailTaken, OrderLimitReached]`. Из этого — OpenAPI-доки бесплатно, а потребители порта знают, какие `Fail` ждать. Гарантия двухуровневая: компилятор не даёт вернуть отказ вне множества, а граница пайплайна нормализует всё незадекларированное в `UnknownError` — так что ответ ручки это **закрытое множество** `E ∪ UnknownError`, а не конвенция.
 
 ```ts
-@HttpEndpoint('POST', '/orders', {
+export const CreateOrder = httpEndpoint({
+  method: 'POST',
+  path: '/orders',
   input: NewOrder, output: Order,
   errors: [EmailTaken, OrderLimitReached],
-})
-export class CreateOrderEndpoint implements IEndpoint {
-  async handle(input: NewOrder, meta): Output<Order, EmailTaken | OrderLimitReached> {
-    if (await this.orders.emailBusy(input.email)) {
+  deps: [OrdersService],
+  handle: (orders) => async (input: NewOrder, meta): Output<Order, EmailTaken | OrderLimitReached> => {
+    if (await orders.emailBusy(input.email)) {
       meta.fail(EmailTaken(input.email));  // типизированный ранний выход: только из errors
     }
-    return Ok.created(await this.orders.create(input));
-  }
-}
+    return Ok.created(await orders.create(input));
+  },
+});
 ```
 
 Декларация — **закрытое множество**, и охраняется она на двух уровнях. **Компилятор** проверяет всё, что течёт *значениями*: возвраты — через `Output<T, E>` (в том числе проброс отказа порта: чужой `Fail` не пролезет в ответ, пока не задекларирован), ранние выходы — через `meta.fail(e): never`, бросатель, принимающий *только* задекларированные отказы. Это второй зарезервированный ключ `meta`, как `signal`: его тип рождается из декларации endpoint'а. А всё, что компилятору невидимо — прямой `throw`, отказ из глубины сервисов (`throw` в TypeScript нетипизируем: checked exceptions в языке нет), — **нормализует граница пайплайна**: незадекларированный отказ превращается в `UnknownError` (`code: 'UNKNOWN'`, статус `INTERNAL_ERROR`, generic-тело + `requestId`; оригинал — целиком в лог). Итого клиент видит либо задекларированный отказ, либо `UnknownError` — он неявно входит в каждый контракт (default-ответ в OpenAPI). Третьего не бывает.
@@ -259,6 +265,8 @@ export const authed = makePipeline<{ identity: User }>()
 export const adminPipeline = compose(base, withIdentity, authed);
 //                                    ^ компилятор проверит, что identity будет
 ```
+
+Диагностика — часть API: при нарушении требований тип параметра схлопывается в читаемый литерал `{ __error: '…'; missing: { identity: User } }`, где `missing` — рекорд «имя поля → его тип», а не трассировка дженериков. Тексты диагностик зафиксированы snapshot-тестами, а на стоимость типовой машинерии есть бюджет с порогом в CI.
 
 Привязка пайплайна — **только к endpoint'у**. Глобальных и модульных пайплайнов нет: отложенная сборка проверяется лишь на старте, а жадная композиция константами — компилятором. Что навешано на ручку, видно прямо в её декларации.
 

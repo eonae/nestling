@@ -1,16 +1,13 @@
 import type { IncomingMessage } from 'node:http';
 
-import type {
-  AnyInput,
-  AnyOutput,
-  AnyPayload,
-  EndpointDefinition,
-  HandlerFn,
-} from '@nestling/pipeline';
+import type { RouteDeclaration } from '@nestling/transport';
 import Router from 'find-my-way';
 
 /**
- * Обертка над find-my-way для роутинга HTTP запросов
+ * Обертка над find-my-way для роутинга HTTP запросов.
+ *
+ * Хранит **проекции** деклараций: исполнимых полей у транспорта нет, ручку
+ * исполняет `dispatch.call` по паттерну найденного маршрута.
  */
 export class HttpRouter {
   private readonly router: Router.Instance<Router.HTTPVersion.V1>;
@@ -24,19 +21,10 @@ export class HttpRouter {
   }
 
   /**
-   * Регистрирует маршрут
+   * Регистрирует маршрут по проекции декларации
    */
-  route<
-    I extends AnyPayload = AnyPayload,
-    O extends AnyOutput = AnyOutput,
-    P extends AnyInput = AnyInput,
-  >(definition: EndpointDefinition<I, O, P>): void {
-    const store = {
-      handler: definition.handle,
-      definition: definition,
-    };
-
-    const [method, path] = definition.pattern.split(' ');
+  route(declaration: RouteDeclaration): void {
+    const [method, path] = declaration.pattern.split(' ');
 
     this.router.on(
       method.toUpperCase() as Router.HTTPMethod,
@@ -45,7 +33,7 @@ export class HttpRouter {
         // Handler вызывается при совпадении, но нам не нужна логика здесь
         // Все данные уже в store
       },
-      store,
+      { declaration },
     );
   }
 
@@ -53,8 +41,7 @@ export class HttpRouter {
    * Находит маршрут для запроса
    */
   find(req: IncomingMessage): {
-    handler: HandlerFn<any, any, any>;
-    definition: EndpointDefinition<any, any, any>;
+    declaration: RouteDeclaration;
     params: Record<string, string>;
   } | null {
     const result = this.router.find(
@@ -66,17 +53,11 @@ export class HttpRouter {
       return null;
     }
 
-    const store = result.store as {
-      handler: HandlerFn<any, any, any>;
-      definition: EndpointDefinition<any, any, any>;
-    };
-
-    const params = result.params as Record<string, string>;
+    const { declaration } = result.store as { declaration: RouteDeclaration };
 
     return {
-      handler: store.handler,
-      definition: store.definition,
-      params,
+      declaration,
+      params: result.params as Record<string, string>,
     };
   }
 }

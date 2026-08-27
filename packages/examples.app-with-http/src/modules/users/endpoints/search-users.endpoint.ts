@@ -1,12 +1,13 @@
 import { basePipeline } from '../../../common/pipelines';
-import type { ILoggerService } from '../../logger/logger.service';
-import { ILogger } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
+import { ILogger } from '../../logger';
+import { SearchQueryRequired } from '../user.errors';
 import { UserService } from '../user.service';
 
 import { Injectable } from '@nestling/container';
-import type { IEndpoint, Output } from '@nestling/pipeline';
-import { Fail, Ok } from '@nestling/pipeline';
-import { HttpEndpoint } from '@nestling/transport.http';
+import type { Output } from '@nestling/pipeline';
+import { Ok } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const SearchUsersInput = z.object({
@@ -26,32 +27,29 @@ type SearchUsersInput = z.infer<typeof SearchUsersInput>;
 type SearchUsersOutput = z.infer<typeof SearchUsersOutput>;
 
 /**
- * Endpoint для поиска пользователей
- * Демонстрирует:
- * - Работа с query параметрами
- * - Возврат с кастомными заголовками (X-Total-Count, Cache-Control)
- * - Fail.badRequest() если query параметр отсутствует или невалидный
+ * Класс-хендлер — вторая форма подключения DI.
+ *
+ * `implements` не нужен: сигнатура `handle` сверяется со схемами в точке
+ * декларации. Класс — обычный `@Injectable`-провайдер и регистрируется в
+ * `providers:` модуля явно, как любая другая зависимость.
  */
 @Injectable([UserService, ILogger])
-@HttpEndpoint('GET', '/api/users/search', {
-  input: SearchUsersInput,
-  output: SearchUsersOutput,
-  pipeline: basePipeline,
-})
-export class SearchUsersEndpoint implements IEndpoint {
+export class SearchUsersHandler {
   constructor(
-    private userService: UserService,
-    private logger: ILoggerService,
+    private readonly users: UserService,
+    private readonly logger: ILoggerService,
   ) {}
 
-  async handle(payload: SearchUsersInput): Output<SearchUsersOutput> {
+  async handle(
+    payload: SearchUsersInput,
+  ): Output<SearchUsersOutput, ReturnType<typeof SearchQueryRequired>> {
     this.logger.log(`Handling GET /api/users/search?q=${payload.q}`);
 
     if (!payload.q || payload.q.trim().length === 0) {
-      throw Fail.badRequest('Query parameter required');
+      return SearchQueryRequired();
     }
 
-    let users = await this.userService.search(payload.q);
+    let users = await this.users.search(payload.q);
 
     // Применяем limit, если указан
     if (payload.limit && payload.limit > 0) {
@@ -64,3 +62,21 @@ export class SearchUsersEndpoint implements IEndpoint {
     });
   }
 }
+
+/**
+ * Endpoint для поиска пользователей
+ * Демонстрирует:
+ * - Работа с query параметрами
+ * - Возврат с кастомными заголовками (X-Total-Count, Cache-Control)
+ * - объявленные отказы в класс-форме хендлера: вывод `E` из `errors:`
+ *   работает во всех трёх формах `handle`
+ */
+export const SearchUsers = httpEndpoint({
+  method: 'GET',
+  path: '/api/users/search',
+  input: SearchUsersInput,
+  output: SearchUsersOutput,
+  errors: [SearchQueryRequired],
+  pipeline: basePipeline,
+  handle: SearchUsersHandler,
+});

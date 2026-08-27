@@ -14,8 +14,17 @@
       "{projectRoot}/test/**/*",
       "{projectRoot}/test.e2e/**/*",
       "{projectRoot}/__test.e2e__/**/*",
+      "{projectRoot}/type-tests/**/*",
+      "!{projectRoot}/type-tests/.generated/**/*",
       "tsconfigs",
       "{projectRoot}/jest.config.*",
+      "{projectRoot}/package.json"
+    ],
+    "type-budget": [
+      "src",
+      "{projectRoot}/type-tests/**/*",
+      "!{projectRoot}/type-tests/.generated/**/*",
+      "tsconfigs",
       "{projectRoot}/package.json"
     ],
     "build": [
@@ -60,6 +69,13 @@
       ],
       "dependsOn": [
         "^build"
+      ],
+      "cache": true
+    },
+    "type-budget": {
+      "inputs": [
+        "type-budget",
+        "^src"
       ],
       "cache": true
     }

@@ -1,0 +1,37 @@
+{
+  "name": "examples.split-nats",
+  "version": "0.1.0",
+  "description": "Split deployment over NATS: one feature code, two roots",
+  "private": true,
+  "type": "module",
+  "main": "dist/bundle.js",
+  "exports": {
+    ".": "./dist/bundle.js"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc --noEmit",
+    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "start": "yarn run build && node dist/bundle.js",
+    "start:dev": "run -T tsx src/main.ts",
+    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@nestling/app": "workspace:*",
+    "@nestling/config": "workspace:*",
+    "@nestling/container": "workspace:*",
+    "@nestling/contracts": "workspace:*",
+    "@nestling/pipeline": "workspace:*",
+    "@nestling/ports": "workspace:*",
+    "@nestling/transport": "workspace:*",
+    "@nestling/transport.nats": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@nestling/testing": "workspace:*"
+  }
+}

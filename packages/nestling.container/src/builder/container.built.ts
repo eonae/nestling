@@ -22,9 +22,26 @@ import type { VisitCallback, VisitOptions } from '@common/graphs';
  */
 export class BuiltContainer {
   readonly #graph: DIGraph;
+  readonly #pruned: readonly string[];
 
-  constructor(graph: DIGraph) {
+  /** Start hooks run once per application run, not once per `start()` call */
+  #started = false;
+
+  constructor(graph: DIGraph, pruned: readonly string[] = []) {
     this.#graph = graph;
+    this.#pruned = Object.freeze([...pruned]);
+  }
+
+  /**
+   * Ids of the nodes dropped as subtrees orphaned by an `overrides`
+   * substitution.
+   *
+   * Empty on any build without `overrides` - pruning is the identity there.
+   * Exposed because "why did my `@OnInit` not run" deserves an answer in data
+   * rather than in the sources.
+   */
+  get pruned(): readonly string[] {
+    return this.#pruned;
   }
 
   /**
@@ -45,6 +62,38 @@ export class BuiltContainer {
     await this.#graph.traverse(
       async (node) => {
         await node.runInitHooks();
+      },
+      { direction: 'topological' },
+    );
+  }
+
+  /**
+   * Starts all services by calling their @OnStart hooks.
+   *
+   * Hooks are called in topological order — the same machinery as `init()`,
+   * so a start hook still sees its dependencies started first. The phase
+   * itself runs after `init()` of the *whole* graph and after wiring, which
+   * is what distinguishes it from `@OnInit`.
+   *
+   * Idempotent: a repeated call runs nothing.
+   *
+   * @throws {Error} If any of the hooks throws an error
+   *
+   * @example
+   * ```typescript
+   * await container.init();
+   * await container.start(); // Calls all @OnStart hooks
+   * ```
+   */
+  async start(): Promise<void> {
+    if (this.#started) {
+      return;
+    }
+    this.#started = true;
+
+    await this.#graph.traverse(
+      async (node) => {
+        await node.runStartHooks();
       },
       { direction: 'topological' },
     );

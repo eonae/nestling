@@ -1,0 +1,192 @@
+/**
+ * Инжектируемая дискавери: состав приложения как узел графа.
+ *
+ * Предмет проверки — три обещания токена: значение то же самое, что
+ * вычислил `App` (а не второй обход дерева), оно описывает **выбранную**
+ * топологию, и менять состав приложения через него нельзя.
+ */
+
+import { assemble } from './app';
+import type { EndpointDiscovery } from './discovery';
+import { Discovery$ } from './discovery';
+import { makeFeature } from './feature';
+import { MockTransport } from './helpers';
+import { makeAppModule } from './module';
+
+import { beforeEach, describe, expect, it } from '@jest/globals';
+import { factoryProvider, makeToken, valueProvider } from '@nestling/container';
+import { Ok } from '@nestling/pipeline';
+import type { ITransport } from '@nestling/transport';
+import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+
+const asHttpTransport = (transport: ITransport) =>
+  valueProvider(HttpTransport$, transport);
+
+/**
+ * Что увидел модуль-наблюдатель последней сборки.
+ *
+ * Побочный эффект в фабрике — приём теста, а не образец: другого способа
+ * достать значение из собранного графа наружу у публичной поверхности `App`
+ * нет, и заводить его ради теста не стоит.
+ */
+let seen: EndpointDiscovery | undefined;
+
+const Observer$ = makeToken<'observed'>('spec:discovery-observer');
+
+const observer = factoryProvider(
+  Observer$,
+  (discovery: EndpointDiscovery) => {
+    seen = discovery;
+    return 'observed' as const;
+  },
+  [Discovery$],
+);
+
+const ListUsers = httpEndpoint({
+  method: 'GET',
+  path: '/users',
+  handle: async () => new Ok({ users: [] }),
+});
+
+const ListInvoices = httpEndpoint({
+  method: 'GET',
+  path: '/invoices',
+  handle: async () => new Ok({ invoices: [] }),
+});
+
+const UsersModule = makeAppModule({
+  name: 'module:discovery-users',
+  providers: [observer],
+  endpoints: [ListUsers],
+});
+
+const BillingModule = makeAppModule({
+  name: 'module:discovery-billing',
+  endpoints: [ListInvoices],
+});
+
+const UsersFeature = makeFeature({
+  name: 'discovery-users',
+  modules: [UsersModule],
+});
+const BillingFeature = makeFeature({
+  name: 'discovery-billing',
+  modules: [BillingModule],
+});
+
+const patternsOf = (discovery: EndpointDiscovery): string[] =>
+  discovery.endpoints.map(({ endpoint }) => endpoint.pattern).sort();
+
+function observed(): EndpointDiscovery {
+  if (!seen) {
+    throw new Error('Discovery$ was never injected');
+  }
+  return seen;
+}
+
+beforeEach(() => {
+  seen = undefined;
+});
+
+describe('Discovery$ — состав приложения на входе графа', () => {
+  it('провайдер получает ручки с их атрибуцией к модулям', async () => {
+    const app = assemble({
+      modules: [UsersModule],
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+    await app.run();
+
+    expect(observed().endpoints).toEqual([
+      { endpoint: ListUsers, moduleName: 'module:discovery-users' },
+    ]);
+
+    await app.close();
+  });
+
+  it('инжектировано то же значение, которым App вывел приложение в эфир', async () => {
+    const transport = new MockTransport();
+    const app = assemble({
+      modules: [UsersModule, BillingModule],
+      transports: [asHttpTransport(transport)],
+    });
+
+    await app.run();
+
+    // Разъехаться «обнаруженному» и «обслуживаемому» негде: дискавери
+    // считается один раз за сборку
+    expect(patternsOf(observed())).toEqual(
+      [...transport.routes].map((route) => route.pattern).sort(),
+    );
+
+    await app.close();
+  });
+
+  it('невыбранная фича в значении отсутствует', async () => {
+    const app = assemble({
+      features: [UsersFeature, BillingFeature],
+      select: 'discovery-users',
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+    await app.run();
+
+    expect(patternsOf(observed())).toEqual(['GET /users']);
+
+    await app.close();
+  });
+
+  it('выбор всех фич отражён в значении целиком', async () => {
+    const app = assemble({
+      features: [UsersFeature, BillingFeature],
+      select: 'all',
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+    await app.run();
+
+    expect(patternsOf(observed())).toEqual(['GET /invoices', 'GET /users']);
+
+    await app.close();
+  });
+
+  it('состав приложения через значение изменить нельзя', async () => {
+    const app = assemble({
+      modules: [UsersModule],
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+    await app.run();
+    const discovery = observed();
+
+    expect(() =>
+      (discovery.endpoints as unknown as unknown[]).push({} as never),
+    ).toThrow(TypeError);
+
+    expect(() =>
+      (discovery.transports as unknown as Map<unknown, unknown>).set(
+        HttpTransport$,
+        [],
+      ),
+    ).toThrow(/read-only/);
+
+    expect(patternsOf(discovery)).toEqual(['GET /users']);
+
+    await app.close();
+  });
+
+  it('тестовый корень видит то же значение', async () => {
+    const app = assemble({
+      modules: [UsersModule],
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+    // `check()` проходит фазы 0–1: провайдеры строятся, значит и наблюдатель
+    // отрабатывает — той же дискавери, что уедет в отчёт
+    const report = await app.check();
+
+    expect(patternsOf(observed())).toEqual(
+      report.endpoints.map(({ pattern }) => pattern).sort(),
+    );
+  });
+});

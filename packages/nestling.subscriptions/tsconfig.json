@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // `await using` в интеграционных тестах пакета
+    "lib": ["es2022", "dom", "dom.iterable", "esnext.disposable"],
+    // Тесты берут тестовый корень (`@nestling/testing`), который живёт по ту
+    // сторону условия: без него subpath-шов не резолвится при typecheck.
+    // Прод-код пакета к нему не обращается — в `dependencies` его нет
+    "customConditions": ["testing"]
+  },
+  "include": ["src"]
+}

@@ -40,7 +40,11 @@ A fully functional, type-safe dependency injection container with no third-party
 - **@nestling/app** — application assembly: container + transports, endpoint auto-discovery, lifecycle, graceful shutdown
 - **@nestling/transport.http** — HTTP transport on bare `node:http` (routing, JSON/multipart/NDJSON parsing)
 - **@nestling/transport.cli** — CLI transport: commands as endpoints, single-shot and REPL modes
+- **@nestling/ports** — contracts, ports and the in-process message bus: features talk through contracts, not through each other's tokens
+- **@nestling/transport.nats** — NATS as the application bus: remote port binding, queue groups, JetStream for durable delivery
 - **@nestling/models** — type-safe model definitions on top of zod
+- **@nestling/testing** — test composition root: `assembleTest`, overrides with pruning, `checkTopologies`
+- **@nestling/eslint-plugin** — editor hints for endpoint declarations (`endpoint-has-layer`); the guarantee stays the assembly policy check
 
 The target design is evolving in [`docs/decisions/`](./docs/decisions/ideas.md); usage guides in [`docs/guides/`](./docs/README.md).
 
@@ -132,7 +136,7 @@ await container.destroy();
 - [ ] Pipeline v2: phases, layers, `compose` ([design decisions](./docs/decisions/ideas.md))
 - [ ] Token families & module factories
 - [ ] Request context with AsyncLocalStorage (`@nestling/context`)
-- [ ] Subscriptions registry (`@nestling/subscriptions`)
+- [x] Subscriptions registry (`@nestling/subscriptions`) — satellite over public primitives
 - [ ] CLI scaffolding tool
 - [ ] Testing utilities
 
@@ -155,16 +159,23 @@ docs/                          # Design docs, decisions, guides, history
 packages/
 ├── nestling.container/        # Core DI container
 ├── nestling.pipeline/         # Typed request pipeline & endpoints
+├── nestling.streams/          # Topic, item-chain combinators, AbortSignal helpers
 ├── nestling.app/              # Application assembly & lifecycle
 ├── nestling.transport/        # Transport abstraction
 ├── nestling.transport.http/   # HTTP transport
 ├── nestling.transport.cli/    # CLI transport
+├── nestling.ports/            # Contracts, ports, in-process bus
+├── nestling.subscriptions/    # Registry of active subscriptions (satellite)
+├── nestling.transport.nats/   # NATS bus transport (split deployment)
 ├── nestling.models/           # Model definitions on top of zod
+├── nestling.testing/          # Test composition root
+├── nestling.eslint-plugin/    # ESLint hints for endpoint declarations
 ├── nestling.viz/              # Dependency graph visualization
 ├── examples.simple-app/       # Example: standalone DI
 ├── examples.simple-http-server/  # Example: functional HTTP
 ├── examples.app-with-http/    # Example: App + DI + HTTP
 ├── examples.simple-cli/       # Example: CLI transport
+├── examples.split-nats/       # Example: split deployment over NATS
 ├── common.graphs/             # Internal: DAG utilities
 ├── common.misc/               # Internal: shared helpers
 └── common.static-server/      # Internal: static file server (for viz)

@@ -1,5 +1,3 @@
-import type { z } from 'zod';
-
 /**
  * Объединённые источники входных данных
  */
@@ -15,8 +13,3 @@ export interface InputSources {
    */
   metadata: Record<string, unknown>;
 }
-
-/**
- * Выводит domain-тип из zod-схемы
- */
-export type DomainType<S extends z.ZodType<any, any, any>> = z.infer<S>;

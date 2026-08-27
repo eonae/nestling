@@ -1,4 +1,5 @@
-import type { ILoggerService } from '../logger/logger.service';
+import { inMemoryUsersRepo } from '../../testing';
+import type { ILoggerService } from '../logger';
 
 import { UserService } from './user.service';
 
@@ -21,7 +22,9 @@ describe('UserService', () => {
 
   beforeEach(() => {
     logger = mock<ILoggerService>();
-    service = new UserService(logger);
+    // Тот же фейк, что курируемая тестовая поверхность отдаёт app-тестам:
+    // юниту он даёт хранилище без соединения
+    service = new UserService(logger, inMemoryUsersRepo());
   });
 
   describe('getById', () => {

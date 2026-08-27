@@ -1,12 +1,12 @@
-import type { ILoggerService } from '../../logger/logger.service';
+import type { ILoggerService } from '../../logger';
 import type { UserService } from '../user.service';
 
-import { ListUsersEndpoint } from './list-users.endpoint';
+import { listUsersHandler } from './list-users.endpoint';
 
 import { mock } from 'jest-mock-extended';
 
-describe('ListUsersEndpoint', () => {
-  let endpoint: ListUsersEndpoint;
+describe('listUsersHandler', () => {
+  let handle: ReturnType<typeof listUsersHandler>;
   let userService: jest.Mocked<UserService>;
   let logger: jest.Mocked<ILoggerService>;
 
@@ -14,7 +14,7 @@ describe('ListUsersEndpoint', () => {
     userService = mock<UserService>();
     logger = mock<ILoggerService>();
 
-    endpoint = new ListUsersEndpoint(userService, logger);
+    handle = listUsersHandler(userService, logger);
   });
 
   it('должен вернуть массив пользователей напрямую', async () => {
@@ -24,7 +24,7 @@ describe('ListUsersEndpoint', () => {
     ];
     userService.getAll.mockResolvedValue(users);
 
-    const result = await endpoint.handle();
+    const result = await handle();
 
     // Проверяем, что возвращается напрямую (не new Ok)
     expect(result).toEqual(users);

@@ -21,15 +21,18 @@
   "license": "MIT",
   "dependencies": {
     "@common/misc": "workspace:*",
+    "@nestling/config": "workspace:*",
+    "@nestling/container": "workspace:*",
+    "@nestling/contracts": "workspace:*",
     "@nestling/pipeline": "workspace:*",
+    "@nestling/streams": "workspace:*",
     "@nestling/transport": "workspace:*",
     "busboy": "^1.6.0",
-    "find-my-way": "^8.2.0"
-  },
-  "peerDependencies": {
+    "find-my-way": "^8.2.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@nestling/client": "workspace:*",
     "@types/busboy": "^1.5.4"
   }
 }

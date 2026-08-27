@@ -1,31 +1,53 @@
+import type { TransportCapabilities } from '@nestling/pipeline';
 import type {
-  AnyInput,
-  AnyOutput,
-  AnyPayload,
-  EndpointDefinition,
-} from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
+  Dispatch,
+  ITransport,
+  RouteDeclaration,
+} from '@nestling/transport';
 
-// Mock transport
+/** Способности мока по умолчанию: всё, кроме потоков и файлов */
+const VALUE_ONLY: TransportCapabilities = {
+  input: new Set(['value']),
+  output: new Set(['value']),
+};
+
+/**
+ * Транспорт-наблюдатель для тестов приложения.
+ *
+ * Держит полученный `dispatch`: тест видит и маршруты, которые ему
+ * достались, и может исполнить ручку, не поднимая сокета.
+ */
 export class MockTransport implements ITransport {
-  endpoints: EndpointDefinition<any, any, any>[] = [];
+  /** Маршруты, приехавшие в `serve`; до go-live список пуст */
+  routes: readonly RouteDeclaration[] = [];
+
+  /** Диспетчер: единственный способ исполнить ручку */
+  dispatch?: Dispatch;
+
+  serving = false;
   closed = false;
 
-  constructor(private readonly onClose?: () => void) {}
+  /** Сигнал остановки, полученный в `serve` */
+  signal?: AbortSignal;
 
-  endpoint<
-    I extends AnyPayload = AnyPayload,
-    O extends AnyOutput = AnyOutput,
-    P extends AnyInput = AnyInput,
-  >(definition: EndpointDefinition<I, O, P>): void {
-    this.endpoints.push(definition);
+  readonly capabilities: TransportCapabilities;
+
+  constructor(
+    private readonly onClose?: () => void,
+    capabilities: TransportCapabilities = VALUE_ONLY,
+  ) {
+    this.capabilities = capabilities;
   }
 
-  async listen(): Promise<void> {
-    // Mock
+  async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
+    this.dispatch = dispatch;
+    this.routes = dispatch.routes;
+    this.signal = signal;
+    this.serving = true;
   }
 
   async close(): Promise<void> {
+    this.serving = false;
     this.closed = true;
     this.onClose?.();
   }
