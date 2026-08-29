@@ -36,7 +36,7 @@ describe('detached — причина на значении декларации
     expect(Health.detached).toBe(reason);
   });
 
-  it('причина переживает гашение зависимостей', () => {
+  it('причина переживает резолв зависимостей', () => {
     const Health = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /health',
@@ -61,7 +61,7 @@ describe('detached — причина на значении декларации
   });
 });
 
-/** Объявление ручки с произвольным `detached` — как это сделал бы JS */
+/** Объявление endpoint'а с произвольным `detached` — как это сделал бы JS */
 const declare = (detached: unknown) => () =>
   (makeEndpoint as (options: unknown) => unknown)({
     transport: HttpTransport$,

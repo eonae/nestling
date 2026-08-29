@@ -35,7 +35,7 @@ export const UsersRepository = makeToken<IUsersRepository>('UsersRepository');
  * этого инжектируется ридер `Ctx(RequestId)`, то есть обычный узел графа:
  * зависимость видна в `explain()`, а в тесте подменяется `contextValue`.
  * Значение кладёт слой наблюдаемости (`withRequestId()`), и что он
- * композирован на каждой HTTP-ручке, гарантирует политика в `main.ts`.
+ * композирован на каждом HTTP-endpoint'е, гарантирует политика в `main.ts`.
  */
 @Injectable(UsersRepository, [UsersStore, ILogger, Ctx(RequestId)])
 export class StoredUsersRepository implements IUsersRepository {

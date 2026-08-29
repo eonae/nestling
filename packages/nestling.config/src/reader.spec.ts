@@ -77,7 +77,7 @@ describe('разрешение ключа', () => {
     expect(reader.read('NOT_SET_ANYWHERE')).toBeUndefined();
   });
 
-  it('без привязок читалка тривиальна — работает один env-пол', async () => {
+  it('без привязок читает только process.env', async () => {
     process.env.ORDERS_MAX_ITEMS = 'bare-env';
 
     const reader = new ConfigReader();

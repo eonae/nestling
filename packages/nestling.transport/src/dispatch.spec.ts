@@ -31,7 +31,7 @@ const TestTransport$ = makeToken('transport:test');
 
 /**
  * Ридеры из настоящего графа: kernel-модуль контекста регистрируется
- * корнем, поэтому и в тесте они приезжают тем же путём, а не фейком.
+ * корнем, поэтому и в тесте они поступают тем же путём, а не фейком.
  */
 async function contextReaders(): Promise<{
   requestId: CtxReader<string>;
@@ -85,7 +85,7 @@ describe('makeDispatch', () => {
     handle: async (payload: { text: string }) => new Ok(payload),
   });
 
-  it('исполняет ручку с пайплайном', async () => {
+  it('исполняет endpoint с пайплайном', async () => {
     const dispatch = makeDispatch([Ping]);
 
     const response = await dispatch.call('GET /ping', contextFor('GET /ping'));
@@ -93,7 +93,7 @@ describe('makeDispatch', () => {
     expect(response).toMatchObject({ isSuccess: true, value: { pong: true } });
   });
 
-  it('исполняет ручку без пайплайна, валидируя value-форму', async () => {
+  it('исполняет endpoint без пайплайна, валидируя value-форму', async () => {
     const dispatch = makeDispatch([Echo]);
 
     const response = await dispatch.call(
@@ -104,7 +104,7 @@ describe('makeDispatch', () => {
     expect(response).toMatchObject({ isSuccess: true, value: { text: 'hi' } });
   });
 
-  it('невалидный вход ручки без пайплайна отвергается схемой', async () => {
+  it("невалидный вход endpoint'а без пайплайна отвергается схемой", async () => {
     const dispatch = makeDispatch([Echo]);
 
     await expect(
@@ -134,13 +134,13 @@ describe('makeDispatch', () => {
     ).rejects.toThrow(/no route for pattern 'GET \/nope'.*GET \/ping/s);
   });
 
-  it('две ручки с одним паттерном — ошибка при сборке диспетчера', () => {
+  it("два endpoint'а с одним паттерном — ошибка при сборке диспетчера", () => {
     expect(() => makeDispatch([Ping, Ping])).toThrow(
       /already has a route for pattern 'GET \/ping'/,
     );
   });
 
-  it('опции границы едут аргументом и доходят до стража', async () => {
+  it('опции границы передаются аргументом и доходят до диагностического хука', async () => {
     const Boom = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /boom',
@@ -163,7 +163,7 @@ describe('makeDispatch', () => {
     expect(seen).toEqual(['GET /boom']);
   });
 
-  it('ручка без пайплайна исполняется под тем же scope запроса', async () => {
+  it('endpoint без пайплайна исполняется под тем же scope запроса', async () => {
     const controller = new AbortController();
     const seen: { requestId?: string; sameSignal?: boolean } = {};
 
@@ -205,7 +205,7 @@ describe('makeDispatch', () => {
     expect(seen).toEqual({ requestId: undefined, sameSignal: true });
   });
 
-  it('декларация с непогашенными зависимостями не проходит по типам', () => {
+  it('декларация с нерезолвенными зависимостями не проходит по типам', () => {
     const WithDeps = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /users',
@@ -217,7 +217,7 @@ describe('makeDispatch', () => {
     // @ts-expect-error: неразрешённые deps — сначала endpoint.resolve(...)
     makeDispatch([WithDeps]);
 
-    // Гашение снимает ограничение
+    // Резолв снимает ограничение
     const dispatch = makeDispatch([WithDeps.resolve([new UserService()])]);
 
     expect(dispatch.routes.map((route) => route.pattern)).toEqual([

@@ -40,12 +40,13 @@ export class ExportUsersHandler {
 const MAX_EXPORT_ROWS = 100_000;
 
 /**
- * Endpoint для экспорта пользователей через streaming
+ * Endpoint для экспорта пользователей через стриминг.
+ *
  * Демонстрирует:
- * - `stream(T)` на выходе: framing NDJSON выбирает форма, а не хендлер
- * - выходную item-цепочку (только тип-сохраняющую: оба конца зафиксированы
- *   схемой) — `.batch(...)` здесь не скомпилировался бы
- * - Кастомные заголовки (Content-Disposition)
+ * - `stream(T)` на выходе: framing NDJSON выбирает форма, а не хендлер;
+ * - выходную item-цепочку, только тип-сохраняющую: оба конца зафиксированы
+ *   схемой, поэтому `.batch(...)` здесь не скомпилировался бы;
+ * - кастомный заголовок `Content-Disposition`.
  */
 export const ExportUsers = httpEndpoint({
   method: 'GET',

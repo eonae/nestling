@@ -251,7 +251,7 @@ describe('долговечная доставка', () => {
     await publisher.close();
   });
 
-  it('конфликт определения потока падает с внятным текстом', async () => {
+  it('конфликт определения потока падает с понятным сообщением', async () => {
     const broker = new Broker();
     const manager = await broker.jetstreamManager();
 

@@ -10,9 +10,7 @@ import type {
 import { isAsyncIterable, isMidStreamFailure } from '@nestling/pipeline';
 import { untilAborted } from '@nestling/streams';
 
-/**
- * Маппинг строковых статусов на HTTP коды
- */
+/** Соответствие статусов ответа кодам HTTP */
 /* eslint-disable prettier/prettier */
 const STATUS_MAP: Record<ProcessingStatus, number> = {
   'OK': 200,
@@ -40,24 +38,24 @@ const STATUS_MAP: Record<ProcessingStatus, number> = {
 /** Период heartbeat SSE по умолчанию */
 export const DEFAULT_SSE_HEARTBEAT = 15_000;
 
-/** Имя события, зарезервированное за mid-stream отказом */
+/** Имя события, зарезервированное за отказом посреди потока */
 export const SSE_ERROR_EVENT = 'error';
 
 /**
- * SSE-специфика носителя декларации.
+ * Настройки SSE-ответа.
  *
- * Определение живёт в `@nestling/contracts` рядом с bind-картой, которая
- * его и везёт; здесь оно реэкспортируется, чтобы автор HTTP-декларации брал
- * тип оттуда же, откуда `httpEndpoint`.
+ * Тип объявлен в `@nestling/contracts` рядом с bind-картой; здесь он
+ * реэкспортирован, чтобы автор декларации брал его оттуда же, откуда
+ * `httpEndpoint`.
  */
 export type { SseConfig } from '@nestling/contracts';
 
-/** Что транспорт знает об отправляемом ответе помимо самого значения */
+/** Параметры отправки ответа помимо самого значения */
 export interface SendOptions {
-  /** Вид формы `output` — он и определяет framing */
+  /** Вид формы `output`; определяет способ кадрирования */
   kind?: FormKind;
 
-  /** Секция `sse` HTTP-словаря декларации */
+  /** Поле `sse` HTTP-декларации */
   sse?: SseConfig;
 
   /** Дефолтный период heartbeat транспорта */
@@ -66,22 +64,17 @@ export interface SendOptions {
   /** Итог запроса: транспорт дописывает в него байты */
   summary?: StreamSummary;
 
-  /** Сигнал отмены запроса: дисконнект и graceful shutdown */
+  /** Сигнал отмены запроса: дисконнект клиента или остановка транспорта */
   signal?: AbortSignal;
 }
 
 /**
- * Переводит транспортно-нейтральный статус в код HTTP-провода.
+ * Переводит статус ответа в код HTTP.
  *
- * Публична ради второго читателя таблицы — генератора документации
- * (`@nestling/openapi`): документ обязан называть те же коды, что уходят в
- * бою, а вторая копия таблицы разошлась бы с первой при первом же
- * пополнении словаря статусов. Сама таблица остаётся здесь: перевод — дело
- * транспорта, и в ядре ей места нет.
- *
- * Неизвестный статус даёт `200` — та же деградация, что и на горячем пути:
- * словарь статусов закрыт, поэтому случай недостижим из типизированного
- * кода.
+ * Функция публична: генератор документации (`@nestling/openapi`) берёт
+ * коды отсюда, чтобы документ совпадал с тем, что отдаёт сервер.
+ * Неизвестный статус даёт `200`; из типизированного кода этот случай
+ * недостижим, так как набор статусов закрыт.
  *
  * @param status - Статус ответа (`'CREATED'`, `'CONFLICT'`, …)
  * @returns Код HTTP-ответа
@@ -101,8 +94,8 @@ function countBytes(summary: StreamSummary | undefined, bytes: number): void {
 }
 
 /**
- * Пишет чанк, дожидаясь его слива: без этого backpressure медленного
- * клиента превращается в неограниченный буфер в памяти сервера.
+ * Пишет чанк и ждёт, пока он уйдёт в сокет: иначе медленный клиент
+ * превращал бы ответ в неограниченный буфер в памяти сервера.
  */
 function writeChunk(
   res: ServerResponse,
@@ -121,7 +114,7 @@ function writeChunk(
   });
 }
 
-/** NDJSON-кадр: строки и байты уходят как есть, объекты — JSON + перевод строки */
+/** Кодирует NDJSON-кадр: строки и байты как есть, объекты — JSON и `\n` */
 function encodeNdjson(item: unknown): string | Buffer | Uint8Array {
   if (typeof item === 'string') {
     return item;
@@ -132,7 +125,7 @@ function encodeNdjson(item: unknown): string | Buffer | Uint8Array {
   return `${JSON.stringify(item)}\n`;
 }
 
-/** SSE-кадр: опциональные `id:`/`event:`, затем `data:` и пустая строка */
+/** Кодирует SSE-кадр: `id:` и `event:` (если заданы), `data:`, пустая строка */
 function encodeSseFrame(item: unknown, sse?: SseConfig): string {
   const lines: string[] = [];
 
@@ -157,10 +150,10 @@ function encodeSseFrame(item: unknown, sse?: SseConfig): string {
 }
 
 /**
- * Тело mid-stream отказа.
+ * Тело отказа посреди потока.
  *
- * Отказ приезжает уже нормализованным стражем границы: незадекларированный
- * стал `UNKNOWN`, оригинал ушёл в диагностический хук.
+ * Отказ уже прошёл проверку `errors`: незадекларированный стал `UNKNOWN`,
+ * оригинал ушёл в хук `onUnknownFail`.
  */
 function midStreamBody(error: unknown): { error: string; code?: string } {
   if (isMidStreamFailure(error)) {
@@ -174,11 +167,11 @@ function midStreamBody(error: unknown): { error: string; code?: string } {
 }
 
 /**
- * NDJSON-framing конечного потока.
+ * Пишет конечный поток как NDJSON.
  *
- * Mid-stream отказ обрывает соединение: заголовки ушли, статус сменить
- * нельзя, и незавершённый chunked-ответ — это и есть честный сигнал
- * «данные неполны».
+ * Отказ посреди потока обрывает соединение: заголовки уже ушли, статус
+ * сменить нельзя, а незавершённый chunked-ответ сообщает клиенту, что
+ * данные неполны.
  */
 async function writeNdjson(
   res: ServerResponse,
@@ -197,8 +190,8 @@ async function writeNdjson(
       await writeChunk(res, encodeNdjson(item), options.summary);
     }
   } catch {
-    // Отказ уже прошёл страж границы и `.finally`-юниты в обёртке
-    // завершения — транспорту остаётся сделать ответ честным
+    // Отказ уже прошёл проверку `errors` и `.finally`-юниты; транспорту
+    // остаётся оборвать ответ
     res.destroy();
     return;
   }
@@ -209,11 +202,10 @@ async function writeNdjson(
 }
 
 /**
- * SSE-framing открытой подписки.
+ * Пишет открытую подписку как SSE.
  *
- * Mid-stream отказ уходит именованным событием `error` — SSE это
- * позволяет, и клиентская сторона стандартно умеет читать именованные
- * события, — после чего соединение закрывается.
+ * Отказ посреди потока уходит событием с именем `error`, после чего
+ * соединение закрывается.
  */
 async function writeSse(
   res: ServerResponse,
@@ -228,8 +220,8 @@ async function writeSse(
   const period =
     options.sse?.heartbeat ?? options.heartbeat ?? DEFAULT_SSE_HEARTBEAT;
 
-  // Heartbeat — комментарий: не элемент потока, в счётчики и лимиты не
-  // входит
+  // Heartbeat — SSE-комментарий, а не элемент потока: в счётчики и
+  // лимиты не входит
   const timer =
     period > 0
       ? setInterval(() => {
@@ -266,12 +258,10 @@ async function writeSse(
 }
 
 /**
- * Отправляет ResponseContext в ServerResponse.
+ * Отправляет `ResponseContext` в `ServerResponse`.
  *
- * Framing выбирается **по объявленной форме** `output`, а не по типу
- * возвращённого значения: `stream` → NDJSON, `events` → SSE, остальное →
- * JSON. Одинаковая сериализация любого `AsyncIterable` независимо от формы
- * больше не применяется.
+ * Способ кадрирования выбирается по объявленной форме `output`, а не по
+ * типу значения: `stream` даёт NDJSON, `events` — SSE, остальное — JSON.
  */
 export async function sendResponse(
   res: ServerResponse,
@@ -299,7 +289,7 @@ export async function sendResponse(
     return;
   }
 
-  // Если value === null - пустой ответ
+  // value === null означает пустой ответ
   if (response.value === null) {
     res.end();
     return;

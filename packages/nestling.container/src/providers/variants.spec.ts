@@ -11,7 +11,7 @@ import {
   valueProvider,
 } from './variants';
 
-describe('Provider variants', () => {
+describe('конструкторы провайдеров', () => {
   interface IService {
     ready(): boolean;
   }
@@ -25,7 +25,7 @@ describe('Provider variants', () => {
     }
   }
 
-  it('creates class provider from decorated class', () => {
+  it('создаёт провайдер класса из класса с @Injectable', () => {
     const provider = classProvider(TokenService, Service);
 
     expect(provider.provide).toBe(TokenService);
@@ -34,7 +34,7 @@ describe('Provider variants', () => {
     expect(isClassDefinition(provider)).toBe(true);
   });
 
-  it('throws if class lacks @Injectable metadata', () => {
+  it('бросает ошибку для класса без @Injectable', () => {
     // eslint-disable-next-line @typescript-eslint/no-extraneous-class
     class Plain {}
 
@@ -43,7 +43,7 @@ describe('Provider variants', () => {
     );
   });
 
-  it('creates value provider', () => {
+  it('создаёт провайдер значения', () => {
     const value: IService = { ready: () => true };
     const provider = valueProvider(TokenService, value);
 
@@ -52,7 +52,7 @@ describe('Provider variants', () => {
     expect(isValueDefinition(provider)).toBe(true);
   });
 
-  it('creates factory provider with typed deps', () => {
+  it('создаёт фабричный провайдер с типизированными зависимостями', () => {
     const TokenDep = makeToken<string>('Dep');
 
     // eslint-disable-next-line unicorn/consistent-function-scoping
@@ -70,7 +70,7 @@ describe('Provider variants', () => {
     expect(isFactoryProvider(provider)).toBe(true);
   });
 
-  it('stores @Injectable metadata in WeakMap', () => {
+  it('хранит метаданные @Injectable в WeakMap', () => {
     const metadata = injectableMetaStorage.get(Service);
 
     expect(metadata?.injectionToken).toBe(TokenService);

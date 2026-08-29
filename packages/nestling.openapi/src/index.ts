@@ -6,12 +6,12 @@
  * - `buildOpenApiDocument(endpoints, options)` — чистая функция; её зовёт
  *   CI, чтобы положить `openapi.json` в артефакты, не поднимая приложение;
  * - `openapi(options)` — модуль-издатель: строит документ на фазе ASSEMBLE
- *   и отдаёт его ручкой `GET /openapi.json`;
+ *   и отдаёт его endpoint'ом `GET /openapi.json`;
  * - `OpenApiDocument$` — токен готового документа для тех, кому он нужен
  *   значением.
  *
  * Зависимости от валидатора у пакета нет: перевод схемы в JSON Schema
- * приезжает **данными** — списком `SchemaDocConverter`, который поставляют
+ * приходит **данными** — списком `SchemaDocConverter`, который поставляют
  * отдельные пакеты (`@nestling/openapi.zod` и подобные).
  */
 

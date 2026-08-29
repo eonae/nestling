@@ -5,8 +5,8 @@ import { Injectable } from '../providers';
 
 import { getLifecycleHooks, OnDestroy, OnInit, OnStart } from './lifecycle';
 
-describe('Lifecycle metadata system', () => {
-  it('collects OnInit hooks', () => {
+describe('метаданные хуков жизненного цикла', () => {
+  it('собирает хуки @OnInit', () => {
     const token = makeToken('Service');
 
     @Injectable(token, [])
@@ -21,7 +21,7 @@ describe('Lifecycle metadata system', () => {
     expect(hooks.onDestroy).toHaveLength(0);
   });
 
-  it('collects OnDestroy hooks', () => {
+  it('собирает хуки @OnDestroy', () => {
     const token = makeToken('Cleanup');
 
     @Injectable(token, [])
@@ -36,7 +36,7 @@ describe('Lifecycle metadata system', () => {
     expect(hooks.onDestroy).toHaveLength(1);
   });
 
-  it('does not duplicate hooks across multiple instances', () => {
+  it('не дублирует хуки при нескольких экземплярах', () => {
     const token = makeToken('Repeated');
 
     @Injectable(token, [])
@@ -58,7 +58,7 @@ describe('Lifecycle metadata system', () => {
     }
   });
 
-  it('collects multiple lifecycle hooks', () => {
+  it('собирает несколько хуков одного вида', () => {
     const token = makeToken('Multi');
 
     @Injectable(token, [])
@@ -82,7 +82,7 @@ describe('Lifecycle metadata system', () => {
     expect(hooks.onDestroy).toHaveLength(2);
   });
 
-  it('collects OnStart hooks', () => {
+  it('собирает хуки @OnStart', () => {
     const token = makeToken('Started');
 
     @Injectable(token, [])
@@ -98,7 +98,7 @@ describe('Lifecycle metadata system', () => {
     expect(hooks.onDestroy).toHaveLength(0);
   });
 
-  it('collects all three kinds of hooks on one class', () => {
+  it('собирает все три вида хуков одного класса', () => {
     const token = makeToken('ThreePhase');
 
     @Injectable(token, [])
@@ -120,7 +120,7 @@ describe('Lifecycle metadata system', () => {
     expect(hooks.onDestroy).toHaveLength(1);
   });
 
-  it('does not duplicate start hooks across multiple instances', () => {
+  it('не дублирует хуки @OnStart при нескольких экземплярах', () => {
     const token = makeToken('RepeatedStart');
 
     @Injectable(token, [])

@@ -124,7 +124,7 @@ describe('NatsBus — адресация и группы', () => {
     deny = false;
   });
 
-  it('req-reply доезжает до владельца и возвращает Ok', async () => {
+  it('req-reply доходит до владельца и возвращает Ok', async () => {
     const broker = new Broker();
     const owner = await process(broker, [ClaimImpl]);
     const caller = await process(broker, []);
@@ -141,7 +141,7 @@ describe('NatsBus — адресация и группы', () => {
     await caller.close();
   });
 
-  it('задекларированный отказ переживает провод кодом', async () => {
+  it('задекларированный отказ сохраняет код при передаче по сети', async () => {
     const broker = new Broker();
     deny = true;
     const owner = await process(broker, [ClaimImpl]);
@@ -304,7 +304,7 @@ describe('NatsBus — конверт и потолок', () => {
     await caller.close();
   });
 
-  it('исчерпанный в транзите бюджет не доводит сообщение до ручки', async () => {
+  it("исчерпанный в транзите бюджет не доводит сообщение до endpoint'а", async () => {
     const broker = new Broker();
     const owner = await process(broker, [ClaimImpl]);
     const caller = await process(broker, []);

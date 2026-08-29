@@ -4,17 +4,12 @@ import { jsonSchema } from './json-schema.js';
 import type { SchemaIssue, StandardSchemaV1 } from '@common/misc';
 
 /**
- * Схема деталей отказа валидации — **написана руками**.
+ * Схема деталей отказа валидации, написанная вручную.
  *
- * Standard Schema это интерфейс, а не библиотека: ядру не нужен вендор,
- * чтобы объявить схему. Так `ValidationFailed` остаётся schema-first
- * наравне с пользовательскими определениями, а `@nestling/pipeline` —
- * без зависимости от валидатора.
- *
- * Вендор `nestling` не понимает ни один конвертер — и не должен: схемы
- * ядра объявляют свою JSON Schema аннотацией. Без неё генератор
- * документации требовал бы от пользователя конвертер для схемы, которую
- * тот не писал.
+ * Standard Schema — интерфейс, поэтому ядро объявляет схему без
+ * библиотеки-валидатора. Конвертеры документации вендор `nestling` не
+ * знают, поэтому JSON Schema для схем ядра объявлена аннотацией
+ * `jsonSchema`.
  */
 const rawIssuesSchema: StandardSchemaV1<unknown, readonly SchemaIssue[]> = {
   '~standard': {
@@ -40,7 +35,7 @@ const rawIssuesSchema: StandardSchemaV1<unknown, readonly SchemaIssue[]> = {
   },
 };
 
-/** Форма провода `issues` — она же контракт спеки Standard Schema */
+/** JSON Schema для `issues`; повторяет формат из спецификации Standard Schema */
 const issuesSchema = jsonSchema(rawIssuesSchema, {
   type: 'array',
   items: {
@@ -57,11 +52,9 @@ const issuesSchema = jsonSchema(rawIssuesSchema, {
 });
 
 /**
- * Незадекларированный отказ, приведённый границей к контракту.
- *
- * В множество допустимых ответов входит **неявно**, без объявления в
- * `errors:` — это тот самый ответ, которым страж закрывает всё, что не
- * задекларировано.
+ * Отказ, которым заменяется любой незадекларированный отказ на выходе из
+ * пайплайна. Входит в множество ответов каждого endpoint'а без объявления
+ * в `errors`.
  */
 export const UnknownError = defineFail('UNKNOWN', {
   status: 'INTERNAL_ERROR',
@@ -71,8 +64,8 @@ export const UnknownError = defineFail('UNKNOWN', {
 /**
  * Отказ валидации входа.
  *
- * Тоже kernel-код: иначе штатный 400 от `validate()`-юнита страж
- * превращал бы в 500 — прямое противоречие модели входных ошибок.
+ * Код ядра: иначе 400 от юнита `validate()` превращался бы на выходе из
+ * пайплайна в 500 `UnknownError`.
  */
 export const ValidationFailed = defineFail('VALIDATION_FAILED', {
   status: 'BAD_REQUEST',
@@ -81,8 +74,8 @@ export const ValidationFailed = defineFail('VALIDATION_FAILED', {
 });
 
 /**
- * Схема деталей отказа лимита — тоже написана руками и тоже аннотирована
- * (см. `issuesSchema`).
+ * Схема объекта с одним числовым полем; написана вручную и аннотирована,
+ * как `issuesSchema`.
  */
 function numberFieldSchema<K extends string>(
   field: K,
@@ -114,8 +107,8 @@ function numberFieldSchema<K extends string>(
 /**
  * Отказ лимита item-цепочки (`.limit(max)`).
  *
- * Kernel-код по той же причине, что и `ValidationFailed`: штатный 413 не
- * должен превращаться стражем границы в 500 `UNKNOWN`.
+ * Код ядра по той же причине, что и `ValidationFailed`: 413 не должен
+ * превращаться в 500.
  */
 export const StreamLimitExceeded = defineFail('STREAM_LIMIT_EXCEEDED', {
   status: 'PAYLOAD_TOO_LARGE',
@@ -131,16 +124,11 @@ export const StreamGapTimeout = defineFail('STREAM_GAP_TIMEOUT', {
 });
 
 /**
- * Отказ исчерпанного бюджета вызова (`meta.deadline` портов).
+ * Отказ по истечении срока вызова (`meta.deadline` портов).
  *
- * Kernel-код по той же причине, что и соседи: бюджет — механизм ядра, и
- * его штатный 504 не должен превращаться стражем границы в 500 `UNKNOWN`.
- * Определение живёт здесь, а не в `@nestling/ports`, потому что здесь
- * живёт закрытый набор: регистрация кода из чужого пакета означала бы
- * рантайм-мутацию множества, которое обещано закрытым.
- *
- * Имя без суффикса `Error` — как у `ValidationFailed` и потоковых отказов;
- * `UnknownError` в этом ряду исключение, а не правило.
+ * Код ядра по той же причине, что и соседние: 504 не должен превращаться
+ * в 500. Объявлен здесь, а не в `@nestling/ports`, потому что набор кодов
+ * ядра закрыт и не пополняется из других пакетов.
  */
 export const DeadlineExceeded = defineFail('DEADLINE_EXCEEDED', {
   status: 'TIMEOUT',
@@ -148,12 +136,8 @@ export const DeadlineExceeded = defineFail('DEADLINE_EXCEEDED', {
 });
 
 /**
- * Закрытый набор встроенных кодов.
- *
- * Растёт только вместе с ядром — вместе с механизмами, которые эти отказы
- * порождают (валидация, лимиты item-цепочек, бюджет вызова портов);
- * публичного способа пометить пользовательский код встроенным нет — иначе
- * закрытость множества ответов снова стала бы конвенцией.
+ * Закрытый набор кодов ядра. Публичного способа добавить в него
+ * пользовательский код нет.
  */
 const KERNEL_FAIL_CODES: ReadonlySet<string> = new Set([
   UnknownError.code,
@@ -166,7 +150,7 @@ const KERNEL_FAIL_CODES: ReadonlySet<string> = new Set([
 /**
  * Входит ли код в kernel-набор.
  *
- * Читается стражем границы: kernel-коды контрактны для любой ручки.
+ * Коды ядра считаются объявленными у любого endpoint'а.
  */
 export function isKernelFailCode(code: string | undefined): boolean {
   return code !== undefined && KERNEL_FAIL_CODES.has(code);

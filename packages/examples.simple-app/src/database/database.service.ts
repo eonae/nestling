@@ -5,8 +5,9 @@ import { ILogger } from '../logging';
 import type { Config } from '@nestling/config';
 import { Injectable } from '@nestling/container';
 
-// Секция инжектится как обычная зависимость: узел графа материализуется
-// самим фактом упоминания токена в deps — регистрировать её негде и незачем.
+// Секция инжектится как обычная зависимость: узел графа создаётся при
+// сборке самим фактом упоминания токена в deps — отдельно регистрировать
+// её не нужно.
 @Injectable(IDatabase, [AppConfig, ILogger('db')])
 export class Database implements IDatabase {
   #config: Config<typeof AppConfig>;

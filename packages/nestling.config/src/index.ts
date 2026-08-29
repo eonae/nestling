@@ -32,7 +32,7 @@ export { ConfigKeys } from './keys.js';
 export type { ConfigGlob, ConfigTarget } from './keys.js';
 export { configKernel } from './kernel.js';
 /**
- * Примордиальное чтение секции — фаза 0: `select` считается до сборки, а
+ * Первичное чтение секции — фаза 0: `select` считается до сборки, а
  * значит до читалки и привязанных источников.
  */
 export { load } from './load.js';

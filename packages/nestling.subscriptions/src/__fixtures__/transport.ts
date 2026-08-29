@@ -1,7 +1,7 @@
 /**
  * Транспорт-фикстура интеграционных тестов.
  *
- * Своего транспорта пакету не нужно, а брать HTTP ради `events`-ручки —
+ * Своего транспорта пакету не нужно, а брать HTTP ради `events`-endpoint'а —
  * лишняя зависимость в тесте: способности объявляются значением, поэтому
  * фикстура их просто перечисляет.
  */
@@ -21,12 +21,12 @@ const STREAMING: TransportCapabilities = {
 export const TestTransport$: TokenString<ITransport> =
   makeToken<ITransport>('transport:test');
 
-/** Транспорт, который никуда не выходит: go-live в тестовом корне и нет */
+/** Транспорт, который никуда не выходит: старта приёма запросов и нет */
 export class TestTransport implements ITransport {
   serving = false;
   closed = false;
 
-  /** Всё, что приехало бы в go-live; в тестовом прогоне остаётся пустым */
+  /** Появилось бы на старте приёма запросов — в тестовом прогоне пусто */
   dispatch?: Dispatch;
   signal?: AbortSignal;
 

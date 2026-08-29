@@ -1,15 +1,13 @@
 /**
- * io-декларация как **дерево форм над схемами**.
+ * Формы io: `stream`, `events`, `multipart` и их описатель.
  *
- * Верхний уровень `input`/`output` — форма (`value` | `stream` | `events` |
- * `multipart`), листья — произвольная Standard Schema или примитив
- * (`'binary'`/`'text'`). Спека схем от этого не меняется: форма живёт
- * **над** схемами, а не внутри них — стрим не значение, и упаковывать его
- * в схему было бы натягиванием.
+ * `input` и `output` декларации — это форма (`value`, `stream`, `events`
+ * или `multipart`), а лист формы — Standard Schema или примитив
+ * (`'binary'`, `'text'`). Форма описывает, как передаются данные; схема
+ * описывает сами данные.
  *
- * Форма — неизменяемое значение с неперечислимым брендом (как декларация
- * endpoint'а и bind-карта): случайный объект с полем `kind` формой не
- * считается.
+ * Форма — неизменяемое значение с неперечислимым брендом. Объект с полем
+ * `kind`, созданный вручную, формой не считается.
  */
 
 import type { Infer, Optional, Schema } from '@common/misc';
@@ -27,8 +25,8 @@ export type IOPrimitive = 'binary' | 'text';
 export type FormLeaf = Schema | IOPrimitive;
 
 /**
- * Шаг item-цепочки — **данные**, а не замыкание над рантаймом: цепочка
- * объявляется вне контейнера и обязана переживать сериализацию описателя.
+ * Шаг item-цепочки. Хранится как данные, а не как замыкание: цепочка
+ * объявляется вне контейнера, и описатель должен сериализоваться.
  */
 export type ChainStep =
   | { readonly op: 'tap'; readonly fn: (item: any) => void }
@@ -49,19 +47,16 @@ export interface ItemOptions {
 }
 
 /**
- * Опции потоковой формы.
- *
- * Дефолт — валидировать (schema-first не делает исключений для горячего
- * пути); opt-out явный и виден в тексте декларации.
+ * Опции потоковой формы. По умолчанию элементы валидируются; отключение
+ * явное и видно в декларации.
  */
 export interface StreamFormOptions {
   /** Валидировать ли элементы схемой-листом (по умолчанию `true`) */
   validate?: boolean;
 
   /**
-   * Что делать с невалидным элементом **входа** (по умолчанию `'fail'`).
-   * На выходе игнорируется: молча ронять данные из ответа фреймворк не
-   * будет.
+   * Что делать с невалидным элементом входа (по умолчанию `'fail'`).
+   * На выходе не действует: невалидный элемент ответа всегда даёт отказ.
    */
   onInvalid?: 'fail' | 'skip';
 }
@@ -79,11 +74,8 @@ export interface UploadSpec<M extends boolean = boolean> {
 }
 
 /**
- * Описатель формы: то, что читают транспорт, генератор документации и
- * рантайм пайплайна.
- *
- * Заменяет прежний `analyzePayload`/`PayloadConfig`, который не различал
- * `events` и знал два разных multipart-модификатора.
+ * Описатель формы. Его читают транспорт, генератор документации и рантайм
+ * пайплайна.
  */
 export interface FormDescriptor {
   readonly kind: FormKind;
@@ -107,14 +99,13 @@ export interface FormDescriptor {
 /**
  * Потоковая форма с item-цепочкой.
  *
- * @param TWire - тип элемента **на проводе** (его описывает схема-лист)
- * @param TItem - тип элемента после уже объявленных шагов цепочки
- * @param K - вид формы: `stream` (конечные данные) или `events`
+ * @param TWire - Тип элемента в сети; его описывает схема-лист
+ * @param TItem - Тип элемента после объявленных шагов цепочки
+ * @param K - Вид формы: `stream` (конечные данные) или `events`
  * (открытая подписка)
  *
- * Асимметрия входа и выхода задаётся **слотом**, а не двумя билдерами:
- * `output` принимает форму с `TItem = TWire`, `input` — любую. Поэтому
- * `.batch(100)` на выходе — ошибка компиляции в точке декларации.
+ * Слот `output` принимает только форму с `TItem = TWire`, слот `input` —
+ * любую. Поэтому `.batch(100)` в `output` — ошибка компиляции.
  */
 export interface StreamForm<
   TWire = unknown,
@@ -141,16 +132,16 @@ export interface StreamForm<
   /** Ограничение частоты; элементы буферизуются, а не теряются */
   throttle(perSecond: number): StreamForm<TWire, TItem, K>;
 
-  /** Группировка — **тип-меняющий** шаг, легален только во входе */
+  /** Группировка элементов; меняет тип, поэтому допустима только во входе */
   batch(size: number): StreamForm<TWire, TItem[], K>;
 
-  /** Escape hatch; в выходе допустим только в варианте `T → T` */
+  /** Произвольное преобразование потока; в выходе допустимо только без смены типа */
   through<TNext>(
     fn: (src: AsyncIterable<TItem>) => AsyncIterable<TNext>,
   ): StreamForm<TWire, TNext, K>;
 }
 
-/** Форма запроса с полями и файлами; легальна только во входе */
+/** Форма запроса с полями и файлами; допустима только во входе */
 export interface MultipartForm<
   F extends Optional<Schema> = Optional<Schema>,
   FS extends Record<string, UploadSpec> = Record<string, UploadSpec>,
@@ -160,7 +151,7 @@ export interface MultipartForm<
   readonly files: FS;
 }
 
-/** Любая потоковая форма — там, где тип элемента несуществен */
+/** Любая потоковая форма; для мест, где тип элемента не важен */
 export type AnyStreamForm = StreamForm<any, any, StreamKind>;
 
 /** Любая multipart-форма */
@@ -184,10 +175,9 @@ function brand<T extends object>(value: T, symbol: symbol): T {
 }
 
 /**
- * Значение создано конструктором формы (`stream`/`events`/`multipart`).
- *
- * Посторонний объект `{ kind: 'stream', leaf: Schema }` формой **не**
- * считается: тот же аргумент, что для бренда декларации.
+ * Проверяет, что значение создано конструктором формы (`stream`, `events`
+ * или `multipart`). Объект `{ kind: 'stream', leaf }`, созданный вручную,
+ * формой не считается.
  */
 export function isForm(value: unknown): value is FormDescriptor {
   return (
@@ -197,7 +187,7 @@ export function isForm(value: unknown): value is FormDescriptor {
   );
 }
 
-/** Значение создано `upload()` */
+/** Проверяет, что значение создано `upload()` */
 export function isUploadSpec(value: unknown): value is UploadSpec {
   return (
     typeof value === 'object' &&
@@ -206,12 +196,12 @@ export function isUploadSpec(value: unknown): value is UploadSpec {
   );
 }
 
-/** Лист формы — примитив, а не схема */
+/** Проверяет, что лист формы — примитив */
 export function isPrimitiveLeaf(leaf: unknown): leaf is IOPrimitive {
   return leaf === 'binary' || leaf === 'text';
 }
 
-/** Вид формы потоковый (`stream` или `events`) */
+/** Проверяет, что вид формы потоковый (`stream` или `events`) */
 export function isStreamKind(kind: FormKind): kind is StreamKind {
   return kind === 'stream' || kind === 'events';
 }
@@ -245,8 +235,8 @@ function readItemOptions(options?: StreamFormOptions): ItemOptions {
 }
 
 /**
- * Строит потоковую форму. Каждый комбинатор возвращает **новую** форму —
- * только так цепочки переиспользуются функциями-хелперами:
+ * Строит потоковую форму. Каждый комбинатор возвращает новую форму, поэтому
+ * цепочки можно переиспользовать функциями:
  * `const guarded = (s) => stream(s).limit(50_000).gapTimeout(30_000)`.
  */
 function buildStreamForm(
@@ -289,13 +279,13 @@ function assertLeaf(
 }
 
 /**
- * Конечный поток данных: нормальный исход — `completed`, HTTP-framing —
- * NDJSON.
+ * Объявляет конечный поток данных. Нормальный исход — `completed`; по HTTP
+ * передаётся как NDJSON.
  *
  * @example
  * ```typescript
  * input: stream(LogChunk).filter(c => c.level !== 'debug').limit(50_000)
- * // → payload: AsyncIterableIterator<LogChunk>
+ * // payload: AsyncIterableIterator<LogChunk>
  * ```
  */
 export function stream<T extends Schema | IOPrimitive>(
@@ -312,13 +302,13 @@ export function stream<T extends Schema | IOPrimitive>(
 }
 
 /**
- * Открытая подписка: нормальное завершение — дисконнект (исход
- * `disconnected`), HTTP-framing — SSE.
+ * Объявляет открытую подписку. Нормальный исход — `disconnected`; по HTTP
+ * передаётся как SSE.
  *
  * @example
  * ```typescript
  * output: events(ActivityEvent)
- * // → возврат хендлера: AsyncIterable<ActivityEvent>
+ * // хендлер возвращает AsyncIterable<ActivityEvent>
  * ```
  */
 export function events<T extends Schema | IOPrimitive>(
@@ -342,15 +332,15 @@ export interface UploadOptions<M extends boolean = boolean> {
 }
 
 /**
- * Спецификация файлового поля `multipart`.
+ * Объявляет файловое поле формы `multipart`.
  *
- * Лимиты применяются **во время** разбора: превышение `maxSize` прерывает
- * чтение конкретного файла, несовпадение `mime` — отказ до чтения тела.
- * Вне `multipart` не имеет смысла и отвергается при создании декларации.
+ * Лимиты применяются во время разбора: превышение `maxSize` прерывает
+ * чтение файла, несовпадение `mime` даёт отказ до чтения тела. Вне
+ * `multipart` спецификация отвергается при создании декларации.
  *
- * Две перегрузки, а не тип-параметр: выводить `multiple` инференсом нельзя
- * — литерал `true` в позиции свойства расширяется до `boolean`, и
- * `files.<имя>` переставал бы различать `FilePart` и `FilePart[]`.
+ * Две перегрузки вместо тип-параметра: литерал `true` в позиции свойства
+ * расширяется до `boolean`, и `files.<имя>` перестал бы различать
+ * `FilePart` и `FilePart[]`.
  */
 export function upload(options?: UploadOptions<false>): UploadSpec<false>;
 export function upload(
@@ -372,10 +362,10 @@ export function upload(options: UploadOptions = {}): UploadSpec {
 type FieldKeys<F> = F extends Schema ? keyof Infer<F> : never;
 
 /**
- * Тип-ошибка: имя файлового поля совпало с полем формы.
+ * Ошибка типов: имя файлового поля совпало с полем формы.
  *
- * Проверяется **типами**, а не рантаймом: перечня ключей Standard Schema
- * не отдаёт — то же ограничение, что у проверки path-параметров.
+ * Проверяется типами, а не рантаймом: Standard Schema не даёт списка
+ * ключей.
  */
 type NoFieldConflict<F, FS> = [Extract<keyof FS, FieldKeys<F>>] extends [never]
   ? unknown
@@ -393,7 +383,7 @@ type NoFieldConflict<F, FS> = [Extract<keyof FS, FieldKeys<F>>] extends [never]
  *   fields: z.object({ title: z.string() }),
  *   files: { avatar: upload({ maxSize: 5 * MiB, mime: ['image/png'] }) },
  * })
- * // → payload: { fields: { title: string }, files: { avatar: FilePart } }
+ * // payload: { fields: { title: string }, files: { avatar: FilePart } }
  * ```
  */
 export function multipart<
@@ -437,10 +427,10 @@ export function multipart<
 const VALUE_NONE: FormDescriptor = Object.freeze({ kind: 'value' as const });
 
 /**
- * Описывает io-конфигурацию как форму.
+ * Возвращает описатель формы для значения `input` или `output`.
  *
- * Схема без обёртки (и `undefined`) — это `kind: 'value'`: «схема как
- * есть» остаётся канонической записью, вводить `value(...)` не нужно.
+ * Схема без обёртки и `undefined` дают `kind: 'value'`: отдельного
+ * конструктора `value(...)` нет.
  */
 export function describeForm(io?: unknown): FormDescriptor {
   if (io === undefined || io === null) {
@@ -459,10 +449,10 @@ export function describeForm(io?: unknown): FormDescriptor {
 }
 
 /**
- * Media type формы — **однозначная функция от формы**.
+ * Возвращает media type формы.
  *
- * Одно правило на всех: транспорт выбирает framing, генератор OpenAPI —
- * `content`, клиент — заголовки запроса.
+ * Правило одно для всех потребителей: транспорт выбирает по нему
+ * кодирование, генератор OpenAPI — `content`, клиент — заголовки запроса.
  */
 export function mediaTypeOf(io?: unknown): string {
   const form = describeForm(io);
@@ -490,11 +480,8 @@ export function mediaTypeOf(io?: unknown): string {
 }
 
 /**
- * Тип-ошибка слота `output`: тип элемента цепочки разошёлся с типом
- * провода.
- *
- * Правило журнала «оба конца выхода зафиксированы схемой» выражено одной
- * сигнатурой: отдельного «выходного» типа цепочки не появляется.
+ * Проверка формы `output` на уровне типов: `multipart` не допускается, а
+ * тип элемента цепочки должен совпадать с типом элемента в сети.
  */
 export type ValidateOutputForm<O> = O extends AnyMultipartForm
   ? {
@@ -509,12 +496,11 @@ export type ValidateOutputForm<O> = O extends AnyMultipartForm
     : unknown;
 
 /**
- * Совпадают ли тип провода и тип элемента цепочки.
+ * Совпадают ли два типа элемента.
  *
- * Литерал диагностики обязан быть **анонимным и развёрнутым в точке
- * печати**: именованный алиас TypeScript печатает именем, и текст правила
- * из сообщения пропадает. Поэтому сравнение вынесено сюда, а сам литерал
- * остаётся inline.
+ * Сравнение вынесено в отдельный тип, а литерал диагностики в
+ * `ValidateOutputForm` оставлен на месте: именованный алиас TypeScript
+ * печатает именем, и текст ошибки пропал бы.
  */
 type SameItem<A, B> = [A] extends [B]
   ? [B] extends [A]

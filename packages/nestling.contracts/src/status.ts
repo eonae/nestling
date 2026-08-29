@@ -8,8 +8,8 @@ export const successStatuses = [
 
 // Статусы ошибок (4xx, 5xx)
 //
-// Статус — транспортно-нейтральная семантика «как отвечать»; перевод в код
-// провода делает транспорт (для HTTP — STATUS_MAP в @nestling/transport.http).
+// Статус не зависит от транспорта. В HTTP-код его переводит транспорт
+// (STATUS_MAP в @nestling/transport.http).
 export const errorStatuses = [
   'PAYMENT_REQUIRED', // 402
   'BAD_REQUEST', // 400
@@ -17,18 +17,18 @@ export const errorStatuses = [
   'FORBIDDEN', // 403
   'NOT_FOUND', // 404
   'CONFLICT', // 409
-  // «вход больше допустимого»: лимит item-цепочки, файл сверх upload({maxSize})
+  // Вход больше допустимого: лимит item-цепочки, файл сверх upload({ maxSize })
   'PAYLOAD_TOO_LARGE', // 413
   'TOO_MANY_REQUESTS', // 429
   'INTERNAL_ERROR', // 500
   'NOT_IMPLEMENTED', // 501
   'SERVICE_UNAVAILABLE', // 503
-  // «операция не уложилась в бюджет» (в т.ч. DeadlineExceeded портов) —
-  // это 504, а не 408: 408 про то, что клиент не дослал запрос.
+  // Операция не уложилась в срок (в том числе DeadlineExceeded портов).
+  // Это 504, а не 408: 408 означает, что клиент не дослал запрос.
   'TIMEOUT', // 504
 ] as const;
 
-// Все статусы (для внутреннего использования в транспортах)
+// Все статусы; используются транспортами
 export const statuses = [...successStatuses, ...errorStatuses] as const;
 
 export type SuccessStatus = (typeof successStatuses)[number];

@@ -6,7 +6,7 @@ import type { Schema } from '@common/misc';
 import { SchemaValidationError, validateSync } from '@common/misc';
 
 /**
- * Валидирует raw.payload и создаёт payload
+ * Валидирует `raw.payload` и создаёт `payload`.
  *
  * Работает только с формой значения (`kind: 'value'`) и схемой-листом:
  * потоковые формы валидируются поэлементно обёртками форм
@@ -14,9 +14,9 @@ import { SchemaValidationError, validateSync } from '@common/misc';
  * это байты, схемы у них нет.
  *
  * При ошибке валидации бросает kernel-отказ `ValidationFailed`
- * (`VALIDATION_FAILED`, HTTP 400). Kernel-код входит в контракт любой
- * ручки неявно: страж границы пропускает его без объявления в `errors:` —
- * иначе штатный 400 валидации превращался бы в 500.
+ * (`VALIDATION_FAILED`, HTTP 400). Kernel-код входит в контракт любого
+ * endpoint'а неявно: проверка на границе пропускает его без объявления в
+ * `errors:`, иначе штатный 400 валидации превращался бы в 500.
  *
  * Ошибки конфигурации приложения — async-схема
  * (`AsyncSchemaNotSupportedError`) и объект-не-схема

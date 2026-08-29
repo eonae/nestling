@@ -2,46 +2,37 @@ import type { DINode } from './node.class';
 
 import { DAG } from '@common/graphs';
 
-/**
- * JSON representation of a single node in the dependency graph.
- */
+/** Узел графа зависимостей в виде JSON. */
 export interface JsonDINode {
-  /** The token ID */
+  /** Идентификатор токена */
   id: string;
-  /** Node metadata */
+  /** Метаданные узла */
   metadata: {
-    /** Module name if the provider belongs to a module */
+    /** Имя модуля, если провайдер принадлежит модулю */
     module?: string;
-    /** Whether the provider is exported from its module */
+    /** Экспортирует ли модуль этот провайдер */
     exported?: boolean;
   };
-  /** IDs of dependencies */
+  /** Идентификаторы зависимостей */
   dependencies: string[];
 }
 
-/**
- * JSON representation of the entire dependency graph.
- */
+/** Граф зависимостей целиком в виде JSON. */
 export interface JsonDIGraph {
-  /** All nodes in the graph */
+  /** Все узлы графа */
   nodes: JsonDINode[];
 }
 
-/**
- * Dependency injection graph.
- *
- * Extends the base DAG (Directed Acyclic Graph) with DI-specific functionality.
- */
+/** Граф зависимостей: ориентированный ациклический граф из `DINode`. */
 export class DIGraph extends DAG<DINode> {
   /**
-   * Converts the dependency graph to JSON format.
+   * Возвращает граф в виде JSON.
    *
-   * @returns A JSON representation of the graph
+   * @returns JSON-представление графа
    */
   async toJSON(): Promise<JsonDIGraph> {
     const nodes: JsonDINode[] = [];
 
-    // Traverse all container nodes and export their metadata
     await this.traverse(({ id, metadata, dependencies }) => {
       const exportedNode: JsonDINode = {
         id,

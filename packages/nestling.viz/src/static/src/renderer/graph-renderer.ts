@@ -271,11 +271,11 @@ function setupEventListeners(graph: Graph3D, graphData: ForceGraphData): void {
 function setupLighting(graph: Graph3D): void {
   const scene = graph.scene();
 
-  // Добавляем ambient light
+  // Добавляем рассеянный свет
   const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
   scene.add(ambientLight);
 
-  // Добавляем directional light
+  // Добавляем направленный свет
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 
   scene.add(directionalLight);

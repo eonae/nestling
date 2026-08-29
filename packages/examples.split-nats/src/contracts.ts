@@ -10,7 +10,7 @@ import { makeContract } from '@nestling/contracts';
 import { defineFail } from '@nestling/pipeline';
 import { z } from 'zod';
 
-/** Квота исчерпана — задекларированный отказ, переживающий провод по коду */
+/** Квота исчерпана — задекларированный отказ, одинаковый по сети и в коде */
 export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
   status: 'CONFLICT',
   message: (details: { tenantId: string }) =>
@@ -21,9 +21,9 @@ export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
 /**
  * Команда приёма заказа — вход процесса-потребителя.
  *
- * Обычная команда, а не HTTP-ручка: пример про шину, и внешний драйвер у
- * него тоже шина. С HTTP-ручкой он выглядел бы так же — меняется
- * транспорт входа, не код фичи.
+ * Обычная команда, а не HTTP-endpoint: пример про шину, и внешний драйвер
+ * у него тоже шина. С HTTP-endpoint'ом он выглядел бы так же: меняется
+ * транспорт входа, а не код фичи.
  */
 export const PlaceOrder = makeContract({
   name: 'orders.place',

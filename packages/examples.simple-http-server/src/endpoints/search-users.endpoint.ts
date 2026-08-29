@@ -13,7 +13,7 @@ const SearchUsersInput = z.object({
   // скаляром и не прошёл бы `z.array(...)`
   tag: z.array(z.string()).optional(),
 
-  // Провод несёт строки: коерсия — забота схемы, не транспорта
+  // Query-параметры — всегда строки: коерсия — забота схемы, не транспорта
   limit: z.coerce.number().int().positive().optional(),
 });
 

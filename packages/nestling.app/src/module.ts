@@ -31,12 +31,12 @@ export interface AppModule extends Module {
  *
  * Это высокоуровневое API поверх makeModule из @nestling/container.
  * Возвращаемое значение **сохраняет** список `endpoints` — именно из него
- * App собирает эндпоинты обходом дерева модулей (`discoverEndpoints`).
+ * App собирает endpoint'ы обходом дерева модулей (`discoverEndpoints`).
  * В `providers` ничего не подмешивается: декларация — значение, а её
  * зависимости регистрируются так же явно, как любые другие.
  *
  * @param config - Конфигурация модуля приложения
- * @returns Модуль-значение, готовый и для контейнера, и для дискавери
+ * @returns Модуль-значение, готовый и для контейнера, и для discovery
  */
 export function makeAppModule(config: AppModule): AppModule {
   const { endpoints, ...moduleConfig } = config;

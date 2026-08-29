@@ -1,6 +1,5 @@
 import { GraphNode } from './graphTypes';
 
-// Интерфейс для EventBus
 export interface IEventBus {
   on(event: string, callback: (data?: unknown) => void): void;
   emit(event: string, data?: unknown): void;

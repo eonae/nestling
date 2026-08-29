@@ -27,7 +27,7 @@ import type { Emitter } from '@nestling/contracts';
  * Опции модуля — только решения композиции.
  *
  * Ничего «из среды» здесь нет: имя узла при желании привязывается конфигом
- * в корне и приезжает сюда обычным значением.
+ * в корне и приходит сюда обычным значением.
  */
 export interface SubscriptionsOptions extends RegistryOptions {
   /**

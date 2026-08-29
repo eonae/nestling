@@ -34,7 +34,7 @@ describe('makeEmptyContext', () => {
     expect(ctx.signal.aborted).toBe(false);
   });
 
-  it('стартовый input доезжает до контекста и типизирует его', () => {
+  it('стартовый input попадает в контекст и типизирует его', () => {
     const bytes = new Uint8Array([1, 2, 3]);
     const signal = new AbortController().signal;
 

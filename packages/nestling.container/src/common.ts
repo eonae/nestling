@@ -1,43 +1,41 @@
 /**
- * Represents a class constructor.
- * This is the standard TypeScript way to define a class type.
+ * Конструктор класса.
  *
- * @template T - The type of instance created by the constructor
+ * @template T - Тип экземпляра, который создаёт конструктор
  */
 export interface Constructor<T = any> {
-  /** Class constructor */
+  /** Конструктор */
   new (...args: any[]): T;
-  /** Class name */
+  /** Имя класса */
   name: string;
 }
 
 /**
- * This is a branded type for the type T, it associates a string with the type so we
- * can refer to the T type at runtime.
+ * Строка с привязанным типом `T`: позволяет ссылаться на тип в рантайме,
+ * где самого типа уже нет.
  */
 export type TokenString<T> = string & { __type: T };
 
 /**
- * An injection token - an identifier for a dependency in the DI container.
+ * Токен: идентификатор зависимости в контейнере.
  *
- * Can be either a string token (created via `makeToken`) or a class constructor.
+ * Строковый токен (создаётся `makeToken`) или конструктор класса.
  *
- * @template T - The type of value that this token provides
+ * @template T - Тип значения, которое стоит за токеном
  */
 export type InjectionToken<T = unknown> = TokenString<T> | Constructor<T>;
 
 /**
- * Unwraps an array of injection tokens into their corresponding types.
+ * Превращает массив токенов в массив их типов.
  *
- * This utility type is used to ensure type safety when injecting
- * dependencies into a class constructor.
+ * Так типизируются аргументы конструктора по списку `deps`.
  *
- * @template T - Array of injection tokens
+ * @template T - Массив токенов
  *
  * @example
  * ```typescript
  * // UnwrapInjectionTokens<[TokenString<string>, Constructor<SomeClass>]>
- * // becomes [string, SomeClass]
+ * // равно [string, SomeClass]
  * ```
  */
 export type UnwrapInjectionTokens<T extends InjectionToken[]> = {
@@ -49,15 +47,14 @@ export type UnwrapInjectionTokens<T extends InjectionToken[]> = {
 };
 
 /**
- * Creates a runtime identifier for an interface to be used in dependency injection.
+ * Создаёт токен для интерфейса или другого типа, у которого нет класса.
  *
- * The function creates a deterministic identifier based on the provided string.
- * Used for interfaces that are not classes (e.g., external services,
- * configurations, abstract interfaces).
+ * Токен — это переданная строка с привязанным типом `T`. Один и тот же
+ * `id` всегда даёт один и тот же токен.
  *
- * @template T - The type of the interface that the token represents
- * @param id - A unique string identifier
- * @returns A token typed for use in the DI container
+ * @template T - Тип, который представляет токен
+ * @param id - Уникальная строка
+ * @returns Типизированный токен
  *
  * @example
  * ```typescript
@@ -77,14 +74,14 @@ export const makeToken = <T>(id: string): TokenString<T> =>
   id as TokenString<T>;
 
 /**
- * Converts an injection token to a string identifier.
+ * Приводит токен к строковой форме.
  *
- * If the token is already a string, returns it as is.
- * If the token is a class constructor, creates a string token from the class name.
+ * Строковый токен возвращается как есть; для класса токеном становится его
+ * имя.
  *
- * @template T - The type of the token's value
- * @param token - The injection token to convert
- * @returns A string token
+ * @template T - Тип значения токена
+ * @param token - Токен
+ * @returns Строковый токен
  *
  * @example
  * ```typescript

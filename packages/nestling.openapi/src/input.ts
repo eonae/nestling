@@ -29,7 +29,7 @@ export interface InputPlan {
   readonly requestBody?: OpenApiRequestBody;
 }
 
-/** Пустой вход: у ручки нет ни параметров, ни тела */
+/** Пустой вход: у endpoint'а нет ни параметров, ни тела */
 const NOTHING: InputPlan = { parameters: [] };
 
 /** Разобранная структурная часть входа */
@@ -37,12 +37,12 @@ interface Decomposed {
   readonly properties: Record<string, JsonValue>;
   readonly required: readonly string[];
 
-  /** Прочие ключи схемы — переезжают в тело как есть */
+  /** Прочие ключи схемы — попадают в тело как есть */
   readonly rest: Record<string, JsonValue>;
 }
 
 /**
- * Раскладывает `input` ручки на параметры и тело.
+ * Раскладывает `input` endpoint'а на параметры и тело.
  *
  * @param input - Форма io входа с декларации
  * @param binding - Bind-карта: явные размещения плюс правило для остального
@@ -62,8 +62,8 @@ export function planInput(
   const structural = form.kind === 'multipart' ? form.fields : form.leaf;
   const slot = form.kind === 'multipart' ? 'multipart fields' : 'input';
 
-  // Вход описывается формой **на проводе**: клиент шлёт то, что схема
-  // принимает, а не то, что она отдаёт хендлеру
+  // Вход описывается формой **как получено по сети**: клиент шлёт то, что
+  // схема принимает, а не то, что она отдаёт хендлеру
   const converted = convertLeaf(structural, slot, context, 'input');
   const decomposable =
     form.kind === 'multipart' ||
@@ -172,7 +172,7 @@ function planParameters(
     return parameters;
   }
 
-  // Всё неразмещённое у метода без тела уезжает в query
+  // Всё неразмещённое у метода без тела попадает в query
   for (const [name, property] of Object.entries(object.properties)) {
     if (taken.has(name) || name in binding.fields) {
       continue;
@@ -200,7 +200,7 @@ function planParameters(
  * генератора нет. Для `stream(T)` схемой контента становится **элемент**:
  * тело это последовательность элементов, и описывать её как единое
  * значение значило бы соврать. `rawBody: true` на media type не влияет —
- * сырые байты это свойство стартового контекста, а не провода.
+ * сырые байты это свойство стартового контекста, а не сети.
  */
 function planBody(
   form: ReturnType<typeof describeForm>,
@@ -246,7 +246,7 @@ function planBody(
  *
  * Файл описывается как `type: 'string', format: 'binary'` — так его
  * описывает сама спека OpenAPI; `upload({ multiple: true })` даёт массив
- * таких, а ограничение `mime` уезжает в `contentMediaType`.
+ * таких, а ограничение `mime` попадает в `contentMediaType`.
  */
 function multipartSchema(
   files: Readonly<Record<string, UploadSpec>> | undefined,
@@ -264,7 +264,7 @@ function multipartSchema(
 
     if (spec.mime && spec.mime.length > 0) {
       // Несколько допустимых типов одним `contentMediaType` не выразимы;
-      // перечисление уезжает в описание, а не подменяется первым из списка
+      // перечисление попадает в описание, а не подменяется первым из списка
       file.contentMediaType = spec.mime[0];
       if (spec.mime.length > 1) {
         file.description = `Allowed media types: ${[...spec.mime].join(', ')}`;

@@ -11,10 +11,10 @@ export interface TestAppContext {
 }
 
 /**
- * Создает тестовое приложение на эфемерном порту.
+ * Создаёт тестовое приложение на эфемерном порту.
  *
  * Транспорт конструируется вручную и регистрируется значением: тесту нужен
- * фактический адрес, а порт `0` отдаёт его только после go-live —
+ * фактический адрес, а порт `0` отдаёт его только на фазе START —
  * `transport.address()`.
  */
 export async function createTestApp(): Promise<TestAppContext> {
@@ -37,7 +37,7 @@ export async function createTestApp(): Promise<TestAppContext> {
 }
 
 /**
- * Закрывает тестовое приложение
+ * Закрывает тестовое приложение.
  */
 export async function closeTestApp(context: TestAppContext): Promise<void> {
   if (context.app) {

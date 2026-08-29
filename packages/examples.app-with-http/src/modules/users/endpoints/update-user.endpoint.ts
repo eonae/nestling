@@ -23,7 +23,7 @@ const UpdateUserOutput = z.object({
 type UpdateUserInput = z.infer<typeof UpdateUserInput>;
 type UpdateUserOutput = z.infer<typeof UpdateUserOutput>;
 
-/** Объявленное множество отказов ручки — источник типа для `meta.fail` */
+/** Объявленный набор отказов endpoint'а — источник типа для `meta.fail`. */
 type UpdateUserFails =
   | ReturnType<typeof NothingToUpdate>
   | ReturnType<typeof EmailTaken>
@@ -60,7 +60,7 @@ export const updateUserHandler =
       meta.fail(UserNotFound({ id }));
     }
 
-    // Возвращаем напрямую - автоматически обернется в Ok
+    // Возвращаем напрямую, пайплайн сам обернёт в `Ok`.
     return user;
   };
 
@@ -68,9 +68,9 @@ export const updateUserHandler =
  * Endpoint для обновления пользователя.
  *
  * Демонстрирует:
- * - возврат через просто объект (без `new Ok()`);
+ * - возврат обычным объектом, без `new Ok()`;
  * - канал `meta.fail(...)` — типизированный ранний выход из глубины
- *   хендлера; принять отказ вне `errors:` он не может.
+ *   хендлера. Отказ вне `errors:` этот канал принять не может.
  */
 export const UpdateUser = httpEndpoint({
   method: 'PATCH',

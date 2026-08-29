@@ -32,14 +32,14 @@ import {
 } from '@nestling/testing';
 import { nats } from '@nestling/transport.nats';
 
-/** Честный словарь сборки — тот же, что уедет в прод (см. `root.ts`) */
+/** Честный словарь сборки — тот же, что и в проде (см. `root.ts`) */
 const honestSpec = {
   features: [OrdersFeature, QuotasFeature],
   transports: [nats()],
 };
 
 describe('фича в изоляции: без соседа и без брокера', () => {
-  it('процесс-потребитель драйвится app.emit и доходит до факта', async () => {
+  it('процесс-потребитель запускается через app.emit и доходит до факта', async () => {
     const claimed: { tenantId: string; amount: number }[] = [];
     const placed: { orderId: string; tenantId: string }[] = [];
 
@@ -58,7 +58,7 @@ describe('фича в изоляции: без соседа и без броке
           placed.push(input);
         }),
       ],
-      // Арендатор в бою приезжает конвертом с шины; здесь его объявляет тест
+      // Арендатор в бою приходит конвертом с шины; здесь его объявляет тест
       overrides: [contextValue(TenantId, 'acme')],
     });
 
@@ -80,8 +80,8 @@ describe('фича в изоляции: без соседа и без броке
       features: [OrdersFeature, QuotasFeature],
       select: 'orders',
       stubs: [
-        // Отказ объявлен в `errors:` контракта, поэтому доезжает как есть —
-        // ровно так же, как приехал бы по проводу от настоящего владельца
+        // Отказ объявлен в `errors:` контракта, поэтому передаётся как есть —
+        // ровно так же, как пришёл бы по сети от настоящего владельца
         stub(ClaimQuota, async ({ tenantId }) => QuotaExceeded({ tenantId })),
         stub(OrderPlaced, (input) => {
           placed.push(input);

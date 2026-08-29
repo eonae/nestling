@@ -72,7 +72,7 @@ describe('capability-валидация через assemble', () => {
     );
   });
 
-  it('поддерживаемая форма проходит сборку и go-live', async () => {
+  it('поддерживаемая форма проходит сборку и старт приёма запросов', async () => {
     const Export = httpEndpoint({
       method: 'GET',
       path: '/export',
@@ -94,7 +94,7 @@ describe('capability-валидация через assemble', () => {
     await app.close();
   });
 
-  it('транспорт не выходит в эфир при несовместимой декларации', async () => {
+  it('транспорт не начинает принимать запросы при несовместимой декларации', async () => {
     const Live = httpEndpoint({
       method: 'GET',
       path: '/live',

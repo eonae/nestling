@@ -13,7 +13,7 @@ import { z } from 'zod';
 const Http$ = makeToken('transport:http') as TransportRef;
 const Cli$ = makeToken('transport:cli') as TransportRef;
 
-/** Декларация-значение: единица дискавери */
+/** Декларация-значение: единица discovery */
 const endpoint = (transport: TransportRef, pattern: string) =>
   makeEndpoint({
     transport,
@@ -48,7 +48,7 @@ describe('discoverEndpoints', () => {
     expect(endpoints[0].endpoint.pattern).toBe('GET /users/:id');
   });
 
-  it('обнаруживает эндпоинты на модуле, собранном makeModule вручную', () => {
+  it("обнаруживает endpoint'ы на модуле, собранном makeModule вручную", () => {
     const Handmade = endpoint(Http$, 'GET /handmade');
 
     const HandmadeModule = {
@@ -118,7 +118,7 @@ describe('discoverEndpoints', () => {
     });
 
     // Пропустить второе значение значило бы потерять `GET /second` молча —
-    // контейнер на этом падает, дискавери зеркалит правило
+    // контейнер на этом падает, discovery зеркалит правило
     expect(() => discoverEndpoints([ModuleFirst, ModuleSecond])).toThrow(
       /Two different modules are named 'module:same-name'/,
     );
@@ -137,7 +137,7 @@ describe('discoverEndpoints', () => {
     expect(endpoints.map((found) => found.endpoint)).toEqual([Only]);
   });
 
-  it('порядок воспроизводим: imports раньше собственных эндпоинтов', () => {
+  it("порядок воспроизводим: imports раньше собственных endpoint'ов", () => {
     const Imported = endpoint(Http$, 'GET /imported');
     const Own = endpoint(Http$, 'GET /own');
     const Other = endpoint(Http$, 'GET /other');
@@ -178,7 +178,7 @@ describe('discoverEndpoints', () => {
     expect(endpoints).toHaveLength(1);
   });
 
-  it('группирует ручки по требуемому транспорту', () => {
+  it("группирует endpoint'ы по требуемому транспорту", () => {
     const MixedModule = makeAppModule({
       name: 'module:mixed',
       endpoints: [

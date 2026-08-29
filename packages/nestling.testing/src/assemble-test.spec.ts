@@ -36,7 +36,7 @@ const settle = async (): Promise<void> => {
   await Promise.resolve();
 };
 
-describe('assembleTest — приложение собрано, но не в эфире', () => {
+describe('assembleTest — приложение собрано, но запросы не принимает', () => {
   it('выполняет @OnInit и строит dispatch, но не START', async () => {
     const events: string[] = [];
 
@@ -99,7 +99,7 @@ describe('assembleTest — приложение собрано, но не в э�
     }
   });
 
-  it('отклоняет ручку без транспорта той же ошибкой, что и бой', async () => {
+  it('отклоняет endpoint без транспорта той же ошибкой, что и бой', async () => {
     const inits: string[] = [];
 
     @Injectable([])
@@ -281,7 +281,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     transports: [asHttpTransport(new SpyTransport())],
   };
 
-  it('исполняет ручку целиком и отдаёт успех', async () => {
+  it('исполняет endpoint целиком и отдаёт успех', async () => {
     await using app = await assembleTest(spec);
 
     expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual({
@@ -330,7 +330,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     ).toMatchObject({ attributes: { trace: 'x' } });
   });
 
-  it('перечисляет доступные ручки, если декларации в приложении нет', async () => {
+  it("перечисляет доступные endpoint'ы, если декларации в приложении нет", async () => {
     const Invoices = httpEndpoint({
       method: 'GET',
       path: '/invoices',

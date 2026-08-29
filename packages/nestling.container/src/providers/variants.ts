@@ -5,25 +5,22 @@ import type { TokenFamily } from './token-family';
 import { isTokenFamily } from './token-family';
 
 /**
- * Base interface for all provider types.
+ * Общая часть всех определений провайдеров: токен регистрации.
  *
- * Defines the common property for all provider variants - the token
- * by which the provider is registered in the container.
- *
- * @template T - The type of value provided by the provider
+ * @template T - Тип значения, которое даёт провайдер
  */
 interface BaseDefinition<T> {
-  /** The token by which this provider will be accessible in the container */
+  /** Токен, под которым провайдер доступен в контейнере */
   provide: InjectionToken<T>;
 }
 
 /**
- * Provider that creates an instance of a class.
+ * Провайдер, создающий экземпляр класса.
  *
- * Used to register a class in the DI container. The container will automatically
- * create an instance of the class, injecting the specified dependencies into the constructor.
+ * Контейнер создаёт экземпляр сам, передавая в конструктор зависимости
+ * из `deps` в том же порядке.
  *
- * @template T - The type of the created instance
+ * @template T - Тип создаваемого экземпляра
  *
  * @example
  * ```typescript
@@ -36,19 +33,19 @@ interface BaseDefinition<T> {
  */
 export interface ClassProviderDefinition<T = unknown>
   extends BaseDefinition<T> {
-  /** The class to instantiate */
+  /** Класс, экземпляр которого создаётся */
   useClass: Constructor<T>;
-  /** Dependencies to inject into the constructor */
+  /** Зависимости, передаваемые в конструктор */
   deps?: readonly InjectionToken[];
 }
 
 /**
- * Provider that provides a pre-created value.
+ * Провайдер готового значения.
  *
- * Used to register already created objects, primitives, or constants.
- * The value is used as is, without creating new instances.
+ * Регистрирует уже созданный объект, примитив или константу. Значение
+ * отдаётся как есть.
  *
- * @template T - The type of the provided value
+ * @template T - Тип значения
  *
  * @example
  * ```typescript
@@ -61,17 +58,17 @@ export interface ClassProviderDefinition<T = unknown>
  */
 export interface ValueProviderDefinition<T = unknown>
   extends BaseDefinition<T> {
-  /** The value to provide */
+  /** Значение, которое отдаёт провайдер */
   useValue: T;
 }
 
 /**
- * Provider that creates a value using a factory function.
+ * Провайдер, создающий значение фабричной функцией.
  *
- * Used for complex instance creation logic, asynchronous initialization,
- * or integration with external libraries.
+ * Подходит для сложной логики создания, асинхронной инициализации и
+ * классов сторонних библиотек без `@Injectable`.
  *
- * @template T - The type of the created value
+ * @template T - Тип создаваемого значения
  *
  * @example
  * ```typescript
@@ -83,18 +80,16 @@ export interface ValueProviderDefinition<T = unknown>
  * ```
  */
 export interface FactoryProviderDefinition<T> extends BaseDefinition<T> {
-  /** Factory function to create the value */
+  /** Фабрика, создающая значение */
   useFactory: (...args: any[]) => T;
-  /** Dependencies to inject into the factory function */
+  /** Зависимости, передаваемые фабрике аргументами */
   deps: readonly InjectionToken[];
 }
 
 /**
- * Union type of all provider variants.
+ * Определение провайдера любого вида: класс, значение или фабрика.
  *
- * Represents any of the possible provider types: class, value, or factory.
- *
- * @template T - The type of the provided value
+ * @template T - Тип значения
  */
 export type ProviderDefinition<T = unknown> =
   | ClassProviderDefinition<T>
@@ -102,12 +97,9 @@ export type ProviderDefinition<T = unknown> =
   | FactoryProviderDefinition<T>;
 
 /**
- * Helper type to unwrap mixed tokens (string or class) to their types.
+ * Превращает массив токенов (строк или классов) в массив их типов.
  *
- * Transforms an array of tokens (string or class) into an array of corresponding types.
- * Used for type safety when working with dependencies.
- *
- * @template T - Array of tokens to unwrap
+ * @template T - Массив токенов
  */
 export type UnwrapTokens<
   T extends readonly (TokenString<unknown> | Constructor)[],
@@ -120,13 +112,11 @@ export type UnwrapTokens<
 };
 
 /**
- * Helper type to create a factory provider with typed dependencies.
+ * Фабричный провайдер с типизированными зависимостями: типы аргументов
+ * фабрики выводятся из списка `deps`.
  *
- * Ensures full type safety: the types of factory function arguments
- * are automatically inferred from the list of dependencies.
- *
- * @template T - The type of the created value
- * @template TDeps - Array of dependency tokens
+ * @template T - Тип создаваемого значения
+ * @template TDeps - Массив токенов зависимостей
  */
 export type FactoryProviderWithDeps<
   T,
@@ -137,16 +127,16 @@ export type FactoryProviderWithDeps<
 };
 
 /**
- * Creates a class-based provider.
+ * Создаёт провайдер класса.
  *
- * The class must be decorated with @Injectable. Dependencies are automatically
- * extracted from the decorator metadata.
+ * Класс должен быть помечен `@Injectable`: зависимости берутся из
+ * метаданных декоратора.
  *
- * @template T - The type of the created instance
- * @param provide - The token by which the provider will be registered
- * @param useClass - The class to instantiate (must be decorated with @Injectable)
- * @returns A class provider definition
- * @throws {Error} If the class is not decorated with @Injectable
+ * @template T - Тип создаваемого экземпляра
+ * @param provide - Токен, под которым регистрируется провайдер
+ * @param useClass - Класс с декоратором `@Injectable`
+ * @returns Определение провайдера класса
+ * @throws {Error} Если у класса нет декоратора `@Injectable`
  *
  * @example
  * ```typescript
@@ -175,14 +165,12 @@ export function classProvider<T>(
 }
 
 /**
- * Creates a value-based provider.
+ * Создаёт провайдер готового значения.
  *
- * Used to register constants, configurations, or already created objects.
- *
- * @template T - The type of the provided value
- * @param provide - The token by which the provider will be registered
- * @param useValue - The value to provide
- * @returns A value provider definition
+ * @template T - Тип значения
+ * @param provide - Токен, под которым регистрируется провайдер
+ * @param useValue - Значение
+ * @returns Определение провайдера значения
  *
  * @example
  * ```typescript
@@ -201,17 +189,18 @@ export function valueProvider<T>(
 }
 
 /**
- * Creates a factory-based provider.
+ * Создаёт фабричный провайдер.
  *
- * The factory function receives dependencies as arguments and returns
- * the created value. Supports both synchronous and asynchronous factories.
+ * Фабрика получает зависимости аргументами в порядке `deps` и возвращает
+ * значение. Фабрика может быть синхронной или асинхронной.
  *
- * @template T - The type of the created value
- * @template TDeps - Array of dependency tokens
- * @param provide - The token by which the provider will be registered
- * @param useFactory - Factory function to create the value
- * @param deps - Array of dependency tokens to inject into the factory
- * @returns A factory provider definition with typed dependencies
+ * @template T - Тип создаваемого значения
+ * @template TDeps - Массив токенов зависимостей
+ * @param provide - Токен, под которым регистрируется провайдер
+ * @param useFactory - Фабрика, создающая значение
+ * @param deps - Токены зависимостей, передаваемых фабрике
+ * @returns Определение фабричного провайдера с типизированными
+ * зависимостями
  *
  * @example
  * ```typescript
@@ -235,48 +224,45 @@ export function factoryProvider<T, TDeps extends readonly InjectionToken[]>(
 }
 
 /**
- * A provider - a definition or class that can be registered in the container.
+ * То, что можно зарегистрировать в контейнере: явное определение
+ * провайдера или класс с декоратором `@Injectable`.
  *
- * Can be either an explicit provider definition (ClassProviderDefinition,
- * ValueProviderDefinition, FactoryProviderDefinition), or simply a class
- * decorated with @Injectable.
- *
- * @template T - The type of the provided value
+ * @template T - Тип значения
  */
 export type Provider<T = unknown> = ProviderDefinition<T> | Constructor<T>;
 
 /**
- * A single recipe registered for a whole token family.
+ * Единственный рецепт для целого семейства токенов.
  *
- * The recipe returns an ordinary provider definition for the requested member;
- * the builder validates that its `provide` matches the member token.
+ * Рецепт возвращает обычное определение провайдера для запрошенного члена;
+ * билдер проверяет, что его `provide` совпадает с токеном члена.
  *
- * @template T - The type provided by every member
- * @template Params - Member parameters
+ * @template T - Тип значения каждого члена
+ * @template Params - Параметры члена
  */
 export interface FamilyProviderDefinition<
   T = unknown,
   Params extends [param: string] = [param: string],
 > {
-  /** The family this recipe serves */
+  /** Семейство, которое обслуживает рецепт */
   family: TokenFamily<T, Params>;
-  /** Produces the provider definition for one member */
+  /** Возвращает определение провайдера для одного члена */
   recipe: (...params: Params) => ProviderDefinition<T>;
 }
 
 /**
- * Registers one recipe for an entire token family.
+ * Создаёт рецепт для целого семейства токенов.
  *
- * Accepted by `ContainerBuilder.register()` and by a module's `providers`
- * (array or factory form). On `build()` the container collects every member
- * mentioned in the deps of registered providers and calls the recipe once per
- * distinct parameter, registering the result as an ordinary graph node.
+ * Результат принимают `ContainerBuilder.register()` и `providers` модуля
+ * (массив или фабрика). В `build()` контейнер собирает всех членов,
+ * упомянутых в зависимостях провайдеров, вызывает рецепт один раз на
+ * каждый параметр и регистрирует результат как обычный узел графа.
  *
- * @template T - The type provided by every member
- * @template Params - Member parameters
- * @param family - The family created by `makeTokenFamily`
- * @param recipe - Produces a provider definition for a given member parameter
- * @returns A registrable family provider definition
+ * @template T - Тип значения каждого члена
+ * @template Params - Параметры члена
+ * @param family - Семейство, созданное `makeTokenFamily`
+ * @param recipe - Возвращает определение провайдера для параметра члена
+ * @returns Определение рецепта семейства
  *
  * @example
  * ```typescript
@@ -299,14 +285,13 @@ export function familyProvider<T, Params extends [param: string]>(
 }
 
 /**
- * Type guard to check if an item is a family provider definition.
+ * Проверяет, что значение — рецепт семейства.
  *
- * Checked before `isModule` in `register()`: a module is recognized by a string
- * `name`, which a family definition does not have, but the explicit ordering
- * keeps that heuristic from ever seeing family definitions.
+ * В `register()` вызывается раньше `isModule`: модуль узнаётся по
+ * строковому `name`, и эта проверка не должна видеть рецепт семейства.
  *
- * @param item - The item to check
- * @returns true if the item is a FamilyProviderDefinition
+ * @param item - Проверяемое значение
+ * @returns `true`, если это `FamilyProviderDefinition`
  */
 export const isFamilyDefinition = (
   item: unknown,
@@ -318,35 +303,32 @@ export const isFamilyDefinition = (
   isTokenFamily((item as FamilyProviderDefinition<any, any>).family);
 
 /**
- * Anything a module's `providers` accepts - an ordinary provider or a family recipe.
+ * Элемент `providers` модуля: обычный провайдер или рецепт семейства.
  *
- * @template T - The type of the provided value
+ * @template T - Тип значения
  */
 export type ModuleProvider<T = unknown> =
   | Provider<T>
   | FamilyProviderDefinition<any, any>;
 
 /**
- * A providers factory - a function that returns an array of providers.
+ * Фабрика провайдеров модуля: функция, возвращающая массив провайдеров.
  *
- * Used for lazy loading of providers in modules. Supports both
- * synchronous and asynchronous factories, and may return family recipes
- * alongside ordinary providers.
+ * Вызывается в `build()`. Может быть асинхронной и возвращать рецепты
+ * семейств наряду с обычными провайдерами.
  *
- * @template T - The type of provided values
+ * @template T - Тип значений
  */
 export type ProvidersFactory<T = unknown> = () =>
   | ModuleProvider<T>[]
   | Promise<ModuleProvider<T>[]>;
 
 /**
- * Type guard to check if an object is a provider definition.
+ * Проверяет, что провайдер — явное определение, а не класс.
  *
- * Distinguishes explicit provider definitions from classes.
- *
- * @template T - The type of the provider
- * @param obj - The object to check
- * @returns true if the object is a ProviderDefinition
+ * @template T - Тип значения
+ * @param obj - Проверяемое значение
+ * @returns `true`, если это `ProviderDefinition`
  */
 export const isDefinition = <T>(
   obj: Provider<T>,
@@ -354,33 +336,33 @@ export const isDefinition = <T>(
   typeof obj === 'object' && obj !== null && 'provide' in obj;
 
 /**
- * Type guard to check if a definition is a class provider.
+ * Проверяет, что определение — провайдер класса.
  *
- * @template T - The type of the provider
- * @param definition - The provider definition to check
- * @returns true if the definition is a ClassProviderDefinition
+ * @template T - Тип значения
+ * @param definition - Проверяемое определение
+ * @returns `true`, если это `ClassProviderDefinition`
  */
 export const isClassDefinition = <T>(
   definition: ProviderDefinition<T>,
 ): definition is ClassProviderDefinition<T> => 'useClass' in definition;
 
 /**
- * Type guard to check if a definition is a value provider.
+ * Проверяет, что определение — провайдер значения.
  *
- * @template T - The type of the provider
- * @param provider - The provider definition to check
- * @returns true if the definition is a ValueProviderDefinition
+ * @template T - Тип значения
+ * @param provider - Проверяемое определение
+ * @returns `true`, если это `ValueProviderDefinition`
  */
 export const isValueDefinition = <T>(
   provider: ProviderDefinition<T>,
 ): provider is ValueProviderDefinition<T> => 'useValue' in provider;
 
 /**
- * Type guard to check if a definition is a factory provider.
+ * Проверяет, что определение — фабричный провайдер.
  *
- * @template T - The type of the provider
- * @param provider - The provider definition to check
- * @returns true if the definition is a FactoryProviderDefinition
+ * @template T - Тип значения
+ * @param provider - Проверяемое определение
+ * @returns `true`, если это `FactoryProviderDefinition`
  */
 export const isFactoryProvider = <T>(
   provider: ProviderDefinition<T>,

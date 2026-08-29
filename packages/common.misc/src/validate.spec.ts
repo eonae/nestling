@@ -4,7 +4,7 @@ import {
   SchemaValidationError,
 } from './errors.js';
 // Спека — единственная зависимость пакета, и она types-only: потребителям
-// тип приезжает реэкспортом отсюда, ставить `@standard-schema/spec` не нужно.
+// тип приходит реэкспортом отсюда, ставить `@standard-schema/spec` не нужно.
 import type { Infer, Schema, StandardSchemaV1 } from './types.js';
 import { validateSync } from './validate.js';
 
@@ -22,7 +22,7 @@ type Equal<A, B> =
 const assertType = <T extends true>(assertion: T): T => assertion;
 
 /**
- * Сигнатура потребителя: тип `Schema` приезжает реэкспортом из `@common/misc`,
+ * Сигнатура потребителя: тип `Schema` приходит реэкспортом из `@common/misc`,
  * пакет `@standard-schema/spec` в зависимостях этого пакета не значится.
  */
 const describeSchema = (schema: Schema): string => schema['~standard'].vendor;
@@ -105,7 +105,7 @@ describe('validateSync — issues', () => {
     } catch (error) {
       const { issues } = error as SchemaValidationError;
 
-      // Проверяется именно JSON-сериализуемость (issues уезжают в тело
+      // Проверяется именно JSON-сериализуемость (issues попадают в тело
       // HTTP-ответа), поэтому structuredClone здесь не заменяет round-trip.
       // eslint-disable-next-line unicorn/prefer-structured-clone
       expect(JSON.parse(JSON.stringify(issues))).toEqual([

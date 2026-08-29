@@ -1,6 +1,6 @@
 import {
-  createTestApp,
   closeTestApp,
+  createTestApp,
   type TestAppContext,
 } from './helpers/create-test-app';
 import { HttpClient } from './helpers/http-client';
@@ -24,11 +24,16 @@ describe('Streaming (E2E)', () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get('content-type')).toBe('application/x-ndjson');
-      expect(response.headers.get('content-disposition')).toContain('users.ndjson');
+      expect(response.headers.get('content-disposition')).toContain(
+        'users.ndjson',
+      );
 
-      // Читаем stream
+      // Читаем поток ответа целиком.
       const text = await response.text();
-      const lines = text.trim().split('\n').filter((line) => line.length > 0);
+      const lines = text
+        .trim()
+        .split('\n')
+        .filter((line) => line.length > 0);
 
       expect(lines.length).toBeGreaterThan(0);
 
@@ -99,4 +104,3 @@ describe('Streaming (E2E)', () => {
     });
   });
 });
-

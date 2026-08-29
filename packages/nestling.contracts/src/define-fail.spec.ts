@@ -4,10 +4,10 @@
  * фабрики вызова живут внутри теста: они замыкают его фикстуры */
 /* eslint-disable unicorn/prefer-structured-clone --
  * JSON round-trip здесь и есть предмет проверки: structuredClone сохранил бы
- * прототип, а тест ровно про то, что отказ переживает провод без него */
+ * прототип, а тест проверяет, что отказ переживает сериализацию без него */
 /**
- * `defineFail`: определение как значение, детали по схеме, идентичность
- * по коду и kernel-набор.
+ * `defineFail`: определение как значение, проверка деталей схемой,
+ * распознавание по коду и коды ядра.
  */
 
 import { defineFail, isFailDefinition } from './define-fail.js';
@@ -80,13 +80,13 @@ describe('defineFail — конструирование', () => {
 });
 
 describe('defineFail — валидация деталей', () => {
-  it('детали не прошли схему → ошибка, называющая код отказа', () => {
+  it('детали не прошли схему: ошибка называет код отказа', () => {
     const call = () => (OrderNotFound as unknown as (d: unknown) => Fail)({});
 
     expect(call).toThrow(/ORDER_NOT_FOUND/);
   });
 
-  it('трансформации схемы применяются: в отказ едет выход схемы', () => {
+  it('трансформации схемы применяются: в отказ попадает выход схемы', () => {
     const Trimmed = defineFail('TRIMMED', {
       status: 'BAD_REQUEST',
       details: z.object({ name: z.string().trim() }),
@@ -135,7 +135,7 @@ describe('defineFail — идентичность по коду', () => {
   });
 });
 
-describe('kernel-коды', () => {
+describe('коды ядра', () => {
   it('UnknownError и ValidationFailed — обычные определения ядра', () => {
     expect(UnknownError.code).toBe('UNKNOWN');
     expect(UnknownError.status).toBe('INTERNAL_ERROR');
@@ -156,7 +156,7 @@ describe('kernel-коды', () => {
     expect(DeadlineExceeded.code).toBe('DEADLINE_EXCEEDED');
     expect(DeadlineExceeded.status).toBe('TIMEOUT');
 
-    // Деталей у него нет: бюджет уже назван статусом и кодом
+    // Деталей нет: статуса и кода достаточно
     expect(DeadlineExceeded.schema).toBeUndefined();
     expect(DeadlineExceeded().details).toBeUndefined();
   });
@@ -172,15 +172,15 @@ describe('kernel-коды', () => {
     expect(isKernelFailCode('DEADLINE_EXCEEDED')).toBe(true);
     expect(isKernelFailCode(Mine.code)).toBe(false);
 
-    // Пометить своё определение встроенным нечем: публичная поверхность
-    // не даёт ни функции регистрации, ни поля в словаре `defineFail`
+    // Сделать своё определение кодом ядра нельзя: нет ни функции
+    // регистрации, ни поля в спецификации `defineFail`
     const marked = defineFail('MY_KERNEL_CODE', {
       status: 'TIMEOUT',
       message: 'mine',
     });
     expect(isKernelFailCode(marked.code)).toBe(false);
 
-    // Ответ без кода (анонимный отказ) встроенным не считается
+    // Ответ без кода (анонимный отказ) кодом ядра не считается
     const noCode: string | undefined = undefined;
     expect(isKernelFailCode(noCode)).toBe(false);
   });

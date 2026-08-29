@@ -96,7 +96,7 @@ export interface BusBindingBearer {
 /**
  * Читает биндинг с декларации или проекции маршрута.
  *
- * `undefined` означает «эта декларация не про шину»: у ручки чужого
+ * `undefined` означает «эта декларация не про шину»: у endpoint'а чужого
  * транспорта биндинг чужой, и путать их нельзя.
  */
 export function busBindingOf(bearer: BusBindingBearer): BusBinding | undefined {

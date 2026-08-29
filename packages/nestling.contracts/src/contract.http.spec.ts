@@ -1,6 +1,6 @@
 /**
- * Секция `http:` контракта: две формы записи, разворачивание в bind-карту в
- * момент создания значения, fail-fast словаря и невмешательство в шину.
+ * Секция `http` контракта: две формы записи, вычисление bind-карты при
+ * создании, проверки и независимость от шины.
  */
 
 import { body, computeHttpBinding, query } from './http/binding.js';
@@ -19,7 +19,7 @@ const User = z.object({
 
 const Activity = z.object({ kind: z.string() });
 
-/** Уникальное имя на вызов: имя контракта — адрес, и он занимается один раз */
+/** Уникальное имя на каждый вызов: имя контракта регистрируется один раз */
 let counter = 0;
 const uniqueName = (prefix: string): string =>
   `${prefix}.${(counter += 1).toString()}`;
@@ -93,8 +93,8 @@ const create = (http: unknown, extra: Record<string, unknown> = {}) =>
     ...extra,
   } as never);
 
-describe('секция http: fail-fast словаря', () => {
-  it('битая строковая форма называет контракт и ожидаемую запись', () => {
+describe('секция http: проверки при создании', () => {
+  it('некорректная строковая форма называет контракт и ожидаемую запись', () => {
     expect(() => create('POST')).toThrow(
       /Contract 'http\.broken\.\d+': the string form of 'http' must be '<METHOD> <path>'/,
     );
@@ -264,10 +264,9 @@ describe('карта контракта совпадает с картой од�
       where: `httpEndpoint({ method: '${method}', path: '${path}' })`,
     });
 
-    // Имя владельца из сравнения вычитается намеренно: оно не часть правила
-    // размещения. У анонимной декларации владельца-контракта нет, а карта
-    // контракта его несёт — из него генератор документации выводит
-    // `operationId`.
+    // Имя контракта исключено из сравнения: оно не часть правила
+    // размещения. У анонимной декларации его нет, а карта контракта хранит
+    // его для генератора документации.
     const { contract: owner, ...placement } = Contract.http ?? {};
 
     expect(owner).toBe(Contract.name);
@@ -275,7 +274,7 @@ describe('карта контракта совпадает с картой од�
   });
 });
 
-describe('http: ничего не меняет в контракте шины', () => {
+describe('секция http не меняет контракт шины', () => {
   const EmailTaken = defineFail('HTTP_SPEC_EMAIL_TAKEN', {
     status: 'CONFLICT',
     message: 'Email already taken',

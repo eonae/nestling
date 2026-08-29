@@ -1,9 +1,9 @@
 /**
- * Способности транспорта: проверка биндинга формы против того, что транспорт
- * умеет принимать и отдавать.
+ * Возможности транспорта: проверка формы декларации против того, что
+ * транспорт умеет принимать и отдавать.
  *
- * Fail-fast форм в конструкторе декларации проверяется там, где живёт сам
- * конструктор, — `@nestling/pipeline`, `metadata/endpoint.form-slots.spec.ts`.
+ * Проверки форм в конструкторе декларации живут рядом с конструктором:
+ * `@nestling/pipeline`, `metadata/endpoint.form-slots.spec.ts`.
  */
 
 import type { TransportCapabilities } from './capabilities.js';
@@ -49,7 +49,7 @@ describe('assertFormsSupported', () => {
     ).not.toThrow();
   });
 
-  it('называет ручку, транспорт, слот, форму и список поддерживаемых', () => {
+  it('называет endpoint, транспорт, слот, форму и список поддерживаемых', () => {
     expect(() =>
       assertFormsSupported(definition(undefined, stream(Row)), BUS_LIKE),
     ).toThrow(

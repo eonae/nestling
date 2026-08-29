@@ -4,10 +4,11 @@ import type { DIGraph, DINode, JsonDIGraph } from '../graph';
 import type { VisitCallback, VisitOptions } from '@common/graphs';
 
 /**
- * Built DI container with access to instantiated services.
+ * Собранный контейнер с созданными экземплярами.
  *
- * This container is immutable and only allows getting instances,
- * running lifecycle hooks, and traversing the dependency graph.
+ * Контейнер неизменяем: он отдаёт экземпляры, выполняет хуки жизненного
+ * цикла и обходит граф зависимостей. Регистрировать что-то после сборки
+ * нельзя.
  *
  * @example
  * ```typescript
@@ -24,7 +25,7 @@ export class BuiltContainer {
   readonly #graph: DIGraph;
   readonly #pruned: readonly string[];
 
-  /** Start hooks run once per application run, not once per `start()` call */
+  /** Хуки `@OnStart` выполняются один раз, а не при каждом `start()` */
   #started = false;
 
   constructor(graph: DIGraph, pruned: readonly string[] = []) {
@@ -33,29 +34,28 @@ export class BuiltContainer {
   }
 
   /**
-   * Ids of the nodes dropped as subtrees orphaned by an `overrides`
-   * substitution.
+   * Идентификаторы узлов, удалённых как поддеревья, осиротевшие после
+   * подмены из `overrides`.
    *
-   * Empty on any build without `overrides` - pruning is the identity there.
-   * Exposed because "why did my `@OnInit` not run" deserves an answer in data
-   * rather than in the sources.
+   * Без `overrides` список пуст. Он нужен, чтобы на вопрос «почему мой
+   * `@OnInit` не выполнился» отвечали данные, а не чтение исходников.
    */
   get pruned(): readonly string[] {
     return this.#pruned;
   }
 
   /**
-   * Initializes all services by calling their @OnInit hooks.
+   * Выполняет хуки `@OnInit` всех провайдеров.
    *
-   * Hooks are called in topological order: dependencies first,
-   * then services that depend on them.
+   * Порядок топологический: сначала зависимости, потом те, кто от них
+   * зависит.
    *
-   * @throws {Error} If any of the hooks throws an error
+   * @throws {Error} Если любой хук бросил ошибку
    *
    * @example
    * ```typescript
    * const container = await builder.build();
-   * await container.init(); // Calls all @OnInit hooks
+   * await container.init(); // все хуки @OnInit
    * ```
    */
   async init(): Promise<void> {
@@ -68,21 +68,20 @@ export class BuiltContainer {
   }
 
   /**
-   * Starts all services by calling their @OnStart hooks.
+   * Выполняет хуки `@OnStart` всех провайдеров.
    *
-   * Hooks are called in topological order — the same machinery as `init()`,
-   * so a start hook still sees its dependencies started first. The phase
-   * itself runs after `init()` of the *whole* graph and after wiring, which
-   * is what distinguishes it from `@OnInit`.
+   * Порядок топологический, как в `init()`: хук видит свои зависимости
+   * уже запущенными. Сама фаза идёт после `init()` всего графа и после
+   * WIRE; этим `@OnStart` отличается от `@OnInit`.
    *
-   * Idempotent: a repeated call runs nothing.
+   * Повторный вызов ничего не делает.
    *
-   * @throws {Error} If any of the hooks throws an error
+   * @throws {Error} Если любой хук бросил ошибку
    *
    * @example
    * ```typescript
    * await container.init();
-   * await container.start(); // Calls all @OnStart hooks
+   * await container.start(); // все хуки @OnStart
    * ```
    */
   async start(): Promise<void> {
@@ -100,16 +99,16 @@ export class BuiltContainer {
   }
 
   /**
-   * Destroys all services by calling their @OnDestroy hooks.
+   * Выполняет хуки `@OnDestroy` всех провайдеров.
    *
-   * Hooks are called in reverse topological order: services first,
-   * then their dependencies.
+   * Порядок обратный топологическому: сначала зависимые, потом их
+   * зависимости.
    *
-   * @throws {Error} If any of the hooks throws an error
+   * @throws {Error} Если любой хук бросил ошибку
    *
    * @example
    * ```typescript
-   * await container.destroy(); // Calls all @OnDestroy hooks
+   * await container.destroy(); // все хуки @OnDestroy
    * ```
    */
   async destroy(): Promise<void> {
@@ -122,15 +121,16 @@ export class BuiltContainer {
   }
 
   /**
-   * Gets a service instance from the container by token.
+   * Возвращает экземпляр по токену.
    *
-   * Never throws: if the token is not registered, returns `null`.
-   * Note that a registered `null`/`undefined` value is indistinguishable
-   * from an unregistered token; use {@link getOrThrow} to assert presence.
+   * Не бросает ошибок: для незарегистрированного токена возвращает `null`.
+   * Зарегистрированное значение `null` или `undefined` неотличимо от
+   * незарегистрированного токена; чтобы проверить наличие, используйте
+   * {@link getOrThrow}.
    *
-   * @template T - The type of the requested instance
-   * @param token - The service token (class or string token)
-   * @returns The service instance, or `null` if the token is not registered
+   * @template T - Тип экземпляра
+   * @param token - Токен: класс или строковый токен
+   * @returns Экземпляр или `null`, если токен не зарегистрирован
    *
    * @example
    * ```typescript
@@ -147,15 +147,15 @@ export class BuiltContainer {
   }
 
   /**
-   * Gets a service instance from the container by token, throwing if absent.
+   * Возвращает экземпляр по токену или бросает ошибку.
    *
-   * Presence is determined by token registration, not by the instance value:
-   * registered falsy values (`0`, `''`, `false`) are returned as is.
+   * Наличие определяется регистрацией токена, а не значением:
+   * зарегистрированные `0`, `''` и `false` возвращаются как есть.
    *
-   * @template T - The type of the requested instance
-   * @param token - The service token (class or string token)
-   * @returns The service instance
-   * @throws {Error} If the token is not registered in the container
+   * @template T - Тип экземпляра
+   * @param token - Токен: класс или строковый токен
+   * @returns Экземпляр
+   * @throws {Error} Если токен не зарегистрирован
    *
    * @example
    * ```typescript
@@ -174,10 +174,10 @@ export class BuiltContainer {
   }
 
   /**
-   * Traverses the dependency graph, executing the callback for each node.
+   * Обходит граф зависимостей, вызывая `callback` для каждого узла.
    *
-   * @param callback - Function to call for each node
-   * @param options - Traversal options (direction, filters, etc.)
+   * @param callback - Функция, вызываемая для каждого узла
+   * @param options - Опции обхода: направление, фильтры
    */
   async traverse(
     callback: VisitCallback<DINode>,
@@ -187,11 +187,9 @@ export class BuiltContainer {
   }
 
   /**
-   * Converts the dependency graph to JSON format.
+   * Возвращает граф зависимостей в виде JSON — для визуализации и анализа.
    *
-   * Used for visualization and analysis of the dependency structure.
-   *
-   * @returns JSON representation of the dependency graph
+   * @returns JSON-представление графа
    */
   async toJSON(): Promise<JsonDIGraph> {
     return await this.#graph.toJSON();

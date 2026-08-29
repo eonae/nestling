@@ -1,21 +1,16 @@
 /**
- * Типизированные ошибки входа HTTP-транспорта.
+ * Ошибки входа HTTP-транспорта.
  *
- * Позволяют верхнему catch в `HttpTransport.handle` различать ошибки клиента
- * (битый JSON, превышение лимита) и отвечать корректным статусом (400/413)
- * вместо 500, не раскрывая внутренних деталей.
- *
- * Класса «конфликт источников payload» здесь нет и не будет: payload
- * собирается strict-приёмом по bind-карте, у каждого поля ровно одно
- * каноническое место — соревноваться источникам не за что.
- *
- * Сообщения этих ошибок безопасны для отправки клиенту: они описывают
- * некорректный ввод, а не внутреннее состояние сервера.
+ * По ним `HttpTransport.handle` отличает ошибки клиента (битый JSON,
+ * превышение лимита) от внутренних и отвечает статусом 400 или 413
+ * вместо 500. Сообщения этих ошибок можно отдавать клиенту: они
+ * описывают некорректный ввод, а не состояние сервера.
  */
 
 /**
  * Тело запроса не является валидным JSON.
- * → `400 Bad Request`, тело `{ "error": "Invalid JSON body" }`.
+ *
+ * Ответ: `400 Bad Request`, тело `{ "error": "Invalid JSON body" }`.
  */
 export class JsonParseError extends Error {
   constructor(options?: { cause?: unknown }) {
@@ -26,7 +21,8 @@ export class JsonParseError extends Error {
 
 /**
  * Буферизуемое тело запроса превысило `maxBodySize`.
- * → `413 Payload Too Large`, тело `{ "error": "Payload too large" }`.
+ *
+ * Ответ: `413 Payload Too Large`, тело `{ "error": "Payload too large" }`.
  */
 export class PayloadTooLargeError extends Error {
   constructor(public readonly limit: number) {
@@ -36,8 +32,9 @@ export class PayloadTooLargeError extends Error {
 }
 
 /**
- * Одна строка NDJSON-стрима превысила `maxBodySize`.
- * → `413 Payload Too Large` (если ответ ещё не начат).
+ * Одна строка NDJSON-потока превысила `maxBodySize`.
+ *
+ * Ответ: `413 Payload Too Large`, если ответ ещё не начат.
  */
 export class ChunkTooLargeError extends Error {
   constructor(public readonly limit: number) {
@@ -48,11 +45,9 @@ export class ChunkTooLargeError extends Error {
 
 /**
  * Multipart-запрос не соответствует форме декларации: незаявленное
- * файловое поле, неверный MIME, второй файл в single-поле.
- * → `400 Bad Request`; сообщение называет поле и правило.
+ * файловое поле, неверный MIME, второй файл в одиночном поле.
  *
- * Молча брать первый (или последний) файл транспорт не будет: форма —
- * контракт, а не подсказка.
+ * Ответ: `400 Bad Request`; сообщение называет поле и правило.
  */
 export class MultipartFieldError extends Error {
   constructor(message: string) {

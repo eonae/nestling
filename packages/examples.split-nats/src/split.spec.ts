@@ -81,7 +81,7 @@ describe('split-развёртывание через NATS', () => {
       expect.arrayContaining(['orders.place', 'quotas.claim', 'orders.placed']),
     );
 
-    // Провозимый арендатор доехал до **следующего** hop'а: процесс заказов
+    // Провозимый арендатор дошёл до **следующего** hop'а: процесс заказов
     // спроецировал его штатным `propagated()`, а вызыватель собрал из
     // ячейки этого запроса и положил в конверт сам
     expect(tenantOf(broker, 'quotas.claim')).toBe('acme');
@@ -98,7 +98,7 @@ describe('split-развёртывание через NATS', () => {
     await topology.close();
   });
 
-  it('L3: те же декларации одним процессом', async () => {
+  it('L3: те же декларации работают в одном процессе', async () => {
     const broker = new NatsDouble();
     const topology = await run(broker, 'all');
     const outside = await driver(broker);

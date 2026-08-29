@@ -6,8 +6,8 @@
  * `await using` → SHUTDOWN.
  *
  * Здесь же проверяются два отрицательных утверждения, ради которых слой и
- * модуль сделаны именно так: ручка со слоем, но без модуля не собирается, и
- * два значения модуля в одном корне роняют сборку.
+ * модуль сделаны именно так: endpoint со слоем, но без модуля не
+ * собирается, и два значения модуля в одном корне роняют сборку.
  */
 
 import { testTransport, TestTransport$ } from './__fixtures__/transport';
@@ -43,7 +43,7 @@ async function* ticks(signal: AbortSignal): AsyncIterableIterator<Tick> {
   }
 }
 
-/** Ручка-подписка: композирована от `tracked`, слушает свой сигнал */
+/** Endpoint-подписка: композирован от `tracked`, слушает свой сигнал */
 const Ticks = makeEndpoint({
   transport: TestTransport$,
   pattern: 'ticks:watch',
@@ -80,7 +80,7 @@ const Feed = makeEndpoint({
     },
 });
 
-/** Поток из ответа границы: у `events`-ручки значение — итератор */
+/** Поток из ответа границы: у `events`-endpoint'а значение — итератор */
 function streamOf<T>(response: unknown): AsyncIterableIterator<T> {
   return (response as { value: AsyncIterableIterator<T> }).value;
 }
@@ -194,7 +194,7 @@ describe('subscriptions(): реестр в собранном приложени
     const watching = await app.call(Feed);
     const feed = streamOf<FeedEvent>(watching);
 
-    // Ручка живого просмотра трекается наравне с прочими
+    // Endpoint живого просмотра трекается наравне с прочими
     expect(registry.list({ pattern: 'subscriptions:watch' })).toHaveLength(1);
 
     const ticks = await app.call(Ticks);

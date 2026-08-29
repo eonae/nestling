@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function */
 /**
- * Типовые тесты для Pipeline v2 (фазы, слои, compose, TNeeds)
+ * Типовые тесты для Pipeline v2: фазы, слои, compose, TNeeds.
  *
  * Проверяют, что:
- * 1. Input-поля корректно накапливаются pre-трактом (монотонно)
- * 2. Неправильные комбинации вызывают ошибки компиляции
- * 3. Type-state билдера: pre недоступен после ответных методов
- * 4. Честная типизация ctx по фазам (полный / Partial)
- * 5. compose проверяет требования слоёв в точке композиции
- * 6. TNeeds: класс-юнит блокирует исполнение до bind()
+ * 1. input-поля корректно накапливаются pre-юнитами (монотонно).
+ * 2. Неправильные комбинации вызывают ошибки компиляции.
+ * 3. Type-state билдера: pre недоступен после ответных методов.
+ * 4. Ctx по фазам типизирован честно: полный или Partial.
+ * 5. compose проверяет требования слоёв в точке композиции.
+ * 6. TNeeds: класс-юнит блокирует исполнение до bind().
  */
 
 // Публичная поверхность пакета: `AfterUnitFn` удалён вместе с фазой `.after`
@@ -76,7 +76,7 @@ type Equal<A, B> =
     : false;
 type Expect<T extends true> = T;
 
-// Helper для создания типизированных inline pre-юнитов
+// Создаёт типизированный inline pre-юнит
 function addField<T extends Record<string, unknown>>(
   value: T | (() => T | Promise<T>),
 ): PreUnitFn<AnyInput, T> {
@@ -94,11 +94,11 @@ function acceptsExecutable(_p: Pipeline<any, any, never>): void {
 }
 
 // ============================================================================
-// Накопление input pre-трактом
+// Накопление input `.pre`-юнитами
 // ============================================================================
 
-describe('Pipeline v2 — type accumulation', () => {
-  it('accumulates fields through pre chain', () => {
+describe('Pipeline v2 — накопление input pre-юнитами', () => {
+  it('накапливает поля через цепочку pre-юнитов', () => {
     const pipeline = makePipeline()
       .pre(withTiming)
       .pre(withRequestLogging(mockLogger))
@@ -117,7 +117,7 @@ describe('Pipeline v2 — type accumulation', () => {
     >;
   });
 
-  it('units may depend on previously added fields', () => {
+  it('юнит может использовать поле, добавленное предыдущим юнитом', () => {
     const pipeline = makePipeline()
       .pre(withIdentity<User>(mockAuthenticator))
       .pre(withPermissions<string[], User>(() => ['read']));
@@ -128,7 +128,7 @@ describe('Pipeline v2 — type accumulation', () => {
     >;
   });
 
-  it('rejects a unit whose requirements are not met yet', () => {
+  it('отклоняет юнит, чьи требования ещё не выполнены', () => {
     const pipeline = makePipeline();
 
     // identity ещё не добавлена — withPermissions требует её
@@ -136,14 +136,14 @@ describe('Pipeline v2 — type accumulation', () => {
     pipeline.pre(withPermissions<string[], User>(() => ['read']));
   });
 
-  it('rejects overriding a field with a different type', () => {
+  it('отклоняет переопределение поля другим типом', () => {
     const pipeline = makePipeline().pre(addField({ userId: 'abc' }));
 
-    // @ts-expect-error: Pre-unit is overriding fields in input
+    // @ts-expect-error: pre-юнит переопределяет поле input другим типом
     pipeline.pre(addField({ userId: 42 }));
   });
 
-  it('allows re-adding a field with the same type', () => {
+  it('разрешает повторно добавить поле того же типа', () => {
     const pipeline = makePipeline().pre(withTiming).pre(withTiming);
 
     type Acc = InferAcc<typeof pipeline>;
@@ -152,7 +152,7 @@ describe('Pipeline v2 — type accumulation', () => {
     >;
   });
 
-  it('base pipeline is immutable and reusable', () => {
+  it('базовый пайплайн иммутабелен и переиспользуется', () => {
     const base = makePipeline().pre(withTiming);
 
     const withAuth = base.pre(withIdentity<User>(mockAuthenticator));
@@ -178,8 +178,8 @@ describe('Pipeline v2 — type accumulation', () => {
 // Type-state билдера
 // ============================================================================
 
-describe('Pipeline v2 — builder type-state', () => {
-  it('pre is not available after a response-phase method', () => {
+describe('Pipeline v2 — типовое состояние билдера', () => {
+  it('pre недоступен после ответного метода', () => {
     const phased = makePipeline()
       .pre(withTiming)
       .catch(() => {});
@@ -187,13 +187,13 @@ describe('Pipeline v2 — builder type-state', () => {
     expect(() => {
       // @ts-expect-error: pre отсутствует после ответного метода
       phased.pre(withRequestId());
-      // Текст guard'а перечисляет актуальный словарь ответных методов
+      // Сообщение ошибки перечисляет актуальный список ответных методов
     }).toThrow(
       'pre() is not available after a response-phase method (.ok/.catch/.finally)',
     );
   });
 
-  it('response methods stay available after each other', () => {
+  it('ответные методы остаются доступны друг после друга', () => {
     const pipeline = makePipeline()
       .pre(withTiming)
       .ok(() => {})
@@ -203,9 +203,9 @@ describe('Pipeline v2 — builder type-state', () => {
     acceptsExecutable(pipeline);
   });
 
-  it('after is no longer part of the builder', () => {
+  it('after больше не входит в билдер', () => {
     expect(() => {
-      // @ts-expect-error: метод .after удалён из словаря ответного тракта
+      // @ts-expect-error: метод .after удалён из списка ответных методов
       makePipeline().after(() => {});
     }).toThrow(TypeError);
   });
@@ -215,8 +215,8 @@ describe('Pipeline v2 — builder type-state', () => {
 // Честная типизация ctx по фазам
 // ============================================================================
 
-describe('Pipeline v2 — phase ctx typing', () => {
-  it('ok sees the full accumulated ctx', () => {
+describe('Pipeline v2 — типизация ctx по фазам', () => {
+  it('ok видит весь накопленный ctx', () => {
     makePipeline()
       .pre(withIdentity<User>(mockAuthenticator))
       .pre(withRequestId())
@@ -228,7 +228,7 @@ describe('Pipeline v2 — phase ctx typing', () => {
       });
   });
 
-  it('catch and finally see own-layer fields as Partial', () => {
+  it('catch и finally видят поля своего слоя как Partial', () => {
     makePipeline()
       .pre(withIdentity<User>(mockAuthenticator))
       .catch((error, ctx) => {
@@ -246,7 +246,7 @@ describe('Pipeline v2 — phase ctx typing', () => {
       });
   });
 
-  it('layer requirements (TReq) are guaranteed on the response track', () => {
+  it('требования слоя (TReq) гарантированы в ответной фазе', () => {
     makePipeline<{ requestId: string }>()
       .pre(withIdentity<User>(mockAuthenticator))
       .catch((error, ctx) => {
@@ -260,7 +260,7 @@ describe('Pipeline v2 — phase ctx typing', () => {
       });
   });
 
-  it('ok cannot return an error response, catch cannot return success', () => {
+  it('ok не может вернуть ответ с ошибкой, catch не может вернуть успех', () => {
     makePipeline()
       .pre(withTiming)
       // @ts-expect-error: ok-юнит не может вернуть ошибку
@@ -286,7 +286,7 @@ describe('Pipeline v2 — phase ctx typing', () => {
 // ============================================================================
 
 describe('Pipeline v2 — compose', () => {
-  it('composes layers and merges accumulated input', () => {
+  it('compose объединяет слои и их накопленный input', () => {
     const base = makePipeline().pre(withRequestId());
     const authed = makePipeline<{ requestId: string }>().pre(
       withIdentity<User>(mockAuthenticator),
@@ -303,7 +303,7 @@ describe('Pipeline v2 — compose', () => {
     acceptsExecutable(composed);
   });
 
-  it('rejects composition when inner requirements are not satisfied', () => {
+  it('отклоняет композицию, если требования внутреннего слоя не выполнены', () => {
     const base = makePipeline().pre(withTiming);
     const needsIdentity = makePipeline<{ identity: User }>().pre(
       withRequestId(),
@@ -313,7 +313,7 @@ describe('Pipeline v2 — compose', () => {
     compose(base, needsIdentity);
   });
 
-  it('three-layer composition checks requirements transitively', () => {
+  it('композиция трёх слоёв проверяет требования транзитивно', () => {
     const base = makePipeline().pre(withRequestId());
     const authed = makePipeline<{ requestId: string }>().pre(
       withIdentity<User>(mockAuthenticator),
@@ -334,7 +334,7 @@ describe('Pipeline v2 — compose', () => {
   // переписывания сигнатуры `compose` на прямой вывод (change #23) и
   // обязаны остаться зелёными после: они и есть страховка, что правка
   // горячей сигнатуры не поменяла наблюдаемые типы.
-  it('accumulates input across arities 2, 3 and 4', () => {
+  it('накапливает input на арностях 2, 3 и 4', () => {
     const base = makePipeline().pre(withRequestId());
     const authed = makePipeline<{ requestId: string }>().pre(
       withIdentity<User>(mockAuthenticator),
@@ -370,7 +370,7 @@ describe('Pipeline v2 — compose', () => {
     acceptsExecutable(four);
   });
 
-  it('unions deferred dependencies of all layers', () => {
+  it('объединяет отложенные зависимости всех слоёв', () => {
     const base = makePipeline().pre(withRequestId());
     const traced = makePipeline<{ requestId: string }>().pre(WithTracing);
 
@@ -386,7 +386,7 @@ describe('Pipeline v2 — compose', () => {
     type _Bound = Expect<Equal<BoundNeeds, never>>;
   });
 
-  it('handler meta of a composed pipeline carries the accumulated input', () => {
+  it('мета хендлера составленного пайплайна содержит накопленный input', () => {
     const base = makePipeline().pre(withRequestId());
     const authed = makePipeline<{ requestId: string }>()
       .pre(withIdentity<User>(mockAuthenticator))
@@ -413,7 +413,7 @@ describe('Pipeline v2 — compose', () => {
     expect(typeof use).toBe('function');
   });
 
-  it('keeps TReq of the outer layer on the result', () => {
+  it('сохраняет TReq внешнего слоя в результате', () => {
     const rawLayer = makePipeline<{ rawBody: Uint8Array }>().pre(withTiming);
     const inner = makePipeline<{ rawBody: Uint8Array; timestamp: number }>();
 
@@ -422,10 +422,11 @@ describe('Pipeline v2 — compose', () => {
     type Req = InferReq<typeof composed>;
     type _Req = Expect<Equal<Req, { rawBody: Uint8Array }>>;
 
-    // `TReq` едет на фантомном `$types` и ведёт себя **ковариантно**:
+    // `TReq` кодируется фантомным `$types` и ведёт себя **ковариантно**:
     // пайплайн с требованиями присваивается слоту без них. Именно поэтому
-    // транспорту недостаточно типизировать слот `pipeline?: Pipeline<Start, …>`
-    // и появился сторож `ValidateStart` (@nestling/transport.http).
+    // транспорту недостаточно типизировать слот
+    // `pipeline?: Pipeline<Start, …>`, и потребовалась отдельная проверка
+    // `ValidateStart` (@nestling/transport.http).
     const slot: Pipeline<EmptyInput, AnyInput, never> = composed;
 
     expect(slot).toBeDefined();
@@ -443,7 +444,7 @@ class WithTracing {
 }
 
 describe('Pipeline v2 — TNeeds', () => {
-  it('function and instance units keep the pipeline executable', () => {
+  it('функция и экземпляр класса в pre оставляют пайплайн исполнимым', () => {
     const pipeline = makePipeline().pre(withTiming).pre(new WithTracing());
 
     type Needs = InferNeeds<typeof pipeline>;
@@ -452,7 +453,7 @@ describe('Pipeline v2 — TNeeds', () => {
     acceptsExecutable(pipeline);
   });
 
-  it('class unit adds its constructor to TNeeds and blocks execution', () => {
+  it('класс-юнит добавляет свой конструктор в TNeeds и блокирует исполнение', () => {
     const pipeline = makePipeline().pre(WithTracing);
 
     type Needs = InferNeeds<typeof pipeline>;
@@ -465,7 +466,7 @@ describe('Pipeline v2 — TNeeds', () => {
     acceptsExecutable(pipeline);
   });
 
-  it('bind() resolves TNeeds to never', () => {
+  it('bind() разрешает TNeeds в never', () => {
     const pipeline = makePipeline().pre(WithTracing);
     const bound = pipeline.bind(() => new WithTracing());
 
@@ -480,15 +481,15 @@ describe('Pipeline v2 — TNeeds', () => {
 // Мета хендлера: накопленный input без payload + signal
 // ============================================================================
 
-describe('Pipeline v2 — handler meta typing', () => {
-  it('meta includes accumulated fields and guaranteed signal', async () => {
+describe('Pipeline v2 — типизация меты хендлера', () => {
+  it('мета включает накопленные поля и гарантированный signal', async () => {
     const pipeline = makePipeline()
       .pre(withIdentity<User>(mockAuthenticator))
       .pre(validate());
 
     type Acc = InferAcc<typeof pipeline>;
 
-    // Смоук: сигнатура executeWithHandler выводит meta из Acc
+    // Проверка типов: сигнатура executeWithHandler выводит meta из Acc
     const use = (): Promise<unknown> =>
       pipeline.executeWithHandler(
         (payload, meta) => {
@@ -499,7 +500,7 @@ describe('Pipeline v2 — handler meta typing', () => {
           >;
           return { ok: true };
         },
-        // Контекст в тестах создаётся транспортом; здесь только типовая проверка
+        // Контекст в тестах создаёт транспорт. Здесь только проверка типов
         undefined as unknown as ExtendableContext<Acc>,
       );
 

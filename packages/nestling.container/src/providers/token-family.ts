@@ -1,15 +1,15 @@
 import type { Constructor, InjectionToken, TokenString } from '../common';
 
 /**
- * A family of injection tokens - one recipe, many members addressed by a parameter.
+ * Семейство токенов: один рецепт, много членов, различаемых параметром.
  *
- * Calling the family returns an ordinary memoized {@link TokenString}, so a member
- * is usable everywhere a token is: `@Injectable` deps, factory provider deps,
- * `container.get()`. Members are materialized at build time (see `familyProvider`),
- * never resolved at runtime.
+ * Вызов семейства возвращает обычный мемоизированный {@link TokenString},
+ * поэтому член годится везде, где нужен токен: в `deps` у `@Injectable`
+ * и фабричного провайдера, в `container.get()`. Члены создаются на сборке
+ * (см. `familyProvider`), а не при обращении в рантайме.
  *
- * @template T - The type provided by every member of the family
- * @template Params - Member parameters; v1 supports exactly one string parameter
+ * @template T - Тип значения каждого члена семейства
+ * @template Params - Параметры члена; в V1 ровно один строковый параметр
  *
  * @example
  * ```typescript
@@ -22,90 +22,92 @@ export interface TokenFamily<
   T = unknown,
   Params extends [param: string] = [param: string],
 > {
-  /** Returns the memoized member token for the given parameter. */
+  /** Возвращает мемоизированный токен члена для параметра. */
   (...params: Params): TokenString<T>;
-  /** Family name - the prefix of every member token id. */
+  /** Имя семейства — префикс идентификатора каждого члена. */
   readonly familyName: string;
   /**
-   * Consumer-aware sentinel. `@Injectable([Family.auto])` records
-   * `Family('<DecoratedClassName>')` in the class metadata.
+   * Токен-заместитель «член по имени потребителя».
+   * `@Injectable([Family.auto])` записывает в метаданные класса
+   * `Family('<ИмяКласса>')`.
    *
-   * Only valid in deps of a class decorated with `@Injectable`.
+   * Разрешён только в `deps` класса с декоратором `@Injectable`.
    */
   readonly auto: TokenString<T>;
   /**
-   * Aggregate sentinel - multi-injection. Depending on `Family.all` makes
-   * `build()` create a synthetic node whose deps are every registered member of
-   * the family and whose instance is a frozen array of their instances.
+   * Токен-заместитель агрегата: все члены семейства одним массивом.
+   * Зависимость от `Family.all` заставляет `build()` создать узел, чьи
+   * зависимости — все зарегистрированные члены семейства, а значение —
+   * замороженный массив их экземпляров.
    *
-   * Valid in deps of any provider definition. The token is reserved: a
-   * hand-registered provider for it is a registration error.
+   * Разрешён в `deps` любого провайдера. Токен зарезервирован: провайдер,
+   * зарегистрированный под ним вручную, — ошибка регистрации.
    */
   readonly all: TokenString<readonly T[]>;
 }
 
 /**
- * A registered family member: which family it belongs to and with which parameter.
+ * Зарегистрированный член семейства: какому семейству принадлежит и с каким
+ * параметром создан.
  *
  * @internal
  */
 export interface FamilyMemberRef {
-  /** Name of the family that created the member token */
+  /** Имя семейства, создавшего токен члена */
   familyName: string;
-  /** The parameter the member was created with */
+  /** Параметр, с которым создан член */
   param: string;
 }
 
 /**
- * The parameter reserved for the `.auto` sentinel.
+ * Параметр, зарезервированный за токеном `.auto`.
  *
  * @internal
  */
 const AUTO_PARAM = '{auto}';
 
 /**
- * The parameter reserved for the `.all` aggregate sentinel.
+ * Параметр, зарезервированный за токеном агрегата `.all`.
  *
  * @internal
  */
 const ALL_PARAM = '{all}';
 
-/** All family values ever created - the identity check behind `isTokenFamily`. */
+/** Все созданные семейства; по этому набору работает `isTokenFamily`. */
 const families = new WeakSet<object>();
 
-/** Family names, used to suggest a family for a look-alike token id. */
+/** Имена семейств: подсказка для токена, похожего на члена семейства. */
 const familyNames = new Set<string>();
 
-/** Member token id -> family + parameter. Formalizes the hand-rolled registry pattern. */
+/** Идентификатор токена члена и его семейство с параметром. */
 const memberIndex = new Map<string, FamilyMemberRef>();
 
-/** `.auto` sentinel token id -> the family that owns it. */
+/** Идентификатор токена `.auto` и семейство, которому он принадлежит. */
 const sentinelIndex = new Map<string, TokenFamily<any, any>>();
 
 /**
- * `.all` sentinel token id -> the family that owns it.
+ * Идентификатор токена `.all` и семейство, которому он принадлежит.
  *
- * Deliberately separate from `memberIndex`: the aggregate is not a member, and
- * a `{all}` entry there would make member materialization treat it as one and
- * hand it to the family recipe.
+ * Хранится отдельно от `memberIndex` намеренно: агрегат — не член, и запись
+ * `{all}` в реестре членов заставила бы создание членов отдать его рецепту.
  */
 const allSentinelIndex = new Map<string, TokenFamily<any, any>>();
 
 /**
- * Creates a family of injection tokens.
+ * Создаёт семейство токенов.
  *
- * The returned value is a function: `Family(param)` produces the member token
- * `"<name>:<param>"`. Calls are memoized - the same parameter always yields the
- * same token and a single entry in the family's member registry.
+ * Результат — функция: `Family(param)` возвращает токен члена
+ * `"<name>:<param>"`. Вызовы мемоизированы: один и тот же параметр всегда
+ * даёт тот же токен и одну запись в реестре членов семейства.
  *
- * Members are ordinary tokens, but they are only recognized as family members
- * when created through the family. A look-alike token built with
- * `makeToken('Name:param')` is a different, unrelated token.
+ * Члены — обычные токены, но членами семейства считаются только созданные
+ * через семейство. Похожий токен, собранный вручную через
+ * `makeToken('Name:param')`, — другой, не связанный с семейством токен.
  *
- * @template T - The type provided by every member
- * @template Params - Member parameters; v1 supports exactly one string parameter
- * @param name - Family name; must not contain the member separator semantics you rely on
- * @returns The token family
+ * @template T - Тип значения каждого члена
+ * @template Params - Параметры члена; в V1 ровно один строковый параметр
+ * @param name - Имя семейства
+ * @returns Семейство токенов
  *
  * @example
  * ```typescript
@@ -169,19 +171,19 @@ export const makeTokenFamily = <
 };
 
 /**
- * Type guard: is the value a token family (as opposed to a token or a class)?
+ * Проверяет, что значение — семейство токенов, а не токен и не класс.
  *
- * @param value - The value to check
- * @returns true if the value was produced by {@link makeTokenFamily}
+ * @param value - Проверяемое значение
+ * @returns `true`, если значение создано {@link makeTokenFamily}
  */
 export const isTokenFamily = (value: unknown): value is TokenFamily<any, any> =>
   typeof value === 'function' && families.has(value);
 
 /**
- * Looks up the family membership of a token id.
+ * Находит семейство и параметр по идентификатору токена члена.
  *
- * Membership comes from the family's own registry, not from parsing the id -
- * a token that merely looks like a member is not one.
+ * Членство берётся из реестра семейства, а не из разбора идентификатора:
+ * токен, лишь похожий на члена, членом не является.
  *
  * @internal
  */
@@ -190,7 +192,8 @@ export const lookupFamilyMember = (
 ): FamilyMemberRef | undefined => memberIndex.get(tokenId);
 
 /**
- * Returns the family owning the `.auto` sentinel, if the token is a sentinel.
+ * Возвращает семейство, которому принадлежит токен `.auto`, если токен —
+ * такой заместитель.
  *
  * @internal
  */
@@ -200,10 +203,12 @@ export const getAutoSentinelFamily = (
   typeof token === 'string' ? sentinelIndex.get(token) : undefined;
 
 /**
- * Returns the family owning the `.all` sentinel, if the token is one.
+ * Возвращает семейство, которому принадлежит токен `.all`, если токен —
+ * такой заместитель.
  *
- * The builder uses this both to decide which aggregate nodes to create and to
- * reject a hand-registered provider for the reserved token.
+ * Билдер использует это и чтобы решить, какие агрегаты создавать, и чтобы
+ * отклонить провайдер, зарегистрированный вручную под зарезервированным
+ * токеном.
  *
  * @internal
  */
@@ -213,8 +218,8 @@ export const getAllSentinelFamily = (
   typeof token === 'string' ? allSentinelIndex.get(token) : undefined;
 
 /**
- * Suggests a family for a token id that looks like a member but is not one
- * (typically a look-alike built with `makeToken`).
+ * Подбирает семейство для токена, который похож на члена, но членом не
+ * является (обычно собран вручную через `makeToken`).
  *
  * @internal
  */
@@ -230,10 +235,10 @@ export const suggestFamilyForToken = (tokenId: string): string | undefined => {
 };
 
 /**
- * Resolves a `.auto` sentinel to the member named after the consumer class.
+ * Заменяет токен `.auto` на члена, названного по классу-потребителю.
  *
- * Called by `@Injectable` at decoration time - the consumer is known statically,
- * so no runtime resolution is involved.
+ * Вызывается декоратором `@Injectable` в момент декорирования: потребитель
+ * известен статически, в рантайме ничего не вычисляется.
  *
  * @internal
  */

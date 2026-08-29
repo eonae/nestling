@@ -16,8 +16,8 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-describe('@nestling/client: package boundary', () => {
-  it('does not reach server code or node built-ins', () => {
+describe('@nestling/client: граница пакета', () => {
+  it('не импортирует серверный код и Node-специфику', () => {
     const violations = collectForbiddenImports({
       repoRoot: resolve(here, '../../..'),
       packageDir: resolve(here, '..'),

@@ -43,7 +43,7 @@ const CardDeclined = defineFail('CARD_DECLINED', {
 });
 
 describe('App.check() — фазы 0–1', () => {
-  it('строит граф, не выполняя @OnInit и не выходя в эфир', async () => {
+  it('строит граф, не выполняя @OnInit и не начиная принимать запросы', async () => {
     const events: string[] = [];
 
     @Injectable([])
@@ -102,7 +102,7 @@ describe('App.check() — фазы 0–1', () => {
     );
   });
 
-  it('называет выбранные фичи и обнаруженные ручки с транспортами', async () => {
+  it("называет выбранные фичи и обнаруженные endpoint'ы с транспортами", async () => {
     const Logging = makeFeature({
       name: 'logging',
       modules: [makeAppModule({ name: 'module:logging' })],
@@ -362,7 +362,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
       expect(process.listenerCount('SIGTERM')).toBe(before);
       expect(log).not.toHaveBeenCalled();
 
-      // Ручка адресуется идентичностью декларации, а не строкой паттерна
+      // Endpoint адресуется идентичностью декларации, а не строкой паттерна
       const endpoint = wired.endpoints.get(Ping);
       expect(endpoint?.moduleName).toBe('module:service');
       expect(endpoint?.dispatch.routes.map((route) => route.pattern)).toEqual([

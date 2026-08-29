@@ -2,10 +2,11 @@
  * `implement` — реализация контракта как обычная декларация-значение.
  *
  * Inbound-сторона порта уже существовала: «я обрабатываю контракт» это
- * буквально endpoint. Поэтому конструктор тонкий — тот же kernel-примитив
- * `makeEndpoint`, что у `httpEndpoint`/`cliEndpoint`, транспорт шины и
- * транспорт-специфичный биндинг. Всё остальное (дискавери, `dispatch`,
- * pipeline, страж границы, `policies`, `app.call`) достаётся даром.
+ * буквально endpoint. Поэтому конструктор тонкий: тот же примитив ядра
+ * `makeEndpoint`, что у `httpEndpoint`/`cliEndpoint`, плюс транспорт шины
+ * и транспорт-специфичный биндинг. Всё остальное (discovery, `dispatch`,
+ * pipeline, проверка на границе, `policies`, `app.call`) достаётся без
+ * дополнительного кода.
  */
 
 import { BusTransport$, makeBusBinding } from './transport.js';
@@ -107,7 +108,7 @@ function assertNoInterfaceOverride(
 /**
  * Fail-fast имени подписчика: обязательно ровно там, где подписчиков много.
  *
- * @returns Паттерн декларации: адрес ручки внутри процесса
+ * @returns Паттерн декларации: адрес endpoint'а внутри процесса
  */
 function patternOf(contract: AnyContract, subscriber: unknown): string {
   const kind = contract.kind as ContractKind;
@@ -229,7 +230,7 @@ export function implement(
       subject: contract.name,
       kind: contract.kind,
       ...(typeof subscriber === 'string' ? { subscriber } : {}),
-      // Долговечность приезжает из контракта и только из него: у реализации
+      // Долговечность берётся из контракта и только из него: у реализации
       // нет способа её объявить, потому что издатель в другом процессе о
       // такой декларации не узнал бы и опубликовал бы мимо потока
       ...(contract.durable === undefined ? {} : { durable: contract.durable }),

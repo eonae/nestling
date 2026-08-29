@@ -3,7 +3,7 @@
  *
  * Оба юнита — класс-формы: функциональная форма зависимостей не имеет, а
  * реестр это singleton графа. Класс резолвится контейнером на WIRE, поэтому
- * ручка со слоем, но без модуля `subscriptions({ … })` отказывает на
+ * endpoint со слоем, но без модуля `subscriptions({ … })` отказывает на
  * ASSEMBLE, а не на первом запросе.
  */
 
@@ -44,7 +44,7 @@ export class UntrackSubscription {
   handle(
     outcome: Outcome,
     _res: ResponseContext,
-    // Собственные поля слоя на ответном тракте — `Partial`: регистрация
+    // Собственные поля слоя в ответной фазе — `Partial`: регистрация
     // могла не случиться (внешний pre упал раньше). Тогда снимать нечего
     ctx: { input: { subscription?: TrackedSubscription } },
   ): void {
@@ -57,7 +57,7 @@ export class UntrackSubscription {
 }
 
 /**
- * Слой трекинга подписок — значение, композируемое на ручку.
+ * Слой трекинга подписок — значение, композируемое на endpoint.
  *
  * ```typescript
  * pipeline: compose(basePipeline, tracked)

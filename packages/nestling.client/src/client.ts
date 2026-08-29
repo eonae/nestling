@@ -3,7 +3,7 @@
  *
  * Клиент это **значение**: он ничего не регистрирует, не требует DI и не
  * зависит от серверного кода. Всё, что нужно для вызова — адрес, размещение
- * полей, схема ответа, множество отказов, — приезжает одним импортом
+ * полей, схема ответа, множество отказов, — приходит одним импортом
  * контракта.
  *
  * Call-site эквивалентен вызывателю контракта его вида: `request` даёт
@@ -171,7 +171,7 @@ async function resolveHeaders(
 /**
  * Композирует сигнал отмены из пользовательского и бюджетного.
  *
- * Бюджет — абсолютный момент, поэтому в таймер уезжает остаток, а не
+ * Бюджет — абсолютный момент, поэтому в таймер передаётся остаток, а не
  * исходная длительность: между вычислением бюджета и вызовом мог пройти
  * любой `await`.
  */
@@ -192,7 +192,7 @@ function composeSignal(meta: ClientMeta | undefined): AbortSignal | undefined {
   return signals.length === 1 ? signals[0] : AbortSignal.any(signals);
 }
 
-/** Тело ответа как JSON; пустое тело — `null`, не-JSON — ошибка */
+/** Тело ответа как JSON: пустое тело даёт `null`, не-JSON-тело — ошибка */
 async function readBody(response: Response): Promise<unknown> {
   const text = await response.text();
   return text.length === 0 ? null : JSON.parse(text);
@@ -293,7 +293,7 @@ function describeError(error: unknown): string {
  * контракта это адрес на шине, и превращать адрес в форму чужого API
  * значило бы навязывать её.
  *
- * @param record - «имя метода → контракт»
+ * @param record - `имя метода → контракт`
  * @param config - адрес сервиса, ambient-заголовки, `fetch`, валидация
  * @throws {TypeError} Контракт без `http:`, вид `event`, потоковая или
  * multipart-форма io, не-JSON тело, неабсолютный `baseUrl`

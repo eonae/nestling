@@ -19,8 +19,8 @@ describe('updateUserHandler', () => {
   });
 
   /**
-   * Зарезервированный ключ `meta.fail` инъецирует рантайм пайплайна;
-   * в юнит-тесте хендлера он подставляется руками — как и `signal`.
+   * Ключ `meta.fail` в проде добавляет рантайм пайплайна.
+   * В юнит-тесте хендлера его, как и `signal`, подставляют вручную.
    */
   const meta = {
     fail: (error: unknown): never => {
@@ -43,7 +43,7 @@ describe('updateUserHandler', () => {
   });
 
   describe('Ошибочные сценарии', () => {
-    it('meta.fail бросает UserNotFound если пользователь не найден', async () => {
+    it('`meta.fail` бросает UserNotFound, если пользователь не найден', async () => {
       userService.update.mockResolvedValue(null);
 
       await expect(
@@ -55,7 +55,7 @@ describe('updateUserHandler', () => {
       });
     });
 
-    it('meta.fail бросает EmailTaken (409) если email занят', async () => {
+    it('`meta.fail` бросает EmailTaken (409), если email занят', async () => {
       const existingUser = { id: '2', name: 'Bob', email: 'bob@test.com' };
       userService.findByEmail.mockResolvedValue(existingUser);
 
@@ -68,7 +68,7 @@ describe('updateUserHandler', () => {
       });
     });
 
-    it('meta.fail бросает NothingToUpdate если нет данных для обновления', async () => {
+    it('`meta.fail` бросает NothingToUpdate, если нет данных для обновления', async () => {
       await expect(handle({ id: '1' }, meta)).rejects.toMatchObject({
         status: 'BAD_REQUEST',
         code: NothingToUpdate.code,

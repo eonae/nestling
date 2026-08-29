@@ -1,22 +1,19 @@
 /**
- * `NatsBus` — шина приложения на брокере: `IMessageBus` наружу и
- * `ITransport` внутрь.
+ * `NatsBus` — шина приложения на брокере: снаружи `IMessageBus`, изнутри
+ * `ITransport`.
  *
- * Ровно та форма, которую заранее принял `InProcessBus`, и тот же токен
- * (`BusTransport$`): брокер не «добавляется» к in-proc шине, а **является**
- * ею. Отдельной сущности «messaging» рядом с «transports» не появляется —
- * дихотомия признана ложной ещё в дискуссии, и второй раз воскрешать её в
- * виде «локальная шина / сетевая шина» незачем.
+ * Использует ту же форму и тот же токен (`BusTransport$`), что и
+ * `InProcessBus`: брокер не добавляется к in-proc шине, а заменяет её.
  *
- * Фазовая раскладка (то, чем брокер отличается от темы в куче):
+ * Фазы жизненного цикла:
  *
- * - **INIT** — `connect()`: соединение это ресурс, и захватывается оно там,
- *   где захватываются ресурсы. К `@OnStart` исходящая сторона работает.
- * - **WIRE** — `attach(dispatch)`: маршруты запомнены, формы io проверены,
+ * - **INIT** — `connect()` захватывает соединение: оно ресурс, и к
+ *   `@OnStart` исходящая сторона уже работает.
+ * - **WIRE** — `attach(dispatch)` запоминает маршруты и проверяет формы io,
  *   подписок ещё нет.
- * - **START (go-live)** — `serve(dispatch, signal)`: подписки. Входящее
+ * - **START** — `serve(dispatch, signal)` создаёт подписки. Входящее
  *   сообщение не может застать незавершённый `@OnStart`.
- * - **SHUTDOWN** — `close()`/сигнал: дренаж. Неподтверждённые
+ * - **SHUTDOWN** — `close()` или сигнал запускают дренаж: неподтверждённые
  *   durable-сообщения возвращаются в поток и достаются другой реплике.
  */
 
@@ -97,11 +94,11 @@ const BUS_CAPABILITIES: TransportCapabilities = {
 const DEFAULT_MAX_DELIVER = 5;
 
 /**
- * Обработка **завершилась решением**.
+ * Проверяет, что обработка завершилась решением.
  *
- * Решение — это успех и любой отказ с кодом, кроме `UNKNOWN`: последний и
- * означает «решения не получилось», потому что именно в него страж границы
- * нормализует необработанное исключение.
+ * Решение — это успех или любой отказ с кодом, кроме `UNKNOWN`. Код
+ * `UNKNOWN` означает, что решения не получилось: в него необработанное
+ * исключение превращает проверка на границе пайплайна.
  */
 function isSettled(response: ResponseContext): boolean {
   return (
@@ -152,7 +149,10 @@ export interface NatsTransportOptions {
   /** Диагностический хук смены состояния соединения */
   onConnectionChange?: (info: NatsConnectionInfo) => void;
 
-  /** Диагностический хук стража границы для входящих сообщений */
+  /**
+   * Диагностический хук: необработанное исключение входящего сообщения
+   * стало отказом `UNKNOWN`
+   */
   onUnknownFail?: (info: UnknownFailInfo) => void;
 }
 
@@ -209,7 +209,7 @@ export class NatsBus implements IMessageBus, ITransport {
 
     this.#report({ state: 'connected' });
 
-    // Реконнект — забота клиента брокера; транспорт лишь сообщает о смене
+    // Реконнект — забота клиента брокера. Транспорт лишь сообщает о смене
     // состояния и не изобретает собственной очереди переотправки: она была
     // бы outbox'ом, а outbox отложен
     void this.#connection
@@ -223,8 +223,8 @@ export class NatsBus implements IMessageBus, ITransport {
   /**
    * Запоминает маршруты и проверяет формы io — шаг фазы WIRE.
    *
-   * Подписок здесь нет: у брокера входящая и исходящая стороны разъезжаются
-   * во времени, и «эфир» начинается на go-live.
+   * Подписок здесь нет: у брокера входящая и исходящая стороны расходятся
+   * во времени, и приём запросов начинается только на фазе START.
    */
   attach(dispatch: Dispatch): void {
     if (this.#dispatch === dispatch) {
@@ -243,9 +243,10 @@ export class NatsBus implements IMessageBus, ITransport {
   }
 
   /**
-   * Выводит шину в эфир — подписки на subject'ы своих маршрутов.
+   * Запускает приём входящих сообщений: подписывается на subject'ы своих
+   * маршрутов.
    *
-   * После `@OnStart` по построению фазовой модели: входящее сообщение не
+   * Выполняется на фазе START, после `@OnStart`: входящее сообщение не
    * может застать незавершённый `@OnStart`.
    */
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
@@ -290,7 +291,7 @@ export class NatsBus implements IMessageBus, ITransport {
    * Req-reply через брокер.
    *
    * Ожидание ограничено `min(остаток бюджета, потолок транспорта)`.
-   * Потолок — свойство **провода**, а не дефолтный бюджет: он не
+   * Потолок — свойство **сети**, а не дефолтный бюджет: он не
    * наследуется вглубь вызовов и виден в тексте отказа.
    */
   async request(
@@ -354,12 +355,13 @@ export class NatsBus implements IMessageBus, ITransport {
   }
 
   /**
-   * Подписка на subject — сантехника транспорта.
+   * Подписка на subject — базовый механизм транспорта.
    *
-   * Тем же глаголом выражается wildcard-аудитор (`subscribe('orders.>', …)`):
-   * третьего понятия деклараций для этого не вводится. Wildcard —
-   * брокерская способность; in-proc шина трактует subject буквально, и это
-   * различие документировано, а не эмулировано.
+   * Тем же глаголом выражается и wildcard-подписка
+   * (`subscribe('orders.>', …)`): третьего понятия для деклараций это не
+   * вводит. Wildcard — брокерская способность. In-proc шина трактует
+   * subject буквально, и это различие задокументировано, а не
+   * эмулируется.
    */
   subscribe(
     subject: string,
@@ -442,8 +444,8 @@ export class NatsBus implements IMessageBus, ITransport {
     } catch (error) {
       this.#reportDelivery({ subject: msg.subject, error });
 
-      // Ждущему ответа отказ доезжает значением; fire-and-forget адреса
-      // ответа не имеет, и там отчёт хуку — весь доступный канал
+      // Ждущему ответа отказ передаётся значением. Fire-and-forget
+      // адреса ответа не имеет, и там отчёт хуку — весь доступный канал
       msg.respond(this.#codec.encode(failureResponse(error)));
     }
   }
@@ -518,8 +520,9 @@ export class NatsBus implements IMessageBus, ITransport {
 
         this.#redeliver(msg, maxDeliver, response.value);
       } catch (error) {
-        // Ручка без pipeline отказ бросает: страж границы живёт в
-        // пайплайне, поэтому исключение сюда доходит как есть
+        // Endpoint без pipeline отказ бросает: проверка на границе,
+        // которая нормализует исключения, живёт в пайплайне, поэтому
+        // исключение сюда доходит как есть
         this.#redeliver(msg, maxDeliver, error);
       }
     }
@@ -577,7 +580,7 @@ export class NatsBus implements IMessageBus, ITransport {
     return name;
   }
 
-  /** Маршрутизирует входящее сообщение в исполнение ручки */
+  /** Маршрутизирует входящее сообщение в исполнение endpoint'а */
   async #execute(
     route: RouteDeclaration,
     payload: unknown,
@@ -592,7 +595,7 @@ export class NatsBus implements IMessageBus, ITransport {
     }
 
     // Fail-fast до обработки: бюджет, исчерпанный в транзите, означает, что
-    // ответа уже никто не ждёт — исполнять ручку незачем
+    // ответа уже никто не ждёт — исполнять endpoint незачем
     if (isExhausted(meta.deadline)) {
       return failureResponse(DeadlineExceeded());
     }
@@ -619,7 +622,7 @@ export class NatsBus implements IMessageBus, ITransport {
 
     try {
       return await dispatch.call(route.pattern, ctx, {
-        // Через провод stack не уезжает
+        // По сети stack не передаётся
         exposeErrorDetails: false,
         ...(this.#options.onUnknownFail === undefined
           ? {}
@@ -669,7 +672,7 @@ export class NatsBus implements IMessageBus, ITransport {
 
     if (code === 'TIMEOUT') {
       // Ответ — тот же `DEADLINE_EXCEEDED`, что дал бы бюджет: множество
-      // ответов порта закрыто, и новых кодов провод не вводит. А вот
+      // ответов порта закрыто, и новых кодов транспорт не вводит. А вот
       // **текст** называет источник ожидания, потому что «кончился бюджет
       // вызова» и «кончился потолок транспорта» чинятся по-разному
       const reason = ceiling.budgeted

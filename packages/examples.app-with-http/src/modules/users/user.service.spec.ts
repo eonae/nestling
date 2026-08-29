@@ -156,7 +156,7 @@ describe('UserService', () => {
   });
 
   describe('importUsers', () => {
-    it('должен импортировать пользователей из стрима', async () => {
+    it('должен импортировать пользователей из потока', async () => {
       const result = await service.importUsers(validUsersStream());
 
       expect(result.imported).toBe(2);

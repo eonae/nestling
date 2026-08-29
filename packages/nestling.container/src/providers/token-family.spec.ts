@@ -19,14 +19,14 @@ interface ILoggerService {
 const makeLogger = (scope: string): ILoggerService => ({ scope });
 
 describe('makeTokenFamily', () => {
-  it('creates member tokens with "<family>:<param>" ids', () => {
+  it('создаёт токены членов с идентификатором "<family>:<param>"', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Logger');
 
     expect(ILogger('users')).toBe('Logger:users');
     expect(ILogger.familyName).toBe('Logger');
   });
 
-  it('memoizes members: the same parameter yields the same token', () => {
+  it('мемоизирует членов: один параметр даёт один токен', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'MemoLogger',
     );
@@ -37,7 +37,7 @@ describe('makeTokenFamily', () => {
     expect(second).toBe(first);
   });
 
-  it('rejects the parameter reserved for the .auto sentinel', () => {
+  it('отклоняет параметр, зарезервированный за .auto', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'ReservedLogger',
     );
@@ -45,7 +45,7 @@ describe('makeTokenFamily', () => {
     expect(() => ILogger('{auto}')).toThrow(/reserved/);
   });
 
-  it('rejects the parameter reserved for the .all sentinel', () => {
+  it('отклоняет параметр, зарезервированный за .all', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'ReservedAllLogger',
     );
@@ -55,7 +55,7 @@ describe('makeTokenFamily', () => {
     );
   });
 
-  it('recognizes families and family definitions', () => {
+  it('распознаёт семейства и рецепты семейств', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'GuardLogger',
     );
@@ -72,8 +72,8 @@ describe('makeTokenFamily', () => {
   });
 });
 
-describe('Family.all sentinel', () => {
-  it('has the "<family>:{all}" id', () => {
+describe('токен Family.all', () => {
+  it('имеет идентификатор "<family>:{all}"', () => {
     const IHealthCheck = makeTokenFamily<ILoggerService, [name: string]>(
       'HealthCheck',
     );
@@ -81,13 +81,13 @@ describe('Family.all sentinel', () => {
     expect(IHealthCheck.all).toBe('HealthCheck:{all}');
   });
 
-  it('is typed as a token of a readonly array of members', () => {
+  it('типизирован как токен массива readonly членов', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'TypedAllLogger',
     );
 
-    // Compile-time assertions: the sentinel carries `readonly T[]`, so a
-    // consumer declaring a mutable array would not typecheck.
+    // Проверка типов: токен несёт `readonly T[]`, поэтому потребитель с
+    // изменяемым массивом не скомпилируется.
     const token: TokenString<readonly ILoggerService[]> = ILogger.all;
 
     @Injectable([ILogger.all])
@@ -101,7 +101,7 @@ describe('Family.all sentinel', () => {
     ]);
   });
 
-  it('is not a family member: the sentinel is not memoized as one', () => {
+  it('не является членом семейства', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'DistinctAllLogger',
     );
@@ -111,8 +111,8 @@ describe('Family.all sentinel', () => {
   });
 });
 
-describe('family member as an ordinary injection token', () => {
-  it('is injectable into a class and readable from the container', async () => {
+describe('член семейства как обычный токен', () => {
+  it('инжектируется в класс и читается из контейнера', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'PlainLogger',
     );
@@ -135,7 +135,7 @@ describe('family member as an ordinary injection token', () => {
     expect(container.get(ILogger('users'))).toBe(logger);
   });
 
-  it('is usable in factory provider deps', async () => {
+  it('принимается в deps фабричного провайдера', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'FactoryLogger',
     );
@@ -154,7 +154,7 @@ describe('family member as an ordinary injection token', () => {
     expect(container.getOrThrow(IReporter)).toBe('db');
   });
 
-  it('records the resolved member token in @Injectable metadata', () => {
+  it('записывает токен члена в метаданные @Injectable', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'MetaLogger',
     );

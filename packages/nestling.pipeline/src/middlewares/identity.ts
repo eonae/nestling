@@ -2,11 +2,12 @@ import type { EmptyInput } from '../core';
 import type { PreUnitFn, Raw } from '../core/types';
 
 /**
- * Добавляет identity в metadata
+ * Добавляет `identity` в контекст запроса.
  *
- * Читает raw.attributes для извлечения токена/сессии.
+ * Читает `raw.attributes`, чтобы извлечь токен или сессию.
  *
- * @param authenticate - функция аутентификации, получает Raw и возвращает identity
+ * @param authenticate - Функция аутентификации: получает `Raw` и
+ * возвращает identity
  *
  * @example
  * ```typescript

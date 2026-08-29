@@ -3,9 +3,10 @@ import { RequestId } from '../core';
 import type { PreUnitFn } from '../core/types';
 
 /**
- * Добавляет requestId в metadata
+ * Добавляет `requestId` в контекст запроса.
  *
- * Извлекает requestId из headers или генерирует случайный
+ * Извлекает `requestId` из заголовка `x-request-id` или генерирует
+ * случайный.
  *
  * Писатель — сама переменная {@link RequestId}: слой, композированный от
  * этого юнита, автоматически удовлетворяет политике

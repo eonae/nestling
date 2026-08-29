@@ -83,7 +83,7 @@ const hasObservability = () =>
   everyEndpoint().hasLayer(observability, 'observability');
 
 describe('политики — точка проверки', () => {
-  it('нарушение падает до @OnInit и до выхода в эфир', async () => {
+  it('нарушение падает до @OnInit и до начала приёма запросов', async () => {
     const events: string[] = [];
 
     @Injectable([])
@@ -130,7 +130,7 @@ describe('политики — точка проверки', () => {
     await expect(app.check()).rejects.toThrow(/Transport 'cli' is required/);
   });
 
-  it('ручка невыбранной фичи не проверяется', async () => {
+  it('endpoint невыбранной фичи не проверяется', async () => {
     const Users = makeFeature({
       name: 'users',
       modules: [makeAppModule({ name: 'module:users', endpoints: [Unauthed] })],
@@ -171,7 +171,7 @@ describe('политики — точка проверки', () => {
     await expect(app.check()).resolves.toBeDefined();
   });
 
-  it('приложение без ручек проходит любую политику', async () => {
+  it("приложение без endpoint'ов проходит любую политику", async () => {
     await expect(
       assemble({ policies: [everyEndpoint().hasLayer(authedBase)] }).check(),
     ).resolves.toBeDefined();
@@ -193,8 +193,8 @@ describe('политики — агрегированная диагностик
 
     const message = await messageOf(app.check());
 
-    // Три нарушения: две ручки под auth-политикой и ручка без пайплайна
-    // под политикой observability
+    // Три нарушения: два endpoint'а под auth-политикой и endpoint без
+    // пайплайна под политикой observability
     expect(message).toContain('3 endpoint violation(s)');
     expect(message).toContain("policy: every endpoint (transport 'http')");
     expect(message).toContain(
@@ -218,7 +218,7 @@ describe('политики — агрегированная диагностик
 });
 
 describe('detached — поверхность для аудита', () => {
-  it('помеченная ручка не нарушает, непомеченная соседка — нарушает', async () => {
+  it('помеченный endpoint не нарушает, непомеченный сосед — нарушает', async () => {
     const app = assemble({
       modules: [
         makeAppModule({
@@ -256,7 +256,7 @@ describe('detached — поверхность для аудита', () => {
     expect(me?.detached).toBeUndefined();
   });
 
-  it('список печатается на старте, а без detached-ручек — не печатается', async () => {
+  it("список печатается на старте, а без detached-endpoint'ов — не печатается", async () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     try {

@@ -33,7 +33,7 @@ describe('doc — секция на значении декларации', () =
     expect(List.doc).toEqual({ summary: 'List users', tags: ['users'] });
   });
 
-  it('переживает гашение зависимостей', () => {
+  it('переживает резолв зависимостей', () => {
     const List = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
@@ -78,7 +78,7 @@ describe('doc — секция на значении декларации', () =
   });
 });
 
-/** Объявление ручки с произвольным `doc` — как это сделал бы JS */
+/** Объявление endpoint'а с произвольным `doc` — как это сделал бы JS */
 const declare = (doc: unknown) => () =>
   (makeEndpoint as (options: unknown) => unknown)({
     transport: HttpTransport$,
@@ -136,7 +136,7 @@ describe('doc — fail-fast словаря', () => {
     );
   });
 
-  it('текст ошибки называет ручку', () => {
+  it('текст ошибки называет endpoint', () => {
     expect(declare({ hidden: '' })).toThrow(/Endpoint 'GET \/users'/);
   });
 });

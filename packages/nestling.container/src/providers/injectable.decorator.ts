@@ -10,15 +10,15 @@ import { injectableMetaStorage } from './injectable.metadata';
 import { resolveAutoDependency } from './token-family';
 
 /**
- * Decorator to register a class in the DI container with an explicit token.
+ * Помечает класс как провайдер с явным токеном.
  *
- * Used when a class implements an interface and you want to register it
- * by that interface.
+ * Используется, когда класс реализует интерфейс и регистрируется под
+ * токеном этого интерфейса.
  *
- * @template I - The interface type that the class implements
- * @template TDependencies - Array of dependency tokens
- * @param id - The interface token (created via `makeToken`)
- * @param dependencies - List of tokens to be injected into the constructor
+ * @template I - Интерфейс, который реализует класс
+ * @template TDependencies - Массив токенов зависимостей
+ * @param id - Токен интерфейса, созданный `makeToken`
+ * @param dependencies - Токены, передаваемые в конструктор по порядку
  *
  * @example
  * ```typescript
@@ -42,13 +42,10 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
 ) => T;
 
 /**
- * Decorator to register a class with automatic token generation.
+ * Помечает класс как провайдер; токеном служит сам класс.
  *
- * The token will be automatically created from the class name.
- * Suitable for concrete classes that don't implement interfaces.
- *
- * @template TDependencies - Array of dependency tokens
- * @param deps - List of tokens to be injected into the constructor
+ * @template TDependencies - Массив токенов зависимостей
+ * @param deps - Токены, передаваемые в конструктор по порядку
  *
  * @example
  * ```typescript
@@ -66,12 +63,11 @@ export function Injectable<TDependencies extends InjectionToken[]>(
 ) => T;
 
 /**
- * Decorator to register a class with support for classes in dependencies.
+ * Помечает класс как провайдер; в зависимостях допустимы и классы, и
+ * строковые токены.
  *
- * Supports both classes and string tokens as dependencies.
- *
- * @template TDependencies - Array of dependency tokens
- * @param deps - List of classes or tokens for injection
+ * @template TDependencies - Массив токенов зависимостей
+ * @param deps - Классы или токены, передаваемые в конструктор по порядку
  */
 export function Injectable<TDependencies extends InjectionToken[]>(
   deps: [...TDependencies],
@@ -84,13 +80,9 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
   idOrDependencies: TokenString<I> | [...TDependencies],
   deps?: [...TDependencies],
 ) {
-  // this is the trickiest part of the whole DI framework
-  // we say, this decorator takes
-  // - id (the interface that the injectable implements)
-  // - dependencies (list of interface ids that will be injected to constructor)
-  //
-  // With then we return function that ensures that the decorated class implements the id interface
-  // and its constructor has arguments of same type and order as the dependencies argument to the decorator
+  // Перегрузки выше проверяют типами, что класс реализует интерфейс `id`,
+  // а аргументы его конструктора совпадают по типу и порядку со списком
+  // зависимостей. Здесь остаётся только записать метаданные.
   return function <T extends Constructor>(
     constructor: T,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -104,9 +96,9 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
     const declared =
       typeof idOrDependencies === 'string' ? deps || [] : idOrDependencies;
 
-    // `Family.auto` is resolved here, at decoration time: the consumer class is
-    // already available, so the metadata stores a plain member token and nothing
-    // downstream ever sees a sentinel.
+    // `Family.auto` заменяется на члена здесь, при декорировании: класс
+    // потребителя уже известен, поэтому в метаданные попадает обычный
+    // токен члена, и дальше заместитель никто не видит.
     const dependencies = declared.map((dep) =>
       resolveAutoDependency(dep, constructor),
     );

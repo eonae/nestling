@@ -39,7 +39,7 @@ class AuditLog {
   }
 }
 
-/** Ручка, чей пайплайн кладёт **свой** requestId */
+/** Endpoint, чей пайплайн кладёт **свой** requestId */
 const Whoami = httpEndpoint({
   method: 'GET',
   path: '/whoami',

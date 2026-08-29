@@ -49,7 +49,7 @@ describe('errors: — проверка при создании декларац�
     expect(Endpoint.errors).toEqual([OrderLimitReached, CardDeclined]);
   });
 
-  it('список переживает гашение зависимостей', () => {
+  it('список переживает резолв зависимостей', () => {
     const Endpoint = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'POST /orders',

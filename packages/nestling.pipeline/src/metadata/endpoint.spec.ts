@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable unicorn/consistent-function-scoping, unicorn/no-useless-undefined */
 /**
- * Декларация endpoint'а — значение: рантайм трёх форм `handle`, гашение
- * зависимостей и бренд; плюс типовые тесты на `TNeeds`.
+ * Декларация endpoint'а — значение: рантайм трёх форм `handle`, резолв
+ * зависимостей и бренд. Плюс типовые тесты на `TNeeds`.
  */
 
 import { Ok } from '../core';
@@ -68,7 +68,7 @@ const meta = {
 // ============================================================================
 
 describe('makeEndpoint — формы handle', () => {
-  it('голая функция исполнима сразу, без гашения', async () => {
+  it('голая функция исполнима сразу, без резолва', async () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
@@ -122,7 +122,7 @@ describe('makeEndpoint — формы handle', () => {
     );
   });
 
-  it('до гашения handle бросает понятную ошибку, а не отдаёт undefined', () => {
+  it('до резолва handle бросает понятную ошибку, а не отдаёт undefined', () => {
     const GetUser = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
@@ -360,7 +360,7 @@ describe('makeEndpoint — носитель binding', () => {
   // Форма карты транспорта ядру неизвестна: здесь это произвольное значение
   const binding = { fields: { id: { in: 'path' } }, rest: 'body' };
 
-  it('binding доезжает до значения декларации как есть', () => {
+  it('binding передаётся в значение декларации как есть', () => {
     const UpdateUser = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'PATCH /users/:id',
@@ -371,7 +371,7 @@ describe('makeEndpoint — носитель binding', () => {
     expect(UpdateUser.binding).toBe(binding);
   });
 
-  it('binding переживает гашение зависимостей', () => {
+  it('binding переживает резолв зависимостей', () => {
     const GetUser = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
@@ -466,7 +466,7 @@ describe('makeEndpoint — типы', () => {
       Equal<InferNeeds<typeof WithClass>, typeof GetUserHandler>
     >;
 
-    // Гашение возвращает исполнимую декларацию
+    // Резолв возвращает исполнимую декларацию
     type _Resolved = Expect<
       Equal<InferNeeds<ReturnType<typeof Curried.resolve>>, never>
     >;

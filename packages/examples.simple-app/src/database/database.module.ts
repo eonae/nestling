@@ -13,9 +13,9 @@ export const DatabaseModule = makeModule({
     // Вклад в семейство health-check'ов: обычный провайдер с членским токеном.
     classProvider(IHealthCheck('database'), DatabaseHealthCheck),
   ],
-  // Семейство в exports — контракт «модуль контрибьютит в HealthCheck»:
+  // Семейство в exports — контракт «модуль вносит вклад в HealthCheck»:
   // без него узел-агрегат не смог бы забрать вклад при strictExports.
   exports: [IDatabase, IHealthCheck],
   // `imports: [ConfigModule]` больше нет: секция конфига — не провайдер
-  // модуля, а член семейства, материализуемый инжектом.
+  // модуля, а член семейства, который становится узлом графа через инжект.
 });

@@ -166,7 +166,7 @@ describe('согласованность `reloadable` на общем ключе
     );
   });
 
-  it('текст симметричен: порядок материализации на него не влияет', async () => {
+  it('текст симметричен: порядок создания секций на него не влияет', async () => {
     const first = await buildFailure<ConfigSharedKeyError>(
       { DATABASE_URL: 'postgres://x' },
       (builder) => {

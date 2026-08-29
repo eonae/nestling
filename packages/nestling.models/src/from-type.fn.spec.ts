@@ -2,8 +2,8 @@ import { fromType } from './from-type.fn';
 
 import { z } from 'zod';
 
-describe('forType().makeModel', () => {
-  it('should create schema with explicit type and type narrowing', () => {
+describe('fromType().makeModel', () => {
+  it('создаёт схему с явным типом и проверяет сужение типа', () => {
     interface UserProto {
       name?: string;
       email?: string;
@@ -21,7 +21,7 @@ describe('forType().makeModel', () => {
     expect(schema.shape).toHaveProperty('email');
   });
 
-  it('should support nested objects with type narrowing', () => {
+  it('поддерживает вложенные объекты с проверкой сужения типа', () => {
     interface UserProto {
       address?: {
         street?: string;
@@ -44,8 +44,8 @@ describe('forType().makeModel', () => {
     expect('shape' in schema && schema.shape).toHaveProperty('address');
   });
 
-  describe('valid narrowings (compile-time checks)', () => {
-    it('should allow making optional fields required', () => {
+  describe('допустимые сужения типа (проверки на этапе компиляции)', () => {
+    it('разрешает делать необязательное поле обязательным', () => {
       interface UserProto {
         name?: string;
         email?: string;
@@ -64,7 +64,7 @@ describe('forType().makeModel', () => {
       expect(schema.shape).toHaveProperty('email');
     });
 
-    it('should allow narrowing string to literal types', () => {
+    it('разрешает сужать string до литеральных типов', () => {
       interface UserProto {
         role?: string;
       }
@@ -80,7 +80,7 @@ describe('forType().makeModel', () => {
       expect(schema.shape).toHaveProperty('role');
     });
 
-    it('should allow subset of optional fields', () => {
+    it('разрешает использовать подмножество необязательных полей', () => {
       interface UserProto {
         name?: string;
         email?: string;
@@ -99,7 +99,7 @@ describe('forType().makeModel', () => {
       expect(schema.shape).not.toHaveProperty('email');
     });
 
-    it('should allow narrowing number with constraints', () => {
+    it('разрешает сужать number ограничениями', () => {
       interface UserProto {
         age?: number;
       }
@@ -115,7 +115,7 @@ describe('forType().makeModel', () => {
       expect(schema.shape).toHaveProperty('age');
     });
 
-    it('should allow wider type narrowing to specific type', () => {
+    it('разрешает сужать unknown до конкретного типа', () => {
       interface UserProto {
         data?: unknown;
       }
@@ -132,8 +132,8 @@ describe('forType().makeModel', () => {
     });
   });
 
-  describe('invalid narrowings (compilation errors)', () => {
-    it('should reject when adding fields not in domain type', () => {
+  describe('недопустимые сужения типа (ошибки компиляции)', () => {
+    it('отвергает поле, которого нет в доменном типе', () => {
       interface UserProto {
         name?: string;
       }
@@ -147,7 +147,7 @@ describe('forType().makeModel', () => {
       );
     });
 
-    it('should reject when using incompatible types', () => {
+    it('отвергает несовместимый тип поля', () => {
       interface UserProto {
         id?: string;
       }
@@ -160,7 +160,7 @@ describe('forType().makeModel', () => {
       );
     });
 
-    it('should reject when narrowing from required to optional', () => {
+    it('отвергает попытку сделать обязательное поле необязательным', () => {
       interface UserProto {
         name: string; // обязательное поле
       }
@@ -173,7 +173,7 @@ describe('forType().makeModel', () => {
       );
     });
 
-    it('should reject completely unrelated type', () => {
+    it('отвергает полностью несвязанную структуру', () => {
       interface UserProto {
         name?: string;
       }
@@ -187,7 +187,7 @@ describe('forType().makeModel', () => {
       );
     });
 
-    it('should reject incompatible nested object types', () => {
+    it('отвергает несовместимый тип во вложенном объекте', () => {
       interface UserProto {
         profile?: {
           age?: number;
@@ -198,13 +198,13 @@ describe('forType().makeModel', () => {
         // @ts-expect-error - age должен быть number, а не string
         z.object({
           profile: z.object({
-            age: z.string(), // несовместимый тип в nested object
+            age: z.string(), // несовместимый тип во вложенном объекте
           }),
         }),
       );
     });
 
-    it('should reject when adding extra nested fields', () => {
+    it('отвергает лишнее поле во вложенном объекте', () => {
       interface UserProto {
         settings?: {
           theme?: string;
@@ -222,21 +222,21 @@ describe('forType().makeModel', () => {
       );
     });
 
-    it('should show field-level error for invalid field type', () => {
+    it('указывает ошибку на конкретном поле с недопустимым типом', () => {
       interface UserProto {
         email: string; // required field
       }
 
       fromType<UserProto>().makeModel(
         // @ts-expect-error - ошибка должна быть на поле 'email'
-        // Field-level validation: error указывает на конкретное поле
+        // Проверка на уровне поля: ошибка указывает на конкретное поле
         z.object({
           email: z.string().optional(), // попытка сделать required → optional
         }),
       );
     });
 
-    it('should show field-level error for multiple invalid fields', () => {
+    it('указывает ошибки на нескольких недопустимых полях', () => {
       interface UserProto {
         name: string;
         email: string;
@@ -252,8 +252,8 @@ describe('forType().makeModel', () => {
     });
   });
 
-  describe('deeply nested objects (field-level validation)', () => {
-    it('should validate 3-level nested objects', () => {
+  describe('глубоко вложенные объекты (проверка на уровне полей)', () => {
+    it('проверяет объект с тремя уровнями вложенности', () => {
       interface UserProto {
         profile?: {
           address?: {
@@ -276,7 +276,7 @@ describe('forType().makeModel', () => {
       expect(schema.shape.profile).toBeDefined();
     });
 
-    it('should reject invalid type in 3-level nested object', () => {
+    it('отвергает недопустимый тип на третьем уровне вложенности', () => {
       interface UserProto {
         profile?: {
           address?: {
@@ -297,7 +297,7 @@ describe('forType().makeModel', () => {
       );
     });
 
-    it('should reject extra field in 3-level nested object', () => {
+    it('отвергает лишнее поле на третьем уровне вложенности', () => {
       interface UserProto {
         profile?: {
           address?: {
@@ -319,7 +319,7 @@ describe('forType().makeModel', () => {
       );
     });
 
-    it('should validate 4-level nested objects', () => {
+    it('проверяет объект с четырьмя уровнями вложенности', () => {
       interface UserProto {
         data?: {
           user?: {
@@ -349,7 +349,7 @@ describe('forType().makeModel', () => {
       expect(schema).toBeDefined();
     });
 
-    it('should reject invalid type in 4-level nested object', () => {
+    it('отвергает недопустимый тип на четвёртом уровне вложенности', () => {
       interface UserProto {
         data?: {
           user?: {
@@ -379,8 +379,8 @@ describe('forType().makeModel', () => {
     });
   });
 
-  describe('transforms with forType', () => {
-    it('should support basic transforms', () => {
+  describe('преобразования в fromType', () => {
+    it('поддерживает простой transform', () => {
       interface UserProto {
         id?: string;
       }
@@ -395,7 +395,7 @@ describe('forType().makeModel', () => {
       expect(schema.shape).toHaveProperty('id');
     });
 
-    it('should transform string to number with validation', () => {
+    it('преобразует string в number и проверяет вход', () => {
       interface GetUserProto {
         id?: string;
         page?: string;
@@ -422,7 +422,7 @@ describe('forType().makeModel', () => {
       expect(result.page).toBe(5);
     });
 
-    it('should transform Bearer token by removing prefix', () => {
+    it('убирает префикс Bearer из токена', () => {
       interface AuthProto {
         authorization?: string;
       }
@@ -442,7 +442,7 @@ describe('forType().makeModel', () => {
       expect(result.authorization).toBe('token123');
     });
 
-    it('should support chained transforms', () => {
+    it('поддерживает цепочку transform', () => {
       interface UserProto {
         email?: string;
       }
@@ -462,7 +462,7 @@ describe('forType().makeModel', () => {
       expect(result.email).toBe('user@example.com');
     });
 
-    it('should transform nested objects', () => {
+    it('преобразует поле вложенного объекта', () => {
       interface UserProto {
         metadata?: {
           createdAt?: string;
@@ -485,7 +485,7 @@ describe('forType().makeModel', () => {
       expect(result.metadata.createdAt).toBeInstanceOf(Date);
     });
 
-    it('should support transform with refinement', () => {
+    it('поддерживает transform вместе с refine', () => {
       interface UserProto {
         age?: string;
       }
@@ -509,13 +509,13 @@ describe('forType().makeModel', () => {
       expect(() => schema.parse({ age: '200' })).toThrow();
     });
 
-    it('should allow transform that changes output type from input', () => {
+    it('разрешает transform, меняющий тип выхода относительно входа', () => {
       interface ProtoType {
         timestamp?: string;
         count?: string;
       }
 
-      // Input: string, Output: Date | number
+      // Вход: string, выход: Date | number
       const schema = fromType<ProtoType>().makeModel(
         z.object({
           timestamp: z.string().transform((val) => new Date(val)),
@@ -535,7 +535,7 @@ describe('forType().makeModel', () => {
       expect(result.count).toBe(42);
     });
 
-    it('should work with optional transforms', () => {
+    it('работает с transform на необязательном поле', () => {
       interface UserProto {
         phone?: string;
       }
@@ -558,7 +558,7 @@ describe('forType().makeModel', () => {
       expect(result2.phone).toBeUndefined();
     });
 
-    it('should transform array elements', () => {
+    it('преобразует элементы массива', () => {
       interface UserProto {
         tags?: string[];
       }

@@ -18,7 +18,7 @@ export interface ContextOptions {
   input?: AnyInput;
 }
 
-/** Контекст запроса к трекаемой ручке */
+/** Контекст запроса к отслеживаемому endpoint'у */
 export function makeCtx(
   options: ContextOptions = {},
 ): ExtendableContext<AnyInput> {

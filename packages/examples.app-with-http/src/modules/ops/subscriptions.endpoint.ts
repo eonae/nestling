@@ -10,7 +10,7 @@ import { SubscriptionRegistry, tracked } from '@nestling/subscriptions';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
-/** Снимок подписки на проводе — ровно то, что отдаёт `registry.list()` */
+/** Снимок подписки в ответе API: то же, что отдаёт `registry.list()` */
 const Subscription = z.object({
   id: z.string(),
   transport: z.string(),
@@ -22,7 +22,7 @@ const Subscription = z.object({
   itemsOut: z.number(),
 });
 
-/** Событие ленты реестра на проводе */
+/** Событие ленты реестра в ответе API */
 const SubscriptionChange = z.object({
   type: z.enum(['opened', 'closed']),
   reason: z.string().optional(),
@@ -32,11 +32,11 @@ const SubscriptionChange = z.object({
 type SubscriptionChange = z.infer<typeof SubscriptionChange>;
 
 /**
- * Подписки, которой просят завершиться, в этом процессе нет.
+ * Подписка, которую просят завершить, в этом процессе не найдена.
  *
- * Реестр node-local: `abort` действует только на свой процесс, поэтому
- * «не нашли» здесь честно означает «не нашли **здесь**», а не «такой
- * подписки не существует».
+ * Реестр локален для узла, и `abort` действует только в своём процессе.
+ * Поэтому «не найдена» означает «не найдена на этом узле», а не «такой
+ * подписки нет».
  */
 export const SubscriptionNotFound = defineFail('SUBSCRIPTION_NOT_FOUND', {
   status: 'NOT_FOUND',
@@ -44,7 +44,7 @@ export const SubscriptionNotFound = defineFail('SUBSCRIPTION_NOT_FOUND', {
   message: (d) => `Subscription ${d.id} is not active on this node`,
 });
 
-/** Снимок реестра в форме провода */
+/** Переводит запись реестра в форму ответа API */
 const toWire = (info: SubscriptionInfo): z.infer<typeof Subscription> => ({
   id: info.id,
   transport: info.transport,
@@ -59,8 +59,7 @@ const toWire = (info: SubscriptionInfo): z.infer<typeof Subscription> => ({
 /**
  * Список активных подписок узла.
  *
- * Реестр инжектится обычным токеном: satellite не заводит ни особого
- * способа доступа, ни своей оси регистрации.
+ * Реестр инжектируется обычным токеном, как любой сервис.
  */
 export const ListSubscriptions = httpEndpoint({
   method: 'GET',
@@ -85,8 +84,9 @@ export const ListSubscriptions = httpEndpoint({
 /**
  * Административное завершение подписки.
  *
- * `abort` только взводит сигнал: запись снимет `.finally` пайплайна, когда
- * поток действительно закончится. Реестр отражает факт, а не опережает его.
+ * `abort` только подаёт сигнал отмены. Запись из реестра снимет `.finally`
+ * пайплайна, когда поток действительно закроется: реестр отражает факт, а
+ * не опережает его.
  */
 export const KillSubscription = httpEndpoint({
   method: 'DELETE',
@@ -116,11 +116,11 @@ export const KillSubscription = httpEndpoint({
 });
 
 /**
- * Живой просмотр реестра — рекурсивный случай.
+ * Живая лента реестра: сама является подпиской.
  *
- * Ручка сама композирована от `tracked`, поэтому попадает в тот реестр,
- * который показывает: в собственной ленте она видит чужие события, но не
- * своё `opened` — оно опубликовано до вызова хендлера, то есть до того, как
+ * Endpoint композирован от `tracked`, поэтому попадает в тот реестр,
+ * который показывает. В своей ленте он видит чужие события, но не своё
+ * `opened`: оно опубликовано до вызова хендлера, то есть до того, как
  * хендлер подписался.
  */
 export const WatchSubscriptions = httpEndpoint({

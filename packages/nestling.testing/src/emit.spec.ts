@@ -143,8 +143,9 @@ describe('app.emit', () => {
   it('гонит запрос через полный пайплайн реализации', async () => {
     await using app = await assembleTest({ modules: [OrdersModule] });
 
-    // Невалидный payload разбирается стражем границы той же ручки, а не
-    // теряется по дороге: кадр запроса собран той же процедурой, что у call
+    // Невалидный payload разбирается проверкой границы того же endpoint'а,
+    // а не теряется по дороге: кадр запроса собран той же процедурой, что
+    // у call
     const [{ response }] = await app.emit(PlaceOrder, {
       orderId: 42,
     } as unknown as { orderId: string });
@@ -169,7 +170,7 @@ describe('app.emit', () => {
     );
   });
 
-  it('бросает внятно на request-контракте', async () => {
+  it('бросает с понятным сообщением на request-контракте', async () => {
     await using app = await assembleTest({ modules: [OrdersModule] });
 
     await expect(

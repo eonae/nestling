@@ -83,21 +83,21 @@ describe('BuiltContainer', () => {
       .build();
   }
 
-  it('returns registered instances via get', async () => {
+  it('возвращает зарегистрированные экземпляры через get', async () => {
     const container = await buildContainer();
 
     expect(container.getOrThrow(TokenA).value()).toBe('a');
     expect(container.getOrThrow(TokenB).value()).toBe('B(a)');
   });
 
-  it('returns null from get for unregistered token without throwing', async () => {
+  it('возвращает null из get для незарегистрированного токена', async () => {
     const container = await buildContainer();
     const MissingToken = makeToken('Missing');
 
     expect(container.get(MissingToken)).toBeNull();
   });
 
-  it('throws when instance is missing', async () => {
+  it('бросает ошибку в getOrThrow для незарегистрированного токена', async () => {
     const container = await buildContainer();
     const MissingToken = makeToken('Missing');
 
@@ -106,7 +106,7 @@ describe('BuiltContainer', () => {
     );
   });
 
-  it('returns registered falsy values from getOrThrow', async () => {
+  it('возвращает зарегистрированные ложные значения из getOrThrow', async () => {
     const ZeroToken = makeToken<number>('Zero');
     const EmptyToken = makeToken<string>('Empty');
     const FalseToken = makeToken<boolean>('False');
@@ -122,7 +122,7 @@ describe('BuiltContainer', () => {
     expect(container.getOrThrow(FalseToken)).toBe(false);
   });
 
-  it('runs lifecycle hooks in correct order', async () => {
+  it('выполняет хуки жизненного цикла в правильном порядке', async () => {
     const container = await buildContainer();
 
     await container.init();
@@ -137,7 +137,7 @@ describe('BuiltContainer', () => {
     ]);
   });
 
-  it('runs start hooks topologically, after every init hook', async () => {
+  it('выполняет хуки @OnStart в топологическом порядке после всех @OnInit', async () => {
     const container = await buildContainer();
 
     await container.init();
@@ -146,7 +146,7 @@ describe('BuiltContainer', () => {
     expect(lifecycleLog).toEqual(['A:init', 'B:init', 'A:start', 'B:start']);
   });
 
-  it('runs start hooks once on a repeated start()', async () => {
+  it('выполняет хуки @OnStart один раз при повторном start()', async () => {
     const container = await buildContainer();
 
     await container.init();
@@ -159,7 +159,7 @@ describe('BuiltContainer', () => {
     ]);
   });
 
-  it('succeeds when no provider declares a start hook', async () => {
+  it('проходит, если ни у одного провайдера нет @OnStart', async () => {
     const Token = makeToken<{ ok: boolean }>('NoHooks');
 
     const container = await new ContainerBuilder()
@@ -169,7 +169,7 @@ describe('BuiltContainer', () => {
     await expect(container.start()).resolves.toBeUndefined();
   });
 
-  it('propagates an error thrown by a start hook', async () => {
+  it('пробрасывает ошибку из хука @OnStart', async () => {
     const Token = makeToken('Failing');
 
     @Injectable(Token, [])
@@ -189,14 +189,14 @@ describe('BuiltContainer', () => {
     await expect(container.start()).rejects.toThrow('start failed');
   });
 
-  it('supports direct lifecycle hook discovery for external instances', () => {
+  it('находит хуки у экземпляра, созданного вне контейнера', () => {
     const hooks = getLifecycleHooks(new ServiceA());
 
     expect(hooks.onInit).toHaveLength(1);
     expect(hooks.onDestroy).toHaveLength(1);
   });
 
-  it('traverses dependency graph', async () => {
+  it('обходит граф зависимостей', async () => {
     const container = await buildContainer();
     const visited: string[] = [];
 
@@ -204,18 +204,18 @@ describe('BuiltContainer', () => {
       visited.push(node.id);
     });
 
-    // All nodes should be visited
+    // Обход посещает все узлы
     expect(visited).toHaveLength(3);
     expect(visited).toContain('TokenA');
     expect(visited).toContain('TokenB');
     expect(visited).toContain('TokenConfig');
-    // TokenB depends on TokenA, so TokenA must come before TokenB
+    // TokenB зависит от TokenA, поэтому TokenA идёт раньше
     const tokenAIndex = visited.indexOf('TokenA');
     const tokenBIndex = visited.indexOf('TokenB');
     expect(tokenAIndex).toBeLessThan(tokenBIndex);
   });
 
-  it('serializes graph metadata to JSON', async () => {
+  it('сериализует метаданные графа в JSON', async () => {
     const ModuleA = makeModule({
       name: 'ModuleA',
       providers: [classProvider(TokenA, ServiceA)],

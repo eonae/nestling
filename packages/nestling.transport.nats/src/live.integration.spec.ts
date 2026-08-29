@@ -121,7 +121,7 @@ suite('живой брокер', () => {
     deny = false;
   });
 
-  it('req-reply доезжает и возвращает Ok', async () => {
+  it('req-reply доходит и возвращает Ok', async () => {
     const owner = await bus([ClaimImpl]);
     const caller = await bus([]);
 
@@ -133,7 +133,7 @@ suite('живой брокер', () => {
     await caller.close();
   });
 
-  it('задекларированный отказ переживает провод кодом', async () => {
+  it('задекларированный отказ сохраняет код при передаче по сети', async () => {
     deny = true;
     const owner = await bus([ClaimImpl]);
     const caller = await bus([]);
@@ -146,7 +146,7 @@ suite('живой брокер', () => {
     await caller.close();
   });
 
-  it('конверт доезжает: бюджет, ключ и провозимый контекст', async () => {
+  it('конверт передаётся: бюджет, ключ и провозимый контекст', async () => {
     const owner = await bus([ClaimImpl]);
     const caller = await bus([]);
 
@@ -156,8 +156,8 @@ suite('живой брокер', () => {
       { timeoutMs: 2000, context: { tenantId: 'acme' } },
     );
 
-    // Ключ переменной обязан доехать буквально: заголовки канонизируются,
-    // и именно поэтому контекст едет значением, а не именем заголовка
+    // Ключ переменной обязан прийти буквально: заголовки канонизируются,
+    // и именно поэтому контекст передаётся значением, а не именем заголовка
     expect(seenAttributes.tenantId).toBe('acme');
     expect(seenAttributes.deadline).toBeInstanceOf(Date);
 

@@ -6,28 +6,26 @@ import { compose, makePipeline, validate } from '@nestling/pipeline';
 /**
  * Внутренний слой: валидация payload.
  *
- * `makePipeline<{ requestId: string }>()` объявляет требование к внешнему
- * контексту — компилятор проверяет его в точке композиции.
+ * `makePipeline<{ requestId: string }>()` объявляет, что слой ожидает
+ * `requestId` от внешнего слоя; компилятор проверяет это в `compose`.
  */
 const validation = makePipeline<{ requestId: string }>().pre(validate());
 
 /**
- * Базовый pipeline с валидацией
+ * Базовый пайплайн: наблюдаемость плюс валидация.
  *
- * ✅ Содержит validate() - можно использовать с endpoint'ами, у которых есть input схема
- *
- * Внешний слой приезжает от инфра-модуля логирования: сквозное поведение
- * композируется явно, а не навешивается ambient middleware.
+ * Подходит endpoint'ам со схемой `input`. Внешний слой поставляет
+ * инфраструктурный модуль логирования: сквозное поведение подключается
+ * явной композицией, а не невидимым middleware.
  */
 export const basePipeline = compose(observability, validation);
 
 /**
- * Слой аудита удалений: разбирает ответ-ошибку по **коду отказа**.
+ * Слой аудита удалений: в `.catch` распознаёт отказ по коду.
  *
- * `.is()` — единственный способ различения отказов: `instanceof` на
- * ответе не работает (в `.catch` приезжает контекст ответа, а не сам
- * `Fail`) и не пережил бы провод. Юнит ничего не заменяет — ничего не
- * возвращает, и ответ едет дальше как есть.
+ * `.is()` — единственный способ отличить отказ: в `.catch` приходит
+ * контекст ответа, а не сам `Fail`, поэтому `instanceof` не подходит.
+ * Юнит ничего не возвращает, и ответ идёт дальше без изменений.
  */
 export const auditDeletions = makePipeline<{ requestId: string }>().catch(
   (error) => {
@@ -42,9 +40,9 @@ export const auditDeletions = makePipeline<{ requestId: string }>().catch(
 );
 
 /**
- * Pipeline без валидации (для endpoint'ов без input или streaming) — тот же
- * слой наблюдаемости и ничего сверх него.
+ * Пайплайн без валидации: тот же слой наблюдаемости и ничего сверх него.
  *
- * ❌ НЕ содержит validate() - можно использовать только с endpoint'ами БЕЗ input схемы
+ * Для endpoint'ов без `input` и для потокового входа, который валидирует
+ * item-цепочка.
  */
 export { observability as noValidationPipeline } from '../modules/logger';

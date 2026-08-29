@@ -173,7 +173,7 @@ export interface ConfigSharedKeyDescription {
 export interface ConfigSectionDescription {
   readonly prefix: string;
   readonly reloadable: boolean;
-  /** Секция инжектнута кем-то и потому материализована графом */
+  /** Секция инжектнута кем-то и потому создана графом */
   readonly consumed: boolean;
   readonly keys: readonly ConfigKeyDescription[];
 }

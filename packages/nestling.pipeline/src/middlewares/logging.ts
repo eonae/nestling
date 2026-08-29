@@ -10,8 +10,8 @@ export interface Logger {
 /**
  * Логирует запросы
  *
- * Ничего не добавляет в input: использует только raw.transport
- * и raw.pattern, поэтому может стоять в любом месте pre-тракта.
+ * Ничего не добавляет в input: использует только `raw.transport`
+ * и `raw.pattern`, поэтому может стоять в любом месте среди pre-юнитов.
  *
  * @example
  * ```typescript

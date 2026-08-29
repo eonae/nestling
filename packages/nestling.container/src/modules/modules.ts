@@ -6,10 +6,8 @@ import type {
 } from '../providers';
 
 /**
- * Configuration for a module as a plain object.
- *
- * Modules are used to organize related providers and manage their visibility.
- * They support dependency injection, imports/exports, and lazy loading.
+ * Модуль: обычный объект, который группирует провайдеры, импортирует другие
+ * модули и объявляет, какие токены экспортирует.
  *
  * @example
  * ```typescript
@@ -22,31 +20,30 @@ import type {
  * ```
  */
 export interface Module {
-  /** Unique name for the module */
+  /** Уникальное имя модуля */
   name: string;
   /**
-   * Classes decorated with @Injectable, Provider objects, or family recipes
-   * (`familyProvider(...)`) that this module provides
+   * Провайдеры модуля: классы с `@Injectable`, определения провайдеров,
+   * рецепты семейств (`familyProvider(...)`) или фабрика, возвращающая их
    */
   providers?: ModuleProvider[] | ProvidersFactory;
-  /** Other modules that this module depends on */
+  /** Модули, от которых зависит этот модуль */
   imports?: Module[];
   /**
-   * Classes or tokens that this module exports for other modules to use.
+   * Токены, которые модуль отдаёт другим модулям.
    *
-   * A token family in `exports` means "all materialized members of this family
-   * are exported". Only consulted when the builder runs with `strictExports`.
+   * Семейство в `exports` означает «все созданные члены семейства
+   * экспортированы». Учитывается только при `strictExports`.
    */
   exports?: (InjectionToken | TokenFamily<any, any>)[];
 }
 
 /**
- * Helper function to create a module with type safety.
+ * Создаёт модуль. Функция возвращает свой аргумент; её роль — проверка
+ * типа объекта.
  *
- * This is a simple identity function that helps with type inference.
- *
- * @param mod - The module configuration
- * @returns The same module configuration
+ * @param mod - Описание модуля
+ * @returns То же описание
  *
  * @example
  * ```typescript
@@ -59,10 +56,10 @@ export interface Module {
 export const makeModule = (mod: Module): Module => mod;
 
 /**
- * Type guard to check if an item is a Module.
+ * Проверяет, что значение — модуль.
  *
- * @param item - The item to check
- * @returns true if the item is a Module
+ * @param item - Проверяемое значение
+ * @returns `true`, если это `Module`
  */
 export const isModule = (item: any): item is Module =>
   typeof item === 'object' && item !== null && typeof item.name === 'string';

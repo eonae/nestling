@@ -13,21 +13,21 @@ import type { JsonSchemaObject, JsonValue } from './types.js';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { isPrimitiveLeaf, leafJsonSchema } from '@nestling/pipeline';
 
-/** Контекст конвертации одной ручки */
+/** Контекст конвертации одного endpoint'а */
 export interface ConvertContext {
   readonly converters?: readonly SchemaDocConverter[];
   readonly diagnostics: Diagnostics;
 
-  /** Координаты ручки для текста диагностики */
+  /** Координаты endpoint'а для текста диагностики */
   readonly where: string;
 }
 
 /**
  * Переводит лист формы в JSON Schema, копя нарушения вместо броска.
  *
- * Направление обязательно: тело запроса описывается формой **на проводе**,
- * тело ответа — формой после преобразований. Схема с `transform` без этой
- * подсказки описала бы не то, что реально едет.
+ * Направление обязательно: тело запроса описывается формой **как получено
+ * по сети**, тело ответа — формой после преобразований. Схема с `transform`
+ * без этой подсказки описала бы не то, что реально передаётся.
  *
  * @param leaf - Лист формы: схема, примитив (`'binary'`/`'text'`) или ничто
  * @param slot - Имя слота для диагностики: `input`, `output`,
@@ -57,8 +57,9 @@ export function convertLeaf(
     resolved = leafJsonSchema(context.converters, leaf, { io });
   } catch (error) {
     // Конвертер отказался переводить схему (у zod так ведёт себя, например,
-    // непредставимый `z.date()` на выходе). Без этой ветки ошибка уехала бы
-    // наружу без координат — а автору нужно знать, какая ручка и какой слот
+    // непредставимый `z.date()` на выходе). Без этой ветки ошибка ушла бы
+    // наружу без координат — а автору нужно знать, какой endpoint и какой
+    // слот
     context.diagnostics.add(
       context.where,
       `its '${slot}' schema could not be converted to JSON Schema: ` +

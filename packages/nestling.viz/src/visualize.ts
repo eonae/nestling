@@ -51,11 +51,11 @@ export const visualize = async (
     throw error;
   }
 
-  // Create and start static server
+  // Создаём и запускаем статический сервер
   const server = new StaticServer({
     port,
     staticDir,
-    disableCache: true, // Disable caching for development
+    disableCache: true, // отключаем кеш для разработки
     shutdownTimeout: 5000,
   });
 
@@ -68,7 +68,7 @@ export const visualize = async (
 
     const url = `http://localhost:${port}`;
 
-    // Automatically open browser if requested
+    // Автоматически открываем браузер, если это запрошено
     if (openBrowser) {
       if (!silent) {
         console.log('🌐 Opening visualization in browser...');
@@ -77,7 +77,7 @@ export const visualize = async (
     }
 
     return new Promise(() => {
-      // Keep the server running
+      // Держим сервер запущенным
       process.on('SIGINT', async () => {
         if (!silent) {
           console.log('\n👋 Shutting down visualization server...');

@@ -2,7 +2,8 @@
 import type { z } from 'zod';
 
 /**
- * Check if a type is a plain object (not array, not primitive, not null, not function)
+ * Проверяет, является ли T обычным объектом: не массив, не примитив,
+ * не null и не функция.
  */
 type IsPlainObject<T> = T extends object
   ? T extends any[]
@@ -13,17 +14,18 @@ type IsPlainObject<T> = T extends object
   : false;
 
 /**
- * Remove undefined from type (for handling optional properties)
+ * Убирает `undefined` из типа — нужно для необязательных полей.
  */
 type RemoveUndefined<T> = T extends undefined ? never : T;
 
 /**
- * Get all extra keys from Input that are not in Target (top level)
+ * Ключи Input, которых нет в Target, на верхнем уровне.
  */
 type ExtraKeysTopLevel<Input, Target> = Exclude<keyof Input, keyof Target>;
 
 /**
- * For each key that exists in both Input and Target, check nested objects recursively
+ * Для каждого ключа, общего для Input и Target, рекурсивно проверяет
+ * вложенные объекты.
  */
 type ExtraKeysNested<Input, Target> = {
   [K in keyof Input & keyof Target]: IsPlainObject<Input[K]> extends true
@@ -35,8 +37,10 @@ type ExtraKeysNested<Input, Target> = {
 }[keyof Input & keyof Target];
 
 /**
- * Recursively check for extra keys in Input compared to Target
- * Returns the union of all extra keys found (or never if none)
+ * Рекурсивно ищет в Input ключи, которых нет в Target.
+ *
+ * Возвращает объединение всех найденных лишних ключей или `never`, если
+ * их нет.
  */
 type HasExtraKeys<Input, Target> = Input extends object
   ? Target extends object
@@ -45,9 +49,11 @@ type HasExtraKeys<Input, Target> = Input extends object
   : never;
 
 /**
- * Check if schema input is a valid narrowing of domain type T
- * Allows: optional → required, wider type → narrower type
- * Disallows: adding new fields (including nested), incompatible types
+ * Проверяет, что вход схемы — допустимое сужение доменного типа T.
+ *
+ * Разрешено делать необязательное поле обязательным и сужать тип поля.
+ * Не разрешено добавлять новые поля, в том числе вложенные, и заменять
+ * тип на несовместимый.
  */
 type InputNarrows<S extends z.ZodTypeAny, T> =
   z.input<S> extends T
@@ -56,10 +62,10 @@ type InputNarrows<S extends z.ZodTypeAny, T> =
       : false
     : false;
 
-// ============= FIELD-LEVEL VALIDATION TYPES =============
+// ============= ВАЛИДАЦИЯ НА УРОВНЕ ПОЛЕЙ =============
 
 /**
- * Build full path to field (e.g., "address.street")
+ * Строит полный путь до поля, например `address.street`.
  */
 type BuildPath<
   Parent extends string,
@@ -67,19 +73,19 @@ type BuildPath<
 > = Parent extends '' ? Current : `${Parent}.${Current}`;
 
 /**
- * Check if field schema is a valid narrowing of domain field type
+ * Проверяет, что схема поля — допустимое сужение доменного типа поля.
  */
 type IsFieldValid<FieldSchema, FieldDomain> = FieldSchema extends FieldDomain
   ? true
   : false;
 
 /**
- * Get input type from Zod schema field
+ * Тип входа схемы поля zod.
  */
 type GetFieldInputType<FieldSchema extends z.ZodTypeAny> = z.input<FieldSchema>;
 
 /**
- * Create constraint for invalid field type
+ * Ограничение типа для поля с недопустимым типом.
  */
 
 type FieldConstraint<
@@ -88,7 +94,7 @@ type FieldConstraint<
   FieldDomain,
   Path extends string,
 > =
-  // K is used in Path construction via BuildPath in ValidateField
+  // K участвует в построении Path через BuildPath в ValidateField
   [K] extends [never]
     ? never
     : IsFieldValid<GetFieldInputType<FieldSchema>, FieldDomain> extends true
@@ -101,7 +107,7 @@ type FieldConstraint<
         };
 
 /**
- * Create constraint for extra field (not in domain type)
+ * Ограничение типа для поля, которого нет в доменном типе.
  */
 
 type ExtraFieldConstraint<
@@ -109,7 +115,7 @@ type ExtraFieldConstraint<
   FieldSchema extends z.ZodTypeAny,
   Path extends string,
 > =
-  // K is used in Path construction via BuildPath in ValidateObjectShape
+  // K участвует в построении Path через BuildPath в ValidateObjectShape
   [K] extends [never]
     ? never
     : z.ZodTypeAny & {
@@ -119,8 +125,9 @@ type ExtraFieldConstraint<
       };
 
 /**
- * Validate nested z.object recursively
- * Returns constraint for the nested object's shape property
+ * Рекурсивно проверяет вложенный `z.object`.
+ *
+ * Возвращает ограничение для поля `shape` вложенного объекта.
  */
 type ValidateNestedObject<
   FieldSchema extends z.ZodTypeAny,
@@ -131,7 +138,7 @@ type ValidateNestedObject<
   FieldSchema extends z.ZodObject<infer NestedShape>
     ? NestedShape extends z.ZodRawShape
       ? FieldDomain extends object
-        ? // Recursively validate nested object shape
+        ? // Рекурсивно проверяет форму вложенного объекта
           {
             shape: ValidateObjectShape<
               NestedShape,
@@ -152,7 +159,7 @@ type ValidateNestedObject<
     : never;
 
 /**
- * Validate single field with recursive nested object support
+ * Проверяет одно поле, включая рекурсивную проверку вложенных объектов.
  */
 type ValidateField<
   K extends PropertyKey,
@@ -171,7 +178,7 @@ type ValidateField<
       : FieldConstraint<K, FieldSchema, FieldDomain, Path>;
 
 /**
- * Validate object shape with field-level error reporting
+ * Проверяет форму объекта (`shape`) с сообщением об ошибке для каждого поля.
  */
 type ValidateObjectShape<
   Shape extends z.ZodRawShape,
@@ -193,7 +200,7 @@ type ValidateObjectShape<
 };
 
 /**
- * Global constraint for non-object schemas (fallback)
+ * Ограничение для схем, которые не описывают объект (запасной вариант).
  */
 type GlobalConstraint<S extends z.ZodTypeAny, T> =
   InputNarrows<S, T> extends false
@@ -206,7 +213,7 @@ type GlobalConstraint<S extends z.ZodTypeAny, T> =
     : unknown;
 
 /**
- * Conditional constraint based on schema type
+ * Выбирает ограничение в зависимости от вида схемы.
  */
 type SchemaConstraint<S extends z.ZodTypeAny, T> =
   S extends z.ZodObject<infer Shape>
@@ -218,7 +225,8 @@ type SchemaConstraint<S extends z.ZodTypeAny, T> =
     : GlobalConstraint<S, T>;
 
 /**
- * Main helper
+ * Создаёт `makeModel`, который проверяет вход схемы как сужение
+ * доменного типа `T` на уровне типов.
  */
 export function fromType<T>() {
   return {

@@ -2,9 +2,7 @@
 
 import { makeToken } from '@nestling/container';
 
-/**
- * Интерфейс логгера
- */
+/** Токен логгера */
 export const ILogger = makeToken<ILoggerService>('ILogger');
 
 export interface ILoggerService {
@@ -13,18 +11,17 @@ export interface ILoggerService {
   error(...args: unknown[]): void;
 }
 
-/** Уровни по возрастанию строгости: `debug` слышит всё, `error` — только ошибки */
+/** Уровни по возрастанию строгости: `debug` пишет всё, `error` — ошибки */
 export type LogLevel = 'debug' | 'info' | 'error';
 
 const ORDER: Record<LogLevel, number> = { debug: 0, info: 1, error: 2 };
 
 /**
- * Простой логгер (singleton).
+ * Логгер в консоль.
  *
- * Конструктор принимает обе стороны канона: имя сервиса — параметр
- * `logging({ … })`, то есть решение композиции, а уровень приезжает из
- * конфиг-секции модуля, то есть из среды. Класс поэтому не `@Injectable`:
- * его собирает фабрика модуля, которая и сводит два источника вместе.
+ * Имя сервиса приходит из параметра `logging({ … })`, уровень — из
+ * конфиг-секции модуля. Класс не помечен `@Injectable`: его создаёт
+ * фабрика модуля, которая соединяет оба источника.
  */
 export class ConsoleLogger implements ILoggerService {
   constructor(

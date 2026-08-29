@@ -6,7 +6,7 @@ describe('DINode', () => {
   const TokenA = makeToken('TokenA');
   const TokenB = makeToken('TokenB');
 
-  it('exposes metadata and dependencies', () => {
+  it('хранит метаданные и зависимости', () => {
     const child = new DINode(TokenB, [], {
       instance: { value: 1 },
       metadata: { module: 'ModuleB', exported: true },
@@ -26,7 +26,7 @@ describe('DINode', () => {
     expect(node.metadata).toEqual({ module: 'ModuleA' });
   });
 
-  it('computes transitive dependencies', () => {
+  it('вычисляет транзитивные зависимости', () => {
     const leaf = new DINode(TokenB, [], {
       instance: {},
       metadata: {},

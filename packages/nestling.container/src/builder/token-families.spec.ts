@@ -19,8 +19,8 @@ interface IMetricsService {
   name: string;
 }
 
-describe('family member materialization', () => {
-  it('calls the recipe once per parameter and shares the instance', async () => {
+describe('создание членов семейства', () => {
+  it('вызывает рецепт один раз на параметр и разделяет экземпляр', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Dedup');
     const calls: string[] = [];
     const recipe = (scope: string) => {
@@ -54,7 +54,7 @@ describe('family member materialization', () => {
     );
   });
 
-  it('materializes distinct parameters as distinct nodes', async () => {
+  it('создаёт отдельный узел для каждого параметра', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'Distinct',
     );
@@ -87,7 +87,7 @@ describe('family member materialization', () => {
     expect(users).not.toBe(db);
   });
 
-  it('reaches a fixpoint when a recipe depends on another family', async () => {
+  it('завершает сбор, когда рецепт зависит от другого семейства', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'ChainLog',
     );
@@ -124,7 +124,7 @@ describe('family member materialization', () => {
     expect(container.getOrThrow(IMetrics('users')).name).toBe('users');
   });
 
-  it('does not materialize members nobody depends on', async () => {
+  it('не создаёт членов, от которых никто не зависит', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Orphan');
 
     @Injectable([ILogger('used')])
@@ -132,7 +132,7 @@ describe('family member materialization', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    // The token exists (and is in the family registry), but nothing depends on it.
+    // Токен создан и есть в реестре семейства, но от него никто не зависит.
     const orphan = ILogger('orphan');
 
     const container = await new ContainerBuilder()
@@ -151,8 +151,8 @@ describe('family member materialization', () => {
   });
 });
 
-describe('family materialization errors', () => {
-  it('rejects a recipe that provides a different token', async () => {
+describe('ошибки создания членов', () => {
+  it('отклоняет рецепт, вернувший провайдер другого токена', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Wrong');
 
     @Injectable([ILogger('users')])
@@ -173,7 +173,7 @@ describe('family materialization errors', () => {
     );
   });
 
-  it('reports a member requested without a registered recipe', async () => {
+  it('сообщает о члене, запрошенном без рецепта', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'NoRecipe',
     );
@@ -190,7 +190,7 @@ describe('family materialization errors', () => {
     );
   });
 
-  it('rejects a second recipe for the same family', () => {
+  it('отклоняет второй рецепт для того же семейства', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Twice');
 
     const builder = new ContainerBuilder().register(
@@ -208,7 +208,7 @@ describe('family materialization errors', () => {
     ).toThrow(/token family 'Twice' is already registered/);
   });
 
-  it('wraps an error thrown by the recipe with family context', async () => {
+  it('оборачивает ошибку рецепта с именем семейства и параметром', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Boom');
 
     @Injectable([ILogger('users')])
@@ -229,7 +229,7 @@ describe('family materialization errors', () => {
     );
   });
 
-  it('stops a recipe that keeps producing new members', async () => {
+  it('останавливает рецепт, который порождает членов бесконечно', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Endless');
 
     @Injectable([ILogger('a')])
@@ -254,7 +254,7 @@ describe('family materialization errors', () => {
     );
   });
 
-  it('hints at the family for a look-alike token built with makeToken', async () => {
+  it('подсказывает семейство для похожего токена из makeToken', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'LookAlike',
     );
@@ -279,8 +279,8 @@ describe('family materialization errors', () => {
   });
 });
 
-describe('family members are ordinary graph nodes', () => {
-  it('detects a cycle that runs through a family member', async () => {
+describe('члены семейства — обычные узлы графа', () => {
+  it('находит цикл, проходящий через члена семейства', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Cyclic');
     const IServiceB = makeToken<{ id: string }>('CyclicServiceB');
 
@@ -306,7 +306,7 @@ describe('family members are ordinary graph nodes', () => {
     await expect(builder.build()).rejects.toThrow(/Circular dependency/);
   });
 
-  it('runs lifecycle hooks of a member exactly once', async () => {
+  it('выполняет хуки члена ровно один раз', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Hooked');
     const calls: string[] = [];
 
@@ -348,7 +348,7 @@ describe('family members are ordinary graph nodes', () => {
     expect(calls).toEqual(['init', 'destroy']);
   });
 
-  it('attributes a member to the module that registered the recipe', async () => {
+  it('привязывает члена к модулю, зарегистрировавшему рецепт', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'Attributed',
     );
@@ -378,7 +378,7 @@ describe('family members are ordinary graph nodes', () => {
     expect(member?.metadata.module).toBe('module:logging');
   });
 
-  it('leaves a member without a module when the recipe is registered directly', async () => {
+  it('оставляет члена без модуля, если рецепт зарегистрирован напрямую', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'Moduleless',
     );
@@ -403,7 +403,7 @@ describe('family members are ordinary graph nodes', () => {
     expect(member?.metadata.module).toBeUndefined();
   });
 
-  it('accepts a family recipe from a module providers factory', async () => {
+  it('принимает рецепт из фабрики провайдеров модуля', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'FromFactory',
     );

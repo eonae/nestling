@@ -16,7 +16,7 @@ import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 describe('cliEndpoint', () => {
-  it('имя команды становится паттерном ручки', () => {
+  it("имя команды становится паттерном endpoint'а", () => {
     const ProcessStdin = cliEndpoint({
       command: 'process-stdin',
       output: z.object({ lines: z.number() }),
@@ -36,7 +36,7 @@ describe('cliEndpoint', () => {
     ).toThrow(/'command' must be a non-empty name/);
   });
 
-  it('detached доезжает до значения декларации, пустая причина отвергается', () => {
+  it('detached передаётся в значение декларации, пустая причина отвергается', () => {
     const reason = 'служебная команда обслуживания: политик auth не касается';
 
     const Vacuum = cliEndpoint({
@@ -81,7 +81,7 @@ describe('cliEndpoint', () => {
     await cli.close();
   });
 
-  it('декларация с deps обслуживается после гашения', async () => {
+  it('декларация с deps обслуживается после резолва зависимостей', async () => {
     class Clock {
       now() {
         return 'fixed';
@@ -124,7 +124,7 @@ describe('cliEndpoint — объявленные отказы', () => {
     message: (d) => `Only ${d.limit} lines allowed`,
   });
 
-  it('errors: доезжает до значения декларации и до стража', async () => {
+  it('errors: доходит до значения декларации и до проверки границы', async () => {
     const Count = cliEndpoint({
       command: 'count',
       output: z.object({ lines: z.number() }),
@@ -144,7 +144,8 @@ describe('cliEndpoint — объявленные отказы', () => {
       options: {},
     });
 
-    // Статус печатается как есть: маппинга на провод CLI не требует
+    // Статус печатается как есть: в отличие от HTTP, сопоставлять его
+    // с кодом ответа не нужно
     expect(response).toMatchObject({
       isSuccess: false,
       status: 'TOO_MANY_REQUESTS',

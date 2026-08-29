@@ -46,8 +46,8 @@ function makeTransport(options: HttpTransportOptions = {}): HttpTransport {
 }
 
 /**
- * Декларации, накопленные тестом до go-live: транспорт получает их одним
- * `dispatch` в `serve`, а не по одной.
+ * Декларации, накопленные тестом до запуска транспорта: он получает их
+ * одним `dispatch` в `serve`, а не по одной.
  */
 const pending = new WeakMap<HttpTransport, ExecutableDeclaration[]>();
 
@@ -272,7 +272,7 @@ describe('framing по форме output', () => {
     ]);
   });
 
-  it('.finally у потоковой ручки срабатывает после последнего байта', async () => {
+  it(".finally у потокового endpoint'а срабатывает после последнего байта", async () => {
     outcomes.length = 0;
     await get(baseUrl, '/rows');
     await until(() => outcomes.length > 0);
@@ -338,7 +338,7 @@ describe('SSE: heartbeat, реконнект, дисконнект', () => {
     expect(connection.chunks.join('')).not.toContain('data:');
   });
 
-  it('Last-Event-ID приезжает в стартовый контекст', async () => {
+  it('Last-Event-ID попадает в стартовый контекст', async () => {
     seenLastEventId.length = 0;
 
     const connection = open(baseUrl, '/hub', { 'last-event-id': '42' });
@@ -359,7 +359,7 @@ describe('SSE: heartbeat, реконнект, дисконнект', () => {
   it('дисконнект закрывает итератор и снимает подписку', async () => {
     // Соседние тесты рвут соединение, не дожидаясь серверной уборки:
     // без этого «подписчик ровно один» мог бы совпасть с их хвостом, и
-    // push уехал бы мимо открываемого ниже соединения
+    // push прошёл бы мимо открываемого ниже соединения
     await until(() => hub.subscribers === 0);
 
     outcomes.length = 0;
@@ -520,7 +520,7 @@ describe('приём потокового входа и multipart', () => {
     return { status: response.status, body: await response.text() };
   };
 
-  it('NDJSON-вход доезжает до хендлера валидированным, счётчики растут', async () => {
+  it('NDJSON-вход передаётся в хендлер валидированным, счётчики растут', async () => {
     const ndjson = ['{"id":"1"}', '{"id":"2"}'].join('\n');
     const response = await post('/import', ndjson, 'application/x-ndjson');
 

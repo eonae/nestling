@@ -1,10 +1,10 @@
 /**
  * Модуль-издатель: точка построения, топология и подчинение политикам.
  *
- * Главное здесь — **когда** строится документ. Обещана boot-time-гарантия:
+ * Главное здесь — **когда** строится документ. Обещана гарантия на старте:
  * непокрытая схема роняет сборку до `@OnInit` и до `serve`, а не при первом
- * запросе `/openapi.json`. Проверяется это наблюдаемо — по тому, что
- * конструкторы-с-ресурсами не отработали, а транспорт в эфир не вышел.
+ * запросе `/openapi.json`. Проверяется это наблюдаемо: конструкторы с
+ * ресурсами не отработали, а транспорт не начал принимать запросы.
  */
 
 import { openapi, OpenApiDocument$ } from './module.js';
@@ -43,7 +43,10 @@ const VALUE_ONLY: TransportCapabilities = {
   output: new Set(['value'] as const),
 };
 
-/** Транспорт-шпион: единственное, что он умеет, — сказать «я в эфире» */
+/**
+ * Транспорт-шпион: единственное, что он умеет, — сообщить, что начал
+ * принимать запросы
+ */
 class SpyTransport implements ITransport {
   serving = false;
   dispatch?: Dispatch;
@@ -62,14 +65,14 @@ class SpyTransport implements ITransport {
 const asHttpTransport = (transport: ITransport) =>
   valueProvider(HttpTransport$, transport);
 
-/** Пустой стартовый контекст: документ отдаётся ручкой без входа */
+/** Пустой стартовый контекст: документ отдаётся endpoint'ом без входа */
 const contextFor = (pattern: string) =>
   makeEmptyContext(
     { transport: 'http', pattern, payload: undefined, attributes: {} },
     { transport: 'http', pattern },
   ) as ExtendableContext<AnyInput>;
 
-/** Документ, полученный вызовом собственной ручки модуля */
+/** Документ, полученный вызовом собственного endpoint'а модуля */
 const serve = async (transport: SpyTransport): Promise<OpenApiDocument> => {
   const response = await transport.dispatch?.call(
     'GET /openapi.json',
@@ -129,7 +132,7 @@ const BillingFeature = makeFeature({
 });
 
 describe('openapi(...) — модуль-издатель', () => {
-  it('отдаёт документ ручкой и не описывает сам себя', async () => {
+  it("отдаёт документ endpoint'ом и не описывает сам себя", async () => {
     const transport = new SpyTransport();
     const app = assemble({
       modules: [
@@ -151,13 +154,13 @@ describe('openapi(...) — модуль-издатель', () => {
     expect(document.openapi).toBe('3.1.0');
     expect(Object.keys(document.paths)).toEqual(['/users/{id}']);
     expect(document.paths['/openapi.json']).toBeUndefined();
-    // Скрытая ручка тоже не описана
+    // Скрытый endpoint тоже не описан
     expect(document.paths['/health']).toBeUndefined();
 
     await app.close();
   });
 
-  it('непокрытая схема роняет сборку на ASSEMBLE — до @OnInit и до эфира', async () => {
+  it('непокрытая схема роняет сборку на ASSEMBLE — до @OnInit и до приёма запросов', async () => {
     const exotic: StandardSchemaV1<unknown, { id: string }> = {
       '~standard': {
         version: 1,
@@ -235,7 +238,7 @@ describe('openapi(...) — модуль-издатель', () => {
   });
 });
 
-describe('ручка документации подчиняется политикам приложения', () => {
+describe('endpoint документации подчиняется политикам приложения', () => {
   const observability = makePipeline().pre(() => ({ traced: true }));
 
   const policy = everyEndpoint({ transport: HttpTransport$ }).hasLayer(
@@ -289,7 +292,7 @@ describe('ручка документации подчиняется полит�
     await app.close();
   });
 
-  it('detached снимает ручку с политики', async () => {
+  it('detached снимает endpoint с политики', async () => {
     const app = assemble({
       modules: [
         TracedModule,
@@ -310,7 +313,7 @@ describe('ручка документации подчиняется полит�
 });
 
 describe('документ доступен значением', () => {
-  it('токен OpenApiDocument$ отдаёт тот же документ, что и ручка', async () => {
+  it('токен OpenApiDocument$ отдаёт тот же документ, что и endpoint', async () => {
     let injected: OpenApiDocument | undefined;
 
     const Observer$ = makeToken<'observed'>('spec:openapi-observer');
@@ -341,7 +344,7 @@ describe('документ доступен значением', () => {
 
     await app.run();
 
-    // Документ построен на ASSEMBLE и лежит в графе значением: ручка —
+    // Документ построен на ASSEMBLE и лежит в графе значением: endpoint —
     // способ его отдать, а не место, где он появляется
     expect(injected).toEqual(await serve(transport));
     expect(Object.keys(injected?.paths ?? {})).toEqual(['/users/{id}']);

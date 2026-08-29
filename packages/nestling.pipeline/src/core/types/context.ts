@@ -15,8 +15,10 @@ import { makeSummary } from '@nestling/contracts';
 export * from './raw.js';
 
 /**
- * Метаданные endpoint (readonly)
- * Доступны middleware для конфигурации (rate limit, audit, cache и т.д.)
+ * Метаданные endpoint'а. Только для чтения.
+ *
+ * Доступны юнитам пайплайна для конфигурации: rate limit, audit, cache
+ * и подобное.
  */
 export interface EndpointMeta {
   transport: string;
@@ -29,29 +31,27 @@ export interface EndpointMeta {
   output?: AnyOutput;
 
   /**
-   * Объявленные отказы ручки (`errors:` декларации).
+   * Объявленные отказы endpoint'а (`errors:` декларации).
    *
-   * Единственный источник множества для стража границы: декларация →
-   * транспорт → контекст. Глобального реестра отказов нет, поэтому
-   * пайплайн, исполненный без декларации, видит пустое множество и
-   * контрактными считает только kernel-коды.
+   * Единственный источник множества для проверки контракта отказов:
+   * значение доходит от декларации через транспорт до контекста.
+   * Глобального реестра отказов нет, поэтому пайплайн, исполненный без
+   * декларации, видит пустое множество и контрактными считает только
+   * kernel-коды.
    */
   errors?: readonly AnyFailDefinition[];
 
-  /** Дополнительные опции для middleware */
+  /** Дополнительные опции для юнитов пайплайна */
   [key: string]: unknown;
 }
 
 /**
- * Контекст ДО валидации
+ * Контекст до валидации.
  *
- * ❗ input НЕ существует на этом этапе
- * ❗ Есть только raw.payload
- *
- * Middleware до validate() работают с этим контекстом:
- * - Могут читать raw.payload и raw.attributes
- * - Могут добавлять поля в meta
- * - Могут читать endpoint для конфигурации
+ * На этом этапе `input` ещё не существует: есть только `raw.payload`.
+ * Юниты `.pre` до `validate()` работают именно с этим контекстом: читают
+ * `raw.payload` и `raw.attributes`, дополняют накопленный `input` и
+ * читают `endpoint` для конфигурации.
  */
 export interface ExtendableContext<I extends AnyInput> {
   /** Метаданные endpoint (readonly) */
@@ -75,13 +75,13 @@ export interface ExtendableContext<I extends AnyInput> {
    * (заполняет транспорт, где знает их).
    *
    * Ссылка read-only, значения — актуальные на момент чтения: объект
-   * мутируется рантаймом по мере течения потока. Существует у любой ручки:
-   * у не-потоковой счётчики остаются нулями, чтобы наблюдатель не
-   * ветвился.
+   * мутируется рантаймом по мере течения потока. Существует у любого
+   * endpoint'а: у не-потокового счётчики остаются нулями, чтобы
+   * наблюдатель не ветвился.
    */
   readonly summary: StreamSummary;
 
-  /** Метаданные, накапливаемые middleware */
+  /** Накопленный input: дополняется pre-юнитами */
   input: I;
 }
 
@@ -128,8 +128,8 @@ export interface ErrorDetails {
    * Машинный код отказа — ось, независимая от статуса.
    *
    * Заполняется рантаймом из `Fail.code`; у отказа без кода поле
-   * отсутствует (а не равно `null` или пустой строке). По нему же страж
-   * границы решает, контрактен ли ответ.
+   * отсутствует (а не равно `null` или пустой строке). По нему же
+   * проверка контракта отказов решает, контрактен ли ответ.
    */
   code?: string;
 
@@ -150,7 +150,10 @@ export interface SuccessResponseContext<TValue = unknown> {
   /** HTTP заголовки (для HTTP transport) */
   headers?: Record<string, string>;
 
-  /** Данные успешного ответа (может быть AsyncIterableIterator для streaming) */
+  /**
+   * Данные успешного ответа. Для потоковой формы —
+   * AsyncIterableIterator.
+   */
   value: TValue;
 }
 
@@ -158,7 +161,7 @@ export interface SuccessResponseContext<TValue = unknown> {
  * ResponseContext для ошибки
  */
 export interface ErrorResponseContext {
-  /** Флаг успешного ответа */
+  /** Флаг успеха: у ошибки всегда `false` */
   isSuccess: false;
 
   /** Статус ошибки */

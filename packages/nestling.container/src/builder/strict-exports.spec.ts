@@ -17,8 +17,8 @@ interface ILoggerService {
 const ISecret = makeToken<string>('Secret');
 const IOther = makeToken<string>('Other');
 
-describe('strictExports off by default', () => {
-  it('allows a cross-module dependency on a non-exported token', async () => {
+describe('strictExports выключен по умолчанию', () => {
+  it('разрешает зависимость между модулями от неэкспортированного токена', async () => {
     @Injectable([ISecret])
     class Consumer {
       constructor(readonly secret: string) {}
@@ -38,8 +38,8 @@ describe('strictExports off by default', () => {
   });
 });
 
-describe('strictExports on', () => {
-  it('passes when the dependency token is exported', async () => {
+describe('strictExports включён', () => {
+  it('проходит, если токен зависимости экспортирован', async () => {
     @Injectable([ISecret])
     class Consumer {
       constructor(readonly secret: string) {}
@@ -59,7 +59,7 @@ describe('strictExports on', () => {
     expect(container.getOrThrow(Consumer).secret).toBe('shh');
   });
 
-  it('allows an intra-module edge to a non-exported token', async () => {
+  it('разрешает ребро внутри модуля к неэкспортированному токену', async () => {
     @Injectable([ISecret])
     class Consumer {
       constructor(readonly secret: string) {}
@@ -78,7 +78,7 @@ describe('strictExports on', () => {
     expect(container.getOrThrow(Consumer).secret).toBe('shh');
   });
 
-  it('allows dependencies that belong to no module', async () => {
+  it('разрешает зависимости без модуля', async () => {
     @Injectable([ISecret])
     class Consumer {
       constructor(readonly secret: string) {}
@@ -92,7 +92,7 @@ describe('strictExports on', () => {
     expect(container.getOrThrow(Consumer).secret).toBe('shh');
   });
 
-  it('allows a family member when the module exports the family', async () => {
+  it('разрешает члена семейства, если модуль экспортирует семейство', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'ExportedFamily',
     );
@@ -126,7 +126,7 @@ describe('strictExports on', () => {
     expect(container.getOrThrow(Consumer).logger.scope).toBe('users');
   });
 
-  it('fails on a non-exported cross-module dependency', async () => {
+  it('падает на неэкспортированной зависимости между модулями', async () => {
     @Injectable([ISecret])
     class Consumer {
       constructor(readonly secret: string) {}
@@ -147,7 +147,7 @@ describe('strictExports on', () => {
     );
   });
 
-  it('treats a module without exports as exporting nothing', async () => {
+  it('считает модуль без exports не экспортирующим ничего', async () => {
     @Injectable([ISecret])
     class Consumer {
       constructor(readonly secret: string) {}
@@ -167,7 +167,7 @@ describe('strictExports on', () => {
     );
   });
 
-  it('fails on a family member whose family is not exported', async () => {
+  it('падает на члене семейства, которое не экспортировано', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'PrivateFamily',
     );
@@ -195,7 +195,7 @@ describe('strictExports on', () => {
     );
   });
 
-  it('reports every violation in a single error', async () => {
+  it('сообщает все нарушения одной ошибкой', async () => {
     @Injectable([ISecret, IOther])
     class ConsumerA {
       constructor(
@@ -231,7 +231,7 @@ describe('strictExports on', () => {
     );
   });
 
-  it('keeps exported metadata unchanged for modules that declare exports', async () => {
+  it('сохраняет metadata.exported у модулей с exports', async () => {
     const IExported = makeToken<string>('ExportedToken');
     const IHidden = makeToken<string>('HiddenToken');
 
@@ -256,8 +256,8 @@ describe('strictExports on', () => {
   });
 });
 
-describe('module exports accept classes and families side by side', () => {
-  it('exports a class token and a family from the same module', async () => {
+describe('exports модуля принимает классы и семейства вместе', () => {
+  it('экспортирует класс и семейство из одного модуля', async () => {
     const IMetrics = makeTokenFamily<{ name: string }, [name: string]>(
       'MixedMetrics',
     );

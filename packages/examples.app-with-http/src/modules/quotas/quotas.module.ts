@@ -19,13 +19,14 @@ import { makePipeline, Ok } from '@nestling/pipeline';
 import { implement, withIdempotencyKey } from '@nestling/ports';
 
 /**
- * Реализация запроса: обычная декларация на транспорте шины.
+ * Реализация запроса `quotas.claim`: обычная декларация endpoint'а на
+ * транспорте шины.
  *
- * Отличий от HTTP-ручки ровно два — конструктор и адрес; всё остальное то
- * же самое: `deps`, три формы `handle`, `resolve` в WIRE, страж границы,
- * участие в дискавери и в `policies`, вызов по значению в тестах.
- * `input`/`output`/`errors` не переобъявляются — интерфейс операции
- * принадлежит контракту.
+ * От HTTP-endpoint'а отличаются только конструктор и адрес. Остальное то
+ * же: `deps`, формы `handle`, получение зависимостей на фазе WIRE,
+ * проверка отказов по `errors`, участие в discovery и `policies`, вызов
+ * по значению в тестах. `input`, `output` и `errors` не переобъявляются:
+ * они принадлежат контракту.
  */
 export const ClaimQuotaImpl = implement(ClaimQuota, {
   deps: [QuotaService, ILogger],
@@ -37,8 +38,8 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
       if (!claimed.ok) {
         logger.log(`quota exhausted, refusing ${payload.email}`);
 
-        // Объявленный отказ — данные: у вызывающего он окажется настоящим
-        // `Fail`, узнаваемым по `QuotaExceeded.is(...)`
+        // Отказ возвращается значением; вызывающий получит настоящий `Fail`
+        // и распознает его через `QuotaExceeded.is(...)`
         return QuotaExceeded({ limit: quotas.limit });
       }
 
@@ -47,11 +48,11 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
 });
 
 /**
- * Подписчик события: `subscriber` — адрес подписки, а не декорация.
+ * Подписчик события `users.registered`.
  *
- * У события 0..N подписчиков, поэтому имя обязательно: оно разводит
- * паттерны внутри процесса (`users.registered@quotas`) и станет именем
- * queue-group, когда за шиной окажется брокер.
+ * У события может быть несколько подписчиков, поэтому `subscriber`
+ * обязателен: он различает подписки внутри процесса
+ * (`users.registered@quotas`) и становится именем queue-group у брокера.
  */
 export const UserRegisteredInQuotas = implement(UserRegistered, {
   subscriber: 'quotas',
@@ -66,15 +67,15 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 });
 
 /**
- * Реализация команды: ключ идемпотентности читается из глубины.
+ * Реализация команды `quotas.record-signup`: ключ идемпотентности читает
+ * сервис в глубине графа.
  *
- * Профиль вызова доезжает двумя каналами. Безусловный — транспортные
- * атрибуты (`ctx.raw.attributes.idempotencyKey`), их кладут оба пути
- * биндинга рядом с `subject`. Второй — ambient-проекция: штатный писатель
- * `withIdempotencyKey()` кладёт ключ в контекст, и любой код произвольной
- * глубины читает его через `Ctx(IdempotencyKey)`, не протаскивая
- * параметром. Присутствие писателя проверяемо на сборке —
- * `everyEndpoint(…).hasVar(IdempotencyKey)`.
+ * Ключ доступен двумя путями. Первый — транспортные атрибуты
+ * (`ctx.raw.attributes.idempotencyKey`), их заполняет любая привязка
+ * порта. Второй — асинхронный контекст: pre-юнит `withIdempotencyKey()`
+ * кладёт ключ в контекст, и код на любой глубине читает его через
+ * `Ctx(IdempotencyKey)`, не получая параметром. Что юнит есть в
+ * пайплайне, проверяет на сборке `everyEndpoint(…).hasVar(IdempotencyKey)`.
  */
 export const SignupRecordedImpl = implement(SignupRecorded, {
   pipeline: makePipeline().pre(withIdempotencyKey()),
@@ -82,8 +83,8 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
   handle:
     (journal: SignupJournal) =>
     async (payload: { userId: string; email: string }) => {
-      // Ключ есть всегда: переданный вызывающим либо отчеканенный
-      // вызывателем. Читает его сервис в глубине — не через параметр
+      // Ключ есть всегда: его передал вызывающий или сгенерировал порт.
+      // Сервис читает ключ из контекста, а не из параметра
       journal.record(payload.userId);
 
       return undefined;
@@ -93,9 +94,9 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
 /**
  * Модуль фичи квот.
  *
- * В `providers:` — только собственный сервис; наружу фича отдаёт не токен,
- * а контракт. `endpoints:` принимает реализации контрактов наравне с
- * HTTP-ручками — новой оси регистрации не появилось.
+ * В `providers:` только собственные сервисы: наружу фича отдаёт не токены,
+ * а контракты. `endpoints:` принимает реализации контрактов наравне с
+ * HTTP-endpoint'ами.
  */
 export const QuotasModule = makeAppModule({
   name: 'module:quotas',

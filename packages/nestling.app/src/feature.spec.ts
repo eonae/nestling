@@ -53,7 +53,7 @@ describe('makeFeature', () => {
 });
 
 describe('resolveSelection', () => {
-  it('транзитивная зависимость приезжает сама', () => {
+  it('транзитивная зависимость подключается автоматически', () => {
     const Audit = feature('audit');
     const Shared = feature('shared', [Audit]);
     const Orders = feature('orders', [Shared]);

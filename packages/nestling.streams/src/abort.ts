@@ -19,8 +19,8 @@ function abortPromise(signal: AbortSignal): {
   promise: Promise<typeof ABORTED>;
   dispose: () => void;
 } {
-  // Definite assignment: исполнитель промиса синхронный, к моменту return
-  // слушатель уже создан
+  // Присваивание гарантировано: исполнитель промиса синхронный, к моменту
+  // return слушатель уже создан
   let onAbort!: () => void;
 
   const promise = new Promise<typeof ABORTED>((resolve) => {

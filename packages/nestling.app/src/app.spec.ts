@@ -1,5 +1,5 @@
 /**
- * `assemble` и фазовый рантайм: порядок фаз, fail-fast сборки, гашение
+ * `assemble` и фазовый рантайм: порядок фаз, fail-fast сборки, резолв
  * зависимостей деклараций и строгий реверс shutdown.
  */
 
@@ -46,8 +46,8 @@ const contextFor = (pattern: string, payload?: unknown) =>
     { transport: 'http', pattern },
   ) as ExtendableContext<AnyInput>;
 
-describe('assemble — дискавери и регистрация', () => {
-  it('маршруты дерева модулей доезжают до транспорта проекциями', async () => {
+describe('assemble — discovery и регистрация', () => {
+  it('маршруты дерева модулей передаются транспорту проекциями', async () => {
     const TestEndpoint = httpEndpoint({
       method: 'GET',
       path: '/test',
@@ -71,13 +71,13 @@ describe('assemble — дискавери и регистрация', () => {
 
     expect(transport.routes).toHaveLength(1);
     expect(transport.routes[0].pattern).toBe('GET /test');
-    // Проекция несёт провод, но не исполнение
+    // Проекция несёт то, что уходит по сети, но не исполнение
     expect('handle' in transport.routes[0]).toBe(false);
 
     await app.close();
   });
 
-  it('объявленные отказы доезжают до проекции маршрута', async () => {
+  it('объявленные отказы попадают в проекцию маршрута', async () => {
     const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
       status: 'TOO_MANY_REQUESTS',
       message: 'Quota exceeded',
@@ -115,7 +115,7 @@ describe('assemble — дискавери и регистрация', () => {
     await app.close();
   });
 
-  it('эндпоинт из модуля, не переданного в assemble, не обслуживается', async () => {
+  it('endpoint из модуля, не переданного в assemble, не обслуживается', async () => {
     const ForeignEndpoint = httpEndpoint({
       method: 'GET',
       path: '/foreign',
@@ -126,7 +126,7 @@ describe('assemble — дискавери и регистрация', () => {
 
     const transport = new MockTransport();
     const app = assemble({
-      modules: [], // модуль с эндпоинтом не зарегистрирован
+      modules: [], // модуль с endpoint'ом не зарегистрирован
       transports: [asHttpTransport(transport)],
     });
 
@@ -138,7 +138,7 @@ describe('assemble — дискавери и регистрация', () => {
     await app.close();
   });
 
-  it('транспорт без обнаруженных ручек поднимается', async () => {
+  it("транспорт без обнаруженных endpoint'ов поднимается", async () => {
     const transport = new MockTransport();
     const app = assemble({
       modules: [makeAppModule({ name: 'module:empty' })],
@@ -153,7 +153,7 @@ describe('assemble — дискавери и регистрация', () => {
     await app.close();
   });
 
-  it('пустая сборка легальна', async () => {
+  it('пустая сборка допустима', async () => {
     const app = assemble({});
 
     await expect(app.run()).resolves.toBeUndefined();
@@ -351,7 +351,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
   });
 });
 
-describe('assemble — фаза WIRE: гашение зависимостей деклараций', () => {
+describe('assemble — фаза WIRE: резолв зависимостей деклараций', () => {
   it('хендлер получает инстанс из DI', async () => {
     @Injectable([])
     class TestService {
@@ -490,7 +490,7 @@ describe('assemble — фаза WIRE: гашение зависимостей д
 });
 
 describe('assemble — порядок фаз и shutdown', () => {
-  it('порядок наблюдаем: @OnInit → @OnStart → serve', async () => {
+  it('порядок наблюдаем: сначала @OnInit, затем @OnStart, затем serve', async () => {
     const order: string[] = [];
 
     @Injectable([])
@@ -528,7 +528,7 @@ describe('assemble — порядок фаз и shutdown', () => {
     await app.close();
   });
 
-  it('shutdown идёт реверсом: сигнал → close() транспортов → @OnDestroy', async () => {
+  it('shutdown идёт реверсом: сигнал, close() транспортов, @OnDestroy', async () => {
     const order: string[] = [];
 
     @Injectable([])
@@ -714,7 +714,7 @@ describe('assemble — порядок фаз и shutdown', () => {
 });
 
 describe('assemble — фичи в приложении', () => {
-  it('невыбранная фича не строит провайдеров и не регистрирует ручек', async () => {
+  it("невыбранная фича не строит провайдеров и не регистрирует endpoint'ов", async () => {
     const built: string[] = [];
 
     @Injectable([])
@@ -846,10 +846,10 @@ describe('assemble — фичи в приложении', () => {
       transports: [asHttpTransport(new MockTransport())],
     });
 
-    // Дискавери идёт раньше регистрации модулей (её результат нужен
+    // Discovery идёт раньше регистрации модулей (её результат нужен
     // kernel-модулю портов уже на регистрации), поэтому диагностику даёт
     // она: тот же инвариант, тот же класс ошибки, текст ещё и про
-    // эндпоинты. Фаза остаётся прежней — ASSEMBLE, до любого `@OnInit`.
+    // endpoint'ы. Фаза остаётся прежней — ASSEMBLE, до любого `@OnInit`.
     await expect(app.check()).rejects.toThrow(
       /Two different modules are named 'module:logging'\. A module name is the attribution key of its providers, exports and endpoints/,
     );

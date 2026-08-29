@@ -1,6 +1,6 @@
 /**
- * Секция как узел графа: материализация из инжекта, участие в топосорте,
- * fail-fast валидации на `build()`.
+ * Секция как узел графа: создаётся при инжекте, участвует в топологическом
+ * порядке сборки, проходит fail-fast валидацию в `build()`.
  */
 
 import { from } from './declaration.js';
@@ -65,7 +65,7 @@ beforeEach(() => {
   warnings.length = 0;
 });
 
-describe('материализация секции', () => {
+describe('создание секции', () => {
   it('инжект секции создаёт узел, видимый контейнеру', async () => {
     const container = await build({
       ORDERS_MAX_ITEMS: '7',
@@ -171,7 +171,7 @@ const addressKey = (server: string): string =>
 describe('семейство одиночных ключей Config(key)', () => {
   const IUsersClient = makeToken<{ address: unknown }>('IUsersClient');
 
-  it('материализуется из deps и разрешается по общим правилам приоритета', async () => {
+  it('создаётся из deps и разрешается по общим правилам приоритета', async () => {
     const container = await build(
       { USERS_GRPC_ADDRESS: 'users:50051', DATABASE_URL: 'postgres://x' },
       (builder) => {

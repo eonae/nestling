@@ -59,11 +59,11 @@ describe('createUserHandler', () => {
         );
         expect(userService.create).toHaveBeenCalledWith(newUser);
       } else {
-        expect(result).toBeInstanceOf(Ok); // Will fail
+        expect(result).toBeInstanceOf(Ok); // Не должно сработать: result — Ok
       }
     });
 
-    it('dryRun из query-строки проверяет, но не создаёт', async () => {
+    it('`dryRun` из параметров запроса проверяет, но не создаёт пользователя', async () => {
       userService.findByEmail.mockResolvedValue(null);
 
       const result = await handle({
@@ -111,7 +111,7 @@ describe('createUserHandler', () => {
       expect(registered.emit).not.toHaveBeenCalled();
     });
 
-    it('исчерпанный бюджет вызова возвращается kernel-кодом, а не UNKNOWN', async () => {
+    it('исчерпанный бюджет вызова возвращается кодом ядра, а не UNKNOWN', async () => {
       userService.findByEmail.mockResolvedValue(null);
       // Так выглядит вызов, не уложившийся в `deadline`: множество ответов
       // порта закрыто, и `DEADLINE_EXCEEDED` входит в него наравне с
@@ -129,7 +129,7 @@ describe('createUserHandler', () => {
   });
 
   describe('Профиль вызова', () => {
-    it('зовёт соседнюю фичу с бюджетом-моментом', async () => {
+    it('передаёт порту дедлайн в виде Date в будущем', async () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.create.mockResolvedValue({
         id: '3',
@@ -144,7 +144,7 @@ describe('createUserHandler', () => {
       expect(meta?.deadline?.getTime()).toBeGreaterThan(Date.now());
     });
 
-    it('команда едет с ключом идемпотентности, а событие — без', async () => {
+    it('у команды есть ключ идемпотентности, у события — нет', async () => {
       userService.findByEmail.mockResolvedValue(null);
       userService.create.mockResolvedValue({
         id: '3',

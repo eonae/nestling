@@ -3,7 +3,7 @@ import { fromScratch } from './from-scratch.fn';
 import { z } from 'zod';
 
 describe('makeModel', () => {
-  it('should create schema without explicit type (type inference)', () => {
+  it('создаёт схему без явного типа: тип выводится автоматически', () => {
     const schema = fromScratch().makeModel(
       z.object({
         a: z.number().describe('First number'),
@@ -16,7 +16,7 @@ describe('makeModel', () => {
     expect(schema.shape).toHaveProperty('b');
   });
 
-  it('should return zod schema directly', () => {
+  it('возвращает объект схемы zod без изменений', () => {
     const schema = fromScratch().makeModel(
       z.object({
         field1: z.string().describe('Field 1'),
@@ -29,8 +29,8 @@ describe('makeModel', () => {
   });
 });
 
-describe('transforms with makeModel (without explicit type)', () => {
-  it('should support transforms without type parameter', () => {
+describe('преобразования в makeModel без явного типа', () => {
+  it('поддерживает transform без явного параметра типа', () => {
     const schema = fromScratch().makeModel(
       z.object({
         id: z.string().transform((val) => Number.parseInt(val, 10)),
@@ -45,7 +45,7 @@ describe('transforms with makeModel (without explicit type)', () => {
     expect(result.name).toBe('Alice');
   });
 
-  it('should support complex transforms', () => {
+  it('поддерживает составные преобразования полей', () => {
     const schema = fromScratch().makeModel(
       z.object({
         email: z.email().transform((val) => val.toLowerCase()),

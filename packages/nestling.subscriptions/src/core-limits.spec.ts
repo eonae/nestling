@@ -34,7 +34,7 @@ async function* rows(): AsyncIterableIterator<{ id: string }> {
   yield { id: '2' };
 }
 
-/** Ответ ручки с формой `events` и наблюдателем исхода */
+/** Ответ endpoint'а с формой `events` и наблюдателем исхода */
 async function respond(
   outcomes: Outcome[],
 ): Promise<AsyncIterableIterator<unknown>> {

@@ -1,14 +1,14 @@
 /**
  * `responses`: весь контракт границы, а не только счастливый путь.
  *
- * Множество ответов ручки закрыто как `E ∪ UnknownError` (модель ошибок),
- * и документ обязан это отражать: объявленные отказы, автоматический `400`
- * от валидации входа и `default` — незадекларированное, приведённое
- * границей к `UNKNOWN`.
+ * Множество ответов endpoint'а закрыто как `E ∪ UnknownError` (модель
+ * ошибок), и документ обязан это отражать: объявленные отказы,
+ * автоматический `400` от валидации входа и `default` —
+ * незадекларированное, приведённое границей к `UNKNOWN`.
  *
  * Тело отказа описывается **тем, что реально пишет транспорт**:
  * `{ error, code, details? }`. Придумывать здесь RFC 9457 нельзя — документ
- * описывает текущий провод, а не желаемый.
+ * описывает то, что уже уходит по сети, а не желаемое.
  */
 
 import type { ConvertContext } from './schema.js';
@@ -20,17 +20,17 @@ import { UnknownError, ValidationFailed } from '@nestling/contracts';
 import { describeForm, mediaTypeOf } from '@nestling/pipeline';
 import { httpCodeOf } from '@nestling/transport.http';
 
-/** Что генератор знает об ответах ручки */
+/** Что генератор знает об ответах endpoint'а */
 export interface ResponsesInput {
   readonly output: unknown;
   readonly errors?: readonly AnyFailDefinition[];
   readonly doc?: DeclarationDoc;
 
-  /** Объявлена ли у ручки схема входа: от этого зависит автоматический 400 */
+  /** Объявлена ли у endpoint'а схема входа: от неё зависит автоматический 400 */
   readonly hasInputSchema: boolean;
 }
 
-/** Ответы операции по кодам провода плюс `default` */
+/** Ответы операции по кодам ответа плюс `default` */
 export type Responses = Record<string, OpenApiResponse>;
 
 export function planResponses(
@@ -42,14 +42,14 @@ export function planResponses(
   const [successCode, success] = planSuccess(input, context);
   responses[successCode] = success;
 
-  // Отказы группируются по коду провода: у двух определений с одним
+  // Отказы группируются по коду ответа: у двух определений с одним
   // статусом код совпадает, и второе не должно затирать первое
   const byCode = new Map<string, JsonValue[]>();
 
   const declared = [...(input.errors ?? [])];
 
   // Валидация входа отвечает независимо от `errors:` — это kernel-код,
-  // контрактный для любой ручки со схемой входа
+  // контрактный для любого endpoint'а со схемой входа
   if (input.hasInputSchema && !declared.some(sameCode(ValidationFailed))) {
     declared.push(ValidationFailed);
   }
@@ -92,7 +92,7 @@ const sameCode =
 /**
  * Успешный ответ.
  *
- * Код — из `doc.status`; по умолчанию `OK`, а у ручки без `output` —
+ * Код — из `doc.status`; по умолчанию `OK`, а у endpoint'а без `output` —
  * `NO_CONTENT`. Перевод статуса в код делает та же таблица, что и в бою
  * (`httpCodeOf` транспорта): второй копии таблицы у генератора нет.
  */
@@ -114,7 +114,7 @@ function planSuccess(
   const mediaType = mediaTypeOf(input.output);
 
   // SSE: стандартного способа описать кадр в OpenAPI нет, поэтому схема
-  // элемента уезжает в описание ответа — соврать `application/json`-схемой
+  // элемента попадает в описание ответа — соврать `application/json`-схемой
   // было бы хуже
   if (form.kind === 'events') {
     return [

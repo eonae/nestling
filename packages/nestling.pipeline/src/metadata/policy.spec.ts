@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
  * noop-юниты: предмет проверки — идентичность слоя, а не его эффект */
 /**
- * Словарь политик: фильтры, `hasLayer` и исключение detached-ручек.
+ * Словарь политик: фильтры, `hasLayer` и исключение detached-endpoint'ов.
  *
  * Проверяется предикат в изоляции от приложения: субъекты собираются
- * руками, ровно в той форме, в какой их отдаёт дискавери.
+ * руками, ровно в той форме, в какой их отдаёт discovery.
  */
 
 import { compose, contextVar, makePipeline, Ok } from '../core';
@@ -51,7 +51,7 @@ describe('everyEndpoint — фильтры', () => {
     'authedBase',
   );
 
-  it('ручка чужого транспорта под политику не попадает', () => {
+  it('endpoint чужого транспорта под политику не попадает', () => {
     const subjects = [
       subject({ pattern: 'GET /users', pipeline: authedBase }),
       subject({
@@ -96,7 +96,7 @@ describe('everyEndpoint — фильтры', () => {
     expect(violations.map((v) => v.pattern)).toEqual(['GET /users']);
   });
 
-  it('пустой фильтр берёт все ручки любого транспорта', () => {
+  it("пустой фильтр берёт все endpoint'ы любого транспорта", () => {
     const all = everyEndpoint().hasLayer(authedBase);
 
     const violations = all.check([
@@ -117,7 +117,7 @@ describe('everyEndpoint — фильтры', () => {
     ).toThrow(TypeError);
   });
 
-  it('приложение без ручек проходит любую политику', () => {
+  it("приложение без endpoint'ов проходит любую политику", () => {
     expect(policy.check([])).toEqual([]);
     expect(everyEndpoint().hasLayer(authedBase).check([])).toEqual([]);
   });
@@ -142,7 +142,7 @@ describe('hasLayer — идентичность слоя по ссылке', () 
     expect(policy.check(subjects)).toEqual([]);
   });
 
-  it('чужой слой нарушает, и нарушение называет ручку, транспорт и модуль', () => {
+  it('чужой слой нарушает, и нарушение называет endpoint, транспорт и модуль', () => {
     const violations = policy.check([
       subject({
         pattern: 'GET /users',
@@ -161,7 +161,7 @@ describe('hasLayer — идентичность слоя по ссылке', () 
     ]);
   });
 
-  it('ручка без пайплайна нарушает', () => {
+  it('endpoint без пайплайна нарушает', () => {
     const [violation] = policy.check([subject({ pattern: 'GET /health' })]);
 
     expect(violation.detail).toContain('declares no pipeline');
@@ -196,7 +196,7 @@ describe('hasVar — присутствие ambient-переменной', () =>
     'requestId',
   );
 
-  it('ручка, композированная от слоя-писателя, инвариант соблюдает', () => {
+  it('endpoint, композированный от слоя-писателя, инвариант соблюдает', () => {
     const subjects = [
       subject({
         pattern: 'GET /users',
@@ -212,7 +212,7 @@ describe('hasVar — присутствие ambient-переменной', () =>
     expect(policy.check(subjects)).toEqual([]);
   });
 
-  it('ручка без писателя перечислена с координатами и починкой', () => {
+  it('endpoint без писателя перечислен с координатами и починкой', () => {
     const violations = policy.check([
       subject({
         pattern: 'GET /users',
@@ -234,7 +234,7 @@ describe('hasVar — присутствие ambient-переменной', () =>
     ]);
   });
 
-  it('ручка без пайплайна нарушает', () => {
+  it('endpoint без пайплайна нарушает', () => {
     const [violation] = policy.check([subject({ pattern: 'GET /health' })]);
 
     expect(violation.detail).toContain('declares no pipeline');
@@ -287,7 +287,7 @@ describe('hasVar — присутствие ambient-переменной', () =>
 describe('detached — тотальный opt-out', () => {
   const policy = everyEndpoint().hasLayer(authedBase, 'authedBase');
 
-  it('помеченная ручка исключается из проверки', () => {
+  it('помеченный endpoint исключается из проверки', () => {
     expect(
       policy.check([
         subject({
@@ -298,7 +298,7 @@ describe('detached — тотальный opt-out', () => {
     ).toEqual([]);
   });
 
-  it('непомеченная соседка по-прежнему нарушает', () => {
+  it('непомеченный endpoint по-прежнему нарушает', () => {
     const violations = policy.check([
       subject({
         pattern: 'GET /health',

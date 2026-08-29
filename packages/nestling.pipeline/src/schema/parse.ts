@@ -4,15 +4,15 @@ import type { DomainType, StandardSchemaV1 } from '@common/misc';
 import { validateSync } from '@common/misc';
 
 /**
- * Парсит и валидирует payload согласно схеме
+ * Парсит и валидирует `payload` по схеме.
  *
- * Внутренняя функция для использования в транспортах.
- * Для публичного API используйте input в endpoint.
+ * Внутренняя функция для использования в транспортах. Для публичного
+ * API используйте `input` декларации endpoint'а.
  *
- * @param schema - схема, реализующая Standard Schema v1
+ * @param schema - Схема, реализующая Standard Schema
  * @param sources - Источники входных данных
- * @returns Строго типизированный domain объект
- * @throws SchemaValidationError если валидация не прошла
+ * @returns Строго типизированный доменный объект
+ * @throws {SchemaValidationError} Если валидация не прошла
  */
 export function parsePayload<S extends StandardSchemaV1>(
   schema: S,
@@ -22,15 +22,15 @@ export function parsePayload<S extends StandardSchemaV1>(
 }
 
 /**
- * Парсит и валидирует metadata согласно схеме
+ * Парсит и валидирует `metadata` по схеме.
  *
- * Внутренняя функция для использования в транспортах.
- * Для публичного API используйте metadata в endpoint.
+ * Внутренняя функция для использования в транспортах. Для публичного
+ * API используйте `metadata` декларации endpoint'а.
  *
- * @param schema - схема, реализующая Standard Schema v1
+ * @param schema - Схема, реализующая Standard Schema
  * @param sources - Источники входных данных
- * @returns Строго типизированный metadata объект
- * @throws SchemaValidationError если валидация не прошла
+ * @returns Строго типизированный доменный объект
+ * @throws {SchemaValidationError} Если валидация не прошла
  */
 export function parseMetadata<S extends StandardSchemaV1>(
   schema: S,

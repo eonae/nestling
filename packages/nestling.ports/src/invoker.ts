@@ -1,13 +1,13 @@
 /* eslint-disable unicorn/throw-new-error --
- * `UnknownError(...)` и `ValidationFailed(...)` — вызываемые **определения**
+ * `UnknownError(...)` и `ValidationFailed(...)` — вызываемые определения
  * `defineFail`, а не классы ошибок: `new` тут менял бы смысл записи, а имя
  * лишь выглядит классовым. */
 /**
  * Вызыватели: local- и remote-клиент плюс общий нормализатор ответа.
  *
- * Клиент — константа, выбранная на сборке; на вызове никакого поиска
- * реализации, выбора транспорта или чтения конфигурации не происходит.
- * Тип call-site у обоих клиентов идентичен — в этом весь смысл порта.
+ * Клиент — константа, выбранная при сборке. На вызове не происходит
+ * поиска реализации, выбора транспорта или чтения конфигурации. Тип
+ * call-site у обоих клиентов идентичен — в этом весь смысл порта.
  */
 
 import type { CallBudget } from './profile.js';
@@ -55,7 +55,7 @@ import {
 /** Маркер отмены: вызов не ждёт обработчика, проигнорировавшего сигнал */
 const ABORTED = Symbol('nestling:port-aborted');
 
-/** Профиль, доезжающий до обработчика транспортными атрибутами */
+/** Профиль, который передаётся обработчику транспортными атрибутами */
 interface CallProfile {
   readonly deadline?: Date;
   readonly idempotencyKey?: string;
@@ -63,16 +63,15 @@ interface CallProfile {
 }
 
 /**
- * Провозимые значения из ячейки текущего запроса.
+ * Собирает переданный контекст из ячейки текущего запроса.
  *
- * Собираются **вызывателем**, потому что только здесь известна ячейка
- * вызывающего; едут конвертом, а не payload'ом. Сериализуемость
- * проверяется на **обоих** путях биндинга: иначе `local-first` пропускал бы
- * то, на чём `always-remote` падает, и разъезд фич по процессам менял бы
- * поведение — ровно то, чего порт не допускает.
+ * Значения берёт вызыватель: только он знает ячейку вызывающего. Они
+ * едут в конверте, а не в payload. Сериализуемость проверяется на обоих
+ * путях биндинга, иначе `local-first` пропускал бы то, на чём падает
+ * `always-remote`, и поведение менялось бы при split-развёртывании.
  *
- * @throws {WireCopyError} Значение, не переживающее провод; текст называет
- * переменную
+ * @throws {WireCopyError} Значение не пережило бы передачу по сети. Текст
+ * называет переменную
  */
 function propagatedContext(): Record<string, unknown> | undefined {
   const context = collectPropagatedContext();
@@ -141,9 +140,9 @@ function validationFail(
 /**
  * Валидирует payload по `input`-схеме контракта.
  *
- * Выполняется на **обоих** путях биндинга: по проводу вход проверялся бы
- * границей, и co-located вызов обязан вести себя так же — иначе разъезд
- * фич по процессам менял бы поведение.
+ * Выполняется на обоих путях биндинга: при передаче по сети вход
+ * проверила бы граница, и co-located вызов обязан вести себя так же,
+ * иначе разъезд фич по процессам менял бы поведение.
  */
 function validateInput(
   contract: AnyContract,
@@ -178,17 +177,17 @@ function validateInput(
 }
 
 /**
- * Общий нормализатор «ответ границы → `Ok | Fail`».
+ * Общий нормализатор ответа границы в `Ok` или `Fail`.
  *
  * Один и тот же для co-located и remote путей: код отказа сопоставляется с
- * определениями `errors:` контракта, и при совпадении создаётся
- * **настоящий** `Fail` этого определения (со `status`, `code` и валидными
- * `details`); незадекларированный или отсутствующий код даёт
- * `UnknownError`, а оригинал уходит в диагностический хук.
+ * определениями `errors` контракта, и при совпадении создаётся `Fail`
+ * этого определения со `status`, `code` и валидными `details`.
+ * Незадекларированный или отсутствующий код даёт `UnknownError`, а
+ * оригинал уходит в диагностический хук.
  *
- * Kernel-коды ре-гидрируются наравне с объявленными: страж границы считает
- * их контрактными для любой ручки, значит и множество ответов порта
- * закрыто ими же.
+ * Коды ядра восстанавливаются как `Fail` наравне с объявленными:
+ * проверка ответа на границе считает их контрактными для любого
+ * endpoint'а, значит и множество ответов порта закрыто ими же.
  */
 export function normalizePortResponse(
   contract: AnyContract,
@@ -224,7 +223,7 @@ export function normalizePortResponse(
 
     return definition.schema ? construct(response.value.details) : construct();
   } catch (error) {
-    // Детали не прошли схему определения: контракт разъехался с
+    // Детали не прошли схему определения: контракт перестал совпадать с
     // реализацией — потребителю это `UnknownError`, диагностика хуку
     runtime.report({ contract: contract.name, error });
 
@@ -336,11 +335,11 @@ function makeCallContext(
 /**
  * Local-клиент: вызов через `dispatch` шины.
  *
- * Полный pipeline реализации, валидация входа и страж границы; payload не
- * копируется и дополнительного async-барьера не вводится. Вызов открывает
- * **собственный** request-scope (`dispatch.call` → `runInRequestScope`),
- * поэтому ambient-контекст вызывающего внутрь реализации не протекает и
- * общей транзакции между ними не существует.
+ * Полный pipeline реализации, валидация входа и проверка ответа на
+ * границе. Payload не копируется, async-барьера нет. Вызов открывает
+ * собственный request-scope (`dispatch.call` вызывает
+ * `runInRequestScope`), поэтому ambient-контекст вызывающего внутрь
+ * реализации не протекает и общей транзакции между ними не существует.
  */
 export function makeLocalPort(context: InvokerContext): Port<any> {
   const { contract, runtime, patterns } = context;
@@ -388,7 +387,8 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
       try {
         response = await raceAbort(
           dispatch.call(pattern, ctx, {
-            // Stack внутрь чужой фичи не уезжает — ровно как по проводу
+            // Stack внутрь чужой фичи не передаётся — как и при передаче
+            // по сети
             exposeErrorDetails: false,
             onUnknownFail: (info) =>
               runtime.report({ contract: contract.name, error: info.error }),
@@ -425,9 +425,9 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
 /**
  * Remote-клиент: вызов через шину.
  *
- * Путь включает async-барьер, структурную копию payload и ответа
- * (обеспечивает шина) и валидацию ответа по `output`-схеме контракта — то
- * есть честную репетицию провода.
+ * Путь включает async-барьер, структурную копию payload и ответа (её
+ * обеспечивает шина) и проверку ответа по `output`-схеме контракта: вызов
+ * ведёт себя так же, как настоящий вызов по сети.
  */
 export function makeRemotePort(context: InvokerContext): Port<any> {
   const { contract, runtime } = context;
@@ -466,7 +466,7 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
         const context = propagatedContext();
 
         response = await raceAbort(
-          // По проводу едет **остаток**, а не момент: получатель превратит
+          // По сети передаётся остаток, а не момент: получатель превратит
           // его обратно в момент по своим часам, и рассинхрон часов между
           // процессами семантику бюджета не изменит
           bus.request(contract.name, input.value, {
@@ -478,9 +478,9 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
         );
       } catch (error) {
         // Единственные ошибки этого пути, за которые отвечает вызывающий, —
-        // payload и провозимое значение, не переживающие провод: обе
-        // возвращаются отказом валидации с текстом, называющим контракт и
-        // поле (переменную)
+        // payload и значение контекста, не пережившие структурное
+        // копирование: обе возвращаются отказом валидации с текстом,
+        // называющим контракт и переменную
         if (error instanceof WireCopyError) {
           return validationFail(
             `Contract '${contract.name}': ${error.message}`,
@@ -517,8 +517,8 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
 /**
  * Local-эмиттер: доставка через `dispatch` каждому co-located подписчику.
  *
- * `Promise<void>` резолвится по факту **доставки** (постановки вызовов), не
- * обработки; отказ подписчика не всплывает вызывающему и не влияет на
+ * `Promise<void>` резолвится по факту доставки (постановки вызовов), а не
+ * обработки. Отказ подписчика не всплывает вызывающему и не влияет на
  * доставку остальным.
  */
 export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
@@ -530,7 +530,7 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
       requireLiveBudget(meta);
 
       if (patterns.length === 0) {
-        // Broadcast с нулём подписчиков — легальное состояние
+        // Broadcast с нулём подписчиков — допустимое состояние
         return;
       }
 
@@ -543,7 +543,7 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
       };
 
       for (const pattern of patterns) {
-        // Бюджет ограничивает **обработчика**, а не ожидание вызывающего:
+        // Бюджет ограничивает обработчика, а не ожидание вызывающего:
         // ждать здесь нечего, `emit` резолвится по факту доставки
         const budget = startBudget(meta?.deadline, meta?.signal);
         const ctx = makeCallContext(
@@ -587,8 +587,8 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
       const bus = runtime.optionalBus(contract.name);
 
       if (!bus) {
-        // Ни одной реализации в приложении: публиковать некуда, и это
-        // легально ровно для broadcast'а
+        // Ни одной реализации в приложении: публиковать некуда, и для
+        // broadcast'а это допустимо
         return;
       }
 
@@ -596,7 +596,7 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
         timeoutMs: remainingMs(meta?.deadline),
         idempotencyKey: idempotencyKeyOf(contract, meta),
         ...(context === undefined ? {} : { context }),
-        // Долговечность приезжает из контракта: обе стороны знают о ней из
+        // Долговечность берётся из контракта: обе стороны знают о ней из
         // одного значения, и вызыватель лишь кладёт признак в конверт
         ...(contract.durable === undefined
           ? {}
@@ -609,9 +609,9 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
 /**
  * Ключ идемпотентности отправляемой команды.
  *
- * `emit` команды **всегда** едет с ключом: переданным вызывающим либо
- * сгенерированным здесь. Ключ рождается в вызывателе, а не в транспорте,
- * потому что стабилен он должен быть относительно **ретраев доставки**:
+ * `emit` команды всегда идёт с ключом: переданным вызывающим либо
+ * сгенерированным здесь. Ключ создаётся в вызывателе, а не в транспорте,
+ * потому что стабильным он должен быть относительно ретраев доставки:
  * ретрай одного и того же `emit` обязан нести тот же ключ, два разных
  * `emit` — разные. Транспорт не знает, где кончается один `emit`, и такой
  * гарантии дать не может.
@@ -651,7 +651,7 @@ function requirePropagatable(
 /**
  * Fail-fast бюджета у `emit`.
  *
- * Отказ **бросается**: канала результата у `emit` нет, и это тот же приём,
+ * Отказ бросается: канала результата у `emit` нет, и это тот же приём,
  * которым сигнализируется невалидный payload.
  */
 function requireLiveBudget(meta: PortMeta | undefined): void {

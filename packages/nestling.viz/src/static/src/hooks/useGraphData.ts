@@ -18,7 +18,8 @@ export function useGraphData() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      // FIXME: Remove artificial delay - added for testing loading screen
+      // FIXME: убрать искусственную задержку — добавлена для проверки экрана
+      // загрузки
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const rawData = await response.json();

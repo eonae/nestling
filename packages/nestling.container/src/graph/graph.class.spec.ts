@@ -22,7 +22,7 @@ describe('DIGraph', () => {
     }
   }
 
-  it('exports graph nodes to JSON', async () => {
+  it('выгружает узлы графа в JSON', async () => {
     const ModuleA = makeModule({
       name: 'ModuleA',
       providers: [classProvider(TokenA, ServiceA)],

@@ -33,43 +33,40 @@ import {
 import { BuiltContainer } from './container.built';
 
 /**
- * Hard bound on the family materialization fixpoint loop.
+ * Предел числа раундов создания членов семейств в `build()`.
  *
- * A recipe whose provider depends on a brand new member of the same family
- * would otherwise materialize forever; the bound turns that into a diagnostic.
+ * Рецепт, чей провайдер зависит от нового члена того же семейства, порождал
+ * бы членов бесконечно; предел превращает это в ошибку сборки.
  */
 const MAX_MATERIALIZATION_ROUNDS = 100;
 
 /**
- * What a module declared in its `exports`.
+ * Что модуль перечислил в `exports`.
  *
- * Families are kept apart from plain tokens: a family is a function, and running
- * it through `stringifyToken` would export the string `"<familyName>"` instead of
- * the family's members.
+ * Семейства хранятся отдельно от обычных токенов: семейство — функция, и
+ * `stringifyToken` превратил бы его в строку `"<familyName>"` вместо списка
+ * членов.
  */
 interface ModuleExports {
-  /** Stringified tokens listed in `exports` */
+  /** Токены из `exports` в строковой форме */
   tokens: Set<string>;
-  /** Names of token families listed in `exports` - all their members are exported */
+  /** Имена семейств из `exports`: экспортированы все их члены */
   families: Set<string>;
 }
 
-/**
- * A registered family recipe together with the module that registered it.
- */
+/** Зарегистрированный рецепт семейства и модуль, через который он пришёл. */
 interface FamilyRecipeEntry {
-  /** Produces the provider definition for one member */
+  /** Возвращает определение провайдера для одного члена */
   recipe: (param: string) => ProviderDefinition;
-  /** Module the recipe was registered through, if any */
+  /** Модуль, зарегистрировавший рецепт, если он есть */
   moduleName?: string;
 }
 
 /**
- * Test composition root seam: a graph node substituted by a value.
+ * Подстановка узла графа значением в тестовой сборке.
  *
- * The pair is positional - you can only override a token you hold a reference
- * to. There is no string-addressed form on purpose: it would be a hole in ES
- * visibility and would devalue the kernel/user boundary.
+ * Пара позиционная: подменить можно только токен, на который есть ссылка.
+ * Формы с адресом-строкой нет: она обходила бы видимость ES-модулей.
  */
 export type TokenOverride<T = unknown> = readonly [
   token: InjectionToken<T>,
@@ -77,53 +74,46 @@ export type TokenOverride<T = unknown> = readonly [
 ];
 
 /**
- * Test composition root seam: the recipe of a whole token family replaced.
+ * Подмена рецепта целого семейства токенов в тестовой сборке.
  *
- * Shape-identical to `familyProvider(family, recipe)` - the same
- * "family -> recipe" pair, only applied on top of the registered one and
- * strictly before member materialization.
+ * Та же пара семейства и рецепта, что у `familyProvider(family, recipe)`.
+ * Применяется поверх зарегистрированного рецепта и строго до создания
+ * членов.
  */
 export type FamilyOverrideEntry<
   T = unknown,
   Params extends [param: string] = [param: string],
 > = FamilyProviderDefinition<T, Params>;
 
-/**
- * Options of {@link ContainerBuilder}.
- */
+/** Опции {@link ContainerBuilder}. */
 export interface ContainerBuilderOptions {
   /**
-   * Opt-in build-time lint: every cross-module graph edge must point at a token
-   * the owning module lists in `exports`. Off by default; this is a check on the
-   * built graph, not runtime encapsulation.
+   * Проверка экспортов на сборке: каждое ребро графа между модулями должно
+   * вести к токену, который модуль-владелец перечислил в `exports`.
+   * По умолчанию выключена. Это проверка собранного графа, а не
+   * инкапсуляция в рантайме.
    */
   strictExports?: boolean;
 
   /**
-   * Test composition root seam: graph nodes substituted before instantiation.
-   *
-   * `assemble` does not forward this option and never will - substitution is a
-   * property of a test run, not of a production one. See {@link TokenOverride}.
+   * Узлы графа, подменяемые значениями до создания экземпляров.
+   * Поле тестовой сборки: `assemble` его не передаёт.
+   * См. {@link TokenOverride}.
    */
   overrides?: readonly TokenOverride<any>[];
 
   /**
-   * Test composition root seam: family recipes replaced before members are
-   * materialized. See {@link FamilyOverrideEntry}.
+   * Рецепты семейств, подменяемые до создания членов.
+   * См. {@link FamilyOverrideEntry}.
    */
   familyOverrides?: readonly FamilyOverrideEntry<any, any>[];
 }
 
 /**
- * DI container builder.
+ * Билдер контейнера.
  *
- * Responsible for managing dependency injection. Uses providers
- * to create and manage instances.
- *
- * Architecture follows three phases:
- * 1. **Registration**: register all providers and modules
- * 2. **Validation**: check for circular dependencies and duplicates
- * 3. **Build**: instantiate all providers and return a built container
+ * Принимает провайдеры, рецепты семейств и модули через `register()`, а в
+ * `build()` проверяет граф и создаёт все экземпляры сразу.
  *
  * @example
  * ```typescript
@@ -147,7 +137,7 @@ export class ContainerBuilder {
   #isBuilt = false;
 
   /**
-   * @param options - Builder options; see {@link ContainerBuilderOptions}
+   * @param options - Опции билдера; см. {@link ContainerBuilderOptions}
    */
   constructor(options: ContainerBuilderOptions = {}) {
     this.#strictExports = options.strictExports ?? false;
@@ -156,13 +146,11 @@ export class ContainerBuilder {
   }
 
   /**
-   * Unified registration method that accepts providers, family recipes or modules.
+   * Регистрирует провайдеры, рецепты семейств и модули.
    *
-   * This is the main entry point for registering dependencies.
-   *
-   * @param items - Providers, family recipes or modules to register
-   * @returns The current builder instance for method chaining
-   * @throws {Error} If the container is already built
+   * @param items - Провайдеры, рецепты семейств или модули
+   * @returns Тот же билдер, для цепочки вызовов
+   * @throws {Error} Если контейнер уже собран
    *
    * @example
    * ```typescript
@@ -181,8 +169,8 @@ export class ContainerBuilder {
     }
 
     for (const item of items) {
-      // Family definitions are checked first: `isModule` recognizes a module by a
-      // string `name`, and we never want that heuristic near a family definition.
+      // Сначала рецепт семейства: `isModule` узнаёт модуль по строковому
+      // `name`, и эта проверка не должна видеть определение семейства.
       if (isFamilyDefinition(item)) {
         this.registerFamilyProvider(item);
       } else if (isModule(item)) {
@@ -196,24 +184,23 @@ export class ContainerBuilder {
   }
 
   /**
-   * Builds the container, validating dependencies and instantiating all providers.
+   * Собирает контейнер: проверяет зависимости и создаёт все экземпляры.
    *
-   * This method must be called after all providers are registered.
-   * Performs the following steps:
-   * 1. Expands module provider factories
-   * 2. Replaces overridden family recipes - before any member is born
-   * 3. Materializes the family members referenced in deps
-   * 4. Substitutes overridden nodes by value providers
-   * 5. Prunes subtrees orphaned by the substitution
-   * 6. Creates a synthetic aggregate node per referenced `Family.all`
-   * 7. Reports every dependency left without a provider, at once
-   * 8. Instantiates all providers
-   * 9. Builds the dependency graph
-   * 10. Validates the graph for circular dependencies
-   * 11. Lints cross-module edges against `exports` when `strictExports` is on
+   * Вызывается один раз после регистрации. Шаги:
+   * 1. разворачивает фабрики провайдеров модулей;
+   * 2. подменяет рецепты семейств из `familyOverrides` — до создания членов;
+   * 3. создаёт членов семейств, упомянутых в зависимостях;
+   * 4. подменяет узлы из `overrides` провайдерами-значениями;
+   * 5. удаляет поддеревья, осиротевшие после подмены;
+   * 6. создаёт узел-агрегат для каждого упомянутого `Family.all`;
+   * 7. перечисляет все зависимости без провайдера одной ошибкой;
+   * 8. создаёт экземпляры;
+   * 9. строит граф зависимостей;
+   * 10. проверяет граф на циклы;
+   * 11. при `strictExports` проверяет рёбра между модулями по `exports`.
    *
-   * @returns A built container with access to instances
-   * @throws {Error} If the container is already built or circular dependencies are detected
+   * @returns Собранный контейнер с доступом к экземплярам
+   * @throws {Error} Если контейнер уже собран или найден цикл
    *
    * @example
    * ```typescript
@@ -229,58 +216,56 @@ export class ContainerBuilder {
       throw new Error('Container is already built');
     }
 
-    // Step 1: Expand module provider factories into ordinary registrations
+    // Шаг 1: развернуть фабрики провайдеров модулей в обычные регистрации
     await this.appendFactoryProviders();
 
-    // Step 2: Replace overridden family recipes - strictly before
-    // materialization, or members would be born from the production recipe
+    // Шаг 2: подменить рецепты семейств — строго до создания членов, иначе
+    // члены создались бы по боевому рецепту
     this.applyFamilyOverrides();
 
-    // Step 3: Turn referenced family members into ordinary providers
+    // Шаг 3: превратить упомянутых членов семейств в обычные провайдеры
     this.materializeFamilyMembers();
 
-    // Step 4: Substitute overridden nodes, remembering what they used to need
+    // Шаг 4: подменить узлы из `overrides`, запомнив их прежние зависимости
     const dependenciesBeforeOverrides = this.applyOverrides();
 
-    // Step 5: Drop the subtrees the substitution orphaned
+    // Шаг 5: удалить поддеревья, осиротевшие после подмены
     const pruned = this.pruneOrphans(dependenciesBeforeOverrides);
 
-    // Step 6: Turn referenced `.all` sentinels into ordinary aggregate
-    // providers - after pruning, so an aggregate is built from the survivors
+    // Шаг 6: превратить упомянутые `.all` в провайдеры-агрегаты — после
+    // прунинга, чтобы агрегат собрался из оставшихся членов
     this.materializeFamilyAggregates();
 
-    // Step 7: Name every dependency left without a provider, all at once
+    // Шаг 7: перечислить все зависимости без провайдера одной ошибкой
     this.assertDependenciesSatisfied();
 
-    // Step 8: Instantiate all providers
+    // Шаг 8: создать экземпляры
     const instances = await this.instantiateAll();
 
-    // Step 9: Build dependency graph from instances
+    // Шаг 9: построить граф зависимостей из экземпляров
     const graph = this.buildDependencyGraph(instances);
 
-    // Step 10: Validate the built graph for circular dependencies
+    // Шаг 10: проверить граф на циклы
     graph.ensureAcyclic();
 
-    // Step 11: Opt-in visibility lint over the finished graph
+    // Шаг 11: проверить экспорты на готовом графе, если опция включена
     if (this.#strictExports) {
       await this.checkStrictExports(graph);
     }
 
     this.#isBuilt = true;
 
-    // Return a new BuiltContainer with the graph
     return new BuiltContainer(graph, pruned);
   }
 
   /**
-   * Load a module and all its dependencies.
-   * This method handles module imports and registers providers.
+   * Регистрирует модуль вместе с его импортами.
    *
-   * Identity of a module is its **value**: the same value met again - through
-   * `imports`, through the root and a feature, through two features sharing one
-   * infrastructure module - is a no-op. A *different* value under a taken name
-   * is an error: the name is the attribution key of providers and exports, so
-   * silently dropping the second value would drop its providers with it.
+   * Идентичность модуля — ссылочная. То же значение, встреченное повторно
+   * (через `imports`, через корень и фичу, через две фичи с общим
+   * инфраструктурным модулем), пропускается. Другое значение под занятым
+   * именем — ошибка: имя привязывает провайдеры и экспорты к модулю, и
+   * молчаливый пропуск второго значения потерял бы его провайдеры.
    */
   private registerModule(m: Module): void {
     const loaded = this.#modules.get(m.name);
@@ -293,16 +278,14 @@ export class ContainerBuilder {
       return;
     }
 
-    // Mark the module as loaded before descending into `imports`: a cycle
-    // (`A → B → A`) has to terminate the walk, not re-enter it
+    // Модуль помечается загруженным до обхода `imports`: цикл импортов
+    // должен завершить обход, а не войти в него снова
     this.#modules.set(m.name, m);
 
-    // Load imported modules first (recursive)
     for (const importedModule of m.imports || []) {
       this.registerModule(importedModule);
     }
 
-    // Сохраняем экспорты модуля
     if (m.exports && m.exports.length > 0) {
       this.#moduleExports.set(m.name, collectModuleExports(m.exports));
     }
@@ -342,8 +325,8 @@ export class ContainerBuilder {
   }
 
   /**
-   * Register whatever a module's `providers` may contain: an ordinary provider
-   * or a family recipe.
+   * Регистрирует элемент `providers` модуля: обычный провайдер или рецепт
+   * семейства.
    */
   private registerModuleProvider(
     provider: ModuleProvider,
@@ -357,10 +340,10 @@ export class ContainerBuilder {
   }
 
   /**
-   * Register the single recipe of a token family.
+   * Регистрирует единственный рецепт семейства токенов.
    *
-   * The recipe itself is not a graph node - it has no token of its own. It is
-   * kept aside and consulted during materialization on `build()`.
+   * Сам рецепт — не узел графа, у него нет своего токена. Он хранится
+   * отдельно и используется при создании членов в `build()`.
    */
   private registerFamilyProvider(
     definition: FamilyProviderDefinition<any, any>,
@@ -380,9 +363,7 @@ export class ContainerBuilder {
     });
   }
 
-  /**
-   * Register a provider in the container
-   */
+  /** Регистрирует провайдер. */
   private registerProvider<T>(
     provider: Provider<T>,
     moduleName?: string,
@@ -401,24 +382,23 @@ export class ContainerBuilder {
 
     assertNoAutoSentinels(resolvedProvider, tokenId);
 
-    // Store provider metadata for lazy instantiation
     this.#providers.set(tokenId, resolvedProvider);
 
-    // Отслеживаем принадлежность к модулю
     if (moduleName) {
       this.#providerToModule.set(tokenId, moduleName);
     }
   }
 
   /**
-   * Turn every referenced family member into an ordinary provider.
+   * Превращает каждого упомянутого члена семейства в обычный провайдер.
    *
-   * Runs after provider factories are expanded and before instantiation: from
-   * this point on family members are indistinguishable from hand-registered
-   * providers - cycles, lifecycle hooks and module attribution all apply.
+   * Выполняется после разворачивания фабрик и до создания экземпляров.
+   * С этого момента члены семейств неотличимы от провайдеров,
+   * зарегистрированных вручную: циклы, хуки жизненного цикла и привязка к
+   * модулю работают для них так же.
    *
-   * A provider produced by a recipe may itself depend on family members, so the
-   * collection is repeated until a round finds nothing new.
+   * Провайдер, который вернул рецепт, сам может зависеть от членов
+   * семейств, поэтому сбор повторяется, пока раунд находит новых.
    */
   private materializeFamilyMembers(): void {
     for (let round = 1; ; round++) {
@@ -442,8 +422,8 @@ export class ContainerBuilder {
   }
 
   /**
-   * Collect family members mentioned in deps of registered providers
-   * that have no provider yet.
+   * Собирает членов семейств, упомянутых в зависимостях провайдеров, у
+   * которых ещё нет провайдера.
    */
   private collectPendingMembers(): Map<string, FamilyMemberRef> {
     const pending = new Map<string, FamilyMemberRef>();
@@ -468,9 +448,7 @@ export class ContainerBuilder {
     return pending;
   }
 
-  /**
-   * Call the family recipe once for a member and register the result.
-   */
+  /** Вызывает рецепт семейства для одного члена и регистрирует результат. */
   private materializeMember(tokenId: string, ref: FamilyMemberRef): void {
     const entry = this.#familyRecipes.get(ref.familyName);
 
@@ -501,22 +479,22 @@ export class ContainerBuilder {
   }
 
   /**
-   * Turn every referenced `Family.all` into an ordinary aggregate provider.
+   * Превращает каждый упомянутый `Family.all` в обычный провайдер-агрегат.
    *
-   * Runs strictly after the member materialization fixpoint - the composition is
-   * only known once recipes have stopped producing new members - and before
-   * instantiation, so the aggregate is an ordinary node from there on: cycles,
-   * topological init/destroy, `toJSON()`, visualization, `strictExports`.
+   * Выполняется строго после создания членов (состав известен, только когда
+   * рецепты перестали порождать новых) и до создания экземпляров. Дальше
+   * агрегат — обычный узел: циклы, топологический порядок хуков,
+   * `toJSON()`, визуализация, `strictExports`.
    *
-   * No second fixpoint is needed: the deps of an aggregate are tokens that
-   * already have providers, so they materialize nothing new.
+   * Повторять сбор членов после этого шага не нужно: зависимости агрегата —
+   * токены, у которых провайдеры уже есть.
    */
   private materializeFamilyAggregates(): void {
     const aggregates = new Map<TokenString<unknown>, TokenFamily<any, any>>();
 
-    // Deps-driven, exactly like member materialization: an aggregate nobody
-    // asked for would put a node in the graph that nobody requested, and would
-    // make the graph depend on which modules happen to be imported.
+    // Только по зависимостям, как и члены семейств: агрегат, которого никто
+    // не запросил, добавил бы в граф лишний узел, зависящий от того, какие
+    // модули оказались импортированы.
     for (const provider of this.#providers.values()) {
       const deps = isValueDefinition(provider) ? [] : provider.deps || [];
 
@@ -535,13 +513,13 @@ export class ContainerBuilder {
   }
 
   /**
-   * The provider behind an aggregate node - an ordinary factory provider over
-   * the tokens of every registered member of the family.
+   * Возвращает провайдер узла-агрегата: фабрику над токенами всех
+   * зарегистрированных членов семейства.
    *
-   * The array is frozen: it is a build snapshot shared by every consumer of
-   * `Family.all`, so a mutation by one of them would be visible to the rest.
-   * It is registered without a module: consumers may live in several modules
-   * while the node is one, so attributing it to any of them would be arbitrary.
+   * Массив заморожен: это снимок сборки, общий для всех потребителей
+   * `Family.all`, и изменение одним из них было бы видно остальным.
+   * Модуля у агрегата нет: потребители могут жить в нескольких модулях,
+   * а узел один, и любая привязка была бы произвольной.
    */
   private makeAggregateProvider(
     family: TokenFamily<any, any>,
@@ -555,12 +533,13 @@ export class ContainerBuilder {
   }
 
   /**
-   * Tokens of the registered members of a family, in registration order.
+   * Возвращает токены зарегистрированных членов семейства в порядке
+   * регистрации.
    *
-   * `#providers` is insertion-ordered, so this is: explicit contributions in the
-   * order their modules and providers were registered, then members produced by
-   * the materialization fixpoint, in the order of its rounds. Membership comes
-   * from the family registry, never from parsing the token id.
+   * `#providers` хранит порядок вставки, поэтому сначала идут явные
+   * провайдеры в порядке регистрации модулей, затем члены, созданные
+   * рецептом, в порядке раундов. Членство берётся из реестра семейства,
+   * а не из разбора идентификатора токена.
    */
   private collectFamilyMemberTokens(familyName: string): InjectionToken[] {
     const tokens: InjectionToken[] = [];
@@ -577,11 +556,11 @@ export class ContainerBuilder {
   }
 
   /**
-   * Replace the recipes named by `familyOverrides`.
+   * Подменяет рецепты, перечисленные в `familyOverrides`.
    *
-   * Runs before materialization: a member born from the production recipe
-   * could not be un-born, and the whole point of overriding the recipe is that
-   * no member is ever produced by it.
+   * Выполняется до создания членов: члена, созданного боевым рецептом, уже
+   * не отменить, а смысл подмены рецепта в том, чтобы боевой не создал ни
+   * одного.
    */
   private applyFamilyOverrides(): void {
     const seen = new Set<string>();
@@ -596,9 +575,9 @@ export class ContainerBuilder {
       }
       seen.add(familyName);
 
-      // The module of the production recipe is kept: members stay attributed
-      // to the module that owns the family, so `strictExports` and the
-      // visualization keep naming the same owner.
+      // Модуль боевого рецепта сохраняется: члены остаются привязаны к
+      // модулю-владельцу семейства, и `strictExports` с визуализацией
+      // показывают того же владельца.
       const registered = this.#familyRecipes.get(familyName);
 
       this.#familyRecipes.set(familyName, {
@@ -609,14 +588,14 @@ export class ContainerBuilder {
   }
 
   /**
-   * Replace the provider of every overridden token by a value provider.
+   * Подменяет провайдер каждого токена из `overrides` провайдером-значением.
    *
-   * Module attribution is untouched: it lives in a separate map keyed by token
-   * id, so the graph node keeps naming its owner and `strictExports` keeps
-   * linting the same edge.
+   * Привязка к модулю не меняется: она хранится в отдельной карте по
+   * идентификатору токена, поэтому узел графа сохраняет владельца, а
+   * `strictExports` проверяет то же ребро.
    *
-   * @returns The deps each replaced token had *before* the substitution - the
-   * left half of the pruning input
+   * @returns Зависимости каждого подменённого токена до подмены — первая
+   * половина входа для прунинга
    */
   private applyOverrides(): Map<string, readonly string[]> {
     const before = new Map<string, readonly string[]>();
@@ -651,21 +630,21 @@ export class ContainerBuilder {
   }
 
   /**
-   * Drop the nodes reachable only through the dependencies of a replaced one.
+   * Удаляет узлы, достижимые только через зависимости подменённого узла.
    *
-   * The greedy container has no notion of a root - registered means needed -
-   * so roots are derived instead: tokens nobody points at in the union of the
-   * dependency relations before and after the substitution, plus the tokens
-   * unreachable from those (cycle participants, which must reach the cycle
-   * detector rather than vanish).
+   * У жадного контейнера нет понятия корня (зарегистрирован — значит
+   * нужен), поэтому корни вычисляются: токены, на которые никто не
+   * ссылается в объединении отношений зависимости до и после подмены, плюс
+   * токены, недостижимые из этих корней (участники циклов: они должны
+   * дойти до проверки циклов, а не исчезнуть).
    *
-   * The union is what gives the asymmetry we want: a pool the repository used
-   * to need is not a root, and after the substitution nobody needs it - so it
-   * goes. Without `overrides` the two relations coincide, every node is
-   * reachable from the zero-in-degree set, and pruning is the identity.
+   * Объединение даёт нужную асимметрию: пул, который был нужен
+   * репозиторию, не становится корнем, а после подмены не нужен никому и
+   * удаляется. Без `overrides` оба отношения совпадают, каждый узел
+   * достижим из корней, и прунинг ничего не меняет.
    *
-   * @param before - deps of the replaced tokens as they were before substitution
-   * @returns ids of the dropped nodes, in registration order
+   * @param before - Зависимости подменённых токенов до подмены
+   * @returns Идентификаторы удалённых узлов в порядке регистрации
    */
   private pruneOrphans(
     before: ReadonlyMap<string, readonly string[]>,
@@ -711,8 +690,8 @@ export class ContainerBuilder {
 
     const keep = reachableFrom(seeds, after);
 
-    // A replaced node is never pruned: the test named it explicitly, and a
-    // substitution that silently disappeared would be the worst of both worlds
+    // Подменённый узел не удаляется никогда: тест назвал его явно, и
+    // подмена, которая молча исчезла, была бы хуже всего
     for (const id of before.keys()) {
       keep.add(id);
     }
@@ -728,11 +707,11 @@ export class ContainerBuilder {
   }
 
   /**
-   * An edge to `Family.all` stands for edges to every member of the family.
+   * Разворачивает ребро на `Family.all` в рёбра ко всем членам семейства.
    *
-   * The aggregate node itself does not exist yet during pruning (it is created
-   * from the survivors afterwards), so without this expansion a consumer of
-   * `Family.all` would lose exactly the members it asked for.
+   * Во время прунинга узла-агрегата ещё нет (он создаётся из оставшихся
+   * членов после), поэтому без разворачивания потребитель `Family.all`
+   * потерял бы ровно тех членов, которых запросил.
    */
   private expandAggregateEdges(deps: readonly string[]): readonly string[] {
     const expanded: string[] = [];
@@ -753,11 +732,12 @@ export class ContainerBuilder {
   }
 
   /**
-   * Report every dependency left without a provider - before instantiation.
+   * Перечисляет все зависимости без провайдера одной ошибкой — до создания
+   * экземпляров.
    *
-   * Instantiation fails on the first missing token it happens to reach, which
-   * makes "stub every unsatisfied import" an exercise in re-running the test.
-   * Same style as `checkStrictExports`: a strict build tells the whole story.
+   * Создание экземпляров упало бы на первом же отсутствующем токене, и
+   * зависимости пришлось бы чинить по одной за перезапуск. Как и
+   * `checkStrictExports`, строгая сборка сообщает всё сразу.
    */
   private assertDependenciesSatisfied(): void {
     const missing = new Map<string, string[]>();
@@ -795,9 +775,7 @@ export class ContainerBuilder {
     );
   }
 
-  /**
-   * Create instance from ClassProvider
-   */
+  /** Создаёт экземпляр по class-провайдеру. */
   private createClassInstance(
     provider: ClassProviderDefinition,
     instances: Map<InjectionToken, unknown>,
@@ -808,9 +786,7 @@ export class ContainerBuilder {
     return new provider.useClass(...args);
   }
 
-  /**
-   * Create instance from any provider type
-   */
+  /** Создаёт значение по провайдеру любого вида. */
   private async createInstance(
     provider: ProviderDefinition,
     instances: Map<InjectionToken, unknown>,
@@ -829,6 +805,7 @@ export class ContainerBuilder {
     }
   }
 
+  /** Разворачивает фабрики провайдеров модулей в обычные регистрации. */
   private async appendFactoryProviders(): Promise<void> {
     for (const [moduleName, factory] of this.#providersFactories.entries()) {
       const providers = await factory();
@@ -838,9 +815,7 @@ export class ContainerBuilder {
     }
   }
 
-  /**
-   * Instantiate all providers in dependency order
-   */
+  /** Создаёт экземпляры всех провайдеров в порядке зависимостей. */
   private async instantiateAll(): Promise<Map<InjectionToken, unknown>> {
     const instances = new Map<InjectionToken, unknown>();
     const visited = new Set<InjectionToken>();
@@ -852,9 +827,9 @@ export class ContainerBuilder {
       }
 
       if (instantiating.has(token)) {
-        // `instantiating` is a depth-first stack, so its tail from the repeated
-        // token onwards is the cycle itself. Spelling it out matters for nodes
-        // the user never wrote by hand - a family aggregate, for one.
+        // `instantiating` — стек обхода в глубину, поэтому его хвост от
+        // повторённого токена и есть цикл. Полный путь важен для узлов,
+        // которых пользователь не писал руками, например агрегата семейства.
         throw new Error(
           `Circular dependency detected while instantiating '${String(token)}': ${cyclePath(
             instantiating,
@@ -878,7 +853,6 @@ export class ContainerBuilder {
         }
       }
 
-      // Create instance
       const instance = await this.createInstance(provider, instances);
       instances.set(token, instance);
 
@@ -886,7 +860,6 @@ export class ContainerBuilder {
       visited.add(token);
     };
 
-    // Instantiate all providers
     for (const tokenId of this.#providers.keys()) {
       await instantiateOne(tokenId);
     }
@@ -894,19 +867,16 @@ export class ContainerBuilder {
     return instances;
   }
 
-  /**
-   * Build dependency graph from instantiated providers
-   */
+  /** Строит граф зависимостей из созданных экземпляров. */
   private buildDependencyGraph(
     instances: Map<InjectionToken, unknown>,
   ): DIGraph {
     const graph = new DIGraph();
     const nodes = new Map<string, DINode>();
 
-    // Prepare all node data first
     const nodeData = new Map<string, DINodeData>();
 
-    // First pass: collect all node information
+    // Первый проход: данные каждого узла
     for (const [token, instance] of instances) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const provider = this.#providers.get(token)!;
@@ -933,9 +903,8 @@ export class ContainerBuilder {
       });
     }
 
-    // Second pass: create nodes with dependencies
-
-    // Create nodes in topological order to ensure dependencies exist
+    // Второй проход: узлы создаются в топологическом порядке, чтобы
+    // зависимости существовали раньше зависимых
     const visited = new Set<string>();
     const creating = new Set<string>();
 
@@ -981,10 +950,10 @@ export class ContainerBuilder {
   }
 
   /**
-   * Value of `metadata.exported` for a node owned by a module.
+   * Вычисляет `metadata.exported` для узла, принадлежащего модулю.
    *
-   * A module that declared no `exports` at all keeps the historical
-   * `undefined` - "nothing was said" rather than "nothing is exported".
+   * Модуль без `exports` даёт `undefined`: «ничего не сказано», а не
+   * «ничего не экспортировано».
    */
   private computeExported(
     moduleName: string,
@@ -998,9 +967,10 @@ export class ContainerBuilder {
   }
 
   /**
-   * Does the module export this token, either directly or through a family?
+   * Проверяет, экспортирует ли модуль токен: напрямую или через семейство.
    *
-   * A missing or empty `exports` means nothing is exported.
+   * Отсутствующий или пустой `exports` означает, что не экспортировано
+   * ничего.
    */
   private isExportedFrom(moduleName: string, tokenId: string): boolean {
     const exports = this.#moduleExports.get(moduleName);
@@ -1018,12 +988,11 @@ export class ContainerBuilder {
   }
 
   /**
-   * Opt-in lint of the finished graph: a dependency owned by module M may only
-   * be consumed from outside M when M exports its token.
+   * Проверяет готовый граф: зависимость, принадлежащую модулю M, можно
+   * использовать вне M, только если M экспортирует её токен.
    *
-   * Intra-module edges and dependencies without a module are always allowed.
-   * All violations are reported at once - a strict build should tell you the
-   * whole story, not the first line of it.
+   * Рёбра внутри модуля и зависимости без модуля разрешены всегда. Все
+   * нарушения сообщаются одной ошибкой.
    */
   private async checkStrictExports(graph: DIGraph): Promise<void> {
     const violations: string[] = [];
@@ -1052,17 +1021,13 @@ export class ContainerBuilder {
   }
 }
 
-/**
- * Dependency token ids of a provider; a value provider depends on nothing.
- */
+/** Идентификаторы зависимостей провайдера; у провайдера-значения их нет. */
 const dependencyIdsOf = (provider: ProviderDefinition): readonly string[] =>
   isValueDefinition(provider)
     ? []
     : (provider.deps || []).map((dep) => stringifyToken(dep));
 
-/**
- * Tokens reachable from `seeds` over `relation`, seeds included.
- */
+/** Токены, достижимые из `seeds` по `relation`, включая сами `seeds`. */
 const reachableFrom = (
   seeds: readonly string[],
   relation: ReadonlyMap<string, Iterable<string>>,
@@ -1090,11 +1055,11 @@ const reachableFrom = (
 };
 
 /**
- * Why an override found nothing to replace.
+ * Подсказка к ошибке «override не нашёл, что подменять».
  *
- * A member token is the interesting case: it becomes a graph node only once
- * something injects it, so "not registered" reads as a typo when it is really
- * "nobody asked for this member".
+ * Отдельный случай — член семейства: он становится узлом графа, только
+ * когда кто-то его инжектирует, поэтому «не зарегистрирован» выглядит как
+ * опечатка, хотя на самом деле «этого члена никто не запросил».
  */
 const overrideMissingHint = (tokenId: string): string => {
   const member = lookupFamilyMember(tokenId);
@@ -1107,12 +1072,13 @@ const overrideMissingHint = (tokenId: string): string => {
 };
 
 /**
- * Two different module values registered under one name.
+ * Текст ошибки о двух разных значениях модуля под одним именем.
  *
- * Comparison is referential on purpose: "same options - same module" would
- * mean walking arbitrary values (functions, live clients) at build time, and
- * it would turn a silent loss into a silent merge. The canonical way to share
- * a parameterized module is to create its value once and import that value.
+ * Сравнение ссылочное намеренно: правило «одинаковые опции — один модуль»
+ * потребовало бы обходить произвольные значения (функции, живые клиенты)
+ * на сборке и превратило бы потерю провайдеров в незаметное слияние.
+ * Параметризованный модуль разделяют так: создают значение один раз и
+ * импортируют его.
  */
 const moduleNameCollisionMessage = (name: string): string =>
   `Two different modules are named '${name}'. ` +
@@ -1122,9 +1088,7 @@ const moduleNameCollisionMessage = (name: string): string =>
   `If neither is the case, check for a duplicated package in your dependencies - ` +
   `two copies give two values of the same module.`;
 
-/**
- * Split a module's `exports` into plain tokens and whole families.
- */
+/** Делит `exports` модуля на обычные токены и целые семейства. */
 const collectModuleExports = (
   declared: NonNullable<Module['exports']>,
 ): ModuleExports => {
@@ -1143,8 +1107,8 @@ const collectModuleExports = (
 };
 
 /**
- * `Family.auto` only makes sense where a consumer class exists. Anywhere else
- * the sentinel would have no name to resolve against, so we reject it early.
+ * Отклоняет `Family.auto` в зависимостях провайдера без класса-потребителя:
+ * там нет имени, по которому можно выбрать члена.
  */
 const assertNoAutoSentinels = (
   provider: ProviderDefinition,
@@ -1164,8 +1128,8 @@ const assertNoAutoSentinels = (
 };
 
 /**
- * Renders the cycle closed by re-entering `token`: the tail of the
- * instantiation stack from that token onwards, plus the token again.
+ * Строит путь цикла, замкнутого повторным входом в `token`: хвост стека
+ * создания экземпляров от этого токена плюс сам токен.
  */
 const cyclePath = (
   instantiating: ReadonlySet<InjectionToken>,
@@ -1178,15 +1142,15 @@ const cyclePath = (
 };
 
 /**
- * `Family.all` names the node the builder itself creates on `build()`.
+ * Отклоняет провайдер, зарегистрированный вручную под токеном `Family.all`.
  *
- * Letting a hand-registered provider win would give one node two sources of
- * truth - sometimes the graph, sometimes the registration. Substituting the
- * composition in tests gets its own explicit path instead.
+ * Этот узел билдер создаёт сам в `build()`. Ручной провайдер дал бы узлу
+ * два источника истины: то граф, то регистрация. Для подмены состава
+ * агрегата в тестах есть отдельный явный путь.
  *
- * Every registration path goes through `registerProvider`, so this covers a
- * direct `register()`, a module's `providers` (array or factory) and anything a
- * family recipe returns.
+ * Все пути регистрации проходят через `registerProvider`, поэтому проверка
+ * покрывает `register()`, `providers` модуля (массив или фабрику) и
+ * результат рецепта семейства.
  */
 const assertNotAggregateToken = (
   token: InjectionToken,
@@ -1202,8 +1166,8 @@ const assertNotAggregateToken = (
 };
 
 /**
- * Extra hint for a token that looks like a family member but was not created by
- * the family (typically built with `makeToken` by hand).
+ * Подсказка для токена, который похож на члена семейства, но создан не
+ * семейством (обычно вручную через `makeToken`).
  */
 const familyHint = (tokenId: string): string => {
   const familyName = suggestFamilyForToken(tokenId);

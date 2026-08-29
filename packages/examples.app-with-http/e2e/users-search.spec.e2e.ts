@@ -56,7 +56,7 @@ describe('Users Search (E2E)', () => {
       expect(users).toEqual([]);
     });
 
-    it('должен вернуть 400 если query параметр отсутствует', async () => {
+    it('должен вернуть 400 если параметр поиска отсутствует', async () => {
       const response = await client.get('/api/users/search');
 
       expect(response.status).toBe(400);
@@ -65,7 +65,7 @@ describe('Users Search (E2E)', () => {
       expect(error).toHaveProperty('error');
     });
 
-    it('должен вернуть 400 если query параметр пустой', async () => {
+    it('должен вернуть 400 если параметр поиска пустой', async () => {
       const response = await client.get('/api/users/search?q=');
 
       expect(response.status).toBe(400);

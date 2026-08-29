@@ -40,10 +40,10 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 // Объявленные отказы фикстур.
 //
-// Рантайм-тестам про порядок фаз незачем ещё и спорить со стражем границы,
-// поэтому отказы, чей статус тесты проверяют, объявляются здесь и
-// прописываются в `errors:` контекста. Нормализация незадекларированного —
-// предмет отдельного describe.
+// Рантайм-тестам про порядок фаз незачем ещё и сталкиваться с проверкой
+// контракта отказов, поэтому отказы, чей статус тесты проверяют,
+// объявляются здесь и прописываются в `errors:` контекста. Нормализация
+// незадекларированного — предмет отдельного describe.
 // ---------------------------------------------------------------------------
 
 const EmailTaken = defineFail('EMAIL_TAKEN', {
@@ -106,8 +106,9 @@ type LooseHandler = (
  * Выполняет pipeline с ослабленными типами (как это делают транспорты):
  * рантайм-тестам важен порядок исполнения, а не вывод типов.
  *
- * Хук стража по умолчанию заглушён: дефолтный `console.error` полезен в
- * бою и бесполезен в выводе тестов. Тесты про диагностику ставят свой.
+ * Хук `onUnknownFail` по умолчанию заглушён: дефолтный `console.error`
+ * полезен в бою и бесполезен в выводе тестов. Тесты про диагностику
+ * ставят свой.
  */
 async function run(
   pipeline: AnyPipeline,
@@ -241,9 +242,9 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
       .pre(() => {})
       .catch((error) => {
         seen.push(`catch1:${error.status}`);
-        // `.catch` вправе вернуть просто отказ — рантайм нормализует
-        // его так же, как отказ хендлера; заодно недекларированный
-        // INTERNAL_ERROR становится контрактным.
+        // `.catch` может вернуть просто отказ. Рантайм нормализует его
+        // так же, как отказ хендлера, и заодно делает недекларированный
+        // INTERNAL_ERROR контрактным.
         return Mapped();
       })
       .catch((error) => {
@@ -332,8 +333,8 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
       return new Ok({ id: 1 });
     });
 
-    // Хендлер вернул успех, но ответ стал ошибкой на ответном тракте —
-    // объявленный НИЖЕ catch применим к текущему ответу.
+    // Хендлер вернул успех, но ответ стал ошибкой в ответной фазе —
+    // объявленный ниже catch применим к текущему ответу.
     expect(response).toMatchObject({
       isSuccess: false,
       status: 'BAD_REQUEST',
@@ -584,13 +585,13 @@ describe('Pipeline v2 — finally и исходы', () => {
     expect(seenStatus).toBe('BAD_REQUEST');
   });
 
-  it('finally видит уже нормализованный стражем ответ и исход failed', async () => {
+  it('finally видит уже нормализованный проверкой ответ и исход failed', async () => {
     let seen: { outcome: string; status: string; code: unknown } | undefined;
 
     const pipeline = makePipeline()
       .pre(() => {})
-      // Отказ остаётся незадекларированным: страж применяется ПОСЛЕ
-      // ответного тракта и ДО finally.
+      // Отказ остаётся незадекларированным: проверка контракта отказов
+      // применяется после ответной фазы и до finally.
       .catch(() => {})
       .finally((outcome, res) => {
         seen = {
@@ -879,7 +880,7 @@ describe('Pipeline v2 — возврат Fail эквивалентен брос�
     expect(returned).toEqual(thrown);
   });
 
-  it('отказ, приехавший данными (без прототипа), тоже уходит на error-track', async () => {
+  it('отказ, пришедший данными (без прототипа), тоже уходит на error-track', async () => {
     const wire = JSON.parse(JSON.stringify(NoToken())) as unknown;
 
     const response = await run(makePipeline(), () => wire);
@@ -903,7 +904,7 @@ describe('Pipeline v2 — возврат Fail эквивалентен брос�
   });
 });
 
-describe('Pipeline v2 — страж контракта отказов', () => {
+describe('Pipeline v2 — проверка контракта отказов', () => {
   it('незадекларированный доменный отказ нормализуется в UNKNOWN/500', async () => {
     const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
       status: 'NOT_FOUND',
@@ -956,7 +957,7 @@ describe('Pipeline v2 — страж контракта отказов', () => {
     });
   });
 
-  it('kernel-код проходит страж без объявления в errors:', async () => {
+  it('kernel-код проходит проверку без объявления в errors:', async () => {
     const response = await run(
       makePipeline(),
       () => {
@@ -975,7 +976,7 @@ describe('Pipeline v2 — страж контракта отказов', () => {
     });
   });
 
-  it('DEADLINE_EXCEEDED проходит страж нетронутым, не становясь UNKNOWN', async () => {
+  it('DEADLINE_EXCEEDED проходит проверку нетронутым, не становясь UNKNOWN', async () => {
     const response = await run(
       makePipeline(),
       () => {
@@ -997,8 +998,8 @@ describe('Pipeline v2 — страж контракта отказов', () => {
       options: { onUnknownFail: () => {} },
     });
 
-    // declaredErrors — дефолт makeCtx, поэтому здесь отказ контрактен;
-    // проверка «пустого множества» — соседний кейс с errors: []
+    // declaredErrors — дефолт makeCtx, поэтому здесь отказ контрактен.
+    // Проверка «пустого множества» — соседний кейс с errors: []
     expect(response.status).toBe('BAD_REQUEST');
 
     const undeclared = await run(makePipeline(), failingHandler, {
@@ -1007,7 +1008,7 @@ describe('Pipeline v2 — страж контракта отказов', () => {
     expect(undeclared.status).toBe('INTERNAL_ERROR');
   });
 
-  it('хук получает оригинал и метаданные ручки, тело их не содержит', async () => {
+  it("хук получает оригинал и метаданные endpoint'а, тело их не содержит", async () => {
     const seen: { error: unknown; pattern: string }[] = [];
     const original = EmailTaken({ field: 'email' });
 

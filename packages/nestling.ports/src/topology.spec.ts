@@ -38,7 +38,7 @@ const analyticsSubscriber = implement(OrderPlaced, {
 });
 
 describe('collectImplementations', () => {
-  it('собирает топологию «subject → вид, подписчики, модули»', () => {
+  it('собирает топологию: subject, вид, подписчики, модули', () => {
     const topology = collectImplementations([
       { endpoint: chargeImpl, moduleName: 'module:billing' },
       { endpoint: billingSubscriber, moduleName: 'module:billing' },

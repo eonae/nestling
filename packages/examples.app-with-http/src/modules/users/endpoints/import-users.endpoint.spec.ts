@@ -42,11 +42,11 @@ describe('ImportUsersHandler', () => {
       expect(result.headers).toHaveProperty('X-Import-Status', 'complete');
       expect(userService.importUsers).toHaveBeenCalled();
     } else {
-      expect(result).toBeInstanceOf(Ok); // Will fail
+      expect(result).toBeInstanceOf(Ok); // Не должно сработать: result — Ok
     }
   });
 
-  it('должен вернуть статус partial при наличии ошибок', async () => {
+  it('должен вернуть статус `partial` при наличии ошибок', async () => {
     const importResult = {
       imported: 1,
       failed: 1,
@@ -60,7 +60,7 @@ describe('ImportUsersHandler', () => {
     if (result instanceof Ok) {
       expect(result.headers).toHaveProperty('X-Import-Status', 'partial');
     } else {
-      expect(result).toBeInstanceOf(Ok); // Will fail
+      expect(result).toBeInstanceOf(Ok); // Не должно сработать: result — Ok
     }
   });
 });

@@ -127,14 +127,14 @@ describe('CtxReader — get() и peek()', () => {
     });
   });
 
-  it('на успешном тракте без писателя get() зовёт provide и hasVar', () => {
+  it('до ответной фазы без писателя get() зовёт provide и hasVar', () => {
     inScope({}, () => {
       expect(() => reader.get()).toThrow(/<Var>\.provide/);
       expect(() => reader.get()).toThrow(/hasVar/);
     });
   });
 
-  it('на ответном тракте get() говорит про Partial и предлагает peek()', () => {
+  it('в ответной фазе get() говорит про Partial и предлагает peek()', () => {
     for (const phase of ['response', 'finally', 'stream'] as const) {
       inScope(
         {},

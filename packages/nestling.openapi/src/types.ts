@@ -5,7 +5,7 @@
  * полноту OpenAPI-спеки, а типизирует ровно то, что выводит из деклараций,
  * плюс поля, которые вызывающий передаёт как есть (`servers`, `security`,
  * `securitySchemes`, `externalDocs`). Всё остальное — `JsonValue`: JSON
- * Schema приезжает от конвертера вендора, и переопределять её форму своим
+ * Schema приходит от конвертера вендора, и переопределять её форму своим
  * типом значило бы притворяться, что генератор её понимает.
  */
 
@@ -77,7 +77,7 @@ export interface OpenApiOperation {
   readonly parameters?: readonly OpenApiParameter[];
   readonly requestBody?: OpenApiRequestBody;
 
-  /** Ключи — коды провода и `'default'` */
+  /** Ключи — коды ответа и `'default'` */
   readonly responses: Readonly<Record<string, OpenApiResponse>>;
 }
 
@@ -98,9 +98,9 @@ export interface OpenApiDocument {
 }
 
 /**
- * Документируемая ручка: декларация и модуль-объявитель.
+ * Документируемый endpoint: декларация и модуль-объявитель.
  *
- * Структурно совпадает с `DiscoveredEndpoint` дискавери (и с
+ * Структурно совпадает с `DiscoveredEndpoint` discovery (и с
  * `PolicySubject` политик) — тем же приёмом, которым `PolicySubject` уже
  * избегает конвертации между пакетами: результат `discoverEndpoints`
  * скармливается генератору как есть.

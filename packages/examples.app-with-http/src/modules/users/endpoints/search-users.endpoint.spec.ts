@@ -45,13 +45,13 @@ describe('SearchUsersHandler', () => {
         expect(result.value).toEqual([]);
         expect(result.headers).toHaveProperty('X-Total-Count', '0');
       } else {
-        expect(result).toBeInstanceOf(Ok); // Will fail
+        expect(result).toBeInstanceOf(Ok); // Не должно сработать: result — Ok
       }
     });
   });
 
   describe('Ошибочные сценарии', () => {
-    it('должен вернуть SearchQueryRequired если query отсутствует', async () => {
+    it('должен вернуть SearchQueryRequired, если параметр поиска пуст', async () => {
       const result = await endpoint.handle({ q: '' });
 
       expect(SearchQueryRequired.is(result)).toBe(true);

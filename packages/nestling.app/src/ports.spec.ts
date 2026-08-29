@@ -89,7 +89,7 @@ const BillingFeature = makeFeature({
   ],
 });
 
-/** Фича-потребитель: инжектит вызыватели и зовёт их из HTTP-ручки */
+/** Фича-потребитель: инжектит вызыватели и зовёт их из HTTP-endpoint'а */
 const OrdersFeature = makeFeature({
   name: 'orders',
   modules: [
@@ -220,7 +220,7 @@ describe('assemble — порты', () => {
     await app.close();
   });
 
-  it('транспорт шины выходит в эфир вместе с реализациями', async () => {
+  it('транспорт шины начинает принимать запросы вместе с реализациями', async () => {
     const http = new MockTransport();
     const app = assemble({
       features: [OrdersFeature, BillingFeature],
@@ -386,7 +386,7 @@ describe('assemble — порты', () => {
     await app.close();
   });
 
-  it('печатает деградацию долговечности на go-live — и только при ней', async () => {
+  it('печатает деградацию долговечности только при старте приёма запросов', async () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     try {

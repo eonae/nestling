@@ -23,7 +23,7 @@ type UploadReportOutput = z.infer<typeof UploadReportOutput>;
 
 /**
  * Демонстрирует форму `multipart({ fields, files })`:
- * - поля формы валидируются схемой `fields`, файлы приезжают под
+ * - поля формы валидируются схемой `fields`, файлы приходят под
  *   объявленными именами и типизированы (`upload()` без `multiple` — один
  *   `FilePart`);
  * - лимит и MIME-фильтр объявлены на самом поле и применяются **во время**
@@ -47,7 +47,7 @@ export const UploadReport = httpEndpoint({
     fields: ReportFields;
     files: { report: FilePart };
   }): Promise<UploadReportOutput> => {
-    // Размер и тип уже проверил транспорт — ручке остаётся домен
+    // Размер и тип уже проверил транспорт — endpoint'у остаётся домен
     const { report } = payload.files;
 
     return {

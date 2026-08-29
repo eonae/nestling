@@ -51,7 +51,7 @@ export class SearchUsersHandler {
 
     let users = await this.users.search(payload.q);
 
-    // Применяем limit, если указан
+    // Применяем `limit`, если он указан.
     if (payload.limit && payload.limit > 0) {
       users = users.slice(0, payload.limit);
     }
@@ -64,12 +64,13 @@ export class SearchUsersHandler {
 }
 
 /**
- * Endpoint для поиска пользователей
+ * Endpoint для поиска пользователей.
+ *
  * Демонстрирует:
- * - Работа с query параметрами
- * - Возврат с кастомными заголовками (X-Total-Count, Cache-Control)
+ * - работу с query-параметрами;
+ * - возврат с кастомными заголовками (`X-Total-Count`, `Cache-Control`);
  * - объявленные отказы в класс-форме хендлера: вывод `E` из `errors:`
- *   работает во всех трёх формах `handle`
+ *   работает во всех трёх формах `handle`.
  */
 export const SearchUsers = httpEndpoint({
   method: 'GET',

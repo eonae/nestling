@@ -4,7 +4,7 @@ import { ILogger } from '../logger';
 import { Injectable } from '@nestling/container';
 import { Topic } from '@nestling/streams';
 
-/** Событие ленты активности — то, что уезжает подписчикам SSE-ручки */
+/** Событие ленты активности: его получает каждый подписчик SSE-endpoint'а. */
 export interface ActivityEvent {
   id: string;
   kind: 'created' | 'updated' | 'deleted';

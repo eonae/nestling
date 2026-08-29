@@ -58,22 +58,16 @@ import {
 } from '@nestling/pipeline';
 import type { Dispatch, ITransport } from '@nestling/transport';
 
-/**
- * Лимит размера буферизуемого тела запроса по умолчанию (1 MiB).
- */
+/** Лимит размера буферизуемого тела запроса по умолчанию (1 MiB) */
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
 
-/** Проекция конфиг-секции транспорта — то, что инжектится в фабрику */
+/** Значения конфиг-секции транспорта, которые получает фабрика */
 type HttpConfigValues = ConfigProjection<typeof HttpConfig>;
 
-/**
- * Таймаут дренажа соединений при graceful close по умолчанию (10s).
- */
+/** Сколько `close()` ждёт активные соединения по умолчанию (10 с) */
 const DEFAULT_CLOSE_TIMEOUT = 10_000;
 
-/**
- * Опции для HTTP транспорта
- */
+/** Опции HTTP-транспорта */
 export interface HttpTransportOptions {
   port?: number;
   host?: string;
@@ -86,16 +80,16 @@ export interface HttpTransportOptions {
   maxBodySize?: number;
 
   /**
-   * Раскрывать ли клиенту детали необработанных (не `Fail`) ошибок:
-   * `error.message` и `stack`. По умолчанию `false` — уходит только
-   * generic-сообщение. Включать только в доверенном окружении (dev).
+   * Отдавать ли клиенту детали необработанных ошибок (не `Fail`):
+   * `error.message` и `stack`. По умолчанию `false`: уходит только общее
+   * сообщение. Включайте только в доверенном окружении.
    */
   exposeErrorDetails?: boolean;
 
   /**
-   * Диагностический хук стража границы: получает оригинал отказа,
-   * снятого нормализацией в `UnknownError`. Не задан — рантайм пишет в
-   * `console.error`.
+   * Хук для незадекларированных отказов: получает оригинал отказа,
+   * который проверка `errors` заменила на `UnknownError`. Не задан —
+   * рантайм пишет в `console.error`.
    */
   onUnknownFail?: (info: UnknownFailInfo) => void;
 
@@ -109,26 +103,26 @@ export interface HttpTransportOptions {
   keepAliveTimeout?: number;
 
   /**
-   * Таймаут дренажа активных соединений при `close()` (мс).
+   * Сколько ждать завершения активных соединений при `close()` (мс).
    * По истечении оставшиеся соединения закрываются принудительно.
-   * По умолчанию 10s.
+   * По умолчанию 10 с.
    */
   closeTimeout?: number;
 
   /**
    * Период heartbeat-комментариев SSE по умолчанию (мс). `0` отключает.
-   * Декларация может переопределить его секцией `sse: { heartbeat }`.
-   * По умолчанию 15s.
+   * Декларация может переопределить его полем `sse: { heartbeat }`.
+   * По умолчанию 15 с.
    */
   sseHeartbeat?: number;
 }
 
 /**
- * Формы io, которые умеет HTTP.
+ * Формы io, которые поддерживает HTTP-транспорт.
  *
- * `events` во входе нет: клиент, льющий SSE, — кандидат для
- * WebSocket-транспорта, а не для этого. `multipart` в выходе нет:
- * форма input-only по построению.
+ * `events` на входе нет: клиентский поток событий — задача
+ * WebSocket-транспорта. `multipart` на выходе нет: эта форма только
+ * входная.
  */
 const HTTP_CAPABILITIES: TransportCapabilities = {
   input: new Set(['value', 'stream', 'multipart']),
@@ -136,42 +130,41 @@ const HTTP_CAPABILITIES: TransportCapabilities = {
 };
 
 /**
- * HTTP транспорт.
+ * HTTP-транспорт.
  *
- * Переводчик провода в значения и обратно: роутит, парсит вход по
- * io-декларации и bind-карте, строит контекст и отдаёт его `dispatch.call`.
- * Своей копии исполнения ручки у транспорта нет — ни ветки с пайплайном,
- * ни без него.
+ * Переводит запросы в значения и обратно: находит маршрут, разбирает вход
+ * по форме io и bind-карте, строит контекст и передаёт его `dispatch.call`.
+ * Endpoint исполняет ядро; своей логики исполнения у транспорта нет.
  */
 export class HttpTransport implements ITransport {
   /**
-   * Способности транспорта — данные, а не конвенция: их читает
-   * `assertFormsSupported` до приёма первого запроса.
+   * Поддерживаемые формы io. Их читает `assertFormsSupported` до приёма
+   * первого запроса.
    */
   readonly capabilities: TransportCapabilities = HTTP_CAPABILITIES;
 
   private readonly router: HttpRouter;
   private server?: Server;
 
-  /** Диспетчер, полученный в `serve`: до go-live исполнять нечего */
+  /** Диспетчер из `serve`; до вызова `serve` исполнять нечего */
   private dispatch?: Dispatch;
 
-  /** Фактический адрес после go-live; `null` до `serve` и после `close()` */
+  /** Фактический адрес; не задан до `serve` и после `close()` */
   private listening?: { host: string; port: number };
 
   /**
-   * Transport-level канал отмены: взводится в `close()` и через
-   * `AbortSignal.any` доставляет отмену всем in-flight запросам.
+   * Контроллер отмены на уровне транспорта: срабатывает в `close()`, и
+   * через `AbortSignal.any` отмену получает каждый выполняющийся запрос.
    */
   private closeController?: AbortController;
 
-  /** Резолвнутый лимит тела: `0` = без лимита. */
+  /** Лимит тела с учётом дефолта; `0` — без лимита */
   private readonly maxBodySize: number;
 
-  /** Резолвнутая политика раскрытия деталей ошибок. */
+  /** Раскрывать ли детали ошибок, с учётом дефолта */
   private readonly exposeErrorDetails: boolean;
 
-  /** Резолвнутый период heartbeat SSE: `0` = без heartbeat. */
+  /** Период heartbeat SSE с учётом дефолта; `0` — без heartbeat */
   private readonly sseHeartbeat: number;
 
   constructor(private readonly options: HttpTransportOptions = {}) {
@@ -182,16 +175,16 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Выводит транспорт в эфир.
+   * Начинает принимать запросы.
    *
-   * Единственный вход: маршруты приезжают проекциями в `dispatch`, ручку
-   * исполняет `dispatch.call`. Формы io сверяются со способностями
-   * транспорта **до** открытия сокета — на standalone-пути это та же
-   * проверка и тот же текст ошибки, что делает `App` на фазе ASSEMBLE.
+   * Маршруты берутся из `dispatch.routes`, endpoint исполняет
+   * `dispatch.call`. Формы io сверяются с поддерживаемыми до открытия
+   * сокета: без `App` это та же проверка с тем же текстом ошибки, что на
+   * фазе ASSEMBLE.
    *
-   * @param dispatch - Маршруты этого транспорта и исполнение ручки
-   * @param signal - Канал остановки (`App` взводит его первым делом
-   * на SHUTDOWN)
+   * @param dispatch - Маршруты этого транспорта и функция исполнения
+   * @param signal - Сигнал остановки; `App` подаёт его первым шагом
+   * SHUTDOWN
    */
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
     if (this.server) {
@@ -210,8 +203,7 @@ export class HttpTransport implements ITransport {
 
     this.closeController = new AbortController();
 
-    // Внешний сигнал — второй канал остановки рядом с `close()`: его взвод
-    // означает «новых запросов не принимаем, in-flight отменяем».
+    // Внешний сигнал останавливает транспорт так же, как `close()`
     signal.addEventListener('abort', () => void this.close(), { once: true });
 
     return new Promise((resolve, reject) => {
@@ -224,8 +216,8 @@ export class HttpTransport implements ITransport {
         });
       });
 
-      // Таймауты node:http настраиваются, только если заданы явно —
-      // иначе сохраняются разумные дефолты Node.
+      // Таймауты node:http меняются только при явных опциях; иначе
+      // остаются дефолты Node
       if (this.options.requestTimeout !== undefined) {
         this.server.requestTimeout = this.options.requestTimeout;
       }
@@ -255,25 +247,23 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Фактический адрес транспорта после go-live.
+   * Возвращает фактический адрес транспорта.
    *
-   * `null` до `serve` и после `close()`. Нужен всем, кто поднимается на
-   * порту `0` — прежде всего интеграционным тестам: аргументов у `serve`,
-   * кроме `dispatch` и `signal`, нет.
+   * `null` до `serve` и после `close()`. Нужен при `port: 0`, когда порт
+   * выбирает ОС, например в интеграционных тестах.
    */
   address(): { host: string; port: number } | null {
     return this.listening ?? null;
   }
 
   /**
-   * Останавливает HTTP сервер с дренажом соединений.
+   * Останавливает сервер, дав активным запросам завершиться.
    *
-   * Порядок: взводим сигналы всех in-flight запросов (кооперативное
-   * завершение — основной механизм дренажа) → перестаём принимать новые
-   * соединения (`server.close`) → сразу закрываем простаивающие keep-alive
-   * (`closeIdleConnections`) → ждём завершения активных запросов до
-   * `closeTimeout` → принудительно закрываем оставшиеся
-   * (`closeAllConnections`). Гарантирует завершение за конечное время
+   * Порядок: подаёт сигнал отмены всем выполняющимся запросам, перестаёт
+   * принимать новые соединения (`server.close`), сразу закрывает
+   * простаивающие keep-alive (`closeIdleConnections`), ждёт завершения
+   * активных запросов до `closeTimeout` и закрывает оставшиеся
+   * принудительно (`closeAllConnections`). Завершается за конечное время
    * даже при живых keep-alive соединениях.
    */
   async close(options: { timeout?: number } = {}): Promise<void> {
@@ -286,8 +276,8 @@ export class HttpTransport implements ITransport {
     this.listening = undefined;
     this.dispatch = undefined;
 
-    // Кооперативная отмена in-flight запросов: AbortSignal.any доставит
-    // её каждому meta.signal без обхода реестра контроллеров.
+    // Отмена доходит до каждого meta.signal через AbortSignal.any: реестр
+    // контроллеров запросов не нужен
     this.closeController?.abort(new TransportClosingError());
     this.closeController = undefined;
 
@@ -295,8 +285,8 @@ export class HttpTransport implements ITransport {
       options.timeout ?? this.options.closeTimeout ?? DEFAULT_CLOSE_TIMEOUT;
 
     return new Promise((resolve, reject) => {
-      // Активные in-flight запросы дренируем до closeTimeout, затем рубим.
-      // Таймер не должен держать процесс живым.
+      // Активные запросы ждём до closeTimeout, затем закрываем принудительно.
+      // Таймер не должен держать процесс живым
       const timer = setTimeout(() => {
         server.closeAllConnections();
       }, closeTimeout);
@@ -304,10 +294,9 @@ export class HttpTransport implements ITransport {
         timer.unref();
       }
 
-      // Keep-alive соединение, освободившееся уже после начала close()
-      // (запрос дорешался — в т.ч. кооперативно по сигналу), Node сам
-      // не закрывает: без периодической зачистки дренаж ждал бы
-      // keep-alive таймаута клиента.
+      // Keep-alive соединение, освободившееся после начала close(), Node сам
+      // не закрывает: без периодической зачистки ожидание длилось бы до
+      // keep-alive таймаута клиента
       const idleSweep = setInterval(() => {
         server.closeIdleConnections();
       }, 100);
@@ -332,24 +321,22 @@ export class HttpTransport implements ITransport {
     });
   }
 
-  /**
-   * Обрабатывает HTTP запрос (внутренний метод)
-   */
+  /** Обрабатывает один HTTP-запрос */
   private async handle(
     nativeReq: IncomingMessage,
     nativeRes: ServerResponse,
   ): Promise<void> {
-    // Объявляем переменные выше try блока, чтобы они были доступны в catch
-    // для дренажа непрочитанных файловых потоков
+    // Переменные объявлены до try, чтобы catch мог дочитать непрочитанные
+    // файловые потоки
     let multipart: MultipartResult | undefined;
     let payload: unknown;
 
-    // Стартовый input контекста: пуст, если декларация не просила ни
-    // `rawBody`, ни реконнекта SSE
+    // Стартовый контекст: пуст, если декларация не просила `rawBody` и не
+    // отдаёт SSE
     let startInput: AnyInput | undefined;
 
-    // Байты входа: до создания контекста копятся локально, после —
-    // дописываются прямо в живой `summary`
+    // Байты входа копятся локально, пока нет контекста, затем пишутся в
+    // `summary`
     let summary: StreamSummary | undefined;
     let bufferedBytesIn = 0;
     const addBytesIn = (bytes: number): void => {
@@ -360,8 +347,8 @@ export class HttpTransport implements ITransport {
       }
     };
 
-    // Сигнал отмены запроса: per-request контроллер (дисконнект клиента)
-    // + transport-level канал (graceful close), composed через AbortSignal.any
+    // Сигнал запроса: контроллер дисконнекта клиента плюс сигнал остановки
+    // транспорта, объединённые AbortSignal.any
     const requestController = new AbortController();
     const signal = this.closeController
       ? AbortSignal.any([requestController.signal, this.closeController.signal])
@@ -376,7 +363,6 @@ export class HttpTransport implements ITransport {
     });
 
     try {
-      // Находим маршрут
       const route = this.router.find(nativeReq);
       const dispatch = this.dispatch;
       if (!route || !dispatch) {
@@ -385,15 +371,14 @@ export class HttpTransport implements ITransport {
         return;
       }
 
-      // Парсим URL для query параметров
       const url = new URL(
         nativeReq.url || '/',
         `http://${nativeReq.headers.host || 'localhost'}`,
       );
 
-      // Bind-карта декларации: единственный источник правды о том, где
-      // живёт каждое поле. Декларация от kernel-примитива карты не несёт —
-      // тогда считается тот же канон без пометок из `pattern`.
+      // Bind-карта говорит, откуда читать каждое поле. Декларация из
+      // `makeEndpoint` карты не несёт: тогда карта вычисляется из `pattern`
+      // без пометок
       const binding = httpBindingOf(route.declaration);
       const query = readQuery(url.searchParams, binding.fields);
 
@@ -401,8 +386,8 @@ export class HttpTransport implements ITransport {
       const inputForm = describeForm(route.declaration.input);
       const outputForm = describeForm(route.declaration.output);
 
-      // Сырой источник потокового входа: обернём его ядром, как только
-      // появится контекст (счётчики живут в нём)
+      // Потоковый вход оборачивается ядром только после создания контекста:
+      // счётчики живут в нём
       let streamSource: AsyncIterable<unknown> | undefined;
 
       switch (inputForm.kind) {
@@ -419,9 +404,8 @@ export class HttpTransport implements ITransport {
             this.maxBodySize,
           );
 
-          // Поля формы играют роль источника «остальное»: эта форма
-          // body-ориентирована по построению. Path-параметры и помеченные
-          // query-поля подмешиваются к ним до валидации схемой.
+          // Поля формы играют роль источника «остальное». Path-параметры и
+          // помеченные query-поля добавляются к ним до валидации схемой
           const fields = assemblePayload(binding, {
             query,
             body: multipart.fields,
@@ -477,7 +461,8 @@ export class HttpTransport implements ITransport {
         }
       }
 
-      // Реконнект SSE: заголовок доезжает тем же механизмом, что `rawBody`
+      // Реконнект SSE: заголовок попадает в стартовый контекст так же, как
+      // `rawBody`
       if (outputForm.kind === 'events') {
         const lastEventId = nativeReq.headers['last-event-id'];
         if (typeof lastEventId === 'string') {
@@ -497,8 +482,8 @@ export class HttpTransport implements ITransport {
         pattern: route.declaration.pattern,
         input: route.declaration.input,
         output: route.declaration.output,
-        // Объявленные отказы доезжают до стража только так: декларация →
-        // транспорт → контекст, без глобального реестра.
+        // Объявленные отказы попадают в проверку `errors` только через
+        // контекст: глобального реестра нет
         errors: route.declaration.errors,
       };
 
@@ -509,9 +494,8 @@ export class HttpTransport implements ITransport {
       }
 
       if (streamSource) {
-        // Обёртка ядра доступна только теперь: счётчики и сигнал живут в
-        // контексте, а сам поток ленив — до первого `for await` в хендлере
-        // не потреблён ни один элемент
+        // Поток ленив: до первого `for await` в хендлере ни один элемент не
+        // прочитан
         raw.payload = bindInputStream(inputForm, streamSource, ctx);
       }
 
@@ -524,9 +508,8 @@ export class HttpTransport implements ITransport {
           signal,
         });
 
-      // Исполнение ручки — в ядре: выбор ветки «с пайплайном / без него»
-      // и её выполнение одинаковы для всех транспортов. Транспорту
-      // остаётся сантехника ответа.
+      // Endpoint исполняет ядро одинаково для всех транспортов; транспорту
+      // остаётся отправить ответ
       const responseContext = await dispatch.call(
         route.declaration.pattern,
         ctx,
@@ -545,29 +528,26 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Отправляет ошибку парсинга/роутинга/fallback-ветки с корректным статусом.
+   * Отправляет ошибку разбора запроса, роутинга или ветки без пайплайна
+   * с подходящим статусом.
    *
-   * Классификация (D2):
-   * - `JsonParseError`, `MultipartFieldError`, `SchemaValidationError` → 400
-   * - `PayloadTooLargeError`, `ChunkTooLargeError` → 413
-   * - остальное → 500, детали скрыты, если не включён `exposeErrorDetails`
+   * Статусы:
+   * - `JsonParseError`, `MultipartFieldError`, `SchemaValidationError` — 400;
+   * - `PayloadTooLargeError`, `ChunkTooLargeError` — 413;
+   * - остальное — 500; детали уходят только при `exposeErrorDetails`.
    *
-   * Ошибки клиента (400/413) содержат безопасное сообщение, описывающее
-   * некорректный ввод; внутренние детали не раскрываются.
-   *
-   * Через страж контракта эта ветка не проходит (пайплайна тут нет),
-   * поэтому тела ошибок парсинга и лимитов остаются как есть. Исключение —
-   * отказ валидации: kernel-код `VALIDATION_FAILED` проставляется на обоих
-   * путях, чтобы один концерн не отвечал двумя разными телами.
+   * Тела ошибок 400 и 413 описывают некорректный ввод и не раскрывают
+   * внутреннее состояние сервера. Проверка `errors` декларации здесь не
+   * выполняется (пайплайна нет), поэтому тела остаются как есть; только
+   * отказ валидации получает код `VALIDATION_FAILED`, как и в пайплайне.
    */
   private sendError(res: ServerResponse, error: unknown): void {
     if (res.headersSent) {
       return;
     }
 
-    // Fail из fallback-ветки (endpoint без pipeline) — осознанная ошибка автора:
-    // статус, код и детали сохраняем (как это делает pipeline через
-    // errorToResponse).
+    // Fail из ветки без пайплайна: статус, код и детали сохраняются, как
+    // это делает пайплайн в errorToResponse
     if (isFail(error)) {
       void sendResponse(res, {
         isSuccess: false,
@@ -621,7 +601,7 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Дренирует непрочитанные файловые потоки: хендлер вправе не читать
+   * Дочитывает непрочитанные файловые потоки: хендлер может не читать
    * файл, а незакрытый поток удерживал бы память до GC.
    */
   private drainFileStreams(result: MultipartResult | undefined): void {
@@ -641,22 +621,21 @@ export class HttpTransport implements ITransport {
         }
       }
     } catch {
-      // Игнорируем ошибки дренажа
+      // Ошибки дочитывания не важны: ответ уже отправлен
     }
   }
 }
 
 /**
- * Фабрика провайдера HTTP-транспорта.
+ * Создаёт провайдер HTTP-транспорта.
  *
- * Возвращает **провайдер**, а не инстанс: транспорт — обычный узел графа,
- * его зависимости инжектит контейнер, а lifecycle гоняется наравне с
- * прочими. `assemble({ transports: [http()] })` — сахар регистрации, и
- * ровно тот же провайдер легально объявить в `providers:` infra-модуля
- * фичи.
+ * Возвращает провайдер, а не экземпляр: транспорт — обычный узел графа,
+ * его зависимости инжектит контейнер. `assemble({ transports: [http()] })`
+ * регистрирует этот провайдер; тот же провайдер можно объявить в
+ * `providers:` любого модуля.
  *
- * Приоритет значений: явные опции фабрики > конфиг (`HTTP_PORT`,
- * `HTTP_HOST`) > дефолт транспорта.
+ * Приоритет значений: явные опции фабрики, затем конфиг (`HTTP_PORT`,
+ * `HTTP_HOST`), затем дефолт транспорта.
  *
  * @example
  * ```typescript

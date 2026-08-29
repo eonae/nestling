@@ -39,7 +39,7 @@ describe('провозимая переменная', () => {
     expect(propagatedKeys()).not.toContain('requestId');
   });
 
-  it('propagated() кладёт в input значение с провода', async () => {
+  it('propagated() кладёт в input значение, пришедшее по сети', async () => {
     const unit = TenantId.propagated();
 
     expect(await unit(contextWith({ tenantId: 'acme' }))).toEqual({
@@ -63,7 +63,7 @@ describe('провозимая переменная', () => {
     expect(await local(contextWith({}))).toEqual({ tenantId: 'local' });
   });
 
-  it('propagated() у непровозимой переменной — внятный отказ', () => {
+  it('propagated() у непровозимой переменной — отказ с понятным сообщением', () => {
     expect(() =>
       (RequestId as unknown as { propagated: () => unknown }).propagated(),
     ).toThrow(/'requestId' is not propagated.*propagate: true/s);
@@ -84,7 +84,7 @@ describe('провозимая переменная', () => {
     expect(collected).toEqual({ tenantId: 'acme' });
   });
 
-  it('переменная, до которой pre-тракт не дошёл, не провозится', () => {
+  it('переменная, до которой pre-юниты не дошли, не провозится', () => {
     const cell = makeCell(new AbortController().signal, { requestId: 'req-1' });
 
     expect(runInScope(cell, () => collectPropagatedContext())).toBeUndefined();

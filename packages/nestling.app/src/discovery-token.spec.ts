@@ -1,5 +1,5 @@
 /**
- * Инжектируемая дискавери: состав приложения как узел графа.
+ * Инжектируемая discovery: состав приложения как узел графа.
  *
  * Предмет проверки — три обещания токена: значение то же самое, что
  * вычислил `App` (а не второй обход дерева), оно описывает **выбранную**
@@ -89,7 +89,7 @@ beforeEach(() => {
 });
 
 describe('Discovery$ — состав приложения на входе графа', () => {
-  it('провайдер получает ручки с их атрибуцией к модулям', async () => {
+  it("провайдер получает endpoint'ы с их атрибуцией к модулям", async () => {
     const app = assemble({
       modules: [UsersModule],
       transports: [asHttpTransport(new MockTransport())],
@@ -104,7 +104,7 @@ describe('Discovery$ — состав приложения на входе гр�
     await app.close();
   });
 
-  it('инжектировано то же значение, которым App вывел приложение в эфир', async () => {
+  it('инжектировано то же значение, с которым App начал принимать запросы', async () => {
     const transport = new MockTransport();
     const app = assemble({
       modules: [UsersModule, BillingModule],
@@ -113,7 +113,7 @@ describe('Discovery$ — состав приложения на входе гр�
 
     await app.run();
 
-    // Разъехаться «обнаруженному» и «обслуживаемому» негде: дискавери
+    // «Обнаруженное» и «обслуживаемое» совпадают всегда: discovery
     // считается один раз за сборку
     expect(patternsOf(observed())).toEqual(
       [...transport.routes].map((route) => route.pattern).sort(),
@@ -182,7 +182,7 @@ describe('Discovery$ — состав приложения на входе гр�
     });
 
     // `check()` проходит фазы 0–1: провайдеры строятся, значит и наблюдатель
-    // отрабатывает — той же дискавери, что уедет в отчёт
+    // отрабатывает — того же discovery, что попадёт в отчёт
     const report = await app.check();
 
     expect(patternsOf(observed())).toEqual(

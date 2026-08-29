@@ -4,7 +4,8 @@ import { ILogger } from '../logging';
 import { Injectable } from '@nestling/container';
 
 // `ILogger.auto` резолвится в `ILogger('UserRepository')` прямо в момент
-// декорирования: consumer-aware логгер без transient-скоупа и рантайм-магии.
+// декорирования: логгер получает имя потребителя, как `transient +
+// INQUIRER` из Nest, но без transient-скоупа и магии в рантайме.
 @Injectable([IDatabase, ILogger.auto])
 export class UserRepository {
   #database: IDatabase;

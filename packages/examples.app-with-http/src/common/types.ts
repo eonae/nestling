@@ -1,9 +1,9 @@
 /**
- * Общие типы для всего приложения
+ * Общие типы примера.
  */
 
 /**
- * Интерфейс пользователя
+ * Пользователь.
  */
 export interface User {
   id: string;
@@ -13,7 +13,7 @@ export interface User {
 }
 
 /**
- * Результат импорта пользователей
+ * Результат импорта пользователей.
  */
 export interface ImportResult {
   imported: number;

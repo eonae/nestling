@@ -48,12 +48,13 @@ import {
 } from '@nestling/contracts';
 
 /**
- * Отказ, возникший **после начала отдачи** потокового ответа.
+ * Ошибка, которая произошла после начала отдачи потокового ответа.
  *
- * Заголовки уже ушли, статус сменить нельзя — поэтому наружу летит не
- * оригинал, а нормализованный контекст ответа: транспорт из него собирает
- * mid-stream кадр (`event: error` для SSE) или обрывает соединение
- * (NDJSON). Оригинал к этому моменту уже ушёл в `onUnknownFail`.
+ * Заголовки к этому моменту уже отправлены, и статус изменить нельзя.
+ * Поэтому наружу уходит не исходная ошибка, а готовый контекст ответа
+ * `response`: транспорт собирает из него кадр ошибки (`event: error` для
+ * SSE) или обрывает соединение (NDJSON). Исходная ошибка уже передана в
+ * `onUnknownFail`.
  */
 export class MidStreamFailure extends Error {
   constructor(
@@ -65,45 +66,51 @@ export class MidStreamFailure extends Error {
   }
 }
 
-/** Значение — mid-stream отказ, несущий готовое тело ответа */
+/** Проверяет, что значение — `MidStreamFailure` */
 export function isMidStreamFailure(value: unknown): value is MidStreamFailure {
   return value instanceof MidStreamFailure;
 }
 
 /**
- * Диагностика незадекларированного отказа, снятого стражем границы.
+ * Сведения об отказе, который не объявлен в `errors:` endpoint'а и
+ * заменён на `UnknownError`.
  *
- * Оригинал уходит сюда целиком — клиенту достаётся generic-тело.
+ * Клиент получает только общее тело ответа; исходная ошибка целиком
+ * передаётся сюда.
  */
 export interface UnknownFailInfo {
   /** Исходный отказ или необработанная ошибка */
   error: unknown;
 
-  /** Метаданные ручки: транспорт, паттерн, объявленные отказы */
+  /** Метаданные endpoint'а: транспорт, паттерн, объявленные отказы */
   endpoint: EndpointMeta;
 }
 
 /**
- * Опции выполнения pipeline.
+ * Опции выполнения пайплайна.
  *
- * exposeErrorDetails — раскрывать ли клиенту детали НЕобработанных ошибок
- * (не `Fail`): `error.message` и `stack`. По умолчанию `false` — в тело
- * уходит только generic-сообщение. Политика раскрытия — свойство окружения
- * (транспорт/приложение), поэтому передаётся при вызове, а не хранится в
- * самом (переиспользуемом) Pipeline.
- *
- * onUnknownFail — диагностический хук стража границы. Дефолт —
- * `console.error`: молчаливое проглатывание хуже шумного лога, а логгера
- * в ядре нет по принципу минимума зависимостей.
+ * Опции передаются при вызове, а не хранятся в пайплайне: один пайплайн
+ * переиспользуется, а политика раскрытия ошибок принадлежит окружению
+ * (транспорту или приложению).
  */
 export interface ExecuteOptions {
+  /**
+   * Показывать ли клиенту `message` и `stack` необработанных ошибок
+   * (не `Fail`). По умолчанию `false`: в тело уходит только общее
+   * сообщение.
+   */
   exposeErrorDetails?: boolean;
+
+  /**
+   * Хук для отказов, не объявленных в `errors:`. По умолчанию —
+   * `console.error`, чтобы такой отказ не терялся молча.
+   */
   onUnknownFail?: (info: UnknownFailInfo) => void;
 }
 
 /**
- * Дефолтный наблюдатель нормализации: называет ручку, код и подсказывает
- * `errors:` — забытая декларация не должна выглядеть загадочным 500.
+ * Хук `onUnknownFail` по умолчанию: пишет в `console.error` endpoint, код
+ * отказа и подсказку добавить его в `errors:`.
  */
 function reportUnknownFail(info: UnknownFailInfo): void {
   const code = isFail(info.error) ? info.error.code : undefined;
@@ -123,23 +130,20 @@ type OverlapKeys<A, B> = keyof A & keyof B;
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 // ---------------------------------------------------------------------------
-// Форма типов-ошибок
+// Типы-ошибки
 //
-// Тип-ошибка обязана быть **анонимным развёрнутым литералом в точке
-// печати**: именованный дженерик-алиас TypeScript печатает именем
-// (`ComposeError<…>`), и текст сообщения пропадает. Разворачивание даёт
-// `Simplify<…>` вокруг самого литерала, внутри алиаса — поэтому обёртка
-// здесь часть контракта диагностики, а не косметика. Исполнимая проверка
-// правила — снапшоты в `type-tests/`.
+// Каждый тип-ошибка обёрнут в `Simplify<…>` внутри алиаса. Без обёртки
+// TypeScript печатает именованный дженерик-алиас его именем
+// (`ComposeError<…>`), и текст `__error` в диагностике пропадает. Обёртка —
+// часть контракта диагностики; её проверяют снапшоты в `type-tests/`.
 // ---------------------------------------------------------------------------
 
 /**
- * Недостающий контекст как **рекорд «имя поля → его тип»**.
+ * Поля `Required`, которых нет в `Provided`, в виде записи «имя поля: тип».
  *
- * В результат попадают и поля, которых во внешнем контексте нет, и поля,
- * которые есть, но несовместимого типа: второй случай юнион ключей
- * (`Exclude<keyof Required, keyof Provided>`) схлопывал в `never`, и
- * сообщение переставало называть причину.
+ * Сюда попадают и поля, которые в `Provided` есть, но с несовместимым
+ * типом. Простой юнион ключей (`Exclude<keyof Required, keyof Provided>`)
+ * такие поля терял, и сообщение не называло причину.
  */
 export type MissingFields<Provided, Required> = Simplify<{
   [K in keyof Required as K extends keyof Provided
@@ -150,7 +154,8 @@ export type MissingFields<Provided, Required> = Simplify<{
 }>;
 
 /**
- * Конфликтующие поля как рекорд «имя поля → [было, стало]»
+ * Поля, у которых типы в `A` и `B` различаются, в виде записи
+ * «имя поля: [было, стало]».
  */
 type ConflictingFields<A, B> = Simplify<{
   [K in OverlapKeys<A, B> as [A[K], B[K]] extends [B[K], A[K]] ? never : K]: [
@@ -165,32 +170,33 @@ type ComposeError<Provided, Required> = Simplify<{
   missing: MissingFields<Provided, Required>;
 }>;
 
-/** Тип-ошибка pre-тракта: накопленный input не покрывает требования юнита */
+/** Тип-ошибка `.pre`: накопленный `input` не покрывает требования юнита */
 type PreRequirementError<TCurrentInput, TReq> = Simplify<{
   __error: 'Pre-unit requires context that the accumulated input does not provide';
   missing: MissingFields<TCurrentInput, TReq>;
 }>;
 
-/** Тип-ошибка pre-тракта: юнит перезаписывает уже накопленное поле */
+/** Тип-ошибка `.pre`: юнит перезаписывает уже накопленное поле */
 type PreConflictError<TCurrentInput, TAdd> = Simplify<{
   __error: 'Pre-unit overrides fields that are already in the input';
   conflicting: ConflictingFields<TCurrentInput, TAdd>;
 }>;
 
 /**
- * Общие ключи, у которых типы в A и B не идентичны.
+ * Общие ключи `A` и `B`, у которых типы различаются.
  *
- * Повторное добавление поля с тем же типом (например, два withTiming
- * в одной цепочке) конфликтом не считается: input от этого не меняется.
+ * Повторное добавление поля с тем же типом (например, два `withTiming` в
+ * одной цепочке) конфликтом не считается: `input` от этого не меняется.
  */
 type ConflictingKeys<A, B> = {
   [K in OverlapKeys<A, B>]: [A[K], B[K]] extends [B[K], A[K]] ? never : K;
 }[OverlapKeys<A, B>];
 
 /**
- * Проверяет совместимость TReq и TAdd юнита с текущим накопленным input.
- * TAdd нормализуется до проверки: юнит, ничего не добавляющий
- * (undefined/never), не конфликтует ни с чем.
+ * Проверяет, что требования `TReq` и добавка `TAdd` юнита совместимы с
+ * накопленным `input`. Возвращает `M`, если да, и тип-ошибку, если нет.
+ * `TAdd` нормализуется до проверки: юнит без добавки (`undefined`, `never`)
+ * ни с чем не конфликтует.
  */
 type CheckPreCompatibility<TCurrentInput, TReq, TAdd, M> = [
   TCurrentInput,
@@ -201,8 +207,8 @@ type CheckPreCompatibility<TCurrentInput, TReq, TAdd, M> = [
   : PreRequirementError<TCurrentInput, TReq>;
 
 /**
- * Валидирует совместимость pre-юнита (в любой из трёх форм)
- * с текущим накопленным input
+ * Проверяет совместимость `.pre`-юнита любой из трёх форм (функция,
+ * инстанс, класс) с накопленным `input`.
  */
 type ValidatePreUnit<TCurrentInput extends AnyInput, M> =
   M extends Constructor<UnitInstance<PreUnitFn<infer TReq, infer TAdd>>>
@@ -214,9 +220,8 @@ type ValidatePreUnit<TCurrentInput extends AnyInput, M> =
         : never;
 
 /**
- * Юнит, ничего не добавляющий в input (TAddition = undefined),
- * не должен менять тип pipeline: undefined/never приводятся к {}.
- * Объявлен до CheckPreCompatibility, которая им пользуется.
+ * Приводит добавку юнита к объекту: `undefined` и `never` становятся `{}`,
+ * чтобы юнит без добавки не менял тип пайплайна.
  */
 type NormalizeAddition<TAdd> = [TAdd] extends [never]
   ? // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -226,9 +231,7 @@ type NormalizeAddition<TAdd> = [TAdd] extends [never]
     : // eslint-disable-next-line @typescript-eslint/no-empty-object-type
       {};
 
-/**
- * Извлекает TAddition из pre-юнита любой формы
- */
+/** Добавка `.pre`-юнита любой формы, приведённая к объекту */
 type ExtractAddition<M> =
   M extends Constructor<UnitInstance<PreUnitFn<any, infer TAdd>>>
     ? NormalizeAddition<TAdd>
@@ -239,14 +242,14 @@ type ExtractAddition<M> =
         : never;
 
 /**
- * Извлекает отложенную зависимость юнита: класс-форма добавляет
- * свой конструктор в TNeeds, остальные формы — ничего
+ * Отложенная зависимость юнита: для класс-формы это её конструктор,
+ * для остальных форм — `never`.
  */
 type ExtractNeeds<M> = M extends Constructor<UnitInstance<any>> ? M : never;
 
 /**
- * Фантомный носитель тип-параметров pipeline (в рантайме отсутствует).
- * Нужен для надёжного вывода типов в `compose` и хелперах.
+ * Тип-параметры пайплайна в виде объекта. Существует только в типах:
+ * по нему `compose` и вспомогательные типы выводят параметры.
  */
 export interface PipelineTypes<
   TReq extends AnyInput,
@@ -258,42 +261,44 @@ export interface PipelineTypes<
   needs: TNeeds;
 }
 
-/**
- * Резолвер отложенных зависимостей (классов-юнитов) для `bind`
- */
+/** Создаёт инстанс класса-юнита для `bind()`; обычно это контейнер */
 export type UnitResolver = (ctor: Constructor<unknown>) => unknown;
 
 /**
- * Pipeline — иммутабельное исполнимое значение.
+ * Пайплайн: иммутабельное значение, которое умеет выполнить запрос.
  *
- * @param TReq - требования слоя к внешнему контексту (задаются
- * `makePipeline<TReq>()`, проверяются в точке композиции)
- * @param TAcc - накопленный pre-трактом input (включая TReq)
- * @param TNeeds - отложенные зависимости (конструкторы классов-юнитов);
- * `never` — пайплайн исполним; иначе требуется `bind()` (App делает это
- * автоматически на старте)
+ * @template TReq - Требования слоя к внешнему контексту. Задаются
+ * `makePipeline<TReq>()` и проверяются компилятором в `compose`
+ * @template TAcc - `input`, накопленный `.pre`-юнитами (включает `TReq`)
+ * @template TNeeds - Классы-юниты, которым ещё нужен инстанс. `never` —
+ * пайплайн готов к выполнению; иначе нужен `bind()` (`App` вызывает его
+ * на фазе WIRE)
  */
 export interface Pipeline<
   TReq extends AnyInput = EmptyInput,
   TAcc extends AnyInput = TReq,
   TNeeds = never,
 > {
-  /** @internal фантомное поле для вывода типов */
+  /** @internal Существует только в типах; по нему выводятся параметры */
   readonly $types?: PipelineTypes<TReq, TAcc, TNeeds>;
 
   /**
-   * Материализует классы-юниты через резолвер (обычно — DI-контейнер).
-   * Возвращает исполнимый pipeline (`TNeeds = never`).
+   * Создаёт инстансы классов-юнитов через `resolve` (обычно это контейнер)
+   * и возвращает пайплайн, готовый к выполнению (`TNeeds = never`).
    */
   bind(resolve: UnitResolver): Pipeline<TReq, TAcc, never>;
 
   /**
-   * Выполняет pipeline с handler.
+   * Выполняет запрос: `.pre`-юниты, хендлер, `.ok`/`.catch`, проверку
+   * `errors:` и `.finally`.
    *
-   * Доступен только при `TNeeds = never` (все классы-юниты зарезолвлены).
+   * Доступен только при `TNeeds = never`: у всех классов-юнитов есть
+   * инстансы.
    *
-   * @param handler - бизнес-логика endpoint (получает payload и meta отдельно)
-   * @param ctx - начальный контекст от транспорта
+   * @param handler - Хендлер endpoint'а; получает `payload` и `meta`
+   * отдельными аргументами
+   * @param ctx - Начальный контекст, собранный транспортом
+   * @param options - Опции выполнения
    */
   executeWithHandler<TOutput>(
     this: Pipeline<TReq, TAcc, never>,
@@ -309,39 +314,38 @@ export interface Pipeline<
 }
 
 /**
- * Слой, в котором начался ответный тракт: pre больше недоступен
- * (декларация читается сверху вниз = порядок исполнения).
+ * Пайплайн после первого `.ok`, `.catch` или `.finally`: метод `.pre`
+ * больше недоступен, поэтому порядок чтения декларации совпадает с
+ * порядком выполнения.
  */
 export interface PhasedPipeline<
   TReq extends AnyInput = EmptyInput,
   TAcc extends AnyInput = TReq,
   TNeeds = never,
 > extends Pipeline<TReq, TAcc, TNeeds> {
-  /** Юнит на успешный ответ: полный ctx, может заменить успех успехом */
+  /** Добавляет юнит для успешного ответа; юнит видит полный `ctx` */
   ok<M extends UnitLike<OkUnitFn<TAcc>>>(
     unit: M,
   ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>>;
 
-  /** Юнит на ответ-ошибку: свой слой Partial, может заменить ошибку ошибкой */
+  /** Добавляет юнит для ответа-ошибки; поля своего слоя в `ctx` — `Partial` */
   catch<M extends UnitLike<CatchUnitFn<ResponseTrackInput<TReq, TAcc>>>>(
     unit: M,
   ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>>;
 
-  /** Наблюдатель исхода: вызывается всегда, последним */
+  /** Добавляет наблюдатель исхода; вызывается всегда и последним */
   finally<M extends UnitLike<FinallyUnitFn<ResponseTrackInput<TReq, TAcc>>>>(
     unit: M,
   ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>>;
 }
 
-/**
- * Билдер слоя: pre-тракт ещё открыт
- */
+/** Пайплайн, к которому ещё можно добавлять `.pre`-юниты */
 export interface PipelineBuilder<
   TReq extends AnyInput = EmptyInput,
   TAcc extends AnyInput = TReq,
   TNeeds = never,
 > extends PhasedPipeline<TReq, TAcc, TNeeds> {
-  /** Юнит до хендлера: монотонно накапливает input */
+  /** Добавляет юнит до хендлера; его добавка расширяет `input` */
   pre<M extends UnitLike<PreUnitFn<any, any>>>(
     unit: ValidatePreUnit<TAcc, M>,
   ): PipelineBuilder<TReq, TAcc & ExtractAddition<M>, TNeeds | ExtractNeeds<M>>;
@@ -350,21 +354,20 @@ export interface PipelineBuilder<
 /**
  * Пайплайн с любыми тип-параметрами.
  *
- * Остаётся публичным типом (им пользуются рантайм-сигнатура `compose` и
- * внешний код), но **из сигнатур перегрузок ушёл**: слой одним
- * тип-параметром заставлял компилятор переразворачивать всю цепочку на
- * каждом уровне вложенности — см. `type-tests/BUDGET.md`.
+ * В сигнатурах перегрузок `compose` не используется: один тип-параметр на
+ * слой заставлял компилятор разворачивать всю цепочку на каждом уровне
+ * вложенности (`type-tests/BUDGET.md`).
  */
 export type AnyPipeline = Pipeline<any, any, any>;
 
 /**
- * Проверка точки композиции: внешние слои должны предоставлять всё,
- * что требует внутренний (`makePipeline<TReq>()`).
+ * Проверяет в `compose`, что внешние слои дают всё, что требует внутренний
+ * (`makePipeline<TReq>()`).
  *
- * В успешной ветке — `Pipeline<R, A, N>`, из которой TypeScript выводит
- * тип-параметры внутреннего слоя; в неуспешной — **только** литерал
- * ошибки, без пересечения с типом слоя: иначе первая строка диагностики
- * тащит хвост `& PipelineBuilder<...>`.
+ * При успехе — `Pipeline<R, A, N>`, из которого TypeScript выводит
+ * тип-параметры внутреннего слоя. При ошибке — только литерал ошибки, без
+ * пересечения с типом слоя: иначе первая строка диагностики продолжалась
+ * бы хвостом `& PipelineBuilder<...>`.
  */
 type Guard<Provided, R extends AnyInput, A extends AnyInput, N> = [
   Provided,
@@ -379,9 +382,9 @@ type Guard<Provided, R extends AnyInput, A extends AnyInput, N> = [
 type AnyUnitFn = (...args: unknown[]) => unknown;
 
 interface UnitEntry {
-  /** Материализованный юнит (функция или связанный handle инстанса) */
+  /** Готовая к вызову функция юнита (или `handle` инстанса с `bind`) */
   fn?: AnyUnitFn;
-  /** Класс-форма: конструктор до резолва через bind() */
+  /** Класс юнита, пока `bind()` не создал инстанс */
   ctor?: Constructor<UnitInstance<AnyUnitFn>>;
 }
 
@@ -399,7 +402,7 @@ interface Layer {
 
 function normalizeUnit(unit: unknown): UnitEntry {
   if (typeof unit === 'function') {
-    // Класс-юнит: у прототипа есть handle. Обычная функция — юнит сама по себе.
+    // У класса-юнита есть handle в прототипе; обычная функция — сама юнит
     const proto = (unit as { prototype?: { handle?: unknown } }).prototype;
     if (proto && typeof proto.handle === 'function') {
       return { ctor: unit as Constructor<UnitInstance<AnyUnitFn>> };
@@ -430,8 +433,8 @@ function cloneLayer(layer: Layer): Layer {
 }
 
 /**
- * Возвращает материализованный юнит. Недостижимо после проверки
- * unresolved-классов в executeWithHandler — защита от рассинхрона.
+ * Возвращает функцию юнита. Ошибка недостижима после проверки классов без
+ * инстансов в `execute`; она страхует от рассинхрона двух проверок.
  */
 function materialized(entry: UnitEntry): AnyUnitFn {
   if (!entry.fn) {
@@ -441,35 +444,33 @@ function materialized(entry: UnitEntry): AnyUnitFn {
 }
 
 /**
- * Единственная рантайм-реализация pipeline. Наружу отдаётся только
- * под типами Pipeline / PhasedPipeline / PipelineBuilder — type-state
- * билдера обеспечивается типами, рантайм-проверки дублируют его
- * для JS-потребителей.
+ * Единственная реализация пайплайна. Наружу отдаётся под типами
+ * `Pipeline`, `PhasedPipeline` и `PipelineBuilder`; порядок методов
+ * держат типы, а проверки в рантайме повторяют его для JS-потребителей.
  */
 class PipelineImpl {
   constructor(
     private readonly layers: Layer[],
-    /** true после первого ответного метода: pre больше недоступен */
+    /** `true` после первого `.ok`/`.catch`/`.finally`: `.pre` закрыт */
     private readonly sealed: boolean,
-    /** true для результата compose: юниты добавлять больше нельзя */
+    /** `true` для результата `compose`: юниты добавлять нельзя */
     private readonly composed = false,
     /**
-     * Ссылки на значения, из которых произошёл этот пайплайн, —
-     * **единственный источник истины для идентичности слоя**.
+     * Значения, из которых получен этот пайплайн.
      *
-     * `compose` плющит и клонирует слои, поэтому по `layers` исходное
-     * значение невосстановимо: провенанс заводится явно. В исполнении не
-     * участвует — только в предикате принадлежности слоя
-     * ({@link PipelineImpl.derivesFrom}), на котором стоит policy-check.
+     * `compose` копирует слои, поэтому по `layers` исходное значение не
+     * восстановить; происхождение хранится явно. В выполнении не
+     * участвует: его читает только {@link PipelineImpl.derivesFrom}, на
+     * котором держится политика `hasLayer`.
      */
     private readonly sources: readonly PipelineImpl[] = [],
     /**
-     * Ambient-переменные, объявленные pre-юнитами этого пайплайна.
+     * Контекстные переменные, объявленные `.pre`-юнитами этого пайплайна.
      *
-     * Живёт рядом с провенансом и по тем же правилам: `compose` объединяет
-     * множества, деривация билдера и `bind()` их сохраняют. В исполнении не
-     * участвует — только в предикате `hasVar`
-     * ({@link PipelineImpl.declaresVar}).
+     * Правила те же, что у `sources`: `compose` объединяет множества,
+     * методы билдера и `bind()` их сохраняют. В выполнении не участвует:
+     * его читает только {@link PipelineImpl.declaresVar} (политика
+     * `hasVar`).
      */
     private readonly declared: ReadonlySet<AnyContextVar> = new Set(),
   ) {}
@@ -483,29 +484,29 @@ class PipelineImpl {
       pipelines.flatMap((p) => p.layers.map(cloneLayer)),
       true,
       true,
-      // Сами аргументы, без разворачивания их провенанса: транзитивность —
-      // дело обхода, а не записи
+      // Только сами аргументы: транзитивность обеспечивает обход в
+      // `derivesFrom`, а не запись
       [...pipelines],
-      // Множества объявленных переменных, наоборот, объединяются здесь:
-      // предикат обходить провенанс не должен
+      // Переменные, наоборот, объединяются здесь: `declaresVar` обход не
+      // делает
       new Set(pipelines.flatMap((p) => [...p.declared])),
     );
   }
 
   /**
-   * Достижимость значения-слоя по провенансу: обход DAG в ширину со
-   * ссылочным равенством.
+   * Проверяет, что `layer` встречается среди источников `pipeline`:
+   * обход графа происхождения в ширину, сравнение по ссылке.
    *
-   * Стартовый узел включён — ручка с `pipeline: authedBase` содержит
-   * `authedBase`. Защита от повторного посещения обязательна: одно и то же
-   * значение легально встречается в нескольких ветках композиции.
+   * Стартовый узел входит в обход: endpoint с `pipeline: authedBase`
+   * содержит `authedBase`. Множество посещённых обязательно: одно значение
+   * может встречаться в нескольких ветках композиции.
    */
   static derivesFrom(pipeline: PipelineImpl, layer: PipelineImpl): boolean {
     const queue: PipelineImpl[] = [pipeline];
     const visited = new Set<PipelineImpl>(queue);
 
-    // Итератор массива видит элементы, дописанные в ходе обхода: очередь
-    // растёт по мере раскрытия провенанса
+    // Итератор массива видит элементы, добавленные во время обхода,
+    // поэтому массив работает как очередь
     for (const node of queue) {
       if (node === layer) {
         return true;
@@ -523,11 +524,8 @@ class PipelineImpl {
   }
 
   /**
-   * Пайплайн объявил ambient-переменную: множество из решения о писателе,
-   * идентичность переменной — ссылочная.
-   *
-   * Обхода провенанса здесь нет и не нужно: множества объединяются в
-   * момент композиции.
+   * Проверяет, что `pipeline` объявил переменную `variable` (сравнение по
+   * ссылке). Обход источников не нужен: множества объединены в `compose`.
    */
   static declaresVar(pipeline: PipelineImpl, variable: AnyContextVar): boolean {
     return pipeline.declared.has(variable);
@@ -546,14 +544,14 @@ class PipelineImpl {
     // Builder всегда владеет ровно одним слоем
     const layer = cloneLayer(this.layers[0]);
     mutate(layer);
-    // Иммутабельность: новое множество заводится только когда есть что
-    // добавить, иначе разделяется ссылкой — менять его всё равно нечем
+    // Новое множество нужно только при добавлении; иначе прежнее
+    // разделяется по ссылке, менять его некому
     const declared = declares
       ? new Set([...this.declared, declares])
       : this.declared;
 
-    // Деривация помнит предшественника: pre-тракт монотонен, поэтому
-    // `authed.pre(x)` для инварианта — по-прежнему `authed`
+    // Новый пайплайн помнит предшественника: `authed.pre(x)` для политики
+    // `hasLayer(authed)` по-прежнему содержит `authed`
     return new PipelineImpl([layer], sealed, false, [this], declared);
   }
 
@@ -563,8 +561,7 @@ class PipelineImpl {
         'pre() is not available after a response-phase method (.ok/.catch/.finally)',
       );
     }
-    // Объявителем считается только юнит, созданный `<Var>.provide(…)`:
-    // декларация привязана к форме, поэтому разойтись с фактом не может
+    // Объявителем переменной считается только юнит из `<Var>.provide(…)`
     return this.withOwnLayer(
       (l) => l.pre.push(normalizeUnit(unit)),
       false,
@@ -617,21 +614,20 @@ class PipelineImpl {
       })),
       this.sealed,
       this.composed,
-      // Связанный пайплайн помнит несвязанный оригинал: инвариант держится
-      // и до WIRE, и после
+      // Пайплайн с инстансами помнит оригинал без них: `hasLayer` работает
+      // и до фазы WIRE, и после
       [this],
       this.declared,
     );
   }
 
   /**
-   * Открывает scope запроса вокруг **всего** исполнения ручки: pre-тракт,
-   * хендлер, ответный тракт, страж контракта и `finally`.
+   * Открывает область асинхронного контекста на всё выполнение запроса:
+   * `.pre`-юниты, хендлер, `.ok`/`.catch`, проверку `errors:` и `.finally`.
    *
-   * Scope открывается безусловно — приложением без единого ридера цена
-   * (одна ячейка и `als.run` на запрос) платится ради простоты правила
-   * «проекция есть всегда»: условное открытие связало бы рантайм пайплайна
-   * со сборкой графа.
+   * Область открывается всегда, даже если в приложении нет ни одного
+   * читателя `Ctx`: цена — одна ячейка и `als.run` на запрос, зато рантайм
+   * пайплайна не зависит от сборки графа.
    */
   async executeWithHandler(
     handler: (payload: unknown, meta: AnyAddition) => unknown,
@@ -667,15 +663,15 @@ class PipelineImpl {
     const activated: Layer[] = [];
 
     /**
-     * Оригинал, породивший текущий ответ-ошибку: страж отдаёт его хуку
-     * целиком. Хранится отдельно от ответа, потому что в теле остаётся
-     * только то, что можно показать клиенту.
+     * Исходная ошибка текущего ответа-ошибки: `enforceContract` передаёт
+     * её хуку целиком. В самом ответе остаётся только то, что можно
+     * показать клиенту.
      */
     let originalError: unknown;
 
     try {
-      // Pre-тракты слоёв: снаружи внутрь. Слой считается активированным,
-      // как только начался его pre — его ответный тракт исполнится.
+      // `.pre`-юниты слоёв, снаружи внутрь. Слой активирован с первого
+      // своего `.pre`-юнита: его `.ok`/`.catch`/`.finally` выполнятся.
       for (const layer of this.layers) {
         activated.push(layer);
         for (const entry of layer.pre) {
@@ -691,35 +687,34 @@ class PipelineImpl {
             },
           };
 
-          // Проекция догоняет pre-тракт: сервис, вызванный следующим
-          // юнитом, видит ровно то же, что и сам юнит
+          // Ячейка контекста обновляется после каждого юнита: сервис,
+          // вызванный следующим юнитом, читает через `Ctx` тот же `input`
           updateInput(cell, currentCtx.input);
         }
       }
 
-      // Извлекаем payload и meta из накопленного input
       const finalInput = currentCtx.input;
       const { payload, ...meta } = finalInput as AnyAddition & {
         payload?: unknown;
       };
 
-      // Если pre-тракт не добавил payload (нет validate()), передаём
-      // handler'у сырой payload, подготовленный транспортом
+      // Без `validate()` в `.pre` хендлер получает сырой payload от
+      // транспорта
       const effectivePayload =
         'payload' in finalInput ? payload : ctx.raw.payload;
 
       setPhase(cell, 'handler');
 
-      // Ключи `signal` и `fail` зарезервированы: инъекция пайплайна
-      // перекрывает одноимённые поля, добавленные pre-юнитом.
+      // Ключи `signal` и `fail` зарезервированы: значения пайплайна
+      // перекрывают одноимённые поля из `.pre`-юнитов
       const result = await handler(effectivePayload, {
         ...meta,
         signal: ctx.signal,
         fail: throwFail,
       });
 
-      // Возврат отказа эквивалентен броску: ответный тракт видит ошибку,
-      // и `.ok` не исполняется ни на одном из двух путей.
+      // Возвращённый `Fail` обрабатывается как брошенный: `.ok`-юниты не
+      // выполняются ни в одном из двух случаев
       if (isFail(result)) {
         originalError = result;
         response = this.errorToResponse(result, exposeErrorDetails);
@@ -733,8 +728,8 @@ class PipelineImpl {
 
     setPhase(cell, 'response');
 
-    // Ответный тракт: активированные слои изнутри наружу; юниты слоя —
-    // в порядке объявления, по применимости к ТЕКУЩЕМУ ответу.
+    // `.ok`/`.catch`: активированные слои изнутри наружу, юниты слоя в
+    // порядке объявления. Юнит выполняется, если подходит текущему ответу.
     const innerToOuter = [...activated].reverse();
     for (const layer of innerToOuter) {
       for (const entry of layer.responses) {
@@ -749,8 +744,8 @@ class PipelineImpl {
             | AnyFail
             | undefined;
           if (replaced !== undefined && replaced !== null) {
-            // `.catch` вправе вернуть просто отказ — рантайм нормализует
-            // его так же, как отказ хендлера.
+            // `.catch` может вернуть просто `Fail`; он нормализуется так
+            // же, как отказ хендлера
             if (isFail(replaced)) {
               originalError = replaced;
               response = this.errorToResponse(replaced, exposeErrorDetails);
@@ -760,18 +755,17 @@ class PipelineImpl {
             }
           }
         } catch (error) {
-          // Падение ответного юнита — необработанная ошибка: ответ
-          // заменяется по общей политике, остальные юниты продолжают.
+          // Исключение из `.ok`/`.catch` — необработанная ошибка: ответ
+          // заменяется, остальные юниты продолжают
           originalError = error;
           response = this.errorToResponse(error, exposeErrorDetails);
         }
       }
     }
 
-    // Страж контракта: после всего ответного тракта (`.catch` — легальное
-    // место превращения недекларированного отказа в контрактный) и до
-    // `.finally` (наблюдатель обязан видеть ровно тот ответ, который уйдёт
-    // клиенту).
+    // Проверка `errors:` стоит после `.catch` (там незадекларированный
+    // отказ ещё можно превратить в задекларированный) и до `.finally`
+    // (наблюдатель видит тот ответ, который уйдёт клиенту)
     response = this.enforceContract(
       response,
       originalError,
@@ -780,8 +774,8 @@ class PipelineImpl {
       onUnknownFail,
     );
 
-    // Finally: изнутри наружу, всегда. Ошибки наблюдателей не влияют
-    // на ответ (юнит обязан обрабатывать свои ошибки сам).
+    // `.finally`: изнутри наружу, всегда. Исключения наблюдателей на ответ
+    // не влияют; юнит обрабатывает свои ошибки сам
     const runFinals = async (
       outcome: Outcome,
       settled: ResponseContext<unknown>,
@@ -791,15 +785,15 @@ class PipelineImpl {
           try {
             await materialized(entry)(outcome, settled, currentCtx);
           } catch {
-            // намеренно проглатывается: finally — наблюдатель
+            // намеренно: `.finally` — наблюдатель, его ошибки ответ не меняют
           }
         }
       }
     };
 
-    // Потоковый ответ: исход честен только по факту доставки, поэтому
-    // финализация откладывается до закрытия итератора. Контракт с
-    // транспортом — потребить итератор либо закрыть его `return()`.
+    // Потоковый ответ: исход известен только после доставки, поэтому
+    // `.finally` откладывается до закрытия итератора. Транспорт обязан
+    // дочитать итератор или закрыть его через `return()`
     if (
       response.isSuccess &&
       isStreamKind(describeForm(ctx.endpoint.output).kind) &&
@@ -807,8 +801,8 @@ class PipelineImpl {
     ) {
       const delivered = response;
 
-      // Шаги потока и его финализация — та же проекция, своя фаза: тело
-      // ленивого генератора исполняется уже после возврата итератора
+      // У шагов потока своя фаза: тело генератора выполняется уже после
+      // возврата итератора
       setPhase(cell, 'stream');
 
       const stream = withFinish(
@@ -819,8 +813,7 @@ class PipelineImpl {
             return;
           }
 
-          // Тот же страж и тот же диагностический хук, что на обычном
-          // пути: mid-stream отказ не выпадает из модели ошибок
+          // Та же проверка `errors:` и тот же хук, что на обычном пути
           const failure = this.enforceContract(
             this.errorToResponse(error, exposeErrorDetails),
             error,
@@ -835,8 +828,8 @@ class PipelineImpl {
         },
       );
 
-      // Обёртка scope'а — **самая внешняя**: под ячейкой исполняются и
-      // шаги потока, и его финализация вместе с `finally`-юнитами
+      // Область контекста — самая внешняя обёртка: в ней выполняются и
+      // шаги потока, и `.finally`-юниты после его завершения
       return {
         ...delivered,
         value: iterateInScope(cell, stream),
@@ -851,12 +844,12 @@ class PipelineImpl {
   }
 
   /**
-   * Нормализует результат handler'а в ResponseContext.
+   * Превращает результат хендлера в `ResponseContext`.
    *
    * При потоковой форме `output` возвращённый `AsyncIterable` оборачивается
-   * здесь: шаги выходной item-цепочки → поэлементная валидация схемой-листом
-   * → счётчик `itemsOut`. Транспорт получает готовый итератор и занимается
-   * только framing'ом.
+   * здесь: сначала выходная item-цепочка, затем валидация каждого элемента
+   * схемой, затем счётчик `itemsOut`. Транспорт получает готовый итератор
+   * и только упаковывает элементы в кадры.
    */
   private normalizeResponse<T>(
     result: T,
@@ -888,17 +881,15 @@ class PipelineImpl {
   }
 
   /**
-   * Конвертирует ошибку в ResponseContext
+   * Превращает ошибку в `ErrorResponseContext`.
    *
-   * Отказ (`Fail` или приехавшее данными значение с `isFail`) — осознанная
-   * ошибка автора: message/code/details он раскрыл сам, поэтому они
-   * попадают в тело независимо от exposeErrorDetails. Привилегия
-   * раскрытия при этом достаётся только **задекларированному** отказу:
-   * незадекларированный снимет страж границы.
+   * Отказ (`Fail` или десериализованное значение с `isFail`) автор
+   * написал сам, поэтому его `message`, `code` и `details` попадают в тело
+   * независимо от `exposeErrorDetails`. Незадекларированный отказ позже
+   * заменит `enforceContract`.
    *
-   * Любая другая ошибка считается необработанной (внутренней): по умолчанию
-   * (`exposeErrorDetails === false`) клиенту уходит только generic-сообщение
-   * без `message` и `stack`. Раскрытие включается явно окружением.
+   * Любая другая ошибка считается внутренней: по умолчанию клиенту уходит
+   * только общее сообщение, без `message` и `stack`.
    */
   private errorToResponse(
     error: unknown,
@@ -932,12 +923,12 @@ class PipelineImpl {
   }
 
   /**
-   * Страж контракта отказов.
+   * Проверяет ответ-ошибку по `errors:` endpoint'а.
    *
-   * Ответ считается контрактным, только если несёт код, объявленный в
-   * `errors:` ручки, либо kernel-код. Всё остальное — включая ответ вовсе
-   * без кода (анонимный `Fail.*`, необработанная ошибка) — заменяется на
-   * `UnknownError`: множество ответов ручки закрыто, warn-and-pass нет.
+   * Ответ проходит, если его код объявлен в `errors:` или является кодом
+   * ядра. Любой другой ответ, включая ответ без кода (анонимный `Fail.*`,
+   * необработанная ошибка), заменяется на `UnknownError`; исходная ошибка
+   * передаётся в `onUnknownFail`.
    */
   private enforceContract(
     response: ResponseContext<unknown>,
@@ -959,13 +950,12 @@ class PipelineImpl {
       return response;
     }
 
-    // Оригинал мог не сохраниться (ответ собран `.catch`-юнитом руками) —
-    // тогда хук получает сам ответ: терять диагностику нельзя.
+    // Исходной ошибки может не быть (ответ собрал `.catch`-юнит вручную);
+    // тогда хук получает сам ответ
     onUnknownFail({ error: originalError ?? response, endpoint });
 
-    // Тело — то же, что у необработанной ошибки: незадекларированный отказ
-    // привилегии раскрытия не имеет. `exposeErrorDetails` по-прежнему
-    // управляет только показом внутренностей в доверенном окружении.
+    // Тело как у необработанной ошибки: детали незадекларированного отказа
+    // клиенту не уходят
     return {
       isSuccess: false,
       status: UnknownError.status,
@@ -978,8 +968,8 @@ class PipelineImpl {
 }
 
 /**
- * Тело ответа на необработанное: generic-сообщение по умолчанию, детали
- * оригинала — только при явно включённом раскрытии.
+ * Тело ответа на необработанную ошибку: общее сообщение, а `message` и
+ * `stack` оригинала — только при `exposeErrorDetails`.
  */
 function unhandledBody(
   error: unknown,
@@ -1001,11 +991,11 @@ function unhandledBody(
 }
 
 /**
- * Бросатель `meta.fail`: вся сила в типе, рантайм тривиален.
+ * Реализация `meta.fail`: бросает переданный отказ.
  *
- * Проверка нужна для JS-потребителей, которых типы не сдерживают:
- * `meta.fail('boom')` должен падать понятным `TypeError`, а не уезжать
- * строкой в ответный тракт.
+ * Проверка `isFail` нужна JS-потребителям, которых не сдерживают типы:
+ * `meta.fail('boom')` падает понятным `TypeError`, а не уходит строкой в
+ * ответ.
  */
 function throwFail(error: AnyFail | FailData): never {
   if (!isFail(error)) {
@@ -1018,10 +1008,10 @@ function throwFail(error: AnyFail | FailData): never {
 }
 
 /**
- * Создаёт билдер одного слоя pipeline.
+ * Создаёт пайплайн из одного слоя.
  *
- * @param TReq - требования слоя к внешнему контексту; проверяются
- * компилятором в точке композиции (`compose`)
+ * @template TReq - Требования слоя к внешнему контексту; их проверяет
+ * компилятор в `compose`
  *
  * @example
  * ```typescript
@@ -1043,10 +1033,10 @@ export function makePipeline<
 }
 
 /**
- * Композиция слоёв: список читается сверху вниз как «снаружи внутрь».
- * Pre-тракты исполняются снаружи внутрь, ответные фазы и finally —
- * изнутри наружу. Требования каждого слоя к внешнему контексту
- * проверяются компилятором в точке композиции.
+ * Складывает слои в один пайплайн. Список читается сверху вниз как
+ * «снаружи внутрь»: `.pre`-юниты выполняются снаружи внутрь,
+ * `.ok`/`.catch` и `.finally` — изнутри наружу. Требования каждого слоя к
+ * внешнему контексту проверяет компилятор.
  */
 export function compose<
   RA extends AnyInput,
@@ -1103,15 +1093,14 @@ export function compose(...pipelines: AnyPipeline[]): AnyPipeline {
 }
 
 /**
- * Пайплайн произошёл от значения-слоя.
+ * Проверяет, что `pipeline` содержит слой `layer`.
  *
- * Идентичность слоя **ссылочная**: сравнения по имени, по идентичности
- * юнитов и по структуре слоёв не существует. Отношение транзитивно
- * (`compose(compose(base, authed), extra)` содержит все три) и рефлексивно
- * (пайплайн содержит сам себя).
+ * Слои сравниваются по ссылке, а не по имени, юнитам или структуре.
+ * Отношение транзитивно (`compose(compose(base, authed), extra)` содержит
+ * все три слоя) и рефлексивно (пайплайн содержит сам себя).
  *
- * @internal основание предиката `hasLayer` словаря политик; наружу
- * поведение видно через `everyEndpoint(...).hasLayer(...)`
+ * @internal На этой функции построена политика
+ * `everyEndpoint(...).hasLayer(...)`
  */
 export function derivesFrom(pipeline: unknown, layer: unknown): boolean {
   if (!(pipeline instanceof PipelineImpl) || !(layer instanceof PipelineImpl)) {
@@ -1122,16 +1111,16 @@ export function derivesFrom(pipeline: unknown, layer: unknown): boolean {
 }
 
 /**
- * Пайплайн объявил ambient-переменную.
+ * Проверяет, что `pipeline` объявил контекстную переменную `variable`.
  *
- * Объявителем считается **только** pre-юнит формы `<Var>.provide(…)`: юнит,
- * кладущий то же поле обычной функцией, работает как прежде (читатели видят
- * поле через проекцию), но декларацией не считается — иначе она жила бы
- * отдельно от факта. Идентичность переменной ссылочная: одноимённая
- * переменная из соседнего вызова `contextVar` — другое значение.
+ * Объявлением считается только `.pre`-юнит вида `<Var>.provide(…)`. Юнит,
+ * который кладёт то же поле обычной функцией, работает (читатели видят
+ * поле через `Ctx`), но объявлением не считается. Переменные сравниваются
+ * по ссылке: одноимённая переменная из другого вызова `contextVar` —
+ * другое значение.
  *
- * @internal основание предиката `hasVar` словаря политик; наружу поведение
- * видно через `everyEndpoint(...).hasVar(...)`
+ * @internal На этой функции построена политика
+ * `everyEndpoint(...).hasVar(...)`
  */
 export function declaresVar(pipeline: unknown, variable: unknown): boolean {
   if (!(pipeline instanceof PipelineImpl) || !isContextVar(variable)) {

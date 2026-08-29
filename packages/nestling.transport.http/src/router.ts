@@ -4,10 +4,10 @@ import type { RouteDeclaration } from '@nestling/transport';
 import Router from 'find-my-way';
 
 /**
- * Обертка над find-my-way для роутинга HTTP запросов.
+ * Обёртка над find-my-way для маршрутизации HTTP-запросов.
  *
- * Хранит **проекции** деклараций: исполнимых полей у транспорта нет, ручку
- * исполняет `dispatch.call` по паттерну найденного маршрута.
+ * Хранит проекции деклараций без `handle` и `pipeline`; endpoint исполняет
+ * `dispatch.call` по паттерну найденного маршрута.
  */
 export class HttpRouter {
   private readonly router: Router.Instance<Router.HTTPVersion.V1>;
@@ -20,9 +20,7 @@ export class HttpRouter {
     });
   }
 
-  /**
-   * Регистрирует маршрут по проекции декларации
-   */
+  /** Регистрирует маршрут по проекции декларации */
   route(declaration: RouteDeclaration): void {
     const [method, path] = declaration.pattern.split(' ');
 
@@ -30,16 +28,13 @@ export class HttpRouter {
       method.toUpperCase() as Router.HTTPMethod,
       path,
       () => {
-        // Handler вызывается при совпадении, но нам не нужна логика здесь
-        // Все данные уже в store
+        // Обработчик find-my-way не нужен: декларация лежит в store
       },
       { declaration },
     );
   }
 
-  /**
-   * Находит маршрут для запроса
-   */
+  /** Находит маршрут и path-параметры запроса; `null`, если маршрута нет */
   find(req: IncomingMessage): {
     declaration: RouteDeclaration;
     params: Record<string, string>;

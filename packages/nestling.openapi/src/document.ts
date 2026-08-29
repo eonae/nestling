@@ -25,7 +25,7 @@ import { busBindingOf } from '@nestling/ports';
 import type { HttpBinding } from '@nestling/transport.http';
 import { httpBindingOf, isHttpBinding } from '@nestling/transport.http';
 
-/** Ручка, отобранная для документа: её карта уже прочитана */
+/** Endpoint, отобранный для документа: его карта уже прочитана */
 interface Documented {
   readonly endpoint: AnyEndpointDefinition;
   readonly moduleName: string;
@@ -36,9 +36,9 @@ interface Documented {
  * Строит документ OpenAPI 3.1 из деклараций.
  *
  * Документируются только носители HTTP bind-карты: декларации прочих
- * транспортов исключаются молча — HTTP-документ их не описывает. Ручка,
- * помеченная `doc: { hidden: '<причина>' }`, исключается вместе со своими
- * схемами: это единственный способ не документировать HTTP-ручку.
+ * транспортов исключаются молча — HTTP-документ их не описывает. Endpoint,
+ * помеченный `doc: { hidden: '<причина>' }`, исключается вместе со своими
+ * схемами: это единственный способ не документировать HTTP-endpoint.
  *
  * @param endpoints - Результат `discoverEndpoints(...).endpoints` (или
  * любой структурно совпадающий список)
@@ -125,7 +125,7 @@ function select(endpoints: readonly DocumentedEndpoint[]): Documented[] {
       continue;
     }
 
-    // Скрытая ручка выпадает вместе со своими схемами: проверять на
+    // Скрытый endpoint выпадает вместе со своими схемами: проверять на
     // конвертируемость то, чего в документе нет, незачем
     if (endpoint.doc?.hidden !== undefined) {
       continue;
@@ -140,8 +140,8 @@ function select(endpoints: readonly DocumentedEndpoint[]): Documented[] {
 /**
  * Дубль `(метод, путь)` — ошибка, а не последняя выигравшая операция.
  *
- * Бросается отдельно от копилки диагностик: с двумя ручками на одном адресе
- * документ построить нечем, и продолжать разбор схем бессмысленно.
+ * Бросается отдельно от копилки диагностик: с двумя endpoint'ами на одном
+ * адресе документ построить нечем, и продолжать разбор схем бессмысленно.
  */
 function assertUniqueAddresses(documented: readonly Documented[]): void {
   const seen = new Map<string, Documented>();
@@ -244,11 +244,11 @@ function operationOf(
 }
 
 /**
- * Скрытые ручки с их причинами — поверхность для аудита.
+ * Скрытые endpoint'ы с их причинами — поверхность для аудита.
  *
  * В документ список не попадает: документ уходит наружу, а «что мы решили
  * не показывать» это внутреннее знание. Печатает его модуль-издатель на
- * старте, рядом со списком detached-ручек.
+ * старте, рядом со списком detached-endpoint'ов.
  */
 export function hiddenEndpoints(
   endpoints: readonly DocumentedEndpoint[],

@@ -42,8 +42,8 @@ function makeTransport(options: HttpTransportOptions = {}): HttpTransport {
 }
 
 /**
- * Декларации, накопленные тестом до go-live: транспорт получает их одним
- * `dispatch` в `serve`, а не по одной.
+ * Декларации, накопленные тестом до запуска транспорта: он получает их
+ * одним `dispatch` в `serve`, а не по одной.
  */
 const pending = new WeakMap<HttpTransport, ExecutableDeclaration[]>();
 
@@ -173,7 +173,7 @@ describe('HttpTransport — error response safety', () => {
         },
       }),
     );
-    // Тот же отказ, но незадекларированный: страж границы снимет его
+    // Тот же отказ, но незадекларированный: проверка границы снимет его
     routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
@@ -267,7 +267,7 @@ describe('HttpTransport — error response safety', () => {
     expect(JSON.stringify(body)).not.toContain('Email already taken');
   });
 
-  it('новые статусы словаря доезжают до провода: 429 и 504', async () => {
+  it('новые статусы словаря передаются в HTTP-ответ: 429 и 504', async () => {
     const limited = await fetch(`${baseUrl}/rate-limited`, { method: 'POST' });
     expect(limited.status).toBe(429);
     expect(await limited.json()).toMatchObject({ code: 'RATE_LIMITED' });

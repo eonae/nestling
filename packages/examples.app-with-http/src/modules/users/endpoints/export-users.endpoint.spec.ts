@@ -47,7 +47,7 @@ describe('ExportUsersHandler', () => {
 
       expect(users.length).toBe(2);
     } else {
-      expect(result).toBeInstanceOf(Ok); // Will fail
+      expect(result).toBeInstanceOf(Ok); // Не должно сработать: result — Ok
     }
   });
 });

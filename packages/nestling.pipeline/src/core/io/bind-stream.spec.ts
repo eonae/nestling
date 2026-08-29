@@ -168,7 +168,7 @@ describe('bindInputStream', () => {
   });
 });
 
-describe('kernel-отказы цепочек проходят страж границы', () => {
+describe('kernel-отказы цепочек проходят проверку контракта отказов', () => {
   it('.limit даёт 413 с кодом STREAM_LIMIT_EXCEEDED, а не 500 UNKNOWN', async () => {
     const response = await runWith(stream(LogChunk).limit(2), [
       { level: 'a' },

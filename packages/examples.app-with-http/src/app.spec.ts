@@ -1,9 +1,11 @@
 /**
- * App-тесты примера: запрос через полный пайплайн, но без сокета.
+ * App-тесты примера: каждый запрос проходит полный пайплайн, но сокет
+ * не открывается.
  *
- * Уровень между юнитом и e2e: слои, валидация схем и страж границы
- * отрабатывают целиком, транспорт в эфир не выходит, `process.env` не
- * трогается. Мокается один архитектурный шов — порт репозитория.
+ * Это уровень между юнит-тестами и e2e. Слои пайплайна, валидация схем
+ * и проверка объявленных отказов на границе endpoint'а отрабатывают
+ * целиком, транспорт не начинает принимать запросы, `process.env` не
+ * читается. Подменяется один узел графа: репозиторий пользователей.
  */
 
 import { ILogger, observability } from './modules/logger';
@@ -42,11 +44,14 @@ import {
 } from '@nestling/testing';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
-/** Сборка примера без транспортного go-live — тот же словарь, что в `main.ts` */
+/**
+ * Описание сборки: те же фичи, транспорты и политики, что в `main.ts`.
+ * Транспорт в app-тесте сокет не открывает.
+ */
 const spec = {
   features: [UsersFeature, OpsFeature, QuotasFeature],
   transports: [http({ port: 0 })],
-  // Те же инварианты, что в бою: тестовый корень их не ослабляет
+  // Политики те же, что в `main.ts`: тестовая сборка их не ослабляет
   policies: [
     everyEndpoint({ transport: HttpTransport$ }).hasLayer(
       observability,
@@ -57,7 +62,7 @@ const spec = {
 };
 
 describe('пример: app-тесты через assembleTest', () => {
-  it('исполняет ручку через полный пайплайн', async () => {
+  it('вызывает endpoint через полный пайплайн', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -93,7 +98,7 @@ describe('пример: app-тесты через assembleTest', () => {
       value: { code: 'USER_NOT_FOUND' },
     });
 
-    // Admin защищён доменным правилом, а не транспортом
+    // Удаление администратора запрещает доменное правило, а не транспорт
     expect(await app.call(DeleteUser, { id: '1' })).toMatchObject({
       isSuccess: false,
       status: 'FORBIDDEN',
@@ -101,19 +106,20 @@ describe('пример: app-тесты через assembleTest', () => {
     });
   });
 
-  it('показывает выпавший прунингом узел', async () => {
+  it('показывает выпавший из графа узел', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
     });
 
-    // Единственный потребитель хранилища — боевой репозиторий; заменили
-    // его — соединение не открывается, и узла в графе нет
+    // Хранилище использует только боевой репозиторий. После его подмены
+    // узел `UsersStore` никому не нужен: контейнер его не создаёт, и
+    // соединение не открывается
     expect(app.pruned).toContain('UsersStore');
     expect(app.get(HttpTransport$)).not.toBeNull();
   });
 
-  it('без overrides граф остаётся боевым', async () => {
+  it('без overrides собирает граф без выпавших узлов', async () => {
     await using app = await assembleTest(spec);
 
     expect(app.pruned).toEqual([]);
@@ -121,10 +127,13 @@ describe('пример: app-тесты через assembleTest', () => {
   });
 });
 
-/** Тихий сток для уровней, которые тесту не интересны */
+/** Игнорирует записи уровней, которые тест не проверяет */
 const drop = (): void => undefined;
 
-/** Логгер-шпион: репозиторий пишет корреляцию через него */
+/**
+ * Логгер-шпион: собирает строки уровня `debug`, которые пишет
+ * репозиторий. По ним тест проверяет, какой requestId туда попал.
+ */
 const spyLogger = () => {
   const lines: string[] = [];
 
@@ -138,13 +147,13 @@ const spyLogger = () => {
   };
 };
 
-describe('пример: ambient-контекст в глубине графа', () => {
-  it('репозиторий видит requestId, положенный слоем наблюдаемости', async () => {
+describe('пример: асинхронный контекст в глубине графа', () => {
+  it('репозиторий читает requestId, который положил слой observability', async () => {
     const spy = spyLogger();
 
-    // Репозиторий боевой: подменён только логгер, чтобы прочитать то, что
-    // он написал. Значение `requestId` в графе никто не подставляет — оно
-    // приезжает по-настоящему, слоем `observability`
+    // Репозиторий боевой, подменён только логгер: тест читает то, что
+    // репозиторий написал. Значение `requestId` никто не подставляет:
+    // его кладёт в контекст слой `observability`
     await using app = await assembleTest({
       ...spec,
       overrides: [[ILogger, spy.logger]],
@@ -152,8 +161,8 @@ describe('пример: ambient-контекст в глубине графа', 
 
     unwrap(await app.call(GetUser, { id: '1' }));
 
-    // Ручка вызвана без единого упоминания requestId, а глубокий сервис,
-    // не получивший его параметром, всё равно им подписался
+    // Endpoint вызван без requestId, и параметром он в сервис не передан.
+    // Репозиторий всё равно читает его из контекста и пишет в строку
     expect(spy.lines).toContainEqual(expect.stringMatching(/^\[.+] byId 1$/));
     expect(spy.lines).not.toContainEqual(expect.stringContaining('[n/a]'));
   });
@@ -168,17 +177,18 @@ describe('пример: ambient-контекст в глубине графа', 
 
     unwrap(await app.call(GetUser, { id: '1' }));
 
-    // Подменён ридер, а не контекст: пайплайн по-прежнему кладёт свой
-    // requestId, но сервис читает то, что объявил тест
+    // `contextValue` подменяет чтение значения, а не сам контекст:
+    // пайплайн по-прежнему кладёт свой requestId, но сервис читает то,
+    // что задал тест
     expect(spy.lines).toContain('[req-fixed] byId 1');
   });
 });
 
-describe('пример: инфраструктура едет вместе с фичей', () => {
-  it('фича привозит ровно ту инфраструктуру, которую импортирует', async () => {
-    // `ops` импортирует логирование и реестр подписок: её админские ручки
-    // живут под теми же политиками, что и прикладные. Прикладных
-    // провайдеров фичи `users` при этом в графе нет — их никто не выбрал
+describe('пример: фича подключает свою инфраструктуру', () => {
+  it('подключает ровно ту инфраструктуру, которую фича импортирует', async () => {
+    // `ops` импортирует логирование и реестр подписок: её служебные
+    // endpoint'ы подчиняются тем же политикам, что и прикладные.
+    // Провайдеров фичи `users` в графе нет: её никто не выбрал
     await using app = await assembleTest({ ...spec, select: 'ops' });
 
     expect(app.get(ILogger)).not.toBeNull();
@@ -187,17 +197,17 @@ describe('пример: инфраструктура едет вместе с ф
     expect(app.get(HttpTransport$)).not.toBeNull();
   });
 
-  it('выбранная фича привозит свою инфраструктуру', async () => {
+  it('подключает инфраструктуру выбранной фичи', async () => {
     await using app = await assembleTest({ ...spec, select: 'users' });
 
     expect(app.get(ILogger)).not.toBeNull();
     expect(app.get(ActivityHub)).not.toBeNull();
   });
 
-  it('co-located фичи, импортирующие одно значение, делят инстанс', async () => {
-    // Обе фичи импортируют **одно значение** `appLogging`: модуль
-    // регистрируется один раз, и логгер у них общий. Вызови любая из них
-    // `logging({ … })` заново — сборка упала бы на коллизии имён
+  it('фичи в одном процессе делят инстанс общего модуля', async () => {
+    // Обе фичи импортируют одно и то же значение `appLogging`: модуль
+    // регистрируется один раз, и логгер у них общий. Если бы одна из них
+    // вызвала `logging({ … })` заново, сборка упала бы на коллизии имён
     await using app = await assembleTest(spec);
 
     const logger = app.get(ILogger);
@@ -207,7 +217,7 @@ describe('пример: инфраструктура едет вместе с ф
   });
 });
 
-/** Создаёт пользователя через полный пайплайн ручки */
+/** Создаёт пользователя через полный пайплайн endpoint'а */
 const createUser = (
   app: Awaited<ReturnType<typeof assembleTest>>,
   suffix: string,
@@ -217,16 +227,16 @@ const createUser = (
     email: `user-${suffix}@example.com`,
   });
 
-describe('пример: фичи общаются контрактами', () => {
+describe('пример: фичи вызывают друг друга через контракты', () => {
   it.each<['local-first' | 'always-remote']>([
     ['local-first'],
     ['always-remote'],
-  ])('политика %s меняет путь вызова, но не call-site', async (dispatch) => {
+  ])('политика %s меняет путь вызова, но не код', async (dispatch) => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
-      // Политика — конфиг: в тесте она задаётся `vars()`, в бою —
-      // переменной окружения или привязанным источником
+      // Политика диспатча задаётся конфигом: в тесте через `vars()`,
+      // в бою переменной окружения или привязанным источником
       config: vars({ NESTLING_PORTS_DISPATCH: dispatch }),
     });
 
@@ -235,21 +245,22 @@ describe('пример: фичи общаются контрактами', () =>
     });
   });
 
-  it('исчерпанная квота приезжает настоящим отказом соседней фичи', async () => {
+  it('возвращает отказ соседней фичи при исчерпанной квоте', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
     });
 
-    // Лимит фичи квот — пять мест
+    // Фича квот выдаёт пять мест
     for (const index of [1, 2, 3, 4, 5]) {
       unwrap(await createUser(app, String(index)));
     }
 
     const refused = await createUser(app, 'sixth');
 
-    // Код доехал до границы вызывающей ручки и остался в её контракте:
-    // `errors:` объявляет отказ соседней фичи наравне со своими
+    // Отказ прошёл границу вызывающего endpoint'а без замены на
+    // `UnknownError`: его `errors` объявляет отказ соседней фичи наравне
+    // со своими
     expect(refused).toMatchObject({
       isSuccess: false,
       status: 'TOO_MANY_REQUESTS',
@@ -257,51 +268,52 @@ describe('пример: фичи общаются контрактами', () =>
     });
   });
 
-  it('реализация контракта вызывается в тесте по значению — как ручка', async () => {
+  it('вызывает реализацию контракта так же, как endpoint', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
     });
 
-    // Никакой отдельной машинерии: та же `app.call` по идентичности
-    // декларации, что и для HTTP-ручки
+    // Отдельного механизма нет: та же `app.call` по значению декларации,
+    // что и для HTTP-endpoint'а
     expect(unwrap(await app.call(ClaimQuotaImpl, { email: 'a@b.c' }))).toEqual({
       remaining: 4,
     });
   });
 });
 
-describe('пример: эксплуатационный профиль вызова', () => {
-  it('исчерпанный бюджет отказывает, не тронув соседнюю фичу', async () => {
+describe('пример: meta вызова через порт', () => {
+  it('отказывает по истёкшему deadline, не вызывая реализацию', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
     });
 
-    // Вызыватель — обычный узел графа, поэтому в тесте он достаётся тем же
-    // `app.get`, что транспорт или логгер
+    // Порт — обычный узел графа: в тесте его достают тем же `app.get`,
+    // что транспорт или логгер
     const quotas = app.get(ClaimQuota.port);
 
     const refused = await quotas?.call(
       { email: 'late@example.com' },
-      // Момент в прошлом: бюджет исчерпан ещё до вызова
+      // Deadline в прошлом: срок истёк ещё до вызова
       { deadline: new Date(Date.now() - 1) },
     );
 
-    // Kernel-код, а не `UNKNOWN`: множество ответов порта закрыто и им тоже
+    // Код ошибки задаёт ядро, а не `UNKNOWN`: `DEADLINE_EXCEEDED` входит
+    // в список ответов порта
     expect(refused).toMatchObject({
       status: 'TIMEOUT',
       code: 'DEADLINE_EXCEEDED',
     });
 
-    // Реализация не исполнялась — место в квоте не занято: следующий вызов
-    // видит нетронутый лимит
+    // Реализация не вызывалась, и место в квоте не занято: следующий
+    // вызов видит нетронутый лимит
     expect(unwrap(await app.call(ClaimQuotaImpl, { email: 'a@b.c' }))).toEqual({
       remaining: 4,
     });
   });
 
-  it('ключ идемпотентности команды доезжает до сервиса в глубине', async () => {
+  it('передаёт ключ идемпотентности команды до сервиса в глубине', async () => {
     const spy = spyLogger();
 
     await using app = await assembleTest({
@@ -314,11 +326,11 @@ describe('пример: эксплуатационный профиль вызо
 
     unwrap(await createUser(app, 'signed'));
 
-    // `emit` резолвится по факту доставки, а не обработки
+    // `emit` завершается, когда сообщение доставлено, а не обработано
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // Ключом взят id пользователя — журнал подписан идентичностью
-    // намерения, которую задал вызывающий, а не отчеканил вызыватель
+    // Ключом идемпотентности вызывающий код задал id пользователя, и
+    // журнал получил именно его, а не ключ, сгенерированный эмиттером
     expect(spy.lines).toContainEqual(
       expect.stringMatching(/^signup (\d+) recorded, intent \1$/),
     );
@@ -335,9 +347,9 @@ describe('пример: матрица select-топологий', () => {
       'ops',
     ]);
 
-    // `users` тянет `ops` и `quotas` через `dependsOn`; сам `ops` объявляет
-    // эксплуатационные ручки — liveness-пробу и админ-плоскость подписок,
-    // включая двух подписчиков фактов на шине
+    // `users` подключает `ops` и `quotas` через `dependsOn`. Сам `ops`
+    // объявляет служебные endpoint'ы: liveness-пробу, администрирование
+    // подписок и двух подписчиков на факты в шине
     expect(reports[1].report.features).toEqual(['users', 'ops', 'quotas']);
     expect(
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
@@ -352,12 +364,12 @@ describe('пример: матрица select-топологий', () => {
     expect(reports[0].report.endpoints.length).toBeGreaterThan(1);
   });
 
-  it('прогоняет инварианты и отдаёт состав detached-ручек значением', async () => {
+  it('проверяет политики и отдаёт список detached значением из отчёта', async () => {
     const [{ report }] = await checkTopologies(spec, ['all']);
 
-    // Матрица гоняет `policies` в каждой топологии — сюда мы доходим
-    // только потому, что инвариант соблюдён во всех. Состав opt-out'ов
-    // сравнивается значением из отчёта, а не парсингом stdout.
+    // `checkTopologies` проверяет `policies` в каждой топологии: тест
+    // доходит сюда, только если инвариант соблюдён во всех. Список
+    // detached-endpoint'ов сравнивается значением из отчёта, а не по stdout
     expect(
       report.endpoints
         .filter(({ detached }) => detached !== undefined)
@@ -373,11 +385,11 @@ describe('пример: матрица select-топологий', () => {
 });
 
 /**
- * Документ выводится из тех же деклараций, которые обслуживают запросы, —
- * и это проверяется буквально: коды ответов сверяются с ответами, которые
- * даёт транспорт на живых вызовах.
+ * Достаёт документ OpenAPI из собранного графа.
+ *
+ * Документ выводится из тех же деклараций, которые обслуживают запросы,
+ * и строится на фазе ASSEMBLE как обычное значение в графе.
  */
-/** Документ из собранного графа: он построен на ASSEMBLE и лежит значением */
 const documentOf = (app: {
   get: <T>(token: InjectionToken<T>) => T | null;
 }): OpenApiDocument => {
@@ -389,7 +401,7 @@ const documentOf = (app: {
 };
 
 describe('пример: документ OpenAPI', () => {
-  /** Тот же корень, что в `main.ts`, плюс модуль документации */
+  /** Описание сборки из `main.ts` плюс модуль документации */
   const documented = {
     ...spec,
     modules: [
@@ -403,7 +415,7 @@ describe('пример: документ OpenAPI', () => {
     ],
   };
 
-  it('описывает все публичные ручки и ни одной скрытой', async () => {
+  it('описывает каждый публичный endpoint и ни одного скрытого', async () => {
     await using app = await assembleTest({
       ...documented,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -425,7 +437,8 @@ describe('пример: документ OpenAPI', () => {
       '/api/users/{id}/avatar',
     ]);
 
-    // Обе служебные ручки скрыты причиной: liveness-проба и сам документ
+    // Оба служебных endpoint'а скрыты с указанием причины: liveness-проба
+    // и сам документ
     expect(paths['/health']).toBeUndefined();
     expect(paths['/openapi.json']).toBeUndefined();
   });
@@ -444,8 +457,8 @@ describe('пример: документ OpenAPI', () => {
       tags: ['users'],
     });
 
-    // Пометка `query()` контракта разложена: `dryRun` — параметр, а не поле
-    // тела
+    // Bind-карта контракта учтена: `dryRun` описан как query-параметр,
+    // а не как поле тела
     expect(
       paths['/api/users'].post.parameters?.map(({ name, in: where }) => [
         name,
@@ -462,7 +475,7 @@ describe('пример: документ OpenAPI', () => {
 
     const { responses } = documentOf(app).paths['/api/users'].post;
 
-    // 201: успешный статус объявлен `doc.status: 'CREATED'`
+    // 201: статус успеха объявлен через `doc.status: 'CREATED'`
     const created = await app.call(CreateUser, {
       name: 'Charlie',
       email: 'charlie@example.com',
@@ -470,7 +483,7 @@ describe('пример: документ OpenAPI', () => {
     expect(created.status).toBe('CREATED');
     expect(responses['201']).toBeDefined();
 
-    // 409: тот же email второй раз — объявленный отказ `EMAIL_TAKEN`
+    // 409: повтор email возвращает объявленный отказ `EMAIL_TAKEN`
     const conflict = await app.call(CreateUser, {
       name: 'Charlie II',
       email: 'charlie@example.com',
@@ -486,20 +499,19 @@ describe('пример: документ OpenAPI', () => {
   });
 });
 
-/** Поток из ответа границы: у `events`-ручки значение — итератор */
+/** Достаёт итератор событий из ответа `events`-endpoint'а */
 const streamOf = <T>(response: unknown): AsyncIterableIterator<T> =>
   (response as { value: AsyncIterableIterator<T> }).value;
 
 /**
- * Реестр подписок — satellite-пакет в работе.
+ * Реестр подписок (`@nestling/subscriptions`).
  *
- * Тест драйвит ровно тот сценарий, ради которого пакет и существует:
- * подписка открылась, её видно списком, администратор её завершил, поток
- * закрылся, запись снялась. Ни одной строки ядра при этом не задействовано
- * иначе, чем через публичные примитивы.
+ * Тест проходит основной сценарий пакета: подписка открывается, её
+ * видно в списке, администратор её завершает, поток закрывается,
+ * запись из реестра удаляется.
  */
 describe('пример: реестр подписок', () => {
-  it('показывает подписку, убивает её и снимает запись', async () => {
+  it('показывает подписку, завершает её и удаляет запись', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -509,7 +521,7 @@ describe('пример: реестр подписок', () => {
       await app.call(ActivityStream),
     );
 
-    // Подписка видна администратору до того, как ушёл первый элемент
+    // Подписка видна в списке до того, как отдан первый элемент
     const [listed] = unwrap(await app.call(ListSubscriptions));
     expect(listed).toMatchObject({
       transport: 'http',
@@ -517,16 +529,17 @@ describe('пример: реестр подписок', () => {
       kind: 'events',
       itemsOut: 0,
     });
-    // `identity` считает экстрактор композиции — здесь это requestId слоя
+    // `identity` вычисляет функция, заданная в `tracked`: здесь это
+    // requestId слоя
     expect(typeof listed.identity).toBe('string');
 
-    // Событие в ленте: подписка отдаёт элемент, счётчик догоняет
+    // После события подписка отдаёт элемент, и счётчик `itemsOut` растёт
     unwrap(await createUser(app, 'subscriber'));
     const delivered = await subscription.next();
     expect(delivered.value).toMatchObject({ kind: 'created' });
     expect(unwrap(await app.call(ListSubscriptions))[0].itemsOut).toBe(1);
 
-    // Административное завершение: ответ 204, поток закрывается сам
+    // Администратор завершает подписку: ответ 204, поток закрывается сам
     const killed = await app.call(KillSubscription, { id: listed.id });
     expect(killed.status).toBe('NO_CONTENT');
 
@@ -537,11 +550,11 @@ describe('пример: реестр подписок', () => {
     }
     expect(tail).toEqual([]);
 
-    // Запись снял `.finally` пайплайна, а не `abort()`
+    // Запись удалил `.finally` пайплайна, а не `abort()`
     expect(unwrap(await app.call(ListSubscriptions))).toEqual([]);
   });
 
-  it('отказывает объявленным отказом на неизвестную подписку', async () => {
+  it('возвращает объявленный отказ на неизвестную подписку', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -566,7 +579,7 @@ describe('пример: реестр подписок', () => {
       await app.call(WatchSubscriptions),
     );
 
-    // Собственная запись в реестре есть...
+    // Собственная запись просмотра в реестре есть...
     expect(
       unwrap(await app.call(ListSubscriptions)).map(({ pattern }) => pattern),
     ).toEqual(['GET /api/ops/subscriptions/live']);

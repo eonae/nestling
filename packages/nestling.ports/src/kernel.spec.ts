@@ -236,7 +236,7 @@ describe('portsKernel', () => {
     placedSeen = [];
   });
 
-  it('материализует вызыватель только для запрошенных контрактов', async () => {
+  it('создаёт вызыватель только для запрошенных контрактов', async () => {
     const app = await assemble({
       declarations: [EchoImpl],
       consumers: [portConsumer],
@@ -315,7 +315,7 @@ describe('portsKernel', () => {
     ).rejects.toThrow(/'kernel\.orphan'.*no selected module implements it/s);
   });
 
-  it('эмиттер события без подписчиков легален и доставляет ноль раз', async () => {
+  it('эмиттер события без подписчиков не роняет вызов и доставляет ноль раз', async () => {
     const eventConsumer = factoryProvider(
       EventConsumer,
       (emitter: Emitter<any>) => ({ emitter }),

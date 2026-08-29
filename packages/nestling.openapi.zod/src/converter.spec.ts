@@ -39,11 +39,11 @@ describe('zodConverter', () => {
 });
 
 describe('направление конвертации', () => {
-  // Схема с преобразованием описывает две формы: строку на проводе и число
+  // Схема с преобразованием описывает две формы: строку по сети и число
   // у хендлера. Одна из них всегда была бы неверной без подсказки
   const Search = z.object({ limit: z.string().transform(Number).optional() });
 
-  it('io: input описывает форму на проводе', () => {
+  it('io: input описывает форму, полученную по сети', () => {
     expect(zodConverter().toJsonSchema(Search, { io: 'input' })).toMatchObject({
       properties: { limit: { type: 'string' } },
     });

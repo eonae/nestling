@@ -47,7 +47,7 @@ const subscriptionObserver = makePipeline<{ requestId: string }>().finally(
  *   `GET /api/ops/subscriptions`;
  * - `meta.subscription.signal` как **единственный** источник отмены для
  *   хендлера;
- * - `Last-Event-ID`: заголовок реконнекта приезжает в **типизированном**
+ * - `Last-Event-ID`: заголовок реконнекта передаётся в **типизированном**
  *   стартовом контексте, и решение «откуда продолжить» принимает хендлер.
  */
 export const ActivityStream = httpEndpoint({
@@ -70,8 +70,8 @@ export const ActivityStream = httpEndpoint({
       },
     ): Output<AsyncIterable<ActivityEventOut>> => {
       if (meta.lastEventId) {
-        // Реальная лента отдала бы историю с этого места; пример только
-        // показывает, что заголовок доехал типизированным
+        // Реальная лента отдала бы историю с этого места. Пример лишь
+        // показывает, что заголовок пришёл уже типизированным
         // eslint-disable-next-line no-console
         console.log(`[activity] реконнект с id=${meta.lastEventId}`);
       }

@@ -17,7 +17,10 @@ const Row = z.object({ id: z.string() });
 /** Токен транспорта фикстур: декларация ссылается на транспорт значением */
 const TestTransport$ = makeToken('transport:test');
 
-/** Пустой поток строк — легальный возврат ручки с `output: stream(Row)` */
+/**
+ * Пустой поток строк — допустимый возврат endpoint'а с
+ * `output: stream(Row)`
+ */
 async function* noRows(): AsyncIterableIterator<{ id: string }> {
   // намеренно пуст
 }
@@ -61,7 +64,7 @@ describe('fail-fast форм в конструкторе декларации', 
     );
   });
 
-  it('легальные формы проходят', () => {
+  it('допустимые формы проходят', () => {
     expect(() =>
       makeEndpoint({
         transport: TestTransport$,

@@ -1,7 +1,7 @@
 import { isModule, makeModule } from './modules';
 
-describe('Module helpers', () => {
-  it('creates module via makeModule', () => {
+describe('функции модулей', () => {
+  it('создаёт модуль через makeModule', () => {
     const moduleConfig = makeModule({
       name: 'TestModule',
       providers: [],
@@ -13,7 +13,7 @@ describe('Module helpers', () => {
     expect(moduleConfig.providers).toEqual([]);
   });
 
-  it('checks module shape with isModule', () => {
+  it('проверяет форму модуля через isModule', () => {
     expect(isModule(makeModule({ name: 'Example', providers: [] }))).toBe(true);
     expect(isModule({ name: 'no providers' })).toBe(true);
     expect(isModule(null)).toBe(false);

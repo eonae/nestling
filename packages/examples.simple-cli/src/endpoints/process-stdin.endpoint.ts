@@ -16,8 +16,9 @@ const ProcessStdinResponse = z.object({
 type ProcessStdinResponse = z.infer<typeof ProcessStdinResponse>;
 
 /**
- * Handler для обработки streaming данных из stdin
- * Демонстрирует использование stream() модификатора в CLI
+ * Обрабатывает потоковые данные из stdin.
+ *
+ * Демонстрирует использование модификатора `stream()` в CLI.
  *
  * Использование:
  *   echo "line1\nline2\nline3" | node dist/main.js process-stdin

@@ -192,7 +192,7 @@ describe('Users CRUD (E2E)', () => {
       expect(response.status).toBe(404);
     });
 
-    it('должен вернуть 403 при попытке удалить admin (id=1)', async () => {
+    it('должен вернуть 403 при попытке удалить администратора (id=1)', async () => {
       const response = await client.delete('/api/users/1');
 
       expect(response.status).toBe(403);

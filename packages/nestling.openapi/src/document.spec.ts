@@ -29,7 +29,7 @@ import { z } from 'zod';
 
 const info = { title: 'Test API', version: '1.0.0' };
 
-/** Пара «декларация → документ» одной строкой: имя модуля здесь не важно */
+/** Строит документ из деклараций одной строкой: имя модуля здесь не важно */
 const documentOf = (
   endpoints: readonly AnyEndpointDefinition[],
   options: { converters?: ReturnType<typeof zodConverter>[] } = {},
@@ -42,7 +42,7 @@ const documentOf = (
 const User = z.object({ id: z.string(), email: z.string() });
 
 describe('документ строится из деклараций', () => {
-  it('несёт версию спеки, переданный info и операции всех HTTP-ручек', () => {
+  it("несёт версию спеки, переданный info и операции всех HTTP-endpoint'ов", () => {
     const List = httpEndpoint({
       method: 'GET',
       path: '/users',
@@ -189,7 +189,7 @@ describe('адрес операции и её параметры', () => {
     expect(tags.explode).toBe(true);
   });
 
-  it('дубль адреса — ошибка, называющая обе ручки и их модули', () => {
+  it("дубль адреса — ошибка, называющая оба endpoint'а и их модули", () => {
     const first = httpEndpoint({
       method: 'POST',
       path: '/users',
@@ -443,7 +443,7 @@ describe('responses покрывают весь контракт границы'
     ).toBe('UNKNOWN');
   });
 
-  it('ручка без выхода отвечает 204 без тела', () => {
+  it('endpoint без выхода отвечает 204 без тела', () => {
     const Remove = httpEndpoint({
       method: 'DELETE',
       path: '/users/:id',
@@ -473,7 +473,7 @@ const exotic = <T>(vendor: string): StandardSchemaV1<unknown, T> => ({
 });
 
 describe('недокументируемая схема роняет построение', () => {
-  it('нет конвертера — ошибка называет ручку, слот, вендор и оба способа починки', () => {
+  it('нет конвертера — ошибка называет endpoint, слот, вендор и оба способа починки', () => {
     const Create = httpEndpoint({
       method: 'POST',
       path: '/users',
@@ -583,7 +583,7 @@ describe('недокументируемая схема роняет постр�
   });
 });
 
-describe('скрытая ручка', () => {
+describe('скрытый endpoint', () => {
   const Health = httpEndpoint({
     method: 'GET',
     path: '/health',
@@ -610,9 +610,9 @@ describe('скрытая ручка', () => {
 });
 
 describe('конвертер, отказавшийся переводить схему', () => {
-  it('даёт диагностику с координатами ручки, а не голый бросок', () => {
+  it("даёт диагностику с координатами endpoint'а, а не голый бросок", () => {
     // `z.date()` на выходе непредставим в JSON Schema: zod бросает, и без
-    // ветки-перехватчика автор увидел бы ошибку без имени ручки и слота
+    // ветки-перехватчика автор увидел бы ошибку без имени endpoint'а и слота
     const Report = httpEndpoint({
       method: 'GET',
       path: '/report',

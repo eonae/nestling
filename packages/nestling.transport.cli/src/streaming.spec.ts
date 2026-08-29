@@ -73,7 +73,7 @@ function observing(record: (outcome: Outcome) => void): PhasedPipeline {
 }
 
 describe('потоковый вход через stdin', () => {
-  it('NDJSON-строки доезжают до хендлера валидированными, счётчики растут', async () => {
+  it('NDJSON-строки передаются в хендлер валидированными, счётчики растут', async () => {
     const restore = withStdin('{"id":"1"}\n{"id":"2"}\n');
     const summaries: { itemsIn: number }[] = [];
 

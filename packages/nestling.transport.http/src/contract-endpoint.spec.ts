@@ -121,7 +121,7 @@ describe('httpEndpoint({ contract, … })', () => {
     expect(typeof asClass.resolve).toBe('function');
   });
 
-  it('detached доезжает до декларации как у любой другой', () => {
+  it('detached передаётся в декларацию, как у любой другой', () => {
     const declaration = httpEndpoint({
       contract: GetUser,
       detached: 'legacy route, migrated separately',
@@ -142,7 +142,7 @@ describe('httpEndpoint({ contract, … })', () => {
     );
   });
 
-  it('документация приезжает с контракта вместе с адресом и схемами', () => {
+  it('документация приходит из контракта вместе с адресом и схемами', () => {
     const Documented = makeContract({
       name: 'contract-form.users.documented',
       kind: 'request',
@@ -161,7 +161,7 @@ describe('httpEndpoint({ contract, … })', () => {
       summary: 'Documented operation',
       tags: ['users'],
     });
-    // Имя владельца едет на карте — из него генератор выводит operationId
+    // Имя владельца хранится на карте — из него генератор выводит operationId
     expect(httpBindingOf(declaration).contract).toBe(
       'contract-form.users.documented',
     );
@@ -273,7 +273,7 @@ describe('контракт-форма: типы', () => {
 
     httpEndpoint({
       contract: CreateUser,
-      // Отказ из `errors:` контракта — легальный возврат
+      // Отказ из `errors:` контракта — разрешённый возврат
       handle: async () => EmailTaken(),
     });
 

@@ -55,7 +55,7 @@ const boundTo = (registry: SubscriptionRegistry) =>
       new (ctor as new (r: SubscriptionRegistry) => unknown)(registry),
   );
 
-/** Контекст трекаемой ручки в типах слоя */
+/** Контекст отслеживаемого endpoint'а в типах слоя */
 const ctxFor = (options: Parameters<typeof makeCtx>[0] = {}) =>
   makeCtx(options) as unknown as ExtendableContext<{
     subscription: TrackedSubscription;
@@ -162,7 +162,8 @@ describe('tracked: запись живёт столько же, сколько �
         return new Ok({ id: '1' });
       },
       ctxFor({ output: Item }),
-      // Отказ ожидаемый: дефолтный наблюдатель стража только шумел бы
+      // Отказ ожидаемый: дефолтный наблюдатель проверки на границе только
+      // шумел бы
       { onUnknownFail: (): void => undefined },
     );
 

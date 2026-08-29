@@ -1,12 +1,12 @@
 import type { PreUnitFn } from '../core/types';
 
 /**
- * Добавляет permissions в metadata
+ * Добавляет `permissions` в контекст запроса.
  *
- * Требует, чтобы identity уже была в input (типизированная зависимость
- * от предыдущего pre-юнита).
+ * Требует, чтобы `identity` уже была в input: это типизированная
+ * зависимость от предыдущего pre-юнита.
  *
- * @param getPermissions - функция загрузки permissions по identity
+ * @param getPermissions - Функция загрузки `permissions` по `identity`
  *
  * @example
  * ```typescript

@@ -3,7 +3,7 @@
  *
  * Объявление есть **значение**: ни декоратора, ни регистрации в
  * `providers`/`imports` модуля, ни ключа `configs:` у модуля не требуется.
- * Секция материализуется механикой token families ровно тогда, когда
+ * Секция создаётся механикой token families ровно тогда, когда
  * кто-то её инжектит.
  */
 
@@ -78,7 +78,7 @@ const toField = (prefix: string, name: string, leaf: unknown): SectionField => {
  *
  * Токен — класс, у которого `name` перекрыт id члена семейства: строковый
  * токен контейнера (`stringifyToken`) совпадает с `ConfigSection(prefix)`,
- * поэтому инжект токена и материализация члена — одно и то же ребро графа.
+ * поэтому инжект токена и создание члена — одно и то же ребро графа.
  */
 const declare = <R extends ConfigRecord, P extends string, Values>(
   prefix: P,
@@ -111,7 +111,8 @@ const declare = <R extends ConfigRecord, P extends string, Values>(
   registerSection(declaration);
 
   // Тот же строковый id, что у члена семейства: вызов регистрирует член в
-  // реестре семейства, без чего билдер не узнал бы токен как материализуемый.
+  // реестре семейства, без чего билдер не распознал бы токен как узел для
+  // сборки.
   const id = ConfigSection(prefix);
 
   // Класс здесь — форма токена, а не носитель поведения: `InjectionToken`

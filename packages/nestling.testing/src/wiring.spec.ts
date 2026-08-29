@@ -19,8 +19,9 @@ describe('условие "testing" в тест-раннере', () => {
       modules: [makeAppModule({ name: 'module:wiring' })],
     });
 
-    // Класс из исходников `@nestling/container`: доедь subpath до `dist`,
-    // он притащил бы вторую копию пакета, и `instanceof` не сошёлся бы
+    // Класс из исходников `@nestling/container`: если бы subpath резолвился
+    // в `dist`, он притащил бы вторую копию пакета, и `instanceof` не
+    // сошёлся бы
     expect(wired.container).toBeInstanceOf(BuiltContainer);
 
     await wired.close();

@@ -1,8 +1,9 @@
 /**
- * Канон размещения HTTP-input: три правила и fail-fast словаря.
+ * Правило размещения полей HTTP-input: три правила и проверки при
+ * создании.
  *
- * Потребляющая половина карты (`readQuery`, `assemblePayload`,
- * `httpBindingOf`) проверяется там, где живёт, — `@nestling/transport.http`.
+ * Чтение карты (`readQuery`, `assemblePayload`, `httpBindingOf`)
+ * проверяется в `@nestling/transport.http`.
  */
 
 import { body, computeHttpBinding, query } from './binding.js';
@@ -17,7 +18,7 @@ const Input = z.object({
   tags: z.array(z.string()).optional(),
 });
 
-describe('computeHttpBinding — канон размещения', () => {
+describe('computeHttpBinding: правило размещения', () => {
   it('path-параметр шаблона выигрывает у правила по умолчанию', () => {
     const binding = computeHttpBinding({
       method: 'PATCH',
@@ -86,7 +87,7 @@ describe('computeHttpBinding — канон размещения', () => {
   });
 });
 
-describe('computeHttpBinding — fail-fast словаря', () => {
+describe('computeHttpBinding: проверки при создании', () => {
   it('пометка на поле-path-параметре', () => {
     expect(() =>
       computeHttpBinding({
@@ -196,7 +197,7 @@ describe('computeHttpBinding — fail-fast словаря', () => {
     ).toThrow(/must be a mark created by query\(\) or body\(\)/);
   });
 
-  it('multipart структурен: path-параметры и пометки легальны', () => {
+  it('multipart структурен: path-параметры и пометки допустимы', () => {
     const binding = computeHttpBinding({
       method: 'POST',
       path: '/users/:id/avatar',

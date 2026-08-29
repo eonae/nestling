@@ -1,5 +1,6 @@
 /**
- * Простой HTTP клиент для e2e тестов
+ * HTTP-клиент для e2e-тестов: обёртка над `fetch` с готовыми
+ * методами для основных HTTP-глаголов и загрузки файлов.
  */
 export class HttpClient {
   constructor(private baseUrl: string) {}

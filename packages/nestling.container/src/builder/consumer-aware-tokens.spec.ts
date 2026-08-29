@@ -15,7 +15,7 @@ interface ILoggerService {
 }
 
 describe('Family.auto', () => {
-  it('resolves to the member named after the consumer class', async () => {
+  it('заменяется на члена с именем класса-потребителя', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('AutoOne');
 
     @Injectable([ILogger.auto])
@@ -40,7 +40,7 @@ describe('Family.auto', () => {
     );
   });
 
-  it('gives two consumers two distinct members from one recipe', async () => {
+  it('даёт двум потребителям двух разных членов из одного рецепта', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('AutoTwo');
 
     @Injectable([ILogger.auto])
@@ -72,7 +72,7 @@ describe('Family.auto', () => {
     );
   });
 
-  it('deduplicates with an explicit member of the same name', async () => {
+  it('совпадает с явным членом того же имени', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'AutoDedup',
     );
@@ -105,7 +105,7 @@ describe('Family.auto', () => {
     expect(container.getOrThrow(IReport)).toBe('ServiceA');
   });
 
-  it('rejects the sentinel in factory provider deps', () => {
+  it('отклоняет .auto в deps фабричного провайдера', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'AutoFactory',
     );
@@ -128,7 +128,7 @@ describe('Family.auto', () => {
     );
   });
 
-  it('rejects the sentinel on an anonymous class', () => {
+  it('отклоняет .auto у анонимного класса', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'AutoAnon',
     );

@@ -5,7 +5,7 @@ import { SchemaValidationError } from '@common/misc';
 import { z } from 'zod';
 
 describe('parsePayload', () => {
-  it('should parse and validate payload', () => {
+  it('парсит и валидирует payload', () => {
     const schema = z.object({
       name: z.string().min(1),
       age: z.number(),
@@ -27,14 +27,14 @@ describe('parsePayload', () => {
     });
   });
 
-  it('should throw SchemaValidationError on validation failure', () => {
+  it('бросает SchemaValidationError при ошибке валидации', () => {
     const schema = z.object({
       name: z.string().min(5),
     });
 
     const sources: InputSources = {
       payload: {
-        name: 'Ab', // Too short
+        name: 'Ab', // Слишком короткое
       },
       metadata: {},
     };
@@ -42,7 +42,7 @@ describe('parsePayload', () => {
     expect(() => parsePayload(schema, sources)).toThrow(SchemaValidationError);
   });
 
-  it('should handle missing fields', () => {
+  it('обрабатывает отсутствующие поля', () => {
     const schema = z.object({
       name: z.string().optional(),
     });
@@ -59,7 +59,7 @@ describe('parsePayload', () => {
     });
   });
 
-  it('should apply transformations', () => {
+  it('применяет преобразования схемы', () => {
     const schema = z.object({
       id: z.string().transform((val: string) => Number.parseInt(val, 10)),
     });
@@ -79,7 +79,7 @@ describe('parsePayload', () => {
 });
 
 describe('parseMetadata', () => {
-  it('should parse and validate metadata', () => {
+  it('парсит и валидирует metadata', () => {
     const schema = z.object({
       authorization: z.string(),
       userId: z.string().optional(),
@@ -101,7 +101,7 @@ describe('parseMetadata', () => {
     });
   });
 
-  it('should throw SchemaValidationError on validation failure', () => {
+  it('бросает SchemaValidationError при ошибке валидации', () => {
     const schema = z.object({
       authorization: z.string().min(10),
     });
@@ -109,14 +109,14 @@ describe('parseMetadata', () => {
     const sources: InputSources = {
       payload: {},
       metadata: {
-        authorization: 'short', // Too short
+        authorization: 'short', // Слишком короткое
       },
     };
 
     expect(() => parseMetadata(schema, sources)).toThrow(SchemaValidationError);
   });
 
-  it('should handle missing metadata fields', () => {
+  it('обрабатывает отсутствующие поля metadata', () => {
     const schema = z.object({
       authorization: z.string().optional(),
     });

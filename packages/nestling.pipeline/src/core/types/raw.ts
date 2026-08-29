@@ -1,12 +1,11 @@
 /**
- * Данные от транспорта
- * Содержит нормализованные данные входа транспорта
+ * Нормализованные данные входа транспорта.
  *
- * Transport создаёт Raw из сырого запроса:
- * - HTTP: payload собран по bind-карте декларации (каждое поле — из своего
- *   канонического места), attributes = headers
- * - gRPC: payload = decoded message, attributes = metadata
- * - CLI: payload = parsed args, attributes = { env, flags }
+ * Транспорт создаёт `Raw` из сырого запроса:
+ * - HTTP: `payload` собран по bind-карте декларации (каждое поле — из
+ *   своего канонического места), `attributes` — заголовки.
+ * - gRPC: `payload` — decoded message, `attributes` — metadata.
+ * - CLI: `payload` — parsed args, `attributes` — `{ env, flags }`.
  */
 export interface Raw {
   /** Имя транспорта */
@@ -17,11 +16,11 @@ export interface Raw {
 
   /**
    * Нормализованные входные данные.
-   * Форма зависит от input-конфигурации endpoint'а: объект (schema),
-   * Buffer/string (primitive), AsyncIterable (stream), файлы и т.д.
+   * Форма зависит от input-конфигурации endpoint'а: объект (схема),
+   * Buffer/string (примитив), AsyncIterable (поток), файлы и другое.
    */
   payload: unknown;
 
-  /** Транспортные атрибуты (headers | grpc metadata | cli flags) */
+  /** Транспортные атрибуты: заголовки (HTTP), metadata (gRPC), флаги (CLI) */
   attributes: Record<string, unknown>;
 }

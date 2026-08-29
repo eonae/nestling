@@ -57,7 +57,7 @@ export class UserService {
   async delete(id: string): Promise<boolean> {
     this.logger.log(`Deleting user ${id}`);
 
-    // Защита admin пользователя
+    // Защита администратора от удаления
     if (id === ADMIN_USER_ID) {
       return false;
     }
@@ -93,7 +93,7 @@ export class UserService {
   }
 
   /**
-   * Экспорт всех пользователей через AsyncIterableIterator
+   * Экспортирует всех пользователей через `AsyncIterableIterator`.
    */
   async *exportAll(): AsyncIterableIterator<User> {
     this.logger.log('Exporting all users');
@@ -103,7 +103,7 @@ export class UserService {
   }
 
   /**
-   * Импорт пользователей из стрима
+   * Импортирует пользователей из входного потока.
    */
   async importUsers(
     stream: AsyncIterableIterator<Partial<User>>,

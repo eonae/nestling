@@ -77,7 +77,7 @@ describe('makeContract', () => {
     );
   });
 
-  it('отвергает вид вне словаря, перечисляя допустимые', () => {
+  it('отвергает недопустимый вид, перечисляя допустимые', () => {
     expect(() =>
       makeContract({
         name: 'spec.bad.kind',
@@ -91,8 +91,8 @@ describe('makeContract', () => {
       makeContract({
         name: 'spec.bad.errors',
         kind: 'request',
-        // Функция без бренда `defineFail`: ровно та опечатка, которую ловит
-        // проверка словаря
+        // Функция без бренда `defineFail`: ошибка, которую ловит проверка
+        // списка
         errors: [((): void => undefined) as never],
       }),
     ).toThrow(/errors\[0] is not a fail definition/);
@@ -135,7 +135,7 @@ describe('makeContract', () => {
       makeContract({
         name: 'spec.durable.request',
         kind: 'request',
-        // JS-потребителя типы не сдерживают: проверка обязана быть в рантайме
+        // Из JS проверка типов недоступна, поэтому проверка нужна в рантайме
         durable: true as never,
       }),
     ).toThrow(/Contract 'spec\.durable\.request' \(kind 'request'\)/);

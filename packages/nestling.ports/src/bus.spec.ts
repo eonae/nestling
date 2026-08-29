@@ -125,7 +125,7 @@ describe('InProcessBus', () => {
     await bus.close();
   });
 
-  it('req-reply идёт через async-барьер и структурную копию', async () => {
+  it('запрос-ответ идёт через барьер и структурную копию', async () => {
     const bus = new InProcessBus();
     let receivedSynchronously = true;
     let received: { items: number[] } | undefined;
@@ -190,7 +190,7 @@ describe('InProcessBus', () => {
     await bus.close();
   });
 
-  it('в эфире подписывается на subject-ы своих маршрутов', async () => {
+  it('начав принимать запросы, подписывается на subject-ы своих маршрутов', async () => {
     const Ping = makeContract({
       name: 'bus.serve.ping',
       kind: 'request',
@@ -234,8 +234,8 @@ describe('InProcessBus', () => {
     const [deadline] = seen;
     expect(deadline).toBeInstanceOf(Date);
 
-    // Момент отсчитан от **приёма**, а не приехал от отправителя: он лежит
-    // в окне [приём, приём + timeoutMs] по часам получателя
+    // Момент отсчитан от приёма, а не передан отправителем: он лежит
+    // в диапазоне [приём, приём + timeoutMs] по часам получателя
     const received = (deadline as Date).getTime();
     expect(received).toBeGreaterThanOrEqual(before);
     expect(received).toBeLessThanOrEqual(Date.now() + 500);
@@ -243,7 +243,7 @@ describe('InProcessBus', () => {
     await bus.close();
   });
 
-  it('вызов без конверта доезжает без профиля — как раньше', async () => {
+  it('вызов без конверта передаётся без профиля — как раньше', async () => {
     const bus = new InProcessBus();
     const seen: unknown[] = [];
 
@@ -279,7 +279,7 @@ describe('InProcessBus', () => {
     await bus.close();
   });
 
-  it('бюджет, исчерпанный в транзите, не доводит сообщение до ручки', async () => {
+  it("бюджет, исчерпанный в транзите, не доводит сообщение до endpoint'а", async () => {
     const Ping = makeContract({
       name: 'bus.deadline.ping',
       kind: 'request',

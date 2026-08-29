@@ -19,8 +19,8 @@ import { nats } from '@nestling/transport.nats';
  *
  * @param select - Выбор фич: `'all'` — L3 (одним процессом), `'orders'` и
  * `'quotas'` — две половины L4
- * @param transport - Опции транспорта; в бою пусты (всё приезжает из
- * секции `nats`), в тестах сюда уезжает двойник брокера
+ * @param transport - Опции транспорта; в бою пусты (всё приходит из
+ * секции `nats`), в тестах сюда передаётся двойник брокера
  */
 export function makeRoot(
   select: FeatureSelection,
@@ -31,7 +31,7 @@ export function makeRoot(
     select,
     // Шина приложения — обычный транспорт-провайдер. Именно она делает
     // `quotas.claim` вызываемым из процесса, где `quotas` не выбрана:
-    // in-proc шина не доставляет за пределы процесса, брокерская —
+    // in-process шина не доставляет за пределы процесса, брокерская —
     // доставляет, и это единственный вход remote-биндинга
     transports: [nats(transport)],
   });

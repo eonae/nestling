@@ -67,10 +67,10 @@ const OrderPlaced = makeContract({
 });
 
 /**
- * Фейк, разъехавшийся с контрактом.
+ * Фейк, разошедшийся с контрактом.
  *
- * В TypeScript такой фейк невыразим — на то и типы; приведение здесь и есть
- * модель JS-потребителя, ради которого рантайм-проверка существует.
+ * В TypeScript такой фейк невыразим — на то и типы. Приведение здесь и есть
+ * модель JS-потребителя, ради которого существует рантайм-проверка.
  */
 const drifted = <T>(value: unknown): T => value as T;
 
@@ -124,7 +124,7 @@ describe('stub — валидация схемами контракта', () => 
     expect(seen).toEqual([]);
   });
 
-  it('отдаёт VALIDATION_FAILED, когда фейк разъехался с output-схемой', async () => {
+  it('отдаёт VALIDATION_FAILED, когда фейк разошёлся с output-схемой', async () => {
     const [, quotas] = stub(ClaimQuota, async () =>
       drifted<{ granted: number }>({ grantedAmount: 1 }),
     );
@@ -408,7 +408,7 @@ describe('stub — место в сборке', () => {
     expect(app.stubbed).toEqual(['stub.quotas.claim']);
   });
 
-  it('легален поверх реализованного контракта и виден в stubbed', async () => {
+  it('разрешён поверх реализованного контракта и виден в stubbed', async () => {
     @Injectable([ChargeCard.port])
     class BillingConsumer {
       constructor(readonly billing: Port<typeof ChargeCard>) {}
@@ -428,7 +428,7 @@ describe('stub — место в сборке', () => {
     expect(
       await app.get(BillingConsumer)?.billing.call({ amount: 3 }),
     ).toMatchObject({ isFail: false, value: { chargeId: 'faked' } });
-    // Реализация осталась в графе неиспользуемой — это легальный тест
+    // Реализация осталась в графе неиспользуемой — так тестировать допустимо
     expect(charged).toEqual([]);
     expect(app.stubbed).toEqual(['stub.billing.charge']);
   });

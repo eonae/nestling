@@ -1,41 +1,34 @@
-/**
- * A lifecycle hook function that can be synchronous or asynchronous.
- */
+/** Хук жизненного цикла: синхронная или асинхронная функция без аргументов. */
 export type Hook = () => void | Promise<void>;
 
-/**
- * Collection of lifecycle hooks for a service instance.
- */
+/** Хуки жизненного цикла одного экземпляра, привязанные к нему. */
 export interface LifecycleHooks {
-  /** Initialization hooks to run when the service starts */
+  /** Хуки `@OnInit`: выполняются на фазе INIT */
   onInit: Hook[];
   /**
-   * Start hooks to run after the whole graph is initialized.
-   *
-   * Phase START comes after WIRE, so a start hook sees a fully wired
-   * application — unlike `onInit`, which only sees its own dependencies.
+   * Хуки `@OnStart`: выполняются на фазе START, после `@OnInit` всего графа
+   * и после WIRE. Хук `@OnStart` видит полностью собранное приложение,
+   * а `@OnInit` — только свои зависимости.
    */
   onStart: Hook[];
-  /** Destruction hooks to run when the service shuts down */
+  /** Хуки `@OnDestroy`: выполняются на фазе SHUTDOWN */
   onDestroy: Hook[];
 }
 
 /**
- * Metadata for lifecycle hooks stored on the class.
- *
- * Contains the names of methods decorated with @OnInit, @OnStart and
- * @OnDestroy.
+ * Метаданные хуков класса: имена методов с декораторами `@OnInit`,
+ * `@OnStart` и `@OnDestroy`.
  */
 export interface LifecycleMetadata {
-  /** Names of methods decorated with @OnInit */
+  /** Имена методов с `@OnInit` */
   onInit: string[];
-  /** Names of methods decorated with @OnStart */
+  /** Имена методов с `@OnStart` */
   onStart: string[];
-  /** Names of methods decorated with @OnDestroy */
+  /** Имена методов с `@OnDestroy` */
   onDestroy: string[];
 }
 
-/** Empty metadata record — one shape for all three hook kinds */
+/** Пустые метаданные: одна форма для всех трёх видов хуков */
 const emptyMetadata = (): LifecycleMetadata => ({
   onInit: [],
   onStart: [],
@@ -43,11 +36,11 @@ const emptyMetadata = (): LifecycleMetadata => ({
 });
 
 /**
- * Records a decorated method name in the class metadata exactly once.
+ * Записывает имя декорированного метода в метаданные класса ровно один раз.
  *
- * The initializer runs on every instance construction, so the write must be
- * idempotent: three decorators share one implementation to keep that
- * guarantee in a single place.
+ * Инициализатор декоратора выполняется при каждом создании экземпляра,
+ * поэтому запись должна быть идемпотентной. Три декоратора используют одну
+ * реализацию, чтобы это свойство держалось в одном месте.
  */
 function rememberHook(
   constructor: object,
@@ -56,7 +49,7 @@ function rememberHook(
 ): void {
   const metadata = lifecycleMetadata.get(constructor) || emptyMetadata();
 
-  // Metadata written before this field existed (older class, same process)
+  // Метаданные могли быть записаны до появления этого поля
   metadata[kind] ??= [];
 
   if (!metadata[kind].includes(methodName)) {
@@ -67,19 +60,18 @@ function rememberHook(
 }
 
 /**
- * Storage for lifecycle hook metadata.
+ * Хранилище метаданных хуков: конструктор класса и его метаданные.
  *
- * Maps class constructors to their lifecycle metadata.
  * @internal
  */
 export const lifecycleMetadata = new WeakMap<object, LifecycleMetadata>();
 
 /**
- * Decorator for marking a method as an initialization hook.
- * The method will be called when the instance is being initialized.
+ * Помечает метод как хук инициализации.
  *
- * The method MUST have no parameters and return void or Promise<void>.
- * TypeScript will enforce this constraint at compile time.
+ * Метод вызывается на фазе INIT в топологическом порядке: зависимости
+ * раньше зависимых. Метод должен быть без параметров и возвращать `void`
+ * или `Promise<void>`; это проверяет компилятор.
  *
  * @example
  * ```typescript
@@ -87,7 +79,7 @@ export const lifecycleMetadata = new WeakMap<object, LifecycleMetadata>();
  * class MyService {
  *   @OnInit()
  *   async initialize() {
- *     // Initialization logic
+ *     // Захват ресурсов
  *   }
  * }
  * ```
@@ -97,8 +89,8 @@ export function OnInit() {
     _target: T,
     context: ClassMethodDecoratorContext<object, T>,
   ) {
-    // The target is the method itself, we need to get the class constructor
-    // We can use context.addInitializer to access the class
+    // Декоратор получает сам метод; конструктор класса доступен только
+    // из инициализатора, через `this`
     context.addInitializer(function (this) {
       rememberHook(this.constructor, 'onInit', context.name as string);
     });
@@ -106,14 +98,13 @@ export function OnInit() {
 }
 
 /**
- * Decorator for marking a method as a start hook.
+ * Помечает метод как хук старта.
  *
- * Start hooks run in phase START — after `@OnInit` of *every* node and after
- * WIRE, but before transports go live. That is the place for work which needs
- * the whole application wired: schedulers, subscriptions, consumers.
- *
- * The method MUST have no parameters and return void or Promise<void>.
- * TypeScript will enforce this constraint at compile time.
+ * Метод вызывается на фазе START: после `@OnInit` всех узлов и после WIRE,
+ * но до того, как транспорты начнут принимать запросы. Здесь место работе,
+ * которой нужно собранное приложение целиком: планировщики, подписки,
+ * потребители очередей. Метод должен быть без параметров и возвращать
+ * `void` или `Promise<void>`; это проверяет компилятор.
  *
  * @example
  * ```typescript
@@ -121,7 +112,7 @@ export function OnInit() {
  * class Scheduler {
  *   @OnStart()
  *   async start() {
- *     // The graph is fully initialized here
+ *     // Граф уже инициализирован целиком
  *   }
  * }
  * ```
@@ -138,11 +129,11 @@ export function OnStart() {
 }
 
 /**
- * Decorator for marking a method as a destruction hook.
- * The method will be called when the instance is being destroyed.
+ * Помечает метод как хук остановки.
  *
- * The method MUST have no parameters and return void or Promise<void>.
- * TypeScript will enforce this constraint at compile time.
+ * Метод вызывается на фазе SHUTDOWN в обратном топологическом порядке:
+ * зависимые раньше зависимостей. Метод должен быть без параметров и
+ * возвращать `void` или `Promise<void>`; это проверяет компилятор.
  *
  * @example
  * ```typescript
@@ -150,7 +141,7 @@ export function OnStart() {
  * class MyService {
  *   @OnDestroy()
  *   async cleanup() {
- *     // Cleanup logic
+ *     // Освобождение ресурсов
  *   }
  * }
  * ```
@@ -160,8 +151,6 @@ export function OnDestroy() {
     _target: T,
     context: ClassMethodDecoratorContext<object, T>,
   ) {
-    // The target is the method itself, we need to get the class constructor
-    // We can use context.addInitializer to access the class
     context.addInitializer(function (this) {
       rememberHook(this.constructor, 'onDestroy', context.name as string);
     });
@@ -169,13 +158,12 @@ export function OnDestroy() {
 }
 
 /**
- * Retrieves lifecycle hooks for a given service instance.
+ * Возвращает хуки жизненного цикла экземпляра, привязанные к нему.
  *
- * Extracts hook metadata from the instance's class and binds the methods
- * to the instance.
+ * Читает метаданные класса экземпляра и привязывает методы к `instance`.
  *
- * @param instance - The service instance
- * @returns The bound lifecycle hooks
+ * @param instance - Экземпляр провайдера
+ * @returns Привязанные хуки
  * @internal
  */
 export function getLifecycleHooks(instance: any): LifecycleHooks {
@@ -190,12 +178,12 @@ export function getLifecycleHooks(instance: any): LifecycleHooks {
 }
 
 /**
- * Resolves and binds a lifecycle hook method to an instance.
+ * Находит метод по имени и привязывает его к экземпляру.
  *
- * @param instance - The service instance
- * @param methodName - The name of the method to bind
- * @returns The bound hook function
- * @throws {TypeError} If the method is not a function
+ * @param instance - Экземпляр провайдера
+ * @param methodName - Имя метода
+ * @returns Привязанный хук
+ * @throws {TypeError} Если по имени найдена не функция
  * @internal
  */
 export function resolveHook(instance: any, methodName: string): Hook {

@@ -10,8 +10,8 @@ import { CliTransport } from '@nestling/transport.cli';
  * Standalone-путь CLI: те же примитивы, что и под `App`.
  *
  * Декларации deps-free, поэтому `makeDispatch` принимает их как есть —
- * гасить нечего. Что значит «выйти в эфир» для командной строки, решает
- * корень: аргументы есть — single-shot, нет — REPL.
+ * резолвить нечего. Что значит «начать принимать команды» для командной
+ * строки, решает корень: аргументы есть — single-shot, нет — REPL.
  */
 const argv = process.argv.slice(2);
 
@@ -32,7 +32,7 @@ async function main() {
       : '🚀 Nestling CLI Transport Example (REPL Mode)\n\nType commands or "exit" to quit\n',
   );
 
-  // До этого момента исполнимых ручек у транспорта нет вовсе
+  // До этого момента исполнимых endpoint'ов у транспорта нет вовсе
   await cli.serve(dispatch, shutdown.signal);
   await cli.close();
 }

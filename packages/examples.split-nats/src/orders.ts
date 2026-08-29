@@ -41,8 +41,9 @@ export class PlaceOrderService {
     const claim = await this.quotas.call({ tenantId, amount });
 
     if (claim.isFail) {
-      // Задекларированный отказ приезжает **настоящим** `Fail` того же
-      // определения — и по проводу, и co-located: ре-гидрация идёт по коду
+      // Задекларированный отказ приходит **настоящим** `Fail` того же
+      // определения и по сети, и co-located: `Fail` из сетевого ответа
+      // восстанавливает код порта, а не эта фича
       return;
     }
 
@@ -55,9 +56,9 @@ const OrdersModule = makeAppModule({
   providers: [PlaceOrderService],
   endpoints: [
     implement(PlaceOrder, {
-      // Провозимое значение приезжает конвертом и проецируется в
-      // ambient-контекст штатным писателем. Дальше вглубь оно едет само:
-      // вызыватель соберёт его из ячейки этого запроса
+      // Провозимое значение приходит конвертом и проецируется в
+      // ambient-контекст штатным писателем. Дальше вглубь оно передаётся
+      // само: вызыватель соберёт его из ячейки этого запроса
       pipeline: makePipeline().pre(TenantId.propagated()),
       deps: [PlaceOrderService],
       handle:

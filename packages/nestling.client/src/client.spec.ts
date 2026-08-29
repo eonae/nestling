@@ -1,6 +1,6 @@
 /**
  * `makeClient`: форма API-объекта, fail-fast создания, сборка запроса,
- * коерсия query, разбор успеха и рематериализация отказа.
+ * коерсия query, разбор успеха и восстановление `Fail` из ответа.
  *
  * Сеть подменяется `fetch`-двойником: клиент обязан быть тестируемым без
  * неё, и это не удобство тестов, а часть контракта конфигурации.
@@ -372,7 +372,7 @@ describe('makeClient: разбор успеха', () => {
 });
 
 describe('makeClient: разбор отказа', () => {
-  it('задекларированный отказ рематериализуется по коду', async () => {
+  it('задекларированный отказ восстанавливается по коду', async () => {
     const stub = stubFetch(() =>
       json(409, {
         error: 'Email taken',
@@ -395,7 +395,7 @@ describe('makeClient: разбор отказа', () => {
     });
   });
 
-  it('статус берётся из определения, а не с провода', async () => {
+  it('статус берётся из определения, а не из ответа', async () => {
     const stub = stubFetch(() =>
       json(500, {
         error: 'Email taken',
@@ -513,7 +513,7 @@ describe('makeClient: meta и конфигурация', () => {
     expect(stub.calls).toHaveLength(0);
   });
 
-  it('signal уезжает в запрос', async () => {
+  it('signal передаётся в запрос', async () => {
     const controller = new AbortController();
     const stub = stubFetch(() => json(200, { id: 'u-1', email: 'a@b.c' }));
     const api = makeClient(

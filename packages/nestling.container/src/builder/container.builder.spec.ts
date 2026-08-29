@@ -11,12 +11,12 @@ import {
 
 import { ContainerBuilder } from './container.builder';
 
-/** Опции параметризованного инфра-модуля из тестов идентичности */
+/** Опции параметризованного инфраструктурного модуля */
 const LoggingOptions$ = makeToken<{ pretty: boolean }>('LoggingOptions');
 
 /**
- * Канон параметризованной инфраструктуры: функция, возвращающая модуль.
- * Каждый вызов — **новое значение**, и в этом вся суть правила идентичности.
+ * Параметризованный модуль: функция, возвращающая модуль.
+ * Каждый вызов создаёт новое значение; на этом строятся тесты идентичности.
  */
 const logging = (options: { pretty: boolean }) =>
   makeModule({
@@ -73,8 +73,8 @@ describe('ContainerBuilder', () => {
     }
   }
 
-  describe('provider registration', () => {
-    it('registers and resolves class provider', async () => {
+  describe('регистрация провайдеров', () => {
+    it('регистрирует провайдер класса и отдаёт экземпляр', async () => {
       const container = await new ContainerBuilder()
         .register(classProvider(TokenA, ServiceA))
         .build();
@@ -84,7 +84,7 @@ describe('ContainerBuilder', () => {
       expect(instance.a()).toBe('a');
     });
 
-    it('registers and resolves value provider', async () => {
+    it('регистрирует провайдер значения и отдаёт значение', async () => {
       const config = { feature: true };
 
       const container = await new ContainerBuilder()
@@ -94,7 +94,7 @@ describe('ContainerBuilder', () => {
       expect(container.get(TokenConfig)).toBe(config);
     });
 
-    it('registers and resolves sync factory provider', async () => {
+    it('регистрирует синхронный фабричный провайдер', async () => {
       const provider = factoryProvider(
         TokenB,
         (a: IServiceA) => ({
@@ -112,7 +112,7 @@ describe('ContainerBuilder', () => {
       expect(instance.b()).toBe('factory(a)');
     });
 
-    it('registers and resolves async factory provider', async () => {
+    it('регистрирует асинхронный фабричный провайдер', async () => {
       const asyncProvider = {
         provide: TokenB,
         useFactory: async (a: IServiceA) => {
@@ -132,13 +132,13 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenB).b()).toBe('async(a)');
     });
 
-    it('registers decorated class without explicit provider definition', async () => {
+    it('регистрирует класс с @Injectable без явного определения', async () => {
       const container = await new ContainerBuilder().register(ServiceA).build();
 
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
-    it('supports chaining registers with modules and providers', async () => {
+    it('принимает модули и провайдеры в цепочке register()', async () => {
       const ModuleA = makeModule({
         name: 'ModuleA',
         providers: [classProvider(TokenA, ServiceA)],
@@ -153,7 +153,7 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenC).c()).toBe('C(B(a), a)');
     });
 
-    it('prevents duplicate provider registration', () => {
+    it('отклоняет повторную регистрацию провайдера', () => {
       const builder = new ContainerBuilder().register(
         valueProvider(TokenA, {
           a: () => 'one',
@@ -171,7 +171,7 @@ describe('ContainerBuilder', () => {
       ).toThrow("Provider for token 'TokenA' is already registered");
     });
 
-    it('prevents registering new items after build', async () => {
+    it('отклоняет регистрацию после build()', async () => {
       const builder = new ContainerBuilder().register(
         valueProvider(TokenConfig, { feature: true }),
       );
@@ -188,8 +188,8 @@ describe('ContainerBuilder', () => {
     });
   });
 
-  describe('modules', () => {
-    it('loads module with imports', async () => {
+  describe('модули', () => {
+    it('регистрирует модуль вместе с импортами', async () => {
       const ModuleA = makeModule({
         name: 'ModuleA',
         providers: [classProvider(TokenA, ServiceA)],
@@ -208,7 +208,7 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenB).b()).toBe('B(a)');
     });
 
-    it('calls providers factory functions', async () => {
+    it('вызывает фабрики провайдеров модулей', async () => {
       const factoryCalls: string[] = [];
 
       const ModuleWithFactory = makeModule({
@@ -228,7 +228,7 @@ describe('ContainerBuilder', () => {
       expect(container.get(TokenConfig)).toEqual({ feature: true });
     });
 
-    it('supports async provider factories', async () => {
+    it('принимает асинхронные фабрики провайдеров', async () => {
       const ModuleWithAsyncFactory = makeModule({
         name: 'ModuleWithAsyncFactory',
         providers: async () => {
@@ -245,7 +245,7 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
-    it('attributes providers from sync factory to their module', async () => {
+    it('привязывает провайдеры из синхронной фабрики к модулю', async () => {
       const ModuleWithFactory = makeModule({
         name: 'SyncFactoryModule',
         providers: () => [
@@ -275,7 +275,7 @@ describe('ContainerBuilder', () => {
       );
     });
 
-    it('attributes providers from async factory to their module', async () => {
+    it('привязывает провайдеры из асинхронной фабрики к модулю', async () => {
       const ModuleWithAsyncFactory = makeModule({
         name: 'AsyncFactoryModule',
         providers: async () => {
@@ -301,7 +301,7 @@ describe('ContainerBuilder', () => {
       );
     });
 
-    it('ignores duplicate module registration', async () => {
+    it('пропускает повторную регистрацию того же модуля', async () => {
       let factoryRuns = 0;
 
       const ModuleWithFactory = makeModule({
@@ -322,7 +322,7 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
-    it('registers a module shared by two import branches once', async () => {
+    it('регистрирует модуль, импортированный по двум путям, один раз', async () => {
       let factoryRuns = 0;
 
       const Shared = makeModule({
@@ -345,7 +345,7 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenA).id).toBe('A');
     });
 
-    it('terminates on a cycle in imports', async () => {
+    it('завершает обход при цикле в imports', async () => {
       const Left = makeModule({
         name: 'CycleLeft',
         providers: [classProvider(TokenA, ServiceA)],
@@ -358,7 +358,7 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
-    it('rejects two different modules under one name', () => {
+    it('отклоняет два разных модуля под одним именем', () => {
       const First = makeModule({
         name: 'module:logging',
         providers: [classProvider(TokenA, ServiceA)],
@@ -375,9 +375,9 @@ describe('ContainerBuilder', () => {
       );
     });
 
-    it('rejects a parameterized module called twice with equal options', () => {
-      // Каждый вызов фабрики — новое значение: структурного сравнения опций
-      // нет и не будет, канон — создать значение один раз и импортировать
+    it('отклоняет параметризованный модуль, созданный дважды с равными опциями', () => {
+      // Каждый вызов фабрики создаёт новое значение; опции структурно не
+      // сравниваются. Значение создают один раз и импортируют его.
       const builder = new ContainerBuilder();
 
       expect(() =>
@@ -386,8 +386,8 @@ describe('ContainerBuilder', () => {
     });
   });
 
-  describe('validation and errors', () => {
-    it('rejects classes without @Injectable metadata', () => {
+  describe('проверки и ошибки', () => {
+    it('отклоняет класс без @Injectable', () => {
       // eslint-disable-next-line @typescript-eslint/no-extraneous-class
       class PlainClass {}
 
@@ -398,7 +398,7 @@ describe('ContainerBuilder', () => {
       );
     });
 
-    it('fails build when dependency is missing', async () => {
+    it('падает на сборке при отсутствующей зависимости', async () => {
       const builder = new ContainerBuilder().register(
         classProvider(TokenB, ServiceB),
       );
@@ -408,7 +408,7 @@ describe('ContainerBuilder', () => {
       );
     });
 
-    it('detects circular dependencies', async () => {
+    it('находит циклические зависимости', async () => {
       interface IServiceX {}
       interface IServiceY {}
       const TokenX = makeToken<IServiceX>('TokenX');

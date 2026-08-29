@@ -16,7 +16,7 @@ export interface VisitOptions<T extends INode<T>> {
 }
 
 /**
- * Callback функция для обхода узлов
+ * Функция обратного вызова для обхода узлов
  */
 export type VisitCallback<T extends INode<T>> = (
   node: Readonly<T>,

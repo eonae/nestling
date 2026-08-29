@@ -32,7 +32,7 @@ describe('getUserHandler', () => {
         expect(result.headers).toHaveProperty('Cache-Control', 'max-age=300');
         expect(userService.getById).toHaveBeenCalledWith('1');
       } else {
-        expect(result).toBeInstanceOf(Ok); // Will fail
+        expect(result).toBeInstanceOf(Ok); // Не должно сработать: result — Ok
       }
     });
   });

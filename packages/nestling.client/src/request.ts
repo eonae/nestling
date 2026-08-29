@@ -2,7 +2,7 @@
  * Сборка запроса по bind-карте — операция, **обратная** strict-приёму
  * транспорта.
  *
- * Карта одна на оба конца провода: сервер по ней раскладывает запрос в
+ * Карта общая для клиента и сервера: сервер по ней раскладывает запрос в
  * payload, клиент по ней же собирает payload в запрос. Инвариант, который
  * обязан держаться и проверяется round-trip-тестом:
  * `assemblePayload(binding, split(binding, payload)) ≡ payload`.
@@ -10,7 +10,7 @@
 
 import type { HttpBinding } from '@nestling/contracts';
 
-/** Что уходит на провод */
+/** Что уходит в сеть */
 export interface BuiltRequest {
   /** Полный URL с подставленными path-параметрами и query-строкой */
   url: string;
@@ -40,8 +40,8 @@ function isScalar(value: unknown): value is string | number | boolean {
  * - массив скаляров — повторяющиеся вхождения ключа в порядке следования
  *   (симметрия с `readQuery`, который сохраняет все вхождения);
  * - что угодно ещё — `TypeError` в момент вызова. Молчаливый
- *   `[object Object]` на проводе хуже падения: сервер отверг бы его
- *   валидацией, но уже после похода в сеть и с невнятным текстом.
+ *   `[object Object]` в запросе хуже падения: сервер отверг бы его
+ *   валидацией, но уже после похода в сеть и с непонятным сообщением.
  */
 function writeQueryField(
   search: URLSearchParams,
@@ -105,8 +105,8 @@ function joinUrl(baseUrl: string, path: string): string {
  * Раскладывает payload по карте и собирает запрос.
  *
  * @param where - как назвать метод клиента в тексте ошибки
- * @throws {TypeError} Значение query-поля непредставимо на проводе, или
- * path-параметр отсутствует в payload
+ * @throws {TypeError} Значение query-поля нельзя записать в query-строку,
+ * или path-параметр отсутствует в payload
  */
 export function buildRequest(
   binding: HttpBinding,

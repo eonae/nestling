@@ -1,8 +1,8 @@
 /**
  * Фикстура: `.pre` после ответного метода.
  *
- * Type-state билдера: первый ответный метод закрывает pre-тракт
- * (`PhasedPipeline` словаря `.pre` не имеет).
+ * Type-state билдера: после первого ответного метода `.pre` недоступен
+ * (у `PhasedPipeline` нет метода `.pre`).
  */
 
 import { makePipeline, withRequestId } from '@nestling/pipeline';

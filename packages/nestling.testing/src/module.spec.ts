@@ -58,7 +58,7 @@ const ReportsModule = makeAppModule({
 });
 
 describe('testModule', () => {
-  it('поднимает модуль без соседей и исполняет его ручки', async () => {
+  it("поднимает модуль без соседей и исполняет его endpoint'ы", async () => {
     await using app = await testModule(ReportsModule, {
       stubs: [
         [ILogger, { log: (): void => undefined }],

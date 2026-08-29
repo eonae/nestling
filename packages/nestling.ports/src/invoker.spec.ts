@@ -94,12 +94,13 @@ const ChargeCardImpl = implement(ChargeCard, {
   },
 });
 
-/** Ключи идемпотентности, доехавшие до реализации команды */
+/** Ключи идемпотентности, полученные реализацией команды */
 const shippedKeys: (string | undefined)[] = [];
 
 const ShipOrderImpl = implement(ShipOrder, {
-  // Канал провода: ключ лежит в транспортных атрибутах рядом с `subject`,
-  // и юнит видит его без всякой композиции — на обоих путях биндинга
+  // Тот же канал, что и по сети: ключ лежит в транспортных атрибутах
+  // рядом с `subject`, и юнит видит его без всякой композиции — на обоих
+  // путях биндинга
   pipeline: makePipeline().pre((ctx) => {
     shippedKeys.push(ctx.raw.attributes.idempotencyKey as string | undefined);
   }),
@@ -204,7 +205,7 @@ describe.each([
     });
   });
 
-  it('ре-гидрирует объявленный отказ по коду', async () => {
+  it('восстанавливает объявленный отказ из ответа по коду', async () => {
     behaviour = { kind: 'declared' };
 
     const result = await port.call({ amount: 10 });
@@ -338,7 +339,7 @@ describe('идентичность путей биндинга', () => {
     await harnessed.close();
   });
 
-  it('та же пара «бюджет → медленная реализация» даёт тот же результат', async () => {
+  it('та же пара «бюджет и медленная реализация» даёт тот же результат', async () => {
     const local = makeLocalPort(portContext(harnessed)) as Port<any>;
     const remote = makeRemotePort(portContext(harnessed)) as Port<any>;
 
@@ -440,7 +441,7 @@ describe.each([
     await harnessed.close();
   });
 
-  it('ключ вызывающего доезжает до обработчика без подмены', async () => {
+  it('ключ вызывающего передаётся обработчику без подмены', async () => {
     await emitter.emit({ orderId: 'o-1' }, { idempotencyKey: 'order-42' });
     await settle();
 
@@ -501,9 +502,9 @@ function metaDictionaryTypeTests(
 }
 
 /**
- * Провоз ambient-контекста: внешняя ручка кладёт переменные в свой input,
- * её обработчик зовёт внутренний порт, а внутренняя реализация смотрит,
- * что доехало.
+ * Провоз ambient-контекста: внешний endpoint кладёт переменные в свой
+ * input, его обработчик зовёт внутренний порт, а внутренняя реализация
+ * смотрит, что до неё дошло.
  *
  * Цепочка настоящая, а не смоделированная: единственный способ получить
  * ячейку запроса у вызывающего — исполнить его через `dispatch`.

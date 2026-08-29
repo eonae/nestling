@@ -1,15 +1,12 @@
 /**
- * Потребляющая половина bind-карты: приём запроса по ней.
+ * Серверная половина bind-карты: разбор запроса по ней.
  *
- * Декларативная половина — пометки `query()`/`body()`, тип карты и
- * разворачивание канона (`computeHttpBinding`) — живёт в
- * `@nestling/contracts`: карту обязан получать клиент, импортирующий
- * контракт без серверного кода. Здесь остаётся то, что имеет смысл только
- * на сервере: разбор query-строки, strict-сборка payload из канонических
- * мест и чтение карты с декларации.
- *
- * Пометки и тип карты реэкспортируются: автор HTTP-декларации берёт их
- * оттуда же, откуда `httpEndpoint`.
+ * Пометки `query()` и `body()`, тип карты и её вычисление
+ * (`computeHttpBinding`) живут в `@nestling/contracts`, чтобы клиент
+ * получал карту вместе с контрактом без серверного кода. Здесь — разбор
+ * query-строки, сборка payload из канонических мест и чтение карты с
+ * декларации. Пометки и тип карты реэкспортированы для авторов
+ * HTTP-деклараций.
  */
 
 import type { BindPlacement, HttpBinding } from '@nestling/contracts';
@@ -44,9 +41,6 @@ export type {
  * помеченное `query({ multiple: true })`, приходит массивом и при одном
  * вхождении. Ноль вхождений — поля нет: отсутствие остаётся отсутствием,
  * чтобы `.optional()` и дефолты схемы работали.
- *
- * Молчаливого last-wins (`searchParams.entries()` в плоский объект) больше
- * не существует.
  */
 export function readQuery(
   search: URLSearchParams,
@@ -68,7 +62,7 @@ export interface PayloadSources {
   /** Разобранная query-строка */
   query: Record<string, unknown>;
 
-  /** Разобранное тело (или поля формы для `multipart`); не читалось — `undefined` */
+  /** Тело или поля формы `multipart`; `undefined`, если тело не читалось */
   body?: unknown;
 
   /** Path-параметры из совпадения с маршрутом */
@@ -76,7 +70,7 @@ export interface PayloadSources {
 
   /**
    * Источник «остальное». Обычно `binding.rest`; для `multipart` всегда
-   * `'body'` — эта форма body-ориентирована по построению.
+   * `'body'`.
    */
   rest?: 'query' | 'body';
 }
@@ -88,15 +82,15 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 /**
- * Собирает payload **только из канонических мест**.
+ * Собирает payload из канонических мест.
  *
  * ```
  * payload = { ...restSource, ...markedFields, ...pathParams }
  * ```
  *
- * Приоритет фиксирован (path > пометка > rest) и в конфликт не превращается:
- * поле, присланное не в своё место, в payload просто не попадает и
- * проваливает обычную валидацию. Слияния «отовсюду» нет.
+ * Приоритет: путь, затем пометка, затем источник «остальное». Поле,
+ * присланное не в своё место, в payload не попадает и проваливает обычную
+ * валидацию.
  */
 export function assemblePayload(
   binding: HttpBinding,
@@ -106,9 +100,9 @@ export function assemblePayload(
   const rest = sources.rest ?? binding.rest;
   const restSource = rest === 'query' ? queryValues : bodyValue;
 
-  // Ничего не размещено явно — payload и есть источник «остальное».
-  // Тело при этом может быть и не объектом (массив, строка): такой input
-  // уезжает хендлеру как есть.
+  // Без явных размещений payload — это источник «остальное» целиком.
+  // Тело может быть и не объектом (массив, строка): оно уходит хендлеру
+  // как есть
   if (Object.keys(binding.fields).length === 0) {
     return restSource ?? {};
   }
@@ -151,7 +145,7 @@ export function bindingNeedsBody(binding: HttpBinding): boolean {
  * Носитель карты: декларация или её проекция для транспорта.
  *
  * Транспорт читает карту с `RouteDeclaration`, `@nestling/openapi` и
- * клиент — с самой декларации; структурно им нужны одни и те же два поля.
+ * клиент — с декларации; всем нужны одни и те же два поля.
  */
 export interface BindingBearer {
   readonly pattern: string;
@@ -161,10 +155,8 @@ export interface BindingBearer {
 /**
  * Читает bind-карту с декларации.
  *
- * Декларация, созданная kernel-примитивом `makeEndpoint`, карты не несёт —
- * тогда считается **тот же канон** без пометок из `pattern` (метод и шаблон
- * в нём уже есть). Fail-fast здесь неуместен: канон полностью определён
- * парой (метод, путь), и запрещать kernel-примитив ради церемонии незачем.
+ * Декларация из `makeEndpoint` карты не несёт: тогда карта вычисляется из
+ * `pattern` (метод и шаблон) без пометок.
  */
 export function httpBindingOf(definition: BindingBearer): HttpBinding {
   const carried: unknown = definition.binding;

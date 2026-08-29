@@ -16,12 +16,12 @@ interface HealthCheck {
   name: string;
 }
 
-/** Names of the checks in the aggregate, in array order. */
+/** Имена проверок агрегата в порядке массива. */
 const namesOf = (checks: readonly HealthCheck[]): string[] =>
   checks.map((check) => check.name);
 
-describe('aggregate composition', () => {
-  it('collects contributions registered by different modules', async () => {
+describe('состав агрегата', () => {
+  it('собирает членов, зарегистрированных разными модулями', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'ComposedCheck',
     );
@@ -58,7 +58,7 @@ describe('aggregate composition', () => {
 
     const endpoint = container.getOrThrow(HealthEndpoint);
 
-    // No familyProvider is registered: explicit contributions are enough.
+    // Рецепт семейства не зарегистрирован: явных провайдеров достаточно.
     expect(namesOf(endpoint.checks)).toEqual(['db', 'redis']);
     expect(endpoint.checks[0]).toBe(container.getOrThrow(IHealthCheck('db')));
     expect(endpoint.checks[1]).toBe(
@@ -66,7 +66,7 @@ describe('aggregate composition', () => {
     );
   });
 
-  it('includes members materialized by the recipe and by .auto', async () => {
+  it('включает членов, созданных рецептом и через .auto', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'MaterializedCheck',
     );
@@ -86,7 +86,7 @@ describe('aggregate composition', () => {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
-    // Created, but nobody depends on it and it has no explicit provider.
+    // Токен создан, но от него никто не зависит и провайдера у него нет.
     const orphan = IHealthCheck('orphan');
 
     const container = await new ContainerBuilder()
@@ -109,7 +109,7 @@ describe('aggregate composition', () => {
     );
   });
 
-  it('gives every consumer the same array and every member one slot', async () => {
+  it('отдаёт всем потребителям один массив, где каждый член один раз', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'SharedCheck',
     );
@@ -144,7 +144,7 @@ describe('aggregate composition', () => {
     ).toHaveLength(1);
   });
 
-  it('aggregates an empty family into an empty array', async () => {
+  it('собирает пустое семейство в пустой массив', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'EmptyCheck',
     );
@@ -166,7 +166,7 @@ describe('aggregate composition', () => {
     expect(aggregate?.dependencies).toEqual([]);
   });
 
-  it('freezes the aggregate array', async () => {
+  it('замораживает массив агрегата', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'FrozenCheck',
     );
@@ -191,8 +191,8 @@ describe('aggregate composition', () => {
   });
 });
 
-describe('aggregate member order', () => {
-  it('follows the registration order of the contributing modules', async () => {
+describe('порядок членов агрегата', () => {
+  it('следует порядку регистрации модулей', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'OrderedCheck',
     );
@@ -220,7 +220,7 @@ describe('aggregate member order', () => {
     ]);
   });
 
-  it('puts explicit contributions before materialized members', async () => {
+  it('ставит явные провайдеры раньше членов, созданных рецептом', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'MixedOrderCheck',
     );
@@ -252,8 +252,8 @@ describe('aggregate member order', () => {
   });
 });
 
-describe('aggregate is an ordinary graph node', () => {
-  it('detects a cycle that runs through the aggregate', async () => {
+describe('агрегат — обычный узел графа', () => {
+  it('находит цикл, проходящий через агрегат', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'CyclicCheck',
     );
@@ -274,7 +274,7 @@ describe('aggregate is an ordinary graph node', () => {
     );
   });
 
-  it('runs lifecycle hooks of contributions around the consumer', async () => {
+  it('выполняет хуки членов раньше потребителя при init и позже при destroy', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'HookedCheck',
     );
@@ -326,7 +326,7 @@ describe('aggregate is an ordinary graph node', () => {
     ]);
   });
 
-  it('appears in the graph with edges to its members', async () => {
+  it('появляется в графе с рёбрами к членам', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'GraphCheck',
     );
@@ -358,7 +358,7 @@ describe('aggregate is an ordinary graph node', () => {
     expect(visited).toContain('GraphCheck:{all}');
   });
 
-  it('is allowed in the deps of a factory provider', async () => {
+  it('разрешён в deps фабричного провайдера', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'FactoryCheck',
     );
@@ -378,7 +378,7 @@ describe('aggregate is an ordinary graph node', () => {
     expect(container.getOrThrow(IReport)).toBe('db');
   });
 
-  it('creates no node when .all is not referenced', async () => {
+  it('не создаёт узел, если .all никто не запросил', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'UnreferencedCheck',
     );
@@ -402,8 +402,8 @@ describe('aggregate is an ordinary graph node', () => {
   });
 });
 
-describe('aggregate and strictExports', () => {
-  it('rejects a contribution the owning module does not export', async () => {
+describe('агрегат и strictExports', () => {
+  it('отклоняет члена, которого модуль-владелец не экспортирует', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'StrictCheck',
     );
@@ -427,7 +427,7 @@ describe('aggregate and strictExports', () => {
     );
   });
 
-  it('accepts a contribution when the module exports the family', async () => {
+  it('принимает члена, если модуль экспортирует семейство', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'StrictExportedCheck',
     );
@@ -454,8 +454,8 @@ describe('aggregate and strictExports', () => {
   });
 });
 
-describe('the aggregate token is reserved', () => {
-  it('rejects a hand-registered provider for .all', () => {
+describe('токен агрегата зарезервирован', () => {
+  it('отклоняет провайдер для .all, зарегистрированный вручную', () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'ReservedCheck',
     );
@@ -467,7 +467,7 @@ describe('the aggregate token is reserved', () => {
     );
   });
 
-  it('rejects a provider for .all declared by a module', async () => {
+  it('отклоняет провайдер для .all, объявленный модулем', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'ReservedModuleCheck',
     );

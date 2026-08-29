@@ -156,8 +156,8 @@ describe('провенанс не влияет на исполнение', () =>
     });
 
     expect(response.isSuccess).toBe(true);
-    // Pre — снаружи внутрь, ответный тракт и finally — изнутри наружу;
-    // `catch` на успехе не исполняется
+    // Pre выполняется снаружи внутрь, ответная фаза и finally — изнутри
+    // наружу. `catch` при успехе не исполняется.
     expect(events).toEqual([
       'pre:outer',
       'pre:middle',

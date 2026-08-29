@@ -31,11 +31,10 @@ import { http, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 /**
- * Конвертер схем — те самые десять строк поверх штатного конвертера
- * валидатора.
+ * Конвертер схем: десять строк поверх штатного конвертера валидатора.
  *
- * Отдельного пакета здесь нет намеренно: `@nestling/openapi.zod` приезжает
- * со своим change'ем, и заводить второй такой пакет ради снапшота значило
+ * Отдельного пакета здесь нет: `@nestling/openapi.zod` появится отдельным
+ * change'ем, и заводить второй такой же пакет ради одного снапшота значило
  * бы обещать пользователю два.
  */
 const zodConverter = (): SchemaDocConverter => ({
@@ -43,7 +42,7 @@ const zodConverter = (): SchemaDocConverter => ({
   toJsonSchema: (schema) => z.toJSONSchema(schema as z.ZodType),
 });
 
-/** Тот же словарь сборки, что в `main.ts`, с теми же инвариантами */
+/** Тот же словарь сборки и те же инварианты, что и в `main.ts`. */
 const spec = {
   features: [UsersFeature, OpsFeature, QuotasFeature],
   transports: [http({ port: 0 })],
@@ -61,7 +60,7 @@ const TOPOLOGIES = ['all', 'users', 'ops'] as const;
 
 const BASELINE_PATH = new URL('../contracts.snapshot.json', import.meta.url);
 
-/** Baseline — обычный файл в репозитории: значение, а не наша машинерия */
+/** Baseline — обычный файл в репозитории: значение, а не код фреймворка */
 const readBaseline = (): ContractSnapshot =>
   JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as ContractSnapshot;
 
@@ -132,12 +131,12 @@ describe('пример: отчёт совместимости контракто
     });
   });
 
-  it('breaking подсвечивается с подсказкой bump’а — и ничего не роняет', async () => {
+  it("breaking подсвечивается с подсказкой bump'а — и ничего не роняет", async () => {
     const current = await currentSnapshot();
 
     // Правим baseline, а не код: так выглядел бы контракт «до» изменения,
     // которым из выхода выкинули поле `reservedUntil`. Схема берётся из
-    // текущего дескриптора и достраивается — иначе расхождение уехало бы
+    // текущего дескриптора и достраивается — иначе расхождение попало бы
     // в `unknown` на служебных ключах, которые проставляет конвертер
     const baseline: ContractSnapshot = {
       ...current,

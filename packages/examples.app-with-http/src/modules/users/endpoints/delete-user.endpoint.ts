@@ -54,8 +54,8 @@ export const DeleteUser = httpEndpoint({
   path: '/api/users/:id',
   input: DeleteUserInput,
   errors: [UserNotDeletable, UserNotFound],
-  // Выхода у ручки нет, поэтому успешный статус по умолчанию — 204; назван
-  // он явно, чтобы документ не зависел от чтения дефолта
+  // Схемы output у endpoint'а нет, поэтому статус успеха по умолчанию —
+  // 204. Он назван явно, чтобы документация не зависела от умолчания.
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],

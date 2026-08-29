@@ -43,13 +43,13 @@ export class UploadAvatarHandler {
     this.logger.log(`Handling POST /api/users/${fields.id}/avatar`);
 
     // Тип и размер файла проверил транспорт по `upload({ maxSize, mime })`:
-    // ручке остаётся только домен. Отсутствие поля — единственное, что
+    // endpoint'у остаётся только домен. Отсутствие поля — единственное, что
     // форма не гарантирует.
     if (!files.avatar) {
       throw InvalidAvatar({ reason: 'file is required' });
     }
 
-    // Сохраняем файл (мок - просто сохраняем путь в памяти)
+    // Сохраняем файл: это мок, путь только хранится в памяти, не на диске
     const avatarUrl = `/uploads/${fields.id}/${files.avatar.filename}`;
 
     const user = await this.users.updateAvatar(fields.id, avatarUrl);
@@ -63,12 +63,12 @@ export class UploadAvatarHandler {
 }
 
 /**
- * Endpoint для загрузки аватара пользователя
- * Демонстрирует:
- * - форму `multipart({ fields, files })` с типизированным файловым полем
- * - лимит и MIME-фильтр на самом поле (`upload`), применяемые во время
- *   разбора — файл не буферизуется целиком, чтобы потом быть отвергнутым
- * - объявленные отказы для доменных проверок
+ * Endpoint для загрузки аватара пользователя.
+ *
+ * Демонстрирует форму `multipart({ fields, files })` с типизированным
+ * файловым полем, лимит и MIME-фильтр на самом поле (`upload`), которые
+ * применяются во время разбора — файл не буферизуется целиком, чтобы потом
+ * быть отвергнутым, и объявленные отказы для доменных проверок.
  */
 export const UploadAvatar = httpEndpoint({
   method: 'POST',

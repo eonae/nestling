@@ -30,7 +30,7 @@ describe('deleteUserHandler', () => {
         expect(result.status).toBe('NO_CONTENT');
         expect(userService.delete).toHaveBeenCalledWith('2');
       } else {
-        expect(result).toBeInstanceOf(Ok); // Will fail
+        expect(result).toBeInstanceOf(Ok); // Не должно сработать: result — Ok
       }
     });
   });
@@ -48,7 +48,7 @@ describe('deleteUserHandler', () => {
       });
     });
 
-    it('должен бросить UserNotDeletable при попытке удалить admin', async () => {
+    it('должен бросить UserNotDeletable при попытке удалить администратора', async () => {
       await expect(handle({ id: ADMIN_USER_ID })).rejects.toThrow(Fail);
 
       await expect(handle({ id: ADMIN_USER_ID })).rejects.toMatchObject({

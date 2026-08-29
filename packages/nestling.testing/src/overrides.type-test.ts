@@ -1,7 +1,7 @@
 /**
  * Типовые тесты тестового корня (стиль — `TYPE-TESTS.md` пайплайна).
  *
- * Файл не гоняется jest'ом: он и есть тест — если типы разъедутся, упадёт
+ * Файл не гоняется jest'ом: он и есть тест — если типы разойдутся, упадёт
  * `tsc` на сборке пакета. Негативные случаи закрыты `@ts-expect-error`:
  * исчезни ошибка компиляции, tsc сообщит о неиспользованной директиве.
  */
@@ -102,10 +102,10 @@ async function callTypes(): Promise<void> {
   // @ts-expect-error: `id` объявлен строкой
   await app.call(GetUser, { id: 42 });
 
-  // @ts-expect-error: ручка со схемой обязана получить payload
+  // @ts-expect-error: endpoint со схемой обязан получить payload
   await app.call(GetUser);
 
-  // Ручка без `input`-формы вызывается одним аргументом
+  // Endpoint без `input`-формы вызывается одним аргументом
   const ping = await app.call(Ping);
   type _Ping = Expect<Equal<typeof ping, ResponseContext<{ pong: boolean }>>>;
 }

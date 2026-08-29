@@ -82,7 +82,7 @@ describe('привязка конфига в assemble', () => {
     });
   });
 
-  it('порядок привязок задаёт приоритет, env остаётся полом', async () => {
+  it('порядок привязок задаёт приоритет, env остаётся источником по умолчанию', async () => {
     await withEnv(
       { ROOTAPP_RETRIES: '1', ROOTAPP_GREETING: 'from-env' },
       async () => {
@@ -104,7 +104,7 @@ describe('привязка конфига в assemble', () => {
         await app.run();
 
         // retries — из первой привязки, greeting — из второй (первая его не
-        // знает), env остаётся полом и в дело не идёт
+        // знает), env остаётся источником по умолчанию и не используется
         expect(projected).toEqual([{ greeting: 'low', retries: 5 }]);
 
         await app.close();
@@ -112,7 +112,7 @@ describe('привязка конфига в assemble', () => {
     );
   });
 
-  it('невалидный конфиг роняет старт до go-live', async () => {
+  it('невалидный конфиг роняет старт до приёма запросов', async () => {
     const transport = new MockTransport();
     const app = assemble({
       modules: [GreeterModule],

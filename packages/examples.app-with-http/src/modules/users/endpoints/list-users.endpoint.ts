@@ -22,12 +22,12 @@ export const listUsersHandler =
   async (): Output<ListUsersOutput> => {
     logger.log('Handling GET /api/users');
 
-    // Возвращаем напрямую - автоматически обернется в Ok
+    // Возвращаем напрямую, пайплайн сам обернёт в `Ok`.
     return users.getAll();
   };
 
 /**
- * Endpoint для получения списка пользователей
+ * Endpoint для получения списка пользователей.
  */
 export const ListUsers = httpEndpoint({
   method: 'GET',

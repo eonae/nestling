@@ -2,52 +2,48 @@ import type { Hook, LifecycleHooks } from '../lifecycle';
 
 import type { INode } from '@common/graphs';
 
-/**
- * Metadata for a node in the dependency graph.
- */
+/** Метаданные узла графа зависимостей. */
 export interface DINodeMetadata {
-  /** Module name if the provider comes from a module. undefined if registered without a module */
+  /** Имя модуля провайдера; `undefined`, если он зарегистрирован без модуля */
   module?: string;
-  /** true if the provider is in the module's exports. undefined if no module */
+  /** `true`, если модуль экспортирует провайдер; `undefined` без модуля */
   exported?: boolean;
 }
 
 /**
- * Data required to create a DINode.
+ * Данные для создания `DINode`.
  *
  * @internal
  */
 export interface DINodeData {
-  /** The service instance */
+  /** Экземпляр провайдера */
   instance: unknown;
-  /** Node metadata */
+  /** Метаданные узла */
   metadata: DINodeMetadata;
-  /** Lifecycle hooks */
+  /** Хуки жизненного цикла */
   hooks: LifecycleHooks;
-  /** Dependency token IDs */
+  /** Идентификаторы токенов зависимостей */
   deps: string[];
 }
 
 /**
- * A node in the dependency graph.
- *
- * Represents a single service instance with its metadata, lifecycle hooks,
- * and dependencies.
+ * Узел графа зависимостей: один экземпляр провайдера с метаданными, хуками
+ * и зависимостями.
  */
 export class DINode implements INode<DINode> {
-  /** Token ID as a string */
+  /** Идентификатор токена в строковой форме */
   readonly id: string;
-  /** The service instance */
+  /** Экземпляр провайдера */
   readonly instance: unknown;
-  /** Node metadata */
+  /** Метаданные узла */
   readonly metadata: DINodeMetadata;
-  /** Initialization hooks for this instance */
+  /** Хуки `@OnInit` экземпляра */
   readonly onInit: readonly Hook[];
-  /** Start hooks for this instance (phase START, after WIRE) */
+  /** Хуки `@OnStart` экземпляра (фаза START, после WIRE) */
   readonly onStart: readonly Hook[];
-  /** Destruction hooks for this instance */
+  /** Хуки `@OnDestroy` экземпляра */
   readonly onDestroy: readonly Hook[];
-  /** Dependencies - child nodes */
+  /** Зависимости: дочерние узлы */
   readonly dependencies: readonly DINode[];
 
   constructor(id: string, dependencies: DINode[] = [], data: DINodeData) {
@@ -61,9 +57,9 @@ export class DINode implements INode<DINode> {
   }
 
   /**
-   * Returns all dependencies transitively (all nodes that this node depends on).
+   * Возвращает все транзитивные зависимости узла.
    *
-   * @returns A set of all transitive dependencies
+   * @returns Множество узлов, от которых зависит этот узел, без него самого
    */
   getAllDependencies(): Set<DINode> {
     const visited = new Set<DINode>();
@@ -81,31 +77,25 @@ export class DINode implements INode<DINode> {
       stack.push(...current.dependencies);
     }
 
-    visited.delete(this); // Exclude self from result
+    visited.delete(this);
     return visited;
   }
 
-  /**
-   * Runs all initialization hooks for this node.
-   */
+  /** Выполняет хуки `@OnInit` узла. */
   async runInitHooks(): Promise<void> {
     for (const hook of this.onInit) {
       await hook();
     }
   }
 
-  /**
-   * Runs all start hooks for this node.
-   */
+  /** Выполняет хуки `@OnStart` узла. */
   async runStartHooks(): Promise<void> {
     for (const hook of this.onStart) {
       await hook();
     }
   }
 
-  /**
-   * Runs all destruction hooks for this node.
-   */
+  /** Выполняет хуки `@OnDestroy` узла. */
   async runDestroyHooks(): Promise<void> {
     for (const hook of this.onDestroy) {
       await hook();
@@ -113,9 +103,9 @@ export class DINode implements INode<DINode> {
   }
 
   /**
-   * Returns a string representation of the node for debugging.
+   * Возвращает строку для отладки.
    *
-   * @returns A string in the format "DINode(tokenId)"
+   * @returns Строка вида `DINode(tokenId)`
    */
   toString(): string {
     return `DINode(${this.id})`;

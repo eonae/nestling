@@ -83,8 +83,9 @@ describe('checkTopologies', () => {
   });
 
   it('называет все несобираемые топологии в одном сообщении', async () => {
-    // Обе ручки требуют логгер, который приезжает только фичей `logging`,
-    // и ни одна не объявила `dependsOn`: сами по себе они не собираются
+    // Оба endpoint'а требуют логгер, который передаётся только фичей
+    // `logging`, и ни один не объявил `dependsOn`: сами по себе они не
+    // собираются
     @Injectable([ILogger])
     class UsersHandler {
       constructor(private readonly logger: { log(): void }) {}

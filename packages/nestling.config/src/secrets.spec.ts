@@ -145,7 +145,7 @@ describe('редактирование в ошибке валидации', () =
     expect(failure.message).toMatch(/expected string, received undefined/i);
   });
 
-  it('секретное и обычное поле приезжают в одной ошибке, каждое по-своему', async () => {
+  it('секретное и обычное поле попадают в одну ошибку, каждое по-своему', async () => {
     const Mixed = makeConfig('mixed', {
       token: secret(leaky()),
       port: z.coerce.number(),
@@ -193,7 +193,7 @@ describe('редактирование в ошибке валидации', () =
     expect(failure.failures[0]?.issues[0]?.message).toBe(REDACTED);
   });
 
-  it('редактирование работает и в примордиальном `load()`', () => {
+  it('редактирование работает и в первичном `load()`', () => {
     process.env.VAULT_API_TOKEN = 'plaintext-password';
 
     try {

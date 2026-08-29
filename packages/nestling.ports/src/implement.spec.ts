@@ -25,7 +25,7 @@ const OrderPlaced = makeContract({
   input: z.object({ orderId: z.string() }),
 });
 
-/** Контракт, адресуемый на обоих проводах: по шине и по HTTP */
+/** Контракт, доступный и по шине, и по HTTP */
 const AddressedBoth = makeContract({
   name: 'impl.billing.charge.http',
   kind: 'request',
@@ -56,7 +56,7 @@ describe('implement', () => {
     });
   });
 
-  it('принимает три формы `handle` и гасит их тем же `resolve`', async () => {
+  it('принимает три формы `handle` и резолвит их одним `resolve`', async () => {
     const ledger = { charge: (amount: number) => `c-${amount}` };
 
     const asFunction = implement(ChargeCard, {
@@ -178,7 +178,7 @@ describe('implement', () => {
     });
 
     // Транспорт шины, subject — имя контракта: HTTP-адрес на этот путь не
-    // влияет никак, он адресует другой провод
+    // влияет никак, он адресует другой транспорт
     expect(declaration.transport).toBe(BusTransport$);
     expect(busBindingOf(declaration)?.subject).toBe(AddressedBoth.name);
     expect(declaration.pattern).toBe(AddressedBoth.name);

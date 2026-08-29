@@ -187,7 +187,7 @@ describe('отложенный .finally у потокового ответа', (
     expect(seen).toEqual(['finally:failed']);
   });
 
-  it('mid-stream отказ нормализуется стражем границы', async () => {
+  it('mid-stream отказ нормализуется проверкой контракта отказов', async () => {
     const unknownFails: unknown[] = [];
 
     const ctx = makeEmptyContext(raw(), meta(undefined, stream(Row)));
@@ -208,7 +208,7 @@ describe('отложенный .finally у потокового ответа', (
     expect(unknownFails).toHaveLength(1);
   });
 
-  it('не-потоковая ручка финализируется сразу, как раньше', async () => {
+  it('не-потоковый endpoint финализируется сразу, как раньше', async () => {
     const outcomes: Outcome[] = [];
 
     const pipeline = makePipeline().finally((outcome) => {
@@ -241,7 +241,7 @@ describe('summary', () => {
     expect(итог).toMatchObject({ itemsIn: 0, itemsOut: 3 });
   });
 
-  it('у не-потоковой ручки счётчики — нули', async () => {
+  it("у не-потокового endpoint'а счётчики — нули", async () => {
     let итог = { itemsIn: -1, itemsOut: -1 };
 
     const pipeline = makePipeline().finally((_outcome, _res, ctx) => {

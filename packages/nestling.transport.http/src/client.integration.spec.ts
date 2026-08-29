@@ -1,5 +1,5 @@
 /**
- * Одна карта на оба конца провода.
+ * Одна карта на обоих концах сети.
  *
  * Два теста об одном: клиент собирает запрос по bind-карте контракта, а
  * транспорт разбирает его по **той же карте, взятой с того же значения**.
@@ -7,7 +7,7 @@
  * сервере с настоящим `makeClient`.
  *
  * Инвариант нельзя выводить из совпадения реализаций: они писались
- * отдельно, и разъехаться им ничто не мешает, кроме этой проверки.
+ * отдельно, и разойтись им ничто не мешает, кроме этой проверки.
  */
 
 import { assemblePayload, query, readQuery } from './binding.js';
@@ -180,10 +180,10 @@ const CreateUser = makeContract({
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: z.object({
     email: z.string(),
-    // Схема query-поля обязана принимать **проводную** форму: query несёт
-    // строки, и клиент пишет туда `String(value)`. `z.boolean()` здесь
-    // отверг бы законный `?dryRun=true` — это не дефект клиента, а
-    // свойство провода, и схема должна его знать
+    // Схема query-поля обязана принимать **сериализованную** форму: query
+    // несёт строки, и клиент пишет туда `String(value)`. `z.boolean()`
+    // здесь отверг бы законный `?dryRun=true` — это не дефект клиента, а
+    // свойство сериализации в query-строку, и схема должна его знать
     dryRun: z.coerce.boolean().optional(),
   }),
   output: User,
@@ -262,7 +262,7 @@ describe('интеграция: контракт-форма httpEndpoint + makeC
     });
   });
 
-  it('помеченное поле доехало query-строкой', async () => {
+  it('помеченное поле передалось query-строкой', async () => {
     const result = await client().createUser({
       email: 'a@b.c',
       dryRun: true,
@@ -271,7 +271,7 @@ describe('интеграция: контракт-форма httpEndpoint + makeC
     expect(result).toMatchObject({ value: { id: 'dry' } });
   });
 
-  it('задекларированный отказ доезжает кодом и деталями', async () => {
+  it('задекларированный отказ передаётся кодом и деталями', async () => {
     const result = await client().createUser({ email: 'taken@example.com' });
 
     expect(EmailTaken.is(result)).toBe(true);
@@ -281,7 +281,7 @@ describe('интеграция: контракт-форма httpEndpoint + makeC
     });
   });
 
-  it('незадекларированный отказ приезжает UNKNOWN', async () => {
+  it('незадекларированный отказ приходит как UNKNOWN', async () => {
     const result = await client().createUser({ email: 'boom@example.com' });
 
     expect(result).toMatchObject({ isFail: true, code: 'UNKNOWN' });

@@ -59,7 +59,8 @@ const CLI_TRANSPORT_NAME = transportNameOf(CliTransport$);
  *
  * Легален и типизирован только здесь; пайплайн и хендлер остаются
  * транспорт-слепыми. Стратегия сбора недостающего input (`missing:
- * 'prompt'`) — политика биндинга, приезжает отдельной работой.
+ * 'prompt'`) — политика биндинга, которая будет реализована отдельной
+ * работой.
  */
 export interface CliEndpointDictionary<
   I extends AnyPayload = AnyPayload,
@@ -68,7 +69,7 @@ export interface CliEndpointDictionary<
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
 > {
-  /** Имя команды; оно же паттерн ручки */
+  /** Имя команды; оно же паттерн endpoint'а */
   command: string;
 
   /** Форма io для input: значение или `stream(...)` */
@@ -101,7 +102,7 @@ export interface CliEndpointDictionary<
  * Конструктор CLI-деклараций.
  *
  * Тонкая надстройка над kernel-примитивом `makeEndpoint`: `transport` —
- * `'cli'`, `pattern` — имя команды. Общая машинерия деклараций (`deps`,
+ * `'cli'`, `pattern` — имя команды. Общий механизм деклараций (`deps`,
  * три формы `handle`, `resolve`, бренд) живёт в `makeEndpoint`.
  *
  * @example
@@ -199,14 +200,14 @@ export interface CliInput {
  */
 export interface CliTransportOptions {
   /**
-   * Диагностический хук стража границы: получает оригинал отказа,
+   * Диагностический хук проверки границы: получает оригинал отказа,
    * снятого нормализацией в `UnknownError`. Не задан — рантайм пишет в
    * `console.error`.
    */
   onUnknownFail?: (info: UnknownFailInfo) => void;
 
   /**
-   * Что значит «выйти в эфир» для командной строки:
+   * Что делает `serve` для командной строки:
    *
    * - `'argv'` (по умолчанию) — single-shot: одна команда из аргументов
    *   процесса, затем `serve` возвращается; пустой `argv` не исполняет
@@ -237,17 +238,17 @@ const CLI_CAPABILITIES: TransportCapabilities = {
 /**
  * CLI-транспорт.
  *
- * В эфир выходит единственным способом — `serve(dispatch, signal)`. Что
- * именно значит «эфир» для командной строки, решает режим: `'argv'` —
- * одна команда из аргументов процесса (single-shot), `'repl'` — чтение
- * команд из stdin до `exit`. Обе ветки исполняют ручку через
- * `dispatch.call`, своей копии исполнения у транспорта нет.
+ * Запускается единственным способом — `serve(dispatch, signal)`. Что
+ * именно происходит при запуске, решает режим: `'argv'` — одна команда
+ * из аргументов процесса (single-shot), `'repl'` — чтение команд из
+ * stdin до `exit`. Обе ветки исполняют endpoint через `dispatch.call`,
+ * своей копии исполнения у транспорта нет.
  */
 export class CliTransport implements ITransport {
   /** Способности транспорта: читает `assertFormsSupported` на сборке */
   readonly capabilities: TransportCapabilities = CLI_CAPABILITIES;
 
-  /** Диспетчер, полученный в `serve`; до go-live исполнять нечего */
+  /** Диспетчер, полученный в `serve`; до этого исполнять нечего */
   #dispatch?: Dispatch;
 
   /** Проекции маршрутов по имени команды — для парсинга входа */
@@ -268,7 +269,7 @@ export class CliTransport implements ITransport {
   constructor(private readonly options: CliTransportOptions = {}) {}
 
   /**
-   * Выводит транспорт в эфир.
+   * Запускает транспорт.
    *
    * Формы io проверяются здесь же — до чтения хоть одной команды: на
    * standalone-пути это единственная точка проверки, и текст ошибки тот же,
@@ -306,7 +307,7 @@ export class CliTransport implements ITransport {
    * Публичная точка single-shot: корень (или тест) строит `CliInput` сам —
    * например, из аргументов процесса, разобранных по своим правилам.
    *
-   * @throws {Error} Если транспорт ещё не в эфире или команда неизвестна
+   * @throws {Error} Если транспорт ещё не запущен или команда неизвестна
    */
   async execute(input: CliInput): Promise<ResponseContext> {
     const dispatch = this.#dispatch;
@@ -354,8 +355,8 @@ export class CliTransport implements ITransport {
       pattern: route.pattern,
       input: route.input,
       output: route.output,
-      // Объявленные отказы доезжают до стража только так: декларация →
-      // транспорт → контекст, без глобального реестра.
+      // Объявленные отказы попадают в проверку границы только так:
+      // декларация → транспорт → контекст, без глобального реестра.
       errors: route.errors,
     };
 
@@ -403,7 +404,7 @@ export class CliTransport implements ITransport {
     this.#routes = new Map();
   }
 
-  /** Режим go-live: явный из опций, иначе single-shot по argv */
+  /** Режим запуска: явный из опций, иначе single-shot по argv */
   get #mode(): 'argv' | 'repl' {
     return this.options.mode ?? 'argv';
   }
@@ -552,8 +553,8 @@ export function parseArgv(argv: readonly string[]): CliInput {
  * Фабрика провайдера CLI-транспорта.
  *
  * Транспорт — обычный узел графа: `assemble({ transports: [cli()] })` — это
- * сахар регистрации провайдера, и ровно тот же провайдер легально объявить
- * в `providers:` infra-модуля фичи.
+ * сокращённая запись регистрации провайдера, и тот же провайдер допустимо
+ * объявить в `providers:` infra-модуля фичи.
  *
  * @example
  * ```typescript

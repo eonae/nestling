@@ -25,9 +25,9 @@ export type AnyPayload<T extends Optional<Schema> = Optional<Schema>> =
 /**
  * Конфигурация `output`.
  *
- * `multipart` формально входит в union, чтобы диагностика шла читаемым
- * литералом `ValidateOutputForm`, а не отказом сопоставления с границей
- * тип-параметра.
+ * `multipart` входит в объединение только ради диагностики: так ошибка
+ * приходит читаемым литералом из `ValidateOutputForm`, а не отказом
+ * сопоставления с границей тип-параметра.
  */
 export type AnyOutput<T extends Optional<Schema> = Optional<Schema>> =
   | T // Schema
@@ -36,16 +36,12 @@ export type AnyOutput<T extends Optional<Schema> = Optional<Schema>> =
   | AnyMultipartForm; // отвергается ValidateOutputForm
 
 /**
- * Описание файла в multipart-запросе.
+ * Файл в multipart-запросе. Часть типа payload, который выводится из формы
+ * `multipart(...)`.
  *
- * Живёт здесь, а не в рантайме пайплайна, потому что это **тип payload'а**,
- * выводимый из формы `multipart(...)`: без него `InferInput` неполон, а
- * форма — часть декларации.
- *
- * Поле `stream` объявлено структурно (`AsyncIterable<Uint8Array>`), а не
- * `Readable` из `node:stream`: пакет обязан типизироваться в проекте без
- * Node-типов. Node'овский `Readable` этому типу удовлетворяет, поэтому
- * транспорт кладёт в поле ровно то же значение, что и прежде.
+ * Поле `stream` объявлено как `AsyncIterable<Uint8Array>`, а не `Readable`
+ * из `node:stream`: пакет должен компилироваться без типов Node.
+ * `Readable` этому типу удовлетворяет.
  */
 export interface FilePart {
   /** Имя поля формы */
@@ -72,7 +68,7 @@ export type FilesOf<FS> = {
 /**
  * Выводит тип payload хендлера из формы `input`.
  *
- * Потоковая форма даёт стандартный `AsyncIterableIterator` — собственного
+ * Потоковая форма даёт стандартный `AsyncIterableIterator`; собственного
  * типа потока в публичном API нет.
  */
 export type InferInput<I> =
@@ -103,7 +99,7 @@ export type InferOutput<O> =
     : O extends 'text'
       ? string
       : // Потоковые формы: оба конца зафиксированы схемой (см.
-        // ValidateOutputForm), поэтому тип элемента — тип провода
+        // ValidateOutputForm), поэтому тип элемента — тип при сериализации
         O extends StreamForm<any, infer TItem, StreamKind>
         ? AsyncIterable<TItem>
         : // Multipart в выходе нелегален — значения у него нет
@@ -116,10 +112,10 @@ export type InferOutput<O> =
               InferSchemaType<O>;
 
 /**
- * Поля, которые может помечать bind-карта транспорта.
+ * Поля, которые можно пометить в `bind`.
  *
  * Для `multipart` это поля формы (`fields`), а не `{ fields, files }`:
- * path-параметры и помеченные query-поля подмешиваются именно к ним.
+ * path-параметры и query-поля добавляются именно к ним.
  */
 export type BindableFields<I> =
   I extends MultipartForm<infer F, any> ? Infer<F> : InferInput<I>;
@@ -138,8 +134,8 @@ type InferSchemaType<S> = S extends 'binary'
 /**
  * Тип элемента потоковой формы — им типизируются колбэки секции `sse`.
  *
- * Живёт рядом с формами, а не в транспорте: секция `sse` объявляется и в
- * HTTP-словаре декларации, и в секции `http:` контракта.
+ * Объявлен здесь, а не в транспорте: секция `sse` есть и в
+ * HTTP-декларации, и в секции `http` контракта.
  */
 export type InferStreamItem<O> =
   O extends StreamForm<any, infer TItem, any> ? TItem : never;

@@ -60,7 +60,7 @@ describe('httpEndpoint', () => {
     ).toThrow(/path parameter ':id' is declared twice/);
   });
 
-  it('разные path-параметры в одном шаблоне легальны', () => {
+  it('разные path-параметры в одном шаблоне допустимы', () => {
     const GetOrder = httpEndpoint({
       method: 'GET',
       path: '/users/:id/orders/:orderId',
@@ -130,7 +130,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
     });
   });
 
-  it('гашение зависимостей карту не теряет', () => {
+  it('резолв зависимостей карту не теряет', () => {
     class UserService {
       get(id: string) {
         return { id };
@@ -159,7 +159,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
         method: 'GET',
         path: '/api/users',
         input: z.object({ filter: z.string() }),
-        // По типам легально (место с методом не сверяется) — правило
+        // По типам допустимо (место с методом не сверяется) — правило
         // проверяется в рантайме, при создании значения
         bind: { filter: body() },
         handle,
@@ -273,7 +273,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
     expect(httpBindingOf(WithoutRawBody).rawBody).toBe(false);
   });
 
-  it('detached доезжает до значения декларации, пустая причина отвергается', () => {
+  it('detached передаётся в значение декларации, пустая причина отвергается', () => {
     const reason = 'liveness-проба балансировщика: до auth не доходит';
 
     const Health = httpEndpoint({
