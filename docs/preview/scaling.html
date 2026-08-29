@@ -74,59 +74,60 @@
 
 <p class="crumbs"><a href="index.html">Nestling</a> / Масштабирование</p>
 <h1>Масштабирование</h1>
-<p class="lead">Один бинарник, разные топологии. Как вырасти от одной фичи до модульного монолита, разнесённого по процессам — <strong>не переписывая бизнес-код</strong>.</p>
+<p class="lead">Один бинарник, разные топологии. Как вырасти от одной фичи до модульного монолита, разнесённого по процессам, <strong>не переписывая бизнес-код</strong>.</p>
 <h2 id="monolith">Модульный монолит</h2>
-<p>Гипотеза Nestling: перспективный способ структурировать проекты до ~1M строк — модульный монолит, который умеет запускать <strong>выбранное подмножество фич</strong>. Локально — все фичи в одном процессе (<code>--features=all</code>); в проде — тяжёлые фичи по отдельным подам.</p>
-<p>Два уже принятых свойства делают ~80% этой модели бесплатной:</p>
+<p>Nestling рассчитан на модульный монолит, который умеет запускать выбранное подмножество фич. Локально все фичи работают в одном процессе; в проде тяжёлые фичи выносятся в отдельные поды.</p>
+<p>Два свойства фреймворка дают большую часть этой модели сами по себе:</p>
 <ul class="body">
-<li><strong>модули — plain values</strong> ⇒ фича = значение, «выбрать подмножество» = отфильтровать массив в composition root;</li>
-<li><strong>жадный контейнер</strong> ⇒ «не выбрал фичу → её провайдеры не построились» получается само собой.</li>
+<li><strong>модули — значения</strong>, поэтому фича — тоже значение, а «выбрать подмножество» означает отфильтровать массив в composition root;</li>
+<li><strong>контейнер жадный</strong>, поэтому провайдеры невыбранной фичи не создаются.</li>
 </ul>
 <h3>Прогрессивное раскрытие</h3>
-<p>Главный принцип: <strong>приложение из одной фичи выглядит так, будто фич нет вообще</strong>. Машинерия фич, портов и шины опциональна и аддитивна — за неё не платишь, пока она не нужна. Composition root — это одна функция <code>assemble(...)</code> с опциональными полями:</p>
+<p>Приложение из одной фичи выглядит так, будто фич нет вообще. Механизм фич, портов и шины необязателен и добавляется поверх: за него не платят, пока он не нужен. Composition root — одна функция <code>assemble(...)</code> с необязательными полями:</p>
 <div class="code" data-file="assemble (сигнатура)" data-lang="typescript"><pre><code>assemble({
-  modules?,     // L0  базовые модули
+  modules?,     // L0  модули
   config?,      // L1  привязка источников конфига
-  features?,    // L2  бандлы модулей
+  features?,    // L2  наборы модулей
   select?,      // L2  какие фичи поднять: 'all' | 'orders,billing'
   transports?,  // L0+ транспорты как провайдеры
-  dispatch?,    // L4  'local-first' | 'always-remote' | 'balanced'
-}): App         // → app.run()</code></pre></div>
+  policies?,    // инварианты на собранном графе
+}): App         // app.run() · app.check() · app.close()</code></pre></div>
+<p>Политика диспатча портов задаётся не полем корня, а конфигом (<code>NESTLING_PORTS_DISPATCH</code>); шина подключается как транспорт (<code>nats()</code> в <code>transports:</code>).</p>
 <h2 id="levels">Прогрессия L0 → L4</h2>
-<p>Одна и та же система, раскрываемая слоями. Нижние уровни не меняются, когда подключаешь верхние.</p>
+<p>Одна и та же система раскрывается слоями. Нижние уровни не меняются, когда вы подключаете верхние.</p>
 <div class="tbl-wrap">
 <table>
 <thead>
 <tr>
 <th>Уровень</th>
-<th>Что добавляешь</th>
+<th>Что добавляется</th>
 <th>Чего ещё нет</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>L0</strong></td>
-<td>модули + транспорт</td>
-<td>features, select, конфиг-модуль, порты, шина</td>
+<td>модули и транспорт</td>
+<td>фичи, <code>select</code>, конфиг, порты, шина</td>
 </tr>
 <tr>
 <td><strong>L1</strong></td>
 <td>типизированный конфиг</td>
-<td>features, select, порты, шина</td>
+<td>фичи, <code>select</code>, порты, шина</td>
 </tr>
 <tr>
 <td><strong>L2</strong></td>
-<td><code>makeFeature</code> + <code>select</code></td>
-<td>порты, шина — всё co-located</td>
+<td><code>makeFeature</code> и <code>select</code></td>
+<td>порты, шина; всё в одном процессе</td>
 </tr>
 <tr>
 <td><strong>L3</strong></td>
-<td><code>makeContract</code> + порты (co-located)</td>
-<td>шина — dispatch внутри процесса</td>
+<td><code>makeContract</code> и порты в одном процессе</td>
+<td>шина; вызовы идут внутри процесса</td>
 </tr>
 <tr>
 <td><strong>L4</strong></td>
-<td>NATS + dispatch-policy</td>
+<td>NATS и политика диспатча</td>
 <td>— split-развёртывание</td>
 </tr>
 </tbody>
@@ -134,28 +135,28 @@
 </div>
 <div class="note good">
 <span class="note-t">Ключевое</span>
-<p><strong>Код фич и эндпоинтов между L3 и L4 не меняется.</strong> Разнесение по процессам — это разница в composition root и конфиге, а не в бизнес-коде. И L0 нигде не упоминает <code>feature</code>/<code>port</code>/<code>select</code>.</p>
+<p><strong>Код фич и endpoint'ов между L3 и L4 не меняется.</strong> Разнесение по процессам — это разница в composition root и конфиге, а не в бизнес-коде. L0 нигде не упоминает <code>feature</code>, <code>port</code> и <code>select</code>.</p>
 </div>
-<h3>L2 — фичи и select</h3>
-<p>Фича — это бандл модулей, тоже значение. Селектор отдаёт в контейнер модули выбранных фич:</p>
+<h3>L2 — фичи и <code>select</code></h3>
+<p>Фича — набор модулей, тоже значение. <code>select</code> определяет, модули каких фич попадут в контейнер:</p>
 <div class="code" data-file="main.ts" data-lang="typescript"><pre><code>export const OrdersFeature  = makeFeature({ name: 'orders',  modules: [OrdersModule] });
 export const BillingFeature = makeFeature({ name: 'billing', modules: [BillingModule] });
 
-const cfg = await load(RootConfig);       // примордиальное чтение select (фаза 0)
+const cfg = load(RootConfig);             // чтение select до сборки контейнера (фаза 0)
 await assemble({
   features: [OrdersFeature, BillingFeature],
-  select: cfg.FEATURES,                   // 'all' локально, 'orders' в отдельном поде
+  select: cfg.features,                   // 'all' локально, 'orders' в отдельном поде
   transports: [http({ port: 3000 })],
 }).run();</code></pre></div>
-<p>Не выбрал фичу → её провайдеры не построились (жадный контейнер), её эндпоинтов нет (дискавери идёт по дереву выбранных модулей, а не из глобального registry). Всё ещё один процесс, шина не нужна.</p>
+<p>Если фича не выбрана, её провайдеры не создаются, а её endpoint'ов нет: discovery обходит дерево выбранных модулей, а не глобальный реестр. Приложение по-прежнему живёт в одном процессе, шина не нужна.</p>
 <h2 id="ports">Порты и контракты</h2>
-<p>Как фичи общаются, определяет, будет ли монолит <strong>splittable</strong> — или превратится в distributed monolith. Nestling отвечает <strong>портами поверх контрактов</strong>. Один и тот же call-site A→B работает и co-located (через DI, синхронно), и split (по сети, async) — <strong>без переписывания A</strong>.</p>
-<h3>Как разрешается противоречие с «no magic»</h3>
-<p>Location transparency в лоб противоречит принципу «нет рантайм-магии». Разрешение: индиректность резолвится <strong>на сборке, а не на запросе</strong>. Порт биндится на локальный или удалённый клиент в composition root (по выбору фич и топологии). На запросе A зовёт конкретную константу — никакой рантайм-диспетчеризации.</p>
-<h3>Контракт — направление-нейтральное значение</h3>
+<p>От того, как фичи общаются, зависит, можно ли будет разнести монолит по процессам. Nestling отвечает на это портами поверх контрактов. Одна и та же точка вызова из фичи A в фичу B работает и в одном процессе, и через сеть, без переписывания A.</p>
+<h3>Как это сочетается с «no runtime magic»</h3>
+<p>Прозрачность расположения обычно требует рантайм-диспетчеризации. В Nestling выбор делается на сборке, а не на запросе: порт привязывается к локальной или удалённой реализации в composition root, по выбору фич и топологии. Во время запроса фича A вызывает конкретное значение; рантайм ничего не выбирает.</p>
+<h3>Контракт — значение, не зависящее от направления</h3>
 <div class="code" data-file="billing/contracts.ts" data-lang="typescript"><pre><code>export const ChargeCard = makeContract({
   name: 'billing.charge',
-  kind: 'request',                        // request-reply, Fail-able, 1 владелец
+  kind: 'request',                        // запрос-ответ, может вернуть Fail, один владелец
   input:  z.object({ orderId: z.string(), amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
 });</code></pre></div>
@@ -171,24 +172,24 @@ await assemble({
 <tbody>
 <tr>
 <td><code>request</code></td>
-<td>req-reply, Fail-able, 1 владелец</td>
-<td>честный запрос с ответом</td>
+<td>запрос-ответ, может вернуть <code>Fail</code>, ровно один владелец</td>
+<td>операция, которой нужен ответ</td>
 </tr>
 <tr>
 <td><code>command</code></td>
-<td>fire-and-forget, 1 обработчик, queue-group</td>
-<td>команда; N реплик делят нагрузку</td>
+<td>без ответа, ровно один обработчик, queue-group</td>
+<td>команда; реплики делят нагрузку</td>
 </tr>
 <tr>
 <td><code>event</code></td>
-<td>broadcast, 0..N подписчиков</td>
-<td>уведомление; событийный дефолт</td>
+<td>факт, 0..N подписчиков</td>
+<td>уведомление; выбор по умолчанию для связи фич</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3>Половина портов уже есть</h3>
-<p>Inbound («я обрабатываю контракт») — это <strong>буквально endpoint</strong> на messaging-транспорте. Outbound («я зову контракт») — единственное новое: типизированный клиент. Владелец реализует, потребитель инжектит <code>Contract.port</code>:</p>
+<p>Реализация контракта («я обрабатываю <code>billing.charge</code>») — это endpoint на транспорте-шине. Единственное новое — типизированный вызыватель. Владелец реализует контракт, потребитель инжектирует <code>Contract.port</code>:</p>
 <div class="code" data-lang="typescript"><pre><code>// billing РЕАЛИЗУЕТ контракт как endpoint
 export const ChargeCardImpl = implement(ChargeCard, {
   deps: [PaymentGateway],
@@ -196,7 +197,7 @@ export const ChargeCardImpl = implement(ChargeCard, {
     new Ok({ chargeId: await gw.charge(input, meta.signal) }),
 });
 
-// orders ПОТРЕБЛЯЕТ порт — не зная, локальный billing или за сетью
+// orders ВЫЗЫВАЕТ порт, не зная, где находится billing
 export const CreateOrder = httpEndpoint({
   method: 'POST',
   path: '/orders',
@@ -211,23 +212,23 @@ export const CreateOrder = httpEndpoint({
   },
 });</code></pre></div>
 <div class="note warn">
-<span class="note-t">Жёсткая дисциплина</span>
-<p>Чтобы монолит остался splittable, порты подчиняются трём правилам, даже co-located: порт <strong>никогда не транзакционен</strong> (общая транзакция сломается при split); локальный порт <strong>обязан уметь падать</strong> (<code>Ok|Fail</code>) — иначе потребители не обработают отказ, и split их убьёт; кросс-фичевая согласованность — это <strong>события + outbox/saga</strong>, а не общая транзакция. Тип call-site у co-located и split идентичен — потому что завтра это может стать сетью.</p>
+<span class="note-t">Правила для портов</span>
+<p>Чтобы монолит можно было разнести по процессам, порты подчиняются трём правилам даже в одном процессе. Порт не участвует в транзакции вызывающего: общая транзакция не переживёт split. Локальный порт возвращает <code>Ok | Fail</code>: иначе потребители не будут обрабатывать отказ, и после split они сломаются. Согласованность между фичами обеспечивают события и outbox/saga, а не общая транзакция. Тип точки вызова одинаков для локального и удалённого порта, потому что завтра вызов может уйти в сеть.</p>
 </div>
-<p>Границу порта переживают и отказ, и контекст. Remote-<code>Fail</code><strong>ре-гидрируется</strong> на клиентской стороне в настоящий <code>Fail</code> — идентичность доменной ошибки задаёт её <code>code</code>, поэтому <code>OrderNotFound.is(x)</code> работает одинаково для локального отказа и приехавшего по проводу. А <a href="fundamentals.html#context">context-vars</a> с <code>propagate: true</code> (traceId, requestId) едут в заголовках сообщения — транспорт на той стороне открывает scope заново.</p>
+<p>Через границу порта проходят и отказ, и контекст. Удалённый <code>Fail</code> восстанавливается на стороне вызывающего в настоящий <code>Fail</code>: идентичность доменной ошибки задаёт <code>code</code>, поэтому <code>OrderNotFound.is(x)</code> работает одинаково для локального отказа и для отказа, пришедшего по сети. <a href="fundamentals.html#context">Переменные контекста</a> с <code>propagate: true</code> (traceId, requestId) передаются в заголовках сообщения, и транспорт на другой стороне открывает контекст заново.</p>
 <h3>L4 — split без правки кода фич</h3>
-<p>Меняется <strong>только</strong> composition root и конфиг. Эндпоинты и сервисы — те же:</p>
+<p>Меняются только composition root и конфиг. Endpoint'ы и сервисы остаются теми же:</p>
 <div class="code" data-file="main.ts" data-lang="typescript"><pre><code>await assemble({
   features: [OrdersFeature, BillingFeature],
-  select: cfg.FEATURES,                   // 'orders' здесь, 'billing' в другом поде
-  transports: [http(), nats()],           // NATS — outbound-транспорт для портов
-  dispatch: 'local-first',                // co-located → in-proc, иначе → NATS
-}).run();</code></pre></div>
-<p><code>select='orders'</code> + billing не выбран → <code>ChargeCard.port</code> биндится на remote-клиент поверх NATS; billing в своём поде экспонирует <code>billing.charge</code> (queue-group для реплик). <code>select='all'</code> без NATS → всё co-located, порт локальный. <strong>Один бинарник, разные топологии — за счёт конфига.</strong></p>
+  select: cfg.features,                   // 'orders' здесь, 'billing' в другом поде
+  transports: [http(), nats()],           // NATS — шина приложения
+}).run();
+// политика диспатча — в конфиге: NESTLING_PORTS_DISPATCH=local-first | always-remote</code></pre></div>
+<p>При <code>select='orders'</code> фича billing не выбрана, и <code>ChargeCard.port</code> привязывается к удалённому вызову через NATS; billing в своём поде обслуживает <code>billing.charge</code> (реплики образуют queue-group). При <code>select='all'</code> без NATS всё работает в одном процессе, порт локальный. Один бинарник даёт разные топологии за счёт конфига.</p>
 <h2 id="transports">Транспорты</h2>
-<p>Транспорт — переводчик провода в абстрактную модель и обратно. Он строит <code>RequestContext</code> из байтов, вызывает пайплайн (не зная о его фазах) и сериализует <code>ResponseContext</code>. Всё, что про <em>байты</em> — парсинг, multipart, сжатие, CORS, таймауты — живёт здесь, а не в пайплайне.</p>
-<h3>Транспорты — это провайдеры</h3>
-<p>Транспорт — синглтон с зависимостями и lifecycle, поэтому он <strong>обычный провайдер</strong>, а не мешок <code>transports: Record</code> в конструкторе. Отсюда следует: «какие транспорты существуют» выводится из <code>select</code>, endpoint ссылается на транспорт токеном, а capability negotiation растворяется в DI + fail-fast (нет транспорта для endpoint'а → ошибка сборки).</p>
+<p>Транспорт переводит байты в абстрактную модель запроса и обратно. Он строит <code>RequestContext</code> из входящих данных, вызывает пайплайн (не зная о его фазах) и сериализует <code>ResponseContext</code>. Всё, что связано с байтами — разбор, multipart, сжатие, CORS, таймауты, — живёт здесь, а не в пайплайне.</p>
+<h3>Транспорты — провайдеры</h3>
+<p>Транспорт — синглтон с зависимостями и жизненным циклом, поэтому он объявляется как обычный провайдер, а не как отдельный список в конструкторе приложения. Отсюда следствия: набор транспортов приложения выводится из графа, endpoint ссылается на транспорт токеном, а проверка возможностей транспорта сводится к DI и проверке на сборке (нет транспорта для endpoint'а — ошибка сборки).</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -235,7 +236,7 @@ export const CreateOrder = httpEndpoint({
 <th>Транспорт</th>
 <th>Пакет</th>
 <th><code>pattern</code></th>
-<th>Способности</th>
+<th>Возможности</th>
 </tr>
 </thead>
 <tbody>
@@ -243,27 +244,27 @@ export const CreateOrder = httpEndpoint({
 <td>HTTP</td>
 <td><code>@nestling/transport.http</code></td>
 <td><code>'POST /orders'</code></td>
-<td>find-my-way routing, busboy multipart, NDJSON/SSE, лимит тела, graceful close</td>
+<td>маршрутизация find-my-way, multipart через busboy, NDJSON и SSE, лимит тела, корректное закрытие</td>
 </tr>
 <tr>
 <td>CLI</td>
 <td><code>@nestling/transport.cli</code></td>
 <td><code>'process'</code> (команда)</td>
-<td>single-shot и REPL, stdin как <code>stream</code></td>
+<td>одиночный запуск и REPL, stdin как <code>stream</code></td>
 </tr>
 <tr>
 <td>NATS</td>
 <td><code>@nestling/transport.nats</code></td>
 <td>subject контракта</td>
-<td>inbound + outbound, queue-groups, JetStream для durable</td>
+<td>входящие и исходящие вызовы, queue-group, JetStream для <code>durable</code></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Единый пайплайн обслуживает все транспорты — потому что он оперирует значениями, а не <code>IncomingMessage</code>/<code>ServerResponse</code>. Тот же endpoint, что отвечает на HTTP, может отвечать на команду CLI и на сообщение NATS. NATS при этом — не особая «messaging-подсистема», а транспорт с двумя способностями (inbound + outbound) в одном мешке; NATS-специфика (JetStream, wildcard, ack) не протекает в контрактный API — та же дисциплина границы, что и с RxJS.</p>
+<p>Один пайплайн обслуживает все транспорты, потому что работает со значениями, а не с <code>IncomingMessage</code> и <code>ServerResponse</code>. Endpoint, который отвечает на HTTP, может отвечать на команду CLI и на сообщение NATS. NATS при этом — транспорт с двумя возможностями (принимать и отправлять), а не отдельная подсистема обмена сообщениями. Специфика NATS (JetStream, wildcard, ack) в API контрактов не попадает.</p>
 <div class="note">
 <span class="note-t">Итог</span>
-<p>Endpoint провенанс-слеп и транспорт-слеп. Тот же бизнес-код работает локально или в split, с конфигом из env или Vault, на HTTP или на шине — без правок. Kernel поглощает окружение; user-space остаётся чистым. В этом вся ставка Nestling: структура NestJS без его рантайм-магии, с гарантиями вместо конвенций.</p>
+<p>Endpoint не знает ни источника конфига, ни транспорта. Один и тот же бизнес-код работает в одном процессе и в split, с конфигом из env или Vault, по HTTP или через шину — без правок. Ядро берёт на себя окружение; пользовательский код остаётся чистым. В этом суть Nestling: структура NestJS без его рантайм-магии, с гарантиями вместо конвенций.</p>
 </div>
 
   <nav class="pager">

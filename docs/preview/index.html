@@ -77,7 +77,7 @@
      пустых строк — они разорвут HTML-блок markdown. Текст правится по месту. -->
 <section class="hero">
 <h1>Nestling</h1>
-<p class="lead">TypeScript-фреймворк для бэкенда: меньше, современнее и архитектурно честнее, чем NestJS. Без рантайм-магии — <strong>гарантии вместо конвенций</strong>.</p>
+<p class="lead">TypeScript-фреймворк для бэкенда: меньше, современнее и архитектурно проще, чем NestJS. Без рантайм-магии — <strong>гарантии вместо конвенций</strong>.</p>
 <div class="hero-cta">
 <a class="btn primary" href="#first-steps">Первые шаги →</a>
 <a class="btn ghost" href="#vs-nest">Чем отличается от NestJS</a>
@@ -87,66 +87,66 @@
 </p>
 </section>
 <div class="grid">
-<div class="card"><span class="ic">🧩</span><h3>Модули — это значения</h3><p>Не классы с декораторами, а plain-объекты. Видимость — через ES-экспорты, а не рантайм-инкапсуляцию.</p>
+<div class="card"><span class="ic">🧩</span><h3>Модули — это значения</h3><p>Обычные объекты, а не классы с декораторами. Видимость задают ES-экспорты, а не рантайм-инкапсуляция.</p>
 </div>
-<div class="card"><span class="ic">📐</span><h3>Schema-first endpoints</h3><p>Контракт (вход/выход) объявлен схемой — Zod, Valibot или любой Standard Schema-валидатор. Валидация, типы и документация — из одного источника.</p>
+<div class="card"><span class="ic">📐</span><h3>Schema-first endpoints</h3><p>Вход и выход endpoint'а объявлены схемой: Zod, Valibot или любой другой валидатор Standard Schema. Валидация, типы и документация выводятся из одного источника.</p>
 </div>
-<div class="card"><span class="ic">🌊</span><h3>Pipeline вместо middleware</h3><p>Плоские фазы <code>pre / ok / catch / finally</code>. Никаких <code>next()</code>, «луковицы» и скрытого control flow.</p>
+<div class="card"><span class="ic">🌊</span><h3>Пайплайн вместо middleware</h3><p>Плоские фазы <code>pre / ok / catch / finally</code>. Без <code>next()</code>, вложенных обёрток и скрытого потока управления.</p>
 </div>
-<div class="card"><span class="ic">⚡</span><h3>Жадный контейнер</h3><p>Весь граф строится на старте. Циклы, недостающие зависимости и битый конфиг — ошибка запуска, а не 3 часа ночи.</p>
+<div class="card"><span class="ic">⚡</span><h3>Жадный контейнер</h3><p>Весь граф строится на старте. Циклы, недостающие зависимости и невалидный конфиг — ошибка запуска, а не инцидент в три часа ночи.</p>
 </div>
 </div>
 <h2 id="what">Что такое Nestling</h2>
-<p>Nestling — это backend-фреймворк на TypeScript для тех, кто привык к структуре и принципам NestJS, но устал за неё платить. Мы берём из Nest то, что команды реально используют, выбрасываем лишнее и добавляем много современных удобств.</p>
-<p>Одна из главных идей — <strong>no runtime magic</strong>. Всё, что Nest делает через скрытую рефлексию и отложенную сборку, мы делаем явно и на этапе сборки графа. Не потому что магия плоха и сама по себе, а потому что явный граф даёт то, чего у Nest нет: полная визуализация, топологический порядок init/destroy, проверка циклов и <strong>fail-fast на старте</strong> вместо падения в проде.</p>
+<p>Nestling — backend-фреймворк на TypeScript для тех, кто привык к структуре NestJS, но не хочет платить за неё сложностью. Он берёт из Nest то, чем команды действительно пользуются, убирает лишнее и добавляет современные возможности языка и платформы.</p>
+<p>Главная идея — <strong>no runtime magic</strong>. Всё, что Nest делает через скрытую рефлексию и отложенную сборку, Nestling делает явно и на этапе сборки графа. Явный граф даёт то, чего у Nest нет: полную визуализацию, топологический порядок инициализации и остановки, проверку циклов и падение на старте вместо падения в проде.</p>
 <div class="note">
 <span class="note-t">Почему «nestling»</span>
-<p>Nestling — птенец: младший, лёгкий родственник большого Nest. Пакеты публикуются под скоупом <code>@nestling/*</code>, а DI-ядро (<code>@nestling/container</code>) не тянет ни одной сторонней зависимости и работает даже в браузере.</p>
+<p>Nestling — птенец: младший, лёгкий родственник большого Nest. Пакеты публикуются под скоупом <code>@nestling/*</code>. DI-ядро (<code>@nestling/container</code>) не имеет сторонних зависимостей и работает даже в браузере.</p>
 </div>
 <h2 id="philosophy">Семь принципов</h2>
-<p>Всё в дизайне Nestling выводится из небольшого набора опорных принципов. Если решение им противоречит — оно отвергается, как бы удобно ни выглядело.</p>
+<p>Все решения в Nestling выводятся из небольшого набора принципов. Решение, которое им противоречит, отвергается, каким бы удобным оно ни казалось.</p>
 <div class="tbl-wrap">
 <table>
 <thead>
 <tr>
 <th>Принцип</th>
-<th>Что означает на практике</th>
+<th>Что это значит на практике</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>No runtime magic</strong></td>
-<td>Зависимости объявляются явным массивом токенов. Никакой скрытой рефлексии типов, никакой отложенной сборки - граф известен на <code>build()</code>.</td>
+<td>Зависимости объявляются явным массивом токенов. Скрытой рефлексии типов и отложенной сборки нет: граф известен на <code>build()</code>.</td>
 </tr>
 <tr>
 <td><strong>Guarantee over convention</strong></td>
-<td>Если что-то нельзя нарушить — это должно быть структурно невозможно, а не «мы договорились так не делать». Пример: ранний <code>listen()</code> в <code>@OnInit</code> невозможен, потому что <code>dispatch</code> физически ещё не существует.</td>
+<td>Если что-то нельзя нарушать, это должно быть невозможно структурно, а не по договорённости. Пример: ранний <code>listen()</code> в <code>@OnInit</code> невозможен, потому что <code>dispatch</code> в этот момент ещё не существует.</td>
 </tr>
 <tr>
 <td><strong>Explicit over implicit</strong></td>
-<td>Порядок раскрутки ресурсов, состав пайплайна, границы модулей — всё видно в коде. Ничего не «навешивается» глобально за твоей спиной.</td>
+<td>Порядок запуска ресурсов, состав пайплайна, границы модулей видны в коде. Ничто не подключается глобально за спиной автора.</td>
 </tr>
 <tr>
-<td><strong>Модули — plain values</strong></td>
-<td>Модуль = обычный объект. Значит, «параметризованный модуль» — просто функция; концепции <code>DynamicModule</code> / <code>forRoot</code> / <code>forRootAsync</code> не нужны вообще.</td>
+<td><strong>Модули — значения</strong></td>
+<td>Модуль равен обычному объекту. Поэтому параметризованный модуль — это просто функция; <code>DynamicModule</code>, <code>forRoot</code> и <code>forRootAsync</code> не нужны.</td>
 </tr>
 <tr>
 <td><strong>Жадный контейнер</strong></td>
-<td>Все провайдеры инстанцируются на старте. «Не выбрал фичу → её код не построился» получается само собой.</td>
+<td>Все провайдеры создаются на старте. Если фича не выбрана, её код не строится — это следствие, а не отдельный механизм.</td>
 </tr>
 <tr>
 <td><strong>Schema-first endpoints</strong></td>
-<td>Endpoint объявляет вход и выход схемой (любой Standard Schema-валидатор). Схема — единый источник для валидации, типов TS и OpenAPI/AsyncAPI.</td>
+<td>Endpoint объявляет вход и выход схемой любого валидатора Standard Schema. Схема — единый источник для валидации, типов TypeScript и OpenAPI/AsyncAPI.</td>
 </tr>
 <tr>
-<td><strong>Pipeline оперирует значениями</strong></td>
-<td>Pipeline знает только про абстрактную модель данных. Байты, сжатие, CORS, парсинг multipart — концерн транспорта, а не пайплайна.</td>
+<td><strong>Пайплайн работает со значениями</strong></td>
+<td>Пайплайн знает только абстрактную модель данных. Байты, сжатие, CORS и разбор multipart принадлежат транспорту, а не пайплайну.</td>
 </tr>
 </tbody>
 </table>
 </div>
-<h2 id="vs-nest">Что мы убрали из NestJS</h2>
-<p>Nestling позиционируется как «ещё более opinionated, чем Nest». Проще всего понять его через <em>вычитание</em>: список того, чего в нём осознанно нет, и что стоит на этом месте.</p>
+<h2 id="vs-nest">Что убрали из NestJS</h2>
+<p>Nestling ещё более opinionated, чем Nest. Проще всего понять его через список того, чего в нём осознанно нет, и того, что стоит на этом месте.</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -158,47 +158,47 @@
 </thead>
 <tbody>
 <tr>
-<td><code>forwardRef</code> / циклические зависимости</td>
+<td><code>forwardRef</code> и циклические зависимости</td>
 <td class="no">нет</td>
-<td>Циклов не должно существовать в принципе — они ловятся на <code>build()</code>.</td>
+<td>Цикл — ошибка сборки на <code>build()</code>.</td>
 </tr>
 <tr>
 <td><code>REQUEST</code> / <code>TRANSIENT</code> scope</td>
 <td class="no">нет</td>
-<td>Request-состояние живёт в типизированном контексте пайплайна, а не в контейнере. Для глубоких сервисов — <a href="fundamentals.html#context">read-only ALS-проекция</a> с инжектируемыми ридерами <code>Ctx(RequestId)</code>.</td>
+<td>Состояние запроса живёт в типизированном контексте пайплайна, а не в контейнере. Глубокие сервисы читают его через <a href="fundamentals.html#context">инжектируемые ридеры</a> <code>Ctx(RequestId)</code>.</td>
 </tr>
 <tr>
 <td>Модули-классы, <code>@Module</code>, хуки модуля</td>
 <td class="no">нет</td>
-<td>Модуль — plain object. Никакой путаницы «что раньше — <code>OnModuleInit</code> модуля или сервиса».</td>
+<td>Модуль — обычный объект. Вопроса «что раньше: <code>OnModuleInit</code> модуля или сервиса» не возникает.</td>
 </tr>
 <tr>
 <td><code>DynamicModule</code> / <code>forRoot</code></td>
 <td class="no">нет</td>
-<td>Модуль — значение ⇒ <code>LoggingModule({ level: 'debug' })</code> это просто функция.</td>
+<td>Модуль — значение, поэтому <code>LoggingModule({ level: 'debug' })</code> — обычная функция.</td>
 </tr>
 <tr>
 <td>Middleware</td>
 <td class="no">нет</td>
-<td>Слово выброшено: оно врёт (подразумевает wrapping и <code>next()</code>). Честный словарь — <code>.pre</code> / <code>.ok</code> / <code>.catch</code> / <code>.finally</code>.</td>
+<td>Слово подразумевает обёртки и <code>next()</code>, которых здесь нет. Вместо него фазы <code>.pre</code> / <code>.ok</code> / <code>.catch</code> / <code>.finally</code>.</td>
 </tr>
 <tr>
-<td>Interceptors (на RxJS)</td>
+<td>Interceptors на RxJS</td>
 <td class="no">нет</td>
-<td>Фазы пайплайна. RxJS не в ядре — он доступен внутри хендлера как обычная зависимость.</td>
+<td>Фазы пайплайна. RxJS не входит в ядро; внутри хендлера он доступен как обычная зависимость.</td>
 </tr>
 <tr>
-<td>Exception filters (подсистема)</td>
+<td>Exception filters как подсистема</td>
 <td class="no">нет</td>
-<td>Централизованный маппинг ошибок — это обычный <code>.catch</code>-юнит. Отдельной подсистемы нет.</td>
+<td>Централизованное преобразование ошибок — обычный <code>.catch</code>-юнит.</td>
 </tr>
 <tr>
-<td>Guards, Pipes как отдельные сущности</td>
+<td>Guards и Pipes как отдельные сущности</td>
 <td class="no">нет</td>
-<td>Всё это — <code>.pre</code>-юниты, монотонно наполняющие типизированный контекст.</td>
+<td>Это <code>.pre</code>-юниты, которые дополняют типизированный контекст.</td>
 </tr>
 <tr>
-<td>Экспериментальные декораторы TS + <code>reflect-metadata</code></td>
+<td>Экспериментальные декораторы TS и <code>reflect-metadata</code></td>
 <td class="no">нет</td>
 <td>Стандартные декораторы ECMAScript. Ноль зависимостей в ядре контейнера.</td>
 </tr>
@@ -207,10 +207,10 @@
 </div>
 <div class="note good">
 <span class="note-t">Что осталось</span>
-<p>Три знакомых типа провайдеров (value / class / factory), <code>@Injectable</code>, инъекционные токены, lifecycle-хуки <code>@OnInit</code>/<code>@OnDestroy</code> (в строгом топологическом порядке), модульная система — но проще и опциональная. Контейнер можно использовать standalone: во фронтенде, в CLI, рядом с Fastify.</p>
+<p>Три знакомых вида провайдеров (value, class, factory), <code>@Injectable</code>, инъекционные токены, хуки <code>@OnInit</code>/<code>@OnDestroy</code> в строгом топологическом порядке, модульная система — проще, чем в Nest, и необязательная. Контейнер можно использовать отдельно: во фронтенде, в CLI, рядом с Fastify.</p>
 </div>
 <h2 id="first-steps">Первые шаги</h2>
-<p>У Nestling два уровня входа. Начнём с минимального — <strong>без DI, классов и декораторов</strong>. Транспорт создаётся напрямую, endpoint — обычное значение через конструктор своего транспорта (<code>httpEndpoint</code>).</p>
+<p>У Nestling два уровня входа. Начните с минимального — <strong>без DI, классов и декораторов</strong>. Транспорт создаётся напрямую, endpoint — обычное значение, которое возвращает конструктор транспорта (<code>httpEndpoint</code>).</p>
 <div class="code" data-file="endpoints.ts" data-lang="typescript"><pre><code>import { makePipeline, validate } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -228,20 +228,22 @@ export const createUser = httpEndpoint({
   output: z.object({ id: z.string(), name: z.string() }),
   pipeline: makePipeline().pre(validate()),
   handle: async (input: CreateUser) =&gt; {
-    // input уже провалидирован и типизирован
+    // input уже проверен схемой и типизирован
     return { id: crypto.randomUUID(), name: input.name };
   },
 });</code></pre></div>
-<p>Запуск такого endpoint'а на HTTP-транспорте — три строки:</p>
-<div class="code" data-file="main.ts" data-lang="typescript"><pre><code>import { HttpTransport } from '@nestling/transport.http';
+<p>Чтобы обслуживать такой endpoint по HTTP, соберите таблицу маршрутов и передайте её транспорту:</p>
+<div class="code" data-file="main.ts" data-lang="typescript"><pre><code>import { makeDispatch } from '@nestling/transport';
+import { HttpTransport } from '@nestling/transport.http';
 import { createUser } from './endpoints';
 
 const server = new HttpTransport({ port: 3000 });
-server.route(createUser);
-await server.listen();</code></pre></div>
-<p>Обрати внимание: схема <code>input</code> плюс <code>.pre(validate())</code> дают <strong>типизированный</strong><code>input</code> в хендлере — не <code>any</code>, не ручной каст. Вернуть можно просто значение (обернётся в <code>Ok</code>) или явно <code>Ok.created(...)</code>; отказ объявляется <code>defineFail</code> и перечисляется в <code>errors:</code>. Та же операция на CLI объявляется <code>cliEndpoint({ command: 'create-user', ... })</code> — меняется только транспортный словарь, схемы, пайплайн и хендлер остаются теми же.</p>
+const shutdown = new AbortController();
+
+await server.serve(makeDispatch([createUser]), shutdown.signal);</code></pre></div>
+<p>Схема <code>input</code> вместе с <code>.pre(validate())</code> даёт хендлеру типизированный <code>input</code>: не <code>any</code> и не ручное приведение типа. Вернуть можно просто значение (оно оборачивается в <code>Ok</code>) или явно <code>Ok.created(...)</code>. Отказ объявляется через <code>defineFail</code> и перечисляется в <code>errors:</code>. Та же операция для CLI объявляется как <code>cliEndpoint({ command: 'create-user', ... })</code>: меняются только транспортные поля, а схемы, пайплайн и хендлер остаются теми же.</p>
 <h2 id="two-levels">Два уровня фреймворка</h2>
-<p>Минимальный уровень выше — это ещё «не фреймворк, а библиотека». Когда появляется потребность в DI, модулях, lifecycle-хуках и graceful shutdown, ты переходишь на полный уровень: <code>App</code> + модули. <strong>Декларация при этом не меняется вообще</strong> — к ней добавляется <code>deps</code> (или класс-хендлер), а гашение зависимостей берёт на себя App.</p>
+<p>Минимальный уровень выше — это ещё библиотека, а не фреймворк. Когда нужны DI, модули, хуки жизненного цикла и корректная остановка, вы переходите на полный уровень: <code>assemble</code> и модули. <strong>Декларация при этом не меняется</strong>: к ней добавляется <code>deps</code> (или класс-хендлер), а зависимости из контейнера получает <code>App</code>.</p>
 <div class="code" data-file="create-user.endpoint.ts" data-lang="typescript"><pre><code>import { httpEndpoint } from '@nestling/transport.http';
 import { Ok, type Output } from '@nestling/pipeline';
 import { basePipeline } from '../common/pipelines';
@@ -253,11 +255,11 @@ export const CreateUser = httpEndpoint({
   path: '/api/users',
   input: CreateUser,
   output: UserView,
-  errors: [EmailTaken],                      // множество отказов ручки
+  errors: [EmailTaken],                      // отказы, которые может вернуть endpoint
   pipeline: basePipeline,
   deps: [UserService],                       // явный массив токенов
   handle: (users) =&gt; async (input: CreateUser): Output&lt;UserView, EmailTaken&gt; =&gt; {
-    // внешний вызов — один раз на сборке, замыкание = инстанс
+    // внешняя функция вызывается один раз на сборке; замыкание — экземпляр
     if (await users.findByEmail(input.email)) {
       return EmailTaken({ email: input.email });   // 409 с кодом EMAIL_TAKEN
     }
@@ -265,10 +267,10 @@ export const CreateUser = httpEndpoint({
     return Ok.created(user, { Location: `/api/users/${user.id}` });
   },
 });</code></pre></div>
-<p>Двухуровневость — не случайность, а часть дизайна: она <strong>видна в системе типов</strong>. Standalone-транспорты принимают только «чистые» декларации без неразрешённых зависимостей; декларация с <code>deps</code>, класс-хендлером или классами-юнитами в пайплайне требует <code>App</code>, который гасит их из контейнера на старте. Компилятор не даст смешать миры молча.</p>
+<p>Разделение на два уровня видно в системе типов. Транспорт в standalone-режиме принимает только декларации без неразрешённых зависимостей. Декларация с <code>deps</code>, классом-хендлером или классами-юнитами в пайплайне требует <code>App</code>, который получает их из контейнера на старте. Компилятор не даст смешать два уровня незаметно.</p>
 <div class="note">
 <span class="note-t">Куда дальше</span>
-<p><a href="concepts.html#endpoints">Основные концепции</a> — endpoints, DI, модули, <code>Ok</code>/<code>Fail</code> и pipeline подробно. <a href="fundamentals.html#lifecycle">Основы</a> — контейнер, жизненный цикл, конфигурация, стриминг, схемы и OpenAPI, тестирование. <a href="scaling.html#monolith">Масштабирование</a> — модульный монолит, порты и разнесение по процессам без переписывания кода.</p>
+<p><a href="concepts.html#endpoints">Основные концепции</a> — endpoints, DI, модули, <code>Ok</code>/<code>Fail</code> и пайплайн подробно. <a href="fundamentals.html#lifecycle">Основы</a> — контейнер, жизненный цикл, конфигурация, стриминг, схемы и OpenAPI, тестирование. <a href="scaling.html#monolith">Масштабирование</a> — модульный монолит, порты и разнесение по процессам без переписывания кода.</p>
 </div>
 
   <nav class="pager">

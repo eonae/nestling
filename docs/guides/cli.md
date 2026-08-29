@@ -1,66 +1,88 @@
 # CLI-транспорт
 
-✅ **Статус: актуально** — сверено с кодом `examples.simple-cli` (2026-08-27).
-Канон деклараций — per-transport конструкторы (`cliEndpoint`), см.
-[design/endpoints.md](../design/endpoints.md).
-Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-cli` (2026-08-29).
+> Канон деклараций — [design/endpoints.md](../design/endpoints.md).
+> Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).
 
-Те же декларации и pipeline, что и в HTTP, — но команды вместо маршрутов.
-Транспортный словарь CLI — одно поле `command`, оно же становится `pattern`
-ручки; пустое имя команды — ошибка в момент создания декларации.
-zod в примерах — **один из вариантов**:
-ядро принимает любую [Standard Schema](https://standardschema.dev) (valibot,
-arktype, TypeBox, Effect Schema …) и валидатором не зависит.
+CLI-транспорт выполняет те же декларации и тот же пайплайн, что и HTTP,
+но вместо маршрутов у него команды. Декларация создаётся конструктором
+`cliEndpoint`; единственное транспортное поле — `command`, оно же
+становится паттерном endpoint'а. Пустое имя команды — ошибка при создании
+декларации.
 
-## Endpoint-команда
+zod в примерах — один из вариантов: ядро принимает любую
+[Standard Schema](https://standardschema.dev) (valibot, arktype, TypeBox,
+Effect Schema …) и от библиотеки схем не зависит.
+
+## Команда
 
 ```typescript
+// packages/examples.simple-cli/src/endpoints/process-stdin.endpoint.ts
+import { EmptyStdin } from '../errors';
+
 import { makePipeline, stream } from '@nestling/pipeline';
 import { cliEndpoint } from '@nestling/transport.cli';
 import { z } from 'zod';
 
+const ProcessStdinResponse = z.object({
+  linesProcessed: z.number(),
+  totalBytes: z.number(),
+});
+
 export const ProcessStdin = cliEndpoint({
   command: 'process-stdin',
   input: stream('binary'),          // stdin как поток Buffer'ов
-  output: z.object({ linesProcessed: z.number(), totalBytes: z.number() }),
+  output: ProcessStdinResponse,
+  errors: [EmptyStdin],
   pipeline: makePipeline(),
-  handle: async (chunks: AsyncIterableIterator<Buffer>) => {
+  handle: async (payload: AsyncIterableIterator<Buffer>) => {
     let linesProcessed = 0;
     let totalBytes = 0;
-    for await (const chunk of chunks) {
+
+    for await (const chunk of payload) {
       totalBytes += chunk.length;
-      linesProcessed += chunk.toString().split('\n').filter((l) => l.trim()).length;
+      linesProcessed += chunk.toString().split('\n').filter((line) => line.trim()).length;
     }
+
+    if (totalBytes === 0) {
+      return EmptyStdin();
+    }
+
     return { linesProcessed, totalBytes };
   },
 });
 ```
 
-## Формы io: что CLI умеет
+Команда объявляется так же, как HTTP-endpoint: схемы `input` и `output`,
+список `errors`, пайплайн и хендлер. Хендлер получает проверенный вход и
+возвращает значение или отказ.
 
-Формы одни на все транспорты, но каждый транспорт объявляет, какие из них
-умеет нести:
+## Формы io
 
-| Слот | CLI умеет |
+Формы входа и выхода общие для всех транспортов, но каждый транспорт
+объявляет, какие из них поддерживает:
+
+| Слот | CLI поддерживает |
 |---|---|
-| `input` | значение (из `args`/`options`), `stream(T)`, `stream('binary')` |
+| `input` | значение (из `args` и `options`), `stream(T)`, `stream('binary')` |
 | `output` | значение, `stream(T)` |
 
-`events` и `multipart` CLI **не** умеет: у команды нет открытого
-соединения, дисконнект которого был бы нормальным завершением, а файлы
-приходят путями в аргументах. Декларация с такой формой отвергается **при
-регистрации**, до выполнения хоть одной команды:
+`events` и `multipart` CLI не поддерживает: у команды нет открытого
+соединения, а файлы передаются путями в аргументах. Декларацию с такой
+формой транспорт отклоняет при регистрации, до выполнения первой команды:
 
 ```
 Endpoint 'watch': transport 'cli' does not support form 'events'
 in 'output' (supported: value, stream).
 ```
 
-- `stream('binary')` — чанки stdin как есть: примитивный лист описывает
-  байты, валидировать нечего;
-- `stream(T)` со схемой — stdin читается как NDJSON, и ядро валидирует
-  каждую строку схемой-листом, применяет item-цепочку и считает
-  `ctx.summary.itemsIn`:
+Как читается вход:
+
+- значение — из аргументов и опций команды как объект `{ args, ...options }`;
+  дальше его проверяет схема `input`;
+- `stream('binary')` — фрагменты stdin как есть, без валидации;
+- `stream(T)` со схемой — stdin читается как NDJSON. Ядро проверяет каждую
+  строку схемой `T`, применяет item-цепочку и считает `ctx.summary.itemsIn`:
 
   ```typescript
   export const Import = cliEndpoint({
@@ -72,86 +94,93 @@ in 'output' (supported: value, stream).
   });
   ```
 
-- `stream(T)` на выходе — NDJSON в stdout по мере того, как хендлер
-  отдаёт элементы; `.finally` сработает после последнего.
+`stream(T)` на выходе печатает NDJSON в stdout по мере того, как хендлер
+отдаёт элементы. `.finally` выполняется после последнего элемента.
 
-## Транспорт: два режима
+## Транспорт и два режима
 
 ```typescript
+// packages/examples.simple-cli/src/main.ts
+import { Help, ProcessStdin } from './endpoints';
+
 import { makeDispatch } from '@nestling/transport';
 import { CliTransport } from '@nestling/transport.cli';
-import { Help, ProcessStdin } from './endpoints';
 
 const argv = process.argv.slice(2);
 
-// Что значит «выйти в эфир» для командной строки, решает режим
 const cli = new CliTransport({
   mode: argv.length > 0 ? 'argv' : 'repl',
   argv,
 });
 
-// Маршруты приезжают одним объектом; исполнение ручки — в ядре
+const dispatch = makeDispatch([Help, ProcessStdin]);
 const shutdown = new AbortController();
-await cli.serve(makeDispatch([Help, ProcessStdin]), shutdown.signal);
+
+await cli.serve(dispatch, shutdown.signal);
+await cli.close();
 ```
 
-- **`mode: 'argv'`** (по умолчанию) — single-shot: транспорт разбирает
-  аргументы, выполняет одну команду и возвращается из `serve`;
-- **`mode: 'repl'`** — интерактивный цикл до `exit`/`quit`/EOF.
+`makeDispatch` собирает из деклараций таблицу команд.
+`serve(dispatch, signal)` запускает транспорт; `signal` отменяет
+выполняющиеся команды. Режим работы задаёт опция `mode`:
 
-Обе ветки исполняют ручку через `dispatch.call`. Встроенный разбор
-аргументов (`parseArgv`, он же экспортируется пакетом): `--key value` →
-options, `--flag` → `true`, остальное → args; `-x`-сокращения,
-`--key=value` и кавычки не поддерживаются.
+- `'argv'` (по умолчанию) — транспорт разбирает аргументы, выполняет одну
+  команду и возвращается из `serve`. С пустым `argv` он не выполняет
+  ничего.
+- `'repl'` — транспорт читает команды из stdin до `exit`, `quit` или конца
+  ввода.
 
-Отдельную команду можно выполнить и руками — `execute({ command, args,
-options })` после `serve`: это тот же single-shot, но `CliInput` строит
-корень (или тест).
+В обоих режимах команда выполняется через `dispatch.call`. Аргументы
+разбирает `parseArgv` (пакет его экспортирует): `--key value` становится
+опцией, `--flag` без значения — опцией со значением `true`, остальное —
+позиционными аргументами. Короткие ключи `-x`, форма `--key=value` и
+кавычки не поддерживаются.
 
-Ненулевой exit-код: транспорт выставляет `process.exitCode = 1` при
-ошибочном статусе команды в обоих режимах go-live; вызвав `execute()`
-напрямую, код выхода выставляет приложение по результату.
+Одну команду можно выполнить и напрямую: `execute({ command, args, options })`
+после `serve`. Так корень приложения или тест передают уже разобранный
+ввод.
+
+Если команда завершилась ошибкой, транспорт выставляет
+`process.exitCode = 1` в обоих режимах. При вызове `execute()` код выхода
+выставляет ваш код по результату.
+
+Под `assemble` транспорт регистрируется провайдером `cli()`:
+
+```typescript
+await assemble({ modules: [ToolsModule], transports: [cli()] }).run();
+```
 
 ## Отказы
 
-Модель ошибок одна на все транспорты ([design/errors.md](../design/errors.md)):
-отказ объявляется `defineFail`, перечисляется в `errors:` декларации и
-отдаётся возвратом либо броском. Статус CLI печатает как есть — маппинга на
-провод, в отличие от HTTP, ему не нужно:
-
 ```typescript
+// packages/examples.simple-cli/src/errors.ts
+import { defineFail } from '@nestling/pipeline';
+
 export const EmptyStdin = defineFail('EMPTY_STDIN', {
   status: 'BAD_REQUEST',
   message: 'No data received on stdin',
 });
-
-export const ProcessStdin = cliEndpoint({
-  command: 'process-stdin',
-  input: stream('binary'),
-  output: ProcessStdinResponse,
-  errors: [EmptyStdin],       // без объявления граница отдаст UNKNOWN/500
-  pipeline: makePipeline(),
-  handle: async (payload) => (await isEmpty(payload) ? EmptyStdin() : summarize(payload)),
-});
 ```
+
+Модель ошибок общая для всех транспортов
+([design/errors.md](../design/errors.md)): отказ объявляется через
+`defineFail`, перечисляется в `errors:` декларации и возвращается или
+бросается из хендлера. Отказ, не указанный в `errors:`, заменяется на
+`UnknownError` на выходе из пайплайна. CLI печатает статус как есть;
+переводить его в код, как это делает HTTP, не нужно:
 
 ```
 $ printf '' | node dist/main.js process-stdin
 BAD_REQUEST: {"error":"No data received on stdin","code":"EMPTY_STDIN"}
 ```
 
-Оригинал отказа, снятого стражем границы, уходит в
-`new CliTransport(pipeline, { onUnknownFail })`; без хука — в
+Исходный отказ, который был заменён на `UnknownError`, передаётся в хук
+`new CliTransport({ onUnknownFail })`. Без хука он печатается в
 `console.error`.
 
-## Ограничения (текущие)
+## Ограничения
 
-- `input: 'primitive'` (не-stream примитивы) в CLI не поддержан — регистрация
-  пройдёт молча, ошибка «Primitive input type … is not supported» бросится
-  при выполнении команды.
-- `makeDispatch()` для CLI, как и для HTTP, принимает только deps-free
-  декларацию: ручку с `deps` или класс-хендлером сначала гасят
-  (`endpoint.resolve(...)`) — либо объявляют в модуле и поднимают под `App`.
-
-> Целевой дизайн: единая модель endpoint'ов для всех транспортов сохранится;
-> см. [decisions/ideas.md](../decisions/ideas.md).
+`makeDispatch()` принимает только декларации без зависимостей. Декларацию
+с `deps` или классом-хендлером сначала нужно связать с контейнером через
+`endpoint.resolve(...)`, либо объявить её в модуле и запустить под
+`assemble`: там это делает фаза WIRE.

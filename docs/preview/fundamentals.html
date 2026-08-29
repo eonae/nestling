@@ -73,19 +73,19 @@
 
 <p class="crumbs"><a href="index.html">Nestling</a> / Основы</p>
 <h1>Основы</h1>
-<p class="lead">Как всё собирается и живёт: контейнер, фазы жизненного цикла, конфигурация без <code>process.env</code> в коде, стриминг и тестирование без моков-магии.</p>
+<p class="lead">Как приложение собирается и живёт: контейнер, фазы жизненного цикла, конфигурация без <code>process.env</code> в коде, стриминг и тестирование без магии моков.</p>
 <h2 id="container">Контейнер</h2>
-<p><code>@nestling/container</code> — фундамент фреймворка: типобезопасный DI без единой сторонней зависимости, на стандартных декораторах ECMAScript. Его можно использовать и отдельно — во фронтенде, в CLI, рядом с любым фреймворком.</p>
+<p><code>@nestling/container</code> — основа фреймворка: типобезопасный DI без сторонних зависимостей на стандартных декораторах ECMAScript. Его можно использовать отдельно: во фронтенде, в CLI, рядом с любым фреймворком.</p>
 <h3>Жадный, а не ленивый</h3>
-<p>Контейнер <strong>жадный</strong>: на <code>build()</code> он инстанцирует весь граф разом. Это не деталь реализации, а источник почти всех гарантий Nestling:</p>
+<p>Контейнер жадный: на <code>build()</code> он создаёт весь граф сразу. Из этого следует большинство гарантий Nestling:</p>
 <ul class="body">
-<li><strong>Циклы</strong> обнаруживаются при топосортировке — падение на старте, не в проде.</li>
-<li><strong>Недостающая зависимость</strong> = ошибка <code>build()</code> с именем токена.</li>
-<li><strong>Полный граф</strong> ⇒ визуализация, топологический init/destroy и explain работают всегда.</li>
-<li><strong>«Не выбрал фичу → её код не построился»</strong> получается само собой (см. <a href="scaling.html#monolith">монолит</a>).</li>
+<li><strong>Циклы</strong> обнаруживаются при вычислении топологического порядка: приложение падает на старте, а не в проде.</li>
+<li><strong>Недостающая зависимость</strong> — ошибка <code>build()</code> с именем токена.</li>
+<li><strong>Полный граф</strong> означает, что визуализация, топологический порядок init/destroy и <code>explain()</code> работают всегда.</li>
+<li><strong>Невыбранная фича не строится</strong>: её провайдеры не попадают в граф (см. <a href="scaling.html#monolith">монолит</a>).</li>
 </ul>
-<h3>Lifecycle-хуки в топологическом порядке</h3>
-<p>Провайдер может реализовать <code>@OnInit</code> (захват ресурса: пул БД, connect) и <code>@OnDestroy</code> (освобождение). В отличие от Nest, они исполняются в <strong>строгом топологическом порядке</strong>: <code>init</code> — от листьев к корню, <code>destroy</code> — строго в реверсе. Никакой неопределённости «что раньше — хук модуля или сервиса».</p>
+<h3>Хуки жизненного цикла в топологическом порядке</h3>
+<p>Провайдер может объявить <code>@OnInit</code> (захват ресурса: пул БД, соединение) и <code>@OnDestroy</code> (освобождение). Они выполняются в строгом топологическом порядке: <code>init</code> — от зависимостей к зависимым, <code>destroy</code> — в обратном порядке. Вопроса «что раньше: хук модуля или сервиса» не возникает, потому что хуков у модулей нет.</p>
 <div class="code" data-file="db.service.ts" data-lang="typescript"><pre><code>@Injectable([DbConfig])
 export class Database {
   #pool!: Pool;
@@ -96,17 +96,17 @@ export class Database {
 }</code></pre></div>
 <div class="note">
 <span class="note-t">Стандартные декораторы</span>
-<p>Nestling использует декораторы из спецификации ECMAScript, а не экспериментальные декораторы TypeScript с <code>reflect-metadata</code>. Параметр-декораторов в стандарте пока нет — поэтому зависимости объявляются массивом в <code>@Injectable([...])</code>, а не через параметры. Это цена, которая заодно делает граф явным.</p>
+<p>Nestling использует декораторы из спецификации ECMAScript, а не экспериментальные декораторы TypeScript с <code>reflect-metadata</code>. Декораторов параметров в стандарте пока нет, поэтому зависимости объявляются массивом в <code>@Injectable([...])</code>. Это цена стандарта, и она же делает граф явным.</p>
 </div>
 <h2 id="multi">Multi-injection</h2>
-<p>Частый паттерн: разные модули независимо <strong>контрибьютят</strong> реализации одного контракта — health checks, миграции, валидаторы, обработчики событий — а один потребитель хочет получить <strong>весь набор массивом</strong>, не зная состава. В Angular это <code>multi: true</code> (несколько провайдеров делят токен), в Nest — вообще ручная сборка.</p>
-<p>В Nestling это ещё одно применение token families — и без потери «один токен — один узел». Каждый вклад — <strong>обычный провайдер</strong> с членским токеном семейства; агрегат — сентинел <code>Family.all</code>, который на <code>build()</code> резолвится в массив всех зарегистрированных членов:</p>
+<p>Частая задача: разные модули независимо добавляют реализации одного контракта (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это <code>multi: true</code>, в Nest такой набор собирают вручную.</p>
+<p>В Nestling это ещё одно применение семейств токенов, и правило «один токен — один узел» сохраняется. Каждый вклад — обычный провайдер с членским токеном семейства. Агрегат — специальный токен <code>Family.all</code>, который на <code>build()</code> превращается в массив всех зарегистрированных членов:</p>
 <div class="code" data-file="health/contract.ts" data-lang="typescript"><pre><code>export const IHealthCheck = makeTokenFamily&lt;HealthCheck, [name: string]&gt;('HealthCheck');</code></pre></div>
 <div class="code" data-file="db.module.ts / redis.module.ts — вклады из разных модулей" data-lang="typescript"><pre><code>// каждый модуль регистрирует свой вклад как ОБЫЧНЫЙ провайдер
 export const DbModule = makeAppModule({
   name: 'module:db',
   providers: [classProvider(IHealthCheck('db'), DbHealthCheck)],
-  exports: [IHealthCheck],   // явный контракт: «я контрибьючу в семейство»
+  exports: [IHealthCheck],   // явное объявление: «я добавляю член семейства»
 });</code></pre></div>
 <div class="code" data-file="health.endpoint.ts — агрегатор" data-lang="typescript"><pre><code>@Injectable([IHealthCheck.all])   // TokenString&lt;HealthCheck[]&gt;
 export class HealthEndpoint {
@@ -117,33 +117,33 @@ export class HealthEndpoint {
     return new Ok({ ok: results.every(r =&gt; r.ok), results });
   }
 }</code></pre></div>
-<h3>Никакого registry, никакой рантайм-резолюции</h3>
-<p>Состав массива определяет <strong>регистрация в контейнере</strong>, а не побочные эффекты импортов. На <code>build()</code> билдер спрашивает у реестра семейства, какие из зарегистрированных провайдеров — его члены, и создаёт <strong>синтетический узел-агрегат</strong> с рёбрами на каждого. Дальше это обычный узел полного графа: циклы обнаруживаются, <code>init</code>/<code>destroy</code> идут топологически (все вклады инициализированы <em>до</em> агрегатора), визуализация видит всё.</p>
+<h3>Без реестра и без рантайм-резолюции</h3>
+<p>Состав массива определяет регистрация в контейнере, а не побочные эффекты импортов. На <code>build()</code> контейнер спрашивает у семейства, какие из зарегистрированных провайдеров являются его членами, и создаёт узел-агрегат с рёбрами к каждому из них. Дальше это обычный узел графа: циклы обнаруживаются, <code>init</code> и <code>destroy</code> идут топологически (все вклады инициализированы до агрегатора), визуализация видит всё.</p>
 <div class="note good">
-<span class="note-t">Бесплатная синергия с фичами</span>
-<p>Раз состав массива = что зарегистрировано, то <a href="scaling.html#monolith">выбор фич</a> фильтрует его автоматически: не выбрал фичу → её health-check'ов нет в массиве. Тем же механизмом, что «не выбрал фичу → её провайдеры не построились». Side-effect-реестры (глобальный <code>Set</code>, наполняемый при импорте) именно на этом и ломаются — Nestling их не использует нигде.</p>
+<span class="note-t">Согласованность с фичами</span>
+<p>Состав массива равен тому, что зарегистрировано. Поэтому <a href="scaling.html#monolith">выбор фич</a> фильтрует его автоматически: если фича не выбрана, её health-checks в массив не попадают. Реестры на побочных эффектах (глобальный <code>Set</code>, который наполняется при импорте) так работать не могут, и Nestling их не использует.</p>
 </div>
 <div class="note">
 <span class="note-t">Почему не <code>multi: true</code></span>
-<p>У каждого вклада — <strong>свой</strong> токен (<code>IHealthCheck('db')</code>), поэтому он остаётся индивидуально адресуемым: его можно заинжектить точечно, увидеть в графе, атрибутировать модулю. <code>multi: true</code> сваливает всех в один токен и всё это теряет. Агрегат — производное ребро графа, а не особый вид провайдера.</p>
+<p>У каждого вклада свой токен (<code>IHealthCheck('db')</code>), поэтому он остаётся адресуемым по отдельности: его можно инжектировать точечно, увидеть в графе, отнести к модулю. <code>multi: true</code> складывает всех в один токен и теряет это. Агрегат — производное ребро графа, а не особый вид провайдера.</p>
 </div>
 <h2 id="lifecycle">Жизненный цикл</h2>
-<p><code>App</code> проводит приложение через семь фаз. Порядок этих фаз — не оформление, а несущая конструкция: именно он делает ряд ошибок <em>структурно невозможными</em>.</p>
-<div class="code" data-lang="text"><pre><code>0  BOOTSTRAP   load + validate config · select        → FAIL-FAST
-1  ASSEMBLE    build граф · discover · bind ports      → FAIL-FAST
+<p><code>App</code> проводит приложение через семь фаз. Порядок фаз — не оформление: именно он делает ряд ошибок невозможными структурно.</p>
+<div class="code" data-lang="text"><pre><code>0  BOOTSTRAP   чтение и проверка конфига · select        → падение на старте
+1  ASSEMBLE    построение графа · discovery · привязка портов → падение на старте
 2  INIT        @OnInit: захват ресурсов · connect       (dispatch НЕ существует)
-3  WIRE        регистрация эндпоинтов                    (dispatch РОЖДАЕТСЯ здесь)
-4  START       @OnStart: serve(dispatch, signal)         — НЕ listen()
-5  RUN         обработка запросов · live config-refs
-6  SHUTDOWN    реверс START · abort in-flight · @OnDestroy</code></pre></div>
+3  WIRE        регистрация endpoint'ов                   (dispatch СОЗДАЁТСЯ здесь)
+4  START       @OnStart: serve(dispatch, signal)         — не listen()
+5  RUN         обработка запросов · reloadable-конфиг
+6  SHUTDOWN    обратный порядок START · отмена запросов · @OnDestroy</code></pre></div>
 <h3>Гарантия, а не конвенция</h3>
-<p>Классическая ошибка: транспорт начинает слушать сокет в <code>@OnInit</code>, когда роутинг ещё не готов — и первые запросы летят в пустоту. Nest полагается на конвенцию «не делайте так». Nestling делает это <strong>невозможным</strong>:</p>
+<p>Классическая ошибка: транспорт начинает слушать сокет в <code>@OnInit</code>, когда маршрутизация ещё не готова, и первые запросы уходят в никуда. Nest полагается на договорённость «не делайте так». Nestling делает это невозможным:</p>
 <ul class="body">
-<li>у транспорта <strong>нет</strong> nullary-метода <code>listen()</code>;</li>
-<li>уйти в эфир можно только приняв готовый <code>dispatch</code>: <code>serve(dispatch, signal)</code>;</li>
-<li>а <code>dispatch</code> — фазовый ресурс, он <strong>рождается в WIRE</strong>, между INIT и START.</li>
+<li>у транспорта нет метода <code>listen()</code> без аргументов;</li>
+<li>принимать запросы можно только с готовой таблицей маршрутов: <code>serve(dispatch, signal)</code>;</li>
+<li><code>dispatch</code> создаётся на фазе WIRE, между INIT и START.</li>
 </ul>
-<p>Раннему <code>listen</code> просто нечего маршрутизировать — <code>dispatch</code>'а ещё не существует. Порядок 2→3→4 несущий: слить WIRE в ASSEMBLE нельзя, иначе <code>dispatch</code> станет доступен слишком рано и гарантия сломается. Это и есть «guarantee over convention» в чистом виде.</p>
+<p>Транспорту, который попытался бы принимать запросы раньше, нечего было бы маршрутизировать: <code>dispatch</code> ещё не существует. Порядок 2→3→4 обязателен: если объединить WIRE с ASSEMBLE, <code>dispatch</code> станет доступен слишком рано, и гарантия перестанет действовать.</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -155,28 +155,28 @@ export class HealthEndpoint {
 <tbody>
 <tr>
 <td><code>@OnInit</code></td>
-<td>Захватить ресурс: подключиться к БД/NATS. Транспорт подключён, но <em>не в эфире</em>.</td>
+<td>Захватить ресурс: подключиться к БД или NATS. Транспорт подключён, но запросы не принимает.</td>
 </tr>
 <tr>
 <td><code>@OnStart</code></td>
-<td>Go-live: начать обслуживать (<code>serve</code>). Только здесь, только с готовым <code>dispatch</code>.</td>
+<td>Начать обслуживать запросы (<code>serve</code>). Только здесь и только с готовым <code>dispatch</code>.</td>
 </tr>
 <tr>
 <td><code>@OnDestroy</code></td>
-<td>Освободить ресурс. Исполняется строго в реверсе топосорта.</td>
+<td>Освободить ресурс. Выполняется в обратном топологическом порядке.</td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>При <code>SIGTERM</code>/<code>SIGINT</code> shutdown идёт в обратном порядке: остановить приём → прервать in-flight через <code>meta.signal</code> → закрыть ресурсы. Graceful shutdown встроен, не прикручен сбоку.</p>
+<p>При <code>SIGTERM</code> и <code>SIGINT</code> остановка идёт в обратном порядке: остановить приём запросов, отменить текущие через <code>meta.signal</code>, закрыть ресурсы. Корректная остановка встроена в жизненный цикл.</p>
 <h2 id="config">Конфигурация</h2>
-<p>Конфиг в Nestling — не отдельная подсистема и не «стадия конфигурации». Это <strong>частный случай зависимости</strong>. Секция объявляется схемой, инжектится как типизированный срез, и валидируется жадно на старте: <strong>невалидный конфиг = FAIL-FAST</strong>.</p>
+<p>Конфиг в Nestling — не отдельная подсистема и не «стадия конфигурации», а частный случай зависимости. Секция объявляется схемой, инжектируется как типизированный объект и проверяется на старте: невалидный конфиг роняет приложение до захвата ресурсов.</p>
 <div class="code" data-file="orders.config.ts" data-lang="typescript"><pre><code>export const OrdersConfig = makeConfig('orders', {
-  maxItems:    z.coerce.number().default(100),   // ← ключ ORDERS_MAX_ITEMS
+  maxItems:    z.coerce.number().default(100),   // ключ ORDERS_MAX_ITEMS
   databaseUrl: from('DATABASE_URL', z.url()),    // точное имя ключа, без префикса
 });
 
-// наружу из пакета — только хэндл ключей; сам токен не реэкспортируется
+// наружу из пакета — только описание ключей; сам токен не экспортируется
 export const ordersKeys = OrdersConfig.keys;</code></pre></div>
 <div class="code" data-file="orders.service.ts" data-lang="typescript"><pre><code>@Injectable([OrdersConfig])
 export class OrdersService {
@@ -188,12 +188,12 @@ export class OrdersService {
   }
 }</code></pre></div>
 <h3>Секция не знает, откуда пришло значение</h3>
-<p>Ключевая идея — <strong>source-agnostic</strong>. Секция называет <em>ключ</em> (<code>maxItems</code> → <code>ORDERS_MAX_ITEMS</code>), но не <em>источник</em>. Откуда взялось значение — из env, файла или Vault — это концерн ядра (kernel), а не пользовательского кода. Секция читает ключ так же слепо, как процесс читает файловый дескриптор.</p>
-<p>Единственный контакт с <code>process.env</code> — внутри ядра. Пользовательский код его не трогает вообще. Привязка источников — <strong>прогрессивная</strong>: если у тебя только <code>.env</code>, в composition root про конфиг не написано ничего. Появился второй источник — привязываешь его плоским списком:</p>
-<div class="code" data-file="main.ts" data-lang="typescript"><pre><code>// только env → ничего писать не нужно
+<p>Секция называет ключ (<code>maxItems</code> превращается в <code>ORDERS_MAX_ITEMS</code>), но не источник. Откуда взялось значение — из env, файла или Vault — решает ядро, а не пользовательский код.</p>
+<p><code>process.env</code> читает только ядро. Привязка источников добавляется постепенно: если приложению хватает env, в composition root про конфиг не написано ничего. Второй источник привязывается плоским списком:</p>
+<div class="code" data-file="main.ts" data-lang="typescript"><pre><code>// только env — писать ничего не нужно
 await assemble({ modules: [OrdersModule], transports: [http()] }).run();
 
-// добавили Vault и файл → привязка в корне, порядок = приоритет
+// добавили Vault и файл — привязка в корне, порядок задаёт приоритет
 await assemble({
   modules: [OrdersModule],
   transports: [http()],
@@ -203,12 +203,12 @@ await assemble({
   ],
 }).run();</code></pre></div>
 <h3>Приватность секции</h3>
-<p>У секции <strong>две capability — и это два разных объекта</strong>. <em>Токен</em> (право инжекта) не экспортируется из пакета: чужой инжект невозможен даже синтаксически — нарушение нечем написать. Это та же ES-видимость, что охраняет kernel-токены, и никакой отдельной регистрации секции в модуле не нужно — билдер видит её как обычную зависимость. <em><code>.keys</code></em> (право привязки) — branded-хэндл набора ключей; инжектировать его нечем, поэтому экспортировать безопасно. Корень получает ровно ту capability, которая ему нужна, — и не получает ту, которая не нужна никому.</p>
-<h3>Reloadable-конфиги</h3>
-<p>Источник с наблюдением (<code>reloadableFile</code>, <code>vault({ watch: true })</code>) на изменение пере-проецирует reloadable-секцию: инстанс стабилен, поля обновляются на месте. Две асимметрии со стартом:</p>
+<p>У секции два права, и это два разных объекта. Токен даёт право инжекта; он не экспортируется из пакета, поэтому чужой инжект нельзя даже написать. Это та же видимость ES-модулей, которая охраняет токены ядра; регистрировать секцию в модуле не нужно, контейнер видит её как обычную зависимость. <code>.keys</code> даёт право привязки; инжектировать его нечем, поэтому экспортировать его безопасно. Корень получает ровно то право, которое ему нужно.</p>
+<h3>Reloadable-секции</h3>
+<p>Источник с наблюдением (<code>reloadableFile</code>, <code>vault({ watch: true })</code>) при изменении обновляет reloadable-секцию: экземпляр остаётся тем же, поля обновляются на месте. Два отличия от старта:</p>
 <ul class="body">
-<li><strong>старт:</strong> невалидный конфиг → die. <strong>reload:</strong> невалидный → keep last-good + warn. Живой процесс не падает из-за плохого горячего значения.</li>
-<li><strong>вступит ли изменение в силу</strong> — ответственность потребителя. Поэтому reloadable — opt-in.</li>
+<li>на старте невалидный конфиг роняет приложение; при перезагрузке невалидное значение отбрасывается с предупреждением, и остаётся последнее рабочее;</li>
+<li>вступит ли изменение в силу, решает потребитель. Поэтому reloadable — явный выбор при объявлении секции.</li>
 </ul>
 <div class="code" data-lang="typescript"><pre><code>export const Runtime = makeConfig.reloadable('runtime', {
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -225,15 +225,15 @@ class RateLimiter {
   }
 }</code></pre></div>
 <div class="note">
-<span class="note-t">Kernel space / user space</span>
-<p>Граница между тем, что пишешь ты, и тем, чем владеет фреймворк, устроена как в ОС. <strong>Kernel</strong> (источники конфига, транспорты, шина, машинерия графа) — токены не экспортируются, поэтому из user-space их <em>физически</em> нечем инжектить. Пересечь границу можно только через «системные вызовы»: инжект <code>Config&lt;X&gt;</code>, вызов <code>Port</code>/<code>Emitter</code>, возврат из endpoint. Enforcement — не рантайм-ACL, а видимость ES-модулей.</p>
+<span class="note-t">Ядро и пользовательский код</span>
+<p>Граница между вашим кодом и кодом фреймворка устроена как в операционной системе. Токены ядра (источники конфига, транспорты, шина, механизм графа) не экспортируются, поэтому из пользовательского кода их нечем инжектировать. Пересечь границу можно только через публичные операции: инжект <code>Config&lt;X&gt;</code>, вызов <code>Port</code> или <code>Emitter</code>, возврат из endpoint'а. Границу держит видимость ES-модулей, а не проверка прав в рантайме.</p>
 </div>
 <h2 id="context">Асинхронный контекст</h2>
-<p>Накопленный контекст пайплайна доступен хендлеру явно — через <code>meta</code>. Но <code>requestId</code> нужен и логгеру в репозитории тремя слоями ниже, а протаскивать его параметрами через все сигнатуры никто не станет. Ответ Nestling: <strong>значение едет ambient'ом (AsyncLocalStorage), зависимость — явная, доступ — только чтение</strong>.</p>
-<div class="code" data-file="common/context.ts" data-lang="typescript"><pre><code>export const RequestId = contextVar&lt;string&gt;('requestId');   // branded-ключ, как token&lt;T&gt;()
+<p>Накопленный контекст пайплайна доступен хендлеру явно, через <code>meta</code>. Но <code>requestId</code> нужен и логгеру в репозитории тремя уровнями ниже, а передавать его параметрами через все сигнатуры неудобно. Решение Nestling: значение передаётся через <code>AsyncLocalStorage</code>, зависимость объявляется явно, доступ только на чтение.</p>
+<div class="code" data-file="common/context.ts" data-lang="typescript"><pre><code>export const RequestId = contextVar&lt;string&gt;()('requestId');   // брендированный ключ, как makeToken&lt;T&gt;()
 
-// обогащение — как и раньше, монополия pre-юнитов:
-// .pre(withRequestId())  →  + { requestId } в контекст и в ALS-проекцию
+// запись — только из pre-юнитов:
+// .pre(RequestId.provide(...))  →  + { requestId } в контекст и в проекцию
 
 // глубокий сервис читает через ИНЖЕКТИРУЕМЫЙ ридер:
 @Injectable([Ctx(RequestId)])
@@ -243,23 +243,23 @@ export class AuditLog {
     this.log.info({ requestId: this.requestId.get() }, e.name);
   }
 }</code></pre></div>
-<p>Как это устроено и почему именно так:</p>
+<p>Как это устроено:</p>
 <ul class="body">
-<li><strong>Запись — только pre-юниты.</strong> ALS — не второй канал обогащения, а read-only <em>проекция</em> накопленного контекста; единственный писатель — рантайм пайплайна. Никакого <code>Context.set()</code> из произвольного места.</li>
-<li><strong>Зависимость видна в графе.</strong><code>Ctx(RequestId)</code> — член <a href="#multi">token family</a>: кто читает ambient — видно в DI-графе, в визуализации и в <code>explain()</code>; в тестах ридер подменяется обычным <code>valueProvider</code> — ALS не нужен. И поскольку билдер видит всех запрошенных членов семейства статически, полный список ambient-чтений приложения известен уже на <code>build()</code>.</li>
-<li><strong><code>get()</code> / <code>peek()</code> — зеркало асимметрии пайплайна.</strong> На успешном тракте контекст полный — <code>get(): T</code> гарантирован. В <code>.catch</code>/<code>.finally</code> pre-тракт мог не дойти до нужного юнита, а в <code>@OnStart</code>/cron scope вообще не открыт — там честный <code>peek(): T | undefined</code>. Провальный <code>get()</code> бросает с диагностикой: рантайм знает, в какой фазе вы находитесь.</li>
-<li><strong>В проекции — только накопленный input</strong> (+ <code>signal</code> как well-known var: отмена нужна и глубоко в сервисах). <code>raw</code> и <code>endpoint</code> в ambient не отдаются — это была бы протечка транспорта в домен.</li>
-<li><strong>Сквозь порты.</strong> In-proc контекст течёт через <code>port.call()</code> сам; для remote-портов vars с <code>propagate: true</code> едут в заголовках (NATS), и транспорт на той стороне открывает scope заново.</li>
+<li><strong>Записывают только <code>.pre</code>-юниты.</strong> Проекция в <code>AsyncLocalStorage</code> — копия накопленного контекста только для чтения; единственный писатель — рантайм пайплайна. <code>Context.set()</code> из произвольного места нет.</li>
+<li><strong>Зависимость видна в графе.</strong> <code>Ctx(RequestId)</code> — член <a href="#multi">семейства токенов</a>: кто читает контекст, видно в графе, в визуализации и в <code>explain()</code>. В тестах ридер подменяется обычным <code>valueProvider</code>, <code>AsyncLocalStorage</code> не нужен. Поскольку контейнер видит всех запрошенных членов семейства на сборке, полный список чтений контекста известен на <code>build()</code>.</li>
+<li><strong><code>get()</code> и <code>peek()</code> повторяют асимметрию пайплайна.</strong> На пути успеха контекст полный, и <code>get(): T</code> всегда возвращает значение. В <code>.catch</code>, <code>.finally</code>, <code>@OnStart</code> и фоновых задачах значения может не быть, и для них есть <code>peek(): T | undefined</code>. <code>get()</code> без значения бросает ошибку с указанием текущей фазы.</li>
+<li><strong>В проекции только накопленный <code>input</code></strong> и <code>signal</code>: отмена нужна и глубоко в сервисах. <code>raw</code> и <code>endpoint</code> в проекцию не попадают, чтобы транспорт не проникал в домен.</li>
+<li><strong>Через порты.</strong> Внутри процесса контекст проходит через <code>port.call()</code> сам. Для удалённых портов переменные с <code>propagate: true</code> передаются в заголовках сообщения (NATS), и транспорт на другой стороне открывает контекст заново.</li>
 </ul>
 <div class="note">
-<span class="note-t">Почему не статический AsyncContext.get()</span>
-<p>Классическое решение (статик поверх ALS-Map со строковыми ключами) — глобал: зависимость не видна в графе, тесты требуют настоящего ALS, присутствие ключа не типизировано, а запись разрешена откуда угодно. Инжектируемый read-only ридер закрывает все четыре пункта — ценой одной строчки в <code>deps</code>. Строгая проверка присутствия (каждый читатель достижим только из endpoint'ов, чей пайплайн кладёт ключ) — opt-in policy-check на <code>build()</code>, в духе <code>strictExports</code>.</p>
+<span class="note-t">Почему не статический <code>AsyncContext.get()</code></span>
+<p>Статический доступ поверх <code>AsyncLocalStorage</code> со строковыми ключами — глобальное состояние: зависимость не видна в графе, тесты требуют настоящего <code>AsyncLocalStorage</code>, наличие ключа не типизировано, а запись разрешена откуда угодно. Инжектируемый ридер только для чтения закрывает все четыре пункта ценой одной строки в <code>deps</code>. Строгая проверка, что каждый читатель достижим только из endpoint'ов, чей пайплайн записывает ключ, — политика <code>hasVar</code> на собранном графе.</p>
 </div>
 <h2 id="streaming">Стриминг</h2>
-<p>Стриминг — на стандартном <code>AsyncIterable</code>, а не на библиотечном типе. Pull-модель даёт backpressure бесплатно: медленный клиент просто не запрашивает следующий элемент. Именно поэтому RxJS нет на границах фреймворка (он push, backpressure надо докручивать) — но он полностью доступен <em>внутри</em> хендлера.</p>
-<p>Верхний уровень <code>input</code>/<code>output</code> — это <strong>форма</strong>, а листья — схемы: значение (схема как есть), <code>stream(T)</code>, <code>events(T)</code>, <code>multipart({ fields, files })</code>. Форма определяет и способ валидации (значение — целиком, поток — поэлементно в обе стороны), и media type, и framing ответа. Файловое поле объявляется <code>upload({ maxSize, mime, multiple })</code>, и лимиты применяются <em>во время</em> разбора — файл сверх лимита не буферизуется целиком ради того, чтобы потом быть отвергнутым.</p>
-<h3><code>stream(T)</code> ≠ <code>events(T)</code></h3>
-<p>Две разные формы io-декларации с разной семантикой:</p>
+<p>Стриминг построен на стандартном <code>AsyncIterable</code>, а не на библиотечном типе. Pull-модель даёт backpressure без дополнительного кода: медленный клиент просто не запрашивает следующий элемент. Поэтому RxJS нет на границах фреймворка, но внутри хендлера он доступен полностью.</p>
+<p>Верхний уровень <code>input</code> и <code>output</code> — это форма, а листья — схемы: значение (схема как есть), <code>stream(T)</code>, <code>events(T)</code>, <code>multipart({ fields, files })</code>. Форма определяет способ валидации (значение целиком или каждый элемент потока), media type и способ передачи ответа. Файловое поле объявляется через <code>upload({ maxSize, mime, multiple })</code>; лимиты применяются во время разбора, поэтому файл сверх лимита не буферизуется целиком.</p>
+<h3><code>stream(T)</code> и <code>events(T)</code></h3>
+<p>Две разные формы с разной семантикой:</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -277,16 +277,16 @@ export class AuditLog {
 </tr>
 <tr>
 <td>Конец</td>
-<td>естественный — данные закончились</td>
-<td>нет; «нормально» = дисконнект</td>
+<td>естественный: данные закончились</td>
+<td>нет; нормальное завершение — отключение клиента</td>
 </tr>
 <tr>
-<td>HTTP-framing</td>
-<td>NDJSON / chunked</td>
-<td>SSE: heartbeat, <code>id:</code>, реконнект</td>
+<td>HTTP</td>
+<td>NDJSON, chunked</td>
+<td>SSE: heartbeat, <code>id:</code>, переподключение</td>
 </tr>
 <tr>
-<td>Доки</td>
+<td>Документация</td>
 <td>OpenAPI</td>
 <td>AsyncAPI</td>
 </tr>
@@ -296,7 +296,7 @@ export class AuditLog {
 <div class="code" data-lang="typescript"><pre><code>export const streamLogs = httpEndpoint({
   method: 'POST',
   path: '/logs/stream',
-  input: stream(LogChunk),                  // NDJSON: объект на строку, каждый валидируется
+  input: stream(LogChunk),                  // NDJSON: объект на строку, каждый проверяется схемой
   output: z.object({ processed: z.number() }),
   pipeline: makePipeline(),
   handle: async (chunks: AsyncIterableIterator&lt;LogChunk&gt;) =&gt; {
@@ -306,14 +306,14 @@ export class AuditLog {
   },
 });</code></pre></div>
 <div class="note">
-<span class="note-t">Исход потока честен только по факту доставки</span>
-<p>Для потоковой формы <code>.finally</code> вызывается <strong>после</strong> того, как поток дотёк, оборвался ошибкой или был закрыт потребителем, — а не после ответной фазы, когда не ушёл ещё ни один байт. Пайплайн отдаёт транспорту итератор-обёртку, и её закрытие ровно один раз считает исход и выполняет наблюдателей; отсюда обязанность транспорта <em>потребить итератор либо закрыть его</em>. Счётчики <code>ctx.summary</code> (<code>itemsIn</code>/<code>itemsOut</code>, плюс байты там, где транспорт их знает) к этому моменту досчитаны.</p>
-<p>Отказ <em>посреди</em> потока статус сменить уже не может: NDJSON-ответ обрывается (клиент видит незавершённый chunked), SSE получает кадр <code>event: error</code> с телом отказа и закрывается. В обоих случаях исход — <code>failed</code>, а <code>.catch</code> не вызывается: заменять ответ физически не на что.</p>
+<span class="note-t">Исход потока известен только после доставки</span>
+<p>Для потоковой формы <code>.finally</code> вызывается после того, как поток дочитан, оборвался ошибкой или закрыт потребителем, а не сразу после ответной фазы, когда не отправлен ещё ни один байт. Пайплайн отдаёт транспорту итератор-обёртку; её закрытие ровно один раз вычисляет исход и вызывает <code>.finally</code>. Отсюда обязанность транспорта: потребить итератор или закрыть его. Счётчики <code>ctx.summary</code> (<code>itemsIn</code>, <code>itemsOut</code> и байты там, где транспорт их знает) к этому моменту посчитаны.</p>
+<p>Отказ посреди потока уже не может сменить статус ответа: NDJSON обрывается (клиент видит незавершённый chunked-ответ), SSE получает кадр <code>event: error</code> с телом отказа и закрывается. В обоих случаях исход — <code>failed</code>, а <code>.catch</code> не вызывается: заменять ответ уже нечем.</p>
 </div>
-<h3>AbortSignal — first-class примитив</h3>
-<p>В <code>meta</code> каждого запроса есть <code>signal: AbortSignal</code>. Его взводят: транспорт (клиент отвалился), приложение (graceful shutdown), администратор (kill подписки). Это <strong>единый механизм отмены для всего</strong> — без него бесконечные подписки не завершаются, а <code>close()</code> виснет на живых соединениях.</p>
-<h3>Источники событий — это DI</h3>
-<p>Источник живёт в контейнере как обычный singleton и работает независимо от подписчиков. Хендлер вызывается один раз на соединение и подписывается на него:</p>
+<h3><code>AbortSignal</code> — основной механизм отмены</h3>
+<p>В <code>meta</code> каждого запроса есть <code>signal: AbortSignal</code>. Его взводит транспорт (клиент отключился), приложение (остановка) или администратор (принудительное закрытие подписки). Это единый механизм отмены: без него бесконечные подписки не завершаются, а <code>close()</code> ждёт живые соединения.</p>
+<h3>Источники событий — обычные провайдеры</h3>
+<p>Источник живёт в контейнере как синглтон и работает независимо от подписчиков. Хендлер вызывается один раз на соединение и подписывается на источник:</p>
 <div class="code" data-lang="typescript"><pre><code>@Injectable([])
 export class LogHub {
   #topic = new Topic&lt;LogEvent&gt;({ buffer: 1000, onSlowConsumer: 'disconnect' });
@@ -321,66 +321,68 @@ export class LogHub {
   subscribe(signal: AbortSignal) { return this.#topic.subscribe(signal); }
 }
 
-// endpoint: подписка per-connection
+// endpoint: подписка на каждое соединение
 handle: async function* (_, meta) {
-  yield* hub.subscribe(meta.signal);       // отписка сшита с отменой
+  yield* hub.subscribe(meta.signal);       // отписка привязана к отмене
 }</code></pre></div>
-<h3>Два скоупа обработки</h3>
-<p>У потоков две разные «цепочки»: действия на весь поток (request-scope: фазы <code>.pre/.ok/...</code>) и действия на каждый элемент (item-scope). Второе объявляется <strong>прямо на io-декларации</strong> линейной цепочкой комбинаторов — фаз тут нет, элемент просто течёт сквозь трансформации:</p>
+<h3>Два уровня обработки</h3>
+<p>У потоков две цепочки: действия на весь запрос (фазы <code>.pre</code>, <code>.ok</code>, <code>.catch</code>, <code>.finally</code>) и действия на каждый элемент. Второе объявляется прямо на форме <code>stream()</code> или <code>events()</code> линейной цепочкой комбинаторов; фаз здесь нет, элемент проходит через преобразования по порядку:</p>
 <div class="code" data-lang="typescript"><pre><code>input: stream(LogChunk)
   .tap(c =&gt; log.debug(c.message))    // наблюдение
   .filter(c =&gt; c.level !== 'debug')  // T → T
   .limit(50_000)                     // Fail при превышении
   .gapTimeout(30_000)                // разрыв при молчании
-  .batch(100),                       // тип-меняющий: хендлер получит батчи</code></pre></div>
+  .batch(100),                       // меняет тип: хендлер получит LogChunk[]</code></pre></div>
 <div class="note good">
-<span class="note-t">Не переизобретаем ли мы RxJS?</span>
-<p>Нет — и граница держится дисциплиной. Набор комбинаторов <strong>закрытый и инфраструктурный</strong>: наблюдение, отсечение, лимиты, время, группировка. Всё, что про <em>реордеринг времени</em> и <em>слияние потоков</em> (<code>merge</code>, <code>switchMap</code>, <code>combineLatest</code>) — это dataflow-программирование, ему место в хендлере, где ты волен взять хоть RxJS. Интероп тривиален: <code>from(asyncIterable)</code> и обратно, а отмена сшивается через <code>meta.signal</code> автоматически.</p>
+<span class="note-t">Граница с RxJS</span>
+<p>Набор комбинаторов закрытый и инфраструктурный: наблюдение, отсечение, лимиты, время, группировка. Всё, что связано с перестановкой во времени и слиянием потоков (<code>merge</code>, <code>switchMap</code>, <code>combineLatest</code>), относится к логике хендлера, где можно взять RxJS. Переход простой: <code>from(asyncIterable)</code> и обратно, а отмена связывается через <code>meta.signal</code>.</p>
 </div>
 <h2 id="schemas">Схемы и OpenAPI</h2>
-<p>Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция конфига, payload контракта. При этом Nestling <strong>не привязан к конкретному валидатору</strong>: ядро принимает <a href="https://standardschema.dev">Standard Schema</a> — общий интерфейс, спроектированный совместно авторами Zod, Valibot и ArkType. Любая схема, реализующая проперти <code>~standard</code>, работает из коробки: Zod (v4, включая <code>zod/mini</code>), Valibot, ArkType, Effect Schema.</p>
-<div class="code" data-file="orders.schema.ts" data-lang="typescript"><pre><code>// Zod — привычный дефолт…
+<p>Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция конфига, payload контракта. Nestling не привязан к конкретному валидатору: ядро принимает <a href="https://standardschema.dev">Standard Schema</a> — общий интерфейс, который вместе спроектировали авторы Zod, Valibot и ArkType. Любая схема со свойством <code>~standard</code> работает сразу: Zod (v4, включая <code>zod/mini</code>), Valibot, ArkType, Effect Schema.</p>
+<div class="code" data-file="orders.schema.ts" data-lang="typescript"><pre><code>// Zod — привычный вариант…
 export const NewOrder = z.object({ items: z.array(OrderItem).min(1) });
 
-// …но контракт тот же на Valibot или ArkType — выбор валидатора за тобой:
+// …но контракт тот же на Valibot или ArkType — валидатор выбираете вы:
 export const NewOrder = v.object({ items: v.pipe(v.array(OrderItem), v.minLength(1)) });
 export const NewOrder = type({ items: OrderItem.array().atLeastLength(1) });</code></pre></div>
-<p>Рантайму от схемы нужны ровно два свойства: <code>validate</code> (невалидный payload → 400 со стандартным списком <code>issues: { message, path }[]</code> — формат гарантирован спекой, а не вендором) и инференс типов для хендлера. Сам zod при этом — <em>не</em> зависимость ядра: валидатор приносит приложение. Лёгкий бандл (<code>zod/mini</code>, Valibot) или богатый синтаксис (ArkType) — твой трейд-офф, не наш.</p>
-<h3>OpenAPI: конвертер — явная зависимость</h3>
-<p>Standard Schema стандартизует <em>только валидацию</em>. Интроспекции в спеке нет: в рантайме схема — чёрный ящик с непрозрачной функцией <code>validate</code>, и сгенерировать из неё JSON Schema через общий интерфейс невозможно — нужно нырять во внутренности конкретного валидатора (<code>z.toJSONSchema()</code>, <code>@valibot/to-json-schema</code>, …). Поэтому модуль документации не «угадывает» валидатор — конвертер объявляется явно, в composition root:</p>
+<p>Рантайму от схемы нужны два свойства: <code>validate</code> (невалидный payload даёт 400 со стандартным списком <code>issues: { message, path }[]</code>; формат задаёт спецификация, а не вендор) и вывод типов для хендлера. Zod при этом не является зависимостью ядра: валидатор приносит приложение. Лёгкий бандл (<code>zod/mini</code>, Valibot) или богатый синтаксис (ArkType) — выбор приложения.</p>
+<h3>OpenAPI: конвертер объявляется явно</h3>
+<p>Standard Schema стандартизует только валидацию. Интроспекции в спецификации нет: в рантайме схема — чёрный ящик с функцией <code>validate</code>, и получить из неё JSON Schema через общий интерфейс нельзя. Для этого нужен конвертер конкретного валидатора (<code>z.toJSONSchema()</code>, <code>@valibot/to-json-schema</code> и подобные). Поэтому модуль документации не угадывает валидатор: конвертер объявляется в composition root.</p>
 <div class="code" data-file="main.ts" data-lang="typescript"><pre><code>import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
 await assemble({
-  modules: [OrdersModule],
+  modules: [
+    OrdersModule,
+    openapi({
+      info: { title: 'Orders API', version: '1.0.0' },
+      converters: [zodConverter()],   // схемы каких вендоров документируем
+    }),
+  ],
   transports: [http()],
-  docs: openapi({
-    info: { title: 'Orders API', version: '1.0.0' },
-    converters: [zodConverter()],   // схемы какого вендора умеем документировать
-  }),
 }).run();</code></pre></div>
-<p>Дальше работает знакомая механика жадного старта. Все endpoints известны на <code>build()</code>, у каждой схемы есть поле <code>~standard.vendor</code> — на инициализации модуль сверяет вендоров со списком конвертеров. Схема, которую нечем конвертировать, — это <strong>ошибка запуска</strong>, а не пустая секция в <code>/docs</code> через месяц. Если документация включена, недокументируемых endpoint'ов не бывает.</p>
+<p>Дальше работает механика жадного старта. Все endpoint'ы известны на <code>build()</code>, у каждой схемы есть поле <code>~standard.vendor</code>, и на сборке модуль сверяет вендоров со списком конвертеров. Схема, которую нечем конвертировать, — ошибка запуска, а не пустой раздел в документации через месяц. Если документация включена, недокументированных endpoint'ов не бывает.</p>
 <ul class="body">
-<li><strong>Несколько валидаторов в одном приложении</strong> — законно: сторонний модуль может быть написан на Valibot, пока твой код на Zod. Схема сама сообщает вендора, <code>converters</code> — список.</li>
-<li><strong>Escape hatch:</strong> явный <code>jsonSchema:</code> в декларации endpoint'а перекрывает конвертер — для экзотического валидатора или ручной доводки.</li>
-<li><strong>Ошибки — тоже контракт:</strong><code>errors: [EmailTaken]</code> из декларации превращается в <code>responses</code>, а неявный <code>UnknownError</code> — в default-ответ.</li>
-<li><strong>Стриминг:</strong> для <code>stream</code>/<code>events</code> та же машинерия генерирует AsyncAPI.</li>
+<li><strong>Несколько валидаторов в одном приложении</strong> допустимы: сторонний модуль может быть написан на Valibot, а ваш код — на Zod. Схема сама сообщает вендора, <code>converters</code> — список.</li>
+<li><strong>Обход конвертера:</strong> аннотация <code>jsonSchema(schema, json)</code> задаёт JSON Schema вручную — для экзотического валидатора или доводки.</li>
+<li><strong>Ошибки — тоже контракт:</strong> <code>errors: [EmailTaken]</code> из декларации превращается в <code>responses</code>, а неявный <code>UnknownError</code> — в ответ <code>default</code>.</li>
+<li><strong>Стриминг:</strong> для <code>stream</code> и <code>events</code> тот же механизм строит AsyncAPI.</li>
 </ul>
 <div class="note">
 <span class="note-t">Почему не универсальный генератор</span>
-<p>Поле <code>vendor</code> существует в спеке именно как дискриминант для безопасного даункаста: авторы Standard Schema прямо признали, что потребителям иногда нужно спускаться под общий интерфейс. Конвертер — это и есть оформленный даункаст: <code>@nestling/openapi.zod</code> peer-зависит от zod и живёт в его мажорах. Если сообщество стандартизует ещё и JSON Schema-выход, конвертеры выродятся в один универсальный — сигнатура <code>openapi()</code> не изменится.</p>
+<p>Поле <code>vendor</code> есть в спецификации именно как признак для безопасного приведения к конкретному валидатору: авторы Standard Schema прямо признали, что потребителям иногда нужно спускаться под общий интерфейс. Конвертер — это оформленное приведение: <code>@nestling/openapi.zod</code> зависит от zod как от peer-зависимости и следует его мажорным версиям. Если сообщество стандартизует и выход в JSON Schema, конвертеры сведутся к одному универсальному, а сигнатура <code>openapi()</code> не изменится.</p>
 </div>
 <h2 id="testing">Тестирование</h2>
-<p>Правило одно: <strong>уровень теста = граница видимости</strong>. Внутри пакета видно всё — юнит- и модульные тесты живут рядом с кодом, и приватность токенов им не мешает по построению. Приложению видны только публичные capability — app-тесты мокают на <em>архитектурных швах</em>, а не в чужих внутренностях. Тестовая поверхность — это экспортная поверхность.</p>
+<p>Правило одно: уровень теста равен границе видимости. Внутри пакета видно всё: юнит-тесты и тесты модуля живут рядом с кодом, и приватность токенов им не мешает. Приложению видны только публичные права, поэтому app-тесты подменяют зависимости на границах между модулями, а не внутри чужого кода. Тестовая поверхность совпадает с экспортной.</p>
 <h3>Уровень 0: без фреймворка</h3>
-<p>Провайдеры — обычные классы и фабрики с явными зависимостями, конфиг-срез — объектный литерал, порт — объект с <code>call</code>. У юнит-теста <strong>нет импортов из <code>@nestling/*</code></strong>:</p>
+<p>Провайдеры — обычные классы и фабрики с явными зависимостями, секция конфига — объектный литерал, порт — объект с методом <code>call</code>. У юнит-теста нет импортов из <code>@nestling/*</code>:</p>
 <div class="code" data-file="orders.service.test.ts" data-lang="typescript"><pre><code>const svc = new OrdersService({ maxItems: 2, databaseUrl: 'postgres://test' });
 expect(() =&gt; svc.create({ items: [a, b, c] })).toThrow();</code></pre></div>
 <h3>App-тест: тестовый composition root</h3>
-<p>Мок в Nestling — не патчинг и не перехват module system, а <strong>подстановка в графе до инстанциации</strong>. Тест — это просто другой composition root:</p>
+<p>Подмена в Nestling — не патчинг и не перехват модулей, а замена узла графа до создания экземпляров. Тест — это другой composition root:</p>
 <div class="code" data-file="app.test.ts" data-lang="typescript"><pre><code>await using app = await assembleTest({
   features: [OrdersFeature],
-  config: [[vars({ ORDERS_MAX_ITEMS: '5' }), '*']],           // in-memory источник
+  config: [[vars({ ORDERS_MAX_ITEMS: '5' }), '*']],           // источник в памяти
   overrides: [[OrdersRepo, inMemoryOrdersRepo()]],            // токен → фейк
   stubs: [stub(ChargeCard, async () =&gt; new Ok({ chargeId: 'test' }))],
 });
@@ -388,61 +390,61 @@ expect(() =&gt; svc.create({ items: [a, b, c] })).toThrow();</code></pre></div>
 const res = await app.call(CreateOrder, { items });           // полный пайплайн, без сокетов
 expect(res.isFail).toBe(false);</code></pre></div>
 <ul class="body">
-<li><strong>Прунинг.</strong> Осиротевшее поддерево заменённого узла выпадает из графа: замокал репозиторий → pg-пул не инстанцируется и не коннектится. Тест получает минимальный граф бесплатно.</li>
-<li><strong>Без сокетов.</strong> Тестовый app проходит фазы 0–3: <code>dispatch</code> уже рождён (WIRE), START не выполняется — транспорты не в эфире. <code>app.call</code>/<code>app.emit</code> типизированы схемами и гонят запрос через <em>весь</em> пайплайн — это и отличает app-тест от юнита.</li>
-<li><strong><code>await using</code>.</strong><code>Symbol.asyncDispose</code> даёт честный SHUTDOWN в реверсе — никаких повисших ресурсов между тестами.</li>
-<li><strong><code>overrides</code> есть только у <code>assembleTest</code>.</strong> В боевом <code>assemble</code> подмены графа не существует — даже как соблазна.</li>
+<li><strong>Прунинг.</strong> Поддерево заменённого узла, на которое больше никто не ссылается, выпадает из графа: если репозиторий подменён, пул PostgreSQL не создаётся и не подключается. Тест получает минимальный граф без дополнительного кода.</li>
+<li><strong>Без сокетов.</strong> Тестовое приложение проходит фазы 0–3: <code>dispatch</code> уже создан (WIRE), START не выполняется, транспорты не принимают запросы. <code>app.call</code> и <code>app.emit</code> типизированы схемами и проводят запрос через весь пайплайн; этим app-тест отличается от юнит-теста.</li>
+<li><strong><code>await using</code>.</strong> <code>Symbol.asyncDispose</code> выполняет SHUTDOWN в обратном порядке; ресурсы между тестами не остаются.</li>
+<li><strong><code>overrides</code> есть только у <code>assembleTest</code>.</strong> В боевом <code>assemble</code> подмены графа нет.</li>
 </ul>
-<h3>Швы вместо чужих токенов</h3>
-<p>Всё, что app-тест хочет подменить, уже имеет свою дверь — чужие внутренности не нужны:</p>
+<h3>Границы подмены вместо чужих токенов</h3>
+<p>Всё, что app-тест хочет подменить, имеет свою точку входа; чужие внутренности не нужны:</p>
 <div class="tbl-wrap">
 <table>
 <thead>
 <tr>
-<th>Шов</th>
+<th>Что подменяется</th>
 <th>Инструмент</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Конфиг (+ reload)</td>
-<td><code>vars({...})</code> — объектный источник с <code>watch</code>/<code>set()</code>: тестируется и горячая перезагрузка (keep-last-good, <code>onChange</code>). <code>process.env</code> не трогается → тесты параллелятся.</td>
+<td>Конфиг (и перезагрузка)</td>
+<td><code>vars({...})</code> — объектный источник с <code>watch</code> и <code>set()</code>: проверяется и горячая перезагрузка (последнее рабочее значение, <code>onChange</code>). <code>process.env</code> не трогается, поэтому тесты выполняются параллельно.</td>
 </tr>
 <tr>
 <td>Чужая фича</td>
-<td><code>stub(Contract, impl)</code> — фейк-порт, <strong>валидируемый схемой контракта</strong> при каждом вызове.</td>
+<td><code>stub(Contract, impl)</code> — фейковый порт, ответы которого проверяются схемой контракта при каждом вызове.</td>
 </tr>
 <tr>
-<td>Cross-cutting</td>
+<td>Сквозная инфраструктура</td>
 <td><code>familyOverride(ILogger, () =&gt; noop)</code> — подмена рецепта всего семейства.</td>
 </tr>
 <tr>
-<td>Request-контекст</td>
-<td><code>valueProvider(Ctx(RequestId), 'test-id')</code> — ALS в тесте не нужен.</td>
+<td>Контекст запроса</td>
+<td><code>valueProvider(Ctx(RequestId), 'test-id')</code> — <code>AsyncLocalStorage</code> в тесте не нужен.</td>
 </tr>
 <tr>
 <td>Транспорт</td>
-<td>не мокается: in-proc <code>app.call</code> вместо HTTP-клиента.</td>
+<td>не подменяется: вместо HTTP-клиента используется <code>app.call</code> внутри процесса.</td>
 </tr>
 </tbody>
 </table>
 </div>
 <div class="note good">
-<span class="note-t">Мок не может врать</span>
-<p><code>stub(Contract, ...)</code> валидируется схемой контракта на каждом вызове — фейк, разъехавшийся с реальным сервисом, падает сразу, а не «зелёный тест, красный прод». Класс багов, который плодят jest-моки, исчезает by design: guarantee over convention, продолженный в тесты.</p>
+<span class="note-t">Стаб не может разойтись с реальностью</span>
+<p><code>stub(Contract, ...)</code> проверяется схемой контракта на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.</p>
 </div>
 <h3><code>.check()</code>: вся топология одним тестом</h3>
-<p>Жадный контейнер делает <code>build()</code> универсальным ассертом: циклы, недостающие зависимости, port-биндинг, полнота env. <code>.check()</code> гоняет фазы 0–1 — конструкторы без <code>@OnInit</code>, то есть без единого коннекта:</p>
-<div class="code" data-file="topology.test.ts" data-lang="typescript"><pre><code>for (const select of ['all', 'orders', 'billing']) {
+<p>Жадный контейнер делает <code>build()</code> универсальной проверкой: циклы, недостающие зависимости, привязка портов, полнота env. <code>.check()</code> проходит фазы 0–1: конструкторы выполняются, <code>@OnInit</code> — нет, то есть ни одного соединения не открывается:</p>
+<div class="code" data-file="topology.test.ts" data-lang="typescript"><pre><code>for (const select of ['all', 'orders', 'billing'] as const) {
   test(`топология ${select} собирается`, () =&gt;
-    assembleTest({ features, select }).check());
+    assemble({ features, select, transports: [http()] }).check());
 }</code></pre></div>
-<p>Все split-топологии <a href="scaling.html#levels">L4</a> валидируются в CI без деплоя.</p>
-<h3>Модуль в изоляции и тестовая capability</h3>
-<p><code>testModule(OrdersModule, { stubs })</code> — мини-app вокруг одного модуля: неудовлетворённые импорты обязаны быть застабаны явно, ошибка перечисляет недостающие токены. Живёт <em>внутри</em> пакета модуля — токены видны без экспорта. А если модуль хочет разрешить приложению мокать свою инфраструктуру, он экспортирует курируемую поверхность (токены + готовые фейки вроде <code>inMemoryOrdersRepo()</code>) через subpath <code>./testing</code> — conditional export, который в проде просто не резолвится.</p>
+<p>Все split-топологии <a href="scaling.html#levels">L4</a> проверяются в CI без развёртывания.</p>
+<h3>Модуль в изоляции и тестовая поверхность модуля</h3>
+<p><code>testModule(OrdersModule, { stubs })</code> — мини-приложение вокруг одного модуля: неудовлетворённые импорты нужно застабать явно, ошибка перечисляет недостающие токены. <code>testModule</code> живёт внутри пакета модуля, поэтому токены видны без экспорта. Если модуль хочет разрешить приложению подменять свою инфраструктуру, он экспортирует подготовленную поверхность (токены и готовые фейки вроде <code>inMemoryOrdersRepo()</code>) через subpath <code>./testing</code> — условный экспорт, который в проде не резолвится.</p>
 <div class="note">
-<span class="note-t">Почему не jest.mock</span>
-<p>Перехват module system — runtime magic: мок живёт вне графа, контейнер о нём не знает, прунинг невозможен, валидировать фейк схемой некому. Подстановка на ASSEMBLE даёт то же самое — но в графе, с проверками и типами. А чужое неэкспортированное не мокается <em>вообще</em> — иначе граница видимости была бы декорацией; для крайних случаев модуль подменяется целиком: он ведь значение.</p>
+<span class="note-t">Почему не <code>jest.mock</code></span>
+<p>Перехват системы модулей — рантайм-магия: мок живёт вне графа, контейнер о нём не знает, прунинг невозможен, проверить фейк схемой некому. Подмена на фазе ASSEMBLE даёт то же самое, но в графе, с проверками и типами. Чужое неэкспортированное не подменяется вообще: иначе граница видимости была бы формальностью. В крайнем случае модуль подменяется целиком — он ведь значение.</p>
 </div>
 
   <nav class="pager">

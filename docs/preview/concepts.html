@@ -73,26 +73,26 @@
 
 <p class="crumbs"><a href="index.html">Nestling</a> / Основные концепции</p>
 <h1>Основные концепции</h1>
-<p class="lead">Пять кирпичей, из которых собрано любое приложение: endpoints, провайдеры, модули, результаты и pipeline.</p>
+<p class="lead">Пять частей, из которых собрано любое приложение: endpoints, провайдеры, модули, результаты и пайплайн.</p>
 <h2 id="endpoints">Endpoints</h2>
-<p>В Nestling нет контроллеров. Базовая единица — <strong>endpoint</strong>: одна декларация-значение = один маршрут. Это осознанное решение: контроллер в Nest — это мешок методов с общим префиксом, где реальные единицы (отдельные ручки) размазаны по методам. Endpoint делает единицу явной.</p>
-<p>Endpoint — <strong>schema-first</strong>. Он декларирует контракт: транспорт, паттерн, схему входа и выхода, пайплайн и хендлер.</p>
+<p>Контроллеров в Nestling нет. Базовая единица — <strong>endpoint</strong>: одна декларация-значение описывает один маршрут. В Nest контроллер объединяет несколько методов общим префиксом, и отдельные операции приходится искать внутри класса. Endpoint делает операцию самостоятельной единицей.</p>
+<p>Endpoint объявляется schema-first: он описывает транспорт, паттерн, схемы входа и выхода, пайплайн и хендлер.</p>
 <div class="code" data-file="create-order.endpoint.ts" data-lang="typescript"><pre><code>export const CreateOrder = httpEndpoint({
   method: 'POST',
   path: '/orders',
-  input: NewOrder,           // схема: валидация + типы + доки
+  input: NewOrder,           // схема: валидация, типы, документация
   output: Order,
   pipeline: basePipeline,
   deps: [OrdersService],     // явный массив токенов
   handle: (orders) =&gt; async (input: NewOrder, meta): Output&lt;Order&gt; =&gt;
     new Ok(orders.create(input)),
 });</code></pre></div>
-<p>Словарь делит ответственность честно: <code>method</code>/<code>path</code> — это <strong>транспорт</strong>, <code>input</code>/<code>output</code>/<code>pipeline</code> — <strong>контракт</strong>, <code>deps</code> — <strong>зависимости</strong> (явным массивом токенов). Декораторов эндпоинта и интерфейса <code>IEndpoint</code> нет: декоратор не влияет на типы, а сверка хендлера со схемами идёт прямо в точке декларации. Второй аргумент хендлера, <code>meta</code>, — это поля, которые накопили <code>.pre</code>-юниты пайплайна; хендлер декларирует только то, что использует. В <code>meta</code> всегда есть <code>signal: AbortSignal</code> — об этом в разделе про стриминг.</p>
-<p>Схемы <code>input</code>/<code>output</code> — не обязательно Zod: ядро принимает любой <a href="fundamentals.html#schemas">Standard Schema</a>-валидатор (Valibot, ArkType, …), а модуль документации превращает те же схемы в OpenAPI.</p>
+<p>Поля декларации делятся на три группы. <code>method</code> и <code>path</code> описывают транспорт. <code>input</code>, <code>output</code> и <code>pipeline</code> описывают контракт. <code>deps</code> перечисляет зависимости явным массивом токенов. Декораторов endpoint'а и интерфейса <code>IEndpoint</code> нет: декоратор не влияет на типы, а сверка хендлера со схемами происходит в точке декларации. Второй аргумент хендлера, <code>meta</code>, содержит поля, которые накопили <code>.pre</code>-юниты пайплайна; хендлер объявляет только те, которые использует. В <code>meta</code> всегда есть <code>signal: AbortSignal</code> (см. раздел про <a href="fundamentals.html#streaming">стриминг</a>).</p>
+<p>Схемы <code>input</code> и <code>output</code> не обязаны быть на Zod: ядро принимает любой валидатор <a href="fundamentals.html#schemas">Standard Schema</a> (Valibot, ArkType и другие), а модуль документации превращает те же схемы в OpenAPI.</p>
 <h3>Один endpoint — любой транспорт</h3>
-<p>Пайплайн и хендлер не знают, откуда пришёл запрос: транспорт-слепы. Транспортный словарь легален только в декларации — у HTTP это <code>method</code>/<code>path</code>, у CLI <code>command</code>. Схемы, пайплайн и хендлер переносятся между ними без правок; каждая декларация честно знает свой транспорт, никакого <code>ExecutionContext</code>-маскарада.</p>
-<h3>Класс — форма подключения DI</h3>
-<p>Привычная после Nest структура «конструктор + метод <code>handle</code>» никуда не делась — но это <strong>форма подключения DI, а не второй стиль деклараций</strong>: сама декларация остаётся тем же значением, <code>implements</code> не нужен. Класс-хендлер — обычный провайдер и регистрируется в <code>providers:</code> явно.</p>
+<p>Пайплайн и хендлер не знают, откуда пришёл запрос. Транспортные поля разрешены только в декларации: у HTTP это <code>method</code> и <code>path</code>, у CLI — <code>command</code>. Схемы, пайплайн и хендлер переносятся между транспортами без правок. Каждая декларация знает свой транспорт; общего <code>ExecutionContext</code>, скрывающего транспорт, нет.</p>
+<h3>Класс как способ подключить DI</h3>
+<p>Привычная после Nest форма «конструктор плюс метод <code>handle</code>» сохранилась. Это способ подключить зависимости, а не второй стиль деклараций: сама декларация остаётся тем же значением, <code>implements</code> не нужен. Класс-хендлер — обычный провайдер, и его регистрируют в <code>providers:</code> явно.</p>
 <div class="code" data-file="create-order.endpoint.ts" data-lang="typescript"><pre><code>@Injectable([OrdersService])
 export class CreateOrderHandler {
   constructor(private orders: OrdersService) {}
@@ -111,10 +111,10 @@ export const CreateOrder = httpEndpoint({
 });</code></pre></div>
 <div class="note">
 <span class="note-t">Тестирование</span>
-<p>DI не мешает тестам: класс-хендлер — обычный класс. <code>new CreateOrderHandler(mockOrders)</code>, затем <code>handler.handle(input, { signal })</code>. Ни контейнера, ни транспорта.</p>
+<p>Класс-хендлер — обычный класс. В юнит-тесте его создают напрямую: <code>new CreateOrderHandler(mockOrders)</code>, затем <code>handler.handle(input, { signal })</code>. Контейнер и транспорт не нужны.</p>
 </div>
 <h2 id="di">Провайдеры и DI</h2>
-<p>Провайдер — то, что живёт в контейнере: сервис, репозиторий, источник событий, юнит пайплайна. Зависимости объявляются <strong>явным массивом токенов</strong> — это сердце принципа «no runtime magic». Контейнер не угадывает типы по рефлексии; он читает массив и строит граф.</p>
+<p>Провайдер — то, что живёт в контейнере: сервис, репозиторий, источник событий, юнит пайплайна. Зависимости объявляются явным массивом токенов. Контейнер не угадывает типы по рефлексии: он читает массив и строит граф.</p>
 <div class="code" data-file="orders.service.ts" data-lang="typescript"><pre><code>@Injectable([ILogger, OrdersRepository])
 export class OrdersService {
   constructor(
@@ -125,10 +125,10 @@ export class OrdersService {
   create(dto: NewOrder): Order { /* ... */ }
 }</code></pre></div>
 <h3>Токены, а не имена</h3>
-<p>Токен — это значение, которое нужно <strong>импортировать</strong>, чтобы что-то запросить. Здесь прячется тонкое, но важное свойство: <strong>ES-модули уже являются системой видимости</strong>. Не экспортировал токен из <code>index.ts</code> модуля — снаружи его физически нечем инжектить. Поэтому Nestling <em>не нужна</em> рантайм-инкапсуляция модулей (нестовские <code>exports</code>): границы обеспечивает сам язык.</p>
-<p>Токены могут быть ссылкой на класс или строкой — но благодаря branded-типам строковые токены типобезопасны:</p>
-<div class="code" data-lang="typescript"><pre><code>export const ILogger = token&lt;ILoggerService&gt;('logger');
-// ILogger несёт свой тип — инжект типизирован, даже будучи строкой</code></pre></div>
+<p>Токен — значение, которое нужно импортировать, чтобы запросить зависимость. Отсюда следует важное свойство: <strong>ES-модули уже являются системой видимости</strong>. Если токен не экспортирован из <code>index.ts</code> модуля, снаружи его нечем инжектировать. Поэтому Nestling не нужна рантайм-инкапсуляция модулей вроде <code>exports</code> в Nest: границы задаёт сам язык.</p>
+<p>Токен может быть ссылкой на класс или строкой. Строковые токены типобезопасны благодаря брендированным типам:</p>
+<div class="code" data-lang="typescript"><pre><code>export const ILogger = makeToken&lt;ILoggerService&gt;('logger');
+// ILogger несёт свой тип: инжект типизирован, хотя токен — строка</code></pre></div>
 <h3>Три вида провайдеров</h3>
 <div class="tbl-wrap">
 <table>
@@ -159,20 +159,20 @@ export class OrdersService {
 </table>
 </div>
 <h3>Циклов не существует</h3>
-<p>В Nestling нет <code>forwardRef</code> — и это не упущение, а позиция: циклические зависимости <strong>не должны существовать</strong>. Жадный контейнер строит весь граф на <code>build()</code>, топологически сортирует его и на цикле падает <em>на старте</em> с понятной ошибкой. Нет <code>REQUEST</code>/<code>TRANSIENT</code> скоупов: request-состояние — это контекст пайплайна, а не узел графа (иначе request-scope «заражает» весь граф, как в Nest).</p>
+<p><code>forwardRef</code> в Nestling нет: циклические зависимости — ошибка сборки. Жадный контейнер строит весь граф на <code>build()</code>, вычисляет топологический порядок и при цикле падает на старте с понятной ошибкой. Скоупов <code>REQUEST</code> и <code>TRANSIENT</code> тоже нет: состояние запроса живёт в контексте пайплайна, а не в узле графа.</p>
 <div class="note good">
 <span class="note-t">Параметризованные провайдеры без магии</span>
-<p>Нужен один рецепт на много инстансов (<code>ILogger('orders')</code>, <code>IQueue('emails')</code>)? Это <a href="fundamentals.html#config">token families</a> — билдер видит все запрошенные члены семейства статически и создаёт их жадно. «Динамика» происходит на сборке, а не на запросе. Тот же механизм питает конфигурацию — и <a href="fundamentals.html#multi">multi-injection</a>: <code>Family.all</code> инжектит массив всех зарегистрированных членов семейства.</p>
+<p>Нужен один рецепт на много экземпляров (<code>ILogger('orders')</code>, <code>IQueue('emails')</code>)? Это <a href="fundamentals.html#config">семейства токенов</a>: контейнер видит все запрошенные члены семейства при сборке и создаёт их сразу. Тот же механизм лежит в основе конфигурации и <a href="fundamentals.html#multi">multi-injection</a>: <code>Family.all</code> инжектирует массив всех зарегистрированных членов семейства.</p>
 </div>
 <h2 id="modules">Модули</h2>
-<p>Модуль в Nestling — <strong>plain object</strong>, а не класс. Это метка принадлежности + единица упаковки (провайдеры, endpoints) + метаданные для графа и визуализации. Никаких хуков модуля, <code>configure()</code>-методов, неясного порядка <code>OnModuleInit</code>.</p>
+<p>Модуль в Nestling — обычный объект, а не класс. Он отмечает принадлежность провайдеров и endpoint'ов, служит единицей упаковки и даёт метаданные для графа и визуализации. Хуков модуля, методов <code>configure()</code> и вопроса о порядке <code>OnModuleInit</code> нет.</p>
 <div class="code" data-file="orders.module.ts" data-lang="typescript"><pre><code>export const OrdersModule = makeAppModule({
   name: 'module:orders',
   providers: [OrdersService, OrdersRepository],
   endpoints: [CreateOrderEndpoint, ListOrdersEndpoint],
 });</code></pre></div>
-<h3>Модуль — значение, значит параметризация бесплатна</h3>
-<p>Раз модуль — это значение, то «настраиваемый модуль» — просто функция, которая возвращает модуль. Вся нестовская махина <code>DynamicModule</code> / <code>forRoot</code> / <code>forRootAsync</code> исчезает:</p>
+<h3>Модуль — значение, поэтому параметризация не требует ничего нового</h3>
+<p>Настраиваемый модуль — это функция, которая возвращает модуль. <code>DynamicModule</code>, <code>forRoot</code> и <code>forRootAsync</code> не нужны:</p>
 <div class="code" data-lang="typescript"><pre><code>export const makeLoggingModule = (opts: { level: LogLevel }) =&gt;
   makeAppModule({
     name: 'module:logging',
@@ -181,14 +181,14 @@ export class OrdersService {
 
 // использование:
 makeLoggingModule({ level: 'debug' })</code></pre></div>
-<h3>Видимость — через экспорты, не через рантайм</h3>
-<p>По умолчанию видимость определяют ES-экспорты. Хочешь строгую проверку границ — включи build-time lint: <code>new ContainerBuilder({ strictExports: true })</code> сверит рёбра готового графа против деклараций <code>exports</code>. Это проверка на <code>build()</code>, а не рантайм-ACL — граф уже построен, проверка дешёвая.</p>
+<h3>Видимость через экспорты</h3>
+<p>По умолчанию видимость определяют ES-экспорты. Если нужна строгая проверка границ, включите её при сборке: <code>new ContainerBuilder({ strictExports: true })</code> сверит рёбра готового графа с полями <code>exports</code> модулей. Это проверка на <code>build()</code>, а не проверка прав во время запроса.</p>
 <h2 id="result">Ok и Fail</h2>
-<p>Результат хендлера — <code>Ok</code> или <code>Fail</code>, и оба — <strong>значения</strong>, часть контракта: <code>Output&lt;T, E&gt; = Promise&lt;Ok&lt;T&gt; | E | T&gt;</code>, где <code>E</code> — множество отказов из <code>errors:</code> декларации. При этом <code>Fail</code> можно не только вернуть, но и бросить: в JS нет <code>?</code>-оператора Rust'а, поэтому <code>throw</code> — легальный <em>ранний выход</em> со значением, а не «исключительная ситуация». Рантайм не различает пути. А вот брошенный <em>не</em>-<code>Fail</code> — это баг: клиент получит <code>UnknownError</code> (<code>INTERNAL_ERROR</code>) без деталей.</p>
+<p>Хендлер возвращает <code>Ok</code> или <code>Fail</code>. Оба — значения и часть контракта: <code>Output&lt;T, E&gt; = Promise&lt;Ok&lt;T&gt; | E | T&gt;</code>, где <code>E</code> — отказы из поля <code>errors:</code> декларации. <code>Fail</code> можно не только вернуть, но и бросить: <code>throw</code> здесь заменяет отсутствующий в JavaScript оператор <code>?</code> из Rust и служит ранним выходом со значением. Рантайм обрабатывает оба пути одинаково. Брошенное исключение, которое не является <code>Fail</code>, считается внутренней ошибкой: клиент получает <code>UnknownError</code> со статусом <code>INTERNAL_ERROR</code> без деталей.</p>
 <div class="code" data-lang="typescript"><pre><code>async handle(input: NewOrder, meta): Output&lt;Order, EmailTaken&gt; {
   const existing = await this.orders.findByEmail(input.email);
   if (existing) {
-    meta.fail(EmailTaken({ email: input.email })); // ранний выход, типизированный errors:
+    meta.fail(EmailTaken({ email: input.email })); // ранний выход; принимает только отказы из errors:
   }
   const order = await this.orders.create(input);
   return Ok.created(order, { Location: `/orders/${order.id}` });
@@ -198,7 +198,7 @@ makeLoggingModule({ level: 'debug' })</code></pre></div>
 <thead>
 <tr>
 <th>Успех</th>
-<th>Провал</th>
+<th>Отказ</th>
 </tr>
 </thead>
 <tbody>
@@ -221,26 +221,26 @@ makeLoggingModule({ level: 'debug' })</code></pre></div>
 </tbody>
 </table>
 </div>
-<p>Статусы — <strong>семантические</strong>, а не HTTP-коды: как ответить на провод (404 или gRPC-код) — решает транспорт. Помимо статуса, у <code>Fail</code> есть <code>code</code> — стабильный машинный код для клиента (<code>'ORDER_NOT_FOUND'</code>) — и <code>cause</code> — обёрнутая исходная ошибка.</p>
-<p><code>Fail</code> — это <strong>нормальный результат</strong>. Когда один endpoint зовёт другую фичу через <a href="scaling.html#ports">порт</a>, отказ приходит как <code>Fail</code>, который можно проверить и вернуть дальше — без <code>try/catch</code>. Правило простое: <strong>свой отказ — <code>throw</code>, чужой — <code>return</code></strong>:</p>
+<p>Статусы семантические, а не HTTP-коды. Как ответить по сети (404 или код gRPC), решает транспорт. Кроме статуса у <code>Fail</code> есть <code>code</code> — стабильный машинный код для клиента (<code>'ORDER_NOT_FOUND'</code>) — и <code>cause</code> — исходная ошибка, если она была.</p>
+<p><code>Fail</code> — обычный результат. Когда endpoint вызывает другую фичу через <a href="scaling.html#ports">порт</a>, отказ приходит как <code>Fail</code>, который можно проверить и вернуть дальше без <code>try/catch</code>. Правило: свой отказ бросают, чужой возвращают.</p>
 <div class="code" data-lang="typescript"><pre><code>const charge = await this.billing.call({ orderId, amount }, meta);
-if (charge.isFail) return charge;      // отказ — обычный поток, не исключение
+if (charge.isFail) return charge;      // отказ — обычный результат, не исключение
 return new Ok(this.orders.create(input));</code></pre></div>
-<h3>Доменные ошибки: defineFail</h3>
-<p>Доменная ошибка — не подкласс с декоратором, а <strong>значение-фабрика</strong>, в духе <code>token&lt;T&gt;()</code>. Идентичность ошибки — её <code>code</code>, а не <code>instanceof</code>: отказ, приехавший от remote-порта, — десериализованные данные, класс на них мёртв, code выживает.</p>
+<h3>Доменные ошибки: <code>defineFail</code></h3>
+<p>Доменная ошибка — не подкласс с декоратором, а значение-фабрика, как <code>makeToken&lt;T&gt;()</code>. Идентичность ошибки задаёт её <code>code</code>, а не <code>instanceof</code>: отказ, пришедший от удалённого порта, — это десериализованные данные, у которых нет класса, а <code>code</code> сохраняется.</p>
 <div class="code" data-file="orders/errors.ts" data-lang="typescript"><pre><code>export const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
   status: 'NOT_FOUND',
   details: z.object({ orderId: z.string() }),  // schema-first — и для ошибок
-  message: (d) =&gt; `Order ${d.orderId} not found`,   // сообщение — от деталей
+  message: (d) =&gt; `Order ${d.orderId} not found`,   // сообщение строится из деталей
 });
 
 throw OrderNotFound({ orderId: '42' });
 throw OrderNotFound({ orderId: '42' }, { cause: dbError });
 
-// в .catch-юните — матчинг по code, работает и после провода:
+// в .catch-юните — сопоставление по code, работает и после сети:
 if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
 <h3>Ошибки — часть контракта</h3>
-<p>Endpoint декларирует свои отказы: <code>errors: [EmailTaken, OrderLimitReached]</code>. Из этого — OpenAPI-доки бесплатно, а потребители порта знают, какие <code>Fail</code> ждать. Гарантия двухуровневая: компилятор не даёт вернуть отказ вне множества, а граница пайплайна нормализует всё незадекларированное в <code>UnknownError</code> — так что ответ ручки это <strong>закрытое множество</strong> <code>E ∪ UnknownError</code>, а не конвенция.</p>
+<p>Endpoint объявляет свои отказы: <code>errors: [EmailTaken, OrderLimitReached]</code>. Из этого списка строятся ответы в OpenAPI, а потребители порта знают, какие <code>Fail</code> ожидать. Гарантия держится на двух уровнях. Компилятор не даёт вернуть отказ вне списка. Выход из пайплайна заменяет всё незадекларированное на <code>UnknownError</code>. Поэтому ответ endpoint'а — закрытое множество <code>E ∪ UnknownError</code>.</p>
 <div class="code" data-lang="typescript"><pre><code>export const CreateOrder = httpEndpoint({
   method: 'POST',
   path: '/orders',
@@ -249,16 +249,16 @@ if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
   deps: [OrdersService],
   handle: (orders) =&gt; async (input: NewOrder, meta): Output&lt;Order, EmailTaken | OrderLimitReached&gt; =&gt; {
     if (await orders.emailBusy(input.email)) {
-      meta.fail(EmailTaken(input.email));  // типизированный ранний выход: только из errors
+      meta.fail(EmailTaken(input.email));  // типизированный ранний выход: только отказы из errors
     }
     return Ok.created(await orders.create(input));
   },
 });</code></pre></div>
-<p>Декларация — <strong>закрытое множество</strong>, и охраняется она на двух уровнях. <strong>Компилятор</strong> проверяет всё, что течёт <em>значениями</em>: возвраты — через <code>Output&lt;T, E&gt;</code> (в том числе проброс отказа порта: чужой <code>Fail</code> не пролезет в ответ, пока не задекларирован), ранние выходы — через <code>meta.fail(e): never</code>, бросатель, принимающий <em>только</em> задекларированные отказы. Это второй зарезервированный ключ <code>meta</code>, как <code>signal</code>: его тип рождается из декларации endpoint'а. А всё, что компилятору невидимо — прямой <code>throw</code>, отказ из глубины сервисов (<code>throw</code> в TypeScript нетипизируем: checked exceptions в языке нет), — <strong>нормализует граница пайплайна</strong>: незадекларированный отказ превращается в <code>UnknownError</code> (<code>code: 'UNKNOWN'</code>, статус <code>INTERNAL_ERROR</code>, generic-тело + <code>requestId</code>; оригинал — целиком в лог). Итого клиент видит либо задекларированный отказ, либо <code>UnknownError</code> — он неявно входит в каждый контракт (default-ответ в OpenAPI). Третьего не бывает.</p>
-<p>Нормализация срабатывает <em>после</em> всех <code>.catch</code>-юнитов: <code>.catch</code> — и есть легальное место, где доменный отказ из глубины превращается в контрактный. Задекларировал — уйдёт как есть; забыл — клиент получит <code>UnknownError</code>, а не случайно «работающий» ответ, на который он успеет опереться.</p>
-<p>Именно поэтому в Nestling нет отдельной подсистемы «exception filters»: централизованный маппинг ошибок — это обычный <code>.catch</code>-юнит пайплайна, о котором ниже.</p>
+<p>Компилятор проверяет всё, что передаётся значениями: возвраты через <code>Output&lt;T, E&gt;</code> (в том числе проброс отказа порта — чужой <code>Fail</code> не попадёт в ответ, пока не задекларирован) и ранние выходы через <code>meta.fail(e): never</code>, который принимает только задекларированные отказы. <code>meta.fail</code> — второй зарезервированный ключ <code>meta</code> после <code>signal</code>; его тип выводится из декларации endpoint'а. Всё, чего компилятор не видит (прямой <code>throw</code>, отказ из глубины сервисов), проверяет выход из пайплайна: незадекларированный отказ превращается в <code>UnknownError</code> (<code>code: 'UNKNOWN'</code>, статус <code>INTERNAL_ERROR</code>, общее тело ответа и <code>requestId</code>; оригинал целиком уходит в диагностический хук). Клиент видит либо задекларированный отказ, либо <code>UnknownError</code>, который неявно входит в каждый контракт (ответ <code>default</code> в OpenAPI).</p>
+<p>Эта проверка срабатывает после всех <code>.catch</code>-юнитов: <code>.catch</code> — то место, где доменный отказ из глубины превращается в контрактный. Если отказ задекларирован, он уйдёт как есть; если забыт, клиент получит <code>UnknownError</code>, а не случайный ответ, на который он мог бы опереться.</p>
+<p>Поэтому отдельной подсистемы exception filters в Nestling нет: централизованное преобразование ошибок — обычный <code>.catch</code>-юнит пайплайна.</p>
 <h2 id="pipeline">Pipeline</h2>
-<p>Здесь Nestling резче всего расходится с Nest. Вместо middleware, interceptors, guards, pipes и exception filters — <strong>один механизм</strong>: pipeline с плоскими фазами. Ни <code>next()</code>, ни «луковицы», ни скрытого control flow.</p>
+<p>Здесь Nestling сильнее всего отличается от Nest. Вместо middleware, interceptors, guards, pipes и exception filters — один механизм: пайплайн с плоскими фазами. Без <code>next()</code>, вложенных обёрток и скрытого потока управления.</p>
 <h3>Четыре фазы, читаются сверху вниз</h3>
 <p>Один вызов <code>makePipeline()</code> определяет один слой. Декларация читается сверху вниз как план исполнения:</p>
 <div class="tbl-wrap">
@@ -279,7 +279,7 @@ if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
 <tr>
 <td><code>.ok(u)</code></td>
 <td>ответ — успех</td>
-<td><strong>полный</strong> (успех ⇒ весь pre-тракт прошёл)</td>
+<td>полный: успех означает, что все <code>.pre</code> прошли</td>
 </tr>
 <tr>
 <td><code>.catch(u)</code></td>
@@ -289,17 +289,17 @@ if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
 <tr>
 <td><code>.finally(u)</code></td>
 <td>всегда, последним, с исходом</td>
-<td><code>Partial</code> + <code>outcome</code></td>
+<td><code>Partial</code> и <code>outcome</code></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Порядок на ответном тракте: <code>.ok</code>- и <code>.catch</code>-юниты исполняются <strong>в порядке объявления</strong>, каждый — по применимости к <em>текущему</em> ответу (если <code>.ok</code>-юнит бросил, ответ стал ошибкой — последующие <code>.catch</code> применимы). <code>.finally</code> — всегда и строго последним. Словарь намеренно повторяет Promise: <code>ok</code> / <code>catch</code> / <code>finally</code>.</p>
+<p>После хендлера юниты <code>.ok</code> и <code>.catch</code> выполняются в порядке объявления. Перед каждым юнитом рантайм смотрит на текущий ответ: для успеха выполняются <code>.ok</code>-юниты, для ошибки — <code>.catch</code>-юниты. Если <code>.ok</code>-юнит бросил исключение, ответ становится ошибкой, и дальше срабатывают <code>.catch</code>-юниты. <code>.finally</code> выполняется всегда и последним. Имена методов повторяют Promise: <code>ok</code>, <code>catch</code>, <code>finally</code>.</p>
 <div class="note">
-<span class="note-t">Почему у .catch контекст Partial, а у .ok — полный</span>
-<p>Успех приходит только из хендлера, а хендлер запускается, только если <strong>весь</strong> pre-тракт прошёл — поэтому <code>.ok</code> получает железную гарантию полного контекста. А <code>Fail</code> может родиться посреди pre-тракта: если из трёх <code>.pre</code>-юнитов упал второй, исполнение сразу уходит в ответную фазу, и контекст третьего просто не успел накопиться. <code>.catch</code> вызывается и в этом случае — значит, его тип обязан честно покрывать худший вариант: свой слой <code>Partial</code>. Внешние слои при этом всегда полные: слой вообще исполняется, только если pre всех внешних слоёв уже прошли.</p>
+<span class="note-t">Почему у <code>.catch</code> контекст Partial, а у <code>.ok</code> — полный</span>
+<p>Успех приходит только из хендлера, а хендлер запускается только после всех <code>.pre</code>-юнитов. Поэтому <code>.ok</code> всегда получает полный контекст. <code>Fail</code> может возникнуть посреди <code>.pre</code>-фазы: если из трёх <code>.pre</code>-юнитов упал второй, исполнение сразу переходит к ответной фазе, и контекст третьего юнита не заполнен. <code>.catch</code> вызывается и в этом случае, поэтому его тип описывает свой слой как <code>Partial</code>. Контекст внешних слоёв при этом полный: слой выполняется только после того, как прошли <code>.pre</code> всех внешних слоёв.</p>
 </div>
-<p><code>.pre</code>-юнит — функция, <strong>монотонно</strong> добавляющая типизированные данные в контекст. Это и есть замена guards/pipes/валидации Nest: каждый шаг наращивает контекст, и типы это отслеживают.</p>
+<p><code>.pre</code>-юнит — функция, которая добавляет типизированные данные в контекст. Контекст только растёт: поля не удаляются и не меняют тип. Это замена guards, pipes и валидации в Nest: каждый шаг дополняет контекст, и типы это отслеживают.</p>
 <div class="code" data-lang="typescript"><pre><code>export const withTiming: PreUnitFn&lt;EmptyInput, { startedAt: number }&gt; =
   async () =&gt; ({ startedAt: Date.now() });
 
@@ -310,29 +310,28 @@ const pipeline = makePipeline()
   .catch(mapDomainErrors)    // «exception filter» это просто catch
   .finally(audit);           // наблюдатель исхода</code></pre></div>
 <div class="note">
-<span class="note-t">Почему не «луковица» с next()</span>
-<p>Koa/Express-модель <code>(ctx, next)</code> отвергнута сознательно: она прячет control flow (можно не вызвать <code>next</code>, вызвать дважды, проглотить ошибку), ломает типизированное накопление контекста и делает цепочку неанализируемой. Плоские фазы говорят правду прямо в типах: на успешном тракте контекст полный, на ответном (где <code>.pre</code> мог не отработать) — <code>Partial</code>. «Транзакция» — это не обёртка, а три явные строки: <code>.pre</code> + <code>.ok</code> + <code>.catch</code>.</p>
+<span class="note-t">Почему не модель middleware с <code>next()</code></span>
+<p>Модель <code>(ctx, next)</code> из Koa и Express прячет поток управления: <code>next</code> можно не вызвать, вызвать дважды или проглотить ошибку. Она ломает типизированное накопление контекста и делает цепочку неанализируемой. Плоские фазы описывают контекст прямо в типах: на пути успеха контекст полный, на пути ошибки — <code>Partial</code>. Транзакция здесь — не обёртка, а три явных юнита: <code>.pre</code> открывает, <code>.ok</code> подтверждает, <code>.catch</code> откатывает.</p>
 </div>
-<h3>Композиция слоями — константами</h3>
-<p>Пайплайны переиспользуются как иммутабельные значения. Слои складываются <code>compose(outer, ..., inner)</code> — читается «снаружи внутрь». Требования слоя к внешнему контексту объявляются в типе и <strong>проверяются компилятором в точке композиции</strong>:</p>
+<h3>Композиция слоями</h3>
+<p>Пайплайны переиспользуются как неизменяемые значения. Слои складываются функцией <code>compose(outer, ..., inner)</code> и читаются снаружи внутрь. Требования слоя к внешнему контексту объявляются в типе и проверяются компилятором в точке композиции:</p>
 <div class="code" data-file="common/pipelines.ts" data-lang="typescript"><pre><code>export const base = makePipeline()
   .pre(withRequestId())
   .finally(audit);
 
-// слой, которому НУЖЕН identity из внешнего слоя — заявляет это в типе:
+// слой, которому НУЖЕН identity из внешнего слоя, объявляет это в типе:
 export const authed = makePipeline&lt;{ identity: User }&gt;()
   .pre(requireRole('admin'));
 
 export const adminPipeline = compose(base, withIdentity, authed);
 //                                    ^ компилятор проверит, что identity будет</code></pre></div>
-<p>Диагностика — часть API: при нарушении требований тип параметра схлопывается в читаемый литерал <code>{ __error: '…'; missing: { identity: User } }</code>, где <code>missing</code> — рекорд «имя поля → его тип», а не трассировка дженериков. Тексты диагностик зафиксированы snapshot-тестами, а на стоимость типовой машинерии есть бюджет с порогом в CI.</p>
-<p>Привязка пайплайна — <strong>только к endpoint'у</strong>. Глобальных и модульных пайплайнов нет: отложенная сборка проверяется лишь на старте, а жадная композиция константами — компилятором. Что навешано на ручку, видно прямо в её декларации.</p>
-<h3>Границы: pipeline ≠ транспорт</h3>
-<p>Ответные юниты (<code>.ok/.catch</code>) <strong>не меняют тип value</strong> — иначе output-схема перестанет описывать провод, и schema-first сломается. Сжатие, CORS, content-negotiation, глобальный конверт <code>{data, meta}</code> — это <strong>транспорт</strong> (он про байты), а не юниты пайплайна. Эта линия сама отвечает на половину вопросов «куда положить X».</p>
-<p>А retry и timeout? Это не обёртки вокруг хендлера, а <strong>декларативные опции endpoint'а</strong> (<code>timeout: 5000</code>, <code>retry: {...}</code>), которые исполняет оркестратор. Декларативно = видно в метаданных = попадает в доки и визуализацию.</p>
+<p>Диагностика типов — часть API. При нарушении требований тип параметра сворачивается в читаемый литерал <code>{ __error: '…'; missing: { identity: User } }</code>, где <code>missing</code> перечисляет недостающие поля и их типы. Тексты диагностик зафиксированы snapshot-тестами; у стоимости вычисления типов есть бюджет с порогом в CI.</p>
+<p>Пайплайн привязывается только к endpoint'у. Глобальных и модульных пайплайнов нет: что подключено к endpoint'у, видно в его декларации, а композиция константами проверяется компилятором.</p>
+<h3>Границы: пайплайн и транспорт</h3>
+<p>Ответные юниты (<code>.ok</code>, <code>.catch</code>) не меняют тип <code>value</code>: иначе схема <code>output</code> перестала бы описывать то, что уходит в сеть. Сжатие, CORS, content negotiation, общий конверт <code>{ data, meta }</code> — работа транспорта, который имеет дело с байтами, а не юнитов пайплайна. Это правило отвечает на большинство вопросов «куда положить X».</p>
 <div class="note good">
 <span class="note-t">pipeline.explain()</span>
-<p>Пайплайн интроспектируем: <code>pipeline.explain()</code> печатает план исполнения — дерево фаз и слоёв с аннотациями (<code>→ {identity: User}</code> в точке композиции). Один и тот же интроспективный механизм служит отладке, документации и визуализации графа.</p>
+<p>Пайплайн можно проинспектировать: <code>pipeline.explain()</code> печатает план исполнения — дерево фаз и слоёв с аннотациями в точках композиции. Тот же механизм служит отладке, документации и визуализации графа.</p>
 </div>
 
   <nav class="pager">

@@ -32,5 +32,5 @@
 | [errors.md](./errors.md) | модель ошибок: `Ok`/`Fail`, `defineFail`, `E ∪ UnknownError` |
 | [schemas.md](./schemas.md) | Standard Schema на границах, OpenAPI/AsyncAPI через конвертеры |
 | [streaming.md](./streaming.md) | стриминг: `stream`/`events`, item-цепочки, `Topic`, граница с RxJS |
-| [transports.md](./transports.md) | транспорты: `serve(dispatch)`, сантехника, парсинг по io-декларации |
+| [transports.md](./transports.md) | транспорты: `serve(dispatch)`, байтовый уровень (сжатие, CORS, парсинг по io-декларации) |
 | [testing.md](./testing.md) | `@nestling/testing`: `assembleTest`, стабы, `.check()` |
