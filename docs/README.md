@@ -13,6 +13,7 @@ docs/
 ├── guides/        ← гайды по ТЕКУЩЕМУ API, сверены с кодом примеров.
 ├── preview/       ← статический HTML-превью документации; не источник истины.
 │                 Текст правится в preview/src/*.md, HTML собирается `yarn docs:preview`.
+├── glossary.md    ← термины и правила их написания.
 └── history/       ← замороженная история. Не редактируется.
     ├── discussions/   — дискуссии, из которых рождались решения
     ├── migrations/    — гайды миграций прошлых ломающих изменений
@@ -40,7 +41,7 @@ docs/
 | [openapi.md](./guides/openapi.md) | Документ OpenAPI 3.1 из деклараций: модуль `openapi()`, слот `doc:`, конвертеры, `jsonSchema()` | `examples.app-with-http` |
 | [cli.md](./guides/cli.md) | CLI-транспорт: single-shot и REPL | `examples.simple-cli` |
 | [testing.md](./guides/testing.md) | App-тесты: `assembleTest`, `overrides` + прунинг, `.check()`-матрица, `vars()`, `./testing`-subpath | `examples.app-with-http` |
-| [subscriptions.md](./guides/subscriptions.md) | Реестр подписок: модуль `subscriptions()`, слой `tracked`, `meta.subscription.signal`, админ-ручки, факты контрактами | `examples.app-with-http` |
+| [subscriptions.md](./guides/subscriptions.md) | Реестр подписок: модуль `subscriptions()`, слой `tracked`, `meta.subscription.signal`, административные endpoint'ы, факты контрактами | `examples.app-with-http` |
 
 ## design/ — целевое состояние V1
 
@@ -84,3 +85,6 @@ design-доки описывают **только целевое V1** (как б
 7. **Гайды сверяются с примерами.** Каждый гайд в `guides/` начинается
    с плашки «сверено с кодом <пример> (дата)». Изменил пример — обнови
    гайд и дату.
+8. **Один стиль и один словарь.** Тексты пишутся по правилам скилла
+   `docs-style` (`.claude/skills/docs-style/SKILL.md`), термины — из
+   [glossary.md](./glossary.md).

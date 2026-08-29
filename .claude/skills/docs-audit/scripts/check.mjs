@@ -163,6 +163,7 @@ function scanLinks(file) {
 
 for (const file of [
   readmePath,
+  join(DOCS, 'glossary.md'),
   ...designFiles.map((f) => join(DOCS, 'design', f)),
   ...guideFiles.map((f) => join(DOCS, 'guides', f)),
   ...mdFiles(join(DOCS, 'decisions')).map((f) => join(DOCS, 'decisions', f)),
