@@ -1,289 +1,45 @@
 # @nestling/pipeline
 
-Typed, transport-agnostic request pipeline for Nestling: schema-first
-endpoint declarations (`makeEndpoint`) validated against any
-[Standard Schema](https://standardschema.dev), phased pipelines
-(`makePipeline().pre/.ok/.catch/.finally`), layer composition
-(`compose`), `Ok`/`Fail` results with a closed error contract
-(`defineFail`, `errors:`), io declared as a **tree of forms**
-(`stream()`, `events()`, `multipart()`/`upload()`) with item chains, and a
-read-only ambient projection of the request context (`contextVar`, `Ctx`).
+Типизированный пайплайн обработки запроса, не зависящий от транспорта:
+декларации endpoint'ов (`makeEndpoint`), фазы `.pre`/`.ok`/`.catch`/
+`.finally`, композиция слоёв (`compose`), политики сборки (`everyEndpoint`)
+и ambient-контекст запроса (`contextVar`, `Ctx`).
 
-> 🚧 Active development, API may change. The package ships **no validator
-> of its own** — bring your own (zod, valibot, arktype, TypeBox, Effect
-> Schema …). Design:
-> [`docs/design/schemas.md`](../../docs/design/schemas.md).
+> 🚧 Пакет в активной разработке, API может меняться. Валидатор схем в
+> пакет не входит: подходит любая
+> [Standard Schema](https://standardschema.dev) (zod, valibot, arktype,
+> TypeBox, Effect Schema). Целевой дизайн —
+> [`docs/design/pipeline.md`](../../docs/design/pipeline.md),
+> [`docs/design/schemas.md`](../../docs/design/schemas.md); гайды —
+> [HTTP без DI](../../docs/guides/http-functional.md),
+> [приложение с DI](../../docs/guides/http-app-di.md),
+> [CLI](../../docs/guides/cli.md).
 
-> **Where the declarative layer lives.** `Ok`/`Fail`, the status vocabulary,
-> `defineFail` with the kernel failure codes and the io forms now live in
-> [`@nestling/contracts`](../nestling.contracts) — a package with no server
-> code in its import closure, so a contract is importable into a browser
-> bundle. This package **re-exports** all of them: they are the working
-> vocabulary of any handler, and making its author import from another
-> package would be a tax without a win. The re-export is ES-module, i.e. the
-> same module — value identity does not double. What stays here is the
-> runtime: the pipeline itself, the boundary guard and `bind-stream`.
+Декларативный слой — `Ok`/`Fail`, перечень статусов, `defineFail` со
+встроенными кодами, формы io и `jsonSchema()` — живёт в
+[`@nestling/contracts`](../nestling.contracts) и реэкспортируется отсюда
+тем же модулем, так что идентичность значений не двоится. Схемный слой
+(`validateSync`, ошибки схем) живёт в [`@common/misc`](../common.misc) и
+тоже реэкспортируется. В этом пакете остаётся рантайм: сам пайплайн,
+проверка контракта отказов и обёртки потоков.
 
-## Endpoint declarations are values
+## Установка
 
-An endpoint declaration is a **value**, not a decorated class. `makeEndpoint`
-is the kernel primitive carrying all the shared machinery; users declare
-through per-transport constructors built on top of it (`httpEndpoint` from
-`@nestling/transport.http`, `cliEndpoint` from `@nestling/transport.cli`).
-Decorator declarations (`@Endpoint`, `@HttpEndpoint`), the `IEndpoint`
-interface, `getEndpointMetadata`/`EndpointMetadata` and the global endpoint
-registry are **gone**; creating a declaration has no side effects, and the
-set of served endpoints comes from the tree of registered modules
-(`@nestling/app`).
-
-`handle` is accepted in three forms, told apart by its type:
-
-| Form | Shape |
-|---|---|
-| plain function | `(input, meta) => …` — no dependencies, runnable as is |
-| curried factory | `deps: [Token, …]` + `(…deps) => (input, meta) => …`; the outer call happens **once**, on resolution |
-| class handler | a class with `@Injectable` and a `handle` method, resolved from the container |
-
-`EndpointDefinition<I, O, P, TNeeds>` carries unresolved dependencies in
-`TNeeds` (default `never`), symmetrically to `Pipeline<TReq, TAcc, TNeeds>`:
-`deps` tokens, the handler class and the pipeline's class units all land
-there. Transports accept only `TNeeds = never`, so handing an unresolved
-declaration to `server.route(...)` is a compile error.
-`endpoint.resolve(resolver)` returns a **new** runnable declaration (the
-original is untouched) and binds the pipeline's class units with the same
-resolver; `endpoint.resolve([instance, …])` is the positional form for
-curried handlers outside a container.
-
-Each declaration is branded with a non-enumerable
-`Symbol.for('nestling:endpoint')`; `isEndpointDefinition(value)` is the
-predicate discovery uses to reject anything else found in `endpoints:`.
-
-### `binding` — an opaque carrier for the transport
-
-`EndpointOptions`/`EndpointDefinition` accept `binding?: unknown`, which
-`makeEndpoint` puts on the value and `resolve` preserves. It is where a
-transport constructor stores its own binding (`httpEndpoint` puts the HTTP
-bind map there, and `httpBindingOf` reads it back). **The kernel never
-interprets it**: `@nestling/pipeline` knows no `path`/`query`/`body`, and
-adding a transport with a different binding shape needs no kernel change.
-
-### The start context
-
-`makeEmptyContext(raw, endpoint, signal?, input?)` builds the initial
-context. The fourth argument is the **start input** — what the transport
-knows before the first pre-unit runs; it defaults to `{}`, so the context
-type is `ExtendableContext<EmptyInput>` unless a transport passes
-something. `@nestling/transport.http` uses it for `rawBody: true`, which
-also makes the declaration's start context type non-empty — a pipeline
-layer declared as `makePipeline<{ rawBody: Uint8Array }>()` then only
-compiles where the bytes are actually requested.
-
-## Schemas: Standard Schema at the boundaries
-
-Every schema boundary of the core — `input`/`output` of an endpoint,
-`EndpointMeta`, `parsePayload`/`parseMetadata`, `DomainType`, and
-`Schema`/`Infer` from `@common/misc` — is typed as `StandardSchemaV1`.
-Validation always goes through `schema['~standard'].validate(value)`;
-the domain type is inferred via `StandardSchemaV1.InferOutput`. No vendor
-type appears in a public signature, and the core never introspects a
-schema — the spec gives validation and inference, nothing else.
-
-All validation funnels through a single function, `validateSync(schema,
-value, message)`, so the shape of a failure is identical on every path
-(`validate()` unit, transport fallback without a pipeline, per-item
-validation of NDJSON chunks, config section fields):
-
-**The schema kernel now lives in [`@common/misc`](../common.misc).**
-`validateSync`, `assertStandardSchema`, `normalizeIssues`, `DomainType` and
-the three error classes below moved down a layer, because configuration is
-read and validated before a request exists and `@nestling/config →
-@nestling/pipeline` would invert the phase order. `@nestling/pipeline`
-re-exports all of them from `./schema`, so nothing changes for a consumer:
-`import { validateSync } from '@nestling/pipeline'` still resolves, to the
-very same function object.
-
-
-- `SchemaValidationError` — the value failed the schema. Carries
-  `issues: readonly { message: string; path?: (string | number)[] }[]`,
-  normalized at construction (`{ key }` segments unwrapped, symbols
-  stringified, array indices kept numeric) so they are JSON-serializable.
-  Transports map it to `400`.
-- `AsyncSchemaNotSupportedError` — `~standard.validate` returned a Promise.
-  Deliberately **not** a subclass of `SchemaValidationError`: an async
-  refinement is the app author's configuration error, not bad input, so
-  transports map it to `500`.
-- `NotAStandardSchemaError` — the object passed as a schema has no
-  `~standard` with `version: 1` (typically a validator older than
-  zod 3.24 / valibot 1.0). Also `500`, with a diagnostic naming the
-  likely cause.
-
-### Vendor converters: the only way to look inside a schema
-
-The spec gives validation and inference and nothing else, so anything that
-needs the *structure* of a schema goes through an explicit converter:
-
-```typescript
-export interface SchemaDocConverter {
-  readonly vendor: string;                       // matched against `~standard.vendor`
-  toJsonSchema(schema: StandardSchemaV1, options?: SchemaDocOptions): unknown;
-}
-
-const zodConverter = (): SchemaDocConverter => ({
-  vendor: 'zod',
-  toJsonSchema: (schema) => z.toJSONSchema(schema as z.ZodType),
-});
+```bash
+npm install @nestling/pipeline
 ```
 
-`SchemaDocOptions` carries one optional hint — `io: 'input' | 'output'`.
-A schema with a transform (`z.string().transform(Number)`) describes two
-shapes: what arrives on the wire and what the handler gets. A request body
-must be documented as the first, a response body as the second, and a
-direction-blind converter would always be wrong about one of them. The hint
-is optional on both sides: a one-argument converter stays a valid converter,
-and a consumer to whom direction is irrelevant (the contract snapshot
-compares a shape against itself) simply does not pass it.
-
-The contract lives here — on the schema layer — rather than in the package
-that first needed it, because it has **two** consumers with **different
-strictness** when no converter matches a vendor:
-
-| Consumer | No converter for the vendor |
-|---|---|
-| documentation (`@nestling/openapi`) | fail-fast at boot: an undocumentable handle must not exist |
-| contract snapshot ([`@nestling/ports`](../nestling.ports)) | the leaf is opaque → verdict `unknown` |
-
-So the dispatcher does not bake strictness in: `leafJsonSchema(converters,
-leaf, options?)` returns one of three distinguishable outcomes — `declared`
-(the leaf carries an explicit annotation), `converted`, `unconvertible` —
-and lets the caller decide what to do with the third. (`pickConverter` is
-still there for callers that only need the converter itself.)
-
-### `jsonSchema(schema, json)` — the escape hatch
-
-An annotation, not a field of a declaration: it returns a value that
-validates exactly like the original (the same `~standard`, inherited through
-the prototype) and carries a declared JSON Schema on a non-enumerable symbol.
-The original schema is not mutated and there is no global registry of
-annotations.
+## Минимальный пример
 
 ```typescript
-input: z.object({ payload: jsonSchema(ExoticSchema, { type: 'object' }) })
-```
+import { compose, makePipeline, Ok, defineFail, withRequestId } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
 
-It works in **any** schema position — `input`, `output`, a stream leaf, the
-`fields` of a `multipart` form, the `details` of a failure definition — which
-a field on the declaration could not: an override there would have to encode
-a path into the tree of forms. The dispatcher prefers the annotation over a
-converter, so an annotated leaf is convertible whether or not a converter for
-its vendor was passed. The kernel failure schemas (`VALIDATION_FAILED` and
-friends) are declared this way — they are hand-written and no vendor
-converter understands them. The list of converters is the caller's data — there is no global
-registry — and `assertConverters(list)` fails fast, at the point the list is
-handed over, when two entries claim the same vendor. Converters have nothing
-to do with validation: an application without a single one validates exactly
-as before.
+export const base = makePipeline().pre(withRequestId());
 
-### Migrating from the zod-bound version
-
-- `SchemaValidationError.zodError` is gone — read `issues` instead.
-- `details` in a `400` response body are `{ message, path }` objects;
-  vendor-specific fields (`code`, `expected`, `received`) are no longer
-  emitted.
-- Async refinements in endpoint schemas are rejected: validation in the
-  pipeline is synchronous by guarantee. Move an async check into a
-  pipeline unit or the handler.
-
-## Phases
-
-One `makePipeline()` call defines one layer; the declaration reads
-top-to-bottom as the execution plan:
-
-- `.pre(unit)` — before the handler, in order; monotonically accumulates
-  a typed input. A failing pre skips the handler and enters the response
-  track with a `Fail`. A `Fail` **returned** by the handler enters it the
-  same way — returning a failure is equivalent to throwing one.
-- `.ok(unit)` — success responses only; sees the **full** accumulated ctx
-  (success guarantees the whole pre track ran). May replace the response
-  (success with success only).
-- `.catch(unit)` — error responses only; own-layer fields are `Partial`
-  (enrichment may not have happened). May replace an error with an error —
-  either a full `ErrorResponseContext` or just a `Fail`, which the runtime
-  normalizes the same way as the handler's. No `Fail → Ok` recovery
-  (v1 constraint).
-- **the contract guard** — after the whole response track and *before*
-  `.finally`: a response whose code is not in `errors:` (nor a kernel code)
-  is replaced by `UnknownError`. See below.
-- `.finally(unit)` — always, last, with the outcome
-  (`completed | disconnected | aborted | failed`). Observer only; sees the
-  already-normalized response. For a **streaming** `output` it is deferred
-  until the stream has finished (see below).
-
-Layers compose as constants — `compose(outer, ..., inner)` (pre runs
-outside-in, response phases and `finally` run inside-out). A layer declares
-its requirements as `makePipeline<{ identity: User }>()`; the compiler
-checks them at the composition site.
-
-Units come in three forms: a function, an instance with `handle()`, or a
-class (constructor) — the latter adds the class to the pipeline's `TNeeds`
-and requires `bind()` (App resolves class units from the DI container on
-startup). Units are singletons; per-request state belongs in ctx only.
-
-### Composition provenance and assembly policies
-
-A pipeline value remembers **what it was made from**: `compose(a, b)` keeps
-references to its arguments, a builder derivation (`.pre`/`.ok`/`.catch`/
-`.finally`) and `bind()` keep a reference to their predecessor. Nothing in
-execution reads it — the provenance exists so that layer identity can be
-**by reference**, which is what the policy dictionary is built on:
-
-```typescript
-import { everyEndpoint } from '@nestling/pipeline';
-
-assemble({
-  policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase, 'authedBase'),
-  ],
-  /* … */
-});
-```
-
-- `everyEndpoint({ transport?, pattern? })` — the filter narrows the set
-  conjunctively: `transport` is the transport **token** compared by
-  reference, `pattern` is a `RegExp` over `endpoint.pattern`. An empty
-  filter means every endpoint of the application.
-- `.hasLayer(layer, label?)` holds when the endpoint's pipeline **derives
-  from** that value. So `compose(base, authedBase)` passes, nesting is
-  transitive, and `authedBase.pre(withTenant())` passes too (the pre track
-  is monotonic). A same-named copy from another file does not: identity is
-  referential, never by name. `label` only shows up in the violation text.
-- `.hasVar(variable, label?)` holds when the endpoint's pipeline **declares**
-  an ambient variable — that is, contains a pre unit of the form
-  `<Var>.provide(…)`. The declared set lives next to the provenance and
-  behaves the same way: `compose` unions it, builder derivations and `bind()`
-  keep it. See "Ambient request context" below.
-- An endpoint **without** a `pipeline` violates the policy: for "this handle
-  is protected", no pipeline and no layer are indistinguishable.
-- `detached: '<reason>'` on the declaration takes an endpoint out of **every**
-  policy. The reason is mandatory and non-empty (`detached: true` is not
-  expressible), it survives `resolve`, and `@nestling/app` prints it at
-  startup and puts it in the `check()` report.
-
-`Policy` (`describe()` + `check(subjects)`) is an open interface: a new
-predicate is a value of the same type, so it needs neither a second pass over
-discovery nor a second field in the composition root. Policies are run by
-`@nestling/app` at the end of phase ASSEMBLE — see
-[`docs/design/pipeline.md`](../../docs/design/pipeline.md) §7.
-
-## Errors are values, and the contract is closed
-
-A failure is an ordinary value with a stable machine `code`: `isFail` is a
-plain property (it survives the wire, `instanceof` does not), and identity
-is by `code`, not by class.
-
-```typescript
 export const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
   status: 'NOT_FOUND',
-  details: z.object({ orderId: z.string() }),   // schema-first, as everywhere
+  details: z.object({ orderId: z.string() }),
   message: (d) => `Order ${d.orderId} not found`,
 });
 
@@ -292,59 +48,205 @@ export const GetOrder = httpEndpoint({
   path: '/orders/:id',
   input: OrderId,
   output: Order,
-  errors: [OrderNotFound],                      // the typed failure channel
+  errors: [OrderNotFound],                      // типизированный канал отказов
+  pipeline: base,
   handle: async ({ id }, meta) => {
     const order = await orders.find(id);
     return order ? new Ok(order) : OrderNotFound({ orderId: id });
-    // …or `meta.fail(OrderNotFound({ orderId: id }))` for an early exit
+    // или `meta.fail(OrderNotFound({ orderId: id }))` для раннего выхода
   },
 });
 ```
 
-- `Output<T, E>` / `OutputSync<T, E>` admit `Ok<T>`, a bare `T` and a
-  failure from `E`. `E` defaults to **empty**: without `errors:` a handler
-  cannot return a failure at all, and `new Ok(fail)` is a compile error.
-- `meta.fail(e): never` is the second reserved meta key after `signal`:
-  a typed early exit that only accepts declared failures.
-- Anything reaching the boundary undeclared — a bare `throw`, a failure
-  from deep inside a service, an anonymous `Fail.notFound(...)` (no code ⇒
-  undeclared) — is normalized into `UnknownError` (`UNKNOWN`, 500). The
-  original goes to `ExecuteOptions.onUnknownFail` whole (default:
-  `console.error`); the client gets a generic body. No warn-and-pass.
-- Kernel codes are in every endpoint's contract implicitly: `UNKNOWN`,
-  `VALIDATION_FAILED` (the `validate()` unit and per-item validation),
-  `STREAM_LIMIT_EXCEEDED` and `STREAM_GAP_TIMEOUT` (item-chain guards) and
-  `DEADLINE_EXCEEDED` (the call budget of `@nestling/ports`) — otherwise the
-  guard would turn a routine 400/413/504 into a 500. The set is closed and
-  grows with the kernel only: it grows together with the mechanism that
-  produces the failure, and there is no public way to mark a user code as
-  built-in. `DeadlineExceeded` is defined here, not in `@nestling/ports`,
-  because registering a code from another package would mean mutating a set
-  that is promised closed.
-- `ErrorStatus` is transport-neutral semantics (`CONFLICT`, `TIMEOUT`,
-  `TOO_MANY_REQUESTS`, `PAYLOAD_TOO_LARGE`, …); mapping onto the wire is
-  the transport's job.
+## Декларация endpoint'а
 
-Design: [`docs/design/errors.md`](../../docs/design/errors.md).
+Декларация — значение, а не класс с декораторами. `makeEndpoint` — базовый
+конструктор с общим для всех транспортов словарём; в приложении
+используются конструкторы транспортов, построенные над ним:
+`httpEndpoint` из `@nestling/transport.http`, `cliEndpoint` из
+`@nestling/transport.cli`. Создание декларации не имеет побочных
+эффектов; набор обслуживаемых endpoint'ов берётся из дерева
+зарегистрированных модулей (`@nestling/app`).
 
-## io is a tree of forms
+Поля словаря `EndpointOptions`:
 
-The top level of `input`/`output` is a **form**; the leaves are Standard
-Schemas or the primitives `'binary'`/`'text'`. A schema on its own (and no
-`input` at all) *is* the value form — there is no `value(...)` to write.
+| Поле | Значение |
+|---|---|
+| `transport` | токен транспорта; проставляет конструктор транспорта |
+| `pattern` | строковый адрес внутри транспорта: `'GET /orders/:id'`, `'users:list'` |
+| `input`, `output` | формы io (см. «Формы io») |
+| `errors` | список определений `defineFail`; из него выводится тип отказов хендлера |
+| `pipeline` | пайплайн endpoint'а |
+| `deps` | токены зависимостей для каррированного `handle` |
+| `handle` | хендлер в одной из трёх форм (см. ниже) |
+| `binding` | транспортный биндинг; ядро переносит его как есть и не читает |
+| `doc` | документация операции: `summary`, `description`, `tags`, `deprecated`, `status`, `hidden` |
+| `detached` | причина, по которой endpoint выведен из-под всех политик сборки; только непустая строка |
 
-| Form | Payload | Media type |
+`handle` принимается в трёх формах, и форма определяется по типу:
+
+| Форма | Запись |
+|---|---|
+| функция | `(input, meta) => …`; зависимостей нет, декларация исполнима сразу |
+| каррированная фабрика | `deps: [Token, …]` и `(…deps) => (input, meta) => …`; внешний вызов происходит один раз, при получении зависимостей |
+| класс-хендлер | класс с `@Injectable` и методом `handle`; создаётся контейнером |
+
+Тип `EndpointDefinition<I, O, P, TNeeds>` хранит неразрешённые зависимости
+в `TNeeds`: токены `deps`, класс хендлера и классы юнитов пайплайна.
+Транспорты принимают только `TNeeds = never`, поэтому передать
+неразрешённую декларацию в `server.route(...)` не получится: это ошибка
+компиляции. `endpoint.resolve(resolver)` возвращает новую исполнимую
+декларацию (исходная не меняется) и тем же резолвером связывает классы
+юнитов пайплайна. `endpoint.resolve([instance, …])` — позиционная форма
+для каррированных хендлеров вне контейнера.
+
+Каждая декларация помечена неперечислимым символом
+`Symbol.for('nestling:endpoint')`; `isEndpointDefinition(value)` — предикат,
+которым discovery отбрасывает посторонние значения в `endpoints:`.
+
+### `binding`: данные транспорта
+
+`binding?: unknown` — место, где конструктор транспорта хранит свой
+биндинг. `httpEndpoint` кладёт туда HTTP bind-карту, `httpBindingOf`
+читает её обратно. Ядро это поле не интерпретирует: в
+`@nestling/pipeline` нет понятий `path`, `query` и `body`, и новый
+транспорт со своей формой биндинга не требует правок ядра.
+
+### Начальный контекст
+
+`makeEmptyContext(raw, endpoint, signal?, input?)` строит начальный
+контекст запроса; его вызывает транспорт после разбора запроса. Четвёртый
+аргумент — стартовый `input`: то, что транспорт знает до первого
+`.pre`-юнита. По умолчанию он пуст, и тип контекста —
+`ExtendableContext<EmptyInput>`. `@nestling/transport.http` использует его
+для `rawBody: true`; тогда слой `makePipeline<{ rawBody: Uint8Array }>()`
+компилируется только там, где байты действительно запрошены.
+
+## Фазы пайплайна
+
+Один вызов `makePipeline()` определяет один слой. Декларация читается
+сверху вниз как порядок исполнения:
+
+| Метод | Когда выполняется | Контекст |
 |---|---|---|
-| a schema | the value | `application/json` |
-| `stream(T)` | `AsyncIterableIterator<T>`, finite data | `application/x-ndjson` |
-| `events(T)` | `AsyncIterableIterator<T>`, an open subscription | `text/event-stream` |
-| `multipart({ fields, files })` | `{ fields, files }` | `multipart/form-data` |
+| `.pre(unit)` | до хендлера, в порядке объявления | накопленный; каждый юнит добавляет типизированные поля |
+| `.ok(unit)` | только для успешного ответа | полный: успех означает, что все `.pre` выполнились |
+| `.catch(unit)` | только для ответа-ошибки | поля своего слоя — `Partial`, внешних слоёв — полные |
+| `.finally(unit)` | всегда, последним | как `.catch`, плюс исход `completed`, `disconnected`, `aborted` или `failed` |
 
-A form is an immutable value with a non-enumerable brand, so a stray
-`{ kind: 'stream' }` is not mistaken for one; `describeForm(io)` is what
-transports, doc generators and the runtime read, and `mediaTypeOf(io)` is
-the deterministic form → media type function. `withFiles()`/`files()` and
-`analyzePayload`/`PayloadConfig` are **gone**.
+Если `.pre`-юнит завершился отказом, хендлер не вызывается, и пайплайн
+переходит к ответной фазе с этим `Fail`. Отказ, который хендлер вернул,
+обрабатывается так же, как брошенный.
+
+`.ok`-юнит может заменить успех другим успехом. `.catch`-юнит может
+заменить ошибку другой ошибкой: полным `ErrorResponseContext` или просто
+`Fail`, который рантайм нормализует так же, как отказ хендлера.
+Превращение `Fail` в `Ok` в `.catch` не поддерживается.
+
+После `.ok`/`.catch` и до `.finally` рантайм сверяет ответ с полем
+`errors` декларации: ошибка с кодом не из списка (и не из встроенных
+кодов) заменяется на `UnknownError`. `.finally` видит уже
+нормализованный ответ. Для потокового `output` `.finally` откладывается
+до завершения потока.
+
+### Слои и `compose`
+
+```typescript
+export const base = makePipeline().pre(withRequestId()).finally(audit);
+export const authed = compose(base, makePipeline().pre(withIdentity(verify)));
+// у endpoint'а: pipeline: compose(authed, makePipeline<{ identity: User }>().pre(…))
+```
+
+`compose(outer, …, inner)` складывает слои: `.pre` выполняются снаружи
+внутрь, ответные фазы и `.finally` — изнутри наружу. Слой объявляет свои
+требования к внешнему контексту через `makePipeline<{ identity: User }>()`,
+и компилятор проверяет их в точке композиции.
+
+Юнит записывается в одной из трёх форм: функция, объект с методом
+`handle()` или класс. Класс попадает в `TNeeds` пайплайна и требует
+`bind(resolver)`; `@nestling/app` делает это на старте. Юниты —
+синглтоны; состояние запроса хранится только в контексте.
+
+## Политики сборки
+
+Пайплайн помнит, из чего он собран: `compose(a, b)` хранит ссылки на
+аргументы, вызовы `.pre`/`.ok`/`.catch`/`.finally` и `bind()` — ссылку
+на предшественника. Исполнение это не читает; происхождение нужно, чтобы
+идентичность слоя проверялась по ссылке:
+
+```typescript
+import { everyEndpoint } from '@nestling/pipeline';
+
+assemble({
+  policies: [
+    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase, 'authedBase'),
+  ],
+});
+```
+
+- `everyEndpoint({ transport?, pattern? })` отбирает endpoint'ы: `transport`
+  — токен транспорта, сравнивается по ссылке; `pattern` — `RegExp` по
+  `endpoint.pattern`. Пустой фильтр означает все endpoint'ы приложения.
+- `.hasLayer(layer, label?)` выполняется, когда пайплайн endpoint'а
+  происходит от этого значения: `compose(base, authedBase)` подходит,
+  вложенность транзитивна, `authedBase.pre(withTenant())` тоже подходит.
+  Одноимённая копия слоя из другого файла не подходит. `label` используется
+  только в тексте нарушения.
+- `.hasVar(variable, label?)` выполняется, когда пайплайн объявляет
+  ambient-переменную, то есть содержит юнит `<Var>.provide(…)`.
+- Endpoint без `pipeline` нарушает политику: для инварианта «endpoint
+  защищён» отсутствие пайплайна и отсутствие слоя неразличимы.
+- `detached: '<причина>'` выводит endpoint из-под всех политик. Причина
+  обязательна, переживает `resolve`, печатается на старте и попадает в
+  отчёт `check()`.
+
+`Policy` — открытый интерфейс с методами `describe()` и `check(subjects)`:
+новый предикат — значение того же типа. Политики выполняет `@nestling/app`
+в конце фазы ASSEMBLE.
+
+## Ошибки
+
+Отказ — обычное значение со стабильным машинным кодом. Поле `isFail`
+переживает сериализацию, в отличие от `instanceof`; идентичность
+определяется полем `code`.
+
+- `Output<T, E>` и `OutputSync<T, E>` допускают `Ok<T>`, голое `T` и отказ
+  из `E`. Без `errors` `E` пуст: хендлер не может вернуть отказ, а
+  `new Ok(fail)` не компилируется.
+- `meta.fail(e): never` — типизированный ранний выход, принимает только
+  объявленные отказы.
+- Всё незадекларированное, что дошло до выхода из пайплайна, — голый
+  `throw`, отказ из глубины сервиса, анонимный `Fail.notFound(...)` без
+  кода — заменяется на `UnknownError` (`UNKNOWN`, 500). Оригинал целиком
+  передаётся в `ExecuteOptions.onUnknownFail` (по умолчанию
+  `console.error`); клиент получает общее тело ответа.
+- Встроенные коды входят в контракт каждого endpoint'а без объявления:
+  `UNKNOWN`, `VALIDATION_FAILED` (юнит `validate()` и поэлементная
+  валидация), `STREAM_LIMIT_EXCEEDED` и `STREAM_GAP_TIMEOUT` (item-цепочки),
+  `DEADLINE_EXCEEDED` (бюджет вызова порта). Набор закрыт и растёт только
+  вместе с ядром.
+- `ErrorStatus` не зависит от транспорта (`CONFLICT`, `TIMEOUT`,
+  `TOO_MANY_REQUESTS`, `PAYLOAD_TOO_LARGE`, …); в HTTP-код его переводит
+  транспорт.
+
+`ExecuteOptions` также принимает `exposeErrorDetails` — раскрывать ли
+клиенту `message` и `stack` необработанных исключений (по умолчанию
+`false`).
+
+Целевой дизайн — [`docs/design/errors.md`](../../docs/design/errors.md).
+
+## Формы io
+
+Верхний уровень `input` и `output` — форма; листья — Standard Schema или
+примитивы `'binary'`/`'text'`. Схема сама по себе (или отсутствие
+`input`) — форма значения.
+
+| Форма | Payload | Media type |
+|---|---|---|
+| схема | значение | `application/json` |
+| `stream(T)` | `AsyncIterableIterator<T>`, конечные данные | `application/x-ndjson` |
+| `events(T)` | `AsyncIterableIterator<T>`, открытая подписка | `text/event-stream` |
+| `multipart({ fields, files })` | `{ fields, files }` | `multipart/form-data` |
 
 ```typescript
 input: multipart({
@@ -354,62 +256,121 @@ input: multipart({
 // payload: { fields: { id: string }, files: { avatar: FilePart } }
 ```
 
-Forms are checked when the declaration is created: `multipart` in `output`,
-`upload()` outside `multipart`, a streaming form without a leaf, a
-type-changing chain step in `output` — each fails naming the endpoint, the
-slot and the form.
+Форма — неизменяемое значение с неперечислимой пометкой, поэтому объект
+`{ kind: 'stream' }` формой не считается. `describeForm(io)` читают
+транспорты, генераторы документации и рантайм; `mediaTypeOf(io)` переводит
+форму в media type. Формы проверяются при создании декларации:
+`multipart` в `output`, `upload()` вне `multipart`, потоковая форма без
+листа, тип-меняющий шаг цепочки в `output` — ошибка с именем endpoint'а,
+слота и формы.
 
-### Item chains
+### Item-цепочки
 
-The combinator vocabulary is closed and infrastructural — `.tap`,
-`.filter`, `.limit`, `.gapTimeout`, `.throttle`, `.batch`, `.through`
-(implemented in [`@nestling/streams`](../nestling.streams)). Every
-combinator returns a **new** form, so chains are reusable through helper
-functions:
+Набор комбинаторов фиксирован: `.tap`, `.filter`, `.limit`, `.gapTimeout`,
+`.throttle`, `.batch`, `.through` (реализованы в
+[`@nestling/streams`](../nestling.streams)). Каждый возвращает новую форму,
+поэтому цепочки переиспользуются через функции:
 
 ```typescript
 const guarded = <T extends Schema>(s: T) => stream(s).limit(50_000).gapTimeout(30_000);
 
-input: guarded(LogChunk).batch(100),   // handler receives LogChunk[]
-output: stream(Row).limit(100_000),    // T → T only
+input: guarded(LogChunk).batch(100),   // хендлер получает LogChunk[]
+output: stream(Row).limit(100_000),    // только T → T
 ```
 
-The asymmetry is expressed by the **slot type**, not by two builders:
-`output` takes `StreamForm<T, T>`, `input` takes `StreamForm<T, any>`. So
-`.batch(100)` in `output` is a compile error at the declaration site, and
-`.through` is allowed there only in its `T → T` shape.
+Асимметрия входа и выхода задана типом слота: `output` принимает
+`StreamForm<T, T>`, `input` — `StreamForm<T, any>`. Поэтому `.batch(100)`
+в `output` не компилируется, а `.through` там допустим только в форме
+`T → T`.
 
-Per-item validation is symmetric: on input an item is validated **before**
-the chain, on output **after** it (both ends of an output stream are the
-wire). The policy is the form's second argument, defaulting to
-`{ validate: true, onInvalid: 'fail' }`; `onInvalid: 'skip'` drops the item
-on input, and on output it is ignored — silently dropping data from a
-response is not on offer.
+Поэлементная валидация симметрична: на входе элемент проверяется до
+цепочки, на выходе — после. Политика задаётся вторым аргументом формы, по
+умолчанию `{ validate: true, onInvalid: 'fail' }`. `onInvalid: 'skip'`
+пропускает невалидный элемент входа; на выходе эта опция игнорируется.
 
-### Streaming responses finish late
+### Потоковый ответ завершается позже
 
-For a streaming `output` the pipeline hands the transport an iterator
-wrapper; closing it (normal end, error, or the consumer's `return()`) is
-what computes the outcome and runs `.finally` — exactly once. Hence the
-contract every transport is tested against: **consume the iterator or close
-it**, including on a write error and on disconnect. Non-streaming responses
-finalize as before.
+Для потокового `output` пайплайн отдаёт транспорту итератор-обёртку.
+Закрытие обёртки (нормальный конец, ошибка или `return()` потребителя)
+вычисляет исход и выполняет `.finally` ровно один раз. Отсюда обязанность
+транспорта: потребить итератор или закрыть его, в том числе при ошибке
+записи и при обрыве соединения. Непотоковые ответы завершаются сразу.
 
-`ctx.summary` (`itemsIn`/`itemsOut`, plus `bytesIn`/`bytesOut` where the
-transport knows them) is a live object created with the context — available
-to any unit, zeros for a non-streaming endpoint so observers never branch.
+`ctx.summary` (`itemsIn`, `itemsOut`, а также `bytesIn`/`bytesOut`, если
+транспорт их считает) — живой объект, созданный вместе с контекстом.
+Он доступен любому юниту; у непотокового endpoint'а счётчики остаются
+нулями.
 
-`assertFormsSupported(definition, capabilities, where?)` is the kernel-side
-check a transport's `capabilities` are matched against at registration —
-see [`@nestling/transport`](../nestling.transport).
+`assertFormsSupported(definition, capabilities, where?)` — проверка форм
+декларации против `capabilities` транспорта при регистрации; см.
+[`@nestling/transport`](../nestling.transport).
 
-Design: [`docs/design/streaming.md`](../../docs/design/streaming.md),
+Целевой дизайн — [`docs/design/streaming.md`](../../docs/design/streaming.md),
 [`docs/design/endpoints.md`](../../docs/design/endpoints.md).
 
-## Type diagnostics are part of the API
+## Схемы: Standard Schema на границах
 
-When a layer's requirements are not met, the parameter type collapses into
-a readable literal instead of a generics trace:
+Каждая схемная граница ядра — `input`/`output` endpoint'а, `EndpointMeta`,
+`parsePayload`/`parseMetadata`, `DomainType`, `Schema`/`Infer` из
+`@common/misc` — типизирована как `StandardSchemaV1`. Валидация всегда идёт
+через `schema['~standard'].validate(value)`, тип домена выводится через
+`StandardSchemaV1.InferOutput`. Ядро не заглядывает внутрь схемы.
+
+Вся валидация проходит через одну функцию `validateSync(schema, value,
+message)`, поэтому форма ошибки одинакова на всех путях: юнит `validate()`,
+запасной путь транспорта без пайплайна, поэлементная валидация NDJSON,
+поля секций конфига.
+
+| Ошибка | Когда | HTTP |
+|---|---|---|
+| `SchemaValidationError` | значение не прошло схему; поле `issues: { message, path? }[]`, готовое к сериализации | 400 |
+| `AsyncSchemaNotSupportedError` | `~standard.validate` вернул Promise; асинхронная проверка — ошибка конфигурации приложения, а не входа | 500 |
+| `NotAStandardSchemaError` | объект не содержит `~standard` с `version: 1` (обычно валидатор старше zod 3.24 / valibot 1.0) | 500 |
+
+Асинхронные refinement'ы в схемах endpoint'а отклоняются: валидация в
+пайплайне синхронна. Асинхронную проверку переносите в юнит или хендлер.
+
+### Конвертеры схем
+
+Standard Schema даёт валидацию и вывод типов, и ничего больше. Всё, чему
+нужна структура схемы, идёт через явный конвертер:
+
+```typescript
+export interface SchemaDocConverter {
+  readonly vendor: string;                       // сравнивается с `~standard.vendor`
+  toJsonSchema(schema: StandardSchemaV1, options?: SchemaDocOptions): unknown;
+}
+
+const zodConverter = (): SchemaDocConverter => ({
+  vendor: 'zod',
+  toJsonSchema: (schema) => z.toJSONSchema(schema as z.ZodType),
+});
+```
+
+`SchemaDocOptions` несёт одну подсказку — `io: 'input' | 'output'`. Схема
+с преобразованием (`z.string().transform(Number)`) описывает две формы:
+что приходит по сети и что получает хендлер. Тело запроса документируется
+первой, тело ответа — второй. Подсказка необязательна с обеих сторон.
+
+Что происходит, когда конвертера для вендора нет, решает потребитель:
+генератор документации (`@nestling/openapi`) падает на старте, снапшот
+контракта (`@nestling/ports`) считает лист непрозрачным. Поэтому
+`leafJsonSchema(converters, leaf, options?)` возвращает один из трёх
+результатов — `declared` (у листа есть аннотация), `converted`,
+`unconvertible` — и оставляет решение вызывающему. `pickConverter`
+возвращает сам конвертер. `assertConverters(list)` падает, если два
+конвертера претендуют на один вендор. Список конвертеров — данные
+вызывающего; глобального реестра нет.
+
+`jsonSchema(schema, json)` объявляет JSON Schema для листа явно и работает
+в любой схемной позиции; аннотация приоритетнее конвертера. Так объявлены
+схемы встроенных отказов (`VALIDATION_FAILED` и другие). Подробнее — в
+[`@nestling/contracts`](../nestling.contracts).
+
+## Диагностика типов
+
+Когда требования слоя не выполнены, тип параметра сворачивается в
+читаемый литерал вместо трассы дженериков:
 
 ```
 Argument of type 'PipelineBuilder<{ identity: User; requestId: string; }, …>'
@@ -417,53 +378,50 @@ is not assignable to parameter of type '{ __error: "Layer requires context
 that outer layers do not provide"; missing: { identity: User; }; }'.
 ```
 
-`missing` is a **record of field name → its type**, not a union of keys: a
-field that is present but of an incompatible type lands there too (with the
-type the layer expects). The same shape is used everywhere the pipeline
-machinery rejects an argument — the composition site, the pre track (where
-overriding a field yields `conflicting: { field: [was, now] }` instead) and
-the `pipeline` slot of a transport declaration (where the literal also
-carries a `hint` naming the fix). In the failing branch the parameter is
-**only** the error literal — no `& Pipeline<…>` tail.
+`missing` — запись «имя поля: его тип», а не объединение ключей: поле,
+которое есть, но несовместимого типа, тоже попадает туда. Та же форма
+используется во всех местах, где пайплайн отклоняет аргумент: в точке
+композиции, в `.pre` (переопределение поля даёт
+`conflicting: { field: [was, now] }`) и в слоте `pipeline` транспортной
+декларации (там литерал несёт ещё и `hint`).
 
-The texts are pinned by snapshot tests, and the cost of the type machinery
-has a budget — both live in [`type-tests/`](./type-tests):
+Тексты закреплены снапшот-тестами, а стоимость типовой машины ограничена
+бюджетом. Оба живут в [`type-tests/`](./type-tests):
 
-| Path | What it is |
+| Путь | Что это |
 |---|---|
-| `type-tests/fixtures/` | one file per deliberately wrong composition |
-| `type-tests/__snapshots__/` | the pinned diagnostic texts; a diff catches a message degrading on a TypeScript upgrade or a types refactor |
-| `type-tests/bench/` | generator of a synthetic ~50-layer graph and the budget runner |
-| `type-tests/BUDGET.md` | thresholds (the runner reads them from there), the measurement log and the reasoning behind every number |
+| `type-tests/fixtures/` | по одному файлу на заведомо неверную композицию |
+| `type-tests/__snapshots__/` | закреплённые тексты диагностик; диф ловит деградацию сообщения при обновлении TypeScript |
+| `type-tests/bench/` | генератор синтетического графа из ~50 слоёв и запуск бюджета |
+| `type-tests/BUDGET.md` | пороги, журнал измерений и объяснение каждого числа |
 
 ```bash
-yarn workspace @nestling/pipeline type-budget          # the budget alone
-yarn workspace @nestling/pipeline type-budget --report # measure, do not fail
+yarn workspace @nestling/pipeline type-budget          # только бюджет
+yarn workspace @nestling/pipeline type-budget --report # измерить, не падать
 yarn verify                                            # build + lint + test + type-budget
 ```
 
-The fixtures are **meant** not to compile, so the directory is excluded
-from the package `build` and `lint`.
+Фикстуры намеренно не компилируются, поэтому каталог исключён из `build` и
+`lint` пакета.
 
-## Ambient request context
+## Ambient-контекст запроса
 
-A handler sees the accumulated `input`; a repository three layers below does
-not. Instead of threading `requestId` through every signature, declare an
-**ambient variable** — a typed key of that same accumulated `input`, so there
-is no second state that could drift from the first:
+Хендлер видит накопленный `input`; репозиторий тремя слоями ниже — нет.
+Вместо того чтобы протаскивать `requestId` через каждую сигнатуру,
+объявите ambient-переменную: типизированный ключ того же накопленного
+`input`.
 
 ```typescript
 import { contextVar, Ctx, RequestId, Signal } from '@nestling/pipeline';
 import type { CtxReader } from '@nestling/pipeline';
 
-export const TenantId = contextVar<string>()('tenantId');   // type, then key
+export const TenantId = contextVar<string>()('tenantId');   // тип, затем ключ
 
-// Writer: the variable builds the addition from its own key, so "declared"
-// and "written" are one action and cannot diverge
+// Писатель: переменная строит юнит по своему ключу
 const withTenant = () =>
   TenantId.provide((ctx) => ctx.raw.attributes['x-tenant'] as string);
 
-// Reader: a member of the private `Ctx` token family — an ordinary graph node
+// Читатель: член приватного семейства `Ctx` — обычный узел графа
 @Injectable([Ctx(RequestId), ILogger])
 export class UsersRepository {
   constructor(
@@ -477,68 +435,66 @@ export class UsersRepository {
 }
 ```
 
-- **The reader is a graph edge, not a global**: it shows up in `explain()` and
-  in the visualization, the full set of ambient reads is known at `build()`,
-  and tests substitute it with a plain `valueProvider` (`contextValue` in
-  `@nestling/testing`) — no ALS needed. `Ctx` is typed by the variable value,
-  so `Ctx('requestId')` with a string does not compile.
-- **`get()` vs `peek()`** mirrors the pipeline's own asymmetry: `get(): T`
-  throws a `ContextVarUnavailableError` whose text depends on what the runtime
-  knows (no scope at all / response track, so the projection is `Partial` /
-  no writer composed) and names the fix; `peek(): T | undefined` is for the
-  response track, `@OnStart`, cron and background paths.
-- **The cell holds** the accumulated `input`, the `signal` and the phase —
-  `raw`, `endpoint` and `summary` are not exposed: the transport does not leak
-  into the domain. `Signal` is a read-only well-known variable (`Ctx(Signal)`);
-  the `'signal'` key is reserved, and `contextVar('signal')` fails fast.
-- **The only writer of the cell is the pipeline runtime.** There is no public
-  setter: ALS is a projection, not a second write channel. A scope is opened
-  around the whole execution — pre track, handler, response track, `finally` —
-  and, for streaming responses, around every `next()` of the returned
-  iterator, so lazy generators and item chains still see it. Code deferred
-  inside a request that outlives it (a timer, fire-and-forget) keeps seeing the
-  cell with the final `input`; `capture()` is not part of V1.
-- **`@nestling/app` registers the reader kernel module always**, the way it
-  does for config: with no `Ctx(...)` in any `deps`, the family materializes
-  nothing, so "always" costs nothing and the composition root says nothing
-  about ambient context. An endpoint invoked without a pipeline still gets a
-  scope (empty `input` + the request signal) from `@nestling/transport`.
-- **One copy of the package — one ALS.** The store is module state of
-  `@nestling/pipeline` (the same trick as the family registries in
-  `@nestling/container`). Two copies of the package in the dependency graph
-  mean two stores, and reads silently return `undefined` — keep a single
-  version resolved in the workspace.
-- **Crossing a port boundary is opt-in per variable.**
-  `contextVar<string>()('tenantId', { propagate: true })` makes the variable
-  **propagated**: a port invoker collects the values of propagated variables
-  from the current request cell and puts them into the bus envelope, and the
-  receiver exposes them in `ctx.raw.attributes` unconditionally. The ambient
-  projection on the receiving side is switched on by a second regular writer
-  built by the variable itself — `TenantId.propagated()` — which carries the
-  same runtime mark as `provide`, so `hasVar` counts it. The flag is a
-  property of the **declaration**, not of a wiring point: there is no general
-  leak of the caller's context, and `propagate` is the named exception to it.
-  Propagated values are **not validated** — an ambient variable has no
-  schema, and the runtime does not invent one. Read-only variables (`Signal`)
-  are never propagated.
-- **Presence is checkable at assembly**, opt-in:
-  `everyEndpoint(…).hasVar(RequestId)`. Types already cover a unit reading
-  `ctx.input.requestId` (it demands the field); the policy covers reads from
-  the depth of the graph, where there are no input types at all.
+- Читатель — ребро графа, а не глобальная переменная. Он виден в
+  `explain()` и визуализации, набор чтений известен на `build()`, а тесты
+  подменяют его обычным `valueProvider` (`contextValue` в
+  `@nestling/testing`). `Ctx` типизирован значением переменной:
+  `Ctx('requestId')` со строкой не компилируется.
+- `get(): T` бросает `ContextVarUnavailableError` с текстом, который
+  называет причину (нет скоупа; ответная фаза, где проекция `Partial`; не
+  скомпонован писатель) и способ починить. `peek(): T | undefined` — для
+  ответной фазы, `@OnStart`, cron и фоновых задач.
+- Ячейка хранит накопленный `input`, `signal` и фазу; `raw`, `endpoint` и
+  `summary` наружу не выдаются. `Signal` — переменная только для чтения
+  (`Ctx(Signal)`); ключ `'signal'` зарезервирован, `contextVar('signal')`
+  падает при объявлении.
+- Единственный писатель ячейки — рантайм пайплайна; публичного сеттера
+  нет. Скоуп открывается вокруг всего исполнения (`.pre`, хендлер, ответная
+  фаза, `.finally`), а для потоковых ответов — вокруг каждого `next()`
+  возвращённого итератора. Код, отложенный внутри запроса и переживший
+  его (таймер, fire-and-forget), видит ячейку с финальным `input`.
+- `@nestling/app` регистрирует kernel-модуль читателей всегда
+  (`contextKernel()`). Без единого `Ctx(...)` в `deps` семейство не
+  создаёт ни одного узла. Endpoint без пайплайна тоже получает скоуп
+  (пустой `input` плюс сигнал запроса) от `@nestling/transport`.
+- Одна копия пакета — одно хранилище. Ячейка — модульное состояние
+  `@nestling/pipeline`; две копии пакета в графе зависимостей дают два
+  хранилища, и чтения возвращают `undefined`. Держите одну версию.
+- Переход через границу порта включается для каждой переменной отдельно:
+  `contextVar<string>()('tenantId', { propagate: true })`. Вызыватель порта
+  собирает значения таких переменных из ячейки текущего запроса и кладёт
+  их в конверт шины; получатель видит их в `ctx.raw.attributes`.
+  Проекцию на принимающей стороне включает второй писатель, построенный
+  той же переменной, — `TenantId.propagated()`; `hasVar` его учитывает.
+  Переданные значения не валидируются: у ambient-переменной нет схемы.
+  Переменные только для чтения (`Signal`) не передаются.
+- Наличие переменной проверяется на сборке:
+  `everyEndpoint(…).hasVar(RequestId)`. Типы уже покрывают юнит, читающий
+  `ctx.input.requestId`; политика покрывает чтения из глубины графа, где
+  типов входа нет.
 
-## Cancellation: `meta.signal`
+## Отмена: `meta.signal`
 
-Every handler invocation receives a guaranteed `meta.signal: AbortSignal`
-(no undefined checks needed): transports abort it on client disconnect and
-on graceful shutdown, and units can read it as `ctx.signal`. When a
-transport provides no signal, a never-aborted one is substituted.
-Cancellation is cooperative — the handler is responsible for respecting
-the signal. The `signal` key in meta is **reserved**: the pipeline injects
-the context signal over any same-named field added by a pre unit.
+Каждый вызов хендлера получает `meta.signal: AbortSignal`, проверять его на
+`undefined` не нужно. Транспорты взводят сигнал при обрыве соединения и при
+остановке приложения; юниты читают его как `ctx.signal`. Если транспорт
+сигнал не передал, подставляется сигнал, который никогда не взводится.
+Отмена кооперативна: хендлер сам решает, как на неё реагировать. Ключ
+`signal` в `meta` зарезервирован: пайплайн кладёт туда сигнал контекста
+поверх любого одноимённого поля из `.pre`-юнита.
 
-> Design rationale (flat phases, layers, `TNeeds`, rejected alternatives)
-> lives in [`docs/decisions/ideas.md`](../../docs/decisions/ideas.md).
+## Готовые юниты
 
-Usage guides: [functional HTTP](../../docs/guides/http-functional.md),
-[App with DI](../../docs/guides/http-app-di.md),
-[CLI](../../docs/guides/cli.md).
+| Юнит | Что делает |
+|---|---|
+| `validate()` | проверяет `raw.payload` по схеме `input` формы значения и кладёт результат в `payload`; невалидный вход — `VALIDATION_FAILED` (400). Потоковые формы проверяются поэлементно, `multipart` — транспортом при разборе |
+| `withRequestId()` | кладёт в контекст `requestId` и объявляет переменную `RequestId` |
+| `withRequestLogging(logger)` | пишет в `logger.log` строку о начале обработки запроса; в контекст ничего не добавляет |
+| `withIdentity(authenticate)` | вызывает `authenticate(raw)` и кладёт результат в `identity` |
+| `withPermissions(getPermissions)` | вызывает `getPermissions(identity)` и кладёт результат в `permissions`; требует `identity` в контексте |
+
+## Границы пакета
+
+Пакет не знает ни одного транспорта (`path`, `query`, `body` — словарь
+`@nestling/transport.http`), не содержит валидатора схем и не регистрирует
+endpoint'ы: их набор берётся из дерева модулей `@nestling/app`.

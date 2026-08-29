@@ -1,28 +1,25 @@
 # @nestling/streams
 
-Stream primitives for Nestling: `Topic<T>` (a broadcast source of events),
-the implementation of the closed **item-chain** combinator vocabulary
-(`tap`, `filter`, `limit`, `gapTimeout`, `throttle`, `batch`, `through`)
-and iteration helpers driven by `AbortSignal`.
+Примитивы потоков для Nestling: `Topic<T>` (источник событий с любым числом
+подписчиков), комбинаторы item-цепочек (`tap`, `filter`, `limit`,
+`gapTimeout`, `throttle`, `batch`, `through`) и помощники итерации под
+`AbortSignal`.
 
-The package has **no dependencies** — not even on `@nestling/pipeline`.
-That is deliberate: `Topic` is what [`@nestling/config`](../nestling.config)
-builds `reloadable` on (the `onChange(signal, cb)` subscription of a
-reloadable section is a `Topic` subscription released by `AbortSignal`) and
-what the in-process port bus will be built from, and neither of them needs a
-request pipeline.
-
-> 🚧 Active development, API may change. Design:
+> 🚧 Пакет в активной разработке, API может меняться. Целевой дизайн —
 > [`docs/design/streaming.md`](../../docs/design/streaming.md).
 
-## Boundaries are `AsyncIterable`
+У пакета нет зависимостей, в том числе на `@nestling/pipeline`. На нём
+построены `reloadable`-секции [`@nestling/config`](../nestling.config)
+(подписка `onChange(signal, cb)` — это подписка на `Topic`) и in-process
+шина [`@nestling/ports`](../nestling.ports).
 
-Everything here speaks the language's own protocol. There is no `Stream`
-type of our own, no `Observable`, no bridge to import. A subscription is
-an `AsyncIterableIterator<T>`; a combinator is a function from
-`AsyncIterable` to `AsyncIterable`.
+## Установка
 
-## `Topic<T>`
+```bash
+npm install @nestling/streams
+```
+
+## Минимальный пример
 
 ```typescript
 import { Topic } from '@nestling/streams';
@@ -31,7 +28,7 @@ class ActivityHub {
   readonly #topic = new Topic<ActivityEvent>({ buffer: 256 });
 
   publish(event: ActivityEvent): void {
-    this.#topic.push(event);          // never waits for consumers
+    this.#topic.push(event);          // не ждёт потребителей
   }
 
   subscribe(signal?: AbortSignal): AsyncIterableIterator<ActivityEvent> {
@@ -40,68 +37,94 @@ class ActivityHub {
 }
 ```
 
-An event source is an **ordinary singleton provider** — there is no special
-kind of endpoint or registration for it.
+Источник событий — обычный провайдер-синглтон. Отдельного вида endpoint'а
+или регистрации для него нет.
 
-| Member | Meaning |
+## Границы пакета говорят на `AsyncIterable`
+
+Всё в пакете использует стандартный протокол языка. Своего типа `Stream`,
+`Observable` или моста между ними нет. Подписка — это
+`AsyncIterableIterator<T>`; комбинатор — функция из `AsyncIterable` в
+`AsyncIterable`.
+
+## `Topic<T>`
+
+`new Topic<T>(options?)` создаёт тему. Опции:
+
+| Опция | Значение |
 |---|---|
-| `push(value)` | publishes; returns immediately at any number of subscribers, including zero |
-| `subscribe(signal?)` | `AsyncIterableIterator<T>`; ends on `signal`, on `close()` and when the consumer stops iterating |
-| `close()` | ends every subscription **normally** (not with an error) |
-| `subscribers` | number of live subscriptions |
-| `dropped` | events lost to buffer overflow — so the loss is never silent |
+| `buffer` | размер буфера на одного подписчика, по умолчанию 1024. `0` отключает буферизацию: событие получает только тот, кто уже ждёт `next()` |
+| `onSlowConsumer` | что делать при переполнении буфера подписчика: `'drop-oldest'` (по умолчанию) или `'disconnect'` |
 
-**The buffer is per subscriber** and bounded by `buffer` (default 1024).
-When it overflows, `onSlowConsumer` decides:
+Члены темы:
 
-- `drop-oldest` (default) — the oldest event of *that* subscriber is
-  dropped, `dropped` grows, the subscription lives on;
-- `disconnect` — *that* subscription ends; the others are untouched.
+| Член | Что делает |
+|---|---|
+| `push(value)` | публикует событие; возвращается сразу при любом числе подписчиков, включая ноль |
+| `subscribe(signal?)` | возвращает `AsyncIterableIterator<T>`; подписка завершается по `signal`, по `close()` темы и когда потребитель выходит из итерации |
+| `close()` | завершает все подписки нормально, без ошибки; последующие `push` ничего не делают |
+| `subscribers` | число живых подписок |
+| `dropped` | сколько событий потеряно из-за переполнения буферов |
+| `closed` | вызывался ли `close()` |
 
-A hot source never blocks: `push` does not await anybody.
+Буфер заведён на каждого подписчика отдельно. Когда буфер переполняется,
+срабатывает `onSlowConsumer`:
 
-Ending a subscription frees its buffer and detaches it from the topic, so
-subscribe/unsubscribe cycles do not accumulate resources — including the
-case where the consumer never started iterating and simply called
-`return()`.
+- `drop-oldest` — самое старое событие этого подписчика выбрасывается,
+  `dropped` растёт, подписка продолжает работать;
+- `disconnect` — эта подписка завершается, остальные не затронуты.
 
-## Item-chain combinators
+`push` никогда не ждёт потребителей. Завершение подписки освобождает её
+буфер и снимает её с темы, поэтому циклы «подписался — отписался» не
+накапливают ресурсов. Это верно и для потребителя, который вызвал
+`return()`, не начав итерацию.
 
-The vocabulary is **closed and infrastructural**. `merge`, `switchMap`,
-`combineLatest` and friends are not here and will not be: that is dataflow
-programming, and its place is the handler, where the author is free to
-reach for any library.
+## Комбинаторы
+
+Каждый комбинатор принимает `AsyncIterable` и возвращает новый
+`AsyncIterableIterator`:
 
 ```typescript
-import { filter, limit, gapTimeout, collect } from '@nestling/streams';
+import { filter, gapTimeout, limit } from '@nestling/streams';
 
 const guarded = gapTimeout(limit(filter(source, keep), 50_000), 30_000);
 ```
 
-| Combinator | Behaviour |
+| Комбинатор | Поведение |
 |---|---|
-| `tap(src, fn)` | observes each item; a throw from `fn` breaks the stream |
-| `filter(src, pred)` | drops items the predicate rejects |
-| `limit(src, max, onExceeded?)` | passes exactly `max` items, then fails |
-| `gapTimeout(src, ms, onTimeout?)` | fails when the **source** is silent longer than `ms` |
-| `throttle(src, perSecond)` | spreads items over time; buffers, never drops |
-| `batch(src, size)` | groups into arrays; the remainder is flushed at the end |
-| `through(src, fn)` | the single escape hatch: an arbitrary transform |
+| `tap(src, fn)` | вызывает `fn` для каждого элемента; исключение из `fn` прерывает поток |
+| `filter(src, pred)` | пропускает только элементы, для которых `pred` вернул `true` |
+| `limit(src, max, onExceeded?)` | отдаёт ровно `max` элементов, на следующем поток завершается ошибкой |
+| `gapTimeout(src, ms, onTimeout?)` | завершается ошибкой, если источник молчит дольше `ms` (считается пауза источника, не потребителя) |
+| `throttle(src, perSecond)` | ограничивает частоту до `perSecond` элементов в секунду; элементы буферизуются, не теряются |
+| `batch(src, size)` | группирует элементы в массивы по `size`; остаток отдаётся при завершении источника |
+| `through(src, fn)` | произвольное преобразование потока функцией `fn` |
 
-`limit` and `gapTimeout` take a failure factory because this package knows
-nothing about statuses or `Fail`. On their own they throw `StreamLimitError`
-/ `StreamGapTimeoutError`; the kernel passes its own factories, so inside a
-pipeline the same combinators fail with `STREAM_LIMIT_EXCEEDED` (413) and
+`limit` и `gapTimeout` принимают фабрику ошибки. Без фабрики они бросают
+`StreamLimitError` и `StreamGapTimeoutError` из этого пакета. Пайплайн
+Nestling передаёт свои фабрики, поэтому внутри endpoint'а те же комбинаторы
+завершаются встроенными отказами `STREAM_LIMIT_EXCEEDED` (413) и
 `STREAM_GAP_TIMEOUT` (504).
 
-## Iterating under a signal
+## Итерация под сигналом
 
 ```typescript
-import { untilAborted, collect } from '@nestling/streams';
+import { collect, untilAborted } from '@nestling/streams';
 
 for await (const item of untilAborted(source, signal)) { … }
+
+const items = await collect(source);
 ```
 
-`untilAborted` ends the iteration when the signal is raised **and closes the
-source** (`return()`), so a generator's `try/finally` runs and subscriptions
-are detached. `collect(src)` drains a stream into an array — handy in tests.
+- `untilAborted(source, signal?)` завершает итерацию, когда сигнал взведён,
+  и закрывает источник через `return()`. Поэтому `try/finally` внутри
+  генератора-источника выполняется, а подписки снимаются. Без сигнала это
+  прозрачная обёртка.
+- `collect(source)` читает поток до конца и возвращает массив. Удобно в
+  тестах.
+
+## Границы пакета
+
+Операторов dataflow (`merge`, `switchMap`, `combineLatest` и подобных) в
+пакете нет: такие преобразования пишутся в хендлере любой библиотекой.
+О статусах и `Fail` пакет не знает.

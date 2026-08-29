@@ -1,11 +1,21 @@
 # @nestling/openapi.zod
 
-Конвертер схем zod в JSON Schema — десять строк поверх штатного
-`z.toJSONSchema()`.
+Конвертер схем zod в JSON Schema для `@nestling/openapi`: обёртка над
+штатным `z.toJSONSchema()`.
 
-> 🚧 Active development, API may change. Design:
-> [`docs/design/schemas.md`](../../docs/design/schemas.md) §2.
-> Guide: [`docs/guides/openapi.md`](../../docs/guides/openapi.md).
+> 🚧 Активная разработка, API может меняться.
+> Дизайн: [`docs/design/schemas.md`](../../docs/design/schemas.md) §2.
+> Гайд: [`docs/guides/openapi.md`](../../docs/guides/openapi.md).
+
+## Установка
+
+```bash
+npm install @nestling/openapi.zod zod
+```
+
+`zod` — peer-зависимость: установите ту версию, которой пользуетесь.
+
+## Использование
 
 ```typescript
 import { openapi } from '@nestling/openapi';
@@ -14,29 +24,35 @@ import { zodConverter } from '@nestling/openapi.zod';
 openapi({ info, converters: [zodConverter()] });
 ```
 
-## Почему отдельный пакет
-
-Конвертер — единственное место, знающее устройство конкретного валидатора.
-Он живёт отдельно, потому что его мажоры следуют за мажорами **валидатора**,
-а не фреймворка: `zod` здесь peer-зависимость, и пользователь ставит ровно
-то, чем пользуется.
-
-Вшитого реестра «вендор → конвертер» в `@nestling/openapi` нет: список
-конвертеров это данные вызывающего, и даже в стопроцентно-zod приложении
-конвертер называется явно одной строкой. Цена explicit over implicit
-посчитана в [журнале решений](../../docs/decisions/ideas.md) и принята.
+Конвертер указывается явно даже в приложении целиком на zod: встроенного
+реестра «вендор → конвертер» в `@nestling/openapi` нет.
 
 ## Направление конвертации
 
-Схема с преобразованием (`z.string().transform(Number)`, `z.stringbool()`)
-описывает **две** формы: то, что приходит по проводу, и то, что получает
-хендлер. Направление выбирает вызывающий — генератор передаёт `io: 'input'`
-для тела запроса и `io: 'output'` для тела ответа; конвертер его только
-пробрасывает. Без подсказки поведение штатное — то же, что у голого
-`z.toJSONSchema()`.
+Схема с преобразованием (`z.string().transform(Number)`,
+`z.stringbool()`) описывает две формы: ту, что приходит в запросе, и ту,
+что получает хендлер. Какую из них описать, выбирает вызывающий:
+генератор передаёт `io: 'input'` для тела запроса и `io: 'output'` для
+тела ответа, а конвертер передаёт подсказку в `z.toJSONSchema()`. Без
+подсказки результат совпадает с обычным `z.toJSONSchema()`.
 
-Прочие опции `z.toJSONSchema` принимаются аргументом:
+## Опции
+
+Остальные опции `z.toJSONSchema` (`unrepresentable`, `cycles`, `reused` и
+другие) передаются аргументом:
 
 ```typescript
 zodConverter({ unrepresentable: 'any' });
 ```
+
+## Справочник
+
+| Имя | Что это |
+|---|---|
+| `zodConverter(options?)` | возвращает `SchemaDocConverter` с `vendor: 'zod'` |
+| `ZodConverterOptions` | опции `z.toJSONSchema` без `io` |
+
+## Границы пакета
+
+Пакет конвертирует только схемы zod; для другого валидатора нужен свой
+конвертер.

@@ -1,12 +1,22 @@
 # @nestling/openapi
 
-An **OpenAPI 3.1** document generated from the endpoint declarations that
-already serve the requests. No decorators, no second description of the API
-next to the code.
+Документ OpenAPI 3.1, собранный из тех же деклараций endpoint'ов, которые
+обслуживают запросы. Второго описания API рядом с кодом не нужно.
 
-> 🚧 Active development, API may change. Design:
-> [`docs/design/schemas.md`](../../docs/design/schemas.md) §2.1.
-> Guide: [`docs/guides/openapi.md`](../../docs/guides/openapi.md).
+> 🚧 Активная разработка, API может меняться.
+> Дизайн: [`docs/design/schemas.md`](../../docs/design/schemas.md) §2.1.
+> Гайд: [`docs/guides/openapi.md`](../../docs/guides/openapi.md).
+
+## Установка
+
+```bash
+npm install @nestling/openapi @nestling/openapi.zod
+```
+
+`@nestling/openapi.zod` нужен, если схемы написаны на zod. Для другого
+валидатора подключите его конвертер (раздел «Конвертеры»).
+
+## Минимальный пример
 
 ```typescript
 import { openapi } from '@nestling/openapi';
@@ -18,7 +28,7 @@ assemble({
     openapi({
       info: { title: 'Users API', version: '1.0.0' },
       converters: [zodConverter()],
-      pipeline: observability,        // корень требует слой от каждой ручки
+      pipeline: observability,        // если политика корня требует слой от каждого endpoint'а
     }),
   ],
   transports: [http({ port: 3000 })],
@@ -26,15 +36,15 @@ assemble({
 // GET /openapi.json
 ```
 
-## Three surfaces
+## Три способа получить документ
 
-| Что | Зачем |
+| Что | Когда использовать |
 |---|---|
-| `buildOpenApiDocument(endpoints, options)` | чистая функция: CI кладёт `openapi.json` в артефакты, не поднимая приложение |
-| `openapi(options)` | модуль-издатель: строит документ на фазе ASSEMBLE и отдаёт ручкой |
-| `OpenApiDocument$` | токен готового документа — для тех, кому он нужен значением |
+| `buildOpenApiDocument(endpoints, options)` | чистая функция; CI кладёт `openapi.json` в артефакты, не поднимая приложение |
+| `openapi(options)` | модуль: строит документ на фазе ASSEMBLE и отдаёт его endpoint'ом `GET /openapi.json` |
+| `OpenApiDocument$` | токен готового документа для провайдера, которому документ нужен значением |
 
-Вход чистой функции — то же значение, что отдаёт `discoverEndpoints`:
+Вход чистой функции — то же значение, что возвращает `discoverEndpoints`:
 
 ```typescript
 const { endpoints } = discoverEndpoints(modulesOf(features));
@@ -47,39 +57,71 @@ writeFileSync('openapi.json', JSON.stringify(
 
 | Часть | Источник |
 |---|---|
-| путь и метод, `parameter` vs `requestBody` | bind-карта декларации (`:param` → `{param}`) |
+| путь и метод, `parameter` или `requestBody` | bind-карта декларации (`:param` становится `{param}`) |
 | media types | `mediaTypeOf` — то же правило, что у транспорта и клиента |
 | `responses` | `output`, `errors:`, автоматический `400` и `default` (`UNKNOWN`) |
-| коды провода | `httpCodeOf` транспорта — не копия таблицы |
+| HTTP-коды | `httpCodeOf` из `@nestling/transport.http` |
 | `summary`, `tags`, `deprecated`, успешный статус | слот `doc:` декларации или контракта |
-| `operationId` | имя контракта, иначе слаг от метода и пути — **выводится, не объявляется** |
-| JSON Schema листьев | вендор-конвертер либо аннотация `jsonSchema(schema, json)` |
+| `operationId` | имя контракта, иначе слаг из метода и пути; отдельно не объявляется |
+| JSON Schema листьев | конвертер вендора или аннотация `jsonSchema(schema, json)` |
 
-## Boot-time-гарантия
+## Проверка на старте
 
-Документ строится провайдером жадного контейнера, то есть на фазе 1
-ASSEMBLE. Отдельного кода под гарантию нет — она следствие: схема, для
-вендора которой не передан конвертер, роняет сборку **до `@OnInit` и до
-открытия сокета**. Ленивого построения не существует: оно уничтожило бы
-ровно эту гарантию.
+Документ строит провайдер жадного контейнера, то есть фаза ASSEMBLE.
+Схема, для вендора которой не передан конвертер, роняет сборку до
+`@OnInit` и до открытия сокета. Ленивого построения нет.
 
-Диагностируется каждая ручка, а не первая попавшаяся; нарушения уезжают
-одним сообщением. Сюда же попали две проверки, которых раньше не было
-нигде: path-параметр, которому нет свойства в схеме, и `bind`-пометка на
-несуществующем поле — до вендор-конвертера структуру схемы узнать было
-нечем.
+Проверяется каждый endpoint, а не первый попавшийся; нарушения собираются
+в одно сообщение. Кроме отсутствующего конвертера проверяются
+path-параметр, которому нет свойства в схеме, и пометка `bind` на
+несуществующем поле.
 
-Единственный способ не документировать HTTP-ручку — `doc: { hidden:
-'<причина>' }`. Причина обязательна по той же логике, что у `detached`:
-тотальный opt-out должен читаться в diff'е. Список скрытых ручек модуль
-печатает на старте; в документ он не попадает.
+Скрыть HTTP-endpoint из документа можно только с причиной:
+`doc: { hidden: '<причина>' }`. Список скрытых endpoint'ов модуль печатает
+на старте (опция `announceHidden`); в документ он не попадает.
 
-## Зависимости
+## Конвертеры
 
-Валидатора среди них нет: конвертер — **данные вызывающего**, а не
-зависимость пакета. Это проверяется тестом границы (`boundary.spec.ts`), а
-не обещанием в README: он смотрит и на граф импортов собранного `dist/`, и
-на манифест.
+Конвертер переводит схему конкретного валидатора в JSON Schema. Список
+конвертеров передаётся опцией `converters`; встроенного реестра по
+вендорам нет, и даже в приложении целиком на zod конвертер указывается
+явно. Конвертеры поставляются отдельными пакетами:
+[`@nestling/openapi.zod`](../nestling.openapi.zod) и подобные. Свой
+конвертер пишется против типа `SchemaDocConverter`, который пакет
+реэкспортирует.
 
-Конвертеры поставляются отдельными пакетами со своей peer-зависимостью —
-[`@nestling/openapi.zod`](../nestling.openapi.zod) и подобные.
+Валидатора среди зависимостей пакета нет; это проверяет тест границы
+`boundary.spec.ts`.
+
+## Справочник
+
+### Опции `openapi()` и `buildOpenApiDocument()`
+
+| Опция | Что делает |
+|---|---|
+| `info` | секция `info` документа; единственное обязательное поле |
+| `converters` | конвертеры схем по вендорам |
+| `servers` | секция `servers`; переносится как есть, из конфига транспорта не выводится |
+| `security`, `securitySchemes`, `externalDocs` | переносятся в документ как есть |
+
+Только у модуля `openapi()`:
+
+| Опция | Что делает |
+|---|---|
+| `path` | путь endpoint'а с документом; по умолчанию `/openapi.json` |
+| `pipeline` | пайплайн этого endpoint'а, чтобы он проходил политики корня |
+| `detached` | причина вывода endpoint'а из-под политик |
+| `announceHidden` | печатать ли на старте список скрытых endpoint'ов; по умолчанию печатает |
+
+### Экспорты
+
+`buildOpenApiDocument`, `hiddenEndpoints`, `openapi`, `OpenApiDocument$`;
+типы `OpenApiOptions`, `OpenApiServeOptions`, `OpenApiDocument`,
+`OpenApiInfo`, `OpenApiOperation`, `OpenApiParameter`,
+`OpenApiRequestBody`, `OpenApiResponse`, `OpenApiPathItem`,
+`OpenApiContent`, `DocumentedEndpoint`, `JsonValue`, `SchemaDocConverter`.
+
+## Границы пакета
+
+Пакет не поставляет Swagger UI, не выводит `servers` из конфигурации и не
+генерирует AsyncAPI.

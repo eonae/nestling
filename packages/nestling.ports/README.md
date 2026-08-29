@@ -1,72 +1,46 @@
 # @nestling/ports
 
-Contracts, ports and the in-process message bus. A feature calls its
-neighbour through a **contract**, not through the neighbour's service token —
-which is what makes the call survive the day the two features move into
-separate processes: it is already async, already `Fail`-able and already
-outside the caller's transaction.
+Реализация и вызов контрактов между фичами, in-process шина сообщений и
+отчёт о совместимости контрактов.
 
-Dependencies: `@nestling/container`, `@nestling/contracts`,
-`@nestling/pipeline`, `@nestling/transport`, `@nestling/streams`,
-`@nestling/config`, `@common/misc`. No schema validator is declared — a
-contract leaf is any [Standard Schema v1](https://standardschema.dev) value.
-
-> **`makeContract` is imported from [`@nestling/contracts`](../nestling.contracts),
-> not from here.** The contract declaration lives in a package with no server
-> dependencies, so it can be imported into a frontend bundle; re-exporting it
-> from this package would put it right back among them and turn the packaging
-> guarantee into a matter of import discipline. What this package does
-> re-export are the **invoker types** (`Port`, `Emitter`, `PortMeta`,
-> `CommandMeta`): they are read by the consumer of a port, who already has the
-> server at hand.
-
-> 🚧 Active development, API may change. Design:
+> 🚧 Активная разработка, API может меняться. Целевой дизайн:
 > [`docs/design/contracts.md`](../../docs/design/contracts.md).
-> Guide: [`docs/guides/ports.md`](../../docs/guides/ports.md).
+> Гайд: [`docs/guides/ports.md`](../../docs/guides/ports.md).
 
-## Declaring a contract
+Зависимости: `@nestling/container`, `@nestling/contracts`,
+`@nestling/pipeline`, `@nestling/transport`, `@nestling/streams`,
+`@nestling/config`, `@common/misc`. Валидатор схем пакет не выбирает:
+лист контракта — любое значение
+[Standard Schema v1](https://standardschema.dev).
+
+`makeContract` импортируется из [`@nestling/contracts`](../nestling.contracts),
+а не отсюда: объявление контракта живёт в пакете без серверных
+зависимостей, чтобы его можно было импортировать во фронтенд. Этот пакет
+реэкспортирует только типы вызывателей: `Port`, `Emitter`, `PortMeta`,
+`CommandMeta`.
+
+## Установка
+
+```bash
+npm install @nestling/ports @nestling/contracts
+```
+
+## Минимальный пример
 
 ```typescript
-import { makeContract } from '@nestling/ports';
+import { makeContract } from '@nestling/contracts';
+import { implement } from '@nestling/ports';
 
+// Контракт: имя, вид, схемы входа и выхода, список отказов
 export const ClaimQuota = makeContract({
-  name: 'quotas.claim',                    // the address: bus subject, discovery key
+  name: 'quotas.claim',                    // адрес: subject шины и ключ discovery
   kind: 'request',                         // 'request' | 'command' | 'event'
   input: z.object({ email: z.string() }),
   output: z.object({ remaining: z.number() }),
   errors: [QuotaExceeded],
 });
-```
 
-A contract is a value: it registers nothing in a module or an application.
-It reaches the app in exactly two ways — someone implements it, someone
-injects its invoker.
-
-| Kind | Semantics | Owners | Invoker |
-|---|---|---|---|
-| `request` | request-reply, `Fail`-able | exactly one | `.port` → `call(input, meta?)` |
-| `command` | fire-and-forget | exactly one | `.emitter` → `emit(payload, meta?)` |
-| `event` | broadcast fact | 0..N subscribers | `.emitter` → `emit(payload, meta?)` |
-
-`durable: true` is allowed on `command` and `event` and rejected on
-`request` at declaration time (a request-reply has a live caller waiting,
-so there is nothing to outlive). Durability is a property of the
-**operation**, known to both sides — the publisher waits for the write to be
-acknowledged, the subscriber reads durably, and they live in different
-processes — so the contract is the only value available to both. How it is
-served is the transport's business (`@nestling/transport.nats`); a bus
-without that capability starts anyway and prints one line on go-live listing
-the contracts it serves without persistence.
-
-The version is part of the name (`users.create.v2`) — the name *is* the
-address, so a separate version field would be a second address. A duplicate
-name is an error at declaration time.
-
-## Implementing — an ordinary declaration
-
-```typescript
-import { implement } from '@nestling/ports';
-
+// Реализация: endpoint, который обслуживает контракт
 export const ClaimQuotaImpl = implement(ClaimQuota, {
   deps: [QuotaService],
   handle: (quotas) => async (payload) => {
@@ -81,54 +55,83 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
 export const QuotasModule = makeAppModule({
   name: 'module:quotas',
   providers: [QuotaService],
-  endpoints: [ClaimQuotaImpl],      // next to the HTTP handles
+  endpoints: [ClaimQuotaImpl],             // рядом с HTTP-endpoint'ами
+});
+
+// Вызов из другой фичи: порт инжектируется как обычная зависимость
+export const CreateUser = httpEndpoint({
+  /* … */
+  deps: [ClaimQuota.port],
+  handle: (quotas) => async (input) => {
+    const claimed = await quotas.call({ email: input.email });
+    if (claimed.isFail) {
+      return claimed;                      // отказ соседа разбирает вызывающий
+    }
+    /* … */
+  },
 });
 ```
 
-`implement` is a declaration constructor over the same kernel primitive as
-`httpEndpoint`/`cliEndpoint`, so an implementation inherits the whole
-machinery: discovery from the module tree, `dispatch`, pipeline and the
-boundary guard, `policies`/`detached`, the `check()` report and
-`app.call(Declaration, payload)` in tests. `input`/`output`/`errors` come
-from the contract and cannot be redeclared (a compile error).
+## Основные понятия
 
-An `event` implementation must name itself with `subscriber:` — that is the
-subscription address (`quotas.claim@billing` in-process, the queue-group
-name once a broker is behind the bus). `request`/`command` have exactly one
-owner, so `subscriber` is rejected there.
+### Контракт
 
-## Calling
+Контракт — значение. Он ничего не регистрирует ни в модуле, ни в
+приложении. В приложение он попадает двумя путями: кто-то его реализует
+через `implement`, кто-то инжектирует его вызыватель.
 
-```typescript
-deps: [ClaimQuota.port, UserRegistered.emitter],
-handle: (quotas, registered) => async (input) => {
-  const claimed = await quotas.call({ email: input.email });
-  if (claimed.isFail) {
-    return claimed;                 // the caller must handle the failure
-  }
+| Вид | Семантика | Владельцев | Вызыватель |
+|---|---|---|---|
+| `request` | запрос-ответ, может вернуть `Fail` | ровно один | `.port` → `call(input, meta?)` |
+| `command` | без ответа | ровно один | `.emitter` → `emit(payload, meta?)` |
+| `event` | факт для подписчиков | 0..N подписчиков | `.emitter` → `emit(payload, meta?)` |
 
-  await registered.emit({ id: user.id, email: user.email });
-  /* … */
-}
-```
+Поле `durable: true` разрешено у `command` и `event`; у `request` оно
+отвергается при объявлении. Как именно доставка становится долговечной,
+решает транспорт ([`@nestling/transport.nats`](../nestling.transport.nats)).
+Шина без этой возможности всё равно стартует и один раз печатает список
+контрактов, которые обслуживает без персистентности.
 
-`.port`/`.emitter` are ordinary tokens (token-family members), usable
-anywhere a token is. Nothing is registered in the composition root: the
-invoker node exists only for contracts someone actually injects.
+Версия входит в имя контракта (`users.create.v2`); отдельного поля версии
+нет. Два контракта с одним именем — ошибка при объявлении.
 
-- `call(input, meta?)` → `Promise<Ok<Output> | Fail<E ∪ UnknownError>>`;
-- `emit(payload, meta?)` → `Promise<void>`, resolved on **delivery**, not on
-  handling; a subscriber's failure never surfaces to the caller.
+### Реализация
 
-A declared failure is re-hydrated from its `code` into a real `Fail`, so
-`QuotaExceeded.is(result)` holds on both binding paths. Anything undeclared
-becomes `UnknownError`; the original goes to the diagnostic hook, never
-across the port boundary.
+`implement(Contract, { deps?, handle, subscriber?, pipeline?, … })` строит
+декларацию endpoint'а на том же примитиве, что `httpEndpoint` и
+`cliEndpoint`. Поэтому реализация получает всё, что есть у обычного
+endpoint'а: discovery по дереву модулей, `dispatch`, пайплайн и проверку
+отказов на выходе, `policies` и `detached`, отчёт `check()` и вызов
+`app.call(ClaimQuotaImpl, payload)` в тестах.
 
-## Operational profile — `meta`
+Поля `input`, `output` и `errors` берутся из контракта. Попытка объявить
+их в реализации — ошибка компиляции.
 
-`meta` is the **envelope of the call**, not ambient state: `signal`,
-`deadline` and — for `command` only — `idempotencyKey`.
+Реализация события обязана назвать себя полем `subscriber:`. Это адрес
+подписки: `quotas.claim@billing` внутри процесса и имя queue-group, когда
+за шиной стоит брокер. У `request` и `command` владелец ровно один, поэтому
+`subscriber` у них запрещён.
+
+### Вызов
+
+`.port` и `.emitter` — обычные токены (члены семейств токенов). Их можно
+использовать везде, где принимается токен. В composition root ничего
+регистрировать не нужно: узел вызывателя создаётся только для контрактов,
+которые кто-то инжектирует.
+
+- `call(input, meta?)` возвращает `Promise<Ok<Output> | Fail<E ∪ UnknownError>>`.
+- `emit(payload, meta?)` возвращает `Promise<void>` и завершается по факту
+  доставки, а не обработки. Ошибка подписчика до вызывающего не доходит.
+
+Задекларированный отказ восстанавливается из `code` в настоящий `Fail`, так
+что `QuotaExceeded.is(result)` работает и при локальном, и при удалённом
+вызове. Незадекларированная ошибка превращается в `UnknownError`; исходная
+ошибка попадает в диагностический хук, но не к вызывающему.
+
+### Параметры вызова: `meta`
+
+`meta` — параметры одного вызова: `signal`, `deadline` и, только у
+`command`, `idempotencyKey`.
 
 ```typescript
 import { deadlineIn } from '@nestling/ports';
@@ -137,49 +140,42 @@ await quotas.call({ email }, { deadline: deadlineIn(500) });
 await ship.emit({ orderId }, { idempotencyKey: orderId });
 ```
 
-`deadline` is an **absolute moment** (`Date`), never a duration: a duration
-goes stale at every `await` between computing it and making the call, a
-moment does not. `deadline: 500` does not compile — `500` reads equally well
-as epoch milliseconds and as "in 500 ms", and `deadlineIn(ms)` is the sugar
-that removes the ambiguity. There is **no default budget**: a call without
-`deadline` runs unbounded, exactly as it did before.
+`deadline` — момент времени (`Date`), а не длительность. `deadline: 500`
+не компилируется; `deadlineIn(ms)` вычисляет момент из длительности.
+Бюджета по умолчанию нет: вызов без `deadline` не ограничен по времени.
 
-The budget is checked at three points, and the failure is always the same
-kernel code `DEADLINE_EXCEEDED` (status `TIMEOUT` → 504):
+Бюджет проверяется в трёх точках. Отказ всегда один и тот же:
+`DEADLINE_EXCEEDED` со статусом `TIMEOUT` (HTTP 504).
 
-| Point | When | What happens |
+| Точка | Когда | Что происходит |
 |---|---|---|
-| before the call | `call`/`emit` | remainder ≤ 0 → `DeadlineExceeded`, neither `dispatch` nor the bus is touched |
-| before handling | message received | remainder ≤ 0 → `DeadlineExceeded`, `dispatch.call` is not invoked |
-| in flight | while the call runs | the handler's `ctx.signal` fires and the call ends with `DeadlineExceeded` |
+| до вызова | `call` / `emit` | остаток ≤ 0: `DeadlineExceeded`, ни `dispatch`, ни шина не вызываются |
+| до обработки | сообщение получено | остаток ≤ 0: `DeadlineExceeded`, `dispatch.call` не вызывается |
+| во время обработки | вызов выполняется | срабатывает `ctx.signal` хендлера, вызов завершается `DeadlineExceeded` |
 
-An abort by the **caller's** `meta.signal` stays `UnknownError`, as before:
-the two are told apart by who owns the timer, not by `signal.reason`.
+Отмена через `meta.signal` вызывающего остаётся `UnknownError`. По сети
+передаётся относительный `timeoutMs`; получатель пересчитывает его в
+абсолютный момент по своим часам, поэтому расхождение часов между
+процессами на бюджет не влияет. Поведение одинаково при `local-first` и
+`always-remote`.
 
-Over the wire the envelope carries a **relative** `timeoutMs`, recomputed
-into an absolute moment by the receiver's own clock — the gRPC model, so
-clock skew between processes never affects the budget, only transit does.
-The behaviour is identical under `local-first` and `always-remote`.
+`idempotencyKey` есть только в `meta` контрактов вида `command`; у
+`request` и `event` это ошибка компиляции. `emit` команды всегда уходит с
+ключом: либо переданным вызывающим, либо сгенерированным вызывателем. Ядро
+гарантирует две вещи: ключ доходит до получателя и виден хендлеру.
+Дедупликация в ядро не входит.
 
-`idempotencyKey` exists in the `meta` of `command` contracts only; on
-`request` and `event` it is a compile error rather than a silently ignored
-field. A command's `emit` always travels with a key — the caller's, or one
-minted by the invoker. The kernel guarantees exactly two things: the key
-arrives, and it is visible to the handler. **Deduplication is not in the
-kernel** — that is a satellite over a store.
+Внутри хендлера параметры вызова доступны двумя способами:
 
-The profile reaches deep code through two channels:
-
-| Channel | What it is | Availability |
+| Канал | Что это | Когда доступен |
 |---|---|---|
-| `ctx.raw.attributes` | the wire, next to `subject` | always, no composition needed |
-| `Ctx(Deadline)` / `Ctx(IdempotencyKey)` | ambient projection | when `withDeadline()` / `withIdempotencyKey()` is composed into the pipeline |
+| `ctx.raw.attributes` | атрибуты запроса рядом с `subject` | всегда |
+| `Ctx(Deadline)` / `Ctx(IdempotencyKey)` | переменные асинхронного контекста | когда в пайплайн добавлены `withDeadline()` / `withIdempotencyKey()` |
 
-The variables are exported **as values**, so
-`everyEndpoint(…).hasVar(IdempotencyKey)` makes their presence an
-assembly-time invariant. A nested call does **not** inherit the budget — a
-handler that wants to pass the remainder on does it explicitly, exactly as
-it must with `signal`:
+Переменные экспортируются как значения, поэтому
+`everyEndpoint(…).hasVar(IdempotencyKey)` проверяет их наличие на сборке.
+Вложенный вызов бюджет не наследует: хендлер передаёт остаток явно, как и
+`signal`.
 
 ```typescript
 deps: [Ctx(Deadline), ChargeCard.port],
@@ -187,84 +183,85 @@ handle: (deadline, charge) => async (input) =>
   charge.call(input, { deadline: deadline.peek() }),
 ```
 
-## Dispatch policy — configuration, not code
+### Политика диспатча
 
-| Policy | Behaviour |
+| Политика | Поведение |
 |---|---|
-| `local-first` (default) | co-located implementation is called through the bus `dispatch`: full pipeline, no payload copying |
-| `always-remote` | the same call goes through the bus: async barrier, structural copy of payload and reply, reply validated against the contract's `output` |
+| `local-first` (по умолчанию) | реализация в том же процессе вызывается через `dispatch` шины: полный пайплайн, без копирования payload |
+| `always-remote` | тот же вызов идёт через шину: асинхронный барьер, структурная копия payload и ответа, ответ проверяется схемой `output` контракта |
 
 ```bash
 NESTLING_PORTS_DISPATCH=always-remote node dist/main.js
 ```
 
-Without a broker, `always-remote` is a rehearsal of the wire: whatever does
-not survive `structuredClone` breaks here, in dev and in tests, instead of in
-production after the split. With a broker registered it becomes what it
-promises — everything is a message over a real wire. The call site does not
-change either way.
+Без брокера `always-remote` показывает в dev и в тестах всё, что не
+переживёт `structuredClone`. С брокером каждый вызов становится
+сообщением по сети. Код вызова в обоих случаях один и тот же.
 
-The policy lives in the kernel config section `nestlingPorts`, read through
-the ordinary configuration mechanism — so it is switchable by a bound source
-and by `vars()` in the test root, not only by a process variable. There is
-no `dispatch:` field in `assemble`: the root's field list is closed.
+Политика лежит в секции конфига ядра `nestlingPorts` и читается обычным
+механизмом конфигурации: её можно переключить привязанным источником или
+`vars()` в тестовом корне, а не только переменной окружения. Поля
+`dispatch:` у `assemble` нет.
 
-## What the assembly rejects
+### Проверки на сборке
 
-Phase ASSEMBLE fails fast on everything checkable without a network: a
-`request`/`command` with no co-located implementation among the selected
-features **and** a bus that does not deliver outside the process, a second
-owner (naming both modules), two `event` subscribers with the same name, a
-missing or forbidden `subscriber`, and a contract whose io forms are
-`stream`/`events` (the bus supports `value` only). An event with zero
-subscribers is legal — broadcast into an empty room is a normal state.
+Фаза ASSEMBLE завершается ошибкой во всех случаях, которые можно проверить
+без сети:
 
-Binding an invoker has three inputs: topology, **the nature of the bus** and
-the dispatch policy. A remote bus turns "no owner selected here" into "the
-owner lives elsewhere": `request`/`command` binds remote instead of failing,
-and `event` always goes through the bus — the set of subscribers is open,
-and a local dispatch would silently lose the ones in other processes.
+- `request` или `command` без реализации среди выбранных фич и с шиной,
+  которая не доставляет за пределы процесса;
+- второй владелец `request`/`command` (в ошибке названы оба модуля);
+- два подписчика события с одним именем;
+- отсутствующий или запрещённый `subscriber`;
+- контракт с формами io `stream` или `events` (шина передаёт только `value`).
 
-## Phases
+Событие без подписчиков разрешено.
 
-`dispatch` is born in WIRE, and the single late binding happens there:
-invokers receive their executor and the bus subscribes to the subjects of
-its routes. Calling a port in `@OnInit` is a clear error; in `@OnStart` it
-works.
+Привязка вызывателя зависит от трёх вещей: топологии, свойства `remote`
+шины и политики диспатча. Если шина удалённая, «владелец не выбран здесь»
+означает «владелец в другом процессе»: `request` и `command` привязываются
+к удалённому вызову вместо ошибки, а `event` всегда идёт через шину,
+потому что часть подписчиков может жить в других процессах.
 
-## Bus
+### Фазы
 
-`IMessageBus` is the least common denominator of broker verbs
-(`request`/`publish`/`subscribe` with a delivery group); no broker specifics
-leak past it. `InProcessBus` implements it *and* `ITransport` — one value
-with two capabilities, the same shape `NatsBus` takes.
+`dispatch` создаётся на фазе WIRE. Там же происходит единственная поздняя
+привязка: вызыватели получают исполнителя, а шина подписывается на
+subject'ы своих маршрутов. Вызов порта в `@OnInit` завершается ошибкой; в
+`@OnStart` он работает.
 
-The interface declares two capabilities **as values**: `remote` (does it
-deliver outside the process — an input of invoker binding) and `durable`
-(can it deliver durably). `InProcessBus` declares both false: broadcast is
-built on `Topic` from `@nestling/streams`, so publishing never waits for a
-slow subscriber, but retries and persistence have nowhere to live without an
-external broker.
+### Шина
 
-The composition root need say nothing about the bus: the ports kernel module
-registers `InProcessBus` when the application has at least one contract
-implementation. A root **may** supply the bus itself — that is how a broker
-is connected (`nats()` in `transports:`, see
-[`@nestling/transport.nats`](../nestling.transport.nats/README.md)) — and
-then the kernel module registers nothing: an application has exactly one
-bus, and both tokens resolve to the very same instance.
+`IMessageBus` — минимальный интерфейс брокера: `request`, `publish` и
+`subscribe` с группой доставки. Специфика конкретного брокера за этот
+интерфейс не выходит. `InProcessBus` реализует `IMessageBus` и
+`ITransport` одновременно; ту же пару интерфейсов реализует `NatsBus`.
 
-## Versioning: the name carries it, the report highlights it
+Интерфейс объявляет две возможности значениями: `remote` (доставляет ли
+шина за пределы процесса; вход привязки вызывателей) и `durable` (умеет
+ли долговечную доставку). У `InProcessBus` оба равны `false`. Её
+broadcast построен на `Topic` из `@nestling/streams`, поэтому публикация
+никогда не ждёт медленного подписчика.
 
-A contract has no version field. The version lives **in the name**
-(`user.create.v2`), because the name is already the address; `makeContract`
-neither requires nor parses the `.vN` suffix, so an unversioned name is
-perfectly legal.
+Composition root про шину может ничего не знать: модуль ядра портов
+регистрирует `InProcessBus`, когда в приложении есть хотя бы одна
+реализация контракта. Корень может передать шину сам, так подключается
+брокер: `nats()` в `transports:` (см.
+[`@nestling/transport.nats`](../nestling.transport.nats/README.md)). Тогда
+модуль ядра свою шину не регистрирует. В приложении ровно одна шина, и
+`BusTransport$` с `MessageBus$` указывают на один и тот же экземпляр.
 
-What remembers yesterday's shape is a **snapshot** — a plain value you store
-wherever you like:
+### Совместимость контрактов
+
+Версия контракта живёт в имени (`user.create.v2`). `makeContract` суффикс
+`.vN` не требует и не разбирает; имя без версии допустимо.
+
+Форму контракта «как было вчера» хранит снапшот — обычное значение,
+которое вы сохраняете, где удобно:
 
 ```typescript
+import { checkTopologies } from '@nestling/testing';
+
 const descriptor = describeContract(ClaimQuota, { converters: [zodConverter()] });
 // { name, kind, input: { kind, leaf }, output: { … }, errors: [{ code, status }] }
 
@@ -276,55 +273,66 @@ const report = diffContracts(readBaseline(), snapshot);
 console.log(formatCompatibility(report));
 ```
 
-- **`describeContract`** turns a contract (or its `implement` declaration)
-  into a JSON value. Leaf schemas go through a vendor converter
-  (`SchemaDocConverter`, defined in `@nestling/pipeline` so that
-  [`@nestling/openapi`](../nestling.openapi) shares the same type); without
-  one, a leaf is marked *opaque* — and "there is no leaf" and "there is a leaf
-  we could not convert" are distinct markers, never conflated. A leaf
-  annotated with `jsonSchema(schema, json)` is described by its declared
-  schema **whether or not** a converter was passed: the annotation is the
-  answer to "what does this schema look like", and marking such a leaf opaque
-  would throw away an answer already given.
-- **`snapshotContracts`** merges the reports of a `select`-topology matrix by
-  **union**, so a contract missing from one topology is a deselected feature,
-  not a deleted contract; each descriptor names the topologies that published
-  it. `serializeSnapshot` is byte-deterministic: contracts by name, failures
-  by code, JSON Schema keys sorted.
-- **`diffContracts`** assigns every discrepancy exactly one verdict from a
-  closed set — `breaking` | `additive` | `unknown`. Direction comes from the
-  **slot**: `input` flows into the implementation (a new required property, a
-  removed property, a narrowing — `breaking`), `output` flows out of it (a
-  removed property, `required` → `optional` — `breaking`). Anything the
-  published rules do not cover — unfamiliar JSON Schema keywords,
-  `oneOf`/`allOf`/`$ref`, a changed vendor, an opaque leaf — is `unknown`
-  with a JSON path, never a silent "compatible".
-- **The report is a value**; `formatCompatibility` prints it for a human, and
-  a contract with at least one `breaking` carries a **suggested** name
-  (`quotas.claim` → `quotas.claim.v2`). That suggestion is the only place
-  where the `.vN` suffix is recognised, and nothing is renamed.
+- `describeContract(source, { converters? })` превращает контракт или его
+  `implement`-декларацию в JSON-значение. Листовые схемы проходят через
+  конвертер вендора (`SchemaDocConverter`, тот же тип, что у
+  [`@nestling/openapi`](../nestling.openapi)). Без конвертера лист помечается
+  непрозрачным; «листа нет» и «лист не удалось преобразовать» — разные
+  пометки. Лист с аннотацией `jsonSchema(schema, json)` описывается по
+  аннотации независимо от наличия конвертера.
+- `snapshotContracts(reports)` объединяет отчёты матрицы топологий
+  `select`. Контракт, которого нет в одной из топологий, считается
+  невыбранной фичей, а не удалённым контрактом; каждый дескриптор
+  перечисляет топологии, которые его опубликовали. `serializeSnapshot`
+  даёт побайтно детерминированный вывод: контракты по имени, отказы по
+  коду, ключи JSON Schema отсортированы.
+- `diffContracts(baseline, current)` присваивает каждому расхождению один
+  вердикт: `breaking`, `additive` или `unknown`. Направление зависит от
+  слота: во `input` новое обязательное свойство, удалённое свойство и
+  сужение — `breaking`; в `output` удалённое свойство и переход
+  `required` в `optional` — `breaking`. Всё, что правила не покрывают
+  (незнакомые ключевые слова JSON Schema, `oneOf`/`allOf`/`$ref`, смена
+  вендора, непрозрачный лист), получает вердикт `unknown` с JSON-путём.
+- Отчёт — значение. `formatCompatibility` печатает его для человека;
+  контракт хотя бы с одним `breaking` получает предложенное имя
+  (`suggestBump`: `quotas.claim` становится `quotas.claim.v2`). Ничего не
+  переименовывается.
 
-**It cannot fail your build.** `diffContracts` is a pure function of two
-values: it takes no part in assembly, is never called from `run()`/`check()`
-and never throws on the result of a comparison, however many `breaking` it
-found. There is no `failOnBreaking` flag — turning the report into a failing
-test is `expect(report.breaking).toEqual([])` in *your* test. The one thing
-it does throw on is an unreadable baseline (an unknown `snapshotVersion`):
-that is the checker author's mistake, not a breaking change.
+`diffContracts` — чистая функция двух значений. Она не участвует в сборке,
+не вызывается из `run()` и `check()` и не бросает исключений из-за
+результата сравнения. Чтобы отчёт ронял тест, напишите
+`expect(report.breaking).toEqual([])`. Единственное исключение функция
+бросает на нечитаемый baseline (неизвестный `snapshotVersion`).
 
-## Kernel / user space
+## Справочник API
 
-Public: `makeContract`, `implement`, `Port`/`Emitter` types, `IMessageBus`,
-`MessageBus$`, `InProcessBus`, `BusTransport$`, `busBindingOf`,
-`portsKernel`, `bindPorts`, `collectImplementations`, `portsConfigKeys`,
-the operational profile (`deadlineIn`, `Deadline`, `IdempotencyKey`,
-`withDeadline`, `withIdempotencyKey` and the re-exported `DeadlineExceeded`,
-defined in `@nestling/pipeline` where the closed set of kernel codes lives),
-and the compatibility surface: `describeContract`, `snapshotContracts`,
-`serializeSnapshot`, `diffContracts`, `formatCompatibility`, `suggestBump`,
-`canonicalizeJson` and their types.
+| Экспорт | Что это |
+|---|---|
+| `implement(contract, declaration)` | декларация реализации контракта |
+| `deadlineIn(ms)`, `deadlineFromTimeout(ms?)`, `isExhausted(deadline?)` | работа с моментом `deadline` |
+| `Deadline`, `IdempotencyKey`, `withDeadline()`, `withIdempotencyKey()` | переменные контекста параметров вызова и `.pre`-юниты, которые их заполняют |
+| `profileAttributes`, `startBudget`, `CallBudget`, `failureResponse` | инструменты автора реализации шины |
+| `DeadlineExceeded` | определение отказа бюджета (реэкспорт из `@nestling/pipeline`) |
+| `IMessageBus`, `MessageBus$`, `InProcessBus`, `InProcessBusOptions` | интерфейс шины, её токен и реализация в процессе |
+| `RequestOptions`, `PublishOptions`, `SubscribeOptions`, `BusHandler`, `BusMessageMeta`, `BusSubscription` | типы операций шины |
+| `BusTransport$`, `BUS_TRANSPORT_NAME`, `busBindingOf`, `BusBinding` | токен транспорта шины и привязка декларации к шине |
+| `portsKernel`, `bindPorts`, `undurableContracts`, `collectImplementations` | точки, которыми пользуется composition root |
+| `portsConfigKeys`, `DispatchPolicy`, `PortsConfig` | ключи секции конфига `nestlingPorts` |
+| `describeContract`, `canonicalizeJson`, `ContractDescriptor` | описание контракта JSON-значением |
+| `snapshotContracts`, `serializeSnapshot`, `SNAPSHOT_VERSION`, `ContractSnapshot` | снапшот контрактов |
+| `diffContracts`, `formatCompatibility`, `suggestBump`, `CompatibilityReport` | сравнение снапшотов |
+| `Port`, `Emitter`, `PortMeta`, `CommandMeta`, `PortResult`, … | типы вызывателей (реэкспорт из `@nestling/contracts`) |
 
-Deliberately **not** exported: the contract registry, the `Port`/`Emitter`
-families and their recipes, the executor holder and its token, and the
-config section token. Those are the kernel side of the boundary, and the
-boundary is held by ES module visibility.
+`InProcessBusOptions`: `buffer` (размер буфера на подписчика),
+`onDeliveryFailure` (хук отказа доставки), `onUnknownFail` (хук
+незадекларированной ошибки).
+
+Не экспортируются: реестр контрактов, семейства `Port`/`Emitter` и их
+рецепты, держатель исполнителей и его токен, токен секции конфига. Это
+сторона ядра; граница держится видимостью ES-модулей.
+
+## Границы пакета
+
+Пакет не дедуплицирует команды по `idempotencyKey`, не хранит снапшоты и
+не реализует доставку за пределы процесса: для этого нужен транспорт
+брокера.

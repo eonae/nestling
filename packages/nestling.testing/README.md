@@ -1,17 +1,28 @@
 # @nestling/testing
 
-> 🚧 Active development, API may change. Design:
+Тестовый composition root. `assembleTest` собирает то же самое приложение,
+что и `assemble`, проводит его по фазам `0 BOOTSTRAP`, `1 ASSEMBLE`,
+`2 INIT`, `3 WIRE` и останавливается: `dispatch` создан, сокеты не
+открыты, обработчики `SIGTERM`/`SIGINT` не установлены, в stdout ничего
+не напечатано.
+
+> 🚧 Активная разработка, API меняется. Целевой дизайн:
 > [`docs/design/testing.md`](../../docs/design/testing.md).
-> Guide: [`docs/guides/testing.md`](../../docs/guides/testing.md).
+> Гайд: [`docs/guides/testing.md`](../../docs/guides/testing.md).
 
-The test composition root: it drives **the same** `App` through phases
-`0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE` and stops there. `dispatch` is
-born, sockets are not opened, `SIGTERM`/`SIGINT` handlers are not installed
-and nothing is printed to stdout.
+Пакет не вводит ни раннера, ни матчеров, ни snapshot-механики: jest
+остаётся jest'ом.
 
-The package is thin by construction: testability here is a consequence of the
-architecture, not of machinery in this package. There is no runner, no
-matchers, no snapshot machinery — jest stays jest.
+## Установка
+
+```bash
+npm install --save-dev @nestling/testing
+```
+
+Раннер должен включить условие экспорта `"testing"`, см.
+[Настройка раннера](#настройка-раннера).
+
+## Минимальный пример
 
 ```typescript
 import { assembleTest, stub, unwrap, vars } from '@nestling/testing';
@@ -20,38 +31,37 @@ await using app = await assembleTest({
   features: [UsersFeature, OpsFeature],
   transports: [http({ port: 0 })],
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
-  // a fake invoker for a contract this assembly does not implement
+  // заглушка контракта, который эта сборка не реализует
   stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
   config: vars({ USERS_PAGE_SIZE: '10' }),
-  // the same invariants as production: the test root does not weaken them
+  // те же инварианты, что и в production
   policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)],
 });
 
 expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual({ id: '1', name: 'Alice' });
 ```
 
-`assembleTest` is async, so the canonical form is `await using app = await
-assembleTest(…)`: `await using` awaits the *dispose*, not the initializer.
-The plain form (`const app = await assembleTest(…)` plus `await app.close()`
-in `afterEach`) works too, and `close()` is idempotent.
+`assembleTest` асинхронна, поэтому пишите `await using app = await
+assembleTest(…)`: `await using` ждёт освобождения ресурса, а не
+инициализатор. Форма без `using` тоже работает: `const app = await
+assembleTest(…)` и `await app.close()` в `afterEach`. `close()`
+идемпотентен.
 
-## What the test run does and does not do
+## Что выполняется в тестовой сборке
 
-| Runs | Does not run |
+| Выполняется | Не выполняется |
 |---|---|
-| selection, registration, discovery, `build()` | `container.start()` (`@OnStart`) |
-| every ASSEMBLE fail-fast: transports, io forms, cycles, `policies` | `transport.serve(...)` — no socket |
-| `@OnInit` in topological order | `SIGTERM`/`SIGINT` handlers |
-| WIRE: declarations resolve deps, `dispatch` per transport | the startup summary line |
-| `app.call` / `app.emit` through the full pipeline | the wire: transport binding, headers, sockets |
+| выбор фич, регистрация, discovery, `build()` | `container.start()` и `@OnStart` |
+| все проверки ASSEMBLE: транспорты, формы io, циклы, `policies` | `transport.serve(...)`: сокет не открывается |
+| `@OnInit` в топологическом порядке | обработчики `SIGTERM`/`SIGINT` |
+| WIRE: декларации получают зависимости, создаётся `dispatch` на транспорт | строка состава сборки в stdout |
+| `app.call` и `app.emit` через полный пайплайн | сетевой уровень: разбор запроса, заголовки, сокеты |
 
-A consequence worth stating out loud: **a resource acquired in `@OnStart` is
-not acquired in an app test.** That is the price of the phase model, not a
-defect — `@OnStart` is the go-live hook, and a test run never goes live.
-Anything the test needs is acquired in `@OnInit`, which is where the phase
-model puts resources anyway.
+**`@OnStart` в тесте не вызывается.** Всё, что провайдер открывает в
+`@OnStart`, в тесте открыто не будет. Ресурсы, нужные и в тесте
+(соединение с БД, клиент брокера), открывайте в `@OnInit`.
 
-## `app.call` — a request through the full pipeline
+## `app.call`: запрос через полный пайплайн
 
 ```typescript
 const res = await app.call(CreateUser, { name: 'Alice' });
@@ -59,70 +69,73 @@ const res = await app.call(CreateUser, { name: 'Alice' });
 //                      | { isSuccess: false, status, value: { error, code, … } }
 ```
 
-This is what separates an app test from a unit test: every pipeline layer,
-schema validation and the boundary guard actually run. The declaration is
-looked up **by value identity** — the test holds the same value the module
-lists in `endpoints:`, so no string matching is involved; a declaration that
-is not part of the application (module not registered, feature left out by
-`select`) throws an error listing the available handles.
+Это отличает app-тест от юнит-теста: все слои пайплайна, валидация схем и
+проверка задекларированных ошибок выполняются по-настоящему. Декларация
+ищется по идентичности значения: тест держит то же значение, которое модуль
+перечислил в `endpoints:`, и никаких строк не сравнивает. Декларация, не
+входящая в приложение (модуль не зарегистрирован, фича не выбрана), даёт
+ошибку со списком доступных endpoint'ов.
 
-- `input` is typed by the declaration's `input` form, the result by its
-  `output` form; the failure branch carries the `status` and the `code` from
-  the closed `errors:` contract.
-- `unwrap(res)` returns the value or throws with the status and the code —
-  for the common "I expect success" case.
-- The request frame is honest but empty: `raw.transport` and `raw.pattern`
-  come from the declaration, `raw.attributes` is `{}` unless the test passes
-  `options.attributes`. A layer that reads HTTP headers sees nothing — that
-  is the price of an in-proc call.
-- Transport binding is **not** performed: `call` takes a ready payload.
-  Assembling one from path/query/body is what e2e and bind-map unit tests are
-  for.
-- `exposeErrorDetails` defaults to `true` — in tests you want the details.
+- Тип `input` берётся из формы `input` декларации, тип результата — из
+  формы `output`. Ветка ошибки несёт `status` и `code` из списка `errors:`.
+- `unwrap(res)` возвращает значение или бросает `UnwrapFailedError` со
+  статусом и кодом. Это форма для случая «ожидаю успех».
+- Кадр запроса заполнен минимально: `raw.transport` и `raw.pattern` берутся
+  из декларации, `raw.attributes` равен `{}`, пока тест не передал
+  `options.attributes`. Слой, который читает HTTP-заголовки, ничего не
+  увидит.
+- Разбор запроса из path, query и body не выполняется: `call` принимает
+  готовый payload. Раскладку полей проверяют e2e-тесты и юнит-тесты
+  bind-карты.
+- `exposeErrorDetails` по умолчанию включён: в тесте детали ошибок нужны.
 
-## `overrides` — substitution in the graph
+Опции `call` (`TestCallOptions`): `attributes`, `exposeErrorDetails`,
+`onUnknownFail`.
+
+## `overrides`: подмена узлов графа
 
 ```typescript
 overrides: [
-  [UsersRepository, inMemoryUsersRepo()],      // token -> fake
-  familyOverride(ILogger, () => noopLogger),   // the whole family recipe
-  contextValue(RequestId, 'req-1'),            // an ambient request variable
+  [UsersRepository, inMemoryUsersRepo()],      // токен и заглушка
+  familyOverride(ILogger, () => noopLogger),   // рецепт целого семейства
+  contextValue(RequestId, 'req-1'),            // переменная контекста запроса
 ]
 ```
 
-Substitution happens on ASSEMBLE, before instantiation — this is not
-patching and not module-system interception. The key exists on the test root
-only; `assemble` does not accept it.
+Подмена происходит на фазе ASSEMBLE, до создания инстансов. Это не патчинг
+и не перехват модульной системы. Поле есть только у тестового корня;
+`assemble` его не принимает.
 
-- the pair is typed: a fake that does not match the token's type is a
-  compile error;
-- overriding a token that is not in the graph fails the build — rename a
-  provider and the test breaks instead of silently mocking nothing;
-- overriding the same token twice fails the build;
-- there is no string-addressed form (`overrideByName('…')`): you can only
-  override a token you hold a reference to;
-- `contextValue(variable, value)` is sugar over `valueProvider(Ctx(variable),
-  reader)` — the reader of an ambient variable
-  ([`@nestling/pipeline`](../nestling.pipeline)) is an ordinary graph node, so
-  it is substituted like any other. The fixed value is readable **without a
-  request** (call the service directly; no ALS needed) and outranks the family
-  recipe: on `app.call` the service reads what the test declared, not what the
-  pipeline wrote. Leave it out and you get the production projection —
-  the layer's value inside the call, `undefined` from `peek()` outside it.
+- Пара типизирована: заглушка, не совпадающая с типом токена, не
+  компилируется.
+- Подмена токена, которого нет в графе, останавливает сборку.
+  Переименуйте провайдер, и тест упадёт вместо того, чтобы молча ничего не
+  подменять.
+- Повторная подмена одного токена останавливает сборку.
+- Строковой формы (`overrideByName('…')`) нет: подменить можно только
+  токен, на который есть ссылка.
+- `contextValue(variable, value)` — сокращённая запись
+  `valueProvider(Ctx(variable), reader)`. Читатель переменной контекста
+  ([`@nestling/pipeline`](../nestling.pipeline)) — обычный узел графа, и
+  подменяется как любой другой. Заданное значение читается и вне запроса
+  (при прямом вызове сервиса) и имеет приоритет над рецептом семейства: в
+  `app.call` сервис прочитает то, что задал тест, а не то, что записал
+  пайплайн. Без `contextValue` работает production-проекция: значение слоя
+  внутри вызова, `undefined` из `peek()` снаружи.
 
-**Pruning** drops the subtree orphaned by the substitution: mock the
-repository and the pg pool is never instantiated, never connects, and is not
-in the graph. `app.pruned` lists the ids that dropped out, and `app.get(token)`
-returns `null` for them. Without `overrides` pruning is the identity — the
-graph is exactly the production one.
+Подмена отсекает поддерево, которое больше никому не нужно. Замените
+репозиторий заглушкой, и пул `pg` не будет создан, не подключится и не
+попадёт в граф. `app.pruned` перечисляет отсечённые идентификаторы;
+`app.get(token)` возвращает для них `null`. Без `overrides` граф совпадает
+с production-графом.
 
-## `stub(Contract, impl)` — a feature without its neighbours
+## `stub(Contract, impl)`: фича без соседей
 
-A feature injecting `ChargeCard.port` does not even assemble without the
-neighbour: the invoker recipe fails the reachability check. `stub` returns the
-pair "invoker token -> fake" (`[C.port, …]` for a `request` contract,
-`[C.emitter, …]` for `command`/`event`), and the pair travels in `stubs:`
-alongside plain `[token, value]` ones — there is no separate field for it.
+Фича, которая инжектит `ChargeCard.port`, не соберётся без соседа: рецепт
+вызывателя не проходит проверку достижимости. `stub` возвращает пару
+«токен вызывателя и заглушка»: `[C.port, …]` для `request`-контракта,
+`[C.emitter, …]` для `command` и `event`. Пара передаётся в `stubs:`
+вместе с обычными парами `[token, value]`; отдельного поля нет.
 
 ```typescript
 stubs: [
@@ -131,62 +144,58 @@ stubs: [
 ]
 ```
 
-The mechanism is an existing property of the container rather than an
-exception carved out for tests: an explicit provider for a family member
-**outranks** the recipe, so the production `buildPort`/`buildEmitter` is never
-called for a stubbed contract — and neither is its reachability check.
+Механизм — свойство контейнера: явный провайдер для члена семейства имеет
+приоритет над рецептом, поэтому production-код `buildPort` и `buildEmitter`
+для заглушенного контракта не вызывается, и проверка достижимости тоже.
 
-**The fake is validated by the schemas of its own contract on every call** —
-that is the whole point of it:
+Заглушка проверяется схемами своего контракта при каждом вызове:
 
-- the input is parsed by the contract's `input` form: an invalid payload is a
-  `VALIDATION_FAILED` and `impl` is not called;
-- a successful result is parsed by the `output` form, so a fake that drifted
-  from the contract fails on itself instead of on its consumer. This is
-  deliberately stricter than the production co-located port: a real reply has
-  already been through the implementation's pipeline, a stub has none;
-- a returned or thrown failure has to be in the contract's `errors:` (plus the
-  kernel codes `VALIDATION_FAILED`, `UNKNOWN`, `DEADLINE_EXCEEDED`). An
-  undeclared code is a defect of the test, so the stub **throws**, naming the
-  contract, the code and the allowed set, instead of quietly turning it into
-  an `UnknownError`;
-- a non-`Fail` exception from `impl` propagates as is: "the fake blew up" must
-  not read as "the neighbour answered UNKNOWN".
+- вход разбирается формой `input` контракта: неверный payload даёт
+  `VALIDATION_FAILED`, и `impl` не вызывается;
+- успешный результат разбирается формой `output`, поэтому заглушка,
+  разошедшаяся с контрактом, падает сама, а не в потребителе. Это строже
+  production-порта внутри процесса: настоящий ответ уже прошёл пайплайн
+  реализации, у заглушки пайплайна нет;
+- возвращённый или брошенный отказ должен входить в `errors:` контракта
+  (плюс коды ядра `VALIDATION_FAILED`, `UNKNOWN`, `DEADLINE_EXCEEDED`).
+  Незадекларированный код — дефект теста, поэтому заглушка бросает ошибку с
+  именем контракта, кодом и разрешённым набором, а не превращает его в
+  `UnknownError`;
+- исключение из `impl`, не являющееся `Fail`, пробрасывается как есть.
 
-The operational profile is reproduced too: an exhausted `meta.deadline` yields
-`DEADLINE_EXCEEDED` **before** `impl` runs, and `emit` of a `command` always
-carries an `idempotencyKey` — the caller's or one minted by the stub.
+Параметры вызова тоже воспроизводятся: исчерпанный `meta.deadline` даёт
+`DEADLINE_EXCEEDED` до вызова `impl`, а `emit` команды всегда несёт
+`idempotencyKey` — переданный вызывающим или сгенерированный заглушкой.
 
-The call site is identical to the production one (`Port<C>` / `Emitter<C>`,
-result `PortResult<C>`), and a fake that does not fit the contract is a
-compile error at `stub(...)`. There is no spy of our own: `impl` is a plain
-function, so `jest.fn()` works there with zero lines of support here.
+Место вызова совпадает с production (`Port<C>` / `Emitter<C>`, результат
+`PortResult<C>`); заглушка, не подходящая контракту, не компилируется.
+Своего spy у пакета нет: `impl` — обычная функция, туда подходит
+`jest.fn()`.
 
-## `app.emit` — driving the app from the outside
+## `app.emit`: событие или команда снаружи
 
 ```typescript
 const [{ subscriber, response }] = await app.emit(PlaceOrder, { orderId: 'o-1' });
 ```
 
-`emit` delivers a fact or a command to **every** co-located subscriber, each
-through its own full pipeline, and returns their answers with the name of
-each. It returns them rather than `void` on purpose: a publisher is not
-responsible for the handling, a test is — and awaiting is safe here, since
-there is no socket and the subscribers are co-located.
+`emit` доставляет событие или команду каждому подписчику в этом процессе,
+каждому через его полный пайплайн, и возвращает их ответы вместе с именами
+подписчиков (`EmitDelivery[]`).
 
-- transport attributes carry the call profile, `idempotencyKey` included;
-- zero subscribers on an `event` is a legal broadcast and an empty list; on a
-  `command` it is an addressing error listing the available subjects;
-- a `request` contract is a compile error — it has one owner, not subscribers;
-- a stubbed emitter does not get in the way: the stub replaces what the app
-  calls **outwards**, `emit` drives it from the outside in.
+- транспортные атрибуты несут параметры вызова, включая `idempotencyKey`;
+- ноль подписчиков у `event` — допустимая рассылка и пустой список; у
+  `command` — ошибка адресации со списком доступных subject'ов;
+- `request`-контракт не компилируется: у него один владелец, а не
+  подписчики;
+- заглушенный эмиттер не мешает: заглушка подменяет то, что приложение
+  вызывает наружу, а `emit` ведёт приложение снаружи внутрь.
 
-## `.check()` — mock something, check the topology
+## `checkTopologies`: матрица топологий
 
-Pruning makes the test graph smaller than the production one. The
-compensation is `App.check()` (in [`@nestling/app`](../nestling.app)): phases
-0–1 on the **honest** graph, no substitutions. This package only wraps it
-into a matrix:
+Подмены и заглушки делают тестовый граф меньше production-графа. Полный
+граф без подстановок проверяет `App.check()` из
+[`@nestling/app`](../nestling.app): фазы 0–1. Этот пакет оборачивает его в
+матрицу:
 
 ```typescript
 await checkTopologies(
@@ -195,14 +204,15 @@ await checkTopologies(
 );
 ```
 
-The kernel fails fast; the helper tells the whole story — it collects **all**
-failures and throws one message naming each topology with its cause.
+`checkTopologies(spec, selections, options?)` возвращает
+`TopologyReport[]` — пары `{ select, report }`. Ядро останавливается на
+первой ошибке; хелпер собирает ошибки всех топологий и бросает одно
+сообщение с причиной по каждой.
 
-A `spec` carrying `policies:` gets them checked in **every** topology of the
-matrix, so an invariant that holds under `select: 'all'` but breaks on a
-subset is caught in CI. The `detached` reasons travel as values in the
-report, so a test compares the set of opted-out handles instead of parsing
-stdout:
+`policies:` из `spec` проверяются в каждой топологии матрицы, поэтому
+инвариант, который держится при `select: 'all'` и ломается на
+подмножестве, ловится в CI. Причины `detached` приходят значениями в
+отчёте, и тест сравнивает набор, а не разбирает stdout:
 
 ```typescript
 const [{ report }] = await checkTopologies(spec, ['all']);
@@ -213,11 +223,11 @@ expect(
 ).toEqual(['GET /health']);
 ```
 
-### Contract compatibility, out of the same matrix
+### Совместимость контрактов
 
-Every topology report carries `contracts` — descriptors of the contracts that
-topology **publishes** — so the compatibility check needs no second assembly
-and no second import:
+Отчёт каждой топологии содержит `contracts` — дескрипторы контрактов,
+которые топология публикует. Проверка совместимости строится на них без
+второй сборки:
 
 ```typescript
 import {
@@ -234,35 +244,33 @@ console.log(formatCompatibility(report));
 expect(report.breaking).toEqual([]);
 ```
 
-`checkTopologies(spec, selections, options?)` forwards `options` into every
-topology's `check()`; the two-argument call behaves exactly as before.
-Without converters the descriptors are still built — the structural part
-(kind, io forms, failure codes and statuses) is exact — and leaf schemas are
-honestly marked opaque, which yields the `unknown` verdict.
-
-The failing line here is the test's own `expect`: `diffContracts` is a pure
-function of two values, takes no part in assembly and never throws on a
-comparison result. Verdict rules and baseline maintenance live in
+`options` передаются в `check()` каждой топологии. Без конвертеров
+дескрипторы всё равно строятся: структурная часть (вид, формы io, коды и
+статусы ошибок) точная, а листовые схемы помечаются непрозрачными, что даёт
+вердикт `unknown`. `diffContracts` — чистая функция от двух значений; она
+не участвует в сборке и не бросает ошибок по результату сравнения. Правила
+вердиктов и ведение baseline описаны в
 [`@nestling/ports`](../nestling.ports).
 
-## `vars()` — config as an object
-
-`vars(record)` is a named object `ConfigSource` with `watch`/`set`/`assign`.
-`process.env` is not touched, so tests are isolated and parallelizable for
-free, and reload machinery becomes testable:
+## `vars()`: конфиг из объекта
 
 ```typescript
 const src = vars({ RUNTIME_LOG_LEVEL: 'info' });
 await using app = await assembleTest({ …, config: src });
 
-src.set('RUNTIME_LOG_LEVEL', 'debug'); // reloadable section is re-projected
+src.set('RUNTIME_LOG_LEVEL', 'debug'); // reloadable-секция перепроецируется
 ```
 
-The `config:` field of the test root takes three shapes: a source (sugar for
-`[[source, '*']]`), one binding, or a list of bindings. Production `assemble`
-gets no sugar — there a binding is an act with priorities.
+`vars(record)` возвращает именованный `ObjectSource` с методами `set`,
+`assign` и `watch`. `process.env` не трогается, поэтому тесты изолированы
+и могут идти параллельно, а механика перезагрузки конфига становится
+проверяемой.
 
-## `testModule` — one module in isolation
+Поле `config:` тестового корня принимает три формы: источник (то же, что
+`[[source, '*']]`), одну привязку или список привязок. Production
+`assemble` принимает только список привязок.
+
+## `testModule`: один модуль отдельно
 
 ```typescript
 await using app = await testModule(ReportsModule, {
@@ -275,18 +283,18 @@ await using app = await testModule(ReportsModule, {
 });
 ```
 
-A mini-application around a single module (with its `imports`), the config
-kernel module and the listed stubs; the same phases 0–3 and the same
-`TestApp`. Every unsatisfied import has to be stubbed explicitly — the error
-lists **all** missing tokens with the consumer of each, not the first one it
-hits. `stubs` are "supply what is missing" rather than "replace what is
-there", and the field is the same one `stub(Contract, impl)` slots into — a
-cross-feature call declared by the module is supplied like any other gap.
+`testModule(module, options?)` собирает мини-приложение вокруг одного
+модуля с его `imports`, модулем ядра для конфига и перечисленными
+заглушками; те же фазы 0–3, тот же `TestApp`. Каждый неудовлетворённый
+импорт нужно заглушить явно. Ошибка перечисляет все недостающие токены и
+потребителя каждого, а не первый попавшийся. `stubs` здесь означает
+«дать недостающее», а не «заменить существующее»; в это же поле кладётся
+`stub(Contract, impl)`. Опции: `stubs`, `config`, `transports`.
 
-## Repository wiring for the `"testing"` condition
+## Настройка раннера
 
-The seam this package builds on lives at `@nestling/app/testing`, a
-conditional subpath. The runner has to enable the condition:
+Пакет опирается на условный subpath `@nestling/app/testing`. Раннер должен
+включить условие `"testing"`:
 
 ```javascript
 // jest
@@ -296,28 +304,32 @@ testEnvironmentOptions: { customExportConditions: ['testing', 'node', 'node-addo
 resolve: { conditions: ['testing', 'node'] }
 ```
 
-A package that imports such a subpath at build time also needs
-`customConditions: ['testing']` in its `tsconfig.json`, and
-`lib: ['es2022', 'dom', 'dom.iterable', 'esnext.disposable']` for
+Пакету, который импортирует такой subpath при сборке, нужно
+`customConditions: ['testing']` в `tsconfig.json` и
+`lib: ['es2022', 'dom', 'dom.iterable', 'esnext.disposable']` для
 `await using`.
 
-## Not here
+## Справочник API
 
-`app.port(Contract)` — a typed port for testing a consumer — is an open
-question of the design journal: the consumer side is covered by a stub, so
-there is nothing to reach for yet. `.check()` takes no substitutions and never
-will: it exists to run the honest graph that pruning and stubs are compensated
-against.
+| Экспорт | Что это |
+|---|---|
+| `assembleTest(spec)` | тестовая сборка; возвращает `TestApp` |
+| `testModule(module, options?)` | сборка вокруг одного модуля; возвращает `TestApp` |
+| `TestApp` | `call`, `emit`, `get`, `pruned`, `stubbed`, `features`, `close`, `Symbol.asyncDispose` |
+| `TestAssemblySpec`, `TestCallOptions`, `TestStub`, `EmitDelivery` | типы спека, опций вызова, заглушки и доставки |
+| `stub(contract, impl)` | пара «токен вызывателя, заглушка» для `stubs:` |
+| `ContractStub`, `RequestStubImpl`, `EmitStubImpl`, `StubOutput` | типы заглушек |
+| `unwrap(response)`, `UnwrapFailedError` | значение успешного ответа или ошибка |
+| `vars(record)`, `TestConfig` | источник конфига для тестов и тип поля `config:` |
+| `familyOverride(family, make)`, `TestOverride` | подмена рецепта семейства |
+| `contextValue(variable, value)` | подмена переменной контекста запроса |
+| `checkTopologies(spec, selections, options?)`, `TopologyReport` | матрица `check()` |
+| `CheckReport`, `CheckOptions` | реэкспорт типов из `@nestling/app` |
+| `snapshotContracts`, `serializeSnapshot`, `diffContracts`, `formatCompatibility` | реэкспорт из `@nestling/ports`, чтобы CI-тест обходился одним импортом |
+| `SchemaDocConverter` | тип конвертера схем (реэкспорт из `@nestling/pipeline`) |
 
-## Exports
+## Границы пакета
 
-- `assembleTest(spec)` → `TestApp`; `testModule(module, options)` → `TestApp`
-- `TestApp`: `call`, `emit`, `get`, `pruned`, `stubbed`, `features`, `close`,
-  `Symbol.asyncDispose`
-- `stub(contract, impl)` → the `[invoker token, fake]` pair for `stubs:`
-- `unwrap(response)`, `UnwrapFailedError`
-- `vars(record)`, `familyOverride(family, make)`, `contextValue(variable, value)`
-- `checkTopologies(spec, selections, options?)`
-- re-exported from [`@nestling/ports`](../nestling.ports), so a CI test is
-  one import: `snapshotContracts`, `serializeSnapshot`, `diffContracts`,
-  `formatCompatibility`
+Раннера, матчеров и snapshot-механики здесь нет. `app.port(Contract)` для
+теста потребителя контракта не реализован; `.check()` подстановок не
+принимает и всегда проверяет граф без них.

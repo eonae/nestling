@@ -1,182 +1,157 @@
 # Nestling
 
-> Лёгкая, opinionated замена Nest.js с ECMAScript-декораторами и без магии
+> TypeScript-фреймворк для бэкенда: меньше, современнее и строже NestJS.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/LICENSE)
 
-## ⚠️ Активная разработка
+**[🇬🇧 English version](./README.md)**
 
-**Nestling** находится в активной разработке. Проект развивается, API могут меняться. Используйте в production на свой риск.
+## Статус
 
-## Что такое Nestling?
+Nestling находится в активной разработке: идёт работа над V1, API меняется.
+Используйте в production на свой риск.
 
-Nestling - это моя персональная версия Nest.js, фреймворка, который одновременно любят и ненавидят. Он берёт то, что команды реально используют из Nest.js, оставляя за бортом ненужную сложность.
+## Что это
 
-Если Nest.js позиционирует себя как opinionated решение, то **Nestling ещё более opinionated**.
+Nestling собирает приложение из декларативных значений: endpoint'ы,
+контракты, пайплайны и модули объявляются обычными константами, а
+контейнер зависимостей проверяет весь граф при старте. Основные свойства:
 
-## Текущий статус
+- **Контейнер без магии.** Зависимости объявляются явным списком токенов на
+  стандартных ES-декораторах, без `reflect-metadata`. Граф собирается
+  целиком при старте: цикл или отсутствующая зависимость — ошибка сборки,
+  а не рантайма.
+- **Schema-first.** Схемы `input`, `output` и `errors` endpoint'а задают
+  валидацию, типы хендлера, типизированные клиенты и документ OpenAPI.
+  Валидатор любой: zod, valibot, arktype — всё, что реализует
+  [Standard Schema](https://standardschema.dev).
+- **Пайплайн без `next()`.** Обработка запроса — плоские фазы `.pre`, `.ok`,
+  `.catch`, `.finally`; слои складываются функцией `compose`.
+- **Ошибки как значения.** Хендлер возвращает `Ok` или `Fail`; список
+  возможных отказов — часть контракта endpoint'а.
+- **Контракты между фичами.** Фича вызывает соседа через контракт, а не через
+  его сервис. Тот же код работает в одном процессе и в нескольких, через NATS.
+- **Один composition root.** `assemble({ modules, features, transports,
+  config, policies })` собирает приложение и проводит его по фазам
+  жизненного цикла.
 
-На данный момент в Nestling входят:
-
-### ✅ @nestling/container
-
-Полностью рабочий типобезопасный DI-контейнер без сторонних зависимостей.
-
-**Ключевые возможности:**
-- 🎯 Типобезопасность с отличным выводом типов в TypeScript
-- 🪶 Лёгкий, без сторонних зависимостей
-- 🎪 Использует стандартные ECMAScript-декораторы (не экспериментальные TypeScript)
-- 🔍 Прозрачный граф зависимостей с поддержкой визуализации
-- 🎯 Циклические зависимости запрещены (по дизайну)
-- 📦 Можно использовать отдельно - на фронтенде, в CLI, с любым фреймворком
-
-👉 **[Читать полную документацию](./packages/nestling.container/README.ru.md)** | **[English version](./packages/nestling.container/README.md)**
-
-### 🚧 HTTP/CLI-фреймворк (активная разработка, API меняются)
-
-- **@nestling/pipeline** — типизированный транспорт-агностичный пайплайн: schema-first endpoints (zod), типизированные цепочки middleware, результаты `Ok`/`Fail`, стриминг
-- **@nestling/app** — сборка приложения: контейнер + транспорты, авто-обнаружение endpoints, lifecycle, graceful shutdown
-- **@nestling/transport.http** — HTTP-транспорт на голом `node:http` (роутинг, JSON/multipart/NDJSON)
-- **@nestling/transport.cli** — CLI-транспорт: команды как endpoints, single-shot и REPL
-- **@nestling/models** — типобезопасные определения моделей поверх zod
-
-Целевой дизайн развивается в [`docs/decisions/`](./docs/decisions/ideas.md); гайды — в [`docs/guides/`](./docs/README.md).
-
-### 📊 @nestling/viz
-
-Инструмент интерактивной визуализации графа зависимостей.
-
-**Возможности:**
-- 🎨 Красивая интерактивная визуализация графа
-- 🔍 Исследуйте зависимости визуально
-- 🌳 Понимайте структуру приложения с одного взгляда
-- 🎯 Выявляйте потенциальные проблемы в дереве зависимостей
-
-Сгенерируйте визуализацию графа зависимостей вашего контейнера и исследуйте её в браузере.
-
-### 📚 Примеры
-
-- [simple-app](./packages/examples.simple-app/) — standalone DI: модули, factory-провайдеры, параметризованные токены, lifecycle-хуки
-- [simple-http-server](./packages/examples.simple-http-server/) — функциональные HTTP-endpoints ([гайд](./docs/guides/http-functional.md))
-- [app-with-http](./packages/examples.app-with-http/) — полный App с DI и классовыми endpoints ([гайд](./docs/guides/http-app-di.md))
-- [simple-cli](./packages/examples.simple-cli/) — CLI-транспорт ([гайд](./docs/guides/cli.md))
-
-## Установка
-
-```bash
-npm install @nestling/container
-```
+Принципы, по которым принимаются решения, описаны в
+[docs/design/principles.md](./docs/design/principles.md).
 
 ## Быстрый старт
 
-```typescript
-import { Injectable, makeModule, ContainerBuilder } from '@nestling/container';
-
-// Определяем сервис
-@Injectable([])
-class UserService {
-  getUsers() {
-    return ['Алиса', 'Боб'];
-  }
-}
-
-// Создаём модуль
-const appModule = makeModule({
-  name: 'AppModule',
-  providers: [UserService],
-  exports: [UserService]
-});
-
-// Собираем и используем контейнер
-const container = await new ContainerBuilder()
-  .register(appModule)
-  .build();
-
-await container.init();
-
-const userService = container.getOrThrow(UserService);
-console.log(userService.getUsers()); // ['Алиса', 'Боб']
-
-await container.destroy();
+```bash
+npm install @nestling/app @nestling/container @nestling/pipeline @nestling/transport.http zod
 ```
 
-## Почему Nestling?
+```typescript
+import { assemble, makeAppModule } from '@nestling/app';
+import { Ok } from '@nestling/contracts';
+import { http, httpEndpoint } from '@nestling/transport.http';
+import { z } from 'zod';
 
-### Чем отличается от Nest.js?
+// Endpoint — значение: транспорт, адрес, схемы и хендлер в одном объекте
+const GetUser = httpEndpoint({
+  method: 'GET',
+  path: '/users/:id',
+  input: z.object({ id: z.string() }),          // { id } берётся из пути
+  output: z.object({ id: z.string(), name: z.string() }),
+  handle: async ({ id }) => new Ok({ id, name: 'Alice' }),
+});
 
-**Убрано:**
-- ❌ `ForwardRef` - циклических зависимостей не должно быть никогда
-- ❌ `REQUEST` и `TRANSIENT` скоупы - лучше обрабатывать на уровне приложения
-- ❌ Модули как классы - это просто конфигурация, не нужны церемонии
+const UsersModule = makeAppModule({
+  name: 'module:users',
+  endpoints: [GetUser],
+});
 
-**Улучшено:**
-- ✅ Модули - простые объекты (проще, чище)
-- ✅ Lifecycle-хуки в строгом топологическом порядке
-- ✅ Полный доступ к графу зависимостей
-- ✅ Стандартные JavaScript-декораторы
-- ✅ Без сторонних зависимостей для лучшей безопасности
-- ✅ Явное лучше неявного везде
+await assemble({
+  modules: [UsersModule],
+  transports: [http({ port: 3000 })],
+}).run();
+```
 
-**[Подробнее о философии →](./packages/nestling.container/README.ru.md#чем-отличается-di-nestling-и-что-у-него-общего-с-nest-контейнером)**
+Приложение отвечает на `GET /users/42`, валидирует вход и выход по схемам и
+корректно останавливается по `SIGTERM`. Дальше — гайды в
+[docs/guides/](./docs/README.md#guides--по-текущему-api).
 
-## Roadmap
+## Пакеты
 
-- [x] DI-контейнер (`@nestling/container`)
-- [x] Визуализация графа зависимостей (`@nestling/viz`)
-- [x] Типизированный пайплайн (`@nestling/pipeline`) — развивается, см. [docs/decisions](./docs/decisions/ideas.md)
-- [x] HTTP-транспорт (`@nestling/transport.http`) — работает, production-hardening впереди
-- [x] CLI-транспорт (`@nestling/transport.cli`)
-- [x] Сборка приложения (`@nestling/app`)
-- [ ] Pipeline v2: фазы, слои, `compose` ([решения](./docs/decisions/ideas.md))
-- [ ] Token families и модули-фабрики
-- [ ] Request-контекст с AsyncLocalStorage (`@nestling/context`)
-- [ ] Реестр подписок (`@nestling/subscriptions`)
-- [ ] CLI-инструмент для scaffolding
-- [ ] Утилиты для тестирования
+Ядро:
+
+| Пакет | Что делает |
+|---|---|
+| [`@nestling/container`](./packages/nestling.container/) | Контейнер зависимостей: токены, провайдеры, семейства токенов, модули, хуки жизненного цикла |
+| [`@nestling/contracts`](./packages/nestling.contracts/) | Декларации, общие для сервера и клиента: `makeContract`, `defineFail`, `Ok`/`Fail`, формы io |
+| [`@nestling/pipeline`](./packages/nestling.pipeline/) | Пайплайн обработки запроса и декларации endpoint'ов |
+| [`@nestling/app`](./packages/nestling.app/) | Composition root: `assemble`, фичи и `select`, фазы жизненного цикла, политики |
+| [`@nestling/config`](./packages/nestling.config/) | Конфигурация секциями со схемами, источники и их привязка, секреты |
+| [`@nestling/ports`](./packages/nestling.ports/) | Реализация и вызов контрактов между фичами, in-process шина |
+| [`@nestling/streams`](./packages/nestling.streams/) | `Topic<T>` и комбинаторы потоков на `AsyncIterable` |
+| [`@nestling/transport`](./packages/nestling.transport/) | Интерфейс транспорта и `makeDispatch` |
+
+Транспорты:
+
+| Пакет | Что делает |
+|---|---|
+| [`@nestling/transport.http`](./packages/nestling.transport.http/) | HTTP на `node:http`: маршрутизация, JSON, NDJSON, SSE, multipart |
+| [`@nestling/transport.cli`](./packages/nestling.transport.cli/) | Команды CLI как endpoint'ы: однократный запуск и REPL |
+| [`@nestling/transport.nats`](./packages/nestling.transport.nats/) | NATS как шина приложения: контракты между процессами, `durable`-доставка |
+
+Инструменты:
+
+| Пакет | Что делает |
+|---|---|
+| [`@nestling/client`](./packages/nestling.client/) | Типизированный HTTP-клиент из контрактов для фронтенда и других сервисов |
+| [`@nestling/openapi`](./packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
+| [`@nestling/openapi.zod`](./packages/nestling.openapi.zod/) | Конвертер схем zod для `@nestling/openapi` |
+| [`@nestling/testing`](./packages/nestling.testing/) | Тестовый composition root: `assembleTest`, `overrides`, заглушки контрактов, `checkTopologies` |
+| [`@nestling/subscriptions`](./packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
+| [`@nestling/viz`](./packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
+| [`@nestling/eslint-plugin`](./packages/nestling.eslint-plugin/) | Подсказки ESLint для деклараций endpoint'ов |
+| [`@nestling/models`](./packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
+
+## Примеры
+
+| Пример | О чём | Гайд |
+|---|---|---|
+| [`examples.simple-app`](./packages/examples.simple-app/) | Контейнер без транспорта: модули, семейства токенов, конфиг | [di-token-families](./docs/guides/di-token-families.md), [config](./docs/guides/config.md) |
+| [`examples.simple-http-server`](./packages/examples.simple-http-server/) | HTTP без DI: endpoint'ы, валидация, потоки | [http-functional](./docs/guides/http-functional.md) |
+| [`examples.app-with-http`](./packages/examples.app-with-http/) | Полное приложение: `assemble`, фичи, контракты, OpenAPI, тесты | [http-app-di](./docs/guides/http-app-di.md), [composition](./docs/guides/composition.md), [ports](./docs/guides/ports.md) |
+| [`examples.simple-cli`](./packages/examples.simple-cli/) | CLI-транспорт | [cli](./docs/guides/cli.md) |
+| [`examples.split-nats`](./packages/examples.split-nats/) | Одно приложение в нескольких процессах через NATS | [ports](./docs/guides/ports.md) |
 
 ## Документация
 
-Вся документация лежит в [`docs/`](./docs/README.md) и организована по статусу:
+Точка входа — [`docs/README.md`](./docs/README.md). Папка определяет статус
+документа:
 
-- [`docs/design/`](./docs/README.md) — целевой дизайн (источник истины для API)
-- [`docs/decisions/`](./docs/decisions/ideas.md) — журнал архитектурных решений с логикой принятия
-- `docs/history/` — замороженные дискуссии, миграции и рабочие заметки
+- [`docs/guides/`](./docs/README.md#guides--по-текущему-api) — гайды по текущему
+  API, сверены с кодом примеров;
+- [`docs/design/`](./docs/design/README.md) — целевое состояние V1, полное
+  описание API;
+- [`docs/decisions/`](./docs/decisions/ideas.md) — журнал решений: что, когда
+  и почему;
+- [`docs/glossary.md`](./docs/glossary.md) — термины и правила их написания.
 
-Актуальное состояние кода документируют README пакетов.
+Актуальное состояние кода описывают README пакетов.
 
-## Структура проекта
+## Разработка
 
-Это монорепозиторий, содержащий:
-
-```
-docs/                          # Дизайн-доки, решения, гайды, история
-packages/
-├── nestling.container/        # Ядро DI-контейнера
-├── nestling.pipeline/         # Типизированный пайплайн и endpoints
-├── nestling.app/              # Сборка приложения и lifecycle
-├── nestling.transport/        # Абстракция транспорта
-├── nestling.transport.http/   # HTTP-транспорт
-├── nestling.transport.cli/    # CLI-транспорт
-├── nestling.models/           # Модели поверх zod
-├── nestling.viz/              # Визуализация графа зависимостей
-├── examples.simple-app/       # Пример: standalone DI
-├── examples.simple-http-server/  # Пример: функциональный HTTP
-├── examples.app-with-http/    # Пример: App + DI + HTTP
-├── examples.simple-cli/       # Пример: CLI-транспорт
-├── common.graphs/             # Внутреннее: утилиты DAG
-├── common.misc/               # Внутреннее: общие хелперы
-└── common.static-server/      # Внутреннее: статик-сервер (для viz)
+```bash
+yarn install
+yarn verify          # build + lint + test по всем пакетам
+yarn docs:audit      # проверка консистентности документации
+yarn docs:preview    # сборка HTML-превью документации
 ```
 
-## Contributing
+Монорепозиторий на Yarn workspaces и Nx: пакеты лежат в `packages/`,
+документация — в `docs/`.
 
-Это персональный проект, но предложения и обсуждения приветствуются! Не стесняйтесь открывать issue с идеями или вопросами.
+## Участие
+
+Это персональный проект, но вопросы и предложения приветствуются: откройте
+issue.
 
 ## Лицензия
 
 MIT © 2025
-
----
-
-**Примечание:** О пути, который привёл к созданию ещё одного JavaScript-фреймворка, будет написано отдельно. Но короткая версия: явное лучше неявного, а простота - это фича.
-

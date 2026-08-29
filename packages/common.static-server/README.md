@@ -1,4 +1,10 @@
 # @common/static-server
 
-Internal package: tiny static file server used by `@nestling/viz`
-to serve the visualization frontend. Not intended for standalone use.
+Внутренний пакет Nestling: маленький сервер статических файлов без
+зависимостей. Им пользуется `@nestling/viz`, чтобы отдавать фронтенд
+визуализации. Для самостоятельного использования не предназначен.
+
+| Экспорт | Что делает |
+|---|---|
+| `StaticServer` | отдаёт файлы из каталога по HTTP |
+| `StaticServerOptions` | опции сервера |

@@ -32,7 +32,7 @@ A fully functional, type-safe dependency injection container with no third-party
 - 🎯 No circular dependencies allowed (by design)
 - 📦 Can be used standalone - frontend, CLI, any framework
 
-👉 **[Read the full documentation](./packages/nestling.container/README.md)** | **[Документация на русском](./packages/nestling.container/README.ru.md)**
+👉 **[Read the full documentation (Russian)](./packages/nestling.container/README.md)**
 
 ### 🚧 HTTP/CLI framework (active development, APIs changing)
 

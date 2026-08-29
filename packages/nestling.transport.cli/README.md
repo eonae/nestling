@@ -1,15 +1,59 @@
 # @nestling/transport.cli
 
-CLI transport for Nestling: the same endpoints and pipelines as HTTP,
-but commands instead of routes, with stdin as a streaming input.
+CLI-транспорт Nestling: те же endpoint'ы и пайплайны, что в HTTP, но вместо
+маршрутов — команды, а stdin служит потоковым входом.
 
-`cliEndpoint({ command, input, output, errors, pipeline, deps, handle })` is
-the declaration constructor — a thin layer over `makeEndpoint` from
-`@nestling/pipeline`: `transport` is the package's token (`CliTransport$`,
-whose short name is `'cli'`) and the command name becomes the handler's
-`pattern`. An empty command name throws when the declaration is created.
+> 🚧 Активная разработка, API может меняться. Валидатора среди зависимостей
+> нет: команды проверяются через `@nestling/pipeline` любой схемой
+> [Standard Schema](https://standardschema.dev).
+> Гайд: [CLI-транспорт](../../docs/guides/cli.md).
 
-## Going live: `serve(dispatch, signal)`
+## Установка
+
+```bash
+npm install @nestling/transport.cli
+```
+
+## Минимальный пример
+
+```ts
+import { assemble } from '@nestling/app';
+import { Ok } from '@nestling/pipeline';
+import { cli, cliEndpoint } from '@nestling/transport.cli';
+import { z } from 'zod';
+
+export const Hello = cliEndpoint({
+  command: 'hello',
+  input: z.object({ args: z.array(z.string()), loud: z.boolean().optional() }),
+  output: z.object({ greeting: z.string() }),
+  handle: async ({ args, loud }) => {
+    const text = `Hello, ${args[0] ?? 'world'}`;
+    return new Ok({ greeting: loud ? text.toUpperCase() : text });
+  },
+});
+
+await assemble({ modules: [ToolsModule], transports: [cli()] }).run();
+```
+
+```bash
+node dist/main.js hello Alice --loud
+# {"greeting": "HELLO, ALICE"}
+```
+
+## Команда
+
+`cliEndpoint({ command, input, output, errors, pipeline, deps, handle, detached })`
+— конструктор декларации, тонкий слой над `makeEndpoint` из
+`@nestling/pipeline`. Транспорт декларации — токен пакета `CliTransport$`
+с коротким именем `'cli'`; имя команды становится паттерном endpoint'а.
+Пустое имя команды бросает ошибку при создании декларации.
+
+Вход команды с формой `value` собирается из аргументов процесса:
+`--key value` становится опцией, `--flag` без значения — `true`, остальное
+попадает в массив `args`. Payload команды выглядит как
+`{ args: string[], ...options }`; его проверяет схема `input`.
+
+## Запуск: `serve(dispatch, signal)`
 
 ```ts
 const argv = process.argv.slice(2);
@@ -18,27 +62,23 @@ const cli = new CliTransport({ mode: argv.length > 0 ? 'argv' : 'repl', argv });
 await cli.serve(makeDispatch([Help, ProcessStdin]), new AbortController().signal);
 ```
 
-`serve` is the only entry point; what "going live" means for a command line
-is decided by the mode:
+`serve` — единственный способ запустить транспорт. Что значит «принимать
+запросы» для командной строки, определяет режим:
 
-- `'argv'` (default) — single-shot: one command from the process arguments,
-  then `serve` returns;
-- `'repl'` — commands are read from stdin until `exit`/`quit`/EOF.
+- `'argv'` (по умолчанию) — одна команда из аргументов процесса, после
+  чего `serve` возвращается; пустой `argv` ничего не выполняет;
+- `'repl'` — команды читаются из stdin до `exit`, `quit` или конца ввода.
 
-Both branches run the endpoint through `dispatch.call`; the transport has no
-copy of the execution branch. `execute({ command, args, options })` stays
-public as the single-shot entry a root (or a test) can drive itself.
+Оба режима выполняют команду через `dispatch.call`. Метод
+`execute({ command, args, options })` остаётся публичным: корень или тест
+может собрать `CliInput` сам и выполнить одну команду.
 
-`makeDispatch` accepts only runnable declarations — resolve dependencies
-first (`endpoint.resolve(...)`) or declare the command in a module and run
-it under `assemble`, where `cli()` registers the transport as an ordinary
-provider.
+`makeDispatch` принимает только готовые к запуску декларации: сначала
+получите зависимости (`endpoint.resolve(...)`) или объявите команду в
+модуле и запустите её под `assemble`, где `cli()` регистрирует транспорт
+как обычный провайдер.
 
-> 🚧 Active development, API may change. No validator among
-> the dependencies — commands are validated through `@nestling/pipeline`
-> against any [Standard Schema](https://standardschema.dev) you bring.
-
-## Streaming: stdin in, NDJSON out
+## Потоки: stdin на входе, NDJSON на выходе
 
 ```ts
 capabilities = {
@@ -47,19 +87,15 @@ capabilities = {
 };
 ```
 
-- **`stream(T)` in** reads stdin as NDJSON — one JSON value per line —
-  and the kernel validates each item against the leaf schema, applies the
-  item chain and counts `ctx.summary.itemsIn`.
-- **`stream('binary')` in** yields stdin chunks as they arrive: a primitive
-  leaf is bytes, so there is nothing to validate.
-- **`stream(T)` out** writes NDJSON to stdout as the handler yields, and
-  the transport closes the iterator when the stream ends or the
-  transport-level signal is raised — which is what runs the deferred
-  `.finally` units.
-- **`events` and `multipart` are rejected at registration**: a command has
-  no open connection whose disconnect would be a normal ending, and files
-  arrive as paths in arguments. The error names the command, the transport,
-  the slot and the form.
+| Форма | Как передаётся |
+|---|---|
+| `stream(T)` на входе | stdin читается как NDJSON, по одному JSON на строку; ядро проверяет каждый элемент схемой, применяет item-цепочку и считает `ctx.summary.itemsIn` |
+| `stream('binary')` на входе | чанки stdin отдаются как есть; байты проверять нечем |
+| `stream(T)` на выходе | NDJSON пишется в stdout по мере выдачи хендлера |
+| `events`, `multipart` | отклоняются при регистрации; ошибка называет команду, транспорт, слот и форму |
+
+Итератор выходного потока транспорт закрывает по концу потока и по
+сигналу транспорта. Это запускает отложенные `.finally`-юниты.
 
 ```ts
 export const Import = cliEndpoint({
@@ -70,16 +106,37 @@ export const Import = cliEndpoint({
 });
 ```
 
-Failures follow the kernel's error model: `errors:` declares the endpoint's
-failure set, and anything undeclared reaching the boundary is normalized
-into `UnknownError` (see [`docs/design/errors.md`](../../docs/design/errors.md)).
-The status is printed as is — CLI needs no wire mapping — and the original
-of a normalized failure goes to `new CliTransport(pipeline, { onUnknownFail })`.
+## Ошибки
 
-Validation failures surface as `SchemaValidationError` with
-`issues: { message, path? }[]` — the Standard Schema guarantee, without
-vendor-specific fields. An async schema or an object that is not a Standard
-Schema is a configuration error rather than bad input, and propagates as
-`AsyncSchemaNotSupportedError` / `NotAStandardSchemaError`.
+Отказы подчиняются модели ошибок ядра: `errors:` объявляет отказы команды,
+а незадекларированный отказ на выходе заменяется на `UnknownError`
+([`docs/design/errors.md`](../../docs/design/errors.md)). Статус
+печатается как есть: CLI не нуждается в таблице кодов. Оригинал
+заменённого отказа передаётся в хук `onUnknownFail` из опций транспорта.
+Детали необработанных ошибок (`stack`) в терминале показываются всегда.
 
-Usage guide: [CLI](../../docs/guides/cli.md).
+Ошибка валидации приходит как `SchemaValidationError` с
+`issues: { message, path? }[]` — формат Standard Schema без полей
+конкретного валидатора. Асинхронная схема или объект, не являющийся
+Standard Schema, — ошибка конфигурации: `AsyncSchemaNotSupportedError` и
+`NotAStandardSchemaError`.
+
+В режиме `'argv'` отказ команды печатается в stderr, а код выхода процесса
+становится `1`.
+
+## Справочник
+
+| Имя | Что это |
+|---|---|
+| `cliEndpoint(declaration)` | конструктор декларации команды |
+| `cli(options?)` | провайдер транспорта для `transports:` или `providers:` |
+| `CliTransport` | класс транспорта: `serve`, `execute`, `close` |
+| `CliTransport$` | токен транспорта; короткое имя `'cli'` |
+| `parseArgv(argv)` | разбор аргументов в `CliInput` |
+| `CliInput` | `{ command, args, options }` |
+| `CliTransportOptions` | `mode`, `argv`, `onUnknownFail` |
+
+## Границы пакета
+
+Пакет не поддерживает формы `events` и `multipart` и не запрашивает
+недостающие поля входа интерактивно.

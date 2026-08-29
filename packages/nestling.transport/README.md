@@ -1,54 +1,96 @@
 # @nestling/transport
 
-Transport abstraction for Nestling: the `ITransport` contract
-(`capabilities`, `serve(dispatch, signal)`, `close?()`) plus the `Dispatch`
-value that connects `@nestling/app` with concrete transports
-(`@nestling/transport.http`, `@nestling/transport.cli`).
+Абстракция транспорта: интерфейс `ITransport` (`capabilities`,
+`serve(dispatch, signal)`, `close?()`) и значение `Dispatch`, через
+которое [`@nestling/app`](../nestling.app) передаёт транспорту маршруты и
+исполнение. На этом пакете построены
+[`@nestling/transport.http`](../nestling.transport.http),
+[`@nestling/transport.cli`](../nestling.transport.cli) и
+[`@nestling/transport.nats`](../nestling.transport.nats).
 
-## `Dispatch` — the only way a transport gets handles
+> 🚧 Активная разработка, API меняется. Целевой дизайн:
+> [`docs/design/transports.md`](../../docs/design/transports.md).
+
+## Установка
+
+```bash
+npm install @nestling/transport
+```
+
+Пакет нужен авторам транспортов. Приложению достаточно конкретного
+транспорта: `@nestling/transport.http`, `@nestling/transport.cli`.
+
+## Минимальный пример
+
+```ts
+import { makeDispatch } from '@nestling/transport';
+
+const dispatch = makeDispatch([Ping]);          // фаза WIRE
+await transport.serve(dispatch, controller.signal);   // фаза START
+```
+
+## `ITransport`
+
+```ts
+interface ITransport {
+  readonly capabilities: TransportCapabilities;
+  serve(dispatch: Dispatch, signal: AbortSignal): Promise<void>;
+  close?(): Promise<void>;
+}
+```
+
+Транспорт получает маршруты только через `serve`. Метода `listen()` без
+аргументов и метода регистрации отдельных endpoint'ов в интерфейсе нет.
+`signal` — общий канал остановки приложения: транспорт прекращает приём
+запросов, когда сигнал сработал.
+
+На транспорт ссылаются токеном: `TransportToken = TokenString<ITransport>`.
+Короткое имя, которое читает слой пайплайна (`meta.transport === 'http'`),
+выводится из идентификатора токена функцией `transportNameOf`.
+
+## `Dispatch`
 
 ```ts
 interface Dispatch {
-  /** Route projections: pattern, io forms, bind map, declared failures */
+  /** Проекции маршрутов: паттерн, формы io, bind-карта, задекларированные ошибки */
   readonly routes: readonly RouteDeclaration[];
 
-  /** Runs the endpoint: picks the "with pipeline / without" branch */
+  /** Исполняет endpoint: выбирает ветку «с пайплайном» или «без» */
   call(pattern, ctx, options?): Promise<ResponseContext>;
 }
-
-const dispatch = makeDispatch([Ping]);          // built in phase WIRE
-await transport.serve(dispatch, controller.signal);
 ```
 
-The split is by **content, not by timing**: the wire (`routes`) goes to the
-transport, execution (`call`) stays in the kernel. `RouteDeclaration` is a
-projection without `handle`, `pipeline`, `deps` or `resolve` — so a
-transport that opened its socket early has nothing to route. That is why
-there is no nullary `listen()` and no per-endpoint registration method in
-the contract.
+`Dispatch` делит декларацию на две части. Транспорт получает `routes` —
+всё, что нужно для роутинга и разбора запроса. Исполнение остаётся за
+`call`. `RouteDeclaration` — декларация без `handle`, `pipeline`, `deps`,
+`resolve` и `$needs`, поэтому транспорт не может выполнить endpoint в обход
+`call`.
 
-Boundary options (`exposeErrorDetails`, `onUnknownFail`) travel as an
-argument of `call`: they are a property of a particular wire, not of the
-routing table.
+`call(pattern, ctx, options?)` бросает ошибку, если `pattern` не
+принадлежит этому `dispatch`. Опции границы (`DispatchOptions`) передаются
+аргументом `call`, а не хранятся в таблице маршрутов: они описывают
+конкретный транспорт, а не набор маршрутов.
 
-`makeDispatch` accepts only **runnable** declarations
-(`EndpointDefinition<I, O, P, never>`) — symmetrically to a pipeline being
-runnable only at `TNeeds = never`. A declaration with `deps`, a class
-handler or class units in its pipeline is resolved first
-(`endpoint.resolve(resolver)`; `assemble` does it in phase WIRE), so a
-transport never needs to know about the DI container.
+| Опция | Что делает |
+|---|---|
+| `exposeErrorDetails` | раскрывать ли клиенту детали ошибок, не являющихся `Fail` |
+| `onUnknownFail` | хук диагностики: вызывается, когда ответ с незадекларированным кодом заменяется на `UnknownError` |
 
-A transport is referenced by a **token**: `TransportToken =
-TokenString<ITransport>`. The short name a pipeline layer reads
-(`meta.transport === 'http'`) is derived from the token id by
-`transportNameOf`.
+`makeDispatch(endpoints)` принимает только исполнимые декларации
+(`ExecutableDeclaration`, то есть `EndpointDefinition<I, O, P, never>`).
+Декларация с `deps`, класс-хендлером или классами-юнитами в пайплайне
+сначала получает зависимости через `endpoint.resolve(resolver)`;
+`assemble` делает это на фазе WIRE. Транспорту знать о DI-контейнере не
+нужно. Две декларации одного транспорта с одним паттерном — ошибка
+`makeDispatch`.
 
-Both branches of `call` open an **ambient request scope**
-([`@nestling/pipeline`](../nestling.pipeline)): the pipeline runtime does it
-for declarations that have one, and the "no pipeline" branch does it here,
-with an empty projection and the request's signal. So a deep service behaves
-identically on both paths — `peek()` returns `undefined` instead of throwing
-"no request context", and `Ctx(Signal)` yields this request's signal.
+Обе ветки `call` открывают область контекста запроса
+([`@nestling/pipeline`](../nestling.pipeline)). Для декларации с
+пайплайном это делает рантайм пайплайна, для декларации без пайплайна —
+сам `dispatch`, с пустой проекцией и сигналом запроса. Поэтому сервис в
+глубине графа ведёт себя одинаково на обоих путях: `peek()` возвращает
+`undefined` вместо ошибки «нет контекста запроса», а `Ctx(Signal)` отдаёт
+сигнал этого запроса.
 
 ## `capabilities`
 
@@ -59,25 +101,41 @@ interface TransportCapabilities {
 }
 ```
 
-The field is **required**: which io forms a transport can carry is data,
-not a convention and not a runtime check on the first request. The type is
-declared by `@nestling/pipeline` (the set of forms is a kernel concept) and
-re-exported here so a transport author needs a single import.
+Поле обязательно: какие формы io транспорт умеет передавать — это данные,
+а не договорённость. Тип объявлен в `@nestling/pipeline` (набор форм —
+понятие ядра) и реэкспортирован здесь, чтобы автору транспорта хватало
+одного импорта.
 
-A declaration whose form is outside its transport's capabilities is
-rejected **before any request is served** — by `App` in phase ASSEMBLE
-(where both declarations and transport instances are known) and by the
-transport itself inside `serve`, before the socket opens. Both call the same
-kernel function, so the message is one:
+Декларация, форма которой не входит в способности транспорта, отклоняется
+до обслуживания первого запроса. Проверку выполняет `App` на фазе ASSEMBLE
+(там известны и декларации, и инстансы транспортов) и сам транспорт внутри
+`serve`, до открытия сокета. Обе проверки вызывают одну функцию ядра, поэтому
+сообщение одно:
 
 ```
 Endpoint 'watch' declared in module 'module:ops': transport 'cli' does not
 support form 'events' in 'output' (supported: value, stream).
 ```
 
-Richness is declared in the contract and reconciled by this check — see
-[`docs/design/transports.md`](../../docs/design/transports.md) for the
-capability table of the V1 transports.
+Таблица способностей транспортов V1 —
+в [`docs/design/transports.md`](../../docs/design/transports.md).
 
-> 🚧 Active development. Architecture doc:
-> [`docs/design/transports.md`](../../docs/design/transports.md).
+## Справочник API
+
+| Экспорт | Что это |
+|---|---|
+| `ITransport` | интерфейс транспорта |
+| `TransportToken` | тип токена транспорта |
+| `TransportCapabilities` | способности транспорта по формам io (реэкспорт из `@nestling/pipeline`) |
+| `transportNameOf(token)` | короткое имя транспорта по токену (реэкспорт из `@nestling/pipeline`) |
+| `Dispatch` | таблица маршрутов и исполнение |
+| `RouteDeclaration` | проекция декларации без исполнения |
+| `DispatchOptions` | опции границы для `call` |
+| `ExecutableDeclaration` | декларация, у которой все зависимости уже получены |
+| `makeDispatch(endpoints)` | строит `Dispatch` из исполнимых деклараций |
+| `toRouteDeclaration(definition)` | проекция одной декларации |
+
+## Границы пакета
+
+Пакет не содержит ни одного реального транспорта: HTTP, CLI и NATS живут в
+`@nestling/transport.*`.

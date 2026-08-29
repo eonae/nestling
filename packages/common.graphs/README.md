@@ -1,5 +1,11 @@
 # @common/graphs
 
-Internal package: minimal DAG utilities (topological / reverse-topological
-traversal via Kahn's algorithm, cycle detection) used by
-`@nestling/container` for dependency graphs and lifecycle ordering.
+Внутренний пакет Nestling: минимальные утилиты для направленных
+ациклических графов. Ими пользуется `@nestling/container` для графа
+зависимостей и порядка жизненного цикла.
+
+| Экспорт | Что делает |
+|---|---|
+| `DAG<T>` | граф узлов `INode`; обход в топологическом и обратном топологическом порядке (алгоритм Кана), обнаружение циклов |
+| `INode<T>` | интерфейс узла графа |
+| `TraversalDirection`, `VisitOptions`, `VisitCallback` | параметры обхода |

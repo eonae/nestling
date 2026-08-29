@@ -1,67 +1,97 @@
 # @nestling/client
 
-A typed HTTP client built from contract **values**: `makeClient(record,
-config)` returns an API object whose call-site is the same as the contract's
-invoker — `Ok | Fail` for `request`, `Promise<void>` for `command`.
+Типизированный HTTP-клиент из контрактов. `makeClient(record, config)`
+возвращает объект API, метод которого вызывается так же, как порт
+контракта: `Ok | Fail` для `request`, `Promise<void>` для `command`.
 
-> 🚧 Active development, API may change. Design:
-> [`docs/design/contracts.md`](../../docs/design/contracts.md) §5.
-> Guide: [`docs/guides/typed-client.md`](../../docs/guides/typed-client.md).
+> 🚧 Активная разработка, API может меняться.
+> Дизайн: [`docs/design/contracts.md`](../../docs/design/contracts.md) §5.
+> Гайд: [`docs/guides/typed-client.md`](../../docs/guides/typed-client.md).
+
+## Установка
+
+```bash
+npm install @nestling/client
+```
+
+Пакет зависит только от [`@nestling/contracts`](../nestling.contracts) и
+глобального `fetch`; Node-специфичных API в нём нет, поэтому он
+собирается для браузера. Замыкание импортов проверяет тест границы.
+
+## Минимальный пример
 
 ```typescript
 import { CreateUser, GetUser } from '@acme/billing-contracts';
 import { makeClient } from '@nestling/client';
 
 const api = makeClient(
-  { createUser: CreateUser, getUser: GetUser },     // the consumer names the methods
+  { createUser: CreateUser, getUser: GetUser },     // имена методов задаёте вы
   { baseUrl, headers: () => ({ authorization: `Bearer ${token()}` }) },
 );
 
 const created = await api.createUser({ name: 'Alice', email: 'a@b.c' });
 
 if (EmailTaken.is(created)) {
-  // `details` are typed by the definition's schema; identity is the code,
-  // not `instanceof` — the class is dead once the value crossed the wire
+  // details типизированы схемой из defineFail; отказ узнаётся по code
 } else if (created.isFail) {
-  // the set is closed: E ∪ UnknownError, exactly as with `.port`
+  // множество ответов закрыто: объявленные отказы плюс UnknownError
 } else {
   created.value.id;
 }
 ```
 
-## What it does
+## Что делает клиент
 
-- **Builds the request from the contract's bind map** — the inverse of the
-  transport's strict intake. Path parameters are substituted with
-  `encodeURIComponent`; the rest goes to query or body per the map's rule.
-  The round-trip invariant (parse what the client built and get the original
-  payload back) is covered by a test, not inferred from the two
-  implementations looking alike.
-- **Validates the response** against the contract's `output` form through
-  `~standard.validate` — by default, with an explicit
-  `validateOutput: false` opt-out.
-- **Rematerializes declared failures** by `code` from `errors:`: the status
-  comes from the definition, the message from the wire, the details from the
-  wire but checked against the definition's schema. Everything else —
-  network, non-JSON body, undeclared code, mismatched details — is
-  `UnknownError` with the original in `cause`.
-- **Never throws on transport or contract failures** for a `request`
-  contract. It throws only on defects of use (a query value with no wire
-  representation).
+- Собирает запрос по bind-карте контракта — обратная операция к разбору
+  запроса транспортом. Path-параметры подставляются через
+  `encodeURIComponent`; остальные поля идут в query или тело по правилу
+  карты. Что клиент собрал, транспорт разбирает в исходный payload; это
+  покрыто тестом.
+- Проверяет успешный ответ по форме `output` контракта через
+  `~standard.validate`. По умолчанию проверка включена; отключается опцией
+  `validateOutput: false`.
+- Восстанавливает объявленные отказы по `code` из `errors:`. Статус
+  берётся из определения, сообщение из ответа, детали из ответа с
+  проверкой по схеме определения. Всё остальное — сетевая ошибка, не-JSON
+  тело, незадекларированный код, детали не по схеме — становится
+  `UnknownError` с оригиналом в `cause`.
+- Истёкший `deadline` даёт отказ `DeadlineExceeded` до отправки запроса.
+- Не бросает исключений на сетевые ошибки и отказы контракта у
+  `request`-контракта. Исключение возможно только при неверном
+  использовании, например для query-значения, которое нельзя записать в
+  URL.
 
-## What it refuses, at creation time
+## Проверки при создании
 
-A contract with no `http:` section, an `event` contract, a streaming
-(`stream`/`events`) or `multipart` io form, a non-JSON body (`'binary'`/
-`'text'`), a non-absolute `baseUrl`. Every message names the method key in
-the record; there is no deferred "it will fail on first call" diagnostic.
+`makeClient` бросает `TypeError` сразу, называя ключ метода: контракт без
+секции `http:`, контракт вида `event`, потоковая (`stream`, `events`) или
+`multipart` форма io, не-JSON тело (`'binary'`, `'text'`), неабсолютный
+`baseUrl`. Отложенной диагностики «упадёт на первом вызове» нет.
 
-## Dependencies
+## Справочник
 
-Only [`@nestling/contracts`](../nestling.contracts), and `fetch` — no
-Node-specific API. The import closure is checked by the same boundary test
-that guards the contracts package, so "builds for the browser" is an
-invariant rather than a line in this README.
+### `ClientConfig`
 
-The `fetch` implementation is an injectable option: the client is testable
-without the network, and works in runtimes that bring their own.
+| Поле | Что делает |
+|---|---|
+| `baseUrl` | абсолютный адрес сервиса; склеивается с путём контракта буквально |
+| `headers` | заголовки для всех вызовов: объект или функция, вызываемая на каждый запрос (для ротируемого токена) |
+| `fetch` | реализация `fetch`; по умолчанию глобальная. Подмените её в тестах, чтобы обойтись без сети |
+| `validateOutput` | проверять ли успешный ответ по схеме `output`; по умолчанию `true` |
+
+### `ClientMeta` (второй аргумент метода)
+
+| Поле | Что делает |
+|---|---|
+| `signal` | `AbortSignal`, отменяющий запрос |
+| `deadline` | момент (`Date`), после которого вызов не отправляется |
+
+### Типы
+
+`Client<R>`, `ClientMethod<C>`, `ClientArgs<C>`, `ClientResult<C>`,
+`ClientFail`, `ClientHeaders`.
+
+## Границы пакета
+
+Пакет не поддерживает потоковые и multipart-контракты, события и
+`idempotencyKey`.

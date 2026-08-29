@@ -1,13 +1,29 @@
 # @nestling/viz
 
-Interactive 3D visualization of your DI dependency graph. Export the graph
-with `container.toJSON()`, then explore modules and providers as a
-force-directed graph in the browser:
+Интерактивная 3D-визуализация графа зависимостей контейнера Nestling в
+браузере.
+
+## Использование
+
+1. Экспортируйте граф: `container.toJSON()` и сохраните результат в файл.
+2. Запустите визуализацию:
 
 ```bash
 nestling-viz di-metadata.json
 ```
 
-See a working setup in
-[`examples.simple-app`](../examples.simple-app/) (`export-metadata`
-and `visualize` scripts).
+Команда поднимает локальный сервер (по умолчанию порт `3333`) и открывает
+браузер. Модули и провайдеры показаны как force-directed граф.
+
+| Опция | Что делает |
+|---|---|
+| `-p, --port <number>` | порт сервера; по умолчанию `3333` |
+| `--no-open` | не открывать браузер автоматически |
+| `-s, --silent` | не печатать сообщения в консоль |
+
+Рабочий пример — скрипты `export-metadata` и `visualize` в
+[`examples.simple-app`](../examples.simple-app/).
+
+## Границы пакета
+
+Пакет только показывает граф; он не проверяет его и не меняет.

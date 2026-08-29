@@ -1,48 +1,92 @@
 # @nestling/transport.http
 
-HTTP transport for Nestling built on bare `node:http`: routing via
-`find-my-way`, body parsing driven by the endpoint's io declaration
-(JSON, raw, NDJSON streams, multipart via `busboy`), and response framing
-picked from the same declaration — NDJSON for `stream(T)`, SSE for
-`events(T)`.
+HTTP-транспорт Nestling на `node:http`: маршрутизация через `find-my-way`,
+разбор тела запроса по io-декларации endpoint'а (JSON, сырые байты, NDJSON,
+multipart через `busboy`) и выбор формата ответа по той же декларации:
+NDJSON для `stream(T)`, SSE для `events(T)`.
 
-## Declaring routes
+> 🚧 Активная разработка, API может меняться. CORS, ограничение частоты
+> запросов и сжатие пока не реализованы. Валидатора среди зависимостей нет:
+> транспорт проверяет данные через `@nestling/pipeline` любой схемой
+> [Standard Schema](https://standardschema.dev).
+> Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
+> Гайды: [HTTP без DI](../../docs/guides/http-functional.md),
+> [приложение с DI](../../docs/guides/http-app-di.md),
+> [composition root](../../docs/guides/composition.md).
 
-Two forms of the same constructor. The **contract form**
-`httpEndpoint({ contract, deps?, pipeline?, handle, detached? })` takes the
-address, the schemas, `errors:` and `doc:` from a contract that carries an
-`http:` section — `method`/`path`/`bind`/`rawBody`/`sse`/`input`/`output`/
-`errors`/`doc` are declared `never` in its dictionary, so redeclaring what
-belongs to the contract is a compile error (and a runtime one for a JS
-consumer). The bind map is carried over from the contract
-**as the same value**, never recomputed: that is what makes "one map on both
-ends of the wire" a matter of identity rather than of two computations
-agreeing.
+## Установка
 
-The **anonymous form**
-`httpEndpoint({ method, path, input, output, bind, rawBody, pipeline, deps,
-doc, handle })` is the declaration constructor — a thin layer over `makeEndpoint`
-from `@nestling/pipeline` that adds the HTTP dictionary and assembles
-`pattern` as `` `${method} ${path}` ``. The placement marks `query()`/`body()`
-and the bind map type live in [`@nestling/contracts`](../nestling.contracts)
-(the map is needed by the client too) and are re-exported from here, so the
-author of a declaration takes them from the same place as `httpEndpoint`. `path` is a literal type, and
-`PathParams<Path>` derives the `:param` names from it. The dictionary is
-checked **when the declaration is created**: an empty `path`, a `path`
-without a leading `/`, a repeated path parameter, a malformed `doc:` section
-and every placement rule below all throw right there. The transport does not
-interpret `doc:` — it only forwards it to `makeEndpoint`; reading it is the
-business of a document generator ([`@nestling/openapi`](../nestling.openapi)).
+```bash
+npm install @nestling/transport.http
+```
 
-## Input placement: the canon and the bind map
+## Минимальный пример
 
-Where each `input` field lives in the request is a deterministic function
-`(path template, method, marks) → place`:
+```ts
+import { assemble } from '@nestling/app';
+import { Ok } from '@nestling/pipeline';
+import { http, httpEndpoint } from '@nestling/transport.http';
+import { z } from 'zod';
 
-1. the field name matches a path parameter (`:id`) → **path**;
-2. the field is marked in `bind` → the marked place;
-3. everything else → **query** for bodyless methods (`GET`, `HEAD`,
-   `DELETE`, `OPTIONS`, `TRACE`) and **body** for the rest.
+export const GetUser = httpEndpoint({
+  method: 'GET',
+  path: '/users/:id',
+  input: z.object({ id: z.string() }),      // id берётся из пути
+  output: z.object({ id: z.string(), name: z.string() }),
+  handle: async ({ id }) => new Ok({ id, name: 'Alice' }),
+});
+
+await assemble({
+  modules: [UsersModule],                   // модуль, где объявлен GetUser
+  transports: [http({ port: 3000 })],       // провайдер, а не инстанс
+}).run();
+```
+
+Без `assemble` транспорт запускается вручную: `serve(dispatch, signal)`
+(раздел «Запуск»).
+
+## Декларация endpoint'а
+
+`httpEndpoint` принимает две формы одной декларации.
+
+**Анонимная форма** описывает адрес и схемы на месте:
+
+```ts
+httpEndpoint({ method, path, input, output, errors, bind, rawBody, sse, pipeline, deps, doc, handle, detached });
+```
+
+Это тонкий слой над `makeEndpoint` из `@nestling/pipeline`: он добавляет
+HTTP-поля и собирает `pattern` как `` `${method} ${path}` ``. `path` —
+литеральный тип; `PathParams<Path>` выводит из него имена `:param`.
+
+**Контрактная форма** берёт адрес, схемы, `errors` и `doc` из контракта
+с секцией `http:`:
+
+```ts
+httpEndpoint({ contract: CreateUser, deps, pipeline, handle, detached });
+```
+
+Поля `method`, `path`, `bind`, `rawBody`, `sse`, `input`, `output`,
+`errors` и `doc` в этой форме объявлены как `never`: повторить их рядом с
+контрактом — ошибка компиляции, а для JS-потребителя — ошибка выполнения.
+Bind-карта переносится из контракта тем же значением, а не вычисляется
+заново.
+
+Декларация проверяется в момент создания. Пустой `path`, `path` без
+ведущего `/`, повторный path-параметр, неверная секция `doc:` и нарушение
+любого правила размещения из следующего раздела бросают ошибку сразу, а не
+на первом запросе. Поле `doc:` транспорт не читает, а только передаёт в
+`makeEndpoint`; его читает генератор документации
+([`@nestling/openapi`](../nestling.openapi)).
+
+## Размещение полей входа
+
+Где в запросе лежит каждое поле `input`, определяет правило:
+
+1. имя поля совпадает с path-параметром (`:id`) — поле берётся из пути;
+2. поле помечено в `bind` — из указанного места;
+3. остальные поля — из query для методов без тела (`GET`, `HEAD`,
+   `DELETE`, `OPTIONS`, `TRACE`) и из тела для остальных.
 
 ```ts
 import { httpEndpoint, query } from '@nestling/transport.http';
@@ -50,55 +94,54 @@ import { httpEndpoint, query } from '@nestling/transport.http';
 export const CreateMember = httpEndpoint({
   method: 'POST',
   path: '/orgs/:orgId/members',
-  input: MemberInput,                 // orgId → path, name → body
+  input: MemberInput,                 // orgId из пути, name из тела
   bind: { dryRun: query(), tags: query({ multiple: true }) },
   …
 });
 ```
 
-- **Marks are values, not strings.** `query(options?)` and `body()` build
-  them; the string form (`{ expand: 'query' }`) is rejected. `bind` keys are
-  typed by the schema fields minus path parameters, so a typo or a mark on a
-  path parameter is a compile error.
-- **The map rides on the declaration value** (`httpBindingOf(definition)`):
-  it is computed when the value is created, not when the app registers it —
-  a client importing only the contract gets it without any server code. It
-  does not enumerate every field (Standard Schema exposes no key list) but
-  is total as a rule: explicit placements plus `rest`.
-- **Strict intake.** The payload is assembled only from canonical places
-  with a fixed priority `path > mark > rest`. A field sent to the wrong
-  place does not reach the payload and fails ordinary validation. There is
-  no merge-from-everywhere: `mergePayload` and `PayloadConflictError` were
-  **removed** — code that caught the latter can drop the branch, code that
-  relied on «a field is accepted from anywhere» must send it to its
-  canonical place or declare a `bind` mark.
-- **Query arrays.** A repeated key becomes an array in order (the silent
-  last-wins is gone); `query({ multiple: true })` yields an array even for a
-  single occurrence; zero occurrences means the field is absent, and the
-  schema decides whether that is an error. Coercing wire strings
-  (`?page=2` → number) is the schema author's job (`z.coerce`).
-- **The body is read only when the map needs it** (rest is body, there is a
-  `body()` mark, or `rawBody` is set) — a `GET` body is never buffered.
-- **Fail-fast at creation**: a mark on a path parameter; `body()` on a
-  bodyless method; `bind` or a path parameter with a non-structural `input`
-  (a streaming form, primitives); a path parameter with no `input`;
-  `rawBody` together with a streaming or multipart form; an `sse` section
-  without an `events` output, or an `sse.event` producing the reserved name
-  `error`. For `multipart` the structural part is `fields`: path parameters
-  and marked query fields are mixed into it.
+- Пометки `query(options?)` и `body()` — значения, а не строки; форма
+  `{ expand: 'query' }` отклоняется. Ключи `bind` типизированы полями
+  схемы за вычетом path-параметров: опечатка и пометка на path-параметре —
+  ошибки компиляции.
+- Пометки и bind-карту экспортирует
+  [`@nestling/contracts`](../nestling.contracts); этот пакет их
+  реэкспортирует, так что автор декларации импортирует их вместе с
+  `httpEndpoint`.
+- Bind-карта вычисляется при создании декларации и доступна как
+  `httpBindingOf(definition)`. Клиент, который импортирует только контракт,
+  получает её без серверного кода.
+- Payload собирается только из канонических мест с приоритетом
+  «путь, затем пометка, затем остальное». Поле, присланное не туда, в
+  payload не попадает и падает обычной ошибкой валидации. Слияния
+  «поле принимается отовсюду» нет.
+- Повторный query-ключ даёт массив в порядке появления.
+  `query({ multiple: true })` даёт массив даже при одном вхождении. Если
+  вхождений нет, поле отсутствует, и допустимо ли это, решает схема.
+  Преобразование строк (`?page=2` в число) делает схема (`z.coerce`).
+- Тело читается только когда оно нужно карте: остаток полей идёт в тело,
+  есть пометка `body()` или задан `rawBody`. Тело `GET`-запроса не
+  буферизуется.
+- Ошибки при создании декларации: пометка на path-параметре; `body()` у
+  метода без тела; `bind` или path-параметр при неструктурном `input`
+  (потоковая форма, примитив); path-параметр без `input`; `rawBody` вместе
+  с потоковой или multipart-формой; секция `sse` без выхода `events`;
+  `sse.event`, дающий зарезервированное имя `error`. У `multipart`
+  структурная часть — `fields`: path-параметры и помеченные query-поля
+  попадают в неё.
 
-### `rawBody`: raw bytes in a typed start context
+### `rawBody`: сырые байты в контексте
 
-`rawBody: true` puts the untouched request bytes into the **start context**
-(`{ rawBody: Uint8Array }`) — what webhook signature checks (HMAC) need,
-since a re-serialised JSON would hash differently.
+`rawBody: true` кладёт нетронутые байты запроса в стартовый контекст
+(`{ rawBody: Uint8Array }`). Это нужно проверке подписи вебхука (HMAC):
+повторно сериализованный JSON дал бы другой хеш.
 
 ```ts
 export const Hook = httpEndpoint({
   method: 'POST',
   path: '/hooks/stripe',
   input: HookEvent,
-  rawBody: true,        // without it the pipeline below does not compile
+  rawBody: true,        // без этого поля пайплайн ниже не скомпилируется
   pipeline: compose(
     makePipeline<{ rawBody: Uint8Array }>().pre(verifySignature(secret)),
     basePipeline,
@@ -107,10 +150,10 @@ export const Hook = httpEndpoint({
 });
 ```
 
-A forgotten mark is a **compile error at the declaration**, not a runtime
-500: the start context type depends on `rawBody`, and the `pipeline` slot
-checks it. The diagnostic uses the same shape as the rest of the pipeline
-machinery (see `@nestling/pipeline`), plus a `hint` naming the fix:
+Забытое поле — ошибка компиляции в декларации, а не 500 в рантайме: тип
+стартового контекста зависит от `rawBody`, и слот `pipeline` его
+проверяет. Диагностика имеет ту же форму, что у остальных ошибок пайплайна,
+плюс `hint` с подсказкой:
 
 ```
 '{ __error: "Pipeline requires context that the start context does not
@@ -118,13 +161,13 @@ provide"; missing: { rawBody: Uint8Array; }; hint: "declare 'rawBody: true',
 or provide the fields from an outer layer"; }'
 ```
 
-The body is read once (the value is parsed from the same bytes),
-`maxBodySize` applies as usual, and memory is paid only where requested.
+Тело читается один раз: значение разбирается из тех же байтов.
+`maxBodySize` действует как обычно.
 
-## Streaming: NDJSON, SSE and multipart
+## Потоки: NDJSON, SSE, multipart
 
-The transport declares what it can carry, and registration is checked
-against it **before the server starts listening**:
+Транспорт объявляет, какие формы io он умеет, и регистрация проверяется
+по этому списку до открытия сокета:
 
 ```ts
 capabilities = {
@@ -133,48 +176,49 @@ capabilities = {
 };
 ```
 
-- **`stream(T)` out** → `application/x-ndjson`, chunked, one JSON per line.
-- **`events(T)` out** → `text/event-stream` with `cache-control: no-cache`.
-  Frame fields come from the declaration's `sse` section, which is where
-  wire specifics belong — the form itself stays transport-neutral:
+| Форма | Как передаётся |
+|---|---|
+| `stream(T)` на выходе | `application/x-ndjson`, chunked, один JSON на строку |
+| `events(T)` на выходе | `text/event-stream` с `cache-control: no-cache` |
+| `stream(T)` на входе | NDJSON декодируется в поток значений; поэлементную валидацию, item-цепочку и счётчики выполняет ядро (`bindInputStream`) |
+| `multipart({ fields, files })` на входе | файлы приходят под объявленными именами полей |
 
-  ```ts
-  export const Activity = httpEndpoint({
-    method: 'GET',
-    path: '/activity/live',
-    output: events(ActivityEvent),
-    sse: { id: (e) => e.id, event: (e) => e.kind, heartbeat: 15_000 },
-    handle: (hub) => async (_p, meta: { signal: AbortSignal; lastEventId?: string }) =>
-      new Ok(hub.subscribe(meta.signal)),
-  });
-  ```
+Поля SSE-кадра задаёт секция `sse` декларации:
 
-  Heartbeat defaults to the transport's `sseHeartbeat` (15s; `0` disables)
-  and is written as an SSE comment, so it never counts as an item.
-  `Last-Event-ID` arrives in the **typed start context** (`lastEventId?:
-  string`) of any declaration with an `events` output — the same mechanism
-  as `rawBody`, no separate channel.
-- **`stream(T)` in** → NDJSON is decoded into a stream of values; per-item
-  validation, the item chain and the counters are the kernel's job
-  (`bindInputStream`), not the parser's.
-- **`multipart({ fields, files })` in** → files are delivered under the
-  declared field names, and each `upload({ maxSize, mime })` is enforced
-  **while parsing**: an oversized file aborts its own read (`413`), a wrong
-  MIME is rejected before the body is read (`400`), an undeclared file
-  field and a second file in a single-valued field are rejected (`400`).
+```ts
+export const Activity = httpEndpoint({
+  method: 'GET',
+  path: '/activity/live',
+  output: events(ActivityEvent),
+  sse: { id: (e) => e.id, event: (e) => e.kind, heartbeat: 15_000 },
+  handle: (hub) => async (_p, meta: { signal: AbortSignal; lastEventId?: string }) =>
+    new Ok(hub.subscribe(meta.signal)),
+});
+```
 
-**Mid-stream failures.** Once the headers are out the status cannot change,
-so NDJSON responses are cut off (the client sees an unterminated chunked
-body) and SSE responses get an `event: error` frame carrying the failure
-body before the connection closes. Either way `.finally` sees `failed`, and
-an undeclared failure is normalized into `UnknownError` as usual.
+Heartbeat по умолчанию равен опции транспорта `sseHeartbeat` (15 с; `0`
+выключает). Он пишется как SSE-комментарий и не считается элементом.
+Заголовок `Last-Event-ID` попадает в стартовый контекст (`lastEventId?:
+string`) любой декларации с выходом `events`, тем же механизмом, что
+`rawBody`.
 
-**Closing the iterator.** On disconnect, on a write error and on `close()`
-the transport closes the response iterator (`return()`), which is what runs
-the deferred `.finally` units and detaches `Topic` subscriptions. Input
-streams are drained on failure so the connection is not left half-read.
+Ограничения `upload({ maxSize, mime })` проверяются во время разбора
+multipart: файл больше лимита прерывает своё чтение (`413`), неверный MIME
+отклоняется до чтения тела (`400`), необъявленное файловое поле и второй
+файл в одиночном поле отклоняются (`400`).
 
-## Going live: `serve(dispatch, signal)`
+**Ошибка посреди потока.** После отправки заголовков статус изменить
+нельзя, поэтому NDJSON-ответ обрывается (клиент видит незавершённое
+chunked-тело), а SSE-ответ получает кадр `event: error` с телом отказа
+перед закрытием соединения. В обоих случаях `.finally` видит `failed`, а
+незадекларированный отказ заменяется на `UnknownError` как обычно.
+
+При разрыве соединения, ошибке записи и `close()` транспорт закрывает
+итератор ответа (`return()`). Это запускает отложенные `.finally`-юниты и
+отписывает подписки `Topic`. Входные потоки при ошибке дочитываются, чтобы
+соединение не осталось наполовину прочитанным.
+
+## Запуск: `serve(dispatch, signal)`
 
 ```ts
 const server = new HttpTransport({ port: 3000 });
@@ -183,113 +227,111 @@ const shutdown = new AbortController();
 await server.serve(makeDispatch([SayHello, CreateUser]), shutdown.signal);
 ```
 
-`serve` is the **only** entry point: neither a nullary `listen()` nor a
-per-endpoint registration method exists. Routes arrive as projections in
-`dispatch.routes`, and the endpoint is executed by `dispatch.call` — the
-transport keeps the plumbing (parsing, framing, `sendResponse`, multipart
-draining) and no copy of the execution branch. Under `assemble` the same
-`dispatch` is built in phase WIRE.
+`serve` — единственный способ начать приём запросов: метода `listen()` и
+регистрации отдельных endpoint'ов нет. Маршруты приходят проекциями в
+`dispatch.routes`, а endpoint выполняет `dispatch.call`. Транспорт отвечает
+только за разбор запроса, формат ответа и `sendResponse`. Под `assemble`
+тот же `dispatch` собирается на фазе WIRE.
 
-`address()` returns the actual bound address after go-live (`null` before
-`serve` and after `close()`) — which is what a `port: 0` test needs, since
-`serve` takes no host/port arguments.
+`address()` возвращает фактический адрес после запуска и `null` до `serve`
+и после `close()`. Это нужно тестам с `port: 0`: `serve` не принимает
+хост и порт аргументами.
 
-The registration and decorator APIs (`route()`, `endpoint()`,
-`HttpEndpoint`, `HttpEndpointOptions`, `HttpEndpointMetadata`,
-`getHttpEndpointMetadata`, `makeHttpEndpoint`,
-`HttpTransport.registerEndpoint`) are **gone**. `makeDispatch` accepts only
-runnable declarations — resolve dependencies first
-(`endpoint.resolve(...)`) or declare the endpoint in a module and run it
-under `assemble`.
+`makeDispatch` принимает только готовые к запуску декларации: сначала
+получите зависимости (`endpoint.resolve(...)`) или объявите endpoint в
+модуле и запустите его под `assemble`.
 
-## As a provider: `http(options?)`
+## Провайдер `http(options?)`
 
 ```ts
 await assemble({ modules: [UsersModule], transports: [http({ port: 3000 })] }).run();
 ```
 
-`http()` returns a **provider**, not an instance: the transport is an
-ordinary graph node whose dependencies the container injects and whose
-lifecycle runs with the rest. Port and host come from the package's own
-config section (`HTTP_PORT`, `HTTP_HOST`); the priority is explicit factory
-options > config > transport default. Only the `keys` handle
-(`httpConfigKeys`) is exported — the section token stays private.
+`http()` возвращает провайдер, а не инстанс. Транспорт — обычный узел
+графа: контейнер инжектит его зависимости, а жизненный цикл идёт вместе с
+остальными. Порт и хост приходят из секции конфига пакета (`HTTP_PORT`,
+`HTTP_HOST`). Приоритет: явные опции фабрики, затем конфиг, затем
+значение по умолчанию. Наружу экспортируется только `httpConfigKeys`;
+токен секции остаётся приватным.
 
-> 🚧 Active development. CORS, rate limiting and compression are still
-> out of scope. No validator among the dependencies — the transport
-> validates through `@nestling/pipeline` against any
-> [Standard Schema](https://standardschema.dev) you bring. Architecture:
-> [`docs/design/transports.md`](../../docs/design/transports.md).
+## Безопасность и лимиты
 
-## Security & limits
+По умолчанию транспорт можно открывать наружу.
 
-By default the transport is safe to expose:
-
-- **Internal errors are hidden.** Unhandled errors and *undeclared*
-  failures return `{ "error": "Internal server error", "code": "UNKNOWN" }`
-  with a `500` — no `message`, no `stack`. Set `exposeErrorDetails: true`
-  to surface them (dev only). Only a **declared** failure (its `code` is in
-  the endpoint's `errors:`, or it is a kernel code) keeps its
-  `message`/`code`/`details`: that disclosure is the author's opt-in. The
-  original of a normalized failure goes to `onUnknownFail` (default:
+- **Внутренние ошибки скрыты.** Необработанные исключения и
+  незадекларированные отказы возвращают `{ "error": "Internal server
+  error", "code": "UNKNOWN" }` со статусом `500`, без `message` и `stack`.
+  Опция `exposeErrorDetails: true` раскрывает их (только для разработки).
+  Задекларированный отказ (его `code` есть в `errors:` endpoint'а или это
+  код ядра) сохраняет `message`, `code` и `details`. Оригинал
+  заменённого отказа передаётся в `onUnknownFail` (по умолчанию
   `console.error`).
-- **Body size is limited.** Buffered bodies (JSON/raw/text) and NDJSON line
-  length are capped at `maxBodySize` (default **1 MiB**); reading aborts
-  early and returns `413`. Set `maxBodySize: 0` to disable. A multipart file
-  is capped by its own `upload({ maxSize })` and falls back to `maxBodySize`
-  when the field declares none. Heartbeat comments do not count towards any
-  limit.
-- **Input errors map to 4xx.** Malformed JSON returns `400`; oversized
-  payloads return `413` — not `500`. There is no «payload source conflict»
-  error any more: strict intake gives every field exactly one place.
-- **Semantic statuses map onto the wire here**, not in the kernel:
-  `CONFLICT → 409`, `PAYLOAD_TOO_LARGE → 413`, `TOO_MANY_REQUESTS → 429`,
-  `TIMEOUT → 504` (a budget overrun, not a client that failed to finish
-  sending — that would be 408). An item chain's `.limit(n)` and
-  `.gapTimeout(ms)` land on 413 and 504 through those. The table is exported
-  as `httpCodeOf(status)` for its second reader — the OpenAPI generator: a
-  document must name the codes that actually go out, and a second copy of the
-  table would drift from this one at the first addition to the vocabulary.
-- **Validation failures return standard issues.** A schema failure returns
-  `400` with `"code": "VALIDATION_FAILED"` and `details` shaped as
-  `[{ "message": "…", "path": ["name"] }]` — the Standard Schema guarantee,
-  no vendor-specific `code`/`expected`/`received` inside the items. The
-  code is set on both paths (the pipeline's `validate()` unit and the
-  no-pipeline fallback), so one concern does not answer with two bodies. An async schema or an object that is not a Standard Schema is
-  a configuration error, not bad input: those return `500`, masked by
-  `exposeErrorDetails` like any other unhandled error.
-- **Request cancellation.** Every request gets a `meta.signal`
-  (`AbortSignal`): it aborts when the client disconnects before the
-  response completes. Cancellation is cooperative — handlers (especially
-  long-running or streaming ones) should respect the signal.
-- **Graceful shutdown.** `close()` first aborts `meta.signal` of all
-  in-flight requests (cooperative completion is the primary drain
-  mechanism), stops accepting connections, drops idle keep-alive
-  connections, drains in-flight requests up to `closeTimeout`
-  (default **10s**), then force-closes the rest. Open `events`
-  connections end this way too: the signal closes the response iterator,
-  and `.finally` observes `aborted`.
+- Размер тела ограничен. Буферизуемые тела (JSON, raw, text) и длина
+  строки NDJSON ограничены `maxBodySize` (по умолчанию 1 MiB); чтение
+  прерывается заранее и возвращает `413`. `maxBodySize: 0` снимает лимит.
+  Файл multipart ограничен своим `upload({ maxSize })`, а без него —
+  `maxBodySize`. Heartbeat-комментарии в лимиты не входят.
+- Ошибки входа дают 4xx: некорректный JSON — `400`, слишком большой
+  payload — `413`.
+- Семантические статусы переводятся в HTTP-коды здесь, а не в ядре:
+  `CONFLICT` в 409, `PAYLOAD_TOO_LARGE` в 413, `TOO_MANY_REQUESTS` в 429,
+  `TIMEOUT` в 504. `.limit(n)` и `.gapTimeout(ms)` item-цепочки дают 413
+  и 504 через них же. Таблица экспортируется как `httpCodeOf(status)`; её
+  же читает генератор OpenAPI.
+- Ошибка валидации схемы возвращает `400` с `"code":
+  "VALIDATION_FAILED"` и `details` вида `[{ "message": "…", "path":
+  ["name"] }]`. Это формат Standard Schema, без полей конкретного
+  валидатора. Асинхронная схема или объект, не являющийся Standard
+  Schema, — ошибка конфигурации: они дают `500`, скрытый
+  `exposeErrorDetails` как любая необработанная ошибка.
+- Каждый запрос получает `meta.signal` (`AbortSignal`). Он срабатывает,
+  когда клиент отключился до завершения ответа. Отмена кооперативная:
+  долгие и потоковые хендлеры должны проверять сигнал.
+- `close()` сначала взводит `meta.signal` всех активных запросов, затем
+  перестаёт принимать соединения, закрывает простаивающие keep-alive
+  соединения, ждёт завершения активных запросов до `closeTimeout` (по
+  умолчанию 10 с) и закрывает оставшиеся принудительно. Открытые
+  `events`-соединения завершаются так же: сигнал закрывает итератор
+  ответа, и `.finally` видит `aborted`.
 
-### Options
+## Справочник
+
+### Экспорты
+
+| Имя | Что это |
+|---|---|
+| `httpEndpoint(declaration)` | конструктор декларации (анонимная и контрактная формы) |
+| `http(options?)` | провайдер транспорта для `transports:` или `providers:` |
+| `HttpTransport` | класс транспорта для ручного запуска |
+| `HttpTransport$`, `HTTP_TRANSPORT_NAME` | токен транспорта и его короткое имя `'http'` |
+| `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/contracts`) |
+| `httpBindingOf(definition)` | bind-карта декларации |
+| `httpCodeOf(status)` | HTTP-код для семантического статуса |
+| `httpConfigKeys` | ключи секции конфига `HTTP_PORT`, `HTTP_HOST` |
+| `PathParams<Path>` | тип имён `:param` из шаблона пути |
+| `JsonParseError`, `PayloadTooLargeError`, `ChunkTooLargeError`, `MultipartFieldError` | ошибки разбора запроса |
+
+### Опции `HttpTransport`
 
 ```ts
 new HttpTransport({
   port: 3000,
   host: '0.0.0.0',
-  maxBodySize: 1024 * 1024, // байт; 0 = без лимита
-  exposeErrorDetails: false, // раскрывать message/stack необработанных ошибок
-  onUnknownFail: undefined, // хук стража: оригинал снятого отказа (дефолт — console.error)
-  requestTimeout: undefined, // node:http server.requestTimeout (мс)
-  headersTimeout: undefined, // node:http server.headersTimeout (мс)
-  keepAliveTimeout: undefined, // node:http server.keepAliveTimeout (мс)
-  closeTimeout: 10_000, // таймаут дренажа соединений при close() (мс)
-  sseHeartbeat: 15_000, // период heartbeat-комментариев SSE (мс); 0 = выключить
+  maxBodySize: 1024 * 1024,   // байт; 0 снимает лимит
+  exposeErrorDetails: false,  // раскрывать message и stack необработанных ошибок
+  onUnknownFail: undefined,   // получает оригинал заменённого отказа; по умолчанию console.error
+  requestTimeout: undefined,  // server.requestTimeout из node:http (мс)
+  headersTimeout: undefined,  // server.headersTimeout (мс)
+  keepAliveTimeout: undefined,// server.keepAliveTimeout (мс)
+  closeTimeout: 10_000,       // ожидание активных соединений при close() (мс)
+  sseHeartbeat: 15_000,       // период heartbeat-комментариев SSE (мс); 0 выключает
 });
 ```
 
-Таймауты, не заданные явно, используют дефолты Node. `close(timeout?)`
-принимает разовый override таймаута дренажа.
+Таймауты, не заданные явно, берут значения по умолчанию из Node.
+`close({ timeout })` принимает разовое значение вместо `closeTimeout`.
 
-Usage guides: [functional HTTP](../../docs/guides/http-functional.md),
-[app with DI](../../docs/guides/http-app-di.md),
-[composition root](../../docs/guides/composition.md).
+## Границы пакета
+
+Пакет не реализует CORS, сжатие и ограничение частоты запросов; `events`
+на входе и `multipart` на выходе не поддерживаются.

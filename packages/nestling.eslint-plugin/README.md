@@ -1,19 +1,23 @@
 # @nestling/eslint-plugin
 
-Editor feedback for Nestling endpoint declarations. One rule so far:
-`endpoint-has-layer` — "this handle does not seem to compose the layer your
-application requires".
+Подсказки ESLint для деклараций endpoint'ов Nestling. Пока одно правило:
+`endpoint-has-layer` — «эта декларация, похоже, не подключает слой
+пайплайна, который требует приложение».
 
-> 🚧 Active development, API may change. **This plugin is a hint, not a
-> guarantee.** The guarantee is the policy check on the assembled graph:
-> `assemble({ policies: [everyEndpoint({ … }).hasLayer(authedBase)] })`.
-> A handle the rule stays silent about is still checked there — see
-> [`docs/design/pipeline.md`](../../docs/design/pipeline.md) §7.
+> 🚧 Пакет в активной разработке, API может меняться. **Правило — подсказка
+> в редакторе, а не гарантия.** Гарантию даёт проверка политик на собранном
+> графе: `assemble({ policies: [everyEndpoint({ … }).hasLayer(authedBase)] })`.
+> Декларацию, о которой правило промолчало, эта проверка всё равно увидит.
+> Подробнее — [`docs/design/pipeline.md`](../../docs/design/pipeline.md) §7.
 
-The package has **no runtime `@nestling/*` dependency**: the rule is purely
-syntactic.
+Пакет не зависит от рантайма `@nestling/*`: правило работает только с
+синтаксисом.
 
-## Install and configure
+## Установка и настройка
+
+```bash
+npm install --save-dev @nestling/eslint-plugin
+```
 
 ```javascript
 // eslint.config.js
@@ -27,9 +31,9 @@ export default [
       '@nestling/endpoint-has-layer': [
         'warn',
         {
-          layer: 'authedBase',            // name of the imported layer binding
-          constructorName: 'httpEndpoint', // which declaration constructor to look at
-          pattern: '^/admin',              // optional filter over the literal `path`
+          layer: 'authedBase',             // имя импортированной константы слоя
+          constructorName: 'httpEndpoint', // какой конструктор декларации проверять
+          pattern: '^/admin',              // необязательный фильтр по литералу `path`
         },
       ],
     },
@@ -37,39 +41,50 @@ export default [
 ];
 ```
 
-`warn` is the recommended severity, deliberately. The rule is incomplete by
-design, and a red CI would suggest a guarantee it cannot give.
+| Опция | Обязательна | По умолчанию | Что значит |
+|---|---|---|---|
+| `layer` | да | — | имя константы слоя, которую должен подключать `pipeline:` |
+| `constructorName` | нет | `'httpEndpoint'` | имя конструктора декларации, вызовы которого проверяются |
+| `pattern` | нет | — | регулярное выражение; проверяются только декларации, чей литерал `path` ему соответствует |
 
-> The option is called `constructorName`, not `constructor`: a property with
-> that name in a rule's JSON schema breaks config validation in ESLint 9
-> (`Object.prototype.constructor` gets shadowed and every configuration of the
-> rule is rejected).
+Рекомендуемый уровень — `warn`. Правило по построению неполное, и красный
+CI обещал бы гарантию, которой у правила нет.
 
-## What the rule sees — and where it stays silent
+Опция называется `constructorName`, а не `constructor`: свойство с именем
+`constructor` в JSON-схеме опций ломает проверку конфигурации в ESLint 9.
 
-The rule reads **literal** declarations only. It reports when the requirement
-is plainly unmet, and says nothing whenever the value of `pipeline:` is
-syntactically opaque — a false positive on legal code is worse than a miss,
-because a missed case is caught by the graph policy anyway.
+## Что правило видит и где молчит
 
-| Code | Verdict |
+Правило читает только литеральные декларации. Оно сообщает о нарушении,
+когда требование явно не выполнено, и молчит всегда, когда значение
+`pipeline:` синтаксически непрозрачно. Ложное срабатывание на корректном
+коде хуже пропуска: пропущенный случай всё равно поймает проверка политик
+на графе.
+
+| Код | Вердикт |
 |---|---|
-| `pipeline: authedBase` | silent — layer present |
-| `pipeline: compose(observability, authedBase)` | silent |
-| `pipeline: compose(base, authedBase.pre(withTenant()))` | silent — derivation keeps its predecessor |
-| `const p = compose(base, authedBase); … pipeline: p` | silent — local binding is resolved |
-| `pipeline: compose(observability, logging)` | **reported** |
-| declaration without `pipeline:` | **reported** |
-| `(pipeline) => httpEndpoint({ …, pipeline })` | silent — factory parameter is opaque |
-| `pipeline: pipelineFor('users')` | silent — unknown call |
-| `import { base } from './pipelines.js'; … pipeline: base` | silent — no local declaration |
-| `httpEndpoint({ …, ...common })` | silent — spread hides the dictionary |
-| `httpEndpoint({ …, detached: 'liveness probe' })` | silent — deliberate opt-out |
+| `pipeline: authedBase` | молчит: слой есть |
+| `pipeline: compose(observability, authedBase)` | молчит |
+| `pipeline: compose(base, authedBase.pre(withTenant()))` | молчит: производный слой сохраняет предка |
+| `const p = compose(base, authedBase); … pipeline: p` | молчит: локальная константа разворачивается |
+| `pipeline: compose(observability, logging)` | **сообщает** |
+| декларация без `pipeline:` | **сообщает** |
+| `(pipeline) => httpEndpoint({ …, pipeline })` | молчит: параметр фабрики непрозрачен |
+| `pipeline: pipelineFor('users')` | молчит: неизвестный вызов |
+| `import { base } from './pipelines.js'; … pipeline: base` | молчит: локального объявления нет |
+| `httpEndpoint({ …, ...common })` | молчит: spread скрывает поля |
+| `httpEndpoint({ …, detached: 'liveness probe' })` | молчит: осознанный отказ от политик |
 
-Type-aware analysis is a non-goal: types do not undo factories and
-parameters, so it would cost CI time without buying a guarantee.
+Анализ с учётом типов в планы не входит: типы не раскрывают фабрики и
+параметры, поэтому он стоил бы времени CI, не добавляя гарантии.
 
-## Exports
+## Экспорты
 
-- default export — the plugin object (`meta`, `rules`)
-- `endpointHasLayer` — the rule module, if you wire rules by hand
+| Экспорт | Что это |
+|---|---|
+| default | объект плагина: `meta`, `rules` |
+| `endpointHasLayer` | модуль правила, если вы подключаете правила вручную |
+
+## Границы пакета
+
+Пакет не проверяет собранный граф и не заменяет `policies` в `assemble`.

@@ -1,20 +1,29 @@
 # @nestling/transport.nats
 
-NATS as the application's bus — inbound and outbound. `NatsBus` is one
-value with two capabilities: `IMessageBus` facing outward
-(`request`/`publish`/`subscribe`) and `ITransport` facing inward
-(`serve(dispatch, signal)`). There is no separate "messaging" entity next
-to "transports": the bus **is** a transport.
+NATS как шина приложения: доставляет вызовы контрактов между процессами
+в обе стороны.
 
-## Registering it
+> 🚧 Активная разработка, API может меняться. Целевой дизайн:
+> [`docs/design/contracts.md`](../../docs/design/contracts.md).
+> Гайд: [`docs/guides/ports.md`](../../docs/guides/ports.md), раздел про
+> split-развёртывание.
 
-`nats(options?)` is an ordinary transport provider registered under
-`BusTransport$` — the same token the in-process bus uses. When the root
-supplies it, the ports kernel module does not register `InProcessBus`, and
-`MessageBus$` resolves to the very same instance: an application has
-exactly one bus.
+`NatsBus` реализует два интерфейса: `IMessageBus` наружу (`request`,
+`publish`, `subscribe`) и `ITransport` внутрь (`serve(dispatch, signal)`).
+Отдельной сущности «messaging» рядом с транспортами нет: шина и есть
+транспорт.
+
+## Установка
+
+```bash
+npm install @nestling/transport.nats @nestling/ports
+```
+
+## Минимальный пример
 
 ```ts
+import { nats } from '@nestling/transport.nats';
+
 await assemble({
   features: [OrdersFeature, BillingFeature],
   select: load(RootConfig).features,
@@ -22,110 +31,114 @@ await assemble({
 }).run();
 ```
 
-No `implement(...)` declaration, no contract and no call-site changes when
-`nats()` is added or removed. That is level L4 from
-`docs/design/composition.md`.
+`nats(options?)` возвращает обычный провайдер транспорта, зарегистрированный
+под `BusTransport$` — тем же токеном, что и in-process шина. Когда корень
+передаёт его, модуль ядра портов не регистрирует `InProcessBus`, а
+`MessageBus$` указывает на тот же экземпляр: в приложении ровно одна шина.
 
-## What changes for ports
+Декларации `implement(...)`, контракты и код вызовов при добавлении или
+удалении `nats()` не меняются. Это уровень L4 из
+[`docs/design/composition.md`](../../docs/design/composition.md).
 
-With a bus that delivers outside the process, binding of invokers gains a
-third input — the nature of the bus:
+## Основные понятия
 
-| Kind | Co-located | Bus is remote | Binding |
+### Привязка вызывателей
+
+Когда шина доставляет за пределы процесса, привязка вызывателя учитывает
+третий вход — свойство `remote` шины:
+
+| Вид | Реализация в этом процессе | Шина удалённая | Привязка |
 |---|---|---|---|
-| `request` / `command` | yes | any | policy (`local-first` / `always-remote`) |
-| `request` / `command` | no | yes | **remote** |
-| `request` / `command` | no | no | fail-fast on ASSEMBLE |
-| `event` | any | no | local dispatch to each co-located subscriber |
-| `event` | any | yes | **always remote** |
+| `request` / `command` | есть | любая | по политике (`local-first` / `always-remote`) |
+| `request` / `command` | нет | да | удалённый вызов |
+| `request` / `command` | нет | нет | ошибка на фазе ASSEMBLE |
+| `event` | любая | нет | локальный `dispatch` каждому подписчику в процессе |
+| `event` | любая | да | всегда через шину |
 
-`event` is always remote when a broker is present because the set of
-subscribers is open: some of them live in other processes, and a local
-dispatch would silently lose them. A co-located subscriber still gets
-exactly one copy — the one that comes back through its own subscription.
+Событие при наличии брокера всегда идёт через шину, потому что список
+подписчиков открыт: часть из них живёт в других процессах. Подписчик в том
+же процессе получает ровно одну копию — через собственную подписку.
 
-## Addressing
+### Адресация
 
-Subject is the contract name, prefixed by `NATS_SUBJECT_PREFIX` when set.
-The delivery group comes from the contract kind — the same map the
-in-process bus already computes:
+Subject — имя контракта с префиксом `NATS_SUBJECT_PREFIX`, если он задан.
+Группа доставки выводится из вида контракта так же, как в in-process шине:
 
-| Kind | Queue group | Effect |
+| Вид | Queue group | Эффект |
 |---|---|---|
-| `request` | `owner:<subject>` | replicas of the owner share req-reply |
-| `command` | `owner:<subject>` | the command reaches exactly one replica |
-| `event` | `<subscriber>` | every subscriber gets a copy; its replicas share it |
+| `request` | `owner:<subject>` | реплики владельца делят запросы между собой |
+| `command` | `owner:<subject>` | команда доходит ровно до одной реплики |
+| `event` | `<subscriber>` | каждый подписчик получает копию; его реплики делят её между собой |
 
-Adding a replica requires no configuration change.
+Добавление реплики не требует изменений в конфигурации.
 
-## Phases
+### Фазы
 
-| Phase | What happens |
+| Фаза | Что происходит |
 |---|---|
-| INIT | `connect()` — a connection is a resource, so it is captured with the others. Calling a port from `@OnStart` reaches the broker. |
-| WIRE | `attach(dispatch)` — routes are remembered and io forms are checked. No subscriptions yet. |
-| START (go-live) | `serve(dispatch, signal)` — subscriptions. An incoming message cannot catch an unfinished `@OnStart`. |
-| SHUTDOWN | `close()` — drain. Unacked durable messages return to the stream and go to another replica. |
+| INIT | `connect()`: соединение — ресурс, поэтому открывается вместе с остальными. Вызов порта из `@OnStart` уже доходит до брокера. |
+| WIRE | `attach(dispatch)`: маршруты запоминаются, формы io проверяются. Подписок ещё нет. |
+| START | `serve(dispatch, signal)`: подписки. Входящее сообщение не может застать незавершённый `@OnStart`. |
+| SHUTDOWN | `close()`: drain. Неподтверждённые долговечные сообщения возвращаются в стрим и уходят другой реплике. |
 
-## The wire
+### Сообщение по сети
 
-The body is encoded by the codec (JSON by default, replaceable with the
-`codec` factory option). The envelope travels as headers:
+Тело кодирует кодек: по умолчанию JSON (`jsonCodec`), заменяется опцией
+`codec`. Параметры вызова передаются заголовками:
 
-| Header | Meaning |
+| Заголовок | Значение |
 |---|---|
-| `Nl-Timeout-Ms` | relative remaining budget; becomes an absolute deadline on the receiving clock |
-| `Nl-Idempotency-Key` | idempotency key of a command |
-| `Nl-Ctx` | propagated ambient variables, JSON object |
-| `Nl-Subject` | diagnostics only |
+| `Nl-Timeout-Ms` | относительный остаток бюджета; получатель пересчитывает его в абсолютный момент по своим часам |
+| `Nl-Idempotency-Key` | ключ идемпотентности команды |
+| `Nl-Ctx` | передаваемые переменные контекста, JSON-объект |
+| `Nl-Subject` | только для диагностики |
 
-`Nl-Ctx` is a single header rather than one per variable on purpose: NATS
-canonicalises header names by MIME rules, so `Nl-Ctx-tenantId` would arrive
-as `Nl-Ctx-Tenantid`. A variable key is the name of a field in the
-accumulated pipeline `input`, and it has to survive verbatim.
+`Nl-Ctx` — один заголовок на все переменные, а не заголовок на каждую:
+NATS приводит имена заголовков к MIME-регистру, и `Nl-Ctx-tenantId` пришёл
+бы как `Nl-Ctx-Tenantid`. Имя переменной — имя поля в `input` пайплайна, и
+оно должно дойти без изменений.
 
-**The JSON codec is stricter than `structuredClone`**, which the
-`always-remote` policy uses to rehearse the wire in-process: `Date` arrives
-as a string, `Map`, `Set` and `undefined` are lost. Nothing is lost
-silently — input is validated against the contract schema **on receipt**,
-so a field that collapsed to a string produces a validation failure naming
-the field.
+JSON-кодек строже, чем `structuredClone`, которым политика `always-remote`
+копирует данные внутри процесса: `Date` приходит строкой, `Map`, `Set` и
+`undefined` теряются. Потеря не остаётся незамеченной: вход проверяется
+схемой контракта при получении, и поле, превратившееся в строку, даёт
+ошибку валидации с именем поля.
 
-## Request ceiling
+### Потолок запроса
 
-A broker request is never unbounded. A call without `meta.deadline` goes
-out with the `NATS_REQUEST_TIMEOUT` ceiling (30s by default); a call with a
-budget is limited by `min(remaining, ceiling)`. This is not a default
-*budget*: a budget is a property of the call and is inherited downward, a
-ceiling is a property of the wire, like a socket timeout on an HTTP server.
-The difference is visible in the failure text.
+Запрос к брокеру всегда ограничен по времени. Вызов без `meta.deadline`
+уходит с потолком `NATS_REQUEST_TIMEOUT` (по умолчанию 30 секунд); вызов с
+бюджетом ограничен `min(остаток, потолок)`. Потолок — свойство сети, как
+таймаут сокета у HTTP-сервера, а не бюджет по умолчанию: бюджет
+принадлежит вызову и передаётся вглубь явно. Разница видна в тексте
+ошибки.
 
-## Durable delivery
+### Долговечная доставка
 
-`durable: true` is declared on the **contract** (`command` and `event` only;
-on a `request` it is rejected at declaration time). Both sides must know:
-the publisher waits for the write to be acknowledged, the subscriber reads
-with a durable consumer, and they live in different processes — the only
-value available to both is the contract itself.
+`durable: true` объявляется на контракте (только `command` и `event`; у
+`request` отвергается при объявлении). Об этом должны знать обе стороны:
+издатель ждёт подтверждения записи, подписчик читает через долговечного
+консьюмера, и живут они в разных процессах.
 
-Under the hood: a stream named `nestling_<subject>` covering exactly that
-subject, a durable consumer named after the delivery group, `ack` once
-processing **reached a decision** (success and a declared `Fail` alike),
-`nak` when it did not (an unhandled exception, or the process stopping with
-the message in flight), `term` plus a diagnostic report when attempts run
-out. An existing stream covering the subject is accepted **as is** —
-retention, storage and limits stay an operational concern; a stream with
-the same name and a conflicting subject set is a fail-fast.
+Как это устроено: стрим `nestling_<subject>` ровно на этот subject,
+долговечный консьюмер с именем группы доставки, `ack` после того как
+обработка пришла к решению (успех и задекларированный `Fail` одинаково),
+`nak`, если не пришла (необработанное исключение или остановка процесса с
+сообщением в обработке), `term` с диагностическим отчётом, когда попытки
+исчерпаны (`maxDeliver`). Существующий стрим, покрывающий subject,
+принимается как есть: retention, хранилище и лимиты остаются делом
+эксплуатации. Стрим с тем же именем, но другим набором subject'ов — ошибка
+на старте.
 
-`InProcessBus` cannot do durable delivery and says so: an application with
-durable contracts on it starts and prints one line on go-live listing the
-contracts served without persistence.
+`InProcessBus` долговечную доставку не умеет: приложение с долговечными
+контрактами на ней стартует и один раз печатает список контрактов, которые
+обслуживает без персистентности.
 
-## Testing without a broker
+### Тесты без брокера
 
-The broker client is isolated behind a narrow connector (`connect` factory
-option). An in-memory double is exported under the `./testing` conditional
-export:
+Клиент брокера изолирован за узким интерфейсом коннектора (опция
+`connect`). Двойник в памяти экспортируется через условный экспорт
+`./testing`:
 
 ```ts
 import { NatsDouble, natsDouble } from '@nestling/transport.nats/testing';
@@ -134,40 +147,67 @@ const broker = new NatsDouble();
 const app = assemble({ transports: [nats({ connect: natsDouble(broker) })] });
 ```
 
-One double handed to two roots models a **cluster**: two processes on one
-broker. The double covers subjects, wildcard matching, queue groups,
-req-reply with `no responders`, headers and a minimal JetStream (stream,
-durable consumer, ack/nak, redelivery).
+Один двойник, переданный двум корням, моделирует кластер: два процесса на
+одном брокере. Двойник покрывает subject'ы, wildcard-сопоставление, queue
+group'ы, запрос-ответ с `no responders`, заголовки и минимальный JetStream
+(стрим, долговечный консьюмер, ack/nak, повторная доставка).
 
-**The double checks our code, not compatibility with the broker.** For
-compatibility there is the integration run, and it must be executed before
-publishing the package:
+Двойник проверяет наш код, а не совместимость с брокером. Для
+совместимости есть интеграционный прогон; запускайте его перед публикацией
+пакета:
 
 ```bash
 docker run --rm -p 4222:4222 nats:2 -js
 NATS_TEST_SERVERS=nats://127.0.0.1:4222 yarn workspace @nestling/transport.nats test
 ```
 
-Without `NATS_TEST_SERVERS` the integration suite is skipped, so
-`yarn verify` stays green offline.
+Без `NATS_TEST_SERVERS` интеграционные тесты пропускаются, и `yarn verify`
+проходит без сети.
 
-## Configuration
+## Справочник API
 
-| Key | Default | Purpose |
+### Конфигурация
+
+| Ключ | По умолчанию | Назначение |
 |---|---|---|
-| `NATS_SERVERS` | `nats://127.0.0.1:4222` | cluster addresses, comma separated |
-| `NATS_REQUEST_TIMEOUT` | `30000` | req-reply ceiling |
-| `NATS_SUBJECT_PREFIX` | empty | separating environments on a shared cluster |
+| `NATS_SERVERS` | `nats://127.0.0.1:4222` | адреса кластера через запятую |
+| `NATS_REQUEST_TIMEOUT` | `30000` | потолок запрос-ответа, мс |
+| `NATS_SUBJECT_PREFIX` | пусто | разделение окружений на общем кластере |
 
-Only the `.keys` handle leaves the package (`natsConfigKeys`); the section
-token stays private. Everything that is not about the environment —
-`connect`, `codec`, `maxDeliver`, diagnostic hooks — is a factory argument.
+Наружу из секции уходит только `natsConfigKeys`; токен секции остаётся
+приватным. Явные опции `nats({ servers, requestTimeout, subjectPrefix })`
+сильнее конфига.
 
-## Not here on purpose
+### Опции `nats(options)`
 
-Outbox and saga, idempotency deduplication, the `balanced` dispatch policy,
-streaming over the bus (`capabilities` are `value`-only, same as the
-in-process bus), a `natsEndpoint` declaration form (plumbing is expressed by
-injecting `MessageBus$` and calling `subscribe('orders.>', …)` in
-`@OnStart`), JetStream beyond durable delivery (KV, object store, ordered
-consumers, dead-letter queues), and more than one bus per application.
+| Опция | Назначение |
+|---|---|
+| `servers`, `requestTimeout`, `subjectPrefix` | то же, что ключи конфига; явное значение сильнее |
+| `connect` | коннектор к брокеру (`NatsConnector`); по умолчанию `defaultConnector` на клиенте `nats` |
+| `codec` | кодек тела сообщения (`NatsCodec`); по умолчанию `jsonCodec` |
+| `maxDeliver` | число попыток доставки долговечного сообщения до `term` |
+| `onDeliveryFailure` | хук отказа доставки (`NatsDeliveryFailure`) |
+| `onConnectionChange` | хук смены состояния соединения (`NatsConnectionInfo`) |
+| `onUnknownFail` | хук незадекларированной ошибки |
+
+### Экспорты
+
+| Экспорт | Что это |
+|---|---|
+| `nats(options?)` | провайдер транспорта под `BusTransport$` |
+| `NatsBus`, `NatsTransportOptions` | класс шины и его опции |
+| `natsConfigKeys` | ключи секции конфига `nats` |
+| `NatsConnector`, `NatsLike`, `defaultConnector`, … | интерфейс коннектора и его части |
+| `jsonCodec`, `NatsCodec` | кодек по умолчанию и его тип |
+| `TIMEOUT_HEADER`, `IDEMPOTENCY_HEADER`, `CONTEXT_HEADER`, `SUBJECT_HEADER` | имена заголовков |
+| `groupOf`, `streamNameOf`, `consumerNameOf` | вывод имён группы, стрима и консьюмера из subject'а |
+| `./testing`: `NatsDouble`, `natsDouble`, `HeadersDouble`, `subjectMatches`, … | двойник брокера в памяти |
+
+## Границы пакета
+
+Пакет не реализует outbox и саги, дедупликацию по ключу идемпотентности,
+политику диспатча `balanced`, стриминг через шину (формы io только
+`value`), форму декларации `natsEndpoint` (подписка на произвольный
+subject пишется инжектом `MessageBus$` и `subscribe('orders.>', …)` в
+`@OnStart`), JetStream сверх долговечной доставки (KV, object store,
+ordered consumers, dead-letter queues) и вторую шину в приложении.

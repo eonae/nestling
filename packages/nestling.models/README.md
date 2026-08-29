@@ -1,35 +1,66 @@
 # @nestling/models
 
-> 📖 **[Русская версия](./README.ru.md)**
+Модели входных и выходных данных на zod: схема с валидацией и выводом типов,
+которую можно сверить с уже существующим TypeScript-типом.
 
-**Type-safe input/output models for Nestling applications**
+> 🛰️ **Сателлит на zod, вне ядра V1.** Ядро Nestling принимает любую
+> [Standard Schema](https://standardschema.dev) и схемы не разбирает. Этот
+> пакет делает обратное: сверка схемы с существующим типом по полям требует
+> zod-специфичных типов (`z.ZodObject<infer Shape>`, `z.input<S>`), поэтому
+> у пакета есть `peerDependencies.zod`. Пакет находится в активной
+> разработке, API может меняться.
 
-A library for defining data models with validation, automatic type inference, documentation, and transformations. Built on top of [Zod v4](https://github.com/colinhacks/zod).
+## Установка
 
-> 🛰️ **Zod-specific satellite, outside the V1 core.** Nestling's core accepts
-> any [Standard Schema](https://standardschema.dev) (zod, valibot, arktype, …)
-> and never introspects it. This package deliberately does the opposite: its
-> central feature — checking a schema against an existing domain type field by
-> field — requires zod-native introspection (`z.ZodObject<infer Shape>`,
-> `z.input<S>`) that the spec does not provide. Hence its own explicit
-> `peerDependencies.zod`; the core has none.
+```bash
+yarn add @nestling/models zod
+# или
+npm install @nestling/models zod
+```
 
-## Why this library?
+Пакет требует `zod@^4.0.0` как peer-зависимость.
 
-When developing applications, we constantly work with input and output data. This data must:
+## Минимальный пример
 
-- ✅ **Be strictly typed** — so TypeScript helps catch errors at compile time
-- ✅ **Pass validation** — to protect the application from incorrect data
-- ✅ **Be documented** — to generate OpenAPI specifications
-- ✅ **Be transformed** — to convert strings to numbers, dates, class instances, etc.
+```typescript
+import { fromType } from '@nestling/models';
+import { z } from 'zod';
 
-**Zod** handles these tasks excellently, but a problem arises when **types already exist** (e.g., generated from proto contracts, GraphQL schemas, or OpenAPI).
+// Тип уже существует: например, сгенерирован из proto
+interface UserProto {
+  name?: string;
+  email?: string;
+  age?: number;
+}
 
-`@nestling/models` solves this problem by providing two approaches:
+const UserModel = fromType<UserProto>().makeModel(
+  z.object({
+    name: z.string().min(1).max(100),
+    email: z.email(),
+    age: z.number().min(0).max(150),
+  }),
+);
 
-### 1. Creating models "from scratch" (`fromScratch`)
+// Тип результата строже исходного: все поля стали обязательными
+// type User = { name: string; email: string; age: number }
+const user = UserModel.parse({ name: 'Alice', email: 'alice@example.com', age: 30 });
+```
 
-When types don't exist yet and should be inferred from the schema:
+Компилятор проверяет, что схема описывает именно `UserProto`: лишнее поле
+или несовместимый тип — ошибка компиляции.
+
+## Основные понятия
+
+### Два способа объявить модель
+
+Zod сам выводит тип из схемы. Проблема появляется, когда тип уже есть:
+сгенерирован из proto-контрактов, GraphQL или OpenAPI. Тогда схему нужно
+держать в согласии с этим типом, и пакет даёт для этого два конструктора.
+
+| Конструктор | Когда использовать | Что делает |
+|---|---|---|
+| `fromScratch().makeModel(schema)` | типа ещё нет | возвращает схему как есть; тип выводится из неё |
+| `fromType<T>().makeModel(schema)` | тип `T` уже существует | возвращает схему и проверяет на этапе компиляции, что её вход — сужение `T` |
 
 ```typescript
 import { fromScratch } from '@nestling/models';
@@ -38,200 +69,33 @@ import { z } from 'zod';
 const UserModel = fromScratch().makeModel(
   z.object({
     name: z.string().min(1).max(100),
-    email: z.string().email(),
+    email: z.email(),
     age: z.number().min(0).max(150),
-  })
+  }),
 );
 
-// TypeScript automatically infers the type:
 // type User = { name: string; email: string; age: number }
-
-const user = UserModel.parse({ name: 'Alice', email: 'alice@example.com', age: 30 });
 ```
 
-### 2. Working with existing types (`fromType`)
+Обе функции возвращают обычную zod-схему: у результата есть `parse`,
+`parseAsync`, `shape` и всё остальное, что даёт zod.
 
-When you already have TypeScript types (e.g., from proto) and you need to:
-- Guarantee that the schema fully covers the type
-- Add validation and transformations
-- Have the ability to "narrow" types (make optional fields required)
+### Сужение типа
 
-```typescript
-import { fromType } from '@nestling/models';
-import { z } from 'zod';
+`fromType<T>()` разрешает схеме быть строже типа `T`, но не шире.
 
-// Type already exists (e.g., generated from proto)
-interface UserProto {
-  name?: string;
-  email?: string;
-  age?: number;
-}
+Разрешено:
 
-const UserModel = fromType<UserProto>().makeModel(
-  z.object({
-    name: z.string().min(1).max(100),    // optional → required
-    email: z.string().email(),            // optional → required
-    age: z.number().min(0).max(150),      // optional → required
-  })
-);
+- сделать необязательное поле обязательным: `string | undefined` в типе,
+  `z.string()` в схеме;
+- сузить тип: `string` в типе, `z.enum(['admin', 'user'])` в схеме;
+- добавить ограничения: `z.number().min(0).max(100)`.
 
-// Resulting type is stricter than the original:
-// type User = { name: string; email: string; age: number }
-// all fields became required!
+Запрещено, и это ошибка компиляции:
 
-const user = UserModel.parse({ name: 'Alice', email: 'alice@example.com', age: 30 });
-```
-
-## Installation
-
-```bash
-yarn add @nestling/models zod
-# or
-npm install @nestling/models zod
-```
-
-**Important:** The library requires `zod@^4.0.0` as a peer dependency.
-
-## Quick Start
-
-### Two ways to use the library
-
-#### 1️⃣ `fromScratch()` — types are inferred from schema
-
-```typescript
-import { fromScratch } from '@nestling/models';
-import { z } from 'zod';
-
-const UserModel = fromScratch().makeModel(
-  z.object({
-    name: z.string(),
-    email: z.string().email(),
-    age: z.number().min(18),
-  })
-);
-
-// Type automatically inferred: { name: string; email: string; age: number }
-```
-
-#### 2️⃣ `fromType<T>()` — working with existing types
-
-```typescript
-import { fromType } from '@nestling/models';
-import { z } from 'zod';
-
-interface UserProto {
-  name?: string;
-  email?: string;
-  age?: number;
-}
-
-const UserModel = fromType<UserProto>().makeModel(
-  z.object({
-    name: z.string(),      // ✅ optional → required (narrowing)
-    email: z.string().email(),
-    age: z.number().min(18),
-  })
-);
-
-// Result: { name: string; email: string; age: number }
-// TypeScript guarantees that schema matches the type
-```
-
-### Key features
-
-#### ✅ Validation
-
-```typescript
-try {
-  const user = UserModel.parse(data);
-} catch (error) {
-  console.error(error.issues);
-}
-```
-
-#### ✅ Transformations
-
-```typescript
-const Model = fromScratch().makeModel(
-  z.object({
-    id: z.string().transform(val => parseInt(val, 10)),
-    createdAt: z.string().transform(val => new Date(val)),
-  })
-);
-```
-
-#### ✅ Type Narrowing
-
-```typescript
-// ✅ Allowed
-optional → required
-string → 'admin' | 'user'
-number → number (min: 0, max: 100)
-
-// ❌ Prohibited
-Adding fields that don't exist in the type
-required → optional
-Incompatible types (string → number)
-```
-
-#### ✅ Nested objects
-
-```typescript
-const Model = fromType<UserProto>().makeModel(
-  z.object({
-    profile: z.object({
-      firstName: z.string(),   // Narrowing works recursively
-      address: z.object({
-        city: z.string(),      // Nested fields can also become required
-      }),
-    }),
-  })
-);
-```
-
-#### ✅ Transport integration
-
-```typescript
-app.endpoint({
-  transport: 'http',
-  pattern: 'POST /users',
-  handler: async (ctx) => {
-    const user = UserModel.parse(ctx.payload);  // Validation + type
-    return { status: 201, value: { user } };
-  }
-});
-```
-
-## API
-
-### `fromScratch()`
-
-Creates a model without binding to an existing type. TypeScript automatically infers the type from the schema.
-
-```typescript
-const CalcModel = fromScratch().makeModel(
-  z.object({
-    a: z.number().describe('First number'),
-    b: z.number().describe('Second number'),
-    operation: z.enum(['add', 'sub', 'mul', 'div']).describe('Operation'),
-  })
-);
-
-// Type inference:
-// { a: number; b: number; operation: 'add' | 'sub' | 'mul' | 'div' }
-```
-
-### `fromType<T>()`
-
-Creates a model based on an existing type with **type narrowing** support.
-
-#### What is Type Narrowing?
-
-Narrowing allows:
-- ✅ Making optional fields required (`string?` → `string`)
-- ✅ Narrowing types (`string` → `'admin' | 'user'`)
-- ✅ Adding constraints (`number` → `number (min: 0, max: 100)`)
-- ❌ BUT prohibits adding new fields that don't exist in the original type
+- добавить поле, которого нет в `T`;
+- сделать обязательное поле необязательным;
+- поменять тип на несовместимый: `string` на `number`.
 
 ```typescript
 interface CreateUserProto {
@@ -243,53 +107,57 @@ interface CreateUserProto {
 
 const CreateUserModel = fromType<CreateUserProto>().makeModel(
   z.object({
-    name: z.string().min(1),              // ✅ optional → required
-    email: z.string().email(),            // ✅ optional → required
-    role: z.enum(['admin', 'user']),      // ✅ string → enum (narrowing)
-    age: z.number().min(18).max(100),     // ✅ adding constraints
-  })
+    name: z.string().min(1),           // необязательное стало обязательным
+    email: z.email(),                  // то же
+    role: z.enum(['admin', 'user']),   // string сужен до перечисления
+    age: z.number().min(18).max(100),  // добавлены ограничения
+  }),
 );
 
-// Result: { name: string; email: string; role: 'admin' | 'user'; age: number }
+// type CreateUser = { name: string; email: string; role: 'admin' | 'user'; age: number }
 ```
 
-#### What is prohibited with Narrowing?
+Примеры ошибок:
 
 ```typescript
 interface UserProto {
   name?: string;
 }
 
-// ❌ ERROR: cannot add fields that don't exist in the type
+// Ошибка: поля `age` нет в UserProto
 const BadModel = fromType<UserProto>().makeModel(
   z.object({
     name: z.string(),
-    age: z.number(),  // ← Field 'age' doesn't exist in UserProto!
-  })
+    age: z.number(),
+  }),
 );
 
-// ❌ ERROR: cannot change type incompatibly
+// Ошибка: `name` в типе — string, в схеме — number
 const BadModel2 = fromType<UserProto>().makeModel(
   z.object({
-    name: z.number(),  // ← name should be string, not number
-  })
+    name: z.number(),
+  }),
 );
 
-// ❌ ERROR: cannot make required fields optional
 interface UserWithRequired {
-  name: string;  // required field
+  name: string;
 }
 
+// Ошибка: обязательное поле нельзя сделать необязательным
 const BadModel3 = fromType<UserWithRequired>().makeModel(
   z.object({
-    name: z.string().optional(),  // ← cannot make optional
-  })
+    name: z.string().optional(),
+  }),
 );
 ```
 
-#### Working with nested objects
+Сообщение об ошибке компиляции называет путь к полю (`__FIELD_ERROR__`,
+`__EXTRA_FIELD__`), ожидаемый и полученный типы и подсказку.
 
-Narrowing works recursively for nested objects:
+### Вложенные объекты
+
+Сужение проверяется рекурсивно: правила выше действуют на каждом уровне
+вложенности.
 
 ```typescript
 interface UserProto {
@@ -306,42 +174,23 @@ interface UserProto {
 const UserModel = fromType<UserProto>().makeModel(
   z.object({
     profile: z.object({
-      firstName: z.string().min(1),      // ✅ optional → required
-      lastName: z.string().min(1),       // ✅ optional → required
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
       address: z.object({
-        street: z.string(),              // ✅ optional → required (nested)
-        city: z.string(),                // ✅ optional → required (nested)
+        street: z.string(),
+        city: z.string(),
       }),
     }),
-  })
+  }),
 );
 
-// Result: all nested fields became required!
+// Все вложенные поля стали обязательными
 ```
 
-## Transformations
+### Преобразования
 
-Zod allows transforming data during parsing:
-
-### Simple transformations
-
-```typescript
-const GetUserModel = fromScratch().makeModel(
-  z.object({
-    id: z.string()
-      .regex(/^\d+$/)
-      .transform(val => parseInt(val, 10)),  // string → number
-    email: z.string()
-      .email()
-      .transform(val => val.toLowerCase()),  // normalization
-  })
-);
-
-const result = GetUserModel.parse({ id: '123', email: 'USER@EXAMPLE.COM' });
-// result = { id: 123, email: 'user@example.com' }
-```
-
-### Transformations with existing types
+Схема может преобразовывать данные при разборе. Проверка сужения смотрит на
+**вход** схемы (`z.input<S>`), поэтому выход может отличаться от `T`.
 
 ```typescript
 interface GetUserProto {
@@ -351,254 +200,85 @@ interface GetUserProto {
 
 const GetUserModel = fromType<GetUserProto>().makeModel(
   z.object({
-    id: z.string().transform(val => parseInt(val, 10)),         // string → number
-    createdAt: z.string().transform(val => new Date(val)),      // string → Date
-  })
+    id: z.string().transform((val) => parseInt(val, 10)),      // строка в число
+    createdAt: z.string().transform((val) => new Date(val)),   // строка в Date
+  }),
 );
 
-const result = GetUserModel.parse({ 
-  id: '42', 
-  createdAt: '2024-01-01T00:00:00Z' 
-});
+const result = GetUserModel.parse({ id: '42', createdAt: '2024-01-01T00:00:00Z' });
 // result = { id: 42, createdAt: Date(...) }
 ```
 
-### Cleaning Bearer tokens
-
-```typescript
-interface AuthProto {
-  authorization?: string;
-}
-
-const AuthModel = fromType<AuthProto>().makeModel(
-  z.object({
-    authorization: z.string()
-      .regex(/^Bearer .+$/)
-      .transform(val => val.replace('Bearer ', '')),  // remove prefix
-  })
-);
-
-const result = AuthModel.parse({ authorization: 'Bearer token123' });
-// result = { authorization: 'token123' }
-```
-
-### Transformation chains
+Преобразования можно объединять в цепочку:
 
 ```typescript
 const UserModel = fromScratch().makeModel(
   z.object({
-    email: z.string()
+    email: z
       .email()
-      .transform(val => val.toLowerCase())
-      .transform(val => val.trim()),
-  })
+      .transform((val) => val.toLowerCase())
+      .transform((val) => val.trim()),
+  }),
 );
-
-const result = UserModel.parse({ email: '  ALICE@EXAMPLE.COM  ' });
-// result = { email: 'alice@example.com' }
 ```
 
-## Validation and error handling
+### Валидация и ошибки
+
+`parse` бросает стандартный `ZodError`; `parseAsync` нужен для асинхронных
+проверок (`refine` с промисом).
 
 ```typescript
 import { z } from 'zod';
 
 const UserModel = fromScratch().makeModel(
   z.object({
-    name: z.string().min(1, 'Name cannot be empty'),
-    age: z.number().min(0).max(150, 'Age must be between 0 and 150'),
-  })
+    name: z.string().min(1, 'Имя не может быть пустым'),
+    age: z.number().min(0).max(150, 'Возраст должен быть от 0 до 150'),
+  }),
 );
 
 try {
   UserModel.parse({ name: '', age: 200 });
 } catch (error) {
   if (error instanceof z.ZodError) {
-    console.error(error.issues);
-    // [
-    //   { pattern: ['name'], message: 'Name cannot be empty' },
-    //   { pattern: ['age'], message: 'Age must be between 0 and 150' }
-    // ]
+    for (const issue of error.issues) {
+      console.log(`${issue.path.join('.')}: ${issue.message}`);
+    }
   }
 }
 ```
 
-## Documenting models
+### Описания полей
 
-Use `.describe()` to add descriptions that can be used for documentation generation (OpenAPI, JSON Schema, etc.):
+`.describe()` добавляет описание, которое попадает в JSON Schema и OpenAPI:
 
 ```typescript
 const UserModel = fromScratch().makeModel(
   z.object({
-    name: z.string().min(1).max(100).describe('User name (required, 1-100 characters)'),
-    email: z.string().email().describe('User email address'),
-    role: z.enum(['admin', 'user', 'guest']).describe('User role in the system'),
-  })
-);
-
-// Descriptions can be extracted for documentation generation
-const schema = UserModel._def;  // contains all Zod metadata
-```
-
-## Transport integration
-
-`@nestling/models` is designed to be used with Nestling transport layers (HTTP, CLI, gRPC, etc.).
-
-Example usage with HTTP transport:
-
-```typescript
-import { fromType } from '@nestling/models';
-import { z } from 'zod';
-
-interface CreateUserProto {
-  name?: string;
-  email?: string;
-}
-
-const CreateUserModel = fromType<CreateUserProto>().makeModel(
-  z.object({
-    name: z.string().min(1).max(100),
-    email: z.string().email(),
-  })
-);
-
-app.endpoint({ 
-  transport: 'http',
-  pattern: 'POST /users',
-  handler: async (ctx) => {
-    // Validation and parsing of input data
-    const user = CreateUserModel.parse(ctx.payload);
-    
-    // user has strict type: { name: string; email: string }
-    await saveUser(user);
-    
-    return { status: 201, value: { user } };
-  }
-});
-```
-
-For more details on transport integration, see [@nestling/transport](../nestling.transport/README.md) documentation.
-
-## Usage examples
-
-### Example 1: REST API model
-
-```typescript
-interface CreatePostProto {
-  title?: string;
-  content?: string;
-  tags?: string[];
-  publishedAt?: string;
-}
-
-const CreatePostModel = fromType<CreatePostProto>().makeModel(
-  z.object({
-    title: z.string().min(1).max(200),
-    content: z.string().min(1),
-    tags: z.array(z.string()).min(1).max(10),
-    publishedAt: z.string()
-      .datetime()
-      .transform(val => new Date(val)),
-  })
+    name: z.string().min(1).max(100).describe('Имя пользователя, от 1 до 100 символов'),
+    email: z.email().describe('Адрес электронной почты'),
+    role: z.enum(['admin', 'user', 'guest']).describe('Роль в системе'),
+  }),
 );
 ```
 
-### Example 2: CLI arguments
+## Справочник API
 
-```typescript
-const CalcArgsModel = fromScratch().makeModel(
-  z.object({
-    a: z.string().transform(val => parseFloat(val)),
-    b: z.string().transform(val => parseFloat(val)),
-    operation: z.enum(['add', 'sub', 'mul', 'div']),
-  })
-);
+| Экспорт | Сигнатура | Что делает |
+|---|---|---|
+| `fromScratch()` | `() => { makeModel<S>(schema: S): S }` | возвращает схему без проверки против типа |
+| `fromType<T>()` | `() => { makeModel<S>(schema: S & SchemaConstraint<S, T>): S }` | возвращает схему; на этапе компиляции проверяет, что `z.input<S>` — сужение `T` |
+| `makeModel(schema)` | `<S>(schema: S) => S` | то же, что `fromScratch().makeModel(schema)` |
 
-// Usage
-const args = CalcArgsModel.parse({
-  a: '10',
-  b: '5',
-  operation: 'add'
-});
-// args = { a: 10, b: 5, operation: 'add' }
-```
+Все три функции ничего не делают в рантайме: они возвращают переданную
+схему. Вся работа происходит в типах.
 
-### Example 3: Request metadata
+## Границы пакета
 
-```typescript
-interface AuthHeadersProto {
-  authorization?: string;
-  'x-request-id'?: string;
-}
+Пакет не валидирует данные сам, не регистрируется в контейнере и не
+подключается к транспортам: он возвращает zod-схему, которую вы передаёте
+в `input`/`output` endpoint'а или вызываете напрямую.
 
-const AuthHeadersModel = fromType<AuthHeadersProto>().makeModel(
-  z.object({
-    authorization: z.string()
-      .regex(/^Bearer .+$/)
-      .transform(val => val.replace('Bearer ', '')),
-    'x-request-id': z.string().uuid().optional(),
-  })
-);
-```
+## Ссылки
 
-## Connection with other Nestling packages
-
-- **[@nestling/transport](../nestling.transport)** — uses `@nestling/models` for input data validation
-- **[@nestling/container](../nestling.container)** — injects models as dependencies
-- **[@nestling/viz](../nestling.viz)** — visualizes models in documentation
-
-## FAQ
-
-### Why not just use Zod directly?
-
-You can! `@nestling/models` is a thin wrapper over Zod that adds:
-
-1. **Type narrowing check** — guarantees that the schema matches the existing type
-2. **Unified API** — `fromScratch()` and `fromType<T>()` explicitly show intentions
-3. **Nestling integration** — ready-made patterns for working with transports
-
-### Can I use other validators instead of Zod?
-
-Technically yes, but currently the library is tightly integrated with Zod v4. Future support for other validators (Valibot, ArkType, etc.) is possible.
-
-### What happens on validation error?
-
-A standard `ZodError` is thrown with detailed information about the problems:
-
-```typescript
-try {
-  UserModel.parse(invalidData);
-} catch (error) {
-  if (error instanceof z.ZodError) {
-    error.issues.forEach(issue => {
-      console.log(`${issue.path.join('.')}: ${issue.message}`);
-    });
-  }
-}
-```
-
-### Can I use async validation?
-
-Yes, use `.parseAsync()` instead of `.parse()`:
-
-```typescript
-const EmailModel = fromScratch().makeModel(
-  z.object({
-    email: z.string().email().refine(
-      async (email) => await checkEmailUnique(email),
-      { message: 'Email already in use' }
-    ),
-  })
-);
-
-const user = await EmailModel.parseAsync({ email: 'test@example.com' });
-```
-
-## License
-
-MIT
-
-## Additional resources
-
-- 📖 [Zod Documentation](https://zod.dev/)
-- 📖 [Examples in repository](../examples.simple-http-server/)
+- [Документация zod](https://zod.dev/)
