@@ -226,7 +226,7 @@ export const createUser = httpEndpoint({
   path: '/users',                    // литерал: path-параметры видны типам
   input: CreateUser,                 // схема входа
   output: z.object({ id: z.string(), name: z.string() }),
-  pipeline: makePipeline().pre(validate()),
+  pipeline: makePipeline().pre(withTiming),
   handle: async (input: CreateUser) =&gt; {
     // input уже проверен схемой и типизирован
     return { id: crypto.randomUUID(), name: input.name };
@@ -241,7 +241,7 @@ const server = new HttpTransport({ port: 3000 });
 const shutdown = new AbortController();
 
 await server.serve(makeDispatch([createUser]), shutdown.signal);</code></pre></div>
-<p>Схема <code>input</code> вместе с <code>.pre(validate())</code> даёт хендлеру типизированный <code>input</code>: не <code>any</code> и не ручное приведение типа. Вернуть можно просто значение (оно оборачивается в <code>Ok</code>) или явно <code>Ok.created(...)</code>. Отказ объявляется через <code>defineFail</code> и перечисляется в <code>errors:</code>. Та же операция для CLI объявляется как <code>cliEndpoint({ command: 'create-user', ... })</code>: меняются только транспортные поля, а схемы, пайплайн и хендлер остаются теми же.</p>
+<p>Схема <code>input</code> даёт хендлеру типизированный <code>input</code>: не <code>any</code> и не ручное приведение типа. Вход по ней проверяет рантайм перед хендлером. Вернуть можно просто значение (оно оборачивается в <code>Ok</code>) или явно <code>Ok.created(...)</code>. Отказ объявляется через <code>defineFail</code> и перечисляется в <code>errors:</code>. Та же операция для CLI объявляется как <code>cliEndpoint({ command: 'create-user', ... })</code>: меняются только транспортные поля, а схемы, пайплайн и хендлер остаются теми же.</p>
 <h2 id="two-levels">Два уровня фреймворка</h2>
 <p>Минимальный уровень выше — это ещё библиотека, а не фреймворк. Когда нужны DI, модули, хуки жизненного цикла и корректная остановка, вы переходите на полный уровень: <code>assemble</code> и модули. <strong>Декларация при этом не меняется</strong>: к ней добавляется <code>deps</code> (или класс-хендлер), а зависимости из контейнера получает <code>App</code>.</p>
 <div class="code" data-file="create-user.endpoint.ts" data-lang="typescript"><pre><code>import { httpEndpoint } from '@nestling/transport.http';

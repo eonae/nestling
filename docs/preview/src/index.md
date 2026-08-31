@@ -91,7 +91,7 @@ export const createUser = httpEndpoint({
   path: '/users',                    // литерал: path-параметры видны типам
   input: CreateUser,                 // схема входа
   output: z.object({ id: z.string(), name: z.string() }),
-  pipeline: makePipeline().pre(validate()),
+  pipeline: makePipeline().pre(withTiming),
   handle: async (input: CreateUser) => {
     // input уже проверен схемой и типизирован
     return { id: crypto.randomUUID(), name: input.name };
@@ -112,7 +112,7 @@ const shutdown = new AbortController();
 await server.serve(makeDispatch([createUser]), shutdown.signal);
 ```
 
-Схема `input` вместе с `.pre(validate())` даёт хендлеру типизированный `input`: не `any` и не ручное приведение типа. Вернуть можно просто значение (оно оборачивается в `Ok`) или явно `Ok.created(...)`. Отказ объявляется через `defineFail` и перечисляется в `errors:`. Та же операция для CLI объявляется как `cliEndpoint({ command: 'create-user', ... })`: меняются только транспортные поля, а схемы, пайплайн и хендлер остаются теми же.
+Схема `input` даёт хендлеру типизированный `input`: не `any` и не ручное приведение типа. Вход по ней проверяет рантайм перед хендлером. Вернуть можно просто значение (оно оборачивается в `Ok`) или явно `Ok.created(...)`. Отказ объявляется через `defineFail` и перечисляется в `errors:`. Та же операция для CLI объявляется как `cliEndpoint({ command: 'create-user', ... })`: меняются только транспортные поля, а схемы, пайплайн и хендлер остаются теми же.
 
 ## Два уровня фреймворка {#two-levels}
 

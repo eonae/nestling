@@ -240,7 +240,6 @@ export const withTiming: PreUnitFn<EmptyInput, { startedAt: number }> =
 const pipeline = makePipeline()
   .pre(withRequestId())      // + { requestId }
   .pre(withIdentity())       // + { identity }  — «guard» это просто pre
-  .pre(validate())           // + типизированный payload
   .catch(mapDomainErrors)    // «exception filter» это просто catch
   .finally(audit);           // наблюдатель исхода
 ```
