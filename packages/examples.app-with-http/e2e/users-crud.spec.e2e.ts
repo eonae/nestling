@@ -1,6 +1,6 @@
 import {
-  createTestApp,
   closeTestApp,
+  createTestApp,
   type TestAppContext,
 } from './helpers/create-test-app';
 import { HttpClient } from './helpers/http-client';
@@ -125,7 +125,10 @@ describe('Users CRUD (E2E)', () => {
 
       // Обновляем
       const update = { name: 'Updated Name' };
-      const response = await client.patch(`/api/users/${createdUser.id}`, update);
+      const response = await client.patch(
+        `/api/users/${createdUser.id}`,
+        update,
+      );
 
       expect(response.status).toBe(200);
 
@@ -205,4 +208,3 @@ describe('Users CRUD (E2E)', () => {
     });
   });
 });
-

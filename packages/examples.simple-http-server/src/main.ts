@@ -67,7 +67,6 @@ server
   })
   .catch((error: unknown) => {
     console.error('Failed to start server:', error);
-    // eslint-disable-next-line unicorn/no-process-exit
     process.exit(1);
   });
 

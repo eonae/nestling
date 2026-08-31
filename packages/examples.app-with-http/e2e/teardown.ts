@@ -1,3 +1,6 @@
+/* eslint-disable no-console --
+ * Хуки прогона печатают границы e2e-сессии в вывод jest
+ */
 /**
  * Логирует завершение прогона e2e-тестов.
  *
@@ -7,4 +10,3 @@
 export default async function globalTeardown() {
   console.log('✅ E2E tests completed');
 }
-

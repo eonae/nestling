@@ -42,7 +42,10 @@ export class HttpClient {
     });
   }
 
-  async delete(path: string, headers?: Record<string, string>): Promise<Response> {
+  async delete(
+    path: string,
+    headers?: Record<string, string>,
+  ): Promise<Response> {
     return fetch(`${this.baseUrl}${path}`, {
       method: 'DELETE',
       headers,
@@ -63,4 +66,3 @@ export class HttpClient {
     });
   }
 }
-

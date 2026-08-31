@@ -1,6 +1,6 @@
 import {
-  createTestApp,
   closeTestApp,
+  createTestApp,
   type TestAppContext,
 } from './helpers/create-test-app';
 import { HttpClient } from './helpers/http-client';
@@ -70,4 +70,3 @@ describe('File Upload (E2E)', () => {
     });
   });
 });
-

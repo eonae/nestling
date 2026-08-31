@@ -58,7 +58,11 @@ class TsServer {
     const promise = new Promise<ServerResponse>((res, rej) => {
       const timer = setTimeout(() => {
         this.pending.delete(seq);
-        rej(new Error(`tsserver: нет ответа на ${command} за ${RESPONSE_TIMEOUT_MS} мс`));
+        rej(
+          new Error(
+            `tsserver: нет ответа на ${command} за ${RESPONSE_TIMEOUT_MS} мс`,
+          ),
+        );
       }, RESPONSE_TIMEOUT_MS);
 
       this.pending.set(seq, {

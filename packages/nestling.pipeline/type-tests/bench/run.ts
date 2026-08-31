@@ -1,3 +1,6 @@
+/* eslint-disable no-console --
+ * Прогон печатает отчёт по бюджету — это его вывод, а не отладка
+ */
 /**
  * Прогон бюджета типового механизма pipeline.
  *
@@ -22,11 +25,12 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import ts from 'typescript';
-
 import { createProgram, typeTestsDir } from '../support/compile.js';
+
 import { BASE_SOURCE, generateGraph } from './generate.js';
 import { measureLatency } from './tsserver.js';
+
+import ts from 'typescript';
 
 interface Budget {
   layers: number;
@@ -100,7 +104,7 @@ function prepare(budget: Budget): {
 }
 
 function formatNumber(value: number): string {
-  return value.toLocaleString('en-US').replace(/,/g, ' ');
+  return value.toLocaleString('en-US').replaceAll(',', ' ');
 }
 
 async function main(): Promise<void> {
@@ -205,7 +209,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.error(`Бюджет нарушен:\n${failures.map((f) => `  - ${f}`).join('\n')}\n`);
+  console.error(
+    `Бюджет нарушен:\n${failures.map((f) => `  - ${f}`).join('\n')}\n`,
+  );
   console.error(
     'Порог двигается только вместе с новой записью замера в type-tests/BUDGET.md.\n',
   );

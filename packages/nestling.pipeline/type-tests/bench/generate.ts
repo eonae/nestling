@@ -90,8 +90,7 @@ export function generateGraph({
   const hoverLine = lines.length + 1;
   lines.push(`export const probeHover = composed;`);
   const completionLine = lines.length + 1;
-  lines.push(`export const probeCompletion = composed.bind(resolve);`);
-  lines.push('');
+  lines.push(`export const probeCompletion = composed.bind(resolve);`, '');
 
   return {
     source: lines.join('\n'),

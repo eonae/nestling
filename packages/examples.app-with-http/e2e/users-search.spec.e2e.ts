@@ -1,6 +1,6 @@
 import {
-  createTestApp,
   closeTestApp,
+  createTestApp,
   type TestAppContext,
 } from './helpers/create-test-app';
 import { HttpClient } from './helpers/http-client';
@@ -47,7 +47,9 @@ describe('Users Search (E2E)', () => {
     });
 
     it('должен вернуть пустой массив если ничего не найдено', async () => {
-      const response = await client.get('/api/users/search?q=NonExistentUser12345');
+      const response = await client.get(
+        '/api/users/search?q=NonExistentUser12345',
+      );
 
       expect(response.status).toBe(200);
       expect(response.headers.get('x-total-count')).toBe('0');
@@ -72,4 +74,3 @@ describe('Users Search (E2E)', () => {
     });
   });
 });
-

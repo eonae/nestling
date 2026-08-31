@@ -1,9 +1,9 @@
+import { OpsFeature, UsersFeature } from '../../src/features';
+
 import type { App } from '@nestling/app';
 import { assemble } from '@nestling/app';
 import { valueProvider } from '@nestling/container';
 import { HttpTransport, HttpTransport$ } from '@nestling/transport.http';
-
-import { OpsFeature, UsersFeature } from '../../src/features';
 
 export interface TestAppContext {
   app: App;
