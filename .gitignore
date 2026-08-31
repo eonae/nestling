@@ -49,3 +49,6 @@ memory-bank/
 
 # Синтетический граф бюджета типов (генерируется type-tests/bench)
 type-tests/.generated
+
+# Рабочие копии git worktree сессий Claude Code
+.claude/worktrees/
