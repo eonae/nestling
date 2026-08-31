@@ -78,4 +78,4 @@
 - [x] 10.5 `yarn docs:audit` — 0 ERROR
 - [x] 10.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены с обновлённой датой в плашке «сверено с кодом»
 - [x] 10.7 Линтер стиля: `node .claude/skills/docs-style/scripts/lint.mjs` по изменённым текстам — 0 запрещённых слов
-- [ ] 10.8 Коммиты осмысленные, ветка `change/remove-module-exports` запушена
+- [x] 10.8 Коммиты осмысленные, ветка `change/remove-module-exports` запушена
