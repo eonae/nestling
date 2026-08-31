@@ -1,6 +1,6 @@
 # Composition root: `assemble`, фичи и фазы
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-08-29).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
 > Разделы про конфиг и `@OnStart` сверены с `examples.simple-app`,
 > раздел про standalone — с `examples.simple-http-server`.
 

@@ -1,6 +1,6 @@
 # Тестирование приложения: `assembleTest`, `.check()`, `./testing`
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-08-29).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
 > Раздел 4 сверен с тестом изоляции фичи в `examples.split-nats`.
 
 `@nestling/testing` — тестовый composition root. Он собирает то же
