@@ -12,8 +12,9 @@
   },
   "scripts": {
     "clear": "rm -rf dist",
-    "build": "yarn run clear && run -T tsc",
-    "lint": "run -T eslint 'src/**/*.ts'",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
     "type-budget": "run -T tsx type-tests/bench/run.ts"

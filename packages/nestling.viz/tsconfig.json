@@ -1,27 +1,23 @@
 {
+  // Проект пакета: по нему работают редактор и ESLint. Покрывает весь
+  // TypeScript пакета — и CLI, и React-приложение под `src/static`.
+  // Сборку делают esbuild (CLI) и vite (веб), поэтому `tsconfig.build.json`
+  // здесь нет, а tsc только тайпчекает
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
+    "noEmit": true,
     "skipLibCheck": true,
 
-    /* Bundler mode */
-    "moduleResolution": "bundler",
+    // Веб-часть: React и браузерное окружение
+    "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
 
-    /* Linting */
-    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Paths */
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/static/src/*"],
@@ -31,6 +27,7 @@
       "@types/*": ["src/static/src/types/*"]
     }
   },
-  "include": ["src/static/src", "src/cli.ts"],
+  "include": ["src"],
+  "exclude": ["dist", "node_modules"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

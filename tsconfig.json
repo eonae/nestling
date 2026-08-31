@@ -1,8 +1,10 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // Корневой конфиг используется только редактором и ad-hoc запусками tsc из корня.
-    // Сборка пакетов идёт через их собственные tsconfig, наследующие tsconfig.base.json.
+    // Корневой конфиг — запасной вариант редактора для файлов вне пакетов и
+    // ad-hoc запуски tsc из корня. Каждый файл пакета покрыт его собственным
+    // `packages/*/tsconfig.json`, сборка идёт по `tsconfig.build.json`
     "noEmit": true
-  }
+  },
+  "exclude": ["node_modules", "dist", "packages/*/dist"]
 }

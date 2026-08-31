@@ -16,12 +16,13 @@
   },
   "scripts": {
     "clear": "rm -rf dist",
-    "build": "yarn run clear && yarn build:cli && yarn build:web",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run typecheck && yarn run clear && yarn run build:cli && yarn run build:web",
     "build:cli": "node esbuild.config.js",
     "build:web": "run -T vite build",
     "dev": "run -T vite",
     "preview": "run -T vite preview",
-    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },

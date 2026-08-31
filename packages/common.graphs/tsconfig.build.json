@@ -1,0 +1,17 @@
+{
+  // Сборка пакета. Отличается от проекта пакета только тем, что эмитит в
+  // `dist` и не берёт туда спеки
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts"
+  ]
+}

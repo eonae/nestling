@@ -1,13 +1,15 @@
 {
+  // Проект пакета: по нему работают редактор и ESLint. Покрывает весь
+  // TypeScript пакета, спеки в том числе, — иначе у них нет типов
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
-    // `await using` в app-тестах примера
-    "lib": ["es2022", "dom", "dom.iterable", "esnext.disposable"],
+    // Сборка идёт по `tsconfig.build.json`
+    "noEmit": true,
+
     // Двойник брокера живёт по ту сторону условия `testing`: без него
     // subpath-шов не резолвится при typecheck
     "customConditions": ["testing"]
   },
-  "include": ["src/**/*"]
+  "include": ["src"],
+  "exclude": ["dist", "node_modules"]
 }

@@ -10,15 +10,16 @@
   },
   "scripts": {
     "clear": "rm -rf dist",
-    "typecheck": "run -T tsc --noEmit",
+    "typecheck": "run -T tsc -p tsconfig.json",
     "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
     "start": "yarn run build && node dist/bundle.js",
-    "export-metadata": "tsx src/cli.ts",
-    "visualize": "node ../nestling.viz/dist/cli.js di-metadata.json",
-    "visualize:large": "node ../nestling.viz/dist/cli.js graph-data-large.json",
-    "lint": "run -T eslint 'src/**/*.ts'",
+    "start:dev": "run -T tsx src/main.ts",
+    "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
+    "export-metadata": "run -T tsx src/cli.ts",
+    "visualize": "node ../nestling.viz/dist/cli.js di-metadata.json",
+    "visualize:large": "node ../nestling.viz/dist/cli.js graph-data-large.json"
   },
   "dependencies": {
     "@nestling/app": "workspace:*",

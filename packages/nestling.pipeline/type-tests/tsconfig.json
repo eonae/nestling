@@ -1,7 +1,7 @@
 {
   // Конфиг фикстур: файлы под `fixtures/` намеренно НЕ компилируются —
   // их диагностики и есть предмет снапшот-тестов. Каталог исключён из
-  // `build` и `lint` пакета (см. tsconfig.json / tsconfig.lint.json).
+  // проекта пакета и из линта (см. tsconfig.json пакета и .config/eslint.config.js).
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,

@@ -3,19 +3,31 @@
   "namedInputs": {
     "tsconfigs": [
       "{projectRoot}/tsconfig.json",
-      "{projectRoot}/tsconfig.lint.json"
+      "{projectRoot}/tsconfig.build.json"
     ],
     "src": [
       "{projectRoot}/src/**/*.ts"
     ],
-    "test": [
+    "sources": [
       "{projectRoot}/src/**/*",
-      "{projectRoot}/__test__/**/*",
-      "{projectRoot}/test/**/*",
-      "{projectRoot}/test.e2e/**/*",
-      "{projectRoot}/__test.e2e__/**/*",
+      "{projectRoot}/e2e/**/*",
       "{projectRoot}/type-tests/**/*",
-      "!{projectRoot}/type-tests/.generated/**/*",
+      "!{projectRoot}/type-tests/.generated/**/*"
+    ],
+    "build": [
+      "src",
+      "!{projectRoot}/src/**/*.{spec,test}.ts",
+      "{projectRoot}/package.json",
+      "tsconfigs"
+    ],
+    "check": [
+      "sources",
+      "{projectRoot}/eslint.config.js",
+      "tsconfigs",
+      "{projectRoot}/package.json"
+    ],
+    "test": [
+      "sources",
       "tsconfigs",
       "{projectRoot}/jest.config.*",
       "{projectRoot}/package.json"
@@ -24,22 +36,6 @@
       "src",
       "{projectRoot}/type-tests/**/*",
       "!{projectRoot}/type-tests/.generated/**/*",
-      "tsconfigs",
-      "{projectRoot}/package.json"
-    ],
-    "build": [
-      "src",
-      "!{projectRoot}/**/*.{spec,test,test.e2e,spec.e2e}.ts",
-      "!{projectRoot}/__test__/**/*",
-      "!{projectRoot}/test/**/*",
-      "!{projectRoot}/test.e2e/**/*",
-      "!{projectRoot}/__test.e2e__/**/*",
-      "{projectRoot}/package.json",
-      "tsconfigs"
-    ],
-    "lint": [
-      "src",
-      "{projectRoot}/.eslint*",
       "tsconfigs",
       "{projectRoot}/package.json"
     ]
@@ -57,9 +53,18 @@
       ],
       "cache": true
     },
+    "typecheck": {
+      "inputs": [
+        "check"
+      ],
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": true
+    },
     "lint": {
       "inputs": [
-        "lint"
+        "check"
       ],
       "cache": true
     },

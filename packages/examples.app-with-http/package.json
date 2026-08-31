@@ -12,17 +12,15 @@
   },
   "scripts": {
     "clear": "rm -rf dist",
-    "typecheck": "run -T tsc --noEmit",
+    "typecheck": "run -T tsc -p tsconfig.json",
     "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
     "start": "yarn run build && node dist/bundle.js",
     "start:dev": "run -T tsx src/main.ts",
-    "lint": "run -T eslint 'src/**/*.ts'",
+    "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.config.js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
     "test:e2e": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.e2e.config.js",
-    "test:all": "yarn test && yarn test:e2e",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules run -T jest --watch",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules run -T jest --coverage",
+    "test:all": "yarn run test && yarn run test:e2e",
     "client": "run -T tsx src/api.client.ts"
   },
   "dependencies": {

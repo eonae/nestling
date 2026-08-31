@@ -7,7 +7,14 @@ import { dirname } from 'path';
 /** Корень монорепы: базовая конфигурация лежит именно в нём */
 const repoRoot = dirname(fileURLToPath(import.meta.url));
 
-export function createJestConfig(fileUrl) {
+/**
+ * Конфигурация Jest для пакета.
+ *
+ * @param fileUrl - `import.meta.url` конфига пакета
+ * @param overrides - Поля, которыми пакет уточняет базу; так собран,
+ * например, отдельный прогон e2e
+ */
+export function createJestConfig(fileUrl, overrides = {}) {
   const __filename = fileURLToPath(fileUrl);
   const rootDir = dirname(__filename);
 
@@ -70,5 +77,6 @@ export function createJestConfig(fileUrl) {
       '^@nestling/(.*)$': '<rootDir>/../nestling.$1/src/index.ts',
       '^@common/(.*)$': '<rootDir>/../common.$1/src/index.ts',
     },
+    ...overrides,
   };
 }

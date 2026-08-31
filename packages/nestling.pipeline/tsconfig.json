@@ -1,12 +1,11 @@
 {
+  // Проект пакета: по нему работают редактор и ESLint. Покрывает весь
+  // TypeScript пакета, спеки в том числе, — иначе у них нет типов
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    // Сборка идёт по `tsconfig.build.json`
+    "noEmit": true
   },
-  // Явный include: каталог `type-tests/` содержит фикстуры, которые
-  // ОБЯЗАНЫ не компилироваться (их диагностики — предмет снапшотов),
-  // и в сборку пакета попадать не должен.
-  "include": ["src"]
+  "include": ["src", "type-tests"],
+  "exclude": ["dist", "node_modules", "type-tests/fixtures"]
 }
-

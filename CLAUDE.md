@@ -72,6 +72,34 @@ docs/
 механические инварианты, без аргументов — полный аудит с семантикой,
 `fix` — применить безопасные починки).
 
+## Конфигурация пакетов
+
+Все пакеты собраны одинаково. Новый пакет копирует этот набор целиком:
+
+| Файл | Роль |
+| --- | --- |
+| `tsconfig.json` | Проект пакета: редактор и ESLint. Покрывает весь TypeScript пакета — `src`, спеки, `e2e`, `type-tests`. `noEmit` |
+| `tsconfig.build.json` | Сборка: эмитит `src` в `dist` без спеков. Только у пакетов, которые собирает tsc |
+| `eslint.config.js` | `createEslintConfig(import.meta.url)` из `.config/eslint.config.js` |
+| `jest.config.js` | `createJestConfig(import.meta.url)` из `jest.config.base.js` |
+
+Общие compilerOptions живут в `tsconfig.base.json` — там же список `types`.
+Пакетный `tsconfig.json` добавляет только то, что верно про этот пакет:
+например `customConditions: ["testing"]`.
+
+Скрипты в `package.json` тоже одинаковые: `clear`, `typecheck`, `build`,
+`lint`, `lint:fix`, `test`. Библиотека собирается через
+`tsc -p tsconfig.build.json`, пример — через `esbuild.config.js`.
+
+Два правила, которые легко нарушить:
+
+- **Спеки входят в проект пакета, но не в сборку.** Исключишь их из
+  `tsconfig.json` — в редакторе пропадут типы `describe` и `expect`.
+  Забудешь исключить в `tsconfig.build.json` — они уедут в `dist`.
+- **ESLint читает пакетный `tsconfig.json`.** Файл, не входящий в проект,
+  линтер не разберёт: сгенерированное и фикстуры перечислены в `ignores`
+  общего конфига.
+
 ## Workflow изменений (openspec)
 
 Доработки до целевого состояния идут changes'ами. Порядок работ — волнами,
@@ -86,7 +114,8 @@ docs/
 последний раздел; для более ранних — держи список отсюда):
 
 1. все задачи `tasks.md` отмечены;
-2. `yarn verify` зелёный (`build` + `lint` + `test` по всем пакетам);
+2. `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` + `type-budget`
+   по всем пакетам);
 3. README затронутых пакетов обновлены, включая плашки статуса;
 4. `design/` и `decisions/` синхронизированы по правилам выше;
 5. `yarn docs:audit` → 0 ERROR;

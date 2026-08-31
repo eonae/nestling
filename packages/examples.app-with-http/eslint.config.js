@@ -1,4 +1,4 @@
-import base from '../../.config/eslint.config.js';
+import { createEslintConfig } from '../../.config/eslint.config.js';
 
 import nestling from '@nestling/eslint-plugin';
 
@@ -12,7 +12,7 @@ import nestling from '@nestling/eslint-plugin';
  * имя слоя (`observability`) — свойство этого приложения, а не репозитория.
  */
 export default [
-  ...base,
+  ...createEslintConfig(import.meta.url),
   {
     files: ['src/**/*.ts'],
     plugins: { '@nestling': nestling },
