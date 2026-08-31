@@ -112,11 +112,13 @@ Schema v1 (нет `~standard` либо `~standard.version !== 1`), ядро SHAL
 сопутствующие `SchemaValidationError`, `SchemaIssue`, `normalizeIssues`,
 `assertStandardSchema`, `AsyncSchemaNotSupportedError`,
 `NotAStandardSchemaError` из прежнего места, чтобы публичный API не менялся).
-Через неё проходят `parsePayload`, `parseMetadata`, pipeline-юнит `validate()`,
-поэлементная валидация элементов потока в транспорте, fallback-ветки
-транспортов без pipeline и валидация полей секций конфига.
+Через неё проходят `parsePayload`, `parseMetadata`, проверка входа
+endpoint'а рантаймом пайплайна (capability `endpoint-input-validation`),
+поэлементная валидация элементов потока и валидация полей секций конфига.
 Прямые вызовы `schema.parse(...)` и дак-тайп-интерфейсы вида
 `{ parse(data: unknown): T }` SHALL быть удалены из ядра и транспортов.
+Транспорты SHALL NOT содержать собственных веток валидации payload: они
+собирают значение, а проверяет его рантайм.
 
 Дом функции — `@common/misc`, а не `@nestling/pipeline`, потому что
 конфигурация читается и валидируется до существования запроса: зависимость
@@ -125,9 +127,9 @@ Schema v1 (нет `~standard` либо `~standard.version !== 1`), ядро SHAL
 
 #### Scenario: Одинаковая ошибка на разных путях
 
-- **WHEN** одна и та же невалидная запись проходит валидацию через юнит
-  `validate()` и через fallback-ветку транспорта без pipeline
-- **THEN** в обоих случаях получается `SchemaValidationError` с одинаковой
+- **WHEN** одна и та же невалидная запись приходит endpoint'у с
+  пайплайном и endpoint'у без пайплайна
+- **THEN** в обоих случаях ответ несёт `VALIDATION_FAILED` с одинаковой
   формой `issues`
 
 #### Scenario: Поэлементная валидация потока
