@@ -1,6 +1,6 @@
 # Composition root: `assemble`, фичи и фазы
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-08-29).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
 > Разделы про конфиг и `@OnStart` сверены с `examples.simple-app`,
 > раздел про standalone — с `examples.simple-http-server`.
 
@@ -180,7 +180,6 @@ export const logging = (options: LoggingOptions): Module =>
       ),
       AuditOutcome,          // юнит слоя регистрируется вместе с модулем
     ],
-    exports: [ILogger],
   });
 ```
 
@@ -206,9 +205,9 @@ export const UsersModule = makeAppModule({
 
 ```
 Two different modules are named 'module:logging'. A module name is the
-attribution key of its providers, exports and endpoints, so it must be
-unique. Either share one module value between its consumers (create it once
-and import that value), or give the two configurations different names. If
+attribution key of its providers and endpoints, so it must be unique.
+Either share one module value between its consumers (create it once and
+import that value), or give the two configurations different names. If
 neither is the case, check for a duplicated package in your dependencies -
 two copies give two values of the same module.
 ```

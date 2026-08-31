@@ -53,7 +53,6 @@ export const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>('Health
 export const DbModule = makeAppModule({
   name: 'module:db',
   providers: [classProvider(IHealthCheck('db'), DbHealthCheck)],
-  exports: [IHealthCheck],   // явное объявление: «я добавляю член семейства»
 });
 ```
 

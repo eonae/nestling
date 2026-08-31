@@ -106,7 +106,6 @@ export class Database {
 export const DbModule = makeAppModule({
   name: 'module:db',
   providers: [classProvider(IHealthCheck('db'), DbHealthCheck)],
-  exports: [IHealthCheck],   // явное объявление: «я добавляю член семейства»
 });</code></pre></div>
 <div class="code" data-file="health.endpoint.ts — агрегатор" data-lang="typescript"><pre><code>@Injectable([IHealthCheck.all])   // TokenString&lt;HealthCheck[]&gt;
 export class HealthEndpoint {
