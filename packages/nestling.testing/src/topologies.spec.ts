@@ -38,7 +38,6 @@ const LoggingFeature = makeFeature({
     makeAppModule({
       name: 'module:logging',
       providers: [valueProvider(ILogger, { log: (): void => undefined })],
-      exports: [ILogger],
     }),
   ],
 });

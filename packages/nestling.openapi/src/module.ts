@@ -124,7 +124,6 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
       ),
     ],
     endpoints: [document],
-    exports: [OpenApiDocument$],
   });
 }
 

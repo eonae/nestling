@@ -91,5 +91,4 @@ export const configKernel = (
       deps: [ConfigReaderToken],
     })),
   ],
-  exports: [ConfigSection, Config],
 });

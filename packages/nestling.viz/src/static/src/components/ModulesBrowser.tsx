@@ -73,8 +73,6 @@ interface ModuleCardProps {
 }
 
 function ModuleCard({ module, isFocused, onClick }: ModuleCardProps) {
-  const exportedCount = module.components.filter((c) => c.exported).length;
-
   return (
     <div
       className={`module-group clickable-module ${isFocused ? 'focused-module' : ''}`}
@@ -93,7 +91,6 @@ function ModuleCard({ module, isFocused, onClick }: ModuleCardProps) {
             <span className="module-count">
               {module.components.length} nodes
             </span>
-            <span className="module-exports">{exportedCount} exported</span>
           </div>
         </div>
       </div>

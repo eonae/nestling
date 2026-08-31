@@ -49,5 +49,4 @@ export const logging = (options: LoggingOptions): Module =>
       // Юнит слоя наблюдаемости: без него слой не соберётся
       AuditOutcome,
     ],
-    exports: [ILogger],
   });

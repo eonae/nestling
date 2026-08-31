@@ -47,7 +47,6 @@ export function GraphRenderer({ graphData, eventBus }: GraphRendererProps) {
                   .map((link) => link.target),
                 metadata: {
                   module: node.module,
-                  exported: node.exported,
                 },
               })),
             }),

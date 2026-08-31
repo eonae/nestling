@@ -23,15 +23,6 @@ export function NodeTooltip({ node, position, visible }: NodeTooltipProps) {
       </div>
 
       <div className="node-tooltip-row">
-        <span className="node-tooltip-label">Exported:</span>{' '}
-        <span
-          className={`node-tooltip-exported-${node.exported ? 'yes' : 'no'}`}
-        >
-          {node.exported ? 'yes' : 'no'}
-        </span>
-      </div>
-
-      <div className="node-tooltip-row">
         <span className="node-tooltip-label">Dependencies:</span>{' '}
         <span>{node.dependencyCount || 0}</span>
       </div>

@@ -372,24 +372,6 @@ body {
     padding-left: 20px;
 }
 
-.node-item.exported {
-    color: var(--accent-success);
-    font-weight: 500;
-}
-
-.node-item.exported::before {
-    content: "⚡";
-    margin-right: 6px;
-    color: var(--accent-success);
-}
-
-.node-item:not(.exported)::before {
-    content: "○";
-    margin-right: 6px;
-    color: var(--text-gray-light);
-    font-size: 8px;
-}
-
 .no-module-group {
     opacity: 0.6;
     border-color: var(--border-white-light);
@@ -585,14 +567,6 @@ body {
 .node-tooltip-label {
     color: var(--text-white);
     font-weight: 500;
-}
-
-.node-tooltip-exported-yes {
-    color: var(--accent-success);
-}
-
-.node-tooltip-exported-no {
-    color: var(--accent-error);
 }
 
 /* Error styles */
@@ -866,15 +840,6 @@ body {
     border-color: var(--border-accent);
 }
 
-.module-detail-panel .node-item.exported {
-    border-left: 3px solid var(--accent-secondary);
-    background: var(--bg-secondary-light);
-}
-
-.module-detail-panel .node-item.exported:hover {
-    background: var(--bg-secondary-medium);
-}
-
 .node-name {
     color: var(--text-primary);
     font-size: 13px;
@@ -890,11 +855,6 @@ body {
     background: var(--bg-overlay-light);
     padding: 2px 6px;
     border-radius: 3px;
-}
-
-.module-detail-panel .node-item.exported .node-type {
-    color: var(--accent-secondary);
-    background: var(--bg-secondary-medium);
 }
 
 @keyframes slideInFromTop {

@@ -8,6 +8,5 @@ import { makeModule } from '@nestling/container';
 export const UsersModule = makeModule({
   name: 'module:users',
   providers: [UserRepository, UserService],
-  exports: [UserService],
   imports: [DatabaseModule],
 });

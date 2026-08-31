@@ -1,7 +1,6 @@
 export interface GraphNode {
   id: string;
   name: string;
-  exported: boolean;
   color: string;
   size: number;
   dependencyCount: number;

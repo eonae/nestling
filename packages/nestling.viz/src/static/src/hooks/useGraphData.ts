@@ -43,7 +43,6 @@ function transformData(rawData: ExportedGraph): GraphData {
     id: node.id,
     name: node.id,
     module: node.metadata.module || 'no module',
-    exported: node.metadata.exported || false,
     color: getModuleColor(node.metadata.module),
     size: Math.max(4, node.dependencies.length + 2),
     dependencyCount: node.dependencies.length,

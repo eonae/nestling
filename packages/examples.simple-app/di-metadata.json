@@ -1,52 +1,101 @@
 {
   "nodes": [
     {
-      "id": "Config",
+      "id": "kernel:ConfigReader",
       "metadata": {
-        "module": "module:config",
-        "exported": true
+        "module": "kernel:config"
       },
       "dependencies": []
     },
     {
+      "id": "ConfigSection:app",
+      "metadata": {
+        "module": "kernel:config"
+      },
+      "dependencies": [
+        "kernel:ConfigReader"
+      ]
+    },
+    {
+      "id": "ConfigSection:health",
+      "metadata": {
+        "module": "kernel:config"
+      },
+      "dependencies": [
+        "kernel:ConfigReader"
+      ]
+    },
+    {
       "id": "Logger:db",
-      "metadata": {},
-      "dependencies": []
+      "metadata": {
+        "module": "module:logging"
+      },
+      "dependencies": [
+        "ConfigSection:app"
+      ]
+    },
+    {
+      "id": "Logger:UserRepository",
+      "metadata": {
+        "module": "module:logging"
+      },
+      "dependencies": [
+        "ConfigSection:app"
+      ]
     },
     {
       "id": "Logger:users",
-      "metadata": {},
-      "dependencies": []
+      "metadata": {
+        "module": "module:logging"
+      },
+      "dependencies": [
+        "ConfigSection:app"
+      ]
     },
     {
       "id": "Logger:api",
-      "metadata": {},
-      "dependencies": []
+      "metadata": {
+        "module": "module:logging"
+      },
+      "dependencies": [
+        "ConfigSection:app"
+      ]
+    },
+    {
+      "id": "Logger:HealthService",
+      "metadata": {
+        "module": "module:logging"
+      },
+      "dependencies": [
+        "ConfigSection:app"
+      ]
     },
     {
       "id": "Logger:app",
-      "metadata": {},
-      "dependencies": []
+      "metadata": {
+        "module": "module:logging"
+      },
+      "dependencies": [
+        "ConfigSection:app"
+      ]
     },
     {
       "id": "Database",
       "metadata": {
-        "module": "module:database",
-        "exported": true
+        "module": "module:database"
       },
       "dependencies": [
-        "Config",
+        "ConfigSection:app",
         "Logger:db"
       ]
     },
     {
       "id": "ApiClient",
       "metadata": {
-        "module": "module:api",
-        "exported": true
+        "module": "module:api"
       },
       "dependencies": [
-        "Config",
+        "ConfigSection:app",
         "Logger:api"
       ]
     },
@@ -60,24 +109,60 @@
       ]
     },
     {
-      "id": "UserRepository",
+      "id": "HealthCheck:database",
       "metadata": {
-        "module": "module:users",
-        "exported": false
+        "module": "module:database"
       },
       "dependencies": [
         "Database"
       ]
     },
     {
+      "id": "UserRepository",
+      "metadata": {
+        "module": "module:users"
+      },
+      "dependencies": [
+        "Database",
+        "Logger:UserRepository"
+      ]
+    },
+    {
+      "id": "HealthCheck:api",
+      "metadata": {
+        "module": "module:api"
+      },
+      "dependencies": [
+        "ApiClient"
+      ]
+    },
+    {
       "id": "UserService",
       "metadata": {
-        "module": "module:users",
-        "exported": true
+        "module": "module:users"
       },
       "dependencies": [
         "UserRepository",
         "Logger:users"
+      ]
+    },
+    {
+      "id": "HealthCheck:{all}",
+      "metadata": {},
+      "dependencies": [
+        "HealthCheck:database",
+        "HealthCheck:api"
+      ]
+    },
+    {
+      "id": "HealthService",
+      "metadata": {
+        "module": "module:health"
+      },
+      "dependencies": [
+        "HealthCheck:{all}",
+        "ConfigSection:health",
+        "Logger:HealthService"
       ]
     }
   ]

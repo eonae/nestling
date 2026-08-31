@@ -2,7 +2,6 @@ export interface GraphNode {
   id: string | number;
   name: string;
   module?: string;
-  exported?: boolean;
   color: string;
   size: number;
   dependencyCount: number;
@@ -22,7 +21,6 @@ export interface ExportedGraphNode {
   id: string;
   metadata: {
     module?: string;
-    exported?: boolean;
   };
   dependencies: string[];
 }

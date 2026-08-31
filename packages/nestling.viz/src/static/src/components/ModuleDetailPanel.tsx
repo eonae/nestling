@@ -126,8 +126,6 @@ interface ModuleContentProps {
 }
 
 function ModuleContent({ moduleData }: ModuleContentProps) {
-  const exportedCount = moduleData.nodes.filter((n) => n.exported).length;
-
   return (
     <>
       <div className="module-detail-header">
@@ -145,22 +143,13 @@ function ModuleContent({ moduleData }: ModuleContentProps) {
           <span className="stat-label">Nodes:</span>
           <span className="stat-value">{moduleData.nodes.length}</span>
         </div>
-        <div className="stat-item">
-          <span className="stat-label">Exported:</span>
-          <span className="stat-value">{exportedCount}</span>
-        </div>
       </div>
 
       <div className="nodes-list">
         <h5>Module Components:</h5>
         <div className="node-items">
           {moduleData.nodes
-            .sort((a, b) => {
-              if (a.exported !== b.exported) {
-                return a.exported ? -1 : 1;
-              }
-              return a.name.localeCompare(b.name);
-            })
+            .sort((a, b) => a.name.localeCompare(b.name))
             .map((node) => (
               <NodeItem key={node.id} node={node} />
             ))}
@@ -177,15 +166,10 @@ interface NodeItemProps {
 function NodeItem({ node }: NodeItemProps) {
   return (
     <div
-      className={`node-item-container ${node.exported ? 'exported' : ''}`}
-      title={`${node.name}\nExported: ${node.exported ? 'yes' : 'no'}\nDependencies: ${node.dependencyCount || 0}`}
+      className="node-item-container"
+      title={`${node.name}\nDependencies: ${node.dependencyCount || 0}`}
     >
-      <span className={`node-item-name ${node.exported ? 'exported' : ''}`}>
-        {node.name}
-      </span>
-      <span className={`node-item-type ${node.exported ? 'exported' : ''}`}>
-        {node.exported ? 'exported' : 'internal'}
-      </span>
+      <span className="node-item-name">{node.name}</span>
     </div>
   );
 }

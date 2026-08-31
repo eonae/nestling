@@ -81,6 +81,5 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Module => {
     // Юниты слоя едут вместе с модулем: слой без своего реестра не
     // соберётся, и это отказ на ASSEMBLE, а не на первом запросе
     providers: [registry, TrackSubscription, UntrackSubscription],
-    exports: [SubscriptionRegistry],
   });
 };

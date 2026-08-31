@@ -30,5 +30,4 @@ export const contextKernel = (): Module => ({
       valueProvider(CtxFamily(key), makeCtxReader(key)),
     ),
   ],
-  exports: [CtxFamily],
 });

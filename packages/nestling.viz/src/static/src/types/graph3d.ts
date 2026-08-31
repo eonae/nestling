@@ -6,7 +6,6 @@ export interface ForceGraphNode extends NodeObject {
   // Наши доменные свойства
   name: string;
   module?: string;
-  exported?: boolean;
   color: string;
   size: number;
   dependencyCount: number;
@@ -36,7 +35,6 @@ export const adaptNodeToForceGraph = (node: GraphNode): ForceGraphNode => ({
   id: node.id,
   name: node.name,
   module: node.module,
-  exported: node.exported,
   color: node.color,
   size: node.size,
   dependencyCount: node.dependencyCount,
@@ -56,7 +54,6 @@ export const adaptNodeFromForceGraph = (node: ForceGraphNode): GraphNode => ({
   id: String(node.id),
   name: node.name,
   module: node.module || 'no module',
-  exported: node.exported || false,
   color: node.color,
   size: node.size,
   dependencyCount: node.dependencyCount,

@@ -38,5 +38,4 @@ export const ApiModule = makeModule({
     // Второй вклад в то же семейство — из другого модуля, без правки первого.
     classProvider(IHealthCheck('api'), ApiHealthCheck),
   ],
-  exports: [IApiClient, IHealthCheck],
 });

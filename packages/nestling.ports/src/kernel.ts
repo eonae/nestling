@@ -350,7 +350,6 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
   return {
     name: 'kernel:ports',
     providers,
-    exports: [PortFamily, EmitterFamily, MessageBus$, BusTransport$],
   };
 };
 
