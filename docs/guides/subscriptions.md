@@ -1,6 +1,6 @@
 # Реестр подписок
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-08-29).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
 
 Открытая подписка (`events(T)`, SSE) живёт минутами и часами. Рано или
 поздно о ней спрашивают эксплуатационно: сколько их сейчас, чьи они, почему
@@ -77,7 +77,7 @@ export const ActivityStream = httpEndpoint({
   path: '/api/users/activity',
   output: events(ActivityEvent),
   sse: { id: (event) => event.id, event: (event) => event.kind },
-  pipeline: compose(noValidationPipeline, tracked, subscriptionObserver),
+  pipeline: compose(basePipeline, tracked, subscriptionObserver),
   deps: [ActivityHub],
   handle:
     (hub: ActivityHub) =>
@@ -188,7 +188,7 @@ export const WatchSubscriptions = httpEndpoint({
   path: '/api/ops/subscriptions/live',
   output: events(SubscriptionChange),
   sse: { id: (change) => change.subscription.id, event: (change) => change.type },
-  pipeline: compose(noValidationPipeline, tracked),   // лента сама отслеживается
+  pipeline: compose(basePipeline, tracked),   // лента сама отслеживается
   deps: [SubscriptionRegistry],
   handle:
     (registry: SubscriptionRegistry) =>

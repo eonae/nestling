@@ -1,6 +1,6 @@
 # Приложение с DI: `assemble`, модули, декларации endpoint'ов
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-08-29).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
 > Полное описание деклараций — [design/endpoints.md](../design/endpoints.md).
 > Запускаемый код — [`packages/examples.app-with-http/`](../../packages/examples.app-with-http/).
 
@@ -325,7 +325,7 @@ export const UploadAvatar = httpEndpoint({
   }),
   output: UploadAvatarOutput,
   errors: [InvalidAvatar, UserNotFound],
-  pipeline: noValidationPipeline,
+  pipeline: basePipeline,
   handle: UploadAvatarHandler,              // класс-хендлер: DI как обычно
 });
 ```
@@ -361,7 +361,7 @@ export const ActivityStream = httpEndpoint({
   path: '/api/users/activity',
   output: events(ActivityEventSchema),      // кадрирование — SSE
   sse: { id: (e) => e.id, event: (e) => e.kind },
-  pipeline: compose(noValidationPipeline, subscriptionObserver),
+  pipeline: compose(basePipeline, subscriptionObserver),
   deps: [ActivityHub],
   handle:
     (hub: ActivityHub) =>
