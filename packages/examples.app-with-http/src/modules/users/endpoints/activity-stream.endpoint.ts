@@ -1,4 +1,4 @@
-import { noValidationPipeline } from '../../../common/pipelines';
+import { basePipeline } from '../../../common/pipelines';
 import { ActivityHub } from '../activity.hub';
 
 import type { Output } from '@nestling/pipeline';
@@ -8,14 +8,14 @@ import { tracked } from '@nestling/subscriptions';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
-const ActivityEventSchema = z.object({
+const ActivityEvent = z.object({
   id: z.string(),
   kind: z.enum(['created', 'updated', 'deleted']),
   userId: z.string(),
   at: z.string(),
 });
 
-type ActivityEventOut = z.infer<typeof ActivityEventSchema>;
+type ActivityEvent = z.infer<typeof ActivityEvent>;
 
 /**
  * Наблюдатель подписки.
@@ -53,12 +53,12 @@ const subscriptionObserver = makePipeline<{ requestId: string }>().finally(
 export const ActivityStream = httpEndpoint({
   method: 'GET',
   path: '/api/users/activity',
-  output: events(ActivityEventSchema),
+  output: events(ActivityEvent),
   sse: {
     id: (event) => event.id,
     event: (event) => event.kind,
   },
-  pipeline: compose(noValidationPipeline, tracked, subscriptionObserver),
+  pipeline: compose(basePipeline, tracked, subscriptionObserver),
   deps: [ActivityHub],
   handle:
     (hub: ActivityHub) =>
@@ -68,7 +68,7 @@ export const ActivityStream = httpEndpoint({
         subscription: TrackedSubscription;
         lastEventId?: string;
       },
-    ): Output<AsyncIterable<ActivityEventOut>> => {
+    ): Output<AsyncIterable<ActivityEvent>> => {
       if (meta.lastEventId) {
         // Реальная лента отдала бы историю с этого места. Пример лишь
         // показывает, что заголовок пришёл уже типизированным

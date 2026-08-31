@@ -9,7 +9,6 @@
  * начавшему принимать запросы, нечего маршрутизировать.
  */
 
-import type { Schema } from '@common/misc';
 import type {
   AnyEndpointDefinition,
   AnyInput,
@@ -19,13 +18,7 @@ import type {
   ResponseContext,
   UnknownFailInfo,
 } from '@nestling/pipeline';
-import {
-  describeForm,
-  isFail,
-  Ok,
-  parsePayload,
-  runInRequestScope,
-} from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
 
 /**
  * Проекция декларации для транспорта: всё нужное для роутинга и парсинга,
@@ -67,8 +60,11 @@ export interface Dispatch {
   readonly routes: readonly RouteDeclaration[];
 
   /**
-   * Исполняет endpoint: выбирает ветку «с pipeline / без pipeline» и
-   * выполняет её.
+   * Исполняет endpoint рантаймом пайплайна.
+   *
+   * Декларация без `pipeline` исполняется тем же рантаймом с пустым
+   * пайплайном, поэтому проверка входа, проверка ответа по `errors:` и
+   * область контекста запроса работают одинаково у любого endpoint'а.
    *
    * @throws {Error} Если `pattern` не принадлежит этому диспетчеру
    */
@@ -119,63 +115,13 @@ export const toRouteDeclaration = (
 };
 
 /**
- * Ветка «без pipeline»: одна на все транспорты.
+ * Пайплайн без единого юнита: им исполняется декларация без `pipeline`.
  *
- * Scope запроса открывается и здесь — с пустой проекцией и сигналом
- * запроса: глубокий сервис ведёт себя одинаково на обоих путях исполнения,
- * `peek()` даёт `undefined` вместо «контекста нет», а `Ctx(Signal)` —
- * сигнал этого запроса.
+ * Точка исполнения endpoint'а одна, поэтому проверка входа, проверка
+ * ответа по `errors:` и область контекста запроса достаются такой
+ * декларации тем же кодом, что и остальным.
  */
-const callDirectly = async (
-  definition: AnyEndpointDefinition,
-  ctx: ExtendableContext<AnyInput>,
-): Promise<ResponseContext> =>
-  runInRequestScope(ctx.signal, () => executeDirectly(definition, ctx));
-
-const executeDirectly = async (
-  definition: AnyEndpointDefinition,
-  ctx: ExtendableContext<AnyInput>,
-): Promise<ResponseContext> => {
-  const inputForm = describeForm(definition.input);
-
-  // Value-форма со схемой-листом валидируется здесь: без пайплайна
-  // `validate()`-юнита нет, а контракт endpoint'а обязан соблюдаться на
-  // обоих путях исполнения.
-  const payload =
-    inputForm.kind === 'value' &&
-    inputForm.leaf &&
-    inputForm.leaf !== 'binary' &&
-    inputForm.leaf !== 'text'
-      ? parsePayload(inputForm.leaf as Schema, {
-          payload: ctx.raw.payload as Record<string, unknown>,
-          metadata: {},
-        })
-      : ctx.raw.payload;
-
-  // Без пайплайна в meta только зарезервированные ключи
-  const result = await definition.handle(payload, {
-    signal: ctx.signal,
-    fail: (error: never): never => {
-      throw error;
-    },
-  });
-
-  // Возврат отказа эквивалентен броску: здесь нет отдельной проверки на
-  // границе, поэтому отказ уходит той же дорогой, что и брошенный. Иначе
-  // он попал бы клиенту телом успешного ответа.
-  if (isFail(result)) {
-    throw result;
-  }
-
-  return result instanceof Ok
-    ? {
-        isSuccess: true,
-        status: result.status,
-        value: result.value,
-        headers: result.headers,
-      }
-    : { isSuccess: true, status: 'OK', value: result };
-};
+const emptyPipeline = makePipeline() as Pipeline<AnyInput, AnyInput, never>;
 
 /**
  * Собирает диспетчер одного транспорта из его **исполнимых** деклараций.
@@ -225,13 +171,9 @@ export function makeDispatch(
         );
       }
 
-      const pipeline = definition.pipeline as
-        | Pipeline<AnyInput, AnyInput, never>
-        | undefined;
-
-      if (!pipeline) {
-        return await callDirectly(definition, ctx);
-      }
+      const pipeline =
+        (definition.pipeline as Pipeline<AnyInput, AnyInput, never>) ??
+        emptyPipeline;
 
       return await pipeline.executeWithHandler(definition.handle, ctx, options);
     },

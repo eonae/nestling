@@ -1,4 +1,4 @@
-import { noValidationPipeline } from '../../../common/pipelines';
+import { basePipeline } from '../../../common/pipelines';
 import type { User } from '../../../common/types';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
@@ -52,6 +52,6 @@ export const ExportUsers = httpEndpoint({
   method: 'GET',
   path: '/api/users/export',
   output: stream(ExportUsersOutput).limit(MAX_EXPORT_ROWS),
-  pipeline: noValidationPipeline,
+  pipeline: basePipeline,
   handle: ExportUsersHandler,
 });

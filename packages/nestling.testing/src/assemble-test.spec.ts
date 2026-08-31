@@ -22,7 +22,14 @@ import {
   OnStart,
   valueProvider,
 } from '@nestling/container';
-import { defineFail, makePipeline, Ok, validate } from '@nestling/pipeline';
+import type { FilePart } from '@nestling/pipeline';
+import {
+  defineFail,
+  makePipeline,
+  multipart,
+  Ok,
+  upload,
+} from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -248,9 +255,28 @@ describe('app.call — полный пайплайн in-proc', () => {
     input: z.object({ id: z.string() }),
     output: z.object({ id: z.string(), name: z.string() }),
     errors: [NotFound],
-    pipeline: makePipeline().pre(validate()),
+    pipeline: makePipeline(),
     handle: async (input) =>
       input.id === '1' ? new Ok({ id: '1', name: 'Alice' }) : NotFound(),
+  });
+
+  let uploadCalls = 0;
+
+  const UploadAvatar = httpEndpoint({
+    method: 'POST',
+    path: '/users/:id/avatar',
+    input: multipart({
+      fields: z.object({ id: z.string(), title: z.string().min(1) }),
+      files: { avatar: upload() },
+    }),
+    output: z.object({ title: z.string() }),
+    handle: async (payload: {
+      fields: { id: string; title: string };
+      files: { avatar: FilePart };
+    }) => {
+      uploadCalls += 1;
+      return new Ok({ title: payload.fields.title });
+    },
   });
 
   const Frame = httpEndpoint({
@@ -273,7 +299,7 @@ describe('app.call — полный пайплайн in-proc', () => {
 
   const UsersModule = makeAppModule({
     name: 'module:users',
-    endpoints: [GetUser, Frame],
+    endpoints: [GetUser, Frame, UploadAvatar],
   });
 
   const spec = {
@@ -314,6 +340,23 @@ describe('app.call — полный пайплайн in-proc', () => {
       status: 'BAD_REQUEST',
       value: { code: 'VALIDATION_FAILED' },
     });
+  });
+
+  it('проверяет поля multipart так же, как транспорт', async () => {
+    await using app = await assembleTest(spec);
+    uploadCalls = 0;
+
+    const response = await app.call(UploadAvatar, {
+      fields: { id: '1', title: '' },
+      files: { avatar: {} as FilePart },
+    });
+
+    expect(response).toMatchObject({
+      isSuccess: false,
+      status: 'BAD_REQUEST',
+      value: { code: 'VALIDATION_FAILED' },
+    });
+    expect(uploadCalls).toBe(0);
   });
 
   it('даёт слою честный, но пустой кадр запроса', async () => {

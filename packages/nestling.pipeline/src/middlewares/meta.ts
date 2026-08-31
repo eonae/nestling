@@ -16,8 +16,7 @@ import type { PreUnitFn } from '../core/types';
  * @example
  * ```typescript
  * const pipeline = makePipeline()
- *   .pre(withRequestId())
- *   .pre(validate())
+ *   .pre(withRequestId());
  * ```
  */
 export function withRequestId(): PreUnitFn<EmptyInput, { requestId: string }> {

@@ -2,7 +2,7 @@ import { withTiming } from '../common/middleware';
 import { EmailTaken } from '../errors';
 
 import type { Output } from '@nestling/pipeline';
-import { makePipeline, validate } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import z from 'zod';
 
@@ -41,12 +41,10 @@ export const CreateUser = httpEndpoint({
   input: CreateUserInput,
   output: CreateUserOutput,
   errors: [EmailTaken],
-  pipeline: makePipeline().pre(withTiming).pre(validate()),
+  pipeline: makePipeline().pre(withTiming),
   handle: async (
     input: CreateUserInput,
   ): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> => {
-    // input типизирован после validate()
-
     // Отказ возвращается значением: рантайм трактует возврат так же, как
     // бросок, и клиент получает 409 с кодом `EMAIL_TAKEN`
     if (taken.has(input.email)) {

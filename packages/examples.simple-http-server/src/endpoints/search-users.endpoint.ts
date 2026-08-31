@@ -1,6 +1,6 @@
 import { withTiming } from '../common/middleware';
 
-import { makePipeline, validate } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
 import { httpEndpoint, query } from '@nestling/transport.http';
 import z from 'zod';
 
@@ -32,7 +32,7 @@ export const SearchUsers = httpEndpoint({
   input: SearchUsersInput,
   output: SearchUsersOutput,
   bind: { tag: query({ multiple: true }) },
-  pipeline: makePipeline().pre(withTiming).pre(validate()),
+  pipeline: makePipeline().pre(withTiming),
   handle: async (input: SearchUsersInput): Promise<SearchUsersOutput> => ({
     query: input.q,
     tags: input.tag ?? [],

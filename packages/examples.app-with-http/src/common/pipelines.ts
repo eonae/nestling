@@ -1,24 +1,15 @@
-import { observability } from '../modules/logger';
 import { UserNotDeletable } from '../modules/users/user.errors';
 
-import { compose, makePipeline, validate } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
 
 /**
- * Внутренний слой: валидация payload.
+ * Базовый пайплайн: наблюдаемость.
  *
- * `makePipeline<{ requestId: string }>()` объявляет, что слой ожидает
- * `requestId` от внешнего слоя; компилятор проверяет это в `compose`.
+ * Подходит любому endpoint'у. Вход по схеме `input` проверяет рантайм
+ * перед хендлером, поэтому юнита проверки в пайплайне нет и отдельного
+ * пайплайна «без проверки» не требуется.
  */
-const validation = makePipeline<{ requestId: string }>().pre(validate());
-
-/**
- * Базовый пайплайн: наблюдаемость плюс валидация.
- *
- * Подходит endpoint'ам со схемой `input`. Внешний слой поставляет
- * инфраструктурный модуль логирования: сквозное поведение подключается
- * явной композицией, а не невидимым middleware.
- */
-export const basePipeline = compose(observability, validation);
+export { observability as basePipeline } from '../modules/logger';
 
 /**
  * Слой аудита удалений: в `.catch` распознаёт отказ по коду.
@@ -38,11 +29,3 @@ export const auditDeletions = makePipeline<{ requestId: string }>().catch(
     }
   },
 );
-
-/**
- * Пайплайн без валидации: тот же слой наблюдаемости и ничего сверх него.
- *
- * Для endpoint'ов без `input` и для потокового входа, который валидирует
- * item-цепочка.
- */
-export { observability as noValidationPipeline } from '../modules/logger';

@@ -17,8 +17,7 @@ export interface Logger {
  * ```typescript
  * const pipeline = makePipeline()
  *   .pre(withRequestLogging(console))
- *   .pre(withIdentity(verifyToken))
- *   .pre(validate());
+ *   .pre(withIdentity(verifyToken));
  * ```
  */
 export function withRequestLogging(logger: Logger): PreUnitFn {

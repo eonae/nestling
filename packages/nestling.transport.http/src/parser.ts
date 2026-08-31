@@ -2,13 +2,13 @@ import type { IncomingMessage } from 'node:http';
 import { PassThrough, Readable } from 'node:stream';
 
 import {
-  ChunkTooLargeError,
   JsonParseError,
   MultipartFieldError,
   PayloadTooLargeError,
 } from './errors.js';
 
 import type { FilePart, UploadSpec } from '@nestling/pipeline';
+import { PayloadTooLarge } from '@nestling/pipeline';
 import Busboy from 'busboy';
 
 /**
@@ -143,7 +143,7 @@ function decodeNdjsonLine(line: string): unknown {
  * схеме формы с учётом политики `onInvalid`. Лимит длины строки нужен,
  * чтобы незавершённая строка не росла бесконечно.
  *
- * @throws ChunkTooLargeError строка длиннее `maxLineBytes`
+ * @throws Fail отказ `PAYLOAD_TOO_LARGE` (413): строка длиннее `maxLineBytes`
  * @throws JsonParseError строка не является валидным JSON
  */
 export async function* parseNdjson(
@@ -164,12 +164,12 @@ export async function* parseNdjson(
 
     // Незавершённая строка не должна расти бесконечно (защита от DoS)
     if (maxLineBytes > 0 && buffer.length > maxLineBytes) {
-      throw new ChunkTooLargeError(maxLineBytes);
+      throw PayloadTooLarge({ limit: maxLineBytes });
     }
 
     for (const line of lines) {
       if (maxLineBytes > 0 && line.length > maxLineBytes) {
-        throw new ChunkTooLargeError(maxLineBytes);
+        throw PayloadTooLarge({ limit: maxLineBytes });
       }
 
       const trimmed = line.trim();

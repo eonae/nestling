@@ -36,6 +36,7 @@ export {
   multipart,
   nameOfForm,
   Ok,
+  PayloadTooLarge,
   statuses,
   stream,
   StreamGapTimeout,

@@ -11,7 +11,7 @@ import { stub } from './stub';
 import { describe, expect, it } from '@jest/globals';
 import { makeAppModule } from '@nestling/app';
 import { makeContract } from '@nestling/contracts';
-import { makePipeline, validate } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import { z } from 'zod';
 
@@ -52,18 +52,13 @@ let archived: string[] = [];
 let billed: string[] = [];
 let keys: unknown[] = [];
 
-/**
- * Пайплайн владельца команды: штатная валидация плюс наблюдение за
- * транспортными атрибутами кадра.
- */
+/** Пайплайн владельца команды: наблюдение за транспортными атрибутами кадра */
 const commandPipeline = () =>
-  makePipeline()
-    .pre(validate())
-    .pre(async (ctx) => {
-      keys.push(ctx.raw.attributes.idempotencyKey);
+  makePipeline().pre(async (ctx) => {
+    keys.push(ctx.raw.attributes.idempotencyKey);
 
-      return {};
-    });
+    return {};
+  });
 
 const OrdersModule = makeAppModule({
   name: 'module:orders',

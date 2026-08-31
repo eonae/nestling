@@ -1,4 +1,4 @@
-import { noValidationPipeline } from '../../../common/pipelines';
+import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
 import { UserService } from '../user.service';
@@ -34,7 +34,7 @@ export const ListUsers = httpEndpoint({
   path: '/api/users',
   output: ListUsersOutput,
   doc: { summary: 'Список пользователей', tags: ['users'] },
-  pipeline: noValidationPipeline,
+  pipeline: basePipeline,
   deps: [UserService, ILogger],
   handle: listUsersHandler,
 });

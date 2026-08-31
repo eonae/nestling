@@ -1,5 +1,5 @@
 import { MAX_AVATAR_SIZE } from '../../../common/constants';
-import { noValidationPipeline } from '../../../common/pipelines';
+import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
 import { InvalidAvatar, UserNotFound } from '../user.errors';
@@ -84,6 +84,6 @@ export const UploadAvatar = httpEndpoint({
   }),
   output: UploadAvatarOutput,
   errors: [InvalidAvatar, UserNotFound],
-  pipeline: noValidationPipeline,
+  pipeline: basePipeline,
   handle: UploadAvatarHandler,
 });
