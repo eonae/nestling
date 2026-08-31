@@ -1,9 +1,14 @@
 import type { TransportCapabilities } from '@nestling/pipeline';
 import type { Dispatch, ITransport } from '@nestling/transport';
 
-/** Способности фикстуры: только value-формы — потоков тестам не нужно */
-const VALUE_ONLY: TransportCapabilities = {
-  input: new Set(['value']),
+/**
+ * Способности фикстуры: те же формы входа, что у HTTP, кроме потоковых.
+ *
+ * `multipart` нужен тесту, который сверяет проверку входа через `app.call`
+ * с поведением транспорта; потоков тестам пакета по-прежнему не нужно.
+ */
+const HTTP_LIKE: TransportCapabilities = {
+  input: new Set(['value', 'multipart']),
   output: new Set(['value']),
 };
 
@@ -25,7 +30,7 @@ export class SpyTransport implements ITransport {
   dispatch?: Dispatch;
   signal?: AbortSignal;
 
-  readonly capabilities: TransportCapabilities = VALUE_ONLY;
+  readonly capabilities: TransportCapabilities = HTTP_LIKE;
 
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
     this.dispatch = dispatch;

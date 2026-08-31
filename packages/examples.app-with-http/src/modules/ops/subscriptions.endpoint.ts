@@ -1,4 +1,4 @@
-import { basePipeline, noValidationPipeline } from '../../common/pipelines';
+import { basePipeline } from '../../common/pipelines';
 
 import type { Output } from '@nestling/pipeline';
 import { compose, defineFail, events, Ok } from '@nestling/pipeline';
@@ -135,7 +135,7 @@ export const WatchSubscriptions = httpEndpoint({
     summary: 'Лента изменений реестра подписок (SSE)',
     tags: ['ops'],
   },
-  pipeline: compose(noValidationPipeline, tracked),
+  pipeline: compose(basePipeline, tracked),
   deps: [SubscriptionRegistry],
   handle:
     (registry: SubscriptionRegistry) =>

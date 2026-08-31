@@ -14,8 +14,7 @@ import type { PreUnitFn } from '../core/types';
  *   .pre(withIdentity<User>(verifyToken))
  *   .pre(withPermissions<Permission[]>(async (identity) => {
  *     return await loadPermissions(identity.id);
- *   }))
- *   .pre(validate());
+ *   }));
  * ```
  * */
 export function withPermissions<TPermissions, TIdentity>(

@@ -14,7 +14,6 @@ import {
 } from './binding.js';
 import { HttpConfig } from './config.js';
 import {
-  ChunkTooLargeError,
   JsonParseError,
   MultipartFieldError,
   PayloadTooLargeError,
@@ -49,12 +48,8 @@ import {
   bindInputStream,
   ClientDisconnectedError,
   describeForm,
-  isFail,
   makeEmptyContext,
-  parsePayload,
-  SchemaValidationError,
   TransportClosingError,
-  ValidationFailed,
 } from '@nestling/pipeline';
 import type { Dispatch, ITransport } from '@nestling/transport';
 
@@ -413,15 +408,9 @@ export class HttpTransport implements ITransport {
             rest: 'body',
           });
 
-          payload = {
-            fields: inputForm.fields
-              ? parsePayload(inputForm.fields, {
-                  payload: fields as Record<string, unknown>,
-                  metadata: {},
-                })
-              : fields,
-            files: multipart.files,
-          };
+          // Схемой `fields` проверяет рантайм пайплайна: у транспорта
+          // своей ветки валидации нет, иначе `app.call` и HTTP разошлись бы
+          payload = { fields, files: multipart.files };
           break;
         }
         default: {
@@ -528,36 +517,20 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Отправляет ошибку разбора запроса, роутинга или ветки без пайплайна
-   * с подходящим статусом.
+   * Отправляет ошибку разбора запроса или роутинга с подходящим статусом.
    *
    * Статусы:
-   * - `JsonParseError`, `MultipartFieldError`, `SchemaValidationError` — 400;
-   * - `PayloadTooLargeError`, `ChunkTooLargeError` — 413;
+   * - `JsonParseError`, `MultipartFieldError` — 400;
+   * - `PayloadTooLargeError` — 413;
    * - остальное — 500; детали уходят только при `exposeErrorDetails`.
    *
    * Тела ошибок 400 и 413 описывают некорректный ввод и не раскрывают
-   * внутреннее состояние сервера. Проверка `errors` декларации здесь не
-   * выполняется (пайплайна нет), поэтому тела остаются как есть; только
-   * отказ валидации получает код `VALIDATION_FAILED`, как и в пайплайне.
+   * внутреннее состояние сервера. Исход самого endpoint'а сюда не
+   * попадает: `dispatch.call` возвращает готовый контекст ответа для
+   * любого исхода, включая отказ проверки входа.
    */
   private sendError(res: ServerResponse, error: unknown): void {
     if (res.headersSent) {
-      return;
-    }
-
-    // Fail из ветки без пайплайна: статус, код и детали сохраняются, как
-    // это делает пайплайн в errorToResponse
-    if (isFail(error)) {
-      void sendResponse(res, {
-        isSuccess: false,
-        status: error.status ?? 'INTERNAL_ERROR',
-        value: {
-          error: error.message ?? 'Error',
-          ...(error.code === undefined ? {} : { code: error.code }),
-          ...(error.details === undefined ? {} : { details: error.details }),
-        },
-      });
       return;
     }
 
@@ -577,15 +550,7 @@ export class HttpTransport implements ITransport {
     ) {
       status = 400;
       body.error = error.message;
-    } else if (error instanceof SchemaValidationError) {
-      status = 400;
-      body.error = 'Validation failed';
-      body.code = ValidationFailed.code;
-      body.details = error.issues;
-    } else if (
-      error instanceof PayloadTooLargeError ||
-      error instanceof ChunkTooLargeError
-    ) {
+    } else if (error instanceof PayloadTooLargeError) {
       status = 413;
       body.error = 'Payload too large';
     } else if (this.exposeErrorDetails) {

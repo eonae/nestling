@@ -32,18 +32,6 @@ export class PayloadTooLargeError extends Error {
 }
 
 /**
- * Одна строка NDJSON-потока превысила `maxBodySize`.
- *
- * Ответ: `413 Payload Too Large`, если ответ ещё не начат.
- */
-export class ChunkTooLargeError extends Error {
-  constructor(public readonly limit: number) {
-    super('Payload too large');
-    this.name = 'ChunkTooLargeError';
-  }
-}
-
-/**
  * Multipart-запрос не соответствует форме декларации: незаявленное
  * файловое поле, неверный MIME, второй файл в одиночном поле.
  *
