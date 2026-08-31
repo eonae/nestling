@@ -6,8 +6,6 @@ import type { INode } from '@common/graphs';
 export interface DINodeMetadata {
   /** Имя модуля провайдера; `undefined`, если он зарегистрирован без модуля */
   module?: string;
-  /** `true`, если модуль экспортирует провайдер; `undefined` без модуля */
-  exported?: boolean;
 }
 
 /**

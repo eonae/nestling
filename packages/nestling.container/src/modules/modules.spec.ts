@@ -6,7 +6,6 @@ describe('функции модулей', () => {
       name: 'TestModule',
       providers: [],
       imports: [],
-      exports: [],
     });
 
     expect(moduleConfig.name).toBe('TestModule');

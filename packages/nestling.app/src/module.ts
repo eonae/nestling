@@ -17,7 +17,6 @@ import type { AnyEndpointDefinition } from '@nestling/pipeline';
  *   providers: [UserService, UserRepository, WithTracing, CreateUserHandler],
  *   endpoints: [GetUser, CreateUser, UpdateUser],
  *   imports: [DatabaseModule],
- *   exports: [UserService],
  * });
  * ```
  */

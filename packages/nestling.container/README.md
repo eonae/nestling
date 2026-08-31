@@ -157,8 +157,7 @@ class ConsoleLogger implements ILogger {
 
 ### Модули
 
-Модуль — обычный объект: имя, провайдеры, импорты других модулей и список
-экспортируемых токенов.
+Модуль — обычный объект: имя, провайдеры и импорты других модулей.
 
 ```typescript
 import { makeModule } from '@nestling/container';
@@ -166,14 +165,12 @@ import { makeModule } from '@nestling/container';
 const DatabaseModule = makeModule({
   name: 'DatabaseModule',
   providers: [DatabaseService, ConnectionPool],
-  exports: [DatabaseService], // снаружи виден только он
 });
 
 const UserModule = makeModule({
   name: 'UserModule',
   imports: [DatabaseModule], // DatabaseService приходит отсюда
   providers: [UserRepository, UserService],
-  exports: [UserService],
 });
 
 const container = await new ContainerBuilder().register(UserModule).build();
@@ -206,7 +203,6 @@ export const logging = (options: { service: string }) =>
   makeModule({
     name: 'module:logging',
     providers: [/* ... */],
-    exports: [ILogger],
   });
 
 // Создайте значение один раз и импортируйте его везде, где оно нужно
@@ -219,16 +215,16 @@ export const appLogging = logging({ service: 'orders-api' });
 встреченное несколько раз (через `imports`, через корень и фичу, через два
 модуля с общей инфраструктурой), регистрируется один раз.
 
-Имя модуля должно быть уникальным: по нему атрибутируются провайдеры и
-экспорты. Два разных значения с одним именем — ошибка сборки:
+Имя модуля должно быть уникальным: по нему атрибутируются провайдеры. Два
+разных значения с одним именем — ошибка сборки:
 
 ```
 Two different modules are named 'module:logging'. A module name is the
-attribution key of its providers and exports, so it must be unique. Either
-share one module value between its consumers (create it once and import that
-value), or give the two configurations different names. If neither is the
-case, check for a duplicated package in your dependencies - two copies give
-two values of the same module.
+attribution key of its providers, so it must be unique. Either share one
+module value between its consumers (create it once and import that value),
+or give the two configurations different names. If neither is the case,
+check for a duplicated package in your dependencies - two copies give two
+values of the same module.
 ```
 
 Поэтому повторный вызов фабрики модуля, даже с теми же опциями, даёт второе
@@ -373,7 +369,6 @@ const LoggingModule = makeModule({
       ),
     ),
   ],
-  exports: [ILogger], // всё семейство целиком
 });
 ```
 
@@ -436,11 +431,9 @@ const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>('HealthCheck')
 
 // database.module.ts
 providers: [classProvider(IHealthCheck('database'), DatabaseHealthCheck)],
-exports: [IHealthCheck],
 
 // api.module.ts — другой модуль, первый не меняется
 providers: [classProvider(IHealthCheck('api'), ApiHealthCheck)],
-exports: [IHealthCheck],
 ```
 
 Агрегатор зависит от маркера `IHealthCheck.all` с типом
@@ -458,7 +451,7 @@ class HealthService {
 зарегистрированных членов семейства, его значение — массив их экземпляров.
 Дальше это обычный узел: проверка циклов, топологические `init()` и
 `destroy()` (вклады инициализируются раньше потребителей агрегата и
-уничтожаются позже), `toJSON()`, визуализация, `strictExports`.
+уничтожаются позже), `toJSON()`, визуализация.
 
 Правила агрегата:
 
@@ -479,9 +472,9 @@ class HealthService {
   (цепочка обработчиков), не полагайтесь на порядок `imports`.
 - Массив `readonly` и заморожен: это снимок сборки, общий для всех
   потребителей.
-- Агрегат не принадлежит ни одному модулю. Под `strictExports` его ребро к
-  вкладу из модуля M требует, чтобы M экспортировал этот вклад; `exports:
-  [IHealthCheck]` экспортирует всех членов семейства сразу.
+- Агрегат не принадлежит ни одному модулю, и его рёбра к вкладам ничем не
+  ограничены: вклад чужого модуля попадает в массив без дополнительных
+  объявлений.
 - Токен `.all` зарезервирован: провайдер с `provide: IHealthCheck.all` и
   параметр члена `'{all}'` — ошибки регистрации.
 
@@ -521,37 +514,8 @@ const LoggingModule = makeModule({
       ),
     ),
   ],
-  exports: [ILogger],
 });
 ```
-
-### Проверка экспортов: `strictExports`
-
-По умолчанию `exports` модуля — только метаданные, контейнер их не
-проверяет. Видимость решают ES-модули: токен, который не экспортирован из
-файла, невозможно запросить снаружи.
-
-Чтобы контейнер проверял `exports`, включите опцию:
-
-```typescript
-const container = await new ContainerBuilder({ strictExports: true })
-  .register(AppModule)
-  .build();
-```
-
-С `strictExports: true` `build()` обходит готовый граф и для каждого ребра
-«потребитель зависит от провайдера из модуля M», где потребитель не в M,
-требует, чтобы токен провайдера был в `exports` модуля M. Правила:
-
-- рёбра внутри одного модуля разрешены всегда;
-- провайдеры вне модулей доступны всем;
-- отсутствующий или пустой `exports` означает «ничего не экспортируется»;
-- семейство токенов в `exports` экспортирует всех его созданных членов;
-- все нарушения перечисляются в одной ошибке в виде
-  `consumer -> dependency (module)`.
-
-Это проверка построенного графа, а не инкапсуляция во время выполнения:
-`get()` и инжекция видимость не проверяют.
 
 ### Подстановка в тестах: `overrides` и прунинг
 
@@ -569,9 +533,8 @@ container.pruned; // ['UsersStore'] — узлы, выброшенные как 
 ```
 
 - `overrides` заменяет провайдер на провайдер-значение до создания
-  экземпляров. Узел сохраняет принадлежность модулю, поэтому
-  `strictExports`, визуализация и диагностика по-прежнему называют
-  владельца. Заглушка с `@OnInit` и `@OnDestroy` — обычный узел. Замена
+  экземпляров. Узел сохраняет принадлежность модулю, поэтому визуализация
+  и диагностика по-прежнему называют владельца. Заглушка с `@OnInit` и `@OnDestroy` — обычный узел. Замена
   токена без провайдера и двойная замена одного токена — ошибки сборки.
 - `familyOverrides` заменяет рецепт всего семейства до создания членов;
   рабочий рецепт не вызывается.
@@ -678,21 +641,18 @@ class UserService {
 const LoggingModule = makeModule({
   name: 'LoggingModule',
   providers: [ConsoleLogger],
-  exports: [ILogger],
 });
 
 const DatabaseModule = makeModule({
   name: 'DatabaseModule',
   imports: [LoggingModule],
   providers: [PostgresDatabase],
-  exports: [IDatabase],
 });
 
 const UserModule = makeModule({
   name: 'UserModule',
   imports: [DatabaseModule, LoggingModule],
   providers: [UserService],
-  exports: [UserService],
 });
 
 // 4. Сборка и использование
@@ -733,7 +693,7 @@ main().catch(console.error);
 | `makeTokenFamily<T, [param: string]>(name)` | создаёт семейство; `Family(param)` возвращает мемоизированный токен `"<name>:<param>"`, `Family.auto` — член по имени класса-потребителя, `Family.all` — агрегат `TokenString<readonly T[]>` |
 | `Injectable(deps)` | декоратор класса; токен — сам класс |
 | `Injectable(token, deps)` | декоратор класса с явным токеном интерфейса |
-| `makeModule(module)` | создаёт модуль: `name`, `providers`, `imports`, `exports` |
+| `makeModule(module)` | создаёт модуль: `name`, `providers`, `imports` |
 
 ### Провайдеры
 
@@ -748,7 +708,7 @@ main().catch(console.error);
 
 | Член | Что делает |
 |---|---|
-| `new ContainerBuilder(options?)` | билдер; опции `strictExports`, `overrides`, `familyOverrides` |
+| `new ContainerBuilder(options?)` | билдер; опции `overrides`, `familyOverrides` |
 | `.register(...items)` | регистрирует провайдеры, рецепты семейств и модули |
 | `.build()` | проверяет граф, создаёт экземпляры, возвращает `BuiltContainer` |
 | `container.get(token)` | экземпляр или `null`, если токен не зарегистрирован |
@@ -771,7 +731,7 @@ main().catch(console.error);
 
 Пакет не содержит скоупов запроса, ленивого создания провайдеров и
 инкапсуляции во время выполнения: контекст запроса даёт `@nestling/app`,
-видимость держится на экспортах ES-модулей и проверке `strictExports`.
+видимость держится на экспортах ES-модулей.
 
 ## Лицензия
 

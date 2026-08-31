@@ -142,7 +142,6 @@ describe('ContainerBuilder', () => {
       const ModuleA = makeModule({
         name: 'ModuleA',
         providers: [classProvider(TokenA, ServiceA)],
-        exports: [TokenA],
       });
 
       const container = await new ContainerBuilder()
@@ -193,14 +192,12 @@ describe('ContainerBuilder', () => {
       const ModuleA = makeModule({
         name: 'ModuleA',
         providers: [classProvider(TokenA, ServiceA)],
-        exports: [TokenA],
       });
 
       const ModuleB = makeModule({
         name: 'ModuleB',
         providers: [classProvider(TokenB, ServiceB)],
         imports: [ModuleA],
-        exports: [TokenB],
       });
 
       const container = await new ContainerBuilder().register(ModuleB).build();
@@ -217,7 +214,6 @@ describe('ContainerBuilder', () => {
           factoryCalls.push('sync');
           return [valueProvider(TokenConfig, { feature: true })];
         },
-        exports: [TokenConfig],
       });
 
       const container = await new ContainerBuilder()
@@ -235,7 +231,6 @@ describe('ContainerBuilder', () => {
           await Promise.resolve();
           return [classProvider(TokenA, ServiceA)];
         },
-        exports: [TokenA],
       });
 
       const container = await new ContainerBuilder()
@@ -252,7 +247,6 @@ describe('ContainerBuilder', () => {
           classProvider(TokenA, ServiceA),
           valueProvider(TokenConfig, { feature: true }),
         ],
-        exports: [TokenA],
       });
 
       const container = await new ContainerBuilder()
@@ -265,11 +259,11 @@ describe('ContainerBuilder', () => {
         expect.arrayContaining([
           expect.objectContaining({
             id: 'TokenA',
-            metadata: { module: 'SyncFactoryModule', exported: true },
+            metadata: { module: 'SyncFactoryModule' },
           }),
           expect.objectContaining({
             id: 'TokenConfig',
-            metadata: { module: 'SyncFactoryModule', exported: false },
+            metadata: { module: 'SyncFactoryModule' },
           }),
         ]),
       );
@@ -282,7 +276,6 @@ describe('ContainerBuilder', () => {
           await Promise.resolve();
           return [classProvider(TokenA, ServiceA)];
         },
-        exports: [TokenA],
       });
 
       const container = await new ContainerBuilder()
@@ -295,7 +288,7 @@ describe('ContainerBuilder', () => {
         expect.arrayContaining([
           expect.objectContaining({
             id: 'TokenA',
-            metadata: { module: 'AsyncFactoryModule', exported: true },
+            metadata: { module: 'AsyncFactoryModule' },
           }),
         ]),
       );
@@ -310,7 +303,6 @@ describe('ContainerBuilder', () => {
           factoryRuns += 1;
           return [classProvider(TokenA, ServiceA)];
         },
-        exports: [TokenA],
       });
 
       const container = await new ContainerBuilder()
@@ -331,7 +323,6 @@ describe('ContainerBuilder', () => {
           factoryRuns += 1;
           return [classProvider(TokenA, ServiceA)];
         },
-        exports: [TokenA],
       });
 
       const Left = makeModule({ name: 'LeftModule', imports: [Shared] });

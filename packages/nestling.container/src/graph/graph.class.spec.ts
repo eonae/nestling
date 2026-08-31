@@ -26,7 +26,6 @@ describe('DIGraph', () => {
     const ModuleA = makeModule({
       name: 'ModuleA',
       providers: [classProvider(TokenA, ServiceA)],
-      exports: [TokenA],
     });
 
     const ModuleB = makeModule({
@@ -43,12 +42,12 @@ describe('DIGraph', () => {
       expect.arrayContaining([
         {
           id: 'TokenA',
-          metadata: { module: 'ModuleA', exported: true },
+          metadata: { module: 'ModuleA' },
           dependencies: [],
         },
         {
           id: 'TokenB',
-          metadata: { module: 'ModuleB', exported: undefined },
+          metadata: { module: 'ModuleB' },
           dependencies: ['TokenA'],
         },
       ]),

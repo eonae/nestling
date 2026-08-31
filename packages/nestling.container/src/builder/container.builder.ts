@@ -24,7 +24,6 @@ import {
   isDefinition,
   isFactoryProvider,
   isFamilyDefinition,
-  isTokenFamily,
   isValueDefinition,
   lookupFamilyMember,
   suggestFamilyForToken,
@@ -39,20 +38,6 @@ import { BuiltContainer } from './container.built';
  * бы членов бесконечно; предел превращает это в ошибку сборки.
  */
 const MAX_MATERIALIZATION_ROUNDS = 100;
-
-/**
- * Что модуль перечислил в `exports`.
- *
- * Семейства хранятся отдельно от обычных токенов: семейство — функция, и
- * `stringifyToken` превратил бы его в строку `"<familyName>"` вместо списка
- * членов.
- */
-interface ModuleExports {
-  /** Токены из `exports` в строковой форме */
-  tokens: Set<string>;
-  /** Имена семейств из `exports`: экспортированы все их члены */
-  families: Set<string>;
-}
 
 /** Зарегистрированный рецепт семейства и модуль, через который он пришёл. */
 interface FamilyRecipeEntry {
@@ -88,14 +73,6 @@ export type FamilyOverrideEntry<
 /** Опции {@link ContainerBuilder}. */
 export interface ContainerBuilderOptions {
   /**
-   * Проверка экспортов на сборке: каждое ребро графа между модулями должно
-   * вести к токену, который модуль-владелец перечислил в `exports`.
-   * По умолчанию выключена. Это проверка собранного графа, а не
-   * инкапсуляция в рантайме.
-   */
-  strictExports?: boolean;
-
-  /**
    * Узлы графа, подменяемые значениями до создания экземпляров.
    * Поле тестовой сборки: `assemble` его не передаёт.
    * См. {@link TokenOverride}.
@@ -127,10 +104,8 @@ export class ContainerBuilder {
   readonly #providers = new Map<InjectionToken, ProviderDefinition>();
   readonly #providersFactories = new Map<string, ProvidersFactory>();
   readonly #providerToModule = new Map<InjectionToken, string>();
-  readonly #moduleExports = new Map<string, ModuleExports>();
   readonly #familyRecipes = new Map<string, FamilyRecipeEntry>();
   readonly #modules = new Map<string, Module>();
-  readonly #strictExports: boolean;
   readonly #overrides: readonly TokenOverride<any>[];
   readonly #familyOverrides: readonly FamilyOverrideEntry<any, any>[];
 
@@ -140,7 +115,6 @@ export class ContainerBuilder {
    * @param options - Опции билдера; см. {@link ContainerBuilderOptions}
    */
   constructor(options: ContainerBuilderOptions = {}) {
-    this.#strictExports = options.strictExports ?? false;
     this.#overrides = options.overrides ?? [];
     this.#familyOverrides = options.familyOverrides ?? [];
   }
@@ -196,8 +170,7 @@ export class ContainerBuilder {
    * 7. перечисляет все зависимости без провайдера одной ошибкой;
    * 8. создаёт экземпляры;
    * 9. строит граф зависимостей;
-   * 10. проверяет граф на циклы;
-   * 11. при `strictExports` проверяет рёбра между модулями по `exports`.
+   * 10. проверяет граф на циклы.
    *
    * @returns Собранный контейнер с доступом к экземплярам
    * @throws {Error} Если контейнер уже собран или найден цикл
@@ -248,11 +221,6 @@ export class ContainerBuilder {
     // Шаг 10: проверить граф на циклы
     graph.ensureAcyclic();
 
-    // Шаг 11: проверить экспорты на готовом графе, если опция включена
-    if (this.#strictExports) {
-      await this.checkStrictExports(graph);
-    }
-
     this.#isBuilt = true;
 
     return new BuiltContainer(graph, pruned);
@@ -284,10 +252,6 @@ export class ContainerBuilder {
 
     for (const importedModule of m.imports || []) {
       this.registerModule(importedModule);
-    }
-
-    if (m.exports && m.exports.length > 0) {
-      this.#moduleExports.set(m.name, collectModuleExports(m.exports));
     }
 
     if (typeof m.providers === 'function') {
@@ -484,7 +448,7 @@ export class ContainerBuilder {
    * Выполняется строго после создания членов (состав известен, только когда
    * рецепты перестали порождать новых) и до создания экземпляров. Дальше
    * агрегат — обычный узел: циклы, топологический порядок хуков,
-   * `toJSON()`, визуализация, `strictExports`.
+   * `toJSON()`, визуализация.
    *
    * Повторять сбор членов после этого шага не нужно: зависимости агрегата —
    * токены, у которых провайдеры уже есть.
@@ -576,8 +540,8 @@ export class ContainerBuilder {
       seen.add(familyName);
 
       // Модуль боевого рецепта сохраняется: члены остаются привязаны к
-      // модулю-владельцу семейства, и `strictExports` с визуализацией
-      // показывают того же владельца.
+      // модулю-владельцу семейства, и визуализация показывает того же
+      // владельца.
       const registered = this.#familyRecipes.get(familyName);
 
       this.#familyRecipes.set(familyName, {
@@ -591,8 +555,7 @@ export class ContainerBuilder {
    * Подменяет провайдер каждого токена из `overrides` провайдером-значением.
    *
    * Привязка к модулю не меняется: она хранится в отдельной карте по
-   * идентификатору токена, поэтому узел графа сохраняет владельца, а
-   * `strictExports` проверяет то же ребро.
+   * идентификатору токена, поэтому узел графа сохраняет владельца.
    *
    * @returns Зависимости каждого подменённого токена до подмены — первая
    * половина входа для прунинга
@@ -884,12 +847,7 @@ export class ContainerBuilder {
 
       const hooks = getLifecycleHooks(instance);
 
-      const metadata: DINodeMetadata = {
-        module: moduleName,
-        exported: moduleName
-          ? this.computeExported(moduleName, stringifyToken(token))
-          : undefined,
-      };
+      const metadata: DINodeMetadata = { module: moduleName };
 
       const deps = isValueDefinition(provider)
         ? []
@@ -947,77 +905,6 @@ export class ContainerBuilder {
     }
 
     return graph;
-  }
-
-  /**
-   * Вычисляет `metadata.exported` для узла, принадлежащего модулю.
-   *
-   * Модуль без `exports` даёт `undefined`: «ничего не сказано», а не
-   * «ничего не экспортировано».
-   */
-  private computeExported(
-    moduleName: string,
-    tokenId: string,
-  ): boolean | undefined {
-    if (!this.#moduleExports.has(moduleName)) {
-      return undefined;
-    }
-
-    return this.isExportedFrom(moduleName, tokenId);
-  }
-
-  /**
-   * Проверяет, экспортирует ли модуль токен: напрямую или через семейство.
-   *
-   * Отсутствующий или пустой `exports` означает, что не экспортировано
-   * ничего.
-   */
-  private isExportedFrom(moduleName: string, tokenId: string): boolean {
-    const exports = this.#moduleExports.get(moduleName);
-    if (!exports) {
-      return false;
-    }
-
-    if (exports.tokens.has(tokenId)) {
-      return true;
-    }
-
-    const member = lookupFamilyMember(tokenId);
-
-    return member !== undefined && exports.families.has(member.familyName);
-  }
-
-  /**
-   * Проверяет готовый граф: зависимость, принадлежащую модулю M, можно
-   * использовать вне M, только если M экспортирует её токен.
-   *
-   * Рёбра внутри модуля и зависимости без модуля разрешены всегда. Все
-   * нарушения сообщаются одной ошибкой.
-   */
-  private async checkStrictExports(graph: DIGraph): Promise<void> {
-    const violations: string[] = [];
-
-    await graph.traverse((node) => {
-      for (const dependency of node.dependencies) {
-        const owner = dependency.metadata.module;
-
-        if (!owner || owner === node.metadata.module) {
-          continue;
-        }
-
-        if (!this.isExportedFrom(owner, dependency.id)) {
-          violations.push(`${node.id} → ${dependency.id} (${owner})`);
-        }
-      }
-    });
-
-    if (violations.length > 0) {
-      throw new Error(
-        `strictExports: dependencies on tokens not exported by their module:\n${violations
-          .map((violation) => `  - ${violation}`)
-          .join('\n')}`,
-      );
-    }
   }
 }
 
@@ -1082,29 +969,11 @@ const overrideMissingHint = (tokenId: string): string => {
  */
 const moduleNameCollisionMessage = (name: string): string =>
   `Two different modules are named '${name}'. ` +
-  `A module name is the attribution key of its providers and exports, so it must be unique. ` +
+  `A module name is the attribution key of its providers, so it must be unique. ` +
   `Either share one module value between its consumers (create it once and import that value), ` +
   `or give the two configurations different names. ` +
   `If neither is the case, check for a duplicated package in your dependencies - ` +
   `two copies give two values of the same module.`;
-
-/** Делит `exports` модуля на обычные токены и целые семейства. */
-const collectModuleExports = (
-  declared: NonNullable<Module['exports']>,
-): ModuleExports => {
-  const tokens = new Set<string>();
-  const families = new Set<string>();
-
-  for (const item of declared) {
-    if (isTokenFamily(item)) {
-      families.add(item.familyName);
-    } else {
-      tokens.add(stringifyToken(item));
-    }
-  }
-
-  return { tokens, families };
-};
 
 /**
  * Отклоняет `Family.auto` в зависимостях провайдера без класса-потребителя:

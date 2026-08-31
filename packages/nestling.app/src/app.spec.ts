@@ -851,7 +851,7 @@ describe('assemble — фичи в приложении', () => {
     // она: тот же инвариант, тот же класс ошибки, текст ещё и про
     // endpoint'ы. Фаза остаётся прежней — ASSEMBLE, до любого `@OnInit`.
     await expect(app.check()).rejects.toThrow(
-      /Two different modules are named 'module:logging'\. A module name is the attribution key of its providers, exports and endpoints/,
+      /Two different modules are named 'module:logging'\. A module name is the attribution key of its providers and endpoints/,
     );
   });
 

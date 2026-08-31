@@ -9,7 +9,7 @@ describe('DINode', () => {
   it('хранит метаданные и зависимости', () => {
     const child = new DINode(TokenB, [], {
       instance: { value: 1 },
-      metadata: { module: 'ModuleB', exported: true },
+      metadata: { module: 'ModuleB' },
       hooks: { onInit: [], onStart: [], onDestroy: [] },
       deps: [],
     });

@@ -135,7 +135,6 @@ describe('overrides: подстановка узла графа', () => {
     const UsersModule = makeModule({
       name: 'users',
       providers: [RealRepository],
-      exports: [Repository],
     });
 
     const container = await new ContainerBuilder({
@@ -147,7 +146,7 @@ describe('overrides: подстановка узла графа', () => {
     const { nodes } = await container.toJSON();
     const node = nodes.find((candidate) => candidate.id === 'Repository');
 
-    expect(node?.metadata).toEqual({ module: 'users', exported: true });
+    expect(node?.metadata).toEqual({ module: 'users' });
   });
 
   it('падает на override токена, которого нет в графе', async () => {
@@ -342,7 +341,6 @@ describe('прунинг: без overrides сборка тождественна
         // всё зарегистрированное, прунинг удаляет только осиротевшее
         valueProvider(Orphan, { id: 'orphan' }),
       ],
-      exports: [Repository, Pool, Reports, Aggregated, Orphan, ISinkFamily],
     });
 
     const container = await new ContainerBuilder().register(DataModule).build();

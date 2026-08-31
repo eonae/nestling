@@ -10,8 +10,6 @@ export interface JsonDINode {
   metadata: {
     /** Имя модуля, если провайдер принадлежит модулю */
     module?: string;
-    /** Экспортирует ли модуль этот провайдер */
-    exported?: boolean;
   };
   /** Идентификаторы зависимостей */
   dependencies: string[];
@@ -34,16 +32,13 @@ export class DIGraph extends DAG<DINode> {
     const nodes: JsonDINode[] = [];
 
     await this.traverse(({ id, metadata, dependencies }) => {
-      const exportedNode: JsonDINode = {
+      const jsonNode: JsonDINode = {
         id,
-        metadata: {
-          module: metadata.module,
-          exported: metadata.exported,
-        },
+        metadata: { module: metadata.module },
         dependencies: dependencies.map((dep) => dep.id),
       };
 
-      nodes.push(exportedNode);
+      nodes.push(jsonNode);
     });
 
     return { nodes };

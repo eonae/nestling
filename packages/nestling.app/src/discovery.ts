@@ -86,7 +86,7 @@ function* visitModules(modules: readonly Module[]): Generator<Module> {
       if (seen !== module) {
         throw new Error(
           `Two different modules are named '${module.name}'. ` +
-            `A module name is the attribution key of its providers, exports and endpoints, ` +
+            `A module name is the attribution key of its providers and endpoints, ` +
             `so it must be unique. Either share one module value between its consumers ` +
             `(create it once and import that value), or give the two configurations ` +
             `different names. If neither is the case, check for a duplicated package in ` +

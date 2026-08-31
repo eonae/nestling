@@ -1,21 +1,15 @@
-import type { InjectionToken } from '../common';
-import type {
-  ModuleProvider,
-  ProvidersFactory,
-  TokenFamily,
-} from '../providers';
+import type { ModuleProvider, ProvidersFactory } from '../providers';
 
 /**
- * Модуль: обычный объект, который группирует провайдеры, импортирует другие
- * модули и объявляет, какие токены экспортирует.
+ * Модуль: обычный объект, который группирует провайдеры и импортирует другие
+ * модули.
  *
  * @example
  * ```typescript
  * const userModule: Module = {
  *   name: 'UserModule',
  *   providers: [UserService, UserRepository],
- *   imports: [DatabaseModule],
- *   exports: [UserService]
+ *   imports: [DatabaseModule]
  * };
  * ```
  */
@@ -29,13 +23,6 @@ export interface Module {
   providers?: ModuleProvider[] | ProvidersFactory;
   /** Модули, от которых зависит этот модуль */
   imports?: Module[];
-  /**
-   * Токены, которые модуль отдаёт другим модулям.
-   *
-   * Семейство в `exports` означает «все созданные члены семейства
-   * экспортированы». Учитывается только при `strictExports`.
-   */
-  exports?: (InjectionToken | TokenFamily<any, any>)[];
 }
 
 /**

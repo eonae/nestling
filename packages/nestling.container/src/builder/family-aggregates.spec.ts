@@ -402,10 +402,10 @@ describe('агрегат — обычный узел графа', () => {
   });
 });
 
-describe('агрегат и strictExports', () => {
-  it('отклоняет члена, которого модуль-владелец не экспортирует', async () => {
+describe('агрегат и модули', () => {
+  it('забирает вклад чужого модуля без объявления', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
-      'StrictCheck',
+      'CrossModuleCheck',
     );
 
     @Injectable([IHealthCheck.all])
@@ -414,38 +414,18 @@ describe('агрегат и strictExports', () => {
     }
 
     const DbModule = makeModule({
-      name: 'module:strict-db',
+      name: 'module:cross-db',
       providers: [valueProvider(IHealthCheck('db'), { name: 'db' })],
     });
 
-    const builder = new ContainerBuilder({ strictExports: true })
-      .register(DbModule)
-      .register(HealthEndpoint);
-
-    await expect(builder.build()).rejects.toThrow(
-      `${IHealthCheck.all} → ${IHealthCheck('db')} (module:strict-db)`,
-    );
-  });
-
-  it('принимает члена, если модуль экспортирует семейство', async () => {
-    const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
-      'StrictExportedCheck',
-    );
-
-    @Injectable([IHealthCheck.all])
-    class HealthEndpoint {
-      constructor(readonly checks: readonly HealthCheck[]) {}
-    }
-
-    const DbModule = makeModule({
-      name: 'module:strict-db-exported',
-      providers: [valueProvider(IHealthCheck('db'), { name: 'db' })],
-      exports: [IHealthCheck],
+    const ApiModule = makeModule({
+      name: 'module:cross-api',
+      providers: [HealthEndpoint],
     });
 
-    const container = await new ContainerBuilder({ strictExports: true })
+    const container = await new ContainerBuilder()
       .register(DbModule)
-      .register(HealthEndpoint)
+      .register(ApiModule)
       .build();
 
     expect(namesOf(container.getOrThrow(HealthEndpoint).checks)).toEqual([

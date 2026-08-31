@@ -273,7 +273,6 @@ export interface FamilyProviderDefinition<
  *       factoryProvider(ILogger(scope), (cfg) => new Logger(scope, cfg), [IConfig]),
  *     ),
  *   ],
- *   exports: [ILogger],
  * });
  * ```
  */
