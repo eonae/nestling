@@ -66,4 +66,4 @@
 - [x] 8.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
 - [x] 8.5 `yarn docs:audit` — 0 ERROR
 - [x] 8.6 Затронутые `packages/examples.*` мигрированы, гайды пересверены с обновлённой датой в плашке «сверено с кодом»
-- [ ] 8.7 Коммиты осмысленные, ветка `change/input-validation-builtin` запушена
+- [x] 8.7 Коммиты осмысленные, ветка `change/input-validation-builtin` запушена
