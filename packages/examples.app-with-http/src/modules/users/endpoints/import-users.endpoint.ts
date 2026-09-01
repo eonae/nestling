@@ -1,4 +1,4 @@
-import { noValidationPipeline } from '../../../common/pipelines';
+import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
 import { importMetrics } from '../import-metrics';
@@ -78,6 +78,6 @@ export const ImportUsers = httpEndpoint({
     .limit(MAX_IMPORT_ROWS)
     .gapTimeout(IMPORT_GAP_TIMEOUT),
   output: ImportUsersOutput,
-  pipeline: noValidationPipeline,
+  pipeline: basePipeline,
   handle: ImportUsersHandler,
 });

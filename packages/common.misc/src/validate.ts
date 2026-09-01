@@ -36,10 +36,10 @@ export function assertStandardSchema(
 /**
  * Единственная точка валидации в ядре и транспортах.
  *
- * Через неё проходят `parsePayload`, `parseMetadata`, pipeline-юнит
- * `validate()`, поэлементная валидация элементов потока, fallback-ветки
- * транспортов и валидация полей секций конфига — чтобы форма отказа была
- * одна на всех путях.
+ * Через неё проходят `parsePayload`, `parseMetadata`, проверка входа
+ * endpoint'а рантаймом пайплайна, поэлементная проверка элементов потока
+ * и проверка полей секций конфига — чтобы форма отказа была одна на всех
+ * путях.
  *
  * Дом функции — `@common/misc`, а не `@nestling/pipeline`: конфигурация
  * читается и валидируется до существования запроса, и стрелка
@@ -67,7 +67,7 @@ export function validateSync<S extends StandardSchemaV1>(
     throw new AsyncSchemaNotSupportedError(
       'Schema validation must be synchronous, but `~standard.validate` ' +
         'returned a Promise. Асинхронные refinement’ы в схемах endpoint’ов ' +
-        'не поддерживаются: перенесите асинхронную проверку в pipeline-юнит ' +
+        'не поддерживаются: перенесите асинхронную проверку в `.pre`-юнит ' +
         'или в handler.',
     );
   }

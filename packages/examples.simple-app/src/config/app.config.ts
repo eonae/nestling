@@ -27,10 +27,10 @@ import { z } from 'zod';
  * это fail-fast, а не «undefined где-то в рантайме».
  */
 export const AppConfig = makeConfig('app', {
+  logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   databaseUrl: secret(
     from('DATABASE_URL', z.url().default('postgresql://localhost:5432/myapp')),
   ),
-  logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 
 /**

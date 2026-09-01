@@ -3,8 +3,6 @@
  * счётчики `summary`, поэлементная валидация и kernel-отказы цепочек.
  */
 
-import { validate } from '../middlewares/validate.js';
-
 import type { EndpointMeta, ResponseContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
@@ -311,25 +309,5 @@ describe('поэлементная валидация выхода', () => {
 
     expect(seen).toHaveLength(3);
     expect(items).toEqual([{ id: '1' }, { id: '3' }]);
-  });
-});
-
-describe('validate() не трогает потоковые и multipart формы', () => {
-  it('потоковый input проходит юнит без изменений', async () => {
-    const source = rows('1');
-    const ctx = makeEmptyContext<{ payload: unknown }>(
-      raw(source),
-      meta(stream(Row)),
-    );
-
-    let received: unknown;
-    await makePipeline()
-      .pre(validate())
-      .executeWithHandler(async (payload) => {
-        received = payload;
-        return new Ok({ ok: true });
-      }, ctx);
-
-    expect(received).toBe(source);
   });
 });

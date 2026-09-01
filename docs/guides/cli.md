@@ -1,6 +1,6 @@
 # CLI-транспорт
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-cli` (2026-08-29).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-cli` (2026-09-01).
 > Канон деклараций — [design/endpoints.md](../design/endpoints.md).
 > Запускаемый код — в [`packages/examples.simple-cli/`](../../packages/examples.simple-cli/).
 

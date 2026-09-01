@@ -99,7 +99,7 @@ pipeline.pre(addField({ userId: 42 }));
 makePipeline()
   .pre(withTiming)                      // TAcc: { timestamp }
   .pre(withIdentity<User>(auth))        // TAcc: { timestamp, identity }
-  .pre(validate());                     // TAcc: { ..., payload }
+  .pre(unwrapEnvelope);                 // TAcc: { ..., payload }
 
 compose(
   makePipeline().pre(withRequestId()),

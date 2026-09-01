@@ -1,5 +1,5 @@
 /**
- * `makeDispatch`: обе ветки исполнения, состав проекции и границы контракта.
+ * `makeDispatch`: исполнение endpoint'а, состав проекции и границы контракта.
  *
  * Типовая часть проверяется здесь же (`@ts-expect-error`): `makeDispatch`
  * принимает только исполнимые декларации — симметрично тому, как pipeline
@@ -18,6 +18,7 @@ import type {
 import {
   contextKernel,
   Ctx,
+  Fail,
   makeEmptyContext,
   makeEndpoint,
   makePipeline,
@@ -59,14 +60,27 @@ class UserService {
   }
 }
 
-/** Контекст, который построил бы транспорт после парсинга запроса */
+/**
+ * Контекст, который построил бы транспорт после парсинга запроса.
+ *
+ * Формы io и объявленные отказы едут в рантайм только так — из
+ * декларации через транспорт в `EndpointMeta`, без глобального реестра.
+ * Поэтому проверку входа получает тот контекст, в котором транспорт
+ * заполнил `input`.
+ */
 const contextFor = (
   pattern: string,
   payload?: unknown,
+  declaration?: { input?: unknown; errors?: unknown },
 ): ExtendableContext<AnyInput> =>
   makeEmptyContext(
     { transport: 'test', pattern, payload, attributes: {} },
-    { transport: 'test', pattern },
+    {
+      transport: 'test',
+      pattern,
+      input: declaration?.input as never,
+      errors: declaration?.errors as never,
+    },
   );
 
 describe('makeDispatch', () => {
@@ -93,23 +107,89 @@ describe('makeDispatch', () => {
     expect(response).toMatchObject({ isSuccess: true, value: { pong: true } });
   });
 
-  it('исполняет endpoint без пайплайна, валидируя value-форму', async () => {
+  it('исполняет endpoint без пайплайна, проверяя value-форму', async () => {
     const dispatch = makeDispatch([Echo]);
 
     const response = await dispatch.call(
       'POST /echo',
-      contextFor('POST /echo', { text: 'hi' }),
+      contextFor('POST /echo', { text: 'hi' }, Echo),
     );
 
     expect(response).toMatchObject({ isSuccess: true, value: { text: 'hi' } });
   });
 
-  it("невалидный вход endpoint'а без пайплайна отвергается схемой", async () => {
+  it("невалидный вход endpoint'а без пайплайна даёт ответ 400", async () => {
     const dispatch = makeDispatch([Echo]);
 
-    await expect(
-      dispatch.call('POST /echo', contextFor('POST /echo', { text: 42 })),
-    ).rejects.toThrow();
+    const response = await dispatch.call(
+      'POST /echo',
+      contextFor('POST /echo', { text: 42 }, Echo),
+    );
+
+    expect(response).toMatchObject({
+      isSuccess: false,
+      status: 'BAD_REQUEST',
+      value: {
+        code: 'VALIDATION_FAILED',
+        details: [{ message: expect.any(String), path: ['text'] }],
+      },
+    });
+  });
+
+  it("незадекларированный отказ endpoint'а без пайплайна нормализуется", async () => {
+    const Nope = makeEndpoint({
+      transport: TestTransport$,
+      pattern: 'GET /nope-fail',
+      handle: async () => {
+        throw Fail.notFound('nope');
+      },
+    });
+
+    const dispatch = makeDispatch([Nope]);
+    const seen: unknown[] = [];
+
+    const response = await dispatch.call(
+      'GET /nope-fail',
+      contextFor('GET /nope-fail'),
+      { onUnknownFail: (info) => seen.push(info.error) },
+    );
+
+    expect(response).toMatchObject({
+      isSuccess: false,
+      status: 'INTERNAL_ERROR',
+      value: { code: 'UNKNOWN' },
+    });
+    expect(seen).toHaveLength(1);
+  });
+
+  it('стартовый контекст транспорта доходит до хендлера без пайплайна', async () => {
+    let seen: Record<string, unknown> = {};
+
+    const Raw = makeEndpoint({
+      transport: TestTransport$,
+      pattern: 'POST /raw',
+      handle: async (_payload: unknown, meta: { rawBody?: Uint8Array }) => {
+        seen = meta as Record<string, unknown>;
+        return new Ok({ ok: true });
+      },
+    });
+
+    const ctx = makeEmptyContext(
+      {
+        transport: 'test',
+        pattern: 'POST /raw',
+        payload: undefined,
+        attributes: {},
+      },
+      { transport: 'test', pattern: 'POST /raw' },
+      undefined,
+      { rawBody: new Uint8Array([1, 2]) },
+    );
+
+    await makeDispatch([Raw]).call('POST /raw', ctx);
+
+    expect(seen.rawBody).toEqual(new Uint8Array([1, 2]));
+    expect(seen.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('проекция маршрута не содержит исполнимых полей', () => {

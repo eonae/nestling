@@ -1,6 +1,6 @@
 # HTTP-сервер без DI
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-http-server` (2026-08-29).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-http-server` (2026-09-01).
 > Целевое описание деклараций — [design/endpoints.md](../design/endpoints.md).
 > Запускаемый код — в
 > [`packages/examples.simple-http-server/`](../../packages/examples.simple-http-server/).
@@ -10,7 +10,7 @@
 через `httpEndpoint`. Транспорт-нейтральный конструктор `makeEndpoint`
 остаётся примитивом ядра; в пользовательском коде его не используют.
 
-## Endpoint с валидацией
+## Endpoint со схемой входа
 
 ```typescript
 // packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts
@@ -18,7 +18,7 @@ import { withTiming } from '../common/middleware';
 import { EmailTaken } from '../errors';
 
 import type { Output } from '@nestling/pipeline';
-import { makePipeline, validate } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import z from 'zod';
 
@@ -47,7 +47,7 @@ export const CreateUser = httpEndpoint({
   input: CreateUserInput,
   output: CreateUserOutput,
   errors: [EmailTaken],
-  pipeline: makePipeline().pre(withTiming).pre(validate()),
+  pipeline: makePipeline().pre(withTiming),
   handle: async (
     input: CreateUserInput,
   ): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> => {
@@ -68,8 +68,12 @@ export const CreateUser = httpEndpoint({
 путь без ведущего `/` и повторяющийся path-параметр дают ошибку сразу, а не
 на старте приложения.
 
-Схема `input` вместе с юнитом `.pre(validate())` даёт хендлеру уже
-проверенный и типизированный payload. Хендлер может вернуть значение
+Схема `input` даёт хендлеру уже проверенный и типизированный payload:
+вход по ней проверяет рантайм перед вызовом хендлера, независимо от
+состава пайплайна. Невалидный запрос получает `400` с кодом
+`VALIDATION_FAILED`, и хендлер не вызывается. Чтобы принимать любое
+значение, объявите схему `z.unknown()`; отдельного способа отключить
+проверку нет. Хендлер может вернуть значение
 напрямую (оно оборачивается в `Ok`) или явно вызвать `Ok.created(...)`,
 чтобы ответить статусом 201.
 
@@ -122,7 +126,7 @@ export const SearchUsers = httpEndpoint({
   input: SearchUsersInput,
   output: SearchUsersOutput,
   bind: { tag: query({ multiple: true }) }, // массив даже при одном ?tag=a
-  pipeline: makePipeline().pre(withTiming).pre(validate()),
+  pipeline: makePipeline().pre(withTiming),
   handle: async (input: SearchUsersInput) => ({
     query: input.q,
     tags: input.tag ?? [],
@@ -305,7 +309,7 @@ import type { EmptyInput, PreUnitFn } from '@nestling/pipeline';
 export const withTiming: PreUnitFn<EmptyInput, { timestamp: number }> =
   async () => ({ timestamp: Date.now() });
 
-// подключение: makePipeline().pre(withTiming).pre(validate())
+// подключение: makePipeline().pre(withTiming)
 ```
 
 Ответные юниты получают текущий ответ и могут заменить его: `.ok` — успех

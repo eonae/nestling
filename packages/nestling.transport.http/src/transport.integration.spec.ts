@@ -25,7 +25,6 @@ import {
   Ok,
   stream,
   upload,
-  validate,
 } from '@nestling/pipeline';
 import type { ExecutableDeclaration } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
@@ -326,18 +325,17 @@ describe('HttpTransport — request validation errors', () => {
   beforeAll(async () => {
     transport = makeTransport(silent);
 
-    // JSON endpoint с pipeline validate()
+    // JSON endpoint с пайплайном: проверку входа делает рантайм
     routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/json',
         input: z.object({ name: z.string() }),
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
     );
 
-    // Fallback без pipeline — валидация в транспорте
+    // Endpoint без пайплайна: тот же рантайм с пустым пайплайном
     routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
@@ -353,7 +351,16 @@ describe('HttpTransport — request validation errors', () => {
         method: 'POST',
         path: '/async-schema',
         input: asyncSchema,
-        pipeline: makePipeline().pre(validate()),
+        handle: () => new Ok({ ok: true }),
+      }),
+    );
+
+    // Та же ошибка конфигурации у endpoint'а без пайплайна
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/async-schema-bare',
+        input: asyncSchema,
         handle: () => new Ok({ ok: true }),
       }),
     );
@@ -364,7 +371,6 @@ describe('HttpTransport — request validation errors', () => {
         method: 'POST',
         path: '/not-a-schema',
         input: notASchema,
-        pipeline: makePipeline().pre(validate()),
         handle: () => new Ok({ ok: true }),
       }),
     );
@@ -437,6 +443,20 @@ describe('HttpTransport — request validation errors', () => {
     });
   });
 
+  it('async-схема без пайплайна → 500: путь исполнения один', async () => {
+    const response = await fetch(`${baseUrl}/async-schema-bare`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Alice' }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: 'Internal server error',
+      code: 'UNKNOWN',
+    });
+  });
+
   it('объект вместо схемы → 500, а не 400', async () => {
     const response = await fetch(`${baseUrl}/not-a-schema`, {
       method: 'POST',
@@ -483,7 +503,6 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         method: 'POST',
         path: '/users',
         input: z.object({ name: z.string() }),
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { name: string }) => new Ok(payload),
       }),
     );
@@ -494,7 +513,6 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         method: 'PATCH',
         path: '/users/:id',
         input: z.object({ id: z.string(), name: z.string() }),
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { id: string; name: string }) => new Ok(payload),
       }),
     );
@@ -505,7 +523,6 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         method: 'GET',
         path: '/tags',
         input: z.object({ tag: z.array(z.string()) }),
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { tag: string[] }) => new Ok(payload),
       }),
     );
@@ -517,7 +534,6 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         path: '/multi',
         input: z.object({ tag: z.array(z.string()) }),
         bind: { tag: query({ multiple: true }) },
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { tag: string[] }) => new Ok(payload),
       }),
     );
@@ -529,7 +545,6 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         path: '/marked',
         input: z.object({ name: z.string(), dryRun: z.string().optional() }),
         bind: { dryRun: query() },
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { name: string; dryRun?: string }) => new Ok(payload),
       }),
     );
@@ -555,6 +570,26 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
       }),
     );
 
+    // Поля multipart проверяет рантайм: у транспорта своей ветки нет
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/uploads',
+        input: multipart({
+          fields: z.object({ title: z.string().min(1) }),
+          files: { report: upload() },
+        }),
+        handle: (payload: {
+          fields: { title: string };
+          files: { report: FilePart };
+        }) =>
+          new Ok({
+            title: payload.fields.title,
+            file: payload.files.report.field,
+          }),
+      }),
+    );
+
     // Webhook: сырые байты в типизированном стартовом контексте
     routesOf(transport).push(
       httpEndpoint({
@@ -562,9 +597,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         path: '/hooks/stripe',
         input: z.object({ event: z.string() }),
         rawBody: true,
-        pipeline: makePipeline<{ rawBody: Uint8Array }>()
-          .pre(captureRawBody)
-          .pre(validate()),
+        pipeline: makePipeline<{ rawBody: Uint8Array }>().pre(captureRawBody),
         handle: (payload: { event: string }) => new Ok(payload),
       }),
     );
@@ -642,6 +675,36 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     expect(await response.json()).toEqual({ id: '7', files: ['avatar'] });
   });
 
+  it('невалидные поля multipart → 400, файловый поток дочитан', async () => {
+    const form = new FormData();
+    form.append('title', '');
+    form.append('report', new Blob([Buffer.from('x'.repeat(2048))]), 'r.bin');
+
+    const response = await fetch(`${baseUrl}/uploads`, {
+      method: 'POST',
+      body: form,
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe('VALIDATION_FAILED');
+    expect(body.details).toEqual([
+      { message: expect.any(String), path: ['title'] },
+    ]);
+
+    // Соединение закрылось штатно: следующий запрос обслуживается
+    const next = new FormData();
+    next.append('title', 'Report');
+    next.append('report', new Blob([Buffer.from('x')]), 'r.bin');
+    const ok = await fetch(`${baseUrl}/uploads`, {
+      method: 'POST',
+      body: next,
+    });
+
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ title: 'Report', file: 'report' });
+  });
+
   it('webhook: слой видит байты, хендлер — разобранный payload', async () => {
     seenRawBody = undefined;
     const payload = JSON.stringify({ event: 'charge.succeeded' });
@@ -673,7 +736,6 @@ describe('HttpTransport — тело читается только по треб
         method: 'GET',
         path: '/search',
         input: z.object({ q: z.string() }),
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { q: string }) => new Ok(payload),
       }),
     );
@@ -683,7 +745,7 @@ describe('HttpTransport — тело читается только по треб
         path: '/hooks',
         input: z.object({ event: z.string() }),
         rawBody: true,
-        pipeline: makePipeline<{ rawBody: Uint8Array }>().pre(validate()),
+        pipeline: makePipeline<{ rawBody: Uint8Array }>(),
         handle: (payload: { event: string }) => new Ok(payload),
       }),
     );
@@ -730,7 +792,6 @@ describe('HttpTransport — body size limits', () => {
         method: 'POST',
         path: '/json',
         input: z.object({ name: z.string() }),
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
     );
@@ -739,7 +800,22 @@ describe('HttpTransport — body size limits', () => {
         method: 'POST',
         path: '/stream',
         input: stream(z.object({ n: z.number() })),
-        // Без pipeline: ошибка чанка всплывает в верхний catch → 413
+        handle: async (payload: AsyncIterable<unknown>) => {
+          let count = 0;
+          for await (const item of payload) {
+            count += item ? 1 : 0;
+          }
+          return { count };
+        },
+      }),
+    );
+    // Тот же лимит у endpoint'а с пайплайном: путь исполнения один
+    routesOf(small).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/stream-piped',
+        input: stream(z.object({ n: z.number() })),
+        pipeline: makePipeline(),
         handle: async (payload: AsyncIterable<unknown>) => {
           let count = 0;
           for await (const item of payload) {
@@ -757,7 +833,6 @@ describe('HttpTransport — body size limits', () => {
         method: 'POST',
         path: '/json',
         input: z.object({ name: z.string() }),
-        pipeline: makePipeline().pre(validate()),
         handle: (payload: { name: string }) =>
           new Ok({ length: payload.name.length }),
       }),
@@ -791,13 +866,20 @@ describe('HttpTransport — body size limits', () => {
     expect(await response.json()).toEqual({ length: 10_000 });
   });
 
-  it('NDJSON-строка больше лимита → 413', async () => {
-    const response = await fetch(`${smallUrl}/stream`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-ndjson' },
-      body: 'x'.repeat(300),
-    });
-    expect(response.status).toBe(413);
+  it('NDJSON-строка больше лимита → 413 с кодом ядра', async () => {
+    for (const path of ['/stream', '/stream-piped']) {
+      const response = await fetch(`${smallUrl}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-ndjson' },
+        body: 'x'.repeat(300),
+      });
+
+      // Лимит срабатывает во время чтения, то есть уже внутри хендлера;
+      // код ядра проводит 413 через границу, не давая ей сделать 500
+      expect(response.status).toBe(413);
+      const body = await response.json();
+      expect(body.code).toBe('PAYLOAD_TOO_LARGE');
+    }
   });
 });
 

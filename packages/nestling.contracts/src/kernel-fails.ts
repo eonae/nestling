@@ -116,6 +116,20 @@ export const StreamLimitExceeded = defineFail('STREAM_LIMIT_EXCEEDED', {
   message: (d) => `Stream limit of ${d.max} item(s) exceeded`,
 });
 
+/**
+ * Отказ превышения лимита размера входа.
+ *
+ * Его бросает транспорт, когда тело или одна строка потока не помещаются
+ * в лимит. Код ядра по той же причине, что и у соседей: у потокового
+ * входа лимит срабатывает во время чтения, то есть уже внутри хендлера,
+ * и без кода ядра 413 превращался бы на границе в 500.
+ */
+export const PayloadTooLarge = defineFail('PAYLOAD_TOO_LARGE', {
+  status: 'PAYLOAD_TOO_LARGE',
+  details: numberFieldSchema('limit'),
+  message: (d) => `Payload exceeds the limit of ${d.limit} byte(s)`,
+});
+
 /** Отказ таймаута молчания источника (`.gapTimeout(ms)`) */
 export const StreamGapTimeout = defineFail('STREAM_GAP_TIMEOUT', {
   status: 'TIMEOUT',
@@ -142,6 +156,7 @@ export const DeadlineExceeded = defineFail('DEADLINE_EXCEEDED', {
 const KERNEL_FAIL_CODES: ReadonlySet<string> = new Set([
   UnknownError.code,
   ValidationFailed.code,
+  PayloadTooLarge.code,
   StreamLimitExceeded.code,
   StreamGapTimeout.code,
   DeadlineExceeded.code,

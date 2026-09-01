@@ -53,12 +53,13 @@ pipeline) и SHALL NOT содержать `error.message`, `error.stack` или 
 ### Requirement: Fail responses are not affected
 
 Ошибки, брошенные или возвращённые как **задекларированный** `Fail`
-(код входит в `errors:` ручки или в набор kernel-кодов), SHALL сохранять
-текущее поведение: `message`, `code` и `details` попадают в тело ответа
-независимо от `exposeErrorDetails` — их раскрытие является осознанным
-решением автора кода. Юниты `.catch` пайплайна MAY заменить `Fail`-ответ
-другим `Fail`-ответом (это тоже осознанное решение автора endpoint'а);
-политика раскрытия необработанных ошибок при этом не ослабляется.
+(код входит в `errors:` endpoint'а или в набор kernel-кодов), SHALL
+сохранять текущее поведение: `message`, `code` и `details` попадают в тело
+ответа независимо от `exposeErrorDetails` — их раскрытие является
+осознанным решением автора кода. Юниты `.catch` пайплайна MAY заменить
+`Fail`-ответ другим `Fail`-ответом (это тоже осознанное решение автора
+endpoint'а); политика раскрытия необработанных ошибок при этом не
+ослабляется.
 
 **Незадекларированный** отказ привилегии раскрытия не имеет: он
 нормализуется в `UnknownError` (capability `endpoint-error-contract`) и
@@ -67,15 +68,15 @@ pipeline) и SHALL NOT содержать `error.message`, `error.stack` или 
 
 #### Scenario: Задекларированный отказ с default options
 
-- **WHEN** ручка объявляет `errors: [EmailTaken]`, хендлер бросает
+- **WHEN** endpoint объявляет `errors: [EmailTaken]`, хендлер бросает
   `EmailTaken({ email })`, `exposeErrorDetails` выключен
 - **THEN** ответ 409 содержит `"code": "EMAIL_TAKEN"`, сообщение отказа
   и его `details`
 
 #### Scenario: Kernel-отказ с default options
 
-- **WHEN** payload не проходит схему в `validate()`-юните, а
-  `exposeErrorDetails` выключен
+- **WHEN** payload не проходит схему `input` при проверке рантаймом перед
+  хендлером, а `exposeErrorDetails` выключен
 - **THEN** ответ 400 содержит `"code": "VALIDATION_FAILED"` и детали
   issue'ов
 

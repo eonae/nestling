@@ -19,8 +19,7 @@ import type { PreUnitFn, Raw } from '../core/types';
  * });
  *
  * const pipeline = makePipeline()
- *   .pre(httpAuth)
- *   .pre(validate());
+ *   .pre(httpAuth);
  * ```
  */
 export function withIdentity<TUser>(

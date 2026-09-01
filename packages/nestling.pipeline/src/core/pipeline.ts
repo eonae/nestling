@@ -9,6 +9,7 @@ import {
 import type { AnyContextVar } from './context/variable.js';
 import { declaredVarOf, isContextVar } from './context/variable.js';
 import { bindOutputStream, isAsyncIterable, withFinish } from './io/index.js';
+import { validateInput } from './io/validate-input.js';
 import type {
   EndpointMeta,
   ErrorDetails,
@@ -289,21 +290,23 @@ export interface Pipeline<
   bind(resolve: UnitResolver): Pipeline<TReq, TAcc, never>;
 
   /**
-   * Выполняет запрос: `.pre`-юниты, хендлер, `.ok`/`.catch`, проверку
-   * `errors:` и `.finally`.
+   * Выполняет запрос: `.pre`-юниты, проверку входа по схеме `input`,
+   * хендлер, `.ok`/`.catch`, проверку `errors:` и `.finally`.
    *
    * Доступен только при `TNeeds = never`: у всех классов-юнитов есть
    * инстансы.
    *
    * @param handler - Хендлер endpoint'а; получает `payload` и `meta`
-   * отдельными аргументами
+   * отдельными аргументами. `payload` типизирован `unknown`: его тип
+   * задаёт схема `input` декларации, которой пайплайн не знает, — один и
+   * тот же пайплайн служит нескольким endpoint'ам
    * @param ctx - Начальный контекст, собранный транспортом
    * @param options - Опции выполнения
    */
   executeWithHandler<TOutput>(
     this: Pipeline<TReq, TAcc, never>,
     handler: (
-      payload: TAcc extends { payload: infer P } ? P : undefined,
+      payload: unknown,
       meta: (TAcc extends { payload: unknown }
         ? Omit<TAcc, 'payload'>
         : TAcc) & { signal: AbortSignal; fail: (e: AnyFail) => never },
@@ -623,7 +626,8 @@ class PipelineImpl {
 
   /**
    * Открывает область асинхронного контекста на всё выполнение запроса:
-   * `.pre`-юниты, хендлер, `.ok`/`.catch`, проверку `errors:` и `.finally`.
+   * `.pre`-юниты, проверку входа, хендлер, `.ok`/`.catch`, проверку
+   * `errors:` и `.finally`.
    *
    * Область открывается всегда, даже если в приложении нет ни одного
    * читателя `Ctx`: цена — одна ячейка и `als.run` на запрос, зато рантайм
@@ -698,10 +702,17 @@ class PipelineImpl {
         payload?: unknown;
       };
 
-      // Без `validate()` в `.pre` хендлер получает сырой payload от
-      // транспорта
-      const effectivePayload =
-        'payload' in finalInput ? payload : ctx.raw.payload;
+      // Кандидат проверки: `.pre`-юнит мог подменить значение для
+      // хендлера, положив в контекст ключ `payload`
+      const candidate = 'payload' in finalInput ? payload : ctx.raw.payload;
+
+      // Проверка входа стоит после всех `.pre`-юнитов и до хендлера: к
+      // этому моменту активированы все слои, поэтому отказ 400 видят их
+      // `.catch` и `.finally`
+      const effectivePayload = validateInput(
+        describeForm(ctx.endpoint.input),
+        candidate,
+      );
 
       setPhase(cell, 'handler');
 
@@ -1015,7 +1026,7 @@ function throwFail(error: AnyFail | FailData): never {
  *
  * @example
  * ```typescript
- * const base = makePipeline().pre(withRequestId()).pre(validate());
+ * const base = makePipeline().pre(withRequestId());
  * const authed = makePipeline<{ requestId: string }>()
  *   .pre(withIdentity(verifyToken))
  *   .catch(mapAuthError);

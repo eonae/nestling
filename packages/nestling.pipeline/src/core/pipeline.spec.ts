@@ -16,7 +16,7 @@
 // станет неиспользованной и tsc сообщит об этом.
 // @ts-expect-error: AfterUnitFn больше не экспортируется из @nestling/pipeline
 import type { AfterUnitFn } from '../index';
-import { validate, withIdentity, withPermissions } from '../middlewares';
+import { withIdentity, withPermissions } from '../middlewares';
 import type { Logger } from '../middlewares/logging';
 import { withRequestLogging } from '../middlewares/logging';
 import { withRequestId } from '../middlewares/meta';
@@ -93,6 +93,12 @@ function acceptsExecutable(_p: Pipeline<any, any, never>): void {
   /* проверка на уровне типов */
 }
 
+// Юнит, подменяющий кандидата проверки входа: рантайм проверит по схеме
+// `input` именно его значение, а в мету хендлера ключ не попадёт
+const withPayload: PreUnitFn<AnyInput, { payload: unknown }> = async (ctx) => ({
+  payload: ctx.raw.payload,
+});
+
 // ============================================================================
 // Накопление input `.pre`-юнитами
 // ============================================================================
@@ -103,7 +109,7 @@ describe('Pipeline v2 — накопление input pre-юнитами', () => 
       .pre(withTiming)
       .pre(withRequestLogging(mockLogger))
       .pre(withIdentity<User>(mockAuthenticator))
-      .pre(validate());
+      .pre(withPayload);
 
     type Acc = InferAcc<typeof pipeline>;
     type _AssertIdentity = Expect<
@@ -390,7 +396,7 @@ describe('Pipeline v2 — compose', () => {
     const base = makePipeline().pre(withRequestId());
     const authed = makePipeline<{ requestId: string }>()
       .pre(withIdentity<User>(mockAuthenticator))
-      .pre(validate());
+      .pre(withPayload);
 
     const composed = compose(base, authed);
 
@@ -485,7 +491,7 @@ describe('Pipeline v2 — типизация меты хендлера', () => {
   it('мета включает накопленные поля и гарантированный signal', async () => {
     const pipeline = makePipeline()
       .pre(withIdentity<User>(mockAuthenticator))
-      .pre(validate());
+      .pre(withPayload);
 
     type Acc = InferAcc<typeof pipeline>;
 
