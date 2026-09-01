@@ -8,9 +8,9 @@
 узел-агрегат: его deps — токены всех зарегистрированных членов семейства, его
 значение — замороженный массив их инстансов. Вклад остаётся обычным провайдером
 с членским токеном; агрегат остаётся обычным узлом графа — циклы, топологические
-`init()`/`destroy()`, `toJSON()`/`traverse()`, визуализация и `strictExports`
-работают без исключений. Никакого флага `multi: true` и никакой
-рантайм-резолюции не существует.
+`init()`/`destroy()`, `toJSON()`/`traverse()` и визуализация работают без
+исключений. Никакого флага `multi: true` и никакой рантайм-резолюции не
+существует.
 
 ## Requirements
 
@@ -192,27 +192,19 @@
 
 ### Requirement: Aggregate belongs to no module and consumes contributions as an outside consumer
 
-Узел-агрегат SHALL иметь `metadata.module === undefined`. При
-`strictExports: true` его рёбра SHALL проверяться существующим правилом
-кросс-модульных рёбер: вклад, принадлежащий модулю M, SHALL быть объявлен в
-`exports` модуля M (собственным токеном или семейством целиком), иначе сборка
-завершается ошибкой; ребро `потребитель → агрегат` SHALL допускаться свободно.
+Узел-агрегат SHALL иметь `metadata.module === undefined`. Его рёбра к членам
+семейства SHALL строиться без каких-либо ограничений со стороны модулей:
+вклад объявляется провайдером члена в `providers` модуля, и другого
+объявления SHALL NOT требоваться. Ребро `потребитель → агрегат` SHALL
+допускаться свободно.
 
 #### Scenario: Aggregate node has no module attribution
 
 - **WHEN** контейнер с агрегатом собран
 - **THEN** узел `"HealthCheck:{all}"` имеет `metadata.module === undefined`
 
-#### Scenario: Non-exported contribution fails a strict build
+#### Scenario: Contribution from another module needs no declaration
 
-- **WHEN** `strictExports: true`, модуль `db` регистрирует вклад
-  `IHealthCheck('db')` и не объявляет его в `exports`, а потребитель объявляет
-  `IHealthCheck.all`
-- **THEN** `build()` бросает ошибку strictExports, называющую ребро
-  `"HealthCheck:{all}" → "HealthCheck:db"` и модуль-владелец
-
-#### Scenario: Family export makes contributions consumable by the aggregate
-
-- **WHEN** `strictExports: true` и модуль-вкладчик объявляет
-  `exports: [IHealthCheck]`
-- **THEN** `build()` завершается успешно
+- **WHEN** модуль `db` регистрирует вклад `classProvider(IHealthCheck('db'), DbHealthCheck)`,
+  а потребитель из другого модуля объявляет `IHealthCheck.all`
+- **THEN** `build()` завершается успешно и вклад попадает в массив агрегата

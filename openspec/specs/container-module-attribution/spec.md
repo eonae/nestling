@@ -7,9 +7,9 @@ TBD - created by archiving change container-fixes. Update Purpose after archive.
 
 Провайдеры из функциональной фабрики модуля (`ProvidersFactory`) SHALL получать
 в метаданных узла графа ту же метку модуля (`metadata.module`), что и
-провайдеры, объявленные массивом в том же модуле. Токены, отсутствующие в
-`exports` модуля, SHALL иметь `metadata.exported === false`;
-присутствующие — `true`.
+провайдеры, объявленные массивом в том же модуле. Флага экспортированности у
+узла графа SHALL NOT существовать: поле `metadata.exported` удалено вместе с
+`Module.exports`.
 
 #### Scenario: Sync provider factory attributes to module
 
@@ -22,10 +22,7 @@ TBD - created by archiving change container-fixes. Update Purpose after archive.
 - **WHEN** модуль с `providers: async () => [SomeService]` собран
 - **THEN** узел графа для `SomeService` имеет `metadata.module === 'FeatureModule'`
 
-#### Scenario: Exported flag reflects module exports
+#### Scenario: Node metadata carries no exported flag
 
-- **WHEN** модуль с функциональной фабрикой экспортирует один из своих токенов
-  (`exports: [ExportedToken]`), а другой — нет
-- **THEN** узел `ExportedToken` имеет `metadata.exported === true`, а
-  неэкспортированный узел — `metadata.exported === false`
-
+- **WHEN** контейнер с модулем собран и вызван `toJSON()`
+- **THEN** метаданные узла содержат `module`, но поля `exported` в них нет

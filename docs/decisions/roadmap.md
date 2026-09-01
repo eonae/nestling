@@ -18,6 +18,8 @@
 28 — 2026-07-14 по записи «Policy-check на собранном графе» (закрывает
 d/06 П.3). Состав breaking-окна фиксации публичного API V1 закрыт:
 17, 19, 21, 23, 24 ([ideas.md [2026-07-14]](./ideas.md) «Kernel 1.0»).
+29 добавлен 2026-09-01 — первый change после закрытия волны 6, по записи
+[ideas.md [2026-09-01]](./ideas.md) «Модуль без `exports`».
 
 | # | Change | Суть | Размер | Статус |
 |---|---|---|---|---|
@@ -49,6 +51,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 26 | `contract-versioning` | версия явно в имени контракта; `describeContract` → дескриптор-значение (листья — через `SchemaDocConverter`, без конвертера честно непрозрачны); `snapshotContracts` сводит `.check()`-матрицу объединением топологий; `diffContracts` с закрытым словарём `breaking`/`additive`/`unknown` и направлением по слоту; отчёт-значение плюс `formatCompatibility` и подсказка bump'а — подсвечивает, не блокирует (флага блокировки не существует) | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-contract-versioning/), [гайд](../guides/ports.md), [ideas.md [2026-07-31]](./ideas.md), [ideas.md [2026-07-13]](./ideas.md) |
 | 27 | `port-deadline-idempotency` | `meta.deadline` (gRPC-модель: абсолютный момент `Date` в процессе, относительный `timeoutMs` по проводу, пересчёт на приёме; fail-fast до вызова и до обработки, отмена в полёте; встроенный код `DEADLINE_EXCEEDED`, определение `DeadlineExceeded` — в `@nestling/pipeline`, где живёт закрытый набор); `idempotencyKey` в meta **только** у `command` (`MetaOf<C>` по виду; ключ чеканит вызыватель, если не дан; провоз конвертом шины; дедупликация — satellite, не ядро); профиль двумя каналами — `raw.attributes` и переменные `Deadline`/`IdempotencyKey` | M | **done** — [архив](../../openspec/changes/archive/2026-07-31-port-deadline-idempotency/), [гайд](../guides/ports.md), [ideas.md [2026-07-31]](./ideas.md), [ideas.md [2026-07-13]](./ideas.md) |
 | 28 | `policy-check` | инварианты на собранном графе: `assemble({ policies })`, `everyEndpoint(фильтр).hasLayer(ref)` (идентичность слоя — по ссылке); `detached: '<причина>'` (строка обязательна) + печать detached-ручек на старте; ESLint-правило как editor-фидбек; машинерия для 13 (plugins) и 16 (async-context), прогон в `.check()`-матрице (18) | S–M | **done** — [архив](../../openspec/changes/archive/2026-07-31-policy-check/), новый пакет [`@nestling/eslint-plugin`](../../packages/nestling.eslint-plugin/), [ideas.md [2026-07-14]](./ideas.md) |
+| 29 | `remove-module-exports` | удаление `Module.exports` и опции `strictExports`: модуль остаётся меткой принадлежности и единицей упаковки, границу держат ES-модули и границы пакетов; `metadata.exported` уходит из узла графа, вклад в семейство объявляется одним провайдером в `providers` | S, breaking | **done** — [архив](../../openspec/changes/archive/2026-09-01-remove-module-exports/), [ideas.md [2026-09-01]](./ideas.md) |
 
 ## Порядок и зависимости
 
