@@ -17,6 +17,7 @@
   "devDependencies": {
     "@eslint/compat": "~1.1.1",
     "@eslint/js": "^9.10.0",
+    "@nestling/eslint-plugin": "workspace:*",
     "@rsdk/prettier-config": "^6.0.0-next.14",
     "@tanstack/eslint-plugin-router": "^1.132.21",
     "@types/jest": "^29.5.12",

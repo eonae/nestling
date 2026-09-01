@@ -107,7 +107,7 @@ await assemble({
 | [`@nestling/testing`](./packages/nestling.testing/) | Тестовый composition root: `assembleTest`, `overrides`, заглушки контрактов, `checkTopologies` |
 | [`@nestling/subscriptions`](./packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
 | [`@nestling/viz`](./packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
-| [`@nestling/eslint-plugin`](./packages/nestling.eslint-plugin/) | Подсказки ESLint для деклараций endpoint'ов |
+| [`@nestling/eslint-plugin`](./packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, подсказки по декларациям endpoint'ов |
 | [`@nestling/models`](./packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
 
 ## Примеры
