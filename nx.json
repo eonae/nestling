@@ -66,6 +66,9 @@
       "inputs": [
         "check"
       ],
+      "dependsOn": [
+        "@nestling/eslint-plugin:build"
+      ],
       "cache": true
     },
     "test": {

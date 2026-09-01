@@ -1,6 +1,7 @@
 // TODO: Move to package
 
 import js from '@eslint/js';
+import nestling from '@nestling/eslint-plugin';
 import pluginRouter from '@tanstack/eslint-plugin-router';
 import prettierPlugin from 'eslint-plugin-prettier/recommended';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -55,5 +56,19 @@ export default tseslint.config(
     },
   },
   ...pluginRouter.configs['flat/recommended'],
+  {
+    plugins: { '@nestling': nestling },
+    rules: {
+      /*
+       * Граница модуля — соглашение репозитория, и React-приложение под
+       * `src/static` из него не выведено. Правило продублировано сюда,
+       * потому что общая база в этот пакет не подходит целиком.
+       *
+       * Видит оно здесь не всё: импорты через алиасы (`@core/…`, `@types/…`)
+       * относительными не являются, и правило про них молчит.
+       */
+      '@nestling/import-through-barrel': 'warn',
+    },
+  },
   prettierPlugin,
 );

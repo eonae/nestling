@@ -44,7 +44,7 @@ A fully functional, type-safe dependency injection container with no third-party
 - **@nestling/transport.nats** — NATS as the application bus: remote port binding, queue groups, JetStream for durable delivery
 - **@nestling/models** — type-safe model definitions on top of zod
 - **@nestling/testing** — test composition root: `assembleTest`, overrides with pruning, `checkTopologies`
-- **@nestling/eslint-plugin** — editor hints for endpoint declarations (`endpoint-has-layer`); the guarantee stays the assembly policy check
+- **@nestling/eslint-plugin** — ESLint rules: `import-through-barrel` (a directory with a barrel is a module; enter it only through the barrel) and `endpoint-has-layer`, an editor hint whose guarantee stays the assembly policy check
 
 The target design is evolving in [`docs/decisions/`](./docs/decisions/ideas.md); usage guides in [`docs/guides/`](./docs/README.md).
 

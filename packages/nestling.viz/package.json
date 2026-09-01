@@ -39,6 +39,7 @@
     "three": "^0.160.0"
   },
   "devDependencies": {
+    "@nestling/eslint-plugin": "workspace:*",
     "@types/three": "^0.160.0"
   }
 }
