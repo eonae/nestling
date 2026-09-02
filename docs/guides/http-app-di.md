@@ -1,6 +1,6 @@
 # Приложение с DI: `assemble`, модули, декларации endpoint'ов
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-02).
 > Полное описание деклараций — [design/endpoints.md](../design/endpoints.md).
 > Запускаемый код — [`packages/examples.app-with-http/`](../../packages/examples.app-with-http/).
 
@@ -110,9 +110,9 @@ path-параметре — ошибка компиляции.
 запросе: пометка на path-параметре, `body()` у метода без тела, `bind` или
 path-параметр при потоковом или файловом `input`.
 
-> В примере `GetUser` и `CreateUser` объявлены через контракт
+> В примере `GetUser` и `CreateUser` объявлены через операция
 > (`httpEndpoint({ contract, … })`): адрес, схемы и `errors` живут в
-> контракте `src/api.contracts.ts`, который импортирует и внешний клиент.
+> операции `src/api.contracts.ts`, который импортирует и внешний клиент.
 > Форма с `method`/`path` выше делает то же самое, когда второго
 > потребителя нет. Подробнее — [`typed-client.md`](./typed-client.md).
 
@@ -172,17 +172,17 @@ export const CreateUser = httpEndpoint({
   output: CreateUserOutput,
   errors: [EmailTaken, QuotaExceeded],   // все отказы, которые endpoint может вернуть
   pipeline: basePipeline,
-  deps: [UserService, ILogger, ClaimQuota.port],
+  deps: [UserService, ILogger, ClaimQuota.caller],
   handle: createUserHandler,
 });
 ```
 
 В файле примера у хендлера больше зависимостей (эмиттеры событий и
-`ActivityHub`), а декларация объявлена через контракт; здесь оставлено
+`ActivityHub`), а декларация объявлена через операция; здесь оставлено
 только то, что нужно для разбора.
 
-`ClaimQuota.port` — такая же зависимость, как токен сервиса, но за ней
-стоит контракт соседней фичи. Вызов через порт всегда асинхронный и
+`ClaimQuota.caller` — такая же зависимость, как токен сервиса, но за ней
+стоит операция соседней фичи. Вызов через порт всегда асинхронный и
 возвращает `Ok` или `Fail`. Если соседняя фича переедет в другой
 процесс, этот код не изменится ([ports.md](./ports.md)).
 
@@ -411,22 +411,22 @@ curl -F avatar=@photo.png http://localhost:3000/api/users/1/avatar
 ## Модуль
 
 ```typescript
-// сокращённый вариант packages/examples.app-with-http/src/users.module.ts
-import { makeAppModule } from '@nestling/app';
+// сокращённый вариант packages/examples.app-with-http/src/users.feature.ts
+import { makeFeature } from '@nestling/app';
 import { CreateUser, SearchUsers, SearchUsersHandler } from './modules/users/endpoints';
 import { UserService } from './modules/users/user.service';
 
-export const UsersModule = makeAppModule({
+export const UsersModule = makeFeature({
   name: 'module:users',
   providers: [UserService, SearchUsersHandler],
   endpoints: [CreateUser, SearchUsers],
 });
 ```
 
-Модуль — обычный объект, созданный `makeAppModule`. В `providers`
+Модуль — обычный объект, созданный `makeFeature`. В `providers`
 перечисляются зависимости хендлеров: токены из `deps`, классы-хендлеры,
 классы-юниты пайплайнов. В `endpoints` — сами декларации. Инстанцировать
-декларацию не нужно, поэтому `makeAppModule` ничего в `providers` не
+декларацию не нужно, поэтому `makeFeature` ничего в `providers` не
 добавляет.
 
 Приложение обслуживает ровно те endpoint'ы, которые перечислены в
@@ -444,12 +444,12 @@ export const UsersModule = makeAppModule({
 ```typescript
 import { assemble } from '@nestling/app';
 import { http } from '@nestling/transport.http';
-import { UsersModule } from './users.module';
+import { UsersModule } from './users.feature';
 
 const app = assemble({
   // логирование подключается через imports внутри UsersModule:
   // инфраструктура — обычный модуль, отдельного поля под неё нет
-  modules: [UsersModule],
+  features: [UsersFeature],
   transports: [http({ port: 3000 })],   // провайдер, а не инстанс
 });
 
@@ -555,7 +555,7 @@ export class StoredUsersRepository implements IUsersRepository {
 ```typescript
 assemble({
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasVar(RequestId, 'requestId'),
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(RequestId, 'requestId'),
   ],
   /* … */
 });

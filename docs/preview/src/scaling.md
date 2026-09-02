@@ -41,7 +41,7 @@ assemble({
 | **L0** | модули и транспорт | фичи, `select`, конфиг, порты, шина |
 | **L1** | типизированный конфиг | фичи, `select`, порты, шина |
 | **L2** | `makeFeature` и `select` | порты, шина; всё в одном процессе |
-| **L3** | `makeContract` и порты в одном процессе | шина; вызовы идут внутри процесса |
+| **L3** | `makeRequest` / `makeCommand` / `makeEvent` и порты в одном процессе | шина; вызовы идут внутри процесса |
 | **L4** | NATS и политика диспатча | — split-развёртывание |
 
 :::note good Ключевое
@@ -66,20 +66,19 @@ await assemble({
 
 Если фича не выбрана, её провайдеры не создаются, а её endpoint'ов нет: discovery обходит дерево выбранных модулей, а не глобальный реестр. Приложение по-прежнему живёт в одном процессе, шина не нужна.
 
-## Порты и контракты {#ports}
+## Порты и операции {#ports}
 
-От того, как фичи общаются, зависит, можно ли будет разнести монолит по процессам. Nestling отвечает на это портами поверх контрактов. Одна и та же точка вызова из фичи A в фичу B работает и в одном процессе, и через сеть, без переписывания A.
+От того, как фичи общаются, зависит, можно ли будет разнести монолит по процессам. Nestling отвечает на это портами поверх операций. Одна и та же точка вызова из фичи A в фичу B работает и в одном процессе, и через сеть, без переписывания A.
 
 ### Как это сочетается с «no runtime magic»
 
 Прозрачность расположения обычно требует рантайм-диспетчеризации. В Nestling выбор делается на сборке, а не на запросе: порт привязывается к локальной или удалённой реализации в composition root, по выбору фич и топологии. Во время запроса фича A вызывает конкретное значение; рантайм ничего не выбирает.
 
-### Контракт — значение, не зависящее от направления
+### Операция — значение, не зависящее от направления
 
 ```ts billing/contracts.ts
-export const ChargeCard = makeContract({
+export const ChargeCard = makeRequest({
   name: 'billing.charge',
-  kind: 'request',                        // запрос-ответ, может вернуть Fail, один владелец
   input:  z.object({ orderId: z.string(), amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
 });
@@ -93,10 +92,10 @@ export const ChargeCard = makeContract({
 
 ### Половина портов уже есть
 
-Реализация контракта («я обрабатываю `billing.charge`») — это endpoint на транспорте-шине. Единственное новое — типизированный вызыватель. Владелец реализует контракт, потребитель инжектирует `Contract.port`:
+Реализация операции («я обрабатываю `billing.charge`») — это endpoint на транспорте-шине. Единственное новое — типизированный вызыватель. Владелец реализует операция, потребитель инжектирует `Contract.caller`:
 
 ```ts
-// billing РЕАЛИЗУЕТ контракт как endpoint
+// billing РЕАЛИЗУЕТ операция как endpoint
 export const ChargeCardImpl = implement(ChargeCard, {
   deps: [PaymentGateway],
   handle: (gw) => async (input, meta) =>
@@ -110,7 +109,7 @@ export const CreateOrder = httpEndpoint({
   input: NewOrder,
   output: Order,
   pipeline: base,
-  deps: [OrdersService, ChargeCard.port],
+  deps: [OrdersService, ChargeCard.caller],
   handle: (orders, billing: Port<typeof ChargeCard>) => async (input: NewOrder, meta): Output<Order> => {
     const charge = await billing.call({ orderId: input.id, amount: input.total }, meta);
     if (charge.isFail) return charge;     // отказ — обычный Fail, не исключение
@@ -138,7 +137,7 @@ await assemble({
 // политика диспатча — в конфиге: NESTLING_PORTS_DISPATCH=local-first | always-remote
 ```
 
-При `select='orders'` фича billing не выбрана, и `ChargeCard.port` привязывается к удалённому вызову через NATS; billing в своём поде обслуживает `billing.charge` (реплики образуют queue-group). При `select='all'` без NATS всё работает в одном процессе, порт локальный. Один бинарник даёт разные топологии за счёт конфига.
+При `select='orders'` фича billing не выбрана, и `ChargeCard.caller` привязывается к удалённому вызову через NATS; billing в своём поде обслуживает `billing.charge` (реплики образуют queue-group). При `select='all'` без NATS всё работает в одном процессе, порт локальный. Один бинарник даёт разные топологии за счёт конфига.
 
 ## Транспорты {#transports}
 
@@ -152,9 +151,9 @@ await assemble({
 | --- | --- | --- | --- |
 | HTTP | `@nestling/transport.http` | `'POST /orders'` | маршрутизация find-my-way, multipart через busboy, NDJSON и SSE, лимит тела, корректное закрытие |
 | CLI | `@nestling/transport.cli` | `'process'` (команда) | одиночный запуск и REPL, stdin как `stream` |
-| NATS | `@nestling/transport.nats` | subject контракта | входящие и исходящие вызовы, queue-group, JetStream для `durable` |
+| NATS | `@nestling/transport.nats` | subject операции | входящие и исходящие вызовы, queue-group, JetStream для `durable` |
 
-Один пайплайн обслуживает все транспорты, потому что работает со значениями, а не с `IncomingMessage` и `ServerResponse`. Endpoint, который отвечает на HTTP, может отвечать на команду CLI и на сообщение NATS. NATS при этом — транспорт с двумя возможностями (принимать и отправлять), а не отдельная подсистема обмена сообщениями. Специфика NATS (JetStream, wildcard, ack) в API контрактов не попадает.
+Один пайплайн обслуживает все транспорты, потому что работает со значениями, а не с `IncomingMessage` и `ServerResponse`. Endpoint, который отвечает на HTTP, может отвечать на команду CLI и на сообщение NATS. NATS при этом — транспорт с двумя возможностями (принимать и отправлять), а не отдельная подсистема обмена сообщениями. Специфика NATS (JetStream, wildcard, ack) в API операций не попадает.
 
 :::note Итог
 Endpoint не знает ни источника конфига, ни транспорта. Один и тот же бизнес-код работает в одном процессе и в split, с конфигом из env или Vault, по HTTP или через шину — без правок. Ядро берёт на себя окружение; пользовательский код остаётся чистым. В этом суть Nestling: структура NestJS без его рантайм-магии, с гарантиями вместо конвенций.

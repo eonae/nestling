@@ -31,11 +31,11 @@ await using app = await assembleTest({
   features: [UsersFeature, OpsFeature],
   transports: [http({ port: 0 })],
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
-  // заглушка контракта, который эта сборка не реализует
+  // заглушка операции, который эта сборка не реализует
   stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
   config: vars({ USERS_PAGE_SIZE: '10' }),
   // те же инварианты, что и в production
-  policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)],
+  policies: [everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(authedBase)],
 });
 
 expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual({ id: '1', name: 'Alice' });
@@ -136,7 +136,7 @@ overrides: [
 
 Фича, которая инжектит `ChargeCard.caller`, не соберётся без соседа: рецепт
 вызывателя не проходит проверку достижимости. `stub` возвращает пару
-«токен вызывателя и заглушка»: `[C.caller, …]` для `request`-контракта,
+«токен вызывателя и заглушка»: `[C.caller, …]` для `request`-операции,
 `[C.emitter, …]` для `command` и `event`. Пара передаётся в `stubs:`
 вместе с обычными парами `[token, value]`; отдельного поля нет.
 
@@ -149,20 +149,20 @@ stubs: [
 
 Механизм — свойство контейнера: явный провайдер для члена семейства имеет
 приоритет над рецептом, поэтому production-код `buildPort` и `buildEmitter`
-для заглушенного контракта не вызывается, и проверка достижимости тоже.
+для заглушенного операции не вызывается, и проверка достижимости тоже.
 
-Заглушка проверяется схемами своего контракта при каждом вызове:
+Заглушка проверяется схемами своего операции при каждом вызове:
 
-- вход разбирается формой `input` контракта: неверный payload даёт
+- вход разбирается формой `input` операции: неверный payload даёт
   `VALIDATION_FAILED`, и `impl` не вызывается;
 - успешный результат разбирается формой `output`, поэтому заглушка,
-  разошедшаяся с контрактом, падает сама, а не в потребителе. Это строже
+  разошедшаяся с операцией, падает сама, а не в потребителе. Это строже
   production-порта внутри процесса: настоящий ответ уже прошёл пайплайн
   реализации, у заглушки пайплайна нет;
-- возвращённый или брошенный отказ должен входить в `errors:` контракта
+- возвращённый или брошенный отказ должен входить в `errors:` операции
   (плюс коды ядра `VALIDATION_FAILED`, `UNKNOWN`, `DEADLINE_EXCEEDED`).
   Незадекларированный код — дефект теста, поэтому заглушка бросает ошибку с
-  именем контракта, кодом и разрешённым набором, а не превращает его в
+  именем операции, кодом и разрешённым набором, а не превращает его в
   `UnknownError`;
 - исключение из `impl`, не являющееся `Fail`, пробрасывается как есть.
 
@@ -171,7 +171,7 @@ stubs: [
 `idempotencyKey` — переданный вызывающим или сгенерированный заглушкой.
 
 Место вызова совпадает с production (`Port<C>` / `Emitter<C>`, результат
-`PortResult<C>`); заглушка, не подходящая контракту, не компилируется.
+`PortResult<C>`); заглушка, не подходящая операции, не компилируется.
 Своего spy у пакета нет: `impl` — обычная функция, туда подходит
 `jest.fn()`.
 
@@ -188,7 +188,7 @@ const [{ subscriber, response }] = await app.emit(PlaceOrder, { orderId: 'o-1' }
 - транспортные атрибуты несут параметры вызова, включая `idempotencyKey`;
 - ноль подписчиков у `event` — допустимая рассылка и пустой список; у
   `command` — ошибка адресации со списком доступных subject'ов;
-- `request`-контракт не компилируется: у него один владелец, а не
+- `request`-операция не компилируется: у неё один владелец, а не
   подписчики;
 - заглушенный эмиттер не мешает: заглушка подменяет то, что приложение
   вызывает наружу, а `emit` ведёт приложение снаружи внутрь.
@@ -226,22 +226,22 @@ expect(
 ).toEqual(['GET /health']);
 ```
 
-### Совместимость контрактов
+### Совместимость операций
 
-Отчёт каждой топологии содержит `contracts` — дескрипторы контрактов,
+Отчёт каждой топологии содержит `contracts` — дескрипторы операций,
 которые топология публикует. Проверка совместимости строится на них без
 второй сборки:
 
 ```typescript
 import {
-  checkTopologies, diffContracts, formatCompatibility, snapshotContracts,
+  checkTopologies, diffOperations, formatCompatibility, snapshotOperations,
 } from '@nestling/testing';
 
 const reports = await checkTopologies(spec, ['all', 'users', 'ops'], {
   converters: [zodConverter()],
 });
 
-const report = diffContracts(readBaseline(), snapshotContracts(reports));
+const report = diffOperations(readBaseline(), snapshotOperations(reports));
 
 console.log(formatCompatibility(report));
 expect(report.breaking).toEqual([]);
@@ -250,7 +250,7 @@ expect(report.breaking).toEqual([]);
 `options` передаются в `check()` каждой топологии. Без конвертеров
 дескрипторы всё равно строятся: структурная часть (вид, формы io, коды и
 статусы ошибок) точная, а листовые схемы помечаются непрозрачными, что даёт
-вердикт `unknown`. `diffContracts` — чистая функция от двух значений; она
+вердикт `unknown`. `diffOperations` — чистая функция от двух значений; она
 не участвует в сборке и не бросает ошибок по результату сравнения. Правила
 вердиктов и ведение baseline описаны в
 [`@nestling/ports`](../nestling.ports).
@@ -276,7 +276,7 @@ src.set('RUNTIME_LOG_LEVEL', 'debug'); // reloadable-секция перепро
 ## `testModule`: один модуль отдельно
 
 ```typescript
-await using app = await testModule(ReportsModule, {
+await using app = await testUnit(ReportsModule, {
   stubs: [
     [ILogger, noopLogger],
     [IClock, { now: () => 42 }],
@@ -286,7 +286,7 @@ await using app = await testModule(ReportsModule, {
 });
 ```
 
-`testModule(module, options?)` собирает мини-приложение вокруг одного
+`testUnit(module, options?)` собирает мини-приложение вокруг одного
 модуля с его `imports`, модулем ядра для конфига и перечисленными
 заглушками; те же фазы 0–3, тот же `TestApp`. Каждый неудовлетворённый
 импорт нужно заглушить явно. Ошибка перечисляет все недостающие токены и
@@ -317,7 +317,7 @@ resolve: { conditions: ['testing', 'node'] }
 | Экспорт | Что это |
 |---|---|
 | `assembleTest(spec)` | тестовая сборка; возвращает `TestApp` |
-| `testModule(module, options?)` | сборка вокруг одного модуля; возвращает `TestApp` |
+| `testUnit(module, options?)` | сборка вокруг одного модуля; возвращает `TestApp` |
 | `TestApp` | `call`, `emit`, `get`, `pruned`, `stubbed`, `features`, `close`, `Symbol.asyncDispose` |
 | `TestAssemblySpec`, `TestCallOptions`, `TestStub`, `EmitDelivery` | типы спека, опций вызова, заглушки и доставки |
 | `stub(contract, impl)` | пара «токен вызывателя, заглушка» для `stubs:` |
@@ -328,11 +328,11 @@ resolve: { conditions: ['testing', 'node'] }
 | `contextValue(variable, value)` | подмена переменной контекста запроса |
 | `checkTopologies(spec, selections, options?)`, `TopologyReport` | матрица `check()` |
 | `CheckReport`, `CheckOptions` | реэкспорт типов из `@nestling/app` |
-| `snapshotContracts`, `serializeSnapshot`, `diffContracts`, `formatCompatibility` | реэкспорт из `@nestling/ports`, чтобы CI-тест обходился одним импортом |
+| `snapshotOperations`, `serializeSnapshot`, `diffOperations`, `formatCompatibility` | реэкспорт из `@nestling/ports`, чтобы CI-тест обходился одним импортом |
 | `SchemaDocConverter` | тип конвертера схем (реэкспорт из `@nestling/pipeline`) |
 
 ## Границы пакета
 
 Раннера, матчеров и snapshot-механики здесь нет. `app.port(Contract)` для
-теста потребителя контракта не реализован; `.check()` подстановок не
+теста потребителя операции не реализован; `.check()` подстановок не
 принимает и всегда проверяет граф без них.

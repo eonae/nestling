@@ -1,6 +1,6 @@
 # HTTP-сервер без DI
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-http-server` (2026-09-01).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-http-server` (2026-09-02).
 > Целевое описание деклараций — [design/endpoints.md](../design/endpoints.md).
 > Запускаемый код — в
 > [`packages/examples.simple-http-server/`](../../packages/examples.simple-http-server/).

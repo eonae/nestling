@@ -1,13 +1,13 @@
 # Реестр подписок
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-02).
 
 Открытая подписка (`events(T)`, SSE) живёт минутами и часами. Рано или
 поздно о ней спрашивают эксплуатационно: сколько их сейчас, чьи они, почему
 узел не уходит в деплой и как закрыть конкретную. На эти вопросы отвечает
 пакет `@nestling/subscriptions` — реестр активных подписок. Он написан
 поверх публичных примитивов ядра: пайплайна, DI, `AbortSignal`, `Topic` и
-контрактов.
+операций.
 
 Пакет состоит из трёх частей. Модуль `subscriptions()` подключается один
 раз на приложение. Слой `tracked` композируется на endpoint. Реестр
@@ -22,7 +22,7 @@ import { subscriptions } from '@nestling/subscriptions';
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
-  publish: true,                      // публиковать факты открытия и закрытия контрактами
+  publish: true,                      // публиковать факты открытия и закрытия операциями
   node: 'app-with-http',
 });
 ```
@@ -33,13 +33,13 @@ export const appSubscriptions = subscriptions({
 Создайте значение один раз и импортируйте его туда, где оно нужно. Два
 вызова `subscriptions({ … })` дают два разных модуля с одним именем, и
 сборка падает. Модуль подключается либо в `modules:` корня, либо в
-`imports:` модуля, чьи endpoint'ы отслеживаются:
+`dependsOn:` модуля, чьи endpoint'ы отслеживаются:
 
 ```typescript
-// packages/examples.app-with-http/src/modules/ops/ops.module.ts
-export const OpsModule = makeAppModule({
+// packages/examples.app-with-http/src/modules/ops/ops.feature.ts
+export const OpsModule = makeFeature({
   name: 'module:ops',
-  imports: [appLogging, appSubscriptions],
+  dependsOn: [appLogging, appSubscriptions],
   endpoints: [
     Health,
     ListSubscriptions,
@@ -94,7 +94,7 @@ export const ActivityStream = httpEndpoint({
 гарантированно стоял на всех нужных endpoint'ах, объявите политику сборки:
 
 ```typescript
-policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(tracked, 'tracked')]
+policies: [everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(tracked, 'tracked')]
 ```
 
 `subscriptionObserver` в примере — отдельный `.finally`-слой, который
@@ -229,7 +229,7 @@ Endpoint ленты сам композирован со слоем `tracked`, �
 `abort()` действует только в своём процессе: реестр node-local. Наблюдение
 при этом можно сделать кластерным одной опцией `publish: true`. Тогда
 реестр публикует события `subscriptions.opened` и `subscriptions.closed`
-как обычные `event`-контракты пакета, и любая фича может на них
+как обычные `event`-операции пакета, и любая фича может на них
 подписаться:
 
 ```typescript
@@ -261,7 +261,7 @@ export const SubscriptionOpenedInOps = implement(SubscriptionOpened, {
 включается явно, потому что стоит одного `emit` на каждое открытие и
 закрытие подписки.
 
-Кластерного `abort` в пакете нет: у `request`-контракта ровно один
+Кластерного `abort` в пакете нет: у `request`-операции ровно один
 владелец, а `event` в split-развёртывании доставляется одной реплике
 queue-group, поэтому «закрыть подписку, не зная узла» через шину не
 выразить. Тема отложена: [deferred.md](../decisions/deferred.md).
@@ -315,6 +315,6 @@ export const quota = makePipeline<{ userId: string }>().pre(LimitSubscriptions);
 
 - [design/streaming.md §4.1](../design/streaming.md) — целевое описание
   реестра и его место в модели стриминга.
-- [guides/ports.md](./ports.md) — контракты и подписчики фактов.
+- [guides/ports.md](./ports.md) — операции и подписчики фактов.
 - [guides/composition.md](./composition.md) — инфраструктурные модули и
   политики сборки.

@@ -32,7 +32,7 @@ export const Hello = cliEndpoint({
   },
 });
 
-await assemble({ modules: [ToolsModule], transports: [cli()] }).run();
+await assemble({ features: [ToolsFeature], transports: [cli()] }).run();
 ```
 
 ```bash
@@ -44,7 +44,7 @@ node dist/main.js hello Alice --loud
 
 `cliEndpoint({ command, input, output, errors, pipeline, deps, handle, detached })`
 — конструктор декларации, тонкий слой над `makeEndpoint` из
-`@nestling/pipeline`. Транспорт декларации — токен пакета `CliTransport$`
+`@nestling/pipeline`. Транспорт декларации — токен пакета `CliTransport$('default')`
 с коротким именем `'cli'`; имя команды становится паттерном endpoint'а.
 Пустое имя команды бросает ошибку при создании декларации.
 
@@ -131,7 +131,7 @@ Standard Schema, — ошибка конфигурации: `AsyncSchemaNotSuppo
 | `cliEndpoint(declaration)` | конструктор декларации команды |
 | `cli(options?)` | провайдер транспорта для `transports:` или `providers:` |
 | `CliTransport` | класс транспорта: `serve`, `execute`, `close` |
-| `CliTransport$` | токен транспорта; короткое имя `'cli'` |
+| `CliTransport$('default')` | токен транспорта; короткое имя `'cli'` |
 | `parseArgv(argv)` | разбор аргументов в `CliInput` |
 | `CliInput` | `{ command, args, options }` |
 | `CliTransportOptions` | `mode`, `argv`, `onUnknownFail` |

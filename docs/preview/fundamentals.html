@@ -99,15 +99,15 @@ export class Database {
 <p>Nestling использует декораторы из спецификации ECMAScript, а не экспериментальные декораторы TypeScript с <code>reflect-metadata</code>. Декораторов параметров в стандарте пока нет, поэтому зависимости объявляются массивом в <code>@Injectable([...])</code>. Это цена стандарта, и она же делает граф явным.</p>
 </div>
 <h2 id="multi">Multi-injection</h2>
-<p>Частая задача: разные модули независимо добавляют реализации одного контракта (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это <code>multi: true</code>, в Nest такой набор собирают вручную.</p>
+<p>Частая задача: разные модули независимо добавляют реализации одного операции (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это <code>multi: true</code>, в Nest такой набор собирают вручную.</p>
 <p>В Nestling это ещё одно применение семейств токенов, и правило «один токен — один узел» сохраняется. Каждый вклад — обычный провайдер с членским токеном семейства. Агрегат — специальный токен <code>Family.all</code>, который на <code>build()</code> превращается в массив всех зарегистрированных членов:</p>
 <div class="code" data-file="health/contract.ts" data-lang="typescript"><pre><code>export const IHealthCheck = makeTokenFamily&lt;HealthCheck, [name: string]&gt;('HealthCheck');</code></pre></div>
 <div class="code" data-file="db.module.ts / redis.module.ts — вклады из разных модулей" data-lang="typescript"><pre><code>// каждый модуль регистрирует свой вклад как ОБЫЧНЫЙ провайдер
-export const DbModule = makeAppModule({
+export const DbModule = makeFeature({
   name: 'module:db',
   providers: [classProvider(IHealthCheck('db'), DbHealthCheck)],
 });</code></pre></div>
-<div class="code" data-file="health.endpoint.ts — агрегатор" data-lang="typescript"><pre><code>@Injectable([IHealthCheck.all])   // TokenString&lt;HealthCheck[]&gt;
+<div class="code" data-file="health.endpoint.ts — агрегатор" data-lang="typescript"><pre><code>@Injectable([IHealthCheck.all])   // Token&lt;readonly HealthCheck[]&gt;
 export class HealthEndpoint {
   constructor(private checks: HealthCheck[]) {}
 
@@ -337,11 +337,11 @@ handle: async function* (_, meta) {
 <p>Набор комбинаторов закрытый и инфраструктурный: наблюдение, отсечение, лимиты, время, группировка. Всё, что связано с перестановкой во времени и слиянием потоков (<code>merge</code>, <code>switchMap</code>, <code>combineLatest</code>), относится к логике хендлера, где можно взять RxJS. Переход простой: <code>from(asyncIterable)</code> и обратно, а отмена связывается через <code>meta.signal</code>.</p>
 </div>
 <h2 id="schemas">Схемы и OpenAPI</h2>
-<p>Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция конфига, payload контракта. Nestling не привязан к конкретному валидатору: ядро принимает <a href="https://standardschema.dev">Standard Schema</a> — общий интерфейс, который вместе спроектировали авторы Zod, Valibot и ArkType. Любая схема со свойством <code>~standard</code> работает сразу: Zod (v4, включая <code>zod/mini</code>), Valibot, ArkType, Effect Schema.</p>
+<p>Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция конфига, payload операции. Nestling не привязан к конкретному валидатору: ядро принимает <a href="https://standardschema.dev">Standard Schema</a> — общий интерфейс, который вместе спроектировали авторы Zod, Valibot и ArkType. Любая схема со свойством <code>~standard</code> работает сразу: Zod (v4, включая <code>zod/mini</code>), Valibot, ArkType, Effect Schema.</p>
 <div class="code" data-file="orders.schema.ts" data-lang="typescript"><pre><code>// Zod — привычный вариант…
 export const NewOrder = z.object({ items: z.array(OrderItem).min(1) });
 
-// …но контракт тот же на Valibot или ArkType — валидатор выбираете вы:
+// …но операция тот же на Valibot или ArkType — валидатор выбираете вы:
 export const NewOrder = v.object({ items: v.pipe(v.array(OrderItem), v.minLength(1)) });
 export const NewOrder = type({ items: OrderItem.array().atLeastLength(1) });</code></pre></div>
 <p>Рантайму от схемы нужны два свойства: <code>validate</code> (невалидный payload даёт 400 со стандартным списком <code>issues: { message, path }[]</code>; формат задаёт спецификация, а не вендор) и вывод типов для хендлера. Zod при этом не является зависимостью ядра: валидатор приносит приложение. Лёгкий бандл (<code>zod/mini</code>, Valibot) или богатый синтаксис (ArkType) — выбор приложения.</p>
@@ -364,7 +364,7 @@ await assemble({
 <ul class="body">
 <li><strong>Несколько валидаторов в одном приложении</strong> допустимы: сторонний модуль может быть написан на Valibot, а ваш код — на Zod. Схема сама сообщает вендора, <code>converters</code> — список.</li>
 <li><strong>Обход конвертера:</strong> аннотация <code>jsonSchema(schema, json)</code> задаёт JSON Schema вручную — для экзотического валидатора или доводки.</li>
-<li><strong>Ошибки — тоже контракт:</strong> <code>errors: [EmailTaken]</code> из декларации превращается в <code>responses</code>, а неявный <code>UnknownError</code> — в ответ <code>default</code>.</li>
+<li><strong>Ошибки — тоже операция:</strong> <code>errors: [EmailTaken]</code> из декларации превращается в <code>responses</code>, а неявный <code>UnknownError</code> — в ответ <code>default</code>.</li>
 <li><strong>Стриминг:</strong> для <code>stream</code> и <code>events</code> тот же механизм строит AsyncAPI.</li>
 </ul>
 <div class="note">
@@ -411,7 +411,7 @@ expect(res.isFail).toBe(false);</code></pre></div>
 </tr>
 <tr>
 <td>Чужая фича</td>
-<td><code>stub(Contract, impl)</code> — фейковый порт, ответы которого проверяются схемой контракта при каждом вызове.</td>
+<td><code>stub(Contract, impl)</code> — фейковый порт, ответы которого проверяются схемой операции при каждом вызове.</td>
 </tr>
 <tr>
 <td>Сквозная инфраструктура</td>
@@ -430,7 +430,7 @@ expect(res.isFail).toBe(false);</code></pre></div>
 </div>
 <div class="note good">
 <span class="note-t">Стаб не может разойтись с реальностью</span>
-<p><code>stub(Contract, ...)</code> проверяется схемой контракта на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.</p>
+<p><code>stub(Contract, ...)</code> проверяется схемой операции на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.</p>
 </div>
 <h3><code>.check()</code>: вся топология одним тестом</h3>
 <p>Жадный контейнер делает <code>build()</code> универсальной проверкой: циклы, недостающие зависимости, привязка портов, полнота env. <code>.check()</code> проходит фазы 0–1: конструкторы выполняются, <code>@OnInit</code> — нет, то есть ни одного соединения не открывается:</p>

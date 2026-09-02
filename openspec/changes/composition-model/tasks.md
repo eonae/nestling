@@ -78,14 +78,14 @@
 
 ## 11. Документация
 
-- [ ] 11.1 `docs/design/container.md` — модуль без `endpoints`, `dependsOn`, объектные токены
-- [ ] 11.2 `docs/design/composition.md` — три роли, `plugins:`, `select`, `intercom:`
-- [ ] 11.3 `docs/design/contracts.md` и `endpoints.md` — три конструктора операций, `.caller`, endpoint как граница перевода
-- [ ] 11.4 `docs/design/transports.md` — именованные экземпляры, роль интеркома
-- [ ] 11.5 `docs/glossary.md` — «операция», «фича», «плагин», «интерком»; убрать «контракт» и «порт» в прежнем значении
-- [ ] 11.6 README затронутых пакетов и плашки статуса
-- [ ] 11.7 Гайды пересверены с примерами, дата в плашке «сверено с кодом» обновлена
-- [ ] 11.8 `yarn docs:preview`
+- [x] 11.1 `docs/design/container.md` — модуль без `endpoints`, `dependsOn`, объектные токены
+- [x] 11.2 `docs/design/composition.md` — три роли, `plugins:`, `select`, `intercom:`
+- [x] 11.3 `docs/design/contracts.md` и `endpoints.md` — три конструктора операций, `.caller`, endpoint как граница перевода
+- [x] 11.4 `docs/design/transports.md` — именованные экземпляры, роль интеркома
+- [x] 11.5 `docs/glossary.md` — «операция», «фича», «плагин», «интерком»; убрать «контракт» и «порт» в прежнем значении
+- [x] 11.6 README затронутых пакетов и плашки статуса
+- [x] 11.7 Гайды пересверены с примерами, дата в плашке «сверено с кодом» обновлена
+- [x] 11.8 `yarn docs:preview`
 
 ## 12. Журнал решений
 

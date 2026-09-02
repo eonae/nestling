@@ -1,6 +1,6 @@
 # Composition root: `assemble`, фичи и фазы
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-02).
 > Разделы про конфиг и `@OnStart` сверены с `examples.simple-app`,
 > раздел про standalone — с `examples.simple-http-server`.
 
@@ -13,48 +13,48 @@ import { assemble } from '@nestling/app';
 import { http } from '@nestling/transport.http';
 
 await assemble({
-  modules: [OrdersModule],
+  features: [OrdersFeature],
   transports: [http({ port: 3000 })],
 }).run();
 ```
 
-Каждое поле описания опционально. Приложению из одного модуля не нужны ни
-фичи, ни `select`, ни конфиг: эти уровни подключаются по мере
+Каждое поле описания опционально. Приложению из одной фичи не нужны ни
+`select`, ни плагины, ни конфиг: эти уровни подключаются по мере
 необходимости, а пока не подключены, ничего не стоят.
 
-Гайд идёт по уровням: L0 (модули и транспорт), L1 (конфиг), L2 (фичи и
-`select`). Дальше — параметризованные инфраструктурные модули, фазы
-жизненного цикла, политики сборки и standalone-режим без `App`.
+Гайд идёт по уровням: L0 (фича и транспорт), L1 (конфиг), L2 (несколько
+фич и `select`). Дальше — плагины, фазы жизненного цикла, политики сборки
+и standalone-режим без `App`.
 
-## L0 — модули и транспорт
+## L0 — фича и транспорт
 
 ```typescript
 await assemble({
-  modules: [UsersModule],
+  features: [UsersFeature],
   transports: [http({ port: 3000 })],   // явная опция сильнее HTTP_PORT
 }).run();
 ```
 
-`http()` возвращает не экземпляр транспорта, а провайдер. Его зависимости
-(порт и хост из конфиг-секции транспорта) подставляет контейнер. Поле
-`transports:` — сокращённая запись регистрации этого провайдера: тот же
-провайдер можно объявить в `providers:` любого модуля, в том числе
-инфраструктурного модуля фичи.
+`http()` возвращает не экземпляр транспорта, а **объявление экземпляра**:
+имя, токен и провайдер. Зависимости провайдера (порт и хост из
+конфиг-секции транспорта) подставляет контейнер. Экземпляров может быть
+несколько — `http({ name: 'admin', port: 3001 })`, — и декларация выбирает
+свой полем `on:`.
 
 Порт и хост выбираются по приоритету: сначала явные опции фабрики, затем
 конфиг (`HTTP_PORT`, `HTTP_HOST`), затем значение по умолчанию транспорта.
 
 Список транспортов приложения отдельно не настраивается. Он выводится из
 двух источников: токены, на которые ссылаются найденные декларации
-endpoint'ов, и токены провайдеров из `transports:`. Если декларация
-ссылается на транспорт, которого нет в графе, сборка падает на фазе
-ASSEMBLE — так же, как при любой другой незарегистрированной зависимости:
+endpoint'ов, и токены объявленных экземпляров. Если декларация ссылается
+на экземпляр, которого нет в графе, сборка падает на фазе ASSEMBLE — так
+же, как при любой другой незарегистрированной зависимости:
 
 ```
-Transport 'cli' is required by endpoint 'users:list' declared in module
-'module:cli', but is not registered in the container. Add it to
-'transports:' of assemble({ … }) or to 'providers:' of a module
-(for example cli()).
+Transport 'cli' is required by endpoint 'users:list' declared in 'tools',
+but the root does not declare it. Add it to 'transports:' of
+assemble({ … }); a bus additionally needs the intercom role
+('intercom: <instance name>').
 ```
 
 ## L1 — конфиг
@@ -62,7 +62,8 @@ Transport 'cli' is required by endpoint 'users:list' declared in module
 ```typescript
 // packages/examples.simple-app/src/main.ts (сокращено)
 const app = assemble({
-  modules: [LoggingModule, AppModule],
+  features: [AppFeature],
+  plugins: [appLogging],
   providers: [Demo],
   config: [
     [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
@@ -80,35 +81,50 @@ await app.run();
 
 Подробно о конфиге — [config.md](./config.md).
 
-## L2 — фичи и `select`
+## L2 — несколько фич и `select`
 
 ```typescript
-// packages/examples.app-with-http/src/features.ts
+// packages/examples.app-with-http/src/modules/ops/ops.feature.ts
 export const OpsFeature = makeFeature({
   name: 'ops',
-  modules: [OpsModule],
+  endpoints: [Health, ListSubscriptions /* … */],
 });
 
+// packages/examples.app-with-http/src/modules/quotas/quotas.feature.ts
 export const QuotasFeature = makeFeature({
-  name: 'quotas',
-  modules: [QuotasModule],   // владеет контрактом, который вызывает users
+  name: 'quotas',                        // владеет операцией, которую зовёт users
+  providers: [QuotaService, SignupJournal],
+  endpoints: [ClaimQuotaImpl /* … */],
 });
 
+// packages/examples.app-with-http/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],
-  dependsOn: [OpsFeature, QuotasFeature],   // выбрали users — включатся и они
+  endpoints: [GetUser, CreateUser /* … */],
 });
 ```
 
-Фича — это значение: набор модулей плюс ссылки на фичи, без которых она не
-работает. `dependsOn` принимает значения фич, а не их имена. Глобального
-реестра фич нет, и объявление фичи само по себе ничего не регистрирует.
+Фича — это значение: имя, состав (`providers` **или** `modules`) и её
+endpoint'ы. Глобального реестра фич нет, и объявление фичи само по себе
+ничего не регистрирует.
 
-`quotas` указана в `dependsOn` не для удобства. Фича `users` вызывает её
-через контракт, а `request`-контракт без реализации в том же процессе —
-ошибка сборки ([ports.md](./ports.md)). Поэтому топология «users без
-quotas» падает на фазе ASSEMBLE, а не на первом запросе.
+Поля `dependsOn` у фичи нет. Связь `users → quotas` уже записана в коде:
+`users` вызывает `quotas.claim`, и это видно в `deps` её декларации.
+Дублировать связь списком имён значило бы завести второй источник истины,
+который не с чем сверить. Выбор замыкается по вызовам явно:
+
+```typescript
+select: { features: 'users', includeDeps: true }   // quotas подключится сама
+```
+
+Без `includeDeps` топология «users без quotas» падает на фазе ASSEMBLE —
+вызов операции, которую некому обслужить, ошибка сборки
+([ports.md](./ports.md)), а не первого запроса.
+
+К фиче обращаются только операциями. Прямой инжект чужого сервиса по токену
+— ошибка сборки, которая называет обе фичи: такое ребро не пережило бы
+разъезда по процессам.
 
 Подмножество фич выбирается до сборки контейнера, на фазе 0 (BOOTSTRAP).
 Для этого есть единственный способ прочитать конфиг до сборки —
@@ -125,17 +141,24 @@ const cfg = load(RootConfig);
 
 const app = assemble({
   features: [UsersFeature, OpsFeature, QuotasFeature],
-  select: cfg.features,          // 'all' | 'users' | 'users,billing'
+  plugins: [appLogging, appSubscriptions],
+  select: { features: cfg.features, includeDeps: true },
   transports: [http({ port: 3000 })],
 });
 
 await app.run();
 ```
 
-`select` принимает три формы: `'all'`, строку с именами через запятую
-(`'users,billing'`; пробелы вокруг имён игнорируются) и массив имён
-(`['users', 'billing']`). Если `features` заданы, а `select` нет,
-выбираются все фичи.
+`select` принимает четыре формы: `'all'`, строку с именами через запятую
+(`'users,billing'`; пробелы вокруг имён игнорируются), массив имён
+(`['users', 'billing']`) и объект `{ features, includeDeps }`. Если
+`features` заданы, а `select` нет, выбираются все фичи.
+
+`includeDeps: true` замыкает выбор по вызываемым операциям видов `request`
+и `command`: фича, реализующая вызванную операцию, подключается сама, а
+фактический состав печатается на старте. События в замыкании не участвуют —
+у события ноль или больше подписчиков, и отсутствие подписчика в этом
+процессе законно.
 
 Невыбранной фичи в приложении нет целиком: её модули не попадают в
 контейнер, провайдеры не создаются, endpoint'ы не регистрируются ни в одном
@@ -144,33 +167,29 @@ await app.run();
 Ошибки выбора обнаруживаются до построения контейнера: неизвестное имя
 (сообщение перечисляет доступные), две разные фичи с одним `name`, пустой
 выбор (`''` или `[]`; «ничего» записывается отсутствием `features`), а
-также `select` без `features`. Цикл в `dependsOn` ошибкой не является:
-поле описывает, что без чего не работает, а не порядок построения. Выбрав
-одну из двух взаимно зависимых фич, вы получите обе.
+также `select` без `features`.
 
-Модули из `modules:` корня и модули выбранных фич регистрируются вместе.
-Одно и то же значение модуля, встреченное несколько раз, регистрируется
-один раз. Два разных значения с одинаковым `name` роняют сборку (см.
-«Инфраструктура: параметризованные модули»). Порядок регистрации: сначала
-модуль конфига из ядра, затем `modules:` корня, затем модули выбранных фич
-в порядке выбора.
+Модули выбранных фич и подключённых плагинов регистрируются вместе. Одно и
+то же значение модуля, встреченное несколько раз, регистрируется один раз.
+Два разных значения с одинаковым `name` роняют сборку. Модуль, достижимый
+из двух фич, обязан быть плагином: у него иначе два владельца, и ребро в
+него нельзя классифицировать.
 
-## Инфраструктура: параметризованные модули
+## Плагины: сквозная инфраструктура
 
-Сквозная инфраструктура — логирование, метрики, реестр подписок —
-объявляется обычными модулями и попадает в граф через `modules:` корня или
-через импорты модулей фичи. Отдельного примитива «плагин» нет: ни типа, ни
-поля `plugins:` в корне, ни `DynamicModule`/`forRoot`.
+Логирование, метрики, реестр подписок, документация — это плагины. Плагин
+есть в каждом процессе, поэтому к нему обращаются токенами; в словарь
+`select` он не входит и перечисляется в `plugins:` корня.
 
 ### Объявление
 
-Параметризованный модуль — это функция, которая возвращает модуль:
+Параметризованный плагин — это функция, которая возвращает значение:
 
 ```typescript
-// packages/examples.app-with-http/src/modules/logger/logger.module.ts
-export const logging = (options: LoggingOptions): Module =>
-  makeModule({
-    name: 'module:logging',
+// packages/examples.app-with-http/src/modules/logger/logger.plugin.ts
+export const logging = (options: LoggingOptions): Plugin =>
+  makePlugin({
+    name: 'app-logging',
     providers: [
       factoryProvider(
         ILogger,
@@ -178,24 +197,26 @@ export const logging = (options: LoggingOptions): Module =>
           new ConsoleLogger(options.service, config.level),
         [LoggerConfig],
       ),
-      AuditOutcome,          // юнит слоя регистрируется вместе с модулем
+      AuditOutcome,          // юнит слоя регистрируется вместе с плагином
     ],
   });
 ```
 
+Имя плагина совпадает с именем npm-пакета, который его поставляет: иначе
+два чужих пакета столкнутся именами, и починить это будет нечем.
+
 ### Одно значение на приложение
 
-Вызовите фабрику один раз и импортируйте полученное значение везде, где оно
-нужно:
+Вызовите фабрику один раз и перечислите полученное значение в корне:
 
 ```typescript
 // packages/examples.app-with-http/src/infrastructure.ts
 export const appLogging = logging({ service: 'app-with-http' });
 
-// packages/examples.app-with-http/src/users.module.ts
-export const UsersModule = makeAppModule({
-  name: 'module:users',
-  imports: [appLogging],       // инфраструктура подключается вместе с фичей
+// packages/examples.app-with-http/src/main.ts
+const app = assemble({
+  features: [UsersFeature, OpsFeature, QuotasFeature],
+  plugins: [appLogging, appSubscriptions],
   /* ... */
 });
 ```
@@ -204,22 +225,22 @@ export const UsersModule = makeAppModule({
 сборка на этом падает:
 
 ```
-Two different modules are named 'module:logging'. A module name is the
-attribution key of its providers and endpoints, so it must be unique.
-Either share one module value between its consumers (create it once and
-import that value), or give the two configurations different names. If
-neither is the case, check for a duplicated package in your dependencies -
-two copies give two values of the same module.
+Two different modules are named 'app-logging'. A module name is the
+attribution key of its providers, so it must be unique. Either share one
+module value between its consumers (create it once and import that value),
+or give the two configurations different names. If neither is the case,
+check for a duplicated package in your dependencies - two copies give two
+values of the same module.
 ```
 
-Опции модулей структурно не сравниваются: два вызова с одинаковыми опциями
-— это два разных модуля.
+Опции плагинов структурно не сравниваются: два вызова с одинаковыми
+опциями — это два разных значения.
 
 ### Параметр или секция конфига
 
 Параметр функции — решение composition root: какие провайдеры существуют,
 какая реализация выбрана, как назван экземпляр. Всё, что меняется без
-пересборки образа (адреса, уровни, таймауты), живёт в конфиг-секции. Модуль
+пересборки образа (адреса, уровни, таймауты), живёт в конфиг-секции. Плагин
 объявляет секцию сам и экспортирует наружу только `.keys`:
 
 ```typescript
@@ -233,14 +254,14 @@ export const loggerConfigKeys = LoggerConfig.keys;
 
 ### Требование к окружению
 
-Если инфраструктурному модулю нужен, например, HTTP-транспорт, он инжектит
-его токен как обычную зависимость. Невыполненное требование падает на фазе
-ASSEMBLE как неудовлетворённая зависимость. Отдельного механизма «только
-для этих транспортов» нет.
+Если плагину нужен, например, HTTP-транспорт, он инжектит его токен
+(`HttpTransport$('default')`) как обычную зависимость. Невыполненное
+требование падает на фазе ASSEMBLE как неудовлетворённая зависимость.
+Отдельного механизма «только для этих транспортов» нет.
 
 ### Слой для всех endpoint'ов
 
-Инфраструктурный модуль экспортирует слой пайплайна как значение,
+Плагин экспортирует слой пайплайна как значение,
 endpoint'ы подключают его явно через `pipeline:`, а политика в корне
 требует его от всех endpoint'ов (раздел «Инварианты сборки: `policies`»
 ниже). Невидимого middleware, который добавлял бы слой ко всем endpoint'ам
@@ -248,25 +269,26 @@ endpoint'ы подключают его явно через `pipeline:`, а по
 
 ### Область действия
 
-Модуль, импортированный фичей, попадает в граф вместе с ней и не попадает,
-если фича не выбрана — даже когда его файлы импортированы процессом. Две
-фичи в одном процессе, импортирующие одно значение модуля, получают один
-экземпляр; при разнесении по процессам у каждого процесса будет свой.
-Инфраструктура для всего процесса объявляется в `modules:` корня.
-«Глобальность» здесь означает только наличие провайдера в графе:
-инжектировать его сможет лишь тот, кто импортировал токен.
+Плагин есть в графе всегда: он не участвует в `select`. Фичи в одном
+процессе получают один его экземпляр; при разнесении по процессам у
+каждого процесса будет свой. «Есть в графе» не означает «доступен всем»:
+инжектировать провайдер сможет лишь тот, кто импортировал токен.
+
+Обратное правило симметрично: плагин не зависит от фичи. Ребро из плагина
+в провайдер фичи — ошибка сборки; данные приложения плагин принимает
+параметром или через свой собственный токен.
 
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
 await using app = await assembleTest({ ...spec, select: 'ops' });
 
-expect(app.get(ILogger)).not.toBeNull();   // ops импортирует логирование
+expect(app.get(ILogger)).not.toBeNull();   // плагин подключён всегда
 expect(app.get(ActivityHub)).toBeNull();   // users не выбрана — её провайдеров нет
 ```
 
 ### Доступ к составу приложения
 
-Модуль может инжектировать `Discovery$` — результат discovery, который
+Плагин может инжектировать `Discovery$` — результат discovery, который
 `assemble` регистрирует как значение. Это единственный способ увидеть
 выбранную топологию целиком, не дублируя `select` в корне.
 
@@ -275,9 +297,9 @@ factoryProvider(Report$, (discovery) => summarize(discovery.endpoints), [Discove
 ```
 
 Значение доступно только для чтения: через него можно посмотреть состав
-приложения, но не изменить его. Состав определяется деревом модулей.
-Первый потребитель `Discovery$` — модуль документации
-([openapi.md](./openapi.md)).
+приложения, но не изменить его. Состав определяется списками `features:` и
+`plugins:` и полем `select`. Первый потребитель `Discovery$` — плагин
+документации ([openapi.md](./openapi.md)).
 
 ## Фазы жизненного цикла
 
@@ -286,7 +308,7 @@ factoryProvider(Report$, (discovery) => summarize(discovery.endpoints), [Discove
 | Фаза | Что происходит |
 |---|---|
 | 0 BOOTSTRAP | `load(section)` в корне: `select` вычисляется до создания контейнера |
-| 1 ASSEMBLE | разбор `select` → дерево модулей → discovery → `build()` → проверка транспортов и форм io → проверка `policies:` |
+| 1 ASSEMBLE | разбор `select` → фичи и плагины → discovery → `build()` → граница фич → проверка транспортов и форм io → проверка `policies:` |
 | 2 INIT | `@OnInit` в топологическом порядке; `dispatch` ещё не существует |
 | 3 WIRE | декларации получают зависимости из контейнера; для каждого транспорта создаётся `dispatch` |
 | 4 START | `@OnStart` в топологическом порядке, затем `serve(dispatch, signal)` |
@@ -388,7 +410,7 @@ endpoint'ы, выведенные из-под политик, за ней идё
 ```typescript
 // packages/examples.app-with-http/src/main.ts (сокращено)
 import { everyEndpoint, RequestId } from '@nestling/pipeline';
-import { http, HttpTransport$ } from '@nestling/transport.http';
+import { http, HttpTransport$('default') } from '@nestling/transport.http';
 
 import { observability } from './modules/logger';
 
@@ -397,11 +419,11 @@ const app = assemble({
   select: cfg.features,
   transports: [http({ port: 3000 })],
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+    everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,
       'observability',
     ),
-    everyEndpoint({ transport: HttpTransport$ }).hasVar(
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
       RequestId,
       'requestId',
     ),
@@ -410,7 +432,7 @@ const app = assemble({
 ```
 
 `everyEndpoint(filter)` выбирает endpoint'ы по двум необязательным полям.
-`transport` — токен транспорта (`HttpTransport$`, а не провайдер `http()`).
+`transport` — токен транспорта (`HttpTransport$('default')`, а не провайдер `http()`).
 `pattern` — регулярное выражение, которое проверяется по строке паттерна
 (например, `'GET /api/users'`). Если заданы оба поля, endpoint должен
 подходить под оба; пустой фильтр выбирает все endpoint'ы приложения.

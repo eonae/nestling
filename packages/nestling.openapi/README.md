@@ -24,7 +24,7 @@ import { zodConverter } from '@nestling/openapi.zod';
 
 assemble({
   features: [UsersFeature],
-  modules: [
+  plugins: [
     openapi({
       info: { title: 'Users API', version: '1.0.0' },
       converters: [zodConverter()],
@@ -61,8 +61,8 @@ writeFileSync('openapi.json', JSON.stringify(
 | media types | `mediaTypeOf` — то же правило, что у транспорта и клиента |
 | `responses` | `output`, `errors:`, автоматический `400` и `default` (`UNKNOWN`) |
 | HTTP-коды | `httpCodeOf` из `@nestling/transport.http` |
-| `summary`, `tags`, `deprecated`, успешный статус | слот `doc:` декларации или контракта |
-| `operationId` | имя контракта, иначе слаг из метода и пути; отдельно не объявляется |
+| `summary`, `tags`, `deprecated`, успешный статус | слот `doc:` декларации или операции |
+| `operationId` | имя операции, иначе слаг из метода и пути; отдельно не объявляется |
 | JSON Schema листьев | конвертер вендора или аннотация `jsonSchema(schema, json)` |
 
 ## Проверка на старте

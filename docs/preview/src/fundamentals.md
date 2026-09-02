@@ -40,7 +40,7 @@ Nestling использует декораторы из спецификации
 
 ## Multi-injection {#multi}
 
-Частая задача: разные модули независимо добавляют реализации одного контракта (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это `multi: true`, в Nest такой набор собирают вручную.
+Частая задача: разные модули независимо добавляют реализации одного операции (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это `multi: true`, в Nest такой набор собирают вручную.
 
 В Nestling это ещё одно применение семейств токенов, и правило «один токен — один узел» сохраняется. Каждый вклад — обычный провайдер с членским токеном семейства. Агрегат — специальный токен `Family.all`, который на `build()` превращается в массив всех зарегистрированных членов:
 
@@ -50,14 +50,14 @@ export const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>('Health
 
 ```ts db.module.ts / redis.module.ts — вклады из разных модулей
 // каждый модуль регистрирует свой вклад как ОБЫЧНЫЙ провайдер
-export const DbModule = makeAppModule({
+export const DbModule = makeFeature({
   name: 'module:db',
   providers: [classProvider(IHealthCheck('db'), DbHealthCheck)],
 });
 ```
 
 ```ts health.endpoint.ts — агрегатор
-@Injectable([IHealthCheck.all])   // TokenString<HealthCheck[]>
+@Injectable([IHealthCheck.all])   // Token<readonly HealthCheck[]>
 export class HealthEndpoint {
   constructor(private checks: HealthCheck[]) {}
 
@@ -302,13 +302,13 @@ input: stream(LogChunk)
 
 ## Схемы и OpenAPI {#schemas}
 
-Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция конфига, payload контракта. Nestling не привязан к конкретному валидатору: ядро принимает [Standard Schema](https://standardschema.dev) — общий интерфейс, который вместе спроектировали авторы Zod, Valibot и ArkType. Любая схема со свойством `~standard` работает сразу: Zod (v4, включая `zod/mini`), Valibot, ArkType, Effect Schema.
+Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция конфига, payload операции. Nestling не привязан к конкретному валидатору: ядро принимает [Standard Schema](https://standardschema.dev) — общий интерфейс, который вместе спроектировали авторы Zod, Valibot и ArkType. Любая схема со свойством `~standard` работает сразу: Zod (v4, включая `zod/mini`), Valibot, ArkType, Effect Schema.
 
 ```ts orders.schema.ts
 // Zod — привычный вариант…
 export const NewOrder = z.object({ items: z.array(OrderItem).min(1) });
 
-// …но контракт тот же на Valibot или ArkType — валидатор выбираете вы:
+// …но операция тот же на Valibot или ArkType — валидатор выбираете вы:
 export const NewOrder = v.object({ items: v.pipe(v.array(OrderItem), v.minLength(1)) });
 export const NewOrder = type({ items: OrderItem.array().atLeastLength(1) });
 ```
@@ -339,7 +339,7 @@ await assemble({
 
 - **Несколько валидаторов в одном приложении** допустимы: сторонний модуль может быть написан на Valibot, а ваш код — на Zod. Схема сама сообщает вендора, `converters` — список.
 - **Обход конвертера:** аннотация `jsonSchema(schema, json)` задаёт JSON Schema вручную — для экзотического валидатора или доводки.
-- **Ошибки — тоже контракт:** `errors: [EmailTaken]` из декларации превращается в `responses`, а неявный `UnknownError` — в ответ `default`.
+- **Ошибки — тоже операция:** `errors: [EmailTaken]` из декларации превращается в `responses`, а неявный `UnknownError` — в ответ `default`.
 - **Стриминг:** для `stream` и `events` тот же механизм строит AsyncAPI.
 
 :::note Почему не универсальный генератор
@@ -387,13 +387,13 @@ expect(res.isFail).toBe(false);
 | Что подменяется | Инструмент |
 | --- | --- |
 | Конфиг (и перезагрузка) | `vars({...})` — объектный источник с `watch` и `set()`: проверяется и горячая перезагрузка (последнее рабочее значение, `onChange`). `process.env` не трогается, поэтому тесты выполняются параллельно. |
-| Чужая фича | `stub(Contract, impl)` — фейковый порт, ответы которого проверяются схемой контракта при каждом вызове. |
+| Чужая фича | `stub(Contract, impl)` — фейковый порт, ответы которого проверяются схемой операции при каждом вызове. |
 | Сквозная инфраструктура | `familyOverride(ILogger, () => noop)` — подмена рецепта всего семейства. |
 | Контекст запроса | `valueProvider(Ctx(RequestId), 'test-id')` — `AsyncLocalStorage` в тесте не нужен. |
 | Транспорт | не подменяется: вместо HTTP-клиента используется `app.call` внутри процесса. |
 
 :::note good Стаб не может разойтись с реальностью
-`stub(Contract, ...)` проверяется схемой контракта на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.
+`stub(Contract, ...)` проверяется схемой операции на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.
 :::
 
 ### `.check()`: вся топология одним тестом

@@ -1,6 +1,6 @@
 # @nestling/contracts
 
-Декларации, общие для сервера и клиента: `makeContract`, `defineFail` со
+Декларации, общие для сервера и клиента: `makeRequest` / `makeCommand` / `makeEvent`, `defineFail` со
 встроенными кодами отказов, `Ok`/`Fail` и перечень статусов, формы io
 (`stream()`, `events()`, `multipart()`/`upload()`), пометки размещения
 `query()`/`body()` и HTTP bind-карта, секция документации `doc:` и
@@ -18,7 +18,7 @@
 Примитив токена приходит через subpath `@nestling/container/tokens`: это два
 модуля без рантайм-импортов.
 
-Поэтому контракт можно импортировать во фронтенд-бандл. Это проверяет тест
+Поэтому операция можно импортировать во фронтенд-бандл. Это проверяет тест
 `src/boundary.spec.ts`: он обходит граф импортов собранного `dist/` и
 падает, называя модуль и запрещённый импорт.
 
@@ -31,7 +31,7 @@ npm install @nestling/contracts
 ## Минимальный пример
 
 ```typescript
-import { defineFail, makeContract, query } from '@nestling/contracts';
+import { defineFail, makeRequest, query } from '@nestling/contracts';
 
 export const EmailTaken = defineFail('EMAIL_TAKEN', {
   status: 'CONFLICT',
@@ -39,9 +39,8 @@ export const EmailTaken = defineFail('EMAIL_TAKEN', {
   message: (d) => `Email ${d.email} already taken`,
 });
 
-export const CreateUser = makeContract({
+export const CreateUser = makeRequest({
   name: 'users.create',                                   // subject шины
-  kind: 'request',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
@@ -50,14 +49,14 @@ export const CreateUser = makeContract({
 });
 ```
 
-Контракт — значение. Он ничего не регистрирует в модуле или приложении.
+Операция — значение. Он ничего не регистрирует в модуле или приложении.
 В приложение он попадает двумя способами: кто-то его реализует
 (`implement` из `@nestling/ports`) и кто-то инжектит его вызыватель
 (`CreateUser.caller`).
 
-## Контракт
+## Операция
 
-`makeContract(spec)` принимает словарь:
+`makeRequest(spec)` принимает словарь:
 
 | Поле | Значение |
 |---|---|
@@ -80,9 +79,9 @@ export const CreateUser = makeContract({
 
 Словарь проверяется при создании: пустое имя, неизвестный `kind`, элемент
 `errors` не из `defineFail`, повторяющийся код отказа, `durable` у
-`request` и дубликат имени контракта — ошибка сразу.
+`request` и дубликат имени операции — ошибка сразу.
 
-Типы для работы с контрактом: `Contract`, `RequestContract`,
+Типы для работы с операцией: `Contract`, `RequestContract`,
 `CommandContract`, `EventContract`, `InputOf<C>`, `OutputOf<C>`,
 `ContractFailsOf<C>`, `Port<C>`, `Emitter<C>`, `PortResult<C>`.
 
@@ -113,7 +112,7 @@ Fail.notFound('Order 42 not found');     // анонимный отказ без
 `Fail` расширяет `Error`, поэтому его можно и вернуть, и бросить.
 Идентичность отказа определяется полем `code`, а не классом. Анонимные
 отказы (`new Fail(...)`, `Fail.badRequest(...)` и другие фабрики) кода не
-имеют, в контракт не входят и на выходе из пайплайна заменяются на
+имеют, в операцию не входят и на выходе из пайплайна заменяются на
 `UnknownError`.
 
 `Output<T, E>` и `OutputSync<T, E>` — типы возврата хендлера: `Ok<T>`,
@@ -149,7 +148,7 @@ if (OrderNotFound.is(result)) { … }      // сравнение по code
 
 ### Встроенные коды
 
-Эти отказы входят в контракт любого endpoint'а без объявления в `errors`:
+Эти отказы входят в операция любого endpoint'а без объявления в `errors`:
 
 | Определение | `code` | `status` | Кто создаёт |
 |---|---|---|---|
@@ -221,7 +220,7 @@ capabilities)` отвергает декларацию, чью форму тра
 
 ## HTTP-адрес: секция `http:` и bind-карта
 
-Секция `http:` контракта — строка `'POST /users/:id'` или запись:
+Секция `http:` операции — строка `'POST /users/:id'` или запись:
 
 | Поле | Значение |
 |---|---|
@@ -236,7 +235,7 @@ capabilities)` отвергает декларацию, чью форму тра
 `query({ multiple? })` или `body()` переопределяет место одного поля.
 `query({ multiple: true })` всегда даёт массив.
 
-Секция разворачивается в bind-карту `HttpBinding` при создании контракта:
+Секция разворачивается в bind-карту `HttpBinding` при создании операции:
 `{ method, path, fields, rest, rawBody, contract?, sse? }`. Ту же карту
 читают транспорт (разбор запроса), клиент (сборка запроса) и генератор
 OpenAPI. Функции `computeHttpBinding`, `buildHttpBinding`, `readPathParams`,
@@ -255,8 +254,8 @@ OpenAPI. Функции `computeHttpBinding`, `buildHttpBinding`, `readPathParam
 | `hidden` | причина, по которой операция не попадает в документацию; только непустая строка |
 
 Секция не зависит ни от транспорта, ни от формата документации:
-`operationId` выводится, а не объявляется. В контракт-форме декларации
-`doc` принадлежит контракту вместе с `input`, `output` и `errors`.
+`operationId` выводится, а не объявляется. В форме с операцией декларации
+`doc` принадлежит операции вместе с `input`, `output` и `errors`.
 Словарь проверяется при создании (`assertDoc`): неизвестное поле,
 `hidden: true` или статус вне перечня успешных — ошибка.
 
@@ -284,20 +283,20 @@ input: z.object({ payload: jsonSchema(ExoticSchema, { type: 'object' }) })
 | [`@nestling/pipeline`](../nestling.pipeline) | реэкспортирует `Ok`/`Fail`, `defineFail`, формы io, `jsonSchema()` |
 | [`@nestling/openapi`](../nestling.openapi) | bind-карту, формы io, `errors` и `doc` |
 
-`makeContract` импортируется только из `@nestling/contracts`;
+`makeRequest` / `makeCommand` / `makeEvent` импортируется только из `@nestling/contracts`;
 `@nestling/ports` его не реэкспортирует.
 
 ## Две копии пакета
 
 Пакет хранит модульное состояние: члены семейств токенов вызывателей и
-реестр имён контрактов. Две копии пакета в одном приложении дают два
-реестра и две идентичности токенов: контракт, объявленный через одну
+реестр имён операций. Две копии пакета в одном приложении дают два
+реестра и две идентичности токенов: операция, объявленный через одну
 копию, вторая не распознает. Ошибка о дубликате имени говорит об этом
 прямо. В монорепозитории с workspace-протоколом проблемы нет; вне его
 держите одну версию пакета.
 
 ## Границы пакета
 
-Пакет не выполняет запросы, не реализует контракты и ничего не
+Пакет не выполняет запросы, не реализует операции и ничего не
 регистрирует в приложении: реализация и вызов живут в
 `@nestling/ports`, обработка запроса — в `@nestling/pipeline`.

@@ -21,7 +21,7 @@
 тем же модулем, так что идентичность значений не двоится. Схемный слой
 (`validateSync`, ошибки схем) живёт в [`@common/misc`](../common.misc) и
 тоже реэкспортируется. В этом пакете остаётся рантайм: сам пайплайн,
-проверка контракта отказов и обёртки потоков.
+проверка операции отказов и обёртки потоков.
 
 ## Установка
 
@@ -179,7 +179,7 @@ import { everyEndpoint } from '@nestling/pipeline';
 
 assemble({
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase, 'authedBase'),
+    everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(authedBase, 'authedBase'),
   ],
 });
 ```
@@ -220,7 +220,7 @@ assemble({
   кода — заменяется на `UnknownError` (`UNKNOWN`, 500). Оригинал целиком
   передаётся в `ExecuteOptions.onUnknownFail` (по умолчанию
   `console.error`); клиент получает общее тело ответа.
-- Встроенные коды входят в контракт каждого endpoint'а без объявления:
+- Встроенные коды входят в операция каждого endpoint'а без объявления:
   `UNKNOWN`, `VALIDATION_FAILED` (проверка входа и поэлементная проверка
   элементов потока), `PAYLOAD_TOO_LARGE` (лимит размера входа),
   `STREAM_LIMIT_EXCEEDED` и `STREAM_GAP_TIMEOUT` (item-цепочки),
@@ -354,7 +354,7 @@ const zodConverter = (): SchemaDocConverter => ({
 
 Что происходит, когда конвертера для вендора нет, решает потребитель:
 генератор документации (`@nestling/openapi`) падает на старте, снапшот
-контракта (`@nestling/ports`) считает лист непрозрачным. Поэтому
+операции (`@nestling/ports`) считает лист непрозрачным. Поэтому
 `leafJsonSchema(converters, leaf, options?)` возвращает один из трёх
 результатов — `declared` (у листа есть аннотация), `converted`,
 `unconvertible` — и оставляет решение вызывающему. `pickConverter`

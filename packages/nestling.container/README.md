@@ -84,7 +84,7 @@ class UserService {}
 container.get(UserService);
 ```
 
-2. **Брендированная строка** из `makeToken`. Подходит для интерфейсов и
+2. **Объектный токен** из `makeToken`. Подходит для интерфейсов и
    абстрактных зависимостей:
 
 ```typescript
@@ -100,8 +100,17 @@ container.get(ILogger); // тип результата: ILogger | null
 ```
 
 Интерфейсы и типы TypeScript исчезают при компиляции. `makeToken<T>(id)`
-создаёт строку, к которой на уровне типов привязан `T`: контейнер
-использует её как ключ, а компилятор выводит тип зависимости.
+создаёт объект, к которому на уровне типов привязан `T`: контейнер
+использует **ссылку** на него как ключ, а компилятор выводит тип
+зависимости.
+
+Идентичность токена ссылочная. Строковый `id` служит отображению — текстам
+ошибок, отчётам и `toJSON()` графа, — и на сравнение не влияет: два вызова
+`makeToken('ILogger')` дают два разных токена. Поэтому токен объявляют один
+раз и импортируют значением. Класс тоже опознаётся по ссылке: два
+одноимённых класса из разных пакетов — два разных узла графа. Совпадение
+`id` подмены не вызывает, но делает отчёты неоднозначными, и сборка об этом
+предупреждает.
 
 ### Провайдеры
 
@@ -169,7 +178,7 @@ const DatabaseModule = makeModule({
 
 const UserModule = makeModule({
   name: 'UserModule',
-  imports: [DatabaseModule], // DatabaseService приходит отсюда
+  dependsOn: [DatabaseModule], // DatabaseService приходит отсюда
   providers: [UserRepository, UserService],
 });
 
@@ -337,13 +346,14 @@ interface ILoggerService {
   log(message: string): void;
 }
 
-// Вызов семейства возвращает обычный мемоизированный токен:
-// ILogger('users') === 'Logger:users'
+// Вызов семейства возвращает мемоизированный токен члена с id
+// 'Logger:users'; повторный вызов даёт тот же токен
 const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Logger');
 ```
 
-Член семейства — обычный `TokenString`. Он работает везде, где работает
-токен: в `deps` декоратора, в зависимостях фабрики, в `container.get()`:
+Член семейства — обычный токен плюс два поля принадлежности (`family` и
+`param`). Он работает везде, где работает токен: в `deps` декоратора, в
+зависимостях фабрики, в `container.get()`:
 
 ```typescript
 @Injectable([ILogger('users')])
@@ -385,10 +395,10 @@ const LoggingModule = makeModule({
 от другого члена семейства, сбор повторяется, пока не перестанут появляться
 новые члены.
 
-Членов семейства создаёт только вызов семейства.
-`makeToken<ILoggerService>('Logger:users')` даёт строку, которая лишь
-похожа на член: контейнер сообщит об отсутствующем провайдере и подскажет
-имя семейства.
+Членов семейства создаёт только вызов семейства. Принадлежность читается
+**полем** токена, а не разбором его `id`, поэтому
+`makeToken<ILoggerService>('Logger:users')` даёт токен, который лишь похож
+на члена: контейнер сообщит о нём как об обычной недостающей зависимости.
 
 Сборка останавливается с ошибкой, если член запрошен, а `familyProvider`
 для его семейства не зарегистрирован; если рецепт вернул провайдер для
@@ -437,7 +447,7 @@ providers: [classProvider(IHealthCheck('api'), ApiHealthCheck)],
 ```
 
 Агрегатор зависит от маркера `IHealthCheck.all` с типом
-`TokenString<readonly HealthCheck[]>`:
+`Token<readonly HealthCheck[]>`:
 
 ```typescript
 @Injectable([IHealthCheck.all])
@@ -475,8 +485,10 @@ class HealthService {
 - Агрегат не принадлежит ни одному модулю, и его рёбра к вкладам ничем не
   ограничены: вклад чужого модуля попадает в массив без дополнительных
   объявлений.
-- Токен `.all` зарезервирован: провайдер с `provide: IHealthCheck.all` и
-  параметр члена `'{all}'` — ошибки регистрации.
+- Токен `.all` — выделенное значение, а не член с зарезервированным
+  параметром: `IHealthCheck('all')` — обычный член и с агрегатом не
+  сталкивается. Провайдер с `provide: IHealthCheck.all` — ошибка
+  регистрации: этот узел создаёт сборка.
 
 #### Жизненный цикл членов
 
@@ -645,13 +657,13 @@ const LoggingModule = makeModule({
 
 const DatabaseModule = makeModule({
   name: 'DatabaseModule',
-  imports: [LoggingModule],
+  dependsOn: [LoggingModule],
   providers: [PostgresDatabase],
 });
 
 const UserModule = makeModule({
   name: 'UserModule',
-  imports: [DatabaseModule, LoggingModule],
+  dependsOn: [DatabaseModule, LoggingModule],
   providers: [UserService],
 });
 
@@ -689,8 +701,8 @@ main().catch(console.error);
 
 | Функция | Что делает |
 |---|---|
-| `makeToken<T>(id)` | создаёт токен `TokenString<T>` для интерфейса или значения |
-| `makeTokenFamily<T, [param: string]>(name)` | создаёт семейство; `Family(param)` возвращает мемоизированный токен `"<name>:<param>"`, `Family.auto` — член по имени класса-потребителя, `Family.all` — агрегат `TokenString<readonly T[]>` |
+| `makeToken<T>(id)` | создаёт объектный токен `Token<T>` для интерфейса или значения |
+| `makeTokenFamily<T, [param: string]>(name)` | создаёт семейство; `Family(param)` возвращает мемоизированный токен `"<name>:<param>"`, `Family.auto` — член по имени класса-потребителя, `Family.all` — агрегат `Token<readonly T[]>` |
 | `Injectable(deps)` | декоратор класса; токен — сам класс |
 | `Injectable(token, deps)` | декоратор класса с явным токеном интерфейса |
 | `makeModule(module)` | создаёт модуль: `name`, `providers`, `imports` |
@@ -722,7 +734,7 @@ main().catch(console.error);
 
 ### Subpath `@nestling/container/tokens`
 
-Экспортирует только примитив токена (`makeToken`, `TokenString`,
+Экспортирует только примитив токена (`makeToken`, `Token`,
 `InjectionToken`) и семейства токенов, без билдера и графа. Предназначен
 для пакетов, которые объявляют токены, но не должны тянуть контейнер в свою
 зависимость, например [`@nestling/contracts`](../nestling.contracts).
