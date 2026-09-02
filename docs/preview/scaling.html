@@ -188,7 +188,7 @@ await assemble({
 </table>
 </div>
 <h3>Половина портов уже есть</h3>
-<p>Реализация операции («я обрабатываю <code>billing.charge</code>») — это endpoint на транспорте-шине. Единственное новое — типизированный вызыватель. Владелец реализует операция, потребитель инжектирует <code>Contract.caller</code>:</p>
+<p>Реализация операции («я обрабатываю <code>billing.charge</code>») — это endpoint на транспорте-шине. Единственное новое — типизированный вызыватель. Владелец реализует операция, потребитель инжектирует <code>Operation.caller</code>:</p>
 <div class="code" data-lang="typescript"><pre><code>// billing РЕАЛИЗУЕТ операция как endpoint
 export const ChargeCardImpl = implement(ChargeCard, {
   deps: [PaymentGateway],

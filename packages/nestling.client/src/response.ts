@@ -56,7 +56,7 @@ export function unknownFailure(message: string, cause: unknown): AnyFail {
  * Синхронность обязательна: `Promise` из `~standard.validate` — ошибка
  * конфигурации, ровно как в ядре. Валидация живёт здесь, а не через
  * `validateSync` из `@common/misc`, потому что её отказ обязан стать
- * `Fail`, а не исключением: клиент не бросает на контрактных сбоях.
+ * `Fail`, а не исключением: клиент не бросает на объявленных отказах.
  */
 function validateOutputValue(
   output: unknown,

@@ -290,7 +290,7 @@ for (const select of ['all', 'users', 'ops'] as const) {
   //   features,
   //   endpoints: [{ pattern, transport, module, detached? }],
   //   transports,
-  //   operations: [ContractDescriptor],
+  //   operations: [OperationDescriptor],
   // }
 }
 ```

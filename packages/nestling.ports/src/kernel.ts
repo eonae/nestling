@@ -112,7 +112,7 @@ export interface PortsKernelOptions {
 }
 
 /** Операция по имени члена семейства или понятная ошибка */
-function requireContract(name: string): AnyOperation {
+function requireOperation(name: string): AnyOperation {
   const operation = lookupOperation(name);
 
   if (!operation) {
@@ -209,7 +209,7 @@ function buildPort(
   policy: DispatchPolicy,
   remote: boolean,
 ): Port<any> {
-  const operation = requireContract(name);
+  const operation = requireOperation(name);
 
   if (operation.kind !== 'request') {
     throw new Error(
@@ -238,7 +238,7 @@ function buildEmitter(
   policy: DispatchPolicy,
   remote: boolean,
 ): Emitter<any> {
-  const operation = requireContract(name);
+  const operation = requireOperation(name);
 
   if (operation.kind === 'request') {
     throw new Error(

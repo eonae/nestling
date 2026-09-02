@@ -13,7 +13,7 @@ import { busBindingOf } from './transport.js';
 import type { OperationKind } from '@nestling/operations';
 
 /** Одна co-located реализация операции */
-export interface ContractImplementation {
+export interface OperationImplementation {
   /** Паттерн endpoint'а: адрес внутри процесса */
   readonly pattern: string;
 
@@ -25,18 +25,18 @@ export interface ContractImplementation {
 }
 
 /** Всё, что известно об одном операции в этой сборке */
-export interface ContractTopologyEntry {
+export interface OperationTopologyEntry {
   /** Subject шины — имя операции */
   readonly subject: string;
 
   readonly kind: OperationKind;
 
   /** Реализации в порядке обхода дерева модулей */
-  readonly implementations: readonly ContractImplementation[];
+  readonly implementations: readonly OperationImplementation[];
 }
 
 /** Топология: реализации операции по его имени */
-export type OperationTopology = ReadonlyMap<string, ContractTopologyEntry>;
+export type OperationTopology = ReadonlyMap<string, OperationTopologyEntry>;
 
 /**
  * Обнаруженная декларация — структурный вход, а не тип `@nestling/app`.
@@ -60,7 +60,7 @@ export interface DiscoveredDeclaration {
 export function collectImplementations(
   endpoints: readonly DiscoveredDeclaration[],
 ): OperationTopology {
-  const topology = new Map<string, ContractTopologyEntry>();
+  const topology = new Map<string, OperationTopologyEntry>();
 
   for (const { endpoint, moduleName } of endpoints) {
     const binding = busBindingOf(endpoint);
@@ -113,7 +113,7 @@ export function collectImplementations(
       );
     }
 
-    (entry.implementations as ContractImplementation[]).push({
+    (entry.implementations as OperationImplementation[]).push({
       pattern: endpoint.pattern,
       ...(binding.subscriber === undefined
         ? {}

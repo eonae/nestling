@@ -244,7 +244,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
         seen.push(`catch1:${error.status}`);
         // `.catch` может вернуть просто отказ. Рантайм нормализует его
         // так же, как отказ хендлера, и заодно делает недекларированный
-        // INTERNAL_ERROR контрактным.
+        // INTERNAL_ERROR объявленным.
         return Mapped();
       })
       .catch((error) => {
@@ -937,7 +937,7 @@ describe('Pipeline v2 — проверка операции отказов', () 
     });
   });
 
-  it('catch-юнит превращает недекларированный отказ в контрактный', async () => {
+  it('catch-юнит превращает недекларированный отказ в объявленный', async () => {
     const pipeline = makePipeline()
       .pre(() => {})
       .catch(() => Mapped());
@@ -992,13 +992,13 @@ describe('Pipeline v2 — проверка операции отказов', () 
     });
   });
 
-  it('пайплайн без декларации: контрактны только kernel-коды', async () => {
+  it('пайплайн без декларации: объявленными считаются только kernel-коды', async () => {
     const response = await run(makePipeline(), failingHandler, {
       errors: undefined,
       options: { onUnknownFail: () => {} },
     });
 
-    // declaredErrors — дефолт makeCtx, поэтому здесь отказ контрактен.
+    // declaredErrors — дефолт makeCtx, поэтому здесь отказ объявлен.
     // Проверка «пустого множества» — соседний кейс с errors: []
     expect(response.status).toBe('BAD_REQUEST');
 

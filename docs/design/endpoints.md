@@ -24,7 +24,7 @@
 2. **Операции** — все операции со схемами: интерфейс (`input`, `output`,
    `errors`) и адреса (`name`, `http:`, `cli:`, …)
    ([operations.md](./operations.md)).
-3. **Реализации** — `implement(Contract, { pipeline?, deps?, handle,
+3. **Реализации** — `implement(Operation, { pipeline?, deps?, handle,
    subscriber? })`. Поле `subscriber` задаёт адрес подписки: оно обязательно
    у операции-события и запрещено у остальных видов
    ([operations.md](./operations.md)).

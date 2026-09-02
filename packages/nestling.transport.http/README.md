@@ -59,7 +59,7 @@ httpEndpoint({ method, path, input, output, errors, bind, rawBody, sse, pipeline
 HTTP-поля и собирает `pattern` как `` `${method} ${path}` ``. `path` —
 литеральный тип; `PathParams<Path>` выводит из него имена `:param`.
 
-**Контрактная форма** берёт адрес, схемы, `errors` и `doc` из операции
+**Форма с операцией** берёт адрес, схемы, `errors` и `doc` из операции
 с секцией `http:`:
 
 ```ts
@@ -305,7 +305,7 @@ await assemble({ features: [UsersFeature], transports: [http({ port: 3000 })] })
 
 | Имя | Что это |
 |---|---|
-| `httpEndpoint(declaration)` | конструктор декларации (анонимная и контрактная формы) |
+| `httpEndpoint(declaration)` | конструктор декларации (анонимная форма и форма с операцией) |
 | `http(options?)` | провайдер транспорта для `transports:` или `providers:` |
 | `HttpTransport` | класс транспорта для ручного запуска |
 | `HttpTransport$('default')`, `HTTP_TRANSPORT_NAME` | токен транспорта и его короткое имя `'http'` |

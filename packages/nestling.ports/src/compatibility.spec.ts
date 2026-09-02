@@ -1,5 +1,5 @@
 /**
- * Дифф контрактов: таблица вердиктов, честный `unknown` и структурная
+ * Дифф операций: таблица вердиктов, честный `unknown` и структурная
  * невозможность заблокировать сборку.
  */
 
@@ -12,7 +12,7 @@ import type { JsonValue, OperationDescriptor } from './describe.js';
 import * as ports from './index.js';
 import type { OperationSnapshot } from './snapshot.js';
 
-/** Контракт-фикстура: value-формы с JSON Schema обоих слотов */
+/** Операция-фикстура: value-формы с JSON Schema обоих слотов */
 const operation = (
   name: string,
   overrides: Partial<OperationDescriptor> = {},
@@ -65,7 +65,7 @@ const diffSlot = (
   );
 
 describe('diffOperations: структурные правила', () => {
-  it('исчезновение контракта — breaking, появление — additive', () => {
+  it('исчезновение операции — breaking, появление — additive', () => {
     const report = diffOperations(
       snapshot(operation('gone'), operation('kept')),
       snapshot(operation('kept'), operation('fresh')),
@@ -84,7 +84,7 @@ describe('diffOperations: структурные правила', () => {
     ]);
   });
 
-  it('смена вида контракта — breaking', () => {
+  it('смена вида операции — breaking', () => {
     const report = diffOperations(
       snapshot(operation('c')),
       snapshot(operation('c', { kind: 'command' })),
@@ -517,13 +517,13 @@ describe('diffOperations: отчёт — значение, которое не �
 });
 
 describe('подсказка bump’а имени', () => {
-  it('предлагает `.v2` контракту без версии и `.v{N+1}` — с версией', () => {
+  it('предлагает `.v2` операции без версии и `.v{N+1}` — с версией', () => {
     expect(suggestBump('billing.charge')).toBe('billing.charge.v2');
     expect(suggestBump('user.create.v2')).toBe('user.create.v3');
     expect(suggestBump('user.create.v9')).toBe('user.create.v10');
   });
 
-  it('появляется в отчёте только у контракта с breaking', () => {
+  it('появляется в отчёте только у операции с breaking', () => {
     const report = diffOperations(
       snapshot(
         operation('billing.charge', {
@@ -598,7 +598,7 @@ describe('formatCompatibility', () => {
     );
 
     expect(text).toBe(
-      'Contract compatibility: 0 breaking, 0 additive, 0 unknown',
+      'Operation compatibility: 0 breaking, 0 additive, 0 unknown',
     );
   });
 });

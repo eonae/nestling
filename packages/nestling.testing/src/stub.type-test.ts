@@ -1,5 +1,5 @@
 /**
- * Типовые тесты контрактного стаба (стиль — `TYPE-TESTS.md` пайплайна).
+ * Типовые тесты стаба операции (стиль — `TYPE-TESTS.md` пайплайна).
  *
  * Файл не гоняется jest'ом: он и есть тест — если типы разойдутся, упадёт
  * `tsc` на сборке пакета. Негативные случаи закрыты `@ts-expect-error`:
@@ -100,7 +100,7 @@ async function stubRejectsPortShapeForEvent(): Promise<void> {
   });
 }
 
-function stubTypesPayloadByContract(): void {
+function stubTypesPayloadByOperation(): void {
   stub(ClaimQuota, async (payload) => {
     type _Payload = Expect<
       Equal<typeof payload, { tenantId: string; amount: number }>

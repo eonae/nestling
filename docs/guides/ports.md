@@ -35,8 +35,8 @@ export const ClaimQuota = makeRequest({
 
 Операция — значение. Он ничего не регистрирует ни в модуле, ни в
 приложении. В приложение он попадает двумя путями: кто-то его реализует
-(`implement`) и кто-то его вызывает (`Contract.caller` или
-`Contract.emitter` в `deps`).
+(`implement`) и кто-то его вызывает (`Operation.caller` или
+`Operation.emitter` в `deps`).
 
 ## Три вида операций
 
@@ -125,7 +125,7 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 
 ## Вызов операции
 
-Вызывающая сторона инжектит `Contract.caller` или `Contract.emitter` как
+Вызывающая сторона инжектит `Operation.caller` или `Operation.emitter` как
 обычную зависимость:
 
 ```typescript
@@ -162,7 +162,7 @@ export const createUserHandler =
   };
 
 export const CreateUser = httpEndpoint({
-  operation: CreateUserContract,              // адрес, схемы и errors живут в операции
+  operation: CreateUserOperation,              // адрес, схемы и errors живут в операции
   pipeline: basePipeline,
   deps: [
     UserService,
@@ -652,7 +652,7 @@ const scoped = makePipeline().pre(TenantId.propagated());
 
 ## Что дальше
 
-- Тест фичи без соседней: `stub(Contract, impl)` из `@nestling/testing`
+- Тест фичи без соседней: `stub(Operation, impl)` из `@nestling/testing`
   даёт заглушку вызывателя, ответы которой проверяются схемами операции, а
   `app.emit` вызывает приложение снаружи, как издатель. Рецепт —
   [`testing.md` §4](./testing.md); пример —

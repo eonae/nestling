@@ -21,7 +21,7 @@ npm install @nestling/client
 ## Минимальный пример
 
 ```typescript
-import { CreateUser, GetUser } from '@acme/billing-contracts';
+import { CreateUser, GetUser } from '@acme/billing-operations';
 import { makeClient } from '@nestling/client';
 
 const api = makeClient(

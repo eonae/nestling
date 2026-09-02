@@ -49,7 +49,7 @@ export function planResponses(
   const declared = [...(input.errors ?? [])];
 
   // Валидация входа отвечает независимо от `errors:` — это kernel-код,
-  // контрактный для любого endpoint'а со схемой входа
+  // объявленный для любого endpoint'а со схемой входа
   if (input.hasInputSchema && !declared.some(sameCode(ValidationFailed))) {
     declared.push(ValidationFailed);
   }

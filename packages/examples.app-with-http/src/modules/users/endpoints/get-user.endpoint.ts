@@ -1,5 +1,5 @@
 import type { User } from '../../../api.operations';
-import { GetUser as GetUserContract } from '../../../api.operations';
+import { GetUser as GetUserOperation } from '../../../api.operations';
 import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
@@ -52,7 +52,7 @@ export const getUserHandler =
  * и компилятор не пропустит возврат отказа вне него.
  */
 export const GetUser = httpEndpoint({
-  operation: GetUserContract,
+  operation: GetUserOperation,
   pipeline: basePipeline,
   deps: [UserService, ILogger],
   handle: getUserHandler,

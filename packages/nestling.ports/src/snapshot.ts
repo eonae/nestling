@@ -88,7 +88,7 @@ function nameOfTopology(source: SnapshotSource, index: number): string {
 }
 
 /** Достаёт дескрипторы: отчёт топологии оборачивает отчёт `check()` */
-function contractsOf(source: SnapshotSource): readonly OperationDescriptor[] {
+function descriptorsOf(source: SnapshotSource): readonly OperationDescriptor[] {
   const nested = (source as TopologyOperationReport).report;
 
   if (nested && typeof nested === 'object') {
@@ -139,7 +139,7 @@ export function snapshotOperations(
   for (const [index, source] of reports.entries()) {
     const topology = nameOfTopology(source, index);
 
-    for (const descriptor of contractsOf(source)) {
+    for (const descriptor of descriptorsOf(source)) {
       const existing = merged.get(descriptor.name);
 
       if (!existing) {

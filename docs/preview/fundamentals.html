@@ -101,7 +101,7 @@ export class Database {
 <h2 id="multi">Multi-injection</h2>
 <p>Частая задача: разные модули независимо добавляют реализации одного операции (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это <code>multi: true</code>, в Nest такой набор собирают вручную.</p>
 <p>В Nestling это ещё одно применение семейств токенов, и правило «один токен — один узел» сохраняется. Каждый вклад — обычный провайдер с членским токеном семейства. Агрегат — специальный токен <code>Family.all</code>, который на <code>build()</code> превращается в массив всех зарегистрированных членов:</p>
-<div class="code" data-file="health/contract.ts" data-lang="typescript"><pre><code>export const IHealthCheck = makeTokenFamily&lt;HealthCheck, [name: string]&gt;('HealthCheck');</code></pre></div>
+<div class="code" data-file="health/operation.ts" data-lang="typescript"><pre><code>export const IHealthCheck = makeTokenFamily&lt;HealthCheck, [name: string]&gt;('HealthCheck');</code></pre></div>
 <div class="code" data-file="db.module.ts / redis.module.ts — вклады из разных модулей" data-lang="typescript"><pre><code>// каждый модуль регистрирует свой вклад как ОБЫЧНЫЙ провайдер
 export const DbModule = makeFeature({
   name: 'module:db',
@@ -411,7 +411,7 @@ expect(res.isFail).toBe(false);</code></pre></div>
 </tr>
 <tr>
 <td>Чужая фича</td>
-<td><code>stub(Contract, impl)</code> — фейковый порт, ответы которого проверяются схемой операции при каждом вызове.</td>
+<td><code>stub(Operation, impl)</code> — фейковый порт, ответы которого проверяются схемой операции при каждом вызове.</td>
 </tr>
 <tr>
 <td>Сквозная инфраструктура</td>
@@ -430,7 +430,7 @@ expect(res.isFail).toBe(false);</code></pre></div>
 </div>
 <div class="note good">
 <span class="note-t">Стаб не может разойтись с реальностью</span>
-<p><code>stub(Contract, ...)</code> проверяется схемой операции на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.</p>
+<p><code>stub(Operation, ...)</code> проверяется схемой операции на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.</p>
 </div>
 <h3><code>.check()</code>: вся топология одним тестом</h3>
 <p>Жадный контейнер делает <code>build()</code> универсальной проверкой: циклы, недостающие зависимости, привязка портов, полнота env. <code>.check()</code> проходит фазы 0–1: конструкторы выполняются, <code>@OnInit</code> — нет, то есть ни одного соединения не открывается:</p>

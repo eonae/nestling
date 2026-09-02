@@ -87,10 +87,10 @@ export type EmitStubImpl<C extends EmittingOperation<any, any, any, any>> = (
 ) => void | Promise<void>;
 
 /**
- * Kernel-коды, контрактные для любого вызова.
+ * Kernel-коды, объявленные для любого вызова.
  *
  * Ровно то же множество, что закрывает `KernelPortFail`: проверка границы
- * считает эти коды контрактными для кого угодно, поэтому и фейк может
+ * считает эти коды объявленными для кого угодно, поэтому и фейк может
  * отвечать ими без объявления в `errors:`. Ветка `UnknownError` при этом
  * остаётся тестируемой — `UnknownError()` проходит наравне с объявленными.
  */
@@ -390,7 +390,7 @@ export function stub(
  * подменил операция, и отчёт обязан это показывать. Обычные пары
  * `токен → значение` в состав не входят — это не операции.
  */
-export function stubbedContracts(
+export function stubbedOperations(
   stubs: readonly (readonly [InjectionToken<any>, unknown])[] = [],
 ): readonly string[] {
   const names = new Set<string>();

@@ -34,8 +34,8 @@ export type {
   CompatibilityChange,
   CompatibilityReport,
   CompatibilityVerdict,
-  ContractCompatibility,
-  ContractSlot,
+  OperationCompatibility,
+  OperationSlot,
 } from './compatibility.js';
 export { portsConfigKeys } from './config.js';
 export type { DispatchPolicy, PortsConfig } from './config.js';
@@ -105,9 +105,9 @@ export type {
 } from './snapshot.js';
 export { collectImplementations } from './topology.js';
 export type {
-  ContractImplementation,
+  OperationImplementation,
   OperationTopology,
-  ContractTopologyEntry,
+  OperationTopologyEntry,
   DiscoveredDeclaration,
 } from './topology.js';
 export {

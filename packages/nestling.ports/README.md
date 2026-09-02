@@ -96,7 +96,7 @@ export const CreateUser = httpEndpoint({
 
 ### Реализация
 
-`implement(Contract, { deps?, handle, subscriber?, pipeline?, … })` строит
+`implement(Operation, { deps?, handle, subscriber?, pipeline?, … })` строит
 декларацию endpoint'а на том же примитиве, что `httpEndpoint` и
 `cliEndpoint`. Поэтому реализация получает всё, что есть у обычного
 endpoint'а: discovery по дереву модулей, `dispatch`, пайплайн и проверку
@@ -261,7 +261,7 @@ Composition root про шину может ничего не знать: мод
 ```typescript
 import { checkTopologies } from '@nestling/testing';
 
-const descriptor = describeContract(ClaimQuota, { converters: [zodConverter()] });
+const descriptor = describeOperation(ClaimQuota, { converters: [zodConverter()] });
 // { name, kind, input: { kind, leaf }, output: { … }, errors: [{ code, status }] }
 
 const snapshot = snapshotOperations(await checkTopologies(spec, ['all', 'users'], {
@@ -272,7 +272,7 @@ const report = diffOperations(readBaseline(), snapshot);
 console.log(formatCompatibility(report));
 ```
 
-- `describeContract(source, { converters? })` превращает операция или его
+- `describeOperation(source, { converters? })` превращает операция или его
   `implement`-декларацию в JSON-значение. Листовые схемы проходят через
   конвертер вендора (`SchemaDocConverter`, тот же тип, что у
   [`@nestling/openapi`](../nestling.openapi)). Без конвертера лист помечается
@@ -315,10 +315,10 @@ console.log(formatCompatibility(report));
 | `IMessageBus`, `MessageBus$`, `InProcessBus`, `InProcessBusOptions` | интерфейс шины, её токен и реализация в процессе |
 | `RequestOptions`, `PublishOptions`, `SubscribeOptions`, `BusHandler`, `BusMessageMeta`, `BusSubscription` | типы операций шины |
 | `BusTransport$`, `BUS_TRANSPORT_NAME`, `busBindingOf`, `BusBinding` | токен транспорта шины и привязка декларации к шине |
-| `portsKernel`, `bindPorts`, `undurableContracts`, `collectImplementations` | точки, которыми пользуется composition root |
+| `portsKernel`, `bindPorts`, `undurableOperations`, `collectImplementations` | точки, которыми пользуется composition root |
 | `portsConfigKeys`, `DispatchPolicy`, `PortsConfig` | ключи секции конфига `nestlingPorts` |
-| `describeContract`, `canonicalizeJson`, `ContractDescriptor` | описание операции JSON-значением |
-| `snapshotOperations`, `serializeSnapshot`, `SNAPSHOT_VERSION`, `ContractSnapshot` | снапшот операций |
+| `describeOperation`, `canonicalizeJson`, `OperationDescriptor` | описание операции JSON-значением |
+| `snapshotOperations`, `serializeSnapshot`, `SNAPSHOT_VERSION`, `OperationSnapshot` | снапшот операций |
 | `diffOperations`, `formatCompatibility`, `suggestBump`, `CompatibilityReport` | сравнение снапшотов |
 | `Port`, `Emitter`, `PortMeta`, `CommandMeta`, `PortResult`, … | типы вызывателей (реэкспорт из `@nestling/operations`) |
 

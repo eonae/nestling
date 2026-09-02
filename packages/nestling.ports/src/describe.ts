@@ -276,7 +276,7 @@ export function describeFormValue(
 // ---------------------------------------------------------------------------
 
 /** Интерфейс операции, прочитанный с операции или с его реализации */
-interface ContractShape {
+interface OperationShape {
   readonly name: string;
   readonly kind: OperationKind;
   readonly input?: unknown;
@@ -291,7 +291,7 @@ interface ContractShape {
  * `implement` копирует туда `subject`/`kind` операции, и это тот же
  * источник истины, которым пользуется топология портов.
  */
-function readShape(source: DescribeSource): ContractShape {
+function readShape(source: DescribeSource): OperationShape {
   const binding = busBindingOf(source as BusBindingBearer);
 
   const record = source as unknown as {

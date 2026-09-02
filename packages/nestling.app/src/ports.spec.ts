@@ -102,20 +102,20 @@ const OrdersFeature = makeFeature({
 });
 
 /** Потребитель без владельца рядом: операция объявлена, реализации нет */
-const LonelyContract = makeRequest({
+const LonelyOperation = makeRequest({
   name: 'app.lonely.request',
   output: z.object({ ok: z.boolean() }),
 });
 
-const LonelyToken = makeToken<{ port: Port<typeof LonelyContract> }>('Lonely');
+const LonelyToken = makeToken<{ port: Port<typeof LonelyOperation> }>('Lonely');
 
 const LonelyFeature = makeFeature({
   name: 'lonely',
   providers: [
     {
       provide: LonelyToken,
-      useFactory: (port: Port<typeof LonelyContract>) => ({ port }),
-      deps: [LonelyContract.caller],
+      useFactory: (port: Port<typeof LonelyOperation>) => ({ port }),
+      deps: [LonelyOperation.caller],
     },
   ],
 });

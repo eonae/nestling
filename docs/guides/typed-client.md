@@ -82,7 +82,7 @@ Bind-карту `makeRequest` / `makeCommand` / `makeEvent` вычисляет �
 ```typescript
 // packages/examples.app-with-http/src/modules/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
-  operation: GetUserContract,
+  operation: GetUserOperation,
   pipeline: basePipeline,
   deps: [UserService, ILogger],
   handle: getUserHandler,
@@ -211,7 +211,7 @@ body   ← поля с placement.in === 'body'   + (rest === 'body'  ? оста�
   недоступна, тело не JSON, ответ не прошёл схему `output`, код не объявлен
   в операции, детали не прошли схему. Других кодов клиент не вводит.
 
-На сетевых и контрактных сбоях `request`-метод не бросает, а возвращает
+На сетевых сбоях и отказах операции `request`-метод не бросает, а возвращает
 `Fail`. Исключение (`TypeError`) он бросает только на ошибках использования,
 например на непредставимом значении query-поля.
 

@@ -1,5 +1,5 @@
 /**
- * Дифф контрактов против снапшота — чистая функция двух значений.
+ * Дифф операций против снапшота — чистая функция двух значений.
  *
  * «Подсвечивает, но не блокирует» здесь — свойство конструкции, а не
  * обещание в доке: `diffOperations` не участвует в сборке, не вызывается
@@ -27,14 +27,14 @@ import type { OperationSnapshot, SnapshotOperation } from './snapshot.js';
 import { SNAPSHOT_VERSION } from './snapshot.js';
 
 /** Слот формы: он же направление сравнения */
-export type ContractSlot = 'input' | 'output';
+export type OperationSlot = 'input' | 'output';
 
 /** Закрытый словарь вердиктов */
 export type CompatibilityVerdict = 'breaking' | 'additive' | 'unknown';
 
 /** Одно расхождение между снапшотами */
 export interface CompatibilityChange {
-  /** Имя контракта, в котором найдено расхождение */
+  /** Имя операции, в котором найдено расхождение */
   readonly operation: string;
 
   /** Путь до узла: `output.chargeId`, `errors.CARD_DECLINED`, `kind` */
@@ -46,8 +46,8 @@ export interface CompatibilityChange {
   readonly verdict: CompatibilityVerdict;
 }
 
-/** Итог по одному контракту */
-export interface ContractCompatibility {
+/** Итог по одному операции */
+export interface OperationCompatibility {
   readonly operation: string;
 
   /** Число расхождений каждого вида */
@@ -56,7 +56,7 @@ export interface ContractCompatibility {
   readonly unknown: number;
 
   /**
-   * **Подсказка** нового имени — только у контракта с хотя бы одним
+   * **Подсказка** нового имени — только у операции с хотя бы одним
    * `breaking`. Ровно подсказка: переименования не происходит, суффикса
    * ядро не требует и нигде больше не разбирает.
    */
@@ -69,8 +69,8 @@ export interface CompatibilityReport {
   readonly additive: readonly CompatibilityChange[];
   readonly unknown: readonly CompatibilityChange[];
 
-  /** Итоги по контрактам, у которых нашлось хотя бы одно расхождение */
-  readonly operations: readonly ContractCompatibility[];
+  /** Итоги по операциям, у которых нашлось хотя бы одно расхождение */
+  readonly operations: readonly OperationCompatibility[];
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +164,7 @@ class Changes {
     return this.#items.filter((change) => change.verdict === verdict);
   }
 
-  operations(): ContractCompatibility[] {
+  operations(): OperationCompatibility[] {
     const byName = new Map<string, Record<CompatibilityVerdict, number>>();
 
     for (const change of this.#items) {
@@ -191,14 +191,14 @@ class Changes {
 }
 
 /**
- * Следующее имя версии контракта для бампа.
+ * Следующее имя версии операции для бампа.
  *
  * Имени без суффикса добавляет `.v2`, имени с суффиксом `.vN` даёт
  * `.v{N+1}`.
  *
  * Единственное место, где суффикс `.vN` распознаётся: `makeRequest`
  * его не требует и не разбирает, отдельного поля версии не существует, и
- * контракт без суффикса допустим.
+ * операция без суффикса допустим.
  */
 export function suggestBump(name: string): string {
   const match = /^(?<base>.*)\.v(?<version>\d+)$/.exec(name);
@@ -216,7 +216,7 @@ export function suggestBump(name: string): string {
 
 interface DiffContext {
   readonly operation: string;
-  readonly slot: ContractSlot;
+  readonly slot: OperationSlot;
   readonly changes: Changes;
 }
 
@@ -226,11 +226,11 @@ interface DiffContext {
  * Направление берётся из **слота**, а не из роли смотрящего: `input`
  * приходит в реализацию (сужение принимаемого — `breaking`), `output`
  * уходит из неё (ослабление гарантии — `breaking`). Правило одинаково для
- * всех трёх видов контрактов, включая `event`, где реализация является
+ * всех трёх видов операций, включая `event`, где реализация является
  * подписчиком.
  */
 function verdictOfType(
-  slot: ContractSlot,
+  slot: OperationSlot,
   base: Set<string>,
   current: Set<string>,
 ): CompatibilityVerdict {
@@ -492,7 +492,7 @@ function diffProperties(
 }
 
 // ---------------------------------------------------------------------------
-// Дифф форм и контрактов
+// Дифф форм и операций
 // ---------------------------------------------------------------------------
 
 const describeLeafKind = (leaf: SchemaDescriptor): string => {
@@ -624,7 +624,7 @@ function diffFiles(
 
 function diffForm(
   operation: string,
-  slot: ContractSlot,
+  slot: OperationSlot,
   base: FormDescriptorValue,
   current: FormDescriptorValue,
   changes: Changes,
@@ -684,7 +684,7 @@ function diffErrors(
     }
 
     if (!was && is) {
-      // Код, не объявленный в контракте, всё равно приходит клиенту как
+      // Код, не объявленный в операции, всё равно приходит клиенту как
       // `UnknownError`. Появление такого кода не ломает совместимость
       changes.add(operation, path, 'additive', 'declared failure added');
       continue;
@@ -709,7 +709,7 @@ function diffErrors(
  * Fail-fast нечитаемого снапшота.
  *
  * Отделено от результата сравнения намеренно: «я не умею читать этот
- * файл» и «контракт сломан» — разные события, и смешивать их значило бы
+ * файл» и «операция сломан» — разные события, и смешивать их значило бы
  * прятать ошибку автора проверки за отчётом.
  */
 function assertReadable(snapshot: unknown, side: string): OperationSnapshot {
@@ -742,9 +742,9 @@ function assertReadable(snapshot: unknown, side: string): OperationSnapshot {
 }
 
 /**
- * Сравнивает текущий состав контрактов с опубликованным снапшотом.
+ * Сравнивает текущий состав операций с опубликованным снапшотом.
  *
- * @param baseline - Снапшот опубликованных контрактов
+ * @param baseline - Снапшот опубликованных операций
  * @param current - Снапшот текущей сборки
  * @returns Отчёт-значение: расхождения, сгруппированные по вердикту
  * @throws {TypeError | Error} Только на нечитаемом снапшоте (неизвестная
@@ -836,7 +836,7 @@ const line = (change: CompatibilityChange): string =>
  */
 export function formatCompatibility(report: CompatibilityReport): string {
   const lines: string[] = [
-    `Contract compatibility: ${report.breaking.length} breaking, ` +
+    `Operation compatibility: ${report.breaking.length} breaking, ` +
       `${report.additive.length} additive, ${report.unknown.length} unknown`,
   ];
 

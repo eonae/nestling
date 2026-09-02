@@ -124,8 +124,8 @@ bind-карта живут в `@nestling/operations`. У пакета нет run
 Сравнение схем со снапшотом опубликованных операций показывает
 несовместимые изменения, но не блокирует ни сборку, ни CI. Устройство:
 
-- `describeContract(operation, { converters? })` возвращает
-  `ContractDescriptor` — JSON-значение: имя, вид, дерево форм io, коды и
+- `describeOperation(operation, { converters? })` возвращает
+  `OperationDescriptor` — JSON-значение: имя, вид, дерево форм io, коды и
   статусы отказов. Листовые схемы переводит вендорский конвертер
   ([schemas.md](./schemas.md) §2); без конвертера лист помечается
   непрозрачным. «Схемы нет» и «схема есть, но не сконвертирована» — разные
@@ -158,7 +158,7 @@ bind-карта живут в `@nestling/operations`. У пакета нет run
 
 ### 2.1. Реализация
 
-`implement(Contract, { deps?, pipeline?, handle, subscriber?, detached? })`
+`implement(Operation, { deps?, pipeline?, handle, subscriber?, detached? })`
 ([endpoints.md](./endpoints.md)) создаёт декларацию endpoint'а поверх того
 же примитива ядра, что `httpEndpoint` и `cliEndpoint`. Реализация кладётся
 в `endpoints:` модуля и получает всё, что есть у любого endpoint'а:
@@ -187,7 +187,7 @@ bind-карта — тем же значением, без повторного 
 
 ### 2.3. Вызов
 
-Потребитель инжектит `Operation.caller` или `Contract.emitter`:
+Потребитель инжектит `Operation.caller` или `Operation.emitter`:
 
 ```typescript
 deps: [ChargeCard.caller],
@@ -246,7 +246,7 @@ remote-биндинга; у операции два владельца; у со�
 `publish` и `subscribe` — минимальным набором, который есть у любого
 брокера. Реализации: `InProcessBus` без зависимостей и
 `@nestling/transport.nats` (queue-group для реплик, JetStream для
-`durable`). Специфика NATS в контрактный API не попадает.
+`durable`). Специфика NATS в API операций не попадает.
 
 `InProcessBus` — одно значение с двумя интерфейсами: `IMessageBus`
 (исходящая сторона) и `ITransport` (входящая, `serve(dispatch, signal)`).
@@ -346,7 +346,7 @@ in-process шина не упоминается: её регистрирует k
 скрипт — не имеет доступа к DI. Клиент для него строится из операции:
 
 ```typescript
-import { CreateUser, GetUser } from '@acme/billing-contracts'; // пакет без runtime-зависимостей
+import { CreateUser, GetUser } from '@acme/billing-operations'; // пакет без runtime-зависимостей
 import { makeClient } from '@nestling/client';
 
 const api = makeClient(
@@ -379,7 +379,7 @@ const result = await api.createUser({ ... });
   как у портов) проверяется до отправки: истёкший бюджет даёт
   `DeadlineExceeded` без запроса в сеть. `idempotencyKey` у клиента нет:
   согласованного HTTP-слота для него не существует.
-- На транспортных и контрактных сбоях `request` клиент не бросает
+- На транспортных сбоях и отказах операции `request` клиент не бросает
   исключений, а возвращает `Fail`. Исключения — только при неверном
   использовании.
 - `makeClient` отвергает в момент создания, называя ключ метода в record:

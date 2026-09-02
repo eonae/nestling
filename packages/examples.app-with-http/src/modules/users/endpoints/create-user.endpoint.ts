@@ -1,5 +1,5 @@
 import type { CreateUserInput, User } from '../../../api.operations';
-import { CreateUser as CreateUserContract } from '../../../api.operations';
+import { CreateUser as CreateUserOperation } from '../../../api.operations';
 import { QUOTA_CALL_BUDGET_MS } from '../../../common/constants';
 import { basePipeline } from '../../../common/pipelines';
 import type { QuotaExceeded as QuotaExceededDefinition } from '../../../operations';
@@ -126,7 +126,7 @@ export const createUserHandler =
  * попадёт: приём строгий.
  */
 export const CreateUser = httpEndpoint({
-  operation: CreateUserContract,
+  operation: CreateUserOperation,
   pipeline: basePipeline,
   deps: [
     UserService,

@@ -11,7 +11,7 @@ import { toBindings } from './config.js';
 import type { TestOverride, ValidatedOverrides } from './overrides.js';
 import { splitOverrides } from './overrides.js';
 import type { OperationStub } from './stub.js';
-import { stubbedContracts } from './stub.js';
+import { stubbedOperations } from './stub.js';
 
 import type { Feature, FeatureSelection, Plugin } from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
@@ -529,5 +529,5 @@ export async function assembleTest<const L extends readonly TestOverride[]>(
     familyOverrides: families,
   });
 
-  return new TestApp(wired, stubbedContracts(spec.stubs));
+  return new TestApp(wired, stubbedOperations(spec.stubs));
 }

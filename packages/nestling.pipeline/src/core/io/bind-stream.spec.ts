@@ -38,7 +38,7 @@ const meta = (input: EndpointMeta['input']): EndpointMeta => ({
   transport: 'test',
   pattern: 'POST /logs',
   input,
-  // errors: не объявлены намеренно — kernel-коды контрактны без объявления
+  // errors: не объявлены намеренно — kernel-коды считаются объявленными и без перечисления
 });
 
 /** Прогоняет входной поток через пайплайн, как это делает транспорт */

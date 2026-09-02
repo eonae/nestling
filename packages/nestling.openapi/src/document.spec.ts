@@ -217,7 +217,7 @@ describe('operationId выводится, а не объявляется', () =>
   it('берётся с операции', () => {
     const CreateUser = makeRequest({
       name: 'openapi.users.create',
-      http: 'POST /contract-users',
+      http: 'POST /operation-users',
       input: z.object({ email: z.string() }),
       output: User,
     });
@@ -228,7 +228,7 @@ describe('operationId выводится, а не объявляется', () =>
     });
 
     expect(
-      documentOf([declaration]).paths['/contract-users'].post.operationId,
+      documentOf([declaration]).paths['/operation-users'].post.operationId,
     ).toBe('openapi.users.create');
   });
 

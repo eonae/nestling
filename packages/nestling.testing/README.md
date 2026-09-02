@@ -132,7 +132,7 @@ overrides: [
 `app.get(token)` возвращает для них `null`. Без `overrides` граф совпадает
 с production-графом.
 
-## `stub(Contract, impl)`: фича без соседей
+## `stub(Operation, impl)`: фича без соседей
 
 Фича, которая инжектит `ChargeCard.caller`, не соберётся без соседа: рецепт
 вызывателя не проходит проверку достижимости. `stub` возвращает пару
@@ -292,7 +292,7 @@ await using app = await testUnit(ReportsFeature, {
 неудовлетворённую зависимость нужно заглушить явно. Ошибка перечисляет все недостающие токены и
 потребителя каждого, а не первый попавшийся. `stubs` здесь означает
 «дать недостающее», а не «заменить существующее»; в это же поле кладётся
-`stub(Contract, impl)`. Опции: `stubs`, `config`, `transports`.
+`stub(Operation, impl)`. Опции: `stubs`, `config`, `transports`.
 
 ## Настройка раннера
 
@@ -321,7 +321,7 @@ resolve: { conditions: ['testing', 'node'] }
 | `TestApp` | `call`, `emit`, `get`, `pruned`, `stubbed`, `features`, `close`, `Symbol.asyncDispose` |
 | `TestAssemblySpec`, `TestCallOptions`, `TestStub`, `EmitDelivery` | типы спека, опций вызова, заглушки и доставки |
 | `stub(operation, impl)` | пара «токен вызывателя, заглушка» для `stubs:` |
-| `ContractStub`, `RequestStubImpl`, `EmitStubImpl`, `StubOutput` | типы заглушек |
+| `OperationStub`, `RequestStubImpl`, `EmitStubImpl`, `StubOutput` | типы заглушек |
 | `unwrap(response)`, `UnwrapFailedError` | значение успешного ответа или ошибка |
 | `vars(record)`, `TestConfig` | источник конфига для тестов и тип поля `config:` |
 | `familyOverride(family, make)`, `TestOverride` | подмена рецепта семейства |
@@ -333,6 +333,6 @@ resolve: { conditions: ['testing', 'node'] }
 
 ## Границы пакета
 
-Раннера, матчеров и snapshot-механики здесь нет. `app.port(Contract)` для
+Раннера, матчеров и snapshot-механики здесь нет. `app.caller(Operation)` для
 теста потребителя операции не реализован; `.check()` подстановок не
 принимает и всегда проверяет граф без них.
