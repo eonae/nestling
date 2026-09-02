@@ -31,7 +31,7 @@
 
 #### Scenario: Транспорт в корне
 
-- **WHEN** `assemble({ modules: [OrdersModule], transports: [http({ port: 3000 })] })`
+- **WHEN** `assemble({ features: [OrdersFeature], transports: [http({ port: 3000 })] })`
 - **THEN** транспорт строится контейнером, его `@OnInit`/`@OnDestroy`
   выполняются вместе с прочими узлами графа
 
