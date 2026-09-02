@@ -21,7 +21,7 @@
 #### Scenario: Клиент собирается без приложения
 
 - **WHEN** клиент создан в скрипте, импортировавшем только
-  `@nestling/contracts` и `@nestling/client`
+  `@nestling/operations` и `@nestling/client`
 - **THEN** он работает: ни контейнер, ни транспорт, ни `assemble` не нужны
 
 ### Requirement: Call-site метода эквивалентен вызывателю вида контракта

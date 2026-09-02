@@ -44,7 +44,7 @@ interface ITransport {
 `signal` — общий канал остановки приложения: транспорт прекращает приём
 запросов, когда сигнал сработал.
 
-На транспорт ссылаются токеном: `TransportToken = TokenString<ITransport>`.
+На транспорт ссылаются токеном экземпляра: `TransportToken = Token<ITransport>`.
 Короткое имя, которое читает слой пайплайна (`meta.transport === 'http'`),
 выводится из идентификатора токена функцией `transportNameOf`.
 

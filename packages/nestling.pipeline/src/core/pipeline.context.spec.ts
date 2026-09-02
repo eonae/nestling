@@ -17,8 +17,8 @@ import type { AnyPipeline, Pipeline } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { AnyInput, AnyOutput, EmptyInput } from '@nestling/contracts';
-import { events, Ok, stream } from '@nestling/contracts';
+import type { AnyInput, AnyOutput, EmptyInput } from '@nestling/operations';
+import { events, Ok, stream } from '@nestling/operations';
 import { z } from 'zod';
 
 /** Схема-лист потоковых форм: предмет теста — scope, а не валидация */

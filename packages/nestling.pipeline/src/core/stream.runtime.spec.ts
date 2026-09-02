@@ -10,7 +10,7 @@ import type { Outcome } from './types/unit.js';
 import { ClientDisconnectedError, TransportClosingError } from './abort.js';
 import { isMidStreamFailure, makePipeline } from './pipeline.js';
 
-import { events, Ok, stream } from '@nestling/contracts';
+import { events, Ok, stream } from '@nestling/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
@@ -185,7 +185,7 @@ describe('отложенный .finally у потокового ответа', (
     expect(seen).toEqual(['finally:failed']);
   });
 
-  it('mid-stream отказ нормализуется проверкой контракта отказов', async () => {
+  it('mid-stream отказ нормализуется проверкой операции отказов', async () => {
     const unknownFails: unknown[] = [];
 
     const ctx = makeEmptyContext(raw(), meta(undefined, stream(Row)));

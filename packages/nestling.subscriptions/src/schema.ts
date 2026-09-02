@@ -13,7 +13,7 @@
  */
 
 import type { StandardSchemaV1 } from '@common/misc';
-import { jsonSchema } from '@nestling/contracts';
+import { jsonSchema } from '@nestling/operations';
 
 /** Тип листа: ровно то, что встречается в фактах пакета */
 type FieldType = 'string' | 'number';

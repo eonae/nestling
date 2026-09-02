@@ -15,7 +15,7 @@ change #22 из [roadmap](../../../docs/decisions/roadmap.md).
 
 ## What Changes
 
-- **Новый пакет `@nestling/contracts`** — дом направление-нейтральных
+- **Новый пакет `@nestling/operations`** — дом направление-нейтральных
   деклараций: `makeContract`, `defineFail`, `Fail`/`Ok` и словарь статусов,
   формы io (`stream`/`events`/`multipart`/`upload`), пометки `query()`/`body()`
   и вычисление bind-карты. Граф импортов пакета не содержит ни серверного
@@ -75,16 +75,16 @@ change #22 из [roadmap](../../../docs/decisions/roadmap.md).
   сборка запроса по bind-карте, валидация ответа по `output`, рематериализация
   `Fail` по `code`, закрытый контракт `E ∪ UnknownError`, fail-fast создания.
 - `contracts-package-boundary`: пакетная граница деклараций —
-  `@nestling/contracts` как единственный дом, отсутствие серверного кода и
+  `@nestling/operations` как единственный дом, отсутствие серверного кода и
   внешних runtime-зависимостей в графе импортов, политика реэкспортов.
 
 ### Modified Capabilities
 
 - `contract-declarations`: словарь `makeContract` принимает `http:`; проверки
-  секции — в момент создания контракта; дом примитива — `@nestling/contracts`.
+  секции — в момент создания контракта; дом примитива — `@nestling/operations`.
 - `http-input-binding`: точка разворачивания карты — создание **контракта**
   наравне с созданием декларации; пометки `query()`/`body()` экспортируются
-  из `@nestling/contracts` (реэкспорт из `@nestling/transport.http`
+  из `@nestling/operations` (реэкспорт из `@nestling/transport.http`
   сохраняется).
 - `endpoint-declarations`: `httpEndpoint` получает контракт-форму
   (`{ contract, handle }`), в которой `method`/`path`/`bind`/`input`/`output`/
@@ -92,7 +92,7 @@ change #22 из [roadmap](../../../docs/decisions/roadmap.md).
 
 ## Impact
 
-**Новые пакеты:** `packages/nestling.contracts`, `packages/nestling.client`.
+**Новые пакеты:** `packages/nestling.operations`, `packages/nestling.client`.
 
 **Затронутый код:**
 
@@ -106,10 +106,10 @@ change #22 из [roadmap](../../../docs/decisions/roadmap.md).
   совместимость, снапшоты.
 - `@nestling/container` — добавляется subpath-экспорт `./tokens`
   (`common.ts` + `token-family.ts` — оба листовые модули без runtime-импортов),
-  чтобы `@nestling/contracts` получал примитив токена, не втягивая билдер
+  чтобы `@nestling/operations` получал примитив токена, не втягивая билдер
   графа и `@common/graphs`.
 - `@nestling/transport.http` — декларативная половина `binding.ts` (пометки,
-  тип карты, `computeHttpBinding`) уезжает в `@nestling/contracts`;
+  тип карты, `computeHttpBinding`) уезжает в `@nestling/operations`;
   потребляющая половина (`assemblePayload`, `readQuery`, `bindingNeedsBody`,
   `httpBindingOf`) остаётся. Уходит зависимость карты от типа `HTTPMethod`
   пакета `find-my-way`.

@@ -25,12 +25,12 @@ import { WireCopyError } from './wire.js';
 import type { Schema } from '@common/misc';
 import { SchemaValidationError } from '@common/misc';
 import type {
-  AnyContract,
+  AnyOperation,
   CommandMeta,
   Emitter,
   Port,
   PortMeta,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import type {
   AnyFail,
   AnyFailDefinition,
@@ -96,10 +96,10 @@ function propagatedContext(): Record<string, unknown> | undefined {
   return context;
 }
 
-/** Что известно вызывателю о своём контракте и биндинге */
+/** Что известно вызывателю о своём операции и биндинге */
 export interface InvokerContext {
-  /** Контракт: схемы, вид и объявленные отказы */
-  readonly contract: AnyContract;
+  /** Операция: схемы, вид и объявленные отказы */
+  readonly operation: AnyOperation;
 
   /** Держатель исполнителей, наполняемый на WIRE */
   readonly runtime: PortRuntime;
@@ -138,17 +138,17 @@ function validationFail(
 }
 
 /**
- * Валидирует payload по `input`-схеме контракта.
+ * Валидирует payload по `input`-схеме операции.
  *
  * Выполняется на обоих путях биндинга: при передаче по сети вход
  * проверила бы граница, и co-located вызов обязан вести себя так же,
  * иначе разъезд фич по процессам менял бы поведение.
  */
 function validateInput(
-  contract: AnyContract,
+  operation: AnyOperation,
   payload: unknown,
 ): { ok: true; value: unknown } | { ok: false; fail: AnyFail } {
-  const schema = leafSchemaOf(contract.input);
+  const schema = leafSchemaOf(operation.input);
 
   if (!schema) {
     return { ok: true, value: payload };
@@ -170,7 +170,7 @@ function validateInput(
     return {
       ok: false,
       fail: validationFail(
-        `Contract '${contract.name}': input does not match its schema`,
+        `Operation '${operation.name}': input does not match its schema`,
       ),
     };
   }
@@ -180,17 +180,17 @@ function validateInput(
  * Общий нормализатор ответа границы в `Ok` или `Fail`.
  *
  * Один и тот же для co-located и remote путей: код отказа сопоставляется с
- * определениями `errors` контракта, и при совпадении создаётся `Fail`
+ * определениями `errors` операции, и при совпадении создаётся `Fail`
  * этого определения со `status`, `code` и валидными `details`.
  * Незадекларированный или отсутствующий код даёт `UnknownError`, а
  * оригинал уходит в диагностический хук.
  *
  * Коды ядра восстанавливаются как `Fail` наравне с объявленными:
- * проверка ответа на границе считает их контрактными для любого
+ * проверка ответа на границе считает их объявленными для любого
  * endpoint'а, значит и множество ответов порта закрыто ими же.
  */
 export function normalizePortResponse(
-  contract: AnyContract,
+  operation: AnyOperation,
   response: ResponseContext,
   runtime: PortRuntime,
   original?: unknown,
@@ -201,7 +201,7 @@ export function normalizePortResponse(
 
   const code = response.value?.code;
   const definitions: readonly AnyFailDefinition[] = [
-    ...(contract.errors ?? []),
+    ...(operation.errors ?? []),
     ValidationFailed,
     DeadlineExceeded,
   ];
@@ -211,7 +211,7 @@ export function normalizePortResponse(
       : definitions.find((candidate) => candidate.code === code);
 
   if (!definition) {
-    runtime.report({ contract: contract.name, error: original ?? response });
+    runtime.report({ operation: operation.name, error: original ?? response });
 
     return UnknownError();
   }
@@ -223,29 +223,29 @@ export function normalizePortResponse(
 
     return definition.schema ? construct(response.value.details) : construct();
   } catch (error) {
-    // Детали не прошли схему определения: контракт перестал совпадать с
+    // Детали не прошли схему определения: операция перестала совпадать с
     // реализацией — потребителю это `UnknownError`, диагностика хуку
-    runtime.report({ contract: contract.name, error });
+    runtime.report({ operation: operation.name, error });
 
     return UnknownError();
   }
 }
 
 /**
- * Валидирует успешный ответ по `output`-схеме контракта.
+ * Валидирует успешный ответ по `output`-схеме операции.
  *
  * Только remote-путь: local-ответ уже прошёл pipeline реализации, и
  * повторная валидация была бы ценой без выгоды.
  */
 function validateOutput(
-  contract: AnyContract,
+  operation: AnyOperation,
   result: Ok<unknown> | AnyFail,
 ): Ok<unknown> | AnyFail {
   if (!(result instanceof Ok)) {
     return result;
   }
 
-  const schema = leafSchemaOf(contract.output);
+  const schema = leafSchemaOf(operation.output);
   if (!schema) {
     return result;
   }
@@ -262,7 +262,7 @@ function validateOutput(
     return error instanceof SchemaValidationError
       ? ValidationFailed(error.issues)
       : validationFail(
-          `Contract '${contract.name}': reply does not match its output schema`,
+          `Operation '${operation.name}': reply does not match its output schema`,
         );
   }
 }
@@ -306,7 +306,7 @@ function abortedFail(budget: CallBudget): AnyFail {
 
 /** Кадр запроса порта: тот же контекст, что построил бы транспорт */
 function makeCallContext(
-  contract: AnyContract,
+  operation: AnyOperation,
   pattern: string,
   payload: unknown,
   signal: AbortSignal,
@@ -318,15 +318,15 @@ function makeCallContext(
     payload,
     // Тот же безусловный канал, что у шины: local- и remote-путь кладут
     // профиль одной процедурой, поэтому юнит видит одно и то же
-    attributes: profileAttributes({ subject: contract.name, ...profile }),
+    attributes: profileAttributes({ subject: operation.name, ...profile }),
   };
 
   const endpoint: EndpointMeta = {
     transport: BUS_TRANSPORT_NAME,
     pattern,
-    input: contract.input,
-    output: contract.output,
-    errors: contract.errors,
+    input: operation.input,
+    output: operation.output,
+    errors: operation.errors,
   };
 
   return makeEmptyContext(raw, endpoint, signal);
@@ -342,11 +342,11 @@ function makeCallContext(
  * реализации не протекает и общей транзакции между ними не существует.
  */
 export function makeLocalPort(context: InvokerContext): Port<any> {
-  const { contract, runtime, patterns } = context;
+  const { operation, runtime, patterns } = context;
 
   return {
     async call(payload?: unknown, meta?: PortMeta) {
-      const input = validateInput(contract, payload);
+      const input = validateInput(operation, payload);
       if (!input.ok) {
         return input.fail as never;
       }
@@ -364,16 +364,16 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
         context = propagatedContext();
       } catch (error) {
         return validationFail(
-          `Contract '${contract.name}': ${(error as Error).message}`,
+          `Operation '${operation.name}': ${(error as Error).message}`,
         ) as never;
       }
 
-      const dispatch = runtime.requireDispatch(contract.name);
+      const dispatch = runtime.requireDispatch(operation.name);
       const budget = startBudget(meta?.deadline, meta?.signal);
       const [pattern] = patterns;
 
       const ctx = makeCallContext(
-        contract,
+        operation,
         pattern,
         input.value,
         budget.signal,
@@ -391,7 +391,7 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
             // по сети
             exposeErrorDetails: false,
             onUnknownFail: (info) =>
-              runtime.report({ contract: contract.name, error: info.error }),
+              runtime.report({ operation: operation.name, error: info.error }),
           }),
           budget.signal,
         );
@@ -399,7 +399,7 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
         // Реализация без pipeline отказ бросает: собираем ответ границы той
         // же процедурой, что транспорт, и нормализуем его как любой другой
         return normalizePortResponse(
-          contract,
+          operation,
           failureResponse(error),
           runtime,
           error,
@@ -410,14 +410,14 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
 
       if (response === ABORTED) {
         runtime.report({
-          contract: contract.name,
-          error: new Error(`Port '${contract.name}' call was aborted`),
+          operation: operation.name,
+          error: new Error(`Port '${operation.name}' call was aborted`),
         });
 
         return abortedFail(budget) as never;
       }
 
-      return normalizePortResponse(contract, response, runtime) as never;
+      return normalizePortResponse(operation, response, runtime) as never;
     },
   };
 }
@@ -426,15 +426,15 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
  * Remote-клиент: вызов через шину.
  *
  * Путь включает async-барьер, структурную копию payload и ответа (её
- * обеспечивает шина) и проверку ответа по `output`-схеме контракта: вызов
+ * обеспечивает шина) и проверку ответа по `output`-схеме операции: вызов
  * ведёт себя так же, как настоящий вызов по сети.
  */
 export function makeRemotePort(context: InvokerContext): Port<any> {
-  const { contract, runtime } = context;
+  const { operation, runtime } = context;
 
   return {
     async call(payload?: unknown, meta?: PortMeta) {
-      const input = validateInput(contract, payload);
+      const input = validateInput(operation, payload);
       if (!input.ok) {
         return input.fail as never;
       }
@@ -444,13 +444,13 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
         return DeadlineExceeded() as never;
       }
 
-      const bus = runtime.optionalBus(contract.name);
+      const bus = runtime.optionalBus(operation.name);
 
       if (!bus) {
         runtime.report({
-          contract: contract.name,
+          operation: operation.name,
           error: new Error(
-            `Port '${contract.name}': no message bus in the assembled ` +
+            `Port '${operation.name}': no message bus in the assembled ` +
               `application`,
           ),
         });
@@ -469,7 +469,7 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
           // По сети передаётся остаток, а не момент: получатель превратит
           // его обратно в момент по своим часам, и рассинхрон часов между
           // процессами семантику бюджета не изменит
-          bus.request(contract.name, input.value, {
+          bus.request(operation.name, input.value, {
             signal: budget.signal,
             timeoutMs,
             ...(context === undefined ? {} : { context }),
@@ -480,15 +480,15 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
         // Единственные ошибки этого пути, за которые отвечает вызывающий, —
         // payload и значение контекста, не пережившие структурное
         // копирование: обе возвращаются отказом валидации с текстом,
-        // называющим контракт и переменную
+        // называющим операция и переменную
         if (error instanceof WireCopyError) {
           return validationFail(
-            `Contract '${contract.name}': ${error.message}`,
+            `Operation '${operation.name}': ${error.message}`,
           ) as never;
         }
 
         return normalizePortResponse(
-          contract,
+          operation,
           failureResponse(error),
           runtime,
           error,
@@ -499,16 +499,16 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
 
       if (response === ABORTED) {
         runtime.report({
-          contract: contract.name,
-          error: new Error(`Port '${contract.name}' call was aborted`),
+          operation: operation.name,
+          error: new Error(`Port '${operation.name}' call was aborted`),
         });
 
         return abortedFail(budget) as never;
       }
 
       return validateOutput(
-        contract,
-        normalizePortResponse(contract, response, runtime),
+        operation,
+        normalizePortResponse(operation, response, runtime),
       ) as never;
     },
   };
@@ -522,11 +522,11 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
  * доставку остальным.
  */
 export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
-  const { contract, runtime, patterns } = context;
+  const { operation, runtime, patterns } = context;
 
   return {
     async emit(payload?: unknown, meta?: CommandMeta) {
-      const input = requireValidPayload(contract, payload);
+      const input = requireValidPayload(operation, payload);
       requireLiveBudget(meta);
 
       if (patterns.length === 0) {
@@ -534,11 +534,11 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
         return;
       }
 
-      const dispatch = runtime.requireDispatch(contract.name);
-      const context = requirePropagatable(contract);
+      const dispatch = runtime.requireDispatch(operation.name);
+      const context = requirePropagatable(operation);
       const profile: CallProfile = {
         deadline: meta?.deadline,
-        idempotencyKey: idempotencyKeyOf(contract, meta),
+        idempotencyKey: idempotencyKeyOf(operation, meta),
         ...(context === undefined ? {} : { context }),
       };
 
@@ -547,7 +547,7 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
         // ждать здесь нечего, `emit` резолвится по факту доставки
         const budget = startBudget(meta?.deadline, meta?.signal);
         const ctx = makeCallContext(
-          contract,
+          operation,
           pattern,
           input,
           budget.signal,
@@ -558,15 +558,15 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
           .call(pattern, ctx, {
             exposeErrorDetails: false,
             onUnknownFail: (info) =>
-              runtime.report({ contract: contract.name, error: info.error }),
+              runtime.report({ operation: operation.name, error: info.error }),
           })
           .then((response) => {
             if (!response.isSuccess) {
-              runtime.report({ contract: contract.name, error: response });
+              runtime.report({ operation: operation.name, error: response });
             }
           })
           .catch((error: unknown) => {
-            runtime.report({ contract: contract.name, error });
+            runtime.report({ operation: operation.name, error });
           })
           .finally(() => budget.release());
       }
@@ -576,15 +576,15 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
 
 /** Remote-эмиттер: публикация в шину */
 export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
-  const { contract, runtime } = context;
+  const { operation, runtime } = context;
 
   return {
     async emit(payload?: unknown, meta?: CommandMeta) {
-      const input = requireValidPayload(contract, payload);
+      const input = requireValidPayload(operation, payload);
       requireLiveBudget(meta);
 
-      const context = requirePropagatable(contract);
-      const bus = runtime.optionalBus(contract.name);
+      const context = requirePropagatable(operation);
+      const bus = runtime.optionalBus(operation.name);
 
       if (!bus) {
         // Ни одной реализации в приложении: публиковать некуда, и для
@@ -592,15 +592,15 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
         return;
       }
 
-      await bus.publish(contract.name, input, {
+      await bus.publish(operation.name, input, {
         timeoutMs: remainingMs(meta?.deadline),
-        idempotencyKey: idempotencyKeyOf(contract, meta),
+        idempotencyKey: idempotencyKeyOf(operation, meta),
         ...(context === undefined ? {} : { context }),
-        // Долговечность берётся из контракта: обе стороны знают о ней из
+        // Долговечность берётся из операции: обе стороны знают о ней из
         // одного значения, и вызыватель лишь кладёт признак в конверт
-        ...(contract.durable === undefined
+        ...(operation.durable === undefined
           ? {}
-          : { durable: contract.durable }),
+          : { durable: operation.durable }),
       });
     },
   };
@@ -620,10 +620,10 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
  * идентичности намерения, которую можно было бы дедуплицировать.
  */
 function idempotencyKeyOf(
-  contract: AnyContract,
+  operation: AnyOperation,
   meta: CommandMeta | undefined,
 ): string | undefined {
-  if (contract.kind !== 'command') {
+  if (operation.kind !== 'command') {
     return undefined;
   }
 
@@ -637,13 +637,13 @@ function idempotencyKeyOf(
  * исключение, а не тихая недоставка: это дефект вызывающего кода.
  */
 function requirePropagatable(
-  contract: AnyContract,
+  operation: AnyOperation,
 ): Record<string, unknown> | undefined {
   try {
     return propagatedContext();
   } catch (error) {
     throw validationFail(
-      `Contract '${contract.name}': ${(error as Error).message}`,
+      `Operation '${operation.name}': ${(error as Error).message}`,
     );
   }
 }
@@ -667,8 +667,11 @@ function requireLiveBudget(meta: PortMeta | undefined): void {
  * не тихая недоставка: это дефект вызывающего кода, и молчать о нём
  * нельзя.
  */
-function requireValidPayload(contract: AnyContract, payload: unknown): unknown {
-  const input = validateInput(contract, payload);
+function requireValidPayload(
+  operation: AnyOperation,
+  payload: unknown,
+): unknown {
+  const input = validateInput(operation, payload);
 
   if (!input.ok) {
     throw input.fail;

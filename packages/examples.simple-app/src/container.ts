@@ -1,6 +1,6 @@
-import { AppModule } from './app.module';
+import { AppModule } from './app.feature';
 import { appConfigKeys } from './config';
-import { LoggingModule } from './logging';
+import { appLogging } from './logging';
 
 import { configKernel, objectSource } from '@nestling/config';
 import type { BuiltContainer } from '@nestling/container';
@@ -29,7 +29,9 @@ export const makeContainer = async (): Promise<BuiltContainer> => {
         [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
       ]),
     )
-    .register(LoggingModule)
+    // Контейнер используется автономно, без `App`: единицы слоя приложения
+    // ему не нужны, а их модули — обычные значения
+    .register(...appLogging.modules)
     .register(AppModule)
     .build();
 };

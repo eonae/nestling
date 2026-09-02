@@ -1,5 +1,5 @@
-import type { User } from '../../../api.contracts';
-import { GetUser as GetUserContract } from '../../../api.contracts';
+import type { User } from '../../../api.operations';
+import { GetUser as GetUserOperation } from '../../../api.operations';
 import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';
@@ -42,17 +42,17 @@ export const getUserHandler =
   };
 
 /**
- * Endpoint для получения пользователя по ID — **контракт-форма**.
+ * Endpoint для получения пользователя по ID — **операция-форма**.
  *
- * Адрес, схемы и `errors:` принадлежат контракту: переобъявить их здесь —
- * ошибка компиляции. Тот же контракт импортирует внешний клиент, поэтому
+ * Адрес, схемы и `errors:` принадлежат операции: переобъявить их здесь —
+ * ошибка компиляции. Ту же операцию импортирует внешний клиент, поэтому
  * сервер и потребитель не могут разойтись в схемах.
  *
- * Демонстрирует и канал `return`: множество отказов объявлено контрактом,
+ * Демонстрирует и канал `return`: множество отказов объявлено операцией,
  * и компилятор не пропустит возврат отказа вне него.
  */
 export const GetUser = httpEndpoint({
-  contract: GetUserContract,
+  operation: GetUserOperation,
   pipeline: basePipeline,
   deps: [UserService, ILogger],
   handle: getUserHandler,

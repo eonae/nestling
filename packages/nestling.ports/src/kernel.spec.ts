@@ -1,12 +1,12 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import type { InProcessBus } from './bus.js';
 import { InProcessBus as InProcessBusClass, MessageBus$ } from './bus.js';
 import { portsConfigKeys } from './config.js';
 import { implement } from './implement.js';
-import { bindPorts, portsKernel, undurableContracts } from './kernel.js';
+import { bindPorts, portsKernel, undurableOperations } from './kernel.js';
 import { collectImplementations } from './topology.js';
 import { BusTransport$ } from './transport.js';
 
@@ -17,50 +17,50 @@ import {
   factoryProvider,
   makeToken,
 } from '@nestling/container';
-import type { Emitter, Port } from '@nestling/contracts';
-import { EmitterFamily, makeContract, PortFamily } from '@nestling/contracts';
+import type { Emitter, Port } from '@nestling/operations';
+import {
+  EmitterFamily,
+  makeEvent,
+  makeRequest,
+  PortFamily,
+} from '@nestling/operations';
 import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import type { Dispatch } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
-const Echo = makeContract({
+const Echo = makeRequest({
   name: 'kernel.echo',
-  kind: 'request',
   input: z.object({ items: z.array(z.number()) }),
   output: z.object({ received: z.array(z.number()) }),
 });
 
-const Unused = makeContract({
+const Unused = makeRequest({
   name: 'kernel.unused',
-  kind: 'request',
   output: z.object({ ok: z.boolean() }),
 });
 
-const Orphan = makeContract({
+const Orphan = makeRequest({
   name: 'kernel.orphan',
-  kind: 'request',
   output: z.object({ ok: z.boolean() }),
 });
 
-const Placed = makeContract({
+const Placed = makeEvent({
   name: 'kernel.placed',
-  kind: 'event',
   input: z.object({ id: z.string() }),
 });
 
 /**
- * Контракт без `input`-схемы: на нём видно, копируется payload или нет.
+ * Операция без `input`-схемы: на нём видно, копируется payload или нет.
  *
- * У контракта со схемой хендлер получает **выход схемы** — новый объект на
+ * У операции со схемой хендлер получает **выход схемы** — новый объект на
  * обоих путях, потому что валидация входа обязательна для обоих (см.
  * capability `port-invocation`). Разницу «копия против ссылки» показывает
  * только тот случай, где валидировать нечем.
  */
-const Passthrough = makeContract({
+const Passthrough = makeRequest({
   name: 'kernel.passthrough',
-  kind: 'request',
   output: z.object({ ok: z.boolean() }),
 });
 
@@ -74,9 +74,8 @@ const EchoImpl = implement(Echo, {
   },
 });
 
-const DurablePlaced = makeContract({
+const DurablePlaced = makeEvent({
   name: 'kernel.durable.placed',
-  kind: 'event',
   durable: true,
   input: z.object({ id: z.string() }),
 });
@@ -222,13 +221,13 @@ async function assemble(options: {
 const portConsumer = factoryProvider(
   Consumer,
   (port: Port<any>) => ({ port }),
-  [Echo.port],
+  [Echo.caller],
 );
 
 const passthroughConsumer = factoryProvider(
   Consumer,
   (port: Port<any>) => ({ port }),
-  [Passthrough.port],
+  [Passthrough.caller],
 );
 
 describe('portsKernel', () => {
@@ -236,7 +235,7 @@ describe('portsKernel', () => {
     placedSeen = [];
   });
 
-  it('создаёт вызыватель только для запрошенных контрактов', async () => {
+  it('создаёт вызыватель только для запрошенных операций', async () => {
     const app = await assemble({
       declarations: [EchoImpl],
       consumers: [portConsumer],
@@ -248,7 +247,7 @@ describe('portsKernel', () => {
     await app.close();
   });
 
-  it('приложение без контрактов не заводит ни одного узла портов', async () => {
+  it('приложение без операций не заводит ни одного узла портов', async () => {
     const app = await assemble({});
 
     expect(app.container.get(MessageBus$)).toBeNull();
@@ -303,16 +302,16 @@ describe('portsKernel', () => {
     ).rejects.toThrow(/'local-first', 'always-remote'/);
   });
 
-  it('недостижимый контракт — ошибка сборки', async () => {
+  it('недостижимая операция — ошибка сборки', async () => {
     const orphanConsumer = factoryProvider(
       Consumer,
       (port: Port<any>) => ({ port }),
-      [Orphan.port],
+      [Orphan.caller],
     );
 
     await expect(
       assemble({ declarations: [EchoImpl], consumers: [orphanConsumer] }),
-    ).rejects.toThrow(/'kernel\.orphan'.*no selected module implements it/s);
+    ).rejects.toThrow(/'kernel\.orphan'.*no selected feature implements it/s);
   });
 
   it('эмиттер события без подписчиков не роняет вызов и доставляет ноль раз', async () => {
@@ -335,20 +334,20 @@ describe('portsKernel', () => {
     await app.close();
   });
 
-  it('называет контракты, обслуживаемые недолговечно', async () => {
+  it('называет операции, обслуживаемые недолговечно', async () => {
     const app = await assemble({ declarations: [DurableImpl, EchoImpl] });
 
-    expect(undurableContracts(app.container, [DurableImpl, EchoImpl])).toEqual([
-      'kernel.durable.placed',
-    ]);
+    expect(undurableOperations(app.container, [DurableImpl, EchoImpl])).toEqual(
+      ['kernel.durable.placed'],
+    );
 
     await app.close();
   });
 
-  it('без долговечных контрактов список пуст', async () => {
+  it('без долговечных операций список пуст', async () => {
     const app = await assemble({ declarations: [EchoImpl] });
 
-    expect(undurableContracts(app.container, [EchoImpl])).toEqual([]);
+    expect(undurableOperations(app.container, [EchoImpl])).toEqual([]);
 
     await app.close();
   });
@@ -362,7 +361,7 @@ describe('portsKernel', () => {
       value: true,
     });
 
-    expect(undurableContracts(app.container, [DurableImpl])).toEqual([]);
+    expect(undurableOperations(app.container, [DurableImpl])).toEqual([]);
 
     await app.close();
   });
@@ -371,7 +370,7 @@ describe('portsKernel', () => {
     const orphanConsumer = factoryProvider(
       Consumer,
       (port: Port<any>) => ({ port }),
-      [Orphan.port],
+      [Orphan.caller],
     );
 
     const rootBus = new FakeRemoteBus({
@@ -396,7 +395,7 @@ describe('portsKernel', () => {
     const orphanConsumer = factoryProvider(
       Consumer,
       (port: Port<any>) => ({ port }),
-      [Orphan.port],
+      [Orphan.caller],
     );
 
     const rootBus = new FakeRemoteBus();
@@ -485,7 +484,7 @@ describe('portsKernel', () => {
     await app.close();
   });
 
-  it('вызов до фазы WIRE — ошибка с именем контракта и фазой', async () => {
+  it('вызов до фазы WIRE — ошибка с именем операции и фазой', async () => {
     const app = await assemble({
       declarations: [EchoImpl],
       consumers: [portConsumer],

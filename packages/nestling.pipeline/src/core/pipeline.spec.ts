@@ -27,7 +27,7 @@ import type { PreUnitFn } from './types/unit';
 import type { AnyPipeline, Pipeline, PipelineTypes } from './pipeline';
 import { compose, makePipeline } from './pipeline';
 
-import type { AnyInput, EmptyInput } from '@nestling/contracts';
+import type { AnyInput, EmptyInput } from '@nestling/operations';
 
 // ============================================================================
 // Mock типы для тестов

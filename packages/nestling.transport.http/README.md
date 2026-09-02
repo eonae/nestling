@@ -37,7 +37,7 @@ export const GetUser = httpEndpoint({
 });
 
 await assemble({
-  modules: [UsersModule],                   // модуль, где объявлен GetUser
+  features: [UsersFeature],                 // фича, где объявлен GetUser
   transports: [http({ port: 3000 })],       // провайдер, а не инстанс
 }).run();
 ```
@@ -59,17 +59,17 @@ httpEndpoint({ method, path, input, output, errors, bind, rawBody, sse, pipeline
 HTTP-поля и собирает `pattern` как `` `${method} ${path}` ``. `path` —
 литеральный тип; `PathParams<Path>` выводит из него имена `:param`.
 
-**Контрактная форма** берёт адрес, схемы, `errors` и `doc` из контракта
+**Форма с операцией** берёт адрес, схемы, `errors` и `doc` из операции
 с секцией `http:`:
 
 ```ts
-httpEndpoint({ contract: CreateUser, deps, pipeline, handle, detached });
+httpEndpoint({ operation: CreateUser, deps, pipeline, handle, detached });
 ```
 
 Поля `method`, `path`, `bind`, `rawBody`, `sse`, `input`, `output`,
 `errors` и `doc` в этой форме объявлены как `never`: повторить их рядом с
-контрактом — ошибка компиляции, а для JS-потребителя — ошибка выполнения.
-Bind-карта переносится из контракта тем же значением, а не вычисляется
+операцией — ошибка компиляции, а для JS-потребителя — ошибка выполнения.
+Bind-карта переносится из операции тем же значением, а не вычисляется
 заново.
 
 Декларация проверяется в момент создания. Пустой `path`, `path` без
@@ -105,11 +105,11 @@ export const CreateMember = httpEndpoint({
   схемы за вычетом path-параметров: опечатка и пометка на path-параметре —
   ошибки компиляции.
 - Пометки и bind-карту экспортирует
-  [`@nestling/contracts`](../nestling.contracts); этот пакет их
+  [`@nestling/operations`](../nestling.operations); этот пакет их
   реэкспортирует, так что автор декларации импортирует их вместе с
   `httpEndpoint`.
 - Bind-карта вычисляется при создании декларации и доступна как
-  `httpBindingOf(definition)`. Клиент, который импортирует только контракт,
+  `httpBindingOf(definition)`. Клиент, который импортирует только операция,
   получает её без серверного кода.
 - Payload собирается только из канонических мест с приоритетом
   «путь, затем пометка, затем остальное». Поле, присланное не туда, в
@@ -244,7 +244,7 @@ await server.serve(makeDispatch([SayHello, CreateUser]), shutdown.signal);
 ## Провайдер `http(options?)`
 
 ```ts
-await assemble({ modules: [UsersModule], transports: [http({ port: 3000 })] }).run();
+await assemble({ features: [UsersFeature], transports: [http({ port: 3000 })] }).run();
 ```
 
 `http()` возвращает провайдер, а не инстанс. Транспорт — обычный узел
@@ -305,11 +305,11 @@ await assemble({ modules: [UsersModule], transports: [http({ port: 3000 })] }).r
 
 | Имя | Что это |
 |---|---|
-| `httpEndpoint(declaration)` | конструктор декларации (анонимная и контрактная формы) |
+| `httpEndpoint(declaration)` | конструктор декларации (анонимная форма и форма с операцией) |
 | `http(options?)` | провайдер транспорта для `transports:` или `providers:` |
 | `HttpTransport` | класс транспорта для ручного запуска |
-| `HttpTransport$`, `HTTP_TRANSPORT_NAME` | токен транспорта и его короткое имя `'http'` |
-| `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/contracts`) |
+| `HttpTransport$('default')`, `HTTP_TRANSPORT_NAME` | токен транспорта и его короткое имя `'http'` |
+| `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/operations`) |
 | `httpBindingOf(definition)` | bind-карта декларации |
 | `httpCodeOf(status)` | HTTP-код для семантического статуса |
 | `httpConfigKeys` | ключи секции конфига `HTTP_PORT`, `HTTP_HOST` |

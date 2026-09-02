@@ -38,7 +38,7 @@ import type {
   FailData,
   Output,
   OutputSync,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   describeForm,
   isFail,
@@ -46,7 +46,7 @@ import {
   isStreamKind,
   Ok,
   UnknownError,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 
 /**
  * Ошибка, которая произошла после начала отдачи потокового ответа.
@@ -136,7 +136,7 @@ type Simplify<T> = { [K in keyof T]: T[K] } & {};
 // Каждый тип-ошибка обёрнут в `Simplify<…>` внутри алиаса. Без обёртки
 // TypeScript печатает именованный дженерик-алиас его именем
 // (`ComposeError<…>`), и текст `__error` в диагностике пропадает. Обёртка —
-// часть контракта диагностики; её проверяют снапшоты в `type-tests/`.
+// часть операции диагностики; её проверяют снапшоты в `type-tests/`.
 // ---------------------------------------------------------------------------
 
 /**
@@ -667,7 +667,7 @@ class PipelineImpl {
     const activated: Layer[] = [];
 
     /**
-     * Исходная ошибка текущего ответа-ошибки: `enforceContract` передаёт
+     * Исходная ошибка текущего ответа-ошибки: `enforceDeclaredFails` передаёт
      * её хуку целиком. В самом ответе остаётся только то, что можно
      * показать клиенту.
      */
@@ -777,7 +777,7 @@ class PipelineImpl {
     // Проверка `errors:` стоит после `.catch` (там незадекларированный
     // отказ ещё можно превратить в задекларированный) и до `.finally`
     // (наблюдатель видит тот ответ, который уйдёт клиенту)
-    response = this.enforceContract(
+    response = this.enforceDeclaredFails(
       response,
       originalError,
       ctx.endpoint,
@@ -825,7 +825,7 @@ class PipelineImpl {
           }
 
           // Та же проверка `errors:` и тот же хук, что на обычном пути
-          const failure = this.enforceContract(
+          const failure = this.enforceDeclaredFails(
             this.errorToResponse(error, exposeErrorDetails),
             error,
             ctx.endpoint,
@@ -897,7 +897,7 @@ class PipelineImpl {
    * Отказ (`Fail` или десериализованное значение с `isFail`) автор
    * написал сам, поэтому его `message`, `code` и `details` попадают в тело
    * независимо от `exposeErrorDetails`. Незадекларированный отказ позже
-   * заменит `enforceContract`.
+   * заменит `enforceDeclaredFails`.
    *
    * Любая другая ошибка считается внутренней: по умолчанию клиенту уходит
    * только общее сообщение, без `message` и `stack`.
@@ -941,7 +941,7 @@ class PipelineImpl {
    * необработанная ошибка), заменяется на `UnknownError`; исходная ошибка
    * передаётся в `onUnknownFail`.
    */
-  private enforceContract(
+  private enforceDeclaredFails(
     response: ResponseContext<unknown>,
     originalError: unknown,
     endpoint: EndpointMeta,

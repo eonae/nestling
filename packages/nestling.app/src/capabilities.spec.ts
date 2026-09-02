@@ -1,19 +1,19 @@
 /**
- * Capability-валидация биндинга: форма контракта против способностей
+ * Capability-валидация биндинга: форма операции против способностей
  * транспорта. Проверка обязана срабатывать **на сборке**, до приёма
  * запросов, и одинаково — через `App` (фаза ASSEMBLE) и в `serve`
  * (standalone-путь).
  */
 
 import { assemble } from './app';
+import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
-import { makeAppModule } from './module';
 
 import { describe, expect, it } from '@jest/globals';
-import { valueProvider } from '@nestling/container';
+import type { TransportRef } from '@nestling/pipeline';
 import { events, multipart, Ok, stream, upload } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
-import { makeDispatch } from '@nestling/transport';
+import { makeDispatch, transportValue } from '@nestling/transport';
 import {
   cliEndpoint,
   CliTransport,
@@ -32,9 +32,9 @@ async function* noTicks(): AsyncIterableIterator<{ at: string }> {
   // намеренно пуст
 }
 
-/** Регистрирует готовый инстанс транспорта под его токеном */
-const asTransport = (token: typeof HttpTransport$, transport: ITransport) =>
-  valueProvider(token, transport);
+/** Объявляет готовый инстанс транспорта экземпляром по умолчанию */
+const asTransport = (token: TransportRef, transport: ITransport) =>
+  transportValue(token, transport);
 
 describe('capability-валидация через assemble', () => {
   it('events на CLI падает на сборке, называя команду, транспорт, слот и форму', async () => {
@@ -45,12 +45,14 @@ describe('capability-валидация через assemble', () => {
     });
 
     const app = assemble({
-      modules: [makeAppModule({ name: 'module:watch', endpoints: [Watch] })],
-      transports: [asTransport(CliTransport$, new CliTransport({ argv: [] }))],
+      features: [makeFeature({ name: 'module:watch', endpoints: [Watch] })],
+      transports: [
+        asTransport(CliTransport$('default'), new CliTransport({ argv: [] })),
+      ],
     });
 
     await expect(app.run()).rejects.toThrow(
-      /Endpoint 'watch' declared in module 'module:watch': transport 'cli' does not support form 'events' in 'output'/,
+      /Endpoint 'watch' declared in 'module:watch': transport 'cli' does not support form 'events' in 'output'/,
     );
   });
 
@@ -63,8 +65,8 @@ describe('capability-валидация через assemble', () => {
     });
 
     const app = assemble({
-      modules: [makeAppModule({ name: 'module:upload', endpoints: [Upload] })],
-      transports: [asTransport(HttpTransport$, new MockTransport())],
+      features: [makeFeature({ name: 'module:upload', endpoints: [Upload] })],
+      transports: [asTransport(HttpTransport$('default'), new MockTransport())],
     });
 
     await expect(app.run()).rejects.toThrow(
@@ -81,10 +83,10 @@ describe('capability-валидация через assemble', () => {
     });
 
     const app = assemble({
-      modules: [makeAppModule({ name: 'module:export', endpoints: [Export] })],
+      features: [makeFeature({ name: 'module:export', endpoints: [Export] })],
       transports: [
         asTransport(
-          HttpTransport$,
+          HttpTransport$('default'),
           new HttpTransport({ port: 0, host: '127.0.0.1' }),
         ),
       ],
@@ -106,8 +108,8 @@ describe('capability-валидация через assemble', () => {
     const bus = new MockTransport();
 
     const app = assemble({
-      modules: [makeAppModule({ name: 'module:live', endpoints: [Live] })],
-      transports: [asTransport(HttpTransport$, bus)],
+      features: [makeFeature({ name: 'module:live', endpoints: [Live] })],
+      transports: [asTransport(HttpTransport$('default'), bus)],
     });
 
     await expect(app.run()).rejects.toThrow(/does not support form 'events'/);

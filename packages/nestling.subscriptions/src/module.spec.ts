@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`). */
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 /**
  * Пакет в собранном приложении: тестовый корень, полный пайплайн,
  * `await using` → SHUTDOWN.
@@ -11,15 +11,15 @@
  */
 
 import { testTransport, TestTransport$ } from './__fixtures__/transport';
-import { SubscriptionClosed, SubscriptionOpened } from './contracts';
 import { tracked } from './layer';
 import { subscriptions } from './module';
+import { SubscriptionClosed, SubscriptionOpened } from './operations';
 import { SubscriptionRegistry } from './registry';
 import type { SubscriptionEvent } from './types';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeAppModule } from '@nestling/app';
-import { events, Ok } from '@nestling/contracts';
+import { makeFeature } from '@nestling/app';
+import { events, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose, makeEndpoint, makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
@@ -103,10 +103,8 @@ async function waitFor(
 describe('subscriptions(): реестр в собранном приложении', () => {
   it('видит подписку, убивает её и снимает запись', async () => {
     await using app = await assembleTest({
-      modules: [
-        subscriptions(),
-        makeAppModule({ name: 'module:ticks', endpoints: [Ticks] }),
-      ],
+      plugins: [subscriptions()],
+      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 
@@ -140,10 +138,8 @@ describe('subscriptions(): реестр в собранном приложени
 
   it('снимает записи на SHUTDOWN и закрывает ленту', async () => {
     const app = await assembleTest({
-      modules: [
-        subscriptions(),
-        makeAppModule({ name: 'module:ticks', endpoints: [Ticks] }),
-      ],
+      plugins: [subscriptions()],
+      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 
@@ -181,9 +177,9 @@ describe('subscriptions(): реестр в собранном приложени
 
   it('живой просмотр сам является подпиской и не видит своего opened', async () => {
     await using app = await assembleTest({
-      modules: [
-        subscriptions(),
-        makeAppModule({ name: 'module:feed', endpoints: [Feed, Ticks] }),
+      plugins: [subscriptions()],
+      features: [
+        makeFeature({ name: 'module:feed', endpoints: [Feed, Ticks] }),
       ],
       transports: [testTransport()],
     });
@@ -222,33 +218,28 @@ describe('subscriptions(): реестр в собранном приложени
   it('роняет сборку, если слой есть, а модуля нет', async () => {
     await expect(
       assembleTest({
-        modules: [makeAppModule({ name: 'module:ticks', endpoints: [Ticks] })],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
     ).rejects.toThrow(/TrackSubscription/);
   });
 
-  it('роняет сборку на двух значениях модуля', async () => {
+  it('роняет сборку на двух значениях плагина', async () => {
     await expect(
       assembleTest({
-        modules: [
-          subscriptions(),
-          subscriptions({ node: 'other' }),
-          makeAppModule({ name: 'module:ticks', endpoints: [Ticks] }),
-        ],
+        plugins: [subscriptions(), subscriptions({ node: 'other' })],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
         transports: [testTransport()],
       }),
-    ).rejects.toThrow(/module:subscriptions/);
+    ).rejects.toThrow(/@nestling\/subscriptions/);
   });
 });
 
 describe('subscriptions(): факты жизненного цикла', () => {
-  it('без публикации вызывателей контрактов в графе нет', async () => {
+  it('без публикации вызывателей операций в графе нет', async () => {
     await using app = await assembleTest({
-      modules: [
-        subscriptions(),
-        makeAppModule({ name: 'module:ticks', endpoints: [Ticks] }),
-      ],
+      plugins: [subscriptions()],
+      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 
@@ -258,10 +249,8 @@ describe('subscriptions(): факты жизненного цикла', () => {
 
   it('с публикацией и нулём подписчиков собирается, emit — no-op', async () => {
     await using app = await assembleTest({
-      modules: [
-        subscriptions({ publish: true, node: 'node-1' }),
-        makeAppModule({ name: 'module:ticks', endpoints: [Ticks] }),
-      ],
+      plugins: [subscriptions({ publish: true, node: 'node-1' })],
+      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 
@@ -298,9 +287,9 @@ describe('subscriptions(): факты жизненного цикла', () => {
     });
 
     await using app = await assembleTest({
-      modules: [
-        subscriptions({ publish: true, node: 'node-1' }),
-        makeAppModule({
+      plugins: [subscriptions({ publish: true, node: 'node-1' })],
+      features: [
+        makeFeature({
           name: 'module:ticks',
           endpoints: [Ticks, OpenedInOps, ClosedInOps],
         }),
@@ -343,9 +332,9 @@ describe('subscriptions(): слой композируется поверх пр
     });
 
     await using app = await assembleTest({
-      modules: [
-        subscriptions(),
-        makeAppModule({ name: 'module:composed', endpoints: [Watched] }),
+      plugins: [subscriptions()],
+      features: [
+        makeFeature({ name: 'module:composed', endpoints: [Watched] }),
       ],
       transports: [testTransport()],
     });

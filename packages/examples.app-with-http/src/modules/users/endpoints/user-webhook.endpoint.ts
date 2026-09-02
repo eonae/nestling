@@ -79,7 +79,7 @@ export const UserWebhook = httpEndpoint({
   input: UserEventInput,
   output: UserEventOutput,
   // Отказ бросает pre-юнит слоя, а не хендлер — объявлять его всё равно
-  // обязан endpoint: контракт принадлежит endpoint'у, а не слою.
+  // обязан endpoint: операция принадлежит endpoint'у, а не слою.
   errors: [InvalidSignature],
   rawBody: true,
   pipeline: compose(

@@ -66,7 +66,7 @@ export interface OpenApiResponse {
 
 /** Операция: одна пара «метод + путь» */
 export interface OpenApiOperation {
-  /** Выводится: имя контракта либо слаг от метода и пути */
+  /** Выводится: имя операции либо слаг от метода и пути */
   readonly operationId: string;
 
   readonly summary?: string;

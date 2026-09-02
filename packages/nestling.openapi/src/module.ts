@@ -1,10 +1,11 @@
 /**
- * `openapi(...)` — параметризованный модуль-издатель.
+ * `openapi(...)` — параметризованный плагин-издатель.
  *
- * Нового примитива «плагин» не заводится: инфраструктура оформляется
- * обычным модулем-значением с параметрами, ровно как `logging({ service })`
- * в примерах. Наружу выходит `Module`, и discovery, политики, визуализация
- * и pipeline работают с ним как с любым другим.
+ * Новых механизмов роль плагина не приносит: инфраструктура остаётся
+ * значением с параметрами, ровно как `logging({ service })` в примерах.
+ * Наружу выходит `Plugin`, и discovery, политики, визуализация и pipeline
+ * работают с ним как с любой другой единицей. Endpoint у плагина законен:
+ * служебный endpoint с документом — та же инфраструктура.
  *
  * Гарантия на старте отдельным кодом **не пишется** — она следствие жадного
  * контейнера: фабрика провайдера зовётся на фазе 1 ASSEMBLE, поэтому любая
@@ -19,8 +20,8 @@
 import { buildOpenApiDocument, hiddenEndpoints } from './document.js';
 import type { OpenApiDocument, OpenApiOptions } from './types.js';
 
-import type { AppModule, EndpointDiscovery } from '@nestling/app';
-import { Discovery$, makeAppModule } from '@nestling/app';
+import type { EndpointDiscovery, Plugin } from '@nestling/app';
+import { Discovery$, makePlugin } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, makeToken } from '@nestling/container';
 import type { AnyInput, Pipeline } from '@nestling/pipeline';
@@ -76,17 +77,17 @@ export interface OpenApiServeOptions<
 }
 
 /**
- * Модуль, строящий документ на ASSEMBLE и отдающий его endpoint'ом.
+ * Плагин, строящий документ на ASSEMBLE и отдающий его endpoint'ом.
  *
  * @param options - Опции документа плюс опции подачи (`path`, `pipeline`,
  * `detached`)
- * @returns Обычный модуль-значение для `modules:` корня
+ * @returns Значение-плагин для `plugins:` корня
  *
  * @example
  * ```typescript
  * assemble({
  *   features: [UsersFeature],
- *   modules: [openapi({
+ *   plugins: [openapi({
  *     info: { title: 'Users API', version: '1.0.0' },
  *     converters: [zodConverter()],
  *     pipeline: observabilityBase,
@@ -97,7 +98,7 @@ export interface OpenApiServeOptions<
  */
 export function openapi<P extends AnyInput = AnyInput, PN = never>(
   options: OpenApiOptions & OpenApiServeOptions<P, PN>,
-): AppModule {
+): Plugin {
   const { path, pipeline, detached, announceHidden, ...documentOptions } =
     options;
 
@@ -113,8 +114,8 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
     handle: (value: OpenApiDocument) => async () => new Ok(value),
   });
 
-  return makeAppModule({
-    name: 'module:openapi',
+  return makePlugin({
+    name: '@nestling/openapi',
     providers: [
       factoryProvider(
         OpenApiDocument$,
@@ -139,7 +140,7 @@ function build(
     )) {
       console.log(
         `[nestling] hidden from the API document: ${pattern} ` +
-          `(module '${moduleName}') — ${reason}`,
+          `(declared in '${moduleName}') — ${reason}`,
       );
     }
   }

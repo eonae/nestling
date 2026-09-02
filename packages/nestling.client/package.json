@@ -1,7 +1,7 @@
 {
   "name": "@nestling/client",
   "version": "0.1.0",
-  "description": "Typed HTTP client built from Nestling contracts — no server code, no runtime dependencies beyond @nestling/contracts",
+  "description": "Typed HTTP client built from Nestling operations — no server code, no runtime dependencies beyond @nestling/operations",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -21,7 +21,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.7.3",

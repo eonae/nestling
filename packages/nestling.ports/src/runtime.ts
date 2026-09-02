@@ -15,8 +15,8 @@ import type { Dispatch } from '@nestling/transport';
 
 /** Диагностический отчёт вызывателя: то, что не попало на call-site */
 export interface PortFailureInfo {
-  /** Имя контракта, на котором случился отказ */
-  readonly contract: string;
+  /** Имя операции, на котором случился отказ */
+  readonly operation: string;
 
   /** Оригинал: незадекларированный отказ, исключение или ответ границы */
   readonly error: unknown;
@@ -27,7 +27,7 @@ export interface PortExecutors {
   /** Диспетчер транспорта шины; отсутствует, если шины в графе нет */
   readonly dispatch?: Dispatch;
 
-  /** Шина; отсутствует, если ни одной реализации контракта не собрано */
+  /** Шина; отсутствует, если ни одной реализации операции не собрано */
   readonly bus?: IMessageBus;
 }
 
@@ -56,14 +56,14 @@ export class PortRuntime {
    * @throws {Error} Если вызов произошёл до фазы WIRE или транспорта шины
    * нет в графе
    */
-  requireDispatch(contract: string): Dispatch {
-    const executors = this.#requireBound(contract);
+  requireDispatch(operation: string): Dispatch {
+    const executors = this.#requireBound(operation);
 
     if (!executors.dispatch) {
       throw new Error(
-        `Port '${contract}' has no bus dispatch: the bus transport is not ` +
+        `Port '${operation}' has no bus dispatch: the bus transport is not ` +
           `part of the assembled application. Declare the implementation ` +
-          `with implement(${contract}, { … }) in 'endpoints:' of a module.`,
+          `with implement(${operation}, { … }) in 'endpoints:' of a module.`,
       );
     }
 
@@ -76,8 +76,8 @@ export class PortRuntime {
    *
    * @throws {Error} Если вызов произошёл до фазы WIRE
    */
-  optionalBus(contract: string): IMessageBus | undefined {
-    return this.#requireBound(contract).bus;
+  optionalBus(operation: string): IMessageBus | undefined {
+    return this.#requireBound(operation).bus;
   }
 
   /** Диагностический канал: отказ, не попавший на call-site */
@@ -88,13 +88,13 @@ export class PortRuntime {
     }
 
     // eslint-disable-next-line no-console
-    console.error(`[nestling] port '${info.contract}' failure:`, info.error);
+    console.error(`[nestling] port '${info.operation}' failure:`, info.error);
   }
 
-  #requireBound(contract: string): PortExecutors {
+  #requireBound(operation: string): PortExecutors {
     if (!this.#executors) {
       throw new Error(
-        `Port '${contract}' was called before phase 3 WIRE, where ports are ` +
+        `Port '${operation}' was called before phase 3 WIRE, where ports are ` +
           `bound to the bus dispatch. Executable handles do not exist before ` +
           `WIRE, so there is nothing to call yet: move the call to @OnStart ` +
           `or later (@OnInit is phase 2).`,

@@ -1,2 +1,2 @@
-export * from './logging.module';
+export * from './logging.plugin';
 export * from './registry';

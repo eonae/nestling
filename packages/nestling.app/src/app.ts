@@ -8,8 +8,13 @@
  * захвату любых ресурсов.
  */
 
+import { assertFeatureBoundary, buildOwnerMap } from './boundary';
 import type { EndpointDiscovery } from './discovery';
 import { discoverEndpoints, Discovery$ } from './discovery';
+import type { Bundle, Feature } from './feature';
+import { modulesOf } from './feature';
+import type { CheckedOperation } from './operations';
+import { mapOperations } from './operations';
 import type {
   AssemblyPlan,
   AssemblySpec,
@@ -17,6 +22,7 @@ import type {
   WiredEndpoint,
 } from './plan';
 import { makePlan, TEST_SEAM } from './plan';
+import { closeOverCalls } from './selection';
 
 import { configKernel } from '@nestling/config';
 import type {
@@ -24,7 +30,7 @@ import type {
   InjectionToken,
   Provider,
 } from '@nestling/container';
-import { ContainerBuilder, valueProvider } from '@nestling/container';
+import { ContainerBuilder, tokenId, valueProvider } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
   PolicySubject,
@@ -36,20 +42,20 @@ import {
   contextKernel,
   transportNameOf,
 } from '@nestling/pipeline';
-import type { ContractDescriptor } from '@nestling/ports';
+import type { OperationDescriptor } from '@nestling/ports';
 import {
   bindPorts,
   busBindingOf,
-  BusTransport$,
   collectImplementations,
-  describeContract,
+  describeOperation,
   portsKernel,
-  undurableContracts,
+  undurableOperations,
 } from '@nestling/ports';
 import type {
   Dispatch,
   ExecutableDeclaration,
   ITransport,
+  TransportDeclaration,
 } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
 
@@ -93,15 +99,24 @@ export interface CheckReport {
   readonly transports: readonly string[];
 
   /**
-   * Дескрипторы контрактов, **опубликованных** этой топологией.
+   * Дескрипторы операций, **опубликованных** этой топологией.
    *
    * Строятся из discovery — по декларациям с bus-биндингом, а не из
-   * приватного реестра `makeContract`. Источник истины о составе
+   * приватного реестра `makeRequest`. Источник истины о составе
    * приложения один: дерево модулей. Реестр включал бы всё
-   * импортированное, в том числе контракты соседних фич, которые это
+   * импортированное, в том числе операции соседних фич, которые это
    * приложение не публикует.
    */
-  readonly contracts: readonly ContractDescriptor[];
+  readonly published: readonly OperationDescriptor[];
+
+  /**
+   * Карта операций: что реализовано здесь, что уходит наружу и через
+   * какой интерком.
+   *
+   * Отвечает на вопрос, который иначе задают запуском: этот процесс сам
+   * обслуживает операцию или зовёт соседа.
+   */
+  readonly operations: readonly CheckedOperation[];
 }
 
 /** Опции структурной проверки */
@@ -119,49 +134,53 @@ export interface CheckOptions {
 /**
  * Собирает приложение.
  *
- * Единственный публичный composition root: `modules` и `features`
- * совмещаются, транспорты задаются провайдерами, привязки конфига —
- * полем `config`.
+ * Единственный публичный composition root: фичи перечисляются в
+ * `features:`, сквозная инфраструктура — в `plugins:`, транспорты
+ * объявляются экземплярами, привязки конфига — полем `config`.
  *
  * @param spec - Словарь сборки. Все поля опциональны
  * @returns Приложение с методами `run()` и `close()`
  *
- * @example L0 — модули и транспорт
+ * @example Одна фича и транспорт
  * ```typescript
  * await assemble({
- *   modules: [OrdersModule],
+ *   features: [OrdersFeature],
  *   transports: [http({ port: 3000 })],
  * }).run();
  * ```
  *
- * @example L2 — фичи и выбор подмножества
+ * @example Выбор подмножества фич и интерком
  * ```typescript
  * await assemble({
  *   features: [OrdersFeature, BillingFeature],
- *   select: load(RootConfig).features,
- *   transports: [http()],
+ *   plugins: [appLogging],
+ *   select: { features: load(RootConfig).features, includeDeps: true },
+ *   transports: [http(), nats({ name: 'events' })],
+ *   intercom: 'events',
  * }).run();
  * ```
  */
-export function assemble(spec: AssemblySpec = {}): App {
+export function assemble<const T extends readonly TransportDeclaration[] = []>(
+  spec: AssemblySpec<T> = {},
+): App {
   // Подстановок здесь нет и не будет: `assemble` не принимает `overrides`
   // даже как соблазн — это ключ тестового корня
   return new App(makePlan(spec));
 }
 
 /**
- * Дескрипторы контрактов, опубликованных этой сборкой.
+ * Дескрипторы операций, опубликованных этой сборкой.
  *
  * Источник — discovery: декларация с bus-биндингом и есть «я это
- * обслуживаю». У события подписчиков может быть несколько, а контракт
+ * обслуживаю». У события подписчиков может быть несколько, а операция
  * один, поэтому дескрипторы сводятся по имени. Порядок отчёта — по
  * имени, чтобы он не зависел от обхода дерева модулей.
  */
-function publishedContracts(
+function publishedOperations(
   discovery: EndpointDiscovery,
   options: CheckOptions,
-): readonly ContractDescriptor[] {
-  const byName = new Map<string, ContractDescriptor>();
+): readonly OperationDescriptor[] {
+  const byName = new Map<string, OperationDescriptor>();
 
   for (const { endpoint } of discovery.endpoints) {
     const binding = busBindingOf(endpoint);
@@ -170,7 +189,7 @@ function publishedContracts(
       continue;
     }
 
-    byName.set(binding.subject, describeContract(endpoint, options));
+    byName.set(binding.subject, describeOperation(endpoint, options));
   }
 
   return [...byName.values()].sort((left, right) =>
@@ -186,6 +205,14 @@ function publishedContracts(
  */
 export class App {
   readonly #plan: AssemblyPlan;
+
+  /**
+   * Фактический состав фич: выбор, замкнутый по вызываемым операциям.
+   *
+   * Считается один раз: `run()`, `check()` и шов обязаны видеть один и тот
+   * же состав.
+   */
+  readonly #features: readonly Feature[];
 
   #container?: BuiltContainer;
 
@@ -208,6 +235,14 @@ export class App {
   /** @internal конструируется только `assemble` */
   constructor(plan: AssemblyPlan) {
     this.#plan = plan;
+    this.#features = plan.includeDeps
+      ? closeOverCalls(plan.features, plan.declaredFeatures)
+      : plan.features;
+  }
+
+  /** Единицы сборки: фактически выбранные фичи и все плагины */
+  get #bundles(): Bundle[] {
+    return [...this.#features, ...this.#plan.plugins];
   }
 
   /**
@@ -265,10 +300,10 @@ export class App {
    * Собственный граф `check()` не сохраняет: на последующий `run()` вызов
    * не влияет, и гонять его можно по матрице `select`-топологий.
    *
-   * @param options - Конвертеры схем для дескрипторов контрактов. Вызов
+   * @param options - Конвертеры схем для дескрипторов операций. Вызов
    * без аргумента ведёт себя ровно как прежде
    * @returns Отчёт о составе: фичи, endpoint'ы с транспортами, транспорты
-   * и дескрипторы опубликованных контрактов
+   * и дескрипторы опубликованных операций
    * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах
    *
    * @example
@@ -282,7 +317,7 @@ export class App {
     const { discovery } = await this.#assemble();
 
     return {
-      features: this.#plan.features.map((feature) => feature.name),
+      features: this.#features.map((feature) => feature.name),
       endpoints: discovery.endpoints.map(({ endpoint, moduleName }) => ({
         pattern: endpoint.pattern,
         transport: transportNameOf(endpoint.transport),
@@ -294,7 +329,12 @@ export class App {
       transports: this.#transportOrder(discovery).map((token) =>
         transportNameOf(token),
       ),
-      contracts: publishedContracts(discovery, options),
+      published: publishedOperations(discovery, options),
+      operations: mapOperations(
+        discovery,
+        this.#bundles,
+        this.#plan.intercom?.name,
+      ),
     };
   }
 
@@ -329,7 +369,7 @@ export class App {
     return {
       container,
       endpoints: wired,
-      features: this.#plan.features,
+      features: this.#features,
       signal: this.#shutdown.signal,
       close: () => this.close(),
     };
@@ -398,12 +438,12 @@ export class App {
     // в корне про request-контекст не пишется ни строки
     builder.register(contextKernel());
 
-    // Discovery — по дереву модулей, отобранных `select`: невыбранные
-    // фичи в нём не участвуют вовсе. Считается до регистрации модулей,
-    // потому что топология реализаций контрактов нужна kernel-модулю
-    // портов уже на регистрации: функция чистая, порядок ни на что не
-    // влияет
-    const discovery = discoverEndpoints(this.#plan.modules);
+    // Discovery — плоским проходом по выбранным фичам и подключённым
+    // плагинам: невыбранные фичи в нём не участвуют вовсе. Считается до
+    // регистрации модулей, потому что топология реализаций операций нужна
+    // kernel-модулю портов уже на регистрации: функция чистая, порядок ни
+    // на что не влияет
+    const discovery = discoverEndpoints(this.#bundles);
 
     // Состав приложения — узел графа. Регистрируется всегда и без
     // условий: провайдер-значение ничего не стоит, а условная
@@ -425,17 +465,20 @@ export class App {
         requested: discovery.endpoints.flatMap(
           ({ endpoint }) => endpoint.deps ?? [],
         ),
-        // Транспорт шины в `transports:` корня — единственный вход ветки
-        // «шину поставил корень»: так подключается брокер, и in-proc
-        // реализация тогда не регистрируется вовсе
-        rootSuppliesBus: this.#plan.transportTokens.includes(
-          BusTransport$ as TransportRef,
-        ),
+        // Назначенный интерком — единственный вход ветки «шину поставил
+        // корень»: так подключается брокер, и in-proc реализация тогда не
+        // регистрируется вовсе. Признак даёт роль, а не присутствие
+        // провайдера в списке транспортов
+        rootSuppliesBus: this.#plan.intercom !== undefined,
       }),
     );
 
-    if (this.#plan.modules.length > 0) {
-      builder.register(...this.#plan.modules);
+    // Модули считаются от **фактического** состава: замыкание по вызовам
+    // могло добавить фичу, и её провайдеры обязаны попасть в граф
+    const modules = modulesOf(this.#bundles);
+
+    if (modules.length > 0) {
+      builder.register(...modules);
     }
 
     if (this.#plan.providers.length > 0) {
@@ -448,6 +491,14 @@ export class App {
 
     const container = await builder.build();
 
+    // Граница фич — первой на собранном графе: ребро, которое не переживёт
+    // разъезда процессов, важнее любого недостающего транспорта
+    await assertFeatureBoundary(
+      container,
+      buildOwnerMap(this.#features, this.#plan.plugins),
+    );
+
+    this.#warnOnIdleIntercom(discovery);
     this.#assertRequiredTransports(container, discovery);
     this.#assertFormsSupported(container, discovery);
     // Инварианты — последними: сперва «граф вообще собирается», потом
@@ -512,7 +563,7 @@ export class App {
       ]),
     );
 
-    // Связывание вызывателей контрактов с исполнителем — здесь и только
+    // Связывание вызывателей операций с исполнителем — здесь и только
     // здесь: `dispatch` создаётся в WIRE, поэтому раньше связывать не с
     // чем, а позже транспорт уже начал бы принимать запросы. Приложение
     // без единого порта проходит шаг вхолостую: держателя в графе
@@ -578,7 +629,7 @@ export class App {
     const instance = container.get(token);
 
     if (!instance) {
-      const name = typeof token === 'string' ? token : token.name;
+      const name = tokenId(token);
 
       throw new Error(
         `Dependency '${name}' required by endpoint '${pattern}' ` +
@@ -589,6 +640,32 @@ export class App {
     }
 
     return instance;
+  }
+
+  /**
+   * Предупреждает об интеркоме, которому нечего переносить.
+   *
+   * Роль назначена, брокер поднимется и займёт соединение, а операций в
+   * сборке нет: либо роль назначена по ошибке, либо фича, ради которой
+   * она нужна, не выбрана. Это предупреждение, а не ошибка: топология из
+   * одного процесса, готовая к разъезду, законна.
+   */
+  #warnOnIdleIntercom(discovery: EndpointDiscovery): void {
+    const intercom = this.#plan.intercom;
+
+    if (
+      !intercom ||
+      mapOperations(discovery, this.#bundles, intercom.name).length > 0
+    ) {
+      return;
+    }
+
+    console.warn(
+      `[nestling] intercom '${intercom.name}' is assigned, but this ` +
+        `assembly declares no operations: nothing will be carried through ` +
+        `it. Drop 'intercom:' with its transport, or check that the feature ` +
+        `that needs it is part of 'select'.`,
+    );
   }
 
   /**
@@ -611,9 +688,9 @@ export class App {
 
       throw new Error(
         `Transport '${name}' is required by endpoint '${endpoint.pattern}' ` +
-          `declared in module '${moduleName}', but is not registered in the ` +
-          `container. Add it to 'transports:' of assemble({ … }) or to ` +
-          `'providers:' of a module (for example ${name}()).`,
+          `declared in '${moduleName}', but the root does not declare it. ` +
+          `Add it to 'transports:' of assemble({ … }); a bus additionally ` +
+          `needs the intercom role ('intercom: <instance name>').`,
       );
     }
   }
@@ -637,7 +714,7 @@ export class App {
       assertFormsSupported(
         endpoint as AnyEndpointDefinition,
         transport.capabilities,
-        `declared in module '${moduleName}'`,
+        `declared in '${moduleName}'`,
       );
     }
   }
@@ -703,7 +780,7 @@ export class App {
    * diff'е одного файла. Пустой список не печатается вовсе.
    */
   #announce(discovery: EndpointDiscovery): void {
-    const features = this.#plan.features.map((feature) => feature.name);
+    const features = this.#features.map((feature) => feature.name);
     const transports = this.#serving.map(({ token }) => transportNameOf(token));
 
     console.log(
@@ -711,12 +788,24 @@ export class App {
         `transports: ${transports.join(', ') || '(none)'}`,
     );
 
+    // Фактический состав при замыкании — не украшение: выбор назвал одни
+    // фичи, а собрались другие, и разойтись эти списки не должны молча
+    if (this.#plan.includeDeps) {
+      const named = this.#plan.features.map((feature) => feature.name);
+      const added = features.filter((name) => !named.includes(name));
+
+      console.log(
+        `[nestling] selection closed over calls: ${named.join(', ') || '(none)'}` +
+          (added.length > 0 ? ` + ${added.join(', ')}` : ' (nothing added)'),
+      );
+    }
+
     // Деградация долговечности — рядом с составом и по тем же основаниям,
     // что список detached-endpoint'ов: расхождение объявленного с
     // обслуживаемым обязано быть поверхностью для аудита, а не тихим
     // «как-нибудь доставится»
     const undurable = this.#container
-      ? undurableContracts(
+      ? undurableOperations(
           this.#container,
           discovery.endpoints.map(({ endpoint }) => endpoint),
         )

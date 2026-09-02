@@ -24,7 +24,7 @@
   "dependencies": {
     "@common/misc": "workspace:*",
     "@nestling/container": "workspace:*",
-    "@nestling/contracts": "workspace:*",
+    "@nestling/operations": "workspace:*",
     "@nestling/streams": "workspace:*"
   },
   "devDependencies": {

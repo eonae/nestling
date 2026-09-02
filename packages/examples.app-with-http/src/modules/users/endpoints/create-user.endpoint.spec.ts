@@ -2,8 +2,8 @@ import type {
   ClaimQuota,
   SignupRecorded,
   UserRegistered,
-} from '../../../contracts';
-import { QuotaExceeded } from '../../../contracts';
+} from '../../../operations';
+import { QuotaExceeded } from '../../../operations';
 import type { ILoggerService } from '../../logger';
 import { EmailTaken } from '../user.errors';
 import type { UserService } from '../user.service';

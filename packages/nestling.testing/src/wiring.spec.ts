@@ -9,14 +9,14 @@
 import { assembleTest } from './app';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeAppModule } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { wireApp } from '@nestling/app/testing';
 import { BuiltContainer, Injectable, OnDestroy } from '@nestling/container';
 
 describe('условие "testing" в тест-раннере', () => {
   it('резолвит @nestling/app/testing на исходники', async () => {
     const wired = await wireApp({
-      modules: [makeAppModule({ name: 'module:wiring' })],
+      features: [makeFeature({ name: 'module:wiring' })],
     });
 
     // Класс из исходников `@nestling/container`: если бы subpath резолвился
@@ -40,8 +40,8 @@ describe('условие "testing" в тест-раннере', () => {
 
     {
       await using app = await assembleTest({
-        modules: [
-          makeAppModule({ name: 'module:disposable', providers: [Resource] }),
+        features: [
+          makeFeature({ name: 'module:disposable', providers: [Resource] }),
         ],
       });
 

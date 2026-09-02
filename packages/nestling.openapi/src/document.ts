@@ -51,7 +51,7 @@ interface Documented {
  *
  * @example
  * ```typescript
- * const { endpoints } = discoverEndpoints(modulesOf(features));
+ * const { endpoints } = discoverEndpoints([...features, ...plugins]);
  * writeFileSync('openapi.json', JSON.stringify(
  *   buildOpenApiDocument(endpoints, { info, converters: [zodConverter()] }),
  * ));
@@ -176,9 +176,9 @@ export function openApiPath(path: string): string {
 /**
  * Имя операции **выводится, а не объявляется**.
  *
- * Имя контракта, если декларация служит контракту (его несёт bind-карта, а
+ * Имя операции, если декларация служит операции (его несёт bind-карта, а
  * у реализации на шине — bus-биндинг), иначе детерминированный слаг от
- * метода и шаблона пути. Ручное имя не нужно, пока имя контракта уникально
+ * метода и шаблона пути. Ручное имя не нужно, пока имя операции уникально
  * по построению, а адрес уникален проверкой выше.
  */
 export function operationIdOf(
@@ -190,8 +190,8 @@ export function operationIdOf(
     return bus;
   }
 
-  if (binding.contract !== undefined) {
-    return binding.contract;
+  if (binding.operation !== undefined) {
+    return binding.operation;
   }
 
   const segments = binding.path

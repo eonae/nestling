@@ -13,6 +13,6 @@ export const DatabaseModule = makeModule({
     // Вклад в семейство health-check'ов: обычный провайдер с членским токеном.
     classProvider(IHealthCheck('database'), DatabaseHealthCheck),
   ],
-  // `imports: [ConfigModule]` больше нет: секция конфига — не провайдер
+  // `dependsOn: [ConfigModule]` больше нет: секция конфига — не провайдер
   // модуля, а член семейства, который становится узлом графа через инжект.
 });

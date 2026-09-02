@@ -9,7 +9,7 @@ import { SubscriptionRegistry } from './registry';
 import type { CloseReason, SubscriptionEvent } from './types';
 
 import { describe, expect, it } from '@jest/globals';
-import { events } from '@nestling/contracts';
+import { events } from '@nestling/operations';
 import type { Outcome } from '@nestling/pipeline';
 import { collect } from '@nestling/streams';
 import { z } from 'zod';

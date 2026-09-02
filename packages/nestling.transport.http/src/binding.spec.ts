@@ -3,7 +3,7 @@
  * query-строки и strict-сборка payload.
  *
  * Сам канон размещения (`computeHttpBinding` и его fail-fast) проверяется
- * там, где живёт правило, — `@nestling/contracts`.
+ * там, где живёт правило, — `@nestling/operations`.
  */
 
 import type { BindPlacement } from './binding.js';
@@ -17,7 +17,7 @@ import {
 import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Ok } from '@nestling/contracts';
+import { Ok } from '@nestling/operations';
 import { makeEndpoint } from '@nestling/pipeline';
 import { z } from 'zod';
 
@@ -30,7 +30,7 @@ const Input = z.object({
 describe('httpBindingOf — фолбэк на канон', () => {
   it('kernel-декларация без карты считает тот же канон из pattern', () => {
     const Ping = makeEndpoint({
-      transport: HttpTransport$,
+      transport: HttpTransport$('default'),
       pattern: 'GET /ping',
       handle: async () => new Ok({ pong: true }),
     });
@@ -46,7 +46,7 @@ describe('httpBindingOf — фолбэк на канон', () => {
 
   it('фолбэк не бросает даже там, где конструктор отверг бы декларацию', () => {
     const Raw = makeEndpoint({
-      transport: HttpTransport$,
+      transport: HttpTransport$('default'),
       pattern: 'GET /users/:id',
       handle: async () => new Ok({}),
     });

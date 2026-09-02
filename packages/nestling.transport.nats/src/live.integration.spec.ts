@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`). */
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 /**
  * Те же сценарии — против **живого** `nats-server`.
  *
@@ -18,7 +18,7 @@
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { defineFail, makePipeline, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';
@@ -38,23 +38,20 @@ const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
   message: 'Quota exceeded',
 });
 
-const Claim = makeContract({
+const Claim = makeRequest({
   name: 'live.quotas.claim',
-  kind: 'request',
   input: z.object({ amount: z.number() }),
   output: z.object({ granted: z.number() }),
   errors: [QuotaExceeded],
 });
 
-const Ship = makeContract({
+const Ship = makeCommand({
   name: 'live.orders.ship',
-  kind: 'command',
   input: z.object({ orderId: z.string() }),
 });
 
-const Placed = makeContract({
+const Placed = makeEvent({
   name: 'live.orders.placed',
-  kind: 'event',
   durable: true,
   input: z.object({ orderId: z.string() }),
 });

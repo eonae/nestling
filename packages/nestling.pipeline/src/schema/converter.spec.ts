@@ -1,5 +1,5 @@
 /**
- * Конвертер — контракт схемного слоя, а не механизм валидации.
+ * Конвертер — операция схемного слоя, а не механизм валидации.
  *
  * Тест сторожит обе стороны этого утверждения: диспетчер выбирает по
  * вендору и молчит, когда конвертера нет, — и ни одна схемная граница от
@@ -16,7 +16,7 @@ import {
 import { parsePayload } from './parse.js';
 
 import { SchemaValidationError, validateSync } from '@common/misc';
-import { jsonSchema, jsonSchemaOf } from '@nestling/contracts';
+import { jsonSchema, jsonSchemaOf } from '@nestling/operations';
 import { z } from 'zod';
 
 const zodConverter = (): SchemaDocConverter => ({

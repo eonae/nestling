@@ -9,6 +9,17 @@ import type {
   FeatureSelection,
 } from '@nestling/app';
 import { assemble } from '@nestling/app';
+import type { BusDeclaration, TransportDeclaration } from '@nestling/transport';
+
+/**
+ * Словарь сборки для матрицы топологий.
+ *
+ * Транспорты здесь не литеральный список, поэтому имя интеркома
+ * проверяется на сборке, а не типом.
+ */
+export type TopologySpec = AssemblySpec<
+  readonly (TransportDeclaration | BusDeclaration)[]
+>;
 
 /** Отчёт одной топологии матрицы */
 export interface TopologyReport {
@@ -31,8 +42,8 @@ export interface TopologyReport {
  * матрица и компенсирует прунинг тестового корня. Правило для гайда одной
  * строкой: мокаешь — проверь топологию.
  *
- * Отчёты матрицы пригодны для сведения в снапшот контрактов
- * (`snapshotContracts`) без пересборки приложения: дескрипторы уже лежат
+ * Отчёты матрицы пригодны для сведения в снапшот операций
+ * (`snapshotOperations`) без пересборки приложения: дескрипторы уже лежат
  * в отчёте каждой топологии.
  *
  * @param spec - Тот же словарь сборки, что попадёт в прод, без `select`
@@ -53,7 +64,7 @@ export interface TopologyReport {
  * ```
  */
 export async function checkTopologies(
-  spec: AssemblySpec,
+  spec: TopologySpec,
   selections: readonly FeatureSelection[],
   options: CheckOptions = {},
 ): Promise<TopologyReport[]> {

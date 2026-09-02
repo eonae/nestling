@@ -306,7 +306,7 @@ JSON Schema **один раз**, затем раскладывается по bi
 
 ### 7. Границы пакетов
 
-`@nestling/openapi` зависит от `@nestling/contracts` (bind-карта, формы,
+`@nestling/openapi` зависит от `@nestling/operations` (bind-карта, формы,
 статусы), `@nestling/pipeline` (декларация, конвертеры), `@nestling/app`
 (токен дискавери, `makeAppModule`) и `@nestling/transport.http`
 (`httpEndpoint` для своей ручки и перевод статуса в код). Последняя
@@ -329,7 +329,7 @@ JSON Schema **один раз**, затем раскладывается по bi
 опциональных флага (`descend`, `allowNodeBuiltins`); поведение существующих
 двух тестов не изменилось.
 
-Аннотация `jsonSchema` при этом живёт не здесь, а в `@nestling/contracts`
+Аннотация `jsonSchema` при этом живёт не здесь, а в `@nestling/operations`
 (см. §5): ею объявлены схемы самого ядра, и автор контракта, импортируемого
 во фронт, обязан иметь к ней доступ без серверных пакетов. Диспетчер,
 читающий аннотацию, остался рядом с `SchemaDocConverter`.

@@ -1,8 +1,9 @@
 import { OpsFeature, UsersFeature } from '../../src/features';
+import { appLogging, appSubscriptions } from '../../src/infrastructure';
 
 import type { App } from '@nestling/app';
 import { assemble } from '@nestling/app';
-import { valueProvider } from '@nestling/container';
+import { transportValue } from '@nestling/transport';
 import { HttpTransport, HttpTransport$ } from '@nestling/transport.http';
 
 export interface TestAppContext {
@@ -22,8 +23,9 @@ export async function createTestApp(): Promise<TestAppContext> {
 
   const app = assemble({
     features: [UsersFeature, OpsFeature],
-    select: 'users',
-    transports: [valueProvider(HttpTransport$, transport)],
+    plugins: [appLogging, appSubscriptions],
+    select: { features: 'users', includeDeps: true },
+    transports: [transportValue(HttpTransport$('default'), transport)],
   });
 
   await app.run();

@@ -12,7 +12,7 @@ import type { PreUnitFn } from '../types/unit.js';
 
 import { currentCell } from './store.js';
 
-import type { AnyInput, EmptyInput } from '@nestling/contracts';
+import type { AnyInput, EmptyInput } from '@nestling/operations';
 
 /**
  * Ключ, зарезервированный под встроенную переменную `Signal`.
@@ -40,7 +40,7 @@ export interface ReadonlyContextVar<T, K extends string = string> {
 /** Опции объявления переменной */
 export interface ContextVarOptions {
   /**
-   * Провозить ли переменную через порт в реализацию контракта.
+   * Провозить ли переменную через порт в реализацию операции.
    *
    * Флаг стоит на объявлении, а не в месте вызова: решение о провозе видно
    * там же, где объявлена переменная. Переменная без флага не провозится
@@ -161,7 +161,7 @@ function assertKey(key: string): void {
 }
 
 /**
- * Реестр провозимых переменных: состояние модуля, как реестр контрактов в
+ * Реестр провозимых переменных: состояние модуля, как реестр операций в
  * `@nestling/ports`.
  *
  * Множество провозимого известно из объявлений, а не из конфигурации, и

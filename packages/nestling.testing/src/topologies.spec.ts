@@ -6,23 +6,24 @@ import { SpyTransport } from './__fixtures__/transport';
 import { checkTopologies } from './topologies';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeAppModule, makeFeature } from '@nestling/app';
+import { makeFeature, makePlugin } from '@nestling/app';
 import { Injectable, makeToken, valueProvider } from '@nestling/container';
-import { makeContract } from '@nestling/contracts';
+import { makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import {
-  diffContracts,
+  diffOperations,
   formatCompatibility,
   implement,
-  snapshotContracts,
+  snapshotOperations,
 } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 /** Конвертер-фикстура поверх штатного конвертера валидатора */
 const zodConverter = (): SchemaDocConverter => ({
@@ -32,59 +33,54 @@ const zodConverter = (): SchemaDocConverter => ({
 
 const ILogger = makeToken<{ log(): void }>('TopologyLogger');
 
-const LoggingFeature = makeFeature({
-  name: 'logging',
-  modules: [
-    makeAppModule({
-      name: 'module:logging',
-      providers: [valueProvider(ILogger, { log: (): void => undefined })],
-    }),
-  ],
+/**
+ * Логирование — плагин: оно есть в каждом процессе, и к нему обращаются
+ * токеном. В словарь `select` плагин не входит.
+ */
+const loggingPlugin = makePlugin({
+  name: '@nestling/topology-logging',
+  providers: [valueProvider(ILogger, { log: (): void => undefined })],
 });
 
 describe('checkTopologies', () => {
   it('проверяет каждую топологию без сокетов и возвращает отчёты', async () => {
     const UsersFeature = makeFeature({
       name: 'users',
-      modules: [
-        makeAppModule({
-          name: 'module:users',
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/users',
-              handle: async () => new Ok({}),
-            }),
-          ],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/users',
+          handle: async () => new Ok({}),
         }),
       ],
-      dependsOn: [LoggingFeature],
     });
+
+    const ReportsFeature = makeFeature({ name: 'reports', providers: [] });
 
     const transport = new SpyTransport();
 
     const reports = await checkTopologies(
       {
-        features: [UsersFeature, LoggingFeature],
+        features: [UsersFeature, ReportsFeature],
+        plugins: [loggingPlugin],
         transports: [asHttpTransport(transport)],
       },
-      ['all', 'users', 'logging'],
+      ['all', 'users', 'reports'],
     );
 
     expect(reports.map(({ select }) => select)).toEqual([
       'all',
       'users',
-      'logging',
+      'reports',
     ]);
-    expect(reports[1].report.features).toEqual(['users', 'logging']);
+    expect(reports[1].report.features).toEqual(['users']);
     expect(reports[2].report.endpoints).toEqual([]);
     expect(transport.serving).toBe(false);
   });
 
   it('называет все несобираемые топологии в одном сообщении', async () => {
-    // Оба endpoint'а требуют логгер, который передаётся только фичей
-    // `logging`, и ни один не объявил `dependsOn`: сами по себе они не
-    // собираются
+    // Оба endpoint'а требуют логгер, а плагин, который его поставляет,
+    // в этой сборке не подключён: ни одна топология не собирается
     @Injectable([ILogger])
     class UsersHandler {
       constructor(private readonly logger: { log(): void }) {}
@@ -107,41 +103,27 @@ describe('checkTopologies', () => {
 
     const UsersFeature = makeFeature({
       name: 'users',
-      modules: [
-        makeAppModule({
-          name: 'module:users-broken',
-          providers: [UsersHandler],
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/users',
-              handle: UsersHandler,
-            }),
-          ],
-        }),
+      providers: [UsersHandler],
+      endpoints: [
+        httpEndpoint({ method: 'GET', path: '/users', handle: UsersHandler }),
       ],
     });
 
     const ReportsFeature = makeFeature({
       name: 'reports',
-      modules: [
-        makeAppModule({
-          name: 'module:reports-broken',
-          providers: [ReportsHandler],
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/reports',
-              handle: ReportsHandler,
-            }),
-          ],
+      providers: [ReportsHandler],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/reports',
+          handle: ReportsHandler,
         }),
       ],
     });
 
     const error = await checkTopologies(
       {
-        features: [UsersFeature, ReportsFeature, LoggingFeature],
+        features: [UsersFeature, ReportsFeature],
         transports: [asHttpTransport(new SpyTransport())],
       },
       ['all', 'users', 'reports'],
@@ -149,7 +131,7 @@ describe('checkTopologies', () => {
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain(
-      '2 of 3 topologies did not assemble',
+      '3 of 3 topologies did not assemble',
     );
     expect((error as Error).message).toContain(`select: 'users'`);
     expect((error as Error).message).toContain(`select: 'reports'`);
@@ -157,43 +139,29 @@ describe('checkTopologies', () => {
   });
 });
 
-describe('checkTopologies — контракты и снапшот', () => {
-  const ClaimQuota = makeContract({
+describe('checkTopologies — операции и снапшот', () => {
+  const ClaimQuota = makeRequest({
     name: 'matrix.quotas.claim',
-    kind: 'request',
     input: z.object({ email: z.string() }),
     output: z.object({ remaining: z.number() }),
   });
 
-  const ListUsers = makeContract({
+  const ListUsers = makeRequest({
     name: 'matrix.users.list',
-    kind: 'request',
     output: z.object({ total: z.number() }),
   });
 
   const QuotasFeature = makeFeature({
     name: 'quotas',
-    modules: [
-      makeAppModule({
-        name: 'module:matrix-quotas',
-        endpoints: [
-          implement(ClaimQuota, {
-            handle: async () => new Ok({ remaining: 1 }),
-          }),
-        ],
-      }),
+    endpoints: [
+      implement(ClaimQuota, { handle: async () => new Ok({ remaining: 1 }) }),
     ],
   });
 
   const UsersFeature = makeFeature({
     name: 'users',
-    modules: [
-      makeAppModule({
-        name: 'module:matrix-users',
-        endpoints: [
-          implement(ListUsers, { handle: async () => new Ok({ total: 2 }) }),
-        ],
-      }),
+    endpoints: [
+      implement(ListUsers, { handle: async () => new Ok({ total: 2 }) }),
     ],
   });
 
@@ -208,7 +176,7 @@ describe('checkTopologies — контракты и снапшот', () => {
     });
 
     for (const { report } of reports) {
-      for (const descriptor of report.contracts) {
+      for (const descriptor of report.published) {
         expect(descriptor.output.leaf).toMatchObject({ leaf: 'schema' });
       }
     }
@@ -217,8 +185,8 @@ describe('checkTopologies — контракты и снапшот', () => {
   it('без опций листья непрозрачны, а поведение прежнее', async () => {
     const [{ report }] = await checkTopologies(spec(), ['all']);
 
-    expect(report.contracts).toHaveLength(2);
-    expect(report.contracts[0].output.leaf).toMatchObject({ leaf: 'opaque' });
+    expect(report.published).toHaveLength(2);
+    expect(report.published[0].output.leaf).toMatchObject({ leaf: 'opaque' });
   });
 
   it('снапшот собирается из отчётов матрицы без пересборки приложения', async () => {
@@ -226,21 +194,21 @@ describe('checkTopologies — контракты и снапшот', () => {
       converters: [zodConverter()],
     });
 
-    const snapshot = snapshotContracts(reports);
+    const snapshot = snapshotOperations(reports);
 
-    expect(snapshot.contracts.map(({ name }) => name)).toEqual([
+    expect(snapshot.operations.map(({ name }) => name)).toEqual([
       'matrix.quotas.claim',
       'matrix.users.list',
     ]);
 
-    // Контракт, публикуемый не всеми топологиями, в снапшоте есть — и
+    // Операция, публикуемый не всеми топологиями, в снапшоте есть — и
     // видно, какая топология его публикует
     expect(
-      snapshot.contracts.find(({ name }) => name === 'matrix.quotas.claim')
+      snapshot.operations.find(({ name }) => name === 'matrix.quotas.claim')
         ?.topologies,
     ).toEqual(['all']);
     expect(
-      snapshot.contracts.find(({ name }) => name === 'matrix.users.list')
+      snapshot.operations.find(({ name }) => name === 'matrix.users.list')
         ?.topologies,
     ).toEqual(['all', 'users']);
   });
@@ -249,9 +217,9 @@ describe('checkTopologies — контракты и снапшот', () => {
     const reports = await checkTopologies(spec(), ['all'], {
       converters: [zodConverter()],
     });
-    const snapshot = snapshotContracts(reports);
+    const snapshot = snapshotOperations(reports);
 
-    const report = diffContracts(snapshot, snapshot);
+    const report = diffOperations(snapshot, snapshot);
 
     expect(report.breaking).toEqual([]);
     expect(report.additive).toEqual([]);

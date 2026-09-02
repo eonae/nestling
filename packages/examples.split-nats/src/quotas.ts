@@ -1,20 +1,20 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`), и `return;`
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`), и `return;`
  * ему не соответствует. */
 /**
- * Фича-владелец: реализует контракт квот и слушает факт размещения.
+ * Фича-владелец: реализует операция квот и слушает факт размещения.
  *
- * Реализация контракта — обычная декларация: discovery, `dispatch`,
+ * Реализация операции — обычная декларация: discovery, `dispatch`,
  * pipeline, проверка входа по схеме и policy-check достаются ей без
  * дополнительного кода, а транспортом оказывается шина — та, которую
  * поставил корень.
  */
 
 import { TenantId } from './context';
-import { ClaimQuota, OrderPlaced, QuotaExceeded } from './contracts';
+import { ClaimQuota, OrderPlaced, QuotaExceeded } from './operations';
 
-import { makeAppModule, makeFeature } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { makePipeline, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
@@ -41,8 +41,9 @@ export class QuotaLedger {
   }
 }
 
-const QuotasModule = makeAppModule({
-  name: 'module:quotas',
+/** Фича квот: владелец `quotas.claim` и подписчик `orders.placed` */
+export const QuotasFeature = makeFeature({
+  name: 'quotas',
   providers: [QuotaLedger],
   endpoints: [
     implement(ClaimQuota, {
@@ -75,10 +76,4 @@ const QuotasModule = makeAppModule({
         },
     }),
   ],
-});
-
-/** Фича квот: владелец `quotas.claim` и подписчик `orders.placed` */
-export const QuotasFeature = makeFeature({
-  name: 'quotas',
-  modules: [QuotasModule],
 });

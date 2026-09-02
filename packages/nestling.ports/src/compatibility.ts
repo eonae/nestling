@@ -1,8 +1,8 @@
 /**
- * Дифф контрактов против снапшота — чистая функция двух значений.
+ * Дифф операций против снапшота — чистая функция двух значений.
  *
  * «Подсвечивает, но не блокирует» здесь — свойство конструкции, а не
- * обещание в доке: `diffContracts` не участвует в сборке, не вызывается
+ * обещание в доке: `diffOperations` не участвует в сборке, не вызывается
  * из `run()`/`check()` и ничего не бросает по результату сравнения,
  * сколько бы `breaking` в нём ни было. Флага «падать на breaking» не
  * существует; превратить отчёт в падающий тест — код пользователя.
@@ -23,19 +23,19 @@ import type {
   JsonValue,
   SchemaDescriptor,
 } from './describe.js';
-import type { ContractSnapshot, SnapshotContract } from './snapshot.js';
+import type { OperationSnapshot, SnapshotOperation } from './snapshot.js';
 import { SNAPSHOT_VERSION } from './snapshot.js';
 
 /** Слот формы: он же направление сравнения */
-export type ContractSlot = 'input' | 'output';
+export type OperationSlot = 'input' | 'output';
 
 /** Закрытый словарь вердиктов */
 export type CompatibilityVerdict = 'breaking' | 'additive' | 'unknown';
 
 /** Одно расхождение между снапшотами */
 export interface CompatibilityChange {
-  /** Имя контракта, в котором найдено расхождение */
-  readonly contract: string;
+  /** Имя операции, в котором найдено расхождение */
+  readonly operation: string;
 
   /** Путь до узла: `output.chargeId`, `errors.CARD_DECLINED`, `kind` */
   readonly path: string;
@@ -46,9 +46,9 @@ export interface CompatibilityChange {
   readonly verdict: CompatibilityVerdict;
 }
 
-/** Итог по одному контракту */
-export interface ContractCompatibility {
-  readonly contract: string;
+/** Итог по одной операции */
+export interface OperationCompatibility {
+  readonly operation: string;
 
   /** Число расхождений каждого вида */
   readonly breaking: number;
@@ -56,7 +56,7 @@ export interface ContractCompatibility {
   readonly unknown: number;
 
   /**
-   * **Подсказка** нового имени — только у контракта с хотя бы одним
+   * **Подсказка** нового имени — только у операции с хотя бы одним
    * `breaking`. Ровно подсказка: переименования не происходит, суффикса
    * ядро не требует и нигде больше не разбирает.
    */
@@ -69,8 +69,8 @@ export interface CompatibilityReport {
   readonly additive: readonly CompatibilityChange[];
   readonly unknown: readonly CompatibilityChange[];
 
-  /** Итоги по контрактам, у которых нашлось хотя бы одно расхождение */
-  readonly contracts: readonly ContractCompatibility[];
+  /** Итоги по операциям, у которых нашлось хотя бы одно расхождение */
+  readonly operations: readonly OperationCompatibility[];
 }
 
 // ---------------------------------------------------------------------------
@@ -152,53 +152,53 @@ class Changes {
   readonly #items: CompatibilityChange[] = [];
 
   add(
-    contract: string,
+    operation: string,
     path: string,
     verdict: CompatibilityVerdict,
     description: string,
   ): void {
-    this.#items.push({ contract, path, description, verdict });
+    this.#items.push({ operation, path, description, verdict });
   }
 
   of(verdict: CompatibilityVerdict): CompatibilityChange[] {
     return this.#items.filter((change) => change.verdict === verdict);
   }
 
-  contracts(): ContractCompatibility[] {
+  operations(): OperationCompatibility[] {
     const byName = new Map<string, Record<CompatibilityVerdict, number>>();
 
     for (const change of this.#items) {
-      const counts = byName.get(change.contract) ?? {
+      const counts = byName.get(change.operation) ?? {
         breaking: 0,
         additive: 0,
         unknown: 0,
       };
       counts[change.verdict] += 1;
-      byName.set(change.contract, counts);
+      byName.set(change.operation, counts);
     }
 
     return [...byName.entries()]
       .sort(([left], [right]) => (left < right ? -1 : 1))
-      .map(([contract, counts]) => ({
-        contract,
+      .map(([operation, counts]) => ({
+        operation,
         ...counts,
         // Подсказка появляется ровно там, где есть что ломать
         ...(counts.breaking > 0
-          ? { suggestedName: suggestBump(contract) }
+          ? { suggestedName: suggestBump(operation) }
           : {}),
       }));
   }
 }
 
 /**
- * Следующее имя версии контракта для бампа.
+ * Следующее имя версии операции для бампа.
  *
  * Имени без суффикса добавляет `.v2`, имени с суффиксом `.vN` даёт
  * `.v{N+1}`.
  *
- * Единственное место, где суффикс `.vN` распознаётся: `makeContract`
+ * Единственное место, где суффикс `.vN` распознаётся: `makeRequest`
  * его не требует и не разбирает, отдельного поля версии не существует, и
- * контракт без суффикса допустим.
+ * операция без суффикса допустима.
  */
 export function suggestBump(name: string): string {
   const match = /^(?<base>.*)\.v(?<version>\d+)$/.exec(name);
@@ -215,8 +215,8 @@ export function suggestBump(name: string): string {
 // ---------------------------------------------------------------------------
 
 interface DiffContext {
-  readonly contract: string;
-  readonly slot: ContractSlot;
+  readonly operation: string;
+  readonly slot: OperationSlot;
   readonly changes: Changes;
 }
 
@@ -226,11 +226,11 @@ interface DiffContext {
  * Направление берётся из **слота**, а не из роли смотрящего: `input`
  * приходит в реализацию (сужение принимаемого — `breaking`), `output`
  * уходит из неё (ослабление гарантии — `breaking`). Правило одинаково для
- * всех трёх видов контрактов, включая `event`, где реализация является
+ * всех трёх видов операций, включая `event`, где реализация является
  * подписчиком.
  */
 function verdictOfType(
-  slot: ContractSlot,
+  slot: OperationSlot,
   base: Set<string>,
   current: Set<string>,
 ): CompatibilityVerdict {
@@ -254,11 +254,11 @@ function diffNode(
     return;
   }
 
-  const { contract, changes } = context;
+  const { operation, changes } = context;
 
   if (!isRecord(base) || !isRecord(current)) {
     changes.add(
-      contract,
+      operation,
       path,
       'unknown',
       `schema node is not a JSON Schema object on both sides`,
@@ -268,7 +268,7 @@ function diffNode(
 
   if (hasComposition(base) || hasComposition(current)) {
     changes.add(
-      contract,
+      operation,
       path,
       'unknown',
       `schema node uses a keyword outside the parsed subset ` +
@@ -287,7 +287,7 @@ function diffNode(
     }
     if (!same(base[keyword], current[keyword])) {
       changes.add(
-        contract,
+        operation,
         path,
         'unknown',
         `keyword '${keyword}' changed and is outside the parsed subset`,
@@ -297,7 +297,7 @@ function diffNode(
 
   if (!same(base.nullable, current.nullable)) {
     changes.add(
-      contract,
+      operation,
       path,
       'unknown',
       `'nullable' changed: ${String(base.nullable)} → ${String(current.nullable)}`,
@@ -328,7 +328,7 @@ function diffType(
 
   if (!baseTypes || !currentTypes) {
     context.changes.add(
-      context.contract,
+      context.operation,
       path,
       'unknown',
       `'type' appeared or disappeared: ${JSON.stringify(base.type)} → ` +
@@ -338,7 +338,7 @@ function diffType(
   }
 
   context.changes.add(
-    context.contract,
+    context.operation,
     path,
     verdictOfType(context.slot, baseTypes, currentTypes),
     `'type' changed: ${[...baseTypes].sort().join(' | ')} → ` +
@@ -368,7 +368,7 @@ function diffEnum(
 
   if (!Array.isArray(baseValues) || !Array.isArray(currentValues)) {
     context.changes.add(
-      context.contract,
+      context.operation,
       path,
       'unknown',
       `'enum' appeared or disappeared`,
@@ -383,7 +383,7 @@ function diffEnum(
   for (const value of baseValues) {
     if (!currentKeys.has(key(value))) {
       context.changes.add(
-        context.contract,
+        context.operation,
         path,
         'breaking',
         `enum value ${key(value)} removed`,
@@ -394,7 +394,7 @@ function diffEnum(
   for (const value of currentValues) {
     if (!baseKeys.has(key(value))) {
       context.changes.add(
-        context.contract,
+        context.operation,
         path,
         'additive',
         `enum value ${key(value)} added`,
@@ -423,7 +423,7 @@ function diffProperties(
     return;
   }
 
-  const { contract, slot, changes } = context;
+  const { operation, slot, changes } = context;
   const baseRequired = requiredNames(base);
   const currentRequired = requiredNames(current);
 
@@ -442,7 +442,7 @@ function diffProperties(
     if (inBase && !inCurrent) {
       // Во входе строгий приём отвергает поле, которое раньше принимал;
       // в выходе исчезает обещанное значение — breaking в обоих слотах
-      changes.add(contract, nested, 'breaking', 'property removed');
+      changes.add(operation, nested, 'breaking', 'property removed');
       continue;
     }
 
@@ -452,7 +452,7 @@ function diffProperties(
         slot === 'input' && required ? 'breaking' : 'additive';
 
       changes.add(
-        contract,
+        operation,
         nested,
         verdict,
         `property added (${required ? 'required' : 'optional'})`,
@@ -475,7 +475,7 @@ function diffProperties(
             : 'breaking';
 
       changes.add(
-        contract,
+        operation,
         nested,
         verdict,
         tightened ? 'optional became required' : 'required became optional',
@@ -492,7 +492,7 @@ function diffProperties(
 }
 
 // ---------------------------------------------------------------------------
-// Дифф форм и контрактов
+// Дифф форм и операций
 // ---------------------------------------------------------------------------
 
 const describeLeafKind = (leaf: SchemaDescriptor): string => {
@@ -518,7 +518,7 @@ function diffLeaf(
   base: SchemaDescriptor,
   current: SchemaDescriptor,
 ): void {
-  const { contract, changes } = context;
+  const { operation, changes } = context;
 
   if (base.leaf === 'none' && current.leaf === 'none') {
     return;
@@ -527,7 +527,7 @@ function diffLeaf(
   if (base.leaf === 'schema' && current.leaf === 'schema') {
     if (base.vendor !== current.vendor) {
       changes.add(
-        contract,
+        operation,
         path,
         'unknown',
         `schema vendor changed: ${base.vendor} → ${current.vendor}`,
@@ -545,7 +545,7 @@ function diffLeaf(
   if (base.leaf === 'opaque' || current.leaf === 'opaque') {
     if (base.leaf === 'none' || current.leaf === 'none') {
       changes.add(
-        contract,
+        operation,
         path,
         'breaking',
         `leaf changed: ${describeLeafKind(base)} → ${describeLeafKind(current)}`,
@@ -559,7 +559,7 @@ function diffLeaf(
       base.vendor === current.vendor;
 
     changes.add(
-      contract,
+      operation,
       path,
       'unknown',
       bothOpaque
@@ -574,7 +574,7 @@ function diffLeaf(
   if (base.leaf === 'primitive' && current.leaf === 'primitive') {
     if (base.primitive !== current.primitive) {
       changes.add(
-        contract,
+        operation,
         path,
         'breaking',
         `primitive leaf changed: ${base.primitive} → ${current.primitive}`,
@@ -584,7 +584,7 @@ function diffLeaf(
   }
 
   changes.add(
-    contract,
+    operation,
     path,
     'breaking',
     `leaf changed: ${describeLeafKind(base)} → ${describeLeafKind(current)}`,
@@ -614,7 +614,7 @@ function diffFiles(
     // транспорта, а не схемы, и приравнивать их к схемному сужению
     // значило бы придумать правило вместо того, чтобы его опубликовать
     context.changes.add(
-      context.contract,
+      context.operation,
       `${path}.files.${name}`,
       'unknown',
       `multipart file field changed`,
@@ -623,15 +623,15 @@ function diffFiles(
 }
 
 function diffForm(
-  contract: string,
-  slot: ContractSlot,
+  operation: string,
+  slot: OperationSlot,
   base: FormDescriptorValue,
   current: FormDescriptorValue,
   changes: Changes,
 ): void {
   if (base.kind !== current.kind) {
     changes.add(
-      contract,
+      operation,
       slot,
       'breaking',
       `io form changed: ${base.kind} → ${current.kind}`,
@@ -639,7 +639,7 @@ function diffForm(
     return;
   }
 
-  const context: DiffContext = { contract, slot, changes };
+  const context: DiffContext = { operation, slot, changes };
 
   diffLeaf(context, slot, base.leaf, current.leaf);
 
@@ -657,9 +657,9 @@ function diffForm(
 }
 
 function diffErrors(
-  contract: string,
-  base: SnapshotContract,
-  current: SnapshotContract,
+  operation: string,
+  base: SnapshotOperation,
+  current: SnapshotOperation,
   changes: Changes,
 ): void {
   const baseByCode = new Map(base.errors.map((fail) => [fail.code, fail]));
@@ -679,20 +679,20 @@ function diffErrors(
     if (was && !is) {
       // Снапшот фиксирует опубликованные обещания: исчезнувший код ломает
       // исчерпывающий разбор `E` у потребителя
-      changes.add(contract, path, 'breaking', 'declared failure removed');
+      changes.add(operation, path, 'breaking', 'declared failure removed');
       continue;
     }
 
     if (!was && is) {
-      // Код, не объявленный в контракте, всё равно приходит клиенту как
+      // Код, не объявленный в операции, всё равно приходит клиенту как
       // `UnknownError`. Появление такого кода не ломает совместимость
-      changes.add(contract, path, 'additive', 'declared failure added');
+      changes.add(operation, path, 'additive', 'declared failure added');
       continue;
     }
 
     if (was && is && was.status !== is.status) {
       changes.add(
-        contract,
+        operation,
         path,
         'breaking',
         `failure status changed: ${was.status} → ${is.status}`,
@@ -709,42 +709,42 @@ function diffErrors(
  * Fail-fast нечитаемого снапшота.
  *
  * Отделено от результата сравнения намеренно: «я не умею читать этот
- * файл» и «контракт сломан» — разные события, и смешивать их значило бы
+ * файл» и «операция сломан» — разные события, и смешивать их значило бы
  * прятать ошибку автора проверки за отчётом.
  */
-function assertReadable(snapshot: unknown, side: string): ContractSnapshot {
+function assertReadable(snapshot: unknown, side: string): OperationSnapshot {
   if (typeof snapshot !== 'object' || snapshot === null) {
     throw new TypeError(
-      `diffContracts(...): the ${side} snapshot must be a value of shape ` +
-        `{ snapshotVersion: ${SNAPSHOT_VERSION}, contracts: [...] }, got ` +
+      `diffOperations(...): the ${side} snapshot must be a value of shape ` +
+        `{ snapshotVersion: ${SNAPSHOT_VERSION}, operations: [...] }, got ` +
         `${snapshot === null ? 'null' : typeof snapshot}.`,
     );
   }
 
-  const { snapshotVersion, contracts } = snapshot as ContractSnapshot;
+  const { snapshotVersion, operations } = snapshot as OperationSnapshot;
 
   if (snapshotVersion !== SNAPSHOT_VERSION) {
     throw new Error(
-      `diffContracts(...): the ${side} snapshot has format version ` +
+      `diffOperations(...): the ${side} snapshot has format version ` +
         `${JSON.stringify(snapshotVersion)}, but this version reads ` +
         `${SNAPSHOT_VERSION}. Rebuild the snapshot with the version of ` +
         `nestling that will read it.`,
     );
   }
 
-  if (!Array.isArray(contracts)) {
+  if (!Array.isArray(operations)) {
     throw new TypeError(
-      `diffContracts(...): the ${side} snapshot has no 'contracts' array.`,
+      `diffOperations(...): the ${side} snapshot has no 'operations' array.`,
     );
   }
 
-  return snapshot as ContractSnapshot;
+  return snapshot as OperationSnapshot;
 }
 
 /**
- * Сравнивает текущий состав контрактов с опубликованным снапшотом.
+ * Сравнивает текущий состав операций с опубликованным снапшотом.
  *
- * @param baseline - Снапшот опубликованных контрактов
+ * @param baseline - Снапшот опубликованных операций
  * @param current - Снапшот текущей сборки
  * @returns Отчёт-значение: расхождения, сгруппированные по вердикту
  * @throws {TypeError | Error} Только на нечитаемом снапшоте (неизвестная
@@ -753,13 +753,13 @@ function assertReadable(snapshot: unknown, side: string): ContractSnapshot {
  *
  * @example
  * ```typescript
- * const report = diffContracts(baseline, snapshotContracts(reports));
+ * const report = diffOperations(baseline, snapshotOperations(reports));
  * console.log(formatCompatibility(report));
  * ```
  */
-export function diffContracts(
-  baseline: ContractSnapshot,
-  current: ContractSnapshot,
+export function diffOperations(
+  baseline: OperationSnapshot,
+  current: OperationSnapshot,
 ): CompatibilityReport {
   const before = assertReadable(baseline, 'baseline');
   const after = assertReadable(current, 'current');
@@ -767,10 +767,10 @@ export function diffContracts(
   const changes = new Changes();
 
   const baseByName = new Map(
-    before.contracts.map((contract) => [contract.name, contract]),
+    before.operations.map((operation) => [operation.name, operation]),
   );
   const currentByName = new Map(
-    after.contracts.map((contract) => [contract.name, contract]),
+    after.operations.map((operation) => [operation.name, operation]),
   );
 
   const names = [
@@ -782,12 +782,12 @@ export function diffContracts(
     const is = currentByName.get(name);
 
     if (was && !is) {
-      changes.add(name, '', 'breaking', 'contract disappeared');
+      changes.add(name, '', 'breaking', 'operation disappeared');
       continue;
     }
 
     if (!was && is) {
-      changes.add(name, '', 'additive', 'contract appeared');
+      changes.add(name, '', 'additive', 'operation appeared');
       continue;
     }
 
@@ -801,7 +801,7 @@ export function diffContracts(
         name,
         'kind',
         'breaking',
-        `contract kind changed: ${was.kind} → ${is.kind}`,
+        `operation kind changed: ${was.kind} → ${is.kind}`,
       );
     }
 
@@ -814,13 +814,13 @@ export function diffContracts(
     breaking: changes.of('breaking'),
     additive: changes.of('additive'),
     unknown: changes.of('unknown'),
-    contracts: changes.contracts(),
+    operations: changes.operations(),
   };
 }
 
 /** Одна строка расхождения для человека */
 const line = (change: CompatibilityChange): string =>
-  `  - ${change.contract}${change.path ? ` ${change.path}` : ''} — ` +
+  `  - ${change.operation}${change.path ? ` ${change.path}` : ''} — ` +
   `${change.description}`;
 
 /**
@@ -830,13 +830,13 @@ const line = (change: CompatibilityChange): string =>
  * строку про конвертер — без него листья непрозрачны, и отчёт честно об
  * этом говорит, вместо того чтобы молчать.
  *
- * @param report - Отчёт, построенный `diffContracts`
+ * @param report - Отчёт, построенный `diffOperations`
  * @returns Многострочный текст; сравнивать в тесте следует **значение**
  * отчёта, а не эту строку
  */
 export function formatCompatibility(report: CompatibilityReport): string {
   const lines: string[] = [
-    `Contract compatibility: ${report.breaking.length} breaking, ` +
+    `Operation compatibility: ${report.breaking.length} breaking, ` +
       `${report.additive.length} additive, ${report.unknown.length} unknown`,
   ];
 
@@ -865,8 +865,8 @@ export function formatCompatibility(report: CompatibilityReport): string {
     );
   }
 
-  const bumps = report.contracts.filter(
-    (contract) => contract.suggestedName !== undefined,
+  const bumps = report.operations.filter(
+    (operation) => operation.suggestedName !== undefined,
   );
 
   if (bumps.length > 0) {
@@ -874,7 +874,8 @@ export function formatCompatibility(report: CompatibilityReport): string {
       '',
       'suggested name bumps:',
       ...bumps.map(
-        (contract) => `  - ${contract.contract} → ${contract.suggestedName}`,
+        (operation) =>
+          `  - ${operation.operation} → ${operation.suggestedName}`,
       ),
     );
   }

@@ -9,9 +9,9 @@
       наружу); поверхность бареля `@nestling/container` не меняется
 - [x] 1.3 `yarn verify` — зелёный
 
-## 2. Каркас `@nestling/contracts`
+## 2. Каркас `@nestling/operations`
 
-- [x] 2.1 Завести `packages/nestling.contracts` по образцу существующих
+- [x] 2.1 Завести `packages/nestling.operations` по образцу существующих
       пакетов (package.json, tsconfig, jest, README-заготовка); зависимости —
       `@common/misc`, `@nestling/streams`, `@nestling/container` (subpath)
 - [x] 2.2 Написать тест границы пакета: обход графа импортов собранного
@@ -47,7 +47,7 @@
 - [x] 3.6 Перенести из `@nestling/ports` `contract.ts`, `registry.ts` и
       семейства вызывателей (`PortFamily`/`EmitterFamily` и типы
       `Port`/`Emitter`/`PortMeta`/`CommandMeta`, которые от них неотделимы);
-      `@nestling/ports` импортирует их из `@nestling/contracts` и **не**
+      `@nestling/ports` импортирует их из `@nestling/operations` и **не**
       реэкспортирует `makeContract`; `yarn verify`
 - [x] 3.7 Прогнать тест границы пакета (2.2) — замыкание чистое
 - [x] 3.8 Проверить, что перенесённые тесты переехали вместе с модулями и
@@ -86,7 +86,7 @@
 ## 6. Пакет `@nestling/client`
 
 - [x] 6.1 Завести `packages/nestling.client` (зависимость — только
-      `@nestling/contracts`); подключить тест границы пакета
+      `@nestling/operations`); подключить тест границы пакета
 - [x] 6.2 Реализовать `makeClient(record, config)`: типы API-объекта, вывод
       call-site по виду контракта (`request` → `Ok|Fail`, `command` →
       `Promise<void>`)
@@ -132,7 +132,7 @@
       реализация переводится на контракт-форму `httpEndpoint`, добавляется
       клиентский скрипт-потребитель, импортирующий только контракты и клиент
 - [x] 8.2 `packages/examples.split-nats`: импорт `makeContract` переводится на
-      `@nestling/contracts`
+      `@nestling/operations`
 - [x] 8.3 Новый гайд `docs/guides/typed-client.md`, сверенный с примером;
       плашка «сверено с кодом» с датой
 - [x] 8.4 `docs/guides/ports.md` и `docs/guides/http-*.md` — обновить импорты
@@ -149,7 +149,7 @@
       закрыть в записи [2026-07-13] два открытых вопроса пометкой «РЕШЕНО»
 - [x] 8.9 `docs/decisions/deferred.md` — `idempotencyKey`/`deadline` по HTTP,
       content-negotiation; триггеры возврата
-- [x] 8.10 README пакетов: новые `@nestling/contracts` и `@nestling/client`
+- [x] 8.10 README пакетов: новые `@nestling/operations` и `@nestling/client`
       (включая предупреждение о двух копиях пакета в одном приложении),
       обновление плашек статуса у `@nestling/pipeline`, `@nestling/ports`,
       `@nestling/transport.http`, `@nestling/container`

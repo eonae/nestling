@@ -355,7 +355,7 @@ describe('прунинг: без overrides сборка тождественна
       [
         'Aggregated',
         'IdentitySink:repo',
-        'IdentitySink:{all}',
+        'IdentitySink.all',
         'Orphan',
         'Pool',
         'Reports',
@@ -364,8 +364,8 @@ describe('прунинг: без overrides сборка тождественна
     );
     expect(byId.get('Repository')).toEqual(['Pool', 'IdentitySink:repo']);
     expect(byId.get('Reports')).toEqual(['Pool']);
-    expect(byId.get('Aggregated')).toEqual(['IdentitySink:{all}']);
-    expect(byId.get('IdentitySink:{all}')).toEqual(['IdentitySink:repo']);
+    expect(byId.get('Aggregated')).toEqual(['IdentitySink.all']);
+    expect(byId.get('IdentitySink.all')).toEqual(['IdentitySink:repo']);
 
     expect(container.pruned).toEqual([]);
     expect(order).toEqual([
@@ -581,9 +581,9 @@ describe('прунинг: осиротевшие поддеревья', () => {
     expect(container.pruned).toEqual([]);
     expect(nodes.map((node) => node.id).sort()).toEqual([
       'PrunedAggregated',
+      'PrunedSink.all',
       'PrunedSink:a',
       'PrunedSink:b',
-      'PrunedSink:{all}',
       'Reports',
       'Repository',
     ]);
@@ -677,7 +677,7 @@ describe('перечень недостающих зависимостей', () 
     );
   });
 
-  it('сохраняет подсказку про семейство для похожего токена', async () => {
+  it('токен, похожий на члена семейства, остаётся недостающей зависимостью', async () => {
     const ILogger = makeTokenFamily<{ scope: string }, [scope: string]>(
       'HintFamily',
     );
@@ -696,7 +696,7 @@ describe('перечень недостающих зависимостей', () 
       );
 
     await expect(builder.build()).rejects.toThrow(
-      /looks like a member of token family 'HintFamily'/,
+      /Unsatisfied dependencies \(1\):[\S\s]*'HintFamily:users' required by 'Repository'/,
     );
   });
 });

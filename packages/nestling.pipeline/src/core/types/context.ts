@@ -9,8 +9,8 @@ import type {
   ErrorStatus,
   StreamSummary,
   SuccessStatus,
-} from '@nestling/contracts';
-import { makeSummary } from '@nestling/contracts';
+} from '@nestling/operations';
+import { makeSummary } from '@nestling/operations';
 
 export * from './raw.js';
 
@@ -33,10 +33,10 @@ export interface EndpointMeta {
   /**
    * Объявленные отказы endpoint'а (`errors:` декларации).
    *
-   * Единственный источник множества для проверки контракта отказов:
+   * Единственный источник множества для проверки операции отказов:
    * значение доходит от декларации через транспорт до контекста.
    * Глобального реестра отказов нет, поэтому пайплайн, исполненный без
-   * декларации, видит пустое множество и контрактными считает только
+   * декларации, видит пустое множество и объявленными считает только
    * kernel-коды.
    */
   errors?: readonly AnyFailDefinition[];
@@ -134,7 +134,7 @@ export interface ErrorDetails {
    *
    * Заполняется рантаймом из `Fail.code`; у отказа без кода поле
    * отсутствует (а не равно `null` или пустой строке). По нему же
-   * проверка контракта отказов решает, контрактен ли ответ.
+   * проверка операции отказов решает, объявлен ли ответ.
    */
   code?: string;
 

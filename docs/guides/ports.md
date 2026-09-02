@@ -1,15 +1,15 @@
-# Порты: общение фич через контракты
+# Порты: общение фич через операции
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01);
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-02);
 > разделы про split-развёртывание и провоз контекста — с `examples.split-nats`.
 
 Когда одной фиче нужна операция другой, она не инжектит чужой сервис по
-токену, а вызывает его через контракт: описание операции с именем, схемами
+токену, а вызывает его через операцию: описание операции с именем, схемами
 входа и выхода и списком ошибок.
 
 ```typescript
-// packages/examples.app-with-http/src/contracts.ts
-import { defineFail, makeContract } from '@nestling/contracts';
+// packages/examples.app-with-http/src/operations.ts
+import { defineFail, makeRequest } from '@nestling/operations';
 
 export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
   status: 'TOO_MANY_REQUESTS',
@@ -17,33 +17,32 @@ export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
   message: (d) => `User quota of ${d.limit} is exhausted`,
 });
 
-export const ClaimQuota = makeContract({
+export const ClaimQuota = makeRequest({
   name: 'quotas.claim',                        // адрес: subject шины и ключ discovery
-  kind: 'request',                             // 'request' | 'command' | 'event'
   input: z.object({ email: z.string() }),
   output: z.object({ remaining: z.number() }),
   errors: [QuotaExceeded],                     // отказы, которые может вернуть реализация
 });
 ```
 
-Пока обе фичи работают в одном процессе, разница между контрактом и прямым
+Пока обе фичи работают в одном процессе, разница между операцией и прямым
 вызовом сервиса невелика. Она становится важной, когда фичи разносят по
 разным процессам. Прямой вызов сервиса тогда пришлось бы переписывать: он
 синхронный, бросает исключения и выполняется в транзакции вызывающего.
-Вызов через контракт с самого начала асинхронный, возвращает ошибки
+Вызов через операцию с самого начала асинхронный, возвращает ошибки
 значением `Fail` и в транзакцию вызывающего не входит. Поэтому при переезде
 код фичи не меняется.
 
-Контракт — значение. Он ничего не регистрирует ни в модуле, ни в
-приложении. В приложение он попадает двумя путями: кто-то его реализует
-(`implement`) и кто-то его вызывает (`Contract.port` или
-`Contract.emitter` в `deps`).
+Операция — значение. Она ничего не регистрирует ни в модуле, ни в
+приложении. В приложение она попадает двумя путями: кто-то её реализует
+(`implement`) и кто-то её вызывает (`Operation.caller` или
+`Operation.emitter` в `deps`).
 
-## Три вида контрактов
+## Три вида операций
 
 | Вид | Семантика | Владельцев | Как вызывается |
 |---|---|---|---|
-| `request` | запрос-ответ, может вернуть `Fail` | ровно один | `.port` → `call(input, meta?)` |
+| `request` | запрос-ответ, может вернуть `Fail` | ровно один | `.caller` → `call(input, meta?)` |
 | `command` | без ответа, отправил и забыл | ровно один | `.emitter` → `emit(payload, meta?)` |
 | `event` | факт, который уже случился | 0..N подписчиков | `.emitter` → `emit(payload, meta?)` |
 
@@ -51,18 +50,18 @@ export const ClaimQuota = makeContract({
 Поэтому для связи между фичами по умолчанию выбирайте событие, а `request`
 оставляйте для случаев, когда без ответа продолжить нельзя.
 
-Версия контракта входит в его имя: `users.create.v2`. Отдельного поля
+Версия операции входит в её имя: `users.create.v2`. Отдельного поля
 версии нет, потому что имя используется как адрес в шине, и второе поле
 стало бы вторым адресом.
 
-Свойство `.port` есть только у `request`, `.emitter` — только у `command`
+Свойство `.caller` есть только у `request`, `.emitter` — только у `command`
 и `event`. Обращение к чужому свойству не компилируется, а из JS даёт
-ошибку с именем контракта.
+ошибку с именем операции.
 
-## Реализация контракта
+## Реализация операции
 
 ```typescript
-// packages/examples.app-with-http/src/modules/quotas/quotas.module.ts
+// packages/examples.app-with-http/src/modules/quotas/quotas.feature.ts
 import { implement } from '@nestling/ports';
 
 export const ClaimQuotaImpl = implement(ClaimQuota, {
@@ -80,24 +79,26 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
   },
 });
 
-export const QuotasModule = makeAppModule({
-  name: 'module:quotas',
-  imports: [appLogging],
+export const QuotasFeature = makeFeature({
+  name: 'quotas',
   providers: [QuotaService, SignupJournal],
   endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],   // рядом с HTTP-endpoint'ами
 });
 ```
 
+Логирование фича не объявляет: `ILogger` приходит от плагина, а к плагину
+обращаются токеном.
+
 `implement` — такой же конструктор декларации, как `httpEndpoint` и
-`cliEndpoint`. Реализация контракта — обычный endpoint, и с ней работает
-всё, что работает с endpoint'ами: discovery по дереву выбранных модулей,
+`cliEndpoint`. Реализация операции — обычный endpoint, и с ней работает
+всё, что работает с endpoint'ами: discovery по выбранным фичам,
 `dispatch`, пайплайн, проверка ответа по списку `errors`, `policies` и
 `detached`, отчёт `check()` и вызов по значению в тестах
 (`app.call(ClaimQuotaImpl, payload)`).
 
 `input`, `output` и `errors` в реализации не объявляются повторно. Попытка
 задать их в словаре `implement` не компилируется: интерфейс операции
-принадлежит контракту.
+принадлежит операции.
 
 ### Подписчик события: `subscriber`
 
@@ -117,16 +118,16 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 ```
 
 `subscriber` обязателен для `event` и запрещён для `request` и `command`:
-у них владелец ровно один, и вторая реализация того же контракта — ошибка
+у них владелец ровно один, и вторая реализация той же операции — ошибка
 сборки с именами обоих модулей.
 
 Имя подписчика задаётся явно, а не выводится из имени модуля. С брокером
 оно становится именем queue-group и durable-подписки, то есть сетевым
 адресом, а сетевой адрес не должен зависеть от структуры кода.
 
-## Вызов контракта
+## Вызов операции
 
-Вызывающая сторона инжектит `Contract.port` или `Contract.emitter` как
+Вызывающая сторона инжектит `Operation.caller` или `Operation.emitter` как
 обычную зависимость:
 
 ```typescript
@@ -163,12 +164,12 @@ export const createUserHandler =
   };
 
 export const CreateUser = httpEndpoint({
-  contract: CreateUserContract,              // адрес, схемы и errors живут в контракте
+  operation: CreateUserOperation,              // адрес, схемы и errors живут в операции
   pipeline: basePipeline,
   deps: [
     UserService,
     ILogger,
-    ClaimQuota.port,
+    ClaimQuota.caller,
     UserRegistered.emitter,
     SignupRecorded.emitter,
   ],
@@ -176,10 +177,10 @@ export const CreateUser = httpEndpoint({
 });
 ```
 
-`.port` и `.emitter` — обычные токены (члены семейств токенов). Они
+`.caller` и `.emitter` — обычные токены (члены семейств токенов). Они
 работают везде, где работает токен: в `deps` провайдера, в `deps`
 декларации, в `@Injectable`. В корне ничего регистрировать не нужно: узел
-вызывателя создаётся при сборке для каждого контракта, который кто-то
+вызывателя создаётся при сборке для каждой операции, которую кто-то
 упомянул в `deps`.
 
 Форма вызова:
@@ -197,7 +198,7 @@ export const CreateUser = httpEndpoint({
 
 Ответ порта обрабатывается одинаково для реализации в том же процессе и
 для реализации за шиной. Код отказа сопоставляется со списком `errors`
-контракта. При совпадении вызывающий получает настоящий `Fail` этого
+операции. При совпадении вызывающий получает настоящий `Fail` этого
 определения — со `status`, `code` и проверенными схемой `details`:
 
 ```typescript
@@ -216,7 +217,7 @@ if (QuotaExceeded.is(claimed)) {
 
 Коды `UNKNOWN`, `VALIDATION_FAILED` и `DEADLINE_EXCEEDED` — коды ядра.
 Они не объявляются в `errors`, но входят в множество ответов любого порта.
-Поэтому множество ответов остаётся закрытым: `errors` контракта плюс три
+Поэтому множество ответов остаётся закрытым: `errors` операции плюс три
 кода ядра.
 
 ## Параметры вызова: `meta`
@@ -323,7 +324,7 @@ export class SignupJournal {
 ```
 
 Писатель переменной — `withIdempotencyKey()` в пайплайне реализации
-`SignupRecordedImpl` (см. `quotas.module.ts`).
+`SignupRecordedImpl` (см. `quotas.feature.ts`).
 
 ### Бюджет не наследуется вложенными вызовами
 
@@ -333,7 +334,7 @@ export class SignupJournal {
 
 ```typescript
 // иллюстрация, не из примера
-@Injectable([Ctx(Deadline), ChargeCard.port])
+@Injectable([Ctx(Deadline), ChargeCard.caller])
 class PlaceOrder {
   constructor(
     private readonly deadline: CtxReader<Date | undefined>,
@@ -384,7 +385,7 @@ await using app = await assembleTest({
 Фаза ASSEMBLE отвергает всё, что можно проверить без сети:
 
 - `request` или `command`, у которого нет реализации среди выбранных фич,
-  а шина не доставляет за пределы процесса. Ошибка называет контракт, его
+  а шина не доставляет за пределы процесса. Ошибка называет операция, его
   вид и обе починки: объявить реализацию или подключить шину с брокером. С
   брокером в `transports:` тот же вызов собирается и уходит через брокер
   (см. «Split-развёртывание» ниже);
@@ -392,7 +393,7 @@ await using app = await assembleTest({
   модуля;
 - два подписчика `event` с одинаковым `subscriber`;
 - `event` без `subscriber` и `subscriber` у `request` или `command`;
-- контракт с формами `stream` или `events`: шина поддерживает только
+- операция с формами `stream` или `events`: шина поддерживает только
   `value`.
 
 Событие без подписчиков допустимо: `emit` доставляет сообщение нулю
@@ -400,26 +401,26 @@ await using app = await assembleTest({
 
 По этой же причине в `examples.app-with-http` фича `users` объявляет
 `dependsOn: [OpsFeature, QuotasFeature]`: пример собран без брокера, `users`
-вызывает `quotas` контрактом, и топология «users без quotas» падает на
+вызывает `quotas` операцией, и топология «users без quotas» падает на
 ASSEMBLE, а не на первом запросе.
 
-## Версии и совместимость контрактов
+## Версии и совместимость операций
 
-Отдельного поля версии у контракта нет: версия входит в имя
-(`user.create.v2`). `makeContract` суффикс не требует и не разбирает, так
-что контракт без версии тоже допустим.
+Отдельного поля версии у операции нет: версия входит в имя
+(`user.create.v2`). `makeRequest` / `makeCommand` / `makeEvent` суффикс не требует и не разбирает, так
+что операция без версии тоже допустим.
 
-Какими контракты были вчера, помнит снапшот — обычное значение, которое вы
+Какими операции были вчера, помнит снапшот — обычное значение, которое вы
 храните где хотите. В примере это файл рядом с пакетом:
 
 ```typescript
-// packages/examples.app-with-http/src/contracts.compat.spec.ts (сокращено)
+// packages/examples.app-with-http/src/operations.compat.spec.ts (сокращено)
 import {
   checkTopologies,
-  diffContracts,
+  diffOperations,
   formatCompatibility,
   serializeSnapshot,
-  snapshotContracts,
+  snapshotOperations,
 } from '@nestling/testing';
 
 /** Конвертер схем поверх штатного конвертера валидатора */
@@ -432,7 +433,7 @@ const reports = await checkTopologies(spec, ['all', 'users', 'ops'], {
   converters: [zodConverter()],
 });
 
-const report = diffContracts(readBaseline(), snapshotContracts(reports));
+const report = diffOperations(readBaseline(), snapshotOperations(reports));
 
 console.log(formatCompatibility(report));
 expect(report.breaking).toEqual([]);   // ваш expect, а не проверка фреймворка
@@ -440,21 +441,21 @@ expect(report.breaking).toEqual([]);   // ваш expect, а не проверк�
 
 Что здесь происходит по шагам:
 
-- `check()` кладёт в отчёт дескрипторы контрактов, которые приложение
-  реализует. Контракт, который импортирован, но не реализован, в отчёт не
+- `check()` кладёт в отчёт дескрипторы операций, которые приложение
+  реализует. Операция, который импортирован, но не реализован, в отчёт не
   попадает: состав приложения определяет дерево модулей, а не список
   импортов.
-- `snapshotContracts` объединяет отчёты всех топологий. Контракт, который
+- `snapshotOperations` объединяет отчёты всех топологий. Операция, который
   публикует только топология `all`, в снапшоте есть, и его дескриптор
-  называет эту топологию. Так «фича не выбрана» и «контракт удалён» не
+  называет эту топологию. Так «фича не выбрана» и «операция удалена» не
   путаются.
-- `diffContracts` выносит вердикт каждому изменению: `breaking`,
+- `diffOperations` выносит вердикт каждому изменению: `breaking`,
   `additive` или `unknown`. Направление зависит от слота. `input` приходит
   в реализацию, поэтому новое обязательное поле, удалённое поле и сужение
   типа — `breaking`. `output` уходит из неё, поэтому удалённое поле и
   превращение обязательного в необязательное — `breaking`. Удалённый код
   из `errors` считается `breaking`, добавленный — `additive`.
-- Всё, что `diffContracts` не понял, получает вердикт `unknown`, а не
+- Всё, что `diffOperations` не понял, получает вердикт `unknown`, а не
   «совместимо»: незнакомые ключевые слова JSON Schema, `oneOf`, `allOf`,
   `$ref`, смена вендора схем, лист без конвертера. К вердикту прилагается
   путь до узла. Без конвертера листья схем непрозрачны, и отчёт сообщает об
@@ -463,27 +464,27 @@ expect(report.breaking).toEqual([]);   // ваш expect, а не проверк�
 - Если есть `breaking`, отчёт подсказывает новое имя: для `quotas.claim`
   это `quotas.claim.v2`. Это только подсказка; ничего не переименовывается.
 
-Ничто из этого не может уронить сборку. `diffContracts` — чистая функция
+Ничто из этого не может уронить сборку. `diffOperations` — чистая функция
 двух значений: она не участвует в `run()`, не вызывается из `check()` и не
 бросает по результату сравнения. Единственный способ уронить CI — ваш
 `expect`. Флага «падать на breaking» нет: осознанный breaking делается
 сменой имени, а не отключением проверки.
 
-`diffContracts` бросает исключение в одном случае: baseline нечитаем
+`diffOperations` бросает исключение в одном случае: baseline нечитаем
 (чужая `snapshotVersion`). Это ошибка автора проверки, а не breaking
 change.
 
 Baseline обновляется явно — перезаписью файла:
 
 ```typescript
-writeFileSync(BASELINE_PATH, serializeSnapshot(snapshotContracts(reports)));
+writeFileSync(BASELINE_PATH, serializeSnapshot(snapshotOperations(reports)));
 ```
 
-Сериализация детерминирована: контракты отсортированы по имени, отказы по
+Сериализация детерминирована: операции отсортированы по имени, отказы по
 коду, ключи JSON Schema по алфавиту. Поэтому файл попадает в git-дифф
 осмысленным патчем. Пересобирайте baseline тем же конвертером, которым
 запускаете проверку: смена мажорной версии валидатора меняет форму JSON
-Schema, и отчёт покажет `unknown` без единого изменения в контрактах.
+Schema, и отчёт покажет `unknown` без единого изменения в операциях.
 
 ## Когда порт готов: фазы
 
@@ -529,7 +530,7 @@ Schema, и отчёт покажет `unknown` без единого измен�
 возможности она объявляет ложными: `remote: false`, `durable: false`.
 
 Если корень не задал шину, её регистрирует модуль ядра портов — и только
-если в приложении есть хотя бы одна реализация контракта.
+если в приложении есть хотя бы одна реализация операции.
 
 ## Split-развёртывание: `nats()` в корне
 
@@ -575,7 +576,7 @@ in-process шине, а заменяет её. Ни одна деклараци�
 |---|---|---|
 | `request` или `command` без реализации в процессе | ошибка ASSEMBLE | уходит на шину |
 | `event` | `dispatch` каждому подписчику в процессе | всегда через шину |
-| `durable`-контракт | строка о деградации при старте | поток JetStream |
+| `durable`-операция | строка о деградации при старте | поток JetStream |
 
 `event` при брокере уходит через шину всегда, даже когда подписчик в том же
 процессе. Множество подписчиков события открыто, часть их живёт в других
@@ -583,13 +584,12 @@ in-process шине, а заменяет её. Ни одна деклараци�
 процессе получает ровно одну копию — ту, что пришла по его собственной
 подписке.
 
-Долговечность объявляется в контракте, а не в подписке:
+Долговечность объявляется в операции, а не в подписке:
 
 ```typescript
-// packages/examples.split-nats/src/contracts.ts
-export const OrderPlaced = makeContract({
+// packages/examples.split-nats/src/operations.ts
+export const OrderPlaced = makeEvent({
   name: 'orders.placed',
-  kind: 'event',
   durable: true,             // факт не должен потеряться, пока подписчик лежит
   input: z.object({ orderId: z.string(), tenantId: z.string() }),
 });
@@ -597,10 +597,10 @@ export const OrderPlaced = makeContract({
 
 О долговечности обязаны знать обе стороны: издатель ждёт подтверждения
 записи, подписчик читает долговечно, а живут они в разных процессах.
-Контракт — единственное значение, доступное обоим. У `request` флаг
+Операция — единственное значение, доступное обоим. У `request` флаг
 `durable` отвергается при объявлении: ответа ждёт живой вызывающий, и
 переживать перезапуск нечему. На шине без долговечной доставки приложение
-стартует, но при старте печатает строку с перечнем контрактов, которые
+стартует, но при старте печатает строку с перечнем операций, которые
 обслуживаются без персистентности.
 
 Тесты приложения работают без сети: клиент брокера подменяется двойником.
@@ -654,16 +654,16 @@ const scoped = makePipeline().pre(TenantId.propagated());
 
 ## Что дальше
 
-- Тест фичи без соседней: `stub(Contract, impl)` из `@nestling/testing`
-  даёт заглушку вызывателя, ответы которой проверяются схемами контракта, а
+- Тест фичи без соседней: `stub(Operation, impl)` из `@nestling/testing`
+  даёт заглушку вызывателя, ответы которой проверяются схемами операции, а
   `app.emit` вызывает приложение снаружи, как издатель. Рецепт —
   [`testing.md` §4](./testing.md); пример —
   `packages/examples.split-nats/src/isolated.spec.ts`, где `orders`
   собирается без `quotas` и без брокера.
-- Внешний клиент из контракта (`makeClient`) —
-  [`typed-client.md`](./typed-client.md). Контракт с секцией `http:`
-  адресуется и по шине, и по HTTP. `makeContract` живёт в
-  `@nestling/contracts` — пакете без серверных зависимостей, поэтому
-  контракт можно импортировать во фронтенд.
+- Внешний клиент из операции (`makeClient`) —
+  [`typed-client.md`](./typed-client.md). Операция с секцией `http:`
+  адресуется и по шине, и по HTTP. `makeRequest` / `makeCommand` / `makeEvent` живёт в
+  `@nestling/operations` — пакете без серверных зависимостей, поэтому
+  операцию можно импортировать во фронтенд.
 
-Целевое состояние подсистемы — [`design/contracts.md`](../design/contracts.md).
+Целевое состояние подсистемы — [`design/operations.md`](../design/operations.md).

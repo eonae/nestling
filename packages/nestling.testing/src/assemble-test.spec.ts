@@ -10,7 +10,7 @@ import { familyOverride } from './overrides';
 import { unwrap, UnwrapFailedError } from './unwrap';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import { Discovery$, makeAppModule, makeFeature } from '@nestling/app';
+import { Discovery$, makeFeature } from '@nestling/app';
 import type { Config } from '@nestling/config';
 import { makeConfig } from '@nestling/config';
 import {
@@ -31,11 +31,12 @@ import {
   upload,
 } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 /** Даёт микрозадачам подписки прокрутиться */
 const settle = async (): Promise<void> => {
@@ -70,8 +71,8 @@ describe('assembleTest — приложение собрано, но запро�
     const transport = new SpyTransport();
 
     await using app = await assembleTest({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:ping',
           providers: [Service],
           endpoints: [Ping],
@@ -93,11 +94,11 @@ describe('assembleTest — приложение собрано, но запро�
 
     try {
       await using app = await assembleTest({
-        modules: [makeAppModule({ name: 'module:quiet' })],
+        features: [makeFeature({ name: 'module:quiet' })],
         transports: [asHttpTransport(new SpyTransport())],
       });
 
-      expect(app.features).toEqual([]);
+      expect(app.features).toEqual(['module:quiet']);
       expect(process.listenerCount('SIGTERM')).toBe(before);
       expect(process.listenerCount('SIGINT')).toBe(before);
       expect(log).not.toHaveBeenCalled();
@@ -125,8 +126,8 @@ describe('assembleTest — приложение собрано, но запро�
 
     await expect(
       assembleTest({
-        modules: [
-          makeAppModule({
+        features: [
+          makeFeature({
             name: 'module:orphan',
             providers: [Resource],
             endpoints: [Orphan],
@@ -160,8 +161,8 @@ describe('assembleTest — приложение собрано, но запро�
     }
 
     const app = await assembleTest({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:resources',
           providers: [Pool, Service],
         }),
@@ -212,7 +213,7 @@ describe('assembleTest — overrides и прунинг', () => {
       new Ok({ users: repository.all() }),
   });
 
-  const DataModule = makeAppModule({
+  const DataModule = makeFeature({
     name: 'module:data',
     providers: [PgPool, PgRepository],
     endpoints: [ListUsers],
@@ -220,7 +221,7 @@ describe('assembleTest — overrides и прунинг', () => {
 
   it('подставляет фейк и прунит осиротевший узел', async () => {
     await using app = await assembleTest({
-      modules: [DataModule],
+      features: [DataModule],
       transports: [asHttpTransport(new SpyTransport())],
       overrides: [[Repository, { all: () => ['from-fake'] }]],
     });
@@ -234,7 +235,7 @@ describe('assembleTest — overrides и прунинг', () => {
 
   it('без overrides граф остаётся полным', async () => {
     await using app = await assembleTest({
-      modules: [DataModule],
+      features: [DataModule],
       transports: [asHttpTransport(new SpyTransport())],
     });
 
@@ -297,13 +298,13 @@ describe('app.call — полный пайплайн in-proc', () => {
     handle: async (_payload, meta) => new Ok(meta.seen),
   });
 
-  const UsersModule = makeAppModule({
+  const UsersModule = makeFeature({
     name: 'module:users',
     endpoints: [GetUser, Frame, UploadAvatar],
   });
 
   const spec = {
-    modules: [UsersModule],
+    features: [UsersModule],
     transports: [asHttpTransport(new SpyTransport())],
   };
 
@@ -382,16 +383,12 @@ describe('app.call — полный пайплайн in-proc', () => {
 
     const Billing = makeFeature({
       name: 'billing',
-      modules: [
-        makeAppModule({ name: 'module:billing', endpoints: [Invoices] }),
-      ],
+      endpoints: [Invoices],
     });
 
-    const Users = makeFeature({ name: 'users', modules: [UsersModule] });
-
     await using app = await assembleTest({
-      features: [Users, Billing],
-      select: 'users',
+      features: [UsersModule, Billing],
+      select: 'module:users',
       transports: [asHttpTransport(new SpyTransport())],
     });
 
@@ -421,7 +418,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     });
 
     const app = await assembleTest({
-      modules: [makeAppModule({ name: 'module:wait', endpoints: [Wait] })],
+      features: [makeFeature({ name: 'module:wait', endpoints: [Wait] })],
       transports: [asHttpTransport(new SpyTransport())],
     });
 
@@ -509,8 +506,8 @@ describe('vars и familyOverride', () => {
     const Sink = makeToken<ILoggerService[]>('LoggerSink');
 
     await using app = await assembleTest({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:logging',
           providers: [
             {
@@ -548,7 +545,7 @@ describe('Discovery$ в тестовом корне', () => {
     });
 
     await using app = await assembleTest({
-      modules: [makeAppModule({ name: 'module:discovery', endpoints: [Ping] })],
+      features: [makeFeature({ name: 'module:discovery', endpoints: [Ping] })],
       transports: [asHttpTransport(new SpyTransport())],
     });
 

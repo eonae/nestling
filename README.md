@@ -87,15 +87,14 @@ class UserService {
 }
 
 // Create a module
-const appModule = makeModule({
-  name: 'AppModule',
-  providers: [UserService],
-  exports: [UserService]
+const usersModule = makeModule({
+  name: 'module:users',
+  providers: [UserService]
 });
 
 // Build and use the container
 const container = await new ContainerBuilder()
-  .register(appModule)
+  .register(usersModule)
   .build();
 
 await container.init();

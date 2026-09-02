@@ -1,7 +1,7 @@
 {
   "name": "@nestling/ports",
   "version": "0.1.0",
-  "description": "Contracts, ports and the in-process message bus for Nestling",
+  "description": "Operation invokers and the in-process message bus for Nestling",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -24,7 +24,7 @@
     "@common/misc": "workspace:*",
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
-    "@nestling/contracts": "workspace:*",
+    "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
     "@nestling/streams": "workspace:*",
     "@nestling/transport": "workspace:*"

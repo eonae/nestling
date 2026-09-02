@@ -109,10 +109,10 @@ co-located подписчикам так, как это делает издат�
 
 - `packages/nestling.testing` — новый модуль `stub.ts`; `app.ts` (`emit`,
   `stubbed`, разбор `stubs:`), `module.ts` (тип `stubs`), `index.ts`
-  (экспорты). Зависимости не добавляются: `@nestling/contracts` и
+  (экспорты). Зависимости не добавляются: `@nestling/operations` и
   `@nestling/ports` уже в `dependencies` пакета, всё нужное
   (`busBindingOf`, `profileAttributes`, `isExhausted`) публично.
-- `packages/nestling.ports`, `packages/nestling.contracts`,
+- `packages/nestling.ports`, `packages/nestling.operations`,
   `packages/nestling.container`, `packages/nestling.app` — **правок не
   требуют**; если правка потребуется, это сигнал о дыре в публичных
   примитивах, и её нужно зафиксировать записью, а не закрывать хаком.

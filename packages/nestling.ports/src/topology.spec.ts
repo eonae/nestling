@@ -1,25 +1,23 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { httpLikeDeclaration } from './__test-helpers__/foreign-declaration.js';
 import { implement } from './implement.js';
 import { collectImplementations } from './topology.js';
 
-import { makeContract } from '@nestling/contracts';
+import { makeEvent, makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
-const ChargeCard = makeContract({
+const ChargeCard = makeRequest({
   name: 'topology.billing.charge',
-  kind: 'request',
   input: z.object({ amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
 });
 
-const OrderPlaced = makeContract({
+const OrderPlaced = makeEvent({
   name: 'topology.orders.placed',
-  kind: 'event',
   input: z.object({ orderId: z.string() }),
 });
 

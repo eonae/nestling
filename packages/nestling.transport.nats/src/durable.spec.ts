@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`). */
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 /**
  * Долговечная доставка: поток, durable-потребитель и правило
  * «ack по факту решения, повтор по факту отсутствия решения».
@@ -12,7 +12,7 @@ import { NatsDouble as Broker, natsDouble } from './testing/double.js';
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent } from '@nestling/operations';
 import { defineFail, makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';
@@ -23,9 +23,18 @@ const Rejected = defineFail('ORDER_REJECTED', {
   message: 'Order rejected',
 });
 
-const Placed = makeContract({
+const Placed = makeEvent({
   name: 'durable.orders.placed',
-  kind: 'event',
+  durable: true,
+  input: z.object({ orderId: z.string() }),
+});
+
+/**
+ * Отказ объявляет команда, а не событие: отказ доставляется вызывающему,
+ * а у события его нет. Долговечность у команды та же.
+ */
+const Charge = makeCommand({
+  name: 'durable.orders.charge',
   durable: true,
   input: z.object({ orderId: z.string() }),
   errors: [Rejected],
@@ -42,10 +51,6 @@ const makeSubscriber = (name: string) =>
     handle: async (input) => {
       handled.push(`${name}:${input.orderId}`);
 
-      if (behaviour === 'fail') {
-        return Rejected();
-      }
-
       if (behaviour === 'throw') {
         throw new Error('subscriber is broken');
       }
@@ -53,6 +58,16 @@ const makeSubscriber = (name: string) =>
       return undefined;
     },
   });
+
+/** Обработчик команды: он умеет ответить объявленным отказом */
+const ChargeHandler = implement(Charge, {
+  pipeline: makePipeline().pre(() => undefined),
+  handle: async (input) => {
+    handled.push(`charge:${input.orderId}`);
+
+    return behaviour === 'fail' ? Rejected() : undefined;
+  },
+});
 
 const Billing = makeSubscriber('billing');
 const Analytics = makeSubscriber('analytics');
@@ -176,11 +191,11 @@ describe('долговечная доставка', () => {
     const broker = new Broker();
     behaviour = 'fail';
 
-    const subscriber = await process(broker, [Billing]);
+    const subscriber = await process(broker, [ChargeHandler]);
     const publisher = await process(broker, []);
 
     await publisher.publish(
-      'durable.orders.placed',
+      'durable.orders.charge',
       { orderId: 'o-1' },
       { durable: true },
     );
@@ -188,7 +203,7 @@ describe('долговечная доставка', () => {
 
     // Ровно одна доставка: обработка завершилась решением, и повторять его
     // бессмысленно — второй раз обработчик решит то же самое
-    expect(handled).toEqual(['billing:o-1']);
+    expect(handled).toEqual(['charge:o-1']);
 
     await subscriber.close();
     await publisher.close();

@@ -11,7 +11,7 @@ import { currentCell } from './store.js';
 import type { AnyContextVar } from './variable.js';
 import { isContextVar, SIGNAL_KEY } from './variable.js';
 
-import type { TokenString } from '@nestling/container';
+import type { Token } from '@nestling/container';
 import { makeTokenFamily } from '@nestling/container';
 
 /**
@@ -64,9 +64,7 @@ export const CtxFamily = makeTokenFamily<AnyCtxReader, [key: string]>('Ctx');
  * }
  * ```
  */
-export const Ctx = <T>(
-  variable: AnyContextVar<T>,
-): TokenString<CtxReader<T>> => {
+export const Ctx = <T>(variable: AnyContextVar<T>): Token<CtxReader<T>> => {
   if (!isContextVar(variable)) {
     throw new TypeError(
       `Ctx(variable) expects a context variable value, not a key: declare it ` +
@@ -74,7 +72,7 @@ export const Ctx = <T>(
     );
   }
 
-  return CtxFamily(variable.key) as unknown as TokenString<CtxReader<T>>;
+  return CtxFamily(variable.key) as unknown as Token<CtxReader<T>>;
 };
 
 /**

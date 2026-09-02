@@ -1,5 +1,5 @@
 /**
- * Типовые тесты контрактного стаба (стиль — `TYPE-TESTS.md` пайплайна).
+ * Типовые тесты стаба операции (стиль — `TYPE-TESTS.md` пайплайна).
  *
  * Файл не гоняется jest'ом: он и есть тест — если типы разойдутся, упадёт
  * `tsc` на сборке пакета. Негативные случаи закрыты `@ts-expect-error`:
@@ -8,14 +8,14 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable unicorn/no-useless-undefined --
- * Фейк `command`/`event`-контракта возвращает `undefined` явно: пустое
+ * Фейк `command`/`event`-операции возвращает `undefined` явно: пустое
  * тело `{}` читалось бы как «забыли дописать». */
 
 import type { EmitDelivery } from './app.js';
 import { assembleTest } from './app.js';
 import { stub } from './stub.js';
 
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { defineFail, Ok } from '@nestling/pipeline';
 import type { Port, PortResult } from '@nestling/ports';
 import { z } from 'zod';
@@ -31,28 +31,25 @@ const QuotaExceeded = defineFail('TYPE_TEST_QUOTA_EXCEEDED', {
   message: 'Quota exceeded',
 });
 
-const ClaimQuota = makeContract({
+const ClaimQuota = makeRequest({
   name: 'type-test.quotas.claim',
-  kind: 'request',
   input: z.object({ tenantId: z.string(), amount: z.number() }),
   output: z.object({ granted: z.number() }),
   errors: [QuotaExceeded],
 });
 
-const OrderPlaced = makeContract({
+const OrderPlaced = makeEvent({
   name: 'type-test.orders.placed',
-  kind: 'event',
   input: z.object({ orderId: z.string() }),
 });
 
-const PlaceOrder = makeContract({
+const PlaceOrder = makeCommand({
   name: 'type-test.orders.place',
-  kind: 'command',
   input: z.object({ orderId: z.string() }),
 });
 
 // ---------------------------------------------------------------------------
-// stub: фейк типизирован контрактом
+// stub: фейк типизирован операцией
 // ---------------------------------------------------------------------------
 
 async function stubAcceptsCompatibleFakes(): Promise<void> {
@@ -84,7 +81,7 @@ async function stubRejectsUndeclaredFail(): Promise<void> {
   });
 
   await assembleTest({
-    // @ts-expect-error: отказа нет в `errors:` контракта
+    // @ts-expect-error: отказа нет в `errors:` операции
     stubs: [stub(ClaimQuota, async () => Undeclared())],
   });
 }
@@ -103,7 +100,7 @@ async function stubRejectsPortShapeForEvent(): Promise<void> {
   });
 }
 
-function stubTypesPayloadByContract(): void {
+function stubTypesPayloadByOperation(): void {
   stub(ClaimQuota, async (payload) => {
     type _Payload = Expect<
       Equal<typeof payload, { tenantId: string; amount: number }>
@@ -152,10 +149,10 @@ async function emitTypes(): Promise<void> {
   // @ts-expect-error: `orderId` объявлен строкой
   await app.emit(OrderPlaced, { orderId: 42 });
 
-  // @ts-expect-error: контракт со схемой обязан получить payload
+  // @ts-expect-error: операция со схемой обязан получить payload
   await app.emit(OrderPlaced);
 
-  // @ts-expect-error: у `request`-контракта нет подписчиков
+  // @ts-expect-error: у `request`-операции нет подписчиков
   await app.emit(ClaimQuota, { tenantId: 't1', amount: 1 });
 
   // @ts-expect-error: ключ идемпотентности есть только у вида `command`

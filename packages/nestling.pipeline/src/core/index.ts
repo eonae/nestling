@@ -5,7 +5,7 @@ export * from './pipeline';
 export * from './types';
 
 /**
- * Реэкспорт декларативного слоя, переехавшего в `@nestling/contracts`.
+ * Реэкспорт декларативного слоя, переехавшего в `@nestling/operations`.
  *
  * Поверхность пакета сохраняется: `Ok`/`Fail` и словарь статусов — рабочий
  * словарь любого хендлера, и заставлять его автора добавлять импорт из
@@ -45,7 +45,7 @@ export {
   UnknownError,
   upload,
   ValidationFailed,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 export type {
   AnyFail,
   AnyFailDefinition,
@@ -97,4 +97,4 @@ export type {
   UploadOptions,
   UploadSpec,
   ValidateOutputForm,
-} from '@nestling/contracts';
+} from '@nestling/operations';

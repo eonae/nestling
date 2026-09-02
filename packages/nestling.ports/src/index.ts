@@ -1,9 +1,9 @@
 /**
- * `@nestling/ports` — контракты, порты и in-proc шина.
+ * `@nestling/ports` — операции, порты и in-proc шина.
  *
- * Сторона ядра (реестр контрактов, держатель исполнителей, вызыватели и
+ * Сторона ядра (реестр операций, держатель исполнителей, вызыватели и
  * их семейства) наружу не экспортируется: граница держится видимостью
- * ES-модулей, а не рантайм-проверкой. Публично — объявление контракта,
+ * ES-модулей, а не рантайм-проверкой. Публично — объявление операции,
  * его реализация, интерфейс шины и точки, которыми пользуется композиционный
  * корень.
  *
@@ -26,7 +26,7 @@ export type {
   SubscribeOptions,
 } from './bus.js';
 export {
-  diffContracts,
+  diffOperations,
   formatCompatibility,
   suggestBump,
 } from './compatibility.js';
@@ -34,14 +34,14 @@ export type {
   CompatibilityChange,
   CompatibilityReport,
   CompatibilityVerdict,
-  ContractCompatibility,
-  ContractSlot,
+  OperationCompatibility,
+  OperationSlot,
 } from './compatibility.js';
 export { portsConfigKeys } from './config.js';
 export type { DispatchPolicy, PortsConfig } from './config.js';
-export { canonicalizeJson, describeContract } from './describe.js';
+export { canonicalizeJson, describeOperation } from './describe.js';
 export type {
-  ContractDescriptor,
+  OperationDescriptor,
   DescribeOptions,
   DescribeSource,
   FailDescriptor,
@@ -51,15 +51,15 @@ export type {
   SchemaDescriptor,
 } from './describe.js';
 /**
- * Типы вызывателей реэкспортируются, а `makeContract` и типы контракта —
+ * Типы вызывателей реэкспортируются, а `makeRequest` и типы операции —
  * **нет**.
  *
  * Разница не в аккуратности, а в направлении: `Port`/`Emitter` разбирает
  * потребитель порта, у которого сервер уже под рукой, — импортировать их из
  * того же пакета, что `implement`, ему естественно. А реэкспорт
- * `makeContract` вернул бы объявление контракта в пакет с серверными
- * зависимостями и снова сделал бы «контракт импортируется во фронт»
- * вопросом дисциплины импортов. Канонический импорт — `@nestling/contracts`.
+ * `makeRequest` вернул бы объявление операции в пакет с серверными
+ * зависимостями и снова сделал бы «операция импортируется во фронт»
+ * вопросом дисциплины импортов. Канонический импорт — `@nestling/operations`.
  */
 export type {
   CommandMeta,
@@ -72,10 +72,10 @@ export type {
   PortMeta,
   PortResult,
   PortToken,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 export { implement } from './implement.js';
 export type { ImplementDictionary } from './implement.js';
-export { bindPorts, portsKernel, undurableContracts } from './kernel.js';
+export { bindPorts, portsKernel, undurableOperations } from './kernel.js';
 export type { PortsKernelOptions } from './kernel.js';
 export {
   Deadline,
@@ -94,20 +94,20 @@ export type { PortFailureInfo } from './runtime.js';
 export {
   serializeSnapshot,
   SNAPSHOT_VERSION,
-  snapshotContracts,
+  snapshotOperations,
 } from './snapshot.js';
 export type {
-  ContractReport,
-  ContractSnapshot,
-  SnapshotContract,
+  OperationReport,
+  OperationSnapshot,
+  SnapshotOperation,
   SnapshotSource,
-  TopologyContractReport,
+  TopologyOperationReport,
 } from './snapshot.js';
 export { collectImplementations } from './topology.js';
 export type {
-  ContractImplementation,
-  ContractTopology,
-  ContractTopologyEntry,
+  OperationImplementation,
+  OperationTopology,
+  OperationTopologyEntry,
   DiscoveredDeclaration,
 } from './topology.js';
 export {

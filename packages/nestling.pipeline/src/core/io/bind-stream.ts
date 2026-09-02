@@ -14,13 +14,13 @@ import type {
   FormDescriptor,
   FormLeaf,
   StreamSummary,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   isPrimitiveLeaf,
   StreamGapTimeout,
   StreamLimitExceeded,
   ValidationFailed,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   batch,
   filter,
@@ -219,7 +219,7 @@ export function bindOutputStream<T>(
  * конце потока, на ошибке и на закрытии потребителем (`return()`).
  *
  * Именно закрытие итератора выполняет отложенные `.finally`-юниты, поэтому
- * контракт с транспортом прост: потребить итератор до конца **либо**
+ * операция с транспортом прост: потребить итератор до конца **либо**
  * закрыть его.
  *
  * @param onSettled - получает ошибку потока (или `undefined`) и возвращает

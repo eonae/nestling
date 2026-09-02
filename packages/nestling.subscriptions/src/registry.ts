@@ -7,13 +7,13 @@
  * путём, тем же, что и при дисконнекте клиента.
  */
 
+import { SubscriptionKilledError } from './errors.js';
 import type {
   SubscriptionClosed,
   SubscriptionClosedFact,
   SubscriptionOpened,
   SubscriptionOpenedFact,
-} from './contracts.js';
-import { SubscriptionKilledError } from './errors.js';
+} from './operations.js';
 import type {
   CloseReason,
   SubscriptionEvent,
@@ -25,7 +25,7 @@ import type {
 import { kindOfOutput } from './types.js';
 
 import { OnDestroy } from '@nestling/container';
-import type { Emitter } from '@nestling/contracts';
+import type { Emitter } from '@nestling/operations';
 import type { AnyInput, ExtendableContext, Outcome } from '@nestling/pipeline';
 import { Topic } from '@nestling/streams';
 
@@ -115,7 +115,7 @@ function matches(entry: Entry, filter?: SubscriptionFilter): boolean {
  * Реестр подписок: список, принудительное завершение и лента изменений.
  *
  * Node-local по построению: `list()` и `abort()` действуют на подписки
- * своего процесса. Кластерным является **наблюдение** (факты контрактами),
+ * своего процесса. Кластерным является **наблюдение** (факты операциями),
  * а не управление — шина V1 не даёт ни scatter-gather, ни широковещательной
  * подписки без queue-group.
  *

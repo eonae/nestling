@@ -9,7 +9,7 @@
 
 - [x] 2.1 Тип `DeclarationDoc` (`summary`, `description`, `tags`, `deprecated`, `status`, `hidden`) в `@nestling/pipeline`; поле `doc?` в `EndpointOptions` и `EndpointDefinition`, перенос в `EndpointState` и в `buildDefinition` (переживает `resolve` наравне с `binding`/`errors`/`detached`)
 - [x] 2.2 `assertDoc(doc, pattern)` в `makeEndpoint`: не-строки, `tags` не массивом строк, `status` вне `successStatuses`, `hidden` не непустой строкой, неизвестное поле секции — ошибки в точке создания с текстом, называющим ручку и поле
-- [x] 2.3 Поле `doc?` в `ContractSpec`/`Contract` (`@nestling/contracts`) с теми же проверками и текстом, называющим контракт; общая реализация проверки, два места вызова — как у `computeHttpBinding`
+- [x] 2.3 Поле `doc?` в `ContractSpec`/`Contract` (`@nestling/operations`) с теми же проверками и текстом, называющим контракт; общая реализация проверки, два места вызова — как у `computeHttpBinding`
 - [x] 2.4 `doc` в `HttpEndpointDictionary` и в `CONTRACT_OWNED` (`@nestling/transport.http/src/helpers.ts`): контракт-форма берёт `doc` с контракта, переобъявление отвергается типами и рантаймом
 - [x] 2.5 Рантайм-тесты слота: перенос через `resolve`, каждый fail-fast словаря, контракт-форма (наследование и переобъявление)
 
@@ -50,7 +50,7 @@
 - [x] 7.1 Подключить `openapi({ info, converters: [zodConverter()], pipeline: … })` в `packages/examples.app-with-http`, снабдить `doc:` несколько ручек (в том числе `hidden` для `/health`) и добавить строку про `GET /openapi.json` в вывод старта
 - [x] 7.2 Тест примера: документ содержит все публичные ручки, коды ответов совпадают с реальными ответами транспорта для пары проверенных случаев (`201`, `409`)
 - [x] 7.3 Новый гайд `docs/guides/openapi.md` с плашкой «сверено с кодом `examples.app-with-http` (дата)»
-- [x] 7.4 README новых пакетов (`@nestling/openapi`, `@nestling/openapi.zod`) с плашками статуса; обновить README `@nestling/pipeline`, `@nestling/contracts`, `@nestling/transport.http`, `@nestling/app`, `@nestling/ports`
+- [x] 7.4 README новых пакетов (`@nestling/openapi`, `@nestling/openapi.zod`) с плашками статуса; обновить README `@nestling/pipeline`, `@nestling/operations`, `@nestling/transport.http`, `@nestling/app`, `@nestling/ports`
 - [x] 7.5 Синхронизировать `docs/design/schemas.md` (§2.1 — конкретная поверхность: модуль, слот `doc`, аннотация), `docs/design/endpoints.md` и `docs/design/contracts.md` (слот `doc`), `docs/design/README.md` при необходимости
 - [x] 7.6 Дописать блок «РЕАЛИЗОВАНО/УТОЧНЕНО» под секцией [2026-07-13] «Схемы…» в `docs/decisions/ideas.md`: слот `doc` вместо разрозненных полей, аннотация вместо `jsonSchema`-поля декларации, `Discovery$`, OpenAPI 3.1, выводимый `operationId`, отказ от тегов по имени модуля
 - [x] 7.7 Занести в `docs/decisions/deferred.md` открытый вопрос «типизированный успешный статус в декларации» с триггером возврата

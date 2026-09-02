@@ -15,34 +15,53 @@ import type { HandlerFn } from '../core/types';
 import type { Constructor } from '@common/misc';
 import type {
   InjectionToken,
-  TokenString,
+  Token,
   UnwrapInjectionTokens,
 } from '@nestling/container';
+import { tokenId } from '@nestling/container';
 
 /**
  * Токен транспорта, который обслуживает декларацию.
  *
- * Здесь тип не уточнён (`TokenString<any>`): `ITransport` живёт в
+ * Здесь тип не уточнён (`Token<any>`): `ITransport` живёт в
  * `@nestling/transport`, который сам зависит от этого пакета. Уточнённый
- * `TokenString<ITransport>` объявляет транспортный пакет
+ * `Token<ITransport>` объявляет транспортный пакет
  * (`TransportToken`). Строковое имя транспорта для `Raw` и `EndpointMeta`
  * выводится из id токена функцией `transportNameOf`.
  */
-export type TransportRef = TokenString<any>;
+export type TransportRef = Token<any>;
 
 /**
- * Возвращает имя транспорта из id его токена: часть после последнего `:`.
+ * Возвращает имя транспорта из id его токена.
  *
  * Токены транспортов называются `transport:http`: префикс отличает их от
  * пользовательских токенов в графе, а слоям пайплайна нужно короткое
- * `'http'`.
+ * `'http'`. У именованного экземпляра к имени добавляется его собственное
+ * (`'http:admin'`); экземпляр по умолчанию называется как вид транспорта,
+ * поэтому приложение с одним HTTP про имена не пишет ни строки.
  */
 export const transportNameOf = (ref: TransportRef): string => {
-  const id = String(ref);
-  const separator = id.lastIndexOf(':');
+  const id = tokenId(ref);
+  const named = id.startsWith(TRANSPORT_PREFIX)
+    ? id.slice(TRANSPORT_PREFIX.length)
+    : id;
 
-  return separator === -1 ? id : id.slice(separator + 1);
+  return named.endsWith(DEFAULT_SUFFIX)
+    ? named.slice(0, -DEFAULT_SUFFIX.length)
+    : named;
 };
+
+/** Префикс id транспортного токена */
+const TRANSPORT_PREFIX = 'transport:';
+
+/**
+ * Хвост id токена экземпляра по умолчанию.
+ *
+ * Имя экземпляра по умолчанию объявляет `@nestling/transport`, который
+ * зависит от этого пакета; здесь оно повторено строкой, чтобы зависимость
+ * не пошла в обратную сторону.
+ */
+const DEFAULT_SUFFIX = ':default';
 
 /**
  * Symbol-метка декларации endpoint'а.
@@ -307,10 +326,13 @@ interface EndpointState {
 
 /** Имя токена для текстов ошибок */
 function describeToken(token: unknown): string {
-  if (typeof token === 'string') {
-    return token;
+  if (typeof token === 'function' && token.name) {
+    return token.name;
   }
-  return typeof token === 'function' && token.name ? token.name : String(token);
+
+  const id = (token as { id?: unknown } | undefined)?.id;
+
+  return typeof id === 'string' ? id : String(token);
 }
 
 /** Проверяет, что значение — класс с методом `handle` в прототипе */
@@ -689,7 +711,7 @@ export function makeEndpoint(
   const form = normalizeHandler(options.handle, options.deps, options.pattern);
   assertFailDefinitions(options.errors, options.pattern);
   assertDetached(options.detached, options.pattern);
-  // Правила `doc` общие для декларации и контракта; отличается только
+  // Правила `doc` общие для декларации и операции; отличается только
   // адресат в тексте ошибки
   assertDoc(options.doc, `Endpoint '${options.pattern}'`);
   // Формы io проверяются здесь, а не в конструкторах транспортов: правило

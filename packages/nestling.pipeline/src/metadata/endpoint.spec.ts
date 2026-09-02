@@ -16,7 +16,7 @@ import {
 } from './endpoint';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import type { TokenString } from '@nestling/container';
+import type { Token } from '@nestling/container';
 import { makeToken } from '@nestling/container';
 import { z } from 'zod';
 
@@ -459,7 +459,7 @@ describe('makeEndpoint — типы', () => {
     type _Curried = Expect<
       Equal<
         InferNeeds<typeof Curried>,
-        typeof UserService | TokenString<ILoggerService>
+        typeof UserService | Token<ILoggerService>
       >
     >;
     type _WithClass = Expect<

@@ -36,10 +36,22 @@ describe('httpEndpoint', () => {
     });
 
     // Ссылка на транспорт — токен; строковое имя выводится из его id
-    expect(CreateUser.transport).toBe(HttpTransport$);
+    expect(CreateUser.transport).toBe(HttpTransport$('default'));
     expect(transportNameOf(CreateUser.transport)).toBe('http');
     expect(CreateUser.pattern).toBe('POST /api/users');
     expect(isEndpointDefinition(CreateUser)).toBe(true);
+  });
+
+  it('`on:` выбирает именованный экземпляр транспорта', () => {
+    const Metrics = httpEndpoint({
+      method: 'GET',
+      path: '/metrics',
+      on: 'admin',
+      handle,
+    });
+
+    expect(Metrics.transport).toBe(HttpTransport$('admin'));
+    expect(Metrics.transport).not.toBe(HttpTransport$('default'));
   });
 
   it('пустой path — ошибка в момент создания', () => {

@@ -1,8 +1,8 @@
 /**
  * Граница пакета: клиент собирается для браузера.
  *
- * Тот же обход замыкания `dist/`, что у `@nestling/contracts`: белый список
- * расширен ровно на сам пакет контрактов, потому что его замыкание клиент
+ * Тот же обход замыкания `dist/`, что у `@nestling/operations`: белый список
+ * расширен ровно на сам пакет операций, потому что его замыкание клиент
  * наследует целиком.
  */
 
@@ -24,7 +24,7 @@ describe('@nestling/client: граница пакета', () => {
       allow: [
         '@common/misc',
         '@nestling/container/tokens',
-        '@nestling/contracts',
+        '@nestling/operations',
         '@nestling/streams',
         '@standard-schema/spec',
       ],

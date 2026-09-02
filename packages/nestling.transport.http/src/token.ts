@@ -1,15 +1,26 @@
-import { makeToken } from '@nestling/container';
+import { makeTokenFamily } from '@nestling/container';
 import { transportNameOf } from '@nestling/pipeline';
-import type { TransportToken } from '@nestling/transport';
+import type { ITransport } from '@nestling/transport';
+import { DEFAULT_INSTANCE } from '@nestling/transport';
 
 /**
- * Токен HTTP-транспорта.
+ * Семейство токенов HTTP-транспорта: один член на экземпляр.
  *
- * На него ссылается каждая `httpEndpoint`-декларация, и по нему `App`
- * берёт транспорт из графа. Endpoint без зарегистрированного транспорта
- * роняет сборку так же, как любая незарегистрированная зависимость.
+ * Экземпляров в сборке может быть несколько — публичный и админский
+ * слушают разные порты, — поэтому токен параметризован именем экземпляра.
+ * Декларация выбирает свой через `on:`; без него это `'default'`.
+ *
+ * @example
+ * ```typescript
+ * HttpTransport$('default'); // транспорт по умолчанию
+ * HttpTransport$('admin');   // второй экземпляр
+ * ```
  */
-export const HttpTransport$: TransportToken = makeToken('transport:http');
+export const HttpTransport$ = makeTokenFamily<ITransport, [instance: string]>(
+  'transport:http',
+);
 
-/** Короткое имя транспорта (`'http'`); его же видят слои пайплайна */
-export const HTTP_TRANSPORT_NAME = transportNameOf(HttpTransport$);
+/** Короткое имя транспорта по умолчанию (`'http'`); его же видят слои пайплайна */
+export const HTTP_TRANSPORT_NAME = transportNameOf(
+  HttpTransport$(DEFAULT_INSTANCE),
+);

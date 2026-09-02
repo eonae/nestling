@@ -27,21 +27,21 @@ import type {
   AnyFailDefinition,
   AnyInput,
   EmptyInput,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   DeadlineExceeded,
   defineFail,
   Fail,
   Ok,
   ValidationFailed,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // Объявленные отказы фикстур.
 //
 // Рантайм-тестам про порядок фаз незачем ещё и сталкиваться с проверкой
-// контракта отказов, поэтому отказы, чей статус тесты проверяют,
+// операции отказов, поэтому отказы, чей статус тесты проверяют,
 // объявляются здесь и прописываются в `errors:` контекста. Нормализация
 // незадекларированного — предмет отдельного describe.
 // ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
         seen.push(`catch1:${error.status}`);
         // `.catch` может вернуть просто отказ. Рантайм нормализует его
         // так же, как отказ хендлера, и заодно делает недекларированный
-        // INTERNAL_ERROR контрактным.
+        // INTERNAL_ERROR объявленным.
         return Mapped();
       })
       .catch((error) => {
@@ -590,7 +590,7 @@ describe('Pipeline v2 — finally и исходы', () => {
 
     const pipeline = makePipeline()
       .pre(() => {})
-      // Отказ остаётся незадекларированным: проверка контракта отказов
+      // Отказ остаётся незадекларированным: проверка операции отказов
       // применяется после ответной фазы и до finally.
       .catch(() => {})
       .finally((outcome, res) => {
@@ -904,7 +904,7 @@ describe('Pipeline v2 — возврат Fail эквивалентен брос�
   });
 });
 
-describe('Pipeline v2 — проверка контракта отказов', () => {
+describe('Pipeline v2 — проверка операции отказов', () => {
   it('незадекларированный доменный отказ нормализуется в UNKNOWN/500', async () => {
     const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
       status: 'NOT_FOUND',
@@ -937,7 +937,7 @@ describe('Pipeline v2 — проверка контракта отказов', (
     });
   });
 
-  it('catch-юнит превращает недекларированный отказ в контрактный', async () => {
+  it('catch-юнит превращает недекларированный отказ в объявленный', async () => {
     const pipeline = makePipeline()
       .pre(() => {})
       .catch(() => Mapped());
@@ -992,13 +992,13 @@ describe('Pipeline v2 — проверка контракта отказов', (
     });
   });
 
-  it('пайплайн без декларации: контрактны только kernel-коды', async () => {
+  it('пайплайн без декларации: объявленными считаются только kernel-коды', async () => {
     const response = await run(makePipeline(), failingHandler, {
       errors: undefined,
       options: { onUnknownFail: () => {} },
     });
 
-    // declaredErrors — дефолт makeCtx, поэтому здесь отказ контрактен.
+    // declaredErrors — дефолт makeCtx, поэтому здесь отказ объявлен.
     // Проверка «пустого множества» — соседний кейс с errors: []
     expect(response.status).toBe('BAD_REQUEST');
 

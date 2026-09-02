@@ -1,34 +1,31 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { implement } from './implement.js';
 import { busBindingOf, BusTransport$ } from './transport.js';
 
 import { makeToken } from '@nestling/container';
-import { makeContract } from '@nestling/contracts';
+import { makeEvent, makeRequest } from '@nestling/operations';
 import { isEndpointDefinition, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const Ledger = makeToken<{ charge: (amount: number) => string }>('Ledger');
 
-const ChargeCard = makeContract({
+const ChargeCard = makeRequest({
   name: 'impl.billing.charge',
-  kind: 'request',
   input: z.object({ amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
 });
 
-const OrderPlaced = makeContract({
+const OrderPlaced = makeEvent({
   name: 'impl.orders.placed',
-  kind: 'event',
   input: z.object({ orderId: z.string() }),
 });
 
-/** Контракт, доступный и по шине, и по HTTP */
-const AddressedBoth = makeContract({
+/** Операция, доступный и по шине, и по HTTP */
+const AddressedBoth = makeRequest({
   name: 'impl.billing.charge.http',
-  kind: 'request',
   http: 'POST /charges',
   input: z.object({ amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
@@ -121,27 +118,28 @@ describe('implement', () => {
     expect(busBindingOf(analytics)?.subject).toBe('impl.orders.placed');
   });
 
-  it('требует `subscriber` у события', () => {
+  it('требует `subscriber` у события — типом и в рантайме', () => {
     expect(() =>
+      // @ts-expect-error — у события 0..N подписчиков, и каждый называет себя
       implement(OrderPlaced, {
         handle: async () => undefined,
       }),
-    ).toThrow(/'event' contract has 0\.\.N subscribers.*subscriber/s);
+    ).toThrow(/'event' operation has 0\.\.N subscribers.*subscriber/s);
   });
 
-  it('запрещает `subscriber` у запроса', () => {
+  it('запрещает `subscriber` у запроса — типом и в рантайме', () => {
     expect(() =>
       implement(ChargeCard, {
-        subscriber: 'billing' as never,
+        // @ts-expect-error — у запроса ровно один владелец
+        subscriber: 'billing',
         handle: async () => new Ok({ chargeId: 'c-1' }),
       }),
-    ).toThrow(/'request' contract has exactly one owner/);
+    ).toThrow(/'request' operation has exactly one owner/);
   });
 
-  it('переносит долговечность контракта в биндинг реализации', () => {
-    const Durable = makeContract({
+  it('переносит долговечность операции в биндинг реализации', () => {
+    const Durable = makeEvent({
       name: 'impl.durable.placed',
-      kind: 'event',
       durable: true,
       input: z.object({ id: z.string() }),
     });
@@ -154,7 +152,7 @@ describe('implement', () => {
     expect(busBindingOf(declaration)?.durable).toBe(true);
   });
 
-  it('биндинг недолговечного контракта поля не несёт', () => {
+  it('биндинг недолговечной операции поля не несёт', () => {
     const declaration = implement(OrderPlaced, {
       subscriber: 'audit',
       handle: async () => undefined,
@@ -163,13 +161,13 @@ describe('implement', () => {
     expect('durable' in (busBindingOf(declaration) as object)).toBe(false);
   });
 
-  it('запрещает переобъявление интерфейса контракта', () => {
+  it('запрещает переобъявление интерфейса операции', () => {
     expect(() =>
       implement(ChargeCard, {
         input: z.object({ other: z.string() }) as never,
         handle: async () => new Ok({ chargeId: 'c-1' }),
       }),
-    ).toThrow(/'input' belongs to the contract/);
+    ).toThrow(/'input' belongs to the operation/);
   });
 
   it('секция http: в реализации по шине не участвует', () => {
@@ -177,7 +175,7 @@ describe('implement', () => {
       handle: async () => new Ok({ chargeId: 'c-2' }),
     });
 
-    // Транспорт шины, subject — имя контракта: HTTP-адрес на этот путь не
+    // Транспорт шины, subject — имя операции: HTTP-адрес на этот путь не
     // влияет никак, он адресует другой транспорт
     expect(declaration.transport).toBe(BusTransport$);
     expect(busBindingOf(declaration)?.subject).toBe(AddressedBoth.name);

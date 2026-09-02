@@ -1,18 +1,18 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`), и `return;`
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`), и `return;`
  * ему не соответствует. */
 /**
- * Фича-потребитель: принимает команду и зовёт чужой контракт.
+ * Фича-потребитель: принимает команду и зовёт чужая операция.
  *
  * Ни строки про транспорт, брокер или процессы. Всё, что она знает, —
- * контракты соседей; где живут их владельцы, решает сборка.
+ * операции соседей; где живут их владельцы, решает сборка.
  */
 
 import { TenantId } from './context';
-import { ClaimQuota, OrderPlaced, PlaceOrder } from './contracts';
+import { ClaimQuota, OrderPlaced, PlaceOrder } from './operations';
 
-import { makeAppModule, makeFeature } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, makePipeline } from '@nestling/pipeline';
@@ -27,7 +27,7 @@ import { implement } from '@nestling/ports';
  * реализация или в другом процессе. Именно это делает переезд фичи в
  * отдельный процесс правкой корня, а не правкой кода.
  */
-@Injectable([ClaimQuota.port, OrderPlaced.emitter, Ctx(TenantId)])
+@Injectable([ClaimQuota.caller, OrderPlaced.emitter, Ctx(TenantId)])
 export class PlaceOrderService {
   constructor(
     private readonly quotas: Port<typeof ClaimQuota>,
@@ -51,8 +51,9 @@ export class PlaceOrderService {
   }
 }
 
-const OrdersModule = makeAppModule({
-  name: 'module:orders',
+/** Фича приёма заказов */
+export const OrdersFeature = makeFeature({
+  name: 'orders',
   providers: [PlaceOrderService],
   endpoints: [
     implement(PlaceOrder, {
@@ -70,10 +71,4 @@ const OrdersModule = makeAppModule({
         },
     }),
   ],
-});
-
-/** Фича приёма заказов */
-export const OrdersFeature = makeFeature({
-  name: 'orders',
-  modules: [OrdersModule],
 });

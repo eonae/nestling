@@ -16,7 +16,7 @@
 |---|---|
 | `@nestling/container` | `@Injectable`, `@OnDestroy`, `makeModule`: юниты слоя и модуль |
 | `@nestling/pipeline` | `makePipeline` для слоя `tracked`, `Outcome` и типы контекста |
-| `@nestling/contracts` | `makeContract` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema` |
+| `@nestling/operations` | `makeRequest` / `makeCommand` / `makeEvent` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema` |
 | `@nestling/streams` | `Topic`: лента изменений |
 | `@common/misc` | типы Standard Schema |
 
@@ -37,7 +37,7 @@ import { subscriptions, SubscriptionRegistry, tracked } from '@nestling/subscrip
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { userId?: string }).userId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
-  publish: true,                       // факты жизненного цикла как контракты
+  publish: true,                       // факты жизненного цикла как операции
   node: process.env.HOSTNAME,
 });
 
@@ -115,7 +115,7 @@ type CloseReason = Outcome | 'killed';
 
 ### Факты жизненного цикла
 
-С `publish: true` реестр публикует два `event`-контракта:
+С `publish: true` реестр публикует две `event`-операции:
 `subscriptions.opened` и `subscriptions.closed`. Оба несут имя узла
 (`node`). Чтобы наблюдать подписки всего кластера, другая фича делает
 `implement(SubscriptionOpened, { subscriber: 'ops', … })` и получает
@@ -160,7 +160,7 @@ type CloseReason = Outcome | 'killed';
 | `identity` | извлекает подписчика из контекста запроса |
 | `labels` | извлекает метки подписки |
 | `feedBuffer` | буфер ленты на наблюдателя (по умолчанию 256, `drop-oldest`) |
-| `publish` | публиковать факты жизненного цикла контрактами (по умолчанию `false`) |
+| `publish` | публиковать факты жизненного цикла операциями (по умолчанию `false`) |
 | `node` | имя узла в фактах |
 | `onPublishError` | наблюдатель ошибок публикации |
 
@@ -171,7 +171,7 @@ type CloseReason = Outcome | 'killed';
 | `subscriptions(options)` | фабрика модуля |
 | `tracked` | слой пайплайна, который регистрирует подписку |
 | `SubscriptionRegistry` | реестр и его токен |
-| `SubscriptionOpened`, `SubscriptionClosed` | `event`-контракты фактов |
+| `SubscriptionOpened`, `SubscriptionClosed` | `event`-операции фактов |
 | `SubscriptionKilledError` | ошибка, с которой закрывается подписка после `abort` |
 | `SubscriptionInfo`, `SubscriptionFilter`, `SubscriptionEvent`, `CloseReason`, `SubscriptionKind`, `TrackedSubscription` | типы модели |
 | `TrackSubscription`, `UntrackSubscription` | класс-юниты слоя; регистрирует их модуль, вызывать вручную не нужно |

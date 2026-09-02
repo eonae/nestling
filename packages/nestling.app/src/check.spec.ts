@@ -8,7 +8,6 @@
 import { assemble } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
-import { makeAppModule } from './module';
 import { wireApp } from './testing';
 
 import { describe, expect, it, jest } from '@jest/globals';
@@ -18,18 +17,18 @@ import {
   OnDestroy,
   OnInit,
   OnStart,
-  valueProvider,
 } from '@nestling/container';
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { defineFail, makeEndpoint, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 /** Конвертер-фикстура: те же десять строк, что показывает гайд */
 const zodConverter = (): SchemaDocConverter => ({
@@ -70,8 +69,8 @@ describe('App.check() — фазы 0–1', () => {
 
     const transport = new MockTransport();
     const report = await assemble({
-      modules: [
-        makeAppModule({ name: 'module:resource', providers: [Connection] }),
+      features: [
+        makeFeature({ name: 'module:resource', providers: [Connection] }),
       ],
       transports: [asHttpTransport(transport)],
     }).check();
@@ -90,7 +89,7 @@ describe('App.check() — фазы 0–1', () => {
     });
 
     const spec = {
-      modules: [makeAppModule({ name: 'module:cli', endpoints: [Orphan] })],
+      features: [makeFeature({ name: 'module:cli', endpoints: [Orphan] })],
       transports: [asHttpTransport(new MockTransport())],
     };
 
@@ -105,24 +104,17 @@ describe('App.check() — фазы 0–1', () => {
   it("называет выбранные фичи и обнаруженные endpoint'ы с транспортами", async () => {
     const Logging = makeFeature({
       name: 'logging',
-      modules: [makeAppModule({ name: 'module:logging' })],
     });
 
     const Users = makeFeature({
       name: 'users',
-      modules: [
-        makeAppModule({
-          name: 'module:users',
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/users',
-              handle: async () => new Ok({}),
-            }),
-          ],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/users',
+          handle: async () => new Ok({}),
         }),
       ],
-      dependsOn: [Logging],
     });
 
     const report = await assemble({
@@ -131,9 +123,11 @@ describe('App.check() — фазы 0–1', () => {
       transports: [asHttpTransport(new MockTransport())],
     }).check();
 
-    expect(report.features).toEqual(['users', 'logging']);
+    // Выбор строгий: `logging` не подтягивается ничем — поля `dependsOn`
+    // у фичи нет
+    expect(report.features).toEqual(['users']);
     expect(report.endpoints).toEqual([
-      { pattern: 'GET /users', transport: 'http', module: 'module:users' },
+      { pattern: 'GET /users', transport: 'http', module: 'users' },
     ]);
   });
 
@@ -150,8 +144,8 @@ describe('App.check() — фазы 0–1', () => {
 
     const transport = new MockTransport();
     const app = assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:service',
           providers: [Service],
           endpoints: [
@@ -180,24 +174,22 @@ describe('App.check() — фазы 0–1', () => {
   });
 });
 
-describe('App.check() — опубликованные контракты в отчёте', () => {
-  const ChargeCard = makeContract({
+describe('App.check() — опубликованные операции в отчёте', () => {
+  const ChargeCard = makeRequest({
     name: 'check.billing.charge',
-    kind: 'request',
     input: z.object({ amount: z.number() }),
     output: z.object({ chargeId: z.string() }),
     errors: [CardDeclined],
   });
 
-  /** Контракт, который импортирован, но этой сборкой не реализуется */
-  const NeverImplemented = makeContract({
+  /** Операция, которая импортирована, но этой сборкой не реализуется */
+  const NeverImplemented = makeCommand({
     name: 'check.billing.refund',
-    kind: 'command',
     input: z.object({ chargeId: z.string() }),
   });
 
-  const billingModule = makeAppModule({
-    name: 'module:billing',
+  const billingModule = makeFeature({
+    name: 'billing',
     endpoints: [
       implement(ChargeCard, {
         handle: async () => new Ok({ chargeId: 'c-1' }),
@@ -207,7 +199,7 @@ describe('App.check() — опубликованные контракты в о�
 
   const assembleBilling = () =>
     assemble({
-      modules: [billingModule],
+      features: [billingModule],
       transports: [asHttpTransport(new MockTransport())],
     });
 
@@ -216,9 +208,9 @@ describe('App.check() — опубликованные контракты в о�
       converters: [zodConverter()],
     });
 
-    expect(report.contracts).toHaveLength(1);
+    expect(report.published).toHaveLength(1);
 
-    const [descriptor] = report.contracts;
+    const [descriptor] = report.published;
 
     expect(descriptor.name).toBe('check.billing.charge');
     expect(descriptor.kind).toBe('request');
@@ -235,28 +227,28 @@ describe('App.check() — опубликованные контракты в о�
   it('без конвертеров даёт ту же структурную часть и непрозрачные листья', async () => {
     const report = await assembleBilling().check();
 
-    const [descriptor] = report.contracts;
+    const [descriptor] = report.published;
 
     expect(descriptor.kind).toBe('request');
     expect(descriptor.errors).toHaveLength(1);
     expect(descriptor.input.leaf).toEqual({ leaf: 'opaque', vendor: 'zod' });
   });
 
-  it('импортированный, но не реализованный контракт в отчёт не попадает', async () => {
+  it('импортированная, но не реализованная операция в отчёт не попадает', async () => {
     const report = await assembleBilling().check();
 
     // Значение импортировано этим файлом и лежит в приватном реестре
     // пакета — но приложение его не публикует, и отчёт это знает
     expect(NeverImplemented.name).toBe('check.billing.refund');
-    expect(report.contracts.map(({ name }) => name)).toEqual([
+    expect(report.published.map(({ name }) => name)).toEqual([
       'check.billing.charge',
     ]);
   });
 
-  it('у приложения без контрактов поле пусто, а не отсутствует', async () => {
+  it('у приложения без операций поле пусто, а не отсутствует', async () => {
     const report = await assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:http-only',
           endpoints: [
             httpEndpoint({
@@ -270,19 +262,18 @@ describe('App.check() — опубликованные контракты в о�
       transports: [asHttpTransport(new MockTransport())],
     }).check();
 
-    expect(report.contracts).toEqual([]);
+    expect(report.published).toEqual([]);
   });
 
   it('событие с двумя подписчиками даёт один дескриптор', async () => {
-    const OrderPlaced = makeContract({
+    const OrderPlaced = makeEvent({
       name: 'check.orders.placed',
-      kind: 'event',
       input: z.object({ orderId: z.string() }),
     });
 
     const report = await assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:orders',
           endpoints: [
             implement(OrderPlaced, {
@@ -299,10 +290,10 @@ describe('App.check() — опубликованные контракты в о�
       transports: [asHttpTransport(new MockTransport())],
     }).check();
 
-    expect(report.contracts.map(({ name }) => name)).toEqual([
+    expect(report.published.map(({ name }) => name)).toEqual([
       'check.orders.placed',
     ]);
-    expect(report.contracts[0].kind).toBe('event');
+    expect(report.published[0].kind).toBe('event');
   });
 
   it('не выполняет @OnInit и не влияет на последующий run()', async () => {
@@ -312,7 +303,7 @@ describe('App.check() — опубликованные контракты в о�
     const second = await app.check({ converters: [zodConverter()] });
 
     // Отчёт — значение: два прогона на одном графе равны как значения
-    expect(second.contracts).toEqual(first.contracts);
+    expect(second.operations).toEqual(first.operations);
   });
 });
 
@@ -347,8 +338,8 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
 
     try {
       const wired = await wireApp({
-        modules: [
-          makeAppModule({
+        features: [
+          makeFeature({
             name: 'module:service',
             providers: [Service],
             endpoints: [Ping],
@@ -396,8 +387,8 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
     }
 
     const wired = await wireApp({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:data',
           providers: [PgPool, PgRepository],
         }),
@@ -423,9 +414,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
     }
 
     const wired = await wireApp({
-      modules: [
-        makeAppModule({ name: 'module:service', providers: [Service] }),
-      ],
+      features: [makeFeature({ name: 'module:service', providers: [Service] })],
     });
 
     wired.signal.addEventListener('abort', () => events.push('aborted'));

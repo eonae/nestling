@@ -1,20 +1,20 @@
 # @nestling/ports
 
-Реализация и вызов контрактов между фичами, in-process шина сообщений и
-отчёт о совместимости контрактов.
+Реализация и вызов операций между фичами, in-process шина сообщений и
+отчёт о совместимости операций.
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
-> [`docs/design/contracts.md`](../../docs/design/contracts.md).
+> [`docs/design/operations.md`](../../docs/design/operations.md).
 > Гайд: [`docs/guides/ports.md`](../../docs/guides/ports.md).
 
-Зависимости: `@nestling/container`, `@nestling/contracts`,
+Зависимости: `@nestling/container`, `@nestling/operations`,
 `@nestling/pipeline`, `@nestling/transport`, `@nestling/streams`,
 `@nestling/config`, `@common/misc`. Валидатор схем пакет не выбирает:
-лист контракта — любое значение
+лист операции — любое значение
 [Standard Schema v1](https://standardschema.dev).
 
-`makeContract` импортируется из [`@nestling/contracts`](../nestling.contracts),
-а не отсюда: объявление контракта живёт в пакете без серверных
+`makeRequest` / `makeCommand` / `makeEvent` импортируется из [`@nestling/operations`](../nestling.operations),
+а не отсюда: объявление операции живёт в пакете без серверных
 зависимостей, чтобы его можно было импортировать во фронтенд. Этот пакет
 реэкспортирует только типы вызывателей: `Port`, `Emitter`, `PortMeta`,
 `CommandMeta`.
@@ -22,25 +22,24 @@
 ## Установка
 
 ```bash
-npm install @nestling/ports @nestling/contracts
+npm install @nestling/ports @nestling/operations
 ```
 
 ## Минимальный пример
 
 ```typescript
-import { makeContract } from '@nestling/contracts';
+import { makeRequest } from '@nestling/operations';
 import { implement } from '@nestling/ports';
 
-// Контракт: имя, вид, схемы входа и выхода, список отказов
-export const ClaimQuota = makeContract({
+// Операция: имя, вид, схемы входа и выхода, список отказов
+export const ClaimQuota = makeRequest({
   name: 'quotas.claim',                    // адрес: subject шины и ключ discovery
-  kind: 'request',                         // 'request' | 'command' | 'event'
   input: z.object({ email: z.string() }),
   output: z.object({ remaining: z.number() }),
   errors: [QuotaExceeded],
 });
 
-// Реализация: endpoint, который обслуживает контракт
+// Реализация: endpoint, который обслуживает операция
 export const ClaimQuotaImpl = implement(ClaimQuota, {
   deps: [QuotaService],
   handle: (quotas) => async (payload) => {
@@ -52,7 +51,7 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
   },
 });
 
-export const QuotasModule = makeAppModule({
+export const QuotasModule = makeFeature({
   name: 'module:quotas',
   providers: [QuotaService],
   endpoints: [ClaimQuotaImpl],             // рядом с HTTP-endpoint'ами
@@ -61,7 +60,7 @@ export const QuotasModule = makeAppModule({
 // Вызов из другой фичи: порт инжектируется как обычная зависимость
 export const CreateUser = httpEndpoint({
   /* … */
-  deps: [ClaimQuota.port],
+  deps: [ClaimQuota.caller],
   handle: (quotas) => async (input) => {
     const claimed = await quotas.call({ email: input.email });
     if (claimed.isFail) {
@@ -74,15 +73,15 @@ export const CreateUser = httpEndpoint({
 
 ## Основные понятия
 
-### Контракт
+### Операция
 
-Контракт — значение. Он ничего не регистрирует ни в модуле, ни в
-приложении. В приложение он попадает двумя путями: кто-то его реализует
+Операция — значение. Она ничего не регистрирует ни в модуле, ни в
+приложении. В приложение она попадает двумя путями: кто-то её реализует
 через `implement`, кто-то инжектирует его вызыватель.
 
 | Вид | Семантика | Владельцев | Вызыватель |
 |---|---|---|---|
-| `request` | запрос-ответ, может вернуть `Fail` | ровно один | `.port` → `call(input, meta?)` |
+| `request` | запрос-ответ, может вернуть `Fail` | ровно один | `.caller` → `call(input, meta?)` |
 | `command` | без ответа | ровно один | `.emitter` → `emit(payload, meta?)` |
 | `event` | факт для подписчиков | 0..N подписчиков | `.emitter` → `emit(payload, meta?)` |
 
@@ -90,21 +89,21 @@ export const CreateUser = httpEndpoint({
 отвергается при объявлении. Как именно доставка становится долговечной,
 решает транспорт ([`@nestling/transport.nats`](../nestling.transport.nats)).
 Шина без этой возможности всё равно стартует и один раз печатает список
-контрактов, которые обслуживает без персистентности.
+операций, которые обслуживает без персистентности.
 
-Версия входит в имя контракта (`users.create.v2`); отдельного поля версии
-нет. Два контракта с одним именем — ошибка при объявлении.
+Версия входит в имя операции (`users.create.v2`); отдельного поля версии
+нет. Два операции с одним именем — ошибка при объявлении.
 
 ### Реализация
 
-`implement(Contract, { deps?, handle, subscriber?, pipeline?, … })` строит
+`implement(Operation, { deps?, handle, subscriber?, pipeline?, … })` строит
 декларацию endpoint'а на том же примитиве, что `httpEndpoint` и
 `cliEndpoint`. Поэтому реализация получает всё, что есть у обычного
 endpoint'а: discovery по дереву модулей, `dispatch`, пайплайн и проверку
 отказов на выходе, `policies` и `detached`, отчёт `check()` и вызов
 `app.call(ClaimQuotaImpl, payload)` в тестах.
 
-Поля `input`, `output` и `errors` берутся из контракта. Попытка объявить
+Поля `input`, `output` и `errors` берутся из операции. Попытка объявить
 их в реализации — ошибка компиляции.
 
 Реализация события обязана назвать себя полем `subscriber:`. Это адрес
@@ -114,9 +113,9 @@ endpoint'а: discovery по дереву модулей, `dispatch`, пайпл�
 
 ### Вызов
 
-`.port` и `.emitter` — обычные токены (члены семейств токенов). Их можно
+`.caller` и `.emitter` — обычные токены (члены семейств токенов). Их можно
 использовать везде, где принимается токен. В composition root ничего
-регистрировать не нужно: узел вызывателя создаётся только для контрактов,
+регистрировать не нужно: узел вызывателя создаётся только для операций,
 которые кто-то инжектирует.
 
 - `call(input, meta?)` возвращает `Promise<Ok<Output> | Fail<E ∪ UnknownError>>`.
@@ -159,7 +158,7 @@ await ship.emit({ orderId }, { idempotencyKey: orderId });
 процессами на бюджет не влияет. Поведение одинаково при `local-first` и
 `always-remote`.
 
-`idempotencyKey` есть только в `meta` контрактов вида `command`; у
+`idempotencyKey` есть только в `meta` операций вида `command`; у
 `request` и `event` это ошибка компиляции. `emit` команды всегда уходит с
 ключом: либо переданным вызывающим, либо сгенерированным вызывателем. Ядро
 гарантирует две вещи: ключ доходит до получателя и виден хендлеру.
@@ -178,7 +177,7 @@ await ship.emit({ orderId }, { idempotencyKey: orderId });
 `signal`.
 
 ```typescript
-deps: [Ctx(Deadline), ChargeCard.port],
+deps: [Ctx(Deadline), ChargeCard.caller],
 handle: (deadline, charge) => async (input) =>
   charge.call(input, { deadline: deadline.peek() }),
 ```
@@ -188,7 +187,7 @@ handle: (deadline, charge) => async (input) =>
 | Политика | Поведение |
 |---|---|
 | `local-first` (по умолчанию) | реализация в том же процессе вызывается через `dispatch` шины: полный пайплайн, без копирования payload |
-| `always-remote` | тот же вызов идёт через шину: асинхронный барьер, структурная копия payload и ответа, ответ проверяется схемой `output` контракта |
+| `always-remote` | тот же вызов идёт через шину: асинхронный барьер, структурная копия payload и ответа, ответ проверяется схемой `output` операции |
 
 ```bash
 NESTLING_PORTS_DISPATCH=always-remote node dist/main.js
@@ -213,7 +212,7 @@ NESTLING_PORTS_DISPATCH=always-remote node dist/main.js
 - второй владелец `request`/`command` (в ошибке названы оба модуля);
 - два подписчика события с одним именем;
 - отсутствующий или запрещённый `subscriber`;
-- контракт с формами io `stream` или `events` (шина передаёт только `value`).
+- операция с формами io `stream` или `events` (шина передаёт только `value`).
 
 Событие без подписчиков разрешено.
 
@@ -245,48 +244,48 @@ broadcast построен на `Topic` из `@nestling/streams`, поэтому
 
 Composition root про шину может ничего не знать: модуль ядра портов
 регистрирует `InProcessBus`, когда в приложении есть хотя бы одна
-реализация контракта. Корень может передать шину сам, так подключается
+реализация операции. Корень может передать шину сам, так подключается
 брокер: `nats()` в `transports:` (см.
 [`@nestling/transport.nats`](../nestling.transport.nats/README.md)). Тогда
 модуль ядра свою шину не регистрирует. В приложении ровно одна шина, и
 `BusTransport$` с `MessageBus$` указывают на один и тот же экземпляр.
 
-### Совместимость контрактов
+### Совместимость операций
 
-Версия контракта живёт в имени (`user.create.v2`). `makeContract` суффикс
+Версия операции живёт в имени (`user.create.v2`). `makeRequest` / `makeCommand` / `makeEvent` суффикс
 `.vN` не требует и не разбирает; имя без версии допустимо.
 
-Форму контракта «как было вчера» хранит снапшот — обычное значение,
+Форму операции «как было вчера» хранит снапшот — обычное значение,
 которое вы сохраняете, где удобно:
 
 ```typescript
 import { checkTopologies } from '@nestling/testing';
 
-const descriptor = describeContract(ClaimQuota, { converters: [zodConverter()] });
+const descriptor = describeOperation(ClaimQuota, { converters: [zodConverter()] });
 // { name, kind, input: { kind, leaf }, output: { … }, errors: [{ code, status }] }
 
-const snapshot = snapshotContracts(await checkTopologies(spec, ['all', 'users'], {
+const snapshot = snapshotOperations(await checkTopologies(spec, ['all', 'users'], {
   converters: [zodConverter()],
 }));
 
-const report = diffContracts(readBaseline(), snapshot);
+const report = diffOperations(readBaseline(), snapshot);
 console.log(formatCompatibility(report));
 ```
 
-- `describeContract(source, { converters? })` превращает контракт или его
+- `describeOperation(source, { converters? })` превращает операцию или её
   `implement`-декларацию в JSON-значение. Листовые схемы проходят через
   конвертер вендора (`SchemaDocConverter`, тот же тип, что у
   [`@nestling/openapi`](../nestling.openapi)). Без конвертера лист помечается
   непрозрачным; «листа нет» и «лист не удалось преобразовать» — разные
   пометки. Лист с аннотацией `jsonSchema(schema, json)` описывается по
   аннотации независимо от наличия конвертера.
-- `snapshotContracts(reports)` объединяет отчёты матрицы топологий
-  `select`. Контракт, которого нет в одной из топологий, считается
-  невыбранной фичей, а не удалённым контрактом; каждый дескриптор
+- `snapshotOperations(reports)` объединяет отчёты матрицы топологий
+  `select`. Операция, которого нет в одной из топологий, считается
+  невыбранной фичей, а не удалённым операцией; каждый дескриптор
   перечисляет топологии, которые его опубликовали. `serializeSnapshot`
-  даёт побайтно детерминированный вывод: контракты по имени, отказы по
+  даёт побайтно детерминированный вывод: операции по имени, отказы по
   коду, ключи JSON Schema отсортированы.
-- `diffContracts(baseline, current)` присваивает каждому расхождению один
+- `diffOperations(baseline, current)` присваивает каждому расхождению один
   вердикт: `breaking`, `additive` или `unknown`. Направление зависит от
   слота: во `input` новое обязательное свойство, удалённое свойство и
   сужение — `breaking`; в `output` удалённое свойство и переход
@@ -294,11 +293,11 @@ console.log(formatCompatibility(report));
   (незнакомые ключевые слова JSON Schema, `oneOf`/`allOf`/`$ref`, смена
   вендора, непрозрачный лист), получает вердикт `unknown` с JSON-путём.
 - Отчёт — значение. `formatCompatibility` печатает его для человека;
-  контракт хотя бы с одним `breaking` получает предложенное имя
+  операция хотя бы с одним `breaking` получает предложенное имя
   (`suggestBump`: `quotas.claim` становится `quotas.claim.v2`). Ничего не
   переименовывается.
 
-`diffContracts` — чистая функция двух значений. Она не участвует в сборке,
+`diffOperations` — чистая функция двух значений. Она не участвует в сборке,
 не вызывается из `run()` и `check()` и не бросает исключений из-за
 результата сравнения. Чтобы отчёт ронял тест, напишите
 `expect(report.breaking).toEqual([])`. Единственное исключение функция
@@ -308,7 +307,7 @@ console.log(formatCompatibility(report));
 
 | Экспорт | Что это |
 |---|---|
-| `implement(contract, declaration)` | декларация реализации контракта |
+| `implement(operation, declaration)` | декларация реализации операции |
 | `deadlineIn(ms)`, `deadlineFromTimeout(ms?)`, `isExhausted(deadline?)` | работа с моментом `deadline` |
 | `Deadline`, `IdempotencyKey`, `withDeadline()`, `withIdempotencyKey()` | переменные контекста параметров вызова и `.pre`-юниты, которые их заполняют |
 | `profileAttributes`, `startBudget`, `CallBudget`, `failureResponse` | инструменты автора реализации шины |
@@ -316,18 +315,18 @@ console.log(formatCompatibility(report));
 | `IMessageBus`, `MessageBus$`, `InProcessBus`, `InProcessBusOptions` | интерфейс шины, её токен и реализация в процессе |
 | `RequestOptions`, `PublishOptions`, `SubscribeOptions`, `BusHandler`, `BusMessageMeta`, `BusSubscription` | типы операций шины |
 | `BusTransport$`, `BUS_TRANSPORT_NAME`, `busBindingOf`, `BusBinding` | токен транспорта шины и привязка декларации к шине |
-| `portsKernel`, `bindPorts`, `undurableContracts`, `collectImplementations` | точки, которыми пользуется composition root |
+| `portsKernel`, `bindPorts`, `undurableOperations`, `collectImplementations` | точки, которыми пользуется composition root |
 | `portsConfigKeys`, `DispatchPolicy`, `PortsConfig` | ключи секции конфига `nestlingPorts` |
-| `describeContract`, `canonicalizeJson`, `ContractDescriptor` | описание контракта JSON-значением |
-| `snapshotContracts`, `serializeSnapshot`, `SNAPSHOT_VERSION`, `ContractSnapshot` | снапшот контрактов |
-| `diffContracts`, `formatCompatibility`, `suggestBump`, `CompatibilityReport` | сравнение снапшотов |
-| `Port`, `Emitter`, `PortMeta`, `CommandMeta`, `PortResult`, … | типы вызывателей (реэкспорт из `@nestling/contracts`) |
+| `describeOperation`, `canonicalizeJson`, `OperationDescriptor` | описание операции JSON-значением |
+| `snapshotOperations`, `serializeSnapshot`, `SNAPSHOT_VERSION`, `OperationSnapshot` | снапшот операций |
+| `diffOperations`, `formatCompatibility`, `suggestBump`, `CompatibilityReport` | сравнение снапшотов |
+| `Port`, `Emitter`, `PortMeta`, `CommandMeta`, `PortResult`, … | типы вызывателей (реэкспорт из `@nestling/operations`) |
 
 `InProcessBusOptions`: `buffer` (размер буфера на подписчика),
 `onDeliveryFailure` (хук отказа доставки), `onUnknownFail` (хук
 незадекларированной ошибки).
 
-Не экспортируются: реестр контрактов, семейства `Port`/`Emitter` и их
+Не экспортируются: реестр операций, семейства `Port`/`Emitter` и их
 рецепты, держатель исполнителей и его токен, токен секции конфига. Это
 сторона ядра; граница держится видимостью ES-модулей.
 

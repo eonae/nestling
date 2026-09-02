@@ -8,12 +8,17 @@
  */
 
 import { wireApp } from './testing/index.js';
+import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeModule, valueProvider } from '@nestling/container';
+import { Injectable, makeToken } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, RequestId } from '@nestling/pipeline';
+import { transportValue } from '@nestling/transport';
+
+/** Токен транспорта-заглушки: приёма запросов в тестовом прогоне нет */
+const MockTransport$ = makeToken<MockTransport>('transport:mock');
 
 /** Куда приземляются ридеры: контейнер App не публичен */
 const injected: CtxReader<string>[] = [];
@@ -25,7 +30,7 @@ class DeepService {
   }
 }
 
-const DeepModule = makeModule({
+const DeepModule = makeFeature({
   name: 'module:deep',
   providers: [DeepService],
 });
@@ -37,8 +42,8 @@ beforeEach(() => {
 describe('contextKernel в корне', () => {
   it('класс с Ctx(RequestId) собирается без единого упоминания контекста', async () => {
     const wired = await wireApp({
-      modules: [DeepModule],
-      transports: [valueProvider(MockTransport, new MockTransport())],
+      features: [DeepModule],
+      transports: [transportValue(MockTransport$, new MockTransport())],
     });
 
     const service = wired.container.getOrThrow(DeepService);
@@ -50,7 +55,7 @@ describe('contextKernel в корне', () => {
 
   it('без читателей в графе нет ни одного узла семейства Ctx', async () => {
     const wired = await wireApp({
-      transports: [valueProvider(MockTransport, new MockTransport())],
+      transports: [transportValue(MockTransport$, new MockTransport())],
     });
 
     const { nodes } = await wired.container.toJSON();
@@ -62,8 +67,8 @@ describe('contextKernel в корне', () => {
 
   it('узел ридера присутствует в сериализации графа', async () => {
     const wired = await wireApp({
-      modules: [DeepModule],
-      transports: [valueProvider(MockTransport, new MockTransport())],
+      features: [DeepModule],
+      transports: [transportValue(MockTransport$, new MockTransport())],
     });
 
     const { nodes } = await wired.container.toJSON();
@@ -84,8 +89,8 @@ describe('contextKernel в корне', () => {
     };
 
     const wired = await wireApp({
-      modules: [DeepModule],
-      transports: [valueProvider(MockTransport, new MockTransport())],
+      features: [DeepModule],
+      transports: [transportValue(MockTransport$, new MockTransport())],
       overrides: [[Ctx(RequestId), fake]],
     });
 

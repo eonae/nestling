@@ -1,6 +1,6 @@
 # Семейства токенов в DI
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-09-01).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-09-02).
 
 Семейство токенов — один рецепт для многих зависимостей, которые
 различаются параметром: логгер на каждый скоуп, HTTP-клиент на каждый
@@ -36,14 +36,15 @@ export const ILogger = makeTokenFamily<ILogger, [scope: string]>('Logger');
 Провайдер регистрируется не для каждого члена, а для семейства целиком:
 
 ```typescript
-// packages/examples.simple-app/src/logging/logging.module.ts
-import { factoryProvider, familyProvider, makeModule } from '@nestling/container';
+// packages/examples.simple-app/src/logging/logging.plugin.ts
+import { makePlugin } from '@nestling/app';
+import { factoryProvider, familyProvider } from '@nestling/container';
 
 import { AppConfig } from '../config/app.config';
 import { ILogger } from './registry';
 
-export const LoggingModule = makeModule({
-  name: 'module:logging',
+export const appLogging = makePlugin({
+  name: 'app-logging',
   providers: [
     familyProvider(ILogger, (scope) =>
       factoryProvider(
@@ -161,7 +162,7 @@ export const DatabaseModule = makeModule({
 первый модуль править не пришлось.
 
 Агрегатор зависит от `IHealthCheck.all` — токена с типом
-`TokenString<readonly IHealthCheck[]>`:
+`Token<readonly IHealthCheck[]>`:
 
 ```typescript
 // packages/examples.simple-app/src/health/health.service.ts
@@ -207,7 +208,7 @@ export class HealthService {
 - Порядок элементов — порядок регистрации: сначала модули и провайдеры в
   порядке регистрации, затем члены, добавленные рецептами. Порядок
   детерминирован, но больше ничего не обещано. Если порядок важен
-  (цепочка обработчиков), не опирайтесь на порядок `imports`.
+  (цепочка обработчиков), не опирайтесь на порядок `dependsOn`.
 - Массив `readonly` и заморожен: это снимок сборки, общий для всех
   потребителей `.all`. Мутация одним потребителем была бы видна остальным.
 - Агрегат не принадлежит модулю (`metadata.module === undefined`). Его

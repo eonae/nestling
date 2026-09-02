@@ -14,7 +14,7 @@ import {
   ListSubscriptions,
   WatchSubscriptions,
 } from './modules/ops/subscriptions.endpoint';
-import { ClaimQuotaImpl } from './modules/quotas/quotas.module';
+import { ClaimQuotaImpl } from './modules/quotas/quotas.feature';
 import { ActivityHub } from './modules/users/activity.hub';
 import {
   ActivityStream,
@@ -23,9 +23,9 @@ import {
   GetUser,
   ListUsers,
 } from './modules/users/endpoints';
-import { ClaimQuota, QuotaExceeded } from './contracts';
 import { OpsFeature, QuotasFeature, UsersFeature } from './features';
-import { appLogging } from './infrastructure';
+import { appLogging, appSubscriptions } from './infrastructure';
+import { ClaimQuota, QuotaExceeded } from './operations';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
 import { describe, expect, it } from '@jest/globals';
@@ -50,14 +50,18 @@ import { http, HttpTransport$ } from '@nestling/transport.http';
  */
 const spec = {
   features: [UsersFeature, OpsFeature, QuotasFeature],
+  plugins: [appLogging, appSubscriptions],
   transports: [http({ port: 0 })],
   // Политики те же, что в `main.ts`: тестовая сборка их не ослабляет
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+    everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,
       'observability',
     ),
-    everyEndpoint({ transport: HttpTransport$ }).hasVar(RequestId, 'requestId'),
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
+      RequestId,
+      'requestId',
+    ),
   ],
 };
 
@@ -116,7 +120,7 @@ describe('пример: app-тесты через assembleTest', () => {
     // узел `UsersStore` никому не нужен: контейнер его не создаёт, и
     // соединение не открывается
     expect(app.pruned).toContain('UsersStore');
-    expect(app.get(HttpTransport$)).not.toBeNull();
+    expect(app.get(HttpTransport$('default'))).not.toBeNull();
   });
 
   it('без overrides собирает граф без выпавших узлов', async () => {
@@ -194,20 +198,23 @@ describe('пример: фича подключает свою инфрастр�
     expect(app.get(ILogger)).not.toBeNull();
     expect(app.get(SubscriptionRegistry)).not.toBeNull();
     expect(app.get(ActivityHub)).toBeNull();
-    expect(app.get(HttpTransport$)).not.toBeNull();
+    expect(app.get(HttpTransport$('default'))).not.toBeNull();
   });
 
   it('подключает инфраструктуру выбранной фичи', async () => {
-    await using app = await assembleTest({ ...spec, select: 'users' });
+    await using app = await assembleTest({
+      ...spec,
+      select: { features: 'users', includeDeps: true },
+    });
 
     expect(app.get(ILogger)).not.toBeNull();
     expect(app.get(ActivityHub)).not.toBeNull();
   });
 
   it('фичи в одном процессе делят инстанс общего модуля', async () => {
-    // Обе фичи импортируют одно и то же значение `appLogging`: модуль
-    // регистрируется один раз, и логгер у них общий. Если бы одна из них
-    // вызвала `logging({ … })` заново, сборка упала бы на коллизии имён
+    // Логирование — плагин: он подключён всегда и один на процесс, поэтому
+    // логгер у фич общий. Второй вызов `logging({ … })` дал бы второе
+    // значение под тем же именем, и сборка упала бы на коллизии имён
     await using app = await assembleTest(spec);
 
     const logger = app.get(ILogger);
@@ -227,7 +234,7 @@ const createUser = (
     email: `user-${suffix}@example.com`,
   });
 
-describe('пример: фичи вызывают друг друга через контракты', () => {
+describe('пример: фичи вызывают друг друга через операции', () => {
   it.each<['local-first' | 'always-remote']>([
     ['local-first'],
     ['always-remote'],
@@ -268,7 +275,7 @@ describe('пример: фичи вызывают друг друга через
     });
   });
 
-  it('вызывает реализацию контракта так же, как endpoint', async () => {
+  it('вызывает реализацию операции так же, как endpoint', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -291,7 +298,7 @@ describe('пример: meta вызова через порт', () => {
 
     // Порт — обычный узел графа: в тесте его достают тем же `app.get`,
     // что транспорт или логгер
-    const quotas = app.get(ClaimQuota.port);
+    const quotas = app.get(ClaimQuota.caller);
 
     const refused = await quotas?.call(
       { email: 'late@example.com' },
@@ -339,18 +346,19 @@ describe('пример: meta вызова через порт', () => {
 
 describe('пример: матрица select-топологий', () => {
   it('собирает каждый вариант деплоя без сокетов', async () => {
-    const reports = await checkTopologies(spec, ['all', 'users', 'ops']);
+    const usersWithDeps = { features: 'users', includeDeps: true } as const;
+    const reports = await checkTopologies(spec, ['all', usersWithDeps, 'ops']);
 
     expect(reports.map(({ select }) => select)).toEqual([
       'all',
-      'users',
+      usersWithDeps,
       'ops',
     ]);
 
-    // `users` подключает `ops` и `quotas` через `dependsOn`. Сам `ops`
-    // объявляет служебные endpoint'ы: liveness-пробу, администрирование
-    // подписок и двух подписчиков на факты в шине
-    expect(reports[1].report.features).toEqual(['users', 'ops', 'quotas']);
+    // `users` зовёт `quotas.claim`, поэтому замыкание по операциям тянет
+    // фичу квот. `ops` не тянется: её endpoint'ы служебные, и вызовов из
+    // `users` в неё нет
+    expect(reports[1].report.features).toEqual(['users', 'quotas']);
     expect(
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
     ).toEqual([
@@ -404,8 +412,8 @@ describe('пример: документ OpenAPI', () => {
   /** Описание сборки из `main.ts` плюс модуль документации */
   const documented = {
     ...spec,
-    modules: [
-      appLogging,
+    plugins: [
+      ...spec.plugins,
       openapi({
         info: { title: 'Users API', version: '1.0.0' },
         converters: [zodConverter()],
@@ -443,7 +451,7 @@ describe('пример: документ OpenAPI', () => {
     expect(paths['/openapi.json']).toBeUndefined();
   });
 
-  it('берёт имя операции и документацию с контракта', async () => {
+  it('берёт имя операции и документацию с операции', async () => {
     await using app = await assembleTest({
       ...documented,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -457,7 +465,7 @@ describe('пример: документ OpenAPI', () => {
       tags: ['users'],
     });
 
-    // Bind-карта контракта учтена: `dryRun` описан как query-параметр,
+    // Bind-карта операции учтена: `dryRun` описан как query-параметр,
     // а не как поле тела
     expect(
       paths['/api/users'].post.parameters?.map(({ name, in: where }) => [

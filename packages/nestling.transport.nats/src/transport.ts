@@ -32,10 +32,7 @@ import type { NatsCodec, WireEnvelope } from './wire.js';
 import { decodeEnvelope, encodeEnvelope, jsonCodec } from './wire.js';
 
 import type { ConfigProjection } from '@nestling/config';
-import type {
-  FactoryProviderWithDeps,
-  InjectionToken,
-} from '@nestling/container';
+import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, OnInit } from '@nestling/container';
 import type {
   EndpointMeta,
@@ -71,9 +68,14 @@ import {
   startBudget,
 } from '@nestling/ports';
 import type {
+  BusDeclaration,
   Dispatch,
   ITransport,
   RouteDeclaration,
+} from '@nestling/transport';
+import {
+  DEFAULT_INSTANCE,
+  makeTransportDeclaration,
 } from '@nestling/transport';
 
 /** Проекция конфиг-секции транспорта — то, что инжектится в фабрику */
@@ -161,7 +163,7 @@ export interface NatsTransportOptions {
  *
  * Регистрируется фабрикой {@link nats} под токеном `BusTransport$` — тем
  * же, которым пользуется in-proc шина. Ни одна декларация `implement(...)`,
- * ни один контракт и ни один call-site при подключении не меняются: это и
+ * ни одна операция и ни один call-site при подключении не меняются: это и
  * есть уровень L4.
  */
 export class NatsBus implements IMessageBus, ITransport {
@@ -331,7 +333,7 @@ export class NatsBus implements IMessageBus, ITransport {
   /**
    * Fire-and-forget.
    *
-   * Не-durable контракт публикуется core-глаголом и резолвится по факту
+   * Не-durable операция публикуется core-глаголом и резолвится по факту
    * постановки; durable — через поток и резолвится по факту **сохранения**.
    */
   async publish(
@@ -567,7 +569,7 @@ export class NatsBus implements IMessageBus, ITransport {
         throw new Error(
           `NATS stream '${name}' already exists but does not cover subject ` +
             `'${address}': it covers ${existing.subjects.join(', ')}. Rename ` +
-            `the contract or fix the stream — the transport will not rewrite ` +
+            `the operation or fix the stream — the transport will not rewrite ` +
             `a stream it did not define.`,
         );
       }
@@ -721,7 +723,7 @@ export class NatsBus implements IMessageBus, ITransport {
     });
   }
 
-  /** Адрес на брокере: имя контракта с префиксом окружения */
+  /** Адрес на брокере: имя операции с префиксом окружения */
   #subjectOf(subject: string): string {
     return `${this.#options.subjectPrefix ?? ''}${subject}`;
   }
@@ -758,11 +760,12 @@ export class NatsBus implements IMessageBus, ITransport {
 }
 
 /**
- * Транспорт-провайдер шины на NATS.
+ * Объявляет экземпляр транспорта-шины на NATS.
  *
  * Перечисляется в `transports:` словаря `assemble` — как `http()` и
- * `cli()`. Поля `bus:` или иной новой оси в корне не появляется: шина это
- * транспорт, и её место там же, где место остальных.
+ * `cli()`. Отдельной оси в корне не появляется: шина это транспорт, и её
+ * место там же, где место остальных. Переносчиком операций она становится,
+ * когда корень назначит её в `intercom:` — по имени экземпляра.
  *
  * @param options - Явные опции; сильнее конфига, как у HTTP-транспорта
  *
@@ -771,23 +774,32 @@ export class NatsBus implements IMessageBus, ITransport {
  * await assemble({
  *   features: [OrdersFeature, BillingFeature],
  *   select: load(RootConfig).features,
- *   transports: [http(), nats()],
+ *   transports: [http(), nats({ name: 'events' })],
+ *   intercom: 'events',
  *   config: [[dotenv('.env'), natsConfigKeys]],
  * }).run();
  * ```
  */
-export const nats = (
-  options: NatsTransportOptions = {},
-): FactoryProviderWithDeps<ITransport, [InjectionToken<NatsConfigValues>]> =>
-  factoryProvider(
-    BusTransport$,
-    (config: NatsConfigValues) =>
-      new NatsBus({
-        servers: config.servers,
-        requestTimeout: config.requestTimeout,
-        subjectPrefix: config.subjectPrefix,
-        // Явные опции сильнее конфига: спред идёт последним
-        ...options,
-      }),
-    [NatsConfig as unknown as InjectionToken<NatsConfigValues>],
-  );
+export const nats = <const Name extends string = typeof DEFAULT_INSTANCE>(
+  options: NatsTransportOptions & { readonly name?: Name } = {},
+): BusDeclaration<Name> => {
+  const { name = DEFAULT_INSTANCE as Name, ...transportOptions } = options;
+
+  return makeTransportDeclaration({
+    name,
+    bus: true,
+    token: BusTransport$,
+    provider: factoryProvider(
+      BusTransport$,
+      (config: NatsConfigValues) =>
+        new NatsBus({
+          servers: config.servers,
+          requestTimeout: config.requestTimeout,
+          subjectPrefix: config.subjectPrefix,
+          // Явные опции сильнее конфига: спред идёт последним
+          ...transportOptions,
+        }),
+      [NatsConfig as unknown as InjectionToken<NatsConfigValues>],
+    ),
+  });
+};

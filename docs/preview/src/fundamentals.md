@@ -40,24 +40,24 @@ Nestling использует декораторы из спецификации
 
 ## Multi-injection {#multi}
 
-Частая задача: разные модули независимо добавляют реализации одного контракта (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это `multi: true`, в Nest такой набор собирают вручную.
+Частая задача: разные модули независимо добавляют реализации одной операции (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это `multi: true`, в Nest такой набор собирают вручную.
 
 В Nestling это ещё одно применение семейств токенов, и правило «один токен — один узел» сохраняется. Каждый вклад — обычный провайдер с членским токеном семейства. Агрегат — специальный токен `Family.all`, который на `build()` превращается в массив всех зарегистрированных членов:
 
-```ts health/contract.ts
+```ts health/operation.ts
 export const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>('HealthCheck');
 ```
 
 ```ts db.module.ts / redis.module.ts — вклады из разных модулей
 // каждый модуль регистрирует свой вклад как ОБЫЧНЫЙ провайдер
-export const DbModule = makeAppModule({
+export const DbModule = makeFeature({
   name: 'module:db',
   providers: [classProvider(IHealthCheck('db'), DbHealthCheck)],
 });
 ```
 
 ```ts health.endpoint.ts — агрегатор
-@Injectable([IHealthCheck.all])   // TokenString<HealthCheck[]>
+@Injectable([IHealthCheck.all])   // Token<readonly HealthCheck[]>
 export class HealthEndpoint {
   constructor(private checks: HealthCheck[]) {}
 
@@ -146,11 +146,11 @@ export class OrdersService {
 
 ```ts main.ts
 // только env — писать ничего не нужно
-await assemble({ modules: [OrdersModule], transports: [http()] }).run();
+await assemble({ features: [OrdersFeature], transports: [http()] }).run();
 
 // добавили Vault и файл — привязка в корне, порядок задаёт приоритет
 await assemble({
-  modules: [OrdersModule],
+  features: [OrdersFeature],
   transports: [http()],
   config: [
     [vault(), [ordersKeys]],               // привязка по ключам, не по токенам
@@ -302,13 +302,13 @@ input: stream(LogChunk)
 
 ## Схемы и OpenAPI {#schemas}
 
-Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция конфига, payload контракта. Nestling не привязан к конкретному валидатору: ядро принимает [Standard Schema](https://standardschema.dev) — общий интерфейс, который вместе спроектировали авторы Zod, Valibot и ArkType. Любая схема со свойством `~standard` работает сразу: Zod (v4, включая `zod/mini`), Valibot, ArkType, Effect Schema.
+Всё, что пересекает границу приложения, объявлено схемой: вход и выход endpoint'а, секция конфига, payload операции. Nestling не привязан к конкретному валидатору: ядро принимает [Standard Schema](https://standardschema.dev) — общий интерфейс, который вместе спроектировали авторы Zod, Valibot и ArkType. Любая схема со свойством `~standard` работает сразу: Zod (v4, включая `zod/mini`), Valibot, ArkType, Effect Schema.
 
 ```ts orders.schema.ts
 // Zod — привычный вариант…
 export const NewOrder = z.object({ items: z.array(OrderItem).min(1) });
 
-// …но контракт тот же на Valibot или ArkType — валидатор выбираете вы:
+// …но операция тот же на Valibot или ArkType — валидатор выбираете вы:
 export const NewOrder = v.object({ items: v.pipe(v.array(OrderItem), v.minLength(1)) });
 export const NewOrder = type({ items: OrderItem.array().atLeastLength(1) });
 ```
@@ -324,8 +324,8 @@ import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
 await assemble({
-  modules: [
-    OrdersModule,
+  features: [OrdersFeature],
+  plugins: [
     openapi({
       info: { title: 'Orders API', version: '1.0.0' },
       converters: [zodConverter()],   // схемы каких вендоров документируем
@@ -339,7 +339,7 @@ await assemble({
 
 - **Несколько валидаторов в одном приложении** допустимы: сторонний модуль может быть написан на Valibot, а ваш код — на Zod. Схема сама сообщает вендора, `converters` — список.
 - **Обход конвертера:** аннотация `jsonSchema(schema, json)` задаёт JSON Schema вручную — для экзотического валидатора или доводки.
-- **Ошибки — тоже контракт:** `errors: [EmailTaken]` из декларации превращается в `responses`, а неявный `UnknownError` — в ответ `default`.
+- **Ошибки — тоже операция:** `errors: [EmailTaken]` из декларации превращается в `responses`, а неявный `UnknownError` — в ответ `default`.
 - **Стриминг:** для `stream` и `events` тот же механизм строит AsyncAPI.
 
 :::note Почему не универсальный генератор
@@ -387,13 +387,13 @@ expect(res.isFail).toBe(false);
 | Что подменяется | Инструмент |
 | --- | --- |
 | Конфиг (и перезагрузка) | `vars({...})` — объектный источник с `watch` и `set()`: проверяется и горячая перезагрузка (последнее рабочее значение, `onChange`). `process.env` не трогается, поэтому тесты выполняются параллельно. |
-| Чужая фича | `stub(Contract, impl)` — фейковый порт, ответы которого проверяются схемой контракта при каждом вызове. |
+| Чужая фича | `stub(Operation, impl)` — фейковый порт, ответы которого проверяются схемой операции при каждом вызове. |
 | Сквозная инфраструктура | `familyOverride(ILogger, () => noop)` — подмена рецепта всего семейства. |
 | Контекст запроса | `valueProvider(Ctx(RequestId), 'test-id')` — `AsyncLocalStorage` в тесте не нужен. |
 | Транспорт | не подменяется: вместо HTTP-клиента используется `app.call` внутри процесса. |
 
 :::note good Стаб не может разойтись с реальностью
-`stub(Contract, ...)` проверяется схемой контракта на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.
+`stub(Operation, ...)` проверяется схемой операции на каждом вызове. Фейк, который перестал соответствовать реальному сервису, падает сразу, а не даёт зелёный тест при красном проде. Класс ошибок, который порождают jest-моки, исчезает по построению.
 :::
 
 ### `.check()`: вся топология одним тестом
@@ -411,7 +411,7 @@ for (const select of ['all', 'orders', 'billing'] as const) {
 
 ### Модуль в изоляции и тестовая поверхность модуля
 
-`testModule(OrdersModule, { stubs })` — мини-приложение вокруг одного модуля: неудовлетворённые импорты нужно застабать явно, ошибка перечисляет недостающие токены. `testModule` живёт внутри пакета модуля, поэтому токены видны без экспорта. Если модуль хочет разрешить приложению подменять свою инфраструктуру, он экспортирует подготовленную поверхность (токены и готовые фейки вроде `inMemoryOrdersRepo()`) через subpath `./testing` — условный экспорт, который в проде не резолвится.
+`testUnit(OrdersFeature, { stubs })` — мини-приложение вокруг одной единицы: неудовлетворённые зависимости нужно застабать явно, ошибка перечисляет недостающие токены. `testUnit` живёт внутри пакета единицы, поэтому токены видны без экспорта. Если модуль хочет разрешить приложению подменять свою инфраструктуру, он экспортирует подготовленную поверхность (токены и готовые фейки вроде `inMemoryOrdersRepo()`) через subpath `./testing` — условный экспорт, который в проде не резолвится.
 
 :::note Почему не `jest.mock`
 Перехват системы модулей — рантайм-магия: мок живёт вне графа, контейнер о нём не знает, прунинг невозможен, проверить фейк схемой некому. Подмена на фазе ASSEMBLE даёт то же самое, но в графе, с проверками и типами. Чужое неэкспортированное не подменяется вообще: иначе граница видимости была бы формальностью. В крайнем случае модуль подменяется целиком — он ведь значение.

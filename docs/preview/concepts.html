@@ -87,7 +87,7 @@
   handle: (orders) =&gt; async (input: NewOrder, meta): Output&lt;Order&gt; =&gt;
     new Ok(orders.create(input)),
 });</code></pre></div>
-<p>Поля декларации делятся на три группы. <code>method</code> и <code>path</code> описывают транспорт. <code>input</code>, <code>output</code> и <code>pipeline</code> описывают контракт. <code>deps</code> перечисляет зависимости явным массивом токенов. Декораторов endpoint'а и интерфейса <code>IEndpoint</code> нет: декоратор не влияет на типы, а сверка хендлера со схемами происходит в точке декларации. Второй аргумент хендлера, <code>meta</code>, содержит поля, которые накопили <code>.pre</code>-юниты пайплайна; хендлер объявляет только те, которые использует. В <code>meta</code> всегда есть <code>signal: AbortSignal</code> (см. раздел про <a href="fundamentals.html#streaming">стриминг</a>).</p>
+<p>Поля декларации делятся на три группы. <code>method</code> и <code>path</code> описывают транспорт. <code>input</code>, <code>output</code> и <code>pipeline</code> описывают операция. <code>deps</code> перечисляет зависимости явным массивом токенов. Декораторов endpoint'а и интерфейса <code>IEndpoint</code> нет: декоратор не влияет на типы, а сверка хендлера со схемами происходит в точке декларации. Второй аргумент хендлера, <code>meta</code>, содержит поля, которые накопили <code>.pre</code>-юниты пайплайна; хендлер объявляет только те, которые использует. В <code>meta</code> всегда есть <code>signal: AbortSignal</code> (см. раздел про <a href="fundamentals.html#streaming">стриминг</a>).</p>
 <p>Схемы <code>input</code> и <code>output</code> не обязаны быть на Zod: ядро принимает любой валидатор <a href="fundamentals.html#schemas">Standard Schema</a> (Valibot, ArkType и другие), а модуль документации превращает те же схемы в OpenAPI.</p>
 <h3>Один endpoint — любой транспорт</h3>
 <p>Пайплайн и хендлер не знают, откуда пришёл запрос. Транспортные поля разрешены только в декларации: у HTTP это <code>method</code> и <code>path</code>, у CLI — <code>command</code>. Схемы, пайплайн и хендлер переносятся между транспортами без правок. Каждая декларация знает свой транспорт; общего <code>ExecutionContext</code>, скрывающего транспорт, нет.</p>
@@ -166,7 +166,7 @@ export class OrdersService {
 </div>
 <h2 id="modules">Модули</h2>
 <p>Модуль в Nestling — обычный объект, а не класс. Он отмечает принадлежность провайдеров и endpoint'ов, служит единицей упаковки и даёт метаданные для графа и визуализации. Хуков модуля, методов <code>configure()</code> и вопроса о порядке <code>OnModuleInit</code> нет.</p>
-<div class="code" data-file="orders.module.ts" data-lang="typescript"><pre><code>export const OrdersModule = makeAppModule({
+<div class="code" data-file="orders.module.ts" data-lang="typescript"><pre><code>export const OrdersModule = makeFeature({
   name: 'module:orders',
   providers: [OrdersService, OrdersRepository],
   endpoints: [CreateOrderEndpoint, ListOrdersEndpoint],
@@ -174,7 +174,7 @@ export class OrdersService {
 <h3>Модуль — значение, поэтому параметризация не требует ничего нового</h3>
 <p>Настраиваемый модуль — это функция, которая возвращает модуль. <code>DynamicModule</code>, <code>forRoot</code> и <code>forRootAsync</code> не нужны:</p>
 <div class="code" data-lang="typescript"><pre><code>export const makeLoggingModule = (opts: { level: LogLevel }) =&gt;
-  makeAppModule({
+  makeFeature({
     name: 'module:logging',
     providers: [valueProvider(LogLevel, opts.level), LoggerService],
   });
@@ -184,7 +184,7 @@ makeLoggingModule({ level: 'debug' })</code></pre></div>
 <h3>Видимость через экспорты</h3>
 <p>Видимость определяют ES-экспорты и границы пакетов. Токен, который не должен покидать свою папку, не экспортируют из её <code>index.ts</code> — тогда зависимость на него не написать. У модуля контейнера поля <code>exports</code> нет: модуль — метка принадлежности и единица упаковки, а не граница.</p>
 <h2 id="result">Ok и Fail</h2>
-<p>Хендлер возвращает <code>Ok</code> или <code>Fail</code>. Оба — значения и часть контракта: <code>Output&lt;T, E&gt; = Promise&lt;Ok&lt;T&gt; | E | T&gt;</code>, где <code>E</code> — отказы из поля <code>errors:</code> декларации. <code>Fail</code> можно не только вернуть, но и бросить: <code>throw</code> здесь заменяет отсутствующий в JavaScript оператор <code>?</code> из Rust и служит ранним выходом со значением. Рантайм обрабатывает оба пути одинаково. Брошенное исключение, которое не является <code>Fail</code>, считается внутренней ошибкой: клиент получает <code>UnknownError</code> со статусом <code>INTERNAL_ERROR</code> без деталей.</p>
+<p>Хендлер возвращает <code>Ok</code> или <code>Fail</code>. Оба — значения и часть операции: <code>Output&lt;T, E&gt; = Promise&lt;Ok&lt;T&gt; | E | T&gt;</code>, где <code>E</code> — отказы из поля <code>errors:</code> декларации. <code>Fail</code> можно не только вернуть, но и бросить: <code>throw</code> здесь заменяет отсутствующий в JavaScript оператор <code>?</code> из Rust и служит ранним выходом со значением. Рантайм обрабатывает оба пути одинаково. Брошенное исключение, которое не является <code>Fail</code>, считается внутренней ошибкой: клиент получает <code>UnknownError</code> со статусом <code>INTERNAL_ERROR</code> без деталей.</p>
 <div class="code" data-lang="typescript"><pre><code>async handle(input: NewOrder, meta): Output&lt;Order, EmailTaken&gt; {
   const existing = await this.orders.findByEmail(input.email);
   if (existing) {
@@ -239,7 +239,7 @@ throw OrderNotFound({ orderId: '42' }, { cause: dbError });
 
 // в .catch-юните — сопоставление по code, работает и после сети:
 if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
-<h3>Ошибки — часть контракта</h3>
+<h3>Ошибки — часть операции</h3>
 <p>Endpoint объявляет свои отказы: <code>errors: [EmailTaken, OrderLimitReached]</code>. Из этого списка строятся ответы в OpenAPI, а потребители порта знают, какие <code>Fail</code> ожидать. Гарантия держится на двух уровнях. Компилятор не даёт вернуть отказ вне списка. Выход из пайплайна заменяет всё незадекларированное на <code>UnknownError</code>. Поэтому ответ endpoint'а — закрытое множество <code>E ∪ UnknownError</code>.</p>
 <div class="code" data-lang="typescript"><pre><code>export const CreateOrder = httpEndpoint({
   method: 'POST',
@@ -254,8 +254,8 @@ if (OrderNotFound.is(res)) { /* ... */ }</code></pre></div>
     return Ok.created(await orders.create(input));
   },
 });</code></pre></div>
-<p>Компилятор проверяет всё, что передаётся значениями: возвраты через <code>Output&lt;T, E&gt;</code> (в том числе проброс отказа порта — чужой <code>Fail</code> не попадёт в ответ, пока не задекларирован) и ранние выходы через <code>meta.fail(e): never</code>, который принимает только задекларированные отказы. <code>meta.fail</code> — второй зарезервированный ключ <code>meta</code> после <code>signal</code>; его тип выводится из декларации endpoint'а. Всё, чего компилятор не видит (прямой <code>throw</code>, отказ из глубины сервисов), проверяет выход из пайплайна: незадекларированный отказ превращается в <code>UnknownError</code> (<code>code: 'UNKNOWN'</code>, статус <code>INTERNAL_ERROR</code>, общее тело ответа и <code>requestId</code>; оригинал целиком уходит в диагностический хук). Клиент видит либо задекларированный отказ, либо <code>UnknownError</code>, который неявно входит в каждый контракт (ответ <code>default</code> в OpenAPI).</p>
-<p>Эта проверка срабатывает после всех <code>.catch</code>-юнитов: <code>.catch</code> — то место, где доменный отказ из глубины превращается в контрактный. Если отказ задекларирован, он уйдёт как есть; если забыт, клиент получит <code>UnknownError</code>, а не случайный ответ, на который он мог бы опереться.</p>
+<p>Компилятор проверяет всё, что передаётся значениями: возвраты через <code>Output&lt;T, E&gt;</code> (в том числе проброс отказа порта — чужой <code>Fail</code> не попадёт в ответ, пока не задекларирован) и ранние выходы через <code>meta.fail(e): never</code>, который принимает только задекларированные отказы. <code>meta.fail</code> — второй зарезервированный ключ <code>meta</code> после <code>signal</code>; его тип выводится из декларации endpoint'а. Всё, чего компилятор не видит (прямой <code>throw</code>, отказ из глубины сервисов), проверяет выход из пайплайна: незадекларированный отказ превращается в <code>UnknownError</code> (<code>code: 'UNKNOWN'</code>, статус <code>INTERNAL_ERROR</code>, общее тело ответа и <code>requestId</code>; оригинал целиком уходит в диагностический хук). Клиент видит либо задекларированный отказ, либо <code>UnknownError</code>, который неявно входит в каждую операцию (ответ <code>default</code> в OpenAPI).</p>
+<p>Эта проверка срабатывает после всех <code>.catch</code>-юнитов: <code>.catch</code> — то место, где доменный отказ из глубины превращается в объявленный. Если отказ задекларирован, он уйдёт как есть; если забыт, клиент получит <code>UnknownError</code>, а не случайный ответ, на который он мог бы опереться.</p>
 <p>Поэтому отдельной подсистемы exception filters в Nestling нет: централизованное преобразование ошибок — обычный <code>.catch</code>-юнит пайплайна.</p>
 <h2 id="pipeline">Pipeline</h2>
 <p>Здесь Nestling сильнее всего отличается от Nest. Вместо middleware, interceptors, guards, pipes и exception filters — один механизм: пайплайн с плоскими фазами. Без <code>next()</code>, вложенных обёрток и скрытого потока управления.</p>

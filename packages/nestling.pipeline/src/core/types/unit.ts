@@ -9,7 +9,7 @@ import type {
 } from './context.js';
 
 import type { Constructor, Optional } from '@common/misc';
-import type { AnyFail, AnyInput, EmptyInput } from '@nestling/contracts';
+import type { AnyFail, AnyInput, EmptyInput } from '@nestling/operations';
 
 /**
  * Добавка pre-юнита к накопленному input
@@ -80,8 +80,8 @@ export type OkUnitFn<TAcc extends AnyInput = AnyInput> = (
  * Замена возвращается либо готовым `ErrorResponseContext`, либо просто
  * отказом: `Fail` рантайм нормализует так же, как отказ хендлера —
  * иначе юниту пришлось бы собирать контекст ответа руками. Это же место,
- * где допустимо превратить недекларированный отказ в контрактный:
- * проверка контракта отказов стоит после всей ответной фазы.
+ * где допустимо превратить недекларированный отказ в объявленный:
+ * проверка операции отказов стоит после всей ответной фазы.
  */
 export type CatchUnitFn<TCtxInput extends AnyInput = AnyInput> = (
   res: ErrorResponseContext,
@@ -117,6 +117,6 @@ export interface UnitInstance<F> {
  *
  * Класс-форма откладывает создание: конструктор попадает в `TNeeds`
  * пайплайна и резолвится контейнером на старте приложения (`bind`).
- * Контракт всех форм: юнит — синглтон, per-request состояние — только в ctx.
+ * Операция всех форм: юнит — синглтон, per-request состояние — только в ctx.
  */
 export type UnitLike<F> = F | UnitInstance<F> | Constructor<UnitInstance<F>>;

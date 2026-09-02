@@ -1,6 +1,6 @@
 # OpenAPI из деклараций
 
-> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-01).
+> Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-02).
 
 `@nestling/openapi` строит документ OpenAPI 3.1 из тех же деклараций
 endpoint'ов, которые обслуживают запросы: из bind-карты «поле → место»,
@@ -17,7 +17,7 @@ import { zodConverter } from '@nestling/openapi.zod';
 const app = assemble({
   features: [UsersFeature, OpsFeature, QuotasFeature],
   select: cfg.features,
-  modules: [
+  plugins: [
     appLogging,
     openapi({
       info: { title: 'Users API', version: '1.0.0' },
@@ -27,7 +27,7 @@ const app = assemble({
   ],
   transports: [http({ port: 3000 })],
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(observability, 'observability'),
+    everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(observability, 'observability'),
   ],
 });
 ```
@@ -58,7 +58,7 @@ const app = assemble({
 из-под всех политик сразу.
 
 Провайдера для юнитов слоя корень тоже регистрирует сам: в примере
-`appLogging` стоит в `modules:` именно ради слоя `observability`.
+`appLogging` стоит в `plugins:` именно ради слоя `observability`.
 
 ### Опция `converters`
 
@@ -97,13 +97,12 @@ Error: 1 endpoint(s) cannot be documented:
 
 JSON Schema описывает форму данных, но ничего не говорит о самой операции.
 Название, описание, теги и статус успешного ответа объявляются в слоте
-`doc:` декларации или контракта:
+`doc:` декларации или операции:
 
 ```typescript
-// packages/examples.app-with-http/src/api.contracts.ts
-export const CreateUser = makeContract({
+// packages/examples.app-with-http/src/api.operations.ts
+export const CreateUser = makeRequest({
   name: 'api.users.create',
-  kind: 'request',
   http: { method: 'POST', path: '/api/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
@@ -128,16 +127,16 @@ export const CreateUser = makeContract({
 Слот не привязан ни к транспорту, ни к формату документа: тот же слот
 будет читать генератор AsyncAPI, поэтому полей, осмысленных только для
 OpenAPI, в нём нет. `operationId` не объявляется, а выводится: это имя
-контракта, если декларация обслуживает контракт, иначе слаг из метода и
+операции, если декларация обслуживает операция, иначе слаг из метода и
 пути (`GET /api/users/:id` даёт `get_api_users_id`). Попытка задать
 `operationId` вручную — ошибка в точке создания декларации.
 
 Ядро содержимое `doc:` не читает: ни один путь исполнения запроса от него
 не зависит. Слот читают только генераторы документации.
 
-В контракт-форме `doc` принадлежит контракту наравне с `input`, `output`
+В форме с операцией `doc` принадлежит операции наравне с `input`, `output`
 и `errors`. Документация операции — часть её интерфейса, и две реализации
-одного контракта не могут описывать его по-разному.
+одной операции не могут описывать её по-разному.
 
 ### Скрытый endpoint
 
@@ -267,7 +266,7 @@ import { discoverEndpoints } from '@nestling/app';
 import { buildOpenApiDocument } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
-const { endpoints } = discoverEndpoints([UsersModule, OpsModule]);
+const { endpoints } = discoverEndpoints([UsersFeature, OpsFeature]);
 
 writeFileSync(
   'openapi.json',
@@ -319,4 +318,4 @@ factoryProvider(Report$, (document) => summarize(document), [OpenApiDocument$])
 
 - [design/schemas.md](../design/schemas.md) — целевое состояние схемного слоя
 - [design/endpoints.md](../design/endpoints.md) — bind-карта и формы io
-- [guides/typed-client.md](./typed-client.md) — второй потребитель контракта
+- [guides/typed-client.md](./typed-client.md) — второй потребитель операции

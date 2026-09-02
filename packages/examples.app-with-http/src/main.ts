@@ -26,10 +26,10 @@ const RootConfig = makeConfig('app', {
  * Собирает и запускает приложение: `assemble` — единственный composition
  * root.
  *
- * `APP_FEATURES=users` поднимает только фичу пользователей (вместе с `ops`
- * и `quotas`, от которых она зависит), `APP_FEATURES=all` — все фичи.
- * Сквозная инфраструктура (логирование, реестр подписок, документация)
- * подключается через `modules:`, как любой другой модуль.
+ * `APP_FEATURES=users` поднимает только фичу пользователей; `includeDeps`
+ * добавляет к ней те, чьи операции она вызывает. `APP_FEATURES=all` —
+ * все фичи. Сквозная инфраструктура (логирование, реестр подписок,
+ * документация) подключается через `plugins:` и есть в любой топологии.
  */
 async function main() {
   // Фаза 0: выбор фич читается до построения контейнера
@@ -37,19 +37,22 @@ async function main() {
 
   const app = assemble({
     features: [UsersFeature, OpsFeature, QuotasFeature],
-    select: cfg.features,
-    // Документация OpenAPI — обычный параметризованный модуль. Документ
-    // строится на фазе ASSEMBLE, поэтому схема без конвертера роняет старт
-    // до открытия сокета.
+    // Замыкание по вызовам: `users` вызывает `quotas.claim`, поэтому при
+    // `APP_FEATURES=users` фича квот подключается сама, а фактический
+    // состав печатается на старте
+    select: { features: cfg.features, includeDeps: true },
+    // Документация OpenAPI — параметризованный плагин. Документ строится
+    // на фазе ASSEMBLE, поэтому схема без конвертера роняет старт до
+    // открытия сокета.
     //
     // `pipeline: observability`: политика корня ниже требует этот слой от
-    // каждого HTTP-endpoint'а, а модуль документации о нём не знает.
+    // каждого HTTP-endpoint'а, а плагин документации о нём не знает.
     // Юниты слоя поставляет `appLogging`, поэтому он тоже стоит в
-    // `modules:`.
-    modules: [
+    // `plugins:`.
+    plugins: [
       appLogging,
-      // Реестр подписок — тоже параметризованный модуль. Значение создано
-      // один раз в `infrastructure.ts` и импортируется отсюда и из фич
+      // Реестр подписок — тоже параметризованный плагин. Значение создано
+      // один раз в `infrastructure.ts` и импортируется отсюда
       appSubscriptions,
       openapi({
         info: {
@@ -63,7 +66,7 @@ async function main() {
         pipeline: observability,
       }),
     ],
-    // Транспорт — провайдер. Порт берётся из его конфиг-секции
+    // Транспорт — объявление экземпляра. Порт берётся из его конфиг-секции
     // (`HTTP_PORT`); явная опция имеет приоритет
     transports: [http({ port: 3000 })],
     // Два инварианта приложения; оба проверяются на собранном графе до
@@ -79,11 +82,11 @@ async function main() {
     // глубины графа, где типы входа недоступны; без политики endpoint без
     // этой переменной падал бы на запросе, а не на сборке.
     policies: [
-      everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+      everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
         observability,
         'observability',
       ),
-      everyEndpoint({ transport: HttpTransport$ }).hasVar(
+      everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
         RequestId,
         'requestId',
       ),
@@ -165,7 +168,7 @@ async function main() {
   console.log('');
   console.log('Порты между фичами (users ↔ quotas):');
   console.log(
-    '  POST /api/users зовёт контракт quotas.claim и публикует users.registered',
+    '  POST /api/users зовёт операция quotas.claim и публикует users.registered',
   );
   console.log(
     '  NESTLING_PORTS_DISPATCH=always-remote yarn start — те же вызовы через шину',

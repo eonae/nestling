@@ -1,11 +1,11 @@
 # Конфигурация
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-09-01).
+> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-09-02).
 
 Конфигурация в Nestling описывается секциями. Секция — это объект, где
 каждому полю сопоставлена схема. Секцию объявляют как константу и
 инжектируют как обычную зависимость. Регистрировать её в модуле не нужно:
-у модуля нет ключа `configs:`, а в `providers:` и `imports:` секция не
+у модуля нет ключа `configs:`, а в `providers:` и `dependsOn:` секция не
 указывается. Узел графа для секции создаётся при сборке, когда кто-то
 упоминает её в `deps`.
 
@@ -80,7 +80,7 @@ export class Database implements IDatabase {
 токенов:
 
 ```typescript
-// packages/examples.simple-app/src/logging/logging.module.ts
+// packages/examples.simple-app/src/logging/logging.plugin.ts
 familyProvider(ILogger, (scope) =>
   factoryProvider(
     ILogger(scope),
@@ -122,7 +122,8 @@ import { assemble } from '@nestling/app';
 import { objectSource } from '@nestling/config';
 
 const app = assemble({
-  modules: [LoggingModule, AppModule],
+  features: [AppFeature],
+  plugins: [appLogging],
   providers: [Demo],
   config: [
     [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
@@ -153,7 +154,7 @@ const app = assemble({
 конфига регистрируется в `assemble` всегда:
 
 ```typescript
-const app = assemble({ modules: [UsersModule], transports: [http()] });
+const app = assemble({ features: [UsersFeature], transports: [http()] });
 ```
 
 Тот же список привязок принимает `configKernel()` — для контейнера без
@@ -169,8 +170,10 @@ await new ContainerBuilder()
       [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
     ]),
   )
-  .register(LoggingModule)
-  .register(AppModule)
+  // Контейнер используется автономно: единицы слоя приложения ему не
+  // нужны, а их модули — обычные значения
+  .register(...appLogging.modules)
+  .register(OrdersModule)
   .build();
 ```
 

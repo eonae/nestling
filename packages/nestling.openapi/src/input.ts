@@ -2,7 +2,7 @@
  * Разложение входа: одна конвертация — и разбор по bind-карте.
  *
  * Карта уже отвечает на вопрос «где живёт каждое поле» (её развернул
- * конструктор декларации либо `makeContract`), поэтому генератору остаётся
+ * конструктор декларации либо `makeRequest`), поэтому генератору остаётся
  * применить её к **конвертированной** схеме: `parameter` и `requestBody`
  * это две проекции одного значения, а не два независимых описания.
  *
@@ -20,7 +20,7 @@ import type {
   OpenApiRequestBody,
 } from './types.js';
 
-import type { HttpBinding, UploadSpec } from '@nestling/contracts';
+import type { HttpBinding, UploadSpec } from '@nestling/operations';
 import { describeForm, isPrimitiveLeaf, mediaTypeOf } from '@nestling/pipeline';
 
 /** Вход операции: параметры и тело */

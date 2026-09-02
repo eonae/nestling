@@ -1,5 +1,5 @@
 /**
- * `responses`: весь контракт границы, а не только счастливый путь.
+ * `responses`: весь операция границы, а не только счастливый путь.
  *
  * Множество ответов endpoint'а закрыто как `E ∪ UnknownError` (модель
  * ошибок), и документ обязан это отражать: объявленные отказы,
@@ -15,8 +15,8 @@ import type { ConvertContext } from './schema.js';
 import { convertLeaf } from './schema.js';
 import type { JsonValue, OpenApiResponse } from './types.js';
 
-import type { AnyFailDefinition, DeclarationDoc } from '@nestling/contracts';
-import { UnknownError, ValidationFailed } from '@nestling/contracts';
+import type { AnyFailDefinition, DeclarationDoc } from '@nestling/operations';
+import { UnknownError, ValidationFailed } from '@nestling/operations';
 import { describeForm, mediaTypeOf } from '@nestling/pipeline';
 import { httpCodeOf } from '@nestling/transport.http';
 
@@ -49,7 +49,7 @@ export function planResponses(
   const declared = [...(input.errors ?? [])];
 
   // Валидация входа отвечает независимо от `errors:` — это kernel-код,
-  // контрактный для любого endpoint'а со схемой входа
+  // объявленный для любого endpoint'а со схемой входа
   if (input.hasInputSchema && !declared.some(sameCode(ValidationFailed))) {
     declared.push(ValidationFailed);
   }

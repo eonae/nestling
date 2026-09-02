@@ -8,6 +8,7 @@
 import type { ConfigKeys } from './keys.js';
 
 import type { Schema, StandardSchemaV1 } from '@common/misc';
+import type { Token } from '@nestling/container/tokens';
 
 /**
  * Обёртка листа, задающая **точное** имя ключа: префикс секции не
@@ -123,15 +124,12 @@ export interface ReloadableConfig<R extends ConfigRecord> {
 /**
  * Токен секции — право инжекта.
  *
- * Не-инстанцируемый класс: `name` перекрыт id члена семейства
- * (`'ConfigSection:orders'`), на статике лежит `.keys`. Класс-как-токен —
- * обычная DI-идиома: контейнер обращается с ним как с любым другим токеном.
+ * Это сам член семейства `ConfigSection`, на который дописан `.keys`:
+ * инжект секции и упоминание члена — одно и то же ребро графа, потому что
+ * это один и тот же токен.
  */
-export interface ConfigSectionToken<Values, Prefix extends string = string> {
-  /** Инстанцировать секцию нельзя: конструктор бросает именующую ошибку */
-  new (...args: any[]): Values;
-  /** Id члена семейства `ConfigSection` — он же строковый токен */
-  readonly name: string;
+export interface ConfigSectionToken<Values, Prefix extends string = string>
+  extends Token<Values> {
   /** Хэндл ключей секции — право привязки, безопасное для экспорта */
   readonly keys: ConfigKeys<Prefix>;
 }

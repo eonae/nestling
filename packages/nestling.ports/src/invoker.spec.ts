@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
@@ -18,8 +18,8 @@ import { PortRuntime } from './runtime.js';
 // Только `jest`: остальные глобали инъектируются раннером, а объект
 // `jest` в ESM-режиме — нет
 import { jest } from '@jest/globals';
-import type { Emitter, Port } from '@nestling/contracts';
-import { makeContract } from '@nestling/contracts';
+import type { Emitter, Port } from '@nestling/operations';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import {
   contextVar,
@@ -38,23 +38,20 @@ const CardDeclined = defineFail('CARD_DECLINED', {
   details: z.object({ reason: z.string() }),
 });
 
-const ChargeCard = makeContract({
+const ChargeCard = makeRequest({
   name: 'invoker.billing.charge',
-  kind: 'request',
   input: z.object({ amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
   errors: [CardDeclined],
 });
 
-const OrderPlaced = makeContract({
+const OrderPlaced = makeEvent({
   name: 'invoker.orders.placed',
-  kind: 'event',
   input: z.object({ orderId: z.string() }),
 });
 
-const ShipOrder = makeContract({
+const ShipOrder = makeCommand({
   name: 'invoker.orders.ship',
-  kind: 'command',
   input: z.object({ orderId: z.string() }),
 });
 
@@ -155,7 +152,7 @@ async function harness(
 }
 
 const portContext = (harnessed: Harness): InvokerContext => ({
-  contract: ChargeCard,
+  operation: ChargeCard,
   runtime: harnessed.runtime,
   patterns: [ChargeCardImpl.pattern],
 });
@@ -164,13 +161,13 @@ const emitterContext = (
   harnessed: Harness,
   patterns: readonly string[],
 ): InvokerContext => ({
-  contract: OrderPlaced,
+  operation: OrderPlaced,
   runtime: harnessed.runtime,
   patterns,
 });
 
 const commandContext = (harnessed: Harness): InvokerContext => ({
-  contract: ShipOrder,
+  operation: ShipOrder,
   runtime: harnessed.runtime,
   patterns: [ShipOrderImpl.pattern],
 });
@@ -512,9 +509,8 @@ function metaDictionaryTypeTests(
 const TenantId = contextVar<string>()('tenantId', { propagate: true });
 const TraceId = contextVar<string>()('traceId');
 
-const Inner = makeContract({
+const Inner = makeRequest({
   name: 'invoker.propagate.inner',
-  kind: 'request',
   input: z.object({ id: z.string() }),
   output: z.object({ ok: z.boolean() }),
 });
@@ -530,9 +526,8 @@ const InnerImpl = implement(Inner, {
   handle: async () => new Ok({ ok: true }),
 });
 
-const Outer = makeContract({
+const Outer = makeRequest({
   name: 'invoker.propagate.outer',
-  kind: 'request',
   input: z.object({ id: z.string() }),
   output: z.object({ ok: z.boolean() }),
 });
@@ -557,7 +552,7 @@ describe.each([
     'local',
     (h: Harness) =>
       makeLocalPort({
-        contract: Inner,
+        operation: Inner,
         runtime: h.runtime,
         patterns: [InnerImpl.pattern],
       }) as Port<any>,
@@ -566,7 +561,7 @@ describe.each([
     'remote',
     (h: Harness) =>
       makeRemotePort({
-        contract: Inner,
+        operation: Inner,
         runtime: h.runtime,
         patterns: [InnerImpl.pattern],
       }) as Port<any>,
@@ -583,7 +578,7 @@ describe.each([
     harnessed = await harness([InnerImpl, OuterImpl]);
     innerPort = build(harnessed);
     outer = makeLocalPort({
-      contract: Outer,
+      operation: Outer,
       runtime: harnessed.runtime,
       patterns: [OuterImpl.pattern],
     }) as Port<any>;
@@ -601,7 +596,7 @@ describe.each([
     expect(innerAttributes.traceId).toBeUndefined();
   });
 
-  it('не подмешивает провозимое во вход контракта', async () => {
+  it('не подмешивает провозимое во вход операции', async () => {
     await outer.call({ id: 'o-1' });
 
     expect(innerPayload).toEqual({ id: 'x' });
@@ -628,12 +623,12 @@ describe.each([
 });
 
 describe('несвязанный рантайм', () => {
-  it('вызов до фазы WIRE — ошибка с именем контракта и фазой', async () => {
+  it('вызов до фазы WIRE — ошибка с именем операции и фазой', async () => {
     const runtime = new PortRuntime(() => {
       /* отказы этого теста не наблюдаются */
     });
     const port = makeLocalPort({
-      contract: ChargeCard,
+      operation: ChargeCard,
       runtime,
       patterns: [ChargeCardImpl.pattern],
     }) as Port<any>;

@@ -1,6 +1,6 @@
 import type { ServerResponse } from 'node:http';
 
-import type { SseConfig } from '@nestling/contracts';
+import type { SseConfig } from '@nestling/operations';
 import type {
   FormKind,
   ProcessingStatus,
@@ -44,11 +44,11 @@ export const SSE_ERROR_EVENT = 'error';
 /**
  * Настройки SSE-ответа.
  *
- * Тип объявлен в `@nestling/contracts` рядом с bind-картой; здесь он
+ * Тип объявлен в `@nestling/operations` рядом с bind-картой; здесь он
  * реэкспортирован, чтобы автор декларации брал его оттуда же, откуда
  * `httpEndpoint`.
  */
-export type { SseConfig } from '@nestling/contracts';
+export type { SseConfig } from '@nestling/operations';
 
 /** Параметры отправки ответа помимо самого значения */
 export interface SendOptions {

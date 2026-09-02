@@ -5,7 +5,7 @@ describe('функции модулей', () => {
     const moduleConfig = makeModule({
       name: 'TestModule',
       providers: [],
-      imports: [],
+      dependsOn: [],
     });
 
     expect(moduleConfig.name).toBe('TestModule');

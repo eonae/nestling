@@ -4,6 +4,7 @@
  */
 
 import { assemble } from './app';
+import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
 import { describe, expect, it } from '@jest/globals';
@@ -13,7 +14,8 @@ import {
   makeConfig,
   objectSource,
 } from '@nestling/config';
-import { Injectable, makeModule, valueProvider } from '@nestling/container';
+import { Injectable } from '@nestling/container';
+import { transportValue } from '@nestling/transport';
 import { HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -32,7 +34,7 @@ class Greeter {
   }
 }
 
-const GreeterModule = makeModule({
+const GreeterModule = makeFeature({
   name: 'module:greeter',
   providers: [Greeter],
 });
@@ -69,8 +71,8 @@ describe('привязка конфига в assemble', () => {
     await withEnv({ ROOTAPP_RETRIES: '3' }, async () => {
       const transport = new MockTransport();
       const app = assemble({
-        modules: [GreeterModule],
-        transports: [valueProvider(HttpTransport$, transport)],
+        features: [GreeterModule],
+        transports: [transportValue(HttpTransport$('default'), transport)],
       });
 
       await app.run();
@@ -87,8 +89,10 @@ describe('привязка конфига в assemble', () => {
       { ROOTAPP_RETRIES: '1', ROOTAPP_GREETING: 'from-env' },
       async () => {
         const app = assemble({
-          modules: [GreeterModule],
-          transports: [valueProvider(HttpTransport$, new MockTransport())],
+          features: [GreeterModule],
+          transports: [
+            transportValue(HttpTransport$('default'), new MockTransport()),
+          ],
           config: [
             [objectSource({ ROOTAPP_RETRIES: '5' }, 'high'), '*'],
             [
@@ -115,8 +119,8 @@ describe('привязка конфига в assemble', () => {
   it('невалидный конфиг роняет старт до приёма запросов', async () => {
     const transport = new MockTransport();
     const app = assemble({
-      modules: [GreeterModule],
-      transports: [valueProvider(HttpTransport$, transport)],
+      features: [GreeterModule],
+      transports: [transportValue(HttpTransport$('default'), transport)],
       config: [[objectSource({ ROOTAPP_RETRIES: 'abc' }, 'test'), '*']],
     });
 
@@ -127,8 +131,8 @@ describe('привязка конфига в assemble', () => {
   it('обязательный ключ, которого нет нигде, роняет старт', async () => {
     const transport = new MockTransport();
     const app = assemble({
-      modules: [GreeterModule],
-      transports: [valueProvider(HttpTransport$, transport)],
+      features: [GreeterModule],
+      transports: [transportValue(HttpTransport$('default'), transport)],
     });
 
     await expect(app.run()).rejects.toThrow(/ROOTAPP_RETRIES/);

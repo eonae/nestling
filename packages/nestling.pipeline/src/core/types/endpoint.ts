@@ -7,7 +7,7 @@ import type {
   InferOutput,
   Output,
   OutputSync,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 
 /**
  * Функция-обработчик запроса.

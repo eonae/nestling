@@ -1,4 +1,4 @@
-import type { Constructor, InjectionToken, TokenString } from '../common';
+import type { Constructor, InjectionToken, Token } from '../common';
 
 import { injectableMetaStorage } from './injectable.metadata';
 import type { TokenFamily } from './token-family';
@@ -97,19 +97,18 @@ export type ProviderDefinition<T = unknown> =
   | FactoryProviderDefinition<T>;
 
 /**
- * Превращает массив токенов (строк или классов) в массив их типов.
+ * Превращает массив токенов (объектных или классов) в массив их типов.
  *
  * @template T - Массив токенов
  */
-export type UnwrapTokens<
-  T extends readonly (TokenString<unknown> | Constructor)[],
-> = {
-  [K in keyof T]: T[K] extends TokenString<infer U>
-    ? U
-    : T[K] extends Constructor<infer V>
+export type UnwrapTokens<T extends readonly (Token<unknown> | Constructor)[]> =
+  {
+    [K in keyof T]: T[K] extends Constructor<infer V>
       ? V
-      : never;
-};
+      : T[K] extends Token<infer U>
+        ? U
+        : never;
+  };
 
 /**
  * Фабричный провайдер с типизированными зависимостями: типы аргументов
@@ -366,3 +365,40 @@ export const isValueDefinition = <T>(
 export const isFactoryProvider = <T>(
   provider: ProviderDefinition<T>,
 ): provider is FactoryProviderDefinition<T> => 'useFactory' in provider;
+
+/**
+ * Токены, которые провайдер запрашивает у контейнера.
+ *
+ * Читает объявленное значение, ничего не вызывая: у класса зависимости
+ * берутся из метаданных `@Injectable`, у определения — из `deps`. Нужна
+ * тем, кто разбирает состав приложения **до** построения графа: выбор фич
+ * и карта операций считаются на фазе ASSEMBLE, когда узлов ещё нет.
+ *
+ * Рецепт семейства зависимостей не отдаёт: определение он возвращает
+ * только для конкретного параметра, а параметры известны по спросу внутри
+ * `build()`.
+ *
+ * @param provider - Провайдер модуля: класс, определение или рецепт
+ * семейства
+ * @returns Токены зависимостей в порядке объявления
+ *
+ * @example
+ * ```typescript
+ * dependenciesOf(UserService); // [ILogger, IConfig]
+ * ```
+ */
+export function dependenciesOf(
+  provider: ModuleProvider,
+): readonly InjectionToken[] {
+  if (typeof provider === 'function') {
+    return injectableMetaStorage.get(provider)?.dependencies ?? [];
+  }
+
+  if (isFamilyDefinition(provider)) {
+    return [];
+  }
+
+  const definition = provider as ProviderDefinition;
+
+  return 'deps' in definition ? (definition.deps ?? []) : [];
+}

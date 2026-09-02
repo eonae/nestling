@@ -13,20 +13,21 @@ import { assembleTest } from './app';
 import { checkTopologies } from './topologies';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeAppModule, makeFeature } from '@nestling/app';
-import { Injectable, OnInit, valueProvider } from '@nestling/container';
+import { makeFeature } from '@nestling/app';
+import { Injectable, OnInit } from '@nestling/container';
 import { compose, everyEndpoint, makePipeline, Ok } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 const observability = makePipeline().pre(() => {});
 const authedBase = makePipeline().pre(() => {});
 
 const hasAuth = () =>
-  everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+  everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
     authedBase,
     'authedBase',
   );
@@ -59,8 +60,8 @@ describe('assembleTest — инварианты', () => {
 
     await expect(
       assembleTest({
-        modules: [
-          makeAppModule({
+        features: [
+          makeFeature({
             name: 'module:admin',
             providers: [Connection],
             endpoints: [Unauthed],
@@ -76,7 +77,7 @@ describe('assembleTest — инварианты', () => {
 
   it('приложение под соблюдёнными политиками собирается', async () => {
     await using app = await assembleTest({
-      modules: [makeAppModule({ name: 'module:profile', endpoints: [Authed] })],
+      features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [hasAuth()],
     });
@@ -91,12 +92,12 @@ describe('checkTopologies — инварианты по каждой топол�
   it('ловит нарушение, возникающее только в одной топологии, и называет её', async () => {
     const ProfileFeature = makeFeature({
       name: 'profile',
-      modules: [makeAppModule({ name: 'module:profile', endpoints: [Authed] })],
+      endpoints: [Authed],
     });
 
     const AdminFeature = makeFeature({
       name: 'admin',
-      modules: [makeAppModule({ name: 'module:admin', endpoints: [Unauthed] })],
+      endpoints: [Unauthed],
     });
 
     const spec = {

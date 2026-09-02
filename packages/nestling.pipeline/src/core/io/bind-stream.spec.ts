@@ -10,7 +10,7 @@ import type { Raw } from '../types/raw.js';
 
 import { bindInputStream } from './bind-stream.js';
 
-import { describeForm, makeSummary, Ok, stream } from '@nestling/contracts';
+import { describeForm, makeSummary, Ok, stream } from '@nestling/operations';
 import { z } from 'zod';
 
 const LogChunk = z.object({ level: z.string() });
@@ -38,7 +38,7 @@ const meta = (input: EndpointMeta['input']): EndpointMeta => ({
   transport: 'test',
   pattern: 'POST /logs',
   input,
-  // errors: не объявлены намеренно — kernel-коды контрактны без объявления
+  // errors: не объявлены намеренно — kernel-коды считаются объявленными и без перечисления
 });
 
 /** Прогоняет входной поток через пайплайн, как это делает транспорт */
@@ -168,7 +168,7 @@ describe('bindInputStream', () => {
   });
 });
 
-describe('kernel-отказы цепочек проходят проверку контракта отказов', () => {
+describe('kernel-отказы цепочек проходят проверку операции отказов', () => {
   it('.limit даёт 413 с кодом STREAM_LIMIT_EXCEEDED, а не 500 UNKNOWN', async () => {
     const response = await runWith(stream(LogChunk).limit(2), [
       { level: 'a' },

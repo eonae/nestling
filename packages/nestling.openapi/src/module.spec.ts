@@ -11,15 +11,10 @@ import { openapi, OpenApiDocument$ } from './module.js';
 import type { OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { assemble, makeAppModule, makeFeature } from '@nestling/app';
-import {
-  factoryProvider,
-  makeToken,
-  OnInit,
-  valueProvider,
-} from '@nestling/container';
-import type { StandardSchemaV1 } from '@nestling/contracts';
+import { assemble, makeFeature } from '@nestling/app';
+import { factoryProvider, makeToken, OnInit } from '@nestling/container';
 import { zodConverter } from '@nestling/openapi.zod';
+import type { StandardSchemaV1 } from '@nestling/operations';
 import type {
   AnyInput,
   ExtendableContext,
@@ -33,6 +28,7 @@ import {
   Ok,
 } from '@nestling/pipeline';
 import type { Dispatch, ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -63,7 +59,7 @@ class SpyTransport implements ITransport {
 }
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 /** Пустой стартовый контекст: документ отдаётся endpoint'ом без входа */
 const contextFor = (pattern: string) =>
@@ -105,7 +101,7 @@ const Health = httpEndpoint({
   handle: async () => new Ok({ status: 'up' }),
 });
 
-const UsersModule = makeAppModule({
+const UsersModule = makeFeature({
   name: 'module:openapi-users',
   endpoints: [GetUser, Health],
 });
@@ -117,26 +113,20 @@ const ListInvoices = httpEndpoint({
   handle: async () => new Ok([]),
 });
 
-const BillingModule = makeAppModule({
+const BillingModule = makeFeature({
   name: 'module:openapi-billing',
   endpoints: [ListInvoices],
 });
 
-const UsersFeature = makeFeature({
-  name: 'openapi-users',
-  modules: [UsersModule],
-});
-const BillingFeature = makeFeature({
-  name: 'openapi-billing',
-  modules: [BillingModule],
-});
+const UsersFeature = UsersModule;
+const BillingFeature = BillingModule;
 
-describe('openapi(...) — модуль-издатель', () => {
+describe('openapi(...) — плагин-издатель', () => {
   it("отдаёт документ endpoint'ом и не описывает сам себя", async () => {
     const transport = new SpyTransport();
     const app = assemble({
-      modules: [
-        UsersModule,
+      features: [UsersModule],
+      plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
@@ -187,12 +177,14 @@ describe('openapi(...) — модуль-издатель', () => {
 
     const transport = new SpyTransport();
     const app = assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:exotic',
           providers: [factoryProvider(Resource, () => new Resource(), [])],
           endpoints: [Exotic],
         }),
+      ],
+      plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
@@ -208,7 +200,8 @@ describe('openapi(...) — модуль-издатель', () => {
 
   it('пустой список конвертеров тоже роняет сборку, а не строит документ без схем', async () => {
     const app = assemble({
-      modules: [UsersModule, openapi({ info, announceHidden: false })],
+      features: [UsersModule],
+      plugins: [openapi({ info, announceHidden: false })],
       transports: [asHttpTransport(new SpyTransport())],
     });
 
@@ -221,8 +214,8 @@ describe('openapi(...) — модуль-издатель', () => {
     const transport = new SpyTransport();
     const app = assemble({
       features: [UsersFeature, BillingFeature],
-      select: 'openapi-users',
-      modules: [
+      select: 'module:openapi-users',
+      plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
@@ -241,10 +234,9 @@ describe('openapi(...) — модуль-издатель', () => {
 describe('endpoint документации подчиняется политикам приложения', () => {
   const observability = makePipeline().pre(() => ({ traced: true }));
 
-  const policy = everyEndpoint({ transport: HttpTransport$ }).hasLayer(
-    observability,
-    'observability',
-  );
+  const policy = everyEndpoint({
+    transport: HttpTransport$('default'),
+  }).hasLayer(observability, 'observability');
 
   const Traced = httpEndpoint({
     method: 'GET',
@@ -254,15 +246,15 @@ describe('endpoint документации подчиняется полити�
     handle: async () => new Ok({ ok: true }),
   });
 
-  const TracedModule = makeAppModule({
+  const TracedModule = makeFeature({
     name: 'module:traced',
     endpoints: [Traced],
   });
 
   it('с переданным pipeline сборка проходит', async () => {
     const app = assemble({
-      modules: [
-        TracedModule,
+      features: [TracedModule],
+      plugins: [
         openapi({
           info,
           converters: [zodConverter()],
@@ -280,8 +272,8 @@ describe('endpoint документации подчиняется полити�
 
   it('без pipeline и без detached — нарушение политики', async () => {
     const app = assemble({
-      modules: [
-        TracedModule,
+      features: [TracedModule],
+      plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(new SpyTransport())],
@@ -294,8 +286,8 @@ describe('endpoint документации подчиняется полити�
 
   it('detached снимает endpoint с политики', async () => {
     const app = assemble({
-      modules: [
-        TracedModule,
+      features: [TracedModule],
+      plugins: [
         openapi({
           info,
           converters: [zodConverter()],
@@ -318,7 +310,7 @@ describe('документ доступен значением', () => {
 
     const Observer$ = makeToken<'observed'>('spec:openapi-observer');
 
-    const ObserverModule = makeAppModule({
+    const ObserverModule = makeFeature({
       name: 'module:openapi-observer',
       providers: [
         factoryProvider(
@@ -334,9 +326,8 @@ describe('документ доступен значением', () => {
 
     const transport = new SpyTransport();
     const app = assemble({
-      modules: [
-        UsersModule,
-        ObserverModule,
+      features: [UsersModule, ObserverModule],
+      plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],

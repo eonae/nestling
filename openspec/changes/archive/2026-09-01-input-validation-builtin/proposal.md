@@ -131,7 +131,7 @@ roadmap заводит этот же change.
   интеграционные тесты; README.
 - **`@nestling/testing`**: тесты, использующие `validate()`; новый сценарий
   «`app.call` проверяет поля `multipart`»; README.
-- **`@nestling/contracts`**: `kernel-fails.ts` — определение
+- **`@nestling/operations`**: `kernel-fails.ts` — определение
   `PayloadTooLarge` и его код в закрытом наборе; реэкспорт из
   `@nestling/pipeline`.
 - **`@common/misc`**: README (перечень путей через `validateSync`).
@@ -144,7 +144,7 @@ roadmap заводит этот же change.
   `preview/src/index.md`, `preview/src/concepts.md`; блок «РЕАЛИЗОВАНО»
   под записью [2026-08-29] в `ideas.md`; новая строка в `roadmap.md`;
   абзац в `archlog.md` при архивации.
-- **Не затронуты**: `@nestling/contracts` (`ValidationFailed`,
+- **Не затронуты**: `@nestling/operations` (`ValidationFailed`,
   `parsePayload` остаются), `@nestling/ports` (проверка на стороне
   вызывающего), `@nestling/openapi` (ответ 400 у каждого endpoint'а со
   схемой входа теперь совпадает с рантаймом), `@nestling/transport.cli` и
