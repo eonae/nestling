@@ -13,7 +13,7 @@ import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
-import { defineFail, makeRequest } from '@nestling/contracts';
+import { defineFail, makeRequest } from '@nestling/operations';
 import { isEndpointDefinition, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
@@ -23,13 +23,13 @@ const CreateUserInput = z.object({
 });
 const User = z.object({ id: z.string(), email: z.string() });
 
-const EmailTaken = defineFail('CONTRACT_FORM_EMAIL_TAKEN', {
+const EmailTaken = defineFail('OPERATION_FORM_EMAIL_TAKEN', {
   status: 'CONFLICT',
   message: 'Email already taken',
 });
 
 const CreateUser = makeRequest({
-  name: 'contract-form.users.create',
+  name: 'operation-form.users.create',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
@@ -37,7 +37,7 @@ const CreateUser = makeRequest({
 });
 
 const GetUser = makeRequest({
-  name: 'contract-form.users.get',
+  name: 'operation-form.users.get',
   http: 'GET /users/:id',
   input: z.object({ id: z.string() }),
   output: User,
@@ -45,13 +45,13 @@ const GetUser = makeRequest({
 
 /** Операция без HTTP-адреса: он живёт только на шине */
 const ClaimQuota = makeRequest({
-  name: 'contract-form.quotas.claim',
+  name: 'operation-form.quotas.claim',
   input: z.object({ tenant: z.string() }),
   output: z.object({ granted: z.boolean() }),
 });
 
 const UserService = makeToken<{ create: (email: string) => string }>(
-  'ContractFormUserService',
+  'OperationFormUserService',
 );
 
 describe('httpEndpoint({ operation, … })', () => {
@@ -135,13 +135,13 @@ describe('httpEndpoint({ operation, … })', () => {
         handle: async () => new Ok({ granted: true }),
       }),
     ).toThrow(
-      /contract-form\.quotas\.claim.*no 'http:' section.*implement\(contract-form\.quotas\.claim/s,
+      /operation-form\.quotas\.claim.*no 'http:' section.*implement\(operation-form\.quotas\.claim/s,
     );
   });
 
   it('документация приходит из операции вместе с адресом и схемами', () => {
     const Documented = makeRequest({
-      name: 'contract-form.users.documented',
+      name: 'operation-form.users.documented',
       http: 'GET /documented/:id',
       input: z.object({ id: z.string() }),
       output: User,
@@ -158,8 +158,8 @@ describe('httpEndpoint({ operation, … })', () => {
       tags: ['users'],
     });
     // Имя владельца хранится на карте — из него генератор выводит operationId
-    expect(httpBindingOf(declaration).contract).toBe(
-      'contract-form.users.documented',
+    expect(httpBindingOf(declaration).operation).toBe(
+      'operation-form.users.documented',
     );
   });
 

@@ -15,11 +15,11 @@
 
 ```typescript
 // packages/examples.app-with-http/src/api.client.ts
-import { CreateUser, GetUser } from './api.contracts';   // ваши операции
+import { CreateUser, GetUser } from './api.operations';   // ваши операции
 import { makeClient } from '@nestling/client';
 ```
 
-`@nestling/contracts` содержит всё, что не зависит от направления вызова:
+`@nestling/operations` содержит всё, что не зависит от направления вызова:
 `makeRequest` / `makeCommand` / `makeEvent`, `defineFail`, `Ok`/`Fail`, перечень статусов, формы io,
 пометки размещения `query()`/`body()` и bind-карту. У пакета нет
 runtime-зависимостей: в его графе импортов только типы Standard Schema, без
@@ -27,17 +27,17 @@ runtime-зависимостей: в его графе импортов толь
 обходит замыкание импортов собранного `dist/` и падает, называя модуль и
 запрещённый импорт.
 
-`@nestling/client` зависит только от `@nestling/contracts` и ходит в сеть
+`@nestling/client` зависит только от `@nestling/operations` и ходит в сеть
 через `fetch`. Оба пакета собираются в браузерный бандл без полифиллов.
 
-Импортируйте `makeRequest` / `makeCommand` / `makeEvent` из `@nestling/contracts`. `@nestling/ports` его
+Импортируйте `makeRequest` / `makeCommand` / `makeEvent` из `@nestling/operations`. `@nestling/ports` его
 не реэкспортирует: у этого пакета есть серверные зависимости.
 
 ## Адрес в операции: секция `http:`
 
 ```typescript
-// packages/examples.app-with-http/src/api.contracts.ts
-import { makeRequest, query } from '@nestling/contracts';
+// packages/examples.app-with-http/src/api.operations.ts
+import { makeRequest, query } from '@nestling/operations';
 
 export const CreateUser = makeRequest({
   name: 'api.users.create',
@@ -82,7 +82,7 @@ Bind-карту `makeRequest` / `makeCommand` / `makeEvent` вычисляет �
 ```typescript
 // packages/examples.app-with-http/src/modules/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
-  contract: GetUserContract,
+  operation: GetUserContract,
   pipeline: basePipeline,
   deps: [UserService, ILogger],
   handle: getUserHandler,
@@ -272,7 +272,7 @@ makeClient(record, {
 
 ## Смотри также
 
-- [design/contracts.md](../design/contracts.md) — целевое состояние
+- [design/operations.md](../design/operations.md) — целевое состояние
   операций, портов и клиентов.
 - [guides/ports.md](./ports.md) — вызов операции изнутри приложения.
 - [design/errors.md](../design/errors.md) — модель ошибок и восстановление

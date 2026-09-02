@@ -17,7 +17,7 @@
 
 Декларативный слой — `Ok`/`Fail`, перечень статусов, `defineFail` со
 встроенными кодами, формы io и `jsonSchema()` — живёт в
-[`@nestling/contracts`](../nestling.contracts) и реэкспортируется отсюда
+[`@nestling/operations`](../nestling.operations) и реэкспортируется отсюда
 тем же модулем, так что идентичность значений не двоится. Схемный слой
 (`validateSync`, ошибки схем) живёт в [`@common/misc`](../common.misc) и
 тоже реэкспортируется. В этом пакете остаётся рантайм: сам пайплайн,
@@ -365,7 +365,7 @@ const zodConverter = (): SchemaDocConverter => ({
 `jsonSchema(schema, json)` объявляет JSON Schema для листа явно и работает
 в любой схемной позиции; аннотация приоритетнее конвертера. Так объявлены
 схемы встроенных отказов (`VALIDATION_FAILED` и другие). Подробнее — в
-[`@nestling/contracts`](../nestling.contracts).
+[`@nestling/operations`](../nestling.operations).
 
 ## Диагностика типов
 

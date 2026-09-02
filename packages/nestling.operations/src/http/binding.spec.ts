@@ -6,10 +6,11 @@
  * проверяется в `@nestling/transport.http`.
  */
 
+import { events, multipart, stream, upload } from '../io/index.js';
+
 import { body, computeHttpBinding, query } from './binding.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { events, multipart, stream, upload } from '@nestling/contracts';
 import { z } from 'zod';
 
 const Input = z.object({

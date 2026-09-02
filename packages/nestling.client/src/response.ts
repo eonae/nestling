@@ -12,14 +12,14 @@ import type {
   AnyFailDefinition,
   StandardSchemaV1,
   SuccessStatus,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   describeForm,
   Fail,
   isPrimitiveLeaf,
   Ok,
   UnknownError,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 
 /** Тело отказа по сети — то же, что собирает серверная граница */
 interface WireFailure {
@@ -112,7 +112,7 @@ export function readSuccess(
   return checked.ok
     ? new Ok(okStatus, checked.value as never)
     : unknownFailure(
-        `${where}: the response did not match the contract's 'output' schema.`,
+        `${where}: the response did not match the operation's 'output' schema.`,
         checked.issues,
       );
 }

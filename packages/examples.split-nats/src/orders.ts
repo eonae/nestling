@@ -10,7 +10,7 @@
  */
 
 import { TenantId } from './context';
-import { ClaimQuota, OrderPlaced, PlaceOrder } from './contracts';
+import { ClaimQuota, OrderPlaced, PlaceOrder } from './operations';
 
 import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';

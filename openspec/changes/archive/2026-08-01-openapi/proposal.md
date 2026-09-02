@@ -88,7 +88,7 @@ bind-карту «поле → место» (#21, #22), объявленные �
 - **`@nestling/pipeline`**: слот `doc` в `EndpointOptions`/`EndpointDefinition`
   (переносится `resolve`, не интерпретируется); `jsonSchema()` и его учёт в
   диспетчере конвертеров — оба аддитивны.
-- **`@nestling/contracts`**: слот `doc` в `ContractSpec`/`Contract`.
+- **`@nestling/operations`**: слот `doc` в `ContractSpec`/`Contract`.
 - **`@nestling/transport.http`**: `doc` в HTTP-словаре и в списке полей,
   принадлежащих контракту (`CONTRACT_OWNED`); наружу выносится перевод
   статуса в код провода (`STATUS_MAP` уже здесь — генератор обязан читать

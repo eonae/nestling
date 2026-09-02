@@ -6,7 +6,7 @@ import {
   QuotaExceeded,
   SignupRecorded,
   UserRegistered,
-} from '../../contracts';
+} from '../../operations';
 import type { ILoggerService } from '../logger';
 import { ILogger } from '../logger';
 

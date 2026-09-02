@@ -10,7 +10,7 @@ import type { Raw } from '../types/raw.js';
 
 import { bindInputStream } from './bind-stream.js';
 
-import { describeForm, makeSummary, Ok, stream } from '@nestling/contracts';
+import { describeForm, makeSummary, Ok, stream } from '@nestling/operations';
 import { z } from 'zod';
 
 const LogChunk = z.object({ level: z.string() });

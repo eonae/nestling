@@ -1,5 +1,5 @@
-import type { User } from '../../../api.contracts';
-import { GetUser as GetUserContract } from '../../../api.contracts';
+import type { User } from '../../../api.operations';
+import { GetUser as GetUserContract } from '../../../api.operations';
 import { basePipeline } from '../../../common/pipelines';
 import type { ILoggerService } from '../../logger';
 import { ILogger } from '../../logger';

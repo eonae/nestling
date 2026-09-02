@@ -15,8 +15,14 @@ import type { UnknownFailInfo } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
 import type { Schema, StandardSchemaV1 } from '@common/misc';
-import type { AnyPayload } from '@nestling/contracts';
-import { defineFail, multipart, Ok, stream, upload } from '@nestling/contracts';
+import type { AnyPayload } from '@nestling/operations';
+import {
+  defineFail,
+  multipart,
+  Ok,
+  stream,
+  upload,
+} from '@nestling/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

@@ -1,7 +1,7 @@
 {
-  "name": "@nestling/contracts",
+  "name": "@nestling/operations",
   "version": "0.1.0",
-  "description": "Direction-neutral declarations for Nestling: contracts, fail definitions, io forms and the HTTP bind map — no server code, no runtime dependencies",
+  "description": "Direction-neutral declarations for Nestling: operations, fail definitions, io forms and the HTTP bind map — no server code, no runtime dependencies",
   "type": "module",
   "main": "dist/index.js",
   "exports": {

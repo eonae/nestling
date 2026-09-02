@@ -33,7 +33,7 @@ const ALLOW = [
   '@standard-schema/spec',
 ];
 
-describe('@nestling/contracts: package boundary', () => {
+describe('@nestling/operations: package boundary', () => {
   it('does not reach server code, the container barrel or node built-ins', () => {
     const violations = collectForbiddenImports({
       repoRoot,

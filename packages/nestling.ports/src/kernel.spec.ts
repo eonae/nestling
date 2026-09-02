@@ -17,13 +17,13 @@ import {
   factoryProvider,
   makeToken,
 } from '@nestling/container';
-import type { Emitter, Port } from '@nestling/contracts';
+import type { Emitter, Port } from '@nestling/operations';
 import {
   EmitterFamily,
   makeEvent,
   makeRequest,
   PortFamily,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import type { Dispatch } from '@nestling/transport';

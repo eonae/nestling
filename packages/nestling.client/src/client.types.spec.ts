@@ -13,8 +13,8 @@
 import { makeClient } from './client.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Fail, Ok } from '@nestling/contracts';
-import { defineFail, makeCommand, makeRequest } from '@nestling/contracts';
+import type { Fail, Ok } from '@nestling/operations';
+import { defineFail, makeCommand, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), email: z.string() });

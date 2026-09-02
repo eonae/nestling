@@ -16,8 +16,8 @@ import { HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeClient } from '@nestling/client';
-import type { HttpBinding } from '@nestling/contracts';
-import { defineFail, makeRequest } from '@nestling/contracts';
+import type { HttpBinding } from '@nestling/operations';
+import { defineFail, makeRequest } from '@nestling/operations';
 import { Fail, Ok } from '@nestling/pipeline';
 import type { ExecutableDeclaration } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';

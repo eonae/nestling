@@ -13,7 +13,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-import type { AnyInput } from '@nestling/contracts';
+import type { AnyInput } from '@nestling/operations';
 
 /**
  * Фаза выполнения запроса. Нужна только для текста ошибки `get()`: по ней

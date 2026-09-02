@@ -4,16 +4,16 @@
 отчёт о совместимости операций.
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
-> [`docs/design/contracts.md`](../../docs/design/contracts.md).
+> [`docs/design/operations.md`](../../docs/design/operations.md).
 > Гайд: [`docs/guides/ports.md`](../../docs/guides/ports.md).
 
-Зависимости: `@nestling/container`, `@nestling/contracts`,
+Зависимости: `@nestling/container`, `@nestling/operations`,
 `@nestling/pipeline`, `@nestling/transport`, `@nestling/streams`,
 `@nestling/config`, `@common/misc`. Валидатор схем пакет не выбирает:
 лист операции — любое значение
 [Standard Schema v1](https://standardschema.dev).
 
-`makeRequest` / `makeCommand` / `makeEvent` импортируется из [`@nestling/contracts`](../nestling.contracts),
+`makeRequest` / `makeCommand` / `makeEvent` импортируется из [`@nestling/operations`](../nestling.operations),
 а не отсюда: объявление операции живёт в пакете без серверных
 зависимостей, чтобы его можно было импортировать во фронтенд. Этот пакет
 реэкспортирует только типы вызывателей: `Port`, `Emitter`, `PortMeta`,
@@ -22,13 +22,13 @@
 ## Установка
 
 ```bash
-npm install @nestling/ports @nestling/contracts
+npm install @nestling/ports @nestling/operations
 ```
 
 ## Минимальный пример
 
 ```typescript
-import { makeRequest } from '@nestling/contracts';
+import { makeRequest } from '@nestling/operations';
 import { implement } from '@nestling/ports';
 
 // Операция: имя, вид, схемы входа и выхода, список отказов
@@ -307,7 +307,7 @@ console.log(formatCompatibility(report));
 
 | Экспорт | Что это |
 |---|---|
-| `implement(contract, declaration)` | декларация реализации операции |
+| `implement(operation, declaration)` | декларация реализации операции |
 | `deadlineIn(ms)`, `deadlineFromTimeout(ms?)`, `isExhausted(deadline?)` | работа с моментом `deadline` |
 | `Deadline`, `IdempotencyKey`, `withDeadline()`, `withIdempotencyKey()` | переменные контекста параметров вызова и `.pre`-юниты, которые их заполняют |
 | `profileAttributes`, `startBudget`, `CallBudget`, `failureResponse` | инструменты автора реализации шины |
@@ -320,7 +320,7 @@ console.log(formatCompatibility(report));
 | `describeContract`, `canonicalizeJson`, `ContractDescriptor` | описание операции JSON-значением |
 | `snapshotOperations`, `serializeSnapshot`, `SNAPSHOT_VERSION`, `ContractSnapshot` | снапшот операций |
 | `diffOperations`, `formatCompatibility`, `suggestBump`, `CompatibilityReport` | сравнение снапшотов |
-| `Port`, `Emitter`, `PortMeta`, `CommandMeta`, `PortResult`, … | типы вызывателей (реэкспорт из `@nestling/contracts`) |
+| `Port`, `Emitter`, `PortMeta`, `CommandMeta`, `PortResult`, … | типы вызывателей (реэкспорт из `@nestling/operations`) |
 
 `InProcessBusOptions`: `buffer` (размер буфера на подписчика),
 `onDeliveryFailure` (хук отказа доставки), `onUnknownFail` (хук

@@ -14,13 +14,13 @@ import type {
   FormDescriptor,
   FormLeaf,
   StreamSummary,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   isPrimitiveLeaf,
   StreamGapTimeout,
   StreamLimitExceeded,
   ValidationFailed,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   batch,
   filter,

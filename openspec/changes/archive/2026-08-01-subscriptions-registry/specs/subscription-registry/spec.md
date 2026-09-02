@@ -9,12 +9,12 @@
 
 Пакет SHALL NOT иметь внешних зависимостей и SHALL NOT зависеть от
 `@nestling/app`: перечень зависимостей — `@nestling/container`,
-`@nestling/pipeline`, `@nestling/contracts`, `@nestling/streams`,
+`@nestling/pipeline`, `@nestling/operations`, `@nestling/streams`,
 `@common/misc`.
 
 Реализация change'а SHALL NOT вносить изменений ни в один kernel-пакет
 (`@nestling/pipeline`, `@nestling/app`, `@nestling/container`,
-`@nestling/ports`, `@nestling/contracts`, `@nestling/streams`,
+`@nestling/ports`, `@nestling/operations`, `@nestling/streams`,
 `@nestling/transport*`). Любая потребность в такой правке SHALL быть
 зафиксирована записью журнала решений как находка, а не закрыта точечным
 изменением ядра.

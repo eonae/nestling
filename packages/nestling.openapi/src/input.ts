@@ -20,7 +20,7 @@ import type {
   OpenApiRequestBody,
 } from './types.js';
 
-import type { HttpBinding, UploadSpec } from '@nestling/contracts';
+import type { HttpBinding, UploadSpec } from '@nestling/operations';
 import { describeForm, isPrimitiveLeaf, mediaTypeOf } from '@nestling/pipeline';
 
 /** Вход операции: параметры и тело */

@@ -6,7 +6,7 @@ import { implement } from './implement.js';
 import { busBindingOf, BusTransport$ } from './transport.js';
 
 import { makeToken } from '@nestling/container';
-import { makeEvent, makeRequest } from '@nestling/contracts';
+import { makeEvent, makeRequest } from '@nestling/operations';
 import { isEndpointDefinition, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
@@ -124,7 +124,7 @@ describe('implement', () => {
       implement(OrderPlaced, {
         handle: async () => undefined,
       }),
-    ).toThrow(/'event' contract has 0\.\.N subscribers.*subscriber/s);
+    ).toThrow(/'event' operation has 0\.\.N subscribers.*subscriber/s);
   });
 
   it('запрещает `subscriber` у запроса — типом и в рантайме', () => {
@@ -134,7 +134,7 @@ describe('implement', () => {
         subscriber: 'billing',
         handle: async () => new Ok({ chargeId: 'c-1' }),
       }),
-    ).toThrow(/'request' contract has exactly one owner/);
+    ).toThrow(/'request' operation has exactly one owner/);
   });
 
   it('переносит долговечность операции в биндинг реализации', () => {
@@ -167,7 +167,7 @@ describe('implement', () => {
         input: z.object({ other: z.string() }) as never,
         handle: async () => new Ok({ chargeId: 'c-1' }),
       }),
-    ).toThrow(/'input' belongs to the contract/);
+    ).toThrow(/'input' belongs to the operation/);
   });
 
   it('секция http: в реализации по шине не участвует', () => {

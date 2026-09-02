@@ -111,8 +111,8 @@ path-параметре — ошибка компиляции.
 path-параметр при потоковом или файловом `input`.
 
 > В примере `GetUser` и `CreateUser` объявлены через операция
-> (`httpEndpoint({ contract, … })`): адрес, схемы и `errors` живут в
-> операции `src/api.contracts.ts`, который импортирует и внешний клиент.
+> (`httpEndpoint({ operation, … })`): адрес, схемы и `errors` живут в
+> операции `src/api.operations.ts`, который импортирует и внешний клиент.
 > Форма с `method`/`path` выше делает то же самое, когда второго
 > потребителя нет. Подробнее — [`typed-client.md`](./typed-client.md).
 
@@ -132,7 +132,7 @@ import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 import { basePipeline } from '../../../common/pipelines';
-import { ClaimQuota, QuotaExceeded } from '../../../contracts';
+import { ClaimQuota, QuotaExceeded } from '../../../operations';
 import { ILogger, type ILoggerService } from '../../logger';
 import { EmailTaken } from '../user.errors';
 import { UserService } from '../user.service';

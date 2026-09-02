@@ -8,8 +8,8 @@
 
 import type { Schema } from '@common/misc';
 import { SchemaValidationError, validateSync } from '@common/misc';
-import type { FormDescriptor } from '@nestling/contracts';
-import { isPrimitiveLeaf, ValidationFailed } from '@nestling/contracts';
+import type { FormDescriptor } from '@nestling/operations';
+import { isPrimitiveLeaf, ValidationFailed } from '@nestling/operations';
 
 /** Payload формы `multipart`: поля формы и файлы */
 interface MultipartPayload {

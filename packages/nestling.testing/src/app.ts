@@ -22,7 +22,7 @@ import type {
   CommandMeta,
   EmittingOperation,
   InvokeArgs,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
   AnyInput,
@@ -192,7 +192,7 @@ export class TestApp {
    * ```typescript
    * const published = new Set(
    *   (await checkTopologies(spec, ['all', 'orders', 'quotas']))
-   *     .flatMap(({ report }) => report.contracts.map((c) => c.name)),
+   *     .flatMap(({ report }) => report.operations.map((c) => c.name)),
    * );
    *
    * expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
@@ -269,7 +269,7 @@ export class TestApp {
    *
    * Ждать здесь безопасно: сокета нет, подписчики co-located.
    *
-   * @param contract - Операция вида `command` или `event`
+   * @param operation - Операция вида `command` или `event`
    * @returns Ответы подписчиков с именем каждого, в порядке discovery
    * @throws {TypeError} Если операция — `request` (у него нет подписчиков)
    * @throws {Error} Если у команды нет владельца в этой сборке. У события
@@ -284,34 +284,34 @@ export class TestApp {
    * ```
    */
   async emit<C extends EmittingOperation<any, any, any, any>>(
-    contract: C,
+    operation: C,
     ...args: InvokeArgs<C>
   ): Promise<readonly EmitDelivery[]> {
     const [payload, meta] = args;
 
-    assertEmitting(contract);
+    assertEmitting(operation);
 
-    const subscribers = this.#busEndpoints(contract.name);
+    const subscribers = this.#busEndpoints(operation.name);
 
     if (subscribers.length === 0) {
-      if (contract.kind === 'event') {
+      if (operation.kind === 'event') {
         // Broadcast с нулём подписчиков — допустимое состояние
         return [];
       }
 
       throw new Error(
-        `Operation '${contract.name}' (kind 'command') has no owner in the ` +
+        `Operation '${operation.name}' (kind 'command') has no owner in the ` +
           `assembled application: no registered module declares ` +
-          `implement(${contract.name}, { … }) — check that the feature ` +
+          `implement(${operation.name}, { … }) — check that the feature ` +
           `owning it is part of 'select'. Available subjects: ` +
           `${this.#busSubjects().join(', ') || '(none)'}.`,
       );
     }
 
     const attributes = profileAttributes({
-      subject: contract.name,
+      subject: operation.name,
       deadline: meta?.deadline,
-      ...(contract.kind === 'command'
+      ...(operation.kind === 'command'
         ? {
             idempotencyKey:
               (meta as CommandMeta | undefined)?.idempotencyKey ??
@@ -459,21 +459,21 @@ type CallArgs<I extends AnyPayload> =
  * пустой список, ничего не сказав про вид операции.
  */
 function assertEmitting(
-  contract: unknown,
-): asserts contract is EmittingOperation<any, any, any, any> {
-  const kind = (contract as { kind?: unknown } | undefined)?.kind;
-  const name = (contract as { name?: unknown } | undefined)?.name;
+  operation: unknown,
+): asserts operation is EmittingOperation<any, any, any, any> {
+  const kind = (operation as { kind?: unknown } | undefined)?.kind;
+  const name = (operation as { name?: unknown } | undefined)?.name;
 
   if (typeof name !== 'string' || typeof kind !== 'string') {
     throw new TypeError(
-      `app.emit(contract, …): the first argument must be a contract value ` +
+      `app.emit(operation, …): the first argument must be a operation value ` +
         `created by makeRequest / makeCommand / makeEvent.`,
     );
   }
 
   if (kind === 'request') {
     throw new TypeError(
-      `app.emit(${name}, …): '${name}' is a 'request' contract — it has one ` +
+      `app.emit(${name}, …): '${name}' is a 'request' operation — it has one ` +
         `owner answering a caller, not subscribers to broadcast to. Drive its ` +
         `implementation with app.call(...) instead.`,
     );

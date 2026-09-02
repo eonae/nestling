@@ -122,7 +122,7 @@ Change #7 стоит последним в волне 6 именно поэто�
 - `README.md` корня — чекбокс `Subscriptions registry` и строка пакета.
 
 **Зависимости пакета:** `@nestling/container`, `@nestling/pipeline`,
-`@nestling/contracts`, `@nestling/streams`, `@common/misc` (типы Standard
+`@nestling/operations`, `@nestling/streams`, `@common/misc` (типы Standard
 Schema). Внешних зависимостей нет; вендор схем не нужен.
 
 **Чего не происходит:** ни один kernel-пакет не изменяется. Это инвариант

@@ -7,6 +7,12 @@
  * модуль-лист разрывает цикл импортов.
  */
 
+import type { FailOf } from './define-fail.js';
+import type {
+  DeadlineExceeded,
+  UnknownError,
+  ValidationFailed,
+} from './kernel-fails.js';
 import type {
   AnyOperation,
   EmittingOperation,
@@ -14,13 +20,7 @@ import type {
   OperationFailsOf,
   OutputOf,
   RequestOperation,
-} from './contract.js';
-import type { FailOf } from './define-fail.js';
-import type {
-  DeadlineExceeded,
-  UnknownError,
-  ValidationFailed,
-} from './kernel-fails.js';
+} from './operation.js';
 import type { Ok } from './result.js';
 
 import type { Token } from '@nestling/container/tokens';

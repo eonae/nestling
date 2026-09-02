@@ -10,7 +10,7 @@
 
 import { busBindingOf } from './transport.js';
 
-import type { OperationKind } from '@nestling/contracts';
+import type { OperationKind } from '@nestling/operations';
 
 /** Одна co-located реализация операции */
 export interface ContractImplementation {
@@ -92,11 +92,11 @@ export function collectImplementations(
 
     if (binding.kind !== 'event') {
       throw new Error(
-        `Operation '${binding.subject}' is a '${binding.kind}' contract and ` +
+        `Operation '${binding.subject}' is a '${binding.kind}' operation and ` +
           `therefore has exactly one owner, but it is implemented twice: in ` +
           `module '${first.moduleName}' and in module '${moduleName}'. ` +
           `Remove one of the implementations, or split the operation into ` +
-          `two contracts.`,
+          `two operations.`,
       );
     }
 
@@ -106,10 +106,10 @@ export function collectImplementations(
 
     if (duplicate) {
       throw new Error(
-        `Event contract '${binding.subject}' has two subscribers named ` +
+        `Event operation '${binding.subject}' has two subscribers named ` +
           `'${binding.subscriber}': in module '${duplicate.moduleName}' and ` +
           `in module '${moduleName}'. A subscriber name is the subscription ` +
-          `address, so it must be unique per contract.`,
+          `address, so it must be unique per operation.`,
       );
     }
 

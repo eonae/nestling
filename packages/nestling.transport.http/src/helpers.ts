@@ -11,7 +11,7 @@ import type {
   OperationFailsOf,
   OutputFormOf,
   SseConfig,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
   AnyFailDefinition,
@@ -33,7 +33,7 @@ import { makeEndpoint } from '@nestling/pipeline';
 import { DEFAULT_INSTANCE } from '@nestling/transport';
 
 // Типы разметки пути и ключей `bind` (`PathParams`, `BindMap`) общие с
-// секцией `http:` операции и живут в `@nestling/contracts`;
+// секцией `http:` операции и живут в `@nestling/operations`;
 // `./binding.js` их реэкспортирует.
 
 /**
@@ -279,7 +279,7 @@ function assertOperation(
  * Типы такое не компилируют; проверка нужна для JS-кода, где переданное
  * поле иначе молча игнорировалось бы.
  */
-function assertContractOwned(
+function assertOperationOwned(
   declaration: Record<string, unknown>,
   operation: AnyOperation,
 ): void {
@@ -301,7 +301,7 @@ function assertContractOwned(
  * Карта не пересчитывается: декларация получает то же значение, которое
  * несёт операция, поэтому клиент и сервер читают одну и ту же карту.
  */
-function fromContract(
+function fromOperation(
   declaration: Record<string, unknown> & { operation: unknown },
 ): AnyEndpointDefinition {
   const { operation, on, ...rest } = declaration as Record<string, unknown> & {
@@ -310,7 +310,7 @@ function fromContract(
   };
 
   assertOperation(operation);
-  assertContractOwned(rest, operation);
+  assertOperationOwned(rest, operation);
 
   const binding = operation.http;
   if (!binding) {
@@ -529,7 +529,7 @@ export function httpEndpoint(
 ): AnyEndpointDefinition {
   // Операция-форму отличает ключ `operation`: в анонимной форме его нет
   if ('operation' in declaration) {
-    return fromContract(
+    return fromOperation(
       declaration as unknown as Record<string, unknown> & {
         operation: unknown;
       },

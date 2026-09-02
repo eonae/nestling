@@ -5,7 +5,7 @@
  *
  * Скрипт импортирует ровно два пакета: операции приложения и
  * `@nestling/client`. Контейнер, пайплайн и транспорт сюда не попадают:
- * импорты `@nestling/contracts` не ведут к серверному коду, и это
+ * импорты `@nestling/operations` не ведут к серверному коду, и это
  * проверяет тест границы пакета.
  *
  * Запуск (сервер должен быть поднят `yarn start`):
@@ -15,8 +15,8 @@
  */
 
 import { EmailTaken, UserNotFound } from './modules/users/user.errors';
-import { CreateUser, GetUser } from './api.contracts';
-import { QuotaExceeded } from './contracts';
+import { CreateUser, GetUser } from './api.operations';
+import { QuotaExceeded } from './operations';
 
 import { makeClient } from '@nestling/client';
 

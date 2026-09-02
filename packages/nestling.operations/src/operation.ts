@@ -378,7 +378,7 @@ function httpBindingFor(
     sse: section.sse,
     // Имя операции хранится на карте: реализация получает ту же карту, и
     // по ней интроспекция HTTP-декларации узнаёт операцию
-    contract: name,
+    operation: name,
     where,
   });
 }
@@ -508,10 +508,10 @@ function declare(
 
   defineInvokers(value, kind);
 
-  const contract = Object.freeze(value) as unknown as AnyOperation;
-  registerOperation(contract);
+  const operation = Object.freeze(value) as unknown as AnyOperation;
+  registerOperation(operation);
 
-  return contract;
+  return operation;
 }
 
 /**

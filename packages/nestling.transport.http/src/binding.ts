@@ -2,15 +2,15 @@
  * Серверная половина bind-карты: разбор запроса по ней.
  *
  * Пометки `query()` и `body()`, тип карты и её вычисление
- * (`computeHttpBinding`) живут в `@nestling/contracts`, чтобы клиент
+ * (`computeHttpBinding`) живут в `@nestling/operations`, чтобы клиент
  * получал карту вместе с операцией без серверного кода. Здесь — разбор
  * query-строки, сборка payload из канонических мест и чтение карты с
  * декларации. Пометки и тип карты реэкспортированы для авторов
  * HTTP-деклараций.
  */
 
-import type { BindPlacement, HttpBinding } from '@nestling/contracts';
-import { buildHttpBinding, isHttpBinding } from '@nestling/contracts';
+import type { BindPlacement, HttpBinding } from '@nestling/operations';
+import { buildHttpBinding, isHttpBinding } from '@nestling/operations';
 
 export {
   assertHttpPath,
@@ -22,7 +22,7 @@ export {
   METHODS_WITHOUT_BODY,
   query,
   readPathParams,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 export type {
   BindMap,
   BindMark,
@@ -32,7 +32,7 @@ export type {
   HttpBinding,
   HttpMethod,
   PathParams,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 
 /**
  * Разбирает query-строку, сохраняя все вхождения ключа.

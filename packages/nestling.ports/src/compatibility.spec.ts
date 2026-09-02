@@ -13,7 +13,7 @@ import * as ports from './index.js';
 import type { OperationSnapshot } from './snapshot.js';
 
 /** Контракт-фикстура: value-формы с JSON Schema обоих слотов */
-const contract = (
+const operation = (
   name: string,
   overrides: Partial<OperationDescriptor> = {},
 ): OperationDescriptor => ({
@@ -35,9 +35,9 @@ const object = (
   required: string[] = [],
 ): JsonValue => ({ type: 'object', properties, required });
 
-const snapshot = (...contracts: OperationDescriptor[]): OperationSnapshot => ({
+const snapshot = (...operations: OperationDescriptor[]): OperationSnapshot => ({
   snapshotVersion: 1,
-  contracts: contracts.map((value) => ({ ...value, topologies: ['all'] })),
+  operations: operations.map((value) => ({ ...value, topologies: ['all'] })),
 });
 
 /** Форма `multipart` с одним файловым полем — фикстура для правил про файлы */
@@ -57,47 +57,52 @@ const diffSlot = (
 ) =>
   diffOperations(
     snapshot(
-      contract('c', { [slot]: { kind: 'value', leaf: schema(before) } }),
+      operation('c', { [slot]: { kind: 'value', leaf: schema(before) } }),
     ),
-    snapshot(contract('c', { [slot]: { kind: 'value', leaf: schema(after) } })),
+    snapshot(
+      operation('c', { [slot]: { kind: 'value', leaf: schema(after) } }),
+    ),
   );
 
 describe('diffOperations: структурные правила', () => {
   it('исчезновение контракта — breaking, появление — additive', () => {
     const report = diffOperations(
-      snapshot(contract('gone'), contract('kept')),
-      snapshot(contract('kept'), contract('fresh')),
+      snapshot(operation('gone'), operation('kept')),
+      snapshot(operation('kept'), operation('fresh')),
     );
 
     expect(report.breaking).toEqual([
       {
-        contract: 'gone',
+        operation: 'gone',
         path: '',
-        description: 'contract disappeared',
+        description: 'operation disappeared',
         verdict: 'breaking',
       },
     ]);
-    expect(report.additive.map(({ contract: name }) => name)).toEqual([
+    expect(report.additive.map(({ operation: name }) => name)).toEqual([
       'fresh',
     ]);
   });
 
   it('смена вида контракта — breaking', () => {
     const report = diffOperations(
-      snapshot(contract('c')),
-      snapshot(contract('c', { kind: 'command' })),
+      snapshot(operation('c')),
+      snapshot(operation('c', { kind: 'command' })),
     );
 
     expect(report.breaking).toMatchObject([
-      { path: 'kind', description: 'contract kind changed: request → command' },
+      {
+        path: 'kind',
+        description: 'operation kind changed: request → command',
+      },
     ]);
   });
 
   it('смена вида формы io — breaking', () => {
     const report = diffOperations(
-      snapshot(contract('c')),
+      snapshot(operation('c')),
       snapshot(
-        contract('c', { output: { kind: 'stream', leaf: { leaf: 'none' } } }),
+        operation('c', { output: { kind: 'stream', leaf: { leaf: 'none' } } }),
       ),
     );
 
@@ -109,7 +114,7 @@ describe('diffOperations: структурные правила', () => {
   it('смена примитивного листа — breaking', () => {
     const report = diffOperations(
       snapshot(
-        contract('c', {
+        operation('c', {
           output: {
             kind: 'value',
             leaf: { leaf: 'primitive', primitive: 'text' },
@@ -117,7 +122,7 @@ describe('diffOperations: структурные правила', () => {
         }),
       ),
       snapshot(
-        contract('c', {
+        operation('c', {
           output: {
             kind: 'value',
             leaf: { leaf: 'primitive', primitive: 'binary' },
@@ -134,12 +139,12 @@ describe('diffOperations: структурные правила', () => {
   it('удалённый код отказа — breaking, добавленный — additive', () => {
     const report = diffOperations(
       snapshot(
-        contract('c', {
+        operation('c', {
           errors: [{ code: 'CARD_DECLINED', status: 'PAYMENT_REQUIRED' }],
         }),
       ),
       snapshot(
-        contract('c', {
+        operation('c', {
           errors: [{ code: 'QUOTA_EXCEEDED', status: 'TOO_MANY_REQUESTS' }],
         }),
       ),
@@ -155,8 +160,10 @@ describe('diffOperations: структурные правила', () => {
 
   it('смена статуса объявленного отказа — breaking', () => {
     const report = diffOperations(
-      snapshot(contract('c', { errors: [{ code: 'X', status: 'CONFLICT' }] })),
-      snapshot(contract('c', { errors: [{ code: 'X', status: 'NOT_FOUND' }] })),
+      snapshot(operation('c', { errors: [{ code: 'X', status: 'CONFLICT' }] })),
+      snapshot(
+        operation('c', { errors: [{ code: 'X', status: 'NOT_FOUND' }] }),
+      ),
     );
 
     expect(report.breaking).toMatchObject([
@@ -178,7 +185,7 @@ describe('diffOperations: направление берётся из слота'
 
     expect(report.breaking).toEqual([
       {
-        contract: 'c',
+        operation: 'c',
         path: 'output.chargeId',
         description: 'property removed',
         verdict: 'breaking',
@@ -341,12 +348,12 @@ describe('diffOperations: unknown вместо молчаливой совмес
   it('смена вендора листа — unknown, а не breaking', () => {
     const report = diffOperations(
       snapshot(
-        contract('c', {
+        operation('c', {
           output: { kind: 'value', leaf: schema({ type: 'string' }) },
         }),
       ),
       snapshot(
-        contract('c', {
+        operation('c', {
           output: {
             kind: 'value',
             leaf: {
@@ -366,7 +373,7 @@ describe('diffOperations: unknown вместо молчаливой совмес
   });
 
   it('непрозрачные листья с обеих сторон: структурных расхождений нет, лист — unknown', () => {
-    const opaque = contract('c', {
+    const opaque = operation('c', {
       input: { kind: 'value', leaf: { leaf: 'opaque', vendor: 'zod' } },
       output: { kind: 'value', leaf: { leaf: 'opaque', vendor: 'zod' } },
       errors: [{ code: 'X', status: 'CONFLICT' }],
@@ -385,12 +392,12 @@ describe('diffOperations: unknown вместо молчаливой совмес
   it('непрозрачность с одной стороны тоже даёт unknown', () => {
     const report = diffOperations(
       snapshot(
-        contract('c', {
+        operation('c', {
           output: { kind: 'value', leaf: { leaf: 'opaque', vendor: 'zod' } },
         }),
       ),
       snapshot(
-        contract('c', {
+        operation('c', {
           output: { kind: 'value', leaf: schema({ type: 'string' }) },
         }),
       ),
@@ -402,8 +409,8 @@ describe('diffOperations: unknown вместо молчаливой совмес
 
   it('файловые поля multipart правила не покрывают — unknown', () => {
     const report = diffOperations(
-      snapshot(contract('c', { input: multipartForm(1024) })),
-      snapshot(contract('c', { input: multipartForm(2048) })),
+      snapshot(operation('c', { input: multipartForm(1024) })),
+      snapshot(operation('c', { input: multipartForm(2048) })),
     );
 
     expect(report.unknown).toMatchObject([
@@ -418,24 +425,24 @@ describe('diffOperations: unknown вместо молчаливой совмес
 describe('diffOperations: отчёт — значение, которое не блокирует', () => {
   it('пустой baseline даёт сплошной additive', () => {
     const report = diffOperations(
-      { snapshotVersion: 1, contracts: [] },
-      snapshot(contract('a'), contract('b')),
+      { snapshotVersion: 1, operations: [] },
+      snapshot(operation('a'), operation('b')),
     );
 
     expect(report.breaking).toEqual([]);
     expect(report.unknown).toEqual([]);
     expect(report.additive).toMatchObject([
-      { contract: 'a', description: 'contract appeared' },
-      { contract: 'b', description: 'contract appeared' },
+      { operation: 'a', description: 'operation appeared' },
+      { operation: 'b', description: 'operation appeared' },
     ]);
   });
 
   it('три breaking не бросают и ничего не собирают', () => {
     const report = diffOperations(
       snapshot(
-        contract('a'),
-        contract('b'),
-        contract('c', {
+        operation('a'),
+        operation('b'),
+        operation('c', {
           output: {
             kind: 'value',
             leaf: schema(object({ id: { type: 'string' } })),
@@ -443,14 +450,14 @@ describe('diffOperations: отчёт — значение, которое не �
         }),
       ),
       snapshot(
-        contract('c', {
+        operation('c', {
           output: { kind: 'value', leaf: schema(object({})) },
         }),
       ),
     );
 
     expect(report.breaking).toHaveLength(3);
-    expect(report.breaking.map(({ contract: name }) => name)).toEqual([
+    expect(report.breaking.map(({ operation: name }) => name)).toEqual([
       'a',
       'b',
       'c',
@@ -466,7 +473,7 @@ describe('diffOperations: отчёт — значение, которое не �
 
     expect(report.breaking).toEqual([
       {
-        contract: 'c',
+        operation: 'c',
         path: 'output.id',
         description: 'property removed',
         verdict: 'breaking',
@@ -477,23 +484,23 @@ describe('diffOperations: отчёт — значение, которое не �
   it('baseline из будущего бросает, называя обе версии', () => {
     expect(() =>
       diffOperations(
-        { snapshotVersion: 99, contracts: [] },
-        { snapshotVersion: 1, contracts: [] },
+        { snapshotVersion: 99, operations: [] },
+        { snapshotVersion: 1, operations: [] },
       ),
     ).toThrow(/baseline snapshot has format version 99.*reads 1/s);
   });
 
   it('baseline не того вида бросает', () => {
     expect(() =>
-      diffOperations(null as never, { snapshotVersion: 1, contracts: [] }),
+      diffOperations(null as never, { snapshotVersion: 1, operations: [] }),
     ).toThrow(/baseline snapshot must be a value of shape/);
 
     expect(() =>
       diffOperations({ snapshotVersion: 1 } as never, {
         snapshotVersion: 1,
-        contracts: [],
+        operations: [],
       }),
-    ).toThrow(/no 'contracts' array/);
+    ).toThrow(/no 'operations' array/);
   });
 
   it('флага блокировки на публичной поверхности не существует', () => {
@@ -519,33 +526,33 @@ describe('подсказка bump’а имени', () => {
   it('появляется в отчёте только у контракта с breaking', () => {
     const report = diffOperations(
       snapshot(
-        contract('billing.charge', {
+        operation('billing.charge', {
           output: {
             kind: 'value',
             leaf: schema(object({ id: { type: 'string' } })),
           },
         }),
-        contract('users.get'),
+        operation('users.get'),
       ),
       snapshot(
-        contract('billing.charge', {
+        operation('billing.charge', {
           output: { kind: 'value', leaf: schema(object({})) },
         }),
-        contract('users.get', {
+        operation('users.get', {
           errors: [{ code: 'NEW', status: 'CONFLICT' }],
         }),
       ),
     );
 
-    expect(report.contracts).toEqual([
+    expect(report.operations).toEqual([
       {
-        contract: 'billing.charge',
+        operation: 'billing.charge',
         breaking: 1,
         additive: 0,
         unknown: 0,
         suggestedName: 'billing.charge.v2',
       },
-      { contract: 'users.get', breaking: 0, additive: 1, unknown: 0 },
+      { operation: 'users.get', breaking: 0, additive: 1, unknown: 0 },
     ]);
   });
 });
@@ -554,22 +561,22 @@ describe('formatCompatibility', () => {
   it('печатает секции по вердиктам со счётчиками и подсказку про конвертер', () => {
     const report = diffOperations(
       snapshot(
-        contract('a', {
+        operation('a', {
           output: {
             kind: 'value',
             leaf: schema(object({ id: { type: 'string' } })),
           },
         }),
-        contract('b', {
+        operation('b', {
           input: { kind: 'value', leaf: { leaf: 'opaque', vendor: 'zod' } },
         }),
       ),
       snapshot(
-        contract('a', {
+        operation('a', {
           output: { kind: 'value', leaf: schema(object({})) },
           errors: [{ code: 'NEW', status: 'CONFLICT' }],
         }),
-        contract('b', {
+        operation('b', {
           input: { kind: 'value', leaf: { leaf: 'opaque', vendor: 'zod' } },
         }),
       ),
@@ -587,7 +594,7 @@ describe('formatCompatibility', () => {
 
   it('на совпадающих снапшотах печатает нули и ни одной секции', () => {
     const text = formatCompatibility(
-      diffOperations(snapshot(contract('a')), snapshot(contract('a'))),
+      diffOperations(snapshot(operation('a')), snapshot(operation('a'))),
     );
 
     expect(text).toBe(

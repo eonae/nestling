@@ -1,4 +1,4 @@
-# @nestling/contracts
+# @nestling/operations
 
 Декларации, общие для сервера и клиента: `makeRequest` / `makeCommand` / `makeEvent`, `defineFail` со
 встроенными кодами отказов, `Ok`/`Fail` и перечень статусов, формы io
@@ -7,7 +7,7 @@
 аннотация `jsonSchema()`.
 
 > 🚧 Пакет в активной разработке, API может меняться. Целевой дизайн —
-> [`docs/design/contracts.md`](../../docs/design/contracts.md), гайд —
+> [`docs/design/operations.md`](../../docs/design/operations.md), гайд —
 > [`docs/guides/typed-client.md`](../../docs/guides/typed-client.md).
 
 ## Без серверного кода
@@ -25,13 +25,13 @@
 ## Установка
 
 ```bash
-npm install @nestling/contracts
+npm install @nestling/operations
 ```
 
 ## Минимальный пример
 
 ```typescript
-import { defineFail, makeRequest, query } from '@nestling/contracts';
+import { defineFail, makeRequest, query } from '@nestling/operations';
 
 export const EmailTaken = defineFail('EMAIL_TAKEN', {
   status: 'CONFLICT',
@@ -81,9 +81,9 @@ export const CreateUser = makeRequest({
 `errors` не из `defineFail`, повторяющийся код отказа, `durable` у
 `request` и дубликат имени операции — ошибка сразу.
 
-Типы для работы с операцией: `Contract`, `RequestContract`,
-`CommandContract`, `EventContract`, `InputOf<C>`, `OutputOf<C>`,
-`ContractFailsOf<C>`, `Port<C>`, `Emitter<C>`, `PortResult<C>`.
+Типы для работы с операцией: `Operation`, `RequestOperation`,
+`CommandOperation`, `EventOperation`, `InputOf<C>`, `OutputOf<C>`,
+`OperationFailsOf<C>`, `Port<C>`, `Emitter<C>`, `PortResult<C>`.
 
 ### `meta` вызова
 
@@ -236,7 +236,7 @@ capabilities)` отвергает декларацию, чью форму тра
 `query({ multiple: true })` всегда даёт массив.
 
 Секция разворачивается в bind-карту `HttpBinding` при создании операции:
-`{ method, path, fields, rest, rawBody, contract?, sse? }`. Ту же карту
+`{ method, path, fields, rest, rawBody, operation?, sse? }`. Ту же карту
 читают транспорт (разбор запроса), клиент (сборка запроса) и генератор
 OpenAPI. Функции `computeHttpBinding`, `buildHttpBinding`, `readPathParams`,
 `assertHttpPath`, `isBindMark`, `isHttpBinding` — для авторов транспортов
@@ -283,7 +283,7 @@ input: z.object({ payload: jsonSchema(ExoticSchema, { type: 'object' }) })
 | [`@nestling/pipeline`](../nestling.pipeline) | реэкспортирует `Ok`/`Fail`, `defineFail`, формы io, `jsonSchema()` |
 | [`@nestling/openapi`](../nestling.openapi) | bind-карту, формы io, `errors` и `doc` |
 
-`makeRequest` / `makeCommand` / `makeEvent` импортируется только из `@nestling/contracts`;
+`makeRequest` / `makeCommand` / `makeEvent` импортируется только из `@nestling/operations`;
 `@nestling/ports` его не реэкспортирует.
 
 ## Две копии пакета

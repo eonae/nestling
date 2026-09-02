@@ -23,11 +23,11 @@
    деклараций для них не существует.
 2. **Операции** — все операции со схемами: интерфейс (`input`, `output`,
    `errors`) и адреса (`name`, `http:`, `cli:`, …)
-   ([contracts.md](./contracts.md)).
+   ([operations.md](./operations.md)).
 3. **Реализации** — `implement(Contract, { pipeline?, deps?, handle,
    subscriber? })`. Поле `subscriber` задаёт адрес подписки: оно обязательно
    у операции-события и запрещено у остальных видов
-   ([contracts.md](./contracts.md)).
+   ([operations.md](./operations.md)).
 
 Операция первичен. Конструкторы транспортов (`httpEndpoint`, `cliEndpoint`,
 …) — сокращённая запись для «анонимная операция плюс `implement` одним

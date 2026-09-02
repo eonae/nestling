@@ -12,7 +12,7 @@ import type { PreUnitFn } from '../types/unit.js';
 
 import { currentCell } from './store.js';
 
-import type { AnyInput, EmptyInput } from '@nestling/contracts';
+import type { AnyInput, EmptyInput } from '@nestling/operations';
 
 /**
  * Ключ, зарезервированный под встроенную переменную `Signal`.

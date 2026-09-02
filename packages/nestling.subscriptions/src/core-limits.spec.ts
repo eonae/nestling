@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { events, Ok } from '@nestling/contracts';
+import { events, Ok } from '@nestling/operations';
 import type { Outcome, Raw } from '@nestling/pipeline';
 import { makeEmptyContext, makePipeline } from '@nestling/pipeline';
 import { z } from 'zod';

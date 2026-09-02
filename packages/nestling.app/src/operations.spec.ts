@@ -8,7 +8,7 @@ import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeRequest } from '@nestling/contracts';
+import { makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
 import { BusTransport$, implement, InProcessBus } from '@nestling/ports';

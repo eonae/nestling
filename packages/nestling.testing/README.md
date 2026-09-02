@@ -228,7 +228,7 @@ expect(
 
 ### Совместимость операций
 
-Отчёт каждой топологии содержит `contracts` — дескрипторы операций,
+Отчёт каждой топологии содержит `operations` — дескрипторы операций,
 которые топология публикует. Проверка совместимости строится на них без
 второй сборки:
 
@@ -320,7 +320,7 @@ resolve: { conditions: ['testing', 'node'] }
 | `testUnit(module, options?)` | сборка вокруг одного модуля; возвращает `TestApp` |
 | `TestApp` | `call`, `emit`, `get`, `pruned`, `stubbed`, `features`, `close`, `Symbol.asyncDispose` |
 | `TestAssemblySpec`, `TestCallOptions`, `TestStub`, `EmitDelivery` | типы спека, опций вызова, заглушки и доставки |
-| `stub(contract, impl)` | пара «токен вызывателя, заглушка» для `stubs:` |
+| `stub(operation, impl)` | пара «токен вызывателя, заглушка» для `stubs:` |
 | `ContractStub`, `RequestStubImpl`, `EmitStubImpl`, `StubOutput` | типы заглушек |
 | `unwrap(response)`, `UnwrapFailedError` | значение успешного ответа или ошибка |
 | `vars(record)`, `TestConfig` | источник конфига для тестов и тип поля `config:` |

@@ -10,7 +10,7 @@
 
 Что уже есть в коде и на что этот change опирается:
 
-- **Контракт — значение** (`@nestling/contracts`): `makeContract` кладёт на
+- **Контракт — значение** (`@nestling/operations`): `makeContract` кладёт на
   него `input`/`output`/`errors`/`kind`/`durable` и **токен вызывателя**:
   `C.port = PortFamily(name)` у `request`, `C.emitter = EmitterFamily(name)`
   у `command`/`event`. Обращение к чужому свойству бросает с текстом про вид.
@@ -49,7 +49,7 @@
   множеству отказов, ни по типу call-site.
 - Тест драйвит приложение как издатель: `app.emit` доставляет **всем**
   co-located подписчикам через полный пайплайн каждого.
-- Ни строки правок в `@nestling/ports`, `@nestling/contracts`,
+- Ни строки правок в `@nestling/ports`, `@nestling/operations`,
   `@nestling/container`, `@nestling/app`. Change — догфудинг тезиса
   «satellite пишется, не трогая ядро».
 - Пакет остаётся тонким: никакого spy/recorder, матчеров и реестров.

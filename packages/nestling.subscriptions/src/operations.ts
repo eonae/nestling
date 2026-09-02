@@ -13,7 +13,7 @@
 
 import { num, optionalStr, record, str } from './schema.js';
 
-import { makeEvent } from '@nestling/contracts';
+import { makeEvent } from '@nestling/operations';
 
 /** Значения `kind` снимка — тем же значением их перечисляет схема факта */
 const KINDS = ['value', 'stream', 'events'] as const;

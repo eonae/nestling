@@ -13,8 +13,8 @@ import type { OpenApiDocument } from './types.js';
 import { describe, expect, it } from '@jest/globals';
 import { assemble, makeFeature } from '@nestling/app';
 import { factoryProvider, makeToken, OnInit } from '@nestling/container';
-import type { StandardSchemaV1 } from '@nestling/contracts';
 import { zodConverter } from '@nestling/openapi.zod';
+import type { StandardSchemaV1 } from '@nestling/operations';
 import type {
   AnyInput,
   ExtendableContext,

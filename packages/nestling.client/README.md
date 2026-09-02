@@ -5,7 +5,7 @@
 операции: `Ok | Fail` для `request`, `Promise<void>` для `command`.
 
 > 🚧 Активная разработка, API может меняться.
-> Дизайн: [`docs/design/contracts.md`](../../docs/design/contracts.md) §5.
+> Дизайн: [`docs/design/operations.md`](../../docs/design/operations.md) §5.
 > Гайд: [`docs/guides/typed-client.md`](../../docs/guides/typed-client.md).
 
 ## Установка
@@ -14,7 +14,7 @@
 npm install @nestling/client
 ```
 
-Пакет зависит только от [`@nestling/contracts`](../nestling.contracts) и
+Пакет зависит только от [`@nestling/operations`](../nestling.operations) и
 глобального `fetch`; Node-специфичных API в нём нет, поэтому он
 собирается для браузера. Замыкание импортов проверяет тест границы.
 

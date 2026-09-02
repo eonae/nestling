@@ -100,7 +100,7 @@ export const OrderPlaced = makeEvent({
 ### 1.5. Пакеты
 
 `makeRequest` / `makeCommand` / `makeEvent`, `defineFail`, `Ok`/`Fail`, перечень статусов, формы io и
-bind-карта живут в `@nestling/contracts`. У пакета нет runtime-зависимостей
+bind-карта живут в `@nestling/operations`. У пакета нет runtime-зависимостей
 (транзитивно — только типы Standard Schema), поэтому операцию можно
 импортировать во фронтенд и в скрипты. Этот инвариант проверяет тест,
 который обходит граф импортов собранного пакета. Примитив токена инжекции
@@ -111,7 +111,7 @@ bind-карта живут в `@nestling/contracts`. У пакета нет runt
 Рантайм (вызыватели, шина, биндинг) живёт в `@nestling/ports`. Он
 реэкспортирует типы вызывателей (`Port`, `Emitter`, `PortMeta`), но не
 `makeRequest` / `makeCommand` / `makeEvent`: объявление операции импортируется только из
-`@nestling/contracts`.
+`@nestling/operations`.
 
 ### 1.6. Версия
 
@@ -124,14 +124,14 @@ bind-карта живут в `@nestling/contracts`. У пакета нет runt
 Сравнение схем со снапшотом опубликованных операций показывает
 несовместимые изменения, но не блокирует ни сборку, ни CI. Устройство:
 
-- `describeContract(contract, { converters? })` возвращает
+- `describeContract(operation, { converters? })` возвращает
   `ContractDescriptor` — JSON-значение: имя, вид, дерево форм io, коды и
   статусы отказов. Листовые схемы переводит вендорский конвертер
   ([schemas.md](./schemas.md) §2); без конвертера лист помечается
   непрозрачным. «Схемы нет» и «схема есть, но не сконвертирована» — разные
   состояния.
 - `.check()` кладёт дескрипторы опубликованных операций в поле
-  `contracts` отчёта. Источник — discovery (декларации с bus-биндингом), а
+  `operations` отчёта. Источник — discovery (декларации с bus-биндингом), а
   не приватный реестр `makeRequest` / `makeCommand` / `makeEvent`. `snapshotOperations(reports)` сводит
   матрицу `select`-топологий ([testing.md](./testing.md)) в
   `OperationSnapshot` объединением: операция, отсутствующая в одной
@@ -168,7 +168,7 @@ discovery, `dispatch`, пайплайн, проверку отказов на в
 компиляции.
 
 Операция с секцией `http:` реализуется формой с операцией
-`httpEndpoint({ contract, deps?, pipeline?, handle, detached? })`. Поля
+`httpEndpoint({ operation, deps?, pipeline?, handle, detached? })`. Поля
 `method`, `path`, `bind`, `rawBody`, `sse`, `input`, `output` и `errors` в
 этой форме объявлены как `never`: адрес и схемы берутся из операции,
 bind-карта — тем же значением, без повторного вычисления. Операция без

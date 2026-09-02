@@ -102,7 +102,7 @@ export function assertDoc(
         `${where}: 'doc.${field}' is not a field of the documentation ` +
           `section. Known fields: ` +
           `${DOC_FIELDS.map((known) => `'${known}'`).join(', ')}. ` +
-          `The operation name is derived from the contract name (or from the ` +
+          `The operation name is derived from the operation name (or from the ` +
           `method and path), not declared.`,
       );
     }

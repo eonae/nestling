@@ -52,7 +52,7 @@ Standard-Schema-поверхностью (`StandardSchemaV1`, `Schema`, `Infer`)
 
 Отвергнуто: (а) `@nestling/config` зависит от `@nestling/pipeline` — ноль работы,
 но конфиг тянет весь пайплайн и фиксирует инверсию слоёв на будущее (та же нужда
-возникнет у `@nestling/openapi` и `@nestling/contracts`); (б) новый пакет
+возникнет у `@nestling/openapi` и `@nestling/operations`); (б) новый пакет
 `@nestling/schema` — честнее по имени, но платить пакетом за четыре файла при живом
 `@common/misc` не за что.
 

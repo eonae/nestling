@@ -132,7 +132,7 @@ describe('doc — fail-fast словаря', () => {
       /'doc.operationId' is not a field of the documentation section/,
     );
     expect(declare({ operationId: 'listUsers' })).toThrow(
-      /derived from the contract name/,
+      /derived from the operation name/,
     );
   });
 

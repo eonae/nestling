@@ -9,8 +9,8 @@ import type {
   ErrorStatus,
   StreamSummary,
   SuccessStatus,
-} from '@nestling/contracts';
-import { makeSummary } from '@nestling/contracts';
+} from '@nestling/operations';
+import { makeSummary } from '@nestling/operations';
 
 export * from './raw.js';
 

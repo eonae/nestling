@@ -1,20 +1,20 @@
 /**
  * Публичные операции HTTP-API: их импортирует внешний потребитель.
  *
- * Импорты файла не ведут к серверному коду: только `@nestling/contracts`,
- * `zod` и доменные отказы (тоже объявлены через `@nestling/contracts`).
+ * Импорты файла не ведут к серверному коду: только `@nestling/operations`,
+ * `zod` и доменные отказы (тоже объявлены через `@nestling/operations`).
  * Поэтому операции можно импортировать во фронтенд: клиент
  * `api.client.ts` берёт отсюда адрес, схемы и список отказов.
  *
  * Секция `http:` описывает адрес, а не исполнение. Реализация живёт рядом
- * с фичей и подключает операция через `httpEndpoint({ contract })`, так
+ * с фичей и подключает операция через `httpEndpoint({ operation })`, так
  * что адрес и endpoint не могут разойтись.
  */
 
 import { EmailTaken, UserNotFound } from './modules/users/user.errors';
-import { QuotaExceeded } from './contracts';
+import { QuotaExceeded } from './operations';
 
-import { makeRequest, query } from '@nestling/contracts';
+import { makeRequest, query } from '@nestling/operations';
 import { z } from 'zod';
 
 /** Пользователь в ответе API; одна схема для всех операций */

@@ -12,7 +12,7 @@
  */
 
 import { TenantId } from './context';
-import { ClaimQuota, OrderPlaced, QuotaExceeded } from './contracts';
+import { ClaimQuota, OrderPlaced, QuotaExceeded } from './operations';
 
 import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';

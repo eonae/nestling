@@ -29,8 +29,8 @@ import type {
   PortToken,
   RequestOperation,
   Schema,
-} from '@nestling/contracts';
-import { EmitterFamily, PortFamily } from '@nestling/contracts';
+} from '@nestling/operations';
+import { EmitterFamily, PortFamily } from '@nestling/operations';
 import type { AnyFail, AnyFailDefinition } from '@nestling/pipeline';
 import {
   DeadlineExceeded,
@@ -101,13 +101,15 @@ const KERNEL_CODES: ReadonlySet<string> = new Set([
 ]);
 
 /** Fail-fast для JS-потребителей: первый аргумент — значение `makeRequest` */
-function assertOperation(contract: unknown): asserts contract is AnyOperation {
-  const kind = (contract as { kind?: unknown } | undefined)?.kind;
-  const name = (contract as { name?: unknown } | undefined)?.name;
+function assertOperation(
+  operation: unknown,
+): asserts operation is AnyOperation {
+  const kind = (operation as { kind?: unknown } | undefined)?.kind;
+  const name = (operation as { name?: unknown } | undefined)?.name;
 
   if (typeof name !== 'string' || typeof kind !== 'string') {
     throw new TypeError(
-      `stub(contract, impl): the first argument must be an operation ` +
+      `stub(operation, impl): the first argument must be an operation ` +
         `created by makeRequest / makeCommand / makeEvent.`,
     );
   }
@@ -164,13 +166,13 @@ function parseLeaf(
 
 /** Разбор входа: та же процедура для обеих сторон вызывателя */
 function parseInput(
-  contract: AnyOperation,
+  operation: AnyOperation,
   payload: unknown,
 ): { ok: true; value: unknown } | { ok: false; fail: AnyFail } {
   return parseLeaf(
-    contract.input,
+    operation.input,
     payload,
-    `Operation '${contract.name}': input does not match its schema`,
+    `Operation '${operation.name}': input does not match its schema`,
   );
 }
 
@@ -183,14 +185,14 @@ function parseInput(
  * гарантия выразима.
  */
 function parseOutput(
-  contract: AnyOperation,
+  operation: AnyOperation,
   value: unknown,
 ): { ok: true; value: unknown } | { ok: false; fail: AnyFail } {
   return parseLeaf(
-    contract.output,
+    operation.output,
     value,
-    `stub(${contract.name}, …): the fake answered with a value that does ` +
-      `not match the output schema of the contract`,
+    `stub(${operation.name}, …): the fake answered with a value that does ` +
+      `not match the output schema of the operation`,
   );
 }
 
@@ -203,8 +205,8 @@ function parseOutput(
  * контролирует обе стороны, и молчаливое превращение только скрыло бы, что
  * фейк вышел за операция.
  */
-function requireDeclaredFail(contract: AnyOperation, fail: AnyFail): AnyFail {
-  const definitions: readonly AnyFailDefinition[] = contract.errors ?? [];
+function requireDeclaredFail(operation: AnyOperation, fail: AnyFail): AnyFail {
+  const definitions: readonly AnyFailDefinition[] = operation.errors ?? [];
   const declared = definitions.map((definition) => definition.code);
   const { code } = fail;
 
@@ -220,11 +222,11 @@ function requireDeclaredFail(contract: AnyOperation, fail: AnyFail): AnyFail {
     .join(', ');
 
   throw new Error(
-    `stub(${contract.name}, …): the fake answered with ` +
+    `stub(${operation.name}, …): the fake answered with ` +
       `${code === undefined ? 'an anonymous failure (no code)' : `failure code '${code}'`}, ` +
-      `which the contract does not declare. Allowed codes: ${allowed}. ` +
-      `Either add the failure to 'errors:' of the contract, or fix the fake — ` +
-      `an answer outside the contract is a defect of the test, not an answer ` +
+      `which the operation does not declare. Allowed codes: ${allowed}. ` +
+      `Either add the failure to 'errors:' of the operation, or fix the fake — ` +
+      `an answer outside the operation is a defect of the test, not an answer ` +
       `of the neighbour.`,
   );
 }
@@ -237,9 +239,9 @@ function requireDeclaredFail(contract: AnyOperation, fail: AnyFail): AnyFail {
  * есть: источник такого исключения — код самого теста, и превращать «фейк
  * упал» в «сосед вернул `UNKNOWN`» значит прятать дефект теста от теста.
  */
-function failOfThrown(contract: AnyOperation, error: unknown): AnyFail {
+function failOfThrown(operation: AnyOperation, error: unknown): AnyFail {
   if (isFail(error)) {
-    return requireDeclaredFail(contract, error as AnyFail);
+    return requireDeclaredFail(operation, error as AnyFail);
   }
 
   throw error;
@@ -247,12 +249,12 @@ function failOfThrown(contract: AnyOperation, error: unknown): AnyFail {
 
 /** Фейк-порт: валидация входа и выхода, бюджет и множество отказов */
 function makePortStub(
-  contract: AnyOperation,
+  operation: AnyOperation,
   impl: (payload: any, meta: any) => unknown,
 ): Port<any> {
   return {
     async call(payload?: unknown, meta?: PortMeta) {
-      const input = parseInput(contract, payload);
+      const input = parseInput(operation, payload);
       if (!input.ok) {
         return input.fail as never;
       }
@@ -267,15 +269,15 @@ function makePortStub(
       try {
         result = await impl(input.value, meta ?? {});
       } catch (error) {
-        return failOfThrown(contract, error) as never;
+        return failOfThrown(operation, error) as never;
       }
 
       if (isFail(result)) {
-        return requireDeclaredFail(contract, result as AnyFail) as never;
+        return requireDeclaredFail(operation, result as AnyFail) as never;
       }
 
       const returned = result instanceof Ok ? result.value : result;
-      const output = parseOutput(contract, returned);
+      const output = parseOutput(operation, returned);
 
       if (!output.ok) {
         return output.fail as never;
@@ -300,22 +302,22 @@ function makePortStub(
  * чеканится в вызывателе, а не в транспорте.
  */
 function stubMeta(
-  contract: AnyOperation,
+  operation: AnyOperation,
   meta: CommandMeta | undefined,
 ): CommandMeta {
-  return contract.kind === 'command'
+  return operation.kind === 'command'
     ? { ...meta, idempotencyKey: meta?.idempotencyKey ?? crypto.randomUUID() }
     : { ...meta };
 }
 
 /** Фейк-эмиттер: у `emit` нет канала результата, поэтому отказы бросаются */
 function makeEmitterStub(
-  contract: AnyOperation,
+  operation: AnyOperation,
   impl: (payload: any, meta: any) => unknown,
 ): Emitter<any> {
   return {
     async emit(payload?: unknown, meta?: CommandMeta) {
-      const input = parseInput(contract, payload);
+      const input = parseInput(operation, payload);
       if (!input.ok) {
         throw input.fail;
       }
@@ -325,9 +327,9 @@ function makeEmitterStub(
       }
 
       try {
-        await impl(input.value, stubMeta(contract, meta));
+        await impl(input.value, stubMeta(operation, meta));
       } catch (error) {
-        throw failOfThrown(contract, error);
+        throw failOfThrown(operation, error);
       }
     },
   };
@@ -337,11 +339,11 @@ function makeEmitterStub(
  * Строит фейк-вызыватель операции.
  *
  * Сторона вызывателя выбирается **видом операции**, а не вызывающим:
- * `request` даёт пару с `contract.caller`, `command`/`event` — с
- * `contract.emitter`. Пара едет полем `stubs:` (`assembleTest`,
+ * `request` даёт пару с `operation.caller`, `command`/`event` — с
+ * `operation.emitter`. Пара едет полем `stubs:` (`assembleTest`,
  * `testUnit`) и структурно годна для `overrides:`.
  *
- * @param contract - Операция, объявленный `makeRequest`
+ * @param operation - Операция, объявленный `makeRequest`
  * @param impl - Реализация фейка: обычный хендлер по форме
  * @returns Пара `токен вызывателя → фейк` для поля `stubs:`
  * @throws {TypeError} Если первым аргументом передан не операция
@@ -356,28 +358,28 @@ function makeEmitterStub(
  * ```
  */
 export function stub<C extends RequestOperation<any, any, any>>(
-  contract: C,
+  operation: C,
   impl: RequestStubImpl<C>,
 ): readonly [token: PortToken<C>, invoker: Port<C>];
 export function stub<C extends EmittingOperation<any, any, any, any>>(
-  contract: C,
+  operation: C,
   impl: EmitStubImpl<C>,
 ): readonly [token: EmitterToken<C>, invoker: Emitter<C>];
 export function stub(
-  contract: AnyOperation,
+  operation: AnyOperation,
   impl: (payload: any, meta: any) => unknown,
 ): OperationStub {
-  assertOperation(contract);
+  assertOperation(operation);
 
-  if (contract.kind === 'request') {
-    const request = contract as RequestOperation<any, any, any>;
+  if (operation.kind === 'request') {
+    const request = operation as RequestOperation<any, any, any>;
 
-    return [request.caller, makePortStub(contract, impl)] as const;
+    return [request.caller, makePortStub(operation, impl)] as const;
   }
 
-  const emitting = contract as EmittingOperation<any, any, any, any>;
+  const emitting = operation as EmittingOperation<any, any, any, any>;
 
-  return [emitting.emitter, makeEmitterStub(contract, impl)] as const;
+  return [emitting.emitter, makeEmitterStub(operation, impl)] as const;
 }
 
 /**

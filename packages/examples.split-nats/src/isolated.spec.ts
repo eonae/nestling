@@ -19,7 +19,7 @@ import {
   OrderPlaced,
   PlaceOrder,
   QuotaExceeded,
-} from './contracts';
+} from './operations';
 import { OrdersFeature } from './orders';
 import { QuotasFeature } from './quotas';
 
@@ -117,7 +117,7 @@ describe('фича в изоляции: без соседа и без броке
 
     const published = new Set(
       topologies.flatMap(({ report }) =>
-        report.contracts.map(({ name }) => name),
+        report.operations.map(({ name }) => name),
       ),
     );
 

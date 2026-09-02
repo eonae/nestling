@@ -35,7 +35,7 @@ export interface OperationSnapshot {
   readonly snapshotVersion: number;
 
   /** Операции, отсортированные по имени */
-  readonly contracts: readonly SnapshotOperation[];
+  readonly operations: readonly SnapshotOperation[];
 }
 
 /**
@@ -44,10 +44,10 @@ export interface OperationSnapshot {
  *
  * Стрелка зависимостей идёт от корня к пакету: `app` зависит от `ports`,
  * поэтому обратный импорт замкнул бы граф пакетов. Сведению нужно ровно
- * поле `contracts`, и оно его и требует.
+ * поле `published`, и оно его и требует.
  */
 export interface OperationReport {
-  readonly contracts?: readonly OperationDescriptor[];
+  readonly published?: readonly OperationDescriptor[];
 }
 
 /** Отчёт одной топологии матрицы — тоже структурно */
@@ -92,10 +92,10 @@ function contractsOf(source: SnapshotSource): readonly OperationDescriptor[] {
   const nested = (source as TopologyOperationReport).report;
 
   if (nested && typeof nested === 'object') {
-    return nested.contracts ?? [];
+    return nested.published ?? [];
   }
 
-  return (source as OperationReport).contracts ?? [];
+  return (source as OperationReport).published ?? [];
 }
 
 /**
@@ -152,7 +152,7 @@ export function snapshotOperations(
           `Operation '${descriptor.name}' is published with different ` +
             `descriptors by topologies ${existing.topologies
               .map((name) => `'${name}'`)
-              .join(', ')} and '${topology}'. One name is one contract: ` +
+              .join(', ')} and '${topology}'. One name is one operation: ` +
             `either the topologies implement different operations under the ` +
             `same name, or one of them was assembled with a different set ` +
             `of schema converters.`,
@@ -165,11 +165,11 @@ export function snapshotOperations(
     }
   }
 
-  const contracts = [...merged.values()]
+  const operations = [...merged.values()]
     .map(({ descriptor, topologies }) => ({ ...descriptor, topologies }))
     .sort((left, right) => (left.name < right.name ? -1 : 1));
 
-  return { snapshotVersion: SNAPSHOT_VERSION, contracts };
+  return { snapshotVersion: SNAPSHOT_VERSION, operations };
 }
 
 /**

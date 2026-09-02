@@ -17,7 +17,7 @@ import type { BindMap, HttpMethod, SseConfig } from './binding.js';
  * Объектная форма секции: те же поля, что у HTTP-декларации endpoint'а,
  * кроме относящихся к обработке запроса.
  */
-export interface HttpContractSection<
+export interface HttpOperationSection<
   Path extends string = string,
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
@@ -56,7 +56,7 @@ export type OperationHttp<
   Path extends string = string,
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
-> = string | HttpContractSection<Path, I, O>;
+> = string | HttpOperationSection<Path, I, O>;
 
 /** Поля исполнения, которые операция не принимает */
 const EXECUTION_FIELDS = ['handle', 'pipeline', 'deps', 'detached'] as const;
@@ -111,8 +111,8 @@ export function parseHttpSection(
     if (record[field] !== undefined) {
       throw new TypeError(
         `${where}: 'http.${field}' describes how a request is handled, and a ` +
-          `contract declares only where it is addressed. Move it to the ` +
-          `implementation (httpEndpoint({ contract, … }) or implement(...)).`,
+          `operation declares only where it is addressed. Move it to the ` +
+          `implementation (httpEndpoint({ operation, … }) or implement(...)).`,
       );
     }
   }

@@ -63,7 +63,7 @@ HTTP-поля и собирает `pattern` как `` `${method} ${path}` ``. `p
 с секцией `http:`:
 
 ```ts
-httpEndpoint({ contract: CreateUser, deps, pipeline, handle, detached });
+httpEndpoint({ operation: CreateUser, deps, pipeline, handle, detached });
 ```
 
 Поля `method`, `path`, `bind`, `rawBody`, `sse`, `input`, `output`,
@@ -105,7 +105,7 @@ export const CreateMember = httpEndpoint({
   схемы за вычетом path-параметров: опечатка и пометка на path-параметре —
   ошибки компиляции.
 - Пометки и bind-карту экспортирует
-  [`@nestling/contracts`](../nestling.contracts); этот пакет их
+  [`@nestling/operations`](../nestling.operations); этот пакет их
   реэкспортирует, так что автор декларации импортирует их вместе с
   `httpEndpoint`.
 - Bind-карта вычисляется при создании декларации и доступна как
@@ -309,7 +309,7 @@ await assemble({ features: [UsersFeature], transports: [http({ port: 3000 })] })
 | `http(options?)` | провайдер транспорта для `transports:` или `providers:` |
 | `HttpTransport` | класс транспорта для ручного запуска |
 | `HttpTransport$('default')`, `HTTP_TRANSPORT_NAME` | токен транспорта и его короткое имя `'http'` |
-| `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/contracts`) |
+| `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/operations`) |
 | `httpBindingOf(definition)` | bind-карта декларации |
 | `httpCodeOf(status)` | HTTP-код для семантического статуса |
 | `httpConfigKeys` | ключи секции конфига `HTTP_PORT`, `HTTP_HOST` |

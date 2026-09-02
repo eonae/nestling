@@ -6,7 +6,7 @@
       `tsconfig.json`, `tsconfig.lint.json`, `eslint.config.js`,
       `jest.config.js` (реэкспорт `createJestConfig`)
 - [x] 1.2 Зависимости пакета — ровно `@common/misc`, `@nestling/container`,
-      `@nestling/contracts`, `@nestling/pipeline`, `@nestling/streams`
+      `@nestling/operations`, `@nestling/pipeline`, `@nestling/streams`
       (`workspace:*`); внешних зависимостей и `@nestling/app` быть не должно.
       Проверить, что `yarn install` разложил workspace-ссылки и пакет
       собирается пустым `index.ts`
@@ -26,7 +26,7 @@
       несущая `id` и текстовую причину; отличима от `ClientDisconnectedError`
       и `TransportClosingError` по классу и `name`
 - [x] 2.3 Определить `kind` формы из `ctx.endpoint.output` через
-      `isStreamKind`/`nameOfForm` из `@nestling/contracts`; не-потоковая
+      `isStreamKind`/`nameOfForm` из `@nestling/operations`; не-потоковая
       форма даёт `'value'`
 - [x] 2.4 Тесты типов и рантайма для `CloseReason`: множество значений —
       ровно `Outcome` плюс `'killed'` (тест ловит расширение словаря ядра

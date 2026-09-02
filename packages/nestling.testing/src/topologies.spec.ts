@@ -8,7 +8,7 @@ import { checkTopologies } from './topologies';
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature, makePlugin } from '@nestling/app';
 import { Injectable, makeToken, valueProvider } from '@nestling/container';
-import { makeRequest } from '@nestling/contracts';
+import { makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import {
@@ -176,7 +176,7 @@ describe('checkTopologies — операции и снапшот', () => {
     });
 
     for (const { report } of reports) {
-      for (const descriptor of report.contracts) {
+      for (const descriptor of report.published) {
         expect(descriptor.output.leaf).toMatchObject({ leaf: 'schema' });
       }
     }
@@ -185,8 +185,8 @@ describe('checkTopologies — операции и снапшот', () => {
   it('без опций листья непрозрачны, а поведение прежнее', async () => {
     const [{ report }] = await checkTopologies(spec(), ['all']);
 
-    expect(report.contracts).toHaveLength(2);
-    expect(report.contracts[0].output.leaf).toMatchObject({ leaf: 'opaque' });
+    expect(report.published).toHaveLength(2);
+    expect(report.published[0].output.leaf).toMatchObject({ leaf: 'opaque' });
   });
 
   it('снапшот собирается из отчётов матрицы без пересборки приложения', async () => {
@@ -196,7 +196,7 @@ describe('checkTopologies — операции и снапшот', () => {
 
     const snapshot = snapshotOperations(reports);
 
-    expect(snapshot.contracts.map(({ name }) => name)).toEqual([
+    expect(snapshot.operations.map(({ name }) => name)).toEqual([
       'matrix.quotas.claim',
       'matrix.users.list',
     ]);
@@ -204,11 +204,11 @@ describe('checkTopologies — операции и снапшот', () => {
     // Операция, публикуемый не всеми топологиями, в снапшоте есть — и
     // видно, какая топология его публикует
     expect(
-      snapshot.contracts.find(({ name }) => name === 'matrix.quotas.claim')
+      snapshot.operations.find(({ name }) => name === 'matrix.quotas.claim')
         ?.topologies,
     ).toEqual(['all']);
     expect(
-      snapshot.contracts.find(({ name }) => name === 'matrix.users.list')
+      snapshot.operations.find(({ name }) => name === 'matrix.users.list')
         ?.topologies,
     ).toEqual(['all', 'users']);
   });

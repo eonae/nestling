@@ -63,7 +63,7 @@ DI и `Topic`; после волны 5 к ним добавились контр
 показать реестр модулем внутри `examples.app-with-http` — отвергнута:
 замер должен проходить через границу публикуемого пакета, включая
 `package.json` с перечнем зависимостей. Именно перечень и есть результат:
-`@nestling/container`, `@nestling/pipeline`, `@nestling/contracts`,
+`@nestling/container`, `@nestling/pipeline`, `@nestling/operations`,
 `@nestling/streams`, `@common/misc` — и ни одной внешней зависимости, ни
 одного `@nestling/app`. Если бы пакету понадобился `@nestling/app`, это
 означало бы, что satellite не пишется без доступа к машинерии сборки.
@@ -229,7 +229,7 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Module =>
 ### 9. Формы, к которым применим слой
 
 `tracked` применим к ручке любой формы `output`; в снимке форма видна полем
-`kind` (`isStreamKind`/`nameOfForm` из `@nestling/contracts`). Ограничивать
+`kind` (`isStreamKind`/`nameOfForm` из `@nestling/operations`). Ограничивать
 слой формой `events` рантайм-проверкой отвергнуто: долгий `stream`-экспорт
 администратор хочет видеть и уметь убить ровно так же, а fail-fast «слой не
 на той ручке» выражается политикой сборки, если приложению это нужно.

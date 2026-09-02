@@ -15,7 +15,7 @@ import type { EmitDelivery } from './app.js';
 import { assembleTest } from './app.js';
 import { stub } from './stub.js';
 
-import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { defineFail, Ok } from '@nestling/pipeline';
 import type { Port, PortResult } from '@nestling/ports';
 import { z } from 'zod';

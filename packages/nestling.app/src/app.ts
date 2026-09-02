@@ -107,7 +107,7 @@ export interface CheckReport {
    * импортированное, в том числе операции соседних фич, которые это
    * приложение не публикует.
    */
-  readonly contracts: readonly OperationDescriptor[];
+  readonly published: readonly OperationDescriptor[];
 
   /**
    * Карта операций: что реализовано здесь, что уходит наружу и через
@@ -324,7 +324,7 @@ export class App {
       transports: this.#transportOrder(discovery).map((token) =>
         transportNameOf(token),
       ),
-      contracts: publishedOperations(discovery, options),
+      published: publishedOperations(discovery, options),
       operations: mapOperations(discovery, this.#plan.intercom?.name),
     };
   }

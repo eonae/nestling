@@ -11,15 +11,15 @@
  */
 
 import { testTransport, TestTransport$ } from './__fixtures__/transport';
-import { SubscriptionClosed, SubscriptionOpened } from './contracts';
 import { tracked } from './layer';
 import { subscriptions } from './module';
+import { SubscriptionClosed, SubscriptionOpened } from './operations';
 import { SubscriptionRegistry } from './registry';
 import type { SubscriptionEvent } from './types';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';
-import { events, Ok } from '@nestling/contracts';
+import { events, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose, makeEndpoint, makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';

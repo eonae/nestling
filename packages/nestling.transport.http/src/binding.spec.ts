@@ -3,7 +3,7 @@
  * query-строки и strict-сборка payload.
  *
  * Сам канон размещения (`computeHttpBinding` и его fail-fast) проверяется
- * там, где живёт правило, — `@nestling/contracts`.
+ * там, где живёт правило, — `@nestling/operations`.
  */
 
 import type { BindPlacement } from './binding.js';
@@ -17,7 +17,7 @@ import {
 import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Ok } from '@nestling/contracts';
+import { Ok } from '@nestling/operations';
 import { makeEndpoint } from '@nestling/pipeline';
 import { z } from 'zod';
 

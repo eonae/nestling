@@ -1560,7 +1560,7 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
@@ -1574,7 +1574,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/client@workspace:packages/nestling.client"
   dependencies:
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1597,18 +1597,6 @@ __metadata:
   resolution: "@nestling/container@workspace:packages/nestling.container"
   dependencies:
     "@common/graphs": "workspace:*"
-  languageName: unknown
-  linkType: soft
-
-"@nestling/contracts@workspace:*, @nestling/contracts@workspace:packages/nestling.contracts":
-  version: 0.0.0-use.local
-  resolution: "@nestling/contracts@workspace:packages/nestling.contracts"
-  dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/streams": "workspace:*"
-    typescript: "npm:5.7.3"
-    zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
@@ -1653,13 +1641,25 @@ __metadata:
   dependencies:
     "@nestling/app": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
     "@nestling/openapi.zod": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.cli": "workspace:*"
     "@nestling/transport.http": "workspace:*"
+    typescript: "npm:5.7.3"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@nestling/operations@workspace:*, @nestling/operations@workspace:packages/nestling.operations":
+  version: 0.0.0-use.local
+  resolution: "@nestling/operations@workspace:packages/nestling.operations"
+  dependencies:
+    "@common/misc": "workspace:*"
+    "@nestling/container": "workspace:*"
+    "@nestling/streams": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1671,7 +1671,7 @@ __metadata:
   dependencies:
     "@common/misc": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/streams": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
@@ -1685,7 +1685,7 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/streams": "workspace:*"
     "@nestling/transport": "workspace:*"
@@ -1709,7 +1709,7 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/app": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/streams": "workspace:*"
@@ -1727,7 +1727,7 @@ __metadata:
     "@nestling/app": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
@@ -1758,7 +1758,7 @@ __metadata:
     "@nestling/client": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/streams": "workspace:*"
     "@nestling/transport": "workspace:*"
@@ -1776,7 +1776,7 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
@@ -5445,10 +5445,10 @@ __metadata:
     "@nestling/client": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
     "@nestling/eslint-plugin": "workspace:*"
     "@nestling/openapi": "workspace:*"
     "@nestling/openapi.zod": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/streams": "workspace:*"
@@ -5499,7 +5499,7 @@ __metadata:
     "@nestling/app": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/contracts": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/testing": "workspace:*"

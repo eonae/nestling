@@ -85,12 +85,12 @@ export interface HttpBinding {
    * Имя операции, которому принадлежит адрес. Есть только у карты,
    * построенной `makeRequest`.
    *
-   * Хранится на карте, потому что декларация `httpEndpoint({ contract })`
+   * Хранится на карте, потому что декларация `httpEndpoint({ operation })`
    * получает ту же карту, не пересчитывая её, и другого пути передать ей
    * имя операции нет. Имя читает генератор документации: из него
    * выводится `operationId`.
    */
-  readonly contract?: string;
+  readonly operation?: string;
 
   /**
    * Настройки SSE. Хранятся на карте вместе с размещением полей; ядро их
@@ -274,7 +274,7 @@ export interface ComputeHttpBindingOptions {
    * Имя операции, которому принадлежит адрес. Задаёт только
    * `makeRequest`.
    */
-  contract?: string;
+  operation?: string;
 
   /**
    * Как назвать владельца в тексте ошибки: `Operation '<имя>'` для
@@ -459,7 +459,7 @@ function assertSse(options: ComputeHttpBindingOptions): void {
 export function buildHttpBinding(
   options: ComputeHttpBindingOptions,
 ): HttpBinding {
-  const { method, path, bind, rawBody = false, sse, contract } = options;
+  const { method, path, bind, rawBody = false, sse, operation } = options;
 
   const fields: Record<string, BindPlacement> = {};
 
@@ -483,7 +483,7 @@ export function buildHttpBinding(
     rest: METHODS_WITHOUT_BODY.has(method.toUpperCase()) ? 'query' : 'body',
     rawBody: Boolean(rawBody),
     ...(sse === undefined ? {} : { sse: Object.freeze({ ...sse }) }),
-    ...(contract === undefined ? {} : { contract }),
+    ...(operation === undefined ? {} : { operation }),
   };
 
   Object.defineProperty(binding, HTTP_BINDING, {

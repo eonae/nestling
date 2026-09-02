@@ -16,7 +16,7 @@ import {
 import { parsePayload } from './parse.js';
 
 import { SchemaValidationError, validateSync } from '@common/misc';
-import { jsonSchema, jsonSchemaOf } from '@nestling/contracts';
+import { jsonSchema, jsonSchemaOf } from '@nestling/operations';
 import { z } from 'zod';
 
 const zodConverter = (): SchemaDocConverter => ({

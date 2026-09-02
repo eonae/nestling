@@ -8,8 +8,8 @@
  * обращаются токенами».
  */
 
-import { SubscriptionClosed, SubscriptionOpened } from './contracts.js';
 import { TrackSubscription, UntrackSubscription } from './layer.js';
+import { SubscriptionClosed, SubscriptionOpened } from './operations.js';
 import type { RegistryOptions } from './registry.js';
 import { SubscriptionRegistry } from './registry.js';
 
@@ -19,7 +19,7 @@ import type {
   FactoryProviderDefinition,
   InjectionToken,
 } from '@nestling/container';
-import type { Emitter } from '@nestling/contracts';
+import type { Emitter } from '@nestling/operations';
 
 /**
  * Опции модуля — только решения композиции.

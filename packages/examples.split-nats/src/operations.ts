@@ -6,7 +6,7 @@
  * а не при написании кода.
  */
 
-import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { defineFail } from '@nestling/pipeline';
 import { z } from 'zod';
 

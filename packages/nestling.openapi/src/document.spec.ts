@@ -10,9 +10,9 @@ import { buildOpenApiDocument } from './document.js';
 import type { DocumentedEndpoint, OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { StandardSchemaV1 } from '@nestling/contracts';
-import { makeRequest, query } from '@nestling/contracts';
 import { zodConverter } from '@nestling/openapi.zod';
+import type { StandardSchemaV1 } from '@nestling/operations';
+import { makeRequest, query } from '@nestling/operations';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import {
   defineFail,

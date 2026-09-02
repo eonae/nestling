@@ -16,7 +16,7 @@
 |---|---|
 | `@nestling/container` | `@Injectable`, `@OnDestroy`, `makeModule`: юниты слоя и модуль |
 | `@nestling/pipeline` | `makePipeline` для слоя `tracked`, `Outcome` и типы контекста |
-| `@nestling/contracts` | `makeRequest` / `makeCommand` / `makeEvent` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema` |
+| `@nestling/operations` | `makeRequest` / `makeCommand` / `makeEvent` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema` |
 | `@nestling/streams` | `Topic`: лента изменений |
 | `@common/misc` | типы Standard Schema |
 

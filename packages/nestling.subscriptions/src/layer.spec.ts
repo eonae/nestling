@@ -15,7 +15,7 @@ import type { TrackedSubscription } from './types';
 
 import type { Constructor } from '@common/misc';
 import { describe, expect, it } from '@jest/globals';
-import { events, Ok } from '@nestling/contracts';
+import { events, Ok } from '@nestling/operations';
 import type { ExtendableContext, ResponseContext } from '@nestling/pipeline';
 import { compose, makePipeline } from '@nestling/pipeline';
 import { z } from 'zod';

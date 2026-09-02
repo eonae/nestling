@@ -7,7 +7,7 @@
  * заводится.
  */
 
-import { describeForm, isStreamKind } from '@nestling/contracts';
+import { describeForm, isStreamKind } from '@nestling/operations';
 import type { EndpointMeta, Outcome } from '@nestling/pipeline';
 
 /**

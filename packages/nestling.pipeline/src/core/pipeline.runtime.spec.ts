@@ -27,14 +27,14 @@ import type {
   AnyFailDefinition,
   AnyInput,
   EmptyInput,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   DeadlineExceeded,
   defineFail,
   Fail,
   Ok,
   ValidationFailed,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------

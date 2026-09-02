@@ -5,8 +5,8 @@
 
 import { body, computeHttpBinding, query } from './http/binding.js';
 import { events, multipart, stream, upload } from './io/index.js';
-import { makeCommand, makeEvent, makeRequest } from './contract.js';
 import { defineFail } from './define-fail.js';
+import { makeCommand, makeEvent, makeRequest } from './operation.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { z } from 'zod';
@@ -186,7 +186,7 @@ describe('секция http: проверки при создании', () => {
     expect(() =>
       create({ method: 'GET', path: '/users', handle: () => 1 }),
     ).toThrow(
-      /'http\.handle' describes how a request is handled, and a contract declares only where it is addressed/,
+      /'http\.handle' describes how a request is handled, and a operation declares only where it is addressed/,
     );
   });
 
@@ -261,7 +261,7 @@ describe('карта операции совпадает с картой одн�
     // Имя операции исключено из сравнения: оно не часть правила
     // размещения. У анонимной декларации его нет, а карта операции хранит
     // его для генератора документации.
-    const { contract: owner, ...placement } = Operation.http ?? {};
+    const { operation: owner, ...placement } = Operation.http ?? {};
 
     expect(owner).toBe(Operation.name);
     expect(placement).toEqual({ ...declaration });

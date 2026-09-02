@@ -290,7 +290,7 @@ for (const select of ['all', 'users', 'ops'] as const) {
   //   features,
   //   endpoints: [{ pattern, transport, module, detached? }],
   //   transports,
-  //   contracts: [ContractDescriptor],
+  //   operations: [ContractDescriptor],
   // }
 }
 ```
@@ -309,7 +309,7 @@ for (const select of ['all', 'users', 'ops'] as const) {
 const report = await assemble(spec).check({ converters: [zodConverter()] });
 ```
 
-`report.contracts` — дескрипторы операций, которые эта топология
+`report.operations` — дескрипторы операций, которые эта топология
 публикует. Они строятся из discovery по декларациям с привязкой к шине.
 Операция, который импортирован, но не реализован, в отчёт не попадает.
 Отсутствие конвертера для вендора схемы — не ошибка: лист дескриптора

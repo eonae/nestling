@@ -7,13 +7,13 @@
  */
 
 import { makeCtx } from './__fixtures__/context';
-import { SubscriptionClosed, SubscriptionOpened } from './contracts';
+import { SubscriptionClosed, SubscriptionOpened } from './operations';
 import { SubscriptionRegistry } from './registry';
 import type { SubscriptionEvent } from './types';
 
 import type { StandardSchemaV1 } from '@common/misc';
 import { describe, expect, it } from '@jest/globals';
-import type { Emitter } from '@nestling/contracts';
+import type { Emitter } from '@nestling/operations';
 
 /** Синхронная валидация формы-листа: `Promise` в ядре считается ошибкой */
 function check(

@@ -3,7 +3,7 @@
 ## Purpose
 
 Декларативный слой — контракты, отказы, io-формы, пометки размещения —
-живёт в `@nestling/contracts`: пакете, у которого в замыкании импортов нет
+живёт в `@nestling/operations`: пакете, у которого в замыкании импортов нет
 ни контейнера, ни pipeline, ни транспортов, ни `node:*`. Это делает
 контракт значением, которое можно импортировать во фронтовую сборку рядом с
 `@nestling/client`, не таща за собой сервер. Гарантия держится тестом на
@@ -14,9 +14,9 @@
 
 ## Requirements
 
-### Requirement: `@nestling/contracts` — единственный дом декларативного слоя
+### Requirement: `@nestling/operations` — единственный дом декларативного слоя
 
-Пакет `@nestling/contracts` SHALL быть домом направление-нейтральных
+Пакет `@nestling/operations` SHALL быть домом направление-нейтральных
 деклараций и SHALL экспортировать:
 
 - `makeContract` и типы контракта;
@@ -31,17 +31,17 @@
 #### Scenario: Контракт объявляется из одного пакета
 
 - **WHEN** модуль импортирует `makeContract`, `defineFail` и формы io
-- **THEN** все они доступны из `@nestling/contracts`
+- **THEN** все они доступны из `@nestling/operations`
 
 #### Scenario: Идентичность значений не двоится
 
-- **WHEN** `Fail`, полученный из `@nestling/contracts`, и `Fail`,
+- **WHEN** `Fail`, полученный из `@nestling/operations`, и `Fail`,
   полученный реэкспортом из `@nestling/pipeline`, сравниваются
 - **THEN** это одно и то же значение
 
 ### Requirement: Граф импортов пакета не содержит серверного кода
 
-Замыкание импортов `@nestling/contracts` SHALL NOT содержать
+Замыкание импортов `@nestling/operations` SHALL NOT содержать
 `@nestling/container` (главный экспорт), `@nestling/pipeline`,
 `@nestling/app`, транспортов, `@nestling/config` и модулей `node:*`.
 Внешних runtime-зависимостей у пакета SHALL NOT быть: транзитивно
@@ -58,27 +58,27 @@ tree-shaking в инструменте потребителя.
 
 #### Scenario: Тест ловит запрещённый импорт
 
-- **WHEN** в исходники `@nestling/contracts` добавлен импорт
+- **WHEN** в исходники `@nestling/operations` добавлен импорт
   `@nestling/pipeline` или `node:crypto`
 - **THEN** тест границы падает, называя модуль и запрещённый импорт
 
 #### Scenario: Контракты импортируются во фронтовую сборку
 
-- **WHEN** фронтовый бандл импортирует `@nestling/contracts` и
+- **WHEN** фронтовый бандл импортирует `@nestling/operations` и
   `@nestling/client`
 - **THEN** в бандл не попадают контейнер, pipeline, транспорты и
   Node-специфика
 
 #### Scenario: Вызыватели остаются членами семейств
 
-- **WHEN** контракт, созданный из `@nestling/contracts`, реализован и его
+- **WHEN** контракт, созданный из `@nestling/operations`, реализован и его
   `.port` инжектирован
 - **THEN** токен распознаётся как член семейства вызывателей — так же, как
   до переезда
 
 ### Requirement: Реэкспорт сохраняет прежнюю поверхность, кроме `makeContract`
 
-Символы, переехавшие в `@nestling/contracts`, SHALL оставаться доступными
+Символы, переехавшие в `@nestling/operations`, SHALL оставаться доступными
 из пакетов, которые экспортировали их прежде:
 
 - `@nestling/pipeline` SHALL реэкспортировать `Ok`, `Fail`, `isFail`,
@@ -90,7 +90,7 @@ tree-shaking в инструменте потребителя.
 контракта: этот реэкспорт вернул бы декларацию контракта в пакет с
 серверными зависимостями и сделал бы упаковочную гарантию вопросом
 дисциплины импортов. Канонический импорт `makeContract` SHALL быть
-`@nestling/contracts`, и примеры с гайдами SHALL использовать его.
+`@nestling/operations`, и примеры с гайдами SHALL использовать его.
 
 #### Scenario: Хендлер не меняет импортов
 
@@ -102,11 +102,11 @@ tree-shaking в инструменте потребителя.
 
 - **WHEN** код импортирует `makeContract` из `@nestling/ports`
 - **THEN** это ошибка компиляции, а сообщение о недоступном экспорте
-  указывает на `@nestling/contracts`
+  указывает на `@nestling/operations`
 
 ### Requirement: `@nestling/client` не зависит от серверных пакетов
 
-`@nestling/client` SHALL зависеть только от `@nestling/contracts` и SHALL
+`@nestling/client` SHALL зависеть только от `@nestling/operations` и SHALL
 использовать `fetch` без Node-специфики. Замыкание импортов SHALL
 проверяться тем же тестом границы, что и у пакета контрактов.
 

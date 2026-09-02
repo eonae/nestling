@@ -13,7 +13,7 @@ import {
   makeCommand,
   makeEvent,
   makeRequest,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import { z } from 'zod';
 
 /**

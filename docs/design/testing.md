@@ -219,7 +219,7 @@ for (const select of ['all', 'orders', 'billing'] as const) {
 ловится в CI. Состав detached-endpoint'ов сравнивается значением из
 отчёта; парсить stdout не нужно.
 
-Отчёт каждой топологии содержит поле `contracts` — дескрипторы
+Отчёт каждой топологии содержит поле `operations` — дескрипторы
 опубликованных ею контрактов. По нему же проверяются стабы: каждый
 застабанный контракт обязан быть опубликован хотя бы одной полной
 топологией, иначе стаб прикрывает отсутствующую реализацию.
@@ -227,7 +227,7 @@ for (const select of ['all', 'orders', 'billing'] as const) {
 ```typescript
 const published = new Set(
   (await checkTopologies(spec, ['all', 'orders', 'quotas']))
-    .flatMap(({ report }) => report.contracts.map((c) => c.name)),
+    .flatMap(({ report }) => report.operations.map((c) => c.name)),
 );
 
 expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
@@ -251,7 +251,7 @@ expect(report.breaking).toEqual([]);   // падать или нет — реш�
 ```
 
 Отчёты топологий объединяются; вердикты и правила описаны в
-[contracts.md](./contracts.md) §1. Фреймворк отчёт печатает; флага «падать
+[operations.md](./operations.md) §1. Фреймворк отчёт печатает; флага «падать
 на breaking» нет, падение теста задаёт пользователь через `expect`.
 `snapshotContracts`, `diffContracts` и `formatCompatibility`
 реэкспортируются из `@nestling/testing`, чтобы CI-тест писался одним

@@ -8,7 +8,7 @@
  */
 
 import { makeToken } from '@nestling/container';
-import type { OperationKind } from '@nestling/contracts';
+import type { OperationKind } from '@nestling/operations';
 import { transportNameOf } from '@nestling/pipeline';
 import type { TransportToken } from '@nestling/transport';
 

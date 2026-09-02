@@ -4,7 +4,7 @@ NATS как шина приложения: доставляет вызовы о�
 в обе стороны.
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
-> [`docs/design/contracts.md`](../../docs/design/contracts.md).
+> [`docs/design/operations.md`](../../docs/design/operations.md).
 > Гайд: [`docs/guides/ports.md`](../../docs/guides/ports.md), раздел про
 > split-развёртывание.
 

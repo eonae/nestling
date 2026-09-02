@@ -219,7 +219,7 @@ await checkTopologies(
 CI без деплоя. `checkTopologies` собирает все отказы и падает одним
 сообщением с именем каждой несобравшейся топологии. Отчёты успешных
 топологий — обычные значения (`features`, `endpoints`, `transports`,
-`contracts`), их можно проверять через `expect`.
+`operations`), их можно проверять через `expect`.
 
 Инварианты сборки проверяются здесь же: если в `spec` есть `policies:`,
 они проверяются в каждой топологии матрицы. Нарушение, которое возникает
@@ -253,7 +253,7 @@ expect(
 ### Сверка стабов с матрицей
 
 `app.stubbed` — имена застабанных операций по алфавиту, симметрично
-`app.pruned`. `report.contracts` каждой топологии — дескрипторы операций,
+`app.pruned`. `report.operations` каждой топологии — дескрипторы операций,
 которые она публикует. Сравнение этих двух списков — машинная форма
 правила: стаб, который прикрывает операция без реализации ни в одной
 топологии, становится виден в CI.
@@ -263,7 +263,7 @@ expect(
 const topologies = await checkTopologies(honestSpec, ['all', 'orders', 'quotas']);
 
 const published = new Set(
-  topologies.flatMap(({ report }) => report.contracts.map(({ name }) => name)),
+  topologies.flatMap(({ report }) => report.operations.map(({ name }) => name)),
 );
 
 expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
@@ -274,13 +274,13 @@ expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
 
 ### Отчёт совместимости операций
 
-Отчёт каждой топологии содержит поле `contracts` — дескрипторы
+Отчёт каждой топологии содержит поле `operations` — дескрипторы
 операций, которые эта топология публикует. Поэтому проверка «не сломал
 ли я операция соседней фичи» пишется одним импортом и без пересборки
 приложения:
 
 ```typescript
-// packages/examples.app-with-http/src/contracts.compat.spec.ts
+// packages/examples.app-with-http/src/operations.compat.spec.ts
 import {
   checkTopologies,
   diffOperations,

@@ -154,7 +154,7 @@ await assemble({
 <h3>Как это сочетается с «no runtime magic»</h3>
 <p>Прозрачность расположения обычно требует рантайм-диспетчеризации. В Nestling выбор делается на сборке, а не на запросе: порт привязывается к локальной или удалённой реализации в composition root, по выбору фич и топологии. Во время запроса фича A вызывает конкретное значение; рантайм ничего не выбирает.</p>
 <h3>Операция — значение, не зависящее от направления</h3>
-<div class="code" data-file="billing/contracts.ts" data-lang="typescript"><pre><code>export const ChargeCard = makeRequest({
+<div class="code" data-file="billing/operations.ts" data-lang="typescript"><pre><code>export const ChargeCard = makeRequest({
   name: 'billing.charge',
   input:  z.object({ orderId: z.string(), amount: z.number() }),
   output: z.object({ chargeId: z.string() }),

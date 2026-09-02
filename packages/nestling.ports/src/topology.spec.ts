@@ -6,7 +6,7 @@ import { httpLikeDeclaration } from './__test-helpers__/foreign-declaration.js';
 import { implement } from './implement.js';
 import { collectImplementations } from './topology.js';
 
-import { makeEvent, makeRequest } from '@nestling/contracts';
+import { makeEvent, makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 

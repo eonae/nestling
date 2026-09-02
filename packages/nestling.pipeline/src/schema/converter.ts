@@ -19,7 +19,7 @@
  */
 
 import type { StandardSchemaV1 } from '@common/misc';
-import { jsonSchemaOf } from '@nestling/contracts';
+import { jsonSchemaOf } from '@nestling/operations';
 
 /**
  * Конвертер схем одного вендора в JSON Schema.

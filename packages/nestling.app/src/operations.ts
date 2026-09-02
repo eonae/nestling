@@ -9,12 +9,12 @@
 import type { EndpointDiscovery } from './discovery.js';
 
 import { asFamilyMember } from '@nestling/container';
-import type { OperationKind } from '@nestling/contracts';
+import type { OperationKind } from '@nestling/operations';
 import {
   EmitterFamily,
   lookupOperation,
   PortFamily,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import { busBindingOf } from '@nestling/ports';
 
 /** Операция в отчёте `check()` */

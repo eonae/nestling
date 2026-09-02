@@ -190,8 +190,8 @@ export function operationIdOf(
     return bus;
   }
 
-  if (binding.contract !== undefined) {
-    return binding.contract;
+  if (binding.operation !== undefined) {
+    return binding.operation;
   }
 
   const segments = binding.path

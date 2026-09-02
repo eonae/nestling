@@ -4,7 +4,7 @@
  * Satellite-пакет: ни строки в ядре. Всё, из чего он собран, — публичные
  * примитивы: фазы `.pre`/`.finally` и класс-форма юнита
  * (`@nestling/pipeline`), `AbortSignal`, DI (`@nestling/container`),
- * `Topic` (`@nestling/streams`) и операции (`@nestling/contracts`).
+ * `Topic` (`@nestling/streams`) и операции (`@nestling/operations`).
  *
  * Наружу уходят четыре вещи: реестр (токен и его API), слой `tracked`,
  * фабрика модуля и типы модели — плюс два `event`-операции, которыми
@@ -18,11 +18,11 @@
  * пакете не тайпчекалась бы («inferred type cannot be named», TS2742).
  */
 
-export { SubscriptionClosed, SubscriptionOpened } from './contracts.js';
+export { SubscriptionClosed, SubscriptionOpened } from './operations.js';
 export type {
   SubscriptionClosedFact,
   SubscriptionOpenedFact,
-} from './contracts.js';
+} from './operations.js';
 export { SubscriptionKilledError } from './errors.js';
 export { tracked, TrackSubscription, UntrackSubscription } from './layer.js';
 export { subscriptions } from './module.js';

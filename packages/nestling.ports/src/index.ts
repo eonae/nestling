@@ -59,7 +59,7 @@ export type {
  * того же пакета, что `implement`, ему естественно. А реэкспорт
  * `makeRequest` вернул бы объявление операции в пакет с серверными
  * зависимостями и снова сделал бы «операция импортируется во фронт»
- * вопросом дисциплины импортов. Канонический импорт — `@nestling/contracts`.
+ * вопросом дисциплины импортов. Канонический импорт — `@nestling/operations`.
  */
 export type {
   CommandMeta,
@@ -72,7 +72,7 @@ export type {
   PortMeta,
   PortResult,
   PortToken,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 export { implement } from './implement.js';
 export type { ImplementDictionary } from './implement.js';
 export { bindPorts, portsKernel, undurableOperations } from './kernel.js';

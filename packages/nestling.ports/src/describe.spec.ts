@@ -10,7 +10,7 @@
 import { canonicalizeJson, describeOperation } from './describe.js';
 import { implement } from './implement.js';
 
-import { makeCommand, makeRequest } from '@nestling/contracts';
+import { makeCommand, makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import {
   defineFail,

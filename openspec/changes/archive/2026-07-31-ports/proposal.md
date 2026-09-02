@@ -106,7 +106,7 @@ lifecycle и go-live (#10), `Topic` (#6), закрытый контракт от
   значению.
 - **Zero-runtime-deps упаковка контрактов** — `makeContract` живёт в новом
   `@nestling/ports`, а не в `@nestling/pipeline` (как предупреждает roadmap).
-  Выделение `@nestling/contracts` без DI- и pipeline-зависимостей требует
+  Выделение `@nestling/operations` без DI- и pipeline-зависимостей требует
   переезда `Ok`/`Fail`/`defineFail` и делается в #22, где у него есть
   потребитель (`@nestling/client`).
 - **Outbox/saga** — отложены ([deferred](../../../docs/decisions/deferred.md)).

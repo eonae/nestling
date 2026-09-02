@@ -1,6 +1,6 @@
-import { makeCommand, makeEvent, makeRequest } from './contract.js';
 import { defineFail } from './define-fail.js';
 import { EmitterFamily, PortFamily } from './families.js';
+import { makeCommand, makeEvent, makeRequest } from './operation.js';
 
 import { z } from 'zod';
 

@@ -10,7 +10,7 @@ import { stub } from './stub';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import { z } from 'zod';
@@ -165,7 +165,7 @@ describe('app.emit', () => {
 
     await expect(
       app.emit(ClaimQuota as unknown as typeof PlaceOrder, { orderId: 'o-7' }),
-    ).rejects.toThrow(/is a 'request' contract.*app\.call/s);
+    ).rejects.toThrow(/is a 'request' operation.*app\.call/s);
   });
 
   it('доставляет подписчикам, даже когда эмиттер того же операции застабан', async () => {

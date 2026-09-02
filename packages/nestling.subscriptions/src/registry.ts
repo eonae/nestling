@@ -7,13 +7,13 @@
  * путём, тем же, что и при дисконнекте клиента.
  */
 
+import { SubscriptionKilledError } from './errors.js';
 import type {
   SubscriptionClosed,
   SubscriptionClosedFact,
   SubscriptionOpened,
   SubscriptionOpenedFact,
-} from './contracts.js';
-import { SubscriptionKilledError } from './errors.js';
+} from './operations.js';
 import type {
   CloseReason,
   SubscriptionEvent,
@@ -25,7 +25,7 @@ import type {
 import { kindOfOutput } from './types.js';
 
 import { OnDestroy } from '@nestling/container';
-import type { Emitter } from '@nestling/contracts';
+import type { Emitter } from '@nestling/operations';
 import type { AnyInput, ExtendableContext, Outcome } from '@nestling/pipeline';
 import { Topic } from '@nestling/streams';
 

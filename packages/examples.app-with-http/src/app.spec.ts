@@ -23,9 +23,9 @@ import {
   GetUser,
   ListUsers,
 } from './modules/users/endpoints';
-import { ClaimQuota, QuotaExceeded } from './contracts';
 import { OpsFeature, QuotasFeature, UsersFeature } from './features';
 import { appLogging, appSubscriptions } from './infrastructure';
+import { ClaimQuota, QuotaExceeded } from './operations';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
 import { describe, expect, it } from '@jest/globals';

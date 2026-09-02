@@ -30,8 +30,8 @@ import { PortRuntime } from './runtime.js';
 import { BusTransport$ } from './transport.js';
 
 import { ContainerBuilder, makeToken } from '@nestling/container';
-import type { Emitter, Port } from '@nestling/contracts';
-import { makeCommand, makeRequest } from '@nestling/contracts';
+import type { Emitter, Port } from '@nestling/operations';
+import { makeCommand, makeRequest } from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
   AnyInput,
@@ -203,7 +203,7 @@ describe('Deadline — чтение бюджета из глубины', () => {
     ({ deadline: reader } = await contextReaders());
     harnessed = await harness([ChargeImpl]);
     port = makeLocalPort({
-      contract: Charge,
+      operation: Charge,
       runtime: harnessed.runtime,
       patterns: [ChargeImpl.pattern],
     }) as Port<any>;
@@ -249,7 +249,7 @@ describe('Deadline — чтение бюджета из глубины', () => {
 
     const bare = await harness([BareImpl]);
     const barePort = makeLocalPort({
-      contract: Bare,
+      operation: Bare,
       runtime: bare.runtime,
       patterns: [BareImpl.pattern],
     }) as Port<any>;
@@ -292,7 +292,7 @@ describe('IdempotencyKey — чтение ключа из глубины', () =>
     ({ key: reader } = await contextReaders());
     harnessed = await harness([ShipImpl]);
     emitter = makeLocalEmitter({
-      contract: Ship,
+      operation: Ship,
       runtime: harnessed.runtime,
       patterns: [ShipImpl.pattern],
     }) as Emitter<any>;
@@ -410,7 +410,7 @@ describe('явная передача остатка вглубь', () => {
     ({ deadline: reader } = await contextReaders());
     harnessed = await harness([InnerImpl, OuterImpl]);
     inner = makeLocalPort({
-      contract: Inner,
+      operation: Inner,
       runtime: harnessed.runtime,
       patterns: [InnerImpl.pattern],
     }) as Port<any>;

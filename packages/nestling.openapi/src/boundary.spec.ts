@@ -3,7 +3,7 @@
  *
  * Обещание из предложения — «в `@nestling/openapi` зависимости ни от
  * одного валидатора нет» — проверяется, а не декларируется в README. Обход
- * тот же, что у `@nestling/contracts`, но с двумя отличиями, и оба
+ * тот же, что у `@nestling/operations`, но с двумя отличиями, и оба
  * намеренные:
  *
  * - **обход не спускается в зависимости.** Генератор серверный: он зависит
@@ -36,7 +36,7 @@ const packageDir = resolve(here, '..');
 const ALLOW = [
   '@nestling/app',
   '@nestling/container',
-  '@nestling/contracts',
+  '@nestling/operations',
   '@nestling/pipeline',
   '@nestling/ports',
   '@nestling/transport.http',

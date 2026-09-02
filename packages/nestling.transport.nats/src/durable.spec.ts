@@ -12,7 +12,7 @@ import { NatsDouble as Broker, natsDouble } from './testing/double.js';
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeCommand, makeEvent } from '@nestling/contracts';
+import { makeCommand, makeEvent } from '@nestling/operations';
 import { defineFail, makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';

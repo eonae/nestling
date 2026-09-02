@@ -5,7 +5,7 @@
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 
-import { makeCommand, makeRequest } from '@nestling/contracts';
+import { makeCommand, makeRequest } from '@nestling/operations';
 import { makePipeline, Ok, stream } from '@nestling/pipeline';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';

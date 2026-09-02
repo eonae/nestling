@@ -87,7 +87,7 @@ if (OrderNotFound.is(res)) { /* ... */ }        // матчинг по code
 `output`-схему, клиент получает `UnknownError` с оригиналом в `cause`.
 Множество ответов у внешнего потребителя — `E ∪ UnknownError`, то же, что
 у порта. Ветка `default`, написанная для `.port`, переносится на клиента
-без правок ([contracts.md](./contracts.md)).
+без правок ([operations.md](./operations.md)).
 
 ## 4. Ошибки — часть контракта: `E ∪ UnknownError`
 
@@ -119,7 +119,7 @@ if (OrderNotFound.is(res)) { /* ... */ }        // матчинг по code
 восстанавливается по `code` из `errors:` контракта, незадекларированный
 становится `UnknownError`, а коды ядра (`VALIDATION_FAILED`,
 `DEADLINE_EXCEEDED`) входят в контракт и там
-([contracts.md](./contracts.md)).
+([operations.md](./operations.md)).
 
 Итог: ответ endpoint'а — закрытое множество `E ∪ UnknownError`.
 `UnknownError` входит в контракт каждого endpoint'а неявно (ответ

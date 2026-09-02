@@ -8,7 +8,7 @@
  * `assemblePayload(binding, split(binding, payload)) ≡ payload`.
  */
 
-import type { HttpBinding } from '@nestling/contracts';
+import type { HttpBinding } from '@nestling/operations';
 
 /** Что уходит в сеть */
 export interface BuiltRequest {

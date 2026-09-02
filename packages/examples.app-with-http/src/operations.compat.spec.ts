@@ -72,7 +72,7 @@ const TOPOLOGIES = [
   'ops',
 ] as const;
 
-const BASELINE_PATH = new URL('../contracts.snapshot.json', import.meta.url);
+const BASELINE_PATH = new URL('../operations.snapshot.json', import.meta.url);
 
 /** Baseline — обычный файл в репозитории: значение, а не код фреймворка */
 const readBaseline = (): OperationSnapshot =>
@@ -108,7 +108,7 @@ describe('пример: отчёт совместимости операций',
   it('сводит матрицу объединением: операция невыбранной фичи не «удалена»', async () => {
     const snapshot = await currentSnapshot();
 
-    expect(snapshot.contracts.map(({ name }) => name)).toEqual([
+    expect(snapshot.operations.map(({ name }) => name)).toEqual([
       'quotas.claim',
       'quotas.record-signup',
       'subscriptions.closed',
@@ -119,7 +119,7 @@ describe('пример: отчёт совместимости операций',
     // `users` тянет квоты замыканием по вызову `quotas.claim` — и это
     // видно в снапшоте, а не додумывается
     expect(
-      snapshot.contracts.find(({ name }) => name === 'quotas.claim')
+      snapshot.operations.find(({ name }) => name === 'quotas.claim')
         ?.topologies,
     ).toEqual(['all', 'users']);
 
@@ -127,7 +127,7 @@ describe('пример: отчёт совместимости операций',
     // только явным выбором: операций, которые бы её вызывали, нет, а
     // замыкание идёт по вызовам
     expect(
-      snapshot.contracts.find(({ name }) => name === 'subscriptions.opened')
+      snapshot.operations.find(({ name }) => name === 'subscriptions.opened')
         ?.topologies,
     ).toEqual(['all', 'ops']);
 
@@ -136,7 +136,7 @@ describe('пример: отчёт совместимости операций',
     // satellite аннотировал их `jsonSchema(...)`. Так независимость от
     // вендора не стоит ни документации, ни схемного диффа
     expect(
-      snapshot.contracts.find(({ name }) => name === 'subscriptions.opened')
+      snapshot.operations.find(({ name }) => name === 'subscriptions.opened')
         ?.input.leaf,
     ).toMatchObject({
       leaf: 'schema',
@@ -154,12 +154,12 @@ describe('пример: отчёт совместимости операций',
     // в `unknown` на служебных ключах, которые проставляет конвертер
     const baseline: OperationSnapshot = {
       ...current,
-      contracts: current.contracts.map((contract) => {
-        if (contract.name !== 'quotas.claim') {
-          return contract;
+      operations: current.operations.map((operation) => {
+        if (operation.name !== 'quotas.claim') {
+          return operation;
         }
 
-        const leaf = contract.output.leaf as {
+        const leaf = operation.output.leaf as {
           leaf: 'schema';
           vendor: string;
           jsonSchema: {
@@ -169,9 +169,9 @@ describe('пример: отчёт совместимости операций',
         };
 
         return {
-          ...contract,
+          ...operation,
           output: {
-            ...contract.output,
+            ...operation.output,
             leaf: {
               ...leaf,
               jsonSchema: {
@@ -192,7 +192,7 @@ describe('пример: отчёт совместимости операций',
 
     expect(report.breaking).toMatchObject([
       {
-        contract: 'quotas.claim',
+        operation: 'quotas.claim',
         path: 'output.reservedUntil',
         description: 'property removed',
         verdict: 'breaking',
@@ -201,8 +201,8 @@ describe('пример: отчёт совместимости операций',
 
     // Подсказка — только подсказка: переименования не произошло, операция
     // по-прежнему адресуется прежним именем
-    expect(report.contracts).toContainEqual({
-      contract: 'quotas.claim',
+    expect(report.operations).toContainEqual({
+      operation: 'quotas.claim',
       breaking: 1,
       additive: 0,
       unknown: 0,

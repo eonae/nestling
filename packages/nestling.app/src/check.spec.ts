@@ -18,7 +18,7 @@ import {
   OnInit,
   OnStart,
 } from '@nestling/container';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { defineFail, makeEndpoint, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
@@ -208,9 +208,9 @@ describe('App.check() — опубликованные операции в от�
       converters: [zodConverter()],
     });
 
-    expect(report.contracts).toHaveLength(1);
+    expect(report.published).toHaveLength(1);
 
-    const [descriptor] = report.contracts;
+    const [descriptor] = report.published;
 
     expect(descriptor.name).toBe('check.billing.charge');
     expect(descriptor.kind).toBe('request');
@@ -227,7 +227,7 @@ describe('App.check() — опубликованные операции в от�
   it('без конвертеров даёт ту же структурную часть и непрозрачные листья', async () => {
     const report = await assembleBilling().check();
 
-    const [descriptor] = report.contracts;
+    const [descriptor] = report.published;
 
     expect(descriptor.kind).toBe('request');
     expect(descriptor.errors).toHaveLength(1);
@@ -240,7 +240,7 @@ describe('App.check() — опубликованные операции в от�
     // Значение импортировано этим файлом и лежит в приватном реестре
     // пакета — но приложение его не публикует, и отчёт это знает
     expect(NeverImplemented.name).toBe('check.billing.refund');
-    expect(report.contracts.map(({ name }) => name)).toEqual([
+    expect(report.published.map(({ name }) => name)).toEqual([
       'check.billing.charge',
     ]);
   });
@@ -262,7 +262,7 @@ describe('App.check() — опубликованные операции в от�
       transports: [asHttpTransport(new MockTransport())],
     }).check();
 
-    expect(report.contracts).toEqual([]);
+    expect(report.published).toEqual([]);
   });
 
   it('событие с двумя подписчиками даёт один дескриптор', async () => {
@@ -290,10 +290,10 @@ describe('App.check() — опубликованные операции в от�
       transports: [asHttpTransport(new MockTransport())],
     }).check();
 
-    expect(report.contracts.map(({ name }) => name)).toEqual([
+    expect(report.published.map(({ name }) => name)).toEqual([
       'check.orders.placed',
     ]);
-    expect(report.contracts[0].kind).toBe('event');
+    expect(report.published[0].kind).toBe('event');
   });
 
   it('не выполняет @OnInit и не влияет на последующий run()', async () => {
@@ -303,7 +303,7 @@ describe('App.check() — опубликованные операции в от�
     const second = await app.check({ converters: [zodConverter()] });
 
     // Отчёт — значение: два прогона на одном графе равны как значения
-    expect(second.contracts).toEqual(first.contracts);
+    expect(second.operations).toEqual(first.operations);
   });
 });
 

@@ -20,7 +20,7 @@
 import type { BusBindingBearer } from './transport.js';
 import { busBindingOf } from './transport.js';
 
-import type { AnyOperation, OperationKind } from '@nestling/contracts';
+import type { AnyOperation, OperationKind } from '@nestling/operations';
 import type {
   FormKind,
   SchemaDocConverter,
@@ -314,7 +314,7 @@ function readShape(source: DescribeSource): ContractShape {
 
   if (typeof record.name !== 'string' || typeof record.kind !== 'string') {
     throw new TypeError(
-      `describeOperation(...): expected a contract value created by ` +
+      `describeOperation(...): expected a operation value created by ` +
         `makeRequest(), or an implementation declaration created by ` +
         `implement() — the argument carries neither a name/kind pair nor a ` +
         `bus binding.`,

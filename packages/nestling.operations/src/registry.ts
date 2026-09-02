@@ -10,32 +10,32 @@
  * реестра, поэтому текст ошибки о дубле имени упоминает и эту причину.
  */
 
-import type { AnyOperation } from './contract.js';
+import type { AnyOperation } from './operation.js';
 
-const contracts = new Map<string, AnyOperation>();
+const operations = new Map<string, AnyOperation>();
 
 /**
  * Регистрирует операция под его именем.
  *
  * @throws {Error} Если имя уже занято другим операцией
  */
-export const registerOperation = (contract: AnyOperation): void => {
-  const existing = contracts.get(contract.name);
+export const registerOperation = (operation: AnyOperation): void => {
+  const existing = operations.get(operation.name);
 
-  if (existing && existing !== contract) {
+  if (existing && existing !== operation) {
     throw new Error(
-      `Operation '${contract.name}' is already declared. A contract name is ` +
+      `Operation '${operation.name}' is already declared. A operation name is ` +
         `an address — the bus subject and the discovery key — so it must be ` +
-        `unique. Either share one contract value between its consumers ` +
-        `(declare it once and import that value), or give the two contracts ` +
+        `unique. Either share one operation value between its consumers ` +
+        `(declare it once and import that value), or give the two operations ` +
         `different names (a version goes into the name: ` +
-        `'${contract.name}.v2'). If neither is the case, check for a ` +
+        `'${operation.name}.v2'). If neither is the case, check for a ` +
         `duplicated package in your dependencies — two copies give two ` +
-        `values of the same contract.`,
+        `values of the same operation.`,
     );
   }
 
-  contracts.set(contract.name, contract);
+  operations.set(operation.name, operation);
 };
 
 /**
@@ -44,4 +44,4 @@ export const registerOperation = (contract: AnyOperation): void => {
  * @internal Используется рецептами семейств `PortFamily` и `EmitterFamily`
  */
 export const lookupOperation = (name: string): AnyOperation | undefined =>
-  contracts.get(name);
+  operations.get(name);

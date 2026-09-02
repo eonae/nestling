@@ -569,7 +569,7 @@ export class NatsBus implements IMessageBus, ITransport {
         throw new Error(
           `NATS stream '${name}' already exists but does not cover subject ` +
             `'${address}': it covers ${existing.subjects.join(', ')}. Rename ` +
-            `the contract or fix the stream — the transport will not rewrite ` +
+            `the operation or fix the stream — the transport will not rewrite ` +
             `a stream it did not define.`,
         );
       }

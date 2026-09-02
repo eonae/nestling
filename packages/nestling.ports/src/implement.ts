@@ -16,7 +16,7 @@ import type {
   AnyOperation,
   Operation,
   OperationKind,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
   AnyFailDefinition,
@@ -85,13 +85,15 @@ export type SubscriberSlot<K extends OperationKind> = K extends 'event'
 const INTERFACE_FIELDS = ['input', 'output', 'errors'] as const;
 
 /** Fail-fast для JS-потребителей: операция — значение `makeRequest` */
-function assertOperation(contract: unknown): asserts contract is AnyOperation {
-  const kind = (contract as { kind?: unknown } | undefined)?.kind;
-  const name = (contract as { name?: unknown } | undefined)?.name;
+function assertOperation(
+  operation: unknown,
+): asserts operation is AnyOperation {
+  const kind = (operation as { kind?: unknown } | undefined)?.kind;
+  const name = (operation as { name?: unknown } | undefined)?.name;
 
   if (typeof name !== 'string' || typeof kind !== 'string') {
     throw new TypeError(
-      `implement(contract, { … }): the first argument must be a contract ` +
+      `implement(operation, { … }): the first argument must be a operation ` +
         `value created by makeRequest / makeCommand / makeEvent.`,
     );
   }
@@ -106,13 +108,13 @@ function assertOperation(contract: unknown): asserts contract is AnyOperation {
  */
 function assertNoInterfaceOverride(
   declaration: Record<string, unknown>,
-  contract: AnyOperation,
+  operation: AnyOperation,
 ): void {
   for (const field of INTERFACE_FIELDS) {
     if (declaration[field] !== undefined) {
       throw new TypeError(
-        `implement(${contract.name}, { … }): '${field}' belongs to the ` +
-          `contract and cannot be redeclared by its implementation.`,
+        `implement(${operation.name}, { … }): '${field}' belongs to the ` +
+          `operation and cannot be redeclared by its implementation.`,
       );
     }
   }
@@ -123,36 +125,36 @@ function assertNoInterfaceOverride(
  *
  * @returns Паттерн декларации: адрес endpoint'а внутри процесса
  */
-function patternOf(contract: AnyOperation, subscriber: unknown): string {
-  const kind = contract.kind as OperationKind;
+function patternOf(operation: AnyOperation, subscriber: unknown): string {
+  const kind = operation.kind as OperationKind;
 
   if (kind === 'event') {
     if (typeof subscriber !== 'string' || subscriber.trim().length === 0) {
       throw new Error(
-        `implement(${contract.name}, { … }): a '${kind}' contract has 0..N ` +
+        `implement(${operation.name}, { … }): a '${kind}' operation has 0..N ` +
           `subscribers, so every implementation must name itself with ` +
           `'subscriber: <name>' — it is the subscription address (and, with ` +
           `a broker, the queue-group and durable name).`,
       );
     }
 
-    return `${contract.name}@${subscriber}`;
+    return `${operation.name}@${subscriber}`;
   }
 
   if (subscriber !== undefined) {
     throw new Error(
-      `implement(${contract.name}, { … }): a '${kind}' contract has exactly ` +
+      `implement(${operation.name}, { … }): a '${kind}' operation has exactly ` +
         `one owner, so it has no subscribers — drop 'subscriber'.`,
     );
   }
 
-  return contract.name;
+  return operation.name;
 }
 
 /**
  * Строит реализацию операции.
  *
- * @param contract - Операция, объявленный `makeRequest`
+ * @param operation - Операция, объявленный `makeRequest`
  * @param declaration - Словарь исполнения: `deps`, `pipeline`, `handle`
  * @returns Декларация-значение для `endpoints:` модуля
  * @throws {Error} Отсутствующий или лишний `subscriber`, переобъявление
@@ -175,7 +177,7 @@ export function implement<
   P extends AnyInput = AnyInput,
   PN = never,
 >(
-  contract: Operation<I, O, E, K>,
+  operation: Operation<I, O, E, K>,
   declaration: ImplementDictionary<P, PN> &
     SubscriberSlot<K> & {
       deps?: undefined;
@@ -191,7 +193,7 @@ export function implement<
   PN = never,
   D extends InjectionToken[] = InjectionToken[],
 >(
-  contract: Operation<I, O, E, K>,
+  operation: Operation<I, O, E, K>,
   declaration: ImplementDictionary<P, PN> &
     SubscriberSlot<K> & {
       deps: [...D];
@@ -212,7 +214,7 @@ export function implement<
     FailsOf<E>
   >,
 >(
-  contract: Operation<I, O, E, K>,
+  operation: Operation<I, O, E, K>,
   declaration: ImplementDictionary<P, PN> &
     SubscriberSlot<K> & {
       deps?: undefined;
@@ -220,37 +222,39 @@ export function implement<
     },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function implement(
-  contract: AnyOperation,
+  operation: AnyOperation,
   declaration: ImplementDictionary<any, unknown> & {
     subscriber?: string;
     deps?: InjectionToken[];
     handle: unknown;
   },
 ): AnyEndpointDefinition {
-  assertOperation(contract);
+  assertOperation(operation);
   assertNoInterfaceOverride(
     declaration as unknown as Record<string, unknown>,
-    contract,
+    operation,
   );
 
   const { subscriber, ...rest } = declaration;
-  const pattern = patternOf(contract, subscriber);
+  const pattern = patternOf(operation, subscriber);
 
   return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
     ...rest,
     transport: BusTransport$,
     pattern,
-    input: contract.input,
-    output: contract.output,
-    errors: contract.errors,
+    input: operation.input,
+    output: operation.output,
+    errors: operation.errors,
     binding: makeBusBinding({
-      subject: contract.name,
-      kind: contract.kind,
+      subject: operation.name,
+      kind: operation.kind,
       ...(typeof subscriber === 'string' ? { subscriber } : {}),
       // Долговечность берётся из операции и только из него: у реализации
       // нет способа её объявить, потому что издатель в другом процессе о
       // такой декларации не узнал бы и опубликовал бы мимо потока
-      ...(contract.durable === undefined ? {} : { durable: contract.durable }),
+      ...(operation.durable === undefined
+        ? {}
+        : { durable: operation.durable }),
     }),
   });
 }

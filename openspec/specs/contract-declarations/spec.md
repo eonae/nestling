@@ -13,7 +13,7 @@
 
 ### Requirement: Контракт — направление-нейтральное значение с тремя видами
 
-`@nestling/contracts` SHALL экспортировать
+`@nestling/operations` SHALL экспортировать
 `makeContract({ name, kind, input?, output?, errors?, durable?, http? })`,
 возвращающий значение-контракт. Значение SHALL быть неизменяемым и SHALL NOT
 регистрироваться ни в модуле, ни в приложении: на приложение контракт влияет

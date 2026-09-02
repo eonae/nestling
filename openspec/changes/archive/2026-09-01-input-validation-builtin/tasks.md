@@ -27,7 +27,7 @@
 
 ## 4a. Лимит потокового входа: kernel-отказ `PayloadTooLarge`
 
-- [x] 4a.1 `PayloadTooLarge` в `packages/nestling.contracts/src/kernel-fails.ts` (код и статус `PAYLOAD_TOO_LARGE`, детали `{ limit }`) и его код в закрытом наборе `KERNEL_FAIL_CODES`; реэкспорт из `@nestling/pipeline` (`core/index.ts`)
+- [x] 4a.1 `PayloadTooLarge` в `packages/nestling.operations/src/kernel-fails.ts` (код и статус `PAYLOAD_TOO_LARGE`, детали `{ limit }`) и его код в закрытом наборе `KERNEL_FAIL_CODES`; реэкспорт из `@nestling/pipeline` (`core/index.ts`)
 - [x] 4a.2 `parseNdjson` (`packages/nestling.transport.http/src/parser.ts`) бросает `PayloadTooLarge({ limit })` вместо `ChunkTooLargeError`; класс удалён из `errors.ts`, его ветка — из `sendError`
 - [x] 4a.3 Тест симметрии в `transport.integration.spec.ts`: строка длиннее лимита даёт 413 с кодом `PAYLOAD_TOO_LARGE` у endpoint'а с пайплайном и без него
 - [x] 4a.4 README `@nestling/pipeline` и `@nestling/transport.http`: `PAYLOAD_TOO_LARGE` в перечне встроенных кодов и в таблице ошибок входа

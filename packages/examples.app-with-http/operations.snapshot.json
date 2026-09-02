@@ -1,6 +1,6 @@
 {
   "snapshotVersion": 1,
-  "contracts": [
+  "operations": [
     {
       "name": "quotas.claim",
       "kind": "request",

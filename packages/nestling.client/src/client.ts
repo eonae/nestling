@@ -28,13 +28,13 @@ import type {
   OutputOf,
   RequestOperation,
   UnknownError,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import {
   DeadlineExceeded as DeadlineExceededFail,
   describeForm,
   isFail,
   isPrimitiveLeaf,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 
 /**
  * Отказы, которые клиент добавляет к объявленным операцией.
@@ -94,7 +94,7 @@ function assertAbsoluteBaseUrl(baseUrl: unknown): asserts baseUrl is string {
     throw new TypeError(
       `makeClient({ … }, { baseUrl }): 'baseUrl' must be an absolute URL ` +
         `(for example 'https://api.example.com'), got ` +
-        `${JSON.stringify(baseUrl)}. The client joins it with the contract's ` +
+        `${JSON.stringify(baseUrl)}. The client joins it with the operation's ` +
         `path literally, so a relative base has nothing to resolve against.`,
     );
   }
@@ -110,10 +110,10 @@ function assertAbsoluteBaseUrl(baseUrl: unknown): asserts baseUrl is string {
  */
 function assertUsable(
   key: string,
-  contract: unknown,
-): asserts contract is AnyOperation {
+  operation: unknown,
+): asserts operation is AnyOperation {
   const where = `makeClient({ ${key}: … }, { … })`;
-  const value = contract as AnyOperation | undefined;
+  const value = operation as AnyOperation | undefined;
 
   if (typeof value?.name !== 'string' || typeof value.kind !== 'string') {
     throw new TypeError(
@@ -123,7 +123,7 @@ function assertUsable(
 
   if (value.kind === 'event') {
     throw new TypeError(
-      `${where}: contract '${value.name}' is an 'event' — a broadcast fact ` +
+      `${where}: operation '${value.name}' is an 'event' — a broadcast fact ` +
         `with 0..N subscribers, while an HTTP call addresses exactly one ` +
         `receiver. Declare it as a 'command' if the intent is addressed to a ` +
         `single owner.`,
@@ -132,9 +132,9 @@ function assertUsable(
 
   if (!value.http) {
     throw new TypeError(
-      `${where}: contract '${value.name}' has no 'http:' section, so it ` +
+      `${where}: operation '${value.name}' has no 'http:' section, so it ` +
         `carries no HTTP address. Declare 'http: <METHOD> <path>' on the ` +
-        `contract, or call it over the bus through its port.`,
+        `operation, or call it over the bus through its port.`,
     );
   }
 
@@ -143,7 +143,7 @@ function assertUsable(
 
     if (STREAMING_FORMS.has(form.kind)) {
       throw new TypeError(
-        `${where}: contract '${value.name}' declares form '${form.kind}' in ` +
+        `${where}: operation '${value.name}' declares form '${form.kind}' in ` +
           `'${slot}'. The streaming client (NDJSON for stream(...), SSE for ` +
           `events(...)) is designed separately and does not exist yet.`,
       );
@@ -151,7 +151,7 @@ function assertUsable(
 
     if (form.leaf !== undefined && isPrimitiveLeaf(form.leaf)) {
       throw new TypeError(
-        `${where}: contract '${value.name}' declares '${form.leaf}' in ` +
+        `${where}: operation '${value.name}' declares '${form.leaf}' in ` +
           `'${slot}'. The client speaks JSON only in v1.`,
       );
     }
@@ -201,13 +201,13 @@ async function readBody(response: Response): Promise<unknown> {
 /** Один вызов: сборка запроса, поход в сеть, разбор ответа */
 async function invoke(
   key: string,
-  contract: AnyOperation,
+  operation: AnyOperation,
   config: ClientConfig,
   payload: unknown,
   meta: ClientMeta | undefined,
 ): Promise<Ok<unknown> | Fail<string | undefined, unknown>> {
   const where = `client.${key}()`;
-  const binding = contract.http as NonNullable<AnyOperation['http']>;
+  const binding = operation.http as NonNullable<AnyOperation['http']>;
 
   // Бюджет проверяется **до** отправки: ходить в сеть за заведомо
   // просроченным ответом незачем
@@ -261,7 +261,7 @@ async function invoke(
     return readSuccess(
       response.status,
       body,
-      contract.output,
+      operation.output,
       config.validateOutput ?? true,
       where,
     ) as Ok<unknown> | Fail<string | undefined, unknown>;
@@ -270,7 +270,7 @@ async function invoke(
   return readFailure(
     response.status,
     body,
-    contract.errors as readonly AnyFailDefinition[] | undefined,
+    operation.errors as readonly AnyFailDefinition[] | undefined,
     where,
   ) as Fail<string | undefined, unknown>;
 }
@@ -317,16 +317,16 @@ export function makeClient<R extends Record<string, AnyOperation>>(
 
   const api: Record<string, unknown> = {};
 
-  for (const [key, contract] of Object.entries(record)) {
-    assertUsable(key, contract);
+  for (const [key, operation] of Object.entries(record)) {
+    assertUsable(key, operation);
 
-    const isCommand = contract.kind === 'command';
+    const isCommand = operation.kind === 'command';
 
     api[key] = async (
       payload?: unknown,
       meta?: ClientMeta,
     ): Promise<unknown> => {
-      const result = await invoke(key, contract, config, payload, meta);
+      const result = await invoke(key, operation, config, payload, meta);
 
       if (!isCommand) {
         return result;

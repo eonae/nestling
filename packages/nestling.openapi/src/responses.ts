@@ -15,8 +15,8 @@ import type { ConvertContext } from './schema.js';
 import { convertLeaf } from './schema.js';
 import type { JsonValue, OpenApiResponse } from './types.js';
 
-import type { AnyFailDefinition, DeclarationDoc } from '@nestling/contracts';
-import { UnknownError, ValidationFailed } from '@nestling/contracts';
+import type { AnyFailDefinition, DeclarationDoc } from '@nestling/operations';
+import { UnknownError, ValidationFailed } from '@nestling/operations';
 import { describeForm, mediaTypeOf } from '@nestling/pipeline';
 import { httpCodeOf } from '@nestling/transport.http';
 

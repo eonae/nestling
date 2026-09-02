@@ -1,6 +1,6 @@
 import type { PreUnitFn } from '../types/unit.js';
 
-import type { EmptyInput } from '@nestling/contracts';
+import type { EmptyInput } from '@nestling/operations';
 
 /**
  * Добавляет timestamp в input

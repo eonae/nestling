@@ -9,7 +9,7 @@ import type {
 } from './context.js';
 
 import type { Constructor, Optional } from '@common/misc';
-import type { AnyFail, AnyInput, EmptyInput } from '@nestling/contracts';
+import type { AnyFail, AnyInput, EmptyInput } from '@nestling/operations';
 
 /**
  * Добавка pre-юнита к накопленному input

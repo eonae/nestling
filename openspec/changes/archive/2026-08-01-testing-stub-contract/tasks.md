@@ -83,7 +83,7 @@
 - [x] 6.1 `src/index.ts`: экспорт `stub` и типов (`ContractStub`,
       сигнатуры `impl`); проверить, что публичная поверхность пакета
       описывает обе формы `stubs:`
-- [x] 6.2 Убедиться, что новых зависимостей не появилось: `@nestling/contracts`
+- [x] 6.2 Убедиться, что новых зависимостей не появилось: `@nestling/operations`
       и `@nestling/ports` уже в `dependencies`, всё нужное публично
       (`busBindingOf`, `profileAttributes`, `isExhausted`). Правок в
       `@nestling/ports`/`contracts`/`container`/`app` быть не должно — если

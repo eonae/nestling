@@ -100,7 +100,7 @@ JSON Schema описывает форму данных, но ничего не �
 `doc:` декларации или операции:
 
 ```typescript
-// packages/examples.app-with-http/src/api.contracts.ts
+// packages/examples.app-with-http/src/api.operations.ts
 export const CreateUser = makeRequest({
   name: 'api.users.create',
   http: { method: 'POST', path: '/api/users', bind: { dryRun: query() } },

@@ -737,7 +737,7 @@ main().catch(console.error);
 Экспортирует только примитив токена (`makeToken`, `Token`,
 `InjectionToken`) и семейства токенов, без билдера и графа. Предназначен
 для пакетов, которые объявляют токены, но не должны тянуть контейнер в свою
-зависимость, например [`@nestling/contracts`](../nestling.contracts).
+зависимость, например [`@nestling/operations`](../nestling.operations).
 
 ## Границы пакета
 

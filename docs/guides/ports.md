@@ -8,8 +8,8 @@
 входа и выхода и списком ошибок.
 
 ```typescript
-// packages/examples.app-with-http/src/contracts.ts
-import { defineFail, makeRequest } from '@nestling/contracts';
+// packages/examples.app-with-http/src/operations.ts
+import { defineFail, makeRequest } from '@nestling/operations';
 
 export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
   status: 'TOO_MANY_REQUESTS',
@@ -162,7 +162,7 @@ export const createUserHandler =
   };
 
 export const CreateUser = httpEndpoint({
-  contract: CreateUserContract,              // адрес, схемы и errors живут в операции
+  operation: CreateUserContract,              // адрес, схемы и errors живут в операции
   pipeline: basePipeline,
   deps: [
     UserService,
@@ -412,7 +412,7 @@ ASSEMBLE, а не на первом запросе.
 храните где хотите. В примере это файл рядом с пакетом:
 
 ```typescript
-// packages/examples.app-with-http/src/contracts.compat.spec.ts (сокращено)
+// packages/examples.app-with-http/src/operations.compat.spec.ts (сокращено)
 import {
   checkTopologies,
   diffOperations,
@@ -585,7 +585,7 @@ in-process шине, а заменяет её. Ни одна деклараци�
 Долговечность объявляется в операции, а не в подписке:
 
 ```typescript
-// packages/examples.split-nats/src/contracts.ts
+// packages/examples.split-nats/src/operations.ts
 export const OrderPlaced = makeEvent({
   name: 'orders.placed',
   durable: true,             // факт не должен потеряться, пока подписчик лежит
@@ -661,7 +661,7 @@ const scoped = makePipeline().pre(TenantId.propagated());
 - Внешний клиент из операции (`makeClient`) —
   [`typed-client.md`](./typed-client.md). Операция с секцией `http:`
   адресуется и по шине, и по HTTP. `makeRequest` / `makeCommand` / `makeEvent` живёт в
-  `@nestling/contracts` — пакете без серверных зависимостей, поэтому
+  `@nestling/operations` — пакете без серверных зависимостей, поэтому
   операция можно импортировать во фронтенд.
 
-Целевое состояние подсистемы — [`design/contracts.md`](../design/contracts.md).
+Целевое состояние подсистемы — [`design/operations.md`](../design/operations.md).

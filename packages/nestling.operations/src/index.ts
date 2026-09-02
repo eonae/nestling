@@ -1,5 +1,5 @@
 /**
- * `@nestling/contracts`: декларации, общие для сервера и клиента.
+ * `@nestling/operations`: декларации, общие для сервера и клиента.
  *
  * Здесь лежит всё, из чего состоит операция: `Ok`/`Fail` и статусы,
  * определения отказов, формы io, пометки размещения и bind-карта, сам
@@ -14,7 +14,7 @@
  */
 export type { Schema, SchemaIssue, StandardSchemaV1 } from '@common/misc';
 
-export * from './contract.js';
+export * from './operation.js';
 export * from './define-fail.js';
 export * from './doc.js';
 export * from './families.js';

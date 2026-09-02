@@ -18,9 +18,9 @@ const descriptor = (
   ...overrides,
 });
 
-const topology = (select: string, contracts: OperationDescriptor[]) => ({
+const topology = (select: string, published: OperationDescriptor[]) => ({
   select,
-  report: { contracts },
+  report: { published },
 });
 
 /** Один и тот же снапшот, построенный заново: предмет проверки детерминизма */
@@ -39,7 +39,7 @@ describe('snapshotOperations', () => {
     ]);
 
     expect(snapshot.snapshotVersion).toBe(1);
-    expect(snapshot.contracts.map(({ name }) => name)).toEqual([
+    expect(snapshot.operations.map(({ name }) => name)).toEqual([
       'billing.charge',
       'users.get',
     ]);
@@ -47,29 +47,29 @@ describe('snapshotOperations', () => {
     // Невыбранная фича — не «операция удалена»: операция в снапшоте есть, и
     // видно, какая топология его публикует
     expect(
-      snapshot.contracts.find(({ name }) => name === 'billing.charge')
+      snapshot.operations.find(({ name }) => name === 'billing.charge')
         ?.topologies,
     ).toEqual(['all']);
     expect(
-      snapshot.contracts.find(({ name }) => name === 'users.get')?.topologies,
+      snapshot.operations.find(({ name }) => name === 'users.get')?.topologies,
     ).toEqual(['all', 'users']);
   });
 
   it('принимает отчёт `check()` напрямую, без обёртки топологии', () => {
     const snapshot = snapshotOperations([
-      { contracts: [descriptor('billing.charge')] },
+      { published: [descriptor('billing.charge')] },
     ]);
 
-    expect(snapshot.contracts).toHaveLength(1);
-    expect(snapshot.contracts[0].topologies).toEqual(['#0']);
+    expect(snapshot.operations).toHaveLength(1);
+    expect(snapshot.operations[0].topologies).toEqual(['#0']);
   });
 
   it('пустая матрица даёт пустой снапшот, а не бросок', () => {
     expect(snapshotOperations([])).toEqual({
       snapshotVersion: 1,
-      contracts: [],
+      operations: [],
     });
-    expect(snapshotOperations([topology('all', [])]).contracts).toEqual([]);
+    expect(snapshotOperations([topology('all', [])]).operations).toEqual([]);
   });
 
   it('два прогона совпадают побайтово', () => {
@@ -92,7 +92,7 @@ describe('snapshotOperations', () => {
   });
 
   it('отказы упорядочены по коду, а не по объявлению', () => {
-    const [contract] = snapshotOperations([
+    const [operation] = snapshotOperations([
       topology('all', [
         descriptor('billing.charge', {
           errors: [
@@ -101,13 +101,13 @@ describe('snapshotOperations', () => {
           ],
         }),
       ]),
-    ]).contracts;
+    ]).operations;
 
     // Снапшот сортирует то, что построил `describeOperation`; фикстура здесь
     // намеренно несортированная — сериализация обязана быть устойчивой
     expect(
-      serializeSnapshot({ snapshotVersion: 1, contracts: [contract] }),
-    ).toBe(serializeSnapshot({ snapshotVersion: 1, contracts: [contract] }));
+      serializeSnapshot({ snapshotVersion: 1, operations: [operation] }),
+    ).toBe(serializeSnapshot({ snapshotVersion: 1, operations: [operation] }));
   });
 
   it('одно имя с разными дескрипторами — ошибка сведения', () => {

@@ -18,8 +18,8 @@ import { PortRuntime } from './runtime.js';
 // Только `jest`: остальные глобали инъектируются раннером, а объект
 // `jest` в ESM-режиме — нет
 import { jest } from '@jest/globals';
-import type { Emitter, Port } from '@nestling/contracts';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
+import type { Emitter, Port } from '@nestling/operations';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import {
   contextVar,
@@ -152,7 +152,7 @@ async function harness(
 }
 
 const portContext = (harnessed: Harness): InvokerContext => ({
-  contract: ChargeCard,
+  operation: ChargeCard,
   runtime: harnessed.runtime,
   patterns: [ChargeCardImpl.pattern],
 });
@@ -161,13 +161,13 @@ const emitterContext = (
   harnessed: Harness,
   patterns: readonly string[],
 ): InvokerContext => ({
-  contract: OrderPlaced,
+  operation: OrderPlaced,
   runtime: harnessed.runtime,
   patterns,
 });
 
 const commandContext = (harnessed: Harness): InvokerContext => ({
-  contract: ShipOrder,
+  operation: ShipOrder,
   runtime: harnessed.runtime,
   patterns: [ShipOrderImpl.pattern],
 });
@@ -552,7 +552,7 @@ describe.each([
     'local',
     (h: Harness) =>
       makeLocalPort({
-        contract: Inner,
+        operation: Inner,
         runtime: h.runtime,
         patterns: [InnerImpl.pattern],
       }) as Port<any>,
@@ -561,7 +561,7 @@ describe.each([
     'remote',
     (h: Harness) =>
       makeRemotePort({
-        contract: Inner,
+        operation: Inner,
         runtime: h.runtime,
         patterns: [InnerImpl.pattern],
       }) as Port<any>,
@@ -578,7 +578,7 @@ describe.each([
     harnessed = await harness([InnerImpl, OuterImpl]);
     innerPort = build(harnessed);
     outer = makeLocalPort({
-      contract: Outer,
+      operation: Outer,
       runtime: harnessed.runtime,
       patterns: [OuterImpl.pattern],
     }) as Port<any>;
@@ -628,7 +628,7 @@ describe('несвязанный рантайм', () => {
       /* отказы этого теста не наблюдаются */
     });
     const port = makeLocalPort({
-      contract: ChargeCard,
+      operation: ChargeCard,
       runtime,
       patterns: [ChargeCardImpl.pattern],
     }) as Port<any>;

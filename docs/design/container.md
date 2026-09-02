@@ -268,7 +268,7 @@ export const RequestId = contextVar<string>()('requestId');
     в payload. Вне запроса (`@OnStart`, фоновая задача) передавать нечего,
     и это допустимо.
   - Приём идёт двумя каналами, как у профиля вызова
-    ([contracts.md §4](./contracts.md)): безусловно в `ctx.raw.attributes`
+    ([operations.md §4](./operations.md)): безусловно в `ctx.raw.attributes`
     и в проекцию контекста через `Var.propagated()`. Этот писатель несёт ту
     же рантайм-пометку, что и `Var.provide`, поэтому
     `everyEndpoint(…).hasVar(Var)` засчитывает его, и присутствие

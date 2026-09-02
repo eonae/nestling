@@ -41,12 +41,12 @@ import {
   makeToken,
   makeTokenFamily,
 } from '@nestling/container';
-import type { AnyOperation, Emitter, Port } from '@nestling/contracts';
+import type { AnyOperation, Emitter, Port } from '@nestling/operations';
 import {
   EmitterFamily,
   lookupOperation,
   PortFamily,
-} from '@nestling/contracts';
+} from '@nestling/operations';
 import type { TransportRef } from '@nestling/pipeline';
 import type { Dispatch, ITransport } from '@nestling/transport';
 
@@ -113,9 +113,9 @@ export interface PortsKernelOptions {
 
 /** Операция по имени члена семейства или понятная ошибка */
 function requireContract(name: string): AnyOperation {
-  const contract = lookupOperation(name);
+  const operation = lookupOperation(name);
 
-  if (!contract) {
+  if (!operation) {
     throw new Error(
       `Operation '${name}' is injected but not declared. Declare it with ` +
         `makeRequest({ name: '${name}', … }) and make sure the module that ` +
@@ -123,7 +123,7 @@ function requireContract(name: string): AnyOperation {
     );
   }
 
-  return contract;
+  return operation;
 }
 
 /** Паттерны co-located реализаций операции в этой сборке */
@@ -146,17 +146,17 @@ function patternsOf(topology: OperationTopology, name: string): string[] {
  * Состав кластера на сборке не проверяется: это работа service discovery.
  */
 function assertReachable(
-  contract: AnyOperation,
+  operation: AnyOperation,
   patterns: readonly string[],
   invoker: 'port' | 'emitter',
   remote: boolean,
 ): void {
-  if (patterns.length > 0 || contract.kind === 'event' || remote) {
+  if (patterns.length > 0 || operation.kind === 'event' || remote) {
     return;
   }
 
   throw new Error(
-    `Operation '${contract.name}' (kind '${contract.kind}') is injected as ` +
+    `Operation '${operation.name}' (kind '${operation.kind}') is injected as ` +
       `'.${invoker}', but no selected feature implements it and this ` +
       `assembly has no intercom, so the call has nowhere to go. Either add ` +
       `the feature that implements it to 'select' (or close the selection ` +
@@ -186,12 +186,12 @@ function assertReachable(
  *    себя так же, как при split-развёртывании с сетевой шиной.
  */
 function bindsRemote(
-  contract: AnyOperation,
+  operation: AnyOperation,
   patterns: readonly string[],
   policy: DispatchPolicy,
   remote: boolean,
 ): boolean {
-  if (remote && (contract.kind === 'event' || patterns.length === 0)) {
+  if (remote && (operation.kind === 'event' || patterns.length === 0)) {
     return true;
   }
 
@@ -209,23 +209,23 @@ function buildPort(
   policy: DispatchPolicy,
   remote: boolean,
 ): Port<any> {
-  const contract = requireContract(name);
+  const operation = requireContract(name);
 
-  if (contract.kind !== 'request') {
+  if (operation.kind !== 'request') {
     throw new Error(
-      `Operation '${name}' is a '${contract.kind}' contract: it has no ` +
+      `Operation '${name}' is a '${operation.kind}' operation: it has no ` +
         `'.port', use '.emitter' instead.`,
     );
   }
 
   const patterns = patternsOf(topology, name);
-  assertReachable(contract, patterns, 'port', remote);
+  assertReachable(operation, patterns, 'port', remote);
 
-  const context: InvokerContext = { contract, runtime, patterns };
+  const context: InvokerContext = { operation, runtime, patterns };
 
   // Решение принимается один раз, при создании узла, и замыкается в
   // константу. При вызове выбор уже не повторяется
-  return bindsRemote(contract, patterns, policy, remote)
+  return bindsRemote(operation, patterns, policy, remote)
     ? makeRemotePort(context)
     : makeLocalPort(context);
 }
@@ -238,21 +238,21 @@ function buildEmitter(
   policy: DispatchPolicy,
   remote: boolean,
 ): Emitter<any> {
-  const contract = requireContract(name);
+  const operation = requireContract(name);
 
-  if (contract.kind === 'request') {
+  if (operation.kind === 'request') {
     throw new Error(
-      `Operation '${name}' is a 'request' contract: it has no '.emitter', ` +
+      `Operation '${name}' is a 'request' operation: it has no '.emitter', ` +
         `use '.port' instead.`,
     );
   }
 
   const patterns = patternsOf(topology, name);
-  assertReachable(contract, patterns, 'emitter', remote);
+  assertReachable(operation, patterns, 'emitter', remote);
 
-  const context: InvokerContext = { contract, runtime, patterns };
+  const context: InvokerContext = { operation, runtime, patterns };
 
-  return bindsRemote(contract, patterns, policy, remote)
+  return bindsRemote(operation, patterns, policy, remote)
     ? makeRemoteEmitter(context)
     : makeLocalEmitter(context);
 }

@@ -76,7 +76,7 @@ await assemble({
 
 ### Операция — значение, не зависящее от направления
 
-```ts billing/contracts.ts
+```ts billing/operations.ts
 export const ChargeCard = makeRequest({
   name: 'billing.charge',
   input:  z.object({ orderId: z.string(), amount: z.number() }),

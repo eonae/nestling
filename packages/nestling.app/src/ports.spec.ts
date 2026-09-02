@@ -16,7 +16,7 @@ import { MockTransport } from './helpers';
 import { describe, expect, it, jest } from '@jest/globals';
 import { objectSource } from '@nestling/config';
 import { Injectable, makeToken, OnInit, OnStart } from '@nestling/container';
-import { makeEvent, makeRequest } from '@nestling/contracts';
+import { makeEvent, makeRequest } from '@nestling/operations';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import { makeEmptyContext, Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';

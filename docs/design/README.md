@@ -27,7 +27,7 @@
 | [composition.md](./composition.md) | composition root: `assemble`, фазы жизненного цикла, features/`select`, L0–L4 |
 | [pipeline.md](./pipeline.md) | request-pipeline: фазы, слои, `compose`, формы юнитов |
 | [endpoints.md](./endpoints.md) | декларации: контракт первичен, per-transport конструкторы, формы io, HTTP-канон |
-| [contracts.md](./contracts.md) | контракты и порты, шина, dispatch-политики, внешние клиенты |
+| [operations.md](./operations.md) | контракты и порты, шина, dispatch-политики, внешние клиенты |
 | [config.md](./config.md) | конфиг: секции, keys-capability, источники, reloadable, секреты |
 | [errors.md](./errors.md) | модель ошибок: `Ok`/`Fail`, `defineFail`, `E ∪ UnknownError` |
 | [schemas.md](./schemas.md) | Standard Schema на границах, OpenAPI/AsyncAPI через конвертеры |
