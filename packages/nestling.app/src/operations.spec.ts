@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-empty-function --
+ * noop-заглушки `console`: тест смотрит на состав напечатанного, а не на
+ * сам вывод. */
 /**
  * Карта операций в отчёте `check()`: что реализовано здесь, что уходит
  * наружу и через какой интерком.
@@ -7,7 +10,8 @@ import { assemble } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
+import { makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
@@ -29,6 +33,9 @@ const asBus = () =>
     name: 'events',
     bus: true,
   });
+
+/** Токен сервиса-вызывателя: операцию зовёт провайдер, а не декларация */
+const SignupToken = makeToken<{ quotas: unknown }>('SignupService');
 
 const ClaimQuota = makeRequest({
   name: 'map.quotas.claim',
@@ -91,6 +98,65 @@ describe('карта операций в отчёте check()', () => {
         implemented: false,
         called: true,
         via: 'events',
+      },
+    ]);
+  });
+
+  it('интерком без операций даёт предупреждение, а не ошибку', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    const Silent = makeFeature({
+      name: 'silent',
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/health',
+          handle: async () => new Ok({}),
+        }),
+      ],
+    });
+
+    const app = assemble({
+      features: [Silent],
+      transports: [asHttpTransport(new MockTransport()), asBus()],
+      intercom: 'events',
+    });
+
+    await app.run();
+
+    expect(warn.mock.calls.flat().join(' ')).toMatch(
+      /intercom 'events' is assigned, but this assembly declares no operations/,
+    );
+
+    await app.close();
+    warn.mockRestore();
+    log.mockRestore();
+  });
+
+  it('видит вызов, объявленный провайдером, а не декларацией', async () => {
+    const CallerFeature = makeFeature({
+      name: 'caller',
+      providers: [
+        {
+          provide: SignupToken,
+          useFactory: (quotas: Port<typeof ClaimQuota>) => ({ quotas }),
+          deps: [ClaimQuota.caller],
+        },
+      ],
+    });
+
+    const report = await assemble({
+      features: [CallerFeature, QuotasFeature],
+      transports: [asHttpTransport(new MockTransport())],
+    }).check();
+
+    expect(report.operations).toEqual([
+      {
+        name: 'map.quotas.claim',
+        kind: 'request',
+        implemented: true,
+        called: true,
       },
     ]);
   });

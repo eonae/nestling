@@ -858,3 +858,69 @@ describe('assemble — фичи в приложении', () => {
     await app.close();
   });
 });
+
+describe('assemble — именованные экземпляры транспортов', () => {
+  it('endpoint уходит на экземпляр, названный в `on:`', async () => {
+    const publicApi = new MockTransport();
+    const adminApi = new MockTransport();
+
+    const Orders = makeFeature({
+      name: 'orders',
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/orders',
+          handle: async () => new Ok({}),
+        }),
+        httpEndpoint({
+          method: 'GET',
+          path: '/metrics',
+          on: 'admin',
+          handle: async () => new Ok({}),
+        }),
+      ],
+    });
+
+    const app = assemble({
+      features: [Orders],
+      transports: [
+        transportValue(HttpTransport$('default'), publicApi),
+        transportValue(HttpTransport$('admin'), adminApi, { name: 'admin' }),
+      ],
+    });
+
+    await app.run();
+
+    expect(publicApi.routes.map((route) => route.pattern)).toEqual([
+      'GET /orders',
+    ]);
+    expect(adminApi.routes.map((route) => route.pattern)).toEqual([
+      'GET /metrics',
+    ]);
+
+    await app.close();
+  });
+
+  it('экземпляр, которого нет в корне, роняет сборку', async () => {
+    const Orders = makeFeature({
+      name: 'orders',
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/metrics',
+          on: 'admin',
+          handle: async () => new Ok({}),
+        }),
+      ],
+    });
+
+    const app = assemble({
+      features: [Orders],
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+    await expect(app.check()).rejects.toThrow(
+      /is required by endpoint 'GET \/metrics'/,
+    );
+  });
+});

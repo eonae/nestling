@@ -42,6 +42,18 @@ describe('httpEndpoint', () => {
     expect(isEndpointDefinition(CreateUser)).toBe(true);
   });
 
+  it('`on:` выбирает именованный экземпляр транспорта', () => {
+    const Metrics = httpEndpoint({
+      method: 'GET',
+      path: '/metrics',
+      on: 'admin',
+      handle,
+    });
+
+    expect(Metrics.transport).toBe(HttpTransport$('admin'));
+    expect(Metrics.transport).not.toBe(HttpTransport$('default'));
+  });
+
   it('пустой path — ошибка в момент создания', () => {
     expect(() =>
       httpEndpoint({ method: 'GET', path: '' as string, handle }),
