@@ -245,7 +245,7 @@ describe('assemble — порты', () => {
     });
 
     await expect(app.check()).rejects.toThrow(
-      /'app\.lonely\.request'.*no selected module implements it/s,
+      /'app\.lonely\.request'.*no selected feature implements it/s,
     );
   });
 
@@ -444,7 +444,7 @@ describe('assemble — порты', () => {
     });
 
     await expect(app.run()).rejects.toThrow(
-      /'app\.lonely\.request'.*no selected module implements it/s,
+      /'app\.lonely\.request'.*no selected feature implements it/s,
     );
   });
 });

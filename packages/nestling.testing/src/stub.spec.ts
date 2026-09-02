@@ -331,7 +331,7 @@ describe('stub — место в сборке', () => {
     await expect(
       assembleTest({ features: [ConsumerFeature], select: 'orders' }),
     ).rejects.toThrow(
-      /'stub\.quotas\.claim'.*no selected module implements it/s,
+      /'stub\.quotas\.claim'.*no selected feature implements it/s,
     );
   });
 

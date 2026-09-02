@@ -311,7 +311,7 @@ describe('portsKernel', () => {
 
     await expect(
       assemble({ declarations: [EchoImpl], consumers: [orphanConsumer] }),
-    ).rejects.toThrow(/'kernel\.orphan'.*no selected module implements it/s);
+    ).rejects.toThrow(/'kernel\.orphan'.*no selected feature implements it/s);
   });
 
   it('эмиттер события без подписчиков не роняет вызов и доставляет ноль раз', async () => {

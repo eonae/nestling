@@ -157,13 +157,13 @@ function assertReachable(
 
   throw new Error(
     `Operation '${contract.name}' (kind '${contract.kind}') is injected as ` +
-      `'.${invoker}', but no selected module implements it and the bus of ` +
-      `this application does not deliver outside the process: there is ` +
-      `nothing to call. Either declare the implementation with ` +
-      `implement(${contract.name}, { … }) in 'endpoints:' of a module (check ` +
-      `that the feature owning it is part of 'select'), or register a remote ` +
-      `bus transport (for example nats()) if the owner lives in another ` +
-      `process.`,
+      `'.${invoker}', but no selected feature implements it and this ` +
+      `assembly has no intercom, so the call has nowhere to go. Either add ` +
+      `the feature that implements it to 'select' (or close the selection ` +
+      `over calls with 'select: { features, includeDeps: true }'), or ` +
+      `assign the intercom role to a bus transport ('transports: ` +
+      `[nats({ name: "events" })]' with 'intercom: "events"') when the owner ` +
+      `lives in another process.`,
   );
 }
 

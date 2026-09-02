@@ -13,6 +13,8 @@ import type { EndpointDiscovery } from './discovery';
 import { discoverEndpoints, Discovery$ } from './discovery';
 import type { Feature } from './feature';
 import { modulesOf } from './feature';
+import type { CheckedOperation } from './operations';
+import { mapOperations } from './operations';
 import type {
   AssemblyPlan,
   AssemblySpec,
@@ -106,6 +108,15 @@ export interface CheckReport {
    * приложение не публикует.
    */
   readonly contracts: readonly OperationDescriptor[];
+
+  /**
+   * Карта операций: что реализовано здесь, что уходит наружу и через
+   * какой интерком.
+   *
+   * Отвечает на вопрос, который иначе задают запуском: этот процесс сам
+   * обслуживает операцию или зовёт соседа.
+   */
+  readonly operations: readonly CheckedOperation[];
 }
 
 /** Опции структурной проверки */
@@ -314,6 +325,7 @@ export class App {
         transportNameOf(token),
       ),
       contracts: publishedOperations(discovery, options),
+      operations: mapOperations(discovery, this.#plan.intercom?.name),
     };
   }
 
@@ -480,6 +492,7 @@ export class App {
       buildOwnerMap(this.#features, this.#plan.plugins),
     );
 
+    this.#warnOnIdleIntercom(discovery);
     this.#assertRequiredTransports(container, discovery);
     this.#assertFormsSupported(container, discovery);
     // Инварианты — последними: сперва «граф вообще собирается», потом
@@ -624,6 +637,29 @@ export class App {
   }
 
   /**
+   * Предупреждает об интеркоме, которому нечего переносить.
+   *
+   * Роль назначена, брокер поднимется и займёт соединение, а операций в
+   * сборке нет: либо роль назначена по ошибке, либо фича, ради которой
+   * она нужна, не выбрана. Это предупреждение, а не ошибка: топология из
+   * одного процесса, готовая к разъезду, законна.
+   */
+  #warnOnIdleIntercom(discovery: EndpointDiscovery): void {
+    const intercom = this.#plan.intercom;
+
+    if (!intercom || mapOperations(discovery, intercom.name).length > 0) {
+      return;
+    }
+
+    console.warn(
+      `[nestling] intercom '${intercom.name}' is assigned, but this ` +
+        `assembly declares no operations: nothing will be carried through ` +
+        `it. Drop 'intercom:' with its transport, or check that the feature ` +
+        `that needs it is part of 'select'.`,
+    );
+  }
+
+  /**
    * Сверяет транспортные токены деклараций с собранным графом.
    *
    * Отдельной «capability negotiation» нет: транспорт, которого нет в
@@ -643,9 +679,9 @@ export class App {
 
       throw new Error(
         `Transport '${name}' is required by endpoint '${endpoint.pattern}' ` +
-          `declared in module '${moduleName}', but is not registered in the ` +
-          `container. Add it to 'transports:' of assemble({ … }) or to ` +
-          `'providers:' of a module (for example ${name}()).`,
+          `declared in '${moduleName}', but the root does not declare it. ` +
+          `Add it to 'transports:' of assemble({ … }); a bus additionally ` +
+          `needs the intercom role ('intercom: <instance name>').`,
       );
     }
   }
