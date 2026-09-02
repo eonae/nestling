@@ -47,7 +47,7 @@ assemble({
 Вход чистой функции — то же значение, что возвращает `discoverEndpoints`:
 
 ```typescript
-const { endpoints } = discoverEndpoints(modulesOf(features));
+const { endpoints } = discoverEndpoints([...features, ...plugins]);
 writeFileSync('openapi.json', JSON.stringify(
   buildOpenApiDocument(endpoints, { info, converters: [zodConverter()] }),
 ));

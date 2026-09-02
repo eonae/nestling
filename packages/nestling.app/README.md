@@ -333,13 +333,13 @@ const report = await assemble(spec).check({ converters: [zodConverter()] });
 | `assemble(spec?)` | собирает приложение; возвращает `App` |
 | `App` | `run()`, `check(options?)`, `close()` |
 | `AssemblySpec` | тип спека сборки |
-| `CheckReport`, `CheckedEndpoint`, `CheckOptions` | отчёт `check()` и его опции |
-| `makeFeature({ name, modules, dependsOn? })` | объявляет фичу |
-| `Feature`, `FeatureOptions`, `FeatureSelection` | типы фич и выбора |
-| `resolveSelection`, `modulesOf` | разбор `select` и модули набора фич |
-| `makeFeature({ …, endpoints? })` | модуль с полем `endpoints:` |
-| `AppModule` | тип такого модуля |
-| `discoverEndpoints(modules)` | обход дерева модулей без контейнера |
+| `CheckReport`, `CheckedEndpoint`, `CheckedOperation`, `CheckOptions` | отчёт `check()` и его опции |
+| `makeFeature({ name, providers \| modules, endpoints? })` | объявляет фичу |
+| `makePlugin({ …, dependsOn? })` | объявляет плагин |
+| `Feature`, `Plugin`, `Bundle`, `FeatureOptions`, `PluginOptions`, `FeatureSelection` | типы единиц и выбора |
+| `resolveSelection`, `modulesOf`, `reachablePlugins` | разбор `select`, модули набора единиц, замыкание плагинов |
+| `buildOwnerMap`, `assertFeatureBoundary` | карта «модуль → владелец» и проверка границы фич |
+| `discoverEndpoints(bundles)` | плоский проход по фичам и плагинам без контейнера |
 | `Discovery$`, `EndpointDiscovery`, `DiscoveredEndpoint` | токен и типы результата discovery |
 | `ConfigBinding`, `ConfigTarget` | типы привязки конфига (реэкспорт) |
 

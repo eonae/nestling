@@ -165,7 +165,7 @@ export class TestApp {
 
   readonly #stubbed: readonly string[];
 
-  /** @internal конструируется только `assembleTest`/`testModule` */
+  /** @internal конструируется только `assembleTest`/`testUnit` */
   constructor(wired: WiredApp, stubbed: readonly string[] = []) {
     this.#wired = wired;
     this.#stubbed = stubbed;

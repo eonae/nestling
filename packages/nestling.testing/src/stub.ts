@@ -339,7 +339,7 @@ function makeEmitterStub(
  * Сторона вызывателя выбирается **видом операции**, а не вызывающим:
  * `request` даёт пару с `contract.caller`, `command`/`event` — с
  * `contract.emitter`. Пара едет полем `stubs:` (`assembleTest`,
- * `testModule`) и структурно годна для `overrides:`.
+ * `testUnit`) и структурно годна для `overrides:`.
  *
  * @param contract - Операция, объявленный `makeRequest`
  * @param impl - Реализация фейка: обычный хендлер по форме
