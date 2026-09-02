@@ -47,11 +47,11 @@ const spec = {
   features: [UsersFeature, OpsFeature, QuotasFeature],
   transports: [http({ port: 0 })],
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+    everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,
       'observability',
     ),
-    everyEndpoint({ transport: HttpTransport$ }).hasVar(RequestId, 'requestId'),
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(RequestId, 'requestId'),
   ],
 };
 

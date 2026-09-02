@@ -12,7 +12,7 @@
 import { TenantId } from './context';
 import { ClaimQuota, OrderPlaced, PlaceOrder } from './contracts';
 
-import { makeAppModule, makeFeature } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, makePipeline } from '@nestling/pipeline';
@@ -51,7 +51,7 @@ export class PlaceOrderService {
   }
 }
 
-const OrdersModule = makeAppModule({
+const OrdersModule = makeFeature({
   name: 'module:orders',
   providers: [PlaceOrderService],
   endpoints: [

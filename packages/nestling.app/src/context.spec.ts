@@ -7,11 +7,12 @@
  * `valueProvider`.
  */
 
+import { makeFeature } from './feature';
 import { wireApp } from './testing/index.js';
 import { MockTransport } from './helpers';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeModule, valueProvider } from '@nestling/container';
+import { Injectable, valueProvider } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, RequestId } from '@nestling/pipeline';
 
@@ -25,7 +26,7 @@ class DeepService {
   }
 }
 
-const DeepModule = makeModule({
+const DeepModule = makeFeature({
   name: 'module:deep',
   providers: [DeepService],
 });
@@ -37,7 +38,7 @@ beforeEach(() => {
 describe('contextKernel в корне', () => {
   it('класс с Ctx(RequestId) собирается без единого упоминания контекста', async () => {
     const wired = await wireApp({
-      modules: [DeepModule],
+      features: [DeepModule],
       transports: [valueProvider(MockTransport, new MockTransport())],
     });
 
@@ -62,7 +63,7 @@ describe('contextKernel в корне', () => {
 
   it('узел ридера присутствует в сериализации графа', async () => {
     const wired = await wireApp({
-      modules: [DeepModule],
+      features: [DeepModule],
       transports: [valueProvider(MockTransport, new MockTransport())],
     });
 
@@ -84,7 +85,7 @@ describe('contextKernel в корне', () => {
     };
 
     const wired = await wireApp({
-      modules: [DeepModule],
+      features: [DeepModule],
       transports: [valueProvider(MockTransport, new MockTransport())],
       overrides: [[Ctx(RequestId), fake]],
     });

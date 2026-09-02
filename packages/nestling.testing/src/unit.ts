@@ -1,16 +1,16 @@
 /**
- * `testModule` — один модуль в изоляции.
+ * `testUnit` — одна фича или один плагин в изоляции.
  */
 
 import type { TestApp, TestStub } from './app.js';
 import { assembleTest } from './app.js';
 import type { TestConfig } from './config.js';
 
-import type { Module, Provider } from '@nestling/container';
-import type { ITransport } from '@nestling/transport';
+import type { Bundle } from '@nestling/app';
+import type { TransportDeclaration } from '@nestling/transport';
 
-/** Словарь `testModule` */
-export interface TestModuleOptions {
+/** Словарь `testUnit` */
+export interface TestUnitOptions {
   /**
    * Поставка недостающего: пары `токен → значение` и контрактные стабы.
    *
@@ -24,42 +24,43 @@ export interface TestModuleOptions {
   /** Конфиг: источник, одна привязка или их список */
   config?: TestConfig;
 
-  /** Транспорты для endpoint'ов модуля — перечисляются явно, как и в бою */
-  transports?: readonly Provider<ITransport>[];
+  /** Транспорты для endpoint'ов единицы — объявляются явно, как и в бою */
+  transports?: readonly TransportDeclaration[];
 }
 
 /**
- * Поднимает мини-приложение вокруг одного модуля.
+ * Поднимает мини-приложение вокруг одной фичи или одного плагина.
  *
- * Регистрируются: сам модуль (с его `imports`), kernel-модуль конфига (его
- * корень регистрирует всегда) и перечисленные стабы. Дальше — те же фазы
- * 0–3 и тот же {@link TestApp}, что у `assembleTest`.
+ * Регистрируются: сама единица (с её модулями и их `dependsOn`),
+ * kernel-модуль конфига (его корень регистрирует всегда) и перечисленные
+ * стабы. Дальше — те же фазы 0–3 и тот же {@link TestApp}, что у
+ * `assembleTest`.
  *
- * Живёт внутри пакета модуля, поэтому его внутренние токены видны тесту
+ * Живёт внутри пакета единицы, поэтому её внутренние токены видны тесту
  * без добавления в публичный экспорт.
  *
- * Неудовлетворённые импорты обязаны быть застабаны явно: сборка падает
+ * Недостающие зависимости обязаны быть застабаны явно: сборка падает
  * ошибкой, перечисляющей **все** недостающие токены с потребителем
  * каждого, а не первый попавшийся.
  *
- * @param module - Модуль под тестом
+ * @param unit - Фича или плагин под тестом
  * @param options - Стабы, конфиг и транспорты
  * @returns Приложение с `call`/`get`/`close`
  *
  * @example
  * ```typescript
- * await using app = await testModule(UsersModule, {
+ * await using app = await testUnit(UsersFeature, {
  *   stubs: [[ILogger, noopLogger], stub(ChargeCard, async () => ({ id: 'c1' }))],
  *   transports: [http()],
  * });
  * ```
  */
-export async function testModule(
-  module: Module,
-  options: TestModuleOptions = {},
+export async function testUnit(
+  unit: Bundle,
+  options: TestUnitOptions = {},
 ): Promise<TestApp> {
   return await assembleTest({
-    modules: [module],
+    ...(unit.role === 'plugin' ? { plugins: [unit] } : { features: [unit] }),
     stubs: options.stubs,
     config: options.config,
     transports: options.transports,

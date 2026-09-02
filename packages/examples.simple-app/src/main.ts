@@ -1,7 +1,7 @@
-import { AppModule } from './app.module';
+import { AppFeature } from './app.feature';
 import { appConfigKeys } from './config';
 import { Demo } from './demo';
-import { LoggingModule } from './logging';
+import { appLogging } from './logging';
 
 import { assemble } from '@nestling/app';
 import { objectSource } from '@nestling/config';
@@ -29,7 +29,8 @@ import { objectSource } from '@nestling/config';
  */
 export async function main() {
   const app = assemble({
-    modules: [LoggingModule, AppModule],
+    features: [AppFeature],
+    plugins: [appLogging],
     providers: [Demo],
     config: [
       [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],

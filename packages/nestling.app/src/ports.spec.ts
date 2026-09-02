@@ -12,7 +12,6 @@
 import { assemble } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
-import { makeAppModule } from './module';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import { objectSource } from '@nestling/config';
@@ -34,11 +33,12 @@ import {
   portsConfigKeys,
 } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 const contextFor = (pattern: string, payload?: unknown) =>
   makeEmptyContext(
@@ -66,7 +66,7 @@ let notified: string[] = [];
 const BillingFeature = makeFeature({
   name: 'billing',
   modules: [
-    makeAppModule({
+    makeFeature({
       name: 'module:billing',
       endpoints: [
         implement(ChargeCard, {
@@ -93,7 +93,7 @@ const BillingFeature = makeFeature({
 const OrdersFeature = makeFeature({
   name: 'orders',
   modules: [
-    makeAppModule({
+    makeFeature({
       name: 'module:orders',
       endpoints: [
         httpEndpoint({
@@ -131,7 +131,7 @@ const LonelyToken = makeToken<{ port: Port<typeof LonelyContract> }>('Lonely');
 const LonelyFeature = makeFeature({
   name: 'lonely',
   modules: [
-    makeAppModule({
+    makeFeature({
       name: 'module:lonely',
       providers: [
         {
@@ -155,7 +155,7 @@ const DurablePlaced = makeContract({
 const DurableFeature = makeFeature({
   name: 'durable',
   modules: [
-    makeAppModule({
+    makeFeature({
       name: 'module:durable',
       endpoints: [
         implement(DurablePlaced, {
@@ -244,8 +244,8 @@ describe('assemble — порты', () => {
   it('приложение без контрактов не упоминает шину ни в чём', async () => {
     const http = new MockTransport();
     const app = assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:plain',
           endpoints: [
             httpEndpoint({
@@ -306,7 +306,7 @@ describe('assemble — порты', () => {
 
     const WarmupFeature = makeFeature({
       name: 'warmup',
-      modules: [makeAppModule({ name: 'module:warmup', providers: [Warmup] })],
+      modules: [makeFeature({ name: 'module:warmup', providers: [Warmup] })],
     });
 
     const app = assemble({
@@ -331,7 +331,7 @@ describe('assemble — порты', () => {
     const NotifierFeature = makeFeature({
       name: 'notifier',
       modules: [
-        makeAppModule({
+        makeFeature({
           name: 'module:notifier',
           providers: [
             {
@@ -434,8 +434,9 @@ describe('assemble — порты', () => {
       features: [BillingFeature],
       transports: [
         asHttpTransport(new MockTransport()),
-        valueProvider(BusTransport$, bus),
+        transportValue(BusTransport$, bus, { name: 'events', bus: true }),
       ],
+      intercom: 'events',
       config: portsConfig(),
     });
 
@@ -457,8 +458,9 @@ describe('assemble — порты', () => {
       features: [LonelyFeature],
       transports: [
         asHttpTransport(new MockTransport()),
-        valueProvider(BusTransport$, bus),
+        transportValue(BusTransport$, bus, { name: 'events', bus: true }),
       ],
+      intercom: 'events',
       config: portsConfig(),
     });
 

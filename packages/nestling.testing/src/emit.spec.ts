@@ -9,7 +9,7 @@ import { assembleTest } from './app';
 import { stub } from './stub';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeAppModule } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { makeContract } from '@nestling/contracts';
 import { makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
@@ -60,7 +60,7 @@ const commandPipeline = () =>
     return {};
   });
 
-const OrdersModule = makeAppModule({
+const OrdersModule = makeFeature({
   name: 'module:orders',
   endpoints: [
     implement(PlaceOrder, {
@@ -99,7 +99,7 @@ describe('app.emit', () => {
   });
 
   it('доставляет факт обоим подписчикам и называет каждого', async () => {
-    await using app = await assembleTest({ modules: [OrdersModule] });
+    await using app = await assembleTest({ features: [OrdersModule] });
 
     const deliveries = await app.emit(OrderPlaced, {
       orderId: 'o-1',
@@ -116,7 +116,7 @@ describe('app.emit', () => {
   });
 
   it('доставляет команду единственному владельцу', async () => {
-    await using app = await assembleTest({ modules: [OrdersModule] });
+    await using app = await assembleTest({ features: [OrdersModule] });
 
     const deliveries = await app.emit(PlaceOrder, { orderId: 'o-2' });
 
@@ -126,7 +126,7 @@ describe('app.emit', () => {
   });
 
   it('чеканит idempotencyKey команды и показывает его обработчику', async () => {
-    await using app = await assembleTest({ modules: [OrdersModule] });
+    await using app = await assembleTest({ features: [OrdersModule] });
 
     await app.emit(PlaceOrder, { orderId: 'o-3' });
     await app.emit(PlaceOrder, { orderId: 'o-4' }, { idempotencyKey: 'k1' });
@@ -136,7 +136,7 @@ describe('app.emit', () => {
   });
 
   it('гонит запрос через полный пайплайн реализации', async () => {
-    await using app = await assembleTest({ modules: [OrdersModule] });
+    await using app = await assembleTest({ features: [OrdersModule] });
 
     // Невалидный payload разбирается проверкой границы того же endpoint'а,
     // а не теряется по дороге: кадр запроса собран той же процедурой, что
@@ -152,13 +152,13 @@ describe('app.emit', () => {
   });
 
   it('возвращает пустой список у события без подписчиков', async () => {
-    await using app = await assembleTest({ modules: [OrdersModule] });
+    await using app = await assembleTest({ features: [OrdersModule] });
 
     await expect(app.emit(Forgotten, { orderId: 'o-5' })).resolves.toEqual([]);
   });
 
   it('бросает у команды без владельца, перечисляя доступные subject`ы', async () => {
-    await using app = await assembleTest({ modules: [OrdersModule] });
+    await using app = await assembleTest({ features: [OrdersModule] });
 
     await expect(app.emit(Unowned, { orderId: 'o-6' })).rejects.toThrow(
       /'emit\.orders\.unowned'.*no owner.*emit\.orders\.place, emit\.orders\.placed/s,
@@ -166,7 +166,7 @@ describe('app.emit', () => {
   });
 
   it('бросает с понятным сообщением на request-контракте', async () => {
-    await using app = await assembleTest({ modules: [OrdersModule] });
+    await using app = await assembleTest({ features: [OrdersModule] });
 
     await expect(
       app.emit(ClaimQuota as unknown as typeof PlaceOrder, { orderId: 'o-7' }),
@@ -175,7 +175,7 @@ describe('app.emit', () => {
 
   it('доставляет подписчикам, даже когда эмиттер того же контракта застабан', async () => {
     await using app = await assembleTest({
-      modules: [OrdersModule],
+      features: [OrdersModule],
       stubs: [stub(OrderPlaced, () => undefined)],
     });
 

@@ -7,14 +7,13 @@
  * остановить приложение на WIRE в поверхности пакета нет.
  */
 
-import type { Feature, FeatureSelection } from './feature.js';
-import { modulesOf, resolveSelection } from './feature.js';
+import type { Feature, FeatureSelection, Plugin } from './feature.js';
+import { modulesOf, reachablePlugins, resolveSelection } from './feature.js';
 
 import type { ConfigBinding } from '@nestling/config';
 import type {
   BuiltContainer,
   FamilyOverrideEntry,
-  InjectionToken,
   Module,
   Provider,
   TokenOverride,
@@ -25,39 +24,70 @@ import type {
   TransportRef,
 } from '@nestling/pipeline';
 import type {
+  BusDeclaration,
   Dispatch,
   ExecutableDeclaration,
   ITransport,
+  TransportDeclaration,
 } from '@nestling/transport';
+
+/**
+ * Имена транспортов, годных в роль интеркома.
+ *
+ * Пусто, когда ни один объявленный транспорт не переносит операции: тогда
+ * `intercom:` не принимает ничего, и назначение роли отвергает компилятор.
+ */
+export type IntercomName<T extends readonly TransportDeclaration[]> = Extract<
+  T[number],
+  BusDeclaration
+>['name'];
 
 /**
  * Словарь сборки приложения.
  *
- * Каждое поле опционально: приложение уровня L0 (модули + транспорт) не
- * упоминает ни фичу, ни `select`, ни конфиг.
+ * Каждое поле опционально: приложение из одной фичи и одного транспорта не
+ * упоминает ни плагин, ни `select`, ни конфиг.
+ *
+ * @template T - Объявленные транспорты; из них выводится словарь `intercom`
  */
-export interface AssemblySpec {
-  /** Модули корня — они регистрируются наравне с модулями выбранных фич */
-  modules?: readonly Module[];
-
-  /** Провайдеры корня (когда заводить модуль незачем) */
-  providers?: readonly Provider[];
-
+export interface AssemblySpec<
+  T extends readonly TransportDeclaration[] = readonly TransportDeclaration[],
+> {
   /** Фичи приложения; подмножество выбирается полем `select` */
   features?: readonly Feature[];
 
   /**
-   * Выбор фич: `'all'`, `'orders,billing'` или `['orders','billing']`.
+   * Сквозная инфраструктура: логирование, метрики, документация.
+   *
+   * Плагины подключены всегда — они не входят в словарь `select` и не
+   * выбираются.
+   */
+  plugins?: readonly Plugin[];
+
+  /** Провайдеры корня (когда заводить единицу незачем) */
+  providers?: readonly Provider[];
+
+  /**
+   * Выбор фич: `'all'`, `'orders,billing'`, `['orders','billing']` или
+   * `{ features, includeDeps }`.
    * Отсутствует при заданных `features` — выбраны все.
    */
   select?: FeatureSelection;
 
   /**
-   * Транспорты корня — **провайдеры** (`http()`, `cli()`), а не инстансы.
-   * Сокращённая запись регистрации: тот же провайдер можно объявить в
-   * `providers:` модуля, в том числе infra-модуля фичи.
+   * Транспорты корня — объявления экземпляров (`http()`, `cli()`,
+   * `nats({ name: 'events' })`).
    */
-  transports?: readonly Provider<ITransport>[];
+  transports?: T;
+
+  /**
+   * Транспорт, переносящий объявленные операции между процессами.
+   *
+   * Не второе объявление, а **роль**: имя уже объявленного транспорта.
+   * Годятся только те, что реализуют `IMessageBus`; остальные отвергает
+   * компилятор.
+   */
+  intercom?: IntercomName<T>;
 
   /**
    * Привязки источников конфигурации: `[источник, таргет | таргет[]]`.
@@ -104,25 +134,56 @@ export interface TestSubstitutions {
  * @internal
  */
 export interface AssemblyPlan {
+  readonly features: readonly Feature[];
+  readonly plugins: readonly Plugin[];
   readonly modules: readonly Module[];
   readonly providers: readonly Provider[];
   readonly transports: readonly Provider<ITransport>[];
   readonly transportTokens: readonly TransportRef[];
+  readonly intercom?: TransportDeclaration;
+  readonly includeDeps: boolean;
+  readonly declaredFeatures: ReadonlyMap<string, Feature>;
   readonly config: readonly ConfigBinding[];
   readonly policies: readonly Policy[];
-  readonly features: readonly Feature[];
   readonly overrides: readonly TokenOverride<any>[];
   readonly familyOverrides: readonly FamilyOverrideEntry<any, any>[];
 }
 
-/** Токен, под которым провайдер транспорта регистрируется в контейнере */
-function tokenOf(provider: Provider<ITransport>): TransportRef {
-  const token =
-    typeof provider === 'function'
-      ? provider
-      : (provider.provide as InjectionToken<ITransport>);
+/**
+ * Находит объявление транспорта, назначенного в роль интеркома.
+ *
+ * Имя, которого нет среди объявленных, — опечатка: типы её не поймают,
+ * когда шина одна и её имя выводится литералом.
+ */
+function resolveIntercom(
+  transports: readonly TransportDeclaration[],
+  intercom: string | undefined,
+): TransportDeclaration | undefined {
+  if (intercom === undefined) {
+    return undefined;
+  }
 
-  return token as TransportRef;
+  const declaration = transports.find(({ name }) => name === intercom);
+
+  if (!declaration) {
+    const declared = transports.map(({ name }) => `'${name}'`).join(', ');
+
+    throw new Error(
+      `'intercom: ${JSON.stringify(intercom)}' names a transport that is not ` +
+        `declared. Declared transports: ${declared || '(none)'}. The intercom ` +
+        `role is assigned to a transport already listed in 'transports:'.`,
+    );
+  }
+
+  if (!('bus' in declaration)) {
+    throw new Error(
+      `Transport '${intercom}' cannot take the intercom role: it does not ` +
+        `carry declared operations. Assign a bus transport (for example ` +
+        `nats({ name: '${intercom}' })).`,
+    );
+  }
+
+  return declaration;
 }
 
 /**
@@ -134,21 +195,30 @@ function tokenOf(provider: Provider<ITransport>): TransportRef {
  * @internal
  */
 export function makePlan(
-  spec: AssemblySpec = {},
+  spec: AssemblySpec<any> = {},
   substitutions: TestSubstitutions = {},
 ): AssemblyPlan {
-  const features = resolveSelection(spec.features, spec.select);
+  const selection = resolveSelection(spec.features, spec.select);
+
+  // Плагины замыкаются по `dependsOn`: вспомогательный модуль, который
+  // привезли два плагина, регистрируется один раз — дедупликация ссылочная
+  const plugins = reachablePlugins(spec.plugins ?? []);
+
+  const transports = [...(spec.transports ?? [])];
+  const intercom = resolveIntercom(transports, spec.intercom);
 
   return {
-    modules: [...(spec.modules ?? []), ...modulesOf(features)],
+    features: selection.features,
+    plugins,
+    modules: modulesOf([...selection.features, ...plugins]),
     providers: [...(spec.providers ?? [])],
-    transports: [...(spec.transports ?? [])],
-    transportTokens: (spec.transports ?? []).map((provider) =>
-      tokenOf(provider),
-    ),
+    transports: transports.map(({ provider }) => provider),
+    transportTokens: transports.map(({ token }) => token),
+    ...(intercom ? { intercom } : {}),
+    includeDeps: selection.includeDeps,
+    declaredFeatures: selection.declared,
     config: [...(spec.config ?? [])],
     policies: [...(spec.policies ?? [])],
-    features,
     overrides: [...(substitutions.overrides ?? [])],
     familyOverrides: [...(substitutions.familyOverrides ?? [])],
   };
@@ -170,7 +240,7 @@ export const TEST_SEAM: unique symbol = Symbol('nestling:app:test-seam');
  * и всё, чем его исполнить.
  */
 export interface WiredEndpoint {
-  /** Значение из `endpoints:` модуля — ключ поиска по идентичности */
+  /** Значение из `endpoints:` фичи или плагина — ключ поиска по идентичности */
   readonly declaration: AnyEndpointDefinition;
 
   /** Её исполнимая копия (зависимости резолвены контейнером) */

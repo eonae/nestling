@@ -2,6 +2,8 @@ import type { BindMap, BindMark } from './binding.js';
 import { assertHttpPath, computeHttpBinding } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
+import { DEFAULT_INSTANCE } from '@nestling/transport';
+
 import type { InjectionToken } from '@nestling/container';
 import type {
   AnyContract,
@@ -170,6 +172,16 @@ export interface HttpEndpointDictionary<
    * строку.
    */
   detached?: string;
+
+  /**
+   * Имя экземпляра транспорта, который обслуживает endpoint.
+   *
+   * По умолчанию `'default'`: приложение с одним HTTP про имена не пишет
+   * ни строки. Второй экземпляр объявляется в корне
+   * (`http({ name: 'admin', port: 3001 })`), и endpoint выбирает его
+   * `on: 'admin'`.
+   */
+  on?: string;
 }
 
 /**
@@ -199,6 +211,9 @@ export interface HttpContractDictionary<
 
   /** Причина, по которой endpoint выведен из-под политик сборки */
   detached?: string;
+
+  /** Имя экземпляра транспорта, обслуживающего endpoint; по умолчанию `'default'` */
+  on?: string;
 
   /** @internal адрес операции принадлежит контракту */
   method?: never;
@@ -287,7 +302,10 @@ function assertContractOwned(
 function fromContract(
   declaration: Record<string, unknown> & { contract: unknown },
 ): AnyEndpointDefinition {
-  const { contract, ...rest } = declaration;
+  const { contract, on, ...rest } = declaration as Record<string, unknown> & {
+    contract: unknown;
+    on?: string;
+  };
 
   assertContract(contract);
   assertContractOwned(rest, contract);
@@ -304,7 +322,7 @@ function fromContract(
 
   return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
     ...rest,
-    transport: HttpTransport$,
+    transport: HttpTransport$(on ?? DEFAULT_INSTANCE),
     pattern: `${binding.method} ${binding.path}`,
     binding,
     input: contract.input,
@@ -514,7 +532,7 @@ export function httpEndpoint(
     );
   }
 
-  const { method, path, bind, rawBody, sse, ...rest } = declaration;
+  const { method, path, bind, rawBody, sse, on, ...rest } = declaration;
 
   assertHttpPath(path, `httpEndpoint({ method: '${method}', … })`);
 
@@ -537,7 +555,7 @@ export function httpEndpoint(
     // Токен, а не строка: приложение выводит список транспортов из графа,
     // поэтому ссылка должна совпадать со значением, под которым транспорт
     // зарегистрирован
-    transport: HttpTransport$,
+    transport: HttpTransport$(on ?? DEFAULT_INSTANCE),
     pattern: `${method} ${path}`,
     binding,
   });

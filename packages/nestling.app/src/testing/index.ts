@@ -21,7 +21,7 @@ import { makePlan, TEST_SEAM } from '../plan.js';
 export type { TestSubstitutions, WiredApp, WiredEndpoint } from '../plan.js';
 
 /** Словарь сборки тестового прогона: боевой плюс подстановки */
-export type TestAssemblySpec = AssemblySpec & TestSubstitutions;
+export type TestAssemblySpec = AssemblySpec<any> & TestSubstitutions;
 
 /**
  * Проводит приложение по фазам `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE`

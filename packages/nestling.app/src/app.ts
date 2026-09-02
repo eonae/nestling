@@ -8,6 +8,7 @@
  * захвату любых ресурсов.
  */
 
+import { assertFeatureBoundary, buildOwnerMap } from './boundary';
 import type { EndpointDiscovery } from './discovery';
 import { discoverEndpoints, Discovery$ } from './discovery';
 import type {
@@ -50,6 +51,7 @@ import type {
   Dispatch,
   ExecutableDeclaration,
   ITransport,
+  TransportDeclaration,
 } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
 
@@ -119,31 +121,35 @@ export interface CheckOptions {
 /**
  * Собирает приложение.
  *
- * Единственный публичный composition root: `modules` и `features`
- * совмещаются, транспорты задаются провайдерами, привязки конфига —
- * полем `config`.
+ * Единственный публичный composition root: фичи перечисляются в
+ * `features:`, сквозная инфраструктура — в `plugins:`, транспорты
+ * объявляются экземплярами, привязки конфига — полем `config`.
  *
  * @param spec - Словарь сборки. Все поля опциональны
  * @returns Приложение с методами `run()` и `close()`
  *
- * @example L0 — модули и транспорт
+ * @example Одна фича и транспорт
  * ```typescript
  * await assemble({
- *   modules: [OrdersModule],
+ *   features: [OrdersFeature],
  *   transports: [http({ port: 3000 })],
  * }).run();
  * ```
  *
- * @example L2 — фичи и выбор подмножества
+ * @example Выбор подмножества фич и интерком
  * ```typescript
  * await assemble({
  *   features: [OrdersFeature, BillingFeature],
- *   select: load(RootConfig).features,
- *   transports: [http()],
+ *   plugins: [appLogging],
+ *   select: { features: load(RootConfig).features, includeDeps: true },
+ *   transports: [http(), nats({ name: 'events' })],
+ *   intercom: 'events',
  * }).run();
  * ```
  */
-export function assemble(spec: AssemblySpec = {}): App {
+export function assemble<
+  const T extends readonly TransportDeclaration[] = [],
+>(spec: AssemblySpec<T> = {}): App {
   // Подстановок здесь нет и не будет: `assemble` не принимает `overrides`
   // даже как соблазн — это ключ тестового корня
   return new App(makePlan(spec));
@@ -398,12 +404,15 @@ export class App {
     // в корне про request-контекст не пишется ни строки
     builder.register(contextKernel());
 
-    // Discovery — по дереву модулей, отобранных `select`: невыбранные
-    // фичи в нём не участвуют вовсе. Считается до регистрации модулей,
-    // потому что топология реализаций контрактов нужна kernel-модулю
-    // портов уже на регистрации: функция чистая, порядок ни на что не
-    // влияет
-    const discovery = discoverEndpoints(this.#plan.modules);
+    // Discovery — плоским проходом по выбранным фичам и подключённым
+    // плагинам: невыбранные фичи в нём не участвуют вовсе. Считается до
+    // регистрации модулей, потому что топология реализаций операций нужна
+    // kernel-модулю портов уже на регистрации: функция чистая, порядок ни
+    // на что не влияет
+    const discovery = discoverEndpoints([
+      ...this.#plan.features,
+      ...this.#plan.plugins,
+    ]);
 
     // Состав приложения — узел графа. Регистрируется всегда и без
     // условий: провайдер-значение ничего не стоит, а условная
@@ -425,12 +434,11 @@ export class App {
         requested: discovery.endpoints.flatMap(
           ({ endpoint }) => endpoint.deps ?? [],
         ),
-        // Транспорт шины в `transports:` корня — единственный вход ветки
-        // «шину поставил корень»: так подключается брокер, и in-proc
-        // реализация тогда не регистрируется вовсе
-        rootSuppliesBus: this.#plan.transportTokens.includes(
-          BusTransport$ as TransportRef,
-        ),
+        // Назначенный интерком — единственный вход ветки «шину поставил
+        // корень»: так подключается брокер, и in-proc реализация тогда не
+        // регистрируется вовсе. Признак даёт роль, а не присутствие
+        // провайдера в списке транспортов
+        rootSuppliesBus: this.#plan.intercom !== undefined,
       }),
     );
 
@@ -447,6 +455,13 @@ export class App {
     }
 
     const container = await builder.build();
+
+    // Граница фич — первой на собранном графе: ребро, которое не переживёт
+    // разъезда процессов, важнее любого недостающего транспорта
+    await assertFeatureBoundary(
+      container,
+      buildOwnerMap(this.#plan.features, this.#plan.plugins),
+    );
 
     this.#assertRequiredTransports(container, discovery);
     this.#assertFormsSupported(container, discovery);

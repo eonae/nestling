@@ -6,10 +6,15 @@
  * фикстура их просто перечисляет.
  */
 
-import type { Provider, Token } from '@nestling/container';
-import { makeToken, valueProvider } from '@nestling/container';
+import type { Token } from '@nestling/container';
+import { makeToken } from '@nestling/container';
 import type { TransportCapabilities } from '@nestling/pipeline';
-import type { Dispatch, ITransport } from '@nestling/transport';
+import type {
+  Dispatch,
+  ITransport,
+  TransportDeclaration,
+} from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 
 /** Транспорт умеет и значения, и потоки: подписка — его штатная форма */
 const STREAMING: TransportCapabilities = {
@@ -43,6 +48,6 @@ export class TestTransport implements ITransport {
   }
 }
 
-/** Провайдер транспорта для словаря `transports:` */
-export const testTransport = (): Provider<ITransport> =>
-  valueProvider<ITransport>(TestTransport$, new TestTransport());
+/** Объявление транспорта для словаря `transports:` */
+export const testTransport = (): TransportDeclaration =>
+  transportValue(TestTransport$, new TestTransport());

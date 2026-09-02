@@ -11,16 +11,16 @@ import type { EndpointDiscovery } from './discovery';
 import { Discovery$ } from './discovery';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
-import { makeAppModule } from './module';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { factoryProvider, makeToken, valueProvider } from '@nestling/container';
 import { Ok } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 /**
  * Что увидел модуль-наблюдатель последней сборки.
@@ -54,13 +54,13 @@ const ListInvoices = httpEndpoint({
   handle: async () => new Ok({ invoices: [] }),
 });
 
-const UsersModule = makeAppModule({
+const UsersModule = makeFeature({
   name: 'module:discovery-users',
   providers: [observer],
   endpoints: [ListUsers],
 });
 
-const BillingModule = makeAppModule({
+const BillingModule = makeFeature({
   name: 'module:discovery-billing',
   endpoints: [ListInvoices],
 });
@@ -91,7 +91,7 @@ beforeEach(() => {
 describe('Discovery$ — состав приложения на входе графа', () => {
   it("провайдер получает endpoint'ы с их атрибуцией к модулям", async () => {
     const app = assemble({
-      modules: [UsersModule],
+      features: [UsersModule],
       transports: [asHttpTransport(new MockTransport())],
     });
 
@@ -107,7 +107,7 @@ describe('Discovery$ — состав приложения на входе гр�
   it('инжектировано то же значение, с которым App начал принимать запросы', async () => {
     const transport = new MockTransport();
     const app = assemble({
-      modules: [UsersModule, BillingModule],
+      features: [UsersModule, BillingModule],
       transports: [asHttpTransport(transport)],
     });
 
@@ -152,7 +152,7 @@ describe('Discovery$ — состав приложения на входе гр�
 
   it('состав приложения через значение изменить нельзя', async () => {
     const app = assemble({
-      modules: [UsersModule],
+      features: [UsersModule],
       transports: [asHttpTransport(new MockTransport())],
     });
 
@@ -177,7 +177,7 @@ describe('Discovery$ — состав приложения на входе гр�
 
   it('тестовый корень видит то же значение', async () => {
     const app = assemble({
-      modules: [UsersModule],
+      features: [UsersModule],
       transports: [asHttpTransport(new MockTransport())],
     });
 

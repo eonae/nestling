@@ -14,7 +14,7 @@ import {
   ListSubscriptions,
   WatchSubscriptions,
 } from './modules/ops/subscriptions.endpoint';
-import { ClaimQuotaImpl } from './modules/quotas/quotas.module';
+import { ClaimQuotaImpl } from './modules/quotas/quotas.feature';
 import { ActivityHub } from './modules/users/activity.hub';
 import {
   ActivityStream,
@@ -25,7 +25,7 @@ import {
 } from './modules/users/endpoints';
 import { ClaimQuota, QuotaExceeded } from './contracts';
 import { OpsFeature, QuotasFeature, UsersFeature } from './features';
-import { appLogging } from './infrastructure';
+import { appLogging, appSubscriptions } from './infrastructure';
 import { inMemoryUsersRepo, UsersRepository } from './testing';
 
 import { describe, expect, it } from '@jest/globals';
@@ -50,14 +50,15 @@ import { http, HttpTransport$ } from '@nestling/transport.http';
  */
 const spec = {
   features: [UsersFeature, OpsFeature, QuotasFeature],
+  plugins: [appLogging, appSubscriptions],
   transports: [http({ port: 0 })],
   // Политики те же, что в `main.ts`: тестовая сборка их не ослабляет
   policies: [
-    everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+    everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,
       'observability',
     ),
-    everyEndpoint({ transport: HttpTransport$ }).hasVar(RequestId, 'requestId'),
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(RequestId, 'requestId'),
   ],
 };
 
@@ -116,7 +117,7 @@ describe('пример: app-тесты через assembleTest', () => {
     // узел `UsersStore` никому не нужен: контейнер его не создаёт, и
     // соединение не открывается
     expect(app.pruned).toContain('UsersStore');
-    expect(app.get(HttpTransport$)).not.toBeNull();
+    expect(app.get(HttpTransport$('default'))).not.toBeNull();
   });
 
   it('без overrides собирает граф без выпавших узлов', async () => {
@@ -194,7 +195,7 @@ describe('пример: фича подключает свою инфрастр�
     expect(app.get(ILogger)).not.toBeNull();
     expect(app.get(SubscriptionRegistry)).not.toBeNull();
     expect(app.get(ActivityHub)).toBeNull();
-    expect(app.get(HttpTransport$)).not.toBeNull();
+    expect(app.get(HttpTransport$('default'))).not.toBeNull();
   });
 
   it('подключает инфраструктуру выбранной фичи', async () => {
@@ -205,9 +206,9 @@ describe('пример: фича подключает свою инфрастр�
   });
 
   it('фичи в одном процессе делят инстанс общего модуля', async () => {
-    // Обе фичи импортируют одно и то же значение `appLogging`: модуль
-    // регистрируется один раз, и логгер у них общий. Если бы одна из них
-    // вызвала `logging({ … })` заново, сборка упала бы на коллизии имён
+    // Логирование — плагин: он подключён всегда и один на процесс, поэтому
+    // логгер у фич общий. Второй вызов `logging({ … })` дал бы второе
+    // значение под тем же именем, и сборка упала бы на коллизии имён
     await using app = await assembleTest(spec);
 
     const logger = app.get(ILogger);
@@ -404,8 +405,8 @@ describe('пример: документ OpenAPI', () => {
   /** Описание сборки из `main.ts` плюс модуль документации */
   const documented = {
     ...spec,
-    modules: [
-      appLogging,
+    plugins: [
+      ...spec.plugins,
       openapi({
         info: { title: 'Users API', version: '1.0.0' },
         converters: [zodConverter()],

@@ -8,7 +8,6 @@
 import { assemble } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
-import { makeAppModule } from './module';
 import { wireApp } from './testing';
 
 import { describe, expect, it, jest } from '@jest/globals';
@@ -25,11 +24,12 @@ import type { SchemaDocConverter } from '@nestling/pipeline';
 import { defineFail, makeEndpoint, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 /** Конвертер-фикстура: те же десять строк, что показывает гайд */
 const zodConverter = (): SchemaDocConverter => ({
@@ -70,8 +70,8 @@ describe('App.check() — фазы 0–1', () => {
 
     const transport = new MockTransport();
     const report = await assemble({
-      modules: [
-        makeAppModule({ name: 'module:resource', providers: [Connection] }),
+      features: [
+        makeFeature({ name: 'module:resource', providers: [Connection] }),
       ],
       transports: [asHttpTransport(transport)],
     }).check();
@@ -90,7 +90,7 @@ describe('App.check() — фазы 0–1', () => {
     });
 
     const spec = {
-      modules: [makeAppModule({ name: 'module:cli', endpoints: [Orphan] })],
+      features: [makeFeature({ name: 'module:cli', endpoints: [Orphan] })],
       transports: [asHttpTransport(new MockTransport())],
     };
 
@@ -105,13 +105,13 @@ describe('App.check() — фазы 0–1', () => {
   it("называет выбранные фичи и обнаруженные endpoint'ы с транспортами", async () => {
     const Logging = makeFeature({
       name: 'logging',
-      modules: [makeAppModule({ name: 'module:logging' })],
+      modules: [makeFeature({ name: 'module:logging' })],
     });
 
     const Users = makeFeature({
       name: 'users',
       modules: [
-        makeAppModule({
+        makeFeature({
           name: 'module:users',
           endpoints: [
             httpEndpoint({
@@ -122,7 +122,6 @@ describe('App.check() — фазы 0–1', () => {
           ],
         }),
       ],
-      dependsOn: [Logging],
     });
 
     const report = await assemble({
@@ -150,8 +149,8 @@ describe('App.check() — фазы 0–1', () => {
 
     const transport = new MockTransport();
     const app = assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:service',
           providers: [Service],
           endpoints: [
@@ -196,7 +195,7 @@ describe('App.check() — опубликованные контракты в о�
     input: z.object({ chargeId: z.string() }),
   });
 
-  const billingModule = makeAppModule({
+  const billingModule = makeFeature({
     name: 'module:billing',
     endpoints: [
       implement(ChargeCard, {
@@ -207,7 +206,7 @@ describe('App.check() — опубликованные контракты в о�
 
   const assembleBilling = () =>
     assemble({
-      modules: [billingModule],
+      features: [billingModule],
       transports: [asHttpTransport(new MockTransport())],
     });
 
@@ -255,8 +254,8 @@ describe('App.check() — опубликованные контракты в о�
 
   it('у приложения без контрактов поле пусто, а не отсутствует', async () => {
     const report = await assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:http-only',
           endpoints: [
             httpEndpoint({
@@ -281,8 +280,8 @@ describe('App.check() — опубликованные контракты в о�
     });
 
     const report = await assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:orders',
           endpoints: [
             implement(OrderPlaced, {
@@ -347,8 +346,8 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
 
     try {
       const wired = await wireApp({
-        modules: [
-          makeAppModule({
+        features: [
+          makeFeature({
             name: 'module:service',
             providers: [Service],
             endpoints: [Ping],
@@ -396,8 +395,8 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
     }
 
     const wired = await wireApp({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:data',
           providers: [PgPool, PgRepository],
         }),
@@ -423,8 +422,8 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
     }
 
     const wired = await wireApp({
-      modules: [
-        makeAppModule({ name: 'module:service', providers: [Service] }),
+      features: [
+        makeFeature({ name: 'module:service', providers: [Service] }),
       ],
     });
 

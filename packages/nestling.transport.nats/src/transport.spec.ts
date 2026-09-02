@@ -440,6 +440,6 @@ describe('NatsBus — отказы доставки и фазы', () => {
   });
 
   it('фабрика регистрирует транспорт под токеном шины', () => {
-    expect(nats().provide).toBe(BusTransport$);
+    expect(nats().token).toBe(BusTransport$);
   });
 });

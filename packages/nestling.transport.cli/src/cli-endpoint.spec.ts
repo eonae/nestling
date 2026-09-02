@@ -24,7 +24,7 @@ describe('cliEndpoint', () => {
     });
 
     // Ссылка на транспорт — токен; строковое имя выводится из его id
-    expect(ProcessStdin.transport).toBe(CliTransport$);
+    expect(ProcessStdin.transport).toBe(CliTransport$('default'));
     expect(transportNameOf(ProcessStdin.transport)).toBe('cli');
     expect(ProcessStdin.pattern).toBe('process-stdin');
     expect(isEndpointDefinition(ProcessStdin)).toBe(true);

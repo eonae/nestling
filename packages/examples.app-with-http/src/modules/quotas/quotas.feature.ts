@@ -7,14 +7,13 @@ import {
   SignupRecorded,
   UserRegistered,
 } from '../../contracts';
-import { appLogging } from '../../infrastructure';
 import type { ILoggerService } from '../logger';
 import { ILogger } from '../logger';
 
 import { QuotaService } from './quota.service';
 import { SignupJournal } from './signup.journal';
 
-import { makeAppModule } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { makePipeline, Ok } from '@nestling/pipeline';
 import { implement, withIdempotencyKey } from '@nestling/ports';
 
@@ -92,15 +91,15 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
 });
 
 /**
- * Модуль фичи квот.
+ * Фича квот: реализует операцию `quotas.claim` и подписана на событие
+ * `users.registered`.
  *
  * В `providers:` только собственные сервисы: наружу фича отдаёт не токены,
- * а контракты. `endpoints:` принимает реализации контрактов наравне с
- * HTTP-endpoint'ами.
+ * а операции. Поэтому её можно вынести в отдельный процесс, не меняя код
+ * фичи `users`: изменится привязка вызывателей на сборке, а не вызовы.
  */
-export const QuotasModule = makeAppModule({
-  name: 'module:quotas',
-  dependsOn: [appLogging],
+export const QuotasFeature = makeFeature({
+  name: 'quotas',
   providers: [QuotaService, SignupJournal],
   endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
 });

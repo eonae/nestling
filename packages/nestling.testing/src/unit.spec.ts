@@ -1,21 +1,22 @@
 /**
- * `testModule` — модуль в изоляции и требование явных стабов.
+ * `testUnit` — модуль в изоляции и требование явных стабов.
  */
 
 import { SpyTransport } from './__fixtures__/transport';
-import { testModule } from './module';
+import { testUnit } from './unit';
 import { unwrap } from './unwrap';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeAppModule } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { Injectable, makeToken, valueProvider } from '@nestling/container';
 import { Ok } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 interface ILoggerService {
   log(message: string): void;
@@ -51,15 +52,15 @@ const Report = httpEndpoint({
   handle: (reports: ReportService) => async () => new Ok(reports.build()),
 });
 
-const ReportsModule = makeAppModule({
+const ReportsModule = makeFeature({
   name: 'module:reports',
   providers: [ReportService],
   endpoints: [Report],
 });
 
-describe('testModule', () => {
+describe('testUnit', () => {
   it("поднимает модуль без соседей и исполняет его endpoint'ы", async () => {
-    await using app = await testModule(ReportsModule, {
+    await using app = await testUnit(ReportsModule, {
       stubs: [
         [ILogger, { log: (): void => undefined }],
         [IClock, { now: () => 42 }],
@@ -75,7 +76,7 @@ describe('testModule', () => {
   });
 
   it('называет все недостающие токены, а не первый', async () => {
-    const error = await testModule(ReportsModule, {
+    const error = await testUnit(ReportsModule, {
       stubs: [[ILogger, { log: (): void => undefined }]],
       transports: [asHttpTransport(new SpyTransport())],
     }).catch((error_: Error) => error_);

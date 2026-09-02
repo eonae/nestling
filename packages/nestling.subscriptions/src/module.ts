@@ -1,13 +1,11 @@
 /**
- * Модуль реестра — параметризованная фабрика, а не новый примитив.
+ * Реестр подписок — плагин, то есть параметризованная фабрика, а не новый
+ * механизм.
  *
- * Ровно конвенция инфраструктурных модулей: функция, возвращающая обычный
- * модуль контейнера. Ни `plugins:` в корне, ни `forRoot`, ни
- * `DynamicModule` — их в модели нет.
- *
- * `makeModule` из `@nestling/container`, а не `makeAppModule` из
- * `@nestling/app`: деклараций у модуля нет, и зависимость от пакета сборки
- * satellite'у не нужна — это часть измерения, а не вкусовщина.
+ * Роль плагина не приносит ни `forRoot`, ни `DynamicModule`, ни хуков
+ * конфигурации: единица остаётся функцией, возвращающей значение. Роль
+ * даёт ровно две вещи — своё поле корня (`plugins:`) и правило «к плагину
+ * обращаются токенами».
  */
 
 import { SubscriptionClosed, SubscriptionOpened } from './contracts.js';
@@ -15,12 +13,12 @@ import { TrackSubscription, UntrackSubscription } from './layer.js';
 import type { RegistryOptions } from './registry.js';
 import { SubscriptionRegistry } from './registry.js';
 
+import type { Plugin } from '@nestling/app';
+import { makePlugin } from '@nestling/app';
 import type {
   FactoryProviderDefinition,
   InjectionToken,
-  Module,
 } from '@nestling/container';
-import { makeModule } from '@nestling/container';
 import type { Emitter } from '@nestling/contracts';
 
 /**
@@ -59,7 +57,7 @@ export interface SubscriptionsOptions extends RegistryOptions {
  * });
  * ```
  */
-export const subscriptions = (options: SubscriptionsOptions = {}): Module => {
+export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
   // Условный список зависимостей — тот же приём, которым `portsKernel`
   // добавляет шину в `invokerDeps`: выключенная публикация не порождает
   // ни одного узла
@@ -76,9 +74,9 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Module => {
     deps,
   };
 
-  return makeModule({
-    name: 'module:subscriptions',
-    // Юниты слоя едут вместе с модулем: слой без своего реестра не
+  return makePlugin({
+    name: '@nestling/subscriptions',
+    // Юниты слоя едут вместе с плагином: слой без своего реестра не
     // соберётся, и это отказ на ASSEMBLE, а не на первом запросе
     providers: [registry, TrackSubscription, UntrackSubscription],
   });

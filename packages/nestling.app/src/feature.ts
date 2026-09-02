@@ -1,127 +1,265 @@
 /**
- * Фича — бандл модулей как **значение** и резолвер выбора.
+ * Фича и плагин — две роли слоя приложения и резолвер выбора.
  *
- * Новых механизмов контейнера фичи не вводят: `select` отдаёт билдеру модули
- * выбранных фич, а «не выбрал фичу → её провайдеров нет» получается само из
- * жадного контейнера.
+ * Обе роли **содержат** модули, а не расширяют `Module`: `endpoints` живут
+ * здесь, а контейнеру достаётся модуль как группировка провайдеров с
+ * меткой.
+ *
+ * Различие ролей — не «бизнес против инфраструктуры» и не наличие
+ * endpoint'ов, а то, переживает ли связь границу процесса. Фича может
+ * оказаться по ту сторону границы, поэтому к ней обращаются операциями.
+ * Плагин есть в каждом процессе по определению, поэтому к нему обращаются
+ * токенами.
  */
 
-import type { Module } from '@nestling/container';
+import type { Module, ModuleProvider } from '@nestling/container';
+import type { AnyEndpointDefinition } from '@nestling/pipeline';
 
 /**
- * Фича приложения: имя, её модули и фичи, без которых она не работает.
+ * Состав фичи или плагина: не больше одной из двух форм.
  *
- * Значение без побочных эффектов: глобального реестра фич нет, поэтому
- * `dependsOn` ссылается на **значения**, а не на имена.
+ * Плоская форма — для единицы, которой хватает одного слоя провайдеров;
+ * составная — когда внутри уже есть модули. Обе сразу отвергает
+ * компилятор: у состава один источник истины. Ни одной — законно: единица,
+ * которая только объявляет endpoint'ы, своих провайдеров не имеет.
+ */
+export type BundleComposition =
+  | {
+      /** Провайдеры единицы; их узлы несут её имя меткой */
+      readonly providers?: readonly ModuleProvider[];
+      readonly modules?: undefined;
+    }
+  | {
+      /** Модули единицы; их узлы несут метки своих модулей */
+      readonly modules?: readonly Module[];
+      readonly providers?: undefined;
+    };
+
+/** Общая часть объявления фичи и плагина */
+export interface BundleOptionsBase {
+  /** Имя единицы; у фичи им же она называется в `select` */
+  readonly name: string;
+
+  /**
+   * Декларации-значения, созданные конструктором своего транспорта
+   * (`httpEndpoint`, `cliEndpoint`, `implement`).
+   *
+   * Инстанцировать в них нечего, поэтому в `providers` они не попадают.
+   * Зависимости хендлера регистрируются как обычные провайдеры.
+   */
+  readonly endpoints?: readonly AnyEndpointDefinition[];
+}
+
+/** Словарь объявления фичи */
+export type FeatureOptions = BundleOptionsBase & BundleComposition;
+
+/** Словарь объявления плагина */
+export type PluginOptions = BundleOptionsBase &
+  BundleComposition & {
+    /**
+     * Плагины, без которых этот не работает.
+     *
+     * Только плагины: параметризованную зависимость выражают токеном, а не
+     * этим полем — параметры знает потребитель, и вызов чужой фабрики
+     * создал бы второе значение под тем же именем.
+     */
+    readonly dependsOn?: readonly Plugin[];
+  };
+
+/**
+ * Фича приложения: имя, её модули и её endpoint'ы.
+ *
+ * Поля `dependsOn` у фичи нет. Зависимость одной фичи от другой выводится
+ * из объявленных операций: вызывающая сторона названа в `deps` декларации,
+ * реализация — в составе другой фичи. Дублировать это полем значило бы
+ * завести второй источник истины, который не с чем сверить.
  */
 export interface Feature {
+  /** Роль единицы; читается отчётами и проверкой границ */
+  readonly role: 'feature';
+
   /** Имя фичи; им же она называется в `select` */
   readonly name: string;
 
   /** Модули фичи: они попадут в контейнер, если фича выбрана */
   readonly modules: readonly Module[];
 
-  /**
-   * Фичи, без которых эта не работает. Транзитивно достижимые участвуют в
-   * сборке, даже если не перечислены в `features:` корня.
-   */
-  readonly dependsOn: readonly Feature[];
-}
-
-/** Словарь объявления фичи */
-export interface FeatureOptions {
-  name: string;
-  modules: readonly Module[];
-  dependsOn?: readonly Feature[];
+  /** Endpoint'ы фичи в порядке объявления */
+  readonly endpoints: readonly AnyEndpointDefinition[];
 }
 
 /**
- * Форма `select`: `'all'`, `'orders,billing'` или `['orders', 'billing']`.
+ * Плагин: сквозная инфраструктура, которая есть в каждом процессе.
+ *
+ * В словарь `select` не входит и не выбирается: единица, доступная всем
+ * токенами, обязана быть везде.
+ */
+export interface Plugin {
+  /** Роль единицы; читается отчётами и проверкой границ */
+  readonly role: 'plugin';
+
+  /** Имя плагина; совпадает с именем npm-пакета, который его поставляет */
+  readonly name: string;
+
+  /** Модули плагина */
+  readonly modules: readonly Module[];
+
+  /** Endpoint'ы плагина в порядке объявления */
+  readonly endpoints: readonly AnyEndpointDefinition[];
+
+  /** Плагины, без которых этот не работает */
+  readonly dependsOn: readonly Plugin[];
+}
+
+/** Фича или плагин — там, где роль не важна */
+export type Bundle = Feature | Plugin;
+
+/**
+ * Форма `select`.
  *
  * Строковая форма — граница процесса (аргумент бинарника, переменная
  * окружения), она строковая по природе; опечатка ловится fail-fast'ом с
- * перечнем доступных имён.
+ * перечнем доступных имён. Объектная форма добавляет `includeDeps`.
  */
-export type FeatureSelection = string | readonly string[];
+export type FeatureSelection =
+  | string
+  | readonly string[]
+  | {
+      /** Имена выбранных фич либо `'all'` */
+      readonly features: string | readonly string[];
+
+      /**
+       * Замкнуть выбор по вызываемым операциям видов `request` и
+       * `command`.
+       *
+       * События в замыкании не участвуют: у события ноль или больше
+       * подписчиков, и отсутствие подписчика в этом процессе допустимо.
+       */
+      readonly includeDeps?: boolean;
+    };
+
+/** Проверяет имя и форму состава — одинаково для обеих ролей */
+function normalize(
+  constructorName: 'makeFeature' | 'makePlugin',
+  options: BundleOptionsBase & {
+    readonly providers?: readonly ModuleProvider[];
+    readonly modules?: readonly Module[];
+  },
+): { name: string; modules: Module[]; endpoints: AnyEndpointDefinition[] } {
+  const { name, providers, modules, endpoints = [] } = options;
+
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    throw new Error(`${constructorName}({ … }): 'name' must be a non-empty string.`);
+  }
+
+  if (providers && modules) {
+    throw new Error(
+      `${constructorName}({ name: '${name}' }): declare either 'providers' or ` +
+        `'modules', not both — the composition has a single source of truth.`,
+    );
+  }
+
+  if (!Array.isArray(endpoints)) {
+    throw new TypeError(
+      `${constructorName}({ name: '${name}' }): 'endpoints' must be an array of ` +
+        `endpoint declarations.`,
+    );
+  }
+
+  // Плоская форма нормализуется в один модуль с именем единицы: дальше
+  // состав однороден, и карта «модуль → владелец» строится одинаково
+  const own: Module[] = providers
+    ? [{ name, providers: [...providers] }]
+    : [...(modules ?? [])];
+
+  return { name, modules: own, endpoints: [...endpoints] };
+}
 
 /**
  * Объявляет фичу.
  *
- * @param options - Имя, модули и ссылки на фичи-зависимости
+ * @param options - Имя, состав и endpoint'ы
  * @returns Значение-фичу; ничего не регистрируется, пока её не выбрали
  *
  * @example
  * ```typescript
- * export const OrdersFeature = makeFeature({
- *   name: 'orders',
- *   modules: [OrdersModule],
- *   dependsOn: [SharedFeature],
+ * export const UsersFeature = makeFeature({
+ *   name: 'users',
+ *   providers: [UserService],
+ *   endpoints: [CreateUser, GetUser],
  * });
  * ```
  *
- * @throws {Error} Пустое имя или не-массив в `modules`/`dependsOn`
+ * @throws {Error} Пустое имя или не ровно одна форма состава
  */
 export function makeFeature(options: FeatureOptions): Feature {
-  const { name, modules, dependsOn = [] } = options;
-
-  if (typeof name !== 'string' || name.trim().length === 0) {
-    throw new Error("makeFeature({ … }): 'name' must be a non-empty string.");
-  }
-
-  if (!Array.isArray(modules)) {
-    throw new TypeError(
-      `makeFeature({ name: '${name}' }): 'modules' must be an array of modules.`,
-    );
-  }
-
-  if (!Array.isArray(dependsOn)) {
-    throw new TypeError(
-      `makeFeature({ name: '${name}' }): 'dependsOn' must be an array of ` +
-        `features — values returned by makeFeature(), not their names.`,
-    );
-  }
+  const { name, modules, endpoints } = normalize('makeFeature', options);
 
   return Object.freeze({
+    role: 'feature' as const,
     name,
-    modules: Object.freeze([...modules]),
-    dependsOn: Object.freeze([...dependsOn]),
+    modules: Object.freeze(modules),
+    endpoints: Object.freeze(endpoints),
   });
 }
 
 /**
- * Все фичи, достижимые из перечисленных по `dependsOn`.
+ * Объявляет плагин.
  *
- * Обход с множеством посещённых: цикл в `dependsOn` легален — поле
- * описывает необходимость, а не порядок построения.
+ * Имя плагина обязано совпадать с именем npm-пакета, который его
+ * поставляет: иначе два чужих пакета роняют сборку коллизией имён, и
+ * починить её нечем — оба имени заданы их авторами.
+ *
+ * @param options - Имя, состав, endpoint'ы и плагины-зависимости
+ * @returns Значение-плагин
+ *
+ * @example
+ * ```typescript
+ * export const appLogging = (options: LoggingOptions) =>
+ *   makePlugin({
+ *     name: '@acme/logging',
+ *     providers: [familyProvider(ILogger, recipe(options))],
+ *   });
+ * ```
+ *
+ * @throws {Error} Пустое имя, не ровно одна форма состава или не-плагин в
+ * `dependsOn`
  */
-function reachable(features: readonly Feature[]): Feature[] {
-  const seen = new Set<Feature>();
-  const known: Feature[] = [];
+export function makePlugin(options: PluginOptions): Plugin {
+  const { name, modules, endpoints } = normalize('makePlugin', options);
+  const dependsOn = options.dependsOn ?? [];
 
-  const visit = (feature: Feature): void => {
-    if (seen.has(feature)) {
-      return;
-    }
-    seen.add(feature);
-    known.push(feature);
-
-    for (const dependency of feature.dependsOn) {
-      visit(dependency);
-    }
-  };
-
-  for (const feature of features) {
-    visit(feature);
+  if (!Array.isArray(dependsOn)) {
+    throw new TypeError(
+      `makePlugin({ name: '${name}' }): 'dependsOn' must be an array of ` +
+        `plugins — values returned by makePlugin(), not their names.`,
+    );
   }
 
-  return known;
+  for (const dependency of dependsOn) {
+    if (dependency?.role !== 'plugin') {
+      throw new TypeError(
+        `makePlugin({ name: '${name}' }): 'dependsOn' accepts plugins only. ` +
+          `A feature cannot be a dependency of infrastructure, and a ` +
+          `parameterized plugin is required by its token, not by this field.`,
+      );
+    }
+  }
+
+  return Object.freeze({
+    role: 'plugin' as const,
+    name,
+    modules: Object.freeze(modules),
+    endpoints: Object.freeze(endpoints),
+    dependsOn: Object.freeze([...dependsOn]),
+  });
 }
 
 /** Индекс «имя → фича» с fail-fast на одноимённых разных фичах */
-function indexByName(known: readonly Feature[]): Map<string, Feature> {
+function indexByName(features: readonly Feature[]): Map<string, Feature> {
   const index = new Map<string, Feature>();
 
-  for (const feature of known) {
+  for (const feature of features) {
     const existing = index.get(feature.name);
 
     if (existing && existing !== feature) {
@@ -137,8 +275,8 @@ function indexByName(known: readonly Feature[]): Map<string, Feature> {
   return index;
 }
 
-/** Разбирает `select` в список имён; форму-строку режет по запятой */
-function readNames(select: FeatureSelection): string[] {
+/** Разбирает имена выбора; форму-строку режет по запятой */
+function readNames(select: string | readonly string[]): string[] {
   const names = Array.isArray(select)
     ? [...(select as readonly string[])]
     : String(select).split(',');
@@ -146,14 +284,29 @@ function readNames(select: FeatureSelection): string[] {
   return names.map((name) => name.trim()).filter((name) => name.length > 0);
 }
 
+/** Нормализованный выбор: имена и флаг замыкания */
+export interface NormalizedSelection {
+  /** Выбранные фичи в порядке выбора */
+  readonly features: readonly Feature[];
+
+  /** Замкнуть выбор по вызываемым операциям */
+  readonly includeDeps: boolean;
+
+  /** Все объявленные фичи — словарь выбора для замыкания и отчётов */
+  readonly declared: ReadonlyMap<string, Feature>;
+}
+
 /**
- * Резолвит выбор фич: имена → значения, замкнутые по `dependsOn`.
+ * Резолвит выбор фич: имена → значения.
  *
  * Все проверки — fail-fast на фазе ASSEMBLE, до построения контейнера.
+ * Транзитивного замыкания по объявленному полю здесь нет: у фичи такого
+ * поля нет. Замыкание по вызовам делает `closeOverCalls` — оно требует
+ * discovery и потому живёт в `App`.
  *
  * @param features - Фичи, перечисленные в корне
  * @param select - Форма выбора; отсутствует — выбраны все
- * @returns Выбранные фичи в детерминированном порядке
+ * @returns Выбранные фичи, флаг замыкания и словарь объявленных
  *
  * @throws {Error} Неизвестное имя, одноимённые фичи, пустой выбор или
  * `select` без `features`
@@ -161,7 +314,9 @@ function readNames(select: FeatureSelection): string[] {
 export function resolveSelection(
   features: readonly Feature[] | undefined,
   select?: FeatureSelection,
-): Feature[] {
+): NormalizedSelection {
+  const empty = { features: [], includeDeps: false, declared: new Map() };
+
   if (!features || features.length === 0) {
     if (select !== undefined) {
       throw new Error(
@@ -170,17 +325,26 @@ export function resolveSelection(
       );
     }
 
-    return [];
+    return empty;
   }
 
-  const known = reachable(features);
-  const byName = indexByName(known);
+  const declared = indexByName(features);
 
-  if (select === undefined || select === 'all') {
-    return known;
+  const requested =
+    select !== undefined && typeof select === 'object' && !Array.isArray(select)
+      ? (select as { features: string | readonly string[] }).features
+      : (select as string | readonly string[] | undefined);
+
+  const includeDeps =
+    select !== undefined && typeof select === 'object' && !Array.isArray(select)
+      ? ((select as { includeDeps?: boolean }).includeDeps ?? false)
+      : false;
+
+  if (requested === undefined || requested === 'all') {
+    return { features: [...features], includeDeps, declared };
   }
 
-  const names = readNames(select);
+  const names = readNames(requested);
 
   if (names.length === 0) {
     throw new Error(
@@ -191,41 +355,80 @@ export function resolveSelection(
 
   const chosen: Feature[] = [];
   for (const name of names) {
-    const feature = byName.get(name);
+    const feature = declared.get(name);
 
     if (!feature) {
       throw new Error(
         `Unknown feature '${name}' in 'select'. ` +
-          `Available features: ${[...byName.keys()].join(', ')}.`,
+          `Available features: ${[...declared.keys()].join(', ')}.`,
       );
     }
 
     chosen.push(feature);
   }
 
-  // Транзитивные зависимости выбранных фич подключаются автоматически
-  return reachable(chosen);
+  return { features: chosen, includeDeps, declared };
 }
 
 /**
- * Модули выбранных фич в порядке выбора, дедуплицированные по имени.
+ * Модули перечисленных единиц в порядке объявления.
  *
- * Дедупликация здесь — та же, что делает `ContainerBuilder`: смысл в том,
- * чтобы порядок регистрации был детерминированным.
+ * Дедупликация — **по ссылке**: то же значение, встреченное дважды,
+ * регистрируется один раз, а два разных значения под одним именем —
+ * ошибка. Молчаливый пропуск одноимённого модуля потерял бы его
+ * провайдеры, и «обнаружено» разошлось бы с «собрано».
  */
-export function modulesOf(features: readonly Feature[]): Module[] {
-  const seen = new Set<string>();
+export function modulesOf(bundles: readonly Bundle[]): Module[] {
+  const byName = new Map<string, Module>();
   const modules: Module[] = [];
 
-  for (const feature of features) {
-    for (const module of feature.modules) {
-      if (seen.has(module.name)) {
+  for (const bundle of bundles) {
+    for (const module of bundle.modules) {
+      const seen = byName.get(module.name);
+
+      if (seen) {
+        if (seen !== module) {
+          throw new Error(
+            `Two different modules are named '${module.name}'. ` +
+              `A module name is the attribution key of its providers, so it ` +
+              `must be unique. Either share one module value between its ` +
+              `consumers (create it once and import that value), or give the ` +
+              `two configurations different names.`,
+          );
+        }
+
         continue;
       }
-      seen.add(module.name);
+
+      byName.set(module.name, module);
       modules.push(module);
     }
   }
 
   return modules;
+}
+
+/** Плагины, достижимые из перечисленных по `dependsOn`, в порядке обхода */
+export function reachablePlugins(plugins: readonly Plugin[]): Plugin[] {
+  const seen = new Set<Plugin>();
+  const known: Plugin[] = [];
+
+  const visit = (plugin: Plugin): void => {
+    if (seen.has(plugin)) {
+      return;
+    }
+    seen.add(plugin);
+
+    for (const dependency of plugin.dependsOn) {
+      visit(dependency);
+    }
+
+    known.push(plugin);
+  };
+
+  for (const plugin of plugins) {
+    visit(plugin);
+  }
+
+  return known;
 }

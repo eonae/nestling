@@ -65,7 +65,7 @@ describe('httpEndpoint({ contract, … })', () => {
     });
 
     expect(isEndpointDefinition(declaration)).toBe(true);
-    expect(declaration.transport).toBe(HttpTransport$);
+    expect(declaration.transport).toBe(HttpTransport$('default'));
     expect(declaration.pattern).toBe('POST /users');
   });
 

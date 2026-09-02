@@ -12,7 +12,6 @@
 import { assemble } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
-import { makeAppModule } from './module';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import {
@@ -29,10 +28,11 @@ import {
   Ok,
 } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 
 const asHttpTransport = (transport: ITransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 const base = makePipeline().pre(() => {});
 const authedBase = makePipeline().pre(() => {});
@@ -74,7 +74,7 @@ const messageOf = async (assembling: Promise<unknown>): Promise<string> =>
   );
 
 const hasAuth = () =>
-  everyEndpoint({ transport: HttpTransport$ }).hasLayer(
+  everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
     authedBase,
     'authedBase',
   );
@@ -96,8 +96,8 @@ describe('политики — точка проверки', () => {
 
     const transport = new MockTransport();
     const app = assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:users',
           providers: [Connection],
           endpoints: [Unauthed],
@@ -122,7 +122,7 @@ describe('политики — точка проверки', () => {
     });
 
     const app = assemble({
-      modules: [makeAppModule({ name: 'module:cli', endpoints: [Orphan] })],
+      features: [makeFeature({ name: 'module:cli', endpoints: [Orphan] })],
       transports: [asHttpTransport(new MockTransport())],
       policies: [everyEndpoint().hasLayer(authedBase, 'authedBase')],
     });
@@ -133,11 +133,11 @@ describe('политики — точка проверки', () => {
   it('endpoint невыбранной фичи не проверяется', async () => {
     const Users = makeFeature({
       name: 'users',
-      modules: [makeAppModule({ name: 'module:users', endpoints: [Unauthed] })],
+      modules: [makeFeature({ name: 'module:users', endpoints: [Unauthed] })],
     });
     const Profile = makeFeature({
       name: 'profile',
-      modules: [makeAppModule({ name: 'module:profile', endpoints: [Authed] })],
+      modules: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
     });
 
     const report = await assemble({
@@ -152,7 +152,7 @@ describe('политики — точка проверки', () => {
 
   it('без политик поведение прежнее', async () => {
     const app = assemble({
-      modules: [makeAppModule({ name: 'module:users', endpoints: [Unauthed] })],
+      features: [makeFeature({ name: 'module:users', endpoints: [Unauthed] })],
       transports: [asHttpTransport(new MockTransport())],
     });
 
@@ -161,8 +161,8 @@ describe('политики — точка проверки', () => {
 
   it('пустой список политик эквивалентен их отсутствию', async () => {
     const app = assemble({
-      modules: [
-        makeAppModule({ name: 'module:users', endpoints: [NoPipeline] }),
+      features: [
+        makeFeature({ name: 'module:users', endpoints: [NoPipeline] }),
       ],
       transports: [asHttpTransport(new MockTransport())],
       policies: [],
@@ -181,8 +181,8 @@ describe('политики — точка проверки', () => {
 describe('политики — агрегированная диагностика', () => {
   it('перечисляет нарушения обеих политик, сгруппированные по политике', async () => {
     const app = assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:users',
           endpoints: [Unauthed, NoPipeline],
         }),
@@ -208,7 +208,7 @@ describe('политики — агрегированная диагностик
 
   it('соблюдённая политика в сообщении не упоминается', async () => {
     const app = assemble({
-      modules: [makeAppModule({ name: 'module:profile', endpoints: [Authed] })],
+      features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
       transports: [asHttpTransport(new MockTransport())],
       policies: [hasAuth(), hasObservability()],
     });
@@ -220,8 +220,8 @@ describe('политики — агрегированная диагностик
 describe('detached — поверхность для аудита', () => {
   it('помеченный endpoint не нарушает, непомеченный сосед — нарушает', async () => {
     const app = assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:ops',
           endpoints: [Detached, NoPipeline],
         }),
@@ -238,8 +238,8 @@ describe('detached — поверхность для аудита', () => {
 
   it('отчёт check() несёт причину значением', async () => {
     const report = await assemble({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:ops',
           endpoints: [Detached, Authed],
         }),
@@ -261,7 +261,7 @@ describe('detached — поверхность для аудита', () => {
 
     try {
       const withDetached = assemble({
-        modules: [makeAppModule({ name: 'module:ops', endpoints: [Detached] })],
+        features: [makeFeature({ name: 'module:ops', endpoints: [Detached] })],
         transports: [asHttpTransport(new MockTransport())],
       });
 
@@ -279,8 +279,8 @@ describe('detached — поверхность для аудита', () => {
       log.mockClear();
 
       const clean = assemble({
-        modules: [
-          makeAppModule({ name: 'module:profile', endpoints: [Authed] }),
+        features: [
+          makeFeature({ name: 'module:profile', endpoints: [Authed] }),
         ],
         transports: [asHttpTransport(new MockTransport())],
       });

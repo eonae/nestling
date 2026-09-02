@@ -30,7 +30,7 @@ const Input = z.object({
 describe('httpBindingOf — фолбэк на канон', () => {
   it('kernel-декларация без карты считает тот же канон из pattern', () => {
     const Ping = makeEndpoint({
-      transport: HttpTransport$,
+      transport: HttpTransport$('default'),
       pattern: 'GET /ping',
       handle: async () => new Ok({ pong: true }),
     });
@@ -46,7 +46,7 @@ describe('httpBindingOf — фолбэк на канон', () => {
 
   it('фолбэк не бросает даже там, где конструктор отверг бы декларацию', () => {
     const Raw = makeEndpoint({
-      transport: HttpTransport$,
+      transport: HttpTransport$('default'),
       pattern: 'GET /users/:id',
       handle: async () => new Ok({}),
     });

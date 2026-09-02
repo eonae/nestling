@@ -32,18 +32,36 @@ import { tokenId } from '@nestling/container';
 export type TransportRef = Token<any>;
 
 /**
- * Возвращает имя транспорта из id его токена: часть после последнего `:`.
+ * Возвращает имя транспорта из id его токена.
  *
  * Токены транспортов называются `transport:http`: префикс отличает их от
  * пользовательских токенов в графе, а слоям пайплайна нужно короткое
- * `'http'`.
+ * `'http'`. У именованного экземпляра к имени добавляется его собственное
+ * (`'http:admin'`); экземпляр по умолчанию называется как вид транспорта,
+ * поэтому приложение с одним HTTP про имена не пишет ни строки.
  */
 export const transportNameOf = (ref: TransportRef): string => {
   const id = tokenId(ref);
-  const separator = id.lastIndexOf(':');
+  const named = id.startsWith(TRANSPORT_PREFIX)
+    ? id.slice(TRANSPORT_PREFIX.length)
+    : id;
 
-  return separator === -1 ? id : id.slice(separator + 1);
+  return named.endsWith(DEFAULT_SUFFIX)
+    ? named.slice(0, -DEFAULT_SUFFIX.length)
+    : named;
 };
+
+/** Префикс id транспортного токена */
+const TRANSPORT_PREFIX = 'transport:';
+
+/**
+ * Хвост id токена экземпляра по умолчанию.
+ *
+ * Имя экземпляра по умолчанию объявляет `@nestling/transport`, который
+ * зависит от этого пакета; здесь оно повторено строкой, чтобы зависимость
+ * не пошла в обратную сторону.
+ */
+const DEFAULT_SUFFIX = ':default';
 
 /**
  * Symbol-метка декларации endpoint'а.

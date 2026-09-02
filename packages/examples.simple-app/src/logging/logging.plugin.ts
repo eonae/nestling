@@ -2,15 +2,16 @@ import { AppConfig } from '../config/app.config';
 
 import { ILogger } from './registry';
 
+import { makePlugin } from '@nestling/app';
 import type { Config } from '@nestling/config';
-import {
-  factoryProvider,
-  familyProvider,
-  makeModule,
-} from '@nestling/container';
+import { factoryProvider, familyProvider } from '@nestling/container';
 
-export const LoggingModule = makeModule({
-  name: 'module:logging',
+/**
+ * Логирование — сквозная инфраструктура: оно есть в каждом процессе, и к
+ * нему обращаются токеном. Значит, это плагин, а не фича.
+ */
+export const appLogging = makePlugin({
+  name: 'app-logging',
   providers: [
     // Один рецепт на всё семейство — контейнер сам создаёт члена на каждый
     // скоуп, упомянутый в deps зарегистрированных провайдеров. Рецепт зависит

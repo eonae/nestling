@@ -13,10 +13,10 @@ import { splitOverrides } from './overrides.js';
 import type { ContractStub } from './stub.js';
 import { stubbedContracts } from './stub.js';
 
-import type { Feature } from '@nestling/app';
+import type { Feature, FeatureSelection, Plugin } from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
 import { wireApp } from '@nestling/app/testing';
-import type { InjectionToken, Module, Provider } from '@nestling/container';
+import type { InjectionToken, Provider } from '@nestling/container';
 import { valueProvider } from '@nestling/container';
 import type {
   CommandMeta,
@@ -39,7 +39,11 @@ import type {
 } from '@nestling/pipeline';
 import { makeEmptyContext, transportNameOf } from '@nestling/pipeline';
 import { busBindingOf, profileAttributes } from '@nestling/ports';
-import type { DispatchOptions, ITransport } from '@nestling/transport';
+import type {
+  DispatchOptions,
+  ITransport,
+  TransportDeclaration,
+} from '@nestling/transport';
 
 /**
  * Свойства границы для одного `call`.
@@ -94,8 +98,8 @@ export interface EmitDelivery {
 export interface TestAssemblySpec<
   L extends readonly unknown[] = readonly TestOverride[],
 > {
-  /** Модули корня */
-  modules?: readonly Module[];
+  /** Сквозная инфраструктура — та же, что в бою */
+  plugins?: readonly Plugin[];
 
   /** Провайдеры корня */
   providers?: readonly Provider[];
@@ -104,16 +108,19 @@ export interface TestAssemblySpec<
   features?: readonly Feature[];
 
   /** Выбор фич — тот же, что в бою: опечатка падает на фазе 0 */
-  select?: string | readonly string[];
+  select?: FeatureSelection;
 
   /**
-   * Транспорты — перечисляются так же, как в проде.
+   * Транспорты — объявляются так же, как в проде.
    *
    * Автоподстановки нет: endpoint на транспорте, которого нет в графе, —
    * тот же fail-fast ASSEMBLE, что и в бою. Сокет всё равно не откроется,
    * потому что START не выполняется.
    */
-  transports?: readonly Provider<ITransport>[];
+  transports?: readonly TransportDeclaration[];
+
+  /** Транспорт, переносящий операции между процессами: имя экземпляра */
+  intercom?: string;
 
   /** Конфиг: источник, одна привязка или их список */
   config?: TestConfig;
@@ -505,7 +512,7 @@ export async function assembleTest<const L extends readonly TestOverride[]>(
   );
 
   const wired = await wireApp({
-    modules: spec.modules,
+    plugins: spec.plugins,
     providers: [
       ...(spec.providers ?? []),
       // Стаб — поставка недостающего, а не подмена: обычный провайдер
@@ -516,6 +523,7 @@ export async function assembleTest<const L extends readonly TestOverride[]>(
     features: spec.features,
     select: spec.select,
     transports: spec.transports,
+    ...(spec.intercom === undefined ? {} : { intercom: spec.intercom }),
     config: toBindings(spec.config),
     policies: spec.policies,
     overrides: tokens,

@@ -8,6 +8,6 @@
  */
 
 export { loggerConfigKeys } from './logger.config';
-export { logging, type LoggingOptions } from './logger.module';
+export { logging, type LoggingOptions } from './logger.plugin';
 export { ILogger, type ILoggerService } from './logger.service';
 export { observability } from './observability';

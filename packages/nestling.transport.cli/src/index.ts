@@ -5,7 +5,7 @@ import type {
   FactoryProviderWithDeps,
   InjectionToken,
 } from '@nestling/container';
-import { factoryProvider, makeToken } from '@nestling/container';
+import { factoryProvider, makeTokenFamily } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
   AnyFailDefinition,
@@ -39,20 +39,27 @@ import type {
   Dispatch,
   ITransport,
   RouteDeclaration,
-  TransportToken,
+  TransportDeclaration,
 } from '@nestling/transport';
-import { transportNameOf } from '@nestling/transport';
+import {
+  DEFAULT_INSTANCE,
+  makeTransportDeclaration,
+  transportNameOf,
+} from '@nestling/transport';
 
 /**
- * Токен CLI-транспорта.
+ * Семейство токенов CLI-транспорта: один член на экземпляр.
  *
  * Им ссылается на транспорт каждая `cliEndpoint`-декларация; `App` берёт по
- * нему инстанс из графа.
+ * нему инстанс из графа. Декларация выбирает экземпляр через `on:`; без
+ * него это `'default'`.
  */
-export const CliTransport$: TransportToken = makeToken('transport:cli');
+export const CliTransport$ = makeTokenFamily<ITransport, [instance: string]>(
+  'transport:cli',
+);
 
 /** Короткое имя транспорта (`'cli'`) — то же, что читают слои пайплайна */
-const CLI_TRANSPORT_NAME = transportNameOf(CliTransport$);
+const CLI_TRANSPORT_NAME = transportNameOf(CliTransport$(DEFAULT_INSTANCE));
 
 /**
  * Транспортный словарь CLI-декларации.
@@ -96,6 +103,9 @@ export interface CliEndpointDictionary<
    * `httpEndpoint`).
    */
   detached?: string;
+
+  /** Имя экземпляра транспорта, обслуживающего команду; по умолчанию `'default'` */
+  on?: string;
 }
 
 /**
@@ -173,7 +183,7 @@ export function cliEndpoint(
     handle: unknown;
   },
 ): AnyEndpointDefinition {
-  const { command, ...rest } = declaration;
+  const { command, on, ...rest } = declaration;
 
   if (typeof command !== 'string' || command.length === 0) {
     throw new Error("cliEndpoint({ … }): 'command' must be a non-empty name.");
@@ -181,7 +191,7 @@ export function cliEndpoint(
 
   return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
     ...rest,
-    transport: CliTransport$,
+    transport: CliTransport$(on ?? DEFAULT_INSTANCE),
     pattern: command,
   });
 }
@@ -550,18 +560,29 @@ export function parseArgv(argv: readonly string[]): CliInput {
 }
 
 /**
- * Фабрика провайдера CLI-транспорта.
+ * Объявляет экземпляр CLI-транспорта.
  *
- * Транспорт — обычный узел графа: `assemble({ transports: [cli()] })` — это
- * сокращённая запись регистрации провайдера, и тот же провайдер допустимо
- * объявить в `providers:` infra-модуля фичи.
+ * Транспорт — обычный узел графа; объявление называет его экземпляр,
+ * а декларация выбирает свой через `on:`.
  *
  * @example
  * ```typescript
- * await assemble({ modules: [ToolsModule], transports: [cli()] }).run();
+ * await assemble({ features: [Tools], transports: [cli()] }).run();
  * ```
  */
-export const cli = (
-  options: CliTransportOptions = {},
-): FactoryProviderWithDeps<ITransport, []> =>
-  factoryProvider(CliTransport$, () => new CliTransport(options), []);
+export const cli = <const Name extends string = typeof DEFAULT_INSTANCE>(
+  options: CliTransportOptions & { readonly name?: Name } = {},
+): TransportDeclaration<Name> => {
+  const { name = DEFAULT_INSTANCE as Name, ...transportOptions } = options;
+  const token = CliTransport$(name);
+
+  return makeTransportDeclaration({
+    name,
+    token,
+    provider: factoryProvider(
+      token,
+      () => new CliTransport(transportOptions),
+      [],
+    ),
+  });
+};

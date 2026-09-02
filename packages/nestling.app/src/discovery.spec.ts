@@ -1,9 +1,15 @@
+/**
+ * Discovery: плоский проход по фичам и плагинам.
+ *
+ * Обхода дерева модулей здесь больше нет — endpoint'ы объявляет единица,
+ * а список единиц плоский по построению.
+ */
+
 import { discoverEndpoints } from './discovery';
-import type { AppModule } from './module';
-import { makeAppModule } from './module';
+import { makeFeature, makePlugin } from './feature';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeModule, makeToken } from '@nestling/container';
+import { makeToken } from '@nestling/container';
 import type { TransportRef } from '@nestling/pipeline';
 import { makeEndpoint, Ok, transportNameOf } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -22,7 +28,7 @@ const endpoint = (transport: TransportRef, pattern: string) =>
   });
 
 describe('discoverEndpoints', () => {
-  it('несёт атрибуцию к модулю-объявителю', () => {
+  it('несёт атрибуцию к объявившей единице', () => {
     const GetUser = httpEndpoint({
       method: 'GET',
       path: '/users/:id',
@@ -30,17 +36,14 @@ describe('discoverEndpoints', () => {
       handle: async () => new Ok({}),
     });
 
-    const UsersModule = makeAppModule({
-      name: 'module:users',
-      endpoints: [GetUser],
-    });
+    const Users = makeFeature({ name: 'users', endpoints: [GetUser] });
 
-    const { endpoints } = discoverEndpoints([UsersModule]);
+    const { endpoints } = discoverEndpoints([Users]);
 
     expect(endpoints).toHaveLength(1);
     expect(endpoints[0]).toMatchObject({
       endpoint: GetUser,
-      moduleName: 'module:users',
+      moduleName: 'users',
     });
 
     // Транспорт и паттерн читаются с самой декларации; транспорт — токен
@@ -48,139 +51,65 @@ describe('discoverEndpoints', () => {
     expect(endpoints[0].endpoint.pattern).toBe('GET /users/:id');
   });
 
-  it("обнаруживает endpoint'ы на модуле, собранном makeModule вручную", () => {
-    const Handmade = endpoint(Http$, 'GET /handmade');
+  it("endpoint'ы плагина обнаруживаются наравне с фичевыми", () => {
+    const Docs = endpoint(Http$, 'GET /openapi.json');
+    const Ping = endpoint(Http$, 'GET /ping');
 
-    const HandmadeModule = {
-      ...makeModule({ name: 'module:handmade' }),
-      endpoints: [Handmade],
-    };
+    const { endpoints } = discoverEndpoints([
+      makeFeature({ name: 'users', endpoints: [Ping] }),
+      makePlugin({ name: '@acme/docs', endpoints: [Docs] }),
+    ]);
 
-    const { endpoints } = discoverEndpoints([HandmadeModule]);
-
-    expect(endpoints).toHaveLength(1);
-    expect(endpoints[0].moduleName).toBe('module:handmade');
+    expect(endpoints.map(({ moduleName }) => moduleName)).toEqual([
+      'users',
+      '@acme/docs',
+    ]);
   });
 
-  it('цикл в dependsOn не зацикливает обход', () => {
-    const FromA = endpoint(Http$, 'GET /a');
-    const FromB = endpoint(Http$, 'GET /b');
-
-    const ModuleA: AppModule = makeAppModule({
-      name: 'module:a',
-      endpoints: [FromA],
-    });
-    const ModuleB: AppModule = makeAppModule({
-      name: 'module:b',
-      dependsOn: [ModuleA],
-      endpoints: [FromB],
-    });
-    ModuleA.dependsOn = [ModuleB];
-
-    const { endpoints } = discoverEndpoints([ModuleA]);
-
-    expect(endpoints.map((found) => found.endpoint)).toEqual([FromB, FromA]);
-  });
-
-  it('общий модуль, импортированный в двух ветках, обходится один раз', () => {
-    const SharedEndpoint = endpoint(Http$, 'GET /shared');
-
-    const SharedModule = makeAppModule({
-      name: 'module:shared',
-      endpoints: [SharedEndpoint],
-    });
-    const ModuleA = makeAppModule({
-      name: 'module:a',
-      dependsOn: [SharedModule],
-    });
-    const ModuleB = makeAppModule({
-      name: 'module:b',
-      dependsOn: [SharedModule],
-    });
-
-    const { endpoints } = discoverEndpoints([ModuleA, ModuleB]);
-
-    expect(endpoints).toHaveLength(1);
-    expect(endpoints[0].endpoint).toBe(SharedEndpoint);
-  });
-
-  it('два разных модуля с одним name — ошибка обхода', () => {
+  it('порядок воспроизводим и следует порядку единиц', () => {
     const First = endpoint(Http$, 'GET /first');
     const Second = endpoint(Http$, 'GET /second');
 
-    const ModuleFirst = makeAppModule({
-      name: 'module:same-name',
-      endpoints: [First],
-    });
-    const ModuleSecond = makeAppModule({
-      name: 'module:same-name',
-      endpoints: [Second],
-    });
-
-    // Пропустить второе значение значило бы потерять `GET /second` молча —
-    // контейнер на этом падает, discovery зеркалит правило
-    expect(() => discoverEndpoints([ModuleFirst, ModuleSecond])).toThrow(
-      /Two different modules are named 'module:same-name'/,
-    );
-  });
-
-  it('то же значение модуля, переданное дважды, обходится один раз', () => {
-    const Only = endpoint(Http$, 'GET /only');
-
-    const Shared = makeAppModule({
-      name: 'module:shared-value',
-      endpoints: [Only],
-    });
-
-    const { endpoints } = discoverEndpoints([Shared, Shared]);
-
-    expect(endpoints.map((found) => found.endpoint)).toEqual([Only]);
-  });
-
-  it("порядок воспроизводим: dependsOn раньше собственных endpoint'ов", () => {
-    const Imported = endpoint(Http$, 'GET /imported');
-    const Own = endpoint(Http$, 'GET /own');
-    const Other = endpoint(Http$, 'GET /other');
-
-    const ImportedModule = makeAppModule({
-      name: 'module:imported',
-      endpoints: [Imported],
-    });
-    const OwnModule = makeAppModule({
-      name: 'module:own',
-      dependsOn: [ImportedModule],
-      endpoints: [Own, Other],
-    });
-
-    const first = discoverEndpoints([OwnModule]);
-    const second = discoverEndpoints([OwnModule]);
-
-    expect(first.endpoints.map((found) => found.endpoint)).toEqual([
-      Imported,
-      Own,
-      Other,
+    const { endpoints } = discoverEndpoints([
+      makeFeature({ name: 'a', endpoints: [First] }),
+      makeFeature({ name: 'b', endpoints: [Second] }),
     ]);
-    expect(second.endpoints.map((found) => found.endpoint)).toEqual(
-      first.endpoints.map((found) => found.endpoint),
-    );
+
+    expect(endpoints.map(({ endpoint: value }) => value.pattern)).toEqual([
+      'GET /first',
+      'GET /second',
+    ]);
   });
 
-  it('повтор одной декларации внутри endpoints: даёт одну запись', () => {
-    const Duplicated = endpoint(Http$, 'GET /dup');
+  it('одна декларация, повторённая в единице, регистрируется один раз', () => {
+    const Once = endpoint(Http$, 'GET /once');
 
-    const DupModule = makeAppModule({
-      name: 'module:dup',
-      endpoints: [Duplicated, Duplicated],
-    });
-
-    const { endpoints } = discoverEndpoints([DupModule]);
+    const { endpoints } = discoverEndpoints([
+      makeFeature({ name: 'users', endpoints: [Once, Once] }),
+    ]);
 
     expect(endpoints).toHaveLength(1);
   });
 
+  it('то же значение единицы, встреченное дважды, обходится один раз', () => {
+    const Once = endpoint(Http$, 'GET /once');
+    const Users = makeFeature({ name: 'users', endpoints: [Once] });
+
+    expect(discoverEndpoints([Users, Users]).endpoints).toHaveLength(1);
+  });
+
+  it('две разные единицы под одним именем — ошибка', () => {
+    const Left = makeFeature({ name: 'users', endpoints: [] });
+    const Right = makeFeature({ name: 'users', endpoints: [] });
+
+    expect(() => discoverEndpoints([Left, Right])).toThrow(
+      /Two different features are named 'users'/,
+    );
+  });
+
   it("группирует endpoint'ы по требуемому транспорту", () => {
-    const MixedModule = makeAppModule({
-      name: 'module:mixed',
+    const Mixed = makeFeature({
+      name: 'mixed',
       endpoints: [
         endpoint(Http$, 'GET /one'),
         endpoint(Http$, 'GET /two'),
@@ -188,7 +117,7 @@ describe('discoverEndpoints', () => {
       ],
     });
 
-    const { transports } = discoverEndpoints([MixedModule]);
+    const { transports } = discoverEndpoints([Mixed]);
 
     // Ключ карты — токен транспорта, а не его строковое имя
     expect(new Set(transports.keys())).toEqual(new Set([Cli$, Http$]));
@@ -196,43 +125,30 @@ describe('discoverEndpoints', () => {
     expect(transports.get(Cli$)).toHaveLength(1);
   });
 
-  it('элемент endpoints: без бренда — ошибка с модулем и индексом', () => {
-    @Injectable([])
-    class NotAnEndpoint {
-      async handle() {
-        return new Ok({});
-      }
-    }
+  it("элемент endpoints: без бренда — ошибка с единицей и индексом", () => {
+    class NotADeclaration {}
 
-    const BrokenModule = makeAppModule({
-      name: 'module:broken',
-      // Опечатка автора: в endpoints: попал сервис вместо декларации
-      endpoints: [endpoint(Http$, 'GET /ok'), NotAnEndpoint as never],
-    });
-
-    expect(() => discoverEndpoints([BrokenModule])).toThrow(
-      /module:broken.*NotAnEndpoint.*index 1.*not an endpoint declaration/s,
+    expect(() =>
+      discoverEndpoints([
+        makeFeature({
+          name: 'users',
+          endpoints: [new NotADeclaration()] as never,
+        }),
+      ]),
+    ).toThrow(
+      /'endpoints:' of feature 'users' contains an instance of 'NotADeclaration' at index 0/,
     );
   });
 
-  it('undefined в endpoints: тоже ошибка, а не молчаливый пропуск', () => {
-    const BrokenModule = makeAppModule({
-      name: 'module:undefined',
-      endpoints: [undefined as never],
-    });
+  it('результат только для чтения: состав из графа не меняют', () => {
+    const discovery = discoverEndpoints([
+      makeFeature({ name: 'users', endpoints: [endpoint(Http$, 'GET /x')] }),
+    ]);
 
-    expect(() => discoverEndpoints([BrokenModule])).toThrow(
-      /module:undefined.*index 0/s,
-    );
-  });
-
-  it('не требует контейнера и транспортов', () => {
-    const StandaloneModule = makeAppModule({
-      name: 'module:standalone',
-      endpoints: [endpoint(Http$, 'GET /standalone')],
-    });
-
-    // Ни build(), ни транспортов — только значение-модуль
-    expect(discoverEndpoints([StandaloneModule]).endpoints).toHaveLength(1);
+    expect(Object.isFrozen(discovery)).toBe(true);
+    expect(Object.isFrozen(discovery.endpoints)).toBe(true);
+    expect(() =>
+      (discovery.transports as Map<TransportRef, never>).set(Cli$, [] as never),
+    ).toThrow(/read-only/);
   });
 });

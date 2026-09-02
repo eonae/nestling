@@ -19,8 +19,8 @@ export type {
 export { vars } from './config.js';
 export type { TestConfig } from './config.js';
 export { contextValue } from './context.js';
-export { testModule } from './module.js';
-export type { TestModuleOptions } from './module.js';
+export { testUnit } from './unit.js';
+export type { TestUnitOptions } from './unit.js';
 export { familyOverride } from './overrides.js';
 export type { TestOverride } from './overrides.js';
 export { stub } from './stub.js';

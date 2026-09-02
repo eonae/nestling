@@ -12,11 +12,11 @@
  */
 
 import { assembleTest } from './app';
-import { testModule } from './module';
+import { testUnit } from './unit';
 import { stub } from './stub';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeAppModule, makeFeature } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { Injectable, makeToken } from '@nestling/container';
 import type { CommandMeta, PortMeta } from '@nestling/contracts';
 import { makeContract } from '@nestling/contracts';
@@ -308,7 +308,7 @@ class QuotaConsumer {
 const ConsumerFeature = makeFeature({
   name: 'orders',
   modules: [
-    makeAppModule({ name: 'module:orders', providers: [QuotaConsumer] }),
+    makeFeature({ name: 'module:orders', providers: [QuotaConsumer] }),
   ],
 });
 
@@ -318,7 +318,7 @@ let charged: number[] = [];
 const BillingFeature = makeFeature({
   name: 'billing',
   modules: [
-    makeAppModule({
+    makeFeature({
       name: 'module:billing',
       endpoints: [
         implement(ChargeCard, {
@@ -386,9 +386,9 @@ describe('stub — место в сборке', () => {
     }
 
     await using app = await assembleTest({
-      modules: [
-        makeAppModule({ name: 'module:mixed', providers: [MixedConsumer] }),
-        ...BillingFeature.modules,
+      features: [
+        makeFeature({ name: 'module:mixed', providers: [MixedConsumer] }),
+        BillingFeature,
       ],
       stubs: [stub(ClaimQuota, async () => ({ granted: 7 }))],
     });
@@ -415,12 +415,12 @@ describe('stub — место в сборке', () => {
     }
 
     await using app = await assembleTest({
-      modules: [
-        makeAppModule({
+      features: [
+        makeFeature({
           name: 'module:billing-consumer',
           providers: [BillingConsumer],
         }),
-        ...BillingFeature.modules,
+        BillingFeature,
       ],
       stubs: [stub(ChargeCard, async () => ({ chargeId: 'faked' }))],
     });
@@ -445,8 +445,8 @@ describe('stub — место в сборке', () => {
     }
 
     await using app = await assembleTest({
-      modules: [
-        makeAppModule({ name: 'module:both', providers: [BothConsumer] }),
+      features: [
+        makeFeature({ name: 'module:both', providers: [BothConsumer] }),
       ],
       stubs: [
         stub(PlaceOrder, () => undefined),
@@ -458,9 +458,9 @@ describe('stub — место в сборке', () => {
     expect(app.stubbed).toEqual(['stub.orders.place', 'stub.quotas.claim']);
   });
 
-  it('поставляется тем же полем у testModule', async () => {
-    await using app = await testModule(
-      makeAppModule({ name: 'module:isolated', providers: [QuotaConsumer] }),
+  it('поставляется тем же полем у testUnit', async () => {
+    await using app = await testUnit(
+      makeFeature({ name: 'module:isolated', providers: [QuotaConsumer] }),
       { stubs: [stub(ClaimQuota, async () => ({ granted: 2 }))] },
     );
 

@@ -55,7 +55,7 @@ describe('http() — фабрика провайдера', () => {
 
     try {
       const container = await build(http());
-      const transport = container.getOrThrow(HttpTransport$) as HttpTransport;
+      const transport = container.getOrThrow(HttpTransport$('default')) as HttpTransport;
 
       expect(optionsOf(transport).port).toBe(8080);
     } finally {
@@ -68,7 +68,7 @@ describe('http() — фабрика провайдера', () => {
 
     try {
       const container = await build(http({ port: 3000 }));
-      const transport = container.getOrThrow(HttpTransport$) as HttpTransport;
+      const transport = container.getOrThrow(HttpTransport$('default')) as HttpTransport;
 
       expect(optionsOf(transport).port).toBe(3000);
     } finally {
@@ -91,7 +91,7 @@ describe('http() — фабрика провайдера', () => {
 
     try {
       const container = await build(http());
-      const transport = container.getOrThrow(HttpTransport$) as HttpTransport;
+      const transport = container.getOrThrow(HttpTransport$('default')) as HttpTransport;
 
       expect(optionsOf(transport).port).toBe(3000);
     } finally {

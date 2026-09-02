@@ -13,15 +13,16 @@ import { contextValue } from './context';
 import { unwrap } from './unwrap';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeAppModule } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { Injectable, valueProvider } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, makePipeline, Ok, RequestId } from '@nestling/pipeline';
+import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: SpyTransport) =>
-  valueProvider(HttpTransport$, transport);
+  transportValue(HttpTransport$('default'), transport);
 
 /** Глубокий сервис: контекст читает ридером, параметром его не получает */
 @Injectable([Ctx(RequestId)])
@@ -50,7 +51,7 @@ const Whoami = httpEndpoint({
     new Ok({ requestId: audit.current() }),
 });
 
-const AuditModule = makeAppModule({
+const AuditModule = makeFeature({
   name: 'module:audit',
   providers: [AuditLog],
   endpoints: [Whoami],
@@ -59,7 +60,7 @@ const AuditModule = makeAppModule({
 describe('contextValue', () => {
   it('сервис читает подставленное значение без app.call', async () => {
     await using app = await assembleTest({
-      modules: [AuditModule],
+      features: [AuditModule],
       transports: [asHttpTransport(new SpyTransport())],
       overrides: [contextValue(RequestId, 'req-1')],
     });
@@ -73,7 +74,7 @@ describe('contextValue', () => {
 
   it('подмена приоритетна над значением, положенным пайплайном', async () => {
     await using app = await assembleTest({
-      modules: [AuditModule],
+      features: [AuditModule],
       transports: [asHttpTransport(new SpyTransport())],
       overrides: [contextValue(RequestId, 'req-1')],
     });
@@ -83,7 +84,7 @@ describe('contextValue', () => {
 
   it('без подмены app.call даёт боевое поведение проекции', async () => {
     await using app = await assembleTest({
-      modules: [AuditModule],
+      features: [AuditModule],
       transports: [asHttpTransport(new SpyTransport())],
     });
 

@@ -36,7 +36,7 @@ describe('httpEndpoint', () => {
     });
 
     // Ссылка на транспорт — токен; строковое имя выводится из его id
-    expect(CreateUser.transport).toBe(HttpTransport$);
+    expect(CreateUser.transport).toBe(HttpTransport$('default'));
     expect(transportNameOf(CreateUser.transport)).toBe('http');
     expect(CreateUser.pattern).toBe('POST /api/users');
     expect(isEndpointDefinition(CreateUser)).toBe(true);

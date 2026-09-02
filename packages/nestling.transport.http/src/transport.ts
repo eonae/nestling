@@ -51,7 +51,12 @@ import {
   makeEmptyContext,
   TransportClosingError,
 } from '@nestling/pipeline';
-import type { Dispatch, ITransport } from '@nestling/transport';
+import type {
+  Dispatch,
+  ITransport,
+  TransportDeclaration,
+} from '@nestling/transport';
+import { DEFAULT_INSTANCE, makeTransportDeclaration } from '@nestling/transport';
 
 /** Лимит размера буферизуемого тела запроса по умолчанию (1 MiB) */
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
@@ -592,33 +597,44 @@ export class HttpTransport implements ITransport {
 }
 
 /**
- * Создаёт провайдер HTTP-транспорта.
+ * Объявляет экземпляр HTTP-транспорта.
  *
- * Возвращает провайдер, а не экземпляр: транспорт — обычный узел графа,
- * его зависимости инжектит контейнер. `assemble({ transports: [http()] })`
- * регистрирует этот провайдер; тот же провайдер можно объявить в
- * `providers:` любого модуля.
+ * Возвращает объявление, а не экземпляр: транспорт — обычный узел графа,
+ * его зависимости инжектит контейнер. Экземпляров может быть несколько;
+ * каждый получает своё имя, а декларация выбирает свой через `on:`.
  *
  * Приоритет значений: явные опции фабрики, затем конфиг (`HTTP_PORT`,
  * `HTTP_HOST`), затем дефолт транспорта.
  *
  * @example
  * ```typescript
- * await assemble({ modules: [UsersModule], transports: [http()] }).run();
- * await assemble({ modules: [UsersModule], transports: [http({ port: 3000 })] }).run();
+ * await assemble({ features: [Users], transports: [http()] }).run();
+ *
+ * await assemble({
+ *   features: [Users, Ops],
+ *   transports: [http({ port: 3000 }), http({ name: 'admin', port: 3001 })],
+ * }).run();
  * ```
  */
-export const http = (
-  options: HttpTransportOptions = {},
-): FactoryProviderWithDeps<ITransport, [InjectionToken<HttpConfigValues>]> =>
-  factoryProvider(
-    HttpTransport$,
-    (config: HttpConfigValues) =>
-      new HttpTransport({
-        port: config.port,
-        host: config.host,
-        // Явные опции сильнее конфига: спред идёт последним
-        ...options,
-      }),
-    [HttpConfig as unknown as InjectionToken<HttpConfigValues>],
-  );
+export const http = <const Name extends string = typeof DEFAULT_INSTANCE>(
+  options: HttpTransportOptions & { readonly name?: Name } = {},
+): TransportDeclaration<Name> => {
+  const { name = DEFAULT_INSTANCE as Name, ...transportOptions } = options;
+  const token = HttpTransport$(name);
+
+  return makeTransportDeclaration({
+    name,
+    token,
+    provider: factoryProvider(
+      token,
+      (config: HttpConfigValues) =>
+        new HttpTransport({
+          port: config.port,
+          host: config.host,
+          // Явные опции сильнее конфига: спред идёт последним
+          ...transportOptions,
+        }),
+      [HttpConfig as unknown as InjectionToken<HttpConfigValues>],
+    ),
+  });
+};

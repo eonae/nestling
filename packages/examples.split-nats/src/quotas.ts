@@ -14,7 +14,7 @@
 import { TenantId } from './context';
 import { ClaimQuota, OrderPlaced, QuotaExceeded } from './contracts';
 
-import { makeAppModule, makeFeature } from '@nestling/app';
+import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { makePipeline, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
@@ -41,7 +41,7 @@ export class QuotaLedger {
   }
 }
 
-const QuotasModule = makeAppModule({
+const QuotasModule = makeFeature({
   name: 'module:quotas',
   providers: [QuotaLedger],
   endpoints: [
