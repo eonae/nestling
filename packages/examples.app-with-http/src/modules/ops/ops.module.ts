@@ -20,14 +20,14 @@ import { makeAppModule } from '@nestling/app';
  * Входит в любую топологию: приложение без liveness-пробы и без списка
  * открытых подписок не разворачивают ни в одном варианте.
  *
- * `imports:` подключает инфраструктуру значением, как и в модуле
+ * `dependsOn:` подключает инфраструктуру значением, как и в модуле
  * пользователей. Логирование нужно слою наблюдаемости (административные
  * endpoint'ы подчиняются тем же политикам, что и прикладные), реестр
  * подписок — их зависимостям и слою `tracked`.
  */
 export const OpsModule = makeAppModule({
   name: 'module:ops',
-  imports: [appLogging, appSubscriptions],
+  dependsOn: [appLogging, appSubscriptions],
   endpoints: [
     Health,
     ListSubscriptions,

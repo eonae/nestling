@@ -13,7 +13,7 @@
  */
 
 import type { InjectionToken } from '@nestling/container';
-import { lookupFamilyMember } from '@nestling/container';
+import { asFamilyMember } from '@nestling/container';
 import type {
   AnyContract,
   CommandMeta,
@@ -394,12 +394,9 @@ export function stubbedContracts(
   const names = new Set<string>();
 
   for (const [token] of stubs) {
-    const member = lookupFamilyMember(String(token));
+    const member = asFamilyMember(token);
 
-    if (
-      member?.familyName === PortFamily.familyName ||
-      member?.familyName === EmitterFamily.familyName
-    ) {
+    if (member?.family === PortFamily || member?.family === EmitterFamily) {
       names.add(member.param);
     }
   }

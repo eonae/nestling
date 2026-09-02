@@ -15,20 +15,21 @@ import type { HandlerFn } from '../core/types';
 import type { Constructor } from '@common/misc';
 import type {
   InjectionToken,
-  TokenString,
+  Token,
   UnwrapInjectionTokens,
 } from '@nestling/container';
+import { tokenId } from '@nestling/container';
 
 /**
  * Токен транспорта, который обслуживает декларацию.
  *
- * Здесь тип не уточнён (`TokenString<any>`): `ITransport` живёт в
+ * Здесь тип не уточнён (`Token<any>`): `ITransport` живёт в
  * `@nestling/transport`, который сам зависит от этого пакета. Уточнённый
- * `TokenString<ITransport>` объявляет транспортный пакет
+ * `Token<ITransport>` объявляет транспортный пакет
  * (`TransportToken`). Строковое имя транспорта для `Raw` и `EndpointMeta`
  * выводится из id токена функцией `transportNameOf`.
  */
-export type TransportRef = TokenString<any>;
+export type TransportRef = Token<any>;
 
 /**
  * Возвращает имя транспорта из id его токена: часть после последнего `:`.
@@ -38,7 +39,7 @@ export type TransportRef = TokenString<any>;
  * `'http'`.
  */
 export const transportNameOf = (ref: TransportRef): string => {
-  const id = String(ref);
+  const id = tokenId(ref);
   const separator = id.lastIndexOf(':');
 
   return separator === -1 ? id : id.slice(separator + 1);
@@ -307,10 +308,13 @@ interface EndpointState {
 
 /** Имя токена для текстов ошибок */
 function describeToken(token: unknown): string {
-  if (typeof token === 'string') {
-    return token;
+  if (typeof token === 'function' && token.name) {
+    return token.name;
   }
-  return typeof token === 'function' && token.name ? token.name : String(token);
+
+  const id = (token as { id?: unknown } | undefined)?.id;
+
+  return typeof id === 'string' ? id : String(token);
 }
 
 /** Проверяет, что значение — класс с методом `handle` в прототипе */

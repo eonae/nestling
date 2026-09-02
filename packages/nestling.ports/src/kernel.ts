@@ -32,12 +32,12 @@ import type {
   InjectionToken,
   Module,
   ModuleProvider,
-  TokenString,
+  Token,
 } from '@nestling/container';
 import {
   factoryProvider,
   familyProvider,
-  lookupFamilyMember,
+  familyOf,
   makeToken,
   makeTokenFamily,
 } from '@nestling/container';
@@ -60,7 +60,7 @@ const PortRuntimeFamily = makeTokenFamily<PortRuntime, [id: string]>(
 );
 
 /** Токен держателя исполнителей: наполняется фазой WIRE */
-const PortRuntimeToken: TokenString<PortRuntime> = PortRuntimeFamily('kernel');
+const PortRuntimeToken: Token<PortRuntime> = PortRuntimeFamily('kernel');
 
 /**
  * Токен якоря запрошенных вызывателей.
@@ -73,7 +73,7 @@ const PortRuntimeToken: TokenString<PortRuntime> = PortRuntimeFamily('kernel');
  *
  * @internal
  */
-const PortAnchorToken: TokenString<Record<never, never>> =
+const PortAnchorToken: Token<Record<never, never>> =
   makeToken('kernel:PortAnchor');
 
 /** Опции kernel-модуля портов */
@@ -314,12 +314,9 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
   // Вызыватели, запрошенные декларациями: их потребность иначе не видна
   // сборке (см. `PortAnchorToken`)
   const anchored = (options.requested ?? []).filter((token) => {
-    const member = lookupFamilyMember(String(token));
+    const family = familyOf(token);
 
-    return (
-      member?.familyName === PortFamily.familyName ||
-      member?.familyName === EmitterFamily.familyName
-    );
+    return family === PortFamily || family === EmitterFamily;
   });
 
   if (anchored.length > 0) {

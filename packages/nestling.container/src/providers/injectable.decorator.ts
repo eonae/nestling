@@ -1,10 +1,9 @@
 import type {
   Constructor,
   InjectionToken,
-  TokenString,
+  Token,
   UnwrapInjectionTokens,
 } from '../common';
-import { makeToken } from '../common';
 
 import { injectableMetaStorage } from './injectable.metadata';
 import { resolveAutoDependency } from './token-family';
@@ -34,7 +33,7 @@ import { resolveAutoDependency } from './token-family';
  * ```
  */
 export function Injectable<I, TDependencies extends InjectionToken[]>(
-  id: TokenString<I>,
+  id: Token<I>,
   dependencies: [...TDependencies],
 ): <T extends new (...args: UnwrapInjectionTokens<TDependencies>) => I>(
   constructor: T,
@@ -64,7 +63,7 @@ export function Injectable<TDependencies extends InjectionToken[]>(
 
 /**
  * Помечает класс как провайдер; в зависимостях допустимы и классы, и
- * строковые токены.
+ * объектные токены.
  *
  * @template TDependencies - Массив токенов зависимостей
  * @param deps - Классы или токены, передаваемые в конструктор по порядку
@@ -77,7 +76,7 @@ export function Injectable<TDependencies extends InjectionToken[]>(
 ) => T;
 
 export function Injectable<I, TDependencies extends InjectionToken[]>(
-  idOrDependencies: TokenString<I> | [...TDependencies],
+  idOrDependencies: Token<I> | [...TDependencies],
   deps?: [...TDependencies],
 ) {
   // Перегрузки выше проверяют типами, что класс реализует интерфейс `id`,
@@ -88,13 +87,19 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _: ClassDecoratorContext<T>,
   ) {
-    const injectionToken =
-      typeof idOrDependencies === 'string'
-        ? idOrDependencies
-        : makeToken(constructor.name);
+    // Форму различает вид аргумента: список зависимостей — массив, токен
+    // интерфейса — объект. Токеном класса без явного `id` служит сам
+    // класс: его идентичность и есть ссылка на конструктор
+    const explicitToken = Array.isArray(idOrDependencies)
+      ? undefined
+      : idOrDependencies;
 
-    const declared =
-      typeof idOrDependencies === 'string' ? deps || [] : idOrDependencies;
+    const injectionToken: InjectionToken =
+      explicitToken ?? (constructor as Constructor);
+
+    const declared = explicitToken
+      ? deps || []
+      : (idOrDependencies as [...TDependencies]);
 
     // `Family.auto` заменяется на члена здесь, при декорировании: класс
     // потребителя уже известен, поэтому в метаданные попадает обычный

@@ -254,7 +254,7 @@ describe('ошибки создания членов', () => {
     );
   });
 
-  it('подсказывает семейство для похожего токена из makeToken', async () => {
+  it('токен из makeToken рецепту семейства не отдаётся', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'LookAlike',
     );
@@ -273,8 +273,10 @@ describe('ошибки создания членов', () => {
       )
       .register(ServiceA);
 
+    // Членство читается полем токена, поэтому похожий `id` семейство не
+    // задевает: это обычная недостающая зависимость
     await expect(builder.build()).rejects.toThrow(
-      /looks like a member of token family 'LookAlike'/,
+      /Unsatisfied dependencies \(1\):[\s\S]*'LookAlike:users' required by 'ServiceA'/,
     );
   });
 });

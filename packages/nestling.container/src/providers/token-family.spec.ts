@@ -1,10 +1,10 @@
 import { ContainerBuilder } from '../builder';
-import type { TokenString } from '../common';
+import type { Token } from '../common';
 import { makeToken } from '../common';
 
 import { Injectable } from './injectable.decorator';
 import { injectableMetaStorage } from './injectable.metadata';
-import { isTokenFamily, makeTokenFamily } from './token-family';
+import { familyOf, isTokenFamily, makeTokenFamily } from './token-family';
 import {
   factoryProvider,
   familyProvider,
@@ -22,7 +22,7 @@ describe('makeTokenFamily', () => {
   it('создаёт токены членов с идентификатором "<family>:<param>"', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Logger');
 
-    expect(ILogger('users')).toBe('Logger:users');
+    expect(ILogger('users').id).toBe('Logger:users');
     expect(ILogger.familyName).toBe('Logger');
   });
 
@@ -37,22 +37,26 @@ describe('makeTokenFamily', () => {
     expect(second).toBe(first);
   });
 
-  it('отклоняет параметр, зарезервированный за .auto', () => {
+  it('хранит семейство и параметр полями токена', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
-      'ReservedLogger',
+      'StructuralLogger',
     );
 
-    expect(() => ILogger('{auto}')).toThrow(/reserved/);
+    const member = ILogger('users');
+
+    expect(member.family).toBe(ILogger);
+    expect(member.param).toBe('users');
+    expect(familyOf(member)).toBe(ILogger);
   });
 
-  it('отклоняет параметр, зарезервированный за .all', () => {
+  it('токен, лишь похожий на члена, членом не является', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
-      'ReservedAllLogger',
+      'LookalikeLogger',
     );
+    const handmade = makeToken<ILoggerService>('LookalikeLogger:users');
 
-    expect(() => ILogger('{all}')).toThrow(
-      /Parameter '{all}' is reserved for 'ReservedAllLogger\.all'/,
-    );
+    expect(handmade).not.toBe(ILogger('users'));
+    expect(familyOf(handmade)).toBeUndefined();
   });
 
   it('распознаёт семейства и рецепты семейств', () => {
@@ -73,12 +77,12 @@ describe('makeTokenFamily', () => {
 });
 
 describe('токен Family.all', () => {
-  it('имеет идентификатор "<family>:{all}"', () => {
+  it('имеет идентификатор "<family>.all"', () => {
     const IHealthCheck = makeTokenFamily<ILoggerService, [name: string]>(
       'HealthCheck',
     );
 
-    expect(IHealthCheck.all).toBe('HealthCheck:{all}');
+    expect(IHealthCheck.all.id).toBe('HealthCheck.all');
   });
 
   it('типизирован как токен массива readonly членов', () => {
@@ -88,16 +92,16 @@ describe('токен Family.all', () => {
 
     // Проверка типов: токен несёт `readonly T[]`, поэтому потребитель с
     // изменяемым массивом не скомпилируется.
-    const token: TokenString<readonly ILoggerService[]> = ILogger.all;
+    const token: Token<readonly ILoggerService[]> = ILogger.all;
 
     @Injectable([ILogger.all])
     class Aggregator {
       constructor(readonly loggers: readonly ILoggerService[]) {}
     }
 
-    expect(token).toBe('TypedAllLogger:{all}');
+    expect(token).toBe(ILogger.all);
     expect(injectableMetaStorage.get(Aggregator)?.dependencies).toEqual([
-      'TypedAllLogger:{all}',
+      ILogger.all,
     ]);
   });
 
@@ -108,6 +112,17 @@ describe('токен Family.all', () => {
 
     expect(ILogger.all).not.toBe(ILogger('all'));
     expect(ILogger.all).not.toBe(ILogger.auto);
+    expect(familyOf(ILogger.all)).toBeUndefined();
+  });
+
+  it('пользовательский параметр не сталкивается со служебным', () => {
+    const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
+      'ReservedFreeLogger',
+    );
+
+    expect(ILogger('all')).not.toBe(ILogger.all);
+    expect(ILogger('auto')).not.toBe(ILogger.auto);
+    expect(ILogger('all').param).toBe('all');
   });
 });
 
@@ -165,7 +180,7 @@ describe('член семейства как обычный токен', () => {
     }
 
     expect(injectableMetaStorage.get(MetaService)?.dependencies).toEqual([
-      'MetaLogger:meta',
+      ILogger('meta'),
     ]);
   });
 });

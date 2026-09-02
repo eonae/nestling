@@ -291,7 +291,7 @@ describe('секция http не меняет контракт шины', () => 
     });
 
     expect(CreateUser.kind).toBe('request');
-    expect(CreateUser.port).toBe(`Port:${CreateUser.name}`);
+    expect(CreateUser.port.id).toBe(`Port:${CreateUser.name}`);
     expect(CreateUser.errors).toEqual([EmailTaken]);
     expect(() => (CreateUser as { emitter?: unknown }).emitter).toThrow(
       /has no '\.emitter'/,
@@ -308,7 +308,7 @@ describe('секция http не меняет контракт шины', () => 
     });
 
     expect(Notify.kind).toBe('command');
-    expect(Notify.emitter).toBe(`Emitter:${Notify.name}`);
+    expect(Notify.emitter.id).toBe(`Emitter:${Notify.name}`);
     expect(Notify.durable).toBe(true);
   });
 });

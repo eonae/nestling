@@ -62,7 +62,7 @@ describe('discoverEndpoints', () => {
     expect(endpoints[0].moduleName).toBe('module:handmade');
   });
 
-  it('цикл в imports не зацикливает обход', () => {
+  it('цикл в dependsOn не зацикливает обход', () => {
     const FromA = endpoint(Http$, 'GET /a');
     const FromB = endpoint(Http$, 'GET /b');
 
@@ -72,10 +72,10 @@ describe('discoverEndpoints', () => {
     });
     const ModuleB: AppModule = makeAppModule({
       name: 'module:b',
-      imports: [ModuleA],
+      dependsOn: [ModuleA],
       endpoints: [FromB],
     });
-    ModuleA.imports = [ModuleB];
+    ModuleA.dependsOn = [ModuleB];
 
     const { endpoints } = discoverEndpoints([ModuleA]);
 
@@ -91,11 +91,11 @@ describe('discoverEndpoints', () => {
     });
     const ModuleA = makeAppModule({
       name: 'module:a',
-      imports: [SharedModule],
+      dependsOn: [SharedModule],
     });
     const ModuleB = makeAppModule({
       name: 'module:b',
-      imports: [SharedModule],
+      dependsOn: [SharedModule],
     });
 
     const { endpoints } = discoverEndpoints([ModuleA, ModuleB]);
@@ -137,7 +137,7 @@ describe('discoverEndpoints', () => {
     expect(endpoints.map((found) => found.endpoint)).toEqual([Only]);
   });
 
-  it("порядок воспроизводим: imports раньше собственных endpoint'ов", () => {
+  it("порядок воспроизводим: dependsOn раньше собственных endpoint'ов", () => {
     const Imported = endpoint(Http$, 'GET /imported');
     const Own = endpoint(Http$, 'GET /own');
     const Other = endpoint(Http$, 'GET /other');
@@ -148,7 +148,7 @@ describe('discoverEndpoints', () => {
     });
     const OwnModule = makeAppModule({
       name: 'module:own',
-      imports: [ImportedModule],
+      dependsOn: [ImportedModule],
       endpoints: [Own, Other],
     });
 
@@ -191,7 +191,7 @@ describe('discoverEndpoints', () => {
     const { transports } = discoverEndpoints([MixedModule]);
 
     // Ключ карты — токен транспорта, а не его строковое имя
-    expect([...transports.keys()].sort()).toEqual([Cli$, Http$].sort());
+    expect(new Set(transports.keys())).toEqual(new Set([Cli$, Http$]));
     expect(transports.get(Http$)).toHaveLength(2);
     expect(transports.get(Cli$)).toHaveLength(1);
   });

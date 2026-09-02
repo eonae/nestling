@@ -1,6 +1,6 @@
 import type { Dispatch } from './dispatch.js';
 
-import type { TokenString } from '@nestling/container';
+import type { Token } from '@nestling/container';
 import type { TransportCapabilities } from '@nestling/pipeline';
 
 /**
@@ -19,7 +19,7 @@ export type { TransportCapabilities } from '@nestling/pipeline';
  * Транспортный пакет объявляет свой токен именно так; декларации ссылаются
  * на транспорт этим значением, а `App` резолвит по нему инстанс из графа.
  */
-export type TransportToken = TokenString<ITransport>;
+export type TransportToken = Token<ITransport>;
 
 /**
  * Короткое имя транспорта из id его токена (`transport:http` → `'http'`).

@@ -76,9 +76,9 @@ const toField = (prefix: string, name: string, leaf: unknown): SectionField => {
 /**
  * Строит декларацию и её токен.
  *
- * Токен — класс, у которого `name` перекрыт id члена семейства: строковый
- * токен контейнера (`stringifyToken`) совпадает с `ConfigSection(prefix)`,
- * поэтому инжект токена и создание члена — одно и то же ребро графа.
+ * Токен — сам член семейства `ConfigSection`, на который дописан `.keys`.
+ * Инжект токена и упоминание члена — одно и то же ребро графа, потому что
+ * это одно и то же значение.
  */
 const declare = <R extends ConfigRecord, P extends string, Values>(
   prefix: P,
@@ -110,28 +110,13 @@ const declare = <R extends ConfigRecord, P extends string, Values>(
 
   registerSection(declaration);
 
-  // Тот же строковый id, что у члена семейства: вызов регистрирует член в
-  // реестре семейства, без чего билдер не распознал бы токен как узел для
-  // сборки.
-  const id = ConfigSection(prefix);
+  // Токен секции и член семейства — одно значение: рецепт семейства
+  // создаёт узел ровно для того токена, который стоит в `deps`
+  const token = ConfigSection(prefix);
 
-  // Класс здесь — форма токена, а не носитель поведения: `InjectionToken`
-  // это `TokenString | Constructor`, а строковый токен не может нести `.keys`.
-  // eslint-disable-next-line @typescript-eslint/no-extraneous-class
-  class Section {
-    constructor() {
-      throw new Error(
-        `Config section '${prefix}' is not instantiable: it is a token, not a class. Inject it (@Injectable([${prefix}Config])) — the framework materializes the section itself. Registering it in 'providers:' is the same mistake.`,
-      );
-    }
-  }
+  Object.defineProperty(token, 'keys', { value: keys, enumerable: true });
 
-  Object.defineProperties(Section, {
-    name: { value: id },
-    keys: { value: keys, enumerable: true },
-  });
-
-  return Section as unknown as ConfigSectionToken<Values, P>;
+  return token as unknown as ConfigSectionToken<Values, P>;
 };
 
 /**

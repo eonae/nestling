@@ -122,7 +122,7 @@ function tokenOf(provider: Provider<ITransport>): TransportRef {
       ? provider
       : (provider.provide as InjectionToken<ITransport>);
 
-  return (typeof token === 'string' ? token : token.name) as TransportRef;
+  return token as TransportRef;
 }
 
 /**

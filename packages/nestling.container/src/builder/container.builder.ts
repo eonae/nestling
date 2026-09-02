@@ -1,5 +1,5 @@
-import type { Constructor, InjectionToken, TokenString } from '../common';
-import { stringifyToken } from '../common';
+import type { Constructor, InjectionToken } from '../common';
+import { tokenId } from '../common';
 import type { DINodeData, DINodeMetadata } from '../graph';
 import { DIGraph, DINode } from '../graph';
 import { getLifecycleHooks } from '../lifecycle';
@@ -8,7 +8,7 @@ import { isModule } from '../modules';
 import type {
   ClassProviderDefinition,
   FactoryProviderDefinition,
-  FamilyMemberRef,
+  FamilyMemberToken,
   FamilyProviderDefinition,
   ModuleProvider,
   Provider,
@@ -17,6 +17,7 @@ import type {
   TokenFamily,
 } from '../providers';
 import {
+  asFamilyMember,
   getAllSentinelFamily,
   getAutoSentinelFamily,
   injectableMetaStorage,
@@ -25,8 +26,6 @@ import {
   isFactoryProvider,
   isFamilyDefinition,
   isValueDefinition,
-  lookupFamilyMember,
-  suggestFamilyForToken,
 } from '../providers';
 
 import { BuiltContainer } from './container.built';
@@ -92,6 +91,9 @@ export interface ContainerBuilderOptions {
  * Принимает провайдеры, рецепты семейств и модули через `register()`, а в
  * `build()` проверяет граф и создаёт все экземпляры сразу.
  *
+ * Внутренние карты ключуются **токеном**, а не его идентификатором: два
+ * токена с одинаковым `id` — два разных узла графа.
+ *
  * @example
  * ```typescript
  * const container = await new ContainerBuilder()
@@ -104,7 +106,7 @@ export class ContainerBuilder {
   readonly #providers = new Map<InjectionToken, ProviderDefinition>();
   readonly #providersFactories = new Map<string, ProvidersFactory>();
   readonly #providerToModule = new Map<InjectionToken, string>();
-  readonly #familyRecipes = new Map<string, FamilyRecipeEntry>();
+  readonly #familyRecipes = new Map<TokenFamily<any, any>, FamilyRecipeEntry>();
   readonly #modules = new Map<string, Module>();
   readonly #overrides: readonly TokenOverride<any>[];
   readonly #familyOverrides: readonly FamilyOverrideEntry<any, any>[];
@@ -216,24 +218,24 @@ export class ContainerBuilder {
     const instances = await this.instantiateAll();
 
     // Шаг 9: построить граф зависимостей из экземпляров
-    const graph = this.buildDependencyGraph(instances);
+    const { graph, nodeIds } = this.buildDependencyGraph(instances);
 
     // Шаг 10: проверить граф на циклы
     graph.ensureAcyclic();
 
     this.#isBuilt = true;
 
-    return new BuiltContainer(graph, pruned);
+    return new BuiltContainer(graph, pruned, nodeIds);
   }
 
   /**
-   * Регистрирует модуль вместе с его импортами.
+   * Регистрирует модуль вместе с теми, от которых он зависит.
    *
    * Идентичность модуля — ссылочная. То же значение, встреченное повторно
-   * (через `imports`, через корень и фичу, через две фичи с общим
+   * (через `dependsOn`, через корень и фичу, через две фичи с общим
    * инфраструктурным модулем), пропускается. Другое значение под занятым
-   * именем — ошибка: имя привязывает провайдеры и экспорты к модулю, и
-   * молчаливый пропуск второго значения потерял бы его провайдеры.
+   * именем — ошибка: имя привязывает провайдеры к модулю, и молчаливый
+   * пропуск второго значения потерял бы его провайдеры.
    */
   private registerModule(m: Module): void {
     const loaded = this.#modules.get(m.name);
@@ -246,12 +248,12 @@ export class ContainerBuilder {
       return;
     }
 
-    // Модуль помечается загруженным до обхода `imports`: цикл импортов
+    // Модуль помечается загруженным до обхода `dependsOn`: цикл в поле
     // должен завершить обход, а не войти в него снова
     this.#modules.set(m.name, m);
 
-    for (const importedModule of m.imports || []) {
-      this.registerModule(importedModule);
+    for (const required of m.dependsOn || []) {
+      this.registerModule(required);
     }
 
     if (typeof m.providers === 'function') {
@@ -313,15 +315,15 @@ export class ContainerBuilder {
     definition: FamilyProviderDefinition<any, any>,
     moduleName?: string,
   ): void {
-    const familyName = definition.family.familyName;
+    const { family } = definition;
 
-    if (this.#familyRecipes.has(familyName)) {
+    if (this.#familyRecipes.has(family)) {
       throw new Error(
-        `Family provider for token family '${familyName}' is already registered`,
+        `Family provider for token family '${family.familyName}' is already registered`,
       );
     }
 
-    this.#familyRecipes.set(familyName, {
+    this.#familyRecipes.set(family, {
       recipe: definition.recipe as (param: string) => ProviderDefinition,
       moduleName,
     });
@@ -334,22 +336,21 @@ export class ContainerBuilder {
   ): void {
     const resolvedProvider = this.resolveProvider(provider);
     const token = this.getToken(resolvedProvider);
-    const tokenId = stringifyToken(token);
 
-    assertNotAggregateToken(token, tokenId);
+    assertNotAggregateToken(token);
 
-    if (this.#providers.has(tokenId)) {
+    if (this.#providers.has(token)) {
       throw new Error(
-        `Provider for token '${stringifyToken(token)}' is already registered`,
+        `Provider for token '${tokenId(token)}' is already registered`,
       );
     }
 
-    assertNoAutoSentinels(resolvedProvider, tokenId);
+    assertNoAutoSentinels(resolvedProvider, tokenId(token));
 
-    this.#providers.set(tokenId, resolvedProvider);
+    this.#providers.set(token, resolvedProvider);
 
     if (moduleName) {
-      this.#providerToModule.set(tokenId, moduleName);
+      this.#providerToModule.set(token, moduleName);
     }
   }
 
@@ -368,19 +369,22 @@ export class ContainerBuilder {
     for (let round = 1; ; round++) {
       const pending = this.collectPendingMembers();
 
-      if (pending.size === 0) {
+      if (pending.length === 0) {
         return;
       }
 
       if (round > MAX_MATERIALIZATION_ROUNDS) {
-        const sample = [...pending.keys()].slice(0, 5).join(', ');
+        const sample = pending
+          .slice(0, 5)
+          .map((member) => member.id)
+          .join(', ');
         throw new Error(
           `Family member materialization did not converge after ${MAX_MATERIALIZATION_ROUNDS} rounds - a recipe keeps producing providers that depend on new members. Still pending: ${sample}`,
         );
       }
 
-      for (const [tokenId, ref] of pending) {
-        this.materializeMember(tokenId, ref);
+      for (const member of pending) {
+        this.materializeMember(member);
       }
     }
   }
@@ -389,53 +393,51 @@ export class ContainerBuilder {
    * Собирает членов семейств, упомянутых в зависимостях провайдеров, у
    * которых ещё нет провайдера.
    */
-  private collectPendingMembers(): Map<string, FamilyMemberRef> {
-    const pending = new Map<string, FamilyMemberRef>();
+  private collectPendingMembers(): FamilyMemberToken<any>[] {
+    const pending = new Set<FamilyMemberToken<any>>();
 
     for (const provider of this.#providers.values()) {
       const deps = isValueDefinition(provider) ? [] : provider.deps || [];
 
       for (const dep of deps) {
-        const depId = stringifyToken(dep);
-
-        if (this.#providers.has(depId)) {
+        if (this.#providers.has(dep)) {
           continue;
         }
 
-        const ref = lookupFamilyMember(depId);
-        if (ref) {
-          pending.set(depId, ref);
+        const member = asFamilyMember(dep);
+        if (member) {
+          pending.add(member);
         }
       }
     }
 
-    return pending;
+    return [...pending];
   }
 
   /** Вызывает рецепт семейства для одного члена и регистрирует результат. */
-  private materializeMember(tokenId: string, ref: FamilyMemberRef): void {
-    const entry = this.#familyRecipes.get(ref.familyName);
+  private materializeMember(member: FamilyMemberToken<any>): void {
+    const { family, param } = member;
+    const entry = this.#familyRecipes.get(family);
 
     if (!entry) {
       throw new Error(
-        `Member '${tokenId}' of token family '${ref.familyName}' (parameter '${ref.param}') is requested as a dependency, but no familyProvider for family '${ref.familyName}' is registered`,
+        `Member '${member.id}' of token family '${family.familyName}' (parameter '${param}') is requested as a dependency, but no familyProvider for family '${family.familyName}' is registered`,
       );
     }
 
     let definition: ProviderDefinition;
     try {
-      definition = entry.recipe(ref.param);
+      definition = entry.recipe(param);
     } catch (error) {
       throw new Error(
-        `Recipe of token family '${ref.familyName}' failed for parameter '${ref.param}'`,
+        `Recipe of token family '${family.familyName}' failed for parameter '${param}'`,
         { cause: error },
       );
     }
 
-    const provided = stringifyToken(definition.provide);
-    if (provided !== tokenId) {
+    if (definition.provide !== (member as InjectionToken)) {
       throw new Error(
-        `Recipe of token family '${ref.familyName}' for parameter '${ref.param}' returned a provider for token '${provided}', expected '${tokenId}'`,
+        `Recipe of token family '${family.familyName}' for parameter '${param}' returned a provider for token '${tokenId(definition.provide)}', expected '${member.id}'`,
       );
     }
 
@@ -454,7 +456,7 @@ export class ContainerBuilder {
    * токены, у которых провайдеры уже есть.
    */
   private materializeFamilyAggregates(): void {
-    const aggregates = new Map<TokenString<unknown>, TokenFamily<any, any>>();
+    const aggregates = new Map<InjectionToken, TokenFamily<any, any>>();
 
     // Только по зависимостям, как и члены семейств: агрегат, которого никто
     // не запросил, добавил бы в граф лишний узел, зависящий от того, какие
@@ -466,13 +468,13 @@ export class ContainerBuilder {
         const family = getAllSentinelFamily(dep);
 
         if (family) {
-          aggregates.set(stringifyToken(dep), family);
+          aggregates.set(dep, family);
         }
       }
     }
 
-    for (const [tokenId, family] of aggregates) {
-      this.#providers.set(tokenId, this.makeAggregateProvider(family));
+    for (const [token, family] of aggregates) {
+      this.#providers.set(token, this.makeAggregateProvider(family));
     }
   }
 
@@ -492,7 +494,7 @@ export class ContainerBuilder {
       provide: family.all,
       useFactory: (...members: unknown[]): readonly unknown[] =>
         Object.freeze(members),
-      deps: this.collectFamilyMemberTokens(family.familyName),
+      deps: this.collectFamilyMemberTokens(family),
     };
   }
 
@@ -502,16 +504,16 @@ export class ContainerBuilder {
    *
    * `#providers` хранит порядок вставки, поэтому сначала идут явные
    * провайдеры в порядке регистрации модулей, затем члены, созданные
-   * рецептом, в порядке раундов. Членство берётся из реестра семейства,
-   * а не из разбора идентификатора токена.
+   * рецептом, в порядке раундов. Членство читается полем токена, а не
+   * разбором его идентификатора.
    */
-  private collectFamilyMemberTokens(familyName: string): InjectionToken[] {
+  private collectFamilyMemberTokens(
+    family: TokenFamily<any, any>,
+  ): InjectionToken[] {
     const tokens: InjectionToken[] = [];
 
     for (const token of this.#providers.keys()) {
-      const ref = lookupFamilyMember(stringifyToken(token));
-
-      if (ref?.familyName === familyName) {
+      if (asFamilyMember(token)?.family === family) {
         tokens.push(token);
       }
     }
@@ -527,24 +529,22 @@ export class ContainerBuilder {
    * одного.
    */
   private applyFamilyOverrides(): void {
-    const seen = new Set<string>();
+    const seen = new Set<TokenFamily<any, any>>();
 
     for (const { family, recipe } of this.#familyOverrides) {
-      const familyName = family.familyName;
-
-      if (seen.has(familyName)) {
+      if (seen.has(family)) {
         throw new Error(
-          `Token family '${familyName}' is overridden twice - 'last one wins' is not applied; leave a single familyOverride for it`,
+          `Token family '${family.familyName}' is overridden twice - 'last one wins' is not applied; leave a single familyOverride for it`,
         );
       }
-      seen.add(familyName);
+      seen.add(family);
 
       // Модуль боевого рецепта сохраняется: члены остаются привязаны к
       // модулю-владельцу семейства, и визуализация показывает того же
       // владельца.
-      const registered = this.#familyRecipes.get(familyName);
+      const registered = this.#familyRecipes.get(family);
 
-      this.#familyRecipes.set(familyName, {
+      this.#familyRecipes.set(family, {
         recipe: recipe as (param: string) => ProviderDefinition,
         moduleName: registered?.moduleName,
       });
@@ -555,35 +555,33 @@ export class ContainerBuilder {
    * Подменяет провайдер каждого токена из `overrides` провайдером-значением.
    *
    * Привязка к модулю не меняется: она хранится в отдельной карте по
-   * идентификатору токена, поэтому узел графа сохраняет владельца.
+   * токену, поэтому узел графа сохраняет владельца.
    *
    * @returns Зависимости каждого подменённого токена до подмены — первая
    * половина входа для прунинга
    */
-  private applyOverrides(): Map<string, readonly string[]> {
-    const before = new Map<string, readonly string[]>();
+  private applyOverrides(): Map<InjectionToken, readonly InjectionToken[]> {
+    const before = new Map<InjectionToken, readonly InjectionToken[]>();
 
     for (const [token, value] of this.#overrides) {
-      const tokenId = stringifyToken(token);
-
-      if (before.has(tokenId)) {
+      if (before.has(token)) {
         throw new Error(
-          `Token '${tokenId}' is overridden twice - 'last one wins' is not applied; leave a single override for it`,
+          `Token '${tokenId(token)}' is overridden twice - 'last one wins' is not applied; leave a single override for it`,
         );
       }
 
-      const provider = this.#providers.get(tokenId as InjectionToken);
+      const provider = this.#providers.get(token);
       if (!provider) {
         throw new Error(
-          `Override targets token '${tokenId}', but no provider for it is registered.${overrideMissingHint(
-            tokenId,
+          `Override targets token '${tokenId(token)}', but no provider for it is registered.${overrideMissingHint(
+            token,
           )}`,
         );
       }
 
-      before.set(tokenId, dependencyIdsOf(provider));
+      before.set(token, dependenciesOf(provider));
 
-      this.#providers.set(tokenId as InjectionToken, {
+      this.#providers.set(token, {
         provide: token,
         useValue: value,
       });
@@ -610,25 +608,24 @@ export class ContainerBuilder {
    * @returns Идентификаторы удалённых узлов в порядке регистрации
    */
   private pruneOrphans(
-    before: ReadonlyMap<string, readonly string[]>,
+    before: ReadonlyMap<InjectionToken, readonly InjectionToken[]>,
   ): string[] {
-    const all = [...this.#providers.keys()].map(String);
-    const registered = new Set(all);
+    const all = [...this.#providers.keys()];
 
-    const after = new Map<string, readonly string[]>();
-    const union = new Map<string, Set<string>>();
+    const after = new Map<InjectionToken, readonly InjectionToken[]>();
+    const union = new Map<InjectionToken, Set<InjectionToken>>();
 
-    for (const id of all) {
+    for (const token of all) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const provider = this.#providers.get(id as InjectionToken)!;
-      const edges = this.expandAggregateEdges(dependencyIdsOf(provider));
+      const provider = this.#providers.get(token)!;
+      const edges = this.expandAggregateEdges(dependenciesOf(provider));
 
-      after.set(id, edges);
-      union.set(id, new Set(edges));
+      after.set(token, edges);
+      union.set(token, new Set(edges));
     }
 
-    for (const [id, deps] of before) {
-      const edges = union.get(id);
+    for (const [token, deps] of before) {
+      const edges = union.get(token);
 
       if (edges) {
         for (const dep of this.expandAggregateEdges(deps)) {
@@ -637,36 +634,33 @@ export class ContainerBuilder {
       }
     }
 
-    const pointedAt = new Set<string>();
+    const pointedAt = new Set<InjectionToken>();
     for (const deps of union.values()) {
       for (const dep of deps) {
         pointedAt.add(dep);
       }
     }
 
-    const roots = all.filter((id) => !pointedAt.has(id));
+    const roots = all.filter((token) => !pointedAt.has(token));
     const reachedByUnion = reachableFrom(roots, union);
-    const seeds = [
-      ...roots,
-      ...all.filter((id) => !reachedByUnion.has(id) && registered.has(id)),
-    ];
+    const seeds = [...roots, ...all.filter((t) => !reachedByUnion.has(t))];
 
     const keep = reachableFrom(seeds, after);
 
     // Подменённый узел не удаляется никогда: тест назвал его явно, и
     // подмена, которая молча исчезла, была бы хуже всего
-    for (const id of before.keys()) {
-      keep.add(id);
+    for (const token of before.keys()) {
+      keep.add(token);
     }
 
-    const pruned = all.filter((id) => !keep.has(id));
+    const pruned = all.filter((token) => !keep.has(token));
 
-    for (const id of pruned) {
-      this.#providers.delete(id as InjectionToken);
-      this.#providerToModule.delete(id as InjectionToken);
+    for (const token of pruned) {
+      this.#providers.delete(token);
+      this.#providerToModule.delete(token);
     }
 
-    return pruned;
+    return pruned.map((token) => tokenId(token));
   }
 
   /**
@@ -676,16 +670,16 @@ export class ContainerBuilder {
    * членов после), поэтому без разворачивания потребитель `Family.all`
    * потерял бы ровно тех членов, которых запросил.
    */
-  private expandAggregateEdges(deps: readonly string[]): readonly string[] {
-    const expanded: string[] = [];
+  private expandAggregateEdges(
+    deps: readonly InjectionToken[],
+  ): readonly InjectionToken[] {
+    const expanded: InjectionToken[] = [];
 
     for (const dep of deps) {
-      const family = getAllSentinelFamily(dep as InjectionToken);
+      const family = getAllSentinelFamily(dep);
 
       if (family) {
-        for (const token of this.collectFamilyMemberTokens(family.familyName)) {
-          expanded.push(stringifyToken(token));
-        }
+        expanded.push(...this.collectFamilyMemberTokens(family));
       } else {
         expanded.push(dep);
       }
@@ -699,23 +693,23 @@ export class ContainerBuilder {
    * экземпляров.
    *
    * Создание экземпляров упало бы на первом же отсутствующем токене, и
-   * зависимости пришлось бы чинить по одной за перезапуск. Как и
-   * `checkStrictExports`, строгая сборка сообщает всё сразу.
+   * зависимости пришлось бы чинить по одной за перезапуск. Строгая сборка
+   * сообщает всё сразу.
    */
   private assertDependenciesSatisfied(): void {
-    const missing = new Map<string, string[]>();
+    const missing = new Map<InjectionToken, InjectionToken[]>();
 
     for (const [token, provider] of this.#providers) {
-      for (const dep of dependencyIdsOf(provider)) {
-        if (this.#providers.has(dep as InjectionToken)) {
+      for (const dep of dependenciesOf(provider)) {
+        if (this.#providers.has(dep)) {
           continue;
         }
 
         const consumers = missing.get(dep);
         if (consumers) {
-          consumers.push(String(token));
+          consumers.push(token);
         } else {
-          missing.set(dep, [String(token)]);
+          missing.set(dep, [token]);
         }
       }
     }
@@ -726,9 +720,9 @@ export class ContainerBuilder {
 
     const lines = [...missing].map(
       ([dep, consumers]) =>
-        `  - '${dep}' required by ${consumers
-          .map((consumer) => `'${consumer}'`)
-          .join(', ')}${familyHint(dep)}`,
+        `  - '${tokenId(dep)}' required by ${consumers
+          .map((consumer) => `'${tokenId(consumer)}'`)
+          .join(', ')}`,
     );
 
     throw new Error(
@@ -744,7 +738,7 @@ export class ContainerBuilder {
     instances: Map<InjectionToken, unknown>,
   ): unknown {
     const deps = provider.deps || [];
-    const args = deps.map((dep) => instances.get(stringifyToken(dep)));
+    const args = deps.map((dep) => instances.get(dep));
 
     return new provider.useClass(...args);
   }
@@ -759,9 +753,7 @@ export class ContainerBuilder {
     } else if (isValueDefinition(provider)) {
       return provider.useValue;
     } else if (isFactoryProvider(provider)) {
-      const args = provider.deps.map((dep) =>
-        instances.get(stringifyToken(dep)),
-      );
+      const args = provider.deps.map((dep) => instances.get(dep));
       return await provider.useFactory(...args);
     } else {
       throw new Error('Unknown provider type');
@@ -781,7 +773,6 @@ export class ContainerBuilder {
   /** Создаёт экземпляры всех провайдеров в порядке зависимостей. */
   private async instantiateAll(): Promise<Map<InjectionToken, unknown>> {
     const instances = new Map<InjectionToken, unknown>();
-    const visited = new Set<InjectionToken>();
     const instantiating = new Set<InjectionToken>();
 
     const instantiateOne = async (token: InjectionToken): Promise<void> => {
@@ -794,7 +785,7 @@ export class ContainerBuilder {
         // повторённого токена и есть цикл. Полный путь важен для узлов,
         // которых пользователь не писал руками, например агрегата семейства.
         throw new Error(
-          `Circular dependency detected while instantiating '${String(token)}': ${cyclePath(
+          `Circular dependency detected while instantiating '${tokenId(token)}': ${cyclePath(
             instantiating,
             token,
           )}`,
@@ -805,38 +796,42 @@ export class ContainerBuilder {
 
       const provider = this.#providers.get(token);
       if (!provider) {
-        throw new Error(
-          `Provider for token '${token}' not found${familyHint(String(token))}`,
-        );
+        throw new Error(`Provider for token '${tokenId(token)}' not found`);
       }
 
-      if (!isValueDefinition(provider)) {
-        for (const dep of provider.deps || []) {
-          await instantiateOne(stringifyToken(dep));
-        }
+      for (const dep of dependenciesOf(provider)) {
+        await instantiateOne(dep);
       }
 
       const instance = await this.createInstance(provider, instances);
       instances.set(token, instance);
 
       instantiating.delete(token);
-      visited.add(token);
     };
 
-    for (const tokenId of this.#providers.keys()) {
-      await instantiateOne(tokenId);
+    for (const token of this.#providers.keys()) {
+      await instantiateOne(token);
     }
 
     return instances;
   }
 
-  /** Строит граф зависимостей из созданных экземпляров. */
-  private buildDependencyGraph(
-    instances: Map<InjectionToken, unknown>,
-  ): DIGraph {
+  /**
+   * Строит граф зависимостей из созданных экземпляров.
+   *
+   * Узел графа адресуется строкой: она печатается в `toJSON()`, в отчётах
+   * и в текстах ошибок. Идентификаторы токенов уникальностью не связаны,
+   * поэтому одноимённым узлам добавляется суффикс, а сборка предупреждает
+   * о неоднозначности отчётов.
+   */
+  private buildDependencyGraph(instances: Map<InjectionToken, unknown>): {
+    graph: DIGraph;
+    nodeIds: ReadonlyMap<InjectionToken, string>;
+  } {
+    const nodeIds = this.assignNodeIds([...instances.keys()]);
+
     const graph = new DIGraph();
     const nodes = new Map<string, DINode>();
-
     const nodeData = new Map<string, DINodeData>();
 
     // Первый проход: данные каждого узла
@@ -849,11 +844,13 @@ export class ContainerBuilder {
 
       const metadata: DINodeMetadata = { module: moduleName };
 
-      const deps = isValueDefinition(provider)
-        ? []
-        : (provider.deps || []).map((dep) => stringifyToken(dep));
+      const deps = dependenciesOf(provider).map(
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        (dep) => nodeIds.get(dep)!,
+      );
 
-      nodeData.set(stringifyToken(token), {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      nodeData.set(nodeIds.get(token)!, {
         instance,
         metadata,
         hooks,
@@ -898,40 +895,84 @@ export class ContainerBuilder {
       return node;
     };
 
-    for (const tokenId of nodeData.keys()) {
-      if (!visited.has(tokenId)) {
-        createRecursive(tokenId);
+    for (const id of nodeData.keys()) {
+      if (!visited.has(id)) {
+        createRecursive(id);
       }
     }
 
-    return graph;
+    return { graph, nodeIds };
+  }
+
+  /**
+   * Раздаёт узлам графа адреса: обычно это идентификатор токена.
+   *
+   * Совпадение идентификаторов подмены не вызывает — токены разные, узлы
+   * тоже, — но делает отчёты неоднозначными, поэтому второй и следующие
+   * узлы получают суффикс, а сборка печатает предупреждение.
+   */
+  private assignNodeIds(
+    tokens: readonly InjectionToken[],
+  ): ReadonlyMap<InjectionToken, string> {
+    const ids = new Map<InjectionToken, string>();
+    const taken = new Map<string, number>();
+    const ambiguous: string[] = [];
+
+    for (const token of tokens) {
+      const id = tokenId(token);
+      const seen = taken.get(id) ?? 0;
+
+      taken.set(id, seen + 1);
+
+      if (seen === 0) {
+        ids.set(token, id);
+        continue;
+      }
+
+      if (seen === 1) {
+        ambiguous.push(id);
+      }
+
+      ids.set(token, `${id}#${seen + 1}`);
+    }
+
+    if (ambiguous.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[nestling] ambiguous token ids: ${ambiguous.join(', ')}. ` +
+          `Different tokens share an id, so reports and the dependency graph ` +
+          `name them apart with a '#N' suffix. Give each token its own id.`,
+      );
+    }
+
+    return ids;
   }
 }
 
-/** Идентификаторы зависимостей провайдера; у провайдера-значения их нет. */
-const dependencyIdsOf = (provider: ProviderDefinition): readonly string[] =>
-  isValueDefinition(provider)
-    ? []
-    : (provider.deps || []).map((dep) => stringifyToken(dep));
+/** Зависимости провайдера; у провайдера-значения их нет. */
+const dependenciesOf = (
+  provider: ProviderDefinition,
+): readonly InjectionToken[] =>
+  isValueDefinition(provider) ? [] : provider.deps || [];
 
 /** Токены, достижимые из `seeds` по `relation`, включая сами `seeds`. */
 const reachableFrom = (
-  seeds: readonly string[],
-  relation: ReadonlyMap<string, Iterable<string>>,
-): Set<string> => {
-  const reached = new Set<string>();
+  seeds: readonly InjectionToken[],
+  relation: ReadonlyMap<InjectionToken, Iterable<InjectionToken>>,
+): Set<InjectionToken> => {
+  const reached = new Set<InjectionToken>();
   const queue = [...seeds];
 
   while (queue.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const id = queue.pop()!;
+    const token = queue.pop()!;
 
-    if (reached.has(id)) {
+    if (reached.has(token)) {
       continue;
     }
-    reached.add(id);
+    reached.add(token);
 
-    for (const dep of relation.get(id) ?? []) {
+    for (const dep of relation.get(token) ?? []) {
       if (!reached.has(dep)) {
         queue.push(dep);
       }
@@ -948,11 +989,11 @@ const reachableFrom = (
  * когда кто-то его инжектирует, поэтому «не зарегистрирован» выглядит как
  * опечатка, хотя на самом деле «этого члена никто не запросил».
  */
-const overrideMissingHint = (tokenId: string): string => {
-  const member = lookupFamilyMember(tokenId);
+const overrideMissingHint = (token: InjectionToken): string => {
+  const member = asFamilyMember(token);
 
   if (member) {
-    return ` It is a member of token family '${member.familyName}': a member token becomes a graph node only once something injects it. Override the family recipe instead (familyOverride) or override a member that is actually injected.`;
+    return ` It is a member of token family '${member.family.familyName}': a member token becomes a graph node only once something injects it. Override the family recipe instead (familyOverride) or override a member that is actually injected.`;
   }
 
   return ` Check that it is registered by the modules and features this application selected.`;
@@ -981,16 +1022,14 @@ const moduleNameCollisionMessage = (name: string): string =>
  */
 const assertNoAutoSentinels = (
   provider: ProviderDefinition,
-  tokenId: string,
+  consumerId: string,
 ): void => {
-  const deps = isValueDefinition(provider) ? [] : provider.deps || [];
-
-  for (const dep of deps) {
+  for (const dep of dependenciesOf(provider)) {
     const family = getAutoSentinelFamily(dep);
 
     if (family) {
       throw new Error(
-        `'${family.familyName}.auto' is only allowed in deps of a class decorated with @Injectable, but it appeared in deps of provider '${tokenId}'. Use an explicit '${family.familyName}('<name>')' member token instead`,
+        `'${family.familyName}.auto' is only allowed in deps of a class decorated with @Injectable, but it appeared in deps of provider '${consumerId}'. Use an explicit '${family.familyName}('<name>')' member token instead`,
       );
     }
   }
@@ -1004,10 +1043,10 @@ const cyclePath = (
   instantiating: ReadonlySet<InjectionToken>,
   token: InjectionToken,
 ): string => {
-  const stack = [...instantiating].map(String);
-  const start = stack.indexOf(String(token));
+  const stack = [...instantiating];
+  const start = stack.indexOf(token);
 
-  return [...stack.slice(start), String(token)].join(' → ');
+  return [...stack.slice(start), token].map((t) => tokenId(t)).join(' → ');
 };
 
 /**
@@ -1021,27 +1060,12 @@ const cyclePath = (
  * покрывает `register()`, `providers` модуля (массив или фабрику) и
  * результат рецепта семейства.
  */
-const assertNotAggregateToken = (
-  token: InjectionToken,
-  tokenId: string,
-): void => {
+const assertNotAggregateToken = (token: InjectionToken): void => {
   const family = getAllSentinelFamily(token);
 
   if (family) {
     throw new Error(
-      `Token '${tokenId}' is reserved for the aggregate node of token family '${family.familyName}' and cannot be provided by hand. Contribute to the family with a member token, e.g. ${family.familyName}('<param>')`,
+      `Token '${tokenId(token)}' is reserved for the aggregate node of token family '${family.familyName}' and cannot be provided by hand. Contribute to the family with a member token, e.g. ${family.familyName}('<param>')`,
     );
   }
-};
-
-/**
- * Подсказка для токена, который похож на члена семейства, но создан не
- * семейством (обычно вручную через `makeToken`).
- */
-const familyHint = (tokenId: string): string => {
-  const familyName = suggestFamilyForToken(tokenId);
-
-  return familyName
-    ? `. It looks like a member of token family '${familyName}' - family members must be created by calling the family, e.g. ${familyName}('<param>')`
-    : '';
 };

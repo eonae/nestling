@@ -100,7 +100,7 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
  */
 export const QuotasModule = makeAppModule({
   name: 'module:quotas',
-  imports: [appLogging],
+  dependsOn: [appLogging],
   providers: [QuotaService, SignupJournal],
   endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
 });

@@ -1,10 +1,8 @@
-import { makeToken } from '../common';
-
 import { DINode } from './node.class';
 
 describe('DINode', () => {
-  const TokenA = makeToken('TokenA');
-  const TokenB = makeToken('TokenB');
+  const TokenA = 'TokenA';
+  const TokenB = 'TokenB';
 
   it('хранит метаданные и зависимости', () => {
     const child = new DINode(TokenB, [], {

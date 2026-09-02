@@ -1,4 +1,4 @@
-import type { Constructor, InjectionToken, TokenString } from '../common';
+import type { Constructor, InjectionToken, Token } from '../common';
 
 import { injectableMetaStorage } from './injectable.metadata';
 import type { TokenFamily } from './token-family';
@@ -97,19 +97,18 @@ export type ProviderDefinition<T = unknown> =
   | FactoryProviderDefinition<T>;
 
 /**
- * Превращает массив токенов (строк или классов) в массив их типов.
+ * Превращает массив токенов (объектных или классов) в массив их типов.
  *
  * @template T - Массив токенов
  */
-export type UnwrapTokens<
-  T extends readonly (TokenString<unknown> | Constructor)[],
-> = {
-  [K in keyof T]: T[K] extends TokenString<infer U>
-    ? U
-    : T[K] extends Constructor<infer V>
+export type UnwrapTokens<T extends readonly (Token<unknown> | Constructor)[]> =
+  {
+    [K in keyof T]: T[K] extends Constructor<infer V>
       ? V
-      : never;
-};
+      : T[K] extends Token<infer U>
+        ? U
+        : never;
+  };
 
 /**
  * Фабричный провайдер с типизированными зависимостями: типы аргументов

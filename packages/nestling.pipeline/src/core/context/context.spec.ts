@@ -18,6 +18,7 @@ import { makeCell, runInScope } from './store.js';
 import { contextVar, declaredVarOf } from './variable.js';
 import { RequestId, Signal } from './well-known.js';
 
+import type { Token } from '@nestling/container';
 import { describe, expect, it } from '@jest/globals';
 import type { AnyInput, EmptyInput } from '@nestling/contracts';
 
@@ -42,10 +43,15 @@ describe('contextVar — объявление переменной', () => {
     const TenantId = contextVar<string>()('tenantId');
 
     expect(TenantId.key).toBe('tenantId');
-    expect(Ctx(TenantId)).toBe('Ctx:tenantId');
+    expect(Ctx(TenantId).id).toBe('Ctx:tenantId');
 
     type _Reader = Expect<
-      Equal<ReturnType<typeof Ctx<string>> extends string ? true : false, true>
+      Equal<
+        ReturnType<typeof Ctx<string>> extends Token<CtxReader<string>>
+          ? true
+          : false,
+        true
+      >
     >;
   });
 
@@ -173,15 +179,17 @@ describe('Ctx — типизированный аксессор', () => {
 
   it('тип ридера выводится из переменной', () => {
     const token = Ctx(RequestId);
-    type _Value = Expect<Equal<(typeof token)['__type'], CtxReader<string>>>;
+    type _Value = Expect<
+      Equal<NonNullable<(typeof token)['__type']>, CtxReader<string>>
+    >;
 
     const signalToken = Ctx(Signal);
     type _Signal = Expect<
-      Equal<(typeof signalToken)['__type'], CtxReader<AbortSignal>>
+      Equal<NonNullable<(typeof signalToken)['__type']>, CtxReader<AbortSignal>>
     >;
 
-    expect(token).toBe('Ctx:requestId');
-    expect(signalToken).toBe('Ctx:signal');
+    expect(token.id).toBe('Ctx:requestId');
+    expect(signalToken.id).toBe('Ctx:signal');
   });
 
   it('writer типизирован значением переменной', () => {

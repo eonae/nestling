@@ -46,7 +46,7 @@ describe('makeAppModule', () => {
     const asModule: Module = UsersModule;
     const RootModule = makeModule({
       name: 'module:root',
-      imports: [asModule],
+      dependsOn: [asModule],
     });
 
     const container = await new ContainerBuilder().register(RootModule).build();

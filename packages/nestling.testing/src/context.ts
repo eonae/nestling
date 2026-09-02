@@ -9,7 +9,7 @@
  * без `app.call` и без открытого scope'а запроса.
  */
 
-import type { TokenString } from '@nestling/container';
+import type { Token } from '@nestling/container';
 import type { AnyContextVar, CtxReader } from '@nestling/pipeline';
 import { Ctx } from '@nestling/pipeline';
 
@@ -42,7 +42,7 @@ import { Ctx } from '@nestling/pipeline';
 export const contextValue = <T>(
   variable: AnyContextVar<T>,
   value: T,
-): readonly [token: TokenString<CtxReader<T>>, value: CtxReader<T>] => [
+): readonly [token: Token<CtxReader<T>>, value: CtxReader<T>] => [
   Ctx(variable),
   { get: () => value, peek: () => value },
 ];

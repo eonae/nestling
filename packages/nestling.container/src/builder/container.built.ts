@@ -1,4 +1,5 @@
 import type { InjectionToken } from '../common';
+import { tokenId } from '../common';
 import type { DIGraph, DINode, JsonDIGraph } from '../graph';
 
 import type { VisitCallback, VisitOptions } from '@common/graphs';
@@ -25,12 +26,25 @@ export class BuiltContainer {
   readonly #graph: DIGraph;
   readonly #pruned: readonly string[];
 
+  /**
+   * Токен → адрес его узла в графе.
+   *
+   * Поиск идёт по токену, а не по его `id`: идентификатор служит
+   * отображению и уникальностью не связан.
+   */
+  readonly #nodeIds: ReadonlyMap<InjectionToken, string>;
+
   /** Хуки `@OnStart` выполняются один раз, а не при каждом `start()` */
   #started = false;
 
-  constructor(graph: DIGraph, pruned: readonly string[] = []) {
+  constructor(
+    graph: DIGraph,
+    pruned: readonly string[] = [],
+    nodeIds: ReadonlyMap<InjectionToken, string> = new Map(),
+  ) {
     this.#graph = graph;
     this.#pruned = Object.freeze([...pruned]);
+    this.#nodeIds = nodeIds;
   }
 
   /**
@@ -129,7 +143,7 @@ export class BuiltContainer {
    * {@link getOrThrow}.
    *
    * @template T - Тип экземпляра
-   * @param token - Токен: класс или строковый токен
+   * @param token - Токен: класс или объектный токен
    * @returns Экземпляр или `null`, если токен не зарегистрирован
    *
    * @example
@@ -139,11 +153,26 @@ export class BuiltContainer {
    * ```
    */
   get<T>(token: InjectionToken<T>): T | null {
-    const id = typeof token === 'string' ? token : token.name;
+    const id = this.#nodeIds.get(token as InjectionToken);
 
-    const node = this.#graph.getNode(id);
+    const node = id === undefined ? undefined : this.#graph.getNode(id);
 
     return (node?.instance as T) ?? null;
+  }
+
+  /**
+   * Возвращает экземпляр по адресу узла из отчёта.
+   *
+   * Поверхность интроспекции: адрес попадает в `toJSON()`, в тексты
+   * ошибок и в отчёты, и по нему бывает нужно достать сам экземпляр.
+   * Для обычного доступа есть {@link get} — он ищет по токену и не
+   * зависит от того, разошлись ли идентификаторы.
+   *
+   * @param id - Адрес узла, как он напечатан в отчёте
+   * @returns Экземпляр или `null`, если узла с таким адресом нет
+   */
+  getById(id: string): unknown {
+    return this.#graph.getNode(id)?.instance ?? null;
   }
 
   /**
@@ -153,7 +182,7 @@ export class BuiltContainer {
    * зарегистрированные `0`, `''` и `false` возвращаются как есть.
    *
    * @template T - Тип экземпляра
-   * @param token - Токен: класс или строковый токен
+   * @param token - Токен: класс или объектный токен
    * @returns Экземпляр
    * @throws {Error} Если токен не зарегистрирован
    *
@@ -163,11 +192,11 @@ export class BuiltContainer {
    * ```
    */
   getOrThrow<T>(token: InjectionToken<T>): T {
-    const id = typeof token === 'string' ? token : token.name;
+    const id = this.#nodeIds.get(token as InjectionToken);
 
-    const node = this.#graph.getNode(id);
+    const node = id === undefined ? undefined : this.#graph.getNode(id);
     if (!node) {
-      throw new Error(`Instance for token '${id}' not found`);
+      throw new Error(`Instance for token '${tokenId(token)}' not found`);
     }
 
     return node.instance as T;

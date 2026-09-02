@@ -6,10 +6,14 @@
  * `@nestling/pipeline`, `metadata/endpoint.form-slots.spec.ts`.
  */
 
-import type { TransportCapabilities } from './capabilities.js';
+import type {
+  FormBearingDefinition,
+  TransportCapabilities,
+} from './capabilities.js';
 import { assertFormsSupported } from './capabilities.js';
 import { events, multipart, stream, upload } from './forms.js';
 
+import { makeToken } from '@nestling/container/tokens';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
@@ -24,16 +28,14 @@ const BUS_LIKE: TransportCapabilities = {
   output: new Set(['value']),
 };
 
+const BusTransport = makeToken<unknown>('transport:bus');
+const HttpTransport = makeToken<unknown>('transport:http');
+
 const definition = (
   input?: unknown,
   output?: unknown,
-): {
-  transport: string;
-  pattern: string;
-  input?: unknown;
-  output?: unknown;
-} => ({
-  transport: 'bus',
+): FormBearingDefinition => ({
+  transport: BusTransport,
   pattern: 'orders.create',
   input,
   output,
@@ -43,7 +45,7 @@ describe('assertFormsSupported', () => {
   it('поддерживаемая форма проходит', () => {
     expect(() =>
       assertFormsSupported(
-        { ...definition(stream(Row), events(Row)), transport: 'http' },
+        { ...definition(stream(Row), events(Row)), transport: HttpTransport },
         HTTP_LIKE,
       ),
     ).not.toThrow();

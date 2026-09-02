@@ -31,7 +31,7 @@ describe('DIGraph', () => {
     const ModuleB = makeModule({
       name: 'ModuleB',
       providers: [classProvider(TokenB, ServiceB)],
-      imports: [ModuleA],
+      dependsOn: [ModuleA],
     });
 
     const container = await new ContainerBuilder().register(ModuleB).build();

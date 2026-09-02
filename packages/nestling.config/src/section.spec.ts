@@ -1,5 +1,6 @@
 import { from, secret } from './declaration.js';
 import { ConfigValidationError } from './errors.js';
+import { ConfigSection } from './families.js';
 import type { Config } from './families.js';
 import { ConfigKeys } from './keys.js';
 import { load } from './load.js';
@@ -7,7 +8,7 @@ import { describeConfig } from './registry.js';
 import { makeConfig } from './section.js';
 
 import type { InjectionToken } from '@nestling/container';
-import { stringifyToken } from '@nestling/container';
+import { tokenId } from '@nestling/container';
 import { z } from 'zod';
 
 /** Тип-утверждение: ложный `Equal<…>` не проходит компиляцию. */
@@ -162,14 +163,12 @@ describe('обёртка secret()', () => {
 });
 
 describe('токен секции', () => {
-  it('строковый id — член семейства ConfigSection', () => {
-    expect(stringifyToken(OrdersConfig)).toBe('ConfigSection:orders');
+  it('идентификатор — член семейства ConfigSection', () => {
+    expect(tokenId(OrdersConfig)).toBe('ConfigSection:orders');
   });
 
-  it('не инстанцируется: конструктор называет причину и способ починки', () => {
-    expect(() => new OrdersConfig()).toThrow(
-      /Config section 'orders' is not instantiable/,
-    );
+  it('токен секции и есть член семейства', () => {
+    expect(OrdersConfig).toBe(ConfigSection('orders'));
   });
 
   it('`.keys` — хэндл, а не токен', () => {

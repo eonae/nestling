@@ -140,7 +140,7 @@ describe('состав агрегата', () => {
     expect(namesOf(first.checks)).toEqual(['db']);
     expect(first.checks[0]).toBe(second.db);
     expect(
-      json.nodes.filter((node) => node.id === 'SharedCheck:{all}'),
+      json.nodes.filter((node) => node.id === 'SharedCheck.all'),
     ).toHaveLength(1);
   });
 
@@ -159,7 +159,7 @@ describe('состав агрегата', () => {
       .build();
 
     const json = await container.toJSON();
-    const aggregate = json.nodes.find((node) => node.id === 'EmptyCheck:{all}');
+    const aggregate = json.nodes.find((node) => node.id === 'EmptyCheck.all');
 
     expect(container.getOrThrow(HealthEndpoint).checks).toEqual([]);
     expect(aggregate).toBeDefined();
@@ -270,7 +270,7 @@ describe('агрегат — обычный узел графа', () => {
     );
 
     await expect(builder.build()).rejects.toThrow(
-      /Circular dependency.*CyclicCheck:{all}/s,
+      /Circular dependency.*CyclicCheck.all/s,
     );
   });
 
@@ -343,7 +343,7 @@ describe('агрегат — обычный узел графа', () => {
       .build();
 
     const json = await container.toJSON();
-    const aggregate = json.nodes.find((node) => node.id === 'GraphCheck:{all}');
+    const aggregate = json.nodes.find((node) => node.id === 'GraphCheck.all');
 
     const visited: string[] = [];
     await container.traverse((node) => {
@@ -355,7 +355,7 @@ describe('агрегат — обычный узел графа', () => {
       'GraphCheck:redis',
     ]);
     expect(aggregate?.metadata.module).toBeUndefined();
-    expect(visited).toContain('GraphCheck:{all}');
+    expect(visited).toContain('GraphCheck.all');
   });
 
   it('разрешён в deps фабричного провайдера', async () => {
@@ -397,7 +397,7 @@ describe('агрегат — обычный узел графа', () => {
 
     expect(container.get(IHealthCheck.all)).toBeNull();
     expect(json.nodes.map((node) => node.id)).not.toContain(
-      'UnreferencedCheck:{all}',
+      'UnreferencedCheck.all',
     );
   });
 });
@@ -443,7 +443,7 @@ describe('токен агрегата зарезервирован', () => {
     const builder = new ContainerBuilder();
 
     expect(() => builder.register(valueProvider(IHealthCheck.all, []))).toThrow(
-      /'ReservedCheck:{all}' is reserved for the aggregate node of token family 'ReservedCheck'/,
+      /'ReservedCheck.all' is reserved for the aggregate node of token family 'ReservedCheck'/,
     );
   });
 
@@ -460,7 +460,7 @@ describe('токен агрегата зарезервирован', () => {
     const builder = new ContainerBuilder().register(SneakyModule);
 
     await expect(builder.build()).rejects.toThrow(
-      /'ReservedModuleCheck:{all}' is reserved for the aggregate node/,
+      /'ReservedModuleCheck.all' is reserved for the aggregate node/,
     );
   });
 });

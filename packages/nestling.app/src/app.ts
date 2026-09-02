@@ -24,7 +24,7 @@ import type {
   InjectionToken,
   Provider,
 } from '@nestling/container';
-import { ContainerBuilder, valueProvider } from '@nestling/container';
+import { ContainerBuilder, tokenId, valueProvider } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
   PolicySubject,
@@ -578,7 +578,7 @@ export class App {
     const instance = container.get(token);
 
     if (!instance) {
-      const name = typeof token === 'string' ? token : token.name;
+      const name = tokenId(token);
 
       throw new Error(
         `Dependency '${name}' required by endpoint '${pattern}' ` +

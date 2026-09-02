@@ -23,7 +23,7 @@ import type {
 } from './kernel-fails.js';
 import type { Ok } from './result.js';
 
-import type { TokenString } from '@nestling/container/tokens';
+import type { Token } from '@nestling/container/tokens';
 import { makeTokenFamily } from '@nestling/container/tokens';
 
 /**
@@ -154,10 +154,10 @@ export const EmitterFamily = makeTokenFamily<Emitter<any>, [name: string]>(
 );
 
 /** Токен порта контракта: член семейства, типизированный контрактом */
-export type PortToken<C extends RequestContract<any, any, any>> = TokenString<
+export type PortToken<C extends RequestContract<any, any, any>> = Token<
   Port<C>
 >;
 
 /** Токен эмиттера контракта: член семейства, типизированный контрактом */
 export type EmitterToken<C extends EmittingContract<any, any, any, any>> =
-  TokenString<Emitter<C>>;
+  Token<Emitter<C>>;

@@ -197,7 +197,7 @@ describe('ContainerBuilder', () => {
       const ModuleB = makeModule({
         name: 'ModuleB',
         providers: [classProvider(TokenB, ServiceB)],
-        imports: [ModuleA],
+        dependsOn: [ModuleA],
       });
 
       const container = await new ContainerBuilder().register(ModuleB).build();
@@ -325,8 +325,8 @@ describe('ContainerBuilder', () => {
         },
       });
 
-      const Left = makeModule({ name: 'LeftModule', imports: [Shared] });
-      const Right = makeModule({ name: 'RightModule', imports: [Shared] });
+      const Left = makeModule({ name: 'LeftModule', dependsOn: [Shared] });
+      const Right = makeModule({ name: 'RightModule', dependsOn: [Shared] });
 
       const container = await new ContainerBuilder()
         .register(Left, Right)
@@ -336,13 +336,13 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenA).id).toBe('A');
     });
 
-    it('завершает обход при цикле в imports', async () => {
+    it('завершает обход при цикле в dependsOn', async () => {
       const Left = makeModule({
         name: 'CycleLeft',
         providers: [classProvider(TokenA, ServiceA)],
       });
-      const Right = makeModule({ name: 'CycleRight', imports: [Left] });
-      Left.imports = [Right];
+      const Right = makeModule({ name: 'CycleRight', dependsOn: [Left] });
+      Left.dependsOn = [Right];
 
       const container = await new ContainerBuilder().register(Left).build();
 

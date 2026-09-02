@@ -31,13 +31,13 @@ import { makeAppModule } from '@nestling/app';
  * каррированных хендлеров и классы-хендлеры для класс-формы. Слои
  * пайплайна каждая декларация подключает сама.
  *
- * `imports: [appLogging]` подключает инфраструктуру вместе с фичей: если
+ * `dependsOn: [appLogging]` подключает инфраструктуру вместе с фичей: если
  * `users` не выбрана, логгера в графе нет; если две фичи импортируют одно
  * и то же значение, экземпляр один на процесс.
  */
 export const UsersModule = makeAppModule({
   name: 'module:users',
-  imports: [appLogging],
+  dependsOn: [appLogging],
   providers: [
     UsersStore,
     StoredUsersRepository,

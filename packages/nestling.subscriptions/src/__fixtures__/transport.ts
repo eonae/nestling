@@ -6,7 +6,7 @@
  * фикстура их просто перечисляет.
  */
 
-import type { Provider, TokenString } from '@nestling/container';
+import type { Provider, Token } from '@nestling/container';
 import { makeToken, valueProvider } from '@nestling/container';
 import type { TransportCapabilities } from '@nestling/pipeline';
 import type { Dispatch, ITransport } from '@nestling/transport';
@@ -18,7 +18,7 @@ const STREAMING: TransportCapabilities = {
 };
 
 /** Токен транспорта тестов */
-export const TestTransport$: TokenString<ITransport> =
+export const TestTransport$: Token<ITransport> =
   makeToken<ITransport>('transport:test');
 
 /** Транспорт, который никуда не выходит: старта приёма запросов и нет */

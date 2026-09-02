@@ -10,6 +10,9 @@
 import type { FormKind } from './forms.js';
 import { describeForm } from './forms.js';
 
+import type { Token } from '@nestling/container/tokens';
+import { tokenId } from '@nestling/container/tokens';
+
 /**
  * Формы io, которые транспорт умеет принимать и отдавать.
  *
@@ -23,11 +26,11 @@ export interface TransportCapabilities {
 /**
  * Декларация в объёме, нужном для проверки возможностей.
  *
- * `transport` — id токена транспорта; в текст ошибки попадает его короткое
+ * `transport` — токен транспорта; в текст ошибки попадает его короткое
  * имя.
  */
 export interface FormBearingDefinition {
-  readonly transport: string;
+  readonly transport: Token<any>;
   readonly pattern: string;
   readonly input?: unknown;
   readonly output?: unknown;
@@ -39,7 +42,8 @@ export interface FormBearingDefinition {
  * Повторяет `transportNameOf` из `@nestling/pipeline`: импортировать его
  * сюда нельзя, а правило умещается в одну строку.
  */
-const shortTransportName = (id: string): string => {
+const shortTransportName = (token: Token<any>): string => {
+  const id = tokenId(token);
   const separator = id.lastIndexOf(':');
 
   return separator === -1 ? id : id.slice(separator + 1);

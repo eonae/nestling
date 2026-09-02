@@ -66,14 +66,14 @@ export const Discovery$: InjectionToken<EndpointDiscovery> =
 
 /**
  * Обходит дерево модулей в том же порядке, что `ContainerBuilder.registerModule`:
- * depth-first, `imports` — до самого модуля, дедупликация **по значению**.
+ * depth-first, `dependsOn` — до самого модуля, дедупликация **по значению**.
  *
  * Идентичность модуля — его значение: то же значение, встреченное повторно,
  * обходится один раз, а другое значение под занятым именем — ошибка, как в
  * контейнере. Молча пропустить одноимённый модуль значило бы потерять вместе
  * с ним его endpoint'ы — «обнаружено» разошлось бы с «собрано».
  *
- * Модуль помечается посещённым на входе, поэтому цикл в `imports`
+ * Модуль помечается посещённым на входе, поэтому цикл в `dependsOn`
  * (`A → B → A`) завершает обход, а не зацикливает его.
  */
 function* visitModules(modules: readonly Module[]): Generator<Module> {
@@ -98,7 +98,7 @@ function* visitModules(modules: readonly Module[]): Generator<Module> {
     }
     visited.set(module.name, module);
 
-    for (const imported of module.imports ?? []) {
+    for (const imported of module.dependsOn ?? []) {
       yield* visit(imported);
     }
 
@@ -141,7 +141,7 @@ function describeValue(value: unknown): string {
  * Чистая функция: не требует DI-контейнера, транспортов и поднятия
  * приложения — источник истины о составе приложения виден тестам напрямую.
  *
- * @param modules - Модули, переданные приложению (вместе с транзитивными `imports`)
+ * @param modules - Модули, переданные приложению (вместе с транзитивными `dependsOn`)
  * @returns Endpoint'ы с атрибуцией к модулю и карта требуемых транспортов
  * @throws {Error} Если элемент `endpoints:` не является декларацией endpoint'а
  *
