@@ -1,5 +1,5 @@
 /**
- * Факты жизненного цикла подписок — обычные `event`-контракты.
+ * Факты жизненного цикла подписок — обычные `event`-операции.
  *
  * Наблюдение за подписками **всего кластера** не требует от ядра ни строки:
  * факт публикуется тем же эмиттером, что и любое другое событие, а
@@ -13,7 +13,7 @@
 
 import { num, optionalStr, record, str } from './schema.js';
 
-import { makeContract } from '@nestling/contracts';
+import { makeEvent } from '@nestling/contracts';
 
 /** Значения `kind` снимка — тем же значением их перечисляет схема факта */
 const KINDS = ['value', 'stream', 'events'] as const;
@@ -53,9 +53,8 @@ export interface SubscriptionClosedFact {
  *
  * Публикуется **до** вызова хендлера, тем же порядком, что и событие ленты.
  */
-export const SubscriptionOpened = makeContract({
+export const SubscriptionOpened = makeEvent({
   name: 'subscriptions.opened',
-  kind: 'event',
   input: record<SubscriptionOpenedFact>({
     node: optionalStr(),
     id: str(),
@@ -80,9 +79,8 @@ export const SubscriptionOpened = makeContract({
  * административное завершение отличимо от дисконнекта и от нормального
  * конца потока.
  */
-export const SubscriptionClosed = makeContract({
+export const SubscriptionClosed = makeEvent({
   name: 'subscriptions.closed',
-  kind: 'event',
   input: record<SubscriptionClosedFact>({
     node: optionalStr(),
     id: str(),

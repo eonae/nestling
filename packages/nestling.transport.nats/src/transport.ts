@@ -163,7 +163,7 @@ export interface NatsTransportOptions {
  *
  * Регистрируется фабрикой {@link nats} под токеном `BusTransport$` — тем
  * же, которым пользуется in-proc шина. Ни одна декларация `implement(...)`,
- * ни один контракт и ни один call-site при подключении не меняются: это и
+ * ни одна операция и ни один call-site при подключении не меняются: это и
  * есть уровень L4.
  */
 export class NatsBus implements IMessageBus, ITransport {
@@ -333,7 +333,7 @@ export class NatsBus implements IMessageBus, ITransport {
   /**
    * Fire-and-forget.
    *
-   * Не-durable контракт публикуется core-глаголом и резолвится по факту
+   * Не-durable операция публикуется core-глаголом и резолвится по факту
    * постановки; durable — через поток и резолвится по факту **сохранения**.
    */
   async publish(
@@ -723,7 +723,7 @@ export class NatsBus implements IMessageBus, ITransport {
     });
   }
 
-  /** Адрес на брокере: имя контракта с префиксом окружения */
+  /** Адрес на брокере: имя операции с префиксом окружения */
   #subjectOf(subject: string): string {
     return `${this.#options.subjectPrefix ?? ''}${subject}`;
   }

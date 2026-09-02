@@ -8,14 +8,14 @@ import { checkTopologies } from './topologies';
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature, makePlugin } from '@nestling/app';
 import { Injectable, makeToken, valueProvider } from '@nestling/container';
-import { makeContract } from '@nestling/contracts';
+import { makeRequest } from '@nestling/contracts';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import {
-  diffContracts,
+  diffOperations,
   formatCompatibility,
   implement,
-  snapshotContracts,
+  snapshotOperations,
 } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
@@ -139,17 +139,15 @@ describe('checkTopologies', () => {
   });
 });
 
-describe('checkTopologies — контракты и снапшот', () => {
-  const ClaimQuota = makeContract({
+describe('checkTopologies — операции и снапшот', () => {
+  const ClaimQuota = makeRequest({
     name: 'matrix.quotas.claim',
-    kind: 'request',
     input: z.object({ email: z.string() }),
     output: z.object({ remaining: z.number() }),
   });
 
-  const ListUsers = makeContract({
+  const ListUsers = makeRequest({
     name: 'matrix.users.list',
-    kind: 'request',
     output: z.object({ total: z.number() }),
   });
 
@@ -196,14 +194,14 @@ describe('checkTopologies — контракты и снапшот', () => {
       converters: [zodConverter()],
     });
 
-    const snapshot = snapshotContracts(reports);
+    const snapshot = snapshotOperations(reports);
 
     expect(snapshot.contracts.map(({ name }) => name)).toEqual([
       'matrix.quotas.claim',
       'matrix.users.list',
     ]);
 
-    // Контракт, публикуемый не всеми топологиями, в снапшоте есть — и
+    // Операция, публикуемый не всеми топологиями, в снапшоте есть — и
     // видно, какая топология его публикует
     expect(
       snapshot.contracts.find(({ name }) => name === 'matrix.quotas.claim')
@@ -219,9 +217,9 @@ describe('checkTopologies — контракты и снапшот', () => {
     const reports = await checkTopologies(spec(), ['all'], {
       converters: [zodConverter()],
     });
-    const snapshot = snapshotContracts(reports);
+    const snapshot = snapshotOperations(reports);
 
-    const report = diffContracts(snapshot, snapshot);
+    const report = diffOperations(snapshot, snapshot);
 
     expect(report.breaking).toEqual([]);
     expect(report.additive).toEqual([]);

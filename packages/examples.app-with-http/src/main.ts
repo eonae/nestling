@@ -168,7 +168,7 @@ async function main() {
   console.log('');
   console.log('Порты между фичами (users ↔ quotas):');
   console.log(
-    '  POST /api/users зовёт контракт quotas.claim и публикует users.registered',
+    '  POST /api/users зовёт операция quotas.claim и публикует users.registered',
   );
   console.log(
     '  NESTLING_PORTS_DISPATCH=always-remote yarn start — те же вызовы через шину',

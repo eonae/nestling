@@ -60,7 +60,7 @@ export function structuralCopy<T>(value: T, where: string): T {
     throw new WireCopyError(
       `${where}: ${field === undefined ? 'the value' : `field '${field}'`} ` +
         `cannot be structurally cloned, so it would not survive the wire. ` +
-        `Contract payloads must be plain data (no functions, class ` +
+        `Operation payloads must be plain data (no functions, class ` +
         `instances with behaviour, streams or sockets).`,
       { cause: error },
     );

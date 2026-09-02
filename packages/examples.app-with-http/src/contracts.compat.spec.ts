@@ -2,12 +2,12 @@
  * отчёт совместимости печатается человеку: это витрина, а не логирование
  * в проде */
 /**
- * Витрина отчёта совместимости контрактов.
+ * Витрина отчёта совместимости операций.
  *
  * Тест делает ровно то, что делал бы CI: гоняет матрицу `select`-топологий,
  * сводит её отчёты в снапшот **объединением**, сравнивает с baseline из
  * репозитория и печатает результат человеку. Ни одна его строка не может
- * уронить сборку приложения: `diffContracts` — чистая функция двух
+ * уронить сборку приложения: `diffOperations` — чистая функция двух
  * значений, а падает ровно то, что здесь написано `expect`'ом.
  */
 
@@ -20,13 +20,13 @@ import { appLogging, appSubscriptions } from './infrastructure';
 import { describe, expect, it } from '@jest/globals';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { everyEndpoint, RequestId } from '@nestling/pipeline';
-import type { ContractSnapshot } from '@nestling/testing';
+import type { OperationSnapshot } from '@nestling/testing';
 import {
   checkTopologies,
-  diffContracts,
+  diffOperations,
   formatCompatibility,
   serializeSnapshot,
-  snapshotContracts,
+  snapshotOperations,
 } from '@nestling/testing';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -75,21 +75,21 @@ const TOPOLOGIES = [
 const BASELINE_PATH = new URL('../contracts.snapshot.json', import.meta.url);
 
 /** Baseline — обычный файл в репозитории: значение, а не код фреймворка */
-const readBaseline = (): ContractSnapshot =>
-  JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as ContractSnapshot;
+const readBaseline = (): OperationSnapshot =>
+  JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as OperationSnapshot;
 
-/** Текущий состав контрактов: матрица топологий, сведённая в снапшот */
-const currentSnapshot = async (): Promise<ContractSnapshot> =>
-  snapshotContracts(
+/** Текущий состав операций: матрица топологий, сведённая в снапшот */
+const currentSnapshot = async (): Promise<OperationSnapshot> =>
+  snapshotOperations(
     await checkTopologies(spec, [...TOPOLOGIES], {
       converters: [zodConverter()],
     }),
   );
 
-describe('пример: отчёт совместимости контрактов', () => {
+describe('пример: отчёт совместимости операций', () => {
   it('текущая сборка совпадает с опубликованным снапшотом', async () => {
     const current = await currentSnapshot();
-    const report = diffContracts(readBaseline(), current);
+    const report = diffOperations(readBaseline(), current);
 
     console.log(formatCompatibility(report));
 
@@ -105,7 +105,7 @@ describe('пример: отчёт совместимости контракто
     );
   });
 
-  it('сводит матрицу объединением: контракт невыбранной фичи не «удалён»', async () => {
+  it('сводит матрицу объединением: операция невыбранной фичи не «удалена»', async () => {
     const snapshot = await currentSnapshot();
 
     expect(snapshot.contracts.map(({ name }) => name)).toEqual([
@@ -148,11 +148,11 @@ describe('пример: отчёт совместимости контракто
   it("breaking подсвечивается с подсказкой bump'а — и ничего не роняет", async () => {
     const current = await currentSnapshot();
 
-    // Правим baseline, а не код: так выглядел бы контракт «до» изменения,
+    // Правим baseline, а не код: так выглядел бы операция «до» изменения,
     // которым из выхода выкинули поле `reservedUntil`. Схема берётся из
     // текущего дескриптора и достраивается — иначе расхождение попало бы
     // в `unknown` на служебных ключах, которые проставляет конвертер
-    const baseline: ContractSnapshot = {
+    const baseline: OperationSnapshot = {
       ...current,
       contracts: current.contracts.map((contract) => {
         if (contract.name !== 'quotas.claim') {
@@ -188,7 +188,7 @@ describe('пример: отчёт совместимости контракто
       }),
     };
 
-    const report = diffContracts(baseline, current);
+    const report = diffOperations(baseline, current);
 
     expect(report.breaking).toMatchObject([
       {
@@ -199,7 +199,7 @@ describe('пример: отчёт совместимости контракто
       },
     ]);
 
-    // Подсказка — только подсказка: переименования не произошло, контракт
+    // Подсказка — только подсказка: переименования не произошло, операция
     // по-прежнему адресуется прежним именем
     expect(report.contracts).toContainEqual({
       contract: 'quotas.claim',

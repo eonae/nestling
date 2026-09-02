@@ -1,18 +1,23 @@
 /**
- * Контракты между фичами.
+ * Операции между фичами.
  *
- * Файл лежит вне обеих фич: контракт не принадлежит ни вызывающему, ни
- * реализующему. Фича `quotas` реализует контракты (`implement` в её
- * `endpoints:`), фича `users` вызывает их (`deps: [ClaimQuota.port]`).
+ * Файл лежит вне обеих фич: операция не принадлежит ни вызывающему, ни
+ * реализующему. Фича `quotas` реализует операции (`implement` в её
+ * `endpoints:`), фича `users` вызывает их (`deps: [ClaimQuota.caller]`).
  * Где живёт реализация, решает сборка; код вызова одинаков для одного
  * процесса и для split-развёртывания.
  */
 
-import { defineFail, makeContract } from '@nestling/contracts';
+import {
+  defineFail,
+  makeCommand,
+  makeEvent,
+  makeRequest,
+} from '@nestling/contracts';
 import { z } from 'zod';
 
 /**
- * Отказ «квота исчерпана», объявленный в контракте.
+ * Отказ «квота исчерпана», объявленный в операции.
  *
  * При вызове через брокер отказ приходит как данные с кодом; порт
  * восстанавливает из них настоящий `Fail`, поэтому `QuotaExceeded.is(…)`
@@ -30,9 +35,8 @@ export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
  * Вид `request`, потому что без ответа продолжить нельзя: пользователя
  * создают только после подтверждения квоты.
  */
-export const ClaimQuota = makeContract({
+export const ClaimQuota = makeRequest({
   name: 'quotas.claim',
-  kind: 'request',
   input: z.object({ email: z.string() }),
   output: z.object({ remaining: z.number() }),
   errors: [QuotaExceeded],
@@ -45,9 +49,8 @@ export const ClaimQuota = makeContract({
  * (в этом примере один — `quotas`). Ответа у события нет; `emit`
  * возвращает `Promise<void>`, который завершается по факту доставки.
  */
-export const UserRegistered = makeContract({
+export const UserRegistered = makeEvent({
   name: 'users.registered',
-  kind: 'event',
   input: z.object({ id: z.string(), email: z.string() }),
 });
 
@@ -62,8 +65,7 @@ export const UserRegistered = makeContract({
  * Ядро не дедуплицирует команды: оно гарантирует, что ключ дойдёт до
  * обработчика. Что с ним делать, решает владелец команды.
  */
-export const SignupRecorded = makeContract({
+export const SignupRecorded = makeCommand({
   name: 'quotas.record-signup',
-  kind: 'command',
   input: z.object({ userId: z.string(), email: z.string() }),
 });

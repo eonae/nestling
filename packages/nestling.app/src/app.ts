@@ -40,14 +40,14 @@ import {
   contextKernel,
   transportNameOf,
 } from '@nestling/pipeline';
-import type { ContractDescriptor } from '@nestling/ports';
+import type { OperationDescriptor } from '@nestling/ports';
 import {
   bindPorts,
   busBindingOf,
   collectImplementations,
-  describeContract,
+  describeOperation,
   portsKernel,
-  undurableContracts,
+  undurableOperations,
 } from '@nestling/ports';
 import type {
   Dispatch,
@@ -97,15 +97,15 @@ export interface CheckReport {
   readonly transports: readonly string[];
 
   /**
-   * Дескрипторы контрактов, **опубликованных** этой топологией.
+   * Дескрипторы операций, **опубликованных** этой топологией.
    *
    * Строятся из discovery — по декларациям с bus-биндингом, а не из
-   * приватного реестра `makeContract`. Источник истины о составе
+   * приватного реестра `makeRequest`. Источник истины о составе
    * приложения один: дерево модулей. Реестр включал бы всё
-   * импортированное, в том числе контракты соседних фич, которые это
+   * импортированное, в том числе операции соседних фич, которые это
    * приложение не публикует.
    */
-  readonly contracts: readonly ContractDescriptor[];
+  readonly contracts: readonly OperationDescriptor[];
 }
 
 /** Опции структурной проверки */
@@ -158,18 +158,18 @@ export function assemble<const T extends readonly TransportDeclaration[] = []>(
 }
 
 /**
- * Дескрипторы контрактов, опубликованных этой сборкой.
+ * Дескрипторы операций, опубликованных этой сборкой.
  *
  * Источник — discovery: декларация с bus-биндингом и есть «я это
- * обслуживаю». У события подписчиков может быть несколько, а контракт
+ * обслуживаю». У события подписчиков может быть несколько, а операция
  * один, поэтому дескрипторы сводятся по имени. Порядок отчёта — по
  * имени, чтобы он не зависел от обхода дерева модулей.
  */
-function publishedContracts(
+function publishedOperations(
   discovery: EndpointDiscovery,
   options: CheckOptions,
-): readonly ContractDescriptor[] {
-  const byName = new Map<string, ContractDescriptor>();
+): readonly OperationDescriptor[] {
+  const byName = new Map<string, OperationDescriptor>();
 
   for (const { endpoint } of discovery.endpoints) {
     const binding = busBindingOf(endpoint);
@@ -178,7 +178,7 @@ function publishedContracts(
       continue;
     }
 
-    byName.set(binding.subject, describeContract(endpoint, options));
+    byName.set(binding.subject, describeOperation(endpoint, options));
   }
 
   return [...byName.values()].sort((left, right) =>
@@ -284,10 +284,10 @@ export class App {
    * Собственный граф `check()` не сохраняет: на последующий `run()` вызов
    * не влияет, и гонять его можно по матрице `select`-топологий.
    *
-   * @param options - Конвертеры схем для дескрипторов контрактов. Вызов
+   * @param options - Конвертеры схем для дескрипторов операций. Вызов
    * без аргумента ведёт себя ровно как прежде
    * @returns Отчёт о составе: фичи, endpoint'ы с транспортами, транспорты
-   * и дескрипторы опубликованных контрактов
+   * и дескрипторы опубликованных операций
    * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах
    *
    * @example
@@ -313,7 +313,7 @@ export class App {
       transports: this.#transportOrder(discovery).map((token) =>
         transportNameOf(token),
       ),
-      contracts: publishedContracts(discovery, options),
+      contracts: publishedOperations(discovery, options),
     };
   }
 
@@ -544,7 +544,7 @@ export class App {
       ]),
     );
 
-    // Связывание вызывателей контрактов с исполнителем — здесь и только
+    // Связывание вызывателей операций с исполнителем — здесь и только
     // здесь: `dispatch` создаётся в WIRE, поэтому раньше связывать не с
     // чем, а позже транспорт уже начал бы принимать запросы. Приложение
     // без единого порта проходит шаг вхолостую: держателя в графе
@@ -760,7 +760,7 @@ export class App {
     // обслуживаемым обязано быть поверхностью для аудита, а не тихим
     // «как-нибудь доставится»
     const undurable = this.#container
-      ? undurableContracts(
+      ? undurableOperations(
           this.#container,
           discovery.endpoints.map(({ endpoint }) => endpoint),
         )

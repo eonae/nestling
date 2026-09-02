@@ -5,9 +5,9 @@
  * ambient-контекста: иначе в `assemble({ … })` пришлось бы писать про
  * порты, которых в приложении может и не быть. «Всегда» ничего не стоит:
  * вызыватели и держатель — члены семейств, поэтому без единого
- * `deps: [C.port]` в графе не появляется ни одного узла, а шина
+ * `deps: [C.caller]` в графе не появляется ни одного узла, а шина
  * регистрируется только когда в приложении есть хоть одна реализация
- * контракта.
+ * операции.
  */
 
 import type { IMessageBus, InProcessBusOptions } from './bus.js';
@@ -23,7 +23,7 @@ import {
 } from './invoker.js';
 import type { PortFailureInfo } from './runtime.js';
 import { PortRuntime } from './runtime.js';
-import type { ContractTopology } from './topology.js';
+import type { OperationTopology } from './topology.js';
 import type { BusBindingBearer } from './transport.js';
 import { busBindingOf, BusTransport$ } from './transport.js';
 
@@ -41,8 +41,12 @@ import {
   makeToken,
   makeTokenFamily,
 } from '@nestling/container';
-import type { AnyContract, Emitter, Port } from '@nestling/contracts';
-import { EmitterFamily, lookupContract, PortFamily } from '@nestling/contracts';
+import type { AnyOperation, Emitter, Port } from '@nestling/contracts';
+import {
+  EmitterFamily,
+  lookupOperation,
+  PortFamily,
+} from '@nestling/contracts';
 import type { TransportRef } from '@nestling/pipeline';
 import type { Dispatch, ITransport } from '@nestling/transport';
 
@@ -68,7 +72,7 @@ const PortRuntimeToken: Token<PortRuntime> = PortRuntimeFamily('kernel');
  * Члены семейств становятся узлами графа по `deps` **провайдеров**, а
  * декларация не провайдер: фаза WIRE резолвит её зависимости, когда граф
  * уже собран. Якорь — провайдер, который делает потребность декларации
- * видимой сборке. Без якоря `deps: [C.port]` у endpoint'а давал бы «no
+ * видимой сборке. Без якоря `deps: [C.caller]` у endpoint'а давал бы «no
  * provider» в WIRE вместо вызывателя.
  *
  * @internal
@@ -79,13 +83,13 @@ const PortAnchorToken: Token<Record<never, never>> =
 /** Опции kernel-модуля портов */
 export interface PortsKernelOptions {
   /** Топология реализаций, вычисленная discovery */
-  implementations?: ContractTopology;
+  implementations?: OperationTopology;
 
   /**
    * Токены зависимостей обнаруженных деклараций.
    *
-   * Из них берутся члены семейств вызывателей: контракт, запрошенный
-   * только endpoint'ом, становится узлом графа наравне с контрактом,
+   * Из них берутся члены семейств вызывателей: операция, запрошенный
+   * только endpoint'ом, становится узлом графа наравне с операцией,
    * запрошенным провайдером.
    */
   requested?: readonly InjectionToken[];
@@ -107,14 +111,14 @@ export interface PortsKernelOptions {
   onPortFailure?: (info: PortFailureInfo) => void;
 }
 
-/** Контракт по имени члена семейства или понятная ошибка */
-function requireContract(name: string): AnyContract {
-  const contract = lookupContract(name);
+/** Операция по имени члена семейства или понятная ошибка */
+function requireContract(name: string): AnyOperation {
+  const contract = lookupOperation(name);
 
   if (!contract) {
     throw new Error(
-      `Contract '${name}' is injected but not declared. Declare it with ` +
-        `makeContract({ name: '${name}', … }) and make sure the module that ` +
+      `Operation '${name}' is injected but not declared. Declare it with ` +
+        `makeRequest({ name: '${name}', … }) and make sure the module that ` +
         `declares it is imported.`,
     );
   }
@@ -122,15 +126,15 @@ function requireContract(name: string): AnyContract {
   return contract;
 }
 
-/** Паттерны co-located реализаций контракта в этой сборке */
-function patternsOf(topology: ContractTopology, name: string): string[] {
+/** Паттерны co-located реализаций операции в этой сборке */
+function patternsOf(topology: OperationTopology, name: string): string[] {
   return (topology.get(name)?.implementations ?? []).map(
     (implementation) => implementation.pattern,
   );
 }
 
 /**
- * Fail-fast недостижимого контракта.
+ * Fail-fast недостижимого операции.
  *
  * Вызов, который заведомо некому обслужить, — ошибка компоновки, а не
  * рантайма. «Заведомо» здесь означает два условия сразу: co-located
@@ -142,7 +146,7 @@ function patternsOf(topology: ContractTopology, name: string): string[] {
  * Состав кластера на сборке не проверяется: это работа service discovery.
  */
 function assertReachable(
-  contract: AnyContract,
+  contract: AnyOperation,
   patterns: readonly string[],
   invoker: 'port' | 'emitter',
   remote: boolean,
@@ -152,7 +156,7 @@ function assertReachable(
   }
 
   throw new Error(
-    `Contract '${contract.name}' (kind '${contract.kind}') is injected as ` +
+    `Operation '${contract.name}' (kind '${contract.kind}') is injected as ` +
       `'.${invoker}', but no selected module implements it and the bus of ` +
       `this application does not deliver outside the process: there is ` +
       `nothing to call. Either declare the implementation with ` +
@@ -182,7 +186,7 @@ function assertReachable(
  *    себя так же, как при split-развёртывании с сетевой шиной.
  */
 function bindsRemote(
-  contract: AnyContract,
+  contract: AnyOperation,
   patterns: readonly string[],
   policy: DispatchPolicy,
   remote: boolean,
@@ -197,10 +201,10 @@ function bindsRemote(
 /** Природа шины как вход биндинга: её нет — значит и remote-доставки нет */
 const isRemote = (bus?: IMessageBus): boolean => bus?.remote === true;
 
-/** Строит вызыватель `request`-контракта по топологии, шине и политике */
+/** Строит вызыватель `request`-операции по топологии, шине и политике */
 function buildPort(
   name: string,
-  topology: ContractTopology,
+  topology: OperationTopology,
   runtime: PortRuntime,
   policy: DispatchPolicy,
   remote: boolean,
@@ -209,7 +213,7 @@ function buildPort(
 
   if (contract.kind !== 'request') {
     throw new Error(
-      `Contract '${name}' is a '${contract.kind}' contract: it has no ` +
+      `Operation '${name}' is a '${contract.kind}' contract: it has no ` +
         `'.port', use '.emitter' instead.`,
     );
   }
@@ -226,10 +230,10 @@ function buildPort(
     : makeLocalPort(context);
 }
 
-/** Строит эмиттер `command`/`event`-контракта по топологии, шине и политике */
+/** Строит эмиттер `command`/`event`-операции по топологии, шине и политике */
 function buildEmitter(
   name: string,
-  topology: ContractTopology,
+  topology: OperationTopology,
   runtime: PortRuntime,
   policy: DispatchPolicy,
   remote: boolean,
@@ -238,7 +242,7 @@ function buildEmitter(
 
   if (contract.kind === 'request') {
     throw new Error(
-      `Contract '${name}' is a 'request' contract: it has no '.emitter', ` +
+      `Operation '${name}' is a 'request' contract: it has no '.emitter', ` +
         `use '.port' instead.`,
     );
   }
@@ -264,7 +268,7 @@ function buildEmitter(
  * ```
  */
 export const portsKernel = (options: PortsKernelOptions = {}): Module => {
-  const topology: ContractTopology = options.implementations ?? new Map();
+  const topology: OperationTopology = options.implementations ?? new Map();
 
   // Шина в графе есть, если её поставил корень **или** если есть что
   // обслуживать. Приложение без реализаций и без корневой шины не платит за
@@ -403,22 +407,22 @@ export function bindPorts(
 }
 
 /**
- * Контракты, которые эта сборка обслуживает **недолговечно**.
+ * Операции, которые эта сборка обслуживает **недолговечно**.
  *
- * Долговечность объявлена контрактом, а способность — шиной. Их
+ * Долговечность объявлена операцией, а способность — шиной. Их
  * расхождение не роняет сборку (иначе локальный запуск `--features=all`
  * без брокера был бы невозможен), но обязано быть видимым. Возврат —
  * значение, а не печать: тест читает состав, а не парсит stdout — тот же
  * приём, что у отчёта `check()`.
  *
- * Пустой список означает одно из трёх: долговечных контрактов нет, шина
+ * Пустой список означает одно из трёх: долговечных операций нет, шина
  * долговечность умеет, или шины в графе нет вовсе.
  *
  * @param container - Собранный контейнер приложения
  * @param declarations - Обнаруженные декларации (носители биндинга)
- * @returns Имена контрактов по алфавиту, без повторов
+ * @returns Имена операций по алфавиту, без повторов
  */
-export function undurableContracts(
+export function undurableOperations(
   container: BuiltContainer,
   declarations: readonly BusBindingBearer[],
 ): readonly string[] {

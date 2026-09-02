@@ -2,7 +2,7 @@
  * Дифф контрактов против снапшота — чистая функция двух значений.
  *
  * «Подсвечивает, но не блокирует» здесь — свойство конструкции, а не
- * обещание в доке: `diffContracts` не участвует в сборке, не вызывается
+ * обещание в доке: `diffOperations` не участвует в сборке, не вызывается
  * из `run()`/`check()` и ничего не бросает по результату сравнения,
  * сколько бы `breaking` в нём ни было. Флага «падать на breaking» не
  * существует; превратить отчёт в падающий тест — код пользователя.
@@ -23,7 +23,7 @@ import type {
   JsonValue,
   SchemaDescriptor,
 } from './describe.js';
-import type { ContractSnapshot, SnapshotContract } from './snapshot.js';
+import type { OperationSnapshot, SnapshotOperation } from './snapshot.js';
 import { SNAPSHOT_VERSION } from './snapshot.js';
 
 /** Слот формы: он же направление сравнения */
@@ -196,7 +196,7 @@ class Changes {
  * Имени без суффикса добавляет `.v2`, имени с суффиксом `.vN` даёт
  * `.v{N+1}`.
  *
- * Единственное место, где суффикс `.vN` распознаётся: `makeContract`
+ * Единственное место, где суффикс `.vN` распознаётся: `makeRequest`
  * его не требует и не разбирает, отдельного поля версии не существует, и
  * контракт без суффикса допустим.
  */
@@ -658,8 +658,8 @@ function diffForm(
 
 function diffErrors(
   contract: string,
-  base: SnapshotContract,
-  current: SnapshotContract,
+  base: SnapshotOperation,
+  current: SnapshotOperation,
   changes: Changes,
 ): void {
   const baseByCode = new Map(base.errors.map((fail) => [fail.code, fail]));
@@ -712,20 +712,20 @@ function diffErrors(
  * файл» и «контракт сломан» — разные события, и смешивать их значило бы
  * прятать ошибку автора проверки за отчётом.
  */
-function assertReadable(snapshot: unknown, side: string): ContractSnapshot {
+function assertReadable(snapshot: unknown, side: string): OperationSnapshot {
   if (typeof snapshot !== 'object' || snapshot === null) {
     throw new TypeError(
-      `diffContracts(...): the ${side} snapshot must be a value of shape ` +
+      `diffOperations(...): the ${side} snapshot must be a value of shape ` +
         `{ snapshotVersion: ${SNAPSHOT_VERSION}, contracts: [...] }, got ` +
         `${snapshot === null ? 'null' : typeof snapshot}.`,
     );
   }
 
-  const { snapshotVersion, contracts } = snapshot as ContractSnapshot;
+  const { snapshotVersion, contracts } = snapshot as OperationSnapshot;
 
   if (snapshotVersion !== SNAPSHOT_VERSION) {
     throw new Error(
-      `diffContracts(...): the ${side} snapshot has format version ` +
+      `diffOperations(...): the ${side} snapshot has format version ` +
         `${JSON.stringify(snapshotVersion)}, but this version reads ` +
         `${SNAPSHOT_VERSION}. Rebuild the snapshot with the version of ` +
         `nestling that will read it.`,
@@ -734,11 +734,11 @@ function assertReadable(snapshot: unknown, side: string): ContractSnapshot {
 
   if (!Array.isArray(contracts)) {
     throw new TypeError(
-      `diffContracts(...): the ${side} snapshot has no 'contracts' array.`,
+      `diffOperations(...): the ${side} snapshot has no 'contracts' array.`,
     );
   }
 
-  return snapshot as ContractSnapshot;
+  return snapshot as OperationSnapshot;
 }
 
 /**
@@ -753,13 +753,13 @@ function assertReadable(snapshot: unknown, side: string): ContractSnapshot {
  *
  * @example
  * ```typescript
- * const report = diffContracts(baseline, snapshotContracts(reports));
+ * const report = diffOperations(baseline, snapshotOperations(reports));
  * console.log(formatCompatibility(report));
  * ```
  */
-export function diffContracts(
-  baseline: ContractSnapshot,
-  current: ContractSnapshot,
+export function diffOperations(
+  baseline: OperationSnapshot,
+  current: OperationSnapshot,
 ): CompatibilityReport {
   const before = assertReadable(baseline, 'baseline');
   const after = assertReadable(current, 'current');
@@ -830,7 +830,7 @@ const line = (change: CompatibilityChange): string =>
  * строку про конвертер — без него листья непрозрачны, и отчёт честно об
  * этом говорит, вместо того чтобы молчать.
  *
- * @param report - Отчёт, построенный `diffContracts`
+ * @param report - Отчёт, построенный `diffOperations`
  * @returns Многострочный текст; сравнивать в тесте следует **значение**
  * отчёта, а не эту строку
  */

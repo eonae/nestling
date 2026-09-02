@@ -3,7 +3,7 @@
  * коерсия query, разбор успеха и восстановление `Fail` из ответа.
  *
  * Сеть подменяется `fetch`-двойником: клиент обязан быть тестируемым без
- * неё, и это не удобство тестов, а часть контракта конфигурации.
+ * неё, и это не удобство тестов, а часть операции конфигурации.
  */
 
 import { makeClient } from './client.js';
@@ -12,7 +12,9 @@ import { describe, expect, it } from '@jest/globals';
 import {
   defineFail,
   events,
-  makeContract,
+  makeCommand,
+  makeEvent,
+  makeRequest,
   multipart,
   query,
   upload,
@@ -27,9 +29,8 @@ const EmailTaken = defineFail('CLIENT_EMAIL_TAKEN', {
   details: z.object({ email: z.string() }),
 });
 
-const CreateUser = makeContract({
+const CreateUser = makeRequest({
   name: 'client.users.create',
-  kind: 'request',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: z.object({
     email: z.string(),
@@ -39,17 +40,15 @@ const CreateUser = makeContract({
   errors: [EmailTaken],
 });
 
-const GetUser = makeContract({
+const GetUser = makeRequest({
   name: 'client.users.get',
-  kind: 'request',
   http: 'GET /users/:id',
   input: z.object({ id: z.string(), expand: z.string().optional() }),
   output: User,
 });
 
-const ListUsers = makeContract({
+const ListUsers = makeRequest({
   name: 'client.users.list',
-  kind: 'request',
   http: 'GET /users',
   input: z.object({
     limit: z.number().optional(),
@@ -58,9 +57,8 @@ const ListUsers = makeContract({
   output: z.array(User),
 });
 
-const DeleteUser = makeContract({
+const DeleteUser = makeCommand({
   name: 'client.users.delete',
-  kind: 'command',
   http: 'DELETE /users/:id',
   input: z.object({ id: z.string() }),
 });
@@ -104,10 +102,9 @@ describe('makeClient: форма API-объекта', () => {
 });
 
 describe('makeClient: fail-fast создания', () => {
-  it('контракт без http:', () => {
-    const OnBus = makeContract({
+  it('операция без http:', () => {
+    const OnBus = makeRequest({
       name: 'client.only.bus',
-      kind: 'request',
       input: z.object({ id: z.string() }),
     });
 
@@ -117,9 +114,8 @@ describe('makeClient: fail-fast создания', () => {
   });
 
   it('вид event', () => {
-    const Placed = makeContract({
+    const Placed = makeEvent({
       name: 'client.orders.placed',
-      kind: 'event',
       http: 'POST /events/placed',
       input: z.object({ id: z.string() }),
     });
@@ -130,9 +126,8 @@ describe('makeClient: fail-fast создания', () => {
   });
 
   it('потоковая форма io', () => {
-    const Feed = makeContract({
+    const Feed = makeRequest({
       name: 'client.users.feed',
-      kind: 'request',
       http: 'GET /feed',
       output: events(z.object({ kind: z.string() })),
     });
@@ -143,9 +138,8 @@ describe('makeClient: fail-fast создания', () => {
   });
 
   it('multipart-форма io', () => {
-    const Upload = makeContract({
+    const Upload = makeCommand({
       name: 'client.users.avatar',
-      kind: 'command',
       http: 'POST /avatar',
       input: multipart({ files: { avatar: upload() } }),
     });
@@ -156,9 +150,8 @@ describe('makeClient: fail-fast создания', () => {
   });
 
   it('не-JSON тело', () => {
-    const Raw = makeContract({
+    const Raw = makeRequest({
       name: 'client.users.raw',
-      kind: 'request',
       http: 'GET /raw',
       output: 'text',
     });

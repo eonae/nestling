@@ -1,41 +1,41 @@
 /**
- * Снапшот контрактов — память о том, каким контракт был опубликован.
+ * Снапшот операций — память о том, каким операция был опубликован.
  *
  * Собирается из отчётов структурной проверки: `check()` кладёт в отчёт
- * дескрипторы контрактов, **опубликованных** топологией, а сведение
+ * дескрипторы операций, **опубликованных** топологией, а сведение
  * матрицы идёт **объединением**. Иначе «фича не выбрана в топологии
- * `ops`» читалось бы как «контракт удалён», и отчёт совместимости
+ * `ops`» читалось бы как «операция удалена», и отчёт совместимости
  * краснел бы от смены состава деплоя.
  *
  * Где снапшот живёт — файл в репозитории, артефакт CI или внешний
  * registry — решает пользователь: снапшот это значение, а не файл.
  */
 
-import type { ContractDescriptor } from './describe.js';
+import type { OperationDescriptor } from './describe.js';
 
 /** Версия формата снапшота, которую читает эта версия пакета */
 export const SNAPSHOT_VERSION = 1;
 
-/** Контракт в снапшоте: дескриптор плюс перечень опубликовавших топологий */
-export interface SnapshotContract extends ContractDescriptor {
+/** Операция в снапшоте: дескриптор плюс перечень опубликовавших топологий */
+export interface SnapshotOperation extends OperationDescriptor {
   /**
-   * Топологии, опубликовавшие контракт, в порядке прогона матрицы.
+   * Топологии, опубликовавшие операция, в порядке прогона матрицы.
    *
-   * Различает «контракт удалён» и «фича не выбрана в этой топологии»:
-   * первое видно по отсутствию контракта во всём снапшоте, второе — по
+   * Различает «операция удалена» и «фича не выбрана в этой топологии»:
+   * первое видно по отсутствию операции во всём снапшоте, второе — по
    * короткому списку здесь. В дифф список не участвует: смена состава
-   * деплоя контракт не меняет.
+   * деплоя операция не меняет.
    */
   readonly topologies: readonly string[];
 }
 
-/** Снапшот опубликованных контрактов */
-export interface ContractSnapshot {
+/** Снапшот опубликованных операций */
+export interface OperationSnapshot {
   /** Версия формата: читатель обязан уметь сказать «снапшот старше меня» */
   readonly snapshotVersion: number;
 
-  /** Контракты, отсортированные по имени */
-  readonly contracts: readonly SnapshotContract[];
+  /** Операции, отсортированные по имени */
+  readonly contracts: readonly SnapshotOperation[];
 }
 
 /**
@@ -46,25 +46,25 @@ export interface ContractSnapshot {
  * поэтому обратный импорт замкнул бы граф пакетов. Сведению нужно ровно
  * поле `contracts`, и оно его и требует.
  */
-export interface ContractReport {
-  readonly contracts?: readonly ContractDescriptor[];
+export interface OperationReport {
+  readonly contracts?: readonly OperationDescriptor[];
 }
 
 /** Отчёт одной топологии матрицы — тоже структурно */
-export interface TopologyContractReport {
+export interface TopologyOperationReport {
   /** Значение `select`, с которым топология собиралась */
   readonly select?: unknown;
 
   /** Отчёт `check()` этой топологии */
-  readonly report?: ContractReport;
+  readonly report?: OperationReport;
 }
 
-/** Что принимает `snapshotContracts`: отчёт `check()` или отчёт топологии */
-export type SnapshotSource = ContractReport | TopologyContractReport;
+/** Что принимает `snapshotOperations`: отчёт `check()` или отчёт топологии */
+export type SnapshotSource = OperationReport | TopologyOperationReport;
 
-/** Читаемое имя топологии: им подписан контракт в снапшоте */
+/** Читаемое имя топологии: им подписан операция в снапшоте */
 function nameOfTopology(source: SnapshotSource, index: number): string {
-  const select = (source as TopologyContractReport).select;
+  const select = (source as TopologyOperationReport).select;
 
   if (typeof select === 'string') {
     return select;
@@ -88,14 +88,14 @@ function nameOfTopology(source: SnapshotSource, index: number): string {
 }
 
 /** Достаёт дескрипторы: отчёт топологии оборачивает отчёт `check()` */
-function contractsOf(source: SnapshotSource): readonly ContractDescriptor[] {
-  const nested = (source as TopologyContractReport).report;
+function contractsOf(source: SnapshotSource): readonly OperationDescriptor[] {
+  const nested = (source as TopologyOperationReport).report;
 
   if (nested && typeof nested === 'object') {
     return nested.contracts ?? [];
   }
 
-  return (source as ContractReport).contracts ?? [];
+  return (source as OperationReport).contracts ?? [];
 }
 
 /**
@@ -106,8 +106,8 @@ function contractsOf(source: SnapshotSource): readonly ContractDescriptor[] {
  * структурному и не требует глубокого обхода.
  */
 const sameDescriptor = (
-  left: ContractDescriptor,
-  right: ContractDescriptor,
+  left: OperationDescriptor,
+  right: OperationDescriptor,
 ): boolean => JSON.stringify(left) === JSON.stringify(right);
 
 /**
@@ -118,22 +118,22 @@ const sameDescriptor = (
  * дескриптор.
  *
  * @param reports - Отчёты одной или нескольких топологий
- * @returns Снапшот с контрактами, отсортированными по имени
+ * @returns Снапшот с операциями, отсортированными по имени
  * @throws {Error} Если одно имя опубликовано двумя топологиями с
- * **разными** дескрипторами: одно имя — один контракт
+ * **разными** дескрипторами: одно имя — одна операция
  *
  * @example
  * ```typescript
  * const reports = await checkTopologies(spec, ['all', 'users']);
- * const snapshot = snapshotContracts(reports);
+ * const snapshot = snapshotOperations(reports);
  * ```
  */
-export function snapshotContracts(
+export function snapshotOperations(
   reports: readonly SnapshotSource[],
-): ContractSnapshot {
+): OperationSnapshot {
   const merged = new Map<
     string,
-    { descriptor: ContractDescriptor; topologies: string[] }
+    { descriptor: OperationDescriptor; topologies: string[] }
   >();
 
   for (const [index, source] of reports.entries()) {
@@ -149,7 +149,7 @@ export function snapshotContracts(
 
       if (!sameDescriptor(existing.descriptor, descriptor)) {
         throw new Error(
-          `Contract '${descriptor.name}' is published with different ` +
+          `Operation '${descriptor.name}' is published with different ` +
             `descriptors by topologies ${existing.topologies
               .map((name) => `'${name}'`)
               .join(', ')} and '${topology}'. One name is one contract: ` +
@@ -175,14 +175,14 @@ export function snapshotContracts(
 /**
  * Сериализует снапшот детерминированно.
  *
- * Контракты упорядочены по имени, отказы — по коду, ключи JSON Schema
+ * Операции упорядочены по имени, отказы — по коду, ключи JSON Schema
  * канонизированы при построении дескриптора. Два прогона на неизменном
  * графе дают побайтово одинаковую строку, поэтому файл снапшота попадает
  * в git-дифф осмысленным патчем, а не перестановкой строк.
  *
- * @param snapshot - Снапшот, построенный `snapshotContracts`
+ * @param snapshot - Снапшот, построенный `snapshotOperations`
  * @returns JSON с отступом в два пробела и завершающим переводом строки
  */
-export function serializeSnapshot(snapshot: ContractSnapshot): string {
+export function serializeSnapshot(snapshot: OperationSnapshot): string {
   return `${JSON.stringify(snapshot, null, 2)}\n`;
 }

@@ -1,18 +1,18 @@
 /**
- * Топология реализаций: «кто обслуживает контракт в этой сборке».
+ * Топология реализаций: «кто обслуживает операция в этой сборке».
  *
  * Считается по discovery дерева выбранных модулей, поэтому реализация в
  * невыбранной фиче в топологию не попадает, и вызыватель строится так, как
- * предписывает её отсутствие. Реестр имён контрактов на этот вопрос не
- * отвечает и отвечать не может: он знает объявленные контракты, а не
+ * предписывает её отсутствие. Реестр имён операций на этот вопрос не
+ * отвечает и отвечать не может: он знает объявленные операции, а не
  * состав приложения.
  */
 
 import { busBindingOf } from './transport.js';
 
-import type { ContractKind } from '@nestling/contracts';
+import type { OperationKind } from '@nestling/contracts';
 
-/** Одна co-located реализация контракта */
+/** Одна co-located реализация операции */
 export interface ContractImplementation {
   /** Паттерн endpoint'а: адрес внутри процесса */
   readonly pattern: string;
@@ -24,19 +24,19 @@ export interface ContractImplementation {
   readonly moduleName: string;
 }
 
-/** Всё, что известно об одном контракте в этой сборке */
+/** Всё, что известно об одном операции в этой сборке */
 export interface ContractTopologyEntry {
-  /** Subject шины — имя контракта */
+  /** Subject шины — имя операции */
   readonly subject: string;
 
-  readonly kind: ContractKind;
+  readonly kind: OperationKind;
 
   /** Реализации в порядке обхода дерева модулей */
   readonly implementations: readonly ContractImplementation[];
 }
 
-/** Топология: реализации контракта по его имени */
-export type ContractTopology = ReadonlyMap<string, ContractTopologyEntry>;
+/** Топология: реализации операции по его имени */
+export type OperationTopology = ReadonlyMap<string, ContractTopologyEntry>;
 
 /**
  * Обнаруженная декларация — структурный вход, а не тип `@nestling/app`.
@@ -50,7 +50,7 @@ export interface DiscoveredDeclaration {
 }
 
 /**
- * Собирает топологию реализаций контрактов из результата discovery.
+ * Собирает топологию реализаций операций из результата discovery.
  *
  * @param endpoints - Обнаруженные декларации приложения (все транспорты)
  * @returns Топология: только декларации на транспорте шины
@@ -59,7 +59,7 @@ export interface DiscoveredDeclaration {
  */
 export function collectImplementations(
   endpoints: readonly DiscoveredDeclaration[],
-): ContractTopology {
+): OperationTopology {
   const topology = new Map<string, ContractTopologyEntry>();
 
   for (const { endpoint, moduleName } of endpoints) {
@@ -92,7 +92,7 @@ export function collectImplementations(
 
     if (binding.kind !== 'event') {
       throw new Error(
-        `Contract '${binding.subject}' is a '${binding.kind}' contract and ` +
+        `Operation '${binding.subject}' is a '${binding.kind}' contract and ` +
           `therefore has exactly one owner, but it is implemented twice: in ` +
           `module '${first.moduleName}' and in module '${moduleName}'. ` +
           `Remove one of the implementations, or split the operation into ` +

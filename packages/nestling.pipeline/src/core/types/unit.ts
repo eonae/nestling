@@ -81,7 +81,7 @@ export type OkUnitFn<TAcc extends AnyInput = AnyInput> = (
  * отказом: `Fail` рантайм нормализует так же, как отказ хендлера —
  * иначе юниту пришлось бы собирать контекст ответа руками. Это же место,
  * где допустимо превратить недекларированный отказ в контрактный:
- * проверка контракта отказов стоит после всей ответной фазы.
+ * проверка операции отказов стоит после всей ответной фазы.
  */
 export type CatchUnitFn<TCtxInput extends AnyInput = AnyInput> = (
   res: ErrorResponseContext,
@@ -117,6 +117,6 @@ export interface UnitInstance<F> {
  *
  * Класс-форма откладывает создание: конструктор попадает в `TNeeds`
  * пайплайна и резолвится контейнером на старте приложения (`bind`).
- * Контракт всех форм: юнит — синглтон, per-request состояние — только в ctx.
+ * Операция всех форм: юнит — синглтон, per-request состояние — только в ctx.
  */
 export type UnitLike<F> = F | UnitInstance<F> | Constructor<UnitInstance<F>>;

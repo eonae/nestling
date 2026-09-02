@@ -1,7 +1,7 @@
 /**
  * Одна карта на обоих концах сети.
  *
- * Два теста об одном: клиент собирает запрос по bind-карте контракта, а
+ * Два теста об одном: клиент собирает запрос по bind-карте операции, а
  * транспорт разбирает его по **той же карте, взятой с того же значения**.
  * Первый проверяет инвариант на наборе карт без сети, второй — на поднятом
  * сервере с настоящим `makeClient`.
@@ -17,7 +17,7 @@ import { HttpTransport } from './transport.js';
 import { describe, expect, it } from '@jest/globals';
 import { makeClient } from '@nestling/client';
 import type { HttpBinding } from '@nestling/contracts';
-import { defineFail, makeContract } from '@nestling/contracts';
+import { defineFail, makeRequest } from '@nestling/contracts';
 import { Fail, Ok } from '@nestling/pipeline';
 import type { ExecutableDeclaration } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
@@ -83,9 +83,8 @@ const Wide = z.object({
 const roundTripCases = [
   {
     title: 'path-параметр и остальное в теле',
-    contract: makeContract({
+    operation: makeRequest({
       name: 'roundtrip.patch',
-      kind: 'request',
       http: 'PATCH /users/:id',
       input: Wide,
       output: z.object({ ok: z.boolean() }),
@@ -94,9 +93,8 @@ const roundTripCases = [
   },
   {
     title: 'метод без тела: rest — query',
-    contract: makeContract({
+    operation: makeRequest({
       name: 'roundtrip.get',
-      kind: 'request',
       http: 'GET /users',
       input: Wide,
       output: z.object({ ok: z.boolean() }),
@@ -105,9 +103,8 @@ const roundTripCases = [
   },
   {
     title: 'пометка вытаскивает поле из тела в query',
-    contract: makeContract({
+    operation: makeRequest({
       name: 'roundtrip.marked',
-      kind: 'request',
       http: { method: 'POST', path: '/users', bind: { name: query() } },
       input: Wide,
       output: z.object({ ok: z.boolean() }),
@@ -116,9 +113,8 @@ const roundTripCases = [
   },
   {
     title: 'query({ multiple: true }) с одним вхождением остаётся массивом',
-    contract: makeContract({
+    operation: makeRequest({
       name: 'roundtrip.multiple',
-      kind: 'request',
       http: {
         method: 'POST',
         path: '/users/:id',
@@ -131,9 +127,8 @@ const roundTripCases = [
   },
   {
     title: 'массив из нескольких вхождений',
-    contract: makeContract({
+    operation: makeRequest({
       name: 'roundtrip.multiple.many',
-      kind: 'request',
       http: {
         method: 'POST',
         path: '/users/:id',
@@ -147,18 +142,18 @@ const roundTripCases = [
 ];
 
 describe('round-trip: клиент собрал → транспорт разобрал', () => {
-  it.each(roundTripCases)('$title', async ({ contract, payload }) => {
+  it.each(roundTripCases)('$title', async ({ operation, payload }) => {
     const captured: Captured[] = [];
     const api = makeClient(
-      { call: contract },
+      { call: operation },
       { baseUrl: 'https://api.example.com', fetch: capturing(captured) },
     );
 
     await api.call(payload as never);
 
-    expect(parseAsTransport(contract.http as HttpBinding, captured[0])).toEqual(
-      payload,
-    );
+    expect(
+      parseAsTransport(operation.http as HttpBinding, captured[0]),
+    ).toEqual(payload);
   });
 });
 
@@ -174,9 +169,8 @@ const EmailTaken = defineFail('INTEGRATION_EMAIL_TAKEN', {
   details: z.object({ email: z.string() }),
 });
 
-const CreateUser = makeContract({
+const CreateUser = makeRequest({
   name: 'integration.users.create',
-  kind: 'request',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: z.object({
     email: z.string(),
@@ -190,16 +184,15 @@ const CreateUser = makeContract({
   errors: [EmailTaken],
 });
 
-const GetUser = makeContract({
+const GetUser = makeRequest({
   name: 'integration.users.get',
-  kind: 'request',
   http: 'GET /users/:id',
   input: z.object({ id: z.string() }),
   output: User,
 });
 
 const CreateUserRoute = httpEndpoint({
-  contract: CreateUser,
+  operation: CreateUser,
   handle: async ({ email, dryRun }) => {
     if (email === 'taken@example.com') {
       return EmailTaken({ email });
@@ -215,7 +208,7 @@ const CreateUserRoute = httpEndpoint({
 });
 
 const GetUserRoute = httpEndpoint({
-  contract: GetUser,
+  operation: GetUser,
   handle: async ({ id }) =>
     new Promise<Ok<{ id: string; email: string }>>((resolve) => {
       // Достаточно медленно, чтобы успеть отменить
@@ -223,7 +216,7 @@ const GetUserRoute = httpEndpoint({
     }),
 });
 
-describe('интеграция: контракт-форма httpEndpoint + makeClient', () => {
+describe('интеграция: операция-форма httpEndpoint + makeClient', () => {
   let transport: HttpTransport;
   let baseUrl: string;
 

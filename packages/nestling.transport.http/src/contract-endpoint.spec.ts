@@ -1,8 +1,8 @@
 /**
- * Контракт-форма `httpEndpoint`: вторая сторона одного значения.
+ * Операция-форма `httpEndpoint`: вторая сторона одного значения.
  *
  * Проверяется, что декларация получается **обычной** (тот же бренд, тот же
- * транспорт, тот же паттерн), что карта берётся с контракта тем же значением
+ * транспорт, тот же паттерн), что карта берётся с операции тем же значением
  * и что переобъявление интерфейса операции не проходит — ни типами, ни
  * рантаймом.
  */
@@ -13,7 +13,7 @@ import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
-import { defineFail, makeContract } from '@nestling/contracts';
+import { defineFail, makeRequest } from '@nestling/contracts';
 import { isEndpointDefinition, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
@@ -28,27 +28,24 @@ const EmailTaken = defineFail('CONTRACT_FORM_EMAIL_TAKEN', {
   message: 'Email already taken',
 });
 
-const CreateUser = makeContract({
+const CreateUser = makeRequest({
   name: 'contract-form.users.create',
-  kind: 'request',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
   errors: [EmailTaken],
 });
 
-const GetUser = makeContract({
+const GetUser = makeRequest({
   name: 'contract-form.users.get',
-  kind: 'request',
   http: 'GET /users/:id',
   input: z.object({ id: z.string() }),
   output: User,
 });
 
-/** Контракт без HTTP-адреса: он живёт только на шине */
-const ClaimQuota = makeContract({
+/** Операция без HTTP-адреса: он живёт только на шине */
+const ClaimQuota = makeRequest({
   name: 'contract-form.quotas.claim',
-  kind: 'request',
   input: z.object({ tenant: z.string() }),
   output: z.object({ granted: z.boolean() }),
 });
@@ -57,10 +54,10 @@ const UserService = makeToken<{ create: (email: string) => string }>(
   'ContractFormUserService',
 );
 
-describe('httpEndpoint({ contract, … })', () => {
-  it('строит обычную HTTP-декларацию по адресу контракта', () => {
+describe('httpEndpoint({ operation, … })', () => {
+  it('строит обычную HTTP-декларацию по адресу операции', () => {
     const declaration = httpEndpoint({
-      contract: CreateUser,
+      operation: CreateUser,
       handle: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
@@ -71,7 +68,7 @@ describe('httpEndpoint({ contract, … })', () => {
 
   it('карта не пересчитывается — на декларации то же значение', () => {
     const declaration = httpEndpoint({
-      contract: CreateUser,
+      operation: CreateUser,
       handle: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
@@ -79,9 +76,9 @@ describe('httpEndpoint({ contract, … })', () => {
     expect(httpBindingOf(declaration)).toBe(CreateUser.http);
   });
 
-  it('схемы и errors: берутся с контракта', () => {
+  it('схемы и errors: берутся с операции', () => {
     const declaration = httpEndpoint({
-      contract: CreateUser,
+      operation: CreateUser,
       handle: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
@@ -92,12 +89,12 @@ describe('httpEndpoint({ contract, … })', () => {
 
   it('работают все три формы хендлера', () => {
     const asFunction = httpEndpoint({
-      contract: GetUser,
+      operation: GetUser,
       handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
     const asFactory = httpEndpoint({
-      contract: CreateUser,
+      operation: CreateUser,
       deps: [UserService],
       handle:
         (users) =>
@@ -112,7 +109,7 @@ describe('httpEndpoint({ contract, … })', () => {
     }
 
     const asClass = httpEndpoint({
-      contract: CreateUser,
+      operation: CreateUser,
       handle: CreateUserHandler,
     });
 
@@ -123,7 +120,7 @@ describe('httpEndpoint({ contract, … })', () => {
 
   it('detached передаётся в декларацию, как у любой другой', () => {
     const declaration = httpEndpoint({
-      contract: GetUser,
+      operation: GetUser,
       detached: 'legacy route, migrated separately',
       handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
@@ -131,10 +128,10 @@ describe('httpEndpoint({ contract, … })', () => {
     expect(declaration.detached).toBe('legacy route, migrated separately');
   });
 
-  it('контракт без http: отвергается в момент создания декларации', () => {
+  it('операция без http: отвергается в момент создания декларации', () => {
     expect(() =>
       httpEndpoint({
-        contract: ClaimQuota,
+        operation: ClaimQuota,
         handle: async () => new Ok({ granted: true }),
       }),
     ).toThrow(
@@ -142,10 +139,9 @@ describe('httpEndpoint({ contract, … })', () => {
     );
   });
 
-  it('документация приходит из контракта вместе с адресом и схемами', () => {
-    const Documented = makeContract({
+  it('документация приходит из операции вместе с адресом и схемами', () => {
+    const Documented = makeRequest({
       name: 'contract-form.users.documented',
-      kind: 'request',
       http: 'GET /documented/:id',
       input: z.object({ id: z.string() }),
       output: User,
@@ -153,7 +149,7 @@ describe('httpEndpoint({ contract, … })', () => {
     });
 
     const declaration = httpEndpoint({
-      contract: Documented,
+      operation: Documented,
       handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
@@ -167,17 +163,17 @@ describe('httpEndpoint({ contract, … })', () => {
     );
   });
 
-  it('не-контракт в слоте отвергается', () => {
+  it('не-операция в слоте отвергается', () => {
     const declare = httpEndpoint as unknown as (
       options: Record<string, unknown>,
     ) => unknown;
 
     expect(() =>
       declare({
-        contract: { name: 'looks-like' },
+        operation: { name: 'looks-like' },
         handle: async () => new Ok({}),
       }),
-    ).toThrow(/'contract' must be a contract value created by makeContract/);
+    ).toThrow(/'operation' must be a value created by makeRequest/);
   });
 
   it('переобъявление интерфейса отвергается и рантаймом', () => {
@@ -195,13 +191,13 @@ describe('httpEndpoint({ contract, … })', () => {
     ]) {
       expect(() =>
         declare({
-          contract: CreateUser,
+          operation: CreateUser,
           [field]: 'whatever',
           handle: async () => new Ok({ id: 'u-1', email: 'a@b.c' }),
         }),
       ).toThrow(
         new RegExp(
-          `'${field}' belongs to the contract and cannot be redeclared`,
+          `'${field}' belongs to the operation and cannot be redeclared`,
         ),
       );
     }
@@ -226,54 +222,54 @@ const read = async (input: { id: string }) =>
  */
 const typeOnly = (): void => {
   httpEndpoint({
-    contract: CreateUser,
+    operation: CreateUser,
     input: z.object({ other: z.string() }),
-    // @ts-expect-error: 'input' принадлежит контракту; ошибка садится на
+    // @ts-expect-error: 'input' принадлежит операции; ошибка садится на
     // последний аргумент — элаборация последней перегрузки
     handle: create,
   });
 
   httpEndpoint({
-    contract: GetUser,
+    operation: GetUser,
     path: '/other',
-    // @ts-expect-error: 'path' принадлежит контракту
+    // @ts-expect-error: 'path' принадлежит операции
     handle: read,
   });
 
   httpEndpoint({
-    contract: CreateUser,
-    // @ts-expect-error: 'errors' принадлежит контракту
+    operation: CreateUser,
+    // @ts-expect-error: 'errors' принадлежит операции
     errors: [EmailTaken],
     // @ts-expect-error: элаборация последней перегрузки садится и сюда
     handle: create,
   });
 
   httpEndpoint({
-    contract: CreateUser,
+    operation: CreateUser,
     bind: { dryRun: query() },
-    // @ts-expect-error: 'bind' принадлежит контракту
+    // @ts-expect-error: 'bind' принадлежит операции
     handle: create,
   });
 };
 
-describe('контракт-форма: типы', () => {
+describe('операция-форма: типы', () => {
   it('переобъявление интерфейса не компилируется', () => {
     expect(typeof typeOnly).toBe('function');
   });
 
-  it('payload и возврат хендлера выведены из контракта', () => {
+  it('payload и возврат хендлера выведены из операции', () => {
     httpEndpoint({
-      contract: CreateUser,
+      operation: CreateUser,
       handle: async (input) => {
-        // Тип payload — из формы `input` контракта
+        // Тип payload — из формы `input` операции
         const email: string = input.email;
         return new Ok({ id: 'u-1', email });
       },
     });
 
     httpEndpoint({
-      contract: CreateUser,
-      // Отказ из `errors:` контракта — разрешённый возврат
+      operation: CreateUser,
+      // Отказ из `errors:` операции — разрешённый возврат
       handle: async () => EmailTaken(),
     });
 

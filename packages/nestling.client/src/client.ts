@@ -1,12 +1,12 @@
 /**
- * `makeClient` — типизированный HTTP-клиент из значений-контрактов.
+ * `makeClient` — типизированный HTTP-клиент из значений-операций.
  *
  * Клиент это **значение**: он ничего не регистрирует, не требует DI и не
  * зависит от серверного кода. Всё, что нужно для вызова — адрес, размещение
  * полей, схема ответа, множество отказов, — приходит одним импортом
- * контракта.
+ * операции.
  *
- * Call-site эквивалентен вызывателю контракта его вида: `request` даёт
+ * Call-site эквивалентен вызывателю операции его вида: `request` даёт
  * `Ok | Fail`, как `port.call(...)`; `command` — `Promise<void>`, как
  * `emitter.emit(...)`. Та же ветвящаяся логика работает без правок.
  */
@@ -16,17 +16,17 @@ import { buildRequest } from './request.js';
 import { readFailure, readSuccess, unknownFailure } from './response.js';
 
 import type {
-  AnyContract,
   AnyFailDefinition,
-  CommandContract,
-  ContractFailsOf,
+  AnyOperation,
+  CommandOperation,
   DeadlineExceeded,
   Fail,
   FailOf,
   InputOf,
   Ok,
+  OperationFailsOf,
   OutputOf,
-  RequestContract,
+  RequestOperation,
   UnknownError,
 } from '@nestling/contracts';
 import {
@@ -37,7 +37,7 @@ import {
 } from '@nestling/contracts';
 
 /**
- * Отказы, которые клиент добавляет к объявленным контрактом.
+ * Отказы, которые клиент добавляет к объявленным операцией.
  *
  * То же закрытие, что у порта: множество ответов — `E ∪ UnknownError`, и
  * `DeadlineExceeded` входит в него как kernel-код механизма бюджета.
@@ -47,37 +47,37 @@ export type ClientFail =
   | FailOf<typeof DeadlineExceeded>;
 
 /** Множество ответов метода: успех, объявленный отказ или kernel-отказ */
-export type ClientResult<C extends AnyContract> =
+export type ClientResult<C extends AnyOperation> =
   | Ok<OutputOf<C>>
-  | ContractFailsOf<C>
+  | OperationFailsOf<C>
   | ClientFail;
 
 /**
- * Аргументы метода: контракт без формы `input` зовётся без payload'а.
+ * Аргументы метода: операция без формы `input` зовётся без payload'а.
  *
  * Тот же приём, что у порта: «забыл payload» — ошибка компиляции, а не
  * отказ валидации после похода в сеть.
  */
-export type ClientArgs<C extends AnyContract> =
+export type ClientArgs<C extends AnyOperation> =
   undefined extends InputOf<C>
     ? [payload?: InputOf<C>, meta?: ClientMeta]
     : [payload: InputOf<C>, meta?: ClientMeta];
 
 /**
- * Метод клиента, выведенный по виду контракта.
+ * Метод клиента, выведенный по виду операции.
  *
  * `event` не имеет метода вовсе: событие это broadcast-факт с 0..N
  * подписчиками, а HTTP-вызов адресует ровно одного получателя.
  */
-export type ClientMethod<C extends AnyContract> =
-  C extends RequestContract<any, any, any>
+export type ClientMethod<C extends AnyOperation> =
+  C extends RequestOperation<any, any, any>
     ? (...args: ClientArgs<C>) => Promise<ClientResult<C>>
-    : C extends CommandContract<any, any, any>
+    : C extends CommandOperation<any, any, any>
       ? (...args: ClientArgs<C>) => Promise<void>
       : never;
 
 /** API-объект: метод на каждый ключ записи, имена даёт потребитель */
-export type Client<R extends Record<string, AnyContract>> = {
+export type Client<R extends Record<string, AnyOperation>> = {
   [K in keyof R]: ClientMethod<R[K]>;
 };
 
@@ -101,23 +101,23 @@ function assertAbsoluteBaseUrl(baseUrl: unknown): asserts baseUrl is string {
 }
 
 /**
- * Fail-fast пригодности контракта — **в момент создания клиента**.
+ * Fail-fast пригодности операции — **в момент создания клиента**.
  *
  * Отложенная диагностика («упадёт при первом вызове») здесь неуместна:
- * запись контрактов известна целиком, и всё, что можно проверить, проверимо
- * сразу. Каждый текст называет ключ метода — искать по имени контракта в
+ * запись операций известна целиком, и всё, что можно проверить, проверимо
+ * сразу. Каждый текст называет ключ метода — искать по имени операции в
  * чужом файле потребителю неоткуда.
  */
 function assertUsable(
   key: string,
   contract: unknown,
-): asserts contract is AnyContract {
+): asserts contract is AnyOperation {
   const where = `makeClient({ ${key}: … }, { … })`;
-  const value = contract as AnyContract | undefined;
+  const value = contract as AnyOperation | undefined;
 
   if (typeof value?.name !== 'string' || typeof value.kind !== 'string') {
     throw new TypeError(
-      `${where}: '${key}' must be a contract value created by makeContract().`,
+      `${where}: '${key}' must be an operation created by makeRequest.`,
     );
   }
 
@@ -201,13 +201,13 @@ async function readBody(response: Response): Promise<unknown> {
 /** Один вызов: сборка запроса, поход в сеть, разбор ответа */
 async function invoke(
   key: string,
-  contract: AnyContract,
+  contract: AnyOperation,
   config: ClientConfig,
   payload: unknown,
   meta: ClientMeta | undefined,
 ): Promise<Ok<unknown> | Fail<string | undefined, unknown>> {
   const where = `client.${key}()`;
-  const binding = contract.http as NonNullable<AnyContract['http']>;
+  const binding = contract.http as NonNullable<AnyOperation['http']>;
 
   // Бюджет проверяется **до** отправки: ходить в сеть за заведомо
   // просроченным ответом незачем
@@ -286,16 +286,16 @@ function describeError(error: unknown): string {
 }
 
 /**
- * Строит API-объект по записи контрактов.
+ * Строит API-объект по записи операций.
  *
  * Методы именует **потребитель** — ключами записи. Вывода имён из `name`
- * контракта (парсинга `'users.create'` во вложенные объекты) нет: имя
- * контракта это адрес на шине, и превращать адрес в форму чужого API
+ * операции (парсинга `'users.create'` во вложенные объекты) нет: имя
+ * операции это адрес на шине, и превращать адрес в форму чужого API
  * значило бы навязывать её.
  *
- * @param record - `имя метода → контракт`
+ * @param record - `имя метода → операция`
  * @param config - адрес сервиса, ambient-заголовки, `fetch`, валидация
- * @throws {TypeError} Контракт без `http:`, вид `event`, потоковая или
+ * @throws {TypeError} Операция без `http:`, вид `event`, потоковая или
  * multipart-форма io, не-JSON тело, неабсолютный `baseUrl`
  *
  * @example
@@ -309,7 +309,7 @@ function describeError(error: unknown): string {
  * if (EmailTaken.is(result)) { … }
  * ```
  */
-export function makeClient<R extends Record<string, AnyContract>>(
+export function makeClient<R extends Record<string, AnyOperation>>(
   record: R,
   config: ClientConfig,
 ): Client<R> {

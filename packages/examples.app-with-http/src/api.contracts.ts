@@ -1,20 +1,20 @@
 /**
- * Публичные контракты HTTP-API: их импортирует внешний потребитель.
+ * Публичные операции HTTP-API: их импортирует внешний потребитель.
  *
  * Импорты файла не ведут к серверному коду: только `@nestling/contracts`,
  * `zod` и доменные отказы (тоже объявлены через `@nestling/contracts`).
- * Поэтому контракты можно импортировать во фронтенд: клиент
+ * Поэтому операции можно импортировать во фронтенд: клиент
  * `api.client.ts` берёт отсюда адрес, схемы и список отказов.
  *
  * Секция `http:` описывает адрес, а не исполнение. Реализация живёт рядом
- * с фичей и подключает контракт через `httpEndpoint({ contract })`, так
+ * с фичей и подключает операция через `httpEndpoint({ contract })`, так
  * что адрес и endpoint не могут разойтись.
  */
 
 import { EmailTaken, UserNotFound } from './modules/users/user.errors';
 import { QuotaExceeded } from './contracts';
 
-import { makeContract, query } from '@nestling/contracts';
+import { makeRequest, query } from '@nestling/contracts';
 import { z } from 'zod';
 
 /** Пользователь в ответе API; одна схема для всех операций */
@@ -30,7 +30,7 @@ export const CreateUserInput = z.object({
 
   /**
    * Флаг «только проверка». По правилу размещения поле POST ушло бы в
-   * тело; пометка `query()` в контракте ниже переносит его в query-строку.
+   * тело; пометка `query()` в операции ниже переносит его в query-строку.
    *
    * Схема описывает то, что приходит по сети: query несёт строки, и
    * клиент пишет туда `String(value)`. `z.stringbool()` принимает
@@ -47,14 +47,13 @@ export const CreateUserInput = z.object({
  * (`QuotaExceeded`), который endpoint возвращает как есть: внешний
  * потребитель должен знать те же отказы, что и сам endpoint.
  */
-export const CreateUser = makeContract({
+export const CreateUser = makeRequest({
   name: 'api.users.create',
-  kind: 'request',
   http: { method: 'POST', path: '/api/users', bind: { dryRun: query() } },
   input: CreateUserInput,
   output: User,
   errors: [EmailTaken, QuotaExceeded],
-  // Документация — часть контракта, а не реализации: endpoint получает
+  // Документация — часть операции, а не реализации: endpoint получает
   // её вместе со схемами. Статус назван явно, потому что хендлер
   // отвечает `Ok.created(...)`
   doc: {
@@ -68,9 +67,8 @@ export const CreateUser = makeContract({
 });
 
 /** Чтение пользователя по идентификатору */
-export const GetUser = makeContract({
+export const GetUser = makeRequest({
   name: 'api.users.get',
-  kind: 'request',
   http: 'GET /api/users/:id',
   input: z.object({ id: z.string() }),
   output: User,

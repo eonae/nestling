@@ -14,7 +14,7 @@ import { makeClient } from './client.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Fail, Ok } from '@nestling/contracts';
-import { defineFail, makeContract } from '@nestling/contracts';
+import { defineFail, makeCommand, makeRequest } from '@nestling/contracts';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), email: z.string() });
@@ -25,25 +25,22 @@ const EmailTaken = defineFail('CLIENT_TYPES_EMAIL_TAKEN', {
   details: z.object({ email: z.string() }),
 });
 
-const CreateUser = makeContract({
+const CreateUser = makeRequest({
   name: 'client.types.users.create',
-  kind: 'request',
   http: 'POST /users',
   input: z.object({ email: z.string() }),
   output: User,
   errors: [EmailTaken],
 });
 
-const Ping = makeContract({
+const Ping = makeRequest({
   name: 'client.types.ping',
-  kind: 'request',
   http: 'GET /ping',
   output: z.object({ pong: z.boolean() }),
 });
 
-const DeleteUser = makeContract({
+const DeleteUser = makeCommand({
   name: 'client.types.users.delete',
-  kind: 'command',
   http: 'POST /users/delete',
   input: z.object({ id: z.string() }),
 });
@@ -85,10 +82,10 @@ const typeOnly = async (): Promise<void> => {
     const id: string = result.value.id;
   }
 
-  // Контракт без формы `input` зовётся без payload'а
+  // Операция без формы `input` зовётся без payload'а
   await api.ping();
 
-  // @ts-expect-error: payload обязателен — у контракта есть форма `input`
+  // @ts-expect-error: payload обязателен — у операции есть форма `input`
   await api.createUser();
 
   // @ts-expect-error: 'email' объявлен строкой

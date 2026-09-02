@@ -1,33 +1,33 @@
 /**
- * `stub(Contract, impl)` — фейк-вызыватель как значение.
+ * `stub(Operation, impl)` — фейк-вызыватель как значение.
  *
  * Шов «меж-фичевые вызовы»: фича-потребитель тестируется без соседей.
  * Механизм держится на уже существующем свойстве контейнера — явный
  * провайдер члена семейства **опережает** рецепт, поэтому боевой
- * `buildPort`/`buildEmitter` для застабанного контракта не вызывается ни
+ * `buildPort`/`buildEmitter` для застабанного операции не вызывается ни
  * разу, а вместе с ним не выполняется и проверка достижимости.
  *
  * Причина существовать у стаба одна: он **валидируется схемами своего
- * контракта** на каждом вызове. Мок, разошедшийся с реальностью, падает в
+ * операции** на каждом вызове. Мок, разошедшийся с реальностью, падает в
  * тесте, а не в проде.
  */
 
 import type { InjectionToken } from '@nestling/container';
 import { asFamilyMember } from '@nestling/container';
 import type {
-  AnyContract,
+  AnyOperation,
   CommandMeta,
-  ContractFailsOf,
   Emitter,
   EmitterToken,
-  EmittingContract,
+  EmittingOperation,
   InputOf,
   MetaOf,
+  OperationFailsOf,
   OutputOf,
   Port,
   PortMeta,
   PortToken,
-  RequestContract,
+  RequestOperation,
   Schema,
 } from '@nestling/contracts';
 import { EmitterFamily, PortFamily } from '@nestling/contracts';
@@ -45,43 +45,43 @@ import {
 import { isExhausted } from '@nestling/ports';
 
 /**
- * Контрактный стаб: пара `токен вызывателя → фейк`.
+ * Стаб операции: пара `токен вызывателя → фейк`.
  *
  * Форма выбрана не ради краткости: `stubs:` уже раскладывает пары в
  * `valueProvider`, а `overrides:` принимает `TokenOverride` той же формы, —
- * значит контрактный стаб понимается всеми тремя местами без единой строки
+ * значит стаб операции понимается всеми тремя местами без единой строки
  * разбора.
  */
-export type ContractStub = readonly [
+export type OperationStub = readonly [
   token: InjectionToken<any>,
   invoker: Port<any> | Emitter<any>,
 ];
 
 /**
- * Результат `impl` у стаба `request`-контракта.
+ * Результат `impl` у стаба `request`-операции.
  *
  * Записан развёрткой `Output<…>`, а не самим `Output<…>`: у того параметр
- * отказов ограничен `AnyFail`, а `ContractFailsOf<C>` при неразрешённом `C`
+ * отказов ограничен `AnyFail`, а `OperationFailsOf<C>` при неразрешённом `C`
  * остаётся отложенным условным типом и ограничение не удовлетворяет.
  */
-export type StubOutput<C extends RequestContract<any, any, any>> = Promise<
-  Ok<OutputOf<C>> | ContractFailsOf<C> | OutputOf<C>
+export type StubOutput<C extends RequestOperation<any, any, any>> = Promise<
+  Ok<OutputOf<C>> | OperationFailsOf<C> | OutputOf<C>
 >;
 
 /**
- * Реализация фейка `request`-контракта — обычный хендлер по форме.
+ * Реализация фейка `request`-операции — обычный хендлер по форме.
  *
  * Автор фейка не учит новую форму, поэтому `jest.fn()` в позиции `impl`
  * работает без единой строки поддержки в пакете: собственного spy у стаба
  * нет и не будет.
  */
-export type RequestStubImpl<C extends RequestContract<any, any, any>> = (
+export type RequestStubImpl<C extends RequestOperation<any, any, any>> = (
   payload: InputOf<C>,
   meta: MetaOf<C>,
 ) => StubOutput<C>;
 
-/** Реализация фейка `command`/`event`-контракта (см. {@link RequestStubImpl}) */
-export type EmitStubImpl<C extends EmittingContract<any, any, any, any>> = (
+/** Реализация фейка `command`/`event`-операции (см. {@link RequestStubImpl}) */
+export type EmitStubImpl<C extends EmittingOperation<any, any, any, any>> = (
   payload: InputOf<C>,
   meta: MetaOf<C>,
 ) => void | Promise<void>;
@@ -100,15 +100,15 @@ const KERNEL_CODES: ReadonlySet<string> = new Set([
   DeadlineExceeded.code,
 ]);
 
-/** Fail-fast для JS-потребителей: первый аргумент — значение `makeContract` */
-function assertContract(contract: unknown): asserts contract is AnyContract {
+/** Fail-fast для JS-потребителей: первый аргумент — значение `makeRequest` */
+function assertOperation(contract: unknown): asserts contract is AnyOperation {
   const kind = (contract as { kind?: unknown } | undefined)?.kind;
   const name = (contract as { name?: unknown } | undefined)?.name;
 
   if (typeof name !== 'string' || typeof kind !== 'string') {
     throw new TypeError(
-      `stub(contract, impl): the first argument must be a contract value ` +
-        `created by makeContract().`,
+      `stub(contract, impl): the first argument must be an operation ` +
+        `created by makeRequest / makeCommand / makeEvent.`,
     );
   }
 }
@@ -164,13 +164,13 @@ function parseLeaf(
 
 /** Разбор входа: та же процедура для обеих сторон вызывателя */
 function parseInput(
-  contract: AnyContract,
+  contract: AnyOperation,
   payload: unknown,
 ): { ok: true; value: unknown } | { ok: false; fail: AnyFail } {
   return parseLeaf(
     contract.input,
     payload,
-    `Contract '${contract.name}': input does not match its schema`,
+    `Operation '${contract.name}': input does not match its schema`,
   );
 }
 
@@ -183,7 +183,7 @@ function parseInput(
  * гарантия выразима.
  */
 function parseOutput(
-  contract: AnyContract,
+  contract: AnyOperation,
   value: unknown,
 ): { ok: true; value: unknown } | { ok: false; fail: AnyFail } {
   return parseLeaf(
@@ -195,15 +195,15 @@ function parseOutput(
 }
 
 /**
- * Проверяет, что отказ фейка входит в контракт.
+ * Проверяет, что отказ фейка входит в операция.
  *
  * Незадекларированный код — дефект **теста**, поэтому обёртка бросает, а не
  * нормализует его в `UnknownError`, как сделал бы боевой порт: тот защищает
  * потребителя от чужой реализации, которую не контролирует, а автор стаба
  * контролирует обе стороны, и молчаливое превращение только скрыло бы, что
- * фейк вышел за контракт.
+ * фейк вышел за операция.
  */
-function requireDeclaredFail(contract: AnyContract, fail: AnyFail): AnyFail {
+function requireDeclaredFail(contract: AnyOperation, fail: AnyFail): AnyFail {
   const definitions: readonly AnyFailDefinition[] = contract.errors ?? [];
   const declared = definitions.map((definition) => definition.code);
   const { code } = fail;
@@ -237,7 +237,7 @@ function requireDeclaredFail(contract: AnyContract, fail: AnyFail): AnyFail {
  * есть: источник такого исключения — код самого теста, и превращать «фейк
  * упал» в «сосед вернул `UNKNOWN`» значит прятать дефект теста от теста.
  */
-function failOfThrown(contract: AnyContract, error: unknown): AnyFail {
+function failOfThrown(contract: AnyOperation, error: unknown): AnyFail {
   if (isFail(error)) {
     return requireDeclaredFail(contract, error as AnyFail);
   }
@@ -247,7 +247,7 @@ function failOfThrown(contract: AnyContract, error: unknown): AnyFail {
 
 /** Фейк-порт: валидация входа и выхода, бюджет и множество отказов */
 function makePortStub(
-  contract: AnyContract,
+  contract: AnyOperation,
   impl: (payload: any, meta: any) => unknown,
 ): Port<any> {
   return {
@@ -300,7 +300,7 @@ function makePortStub(
  * чеканится в вызывателе, а не в транспорте.
  */
 function stubMeta(
-  contract: AnyContract,
+  contract: AnyOperation,
   meta: CommandMeta | undefined,
 ): CommandMeta {
   return contract.kind === 'command'
@@ -310,7 +310,7 @@ function stubMeta(
 
 /** Фейк-эмиттер: у `emit` нет канала результата, поэтому отказы бросаются */
 function makeEmitterStub(
-  contract: AnyContract,
+  contract: AnyOperation,
   impl: (payload: any, meta: any) => unknown,
 ): Emitter<any> {
   return {
@@ -334,17 +334,17 @@ function makeEmitterStub(
 }
 
 /**
- * Строит фейк-вызыватель контракта.
+ * Строит фейк-вызыватель операции.
  *
- * Сторона вызывателя выбирается **видом контракта**, а не вызывающим:
- * `request` даёт пару с `contract.port`, `command`/`event` — с
+ * Сторона вызывателя выбирается **видом операции**, а не вызывающим:
+ * `request` даёт пару с `contract.caller`, `command`/`event` — с
  * `contract.emitter`. Пара едет полем `stubs:` (`assembleTest`,
  * `testModule`) и структурно годна для `overrides:`.
  *
- * @param contract - Контракт, объявленный `makeContract`
+ * @param contract - Операция, объявленный `makeRequest`
  * @param impl - Реализация фейка: обычный хендлер по форме
  * @returns Пара `токен вызывателя → фейк` для поля `stubs:`
- * @throws {TypeError} Если первым аргументом передан не контракт
+ * @throws {TypeError} Если первым аргументом передан не операция
  *
  * @example
  * ```typescript
@@ -355,38 +355,38 @@ function makeEmitterStub(
  * });
  * ```
  */
-export function stub<C extends RequestContract<any, any, any>>(
+export function stub<C extends RequestOperation<any, any, any>>(
   contract: C,
   impl: RequestStubImpl<C>,
 ): readonly [token: PortToken<C>, invoker: Port<C>];
-export function stub<C extends EmittingContract<any, any, any, any>>(
+export function stub<C extends EmittingOperation<any, any, any, any>>(
   contract: C,
   impl: EmitStubImpl<C>,
 ): readonly [token: EmitterToken<C>, invoker: Emitter<C>];
 export function stub(
-  contract: AnyContract,
+  contract: AnyOperation,
   impl: (payload: any, meta: any) => unknown,
-): ContractStub {
-  assertContract(contract);
+): OperationStub {
+  assertOperation(contract);
 
   if (contract.kind === 'request') {
-    const request = contract as RequestContract<any, any, any>;
+    const request = contract as RequestOperation<any, any, any>;
 
-    return [request.port, makePortStub(contract, impl)] as const;
+    return [request.caller, makePortStub(contract, impl)] as const;
   }
 
-  const emitting = contract as EmittingContract<any, any, any, any>;
+  const emitting = contract as EmittingOperation<any, any, any, any>;
 
   return [emitting.emitter, makeEmitterStub(contract, impl)] as const;
 }
 
 /**
- * Имена контрактов, застабанных списком `stubs:`.
+ * Имена операций, застабанных списком `stubs:`.
  *
  * Состав читается по **членству токена в семействах вызывателей**, а не по
- * бренду на паре: тест, написавший `[ChargeCard.port, fake]` руками, тоже
- * подменил контракт, и отчёт обязан это показывать. Обычные пары
- * `токен → значение` в состав не входят — это не контракты.
+ * бренду на паре: тест, написавший `[ChargeCard.caller, fake]` руками, тоже
+ * подменил операция, и отчёт обязан это показывать. Обычные пары
+ * `токен → значение` в состав не входят — это не операции.
  */
 export function stubbedContracts(
   stubs: readonly (readonly [InjectionToken<any>, unknown])[] = [],

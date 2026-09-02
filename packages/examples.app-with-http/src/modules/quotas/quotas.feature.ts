@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`). */
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 import {
   ClaimQuota,
   QuotaExceeded,
@@ -25,7 +25,7 @@ import { implement, withIdempotencyKey } from '@nestling/ports';
  * же: `deps`, формы `handle`, получение зависимостей на фазе WIRE,
  * проверка отказов по `errors`, участие в discovery и `policies`, вызов
  * по значению в тестах. `input`, `output` и `errors` не переобъявляются:
- * они принадлежат контракту.
+ * они принадлежат операции.
  */
 export const ClaimQuotaImpl = implement(ClaimQuota, {
   deps: [QuotaService, ILogger],

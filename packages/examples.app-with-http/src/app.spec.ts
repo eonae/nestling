@@ -234,7 +234,7 @@ const createUser = (
     email: `user-${suffix}@example.com`,
   });
 
-describe('пример: фичи вызывают друг друга через контракты', () => {
+describe('пример: фичи вызывают друг друга через операции', () => {
   it.each<['local-first' | 'always-remote']>([
     ['local-first'],
     ['always-remote'],
@@ -275,7 +275,7 @@ describe('пример: фичи вызывают друг друга через
     });
   });
 
-  it('вызывает реализацию контракта так же, как endpoint', async () => {
+  it('вызывает реализацию операции так же, как endpoint', async () => {
     await using app = await assembleTest({
       ...spec,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -298,7 +298,7 @@ describe('пример: meta вызова через порт', () => {
 
     // Порт — обычный узел графа: в тесте его достают тем же `app.get`,
     // что транспорт или логгер
-    const quotas = app.get(ClaimQuota.port);
+    const quotas = app.get(ClaimQuota.caller);
 
     const refused = await quotas?.call(
       { email: 'late@example.com' },
@@ -451,7 +451,7 @@ describe('пример: документ OpenAPI', () => {
     expect(paths['/openapi.json']).toBeUndefined();
   });
 
-  it('берёт имя операции и документацию с контракта', async () => {
+  it('берёт имя операции и документацию с операции', async () => {
     await using app = await assembleTest({
       ...documented,
       overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -465,7 +465,7 @@ describe('пример: документ OpenAPI', () => {
       tags: ['users'],
     });
 
-    // Bind-карта контракта учтена: `dryRun` описан как query-параметр,
+    // Bind-карта операции учтена: `dryRun` описан как query-параметр,
     // а не как поле тела
     expect(
       paths['/api/users'].post.parameters?.map(({ name, in: where }) => [

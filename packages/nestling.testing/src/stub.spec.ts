@@ -1,13 +1,13 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Фейк `command`/`event`-контракта возвращает `undefined` явно: так записан
- * контракт его реализации (`void | Promise<void>`), и пустое тело `{}`
+ * Фейк `command`/`event`-операции возвращает `undefined` явно: так записан
+ * операция его реализации (`void | Promise<void>`), и пустое тело `{}`
  * читалось бы как «забыли дописать». */
 /* eslint-disable unicorn/throw-new-error --
  * `UnknownError(...)` и `QuotaExceeded(...)` — вызываемые **определения**
  * `defineFail`, а не классы ошибок: `new` тут менял бы смысл записи, а имя
  * лишь выглядит классовым. */
 /**
- * `stub(Contract, impl)` — валидация схемами контракта, профиль вызова и
+ * `stub(Operation, impl)` — валидация схемами операции, профиль вызова и
  * место стаба в сборке.
  */
 
@@ -19,13 +19,13 @@ import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';
 import { Injectable, makeToken } from '@nestling/container';
 import type { CommandMeta, PortMeta } from '@nestling/contracts';
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
 import { defineFail, Ok, UnknownError } from '@nestling/pipeline';
 import type { Emitter, Port } from '@nestling/ports';
 import { implement } from '@nestling/ports';
 import { z } from 'zod';
 
-/** Квота исчерпана — задекларированный отказ контракта */
+/** Квота исчерпана — задекларированный отказ операции */
 const QuotaExceeded = defineFail('STUB_QUOTA_EXCEEDED', {
   status: 'CONFLICT',
   message: (details: { tenantId: string }) =>
@@ -33,41 +33,37 @@ const QuotaExceeded = defineFail('STUB_QUOTA_EXCEEDED', {
   details: z.object({ tenantId: z.string() }),
 });
 
-/** Отказ, которого нет в `errors:` контракта */
+/** Отказ, которого нет в `errors:` операции */
 const NotYourTenant = defineFail('STUB_NOT_YOUR_TENANT', {
   status: 'FORBIDDEN',
   message: 'Not your tenant',
 });
 
-const ClaimQuota = makeContract({
+const ClaimQuota = makeRequest({
   name: 'stub.quotas.claim',
-  kind: 'request',
   input: z.object({ tenantId: z.string(), amount: z.number() }),
   output: z.object({ granted: z.number() }),
   errors: [QuotaExceeded],
 });
 
-const ChargeCard = makeContract({
+const ChargeCard = makeRequest({
   name: 'stub.billing.charge',
-  kind: 'request',
   input: z.object({ amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
 });
 
-const PlaceOrder = makeContract({
+const PlaceOrder = makeCommand({
   name: 'stub.orders.place',
-  kind: 'command',
   input: z.object({ orderId: z.string() }),
 });
 
-const OrderPlaced = makeContract({
+const OrderPlaced = makeEvent({
   name: 'stub.orders.placed',
-  kind: 'event',
   input: z.object({ orderId: z.string() }),
 });
 
 /**
- * Фейк, разошедшийся с контрактом.
+ * Фейк, разошедшийся с операцией.
  *
  * В TypeScript такой фейк невыразим — на то и типы. Приведение здесь и есть
  * модель JS-потребителя, ради которого существует рантайм-проверка.
@@ -82,10 +78,10 @@ const expired = (): Date => new Date(Date.now() - 1000);
 // ---------------------------------------------------------------------------
 
 describe('stub — фейк-вызыватель как значение', () => {
-  it('даёт пару с токеном порта у request-контракта', () => {
+  it('даёт пару с токеном порта у операцию-запроса', () => {
     const [token] = stub(ClaimQuota, async () => ({ granted: 1 }));
 
-    expect(token).toBe(ClaimQuota.port);
+    expect(token).toBe(ClaimQuota.caller);
   });
 
   it('даёт пару с токеном эмиттера у события', () => {
@@ -94,18 +90,18 @@ describe('stub — фейк-вызыватель как значение', () =>
     expect(token).toBe(OrderPlaced.emitter);
   });
 
-  it('отвергает значение, не созданное makeContract', () => {
+  it('отвергает значение, не созданное конструктором операции', () => {
     expect(() =>
       stub(drifted<typeof OrderPlaced>({ name: 'x' }), () => undefined),
-    ).toThrow(/must be a contract value created by makeContract/);
+    ).toThrow(/must be an operation created by makeRequest/);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Валидация схемами контракта
+// Валидация схемами операции
 // ---------------------------------------------------------------------------
 
-describe('stub — валидация схемами контракта', () => {
+describe('stub — валидация схемами операции', () => {
   it('отдаёт VALIDATION_FAILED на невалидном входе, не зовя фейк', async () => {
     const seen: unknown[] = [];
     const [, quotas] = stub(ClaimQuota, async (payload) => {
@@ -173,7 +169,7 @@ describe('stub — валидация схемами контракта', () => 
     });
   });
 
-  it('бросает на незадекларированном коде, называя контракт и допустимые', async () => {
+  it('бросает на незадекларированном коде, называя операция и допустимые', async () => {
     const [, quotas] = stub(ClaimQuota, async () =>
       drifted<{ granted: number }>(NotYourTenant()),
     );
@@ -299,8 +295,8 @@ describe('stub — профиль вызова', () => {
 // Место стаба в сборке
 // ---------------------------------------------------------------------------
 
-/** Фича-потребитель: инжектит вызыватель контракта, которого рядом нет */
-@Injectable([ClaimQuota.port])
+/** Фича-потребитель: инжектит вызыватель операции, которой рядом нет */
+@Injectable([ClaimQuota.caller])
 class QuotaConsumer {
   constructor(readonly quotas: Port<typeof ClaimQuota>) {}
 }
@@ -310,7 +306,7 @@ const ConsumerFeature = makeFeature({
   providers: [QuotaConsumer],
 });
 
-/** Фича-владелец соседнего контракта — она идёт боевым путём */
+/** Фича-владелец соседнего операции — она идёт боевым путём */
 let charged: number[] = [];
 
 const BillingFeature = makeFeature({
@@ -340,7 +336,7 @@ describe('stub — место в сборке', () => {
   });
 
   it('со стабом фича собирается без соседа и без брокера', async () => {
-    // Сборка проходит — значит боевой рецепт семейства для этого контракта
+    // Сборка проходит — значит боевой рецепт семейства для этого операции
     // не вызывался ни разу: его первое же действие, `assertReachable`,
     // уронило бы её (см. тест выше)
     await using app = await assembleTest({
@@ -365,12 +361,12 @@ describe('stub — место в сборке', () => {
       stubs: [entry],
     });
 
-    expect(app.get(ClaimQuota.port)).toBe(entry[1]);
+    expect(app.get(ClaimQuota.caller)).toBe(entry[1]);
     expect(app.get(QuotaConsumer)?.quotas).toBe(entry[1]);
   });
 
-  it('оставляет соседний контракт боевому вызывателю', async () => {
-    @Injectable([ChargeCard.port, ClaimQuota.port])
+  it('оставляет соседний операция боевому вызывателю', async () => {
+    @Injectable([ChargeCard.caller, ClaimQuota.caller])
     class MixedConsumer {
       constructor(
         readonly billing: Port<typeof ChargeCard>,
@@ -401,8 +397,8 @@ describe('stub — место в сборке', () => {
     expect(app.stubbed).toEqual(['stub.quotas.claim']);
   });
 
-  it('разрешён поверх реализованного контракта и виден в stubbed', async () => {
-    @Injectable([ChargeCard.port])
+  it('разрешён поверх реализованного операции и виден в stubbed', async () => {
+    @Injectable([ChargeCard.caller])
     class BillingConsumer {
       constructor(readonly billing: Port<typeof ChargeCard>) {}
     }
@@ -426,10 +422,10 @@ describe('stub — место в сборке', () => {
     expect(app.stubbed).toEqual(['stub.billing.charge']);
   });
 
-  it('перечисляет застабанные контракты по алфавиту, без обычных пар', async () => {
+  it('перечисляет застабанные операции по алфавиту, без обычных пар', async () => {
     const IClock = makeToken<{ now(): number }>('StubClock');
 
-    @Injectable([ClaimQuota.port, PlaceOrder.emitter])
+    @Injectable([ClaimQuota.caller, PlaceOrder.emitter])
     class BothConsumer {
       constructor(
         readonly quotas: Port<typeof ClaimQuota>,

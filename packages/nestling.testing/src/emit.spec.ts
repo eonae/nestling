@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`). */
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 /**
  * `app.emit` — доставка факта или команды всем co-located подписчикам.
  */
@@ -10,38 +10,33 @@ import { stub } from './stub';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
 import { makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import { z } from 'zod';
 
-const PlaceOrder = makeContract({
+const PlaceOrder = makeCommand({
   name: 'emit.orders.place',
-  kind: 'command',
   input: z.object({ orderId: z.string() }),
 });
 
-const OrderPlaced = makeContract({
+const OrderPlaced = makeEvent({
   name: 'emit.orders.placed',
-  kind: 'event',
   input: z.object({ orderId: z.string(), tenantId: z.string() }),
 });
 
-const Forgotten = makeContract({
+const Forgotten = makeEvent({
   name: 'emit.orders.forgotten',
-  kind: 'event',
   input: z.object({ orderId: z.string() }),
 });
 
-const Unowned = makeContract({
+const Unowned = makeCommand({
   name: 'emit.orders.unowned',
-  kind: 'command',
   input: z.object({ orderId: z.string() }),
 });
 
-const ClaimQuota = makeContract({
+const ClaimQuota = makeRequest({
   name: 'emit.quotas.claim',
-  kind: 'request',
   input: z.object({ tenantId: z.string() }),
   output: z.object({ granted: z.number() }),
 });
@@ -165,7 +160,7 @@ describe('app.emit', () => {
     );
   });
 
-  it('бросает с понятным сообщением на request-контракте', async () => {
+  it('бросает с понятным сообщением на операцию-запросе', async () => {
     await using app = await assembleTest({ features: [OrdersModule] });
 
     await expect(
@@ -173,7 +168,7 @@ describe('app.emit', () => {
     ).rejects.toThrow(/is a 'request' contract.*app\.call/s);
   });
 
-  it('доставляет подписчикам, даже когда эмиттер того же контракта застабан', async () => {
+  it('доставляет подписчикам, даже когда эмиттер того же операции застабан', async () => {
     await using app = await assembleTest({
       features: [OrdersModule],
       stubs: [stub(OrderPlaced, () => undefined)],

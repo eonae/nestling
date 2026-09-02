@@ -9,7 +9,7 @@ import { validateSync } from '@common/misc';
  * Контекст ответа в том виде, в каком его видит предикат `is`.
  *
  * Это структурный тип, а не `ResponseContext` из `@nestling/pipeline`:
- * пакет контрактов не импортирует серверный код. `ResponseContext`
+ * пакет операций не импортирует серверный код. `ResponseContext`
  * удовлетворяет этому типу, поэтому сужение в `.catch`-юните работает.
  *
  * Тип принимает обе ветки `isSuccess`. Иначе перегрузка `is` не подошла бы
@@ -162,7 +162,7 @@ export interface FailSpecWithoutDetails {
 /**
  * Проверяет, что значение создано `defineFail`.
  *
- * Используется при проверке списка `errors` в декларации и контракте.
+ * Используется при проверке списка `errors` в декларации и операции.
  */
 export function isFailDefinition(value: unknown): value is AnyFailDefinition {
   return (

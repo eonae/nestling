@@ -1,4 +1,4 @@
-import { makeContract } from './contract.js';
+import { makeCommand, makeEvent, makeRequest } from './contract.js';
 import { defineFail } from './define-fail.js';
 import { EmitterFamily, PortFamily } from './families.js';
 
@@ -10,11 +10,10 @@ const CardDeclined = defineFail('CARD_DECLINED', {
   details: z.object({ reason: z.string() }),
 });
 
-describe('makeContract', () => {
-  it('объявляет request-контракт, ничего не регистрируя в приложении', () => {
-    const ChargeCard = makeContract({
+describe('конструкторы операций', () => {
+  it('объявляют запрос, ничего не регистрируя в приложении', () => {
+    const ChargeCard = makeRequest({
       name: 'spec.billing.charge',
-      kind: 'request',
       input: z.object({ orderId: z.string(), amount: z.number() }),
       output: z.object({ chargeId: z.string() }),
       errors: [CardDeclined],
@@ -24,73 +23,63 @@ describe('makeContract', () => {
     expect(ChargeCard.kind).toBe('request');
     expect(ChargeCard.errors).toEqual([CardDeclined]);
 
-    // Значение неизменяемо: контракт — данные, а не мутируемый билдер
+    // Значение неизменяемо: операция — данные, а не мутируемый билдер
     expect(Object.isFrozen(ChargeCard)).toBe(true);
   });
 
-  it('даёт `.port` запросу и `.emitter` — команде и событию', () => {
-    const Request = makeContract({
-      name: 'spec.kinds.request',
-      kind: 'request',
-    });
-    const Command = makeContract({
-      name: 'spec.kinds.command',
-      kind: 'command',
-    });
-    const Event = makeContract({ name: 'spec.kinds.event', kind: 'event' });
+  it('вид следует из конструктора, а не из поля', () => {
+    const Request = makeRequest({ name: 'spec.kinds.request' });
+    const Command = makeCommand({ name: 'spec.kinds.command' });
+    const Event = makeEvent({ name: 'spec.kinds.event' });
 
-    expect(Request.port).toBe(PortFamily('spec.kinds.request'));
-    expect(Command.emitter).toBe(EmitterFamily('spec.kinds.command'));
-    expect(Event.emitter).toBe(EmitterFamily('spec.kinds.event'));
+    expect([Request.kind, Command.kind, Event.kind]).toEqual([
+      'request',
+      'command',
+      'event',
+    ]);
+  });
+
+  it('даёт `.caller` запросу и `.emitter` — команде и событию', () => {
+    const Request = makeRequest({ name: 'spec.invokers.request' });
+    const Command = makeCommand({ name: 'spec.invokers.command' });
+    const Event = makeEvent({ name: 'spec.invokers.event' });
+
+    expect(Request.caller).toBe(PortFamily('spec.invokers.request'));
+    expect(Command.emitter).toBe(EmitterFamily('spec.invokers.command'));
+    expect(Event.emitter).toBe(EmitterFamily('spec.invokers.event'));
   });
 
   it('повторное обращение к вызывателю даёт тот же токен', () => {
-    const Contract = makeContract({
-      name: 'spec.identity.port',
-      kind: 'request',
-    });
+    const Operation = makeRequest({ name: 'spec.identity.caller' });
 
-    expect(Contract.port).toBe(Contract.port);
-    expect(Contract.port).toBe(PortFamily('spec.identity.port'));
+    expect(Operation.caller).toBe(Operation.caller);
+    expect(Operation.caller).toBe(PortFamily('spec.identity.caller'));
   });
 
   it('обращение к вызывателю чужого вида — ошибка с именем и видом', () => {
-    const Event = makeContract({ name: 'spec.wrong.invoker', kind: 'event' });
+    const Event = makeEvent({ name: 'spec.wrong.invoker' });
 
-    expect(() => (Event as unknown as { port: unknown }).port).toThrow(
-      /'spec\.wrong\.invoker' is a 'event' contract.*use '\.emitter'/s,
+    expect(() => (Event as unknown as { caller: unknown }).caller).toThrow(
+      /'spec\.wrong\.invoker' is a 'event'.*use '\.emitter'/s,
     );
 
-    const Request = makeContract({
-      name: 'spec.wrong.invoker.request',
-      kind: 'request',
-    });
+    const Request = makeRequest({ name: 'spec.wrong.invoker.request' });
 
     expect(() => (Request as unknown as { emitter: unknown }).emitter).toThrow(
-      /use '\.port'/,
+      /use '\.caller'/,
     );
   });
 
   it('отвергает пустое имя', () => {
-    expect(() => makeContract({ name: '', kind: 'event' })).toThrow(
+    expect(() => makeEvent({ name: '' })).toThrow(
       /'name' must be a non-empty string/,
     );
   });
 
-  it('отвергает недопустимый вид, перечисляя допустимые', () => {
-    expect(() =>
-      makeContract({
-        name: 'spec.bad.kind',
-        kind: 'query' as unknown as 'request',
-      }),
-    ).toThrow(/'request', 'command', 'event'/);
-  });
-
   it('отвергает элемент `errors:`, не созданный defineFail', () => {
     expect(() =>
-      makeContract({
+      makeRequest({
         name: 'spec.bad.errors',
-        kind: 'request',
         // Функция без бренда `defineFail`: ошибка, которую ловит проверка
         // списка
         errors: [((): void => undefined) as never],
@@ -98,53 +87,52 @@ describe('makeContract', () => {
     ).toThrow(/errors\[0] is not a fail definition/);
   });
 
-  it('отвергает дубль кода в `errors:`, называя контракт и код', () => {
+  it('отвергает дубль кода в `errors:`, называя операцию и код', () => {
     expect(() =>
-      makeContract({
+      makeRequest({
         name: 'spec.duplicate.code',
-        kind: 'request',
         errors: [CardDeclined, CardDeclined],
       }),
-    ).toThrow(/Contract 'spec\.duplicate\.code'.*'CARD_DECLINED'/);
+    ).toThrow(/Operation 'spec\.duplicate\.code'.*'CARD_DECLINED'/);
   });
 
   it('несёт флаг долговечности у события и у команды', () => {
-    const placed = makeContract({
-      name: 'spec.durable.placed',
-      kind: 'event',
-      durable: true,
-    });
-    const charge = makeContract({
-      name: 'spec.durable.charge',
-      kind: 'command',
-      durable: true,
-    });
+    const placed = makeEvent({ name: 'spec.durable.placed', durable: true });
+    const charge = makeCommand({ name: 'spec.durable.charge', durable: true });
 
     expect(placed.durable).toBe(true);
     expect(charge.durable).toBe(true);
   });
 
-  it('контракт без флага долговечности его не несёт', () => {
-    const plain = makeContract({ name: 'spec.durable.plain', kind: 'event' });
+  it('операция без флага долговечности его не несёт', () => {
+    const plain = makeEvent({ name: 'spec.durable.plain' });
 
     expect('durable' in plain).toBe(false);
   });
 
-  it('отвергает `durable` у request, называя контракт и вид', () => {
+  it('`durable` у запроса невыразим, а из JS отвергается рантаймом', () => {
     expect(() =>
-      makeContract({
+      makeRequest({
         name: 'spec.durable.request',
-        kind: 'request',
-        // Из JS проверка типов недоступна, поэтому проверка нужна в рантайме
-        durable: true as never,
+        // @ts-expect-error — у запроса вызывающий ждёт ответа
+        durable: true,
       }),
-    ).toThrow(/Contract 'spec\.durable\.request' \(kind 'request'\)/);
+    ).toThrow(/Operation 'spec\.durable\.request' \(kind 'request'\)/);
+  });
+
+  it('`output` и `errors` у события невыразимы', () => {
+    const withOutput = {
+      name: 'spec.event.output',
+      output: z.object({ ok: z.boolean() }),
+    };
+
+    // @ts-expect-error — у события нет ответа, который можно объявить
+    expect(() => makeEvent(withOutput)).not.toThrow();
   });
 
   it('несёт секцию `doc` и отдаёт её вместе с интерфейсом операции', () => {
-    const Create = makeContract({
+    const Create = makeRequest({
       name: 'spec.doc.create',
-      kind: 'request',
       doc: { summary: 'Create user', tags: ['users'], status: 'CREATED' },
     });
 
@@ -155,37 +143,32 @@ describe('makeContract', () => {
     });
   });
 
-  it('контракт без секции её не несёт', () => {
-    const plain = makeContract({ name: 'spec.doc.plain', kind: 'event' });
+  it('операция без секции её не несёт', () => {
+    const plain = makeEvent({ name: 'spec.doc.plain' });
 
     expect('doc' in plain).toBe(false);
   });
 
-  it('проверяет `doc` теми же правилами, но называет контракт', () => {
+  it('проверяет `doc` теми же правилами, но называет операцию', () => {
     expect(() =>
-      makeContract({
-        name: 'spec.doc.broken',
-        kind: 'request',
-        doc: { hidden: '' },
-      }),
+      makeRequest({ name: 'spec.doc.broken', doc: { hidden: '' } }),
     ).toThrow(
-      /Contract 'spec\.doc\.broken': 'doc\.hidden' must state a reason/,
+      /Operation 'spec\.doc\.broken': 'doc\.hidden' must state a reason/,
     );
 
     expect(() =>
-      makeContract({
+      makeRequest({
         name: 'spec.doc.status',
-        kind: 'request',
         doc: { status: 'PARTIAL_CONTENT' as never },
       }),
-    ).toThrow(/Contract 'spec\.doc\.status': 'doc\.status' must be one of/);
+    ).toThrow(/Operation 'spec\.doc\.status': 'doc\.status' must be one of/);
   });
 
-  it('отвергает второй контракт с занятым именем', () => {
-    makeContract({ name: 'spec.taken.name', kind: 'request' });
+  it('отвергает вторую операцию с занятым именем', () => {
+    makeRequest({ name: 'spec.taken.name' });
 
-    expect(() =>
-      makeContract({ name: 'spec.taken.name', kind: 'event' }),
-    ).toThrow(/Contract 'spec\.taken\.name' is already declared/);
+    expect(() => makeEvent({ name: 'spec.taken.name' })).toThrow(
+      /'spec\.taken\.name' is already declared/,
+    );
   });
 });

@@ -6,11 +6,11 @@
  * наружу. Всё это объявляется в одной секции `doc`.
  *
  * Секция не зависит от транспорта (живёт на `EndpointOptions` и
- * `ContractSpec`; ядро её не интерпретирует) и от формата документации
+ * `OperationSpec`; ядро её не интерпретирует) и от формата документации
  * (полей, осмысленных только для OpenAPI, в ней нет; `operationId`
  * выводится, а не объявляется).
  *
- * Проверка `assertDoc` одна; её вызывают `makeEndpoint` и `makeContract`.
+ * Проверка `assertDoc` одна; её вызывают `makeEndpoint` и `makeRequest`.
  */
 
 import type { SuccessStatus } from './status.js';
@@ -67,7 +67,7 @@ const DOC_FIELDS = [
 const DOC_STRINGS = ['summary', 'description'] as const;
 
 /**
- * Проверяет секцию `doc` при создании декларации или контракта.
+ * Проверяет секцию `doc` при создании декларации или операции.
  *
  * Типы отсекают большинство ошибок, но из JS проверка типов недоступна.
  * Без рантайм-проверки `hidden: true` молча убрал бы endpoint из
@@ -75,7 +75,7 @@ const DOC_STRINGS = ['summary', 'description'] as const;
  *
  * @param doc - Значение секции
  * @param where - Как назвать владельца в тексте ошибки: `Endpoint 'GET /x'`
- * или `Contract 'users.create'`
+ * или `Operation 'users.create'`
  * @throws {TypeError} Дефектная форма поля или неизвестное поле секции
  * @throws {Error} Пустая причина `hidden` или статус вне словаря
  */

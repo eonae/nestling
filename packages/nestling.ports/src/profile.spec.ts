@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 /**
  * Эксплуатационный профиль: помощники бюджета и оба канала его доставки.
@@ -31,7 +31,7 @@ import { BusTransport$ } from './transport.js';
 
 import { ContainerBuilder, makeToken } from '@nestling/container';
 import type { Emitter, Port } from '@nestling/contracts';
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeRequest } from '@nestling/contracts';
 import type {
   AnyEndpointDefinition,
   AnyInput,
@@ -177,9 +177,8 @@ describe('помощники бюджета', () => {
 });
 
 describe('Deadline — чтение бюджета из глубины', () => {
-  const Charge = makeContract({
+  const Charge = makeRequest({
     name: 'profile.billing.charge',
-    kind: 'request',
     input: z.object({ amount: z.number() }),
     output: z.object({ seen: z.boolean() }),
   });
@@ -229,9 +228,8 @@ describe('Deadline — чтение бюджета из глубины', () => {
   });
 
   it('без писателя в пайплайне переменной не существует вовсе', async () => {
-    const Bare = makeContract({
+    const Bare = makeRequest({
       name: 'profile.billing.bare',
-      kind: 'request',
       input: z.object({ amount: z.number() }),
       output: z.object({ ok: z.boolean() }),
     });
@@ -269,9 +267,8 @@ describe('Deadline — чтение бюджета из глубины', () => {
 });
 
 describe('IdempotencyKey — чтение ключа из глубины', () => {
-  const Ship = makeContract({
+  const Ship = makeCommand({
     name: 'profile.orders.ship',
-    kind: 'command',
     input: z.object({ orderId: z.string() }),
   });
 
@@ -321,9 +318,8 @@ describe('IdempotencyKey — чтение ключа из глубины', () =>
 });
 
 describe('policy-check присутствия переменной', () => {
-  const Ship = makeContract({
+  const Ship = makeCommand({
     name: 'profile.policy.ship',
-    kind: 'command',
     input: z.object({ orderId: z.string() }),
   });
 
@@ -342,9 +338,8 @@ describe('policy-check присутствия переменной', () => {
   });
 
   it('реализация без слоя падает на сборке с координатами и починкой', () => {
-    const Bare = makeContract({
+    const Bare = makeCommand({
       name: 'profile.policy.bare',
-      kind: 'command',
       input: z.object({ orderId: z.string() }),
     });
 
@@ -357,16 +352,14 @@ describe('policy-check присутствия переменной', () => {
 });
 
 describe('явная передача остатка вглубь', () => {
-  const Inner = makeContract({
+  const Inner = makeRequest({
     name: 'profile.nested.inner',
-    kind: 'request',
     input: z.object({ id: z.string() }),
     output: z.object({ done: z.boolean() }),
   });
 
-  const Outer = makeContract({
+  const Outer = makeRequest({
     name: 'profile.nested.outer',
-    kind: 'request',
     input: z.object({ id: z.string() }),
     output: z.object({ ok: z.boolean() }),
   });

@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`). */
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 /**
  * Транспорт целиком — против двойника брокера, без сети.
  *
@@ -15,7 +15,7 @@ import { nats, NatsBus } from './transport.js';
 import { CONTEXT_HEADER, IDEMPOTENCY_HEADER, TIMEOUT_HEADER } from './wire.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
 import { defineFail, makePipeline, Ok } from '@nestling/pipeline';
 import { BusTransport$, implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';
@@ -26,23 +26,20 @@ const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
   message: 'Quota exceeded',
 });
 
-const Claim = makeContract({
+const Claim = makeRequest({
   name: 'quotas.claim',
-  kind: 'request',
   input: z.object({ amount: z.number() }),
   output: z.object({ granted: z.number() }),
   errors: [QuotaExceeded],
 });
 
-const Ship = makeContract({
+const Ship = makeCommand({
   name: 'orders.ship',
-  kind: 'command',
   input: z.object({ orderId: z.string() }),
 });
 
-const Placed = makeContract({
+const Placed = makeEvent({
   name: 'orders.placed',
-  kind: 'event',
   input: z.object({ orderId: z.string() }),
 });
 

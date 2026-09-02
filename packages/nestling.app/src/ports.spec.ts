@@ -2,10 +2,10 @@
  * noop-заглушка `console.log`: тест смотрит на состав напечатанного, а не
  * на сам вывод. */
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`). */
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 /**
- * Порты под `assemble`: две фичи, общающиеся контрактом, шаг связывания в
+ * Порты под `assemble`: две фичи, общающиеся операцией, шаг связывания в
  * WIRE и обе политики диспатча — переключаемые конфигом, а не кодом.
  */
 
@@ -16,7 +16,7 @@ import { MockTransport } from './helpers';
 import { describe, expect, it, jest } from '@jest/globals';
 import { objectSource } from '@nestling/config';
 import { Injectable, makeToken, OnInit, OnStart } from '@nestling/container';
-import { makeContract } from '@nestling/contracts';
+import { makeEvent, makeRequest } from '@nestling/contracts';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import { makeEmptyContext, Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
@@ -40,23 +40,21 @@ const contextFor = (pattern: string, payload?: unknown) =>
     { transport: 'http', pattern },
   ) as ExtendableContext<AnyInput>;
 
-const ChargeCard = makeContract({
+const ChargeCard = makeRequest({
   name: 'app.billing.charge',
-  kind: 'request',
   input: z.object({ amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
 });
 
-const OrderPlaced = makeContract({
+const OrderPlaced = makeEvent({
   name: 'app.orders.placed',
-  kind: 'event',
   input: z.object({ orderId: z.string() }),
 });
 
 let charged: number[] = [];
 let notified: string[] = [];
 
-/** Фича-владелец: реализует контракты как обычные декларации */
+/** Фича-владелец: реализует операции как обычные декларации */
 const BillingFeature = makeFeature({
   name: 'billing',
   endpoints: [
@@ -87,7 +85,7 @@ const OrdersFeature = makeFeature({
       path: '/orders',
       input: z.object({ amount: z.number() }),
       output: z.object({ chargeId: z.string() }),
-      deps: [ChargeCard.port],
+      deps: [ChargeCard.caller],
       handle:
         (billing: Port<typeof ChargeCard>) =>
         async (input: { amount: number }) => {
@@ -103,10 +101,9 @@ const OrdersFeature = makeFeature({
   ],
 });
 
-/** Потребитель без владельца рядом: контракт объявлен, реализации нет */
-const LonelyContract = makeContract({
+/** Потребитель без владельца рядом: операция объявлена, реализации нет */
+const LonelyContract = makeRequest({
   name: 'app.lonely.request',
-  kind: 'request',
   output: z.object({ ok: z.boolean() }),
 });
 
@@ -118,15 +115,14 @@ const LonelyFeature = makeFeature({
     {
       provide: LonelyToken,
       useFactory: (port: Port<typeof LonelyContract>) => ({ port }),
-      deps: [LonelyContract.port],
+      deps: [LonelyContract.caller],
     },
   ],
 });
 
 /** Долговечное событие: на in-proc шине оно обслуживается недолговечно */
-const DurablePlaced = makeContract({
+const DurablePlaced = makeEvent({
   name: 'app.durable.placed',
-  kind: 'event',
   durable: true,
   input: z.object({ orderId: z.string() }),
 });
@@ -145,7 +141,7 @@ const DurableFeature = makeFeature({
  * Шина, объявившая себя remote, — то, чем в бою будет `nats()`.
  *
  * Тест не о брокере, а о композиции: корень поставил транспорт шины, и
- * приложение обязано собраться даже без единой реализации контракта.
+ * приложение обязано собраться даже без единой реализации операции.
  */
 class RemoteBus extends InProcessBus {
   override readonly remote: boolean = true;
@@ -170,7 +166,7 @@ describe('assemble — порты', () => {
   it.each<['local-first' | 'always-remote']>([
     ['local-first'],
     ['always-remote'],
-  ])('две фичи общаются контрактом при политике %s', async (dispatch) => {
+  ])('две фичи общаются операцией при политике %s', async (dispatch) => {
     const http = new MockTransport();
     const app = assemble({
       features: [OrdersFeature, BillingFeature],
@@ -215,7 +211,7 @@ describe('assemble — порты', () => {
     await app.close();
   });
 
-  it('приложение без контрактов не упоминает шину ни в чём', async () => {
+  it('приложение без операций не упоминает шину ни в чём', async () => {
     const http = new MockTransport();
     const app = assemble({
       features: [
@@ -256,7 +252,7 @@ describe('assemble — порты', () => {
   it('порт связан к моменту `@OnStart` и не связан в `@OnInit`', async () => {
     const seen: string[] = [];
 
-    @Injectable([ChargeCard.port])
+    @Injectable([ChargeCard.caller])
     class Warmup {
       constructor(private readonly billing: Port<typeof ChargeCard>) {}
 
@@ -346,7 +342,7 @@ describe('assemble — порты', () => {
       contextFor('POST /notify', { orderId: 'o-1' }),
     );
 
-    // Доставка асинхронна по контракту `emit`: он резолвится по факту
+    // Доставка асинхронна по операции `emit`: он резолвится по факту
     // постановки вызова, а не по факту обработки
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -377,7 +373,7 @@ describe('assemble — порты', () => {
 
       log.mockClear();
 
-      // То же приложение без долговечных контрактов молчит
+      // То же приложение без долговечных операций молчит
       const plain = assemble({
         features: [BillingFeature],
         transports: [asHttpTransport(new MockTransport())],
@@ -433,7 +429,7 @@ describe('assemble — порты', () => {
       config: portsConfig(),
     });
 
-    // Ни одной реализации контракта в сборке нет, а вызыватель есть:
+    // Ни одной реализации операции в сборке нет, а вызыватель есть:
     // владелец живёт в другом процессе, и это больше не ошибка сборки
     await expect(app.run()).resolves.toBeUndefined();
 

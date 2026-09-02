@@ -10,7 +10,7 @@ import type { TestConfig } from './config.js';
 import { toBindings } from './config.js';
 import type { TestOverride, ValidatedOverrides } from './overrides.js';
 import { splitOverrides } from './overrides.js';
-import type { ContractStub } from './stub.js';
+import type { OperationStub } from './stub.js';
 import { stubbedContracts } from './stub.js';
 
 import type { Feature, FeatureSelection, Plugin } from '@nestling/app';
@@ -20,7 +20,7 @@ import type { InjectionToken, Provider } from '@nestling/container';
 import { valueProvider } from '@nestling/container';
 import type {
   CommandMeta,
-  EmittingContract,
+  EmittingOperation,
   InvokeArgs,
 } from '@nestling/contracts';
 import type {
@@ -62,15 +62,15 @@ export interface TestCallOptions extends DispatchOptions {
 }
 
 /**
- * Элемент списка `stubs:`: пара `токен → значение` либо контрактный стаб.
+ * Элемент списка `stubs:`: пара `токен → значение` либо стаб операции.
  *
  * Одно поле на обе формы, потому что решение у теста одно и то же —
- * «здесь боевого кода не будет»; контрактный стаб есть та же пара, только
+ * «здесь боевого кода не будет»; стаб операции есть та же пара, только
  * токен в ней — член семейства вызывателей ([stub.ts](./stub.ts)).
  */
 export type TestStub =
   | readonly [token: InjectionToken<any>, value: any]
-  | ContractStub;
+  | OperationStub;
 
 /**
  * Доставка `app.emit` одному подписчику.
@@ -81,7 +81,7 @@ export type TestStub =
  * подписчика в гонку.
  */
 export interface EmitDelivery {
-  /** Имя подписчика из биндинга; у `command` — имя контракта */
+  /** Имя подписчика из биндинга; у `command` — имя операции */
   readonly subscriber: string;
 
   /** Ответ границы этого подписчика — то же, что вернул бы `app.call` */
@@ -145,7 +145,7 @@ export interface TestAssemblySpec<
    * Поставка недостающего: пары `токен → значение`, регистрируемые
    * обычными провайдерами.
    *
-   * Той же формы контрактный стаб: `stub(Contract, impl)` возвращает пару
+   * Той же формы стаб операции: `stub(Operation, impl)` возвращает пару
    * `токен вызывателя → фейк` и едет элементом этого же списка.
    */
   stubs?: readonly TestStub[];
@@ -182,10 +182,10 @@ export class TestApp {
   }
 
   /**
-   * Имена контрактов, застабанных в этой сборке — по алфавиту.
+   * Имена операций, застабанных в этой сборке — по алфавиту.
    *
    * Отчёт — значение, а не печать (симметрично {@link pruned}): им сверяют
-   * состав подстановок с матрицей `.check()`. Каждый застабанный контракт
+   * состав подстановок с матрицей `.check()`. Каждый застабанная операция
    * обязан быть опубликован хотя бы одной честной топологией, иначе стаб
    * прикрывает отсутствующую реализацию:
    *
@@ -231,7 +231,7 @@ export class TestApp {
    *
    * @param endpoint - Декларация из `endpoints:` модуля
    * @returns Ответ границы: успех со значением по `output`-схеме либо отказ
-   * со `status` и `code` из закрытого контракта `errors:`
+   * со `status` и `code` из закрытого операции `errors:`
    * @throws {Error} Если декларации нет в собранном приложении
    *
    * @example
@@ -256,7 +256,7 @@ export class TestApp {
    * Доставляет факт или команду **всем** co-located подписчикам.
    *
    * Тест драйвит приложение снаружи внутрь — как издатель: находятся все
-   * endpoint'ы, чей bus-биндинг несёт `subject`, равный имени контракта, и
+   * endpoint'ы, чей bus-биндинг несёт `subject`, равный имени операции, и
    * каждая гонится через **полный пайплайн** тем же кодом, что `call`.
    * Транспортные атрибуты кадра несут профиль вызова так же, как их несёт
    * боевой эмиттер, включая `idempotencyKey` у вида `command`.
@@ -269,9 +269,9 @@ export class TestApp {
    *
    * Ждать здесь безопасно: сокета нет, подписчики co-located.
    *
-   * @param contract - Контракт вида `command` или `event`
+   * @param contract - Операция вида `command` или `event`
    * @returns Ответы подписчиков с именем каждого, в порядке discovery
-   * @throws {TypeError} Если контракт — `request` (у него нет подписчиков)
+   * @throws {TypeError} Если операция — `request` (у него нет подписчиков)
    * @throws {Error} Если у команды нет владельца в этой сборке. У события
    * ноль подписчиков допустимо: тогда список пуст
    *
@@ -283,7 +283,7 @@ export class TestApp {
    * });
    * ```
    */
-  async emit<C extends EmittingContract<any, any, any, any>>(
+  async emit<C extends EmittingOperation<any, any, any, any>>(
     contract: C,
     ...args: InvokeArgs<C>
   ): Promise<readonly EmitDelivery[]> {
@@ -300,7 +300,7 @@ export class TestApp {
       }
 
       throw new Error(
-        `Contract '${contract.name}' (kind 'command') has no owner in the ` +
+        `Operation '${contract.name}' (kind 'command') has no owner in the ` +
           `assembled application: no registered module declares ` +
           `implement(${contract.name}, { … }) — check that the feature ` +
           `owning it is part of 'select'. Available subjects: ` +
@@ -395,7 +395,7 @@ export class TestApp {
 
       if (binding?.subject === subject) {
         // Имя подписчика есть только у `event`: у команды владелец один, и
-        // его имя — имя самого контракта
+        // его имя — имя самого операции
         found.push({ wired, subscriber: binding.subscriber ?? subject });
       }
     }
@@ -456,18 +456,18 @@ type CallArgs<I extends AnyPayload> =
  *
  * Типы делают `request` в этой позиции невыразимым, но JS-потребителей типы
  * не сдерживают: без проверки вызов ушёл бы в поиск подписчиков и вернул бы
- * пустой список, ничего не сказав про вид контракта.
+ * пустой список, ничего не сказав про вид операции.
  */
 function assertEmitting(
   contract: unknown,
-): asserts contract is EmittingContract<any, any, any, any> {
+): asserts contract is EmittingOperation<any, any, any, any> {
   const kind = (contract as { kind?: unknown } | undefined)?.kind;
   const name = (contract as { name?: unknown } | undefined)?.name;
 
   if (typeof name !== 'string' || typeof kind !== 'string') {
     throw new TypeError(
       `app.emit(contract, …): the first argument must be a contract value ` +
-        `created by makeContract().`,
+        `created by makeRequest / makeCommand / makeEvent.`,
     );
   }
 

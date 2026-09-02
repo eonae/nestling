@@ -8,7 +8,7 @@
  */
 
 import { makeToken } from '@nestling/container';
-import type { ContractKind } from '@nestling/contracts';
+import type { OperationKind } from '@nestling/contracts';
 import { transportNameOf } from '@nestling/pipeline';
 import type { TransportToken } from '@nestling/transport';
 
@@ -35,17 +35,17 @@ const BUS_BINDING = Symbol.for('nestling:bus-binding');
  * держится суффиксом `@<subscriber>`.
  */
 export interface BusBinding {
-  /** Subject шины — имя контракта, одинаковое у всех подписчиков */
+  /** Subject шины — имя операции, одинаковое у всех подписчиков */
   readonly subject: string;
 
-  /** Вид контракта: определяет семантику доставки */
-  readonly kind: ContractKind;
+  /** Вид операции: определяет семантику доставки */
+  readonly kind: OperationKind;
 
   /** Имя подписчика — есть только у `event`; оно же имя группы доставки */
   readonly subscriber?: string;
 
   /**
-   * Долговечность доставки, скопированная из контракта.
+   * Долговечность доставки, скопированная из операции.
    *
    * Входящий канал признака: транспорт читает его отсюда, решая, чем
    * обслужить подписку. Слова «JetStream» здесь нет и быть не может —

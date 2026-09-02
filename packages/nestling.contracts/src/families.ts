@@ -2,18 +2,18 @@
  * Семейства токенов `PortFamily` и `EmitterFamily` и типы их значений:
  * `Port`, `Emitter`, `PortMeta`, `CommandMeta`.
  *
- * Отдельный файл: на семейства ссылаются и контракт (`.port` / `.emitter`
+ * Отдельный файл: на семейства ссылаются и операция (`.port` / `.emitter`
  * — члены семейств), и модуль ядра в `@nestling/ports` (рецепты). Общий
  * модуль-лист разрывает цикл импортов.
  */
 
 import type {
-  AnyContract,
-  ContractFailsOf,
-  EmittingContract,
+  AnyOperation,
+  EmittingOperation,
   InputOf,
+  OperationFailsOf,
   OutputOf,
-  RequestContract,
+  RequestOperation,
 } from './contract.js';
 import type { FailOf } from './define-fail.js';
 import type {
@@ -67,24 +67,24 @@ export interface CommandMeta extends PortMeta {
 }
 
 /**
- * Тип `meta` по виду контракта: `CommandMeta` для `command`, иначе
+ * Тип `meta` по виду операции: `CommandMeta` для `command`, иначе
  * `PortMeta`.
  *
- * Условие проверяет поле `kind`, а не `C extends CommandContract`:
- * контракт содержит токен вызывающей стороны, тот — `InvokeArgs`, а тот
- * снова `MetaOf`. Структурная проверка контракта целиком уходит в
+ * Условие проверяет поле `kind`, а не `C extends CommandOperation`:
+ * операция содержит токен вызывающей стороны, тот — `InvokeArgs`, а тот
+ * снова `MetaOf`. Структурная проверка операции целиком уходит в
  * бесконечную рекурсию и роняет `tsc`; проверка дискриминанта — нет.
  */
-export type MetaOf<C extends AnyContract> = C extends { kind: 'command' }
+export type MetaOf<C extends AnyOperation> = C extends { kind: 'command' }
   ? CommandMeta
   : PortMeta;
 
 /**
  * Отказы ядра, которые вызов порта может вернуть помимо объявленных в
- * контракте.
+ * операции.
  *
  * Коды ядра считаются объявленными у любого endpoint'а, поэтому входят в
- * множество ответов порта наравне с `errors` контракта.
+ * множество ответов порта наравне с `errors` операции.
  */
 export type KernelPortFail =
   | FailOf<typeof UnknownError>
@@ -96,68 +96,68 @@ export type KernelPortFail =
  *
  * Одинаково для локальной и удалённой реализации.
  */
-export type PortResult<C extends AnyContract> =
+export type PortResult<C extends AnyOperation> =
   | Ok<OutputOf<C>>
-  | ContractFailsOf<C>
+  | OperationFailsOf<C>
   | KernelPortFail;
 
 /**
- * Аргументы вызова. У контракта без `input` payload необязателен, у
+ * Аргументы вызова. У операции без `input` payload необязателен, у
  * остальных обязателен: пропущенный payload не компилируется.
  */
-export type InvokeArgs<C extends AnyContract> =
+export type InvokeArgs<C extends AnyOperation> =
   undefined extends InputOf<C>
     ? [payload?: InputOf<C>, meta?: MetaOf<C>]
     : [payload: InputOf<C>, meta?: MetaOf<C>];
 
 /**
- * Порт: вызывающая сторона контракта вида `request`.
+ * Порт: вызывающая сторона операции вида `request`.
  *
  * Вызов всегда асинхронный и всегда может вернуть `Fail`, даже если
  * реализация работает в том же процессе. Поэтому код вызывающей стороны не
  * меняется, когда реализацию выносят в другой процесс.
  */
-export interface Port<C extends RequestContract<any, any, any>> {
+export interface Port<C extends RequestOperation<any, any, any>> {
   call(...args: InvokeArgs<C>): Promise<PortResult<C>>;
 }
 
 /**
- * Эмиттер: вызывающая сторона контрактов вида `command` и `event`.
+ * Эмиттер: вызывающая сторона операций вида `command` и `event`.
  *
  * `emit` возвращает `Promise<void>`, а не `Ok | Fail`: у вызова без ответа
  * нет результата, который нужно разбирать. Promise завершается после
  * доставки сообщения, а не после его обработки.
  */
-export interface Emitter<C extends EmittingContract<any, any, any, any>> {
+export interface Emitter<C extends EmittingOperation<any, any, any, any>> {
   emit(...args: InvokeArgs<C>): Promise<void>;
 }
 
 /**
- * Семейство портов: один член на контракт вида `request`.
+ * Семейство портов: один член на операция вида `request`.
  *
- * Рецепт регистрирует модуль ядра в `@nestling/ports`. `deps: [C.port]`
- * создаёт один узел графа для этого контракта; контракт, который никто не
+ * Рецепт регистрирует модуль ядра в `@nestling/ports`. `deps: [C.caller]`
+ * создаёт один узел графа для этого операции; операция, который никто не
  * вызывает, узлов не создаёт.
  *
- * @internal Пользовательский код получает токен через `Contract.port`
+ * @internal Пользовательский код получает токен через `Operation.caller`
  */
 export const PortFamily = makeTokenFamily<Port<any>, [name: string]>('Port');
 
 /**
- * Семейство эмиттеров: один член на контракт вида `command` или `event`
+ * Семейство эмиттеров: один член на операция вида `command` или `event`
  * (см. {@link PortFamily}).
  *
- * @internal Пользовательский код получает токен через `Contract.emitter`
+ * @internal Пользовательский код получает токен через `Operation.emitter`
  */
 export const EmitterFamily = makeTokenFamily<Emitter<any>, [name: string]>(
   'Emitter',
 );
 
-/** Токен порта контракта: член семейства, типизированный контрактом */
-export type PortToken<C extends RequestContract<any, any, any>> = Token<
+/** Токен порта операции: член семейства, типизированный операцией */
+export type PortToken<C extends RequestOperation<any, any, any>> = Token<
   Port<C>
 >;
 
-/** Токен эмиттера контракта: член семейства, типизированный контрактом */
-export type EmitterToken<C extends EmittingContract<any, any, any, any>> =
+/** Токен эмиттера операции: член семейства, типизированный операцией */
+export type EmitterToken<C extends EmittingOperation<any, any, any, any>> =
   Token<Emitter<C>>;

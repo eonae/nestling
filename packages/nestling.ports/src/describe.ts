@@ -1,7 +1,7 @@
 /**
- * Дескриптор контракта: контракт, переведённый в JSON-значение.
+ * Дескриптор операции: операция, переведённый в JSON-значение.
  *
- * Всё, кроме листовых схем, ядро знает и так: вид контракта, дерево форм
+ * Всё, кроме листовых схем, ядро знает и так: вид операции, дерево форм
  * io (`describeForm`), коды и статусы объявленных отказов. Схема листа
  * непрозрачна для интроспекции Standard Schema, поэтому лист либо
  * переводится в JSON Schema вендор-конвертером, либо помечается
@@ -20,7 +20,7 @@
 import type { BusBindingBearer } from './transport.js';
 import { busBindingOf } from './transport.js';
 
-import type { AnyContract, ContractKind } from '@nestling/contracts';
+import type { AnyOperation, OperationKind } from '@nestling/contracts';
 import type {
   FormKind,
   SchemaDocConverter,
@@ -104,12 +104,12 @@ export interface FailDescriptor {
   readonly status: string;
 }
 
-/** Контракт как значение снапшота */
-export interface ContractDescriptor {
-  /** Имя-адрес контракта; версия — часть имени */
+/** Операция как значение снапшота */
+export interface OperationDescriptor {
+  /** Имя-адрес операции; версия — часть имени */
   readonly name: string;
 
-  readonly kind: ContractKind;
+  readonly kind: OperationKind;
 
   readonly input: FormDescriptorValue;
 
@@ -129,8 +129,8 @@ export interface DescribeOptions {
   readonly converters?: readonly SchemaDocConverter[];
 }
 
-/** Источник дескриптора: контракт или его реализация (`implement`) */
-export type DescribeSource = AnyContract | BusBindingBearer;
+/** Источник дескриптора: операция или его реализация (`implement`) */
+export type DescribeSource = AnyOperation | BusBindingBearer;
 
 // ---------------------------------------------------------------------------
 // Канонизация JSON
@@ -272,13 +272,13 @@ export function describeFormValue(
 }
 
 // ---------------------------------------------------------------------------
-// Описание контракта
+// Описание операции
 // ---------------------------------------------------------------------------
 
-/** Интерфейс операции, прочитанный с контракта или с его реализации */
+/** Интерфейс операции, прочитанный с операции или с его реализации */
 interface ContractShape {
   readonly name: string;
-  readonly kind: ContractKind;
+  readonly kind: OperationKind;
   readonly input?: unknown;
   readonly output?: unknown;
   readonly errors?: readonly { code: string; status: string }[];
@@ -288,7 +288,7 @@ interface ContractShape {
  * Приводит источник к интерфейсу операции.
  *
  * Декларация-реализация несёт имя и вид не полями, а bus-биндингом:
- * `implement` копирует туда `subject`/`kind` контракта, и это тот же
+ * `implement` копирует туда `subject`/`kind` операции, и это тот же
  * источник истины, которым пользуется топология портов.
  */
 function readShape(source: DescribeSource): ContractShape {
@@ -314,8 +314,8 @@ function readShape(source: DescribeSource): ContractShape {
 
   if (typeof record.name !== 'string' || typeof record.kind !== 'string') {
     throw new TypeError(
-      `describeContract(...): expected a contract value created by ` +
-        `makeContract(), or an implementation declaration created by ` +
+      `describeOperation(...): expected a contract value created by ` +
+        `makeRequest(), or an implementation declaration created by ` +
         `implement() — the argument carries neither a name/kind pair nor a ` +
         `bus binding.`,
     );
@@ -323,7 +323,7 @@ function readShape(source: DescribeSource): ContractShape {
 
   return {
     name: record.name,
-    kind: record.kind as ContractKind,
+    kind: record.kind as OperationKind,
     input: record.input,
     output: record.output,
     errors: record.errors,
@@ -331,26 +331,26 @@ function readShape(source: DescribeSource): ContractShape {
 }
 
 /**
- * Описывает контракт значением.
+ * Описывает операция значением.
  *
- * @param source - Контракт (`makeContract`) или его реализация (`implement`)
+ * @param source - Операция (`makeRequest`) или его реализация (`implement`)
  * @param options - Конвертеры листовых схем; без них листья непрозрачны
  * @returns JSON-сериализуемый дескриптор
- * @throws {Error} Источник не контракт и не реализация; два конвертера
+ * @throws {Error} Источник не операция и не реализация; два конвертера
  * одного вендора в списке
  *
  * @example
  * ```typescript
- * const descriptor = describeContract(ChargeCard, {
+ * const descriptor = describeOperation(ChargeCard, {
  *   converters: [zodConverter()],
  * });
  * // { name: 'billing.charge', kind: 'request', input: { … }, … }
  * ```
  */
-export function describeContract(
+export function describeOperation(
   source: DescribeSource,
   options: DescribeOptions = {},
-): ContractDescriptor {
+): OperationDescriptor {
   assertConverters(options.converters);
 
   const shape = readShape(source);

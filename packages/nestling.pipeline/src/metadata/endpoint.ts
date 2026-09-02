@@ -711,7 +711,7 @@ export function makeEndpoint(
   const form = normalizeHandler(options.handle, options.deps, options.pattern);
   assertFailDefinitions(options.errors, options.pattern);
   assertDetached(options.detached, options.pattern);
-  // Правила `doc` общие для декларации и контракта; отличается только
+  // Правила `doc` общие для декларации и операции; отличается только
   // адресат в тексте ошибки
   assertDoc(options.doc, `Endpoint '${options.pattern}'`);
   // Формы io проверяются здесь, а не в конструкторах транспортов: правило

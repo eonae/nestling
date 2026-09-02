@@ -185,7 +185,7 @@ describe('отложенный .finally у потокового ответа', (
     expect(seen).toEqual(['finally:failed']);
   });
 
-  it('mid-stream отказ нормализуется проверкой контракта отказов', async () => {
+  it('mid-stream отказ нормализуется проверкой операции отказов', async () => {
     const unknownFails: unknown[] = [];
 
     const ctx = makeEmptyContext(raw(), meta(undefined, stream(Row)));

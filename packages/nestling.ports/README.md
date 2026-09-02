@@ -61,7 +61,7 @@ export const QuotasModule = makeAppModule({
 // Вызов из другой фичи: порт инжектируется как обычная зависимость
 export const CreateUser = httpEndpoint({
   /* … */
-  deps: [ClaimQuota.port],
+  deps: [ClaimQuota.caller],
   handle: (quotas) => async (input) => {
     const claimed = await quotas.call({ email: input.email });
     if (claimed.isFail) {
@@ -178,7 +178,7 @@ await ship.emit({ orderId }, { idempotencyKey: orderId });
 `signal`.
 
 ```typescript
-deps: [Ctx(Deadline), ChargeCard.port],
+deps: [Ctx(Deadline), ChargeCard.caller],
 handle: (deadline, charge) => async (input) =>
   charge.call(input, { deadline: deadline.peek() }),
 ```

@@ -11,7 +11,7 @@ import type { DocumentedEndpoint, OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { StandardSchemaV1 } from '@nestling/contracts';
-import { makeContract, query } from '@nestling/contracts';
+import { makeRequest, query } from '@nestling/contracts';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import {
@@ -214,17 +214,16 @@ describe('адрес операции и её параметры', () => {
 });
 
 describe('operationId выводится, а не объявляется', () => {
-  it('берётся с контракта', () => {
-    const CreateUser = makeContract({
+  it('берётся с операции', () => {
+    const CreateUser = makeRequest({
       name: 'openapi.users.create',
-      kind: 'request',
       http: 'POST /contract-users',
       input: z.object({ email: z.string() }),
       output: User,
     });
 
     const declaration = httpEndpoint({
-      contract: CreateUser,
+      operation: CreateUser,
       handle: async ({ email }) => new Ok({ id: '1', email }),
     });
 
@@ -233,7 +232,7 @@ describe('operationId выводится, а не объявляется', () =>
     ).toBe('openapi.users.create');
   });
 
-  it('без контракта — детерминированный слаг от метода и пути', () => {
+  it('без операции — детерминированный слаг от метода и пути', () => {
     const Get = httpEndpoint({
       method: 'GET',
       path: '/api/users/:id',
@@ -368,7 +367,7 @@ const TooShort = defineFail('OPENAPI_TOO_SHORT', {
   message: 'Too short',
 });
 
-describe('responses покрывают весь контракт границы', () => {
+describe('responses покрывают весь операция границы', () => {
   it('объявленный отказ становится ответом своего кода', () => {
     const Create = httpEndpoint({
       method: 'POST',

@@ -1,11 +1,11 @@
 /**
- * Секция `http` контракта: две формы записи, вычисление bind-карты при
+ * Секция `http` операции: две формы записи, вычисление bind-карты при
  * создании, проверки и независимость от шины.
  */
 
 import { body, computeHttpBinding, query } from './http/binding.js';
 import { events, multipart, stream, upload } from './io/index.js';
-import { makeContract } from './contract.js';
+import { makeCommand, makeEvent, makeRequest } from './contract.js';
 import { defineFail } from './define-fail.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -19,16 +19,15 @@ const User = z.object({
 
 const Activity = z.object({ kind: z.string() });
 
-/** Уникальное имя на каждый вызов: имя контракта регистрируется один раз */
+/** Уникальное имя на каждый вызов: имя операции регистрируется один раз */
 let counter = 0;
 const uniqueName = (prefix: string): string =>
   `${prefix}.${(counter += 1).toString()}`;
 
 describe('секция http: формы записи', () => {
   it('строковая форма даёт адрес', () => {
-    const CreateUser = makeContract({
+    const CreateUser = makeRequest({
       name: uniqueName('http.users.create'),
-      kind: 'request',
       http: 'POST /users',
       input: User,
       output: User,
@@ -43,9 +42,8 @@ describe('секция http: формы записи', () => {
   });
 
   it('развёрнутая форма несёт тот же адрес и размещает помеченное поле', () => {
-    const CreateUser = makeContract({
+    const CreateUser = makeRequest({
       name: uniqueName('http.users.create'),
-      kind: 'request',
       http: { method: 'POST', path: '/users', bind: { name: query() } },
       input: User,
       output: User,
@@ -60,9 +58,8 @@ describe('секция http: формы записи', () => {
   });
 
   it('карта иммутабельна и доступна с самого значения', () => {
-    const GetUser = makeContract({
+    const GetUser = makeRequest({
       name: uniqueName('http.users.get'),
-      kind: 'request',
       http: 'GET /users/:id',
       input: User,
       output: User,
@@ -72,10 +69,9 @@ describe('секция http: формы записи', () => {
     expect(GetUser.http?.fields).toEqual({ id: { in: 'path' } });
   });
 
-  it('контракт без секции остаётся контрактом шины', () => {
-    const Placed = makeContract({
+  it('операция без секции остаётся операцией шины', () => {
+    const Placed = makeEvent({
       name: uniqueName('http.orders.placed'),
-      kind: 'event',
       input: User,
     });
 
@@ -84,19 +80,18 @@ describe('секция http: формы записи', () => {
   });
 });
 
-/** Дефектный контракт: имя уникально, всё остальное — из аргументов */
+/** Дефектный операция: имя уникально, всё остальное — из аргументов */
 const create = (http: unknown, extra: Record<string, unknown> = {}) =>
-  makeContract({
+  makeRequest({
     name: uniqueName('http.broken'),
-    kind: 'request',
     http: http as string,
     ...extra,
   } as never);
 
 describe('секция http: проверки при создании', () => {
-  it('некорректная строковая форма называет контракт и ожидаемую запись', () => {
+  it('некорректная строковая форма называет операция и ожидаемую запись', () => {
     expect(() => create('POST')).toThrow(
-      /Contract 'http\.broken\.\d+': the string form of 'http' must be '<METHOD> <path>'/,
+      /Operation 'http\.broken\.\d+': the string form of 'http' must be '<METHOD> <path>'/,
     );
     expect(() => create('POST /users extra')).toThrow(
       /the string form of 'http' must be '<METHOD> <path>'/,
@@ -150,7 +145,7 @@ describe('секция http: проверки при создании', () => {
 
   it('path-параметр без input и при неструктурном input', () => {
     expect(() => create('GET /users/:id')).toThrow(
-      /Contract 'http\.broken\.\d+': path parameter ':id' has nowhere to go — the declaration has no 'input'/,
+      /Operation 'http\.broken\.\d+': path parameter ':id' has nowhere to go — the declaration has no 'input'/,
     );
 
     expect(() =>
@@ -202,7 +197,7 @@ describe('секция http: проверки при создании', () => {
   });
 });
 
-describe('карта контракта совпадает с картой одноимённой декларации', () => {
+describe('карта операции совпадает с картой одноимённой декларации', () => {
   /**
    * Общий набор случаев: то же правило, вызванное из двух мест, обязано
    * давать структурно тот же результат. Сравнение — на равенство значений, а
@@ -247,9 +242,8 @@ describe('карта контракта совпадает с картой од�
   ];
 
   it.each(cases)('$title', ({ method, path, bind, rawBody, input }) => {
-    const Contract = makeContract({
+    const Operation = makeRequest({
       name: uniqueName('http.parity'),
-      kind: 'request',
       http: { method: method as 'POST', path, bind, rawBody } as never,
       input: input as never,
     });
@@ -264,26 +258,25 @@ describe('карта контракта совпадает с картой од�
       where: `httpEndpoint({ method: '${method}', path: '${path}' })`,
     });
 
-    // Имя контракта исключено из сравнения: оно не часть правила
-    // размещения. У анонимной декларации его нет, а карта контракта хранит
+    // Имя операции исключено из сравнения: оно не часть правила
+    // размещения. У анонимной декларации его нет, а карта операции хранит
     // его для генератора документации.
-    const { contract: owner, ...placement } = Contract.http ?? {};
+    const { contract: owner, ...placement } = Operation.http ?? {};
 
-    expect(owner).toBe(Contract.name);
+    expect(owner).toBe(Operation.name);
     expect(placement).toEqual({ ...declaration });
   });
 });
 
-describe('секция http не меняет контракт шины', () => {
+describe('секция http не меняет операция шины', () => {
   const EmailTaken = defineFail('HTTP_SPEC_EMAIL_TAKEN', {
     status: 'CONFLICT',
     message: 'Email already taken',
   });
 
   it('вид, вызыватель и errors: остаются прежними', () => {
-    const CreateUser = makeContract({
+    const CreateUser = makeRequest({
       name: uniqueName('http.parity.request'),
-      kind: 'request',
       http: 'POST /users',
       input: User,
       output: User,
@@ -291,7 +284,7 @@ describe('секция http не меняет контракт шины', () => 
     });
 
     expect(CreateUser.kind).toBe('request');
-    expect(CreateUser.port.id).toBe(`Port:${CreateUser.name}`);
+    expect(CreateUser.caller.id).toBe(`Port:${CreateUser.name}`);
     expect(CreateUser.errors).toEqual([EmailTaken]);
     expect(() => (CreateUser as { emitter?: unknown }).emitter).toThrow(
       /has no '\.emitter'/,
@@ -299,9 +292,8 @@ describe('секция http не меняет контракт шины', () => 
   });
 
   it('command с http: сохраняет эмиттер и durable', () => {
-    const Notify = makeContract({
+    const Notify = makeCommand({
       name: uniqueName('http.parity.command'),
-      kind: 'command',
       http: 'POST /notify',
       input: User,
       durable: true,

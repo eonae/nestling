@@ -10,7 +10,7 @@
  */
 
 /* eslint-disable unicorn/no-useless-undefined --
- * Фейк `event`-контракта возвращает `undefined` явно: так записан контракт
+ * Фейк `event`-операции возвращает `undefined` явно: так записан операция
  * его реализации (`void | Promise<void>`). */
 
 import { TenantId } from './context';
@@ -81,7 +81,7 @@ describe('фича в изоляции: без соседа и без броке
       features: [OrdersFeature, QuotasFeature],
       select: 'orders',
       stubs: [
-        // Отказ объявлен в `errors:` контракта, поэтому передаётся как есть —
+        // Отказ объявлен в `errors:` операции, поэтому передаётся как есть —
         // ровно так же, как пришёл бы по сети от настоящего владельца
         stub(ClaimQuota, async ({ tenantId }) => QuotaExceeded({ tenantId })),
         stub(OrderPlaced, (input) => {
@@ -96,7 +96,7 @@ describe('фича в изоляции: без соседа и без броке
     expect(placed).toEqual([]);
   });
 
-  it('каждый застабанный контракт опубликован честной топологией', async () => {
+  it('каждая застабанная операция опубликована честной топологией', async () => {
     await using app = await assembleTest({
       features: [OrdersFeature, QuotasFeature],
       select: 'orders',
@@ -121,7 +121,7 @@ describe('фича в изоляции: без соседа и без броке
       ),
     );
 
-    // Стаб, прикрывший контракт, которого не реализует ни одна топология,
+    // Стаб, прикрывший операция, которого не реализует ни одна топология,
     // стал бы виден здесь — это и есть машинная форма правила «мокаешь —
     // проверь топологию»
     expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);

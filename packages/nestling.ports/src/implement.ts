@@ -1,7 +1,7 @@
 /**
- * `implement` — реализация контракта как обычная декларация-значение.
+ * `implement` — реализация операции как обычная декларация-значение.
  *
- * Inbound-сторона порта уже существовала: «я обрабатываю контракт» это
+ * Inbound-сторона порта уже существовала: «я обрабатываю операция» это
  * буквально endpoint. Поэтому конструктор тонкий: тот же примитив ядра
  * `makeEndpoint`, что у `httpEndpoint`/`cliEndpoint`, плюс транспорт шины
  * и транспорт-специфичный биндинг. Всё остальное (discovery, `dispatch`,
@@ -12,7 +12,11 @@
 import { BusTransport$, makeBusBinding } from './transport.js';
 
 import type { InjectionToken } from '@nestling/container';
-import type { AnyContract, Contract, ContractKind } from '@nestling/contracts';
+import type {
+  AnyOperation,
+  Operation,
+  OperationKind,
+} from '@nestling/contracts';
 import type {
   AnyEndpointDefinition,
   AnyFailDefinition,
@@ -32,23 +36,13 @@ import { makeEndpoint } from '@nestling/pipeline';
  * Словарь реализации: только исполнение.
  *
  * `input`, `output` и `errors` объявлены как `never`, потому что интерфейс
- * операции принадлежит контракту: попытка переобъявить их — ошибка
+ * операции принадлежит операции: попытка переобъявить их — ошибка
  * компиляции в точке декларации, а не расхождение, найденное в проде.
  */
 export interface ImplementDictionary<
   P extends AnyInput = AnyInput,
   PN = never,
 > {
-  /**
-   * Имя подписчика — адрес подписки на событие.
-   *
-   * Обязательно для `event` и запрещено для `request`/`command`. Автором
-   * задаётся явно: в мире с NATS это имя queue-group и durable-подписки,
-   * поэтому выводить его из имени модуля значило бы привязать сетевой
-   * адрес к внутренней структуре кода.
-   */
-  subscriber?: string;
-
   /**
    * Pipeline этой реализации. Классы-юниты допустимы: они попадают в
    * `TNeeds` декларации и гасятся вместе с `deps`.
@@ -58,28 +52,47 @@ export interface ImplementDictionary<
   /** Причина вывода реализации из-под инвариантов сборки */
   detached?: string;
 
-  /** @internal интерфейс операции принадлежит контракту */
+  /** @internal интерфейс операции принадлежит операции */
   input?: never;
 
-  /** @internal интерфейс операции принадлежит контракту */
+  /** @internal интерфейс операции принадлежит операции */
   output?: never;
 
-  /** @internal интерфейс операции принадлежит контракту */
+  /** @internal интерфейс операции принадлежит операции */
   errors?: never;
 }
 
-/** Поля словаря, которые контракт объявляет сам */
+/**
+ * Слот имени подписчика: обязателен у события и невыразим у остальных.
+ *
+ * Правило вида проверяет тип, а не только рантайм: у события 0..N
+ * подписчиков, и каждый называет себя сам — в мире с NATS это имя
+ * queue-group и durable-подписки, поэтому выводить его из имени модуля
+ * значило бы привязать сетевой адрес к внутренней структуре кода. У
+ * запроса и команды владелец ровно один, и подписчиков у них нет.
+ */
+export type SubscriberSlot<K extends OperationKind> = K extends 'event'
+  ? {
+      /** Имя подписчика — адрес подписки на событие */
+      subscriber: string;
+    }
+  : {
+      /** @internal у операции с одним владельцем подписчиков нет */
+      subscriber?: never;
+    };
+
+/** Поля словаря, которые операция объявляет сама */
 const INTERFACE_FIELDS = ['input', 'output', 'errors'] as const;
 
-/** Fail-fast для JS-потребителей: контракт — значение `makeContract` */
-function assertContract(contract: unknown): asserts contract is AnyContract {
+/** Fail-fast для JS-потребителей: операция — значение `makeRequest` */
+function assertOperation(contract: unknown): asserts contract is AnyOperation {
   const kind = (contract as { kind?: unknown } | undefined)?.kind;
   const name = (contract as { name?: unknown } | undefined)?.name;
 
   if (typeof name !== 'string' || typeof kind !== 'string') {
     throw new TypeError(
       `implement(contract, { … }): the first argument must be a contract ` +
-        `value created by makeContract().`,
+        `value created by makeRequest / makeCommand / makeEvent.`,
     );
   }
 }
@@ -93,7 +106,7 @@ function assertContract(contract: unknown): asserts contract is AnyContract {
  */
 function assertNoInterfaceOverride(
   declaration: Record<string, unknown>,
-  contract: AnyContract,
+  contract: AnyOperation,
 ): void {
   for (const field of INTERFACE_FIELDS) {
     if (declaration[field] !== undefined) {
@@ -110,8 +123,8 @@ function assertNoInterfaceOverride(
  *
  * @returns Паттерн декларации: адрес endpoint'а внутри процесса
  */
-function patternOf(contract: AnyContract, subscriber: unknown): string {
-  const kind = contract.kind as ContractKind;
+function patternOf(contract: AnyOperation, subscriber: unknown): string {
+  const kind = contract.kind as OperationKind;
 
   if (kind === 'event') {
     if (typeof subscriber !== 'string' || subscriber.trim().length === 0) {
@@ -137,13 +150,13 @@ function patternOf(contract: AnyContract, subscriber: unknown): string {
 }
 
 /**
- * Строит реализацию контракта.
+ * Строит реализацию операции.
  *
- * @param contract - Контракт, объявленный `makeContract`
+ * @param contract - Операция, объявленный `makeRequest`
  * @param declaration - Словарь исполнения: `deps`, `pipeline`, `handle`
  * @returns Декларация-значение для `endpoints:` модуля
  * @throws {Error} Отсутствующий или лишний `subscriber`, переобъявление
- * интерфейса контракта
+ * интерфейса операции
  *
  * @example
  * ```typescript
@@ -158,36 +171,38 @@ export function implement<
   I extends AnyPayload,
   O extends AnyOutput,
   E extends readonly AnyFailDefinition[],
-  K extends ContractKind,
+  K extends OperationKind,
   P extends AnyInput = AnyInput,
   PN = never,
 >(
-  contract: Contract<I, O, E, K>,
-  declaration: ImplementDictionary<P, PN> & {
-    deps?: undefined;
-    handle: HandlerFn<I, O, P, FailsOf<E>>;
-  },
+  contract: Operation<I, O, E, K>,
+  declaration: ImplementDictionary<P, PN> &
+    SubscriberSlot<K> & {
+      deps?: undefined;
+      handle: HandlerFn<I, O, P, FailsOf<E>>;
+    },
 ): EndpointDefinition<I, O, P, PN>;
 export function implement<
   I extends AnyPayload,
   O extends AnyOutput,
   E extends readonly AnyFailDefinition[],
-  K extends ContractKind,
+  K extends OperationKind,
   P extends AnyInput = AnyInput,
   PN = never,
   D extends InjectionToken[] = InjectionToken[],
 >(
-  contract: Contract<I, O, E, K>,
-  declaration: ImplementDictionary<P, PN> & {
-    deps: [...D];
-    handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
-  },
+  contract: Operation<I, O, E, K>,
+  declaration: ImplementDictionary<P, PN> &
+    SubscriberSlot<K> & {
+      deps: [...D];
+      handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
+    },
 ): EndpointDefinition<I, O, P, PN | D[number]>;
 export function implement<
   I extends AnyPayload,
   O extends AnyOutput,
   E extends readonly AnyFailDefinition[],
-  K extends ContractKind,
+  K extends OperationKind,
   P extends AnyInput = AnyInput,
   PN = never,
   C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
@@ -197,20 +212,22 @@ export function implement<
     FailsOf<E>
   >,
 >(
-  contract: Contract<I, O, E, K>,
-  declaration: ImplementDictionary<P, PN> & {
-    deps?: undefined;
-    handle: C;
-  },
+  contract: Operation<I, O, E, K>,
+  declaration: ImplementDictionary<P, PN> &
+    SubscriberSlot<K> & {
+      deps?: undefined;
+      handle: C;
+    },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function implement(
-  contract: AnyContract,
+  contract: AnyOperation,
   declaration: ImplementDictionary<any, unknown> & {
+    subscriber?: string;
     deps?: InjectionToken[];
     handle: unknown;
   },
 ): AnyEndpointDefinition {
-  assertContract(contract);
+  assertOperation(contract);
   assertNoInterfaceOverride(
     declaration as unknown as Record<string, unknown>,
     contract,
@@ -230,7 +247,7 @@ export function implement(
       subject: contract.name,
       kind: contract.kind,
       ...(typeof subscriber === 'string' ? { subscriber } : {}),
-      // Долговечность берётся из контракта и только из него: у реализации
+      // Долговечность берётся из операции и только из него: у реализации
       // нет способа её объявить, потому что издатель в другом процессе о
       // такой декларации не узнал бы и опубликовал бы мимо потока
       ...(contract.durable === undefined ? {} : { durable: contract.durable }),

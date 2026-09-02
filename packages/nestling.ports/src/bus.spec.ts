@@ -1,11 +1,11 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`), и `() => {}`
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeRequest } from '@nestling/contracts';
 import { makePipeline, Ok, stream } from '@nestling/pipeline';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
@@ -191,9 +191,8 @@ describe('InProcessBus', () => {
   });
 
   it('начав принимать запросы, подписывается на subject-ы своих маршрутов', async () => {
-    const Ping = makeContract({
+    const Ping = makeRequest({
       name: 'bus.serve.ping',
-      kind: 'request',
       input: z.object({ value: z.number() }),
       output: z.object({ doubled: z.number() }),
     });
@@ -280,9 +279,8 @@ describe('InProcessBus', () => {
   });
 
   it("бюджет, исчерпанный в транзите, не доводит сообщение до endpoint'а", async () => {
-    const Ping = makeContract({
+    const Ping = makeRequest({
       name: 'bus.deadline.ping',
-      kind: 'request',
       input: z.object({ value: z.number() }),
       output: z.object({ doubled: z.number() }),
     });
@@ -317,9 +315,8 @@ describe('InProcessBus', () => {
   });
 
   it('кладёт профиль в транспортные атрибуты рядом с subject', async () => {
-    const Note = makeContract({
+    const Note = makeCommand({
       name: 'bus.attributes.note',
-      kind: 'command',
       input: z.object({ text: z.string() }),
     });
 
@@ -352,9 +349,8 @@ describe('InProcessBus', () => {
   });
 
   it('живой бюджет взводит сигнал обработчика', async () => {
-    const Slow = makeContract({
+    const Slow = makeCommand({
       name: 'bus.deadline.inflight',
-      kind: 'command',
       input: z.object({ id: z.number() }),
     });
 
@@ -389,9 +385,8 @@ describe('InProcessBus', () => {
   });
 
   it('провозит контекст конвертом запроса и кладёт его в атрибуты', async () => {
-    const Ask = makeContract({
+    const Ask = makeRequest({
       name: 'bus.context.ask',
-      kind: 'request',
       input: z.object({ id: z.number() }),
       output: z.object({ ok: z.boolean() }),
     });
@@ -496,9 +491,8 @@ describe('InProcessBus', () => {
   });
 
   it('отвергает потоковую форму существующей проверкой способностей', async () => {
-    const Feed = makeContract({
+    const Feed = makeRequest({
       name: 'bus.serve.feed',
-      kind: 'request',
       output: stream(z.object({ chunk: z.string() })),
     });
 

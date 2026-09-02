@@ -15,7 +15,7 @@ async function* from<T>(items: readonly T[]): AsyncIterableIterator<T> {
   }
 }
 
-/** Источник, который отмечает своё закрытие: проверка `return()`-контракта */
+/** Источник, который отмечает своё закрытие: проверка `return()`-операции */
 function tracked<T>(items: readonly T[]): {
   source: AsyncIterableIterator<T>;
   closed: () => boolean;

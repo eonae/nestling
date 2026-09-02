@@ -80,7 +80,7 @@ export const createUserHandler =
       // Исчерпанный бюджет попадает сюда кодом ядра `DEADLINE_EXCEEDED`
       // (504) и проходит проверку границы пайплайна нетронутым.
       // Декларировать его в `errors:` не нужно: он неявно входит в
-      // контракт любого endpoint'а.
+      // операция любого endpoint'а.
       return claimed as ReturnType<typeof QuotaExceededDefinition>;
     }
 
@@ -112,24 +112,24 @@ export const createUserHandler =
   };
 
 /**
- * Endpoint для создания пользователя — **контракт-форма**.
+ * Endpoint для создания пользователя — **операция-форма**.
  *
- * Адрес, схемы и `errors:` живут в контракте `api.contracts.ts`. Здесь
+ * Адрес, схемы и `errors:` живут в операции `api.contracts.ts`. Здесь
  * остаётся только исполнение. Пометку размещения (`dryRun` вытянут в
- * query-строку, `POST /api/users?dryRun=true`) объявляет тот же контракт,
+ * query-строку, `POST /api/users?dryRun=true`) объявляет та же операция,
  * поэтому клиент собирает запрос по той же карте, по которой транспорт его
  * разбирает. Присланный не в своё место `dryRun` (в теле) в payload не
  * попадёт: приём строгий.
  */
 export const CreateUser = httpEndpoint({
-  contract: CreateUserContract,
+  operation: CreateUserContract,
   pipeline: basePipeline,
   deps: [
     UserService,
     ILogger,
     // Вызыватели инжектируются как обычные зависимости: узел появляется
     // только потому, что его здесь упомянули
-    ClaimQuota.port,
+    ClaimQuota.caller,
     UserRegistered.emitter,
     SignupRecorded.emitter,
     ActivityHub,

@@ -1,16 +1,21 @@
 /**
- * `makeContract`: объявление контракта и типы контрактов.
+ * Объявление операции: `makeRequest`, `makeCommand`, `makeEvent`.
  *
- * Контракт — значение, общее для реализации (`implement`) и для вызывающей
- * стороны (`.port` / `.emitter`). Он ничего не регистрирует ни в модуле,
- * ни в приложении. Единственный побочный эффект `makeContract` — запись
- * имени в реестр пакета (`registry.ts`), чтобы два контракта не заняли
- * один адрес.
+ * Операция — значение, общее для реализации (`implement`) и для вызывающей
+ * стороны (`.caller` / `.emitter`). Она ничего не регистрирует ни в
+ * модуле, ни в приложении. Единственный побочный эффект конструктора —
+ * запись имени в реестр пакета (`registry.ts`), чтобы две операции не
+ * заняли один адрес.
+ *
+ * Конструкторов три, а не один с полем вида: правила видов расходятся, и
+ * расхождение лучше проверять типом в точке объявления, чем условием при
+ * создании значения. У события нет `output` и `errors`, у запроса нет
+ * `durable`.
  */
 
 import type { HttpBinding } from './http/binding.js';
 import { assertHttpPath, computeHttpBinding } from './http/binding.js';
-import type { ContractHttp } from './http/section.js';
+import type { OperationHttp } from './http/section.js';
 import { parseHttpSection } from './http/section.js';
 import type {
   AnyOutput,
@@ -28,41 +33,45 @@ import type { DeclarationDoc } from './doc.js';
 import { assertDoc } from './doc.js';
 import type { EmitterToken, PortToken } from './families.js';
 import { EmitterFamily, PortFamily } from './families.js';
-import { registerContract } from './registry.js';
+import { registerOperation } from './registry.js';
 
 /**
- * Вид контракта. Определяет, как доставляется вызов.
+ * Вид операции. Определяет, как доставляется вызов.
  *
  * - `request` — запрос-ответ; может вернуть `Fail`; ровно один владелец;
  * - `command` — без ответа; ровно один обработчик (его реплики делят
  *   нагрузку группой доставки);
  * - `event` — факт, который уже случился; 0..N подписчиков.
  */
-export type ContractKind = 'request' | 'command' | 'event';
+export type OperationKind = 'request' | 'command' | 'event';
 
 /** Допустимые виды; этот же список печатает текст ошибки */
-const CONTRACT_KINDS: readonly ContractKind[] = ['request', 'command', 'event'];
+const OPERATION_KINDS: readonly OperationKind[] = [
+  'request',
+  'command',
+  'event',
+];
 
 /**
- * Контракт: интерфейс операции и её адрес.
+ * Операция: интерфейс операции и её адрес.
  *
- * Из одного контракта строятся и реализация (`implement`), и вызывающая
+ * Из одного операции строятся и реализация (`implement`), и вызывающая
  * сторона (`.port` / `.emitter`). Адрес на шине — `name`; адрес по HTTP,
  * если он есть, — поле `http`.
  *
  * @param I - форма io входа
  * @param O - форма io выхода
  * @param E - объявленные отказы (`errors:`)
- * @param K - вид контракта
+ * @param K - вид операции
  */
-export interface Contract<
+export interface Operation<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
-  K extends ContractKind = ContractKind,
+  K extends OperationKind = OperationKind,
 > {
   /**
-   * Имя контракта. Служит адресом: subject шины и ключ discovery.
+   * Имя операции. Служит адресом: subject шины и ключ discovery.
    * Версия входит в имя (`user.create.v2`); отдельного поля версии нет.
    */
   readonly name: string;
@@ -81,8 +90,8 @@ export interface Contract<
   /**
    * Документация операции.
    *
-   * Принадлежит контракту наравне с `input`, `output` и `errors`: две
-   * реализации одного контракта описывают его одинаково, а внешний
+   * Принадлежит операции наравне с `input`, `output` и `errors`: две
+   * реализации одного операции описывают его одинаково, а внешний
    * потребитель получает описание из того же импорта, что и схемы.
    */
   readonly doc?: DeclarationDoc;
@@ -90,7 +99,7 @@ export interface Contract<
   /**
    * Долговечная доставка: сообщение не теряется, пока подписчик недоступен.
    *
-   * Объявляется на контракте, потому что нужно обеим сторонам: издатель
+   * Объявляется на операции, потому что нужно обеим сторонам: издатель
    * ждёт подтверждения записи, подписчик читает долговечно, а работают они
    * в разных процессах.
    *
@@ -100,99 +109,102 @@ export interface Contract<
   readonly durable?: boolean;
 
   /**
-   * HTTP-адрес контракта в виде готовой bind-карты.
+   * HTTP-адрес операции в виде готовой bind-карты.
    *
    * В спецификации поле `http` записывается строкой (`'POST /users/:id'`)
    * или объектом; на значении хранится уже вычисленная карта размещения
    * полей. Её читают клиент (сборка запроса), транспорт (разбор запроса) и
    * генератор документации (параметры операции).
    *
-   * Если поля нет, контракт недоступен внешнему HTTP-клиенту; на шине он
+   * Если поля нет, операция недоступен внешнему HTTP-клиенту; на шине он
    * по-прежнему адресуется по `name`.
    */
   readonly http?: HttpBinding;
 }
 
-/** Контракт вида `request`: у него есть `.port` и нет `.emitter` */
-export interface RequestContract<
+/** Операция вида `request`: у неё есть `.caller` и нет `.emitter` */
+export interface RequestOperation<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
-> extends Contract<I, O, E, 'request'> {
-  /** Токен порта: член семейства `PortFamily` с именем контракта в параметре */
-  readonly port: PortToken<RequestContract<I, O, E>>;
+> extends Operation<I, O, E, 'request'> {
+  /**
+   * Токен вызывающей стороны: член семейства `PortFamily` с именем
+   * операции в параметре.
+   */
+  readonly caller: PortToken<RequestOperation<I, O, E>>;
 }
 
-/** Контракт вида `command`/`event`: у него есть `.emitter` и нет `.port` */
-export interface EmittingContract<
+/** Операция вида `command`/`event`: у него есть `.emitter` и нет `.port` */
+export interface EmittingOperation<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   K extends 'command' | 'event' = 'command' | 'event',
-> extends Contract<I, O, E, K> {
-  /** Токен эмиттера: член `EmitterFamily` с именем контракта в параметре */
-  readonly emitter: EmitterToken<EmittingContract<I, O, E, K>>;
+> extends Operation<I, O, E, K> {
+  /** Токен эмиттера: член `EmitterFamily` с именем операции в параметре */
+  readonly emitter: EmitterToken<EmittingOperation<I, O, E, K>>;
 }
 
-/** Контракт вида `command` */
-export type CommandContract<
+/** Операция вида `command` */
+export type CommandOperation<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
-> = EmittingContract<I, O, E, 'command'>;
+> = EmittingOperation<I, O, E, 'command'>;
 
-/** Контракт вида `event` */
-export type EventContract<
+/** Операция вида `event` */
+export type EventOperation<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
-> = EmittingContract<I, O, E, 'event'>;
+> = EmittingOperation<I, O, E, 'event'>;
 
-/** Контракт любого вида; для мест, где вид не важен */
-export type AnyContract = Contract<any, any, any, ContractKind>;
+/** Операция любого вида; для мест, где вид не важен */
+export type AnyOperation = Operation<any, any, any, OperationKind>;
 
-/** Форма io входа контракта; реализация получает её как `input` */
-export type InputFormOf<C extends AnyContract> =
-  C extends Contract<infer I, any, any, any> ? I : never;
+/** Форма io входа операции; реализация получает её как `input` */
+export type InputFormOf<C extends AnyOperation> =
+  C extends Operation<infer I, any, any, any> ? I : never;
 
-/** Форма io выхода контракта; реализация получает её как `output` */
-export type OutputFormOf<C extends AnyContract> =
-  C extends Contract<any, infer O, any, any> ? O : never;
+/** Форма io выхода операции; реализация получает её как `output` */
+export type OutputFormOf<C extends AnyOperation> =
+  C extends Operation<any, infer O, any, any> ? O : never;
 
-/** Тип payload вызова, выведенный из формы `input` контракта */
-export type InputOf<C extends AnyContract> =
-  C extends Contract<infer I, any, any, any> ? InferInput<I> : never;
+/** Тип payload вызова, выведенный из формы `input` операции */
+export type InputOf<C extends AnyOperation> =
+  C extends Operation<infer I, any, any, any> ? InferInput<I> : never;
 
-/** Тип значения успешного ответа, выведенный из формы `output` контракта */
-export type OutputOf<C extends AnyContract> =
-  C extends Contract<any, infer O, any, any> ? InferOutput<O> : never;
+/** Тип значения успешного ответа, выведенный из формы `output` операции */
+export type OutputOf<C extends AnyOperation> =
+  C extends Operation<any, infer O, any, any> ? InferOutput<O> : never;
 
 /**
- * Объединение объявленных отказов контракта: множество `E` на стороне
+ * Объединение объявленных отказов операции: множество `E` на стороне
  * вызывающего.
  *
- * Для контракта без `errors` даёт `never`: незадекларированный отказ
+ * Для операции без `errors` даёт `never`: незадекларированный отказ
  * приходит потребителю только как `UnknownError`.
  *
  * Отличается от `FailsOf<E>` только аргументом: тот считает множество от
- * списка определений, этот — от контракта.
+ * списка определений, этот — от операции.
  */
-export type ContractFailsOf<C extends AnyContract> =
-  C extends Contract<any, any, infer E, any>
+export type OperationFailsOf<C extends AnyOperation> =
+  C extends Operation<any, any, infer E, any>
     ? E extends readonly AnyFailDefinition[]
       ? FailsOfDefinitions<E>
       : never
     : never;
 
-/** Спецификация контракта: аргумент `makeContract` */
-export interface ContractSpec<
+/** Полная спецификация операции: общий вход трёх конструкторов */
+export interface OperationSpec<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
   E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
-  K extends ContractKind = ContractKind,
+  K extends OperationKind = OperationKind,
   Path extends string = string,
 > {
-  /** Имя контракта; служит адресом: subject шины и ключ discovery */
+  /** Имя операции; служит адресом: subject шины и ключ discovery */
   name: string;
 
   kind: K;
@@ -203,13 +215,13 @@ export interface ContractSpec<
   /**
    * Форма io выхода. `ValidateOutputForm` проверяет её так же, как в
    * декларации endpoint'а: `multipart` и шаг цепочки, меняющий тип
-   * элемента, — ошибка компиляции в точке объявления контракта.
+   * элемента, — ошибка компиляции в точке объявления операции.
    */
   output?: O & ValidateOutputForm<O>;
 
   /**
    * Объявленные отказы: список определений `defineFail`. Проверяется при
-   * создании контракта: элемент не из `defineFail` или повторяющийся код
+   * создании операции: элемент не из `defineFail` или повторяющийся код
    * дают ошибку объявления, а не сборки приложения.
    */
   errors?: E;
@@ -218,7 +230,7 @@ export interface ContractSpec<
    * Документация операции: `summary`, `description`, `tags`, `deprecated`,
    * статус успешного ответа и `hidden: '<причина>'`.
    *
-   * Проверяется при создании контракта теми же правилами, что и в
+   * Проверяется при создании операции теми же правилами, что и в
    * декларации endpoint'а (`assertDoc`).
    */
   doc?: DeclarationDoc;
@@ -233,30 +245,34 @@ export interface ContractSpec<
    * HTTP-адрес: строка `'POST /users/:id'` или объект
    * `{ method, path, bind?, rawBody?, sse? }`.
    *
-   * Превращается в bind-карту при создании контракта тем же кодом, что и
+   * Превращается в bind-карту при создании операции тем же кодом, что и
    * HTTP-декларация endpoint'а. Карта вычисляется здесь, а не при
    * регистрации endpoint'а, потому что клиенту она нужна из одного импорта,
    * без серверного кода.
    */
-  http?: ContractHttp<Path, I, O>;
+  http?: OperationHttp<Path, I, O>;
 }
 
 /** Проверяет имя: пустая строка не может быть адресом */
 function assertName(name: unknown): asserts name is string {
   if (typeof name !== 'string' || name.trim().length === 0) {
     throw new TypeError(
-      `makeContract({ … }): 'name' must be a non-empty string — it is the ` +
-        `address of the contract (the bus subject and the discovery key).`,
+      `makeRequest/makeCommand/makeEvent({ … }): 'name' must be a ` +
+        `non-empty string — it is the address of the operation (the bus ` +
+        `subject and the discovery key).`,
     );
   }
 }
 
-/** Проверяет вид: допустимы только значения из `CONTRACT_KINDS` */
-function assertKind(kind: unknown, name: string): asserts kind is ContractKind {
-  if (!CONTRACT_KINDS.includes(kind as ContractKind)) {
+/** Проверяет вид: допустимы только значения из `OPERATION_KINDS` */
+function assertKind(
+  kind: unknown,
+  name: string,
+): asserts kind is OperationKind {
+  if (!OPERATION_KINDS.includes(kind as OperationKind)) {
     throw new TypeError(
-      `Contract '${name}': 'kind' must be one of ` +
-        `${CONTRACT_KINDS.map((k) => `'${k}'`).join(', ')}, got ` +
+      `Operation '${name}': 'kind' must be one of ` +
+        `${OPERATION_KINDS.map((k) => `'${k}'`).join(', ')}, got ` +
         `${JSON.stringify(kind)}.`,
     );
   }
@@ -274,7 +290,7 @@ function assertFailDefinitions(
     return;
   }
 
-  const where = `Contract '${name}'`;
+  const where = `Operation '${name}'`;
 
   if (!Array.isArray(errors)) {
     throw new TypeError(
@@ -305,13 +321,13 @@ function assertFailDefinitions(
  * `request`.
  *
  * Ошибка выбрасывается при объявлении, а не при сборке приложения:
- * долговечный запрос-ответ — дефект самого контракта, а не конкретного
+ * долговечный запрос-ответ — дефект самого операции, а не конкретного
  * развёртывания.
  */
 function assertDurable(
   durable: unknown,
   name: string,
-  kind: ContractKind,
+  kind: OperationKind,
 ): asserts durable is boolean | undefined {
   if (durable === undefined) {
     return;
@@ -319,17 +335,17 @@ function assertDurable(
 
   if (typeof durable !== 'boolean') {
     throw new TypeError(
-      `Contract '${name}': 'durable' must be a boolean, got ` +
+      `Operation '${name}': 'durable' must be a boolean, got ` +
         `${JSON.stringify(durable)}.`,
     );
   }
 
   if (kind === 'request') {
     throw new Error(
-      `Contract '${name}' (kind 'request'): 'durable' applies only to ` +
-        `'command' and 'event' contracts — a request-reply has a live caller ` +
-        `waiting for the answer, so there is nothing to outlive. Drop the ` +
-        `flag, or make the contract a 'command'.`,
+      `Operation '${name}' (kind 'request'): 'durable' applies only to ` +
+        `commands and events — a request-reply has a live caller waiting for ` +
+        `the answer, so there is nothing to outlive. Drop the flag, or ` +
+        `declare the operation with makeCommand.`,
     );
   }
 }
@@ -339,7 +355,7 @@ function assertDurable(
  *
  * Проверки те же, что у конструктора HTTP-декларации
  * (`computeHttpBinding`). Отличается только текст ошибки: он называет
- * контракт, потому что чинить секцию будет его владелец.
+ * операция, потому что чинить секцию будет его владелец.
  */
 function httpBindingFor(
   name: string,
@@ -347,7 +363,7 @@ function httpBindingFor(
   input: unknown,
   output: unknown,
 ): HttpBinding {
-  const where = `Contract '${name}'`;
+  const where = `Operation '${name}'`;
   const section = parseHttpSection(http, where);
 
   assertHttpPath(section.path, where);
@@ -360,8 +376,8 @@ function httpBindingFor(
     input,
     output,
     sse: section.sse,
-    // Имя контракта хранится на карте: реализация получает ту же карту, и
-    // по ней интроспекция HTTP-декларации узнаёт контракт
+    // Имя операции хранится на карте: реализация получает ту же карту, и
+    // по ней интроспекция HTTP-декларации узнаёт операцию
     contract: name,
     where,
   });
@@ -371,32 +387,32 @@ function httpBindingFor(
 type ComputeHttpBindingBind = Parameters<typeof computeHttpBinding>[0]['bind'];
 
 /**
- * Добавляет контракту свойство его вызывающей стороны (`.port` или
+ * Добавляет операции свойство её вызывающей стороны (`.caller` или
  * `.emitter`) и геттер, который бросает ошибку при обращении к чужому.
  *
  * Типы не позволяют обратиться к чужому свойству, но из JS это возможно:
- * без геттера `OrderPlaced.port` вернул бы `undefined`, и ошибка возникла
- * бы позже, без упоминания вида контракта.
+ * без геттера `OrderPlaced.caller` вернул бы `undefined`, и ошибка возникла
+ * бы позже, без упоминания вида операции.
  */
 function defineInvokers(
   value: Record<string, unknown>,
-  kind: ContractKind,
+  kind: OperationKind,
 ): void {
   const name = value.name as string;
 
-  const wrongProperty = (property: 'port' | 'emitter'): (() => never) => {
-    const right = property === 'port' ? 'emitter' : 'port';
+  const wrongProperty = (property: 'caller' | 'emitter'): (() => never) => {
+    const right = property === 'caller' ? 'emitter' : 'caller';
 
     return () => {
       throw new Error(
-        `Contract '${name}' is a '${kind}' contract: it has no '.${property}', ` +
+        `Operation '${name}' is a '${kind}': it has no '.${property}', ` +
           `use '.${right}' instead.`,
       );
     };
   };
 
   if (kind === 'request') {
-    Object.defineProperty(value, 'port', {
+    Object.defineProperty(value, 'caller', {
       value: PortFamily(name),
       enumerable: true,
     });
@@ -412,67 +428,61 @@ function defineInvokers(
     value: EmitterFamily(name),
     enumerable: true,
   });
-  Object.defineProperty(value, 'port', {
-    get: wrongProperty('port'),
+  Object.defineProperty(value, 'caller', {
+    get: wrongProperty('caller'),
     enumerable: false,
   });
 }
 
-/**
- * Объявляет контракт.
- *
- * @param spec - Спецификация: имя, вид, формы io, отказы, документация
- * @returns Неизменяемый контракт со свойством `.port` или `.emitter`
- * @throws {Error} Пустое имя, недопустимый вид, некорректный `errors`,
- * `durable` у `request` или уже занятое имя
- *
- * @example Запрос
- * ```typescript
- * export const ChargeCard = makeContract({
- *   name: 'billing.charge',
- *   kind: 'request',
- *   input: z.object({ orderId: z.string(), amount: z.number() }),
- *   output: z.object({ chargeId: z.string() }),
- *   errors: [CardDeclined],
- * });
- * ```
- *
- * @example Событие
- * ```typescript
- * export const OrderPlaced = makeContract({
- *   name: 'orders.placed',
- *   kind: 'event',
- *   input: z.object({ orderId: z.string() }),
- * });
- * ```
- */
-export function makeContract<
-  I extends AnyPayload = undefined,
-  O extends AnyOutput = undefined,
-  E extends readonly AnyFailDefinition[] = [],
+/** Общая часть словаря всех трёх конструкторов */
+type CommonSpec<
+  I extends AnyPayload,
+  O extends AnyOutput,
+  E extends readonly AnyFailDefinition[],
+  K extends OperationKind,
+  Path extends string,
+> = Omit<OperationSpec<I, O, E, K, Path>, 'kind'>;
+
+/** Словарь `makeRequest`: `durable` невыразим */
+export type RequestSpec<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   Path extends string = string,
->(spec: ContractSpec<I, O, E, 'request', Path>): RequestContract<I, O, E>;
-export function makeContract<
-  I extends AnyPayload = undefined,
-  O extends AnyOutput = undefined,
-  E extends readonly AnyFailDefinition[] = [],
+> = CommonSpec<I, O, E, 'request', Path> & {
+  /** @internal у запроса вызывающий ждёт ответа: переживать нечего */
+  durable?: never;
+};
+
+/** Словарь `makeCommand` */
+export type CommandSpec<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  E extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
   Path extends string = string,
->(spec: ContractSpec<I, O, E, 'command', Path>): CommandContract<I, O, E>;
-export function makeContract<
-  I extends AnyPayload = undefined,
-  O extends AnyOutput = undefined,
-  E extends readonly AnyFailDefinition[] = [],
+> = CommonSpec<I, O, E, 'command', Path>;
+
+/** Словарь `makeEvent`: `output` и `errors` невыразимы */
+export type EventSpec<
+  I extends AnyPayload = AnyPayload,
   Path extends string = string,
->(spec: ContractSpec<I, O, E, 'event', Path>): EventContract<I, O, E>;
-export function makeContract(
-  spec: ContractSpec<any, any, readonly AnyFailDefinition[], ContractKind>,
-): AnyContract {
+> = Omit<CommonSpec<I, undefined, [], 'event', Path>, 'output' | 'errors'> & {
+  /** @internal у события нет ответа, который можно было бы объявить */
+  output?: never;
+  /** @internal отказ доставляется вызывающему, а у события его нет */
+  errors?: never;
+};
+
+/** Общая часть трёх конструкторов: проверки и сборка значения */
+function declare(
+  spec: OperationSpec<any, any, readonly AnyFailDefinition[], OperationKind>,
+): AnyOperation {
   const { name, kind, input, output, errors, doc, durable, http } = spec;
 
   assertName(name);
   assertKind(kind, name);
   assertFailDefinitions(errors, name);
-  assertDoc(doc, `Contract '${name}'`);
+  assertDoc(doc, `Operation '${name}'`);
   assertDurable(durable, name, kind);
 
   const value: Record<string, unknown> = { name, kind };
@@ -498,8 +508,95 @@ export function makeContract(
 
   defineInvokers(value, kind);
 
-  const contract = Object.freeze(value) as unknown as AnyContract;
-  registerContract(contract);
+  const contract = Object.freeze(value) as unknown as AnyOperation;
+  registerOperation(contract);
 
   return contract;
+}
+
+/**
+ * Объявляет операцию вида `request`: запрос-ответ с одним владельцем.
+ *
+ * Вызывающая сторона получает `.caller` и ждёт ответа, поэтому `durable`
+ * у запроса невыразим: переживать недоступность подписчика нечему.
+ *
+ * @param spec - Имя, формы io, отказы, документация, HTTP-адрес
+ * @returns Неизменяемую операцию со свойством `.caller`
+ * @throws {Error} Пустое имя, некорректный `errors` или занятое имя
+ *
+ * @example
+ * ```typescript
+ * export const ChargeCard = makeRequest({
+ *   name: 'billing.charge',
+ *   input: z.object({ orderId: z.string(), amount: z.number() }),
+ *   output: z.object({ chargeId: z.string() }),
+ *   errors: [CardDeclined],
+ * });
+ * ```
+ */
+export function makeRequest<
+  I extends AnyPayload = undefined,
+  O extends AnyOutput = undefined,
+  E extends readonly AnyFailDefinition[] = [],
+  Path extends string = string,
+>(spec: RequestSpec<I, O, E, Path>): RequestOperation<I, O, E> {
+  return declare({ ...spec, kind: 'request' }) as RequestOperation<I, O, E>;
+}
+
+/**
+ * Объявляет операцию вида `command`: указание без ответа с одним
+ * обработчиком.
+ *
+ * Реплики обработчика делят нагрузку группой доставки. `durable: true`
+ * означает, что указание не теряется, пока обработчик недоступен.
+ *
+ * @param spec - Имя, формы io, отказы, документация, `durable`
+ * @returns Неизменяемую операцию со свойством `.emitter`
+ *
+ * @example
+ * ```typescript
+ * export const SendReceipt = makeCommand({
+ *   name: 'billing.send-receipt',
+ *   input: z.object({ orderId: z.string() }),
+ *   durable: true,
+ * });
+ * ```
+ */
+export function makeCommand<
+  I extends AnyPayload = undefined,
+  O extends AnyOutput = undefined,
+  E extends readonly AnyFailDefinition[] = [],
+  Path extends string = string,
+>(spec: CommandSpec<I, O, E, Path>): CommandOperation<I, O, E> {
+  return declare({ ...spec, kind: 'command' }) as CommandOperation<I, O, E>;
+}
+
+/**
+ * Объявляет операцию вида `event`: факт, который уже случился.
+ *
+ * Подписчиков у события ноль или больше, поэтому ответа нет и объявить
+ * его нечем: `output` и `errors` в словаре невыразимы. Каждая реализация
+ * называет себя `subscriber`.
+ *
+ * @param spec - Имя, форма io входа, документация, `durable`
+ * @returns Неизменяемую операцию со свойством `.emitter`
+ *
+ * @example
+ * ```typescript
+ * export const OrderPlaced = makeEvent({
+ *   name: 'orders.placed',
+ *   input: z.object({ orderId: z.string() }),
+ * });
+ * ```
+ */
+export function makeEvent<
+  I extends AnyPayload = undefined,
+  Path extends string = string,
+>(spec: EventSpec<I, Path>): EventOperation<I, undefined, []> {
+  return declare({ ...spec, kind: 'event' } as OperationSpec<
+    any,
+    any,
+    readonly AnyFailDefinition[],
+    OperationKind
+  >) as EventOperation<I, undefined, []>;
 }

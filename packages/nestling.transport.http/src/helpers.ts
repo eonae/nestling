@@ -4,11 +4,11 @@ import { HttpTransport$ } from './token.js';
 
 import type { InjectionToken } from '@nestling/container';
 import type {
-  AnyContract,
-  ContractFailsOf,
+  AnyOperation,
   DeclarationDoc,
   HttpMethod,
   InputFormOf,
+  OperationFailsOf,
   OutputFormOf,
   SseConfig,
 } from '@nestling/contracts';
@@ -33,7 +33,7 @@ import { makeEndpoint } from '@nestling/pipeline';
 import { DEFAULT_INSTANCE } from '@nestling/transport';
 
 // Типы разметки пути и ключей `bind` (`PathParams`, `BindMap`) общие с
-// секцией `http:` контракта и живут в `@nestling/contracts`;
+// секцией `http:` операции и живут в `@nestling/contracts`;
 // `./binding.js` их реэкспортирует.
 
 /**
@@ -184,23 +184,23 @@ export interface HttpEndpointDictionary<
 }
 
 /**
- * Контракт-форма HTTP-декларации: адрес, схемы и `errors` берутся с
- * контракта, а декларация задаёт только `pipeline`, `deps` и `handle`.
+ * Операция-форма HTTP-декларации: адрес, схемы и `errors` берутся с
+ * операции, а декларация задаёт только `pipeline`, `deps` и `handle`.
  *
  * Результат — обычная HTTP-декларация: discovery, `policies`, визуализация
  * и пайплайн работают с ней как с любой другой.
  *
  * Слот `pipeline` типизирован как у `implement`, без проверки стартового
- * контекста: контракт несёт `rawBody` данными, а не типом, и проверка
+ * контекста: операция несёт `rawBody` данными, а не типом, и проверка
  * отвергала бы реализацию webhook.
  */
-export interface HttpContractDictionary<
-  C extends AnyContract = AnyContract,
+export interface HttpOperationDictionary<
+  C extends AnyOperation = AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
 > {
-  /** Контракт, объявленный `makeContract` с секцией `http:` */
-  contract: C;
+  /** Операция, объявленный `makeRequest` с секцией `http:` */
+  operation: C;
 
   /**
    * Пайплайн декларации. Юниты-классы допустимы: они попадают в `TNeeds`
@@ -214,39 +214,39 @@ export interface HttpContractDictionary<
   /** Имя экземпляра транспорта, обслуживающего endpoint; по умолчанию `'default'` */
   on?: string;
 
-  /** @internal адрес операции принадлежит контракту */
+  /** @internal адрес операции принадлежит операции */
   method?: never;
 
-  /** @internal адрес операции принадлежит контракту */
+  /** @internal адрес операции принадлежит операции */
   path?: never;
 
-  /** @internal размещение полей принадлежит контракту */
+  /** @internal размещение полей принадлежит операции */
   bind?: never;
 
-  /** @internal размещение полей принадлежит контракту */
+  /** @internal размещение полей принадлежит операции */
   rawBody?: never;
 
-  /** @internal настройки SSE принадлежат контракту */
+  /** @internal настройки SSE принадлежат операции */
   sse?: never;
 
-  /** @internal интерфейс операции принадлежит контракту */
+  /** @internal интерфейс операции принадлежит операции */
   input?: never;
 
-  /** @internal интерфейс операции принадлежит контракту */
+  /** @internal интерфейс операции принадлежит операции */
   output?: never;
 
-  /** @internal интерфейс операции принадлежит контракту */
+  /** @internal интерфейс операции принадлежит операции */
   errors?: never;
 
   /**
-   * @internal документация операции принадлежит контракту: две реализации
-   * одного контракта не могут описывать его по-разному
+   * @internal документация операции принадлежит операции: две реализации
+   * одного операции не могут описывать его по-разному
    */
   doc?: never;
 }
 
-/** Поля, которые в контракт-форме объявляет сам контракт */
-const CONTRACT_OWNED = [
+/** Поля, которые в операция-форме объявляет сама операция */
+const OPERATION_OWNED = [
   'method',
   'path',
   'bind',
@@ -258,64 +258,67 @@ const CONTRACT_OWNED = [
   'doc',
 ] as const;
 
-/** Проверяет, что значение создано `makeContract` */
-function assertContract(contract: unknown): asserts contract is AnyContract {
-  const name = (contract as { name?: unknown } | undefined)?.name;
-  const kind = (contract as { kind?: unknown } | undefined)?.kind;
+/** Проверяет, что значение создано `makeRequest` */
+function assertOperation(
+  operation: unknown,
+): asserts operation is AnyOperation {
+  const name = (operation as { name?: unknown } | undefined)?.name;
+  const kind = (operation as { kind?: unknown } | undefined)?.kind;
 
   if (typeof name !== 'string' || typeof kind !== 'string') {
     throw new TypeError(
-      `httpEndpoint({ contract, … }): 'contract' must be a contract value ` +
-        `created by makeContract().`,
+      `httpEndpoint({ operation, … }): 'operation' must be a value ` +
+        `created by makeRequest / makeCommand / makeEvent.`,
     );
   }
 }
 
 /**
- * Отвергает поля контракта, повторно объявленные в реализации.
+ * Отвергает поля операции, повторно объявленные в реализации.
  *
  * Типы такое не компилируют; проверка нужна для JS-кода, где переданное
  * поле иначе молча игнорировалось бы.
  */
 function assertContractOwned(
   declaration: Record<string, unknown>,
-  contract: AnyContract,
+  operation: AnyOperation,
 ): void {
-  for (const field of CONTRACT_OWNED) {
+  for (const field of OPERATION_OWNED) {
     if (declaration[field] !== undefined) {
       throw new TypeError(
-        `httpEndpoint({ contract: ${contract.name}, … }): '${field}' belongs ` +
-          `to the contract and cannot be redeclared by its implementation.`,
+        `httpEndpoint({ operation: ${operation.name}, … }): '${field}' ` +
+          `belongs to the operation and cannot be redeclared by its ` +
+          `implementation.`,
       );
     }
   }
 }
 
 /**
- * Строит декларацию из контракта: bind-карта, схемы и `errors` берутся с
+ * Строит декларацию из операции: bind-карта, схемы и `errors` берутся с
  * него.
  *
  * Карта не пересчитывается: декларация получает то же значение, которое
- * несёт контракт, поэтому клиент и сервер читают одну и ту же карту.
+ * несёт операция, поэтому клиент и сервер читают одну и ту же карту.
  */
 function fromContract(
-  declaration: Record<string, unknown> & { contract: unknown },
+  declaration: Record<string, unknown> & { operation: unknown },
 ): AnyEndpointDefinition {
-  const { contract, on, ...rest } = declaration as Record<string, unknown> & {
-    contract: unknown;
+  const { operation, on, ...rest } = declaration as Record<string, unknown> & {
+    operation: unknown;
     on?: string;
   };
 
-  assertContract(contract);
-  assertContractOwned(rest, contract);
+  assertOperation(operation);
+  assertContractOwned(rest, operation);
 
-  const binding = contract.http;
+  const binding = operation.http;
   if (!binding) {
     throw new Error(
-      `httpEndpoint({ contract: ${contract.name}, … }): the contract has no ` +
-        `'http:' section, so it carries no HTTP address. Declare ` +
-        `'http: <METHOD> <path>' on the contract, or implement it on the bus ` +
-        `with implement(${contract.name}, { … }).`,
+      `httpEndpoint({ operation: ${operation.name}, … }): the operation has ` +
+        `no 'http:' section, so it carries no HTTP address. Declare ` +
+        `'http: <METHOD> <path>' on it, or implement it on the bus with ` +
+        `implement(${operation.name}, { … }).`,
     );
   }
 
@@ -324,10 +327,10 @@ function fromContract(
     transport: HttpTransport$(on ?? DEFAULT_INSTANCE),
     pattern: `${binding.method} ${binding.path}`,
     binding,
-    input: contract.input,
-    output: contract.output,
-    errors: contract.errors,
-    doc: contract.doc,
+    input: operation.input,
+    output: operation.output,
+    errors: operation.errors,
+    doc: operation.doc,
   });
 }
 
@@ -407,49 +410,49 @@ function fromContract(
  * причине (несошедшийся `bind`, литерал `__error` слота `pipeline`)
  * добавляется шум про `HandlerClass`.
  *
- * Контракт-форма стоит первой: её поля не пересекаются с анонимной формой
- * (`contract` против `method` и `path`), поэтому на резолвинг она не
+ * Операция-форма стоит первой: её поля не пересекаются с анонимной формой
+ * (`operation` против `method` и `path`), поэтому на резолвинг она не
  * влияет.
  */
 export function httpEndpoint<
-  C extends AnyContract,
+  C extends AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
 >(
-  declaration: HttpContractDictionary<C, P, PN> & {
+  declaration: HttpOperationDictionary<C, P, PN> & {
     deps?: undefined;
-    handle: HandlerFn<InputFormOf<C>, OutputFormOf<C>, P, ContractFailsOf<C>>;
+    handle: HandlerFn<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>;
   },
 ): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN>;
 export function httpEndpoint<
-  C extends AnyContract,
+  C extends AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
   D extends InjectionToken[] = InjectionToken[],
 >(
-  declaration: HttpContractDictionary<C, P, PN> & {
+  declaration: HttpOperationDictionary<C, P, PN> & {
     deps: [...D];
     handle: HandlerFactory<
       D,
       InputFormOf<C>,
       OutputFormOf<C>,
       P,
-      ContractFailsOf<C>
+      OperationFailsOf<C>
     >;
   },
 ): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN | D[number]>;
 export function httpEndpoint<
-  C extends AnyContract,
+  C extends AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
   H extends HandlerClass<
     InputFormOf<C>,
     OutputFormOf<C>,
     P,
-    ContractFailsOf<C>
-  > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, ContractFailsOf<C>>,
+    OperationFailsOf<C>
+  > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>,
 >(
-  declaration: HttpContractDictionary<C, P, PN> & {
+  declaration: HttpOperationDictionary<C, P, PN> & {
     deps?: undefined;
     handle: H;
   },
@@ -518,16 +521,18 @@ export function httpEndpoint(
         any,
         readonly AnyFailDefinition[]
       >
-    | HttpContractDictionary<any, any, unknown>
+    | HttpOperationDictionary<any, any, unknown>
   ) & {
     deps?: InjectionToken[];
     handle: unknown;
   },
 ): AnyEndpointDefinition {
-  // Контракт-форму отличает ключ `contract`: в анонимной форме его нет
-  if ('contract' in declaration) {
+  // Операция-форму отличает ключ `operation`: в анонимной форме его нет
+  if ('operation' in declaration) {
     return fromContract(
-      declaration as unknown as Record<string, unknown> & { contract: unknown },
+      declaration as unknown as Record<string, unknown> & {
+        operation: unknown;
+      },
     );
   }
 

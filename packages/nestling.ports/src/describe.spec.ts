@@ -3,14 +3,14 @@
  * пережить сериализацию в JSON, а `structuredClone` пронёс бы через себя
  * и функции */
 /**
- * Дескриптор контракта: структурная часть точна всегда, листья — ровно
+ * Дескриптор операции: структурная часть точна всегда, листья — ровно
  * настолько, насколько их раскрыл конвертер.
  */
 
-import { canonicalizeJson, describeContract } from './describe.js';
+import { canonicalizeJson, describeOperation } from './describe.js';
 import { implement } from './implement.js';
 
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeRequest } from '@nestling/contracts';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import {
   defineFail,
@@ -38,18 +38,17 @@ const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
   message: 'Quota exhausted',
 });
 
-const ChargeCard = makeContract({
+const ChargeCard = makeRequest({
   name: 'describe.billing.charge',
-  kind: 'request',
   input: z.object({ orderId: z.string(), amount: z.number() }),
   output: z.object({ chargeId: z.string() }),
   // Порядок объявления обратный алфавитному: дескриптор обязан его выровнять
   errors: [QuotaExceeded, CardDeclined],
 });
 
-describe('describeContract', () => {
+describe('describeOperation', () => {
   it('описывает value-формы JSON Schema, когда конвертер передан', () => {
-    const descriptor = describeContract(ChargeCard, {
+    const descriptor = describeOperation(ChargeCard, {
       converters: [zodConverter()],
     });
 
@@ -73,7 +72,7 @@ describe('describeContract', () => {
   });
 
   it('без конвертера сохраняет структурную часть и помечает лист непрозрачным', () => {
-    const descriptor = describeContract(ChargeCard);
+    const descriptor = describeOperation(ChargeCard);
 
     expect(descriptor.kind).toBe('request');
     expect(descriptor.input.kind).toBe('value');
@@ -88,9 +87,8 @@ describe('describeContract', () => {
   });
 
   it('аннотированный лист описан схемой даже без конвертеров', () => {
-    const Annotated = makeContract({
+    const Annotated = makeRequest({
       name: 'describe.annotated',
-      kind: 'request',
       input: jsonSchema(z.object({ id: z.string() }), {
         type: 'object',
         properties: { id: { type: 'string' } },
@@ -99,7 +97,7 @@ describe('describeContract', () => {
 
     // Ни одного конвертера не передано: ответ на вопрос «как выглядит эта
     // схема» уже дан аннотацией, и терять его незачем
-    expect(describeContract(Annotated).input.leaf).toEqual({
+    expect(describeOperation(Annotated).input.leaf).toEqual({
       leaf: 'schema',
       vendor: 'zod',
       jsonSchema: { properties: { id: { type: 'string' } }, type: 'object' },
@@ -107,23 +105,23 @@ describe('describeContract', () => {
   });
 
   it('различает «листа нет» и «лист непрозрачен»', () => {
-    const Ping = makeContract({ name: 'describe.ping', kind: 'command' });
+    const Ping = makeCommand({ name: 'describe.ping' });
 
-    expect(describeContract(Ping).input.leaf).toEqual({ leaf: 'none' });
-    expect(describeContract(ChargeCard).input.leaf).toEqual({
+    expect(describeOperation(Ping).input.leaf).toEqual({ leaf: 'none' });
+    expect(describeOperation(ChargeCard).input.leaf).toEqual({
       leaf: 'opaque',
       vendor: 'zod',
     });
   });
 
   it('несёт вид потоковой формы выхода', () => {
-    const Tail = makeContract({
+    const Tail = makeRequest({
       name: 'describe.logs.tail',
-      kind: 'request',
+
       output: stream(z.object({ line: z.string() })),
     });
 
-    const descriptor = describeContract(Tail, {
+    const descriptor = describeOperation(Tail, {
       converters: [zodConverter()],
     });
 
@@ -132,22 +130,22 @@ describe('describeContract', () => {
   });
 
   it('несёт примитивный лист и вид `events`', () => {
-    const Feed = makeContract({
+    const Feed = makeRequest({
       name: 'describe.feed',
-      kind: 'request',
+
       output: events('text'),
     });
 
-    expect(describeContract(Feed).output).toEqual({
+    expect(describeOperation(Feed).output).toEqual({
       kind: 'events',
       leaf: { leaf: 'primitive', primitive: 'text' },
     });
   });
 
   it('раскладывает multipart на поля и файлы с ограничениями', () => {
-    const Upload = makeContract({
+    const Upload = makeRequest({
       name: 'describe.upload',
-      kind: 'request',
+
       input: multipart({
         fields: z.object({ title: z.string() }),
         files: {
@@ -157,7 +155,7 @@ describe('describeContract', () => {
       }),
     });
 
-    const descriptor = describeContract(Upload, {
+    const descriptor = describeOperation(Upload, {
       converters: [zodConverter()],
     });
 
@@ -180,18 +178,18 @@ describe('describeContract', () => {
     ]);
   });
 
-  it('описывает декларацию-реализацию так же, как её контракт', () => {
+  it('описывает декларацию-реализацию так же, как её операция', () => {
     const Impl = implement(ChargeCard, {
       handle: async () => new Ok({ chargeId: '1' }),
     });
 
-    expect(describeContract(Impl, { converters: [zodConverter()] })).toEqual(
-      describeContract(ChargeCard, { converters: [zodConverter()] }),
+    expect(describeOperation(Impl, { converters: [zodConverter()] })).toEqual(
+      describeOperation(ChargeCard, { converters: [zodConverter()] }),
     );
   });
 
   it('переживает сериализацию в JSON без потерь', () => {
-    const descriptor = describeContract(ChargeCard, {
+    const descriptor = describeOperation(ChargeCard, {
       converters: [zodConverter()],
     });
 
@@ -199,14 +197,14 @@ describe('describeContract', () => {
   });
 
   it('чужое значение отвергает с указанием ожидаемого', () => {
-    expect(() => describeContract({ pattern: 'GET /x' } as never)).toThrow(
-      /makeContract\(\)|implement\(\)/,
+    expect(() => describeOperation({ pattern: 'GET /x' } as never)).toThrow(
+      /makeRequest\(\)|implement\(\)/,
     );
   });
 
   it('дубль вендора в списке конвертеров бросает', () => {
     expect(() =>
-      describeContract(ChargeCard, {
+      describeOperation(ChargeCard, {
         converters: [zodConverter(), zodConverter()],
       }),
     ).toThrow(/same vendor 'zod'/);

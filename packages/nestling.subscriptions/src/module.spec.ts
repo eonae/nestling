@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-useless-undefined --
- * Реализация контракта без `output` возвращает `undefined` явно: так
- * записан контракт хендлера в ядре (`Output<undefined>`). */
+ * Реализация операции без `output` возвращает `undefined` явно: так
+ * записана сигнатура хендлера в ядре (`Output<undefined>`). */
 /**
  * Пакет в собранном приложении: тестовый корень, полный пайплайн,
  * `await using` → SHUTDOWN.
@@ -236,7 +236,7 @@ describe('subscriptions(): реестр в собранном приложени
 });
 
 describe('subscriptions(): факты жизненного цикла', () => {
-  it('без публикации вызывателей контрактов в графе нет', async () => {
+  it('без публикации вызывателей операций в графе нет', async () => {
     await using app = await assembleTest({
       plugins: [subscriptions()],
       features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],

@@ -53,7 +53,7 @@ export const CreateUser = makeContract({
 Контракт — значение. Он ничего не регистрирует в модуле или приложении.
 В приложение он попадает двумя способами: кто-то его реализует
 (`implement` из `@nestling/ports`) и кто-то инжектит его вызыватель
-(`CreateUser.port`).
+(`CreateUser.caller`).
 
 ## Контракт
 

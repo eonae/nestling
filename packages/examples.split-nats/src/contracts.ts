@@ -1,12 +1,12 @@
 /**
- * Контракты примера — единственное, что знают друг о друге фичи.
+ * Операции примера — единственное, что знают друг о друге фичи.
  *
- * Ни одна из них не экспортирует токен наружу: общение идёт контрактами,
+ * Ни одна из них не экспортирует токен наружу: общение идёт операциями,
  * поэтому решение «в одном процессе или в разных» принимается на сборке,
  * а не при написании кода.
  */
 
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
 import { defineFail } from '@nestling/pipeline';
 import { z } from 'zod';
 
@@ -25,9 +25,8 @@ export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
  * у него тоже шина. С HTTP-endpoint'ом он выглядел бы так же: меняется
  * транспорт входа, а не код фичи.
  */
-export const PlaceOrder = makeContract({
+export const PlaceOrder = makeCommand({
   name: 'orders.place',
-  kind: 'command',
   input: z.object({ orderId: z.string(), amount: z.number() }),
 });
 
@@ -38,9 +37,8 @@ export const PlaceOrder = makeContract({
  * вызов без co-located реализации валил сборку. Теперь «владельца не
  * выбрали здесь» означает «он в другом процессе».
  */
-export const ClaimQuota = makeContract({
+export const ClaimQuota = makeRequest({
   name: 'quotas.claim',
-  kind: 'request',
   input: z.object({ tenantId: z.string(), amount: z.number() }),
   output: z.object({ granted: z.number() }),
   errors: [QuotaExceeded],
@@ -50,13 +48,12 @@ export const ClaimQuota = makeContract({
  * Факт размещения заказа.
  *
  * `durable: true` — факт не должен потеряться, пока подписчик лежит.
- * Долговечность объявлена **контрактом**, потому что знать о ней обязаны
+ * Долговечность объявлена **операцией**, потому что знать о ней обязаны
  * обе стороны: издатель ждёт подтверждения записи, подписчик читает
  * долговечно, а живут они в разных процессах.
  */
-export const OrderPlaced = makeContract({
+export const OrderPlaced = makeEvent({
   name: 'orders.placed',
-  kind: 'event',
   durable: true,
   input: z.object({ orderId: z.string(), tenantId: z.string() }),
 });

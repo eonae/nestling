@@ -1,12 +1,12 @@
 /**
- * Секция `http` контракта: HTTP-адрес и размещение полей.
+ * Секция `http` операции: HTTP-адрес и размещение полей.
  *
- * `name` контракта — адрес на шине, `http` — адрес по HTTP. Секция
+ * `name` операции — адрес на шине, `http` — адрес по HTTP. Секция
  * превращается в ту же bind-карту, что и HTTP-декларация endpoint'а, тем же
  * кодом (`computeHttpBinding`).
  *
  * Поля, описывающие исполнение (`handle`, `pipeline`, `deps`, `detached`),
- * контракт не принимает: `parseHttpSection` отвергает их с ошибкой.
+ * операция не принимает: `parseHttpSection` отвергает их с ошибкой.
  */
 
 import type { AnyOutput, AnyPayload, InferStreamItem } from '../io/index.js';
@@ -37,7 +37,7 @@ export interface HttpContractSection<
 
   /**
    * Передавать сырые байты тела в контекст реализации; нужно для проверки
-   * подписей webhook'ов. Объявляется в контракте, потому что подпись
+   * подписей webhook'ов. Объявляется в операции, потому что подпись
    * считается по тем же байтам, что отправил клиент.
    */
   rawBody?: boolean;
@@ -52,13 +52,13 @@ export interface HttpContractSection<
  * Строка подходит только для адреса без пометок: `bind`, `rawBody` и `sse`
  * задаются объектной формой.
  */
-export type ContractHttp<
+export type OperationHttp<
   Path extends string = string,
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
 > = string | HttpContractSection<Path, I, O>;
 
-/** Поля исполнения, которые контракт не принимает */
+/** Поля исполнения, которые операция не принимает */
 const EXECUTION_FIELDS = ['handle', 'pipeline', 'deps', 'detached'] as const;
 
 /** Секция после разбора: объектная форма с методом-строкой */
@@ -76,7 +76,7 @@ export interface ParsedHttpSection {
  * Строковая форма разбирается строго: ровно один пробел, непустой метод,
  * непустой путь. Адрес читают обе стороны, поэтому послаблений нет.
  *
- * @param where - Как назвать контракт в тексте ошибки
+ * @param where - Как назвать операция в тексте ошибки
  */
 export function parseHttpSection(
   http: unknown,

@@ -25,7 +25,7 @@ export { familyOverride } from './overrides.js';
 export type { TestOverride } from './overrides.js';
 export { stub } from './stub.js';
 export type {
-  ContractStub,
+  OperationStub,
   EmitStubImpl,
   RequestStubImpl,
   StubOutput,
@@ -42,26 +42,26 @@ export { unwrap, UnwrapFailedError } from './unwrap.js';
 export type { CheckOptions, CheckReport } from '@nestling/app';
 
 /**
- * Снапшот и дифф контрактов — реэкспорт из `@nestling/ports`.
+ * Снапшот и дифф операций — реэкспорт из `@nestling/ports`.
  *
  * CI-тест матрицы («собери снапшот, сравни с baseline, напечатай отчёт»)
  * пишется одним импортом: топологии, сведение и сравнение живут в разных
  * пакетах, но для автора теста это одна операция.
  */
 export {
-  diffContracts,
+  diffOperations,
   formatCompatibility,
   serializeSnapshot,
-  snapshotContracts,
+  snapshotOperations,
 } from '@nestling/ports';
 export type {
   CompatibilityChange,
   CompatibilityReport,
   CompatibilityVerdict,
-  ContractDescriptor,
-  ContractSnapshot,
-  SnapshotContract,
+  OperationDescriptor,
+  OperationSnapshot,
+  SnapshotOperation,
 } from '@nestling/ports';
 
-/** Контракт вендор-конвертера: его принимает `checkTopologies` */
+/** Операция вендор-конвертера: его принимает `checkTopologies` */
 export type { SchemaDocConverter } from '@nestling/pipeline';

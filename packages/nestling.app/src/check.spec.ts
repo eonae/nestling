@@ -18,7 +18,7 @@ import {
   OnInit,
   OnStart,
 } from '@nestling/container';
-import { makeContract } from '@nestling/contracts';
+import { makeCommand, makeEvent, makeRequest } from '@nestling/contracts';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { defineFail, makeEndpoint, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
@@ -174,19 +174,17 @@ describe('App.check() — фазы 0–1', () => {
   });
 });
 
-describe('App.check() — опубликованные контракты в отчёте', () => {
-  const ChargeCard = makeContract({
+describe('App.check() — опубликованные операции в отчёте', () => {
+  const ChargeCard = makeRequest({
     name: 'check.billing.charge',
-    kind: 'request',
     input: z.object({ amount: z.number() }),
     output: z.object({ chargeId: z.string() }),
     errors: [CardDeclined],
   });
 
-  /** Контракт, который импортирован, но этой сборкой не реализуется */
-  const NeverImplemented = makeContract({
+  /** Операция, который импортирован, но этой сборкой не реализуется */
+  const NeverImplemented = makeCommand({
     name: 'check.billing.refund',
-    kind: 'command',
     input: z.object({ chargeId: z.string() }),
   });
 
@@ -236,7 +234,7 @@ describe('App.check() — опубликованные контракты в о�
     expect(descriptor.input.leaf).toEqual({ leaf: 'opaque', vendor: 'zod' });
   });
 
-  it('импортированный, но не реализованный контракт в отчёт не попадает', async () => {
+  it('импортированный, но не реализованный операция в отчёт не попадает', async () => {
     const report = await assembleBilling().check();
 
     // Значение импортировано этим файлом и лежит в приватном реестре
@@ -247,7 +245,7 @@ describe('App.check() — опубликованные контракты в о�
     ]);
   });
 
-  it('у приложения без контрактов поле пусто, а не отсутствует', async () => {
+  it('у приложения без операций поле пусто, а не отсутствует', async () => {
     const report = await assemble({
       features: [
         makeFeature({
@@ -268,9 +266,8 @@ describe('App.check() — опубликованные контракты в о�
   });
 
   it('событие с двумя подписчиками даёт один дескриптор', async () => {
-    const OrderPlaced = makeContract({
+    const OrderPlaced = makeEvent({
       name: 'check.orders.placed',
-      kind: 'event',
       input: z.object({ orderId: z.string() }),
     });
 
