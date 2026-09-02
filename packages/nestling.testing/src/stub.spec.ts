@@ -12,8 +12,8 @@
  */
 
 import { assembleTest } from './app';
-import { testUnit } from './unit';
 import { stub } from './stub';
+import { testUnit } from './unit';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';
@@ -307,9 +307,7 @@ class QuotaConsumer {
 
 const ConsumerFeature = makeFeature({
   name: 'orders',
-  modules: [
-    makeFeature({ name: 'module:orders', providers: [QuotaConsumer] }),
-  ],
+  providers: [QuotaConsumer],
 });
 
 /** Фича-владелец соседнего контракта — она идёт боевым путём */
@@ -317,18 +315,13 @@ let charged: number[] = [];
 
 const BillingFeature = makeFeature({
   name: 'billing',
-  modules: [
-    makeFeature({
-      name: 'module:billing',
-      endpoints: [
-        implement(ChargeCard, {
-          handle: async (input) => {
-            charged.push(input.amount);
+  endpoints: [
+    implement(ChargeCard, {
+      handle: async (input) => {
+        charged.push(input.amount);
 
-            return new Ok({ chargeId: `c-${input.amount}` });
-          },
-        }),
-      ],
+        return new Ok({ chargeId: `c-${input.amount}` });
+      },
     }),
   ],
 });

@@ -4,7 +4,7 @@
  */
 
 import { assemble } from './app';
-import { makeFeature } from './feature';
+import { makeFeature, makePlugin } from './feature';
 import { MockTransport } from './helpers';
 
 import { describe, expect, it, jest } from '@jest/globals';
@@ -177,9 +177,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
 
     const transport = new MockTransport();
     const app = assemble({
-      features: [
-        makeFeature({ name: 'module:bad', endpoints: [NeedsLogger] }),
-      ],
+      features: [makeFeature({ name: 'module:bad', endpoints: [NeedsLogger] })],
       transports: [asHttpTransport(transport)],
     });
 
@@ -229,9 +227,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
 
     const transport = new MockTransport();
     const app = assemble({
-      features: [
-        makeFeature({ name: 'module:cli', endpoints: [CliEndpoint] }),
-      ],
+      features: [makeFeature({ name: 'module:cli', endpoints: [CliEndpoint] })],
       transports: [asHttpTransport(transport)],
     });
 
@@ -305,19 +301,19 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
   });
 
   it('элемент endpoints: без бренда — ошибка старта', async () => {
-    const SmugglingModule = {
-      ...makeModule({ name: 'module:smuggling' }),
-      endpoints: [{ transport: 'http', pattern: 'GET /smuggled' }],
-    };
+    const Smuggling = makeFeature({
+      name: 'smuggling',
+      endpoints: [{ transport: 'http', pattern: 'GET /smuggled' }] as never,
+    });
 
     const transport = new MockTransport();
     const app = assemble({
-      features: [SmugglingModule as never],
+      features: [Smuggling],
       transports: [asHttpTransport(transport)],
     });
 
     await expect(app.run()).rejects.toThrow(
-      /module:smuggling.*index 0.*not an endpoint declaration/s,
+      /smuggling.*index 0.*not an endpoint declaration/s,
     );
     expect(transport.serving).toBe(false);
   });
@@ -613,7 +609,6 @@ describe('assemble — порядок фаз и shutdown', () => {
     try {
       const Orders = makeFeature({
         name: 'orders',
-        modules: [makeFeature({ name: 'module:orders' })],
       });
 
       const app = assemble({
@@ -726,33 +721,23 @@ describe('assemble — фичи в приложении', () => {
 
     const Orders = makeFeature({
       name: 'orders',
-      modules: [
-        makeFeature({
-          name: 'module:orders',
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/orders',
-              handle: async () => new Ok({}),
-            }),
-          ],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/orders',
+          handle: async () => new Ok({}),
         }),
       ],
     });
 
     const Billing = makeFeature({
       name: 'billing',
-      modules: [
-        makeFeature({
-          name: 'module:billing',
-          providers: [BillingService],
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/invoices',
-              handle: async () => new Ok({}),
-            }),
-          ],
+      providers: [BillingService],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/invoices',
+          handle: async () => new Ok({}),
         }),
       ],
     });
@@ -774,32 +759,28 @@ describe('assemble — фичи в приложении', () => {
     await app.close();
   });
 
-  it('modules корня и модули выбранных фич совмещаются, дубли — один раз', async () => {
-    const Shared = makeFeature({ name: 'module:shared' });
+  it('общий модуль двух единиц регистрируется один раз', async () => {
+    const Shared = makeModule({ name: 'module:shared' });
 
     const Orders = makeFeature({
       name: 'orders',
-      modules: [
-        Shared,
-        makeFeature({
-          name: 'module:orders',
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/orders',
-              handle: async () => new Ok({}),
-            }),
-          ],
+      modules: [Shared],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/orders',
+          handle: async () => new Ok({}),
         }),
       ],
     });
 
     const transport = new MockTransport();
     const app = assemble({
-      features: [
-        Shared,
-        makeFeature({
-          name: 'module:root',
+      features: [Orders],
+      plugins: [
+        makePlugin({
+          name: '@spec/root',
+          modules: [Shared],
           endpoints: [
             httpEndpoint({
               method: 'GET',
@@ -808,7 +789,6 @@ describe('assemble — фичи в приложении', () => {
             }),
           ],
         }),
-        Orders,
       ],
       transports: [asHttpTransport(transport)],
     });
@@ -816,42 +796,33 @@ describe('assemble — фичи в приложении', () => {
     await app.run();
 
     expect(transport.routes.map((route) => route.pattern)).toEqual([
-      'GET /root',
       'GET /orders',
+      'GET /root',
     ]);
 
     await app.close();
   });
 
-  it('одноимённые разные модули корня и фичи — ошибка от контейнера', async () => {
+  it('одноимённые разные модули двух фич — ошибка сборки', async () => {
     const Orders = makeFeature({
       name: 'orders',
-      modules: [
-        makeFeature({
-          name: 'module:logging',
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/from-feature',
-              handle: async () => new Ok({}),
-            }),
-          ],
-        }),
-      ],
+      modules: [makeModule({ name: 'module:shared' })],
     });
 
-    const app = assemble({
-      features: [makeFeature({ name: 'module:logging' }), Orders],
-      transports: [asHttpTransport(new MockTransport())],
+    const Billing = makeFeature({
+      name: 'billing',
+      modules: [makeModule({ name: 'module:shared' })],
     });
 
-    // Discovery идёт раньше регистрации модулей (её результат нужен
-    // kernel-модулю портов уже на регистрации), поэтому диагностику даёт
-    // она: тот же инвариант, тот же класс ошибки, текст ещё и про
-    // endpoint'ы. Фаза остаётся прежней — ASSEMBLE, до любого `@OnInit`.
-    await expect(app.check()).rejects.toThrow(
-      /Two different modules are named 'module:logging'\. A module name is the attribution key of its providers and endpoints/,
-    );
+    // Имя модуля — ключ атрибуции его провайдеров, поэтому два разных
+    // значения под одним именем роняют сборку на фазе 0, до построения
+    // контейнера и любого `@OnInit`
+    expect(() =>
+      assemble({
+        features: [Orders, Billing],
+        transports: [asHttpTransport(new MockTransport())],
+      }),
+    ).toThrow(/Two different modules are named 'module:shared'/);
   });
 
   it('транспорт невыбранной фичи не поднимается', async () => {
@@ -867,17 +838,11 @@ describe('assemble — фичи в приложении', () => {
     const Billing$ = makeToken<ITransport>('transport:billing');
     const Billing = makeFeature({
       name: 'billing',
-      modules: [
-        makeFeature({
-          name: 'module:billing-infra',
-          providers: [valueProvider(Billing$, new CountingTransport())],
-        }),
-      ],
+      providers: [valueProvider(Billing$, new CountingTransport())],
     });
 
     const Orders = makeFeature({
       name: 'orders',
-      modules: [makeFeature({ name: 'module:orders' })],
     });
 
     const app = assemble({

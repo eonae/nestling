@@ -17,7 +17,6 @@ import {
   OnDestroy,
   OnInit,
   OnStart,
-  valueProvider,
 } from '@nestling/container';
 import { makeContract } from '@nestling/contracts';
 import type { SchemaDocConverter } from '@nestling/pipeline';
@@ -105,21 +104,15 @@ describe('App.check() — фазы 0–1', () => {
   it("называет выбранные фичи и обнаруженные endpoint'ы с транспортами", async () => {
     const Logging = makeFeature({
       name: 'logging',
-      modules: [makeFeature({ name: 'module:logging' })],
     });
 
     const Users = makeFeature({
       name: 'users',
-      modules: [
-        makeFeature({
-          name: 'module:users',
-          endpoints: [
-            httpEndpoint({
-              method: 'GET',
-              path: '/users',
-              handle: async () => new Ok({}),
-            }),
-          ],
+      endpoints: [
+        httpEndpoint({
+          method: 'GET',
+          path: '/users',
+          handle: async () => new Ok({}),
         }),
       ],
     });
@@ -130,9 +123,11 @@ describe('App.check() — фазы 0–1', () => {
       transports: [asHttpTransport(new MockTransport())],
     }).check();
 
-    expect(report.features).toEqual(['users', 'logging']);
+    // Выбор строгий: `logging` не подтягивается ничем — поля `dependsOn`
+    // у фичи нет
+    expect(report.features).toEqual(['users']);
     expect(report.endpoints).toEqual([
-      { pattern: 'GET /users', transport: 'http', module: 'module:users' },
+      { pattern: 'GET /users', transport: 'http', module: 'users' },
     ]);
   });
 
@@ -422,9 +417,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
     }
 
     const wired = await wireApp({
-      features: [
-        makeFeature({ name: 'module:service', providers: [Service] }),
-      ],
+      features: [makeFeature({ name: 'module:service', providers: [Service] })],
     });
 
     wired.signal.addEventListener('abort', () => events.push('aborted'));

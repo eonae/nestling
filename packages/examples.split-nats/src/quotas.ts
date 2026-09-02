@@ -41,8 +41,9 @@ export class QuotaLedger {
   }
 }
 
-const QuotasModule = makeFeature({
-  name: 'module:quotas',
+/** Фича квот: владелец `quotas.claim` и подписчик `orders.placed` */
+export const QuotasFeature = makeFeature({
+  name: 'quotas',
   providers: [QuotaLedger],
   endpoints: [
     implement(ClaimQuota, {
@@ -75,10 +76,4 @@ const QuotasModule = makeFeature({
         },
     }),
   ],
-});
-
-/** Фича квот: владелец `quotas.claim` и подписчик `orders.placed` */
-export const QuotasFeature = makeFeature({
-  name: 'quotas',
-  modules: [QuotasModule],
 });

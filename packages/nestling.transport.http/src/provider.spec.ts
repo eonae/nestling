@@ -11,11 +11,11 @@ import { configKernel } from '@nestling/config';
 import { ContainerBuilder } from '@nestling/container';
 import { makeDispatch } from '@nestling/transport';
 
-/** Строит контейнер с kernel-модулем конфига и провайдером транспорта */
-async function build(provider: ReturnType<typeof http>) {
+/** Строит контейнер с kernel-модулем конфига и объявленным транспортом */
+async function build(declaration: ReturnType<typeof http>) {
   return await new ContainerBuilder()
     .register(configKernel([], { onWarn: (): void => undefined }))
-    .register(provider)
+    .register(declaration.provider)
     .build();
 }
 
@@ -49,13 +49,15 @@ function withEnv(vars: Record<string, string | undefined>): () => void {
 const optionsOf = (transport: HttpTransport): { port?: number } =>
   (transport as unknown as { options: { port?: number } }).options;
 
-describe('http() — фабрика провайдера', () => {
+describe('http() — объявление экземпляра', () => {
   it('порт берётся из конфиг-секции', async () => {
     const restore = withEnv({ HTTP_PORT: '8080' });
 
     try {
       const container = await build(http());
-      const transport = container.getOrThrow(HttpTransport$('default')) as HttpTransport;
+      const transport = container.getOrThrow(
+        HttpTransport$('default'),
+      ) as HttpTransport;
 
       expect(optionsOf(transport).port).toBe(8080);
     } finally {
@@ -68,7 +70,9 @@ describe('http() — фабрика провайдера', () => {
 
     try {
       const container = await build(http({ port: 3000 }));
-      const transport = container.getOrThrow(HttpTransport$('default')) as HttpTransport;
+      const transport = container.getOrThrow(
+        HttpTransport$('default'),
+      ) as HttpTransport;
 
       expect(optionsOf(transport).port).toBe(3000);
     } finally {
@@ -91,7 +95,9 @@ describe('http() — фабрика провайдера', () => {
 
     try {
       const container = await build(http());
-      const transport = container.getOrThrow(HttpTransport$('default')) as HttpTransport;
+      const transport = container.getOrThrow(
+        HttpTransport$('default'),
+      ) as HttpTransport;
 
       expect(optionsOf(transport).port).toBe(3000);
     } finally {

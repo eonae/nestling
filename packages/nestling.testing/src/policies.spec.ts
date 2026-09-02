@@ -14,7 +14,7 @@ import { checkTopologies } from './topologies';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';
-import { Injectable, OnInit, valueProvider } from '@nestling/container';
+import { Injectable, OnInit } from '@nestling/container';
 import { compose, everyEndpoint, makePipeline, Ok } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
@@ -92,12 +92,12 @@ describe('checkTopologies — инварианты по каждой топол�
   it('ловит нарушение, возникающее только в одной топологии, и называет её', async () => {
     const ProfileFeature = makeFeature({
       name: 'profile',
-      modules: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
+      endpoints: [Authed],
     });
 
     const AdminFeature = makeFeature({
       name: 'admin',
-      modules: [makeFeature({ name: 'module:admin', endpoints: [Unauthed] })],
+      endpoints: [Unauthed],
     });
 
     const spec = {

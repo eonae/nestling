@@ -104,9 +104,7 @@ describe('subscriptions(): реестр в собранном приложени
   it('видит подписку, убивает её и снимает запись', async () => {
     await using app = await assembleTest({
       plugins: [subscriptions()],
-      features: [
-        makeFeature({ name: 'module:ticks', endpoints: [Ticks] }),
-      ],
+      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 
@@ -141,9 +139,7 @@ describe('subscriptions(): реестр в собранном приложени
   it('снимает записи на SHUTDOWN и закрывает ленту', async () => {
     const app = await assembleTest({
       plugins: [subscriptions()],
-      features: [
-        makeFeature({ name: 'module:ticks', endpoints: [Ticks] }),
-      ],
+      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 
@@ -243,9 +239,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
   it('без публикации вызывателей контрактов в графе нет', async () => {
     await using app = await assembleTest({
       plugins: [subscriptions()],
-      features: [
-        makeFeature({ name: 'module:ticks', endpoints: [Ticks] }),
-      ],
+      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 
@@ -256,9 +250,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
   it('с публикацией и нулём подписчиков собирается, emit — no-op', async () => {
     await using app = await assembleTest({
       plugins: [subscriptions({ publish: true, node: 'node-1' })],
-      features: [
-        makeFeature({ name: 'module:ticks', endpoints: [Ticks] }),
-      ],
+      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 

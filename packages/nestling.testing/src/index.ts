@@ -31,7 +31,7 @@ export type {
   StubOutput,
 } from './stub.js';
 export { checkTopologies } from './topologies.js';
-export type { TopologyReport } from './topologies.js';
+export type { TopologyReport, TopologySpec } from './topologies.js';
 export { unwrap, UnwrapFailedError } from './unwrap.js';
 
 /**

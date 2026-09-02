@@ -1,7 +1,7 @@
 import { from, secret } from './declaration.js';
 import { ConfigValidationError } from './errors.js';
-import { ConfigSection } from './families.js';
 import type { Config } from './families.js';
+import { ConfigSection } from './families.js';
 import { ConfigKeys } from './keys.js';
 import { load } from './load.js';
 import { describeConfig } from './registry.js';

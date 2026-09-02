@@ -36,8 +36,8 @@ import type {
 } from '@nestling/container';
 import {
   factoryProvider,
-  familyProvider,
   familyOf,
+  familyProvider,
   makeToken,
   makeTokenFamily,
 } from '@nestling/container';

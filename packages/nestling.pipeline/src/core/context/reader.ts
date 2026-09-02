@@ -64,9 +64,7 @@ export const CtxFamily = makeTokenFamily<AnyCtxReader, [key: string]>('Ctx');
  * }
  * ```
  */
-export const Ctx = <T>(
-  variable: AnyContextVar<T>,
-): Token<CtxReader<T>> => {
+export const Ctx = <T>(variable: AnyContextVar<T>): Token<CtxReader<T>> => {
   if (!isContextVar(variable)) {
     throw new TypeError(
       `Ctx(variable) expects a context variable value, not a key: declare it ` +

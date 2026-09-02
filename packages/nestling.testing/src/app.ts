@@ -41,7 +41,6 @@ import { makeEmptyContext, transportNameOf } from '@nestling/pipeline';
 import { busBindingOf, profileAttributes } from '@nestling/ports';
 import type {
   DispatchOptions,
-  ITransport,
   TransportDeclaration,
 } from '@nestling/transport';
 

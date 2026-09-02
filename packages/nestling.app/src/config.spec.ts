@@ -14,7 +14,7 @@ import {
   makeConfig,
   objectSource,
 } from '@nestling/config';
-import { Injectable, makeModule, valueProvider } from '@nestling/container';
+import { Injectable } from '@nestling/container';
 import { transportValue } from '@nestling/transport';
 import { HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -90,7 +90,9 @@ describe('привязка конфига в assemble', () => {
       async () => {
         const app = assemble({
           features: [GreeterModule],
-          transports: [transportValue(HttpTransport$('default'), new MockTransport())],
+          transports: [
+            transportValue(HttpTransport$('default'), new MockTransport()),
+          ],
           config: [
             [objectSource({ ROOTAPP_RETRIES: '5' }, 'high'), '*'],
             [

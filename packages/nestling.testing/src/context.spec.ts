@@ -14,7 +14,7 @@ import { unwrap } from './unwrap';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';
-import { Injectable, valueProvider } from '@nestling/container';
+import { Injectable } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, makePipeline, Ok, RequestId } from '@nestling/pipeline';
 import { transportValue } from '@nestling/transport';

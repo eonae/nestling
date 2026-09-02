@@ -160,6 +160,17 @@ function resolveIntercom(
   intercom: string | undefined,
 ): TransportDeclaration | undefined {
   if (intercom === undefined) {
+    const unassigned = transports.find((declaration) => 'bus' in declaration);
+
+    if (unassigned) {
+      throw new Error(
+        `Transport '${unassigned.name}' carries declared operations, but no ` +
+          `intercom role is assigned, so nothing would be delivered through ` +
+          `it. Add 'intercom: ${JSON.stringify(unassigned.name)}' to ` +
+          `assemble({ … }), or drop the transport.`,
+      );
+    }
+
     return undefined;
   }
 

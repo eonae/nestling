@@ -98,7 +98,7 @@ describe('assembleTest — приложение собрано, но запро�
         transports: [asHttpTransport(new SpyTransport())],
       });
 
-      expect(app.features).toEqual([]);
+      expect(app.features).toEqual(['module:quiet']);
       expect(process.listenerCount('SIGTERM')).toBe(before);
       expect(process.listenerCount('SIGINT')).toBe(before);
       expect(log).not.toHaveBeenCalled();
@@ -383,16 +383,12 @@ describe('app.call — полный пайплайн in-proc', () => {
 
     const Billing = makeFeature({
       name: 'billing',
-      modules: [
-        makeFeature({ name: 'module:billing', endpoints: [Invoices] }),
-      ],
+      endpoints: [Invoices],
     });
 
-    const Users = makeFeature({ name: 'users', modules: [UsersModule] });
-
     await using app = await assembleTest({
-      features: [Users, Billing],
-      select: 'users',
+      features: [UsersModule, Billing],
+      select: 'module:users',
       transports: [asHttpTransport(new SpyTransport())],
     });
 

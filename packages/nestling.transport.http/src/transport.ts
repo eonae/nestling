@@ -30,10 +30,7 @@ import { HttpRouter } from './router.js';
 import { HTTP_TRANSPORT_NAME, HttpTransport$ } from './token.js';
 
 import type { ConfigProjection } from '@nestling/config';
-import type {
-  FactoryProviderWithDeps,
-  InjectionToken,
-} from '@nestling/container';
+import type { InjectionToken } from '@nestling/container';
 import { factoryProvider } from '@nestling/container';
 import type {
   AnyInput,
@@ -56,7 +53,10 @@ import type {
   ITransport,
   TransportDeclaration,
 } from '@nestling/transport';
-import { DEFAULT_INSTANCE, makeTransportDeclaration } from '@nestling/transport';
+import {
+  DEFAULT_INSTANCE,
+  makeTransportDeclaration,
+} from '@nestling/transport';
 
 /** Лимит размера буферизуемого тела запроса по умолчанию (1 MiB) */
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;

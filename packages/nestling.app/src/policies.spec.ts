@@ -14,12 +14,7 @@ import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import {
-  Injectable,
-  makeToken,
-  OnInit,
-  valueProvider,
-} from '@nestling/container';
+import { Injectable, makeToken, OnInit } from '@nestling/container';
 import {
   compose,
   everyEndpoint,
@@ -133,11 +128,11 @@ describe('политики — точка проверки', () => {
   it('endpoint невыбранной фичи не проверяется', async () => {
     const Users = makeFeature({
       name: 'users',
-      modules: [makeFeature({ name: 'module:users', endpoints: [Unauthed] })],
+      endpoints: [Unauthed],
     });
     const Profile = makeFeature({
       name: 'profile',
-      modules: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
+      endpoints: [Authed],
     });
 
     const report = await assemble({

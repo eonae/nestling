@@ -13,7 +13,7 @@ import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
-import { factoryProvider, makeToken, valueProvider } from '@nestling/container';
+import { factoryProvider, makeToken } from '@nestling/container';
 import { Ok } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
@@ -54,24 +54,15 @@ const ListInvoices = httpEndpoint({
   handle: async () => new Ok({ invoices: [] }),
 });
 
-const UsersModule = makeFeature({
-  name: 'module:discovery-users',
+const UsersFeature = makeFeature({
+  name: 'discovery-users',
   providers: [observer],
   endpoints: [ListUsers],
 });
 
-const BillingModule = makeFeature({
-  name: 'module:discovery-billing',
-  endpoints: [ListInvoices],
-});
-
-const UsersFeature = makeFeature({
-  name: 'discovery-users',
-  modules: [UsersModule],
-});
 const BillingFeature = makeFeature({
   name: 'discovery-billing',
-  modules: [BillingModule],
+  endpoints: [ListInvoices],
 });
 
 const patternsOf = (discovery: EndpointDiscovery): string[] =>
@@ -89,16 +80,16 @@ beforeEach(() => {
 });
 
 describe('Discovery$ — состав приложения на входе графа', () => {
-  it("провайдер получает endpoint'ы с их атрибуцией к модулям", async () => {
+  it("провайдер получает endpoint'ы с их атрибуцией к единицам", async () => {
     const app = assemble({
-      features: [UsersModule],
+      features: [UsersFeature],
       transports: [asHttpTransport(new MockTransport())],
     });
 
     await app.run();
 
     expect(observed().endpoints).toEqual([
-      { endpoint: ListUsers, moduleName: 'module:discovery-users' },
+      { endpoint: ListUsers, moduleName: 'discovery-users' },
     ]);
 
     await app.close();
@@ -107,7 +98,7 @@ describe('Discovery$ — состав приложения на входе гр�
   it('инжектировано то же значение, с которым App начал принимать запросы', async () => {
     const transport = new MockTransport();
     const app = assemble({
-      features: [UsersModule, BillingModule],
+      features: [UsersFeature, BillingFeature],
       transports: [asHttpTransport(transport)],
     });
 
@@ -152,7 +143,7 @@ describe('Discovery$ — состав приложения на входе гр�
 
   it('состав приложения через значение изменить нельзя', async () => {
     const app = assemble({
-      features: [UsersModule],
+      features: [UsersFeature],
       transports: [asHttpTransport(new MockTransport())],
     });
 
@@ -177,7 +168,7 @@ describe('Discovery$ — состав приложения на входе гр�
 
   it('тестовый корень видит то же значение', async () => {
     const app = assemble({
-      features: [UsersModule],
+      features: [UsersFeature],
       transports: [asHttpTransport(new MockTransport())],
     });
 

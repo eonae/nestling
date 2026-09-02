@@ -12,8 +12,7 @@
 
 import type { Bundle, Feature, Plugin } from './feature.js';
 
-import type { BuiltContainer } from '@nestling/container';
-import type { Module } from '@nestling/container';
+import type { BuiltContainer, Module } from '@nestling/container';
 
 /** Владелец модуля: единица, из состава которой он достижим */
 export interface ModuleOwner {

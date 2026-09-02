@@ -37,7 +37,10 @@ describe('makeFeature', () => {
   it('составная форма: узлы несут метки своих модулей', () => {
     const Users = makeFeature({
       name: 'users',
-      modules: [moduleNamed('module:users-core'), moduleNamed('module:users-api')],
+      modules: [
+        moduleNamed('module:users-core'),
+        moduleNamed('module:users-api'),
+      ],
     });
 
     expect(Users.modules.map(({ name }) => name)).toEqual([
@@ -72,7 +75,7 @@ describe('makeFeature', () => {
     );
   });
 
-  it("поля dependsOn у фичи нет", () => {
+  it('поля dependsOn у фичи нет', () => {
     const Users = feature('users');
 
     expect('dependsOn' in Users).toBe(false);
@@ -166,10 +169,7 @@ describe('resolveSelection', () => {
     const Orders = feature('orders');
     const Billing = feature('billing');
 
-    const { features } = resolveSelection(
-      [Orders, Billing],
-      'billing, orders',
-    );
+    const { features } = resolveSelection([Orders, Billing], 'billing, orders');
 
     expect(namesOf(features)).toEqual(['billing', 'orders']);
   });
@@ -205,9 +205,9 @@ describe('resolveSelection', () => {
   });
 
   it('одноимённые разные фичи — ошибка словаря выбора', () => {
-    expect(() => resolveSelection([feature('orders'), feature('orders')])).toThrow(
-      /Two different features are named 'orders'/,
-    );
+    expect(() =>
+      resolveSelection([feature('orders'), feature('orders')]),
+    ).toThrow(/Two different features are named 'orders'/);
   });
 
   it('пустой выбор — ошибка с объяснением, как записать «ничего»', () => {

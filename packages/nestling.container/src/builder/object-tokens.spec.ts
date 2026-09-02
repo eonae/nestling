@@ -11,10 +11,10 @@ interface ILogger {
 const captureWarnings = async <T>(
   body: () => Promise<T>,
 ): Promise<[T, string[]]> => {
+  /* eslint-disable no-console -- перехват предупреждения и есть предмет теста */
   const warnings: string[] = [];
   const original = console.warn;
 
-  // eslint-disable-next-line no-console
   console.warn = (...args: unknown[]): void => {
     warnings.push(args.map(String).join(' '));
   };
@@ -22,9 +22,9 @@ const captureWarnings = async <T>(
   try {
     return [await body(), warnings];
   } finally {
-    // eslint-disable-next-line no-console
     console.warn = original;
   }
+  /* eslint-enable no-console */
 };
 
 describe('идентичность токена', () => {

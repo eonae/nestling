@@ -73,6 +73,17 @@ function nameOfTopology(source: SnapshotSource, index: number): string {
     return `[${select.map(String).join(', ')}]`;
   }
 
+  // Объектная форма выбора: имя топологии даёт её список фич, а не
+  // порядковый номер — иначе снапшот зависел бы от порядка матрицы
+  const features = (select as { features?: unknown } | undefined)?.features;
+
+  if (typeof features === 'string') {
+    return features;
+  }
+  if (Array.isArray(features)) {
+    return `[${features.map(String).join(', ')}]`;
+  }
+
   return `#${index}`;
 }
 

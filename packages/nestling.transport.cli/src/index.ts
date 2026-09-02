@@ -1,10 +1,7 @@
 /* eslint-disable no-console */
 import * as readline from 'node:readline';
 
-import type {
-  FactoryProviderWithDeps,
-  InjectionToken,
-} from '@nestling/container';
+import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, makeTokenFamily } from '@nestling/container';
 import type {
   AnyEndpointDefinition,

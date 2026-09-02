@@ -19,6 +19,7 @@ import {
 import { UserService } from './modules/users/user.service';
 import { StoredUsersRepository } from './modules/users/users.repository';
 import { UsersStore } from './modules/users/users.store';
+
 import { makeFeature } from '@nestling/app';
 import { makeModule } from '@nestling/container';
 

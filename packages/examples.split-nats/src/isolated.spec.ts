@@ -35,7 +35,8 @@ import { nats } from '@nestling/transport.nats';
 /** Честный словарь сборки — тот же, что и в проде (см. `root.ts`) */
 const honestSpec = {
   features: [OrdersFeature, QuotasFeature],
-  transports: [nats()],
+  transports: [nats({ name: 'events' })],
+  intercom: 'events',
 };
 
 describe('фича в изоляции: без соседа и без брокера', () => {

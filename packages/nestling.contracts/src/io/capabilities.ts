@@ -37,16 +37,21 @@ export interface FormBearingDefinition {
 }
 
 /**
- * Короткое имя транспорта из id токена (`transport:http` → `'http'`).
+ * Короткое имя транспорта из id токена (`transport:http:default` →
+ * `'http'`, `transport:http:admin` → `'http:admin'`).
  *
  * Повторяет `transportNameOf` из `@nestling/pipeline`: импортировать его
- * сюда нельзя, а правило умещается в одну строку.
+ * сюда нельзя, а правило умещается в несколько строк.
  */
 const shortTransportName = (token: Token<any>): string => {
   const id = tokenId(token);
-  const separator = id.lastIndexOf(':');
+  const named = id.startsWith('transport:')
+    ? id.slice('transport:'.length)
+    : id;
 
-  return separator === -1 ? id : id.slice(separator + 1);
+  return named.endsWith(':default')
+    ? named.slice(0, -':default'.length)
+    : named;
 };
 
 function listForms(kinds: ReadonlySet<FormKind>): string {

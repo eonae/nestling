@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 
 import { observability } from './modules/logger';
 import { OpsFeature, QuotasFeature, UsersFeature } from './features';
+import { appLogging, appSubscriptions } from './infrastructure';
 
 import { describe, expect, it } from '@jest/globals';
 import type { SchemaDocConverter } from '@nestling/pipeline';
@@ -45,18 +46,31 @@ const zodConverter = (): SchemaDocConverter => ({
 /** Тот же словарь сборки и те же инварианты, что и в `main.ts`. */
 const spec = {
   features: [UsersFeature, OpsFeature, QuotasFeature],
+  plugins: [appLogging, appSubscriptions],
   transports: [http({ port: 0 })],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
       observability,
       'observability',
     ),
-    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(RequestId, 'requestId'),
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
+      RequestId,
+      'requestId',
+    ),
   ],
 };
 
-/** Варианты деплоя: снапшот — объединение того, что публикует каждый */
-const TOPOLOGIES = ['all', 'users', 'ops'] as const;
+/**
+ * Варианты деплоя: снапшот — объединение того, что публикует каждый.
+ *
+ * `includeDeps` замыкает выбор по вызываемым операциям: `users` зовёт
+ * `quotas.claim`, и фича квот подключается сама.
+ */
+const TOPOLOGIES = [
+  'all',
+  { features: 'users', includeDeps: true },
+  'ops',
+] as const;
 
 const BASELINE_PATH = new URL('../contracts.snapshot.json', import.meta.url);
 
@@ -102,20 +116,20 @@ describe('пример: отчёт совместимости контракто
       'users.registered',
     ]);
 
-    // `users` тянет квоты через `dependsOn` — и это видно в снапшоте, а не
-    // додумывается
+    // `users` тянет квоты замыканием по вызову `quotas.claim` — и это
+    // видно в снапшоте, а не додумывается
     expect(
       snapshot.contracts.find(({ name }) => name === 'quotas.claim')
         ?.topologies,
     ).toEqual(['all', 'users']);
 
-    // Факты подписок публикует эксплуатационная фича, а она есть в каждой
-    // топологии: наблюдение за подписками не зависит от того, какие
-    // прикладные фичи подняли на узле
+    // Факты подписок публикует эксплуатационная фича, и тянется она
+    // только явным выбором: операций, которые бы её вызывали, нет, а
+    // замыкание идёт по вызовам
     expect(
       snapshot.contracts.find(({ name }) => name === 'subscriptions.opened')
         ?.topologies,
-    ).toEqual(['all', 'users', 'ops']);
+    ).toEqual(['all', 'ops']);
 
     // Схемы фактов написаны руками (`vendor: 'nestling'`), конвертера для
     // них нет ни одного — и всё равно они в снапшоте не непрозрачны:

@@ -51,8 +51,9 @@ export class PlaceOrderService {
   }
 }
 
-const OrdersModule = makeFeature({
-  name: 'module:orders',
+/** Фича приёма заказов */
+export const OrdersFeature = makeFeature({
+  name: 'orders',
   providers: [PlaceOrderService],
   endpoints: [
     implement(PlaceOrder, {
@@ -70,10 +71,4 @@ const OrdersModule = makeFeature({
         },
     }),
   ],
-});
-
-/** Фича приёма заказов */
-export const OrdersFeature = makeFeature({
-  name: 'orders',
-  modules: [OrdersModule],
 });

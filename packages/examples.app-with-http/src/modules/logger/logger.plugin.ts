@@ -2,8 +2,8 @@ import { LoggerConfig } from './logger.config';
 import { ConsoleLogger, ILogger } from './logger.service';
 import { AuditOutcome } from './observability';
 
-import { makePlugin } from '@nestling/app';
 import type { Plugin } from '@nestling/app';
+import { makePlugin } from '@nestling/app';
 import type { Config } from '@nestling/config';
 import { factoryProvider } from '@nestling/container';
 

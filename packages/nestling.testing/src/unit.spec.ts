@@ -8,7 +8,7 @@ import { unwrap } from './unwrap';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';
-import { Injectable, makeToken, valueProvider } from '@nestling/container';
+import { Injectable, makeToken } from '@nestling/container';
 import { Ok } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';

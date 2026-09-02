@@ -18,8 +18,8 @@ import { makeCell, runInScope } from './store.js';
 import { contextVar, declaredVarOf } from './variable.js';
 import { RequestId, Signal } from './well-known.js';
 
-import type { Token } from '@nestling/container';
 import { describe, expect, it } from '@jest/globals';
+import type { Token } from '@nestling/container';
 import type { AnyInput, EmptyInput } from '@nestling/contracts';
 
 /** Проверка типов: `Expect<Equal<A, B>>` */

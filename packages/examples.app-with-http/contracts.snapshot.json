@@ -147,7 +147,6 @@
       "errors": [],
       "topologies": [
         "all",
-        "users",
         "ops"
       ]
     },
@@ -209,7 +208,6 @@
       "errors": [],
       "topologies": [
         "all",
-        "users",
         "ops"
       ]
     },

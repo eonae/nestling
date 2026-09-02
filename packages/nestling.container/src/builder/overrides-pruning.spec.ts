@@ -696,7 +696,7 @@ describe('перечень недостающих зависимостей', () 
       );
 
     await expect(builder.build()).rejects.toThrow(
-      /Unsatisfied dependencies \(1\):[\s\S]*'HintFamily:users' required by 'Repository'/,
+      /Unsatisfied dependencies \(1\):[\S\s]*'HintFamily:users' required by 'Repository'/,
     );
   });
 });

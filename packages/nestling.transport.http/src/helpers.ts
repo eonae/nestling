@@ -2,8 +2,6 @@ import type { BindMap, BindMark } from './binding.js';
 import { assertHttpPath, computeHttpBinding } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
-import { DEFAULT_INSTANCE } from '@nestling/transport';
-
 import type { InjectionToken } from '@nestling/container';
 import type {
   AnyContract,
@@ -32,6 +30,7 @@ import type {
   ValidateOutputForm,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
+import { DEFAULT_INSTANCE } from '@nestling/transport';
 
 // Типы разметки пути и ключей `bind` (`PathParams`, `BindMap`) общие с
 // секцией `http:` контракта и живут в `@nestling/contracts`;

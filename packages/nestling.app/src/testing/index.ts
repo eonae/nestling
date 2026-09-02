@@ -18,10 +18,21 @@ import { App } from '../app.js';
 import type { AssemblySpec, TestSubstitutions, WiredApp } from '../plan.js';
 import { makePlan, TEST_SEAM } from '../plan.js';
 
+import type { BusDeclaration, TransportDeclaration } from '@nestling/transport';
+
 export type { TestSubstitutions, WiredApp, WiredEndpoint } from '../plan.js';
 
-/** Словарь сборки тестового прогона: боевой плюс подстановки */
-export type TestAssemblySpec = AssemblySpec<any> & TestSubstitutions;
+/**
+ * Словарь сборки тестового прогона: боевой плюс подстановки.
+ *
+ * Список транспортов здесь не литеральный, поэтому имя интеркома
+ * проверяется на сборке, а не типом: у тестового корня транспорты часто
+ * собираются программно.
+ */
+export type TestAssemblySpec = AssemblySpec<
+  readonly (TransportDeclaration | BusDeclaration)[]
+> &
+  TestSubstitutions;
 
 /**
  * Проводит приложение по фазам `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE`

@@ -12,12 +12,7 @@ import type { OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { assemble, makeFeature } from '@nestling/app';
-import {
-  factoryProvider,
-  makeToken,
-  OnInit,
-  valueProvider,
-} from '@nestling/container';
+import { factoryProvider, makeToken, OnInit } from '@nestling/container';
 import type { StandardSchemaV1 } from '@nestling/contracts';
 import { zodConverter } from '@nestling/openapi.zod';
 import type {
@@ -123,14 +118,8 @@ const BillingModule = makeFeature({
   endpoints: [ListInvoices],
 });
 
-const UsersFeature = makeFeature({
-  name: 'openapi-users',
-  modules: [UsersModule],
-});
-const BillingFeature = makeFeature({
-  name: 'openapi-billing',
-  modules: [BillingModule],
-});
+const UsersFeature = UsersModule;
+const BillingFeature = BillingModule;
 
 describe('openapi(...) — плагин-издатель', () => {
   it("отдаёт документ endpoint'ом и не описывает сам себя", async () => {
@@ -225,7 +214,7 @@ describe('openapi(...) — плагин-издатель', () => {
     const transport = new SpyTransport();
     const app = assemble({
       features: [UsersFeature, BillingFeature],
-      select: 'openapi-users',
+      select: 'module:openapi-users',
       plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
@@ -245,10 +234,9 @@ describe('openapi(...) — плагин-издатель', () => {
 describe('endpoint документации подчиняется политикам приложения', () => {
   const observability = makePipeline().pre(() => ({ traced: true }));
 
-  const policy = everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
-    observability,
-    'observability',
-  );
+  const policy = everyEndpoint({
+    transport: HttpTransport$('default'),
+  }).hasLayer(observability, 'observability');
 
   const Traced = httpEndpoint({
     method: 'GET',

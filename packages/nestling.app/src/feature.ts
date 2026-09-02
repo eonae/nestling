@@ -149,7 +149,9 @@ function normalize(
   const { name, providers, modules, endpoints = [] } = options;
 
   if (typeof name !== 'string' || name.trim().length === 0) {
-    throw new Error(`${constructorName}({ … }): 'name' must be a non-empty string.`);
+    throw new Error(
+      `${constructorName}({ … }): 'name' must be a non-empty string.`,
+    );
   }
 
   if (providers && modules) {

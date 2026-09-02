@@ -276,7 +276,7 @@ describe('ошибки создания членов', () => {
     // Членство читается полем токена, поэтому похожий `id` семейство не
     // задевает: это обычная недостающая зависимость
     await expect(builder.build()).rejects.toThrow(
-      /Unsatisfied dependencies \(1\):[\s\S]*'LookAlike:users' required by 'ServiceA'/,
+      /Unsatisfied dependencies \(1\):[\S\s]*'LookAlike:users' required by 'ServiceA'/,
     );
   });
 });

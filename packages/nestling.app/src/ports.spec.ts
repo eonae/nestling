@@ -15,13 +15,7 @@ import { MockTransport } from './helpers';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import { objectSource } from '@nestling/config';
-import {
-  Injectable,
-  makeToken,
-  OnInit,
-  OnStart,
-  valueProvider,
-} from '@nestling/container';
+import { Injectable, makeToken, OnInit, OnStart } from '@nestling/container';
 import { makeContract } from '@nestling/contracts';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import { makeEmptyContext, Ok } from '@nestling/pipeline';
@@ -65,26 +59,21 @@ let notified: string[] = [];
 /** Фича-владелец: реализует контракты как обычные декларации */
 const BillingFeature = makeFeature({
   name: 'billing',
-  modules: [
-    makeFeature({
-      name: 'module:billing',
-      endpoints: [
-        implement(ChargeCard, {
-          handle: async (input) => {
-            charged.push(input.amount);
+  endpoints: [
+    implement(ChargeCard, {
+      handle: async (input) => {
+        charged.push(input.amount);
 
-            return new Ok({ chargeId: `c-${input.amount}` });
-          },
-        }),
-        implement(OrderPlaced, {
-          subscriber: 'billing',
-          handle: async (input) => {
-            notified.push(input.orderId);
+        return new Ok({ chargeId: `c-${input.amount}` });
+      },
+    }),
+    implement(OrderPlaced, {
+      subscriber: 'billing',
+      handle: async (input) => {
+        notified.push(input.orderId);
 
-            return undefined;
-          },
-        }),
-      ],
+        return undefined;
+      },
     }),
   ],
 });
@@ -92,29 +81,24 @@ const BillingFeature = makeFeature({
 /** Фича-потребитель: инжектит вызыватели и зовёт их из HTTP-endpoint'а */
 const OrdersFeature = makeFeature({
   name: 'orders',
-  modules: [
-    makeFeature({
-      name: 'module:orders',
-      endpoints: [
-        httpEndpoint({
-          method: 'POST',
-          path: '/orders',
-          input: z.object({ amount: z.number() }),
-          output: z.object({ chargeId: z.string() }),
-          deps: [ChargeCard.port],
-          handle:
-            (billing: Port<typeof ChargeCard>) =>
-            async (input: { amount: number }) => {
-              const charge = await billing.call({ amount: input.amount });
+  endpoints: [
+    httpEndpoint({
+      method: 'POST',
+      path: '/orders',
+      input: z.object({ amount: z.number() }),
+      output: z.object({ chargeId: z.string() }),
+      deps: [ChargeCard.port],
+      handle:
+        (billing: Port<typeof ChargeCard>) =>
+        async (input: { amount: number }) => {
+          const charge = await billing.call({ amount: input.amount });
 
-              if (charge.isFail) {
-                return charge as never;
-              }
+          if (charge.isFail) {
+            return charge as never;
+          }
 
-              return new Ok({ chargeId: charge.value.chargeId });
-            },
-        }),
-      ],
+          return new Ok({ chargeId: charge.value.chargeId });
+        },
     }),
   ],
 });
@@ -130,17 +114,12 @@ const LonelyToken = makeToken<{ port: Port<typeof LonelyContract> }>('Lonely');
 
 const LonelyFeature = makeFeature({
   name: 'lonely',
-  modules: [
-    makeFeature({
-      name: 'module:lonely',
-      providers: [
-        {
-          provide: LonelyToken,
-          useFactory: (port: Port<typeof LonelyContract>) => ({ port }),
-          deps: [LonelyContract.port],
-        },
-      ],
-    }),
+  providers: [
+    {
+      provide: LonelyToken,
+      useFactory: (port: Port<typeof LonelyContract>) => ({ port }),
+      deps: [LonelyContract.port],
+    },
   ],
 });
 
@@ -154,15 +133,10 @@ const DurablePlaced = makeContract({
 
 const DurableFeature = makeFeature({
   name: 'durable',
-  modules: [
-    makeFeature({
-      name: 'module:durable',
-      endpoints: [
-        implement(DurablePlaced, {
-          subscriber: 'archive',
-          handle: async () => undefined,
-        }),
-      ],
+  endpoints: [
+    implement(DurablePlaced, {
+      subscriber: 'archive',
+      handle: async () => undefined,
     }),
   ],
 });
@@ -306,7 +280,7 @@ describe('assemble — порты', () => {
 
     const WarmupFeature = makeFeature({
       name: 'warmup',
-      modules: [makeFeature({ name: 'module:warmup', providers: [Warmup] })],
+      providers: [Warmup],
     });
 
     const app = assemble({
@@ -330,35 +304,30 @@ describe('assemble — порты', () => {
 
     const NotifierFeature = makeFeature({
       name: 'notifier',
-      modules: [
-        makeFeature({
-          name: 'module:notifier',
-          providers: [
-            {
-              provide: Notifier,
-              useFactory: (emitter: {
-                emit: (payload: { orderId: string }) => Promise<void>;
-              }) => ({
-                emit: (orderId: string) => emitter.emit({ orderId }),
-              }),
-              deps: [OrderPlaced.emitter],
-            },
-          ],
-          endpoints: [
-            httpEndpoint({
-              method: 'POST',
-              path: '/notify',
-              input: z.object({ orderId: z.string() }),
-              deps: [Notifier],
-              handle:
-                (notifier: { emit: (orderId: string) => Promise<void> }) =>
-                async (input: { orderId: string }) => {
-                  await notifier.emit(input.orderId);
+      providers: [
+        {
+          provide: Notifier,
+          useFactory: (emitter: {
+            emit: (payload: { orderId: string }) => Promise<void>;
+          }) => ({
+            emit: (orderId: string) => emitter.emit({ orderId }),
+          }),
+          deps: [OrderPlaced.emitter],
+        },
+      ],
+      endpoints: [
+        httpEndpoint({
+          method: 'POST',
+          path: '/notify',
+          input: z.object({ orderId: z.string() }),
+          deps: [Notifier],
+          handle:
+            (notifier: { emit: (orderId: string) => Promise<void> }) =>
+            async (input: { orderId: string }) => {
+              await notifier.emit(input.orderId);
 
-                  return new Ok({ accepted: true });
-                },
-            }),
-          ],
+              return new Ok({ accepted: true });
+            },
         }),
       ],
     });

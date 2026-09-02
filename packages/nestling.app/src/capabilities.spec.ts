@@ -6,12 +6,12 @@
  */
 
 import { assemble } from './app';
-import { MockTransport } from './helpers';
 import { makeFeature } from './feature';
+import { MockTransport } from './helpers';
 
 import { describe, expect, it } from '@jest/globals';
-import { events, multipart, Ok, stream, upload } from '@nestling/pipeline';
 import type { TransportRef } from '@nestling/pipeline';
+import { events, multipart, Ok, stream, upload } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 import { makeDispatch, transportValue } from '@nestling/transport';
 import {
@@ -46,7 +46,9 @@ describe('capability-валидация через assemble', () => {
 
     const app = assemble({
       features: [makeFeature({ name: 'module:watch', endpoints: [Watch] })],
-      transports: [asTransport(CliTransport$('default'), new CliTransport({ argv: [] }))],
+      transports: [
+        asTransport(CliTransport$('default'), new CliTransport({ argv: [] })),
+      ],
     });
 
     await expect(app.run()).rejects.toThrow(

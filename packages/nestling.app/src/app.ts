@@ -11,6 +11,8 @@
 import { assertFeatureBoundary, buildOwnerMap } from './boundary';
 import type { EndpointDiscovery } from './discovery';
 import { discoverEndpoints, Discovery$ } from './discovery';
+import type { Feature } from './feature';
+import { modulesOf } from './feature';
 import type {
   AssemblyPlan,
   AssemblySpec,
@@ -18,6 +20,7 @@ import type {
   WiredEndpoint,
 } from './plan';
 import { makePlan, TEST_SEAM } from './plan';
+import { closeOverCalls } from './selection';
 
 import { configKernel } from '@nestling/config';
 import type {
@@ -41,7 +44,6 @@ import type { ContractDescriptor } from '@nestling/ports';
 import {
   bindPorts,
   busBindingOf,
-  BusTransport$,
   collectImplementations,
   describeContract,
   portsKernel,
@@ -147,9 +149,9 @@ export interface CheckOptions {
  * }).run();
  * ```
  */
-export function assemble<
-  const T extends readonly TransportDeclaration[] = [],
->(spec: AssemblySpec<T> = {}): App {
+export function assemble<const T extends readonly TransportDeclaration[] = []>(
+  spec: AssemblySpec<T> = {},
+): App {
   // Подстановок здесь нет и не будет: `assemble` не принимает `overrides`
   // даже как соблазн — это ключ тестового корня
   return new App(makePlan(spec));
@@ -193,6 +195,14 @@ function publishedContracts(
 export class App {
   readonly #plan: AssemblyPlan;
 
+  /**
+   * Фактический состав фич: выбор, замкнутый по вызываемым операциям.
+   *
+   * Считается один раз: `run()`, `check()` и шов обязаны видеть один и тот
+   * же состав.
+   */
+  readonly #features: readonly Feature[];
+
   #container?: BuiltContainer;
 
   /**
@@ -214,6 +224,9 @@ export class App {
   /** @internal конструируется только `assemble` */
   constructor(plan: AssemblyPlan) {
     this.#plan = plan;
+    this.#features = plan.includeDeps
+      ? closeOverCalls(plan.features, plan.declaredFeatures)
+      : plan.features;
   }
 
   /**
@@ -288,7 +301,7 @@ export class App {
     const { discovery } = await this.#assemble();
 
     return {
-      features: this.#plan.features.map((feature) => feature.name),
+      features: this.#features.map((feature) => feature.name),
       endpoints: discovery.endpoints.map(({ endpoint, moduleName }) => ({
         pattern: endpoint.pattern,
         transport: transportNameOf(endpoint.transport),
@@ -335,7 +348,7 @@ export class App {
     return {
       container,
       endpoints: wired,
-      features: this.#plan.features,
+      features: this.#features,
       signal: this.#shutdown.signal,
       close: () => this.close(),
     };
@@ -410,7 +423,7 @@ export class App {
     // kernel-модулю портов уже на регистрации: функция чистая, порядок ни
     // на что не влияет
     const discovery = discoverEndpoints([
-      ...this.#plan.features,
+      ...this.#features,
       ...this.#plan.plugins,
     ]);
 
@@ -442,8 +455,12 @@ export class App {
       }),
     );
 
-    if (this.#plan.modules.length > 0) {
-      builder.register(...this.#plan.modules);
+    // Модули считаются от **фактического** состава: замыкание по вызовам
+    // могло добавить фичу, и её провайдеры обязаны попасть в граф
+    const modules = modulesOf([...this.#features, ...this.#plan.plugins]);
+
+    if (modules.length > 0) {
+      builder.register(...modules);
     }
 
     if (this.#plan.providers.length > 0) {
@@ -460,7 +477,7 @@ export class App {
     // разъезда процессов, важнее любого недостающего транспорта
     await assertFeatureBoundary(
       container,
-      buildOwnerMap(this.#plan.features, this.#plan.plugins),
+      buildOwnerMap(this.#features, this.#plan.plugins),
     );
 
     this.#assertRequiredTransports(container, discovery);
@@ -652,7 +669,7 @@ export class App {
       assertFormsSupported(
         endpoint as AnyEndpointDefinition,
         transport.capabilities,
-        `declared in module '${moduleName}'`,
+        `declared in '${moduleName}'`,
       );
     }
   }
@@ -718,13 +735,25 @@ export class App {
    * diff'е одного файла. Пустой список не печатается вовсе.
    */
   #announce(discovery: EndpointDiscovery): void {
-    const features = this.#plan.features.map((feature) => feature.name);
+    const features = this.#features.map((feature) => feature.name);
     const transports = this.#serving.map(({ token }) => transportNameOf(token));
 
     console.log(
       `[nestling] features: ${features.join(', ') || '(none)'}; ` +
         `transports: ${transports.join(', ') || '(none)'}`,
     );
+
+    // Фактический состав при замыкании — не украшение: выбор назвал одни
+    // фичи, а собрались другие, и разойтись эти списки не должны молча
+    if (this.#plan.includeDeps) {
+      const named = this.#plan.features.map((feature) => feature.name);
+      const added = features.filter((name) => !named.includes(name));
+
+      console.log(
+        `[nestling] selection closed over calls: ${named.join(', ') || '(none)'}` +
+          (added.length > 0 ? ` + ${added.join(', ')}` : ' (nothing added)'),
+      );
+    }
 
     // Деградация долговечности — рядом с составом и по тем же основаниям,
     // что список detached-endpoint'ов: расхождение объявленного с

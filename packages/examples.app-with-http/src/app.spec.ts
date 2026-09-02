@@ -58,7 +58,10 @@ const spec = {
       observability,
       'observability',
     ),
-    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(RequestId, 'requestId'),
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
+      RequestId,
+      'requestId',
+    ),
   ],
 };
 
@@ -199,7 +202,10 @@ describe('пример: фича подключает свою инфрастр�
   });
 
   it('подключает инфраструктуру выбранной фичи', async () => {
-    await using app = await assembleTest({ ...spec, select: 'users' });
+    await using app = await assembleTest({
+      ...spec,
+      select: { features: 'users', includeDeps: true },
+    });
 
     expect(app.get(ILogger)).not.toBeNull();
     expect(app.get(ActivityHub)).not.toBeNull();
@@ -340,18 +346,19 @@ describe('пример: meta вызова через порт', () => {
 
 describe('пример: матрица select-топологий', () => {
   it('собирает каждый вариант деплоя без сокетов', async () => {
-    const reports = await checkTopologies(spec, ['all', 'users', 'ops']);
+    const usersWithDeps = { features: 'users', includeDeps: true } as const;
+    const reports = await checkTopologies(spec, ['all', usersWithDeps, 'ops']);
 
     expect(reports.map(({ select }) => select)).toEqual([
       'all',
-      'users',
+      usersWithDeps,
       'ops',
     ]);
 
-    // `users` подключает `ops` и `quotas` через `dependsOn`. Сам `ops`
-    // объявляет служебные endpoint'ы: liveness-пробу, администрирование
-    // подписок и двух подписчиков на факты в шине
-    expect(reports[1].report.features).toEqual(['users', 'ops', 'quotas']);
+    // `users` зовёт `quotas.claim`, поэтому замыкание по операциям тянет
+    // фичу квот. `ops` не тянется: её endpoint'ы служебные, и вызовов из
+    // `users` в неё нет
+    expect(reports[1].report.features).toEqual(['users', 'quotas']);
     expect(
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
     ).toEqual([

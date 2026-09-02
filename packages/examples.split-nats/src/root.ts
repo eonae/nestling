@@ -29,10 +29,12 @@ export function makeRoot(
   return assemble({
     features: [OrdersFeature, QuotasFeature],
     select,
-    // Шина приложения — обычный транспорт-провайдер. Именно она делает
-    // `quotas.claim` вызываемым из процесса, где `quotas` не выбрана:
-    // in-process шина не доставляет за пределы процесса, брокерская —
-    // доставляет, и это единственный вход remote-биндинга
-    transports: [nats(transport)],
+    // Шина приложения — обычный транспорт. Роль переносчика операций ей
+    // даёт `intercom:`: именно она делает `quotas.claim` вызываемым из
+    // процесса, где `quotas` не выбрана. In-process шина не доставляет за
+    // пределы процесса, брокерская — доставляет, и назначение роли и есть
+    // единственный вход remote-биндинга
+    transports: [nats({ ...transport, name: 'events' })],
+    intercom: 'events',
   });
 }

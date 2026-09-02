@@ -125,8 +125,10 @@ describe('discoverEndpoints', () => {
     expect(transports.get(Cli$)).toHaveLength(1);
   });
 
-  it("элемент endpoints: без бренда — ошибка с единицей и индексом", () => {
-    class NotADeclaration {}
+  it('элемент endpoints: без бренда — ошибка с единицей и индексом', () => {
+    class NotADeclaration {
+      readonly kind = 'service';
+    }
 
     expect(() =>
       discoverEndpoints([

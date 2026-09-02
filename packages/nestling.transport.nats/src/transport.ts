@@ -32,10 +32,7 @@ import type { NatsCodec, WireEnvelope } from './wire.js';
 import { decodeEnvelope, encodeEnvelope, jsonCodec } from './wire.js';
 
 import type { ConfigProjection } from '@nestling/config';
-import type {
-  FactoryProviderWithDeps,
-  InjectionToken,
-} from '@nestling/container';
+import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, OnInit } from '@nestling/container';
 import type {
   EndpointMeta,
@@ -76,7 +73,10 @@ import type {
   ITransport,
   RouteDeclaration,
 } from '@nestling/transport';
-import { DEFAULT_INSTANCE, makeTransportDeclaration } from '@nestling/transport';
+import {
+  DEFAULT_INSTANCE,
+  makeTransportDeclaration,
+} from '@nestling/transport';
 
 /** Проекция конфиг-секции транспорта — то, что инжектится в фабрику */
 type NatsConfigValues = ConfigProjection<typeof NatsConfig>;
