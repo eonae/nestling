@@ -365,3 +365,40 @@ export const isValueDefinition = <T>(
 export const isFactoryProvider = <T>(
   provider: ProviderDefinition<T>,
 ): provider is FactoryProviderDefinition<T> => 'useFactory' in provider;
+
+/**
+ * Токены, которые провайдер запрашивает у контейнера.
+ *
+ * Читает объявленное значение, ничего не вызывая: у класса зависимости
+ * берутся из метаданных `@Injectable`, у определения — из `deps`. Нужна
+ * тем, кто разбирает состав приложения **до** построения графа: выбор фич
+ * и карта операций считаются на фазе ASSEMBLE, когда узлов ещё нет.
+ *
+ * Рецепт семейства зависимостей не отдаёт: определение он возвращает
+ * только для конкретного параметра, а параметры известны по спросу внутри
+ * `build()`.
+ *
+ * @param provider - Провайдер модуля: класс, определение или рецепт
+ * семейства
+ * @returns Токены зависимостей в порядке объявления
+ *
+ * @example
+ * ```typescript
+ * dependenciesOf(UserService); // [ILogger, IConfig]
+ * ```
+ */
+export function dependenciesOf(
+  provider: ModuleProvider,
+): readonly InjectionToken[] {
+  if (typeof provider === 'function') {
+    return injectableMetaStorage.get(provider)?.dependencies ?? [];
+  }
+
+  if (isFamilyDefinition(provider)) {
+    return [];
+  }
+
+  const definition = provider as ProviderDefinition;
+
+  return 'deps' in definition ? (definition.deps ?? []) : [];
+}

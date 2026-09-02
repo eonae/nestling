@@ -12,22 +12,26 @@
  */
 
 import type { Feature } from './feature.js';
+import { injectedTokens } from './feature.js';
 
 import { asFamilyMember } from '@nestling/container';
 import { EmitterFamily, PortFamily } from '@nestling/operations';
 import { busBindingOf } from '@nestling/ports';
 
-/** Имена операций видов `request` и `command`, которые вызывает фича */
+/**
+ * Имена операций видов `request` и `command`, которые вызывает фича.
+ *
+ * Источник — все токены единицы: вызыватель инжектируют и декларации, и
+ * обычные провайдеры.
+ */
 function callsOf(feature: Feature): Set<string> {
   const calls = new Set<string>();
 
-  for (const endpoint of feature.endpoints) {
-    for (const dependency of endpoint.deps ?? []) {
-      const member = asFamilyMember(dependency);
+  for (const dependency of injectedTokens(feature)) {
+    const member = asFamilyMember(dependency);
 
-      if (member?.family === PortFamily || member?.family === EmitterFamily) {
-        calls.add(member.param);
-      }
+    if (member?.family === PortFamily || member?.family === EmitterFamily) {
+      calls.add(member.param);
     }
   }
 

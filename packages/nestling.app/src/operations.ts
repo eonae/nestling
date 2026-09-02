@@ -7,6 +7,8 @@
  */
 
 import type { EndpointDiscovery } from './discovery.js';
+import type { Bundle } from './feature.js';
+import { injectedTokens } from './feature.js';
 
 import { asFamilyMember } from '@nestling/container';
 import type { OperationKind } from '@nestling/operations';
@@ -40,12 +42,12 @@ export interface CheckedOperation {
   readonly via?: string;
 }
 
-/** Имена операций, вызываемых обнаруженными декларациями */
-function calledOperations(discovery: EndpointDiscovery): Set<string> {
+/** Имена операций, вызываемых единицами сборки */
+function calledOperations(bundles: readonly Bundle[]): Set<string> {
   const called = new Set<string>();
 
-  for (const { endpoint } of discovery.endpoints) {
-    for (const dependency of endpoint.deps ?? []) {
+  for (const bundle of bundles) {
+    for (const dependency of injectedTokens(bundle)) {
       const member = asFamilyMember(dependency);
 
       if (member?.family === PortFamily || member?.family === EmitterFamily) {
@@ -66,11 +68,14 @@ function calledOperations(discovery: EndpointDiscovery): Set<string> {
  * фич, которых это приложение не обслуживает.
  *
  * @param discovery - Состав приложения
+ * @param bundles - Выбранные фичи и подключённые плагины: их провайдеры
+ * тоже инжектируют вызыватели
  * @param intercom - Имя транспорта, назначенного переносчиком операций
  * @returns Операции в порядке имени
  */
 export function mapOperations(
   discovery: EndpointDiscovery,
+  bundles: readonly Bundle[],
   intercom?: string,
 ): readonly CheckedOperation[] {
   const implemented = new Set<string>();
@@ -83,7 +88,7 @@ export function mapOperations(
     }
   }
 
-  const called = calledOperations(discovery);
+  const called = calledOperations(bundles);
   const names = [...new Set([...implemented, ...called])].sort();
 
   return names.map((name) => {

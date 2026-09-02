@@ -134,7 +134,7 @@ function patternsOf(topology: OperationTopology, name: string): string[] {
 }
 
 /**
- * Fail-fast недостижимого операции.
+ * Fail-fast недостижимой операции.
  *
  * Вызов, который заведомо некому обслужить, — ошибка компоновки, а не
  * рантайма. «Заведомо» здесь означает два условия сразу: co-located
@@ -148,7 +148,7 @@ function patternsOf(topology: OperationTopology, name: string): string[] {
 function assertReachable(
   operation: AnyOperation,
   patterns: readonly string[],
-  invoker: 'port' | 'emitter',
+  invoker: 'caller' | 'emitter',
   remote: boolean,
 ): void {
   if (patterns.length > 0 || operation.kind === 'event' || remote) {
@@ -214,12 +214,12 @@ function buildPort(
   if (operation.kind !== 'request') {
     throw new Error(
       `Operation '${name}' is a '${operation.kind}' operation: it has no ` +
-        `'.port', use '.emitter' instead.`,
+        `'.caller', use '.emitter' instead.`,
     );
   }
 
   const patterns = patternsOf(topology, name);
-  assertReachable(operation, patterns, 'port', remote);
+  assertReachable(operation, patterns, 'caller', remote);
 
   const context: InvokerContext = { operation, runtime, patterns };
 
@@ -243,7 +243,7 @@ function buildEmitter(
   if (operation.kind === 'request') {
     throw new Error(
       `Operation '${name}' is a 'request' operation: it has no '.emitter', ` +
-        `use '.port' instead.`,
+        `use '.caller' instead.`,
     );
   }
 

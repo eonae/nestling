@@ -10,9 +10,10 @@
  * фича-владелец», и выводится она из состава.
  */
 
-import type { Bundle, Feature, Plugin } from './feature.js';
+import type { Feature, Plugin } from './feature.js';
+import { reachableModules } from './feature.js';
 
-import type { BuiltContainer, Module } from '@nestling/container';
+import type { BuiltContainer } from '@nestling/container';
 
 /** Владелец модуля: единица, из состава которой он достижим */
 export interface ModuleOwner {
@@ -25,30 +26,6 @@ export interface ModuleOwner {
 
 /** Карта «имя модуля → его владелец» */
 export type OwnerMap = ReadonlyMap<string, ModuleOwner>;
-
-/** Модули, достижимые из единицы: её собственные плюс их `dependsOn` */
-function reachableModules(bundle: Bundle): Module[] {
-  const seen = new Set<Module>();
-  const found: Module[] = [];
-
-  const visit = (module: Module): void => {
-    if (seen.has(module)) {
-      return;
-    }
-    seen.add(module);
-    found.push(module);
-
-    for (const required of module.dependsOn ?? []) {
-      visit(required);
-    }
-  };
-
-  for (const module of bundle.modules) {
-    visit(module);
-  }
-
-  return found;
-}
 
 /**
  * Строит карту «модуль → фича-владелец» из состава приложения.

@@ -11,7 +11,7 @@
 import { assertFeatureBoundary, buildOwnerMap } from './boundary';
 import type { EndpointDiscovery } from './discovery';
 import { discoverEndpoints, Discovery$ } from './discovery';
-import type { Feature } from './feature';
+import type { Bundle, Feature } from './feature';
 import { modulesOf } from './feature';
 import type { CheckedOperation } from './operations';
 import { mapOperations } from './operations';
@@ -240,6 +240,11 @@ export class App {
       : plan.features;
   }
 
+  /** Единицы сборки: фактически выбранные фичи и все плагины */
+  get #bundles(): Bundle[] {
+    return [...this.#features, ...this.#plan.plugins];
+  }
+
   /**
    * Проводит приложение по фазам 0–5 и остаётся в RUN.
    *
@@ -325,7 +330,11 @@ export class App {
         transportNameOf(token),
       ),
       published: publishedOperations(discovery, options),
-      operations: mapOperations(discovery, this.#plan.intercom?.name),
+      operations: mapOperations(
+        discovery,
+        this.#bundles,
+        this.#plan.intercom?.name,
+      ),
     };
   }
 
@@ -434,10 +443,7 @@ export class App {
     // регистрации модулей, потому что топология реализаций операций нужна
     // kernel-модулю портов уже на регистрации: функция чистая, порядок ни
     // на что не влияет
-    const discovery = discoverEndpoints([
-      ...this.#features,
-      ...this.#plan.plugins,
-    ]);
+    const discovery = discoverEndpoints(this.#bundles);
 
     // Состав приложения — узел графа. Регистрируется всегда и без
     // условий: провайдер-значение ничего не стоит, а условная
@@ -469,7 +475,7 @@ export class App {
 
     // Модули считаются от **фактического** состава: замыкание по вызовам
     // могло добавить фичу, и её провайдеры обязаны попасть в граф
-    const modules = modulesOf([...this.#features, ...this.#plan.plugins]);
+    const modules = modulesOf(this.#bundles);
 
     if (modules.length > 0) {
       builder.register(...modules);
@@ -647,7 +653,10 @@ export class App {
   #warnOnIdleIntercom(discovery: EndpointDiscovery): void {
     const intercom = this.#plan.intercom;
 
-    if (!intercom || mapOperations(discovery, intercom.name).length > 0) {
+    if (
+      !intercom ||
+      mapOperations(discovery, this.#bundles, intercom.name).length > 0
+    ) {
       return;
     }
 

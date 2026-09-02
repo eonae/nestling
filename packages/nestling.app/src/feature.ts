@@ -12,7 +12,12 @@
  * токенами.
  */
 
-import type { Module, ModuleProvider } from '@nestling/container';
+import type {
+  InjectionToken,
+  Module,
+  ModuleProvider,
+} from '@nestling/container';
+import { dependenciesOf } from '@nestling/container';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 
 /**
@@ -408,6 +413,69 @@ export function modulesOf(bundles: readonly Bundle[]): Module[] {
   }
 
   return modules;
+}
+
+/**
+ * Модули, достижимые из единицы: её собственные плюс их `dependsOn`.
+ *
+ * Дедупликация по ссылке: тот же модуль, привезённый двумя путями, в
+ * списке один раз.
+ */
+export function reachableModules(bundle: Bundle): Module[] {
+  const seen = new Set<Module>();
+  const found: Module[] = [];
+
+  const visit = (module: Module): void => {
+    if (seen.has(module)) {
+      return;
+    }
+    seen.add(module);
+    found.push(module);
+
+    for (const required of module.dependsOn ?? []) {
+      visit(required);
+    }
+  };
+
+  for (const module of bundle.modules) {
+    visit(module);
+  }
+
+  return found;
+}
+
+/**
+ * Токены, которые единица запрашивает у контейнера: зависимости её
+ * деклараций и её провайдеров.
+ *
+ * Вызыватель операции — обычный токен, поэтому инжектировать его может и
+ * декларация, и любой провайдер фичи. Читать одни декларации значило бы
+ * видеть половину вызовов.
+ *
+ * Модуль, чьи `providers` заданы фабрикой, в разбор не попадает: фабрика
+ * вызывается в `build()`, а состав считается до него. Вызов из такого
+ * модуля остаётся виден проверке достижимости на собранном графе.
+ */
+export function injectedTokens(bundle: Bundle): InjectionToken[] {
+  const tokens: InjectionToken[] = [];
+
+  for (const endpoint of bundle.endpoints) {
+    tokens.push(...(endpoint.deps ?? []));
+  }
+
+  for (const module of reachableModules(bundle)) {
+    const { providers } = module;
+
+    if (!Array.isArray(providers)) {
+      continue;
+    }
+
+    for (const provider of providers) {
+      tokens.push(...dependenciesOf(provider));
+    }
+  }
+
+  return tokens;
 }
 
 /** Плагины, достижимые из перечисленных по `dependsOn`, в порядке обхода */
