@@ -168,7 +168,7 @@ describe('app.emit', () => {
     ).rejects.toThrow(/is a 'request' operation.*app\.call/s);
   });
 
-  it('доставляет подписчикам, даже когда эмиттер того же операции застабан', async () => {
+  it('доставляет подписчикам, даже когда эмиттер той же операции застабан', async () => {
     await using app = await assembleTest({
       features: [OrdersModule],
       stubs: [stub(OrderPlaced, () => undefined)],

@@ -220,7 +220,7 @@ assemble({
   кода — заменяется на `UnknownError` (`UNKNOWN`, 500). Оригинал целиком
   передаётся в `ExecuteOptions.onUnknownFail` (по умолчанию
   `console.error`); клиент получает общее тело ответа.
-- Встроенные коды входят в операция каждого endpoint'а без объявления:
+- Встроенные коды входят в операцию каждого endpoint'а без объявления:
   `UNKNOWN`, `VALIDATION_FAILED` (проверка входа и поэлементная проверка
   элементов потока), `PAYLOAD_TOO_LARGE` (лимит размера входа),
   `STREAM_LIMIT_EXCEEDED` и `STREAM_GAP_TIMEOUT` (item-цепочки),

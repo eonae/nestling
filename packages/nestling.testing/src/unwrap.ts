@@ -15,7 +15,7 @@ export class UnwrapFailedError extends Error {
   /** Статус отказа, как его увидел бы транспорт */
   readonly status: string;
 
-  /** Машинный код отказа из закрытого операции `errors:`, если он есть */
+  /** Машинный код отказа из закрытого перечня `errors:` операции, если он есть */
   readonly code?: string;
 
   /** Детали отказа целиком — то же значение, что в `response.value` */

@@ -9,11 +9,11 @@
 поверх публичных примитивов ядра: пайплайна, DI, `AbortSignal`, `Topic` и
 операций.
 
-Пакет состоит из трёх частей. Модуль `subscriptions()` подключается один
+Пакет состоит из трёх частей. Плагин `subscriptions()` подключается один
 раз на приложение. Слой `tracked` композируется на endpoint. Реестр
 `SubscriptionRegistry` инжектится как обычная зависимость.
 
-## 1. Модуль — один раз на приложение
+## 1. Плагин — один раз на приложение
 
 ```typescript
 // packages/examples.app-with-http/src/infrastructure.ts
@@ -27,19 +27,30 @@ export const appSubscriptions = subscriptions({
 });
 ```
 
-`subscriptions(options)` — функция, которая возвращает модуль. Это обычная
-форма инфраструктурного модуля ([composition.md](./composition.md)).
+`subscriptions(options)` — функция, которая возвращает плагин. Это обычная
+форма сквозной инфраструктуры ([composition.md](./composition.md)): реестр
+нужен в каждом процессе, и обращаются к нему токеном.
 
 Создайте значение один раз и импортируйте его туда, где оно нужно. Два
-вызова `subscriptions({ … })` дают два разных модуля с одним именем, и
-сборка падает. Модуль подключается либо в `modules:` корня, либо в
-`dependsOn:` модуля, чьи endpoint'ы отслеживаются:
+вызова `subscriptions({ … })` дают два разных плагина с одним именем, и
+сборка падает. Плагин перечисляется в `plugins:` корня, а фича, чьи
+endpoint'ы отслеживаются, ничего про него не объявляет — она инжектит
+реестр токеном:
+
+```typescript
+// packages/examples.app-with-http/src/main.ts
+await assemble({
+  features: [UsersFeature, OpsFeature /* … */],
+  plugins: [appLogging, appSubscriptions],
+  transports: [http()],
+}).run();
+```
 
 ```typescript
 // packages/examples.app-with-http/src/modules/ops/ops.feature.ts
-export const OpsModule = makeFeature({
-  name: 'module:ops',
-  dependsOn: [appLogging, appSubscriptions],
+export const OpsFeature = makeFeature({
+  name: 'ops',
+  providers: [],
   endpoints: [
     Health,
     ListSubscriptions,
@@ -51,7 +62,7 @@ export const OpsModule = makeFeature({
 });
 ```
 
-Опции модуля:
+Опции плагина:
 
 | Опция | Что задаёт |
 |---|---|

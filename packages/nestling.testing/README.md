@@ -31,7 +31,7 @@ await using app = await assembleTest({
   features: [UsersFeature, OpsFeature],
   transports: [http({ port: 0 })],
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
-  // заглушка операции, который эта сборка не реализует
+  // заглушка операции, которую эта сборка не реализует
   stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
   config: vars({ USERS_PAGE_SIZE: '10' }),
   // те же инварианты, что и в production
@@ -149,7 +149,7 @@ stubs: [
 
 Механизм — свойство контейнера: явный провайдер для члена семейства имеет
 приоритет над рецептом, поэтому production-код `buildPort` и `buildEmitter`
-для заглушенного операции не вызывается, и проверка достижимости тоже.
+для заглушенной операции не вызывается, и проверка достижимости тоже.
 
 Заглушка проверяется схемами своего операции при каждом вызове:
 

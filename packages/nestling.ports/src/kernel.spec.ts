@@ -302,7 +302,7 @@ describe('portsKernel', () => {
     ).rejects.toThrow(/'local-first', 'always-remote'/);
   });
 
-  it('недостижимый операция — ошибка сборки', async () => {
+  it('недостижимая операция — ошибка сборки', async () => {
     const orphanConsumer = factoryProvider(
       Consumer,
       (port: Port<any>) => ({ port }),

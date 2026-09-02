@@ -152,7 +152,7 @@ describe('implement', () => {
     expect(busBindingOf(declaration)?.durable).toBe(true);
   });
 
-  it('биндинг недолговечного операции поля не несёт', () => {
+  it('биндинг недолговечной операции поля не несёт', () => {
     const declaration = implement(OrderPlaced, {
       subscriber: 'audit',
       handle: async () => undefined,

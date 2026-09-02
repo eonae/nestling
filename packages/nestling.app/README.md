@@ -337,7 +337,7 @@ const report = await assemble(spec).check({ converters: [zodConverter()] });
 | `makeFeature({ name, providers \| modules, endpoints? })` | объявляет фичу |
 | `makePlugin({ …, dependsOn? })` | объявляет плагин |
 | `Feature`, `Plugin`, `Bundle`, `FeatureOptions`, `PluginOptions`, `FeatureSelection` | типы единиц и выбора |
-| `resolveSelection`, `modulesOf`, `reachablePlugins` | разбор `select`, модули набора единиц, замыкание плагинов |
+| `resolveSelection`, `modulesOf`, `reachablePlugins`, `reachableModules`, `injectedTokens` | разбор `select`, модули набора единиц, замыкание плагинов, модули единицы и токены её зависимостей |
 | `buildOwnerMap`, `assertFeatureBoundary` | карта «модуль → владелец» и проверка границы фич |
 | `discoverEndpoints(bundles)` | плоский проход по фичам и плагинам без контейнера |
 | `Discovery$`, `EndpointDiscovery`, `DiscoveredEndpoint` | токен и типы результата discovery |

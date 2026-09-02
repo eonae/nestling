@@ -55,8 +55,8 @@ const OPERATION_KINDS: readonly OperationKind[] = [
 /**
  * Операция: интерфейс операции и её адрес.
  *
- * Из одного операции строятся и реализация (`implement`), и вызывающая
- * сторона (`.port` / `.emitter`). Адрес на шине — `name`; адрес по HTTP,
+ * Из одной операции строятся и реализация (`implement`), и вызывающая
+ * сторона (`.caller` / `.emitter`). Адрес на шине — `name`; адрес по HTTP,
  * если он есть, — поле `http`.
  *
  * @param I - форма io входа
@@ -91,7 +91,7 @@ export interface Operation<
    * Документация операции.
    *
    * Принадлежит операции наравне с `input`, `output` и `errors`: две
-   * реализации одного операции описывают его одинаково, а внешний
+   * реализации одной операции описывают её одинаково, а внешний
    * потребитель получает описание из того же импорта, что и схемы.
    */
   readonly doc?: DeclarationDoc;
@@ -116,7 +116,7 @@ export interface Operation<
    * полей. Её читают клиент (сборка запроса), транспорт (разбор запроса) и
    * генератор документации (параметры операции).
    *
-   * Если поля нет, операция недоступен внешнему HTTP-клиенту; на шине он
+   * Если поля нет, операция недоступна внешнему HTTP-клиенту; на шине она
    * по-прежнему адресуется по `name`.
    */
   readonly http?: HttpBinding;
@@ -135,7 +135,7 @@ export interface RequestOperation<
   readonly caller: PortToken<RequestOperation<I, O, E>>;
 }
 
-/** Операция вида `command`/`event`: у него есть `.emitter` и нет `.port` */
+/** Операция вида `command`/`event`: у неё есть `.emitter` и нет `.caller` */
 export interface EmittingOperation<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
@@ -321,7 +321,7 @@ function assertFailDefinitions(
  * `request`.
  *
  * Ошибка выбрасывается при объявлении, а не при сборке приложения:
- * долговечный запрос-ответ — дефект самого операции, а не конкретного
+ * долговечный запрос-ответ — дефект самой операции, а не конкретного
  * развёртывания.
  */
 function assertDurable(

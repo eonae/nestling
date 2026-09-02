@@ -110,9 +110,9 @@ path-параметре — ошибка компиляции.
 запросе: пометка на path-параметре, `body()` у метода без тела, `bind` или
 path-параметр при потоковом или файловом `input`.
 
-> В примере `GetUser` и `CreateUser` объявлены через операция
+> В примере `GetUser` и `CreateUser` объявлены через операцию
 > (`httpEndpoint({ operation, … })`): адрес, схемы и `errors` живут в
-> операции `src/api.operations.ts`, который импортирует и внешний клиент.
+> операции `src/api.operations.ts`, которую импортирует и внешний клиент.
 > Форма с `method`/`path` выше делает то же самое, когда второго
 > потребителя нет. Подробнее — [`typed-client.md`](./typed-client.md).
 
@@ -178,7 +178,7 @@ export const CreateUser = httpEndpoint({
 ```
 
 В файле примера у хендлера больше зависимостей (эмиттеры событий и
-`ActivityHub`), а декларация объявлена через операция; здесь оставлено
+`ActivityHub`), а декларация объявлена через операцию; здесь оставлено
 только то, что нужно для разбора.
 
 `ClaimQuota.caller` — такая же зависимость, как токен сервиса, но за ней
@@ -408,7 +408,7 @@ curl -N http://localhost:3000/api/users/activity
 curl -F avatar=@photo.png http://localhost:3000/api/users/1/avatar
 ```
 
-## Модуль
+## Фича
 
 ```typescript
 // сокращённый вариант packages/examples.app-with-http/src/users.feature.ts
@@ -416,26 +416,26 @@ import { makeFeature } from '@nestling/app';
 import { CreateUser, SearchUsers, SearchUsersHandler } from './modules/users/endpoints';
 import { UserService } from './modules/users/user.service';
 
-export const UsersModule = makeFeature({
-  name: 'module:users',
+export const UsersFeature = makeFeature({
+  name: 'users',
   providers: [UserService, SearchUsersHandler],
   endpoints: [CreateUser, SearchUsers],
 });
 ```
 
-Модуль — обычный объект, созданный `makeFeature`. В `providers`
+Фича — обычное значение, созданное `makeFeature`. В `providers`
 перечисляются зависимости хендлеров: токены из `deps`, классы-хендлеры,
 классы-юниты пайплайнов. В `endpoints` — сами декларации. Инстанцировать
 декларацию не нужно, поэтому `makeFeature` ничего в `providers` не
 добавляет.
 
 Приложение обслуживает ровно те endpoint'ы, которые перечислены в
-`endpoints` модулей, переданных в `assemble` (вместе с транзитивными
-`imports`). Создание декларации не имеет побочных эффектов, глобального
-реестра нет: импорт файла с декларацией ничего не регистрирует.
+`endpoints` выбранных фич и подключённых плагинов. Создание декларации не
+имеет побочных эффектов, глобального реестра нет: импорт файла с
+декларацией ничего не регистрирует.
 
 Элемент `endpoints`, который не является декларацией (сервис, конфиг,
-`undefined`), — ошибка старта с именем модуля и индексом элемента.
+`undefined`), — ошибка старта с именем единицы и индексом элемента.
 Декларация помечена symbol-брендом, поэтому пропустить чужое значение
 молча приложение не может.
 
@@ -444,11 +444,11 @@ export const UsersModule = makeFeature({
 ```typescript
 import { assemble } from '@nestling/app';
 import { http } from '@nestling/transport.http';
-import { UsersModule } from './users.feature';
+import { UsersFeature } from './users.feature';
 
 const app = assemble({
-  // логирование подключается через imports внутри UsersModule:
-  // инфраструктура — обычный модуль, отдельного поля под неё нет
+  // логирование подключается плагином в `plugins:`: к нему обращаются
+  // токеном, и в словарь `select` оно не входит
   features: [UsersFeature],
   transports: [http({ port: 3000 })],   // провайдер, а не инстанс
 });
@@ -461,9 +461,10 @@ await app.run(); // фазы 0–5: сборка, @OnInit, wiring, @OnStart, п�
 
 1. собирает контейнер;
 2. вызывает `@OnInit` в топологическом порядке;
-3. обходит дерево `modules` и `imports`, получает зависимости найденных
-   деклараций из контейнера (`endpoint.resolve(resolver)`) и строит
-   `dispatch` для каждого транспорта;
+3. проходит по выбранным фичам и подключённым плагинам, получает
+   зависимости найденных деклараций из контейнера
+   (`endpoint.resolve(resolver)`) и строит `dispatch` для каждого
+   транспорта;
 4. вызывает `@OnStart` и только после этого запускает транспорты
    (`serve(dispatch, signal)`);
 5. вешает обработчики SIGTERM и SIGINT. При остановке транспорты

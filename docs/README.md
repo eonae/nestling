@@ -36,12 +36,12 @@ docs/
 | [composition.md](./guides/composition.md) | Composition root: `assemble`, фичи и `select`, фазы, `@OnStart`, standalone | `examples.app-with-http` |
 | [di-token-families.md](./guides/di-token-families.md) | Семейства токенов: `makeTokenFamily`, `familyProvider`, `.auto`, `.all` | `examples.simple-app` |
 | [config.md](./guides/config.md) | Конфиг: `makeConfig`, `.keys`, источники и привязка, fail-fast, reloadable | `examples.simple-app` |
-| [ports.md](./guides/ports.md) | Порты: `makeContract`, `implement`, `.port`/`.emitter`, политика диспатча, шина | `examples.app-with-http` |
-| [typed-client.md](./guides/typed-client.md) | Внешний потребитель: секция `http:`, контракт-форма `httpEndpoint`, `makeClient` | `examples.app-with-http` |
+| [ports.md](./guides/ports.md) | Порты: `makeRequest`, `implement`, `.caller`/`.emitter`, политика диспатча, шина | `examples.app-with-http` |
+| [typed-client.md](./guides/typed-client.md) | Внешний потребитель: секция `http:`, операция-форма `httpEndpoint`, `makeClient` | `examples.app-with-http` |
 | [openapi.md](./guides/openapi.md) | Документ OpenAPI 3.1 из деклараций: модуль `openapi()`, слот `doc:`, конвертеры, `jsonSchema()` | `examples.app-with-http` |
 | [cli.md](./guides/cli.md) | CLI-транспорт: single-shot и REPL | `examples.simple-cli` |
 | [testing.md](./guides/testing.md) | App-тесты: `assembleTest`, `overrides` + прунинг, `.check()`-матрица, `vars()`, `./testing`-subpath | `examples.app-with-http` |
-| [subscriptions.md](./guides/subscriptions.md) | Реестр подписок: модуль `subscriptions()`, слой `tracked`, `meta.subscription.signal`, административные endpoint'ы, факты контрактами | `examples.app-with-http` |
+| [subscriptions.md](./guides/subscriptions.md) | Реестр подписок: модуль `subscriptions()`, слой `tracked`, `meta.subscription.signal`, административные endpoint'ы, факты операциями | `examples.app-with-http` |
 
 ## design/ — целевое состояние V1
 

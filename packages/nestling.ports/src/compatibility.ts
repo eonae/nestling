@@ -46,7 +46,7 @@ export interface CompatibilityChange {
   readonly verdict: CompatibilityVerdict;
 }
 
-/** Итог по одному операции */
+/** Итог по одной операции */
 export interface OperationCompatibility {
   readonly operation: string;
 
@@ -198,7 +198,7 @@ class Changes {
  *
  * Единственное место, где суффикс `.vN` распознаётся: `makeRequest`
  * его не требует и не разбирает, отдельного поля версии не существует, и
- * операция без суффикса допустим.
+ * операция без суффикса допустима.
  */
 export function suggestBump(name: string): string {
   const match = /^(?<base>.*)\.v(?<version>\d+)$/.exec(name);

@@ -231,7 +231,7 @@ export class TestApp {
    *
    * @param endpoint - Декларация из `endpoints:` модуля
    * @returns Ответ границы: успех со значением по `output`-схеме либо отказ
-   * со `status` и `code` из закрытого операции `errors:`
+   * со `status` и `code` из закрытого перечня `errors:` операции
    * @throws {Error} Если декларации нет в собранном приложении
    *
    * @example
@@ -271,7 +271,7 @@ export class TestApp {
    *
    * @param operation - Операция вида `command` или `event`
    * @returns Ответы подписчиков с именем каждого, в порядке discovery
-   * @throws {TypeError} Если операция — `request` (у него нет подписчиков)
+   * @throws {TypeError} Если операция — `request` (у неё нет подписчиков)
    * @throws {Error} Если у команды нет владельца в этой сборке. У события
    * ноль подписчиков допустимо: тогда список пуст
    *
@@ -395,7 +395,7 @@ export class TestApp {
 
       if (binding?.subject === subject) {
         // Имя подписчика есть только у `event`: у команды владелец один, и
-        // его имя — имя самого операции
+        // его имя — имя самой операции
         found.push({ wired, subscriber: binding.subscriber ?? subject });
       }
     }

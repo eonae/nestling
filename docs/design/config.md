@@ -77,7 +77,7 @@ ESLint-правило напоминает: экспортируйте `.keys`, 
 
 ```typescript
 // только env → про конфиг в корне ничего не пишешь
-await assemble({ modules: [OrdersModule], transports: [http()] }).run();
+await assemble({ features: [OrdersFeature], transports: [http()] }).run();
 
 // появились другие источники → плоский список, порядок = приоритет
 await assemble({

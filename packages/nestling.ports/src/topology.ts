@@ -24,7 +24,7 @@ export interface OperationImplementation {
   readonly moduleName: string;
 }
 
-/** Всё, что известно об одном операции в этой сборке */
+/** Всё, что известно об одной операции в этой сборке */
 export interface OperationTopologyEntry {
   /** Subject шины — имя операции */
   readonly subject: string;

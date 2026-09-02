@@ -15,9 +15,9 @@ import type { AnyOperation } from './operation.js';
 const operations = new Map<string, AnyOperation>();
 
 /**
- * Регистрирует операция под его именем.
+ * Регистрирует операцию под её именем.
  *
- * @throws {Error} Если имя уже занято другим операцией
+ * @throws {Error} Если имя уже занято другой операцией
  */
 export const registerOperation = (operation: AnyOperation): void => {
   const existing = operations.get(operation.name);
@@ -39,7 +39,7 @@ export const registerOperation = (operation: AnyOperation): void => {
 };
 
 /**
- * Находит операция по имени.
+ * Находит операцию по имени.
  *
  * @internal Используется рецептами семейств `PortFamily` и `EmitterFamily`
  */

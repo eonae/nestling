@@ -173,7 +173,7 @@ await new ContainerBuilder()
   // Контейнер используется автономно: единицы слоя приложения ему не
   // нужны, а их модули — обычные значения
   .register(...appLogging.modules)
-  .register(AppModule)
+  .register(OrdersModule)
   .build();
 ```
 

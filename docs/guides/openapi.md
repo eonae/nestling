@@ -58,7 +58,7 @@ const app = assemble({
 из-под всех политик сразу.
 
 Провайдера для юнитов слоя корень тоже регистрирует сам: в примере
-`appLogging` стоит в `modules:` именно ради слоя `observability`.
+`appLogging` стоит в `plugins:` именно ради слоя `observability`.
 
 ### Опция `converters`
 
@@ -136,7 +136,7 @@ OpenAPI, в нём нет. `operationId` не объявляется, а выв�
 
 В форме с операцией `doc` принадлежит операции наравне с `input`, `output`
 и `errors`. Документация операции — часть её интерфейса, и две реализации
-одного операции не могут описывать его по-разному.
+одной операции не могут описывать её по-разному.
 
 ### Скрытый endpoint
 
@@ -266,7 +266,7 @@ import { discoverEndpoints } from '@nestling/app';
 import { buildOpenApiDocument } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
-const { endpoints } = discoverEndpoints([UsersModule, OpsModule]);
+const { endpoints } = discoverEndpoints([UsersFeature, OpsFeature]);
 
 writeFileSync(
   'openapi.json',

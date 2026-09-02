@@ -99,7 +99,7 @@ export class Database {
 <p>Nestling использует декораторы из спецификации ECMAScript, а не экспериментальные декораторы TypeScript с <code>reflect-metadata</code>. Декораторов параметров в стандарте пока нет, поэтому зависимости объявляются массивом в <code>@Injectable([...])</code>. Это цена стандарта, и она же делает граф явным.</p>
 </div>
 <h2 id="multi">Multi-injection</h2>
-<p>Частая задача: разные модули независимо добавляют реализации одного операции (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это <code>multi: true</code>, в Nest такой набор собирают вручную.</p>
+<p>Частая задача: разные модули независимо добавляют реализации одной операции (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это <code>multi: true</code>, в Nest такой набор собирают вручную.</p>
 <p>В Nestling это ещё одно применение семейств токенов, и правило «один токен — один узел» сохраняется. Каждый вклад — обычный провайдер с членским токеном семейства. Агрегат — специальный токен <code>Family.all</code>, который на <code>build()</code> превращается в массив всех зарегистрированных членов:</p>
 <div class="code" data-file="health/operation.ts" data-lang="typescript"><pre><code>export const IHealthCheck = makeTokenFamily&lt;HealthCheck, [name: string]&gt;('HealthCheck');</code></pre></div>
 <div class="code" data-file="db.module.ts / redis.module.ts — вклады из разных модулей" data-lang="typescript"><pre><code>// каждый модуль регистрирует свой вклад как ОБЫЧНЫЙ провайдер
@@ -190,11 +190,11 @@ export class OrdersService {
 <p>Секция называет ключ (<code>maxItems</code> превращается в <code>ORDERS_MAX_ITEMS</code>), но не источник. Откуда взялось значение — из env, файла или Vault — решает ядро, а не пользовательский код.</p>
 <p><code>process.env</code> читает только ядро. Привязка источников добавляется постепенно: если приложению хватает env, в composition root про конфиг не написано ничего. Второй источник привязывается плоским списком:</p>
 <div class="code" data-file="main.ts" data-lang="typescript"><pre><code>// только env — писать ничего не нужно
-await assemble({ modules: [OrdersModule], transports: [http()] }).run();
+await assemble({ features: [OrdersFeature], transports: [http()] }).run();
 
 // добавили Vault и файл — привязка в корне, порядок задаёт приоритет
 await assemble({
-  modules: [OrdersModule],
+  features: [OrdersFeature],
   transports: [http()],
   config: [
     [vault(), [ordersKeys]],               // привязка по ключам, не по токенам
@@ -351,8 +351,8 @@ export const NewOrder = type({ items: OrderItem.array().atLeastLength(1) });</co
 import { zodConverter } from '@nestling/openapi.zod';
 
 await assemble({
-  modules: [
-    OrdersModule,
+  features: [OrdersFeature],
+  plugins: [
     openapi({
       info: { title: 'Orders API', version: '1.0.0' },
       converters: [zodConverter()],   // схемы каких вендоров документируем

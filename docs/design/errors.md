@@ -1,4 +1,4 @@
-# Модель ошибок: `Fail` — значение, закрытый операция
+# Модель ошибок: `Fail` — значение, закрытый перечень отказов
 
 > **Целевое состояние V1.** Логика решений: [ideas.md](../decisions/ideas.md) —
 > «Модель ошибок: Fail — значение, code-идентичность, `defineFail`, ошибки
@@ -86,7 +86,7 @@ if (OrderNotFound.is(res)) { /* ... */ }        // матчинг по code
 объявлен в операции, тело не JSON, сеть недоступна или ответ не прошёл
 `output`-схему, клиент получает `UnknownError` с оригиналом в `cause`.
 Множество ответов у внешнего потребителя — `E ∪ UnknownError`, то же, что
-у порта. Ветка `default`, написанная для `.port`, переносится на клиента
+у порта. Ветка `default`, написанная для `.caller`, переносится на клиента
 без правок ([operations.md](./operations.md)).
 
 ## 4. Ошибки — часть операции: `E ∪ UnknownError`
@@ -118,11 +118,11 @@ if (OrderNotFound.is(res)) { /* ... */ }        // матчинг по code
 Вызов порта закрыт тем же множеством и той же процедурой: на границе отказ
 восстанавливается по `code` из `errors:` операции, незадекларированный
 становится `UnknownError`, а коды ядра (`VALIDATION_FAILED`,
-`DEADLINE_EXCEEDED`) входят в операция и там
+`DEADLINE_EXCEEDED`) входят в операцию и там
 ([operations.md](./operations.md)).
 
 Итог: ответ endpoint'а — закрытое множество `E ∪ UnknownError`.
-`UnknownError` входит в операция каждого endpoint'а неявно (ответ
+`UnknownError` входит в операцию каждого endpoint'а неявно (ответ
 `default` в OpenAPI). Встроенные коды фреймворка входят в множество тем же
 способом: `VALIDATION_FAILED` у проверки входа, `PAYLOAD_TOO_LARGE` у
 лимита размера входа, `STREAM_LIMIT_EXCEEDED` и `STREAM_GAP_TIMEOUT` у

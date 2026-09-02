@@ -169,7 +169,7 @@ describe('stub — валидация схемами операции', () => {
     });
   });
 
-  it('бросает на незадекларированном коде, называя операция и допустимые', async () => {
+  it('бросает на незадекларированном коде, называя операцию и допустимые', async () => {
     const [, quotas] = stub(ClaimQuota, async () =>
       drifted<{ granted: number }>(NotYourTenant()),
     );
@@ -336,7 +336,7 @@ describe('stub — место в сборке', () => {
   });
 
   it('со стабом фича собирается без соседа и без брокера', async () => {
-    // Сборка проходит — значит боевой рецепт семейства для этого операции
+    // Сборка проходит — значит боевой рецепт семейства для этой операции
     // не вызывался ни разу: его первое же действие, `assertReachable`,
     // уронило бы её (см. тест выше)
     await using app = await assembleTest({
@@ -365,7 +365,7 @@ describe('stub — место в сборке', () => {
     expect(app.get(QuotaConsumer)?.quotas).toBe(entry[1]);
   });
 
-  it('оставляет соседний операция боевому вызывателю', async () => {
+  it('оставляет соседнюю операцию боевому вызывателю', async () => {
     @Injectable([ChargeCard.caller, ClaimQuota.caller])
     class MixedConsumer {
       constructor(
@@ -397,7 +397,7 @@ describe('stub — место в сборке', () => {
     expect(app.stubbed).toEqual(['stub.quotas.claim']);
   });
 
-  it('разрешён поверх реализованного операции и виден в stubbed', async () => {
+  it('разрешён поверх реализованной операции и виден в stubbed', async () => {
     @Injectable([ChargeCard.caller])
     class BillingConsumer {
       constructor(readonly billing: Port<typeof ChargeCard>) {}

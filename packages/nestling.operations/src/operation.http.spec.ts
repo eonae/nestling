@@ -80,7 +80,7 @@ describe('секция http: формы записи', () => {
   });
 });
 
-/** Дефектный операция: имя уникально, всё остальное — из аргументов */
+/** Дефектная операция: имя уникально, всё остальное — из аргументов */
 const create = (http: unknown, extra: Record<string, unknown> = {}) =>
   makeRequest({
     name: uniqueName('http.broken'),
@@ -89,7 +89,7 @@ const create = (http: unknown, extra: Record<string, unknown> = {}) =>
   } as never);
 
 describe('секция http: проверки при создании', () => {
-  it('некорректная строковая форма называет операция и ожидаемую запись', () => {
+  it('некорректная строковая форма называет операцию и ожидаемую запись', () => {
     expect(() => create('POST')).toThrow(
       /Operation 'http\.broken\.\d+': the string form of 'http' must be '<METHOD> <path>'/,
     );
@@ -268,7 +268,7 @@ describe('карта операции совпадает с картой одн�
   });
 });
 
-describe('секция http не меняет операция шины', () => {
+describe('секция http не меняет операцию шины', () => {
   const EmailTaken = defineFail('HTTP_SPEC_EMAIL_TAKEN', {
     status: 'CONFLICT',
     message: 'Email already taken',

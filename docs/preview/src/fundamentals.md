@@ -40,7 +40,7 @@ Nestling использует декораторы из спецификации
 
 ## Multi-injection {#multi}
 
-Частая задача: разные модули независимо добавляют реализации одного операции (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это `multi: true`, в Nest такой набор собирают вручную.
+Частая задача: разные модули независимо добавляют реализации одной операции (health-checks, миграции, валидаторы, обработчики событий), а один потребитель хочет получить весь набор массивом, не зная состава. В Angular это `multi: true`, в Nest такой набор собирают вручную.
 
 В Nestling это ещё одно применение семейств токенов, и правило «один токен — один узел» сохраняется. Каждый вклад — обычный провайдер с членским токеном семейства. Агрегат — специальный токен `Family.all`, который на `build()` превращается в массив всех зарегистрированных членов:
 
@@ -146,11 +146,11 @@ export class OrdersService {
 
 ```ts main.ts
 // только env — писать ничего не нужно
-await assemble({ modules: [OrdersModule], transports: [http()] }).run();
+await assemble({ features: [OrdersFeature], transports: [http()] }).run();
 
 // добавили Vault и файл — привязка в корне, порядок задаёт приоритет
 await assemble({
-  modules: [OrdersModule],
+  features: [OrdersFeature],
   transports: [http()],
   config: [
     [vault(), [ordersKeys]],               // привязка по ключам, не по токенам
@@ -324,8 +324,8 @@ import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
 await assemble({
-  modules: [
-    OrdersModule,
+  features: [OrdersFeature],
+  plugins: [
     openapi({
       info: { title: 'Orders API', version: '1.0.0' },
       converters: [zodConverter()],   // схемы каких вендоров документируем

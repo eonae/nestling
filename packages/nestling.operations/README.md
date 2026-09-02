@@ -18,7 +18,7 @@
 Примитив токена приходит через subpath `@nestling/container/tokens`: это два
 модуля без рантайм-импортов.
 
-Поэтому операция можно импортировать во фронтенд-бандл. Это проверяет тест
+Поэтому операцию можно импортировать во фронтенд-бандл. Это проверяет тест
 `src/boundary.spec.ts`: он обходит граф импортов собранного `dist/` и
 падает, называя модуль и запрещённый импорт.
 
@@ -49,7 +49,7 @@ export const CreateUser = makeRequest({
 });
 ```
 
-Операция — значение. Он ничего не регистрирует в модуле или приложении.
+Операция — значение. Она ничего не регистрирует в модуле или приложении.
 В приложение он попадает двумя способами: кто-то его реализует
 (`implement` из `@nestling/ports`) и кто-то инжектит его вызыватель
 (`CreateUser.caller`).
@@ -70,11 +70,11 @@ export const CreateUser = makeRequest({
 
 | Вид | Семантика | Владельцев | Вызыватель |
 |---|---|---|---|
-| `request` | запрос-ответ, возвращает `Ok` или `Fail` | ровно один | `.port` — `call(input, meta?)` |
+| `request` | запрос-ответ, возвращает `Ok` или `Fail` | ровно один | `.caller` — `call(input, meta?)` |
 | `command` | без ответа | ровно один | `.emitter` — `emit(payload, meta?)` |
 | `event` | факт для подписчиков | 0..N подписчиков | `.emitter` — `emit(payload, meta?)` |
 
-Свойство `.port` есть только у `request`, `.emitter` — только у `command` и
+Свойство `.caller` есть только у `request`, `.emitter` — только у `command` и
 `event`. Обращение к отсутствующему свойству не компилируется.
 
 Словарь проверяется при создании: пустое имя, неизвестный `kind`, элемент
@@ -148,7 +148,7 @@ if (OrderNotFound.is(result)) { … }      // сравнение по code
 
 ### Встроенные коды
 
-Эти отказы входят в операция любого endpoint'а без объявления в `errors`:
+Эти отказы входят в операцию любого endpoint'а без объявления в `errors`:
 
 | Определение | `code` | `status` | Кто создаёт |
 |---|---|---|---|
@@ -279,7 +279,7 @@ input: z.object({ payload: jsonSchema(ExoticSchema, { type: 'object' }) })
 |---|---|
 | [`@nestling/client`](../nestling.client) | bind-карту, схему `output` и `errors`: собирает запрос, проверяет ответ, восстанавливает `Fail` |
 | [`@nestling/transport.http`](../nestling.transport.http) | ту же карту: разбирает запрос в payload; реэкспортирует `query()`/`body()` |
-| [`@nestling/ports`](../nestling.ports) | `.port`/`.emitter`, `implement`, шину |
+| [`@nestling/ports`](../nestling.ports) | `.caller`/`.emitter`, `implement`, шину |
 | [`@nestling/pipeline`](../nestling.pipeline) | реэкспортирует `Ok`/`Fail`, `defineFail`, формы io, `jsonSchema()` |
 | [`@nestling/openapi`](../nestling.openapi) | bind-карту, формы io, `errors` и `doc` |
 

@@ -2,7 +2,7 @@
  * Семейства токенов `PortFamily` и `EmitterFamily` и типы их значений:
  * `Port`, `Emitter`, `PortMeta`, `CommandMeta`.
  *
- * Отдельный файл: на семейства ссылаются и операция (`.port` / `.emitter`
+ * Отдельный файл: на семейства ссылаются и операция (`.caller` / `.emitter`
  * — члены семейств), и модуль ядра в `@nestling/ports` (рецепты). Общий
  * модуль-лист разрывает цикл импортов.
  */
@@ -133,10 +133,10 @@ export interface Emitter<C extends EmittingOperation<any, any, any, any>> {
 }
 
 /**
- * Семейство портов: один член на операция вида `request`.
+ * Семейство портов: один член на операцию вида `request`.
  *
  * Рецепт регистрирует модуль ядра в `@nestling/ports`. `deps: [C.caller]`
- * создаёт один узел графа для этого операции; операция, который никто не
+ * создаёт один узел графа для этой операции; операция, которую никто не
  * вызывает, узлов не создаёт.
  *
  * @internal Пользовательский код получает токен через `Operation.caller`
@@ -144,7 +144,7 @@ export interface Emitter<C extends EmittingOperation<any, any, any, any>> {
 export const PortFamily = makeTokenFamily<Port<any>, [name: string]>('Port');
 
 /**
- * Семейство эмиттеров: один член на операция вида `command` или `event`
+ * Семейство эмиттеров: один член на операцию вида `command` или `event`
  * (см. {@link PortFamily}).
  *
  * @internal Пользовательский код получает токен через `Operation.emitter`

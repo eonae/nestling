@@ -182,14 +182,14 @@ describe('App.check() — опубликованные операции в от�
     errors: [CardDeclined],
   });
 
-  /** Операция, который импортирован, но этой сборкой не реализуется */
+  /** Операция, которая импортирована, но этой сборкой не реализуется */
   const NeverImplemented = makeCommand({
     name: 'check.billing.refund',
     input: z.object({ chargeId: z.string() }),
   });
 
   const billingModule = makeFeature({
-    name: 'module:billing',
+    name: 'billing',
     endpoints: [
       implement(ChargeCard, {
         handle: async () => new Ok({ chargeId: 'c-1' }),
@@ -234,7 +234,7 @@ describe('App.check() — опубликованные операции в от�
     expect(descriptor.input.leaf).toEqual({ leaf: 'opaque', vendor: 'zod' });
   });
 
-  it('импортированный, но не реализованный операция в отчёт не попадает', async () => {
+  it('импортированная, но не реализованная операция в отчёт не попадает', async () => {
     const report = await assembleBilling().check();
 
     // Значение импортировано этим файлом и лежит в приватном реестре

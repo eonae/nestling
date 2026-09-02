@@ -129,7 +129,7 @@ export interface DescribeOptions {
   readonly converters?: readonly SchemaDocConverter[];
 }
 
-/** Источник дескриптора: операция или его реализация (`implement`) */
+/** Источник дескриптора: операция или её реализация (`implement`) */
 export type DescribeSource = AnyOperation | BusBindingBearer;
 
 // ---------------------------------------------------------------------------
@@ -331,7 +331,7 @@ function readShape(source: DescribeSource): OperationShape {
 }
 
 /**
- * Описывает операция значением.
+ * Описывает операцию значением.
  *
  * @param source - Операция (`makeRequest`) или его реализация (`implement`)
  * @param options - Конвертеры листовых схем; без них листья непрозрачны

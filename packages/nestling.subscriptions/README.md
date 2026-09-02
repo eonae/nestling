@@ -115,7 +115,7 @@ type CloseReason = Outcome | 'killed';
 
 ### Факты жизненного цикла
 
-С `publish: true` реестр публикует два `event`-операции:
+С `publish: true` реестр публикует две `event`-операции:
 `subscriptions.opened` и `subscriptions.closed`. Оба несут имя узла
 (`node`). Чтобы наблюдать подписки всего кластера, другая фича делает
 `implement(SubscriptionOpened, { subscriber: 'ops', … })` и получает

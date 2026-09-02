@@ -82,7 +82,7 @@ export interface HttpBinding {
   readonly rawBody: boolean;
 
   /**
-   * Имя операции, которому принадлежит адрес. Есть только у карты,
+   * Имя операции, которой принадлежит адрес. Есть только у карты,
    * построенной `makeRequest`.
    *
    * Хранится на карте, потому что декларация `httpEndpoint({ operation })`
@@ -271,7 +271,7 @@ export interface ComputeHttpBindingOptions {
   sse?: SseConfig;
 
   /**
-   * Имя операции, которому принадлежит адрес. Задаёт только
+   * Имя операции, которой принадлежит адрес. Задаёт только
    * `makeRequest`.
    */
   operation?: string;

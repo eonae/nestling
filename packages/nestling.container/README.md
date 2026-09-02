@@ -52,12 +52,12 @@ class UserService {
   }
 }
 
-const AppModule = makeModule({
-  name: 'AppModule',
+const UsersModule = makeModule({
+  name: 'module:users',
   providers: [ConsoleLogger, UserService],
 });
 
-const container = await new ContainerBuilder().register(AppModule).build();
+const container = await new ContainerBuilder().register(UsersModule).build();
 await container.init();
 
 container.getOrThrow(UserService).getUsers();
@@ -185,7 +185,7 @@ const UserModule = makeModule({
 const container = await new ContainerBuilder().register(UserModule).build();
 ```
 
-Достаточно зарегистрировать корневой модуль: модули из `imports`
+Достаточно зарегистрировать корневой модуль: модули из `dependsOn`
 регистрируются вместе с ним. Хуков жизненного цикла у модулей нет — они
 есть у провайдеров.
 
@@ -221,7 +221,7 @@ export const appLogging = logging({ service: 'orders-api' });
 #### Идентичность модуля
 
 Модуль идентифицируется своим значением. Одно и то же значение,
-встреченное несколько раз (через `imports`, через корень и фичу, через два
+встреченное несколько раз (через `dependsOn`, через корень и фичу, через два
 модуля с общей инфраструктурой), регистрируется один раз.
 
 Имя модуля должно быть уникальным: по нему атрибутируются провайдеры. Два
@@ -479,7 +479,7 @@ class HealthService {
 - Порядок — порядок регистрации: модули и провайдеры в том порядке, в каком
   их зарегистрировали, затем члены, добавленные рецептом. Порядок
   детерминирован, но ничего большего не обещает. Если порядок значим
-  (цепочка обработчиков), не полагайтесь на порядок `imports`.
+  (цепочка обработчиков), не полагайтесь на порядок `dependsOn`.
 - Массив `readonly` и заморожен: это снимок сборки, общий для всех
   потребителей.
 - Агрегат не принадлежит ни одному модулю, и его рёбра к вкладам ничем не
@@ -567,7 +567,7 @@ container.pruned; // ['UsersStore'] — узлы, выброшенные как 
 Готовый граф доступен целиком:
 
 ```typescript
-const container = await new ContainerBuilder().register(AppModule).build();
+const container = await new ContainerBuilder().register(UsersModule).build();
 
 // Экспорт в JSON
 const graph = await container.toJSON();
@@ -705,7 +705,7 @@ main().catch(console.error);
 | `makeTokenFamily<T, [param: string]>(name)` | создаёт семейство; `Family(param)` возвращает мемоизированный токен `"<name>:<param>"`, `Family.auto` — член по имени класса-потребителя, `Family.all` — агрегат `Token<readonly T[]>` |
 | `Injectable(deps)` | декоратор класса; токен — сам класс |
 | `Injectable(token, deps)` | декоратор класса с явным токеном интерфейса |
-| `makeModule(module)` | создаёт модуль: `name`, `providers`, `imports` |
+| `makeModule(module)` | создаёт модуль: `name`, `providers`, `dependsOn` |
 
 ### Провайдеры
 
@@ -715,6 +715,7 @@ main().catch(console.error);
 | `valueProvider(token, value)` | готовое значение |
 | `factoryProvider(token, factory, deps)` | значение из фабрики, которая получает `deps` |
 | `familyProvider(family, recipe)` | рецепт семейства: `(param) => ProviderDefinition<T>`, вызывается при сборке по одному разу на каждого запрошенного члена |
+| `dependenciesOf(provider)` | токены, которые провайдер запрашивает: `deps` определения или метаданные `@Injectable`. Читает значение, ничего не вызывая — рецепт семейства зависимостей не отдаёт |
 
 ### Контейнер
 
