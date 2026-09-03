@@ -1,0 +1,32 @@
+{
+  "name": "examples.container",
+  "version": "0.1.0",
+  "description": "Container without transport: modules, token families, config sources, reloadable sections",
+  "type": "module",
+  "main": "dist/out.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/bundle.js"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "start": "yarn run build && node dist/bundle.js",
+    "start:dev": "run -T tsx src/main.ts",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
+    "export-metadata": "run -T tsx src/cli.ts",
+    "visualize": "node ../nestling.viz/dist/cli.js di-metadata.json",
+    "visualize:large": "node ../nestling.viz/dist/cli.js graph-data-large.json"
+  },
+  "dependencies": {
+    "@nestling/app": "workspace:*",
+    "@nestling/config": "workspace:*",
+    "@nestling/container": "workspace:*"
+  },
+  "devDependencies": {
+    "zod": "^4.0.0"
+  }
+}
