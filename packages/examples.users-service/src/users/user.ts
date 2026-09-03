@@ -14,7 +14,8 @@ export type User = z.infer<typeof User>;
  * Данные для создания пользователя: идентификатор выдаёт хранилище.
  *
  * `dryRun` — проверить данные, не создавая запись. Поле приходит из
- * query-строки: место задаёт пометка `bind` в операции.
+ * query-строки, остальные — из тела: место задаёт пометка `bind` в
+ * операции.
  */
 export const CreateUserInput = User.pick({ name: true, email: true }).extend({
   dryRun: z.coerce.boolean().optional(),

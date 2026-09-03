@@ -1,14 +1,14 @@
 # @nestling/testing
 
-Тестовый composition root. `assembleTest` собирает то же самое приложение,
-что и `assemble`, проводит его по фазам `0 BOOTSTRAP`, `1 ASSEMBLE`,
-`2 INIT`, `3 WIRE` и останавливается: `dispatch` создан, сокеты не
-открыты, обработчики `SIGTERM`/`SIGINT` не установлены, в stdout ничего
-не напечатано.
+Тестовый composition root. `assembleTest(app, options)` собирает ту же
+декларацию `makeApp`, что запускает `main.ts`, проводит приложение по
+фазам `0 BOOTSTRAP`, `1 ASSEMBLE`, `2 INIT`, `3 WIRE` и останавливается:
+`dispatch` создан, сокеты не открыты, обработчики `SIGTERM`/`SIGINT` не
+установлены, в stdout ничего не напечатано.
 
 > 🚧 Активная разработка, API меняется. Целевой дизайн:
 > [`docs/design/testing.md`](../../docs/design/testing.md).
-> Гайд: [глава 6. Убедиться, что работает, без запуска сервера](../../docs/guide/06-testing.md).
+> Гайд: [глава 7. Убедиться, что работает, без запуска сервера](../../docs/guide/07-testing.md).
 
 Пакет не вводит ни раннера, ни матчеров, ни snapshot-механики: jest
 остаётся jest'ом.
@@ -25,27 +25,41 @@ npm install --save-dev @nestling/testing
 ## Минимальный пример
 
 ```typescript
+import { app } from './app';   // та же декларация makeApp, что у main.ts
+
 import { assembleTest, stub, unwrap, vars } from '@nestling/testing';
 
-await using app = await assembleTest({
-  features: [UsersFeature, OpsFeature],
-  transports: [http({ port: 0 })],
+await using testApp = await assembleTest(app, {
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
   // заглушка операции, которую эта сборка не реализует
   stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
   config: vars({ USERS_PAGE_SIZE: '10' }),
-  // те же инварианты, что и в production
-  policies: [everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(authedBase)],
 });
 
-expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual({ id: '1', name: 'Alice' });
+expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual({ id: '1', name: 'Alice' });
 ```
 
-`assembleTest` асинхронна, поэтому пишите `await using app = await
+Состав приложения — фичи, плагины, провайдеры, транспорты, интерком,
+политики — берётся из декларации: словарь состава в тест не копируется, и
+те же инварианты проверяются здесь, что и в production. В опциях остаются
+выбор фич и подстановки.
+
+| Опция | Что это |
+|---|---|
+| `select` | выбор фич в тех же формах, что у `app.assemble(select)` |
+| `overrides` | подмена узлов графа: пары «токен и заглушка», рецепты семейств, переменные контекста |
+| `stubs` | поставка недостающего: пары «токен и значение», заглушки операций |
+| `config` | привязка источников конфига; **заменяет** привязку декларации целиком |
+
+Список `transports` в опциях не принимается: тестовая сборка не выполняет
+START, поэтому сокеты не открываются и подменять порт незачем.
+
+`assembleTest` асинхронна, поэтому пишите `await using testApp = await
 assembleTest(…)`: `await using` ждёт освобождения ресурса, а не
-инициализатор. Форма без `using` тоже работает: `const app = await
-assembleTest(…)` и `await app.close()` в `afterEach`. `close()`
-идемпотентен.
+инициализатор. Форма без `using` тоже работает: `const testApp = await
+assembleTest(…)` и `await testApp.close()` в `afterEach`. `close()`
+идемпотентен. Переменная называется `testApp`, чтобы не затенять `app` из
+`app.ts`.
 
 ## Что выполняется в тестовой сборке
 
@@ -55,16 +69,16 @@ assembleTest(…)` и `await app.close()` в `afterEach`. `close()`
 | все проверки ASSEMBLE: транспорты, формы io, циклы, `policies` | `transport.serve(...)`: сокет не открывается |
 | `@OnInit` в топологическом порядке | обработчики `SIGTERM`/`SIGINT` |
 | WIRE: декларации получают зависимости, создаётся `dispatch` на транспорт | строка состава сборки в stdout |
-| `app.call` и `app.emit` через полный пайплайн | сетевой уровень: разбор запроса, заголовки, сокеты |
+| `testApp.call` и `testApp.emit` через полный пайплайн | сетевой уровень: разбор запроса, заголовки, сокеты |
 
 **`@OnStart` в тесте не вызывается.** Всё, что провайдер открывает в
 `@OnStart`, в тесте открыто не будет. Ресурсы, нужные и в тесте
 (соединение с БД, клиент брокера), открывайте в `@OnInit`.
 
-## `app.call`: запрос через полный пайплайн
+## `testApp.call`: запрос через полный пайплайн
 
 ```typescript
-const res = await app.call(CreateUser, { name: 'Alice' });
+const res = await testApp.call(CreateUser, { name: 'Alice' });
 // ResponseContext<User>: { isSuccess: true, status, value }
 //                      | { isSuccess: false, status, value: { error, code, … } }
 ```
@@ -72,7 +86,7 @@ const res = await app.call(CreateUser, { name: 'Alice' });
 Это отличает app-тест от юнит-теста: все слои пайплайна, проверка входа по
 схеме `input` и проверка задекларированных ошибок выполняются
 по-настоящему. Вход проверяет тот же рантайм, что и при запросе по сети,
-включая поля формы `multipart`, поэтому `app.call` и HTTP дают один
+включая поля формы `multipart`, поэтому `testApp.call` и HTTP дают один
 результат. Декларация
 ищется по идентичности значения: тест держит то же значение, которое модуль
 перечислил в `endpoints:`, и никаких строк не сравнивает. Декларация, не
@@ -80,9 +94,10 @@ const res = await app.call(CreateUser, { name: 'Alice' });
 ошибку со списком доступных endpoint'ов.
 
 - Тип `input` берётся из формы `input` декларации, тип результата — из
-  формы `output`. Ветка ошибки несёт `status` и `code` из списка `errors:`.
-- `unwrap(res)` возвращает значение или бросает `UnwrapFailedError` со
-  статусом и кодом. Это форма для случая «ожидаю успех».
+  формы `output`. Ветка отказа несёт `code` из списка `errors:`, а
+  `status` равен категории этого кода.
+- `unwrap(res)` возвращает значение или бросает `UnwrapFailedError` с
+  категорией и кодом. Это форма для случая «ожидаю успех».
 - Кадр запроса заполнен минимально: `raw.transport` и `raw.pattern` берутся
   из декларации, `raw.attributes` равен `{}`, пока тест не передал
   `options.attributes`. Слой, который читает HTTP-заголовки, ничего не
@@ -107,7 +122,7 @@ overrides: [
 
 Подмена происходит на фазе ASSEMBLE, до создания инстансов. Это не патчинг
 и не перехват модульной системы. Поле есть только у тестового корня;
-`assemble` его не принимает.
+`makeApp` его не принимает.
 
 - Пара типизирована: заглушка, не совпадающая с типом токена, не
   компилируется.
@@ -122,15 +137,15 @@ overrides: [
   ([`@nestling/pipeline`](../nestling.pipeline)) — обычный узел графа, и
   подменяется как любой другой. Заданное значение читается и вне запроса
   (при прямом вызове сервиса) и имеет приоритет над рецептом семейства: в
-  `app.call` сервис прочитает то, что задал тест, а не то, что записал
+  `testApp.call` сервис прочитает то, что задал тест, а не то, что записал
   пайплайн. Без `contextValue` работает production-проекция: значение слоя
   внутри вызова, `undefined` из `peek()` снаружи.
 
 Подмена отсекает поддерево, которое больше никому не нужно. Замените
 репозиторий заглушкой, и пул `pg` не будет создан, не подключится и не
-попадёт в граф. `app.pruned` перечисляет отсечённые идентификаторы;
-`app.get(token)` возвращает для них `null`. Без `overrides` граф совпадает
-с production-графом.
+попадёт в граф. `testApp.pruned` перечисляет отсечённые идентификаторы;
+`testApp.get(token)` возвращает для них `null`. Без `overrides` граф
+совпадает с production-графом.
 
 ## `stub(Operation, impl)`: фича без соседей
 
@@ -154,21 +169,21 @@ stubs: [
 Заглушка проверяется схемами своей операции при каждом вызове:
 
 - вход разбирается формой `input` операции: неверный payload даёт
-  `VALIDATION_FAILED`, и `impl` не вызывается;
+  `bad_request`, и `impl` не вызывается;
 - успешный результат разбирается формой `output`: заглушка,
-  разошедшаяся с операцией, даёт вызывающему отказ `VALIDATION_FAILED`
+  разошедшаяся с операцией, даёт вызывающему отказ `bad_request`
   с путём до поля, а не неверное значение. Это строже production-порта
   внутри процесса: настоящий ответ уже прошёл пайплайн реализации, у
   заглушки пайплайна нет;
 - возвращённый или брошенный отказ должен входить в `errors:` операции
-  (плюс коды ядра `VALIDATION_FAILED`, `UNKNOWN`, `DEADLINE_EXCEEDED`).
+  (плюс коды ядра `bad_request`, `internal_error`, `timeout`).
   Незадекларированный код — дефект теста, поэтому заглушка бросает ошибку с
   именем операции, кодом и разрешённым набором, а не превращает его в
-  `UnknownError`;
+  `InternalError`;
 - исключение из `impl`, не являющееся `Fail`, пробрасывается как есть.
 
 Параметры вызова тоже воспроизводятся: исчерпанный `meta.deadline` даёт
-`DEADLINE_EXCEEDED` до вызова `impl`, а `emit` команды всегда несёт
+`timeout` до вызова `impl`, а `emit` команды всегда несёт
 `idempotencyKey` — переданный вызывающим или сгенерированный заглушкой.
 
 Место вызова совпадает с production (`Port<C>` / `Emitter<C>`, результат
@@ -176,10 +191,10 @@ stubs: [
 Своего spy у пакета нет: `impl` — обычная функция, туда подходит
 `jest.fn()`.
 
-## `app.emit`: событие или команда снаружи
+## `testApp.emit`: событие или команда снаружи
 
 ```typescript
-const [{ subscriber, response }] = await app.emit(PlaceOrder, { orderId: 'o-1' });
+const [{ subscriber, response }] = await testApp.emit(PlaceOrder, { orderId: 'o-1' });
 ```
 
 `emit` доставляет событие или команду каждому подписчику в этом процессе,
@@ -197,29 +212,26 @@ const [{ subscriber, response }] = await app.emit(PlaceOrder, { orderId: 'o-1' }
 ## `checkTopologies`: матрица топологий
 
 Подмены и заглушки делают тестовый граф меньше production-графа. Полный
-граф без подстановок проверяет `App.check()` из
+граф без подстановок проверяет `app.check()` из
 [`@nestling/app`](../nestling.app): фазы 0–1. Этот пакет оборачивает его в
 матрицу:
 
 ```typescript
-await checkTopologies(
-  { features: [UsersFeature, OpsFeature], transports: [http({ port: 0 })] },
-  ['all', 'users', 'ops'],
-);
+await checkTopologies(app, ['all', 'users', 'ops']);
 ```
 
-`checkTopologies(spec, selections, options?)` возвращает
+`checkTopologies(app, selections, options?)` возвращает
 `TopologyReport[]` — пары `{ select, report }`. Ядро останавливается на
 первой ошибке; хелпер собирает ошибки всех топологий и бросает одно
 сообщение с причиной по каждой.
 
-`policies:` из `spec` проверяются в каждой топологии матрицы, поэтому
-инвариант, который держится при `select: 'all'` и ломается на
+Политики декларации проверяются в каждой топологии матрицы, поэтому
+инвариант, который держится при выборе `'all'` и ломается на
 подмножестве, ловится в CI. Причины `detached` приходят значениями в
 отчёте, и тест сравнивает набор, а не разбирает stdout:
 
 ```typescript
-const [{ report }] = await checkTopologies(spec, ['all']);
+const [{ report }] = await checkTopologies(app, ['all']);
 
 expect(
   report.endpoints.filter(({ detached }) => detached !== undefined)
@@ -238,7 +250,7 @@ import {
   checkTopologies, diffOperations, formatCompatibility, snapshotOperations,
 } from '@nestling/testing';
 
-const reports = await checkTopologies(spec, ['all', 'users', 'ops'], {
+const reports = await checkTopologies(app, ['all', 'users', 'ops'], {
   converters: [zodConverter()],
 });
 
@@ -250,7 +262,7 @@ expect(report.breaking).toEqual([]);
 
 `options` передаются в `check()` каждой топологии. Без конвертеров
 дескрипторы всё равно строятся: структурная часть (вид, формы io, коды и
-статусы ошибок) точная, а листовые схемы помечаются непрозрачными, что даёт
+категории отказов) точная, а листовые схемы помечаются непрозрачными, что даёт
 вердикт `unknown`. `diffOperations` — чистая функция от двух значений; она
 не участвует в сборке и не бросает ошибок по результату сравнения. Правила
 вердиктов и ведение baseline описаны в
@@ -260,7 +272,7 @@ expect(report.breaking).toEqual([]);
 
 ```typescript
 const src = vars({ RUNTIME_LOG_LEVEL: 'info' });
-await using app = await assembleTest({ …, config: src });
+await using testApp = await assembleTest(app, { config: src });
 
 src.set('RUNTIME_LOG_LEVEL', 'debug'); // reloadable-секция перепроецируется
 ```
@@ -271,13 +283,15 @@ src.set('RUNTIME_LOG_LEVEL', 'debug'); // reloadable-секция перепро
 проверяемой.
 
 Поле `config:` тестового корня принимает три формы: источник (то же, что
-`[[source, '*']]`), одну привязку или список привязок. Production
-`assemble` принимает только список привязок.
+`[[source, '*']]`), одну привязку или список привязок; `makeApp`
+принимает только список привязок. Заданный конфиг **заменяет** привязку
+декларации целиком: тест изолирован от источников приложения так же, как
+от `process.env`.
 
 ## `testUnit`: одна фича или плагин отдельно
 
 ```typescript
-await using app = await testUnit(ReportsFeature, {
+await using testApp = await testUnit(ReportsFeature, {
   stubs: [
     [ILogger, noopLogger],
     [IClock, { now: () => 42 }],
@@ -317,23 +331,23 @@ resolve: { conditions: ['testing', 'node'] }
 
 | Экспорт | Что это |
 |---|---|
-| `assembleTest(spec)` | тестовая сборка; возвращает `TestApp` |
+| `assembleTest(app, options?)` | тестовая сборка декларации; возвращает `TestApp` |
 | `testUnit(module, options?)` | сборка вокруг одного модуля; возвращает `TestApp` |
 | `TestApp` | `call`, `emit`, `get`, `pruned`, `stubbed`, `features`, `close`, `Symbol.asyncDispose` |
-| `TestAssemblySpec`, `TestCallOptions`, `TestStub`, `EmitDelivery` | типы спека, опций вызова, заглушки и доставки |
+| `TestAssemblyOptions`, `TestCallOptions`, `TestStub`, `EmitDelivery` | типы опций сборки, опций вызова, заглушки и доставки |
 | `stub(operation, impl)` | пара «токен вызывателя, заглушка» для `stubs:` |
 | `OperationStub`, `RequestStubImpl`, `EmitStubImpl`, `StubOutput` | типы заглушек |
 | `unwrap(response)`, `UnwrapFailedError` | значение успешного ответа или ошибка |
 | `vars(record)`, `TestConfig` | источник конфига для тестов и тип поля `config:` |
 | `familyOverride(family, make)`, `TestOverride` | подмена рецепта семейства |
 | `contextValue(variable, value)` | подмена переменной контекста запроса |
-| `checkTopologies(spec, selections, options?)`, `TopologyReport` | матрица `check()` |
+| `checkTopologies(app, selections, options?)`, `TopologyReport` | матрица `check()` |
 | `CheckReport`, `CheckOptions` | реэкспорт типов из `@nestling/app` |
 | `snapshotOperations`, `serializeSnapshot`, `diffOperations`, `formatCompatibility` | реэкспорт из `@nestling/ports`, чтобы CI-тест обходился одним импортом |
 | `SchemaDocConverter` | тип конвертера схем (реэкспорт из `@nestling/pipeline`) |
 
 ## Границы пакета
 
-Раннера, матчеров и snapshot-механики здесь нет. `app.caller(Operation)` для
-теста потребителя операции не реализован; `.check()` подстановок не
+Раннера, матчеров и snapshot-механики здесь нет. `testApp.caller(Operation)`
+для теста потребителя операции не реализован; `check()` подстановок не
 принимает и всегда проверяет граф без них.

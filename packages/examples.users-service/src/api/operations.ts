@@ -10,7 +10,7 @@ import { Unauthorized } from '../errors';
 import { CreateUserInput, User } from '../users/user';
 import { EmailTaken, UserNotFound } from '../users/users.errors';
 
-import { makeRequest, query } from '@nestling/operations';
+import { body, makeRequest, query } from '@nestling/operations';
 import { z } from 'zod';
 
 export const GetUserInput = z.object({ id: z.string() });
@@ -31,12 +31,18 @@ export const GetUser = makeRequest({
  * `authed` (`Unauthorized`): клиент должен знать те же отказы, что
  * получает от сервера.
  *
- * `dryRun` читается из query-строки: `POST /users?dryRun=true` проверяет
- * данные, не создавая запись. Остальные поля схемы приходят из тела.
+ * `bind` говорит, откуда транспорт читает поле: `dryRun` из query-строки
+ * (`POST /users?dryRun=true`), `name` и `email` из тела. Без пометки поле
+ * POST-запроса читается из тела, поэтому `body()` у `name` — запись того
+ * же умолчания вслух.
  */
 export const CreateUser = makeRequest({
   name: 'users.create',
-  http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
+  http: {
+    method: 'POST',
+    path: '/users',
+    bind: { dryRun: query(), name: body() },
+  },
   input: CreateUserInput,
   output: User,
   errors: [EmailTaken, Unauthorized],

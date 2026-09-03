@@ -1,14 +1,15 @@
 # @nestling/app
 
-Composition root приложения Nestling. `assemble(spec)` собирает DI-контейнер,
-находит endpoint'ы проходом по фичам и плагинам, проводит приложение по
-фазам жизненного цикла и корректно останавливает его по
-`SIGTERM`/`SIGINT`.
+Composition root приложения Nestling. `makeApp(spec)` объявляет
+приложение значением, `app.assemble(select)` собирает его для этого
+процесса, а `run()` строит DI-контейнер, находит endpoint'ы проходом по
+фичам и плагинам, проводит приложение по фазам жизненного цикла и
+корректно останавливает его по `SIGTERM`/`SIGINT`.
 
 > 🚧 Активная разработка, API меняется. Целевой дизайн:
 > [`docs/design/composition.md`](../../docs/design/composition.md).
-> Гайды: [глава 11. Выделить вторую область](../../docs/guide/11-features.md) (фазы, фичи,
-> `select`) и [глава 4. Хендлеру нужен репозиторий](../../docs/guide/04-repository.md).
+> Гайды: [глава 12. Выделить вторую область](../../docs/guide/12-features.md) (фазы, фичи,
+> `select`) и [глава 5. Хендлеру нужен репозиторий](../../docs/guide/05-repository.md).
 
 ## Установка
 
@@ -22,29 +23,30 @@ npm install @nestling/app @nestling/container @nestling/pipeline
 ## Минимальный пример
 
 ```typescript
-import { assemble } from '@nestling/app';
+// app.ts — чем приложение является
+import { makeApp } from '@nestling/app';
 import { http } from '@nestling/transport.http';
 
-const app = assemble({
+export const app = makeApp({
   features: [UsersFeature],
   plugins: [appLogging],
   transports: [http({ port: 3000 })],   // объявление экземпляра, не инстанс
 });
 
-await app.run();
+// main.ts — что запускает этот процесс
+await app.assemble().run();
 ```
 
-## Спек сборки
+## Словарь декларации
 
-`assemble` принимает объект с восемью полями. Каждое поле опционально;
+`makeApp` принимает объект с семью полями. Каждое поле опционально;
 других полей нет.
 
 | Поле | Что это |
 |---|---|
-| `features` | фичи приложения (`makeFeature`); подмножество выбирает `select` |
+| `features` | фичи приложения (`makeFeature`); подмножество выбирает аргумент `assemble` |
 | `plugins` | сквозная инфраструктура (`makePlugin`); подключена всегда |
 | `providers` | провайдеры корня, для которых не нужна отдельная единица |
-| `select` | какие фичи включить: `'all'`, `'users,ops'`, `['users','ops']` или `{ features, includeDeps }` |
 | `transports` | объявления экземпляров: `http()`, `cli()`, `nats({ name })` |
 | `intercom` | имя транспорта, переносящего операции между процессами |
 | `config` | привязки источников конфигурации к ключам |
@@ -55,9 +57,27 @@ await app.run();
 есть только у тестового корня в
 [`@nestling/testing`](../nestling.testing).
 
-Результат `assemble` — объект `App` с тремя методами: `run()`, `check()`
-и `close()`. Публичного конструктора у `App` нет; `assemble` — единственный
-способ его получить.
+`makeApp` проверяет словарь при создании: бренды фич и плагинов, дубли
+имён фич, закрытый перечень полей, интерком среди объявленных
+транспортов. Предикат `isApp(value)` отличает декларацию от произвольного
+объекта.
+
+## Декларация и сборка
+
+Выбор фич — аргумент сборки, а не поле словаря: он меняет состав
+процесса, а не приложения.
+
+| Метод | Где | Что делает |
+|---|---|---|
+| `assemble(select?)` | `App` | синхронно возвращает `AssembledApp`; ничего не читает и граф не строит |
+| `check(select?, options?)` | `App` | фазы 0–1 и отчёт о составе; граф не сохраняется |
+| `run()` | `AssembledApp` | фазы 0–5, затем приложение остаётся в RUN |
+| `close()` | `AssembledApp` | фаза 6 SHUTDOWN в обратном порядке |
+
+Формы выбора: `'all'`, `'users,ops'`, `['users', 'ops']` или
+`{ features, includeDeps }`. Публичного конструктора у `AssembledApp`
+нет: он принимает внутренний план сборки, поэтому единственный способ
+получить собранное приложение — `app.assemble(...)`.
 
 ## Фазы
 
@@ -67,7 +87,7 @@ await app.run();
 
 | Фаза | Что происходит |
 |---|---|
-| 0 BOOTSTRAP | вне `assemble`: корень читает `select` через `load(section)` |
+| 0 BOOTSTRAP | корень читает выбор фич через `load(section)`; выбор резолвится в начале `run()` |
 | 1 ASSEMBLE | выбор фич, discovery, `build()`, проверка границы фич, проверка транспортов и форм io, проверка `policies` |
 | 2 INIT | `@OnInit` в топологическом порядке; `dispatch` ещё не существует |
 | 3 WIRE | декларации получают зависимости из контейнера; создаётся один `dispatch` на транспорт; порты привязываются к шине, шина подписывается на свои subject'ы |
@@ -96,11 +116,11 @@ await app.run();
 
 Результат discovery регистрируется как значение под публичным токеном
 `Discovery$`. Это единственный способ для плагина (например, генератора
-OpenAPI) увидеть выбранную топологию целиком, не дублируя `select`.
+OpenAPI) увидеть выбранную топологию целиком, не дублируя выбор фич.
 Значение read-only и в типах, и в рантайме: списки заморожены, а `set`,
 `delete` и `clear` бросают ошибку.
 
-## Фичи и `select`
+## Фичи и выбор
 
 ```typescript
 import { makeFeature } from '@nestling/app';
@@ -113,25 +133,26 @@ export const UsersFeature = makeFeature({
   endpoints: [GetUser, CreateUser], // декларации объявляет единица
 });
 
-const cfg = load(RootConfig);       // фаза 0: только process.env
-await assemble({
+export const app = makeApp({
   features: [UsersFeature, OpsFeature],
   plugins: [appLogging],
-  // includeDeps подтягивает фичи, чьи операции вызывает выбранная
-  select: { features: cfg.features, includeDeps: true },
   transports: [http()],
-}).run();
+});
+
+const cfg = load(RootConfig);       // фаза 0: только process.env
+// includeDeps подтягивает фичи, чьи операции вызывает выбранная
+await app.assemble({ features: cfg.features, includeDeps: true }).run();
 ```
 
 Фича — значение: её объявление ничего не регистрирует. Поля `dependsOn` у
 фичи нет — связь с соседями выводится из объявленных операций; при
-`select: { features, includeDeps: true }` выбор замыкается по вызовам.
+`assemble({ features, includeDeps: true })` выбор замыкается по вызовам.
 Невыбранная фича в приложении отсутствует полностью: её провайдеры не
 создаются, её endpoint'ы нигде не регистрируются.
 
 Ошибки выбора обнаруживаются на фазе ASSEMBLE: неизвестное имя (ошибка
 перечисляет доступные), две разные фичи с одним `name`, пустой выбор
-(`''` или `[]`) и `select` без `features`.
+(`''` или `[]`) и выбор при пустом списке `features`.
 
 Модули выбранных фич и подключённых плагинов объединяются и
 дедуплицируются по значению, как в `ContainerBuilder`. Два разных модуля с
@@ -208,7 +229,7 @@ endpoint'ы с именами объявивших единиц и карту т
 ## Конфигурация
 
 ```typescript
-const app = assemble({
+export const app = makeApp({
   features: [OrdersFeature],
   transports: [http()],
   config: [
@@ -245,7 +266,7 @@ const app = assemble({
 ```typescript
 import { everyEndpoint } from '@nestling/pipeline';
 
-assemble({
+makeApp({
   features: [UsersFeature],
   transports: [http()],
   policies: [
@@ -266,7 +287,7 @@ assemble({
   транспорт, модуль) и оба способа починки: подключить слой или пометить
   endpoint `detached: '<причина>'`.
 - Проверяются только endpoint'ы выбранной топологии. Endpoint фичи, не
-  попавшей в `select`, в набор не входит.
+  попавшей в выбор, в набор не входит.
 
 Endpoint'ы с `detached` исключаются из всех политик и печатаются при
 запуске сразу после строки состава сборки:
@@ -285,7 +306,7 @@ Endpoint'ы с `detached` исключаются из всех политик и
 
 ```typescript
 for (const select of ['all', 'users', 'ops'] as const) {
-  const report = await assemble({ features, select, transports: [http()] }).check();
+  const report = await app.check(select);
   // report: {
   //   features,
   //   endpoints: [{ pattern, transport, module, detached? }],
@@ -295,18 +316,20 @@ for (const select of ['all', 'users', 'ops'] as const) {
 }
 ```
 
-`check()` выполняет только фазы 0–1: выбор фич, регистрацию, discovery,
-`build()` (конструкторы выполняются), проверку транспортов, форм io и
-`policies`. `@OnInit`, `@OnStart`, `serve` и `@OnDestroy` не вызываются,
-поэтому ресурсы не захватываются. `check()` бросает те же ошибки, что
-бросил бы `run()` на этих фазах, не сохраняет контейнер и не влияет на
-последующий `run()` того же приложения. Так его используют как матрицу
-топологий в CI ([`checkTopologies`](../nestling.testing)).
+`check()` живёт на декларации, а не на собранном приложении: это «собрать
+и выбросить», результат сборки ему не нужен. Метод выполняет только фазы
+0–1: выбор фич, регистрацию, discovery, `build()` (конструкторы
+выполняются), проверку транспортов, форм io и `policies`. `@OnInit`,
+`@OnStart`, `serve` и `@OnDestroy` не вызываются, поэтому ресурсы не
+захватываются. `check()` бросает те же ошибки, что бросил бы `run()` на
+этих фазах, не сохраняет контейнер и не влияет на последующий
+`assemble()` той же декларации. Так его используют как матрицу топологий
+в CI ([`checkTopologies`](../nestling.testing)).
 
-`check(options?)` принимает конвертеры схем:
+Второй аргумент — конвертеры схем:
 
 ```typescript
-const report = await assemble(spec).check({ converters: [zodConverter()] });
+const report = await app.check('all', { converters: [zodConverter()] });
 ```
 
 `report.operations` — дескрипторы операций, которые эта топология
@@ -323,28 +346,31 @@ const report = await assemble(spec).check({ converters: [zodConverter()] });
 останавливается, живёт в условном subpath `@nestling/app/testing`. Условие
 `"testing"` включает только тест-раннер, поэтому в production-коде этот
 импорт не резолвится на уровне Node. Код приложения не видит ни
-`overrides`, ни способа остановиться на WIRE. В тестах используйте
+`overrides`, ни способа остановиться на WIRE. Функция шва —
+`wireApp(app, options)`. В тестах используйте
 [`@nestling/testing`](../nestling.testing), а не этот subpath напрямую.
 
 ## Справочник API
 
 | Экспорт | Что это |
 |---|---|
-| `assemble(spec?)` | собирает приложение; возвращает `App` |
-| `App` | `run()`, `check(options?)`, `close()` |
-| `AssemblySpec` | тип спека сборки |
+| `makeApp(spec?)` | объявляет приложение; возвращает `App` |
+| `App` | `spec`, `assemble(select?)`, `check(select?, options?)` |
+| `AssembledApp` | `run()`, `close()` |
+| `isApp(value)` | предикат декларации приложения |
+| `AppSpec`, `NormalizedAppSpec` | типы словаря декларации |
 | `CheckReport`, `CheckedEndpoint`, `CheckedOperation`, `CheckOptions` | отчёт `check()` и его опции |
 | `makeFeature({ name, providers \| modules, endpoints? })` | объявляет фичу |
 | `makePlugin({ …, dependsOn? })` | объявляет плагин |
 | `Feature`, `Plugin`, `Bundle`, `FeatureOptions`, `PluginOptions`, `FeatureSelection` | типы единиц и выбора |
-| `resolveSelection`, `modulesOf`, `reachablePlugins`, `reachableModules`, `injectedTokens` | разбор `select`, модули набора единиц, замыкание плагинов, модули единицы и токены её зависимостей |
+| `resolveSelection`, `modulesOf`, `reachablePlugins`, `reachableModules`, `injectedTokens` | разбор выбора фич, модули набора единиц, замыкание плагинов, модули единицы и токены её зависимостей |
 | `buildOwnerMap`, `assertFeatureBoundary` | карта «модуль → владелец» и проверка границы фич |
 | `discoverEndpoints(bundles)` | плоский проход по фичам и плагинам без контейнера |
 | `Discovery$`, `EndpointDiscovery`, `DiscoveredEndpoint` | токен и типы результата discovery |
 | `ConfigBinding`, `ConfigTarget` | типы привязки конфига (реэкспорт) |
 
-Subpath `@nestling/app/testing`: `wireApp(spec)`, типы `TestAssemblySpec`,
-`WiredApp`, `WiredEndpoint`, `TestSubstitutions`.
+Subpath `@nestling/app/testing`: `wireApp(app, options?)`, типы
+`WireOptions`, `WiredApp`, `WiredEndpoint`, `TestSubstitutions`.
 
 ## Границы пакета
 

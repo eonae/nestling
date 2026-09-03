@@ -74,7 +74,7 @@ interface Dispatch {
 | Опция | Что делает |
 |---|---|
 | `exposeErrorDetails` | раскрывать ли клиенту детали ошибок, не являющихся `Fail` |
-| `onUnknownFail` | хук диагностики: вызывается, когда ответ с незадекларированным кодом заменяется на `UnknownError` |
+| `onUnknownFail` | хук диагностики: вызывается, когда ответ с незадекларированным кодом заменяется на `InternalError` |
 
 `makeDispatch(endpoints)` принимает только исполнимые декларации
 (`ExecutableDeclaration`, то есть `EndpointDefinition<I, O, P, never>`).

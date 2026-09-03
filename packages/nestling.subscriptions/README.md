@@ -5,7 +5,7 @@
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
 > [`docs/design/streaming.md`](../../docs/design/streaming.md) (§4.1).
-> Гайд: [глава 22. Кто сейчас подключён и как его отключить](../../docs/guide/22-ops.md).
+> Гайд: [глава 23. Кто сейчас подключён и как его отключить](../../docs/guide/23-ops.md).
 > Результат замера, ради которого пакет написан:
 > [`ideas.md [2026-08-01]`](../../docs/decisions/ideas.md).
 
@@ -47,10 +47,12 @@ export const Feed = httpEndpoint({
   path: '/api/feed',
   output: events(Event),
   pipeline: compose(basePipeline, tracked),
-  deps: [EventHub],
-  handle: (hub: EventHub) => async (_payload, meta) =>
+  handler: {
+    deps: [EventHub],
     // общий сигнал: отключение клиента, остановка приложения, закрытие администратором
-    new Ok(hub.subscribe(meta.subscription.signal)),
+    handle: (hub: EventHub) => async (_payload, meta) =>
+      new Ok(hub.subscribe(meta.subscription.signal)),
+  },
 });
 
 // 3. Реестр: обычный singleton, инжектируется обычным токеном
@@ -59,8 +61,11 @@ export const ListSubscriptions = httpEndpoint({
   path: '/api/ops/subscriptions',
   output: z.array(SubscriptionSchema),
   pipeline: basePipeline,
-  deps: [SubscriptionRegistry],
-  handle: (registry: SubscriptionRegistry) => async () => new Ok(registry.list()),
+  handler: {
+    deps: [SubscriptionRegistry],
+    handle: (registry: SubscriptionRegistry) => async () =>
+      new Ok(registry.list()),
+  },
 });
 ```
 

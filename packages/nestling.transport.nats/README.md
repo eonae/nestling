@@ -5,7 +5,7 @@ NATS как шина приложения: доставляет вызовы о�
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
 > [`docs/design/operations.md`](../../docs/design/operations.md).
-> Гайд: [глава 16. Разнести фичи по процессам](../../docs/guide/16-split.md).
+> Гайд: [глава 17. Разнести фичи по процессам](../../docs/guide/17-split.md).
 
 `NatsBus` реализует два интерфейса: `IMessageBus` наружу (`request`,
 `publish`, `subscribe`) и `ITransport` внутрь (`serve(dispatch, signal)`).
@@ -23,11 +23,13 @@ npm install @nestling/transport.nats @nestling/ports
 ```ts
 import { nats } from '@nestling/transport.nats';
 
-await assemble({
+export const app = makeApp({
   features: [OrdersFeature, BillingFeature],
-  select: load(RootConfig).features,
-  transports: [http(), nats()],
-}).run();
+  transports: [http(), nats({ name: 'events' })],
+  intercom: 'events',
+});
+
+await app.assemble(load(RootConfig).features).run();
 ```
 
 `nats(options?)` возвращает обычный провайдер транспорта, зарегистрированный
@@ -143,7 +145,7 @@ JSON-кодек строже, чем `structuredClone`, которым поли�
 import { NatsDouble, natsDouble } from '@nestling/transport.nats/testing';
 
 const broker = new NatsDouble();
-const app = assemble({ transports: [nats({ connect: natsDouble(broker) })] });
+const app = makeApp({ transports: [nats({ connect: natsDouble(broker) })] });
 ```
 
 Один двойник, переданный двум корням, моделирует кластер: два процесса на

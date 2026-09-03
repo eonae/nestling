@@ -11,8 +11,8 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 > [Standard Schema](https://standardschema.dev).
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
 > Гайды: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
-> [глава 4. Хендлеру нужен репозиторий](../../docs/guide/04-repository.md),
-> [глава 11. Выделить вторую область](../../docs/guide/11-features.md).
+> [глава 5. Хендлеру нужен репозиторий](../../docs/guide/05-repository.md),
+> [глава 12. Выделить вторую область](../../docs/guide/12-features.md).
 
 ## Установка
 
@@ -23,7 +23,7 @@ npm install @nestling/transport.http
 ## Минимальный пример
 
 ```ts
-import { assemble } from '@nestling/app';
+import { makeApp } from '@nestling/app';
 import { Ok } from '@nestling/pipeline';
 import { http, httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -33,16 +33,16 @@ export const GetUser = httpEndpoint({
   path: '/users/:id',
   input: z.object({ id: z.string() }),      // id берётся из пути
   output: z.object({ id: z.string(), name: z.string() }),
-  handle: async ({ id }) => new Ok({ id, name: 'Alice' }),
+  handler: async ({ id }) => new Ok({ id, name: 'Alice' }),
 });
 
-await assemble({
+await makeApp({
   features: [UsersFeature],                 // фича, где объявлен GetUser
   transports: [http({ port: 3000 })],       // провайдер, а не инстанс
-}).run();
+}).assemble().run();
 ```
 
-Без `assemble` транспорт запускается вручную: `serve(dispatch, signal)`
+Без `makeApp` транспорт запускается вручную: `serve(dispatch, signal)`
 (раздел «Запуск»).
 
 ## Декларация endpoint'а
@@ -191,8 +191,13 @@ export const Activity = httpEndpoint({
   path: '/activity/live',
   output: events(ActivityEvent),
   sse: { id: (e) => e.id, event: (e) => e.kind, heartbeat: 15_000 },
-  handle: (hub) => async (_p, meta: { signal: AbortSignal; lastEventId?: string }) =>
-    new Ok(hub.subscribe(meta.signal)),
+  handler: {
+    deps: [ActivityHub],
+    handle:
+      (hub) =>
+      async (_p, meta: { signal: AbortSignal; lastEventId?: string }) =>
+        new Ok(hub.subscribe(meta.signal)),
+  },
 });
 ```
 
@@ -211,7 +216,7 @@ multipart: файл больше лимита прерывает своё чте
 нельзя, поэтому NDJSON-ответ обрывается (клиент видит незавершённое
 chunked-тело), а SSE-ответ получает кадр `event: error` с телом отказа
 перед закрытием соединения. В обоих случаях `.finally` видит `failed`, а
-незадекларированный отказ заменяется на `UnknownError` как обычно.
+незадекларированный отказ заменяется на `InternalError` как обычно.
 
 При разрыве соединения, ошибке записи и `close()` транспорт закрывает
 итератор ответа (`return()`). Это запускает отложенные `.finally`-юниты и
@@ -244,7 +249,7 @@ await server.serve(makeDispatch([SayHello, CreateUser]), shutdown.signal);
 ## Провайдер `http(options?)`
 
 ```ts
-await assemble({ features: [UsersFeature], transports: [http({ port: 3000 })] }).run();
+await makeApp({ features: [UsersFeature], transports: [http({ port: 3000 })] }).assemble().run();
 ```
 
 `http()` возвращает провайдер, а не инстанс. Транспорт — обычный узел
@@ -271,24 +276,30 @@ await assemble({ features: [UsersFeature], transports: [http({ port: 3000 })] })
   прерывается заранее и возвращает `413`. `maxBodySize: 0` снимает лимит.
   Файл multipart ограничен своим `upload({ maxSize })`, а без него —
   `maxBodySize`. Строка потокового входа длиннее лимита даёт отказ
-  `PAYLOAD_TOO_LARGE` (413): лимит срабатывает во время чтения, уже внутри
+  `payload_too_large` (413): лимит срабатывает во время чтения, уже внутри
   хендлера, поэтому отказ несёт код ядра. Heartbeat-комментарии в лимиты
   не входят.
-- Ошибки входа дают 4xx: некорректный JSON — `400`, слишком большой
-  payload — `413`.
-- Семантические статусы переводятся в HTTP-коды здесь, а не в ядре:
-  `CONFLICT` в 409, `PAYLOAD_TOO_LARGE` в 413, `TOO_MANY_REQUESTS` в 429,
-  `TIMEOUT` в 504. `.limit(n)` и `.gapTimeout(ms)` item-цепочки дают 413
-  и 504 через них же. Таблица экспортируется как `httpCodeOf(status)`; её
-  же читает генератор OpenAPI.
-- Ошибка проверки входа возвращает `400` с `"code":
-  "VALIDATION_FAILED"` и `details` вида `[{ "message": "…", "path":
-  ["name"] }]`. Это формат Standard Schema, без полей конкретного
-  валидатора. Вход проверяет рантайм ядра, включая поля `multipart`,
-  поэтому HTTP-запрос и `app.call` дают один результат. Асинхронная схема
-  или объект, не являющийся Standard Schema, — ошибка конфигурации: они
-  дают `500`, скрытый `exposeErrorDetails` как любая необработанная
-  ошибка.
+- Ошибки разбора запроса дают 4xx с кодом ядра в теле: некорректный
+  JSON и дефектное поле формы — `400` с `"code": "bad_request"`, слишком
+  большой payload — `413` с `"code": "payload_too_large"` и
+  `details.limit`.
+- Категория отказа переводится в HTTP-код здесь, а не в ядре:
+  `conflict` в 409, `payload_too_large` в 413, `too_many_requests` в 429,
+  `timeout` в 504. `.limit(n)` и `.gapTimeout(ms)` item-цепочки дают 413
+  и 504 через них же. Таблица экспортируется как `httpCodeOf(status)`;
+  она принимает и статус успеха, и категорию отказа, и её же читает
+  генератор OpenAPI.
+- Отказ проверки входа возвращает `400` с `"code": "bad_request"` и
+  `details` вида `[{ "message": "…", "path": ["name"] }]`. Это формат
+  Standard Schema, без полей конкретного валидатора. Вход проверяет
+  рантайм ядра, включая поля `multipart`, поэтому HTTP-запрос и
+  `testApp.call` дают один результат. Асинхронная схема или объект, не
+  являющийся Standard Schema, — ошибка конфигурации: они дают `500`,
+  скрытый `exposeErrorDetails` как любая необработанная ошибка.
+- Заголовки `Ok` пишутся в ответ как есть, после заголовков, которые
+  транспорт ставит по форме `output`. Одноимённый заголовок хендлера
+  перекрывает заголовок формы: `Ok.created(order, { 'content-type': … })`
+  задаёт свой тип содержимого.
 - Каждый запрос получает `meta.signal` (`AbortSignal`). Он срабатывает,
   когда клиент отключился до завершения ответа. Отмена кооперативная:
   долгие и потоковые хендлеры должны проверять сигнал.
@@ -311,7 +322,7 @@ await assemble({ features: [UsersFeature], transports: [http({ port: 3000 })] })
 | `HttpTransport$('default')`, `HTTP_TRANSPORT_NAME` | токен транспорта и его короткое имя `'http'` |
 | `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/operations`) |
 | `httpBindingOf(definition)` | bind-карта декларации |
-| `httpCodeOf(status)` | HTTP-код для семантического статуса |
+| `httpCodeOf(status)` | HTTP-код для статуса успеха или категории отказа |
 | `httpConfigKeys` | ключи секции конфига `HTTP_PORT`, `HTTP_HOST` |
 | `PathParams<Path>` | тип имён `:param` из шаблона пути |
 | `JsonParseError`, `PayloadTooLargeError`, `ChunkTooLargeError`, `MultipartFieldError` | ошибки разбора запроса |

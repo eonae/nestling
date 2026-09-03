@@ -5,7 +5,7 @@
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
 > [`docs/design/operations.md`](../../docs/design/operations.md).
-> Гайд: [глава 11. Выделить вторую область](../../docs/guide/11-features.md).
+> Гайд: [глава 12. Выделить вторую область](../../docs/guide/12-features.md).
 
 Зависимости: `@nestling/container`, `@nestling/operations`,
 `@nestling/pipeline`, `@nestling/transport`, `@nestling/streams`,
@@ -41,13 +41,15 @@ export const ClaimQuota = makeRequest({
 
 // Реализация: endpoint, который обслуживает операция
 export const ClaimQuotaImpl = implement(ClaimQuota, {
-  deps: [QuotaService],
-  handle: (quotas) => async (payload) => {
-    const claimed = quotas.claim();
+  handler: {
+    deps: [QuotaService],
+    handle: (quotas) => async (payload) => {
+      const claimed = quotas.claim();
 
-    return claimed.ok
-      ? new Ok({ remaining: claimed.remaining })
-      : QuotaExceeded({ limit: quotas.limit });
+      return claimed.ok
+        ? new Ok({ remaining: claimed.remaining })
+        : QuotaExceeded({ limit: quotas.limit });
+    },
   },
 });
 
@@ -60,13 +62,15 @@ export const QuotasModule = makeFeature({
 // Вызов из другой фичи: порт инжектируется как обычная зависимость
 export const CreateUser = httpEndpoint({
   /* … */
-  deps: [ClaimQuota.caller],
-  handle: (quotas) => async (input) => {
-    const claimed = await quotas.call({ email: input.email });
-    if (claimed.isFail) {
-      return claimed;                      // отказ соседа разбирает вызывающий
-    }
-    /* … */
+  handler: {
+    deps: [ClaimQuota.caller],
+    handle: (quotas) => async (input) => {
+      const claimed = await quotas.call({ email: input.email });
+      if (claimed.isFail) {
+        return claimed;                    // отказ соседа разбирает вызывающий
+      }
+      /* … */
+    },
   },
 });
 ```
@@ -96,12 +100,12 @@ export const CreateUser = httpEndpoint({
 
 ### Реализация
 
-`implement(Operation, { deps?, handle, subscriber?, pipeline?, … })` строит
+`implement(Operation, { handler, subscriber?, pipeline?, detached? })` строит
 декларацию endpoint'а на том же примитиве, что `httpEndpoint` и
 `cliEndpoint`. Поэтому реализация получает всё, что есть у обычного
 endpoint'а: discovery по дереву модулей, `dispatch`, пайплайн и проверку
 отказов на выходе, `policies` и `detached`, отчёт `check()` и вызов
-`app.call(ClaimQuotaImpl, payload)` в тестах.
+`testApp.call(ClaimQuotaImpl, payload)` в тестах.
 
 Поля `input`, `output` и `errors` берутся из операции. Попытка объявить
 их в реализации — ошибка компиляции.
@@ -118,13 +122,13 @@ endpoint'а: discovery по дереву модулей, `dispatch`, пайпл�
 регистрировать не нужно: узел вызывателя создаётся только для операций,
 которые кто-то инжектирует.
 
-- `call(input, meta?)` возвращает `Promise<Ok<Output> | Fail<E ∪ UnknownError>>`.
+- `call(input, meta?)` возвращает `Promise<Ok<Output> | Fail<E ∪ InternalError>>`.
 - `emit(payload, meta?)` возвращает `Promise<void>` и завершается по факту
   доставки, а не обработки. Ошибка подписчика до вызывающего не доходит.
 
 Задекларированный отказ восстанавливается из `code` в настоящий `Fail`, так
 что `QuotaExceeded.is(result)` работает и при локальном, и при удалённом
-вызове. Незадекларированная ошибка превращается в `UnknownError`; исходная
+вызове. Незадекларированная ошибка превращается в `InternalError`; исходная
 ошибка попадает в диагностический хук, но не к вызывающему.
 
 ### Параметры вызова: `meta`
@@ -144,15 +148,15 @@ await ship.emit({ orderId }, { idempotencyKey: orderId });
 Бюджета по умолчанию нет: вызов без `deadline` не ограничен по времени.
 
 Бюджет проверяется в трёх точках. Отказ всегда один и тот же:
-`DEADLINE_EXCEEDED` со статусом `TIMEOUT` (HTTP 504).
+`timeout` со статусом `timeout` (HTTP 504).
 
 | Точка | Когда | Что происходит |
 |---|---|---|
-| до вызова | `call` / `emit` | остаток ≤ 0: `DeadlineExceeded`, ни `dispatch`, ни шина не вызываются |
-| до обработки | сообщение получено | остаток ≤ 0: `DeadlineExceeded`, `dispatch.call` не вызывается |
-| во время обработки | вызов выполняется | срабатывает `ctx.signal` хендлера, вызов завершается `DeadlineExceeded` |
+| до вызова | `call` / `emit` | остаток ≤ 0: `Timeout`, ни `dispatch`, ни шина не вызываются |
+| до обработки | сообщение получено | остаток ≤ 0: `Timeout`, `dispatch.call` не вызывается |
+| во время обработки | вызов выполняется | срабатывает `ctx.signal` хендлера, вызов завершается `Timeout` |
 
-Отмена через `meta.signal` вызывающего остаётся `UnknownError`. По сети
+Отмена через `meta.signal` вызывающего остаётся `InternalError`. По сети
 передаётся относительный `timeoutMs`; получатель пересчитывает его в
 абсолютный момент по своим часам, поэтому расхождение часов между
 процессами на бюджет не влияет. Поведение одинаково при `local-first` и
@@ -177,9 +181,11 @@ await ship.emit({ orderId }, { idempotencyKey: orderId });
 `signal`.
 
 ```typescript
-deps: [Ctx(Deadline), ChargeCard.caller],
-handle: (deadline, charge) => async (input) =>
-  charge.call(input, { deadline: deadline.peek() }),
+handler: {
+  deps: [Ctx(Deadline), ChargeCard.caller],
+  handle: (deadline, charge) => async (input) =>
+    charge.call(input, { deadline: deadline.peek() }),
+},
 ```
 
 ### Политика диспатча
@@ -262,9 +268,9 @@ Composition root про шину может ничего не знать: мод
 import { checkTopologies } from '@nestling/testing';
 
 const descriptor = describeOperation(ClaimQuota, { converters: [zodConverter()] });
-// { name, kind, input: { kind, leaf }, output: { … }, errors: [{ code, status }] }
+// { name, kind, input: { kind, leaf }, output: { … }, errors: [{ code, category }] }
 
-const snapshot = snapshotOperations(await checkTopologies(spec, ['all', 'users'], {
+const snapshot = snapshotOperations(await checkTopologies(app, ['all', 'users'], {
   converters: [zodConverter()],
 }));
 
@@ -311,7 +317,7 @@ console.log(formatCompatibility(report));
 | `deadlineIn(ms)`, `deadlineFromTimeout(ms?)`, `isExhausted(deadline?)` | работа с моментом `deadline` |
 | `Deadline`, `IdempotencyKey`, `withDeadline()`, `withIdempotencyKey()` | переменные контекста параметров вызова и `.pre`-юниты, которые их заполняют |
 | `profileAttributes`, `startBudget`, `CallBudget`, `failureResponse` | инструменты автора реализации шины |
-| `DeadlineExceeded` | определение отказа бюджета (реэкспорт из `@nestling/pipeline`) |
+| `Timeout` | определение отказа бюджета (реэкспорт из `@nestling/pipeline`) |
 | `IMessageBus`, `MessageBus$`, `InProcessBus`, `InProcessBusOptions` | интерфейс шины, её токен и реализация в процессе |
 | `RequestOptions`, `PublishOptions`, `SubscribeOptions`, `BusHandler`, `BusMessageMeta`, `BusSubscription` | типы операций шины |
 | `BusTransport$`, `BUS_TRANSPORT_NAME`, `busBindingOf`, `BusBinding` | токен транспорта шины и привязка декларации к шине |

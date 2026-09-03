@@ -134,7 +134,7 @@ import { family } from './providers';                 // так
 
 > **Правило — подсказка в редакторе, а не гарантия.** Гарантию даёт проверка
 > политик на собранном графе:
-> `assemble({ policies: [everyEndpoint({ … }).hasLayer(authedBase)] })`.
+> `makeApp({ policies: [everyEndpoint({ … }).hasLayer(authedBase)] })`.
 > Декларацию, о которой правило промолчало, эта проверка всё равно увидит.
 > Подробнее — [`docs/design/pipeline.md`](../../docs/design/pipeline.md) §7.
 

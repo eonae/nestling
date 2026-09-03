@@ -103,8 +103,8 @@ const guarded = gapTimeout(limit(filter(source, keep), 50_000), 30_000);
 `limit` и `gapTimeout` принимают фабрику ошибки. Без фабрики они бросают
 `StreamLimitError` и `StreamGapTimeoutError` из этого пакета. Пайплайн
 Nestling передаёт свои фабрики, поэтому внутри endpoint'а те же комбинаторы
-завершаются встроенными отказами `STREAM_LIMIT_EXCEEDED` (413) и
-`STREAM_GAP_TIMEOUT` (504).
+завершаются встроенными отказами `payload_too_large` (413) и
+`timeout` (504).
 
 ## Итерация под сигналом
 

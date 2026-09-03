@@ -1,6 +1,6 @@
 # @nestling/operations
 
-Декларации, общие для сервера и клиента: `makeRequest` / `makeCommand` / `makeEvent`, `defineFail` со
+Декларации, общие для сервера и клиента: `makeRequest` / `makeCommand` / `makeEvent`, `makeFail` со
 встроенными кодами отказов, `Ok`/`Fail` и перечень статусов, формы io
 (`stream()`, `events()`, `multipart()`/`upload()`), пометки размещения
 `query()`/`body()` и HTTP bind-карта, секция документации `doc:` и
@@ -8,7 +8,7 @@
 
 > 🚧 Пакет в активной разработке, API может меняться. Целевой дизайн —
 > [`docs/design/operations.md`](../../docs/design/operations.md), гайд —
-> [глава 10. Отдать фронтенду документацию и клиент](../../docs/guide/10-openapi-and-client.md).
+> [глава 11. Отдать фронтенду документацию и клиент](../../docs/guide/11-openapi-and-client.md).
 
 ## Без серверного кода
 
@@ -31,10 +31,9 @@ npm install @nestling/operations
 ## Минимальный пример
 
 ```typescript
-import { defineFail, makeRequest, query } from '@nestling/operations';
+import { makeFail, makeRequest, query } from '@nestling/operations';
 
-export const EmailTaken = defineFail('EMAIL_TAKEN', {
-  status: 'CONFLICT',
+export const EmailTaken = makeFail('conflict:email_taken', {
   details: z.object({ email: z.string() }),
   message: (d) => `Email ${d.email} already taken`,
 });
@@ -45,7 +44,7 @@ export const CreateUser = makeRequest({
   input: CreateUserInput,
   output: User,
   errors: [EmailTaken],
-  doc: { summary: 'Create user', tags: ['users'], status: 'CREATED' },
+  doc: { summary: 'Create user', tags: ['users'], status: 'created' },
 });
 ```
 
@@ -63,7 +62,7 @@ export const CreateUser = makeRequest({
 | `name` | имя и адрес операции: subject шины и ключ discovery. Версия входит в имя (`users.create.v2`), отдельного поля версии нет |
 | `kind` | `'request'`, `'command'` или `'event'` |
 | `input`, `output` | формы io (см. ниже). У `command` и `event` `output` в доставке не участвует |
-| `errors` | список определений `defineFail` |
+| `errors` | список определений `makeFail` |
 | `doc` | документация операции (см. «Секция `doc:`») |
 | `durable` | долговечная доставка; допустима только у `command` и `event` |
 | `http` | HTTP-адрес: строка `'POST /users/:id'` или запись `{ method, path, bind?, rawBody?, sse? }` |
@@ -78,7 +77,7 @@ export const CreateUser = makeRequest({
 `event`. Обращение к отсутствующему свойству не компилируется.
 
 Словарь проверяется при создании: пустое имя, неизвестный `kind`, элемент
-`errors` не из `defineFail`, повторяющийся код отказа, `durable` у
+`errors` не из `makeFail`, повторяющийся код отказа, `durable` у
 `request` и дубликат имени операции — ошибка сразу.
 
 Типы для работы с операцией: `Operation`, `RequestOperation`,
@@ -90,7 +89,7 @@ export const CreateUser = makeRequest({
 | Поле | Где | Значение |
 |---|---|---|
 | `signal` | все виды | отмена вызова; становится `meta.signal` обработчика |
-| `deadline` | все виды | бюджет вызова как момент времени (`Date`); по истечении — отказ `DEADLINE_EXCEEDED` |
+| `deadline` | все виды | бюджет вызова как момент времени (`Date`); по истечении — отказ `timeout` |
 | `idempotencyKey` | только `command` | ключ идемпотентности; если не задан, вызыватель создаёт свой |
 
 Типы: `PortMeta`, `CommandMeta`, `MetaOf<C>`.
@@ -102,64 +101,79 @@ export const CreateUser = makeRequest({
 
 ```typescript
 new Ok(value, headers?);                 // статус OK
-new Ok('CREATED', value, headers?);      // явный успешный статус
+new Ok('created', value, headers?);      // явный успешный статус
 Ok.created(value); Ok.accepted(value); Ok.noContent();
 
-new Fail('CONFLICT', 'Email taken', { code?, details?, cause? });
-Fail.notFound('Order 42 not found');     // анонимный отказ без code
+new Fail('conflict:email_taken', 'Email taken', { details?, cause? });
+Fail.notFound('Order 42 not found');     // анонимный отказ: код равен категории
 ```
 
 `Fail` расширяет `Error`, поэтому его можно и вернуть, и бросить.
-Идентичность отказа определяется полем `code`, а не классом. Анонимные
-отказы (`new Fail(...)`, `Fail.badRequest(...)` и другие фабрики) кода не
-имеют, в операцию не входят и на выходе из пайплайна заменяются на
-`UnknownError`.
+Канон — `return`: возвращённый отказ виден в типе `Output` хендлера, а
+`throw` доставляет отказ из глубины вызовов. Идентичность отказа
+определяется полем `code`, а не классом. Анонимные отказы
+(`Fail.badRequest(...)` и другие фабрики) несут код, равный категории; в
+`errors:` их обычно нет, и на выходе из пайплайна такой отказ заменяется
+на `InternalError`.
 
 `Output<T, E>` и `OutputSync<T, E>` — типы возврата хендлера: `Ok<T>`,
-голое `T` или отказ из `E`. Без `errors` `E` пуст, и вернуть отказ нельзя.
+голое `T` или отказ из `E`. Множество `E` записывается определениями:
+`Output<User, typeof UserNotFound | typeof EmailTaken>`. Без `errors` `E`
+пуст, и вернуть отказ нельзя.
 
-`successStatuses`, `errorStatuses`, `statuses` — перечни статусов;
-`SuccessStatus`, `ErrorStatus` — их типы. Статус не зависит от транспорта:
-в HTTP-код или код шины его переводит транспорт.
+`successStatuses` и `categories` — перечни статусов успеха и категорий
+отказа, `statuses` — их объединение; `SuccessStatus`, `Category`,
+`ProcessingStatus` — типы. Ни статус, ни категория не зависят от
+транспорта: в HTTP-код или код шины их переводит транспорт.
 
-## Отказы: `defineFail`
+## Отказы: `makeFail`
 
 ```typescript
-export const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
-  status: 'NOT_FOUND',
+export const OrderNotFound = makeFail('not_found:order', {
   details: z.object({ orderId: z.string() }),
   message: (d) => `Order ${d.orderId} not found`,
 });
+export const Unauthorized = makeFail('unauthorized');   // код из одной категории
 
-throw OrderNotFound({ orderId: '42' });
+return OrderNotFound({ orderId: '42' });
 throw OrderNotFound({ orderId: '42' }, { cause: dbError });
 
 if (OrderNotFound.is(result)) { … }      // сравнение по code
 ```
 
-Определение — вызываемое значение со свойствами `code`, `status`, `schema`
-и предикатом `is`. Конструктор принимает `details` (тип выводится из схемы)
-и проверяет их схемой. `message` — строка или функция от `details`. Без
-`details` конструктор вызывается без аргументов: `EmailTaken()`.
+Код отказа — единственная его ось. Он состоит из сегментов через
+двоеточие, каждый сегмент соответствует `[a-z_]+`; первый сегмент —
+категория из закрытого перечня `categories`, остальные уточняют её. Тип
+кода — `FailCode`: категорию проверяет компилятор, формат сегментов —
+рантайм в `makeFail`. Поля `status` у определения и у отказа нет:
+`categoryOf(code)` и `fail.category` дают категорию первым сегментом.
+
+Определение — вызываемое значение со свойствами `code`, `category`,
+`schema` и предикатом `is`. Конструктор принимает `details` (тип
+выводится из схемы) и проверяет их схемой. `message` — строка или функция
+от `details`; без него сообщением становится код. Без `details`
+конструктор вызывается без аргументов: `EmailTaken()`.
 
 `is` распознаёт код у двух носителей: у значения-отказа (в том числе
 разобранного из JSON) и у контекста ответа-ошибки, который видит
 `.catch`-юнит пайплайна.
 
-### Встроенные коды
+### Отказы ядра
 
-Эти отказы входят в операцию любого endpoint'а без объявления в `errors`:
+Эти отказы входят в множество ответов любого endpoint'а без объявления в
+`errors`. Каждый несёт голую категорию, без уточнения:
 
-| Определение | `code` | `status` | Кто создаёт |
-|---|---|---|---|
-| `UnknownError` | `UNKNOWN` | `INTERNAL_ERROR` | проверка на выходе из пайплайна: незадекларированный отказ или исключение |
-| `ValidationFailed` | `VALIDATION_FAILED` | `BAD_REQUEST` | валидация входа; `details.issues` |
-| `StreamLimitExceeded` | `STREAM_LIMIT_EXCEEDED` | `PAYLOAD_TOO_LARGE` | `.limit(max)` item-цепочки; `details.max` |
-| `StreamGapTimeout` | `STREAM_GAP_TIMEOUT` | `TIMEOUT` | `.gapTimeout(ms)` item-цепочки; `details.ms` |
-| `DeadlineExceeded` | `DEADLINE_EXCEEDED` | `TIMEOUT` | бюджет вызова порта (`meta.deadline`) |
+| Определение | `code` | Кто создаёт |
+|---|---|---|
+| `InternalError` | `internal_error` | проверка на выходе из пайплайна: незадекларированный отказ или исключение |
+| `BadRequest` | `bad_request` | проверка входа по схеме и разбор запроса; `details` — `issues` |
+| `PayloadTooLarge` | `payload_too_large` | лимит тела, строки потока и `.limit(n)` item-цепочки; `details.limit` |
+| `Timeout` | `timeout` | `.gapTimeout(ms)` item-цепочки и бюджет вызова порта (`meta.deadline`) |
 
 `isKernelFailCode(code)` проверяет, входит ли код в этот набор. Набор
-закрыт: добавить в него пользовательский код нельзя.
+закрыт: добавить в него пользовательский код нельзя. Пользовательское
+определение с тем же кодом (`makeFail('bad_request')`) — тот же отказ по
+идентичности, и оно проходит проверку на границе.
 
 ## Формы io
 
@@ -191,8 +205,8 @@ input: multipart({
 |---|---|
 | `.tap(fn)` | наблюдение за элементом |
 | `.filter(pred)` | отбор элементов |
-| `.limit(max)` | не больше `max` элементов, иначе `STREAM_LIMIT_EXCEEDED` |
-| `.gapTimeout(ms)` | источник обязан отдавать элементы не реже `ms`, иначе `STREAM_GAP_TIMEOUT` |
+| `.limit(max)` | не больше `max` элементов, иначе `payload_too_large` |
+| `.gapTimeout(ms)` | источник обязан отдавать элементы не реже `ms`, иначе `timeout` |
 | `.throttle(perSecond)` | ограничение частоты; элементы буферизуются |
 | `.batch(size)` | группировка в массивы; меняет тип элемента, поэтому разрешена только во входе |
 | `.through(fn)` | произвольное преобразование; в выходе — только вариант `T → T` |
@@ -250,7 +264,7 @@ OpenAPI. Функции `computeHttpBinding`, `buildHttpBinding`, `readPathParam
 | `description` | развёрнутое описание |
 | `tags` | группировка |
 | `deprecated` | операция устарела |
-| `status` | успешный статус ответа; по умолчанию `OK`, без `output` — `NO_CONTENT` |
+| `status` | успешный статус ответа; по умолчанию `ok`, без `output` — `no_content` |
 | `hidden` | причина, по которой операция не попадает в документацию; только непустая строка |
 
 Секция не зависит ни от транспорта, ни от формата документации:
@@ -280,7 +294,7 @@ input: z.object({ payload: jsonSchema(ExoticSchema, { type: 'object' }) })
 | [`@nestling/client`](../nestling.client) | bind-карту, схему `output` и `errors`: собирает запрос, проверяет ответ, восстанавливает `Fail` |
 | [`@nestling/transport.http`](../nestling.transport.http) | ту же карту: разбирает запрос в payload; реэкспортирует `query()`/`body()` |
 | [`@nestling/ports`](../nestling.ports) | `.caller`/`.emitter`, `implement`, шину |
-| [`@nestling/pipeline`](../nestling.pipeline) | реэкспортирует `Ok`/`Fail`, `defineFail`, формы io, `jsonSchema()` |
+| [`@nestling/pipeline`](../nestling.pipeline) | реэкспортирует `Ok`/`Fail`, `makeFail`, формы io, `jsonSchema()` |
 | [`@nestling/openapi`](../nestling.openapi) | bind-карту, формы io, `errors` и `doc` |
 
 `makeRequest` / `makeCommand` / `makeEvent` импортируется только из `@nestling/operations`;

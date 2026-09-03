@@ -11,11 +11,11 @@
 > TypeBox, Effect Schema). Целевой дизайн —
 > [`docs/design/pipeline.md`](../../docs/design/pipeline.md),
 > [`docs/design/schemas.md`](../../docs/design/schemas.md); гайды —
-> [глава 7. Видеть каждый запрос в логе](../../docs/guide/07-logging.md),
-> [глава 8. Пускать только своих](../../docs/guide/08-auth.md),
-> [глава 19. CLI-утилита на тех же примитивах](../../docs/guide/19-cli.md).
+> [глава 8. Видеть каждый запрос в логе](../../docs/guide/08-logging.md),
+> [глава 9. Пускать только своих](../../docs/guide/09-auth.md),
+> [глава 20. CLI-утилита на тех же примитивах](../../docs/guide/20-cli.md).
 
-Декларативный слой — `Ok`/`Fail`, перечень статусов, `defineFail` со
+Декларативный слой — `Ok`/`Fail`, перечень статусов, `makeFail` со
 встроенными кодами, формы io и `jsonSchema()` — живёт в
 [`@nestling/operations`](../nestling.operations) и реэкспортируется отсюда
 тем же модулем, так что идентичность значений не двоится. Схемный слой
@@ -32,13 +32,12 @@ npm install @nestling/pipeline
 ## Минимальный пример
 
 ```typescript
-import { compose, makePipeline, Ok, defineFail, withRequestId } from '@nestling/pipeline';
+import { compose, makePipeline, Ok, makeFail, withRequestId } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 
 export const base = makePipeline().pre(withRequestId());
 
-export const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
-  status: 'NOT_FOUND',
+export const OrderNotFound = makeFail('not_found:order', {
   details: z.object({ orderId: z.string() }),
   message: (d) => `Order ${d.orderId} not found`,
 });
@@ -50,10 +49,10 @@ export const GetOrder = httpEndpoint({
   output: Order,
   errors: [OrderNotFound],                      // типизированный канал отказов
   pipeline: base,
-  handle: async ({ id }, meta) => {
+  handler: async ({ id }) => {
     const order = await orders.find(id);
+
     return order ? new Ok(order) : OrderNotFound({ orderId: id });
-    // или `meta.fail(OrderNotFound({ orderId: id }))` для раннего выхода
   },
 });
 ```
@@ -75,24 +74,31 @@ export const GetOrder = httpEndpoint({
 | `transport` | токен транспорта; проставляет конструктор транспорта |
 | `pattern` | строковый адрес внутри транспорта: `'GET /orders/:id'`, `'users:list'` |
 | `input`, `output` | формы io (см. «Формы io») |
-| `errors` | список определений `defineFail`; из него выводится тип отказов хендлера |
+| `errors` | список определений `makeFail`; из него выводится тип отказов хендлера |
 | `pipeline` | пайплайн endpoint'а |
-| `deps` | токены зависимостей для каррированного `handle` |
-| `handle` | хендлер в одной из трёх форм (см. ниже) |
+| `handler` | хендлер в одной из трёх форм (см. ниже) |
 | `binding` | транспортный биндинг; ядро переносит его как есть и не читает |
 | `doc` | документация операции: `summary`, `description`, `tags`, `deprecated`, `status`, `hidden` |
 | `detached` | причина, по которой endpoint выведен из-под всех политик сборки; только непустая строка |
 
-`handle` принимается в трёх формах, и форма определяется по типу:
+`handler` принимается в трёх формах, и форма определяется по типу
+значения:
 
 | Форма | Запись |
 |---|---|
 | функция | `(input, meta) => …`; зависимостей нет, декларация исполнима сразу |
-| каррированная фабрика | `deps: [Token, …]` и `(…deps) => (input, meta) => …`; внешний вызов происходит один раз, при получении зависимостей |
-| класс-хендлер | класс с `@Injectable` и методом `handle`; создаётся контейнером |
+| объект с `deps` | `{ deps: [Token, …], handle: (…deps) => (input, meta) => … }`; внешний вызов происходит один раз, при получении зависимостей |
+| класс-хендлер | класс с `@Injectable` и методом `handle`; экземпляр создаёт контейнер, а провайдером класса endpoint регистрирует себя сам |
+
+Полей `deps` и `handle` на верхнем уровне словаря нет: их присутствие —
+ошибка компиляции и ошибка рантайма при создании декларации.
+`handlerDependenciesOf(endpoint)` отдаёт токены объектной формы,
+`handlerClassOf(endpoint)` — класс-хендлер, если декларация объявлена
+классом. Оба читает сборка.
 
 Тип `EndpointDefinition<I, O, P, TNeeds>` хранит неразрешённые зависимости
-в `TNeeds`: токены `deps`, класс хендлера и классы юнитов пайплайна.
+в `TNeeds`: токены `handler.deps`, класс хендлера и классы юнитов
+пайплайна.
 Транспорты принимают только `TNeeds = never`, поэтому передать
 неразрешённую декларацию в `server.route(...)` не получится: это ошибка
 компиляции. `endpoint.resolve(resolver)` возвращает новую исполнимую
@@ -145,7 +151,7 @@ export const GetOrder = httpEndpoint({
 
 После `.ok`/`.catch` и до `.finally` рантайм сверяет ответ с полем
 `errors` декларации: ошибка с кодом не из списка (и не из встроенных
-кодов) заменяется на `UnknownError`. `.finally` видит уже
+кодов) заменяется на `InternalError`. `.finally` видит уже
 нормализованный ответ. Для потокового `output` `.finally` откладывается
 до завершения потока.
 
@@ -177,7 +183,7 @@ export const authed = compose(base, makePipeline().pre(withIdentity(verify)));
 ```typescript
 import { everyEndpoint } from '@nestling/pipeline';
 
-assemble({
+makeApp({
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(authedBase, 'authedBase'),
   ],
@@ -211,28 +217,36 @@ assemble({
 определяется полем `code`.
 
 - `Output<T, E>` и `OutputSync<T, E>` допускают `Ok<T>`, голое `T` и отказ
-  из `E`. Без `errors` `E` пуст: хендлер не может вернуть отказ, а
-  `new Ok(fail)` не компилируется.
-- `meta.fail(e): never` — типизированный ранний выход, принимает только
-  объявленные отказы.
+  из `E`; `E` записывается определениями (`typeof OrderNotFound`). Без
+  `errors` `E` пуст: хендлер не может вернуть отказ, а `new Ok(fail)` не
+  компилируется.
+- Канон доставки отказа — `return`: возвращённый отказ виден в типе
+  `Output`. `throw` доставляет отказ из глубины вызовов; ключа `fail` в
+  `meta` нет.
 - Всё незадекларированное, что дошло до выхода из пайплайна, — голый
   `throw`, отказ из глубины сервиса, анонимный `Fail.notFound(...)` без
-  кода — заменяется на `UnknownError` (`UNKNOWN`, 500). Оригинал целиком
+  кода — заменяется на `InternalError` (`internal_error`, 500). Оригинал целиком
   передаётся в `ExecuteOptions.onUnknownFail` (по умолчанию
   `console.error`); клиент получает общее тело ответа.
-- Встроенные коды входят в операцию каждого endpoint'а без объявления:
-  `UNKNOWN`, `VALIDATION_FAILED` (проверка входа и поэлементная проверка
-  элементов потока), `PAYLOAD_TOO_LARGE` (лимит размера входа),
-  `STREAM_LIMIT_EXCEEDED` и `STREAM_GAP_TIMEOUT` (item-цепочки),
-  `DEADLINE_EXCEEDED` (бюджет вызова порта). Набор закрыт и растёт только
-  вместе с ядром.
-- `ErrorStatus` не зависит от транспорта (`CONFLICT`, `TIMEOUT`,
-  `TOO_MANY_REQUESTS`, `PAYLOAD_TOO_LARGE`, …); в HTTP-код его переводит
+- Отказы ядра входят в множество ответов каждого endpoint'а без
+  объявления: `InternalError` (`internal_error`), `BadRequest`
+  (`bad_request`: проверка входа, разбор запроса и поэлементная проверка
+  потока), `PayloadTooLarge` (`payload_too_large`: лимит размера входа и
+  `.limit(n)` item-цепочки), `Timeout` (`timeout`: `.gapTimeout(ms)` и
+  бюджет вызова порта). Каждый несёт голую категорию; набор закрыт и
+  растёт только вместе с ядром.
+- `Category` не зависит от транспорта (`conflict`, `timeout`,
+  `too_many_requests`, `payload_too_large`, …); в HTTP-код её переводит
   транспорт.
 
 `ExecuteOptions` также принимает `exposeErrorDetails` — раскрывать ли
 клиенту `message` и `stack` необработанных исключений (по умолчанию
 `false`).
+
+Тело ответа-отказа (`ErrorDetails`) несёт обязательный `code`, текст
+`error` и, если определение объявило схему, `details`. Поля `status` в
+теле нет: категорию получатель восстанавливает из кода. У
+`ErrorResponseContext` поле `status` равно категории отказа.
 
 Целевой дизайн — [`docs/design/errors.md`](../../docs/design/errors.md).
 
@@ -364,7 +378,7 @@ const zodConverter = (): SchemaDocConverter => ({
 
 `jsonSchema(schema, json)` объявляет JSON Schema для листа явно и работает
 в любой схемной позиции; аннотация приоритетнее конвертера. Так объявлены
-схемы встроенных отказов (`VALIDATION_FAILED` и другие). Подробнее — в
+схемы встроенных отказов (`bad_request` и другие). Подробнее — в
 [`@nestling/operations`](../nestling.operations).
 
 ## Диагностика типов
@@ -488,7 +502,7 @@ export class UsersRepository {
 Вход проверяется по схеме `input` декларации всегда: это обязанность
 рантайма, а не юнита пайплайна. Проверка выполняется в одной точке —
 после всех `.pre`-юнитов и перед хендлером, — поэтому хендлер получает
-выход схемы, а невалидный вход даёт отказ `VALIDATION_FAILED` (400),
+выход схемы, а невалидный вход даёт отказ `bad_request` (400),
 который видят `.catch` и `.finally` всех слоёв.
 
 Что именно проверяется, определяет форма io:

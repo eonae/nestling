@@ -6,7 +6,7 @@
 
 > 🚧 Активная разработка, API может меняться.
 > Дизайн: [`docs/design/operations.md`](../../docs/design/operations.md) §5.
-> Гайд: [глава 10. Отдать фронтенду документацию и клиент](../../docs/guide/10-openapi-and-client.md).
+> Гайд: [глава 11. Отдать фронтенду документацию и клиент](../../docs/guide/11-openapi-and-client.md).
 
 ## Установка
 
@@ -32,9 +32,9 @@ const api = makeClient(
 const created = await api.createUser({ name: 'Alice', email: 'a@b.c' });
 
 if (EmailTaken.is(created)) {
-  // details типизированы схемой из defineFail; отказ узнаётся по code
+  // details типизированы схемой из makeFail; отказ узнаётся по code
 } else if (created.isFail) {
-  // множество ответов закрыто: объявленные отказы плюс UnknownError
+  // множество ответов закрыто: объявленные отказы плюс InternalError
 } else {
   created.value.id;
 }
@@ -54,8 +54,8 @@ if (EmailTaken.is(created)) {
   берётся из определения, сообщение из ответа, детали из ответа с
   проверкой по схеме определения. Всё остальное — сетевая ошибка, не-JSON
   тело, незадекларированный код, детали не по схеме — становится
-  `UnknownError` с оригиналом в `cause`.
-- Истёкший `deadline` даёт отказ `DeadlineExceeded` до отправки запроса.
+  `InternalError` с оригиналом в `cause`.
+- Истёкший `deadline` даёт отказ `Timeout` до отправки запроса.
 - Не бросает исключений на сетевые ошибки и отказы операции у
   `request`-операции. Исключение возможно только при неверном
   использовании, например для query-значения, которое нельзя записать в

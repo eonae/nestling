@@ -5,7 +5,7 @@
 
 > 🚧 Активная разработка, API может меняться.
 > Дизайн: [`docs/design/schemas.md`](../../docs/design/schemas.md) §2.1.
-> Гайд: [глава 10. Отдать фронтенду документацию и клиент](../../docs/guide/10-openapi-and-client.md).
+> Гайд: [глава 11. Отдать фронтенду документацию и клиент](../../docs/guide/11-openapi-and-client.md).
 
 ## Установка
 
@@ -22,7 +22,7 @@ npm install @nestling/openapi @nestling/openapi.zod
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
-assemble({
+makeApp({
   features: [UsersFeature],
   plugins: [
     openapi({
@@ -59,7 +59,7 @@ writeFileSync('openapi.json', JSON.stringify(
 |---|---|
 | путь и метод, `parameter` или `requestBody` | bind-карта декларации (`:param` становится `{param}`) |
 | media types | `mediaTypeOf` — то же правило, что у транспорта и клиента |
-| `responses` | `output`, `errors:`, автоматический `400` и `default` (`UNKNOWN`) |
+| `responses` | `output`, `errors:`, автоматический `400` и `default` (`internal_error`) |
 | HTTP-коды | `httpCodeOf` из `@nestling/transport.http` |
 | `summary`, `tags`, `deprecated`, успешный статус | слот `doc:` декларации или операции |
 | `operationId` | имя операции, иначе слаг из метода и пути; отдельно не объявляется |

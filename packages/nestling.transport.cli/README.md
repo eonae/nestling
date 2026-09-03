@@ -6,7 +6,7 @@ CLI-транспорт Nestling: те же endpoint'ы и пайплайны, ч
 > 🚧 Активная разработка, API может меняться. Валидатора среди зависимостей
 > нет: команды проверяются через `@nestling/pipeline` любой схемой
 > [Standard Schema](https://standardschema.dev).
-> Гайд: [глава 19. CLI-утилита на тех же примитивах](../../docs/guide/19-cli.md).
+> Гайд: [глава 20. CLI-утилита на тех же примитивах](../../docs/guide/20-cli.md).
 
 ## Установка
 
@@ -26,13 +26,13 @@ export const Hello = cliEndpoint({
   command: 'hello',
   input: z.object({ args: z.array(z.string()), loud: z.boolean().optional() }),
   output: z.object({ greeting: z.string() }),
-  handle: async ({ args, loud }) => {
+  handler: async ({ args, loud }) => {
     const text = `Hello, ${args[0] ?? 'world'}`;
     return new Ok({ greeting: loud ? text.toUpperCase() : text });
   },
 });
 
-await assemble({ features: [ToolsFeature], transports: [cli()] }).run();
+await makeApp({ features: [ToolsFeature], transports: [cli()] }).assemble().run();
 ```
 
 ```bash
@@ -102,14 +102,14 @@ export const Import = cliEndpoint({
   command: 'import',
   input: stream(Row).limit(10_000).gapTimeout(30_000),
   output: z.object({ imported: z.number() }),
-  handle: async (rows) => { … },
+  handler: async (rows) => { … },
 });
 ```
 
 ## Ошибки
 
 Отказы подчиняются модели ошибок ядра: `errors:` объявляет отказы команды,
-а незадекларированный отказ на выходе заменяется на `UnknownError`
+а незадекларированный отказ на выходе заменяется на `InternalError`
 ([`docs/design/errors.md`](../../docs/design/errors.md)). Статус
 печатается как есть: CLI не нуждается в таблице кодов. Оригинал
 заменённого отказа передаётся в хук `onUnknownFail` из опций транспорта.
