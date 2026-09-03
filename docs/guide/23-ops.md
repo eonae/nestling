@@ -1,4 +1,4 @@
-# 22. Кто сейчас подключён и как его отключить
+# 23. Кто сейчас подключён и как его отключить
 
 > Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-03).
 > Целевое описание: [design/streaming.md](../design/streaming.md), раздел
@@ -264,7 +264,7 @@ curl localhost:3000/ops/subscriptions
 # [{"id":"d5bd…","pattern":"GET /ops/subscriptions/live",…,"itemsOut":2}]
 
 curl -X DELETE localhost:3000/ops/subscriptions/nope -H 'authorization: Bearer secret'
-# {"error":"Subscription nope is not active on this node","code":"SUBSCRIPTION_NOT_FOUND","details":{"id":"nope"}}  404
+# {"error":"Subscription nope is not active on this node","code":"not_found:subscription","details":{"id":"nope"}}  404
 ```
 
 Терминал с `curl -N localhost:3000/users/activity` после `DELETE`
@@ -352,7 +352,7 @@ App-тест проходит весь сценарий без сокета: `te
 `events`-endpoint'е возвращает итератор, список показывает запись до
 первого элемента, `KillSubscription` закрывает поток, и итерация
 завершается сама. Два других теста того же `describe` проверяют отказ
-`SUBSCRIPTION_NOT_FOUND` и то, что лента реестра не видит собственного
+`not_found:subscription` и то, что лента реестра не видит собственного
 `opened`.
 
 ```bash

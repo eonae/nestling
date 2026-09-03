@@ -1,4 +1,4 @@
-# 18. Webhook с проверкой подписи
+# 19. Webhook с проверкой подписи
 
 > Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-03).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md), раздел
@@ -166,7 +166,7 @@ curl -X POST localhost:3000/hooks/users \
 
 curl -X POST localhost:3000/hooks/users \
   -H 'content-type: application/json' -H 'x-signature: deadbeef' -d "$body"
-# {"error":"Webhook signature does not match the body","code":"INVALID_SIGNATURE"}  401
+# {"error":"Webhook signature does not match the body","code":"unauthorized:invalid_signature"}  401
 
 curl localhost:3000/users/2
 # {"error":"User 2 not found","code":"not_found:user","details":{"id":"2"}}  404

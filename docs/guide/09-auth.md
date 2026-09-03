@@ -1,4 +1,4 @@
-# 8. Пускать только своих
+# 9. Пускать только своих
 
 > Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
@@ -131,7 +131,7 @@ handle:
 
 ```bash
 curl -X DELETE http://localhost:3000/users/2
-# {"error":"Bearer token is missing or invalid","code":"UNAUTHORIZED"} 401
+# {"error":"Bearer token is missing or invalid","code":"unauthorized"} 401
 curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 # 204
 ```
@@ -333,7 +333,7 @@ API_TOKEN=secret yarn workspace examples.users-service start:dev
 curl -X POST http://localhost:3000/users \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'
-# 401 UNAUTHORIZED
+# 401 unauthorized
 curl -X POST http://localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'

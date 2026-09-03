@@ -1,4 +1,4 @@
-# 11. Выделить вторую область и не дать ей лезть в чужие сервисы
+# 12. Выделить вторую область и не дать ей лезть в чужие сервисы
 
 > Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-03).
 > Целевое описание: [design/composition.md](../design/composition.md),
@@ -254,7 +254,7 @@ export const CreateUser = makeRequest({
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
   -d '{"name":"User 6","email":"user6@example.com"}'
-# {"error":"User quota of 5 is exhausted","code":"QUOTA_EXCEEDED","details":{"limit":5}}
+# {"error":"User quota of 5 is exhausted","code":"too_many_requests:quota_exceeded","details":{"limit":5}}
 ```
 
 ### Шаг 6. Общее уходит в плагины

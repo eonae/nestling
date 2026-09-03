@@ -1,4 +1,4 @@
-# 14. Тестировать фичу без соседей
+# 15. Тестировать фичу без соседей
 
 > Гайд по текущему API; сверено с кодом `examples.app-with-http`, `examples.split-nats` (2026-09-03).
 > Целевое описание: [design/testing.md](../design/testing.md) §3 и §4.
