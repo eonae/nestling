@@ -2,8 +2,10 @@
 
 > Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
 > Целевое описание: [design/errors.md](../design/errors.md). Почему так:
-> запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Модель ошибок:
-> Fail — значение, code-идентичность, `defineFail`, ошибки в контракте».
+> записи [ideas.md](../decisions/ideas.md) «[2026-07-10] Модель ошибок:
+> Fail — значение, code-идентичность, `makeFail`, ошибки в контракте»,
+> «[2026-09-03] Код отказа: категория и уточнение; `makeFail`» и
+> «[2026-09-03] Заголовки `Ok` не зависят от транспорта».
 
 ## Задача
 
@@ -19,28 +21,49 @@
 
 ```typescript
 // packages/examples.users-service/src/users/users.errors.ts
-import { defineFail } from '@nestling/operations';
+import { makeFail } from '@nestling/operations';
 import { z } from 'zod';
 
-export const UserNotFound = defineFail('USER_NOT_FOUND', {
-  status: 'NOT_FOUND',
+export const UserNotFound = makeFail('not_found:user', {
   details: z.object({ id: z.string() }),
   message: (d) => `User ${d.id} not found`,
 });
 
-/** Статус `CONFLICT`: занятый email — конфликт с данными, а не ошибка формата */
-export const EmailTaken = defineFail('EMAIL_TAKEN', {
-  status: 'CONFLICT',
+/** Категория `conflict`: занятый email — конфликт с данными, а не ошибка формата */
+export const EmailTaken = makeFail('conflict:email_taken', {
   details: z.object({ email: z.string() }),
   message: (d) => `Email ${d.email} is already taken`,
 });
 ```
 
-`defineFail` объявляет отказ: машинный код, статус, схему деталей и
-сообщение. Статус не зависит от транспорта: `NOT_FOUND`, `CONFLICT`,
-`UNAUTHORIZED` и другие. HTTP-транспорт переводит его в код ответа:
-`404`, `409`, `401`. Результат `defineFail` вызывается как функция и
-возвращает значение отказа: `UserNotFound({ id })`.
+`makeFail` объявляет отказ: машинный код, схему деталей и сообщение.
+Результат вызывается как функция и возвращает значение отказа:
+`UserNotFound({ id })`.
+
+Код отказа — единственная его ось. Он состоит из сегментов через
+двоеточие; первый сегмент — категория, остальные уточняют её. Категория
+говорит, как отвечать, уточнение — что именно случилось. Клиент
+сравнивает полный код, транспорт читает категорию.
+
+| Категория | HTTP |
+|---|---|
+| `bad_request` | 400 |
+| `unauthorized` | 401 |
+| `payment_required` | 402 |
+| `forbidden` | 403 |
+| `not_found` | 404 |
+| `conflict` | 409 |
+| `payload_too_large` | 413 |
+| `too_many_requests` | 429 |
+| `internal_error` | 500 |
+| `not_implemented` | 501 |
+| `service_unavailable` | 503 |
+| `timeout` | 504 |
+
+Перечень закрыт, и категорию проверяет компилятор: `makeFail('gone:user')`
+не компилируется. Формат остальных сегментов — `[a-z_]+`, его проверяет
+`makeFail` при вызове. Код из одной категории допустим, когда уточнять
+нечего: `makeFail('unauthorized')`.
 
 ### Вернуть отказ из хендлера
 
@@ -52,73 +75,77 @@ export const GetUser = httpEndpoint({
   input: z.object({ id: z.string() }),
   output: User,
   errors: [UserNotFound],
-  handle: async ({ id }) => (id === '1' ? alice : UserNotFound({ id })),
+  handler: async ({ id }) => (id === '1' ? alice : UserNotFound({ id })),
 });
 ```
 
-Константа `alice` заменяет хранилище из главы 4. Поле `errors`
-перечисляет отказы, которые endpoint может вернуть.
-Хендлер возвращает отказ значением, как обычный результат. Клиент
-получает тело с кодом и деталями:
+Константа `alice` заменяет хранилище из главы 5. Поле `errors`
+перечисляет отказы, которые endpoint может вернуть. Хендлер возвращает
+отказ значением, как обычный результат. Клиент получает тело с кодом и
+деталями:
 
 ```bash
 curl localhost:3000/users/9
-# {"error":"User 9 not found","code":"USER_NOT_FOUND","details":{"id":"9"}}
+# {"error":"User 9 not found","code":"not_found:user","details":{"id":"9"}}
 ```
 
-В итоговом примере хендлер вынесен в отдельную функцию и типизирован
-явно:
+Отказ доставляется `return`: возвращённый отказ виден в типе хендлера, и
+компилятор сверяет его со списком `errors`. Из глубины вызовов, где
+вернуть значение некому, отказ бросают: `throw UserNotFound({ id })`.
+Для ответа это одно и то же, и подробнее про бросок написано в
+приложении А.
+
+Тип возвращаемого значения записывается определениями отказов:
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
-export const getUserHandler =
-  (users: UsersRepository) =>
-  async (payload: GetUserInput): Output<User, FailOf<typeof UserNotFound>> => {
-    const user = await users.byId(payload.id);
+async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
+  const user = await users.byId(input.id);
 
-    // Отказ возвращается значением. Для ответа это то же, что бросок
-    return user ?? UserNotFound({ id: payload.id });
-  };
+  return user ?? UserNotFound({ id: input.id });
+}
 ```
 
 `Output<T, E>` описывает всё, что хендлер может вернуть: значение `T`,
-`Ok<T>` или отказ из `E`. `FailOf<typeof UserNotFound>` даёт тип отказа
-по его определению. Аргумент `users` объясняет глава 4.
+`Ok<T>` или отказ из `E`. В `E` идут сами определения:
+`Output<User, typeof UserNotFound | typeof EmailTaken>` для двух отказов.
+Без `errors` множество пусто, и вернуть отказ нельзя.
 
 ### Успех со статусом и заголовками
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts
-export const createUserHandler =
-  (users: UsersRepository) =>
-  async (payload: NewUser): Output<User, FailOf<typeof EmailTaken>> => {
-    if (await users.byEmail(payload.email)) {
-      return EmailTaken({ email: payload.email });
-    }
+async function handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
+  if (await users.byEmail(input.email)) {
+    return EmailTaken({ email: input.email });
+  }
 
-    const user = await users.insert(payload);
+  const user = await users.insert(input);
 
-    // Статус 201 и заголовок задаются на успешном ответе
-    return Ok.created(user, { Location: `/users/${user.id}` });
-  };
+  // Статус `created` и заголовок — метаданные ответа
+  return Ok.created(user, { Location: `/users/${user.id}` });
+}
 ```
 
-Голое значение из хендлера превращается в `Ok` со статусом `OK`. Когда
+Голое значение из хендлера превращается в `Ok` со статусом `ok`. Когда
 нужен другой статус или заголовки, хендлер возвращает `Ok` явно:
 `Ok.created(value, headers)` отвечает `201`, `Ok.accepted(value)`
 отвечает `202`, `new Ok(value, headers)` отвечает `200` с заголовками.
 
+Заголовки `Ok` — метаданные ответа, а не HTTP-заголовки: хендлер о
+транспорте не знает. Что с ними делать, решает транспорт. HTTP пишет их
+в заголовки ответа, NATS кладёт в заголовки ответного сообщения, CLI
+отбрасывает.
+
 ```typescript
 // packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
-export const deleteUserHandler =
-  (users: UsersRepository) =>
-  async (
-    payload: DeleteUserInput,
-  ): Output<null, FailOf<typeof UserNotFound>> => {
-    const removed = await users.remove(payload.id);
+async function handle(
+  input: DeleteUserInput,
+): Output<null, typeof UserNotFound> {
+  const removed = await users.remove(input.id);
 
-    return removed ? Ok.noContent() : UserNotFound({ id: payload.id });
-  };
+  return removed ? Ok.noContent() : UserNotFound({ id: input.id });
+}
 ```
 
 `Ok.noContent()` отвечает `204` без тела. У декларации `DeleteUser` нет
@@ -131,34 +158,41 @@ export const DeleteUser = httpEndpoint({
   path: '/users/:id',
   input: DeleteUserInput,
   errors: [UserNotFound],
-  deps: [UsersRepository$],
-  handle: deleteUserHandler,
+  handler: async ({ id }) =>
+    (await remove(id)) ? Ok.noContent() : UserNotFound({ id }),
 });
 ```
 
 В итоговом файле у `DeleteUser` есть ещё отказ `Unauthorized` и слой
-`authed`: удаление требует токен. Это глава 8.
+`authed`: удаление требует токен. Это глава 9.
 
 ### Незадекларированная ошибка
 
 Всё, что дошло до границы пайплайна без объявления в `errors`, клиент
-получает как `UNKNOWN` со статусом `500`: брошенное исключение, отказ
-из глубины сервиса, отказ, которого нет в списке. Оригинал ошибки
+получает как `internal_error` со статусом `500`: брошенное исключение,
+отказ из глубины сервиса, отказ, которого нет в списке. Оригинал ошибки
 попадает в лог сервера, тело ответа общее. Так детали внутренних ошибок
 не уходят наружу.
 
-Встроенные коды входят в список каждого endpoint'а без объявления:
-`VALIDATION_FAILED` (проверка входа), `PAYLOAD_TOO_LARGE`,
-`STREAM_LIMIT_EXCEEDED`, `STREAM_GAP_TIMEOUT`, `DEADLINE_EXCEEDED` и
-`UNKNOWN`.
+Отказы ядра входят в список каждого endpoint'а без объявления. Каждый
+несёт голую категорию:
+
+| Определение | Код | Когда |
+|---|---|---|
+| `BadRequest` | `bad_request` | вход не прошёл схему, запрос не разобрался |
+| `PayloadTooLarge` | `payload_too_large` | тело, файл или поток больше допустимого |
+| `Timeout` | `timeout` | истёк бюджет вызова, поток молчит дольше допустимого |
+| `InternalError` | `internal_error` | всё незадекларированное |
 
 ## Что гарантирует фреймворк
 
 - Хендлер не может вернуть отказ, которого нет в `errors`: тип `E` в
   `Output<T, E>` выводится из списка, и такой `return` не компилируется.
 - Отказ, который всё же дошёл до границы пайплайна без объявления,
-  заменяется на `UNKNOWN`. Список `errors` описывает всё, что клиент
-  может получить, кроме встроенных кодов.
+  заменяется на `InternalError`. Список `errors` описывает всё, что
+  клиент может получить, кроме отказов ядра.
+- Категория не расходится с кодом: она и есть первый сегмент кода.
+  Объявить отказ с кодом `not_found:user` и ответить `409` невозможно.
 - Отказ узнаётся по коду, а не по классу. Поле `code` переживает
   сериализацию, поэтому `UserNotFound.is(value)` работает и на клиенте.
 
@@ -166,33 +200,32 @@ export const DeleteUser = httpEndpoint({
 
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
-expect(await app.call(GetUser, { id: '404' })).toMatchObject({
+expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
-  status: 'NOT_FOUND',
-  value: { code: 'USER_NOT_FOUND', details: { id: '404' } },
+  status: 'not_found',
+  value: { code: 'not_found:user', details: { id: '404' } },
 });
 ```
 
-Ответ `app.call` несёт статус и код из определения отказа. Юнит-тест
-хендлера проверяет отказ без приложения:
+Ответ `testApp.call` несёт код отказа, а его `status` равен категории
+этого кода. Юнит-тест хендлера проверяет отказ без приложения:
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
-const result = await handle({ name: 'Alice II', email: alice.email });
+const result = await handler.handle({ name: 'Alice II', email: alice.email });
 
 expect(EmailTaken.is(result)).toBe(true);
 expect(result).toMatchObject({
-  status: 'CONFLICT',
+  code: 'conflict:email_taken',
   details: { email: alice.email },
 });
 ```
 
 ## Пока не нужно
 
-- Бросить отказ через `throw` или выйти через `meta.fail`: приложение А.
-  Для ответа это то же самое, что `return`.
-- Отказ, который бросает слой до хендлера: глава 8.
-- Отказы, общие для сервера и клиента: глава 10.
+- Отказ, который бросает слой до хендлера: глава 9.
+- Отказы, общие для сервера и клиента: глава 11.
+- Отказ броском из глубины вызовов: приложение А.
 
 ## Запускаемый код
 
@@ -209,5 +242,5 @@ curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i
 
 ## Дальше
 
-Хендлеры обращаются к `users`, но откуда он берётся, глава не сказала.
-Следующая глава: [4. Хендлеру нужен репозиторий](./04-repository.md).
+Хендлеры пока живут функциями в словаре декларации. Следующая глава
+переносит их в классы: [4. Хендлер как класс](./04-handler-class.md).

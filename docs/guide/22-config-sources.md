@@ -14,7 +14,7 @@
 не перезапуская процесс.
 
 Объявление секции, вывод ключей, `secret()` и остановка старта на
-невалидном конфиге описаны в главе [5](./05-config.md). Здесь только то,
+невалидном конфиге описаны в главе [6](./06-config.md). Здесь только то,
 что появляется сверх этого.
 
 ## Решение
@@ -24,7 +24,7 @@
 ```typescript
 // packages/examples.container/src/main.ts
 export async function main() {
-  const app = assemble({
+  const app = makeApp({
     features: [AppFeature],
     plugins: [appLogging],
     providers: [Demo],
@@ -32,7 +32,7 @@ export async function main() {
       [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
       [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
     ],
-  });
+  }).assemble();
 
   await app.run();
   await app.close();
@@ -60,7 +60,7 @@ export async function main() {
   дальше решает схема поля: `.default()`, `.optional()` или ошибка
   валидации.
 
-Тот же список принимает `configKernel()` для контейнера без `assemble`:
+Тот же список принимает `configKernel()` для контейнера без `makeApp`:
 
 ```typescript
 // packages/examples.container/src/container.ts
@@ -81,7 +81,7 @@ export const makeContainer = async (
 ```
 
 Сборка контейнера без приложения описана в главе
-[23](./23-standalone.md).
+[24](./24-standalone.md).
 
 ### Экспортируйте право привязки, а не секцию
 
@@ -280,4 +280,4 @@ yarn workspace examples.container test
 ## Дальше
 
 Эксплуатационные endpoint'ы: кто сейчас подключён к сервису и как
-завершить подписку. Глава [22](./22-ops.md).
+завершить подписку. Глава [23](./23-ops.md).

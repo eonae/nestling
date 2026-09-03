@@ -112,23 +112,25 @@ export const ActivityStream = httpEndpoint({
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
   pipeline: compose(observability, tracked),
-  deps: [ActivityHub],
-  handle:
-    (hub: ActivityHub) =>
-    async (
-      _payload: unknown,
-      meta: { subscription: TrackedSubscription; lastEventId?: string },
-    ): Output<AsyncIterable<ActivityEvent>> => {
-      // Настоящая лента отдала бы историю с этого места
-      const since = meta.lastEventId ?? '0';
+  handler: {
+    deps: [ActivityHub],
+    handle:
+      (hub: ActivityHub) =>
+      async (
+        _payload: unknown,
+        meta: { subscription: TrackedSubscription; lastEventId?: string },
+      ): Output<AsyncIterable<ActivityEvent>> => {
+        // Настоящая лента отдала бы историю с этого места
+        const since = meta.lastEventId ?? '0';
 
-      return new Ok(hub.subscribe(meta.subscription.signal, since));
-    },
+        return new Ok(hub.subscribe(meta.subscription.signal, since));
+      },
+  },
 });
 ```
 
 `events(T)` — форма io для открытой подписки. Она отличается от
-`stream(T)` из [главы 9](./09-files-and-streams.md):
+`stream(T)` из [главы 10](./10-files-and-streams.md):
 
 | | `stream(T)` | `events(T)` |
 |---|---|---|
@@ -147,7 +149,7 @@ export const ActivityStream = httpEndpoint({
 Слой `tracked` из пакета `@nestling/subscriptions` регистрирует подписку
 в реестре и даёт хендлеру `meta.subscription.signal`. Этот сигнал
 объединяет сигнал запроса с административной отменой из реестра, поэтому
-хендлер слушает только его. Реестр описан в [главе 22](./22-ops.md).
+хендлер слушает только его. Реестр описан в [главе 23](./23-ops.md).
 
 Юниты `.finally` слоя `observability` для потокового ответа выполняются
 после того, как поток закончился или оборвался. Отключение клиента даёт
@@ -264,14 +266,14 @@ it('отдаёт событие создания по SSE', async () => {
 ```
 
 Кадры SSE проверяет e2e-тест на настоящем сокете. В app-тесте
-`app.call(ActivityStream)` возвращает ответ, у которого `value` является
+`testApp.call(ActivityStream)` возвращает ответ, у которого `value` является
 `AsyncIterableIterator`: тест читает события через `next()` без
 транспорта. Так устроены тесты реестра подписок в `app.spec.ts`.
 
 ## Пока не нужно
 
 - Список открытых подписок, их принудительное закрытие и факты открытия
-  и закрытия: [глава 22](./22-ops.md).
+  и закрытия: [глава 23](./23-ops.md).
 - Окна по времени, слияние источников и другие мостики к RxJS: раздел
   «Граница с RxJS» в [design/streaming.md](../design/streaming.md).
 
@@ -295,4 +297,4 @@ curl -N localhost:3000/users/activity -H 'Last-Event-ID: 2'
 ## Дальше
 
 Фича `users` зависит от квот, но тест фичи не должен поднимать соседа:
-[14. Тестировать фичу без соседей](./14-testing-features.md).
+[15. Тестировать фичу без соседей](./15-testing-features.md).

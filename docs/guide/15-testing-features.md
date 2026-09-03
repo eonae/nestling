@@ -12,16 +12,16 @@
 регистрации нужны сейчас. И наоборот: фичу нужно проверить одну, без
 соседей, так, чтобы тест не зависел от их кода и от брокера.
 
-Основа из главы [6](./06-testing.md) считается известной: `assembleTest`,
-`app.call`, `unwrap`, `overrides` и `vars`.
+Основа из главы [7](./07-testing.md) считается известной: `assembleTest`,
+`testApp.call`, `unwrap`, `overrides` и `vars`.
 
 ## Решение
 
 ### Соберите одну фичу
 
 ```typescript
-// шаг главы 14; итоговая версия: packages/examples.split-nats/src/isolated.spec.ts
-await using app = await assembleTest({
+// шаг главы 15; итоговая версия: packages/examples.split-nats/src/isolated.spec.ts
+await using testApp = await assembleTest({
   features: [UsersFeature, QuotasFeature],
   select: 'users',
 });
@@ -53,7 +53,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
     const claimed: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
 
-    await using app = await assembleTest({
+    await using testApp = await assembleTest({
       features: [UsersFeature, QuotasFeature],
       select: 'users',
       // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
@@ -82,7 +82,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 компилируется. Своего spy у стаба нет: в `impl` подходит обычная функция
 или `jest.fn()`.
 
-Список застабанных операций доступен как `app.stubbed`: имена по
+Список застабанных операций доступен как `testApp.stubbed`: имена по
 алфавиту.
 
 ### Стаб проверяется схемой операции
@@ -97,7 +97,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
   "isSuccess": false,
   "status": "BAD_REQUEST",
   "value": {
-    "code": "VALIDATION_FAILED",
+    "code": "bad_request",
     "details": [{ "message": "Invalid input: expected number, received undefined", "path": ["remaining"] }]
   }
 }
@@ -120,14 +120,14 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 
 Незадекларированный код останавливает тест ошибкой с именем операции,
 кодом и разрешённым набором. Исчерпанный `deadline` даёт
-`DEADLINE_EXCEEDED` до вызова `impl`, а `emit` команды всегда несёт
+`timeout` до вызова `impl`, а `emit` команды всегда несёт
 `idempotencyKey`, как у боевого порта.
 
 ### Вызовите команду или событие снаружи
 
 ```typescript
 // packages/examples.split-nats/src/isolated.spec.ts
-    const [{ subscriber, response }] = await app.emit(RegisterUser, {
+    const [{ subscriber, response }] = await testApp.emit(RegisterUser, {
       email: 'alice@example.com',
     });
 
@@ -139,7 +139,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
     ]);
 ```
 
-`app.emit(Operation, payload)` доставляет команду или событие каждому
+`testApp.emit(Operation, payload)` доставляет команду или событие каждому
 подписчику в этом процессе через его полный пайплайн и возвращает список
 доставок: имя подписчика и ответ. У события подписчиков может не быть,
 тогда список пуст. У команды подписчик обязателен: без него `emit`
@@ -154,7 +154,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 ```typescript
 // packages/examples.split-nats/src/isolated.spec.ts
   it('каждая застабанная операция реализована в одной из топологий', async () => {
-    await using app = await assembleTest({
+    await using testApp = await assembleTest({
       features: [UsersFeature, QuotasFeature],
       select: 'users',
       stubs: [
@@ -166,7 +166,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 
     // Матрица проверяет граф без подстановок: стаб операции, которой не
     // реализует ни одна топология, здесь станет виден
-    const topologies = await checkTopologies(rootSpec, [
+    const topologies = await checkTopologies(app, [
       'all',
       'users',
       'quotas',
@@ -178,17 +178,17 @@ a bus transport ('transports: [nats({ name: "events" })]' with
       ),
     );
 
-    expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
-    expect(app.stubbed).toEqual(['quotas.claim', 'users.registered']);
+    expect(testApp.stubbed.filter((name) => !published.has(name))).toEqual([]);
+    expect(testApp.stubbed).toEqual(['quotas.claim', 'users.registered']);
   });
 ```
 
 Стаб делает тестовый граф меньше боевого. Операцию, которую никто не
 реализует, стаб скроет. Поэтому рядом со стабами стоит проверка честного
 графа: `checkTopologies` собирает каждую топологию без подстановок и
-возвращает отчёт с полем `operations`. Тест сравнивает `app.stubbed` с
+возвращает отчёт с полем `operations`. Тест сравнивает `testApp.stubbed` с
 объединением опубликованных операций. Подробно матрицу разбирает глава
-[15](./15-select.md).
+[16](./16-select.md).
 
 ### Подставьте значение переменной контекста
 
@@ -196,19 +196,18 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 // packages/examples.app-with-http/src/app.spec.ts
   it('contextValue подставляет значение переменной в тестовом корне', async () => {
     const spy = spyLogger();
-    await using app = await assembleTest({
-      ...spec,
+    await using testApp = await assembleTest(app, {
       overrides: [[Logger$, spy.logger], contextValue(RequestId, 'req-fixed')],
     });
 
-    unwrap(await app.call(GetUser, { id: '1' }));
+    unwrap(await testApp.call(GetUser, { id: '1' }));
 
     expect(spy.lines).toContain('[req-fixed] byId 1');
   });
 ```
 
 Хранилище читает `requestId` ридером `Ctx(RequestId)` из главы
-[7](./07-logging.md). Ридер является узлом графа, поэтому подменяется тем
+[8](./08-logging.md). Ридер является узлом графа, поэтому подменяется тем
 же списком `overrides`. `contextValue(Variable, value)` даёт ридер с
 постоянным значением. Слой `observability` по-прежнему кладёт свой
 `requestId` в контекст, но сервис читает подставленное значение.
@@ -220,30 +219,29 @@ a bus transport ('transports: [nats({ name: "events" })]' with
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
-    await using app = await assembleTest({ ...spec, select: 'ops' });
+    await using testApp = await assembleTest(app, { select: 'ops' });
 
-    expect(app.get(Logger$)).not.toBeNull();
-    expect(app.get(SubscriptionRegistry)).not.toBeNull();
-    expect(app.get(ActivityHub)).toBeNull();
+    expect(testApp.get(Logger$)).not.toBeNull();
+    expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
+    expect(testApp.get(ActivityHub)).toBeNull();
   });
 
   it('замыкает выбор по вызываемым операциям', async () => {
-    await using app = await assembleTest({
-      ...spec,
+    await using testApp = await assembleTest(app, {
       select: { features: 'users', includeDeps: true },
     });
 
-    expect(app.features).toEqual(['users', 'quotas']);
+    expect(testApp.features).toEqual(['users', 'quotas']);
   });
 ```
 
-`app.get(token)` возвращает инстанс из собранного графа или `null`, если
-узла в графе нет. `app.features` перечисляет выбранные фичи после
+`testApp.get(token)` возвращает инстанс из собранного графа или `null`, если
+узла в графе нет. `testApp.features` перечисляет выбранные фичи после
 замыкания по вызовам.
 
 Семейство токенов целиком подменяет `familyOverride(Family, make)` в том
 же списке `overrides`; семейства появляются в главе
-[20](./20-token-families.md).
+[21](./21-token-families.md).
 
 ## Что гарантирует фреймворк
 
@@ -252,8 +250,8 @@ a bus transport ('transports: [nats({ name: "events" })]' with
   при каждом вызове.
 - Отказ из стаба обязан входить в `errors:` операции или в коды ядра.
   Незадекларированный код останавливает тест ошибкой, а не превращается в
-  `UnknownError`.
-- `request`-операция через `app.emit` не компилируется. Команда без
+  `InternalError`.
+- `request`-операция через `testApp.emit` не компилируется. Команда без
   подписчика в сборке даёт ошибку адресации со списком доступных
   subject'ов.
 - Подмена узла, которого нет в графе, останавливает сборку. Стаб
@@ -263,7 +261,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 ## Как проверить
 
 Файл `isolated.spec.ts` целиком состоит из тестов этой главы: сборка одной
-фичи, стабы с успехом и с отказом, `app.emit` и сверка `app.stubbed` с
+фичи, стабы с успехом и с отказом, `testApp.emit` и сверка `testApp.stubbed` с
 матрицей. Тесты `contextValue` и состава графа лежат в `app.spec.ts`
 примера `app-with-http`.
 
@@ -275,9 +273,9 @@ yarn workspace examples.app-with-http test
 ## Пока не нужно
 
 - Матрица топологий как проверка деплоя, отчёт `check()` и `detached`:
-  глава [15](./15-select.md).
+  глава [16](./16-select.md).
 - Снапшот операций и проверка совместимости: глава
-  [17](./17-compatibility.md).
+  [18](./18-compatibility.md).
 - Тест одной фичи или плагина без словаря сборки, `testUnit`:
   [README `@nestling/testing`](../../packages/nestling.testing/README.md).
 
@@ -285,8 +283,8 @@ yarn workspace examples.app-with-http test
 
 | Файл | Что показывает |
 |---|---|
-| `packages/examples.split-nats/src/isolated.spec.ts` | `select` одной фичи, `stubs`, `app.emit`, `app.stubbed` против `checkTopologies` |
-| `packages/examples.app-with-http/src/app.spec.ts` | `contextValue`, `app.get`, `app.features`, `select` в тесте |
+| `packages/examples.split-nats/src/isolated.spec.ts` | `select` одной фичи, `stubs`, `testApp.emit`, `testApp.stubbed` против `checkTopologies` |
+| `packages/examples.app-with-http/src/app.spec.ts` | `contextValue`, `testApp.get`, `testApp.features`, `select` в тесте |
 | `packages/examples.app-with-http/src/testing.ts` | фейк хранилища для `overrides` |
 
 ```bash
@@ -297,4 +295,4 @@ yarn workspace examples.app-with-http test
 ## Дальше
 
 Тесты собирают фичи по отдельности. Так же собирается и приложение в
-проде: [15. Запускать только часть фич](./15-select.md).
+проде: [16. Запускать только часть фич](./16-select.md).

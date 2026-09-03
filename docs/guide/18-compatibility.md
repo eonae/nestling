@@ -43,18 +43,18 @@ const readBaseline = (): OperationSnapshot =>
 /** Текущий состав операций: матрица топологий, сведённая в снапшот */
 const currentSnapshot = async (): Promise<OperationSnapshot> =>
   snapshotOperations(
-    await checkTopologies(spec, [...TOPOLOGIES], {
+    await checkTopologies(app, [...TOPOLOGIES], {
       converters: [zodConverter()],
     }),
   );
 ```
 
-Источник описаний тот же, что в главе [15](./15-select.md): отчёт
+Источник описаний тот же, что в главе [16](./16-select.md): отчёт
 `check()` каждой топологии содержит поле `operations` с дескрипторами
 опубликованных операций. Дескриптор описывает имя, вид, формы `input` и
 `output` и список отказов с кодами и статусами. Листовые схемы переводит
 в JSON Schema конвертер вендора: тот же `zodConverter`, что строит
-документ OpenAPI в главе [10](./10-openapi-and-client.md). Без
+документ OpenAPI в главе [11](./11-openapi-and-client.md). Без
 конвертера лист помечается непрозрачным, и сравнение по нему даёт
 вердикт `unknown`.
 
@@ -244,4 +244,4 @@ UPDATE_SNAPSHOT=1 yarn workspace examples.app-with-http test src/operations.comp
 Часть 4 закончена: приложение собирается в роли, разносится по процессам
 и проверяет совместимость операций. Часть 5 читается по потребности,
 начиная с webhook'а с проверкой подписи:
-[18. Webhook с проверкой подписи](./18-webhook.md).
+[19. Webhook с проверкой подписи](./19-webhook.md).

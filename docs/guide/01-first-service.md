@@ -4,12 +4,12 @@
 > Целевое описание: [design/composition.md](../design/composition.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-09-02] Модель композиции: фича,
-> плагин, операция» и «[2026-07-13] Endpoint-декларации: per-transport
-> конструкторы, `deps`-инжект, формы хендлера».
+> плагин, операция» и «[2026-09-03] Декларация приложения: `makeApp`,
+> `assemble(select)`, `AssembledApp`».
 
 ## Задача
 
-Вам нужен HTTP-сервис, который отвечает JSON на `GET /health`. Он должен
+Вам нужен HTTP-сервис, который отвечает JSON на `GET /users`. Он должен
 стартовать одной командой и останавливаться по `SIGTERM` без обрыва
 запросов, которые уже обрабатываются.
 
@@ -19,99 +19,111 @@
 
 ```typescript
 // шаг главы 1; итоговая версия: packages/examples.users-service/src/main.ts
-import { assemble, makeFeature } from '@nestling/app';
+import { makeApp, makeFeature } from '@nestling/app';
 import { http, httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
-const Health = httpEndpoint({
+const User = z.object({ id: z.string(), name: z.string() });
+
+const ListUsers = httpEndpoint({
   method: 'GET',
-  path: '/health',
-  output: z.object({ status: z.string() }),
-  handle: async () => ({ status: 'up' }),
+  path: '/users',
+  output: z.array(User),
+  handler: async () => [
+    { id: '1', name: 'Alice' },
+    { id: '2', name: 'Bob' },
+  ],
 });
 
-const UsersFeature = makeFeature({ name: 'users', endpoints: [Health] });
+const UsersFeature = makeFeature({ name: 'users', endpoints: [ListUsers] });
 
-await assemble({
+const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
-}).run();
+});
+
+await app.assemble().run();
 ```
 
-Приложение состоит из трёх значений.
+Приложение состоит из трёх значений плюс сборка.
 
-Декларация endpoint'а `Health` описывает адрес, схему ответа и хендлер.
-`httpEndpoint` собирает паттерн из `method` и `path`: `GET /health`. Схема
-`output` задаёт форму ответа и тип возвращаемого значения хендлера.
-Хендлер возвращает обычный объект, транспорт сериализует его в JSON.
+Декларация endpoint'а `ListUsers` описывает адрес, схему ответа и
+хендлер. `httpEndpoint` собирает паттерн из `method` и `path`:
+`GET /users`. Схема `output` задаёт форму ответа и тип возвращаемого
+значения хендлера. Хендлер возвращает обычный массив, транспорт
+сериализует его в JSON. Пользователи пока лежат в самом хендлере: откуда
+брать их из базы, показывает глава 5.
 
 Фича `UsersFeature` перечисляет endpoint'ы под своим именем. Пока фича
 одна, и приложение выглядит так, будто фич нет. Что даёт деление на фичи,
-показывает глава 11.
+показывает глава 12.
 
-Composition root `assemble` получает список фич и список транспортов.
-`http()` объявляет HTTP-транспорт: порт и хост он читает из своей секции
-конфига, по умолчанию `3000` и `0.0.0.0`. Вызов `run()` собирает граф,
-проверяет его, открывает сокет и ставит обработчики `SIGTERM` и `SIGINT`.
-По сигналу транспорт перестаёт принимать новые запросы, сообщает
-текущим об отмене через `meta.signal` и закрывается, когда они
+`makeApp` объявляет приложение: список фич и список транспортов. `http()`
+объявляет HTTP-транспорт: порт и хост он читает из своей секции конфига,
+по умолчанию `3000` и `0.0.0.0`. Декларация — значение: она ничего не
+читает и ничего не запускает.
+
+`app.assemble()` собирает приложение для этого процесса, `run()` строит
+граф, проверяет его, открывает сокет и ставит обработчики `SIGTERM` и
+`SIGINT`. По сигналу транспорт перестаёт принимать новые запросы,
+сообщает текущим об отмене через `meta.signal` и закрывается, когда они
 завершатся.
 
 ### Как это лежит в примере
 
-В итоговом примере каждое из трёх значений живёт в своём файле.
+В итоговом примере каждое значение живёт в своём файле.
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/health.endpoint.ts
-export const Health = httpEndpoint({
+// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+export const ListUsers = httpEndpoint({
   method: 'GET',
-  path: '/health',
-  output: z.object({ status: z.string() }),
-  detached:
-    'проба балансировщика: строка аудита на каждый запрос заслоняет полезные записи',
-  doc: { hidden: 'служебная проба, не часть публичного API' },
-  handle: async () => ({ status: 'up' }),
+  path: '/users',
+  output: z.array(User),
+  handler: ListUsersHandler,
 });
 ```
 
-Поля `detached` и `doc` относятся к политикам сборки и документу
-OpenAPI. Их объясняют главы 8 и 10.
+Хендлер здесь — класс, а не функция: так его удобнее тестировать и
+дополнять зависимостями. Классовую форму показывает глава 4, а пока
+достаточно знать, что поле `handler` принимает и функцию, и класс.
 
 ```typescript
 // packages/examples.users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
-    // … главы 4, 7 и 8
+    // … главы 5, 6 и 8
   ],
   endpoints: [
-    Health,
-    // … главы 2, 3 и 9
+    ListUsers,
+    // … главы 2, 3 и 10
   ],
 });
 ```
 
+Файл `app.ts` объявляет приложение и экспортирует одно значение — `app`:
+
 ```typescript
 // packages/examples.users-service/src/app.ts
-export const appSpec = {
+export const app = makeApp({
   features: [UsersFeature],
   plugins: [
-    // … глава 10
+    // … главы 11 и 23
   ],
   transports: [http()],
   policies: [
-    // … глава 8
+    // … глава 9
   ],
-};
+});
 ```
 
-Словарь сборки вынесен в `app.ts`, потому что его читают и точка входа,
-и тесты. Зачем тестам тот же словарь, объясняет глава 6.
+Файл `main.ts` импортирует `app` и запускает его. Других экспортов у него
+нет:
 
 ```typescript
 // packages/examples.users-service/src/main.ts
 async function main(): Promise<void> {
-  await assemble(appSpec).run();
+  await app.assemble().run();
 
   console.log('users-service: GET /health, GET /users, GET /openapi.json');
 }
@@ -123,6 +135,12 @@ main().catch((error: unknown) => {
 });
 ```
 
+Деление на два файла нужно потому, что декларацию читают не только точка
+входа: её же берут тесты (глава 7) и проверка топологий (глава 16).
+Аргумент `assemble(select)` выбирает, какие фичи поднимает этот процесс;
+до главы 16 он не нужен, и вызов остаётся пустым. Правила именования
+файлов собраны в [conventions.md](../conventions.md).
+
 ### Запуск
 
 ```bash
@@ -131,22 +149,21 @@ API_TOKEN=secret yarn workspace examples.users-service start:dev
 
 Переменная `API_TOKEN` нужна итоговому примеру: секция конфига объявляет
 её обязательной, и без неё приложение не стартует. Что это значит и
-откуда берутся остальные значения, объясняет глава 5. Пока задайте любую
+откуда берутся остальные значения, объясняет глава 6. Пока задайте любую
 строку.
 
 При старте приложение печатает состав сборки:
 
 ```
 [nestling] features: users; transports: http
-[nestling] detached from policies: GET /health (http) — проба балансировщика: …
 users-service: GET /health, GET /users, GET /openapi.json
 ```
 
 Проверьте ответ:
 
 ```bash
-curl localhost:3000/health
-# {"status":"up"}
+curl localhost:3000/users
+# [{"id":"1","name":"Alice"},{"id":"2","name":"Bob"}]
 ```
 
 ## Что гарантирует фреймворк
@@ -157,6 +174,9 @@ curl localhost:3000/health
 - Тип возвращаемого значения хендлера сверяется со схемой `output` в точке
   декларации. Хендлер, который возвращает объект другой формы, не
   компилируется.
+- `makeApp` проверяет декларацию при создании: бренды фич и плагинов,
+  повторяющиеся имена фич, перечень полей. Опечатка в словаре — ошибка на
+  импорте, а не на старте.
 - Сокет открывается после того, как граф собран и проверен. Транспорт
   не может принять запрос раньше, чем готова таблица маршрутов: у него нет
   метода запуска без неё.
@@ -164,25 +184,26 @@ curl localhost:3000/health
 ## Как проверить
 
 Тесты, которые вызывают endpoint без открытия сокета, появляются в
-главе 6. Для первой главы достаточно `curl` из раздела «Запуск».
+главе 7. Для первой главы достаточно `curl` из раздела «Запуск».
 
 ## Пока не нужно
 
-- Пайплайн, то есть код до и после хендлера: глава 7.
-- Зависимости хендлера и провайдеры: глава 4.
-- Конфиг и переменные окружения: глава 5.
-- Поля `detached` и `doc` у `Health`: главы 8 и 10.
+- Пайплайн, то есть код до и после хендлера: глава 8.
+- Хендлер как класс: глава 4.
+- Зависимости хендлера и провайдеры: глава 5.
+- Конфиг и переменные окружения: глава 6.
+- Выбор фич в `assemble(select)`: глава 16.
 
 ## Запускаемый код
 
-- `packages/examples.users-service/src/users/endpoints/health.endpoint.ts`
+- `packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts`
 - `packages/examples.users-service/src/users.feature.ts`
 - `packages/examples.users-service/src/app.ts`
 - `packages/examples.users-service/src/main.ts`
 
 ```bash
 API_TOKEN=secret yarn workspace examples.users-service start:dev
-curl localhost:3000/health
+curl localhost:3000/users
 ```
 
 ## Дальше

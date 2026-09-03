@@ -21,14 +21,10 @@
 ### Объявите шину и назначьте ей роль
 
 ```typescript
-// packages/examples.split-nats/src/root.ts
-export function makeRoot(
-  select: FeatureSelection,
-  transport: NatsTransportOptions = {},
-): App {
-  return assemble({
+// packages/examples.split-nats/src/app.ts
+export function declareApp(transport: NatsTransportOptions = {}): App {
+  return makeApp({
     features: [UsersFeature, QuotasFeature],
-    select,
     // Шина приложения — обычный транспорт. `intercom:` назначает ему роль
     // переносчика операций между процессами: вызов операции, владелец
     // которой не выбран в этой сборке, уходит через этот транспорт
@@ -36,7 +32,14 @@ export function makeRoot(
     intercom: 'events',
   });
 }
+
+/** Приложение: то же значение для `main.ts`, тестов и проверки топологий */
+export const app = declareApp();
 ```
+
+Декларация одна на все процессы развёртывания: между ними меняется
+только аргумент `app.assemble(select)`. Функция `declareApp` нужна тесту:
+он передаёт в транспорт соединение с двойником брокера.
 
 `nats({ name })` объявляет транспорт так же, как `http()`. Адрес брокера
 транспорт читает из своей секции конфига: ключ `NATS_SERVERS`, по
@@ -45,9 +48,9 @@ export function makeRoot(
 между фичами доставляет шина внутри процесса. После назначения её место
 занимает брокер: шина в приложении одна.
 
-Корень один на все процессы. Роль процесса задаёт `select`, который
+Декларация одна на все процессы. Роль процесса задаёт выбор фич, который
 `main.ts` читает из `APP_FEATURES` до сборки, как в главе
-[15](./15-select.md).
+[16](./16-select.md).
 
 ### Оставьте код фич как есть
 
@@ -81,12 +84,12 @@ export class RegistrationService {
 зависит от вызывателя и эмиттера, а не от сервисов соседней фичи. Куда
 уходит вызов, решает сборка.
 
-При `select: 'users'` владельца `quotas.claim` в процессе нет. Сборка
+При выборе `'users'` владельца `quotas.claim` в процессе нет. Сборка
 привязывает `ClaimQuota.caller` к удалённому вызывателю: вызов уходит на
 брокер как запрос с ожиданием ответа, а объявленный отказ `QuotaExceeded`
 возвращается тем же `Fail`, что и при вызове внутри процесса. Реплики
 владельца образуют queue-group, и каждое сообщение получает одна из них.
-При `select: 'all'` обе фичи работают в одном процессе, запрос
+При выборе `'all'` обе фичи работают в одном процессе, запрос
 выполняется напрямую, а событие всё равно уходит через брокер: его
 подписчики могут быть в других процессах.
 
@@ -115,17 +118,19 @@ export const UserRegistered = makeEvent({
       // и durable-потребителя
       subscriber: 'archive',
       pipeline: makePipeline().pre(TenantId.propagated()),
-      deps: [QuotaLedger],
-      handle: (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
-        ledger.archive(payload.id);
+      handler: {
+        deps: [QuotaLedger],
+        handle: (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
+          ledger.archive(payload.id);
 
-        // eslint-disable-next-line unicorn/no-useless-undefined
-        return undefined;
+          // eslint-disable-next-line unicorn/no-useless-undefined
+          return undefined;
+        },
       },
     }),
 ```
 
-Имя подписчика из главы [12](./12-events.md) здесь получает вторую
+Имя подписчика из главы [13](./13-events.md) здесь получает вторую
 работу: у брокера оно становится именем durable-потребителя. Долговечность
 объявлена в операции, а не в корне, потому что о ней должны знать обе
 стороны: издатель ждёт подтверждения записи, подписчик читает из потока.
@@ -150,15 +155,17 @@ export const TenantId = contextVar<string>()('tenantId', { propagate: true });
       // Арендатор приходит в конверте сообщения. Юнит кладёт его в контекст
       // запроса, откуда вызыватель `quotas.claim` передаст его дальше
       pipeline: makePipeline().pre(TenantId.propagated()),
-      deps: [RegistrationService],
-      handle:
-        (registration: RegistrationService) =>
-        async (payload: RegisterUserInput) => {
-          await registration.register(payload.email);
+      handler: {
+        deps: [RegistrationService],
+        handle:
+          (registration: RegistrationService) =>
+          async (payload: RegisterUserInput) => {
+            await registration.register(payload.email);
 
-          // eslint-disable-next-line unicorn/no-useless-undefined
-          return undefined;
-        },
+            // eslint-disable-next-line unicorn/no-useless-undefined
+            return undefined;
+          },
+      },
     }),
 ```
 
@@ -184,7 +191,7 @@ export class QuotaLedger {
 ```
 
 Сервис читает арендатора ридером `Ctx(TenantId)`, как репозиторий читал
-`requestId` в главе [7](./07-logging.md). Ридер объявляется в
+`requestId` в главе [8](./08-logging.md). Ридер объявляется в
 зависимостях провайдера. Значение прошло два перехода: внешний клиент
 положил его в заголовок, процесс `users` прочитал и передал дальше при
 вызове `quotas.claim`, процесс `quotas` прочитал снова.
@@ -274,34 +281,35 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
   });
 ```
 
-`run` создаёт по приложению на каждый `select` тем же `makeRoot`, передав
-в опции транспорта соединение с двойником. `broker.published` хранит все
+`run` создаёт по приложению на каждый выбор фич: `declareApp` с
+соединением к двойнику, затем `assemble(select)` на каждую роль.
+`broker.published` хранит все
 отправленные сообщения с заголовками: по нему тест проверяет subject'ы и
 арендатора в `Nl-Ctx`, а через `broker.jetstreamManager()` находит поток
-`nestling_users_registered`. Второй тест того же файла поднимает
-`select: 'all'` и проверяет, что `quotas.claim` на брокер не выходит.
+`nestling_users_registered`. Второй тест того же файла поднимает выбор
+`'all'` и проверяет, что `quotas.claim` на брокер не выходит.
 Третий собирает процесс `users` без владельца `quotas.claim` и
 убеждается, что сборка проходит.
 
 ## Пока не нужно
 
 - Проверка, что изменение операции не сломает соседний процесс: снапшот
-  операций и `diffOperations` в главе [17](./17-compatibility.md).
+  операций и `diffOperations` в главе [18](./18-compatibility.md).
 - Список открытых подписок и их принудительное закрытие: глава
-  [22](./22-ops.md).
+  [23](./23-ops.md).
 
 ## Запускаемый код
 
 | Файл | Что показывает |
 |---|---|
-| `packages/examples.split-nats/src/root.ts` | один корень на все процессы: `nats()` и `intercom:` |
+| `packages/examples.split-nats/src/app.ts` | одна декларация на все процессы: `nats()` и `intercom:` |
 | `packages/examples.split-nats/src/main.ts` | выбор фич из `APP_FEATURES` до сборки |
 | `packages/examples.split-nats/src/operations.ts` | команда, запрос и событие с `durable: true` |
 | `packages/examples.split-nats/src/context.ts` | переменная контекста с `propagate: true` |
 | `packages/examples.split-nats/src/users.ts` | фича без знания о транспорте и процессах |
 | `packages/examples.split-nats/src/quotas.ts` | владелец запроса и durable-подписчик, чтение контекста в сервисе |
 | `packages/examples.split-nats/src/split.spec.ts` | две топологии на двойнике брокера |
-| `packages/examples.split-nats/src/isolated.spec.ts` | фича без соседа и без брокера, глава [14](./14-testing-features.md) |
+| `packages/examples.split-nats/src/isolated.spec.ts` | фича без соседа и без брокера, глава [15](./15-testing-features.md) |
 
 ```bash
 yarn workspace examples.split-nats test
@@ -312,4 +320,4 @@ APP_FEATURES=all yarn workspace examples.split-nats start:dev
 
 Операция стала границей между процессами, и её изменение теперь может
 сломать соседний сервис. Как заметить это до выкладки, показывает глава
-[17. Не сломать соседей при изменении операции](./17-compatibility.md).
+[18. Не сломать соседей при изменении операции](./18-compatibility.md).

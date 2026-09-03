@@ -8,7 +8,7 @@
 
 ## Задача
 
-У сервиса есть лента по SSE из [главы 13](./13-live-feed.md), и клиенты
+У сервиса есть лента по SSE из [главы 14](./14-live-feed.md), и клиенты
 держат её открытой часами. Эксплуатации нужно видеть список открытых
 подписок этого процесса, закрывать зависшую подписку по идентификатору и
 наблюдать открытия и закрытия в реальном времени. Хендлер ленты при этом
@@ -19,12 +19,12 @@
 Реестр подписок живёт в отдельном пакете `@nestling/subscriptions`. Он
 написан на публичных примитивах ядра и подключается как плагин; ядро о
 нём не знает. Как устроен такой пакет, разбирает
-[глава 24](./24-extending.md).
+[глава 25](./25-extending.md).
 
 ### Шаг 1. Плагин в корне
 
 ```typescript
-// packages/examples.app-with-http/src/root.ts
+// packages/examples.app-with-http/src/app.ts
 import { subscriptions } from '@nestling/subscriptions';
 // …
 
@@ -35,7 +35,7 @@ export const appSubscriptions = subscriptions({
   node: 'app-with-http',
 });
 
-export const rootSpec = {
+export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   plugins: [
     appLogging,
@@ -44,12 +44,12 @@ export const rootSpec = {
     // …
   ],
   // …
-};
+});
 ```
 
 `subscriptions(options)` возвращает плагин. Значение создаётся один раз и
 перечисляется в `plugins:`, как плагин логирования из
-[главы 11](./11-features.md).
+[главы 12](./12-features.md).
 
 Опции описывают решения композиции. `identity` вычисляет подписчика из
 контекста запроса: здесь это `requestId` слоя `observability`, в
@@ -72,25 +72,27 @@ export const ActivityStream = httpEndpoint({
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
   pipeline: compose(observability, tracked),
-  deps: [ActivityHub],
-  handle:
-    (hub: ActivityHub) =>
-    async (
-      _payload: unknown,
-      meta: { subscription: TrackedSubscription; lastEventId?: string },
-    ): Output<AsyncIterable<ActivityEvent>> => {
-      // Настоящая лента отдала бы историю с этого места
-      const since = meta.lastEventId ?? '0';
+  handler: {
+    deps: [ActivityHub],
+    handle:
+      (hub: ActivityHub) =>
+      async (
+        _payload: unknown,
+        meta: { subscription: TrackedSubscription; lastEventId?: string },
+      ): Output<AsyncIterable<ActivityEvent>> => {
+        // Настоящая лента отдала бы историю с этого места
+        const since = meta.lastEventId ?? '0';
 
-      return new Ok(hub.subscribe(meta.subscription.signal, since));
-    },
+        return new Ok(hub.subscribe(meta.subscription.signal, since));
+      },
+  },
 });
 ```
 
 `tracked` — слой пайплайна из пакета. Его `.pre`-юнит регистрирует
 подписку в реестре до вызова хендлера, а `.finally`-юнит снимает запись,
 когда поток закрылся. Слой добавляется через `compose`, как любой
-сквозной слой из [главы 7](./07-logging.md).
+сквозной слой из [главы 8](./08-logging.md).
 
 Слой кладёт в контекст поле `subscription` с идентификатором записи и
 сигналом. Хендлер слушает `meta.subscription.signal`, а не `meta.signal`.
@@ -115,10 +117,12 @@ export const ListSubscriptions = httpEndpoint({
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
   pipeline: observability,
-  deps: [SubscriptionRegistry],
-  handle:
-    (registry: SubscriptionRegistry) => async (): Output<Subscription[]> =>
-      registry.list().map((info) => toWire(info)),
+  handler: {
+    deps: [SubscriptionRegistry],
+    handle:
+      (registry: SubscriptionRegistry) => async (): Output<Subscription[]> =>
+        registry.list().map((info) => toWire(info)),
+  },
 });
 ```
 
@@ -133,18 +137,20 @@ export const KillSubscription = httpEndpoint({
   path: '/ops/subscriptions/:id',
   input: z.object({ id: z.string() }),
   errors: [SubscriptionNotFound, Unauthorized],
-  doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'NO_CONTENT' },
+  doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
   pipeline: authed,
-  deps: [SubscriptionRegistry],
-  handle:
-    (registry: SubscriptionRegistry) =>
-    async (payload: {
-      id: string;
-    }): Output<null, FailOf<typeof SubscriptionNotFound>> => {
-      const killed = registry.abort(payload.id, 'administrative kill');
+  handler: {
+    deps: [SubscriptionRegistry],
+    handle:
+      (registry: SubscriptionRegistry) =>
+      async (payload: {
+        id: string;
+      }): Output<null, typeof SubscriptionNotFound> => {
+        const killed = registry.abort(payload.id, 'administrative kill');
 
-      return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
-    },
+        return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
+      },
+  },
 });
 ```
 
@@ -166,23 +172,25 @@ export const WatchSubscriptions = httpEndpoint({
   },
   doc: { summary: 'Лента изменений реестра подписок (SSE)', tags: ['ops'] },
   pipeline: compose(observability, tracked),
-  deps: [SubscriptionRegistry],
-  handle:
-    (registry: SubscriptionRegistry) =>
-    async (
-      _payload: unknown,
-      meta: { subscription: TrackedSubscription },
-    ): Output<AsyncIterable<SubscriptionChange>> => {
-      const feed = registry.watch(meta.subscription.signal);
+  handler: {
+    deps: [SubscriptionRegistry],
+    handle:
+      (registry: SubscriptionRegistry) =>
+      async (
+        _payload: unknown,
+        meta: { subscription: TrackedSubscription },
+      ): Output<AsyncIterable<SubscriptionChange>> => {
+        const feed = registry.watch(meta.subscription.signal);
 
-      return new Ok(
-        (async function* () {
-          for await (const event of feed) {
-            // …
-          }
-        })(),
-      );
-    },
+        return new Ok(
+          (async function* () {
+            for await (const event of feed) {
+              // …
+            }
+          })(),
+        );
+      },
+  },
 });
 ```
 
@@ -197,42 +205,44 @@ export const WatchSubscriptions = httpEndpoint({
 // packages/examples.app-with-http/src/features/ops/subscription-facts.ts
 export const SubscriptionOpenedInOps = implement(SubscriptionOpened, {
   subscriber: 'ops',
-  deps: [Logger$],
-  handle:
-    (logger: Logger) =>
-    async (payload: {
-      node?: string;
-      id: string;
-      transport: string;
-      pattern: string;
-    }) => {
-      logger.log(
-        `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
-          `(${payload.transport} ${payload.pattern})`,
-      );
+  handler: {
+    deps: [Logger$],
+    handle:
+      (logger: Logger) =>
+      async (payload: {
+        node?: string;
+        id: string;
+        transport: string;
+        pattern: string;
+      }) => {
+        logger.log(
+          `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
+            `(${payload.transport} ${payload.pattern})`,
+        );
 
-      // eslint-disable-next-line unicorn/no-useless-undefined
-      return undefined;
-    },
+        // eslint-disable-next-line unicorn/no-useless-undefined
+        return undefined;
+      },
+  },
 });
 ```
 
 С `publish: true` реестр публикует события `subscriptions.opened` и
 `subscriptions.closed` как обычные операции вида `event` из
-[главы 12](./12-events.md). Фича `ops` подписана на оба через
+[главы 13](./13-events.md). Фича `ops` подписана на оба через
 `implement` с именем подписчика. Реестр локален для процесса, а факты
-уходят на шину: в split-развёртывании из [главы 16](./16-split.md) один
+уходят на шину: в split-развёртывании из [главы 17](./17-split.md) один
 процесс собирает картину по всем узлам, и поле `node` говорит, где
 подписка открыта. Закрыть подписку в другом процессе через `abort` нельзя.
 
 ### Шаг 5. Проба живости в той же фиче
 
-`Health` с `detached` и `doc.hidden` из [главы 8](./08-auth.md) лежит
+`CheckHealth` с `detached` и `doc.hidden` из [главы 9](./09-auth.md) лежит
 в той же фиче `ops` (`features/ops/ops.feature.ts`): это endpoint для
 инфраструктуры, а не для пользователя API. Своих провайдеров у фичи
 нет, `providers: []`.
 Фича `ops` входит в любую топологию и выбирается явно, как показывает
-[глава 15](./15-select.md).
+[глава 16](./16-select.md).
 
 ### Запросы
 
@@ -286,28 +296,27 @@ data: {"type":"closed","reason":"killed","subscription":{"id":"86cc…",…,"ite
   выполняется после завершения отдачи.
 - Что слой стоит на каждом endpoint'е с подпиской, проверяется политикой
   `everyEndpoint({ pattern: /\/live$/ }).hasLayer(tracked)`, как в
-  [главе 8](./08-auth.md). В примере такой политики нет: слой подключён
+  [главе 9](./09-auth.md). В примере такой политики нет: слой подключён
   на обоих `events`-endpoint'ах вручную.
 - Пакет не тянет валидатор схем и не требует правок ядра. Схемы фактов
   аннотированы `jsonSchema()`, поэтому они попадают в документ OpenAPI и в
-  снапшот совместимости из [главы 17](./17-compatibility.md).
+  снапшот совместимости из [главы 18](./18-compatibility.md).
 
 ## Как проверить
 
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
 it('показывает подписку, завершает её и удаляет запись', async () => {
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
   const subscription = streamOf<{ kind: string }>(
-    await app.call(ActivityStream),
+    await testApp.call(ActivityStream),
   );
 
   // Подписка видна в списке до того, как отдан первый элемент
-  const [listed] = unwrap(await app.call(ListSubscriptions));
+  const [listed] = unwrap(await testApp.call(ListSubscriptions));
   expect(listed).toMatchObject({
     transport: 'http',
     pattern: 'GET /users/activity',
@@ -318,15 +327,15 @@ it('показывает подписку, завершает её и удаля
   unwrap(await createUser(app, 'subscriber'));
   const delivered = await subscription.next();
   expect(delivered.value).toMatchObject({ kind: 'created' });
-  expect(unwrap(await app.call(ListSubscriptions))[0].itemsOut).toBe(1);
+  expect(unwrap(await testApp.call(ListSubscriptions))[0].itemsOut).toBe(1);
 
   // Администратор завершает подписку: поток закрывается сам
-  const killed = await app.call(
+  const killed = await testApp.call(
     KillSubscription,
     { id: listed.id },
     asClient,
   );
-  expect(killed.status).toBe('NO_CONTENT');
+  expect(killed.status).toBe('no_content');
 
   const tail: unknown[] = [];
   for await (const event of subscription) {
@@ -335,11 +344,11 @@ it('показывает подписку, завершает её и удаля
   expect(tail).toEqual([]);
 
   // Запись снял `.finally` пайплайна, когда поток закрылся
-  expect(unwrap(await app.call(ListSubscriptions))).toEqual([]);
+  expect(unwrap(await testApp.call(ListSubscriptions))).toEqual([]);
 });
 ```
 
-App-тест проходит весь сценарий без сокета: `app.call` на
+App-тест проходит весь сценарий без сокета: `testApp.call` на
 `events`-endpoint'е возвращает итератор, список показывает запись до
 первого элемента, `KillSubscription` закрывает поток, и итерация
 завершается сама. Два других теста того же `describe` проверяют отказ
@@ -353,14 +362,14 @@ yarn workspace examples.app-with-http test
 ## Пока не нужно
 
 - Как пакет вроде `@nestling/subscriptions` пишется без правок ядра и
-  что для этого должно быть публичным: [глава 24](./24-extending.md).
+  что для этого должно быть публичным: [глава 25](./25-extending.md).
 - Закрытие подписки в другом процессе. Реестр локален для узла, а
   наблюдение кластерное через факты. Тема отложена, см.
   [deferred.md](../decisions/deferred.md).
 
 ## Запускаемый код
 
-- `packages/examples.app-with-http/src/root.ts` — плагин
+- `packages/examples.app-with-http/src/app.ts` — плагин
   `appSubscriptions`.
 - `packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts`
   — подписка под слоем `tracked`.
@@ -381,5 +390,5 @@ curl localhost:3000/ops/subscriptions
 
 ## Дальше
 
-Те же примитивы без `assemble`: встраивание в чужой сервер и контейнер
-без приложения, [глава 23](./23-standalone.md).
+Те же примитивы без `makeApp`: встраивание в чужой сервер и контейнер
+без приложения, [глава 24](./24-standalone.md).

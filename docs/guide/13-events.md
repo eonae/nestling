@@ -38,7 +38,7 @@ export const UserRegistered = makeEvent({
 У события есть имя и схема `input`, а `output` и `errors` нет: ответа
 у факта не бывает. Подписчиков у события может быть сколько угодно,
 включая ноль. Событие лежит в том же файле, что запрос `ClaimQuota` из
-[главы 11](./11-features.md).
+[главы 12](./12-features.md).
 
 ### Шаг 2. Подписчик
 
@@ -46,12 +46,14 @@ export const UserRegistered = makeEvent({
 // packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
 export const UserRegisteredInQuotas = implement(UserRegistered, {
   subscriber: 'quotas',
-  deps: [Logger$],
-  handle: (logger: Logger) => async (payload: UserRegisteredInput) => {
-    logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
+  handler: {
+    deps: [Logger$],
+    handle: (logger: Logger) => async (payload: UserRegisteredInput) => {
+      logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
 
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
+      // eslint-disable-next-line unicorn/no-useless-undefined
+      return undefined;
+    },
   },
 });
 ```
@@ -68,7 +70,7 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 `return undefined` с отключённым правилом линтера.
 
 Подписчик перечисляется в `endpoints:` фичи рядом с реализацией
-запроса; список из [главы 11](./11-features.md) уже содержит его.
+запроса; список из [главы 12](./12-features.md) уже содержит его.
 
 ### Шаг 3. Публикация
 
@@ -84,7 +86,7 @@ export const createUserHandler =
   ) =>
   async (
     payload: CreateUserInput,
-  ): Output<User, FailOf<typeof EmailTaken> | FailOf<typeof QuotaExceeded>> => {
+  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> => {
     // …
     const user = await users.insert({
       name: payload.name,
@@ -100,14 +102,16 @@ export const createUserHandler =
 export const CreateUser = httpEndpoint({
   operation: CreateUserOperation,
   pipeline: authed,
-  deps: [
-    UsersRepository$,
-    ClaimQuota.caller,
-    UserRegistered.emitter,
-    SignupRecorded.emitter,
-    ActivityHub,
-  ],
-  handle: createUserHandler,
+  handler: {
+    deps: [
+      UsersRepository$,
+      ClaimQuota.caller,
+      UserRegistered.emitter,
+      SignupRecorded.emitter,
+      ActivityHub,
+    ],
+    handle: createUserHandler,
+  },
 });
 ```
 
@@ -167,12 +171,14 @@ export const SignupRecorded = makeCommand({
 // packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
 export const SignupRecordedImpl = implement(SignupRecorded, {
   pipeline: makePipeline().pre(withIdempotencyKey()),
-  deps: [SignupJournal],
-  handle: (journal: SignupJournal) => async (payload: SignupRecordedInput) => {
-    journal.record(payload.userId);
+  handler: {
+    deps: [SignupJournal],
+    handle: (journal: SignupJournal) => async (payload: SignupRecordedInput) => {
+      journal.record(payload.userId);
 
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
+      // eslint-disable-next-line unicorn/no-useless-undefined
+      return undefined;
+    },
   },
 });
 ```
@@ -196,14 +202,14 @@ export class SignupJournal {
 `withIdempotencyKey()` — готовый pre-юнит из `@nestling/ports`: он
 берёт ключ из параметров вызова и объявляет переменную контекста
 `IdempotencyKey`. Журнал читает её через `Ctx(IdempotencyKey)` так же,
-как хранилище читало `RequestId` в [главе 7](./07-logging.md).
+как хранилище читало `RequestId` в [главе 8](./08-logging.md).
 Дедупликацию по ключу пример не делает: ядро доставляет ключ до
 обработчика, а что с ним делать, решает владелец команды.
 
 Что юнит стоит в пайплайне реализации, проверяет политика:
 
 ```typescript
-// packages/examples.app-with-http/src/root.ts
+// packages/examples.app-with-http/src/app.ts
     // Реализация команды регистрации кладёт ключ идемпотентности в
     // контекст: сервис в глубине графа читает его через `Ctx`
     everyEndpoint({
@@ -212,7 +218,7 @@ export class SignupJournal {
     }).hasVar(IdempotencyKey, 'idempotencyKey'),
 ```
 
-Политики из [главы 8](./08-auth.md) отбирали endpoint'ы HTTP-транспорта.
+Политики из [главы 9](./09-auth.md) отбирали endpoint'ы HTTP-транспорта.
 Здесь фильтр указывает на транспорт шины `BusTransport$` и паттерн
 команды, а проверка `hasVar` требует, чтобы пайплайн объявлял
 переменную. Без `withIdempotencyKey()` сборка остановится.
@@ -229,7 +235,7 @@ export class SignupJournal {
 займётся ли место в квоте. Событие подходит, когда факт уже случился и
 кому он нужен, решают подписчики. Команда подходит, когда получатель
 ровно один и повтор доставки нужно отличать от нового намерения. Признак
-`durable` объясняет [глава 16](./16-split.md).
+`durable` объясняет [глава 17](./17-split.md).
 
 ### Что видно в логе
 
@@ -254,7 +260,7 @@ curl -X POST localhost:3000/users \
 пришёл идентификатор пользователя. Подписчик и журнал работают в
 собственном контексте запроса: значения контекста вызывающего, включая
 `requestId`, в реализацию не попадают. Как передать значение через
-границу вызова, показывает [глава 16](./16-split.md).
+границу вызова, показывает [глава 17](./17-split.md).
 
 ## Что гарантирует фреймворк
 
@@ -276,8 +282,7 @@ curl -X POST localhost:3000/users \
 // packages/examples.app-with-http/src/app.spec.ts
 it('доставляет ключ идемпотентности команды до сервиса в глубине', async () => {
   const spy = spyLogger();
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [
       [UsersRepository$, inMemoryUsersRepo()],
       [Logger$, spy.logger],
@@ -306,11 +311,11 @@ it('доставляет ключ идемпотентности команды 
 
 - Доставка, которая переживает перезапуск подписчика, признак `durable`
   и передача значений контекста через границу вызова:
-  [глава 16](./16-split.md).
+  [глава 17](./17-split.md).
 - Подписка на события чужого пакета, например факты реестра подписок:
-  [глава 22](./22-ops.md).
+  [глава 23](./23-ops.md).
 - Проверка, что изменение схемы события не сломало подписчиков:
-  [глава 17](./17-compatibility.md).
+  [глава 18](./18-compatibility.md).
 
 ## Запускаемый код
 
@@ -322,7 +327,7 @@ it('доставляет ключ идемпотентности команды 
   — чтение ключа через `Ctx(IdempotencyKey)`.
 - `packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts`
   — `emit` события и команды.
-- `packages/examples.app-with-http/src/root.ts` — политика `hasVar`.
+- `packages/examples.app-with-http/src/app.ts` — политика `hasVar`.
 - `packages/examples.app-with-http/src/app.spec.ts` — тест ключа
   идемпотентности.
 
@@ -337,4 +342,4 @@ curl -X POST localhost:3000/users \
 ## Дальше
 
 О новом пользователе хочет знать не только сосед по процессу, но и
-клиент в браузере: [13. Живая лента для клиента](./13-live-feed.md).
+клиент в браузере: [14. Живая лента для клиента](./14-live-feed.md).

@@ -1,4 +1,4 @@
-# 23. Без `assemble`
+# 24. Без `makeApp`
 
 > Гайд по текущему API; сверено с кодом `examples.simple-http-server` (2026-09-03)
 > и `examples.container` (2026-09-03).
@@ -14,7 +14,7 @@
 Приложение целиком не нужно. Нужно встроить несколько endpoint'ов в
 существующий процесс или скрипт, или собрать граф зависимостей без
 транспорта, например для экспорта в визуализацию. Оба случая решаются
-теми же примитивами, из которых состоит `assemble`.
+теми же примитивами, из которых состоит сборка приложения.
 
 ## Решение
 
@@ -54,7 +54,7 @@ process.on('SIGTERM', () => void stop('SIGTERM'));
 process.on('SIGINT', () => void stop('SIGINT'));
 ```
 
-Три шага, которые `assemble` делает на фазах WIRE и START, здесь написаны
+Три шага, которые сборка делает на фазах WIRE и START, здесь написаны
 руками. `makeDispatch` строит таблицу «паттерн, хендлер» из деклараций.
 `serve(dispatch, signal)` открывает сокет и начинает принимать запросы.
 Остановку по сигналу процесса корень вешает сам: сигнал прерывает
@@ -62,7 +62,7 @@ process.on('SIGINT', () => void stop('SIGINT'));
 
 `makeDispatch` принимает только декларации без `deps`, класс-хендлеров
 и классов-юнитов. Декларации с зависимостями сначала получают их через
-`endpoint.resolve(...)`; под `assemble` это делает контейнер. Читать
+`endpoint.resolve(...)`; в собранном приложении это делает контейнер. Читать
 `process.env` в корне здесь допустимо: секции конфига без ядра конфигурации
 нет.
 
@@ -76,9 +76,9 @@ export const CreateUser = httpEndpoint({
   input: CreateUserInput,
   output: CreateUserOutput,
   errors: [EmailTaken],
-  handle: async (
+  handler: async (
     input: CreateUserInput,
-  ): Output<CreateUserOutput, FailOf<typeof EmailTaken>> => {
+  ): Output<CreateUserOutput, typeof EmailTaken> => {
     if (taken.has(input.email)) {
       return EmailTaken({ email: input.email });
     }
@@ -107,7 +107,7 @@ export const SayHello = httpEndpoint({
   path: '/',
   output: SayHelloOutput,
   pipeline: makePipeline().pre(withStartedAt),
-  handle: async (_payload, meta) => ({
+  handler: async (_payload, meta) => ({
     message: 'Hello from Nestling',
     startedAt: new Date(meta.startedAt).toISOString(),
   }),
@@ -127,7 +127,7 @@ curl -N localhost:3000/logs/export
 ```
 
 Первый запрос отвечает `{"message":"Hello from Nestling","startedAt":"…"}`.
-Второй возвращает 409 с кодом `EMAIL_TAKEN`. Третий отдаёт NDJSON из
+Второй возвращает 409 с кодом `conflict:email_taken`. Третий отдаёт NDJSON из
 формы `stream(T)`.
 
 ### Контейнер без приложения
@@ -150,11 +150,11 @@ export const makeContainer = async (
 };
 ```
 
-`ContainerBuilder` собирает тот же граф, что `assemble` в `main.ts` того
+`ContainerBuilder` собирает тот же граф, что `makeApp` в `main.ts` того
 же примера, но без фаз приложения и транспортов. Ядро конфигурации, которое
-`assemble` регистрирует сам, здесь подключается вызовом `configKernel` с
+сборка регистрирует сама, здесь подключается вызовом `configKernel` с
 привязкой источников к ключам секций, как в главе
-[21](./21-config-sources.md). Плагин логирования регистрируется своими
+[22](./22-config-sources.md). Плагин логирования регистрируется своими
 модулями: `appLogging.modules` — обычный массив значений. `build()`
 создаёт все провайдеры сразу и проверяет граф.
 
@@ -261,5 +261,5 @@ yarn workspace examples.container export-metadata && yarn workspace examples.con
 
 ## Дальше
 
-Глава [24. Расширить ядро своим пакетом](./24-extending.md) показывает,
+Глава [25. Расширить ядро своим пакетом](./25-extending.md) показывает,
 как поверх тех же публичных примитивов пишется отдельный пакет.

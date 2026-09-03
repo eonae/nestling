@@ -14,7 +14,7 @@
 подпись. Хендлер при этом должен получить payload, разобранный и
 проверенный схемой, как у любого другого endpoint'а. Bearer-токена у
 внешней системы нет, поэтому политика «каждый `POST` проверяет токен» из
-[главы 8](./08-auth.md) к этому endpoint'у не применима.
+[главы 9](./09-auth.md) к этому endpoint'у не применима.
 
 ## Решение
 
@@ -22,13 +22,13 @@
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/users.errors.ts
-export const InvalidSignature = defineFail('INVALID_SIGNATURE', {
-  status: 'UNAUTHORIZED',
+export const InvalidSignature = makeFail('unauthorized:invalid_signature', {
+  status: 'unauthorized',
   message: 'Webhook signature does not match the body',
 });
 ```
 
-Отказ объявлен так же, как остальные отказы фичи. Статус `UNAUTHORIZED`
+Отказ объявлен так же, как остальные отказы фичи. Статус `unauthorized`
 транспорт переводит в `401`.
 
 ### Шаг 2. Секрет в секции конфига
@@ -43,7 +43,7 @@ export const AppConfig = makeConfig('app', {
 
 Секрет читается из `WEBHOOK_SECRET`. Поле обязательно: без него
 приложение не стартует. `secret()` скрывает значение в печати секции и в
-тексте ошибок, как в [главе 5](./05-config.md).
+тексте ошибок, как в [главе 6](./06-config.md).
 
 ### Шаг 3. Pre-юнит, который проверяет подпись
 
@@ -74,7 +74,7 @@ export class VerifySignature {
 ```
 
 `VerifySignature` устроен так же, как `Authenticate` из
-[главы 8](./08-auth.md): класс-юнит с зависимостью от секции конфига,
+[главы 9](./09-auth.md): класс-юнит с зависимостью от секции конфига,
 зарегистрированный в `providers:` модуля `UsersModule`.
 
 Отличие в типе контекста. `ExtendableContext<{ rawBody: Uint8Array }>`
@@ -116,8 +116,10 @@ export const UserWebhook = httpEndpoint({
     makePipeline<{ rawBody: Uint8Array }>().pre(VerifySignature),
     observability,
   ),
-  deps: [UsersRepository$],
-  handle: userWebhookHandler,
+  handler: {
+    deps: [UsersRepository$],
+    handle: userWebhookHandler,
+  },
 });
 ```
 
@@ -135,7 +137,7 @@ JSON для схемы `input`. Хендлер получает обычный �
 котором подпись уже проверена.
 
 `errors: [InvalidSignature]` объявляет отказ, который бросает юнит, а не
-хендлер. Правило из [главы 8](./08-auth.md) действует и здесь: список
+хендлер. Правило из [главы 9](./09-auth.md) действует и здесь: список
 `errors:` описывает всё, что может получить клиент.
 
 `detached` выводит endpoint из-под всех политик сборки с причиной.
@@ -167,7 +169,7 @@ curl -X POST localhost:3000/hooks/users \
 # {"error":"Webhook signature does not match the body","code":"INVALID_SIGNATURE"}  401
 
 curl localhost:3000/users/2
-# {"error":"User 2 not found","code":"USER_NOT_FOUND","details":{"id":"2"}}  404
+# {"error":"User 2 not found","code":"not_found:user","details":{"id":"2"}}  404
 ```
 
 Первый запрос прошёл проверку, и хендлер удалил пользователя. Второй
@@ -190,7 +192,7 @@ curl localhost:3000/users/2
 - Тело читается один раз. Байты для подписи и значение для схемы берутся
   из одного буфера, и расхождения между ними быть не может.
 - Отказ из pre-юнита проходит ту же проверку `errors:`, что и отказ
-  хендлера. Незадекларированный отказ клиент получил бы как `UNKNOWN`.
+  хендлера. Незадекларированный отказ клиент получил бы как `internal_error`.
 - `detached` требует причину. Пустая строка останавливает сборку, а
   причина печатается при старте и попадает в отчёт `check()`, поэтому
   список исключений из политик читается на ревью.
@@ -226,14 +228,14 @@ it('отклоняет тело с чужой подписью', async () => {
   });
 
   expect(response.status).toBe(401);
-  expect(await response.json()).toMatchObject({ code: 'INVALID_SIGNATURE' });
+  expect(await response.json()).toMatchObject({ code: 'unauthorized:invalid_signature' });
   const kept = await client.get('/users/1');
   expect(kept.status).toBe(200);
 });
 ```
 
 Проверка подписи зависит от байтов тела, поэтому тест идёт по сети, а не
-через `app.call`: app-тест принимает готовый payload и тело не
+через `testApp.call`: app-тест принимает готовый payload и тело не
 сериализует. Секрет в e2e-сборке привязан источником к ключам секции
 (`e2e/helpers/create-test-app.ts`), `process.env` тест не трогает.
 
@@ -260,4 +262,4 @@ yarn workspace examples.app-with-http test:e2e
 ## Дальше
 
 Те же декларации и пайплайн в командной строке:
-[глава 19](./19-cli.md).
+[глава 20](./20-cli.md).

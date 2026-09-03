@@ -32,7 +32,7 @@ export const Greet = cliEndpoint({
   command: 'greet',
   input: GreetInput,
   output: GreetOutput,
-  handle: async ({ args, shout }) => {
+  handler: async ({ args, shout }) => {
     const text = `Hello, ${args[0]}!`;
 
     return { greeting: shout ? text.toUpperCase() : text };
@@ -70,7 +70,7 @@ yarn workspace examples.simple-cli start:dev greet Alice --shout
 export const Help = cliEndpoint({
   command: 'help',
   output: HelpOutput,
-  handle: async () => {
+  handler: async () => {
     console.log('Available commands:');
     // …
     return { message: 'Help displayed' };
@@ -91,9 +91,9 @@ export const ProcessStdin = cliEndpoint({
   input: stream('binary'),
   output: ProcessStdinOutput,
   errors: [EmptyStdin],
-  handle: async (
+  handler: async (
     payload: AsyncIterableIterator<Buffer>,
-  ): Output<ProcessStdinOutput, FailOf<typeof EmptyStdin>> => {
+  ): Output<ProcessStdinOutput, typeof EmptyStdin> => {
     let linesProcessed = 0;
     let totalBytes = 0;
 
@@ -113,19 +113,19 @@ export const ProcessStdin = cliEndpoint({
 
 Форма `stream('binary')` на входе отдаёт хендлеру чанки stdin как есть.
 Форма `stream(T)` со схемой читала бы stdin как NDJSON и проверяла каждую
-строку схемой, как в главе [9](./09-files-and-streams.md). Потоковый
+строку схемой, как в главе [10](./10-files-and-streams.md). Потоковый
 `output` транспорт пишет в stdout тем же NDJSON.
 
 ```typescript
 // packages/examples.simple-cli/src/errors.ts
-export const EmptyStdin = defineFail('EMPTY_STDIN', {
-  status: 'BAD_REQUEST',
+export const EmptyStdin = makeFail('bad_request:empty_stdin', {
+  status: 'bad_request',
   message: 'No data received on stdin',
 });
 ```
 
-Отказ объявляется тем же `defineFail`, что и в HTTP. Статус не зависит от
-транспорта: HTTP перевёл бы `BAD_REQUEST` в 400, CLI печатает его как
+Отказ объявляется тем же `makeFail`, что и в HTTP. Статус не зависит от
+транспорта: HTTP перевёл бы `bad_request` в 400, CLI печатает его как
 есть.
 
 ```bash
@@ -175,15 +175,15 @@ async function main() {
 
 Пример собирает `dispatch` напрямую, потому что у команд нет
 зависимостей. Команде с `deps` нужен контейнер: объявите её в фиче и
-запустите под `assemble` с транспортом `cli()` в `transports:`. Как это
+объявите приложение через `makeApp` с транспортом `cli()` в `transports:`. Как это
 выглядит, показывает минимальный пример в
 [README пакета](../../packages/nestling.transport.cli/README.md). Сборка
-без `assemble` разобрана в главе [23](./23-standalone.md).
+без `makeApp` разобрана в главе [24](./24-standalone.md).
 
 ## Что гарантирует фреймворк
 
 - Вход проверяется схемой до вызова хендлера. Команда `greet` без имени
-  печатает `BAD_REQUEST` с кодом `VALIDATION_FAILED` и путём `args`, а
+  печатает `bad_request` с кодом `bad_request` и путём `args`, а
   хендлер не вызывается.
 - Пустое имя команды останавливает создание декларации, а не запуск.
 - Формы `events` и `multipart` транспорт отклоняет при регистрации.
@@ -219,7 +219,7 @@ async function main() {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      value: { code: 'VALIDATION_FAILED' },
+      value: { code: 'bad_request' },
     });
   });
 ```
@@ -250,5 +250,5 @@ yarn workspace examples.simple-cli test
 
 ## Дальше
 
-Глава [20. Логгер с именем потребителя и сбор вкладов](./20-token-families.md)
+Глава [21. Логгер с именем потребителя и сбор вкладов](./21-token-families.md)
 показывает семейства токенов: один рецепт на много зависимостей.

@@ -20,17 +20,17 @@
 
 ```typescript
 // packages/examples.users-service/src/errors.ts
-import { defineFail } from '@nestling/operations';
+import { makeFail } from '@nestling/operations';
 
 /** Отказ проверки токена. Его бросает pre-юнит слоя `authed`. */
-export const Unauthorized = defineFail('UNAUTHORIZED', {
-  status: 'UNAUTHORIZED',
+export const Unauthorized = makeFail('unauthorized', {
+  status: 'unauthorized',
   message: 'Bearer token is missing or invalid',
 });
 ```
 
 Отказ объявлен так же, как отказы хендлеров в [главе 3](./03-errors.md).
-Статус `UNAUTHORIZED` транспорт переводит в HTTP-код `401`.
+Статус `unauthorized` транспорт переводит в HTTP-код `401`.
 
 ### Шаг 2. Pre-юнит, который проверяет токен
 
@@ -69,7 +69,7 @@ export const authed = compose(observability, makePipeline().pre(Authenticate));
 ```
 
 `Authenticate` — pre-юнит в форме класса. Ему нужна секция конфига из
-[главы 5](./05-config.md), поэтому зависимость объявлена в `@Injectable`,
+[главы 6](./06-config.md), поэтому зависимость объявлена в `@Injectable`,
 а сам класс регистрируется в `providers:` фичи.
 
 Метод `handle` получает контекст запроса. `ctx.raw.attributes` — заголовки
@@ -101,18 +101,17 @@ export const DeleteUser = httpEndpoint({
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],
-    status: 'NO_CONTENT',
+    status: 'no_content',
   },
   pipeline: authed,
-  deps: [UsersRepository$],
-  handle: deleteUserHandler,
+  handler: DeleteUserHandler,
 });
 ```
 
 Endpoint подключает `authed` вместо `observability`. Отказ `Unauthorized`
 бросает слой, а не хендлер, но в `errors:` его объявляет endpoint: список
 `errors:` описывает всё, что может получить клиент. Отказ, которого нет
-в списке, граница пайплайна заменяет на `UNKNOWN` с кодом `500`.
+в списке, граница пайплайна заменяет на `internal_error` с кодом `500`.
 
 Поля, которые pre-юниты положили в контекст, хендлер получает вторым
 аргументом вместе с двумя зарезервированными ключами: `signal` для отмены
@@ -148,7 +147,7 @@ curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 import { everyEndpoint } from '@nestling/pipeline';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
-export const appSpec = {
+export const app = makeApp({
   features: [UsersFeature],
   // …
   transports: [http()],
@@ -164,7 +163,7 @@ export const appSpec = {
       'authed',
     ),
   ],
-};
+});
 ```
 
 Политика — инвариант над собранным графом. `everyEndpoint(filter)`
@@ -200,15 +199,15 @@ Endpoint без `pipeline:` политику тоже нарушает: для �
 запрос. Endpoint выводится из-под политик полем `detached`:
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/health.endpoint.ts
-export const Health = httpEndpoint({
+// packages/examples.users-service/src/ops.plugin.ts
+export const CheckHealth = httpEndpoint({
   method: 'GET',
   path: '/health',
   output: z.object({ status: z.string() }),
   detached:
     'проба балансировщика: строка аудита на каждый запрос заслоняет полезные записи',
   doc: { hidden: 'служебная проба, не часть публичного API' },
-  handle: async () => ({ status: 'up' }),
+  handler: async () => ({ status: 'up' }),
 });
 ```
 
@@ -221,7 +220,7 @@ true` нет. Причина видна в диффе, печатается пр
 ```
 
 Поле `doc.hidden` относится к документу OpenAPI и описано в
-[главе 10](./10-openapi-and-client.md).
+[главе 11](./11-openapi-and-client.md).
 
 ### Шаг 6. Подсказка в редакторе
 
@@ -255,7 +254,7 @@ export default [
 - Копия слоя с тем же содержимым политику не проходит: сравнение идёт по
   ссылке, и обойти проверку переобъявлением слоя нельзя.
 - Отказ из pre-юнита проходит ту же проверку `errors:`, что и отказ
-  хендлера. Незадекларированный отказ становится `UNKNOWN`.
+  хендлера. Незадекларированный отказ становится `internal_error`.
 - Слой может объявить требование к внешнему контексту:
   `makePipeline<{ caller: Caller }>()`. Композиция такого слоя с внешним
   слоем, который `caller` не добавляет, не компилируется.
@@ -266,26 +265,24 @@ export default [
 // packages/examples.users-service/src/app.spec.ts
 it('отклоняет запись без токена до вызова хендлера', async () => {
   const repo = inMemoryUsersRepo([alice]);
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [[UsersRepository$, repo]],
   });
 
-  expect(await app.call(DeleteUser, { id: '1' })).toMatchObject({
+  expect(await testApp.call(DeleteUser, { id: '1' })).toMatchObject({
     isSuccess: false,
-    status: 'UNAUTHORIZED',
-    value: { code: 'UNAUTHORIZED' },
+    status: 'unauthorized',
+    value: { code: 'unauthorized' },
   });
   expect(await repo.byId('1')).toEqual(alice);
 });
 
 it('создаёт пользователя по токену из конфига', async () => {
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
-  const created = await app.call(
+  const created = await testApp.call(
     CreateUser,
     { name: 'Carol', email: 'carol@example.com' },
     { attributes: { authorization: 'Bearer test-token' } },
@@ -293,17 +290,17 @@ it('создаёт пользователя по токену из конфиг�
 
   expect(created).toMatchObject({
     isSuccess: true,
-    status: 'CREATED',
+    status: 'created',
     value: { name: 'Carol' },
   });
 });
 ```
 
-`app.call` без заголовков даёт отказ `UNAUTHORIZED`, и хранилище остаётся
+`testApp.call` без заголовков даёт отказ `unauthorized`, и хранилище остаётся
 нетронутым: хендлер не вызывался. Заголовки в app-тесте передаются опцией
 `attributes`. Значение токена берётся из `vars({ API_TOKEN: 'test-token' })`
-в общем `spec` теста. Политики в тестовой сборке те же, что в
-`main.ts`: `spec` расширяет `appSpec`, а не переписывает его.
+в опциях теста. Политики в тестовой сборке те же, что в `main.ts`: тест
+собирает ту же декларацию `app`, а не копию её словаря.
 
 ## Пока не нужно
 
@@ -314,9 +311,9 @@ it('создаёт пользователя по токену из конфиг�
   `withIdentity` и `withPermissions` из `@nestling/pipeline` описаны в
   README пакета.
 - Политика `.hasVar(variable)` проверяет, что пайплайн объявляет
-  переменную контекста. Она понадобится в [главе 12](./12-events.md).
+  переменную контекста. Она понадобится в [главе 13](./13-events.md).
 - Отчёт `check()` со списком `detached`-endpoint'ов появится в
-  [главе 15](./15-select.md).
+  [главе 16](./16-select.md).
 
 ## Запускаемый код
 
@@ -325,7 +322,7 @@ it('создаёт пользователя по токену из конфиг�
   слой `authed`.
 - `packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts`
   и `create-user.endpoint.ts` — endpoint'ы под слоем `authed`.
-- `packages/examples.users-service/src/users/endpoints/health.endpoint.ts`
+- `packages/examples.users-service/src/ops.plugin.ts`
   — исключение с `detached`.
 - `packages/examples.users-service/src/app.ts` — политики.
 - `packages/examples.users-service/eslint.config.js` — правило для
@@ -346,4 +343,4 @@ curl -X POST http://localhost:3000/users \
 ## Дальше
 
 Файлы, выгрузки и импорт, которые не помещаются в память:
-[глава 9](./09-files-and-streams.md).
+[глава 10](./10-files-and-streams.md).

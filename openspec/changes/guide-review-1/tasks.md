@@ -34,7 +34,7 @@
 - [x] 4.4 Discovery регистрирует класс-хендлер из `handler` провайдером модуля-объявителя; повторная регистрация в `providers:` — ошибка ASSEMBLE с классом, паттерном и модулем; два endpoint'а делят экземпляр; тесты
 - [x] 4.5 `assembleTest(app, { select?, overrides?, stubs?, config?, contextValue? })`: состав и политики из декларации, `config` теста заменяет привязку, `transports` не принимается; тесты
 - [x] 4.6 `checkTopologies(app, selections, options?)`; `snapshotOperations` из отчётов; тесты
-- [ ] 4.7 README `@nestling/app`, `@nestling/testing`, `@nestling/operations`, `@nestling/pipeline`, транспортов, `ports`, `client`, `openapi`, `streams` — API и плашки статуса
+- [x] 4.7 README `@nestling/app`, `@nestling/testing`, `@nestling/operations`, `@nestling/pipeline`, транспортов, `ports`, `client`, `openapi`, `streams` — API и плашки статуса
 
 ## 5. Примеры
 
@@ -45,12 +45,12 @@
 
 ## 6. Гайд
 
-- [ ] 6.1 Глава 1: `GET /users` с двумя пользователями в коде, `makeApp` → `app.assemble().run()`, конвенция `app.ts`/`main.ts`; без `detached`, `doc`, политик
-- [ ] 6.2 Глава 2: `CreateUserInput`, раздел «Пометка места» с `query()` и `body()` на `ImportUsers?dryRun=true`
-- [ ] 6.3 Глава 3: `makeFail`, таблица категорий с HTTP-кодами, канон `return` и одна фраза про `throw`, заголовки `Ok` как транспортно-независимые метаданные, без зависимостей в сниппетах
-- [ ] 6.4 Новая глава 4 «Хендлер как класс»: `@Injectable()` без зависимостей, `handler: Class`, экземпляр создаёт фреймворк, юнит-тест через `new`
-- [ ] 6.5 Глава 5 (бывшая 4) «Откуда хендлер берёт репозиторий»: токен → интерфейс и `makeToken` → `providers` → зависимость зависимости и `@OnInit` → раздел «функция с `deps` и значения-провайдеры» (`valueProvider`, `factoryProvider`, ограничение «зависимости зависимостей»)
-- [ ] 6.6 Глава 6 (бывшая 5): `.describe()` у полей, таблица переменных с описаниями, `assembleTest(app, { config: vars(…) })`
+- [x] 6.1 Глава 1: `GET /users` с двумя пользователями в коде, `makeApp` → `app.assemble().run()`, конвенция `app.ts`/`main.ts`; без `detached`, `doc`, политик
+- [x] 6.2 Глава 2: `CreateUserInput`, раздел «Пометка места» с `query()` и `body()` на `ImportUsers?dryRun=true`
+- [x] 6.3 Глава 3: `makeFail`, таблица категорий с HTTP-кодами, канон `return` и одна фраза про `throw`, заголовки `Ok` как транспортно-независимые метаданные, без зависимостей в сниппетах
+- [x] 6.4 Новая глава 4 «Хендлер как класс»: `@Injectable()` без зависимостей, `handler: Class`, экземпляр создаёт фреймворк, юнит-тест через `new`
+- [x] 6.5 Глава 5 (бывшая 4) «Откуда хендлер берёт репозиторий»: токен → интерфейс и `makeToken` → `providers` → зависимость зависимости и `@OnInit` → раздел «функция с `deps` и значения-провайдеры» (`valueProvider`, `factoryProvider`, ограничение «зависимости зависимостей»)
+- [x] 6.6 Глава 6 (бывшая 5): `.describe()` у полей, таблица переменных с описаниями, `assembleTest(app, { config: vars(…) })`
 - [ ] 6.7 Главы 7–25: перенумерация файлов и ссылок, `makeApp`/`assembleTest(app, …)`/`testApp`, `handler`, `makeFail`, коды с категориями, `InternalError`, `check(select)`; глава «Без `assemble`» переименована
 - [ ] 6.8 Приложение А: раздел «класс-хендлер» заменён разделом «функция с `deps`», раздел `meta.fail` удалён, `throw` описан в разделе «Отказ броском», таблица форм обновлена; приложения Б и В, README гайда — новая нумерация и состав
 - [ ] 6.9 `docs/conventions.md` сверен с примером; плашки «сверено с кодом» всех глав с датой; линтер `docs-style` по всем главам — 0

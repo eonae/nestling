@@ -31,7 +31,7 @@
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts
-import type { FailOf, FilePart } from '@nestling/operations';
+import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';
 
 const MiB = 1024 * 1024;
@@ -39,26 +39,26 @@ const MiB = 1024 * 1024;
 // `id` приходит из path-параметра и подмешивается к полям формы
 const AvatarFields = z.object({ id: z.string() });
 
-export const uploadAvatarHandler =
-  (users: UsersRepository) =>
-  async (payload: {
+@Injectable([UsersRepository$])
+export class UploadAvatarHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(input: {
     fields: AvatarFields;
     files: { avatar: FilePart };
-  }): Output<
-    User,
-    FailOf<typeof UserNotFound> | FailOf<typeof AvatarRequired>
-  > => {
-    const { fields, files } = payload;
+  }): Output<User, typeof UserNotFound | typeof AvatarRequired> {
+    const { fields, files } = input;
 
     if (!files.avatar) {
       return AvatarRequired();
     }
 
     const avatarUrl = `/uploads/${fields.id}/${files.avatar.filename}`;
-    const user = await users.patch(fields.id, { avatarUrl });
+    const user = await this.users.patch(fields.id, { avatarUrl });
 
     return user ?? UserNotFound({ id: fields.id });
-  };
+  }
+}
 
 export const UploadAvatar = httpEndpoint({
   method: 'POST',
@@ -73,8 +73,7 @@ export const UploadAvatar = httpEndpoint({
   errors: [UserNotFound, AvatarRequired, Unauthorized],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
   pipeline: authed,
-  deps: [UsersRepository$],
-  handle: uploadAvatarHandler,
+  handler: UploadAvatarHandler,
 });
 ```
 
@@ -121,17 +120,22 @@ import { Ok, stream } from '@nestling/operations';
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
 const MAX_ROWS = 100_000;
 
-async function* rows(users: UsersRepository): AsyncIterableIterator<User> {
-  for (const user of await users.all()) {
-    yield user;
-  }
-}
+@Injectable([UsersRepository$])
+export class ExportUsersHandler {
+  constructor(private readonly users: UsersRepository) {}
 
-export const exportUsersHandler =
-  (users: UsersRepository) => async (): Output<AsyncIterableIterator<User>> =>
-    new Ok(rows(users), {
+  async handle(): Output<AsyncIterableIterator<User>> {
+    return new Ok(this.rows(), {
       'Content-Disposition': 'attachment; filename="users.ndjson"',
     });
+  }
+
+  private async *rows(): AsyncIterableIterator<User> {
+    for (const user of await this.users.all()) {
+      yield user;
+    }
+  }
+}
 
 export const ExportUsers = httpEndpoint({
   method: 'GET',
@@ -139,8 +143,7 @@ export const ExportUsers = httpEndpoint({
   output: stream(User).limit(MAX_ROWS),
   doc: { summary: 'Выгрузка пользователей в NDJSON', tags: ['users'] },
   pipeline: observability,
-  deps: [UsersRepository$],
-  handle: exportUsersHandler,
+  handler: ExportUsersHandler,
 });
 ```
 
@@ -189,57 +192,60 @@ const MAX_ROWS = 10_000;
 /** Пауза между строками, после которой запрос отклоняется: ответ `504` */
 const GAP_TIMEOUT_MS = 30_000;
 
-export const importUsersHandler =
-  (users: UsersRepository) =>
-  async (rows: AsyncIterableIterator<NewUser>): Output<ImportResult> => {
+@Injectable([UsersRepository$])
+export class ImportUsersHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(rows: AsyncIterableIterator<ImportRow>): Output<ImportResult> {
     let imported = 0;
     let skipped = 0;
 
     for await (const row of rows) {
-      if (await users.byEmail(row.email)) {
+      if (await this.users.byEmail(row.email)) {
         skipped += 1;
         continue;
       }
 
-      await users.insert(row);
+      await this.users.insert(row);
       imported += 1;
     }
 
     return { imported, skipped };
-  };
+  }
+}
 
 export const ImportUsers = httpEndpoint({
   method: 'POST',
   path: '/users/import',
-  input: stream(NewUser).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
+  input: stream(ImportRow).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
   output: ImportResult,
   errors: [Unauthorized],
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
   pipeline: authed,
-  deps: [UsersRepository$],
-  handle: importUsersHandler,
+  handler: ImportUsersHandler,
 });
 ```
 
-Форма `stream(NewUser)` на входе означает, что тело запроса читается
-построчно как NDJSON. Хендлер получает `AsyncIterableIterator<NewUser>`
+Форма `stream(ImportRow)` на входе означает, что тело запроса читается
+построчно как NDJSON. Хендлер получает `AsyncIterableIterator<ImportRow>`
 и читает его циклом `for await` в своём темпе.
 
-Каждую строку проверяет схема `NewUser` до того, как строка попадёт в
-хендлер. Невалидная строка обрывает запрос отказом `VALIDATION_FAILED`
-с кодом `400`; хендлер видит только проверенные значения. Схема
-`NewUser` из [главы 2](./02-input.md) здесь та же, что у `POST /users`.
+Каждую строку проверяет схема `ImportRow` до того, как строка попадёт в
+хендлер. Невалидная строка обрывает запрос отказом `bad_request`
+с кодом `400`; хендлер видит только проверенные значения. Схема строки —
+`User.pick({ name: true, email: true })`: те же поля, что принимает
+`POST /users`, без флага `dryRun`.
 
 Два шага item-цепочки защищают сервер от клиента.
 
 - `.limit(n)` обрывает запрос после `n` строк отказом
-  `STREAM_LIMIT_EXCEEDED`, код `413`.
+  `payload_too_large`, код `413`.
 - `.gapTimeout(ms)` обрывает запрос, если следующая строка не пришла за
-  `ms` миллисекунд, отказом `STREAM_GAP_TIMEOUT`, код `504`.
+  `ms` миллисекунд, отказом `timeout`, код `504`.
 
 Оба кода принадлежат ядру. Объявлять их в `errors:` не нужно: они
 входят в список ответов каждого endpoint'а, и граница пайплайна не
-заменяет их на `UNKNOWN`.
+заменяет их на `internal_error`.
 
 ```bash
 printf '{"name":"Dan","email":"dan@example.com"}\n{"name":"Alice","email":"alice@example.com"}\n' > rows.ndjson
@@ -249,10 +255,10 @@ curl -X POST http://localhost:3000/users/import \
 # {"imported":1,"skipped":1}
 printf '{"name":"Eve","email":"not-an-email"}\n' | curl -X POST http://localhost:3000/users/import \
   -H 'authorization: Bearer secret' -H 'content-type: application/x-ndjson' --data-binary @-
-# {"error":"Validation failed","code":"VALIDATION_FAILED","details":[{"message":"Invalid email address","path":["email"]}]} 400
+# {"error":"Bad request","code":"bad_request","details":[{"message":"Invalid email address","path":["email"]}]} 400
 ```
 
-Проверку элементов можно ослабить в самой форме: `stream(NewUser,
+Проверку элементов можно ослабить в самой форме: `stream(ImportRow,
 { onInvalid: 'skip' })` пропускает невалидные строки, а
 `{ validate: false }` отключает проверку. По умолчанию невалидная строка
 обрывает запрос.
@@ -273,7 +279,7 @@ printf '{"name":"Eve","email":"not-an-email"}\n' | curl -X POST http://localhost
 ## Как проверить
 
 В `src/app.spec.ts` тестов на эти три endpoint'а нет, потому что разбор
-формы и NDJSON выполняет транспорт, а `app.call` принимает готовый
+формы и NDJSON выполняет транспорт, а `testApp.call` принимает готовый
 payload. Проверить их можно двумя способами.
 
 Первый: команды `curl` из этой главы на запущенном сервере.
@@ -284,8 +290,7 @@ item-цепочка при этом выполняются, как при зап
 ```typescript
 // иллюстрация; в src/app.spec.ts этого теста нет
 it('импортирует строки и пропускает занятые email', async () => {
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice])]],
   });
 
@@ -294,7 +299,7 @@ it('импортирует строки и пропускает занятые e
     yield alice;
   }
 
-  const result = await app.call(ImportUsers, rows(), {
+  const result = await testApp.call(ImportUsers, rows(), {
     attributes: { authorization: 'Bearer test-token' },
   });
 
@@ -302,19 +307,19 @@ it('импортирует строки и пропускает занятые e
 });
 ```
 
-Для `ExportUsers` значение `unwrap(await app.call(ExportUsers))` является
+Для `ExportUsers` значение `unwrap(await testApp.call(ExportUsers))` является
 `AsyncIterable`, который читается тем же `for await`.
 
 ## Пока не нужно
 
 - Открытая подписка, которая не заканчивается, пока клиент подключён,
   объявляется формой `events(T)` и отдаётся как SSE. Это
-  [глава 13](./13-live-feed.md).
+  [глава 14](./14-live-feed.md).
 - Шаги item-цепочки `.tap`, `.filter` и `.batch` на входе, где тип
   элемента менять можно, описаны в
   [приложении А](./appendix-a-alternatives.md).
 - Сырые байты тела для проверки подписи webhook'а запрашиваются
-  полем `rawBody: true`. Это [глава 18](./18-webhook.md).
+  полем `rawBody: true`. Это [глава 19](./19-webhook.md).
 
 ## Запускаемый код
 
@@ -340,4 +345,4 @@ curl -X POST http://localhost:3000/users/import \
 ## Дальше
 
 Документ OpenAPI и типизированный клиент из тех же деклараций:
-[глава 10](./10-openapi-and-client.md).
+[глава 11](./11-openapi-and-client.md).

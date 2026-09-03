@@ -18,7 +18,7 @@
 
 Такой пакет называется сателлитом: он собран поверх публичных примитивов
 ядра и живёт вне него. Образец в этой главе — `@nestling/subscriptions`,
-реестр подписок из [главы 22](./22-ops.md).
+реестр подписок из [главы 23](./23-ops.md).
 
 ## Решение
 
@@ -131,7 +131,7 @@ tracked)`. Обязательность слоя задаёт политика �
 ```
 
 Лента реестра устроена так же, как лента активности в
-[главе 13](./13-live-feed.md): `push` не ждёт наблюдателей, медленный
+[главе 14](./14-live-feed.md): `push` не ждёт наблюдателей, медленный
 наблюдатель теряет события по `drop-oldest`, `@OnDestroy` закрывает ленту
 на остановке, и наблюдатели завершаются нормально.
 
@@ -162,11 +162,11 @@ export const SubscriptionOpened = makeEvent({
 Факты «подписка открыта» и «подписка закрыта» публикуются обычными
 `event`-операциями. Приёмник в любой фиче и в любом процессе пишет
 `implement(SubscriptionOpened, { subscriber: '…' })`, как в фиче `ops` из
-[главы 22](./22-ops.md). Схемы фактов написаны руками в `schema.ts` и
+[главы 23](./23-ops.md). Схемы фактов написаны руками в `schema.ts` и
 реализуют Standard Schema, поэтому пакет не зависит от zod и не навязывает
 приложению вендора. Аннотация `jsonSchema(...)` даёт этим схемам JSON
 Schema, и факты попадают в документ и в снапшот совместимости из
-[главы 17](./17-compatibility.md).
+[главы 18](./18-compatibility.md).
 
 ### Шаг 6. Параметризованный плагин
 
@@ -194,7 +194,7 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 ```
 
 Плагин сателлита устроен так же, как плагин логирования из
-[главы 11](./11-features.md): функция принимает решения композиции и
+[главы 12](./12-features.md): функция принимает решения композиции и
 возвращает значение `makePlugin`. Класс-юниты слоя регистрирует сам
 плагин, поэтому endpoint со слоем `tracked` без `subscriptions()` в корне
 останавливает сборку. Список `deps` фабрики зависит от опции `publish`:
@@ -219,7 +219,7 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 ```
 
 Если сателлит поставляет двойники для тестов, как `NatsDouble` из
-[главы 16](./16-split.md), положите их в subpath `./testing` под условием
+[главы 17](./17-split.md), положите их в subpath `./testing` под условием
 экспорта `"testing"`. В production-сборке условие не включено, и импорт
 `@nestling/transport.nats/testing` не разрешается на уровне Node. Раннер
 включает условие сам:
@@ -288,15 +288,15 @@ export const testTransport = (): TransportDeclaration =>
 ```typescript
 // packages/nestling.subscriptions/src/module.spec.ts
   it('видит подписку, убивает её и снимает запись', async () => {
-    await using app = await assembleTest({
+    await using testApp = await assembleTest({
       plugins: [subscriptions()],
       features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
       transports: [testTransport()],
     });
 
-    const registry = app.get(SubscriptionRegistry);
+    const registry = testApp.get(SubscriptionRegistry);
     // …
-    const response = await app.call(Ticks);
+    const response = await testApp.call(Ticks);
     expect(response.isSuccess).toBe(true);
 
     const [info] = registry.list();
@@ -322,7 +322,7 @@ export const testTransport = (): TransportDeclaration =>
 Endpoint `Ticks` в тесте объявлен через `makeEndpoint` на транспорте
 фикстуры: HTTP пакету не нужен, а способности транспорта объявляются
 значением. Второй тест того же файла проверяет остановку: после
-`app.close()` поток дотекает, `.finally` снимает запись, и наблюдатель
+`testApp.close()` поток дотекает, `.finally` снимает запись, и наблюдатель
 ленты завершается нормально.
 
 ```bash
@@ -344,7 +344,7 @@ yarn workspace @nestling/subscriptions test
 Подключение в приложении:
 
 ```typescript
-// packages/examples.app-with-http/src/root.ts
+// packages/examples.app-with-http/src/app.ts
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
@@ -353,7 +353,7 @@ export const appSubscriptions = subscriptions({
 });
 ```
 
-Как этим пользуется эксплуатация, показывает [глава 22](./22-ops.md).
+Как этим пользуется эксплуатация, показывает [глава 23](./23-ops.md).
 
 ## Дальше
 

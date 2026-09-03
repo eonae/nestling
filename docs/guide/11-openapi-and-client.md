@@ -24,7 +24,7 @@
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
-export const appSpec = {
+export const app = makeApp({
   features: [UsersFeature],
   plugins: [
     openapi({
@@ -35,12 +35,12 @@ export const appSpec = {
   ],
   transports: [http()],
   // …
-};
+});
 ```
 
 `openapi()` — плагин: пакет, который подключается к корню и работает на
 всё приложение. Подробно плагины разобраны в
-[главе 11](./11-features.md). Здесь достаточно поставить его в
+[главе 12](./12-features.md). Здесь достаточно поставить его в
 `plugins:`.
 
 Плагин строит документ OpenAPI 3.1 из тех же деклараций, которые
@@ -52,7 +52,7 @@ export const appSpec = {
   валидатор Standard Schema и не умеет заглядывать внутрь схемы, поэтому
   конвертер называется явно даже в приложении целиком на zod.
 - `pipeline` — слой для endpoint'а `GET /openapi.json`. Политика из
-  [главы 8](./08-auth.md) требует `observability` от каждого
+  [главы 9](./09-auth.md) требует `observability` от каждого
   HTTP-endpoint'а, и endpoint плагина не исключение.
 
 Документ строится на фазе ASSEMBLE вместе с остальным графом. Схема, для
@@ -67,7 +67,7 @@ curl -s http://localhost:3000/openapi.json | jq '.paths["/users"].post.responses
 ```
 
 Ответы выведены из декларации: `201` из статуса успеха, `400` для
-проверки входа, `401` и `409` из `errors:`, `default` для `UNKNOWN`.
+проверки входа, `401` и `409` из `errors:`, `default` для `internal_error`.
 Форма `stream(User)` выгрузки описана как `application/x-ndjson`.
 
 ### Шаг 2. Слот `doc:`
@@ -85,11 +85,10 @@ export const DeleteUser = httpEndpoint({
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],
-    status: 'NO_CONTENT',
+    status: 'no_content',
   },
   pipeline: authed,
-  deps: [UsersRepository$],
-  handle: deleteUserHandler,
+  handler: DeleteUserHandler,
 });
 ```
 
@@ -98,7 +97,7 @@ export const DeleteUser = httpEndpoint({
 | `summary`, `description` | название и описание операции |
 | `tags` | группировка операций в документе |
 | `deprecated` | пометка устаревания |
-| `status` | статус успешного ответа; по умолчанию `OK`, без `output` `NO_CONTENT` |
+| `status` | статус успешного ответа; по умолчанию `ok`, без `output` `no_content` |
 | `hidden` | причина, по которой endpoint не попадает в документ |
 
 `operationId` не объявляется. Он берётся из имени операции, если
@@ -108,15 +107,15 @@ endpoint реализует операцию (шаг 3), иначе из мет�
 Служебный endpoint убирается из документа полем `hidden` с причиной:
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/health.endpoint.ts
-export const Health = httpEndpoint({
+// packages/examples.users-service/src/ops.plugin.ts
+export const CheckHealth = httpEndpoint({
   method: 'GET',
   path: '/health',
   output: z.object({ status: z.string() }),
   detached:
     'проба балансировщика: строка аудита на каждый запрос заслоняет полезные записи',
   doc: { hidden: 'служебная проба, не часть публичного API' },
-  handle: async () => ({ status: 'up' }),
+  handler: async () => ({ status: 'up' }),
 });
 ```
 
@@ -152,10 +151,10 @@ export const GetUser = makeRequest({
 export const CreateUser = makeRequest({
   name: 'users.create',
   http: { method: 'POST', path: '/users' },
-  input: NewUser,
+  input: CreateUserInput,
   output: User,
   errors: [EmailTaken, Unauthorized],
-  doc: { summary: 'Создать пользователя', tags: ['users'], status: 'CREATED' },
+  doc: { summary: 'Создать пользователя', tags: ['users'], status: 'created' },
 });
 ```
 
@@ -178,7 +177,7 @@ export const CreateUser = makeRequest({
 // packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
 export const getUserHandler =
   (users: UsersRepository) =>
-  async (payload: GetUserInput): Output<User, FailOf<typeof UserNotFound>> => {
+  async (payload: GetUserInput): Output<User, typeof UserNotFound> => {
     const user = await users.byId(payload.id);
 
     return user ?? UserNotFound({ id: payload.id });
@@ -187,8 +186,7 @@ export const getUserHandler =
 export const GetUser = httpEndpoint({
   operation: GetUserOperation,
   pipeline: observability,
-  deps: [UsersRepository$],
-  handle: getUserHandler,
+  handler: GetUserHandler,
 });
 ```
 
@@ -246,8 +244,8 @@ async function main(): Promise<void> {
 Метод возвращает `Ok` или `Fail`, а не бросает исключение. Отказ
 узнаётся по коду через `EmailTaken.is(created)`; после сериализации
 `instanceof` не работает. `details` восстановленного отказа типизированы
-схемой из `defineFail`. Всё, что не объявлено в `errors:`, включая сетевые
-ошибки и тело не по схеме, приходит как `UnknownError` с оригиналом в
+схемой из `makeFail`. Всё, что не объявлено в `errors:`, включая сетевые
+ошибки и тело не по схеме, приходит как `InternalError` с оригиналом в
 `cause`. Проверка `created.isFail` закрывает и этот случай.
 
 `headers` — функция, поэтому токен читается на каждый запрос. Успешный
@@ -291,12 +289,11 @@ API_TOKEN=secret yarn workspace examples.users-service client
 import { OpenApiDocument$ } from '@nestling/openapi';
 
 it('описывает каждый публичный endpoint и скрывает служебный', async () => {
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
-  const document = app.get(OpenApiDocument$);
+  const document = testApp.get(OpenApiDocument$);
 
   expect(Object.keys(document?.paths ?? {})).toContain('/users/{id}');
   expect(document?.paths['/health']).toBeUndefined();
@@ -308,11 +305,11 @@ it('описывает каждый публичный endpoint и скрыва�
 ## Пока не нужно
 
 - Плагины как способ подключить общую инфраструктуру, включая ваш
-  собственный логгер, разобраны в [главе 11](./11-features.md).
+  собственный логгер, разобраны в [главе 12](./12-features.md).
 - Операции служат не только клиенту: через них фичи вызывают друг друга.
-  `implement` и `.caller` появятся в [главе 11](./11-features.md).
+  `implement` и `.caller` появятся в [главе 12](./12-features.md).
 - Версия операции и проверка совместимости при её изменении описаны в
-  [главе 17](./17-compatibility.md).
+  [главе 18](./18-compatibility.md).
 - Документ можно собрать без запуска приложения чистой функцией
   `buildOpenApiDocument`, например в CI. Она описана в README пакета
   `@nestling/openapi`.
@@ -325,7 +322,7 @@ it('описывает каждый публичный endpoint и скрыва�
 - `packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts`
   и `create-user.endpoint.ts` — реализация через `operation:`.
 - `packages/examples.users-service/src/api/client.ts` — клиент.
-- `packages/examples.users-service/src/users/endpoints/health.endpoint.ts`
+- `packages/examples.users-service/src/ops.plugin.ts`
   — `doc.hidden`.
 
 ```bash
@@ -337,4 +334,4 @@ API_TOKEN=secret yarn workspace examples.users-service client
 ## Дальше
 
 Сервис растёт, и рядом с пользователями появляется вторая область:
-[глава 11](./11-features.md).
+[глава 12](./12-features.md).

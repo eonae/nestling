@@ -1,4 +1,4 @@
-# 6. Убедиться, что работает, без запуска сервера
+# 7. Убедиться, что работает, без запуска сервера
 
 > Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
 > Целевое описание: [design/testing.md](../design/testing.md). Почему так:
@@ -13,11 +13,11 @@
 
 ## Решение
 
-### Один словарь сборки для точки входа и тестов
+### Одна декларация для точки входа и тестов
 
 ```typescript
 // packages/examples.users-service/src/app.ts
-export const appSpec = {
+export const app = makeApp({
   features: [UsersFeature],
   plugins: [
     // …
@@ -26,63 +26,68 @@ export const appSpec = {
   policies: [
     // …
   ],
-};
+});
 ```
 
 Тест должен собирать то же приложение, что и `main.ts`: те же фичи,
-плагины и политики. Поэтому словарь сборки лежит в отдельном файле, а
-`main.ts` и тесты его импортируют. Тест меняет в нём только порт и
-источник конфига:
+плагины и политики. Поэтому декларация лежит в отдельном файле, а
+`main.ts` и тесты импортируют одно и то же значение `app`. Словарь
+состава в тест не копируется: `assembleTest` принимает саму декларацию.
+
+Тест задаёт только то, что относится к прогону: подмены, выбор фич и
+конфиг.
 
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
-/** Тот же словарь, что в `main.ts`: порт `0` и конфиг из объекта вместо `process.env` */
-const spec = {
-  ...appSpec,
-  transports: [http({ port: 0 })],
-  config: vars({ API_TOKEN: 'test-token' }),
-};
+import { app } from './app';
+
+/** Конфиг теста: объект вместо `process.env` */
+const testConfig = vars({ API_TOKEN: 'test-token' });
 ```
+
+Транспорты подменять не нужно: тестовая сборка не выполняет START,
+поэтому сокет не открывается и порт не занимается.
 
 ### Вызов через полный пайплайн
 
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
 it('отдаёт пользователя через полный пайплайн', async () => {
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
   });
 
-  expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual(alice);
-  expect(unwrap(await app.call(ListUsers, {}))).toHaveLength(2);
+  expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual(alice);
+  expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);
 });
 ```
 
-`assembleTest` собирает приложение и проводит его по фазам до `WIRE`:
-граф построен, политики проверены, `@OnInit` выполнен, таблица маршрутов
-создана. Сокет не открывается, обработчики сигналов не ставятся.
-`await using` закрывает приложение в конце теста.
+`assembleTest(app, options)` собирает ту же декларацию и проводит
+приложение по фазам до `WIRE`: граф построен, политики проверены,
+`@OnInit` выполнен, таблица маршрутов создана. Сокет не открывается,
+обработчики сигналов не ставятся. `await using` закрывает приложение в
+конце теста. Переменная названа `testApp`, чтобы не затенять `app` из
+`app.ts`.
 
-`app.call(Endpoint, payload)` вызывает endpoint по значению декларации.
+`testApp.call(Endpoint, payload)` вызывает endpoint по значению декларации.
 Запрос проходит все слои пайплайна, проверку входа по схеме и проверку
 отказов по `errors`. Разбор пути, query и тела не выполняется: `call`
 принимает готовый payload. `unwrap` возвращает значение успешного ответа
-или бросает ошибку со статусом и кодом отказа.
+или бросает ошибку с категорией и кодом отказа.
 
 ### Ответ с отказом
 
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
-expect(await app.call(GetUser, { id: '404' })).toMatchObject({
+expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
-  status: 'NOT_FOUND',
-  value: { code: 'USER_NOT_FOUND', details: { id: '404' } },
+  status: 'not_found',
+  value: { code: 'not_found:user', details: { id: '404' } },
 });
 ```
 
-Ответ `app.call` несёт `isSuccess`, `status` и `value`. Для отказа в
-`value` лежат код и детали.
+Ответ `testApp.call` несёт `isSuccess`, `status` и `value`. Для отказа в
+`value` лежат код и детали, а `status` равен категории кода.
 
 ### Подмена хранилища
 
@@ -106,21 +111,20 @@ export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
 it('не создаёт узлы, которые нужны только подменённому хранилищу', async () => {
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
   // Соединение с базой нужно только боевому хранилищу: после подмены
   // контейнер его не создаёт, и `@OnInit` не вызывается
-  expect(app.pruned).toContain('Database');
+  expect(testApp.pruned).toContain('Database');
 });
 ```
 
 `overrides` заменяет узел графа по токену. Подмена происходит до создания
 инстансов, поэтому поддерево, которое больше никому не нужно, из графа
 выпадает. От `Database` зависит только боевой репозиторий: после
-подмены контейнер её не создаёт, и соединение не открывается. `app.pruned`
+подмены контейнер её не создаёт, и соединение не открывается. `testApp.pruned`
 перечисляет выпавшие узлы.
 
 ### Конфиг без `process.env`
@@ -128,13 +132,12 @@ it('не создаёт узлы, которые нужны только под�
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
 it('читает размер страницы из конфига', async () => {
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     config: vars({ API_TOKEN: 'test-token', APP_PAGE_SIZE: '1' }),
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
   });
 
-  expect(unwrap(await app.call(ListUsers, {}))).toEqual([alice]);
+  expect(unwrap(await testApp.call(ListUsers, {}))).toEqual([alice]);
 });
 ```
 
@@ -146,13 +149,17 @@ it('читает размер страницы из конфига', async () =>
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
-describe('createUserHandler', () => {
-  it('создаёт пользователя и отвечает 201 с заголовком Location', async () => {
-    const handle = createUserHandler(inMemoryUsersRepo([alice]));
+describe('CreateUserHandler', () => {
+  it('создаёт пользователя и отвечает created с заголовком Location', async () => {
+    const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
 
-    const result = await handle({ name: 'Carol', email: 'carol@example.com' });
+    const result = await handler.handle({
+      name: 'Carol',
+      email: 'carol@example.com',
+    });
 
     expect(result).toMatchObject({
+      status: 'created',
       value: { id: '2', name: 'Carol' },
       headers: { Location: '/users/2' },
     });
@@ -160,8 +167,8 @@ describe('createUserHandler', () => {
 });
 ```
 
-Каррированная фабрика из главы 4 вызывается с фейком напрямую. Такой
-тест проверяет логику хендлера и не проверяет пайплайн, схемы и список
+Класс-хендлер из главы 4 создаётся через `new` с фейком. Такой тест
+проверяет логику хендлера и не проверяет пайплайн, схемы и список
 `errors`: это работа app-теста.
 
 ### Запуск
@@ -171,17 +178,20 @@ yarn workspace examples.users-service test
 ```
 
 Тесты слоя проверки токена, которые тоже лежат в `app.spec.ts`,
-разбирает глава 8.
+разбирает глава 9.
 
 ## Что гарантирует фреймворк
 
 - Пара в `overrides` типизирована: фейк, не совпадающий с типом токена,
   не компилируется. Подмена токена, которого нет в графе, останавливает
   сборку.
-- Политики из словаря сборки проверяются в тесте так же, как при старте.
-  Тестовая сборка их не ослабляет.
-- Вход `app.call` проверяет тот же рантайм, что и при запросе по сети,
-  поэтому `app.call` и HTTP дают один результат.
+- Политики декларации проверяются в тесте так же, как при старте.
+  Тестовая сборка их не ослабляет: приложение, которое не собирается в
+  бою, не собирается и в тесте.
+- Конфиг теста заменяет привязку источников декларации целиком, поэтому
+  боевой источник в тесте не инициализируется.
+- Вход `testApp.call` проверяет тот же рантайм, что и при запросе по сети,
+  поэтому `testApp.call` и HTTP дают один результат.
 
 ## Как проверить
 
@@ -192,10 +202,10 @@ yarn workspace examples.users-service test
 ## Пока не нужно
 
 - Заглушка операции соседней фичи через `stubs` и вызов события через
-  `app.emit`: глава 14.
-- Подмена переменной контекста через `contextValue`: глава 14.
-- Матрица сборок `checkTopologies`: глава 15.
-- Подмена семейства токенов через `familyOverride`: глава 20.
+  `testApp.emit`: глава 15.
+- Подмена переменной контекста через `contextValue`: глава 15.
+- Матрица сборок `checkTopologies`: глава 16.
+- Подмена семейства токенов через `familyOverride`: глава 21.
 
 ## Запускаемый код
 
@@ -211,5 +221,5 @@ yarn workspace examples.users-service test
 ## Дальше
 
 Сервис собран и покрыт тестами. Часть 2 готовит его к продакшену,
-начиная с журнала запросов: [7. Видеть каждый запрос в
-логе](./07-logging.md).
+начиная с журнала запросов: [8. Видеть каждый запрос в
+логе](./08-logging.md).

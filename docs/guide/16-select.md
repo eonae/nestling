@@ -38,10 +38,7 @@ const RootConfig = makeConfig('root', {
 async function main(): Promise<void> {
   const cfg = load(RootConfig);
 
-  await assemble({
-    ...rootSpec,
-    select: { features: cfg.features, includeDeps: true },
-  }).run();
+  await app.assemble({ features: cfg.features, includeDeps: true }).run();
 
   console.log('app-with-http: GET /health, GET /users, GET /openapi.json');
 }
@@ -49,15 +46,15 @@ async function main(): Promise<void> {
 
 Секция `RootConfig` объявлена как любая другая, но читается иначе.
 `load(section)` читает значения до сборки контейнера: синхронно и только
-из `process.env`. Так устроено потому, что `select` определяет состав
+из `process.env`. Так устроено потому, что выбор фич определяет состав
 контейнера, а секция внутри контейнера появилась бы уже после выбора.
 Источники, привязанные в `config:`, в этом чтении не участвуют. Это
-единственное чтение конфига до `assemble`.
+единственное чтение конфига до сборки.
 
 Ключ `APP_FEATURES` задан через `from()`: у корня свой префикс `root`,
 потому что префикс `app` уже занят секцией приложения.
 
-### Формы `select`
+### Формы выбора
 
 | Запись | Что выбирает |
 |---|---|
@@ -109,7 +106,7 @@ app-with-http: GET /health, GET /users, GET /openapi.json
 
 ### Что происходит без замыкания
 
-Сборка с `select: 'users'` без `includeDeps` останавливается на фазе
+Сборка с выбором `'users'` без `includeDeps` останавливается на фазе
 ASSEMBLE:
 
 ```
@@ -124,7 +121,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 
 Ошибка называет операцию, вызывателя и два способа починить: включить
 владельца в выбор или назначить интерком, когда владелец работает в другом
-процессе. Второй способ разбирает глава [16](./16-split.md).
+процессе. Второй способ разбирает глава [17](./17-split.md).
 
 ### Плагины есть в любой топологии
 
@@ -133,11 +130,11 @@ a bus transport ('transports: [nats({ name: "events" })]' with
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
-    await using app = await assembleTest({ ...spec, select: 'ops' });
+    await using testApp = await assembleTest(app, { select: 'ops' });
 
-    expect(app.get(Logger$)).not.toBeNull();
-    expect(app.get(SubscriptionRegistry)).not.toBeNull();
-    expect(app.get(ActivityHub)).toBeNull();
+    expect(testApp.get(Logger$)).not.toBeNull();
+    expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
+    expect(testApp.get(ActivityHub)).toBeNull();
   });
 ```
 
@@ -150,31 +147,34 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
 /**
- * Словарь для `check()`: у структурной проверки поле `config` то же, что у
- * `assemble`, поэтому значения привязываются источником к ключам секции
+ * Декларация для `check()`: подстановок у структурной проверки нет,
+ * поэтому значения секретов привязываются источником к ключам секции
  */
-const topologySpec = {
-  ...rootSpec,
-  transports: [http({ port: 0 })],
-  config: [[objectSource(testEnv, 'test'), appConfigKeys]] as const,
-};
+const checked = makeApp({
+  features: app.spec.features,
+  plugins: app.spec.plugins,
+  policies: app.spec.policies,
+  transports: app.spec.transports,
+  config: [[objectSource(testEnv, 'test'), appConfigKeys]],
+});
 ```
 
 `check()` у приложения выполняет фазы 0 и 1: выбор фич, регистрацию,
 discovery, `build()` и проверку политик. `@OnInit`, `@OnStart` и
-`serve` не вызываются, ресурсы не захватываются. `checkTopologies(spec,
+`serve` не вызываются, ресурсы не захватываются. `checkTopologies(app,
 selections)` из `@nestling/testing` вызывает `check()` для каждого
 варианта `select` и собирает ошибки всех вариантов в одно сообщение.
 
-Поле `config` у `check()` такое же, как у `assemble`: список привязок
-«источник и ключи». Секреты `API_TOKEN` и `WEBHOOK_SECRET` нужны и здесь,
+Подстановок `check()` не принимает: он проверяет честный граф. Поэтому
+секреты приходят не из `vars()`, а привязкой источника к ключам секции в
+самой декларации. Секреты `API_TOKEN` и `WEBHOOK_SECRET` нужны и здесь,
 потому что `build()` создаёт секцию конфига.
 
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
   it('собирает каждый вариант деплоя без сокетов', async () => {
     const usersWithDeps = { features: 'users', includeDeps: true } as const;
-    const reports = await checkTopologies(topologySpec, [
+    const reports = await checkTopologies(app, [
       'all',
       usersWithDeps,
       'ops',
@@ -206,7 +206,7 @@ selections)` из `@nestling/testing` вызывает `check()` для кажд
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
-    const [{ report }] = await checkTopologies(topologySpec, ['all']);
+    const [{ report }] = await checkTopologies(app, ['all']);
 
     expect(
       report.endpoints
@@ -217,8 +217,8 @@ selections)` из `@nestling/testing` вызывает `check()` для кажд
   });
 ```
 
-Политики из главы [8](./08-auth.md) проверяются в каждой топологии
-матрицы. Инвариант, который держится при `select: 'all'` и ломается на
+Политики из главы [9](./09-auth.md) проверяются в каждой топологии
+матрицы. Инвариант, который держится при выборе `'all'` и ломается на
 подмножестве, виден в тесте, а не при выкладке. Причины `detached`
 приходят значениями в отчёте: тест сравнивает список, а не читает
 вывод в консоли.
@@ -248,16 +248,16 @@ APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.ap
 ## Пока не нужно
 
 - Владелец операции в другом процессе, `nats()` и `intercom:`: глава
-  [16](./16-split.md).
+  [17](./17-split.md).
 - Проверка, что изменение операции не сломало соседнюю роль: глава
-  [17](./17-compatibility.md).
+  [18](./18-compatibility.md).
 
 ## Запускаемый код
 
 | Файл | Что показывает |
 |---|---|
 | `packages/examples.app-with-http/src/main.ts` | `load()` до сборки, `from('APP_FEATURES')`, `select` с `includeDeps` |
-| `packages/examples.app-with-http/src/root.ts` | один словарь сборки на все роли |
+| `packages/examples.app-with-http/src/app.ts` | одна декларация на все роли |
 | `packages/examples.app-with-http/src/app.spec.ts` | `select` в тесте, `checkTopologies`, отчёт с `detached` |
 
 ```bash
@@ -270,4 +270,4 @@ APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.ap
 
 Роли собираются по отдельности, но пока работают в одном процессе.
 Следующая глава разносит их по процессам, не меняя код фич:
-[16. Разнести фичи по процессам](./16-split.md).
+[17. Разнести фичи по процессам](./17-split.md).

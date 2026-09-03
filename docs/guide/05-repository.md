@@ -1,11 +1,11 @@
-# 4. Хендлеру нужен репозиторий
+# 5. Откуда хендлер берёт репозиторий
 
 > Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
 > Целевое описание: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Token families + модули
-> без рантайм-инкапсуляции» и «[2026-07-13] Endpoint-декларации:
-> per-transport конструкторы, `deps`-инжект, формы хендлера».
+> без рантайм-инкапсуляции» и «[2026-09-03] Поле `handler`: зависимости
+> принадлежат хендлеру; канон `return`; `Output<T, typeof Def>`».
 
 ## Задача
 
@@ -16,7 +16,19 @@ endpoint'а. Хендлерам нужен репозиторий, репози�
 
 ## Решение
 
-### Интерфейс и токен
+### Токен: чем адресуется зависимость
+
+```typescript
+// packages/examples.users-service/src/users/users.repository.ts
+export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
+```
+
+Токен — ключ, по которому у контейнера запрашивают зависимость. Класс
+служит себе токеном сам, поэтому `makeToken` нужен только там, где
+зависимость описана интерфейсом. Суффикс `$` отличает токен от интерфейса
+с тем же именем; так же названы токены ядра, например `HttpTransport$`.
+
+### Интерфейс: что хендлер требует от хранилища
 
 ```typescript
 // packages/examples.users-service/src/users/users.repository.ts
@@ -25,22 +37,117 @@ export interface UsersRepository {
   all(): Promise<User[]>;
   byId(id: string): Promise<User | null>;
   byEmail(email: string): Promise<User | null>;
-  insert(data: NewUser): Promise<User>;
+  insert(data: Omit<User, 'id'>): Promise<User>;
   patch(id: string, data: Partial<Omit<User, 'id'>>): Promise<User | null>;
   remove(id: string): Promise<boolean>;
 }
-
-export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
 ```
 
-Токен — ключ, по которому у контейнера запрашивают зависимость. Класс
-сам является токеном, а для интерфейса токен создаёт `makeToken`.
-Суффикс `$` отличает токен от интерфейса с тем же именем; так же названы
-токены ядра, например `HttpTransport$`. Endpoint'ы зависят от
-`UsersRepository$`, а не от класса, поэтому реализацию можно подменить,
-не трогая endpoint'ы.
+Интерфейс описывает то, что нужно потребителю, а не то, что умеет база.
+`insert` принимает `Omit<User, 'id'>`: идентификатор выдаёт хранилище, и
+в аргументе его быть не должно. Хендлеры зависят от `UsersRepository$`, а
+не от класса, поэтому реализацию можно подменить, не трогая endpoint'ы —
+этим пользуется тест из главы 7.
 
-### Соединение с базой
+### Хендлер объявляет зависимость
+
+```typescript
+// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+@Injectable([UsersRepository$])
+export class GetUserHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(input: GetUserInput): Output<User, typeof UserNotFound> {
+    const user = await this.users.byId(input.id);
+
+    return user ?? UserNotFound({ id: input.id });
+  }
+}
+
+export const GetUser = httpEndpoint({
+  operation: GetUserOperation,
+  pipeline: observability,
+  handler: GetUserHandler,
+});
+```
+
+`@Injectable([UsersRepository$])` перечисляет зависимости класса явным
+списком токенов. Порядок списка совпадает с порядком аргументов
+конструктора, а тип аргумента сверяется с типом токена: поставить в
+конструктор аргумент другого типа не получится.
+
+В декларации ничего про зависимости не написано: она называет адрес,
+схемы, отказы и пайплайн. Экземпляр хендлера с готовыми зависимостями
+создаёт контейнер (глава 4). Поля `operation` и `pipeline` относятся к
+главам 11 и 8.
+
+### Реализация репозитория
+
+```typescript
+// packages/examples.users-service/src/users/users.repository.ts
+@Injectable(UsersRepository$, [Database, Logger$, Ctx(RequestId)])
+export class DbUsersRepository implements UsersRepository {
+  constructor(
+    private readonly db: Database,
+    private readonly logger: Logger,
+    private readonly requestId: CtxReader<string>,
+  ) {}
+
+  async byId(id: string): Promise<User | null> {
+    this.trace(`byId ${id}`);
+
+    return this.db.users.find((user) => user.id === id) ?? null;
+  }
+
+  // …
+}
+```
+
+У `@Injectable` три формы. `@Injectable()` — класс без зависимостей.
+`@Injectable([deps])` регистрирует класс под его же именем: так объявлен
+`Database`. `@Injectable(token, [deps])` регистрирует класс под токеном:
+контейнер отдаёт `DbUsersRepository` тому, кто запросил
+`UsersRepository$`. Имя реализации говорит, как она реализована:
+`DbUsersRepository` для базы, `inMemoryUsersRepo` для фейка
+([conventions.md](../conventions.md)).
+
+Зависимость `Ctx(RequestId)` читает идентификатор запроса из контекста;
+её объясняет глава 8.
+
+### Регистрация в фиче
+
+```typescript
+// packages/examples.users-service/src/users.feature.ts
+export const UsersFeature = makeFeature({
+  name: 'users',
+  providers: [
+    ConsoleLogger,
+    Database,
+    DbUsersRepository,
+    AuditOutcome,
+    Authenticate,
+  ],
+  endpoints: [
+    ListUsers,
+    GetUser,
+    CreateUser,
+    DeleteUser,
+    UploadAvatar,
+    ExportUsers,
+    ImportUsers,
+  ],
+});
+```
+
+Поле `providers` перечисляет классы, которые создаёт контейнер: сервисы
+и классы-юниты пайплайна из глав 8 и 9 (`ConsoleLogger`, `AuditOutcome`,
+`Authenticate`). Классов-хендлеров здесь нет: их регистрируют сами
+endpoint'ы.
+
+### Зависимость зависимости и хуки
+
+Репозиторию нужна база, базе нужны конфиг и логгер. Ни один потребитель
+этого не собирает: контейнер строит граф целиком.
 
 ```typescript
 // packages/examples.users-service/src/database.ts
@@ -82,103 +189,52 @@ export class Database {
 }
 ```
 
-`@Injectable([AppConfig, Logger$])` объявляет зависимости класса явным
-списком токенов. Порядок списка совпадает с порядком аргументов
-конструктора. Тип аргумента в конструкторе сверяется с типом токена.
-Секция `AppConfig` появится в главе 5, логгер `Logger$` в главе 7.
-
 Хук `@OnInit` вызывается после того, как создан весь граф, `@OnDestroy`
-вызывается при остановке. Соединение открывается в хуке, а не в
-конструкторе: конструктор только принимает зависимости. В примере вместо
+вызывается при остановке в обратном порядке. Соединение открывается в
+хуке, а не в конструкторе: конструктор только принимает зависимости, и до
+`@OnInit` его сосед по графу может быть ещё не готов. Секция `AppConfig`
+появится в главе 6, логгер `Logger$` в главе 8. В примере вместо
 соединения таблица в памяти.
 
-### Реализация репозитория
+### Функция с `deps` и значения-провайдеры
+
+Класс — не единственный способ получить зависимость. Хендлеру в две
+строки класс не нужен, и тогда зависимости объявляются в самом поле
+`handler`:
 
 ```typescript
-// packages/examples.users-service/src/users/users.repository.ts
-@Injectable(UsersRepository$, [Database, Logger$, Ctx(RequestId)])
-export class DbUsersRepository implements UsersRepository {
-  constructor(
-    private readonly db: Database,
-    private readonly logger: Logger,
-    private readonly requestId: CtxReader<string>,
-  ) {}
-
-  async byId(id: string): Promise<User | null> {
-    this.trace(`byId ${id}`);
-
-    return this.db.users.find((user) => user.id === id) ?? null;
-  }
-
-  // …
-}
-```
-
-У `@Injectable` две формы. `@Injectable([deps])` регистрирует класс под
-его же именем: так объявлен `Database`. `@Injectable(token, [deps])`
-регистрирует класс под токеном: контейнер отдаёт `DbUsersRepository`
-тому, кто запросил `UsersRepository$`. Зависимость `Ctx(RequestId)`
-читает идентификатор запроса из контекста; её объясняет глава 7.
-
-### Зависимости хендлера
-
-```typescript
-// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
-export const getUserHandler =
-  (users: UsersRepository) =>
-  async (payload: GetUserInput): Output<User, FailOf<typeof UserNotFound>> => {
-    const user = await users.byId(payload.id);
-
-    // Отказ возвращается значением. Для ответа это то же, что бросок
-    return user ?? UserNotFound({ id: payload.id });
-  };
-
-export const GetUser = httpEndpoint({
-  operation: GetUserOperation,
-  pipeline: observability,
+handler: {
   deps: [UsersRepository$],
-  handle: getUserHandler,
-});
+  handle: (users) => async ({ id }) => (await users.byId(id)) ?? UserNotFound({ id }),
+},
 ```
 
-Поле `deps` перечисляет токены, которые нужны хендлеру. Хендлер
-записывается каррированной фабрикой: внешняя функция принимает
-зависимости, внутренняя принимает payload. Внешняя функция вызывается
-один раз при сборке, и замыкание играет роль инстанса. Порядок
-аргументов внешней функции совпадает с порядком `deps`. Такой хендлер
-тестируется без контейнера: достаточно вызвать фабрику с фейком.
+Внешняя функция принимает зависимости и вызывается один раз при сборке,
+внутренняя принимает входные данные запроса. Порядок аргументов внешней
+функции совпадает с порядком `deps`.
 
-Поля `operation` и `pipeline` относятся к главам 10 и 7.
-
-### Регистрация в фиче
+Не всякий узел графа — класс. Готовое значение и результат фабрики
+регистрируются провайдерами:
 
 ```typescript
-// packages/examples.users-service/src/users.feature.ts
-export const UsersFeature = makeFeature({
-  name: 'users',
-  providers: [
-    ConsoleLogger,
-    Database,
-    DbUsersRepository,
-    AuditOutcome,
-    Authenticate,
-  ],
-  endpoints: [
-    Health,
-    ListUsers,
-    GetUser,
-    CreateUser,
-    DeleteUser,
-    UploadAvatar,
-    ExportUsers,
-    ImportUsers,
-  ],
-});
+providers: [
+  valueProvider(FeatureFlags$, { newSearch: true }),
+  factoryProvider(
+    SearchClient$,
+    (config: Config<typeof AppConfig>) => new SearchClient(config.searchUrl),
+    [AppConfig],
+  ),
+]
 ```
 
-Поле `providers` перечисляет классы, которые создаёт контейнер. Классы
-из глав 7 и 8 (`ConsoleLogger`, `AuditOutcome`, `Authenticate`)
-регистрируются так же, как репозиторий.
+`valueProvider(token, value)` регистрирует готовое значение,
+`factoryProvider(token, factory, deps)` — результат вызова фабрики с
+зависимостями. Собственные зависимости фабрики перечисляются третьим
+аргументом: контейнер их создаёт и передаёт в том же порядке. Зависимости
+зависимостей контейнер строит сам на любую глубину, но объявить их
+обязан каждый узел: список `deps` у фабрики и `@Injectable` у класса —
+единственный источник, из которого контейнер знает, кого создавать
+раньше.
 
 ## Что гарантирует фреймворк
 
@@ -186,9 +242,11 @@ export const UsersFeature = makeFeature({
   провайдера останавливает сборку с перечнем всех недостающих токенов.
   Цикл зависимостей тоже останавливает сборку. Во время обработки
   запросов контейнер ничего не резолвит.
-- Список `deps` типизирован: аргумент фабрики другого типа, чем токен в
-  той же позиции, не компилируется. То же для аргументов конструктора
-  и списка `@Injectable`.
+- Списки зависимостей типизированы: аргумент конструктора другого типа,
+  чем токен в той же позиции, не компилируется. То же для `deps` у
+  фабрики и у поля `handler`.
+- `@OnInit` каждого узла выполняется после того, как созданы все его
+  зависимости, а `@OnDestroy` — до их разрушения.
 - Инжектировать можно только токен, который удалось импортировать.
   Инкапсуляция держится на экспортах ES-модулей, а не на механизме
   времени выполнения.
@@ -197,9 +255,9 @@ export const UsersFeature = makeFeature({
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
-const handle = createUserHandler(inMemoryUsersRepo([alice]));
+const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
 
-const result = await handle({ name: 'Carol', email: 'carol@example.com' });
+const result = await handler.handle({ name: 'Carol', email: 'carol@example.com' });
 
 expect(result).toMatchObject({
   value: { id: '2', name: 'Carol' },
@@ -207,15 +265,14 @@ expect(result).toMatchObject({
 });
 ```
 
-Фабрика хендлера вызывается с фейком репозитория. Контейнер, транспорт и
-пайплайн в тесте не участвуют. Фейк `inMemoryUsersRepo` описан в главе 6.
+Хендлер создаётся с фейком репозитория. Контейнер, транспорт и пайплайн
+в тесте не участвуют. Фейк `inMemoryUsersRepo` описан в главе 7.
 
 ## Пока не нужно
 
-- Модули, которые группируют провайдеры внутри большой фичи: глава 11.
-- Семейства токенов, например логгер с именем потребителя: глава 20.
-- Хендлер в форме класса с `@Injectable`: приложение А.
-- `Ctx(RequestId)` в репозитории: глава 7.
+- Модули, которые группируют провайдеры внутри большой фичи: глава 12.
+- Семейства токенов, например логгер с именем потребителя: глава 21.
+- `Ctx(RequestId)` в репозитории: глава 8.
 
 ## Запускаемый код
 
@@ -232,5 +289,5 @@ curl localhost:3000/users/1
 ## Дальше
 
 `Database` читает адрес базы из секции конфига, которую глава не
-объяснила. Следующая глава: [5. Порт и адрес базы из
-окружения](./05-config.md).
+объяснила. Следующая глава: [6. Порт и адрес базы из
+окружения](./06-config.md).

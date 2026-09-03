@@ -39,7 +39,7 @@ export const Logger = makeTokenFamily<Logger, [scope: string]>('Logger');
 зависимостях фабрики, в `container.get()`.
 
 Интерфейс и семейство носят одно имя. В отличие от токена интерфейса из
-главы [4](./04-repository.md), суффикс `$` здесь не нужен: семейство
+главы [5](./05-repository.md), суффикс `$` здесь не нужен: семейство
 вызывается как функция, и спутать его с интерфейсом в коде нельзя.
 
 ### Запросите члена как обычную зависимость
@@ -91,7 +91,7 @@ export const appLogging = makePlugin({
 `factoryProvider`, `classProvider` или `valueProvider`. У провайдера из
 рецепта есть свои `deps`: здесь член зависит от секции конфига и читает из
 неё уровень логирования. Рецепт лежит в плагине, потому что логгер нужен
-каждому модулю; плагины описаны в главе [11](./11-features.md).
+каждому модулю; плагины описаны в главе [12](./12-features.md).
 
 При `build()` контейнер делает четыре шага.
 
@@ -236,7 +236,7 @@ export class HealthService {
   массив без дополнительных объявлений.
 
 Модули в примере связаны через `dependsOn`, как в главе
-[11](./11-features.md): `UsersModule` зависит от `DatabaseModule`, а
+[12](./12-features.md): `UsersModule` зависит от `DatabaseModule`, а
 `AppModule` перечисляет остальные.
 
 ## Что гарантирует фреймворк
@@ -264,12 +264,12 @@ export class HealthService {
 ```
 [debug] Logger:UserRepository Loading all users
 [debug] Logger:HealthService Running 2 health checks against localhost:5432
-[debug] Logger:app Health: [ 'database: ok', 'api: ok' ]
+[debug] Logger:app CheckHealth: [ 'database: ok', 'api: ok' ]
 ```
 
 В app-тесте семейство подменяется целиком, а не по члену:
 `familyOverride(Logger, () => …)` из `@nestling/testing` заменяет рецепт
-до создания членов. Подробнее в главе [14](./14-testing-features.md).
+до создания членов. Подробнее в главе [15](./15-testing-features.md).
 
 ## Запускаемый код
 
@@ -290,4 +290,4 @@ yarn workspace examples.container visualize
 ## Дальше
 
 Тот же пример читает конфиг из нескольких источников и меняет значения
-без перезапуска: глава [21](./21-config-sources.md).
+без перезапуска: глава [22](./22-config-sources.md).

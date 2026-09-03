@@ -1,4 +1,4 @@
-# 5. Порт и адрес базы из окружения
+# 6. Порт и адрес базы из окружения
 
 > Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
@@ -23,11 +23,27 @@ import { from, makeConfig, secret } from '@nestling/config';
 import { z } from 'zod';
 
 export const AppConfig = makeConfig('app', {
-  pageSize: z.coerce.number().int().positive().default(20),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(20)
+    .describe('Размер страницы списка пользователей'),
   databaseUrl: secret(
-    from('DATABASE_URL', z.url().default('postgresql://localhost:5432/users')),
+    from(
+      'DATABASE_URL',
+      z
+        .url()
+        .default('postgresql://localhost:5432/users')
+        .describe('Адрес базы данных'),
+    ),
   ),
-  apiToken: secret(from('API_TOKEN', z.string().min(1))),
+  apiToken: secret(
+    from(
+      'API_TOKEN',
+      z.string().min(1).describe('Bearer-токен для запросов, меняющих данные'),
+    ),
+  ),
 });
 ```
 
@@ -35,11 +51,17 @@ export const AppConfig = makeConfig('app', {
 переменной выводится из префикса и имени поля, `from('NAME', schema)`
 задаёт точное имя.
 
-| Поле | Переменная | Значение по умолчанию |
-|---|---|---|
-| `pageSize` | `APP_PAGE_SIZE` | `20` |
-| `databaseUrl` | `DATABASE_URL` | `postgresql://localhost:5432/users` |
-| `apiToken` | `API_TOKEN` | нет, переменная обязательна |
+Описание поля пишется средствами схемы: `.describe()` у zod. Фреймворк
+его не читает — оно нужно человеку, который открыл файл, и тому, кто
+переносит таблицу переменных в документацию по развёртыванию.
+
+| Переменная | Поле | Что задаёт | По умолчанию |
+|---|---|---|---|
+| `APP_PAGE_SIZE` | `pageSize` | размер страницы списка пользователей | `20` |
+| `DATABASE_URL` | `databaseUrl` | адрес базы данных | `postgresql://localhost:5432/users` |
+| `API_TOKEN` | `apiToken` | токен для запросов, меняющих данные | нет, переменная обязательна |
+| `HTTP_PORT` | секция транспорта | порт HTTP-сервера | `3000` |
+| `HTTP_HOST` | секция транспорта | адрес прослушивания | `0.0.0.0` |
 
 Значения окружения приходят строками. Число из строки делает схема,
 поэтому у `pageSize` стоит `z.coerce.number()`.
@@ -48,13 +70,19 @@ export const AppConfig = makeConfig('app', {
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
-export const listUsersHandler =
-  (users: UsersRepository, config: Config<typeof AppConfig>) =>
-  async (payload: ListUsersInput): Output<User[]> => {
-    const rows = await users.all();
+@Injectable([UsersRepository$, AppConfig])
+export class ListUsersHandler {
+  constructor(
+    private readonly users: UsersRepository,
+    private readonly config: Config<typeof AppConfig>,
+  ) {}
 
-    return rows.slice(0, payload.limit ?? config.pageSize);
-  };
+  async handle(input: ListUsersInput): Output<User[]> {
+    const rows = await this.users.all();
+
+    return rows.slice(0, input.limit ?? this.config.pageSize);
+  }
+}
 
 export const ListUsers = httpEndpoint({
   method: 'GET',
@@ -63,18 +91,16 @@ export const ListUsers = httpEndpoint({
   output: z.array(User),
   doc: { summary: 'Список пользователей', tags: ['users'] },
   pipeline: observability,
-  deps: [UsersRepository$, AppConfig],
-  handle: listUsersHandler,
+  handler: ListUsersHandler,
 });
 ```
 
-Секция инжектируется как обычная зависимость: токен `AppConfig` в
-`deps` или в списке `@Injectable`. Регистрировать её в `providers` не
-нужно: узел графа создаётся самим фактом упоминания. Тип значения
-даёт `Config<typeof AppConfig>`: поле `config.pageSize` имеет тип
-`number`.
+Секция инжектируется как обычная зависимость: токен `AppConfig` в списке
+`@Injectable`. Регистрировать её в `providers` не нужно: узел графа
+создаётся самим фактом упоминания. Тип значения даёт
+`Config<typeof AppConfig>`: поле `config.pageSize` имеет тип `number`.
 
-Так же секцию читает `Database` из главы 4:
+Так же секцию читает `Database` из главы 5:
 
 ```typescript
 // packages/examples.users-service/src/database.ts
@@ -127,12 +153,13 @@ Sources consulted, in priority order: process.env
 ```
 
 У транспорта своя секция с ключами `HTTP_PORT` и `HTTP_HOST`, по
-умолчанию `3000` и `0.0.0.0`. Опция `http({ port: 0 })` имеет приоритет
-над переменной; тесты в главе 6 пользуются этим, чтобы не занимать порт.
+умолчанию `3000` и `0.0.0.0`. Опция `http({ port: 8080 })` имеет
+приоритет над переменной. Тестам порт не нужен вовсе: тестовая сборка не
+открывает сокет (глава 7).
 
 ```bash
 API_TOKEN=secret HTTP_PORT=8080 yarn workspace examples.users-service start:dev
-curl localhost:8080/health
+curl localhost:8080/users
 ```
 
 ## Что гарантирует фреймворк
@@ -148,24 +175,24 @@ curl localhost:8080/health
 
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
-await using app = await assembleTest({
-  ...spec,
+await using testApp = await assembleTest(app, {
   config: vars({ API_TOKEN: 'test-token', APP_PAGE_SIZE: '1' }),
   overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
 });
 
-expect(unwrap(await app.call(ListUsers, {}))).toEqual([alice]);
+expect(unwrap(await testApp.call(ListUsers, {}))).toEqual([alice]);
 ```
 
-`vars()` подставляет значения переменных вместо `process.env`. Как
-устроена тестовая сборка, объясняет глава 6.
+`vars()` подставляет значения переменных вместо `process.env`; заданный
+конфиг заменяет привязку источников из декларации целиком. Как устроена
+тестовая сборка, объясняет глава 7.
 
 ## Пока не нужно
 
 - Источники, кроме окружения, и их привязка к ключам через `.keys`:
-  глава 21.
-- Ключ, который читают две секции: глава 21.
-- Секция, значения которой обновляются без перезапуска: глава 21.
+  глава 22.
+- Ключ, который читают две секции: глава 22.
+- Секция, значения которой обновляются без перезапуска: глава 22.
 
 ## Запускаемый код
 
@@ -176,12 +203,12 @@ expect(unwrap(await app.call(ListUsers, {}))).toEqual([alice]);
 
 ```bash
 API_TOKEN=secret APP_PAGE_SIZE=1 yarn workspace examples.users-service start:dev
-curl localhost:3000/users
+curl 'localhost:3000/users'
 yarn workspace examples.users-service start:dev   # без API_TOKEN: ошибка при старте
 ```
 
 ## Дальше
 
 Сервис работает, и пора закрепить это тестами, которые не поднимают
-сокет и не требуют базы. Следующая глава: [6. Убедиться, что работает,
-без запуска сервера](./06-testing.md).
+сокет и не требуют базы. Следующая глава: [7. Убедиться, что работает,
+без запуска сервера](./07-testing.md).

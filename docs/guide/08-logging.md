@@ -43,7 +43,7 @@ export class ConsoleLogger implements Logger {
 }
 ```
 
-Логгер объявлен так же, как хранилище в [главе 4](./04-repository.md):
+Логгер объявлен так же, как хранилище в [главе 5](./05-repository.md):
 интерфейс, токен `Logger$` и класс, который регистрируется под этим
 токеном. Класс попадает в `providers:` фичи. Всё, что пишет в лог,
 зависит от токена, поэтому тест подменит логгер одной строкой в
@@ -111,8 +111,8 @@ export const observability = makePipeline()
 
 - `outcome` — чем закончился запрос: `completed`, `failed`,
   `disconnected` или `aborted`.
-- `res` — итоговый ответ. `res.status` не зависит от транспорта: `OK`,
-  `CREATED`, `NOT_FOUND`. В HTTP-код его переводит транспорт.
+- `res` — итоговый ответ. `res.status` не зависит от транспорта: `ok`,
+  `created`, `not_found`. В HTTP-код его переводит транспорт.
 - `ctx` — контекст запроса. `ctx.input` — поля, накопленные pre-юнитами;
   `ctx.raw.pattern` — паттерн endpoint'а, например `GET /users/:id`.
 
@@ -135,13 +135,12 @@ export const ListUsers = httpEndpoint({
   output: z.array(User),
   doc: { summary: 'Список пользователей', tags: ['users'] },
   pipeline: observability,
-  deps: [UsersRepository$, AppConfig],
-  handle: listUsersHandler,
+  handler: ListUsersHandler,
 });
 ```
 
 Поле `pipeline:` принимает слой. Endpoint без этого поля тоже работает:
-у `Health` из [главы 1](./01-first-service.md) пайплайна нет.
+у `CheckHealth` из [главы 1](./01-first-service.md) пайплайна нет.
 
 Класс-юнит создаёт контейнер, поэтому `AuditOutcome` регистрируется в
 `providers:` фичи рядом с логгером:
@@ -229,7 +228,7 @@ export class DbUsersRepository implements UsersRepository {
 
 Слой можно расширить другим слоем функцией `compose`. `pre`-юниты
 внешнего слоя выполняются раньше, а `.finally` внешнего слоя выполняется
-позже, чем у внутреннего. В [главе 8](./08-auth.md) от `observability`
+позже, чем у внутреннего. В [главе 9](./09-auth.md) от `observability`
 будет составлен слой `authed`.
 
 ## Что гарантирует фреймворк
@@ -252,15 +251,14 @@ export class DbUsersRepository implements UsersRepository {
 // packages/examples.users-service/src/app.spec.ts
 it('пишет строку аудита с идентификатором запроса', async () => {
   const spy = spyLogger();
-  await using app = await assembleTest({
-    ...spec,
+  await using testApp = await assembleTest(app, {
     overrides: [
       [UsersRepository$, inMemoryUsersRepo([alice])],
       [Logger$, spy.logger],
     ],
   });
 
-  unwrap(await app.call(GetUser, { id: '1' }));
+  unwrap(await testApp.call(GetUser, { id: '1' }));
 
   expect(spy.lines).toContainEqual(
     expect.stringMatching(/^\[[^\]]+] GET \/users\/:id OK \(completed\)$/),
@@ -269,9 +267,9 @@ it('пишет строку аудита с идентификатором за�
 ```
 
 Тест подменяет логгер объектом, который копит строки, и вызывает endpoint
-через `app.call`. Вызов проходит весь пайплайн, поэтому `.finally`
+через `testApp.call`. Вызов проходит весь пайплайн, поэтому `.finally`
 выполняется и строка аудита попадает в `spy.lines`. Заголовков в
-`app.call` нет, и `withRequestId()` генерирует идентификатор сам.
+`testApp.call` нет, и `withRequestId()` генерирует идентификатор сам.
 
 ## Пока не нужно
 
@@ -279,11 +277,11 @@ it('пишет строку аудита с идентификатором за�
   отказ по коду. Они описаны в
   [приложении А](./appendix-a-alternatives.md).
 - Проверка, что слой есть у каждого endpoint'а, появится в
-  [главе 8](./08-auth.md) вместе с политиками сборки.
+  [главе 9](./09-auth.md) вместе с политиками сборки.
 - Логгер, общий для нескольких фич, станет плагином в
-  [главе 11](./11-features.md).
+  [главе 12](./12-features.md).
 - Логгер, который знает имя своего потребителя, строится на семействе
-  токенов в [главе 20](./20-token-families.md).
+  токенов в [главе 21](./21-token-families.md).
 
 ## Запускаемый код
 
@@ -309,4 +307,4 @@ curl http://localhost:3000/users/404
 ## Дальше
 
 Слой, который проверяет токен и не даёт забыть себя на новом
-endpoint'е: [глава 8](./08-auth.md).
+endpoint'е: [глава 9](./09-auth.md).

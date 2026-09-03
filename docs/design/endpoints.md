@@ -214,7 +214,7 @@ export const CreateUser = httpEndpoint({
   pipeline: basePipeline,
   handler: {
     deps: [UserService],
-    handle: (users) => async (input) => Ok.of(await users.add(input)),
+    handle: (users) => async (input) => new Ok(await users.add(input)),
   },
 });
 ```
@@ -305,7 +305,7 @@ input: multipart({
   `multiple: true` даёт `FilePart[]`, иначе один `FilePart`, и второй файл с
   тем же именем отвергается. Незаявленное файловое поле тоже отвергается.
 - Лимиты действуют во время разбора: превышение `maxSize` прерывает чтение
-  этого файла (`PAYLOAD_TOO_LARGE`, 413); несовпадение `mime` даёт отказ до
+  этого файла (`payload_too_large`, 413); несовпадение `mime` даёт отказ до
   чтения тела (400).
 - Ключи `files` типизируют payload: имена файловых полей известны
   статически. Совпадение имени файлового поля с полем `fields` — ошибка
@@ -327,7 +327,7 @@ export const ActivityStream = httpEndpoint({
   handler: {
     deps: [ActivityHub],
     handle: (hub) => async (_payload, meta: { signal: AbortSignal; lastEventId?: string }) =>
-      Ok.of(hub.subscribe(meta.signal)),
+      new Ok(hub.subscribe(meta.signal)),
   },
 });
 ```
