@@ -3,7 +3,7 @@ import { authed } from '../../plugins/auth';
 import { observability } from '../../plugins/logging';
 
 import type { FailOf } from '@nestling/operations';
-import { makeFail, events, Ok } from '@nestling/operations';
+import { events, makeFail, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose } from '@nestling/pipeline';
 import type {
@@ -43,7 +43,8 @@ type SubscriptionChange = z.infer<typeof SubscriptionChange>;
  * Реестр ведётся в каждом процессе отдельно, и `abort` действует только
  * в своём процессе.
  */
-export const SubscriptionNotFound = makeFail('not_found:subscription_not_found', { details: z.object({ id: z.string() }),
+export const SubscriptionNotFound = makeFail('not_found:subscription', {
+  details: z.object({ id: z.string() }),
   message: (d) => `Subscription ${d.id} is not active on this node`,
 });
 
@@ -96,7 +97,9 @@ export const KillSubscription = httpEndpoint({
       }): Output<null, FailOf<typeof SubscriptionNotFound>> => {
         const killed = registry.abort(payload.id, 'administrative kill');
 
-        return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
+        return killed
+          ? Ok.noContent()
+          : SubscriptionNotFound({ id: payload.id });
       },
   },
 });

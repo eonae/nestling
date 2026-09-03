@@ -1,34 +1,42 @@
 import { CreateUser as CreateUserOperation } from '../../api/operations';
 import { authed } from '../../auth';
-import type { NewUser, User } from '../user';
+import type { CreateUserInput, User } from '../user';
 import { EmailTaken } from '../users.errors';
 import type { UsersRepository } from '../users.repository';
 import { UsersRepository$ } from '../users.repository';
 
-import type { FailOf } from '@nestling/operations';
+import { Injectable } from '@nestling/container';
 import { Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 
-export const createUserHandler =
-  (users: UsersRepository) =>
-  async (payload: NewUser): Output<User, FailOf<typeof EmailTaken>> => {
-    if (await users.byEmail(payload.email)) {
-      return EmailTaken({ email: payload.email });
+@Injectable([UsersRepository$])
+export class CreateUserHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
+    const { dryRun, ...data } = input;
+
+    if (await this.users.byEmail(data.email)) {
+      return EmailTaken({ email: data.email });
     }
 
-    const user = await users.insert(payload);
+    // Проверка без записи: клиент видит, каким получился бы пользователь
+    if (dryRun) {
+      return { id: 'dry-run', ...data };
+    }
 
-    // Статус 201 и заголовок задаются на успешном ответе
+    const user = await this.users.insert(data);
+
+    // Статус `created` и заголовок — метаданные ответа. Что с заголовком
+    // сделает транспорт, решает транспорт: HTTP пишет его в ответ
     return Ok.created(user, { Location: `/users/${user.id}` });
-  };
+  }
+}
 
 /** Создание требует токен: слой `authed` проверяет его до хендлера */
 export const CreateUser = httpEndpoint({
   operation: CreateUserOperation,
   pipeline: authed,
-  handler: {
-    deps: [UsersRepository$],
-    handle: createUserHandler,
-  },
+  handler: CreateUserHandler,
 });

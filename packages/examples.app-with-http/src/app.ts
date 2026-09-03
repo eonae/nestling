@@ -4,6 +4,7 @@ import { UsersFeature } from './features/users/users.feature';
 import { appAuth, authed } from './plugins/auth';
 import { logging, observability } from './plugins/logging';
 
+import { makeApp } from '@nestling/app';
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 import { everyEndpoint } from '@nestling/pipeline';
@@ -12,8 +13,9 @@ import { subscriptions } from '@nestling/subscriptions';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
 /**
- * Словарь сборки: одно значение для `main.ts` и для тестов. Экземпляры
- * параметризованных плагинов создаются здесь один раз.
+ * Декларация приложения: одно значение для `main.ts`, тестов и проверки
+ * топологий. Экземпляры параметризованных плагинов создаются здесь один
+ * раз.
  */
 
 /** Логирование: имя сервиса задаётся здесь, уровень приходит из `LOG_LEVEL` */
@@ -33,7 +35,7 @@ export const appSubscriptions = subscriptions({
   node: 'app-with-http',
 });
 
-export const rootSpec = {
+export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   plugins: [
     appLogging,
@@ -69,4 +71,4 @@ export const rootSpec = {
       pattern: /^quotas\.record-signup$/,
     }).hasVar(IdempotencyKey, 'idempotencyKey'),
   ],
-};
+});

@@ -89,5 +89,12 @@ export async function checkTopologies(
 }
 
 /** Читаемое имя топологии для сообщения об отказе */
-const describeSelection = (select: FeatureSelection): string =>
-  Array.isArray(select) ? `[${select.join(', ')}]` : `'${String(select)}'`;
+const describeSelection = (select: FeatureSelection): string => {
+  if (typeof select === 'string') {
+    return `'${select}'`;
+  }
+
+  return Array.isArray(select)
+    ? `[${select.join(', ')}]`
+    : JSON.stringify(select);
+};

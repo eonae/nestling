@@ -1,8 +1,8 @@
+import { app } from '../../src/app';
 import { appConfigKeys } from '../../src/app.config';
-import { rootSpec } from '../../src/root';
 
-import type { App } from '@nestling/app';
-import { assemble } from '@nestling/app';
+import type { AssembledApp } from '@nestling/app';
+import { makeApp } from '@nestling/app';
 import { objectSource } from '@nestling/config';
 import { transportValue } from '@nestling/transport';
 import { HttpTransport, HttpTransport$ } from '@nestling/transport.http';
@@ -14,7 +14,7 @@ export const E2E_TOKEN = 'e2e-token';
 export const E2E_WEBHOOK_SECRET = 'e2e-hook';
 
 export interface TestAppContext {
-  app: App;
+  app: AssembledApp;
   baseUrl: string;
 }
 
@@ -29,9 +29,12 @@ export interface TestAppContext {
 export async function createTestApp(): Promise<TestAppContext> {
   const transport = new HttpTransport({ port: 0, host: '127.0.0.1' });
 
-  const app = assemble({
-    ...rootSpec,
-    select: { features: 'users', includeDeps: true },
+  // Та же декларация, что в `app.ts`, с транспортом на порту `0` и
+  // секретами из объекта: состав берётся из `app.spec`
+  const assembled = makeApp({
+    features: app.spec.features,
+    plugins: app.spec.plugins,
+    policies: app.spec.policies,
     transports: [transportValue(HttpTransport$('default'), transport)],
     config: [
       [
@@ -42,16 +45,16 @@ export async function createTestApp(): Promise<TestAppContext> {
         appConfigKeys,
       ],
     ],
-  });
+  }).assemble();
 
-  await app.run();
+  await assembled.run();
 
   const address = transport.address();
   if (!address) {
     throw new Error('transport did not report an address after serve()');
   }
 
-  return { app, baseUrl: `http://127.0.0.1:${address.port}` };
+  return { app: assembled, baseUrl: `http://127.0.0.1:${address.port}` };
 }
 
 export async function closeTestApp(context: TestAppContext): Promise<void> {

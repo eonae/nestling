@@ -4,18 +4,23 @@ import { z } from 'zod';
 /**
  * Отказы сервиса пользователей.
  *
- * Отказ — значение с машинным кодом. Endpoint перечисляет свои отказы в
- * `errors:`, и тот же список получают клиент и документ OpenAPI.
+ * Отказ — значение с машинным кодом. Первый сегмент кода — категория,
+ * её транспорт переводит в свой статус (`not_found` → 404). Endpoint
+ * перечисляет свои отказы в `errors:`, и тот же список получают клиент и
+ * документ OpenAPI.
  */
 
-export const UserNotFound = makeFail('not_found:user_not_found', { details: z.object({ id: z.string() }),
+export const UserNotFound = makeFail('not_found:user', {
+  details: z.object({ id: z.string() }),
   message: (d) => `User ${d.id} not found`,
 });
 
-/** Статус `conflict`: занятый email — конфликт с данными, а не ошибка формата */
-export const EmailTaken = makeFail('conflict:email_taken', { details: z.object({ email: z.string() }),
+/** Категория `conflict`: занятый email — конфликт с данными, а не ошибка формата */
+export const EmailTaken = makeFail('conflict:email_taken', {
+  details: z.object({ email: z.string() }),
   message: (d) => `Email ${d.email} is already taken`,
 });
 
-export const AvatarRequired = makeFail('bad_request:avatar_required', { message: 'Form field "avatar" is required',
+export const AvatarRequired = makeFail('bad_request:avatar_required', {
+  message: 'Form field "avatar" is required',
 });

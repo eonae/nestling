@@ -80,12 +80,13 @@ export const QuotasFeature = makeFeature({
       pipeline: makePipeline().pre(TenantId.propagated()),
       handler: {
         deps: [QuotaLedger],
-        handle: (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
-          ledger.archive(payload.id);
+        handle:
+          (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
+            ledger.archive(payload.id);
 
-          // eslint-disable-next-line unicorn/no-useless-undefined
-          return undefined;
-        },
+            // eslint-disable-next-line unicorn/no-useless-undefined
+            return undefined;
+          },
       },
     }),
   ],

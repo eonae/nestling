@@ -46,8 +46,8 @@
       },
       "errors": [
         {
-          "code": "QUOTA_EXCEEDED",
-          "status": "TOO_MANY_REQUESTS"
+          "code": "too_many_requests:quota_exceeded",
+          "category": "too_many_requests"
         }
       ],
       "topologies": [

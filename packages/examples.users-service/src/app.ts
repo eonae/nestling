@@ -1,21 +1,24 @@
 import { authed } from './auth';
 import { observability } from './observability';
+import { ops } from './ops.plugin';
 import { UsersFeature } from './users.feature';
 
+import { makeApp } from '@nestling/app';
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 import { everyEndpoint } from '@nestling/pipeline';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
 /**
- * Словарь сборки: одно значение для `main.ts` и для тестов.
+ * Декларация приложения: одно значение для `main.ts` и для тестов.
  *
  * Политики проверяются на собранном графе до `@OnInit` и до открытия
  * сокета. Слой сравнивается по ссылке.
  */
-export const appSpec = {
+export const app = makeApp({
   features: [UsersFeature],
   plugins: [
+    ops,
     // Документ строится на фазе ASSEMBLE из тех же деклараций, которые
     // обслуживают запросы. Схема без конвертера роняет старт
     openapi({
@@ -38,4 +41,4 @@ export const appSpec = {
       'authed',
     ),
   ],
-};
+});

@@ -38,9 +38,9 @@
 
 ## 5. Примеры
 
-- [ ] 5.1 `examples.users-service`: `app.ts` экспортирует `app = makeApp({…})`, `main.ts` — `app.assemble().run()`; `CheckHealth` в `src/ops.plugin.ts`; все хендлеры — классы `<Имя>Handler`; `NewUser` → `CreateUserInput`, репозиторий принимает `Omit<User, 'id'>`; `makeFail` с кодами `not_found:user`, `conflict:email_taken`, `unauthorized`, `bad_request:avatar_required`; `ImportUsers` с `bind: { dryRun: query() }`; `.describe()` у полей `AppConfig`; тесты через `assembleTest(app, …)` с `testApp`, без `http({ port: 0 })`
-- [ ] 5.2 `examples.app-with-http`, `examples.split-nats`: `makeApp`/`assemble(select)`, `handler`, `makeFail`, коды, `checkTopologies(app, …)`; раздел `meta.fail` в `update-user.endpoint.ts` переписан на `return`
-- [ ] 5.3 `examples.simple-cli`, `examples.simple-http-server`, `examples.container`: миграция имён
+- [x] 5.1 `examples.users-service`: `app.ts` экспортирует `app = makeApp({…})`, `main.ts` — `app.assemble().run()`; `CheckHealth` в `src/ops.plugin.ts`; все хендлеры — классы `<Имя>Handler`; `NewUser` → `CreateUserInput`, репозиторий принимает `Omit<User, 'id'>`; `makeFail` с кодами `not_found:user`, `conflict:email_taken`, `unauthorized`, `bad_request:avatar_required`; `ImportUsers` с `bind: { dryRun: query() }`; `.describe()` у полей `AppConfig`; тесты через `assembleTest(app, …)` с `testApp`, без `http({ port: 0 })`
+- [x] 5.2 `examples.app-with-http`, `examples.split-nats`: `makeApp`/`assemble(select)`, `handler`, `makeFail`, коды, `checkTopologies(app, …)`; раздел `meta.fail` в `update-user.endpoint.ts` переписан на `return`
+- [x] 5.3 `examples.simple-cli`, `examples.simple-http-server`, `examples.container`: миграция имён
 - [ ] 5.4 `yarn verify` зелёный по всем пакетам
 
 ## 6. Гайд

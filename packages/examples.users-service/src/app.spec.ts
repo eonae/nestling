@@ -1,27 +1,25 @@
 /**
  * App-тесты: каждый запрос проходит полный пайплайн, сокет не открывается.
+ *
+ * Тест собирает ту же декларацию, что `main.ts`: `assembleTest(app, …)`
+ * принимает подмены, выбор фич и конфиг теста.
  */
 
 import { CreateUser, DeleteUser, GetUser, ListUsers } from './users/endpoints';
 import { UsersRepository$ } from './users/users.repository';
-import { appSpec } from './app';
+import { app } from './app';
 import type { Logger } from './logging';
 import { Logger$ } from './logging';
 import { inMemoryUsersRepo } from './testing';
 
 import { describe, expect, it } from '@jest/globals';
 import { assembleTest, unwrap, vars } from '@nestling/testing';
-import { http } from '@nestling/transport.http';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };
 
-/** Тот же словарь, что в `main.ts`: порт `0` и конфиг из объекта вместо `process.env` */
-const spec = {
-  ...appSpec,
-  transports: [http({ port: 0 })],
-  config: vars({ API_TOKEN: 'test-token' }),
-};
+/** Конфиг теста: объект вместо `process.env` */
+const testConfig = vars({ API_TOKEN: 'test-token' });
 
 /** Логгер, который копит строки: по ним тест читает аудит */
 const spyLogger = (): { lines: string[]; logger: Logger } => {
@@ -38,57 +36,56 @@ const spyLogger = (): { lines: string[]; logger: Logger } => {
 
 describe('users-service', () => {
   it('отдаёт пользователя через полный пайплайн', async () => {
-    await using app = await assembleTest({
-      ...spec,
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
     });
 
-    expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual(alice);
-    expect(unwrap(await app.call(ListUsers, {}))).toHaveLength(2);
+    expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual(alice);
+    expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);
   });
 
-  it('возвращает объявленный отказ со статусом и кодом', async () => {
-    await using app = await assembleTest({
-      ...spec,
+  it('возвращает объявленный отказ с категорией и кодом', async () => {
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo([alice])]],
     });
 
-    expect(await app.call(GetUser, { id: '404' })).toMatchObject({
+    expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
       isSuccess: false,
       status: 'not_found',
-      value: { code: 'USER_NOT_FOUND', details: { id: '404' } },
+      value: { code: 'not_found:user', details: { id: '404' } },
     });
   });
 
   it('не создаёт узлы, которые нужны только подменённому хранилищу', async () => {
-    await using app = await assembleTest({
-      ...spec,
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo()]],
     });
 
     // Соединение с базой нужно только боевому хранилищу: после подмены
     // контейнер его не создаёт, и `@OnInit` не вызывается
-    expect(app.pruned).toContain('Database');
+    expect(testApp.pruned).toContain('Database');
   });
 
   it('читает размер страницы из конфига', async () => {
-    await using app = await assembleTest({
-      ...spec,
+    await using testApp = await assembleTest(app, {
       config: vars({ API_TOKEN: 'test-token', APP_PAGE_SIZE: '1' }),
       overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
     });
 
-    expect(unwrap(await app.call(ListUsers, {}))).toEqual([alice]);
+    expect(unwrap(await testApp.call(ListUsers, {}))).toEqual([alice]);
   });
 
   it('отклоняет запись без токена до вызова хендлера', async () => {
     const repo = inMemoryUsersRepo([alice]);
-    await using app = await assembleTest({
-      ...spec,
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
       overrides: [[UsersRepository$, repo]],
     });
 
-    expect(await app.call(DeleteUser, { id: '1' })).toMatchObject({
+    expect(await testApp.call(DeleteUser, { id: '1' })).toMatchObject({
       isSuccess: false,
       status: 'unauthorized',
       value: { code: 'unauthorized' },
@@ -97,12 +94,12 @@ describe('users-service', () => {
   });
 
   it('создаёт пользователя по токену из конфига', async () => {
-    await using app = await assembleTest({
-      ...spec,
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo()]],
     });
 
-    const created = await app.call(
+    const created = await testApp.call(
       CreateUser,
       { name: 'Carol', email: 'carol@example.com' },
       { attributes: { authorization: 'Bearer test-token' } },
@@ -112,23 +109,24 @@ describe('users-service', () => {
       isSuccess: true,
       status: 'created',
       value: { name: 'Carol' },
+      headers: { Location: '/users/1' },
     });
   });
 
   it('пишет строку аудита с идентификатором запроса', async () => {
     const spy = spyLogger();
-    await using app = await assembleTest({
-      ...spec,
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
       overrides: [
         [UsersRepository$, inMemoryUsersRepo([alice])],
         [Logger$, spy.logger],
       ],
     });
 
-    unwrap(await app.call(GetUser, { id: '1' }));
+    unwrap(await testApp.call(GetUser, { id: '1' }));
 
     expect(spy.lines).toContainEqual(
-      expect.stringMatching(/^\[[^\]]+] GET \/users\/:id OK \(completed\)$/),
+      expect.stringMatching(/^\[[^\]]+] GET \/users\/:id ok \(completed\)$/),
     );
   });
 });

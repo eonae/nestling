@@ -1,7 +1,6 @@
 /* eslint-disable no-console -- точка входа печатает адрес */
-import { rootSpec } from './root';
+import { app } from './app';
 
-import { assemble } from '@nestling/app';
 import { from, load, makeConfig } from '@nestling/config';
 import { z } from 'zod';
 
@@ -22,10 +21,7 @@ const RootConfig = makeConfig('root', {
 async function main(): Promise<void> {
   const cfg = load(RootConfig);
 
-  await assemble({
-    ...rootSpec,
-    select: { features: cfg.features, includeDeps: true },
-  }).run();
+  await app.assemble({ features: cfg.features, includeDeps: true }).run();
 
   console.log('app-with-http: GET /health, GET /users, GET /openapi.json');
 }

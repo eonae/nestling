@@ -76,12 +76,13 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
   pipeline: makePipeline().pre(withIdempotencyKey()),
   handler: {
     deps: [SignupJournal],
-    handle: (journal: SignupJournal) => async (payload: SignupRecordedInput) => {
-      journal.record(payload.userId);
+    handle:
+      (journal: SignupJournal) => async (payload: SignupRecordedInput) => {
+        journal.record(payload.userId);
 
-      // eslint-disable-next-line unicorn/no-useless-undefined
-      return undefined;
-    },
+        // eslint-disable-next-line unicorn/no-useless-undefined
+        return undefined;
+      },
   },
 });
 

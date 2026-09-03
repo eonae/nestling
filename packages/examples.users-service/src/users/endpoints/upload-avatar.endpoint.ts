@@ -5,7 +5,8 @@ import { AvatarRequired, UserNotFound } from '../users.errors';
 import type { UsersRepository } from '../users.repository';
 import { UsersRepository$ } from '../users.repository';
 
-import type { FailOf, FilePart } from '@nestling/operations';
+import { Injectable } from '@nestling/container';
+import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -18,16 +19,15 @@ const AvatarFields = z.object({ id: z.string() });
 
 type AvatarFields = z.infer<typeof AvatarFields>;
 
-export const uploadAvatarHandler =
-  (users: UsersRepository) =>
-  async (payload: {
+@Injectable([UsersRepository$])
+export class UploadAvatarHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(input: {
     fields: AvatarFields;
     files: { avatar: FilePart };
-  }): Output<
-    User,
-    FailOf<typeof UserNotFound> | FailOf<typeof AvatarRequired>
-  > => {
-    const { fields, files } = payload;
+  }): Output<User, typeof UserNotFound | typeof AvatarRequired> {
+    const { fields, files } = input;
 
     // Размер и тип файла проверил транспорт по `upload({ maxSize, mime })`.
     // Наличие поля форма не гарантирует
@@ -36,10 +36,11 @@ export const uploadAvatarHandler =
     }
 
     const avatarUrl = `/uploads/${fields.id}/${files.avatar.filename}`;
-    const user = await users.patch(fields.id, { avatarUrl });
+    const user = await this.users.patch(fields.id, { avatarUrl });
 
     return user ?? UserNotFound({ id: fields.id });
-  };
+  }
+}
 
 /** Форма `multipart`: поля проверяет схема `fields`, файлы приходят под объявленными именами */
 export const UploadAvatar = httpEndpoint({
@@ -55,8 +56,5 @@ export const UploadAvatar = httpEndpoint({
   errors: [UserNotFound, AvatarRequired, Unauthorized],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
   pipeline: authed,
-  handler: {
-    deps: [UsersRepository$],
-    handle: uploadAvatarHandler,
-  },
+  handler: UploadAvatarHandler,
 });

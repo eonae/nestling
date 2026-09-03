@@ -62,7 +62,10 @@ describe('вызов через dispatch без сокета', () => {
     expect(response).toMatchObject({
       isSuccess: false,
       status: 'conflict',
-      value: { code: 'EMAIL_TAKEN', details: { email: 'taken@example.com' } },
+      value: {
+        code: 'conflict:email_taken',
+        details: { email: 'taken@example.com' },
+      },
     });
   });
 

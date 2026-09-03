@@ -4,7 +4,7 @@ import { UserNotFound } from '../users.errors';
 import type { UsersRepository } from '../users.repository';
 import { UsersRepository$ } from '../users.repository';
 
-import type { FailOf } from '@nestling/operations';
+import { Injectable } from '@nestling/container';
 import { Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -14,15 +14,16 @@ const DeleteUserInput = z.object({ id: z.string() });
 
 type DeleteUserInput = z.infer<typeof DeleteUserInput>;
 
-export const deleteUserHandler =
-  (users: UsersRepository) =>
-  async (
-    payload: DeleteUserInput,
-  ): Output<null, FailOf<typeof UserNotFound>> => {
-    const removed = await users.remove(payload.id);
+@Injectable([UsersRepository$])
+export class DeleteUserHandler {
+  constructor(private readonly users: UsersRepository) {}
 
-    return removed ? Ok.noContent() : UserNotFound({ id: payload.id });
-  };
+  async handle(input: DeleteUserInput): Output<null, typeof UserNotFound> {
+    const removed = await this.users.remove(input.id);
+
+    return removed ? Ok.noContent() : UserNotFound({ id: input.id });
+  }
+}
 
 /**
  * Отказ `Unauthorized` бросает слой, а не хендлер, но объявляет его
@@ -39,8 +40,5 @@ export const DeleteUser = httpEndpoint({
     status: 'no_content',
   },
   pipeline: authed,
-  handler: {
-    deps: [UsersRepository$],
-    handle: deleteUserHandler,
-  },
+  handler: DeleteUserHandler,
 });

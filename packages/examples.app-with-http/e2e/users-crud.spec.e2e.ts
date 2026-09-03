@@ -40,7 +40,7 @@ describe('пользователи по HTTP', () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({
-      code: 'USER_NOT_FOUND',
+      code: 'not_found:user',
       details: { id: '999' },
     });
   });
@@ -73,7 +73,9 @@ describe('пользователи по HTTP', () => {
       { auth: true },
     );
     expect(duplicate.status).toBe(409);
-    expect(await duplicate.json()).toMatchObject({ code: 'EMAIL_TAKEN' });
+    expect(await duplicate.json()).toMatchObject({
+      code: 'conflict:email_taken',
+    });
 
     const invalid = await client.json(
       'POST',
@@ -116,7 +118,9 @@ describe('пользователи по HTTP', () => {
 
     const empty = await client.json('PATCH', '/users/2', {}, { auth: true });
     expect(empty.status).toBe(400);
-    expect(await empty.json()).toMatchObject({ code: 'NOTHING_TO_UPDATE' });
+    expect(await empty.json()).toMatchObject({
+      code: 'bad_request:nothing_to_update',
+    });
   });
 
   it('удаляет пользователя: 204, затем 404', async () => {

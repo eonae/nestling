@@ -8,15 +8,16 @@
  */
 
 import {
-  makeFail,
   makeCommand,
   makeEvent,
+  makeFail,
   makeRequest,
 } from '@nestling/operations';
 import { z } from 'zod';
 
 /** Отказ «квота исчерпана». По сети приходит кодом и восстанавливается в `Fail` */
-export const QuotaExceeded = makeFail('too_many_requests:quota_exceeded', { details: z.object({ limit: z.number() }),
+export const QuotaExceeded = makeFail('too_many_requests:quota_exceeded', {
+  details: z.object({ limit: z.number() }),
   message: (d) => `User quota of ${d.limit} is exhausted`,
 });
 

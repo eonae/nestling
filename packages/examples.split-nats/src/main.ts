@@ -6,7 +6,7 @@
  * процессом. Код фич во всех трёх запусках один и тот же.
  */
 
-import { makeRoot } from './root';
+import { app } from './app';
 
 import { load, makeConfig } from '@nestling/config';
 import { z } from 'zod';
@@ -19,7 +19,7 @@ const RootConfig = makeConfig('app', {
 async function main(): Promise<void> {
   const cfg = load(RootConfig);
 
-  await makeRoot(cfg.features).run();
+  await app.assemble(cfg.features).run();
 }
 
 void main();

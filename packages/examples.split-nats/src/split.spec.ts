@@ -6,10 +6,10 @@
  * различаются.
  */
 
-import { makeRoot } from './root';
+import { declareApp } from './app';
 
 import { describe, expect, it } from '@jest/globals';
-import type { App } from '@nestling/app';
+import type { AssembledApp } from '@nestling/app';
 import { NatsBus } from '@nestling/transport.nats';
 import { NatsDouble, natsDouble } from '@nestling/transport.nats/testing';
 
@@ -59,8 +59,8 @@ async function run(
   broker: NatsDouble,
   ...selects: string[]
 ): Promise<{ close: () => Promise<void> }> {
-  const apps: App[] = selects.map((select) =>
-    makeRoot(select, { connect: natsDouble(broker) }),
+  const apps: AssembledApp[] = selects.map((select) =>
+    declareApp({ connect: natsDouble(broker) }).assemble(select),
   );
 
   for (const app of apps) {

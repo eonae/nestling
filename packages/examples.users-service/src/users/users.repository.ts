@@ -2,7 +2,7 @@ import { Database } from '../database';
 import type { Logger } from '../logging';
 import { Logger$ } from '../logging';
 
-import type { NewUser, User } from './user';
+import type { User } from './user';
 
 import { Injectable, makeToken } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
@@ -13,7 +13,7 @@ export interface UsersRepository {
   all(): Promise<User[]>;
   byId(id: string): Promise<User | null>;
   byEmail(email: string): Promise<User | null>;
-  insert(data: NewUser): Promise<User>;
+  insert(data: Omit<User, 'id'>): Promise<User>;
   patch(id: string, data: Partial<Omit<User, 'id'>>): Promise<User | null>;
   remove(id: string): Promise<boolean>;
 }
@@ -54,7 +54,7 @@ export class DbUsersRepository implements UsersRepository {
     return this.db.users.find((user) => user.email === email) ?? null;
   }
 
-  async insert(data: NewUser): Promise<User> {
+  async insert(data: Omit<User, 'id'>): Promise<User> {
     this.trace(`insert ${data.email}`);
 
     const user: User = { id: String(this.db.users.length + 1), ...data };

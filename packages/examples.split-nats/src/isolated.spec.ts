@@ -6,6 +6,7 @@
  * клиент шины заменён `app.emit`. Код фичи тот же, что в `split.spec.ts`.
  */
 
+import { app } from './app';
 import {
   ClaimQuota,
   QuotaExceeded,
@@ -16,23 +17,22 @@ import { QuotasFeature } from './quotas';
 import { UsersFeature } from './users';
 
 import { describe, expect, it } from '@jest/globals';
+import { makeApp } from '@nestling/app';
 import { assembleTest, checkTopologies, stub } from '@nestling/testing';
-import { nats } from '@nestling/transport.nats';
 
-/** Словарь сборки для проверки топологий: тот же, что в `root.ts` */
-const rootSpec = {
-  features: [UsersFeature, QuotasFeature],
-  transports: [nats({ name: 'events' })],
-  intercom: 'events',
-};
+/**
+ * Декларация для изоляции: те же фичи без шины. Соседние операции
+ * подменяются стабами, поэтому брокер тесту не нужен, а соединение с ним
+ * не открывается
+ */
+const isolated = makeApp({ features: [UsersFeature, QuotasFeature] });
 
 describe('фича users в изоляции', () => {
   it('регистрирует пользователя через стабы соседних операций', async () => {
     const claimed: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
 
-    await using app = await assembleTest({
-      features: [UsersFeature, QuotasFeature],
+    await using testApp = await assembleTest(isolated, {
       select: 'users',
       // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
       // сборке нет: обе стороны заменены стабами
@@ -48,7 +48,7 @@ describe('фича users в изоляции', () => {
       ],
     });
 
-    const [{ subscriber, response }] = await app.emit(RegisterUser, {
+    const [{ subscriber, response }] = await testApp.emit(RegisterUser, {
       email: 'alice@example.com',
     });
 
@@ -63,8 +63,7 @@ describe('фича users в изоляции', () => {
   it('не публикует факт регистрации при исчерпанной квоте', async () => {
     const registered: unknown[] = [];
 
-    await using app = await assembleTest({
-      features: [UsersFeature, QuotasFeature],
+    await using testApp = await assembleTest(isolated, {
       select: 'users',
       stubs: [
         // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
@@ -76,14 +75,13 @@ describe('фича users в изоляции', () => {
       ],
     });
 
-    await app.emit(RegisterUser, { email: 'bob@example.com' });
+    await testApp.emit(RegisterUser, { email: 'bob@example.com' });
 
     expect(registered).toEqual([]);
   });
 
   it('каждая застабанная операция реализована в одной из топологий', async () => {
-    await using app = await assembleTest({
-      features: [UsersFeature, QuotasFeature],
+    await using testApp = await assembleTest(isolated, {
       select: 'users',
       stubs: [
         stub(ClaimQuota, async () => ({ remaining: 1 })),
@@ -94,11 +92,7 @@ describe('фича users в изоляции', () => {
 
     // Матрица проверяет граф без подстановок: стаб операции, которой не
     // реализует ни одна топология, здесь станет виден
-    const topologies = await checkTopologies(rootSpec, [
-      'all',
-      'users',
-      'quotas',
-    ]);
+    const topologies = await checkTopologies(app, ['all', 'users', 'quotas']);
 
     const published = new Set(
       topologies.flatMap(({ report }) =>
@@ -106,7 +100,7 @@ describe('фича users в изоляции', () => {
       ),
     );
 
-    expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
-    expect(app.stubbed).toEqual(['quotas.claim', 'users.registered']);
+    expect(testApp.stubbed.filter((name) => !published.has(name))).toEqual([]);
+    expect(testApp.stubbed).toEqual(['quotas.claim', 'users.registered']);
   });
 });

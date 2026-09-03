@@ -6,7 +6,6 @@ import {
   CreateUser,
   DeleteUser,
   ExportUsers,
-  ExportUsersHandler,
   GetUser,
   ImportUsers,
   ListUsers,
@@ -23,8 +22,9 @@ import { makeModule } from '@nestling/container';
 /**
  * Модуль пользователей: группирует провайдеры фичи под именем.
  *
- * В списке всё, что создаёт контейнер: сервисы, класс-хендлер и классы
- * юнитов пайплайна. Endpoint'ы у модуля не перечисляются.
+ * В списке сервисы и классы юнитов пайплайна. Класс-хендлер
+ * (`ExportUsersHandler`) сюда не попадает: его регистрирует сам endpoint.
+ * Endpoint'ы у модуля не перечисляются.
  */
 export const UsersModule = makeModule({
   name: 'module:users',
@@ -32,7 +32,6 @@ export const UsersModule = makeModule({
     Database,
     DbUsersRepository,
     ActivityHub,
-    ExportUsersHandler,
     AuditDeletion,
     VerifySignature,
   ],
@@ -42,7 +41,7 @@ export const UsersModule = makeModule({
  * Фича пользователей: модули и endpoint'ы.
  *
  * Связь с фичей `quotas` не объявляется полем: она выводится из операций,
- * которые endpoint'ы вызывают через `deps`.
+ * которые endpoint'ы вызывают через зависимости хендлера.
  */
 export const UsersFeature = makeFeature({
   name: 'users',

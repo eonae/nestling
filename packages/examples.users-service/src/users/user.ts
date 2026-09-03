@@ -10,7 +10,14 @@ export const User = z.object({
 
 export type User = z.infer<typeof User>;
 
-/** Данные для создания пользователя: идентификатор выдаёт хранилище */
-export const NewUser = User.pick({ name: true, email: true });
+/**
+ * Данные для создания пользователя: идентификатор выдаёт хранилище.
+ *
+ * `dryRun` — проверить данные, не создавая запись. Поле приходит из
+ * query-строки: место задаёт пометка `bind` в операции.
+ */
+export const CreateUserInput = User.pick({ name: true, email: true }).extend({
+  dryRun: z.coerce.boolean().optional(),
+});
 
-export type NewUser = z.infer<typeof NewUser>;
+export type CreateUserInput = z.infer<typeof CreateUserInput>;

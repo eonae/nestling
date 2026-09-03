@@ -6,18 +6,24 @@ import { UserNotFound } from '../users.errors';
 import type { UsersRepository } from '../users.repository';
 import { UsersRepository$ } from '../users.repository';
 
-import type { FailOf } from '@nestling/operations';
+import { Injectable } from '@nestling/container';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 
-export const getUserHandler =
-  (users: UsersRepository) =>
-  async (payload: GetUserInput): Output<User, FailOf<typeof UserNotFound>> => {
-    const user = await users.byId(payload.id);
+@Injectable([UsersRepository$])
+export class GetUserHandler {
+  constructor(private readonly users: UsersRepository) {}
 
-    // Отказ возвращается значением. Для ответа это то же, что бросок
-    return user ?? UserNotFound({ id: payload.id });
-  };
+  /**
+   * Отказ возвращается значением и виден в типе `Output`: определение
+   * `UserNotFound` записано в нём напрямую.
+   */
+  async handle(input: GetUserInput): Output<User, typeof UserNotFound> {
+    const user = await this.users.byId(input.id);
+
+    return user ?? UserNotFound({ id: input.id });
+  }
+}
 
 /**
  * Адрес, схемы и `errors:` живут в операции `api/operations.ts`: ту же
@@ -26,8 +32,5 @@ export const getUserHandler =
 export const GetUser = httpEndpoint({
   operation: GetUserOperation,
   pipeline: observability,
-  handler: {
-    deps: [UsersRepository$],
-    handle: getUserHandler,
-  },
+  handler: GetUserHandler,
 });

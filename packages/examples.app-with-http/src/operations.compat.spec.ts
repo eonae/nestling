@@ -9,10 +9,11 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 
+import { app } from './app';
 import { appConfigKeys } from './app.config';
-import { rootSpec } from './root';
 
 import { describe, expect, it } from '@jest/globals';
+import { makeApp } from '@nestling/app';
 import { objectSource } from '@nestling/config';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { OperationSnapshot } from '@nestling/testing';
@@ -23,12 +24,16 @@ import {
   serializeSnapshot,
   snapshotOperations,
 } from '@nestling/testing';
-import { http } from '@nestling/transport.http';
 
-/** Секреты для проверки: `check()` собирает граф, и секция читается */
-const spec = {
-  ...rootSpec,
-  transports: [http({ port: 0 })],
+/**
+ * Та же декларация с секретами из объекта: `check()` собирает граф, и
+ * секция читается
+ */
+const checked = makeApp({
+  features: app.spec.features,
+  plugins: app.spec.plugins,
+  policies: app.spec.policies,
+  transports: app.spec.transports,
   config: [
     [
       objectSource(
@@ -37,8 +42,8 @@ const spec = {
       ),
       appConfigKeys,
     ],
-  ] as const,
-};
+  ],
+});
 
 /** Варианты деплоя: снапшот объединяет то, что публикует каждый */
 const TOPOLOGIES = [
@@ -56,7 +61,7 @@ const readBaseline = (): OperationSnapshot =>
 /** Текущий состав операций: матрица топологий, сведённая в снапшот */
 const currentSnapshot = async (): Promise<OperationSnapshot> =>
   snapshotOperations(
-    await checkTopologies(spec, [...TOPOLOGIES], {
+    await checkTopologies(checked, [...TOPOLOGIES], {
       converters: [zodConverter()],
     }),
   );

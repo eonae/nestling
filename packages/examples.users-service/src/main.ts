@@ -1,14 +1,13 @@
 /* eslint-disable no-console -- точка входа печатает адрес */
-import { appSpec } from './app';
-
-import { assemble } from '@nestling/app';
+import { app } from './app';
 
 /**
- * Точка входа: `assemble` собирает приложение и проводит его по фазам.
- * Остановка по `SIGTERM` и `SIGINT` устанавливается автоматически.
+ * Точка входа: `assemble()` собирает приложение для этого процесса,
+ * `run()` проводит его по фазам. Остановка по `SIGTERM` и `SIGINT`
+ * устанавливается автоматически.
  */
 async function main(): Promise<void> {
-  await assemble(appSpec).run();
+  await app.assemble().run();
 
   console.log('users-service: GET /health, GET /users, GET /openapi.json');
 }

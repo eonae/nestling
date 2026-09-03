@@ -41,6 +41,25 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
 ) => T;
 
 /**
+ * Помечает класс как провайдер без зависимостей; токеном служит сам класс.
+ *
+ * То же, что `@Injectable([])`: форма без аргумента для класса, у
+ * которого конструктору нечего передавать.
+ *
+ * @example
+ * ```typescript
+ * @Injectable()
+ * class ListUsersHandler {
+ *   async handle() { … }
+ * }
+ * ```
+ */
+export function Injectable(): <T extends new () => any>(
+  constructor: T,
+  context: ClassDecoratorContext<T>,
+) => T;
+
+/**
  * Помечает класс как провайдер; токеном служит сам класс.
  *
  * @template TDependencies - Массив токенов зависимостей
@@ -76,7 +95,9 @@ export function Injectable<TDependencies extends InjectionToken[]>(
 ) => T;
 
 export function Injectable<I, TDependencies extends InjectionToken[]>(
-  idOrDependencies: Token<I> | [...TDependencies],
+  idOrDependencies: Token<I> | [...TDependencies] = [] as unknown as [
+    ...TDependencies,
+  ],
   deps?: [...TDependencies],
 ) {
   // Перегрузки выше проверяют типами, что класс реализует интерфейс `id`,

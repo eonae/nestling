@@ -48,7 +48,9 @@ describe('webhook с подписью', () => {
     });
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toMatchObject({ code: 'INVALID_SIGNATURE' });
+    expect(await response.json()).toMatchObject({
+      code: 'unauthorized:invalid_signature',
+    });
     const kept = await client.get('/users/1');
     expect(kept.status).toBe(200);
   });

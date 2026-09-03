@@ -4,7 +4,7 @@ import { Demo } from './demo';
 import { appLogging } from './logging';
 import { runtimeConfigKeys } from './runtime';
 
-import { assemble } from '@nestling/app';
+import { makeApp } from '@nestling/app';
 import { objectSource } from '@nestling/config';
 
 /**
@@ -16,7 +16,7 @@ import { objectSource } from '@nestling/config';
  * без объявления. Порядок списка задаёт приоритет источников.
  */
 export async function main() {
-  const app = assemble({
+  const app = makeApp({
     features: [AppFeature],
     plugins: [appLogging],
     providers: [Demo],
@@ -24,7 +24,7 @@ export async function main() {
       [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
       [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
     ],
-  });
+  }).assemble();
 
   await app.run();
   await app.close();

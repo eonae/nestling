@@ -7,10 +7,10 @@
  */
 
 import { Unauthorized } from '../errors';
-import { NewUser, User } from '../users/user';
+import { CreateUserInput, User } from '../users/user';
 import { EmailTaken, UserNotFound } from '../users/users.errors';
 
-import { makeRequest } from '@nestling/operations';
+import { makeRequest, query } from '@nestling/operations';
 import { z } from 'zod';
 
 export const GetUserInput = z.object({ id: z.string() });
@@ -30,11 +30,14 @@ export const GetUser = makeRequest({
  * `errors:` перечисляет и отказ хендлера (`EmailTaken`), и отказ слоя
  * `authed` (`Unauthorized`): клиент должен знать те же отказы, что
  * получает от сервера.
+ *
+ * `dryRun` читается из query-строки: `POST /users?dryRun=true` проверяет
+ * данные, не создавая запись. Остальные поля схемы приходят из тела.
  */
 export const CreateUser = makeRequest({
   name: 'users.create',
-  http: { method: 'POST', path: '/users' },
-  input: NewUser,
+  http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
+  input: CreateUserInput,
   output: User,
   errors: [EmailTaken, Unauthorized],
   // Статус успеха назван явно: хендлер отвечает `Ok.created(...)`

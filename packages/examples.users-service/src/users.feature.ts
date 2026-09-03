@@ -3,7 +3,6 @@ import {
   DeleteUser,
   ExportUsers,
   GetUser,
-  Health,
   ImportUsers,
   ListUsers,
   UploadAvatar,
@@ -19,8 +18,9 @@ import { makeFeature } from '@nestling/app';
 /**
  * Фича пользователей: провайдеры и endpoint'ы.
  *
- * В `providers:` перечислено всё, что контейнер создаёт: сервисы и
- * классы-юниты пайплайна. Endpoint'ы получают зависимости из `deps`.
+ * В `providers:` перечислены сервисы и классы-юниты пайплайна.
+ * Классы-хендлеры сюда не попадают: каждый endpoint регистрирует свой
+ * сам.
  */
 export const UsersFeature = makeFeature({
   name: 'users',
@@ -32,7 +32,6 @@ export const UsersFeature = makeFeature({
     Authenticate,
   ],
   endpoints: [
-    Health,
     ListUsers,
     GetUser,
     CreateUser,
