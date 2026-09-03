@@ -17,14 +17,14 @@
 
 ## 3. Транспорты, порты, клиент, документация
 
-- [ ] 3.1 `@nestling/transport.http`: `STATUS_MAP` по `Category`; ответ отказа берёт код из `fail.category`; `Ok.headers` пишутся в ответ; тесты e2e на 404/409/413/504 и на заголовки
-- [ ] 3.2 `@nestling/transport.nats`: конверт ответа без `status`; `Ok.headers` в заголовки ответного сообщения; тесты
-- [ ] 3.3 `@nestling/transport.cli`: `Ok.headers` отбрасываются; тест
-- [ ] 3.4 `@nestling/streams`: лимит → `PayloadTooLarge`, `gapTimeout` → `Timeout`; тесты
-- [ ] 3.5 `@nestling/ports`: `Timeout` вместо `DeadlineExceeded`; восстановление `Fail` из ответа по коду с производной категорией; `InternalError`; тесты
-- [ ] 3.6 `@nestling/client`: восстановление `Fail` из ответа, `E ∪ InternalError`; тесты
-- [ ] 3.7 `@nestling/openapi`: ответы по категории → HTTP-код, `oneOf` для нескольких отказов одной категории, `default` — `InternalError`, `doc.status` в нижнем регистре; снапшоты документа пересобраны
-- [ ] 3.8 `@nestling/operations` `implement(Operation, { pipeline?, handler, subscriber?, detached? })`; `@nestling/subscriptions` и `@nestling/eslint-plugin` приведены к `handler`
+- [x] 3.1 `@nestling/transport.http`: `STATUS_MAP` по `Category`; ответ отказа берёт код из `fail.category`; `Ok.headers` пишутся в ответ; тесты e2e на 404/409/413/504 и на заголовки
+- [x] 3.2 `@nestling/transport.nats`: конверт ответа без `status`; `Ok.headers` в заголовки ответного сообщения; тесты
+- [x] 3.3 `@nestling/transport.cli`: `Ok.headers` отбрасываются; тест
+- [x] 3.4 `@nestling/streams`: лимит → `PayloadTooLarge`, `gapTimeout` → `Timeout`; тесты
+- [x] 3.5 `@nestling/ports`: `Timeout` вместо `DeadlineExceeded`; восстановление `Fail` из ответа по коду с производной категорией; `InternalError`; тесты
+- [x] 3.6 `@nestling/client`: восстановление `Fail` из ответа, `E ∪ InternalError`; тесты
+- [x] 3.7 `@nestling/openapi`: ответы по категории → HTTP-код, `oneOf` для нескольких отказов одной категории, `default` — `InternalError`, `doc.status` в нижнем регистре; снапшоты документа пересобраны
+- [x] 3.8 `@nestling/operations` `implement(Operation, { pipeline?, handler, subscriber?, detached? })`; `@nestling/subscriptions` и `@nestling/eslint-plugin` приведены к `handler`
 
 ## 4. Composition root: `@nestling/app`, `@nestling/testing`
 

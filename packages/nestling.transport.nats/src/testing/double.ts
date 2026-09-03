@@ -139,20 +139,26 @@ class AsyncQueue<T> {
 }
 
 /** Сообщение, доставленное core-подпиской */
+/** Ответ req-reply: тело и заголовки ответного сообщения */
+type ReplyFn = (
+  data?: Uint8Array,
+  options?: { headers?: NatsHeadersLike },
+) => void;
+
 class MsgDouble implements NatsMsgLike {
   constructor(
     readonly subject: string,
     readonly data: Uint8Array,
     readonly headers: NatsHeadersLike | undefined,
-    readonly reply: ((data?: Uint8Array) => void) | undefined,
+    readonly reply: ReplyFn | undefined,
   ) {}
 
-  respond(data?: Uint8Array): boolean {
+  respond(data?: Uint8Array, options?: { headers?: NatsHeadersLike }): boolean {
     if (!this.reply) {
       return false;
     }
 
-    this.reply(data);
+    this.reply(data, options);
 
     return true;
   }
@@ -323,7 +329,7 @@ export class NatsDouble implements NatsLike {
       }, options.timeout);
       timer.unref?.();
 
-      const reply = (payload?: Uint8Array): void => {
+      const reply: ReplyFn = (payload, replyOptions): void => {
         if (settled) {
           return;
         }
@@ -333,7 +339,7 @@ export class NatsDouble implements NatsLike {
           new MsgDouble(
             subject,
             payload ?? new Uint8Array(),
-            undefined,
+            replyOptions?.headers,
             undefined,
           ),
         );
@@ -446,7 +452,7 @@ export class NatsDouble implements NatsLike {
     subject: string,
     data: Uint8Array,
     headers: NatsHeadersLike | undefined,
-    reply?: (data?: Uint8Array) => void,
+    reply?: ReplyFn,
   ): number {
     const matched = this.#subscriptions.filter((subscription) =>
       subjectMatches(subscription.pattern, subject),

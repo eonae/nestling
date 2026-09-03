@@ -4,7 +4,7 @@
 
 import { cliEndpoint, CliTransport, CliTransport$ } from './index';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import {
   isEndpointDefinition,
   makeFail,
@@ -79,6 +79,33 @@ describe('cliEndpoint', () => {
     });
 
     await cli.close();
+  });
+
+  it('заголовки Ok отбрасываются: в stdout уходит только значение', async () => {
+    const Greet = cliEndpoint({
+      command: 'greet',
+      output: z.object({ message: z.string() }),
+      pipeline: makePipeline(),
+      handler: async () =>
+        new Ok({ message: 'hello' }, { 'X-Trace': 'trace-1' }),
+    });
+
+    const printed: string[] = [];
+    const log = jest
+      .spyOn(console, 'log')
+      .mockImplementation((line: string) => void printed.push(line));
+
+    try {
+      const cli = new CliTransport({ argv: ['greet'] });
+      await cli.serve(makeDispatch([Greet]), new AbortController().signal);
+      await cli.close();
+    } finally {
+      log.mockRestore();
+    }
+
+    expect(printed).toHaveLength(1);
+    expect(JSON.parse(printed[0])).toEqual({ message: 'hello' });
+    expect(printed[0]).not.toContain('X-Trace');
   });
 
   it('декларация с deps обслуживается после резолва зависимостей', async () => {

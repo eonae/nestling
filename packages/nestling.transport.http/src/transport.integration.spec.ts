@@ -23,7 +23,9 @@ import {
   makePipeline,
   multipart,
   Ok,
+  PayloadTooLarge,
   stream,
+  Timeout,
   upload,
 } from '@nestling/pipeline';
 import type { ExecutableDeclaration } from '@nestling/transport';
@@ -309,6 +311,104 @@ describe('HttpTransport — error response safety', () => {
     } finally {
       await hooked.close();
     }
+  });
+});
+
+const OrderNotFound = makeFail('not_found:order', {
+  message: 'Order not found',
+});
+
+describe('HttpTransport — категория отказа и заголовки Ok', () => {
+  let transport: HttpTransport;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    transport = makeTransport(silent);
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/orders/:id',
+        input: z.object({ id: z.string() }),
+        output: z.object({ id: z.string() }),
+        errors: [OrderNotFound],
+        handler: async () => OrderNotFound(),
+      }),
+    );
+    // Отказы ядра проходят границу без объявления в `errors:`
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/too-large',
+        pipeline: makePipeline(),
+        handler: () => {
+          throw PayloadTooLarge({ limit: 10 });
+        },
+      }),
+    );
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/slow',
+        pipeline: makePipeline(),
+        handler: () => {
+          throw Timeout();
+        },
+      }),
+    );
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/orders',
+        output: z.object({ id: z.string() }),
+        handler: async () =>
+          Ok.created(
+            { id: '42' },
+            {
+              Location: '/orders/42',
+              'content-type': 'application/vnd.orders+json',
+            },
+          ),
+      }),
+    );
+    baseUrl = await listen(transport);
+  });
+
+  afterAll(async () => {
+    await transport.close();
+  });
+
+  it('категория отказа переводится в HTTP-код: not_found → 404', async () => {
+    const response = await fetch(`${baseUrl}/orders/1`);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: 'Order not found',
+      code: 'not_found:order',
+    });
+  });
+
+  it('отказы ядра доходят до клиента: 413 и 504 без объявления', async () => {
+    const tooLarge = await fetch(`${baseUrl}/too-large`, { method: 'POST' });
+    expect(tooLarge.status).toBe(413);
+    expect(await tooLarge.json()).toMatchObject({
+      code: 'payload_too_large',
+      details: { limit: 10 },
+    });
+
+    const slow = await fetch(`${baseUrl}/slow`, { method: 'POST' });
+    expect(slow.status).toBe(504);
+    expect(await slow.json()).toMatchObject({ code: 'timeout' });
+  });
+
+  it('заголовки Ok пишутся в ответ после заголовков формы', async () => {
+    const response = await fetch(`${baseUrl}/orders`, { method: 'POST' });
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get('location')).toBe('/orders/42');
+    // Заголовок хендлера перекрывает заголовок, который ставит форма
+    expect(response.headers.get('content-type')).toBe(
+      'application/vnd.orders+json',
+    );
+    expect(await response.json()).toEqual({ id: '42' });
   });
 });
 

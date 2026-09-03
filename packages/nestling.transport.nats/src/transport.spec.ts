@@ -155,6 +155,32 @@ describe('NatsBus — адресация и группы', () => {
     await caller.close();
   });
 
+  it('заголовки Ok уезжают заголовками ответного сообщения', async () => {
+    const broker = new Broker();
+    const Tagged = implement(Claim, {
+      handler: async (input) =>
+        Ok.created({ granted: input.amount }, { 'X-Trace': 'trace-1' }),
+    });
+    const owner = await process(broker, [Tagged]);
+
+    // Ответ читается с брокера напрямую: заголовки — метаданные сообщения,
+    // а не тело, и порт на вызывающей стороне их не разбирает
+    const reply = await broker.request(
+      'quotas.claim',
+      new TextEncoder().encode(JSON.stringify({ amount: 2 })),
+      { timeout: 500 },
+    );
+
+    expect(reply.headers?.get('X-Trace')).toBe('trace-1');
+    expect(JSON.parse(new TextDecoder().decode(reply.data))).toMatchObject({
+      isSuccess: true,
+      status: 'created',
+      value: { granted: 2 },
+    });
+
+    await owner.close();
+  });
+
   it('реплики владельца делят команду', async () => {
     const broker = new Broker();
     const replicas = await Promise.all([

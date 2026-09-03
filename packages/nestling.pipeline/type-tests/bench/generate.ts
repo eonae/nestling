@@ -81,7 +81,7 @@ export function generateGraph({
       `  method: 'GET',`,
       `  path: '/bench/${i}',`,
       `  pipeline: composed,`,
-      `  handle: async () => new Ok({ n: ${i} }),`,
+      `  handler: async () => new Ok({ n: ${i} }),`,
       `});`,
     );
   }

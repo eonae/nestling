@@ -112,301 +112,301 @@ export const e0 = httpEndpoint({
   method: 'GET',
   path: '/bench/0',
   pipeline: composed,
-  handle: async () => new Ok({ n: 0 }),
+  handler: async () => new Ok({ n: 0 }),
 });
 export const e1 = httpEndpoint({
   method: 'GET',
   path: '/bench/1',
   pipeline: composed,
-  handle: async () => new Ok({ n: 1 }),
+  handler: async () => new Ok({ n: 1 }),
 });
 export const e2 = httpEndpoint({
   method: 'GET',
   path: '/bench/2',
   pipeline: composed,
-  handle: async () => new Ok({ n: 2 }),
+  handler: async () => new Ok({ n: 2 }),
 });
 export const e3 = httpEndpoint({
   method: 'GET',
   path: '/bench/3',
   pipeline: composed,
-  handle: async () => new Ok({ n: 3 }),
+  handler: async () => new Ok({ n: 3 }),
 });
 export const e4 = httpEndpoint({
   method: 'GET',
   path: '/bench/4',
   pipeline: composed,
-  handle: async () => new Ok({ n: 4 }),
+  handler: async () => new Ok({ n: 4 }),
 });
 export const e5 = httpEndpoint({
   method: 'GET',
   path: '/bench/5',
   pipeline: composed,
-  handle: async () => new Ok({ n: 5 }),
+  handler: async () => new Ok({ n: 5 }),
 });
 export const e6 = httpEndpoint({
   method: 'GET',
   path: '/bench/6',
   pipeline: composed,
-  handle: async () => new Ok({ n: 6 }),
+  handler: async () => new Ok({ n: 6 }),
 });
 export const e7 = httpEndpoint({
   method: 'GET',
   path: '/bench/7',
   pipeline: composed,
-  handle: async () => new Ok({ n: 7 }),
+  handler: async () => new Ok({ n: 7 }),
 });
 export const e8 = httpEndpoint({
   method: 'GET',
   path: '/bench/8',
   pipeline: composed,
-  handle: async () => new Ok({ n: 8 }),
+  handler: async () => new Ok({ n: 8 }),
 });
 export const e9 = httpEndpoint({
   method: 'GET',
   path: '/bench/9',
   pipeline: composed,
-  handle: async () => new Ok({ n: 9 }),
+  handler: async () => new Ok({ n: 9 }),
 });
 export const e10 = httpEndpoint({
   method: 'GET',
   path: '/bench/10',
   pipeline: composed,
-  handle: async () => new Ok({ n: 10 }),
+  handler: async () => new Ok({ n: 10 }),
 });
 export const e11 = httpEndpoint({
   method: 'GET',
   path: '/bench/11',
   pipeline: composed,
-  handle: async () => new Ok({ n: 11 }),
+  handler: async () => new Ok({ n: 11 }),
 });
 export const e12 = httpEndpoint({
   method: 'GET',
   path: '/bench/12',
   pipeline: composed,
-  handle: async () => new Ok({ n: 12 }),
+  handler: async () => new Ok({ n: 12 }),
 });
 export const e13 = httpEndpoint({
   method: 'GET',
   path: '/bench/13',
   pipeline: composed,
-  handle: async () => new Ok({ n: 13 }),
+  handler: async () => new Ok({ n: 13 }),
 });
 export const e14 = httpEndpoint({
   method: 'GET',
   path: '/bench/14',
   pipeline: composed,
-  handle: async () => new Ok({ n: 14 }),
+  handler: async () => new Ok({ n: 14 }),
 });
 export const e15 = httpEndpoint({
   method: 'GET',
   path: '/bench/15',
   pipeline: composed,
-  handle: async () => new Ok({ n: 15 }),
+  handler: async () => new Ok({ n: 15 }),
 });
 export const e16 = httpEndpoint({
   method: 'GET',
   path: '/bench/16',
   pipeline: composed,
-  handle: async () => new Ok({ n: 16 }),
+  handler: async () => new Ok({ n: 16 }),
 });
 export const e17 = httpEndpoint({
   method: 'GET',
   path: '/bench/17',
   pipeline: composed,
-  handle: async () => new Ok({ n: 17 }),
+  handler: async () => new Ok({ n: 17 }),
 });
 export const e18 = httpEndpoint({
   method: 'GET',
   path: '/bench/18',
   pipeline: composed,
-  handle: async () => new Ok({ n: 18 }),
+  handler: async () => new Ok({ n: 18 }),
 });
 export const e19 = httpEndpoint({
   method: 'GET',
   path: '/bench/19',
   pipeline: composed,
-  handle: async () => new Ok({ n: 19 }),
+  handler: async () => new Ok({ n: 19 }),
 });
 export const e20 = httpEndpoint({
   method: 'GET',
   path: '/bench/20',
   pipeline: composed,
-  handle: async () => new Ok({ n: 20 }),
+  handler: async () => new Ok({ n: 20 }),
 });
 export const e21 = httpEndpoint({
   method: 'GET',
   path: '/bench/21',
   pipeline: composed,
-  handle: async () => new Ok({ n: 21 }),
+  handler: async () => new Ok({ n: 21 }),
 });
 export const e22 = httpEndpoint({
   method: 'GET',
   path: '/bench/22',
   pipeline: composed,
-  handle: async () => new Ok({ n: 22 }),
+  handler: async () => new Ok({ n: 22 }),
 });
 export const e23 = httpEndpoint({
   method: 'GET',
   path: '/bench/23',
   pipeline: composed,
-  handle: async () => new Ok({ n: 23 }),
+  handler: async () => new Ok({ n: 23 }),
 });
 export const e24 = httpEndpoint({
   method: 'GET',
   path: '/bench/24',
   pipeline: composed,
-  handle: async () => new Ok({ n: 24 }),
+  handler: async () => new Ok({ n: 24 }),
 });
 export const e25 = httpEndpoint({
   method: 'GET',
   path: '/bench/25',
   pipeline: composed,
-  handle: async () => new Ok({ n: 25 }),
+  handler: async () => new Ok({ n: 25 }),
 });
 export const e26 = httpEndpoint({
   method: 'GET',
   path: '/bench/26',
   pipeline: composed,
-  handle: async () => new Ok({ n: 26 }),
+  handler: async () => new Ok({ n: 26 }),
 });
 export const e27 = httpEndpoint({
   method: 'GET',
   path: '/bench/27',
   pipeline: composed,
-  handle: async () => new Ok({ n: 27 }),
+  handler: async () => new Ok({ n: 27 }),
 });
 export const e28 = httpEndpoint({
   method: 'GET',
   path: '/bench/28',
   pipeline: composed,
-  handle: async () => new Ok({ n: 28 }),
+  handler: async () => new Ok({ n: 28 }),
 });
 export const e29 = httpEndpoint({
   method: 'GET',
   path: '/bench/29',
   pipeline: composed,
-  handle: async () => new Ok({ n: 29 }),
+  handler: async () => new Ok({ n: 29 }),
 });
 export const e30 = httpEndpoint({
   method: 'GET',
   path: '/bench/30',
   pipeline: composed,
-  handle: async () => new Ok({ n: 30 }),
+  handler: async () => new Ok({ n: 30 }),
 });
 export const e31 = httpEndpoint({
   method: 'GET',
   path: '/bench/31',
   pipeline: composed,
-  handle: async () => new Ok({ n: 31 }),
+  handler: async () => new Ok({ n: 31 }),
 });
 export const e32 = httpEndpoint({
   method: 'GET',
   path: '/bench/32',
   pipeline: composed,
-  handle: async () => new Ok({ n: 32 }),
+  handler: async () => new Ok({ n: 32 }),
 });
 export const e33 = httpEndpoint({
   method: 'GET',
   path: '/bench/33',
   pipeline: composed,
-  handle: async () => new Ok({ n: 33 }),
+  handler: async () => new Ok({ n: 33 }),
 });
 export const e34 = httpEndpoint({
   method: 'GET',
   path: '/bench/34',
   pipeline: composed,
-  handle: async () => new Ok({ n: 34 }),
+  handler: async () => new Ok({ n: 34 }),
 });
 export const e35 = httpEndpoint({
   method: 'GET',
   path: '/bench/35',
   pipeline: composed,
-  handle: async () => new Ok({ n: 35 }),
+  handler: async () => new Ok({ n: 35 }),
 });
 export const e36 = httpEndpoint({
   method: 'GET',
   path: '/bench/36',
   pipeline: composed,
-  handle: async () => new Ok({ n: 36 }),
+  handler: async () => new Ok({ n: 36 }),
 });
 export const e37 = httpEndpoint({
   method: 'GET',
   path: '/bench/37',
   pipeline: composed,
-  handle: async () => new Ok({ n: 37 }),
+  handler: async () => new Ok({ n: 37 }),
 });
 export const e38 = httpEndpoint({
   method: 'GET',
   path: '/bench/38',
   pipeline: composed,
-  handle: async () => new Ok({ n: 38 }),
+  handler: async () => new Ok({ n: 38 }),
 });
 export const e39 = httpEndpoint({
   method: 'GET',
   path: '/bench/39',
   pipeline: composed,
-  handle: async () => new Ok({ n: 39 }),
+  handler: async () => new Ok({ n: 39 }),
 });
 export const e40 = httpEndpoint({
   method: 'GET',
   path: '/bench/40',
   pipeline: composed,
-  handle: async () => new Ok({ n: 40 }),
+  handler: async () => new Ok({ n: 40 }),
 });
 export const e41 = httpEndpoint({
   method: 'GET',
   path: '/bench/41',
   pipeline: composed,
-  handle: async () => new Ok({ n: 41 }),
+  handler: async () => new Ok({ n: 41 }),
 });
 export const e42 = httpEndpoint({
   method: 'GET',
   path: '/bench/42',
   pipeline: composed,
-  handle: async () => new Ok({ n: 42 }),
+  handler: async () => new Ok({ n: 42 }),
 });
 export const e43 = httpEndpoint({
   method: 'GET',
   path: '/bench/43',
   pipeline: composed,
-  handle: async () => new Ok({ n: 43 }),
+  handler: async () => new Ok({ n: 43 }),
 });
 export const e44 = httpEndpoint({
   method: 'GET',
   path: '/bench/44',
   pipeline: composed,
-  handle: async () => new Ok({ n: 44 }),
+  handler: async () => new Ok({ n: 44 }),
 });
 export const e45 = httpEndpoint({
   method: 'GET',
   path: '/bench/45',
   pipeline: composed,
-  handle: async () => new Ok({ n: 45 }),
+  handler: async () => new Ok({ n: 45 }),
 });
 export const e46 = httpEndpoint({
   method: 'GET',
   path: '/bench/46',
   pipeline: composed,
-  handle: async () => new Ok({ n: 46 }),
+  handler: async () => new Ok({ n: 46 }),
 });
 export const e47 = httpEndpoint({
   method: 'GET',
   path: '/bench/47',
   pipeline: composed,
-  handle: async () => new Ok({ n: 47 }),
+  handler: async () => new Ok({ n: 47 }),
 });
 export const e48 = httpEndpoint({
   method: 'GET',
   path: '/bench/48',
   pipeline: composed,
-  handle: async () => new Ok({ n: 48 }),
+  handler: async () => new Ok({ n: 48 }),
 });
 export const e49 = httpEndpoint({
   method: 'GET',
   path: '/bench/49',
   pipeline: composed,
-  handle: async () => new Ok({ n: 49 }),
+  handler: async () => new Ok({ n: 49 }),
 });
 
 export const probeHover = composed;
