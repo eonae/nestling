@@ -1487,7 +1487,7 @@ using`), `vars()`, `stub()`, `familyOverride()`, `.check()`, `testModule()`.
   материализованного члена **и** `familyOverride` для рецепта целиком.
 - `app.port(Contract)` — типизированный порт для теста потребителя.
 - Включение `"testing"`-condition в vitest/jest из коробки. Частично снят:
-  рецепт для обоих раннеров есть в [гайде](../guides/testing.md), репо
+  рецепт для обоих раннеров есть в [гайде](../history/superseded/guides/testing.md), репо
   включает условие в `jest.config.base.js`; автоматизации не делаем.
 
 ---

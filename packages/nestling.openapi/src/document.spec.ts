@@ -367,7 +367,7 @@ const TooShort = defineFail('OPENAPI_TOO_SHORT', {
   message: 'Too short',
 });
 
-describe('responses покрывают весь операция границы', () => {
+describe('responses покрывают все ответы границы', () => {
   it('объявленный отказ становится ответом своего кода', () => {
     const Create = httpEndpoint({
       method: 'POST',

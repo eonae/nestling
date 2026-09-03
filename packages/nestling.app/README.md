@@ -7,8 +7,8 @@ Composition root приложения Nestling. `assemble(spec)` собирае�
 
 > 🚧 Активная разработка, API меняется. Целевой дизайн:
 > [`docs/design/composition.md`](../../docs/design/composition.md).
-> Гайды: [composition root](../../docs/guides/composition.md) (фазы, фичи,
-> `select`) и [приложение с DI](../../docs/guides/http-app-di.md).
+> Гайды: [глава 11. Выделить вторую область](../../docs/guide/11-features.md) (фазы, фичи,
+> `select`) и [глава 4. Хендлеру нужен репозиторий](../../docs/guide/04-repository.md).
 
 ## Установка
 
@@ -311,7 +311,7 @@ const report = await assemble(spec).check({ converters: [zodConverter()] });
 
 `report.operations` — дескрипторы операций, которые эта топология
 публикует. Они строятся из discovery по декларациям с привязкой к шине.
-Операция, который импортирован, но не реализован, в отчёт не попадает.
+Операция, которая импортирована, но не реализована, в отчёт не попадает.
 Отсутствие конвертера для вендора схемы — не ошибка: лист дескриптора
 помечается непрозрачным. Дескрипторы — значения из
 [`@nestling/ports`](../nestling.ports); из их матрицы `snapshotOperations` и

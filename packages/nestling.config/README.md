@@ -4,7 +4,7 @@
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
 > [`docs/design/config.md`](../../docs/design/config.md).
-> Гайд: [`docs/guides/config.md`](../../docs/guides/config.md).
+> Гайд: [глава 5. Порт и адрес базы из окружения](../../docs/guide/05-config.md).
 
 ## Установка
 

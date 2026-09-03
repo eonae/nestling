@@ -63,5 +63,5 @@ export type {
   SnapshotOperation,
 } from '@nestling/ports';
 
-/** Операция вендор-конвертера: его принимает `checkTopologies` */
+/** Интерфейс вендор-конвертера: его принимает `checkTopologies` */
 export type { SchemaDocConverter } from '@nestling/pipeline';

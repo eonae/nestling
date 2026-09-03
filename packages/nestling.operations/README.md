@@ -8,7 +8,7 @@
 
 > 🚧 Пакет в активной разработке, API может меняться. Целевой дизайн —
 > [`docs/design/operations.md`](../../docs/design/operations.md), гайд —
-> [`docs/guides/typed-client.md`](../../docs/guides/typed-client.md).
+> [глава 10. Отдать фронтенду документацию и клиент](../../docs/guide/10-openapi-and-client.md).
 
 ## Без серверного кода
 

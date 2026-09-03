@@ -1,194 +1,169 @@
 # Nestling
 
-> A lightweight, opinionated replacement for Nest.js with ECMAScript decorators and zero magic
+> A TypeScript backend framework: smaller, more modern and stricter than NestJS.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 **[🇷🇺 Русская версия](./README.ru.md)**
 
-## ⚠️ Active Development
+## Status
 
-**Nestling** is currently in active development. The project is evolving, and APIs may change. Use at your own risk in production environments.
+Nestling is under active development towards V1; APIs change. Use in
+production at your own risk. Documentation and examples are in Russian.
 
-## What is Nestling?
+## What it is
 
-Nestling is a personal take on Nest.js - a framework that's both loved and frustrating. It takes what teams actually use from Nest.js while leaving behind the unnecessary complexity.
+Nestling assembles an application from declarative values: endpoints,
+operations, pipelines, features and modules are plain constants, and the
+dependency container verifies the whole graph at startup.
 
-Like Nest.js positions itself as opinionated, **Nestling is even more opinionated**.
+- **A container with no magic.** Dependencies are declared as an explicit
+  token list on standard ES decorators, without `reflect-metadata`. The
+  graph is built eagerly: a cycle or a missing dependency stops the
+  assembly, not a request.
+- **Schema-first.** The `input`, `output` and `errors` schemas of an endpoint
+  drive validation, handler types, the typed client and the OpenAPI
+  document. Any validator that implements
+  [Standard Schema](https://standardschema.dev) works: zod, valibot, arktype.
+- **A pipeline without `next()`.** Request handling is a flat sequence of
+  `.pre`, `.ok`, `.catch` and `.finally` phases; layers are combined with
+  `compose`, and an assembly policy verifies that every endpoint carries the
+  required layer.
+- **Errors as values.** A handler returns `Ok` or `Fail`; the list of
+  possible failures is part of the endpoint declaration and reaches the
+  client.
+- **Operations between features.** A feature calls its neighbour through an
+  operation, not through its service. The same code runs in one process and
+  in several, over NATS.
+- **One composition root.** `assemble({ features, plugins, transports,
+  config, policies })` builds the application and drives it through the
+  lifecycle phases.
 
-## Current Status
+The principles behind the design are described in
+[docs/design/principles.md](./docs/design/principles.md) (Russian).
 
-Right now, Nestling includes:
-
-### ✅ @nestling/container
-
-A fully functional, type-safe dependency injection container with no third-party dependencies.
-
-**Key features:**
-- 🎯 Type-safe with excellent TypeScript inference
-- 🪶 Lightweight, no third-party dependencies
-- 🎪 Uses standard ECMAScript decorators (not experimental TypeScript ones)
-- 🔍 Transparent dependency graph with visualization support
-- 🎯 No circular dependencies allowed (by design)
-- 📦 Can be used standalone - frontend, CLI, any framework
-
-👉 **[Read the full documentation (Russian)](./packages/nestling.container/README.md)**
-
-### 🚧 HTTP/CLI framework (active development, APIs changing)
-
-- **@nestling/pipeline** — typed, transport-agnostic request pipeline: schema-first endpoints (zod), typed middleware chains, `Ok`/`Fail` results, streaming io
-- **@nestling/app** — application assembly: container + transports, endpoint auto-discovery, lifecycle, graceful shutdown
-- **@nestling/transport.http** — HTTP transport on bare `node:http` (routing, JSON/multipart/NDJSON parsing)
-- **@nestling/transport.cli** — CLI transport: commands as endpoints, single-shot and REPL modes
-- **@nestling/ports** — contracts, ports and the in-process message bus: features talk through contracts, not through each other's tokens
-- **@nestling/transport.nats** — NATS as the application bus: remote port binding, queue groups, JetStream for durable delivery
-- **@nestling/models** — type-safe model definitions on top of zod
-- **@nestling/testing** — test composition root: `assembleTest`, overrides with pruning, `checkTopologies`
-- **@nestling/eslint-plugin** — ESLint rules: `import-through-barrel` (a directory with a barrel is a module; enter it only through the barrel) and `endpoint-has-layer`, an editor hint whose guarantee stays the assembly policy check
-
-The target design is evolving in [`docs/decisions/`](./docs/decisions/ideas.md); usage guides in [`docs/guides/`](./docs/README.md).
-
-### 📊 @nestling/viz
-
-Interactive visualization tool for your dependency graph.
-
-**Features:**
-- 🎨 Beautiful interactive graph visualization
-- 🔍 Explore dependencies visually
-- 🌳 Understand your application structure at a glance
-- 🎯 Identify potential issues in your dependency tree
-
-Generate a visualization of your container's dependency graph and explore it in your browser.
-
-### 📚 Examples
-
-- [simple-app](./packages/examples.simple-app/) — standalone DI: modules, factory providers, parameterized tokens, lifecycle hooks
-- [simple-http-server](./packages/examples.simple-http-server/) — functional HTTP endpoints ([guide](./docs/guides/http-functional.md))
-- [app-with-http](./packages/examples.app-with-http/) — full App with DI and class endpoints ([guide](./docs/guides/http-app-di.md))
-- [simple-cli](./packages/examples.simple-cli/) — CLI transport ([guide](./docs/guides/cli.md))
-
-## Installation
+## Quick start
 
 ```bash
-npm install @nestling/container
+npm install @nestling/app @nestling/transport.http zod
 ```
-
-## Quick Start
 
 ```typescript
-import { Injectable, makeModule, ContainerBuilder } from '@nestling/container';
+import { assemble, makeFeature } from '@nestling/app';
+import { http, httpEndpoint } from '@nestling/transport.http';
+import { z } from 'zod';
 
-// Define a service
-@Injectable([])
-class UserService {
-  getUsers() {
-    return ['Alice', 'Bob'];
-  }
-}
-
-// Create a module
-const usersModule = makeModule({
-  name: 'module:users',
-  providers: [UserService]
+// An endpoint is a value: address, schemas and handler in one object
+const GetUser = httpEndpoint({
+  method: 'GET',
+  path: '/users/:id',
+  input: z.object({ id: z.string() }), // `id` comes from the path
+  output: z.object({ id: z.string(), name: z.string() }),
+  handle: async ({ id }) => ({ id, name: 'Alice' }),
 });
 
-// Build and use the container
-const container = await new ContainerBuilder()
-  .register(usersModule)
-  .build();
+const UsersFeature = makeFeature({ name: 'users', endpoints: [GetUser] });
 
-await container.init();
-
-const userService = container.getOrThrow(UserService);
-console.log(userService.getUsers()); // ['Alice', 'Bob']
-
-await container.destroy();
+await assemble({
+  features: [UsersFeature],
+  transports: [http({ port: 3000 })],
+}).run();
 ```
 
-## Why Nestling?
+The application answers `GET /users/42`, validates input and output against
+the schemas and shuts down on `SIGTERM`. Continue with the
+[guide](./docs/guide/README.md): it grows this file into an application of
+several features running in several processes.
 
-### What's Different from Nest.js?
+## Guide
 
-**Removed:**
-- ❌ `ForwardRef` - circular dependencies should never exist
-- ❌ `REQUEST` and `TRANSIENT` scopes - better handled at the app layer
-- ❌ Modules as classes - they're just configuration, no need for ceremony
+| Part | Covers |
+|---|---|
+| [1. First service](./docs/guide/README.md#часть-1-первый-сервис) | endpoints, schemas, failures, a repository, config, tests |
+| [2. Service in production](./docs/guide/README.md#часть-2-сервис-в-проде) | logging, token check, files and streams, OpenAPI and the client |
+| [3. The application grows](./docs/guide/README.md#часть-3-приложение-растёт) | features, operations, events, a live feed, testing a feature alone |
+| [4. Deploying in parts](./docs/guide/README.md#часть-4-разворачивать-по-частям) | `select`, NATS, operation compatibility |
+| [5. Rare tasks](./docs/guide/README.md#часть-5-редкие-задачи) | webhooks, CLI, token families, config sources, operations, no `assemble` |
 
-**Improved:**
-- ✅ Modules are plain objects (simpler, cleaner)
-- ✅ Lifecycle hooks in strict topological order
-- ✅ Full access to dependency graph
-- ✅ Standard JavaScript decorators
-- ✅ No third-party dependencies for better security
-- ✅ Explicit over implicit everywhere
+## Examples
 
-**[Read more about the philosophy →](./packages/nestling.container/README.md#how-nestling-di-differs-from-nestjs-and-what-they-share)**
+| Example | What it shows | Guide chapters |
+|---|---|---|
+| [`examples.users-service`](./packages/examples.users-service/) | A users service: endpoints, repository, config, layers, files, OpenAPI, client, tests | 1–10 |
+| [`examples.app-with-http`](./packages/examples.app-with-http/) | The same service as three features: operations, events, SSE, `select`, subscription registry, compatibility snapshot | 11–15, 17, 18, 22 |
+| [`examples.split-nats`](./packages/examples.split-nats/) | The same features in several processes over NATS | 16 |
+| [`examples.simple-cli`](./packages/examples.simple-cli/) | A CLI tool: commands as endpoints, REPL, a stream from stdin | 19 |
+| [`examples.container`](./packages/examples.container/) | The container alone: token families, config sources, reloadable config, graph for `viz` | 20, 21, 23 |
+| [`examples.simple-http-server`](./packages/examples.simple-http-server/) | HTTP without `assemble`: `makeDispatch` and `serve` | 23 |
 
-## Roadmap
+## Packages
 
-- [x] DI Container (`@nestling/container`)
-- [x] Dependency graph visualization (`@nestling/viz`)
-- [x] Typed request pipeline (`@nestling/pipeline`) — evolving, see [docs/decisions](./docs/decisions/ideas.md)
-- [x] HTTP transport (`@nestling/transport.http`) — works, not production-hardened yet
-- [x] CLI transport (`@nestling/transport.cli`)
-- [x] Application assembly (`@nestling/app`)
-- [ ] Pipeline v2: phases, layers, `compose` ([design decisions](./docs/decisions/ideas.md))
-- [ ] Token families & module factories
-- [ ] Request context with AsyncLocalStorage (`@nestling/context`)
-- [x] Subscriptions registry (`@nestling/subscriptions`) — satellite over public primitives
-- [ ] CLI scaffolding tool
-- [ ] Testing utilities
+For application authors:
+
+| Package | What it does |
+|---|---|
+| [`@nestling/app`](./packages/nestling.app/) | Composition root: `assemble`, features and plugins, `select`, lifecycle phases, policies |
+| [`@nestling/transport.http`](./packages/nestling.transport.http/) | HTTP on `node:http`: `httpEndpoint`, routing, JSON, NDJSON, SSE, multipart |
+| [`@nestling/operations`](./packages/nestling.operations/) | Shared by server and client: operations, `defineFail`, `Ok`/`Fail`, io forms |
+| [`@nestling/config`](./packages/nestling.config/) | Configuration as schema-typed sections, sources and their binding, secrets, reloadable sections |
+| [`@nestling/container`](./packages/nestling.container/) | Dependency container: tokens, providers, token families, modules, lifecycle hooks |
+| [`@nestling/pipeline`](./packages/nestling.pipeline/) | Request pipeline, layers, policies, async context |
+| [`@nestling/ports`](./packages/nestling.ports/) | Implementing and calling operations between features, the in-process bus |
+| [`@nestling/testing`](./packages/nestling.testing/) | Test composition root: `assembleTest`, `overrides`, operation stubs, `checkTopologies` |
+
+Transports and the bus:
+
+| Package | What it does |
+|---|---|
+| [`@nestling/transport.cli`](./packages/nestling.transport.cli/) | CLI commands as endpoints: single-shot and REPL |
+| [`@nestling/transport.nats`](./packages/nestling.transport.nats/) | NATS as the application bus: operations across processes, `durable` delivery |
+| [`@nestling/transport`](./packages/nestling.transport/) | Transport interface and `makeDispatch` for running without `assemble` |
+| [`@nestling/streams`](./packages/nestling.streams/) | `Topic<T>` and stream combinators over `AsyncIterable` |
+
+Tools and satellites:
+
+| Package | What it does |
+|---|---|
+| [`@nestling/client`](./packages/nestling.client/) | Typed HTTP client built from operations, for frontends and other services |
+| [`@nestling/openapi`](./packages/nestling.openapi/) | OpenAPI 3.1 document derived from endpoint declarations |
+| [`@nestling/openapi.zod`](./packages/nestling.openapi.zod/) | zod schema converter for `@nestling/openapi` |
+| [`@nestling/subscriptions`](./packages/nestling.subscriptions/) | Registry of active subscriptions: list, forced close, live watch |
+| [`@nestling/viz`](./packages/nestling.viz/) | Interactive dependency graph visualisation in the browser |
+| [`@nestling/eslint-plugin`](./packages/nestling.eslint-plugin/) | ESLint rules: module boundary by barrel, hints on endpoint declarations |
+| [`@nestling/models`](./packages/nestling.models/) | zod io models checked against a TypeScript type |
 
 ## Documentation
 
-All documentation lives in [`docs/`](./docs/README.md), organized by status:
+The entry point is [`docs/README.md`](./docs/README.md). The folder defines
+the status of a document:
 
-- [`docs/design/`](./docs/README.md) — target design (source of truth for the API)
-- [`docs/decisions/`](./docs/decisions/ideas.md) — architecture decision log with reasoning
-- `docs/history/` — frozen discussions, migrations, and work logs
+- [`docs/guide/`](./docs/guide/README.md) — the guide to the current API;
+  chapters are verified against the example code;
+- [`docs/design/`](./docs/design/README.md) — the target V1 state, the full
+  API description;
+- [`docs/decisions/`](./docs/decisions/ideas.md) — the decision log: what,
+  when and why;
+- [`docs/glossary.md`](./docs/glossary.md) — terms and how they are written.
 
-Package-level READMEs document the current state of the code.
+Package READMEs document the current state of the code.
 
-## Project Structure
+## Development
 
-This is a monorepo containing:
-
+```bash
+yarn install
+yarn verify          # build + typecheck + lint + test across all packages
+yarn docs:audit      # documentation consistency check
+yarn docs:preview    # build the HTML preview of the docs
 ```
-docs/                          # Design docs, decisions, guides, history
-packages/
-├── nestling.container/        # Core DI container
-├── nestling.pipeline/         # Typed request pipeline & endpoints
-├── nestling.streams/          # Topic, item-chain combinators, AbortSignal helpers
-├── nestling.app/              # Application assembly & lifecycle
-├── nestling.transport/        # Transport abstraction
-├── nestling.transport.http/   # HTTP transport
-├── nestling.transport.cli/    # CLI transport
-├── nestling.ports/            # Contracts, ports, in-process bus
-├── nestling.subscriptions/    # Registry of active subscriptions (satellite)
-├── nestling.transport.nats/   # NATS bus transport (split deployment)
-├── nestling.models/           # Model definitions on top of zod
-├── nestling.testing/          # Test composition root
-├── nestling.eslint-plugin/    # ESLint hints for endpoint declarations
-├── nestling.viz/              # Dependency graph visualization
-├── examples.simple-app/       # Example: standalone DI
-├── examples.simple-http-server/  # Example: functional HTTP
-├── examples.app-with-http/    # Example: App + DI + HTTP
-├── examples.simple-cli/       # Example: CLI transport
-├── examples.split-nats/       # Example: split deployment over NATS
-├── common.graphs/             # Internal: DAG utilities
-├── common.misc/               # Internal: shared helpers
-└── common.static-server/      # Internal: static file server (for viz)
-```
+
+A monorepo on Yarn workspaces and Nx: packages live in `packages/`,
+documentation in `docs/`.
 
 ## Contributing
 
-This is a personal project, but suggestions and discussions are welcome! Feel free to open issues with ideas or questions.
+This is a personal project, but questions and suggestions are welcome: open an
+issue.
 
 ## License
 
 MIT © 2025
-
----
-
-**Note:** The journey that led to creating yet another JavaScript framework will be documented separately. But the short version: explicit is better than implicit, and simplicity is a feature.
-

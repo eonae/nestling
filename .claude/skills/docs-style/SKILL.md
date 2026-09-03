@@ -110,7 +110,7 @@ description: Стиль текстов Nestling — правила для design
   ошибка сборки». Аргументы живут в `decisions/ideas.md`.
 - **Описания через отрицание.** Сначала что есть, потом, если нужно, чего
   нет.
-- **Истории решения** в `design/`, `guides/`, README и комментариях. Ей
+- **Истории решения** в `design/`, `guide/`, README и комментариях. Ей
   место в `decisions/`.
 - **Оценок** вместо описания: «здоровый дефолт», «честный кадр»,
   «правильный способ». Описываем поведение и его следствия.
@@ -138,7 +138,7 @@ description: Стиль текстов Nestling — правила для design
 содержит — перенести в `ideas.md` новой записью (журнал append-only) и
 сослаться на неё из плашки.
 
-### `docs/guides/` — по текущему API
+### `docs/guide/` — по текущему API
 
 Обращение на «вы», императив: «объявите», «откройте». Раздел начинается с
 кода из примера, за кодом идёт объяснение. Плашка «сверено с кодом
@@ -253,7 +253,7 @@ Fail-able и уже не транзакционен.»
 
 ```bash
 node .claude/skills/docs-style/scripts/lint.mjs                      # всё по умолчанию
-node .claude/skills/docs-style/scripts/lint.mjs docs/guides/ports.md packages/nestling.ports/src
+node .claude/skills/docs-style/scripts/lint.mjs docs/guide/11-features.md packages/nestling.ports/src
 node .claude/skills/docs-style/scripts/lint.mjs --warn               # плюс стрелки и цепочки тире
 ```
 

@@ -10,9 +10,9 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 > транспорт проверяет данные через `@nestling/pipeline` любой схемой
 > [Standard Schema](https://standardschema.dev).
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
-> Гайды: [HTTP без DI](../../docs/guides/http-functional.md),
-> [приложение с DI](../../docs/guides/http-app-di.md),
-> [composition root](../../docs/guides/composition.md).
+> Гайды: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
+> [глава 4. Хендлеру нужен репозиторий](../../docs/guide/04-repository.md),
+> [глава 11. Выделить вторую область](../../docs/guide/11-features.md).
 
 ## Установка
 
@@ -109,7 +109,7 @@ export const CreateMember = httpEndpoint({
   реэкспортирует, так что автор декларации импортирует их вместе с
   `httpEndpoint`.
 - Bind-карта вычисляется при создании декларации и доступна как
-  `httpBindingOf(definition)`. Клиент, который импортирует только операция,
+  `httpBindingOf(definition)`. Клиент, который импортирует только операцию,
   получает её без серверного кода.
 - Payload собирается только из канонических мест с приоритетом
   «путь, затем пометка, затем остальное». Поле, присланное не туда, в

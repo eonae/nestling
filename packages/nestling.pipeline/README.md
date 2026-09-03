@@ -11,9 +11,9 @@
 > TypeBox, Effect Schema). Целевой дизайн —
 > [`docs/design/pipeline.md`](../../docs/design/pipeline.md),
 > [`docs/design/schemas.md`](../../docs/design/schemas.md); гайды —
-> [HTTP без DI](../../docs/guides/http-functional.md),
-> [приложение с DI](../../docs/guides/http-app-di.md),
-> [CLI](../../docs/guides/cli.md).
+> [глава 7. Видеть каждый запрос в логе](../../docs/guide/07-logging.md),
+> [глава 8. Пускать только своих](../../docs/guide/08-auth.md),
+> [глава 19. CLI-утилита на тех же примитивах](../../docs/guide/19-cli.md).
 
 Декларативный слой — `Ok`/`Fail`, перечень статусов, `defineFail` со
 встроенными кодами, формы io и `jsonSchema()` — живёт в

@@ -67,52 +67,67 @@ for (const f of designFiles.filter((f) => f !== 'README.md')) {
   }
 }
 
-// ── 2. Плашка «сверено с кодом» в guides/*.md + её свежесть ─────────────────
+// ── 2. Плашка «сверено с кодом» в главах guide/*.md + её свежесть ───────────
+// Главы гайда — все .md в docs/guide/, кроме оглавления README.md и
+// приложений appendix-*.md: у приложений нет примера-источника. Плашка
+// может называть несколько примеров через запятую.
 
-const guideFiles = mdFiles(join(DOCS, 'guides'));
-for (const f of guideFiles) {
-  const file = join(DOCS, 'guides', f);
-  const m = head(file).match(/сверено с кодом\s+`([^`]+)`\s*\((\d{4}-\d{2}-\d{2})\)/i);
+const GUIDE = join(DOCS, 'guide');
+const guideFiles = mdFiles(GUIDE).filter((f) => f !== 'README.md');
+const chapterFiles = guideFiles.filter((f) => !f.startsWith('appendix-'));
+for (const f of chapterFiles) {
+  const file = join(GUIDE, f);
+  const m = head(file).match(/сверено с кодом\s+((?:`[^`]+`\s*,?\s*)+)\((\d{4}-\d{2}-\d{2})\)/i);
   if (!m) {
     add('ERROR', 'guide-plate', file,
       'нет плашки «сверено с кодом `<пример>` (YYYY-MM-DD)» в первых 12 строках');
     continue;
   }
-  const [, example, checkedAt] = m;
-  const pkg = `packages/${example}`;
-  if (!existsSync(join(ROOT, pkg))) {
-    add('ERROR', 'guide-example', file, `пример ${pkg} не существует`);
-    continue;
-  }
-  const lastCommit = git('log', '-1', '--format=%cs', '--', pkg);
-  if (lastCommit && lastCommit > checkedAt) {
-    add('WARN', 'guide-stale', file,
-      `пример ${example} менялся ${lastCommit}, гайд сверен ${checkedAt} — нужна пересверка`);
-  }
-  if (git('status', '--porcelain', '--', pkg)) {
-    add('WARN', 'guide-stale', file,
-      `в ${pkg} есть незакоммиченные изменения — после них пересверь гайд`);
+  const [, examples, checkedAt] = m;
+  for (const example of [...examples.matchAll(/`([^`]+)`/g)].map((x) => x[1])) {
+    const pkg = `packages/${example}`;
+    if (!existsSync(join(ROOT, pkg))) {
+      add('ERROR', 'guide-example', file, `пример ${pkg} не существует`);
+      continue;
+    }
+    const lastCommit = git('log', '-1', '--format=%cs', '--', pkg);
+    if (lastCommit && lastCommit > checkedAt) {
+      add('WARN', 'guide-stale', file,
+        `пример ${example} менялся ${lastCommit}, глава сверена ${checkedAt} — нужна пересверка`);
+    }
+    if (git('status', '--porcelain', '--', pkg)) {
+      add('WARN', 'guide-stale', file,
+        `в ${pkg} есть незакоммиченные изменения — после них пересверь главу`);
+    }
   }
 }
 
 // ── 3. Карты полны в обе стороны ─────────────────────────────────────────────
-// Гайды — таблица в docs/README.md; design-доки — карта в docs/design/README.md.
+// Главы — оглавление docs/guide/README.md; design-доки — карта в
+// docs/design/README.md. docs/README.md обязан вести на оглавление гайда.
 
 const readmePath = join(DOCS, 'README.md');
 const readme = readFileSync(readmePath, 'utf8');
-{
+const guideTocPath = join(GUIDE, 'README.md');
+if (!existsSync(guideTocPath)) {
+  add('ERROR', 'guide-toc', GUIDE, 'нет оглавления docs/guide/README.md');
+} else {
+  const toc = readFileSync(guideTocPath, 'utf8');
   const listed = new Set(
-    [...readme.matchAll(/\]\(\.\/guides\/([^)#]+\.md)/g)].map((m) => m[1]),
+    [...toc.matchAll(/\]\(\.\/([^)#/]+\.md)/g)].map((m) => m[1]),
   );
   for (const f of guideFiles) {
     if (!listed.has(f)) {
-      add('ERROR', 'readme-table', readmePath, `docs/guides/${f} не упомянут в docs/README.md`);
+      add('ERROR', 'guide-toc', guideTocPath, `docs/guide/${f} не упомянут в оглавлении`);
     }
   }
   for (const f of listed) {
     if (!guideFiles.includes(f)) {
-      add('ERROR', 'readme-table', readmePath, `ссылка на несуществующий docs/guides/${f}`);
+      add('ERROR', 'guide-toc', guideTocPath, `ссылка на несуществующий docs/guide/${f}`);
     }
+  }
+  if (!/\]\(\.\/guide\/README\.md\)/.test(readme)) {
+    add('ERROR', 'readme-table', readmePath, 'docs/README.md не ссылается на ./guide/README.md');
   }
 }
 
@@ -165,7 +180,8 @@ for (const file of [
   readmePath,
   join(DOCS, 'glossary.md'),
   ...designFiles.map((f) => join(DOCS, 'design', f)),
-  ...guideFiles.map((f) => join(DOCS, 'guides', f)),
+  guideTocPath,
+  ...guideFiles.map((f) => join(GUIDE, f)),
   ...mdFiles(join(DOCS, 'decisions')).map((f) => join(DOCS, 'decisions', f)),
 ]) {
   scanLinks(file);

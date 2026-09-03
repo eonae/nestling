@@ -10,7 +10,8 @@
 docs/
 ├── design/        ← ЦЕЛЕВОЕ СОСТОЯНИЕ V1. Полное описание API, без порядка работ.
 ├── decisions/     ← журнал решений: когда, что, почему, отвергнутые варианты.
-├── guides/        ← гайды по ТЕКУЩЕМУ API, сверены с кодом примеров.
+├── guide/         ← гайд по ТЕКУЩЕМУ API: главы от первого сервиса к split-развёртыванию,
+│                 каждая сверена с кодом примера.
 ├── preview/       ← статический HTML-превью документации; не источник истины.
 │                 Текст правится в preview/src/*.md, HTML собирается `yarn docs:preview`.
 ├── glossary.md    ← термины и правила их написания.
@@ -24,24 +25,17 @@ docs/
 Актуальное состояние **кода** документируют README пакетов
 (`packages/*/README.md`) — они публикуются с npm и живут рядом с кодом.
 В пакете держим только то, что нужно его пользователю сегодня.
-**У примеров README нет намеренно**: их роль выполняют гайды в `guides/`,
-а запускаемая правда — сам код `packages/examples.*`.
+**У примеров README нет намеренно**: их роль выполняют главы гайда в
+`guide/`, а запускаемая правда — сам код `packages/examples.*`.
 
-## guides/ — по текущему API
+## guide/ — гайд по текущему API
 
-| Гайд | О чём | Пример-источник |
-|---|---|---|
-| [http-functional.md](./guides/http-functional.md) | HTTP без DI: `httpEndpoint`, валидация, стриминг | `examples.simple-http-server` |
-| [http-app-di.md](./guides/http-app-di.md) | `assemble`, модули, `deps`/класс-хендлер, `Ok`/`Fail` | `examples.app-with-http` |
-| [composition.md](./guides/composition.md) | Composition root: `assemble`, фичи и `select`, фазы, `@OnStart`, standalone | `examples.app-with-http` |
-| [di-token-families.md](./guides/di-token-families.md) | Семейства токенов: `makeTokenFamily`, `familyProvider`, `.auto`, `.all` | `examples.simple-app` |
-| [config.md](./guides/config.md) | Конфиг: `makeConfig`, `.keys`, источники и привязка, fail-fast, reloadable | `examples.simple-app` |
-| [ports.md](./guides/ports.md) | Порты: `makeRequest`, `implement`, `.caller`/`.emitter`, политика диспатча, шина | `examples.app-with-http` |
-| [typed-client.md](./guides/typed-client.md) | Внешний потребитель: секция `http:`, операция-форма `httpEndpoint`, `makeClient` | `examples.app-with-http` |
-| [openapi.md](./guides/openapi.md) | Документ OpenAPI 3.1 из деклараций: модуль `openapi()`, слот `doc:`, конвертеры, `jsonSchema()` | `examples.app-with-http` |
-| [cli.md](./guides/cli.md) | CLI-транспорт: single-shot и REPL | `examples.simple-cli` |
-| [testing.md](./guides/testing.md) | App-тесты: `assembleTest`, `overrides` + прунинг, `.check()`-матрица, `vars()`, `./testing`-subpath | `examples.app-with-http` |
-| [subscriptions.md](./guides/subscriptions.md) | Реестр подписок: модуль `subscriptions()`, слой `tracked`, `meta.subscription.signal`, административные endpoint'ы, факты операциями | `examples.app-with-http` |
+Оглавление и порядок чтения — [guide/README.md](./guide/README.md). Гайд
+ведёт от задачи к задаче: части 1 и 2 собирают один сервис
+(`examples.users-service`), части 3 и 4 продолжают его в
+`examples.app-with-http` и `examples.split-nats`, часть 5 читается по
+потребности. Каждая глава начинается с плашки «сверено с кодом
+`<пример>` (дата)»; сниппеты в главе совпадают с файлами примера.
 
 ## design/ — целевое состояние V1
 
@@ -82,9 +76,9 @@ design-доки описывают **только целевое V1** (как б
    ссылками на записи журнала и roadmap.
 6. **Новые дискуссии** — сразу в `history/discussions/NN-тема.md`.
    Корень репозитория для документации закрыт (кроме README).
-7. **Гайды сверяются с примерами.** Каждый гайд в `guides/` начинается
-   с плашки «сверено с кодом <пример> (дата)». Изменил пример — обнови
-   гайд и дату.
+7. **Главы гайда сверяются с примерами.** Каждая глава в `guide/`
+   начинается с плашки «сверено с кодом <пример> (дата)». Изменил пример —
+   обнови главу и дату.
 8. **Один стиль и один словарь.** Тексты пишутся по правилам скилла
    `docs-style` (`.claude/skills/docs-style/SKILL.md`), термины — из
    [glossary.md](./glossary.md).

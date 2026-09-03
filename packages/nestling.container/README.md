@@ -8,7 +8,7 @@
 > 🚧 В активной разработке, API меняется. Целевое состояние —
 > [`docs/design/container.md`](../../docs/design/container.md); гайд по
 > семействам токенов —
-> [`docs/guides/di-token-families.md`](../../docs/guides/di-token-families.md).
+> [глава 20. Логгер с именем потребителя и сбор вкладов](../../docs/guide/20-token-families.md).
 
 ## Установка
 

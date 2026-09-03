@@ -5,7 +5,7 @@
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
 > [`docs/design/streaming.md`](../../docs/design/streaming.md) (§4.1).
-> Гайд: [`docs/guides/subscriptions.md`](../../docs/guides/subscriptions.md).
+> Гайд: [глава 22. Кто сейчас подключён и как его отключить](../../docs/guide/22-ops.md).
 > Результат замера, ради которого пакет написан:
 > [`ideas.md [2026-08-01]`](../../docs/decisions/ideas.md).
 
@@ -33,7 +33,7 @@ npm install @nestling/subscriptions
 ```typescript
 import { subscriptions, SubscriptionRegistry, tracked } from '@nestling/subscriptions';
 
-// 1. Модуль: создаётся один раз в composition root
+// 1. Плагин: создаётся один раз в composition root
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { userId?: string }).userId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
@@ -131,13 +131,13 @@ type CloseReason = Outcome | 'killed';
 удалённой шине каждый факт — сетевой вызов, и платить его за каждую
 подписку должна решить композиция.
 
-### Модуль
+### Плагин
 
-Значение модуля создаётся один раз и импортируется теми, кому нужно.
+Значение плагина создаётся один раз и импортируется теми, кому нужно.
 Второй вызов `subscriptions({ … })` даёт другое значение с тем же именем и
-роняет сборку: идентичность модуля — само значение.
+роняет сборку: идентичность плагина — само значение.
 
-Опции модуля — решения композиции. Ничего «из окружения» здесь нет: если
+Опции плагина — решения композиции. Ничего «из окружения» здесь нет: если
 `node` нужно брать из окружения, привяжите его через конфиг в корне.
 
 ## Справочник API
@@ -168,13 +168,13 @@ type CloseReason = Outcome | 'killed';
 
 | Экспорт | Что это |
 |---|---|
-| `subscriptions(options)` | фабрика модуля |
+| `subscriptions(options)` | фабрика плагина |
 | `tracked` | слой пайплайна, который регистрирует подписку |
 | `SubscriptionRegistry` | реестр и его токен |
 | `SubscriptionOpened`, `SubscriptionClosed` | `event`-операции фактов |
 | `SubscriptionKilledError` | ошибка, с которой закрывается подписка после `abort` |
 | `SubscriptionInfo`, `SubscriptionFilter`, `SubscriptionEvent`, `CloseReason`, `SubscriptionKind`, `TrackedSubscription` | типы модели |
-| `TrackSubscription`, `UntrackSubscription` | класс-юниты слоя; регистрирует их модуль, вызывать вручную не нужно |
+| `TrackSubscription`, `UntrackSubscription` | класс-юниты слоя; регистрирует их плагин, вызывать вручную не нужно |
 
 `TrackSubscription` и `UntrackSubscription` экспортируются потому, что
 класс-юнит попадает в тип декларации, композированной от `tracked`; без

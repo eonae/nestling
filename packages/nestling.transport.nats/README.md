@@ -5,8 +5,7 @@ NATS как шина приложения: доставляет вызовы о�
 
 > 🚧 Активная разработка, API может меняться. Целевой дизайн:
 > [`docs/design/operations.md`](../../docs/design/operations.md).
-> Гайд: [`docs/guides/ports.md`](../../docs/guides/ports.md), раздел про
-> split-развёртывание.
+> Гайд: [глава 16. Разнести фичи по процессам](../../docs/guide/16-split.md).
 
 `NatsBus` реализует два интерфейса: `IMessageBus` наружу (`request`,
 `publish`, `subscribe`) и `ITransport` внутрь (`serve(dispatch, signal)`).

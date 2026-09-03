@@ -360,7 +360,7 @@ Change #22 доводит до кода запись [2026-07-13] «Типизи
 `contract-http-binding`, `contracts-package-boundary`, `typed-http-client`;
 расширены `contract-declarations`, `endpoint-declarations`,
 `http-input-binding`. См. change `contract-clients`,
-[гайд](../guides/typed-client.md), ideas.md «[2026-08-01] Клиенты из
+[гайд](../history/superseded/guides/typed-client.md), ideas.md «[2026-08-01] Клиенты из
 контрактов: реализация», дискуссия
 [d/07](../history/discussions/07-typed-clients.md),
 [архив change'а](../../openspec/changes/archive/2026-08-01-contract-clients/).
@@ -465,7 +465,7 @@ ambient-переменной — имя поля накопленного `input
 `NATS_TEST_SERVERS`. Дельта-спеки влиты: новые capability `nats-transport`,
 `durable-delivery`, `context-propagation`; расширены `message-bus`,
 `port-binding`, `contract-declarations`, `async-context-vars`. См. change
-`transport-nats`, [гайд](../guides/ports.md) (разделы про split-развёртывание
+`transport-nats`, [гайд](../history/superseded/guides/ports.md) (разделы про split-развёртывание
 и провоз контекста), ideas.md «[2026-07-31] NATS: шина приложения»,
 [архив change'а](../../openspec/changes/archive/2026-07-31-transport-nats/).
 
@@ -575,7 +575,7 @@ Change #27 закрыл ровно то, на чём, по [d/06 §5](../history
 `timeoutMs` в момент на приёме, отказ по исчерпанию в транзите без вызова
 `dispatch.call`, ключ в атрибутах. Wire-часть для NATS едет с change #12, но
 форма LCD уже зафиксирована и интерфейс под неё расширять не придётся.
-См. change `port-deadline-idempotency`, [гайд](../guides/ports.md),
+См. change `port-deadline-idempotency`, [гайд](../history/superseded/guides/ports.md),
 ideas.md «[2026-07-31] Порты: бюджет вызова моментом, ключ идемпотентности
 у команд».
 
@@ -1617,7 +1617,7 @@ factory-провайдер с deps = токены всех зарегистри�
 на ранее невозможных формах записи; поведение собранных контейнеров не менялось.
 Демонстрация — семейство health-check'ов в `examples.simple-app` с вкладами из
 `module:database` и `module:api`; гайд —
-[guides/di-token-families.md](../guides/di-token-families.md). См. change
+[guides/di-token-families.md](../history/superseded/guides/di-token-families.md). См. change
 `multi-injection`.
 
 [28.07.2026] Token families, `.auto` и strictExports в контейнере (token-families).
@@ -1658,7 +1658,7 @@ factory-провайдер с deps = токены всех зарегистри�
 расширение типов `Module.exports`/`providers`); поведение по умолчанию не
 изменилось. `examples.simple-app` мигрирован с ручного `Set` + `ProvidersFactory`
 на семейство, `UserRepository` демонстрирует `.auto`. Гайд —
-[guides/di-token-families.md](../guides/di-token-families.md). См.
+[guides/di-token-families.md](../history/superseded/guides/di-token-families.md). См.
 [архив change'а](../../openspec/changes/archive/2026-07-29-token-families/).
 
 [07.07.2026] Pipeline v2: плоские фазы, слои, compose (pipeline-v2). BREAKING.
