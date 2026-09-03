@@ -2,7 +2,8 @@
 
 > **Целевое состояние V1.** Логика решений: [ideas.md](../decisions/ideas.md) —
 > «Пакет тестирования (`@nestling/testing`)» [2026-07-10].
-> «Стиль документации: правила, глоссарий, перенос обоснований из `design/`» [2026-08-29].
+> «Стиль документации: правила, глоссарий, перенос обоснований из `design/`» [2026-08-29],
+> «Декларация приложения: `makeApp`, `assemble(select)`, `AssembledApp`» [2026-09-03].
 > Статус реализации — [roadmap](../decisions/roadmap.md).
 
 ## 1. Уровни тестов и граница видимости
@@ -29,26 +30,25 @@ app-тесты подменяют зависимости на границах �
 ## 3. `assembleTest`: тестовый composition root
 
 ```typescript
-await using app = await assembleTest({
-  features: [OrdersFeature],
-  transports: [http()],
+import { app } from './app';   // та же декларация makeApp, что у main.ts
+
+await using testApp = await assembleTest(app, {
   overrides: [
     [OrdersRepository, inMemoryOrdersRepo()],
     familyOverride(ILogger, () => noopLogger),
   ],
   config: vars({ ORDERS_MAX_ITEMS: '10' }),
   stubs: [stub(ChargeCard, async () => ({ chargeId: 'test' }))],
-  policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)],
 });
 
-const res = await app.call(CreateOrder, { items: [...] });
+const res = await testApp.call(CreateOrder, { items: [...] });
 ```
 
 ### Подмена: `overrides`
 
 Подмена — это замена узла графа на фазе ASSEMBLE, до создания
 экземпляров. Поле `overrides: [[Token, fake]]` есть только у тестового
-корня; `assemble` его не принимает. Подменить можно только токен, на
+корня; `makeApp` его не принимает. Подменить можно только токен, на
 который есть ссылка; строковой формы вроде `overrideByName('…')` нет. Пара
 типизирована: фейк, не совместимый с типом токена, — ошибка компиляции.
 Подмена токена, которого нет в графе, — ошибка сборки: после
@@ -64,8 +64,8 @@ const res = await app.call(CreateOrder, { items: [...] });
 
 Поддерево, которое зависело только от заменённого узла, выпадает из
 графа: после подмены репозитория pg-пул не создаётся и не подключается.
-Что именно выпало, показывает `app.pruned` (список id узлов); какие
-операции застабаны — `app.stubbed` (имена по алфавиту). Оба поля —
+Что именно выпало, показывает `testApp.pruned` (список id узлов); какие
+операции застабаны — `testApp.stubbed` (имена по алфавиту). Оба поля —
 значения, а не вывод в консоль: их сверяют с матрицей `.check()` (§6).
 Без `overrides` прунинг ничего не меняет: граф остаётся тем же до
 последнего узла ([container.md](./container.md)).
@@ -82,9 +82,9 @@ const res = await app.call(CreateOrder, { items: [...] });
 явно; повторный вызов безопасен. Настоящий e2e — обычный `run()` на
 случайном порту, вне пакета.
 
-### `app.call` и `app.emit`
+### `testApp.call` и `testApp.emit`
 
-`app.call(Endpoint, input)` и `app.emit(Operation, payload, meta?)`
+`testApp.call(Endpoint, input)` и `testApp.emit(Operation, payload, meta?)`
 типизированы схемами декларации: `input` — по `input`-форме, результат —
 `ResponseContext<InferOutput<O>>`, ветка отказа несёт `status` и `code`
 из закрытого списка `errors:`. Запрос проходит через полный пайплайн; этим
@@ -105,7 +105,7 @@ payload. Раскладку path/query/body по bind-карте проверя�
 
 ### Политики
 
-`policies:` — то же поле, что у `assemble`, и проверяется тем же проходом
+Политики берутся из декларации `makeApp` и проверяются тем же проходом
 фазы ASSEMBLE. Тестовый корень инварианты не ослабляет: приложение,
 которое не собирается в проде, не должно собираться и в тесте
 ([pipeline.md §7](./pipeline.md)).
@@ -114,7 +114,7 @@ payload. Раскладку path/query/body по bind-карте проверя�
 
 `assembleTest` асинхронна: `await using` ждёт dispose, а не инициализатор,
 поэтому `await` перед вызовом обязателен. Форма без `using`
-(`const app = await assembleTest(…)` и `await app.close()`) тоже
+(`const testApp = await assembleTest(app, …)` и `await testApp.close()`) тоже
 поддерживается — для `beforeEach`/`afterEach`.
 
 ## 4. Границы подмены в app-тесте
@@ -128,7 +128,8 @@ payload. Раскладку path/query/body по bind-карте проверя�
 keep-last-good, `onChange`. `process.env` не трогается, поэтому тесты
 можно запускать параллельно. В тестовом корне `config:` принимает три
 формы: источник (сокращённая запись для `[[source, '*']]`), одну привязку
-и список привязок. В боевом `assemble` сокращённой записи нет.
+и список привязок. В декларации `makeApp` сокращённой записи нет.
+Привязка из тестового корня заменяет привязку декларации.
 
 ### Вызовы между фичами: `stub`
 
@@ -162,7 +163,7 @@ keep-last-good, `onChange`. `process.env` не трогается, поэтом�
 графа, поэтому подменяется тем же списком `overrides:`, что и всё
 остальное. Подставленное значение имеет приоритет над рецептом семейства
 и работает вне запроса, так что ALS в тестах не нужен. Тест, который
-ридер не подменил, видит на `app.call` боевую проекцию
+ридер не подменил, видит на `testApp.call` боевую проекцию
 ([container.md](./container.md)).
 
 ### Сквозные зависимости: `familyOverride`
@@ -197,24 +198,24 @@ keep-last-good, `onChange`. `process.env` не трогается, поэтом�
 `.check()` проходит фазы 0–1: конструкторы выполняются, `@OnInit` — нет,
 поэтому ресурсы не захватываются. Проверяются циклы, биндинг портов,
 полнота env и объявленные `policies:` — по одному тесту на вариант деплоя.
-Это метод корня `assemble`, а не тестового приложения: `.check()`
-компенсирует прунинг, поэтому работает на полном графе и подстановок не
+Это метод декларации `makeApp`, а не собранного или тестового
+приложения: `check()` компенсирует прунинг, поэтому работает на полном графе и подстановок не
 принимает. Метод возвращает отчёт о составе: фичи, endpoint'ы по
 транспортам с причинами `detached`, транспорты. Ошибки он бросает те же,
 что бросил бы `run()` на этих фазах, и на последующий `run()` того же
-приложения не влияет. Необязательный аргумент `check(options?)` передаёт
-конвертеры схем; вызов без аргумента ведёт себя как прежде.
+приложения не влияет. Аргументы `check(select?, options?)` необязательны: первый — выбор фич,
+второй — конвертеры схем.
 
 ```typescript
 for (const select of ['all', 'orders', 'billing'] as const) {
-  await assemble({ features: [...], select, transports: [http()] }).check();
+  await app.check(select);
 }
 ```
 
 Матрица `select`-топологий проверяется в CI без деплоя одним хелпером —
-`checkTopologies(spec, selections, options?)`. Ядро падает на первой
+`checkTopologies(app, selections, options?)`. Ядро падает на первой
 ошибке, а хелпер собирает все отказы и падает одним сообщением, называя
-топологию для каждого. Политики из `spec` проверяются в каждой топологии,
+топологию для каждого. Политики из декларации проверяются в каждой топологии,
 поэтому нарушение, которое возникает только на подмножестве фич, тоже
 ловится в CI. Состав detached-endpoint'ов сравнивается значением из
 отчёта; парсить stdout не нужно.
@@ -226,11 +227,11 @@ for (const select of ['all', 'orders', 'billing'] as const) {
 
 ```typescript
 const published = new Set(
-  (await checkTopologies(spec, ['all', 'orders', 'quotas']))
+  (await checkTopologies(app, ['all', 'orders', 'quotas']))
     .flatMap(({ report }) => report.operations.map((c) => c.name)),
 );
 
-expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
+expect(testApp.stubbed.filter((name) => !published.has(name))).toEqual([]);
 ```
 
 Это машинная форма правила «подменяешь — проверь топологию». Отдельного
@@ -240,7 +241,7 @@ expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
 приложения:
 
 ```typescript
-const reports = await checkTopologies(spec, ['all', 'orders'], {
+const reports = await checkTopologies(app, ['all', 'orders'], {
   converters: [zodConverter()],
 });
 

@@ -8,7 +8,8 @@
 > Отложенное (`header()`, типизация ответных заголовков) —
 > [deferred](../decisions/deferred.md),
 > «Стиль документации: правила, глоссарий, перенос обоснований из `design/`» [2026-08-29],
-> «Проверка входа по `input`: обязанность рантайма, точка после `.pre`-юнитов» [2026-08-29].
+> «Проверка входа по `input`: обязанность рантайма, точка после `.pre`-юнитов» [2026-08-29],
+> «Поле `handler`: зависимости принадлежат хендлеру; канон `return`; `Output<T, typeof Def>`» [2026-09-03].
 > Статус реализации —
 > [roadmap](../decisions/roadmap.md).
 
@@ -24,7 +25,7 @@
 2. **Операции** — все операции со схемами: интерфейс (`input`, `output`,
    `errors`) и адреса (`name`, `http:`, `cli:`, …)
    ([operations.md](./operations.md)).
-3. **Реализации** — `implement(Operation, { pipeline?, deps?, handle,
+3. **Реализации** — `implement(Operation, { pipeline?, handler,
    subscriber? })`. Поле `subscriber` задаёт адрес подписки: оно обязательно
    у операции-события и запрещено у остальных видов
    ([operations.md](./operations.md)).
@@ -54,8 +55,10 @@ export const CreateOrder = httpEndpoint({
   output: Order,
   errors: [OrderLimitReached],       // типизированный канал E (errors.md)
   pipeline: basePipeline,
-  deps: [OrdersService],
-  handle: (orders) => async (input, meta) => new Ok(orders.create(input)),
+  handler: {
+    deps: [OrdersService],
+    handle: (orders) => async (input, meta) => new Ok(orders.create(input)),
+  },
 });
 ```
 
@@ -67,14 +70,14 @@ export const CreateOrder = httpEndpoint({
 
 **`makeEndpoint`.** Это примитив ядра, из которого собраны конструкторы
 транспортов; в пользовательский код он не входит. В нём живёт весь общий
-код: нормализация форм `handle`, `deps`, получение зависимостей из
+код: нормализация форм `handler`, получение зависимостей из
 контейнера, бренд, `errors:`, `doc:`, `detached`. Конструктор транспорта
 добавляет только свои поля.
 
 **Проверка при создании.** Поля проверяются в момент создания декларации, а
 не при сборке приложения. Ошибку сразу дают: пустой `path`, `path` без
 ведущего `/`, повторяющийся path-параметр, пустое имя команды. Список
-`errors:` проверяется там же: элемент, не созданный `defineFail`, и
+`errors:` проверяется там же: элемент, не созданный `makeFail`, и
 повторяющийся `code` дают ошибку с именем endpoint'а и проблемным значением.
 Секция `doc:` отвергает неизвестное поле, `hidden: true` и статус вне
 перечня успешных; пометка `detached` отвергает не-строку и пустую причину.
@@ -118,26 +121,31 @@ bind-карты (§4): Standard Schema не отдаёт перечень клю
 Каждая декларация знает свой транспорт.
 
 **Узел графа.** Endpoint — обычный узел графа с синтетическим id
-(`endpoint:POST /orders`). Рёбра `deps` видны в визуализации и `explain()`;
+(`endpoint:POST /orders`). Рёбра зависимостей хендлера видны в визуализации и `explain()`;
 циклы проверяются как для любого узла. Узел создаётся
 жадно на фазе ASSEMBLE, паттерн регистрируется на фазе WIRE.
 
-## 3. Зависимости хендлера: `deps` и три формы `handle`
+## 3. Поле `handler`: три формы
+
+Всё, что относится к исполнению, лежит в поле `handler`. Декларация
+описывает адрес, схемы, отказы и пайплайн; зависимости принадлежат
+хендлеру, а не декларации.
 
 | Форма | Когда |
 |---|---|
-| `(input, meta) => …` | без зависимостей. Единственная форма, которую принимают standalone-транспорты (`server.route`): endpoint с `deps` туда не проходит по типам |
-| `deps: […]` + `(…deps) => (input, meta) => …` | каррированная фабрика. Внешний вызов происходит один раз при сборке (как конструктор), замыкание становится инстансом |
-| класс с `@Injectable` и методом `handle` | подключение через DI: App получает инстанс из контейнера тем же механизмом, что классы-юниты |
+| `handler: (input, meta) => …` | без зависимостей. Единственная форма, которую принимают standalone-транспорты (`server.route`): endpoint с зависимостями туда не проходит по типам |
+| `handler: { deps: […], handle: (…deps) => (input, meta) => … }` | каррированная фабрика. Внешний вызов происходит один раз при сборке (как конструктор), замыкание становится инстансом. Порядок аргументов `handle` совпадает с порядком `deps` |
+| `handler: Class` | класс с `@Injectable` и методом `handle`. Endpoint создаёт экземпляр сам: он становится провайдером этого класса, и регистрировать класс в `providers:` не нужно; повторная регистрация — ошибка сборки |
 
-Во всех трёх формах `meta` содержит два зарезервированных ключа:
-`signal: AbortSignal` (отмена запроса) и `fail(e: E): never`
-(типизированный ранний выход, где `E` — множество из `errors:`
-декларации). Если pre-юнит добавил поле с таким же именем, инъекция его
+Во всех трёх формах `meta` содержит зарезервированный ключ
+`signal: AbortSignal` (отмена запроса) и поля контекста, накопленные
+`.pre`-юнитами. Если pre-юнит добавил поле `signal`, инъекция его
 перекрывает. Возвращаемый тип сверяется и со схемой `output`, и со списком
-`errors:` — в точке декларации ([errors.md](./errors.md)).
+`errors:` — в точке декларации ([errors.md](./errors.md)). Отказ
+возвращается значением; `throw` — доставка из глубины вызовов
+([errors.md §1](./errors.md)).
 
-Классовая форма эквивалентна каррированной и сохраняет привычную после
+Классовая форма — канон для кода приложения: она сохраняет привычную после
 NestJS структуру «конструктор плюс метод», но без декораторной декларации:
 
 ```typescript
@@ -149,8 +157,8 @@ export class CreateOrderHandler {
   ) {}
   async handle(
     input: NewOrder,
-    meta: { signal: AbortSignal; fail: (e: Fail<'ORDER_LIMIT_REACHED'>) => never },
-  ): Output<Order, Fail<'ORDER_LIMIT_REACHED'>> { /* ... */ }
+    meta: { signal: AbortSignal },
+  ): Output<Order, typeof OrderLimitReached> { /* ... */ }
 }
 
 export const CreateOrder = httpEndpoint({
@@ -160,8 +168,8 @@ export const CreateOrder = httpEndpoint({
   output: Order,
   errors: [OrderLimitReached],
   pipeline: basePipeline,
-  handle: CreateOrderHandler,   // класс — поле типизированного вызова:
-});                             // сверка со схемами в точке декларации, implements не нужен
+  handler: CreateOrderHandler,   // класс — поле типизированного вызова:
+});                              // сверка со схемами в точке декларации, implements не нужен
 ```
 
 Unit-тест хендлера не требует фреймворка: каррированная фабрика вызывается
@@ -169,9 +177,9 @@ Unit-тест хендлера не требует фреймворка: кар�
 из `@nestling/*` в таком тесте нет.
 
 **Неразрешённые зависимости в типе.** Тип endpoint'а содержит всё, что ещё
-не получено из контейнера: токены `deps`, класс хендлера и классы юнитов
-пайплайна. `server.route()` принимает только endpoint без них, так же как
-`Pipeline<any, never>`. Зависимости получаются одним шагом
+не получено из контейнера: токены `handler.deps`, класс хендлера и классы
+юнитов пайплайна. `server.route()` принимает только endpoint без них, так
+же как `Pipeline<any, never>`. Зависимости получаются одним шагом
 `endpoint.resolve(resolver)`; тот же вызов связывает юниты пайплайна тем же
 резолвером. App делает это на фазе WIRE для каждой обнаруженной декларации.
 Позиционная форма `endpoint.resolve([...])` предназначена для каррированной
@@ -204,8 +212,10 @@ export const CreateUser = httpEndpoint({
   bind: { dryRun: query(), tags: query({ multiple: true }) },
   output: User,
   pipeline: basePipeline,
-  deps: [UserService],
-  handle: (users) => async (input) => Ok.of(await users.add(input)),
+  handler: {
+    deps: [UserService],
+    handle: (users) => async (input) => Ok.of(await users.add(input)),
+  },
 });
 ```
 
@@ -314,8 +324,11 @@ export const ActivityStream = httpEndpoint({
   output: events(ActivityEvent),
   sse: { id: (e) => e.id, event: (e) => e.kind, heartbeat: 15_000 },
   pipeline: basePipeline,
-  handle: (hub) => async (_payload, meta: { signal: AbortSignal; lastEventId?: string }) =>
-    Ok.of(hub.subscribe(meta.signal)),
+  handler: {
+    deps: [ActivityHub],
+    handle: (hub) => async (_payload, meta: { signal: AbortSignal; lastEventId?: string }) =>
+      Ok.of(hub.subscribe(meta.signal)),
+  },
 });
 ```
 

@@ -5,7 +5,8 @@
 > [2026-07-06], «Два скоупа обработки: request-pipeline и item-цепочки»
 > [2026-07-06] (там же — «Не переизобретаем ли мы RxJS?»), «Операция
 > первичен» [2026-07-13] (формы io),
-> «Стиль документации: правила, глоссарий, перенос обоснований из `design/`» [2026-08-29].
+> «Стиль документации: правила, глоссарий, перенос обоснований из `design/`» [2026-08-29],
+> «Код отказа: категория и уточнение; `makeFail`» [2026-09-03].
 > Статус реализации —
 > [roadmap](../decisions/roadmap.md).
 
@@ -74,7 +75,7 @@
   прикладное событие с таким именем отвергается при создании декларации.
 
 В обоих случаях `.finally` получает `failed`, а незадекларированный отказ
-нормализуется в `UnknownError` так же, как на обычном пути
+нормализуется в `InternalError` так же, как на обычном пути
 ([errors.md](./errors.md)). `.catch`-юниты посреди потока не вызываются:
 ответная фаза уже завершена, и заменить ответ невозможно.
 
@@ -117,10 +118,10 @@ output: events(OrderEvent)
   и дальше работают обычные `.catch` и `.finally`. Если выход уже
   передавался клиенту, действует политика транспорта для отказа посреди
   потока, а `.finally` получает `failed`.
-- `.limit(n)` и `.gapTimeout(ms)` отказывают встроенными определениями
-  `STREAM_LIMIT_EXCEEDED` (413) и `STREAM_GAP_TIMEOUT` (504). Это
-  kernel-коды: проверка `errors` на выходе из пайплайна пропускает их и не
-  превращает в `500 UNKNOWN` ([errors.md](./errors.md)).
+- `.limit(n)` и `.gapTimeout(ms)` отказывают встроенными категориями
+  `payload_too_large` (413) и `timeout` (504). Это категории ядра: проверка
+  `errors` на выходе из пайплайна пропускает их и не превращает в
+  `500 internal_error` ([errors.md](./errors.md)).
 - Фреймворк ведёт стандартные счётчики (`itemsIn`, `itemsOut`, `bytes`) в
   `summary`, который доступен `.finally`.
 - Цепочки переиспользуются через функции:
@@ -146,7 +147,7 @@ input: stream(LogChunk, { onInvalid: 'skip' }),  // невалидную стр�
 input: stream(Sample, { validate: false }),      // горячий путь: opt-out явный
 ```
 
-- `onInvalid: 'fail'` — отказ `VALIDATION_FAILED` (400);
+- `onInvalid: 'fail'` — отказ `bad_request` (400);
 - `onInvalid: 'skip'` — элемент отбрасывается и в `itemsIn` не попадает;
 - на выходе `onInvalid` не учитывается: невалидный элемент всегда даёт
   отказ по правилам отказа посреди потока.
@@ -237,9 +238,11 @@ export const Feed = httpEndpoint({
   path: '/api/feed',
   output: events(Event),
   pipeline: compose(base, tracked),               // слой ставится композицией
-  deps: [EventHub],
-  handle: (hub: EventHub) => async (_payload, meta) =>
-    new Ok(hub.subscribe(meta.subscription.signal)),
+  handler: {
+    deps: [EventHub],
+    handle: (hub: EventHub) => async (_payload, meta) =>
+      new Ok(hub.subscribe(meta.subscription.signal)),
+  },
 });
 
 interface SubscriptionRegistry {
@@ -325,7 +328,7 @@ export const AggregateMetrics = httpEndpoint({
   input: guardedStream(MetricPoint),   // item-цепочка: лимиты/таймауты — без Rx
   output: stream(WindowAggregate),
   pipeline: base,
-  handle: async function* (points: AsyncIterableIterator<MetricPoint>) {
+  handler: async function* (points: AsyncIterableIterator<MetricPoint>) {
     const aggregates$ = from(points).pipe(   // граница: AsyncIterable → Observable
       bufferTime(1_000),
       filter(batch => batch.length > 0),
@@ -361,7 +364,7 @@ export const ActivityFeed = httpEndpoint({
   path: '/activity/live',
   output: events(ActivityEvent).tap(e => console.debug('out:', e.kind)),
   pipeline: base,
-  handle: ActivityFeedHandler,       // класс-хендлер: App резолвит из контейнера
+  handler: ActivityFeedHandler,      // класс-хендлер: endpoint создаёт экземпляр сам
 });
 ```
 

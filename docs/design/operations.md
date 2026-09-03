@@ -7,6 +7,9 @@
 > уточнения реализации — записи от 2026-07-31 (порты, версионирование, NATS)
 > и 2026-08-01 («Клиенты из операций: реализация»).
 > Отложенное (outbox/saga) — [deferred](../decisions/deferred.md).
+> «Код отказа: категория и уточнение; `makeFail`» [2026-09-03],
+> «Поле `handler`: зависимости принадлежат хендлеру; канон `return`; `Output<T, typeof Def>`» [2026-09-03],
+> «Декларация приложения: `makeApp`, `assemble(select)`, `AssembledApp`» [2026-09-03].
 > Статус реализации — [roadmap](../decisions/roadmap.md).
 
 Операция — единица общения между фичами: имя, вид, схемы входа и выхода,
@@ -99,7 +102,7 @@ export const OrderPlaced = makeEvent({
 
 ### 1.5. Пакеты
 
-`makeRequest` / `makeCommand` / `makeEvent`, `defineFail`, `Ok`/`Fail`, перечень статусов, формы io и
+`makeRequest` / `makeCommand` / `makeEvent`, `makeFail`, `Ok`/`Fail`, перечень статусов, формы io и
 bind-карта живут в `@nestling/operations`. У пакета нет runtime-зависимостей
 (транзитивно — только типы Standard Schema), поэтому операцию можно
 импортировать во фронтенд и в скрипты. Этот инвариант проверяет тест,
@@ -158,7 +161,7 @@ bind-карта живут в `@nestling/operations`. У пакета нет run
 
 ### 2.1. Реализация
 
-`implement(Operation, { deps?, pipeline?, handle, subscriber?, detached? })`
+`implement(Operation, { pipeline?, handler, subscriber?, detached? })`
 ([endpoints.md](./endpoints.md)) создаёт декларацию endpoint'а поверх того
 же примитива ядра, что `httpEndpoint` и `cliEndpoint`. Реализация кладётся
 в `endpoints:` модуля и получает всё, что есть у любого endpoint'а:
@@ -168,7 +171,7 @@ discovery, `dispatch`, пайплайн, проверку отказов на в
 компиляции.
 
 Операция с секцией `http:` реализуется формой с операцией
-`httpEndpoint({ operation, deps?, pipeline?, handle, detached? })`. Поля
+`httpEndpoint({ operation, pipeline?, handler, detached? })`. Поля
 `method`, `path`, `bind`, `rawBody`, `sse`, `input`, `output` и `errors` в
 этой форме объявлены как `never`: адрес и схемы берутся из операции,
 bind-карта — тем же значением, без повторного вычисления. Операция без
@@ -190,11 +193,13 @@ bind-карта — тем же значением, без повторного 
 Потребитель инжектит `Operation.caller` или `Operation.emitter`:
 
 ```typescript
-deps: [ChargeCard.caller],
-handle: (billing) => async (input, meta) => {
-  const charge = await billing.call({ orderId: input.id, amount: input.total }, meta);
-  if (charge.isFail) return charge;          // отказ — данные, не исключение
-  /* ... */
+handler: {
+  deps: [ChargeCard.caller],
+  handle: (billing) => async (input, meta) => {
+    const charge = await billing.call({ orderId: input.id, amount: input.total }, meta);
+    if (charge.isFail) return charge;          // отказ — данные, не исключение
+    /* ... */
+  },
 }
 ```
 
@@ -215,8 +220,8 @@ remote-клиентом (через шину) в composition root; на запр
 Тип вызова одинаков в одном процессе и при split-развёртывании: всегда
 async, всегда `Ok | Fail`. Remote-отказ восстанавливается в настоящий
 `Fail` по `code` ([errors.md](./errors.md)). Множество ответов закрыто:
-объявленные отказы плюс коды ядра (`UNKNOWN`, `VALIDATION_FAILED`) — так
-же, как у endpoint'а.
+объявленные отказы плюс категории ядра (`internal_error`, `bad_request`) —
+так же, как у endpoint'а.
 
 `emit` возвращает `Promise<void>` по факту доставки, а не обработки. Отказ
 подписчика попадает в диагностический хук, а не вызывающему.
@@ -279,7 +284,7 @@ in-process шина не упоминается: её регистрирует k
 
 Политика — поле `dispatch` kernel-секции конфига `nestlingPorts`
 (`NESTLING_PORTS_DISPATCH`, по умолчанию `local-first`). Она читается
-обычным механизмом конфигурации; поля `dispatch:` в `assemble` нет. Смена
+обычным механизмом конфигурации; поля `dispatch:` в `makeApp` нет. Смена
 политики — смена конфига; код вызова не меняется.
 
 ## 4. Профиль вызова
@@ -301,10 +306,10 @@ in-process шина не упоминается: её регистрирует k
 Точек контроля три: проверка до вызова (`dispatch` и шина не тронуты),
 проверка до обработки на приёме и отмена во время обработки. Сигнал
 обработчика — композиция бюджета и `meta.signal`, поэтому реализация видит
-исчерпание через свой `ctx.signal`. Отказ — `DeadlineExceeded`. Отмена
-вызывающим по-прежнему даёт `UnknownError`; два случая различаются по тому,
-чей таймер сработал, а не по `signal.reason`. Код `DEADLINE_EXCEEDED` —
-встроенный, как `UNKNOWN`: в `errors:` он не объявляется, но входит в
+исчерпание через свой `ctx.signal`. Отказ — `Timeout`. Отмена
+вызывающим по-прежнему даёт `InternalError`; два случая различаются по тому,
+чей таймер сработал, а не по `signal.reason`. Категория `timeout` —
+встроенная, как `internal_error`: в `errors:` она не объявляется, но входит в
 закрытое множество ответов любого порта.
 
 ### 4.2. Идемпотентность
@@ -355,16 +360,16 @@ const api = makeClient(
 );
 
 const result = await api.createUser({ ... });
-// Promise<Ok<Output> | Fail<EmailTaken | UnknownError>>
+// Promise<Ok<Output> | Fail<EmailTaken | InternalError>>
 ```
 
 - Тип вызова тот же, что у порта: `Ok | Fail`, закрытое множество
-  `E ∪ UnknownError`.
+  `E ∪ InternalError`.
 - Запрос собирается по bind-карте операции (path, query, body). Ответ
   валидируется по `output`-схеме через `~standard.validate`; валидатор
   приносит потребитель.
 - Отказы восстанавливаются по `code` из `errors:`; незнакомый код
-  становится `UnknownError`.
+  становится `InternalError`.
 - Заголовки, общие для всех вызовов (auth, tracing), задаются при создании
   клиента. Имена методов задаёт потребитель через record; имя операции
   (`'users.create'`) в структуру объекта не разбирается.
@@ -377,7 +382,7 @@ const result = await api.createUser({ ... });
   `z.coerce.*`), потому что query несёт строки.
 - `meta` клиента — `{ signal?, deadline? }`. `deadline` (абсолютный момент,
   как у портов) проверяется до отправки: истёкший бюджет даёт
-  `DeadlineExceeded` без запроса в сеть. `idempotencyKey` у клиента нет:
+  `Timeout` без запроса в сеть. `idempotencyKey` у клиента нет:
   согласованного HTTP-слота для него не существует.
 - На транспортных сбоях и отказах операции `request` клиент не бросает
   исключений, а возвращает `Fail`. Исключения — только при неверном

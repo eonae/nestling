@@ -67,7 +67,7 @@ export class UserService {
 
 `ContainerBuilder` принимает две опции для тестовой сборки: `overrides`
 (пары «токен и значение») и `familyOverrides` (замена рецепта семейства).
-Публичный `assemble` эти опции не принимает: подстановка узлов — свойство
+Публичный `makeApp` эти опции не принимает: подстановка узлов — свойство
 тестового прогона ([testing.md](./testing.md)).
 
 `build()` выполняет шаги в таком порядке:
@@ -240,7 +240,7 @@ export const RequestId = contextVar<string>()('requestId');
   на `build()`. В тестах читатель заменяется через `valueProvider`
   (сокращённая запись — `contextValue`, см. [testing.md](./testing.md));
   AsyncLocalStorage для этого не нужен. Рецепт семейства даёт модуль ядра,
-  который composition root регистрирует всегда; поля для него в `assemble`
+  который composition root регистрирует всегда; поля для него в `makeApp`
   нет, как и для конфига.
 - `get(): T` бросает ошибку с указанием текущей фазы, если значения нет.
   `peek(): T | undefined` предназначен для ответной фазы пайплайна,

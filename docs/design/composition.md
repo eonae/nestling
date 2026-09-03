@@ -7,7 +7,8 @@
 > «Policy-check на собранном графе» [2026-07-14],
 > «Пакет тестирования (`@nestling/testing`)» [2026-07-10] — `check()`.
 > «Стиль документации: правила, глоссарий, перенос обоснований из `design/`» [2026-08-29],
-> «Модель композиции: фича, плагин, операция» [2026-09-02].
+> «Модель композиции: фича, плагин, операция» [2026-09-02],
+> «Декларация приложения: `makeApp`, `assemble(select)`, `AssembledApp`» [2026-09-03].
 > Статус реализации — [roadmap](../decisions/roadmap.md).
 
 ## 1. Жизненный цикл
@@ -57,7 +58,7 @@ flowchart TD
 ### 3 · WIRE
 
 Каждая декларация endpoint'а получает свои зависимости из контейнера: токены
-из `deps`, класс хендлера, классы юнитов пайплайна
+из `handler.deps`, класс хендлера, классы юнитов пайплайна
 (`endpoint.resolve(resolver)`). Затем для каждого транспорта собирается
 таблица соответствия паттернов хендлерам — объект `dispatch`. На этой фазе
 `dispatch` уже существует, но транспортам ещё не передан. Единственное
@@ -71,7 +72,7 @@ flowchart TD
 `@OnStart` вызывается в топологическом порядке, затем транспорты начинают
 принимать запросы: каждый получает `serve(dispatch, signal)`. Метода
 `listen()` без аргументов у транспорта нет. `dispatch` — один объект из двух
-частей: `routes` (проекции маршрутов: паттерн и io-декларация, без `handle` и
+частей: `routes` (проекции маршрутов: паттерн и io-декларация, без `handler` и
 `pipeline`) и `call` (исполнение). HTTP-транспорт открывает сокет, NATS
 подписывается на subject'ы (реплики образуют queue-group).
 
@@ -110,48 +111,60 @@ flowchart TD
 принимать запросы до START, не смог бы их никуда направить. Почему WIRE не
 объединён с ASSEMBLE — запись «Жизненный цикл» в журнале.
 
-## 2. `assemble`: composition root
+## 2. `makeApp` и `assemble`: composition root
 
-Приложение собирается одной функцией. Каждое её поле опционально;
-механизм фич тоже опционален (прогрессивное раскрытие —
-[principles.md](./principles.md)):
+Приложение объявляется одной функцией и собирается одним методом. Каждое
+поле декларации опционально; механизм фич тоже опционален (прогрессивное
+раскрытие — [principles.md](./principles.md)):
 
 ```typescript
-assemble({
+// app.ts — декларация приложения: что оно есть. Файл экспортирует одно значение
+export const app = makeApp({
   features?,    // L2: фичи приложения; подмножество выбирает select
   plugins?,     // сквозная инфраструктура; подключена всегда
   providers?,   // провайдеры корня, когда заводить единицу незачем
   config?,      // L1: привязка источников [[src, keys | glob]] (config.md)
-  select?,      // L2: 'all' | 'orders,billing' | { features, includeDeps }
   transports?,  // L0+: объявления экземпляров транспортов
   intercom?,    // L4: имя транспорта, переносящего операции
   policies?,    // инварианты на собранном графе; проверяются в конце
                 //   фазы 1 ASSEMBLE — в run(), check() и assembleTest
                 //   (pipeline.md §7)
-}): App         // app.run() · app.check() · app.close()
+});             // App: app.assemble(select?) · app.check(select?)
+
+// main.ts — как приложение запускает этот процесс
+await app.assemble(select).run();   // AssembledApp: run() · close()
 
 // Политика диспатча вызывателей задаётся конфигом
 // (NESTLING_PORTS_DISPATCH), а роль переносчика операций — полем intercom.
 ```
 
-Перечень полей закрыт. Сквозная инфраструктура (логирование, трассировка,
-документация) перечисляется в `plugins:` и подключена всегда; фичи
-перечисляются в `features:` и выбираются. Подмена узлов графа (`overrides`)
-есть только у тестового корня `assembleTest`
-([testing.md](./testing.md)); `assemble` о подменах не знает и в контейнер
-их не передаёт.
+`makeApp` возвращает декларацию приложения — брендированное значение,
+проверенное при создании, как `makeFeature`. Перечень полей закрыт.
+Сквозная инфраструктура (логирование, трассировка, документация)
+перечисляется в `plugins:` и подключена всегда; фичи перечисляются в
+`features:` и выбираются. Привязка источников конфига — поле декларации:
+источники входят в то, чем приложение является, а различия окружений
+выражаются координатами самих источников ([config.md §3](./config.md)).
+Подмена узлов графа (`overrides`) есть только у тестового корня
+`assembleTest` ([testing.md](./testing.md)); `makeApp` о подменах не знает
+и в контейнер их не передаёт.
 
-`App` предоставляет три метода:
+Выбор фич — аргумент сборки, а не поле декларации: `select` меняет состав
+процесса, а не приложения. `app.assemble(select?)` синхронна и ничего не
+читает; она возвращает `AssembledApp`, фазы выполняет `run()`.
 
-| Метод | Фазы | Что делает |
-|---|---|---|
-| `run()` | 0–5 | доводит приложение до RUN и остаётся там; ставит обработчики сигналов |
-| `check()` | 0–1 | структурная проверка: граф строится, `@OnInit` не выполняется, ресурсы не захватываются; проверяет `policies:`; возвращает отчёт о составе (фичи, endpoint'ы по транспортам с причинами `detached`, транспорты, карта операций) и бросает те же ошибки, что бросил бы `run()` на этих фазах |
-| `close()` | 6 | SHUTDOWN в строгом обратном порядке; идемпотентен |
+Декларация и собранное приложение предоставляют три метода:
 
-`check()` не сохраняет свой граф и не влияет на последующий `run()` того же
-приложения. Поэтому им проверяют матрицу `select`-топологий в CI
-([testing.md §6](./testing.md)).
+| Метод | Где | Фазы | Что делает |
+|---|---|---|---|
+| `run()` | `AssembledApp` | 0–5 | доводит приложение до RUN и остаётся там; ставит обработчики сигналов |
+| `check(select?)` | `App` | 0–1 | структурная проверка: граф строится, `@OnInit` не выполняется, ресурсы не захватываются; проверяет `policies:`; возвращает отчёт о составе (фичи, endpoint'ы по транспортам с причинами `detached`, транспорты, карта операций) и бросает те же ошибки, что бросил бы `run()` на этих фазах |
+| `close()` | `AssembledApp` | 6 | SHUTDOWN в строгом обратном порядке; идемпотентен |
+
+`check()` живёт на декларации, а не на собранном приложении: это «собрать
+и выбросить», результат сборки ему не нужен. Он не сохраняет свой граф и
+не влияет на последующий `assemble()` той же декларации. Поэтому им
+проверяют матрицу `select`-топологий в CI ([testing.md §6](./testing.md)).
 
 Уровни приложения:
 
@@ -189,8 +202,10 @@ export const CreateOrder = httpEndpoint({
   input: NewOrder,
   output: Order,
   pipeline: basePipeline,
-  deps: [OrdersService],
-  handle: (orders) => async (input) => new Ok(orders.create(input)),
+  handler: {
+    deps: [OrdersService],
+    handle: (orders) => async (input) => new Ok(orders.create(input)),
+  },
 });
 
 // orders.feature.ts — фича: имя, состав и её endpoint'ы
@@ -200,11 +215,14 @@ export const OrdersFeature = makeFeature({
   endpoints: [CreateOrder],
 });
 
-// main.ts — composition root
-await assemble({
+// app.ts — декларация приложения
+export const app = makeApp({
   features: [OrdersFeature],
   transports: [http({ port: 3000 })],
-}).run();
+});
+
+// main.ts — запуск
+await app.assemble().run();
 ```
 
 ### L1 — типизированный конфиг
@@ -230,12 +248,12 @@ export class OrdersService {
   }
 }
 
-// main.ts — единственный источник env: про конфиг в корне ничего не пишут.
+// app.ts — единственный источник env: про конфиг в декларации ничего не пишут.
 // Секции проверяются при сборке; невалидный конфиг роняет старт.
-await assemble({
+export const app = makeApp({
   features: [OrdersFeature],
   transports: [http({ port: 3000 })],
-}).run();
+});
 // Второй источник подключается так:
 //   config: [[file('config.yaml'), [OrdersConfig.keys]]]
 ```
@@ -254,15 +272,17 @@ export const RootConfig = makeConfig('app', {
   features: z.string().default('all'), // ключ APP_FEATURES: 'all' | 'orders,billing'
 });
 
+// app.ts — состав приложения не зависит от того, что выбрано в этом процессе
+export const app = makeApp({
+  features: [OrdersFeature, BillingFeature],
+  plugins: [appLogging],         // инфраструктура подключена всегда
+  transports: [http({ port: 3000 })],
+});
+
 // main.ts — load() читает select до сборки контейнера: синхронно и только
 // из process.env; привязанные источники в этом чтении не участвуют.
 const cfg = load(RootConfig);
-await assemble({
-  features: [OrdersFeature, BillingFeature],
-  plugins: [appLogging],         // инфраструктура подключена всегда
-  select: cfg.features,          // 'all' локально, 'orders' в отдельном поде
-  transports: [http({ port: 3000 })],
-}).run();
+await app.assemble(cfg.features).run();   // 'all' локально, 'orders' в отдельном поде
 ```
 
 Невыбранная фича отсутствует целиком: её провайдеры не создаются (контейнер
@@ -326,9 +346,11 @@ export const ChargeCard = makeRequest({   // запрос-ответ, может
 
 // billing реализует операцию; привязка вычисляется при сборке
 export const ChargeCardHandler = implement(ChargeCard, {
-  deps: [PaymentGateway],
-  handle: (gw) => async (input, meta) =>
-    new Ok({ chargeId: await gw.charge(input, meta.signal) }),
+  handler: {
+    deps: [PaymentGateway],
+    handle: (gw) => async (input, meta) =>
+      new Ok({ chargeId: await gw.charge(input, meta.signal) }),
+  },
 });
 
 // orders вызывает порт: обычная зависимость декларации
@@ -338,11 +360,13 @@ export const CreateOrder = httpEndpoint({
   input: NewOrder,
   output: Order,
   pipeline: basePipeline,
-  deps: [OrdersService, ChargeCard.caller],
-  handle: (orders, billing) => async (input, meta) => {
-    const charge = await billing.call({ orderId: input.id, amount: input.total }, meta);
-    if (charge.isFail) return charge;    // отказ соседа — обычный Fail, не исключение
-    return new Ok(orders.create(input));
+  handler: {
+    deps: [OrdersService, ChargeCard.caller],
+    handle: (orders, billing) => async (input, meta) => {
+      const charge = await billing.call({ orderId: input.id, amount: input.total }, meta);
+      if (charge.isFail) return charge;    // отказ соседа — обычный Fail, не исключение
+      return new Ok(orders.create(input));
+    },
   },
 });
 
@@ -353,17 +377,19 @@ export const CreateOrder = httpEndpoint({
 ### L4 — интерком и split-развёртывание
 
 ```typescript
-// main.ts — меняется только корень и конфиг; endpoint'ы те же
-const cfg = load(RootConfig);            // до сборки читается только select
-await assemble({
+// app.ts — меняется только декларация и конфиг; endpoint'ы те же
+export const app = makeApp({
   features: [OrdersFeature, BillingFeature],
-  select: cfg.features,                  // 'orders' здесь, 'billing' в другом поде
   transports: [
     http(),
     nats({ name: 'events' }),            // объявление экземпляра транспорта
   ],                                     // порт HTTP и адреса NATS — из секций Http/NatsConfig
   intercom: 'events',                    // роль переносчика операций
-}).run();
+});
+
+// main.ts
+const cfg = load(RootConfig);            // до сборки читается только select
+await app.assemble(cfg.features).run();  // 'orders' здесь, 'billing' в другом поде
 
 // Политика диспатча задаётся конфигом, а не полем корня.
 // NESTLING_PORTS_DISPATCH=local-first (по умолчанию): реализации из этого
@@ -431,7 +457,7 @@ queue-group. Тот же корень с `select='all'` поднимает об�
 
 ### Состав приложения как узел графа
 
-`assemble` регистрирует результат discovery провайдером-значением под
+Сборка регистрирует результат discovery провайдером-значением под
 токеном `Discovery$` — всегда, без условий. Это то же значение, которое
 `App` вычислил до построения графа; второй проход не выполняется.
 Через `Discovery$` плагин видит выбранную топологию, не дублируя `select`
@@ -478,8 +504,8 @@ queue-group. Тот же корень с `select='all'` поднимает об�
 // infrastructure.ts — значение создаётся один раз и перечисляется в корне
 export const appLogging = logging({ service: 'orders-api' });
 
-// main.ts
-await assemble({
+// app.ts
+export const app = makeApp({
   features: [OrdersFeature, OpsFeature],
   plugins: [appLogging],
   transports: [http()],
@@ -488,7 +514,7 @@ await assemble({
       observability,
     ),
   ],
-}).run();
+});
 ```
 
 Уровней пайплайна для всего приложения или для единицы нет

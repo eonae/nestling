@@ -43,7 +43,7 @@ zod, valibot, arktype, Effect Schema и TypeBox: одно свойство `~sta
 успешного ответа по форме `output` операции через `~standard.validate`.
 Проверка включена по умолчанию и отключается явно: `validateOutput: false`.
 Синхронность обязательна и здесь. Исход другой, чем на сервере: отказ
-валидации не бросается, а становится `UnknownError` с `issues` в `cause`,
+валидации не бросается, а становится `InternalError` с `issues` в `cause`,
 потому что клиент не бросает исключений на сбоях операции
 ([operations.md](./operations.md)). Валидатор и здесь приносит потребитель:
 `@nestling/operations` знает о схеме только её `~standard`.
@@ -145,7 +145,7 @@ openapi({ info: { title: 'My API', version: '1.0.0' },
   ([composition.md](./composition.md)): так он видит выбранную топологию
   без дублирования `select`.
 - Кроме JSON Schema документ собирается из деклараций: слот `doc:` (§2.2);
-  `errors:` становятся `responses`, `UnknownError` — ответом по умолчанию
+  `errors:` становятся `responses`, `InternalError` — ответом по умолчанию
   ([errors.md](./errors.md)); формы io определяют media types
   ([endpoints.md](./endpoints.md)); bind-карта разделяет `parameter` и
   `requestBody`; статус переводится в HTTP-код той же таблицей, что у
@@ -165,7 +165,7 @@ interface DeclarationDoc {
   description?: string;
   tags?: readonly string[];
   deprecated?: boolean;
-  status?: SuccessStatus;   // успешный ответ; дефолт OK, без output — NO_CONTENT
+  status?: SuccessStatus;   // успешный ответ; дефолт ok, без output — no_content
   hidden?: string;          // не документировать — только с причиной
 }
 ```
