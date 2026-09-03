@@ -1,62 +1,44 @@
-import { withTiming } from '../common/middleware';
 import { EmailTaken } from '../errors';
 
+import type { FailOf } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
-import { makePipeline } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
-import z from 'zod';
+import { z } from 'zod';
 
-// POST /users - создание пользователя со схемой
 const CreateUserInput = z.object({
   name: z.string().min(1).max(100),
   email: z.email(),
-  address: z.object({
-    street: z.string().min(1),
-    city: z.string().min(1),
-  }),
 });
 
 const CreateUserOutput = z.object({
-  message: z.string(),
-  user: z.object({
-    id: z.number(),
-    name: z.string(),
-    email: z.string(),
-    address: z.object({
-      street: z.string(),
-      city: z.string(),
-    }),
-  }),
+  id: z.number(),
+  name: z.string(),
+  email: z.string(),
 });
 
 type CreateUserInput = z.infer<typeof CreateUserInput>;
 type CreateUserOutput = z.infer<typeof CreateUserOutput>;
 
-/** Заглушка «уже занятых» адресов вместо базы */
+/** Занятые адреса; в примере вместо базы */
 const taken = new Set(['taken@example.com']);
 
+/**
+ * `POST /users`: вход проверяется схемой до вызова хендлера, отказ
+ * возвращается значением.
+ */
 export const CreateUser = httpEndpoint({
   method: 'POST',
   path: '/users',
   input: CreateUserInput,
   output: CreateUserOutput,
   errors: [EmailTaken],
-  pipeline: makePipeline().pre(withTiming),
   handle: async (
     input: CreateUserInput,
-  ): Output<CreateUserOutput, ReturnType<typeof EmailTaken>> => {
-    // Отказ возвращается значением: рантайм трактует возврат так же, как
-    // бросок, и клиент получает 409 с кодом `EMAIL_TAKEN`
+  ): Output<CreateUserOutput, FailOf<typeof EmailTaken>> => {
     if (taken.has(input.email)) {
       return EmailTaken({ email: input.email });
     }
 
-    return {
-      message: 'User created',
-      user: {
-        id: Math.floor(Math.random() * 1000),
-        ...input,
-      },
-    };
+    return { id: Math.floor(Math.random() * 1000), ...input };
   },
 });

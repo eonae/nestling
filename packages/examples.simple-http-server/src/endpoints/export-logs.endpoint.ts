@@ -1,10 +1,7 @@
-import { withTiming } from '../common/middleware';
-
-import { makePipeline, Ok, stream } from '@nestling/pipeline';
+import { Ok, stream } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
-import z from 'zod';
+import { z } from 'zod';
 
-// GET /logs/export — потоковый ответ: framing выбирает форма, не хендлер
 const LogLine = z.object({
   seq: z.number(),
   message: z.string(),
@@ -19,17 +16,14 @@ async function* generate(count: number): AsyncIterableIterator<LogLine> {
 }
 
 /**
- * Демонстрирует форму `stream(T)` на выходе: хендлер возвращает обычный
- * `AsyncIterable`, транспорт отдаёт NDJSON (`application/x-ndjson`,
- * chunked) — заголовки руками ставить не нужно.
+ * `GET /logs/export` с формой `stream(T)` на выходе.
  *
- * Выходная цепочка — только тип-сохраняющая: оба конца зафиксированы
- * схемой, поэтому `.batch(...)` здесь не скомпилировался бы.
+ * Хендлер возвращает `AsyncIterable`; транспорт отдаёт его как NDJSON.
+ * `.limit(1000)` обрывает поток после тысячного элемента.
  */
 export const ExportLogs = httpEndpoint({
   method: 'GET',
   path: '/logs/export',
   output: stream(LogLine).limit(1000),
-  pipeline: makePipeline().pre(withTiming),
   handle: async () => new Ok(generate(5)),
 });

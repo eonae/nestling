@@ -1,7 +1,7 @@
 {
   "name": "examples.simple-http-server",
   "version": "0.1.0",
-  "description": "Simple HTTP server example using @nestling/transport",
+  "description": "HTTP server without assemble: transport, makeDispatch, serve",
   "type": "module",
   "scripts": {
     "clear": "rm -rf dist",
@@ -14,7 +14,9 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
   "dependencies": {
+    "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
+    "@nestling/transport": "workspace:*",
     "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
   }
