@@ -237,7 +237,7 @@ async function main() {
 | `packages/examples.simple-cli/src/commands/greet.command.ts` | вход `{ args, ...options }` |
 | `packages/examples.simple-cli/src/commands/help.command.ts` | команда без входа |
 | `packages/examples.simple-cli/src/commands/process-stdin.command.ts` | `stream('binary')` из stdin и отказ |
-| `packages/examples.simple-cli/src/errors.ts` | отказ с транспортно-независимым статусом |
+| `packages/examples.simple-cli/src/errors.ts` | отказ с транспортно-независимой категорией |
 | `packages/examples.simple-cli/src/main.ts` | `CliTransport` в режимах argv и REPL |
 | `packages/examples.simple-cli/src/commands.spec.ts` | команды через `execute(parseArgv(...))` |
 

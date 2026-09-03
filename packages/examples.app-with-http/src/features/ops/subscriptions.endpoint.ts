@@ -2,7 +2,6 @@ import { Unauthorized } from '../../errors';
 import { authed } from '../../plugins/auth';
 import { observability } from '../../plugins/logging';
 
-import type { FailOf } from '@nestling/operations';
 import { events, makeFail, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose } from '@nestling/pipeline';
@@ -94,7 +93,7 @@ export const KillSubscription = httpEndpoint({
       (registry: SubscriptionRegistry) =>
       async (payload: {
         id: string;
-      }): Output<null, FailOf<typeof SubscriptionNotFound>> => {
+      }): Output<null, typeof SubscriptionNotFound> => {
         const killed = registry.abort(payload.id, 'administrative kill');
 
         return killed

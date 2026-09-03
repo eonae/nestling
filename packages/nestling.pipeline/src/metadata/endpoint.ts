@@ -451,7 +451,7 @@ function assertNoLegacyFields(
 
 /**
  * Проверяет список `errors:` при создании декларации: каждый элемент
- * создан `defineFail`, коды не повторяются. Текст ошибки называет endpoint
+ * создан `makeFail`, коды не повторяются. Текст ошибки называет endpoint
  * и проблемное значение.
  */
 function assertFailDefinitions(

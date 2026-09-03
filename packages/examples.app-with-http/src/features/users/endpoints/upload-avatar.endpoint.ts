@@ -5,7 +5,7 @@ import { AvatarRequired, UserNotFound } from '../users.errors';
 import type { UsersRepository } from '../users.repository';
 import { UsersRepository$ } from '../users.repository';
 
-import type { FailOf, FilePart } from '@nestling/operations';
+import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -23,10 +23,7 @@ export const uploadAvatarHandler =
   async (payload: {
     fields: AvatarFields;
     files: { avatar: FilePart };
-  }): Output<
-    User,
-    FailOf<typeof UserNotFound> | FailOf<typeof AvatarRequired>
-  > => {
+  }): Output<User, typeof UserNotFound | typeof AvatarRequired> => {
     const { fields, files } = payload;
 
     // Размер и тип файла проверил транспорт по `upload({ maxSize, mime })`.

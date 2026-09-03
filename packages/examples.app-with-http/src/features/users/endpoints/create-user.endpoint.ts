@@ -13,7 +13,6 @@ import { EmailTaken } from '../users.errors';
 import type { UsersRepository } from '../users.repository';
 import { UsersRepository$ } from '../users.repository';
 
-import type { FailOf } from '@nestling/operations';
 import { Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import type { Emitter, Port } from '@nestling/ports';
@@ -38,7 +37,7 @@ export const createUserHandler =
   ) =>
   async (
     payload: CreateUserInput,
-  ): Output<User, FailOf<typeof EmailTaken> | FailOf<typeof QuotaExceeded>> => {
+  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> => {
     if (await users.byEmail(payload.email)) {
       return EmailTaken({ email: payload.email });
     }
@@ -60,7 +59,7 @@ export const createUserHandler =
       // Отказ соседа объявлен в `errors:` операции и уходит клиенту как
       // есть. Исчерпанный бюджет приходит кодом ядра `timeout`,
       // объявлять его не нужно
-      return claimed as FailOf<typeof QuotaExceeded>;
+      return claimed as ReturnType<typeof QuotaExceeded>;
     }
 
     const user = await users.insert({

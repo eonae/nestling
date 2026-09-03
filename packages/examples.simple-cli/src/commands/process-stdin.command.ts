@@ -2,7 +2,6 @@
 
 import { EmptyStdin } from '../errors';
 
-import type { FailOf } from '@nestling/operations';
 import { stream } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { cliEndpoint } from '@nestling/transport.cli';
@@ -28,7 +27,7 @@ export const ProcessStdin = cliEndpoint({
   errors: [EmptyStdin],
   handler: async (
     payload: AsyncIterableIterator<Buffer>,
-  ): Output<ProcessStdinOutput, FailOf<typeof EmptyStdin>> => {
+  ): Output<ProcessStdinOutput, typeof EmptyStdin> => {
     let linesProcessed = 0;
     let totalBytes = 0;
 

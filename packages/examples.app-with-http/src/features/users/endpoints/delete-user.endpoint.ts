@@ -7,7 +7,6 @@ import type { UsersRepository } from '../users.repository';
 import { UsersRepository$ } from '../users.repository';
 
 import { Injectable } from '@nestling/container';
-import type { FailOf } from '@nestling/operations';
 import { Ok } from '@nestling/operations';
 import type { ErrorResponseContext, Output } from '@nestling/pipeline';
 import { compose, makePipeline } from '@nestling/pipeline';
@@ -38,9 +37,7 @@ export class AuditDeletion {
 
 export const deleteUserHandler =
   (users: UsersRepository) =>
-  async (
-    payload: DeleteUserInput,
-  ): Output<null, FailOf<typeof UserNotFound>> => {
+  async (payload: DeleteUserInput): Output<null, typeof UserNotFound> => {
     const removed = await users.remove(payload.id);
 
     return removed ? Ok.noContent() : UserNotFound({ id: payload.id });

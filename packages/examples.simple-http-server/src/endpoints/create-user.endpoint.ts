@@ -1,6 +1,5 @@
 import { EmailTaken } from '../errors';
 
-import type { FailOf } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -34,7 +33,7 @@ export const CreateUser = httpEndpoint({
   errors: [EmailTaken],
   handler: async (
     input: CreateUserInput,
-  ): Output<CreateUserOutput, FailOf<typeof EmailTaken>> => {
+  ): Output<CreateUserOutput, typeof EmailTaken> => {
     if (taken.has(input.email)) {
       return EmailTaken({ email: input.email });
     }

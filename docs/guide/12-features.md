@@ -196,7 +196,7 @@ export const createUserHandler =
       // Отказ соседа объявлен в `errors:` операции и уходит клиенту как
       // есть. Исчерпанный бюджет приходит кодом ядра `timeout`,
       // объявлять его не нужно
-      return claimed as typeof QuotaExceeded;
+      return claimed as ReturnType<typeof QuotaExceeded>;
     }
 
     const user = await users.insert({
@@ -230,8 +230,8 @@ ClaimQuota>` с методом `call(input, meta?)`. Вызов всегда а�
 Второй аргумент `call` — параметры вызова. `deadline` задаёт бюджет
 времени моментом, а не длительностью: `deadlineIn(500)` вычисляет момент
 из миллисекунд. Бюджета по умолчанию нет. Исчерпанный бюджет приходит
-отказом с кодом ядра `timeout` и статусом `timeout`; в
-`errors:` он не объявляется, как и `internal_error`.
+отказом с кодом ядра `timeout`; в `errors:` он не объявляется, как и
+`internal_error`.
 
 Отказ соседа `QuotaExceeded` доходит до клиента, потому что операция
 `users.create` перечисляет его в `errors:` наравне со своими:

@@ -6,13 +6,12 @@ import { UserNotFound } from '../users.errors';
 import type { UsersRepository } from '../users.repository';
 import { UsersRepository$ } from '../users.repository';
 
-import type { FailOf } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 
 export const getUserHandler =
   (users: UsersRepository) =>
-  async (payload: GetUserInput): Output<User, FailOf<typeof UserNotFound>> => {
+  async (payload: GetUserInput): Output<User, typeof UserNotFound> => {
     const user = await users.byId(payload.id);
 
     // Отказ возвращается значением. Для ответа это то же, что бросок
