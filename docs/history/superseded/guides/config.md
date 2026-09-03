@@ -1,6 +1,6 @@
 # Конфигурация
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-09-02).
+> Гайд по **текущему API**; сверено с кодом `examples.container` (2026-09-02).
 
 Конфигурация в Nestling описывается секциями. Секция — это объект, где
 каждому полю сопоставлена схема. Секцию объявляют как константу и
@@ -12,7 +12,7 @@
 ## Объявление секции
 
 ```typescript
-// packages/examples.simple-app/src/config/app.config.ts
+// packages/examples.container/src/config/app.config.ts
 import { from, makeConfig, secret } from '@nestling/config';
 import { z } from 'zod';
 
@@ -58,7 +58,7 @@ export const appConfigKeys = AppConfig.keys;
 ## Инжект
 
 ```typescript
-// packages/examples.simple-app/src/database/database.service.ts
+// packages/examples.container/src/database/database.service.ts
 import { AppConfig } from '../config/app.config';
 
 import type { Config } from '@nestling/config';
@@ -80,7 +80,7 @@ export class Database implements IDatabase {
 токенов:
 
 ```typescript
-// packages/examples.simple-app/src/logging/logging.plugin.ts
+// packages/examples.container/src/logging/logging.plugin.ts
 familyProvider(ILogger, (scope) =>
   factoryProvider(
     ILogger(scope),
@@ -110,14 +110,14 @@ familyProvider(ILogger, (scope) =>
   экспортировать его безопасно.
 
 ```typescript
-// packages/examples.simple-app/src/config/index.ts
+// packages/examples.container/src/config/index.ts
 export { appConfigKeys } from './app.config';
 ```
 
 ## Привязка источников в корне
 
 ```typescript
-// packages/examples.simple-app/src/main.ts
+// packages/examples.container/src/main.ts
 import { assemble } from '@nestling/app';
 import { objectSource } from '@nestling/config';
 
@@ -161,7 +161,7 @@ const app = assemble({ features: [UsersFeature], transports: [http()] });
 `assemble`:
 
 ```typescript
-// packages/examples.simple-app/src/container.ts
+// packages/examples.container/src/container.ts
 import { configKernel, objectSource } from '@nestling/config';
 
 await new ContainerBuilder()
@@ -271,18 +271,18 @@ console.log({ ...cfg });                       // настоящее значе�
 logger.log(`connecting to ${cfg.databaseUrl}`); // и здесь тоже
 ```
 
-В примере `examples.simple-app` в лог уходит `new URL(cfg.databaseUrl).host`,
+В примере `examples.container` в лог уходит `new URL(cfg.databaseUrl).host`,
 а не строка целиком.
 
 ## Общие ключи
 
 ```typescript
-// packages/examples.simple-app/src/config/app.config.ts
+// packages/examples.container/src/config/app.config.ts
 export const AppConfig = makeConfig('app', {
   databaseUrl: secret(from('DATABASE_URL', z.url())),
 });
 
-// packages/examples.simple-app/src/health/health.config.ts
+// packages/examples.container/src/health/health.config.ts
 export const HealthConfig = makeConfig('health', {
   databaseUrl: from('DATABASE_URL', z.string()),
 });

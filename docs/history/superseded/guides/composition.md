@@ -1,7 +1,7 @@
 # Composition root: `assemble`, фичи и фазы
 
 > Гайд по **текущему API**; сверено с кодом `examples.app-with-http` (2026-09-02).
-> Разделы про конфиг и `@OnStart` сверены с `examples.simple-app`,
+> Разделы про конфиг и `@OnStart` сверены с `examples.container`,
 > раздел про standalone — с `examples.simple-http-server`.
 
 Приложение Nestling собирается одной функцией — `assemble`. Она принимает
@@ -60,7 +60,7 @@ assemble({ … }); a bus additionally needs the intercom role
 ## L1 — конфиг
 
 ```typescript
-// packages/examples.simple-app/src/main.ts (сокращено)
+// packages/examples.container/src/main.ts (сокращено)
 const app = assemble({
   features: [AppFeature],
   plugins: [appLogging],
@@ -335,7 +335,7 @@ factoryProvider(Report$, (discovery) => summarize(discovery.endpoints), [Discove
 очередей и подписки.
 
 ```typescript
-// packages/examples.simple-app/src/demo.ts (сокращено)
+// packages/examples.container/src/demo.ts (сокращено)
 @Injectable([
   UserService,
   IDatabase,

@@ -1,6 +1,6 @@
 # Семейства токенов в DI
 
-> Гайд по **текущему API**; сверено с кодом `examples.simple-app` (2026-09-02).
+> Гайд по **текущему API**; сверено с кодом `examples.container` (2026-09-02).
 
 Семейство токенов — один рецепт для многих зависимостей, которые
 различаются параметром: логгер на каждый скоуп, HTTP-клиент на каждый
@@ -12,7 +12,7 @@ upstream, очередь на каждое имя. Член семейства �
 ## Объявление семейства
 
 ```typescript
-// packages/examples.simple-app/src/logging/registry.ts
+// packages/examples.container/src/logging/registry.ts
 import { makeTokenFamily } from '@nestling/container';
 
 export interface ILogger {
@@ -36,7 +36,7 @@ export const ILogger = makeTokenFamily<ILogger, [scope: string]>('Logger');
 Провайдер регистрируется не для каждого члена, а для семейства целиком:
 
 ```typescript
-// packages/examples.simple-app/src/logging/logging.plugin.ts
+// packages/examples.container/src/logging/logging.plugin.ts
 import { makePlugin } from '@nestling/app';
 import { factoryProvider, familyProvider } from '@nestling/container';
 
@@ -102,7 +102,7 @@ export const appLogging = makePlugin({
 ## `.auto`: член, названный по потребителю
 
 ```typescript
-// packages/examples.simple-app/src/users/users.repository.ts
+// packages/examples.container/src/users/users.repository.ts
 @Injectable([IDatabase, ILogger.auto])
 export class UserRepository {
   constructor(database: IDatabase, logger: ILogger) { /* ... */ }
@@ -135,7 +135,7 @@ health-check'и, миграции, валидаторы. Каждый вклад
 членским токеном; центрального списка нет:
 
 ```typescript
-// packages/examples.simple-app/src/health/registry.ts
+// packages/examples.container/src/health/registry.ts
 export interface IHealthCheck {
   readonly name: string;
   check(): Promise<string>;
@@ -147,7 +147,7 @@ export const IHealthCheck = makeTokenFamily<IHealthCheck, [name: string]>(
 ```
 
 ```typescript
-// packages/examples.simple-app/src/database/database.module.ts
+// packages/examples.container/src/database/database.module.ts
 export const DatabaseModule = makeModule({
   name: 'module:database',
   providers: [
@@ -165,7 +165,7 @@ export const DatabaseModule = makeModule({
 `Token<readonly IHealthCheck[]>`:
 
 ```typescript
-// packages/examples.simple-app/src/health/health.service.ts
+// packages/examples.container/src/health/health.service.ts
 @Injectable([IHealthCheck.all, HealthConfig, ILogger.auto])
 export class HealthService {
   constructor(
