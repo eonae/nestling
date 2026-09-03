@@ -1,10 +1,10 @@
-import { defineFail } from '@nestling/pipeline';
+import { defineFail } from '@nestling/operations';
 
 /**
- * Доменные отказы CLI-примера.
+ * Отказ «stdin пуст».
  *
- * Статус не зависит от транспорта: HTTP-транспорт перевёл бы
- * `BAD_REQUEST` в 400, CLI печатает статус как есть.
+ * `status` не зависит от транспорта: CLI печатает его как есть, HTTP
+ * перевёл бы `BAD_REQUEST` в 400.
  */
 export const EmptyStdin = defineFail('EMPTY_STDIN', {
   status: 'BAD_REQUEST',

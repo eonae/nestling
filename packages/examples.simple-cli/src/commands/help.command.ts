@@ -1,30 +1,32 @@
 /* eslint-disable no-console */
 
-import { makePipeline } from '@nestling/pipeline';
 import { cliEndpoint } from '@nestling/transport.cli';
 import { z } from 'zod';
 
-export const HelpResponse = z.object({
+const HelpOutput = z.object({
   message: z.string(),
 });
 
-export type HelpResponse = z.infer<typeof HelpResponse>;
-
+/** `help`: печатает список команд */
 export const Help = cliEndpoint({
   command: 'help',
-  output: HelpResponse,
-  pipeline: makePipeline(),
+  output: HelpOutput,
   handle: async () => {
     console.log('Available commands:');
     console.log('');
     console.log('  help');
     console.log('    Show this help message');
-    console.log('    Example: yarn start help');
+    console.log('');
+    console.log('  greet <name> [--shout]');
+    console.log('    Print a greeting');
+    console.log(
+      '    Example: yarn workspace examples.simple-cli start:dev greet Alice --shout',
+    );
     console.log('');
     console.log('  process-stdin');
-    console.log('    Process streaming data from stdin');
+    console.log('    Count lines and bytes read from stdin');
     console.log(
-      String.raw`    Example: echo "line1\nline2\nline3" | yarn start process-stdin`,
+      String.raw`    Example: printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin`,
     );
     console.log('');
 

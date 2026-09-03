@@ -1,7 +1,7 @@
 {
   "name": "examples.simple-cli",
   "version": "0.1.0",
-  "description": "Simple CLI example using @nestling/transport",
+  "description": "CLI tool on Nestling endpoints: argv, REPL, stdin stream",
   "type": "module",
   "scripts": {
     "clear": "rm -rf dist",
@@ -14,6 +14,7 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
   "dependencies": {
+    "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
     "@nestling/transport": "workspace:*",
     "@nestling/transport.cli": "workspace:*",
