@@ -5,68 +5,83 @@ import {
 } from './helpers/create-test-app';
 import { HttpClient } from './helpers/http-client';
 
-describe('File Upload (E2E)', () => {
-  let testContext: TestAppContext;
+/** Первые байты PNG: транспорт проверяет MIME, а не содержимое */
+const png = (): FormData => {
+  const form = new FormData();
+  form.append(
+    'avatar',
+    new Blob([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])], {
+      type: 'image/png',
+    }),
+    'avatar.png',
+  );
+
+  return form;
+};
+
+describe('загрузка файлов', () => {
+  let context: TestAppContext;
   let client: HttpClient;
 
   beforeAll(async () => {
-    testContext = await createTestApp();
-    client = new HttpClient(testContext.baseUrl);
-  }, 60_000);
-
-  afterAll(async () => {
-    await closeTestApp(testContext);
+    context = await createTestApp();
+    client = new HttpClient(context.baseUrl);
   });
 
-  describe('POST /api/users/:id/avatar', () => {
-    it('должен загрузить аватар для пользователя', async () => {
-      // Создаем тестовый файл (простое изображение PNG)
-      const pngHeader = Buffer.from([
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-      ]);
+  afterAll(async () => {
+    await closeTestApp(context);
+  });
 
-      const response = await client.upload('/api/users/1/avatar', {
-        name: 'avatar.png',
-        content: pngHeader,
-        type: 'image/png',
-      });
+  it('загружает аватар и возвращает пользователя со ссылкой', async () => {
+    const response = await client.raw(
+      'POST',
+      '/users/1/avatar',
+      png(),
+      {},
+      true,
+    );
 
-      expect(response.status).toBe(200);
-
-      const user = await response.json();
-      expect(user).toHaveProperty('id', '1');
-      expect(user).toHaveProperty('avatarUrl');
-      expect(user.avatarUrl).toContain('avatar.png');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      id: '1',
+      avatarUrl: expect.stringContaining('avatar.png'),
     });
+  });
 
-    it('должен вернуть 404 если пользователь не найден', async () => {
-      const pngHeader = Buffer.from([
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-      ]);
+  it('отвечает 404 для неизвестного пользователя', async () => {
+    const response = await client.raw(
+      'POST',
+      '/users/999/avatar',
+      png(),
+      {},
+      true,
+    );
 
-      const response = await client.upload('/api/users/999/avatar', {
-        name: 'avatar.png',
-        content: pngHeader,
-        type: 'image/png',
-      });
+    expect(response.status).toBe(404);
+  });
 
-      expect(response.status).toBe(404);
-    });
+  it('отклоняет файл чужого типа до чтения тела', async () => {
+    const form = new FormData();
+    form.append(
+      'avatar',
+      new Blob(['not an image'], { type: 'text/plain' }),
+      'note.txt',
+    );
 
-    it('должен вернуть 400 для не-изображения', async () => {
-      const textContent = Buffer.from('This is not an image');
+    const response = await client.raw(
+      'POST',
+      '/users/1/avatar',
+      form,
+      {},
+      true,
+    );
 
-      const response = await client.upload('/api/users/1/avatar', {
-        name: 'document.txt',
-        content: textContent,
-        type: 'text/plain',
-      });
+    expect(response.status).toBe(400);
+  });
 
-      expect(response.status).toBe(400);
+  it('не принимает файл без токена', async () => {
+    const response = await client.raw('POST', '/users/1/avatar', png());
 
-      const error = await response.json();
-      expect(error).toHaveProperty('error');
-      expect(error.error).toContain('image');
-    });
+    expect(response.status).toBe(401);
   });
 });

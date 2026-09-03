@@ -1,68 +1,44 @@
-/**
- * HTTP-клиент для e2e-тестов: обёртка над `fetch` с готовыми
- * методами для основных HTTP-глаголов и загрузки файлов.
- */
+import { E2E_TOKEN } from './create-test-app';
+
+/** Запросы e2e-тестов: обёртка над `fetch` с заголовком авторизации по флагу */
 export class HttpClient {
-  constructor(private baseUrl: string) {}
+  constructor(private readonly baseUrl: string) {}
 
-  async get(path: string, headers?: Record<string, string>): Promise<Response> {
-    return fetch(`${this.baseUrl}${path}`, {
-      method: 'GET',
-      headers,
-    });
+  get(path: string, headers: Record<string, string> = {}): Promise<Response> {
+    return fetch(`${this.baseUrl}${path}`, { headers });
   }
 
-  async post(
+  json(
+    method: 'POST' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown,
-    headers?: Record<string, string>,
+    options: { auth?: boolean; headers?: Record<string, string> } = {},
   ): Promise<Response> {
     return fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
+      method,
       headers: {
-        'Content-Type': 'application/json',
+        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+        ...(options.auth ? { authorization: `Bearer ${E2E_TOKEN}` } : {}),
+        ...options.headers,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  }
+
+  raw(
+    method: 'POST',
+    path: string,
+    body: string | FormData,
+    headers: Record<string, string> = {},
+    auth = false,
+  ): Promise<Response> {
+    return fetch(`${this.baseUrl}${path}`, {
+      method,
+      headers: {
+        ...(auth ? { authorization: `Bearer ${E2E_TOKEN}` } : {}),
         ...headers,
       },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
-
-  async patch(
-    path: string,
-    body?: unknown,
-    headers?: Record<string, string>,
-  ): Promise<Response> {
-    return fetch(`${this.baseUrl}${path}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
-
-  async delete(
-    path: string,
-    headers?: Record<string, string>,
-  ): Promise<Response> {
-    return fetch(`${this.baseUrl}${path}`, {
-      method: 'DELETE',
-      headers,
-    });
-  }
-
-  async upload(
-    path: string,
-    file: { name: string; content: Buffer; type: string },
-  ): Promise<Response> {
-    const formData = new FormData();
-    const blob = new Blob([file.content], { type: file.type });
-    formData.append('avatar', blob, file.name);
-
-    return fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      body: formData,
+      body,
     });
   }
 }

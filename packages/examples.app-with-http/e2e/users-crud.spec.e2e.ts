@@ -5,206 +5,128 @@ import {
 } from './helpers/create-test-app';
 import { HttpClient } from './helpers/http-client';
 
-describe('Users CRUD (E2E)', () => {
-  let testContext: TestAppContext;
+describe('пользователи по HTTP', () => {
+  let context: TestAppContext;
   let client: HttpClient;
 
   beforeAll(async () => {
-    testContext = await createTestApp();
-    client = new HttpClient(testContext.baseUrl);
-  }, 60_000);
+    context = await createTestApp();
+    client = new HttpClient(context.baseUrl);
+  });
 
   afterAll(async () => {
-    await closeTestApp(testContext);
+    await closeTestApp(context);
   });
 
-  describe('GET /api/users', () => {
-    it('должен вернуть список пользователей', async () => {
-      const response = await client.get('/api/users');
+  it('отдаёт список и одного пользователя', async () => {
+    const list = await client.get('/users');
+    expect(list.status).toBe(200);
+    expect(await list.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: '1', name: 'Alice' }),
+      ]),
+    );
 
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThan(0);
-
-      // Проверяем структуру первого пользователя
-      expect(data[0]).toHaveProperty('id');
-      expect(data[0]).toHaveProperty('name');
-      expect(data[0]).toHaveProperty('email');
-    });
-  });
-
-  describe('GET /api/users/:id', () => {
-    it('должен вернуть пользователя с заголовками', async () => {
-      const response = await client.get('/api/users/1');
-
-      expect(response.status).toBe(200);
-      expect(response.headers.get('etag')).toBeDefined();
-      expect(response.headers.get('cache-control')).toBe('max-age=300');
-
-      const user = await response.json();
-      expect(user).toHaveProperty('id', '1');
-      expect(user).toHaveProperty('name');
-      expect(user).toHaveProperty('email');
-    });
-
-    it('должен вернуть 404 если пользователь не найден', async () => {
-      const response = await client.get('/api/users/999');
-
-      expect(response.status).toBe(404);
-
-      const error = await response.json();
-      expect(error).toHaveProperty('error', 'User 999 not found');
+    const one = await client.get('/users/1');
+    expect(one.status).toBe(200);
+    expect(await one.json()).toMatchObject({
+      id: '1',
+      email: 'alice@example.com',
     });
   });
 
-  describe('POST /api/users', () => {
-    it('должен создать пользователя с заголовком Location', async () => {
-      const newUser = {
-        name: 'Test User',
-        email: `test-${Date.now()}@example.com`, // Уникальный email
-      };
+  it('отвечает 404 с кодом отказа', async () => {
+    const response = await client.get('/users/999');
 
-      const response = await client.post('/api/users', newUser);
-
-      expect(response.status).toBe(201);
-      expect(response.headers.get('location')).toBeDefined();
-      expect(response.headers.get('location')).toMatch(/^\/api\/users\/\d+$/);
-
-      const user = await response.json();
-      expect(user).toHaveProperty('id');
-      expect(user.name).toBe(newUser.name);
-      expect(user.email).toBe(newUser.email);
-    });
-
-    it('должен вернуть 409 если email дублируется', async () => {
-      const duplicate = {
-        name: 'Duplicate',
-        email: 'alice@example.com', // Уже существует
-      };
-
-      const response = await client.post('/api/users', duplicate);
-
-      // Отказ объявлен со статусом CONFLICT (см. user.errors.ts)
-      expect(response.status).toBe(409);
-
-      const error = await response.json();
-      expect(error).toHaveProperty(
-        'error',
-        'Email alice@example.com already taken',
-      );
-      expect(error).toHaveProperty('details', {
-        email: 'alice@example.com',
-      });
-    });
-
-    it('должен вернуть 400 для невалидного email', async () => {
-      const invalid = {
-        name: 'Test',
-        email: 'not-an-email',
-      };
-
-      const response = await client.post('/api/users', invalid);
-
-      expect(response.status).toBe(400);
-
-      const error = await response.json();
-      expect(error).toHaveProperty('error');
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({
+      code: 'USER_NOT_FOUND',
+      details: { id: '999' },
     });
   });
 
-  describe('PATCH /api/users/:id', () => {
-    it('должен обновить пользователя', async () => {
-      // Сначала создаем пользователя
-      const created = await client.post('/api/users', {
-        name: 'To Update',
-        email: `update-${Date.now()}@example.com`,
-      });
-      const createdUser = await created.json();
-
-      // Обновляем
-      const update = { name: 'Updated Name' };
-      const response = await client.patch(
-        `/api/users/${createdUser.id}`,
-        update,
-      );
-
-      expect(response.status).toBe(200);
-
-      const user = await response.json();
-      expect(user.name).toBe('Updated Name');
-      expect(user.email).toBe(createdUser.email); // email не изменился
+  it('не принимает запись без токена', async () => {
+    const response = await client.json('POST', '/users', {
+      name: 'Eve',
+      email: 'eve@example.com',
     });
 
-    it('должен вернуть 404 если пользователь не найден', async () => {
-      const response = await client.patch('/api/users/999', {
-        name: 'Test',
-      });
-
-      expect(response.status).toBe(404);
-    });
-
-    it('должен вернуть 409 если email занят', async () => {
-      const response = await client.patch('/api/users/2', {
-        email: 'alice@example.com', // Уже занят пользователем с id=1
-      });
-
-      expect(response.status).toBe(409);
-
-      const error = await response.json();
-      expect(error).toHaveProperty(
-        'error',
-        'Email alice@example.com already taken',
-      );
-    });
-
-    it('должен вернуть 400 если нет данных для обновления', async () => {
-      const response = await client.patch('/api/users/1', {});
-
-      expect(response.status).toBe(400);
-
-      const error = await response.json();
-      expect(error).toHaveProperty('error', 'No data to update');
-    });
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: 'UNAUTHORIZED' });
   });
 
-  describe('DELETE /api/users/:id', () => {
-    it('должен удалить пользователя с 204 No Content', async () => {
-      // Создаем пользователя для удаления
-      const created = await client.post('/api/users', {
-        name: 'To Delete',
-        email: `delete-${Date.now()}@example.com`,
-      });
-      const createdUser = await created.json();
+  it('создаёт пользователя: 201, Location и отказы 409 и 400', async () => {
+    const created = await client.json(
+      'POST',
+      '/users',
+      { name: 'Carol', email: 'carol@example.com' },
+      { auth: true },
+    );
+    expect(created.status).toBe(201);
+    expect(created.headers.get('location')).toMatch(/^\/users\/\d+$/);
+    expect(await created.json()).toMatchObject({ name: 'Carol' });
 
-      // Удаляем
-      const response = await client.delete(`/api/users/${createdUser.id}`);
+    const duplicate = await client.json(
+      'POST',
+      '/users',
+      { name: 'Carol II', email: 'carol@example.com' },
+      { auth: true },
+    );
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toMatchObject({ code: 'EMAIL_TAKEN' });
 
-      expect(response.status).toBe(204);
-      expect(await response.text()).toBe('');
+    const invalid = await client.json(
+      'POST',
+      '/users',
+      { name: 'Broken', email: 'not-an-email' },
+      { auth: true },
+    );
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
 
-      // Проверяем, что пользователь действительно удален
-      const checkResponse = await client.get(`/api/users/${createdUser.id}`);
-      expect(checkResponse.status).toBe(404);
+  it('проверяет данные без записи по ?dryRun=true', async () => {
+    const response = await client.json(
+      'POST',
+      '/users?dryRun=true',
+      { name: 'Dry', email: 'dry@example.com' },
+      { auth: true },
+    );
+    // Проверка без записи: обычный `200`, а не `201`
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: 'dry-run' });
+
+    const check = await client.get('/users');
+    expect(await check.json()).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ email: 'dry@example.com' }),
+      ]),
+    );
+  });
+
+  it('изменяет пользователя и отклоняет пустое изменение', async () => {
+    const updated = await client.json(
+      'PATCH',
+      '/users/2',
+      { name: 'Robert' },
+      { auth: true },
+    );
+    expect(updated.status).toBe(200);
+    expect(await updated.json()).toMatchObject({ id: '2', name: 'Robert' });
+
+    const empty = await client.json('PATCH', '/users/2', {}, { auth: true });
+    expect(empty.status).toBe(400);
+    expect(await empty.json()).toMatchObject({ code: 'NOTHING_TO_UPDATE' });
+  });
+
+  it('удаляет пользователя: 204, затем 404', async () => {
+    const deleted = await client.json('DELETE', '/users/2', undefined, {
+      auth: true,
     });
+    expect(deleted.status).toBe(204);
+    expect(await deleted.text()).toBe('');
 
-    it('должен вернуть 404 если пользователь не найден', async () => {
-      const response = await client.delete('/api/users/999');
-
-      expect(response.status).toBe(404);
-    });
-
-    it('должен вернуть 403 при попытке удалить администратора (id=1)', async () => {
-      const response = await client.delete('/api/users/1');
-
-      expect(response.status).toBe(403);
-
-      const error = await response.json();
-      expect(error).toHaveProperty(
-        'error',
-        'User 1 cannot be deleted: admin user',
-      );
-    });
+    const gone = await client.get('/users/2');
+    expect(gone.status).toBe(404);
   });
 });

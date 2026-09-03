@@ -1,11 +1,10 @@
 /**
  * Операции между фичами.
  *
- * Файл лежит вне обеих фич: операция не принадлежит ни вызывающему, ни
- * реализующему. Фича `quotas` реализует операции (`implement` в её
- * `endpoints:`), фича `users` вызывает их (`deps: [ClaimQuota.caller]`).
- * Где живёт реализация, решает сборка; код вызова одинаков для одного
- * процесса и для split-развёртывания.
+ * Файл лежит вне фич: операция не принадлежит ни вызывающему, ни
+ * реализующему. Фича `quotas` реализует операции через `implement`, фича
+ * `users` вызывает их через `.caller` и `.emitter`. Где живёт реализация,
+ * решает сборка.
  */
 
 import {
@@ -16,56 +15,64 @@ import {
 } from '@nestling/operations';
 import { z } from 'zod';
 
-/**
- * Отказ «квота исчерпана», объявленный в операции.
- *
- * При вызове через брокер отказ приходит как данные с кодом; порт
- * восстанавливает из них настоящий `Fail`, поэтому `QuotaExceeded.is(…)`
- * работает одинаково для локального и удалённого вызова.
- */
+/** Отказ «квота исчерпана». По сети приходит кодом и восстанавливается в `Fail` */
 export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
   status: 'TOO_MANY_REQUESTS',
   details: z.object({ limit: z.number() }),
   message: (d) => `User quota of ${d.limit} is exhausted`,
 });
 
+export const ClaimQuotaInput = z.object({ email: z.string() });
+
+export type ClaimQuotaInput = z.infer<typeof ClaimQuotaInput>;
+
 /**
  * Запрос «займи место под ещё одного пользователя».
  *
- * Вид `request`, потому что без ответа продолжить нельзя: пользователя
- * создают только после подтверждения квоты.
+ * Вид `request`: без ответа продолжить нельзя, у операции ровно один
+ * владелец.
  */
 export const ClaimQuota = makeRequest({
   name: 'quotas.claim',
-  input: z.object({ email: z.string() }),
+  input: ClaimQuotaInput,
   output: z.object({ remaining: z.number() }),
   errors: [QuotaExceeded],
 });
 
+export const UserRegisteredInput = z.object({
+  id: z.string(),
+  email: z.string(),
+});
+
+export type UserRegisteredInput = z.infer<typeof UserRegisteredInput>;
+
 /**
  * Событие «пользователь создан».
  *
- * Вид `event`: факт уже случился, подписчиков может быть сколько угодно
- * (в этом примере один — `quotas`). Ответа у события нет; `emit`
- * возвращает `Promise<void>`, который завершается по факту доставки.
+ * Вид `event`: факт уже случился, подписчиков любое число. Ответа нет,
+ * `emit` завершается по факту доставки.
  */
 export const UserRegistered = makeEvent({
   name: 'users.registered',
-  input: z.object({ id: z.string(), email: z.string() }),
+  input: UserRegisteredInput,
 });
 
+export const SignupRecordedInput = z.object({
+  userId: z.string(),
+  email: z.string(),
+});
+
+export type SignupRecordedInput = z.infer<typeof SignupRecordedInput>;
+
 /**
- * Команда «зафиксируй регистрацию в журнале квот».
+ * Команда «запиши регистрацию в журнал квот».
  *
- * Вид `command`, а не `event`: владелец ровно один, и повторную доставку
- * (ретрай брокера, перезапуск процесса) нужно отличать от новой
- * регистрации. Для этого у `meta` команды есть поле `idempotencyKey`; у
- * `event` и `request` его нет, и обращение к нему не компилируется.
- *
- * Ядро не дедуплицирует команды: оно гарантирует, что ключ дойдёт до
- * обработчика. Что с ним делать, решает владелец команды.
+ * Вид `command`: владелец ровно один, и повторную доставку нужно отличать
+ * от новой регистрации. Для этого у `meta` команды есть `idempotencyKey`;
+ * у события и запроса его нет. Ядро ключ не проверяет, а только доставляет
+ * до обработчика.
  */
 export const SignupRecorded = makeCommand({
   name: 'quotas.record-signup',
-  input: z.object({ userId: z.string(), email: z.string() }),
+  input: SignupRecordedInput,
 });

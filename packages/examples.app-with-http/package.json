@@ -4,27 +4,20 @@
   "private": true,
   "type": "module",
   "main": "dist/bundle.js",
-  "exports": {
-    ".": "./dist/bundle.js",
-    "./testing": {
-      "testing": "./src/testing/index.ts"
-    }
-  },
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc -p tsconfig.json",
     "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
     "start": "yarn run build && node dist/bundle.js",
     "start:dev": "run -T tsx src/main.ts",
+    "client": "run -T tsx src/api/client.ts",
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
     "test:e2e": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.e2e.config.js",
-    "test:all": "yarn run test && yarn run test:e2e",
-    "client": "run -T tsx src/api.client.ts"
+    "test:all": "yarn run test && yarn run test:e2e"
   },
   "dependencies": {
-    "@common/misc": "workspace:*",
     "@nestling/app": "workspace:*",
     "@nestling/client": "workspace:*",
     "@nestling/config": "workspace:*",

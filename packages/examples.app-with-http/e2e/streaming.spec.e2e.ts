@@ -5,102 +5,98 @@ import {
 } from './helpers/create-test-app';
 import { HttpClient } from './helpers/http-client';
 
-describe('Streaming (E2E)', () => {
-  let testContext: TestAppContext;
+describe('потоки по HTTP', () => {
+  let context: TestAppContext;
   let client: HttpClient;
 
   beforeAll(async () => {
-    testContext = await createTestApp();
-    client = new HttpClient(testContext.baseUrl);
-  }, 60_000);
+    context = await createTestApp();
+    client = new HttpClient(context.baseUrl);
+  });
 
   afterAll(async () => {
-    await closeTestApp(testContext);
+    await closeTestApp(context);
   });
 
-  describe('GET /api/users/export (streaming output)', () => {
-    it('должен вернуть NDJSON stream с заголовками', async () => {
-      const response = await client.get('/api/users/export');
+  it('выгружает пользователей строками NDJSON', async () => {
+    const response = await client.get('/users/export');
 
-      expect(response.status).toBe(200);
-      expect(response.headers.get('content-type')).toBe('application/x-ndjson');
-      expect(response.headers.get('content-disposition')).toContain(
-        'users.ndjson',
-      );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('application/x-ndjson');
+    expect(response.headers.get('content-disposition')).toContain(
+      'users.ndjson',
+    );
 
-      // Читаем поток ответа целиком.
-      const text = await response.text();
-      const lines = text
-        .trim()
-        .split('\n')
-        .filter((line) => line.length > 0);
-
-      expect(lines.length).toBeGreaterThan(0);
-
-      // Каждая строка должна быть валидным JSON
-      for (const line of lines) {
-        const user = JSON.parse(line);
-        expect(user).toHaveProperty('id');
-        expect(user).toHaveProperty('name');
-        expect(user).toHaveProperty('email');
-      }
-    });
+    const text = await response.text();
+    const lines = text.trim().split('\n');
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      expect(JSON.parse(line)).toMatchObject({
+        id: expect.any(String),
+        email: expect.any(String),
+      });
+    }
   });
 
-  describe('POST /api/users/import (streaming input)', () => {
-    it('должен импортировать пользователей из NDJSON stream', async () => {
-      const timestamp = Date.now();
-      const usersToImport = [
-        { name: 'Import User 1', email: `import1-${timestamp}@example.com` },
-        { name: 'Import User 2', email: `import2-${timestamp}@example.com` },
-        { name: 'Import User 3', email: `import3-${timestamp}@example.com` },
-      ];
+  it('импортирует пользователей из NDJSON и пропускает занятые email', async () => {
+    const rows = [
+      { name: 'Import 1', email: 'import1@example.com' },
+      { name: 'Alice again', email: 'alice@example.com' },
+      { name: 'Import 2', email: 'import2@example.com' },
+    ];
 
-      // Формируем NDJSON
-      const ndjson = usersToImport.map((u) => JSON.stringify(u)).join('\n');
+    const response = await client.raw(
+      'POST',
+      '/users/import',
+      rows.map((row) => JSON.stringify(row)).join('\n'),
+      { 'content-type': 'application/x-ndjson' },
+      true,
+    );
 
-      const response = await fetch(`${testContext.baseUrl}/api/users/import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-ndjson',
-        },
-        body: ndjson,
-      });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ imported: 2, skipped: 1 });
+  });
 
-      expect(response.status).toBe(200);
-      expect(response.headers.get('x-import-status')).toBe('complete');
+  it('обрывает импорт на невалидной строке кодом VALIDATION_FAILED', async () => {
+    const response = await client.raw(
+      'POST',
+      '/users/import',
+      JSON.stringify({ name: 'Broken', email: 'not-an-email' }),
+      { 'content-type': 'application/x-ndjson' },
+      true,
+    );
 
-      const result = await response.json();
-      expect(result).toHaveProperty('imported', 3);
-      expect(result).toHaveProperty('failed', 0);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('отдаёт событие создания по SSE', async () => {
+    const controller = new AbortController();
+    const feed = await fetch(`${context.baseUrl}/users/activity`, {
+      signal: controller.signal,
     });
+    expect(feed.status).toBe(200);
+    expect(feed.headers.get('content-type')).toContain('text/event-stream');
 
-    it('должен обработать частичный импорт с ошибками', async () => {
-      const timestamp = Date.now();
-      const usersToImport = [
-        { name: 'Valid User', email: `valid-${timestamp}@example.com` },
-        { name: 'Invalid', email: 'not-an-email' }, // Невалидный email
-        { name: 'Valid User 2', email: `valid2-${timestamp}@example.com` },
-      ];
+    const created = await client.json(
+      'POST',
+      '/users',
+      { name: 'Streamed', email: 'streamed@example.com' },
+      { auth: true },
+    );
+    expect(created.status).toBe(201);
 
-      const ndjson = usersToImport.map((u) => JSON.stringify(u)).join('\n');
+    if (!feed.body) {
+      throw new Error('SSE response has no body');
+    }
 
-      const response = await fetch(`${testContext.baseUrl}/api/users/import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-ndjson',
-        },
-        body: ndjson,
-      });
+    const reader = feed.body.getReader();
+    const { value } = await reader.read();
+    const frame = new TextDecoder().decode(value);
 
-      expect(response.status).toBe(200);
-      expect(response.headers.get('x-import-status')).toBe('partial');
+    expect(frame).toContain('event: created');
+    expect(frame).toContain('"kind":"created"');
 
-      const result = await response.json();
-      expect(result.imported).toBeGreaterThan(0);
-      expect(result.failed).toBeGreaterThan(0);
-      expect(result.errors).toBeDefined();
-      expect(result.errors.length).toBeGreaterThan(0);
-    });
+    controller.abort();
   });
 });
