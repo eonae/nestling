@@ -5442,7 +5442,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "examples.app-with-http@workspace:packages/examples.app-with-http"
   dependencies:
-    "@common/misc": "workspace:*"
     "@nestling/app": "workspace:*"
     "@nestling/client": "workspace:*"
     "@nestling/config": "workspace:*"
@@ -5462,9 +5461,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"examples.simple-app@workspace:packages/examples.simple-app":
+"examples.container@workspace:packages/examples.container":
   version: 0.0.0-use.local
-  resolution: "examples.simple-app@workspace:packages/examples.simple-app"
+  resolution: "examples.container@workspace:packages/examples.container"
   dependencies:
     "@nestling/app": "workspace:*"
     "@nestling/config": "workspace:*"
@@ -5477,6 +5476,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "examples.simple-cli@workspace:packages/examples.simple-cli"
   dependencies:
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.cli": "workspace:*"
@@ -5488,7 +5488,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "examples.simple-http-server@workspace:packages/examples.simple-http-server"
   dependencies:
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
+    "@nestling/transport": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -5507,6 +5509,25 @@ __metadata:
     "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.nats": "workspace:*"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"examples.users-service@workspace:packages/examples.users-service":
+  version: 0.0.0-use.local
+  resolution: "examples.users-service@workspace:packages/examples.users-service"
+  dependencies:
+    "@nestling/app": "workspace:*"
+    "@nestling/client": "workspace:*"
+    "@nestling/config": "workspace:*"
+    "@nestling/container": "workspace:*"
+    "@nestling/eslint-plugin": "workspace:*"
+    "@nestling/openapi": "workspace:*"
+    "@nestling/openapi.zod": "workspace:*"
+    "@nestling/operations": "workspace:*"
+    "@nestling/pipeline": "workspace:*"
+    "@nestling/testing": "workspace:*"
+    "@nestling/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
