@@ -1,0 +1,43 @@
+{
+  "name": "examples.users-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/bundle.js",
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
+    "start": "yarn run build && node dist/bundle.js",
+    "start:dev": "run -T tsx src/main.ts",
+    "client": "run -T tsx src/api/client.ts",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestling/app": "workspace:*",
+    "@nestling/client": "workspace:*",
+    "@nestling/config": "workspace:*",
+    "@nestling/container": "workspace:*",
+    "@nestling/openapi": "workspace:*",
+    "@nestling/openapi.zod": "workspace:*",
+    "@nestling/operations": "workspace:*",
+    "@nestling/pipeline": "workspace:*",
+    "@nestling/transport.http": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@nestling/eslint-plugin": "workspace:*",
+    "@nestling/testing": "workspace:*"
+  },
+  "nx": {
+    "targets": {
+      "lint": {
+        "dependsOn": [
+          "@nestling/eslint-plugin:build"
+        ]
+      }
+    }
+  }
+}

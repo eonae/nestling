@@ -1,0 +1,15 @@
+{
+  // Проект пакета: по нему работают редактор и ESLint. Покрывает весь
+  // TypeScript пакета, спеки в том числе
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Сборку делает esbuild
+    "noEmit": true,
+
+    // Пример импортирует `@nestling/testing`: его subpath виден только под
+    // условием экспорта `testing`
+    "customConditions": ["testing"]
+  },
+  "include": ["src"],
+  "exclude": ["dist", "node_modules"]
+}
