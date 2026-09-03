@@ -1,0 +1,300 @@
+# 14. Тестировать фичу без соседей
+
+> Гайд по текущему API; сверено с кодом `examples.app-with-http`, `examples.split-nats` (2026-09-03).
+> Целевое описание: [design/testing.md](../design/testing.md) §3 и §4.
+> Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
+> тестирования (`@nestling/testing`)».
+
+## Задача
+
+Фича `users` вызывает `quotas.claim` и отправляет `users.registered` и
+`quotas.record-signup`. Команда квот ещё не написала реализацию, а тесты
+регистрации нужны сейчас. И наоборот: фичу нужно проверить одну, без
+соседей, так, чтобы тест не зависел от их кода и от брокера.
+
+Основа из главы [6](./06-testing.md) считается известной: `assembleTest`,
+`app.call`, `unwrap`, `overrides` и `vars`.
+
+## Решение
+
+### Соберите одну фичу
+
+```typescript
+// шаг главы 14; итоговая версия: packages/examples.split-nats/src/isolated.spec.ts
+await using app = await assembleTest({
+  features: [UsersFeature, QuotasFeature],
+  select: 'users',
+});
+```
+
+Поле `select` в тестовой сборке работает так же, как в корне: в графе
+остаются только выбранные фичи. Такая сборка останавливается на фазе
+ASSEMBLE:
+
+```
+Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+selected feature implements it and this assembly has no intercom, so the
+call has nowhere to go. Either add the feature that implements it to
+'select' (or close the selection over calls with
+'select: { features, includeDeps: true }'), or assign the intercom role to
+a bus transport ('transports: [nats({ name: "events" })]' with
+'intercom: "events"') when the owner lives in another process.
+```
+
+Вызыватель `ClaimQuota.caller` в зависимостях фичи `users` требует
+владельца операции. В сборке из одной фичи владельца нет, и его место
+занимает стаб.
+
+### Поставьте стабы операций
+
+```typescript
+// packages/examples.split-nats/src/isolated.spec.ts
+  it('регистрирует пользователя через стабы соседних операций', async () => {
+    const claimed: { email: string }[] = [];
+    const registered: { id: string; email: string }[] = [];
+
+    await using app = await assembleTest({
+      features: [UsersFeature, QuotasFeature],
+      select: 'users',
+      // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
+      // сборке нет: обе стороны заменены стабами
+      stubs: [
+        stub(ClaimQuota, async (input) => {
+          claimed.push(input);
+
+          return { remaining: 1 };
+        }),
+        stub(UserRegistered, (input) => {
+          registered.push(input);
+        }),
+      ],
+    });
+```
+
+`stub(Operation, impl)` возвращает пару из токена вызывателя и фейка:
+для `request` это `ClaimQuota.caller`, для `command` и `event` это
+`.emitter`. Пара передаётся полем `stubs:`. Провайдер стаба имеет
+приоритет над боевым рецептом вызывателя, поэтому проверка владельца не
+срабатывает, и фича собирается.
+
+`impl` получает payload с типом из схемы `input` операции и возвращает
+значение с типом из `output`. Фейк, не подходящий операции, не
+компилируется. Своего spy у стаба нет: в `impl` подходит обычная функция
+или `jest.fn()`.
+
+Список застабанных операций доступен как `app.stubbed`: имена по
+алфавиту.
+
+### Стаб проверяется схемой операции
+
+Стаб не может разойтись с операцией. Вход проверяется формой `input`,
+успешный ответ формой `output`. Если стаб `quotas.claim` вернёт
+`{ left: 1 }` вместо `{ remaining }`, вызывающий получит отказ, а не
+неверное значение:
+
+```
+{
+  "isSuccess": false,
+  "status": "BAD_REQUEST",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "details": [{ "message": "Invalid input: expected number, received undefined", "path": ["remaining"] }]
+  }
+}
+```
+
+Отказ из стаба обязан входить в `errors:` операции. Объявленный отказ
+проходит как есть, так же, как пришёл бы от настоящего владельца:
+
+```typescript
+// packages/examples.split-nats/src/isolated.spec.ts
+      stubs: [
+        // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
+        // есть, так же, как настоящий владелец по сети
+        stub(ClaimQuota, async () => QuotaExceeded({ limit: 100 })),
+        stub(UserRegistered, (input) => {
+          registered.push(input);
+        }),
+      ],
+```
+
+Незадекларированный код останавливает тест ошибкой с именем операции,
+кодом и разрешённым набором. Исчерпанный `deadline` даёт
+`DEADLINE_EXCEEDED` до вызова `impl`, а `emit` команды всегда несёт
+`idempotencyKey`, как у боевого порта.
+
+### Вызовите команду или событие снаружи
+
+```typescript
+// packages/examples.split-nats/src/isolated.spec.ts
+    const [{ subscriber, response }] = await app.emit(RegisterUser, {
+      email: 'alice@example.com',
+    });
+
+    expect(subscriber).toBe('users.register');
+    expect(response.isSuccess).toBe(true);
+    expect(claimed).toEqual([{ email: 'alice@example.com' }]);
+    expect(registered).toEqual([
+      { id: expect.any(String), email: 'alice@example.com' },
+    ]);
+```
+
+`app.emit(Operation, payload)` доставляет команду или событие каждому
+подписчику в этом процессе через его полный пайплайн и возвращает список
+доставок: имя подписчика и ответ. У события подписчиков может не быть,
+тогда список пуст. У команды подписчик обязателен: без него `emit`
+завершается ошибкой адресации. `request`-операцию через `emit` вызвать
+нельзя, это ошибка компиляции: у неё владелец, а не подписчики.
+
+Стаб эмиттера здесь не мешает. Стаб подменяет то, что фича отправляет
+наружу, а `emit` ведёт сообщение снаружи внутрь.
+
+### Проверьте, что застабанные операции кто-то реализует
+
+```typescript
+// packages/examples.split-nats/src/isolated.spec.ts
+  it('каждая застабанная операция реализована в одной из топологий', async () => {
+    await using app = await assembleTest({
+      features: [UsersFeature, QuotasFeature],
+      select: 'users',
+      stubs: [
+        stub(ClaimQuota, async () => ({ remaining: 1 })),
+        // eslint-disable-next-line unicorn/no-useless-undefined
+        stub(UserRegistered, () => undefined),
+      ],
+    });
+
+    // Матрица проверяет граф без подстановок: стаб операции, которой не
+    // реализует ни одна топология, здесь станет виден
+    const topologies = await checkTopologies(rootSpec, [
+      'all',
+      'users',
+      'quotas',
+    ]);
+
+    const published = new Set(
+      topologies.flatMap(({ report }) =>
+        report.operations.map(({ name }) => name),
+      ),
+    );
+
+    expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
+    expect(app.stubbed).toEqual(['quotas.claim', 'users.registered']);
+  });
+```
+
+Стаб делает тестовый граф меньше боевого. Операцию, которую никто не
+реализует, стаб скроет. Поэтому рядом со стабами стоит проверка честного
+графа: `checkTopologies` собирает каждую топологию без подстановок и
+возвращает отчёт с полем `operations`. Тест сравнивает `app.stubbed` с
+объединением опубликованных операций. Подробно матрицу разбирает глава
+[15](./15-select.md).
+
+### Подставьте значение переменной контекста
+
+```typescript
+// packages/examples.app-with-http/src/app.spec.ts
+  it('contextValue подставляет значение переменной в тестовом корне', async () => {
+    const spy = spyLogger();
+    await using app = await assembleTest({
+      ...spec,
+      overrides: [[Logger$, spy.logger], contextValue(RequestId, 'req-fixed')],
+    });
+
+    unwrap(await app.call(GetUser, { id: '1' }));
+
+    expect(spy.lines).toContain('[req-fixed] byId 1');
+  });
+```
+
+Хранилище читает `requestId` ридером `Ctx(RequestId)` из главы
+[7](./07-logging.md). Ридер является узлом графа, поэтому подменяется тем
+же списком `overrides`. `contextValue(Variable, value)` даёт ридер с
+постоянным значением. Слой `observability` по-прежнему кладёт свой
+`requestId` в контекст, но сервис читает подставленное значение.
+
+### Проверьте состав графа
+
+```typescript
+// packages/examples.app-with-http/src/app.spec.ts
+  it('подключает плагины и только выбранную фичу', async () => {
+    // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
+    // есть в любой сборке
+    await using app = await assembleTest({ ...spec, select: 'ops' });
+
+    expect(app.get(Logger$)).not.toBeNull();
+    expect(app.get(SubscriptionRegistry)).not.toBeNull();
+    expect(app.get(ActivityHub)).toBeNull();
+  });
+
+  it('замыкает выбор по вызываемым операциям', async () => {
+    await using app = await assembleTest({
+      ...spec,
+      select: { features: 'users', includeDeps: true },
+    });
+
+    expect(app.features).toEqual(['users', 'quotas']);
+  });
+```
+
+`app.get(token)` возвращает инстанс из собранного графа или `null`, если
+узла в графе нет. `app.features` перечисляет выбранные фичи после
+замыкания по вызовам.
+
+Семейство токенов целиком подменяет `familyOverride(Family, make)` в том
+же списке `overrides`; семейства появляются в главе
+[20](./20-token-families.md).
+
+## Что гарантирует фреймворк
+
+- Стаб типизирован операцией: `impl` с другим входом или выходом не
+  компилируется. Вход и успешный ответ стаба проверяются схемами операции
+  при каждом вызове.
+- Отказ из стаба обязан входить в `errors:` операции или в коды ядра.
+  Незадекларированный код останавливает тест ошибкой, а не превращается в
+  `UnknownError`.
+- `request`-операция через `app.emit` не компилируется. Команда без
+  подписчика в сборке даёт ошибку адресации со списком доступных
+  subject'ов.
+- Подмена узла, которого нет в графе, останавливает сборку. Стаб
+  операции, у которой есть владелец в выбранных фичах, тоже допустим: он
+  имеет приоритет над владельцем.
+
+## Как проверить
+
+Файл `isolated.spec.ts` целиком состоит из тестов этой главы: сборка одной
+фичи, стабы с успехом и с отказом, `app.emit` и сверка `app.stubbed` с
+матрицей. Тесты `contextValue` и состава графа лежат в `app.spec.ts`
+примера `app-with-http`.
+
+```bash
+yarn workspace examples.split-nats test
+yarn workspace examples.app-with-http test
+```
+
+## Пока не нужно
+
+- Матрица топологий как проверка деплоя, отчёт `check()` и `detached`:
+  глава [15](./15-select.md).
+- Снапшот операций и проверка совместимости: глава
+  [17](./17-compatibility.md).
+- Тест одной фичи или плагина без словаря сборки, `testUnit`:
+  [README `@nestling/testing`](../../packages/nestling.testing/README.md).
+
+## Запускаемый код
+
+| Файл | Что показывает |
+|---|---|
+| `packages/examples.split-nats/src/isolated.spec.ts` | `select` одной фичи, `stubs`, `app.emit`, `app.stubbed` против `checkTopologies` |
+| `packages/examples.app-with-http/src/app.spec.ts` | `contextValue`, `app.get`, `app.features`, `select` в тесте |
+| `packages/examples.app-with-http/src/testing.ts` | фейк хранилища для `overrides` |
+
+```bash
+yarn workspace examples.split-nats test
+yarn workspace examples.app-with-http test
+```
+
+## Дальше
+
+Тесты собирают фичи по отдельности. Так же собирается и приложение в
+проде: [15. Запускать только часть фич](./15-select.md).

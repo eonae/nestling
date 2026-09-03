@@ -1,0 +1,315 @@
+# 16. Разнести фичи по процессам, не меняя их код
+
+> Гайд по текущему API; сверено с кодом `examples.split-nats` (2026-09-03).
+> Целевое описание: [design/composition.md](../design/composition.md) «L4»,
+> [design/operations.md](../design/operations.md) §3 и §4.4,
+> [design/transports.md](../design/transports.md) §7. Почему так: записи
+> [ideas.md](../decisions/ideas.md) «NATS: шина приложения, а не сосед;
+> `durable` в контракте; `propagate` двумя каналами» и «Модель композиции:
+> фича, плагин, операция».
+
+## Задача
+
+Фичи `users` и `quotas` работают в одном процессе и общаются операциями.
+Нагрузка на квоты другая, и их хочется развернуть отдельным сервисом.
+Вызовы `quotas.claim` и подписку на `users.registered` переписывать не
+хочется: пусть те же фичи работают в двух процессах, а сообщения между ними
+переносит брокер.
+
+## Решение
+
+### Объявите шину и назначьте ей роль
+
+```typescript
+// packages/examples.split-nats/src/root.ts
+export function makeRoot(
+  select: FeatureSelection,
+  transport: NatsTransportOptions = {},
+): App {
+  return assemble({
+    features: [UsersFeature, QuotasFeature],
+    select,
+    // Шина приложения — обычный транспорт. `intercom:` назначает ему роль
+    // переносчика операций между процессами: вызов операции, владелец
+    // которой не выбран в этой сборке, уходит через этот транспорт
+    transports: [nats({ ...transport, name: 'events' })],
+    intercom: 'events',
+  });
+}
+```
+
+`nats({ name })` объявляет транспорт так же, как `http()`. Адрес брокера
+транспорт читает из своей секции конфига: ключ `NATS_SERVERS`, по
+умолчанию `nats://127.0.0.1:4222`. `intercom: 'events'` назначает этому
+транспорту роль переносчика операций. Пока роль не назначена, операции
+между фичами доставляет шина внутри процесса. После назначения её место
+занимает брокер: шина в приложении одна.
+
+Корень один на все процессы. Роль процесса задаёт `select`, который
+`main.ts` читает из `APP_FEATURES` до сборки, как в главе
+[15](./15-select.md).
+
+### Оставьте код фич как есть
+
+```typescript
+// packages/examples.split-nats/src/users.ts
+@Injectable([ClaimQuota.caller, UserRegistered.emitter])
+export class RegistrationService {
+  constructor(
+    private readonly quotas: Port<typeof ClaimQuota>,
+    private readonly registered: Emitter<typeof UserRegistered>,
+  ) {}
+
+  /** Регистрирует пользователя; возвращает `false`, если квота исчерпана */
+  async register(email: string): Promise<boolean> {
+    const claim = await this.quotas.call({ email });
+
+    if (claim.isFail) {
+      // Отказ владельца приходит `Fail` того же определения `QuotaExceeded`
+      // и из соседнего процесса, и из этого
+      return false;
+    }
+
+    await this.registered.emit({ id: randomUUID(), email });
+
+    return true;
+  }
+}
+```
+
+Этот класс не отличается от того, который работал в одном процессе. Он
+зависит от вызывателя и эмиттера, а не от сервисов соседней фичи. Куда
+уходит вызов, решает сборка.
+
+При `select: 'users'` владельца `quotas.claim` в процессе нет. Сборка
+привязывает `ClaimQuota.caller` к удалённому вызывателю: вызов уходит на
+брокер как запрос с ожиданием ответа, а объявленный отказ `QuotaExceeded`
+возвращается тем же `Fail`, что и при вызове внутри процесса. Реплики
+владельца образуют queue-group, и каждое сообщение получает одна из них.
+При `select: 'all'` обе фичи работают в одном процессе, запрос
+выполняется напрямую, а событие всё равно уходит через брокер: его
+подписчики могут быть в других процессах.
+
+### Объявите долговечность события
+
+```typescript
+// packages/examples.split-nats/src/operations.ts
+export const UserRegistered = makeEvent({
+  name: 'users.registered',
+  durable: true,
+  input: UserRegisteredInput,
+});
+```
+
+`durable: true` означает, что доставка переживает перезапуск подписчика.
+Транспорт NATS заводит под таким subject'ом поток JetStream: издатель
+ждёт подтверждения записи в поток, подписчик читает из потока и
+подтверждает обработку. Подписчик, который в момент публикации не работал,
+получит событие после запуска.
+
+```typescript
+// packages/examples.split-nats/src/quotas.ts
+    implement(UserRegistered, {
+      // Имя подписчика — адрес подписки: в одном процессе различает
+      // подписки на одно событие, у брокера становится именем queue-группы
+      // и durable-потребителя
+      subscriber: 'archive',
+      pipeline: makePipeline().pre(TenantId.propagated()),
+      deps: [QuotaLedger],
+      handle: (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
+        ledger.archive(payload.id);
+
+        // eslint-disable-next-line unicorn/no-useless-undefined
+        return undefined;
+      },
+    }),
+```
+
+Имя подписчика из главы [12](./12-events.md) здесь получает вторую
+работу: у брокера оно становится именем durable-потребителя. Долговечность
+объявлена в операции, а не в корне, потому что о ней должны знать обе
+стороны: издатель ждёт подтверждения записи, подписчик читает из потока.
+
+### Передайте контекст запроса через границу процесса
+
+```typescript
+// packages/examples.split-nats/src/context.ts
+export const TenantId = contextVar<string>()('tenantId', { propagate: true });
+```
+
+Арендатор приходит от внешнего клиента и нужен в обоих процессах, но ни в
+одной схеме `input` его нет. `propagate: true` включает передачу
+переменной через границу порта. Вызыватель берёт значение из контекста
+текущего запроса и кладёт его в заголовок сообщения `Nl-Ctx`. Передаётся
+только переменная с этой пометкой; остальной контекст через границу не
+проходит.
+
+```typescript
+// packages/examples.split-nats/src/users.ts
+    implement(RegisterUser, {
+      // Арендатор приходит в конверте сообщения. Юнит кладёт его в контекст
+      // запроса, откуда вызыватель `quotas.claim` передаст его дальше
+      pipeline: makePipeline().pre(TenantId.propagated()),
+      deps: [RegistrationService],
+      handle:
+        (registration: RegistrationService) =>
+        async (payload: RegisterUserInput) => {
+          await registration.register(payload.email);
+
+          // eslint-disable-next-line unicorn/no-useless-undefined
+          return undefined;
+        },
+    }),
+```
+
+На принимающей стороне значение лежит в атрибутах сообщения. Юнит
+`TenantId.propagated()` переносит его в асинхронный контекст запроса. Тот
+же юнит стоит в пайплайне обеих реализаций фичи `quotas`, потому что и
+`quotas.claim`, и `users.registered` приходят из другого процесса.
+
+```typescript
+// packages/examples.split-nats/src/quotas.ts
+@Injectable([Ctx(TenantId)])
+export class QuotaLedger {
+  readonly limit = 100;
+  readonly used = new Map<string, number>();
+
+  constructor(private readonly tenant: CtxReader<string>) {}
+
+  claim(): number | undefined {
+    const tenantId = this.tenant.get();
+    // …
+  }
+}
+```
+
+Сервис читает арендатора ридером `Ctx(TenantId)`, как репозиторий читал
+`requestId` в главе [7](./07-logging.md). Ридер объявляется в
+зависимостях провайдера. Значение прошло два перехода: внешний клиент
+положил его в заголовок, процесс `users` прочитал и передал дальше при
+вызове `quotas.claim`, процесс `quotas` прочитал снова.
+
+### Запустите два процесса
+
+```bash
+docker run --rm -p 4222:4222 nats:2 -js
+```
+
+Флаг `-js` включает JetStream. Без него поток под `users.registered` не
+создастся, и сборка остановится.
+
+```bash
+APP_FEATURES=quotas yarn workspace examples.split-nats start:dev
+APP_FEATURES=users yarn workspace examples.split-nats start:dev
+```
+
+Владельца запроса запускайте первым. У брокера нет очереди ожидания для
+запроса с ответом: вызов `quotas.claim` при отсутствующем владельце
+завершается отказом доставки. Адрес брокера при необходимости задаёт
+`NATS_SERVERS=nats://127.0.0.1:4222`.
+
+Команду регистрации кладёт на шину внешний клиент. Арендатор передаётся
+заголовком контекста:
+
+```bash
+nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"acme"}'
+```
+
+Тот же корень с `APP_FEATURES=all` поднимает обе фичи одним процессом.
+Ни один файл фич при этом не меняется.
+
+### Проверьте путь через шину в одном процессе
+
+Политика диспатча `NESTLING_PORTS_DISPATCH=always-remote` отправляет
+каждый вызов операции как сообщение, даже когда владелец работает в этом
+же процессе. На шине внутри процесса это означает асинхронный барьер,
+копию payload и проверку ответа по схеме `output`. Так вызовы проходят
+путь, близкий к сетевому, до появления брокера. Тест на обе политики лежит
+в `packages/examples.app-with-http/src/app.spec.ts`.
+
+## Что гарантирует фреймворк
+
+- Вызов операции, владелец которой не выбран в сборке без интеркома,
+  останавливает сборку. Ошибка называет операцию и вызывателя и говорит,
+  что вызову некуда идти.
+- Объявленная шина без назначенной роли останавливает сборку. В роль
+  интеркома встают только транспорты, переносящие операции: `http()` в
+  `intercom:` не компилируется.
+- `durable: true` принимают только `command` и `event`. У `request`
+  вызывающий ждёт ответа, и поле для него не компилируется.
+- Через границу порта проходят только переменные с `propagate: true`.
+  Значения остальных переменных остаются в процессе вызывающего.
+
+## Как проверить
+
+Тест поднимает оба процесса в одном jest-процессе поверх двойника брокера
+`NatsDouble`. Сеть не нужна.
+
+```typescript
+// packages/examples.split-nats/src/split.spec.ts
+  it('два процесса общаются операциями через брокер', async () => {
+    const broker = new NatsDouble();
+    const topology = await run(broker, 'quotas', 'users');
+    const outside = await outsideClient(broker);
+
+    await outside.publish(
+      'users.register',
+      { email: 'alice@example.com' },
+      { context: { tenantId: 'acme' } },
+    );
+    await untilPublished(broker, 'users.registered');
+
+    // Вызов `quotas.claim` ушёл на брокер: владельца в процессе `users` нет
+    expect(broker.published.map(({ subject }) => subject)).toEqual(
+      expect.arrayContaining([
+        'users.register',
+        'quotas.claim',
+        'users.registered',
+      ]),
+    );
+
+    expect(tenantOf(broker, 'quotas.claim')).toBe('acme');
+    expect(tenantOf(broker, 'users.registered')).toBe('acme');
+    // …
+  });
+```
+
+`run` создаёт по приложению на каждый `select` тем же `makeRoot`, передав
+в опции транспорта соединение с двойником. `broker.published` хранит все
+отправленные сообщения с заголовками: по нему тест проверяет subject'ы и
+арендатора в `Nl-Ctx`, а через `broker.jetstreamManager()` находит поток
+`nestling_users_registered`. Второй тест того же файла поднимает
+`select: 'all'` и проверяет, что `quotas.claim` на брокер не выходит.
+Третий собирает процесс `users` без владельца `quotas.claim` и
+убеждается, что сборка проходит.
+
+## Пока не нужно
+
+- Проверка, что изменение операции не сломает соседний процесс: снапшот
+  операций и `diffOperations` в главе [17](./17-compatibility.md).
+- Список открытых подписок и их принудительное закрытие: глава
+  [22](./22-ops.md).
+
+## Запускаемый код
+
+| Файл | Что показывает |
+|---|---|
+| `packages/examples.split-nats/src/root.ts` | один корень на все процессы: `nats()` и `intercom:` |
+| `packages/examples.split-nats/src/main.ts` | выбор фич из `APP_FEATURES` до сборки |
+| `packages/examples.split-nats/src/operations.ts` | команда, запрос и событие с `durable: true` |
+| `packages/examples.split-nats/src/context.ts` | переменная контекста с `propagate: true` |
+| `packages/examples.split-nats/src/users.ts` | фича без знания о транспорте и процессах |
+| `packages/examples.split-nats/src/quotas.ts` | владелец запроса и durable-подписчик, чтение контекста в сервисе |
+| `packages/examples.split-nats/src/split.spec.ts` | две топологии на двойнике брокера |
+| `packages/examples.split-nats/src/isolated.spec.ts` | фича без соседа и без брокера, глава [14](./14-testing-features.md) |
+
+```bash
+yarn workspace examples.split-nats test
+APP_FEATURES=all yarn workspace examples.split-nats start:dev
+```
+
+## Дальше
+
+Операция стала границей между процессами, и её изменение теперь может
+сломать соседний сервис. Как заметить это до выкладки, показывает глава
+[17. Не сломать соседей при изменении операции](./17-compatibility.md).
