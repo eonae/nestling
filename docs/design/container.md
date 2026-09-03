@@ -28,7 +28,7 @@ export class UserService {
 
 - Класс служит токеном сам себе. `@Injectable([deps])` — стандартный
   ES-декоратор (не `experimentalDecorators`); он несёт только список
-  зависимостей.
+  зависимостей. У класса без зависимостей форма короче: `@Injectable()`.
 - Интерфейсы и значения регистрируются через явные токены
   (`makeToken<T>(id)`) и примитивы `classProvider(token, Class)`,
   `factoryProvider(token, fn, deps)`, `valueProvider(token, value)`. Это
