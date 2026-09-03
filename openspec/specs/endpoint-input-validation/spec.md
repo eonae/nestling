@@ -22,11 +22,11 @@
 `.pre`-юнитов всех слоёв и до вызова хендлера. Хендлер SHALL получать
 выход схемы (результат трансформаций), а не исходное значение.
 
-Отказ проверки SHALL быть отказом `BadRequest` (`bad_request`,
-`bad_request`) с `details` в форме стандартных `issues`. Он SHALL начинать
-ответную фазу так же, как отказ `.pre`-юнита: `.catch`-юниты всех слоёв
-применимы, проверка `errors:` пропускает kernel-код, `.finally` видит
-ответ 400. Хендлер при этом SHALL NOT вызываться.
+Отказ проверки SHALL быть отказом `BadRequest` (`bad_request`) с
+`details` в форме стандартных `issues`. Он SHALL начинать ответную фазу
+так же, как отказ `.pre`-юнита: `.catch`-юниты всех слоёв применимы,
+проверка `errors:` пропускает kernel-код, `.finally` видит ответ 400.
+Хендлер при этом SHALL NOT вызываться.
 
 Отказ от проверки SHALL выражаться схемой, принимающей любое значение
 (например `z.unknown()`). Отдельного флага декларации или пайплайна SHALL
@@ -37,14 +37,14 @@ NOT существовать.
 - **WHEN** endpoint объявлен с `input: z.object({ n: z.number() })` и
   `pipeline: makePipeline().pre(withRequestId())`, и приходит payload
   `{ n: 'not-a-number' }`
-- **THEN** ответ — `bad_request` с `code: 'bad_request'` и
+- **THEN** ответ имеет код `bad_request` и
   `details: [{ message, path: ['n'] }]`, хендлер не вызван
 
 #### Scenario: Endpoint без пайплайна проверяется так же
 
 - **WHEN** endpoint объявлен без поля `pipeline` с той же схемой, и
   приходит невалидный payload
-- **THEN** ответ — тот же `bad_request` с `code: 'bad_request'`,
+- **THEN** ответ — тот же отказ `bad_request`,
   полученный как `ResponseContext` из `dispatch.call`, а не как брошенное
   исключение
 
@@ -56,8 +56,8 @@ NOT существовать.
 
 #### Scenario: Отказ `.pre`-юнита выполняется раньше проверки
 
-- **WHEN** `.pre`-юнит авторизации бросает отказ `unauthorized`, а payload
-  невалиден
+- **WHEN** `.pre`-юнит авторизации бросает отказ с кодом `unauthorized`, а
+  payload невалиден
 - **THEN** ответ — `unauthorized`, схема не вызывалась
 
 #### Scenario: Наблюдатели видят отказ проверки
@@ -151,9 +151,9 @@ SHALL NOT попадать ни в типах, ни в рантайме. Про�
 (`AsyncSchemaNotSupportedError`) или объект в `input` не реализует
 Standard Schema v1 (`NotAStandardSchemaError`), рантайм SHALL NOT
 превращать это в отказ 400. Ошибка SHALL обрабатываться как
-необработанная: ответ `internal_error`, нормализованный в `InternalError`,
-оригинал передаётся хуку `onUnknownFail`. Поведение SHALL быть одинаковым
-для endpoint'ов с пайплайном и без.
+необработанная: ответ с кодом `internal_error`, нормализованным в
+`InternalError`, оригинал передаётся хуку `onUnknownFail`. Поведение SHALL
+быть одинаковым для endpoint'ов с пайплайном и без.
 
 #### Scenario: Async-схема без пайплайна
 

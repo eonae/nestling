@@ -77,7 +77,7 @@ SHALL NOT обращаться к нему.
 #### Scenario: `select` читается примордиально
 
 - **WHEN** в корне вызвано `const cfg = load(RootConfig)` и результат
-  передан в `makeApp({ …, select: cfg.FEATURES })`
+  передан в `app.assemble(cfg.FEATURES)`
 - **THEN** значение прочитано из `process.env` до построения контейнера, а
   невалидное значение падает fail-fast'ом на фазе 0
 

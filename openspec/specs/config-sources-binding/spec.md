@@ -48,7 +48,7 @@
 ### Requirement: Привязка в корне — плоский список, порядок = приоритет, env — неявный пол
 
 Composition root SHALL принимать привязки плоским списком
-`config: [[source, target | target[]], …]` — полем функции `assemble`, где
+`config: [[source, target | target[]], …]` — полем `makeApp`, где
 `target` — `ConfigKeys`-хэндл или строковый глоб. Порядок элементов списка
 SHALL задавать приоритет: ключ разрешается первой привязкой, чей таргет его
 покрывает и чей источник вернул значение, отличное от `undefined`.
@@ -84,7 +84,7 @@ SHALL NOT обращаться к нему.
 - **THEN** он опрашивается только для ключей секции `orders`; для остальных
   ключей он не вызывается вовсе
 
-#### Scenario: Привязка объявляется в `assemble`
+#### Scenario: Привязка объявляется в `makeApp`
 
 - **WHEN** написано `makeApp({ features: [OrdersFeature], config: [[fileSource, [OrdersConfig.keys]]] })`
 - **THEN** привязка действует; поля `config` у конструктора приложения

@@ -23,7 +23,7 @@
 - `tags?: readonly string[]` — группировка операции;
 - `deprecated?: boolean`;
 - `status?: SuccessStatus` — статус успешного ответа из словаря статусов
-  ядра;
+  ядра (`ok`, `created`, `accepted`, `no_content`);
 - `hidden?: string` — причина, по которой операция не попадает в
   документацию.
 
@@ -74,7 +74,7 @@ diff'е.
 
 #### Scenario: Статус вне словаря
 
-- **WHEN** объявлено `doc: { status: 'PARTIAL_CONTENT' }`
+- **WHEN** объявлено `doc: { status: 'partial_content' }`
 - **THEN** создание бросает ошибку, перечисляющую допустимые успешные
   статусы
 

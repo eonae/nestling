@@ -23,11 +23,17 @@
 ### Requirement: `assembleTest` — тестовый composition root
 
 `@nestling/testing` SHALL экспортировать
-`assembleTest(spec): Promise<TestApp>`, принимающую тот же словарь сборки,
-что и `assemble` (`modules`, `providers`, `features`, `select`, `transports`,
-`config`, `policies`), плюс поля `overrides` и `stubs`. Функция SHALL проводить
+`assembleTest(app, options?): Promise<TestApp>`, принимающую декларацию
+приложения `makeApp` первым аргументом и словарь опций вторым: `select`,
+`overrides`, `stubs`, `config`, `contextValue`. Функция SHALL проводить
 приложение по фазам `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE` и
 остановиться.
+
+Состав приложения (фичи, плагины, провайдеры, транспорты, интерком,
+политики) SHALL браться из декларации; в опциях SHALL NOT существовать ни
+полей состава, ни `policies`, ни `transports`. Поле `config` опций SHALL
+заменять привязку источников декларации целиком: тест изолирован от
+источников приложения так же, как от `process.env`.
 
 Тестовый прогон SHALL выполнять те же проверки фазы ASSEMBLE, что и боевой:
 сверку требуемых транспортов с графом, проверку форм io против способностей
@@ -37,7 +43,7 @@
 
 #### Scenario: Приложение собрано, но не в эфире
 
-- **WHEN** `await assembleTest({ features: [UsersFeature], transports: [http()] })`
+- **WHEN** `await assembleTest(app)`, где `app = makeApp({ features: [UsersFeature], transports: [http()] })`
 - **THEN** `@OnInit` выполнены, `dispatch` построен, `@OnStart` не выполнен,
   `serve` ни на одном транспорте не вызван и сокет не открыт
 
@@ -49,16 +55,36 @@
 
 #### Scenario: Fail-fast сборки работает и в тесте
 
-- **WHEN** выбранная фича объявляет HTTP-ручку, а `transports:` пуст
+- **WHEN** выбранная фича объявляет HTTP-ручку, а `transports:` декларации
+  пуст
 - **THEN** `assembleTest` отклоняется той же ошибкой, что и боевая сборка,
   и `@OnInit` не выполняется
 
 #### Scenario: Инвариант проверяется и в тесте
 
-- **WHEN** `assembleTest({ …, policies: [everyEndpoint().hasLayer(authedBase)] })`
-  собирает приложение с ручкой без требуемого слоя
+- **WHEN** декларация несёт `policies: [everyEndpoint().hasLayer(authedBase)]`,
+  а `assembleTest(app, …)` собирает приложение с ручкой без требуемого слоя
 - **THEN** вызов отклоняется тем же нарушением политики, что и боевая
   сборка
+
+#### Scenario: Та же декларация, что у `main.ts`
+
+- **WHEN** тест импортирует `app` из `app.ts` и вызывает
+  `assembleTest(app, { overrides: [[UsersRepository$, fake]] })`
+- **THEN** словарь сборки не копируется и не спредится; состав совпадает с
+  боевым
+
+#### Scenario: Конфиг теста заменяет привязку декларации
+
+- **WHEN** декларация объявляет `config: [[vault(), ['*']]]`, а тест
+  передаёт `config: vars({ API_TOKEN: 't' })`
+- **THEN** `vault()` не инициализируется и не читается; секции читаются из
+  `vars`
+
+#### Scenario: Выбор фич в тесте
+
+- **WHEN** `assembleTest(app, { select: 'orders' })`
+- **THEN** собрана только фича `orders`, как при `app.assemble('orders')`
 
 ### Requirement: `overrides` существует только у тестового корня
 
@@ -66,14 +92,15 @@
 SHALL передаваться контейнеру как подстановка узла графа. Право override
 SHALL быть позиционным: подменяется только тот токен, ссылка на который есть
 у теста. Строковой формы доступа к токену (`overrideByName('…')`)
-SHALL NOT существовать.
+SHALL NOT существовать. Ни `makeApp`, ни `assemble` подстановок SHALL NOT
+принимать.
 
 Пара `[Token, fake]` SHALL быть типизирована: значение, не совместимое с
 типом токена, SHALL быть ошибкой компиляции.
 
 #### Scenario: Подстановка вместо боевого узла
 
-- **WHEN** `overrides: [[UsersRepository, inMemoryUsersRepo()]]`
+- **WHEN** `assembleTest(app, { overrides: [[UsersRepository, inMemoryUsersRepo()]] })`
 - **THEN** все потребители `UsersRepository` получают фейк, а боевой
   провайдер не инстанцируется
 
@@ -89,9 +116,14 @@ SHALL NOT существовать.
 - **THEN** такого API нет: подменяется либо экспортированный токен, либо
   модуль целиком
 
+#### Scenario: Подстановка в декларации не компилируется
+
+- **WHEN** написано `makeApp({ features: [...], overrides: [[Token, fake]] })`
+- **THEN** это ошибка компиляции: перечень полей декларации закрыт
+
 ### Requirement: `stubs:` — поставка недостающего в тестовом корне
 
-Словарь `assembleTest` SHALL принимать поле `stubs: [[Token, value], …]` —
+Опции `assembleTest` SHALL принимать поле `stubs: [[Token, value], …]` —
 пары «токен → значение», регистрируемые обычными провайдерами. Поле SHALL
 принимать значения `stub(Contract, impl)` наравне с обычными парами:
 стаб операции — такая же пара, и отдельного поля под него SHALL NOT
@@ -102,13 +134,13 @@ SHALL NOT существовать.
 
 #### Scenario: Пара «токен → значение»
 
-- **WHEN** `assembleTest({ features: [ReportsFeature], stubs: [[IClock, fixedClock]] })`
+- **WHEN** `assembleTest(app, { stubs: [[IClock, fixedClock]] })`, где
+  декларация объявляет `features: [ReportsFeature]`
 - **THEN** `IClock` разрешается переданным значением
 
 #### Scenario: Стаб операции в том же поле
 
-- **WHEN** `assembleTest({ features: [OrdersFeature], select: 'orders',
-  stubs: [stub(ClaimQuota, async () => ({ granted: 1 }))] })`
+- **WHEN** `assembleTest(app, { select: 'orders', stubs: [stub(ClaimQuota, async () => ({ granted: 1 }))] })`
 - **THEN** сборка проходит без реализации `ClaimQuota` и без брокера, а
   потребитель получает фейк
 

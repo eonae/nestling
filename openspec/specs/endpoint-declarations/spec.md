@@ -42,13 +42,13 @@
 
 #### Scenario: HTTP-декларация создаётся конструктором
 
-- **WHEN** объявлено `httpEndpoint({ method: 'POST', path: '/api/users', input: CreateUserInput, output: UserOutput, pipeline: basePipeline, handler: handle })`
+- **WHEN** объявлено `httpEndpoint({ method: 'POST', path: '/api/users', input: CreateUserInput, output: UserOutput, pipeline: basePipeline, handler })`
 - **THEN** результат — значение с токеном HTTP-транспорта в `transport` и
   `pattern === 'POST /api/users'`, готовое к объявлению в `endpoints:` модуля
 
 #### Scenario: CLI-декларация создаётся своим конструктором
 
-- **WHEN** объявлено `cliEndpoint({ command: 'process-stdin', input, output, pipeline, handler: handle })`
+- **WHEN** объявлено `cliEndpoint({ command: 'process-stdin', input, output, pipeline, handler })`
 - **THEN** результат — значение с токеном CLI-транспорта в `transport` и
   `pattern === 'process-stdin'`
 
@@ -85,7 +85,7 @@
 #### Scenario: Интерфейс реализации не нужен
 
 - **WHEN** объявлен класс-хендлер с методом `handle`, переданный полем
-  `handle` в конструктор декларации
+  `handler` в конструктор декларации
 - **THEN** код компилируется без `implements IEndpoint`, а сверка сигнатуры
   `handle` со схемами `input`/`output` происходит в точке декларации
 
@@ -262,10 +262,9 @@ SHALL дублировать эту проверку для JS-потребит�
 
 `@nestling/pipeline` SHALL экспортировать `makeEndpoint` как
 транспорт-нейтральный примитив, несущий всю общую машинерию деклараций
-(нормализация форм `handle`, `deps`, гашение зависимостей, бренд,
-объявленные отказы `errors:`, пометка `detached`). Транспортные
-конструкторы SHALL быть надстройками над ним и SHALL NOT дублировать эту
-машинерию.
+(нормализация форм `handler`, гашение зависимостей, бренд, объявленные
+отказы `errors:`, пометка `detached`). Транспортные конструкторы SHALL
+быть надстройками над ним и SHALL NOT дублировать эту машинерию.
 
 `makeEndpoint` SHALL принимать и переносить на значение декларации
 непрозрачное поле `binding` — транспорт-специфичный биндинг, который
@@ -287,7 +286,7 @@ SHALL дублировать эту проверку для JS-потребит�
 
 - **WHEN** декларация создана `httpEndpoint` и декларация создана
   `cliEndpoint`
-- **THEN** обе несут бренд, одинаково нормализованный `handle`,
+- **THEN** обе несут бренд, одинаково нормализованный `handler`,
   одинаковый механизм гашения зависимостей и одинаково перенесённые
   `errors:` и `detached`
 
@@ -311,7 +310,7 @@ SHALL дублировать эту проверку для JS-потребит�
 
 `implement(Contract, { … })` SHALL быть конструктором деклараций наравне с
 `httpEndpoint` и `cliEndpoint` и SHALL строиться над тем же kernel-примитивом
-`makeEndpoint`. Общая машинерия (нормализация форм `handle`, `deps`, гашение,
+`makeEndpoint`. Общая машинерия (нормализация форм `handler`, гашение,
 бренд, `errors:`, `detached`, `resolve`) SHALL быть одной и той же — свой
 конструктор добавляет только словарь своего транспорта.
 
@@ -332,7 +331,8 @@ SHALL дублировать эту проверку для JS-потребит�
 
 #### Scenario: Гашение зависимостей — тем же `resolve`
 
-- **WHEN** реализация объявлена с `deps` и классом-хендлером
+- **WHEN** реализация объявлена с функциональным `handler` (`{ deps,
+  handle }`) и с классом-хендлером
 - **THEN** фаза WIRE гасит их тем же `endpoint.resolve(resolver)`, что и для
   HTTP-деклараций
 
@@ -344,7 +344,7 @@ SHALL дублировать эту проверку для JS-потребит�
 ### Requirement: Форма с `operation:` HTTP-декларации
 
 `httpEndpoint` SHALL принимать форму с `operation:` словаря —
-`httpEndpoint({ contract, pipeline?, deps?, handle, detached? })`, — в
+`httpEndpoint({ operation, pipeline?, handler, detached? })`, — в
 которой интерфейс операции и её HTTP-адрес берутся с операции.
 
 В этой форме поля `method`, `path`, `bind`, `rawBody`, `sse`, `input`,
@@ -357,13 +357,13 @@ Bind-карта SHALL браться с операции как есть и SHAL
 декларации; текст ошибки SHALL называть операцию и предлагать объявить
 `http:` либо реализовать операцию через `implement` (шина).
 
-Три формы `handle`, `deps`, `pipeline`, `detached` и участие в дискавери,
+Три формы `handler`, `pipeline`, `detached` и участие в дискавери,
 политиках и визуализации SHALL работать как у любой HTTP-декларации:
 форма с `operation:` — форма записи, а не новый примитив.
 
 #### Scenario: Реализация операции по HTTP
 
-- **WHEN** объявлено `httpEndpoint({ operation: CreateUser, deps: [UserService], handler: (svc) => (input) => svc.create(input) })`,
+- **WHEN** объявлено `httpEndpoint({ operation: CreateUser, handler: { deps: [UserService], handle: (svc) => (input) => svc.create(input) } })`,
   где операция несёт `http: 'POST /users'`
 - **THEN** создаётся обычная HTTP-декларация на `POST /users` со схемами и
   `errors:` операции

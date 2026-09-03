@@ -16,7 +16,7 @@ composition root и проверяются на фазе `1 ASSEMBLE`, где в
 
 ### Requirement: `policies:` — инварианты объявляются значениями в composition root
 
-`assemble` SHALL принимать опциональное поле `policies: readonly Policy[]` —
+`makeApp` SHALL принимать опциональное поле `policies: readonly Policy[]` —
 инварианты, проверяемые на собранном приложении. Поле SHALL быть
 опциональным: приложение без него SHALL собираться ровно как прежде, а пустой
 список SHALL быть легален и эквивалентен отсутствию поля.
@@ -140,19 +140,19 @@ PolicyViolation[]`. `PolicySubject` SHALL нести декларацию и и�
 
 ### Requirement: Политики проверяются на каждом входе, строящем граф
 
-Политики SHALL проверяться в `run()`, в `check()` и в тестовом корне
-(`assembleTest`) — то есть везде, где выполняется фаза ASSEMBLE. Тестовый
-прогон SHALL NOT ослаблять инварианты: приложение, которое не собирается в
-бою, SHALL NOT собираться в тесте.
+Политики SHALL проверяться в `run()`, в `check()` декларации и в тестовом
+корне (`assembleTest`) — то есть везде, где выполняется фаза ASSEMBLE.
+Тестовый прогон SHALL NOT ослаблять инварианты: приложение, которое не
+собирается в бою, SHALL NOT собираться в тесте.
 
 #### Scenario: Тест под теми же инвариантами
 
-- **WHEN** `assembleTest({ …, policies: [everyEndpoint().hasLayer(base)] })`
-  собирает приложение с нарушающей ручкой
+- **WHEN** приложение объявлено `makeApp({ …, policies: [everyEndpoint().hasLayer(base)] })`,
+  и `assembleTest(app, { … })` собирает его с нарушающей ручкой
 - **THEN** вызов отклоняется той же ошибкой, что и боевая сборка
 
 #### Scenario: Матрица топологий проверяет инварианты
 
-- **WHEN** `checkTopologies(spec, ['all', 'users'])`, где `spec` несёт
+- **WHEN** `checkTopologies(app, ['all', 'users'])`, где `app` несёт
   `policies`
 - **THEN** политики проверяются в каждой топологии матрицы

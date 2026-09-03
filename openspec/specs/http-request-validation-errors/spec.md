@@ -63,7 +63,7 @@
 
 Отказ валидации SHALL нести kernel-код `bad_request` (capability
 `domain-fail-definitions`): тело ответа SHALL содержать верхнеуровневое
-поле `"code": "VALIDATION_FAILED"`. Такой отказ SHALL проходить проверку
+поле `"code": "bad_request"`. Такой отказ SHALL проходить проверку
 контракта отказов без нормализации и SHALL NOT требовать объявления в
 `errors:` endpoint'а.
 
@@ -93,7 +93,7 @@
 - **THEN** тело 400-ответа содержит `details` вида
   `[{ "message": "…", "path": ["name"] }]`, элементы `details` не содержат
   вендор-специфичного поля `code`, а верхнеуровневое поле `code` тела
-  равно `"VALIDATION_FAILED"`
+  равно `"bad_request"`
 
 #### Scenario: Async-схема — не ошибка входа
 

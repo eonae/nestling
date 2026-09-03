@@ -15,7 +15,7 @@
 ### Requirement: `implement` строит обычную декларацию на транспорте шины
 
 `@nestling/ports` SHALL экспортировать
-`implement(Contract, { deps?, pipeline?, handle, subscriber?, detached? })`,
+`implement(Contract, { pipeline?, handler, subscriber?, detached? })`,
 возвращающий `EndpointDefinition`, построенный тем же kernel-примитивом
 `makeEndpoint`, что и транспортные конструкторы. Декларация SHALL нести токен
 транспорта шины (`transport:bus`) и транспорт-специфичный `binding` с
@@ -33,14 +33,14 @@ subject'ом, видом операции и (для `event`) именем по�
 
 #### Scenario: Реализация объявляется как ручка
 
-- **WHEN** объявлено `implement(ChargeCard, { deps: [Ledger], pipeline: basePipeline, handler: handle })` и значение указано в `endpoints:` модуля
+- **WHEN** объявлено `implement(ChargeCard, { pipeline: basePipeline, handler: { deps: [Ledger], handle } })` и значение указано в `endpoints:` модуля
 - **THEN** оно обнаруживается дискавери, требует транспорт шины и исполняется
   тем же путём, что HTTP-ручка того же модуля
 
 #### Scenario: Формы хендлера — те же три
 
-- **WHEN** `handle` задан функцией, каррированной фабрикой с `deps` или
-  классом с методом `handle`
+- **WHEN** `handler` задан классом с методом `handle`, словарём `{ deps,
+  handle }` или функцией без зависимостей
 - **THEN** все три формы принимаются и гасятся тем же `resolve`, что у
   прочих деклараций
 
