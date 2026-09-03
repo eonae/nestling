@@ -33,7 +33,7 @@ SHALL оставаться опциональным: приложение без
 
 #### Scenario: L0 — фича и транспорт
 
-- **WHEN** написано `await assemble({ features: [OrdersFeature], transports: [http({ port: 3000 })] }).run()`
+- **WHEN** написано `await makeApp({ features: [OrdersFeature], transports: [http({ port: 3000 })] }).assemble().run()`
 - **THEN** приложение поднимается, HTTP-ручки фичи обслуживаются, и в корне
   не упоминается ни `select`, ни конфиг, ни политики
 
@@ -44,12 +44,12 @@ SHALL оставаться опциональным: приложение без
 
 #### Scenario: Пустая сборка легальна
 
-- **WHEN** вызвано `assemble({})`
+- **WHEN** вызвано `makeApp({})`
 - **THEN** приложение собирается и поднимается без транспортов и ручек
 
 #### Scenario: Инварианты объявлены полем корня
 
-- **WHEN** написано `assemble({ features: [UsersFeature], transports: [http()], policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)] })`
+- **WHEN** написано `makeApp({ features: [UsersFeature], transports: [http()], policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)] })`
 - **THEN** политики проверяются на фазе ASSEMBLE того же прогона, отдельной
   функции запуска проверок не существует
 
@@ -97,7 +97,7 @@ SHALL оставаться опциональным: приложение без
 
 #### Scenario: Плагин рядом с фичами
 
-- **WHEN** `assemble({ plugins: [appLogging], features: [OrdersFeature], select: 'orders' })`
+- **WHEN** `makeApp({ plugins: [appLogging], features: [OrdersFeature], select: 'orders' })`
 - **THEN** контейнер содержит и модули `appLogging`, и модули `OrdersFeature`
 
 #### Scenario: Один модуль в плагине и в фиче
@@ -121,7 +121,7 @@ SHALL оставаться опциональным: приложение без
 
 #### Scenario: Привязка источника в корне
 
-- **WHEN** `assemble({ features: [OrdersFeature], config: [[fileSource, [OrdersConfig.keys]]] })`
+- **WHEN** `makeApp({ features: [OrdersFeature], config: [[fileSource, [OrdersConfig.keys]]] })`
 - **THEN** ключи секции `orders` читаются сперва из `fileSource`, затем из
   `process.env`
 
@@ -149,7 +149,7 @@ SHALL оставаться опциональным: приложение без
 
 #### Scenario: Повторный `close()`
 
-- **WHEN** `app.close()` вызван дважды
+- **WHEN** `testApp.close()` вызван дважды
 - **THEN** второй вызов завершается без ошибки, `@OnDestroy` выполняются
   один раз
 
@@ -174,7 +174,7 @@ kernel-модулями конфига и ambient-контекста, — и SHA
 
 #### Scenario: Корень не упоминает порты
 
-- **WHEN** приложение собрано как `assemble({ features: [OrdersFeature, BillingFeature], transports: [http()] })`, а фичи общаются операциями
+- **WHEN** приложение собрано как `makeApp({ features: [OrdersFeature, BillingFeature], transports: [http()] })`, а фичи общаются операциями
 - **THEN** операции работают, и в корне нет ни одного поля о портах или шине
 
 #### Scenario: Топология считается по выбранным фичам

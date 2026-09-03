@@ -61,7 +61,7 @@
 (`code`, `expected`, `received` и подобные) SHALL NOT попадать в элементы
 `details`.
 
-Отказ валидации SHALL нести kernel-код `VALIDATION_FAILED` (capability
+Отказ валидации SHALL нести kernel-код `bad_request` (capability
 `domain-fail-definitions`): тело ответа SHALL содержать верхнеуровневое
 поле `"code": "VALIDATION_FAILED"`. Такой отказ SHALL проходить проверку
 контракта отказов без нормализации и SHALL NOT требовать объявления в
@@ -71,20 +71,20 @@
 
 - **WHEN** endpoint зарегистрирован без pipeline и payload не проходит схему
 - **THEN** ответ имеет статус 400 (а не 500) с деталями валидации и
-  кодом `VALIDATION_FAILED`
+  кодом `bad_request`
 
 #### Scenario: Invalid payload with pipeline
 
 - **WHEN** endpoint использует `makePipeline().pre(withRequestId())` и
   payload не проходит схему
 - **THEN** ответ имеет статус 400 с деталями issue'ов и кодом
-  `VALIDATION_FAILED`, независимо от того, что объявлено в `errors:`
+  `bad_request`, независимо от того, что объявлено в `errors:`
 
 #### Scenario: Невалидные поля multipart
 
 - **WHEN** endpoint объявлен с `input: multipart({ fields, files })`, и
   запрос несёт поля, не проходящие схему `fields`, и файл
-- **THEN** ответ имеет статус 400 с кодом `VALIDATION_FAILED`, файловый
+- **THEN** ответ имеет статус 400 с кодом `bad_request`, файловый
   поток дочитан, соединение завершено штатно
 
 #### Scenario: Форма details в теле ответа

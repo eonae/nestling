@@ -37,18 +37,18 @@
 
 #### Scenario: Функция без зависимостей
 
-- **WHEN** объявлено `httpEndpoint({ …, handle: async (input, meta) => Ok.of(…) })`
+- **WHEN** объявлено `httpEndpoint({ …, handler: async (input, meta) => new Ok(…) })`
 - **THEN** декларация исполнима сразу, без гашения зависимостей
 
 #### Scenario: Каррированная фабрика
 
-- **WHEN** объявлено `httpEndpoint({ …, deps: [UserService, ILogger], handle: (users, logger) => async (input, meta) => … })`
+- **WHEN** объявлено `httpEndpoint({ …, deps: [UserService, ILogger], handler: (users, logger) => async (input, meta) => … })`
 - **THEN** типы `users` и `logger` выведены из токенов `deps`, а декларация
   несёт неразрешённые зависимости
 
 #### Scenario: Класс-хендлер
 
-- **WHEN** объявлено `httpEndpoint({ …, handle: CreateUserHandler })`, где
+- **WHEN** объявлено `httpEndpoint({ …, handler: CreateUserHandler })`, где
   `CreateUserHandler` — класс под `@Injectable([UserService])` с методом
   `handle`
 - **THEN** код компилируется без `implements`, сигнатура `handle` сверяется

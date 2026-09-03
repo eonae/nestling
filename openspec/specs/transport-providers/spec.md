@@ -22,7 +22,7 @@
 контейнером, а его lifecycle SHALL гоняться по графу наравне с прочими
 узлами.
 
-Поле `transports:` в `assemble` SHALL быть сахаром регистрации этих
+Поле `transports:` в `makeApp` SHALL быть сахаром регистрации этих
 провайдеров; транспорт SHALL быть равно легально объявлен в `providers:`
 любого модуля (в том числе infra-модуля фичи).
 
@@ -31,7 +31,7 @@
 
 #### Scenario: Транспорт в корне
 
-- **WHEN** `assemble({ features: [OrdersFeature], transports: [http({ port: 3000 })] })`
+- **WHEN** `makeApp({ features: [OrdersFeature], transports: [http({ port: 3000 })] })`
 - **THEN** транспорт строится контейнером, его `@OnInit`/`@OnDestroy`
   выполняются вместе с прочими узлами графа
 

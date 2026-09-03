@@ -29,7 +29,7 @@ detached-ручек на старте, а `CheckReport` несёт причин�
 
 #### Scenario: Ручка помечена причиной
 
-- **WHEN** объявлено `httpEndpoint({ method: 'GET', path: '/health', detached: 'liveness-проба балансировщика: до auth не доходит', handle })`
+- **WHEN** объявлено `httpEndpoint({ method: 'GET', path: '/health', detached: 'liveness-проба балансировщика: до auth не доходит', handler: handle })`
 - **THEN** декларация создаётся и несёт причину значением
 
 #### Scenario: `detached: true` невыразим
@@ -83,7 +83,7 @@ SHALL NOT существовать: opt-out тотален.
 
 #### Scenario: Отчёт несёт причину значением
 
-- **WHEN** `await assemble({ … }).check()`
+- **WHEN** `await makeApp({ … }).check()`
 - **THEN** ручка отчёта, помеченная в декларации, несёт `detached` с той же
   строкой-причиной
 

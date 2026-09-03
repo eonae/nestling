@@ -24,7 +24,16 @@ exports[`pipeline type diagnostics endpoint-missing-rawbody 1`] = `
 "packages/nestling.pipeline/type-tests/fixtures/endpoint-missing-rawbody.ts(16,3): error TS2769: No overload matches this call.
   The last overload gave the following error.
     Type 'PipelineBuilder<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never>' is not assignable to type 'Pipeline<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never> & { ...; }'.
-      Type 'PipelineBuilder<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never>' is missing the following properties from type '{ __error: "Pipeline requires context that the start context does not provide"; missing: { rawBody: Uint8Array<ArrayBufferLike>; }; hint: "declare 'rawBody: true', or provide the fields from an outer layer"; }': __error, missing, hint"
+      Type 'PipelineBuilder<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never>' is missing the following properties from type '{ __error: "Pipeline requires context that the start context does not provide"; missing: { rawBody: Uint8Array<ArrayBufferLike>; }; hint: "declare 'rawBody: true', or provide the fields from an outer layer"; }': __error, missing, hint
+        Type '() => Promise<Ok<{ received: boolean; }>>' is not assignable to type 'HandlerClass<AnyPayload, AnyOutput, { rawBody: Uint8Array<ArrayBufferLike>; }, never>'.
+          Type '() => Promise<Ok<{ received: boolean; }>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, AnyOutput, { rawBody: Uint8Array<ArrayBufferLike>; }, never>; }'.
+
+packages/nestling.pipeline/type-tests/fixtures/endpoint-missing-rawbody.ts(17,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'PipelineBuilder<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never>' is not assignable to type 'Pipeline<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never> & { ...; }'.
+      Type 'PipelineBuilder<{ rawBody: Uint8Array<ArrayBufferLike>; }, { rawBody: Uint8Array<ArrayBufferLike>; }, never>' is missing the following properties from type '{ __error: "Pipeline requires context that the start context does not provide"; missing: { rawBody: Uint8Array<ArrayBufferLike>; }; hint: "declare 'rawBody: true', or provide the fields from an outer layer"; }': __error, missing, hint
+        Type '() => Promise<Ok<{ received: boolean; }>>' is not assignable to type 'HandlerClass<AnyPayload, AnyOutput, { rawBody: Uint8Array<ArrayBufferLike>; }, never>'.
+          Type '() => Promise<Ok<{ received: boolean; }>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, AnyOutput, { rawBody: Uint8Array<ArrayBufferLike>; }, never>; }'."
 `;
 
 exports[`pipeline type diagnostics endpoint-undeclared-fail 1`] = `
@@ -46,14 +55,32 @@ exports[`pipeline type diagnostics output-chain-type-changing 1`] = `
 "packages/nestling.pipeline/type-tests/fixtures/output-chain-type-changing.ts(18,3): error TS2769: No overload matches this call.
   The last overload gave the following error.
     Type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' is not assignable to type 'StreamForm<{ id: string; }, { id: string; }[], "stream"> & { __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'.
-      Property '__error' is missing in type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' but required in type '{ __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'."
+      Property '__error' is missing in type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' but required in type '{ __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'.
+        Type '() => Promise<Ok<AsyncGenerator<never, void, unknown>>>' is not assignable to type 'HandlerClass<AnyPayload, StreamForm<{ id: string; }, { id: string; }[], "stream">, AnyInput, never>'.
+          Type '() => Promise<Ok<AsyncGenerator<never, void, unknown>>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, StreamForm<{ id: string; }, { id: string; }[], "stream">, AnyInput, never>; }'.
+
+packages/nestling.pipeline/type-tests/fixtures/output-chain-type-changing.ts(20,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' is not assignable to type 'StreamForm<{ id: string; }, { id: string; }[], "stream"> & { __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'.
+      Property '__error' is missing in type 'StreamForm<{ id: string; }, { id: string; }[], "stream">' but required in type '{ __error: "Output item chain must preserve the wire type: '.batch' and type-changing '.through' are input-only"; }'.
+        Type '() => Promise<Ok<AsyncGenerator<never, void, unknown>>>' is not assignable to type 'HandlerClass<AnyPayload, StreamForm<{ id: string; }, { id: string; }[], "stream">, AnyInput, never>'.
+          Type '() => Promise<Ok<AsyncGenerator<never, void, unknown>>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, StreamForm<{ id: string; }, { id: string; }[], "stream">, AnyInput, never>; }'."
 `;
 
 exports[`pipeline type diagnostics output-multipart-form 1`] = `
 "packages/nestling.pipeline/type-tests/fixtures/output-multipart-form.ts(15,3): error TS2769: No overload matches this call.
   The last overload gave the following error.
     Type 'MultipartForm<undefined, { report: UploadSpec<false>; }>' is not assignable to type 'MultipartForm<undefined, { report: UploadSpec<false>; }> & { __error: "'multipart' is an input-only form and cannot be declared in 'output'"; }'.
-      Property '__error' is missing in type 'MultipartForm<undefined, { report: UploadSpec<false>; }>' but required in type '{ __error: "'multipart' is an input-only form and cannot be declared in 'output'"; }'."
+      Property '__error' is missing in type 'MultipartForm<undefined, { report: UploadSpec<false>; }>' but required in type '{ __error: "'multipart' is an input-only form and cannot be declared in 'output'"; }'.
+        Type '() => Promise<Ok<undefined>>' is not assignable to type 'HandlerClass<AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, AnyInput, never>'.
+          Type '() => Promise<Ok<undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, AnyInput, never>; }'.
+
+packages/nestling.pipeline/type-tests/fixtures/output-multipart-form.ts(17,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'MultipartForm<undefined, { report: UploadSpec<false>; }>' is not assignable to type 'MultipartForm<undefined, { report: UploadSpec<false>; }> & { __error: "'multipart' is an input-only form and cannot be declared in 'output'"; }'.
+      Property '__error' is missing in type 'MultipartForm<undefined, { report: UploadSpec<false>; }>' but required in type '{ __error: "'multipart' is an input-only form and cannot be declared in 'output'"; }'.
+        Type '() => Promise<Ok<undefined>>' is not assignable to type 'HandlerClass<AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, AnyInput, never>'.
+          Type '() => Promise<Ok<undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, MultipartForm<undefined, { report: UploadSpec<false>; }>, AnyInput, never>; }'."
 `;
 
 exports[`pipeline type diagnostics pre-after-response 1`] = `"packages/nestling.pipeline/type-tests/fixtures/pre-after-response.ts(14,4): error TS2339: Property 'pre' does not exist on type 'PhasedPipeline<EmptyInput, EmptyInput, never>'."`;
@@ -63,7 +90,8 @@ exports[`pipeline type diagnostics pre-overrides-field 1`] = `"packages/nestling
 exports[`pipeline type diagnostics pre-requires-missing 1`] = `"packages/nestling.pipeline/type-tests/fixtures/pre-requires-missing.ts(11,3): error TS2345: Argument of type 'PreUnitFn<{ identity: User; }, { permissions: string[]; }>' is not assignable to parameter of type '{ __error: "Pre-unit requires context that the accumulated input does not provide"; missing: { identity: User; }; }'."`;
 
 exports[`pipeline type diagnostics unresolved-class-unit 1`] = `
-"packages/nestling.pipeline/type-tests/fixtures/unresolved-class-unit.ts(24,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Object literal may only specify known properties, but 'handler' does not exist in type 'HttpEndpointDictionary<"/health", AnyPayload, AnyOutput, EmptyInput & { traceId: string; }, typeof WithTracing, undefined, EmptyInput, []> & { ...; }'. Did you mean to write 'handle'?"
+"packages/nestling.pipeline/type-tests/fixtures/unresolved-class-unit.ts(27,15): error TS2322: Type 'EndpointDefinition<AnyPayload, AnyOutput, EmptyInput & { traceId: string; }, typeof WithTracing>' is not assignable to type 'ExecutableDeclaration'.
+  Types of property '$needs' are incompatible.
+    Type 'typeof WithTracing | undefined' is not assignable to type 'undefined'.
+      Type 'typeof WithTracing' is not assignable to type 'undefined'."
 `;

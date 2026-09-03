@@ -33,7 +33,7 @@
 
 - **WHEN** `await testModule(UsersModule, { stubs: [[ILogger, noopLogger]] })`
 - **THEN** приложение собрано из одного модуля, его ручки вызываются через
-  `app.call`
+  `testApp.call`
 
 #### Scenario: Токены видны без экспорта
 

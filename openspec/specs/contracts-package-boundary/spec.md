@@ -21,17 +21,17 @@
 деклараций и SHALL экспортировать:
 
 - `makeRequest`, `makeCommand`, `makeEvent` и типы операций;
-- `defineFail`, определения kernel-отказов (включая `UnknownError`),
+- `makeFail`, определения kernel-отказов (включая `InternalError`),
   `Ok`, `Fail`, `isFail` и словари статусов;
 - формы io (`stream`, `events`, `multipart`, `upload`) и их описатели;
 - пометки размещения `query()`/`body()`, тип bind-карты и её вычисление.
 
 Перечисленные символы SHALL иметь ровно один физический дом: дублирующих
-определений (второй `Fail`, второй `defineFail`) SHALL NOT существовать.
+определений (второй `Fail`, второй `makeFail`) SHALL NOT существовать.
 
 #### Scenario: Операция объявляется из одного пакета
 
-- **WHEN** модуль импортирует `makeRequest`, `defineFail` и формы io
+- **WHEN** модуль импортирует `makeRequest`, `makeFail` и формы io
 - **THEN** все они доступны из `@nestling/operations`
 
 #### Scenario: Идентичность значений не двоится
@@ -83,7 +83,7 @@ tree-shaking в инструменте потребителя.
 из пакетов, которые экспортировали их прежде:
 
 - `@nestling/pipeline` SHALL реэкспортировать `Ok`, `Fail`, `isFail`,
-  статусы, `defineFail`, kernel-отказы и формы io;
+  статусы, `makeFail`, kernel-отказы и формы io;
 - `@nestling/transport.http` SHALL реэкспортировать `query()`, `body()` и
   тип bind-карты.
 
@@ -95,7 +95,7 @@ tree-shaking в инструменте потребителя.
 
 #### Scenario: Хендлер не меняет импортов
 
-- **WHEN** существующий код импортирует `Fail` и `defineFail` из
+- **WHEN** существующий код импортирует `Fail` и `makeFail` из
   `@nestling/pipeline`
 - **THEN** он компилируется и работает как прежде
 

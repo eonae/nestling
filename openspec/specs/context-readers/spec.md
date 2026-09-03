@@ -112,7 +112,7 @@ kernel-модуль ambient-контекста **всегда** — как kerne
 
 #### Scenario: В корне про контекст ничего не пишется
 
-- **WHEN** приложение собрано `assemble({ modules, transports })` без единого
+- **WHEN** приложение собрано `makeApp({ providers, transports })` без единого
   упоминания ambient-контекста
 - **THEN** класс с `Ctx(RequestId)` в `deps` собирается и работает
 

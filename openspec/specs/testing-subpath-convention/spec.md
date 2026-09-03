@@ -72,6 +72,6 @@ subpath'ы workspace-пакетов на исходники и SHALL подде�
 
 #### Scenario: `await using` компилируется и работает
 
-- **WHEN** тест написан как `await using app = await assembleTest({ … })`
+- **WHEN** тест написан как `await using testApp = await assembleTest({ … })`
 - **THEN** он компилируется без ошибок типов и вызывает
   `Symbol.asyncDispose` по выходу из блока

@@ -74,7 +74,6 @@ describe('bindInputStream', () => {
 
     await expect(collect(bound)).rejects.toMatchObject({
       code: 'bad_request',
-      status: 'bad_request',
     });
   });
 

@@ -11,7 +11,7 @@ import { openapi, OpenApiDocument$ } from './module.js';
 import type { OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { assemble, makeFeature } from '@nestling/app';
+import { makeApp, makeFeature } from '@nestling/app';
 import { factoryProvider, makeToken, OnInit } from '@nestling/container';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { StandardSchemaV1 } from '@nestling/operations';
@@ -124,13 +124,13 @@ const BillingFeature = BillingModule;
 describe('openapi(...) — плагин-издатель', () => {
   it("отдаёт документ endpoint'ом и не описывает сам себя", async () => {
     const transport = new SpyTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [UsersModule],
       plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -176,7 +176,7 @@ describe('openapi(...) — плагин-издатель', () => {
     }
 
     const transport = new SpyTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'module:exotic',
@@ -188,7 +188,7 @@ describe('openapi(...) — плагин-издатель', () => {
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(/cannot be documented/);
 
@@ -199,11 +199,11 @@ describe('openapi(...) — плагин-издатель', () => {
   });
 
   it('пустой список конвертеров тоже роняет сборку, а не строит документ без схем', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [UsersModule],
       plugins: [openapi({ info, announceHidden: false })],
       transports: [asHttpTransport(new SpyTransport())],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(/no converter for that vendor/);
 
@@ -212,14 +212,13 @@ describe('openapi(...) — плагин-издатель', () => {
 
   it('невыбранная фича в документе отсутствует', async () => {
     const transport = new SpyTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [UsersFeature, BillingFeature],
-      select: 'module:openapi-users',
       plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble('module:openapi-users');
 
     await app.run();
 
@@ -252,7 +251,7 @@ describe('endpoint документации подчиняется полити�
   });
 
   it('с переданным pipeline сборка проходит', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [TracedModule],
       plugins: [
         openapi({
@@ -264,28 +263,28 @@ describe('endpoint документации подчиняется полити�
       ],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [policy],
-    });
+    }).assemble();
 
     await expect(app.run()).resolves.toBeUndefined();
     await app.close();
   });
 
   it('без pipeline и без detached — нарушение политики', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [TracedModule],
       plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [policy],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(/GET \/openapi\.json/);
     await app.close();
   });
 
   it('detached снимает endpoint с политики', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [TracedModule],
       plugins: [
         openapi({
@@ -297,7 +296,7 @@ describe('endpoint документации подчиняется полити�
       ],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [policy],
-    });
+    }).assemble();
 
     await expect(app.run()).resolves.toBeUndefined();
     await app.close();
@@ -325,13 +324,13 @@ describe('документ доступен значением', () => {
     });
 
     const transport = new SpyTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [UsersModule, ObserverModule],
       plugins: [
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 

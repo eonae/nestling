@@ -69,7 +69,7 @@ const declare = (detached: unknown) => () =>
     transport: HttpTransport$,
     pattern: 'GET /health',
     detached,
-    handle: async () => new Ok({ status: 'up' }),
+    handler: async () => new Ok({ status: 'up' }),
   });
 
 describe('detached — fail-fast в точке создания', () => {

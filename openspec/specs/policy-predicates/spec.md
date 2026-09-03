@@ -106,7 +106,7 @@ SHALL NOT существовать.
 
 #### Scenario: Ручка без пайплайна под политикой
 
-- **WHEN** `httpEndpoint({ method: 'GET', path: '/health', handle })` объявлен
+- **WHEN** `httpEndpoint({ method: 'GET', path: '/health', handler: handle })` объявлен
   без `pipeline`, а политика требует `hasLayer(authedBase)` на всех
   HTTP-ручках
 - **THEN** сборка отклоняется, и подсказка называет `detached: '<причина>'`

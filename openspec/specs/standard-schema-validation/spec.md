@@ -129,7 +129,7 @@ endpoint'а рантаймом пайплайна (capability `endpoint-input-va
 
 - **WHEN** одна и та же невалидная запись приходит endpoint'у с
   пайплайном и endpoint'у без пайплайна
-- **THEN** в обоих случаях ответ несёт `VALIDATION_FAILED` с одинаковой
+- **THEN** в обоих случаях ответ несёт `bad_request` с одинаковой
   формой `issues`
 
 #### Scenario: Поэлементная валидация потока

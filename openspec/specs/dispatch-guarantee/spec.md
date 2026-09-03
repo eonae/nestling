@@ -78,7 +78,7 @@ SHALL NOT существовать, равно как и метода регис
 
 - **WHEN** endpoint объявлен без `pipeline` и без `errors:`, а его хендлер
   бросает `Fail.notFound('nope')`
-- **THEN** `dispatch.call` возвращает `ResponseContext` с `UNKNOWN`/500, а
+- **THEN** `dispatch.call` возвращает `ResponseContext` с `internal_error`/500, а
   оригинал отказа передан хуку `onUnknownFail`
 
 #### Scenario: Транспорт получает только свои endpoint'ы

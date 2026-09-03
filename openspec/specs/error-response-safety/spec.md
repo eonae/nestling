@@ -9,10 +9,10 @@
 
 ### Requirement: Internal error details are hidden by default
 
-Тело ответа со статусом `INTERNAL_ERROR`/500 SHALL при необработанной
+Тело ответа со статусом `internal_error`/500 SHALL при необработанной
 ошибке (не `Fail`) или при нормализованном незадекларированном отказе в
 pipeline или транспорте содержать только generic-сообщение
-(`{ "error": "Internal server error", "code": "UNKNOWN" }` для пути
+(`{ "error": "Internal server error", "code": "internal_error" }` для пути
 pipeline) и SHALL NOT содержать `error.message`, `error.stack` или иные
 внутренние детали, если раскрытие явно не включено.
 
@@ -21,7 +21,7 @@ pipeline) и SHALL NOT содержать `error.message`, `error.stack` или 
 - **WHEN** handler бросает `new Error('db password invalid')`, а транспорт
   создан без `exposeErrorDetails`
 - **THEN** ответ имеет статус 500, тело содержит только
-  `error: "Internal server error"` и `code: "UNKNOWN"` и не содержит ни
+  `error: "Internal server error"` и `code: "internal_error"` и не содержит ни
   `db password invalid`, ни поля `stack`
 
 #### Scenario: Parsing-stage error with default options
@@ -35,7 +35,7 @@ pipeline) и SHALL NOT содержать `error.message`, `error.stack` или 
 
 Раскрытие деталей необработанных ошибок SHALL включаться опцией
 `exposeErrorDetails: true` (опция транспорта, прокидывается в
-`executeWithHandler`). При включении тело `INTERNAL_ERROR` MAY содержать
+`executeWithHandler`). При включении тело `internal_error` MAY содержать
 `error.message` и `stack`.
 
 #### Scenario: Development mode opt-in
@@ -62,7 +62,7 @@ endpoint'а); политика раскрытия необработанных �
 ослабляется.
 
 **Незадекларированный** отказ привилегии раскрытия не имеет: он
-нормализуется в `UnknownError` (capability `endpoint-error-contract`) и
+нормализуется в `InternalError` (capability `endpoint-error-contract`) и
 подчиняется политике необработанных ошибок — без `exposeErrorDetails`
 клиент получает generic-тело, оригинал уходит в диагностический хук.
 
@@ -77,15 +77,15 @@ endpoint'а); политика раскрытия необработанных �
 
 - **WHEN** payload не проходит схему `input` при проверке рантаймом перед
   хендлером, а `exposeErrorDetails` выключен
-- **THEN** ответ 400 содержит `"code": "VALIDATION_FAILED"` и детали
+- **THEN** ответ 400 содержит `"code": "bad_request"` и детали
   issue'ов
 
 #### Scenario: Незадекларированный Fail не раскрывается
 
-- **WHEN** хендлер бросает `Fail.badRequest('email already taken',
+- **WHEN** хендлер бросает `Fail.conflict('email already taken',
   { email })`, отказ не объявлен, `exposeErrorDetails` выключен
 - **THEN** ответ — 500 с телом `{ "error": "Internal server error",
-  "code": "UNKNOWN" }`; ни сообщение, ни `details` оригинала в тело не
+  "code": "internal_error" }`; ни сообщение, ни `details` оригинала в тело не
   попадают, а оригинал уходит в диагностический хук
 
 #### Scenario: catch-юнит переоформляет Fail

@@ -33,7 +33,7 @@ subject'ом, видом операции и (для `event`) именем по�
 
 #### Scenario: Реализация объявляется как ручка
 
-- **WHEN** объявлено `implement(ChargeCard, { deps: [Ledger], pipeline: basePipeline, handle })` и значение указано в `endpoints:` модуля
+- **WHEN** объявлено `implement(ChargeCard, { deps: [Ledger], pipeline: basePipeline, handler: handle })` и значение указано в `endpoints:` модуля
 - **THEN** оно обнаруживается дискавери, требует транспорт шины и исполняется
   тем же путём, что HTTP-ручка того же модуля
 
@@ -52,7 +52,7 @@ subject'ом, видом операции и (для `event`) именем по�
 
 #### Scenario: Реализация вызывается в тесте по значению
 
-- **WHEN** тест держит значение `ChargeCardImpl` и зовёт `app.call(ChargeCardImpl, payload)`
+- **WHEN** тест держит значение `ChargeCardImpl` и зовёт `testApp.call(ChargeCardImpl, payload)`
 - **THEN** запрос проходит полный pipeline реализации и возвращает
   `ResponseContext`
 
@@ -78,13 +78,13 @@ subject'ом, видом операции и (для `event`) именем по�
 
 #### Scenario: Событие без имени подписчика
 
-- **WHEN** объявлено `implement(OrderPlaced, { handle })` без `subscriber:`
+- **WHEN** объявлено `implement(OrderPlaced, { handler: handle })` без `subscriber:`
 - **THEN** вызов бросает ошибку, называя операцию, вид `event` и требование
   указать `subscriber`
 
 #### Scenario: Имя подписчика у запроса
 
-- **WHEN** объявлено `implement(ChargeCard, { subscriber: 'billing', handle })`
+- **WHEN** объявлено `implement(ChargeCard, { subscriber: 'billing', handler: handle })`
   для операции вида `request`
 - **THEN** вызов бросает ошибку: у запроса ровно один владелец, и подписчиков
   у него не бывает

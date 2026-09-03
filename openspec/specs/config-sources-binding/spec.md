@@ -86,7 +86,7 @@ SHALL NOT обращаться к нему.
 
 #### Scenario: Привязка объявляется в `assemble`
 
-- **WHEN** написано `assemble({ features: [OrdersFeature], config: [[fileSource, [OrdersConfig.keys]]] })`
+- **WHEN** написано `makeApp({ features: [OrdersFeature], config: [[fileSource, [OrdersConfig.keys]]] })`
 - **THEN** привязка действует; поля `config` у конструктора приложения
   SHALL NOT существовать — конструктор не является публичной поверхностью
 

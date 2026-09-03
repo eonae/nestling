@@ -86,7 +86,7 @@ const declare = (doc: unknown) => () =>
     transport: HttpTransport$,
     pattern: 'GET /users',
     doc,
-    handle: async () => new Ok([]),
+    handler: async () => new Ok([]),
   });
 
 describe('doc — fail-fast словаря', () => {

@@ -30,7 +30,7 @@ composition root и проверяются на фазе `1 ASSEMBLE`, где в
 
 #### Scenario: Инвариант объявлен в корне
 
-- **WHEN** написано `assemble({ features: [UsersFeature], transports: [http()], policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)] })`
+- **WHEN** написано `makeApp({ features: [UsersFeature], transports: [http()], policies: [everyEndpoint({ transport: HttpTransport$ }).hasLayer(authedBase)] })`
 - **THEN** приложение собирается, если каждая HTTP-ручка композирована от
   `authedBase`, и отклоняется, если хотя бы одна — нет
 
@@ -42,7 +42,7 @@ composition root и проверяются на фазе `1 ASSEMBLE`, где в
 
 #### Scenario: Пустое приложение под политиками
 
-- **WHEN** `assemble({ policies: [everyEndpoint().hasLayer(base)] })` без
+- **WHEN** `makeApp({ policies: [everyEndpoint().hasLayer(base)] })` без
   модулей и ручек
 - **THEN** сборка успешна
 

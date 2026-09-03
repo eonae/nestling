@@ -15,7 +15,7 @@ request-scope обработчика — без общей транзакции 
 ### Requirement: `call` всегда асинхронен и Fail-able
 
 `Port<C>.call(input, meta?)` SHALL возвращать
-`Promise<Ok<Output> | Fail<E ∪ UnknownError>>`, где `E` — отказы, объявленные
+`Promise<Ok<Output> | Fail<E ∪ InternalError>>`, где `E` — отказы, объявленные
 в `errors:` операции. Форма SHALL быть одинаковой для co-located и remote
 биндинга: тип call-site SHALL NOT зависеть от того, где живёт реализация.
 
@@ -31,7 +31,7 @@ SHALL выбираться **по виду операции**: `idempotencyKey?:
 последующими change'ами без изменения call-site.
 
 Закрытое множество ответов вызова SHALL включать kernel-код
-`DEADLINE_EXCEEDED` наравне с `UNKNOWN` и `VALIDATION_FAILED`: он SHALL NOT
+`timeout` наравне с `internal_error` и `bad_request`: он SHALL NOT
 объявляться в `errors:` операции и SHALL быть выразим на call-site без
 `default`-ветки.
 
@@ -64,8 +64,8 @@ SHALL выбираться **по виду операции**: `idempotencyKey?:
 
 - **WHEN** потребитель разбирает результат `call` по кодам объявленных
   отказов
-- **THEN** `DEADLINE_EXCEEDED` доступен ему без объявления в `errors:`, как
-  и `UNKNOWN`
+- **THEN** `timeout` доступен ему без объявления в `errors:`, как
+  и `internal_error`
 
 ### Requirement: Отказ ре-гидрируется по коду одинаково на обоих путях
 
@@ -73,7 +73,7 @@ SHALL выбираться **по виду операции**: `idempotencyKey?:
 процедурой для co-located и remote путей: код отказа SHALL сопоставляться с
 определениями `errors:` операции, и при совпадении SHALL создаваться
 **настоящий** `Fail` этого определения (со `status`, `code` и `details`);
-незадекларированный или отсутствующий код SHALL давать `UnknownError`.
+незадекларированный или отсутствующий код SHALL давать `InternalError`.
 
 Детали, не входящие в контракт отказа (`stack`, внутренние сообщения), SHALL
 NOT пересекать границу порта: вызов SHALL выполняться с тем же уровнем
@@ -88,13 +88,13 @@ NOT пересекать границу порта: вызов SHALL выпол�
 #### Scenario: Незадекларированный отказ
 
 - **WHEN** реализация упала отказом, которого нет в `errors:` операции
-- **THEN** потребитель получает `UnknownError`, а оригинал уходит в
+- **THEN** потребитель получает `InternalError`, а оригинал уходит в
   диагностический хук
 
 #### Scenario: Stack не пересекает границу
 
 - **WHEN** реализация бросила необработанное исключение
-- **THEN** потребитель получает `UnknownError` без `stack` и без текста
+- **THEN** потребитель получает `InternalError` без `stack` и без текста
   исходной ошибки
 
 ### Requirement: `emit` — fire-and-forget без результата обработки

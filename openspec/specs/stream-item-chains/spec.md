@@ -90,23 +90,23 @@ dataflow-программирование, и его место — хендле
 `http-streaming-framing`) и SHALL давать исход `failed`.
 
 `.limit(max)` SHALL отказывать встроенным определением
-`STREAM_LIMIT_EXCEEDED` (статус `PAYLOAD_TOO_LARGE`), `.gapTimeout(ms)` —
-определением `STREAM_GAP_TIMEOUT` (статус `TIMEOUT`); оба кода SHALL
+`payload_too_large` (статус `payload_too_large`), `.gapTimeout(ms)` —
+определением `timeout` (статус `timeout`); оба кода SHALL
 входить в kernel-набор, то есть SHALL NOT требовать объявления в
-`errors:` и SHALL NOT нормализовываться стражем границы в `UNKNOWN`.
+`errors:` и SHALL NOT нормализовываться стражем границы в `internal_error`.
 
 #### Scenario: Превышение лимита элементов
 
 - **WHEN** во входном потоке с `.limit(10)` приходит одиннадцатый элемент
-- **THEN** итерация бросает отказ с кодом `STREAM_LIMIT_EXCEEDED` и
-  статусом `PAYLOAD_TOO_LARGE` (HTTP 413), а не 500 `UNKNOWN`
+- **THEN** итерация бросает отказ с кодом `payload_too_large` и
+  статусом `payload_too_large` (HTTP 413), а не 500 `internal_error`
 
 #### Scenario: Молчание источника дольше допустимого
 
 - **WHEN** во входном потоке с `.gapTimeout(1000)` между элементами
   прошло больше секунды
-- **THEN** итерация бросает отказ с кодом `STREAM_GAP_TIMEOUT` и статусом
-  `TIMEOUT`
+- **THEN** итерация бросает отказ с кодом `timeout` и статусом
+  `timeout`
 
 #### Scenario: Отказ цепочки виден `.catch`-юниту
 

@@ -180,27 +180,27 @@ Media type запроса и ответа SHALL вычисляться штат�
 провода SHALL сводиться в `oneOf`.
 
 Ответ `400` SHALL добавляться автоматически ручке, объявившей схему входа:
-граница отвечает `VALIDATION_FAILED` независимо от `errors:`. Ответ
-`default` SHALL описывать `UnknownError` — множество отказов границы
-закрыто как `E ∪ UnknownError`, и документ SHALL это отражать.
+граница отвечает `bad_request` независимо от `errors:`. Ответ
+`default` SHALL описывать `InternalError` — множество отказов границы
+закрыто как `E ∪ InternalError`, и документ SHALL это отражать.
 
 #### Scenario: Объявленный отказ становится ответом
 
 - **WHEN** документируется ручка с `errors: [EmailTaken]`, где
-  `EmailTaken` объявлен со `status: 'CONFLICT'` и схемой деталей
-- **THEN** операция несёт ответ `409` с телом `{ error, code: 'EMAIL_TAKEN', details }`,
+  `EmailTaken` объявлен со `status: 'conflict'` и схемой деталей
+- **THEN** операция несёт ответ `409` с телом `{ error, code: 'conflict:email_taken', details }`,
   где схема `details` получена конвертером
 
 #### Scenario: Два отказа на одном коде
 
-- **WHEN** ручка объявляет два отказа со `status: 'BAD_REQUEST'`
+- **WHEN** ручка объявляет два отказа со `status: 'bad_request'`
 - **THEN** ответ `400` описан через `oneOf` двух тел
 
 #### Scenario: Валидация и неизвестный отказ описаны всегда
 
 - **WHEN** документируется ручка со схемой входа и без `errors:`
-- **THEN** операция несёт ответ `400` (`VALIDATION_FAILED`) и ответ
-  `default` (`UNKNOWN`)
+- **THEN** операция несёт ответ `400` (`bad_request`) и ответ
+  `default` (`internal_error`)
 
 #### Scenario: Ручка без выхода
 
@@ -295,7 +295,7 @@ HTTP-ручку, отдающую документ (`GET /openapi.json` по у�
 #### Scenario: Непокрытая схема роняет старт
 
 - **WHEN** в приложении есть ручка со схемой вендора без конвертера
-- **THEN** `assemble(...).run()` падает на фазе ASSEMBLE, сокет не
+- **THEN** `makeApp(...).assemble().run()` падает на фазе ASSEMBLE, сокет не
   открывается, `@OnInit` не выполняется
 
 #### Scenario: Ручка документации подчиняется политикам приложения

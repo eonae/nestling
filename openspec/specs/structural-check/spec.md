@@ -52,7 +52,7 @@ SHALL быть значениями (capability `contract-compatibility`); пр�
 
 #### Scenario: Смок без захвата ресурсов
 
-- **WHEN** `await assemble({ features: [UsersFeature], transports: [http()] }).check()`
+- **WHEN** `await makeApp({ features: [UsersFeature], transports: [http()] }).check()`
 - **THEN** граф собран, `@OnInit` не выполнен ни разу, сокет не открыт
 
 #### Scenario: Битая топология падает

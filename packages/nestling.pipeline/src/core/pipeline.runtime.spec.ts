@@ -225,7 +225,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
         seen.push(`catch1:${error.status}`);
         // `.catch` может вернуть просто отказ. Рантайм нормализует его
         // так же, как отказ хендлера, и заодно делает недекларированный
-        // INTERNAL_ERROR объявленным.
+        // internal_error объявленным.
         return Mapped();
       })
       .catch((error) => {
@@ -246,9 +246,9 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
       value: { error: 'mapped' },
     });
     expect(seen).toEqual([
-      'catch1:INTERNAL_ERROR',
-      'catch2:BAD_REQUEST',
-      'catch3:BAD_REQUEST',
+      'catch1:internal_error',
+      'catch2:bad_request',
+      'catch3:bad_request',
     ]);
   });
 
@@ -320,7 +320,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
       isSuccess: false,
       status: 'bad_request',
     });
-    expect(events).toEqual(['handler', 'ok', 'catch:BAD_REQUEST']);
+    expect(events).toEqual(['handler', 'ok', 'catch:bad_request']);
   });
 
   it('.ok(u).catch(u) с бросающим u вызывает его дважды (нюанс миграции с .after)', async () => {

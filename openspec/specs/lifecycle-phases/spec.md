@@ -77,7 +77,7 @@ SHALL NOT обращаться к нему.
 #### Scenario: `select` читается примордиально
 
 - **WHEN** в корне вызвано `const cfg = load(RootConfig)` и результат
-  передан в `assemble({ …, select: cfg.FEATURES })`
+  передан в `makeApp({ …, select: cfg.FEATURES })`
 - **THEN** значение прочитано из `process.env` до построения контейнера, а
   невалидное значение падает fail-fast'ом на фазе 0
 
@@ -137,7 +137,7 @@ SHALL NOT обращаться к нему.
 #### Scenario: Отмена доходит до in-flight запроса
 
 - **WHEN** идёт HTTP-запрос, хендлер которого уважает `meta.signal`, и
-  вызван `app.close()`
+  вызван `testApp.close()`
 - **THEN** сигнал взводится, хендлер завершается, и только после дренажа
   выполняются `@OnDestroy`
 
@@ -155,5 +155,5 @@ SHALL NOT обращаться к нему.
 
 #### Scenario: Обработчики снимаются
 
-- **WHEN** `app.close()` завершился
+- **WHEN** `testApp.close()` завершился
 - **THEN** установленные `run()` обработчики сигналов сняты

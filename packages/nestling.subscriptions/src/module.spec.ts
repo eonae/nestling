@@ -18,7 +18,7 @@ import { SubscriptionRegistry } from './registry';
 import type { SubscriptionEvent } from './types';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeFeature } from '@nestling/app';
+import { makeApp, makeFeature } from '@nestling/app';
 import { events, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose, makeEndpoint, makePipeline } from '@nestling/pipeline';
@@ -104,19 +104,21 @@ async function waitFor(
 
 describe('subscriptions(): реестр в собранном приложении', () => {
   it('видит подписку, убивает её и снимает запись', async () => {
-    await using app = await assembleTest({
-      plugins: [subscriptions()],
-      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
-      transports: [testTransport()],
-    });
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions()],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+        transports: [testTransport()],
+      }),
+    );
 
-    const registry = app.get(SubscriptionRegistry);
+    const registry = testApp.get(SubscriptionRegistry);
     expect(registry).not.toBeNull();
     if (!registry) {
       return;
     }
 
-    const response = await app.call(Ticks);
+    const response = await testApp.call(Ticks);
     expect(response.isSuccess).toBe(true);
 
     const [info] = registry.list();
@@ -139,14 +141,16 @@ describe('subscriptions(): реестр в собранном приложени
   });
 
   it('снимает записи на SHUTDOWN и закрывает ленту', async () => {
-    const app = await assembleTest({
-      plugins: [subscriptions()],
-      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
-      transports: [testTransport()],
-    });
+    const testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions()],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+        transports: [testTransport()],
+      }),
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const registry = app.get(SubscriptionRegistry)!;
+    const registry = testApp.get(SubscriptionRegistry)!;
     const seen: SubscriptionEvent[] = [];
     const feed = registry.watch();
 
@@ -156,7 +160,7 @@ describe('subscriptions(): реестр в собранном приложени
       }
     })();
 
-    const response = await app.call(Ticks);
+    const response = await testApp.call(Ticks);
     const stream = streamOf<Tick>(response);
 
     // Один элемент прочитан — подписка точно активна
@@ -165,7 +169,7 @@ describe('subscriptions(): реестр в собранном приложени
 
     // SHUTDOWN: сигнал приложения взведён, поток дотекает, `.finally`
     // снимает запись
-    await app.close();
+    await testApp.close();
     await stream.next();
     await waitFor(() => registry.size === 0);
 
@@ -178,24 +182,26 @@ describe('subscriptions(): реестр в собранном приложени
   });
 
   it('живой просмотр сам является подпиской и не видит своего opened', async () => {
-    await using app = await assembleTest({
-      plugins: [subscriptions()],
-      features: [
-        makeFeature({ name: 'module:feed', endpoints: [Feed, Ticks] }),
-      ],
-      transports: [testTransport()],
-    });
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions()],
+        features: [
+          makeFeature({ name: 'module:feed', endpoints: [Feed, Ticks] }),
+        ],
+        transports: [testTransport()],
+      }),
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const registry = app.get(SubscriptionRegistry)!;
+    const registry = testApp.get(SubscriptionRegistry)!;
 
-    const watching = await app.call(Feed);
+    const watching = await testApp.call(Feed);
     const feed = streamOf<FeedEvent>(watching);
 
     // Endpoint живого просмотра трекается наравне с прочими
     expect(registry.list({ pattern: 'subscriptions:watch' })).toHaveLength(1);
 
-    const ticks = await app.call(Ticks);
+    const ticks = await testApp.call(Ticks);
     const stream = streamOf<Tick>(ticks);
     const [watched] = registry.list({ pattern: 'ticks:watch' });
 
@@ -219,52 +225,60 @@ describe('subscriptions(): реестр в собранном приложени
 
   it('роняет сборку, если слой есть, а модуля нет', async () => {
     await expect(
-      assembleTest({
-        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
-        transports: [testTransport()],
-      }),
+      assembleTest(
+        makeApp({
+          features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+          transports: [testTransport()],
+        }),
+      ),
     ).rejects.toThrow(/TrackSubscription/);
   });
 
   it('роняет сборку на двух значениях плагина', async () => {
     await expect(
-      assembleTest({
-        plugins: [subscriptions(), subscriptions({ node: 'other' })],
-        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
-        transports: [testTransport()],
-      }),
+      assembleTest(
+        makeApp({
+          plugins: [subscriptions(), subscriptions({ node: 'other' })],
+          features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+          transports: [testTransport()],
+        }),
+      ),
     ).rejects.toThrow(/@nestling\/subscriptions/);
   });
 });
 
 describe('subscriptions(): факты жизненного цикла', () => {
   it('без публикации вызывателей операций в графе нет', async () => {
-    await using app = await assembleTest({
-      plugins: [subscriptions()],
-      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
-      transports: [testTransport()],
-    });
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions()],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+        transports: [testTransport()],
+      }),
+    );
 
-    expect(app.get(SubscriptionOpened.emitter)).toBeNull();
-    expect(app.get(SubscriptionClosed.emitter)).toBeNull();
+    expect(testApp.get(SubscriptionOpened.emitter)).toBeNull();
+    expect(testApp.get(SubscriptionClosed.emitter)).toBeNull();
   });
 
   it('с публикацией и нулём подписчиков собирается, emit — no-op', async () => {
-    await using app = await assembleTest({
-      plugins: [subscriptions({ publish: true, node: 'node-1' })],
-      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
-      transports: [testTransport()],
-    });
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions({ publish: true, node: 'node-1' })],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+        transports: [testTransport()],
+      }),
+    );
 
-    expect(app.get(SubscriptionOpened.emitter)).not.toBeNull();
+    expect(testApp.get(SubscriptionOpened.emitter)).not.toBeNull();
 
-    const response = await app.call(Ticks);
+    const response = await testApp.call(Ticks);
     const stream = streamOf<Tick>(response);
     await stream.next();
     await stream.return?.();
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    expect(app.get(SubscriptionRegistry)!.size).toBe(0);
+    expect(testApp.get(SubscriptionRegistry)!.size).toBe(0);
   });
 
   it('подписчик другой фичи получает оба факта', async () => {
@@ -288,18 +302,20 @@ describe('subscriptions(): факты жизненного цикла', () => {
       },
     });
 
-    await using app = await assembleTest({
-      plugins: [subscriptions({ publish: true, node: 'node-1' })],
-      features: [
-        makeFeature({
-          name: 'module:ticks',
-          endpoints: [Ticks, OpenedInOps, ClosedInOps],
-        }),
-      ],
-      transports: [testTransport()],
-    });
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions({ publish: true, node: 'node-1' })],
+        features: [
+          makeFeature({
+            name: 'module:ticks',
+            endpoints: [Ticks, OpenedInOps, ClosedInOps],
+          }),
+        ],
+        transports: [testTransport()],
+      }),
+    );
 
-    const response = await app.call(Ticks);
+    const response = await testApp.call(Ticks);
     const stream = streamOf<Tick>(response);
     await stream.next();
     await stream.return?.();
@@ -333,17 +349,19 @@ describe('subscriptions(): слой композируется поверх пр
       },
     });
 
-    await using app = await assembleTest({
-      plugins: [subscriptions()],
-      features: [
-        makeFeature({ name: 'module:composed', endpoints: [Watched] }),
-      ],
-      transports: [testTransport()],
-    });
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions()],
+        features: [
+          makeFeature({ name: 'module:composed', endpoints: [Watched] }),
+        ],
+        transports: [testTransport()],
+      }),
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const registry = app.get(SubscriptionRegistry)!;
-    const response = await app.call(Watched);
+    const registry = testApp.get(SubscriptionRegistry)!;
+    const response = await testApp.call(Watched);
     const stream = streamOf<Tick>(response);
 
     await stream.next();

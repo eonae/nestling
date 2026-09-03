@@ -26,7 +26,7 @@
 #### Scenario: Хендлер возвращает Fail
 
 - **WHEN** хендлер выполняет `return OrderNotFound({ orderId: '42' })`
-- **THEN** ответ имеет статус `NOT_FOUND` (HTTP 404), а не `OK`/200,
+- **THEN** ответ имеет статус `not_found` (HTTP 404), а не `ok`/200,
   и его тело — тело отказа, а не сериализованный объект в поле успеха
 
 #### Scenario: Ответный тракт видит возвращённый Fail как ошибку
@@ -100,8 +100,8 @@ SHALL быть ошибкой компиляции.
 
 ### Requirement: Словарь статусов покрывает конфликт, таймаут и ограничение частоты
 
-`ErrorStatus` SHALL включать `CONFLICT`, `TIMEOUT`, `TOO_MANY_REQUESTS` и
-`PAYLOAD_TOO_LARGE` наравне с существующими статусами. Статус SHALL
+`Category` SHALL включать `conflict`, `timeout`, `too_many_requests` и
+`payload_too_large` наравне с существующими статусами. Статус SHALL
 оставаться транспортно-нейтральной семантикой; перевод в код провода
 SHALL быть заботой транспорта.
 
@@ -110,23 +110,23 @@ SHALL быть заботой транспорта.
 
 #### Scenario: Конфликт больше не приходится выражать как BAD_REQUEST
 
-- **WHEN** отказ объявлен со статусом `CONFLICT`
+- **WHEN** отказ объявлен со статусом `conflict`
 - **THEN** HTTP-ответ имеет код 409
 
 #### Scenario: Таймаут операции
 
-- **WHEN** отказ объявлен со статусом `TIMEOUT`
+- **WHEN** отказ объявлен со статусом `timeout`
 - **THEN** HTTP-ответ имеет код 504
 
 #### Scenario: Ограничение частоты
 
-- **WHEN** отказ объявлен со статусом `TOO_MANY_REQUESTS`
+- **WHEN** отказ объявлен со статусом `too_many_requests`
 - **THEN** HTTP-ответ имеет код 429
 
 #### Scenario: Превышение допустимого объёма входа
 
-- **WHEN** отказ объявлен со статусом `PAYLOAD_TOO_LARGE` (в частности,
-  отказ лимита item-цепочки `STREAM_LIMIT_EXCEEDED`)
+- **WHEN** отказ объявлен со статусом `payload_too_large` (в частности,
+  отказ лимита item-цепочки `payload_too_large`)
 - **THEN** HTTP-ответ имеет код 413
 
 ### Requirement: `Fail` несёт `code` и `cause`

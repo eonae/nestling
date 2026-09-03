@@ -28,7 +28,7 @@ README пакета и в документации. Рекомендуемый �
 
 #### Scenario: Подсказка в редакторе
 
-- **WHEN** автор пишет `httpEndpoint({ …, pipeline: basePipeline, handle })`
+- **WHEN** автор пишет `httpEndpoint({ …, pipeline: basePipeline, handler: handle })`
   в проекте, где правило настроено на слой `authedBase`
 - **THEN** редактор подсвечивает декларацию предупреждением
 
@@ -67,7 +67,7 @@ README пакета и в документации. Рекомендуемый �
 #### Scenario: Пайплайн приезжает параметром — правило молчит
 
 - **WHEN** декларация создаётся внутри фабрики
-  `(pipeline) => httpEndpoint({ …, pipeline, handle })`
+  `(pipeline) => httpEndpoint({ …, pipeline, handler: handle })`
 - **THEN** предупреждения нет: значение синтаксически непрозрачно
 
 #### Scenario: Фильтр по пути
@@ -84,6 +84,6 @@ README пакета и в документации. Рекомендуемый �
 
 #### Scenario: Помеченная декларация не подсвечивается
 
-- **WHEN** `httpEndpoint({ …, detached: 'liveness-проба', handle })` без
+- **WHEN** `httpEndpoint({ …, detached: 'liveness-проба', handler: handle })` без
   требуемого слоя
 - **THEN** предупреждения нет

@@ -7,7 +7,7 @@
 деклараций с полем `pipeline` и без него. Кандидат проверки — ключ `payload`
 контекста, если его положил `.pre`-юнит, иначе `raw.payload`; что именно
 проверяется, определяет форма io-декларации `input`. Отказ проверки —
-`ValidationFailed` с ответом 400; он начинает ответную фазу наравне с отказом
+`BadRequest` с ответом 400; он начинает ответную фазу наравне с отказом
 `.pre`-юнита. Ошибка конфигурации схемы отказом входа не становится: она
 остаётся ошибкой приложения и даёт 500. Юнита `validate()` в публичном API
 нет — отказ от проверки выражается схемой, принимающей любое значение.
@@ -22,8 +22,8 @@
 `.pre`-юнитов всех слоёв и до вызова хендлера. Хендлер SHALL получать
 выход схемы (результат трансформаций), а не исходное значение.
 
-Отказ проверки SHALL быть отказом `ValidationFailed` (`VALIDATION_FAILED`,
-`BAD_REQUEST`) с `details` в форме стандартных `issues`. Он SHALL начинать
+Отказ проверки SHALL быть отказом `BadRequest` (`bad_request`,
+`bad_request`) с `details` в форме стандартных `issues`. Он SHALL начинать
 ответную фазу так же, как отказ `.pre`-юнита: `.catch`-юниты всех слоёв
 применимы, проверка `errors:` пропускает kernel-код, `.finally` видит
 ответ 400. Хендлер при этом SHALL NOT вызываться.
@@ -37,14 +37,14 @@ NOT существовать.
 - **WHEN** endpoint объявлен с `input: z.object({ n: z.number() })` и
   `pipeline: makePipeline().pre(withRequestId())`, и приходит payload
   `{ n: 'not-a-number' }`
-- **THEN** ответ — `BAD_REQUEST` с `code: 'VALIDATION_FAILED'` и
+- **THEN** ответ — `bad_request` с `code: 'bad_request'` и
   `details: [{ message, path: ['n'] }]`, хендлер не вызван
 
 #### Scenario: Endpoint без пайплайна проверяется так же
 
 - **WHEN** endpoint объявлен без поля `pipeline` с той же схемой, и
   приходит невалидный payload
-- **THEN** ответ — тот же `BAD_REQUEST` с `code: 'VALIDATION_FAILED'`,
+- **THEN** ответ — тот же `bad_request` с `code: 'bad_request'`,
   полученный как `ResponseContext` из `dispatch.call`, а не как брошенное
   исключение
 
@@ -56,9 +56,9 @@ NOT существовать.
 
 #### Scenario: Отказ `.pre`-юнита выполняется раньше проверки
 
-- **WHEN** `.pre`-юнит авторизации бросает отказ `UNAUTHORIZED`, а payload
+- **WHEN** `.pre`-юнит авторизации бросает отказ `unauthorized`, а payload
   невалиден
-- **THEN** ответ — `UNAUTHORIZED`, схема не вызывалась
+- **THEN** ответ — `unauthorized`, схема не вызывалась
 
 #### Scenario: Наблюдатели видят отказ проверки
 
@@ -112,21 +112,21 @@ SHALL NOT попадать ни в типах, ни в рантайме. Про�
   проверяются по одному при чтении (capability `io-forms`).
 
 Проверка полей `multipart` SHALL выполняться рантаймом, а не транспортом,
-и SHALL быть одинаковой для HTTP-запроса и для `app.call`.
+и SHALL быть одинаковой для HTTP-запроса и для `testApp.call`.
 
 #### Scenario: Поля `multipart` проверяются рантаймом
 
 - **WHEN** endpoint объявлен с
   `input: multipart({ fields: z.object({ title: z.string().min(1) }), files: { avatar: upload() } })`,
   и HTTP-запрос несёт пустое поле `title` и файл
-- **THEN** ответ 400 с `code: 'VALIDATION_FAILED'`, файловый поток дочитан
+- **THEN** ответ 400 с `code: 'bad_request'`, файловый поток дочитан
   транспортом, соединение завершено штатно
 
-#### Scenario: `app.call` проверяет поля `multipart`
+#### Scenario: `testApp.call` проверяет поля `multipart`
 
 - **WHEN** тест вызывает
-  `app.call(UploadAvatar, { fields: { title: '' }, files: { avatar } })`
-- **THEN** ответ — `VALIDATION_FAILED`, хендлер не вызван
+  `testApp.call(UploadAvatar, { fields: { title: '' }, files: { avatar } })`
+- **THEN** ответ — `bad_request`, хендлер не вызван
 
 #### Scenario: Файлы не трогаются
 
@@ -151,7 +151,7 @@ SHALL NOT попадать ни в типах, ни в рантайме. Про�
 (`AsyncSchemaNotSupportedError`) или объект в `input` не реализует
 Standard Schema v1 (`NotAStandardSchemaError`), рантайм SHALL NOT
 превращать это в отказ 400. Ошибка SHALL обрабатываться как
-необработанная: ответ `INTERNAL_ERROR`, нормализованный в `UnknownError`,
+необработанная: ответ `internal_error`, нормализованный в `InternalError`,
 оригинал передаётся хуку `onUnknownFail`. Поведение SHALL быть одинаковым
 для endpoint'ов с пайплайном и без.
 
@@ -159,7 +159,7 @@ Standard Schema v1 (`NotAStandardSchemaError`), рантайм SHALL NOT
 
 - **WHEN** endpoint без `pipeline` объявлен со схемой, чей `validate`
   возвращает Promise, и приходит запрос
-- **THEN** ответ 500 с `code: 'UNKNOWN'`, хук `onUnknownFail` получил
+- **THEN** ответ 500 с `code: 'internal_error'`, хук `onUnknownFail` получил
   `AsyncSchemaNotSupportedError`
 
 #### Scenario: Объект-не-схема с пайплайном

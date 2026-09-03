@@ -41,7 +41,7 @@
 - [x] 5.1 `examples.users-service`: `app.ts` экспортирует `app = makeApp({…})`, `main.ts` — `app.assemble().run()`; `CheckHealth` в `src/ops.plugin.ts`; все хендлеры — классы `<Имя>Handler`; `NewUser` → `CreateUserInput`, репозиторий принимает `Omit<User, 'id'>`; `makeFail` с кодами `not_found:user`, `conflict:email_taken`, `unauthorized`, `bad_request:avatar_required`; `ImportUsers` с `bind: { dryRun: query() }`; `.describe()` у полей `AppConfig`; тесты через `assembleTest(app, …)` с `testApp`, без `http({ port: 0 })`
 - [x] 5.2 `examples.app-with-http`, `examples.split-nats`: `makeApp`/`assemble(select)`, `handler`, `makeFail`, коды, `checkTopologies(app, …)`; раздел `meta.fail` в `update-user.endpoint.ts` переписан на `return`
 - [x] 5.3 `examples.simple-cli`, `examples.simple-http-server`, `examples.container`: миграция имён
-- [ ] 5.4 `yarn verify` зелёный по всем пакетам
+- [x] 5.4 `yarn verify` зелёный по всем пакетам
 
 ## 6. Гайд
 
@@ -64,17 +64,17 @@
 
 ## 8. Документация и спеки
 
-- [ ] 8.1 `docs/design/*` и `docs/glossary.md` перепроверены по реализованному API (плашки, `handler.deps`, `InternalError`, `testApp`); `docs:audit` — 0 ERROR
-- [ ] 8.2 Прямая замена старых имён в спеках с побочными упоминаниями (`context-readers`, `contract-declarations`, `contract-stubs`, `contracts-package-boundary`, `dispatch-guarantee`, `durable-delivery`, `endpoint-detached-optout`, `error-response-safety`, `http-streaming-framing`, `io-forms`, `message-bus`, `nats-transport`, `pipeline-phase-model`, `port-invocation`, `standard-schema-validation`, `testing-subpath-convention`, `transport-providers`): `assemble(` → `makeApp(…).assemble(`, `handle:`/`deps:` → `handler`, `UnknownError` → `InternalError`, коды ядра → категории, статусы в нижнем регистре
-- [ ] 8.3 Запись «РЕАЛИЗОВАНО» в трёх записях `ideas.md` от 2026-09-03; статус в `roadmap.md`
+- [x] 8.1 `docs/design/*` и `docs/glossary.md` перепроверены по реализованному API (плашки, `handler.deps`, `InternalError`, `testApp`); `docs:audit` — 0 ERROR
+- [x] 8.2 Прямая замена старых имён в спеках с побочными упоминаниями (`context-readers`, `contract-declarations`, `contract-stubs`, `contracts-package-boundary`, `dispatch-guarantee`, `durable-delivery`, `endpoint-detached-optout`, `error-response-safety`, `http-streaming-framing`, `io-forms`, `message-bus`, `nats-transport`, `pipeline-phase-model`, `port-invocation`, `standard-schema-validation`, `testing-subpath-convention`, `transport-providers`): `assemble(` → `makeApp(…).assemble(`, `handle:`/`deps:` → `handler`, `UnknownError` → `InternalError`, коды ядра → категории, статусы в нижнем регистре
+- [x] 8.3 Запись «РЕАЛИЗОВАНО» в трёх записях `ideas.md` от 2026-09-03; статус в `roadmap.md`
 
 ## 9. Definition of Done
 
 - [ ] 9.1 Все задачи выше отмечены
-- [ ] 9.2 `yarn verify` зелёный (build + typecheck + lint + test + type-budget)
-- [ ] 9.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 9.2 `yarn verify` зелёный (build + typecheck + lint + test + type-budget)
+- [x] 9.3 README затронутых пакетов обновлены, включая плашки статуса
 - [ ] 9.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
-- [ ] 9.5 `yarn docs:audit` — 0 ERROR
-- [ ] 9.6 Примеры мигрированы, гайды пересверены с обновлённой датой в плашке «сверено с кодом»
-- [ ] 9.7 Линтер стиля по изменённым текстам — 0 запрещённых слов
+- [x] 9.5 `yarn docs:audit` — 0 ERROR
+- [x] 9.6 Примеры мигрированы, гайды пересверены с обновлённой датой в плашке «сверено с кодом»
+- [x] 9.7 Линтер стиля по изменённым текстам — 0 запрещённых слов
 - [ ] 9.8 Коммиты осмысленные, ветка запушена

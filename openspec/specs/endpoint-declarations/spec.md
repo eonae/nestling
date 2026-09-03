@@ -42,13 +42,13 @@
 
 #### Scenario: HTTP-декларация создаётся конструктором
 
-- **WHEN** объявлено `httpEndpoint({ method: 'POST', path: '/api/users', input: CreateUserInput, output: UserOutput, pipeline: basePipeline, handle })`
+- **WHEN** объявлено `httpEndpoint({ method: 'POST', path: '/api/users', input: CreateUserInput, output: UserOutput, pipeline: basePipeline, handler: handle })`
 - **THEN** результат — значение с токеном HTTP-транспорта в `transport` и
   `pattern === 'POST /api/users'`, готовое к объявлению в `endpoints:` модуля
 
 #### Scenario: CLI-декларация создаётся своим конструктором
 
-- **WHEN** объявлено `cliEndpoint({ command: 'process-stdin', input, output, pipeline, handle })`
+- **WHEN** объявлено `cliEndpoint({ command: 'process-stdin', input, output, pipeline, handler: handle })`
 - **THEN** результат — значение с токеном CLI-транспорта в `transport` и
   `pattern === 'process-stdin'`
 
@@ -183,7 +183,7 @@ multipart-формах.
 
 К этому же набору SHALL относиться проверка списка `errors:` (правила и
 тексты — capability `endpoint-error-contract`): элемент, не являющийся
-определением `defineFail`, и повторяющийся `code` SHALL быть ошибкой в
+определением `makeFail`, и повторяющийся `code` SHALL быть ошибкой в
 момент создания декларации.
 
 К этому же набору SHALL относиться проверка пометки `detached` (правила и
@@ -363,7 +363,7 @@ Bind-карта SHALL браться с операции как есть и SHAL
 
 #### Scenario: Реализация операции по HTTP
 
-- **WHEN** объявлено `httpEndpoint({ operation: CreateUser, deps: [UserService], handle: (svc) => (input) => svc.create(input) })`,
+- **WHEN** объявлено `httpEndpoint({ operation: CreateUser, deps: [UserService], handler: (svc) => (input) => svc.create(input) })`,
   где операция несёт `http: 'POST /users'`
 - **THEN** создаётся обычная HTTP-декларация на `POST /users` со схемами и
   `errors:` операции

@@ -29,7 +29,7 @@ describe('fail-fast форм в конструкторе декларации', 
   const base = {
     transport: TestTransport$,
     pattern: 'POST /x',
-    handle: async () => new Ok({}),
+    handler: async () => new Ok({}),
   };
 
   /**
