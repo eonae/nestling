@@ -1,117 +1,102 @@
 /**
- * Предмет проверки — вторая половина тезиса `composition.md`: фича
- * тестируется **без соседей и без брокера**.
+ * Фича `users` тестируется без соседа и без брокера.
  *
- * Здесь ни одного `NatsDouble` и ни одного второго процесса. Собирается
- * ровно `select: 'orders'`, владелец `quotas.claim` подменён стабом
- * операции, а внешний издатель — это `app.emit`. Код фичи тот же самый, что в
- * `split.spec.ts`: между «двумя процессами через брокер» и «одной фичей в
- * тесте» не меняется ни одна декларация.
+ * Собирается только `select: 'users'`. Владелец `quotas.claim` и
+ * подписчик `users.registered` подменены стабами операций, а внешний
+ * клиент шины заменён `app.emit`. Код фичи тот же, что в `split.spec.ts`.
  */
 
-/* eslint-disable unicorn/no-useless-undefined --
- * Фейк `event`-операции возвращает `undefined` явно: так записан операция
- * его реализации (`void | Promise<void>`). */
-
-import { TenantId } from './context';
 import {
   ClaimQuota,
-  OrderPlaced,
-  PlaceOrder,
   QuotaExceeded,
+  RegisterUser,
+  UserRegistered,
 } from './operations';
-import { OrdersFeature } from './orders';
 import { QuotasFeature } from './quotas';
+import { UsersFeature } from './users';
 
 import { describe, expect, it } from '@jest/globals';
-import {
-  assembleTest,
-  checkTopologies,
-  contextValue,
-  stub,
-} from '@nestling/testing';
+import { assembleTest, checkTopologies, stub } from '@nestling/testing';
 import { nats } from '@nestling/transport.nats';
 
-/** Честный словарь сборки — тот же, что и в проде (см. `root.ts`) */
-const honestSpec = {
-  features: [OrdersFeature, QuotasFeature],
+/** Словарь сборки для проверки топологий: тот же, что в `root.ts` */
+const rootSpec = {
+  features: [UsersFeature, QuotasFeature],
   transports: [nats({ name: 'events' })],
   intercom: 'events',
 };
 
-describe('фича в изоляции: без соседа и без брокера', () => {
-  it('процесс-потребитель запускается через app.emit и доходит до факта', async () => {
-    const claimed: { tenantId: string; amount: number }[] = [];
-    const placed: { orderId: string; tenantId: string }[] = [];
+describe('фича users в изоляции', () => {
+  it('регистрирует пользователя через стабы соседних операций', async () => {
+    const claimed: { email: string }[] = [];
+    const registered: { id: string; email: string }[] = [];
 
     await using app = await assembleTest({
-      features: [OrdersFeature, QuotasFeature],
-      select: 'orders',
-      // Ни владельца `quotas.claim`, ни подписчика `orders.placed` в этой
-      // сборке нет — и это не мешает: обе стороны поставлены стабами
+      features: [UsersFeature, QuotasFeature],
+      select: 'users',
+      // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
+      // сборке нет: обе стороны заменены стабами
       stubs: [
         stub(ClaimQuota, async (input) => {
           claimed.push(input);
 
-          return { granted: input.amount };
+          return { remaining: 1 };
         }),
-        stub(OrderPlaced, (input) => {
-          placed.push(input);
+        stub(UserRegistered, (input) => {
+          registered.push(input);
         }),
       ],
-      // Арендатор в бою приходит конвертом с шины; здесь его объявляет тест
-      overrides: [contextValue(TenantId, 'acme')],
     });
 
-    const [{ subscriber, response }] = await app.emit(PlaceOrder, {
-      orderId: 'o-1',
-      amount: 10,
+    const [{ subscriber, response }] = await app.emit(RegisterUser, {
+      email: 'alice@example.com',
     });
 
-    expect(subscriber).toBe('orders.place');
+    expect(subscriber).toBe('users.register');
     expect(response.isSuccess).toBe(true);
-    expect(claimed).toEqual([{ tenantId: 'acme', amount: 10 }]);
-    expect(placed).toEqual([{ orderId: 'o-1', tenantId: 'acme' }]);
+    expect(claimed).toEqual([{ email: 'alice@example.com' }]);
+    expect(registered).toEqual([
+      { id: expect.any(String), email: 'alice@example.com' },
+    ]);
   });
 
-  it('исчерпанная квота останавливает процесс до факта', async () => {
-    const placed: unknown[] = [];
+  it('не публикует факт регистрации при исчерпанной квоте', async () => {
+    const registered: unknown[] = [];
 
     await using app = await assembleTest({
-      features: [OrdersFeature, QuotasFeature],
-      select: 'orders',
+      features: [UsersFeature, QuotasFeature],
+      select: 'users',
       stubs: [
-        // Отказ объявлен в `errors:` операции, поэтому передаётся как есть —
-        // ровно так же, как пришёл бы по сети от настоящего владельца
-        stub(ClaimQuota, async ({ tenantId }) => QuotaExceeded({ tenantId })),
-        stub(OrderPlaced, (input) => {
-          placed.push(input);
+        // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
+        // есть, так же, как настоящий владелец по сети
+        stub(ClaimQuota, async () => QuotaExceeded({ limit: 100 })),
+        stub(UserRegistered, (input) => {
+          registered.push(input);
         }),
       ],
-      overrides: [contextValue(TenantId, 'acme')],
     });
 
-    await app.emit(PlaceOrder, { orderId: 'o-2', amount: 10 });
+    await app.emit(RegisterUser, { email: 'bob@example.com' });
 
-    expect(placed).toEqual([]);
+    expect(registered).toEqual([]);
   });
 
-  it('каждая застабанная операция опубликована честной топологией', async () => {
+  it('каждая застабанная операция реализована в одной из топологий', async () => {
     await using app = await assembleTest({
-      features: [OrdersFeature, QuotasFeature],
-      select: 'orders',
+      features: [UsersFeature, QuotasFeature],
+      select: 'users',
       stubs: [
-        stub(ClaimQuota, async () => ({ granted: 1 })),
-        stub(OrderPlaced, () => undefined),
+        stub(ClaimQuota, async () => ({ remaining: 1 })),
+        // eslint-disable-next-line unicorn/no-useless-undefined
+        stub(UserRegistered, () => undefined),
       ],
-      overrides: [contextValue(TenantId, 'acme')],
     });
 
-    // Матрица гоняет **честный** граф: подстановок `.check()` не принимает,
-    // и именно этим компенсируются стабы теста
-    const topologies = await checkTopologies(honestSpec, [
+    // Матрица проверяет граф без подстановок: стаб операции, которой не
+    // реализует ни одна топология, здесь станет виден
+    const topologies = await checkTopologies(rootSpec, [
       'all',
-      'orders',
+      'users',
       'quotas',
     ]);
 
@@ -121,10 +106,7 @@ describe('фича в изоляции: без соседа и без броке
       ),
     );
 
-    // Стаб, прикрывшая операцию, которой не реализует ни одна топология,
-    // стал бы виден здесь — это и есть машинная форма правила «мокаешь —
-    // проверь топологию»
     expect(app.stubbed.filter((name) => !published.has(name))).toEqual([]);
-    expect(app.stubbed).toEqual(['orders.placed', 'quotas.claim']);
+    expect(app.stubbed).toEqual(['quotas.claim', 'users.registered']);
   });
 });

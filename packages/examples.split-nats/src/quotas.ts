@@ -1,79 +1,88 @@
-/* eslint-disable unicorn/no-useless-undefined --
- * Реализация операции без `output` возвращает `undefined` явно: так
- * записана сигнатура хендлера в ядре (`Output<undefined>`), и `return;`
- * ему не соответствует. */
 /**
- * Фича-владелец: реализует операция квот и слушает факт размещения.
+ * Фича `quotas`: владелец операции `quotas.claim` и подписчик факта
+ * регистрации.
  *
- * Реализация операции — обычная декларация: discovery, `dispatch`,
- * pipeline, проверка входа по схеме и policy-check достаются ей без
- * дополнительного кода, а транспортом оказывается шина — та, которую
- * поставил корень.
+ * Реализация операции — обычная декларация endpoint'а: discovery,
+ * пайплайн и проверка входа по схеме работают так же, как у HTTP.
+ * Транспортом служит шина, которую поставил корень.
  */
 
 import { TenantId } from './context';
-import { ClaimQuota, OrderPlaced, QuotaExceeded } from './operations';
+import type { UserRegisteredInput } from './operations';
+import { ClaimQuota, QuotaExceeded, UserRegistered } from './operations';
 
 import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';
-import { makePipeline, Ok } from '@nestling/pipeline';
+import type { CtxReader } from '@nestling/pipeline';
+import { Ctx, makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 
-/** Лимит на арендатора — жёстко, чтобы пример читался целиком */
-const LIMIT = 100;
-
-/** Журнал квот: сколько уже выдано и что заархивировано */
-@Injectable([])
+/**
+ * Учёт квот по арендаторам: сколько мест занято и кто заархивирован.
+ *
+ * Арендатор не передаётся параметром: сервис читает его из контекста
+ * запроса ридером `Ctx(TenantId)`. Значение в контекст кладёт юнит
+ * `TenantId.propagated()` в пайплайне реализации.
+ */
+@Injectable([Ctx(TenantId)])
 export class QuotaLedger {
-  readonly granted = new Map<string, number>();
+  readonly limit = 100;
+  readonly used = new Map<string, number>();
   readonly archived: string[] = [];
 
-  claim(tenantId: string, amount: number): number | undefined {
-    const used = this.granted.get(tenantId) ?? 0;
+  constructor(private readonly tenant: CtxReader<string>) {}
 
-    if (used + amount > LIMIT) {
+  /** Занимает место у текущего арендатора; возвращает остаток или `undefined` */
+  claim(): number | undefined {
+    const tenantId = this.tenant.get();
+    const used = this.used.get(tenantId) ?? 0;
+
+    if (used >= this.limit) {
       return undefined;
     }
 
-    this.granted.set(tenantId, used + amount);
+    this.used.set(tenantId, used + 1);
 
-    return amount;
+    return this.limit - used - 1;
+  }
+
+  /** Записывает зарегистрированного пользователя текущего арендатора */
+  archive(userId: string): void {
+    this.archived.push(`${this.tenant.get()}:${userId}`);
   }
 }
 
-/** Фича квот: владелец `quotas.claim` и подписчик `orders.placed` */
 export const QuotasFeature = makeFeature({
   name: 'quotas',
   providers: [QuotaLedger],
   endpoints: [
     implement(ClaimQuota, {
-      deps: [QuotaLedger],
-      handle:
-        (ledger: QuotaLedger) =>
-        async (input: { tenantId: string; amount: number }) => {
-          const granted = ledger.claim(input.tenantId, input.amount);
-
-          return granted === undefined
-            ? QuotaExceeded({ tenantId: input.tenantId })
-            : new Ok({ granted });
-        },
-    }),
-
-    implement(OrderPlaced, {
-      // Имя подписчика — адрес подписки, оно же имя queue-группы и
-      // durable-потребителя. Задаётся явно: выводить сетевой адрес из
-      // имени модуля значило бы привязать его к структуре кода
-      subscriber: 'archive',
-      // Тот же провозимый арендатор — уже в другом процессе
+      // Арендатор пришёл в конверте сообщения: юнит возвращает его в
+      // контекст запроса, и `QuotaLedger` читает его оттуда
       pipeline: makePipeline().pre(TenantId.propagated()),
       deps: [QuotaLedger],
-      handle:
-        (ledger: QuotaLedger) =>
-        async (input: { orderId: string; tenantId: string }) => {
-          ledger.archived.push(`${input.tenantId}:${input.orderId}`);
+      handle: (ledger: QuotaLedger) => async () => {
+        const remaining = ledger.claim();
 
-          return undefined;
-        },
+        return remaining === undefined
+          ? QuotaExceeded({ limit: ledger.limit })
+          : { remaining };
+      },
+    }),
+
+    implement(UserRegistered, {
+      // Имя подписчика — адрес подписки: в одном процессе различает
+      // подписки на одно событие, у брокера становится именем queue-группы
+      // и durable-потребителя
+      subscriber: 'archive',
+      pipeline: makePipeline().pre(TenantId.propagated()),
+      deps: [QuotaLedger],
+      handle: (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
+        ledger.archive(payload.id);
+
+        // eslint-disable-next-line unicorn/no-useless-undefined
+        return undefined;
+      },
     }),
   ],
 });

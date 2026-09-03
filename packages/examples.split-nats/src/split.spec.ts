@@ -1,11 +1,9 @@
 /**
- * Предмет проверки — тезис `composition.md`: **код фич между L3 и L4 не
- * меняется**.
+ * Одни и те же декларации фич поднимаются в двух процессах и в одном.
  *
- * Оба теста поднимают одни и те же декларации одним и тем же корнем.
- * Отличается ровно `select`: в одном случае обе фичи в одном процессе, в
- * другом — в двух. Ни одна декларация `implement(...)` и ни один call-site
- * между ними не различаются.
+ * Оба сценария собираются одним корнем. Отличается только `select`; ни
+ * одна декларация `implement(...)` и ни один вызов порта между ними не
+ * различаются.
  */
 
 import { makeRoot } from './root';
@@ -15,7 +13,7 @@ import type { App } from '@nestling/app';
 import { NatsBus } from '@nestling/transport.nats';
 import { NatsDouble, natsDouble } from '@nestling/transport.nats/testing';
 
-/** Провезённый арендатор из конверта отправленного сообщения */
+/** Арендатор из конверта сообщения, отправленного на этот subject */
 function tenantOf(broker: NatsDouble, subject: string): unknown {
   const sent = broker.published.find((item) => item.subject === subject);
   const context = sent?.headers?.get('Nl-Ctx');
@@ -25,20 +23,38 @@ function tenantOf(broker: NatsDouble, subject: string): unknown {
     : undefined;
 }
 
-/** Даёт доставке провернуться */
-const settle = async (ms = 30): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-};
+/**
+ * Ждёт сообщение с этим subject на брокере.
+ *
+ * Доставка между процессами идёт через асинхронные хендлеры и
+ * потребителя JetStream, а у двойника брокера нет способа дождаться
+ * простоя. Поэтому тест ждёт наблюдаемое следствие, а не фиксированное
+ * время.
+ */
+async function untilPublished(
+  broker: NatsDouble,
+  subject: string,
+): Promise<void> {
+  const deadline = Date.now() + 1000;
 
-/** Внешний драйвер: тот, кто кладёт команду на шину */
-async function driver(broker: NatsDouble): Promise<NatsBus> {
+  while (!broker.published.some((item) => item.subject === subject)) {
+    if (Date.now() > deadline) {
+      throw new Error(`no message on '${subject}' within 1s`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+/** Внешний клиент: кладёт команду на шину */
+async function outsideClient(broker: NatsDouble): Promise<NatsBus> {
   const bus = new NatsBus({ connect: natsDouble(broker) });
   await bus.connect();
 
   return bus;
 }
 
-/** Все процессы топологии — поднимаются и гасятся вместе */
+/** Поднимает по процессу на каждый `select` и останавливает их вместе */
 async function run(
   broker: NatsDouble,
   ...selects: string[]
@@ -61,69 +77,75 @@ async function run(
 }
 
 describe('split-развёртывание через NATS', () => {
-  it('L4: две половины в разных процессах общаются операциями', async () => {
+  it('два процесса общаются операциями через брокер', async () => {
     const broker = new NatsDouble();
     // Владелец поднимается первым: у брокера нет очереди ожидания для
-    // req-reply, и вызов к невыбранной нигде фиче — обычный отказ доставки
-    const topology = await run(broker, 'quotas', 'orders');
-    const outside = await driver(broker);
+    // запроса-ответа, и вызов к фиче, которой нет нигде, отказ доставки
+    const topology = await run(broker, 'quotas', 'users');
+    const outside = await outsideClient(broker);
 
     await outside.publish(
-      'orders.place',
-      { orderId: 'o-1', amount: 10 },
+      'users.register',
+      { email: 'alice@example.com' },
       { context: { tenantId: 'acme' } },
     );
-    await settle(60);
+    await untilPublished(broker, 'users.registered');
 
-    // Вызов ушёл на брокер, а не упал на ASSEMBLE: владельца `quotas.claim`
-    // в этой сборке нет, и раньше это была ошибка компоновки
+    // Вызов `quotas.claim` ушёл на брокер: владельца в процессе `users` нет
     expect(broker.published.map(({ subject }) => subject)).toEqual(
-      expect.arrayContaining(['orders.place', 'quotas.claim', 'orders.placed']),
+      expect.arrayContaining([
+        'users.register',
+        'quotas.claim',
+        'users.registered',
+      ]),
     );
 
-    // Провозимый арендатор дошёл до **следующего** hop'а: процесс заказов
-    // спроецировал его штатным `propagated()`, а вызыватель собрал из
-    // ячейки этого запроса и положил в конверт сам
+    // Арендатор прошёл два перехода: процесс `users` прочитал его из
+    // конверта юнитом `propagated()`, а вызыватель положил в следующий
     expect(tenantOf(broker, 'quotas.claim')).toBe('acme');
-    expect(tenantOf(broker, 'orders.placed')).toBe('acme');
+    expect(tenantOf(broker, 'users.registered')).toBe('acme');
 
-    // Событие объявлено долговечным — значит под ним поток, и подписчик,
-    // поднявшийся позже, факта не потеряет
+    // Событие объявлено `durable`, поэтому под ним есть поток JetStream
     const manager = await broker.jetstreamManager();
     await expect(
-      manager.streams.info('nestling_orders_placed'),
-    ).resolves.toMatchObject({ config: { subjects: ['orders.placed'] } });
+      manager.streams.info('nestling_users_registered'),
+    ).resolves.toMatchObject({ config: { subjects: ['users.registered'] } });
 
     await outside.close();
     await topology.close();
   });
 
-  it('L3: те же декларации работают в одном процессе', async () => {
+  it('те же декларации работают в одном процессе', async () => {
     const broker = new NatsDouble();
     const topology = await run(broker, 'all');
-    const outside = await driver(broker);
+    const outside = await outsideClient(broker);
 
     await outside.publish(
-      'orders.place',
-      { orderId: 'o-2', amount: 10 },
+      'users.register',
+      { email: 'bob@example.com' },
       { context: { tenantId: 'acme' } },
     );
-    await settle(60);
+    await untilPublished(broker, 'users.registered');
 
-    expect(broker.published.map(({ subject }) => subject)).toEqual(
-      expect.arrayContaining(['orders.place', 'orders.placed']),
+    const subjects = broker.published.map(({ subject }) => subject);
+
+    expect(subjects).toEqual(
+      expect.arrayContaining(['users.register', 'users.registered']),
     );
+    // Владелец `quotas.claim` работает в этом же процессе, и вызов на
+    // брокер не выходит
+    expect(subjects).not.toContain('quotas.claim');
 
     await outside.close();
     await topology.close();
   });
 
-  it('процесс-потребитель собирается без владельца операции рядом', async () => {
+  it('процесс users собирается без владельца quotas.claim', async () => {
     const broker = new NatsDouble();
 
-    // Ни одной реализации `quotas.claim` в этой сборке нет — и это больше
-    // не ошибка ASSEMBLE: шина доставляет за пределы процесса
-    const topology = await run(broker, 'orders');
+    // Реализации `quotas.claim` в этой сборке нет, и это не ошибка сборки:
+    // назначенный интерком доставляет вызов в другой процесс
+    const topology = await run(broker, 'users');
 
     await topology.close();
   });

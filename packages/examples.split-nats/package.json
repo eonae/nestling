@@ -1,7 +1,7 @@
 {
   "name": "examples.split-nats",
   "version": "0.1.0",
-  "description": "Split deployment over NATS: one feature code, two roots",
+  "description": "Split deployment over NATS: one composition root, features per process",
   "private": true,
   "type": "module",
   "main": "dist/bundle.js",

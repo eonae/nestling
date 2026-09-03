@@ -1,59 +1,72 @@
 /**
- * Операции примера — единственное, что знают друг о друге фичи.
+ * Операции, через которые общаются фичи `users` и `quotas`.
  *
- * Ни одна из них не экспортирует токен наружу: общение идёт операциями,
- * поэтому решение «в одном процессе или в разных» принимается на сборке,
- * а не при написании кода.
+ * Обе фичи импортируют только этот файл: ни одна не знает токенов другой,
+ * поэтому решение «один процесс или два» принимает корень, а не код фич.
  */
 
-import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { defineFail } from '@nestling/pipeline';
+import {
+  defineFail,
+  makeCommand,
+  makeEvent,
+  makeRequest,
+} from '@nestling/operations';
 import { z } from 'zod';
 
-/** Квота исчерпана — задекларированный отказ, одинаковый по сети и в коде */
+/** Отказ владельца квот: лимит арендатора исчерпан */
 export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
-  status: 'CONFLICT',
-  message: (details: { tenantId: string }) =>
-    `Quota exceeded for tenant '${details.tenantId}'`,
-  details: z.object({ tenantId: z.string() }),
+  status: 'TOO_MANY_REQUESTS',
+  details: z.object({ limit: z.number() }),
+  message: (details) => `Quota of ${details.limit} users is exhausted`,
 });
 
+export const RegisterUserInput = z.object({ email: z.email() });
+export type RegisterUserInput = z.infer<typeof RegisterUserInput>;
+
 /**
- * Команда приёма заказа — вход процесса-потребителя.
+ * Команда регистрации: вход процесса `users`.
  *
- * Обычная команда, а не HTTP-endpoint: пример про шину, и внешний драйвер
- * у него тоже шина. С HTTP-endpoint'ом он выглядел бы так же: меняется
- * транспорт входа, а не код фичи.
+ * Внешний клиент кладёт её на шину. Команда, а не HTTP-endpoint, потому что
+ * пример показывает шину; с HTTP-входом код фичи был бы тем же.
  */
-export const PlaceOrder = makeCommand({
-  name: 'orders.place',
-  input: z.object({ orderId: z.string(), amount: z.number() }),
+export const RegisterUser = makeCommand({
+  name: 'users.register',
+  input: RegisterUserInput,
 });
+
+export const ClaimQuotaInput = z.object({ email: z.string() });
+export const ClaimQuotaOutput = z.object({ remaining: z.number() });
+export type ClaimQuotaInput = z.infer<typeof ClaimQuotaInput>;
+export type ClaimQuotaOutput = z.infer<typeof ClaimQuotaOutput>;
 
 /**
  * Запрос к владельцу квот.
  *
- * Именно `request`: у него ровно один владелец, и до появления remote-шины
- * вызов без co-located реализации валил сборку. Теперь «владельца не
- * выбрали здесь» означает «он в другом процессе».
+ * У запроса ровно один владелец, и вызывающий ждёт ответа. Если владелец
+ * не выбран в этой сборке, вызов уходит через брокер в другой процесс.
  */
 export const ClaimQuota = makeRequest({
   name: 'quotas.claim',
-  input: z.object({ tenantId: z.string(), amount: z.number() }),
-  output: z.object({ granted: z.number() }),
+  input: ClaimQuotaInput,
+  output: ClaimQuotaOutput,
   errors: [QuotaExceeded],
 });
 
+export const UserRegisteredInput = z.object({
+  id: z.string(),
+  email: z.string(),
+});
+export type UserRegisteredInput = z.infer<typeof UserRegisteredInput>;
+
 /**
- * Факт размещения заказа.
+ * Факт регистрации пользователя.
  *
- * `durable: true` — факт не должен потеряться, пока подписчик лежит.
- * Долговечность объявлена **операцией**, потому что знать о ней обязаны
- * обе стороны: издатель ждёт подтверждения записи, подписчик читает
- * долговечно, а живут они в разных процессах.
+ * `durable: true` объявляет доставку, которая переживает перезапуск
+ * подписчика: брокер заводит под событием поток JetStream, издатель ждёт
+ * подтверждения записи, подписчик читает из потока.
  */
-export const OrderPlaced = makeEvent({
-  name: 'orders.placed',
+export const UserRegistered = makeEvent({
+  name: 'users.registered',
   durable: true,
-  input: z.object({ orderId: z.string(), tenantId: z.string() }),
+  input: UserRegisteredInput,
 });
