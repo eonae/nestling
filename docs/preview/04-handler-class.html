@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — 4. Хендлер как класс</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html" class="active">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#задача">Задача</a></li>
+      <li><a href="#решение">Решение</a></li>
+      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
+      <li><a href="#как-проверить">Как проверить</a></li>
+      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
+      <li><a href="#запускаемый-код">Запускаемый код</a></li>
+      <li><a href="#дальше">Дальше</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>4. Хендлер как класс</h1>
+<blockquote>
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a> §3.
+Почему так: запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-09-03] Поле
+<code>handler</code>: зависимости принадлежат хендлеру; канон <code>return</code>;
+<code>Output&lt;T, typeof Def&gt;</code>».</p>
+</blockquote>
+<h2 id="задача">Задача</h2>
+<p>Хендлеры из предыдущих глав лежат функциями внутри словаря декларации.
+Такой хендлер трудно тестировать отдельно: чтобы вызвать его, нужно
+достать его из декларации. Хендлер нужно вынести в отдельное значение,
+которое видно тесту и в которое дальше можно добавить зависимости.</p>
+<h2 id="решение">Решение</h2>
+<h3>Класс с методом <code>handle</code></h3>
+<div class="code" data-file="packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+import { Injectable } from '@nestling/container';
+import type { Output } from '@nestling/pipeline';
+import { httpEndpoint } from '@nestling/transport.http';
+import { z } from 'zod';
+
+const ListUsersInput = z.object({
+  limit: z.coerce.number().int().positive().optional(),
+});
+
+type ListUsersInput = z.infer&lt;typeof ListUsersInput&gt;;
+
+@Injectable()
+export class ListUsersHandler {
+  async handle(input: ListUsersInput): Output&lt;User[]&gt; {
+    return [alice, bob].slice(0, input.limit ?? 20);
+  }
+}
+
+export const ListUsers = httpEndpoint({
+  method: 'GET',
+  path: '/users',
+  input: ListUsersInput,
+  output: z.array(User),
+  handler: ListUsersHandler,
+});</code></pre></div>
+<p>Класс объявляет метод <code>handle</code> с той же сигнатурой, что была у функции:
+входные данные и необязательный <code>meta</code>. Декоратор <code>@Injectable()</code> без
+аргумента помечает класс как узел графа без зависимостей; список
+зависимостей появится в главе 5.</p>
+<p>Поле <code>handler</code> принимает класс. <code>implements</code> не нужен: сигнатуру <code>handle</code>
+сверяет со схемами <code>input</code> и <code>output</code> сам конструктор декларации.
+Хендлер, который возвращает объект другой формы, не компилируется на
+строке <code>handler: ListUsersHandler</code>.</p>
+<h3>Экземпляр создаёт фреймворк</h3>
+<p>Endpoint регистрирует класс-хендлер сам: при сборке он добавляет
+провайдер этого класса в модуль той единицы, которая объявила endpoint.
+Перечислять класс в <code>providers:</code> фичи не нужно:</p>
+<div class="code" data-file="packages/examples.users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts
+export const UsersFeature = makeFeature({
+  name: 'users',
+  providers: [
+    // сервисы фичи; классов-хендлеров здесь нет
+  ],
+  endpoints: [ListUsers, GetUser, CreateUser],
+});</code></pre></div>
+<p>Класс, перечисленный и в <code>handler</code>, и в <code>providers:</code>, останавливает
+сборку: у узла графа один источник. Сообщение называет класс, паттерн
+endpoint'а и модуль, в котором нашлась вторая регистрация.</p>
+<p>Экземпляр создаётся один раз, при сборке приложения, и переиспользуется
+между запросами — как обычный singleton контейнера. Хранить в поле
+данные одного запроса нельзя: они утекут в следующий. Всё, что относится
+к запросу, приходит аргументами <code>handle</code>.</p>
+<p>Два endpoint'а с одним классом-хендлером делят один экземпляр: класс
+служит себе токеном, и провайдер регистрируется один раз.</p>
+<h3>Юнит-тест без фреймворка</h3>
+<p>Класс — обычное значение, поэтому тест создаёт его через <code>new</code>:</p>
+<div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
+import { CreateUserHandler } from './create-user.endpoint';
+
+it('возвращает отказ EmailTaken для занятого email', async () =&gt; {
+  const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
+
+  const result = await handler.handle({ name: 'Alice II', email: alice.email });
+
+  expect(EmailTaken.is(result)).toBe(true);
+});</code></pre></div>
+<p>Ни контейнера, ни транспорта, ни импортов из <code>@nestling/app</code> такому
+тесту не нужно. Аргумент конструктора здесь — фейк хранилища; откуда он
+берётся в приложении, показывает глава 5.</p>
+<h3>Три формы поля <code>handler</code></h3>
+<p>Класс — не единственная форма. Поле <code>handler</code> принимает три:</p>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Форма</th>
+<th>Запись</th>
+<th>Когда</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>функция</td>
+<td><code>handler: async (input, meta) =&gt; …</code></td>
+<td>зависимостей нет, хендлер в две строки</td>
+</tr>
+<tr>
+<td>объект с <code>deps</code></td>
+<td><code>handler: { deps: [Token], handle: (dep) =&gt; async (input) =&gt; … }</code></td>
+<td>зависимости есть, класс не нужен</td>
+</tr>
+<tr>
+<td>класс</td>
+<td><code>handler: SomeHandler</code></td>
+<td>зависимости есть, хендлер длиннее пары строк</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Классовая форма — канон этого гайда: она сохраняет привычную структуру
+«конструктор плюс метод». Форма с <code>deps</code> описана в приложении А; на
+поведение endpoint'а выбор формы не влияет.</p>
+<p>Полей <code>deps</code> и <code>handle</code> на верхнем уровне словаря декларации нет:
+зависимости принадлежат хендлеру, а не адресу и схемам. Их присутствие —
+ошибка компиляции.</p>
+<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
+<ul class="body">
+<li>Сигнатура <code>handle</code> сверяется со схемами <code>input</code> и <code>output</code> в точке
+декларации, без <code>implements</code> и без базового класса.</li>
+<li>Экземпляр класса-хендлера создаёт контейнер: <code>new</code> в коде приложения
+не нужен, зависимости приходят в конструктор.</li>
+<li>Класс, зарегистрированный дважды — полем <code>handler</code> и в <code>providers:</code>, —
+останавливает сборку на фазе ASSEMBLE, а не даёт два экземпляра.</li>
+<li>На классе нет метаданных endpoint'а: адрес, схемы и отказы живут в
+декларации. Один и тот же класс можно поставить хендлером двум
+endpoint'ам.</li>
+</ul>
+<h2 id="как-проверить">Как проверить</h2>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
+<p>Юнит-тест хендлера из раздела выше и app-тест из главы 7 проверяют один
+и тот же класс: первый — вызовом <code>new</code>, второй — через полный пайплайн.</p>
+<h2 id="пока-не-нужно">Пока не нужно</h2>
+<ul class="body">
+<li>Зависимости в конструкторе и токены: глава 5.</li>
+<li>Слои пайплайна вокруг хендлера: глава 8.</li>
+<li>Форма с <code>deps</code> и функция без зависимостей: приложение А.</li>
+</ul>
+<h2 id="запускаемый-код">Запускаемый код</h2>
+<ul class="body">
+<li><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></li>
+<li><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts</code></li>
+<li><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts</code></li>
+</ul>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
+<h2 id="дальше">Дальше</h2>
+<p>Хендлер стал классом, но данные всё ещё лежат в константах. Следующая
+глава подключает хранилище: <a href="05-repository.html">5. Откуда хендлер берёт
+репозиторий</a>.</p>
+
+  <nav class="pager">
+    <a href="03-errors.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">3. Сказать клиенту, что пошло не так</div>
+    </a>
+    <a class="next" href="05-repository.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">5. Откуда хендлер берёт репозиторий</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

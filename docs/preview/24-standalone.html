@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — 24. Без `makeApp`</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html" class="active">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#задача">Задача</a></li>
+      <li><a href="#решение">Решение</a></li>
+      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
+      <li><a href="#как-проверить">Как проверить</a></li>
+      <li><a href="#запускаемый-код">Запускаемый код</a></li>
+      <li><a href="#дальше">Дальше</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>24. Без <code>makeApp</code></h1>
+<blockquote>
+<p>Гайд по текущему API; сверено с кодом <code>examples.simple-http-server</code> (2026-09-03)
+и <code>examples.container</code> (2026-09-03).
+Целевое описание: <a href="../design/transports.md">design/transports.md</a> §1,
+<a href="../design/composition.md">design/composition.md</a> §1,
+<a href="../design/container.md">design/container.md</a>. Почему так: записи
+<a href="../decisions/ideas.md">ideas.md</a> «Жизненный цикл: фазы,
+<code>@OnStart</code>, гарантия <code>dispatch</code>» и «Token families + модули без
+рантайм-инкапсуляции».</p>
+</blockquote>
+<h2 id="задача">Задача</h2>
+<p>Приложение целиком не нужно. Нужно встроить несколько endpoint'ов в
+существующий процесс или скрипт, или собрать граф зависимостей без
+транспорта, например для экспорта в визуализацию. Оба случая решаются
+теми же примитивами, из которых состоит сборка приложения.</p>
+<h2 id="решение">Решение</h2>
+<h3>HTTP-сервер из транспорта и <code>dispatch</code></h3>
+<div class="code" data-file="packages/examples.simple-http-server/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/main.ts
+const PORT = Number(process.env.PORT) || 3000;
+
+const server = new HttpTransport({ port: PORT });
+
+// У деклараций нет `deps`, поэтому `makeDispatch` принимает их как есть
+const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
+
+// Общий сигнал остановки: после взвода транспорт не принимает новые запросы
+const shutdown = new AbortController();
+
+server
+  .serve(dispatch, shutdown.signal)
+  .then(() =&gt; {
+    console.log(`HTTP server listening on http://localhost:${PORT}`);
+  })
+  .catch((error: unknown) =&gt; {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
+
+// Остановка: сигнал отменяет выполняющиеся запросы, `close()` ждёт соединения
+const stop = async (signal: string): Promise&lt;void&gt; =&gt; {
+  console.log(`${signal} received, shutting down`);
+  shutdown.abort();
+  await server.close();
+  process.exit(0);
+};
+
+process.on('SIGTERM', () =&gt; void stop('SIGTERM'));
+process.on('SIGINT', () =&gt; void stop('SIGINT'));</code></pre></div>
+<p>Три шага, которые сборка делает на фазах WIRE и START, здесь написаны
+руками. <code>makeDispatch</code> строит таблицу «паттерн, хендлер» из деклараций.
+<code>serve(dispatch, signal)</code> открывает сокет и начинает принимать запросы.
+Остановку по сигналу процесса корень вешает сам: сигнал прерывает
+выполняющиеся запросы, <code>close()</code> ждёт закрытия соединений.</p>
+<p><code>makeDispatch</code> принимает только декларации без <code>deps</code>, класс-хендлеров
+и классов-юнитов. Декларации с зависимостями сначала получают их через
+<code>endpoint.resolve(...)</code>; в собранном приложении это делает контейнер. Читать
+<code>process.env</code> в корне здесь допустимо: секции конфига без ядра конфигурации
+нет.</p>
+<h3>Endpoint без пайплайна и endpoint с pre-юнитом</h3>
+<div class="code" data-file="packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/users',
+  input: CreateUserInput,
+  output: CreateUserOutput,
+  errors: [EmailTaken],
+  handler: async (
+    input: CreateUserInput,
+  ): Output&lt;CreateUserOutput, typeof EmailTaken&gt; =&gt; {
+    if (taken.has(input.email)) {
+      return EmailTaken({ email: input.email });
+    }
+
+    return { id: Math.floor(Math.random() * 1000), ...input };
+  },
+});</code></pre></div>
+<p>Поле <code>pipeline</code> необязательно. Декларацию без него исполняет тот же
+рантайм с пустым пайплайном: вход проверяется схемой, ответ сверяется со
+списком <code>errors:</code>, контекст запроса открыт.</p>
+<div class="code" data-file="packages/examples.simple-http-server/src/common/units.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/common/units.ts
+export const withStartedAt: PreUnitFn&lt;
+  EmptyInput,
+  { startedAt: number }
+&gt; = () =&gt; ({ startedAt: Date.now() });</code></pre></div>
+<div class="code" data-file="packages/examples.simple-http-server/src/endpoints/say-hello.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/endpoints/say-hello.endpoint.ts
+export const SayHello = httpEndpoint({
+  method: 'GET',
+  path: '/',
+  output: SayHelloOutput,
+  pipeline: makePipeline().pre(withStartedAt),
+  handler: async (_payload, meta) =&gt; ({
+    message: 'Hello from Nestling',
+    startedAt: new Date(meta.startedAt).toISOString(),
+  }),
+});</code></pre></div>
+<p>Pre-юнит возвращает добавку к контексту. Хендлер читает её из второго
+аргумента <code>meta</code> вместе с <code>signal</code> и <code>fail</code>; тип поля <code>startedAt</code>
+выводится из юнита.</p>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-http-server start:dev
+curl localhost:3000/
+curl -X POST localhost:3000/users -H 'content-type: application/json' \
+  -d '{"name":"Alice","email":"taken@example.com"}'
+curl -N localhost:3000/logs/export</code></pre></div>
+<p>Первый запрос отвечает <code>{&quot;message&quot;:&quot;Hello from Nestling&quot;,&quot;startedAt&quot;:&quot;…&quot;}</code>.
+Второй возвращает 409 с кодом <code>conflict:email_taken</code>. Третий отдаёт NDJSON из
+формы <code>stream(T)</code>.</p>
+<h3>Контейнер без приложения</h3>
+<div class="code" data-file="packages/examples.container/src/container.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/container.ts
+export const makeContainer = async (
+  runtime: ConfigSource = objectSource({}, 'runtime'),
+): Promise&lt;BuiltContainer&gt; =&gt; {
+  return await new ContainerBuilder()
+    .register(
+      configKernel([
+        [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+        [runtime, runtimeConfigKeys],
+      ]),
+    )
+    .register(...appLogging.modules)
+    .register(AppModule)
+    .build();
+};</code></pre></div>
+<p><code>ContainerBuilder</code> собирает тот же граф, что <code>makeApp</code> в <code>main.ts</code> того
+же примера, но без фаз приложения и транспортов. Ядро конфигурации, которое
+сборка регистрирует сама, здесь подключается вызовом <code>configKernel</code> с
+привязкой источников к ключам секций, как в главе
+<a href="22-config-sources.html">22</a>. Плагин логирования регистрируется своими
+модулями: <code>appLogging.modules</code> — обычный массив значений. <code>build()</code>
+создаёт все провайдеры сразу и проверяет граф.</p>
+<div class="code" data-file="packages/examples.container/src/runtime/reload.spec.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/reload.spec.ts
+    container = await makeContainer(source);
+    await container.init();
+    // Подписка `onChange` открывается в `@OnStart`
+    await container.start();
+    limiter = container.getOrThrow(RateLimiter);
+    // …
+    await container.destroy();</code></pre></div>
+<p>Хуки жизненного цикла вызываются явно: <code>init()</code> выполняет <code>@OnInit</code> в
+топологическом порядке, <code>start()</code> выполняет <code>@OnStart</code>, <code>destroy()</code>
+выполняет <code>@OnDestroy</code> в обратном порядке. <code>getOrThrow(token)</code> возвращает
+инстанс по токену.</p>
+<div class="code" data-file="packages/examples.container/src/cli.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/cli.ts
+export const main = async () =&gt; {
+  const container = await makeContainer();
+
+  const metadata = await container.toJSON();
+  const json = JSON.stringify(metadata, null, 2);
+
+  await writeFile('di-metadata.json', json);
+};</code></pre></div>
+<p><code>toJSON()</code> отдаёт граф с узлами, рёбрами и принадлежностью модулям.
+Скрипт пишет его в файл, а <code>@nestling/viz</code> рисует в браузере. Транспорт
+для этого не нужен, поэтому скрипт собирает контейнер, а не приложение.</p>
+<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
+<ul class="body">
+<li><code>makeDispatch</code> принимает только исполнимые декларации. Декларация с
+<code>deps</code> или класс-хендлером не проходит по типам: вызов не компилируется.</li>
+<li>Две декларации одного транспорта с одним паттерном останавливают
+<code>makeDispatch</code> с ошибкой.</li>
+<li>У транспорта нет метода <code>listen()</code> без аргументов. Принимать запросы
+он начинает только в <code>serve(dispatch, signal)</code>, когда таблица маршрутов
+уже построена.</li>
+<li><code>build()</code> проверяет граф целиком: отсутствующая зависимость и цикл
+останавливают сборку одной ошибкой со списком узлов.</li>
+</ul>
+<h2 id="как-проверить">Как проверить</h2>
+<div class="code" data-file="packages/examples.simple-http-server/src/dispatch.spec.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/dispatch.spec.ts
+const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
+
+/** Вызывает endpoint с готовым payload, минуя разбор HTTP-запроса */
+const call = (endpoint: ExecutableDeclaration, payload?: unknown) =&gt; {
+  const raw: Raw = {
+    transport: 'http',
+    pattern: endpoint.pattern,
+    payload,
+    attributes: {},
+  };
+
+  const meta: EndpointMeta = {
+    transport: 'http',
+    pattern: endpoint.pattern,
+    input: endpoint.input,
+    output: endpoint.output,
+    errors: endpoint.errors,
+  };
+
+  return dispatch.call(endpoint.pattern, makeEmptyContext(raw, meta));
+};
+
+  it('отдаёт значение pre-юнита хендлеру', async () =&gt; {
+    const response = await call(SayHello);
+
+    expect(response.isSuccess).toBe(true);
+    expect(response.value).toMatchObject({ message: 'Hello from Nestling' });
+  });</code></pre></div>
+<p>Без <code>assembleTest</code> кадр запроса собирает сам тест: <code>makeEmptyContext</code>
+строит начальный контекст из описания запроса и декларации, а
+<code>dispatch.call</code> исполняет endpoint тем же путём, что и транспорт. Остальные
+тесты файла проверяют отказ схемы, объявленный отказ и потоковый ответ.</p>
+<h2 id="запускаемый-код">Запускаемый код</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Что показывает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>packages/examples.simple-http-server/src/main.ts</code></td>
+<td><code>HttpTransport</code>, <code>makeDispatch</code>, <code>serve</code>, остановка по сигналу</td>
+</tr>
+<tr>
+<td><code>packages/examples.simple-http-server/src/endpoints/say-hello.endpoint.ts</code></td>
+<td>pre-юнит и чтение <code>meta</code></td>
+</tr>
+<tr>
+<td><code>packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts</code></td>
+<td>endpoint без <code>pipeline</code></td>
+</tr>
+<tr>
+<td><code>packages/examples.simple-http-server/src/endpoints/export-logs.endpoint.ts</code></td>
+<td><code>stream(T)</code> на выходе без приложения</td>
+</tr>
+<tr>
+<td><code>packages/examples.simple-http-server/src/dispatch.spec.ts</code></td>
+<td>вызов через <code>dispatch.call</code></td>
+</tr>
+<tr>
+<td><code>packages/examples.container/src/container.ts</code></td>
+<td><code>ContainerBuilder</code> с ядром конфигурации</td>
+</tr>
+<tr>
+<td><code>packages/examples.container/src/cli.ts</code></td>
+<td>экспорт графа для <code>@nestling/viz</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-http-server start:dev
+yarn workspace examples.simple-http-server test
+yarn workspace examples.container export-metadata &amp;&amp; yarn workspace examples.container visualize</code></pre></div>
+<h2 id="дальше">Дальше</h2>
+<p>Глава <a href="25-extending.html">25. Расширить ядро своим пакетом</a> показывает,
+как поверх тех же публичных примитивов пишется отдельный пакет.</p>
+
+  <nav class="pager">
+    <a href="23-ops.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">23. Кто сейчас подключён и как его отключить</div>
+    </a>
+    <a class="next" href="25-extending.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">25. Расширить ядро своим пакетом</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

@@ -51,16 +51,16 @@
 - [x] 6.4 Новая глава 4 «Хендлер как класс»: `@Injectable()` без зависимостей, `handler: Class`, экземпляр создаёт фреймворк, юнит-тест через `new`
 - [x] 6.5 Глава 5 (бывшая 4) «Откуда хендлер берёт репозиторий»: токен → интерфейс и `makeToken` → `providers` → зависимость зависимости и `@OnInit` → раздел «функция с `deps` и значения-провайдеры» (`valueProvider`, `factoryProvider`, ограничение «зависимости зависимостей»)
 - [x] 6.6 Глава 6 (бывшая 5): `.describe()` у полей, таблица переменных с описаниями, `assembleTest(app, { config: vars(…) })`
-- [ ] 6.7 Главы 7–25: перенумерация файлов и ссылок, `makeApp`/`assembleTest(app, …)`/`testApp`, `handler`, `makeFail`, коды с категориями, `InternalError`, `check(select)`; глава «Без `assemble`» переименована
-- [ ] 6.8 Приложение А: раздел «класс-хендлер» заменён разделом «функция с `deps`», раздел `meta.fail` удалён, `throw` описан в разделе «Отказ броском», таблица форм обновлена; приложения Б и В, README гайда — новая нумерация и состав
-- [ ] 6.9 `docs/conventions.md` сверен с примером; плашки «сверено с кодом» всех глав с датой; линтер `docs-style` по всем главам — 0
+- [x] 6.7 Главы 7–25: перенумерация файлов и ссылок, `makeApp`/`assembleTest(app, …)`/`testApp`, `handler`, `makeFail`, коды с категориями, `InternalError`, `check(select)`; глава «Без `assemble`» переименована
+- [x] 6.8 Приложение А: раздел «класс-хендлер» заменён разделом «функция с `deps`», раздел `meta.fail` удалён, `throw` описан в разделе «Отказ броском», таблица форм обновлена; приложения Б и В, README гайда — новая нумерация и состав
+- [x] 6.9 `docs/conventions.md` сверен с примером; плашки «сверено с кодом» всех глав с датой; линтер `docs-style` по всем главам — 0
 
 ## 7. Превью из гайда
 
-- [ ] 7.1 `scripts/preview/build.mjs`: источники — `docs/guide/README.md` и главы; страницы, навигация из частей README, пейджер, переписывание ссылок `./*.md`, подпись `data-file` из первой строки-комментария; ошибки на рассинхрон README и глав и на битые ссылки
-- [ ] 7.2 `docs/preview/src`: остаётся `layout.html`; `nav.mjs` удалён; `index.md`, `concepts.md`, `fundamentals.md`, `scaling.md` перенесены в `docs/history/superseded/preview/`; `docs/preview/README.md` и `src/README.md` обновлены
-- [ ] 7.3 `yarn docs:preview` собирает 25 глав, 3 приложения и `index.html`; `--watch` следит за `docs/guide`; результат просмотрен в браузере
-- [ ] 7.4 `docs/README.md` и `CLAUDE.md`: строка карты про `preview/` («собирается из `guide/`»)
+- [x] 7.1 `scripts/preview/build.mjs`: источники — `docs/guide/README.md` и главы; страницы, навигация из частей README, пейджер, переписывание ссылок `./*.md`, подпись `data-file` из первой строки-комментария; ошибки на рассинхрон README и глав и на битые ссылки
+- [x] 7.2 `docs/preview/src`: остаётся `layout.html`; `nav.mjs` удалён; `index.md`, `concepts.md`, `fundamentals.md`, `scaling.md` перенесены в `docs/history/superseded/preview/`; `docs/preview/README.md` и `src/README.md` обновлены
+- [x] 7.3 `yarn docs:preview` собирает 25 глав, 3 приложения и `index.html`; `--watch` следит за `docs/guide`; результат просмотрен в браузере
+- [x] 7.4 `docs/README.md` и `CLAUDE.md`: строка карты про `preview/` («собирается из `guide/`»)
 
 ## 8. Документация и спеки
 

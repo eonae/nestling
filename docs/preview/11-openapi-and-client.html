@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — 11. Отдать фронтенду документацию и клиент</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html" class="active">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#задача">Задача</a></li>
+      <li><a href="#решение">Решение</a></li>
+      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
+      <li><a href="#как-проверить">Как проверить</a></li>
+      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
+      <li><a href="#запускаемый-код">Запускаемый код</a></li>
+      <li><a href="#дальше">Дальше</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>10. Отдать фронтенду документацию и клиент</h1>
+<blockquote>
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+Целевое описание: <a href="../design/schemas.md">design/schemas.md</a> §2.1 и
+<a href="../design/operations.md">design/operations.md</a> §5. Почему так: записи
+<a href="../decisions/ideas.md">ideas.md</a> «Схемы: Standard Schema вместо привязки
+к zod; OpenAPI через явные конвертеры» и «Типизированные клиенты из
+контрактов».</p>
+</blockquote>
+<h2 id="задача">Задача</h2>
+<p>Команде фронтенда нужен документ OpenAPI, чтобы смотреть API и
+генерировать по нему код. Соседнему сервису на TypeScript нужен клиент
+с типами запросов, ответов и отказов. Ни документ, ни клиент не должны
+описываться второй раз руками: у сервера уже есть схемы, адреса и списки
+отказов в декларациях.</p>
+<h2 id="решение">Решение</h2>
+<h3>Шаг 1. Документ из деклараций</h3>
+<div class="code" data-file="packages/examples.users-service/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts
+import { openapi } from '@nestling/openapi';
+import { zodConverter } from '@nestling/openapi.zod';
+
+export const app = makeApp({
+  features: [UsersFeature],
+  plugins: [
+    openapi({
+      info: { title: 'Users API', version: '1.0.0' },
+      converters: [zodConverter()],
+      pipeline: observability,
+    }),
+  ],
+  transports: [http()],
+  // …
+});</code></pre></div>
+<p><code>openapi()</code> — плагин: пакет, который подключается к корню и работает на
+всё приложение. Подробно плагины разобраны в
+<a href="12-features.html">главе 12</a>. Здесь достаточно поставить его в
+<code>plugins:</code>.</p>
+<p>Плагин строит документ OpenAPI 3.1 из тех же деклараций, которые
+обслуживают запросы, и отдаёт его endpoint'ом <code>GET /openapi.json</code>. Три
+опции:</p>
+<ul class="body">
+<li><code>info</code> — заголовок документа.</li>
+<li><code>converters</code> — кто переводит схемы в JSON Schema. Ядро принимает любой
+валидатор Standard Schema и не умеет заглядывать внутрь схемы, поэтому
+конвертер называется явно даже в приложении целиком на zod.</li>
+<li><code>pipeline</code> — слой для endpoint'а <code>GET /openapi.json</code>. Политика из
+<a href="09-auth.html">главы 9</a> требует <code>observability</code> от каждого
+HTTP-endpoint'а, и endpoint плагина не исключение.</li>
+</ul>
+<p>Документ строится на фазе ASSEMBLE вместе с остальным графом. Схема, для
+которой нет конвертера, останавливает запуск до открытия сокета; ошибка
+называет endpoint и вендора схемы.</p>
+<div class="code" data-lang="bash"><pre><code>curl -s http://localhost:3000/openapi.json | jq '.paths | keys'
+# ["/users", "/users/export", "/users/import", "/users/{id}", "/users/{id}/avatar"]
+curl -s http://localhost:3000/openapi.json | jq '.paths["/users"].post.responses | keys'
+# ["201", "400", "401", "409", "default"]</code></pre></div>
+<p>Ответы выведены из декларации: <code>201</code> из статуса успеха, <code>400</code> для
+проверки входа, <code>401</code> и <code>409</code> из <code>errors:</code>, <code>default</code> для <code>internal_error</code>.
+Форма <code>stream(User)</code> выгрузки описана как <code>application/x-ndjson</code>.</p>
+<h3>Шаг 2. Слот <code>doc:</code></h3>
+<p>JSON Schema описывает данные, но не саму операцию. Название, теги и
+статус успеха объявляются в слоте <code>doc:</code>:</p>
+<div class="code" data-file="packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
+export const DeleteUser = httpEndpoint({
+  method: 'DELETE',
+  path: '/users/:id',
+  input: DeleteUserInput,
+  errors: [UserNotFound, Unauthorized],
+  doc: {
+    summary: 'Удалить пользователя',
+    tags: ['users'],
+    status: 'no_content',
+  },
+  pipeline: authed,
+  handler: DeleteUserHandler,
+});</code></pre></div>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Что делает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>summary</code>, <code>description</code></td>
+<td>название и описание операции</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>группировка операций в документе</td>
+</tr>
+<tr>
+<td><code>deprecated</code></td>
+<td>пометка устаревания</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>статус успешного ответа; по умолчанию <code>ok</code>, без <code>output</code> <code>no_content</code></td>
+</tr>
+<tr>
+<td><code>hidden</code></td>
+<td>причина, по которой endpoint не попадает в документ</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>operationId</code> не объявляется. Он берётся из имени операции, если
+endpoint реализует операцию (шаг 3), иначе из метода и пути: у
+<code>GET /users</code> это <code>get_users</code>.</p>
+<p>Служебный endpoint убирается из документа полем <code>hidden</code> с причиной:</p>
+<div class="code" data-file="packages/examples.users-service/src/ops.plugin.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/ops.plugin.ts
+export const CheckHealth = httpEndpoint({
+  method: 'GET',
+  path: '/health',
+  output: z.object({ status: z.string() }),
+  detached:
+    'проба балансировщика: строка аудита на каждый запрос заслоняет полезные записи',
+  doc: { hidden: 'служебная проба, не часть публичного API' },
+  handler: async () =&gt; ({ status: 'up' }),
+});</code></pre></div>
+<p>Формы <code>hidden: true</code> нет: причина обязательна, как у <code>detached</code>. Список
+скрытых endpoint'ов плагин печатает при старте:</p>
+<div class="code"><pre><code>[nestling] hidden from the API document: GET /health (declared in 'users') — служебная проба, не часть публичного API</code></pre></div>
+<p>Печать отключается опцией <code>announceHidden: false</code>.</p>
+<h3>Шаг 3. Операция: адрес и схемы в одном месте</h3>
+<p>Клиенту нужны адрес, схемы и список отказов, но не хендлер и не
+зависимости. Эти части выносятся из декларации в операцию:</p>
+<div class="code" data-file="packages/examples.users-service/src/api/operations.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/api/operations.ts
+import { makeRequest } from '@nestling/operations';
+
+export const GetUserInput = z.object({ id: z.string() });
+
+export const GetUser = makeRequest({
+  name: 'users.get',
+  http: 'GET /users/:id',
+  input: GetUserInput,
+  output: User,
+  errors: [UserNotFound],
+  doc: { summary: 'Пользователь по идентификатору', tags: ['users'] },
+});
+
+export const CreateUser = makeRequest({
+  name: 'users.create',
+  http: { method: 'POST', path: '/users' },
+  input: CreateUserInput,
+  output: User,
+  errors: [EmailTaken, Unauthorized],
+  doc: { summary: 'Создать пользователя', tags: ['users'], status: 'created' },
+});</code></pre></div>
+<p>Операция — значение: имя, схемы <code>input</code> и <code>output</code>, список <code>errors:</code> и
+слот <code>doc:</code>. Секция <code>http:</code> описывает адрес. Строка <code>'GET /users/:id'</code>
+подходит для операции без пометок; объект <code>{ method, path }</code> нужен, когда
+есть <code>bind</code>, <code>rawBody</code> или <code>sse</code>.</p>
+<p>Отказ <code>Unauthorized</code> объявлен в <code>errors:</code> операции наравне с
+<code>EmailTaken</code>: клиент должен знать те же отказы, что получает от сервера,
+а слой <code>authed</code> для него невидим.</p>
+<p>Файл импортирует только <code>@nestling/operations</code>, <code>zod</code> и определения
+отказов. В нём нет ни контейнера, ни пайплайна, ни транспорта, поэтому
+его можно импортировать во фронтенд.</p>
+<h3>Шаг 4. Реализация через операцию</h3>
+<div class="code" data-file="packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+export const getUserHandler =
+  (users: UsersRepository) =&gt;
+  async (payload: GetUserInput): Output&lt;User, typeof UserNotFound&gt; =&gt; {
+    const user = await users.byId(payload.id);
+
+    return user ?? UserNotFound({ id: payload.id });
+  };
+
+export const GetUser = httpEndpoint({
+  operation: GetUserOperation,
+  pipeline: observability,
+  handler: GetUserHandler,
+});</code></pre></div>
+<p>Поле <code>operation:</code> заменяет <code>method</code>, <code>path</code>, <code>input</code>, <code>output</code>, <code>errors</code>
+и <code>doc</code>: всё это берётся из операции. Повторное объявление любого из них
+в декларации не компилируется. Остаются <code>pipeline</code>, <code>deps</code> и <code>handle</code>.
+Так же устроен <code>CreateUser</code> в <code>create-user.endpoint.ts</code>: он подключает
+слой <code>authed</code> и отвечает <code>Ok.created</code>.</p>
+<h3>Шаг 5. Клиент</h3>
+<div class="code" data-file="packages/examples.users-service/src/api/client.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/api/client.ts
+import { makeClient } from '@nestling/client';
+
+/** Имена методов задаёт потребитель: ключи объекта */
+const api = makeClient(
+  { createUser: CreateUser, getUser: GetUser },
+  {
+    baseUrl: process.env.API_URL ?? 'http://localhost:3000',
+    // Функция, а не объект: заголовки вычисляются на каждый запрос
+    headers: () =&gt; ({ authorization: `Bearer ${process.env.API_TOKEN ?? ''}` }),
+  },
+);
+
+async function main(): Promise&lt;void&gt; {
+  const created = await api.createUser({
+    name: 'Carol',
+    email: `carol-${Date.now().toString()}@example.com`,
+  });
+
+  if (EmailTaken.is(created)) {
+    console.log(`email taken: ${created.details.email}`);
+    return;
+  }
+
+  if (created.isFail) {
+    console.log(`request failed: ${created.code} ${created.message}`);
+    return;
+  }
+
+  console.log(`created ${created.value.id}`);
+
+  const fetched = await api.getUser({ id: created.value.id });
+  // …
+}</code></pre></div>
+<p><code>makeClient(record, config)</code> возвращает объект с методом на каждую
+операцию. Имена методов задают ключи записи. Клиент раскладывает payload
+по адресу операции: <code>id</code> подставляется в путь, остальные поля уходят в
+тело или query по тому же правилу, по которому транспорт разбирает
+запрос.</p>
+<p>Метод возвращает <code>Ok</code> или <code>Fail</code>, а не бросает исключение. Отказ
+узнаётся по коду через <code>EmailTaken.is(created)</code>; после сериализации
+<code>instanceof</code> не работает. <code>details</code> восстановленного отказа типизированы
+схемой из <code>makeFail</code>. Всё, что не объявлено в <code>errors:</code>, включая сетевые
+ошибки и тело не по схеме, приходит как <code>InternalError</code> с оригиналом в
+<code>cause</code>. Проверка <code>created.isFail</code> закрывает и этот случай.</p>
+<p><code>headers</code> — функция, поэтому токен читается на каждый запрос. Успешный
+ответ клиент проверяет схемой <code>output</code>; это отключается опцией
+<code>validateOutput: false</code>. Вторым аргументом метод принимает <code>signal</code> для
+отмены и <code>deadline</code> для бюджета времени.</p>
+<p>Запустите сервер и скрипт:</p>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+API_TOKEN=secret yarn workspace examples.users-service client
+# created 3
+# fetched Carol</code></pre></div>
+<p>Скрипт импортирует два пакета: операции приложения и <code>@nestling/client</code>.
+Контейнер, пайплайн и транспорт в его граф импортов не попадают.</p>
+<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
+<ul class="body">
+<li>Схема без конвертера останавливает запуск: документ строится на фазе
+ASSEMBLE, а не при первом запросе к <code>/openapi.json</code>.</li>
+<li>Операция без секции <code>http:</code> отвергается в момент создания декларации
+<code>httpEndpoint({ operation })</code>.</li>
+<li>Переобъявить <code>input</code>, <code>output</code> или <code>errors</code> в декларации с
+<code>operation:</code> нельзя: это ошибка компиляции, и сервер не может разойтись
+с клиентом в схемах.</li>
+<li><code>makeClient</code> проверяет запись при создании и бросает <code>TypeError</code> с
+именем метода: операция без <code>http:</code>, потоковая или <code>multipart</code> форма,
+неабсолютный <code>baseUrl</code>.</li>
+<li>Скрыть endpoint из документа можно только с причиной.</li>
+</ul>
+<h2 id="как-проверить">Как проверить</h2>
+<p>В <code>src/app.spec.ts</code> теста на документ нет. Документ доступен в графе
+тестовой сборки значением под токеном <code>OpenApiDocument$</code>:</p>
+<div class="code" data-lang="typescript"><pre><code>// иллюстрация; в src/app.spec.ts этого теста нет
+import { OpenApiDocument$ } from '@nestling/openapi';
+
+it('описывает каждый публичный endpoint и скрывает служебный', async () =&gt; {
+  await using testApp = await assembleTest(app, {
+    overrides: [[UsersRepository$, inMemoryUsersRepo()]],
+  });
+
+  const document = testApp.get(OpenApiDocument$);
+
+  expect(Object.keys(document?.paths ?? {})).toContain('/users/{id}');
+  expect(document?.paths['/health']).toBeUndefined();
+});</code></pre></div>
+<p>Клиент проверяется против запущенного сервера скриптом из шага 5.</p>
+<h2 id="пока-не-нужно">Пока не нужно</h2>
+<ul class="body">
+<li>Плагины как способ подключить общую инфраструктуру, включая ваш
+собственный логгер, разобраны в <a href="12-features.html">главе 12</a>.</li>
+<li>Операции служат не только клиенту: через них фичи вызывают друг друга.
+<code>implement</code> и <code>.caller</code> появятся в <a href="12-features.html">главе 12</a>.</li>
+<li>Версия операции и проверка совместимости при её изменении описаны в
+<a href="18-compatibility.html">главе 18</a>.</li>
+<li>Документ можно собрать без запуска приложения чистой функцией
+<code>buildOpenApiDocument</code>, например в CI. Она описана в README пакета
+<code>@nestling/openapi</code>.</li>
+</ul>
+<h2 id="запускаемый-код">Запускаемый код</h2>
+<ul class="body">
+<li><code>packages/examples.users-service/src/app.ts</code> — плагин <code>openapi()</code>.</li>
+<li><code>packages/examples.users-service/src/api/operations.ts</code> — операции с
+секцией <code>http:</code>.</li>
+<li><code>packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts</code>
+и <code>create-user.endpoint.ts</code> — реализация через <code>operation:</code>.</li>
+<li><code>packages/examples.users-service/src/api/client.ts</code> — клиент.</li>
+<li><code>packages/examples.users-service/src/ops.plugin.ts</code>
+— <code>doc.hidden</code>.</li>
+</ul>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+curl -s http://localhost:3000/openapi.json | jq '.paths | keys'
+API_TOKEN=secret yarn workspace examples.users-service client</code></pre></div>
+<h2 id="дальше">Дальше</h2>
+<p>Сервис растёт, и рядом с пользователями появляется вторая область:
+<a href="12-features.html">глава 12</a>.</p>
+
+  <nav class="pager">
+    <a href="10-files-and-streams.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">10. Файлы и большие выгрузки</div>
+    </a>
+    <a class="next" href="12-features.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">12. Выделить вторую область</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

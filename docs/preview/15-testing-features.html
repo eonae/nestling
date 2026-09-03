@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — 15. Тестировать фичу без соседей</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html" class="active">15. Тестировать фичу без соседей</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#задача">Задача</a></li>
+      <li><a href="#решение">Решение</a></li>
+      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
+      <li><a href="#как-проверить">Как проверить</a></li>
+      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
+      <li><a href="#запускаемый-код">Запускаемый код</a></li>
+      <li><a href="#дальше">Дальше</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>14. Тестировать фичу без соседей</h1>
+<blockquote>
+<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code>, <code>examples.split-nats</code> (2026-09-03).
+Целевое описание: <a href="../design/testing.md">design/testing.md</a> §3 и §4.
+Почему так: запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-10] Пакет
+тестирования (<code>@nestling/testing</code>)».</p>
+</blockquote>
+<h2 id="задача">Задача</h2>
+<p>Фича <code>users</code> вызывает <code>quotas.claim</code> и отправляет <code>users.registered</code> и
+<code>quotas.record-signup</code>. Команда квот ещё не написала реализацию, а тесты
+регистрации нужны сейчас. И наоборот: фичу нужно проверить одну, без
+соседей, так, чтобы тест не зависел от их кода и от брокера.</p>
+<p>Основа из главы <a href="07-testing.html">7</a> считается известной: <code>assembleTest</code>,
+<code>testApp.call</code>, <code>unwrap</code>, <code>overrides</code> и <code>vars</code>.</p>
+<h2 id="решение">Решение</h2>
+<h3>Соберите одну фичу</h3>
+<div class="code" data-lang="typescript"><pre><code>// шаг главы 15; итоговая версия: packages/examples.split-nats/src/isolated.spec.ts
+await using testApp = await assembleTest({
+  features: [UsersFeature, QuotasFeature],
+  select: 'users',
+});</code></pre></div>
+<p>Поле <code>select</code> в тестовой сборке работает так же, как в корне: в графе
+остаются только выбранные фичи. Такая сборка останавливается на фазе
+ASSEMBLE:</p>
+<div class="code"><pre><code>Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+selected feature implements it and this assembly has no intercom, so the
+call has nowhere to go. Either add the feature that implements it to
+'select' (or close the selection over calls with
+'select: { features, includeDeps: true }'), or assign the intercom role to
+a bus transport ('transports: [nats({ name: "events" })]' with
+'intercom: "events"') when the owner lives in another process.</code></pre></div>
+<p>Вызыватель <code>ClaimQuota.caller</code> в зависимостях фичи <code>users</code> требует
+владельца операции. В сборке из одной фичи владельца нет, и его место
+занимает стаб.</p>
+<h3>Поставьте стабы операций</h3>
+<div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
+  it('регистрирует пользователя через стабы соседних операций', async () =&gt; {
+    const claimed: { email: string }[] = [];
+    const registered: { id: string; email: string }[] = [];
+
+    await using testApp = await assembleTest({
+      features: [UsersFeature, QuotasFeature],
+      select: 'users',
+      // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
+      // сборке нет: обе стороны заменены стабами
+      stubs: [
+        stub(ClaimQuota, async (input) =&gt; {
+          claimed.push(input);
+
+          return { remaining: 1 };
+        }),
+        stub(UserRegistered, (input) =&gt; {
+          registered.push(input);
+        }),
+      ],
+    });</code></pre></div>
+<p><code>stub(Operation, impl)</code> возвращает пару из токена вызывателя и фейка:
+для <code>request</code> это <code>ClaimQuota.caller</code>, для <code>command</code> и <code>event</code> это
+<code>.emitter</code>. Пара передаётся полем <code>stubs:</code>. Провайдер стаба имеет
+приоритет над боевым рецептом вызывателя, поэтому проверка владельца не
+срабатывает, и фича собирается.</p>
+<p><code>impl</code> получает payload с типом из схемы <code>input</code> операции и возвращает
+значение с типом из <code>output</code>. Фейк, не подходящий операции, не
+компилируется. Своего spy у стаба нет: в <code>impl</code> подходит обычная функция
+или <code>jest.fn()</code>.</p>
+<p>Список застабанных операций доступен как <code>testApp.stubbed</code>: имена по
+алфавиту.</p>
+<h3>Стаб проверяется схемой операции</h3>
+<p>Стаб не может разойтись с операцией. Вход проверяется формой <code>input</code>,
+успешный ответ формой <code>output</code>. Если стаб <code>quotas.claim</code> вернёт
+<code>{ left: 1 }</code> вместо <code>{ remaining }</code>, вызывающий получит отказ, а не
+неверное значение:</p>
+<div class="code"><pre><code>{
+  "isSuccess": false,
+  "status": "BAD_REQUEST",
+  "value": {
+    "code": "bad_request",
+    "details": [{ "message": "Invalid input: expected number, received undefined", "path": ["remaining"] }]
+  }
+}</code></pre></div>
+<p>Отказ из стаба обязан входить в <code>errors:</code> операции. Объявленный отказ
+проходит как есть, так же, как пришёл бы от настоящего владельца:</p>
+<div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
+      stubs: [
+        // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
+        // есть, так же, как настоящий владелец по сети
+        stub(ClaimQuota, async () =&gt; QuotaExceeded({ limit: 100 })),
+        stub(UserRegistered, (input) =&gt; {
+          registered.push(input);
+        }),
+      ],</code></pre></div>
+<p>Незадекларированный код останавливает тест ошибкой с именем операции,
+кодом и разрешённым набором. Исчерпанный <code>deadline</code> даёт
+<code>timeout</code> до вызова <code>impl</code>, а <code>emit</code> команды всегда несёт
+<code>idempotencyKey</code>, как у боевого порта.</p>
+<h3>Вызовите команду или событие снаружи</h3>
+<div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
+    const [{ subscriber, response }] = await testApp.emit(RegisterUser, {
+      email: 'alice@example.com',
+    });
+
+    expect(subscriber).toBe('users.register');
+    expect(response.isSuccess).toBe(true);
+    expect(claimed).toEqual([{ email: 'alice@example.com' }]);
+    expect(registered).toEqual([
+      { id: expect.any(String), email: 'alice@example.com' },
+    ]);</code></pre></div>
+<p><code>testApp.emit(Operation, payload)</code> доставляет команду или событие каждому
+подписчику в этом процессе через его полный пайплайн и возвращает список
+доставок: имя подписчика и ответ. У события подписчиков может не быть,
+тогда список пуст. У команды подписчик обязателен: без него <code>emit</code>
+завершается ошибкой адресации. <code>request</code>-операцию через <code>emit</code> вызвать
+нельзя, это ошибка компиляции: у неё владелец, а не подписчики.</p>
+<p>Стаб эмиттера здесь не мешает. Стаб подменяет то, что фича отправляет
+наружу, а <code>emit</code> ведёт сообщение снаружи внутрь.</p>
+<h3>Проверьте, что застабанные операции кто-то реализует</h3>
+<div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
+  it('каждая застабанная операция реализована в одной из топологий', async () =&gt; {
+    await using testApp = await assembleTest({
+      features: [UsersFeature, QuotasFeature],
+      select: 'users',
+      stubs: [
+        stub(ClaimQuota, async () =&gt; ({ remaining: 1 })),
+        // eslint-disable-next-line unicorn/no-useless-undefined
+        stub(UserRegistered, () =&gt; undefined),
+      ],
+    });
+
+    // Матрица проверяет граф без подстановок: стаб операции, которой не
+    // реализует ни одна топология, здесь станет виден
+    const topologies = await checkTopologies(app, [
+      'all',
+      'users',
+      'quotas',
+    ]);
+
+    const published = new Set(
+      topologies.flatMap(({ report }) =&gt;
+        report.operations.map(({ name }) =&gt; name),
+      ),
+    );
+
+    expect(testApp.stubbed.filter((name) =&gt; !published.has(name))).toEqual([]);
+    expect(testApp.stubbed).toEqual(['quotas.claim', 'users.registered']);
+  });</code></pre></div>
+<p>Стаб делает тестовый граф меньше боевого. Операцию, которую никто не
+реализует, стаб скроет. Поэтому рядом со стабами стоит проверка честного
+графа: <code>checkTopologies</code> собирает каждую топологию без подстановок и
+возвращает отчёт с полем <code>operations</code>. Тест сравнивает <code>testApp.stubbed</code> с
+объединением опубликованных операций. Подробно матрицу разбирает глава
+<a href="16-select.html">16</a>.</p>
+<h3>Подставьте значение переменной контекста</h3>
+<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+  it('contextValue подставляет значение переменной в тестовом корне', async () =&gt; {
+    const spy = spyLogger();
+    await using testApp = await assembleTest(app, {
+      overrides: [[Logger$, spy.logger], contextValue(RequestId, 'req-fixed')],
+    });
+
+    unwrap(await testApp.call(GetUser, { id: '1' }));
+
+    expect(spy.lines).toContain('[req-fixed] byId 1');
+  });</code></pre></div>
+<p>Хранилище читает <code>requestId</code> ридером <code>Ctx(RequestId)</code> из главы
+<a href="08-logging.html">8</a>. Ридер является узлом графа, поэтому подменяется тем
+же списком <code>overrides</code>. <code>contextValue(Variable, value)</code> даёт ридер с
+постоянным значением. Слой <code>observability</code> по-прежнему кладёт свой
+<code>requestId</code> в контекст, но сервис читает подставленное значение.</p>
+<h3>Проверьте состав графа</h3>
+<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+  it('подключает плагины и только выбранную фичу', async () =&gt; {
+    // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
+    // есть в любой сборке
+    await using testApp = await assembleTest(app, { select: 'ops' });
+
+    expect(testApp.get(Logger$)).not.toBeNull();
+    expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
+    expect(testApp.get(ActivityHub)).toBeNull();
+  });
+
+  it('замыкает выбор по вызываемым операциям', async () =&gt; {
+    await using testApp = await assembleTest(app, {
+      select: { features: 'users', includeDeps: true },
+    });
+
+    expect(testApp.features).toEqual(['users', 'quotas']);
+  });</code></pre></div>
+<p><code>testApp.get(token)</code> возвращает инстанс из собранного графа или <code>null</code>, если
+узла в графе нет. <code>testApp.features</code> перечисляет выбранные фичи после
+замыкания по вызовам.</p>
+<p>Семейство токенов целиком подменяет <code>familyOverride(Family, make)</code> в том
+же списке <code>overrides</code>; семейства появляются в главе
+<a href="21-token-families.html">21</a>.</p>
+<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
+<ul class="body">
+<li>Стаб типизирован операцией: <code>impl</code> с другим входом или выходом не
+компилируется. Вход и успешный ответ стаба проверяются схемами операции
+при каждом вызове.</li>
+<li>Отказ из стаба обязан входить в <code>errors:</code> операции или в коды ядра.
+Незадекларированный код останавливает тест ошибкой, а не превращается в
+<code>InternalError</code>.</li>
+<li><code>request</code>-операция через <code>testApp.emit</code> не компилируется. Команда без
+подписчика в сборке даёт ошибку адресации со списком доступных
+subject'ов.</li>
+<li>Подмена узла, которого нет в графе, останавливает сборку. Стаб
+операции, у которой есть владелец в выбранных фичах, тоже допустим: он
+имеет приоритет над владельцем.</li>
+</ul>
+<h2 id="как-проверить">Как проверить</h2>
+<p>Файл <code>isolated.spec.ts</code> целиком состоит из тестов этой главы: сборка одной
+фичи, стабы с успехом и с отказом, <code>testApp.emit</code> и сверка <code>testApp.stubbed</code> с
+матрицей. Тесты <code>contextValue</code> и состава графа лежат в <code>app.spec.ts</code>
+примера <code>app-with-http</code>.</p>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.split-nats test
+yarn workspace examples.app-with-http test</code></pre></div>
+<h2 id="пока-не-нужно">Пока не нужно</h2>
+<ul class="body">
+<li>Матрица топологий как проверка деплоя, отчёт <code>check()</code> и <code>detached</code>:
+глава <a href="16-select.html">16</a>.</li>
+<li>Снапшот операций и проверка совместимости: глава
+<a href="18-compatibility.html">18</a>.</li>
+<li>Тест одной фичи или плагина без словаря сборки, <code>testUnit</code>:
+<a href="../../packages/nestling.testing/README.md">README <code>@nestling/testing</code></a>.</li>
+</ul>
+<h2 id="запускаемый-код">Запускаемый код</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Что показывает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>packages/examples.split-nats/src/isolated.spec.ts</code></td>
+<td><code>select</code> одной фичи, <code>stubs</code>, <code>testApp.emit</code>, <code>testApp.stubbed</code> против <code>checkTopologies</code></td>
+</tr>
+<tr>
+<td><code>packages/examples.app-with-http/src/app.spec.ts</code></td>
+<td><code>contextValue</code>, <code>testApp.get</code>, <code>testApp.features</code>, <code>select</code> в тесте</td>
+</tr>
+<tr>
+<td><code>packages/examples.app-with-http/src/testing.ts</code></td>
+<td>фейк хранилища для <code>overrides</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.split-nats test
+yarn workspace examples.app-with-http test</code></pre></div>
+<h2 id="дальше">Дальше</h2>
+<p>Тесты собирают фичи по отдельности. Так же собирается и приложение в
+проде: <a href="16-select.html">16. Запускать только часть фич</a>.</p>
+
+  <nav class="pager">
+    <a href="14-live-feed.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">14. Живая лента для клиента</div>
+    </a>
+    <a class="next" href="16-select.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">16. Запускать только часть фич</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

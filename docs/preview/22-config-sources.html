@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — 22. Конфиг из файла и без перезапуска</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html" class="active">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#задача">Задача</a></li>
+      <li><a href="#решение">Решение</a></li>
+      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
+      <li><a href="#как-проверить">Как проверить</a></li>
+      <li><a href="#запускаемый-код">Запускаемый код</a></li>
+      <li><a href="#дальше">Дальше</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>21. Конфиг из файла и без перезапуска</h1>
+<blockquote>
+<p>Гайд по текущему API; сверено с кодом <code>examples.container</code> (2026-09-03).
+Целевое описание: <a href="../design/config.md">design/config.md</a>, разделы 2–6.
+Почему так: записи <a href="../decisions/ideas.md">ideas.md</a> «Конфиг:
+keys-capability вместо <code>configs:</code>-владения» [2026-07-10] и «Конфиг:
+<code>secret()</code> и общие ключи» [2026-07-13].</p>
+</blockquote>
+<h2 id="задача">Задача</h2>
+<p>Часть значений в проде приходит не из окружения: из файла, из Vault, из
+объекта с умолчаниями для локального запуска. Один ключ, например
+<code>DATABASE_URL</code>, читают две секции. Лимит запросов нужно менять на ходу,
+не перезапуская процесс.</p>
+<p>Объявление секции, вывод ключей, <code>secret()</code> и остановка старта на
+невалидном конфиге описаны в главе <a href="06-config.html">6</a>. Здесь только то,
+что появляется сверх этого.</p>
+<h2 id="решение">Решение</h2>
+<h3>Привяжите источник к ключам секции</h3>
+<div class="code" data-file="packages/examples.container/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/main.ts
+export async function main() {
+  const app = makeApp({
+    features: [AppFeature],
+    plugins: [appLogging],
+    providers: [Demo],
+    config: [
+      [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+      [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
+    ],
+  }).assemble();
+
+  await app.run();
+  await app.close();
+}</code></pre></div>
+<p>Поле <code>config</code> принимает список пар «источник, цель». Источник — объект с
+интерфейсом <code>ConfigSource</code>: обязательный метод <code>get(key)</code> и необязательные
+<code>name</code>, <code>init()</code>, <code>watch(notify)</code> и <code>close()</code>. Цель — <code>.keys</code> секции, глоб
+вида <code>'*_URL'</code> или массив из них. В примере источником служит
+<code>objectSource</code>, объект поверх обычной записи. Источник файла или Vault
+реализует тот же интерфейс в отдельном пакете; в ядре готовых источников
+нет.</p>
+<p>Правила чтения:</p>
+<ul class="body">
+<li>порядок списка задаёт приоритет: ключ берётся из первой привязки, чья
+цель покрывает ключ и чей источник вернул не <code>undefined</code>;</li>
+<li>цель ограничивает область источника: <code>objectSource</code> из первой строки
+привязан к ключам секции <code>app</code> и для других секций не опрашивается;</li>
+<li><code>process.env</code> опрашивается последним и всегда; в список его не
+добавляют. <code>DATABASE_URL</code> в примере нигде не привязан и читается из
+окружения;</li>
+<li>ключ, которого нет ни в одном источнике, читается как <code>undefined</code>, а
+дальше решает схема поля: <code>.default()</code>, <code>.optional()</code> или ошибка
+валидации.</li>
+</ul>
+<p>Тот же список принимает <code>configKernel()</code> для контейнера без <code>makeApp</code>:</p>
+<div class="code" data-file="packages/examples.container/src/container.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/container.ts
+export const makeContainer = async (
+  runtime: ConfigSource = objectSource({}, 'runtime'),
+): Promise&lt;BuiltContainer&gt; =&gt; {
+  return await new ContainerBuilder()
+    .register(
+      configKernel([
+        [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+        [runtime, runtimeConfigKeys],
+      ]),
+    )
+    .register(...appLogging.modules)
+    .register(AppModule)
+    .build();
+};</code></pre></div>
+<p>Сборка контейнера без приложения описана в главе
+<a href="24-standalone.html">24</a>.</p>
+<h3>Экспортируйте право привязки, а не секцию</h3>
+<div class="code" data-file="packages/examples.container/src/config/app.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/config/app.config.ts
+export const AppConfig = makeConfig('app', {
+  logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  databaseUrl: secret(
+    from('DATABASE_URL', z.url().default('postgresql://localhost:5432/myapp')),
+  ),
+});
+
+export const appConfigKeys = AppConfig.keys;</code></pre></div>
+<div class="code" data-file="packages/examples.container/src/config/index.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/config/index.ts
+export { appConfigKeys } from './app.config';</code></pre></div>
+<p>С секцией связаны два права. Токен секции даёт право читать её: кто
+импортировал <code>AppConfig</code>, тот может указать его в <code>deps</code>. <code>AppConfig.keys</code>
+даёт право привязать источник к её ключам и ничего больше: указать <code>.keys</code>
+в <code>deps</code> нельзя, это ошибка компиляции. Поэтому из папки конфига наружу
+уходит только <code>appConfigKeys</code>, а токен секции импортируют по прямому пути
+внутри приложения.</p>
+<h3>Читайте один ключ из двух секций</h3>
+<div class="code" data-file="packages/examples.container/src/health/health.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/health/health.config.ts
+export const HealthConfig = makeConfig('health', {
+  databaseUrl: from(
+    'DATABASE_URL',
+    z.string().default('postgresql://localhost:5432/myapp'),
+  ),
+});</code></pre></div>
+<p>Вторая секция объявляет чтение ключа без ведома первой. Правила общего
+ключа:</p>
+<ul class="body">
+<li>каждая секция проверяет сырое значение своей схемой: <code>app</code> требует
+<code>z.url()</code>, <code>health</code> принимает <code>z.string()</code>; ошибка у любой из них
+останавливает сборку с именем именно этой секции;</li>
+<li>секретность ключа общая для всех читателей: <code>app</code> пометила
+<code>DATABASE_URL</code> как <code>secret()</code>, поэтому печать <code>HealthConfig</code> показывает
+<code>'***'</code>, хотя в её объявлении <code>secret()</code> нет;</li>
+<li>единственный конфликт двух читателей — разный флаг <code>reloadable</code>.
+Объявите <code>HealthConfig</code> через <code>makeConfig.reloadable</code>, и сборка упадёт с
+<code>ConfigSharedKeyError</code>, которая называет ключ, обе секции и обе починки.</li>
+</ul>
+<p>Кто читает ключ, показывает <code>describeConfig()</code>. Снимок строится по
+объявленным секциям и не обращается к источникам:</p>
+<div class="code" data-file="packages/examples.container/src/config/secrets.spec.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/config/secrets.spec.ts
+    // …
+    const entry = describeConfig().keys.find(
+      (item) =&gt; item.key === 'DATABASE_URL',
+    );
+
+    expect(entry?.secret).toBe(true);
+    expect(entry?.readers.map((reader) =&gt; reader.section).sort()).toEqual([
+      'app',
+      'health',
+    ]);</code></pre></div>
+<h3>Меняйте значения без перезапуска</h3>
+<div class="code" data-file="packages/examples.container/src/runtime/runtime.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/runtime.config.ts
+export const RuntimeConfig = makeConfig.reloadable('runtime', {
+  rps: z.coerce.number().int().positive().default(100),
+});
+
+export const runtimeConfigKeys = RuntimeConfig.keys;</code></pre></div>
+<p><code>makeConfig.reloadable</code> объявляет секцию, значения которой обновляются на
+месте. Объект секции не пересоздаётся: ссылка, полученная в конструкторе,
+остаётся рабочей, а чтение поля отдаёт последнее валидное значение.</p>
+<div class="code" data-file="packages/examples.container/src/runtime/rate-limiter.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/rate-limiter.ts
+@Injectable([RuntimeConfig, Logger.auto])
+export class RateLimiter {
+  /** Значения `rps`, пришедшие через `onChange` */
+  readonly history: number[] = [];
+
+  readonly #unsubscribe = new AbortController();
+
+  constructor(
+    private readonly config: Config&lt;typeof RuntimeConfig&gt;,
+    private readonly logger: Logger,
+  ) {}
+
+  get limit(): number {
+    return this.config.rps;
+  }
+
+  @OnStart()
+  watch(): void {
+    this.config.onChange(this.#unsubscribe.signal, (next) =&gt; {
+      this.history.push(next.rps);
+      this.logger.log(`rate limit changed to ${next.rps} rps`);
+    });
+  }
+
+  @OnDestroy()
+  stop(): void {
+    this.#unsubscribe.abort();
+  }
+}</code></pre></div>
+<p>У потребителя два способа увидеть новое значение. Первый: читать поле при
+каждом обращении, как делает <code>limit</code>. Подписка для этого не нужна. Второй:
+<code>onChange(signal, callback)</code>, когда на смену значения нужно отреагировать,
+например перестроить ресурс. Подписка снимается, когда взводится
+<code>signal</code>; здесь его держит <code>AbortController</code>, который <code>@OnDestroy</code>
+взводит при остановке. Значение, скопированное в конструкторе, не
+обновится, поэтому reloadable включается для секции явно.</p>
+<p>Обновления приходят от источника с методом <code>watch()</code>. У <code>objectSource</code>
+он есть: вызов <code>set(key, value)</code> уведомляет читалку. Два отличия от
+старта:</p>
+<ul class="body">
+<li>невалидное значение на старте останавливает приложение; невалидное
+обновление отбрасывается, остаётся последний валидный снимок, а читалка
+пишет предупреждение с префиксом <code>[nestling/config]</code>;</li>
+<li>reloadable-секция, ключи которой покрыты только источниками без
+<code>watch()</code>, поднимается и предупреждает при старте: обновлений не будет.</li>
+</ul>
+<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
+<ul class="body">
+<li><code>Section.keys</code> в <code>deps</code> не компилируется: право привязки не даёт права
+читать.</li>
+<li>Разный флаг <code>reloadable</code> у двух читателей одного ключа останавливает
+<code>build()</code> с <code>ConfigSharedKeyError</code>.</li>
+<li>Невалидный конфиг на старте останавливает приложение до открытия
+сокета: <code>ConfigValidationError</code> перечисляет все ошибки секции и
+опрошенные источники.</li>
+<li>Цель привязки, не покрывающая ни одного объявленного ключа, даёт
+предупреждение на старте: так ловится опечатка в глобе.</li>
+<li>Поле с именем <code>onChange</code> в reloadable-секции запрещено: это имя занято
+подпиской.</li>
+</ul>
+<h2 id="как-проверить">Как проверить</h2>
+<p>Тест собирает контейнер с источником, который потом меняет:</p>
+<div class="code" data-file="packages/examples.container/src/runtime/reload.spec.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/reload.spec.ts
+  it('отдаёт новое значение после обновления источника', async () =&gt; {
+    source.set('RUNTIME_RPS', '20');
+    await settle();
+
+    expect(limiter.limit).toBe(20);
+    expect(limiter.history).toEqual([20]);
+  });
+
+  it('оставляет последнее валидное значение при невалидном обновлении', async () =&gt; {
+    source.set('RUNTIME_RPS', 'many');
+    await settle();
+
+    expect(limiter.limit).toBe(20);
+    expect(limiter.history).toEqual([20]);
+  });</code></pre></div>
+<p>Подписка <code>onChange</code> открывается в <code>@OnStart</code>, поэтому тест вызывает
+<code>container.start()</code> после <code>init()</code>. Второй тест показывает, что
+невалидное обновление не доходит ни до чтения, ни до подписки.</p>
+<p>Секреты и общий ключ проверяет <code>config/secrets.spec.ts</code>: печать секции
+<code>health</code> равна <code>{&quot;databaseUrl&quot;:&quot;***&quot;}</code>, а чтение поля отдаёт настоящий
+адрес.</p>
+<h2 id="запускаемый-код">Запускаемый код</h2>
+<ul class="body">
+<li><code>packages/examples.container/src/main.ts</code>, <code>container.ts</code>: привязка
+источников в двух корнях;</li>
+<li><code>config/app.config.ts</code>, <code>config/index.ts</code>: секция и экспорт <code>.keys</code>;</li>
+<li><code>health/health.config.ts</code>: второй читатель ключа;</li>
+<li><code>runtime/runtime.config.ts</code>, <code>runtime/rate-limiter.ts</code>,
+<code>runtime/runtime.module.ts</code>: reloadable-секция и её потребитель;</li>
+<li><code>config/secrets.spec.ts</code>, <code>runtime/reload.spec.ts</code>: тесты.</li>
+</ul>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.container start:dev
+yarn workspace examples.container test</code></pre></div>
+<h2 id="дальше">Дальше</h2>
+<p>Эксплуатационные endpoint'ы: кто сейчас подключён к сервису и как
+завершить подписку. Глава <a href="23-ops.html">23</a>.</p>
+
+  <nav class="pager">
+    <a href="21-token-families.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">21. Логгер с именем потребителя и сбор вкладов</div>
+    </a>
+    <a class="next" href="23-ops.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">23. Кто сейчас подключён и как его отключить</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

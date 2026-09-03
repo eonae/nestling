@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — В. Карта понятий</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html" class="active">В. Карта понятий</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#часть-1-первый-сервис">Часть 1. Первый сервис</a></li>
+      <li><a href="#часть-2-сервис-в-проде">Часть 2. Сервис в проде</a></li>
+      <li><a href="#часть-3-приложение-растёт">Часть 3. Приложение растёт</a></li>
+      <li><a href="#часть-4-разворачивать-по-частям">Часть 4. Разворачивать по частям</a></li>
+      <li><a href="#часть-5-редкие-задачи">Часть 5. Редкие задачи</a></li>
+      <li><a href="#не-показано-в-гайде">Не показано в гайде</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>Приложение В. Карта понятий</h1>
+<blockquote>
+<p>Собрано по главам гайда (2026-09-03). Понятие ведёт в главу, где оно вводится, и в файл примера, где показано.</p>
+</blockquote>
+<h2 id="часть-1-первый-сервис">Часть 1. Первый сервис</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Понятие</th>
+<th>Глава</th>
+<th>Файл примера</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>httpEndpoint</code></td>
+<td><a href="01-first-service.html">1</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></td>
+</tr>
+<tr>
+<td>паттерн</td>
+<td><a href="01-first-service.html">1</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>makeFeature</code></td>
+<td><a href="01-first-service.html">1</a></td>
+<td><code>packages/examples.users-service/src/users.feature.ts</code></td>
+</tr>
+<tr>
+<td><code>makeApp</code></td>
+<td><a href="01-first-service.html">1</a></td>
+<td><code>packages/examples.users-service/src/app.ts</code></td>
+</tr>
+<tr>
+<td><code>app.assemble()</code></td>
+<td><a href="01-first-service.html">1</a></td>
+<td><code>packages/examples.users-service/src/main.ts</code></td>
+</tr>
+<tr>
+<td><code>http()</code></td>
+<td><a href="01-first-service.html">1</a></td>
+<td><code>packages/examples.users-service/src/app.ts</code></td>
+</tr>
+<tr>
+<td>Standard Schema</td>
+<td><a href="02-input.html">2</a></td>
+<td><code>packages/examples.users-service/src/users/user.ts</code></td>
+</tr>
+<tr>
+<td>схема <code>input</code></td>
+<td><a href="02-input.html">2</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>bind</code>, <code>query()</code>, <code>body()</code></td>
+<td><a href="02-input.html">2</a></td>
+<td><code>packages/examples.users-service/src/api/operations.ts</code></td>
+</tr>
+<tr>
+<td><code>makeFail</code></td>
+<td><a href="03-errors.html">3</a></td>
+<td><code>packages/examples.users-service/src/users/users.errors.ts</code></td>
+</tr>
+<tr>
+<td><code>errors:</code></td>
+<td><a href="03-errors.html">3</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>Output&lt;T, typeof Def&gt;</code></td>
+<td><a href="03-errors.html">3</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td>категория отказа</td>
+<td><a href="03-errors.html">3</a></td>
+<td><code>packages/examples.users-service/src/users/users.errors.ts</code></td>
+</tr>
+<tr>
+<td><code>Ok.created</code></td>
+<td><a href="03-errors.html">3</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>Ok.noContent()</code></td>
+<td><a href="03-errors.html">3</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>.is()</code></td>
+<td><a href="03-errors.html">3</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts</code></td>
+</tr>
+<tr>
+<td>поле <code>handler</code></td>
+<td><a href="04-handler-class.html">4</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></td>
+</tr>
+<tr>
+<td>класс-хендлер</td>
+<td><a href="04-handler-class.html">4</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>makeToken</code></td>
+<td><a href="05-repository.html">5</a></td>
+<td><code>packages/examples.users-service/src/users/users.repository.ts</code></td>
+</tr>
+<tr>
+<td><code>@Injectable</code></td>
+<td><a href="05-repository.html">5</a></td>
+<td><code>packages/examples.users-service/src/database.ts</code></td>
+</tr>
+<tr>
+<td><code>@OnInit</code></td>
+<td><a href="05-repository.html">5</a></td>
+<td><code>packages/examples.users-service/src/database.ts</code></td>
+</tr>
+<tr>
+<td><code>@OnDestroy</code></td>
+<td><a href="05-repository.html">5</a></td>
+<td><code>packages/examples.users-service/src/database.ts</code></td>
+</tr>
+<tr>
+<td><code>providers</code></td>
+<td><a href="05-repository.html">5</a></td>
+<td><code>packages/examples.users-service/src/users.feature.ts</code></td>
+</tr>
+<tr>
+<td><code>valueProvider</code>, <code>factoryProvider</code></td>
+<td><a href="05-repository.html">5</a></td>
+<td><code>packages/examples.container/src/config/app.config.ts</code></td>
+</tr>
+<tr>
+<td><code>makeConfig</code></td>
+<td><a href="06-config.html">6</a></td>
+<td><code>packages/examples.users-service/src/app.config.ts</code></td>
+</tr>
+<tr>
+<td><code>from</code></td>
+<td><a href="06-config.html">6</a></td>
+<td><code>packages/examples.users-service/src/app.config.ts</code></td>
+</tr>
+<tr>
+<td><code>Config&lt;T&gt;</code></td>
+<td><a href="06-config.html">6</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>secret</code></td>
+<td><a href="06-config.html">6</a></td>
+<td><code>packages/examples.users-service/src/app.config.ts</code></td>
+</tr>
+<tr>
+<td><code>assembleTest(app, …)</code></td>
+<td><a href="07-testing.html">7</a></td>
+<td><code>packages/examples.users-service/src/app.spec.ts</code></td>
+</tr>
+<tr>
+<td>фаза</td>
+<td><a href="07-testing.html">7</a></td>
+<td><code>packages/examples.users-service/src/app.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>testApp.call</code></td>
+<td><a href="07-testing.html">7</a></td>
+<td><code>packages/examples.users-service/src/app.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>unwrap</code></td>
+<td><a href="07-testing.html">7</a></td>
+<td><code>packages/examples.users-service/src/app.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>overrides</code></td>
+<td><a href="07-testing.html">7</a></td>
+<td><code>packages/examples.users-service/src/app.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>testApp.pruned</code></td>
+<td><a href="07-testing.html">7</a></td>
+<td><code>packages/examples.users-service/src/app.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>vars</code></td>
+<td><a href="07-testing.html">7</a></td>
+<td><code>packages/examples.users-service/src/app.spec.ts</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="часть-2-сервис-в-проде">Часть 2. Сервис в проде</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Понятие</th>
+<th>Глава</th>
+<th>Файл примера</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>makePipeline</code></td>
+<td><a href="08-logging.html">8</a></td>
+<td><code>packages/examples.users-service/src/observability.ts</code></td>
+</tr>
+<tr>
+<td><code>.pre</code></td>
+<td><a href="08-logging.html">8</a></td>
+<td><code>packages/examples.users-service/src/observability.ts</code></td>
+</tr>
+<tr>
+<td><code>.finally</code></td>
+<td><a href="08-logging.html">8</a></td>
+<td><code>packages/examples.users-service/src/observability.ts</code></td>
+</tr>
+<tr>
+<td><code>withRequestId</code></td>
+<td><a href="08-logging.html">8</a></td>
+<td><code>packages/examples.users-service/src/observability.ts</code></td>
+</tr>
+<tr>
+<td>outcome</td>
+<td><a href="08-logging.html">8</a></td>
+<td><code>packages/examples.users-service/src/observability.ts</code></td>
+</tr>
+<tr>
+<td><code>ExtendableContext</code></td>
+<td><a href="08-logging.html">8</a></td>
+<td><code>packages/examples.users-service/src/observability.ts</code></td>
+</tr>
+<tr>
+<td><code>Ctx</code></td>
+<td><a href="08-logging.html">8</a></td>
+<td><code>packages/examples.users-service/src/users/users.repository.ts</code></td>
+</tr>
+<tr>
+<td><code>CtxReader</code></td>
+<td><a href="08-logging.html">8</a></td>
+<td><code>packages/examples.users-service/src/users/users.repository.ts</code></td>
+</tr>
+<tr>
+<td><code>compose</code></td>
+<td><a href="08-logging.html">8</a>, <a href="09-auth.html">9</a></td>
+<td><code>packages/examples.users-service/src/auth.ts</code></td>
+</tr>
+<tr>
+<td><code>everyEndpoint</code></td>
+<td><a href="09-auth.html">9</a></td>
+<td><code>packages/examples.users-service/src/app.ts</code></td>
+</tr>
+<tr>
+<td><code>.hasLayer</code></td>
+<td><a href="09-auth.html">9</a></td>
+<td><code>packages/examples.users-service/src/app.ts</code></td>
+</tr>
+<tr>
+<td><code>detached</code></td>
+<td><a href="09-auth.html">9</a></td>
+<td><code>packages/examples.users-service/src/ops.plugin.ts</code></td>
+</tr>
+<tr>
+<td><code>multipart</code></td>
+<td><a href="10-files-and-streams.html">10</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>upload</code></td>
+<td><a href="10-files-and-streams.html">10</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>FilePart</code></td>
+<td><a href="10-files-and-streams.html">10</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>stream</code></td>
+<td><a href="10-files-and-streams.html">10</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>.limit()</code></td>
+<td><a href="10-files-and-streams.html">10</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts</code></td>
+</tr>
+<tr>
+<td>item-цепочка</td>
+<td><a href="10-files-and-streams.html">10</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>.gapTimeout()</code></td>
+<td><a href="10-files-and-streams.html">10</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>openapi()</code></td>
+<td><a href="11-openapi-and-client.html">11</a></td>
+<td><code>packages/examples.users-service/src/app.ts</code></td>
+</tr>
+<tr>
+<td><code>zodConverter</code></td>
+<td><a href="11-openapi-and-client.html">11</a></td>
+<td><code>packages/examples.users-service/src/app.ts</code></td>
+</tr>
+<tr>
+<td><code>doc:</code></td>
+<td><a href="11-openapi-and-client.html">11</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>makeRequest</code></td>
+<td><a href="11-openapi-and-client.html">11</a>, <a href="12-features.html">12</a></td>
+<td><code>packages/examples.users-service/src/api/operations.ts</code></td>
+</tr>
+<tr>
+<td><code>http:</code></td>
+<td><a href="11-openapi-and-client.html">11</a></td>
+<td><code>packages/examples.users-service/src/api/operations.ts</code></td>
+</tr>
+<tr>
+<td><code>makeClient</code></td>
+<td><a href="11-openapi-and-client.html">11</a></td>
+<td><code>packages/examples.users-service/src/api/client.ts</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="часть-3-приложение-растёт">Часть 3. Приложение растёт</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Понятие</th>
+<th>Глава</th>
+<th>Файл примера</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>implement</code></td>
+<td><a href="12-features.html">12</a>, <a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/features/quotas/quotas.feature.ts</code></td>
+</tr>
+<tr>
+<td><code>.caller</code></td>
+<td><a href="12-features.html">12</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>deadline</code></td>
+<td><a href="12-features.html">12</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>makePlugin</code></td>
+<td><a href="12-features.html">12</a></td>
+<td><code>packages/examples.app-with-http/src/plugins/logging/logging.plugin.ts</code></td>
+</tr>
+<tr>
+<td><code>factoryProvider</code></td>
+<td><a href="12-features.html">12</a></td>
+<td><code>packages/examples.app-with-http/src/plugins/logging/logging.plugin.ts</code></td>
+</tr>
+<tr>
+<td><code>makeModule</code></td>
+<td><a href="12-features.html">12</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/users.feature.ts</code></td>
+</tr>
+<tr>
+<td><code>NESTLING_PORTS_DISPATCH</code></td>
+<td><a href="12-features.html">12</a>, <a href="17-split.html">17</a></td>
+<td><code>packages/examples.app-with-http/src/app.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>makeEvent</code></td>
+<td><a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/operations.ts</code></td>
+</tr>
+<tr>
+<td><code>subscriber</code></td>
+<td><a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/features/quotas/quotas.feature.ts</code></td>
+</tr>
+<tr>
+<td><code>.emitter</code></td>
+<td><a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>makeCommand</code></td>
+<td><a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/operations.ts</code></td>
+</tr>
+<tr>
+<td><code>idempotencyKey</code></td>
+<td><a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>withIdempotencyKey</code></td>
+<td><a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/features/quotas/quotas.feature.ts</code></td>
+</tr>
+<tr>
+<td><code>BusTransport$</code></td>
+<td><a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/app.ts</code></td>
+</tr>
+<tr>
+<td>вид операции</td>
+<td><a href="13-events.html">13</a></td>
+<td><code>packages/examples.app-with-http/src/operations.ts</code></td>
+</tr>
+<tr>
+<td><code>Topic</code></td>
+<td><a href="14-live-feed.html">14</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/activity.hub.ts</code></td>
+</tr>
+<tr>
+<td><code>AbortSignal</code></td>
+<td><a href="14-live-feed.html">14</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/activity.hub.ts</code></td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td><a href="14-live-feed.html">14</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>sse:</code></td>
+<td><a href="14-live-feed.html">14</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>tracked</code></td>
+<td><a href="14-live-feed.html">14</a>, <a href="23-ops.html">23</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>onSlowConsumer</code></td>
+<td><a href="14-live-feed.html">14</a>, <a href="25-extending.html">25</a></td>
+<td><code>packages/nestling.subscriptions/src/registry.ts</code></td>
+</tr>
+<tr>
+<td><code>select</code></td>
+<td><a href="15-testing-features.html">15</a>, <a href="16-select.html">16</a></td>
+<td><code>packages/examples.split-nats/src/isolated.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>stub</code> / <code>stubs:</code></td>
+<td><a href="15-testing-features.html">15</a></td>
+<td><code>packages/examples.split-nats/src/isolated.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>testApp.emit</code></td>
+<td><a href="15-testing-features.html">15</a></td>
+<td><code>packages/examples.split-nats/src/isolated.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>checkTopologies</code></td>
+<td><a href="15-testing-features.html">15</a>, <a href="16-select.html">16</a></td>
+<td><code>packages/examples.split-nats/src/isolated.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>contextValue</code></td>
+<td><a href="15-testing-features.html">15</a></td>
+<td><code>packages/examples.app-with-http/src/app.spec.ts</code></td>
+</tr>
+<tr>
+<td><code>includeDeps</code></td>
+<td><a href="15-testing-features.html">15</a>, <a href="16-select.html">16</a></td>
+<td><code>packages/examples.app-with-http/src/app.spec.ts</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="часть-4-разворачивать-по-частям">Часть 4. Разворачивать по частям</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Понятие</th>
+<th>Глава</th>
+<th>Файл примера</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>load()</code></td>
+<td><a href="16-select.html">16</a></td>
+<td><code>packages/examples.app-with-http/src/main.ts</code></td>
+</tr>
+<tr>
+<td><code>nats()</code></td>
+<td><a href="17-split.html">17</a></td>
+<td><code>packages/examples.split-nats/src/app.ts</code></td>
+</tr>
+<tr>
+<td><code>intercom</code></td>
+<td><a href="17-split.html">17</a></td>
+<td><code>packages/examples.split-nats/src/app.ts</code></td>
+</tr>
+<tr>
+<td>Split-развёртывание</td>
+<td><a href="17-split.html">17</a>, <a href="23-ops.html">23</a></td>
+<td><code>packages/examples.split-nats/src/app.ts</code></td>
+</tr>
+<tr>
+<td><code>durable</code></td>
+<td><a href="17-split.html">17</a></td>
+<td><code>packages/examples.split-nats/src/operations.ts</code></td>
+</tr>
+<tr>
+<td><code>contextVar</code></td>
+<td><a href="17-split.html">17</a></td>
+<td><code>packages/examples.split-nats/src/context.ts</code></td>
+</tr>
+<tr>
+<td><code>propagate</code></td>
+<td><a href="17-split.html">17</a></td>
+<td><code>packages/examples.split-nats/src/context.ts</code></td>
+</tr>
+<tr>
+<td>Subject</td>
+<td><a href="17-split.html">17</a></td>
+<td><code>packages/examples.split-nats/src/split.spec.ts</code></td>
+</tr>
+<tr>
+<td>снапшот операций</td>
+<td><a href="18-compatibility.html">18</a></td>
+<td><code>packages/examples.app-with-http/operations.snapshot.json</code></td>
+</tr>
+<tr>
+<td><code>diffOperations</code></td>
+<td><a href="18-compatibility.html">18</a></td>
+<td><code>packages/examples.app-with-http/src/operations.compat.spec.ts</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="часть-5-редкие-задачи">Часть 5. Редкие задачи</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Понятие</th>
+<th>Глава</th>
+<th>Файл примера</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rawBody</code></td>
+<td><a href="19-webhook.html">19</a></td>
+<td><code>packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts</code></td>
+</tr>
+<tr>
+<td><code>cliEndpoint</code></td>
+<td><a href="20-cli.html">20</a></td>
+<td><code>packages/examples.simple-cli/src/commands/greet.command.ts</code></td>
+</tr>
+<tr>
+<td><code>makeDispatch</code></td>
+<td><a href="20-cli.html">20</a>, <a href="24-standalone.html">24</a></td>
+<td><code>packages/examples.simple-cli/src/main.ts</code></td>
+</tr>
+<tr>
+<td><code>serve</code></td>
+<td><a href="20-cli.html">20</a>, <a href="24-standalone.html">24</a></td>
+<td><code>packages/examples.simple-cli/src/main.ts</code></td>
+</tr>
+<tr>
+<td><code>makeTokenFamily</code></td>
+<td><a href="21-token-families.html">21</a></td>
+<td><code>packages/examples.container/src/logging/registry.ts</code></td>
+</tr>
+<tr>
+<td><code>familyProvider</code></td>
+<td><a href="21-token-families.html">21</a></td>
+<td><code>packages/examples.container/src/logging/logging.plugin.ts</code></td>
+</tr>
+<tr>
+<td><code>.auto</code></td>
+<td><a href="21-token-families.html">21</a></td>
+<td><code>packages/examples.container/src/users/users.repository.ts</code></td>
+</tr>
+<tr>
+<td><code>classProvider</code></td>
+<td><a href="21-token-families.html">21</a></td>
+<td><code>packages/examples.container/src/database/database.module.ts</code></td>
+</tr>
+<tr>
+<td><code>.all</code></td>
+<td><a href="21-token-families.html">21</a></td>
+<td><code>packages/examples.container/src/health/health.service.ts</code></td>
+</tr>
+<tr>
+<td>топологический порядок</td>
+<td><a href="21-token-families.html">21</a></td>
+<td><code>packages/examples.container/src/health/health.service.ts</code></td>
+</tr>
+<tr>
+<td>objectSource</td>
+<td><a href="22-config-sources.html">22</a></td>
+<td><code>packages/examples.container/src/main.ts</code></td>
+</tr>
+<tr>
+<td><code>configKernel</code></td>
+<td><a href="22-config-sources.html">22</a></td>
+<td><code>packages/examples.container/src/container.ts</code></td>
+</tr>
+<tr>
+<td><code>.keys</code></td>
+<td><a href="22-config-sources.html">22</a></td>
+<td><code>packages/examples.container/src/config/app.config.ts</code></td>
+</tr>
+<tr>
+<td><code>reloadable</code></td>
+<td><a href="22-config-sources.html">22</a></td>
+<td><code>packages/examples.container/src/runtime/runtime.config.ts</code></td>
+</tr>
+<tr>
+<td><code>subscriptions()</code></td>
+<td><a href="23-ops.html">23</a></td>
+<td><code>packages/examples.app-with-http/src/app.ts</code></td>
+</tr>
+<tr>
+<td><code>ContainerBuilder</code></td>
+<td><a href="24-standalone.html">24</a></td>
+<td><code>packages/examples.container/src/container.ts</code></td>
+</tr>
+<tr>
+<td>satellite</td>
+<td><a href="25-extending.html">25</a></td>
+<td><code>packages/nestling.subscriptions/src/module.ts</code></td>
+</tr>
+<tr>
+<td>subpath <code>./testing</code></td>
+<td><a href="25-extending.html">25</a></td>
+<td><code>packages/nestling.transport.nats/package.json</code></td>
+</tr>
+<tr>
+<td>граница ядра</td>
+<td><a href="25-extending.html">25</a></td>
+<td><code>packages/nestling.subscriptions/src/module.ts</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="не-показано-в-гайде">Не показано в гайде</h2>
+<ul class="body">
+<li>Backpressure — <a href="../design/streaming.md">design/streaming.md</a></li>
+<li>Жадная сборка — <a href="../design/container.md">design/container.md</a></li>
+</ul>
+
+  <nav class="pager">
+    <a href="appendix-b-from-nestjs.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">Б. Из NestJS</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

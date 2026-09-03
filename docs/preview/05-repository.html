@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — 5. Откуда хендлер берёт репозиторий</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html" class="active">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#задача">Задача</a></li>
+      <li><a href="#решение">Решение</a></li>
+      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
+      <li><a href="#как-проверить">Как проверить</a></li>
+      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
+      <li><a href="#запускаемый-код">Запускаемый код</a></li>
+      <li><a href="#дальше">Дальше</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>5. Откуда хендлер берёт репозиторий</h1>
+<blockquote>
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+Целевое описание: <a href="../design/container.md">design/container.md</a>,
+<a href="../design/endpoints.md">design/endpoints.md</a>. Почему так: записи
+<a href="../decisions/ideas.md">ideas.md</a> «[2026-07-06] Token families + модули
+без рантайм-инкапсуляции» и «[2026-09-03] Поле <code>handler</code>: зависимости
+принадлежат хендлеру; канон <code>return</code>; <code>Output&lt;T, typeof Def&gt;</code>».</p>
+</blockquote>
+<h2 id="задача">Задача</h2>
+<p>Пользователи должны храниться в одном месте, а не в файле каждого
+endpoint'а. Хендлерам нужен репозиторий, репозиторию нужно соединение с
+базой. Соединение должно открываться при старте и закрываться при
+остановке, а endpoint не должен собирать всё это руками.</p>
+<h2 id="решение">Решение</h2>
+<h3>Токен: чем адресуется зависимость</h3>
+<div class="code" data-file="packages/examples.users-service/src/users/users.repository.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/users.repository.ts
+export const UsersRepository$ = makeToken&lt;UsersRepository&gt;('UsersRepository');</code></pre></div>
+<p>Токен — ключ, по которому у контейнера запрашивают зависимость. Класс
+служит себе токеном сам, поэтому <code>makeToken</code> нужен только там, где
+зависимость описана интерфейсом. Суффикс <code>$</code> отличает токен от интерфейса
+с тем же именем; так же названы токены ядра, например <code>HttpTransport$</code>.</p>
+<h3>Интерфейс: что хендлер требует от хранилища</h3>
+<div class="code" data-file="packages/examples.users-service/src/users/users.repository.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/users.repository.ts
+/** Хранилище пользователей: всё, что endpoint'ам нужно от базы */
+export interface UsersRepository {
+  all(): Promise&lt;User[]&gt;;
+  byId(id: string): Promise&lt;User | null&gt;;
+  byEmail(email: string): Promise&lt;User | null&gt;;
+  insert(data: Omit&lt;User, 'id'&gt;): Promise&lt;User&gt;;
+  patch(id: string, data: Partial&lt;Omit&lt;User, 'id'&gt;&gt;): Promise&lt;User | null&gt;;
+  remove(id: string): Promise&lt;boolean&gt;;
+}</code></pre></div>
+<p>Интерфейс описывает то, что нужно потребителю, а не то, что умеет база.
+<code>insert</code> принимает <code>Omit&lt;User, 'id'&gt;</code>: идентификатор выдаёт хранилище, и
+в аргументе его быть не должно. Хендлеры зависят от <code>UsersRepository$</code>, а
+не от класса, поэтому реализацию можно подменить, не трогая endpoint'ы —
+этим пользуется тест из главы 7.</p>
+<h3>Хендлер объявляет зависимость</h3>
+<div class="code" data-file="packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+@Injectable([UsersRepository$])
+export class GetUserHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(input: GetUserInput): Output&lt;User, typeof UserNotFound&gt; {
+    const user = await this.users.byId(input.id);
+
+    return user ?? UserNotFound({ id: input.id });
+  }
+}
+
+export const GetUser = httpEndpoint({
+  operation: GetUserOperation,
+  pipeline: observability,
+  handler: GetUserHandler,
+});</code></pre></div>
+<p><code>@Injectable([UsersRepository$])</code> перечисляет зависимости класса явным
+списком токенов. Порядок списка совпадает с порядком аргументов
+конструктора, а тип аргумента сверяется с типом токена: поставить в
+конструктор аргумент другого типа не получится.</p>
+<p>В декларации ничего про зависимости не написано: она называет адрес,
+схемы, отказы и пайплайн. Экземпляр хендлера с готовыми зависимостями
+создаёт контейнер (глава 4). Поля <code>operation</code> и <code>pipeline</code> относятся к
+главам 11 и 8.</p>
+<h3>Реализация репозитория</h3>
+<div class="code" data-file="packages/examples.users-service/src/users/users.repository.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/users.repository.ts
+@Injectable(UsersRepository$, [Database, Logger$, Ctx(RequestId)])
+export class DbUsersRepository implements UsersRepository {
+  constructor(
+    private readonly db: Database,
+    private readonly logger: Logger,
+    private readonly requestId: CtxReader&lt;string&gt;,
+  ) {}
+
+  async byId(id: string): Promise&lt;User | null&gt; {
+    this.trace(`byId ${id}`);
+
+    return this.db.users.find((user) =&gt; user.id === id) ?? null;
+  }
+
+  // …
+}</code></pre></div>
+<p>У <code>@Injectable</code> три формы. <code>@Injectable()</code> — класс без зависимостей.
+<code>@Injectable([deps])</code> регистрирует класс под его же именем: так объявлен
+<code>Database</code>. <code>@Injectable(token, [deps])</code> регистрирует класс под токеном:
+контейнер отдаёт <code>DbUsersRepository</code> тому, кто запросил
+<code>UsersRepository$</code>. Имя реализации говорит, как она реализована:
+<code>DbUsersRepository</code> для базы, <code>inMemoryUsersRepo</code> для фейка
+(<a href="../conventions.md">conventions.md</a>).</p>
+<p>Зависимость <code>Ctx(RequestId)</code> читает идентификатор запроса из контекста;
+её объясняет глава 8.</p>
+<h3>Регистрация в фиче</h3>
+<div class="code" data-file="packages/examples.users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts
+export const UsersFeature = makeFeature({
+  name: 'users',
+  providers: [
+    ConsoleLogger,
+    Database,
+    DbUsersRepository,
+    AuditOutcome,
+    Authenticate,
+  ],
+  endpoints: [
+    ListUsers,
+    GetUser,
+    CreateUser,
+    DeleteUser,
+    UploadAvatar,
+    ExportUsers,
+    ImportUsers,
+  ],
+});</code></pre></div>
+<p>Поле <code>providers</code> перечисляет классы, которые создаёт контейнер: сервисы
+и классы-юниты пайплайна из глав 8 и 9 (<code>ConsoleLogger</code>, <code>AuditOutcome</code>,
+<code>Authenticate</code>). Классов-хендлеров здесь нет: их регистрируют сами
+endpoint'ы.</p>
+<h3>Зависимость зависимости и хуки</h3>
+<p>Репозиторию нужна база, базе нужны конфиг и логгер. Ни один потребитель
+этого не собирает: контейнер строит граф целиком.</p>
+<div class="code" data-file="packages/examples.users-service/src/database.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/database.ts
+@Injectable([AppConfig, Logger$])
+export class Database {
+  #users: User[] | undefined;
+
+  constructor(
+    private readonly config: Config&lt;typeof AppConfig&gt;,
+    private readonly logger: Logger,
+  ) {}
+
+  @OnInit()
+  connect(): void {
+    // В лог уходит только хост: значение поля секретное
+    this.logger.log(
+      `database connected: ${new URL(this.config.databaseUrl).host}`,
+    );
+    this.#users = [
+      { id: '1', name: 'Alice', email: 'alice@example.com' },
+      { id: '2', name: 'Bob', email: 'bob@example.com' },
+    ];
+  }
+
+  @OnDestroy()
+  disconnect(): void {
+    this.#users = undefined;
+    this.logger.log('database disconnected');
+  }
+
+  /** Таблица пользователей */
+  get users(): User[] {
+    if (!this.#users) {
+      throw new Error('Database is not connected: @OnInit has not run yet');
+    }
+
+    return this.#users;
+  }
+}</code></pre></div>
+<p>Хук <code>@OnInit</code> вызывается после того, как создан весь граф, <code>@OnDestroy</code>
+вызывается при остановке в обратном порядке. Соединение открывается в
+хуке, а не в конструкторе: конструктор только принимает зависимости, и до
+<code>@OnInit</code> его сосед по графу может быть ещё не готов. Секция <code>AppConfig</code>
+появится в главе 6, логгер <code>Logger$</code> в главе 8. В примере вместо
+соединения таблица в памяти.</p>
+<h3>Функция с <code>deps</code> и значения-провайдеры</h3>
+<p>Класс — не единственный способ получить зависимость. Хендлеру в две
+строки класс не нужен, и тогда зависимости объявляются в самом поле
+<code>handler</code>:</p>
+<div class="code" data-lang="typescript"><pre><code>handler: {
+  deps: [UsersRepository$],
+  handle: (users) =&gt; async ({ id }) =&gt; (await users.byId(id)) ?? UserNotFound({ id }),
+},</code></pre></div>
+<p>Внешняя функция принимает зависимости и вызывается один раз при сборке,
+внутренняя принимает входные данные запроса. Порядок аргументов внешней
+функции совпадает с порядком <code>deps</code>.</p>
+<p>Не всякий узел графа — класс. Готовое значение и результат фабрики
+регистрируются провайдерами:</p>
+<div class="code" data-lang="typescript"><pre><code>providers: [
+  valueProvider(FeatureFlags$, { newSearch: true }),
+  factoryProvider(
+    SearchClient$,
+    (config: Config&lt;typeof AppConfig&gt;) =&gt; new SearchClient(config.searchUrl),
+    [AppConfig],
+  ),
+]</code></pre></div>
+<p><code>valueProvider(token, value)</code> регистрирует готовое значение,
+<code>factoryProvider(token, factory, deps)</code> — результат вызова фабрики с
+зависимостями. Собственные зависимости фабрики перечисляются третьим
+аргументом: контейнер их создаёт и передаёт в том же порядке. Зависимости
+зависимостей контейнер строит сам на любую глубину, но объявить их
+обязан каждый узел: список <code>deps</code> у фабрики и <code>@Injectable</code> у класса —
+единственный источник, из которого контейнер знает, кого создавать
+раньше.</p>
+<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
+<ul class="body">
+<li>Граф зависимостей строится и проверяется целиком при старте. Токен без
+провайдера останавливает сборку с перечнем всех недостающих токенов.
+Цикл зависимостей тоже останавливает сборку. Во время обработки
+запросов контейнер ничего не резолвит.</li>
+<li>Списки зависимостей типизированы: аргумент конструктора другого типа,
+чем токен в той же позиции, не компилируется. То же для <code>deps</code> у
+фабрики и у поля <code>handler</code>.</li>
+<li><code>@OnInit</code> каждого узла выполняется после того, как созданы все его
+зависимости, а <code>@OnDestroy</code> — до их разрушения.</li>
+<li>Инжектировать можно только токен, который удалось импортировать.
+Инкапсуляция держится на экспортах ES-модулей, а не на механизме
+времени выполнения.</li>
+</ul>
+<h2 id="как-проверить">Как проверить</h2>
+<div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
+const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
+
+const result = await handler.handle({ name: 'Carol', email: 'carol@example.com' });
+
+expect(result).toMatchObject({
+  value: { id: '2', name: 'Carol' },
+  headers: { Location: '/users/2' },
+});</code></pre></div>
+<p>Хендлер создаётся с фейком репозитория. Контейнер, транспорт и пайплайн
+в тесте не участвуют. Фейк <code>inMemoryUsersRepo</code> описан в главе 7.</p>
+<h2 id="пока-не-нужно">Пока не нужно</h2>
+<ul class="body">
+<li>Модули, которые группируют провайдеры внутри большой фичи: глава 12.</li>
+<li>Семейства токенов, например логгер с именем потребителя: глава 21.</li>
+<li><code>Ctx(RequestId)</code> в репозитории: глава 8.</li>
+</ul>
+<h2 id="запускаемый-код">Запускаемый код</h2>
+<ul class="body">
+<li><code>packages/examples.users-service/src/users/users.repository.ts</code></li>
+<li><code>packages/examples.users-service/src/database.ts</code></li>
+<li><code>packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts</code></li>
+<li><code>packages/examples.users-service/src/users.feature.ts</code></li>
+</ul>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+curl localhost:3000/users/1</code></pre></div>
+<h2 id="дальше">Дальше</h2>
+<p><code>Database</code> читает адрес базы из секции конфига, которую глава не
+объяснила. Следующая глава: <a href="06-config.html">6. Порт и адрес базы из
+окружения</a>.</p>
+
+  <nav class="pager">
+    <a href="04-handler-class.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">4. Хендлер как класс</div>
+    </a>
+    <a class="next" href="06-config.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">6. Порт и адрес базы из окружения</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

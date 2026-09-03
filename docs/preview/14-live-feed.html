@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — 14. Живая лента для клиента</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html" class="active">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#задача">Задача</a></li>
+      <li><a href="#решение">Решение</a></li>
+      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
+      <li><a href="#как-проверить">Как проверить</a></li>
+      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
+      <li><a href="#запускаемый-код">Запускаемый код</a></li>
+      <li><a href="#дальше">Дальше</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>13. Живая лента для клиента</h1>
+<blockquote>
+<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-03).
+Целевое описание: <a href="../design/streaming.md">design/streaming.md</a>, разделы
+«<code>stream(T)</code> и <code>events(T)</code>» и «Источники событий». Почему так: запись
+<a href="../decisions/ideas.md">ideas.md</a> «[2026-07-06] Стриминг: <code>stream(T)</code> ≠
+<code>events(T)</code>, AbortSignal, источники событий».</p>
+</blockquote>
+<h2 id="задача">Задача</h2>
+<p>Клиент хочет видеть новых пользователей сразу, без опроса списка.
+Соединение живёт долго и закрывается, когда клиент уходит, и это не
+ошибка. После обрыва клиент должен продолжить с того события, на котором
+остановился. Один медленный клиент не должен задерживать остальных.</p>
+<h2 id="решение">Решение</h2>
+<h3>Шаг 1. Источник событий</h3>
+<div class="code" data-file="packages/examples.app-with-http/src/features/users/activity.hub.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/activity.hub.ts
+@Injectable([])
+export class ActivityHub {
+  readonly #topic = new Topic&lt;ActivityEvent&gt;({ buffer: 256 });
+
+  /** Последние события: с них продолжается подписка после реконнекта */
+  readonly #history: ActivityEvent[] = [];
+
+  #sequence = 0;
+
+  /** Публикует событие; вызов не ждёт ни одного подписчика */
+  publish(kind: ActivityEvent['kind'], userId: string): void {
+    this.#sequence += 1;
+
+    const event: ActivityEvent = {
+      id: String(this.#sequence),
+      kind,
+      userId,
+      at: new Date().toISOString(),
+    };
+
+    this.#history.push(event);
+    if (this.#history.length &gt; HISTORY_SIZE) {
+      this.#history.shift();
+    }
+
+    this.#topic.push(event);
+  }
+
+  async *subscribe(
+    signal?: AbortSignal,
+    since = '0',
+  ): AsyncIterableIterator&lt;ActivityEvent&gt; {
+    const live = this.#topic.subscribe(signal);
+    let last = Number(since);
+
+    for (const event of this.#history) {
+      if (Number(event.id) &gt; last) {
+        last = Number(event.id);
+        yield event;
+      }
+    }
+
+    for await (const event of live) {
+      if (Number(event.id) &gt; last) {
+        last = Number(event.id);
+        yield event;
+      }
+    }
+  }
+  // …
+  /** При остановке приложения все подписки завершаются нормально */
+  @OnDestroy()
+  close(): void {
+    this.#topic.close();
+  }
+}</code></pre></div>
+<p>Источник событий — обычный провайдер. Внутри него <code>Topic</code> из
+<code>@nestling/streams</code>: источник с любым числом подписчиков. <code>push</code> не ждёт
+ни одного подписчика и возвращается сразу. <code>subscribe(signal)</code> возвращает
+<code>AsyncIterableIterator</code>, который завершается, когда взведён <code>signal</code>,
+когда вызван <code>close()</code> и когда потребитель выходит из итерации. У каждой
+подписки свой буфер.</p>
+<p>Хаб хранит последние события, чтобы после реконнекта отдать пропущенное:
+<code>subscribe</code> сначала выдаёт историю с идентификатором больше <code>since</code>,
+затем живые события. Хук <code>@OnDestroy</code> закрывает тему при остановке
+приложения, и все подписки завершаются штатно.</p>
+<h3>Шаг 2. Endpoint с формой <code>events</code></h3>
+<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+const ActivityEvent = z.object({
+  id: z.string(),
+  kind: z.enum(['created', 'updated', 'deleted']),
+  userId: z.string(),
+  at: z.string(),
+});
+
+type ActivityEvent = z.infer&lt;typeof ActivityEvent&gt;;
+
+export const ActivityStream = httpEndpoint({
+  method: 'GET',
+  path: '/users/activity',
+  output: events(ActivityEvent),
+  sse: {
+    id: (event) =&gt; event.id,
+    event: (event) =&gt; event.kind,
+  },
+  doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
+  pipeline: compose(observability, tracked),
+  handler: {
+    deps: [ActivityHub],
+    handle:
+      (hub: ActivityHub) =&gt;
+      async (
+        _payload: unknown,
+        meta: { subscription: TrackedSubscription; lastEventId?: string },
+      ): Output&lt;AsyncIterable&lt;ActivityEvent&gt;&gt; =&gt; {
+        // Настоящая лента отдала бы историю с этого места
+        const since = meta.lastEventId ?? '0';
+
+        return new Ok(hub.subscribe(meta.subscription.signal, since));
+      },
+  },
+});</code></pre></div>
+<p><code>events(T)</code> — форма io для открытой подписки. Она отличается от
+<code>stream(T)</code> из <a href="10-files-and-streams.html">главы 10</a>:</p>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>stream(T)</code></th>
+<th><code>events(T)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Природа</td>
+<td>конечные данные</td>
+<td>открытая подписка</td>
+</tr>
+<tr>
+<td>Конец</td>
+<td>данные закончились</td>
+<td>клиент отключился</td>
+</tr>
+<tr>
+<td>HTTP</td>
+<td>NDJSON</td>
+<td>SSE</td>
+</tr>
+<tr>
+<td>Нормальный исход</td>
+<td><code>completed</code></td>
+<td><code>disconnected</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Хендлер вызывается один раз на соединение и возвращает <code>AsyncIterable</code>.
+Транспорт отдаёт элементы кадрами SSE. Секция <code>sse:</code> задаёт поля кадра:
+<code>id</code> попадает в строку <code>id:</code>, <code>event</code> в строку <code>event:</code>. Клиент, который
+переподключился, присылает заголовок <code>Last-Event-ID</code>, и транспорт кладёт
+его в <code>meta.lastEventId</code> уже типизированным. Откуда продолжить, решает
+хендлер.</p>
+<p>Слой <code>tracked</code> из пакета <code>@nestling/subscriptions</code> регистрирует подписку
+в реестре и даёт хендлеру <code>meta.subscription.signal</code>. Этот сигнал
+объединяет сигнал запроса с административной отменой из реестра, поэтому
+хендлер слушает только его. Реестр описан в <a href="23-ops.html">главе 23</a>.</p>
+<p>Юниты <code>.finally</code> слоя <code>observability</code> для потокового ответа выполняются
+после того, как поток закончился или оборвался. Отключение клиента даёт
+исход <code>disconnected</code>, и строка аудита пишется с ним.</p>
+<h3>Шаг 3. Публикация из хендлера</h3>
+<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+    // Лента активности: `publish` не ждёт ни одного подписчика
+    activity.publish('created', user.id);
+
+    // Статус 201 и заголовок задаются на успешном ответе
+    return Ok.created(user, { Location: `/users/${user.id}` });</code></pre></div>
+<p><code>ActivityHub</code> инжектируется в хендлер регистрации через <code>deps</code>, как
+любой провайдер. Публикация не замедляет создание пользователя ни на
+одного подключённого клиента.</p>
+<h3>Шаг 4. Медленный подписчик</h3>
+<p><code>Topic</code> принимает две опции.</p>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Опция</th>
+<th>Что делает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>buffer</code></td>
+<td>размер буфера на одного подписчика, по умолчанию <code>1024</code>; <code>0</code> отключает буферизацию</td>
+</tr>
+<tr>
+<td><code>onSlowConsumer</code></td>
+<td>что делать при переполнении буфера подписчика: <code>'drop-oldest'</code> по умолчанию или <code>'disconnect'</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>При <code>drop-oldest</code> самое старое событие отстающего подписчика
+выбрасывается, и подписка продолжает работать. При <code>disconnect</code> подписка
+отстающего завершается. Остальные подписчики в обоих случаях не
+затронуты. Хаб примера держит буфер на 256 событий с политикой по
+умолчанию.</p>
+<h3>Что видит клиент</h3>
+<p>Откройте ленту в одном терминале и создайте пользователя в другом:</p>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+curl -N localhost:3000/users/activity</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>curl -X POST localhost:3000/users \
+  -H 'authorization: Bearer secret' -H 'content-type: application/json' \
+  -d '{"name":"User 1","email":"user1@example.com"}'</code></pre></div>
+<p>Первый терминал получает кадр:</p>
+<div class="code"><pre><code>id: 1
+event: created
+data: {"id":"1","kind":"created","userId":"3","at":"2026-09-03T04:34:57.017Z"}</code></pre></div>
+<p>Прервите <code>curl</code> и подключитесь снова с заголовком реконнекта:</p>
+<div class="code" data-lang="bash"><pre><code>curl -N localhost:3000/users/activity -H 'Last-Event-ID: 2'</code></pre></div>
+<p>Лента начнётся с события <code>3</code>: хендлер получил <code>meta.lastEventId</code> и
+отдал историю после него.</p>
+<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
+<ul class="body">
+<li>Для потокового ответа <code>.finally</code> выполняется после завершения потока,
+поэтому исход честен: <code>disconnected</code> при отключении клиента,
+<code>completed</code>, если источник закончился сам, <code>failed</code> при отказе.</li>
+<li>Транспорт закрывает итератор при отключении клиента и при остановке
+приложения. Подписка снимается с темы, буфер освобождается.</li>
+<li>Отказ посреди потока приходит клиенту именованным событием <code>error</code>, и
+соединение закрывается. Имя <code>error</code> зарезервировано: прикладное
+событие с таким именем отвергается при создании декларации.</li>
+<li>Значение <code>meta.lastEventId</code> типизировано: заголовок не нужно читать из
+сырого запроса.</li>
+</ul>
+<h2 id="как-проверить">Как проверить</h2>
+<div class="code" data-file="packages/examples.app-with-http/e2e/streaming.spec.e2e.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/e2e/streaming.spec.e2e.ts
+it('отдаёт событие создания по SSE', async () =&gt; {
+  const controller = new AbortController();
+  const feed = await fetch(`${context.baseUrl}/users/activity`, {
+    signal: controller.signal,
+  });
+  expect(feed.status).toBe(200);
+  expect(feed.headers.get('content-type')).toContain('text/event-stream');
+
+  const created = await client.json(
+    'POST',
+    '/users',
+    { name: 'Streamed', email: 'streamed@example.com' },
+    { auth: true },
+  );
+  expect(created.status).toBe(201);
+
+  if (!feed.body) {
+    throw new Error('SSE response has no body');
+  }
+
+  const reader = feed.body.getReader();
+  const { value } = await reader.read();
+  const frame = new TextDecoder().decode(value);
+
+  expect(frame).toContain('event: created');
+  expect(frame).toContain('"kind":"created"');
+
+  controller.abort();
+});</code></pre></div>
+<p>Кадры SSE проверяет e2e-тест на настоящем сокете. В app-тесте
+<code>testApp.call(ActivityStream)</code> возвращает ответ, у которого <code>value</code> является
+<code>AsyncIterableIterator</code>: тест читает события через <code>next()</code> без
+транспорта. Так устроены тесты реестра подписок в <code>app.spec.ts</code>.</p>
+<h2 id="пока-не-нужно">Пока не нужно</h2>
+<ul class="body">
+<li>Список открытых подписок, их принудительное закрытие и факты открытия
+и закрытия: <a href="23-ops.html">глава 23</a>.</li>
+<li>Окна по времени, слияние источников и другие мостики к RxJS: раздел
+«Граница с RxJS» в <a href="../design/streaming.md">design/streaming.md</a>.</li>
+</ul>
+<h2 id="запускаемый-код">Запускаемый код</h2>
+<ul class="body">
+<li><code>packages/examples.app-with-http/src/features/users/activity.hub.ts</code> —
+источник событий поверх <code>Topic</code>.</li>
+<li><code>packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts</code>
+— endpoint с формой <code>events</code> и секцией <code>sse</code>.</li>
+<li><code>packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts</code>
+— публикация в ленту.</li>
+<li><code>packages/examples.app-with-http/e2e/streaming.spec.e2e.ts</code> — тест
+кадра SSE.</li>
+</ul>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+curl -N localhost:3000/users/activity
+curl -N localhost:3000/users/activity -H 'Last-Event-ID: 2'</code></pre></div>
+<h2 id="дальше">Дальше</h2>
+<p>Фича <code>users</code> зависит от квот, но тест фичи не должен поднимать соседа:
+<a href="15-testing-features.html">15. Тестировать фичу без соседей</a>.</p>
+
+  <nav class="pager">
+    <a href="13-events.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">13. Оповещать соседей о случившемся</div>
+    </a>
+    <a class="next" href="15-testing-features.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">15. Тестировать фичу без соседей</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

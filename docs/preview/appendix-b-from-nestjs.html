@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — Б. Из NestJS</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html" class="active">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#структура-приложения">Структура приложения</a></li>
+      <li><a href="#зависимости">Зависимости</a></li>
+      <li><a href="#обработка-запроса">Обработка запроса</a></li>
+      <li><a href="#взаимодействие-частей-приложения">Взаимодействие частей приложения</a></li>
+      <li><a href="#конфигурация-и-тесты">Конфигурация и тесты</a></li>
+      <li><a href="#чего-в-nestling-нет">Чего в Nestling нет</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>Приложение Б. Из NestJS</h1>
+<blockquote>
+<p>Соответствия сверены с design/ и README пакетов (2026-09-03).</p>
+</blockquote>
+<p>Таблицы ниже отвечают на вопрос «чем в Nestling записывается то, что в
+NestJS я делал вот так». В колонке «Чем отличается» одна фраза о
+различии, которое влияет на код. Подробности в главах, на которые
+ссылается последняя колонка.</p>
+<h2 id="структура-приложения">Структура приложения</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>NestJS</th>
+<th>Nestling</th>
+<th>Чем отличается</th>
+<th>Глава</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NestFactory.create(AppModule)</code> и <code>app.listen()</code></td>
+<td><code>makeApp({ features, transports }).assemble().run()</code></td>
+<td><code>run()</code> проводит приложение по фазам и сам устанавливает остановку по <code>SIGTERM</code></td>
+<td><a href="01-first-service.html">1</a></td>
+</tr>
+<tr>
+<td><code>@Module({ providers, imports })</code></td>
+<td><code>makeModule({ providers, dependsOn })</code></td>
+<td>модуль это объект, а не класс; хуков жизненного цикла у модуля нет</td>
+<td><a href="12-features.html">12</a></td>
+</tr>
+<tr>
+<td><code>@Module({ controllers })</code></td>
+<td><code>makeFeature({ providers, endpoints })</code></td>
+<td>endpoint'ы перечисляет фича, а не модуль; фича может быть вынесена в отдельный процесс</td>
+<td><a href="01-first-service.html">1</a>, <a href="12-features.html">12</a></td>
+</tr>
+<tr>
+<td><code>exports</code> модуля</td>
+<td>нет</td>
+<td>видимость держат ES-модули: токен, который не экспортирован из файла, нельзя инжектировать</td>
+<td><a href="05-repository.html">5</a></td>
+</tr>
+<tr>
+<td><code>@Global()</code></td>
+<td><code>makePlugin</code> и поле <code>plugins:</code> корня</td>
+<td>плагин есть в каждом процессе, и к нему обращаются токеном</td>
+<td><a href="12-features.html">12</a></td>
+</tr>
+<tr>
+<td><code>DynamicModule</code>, <code>forRoot(options)</code></td>
+<td>функция, которая возвращает модуль или плагин</td>
+<td>значение создаётся один раз и передаётся в корень</td>
+<td><a href="12-features.html">12</a></td>
+</tr>
+<tr>
+<td><code>@Controller()</code> с <code>@Get()</code>, <code>@Post()</code></td>
+<td><code>httpEndpoint({ method, path, input, output, handler: handle })</code></td>
+<td>endpoint это значение с адресом, схемами и хендлером; класс-хендлер остаётся как одна из форм</td>
+<td><a href="01-first-service.html">1</a>, <a href="appendix-a-alternatives.html">приложение А</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="зависимости">Зависимости</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>NestJS</th>
+<th>Nestling</th>
+<th>Чем отличается</th>
+<th>Глава</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@Injectable()</code> с <code>emitDecoratorMetadata</code></td>
+<td><code>@Injectable([deps])</code></td>
+<td>зависимости перечисляются явным списком токенов; <code>reflect-metadata</code> не нужен</td>
+<td><a href="05-repository.html">5</a></td>
+</tr>
+<tr>
+<td><code>@Inject(TOKEN)</code></td>
+<td>токен в списке <code>deps</code> и позиция в конструкторе</td>
+<td>интерфейс получает токен <code>Name$</code> через <code>makeToken</code></td>
+<td><a href="05-repository.html">5</a></td>
+</tr>
+<tr>
+<td><code>forwardRef()</code></td>
+<td>нет</td>
+<td>цикл зависимостей это ошибка <code>build()</code></td>
+<td><a href="05-repository.html">5</a></td>
+</tr>
+<tr>
+<td><code>Scope.REQUEST</code></td>
+<td><code>Ctx(Var)</code> и слой пайплайна, который кладёт значение</td>
+<td>провайдеры остаются синглтонами, а данные запроса читаются из асинхронного контекста</td>
+<td><a href="08-logging.html">8</a></td>
+</tr>
+<tr>
+<td><code>Scope.TRANSIENT</code> с <code>INQUIRER</code></td>
+<td><code>Family.auto</code></td>
+<td>член семейства с именем потребителя создаётся при сборке, а не на каждый инжект</td>
+<td><a href="21-token-families.html">21</a></td>
+</tr>
+<tr>
+<td>провайдер с <code>useFactory</code> и <code>inject</code></td>
+<td><code>factoryProvider(token, factory, deps)</code></td>
+<td>тот же смысл, зависимости позиционные</td>
+<td><a href="05-repository.html">5</a></td>
+</tr>
+<tr>
+<td><code>OnModuleInit</code>, <code>OnApplicationBootstrap</code>, <code>OnModuleDestroy</code></td>
+<td><code>@OnInit()</code>, <code>@OnStart()</code>, <code>@OnDestroy()</code> на методах провайдера</td>
+<td>хуки вызываются в топологическом порядке графа, только на провайдерах</td>
+<td><a href="05-repository.html">5</a></td>
+</tr>
+<tr>
+<td><code>ModuleRef.get()</code></td>
+<td>нет</td>
+<td>контейнер наружу не отдаётся; инстансы получают через <code>deps</code> или в <code>@OnStart</code></td>
+<td><a href="05-repository.html">5</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="обработка-запроса">Обработка запроса</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>NestJS</th>
+<th>Nestling</th>
+<th>Чем отличается</th>
+<th>Глава</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@Param()</code>, <code>@Query()</code>, <code>@Body()</code></td>
+<td>схема <code>input</code> и правило размещения полей</td>
+<td>поле берётся из пути по имени параметра, из query для методов без тела, из тела для остальных; <code>bind</code> меняет место</td>
+<td><a href="02-input.html">2</a></td>
+</tr>
+<tr>
+<td><code>ValidationPipe</code> с class-validator</td>
+<td>схема <code>input</code></td>
+<td>вход проверяется всегда, до хендлера, по Standard Schema: zod, valibot, arktype</td>
+<td><a href="02-input.html">2</a></td>
+</tr>
+<tr>
+<td><code>Middleware</code></td>
+<td>юнит <code>.pre</code></td>
+<td>юнит дополняет контекст типизированными полями и не вызывает <code>next()</code></td>
+<td><a href="08-logging.html">8</a></td>
+</tr>
+<tr>
+<td><code>Guard</code></td>
+<td>юнит <code>.pre</code>, который возвращает отказ</td>
+<td>отказ объявляется в <code>errors:</code> endpoint'а; хендлер не вызывается</td>
+<td><a href="09-auth.html">9</a></td>
+</tr>
+<tr>
+<td><code>Interceptor</code></td>
+<td>юниты <code>.pre</code>, <code>.ok</code>, <code>.finally</code></td>
+<td>вместо обёртки вокруг вызова три отдельные фазы</td>
+<td><a href="08-logging.html">8</a></td>
+</tr>
+<tr>
+<td><code>ExceptionFilter</code></td>
+<td>юнит <code>.catch</code></td>
+<td>заменяет один отказ другим; превратить отказ в успех нельзя</td>
+<td><a href="appendix-a-alternatives.html">приложение А</a></td>
+</tr>
+<tr>
+<td><code>HttpException</code></td>
+<td><code>makeFail</code> и список <code>errors:</code></td>
+<td>отказ это значение с машинным кодом; отказ вне списка становится <code>internal_error</code></td>
+<td><a href="03-errors.html">3</a></td>
+</tr>
+<tr>
+<td><code>@HttpCode(201)</code>, <code>@Header()</code></td>
+<td><code>Ok.created(value, headers)</code>, <code>new Ok(value, headers)</code></td>
+<td>статус и заголовки задаются на значении ответа</td>
+<td><a href="03-errors.html">3</a></td>
+</tr>
+<tr>
+<td><code>StreamableFile</code>, ответ через <code>@Res()</code></td>
+<td>формы io <code>stream(T)</code>, <code>events(T)</code>, <code>multipart()</code></td>
+<td>хендлер возвращает <code>AsyncIterable</code>, транспорт выбирает NDJSON или SSE</td>
+<td><a href="10-files-and-streams.html">10</a>, <a href="14-live-feed.html">14</a></td>
+</tr>
+<tr>
+<td><code>FileInterceptor</code></td>
+<td><code>multipart({ fields, files })</code> и <code>upload({ maxSize, mime })</code></td>
+<td>лимит и тип проверяются во время разбора, файл сверх лимита не буферизуется</td>
+<td><a href="10-files-and-streams.html">10</a></td>
+</tr>
+<tr>
+<td><code>@nestjs/swagger</code> декораторы</td>
+<td>плагин <code>openapi()</code> и слот <code>doc:</code></td>
+<td>документ выводится из тех же схем, что проверяют запросы</td>
+<td><a href="11-openapi-and-client.html">11</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="взаимодействие-частей-приложения">Взаимодействие частей приложения</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>NestJS</th>
+<th>Nestling</th>
+<th>Чем отличается</th>
+<th>Глава</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>инжект сервиса другого модуля</td>
+<td>операция <code>makeRequest</code> и <code>Operation.caller</code></td>
+<td>фичи связаны только операциями; прямое ребро между фичами это ошибка сборки</td>
+<td><a href="12-features.html">12</a></td>
+</tr>
+<tr>
+<td><code>EventEmitter2</code>, <code>@OnEvent()</code></td>
+<td><code>makeEvent</code>, <code>Operation.emitter</code>, <code>implement(Event, { subscriber })</code></td>
+<td>событие описано схемой; подписчик именуется явно</td>
+<td><a href="13-events.html">13</a></td>
+</tr>
+<tr>
+<td><code>@MessagePattern()</code>, <code>ClientProxy</code></td>
+<td><code>implement(Operation)</code> и <code>Operation.caller</code></td>
+<td>код вызова одинаков в одном процессе и через брокер</td>
+<td><a href="12-features.html">12</a>, <a href="17-split.html">17</a></td>
+</tr>
+<tr>
+<td><code>@nestjs/microservices</code> с транспортом NATS</td>
+<td><code>nats()</code> в <code>transports:</code> и <code>intercom:</code></td>
+<td>шина это обычный транспорт, а роль переносчика операций назначается полем корня</td>
+<td><a href="17-split.html">17</a></td>
+</tr>
+<tr>
+<td>HTTP-клиент, написанный руками</td>
+<td><code>makeClient(operations, config)</code></td>
+<td>клиент собирается из тех же операций и восстанавливает отказы по коду</td>
+<td><a href="11-openapi-and-client.html">11</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="конфигурация-и-тесты">Конфигурация и тесты</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>NestJS</th>
+<th>Nestling</th>
+<th>Чем отличается</th>
+<th>Глава</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ConfigModule.forRoot()</code> и <code>ConfigService.get('X')</code></td>
+<td><code>makeConfig(prefix, fields)</code> и инжект секции</td>
+<td>секция типизирована схемой и проверяется на старте; регистрировать её не нужно</td>
+<td><a href="06-config.html">6</a></td>
+</tr>
+<tr>
+<td><code>ConfigModule</code> с <code>load</code> и <code>validationSchema</code></td>
+<td><code>config: [[источник, Section.keys]]</code> в корне</td>
+<td>источник привязывается к ключам, а не к модулю</td>
+<td><a href="22-config-sources.html">22</a></td>
+</tr>
+<tr>
+<td><code>Test.createTestingModule()</code> с <code>overrideProvider()</code></td>
+<td><code>assembleTest(app, { overrides })</code></td>
+<td>тест собирает то же приложение по тем же фазам; сокет не открывается</td>
+<td><a href="07-testing.html">7</a></td>
+</tr>
+<tr>
+<td><code>supertest</code> против <code>app.getHttpServer()</code></td>
+<td><code>testApp.call(Endpoint, payload)</code></td>
+<td>запрос идёт через полный пайплайн без сети; e2e на порту <code>0</code> остаётся отдельным уровнем</td>
+<td><a href="07-testing.html">7</a>, <a href="15-testing-features.html">15</a></td>
+</tr>
+<tr>
+<td>мок сервиса соседнего модуля</td>
+<td><code>stubs: [stub(Operation, impl)]</code></td>
+<td>ответ заглушки проверяется схемой операции</td>
+<td><a href="15-testing-features.html">15</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="чего-в-nestling-нет">Чего в Nestling нет</h2>
+<ul class="body">
+<li><code>forwardRef</code>: цикл зависимостей не собирается.</li>
+<li>Скоупов <code>REQUEST</code> и <code>TRANSIENT</code>: данные запроса живут в асинхронном
+контексте, экземпляр на потребителя даёт семейство токенов.</li>
+<li><code>exports</code> у модуля: границу видимости держат ES-модули.</li>
+<li><code>next()</code> в обработке запроса: юниты пайплайна не оборачивают друг
+друга.</li>
+<li>Отдельного слоя контроллеров: endpoint это декларация с хендлером.</li>
+</ul>
+
+  <nav class="pager">
+    <a href="appendix-a-alternatives.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">А. Альтернативные формы</div>
+    </a>
+    <a class="next" href="appendix-c-coverage.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">В. Карта понятий</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>

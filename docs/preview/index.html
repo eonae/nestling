@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/preview/src/. Правки вносить в src/*.md. -->
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
 <html lang="ru" data-theme="">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nestling — Введение</title>
+<title>Nestling — Гайд по Nestling</title>
 <link rel="stylesheet" href="styles.css">
 <script src="app.js" defer></script>
 </head>
@@ -14,9 +14,9 @@
   <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
   <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
   <span class="spacer"></span>
-  <a class="tlink hide-sm" href="concepts.html">Концепции</a>
-  <a class="tlink hide-sm" href="fundamentals.html">Основы</a>
-  <a class="tlink hide-sm" href="scaling.html">Масштаб</a>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
   <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
 </header>
 
@@ -25,47 +25,76 @@
 <div class="layout">
 <aside class="sidebar">
   <div class="nav-group">
-  <p class="nav-title">Введение</p>
+  <p class="nav-title">Гайд</p>
     <ul>
-      <li><a href="index.html" class="active">Обзор</a></li>
+      <li><a href="index.html" class="active">Гайд по Nestling</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#what">Что такое Nestling</a></li>
-      <li><a href="#philosophy">Семь принципов</a></li>
-      <li><a href="#vs-nest">Что убрали из NestJS</a></li>
-      <li><a href="#first-steps">Первые шаги</a></li>
-      <li><a href="#two-levels">Два уровня фреймворка</a></li>
+      <li><a href="#как-читать">Как читать</a></li>
+      <li><a href="#часть-1-первый-сервис">Часть 1. Первый сервис</a></li>
+      <li><a href="#часть-2-сервис-в-проде">Часть 2. Сервис в проде</a></li>
+      <li><a href="#часть-3-приложение-растёт">Часть 3. Приложение растёт</a></li>
+      <li><a href="#часть-4-разворачивать-по-частям">Часть 4. Разворачивать по частям</a></li>
+      <li><a href="#часть-5-редкие-задачи">Часть 5. Редкие задачи</a></li>
+      <li><a href="#приложения">Приложения</a></li>
     </ul>
   </div>
   <div class="nav-group">
-  <p class="nav-title">Основные концепции</p>
+  <p class="nav-title">Часть 1. Первый сервис</p>
     <ul>
-      <li><a href="concepts.html#endpoints">Endpoints</a></li>
-      <li><a href="concepts.html#di">Провайдеры и DI</a></li>
-      <li><a href="concepts.html#modules">Модули</a></li>
-      <li><a href="concepts.html#result">Ok и Fail</a></li>
-      <li><a href="concepts.html#pipeline">Pipeline</a></li>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
     </ul>
   </div>
   <div class="nav-group">
-  <p class="nav-title">Основы</p>
+  <p class="nav-title">Часть 2. Сервис в проде</p>
     <ul>
-      <li><a href="fundamentals.html#container">Контейнер</a></li>
-      <li><a href="fundamentals.html#multi">Multi-injection</a></li>
-      <li><a href="fundamentals.html#lifecycle">Жизненный цикл</a></li>
-      <li><a href="fundamentals.html#config">Конфигурация</a></li>
-      <li><a href="fundamentals.html#context">Асинхронный контекст</a></li>
-      <li><a href="fundamentals.html#streaming">Стриминг</a></li>
-      <li><a href="fundamentals.html#schemas">Схемы и OpenAPI</a></li>
-      <li><a href="fundamentals.html#testing">Тестирование</a></li>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
     </ul>
   </div>
   <div class="nav-group">
-  <p class="nav-title">Масштабирование</p>
+  <p class="nav-title">Часть 3. Приложение растёт</p>
     <ul>
-      <li><a href="scaling.html#monolith">Модульный монолит</a></li>
-      <li><a href="scaling.html#ports">Порты и контракты</a></li>
-      <li><a href="scaling.html#transports">Транспорты</a></li>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
     </ul>
   </div>
 </aside>
@@ -73,211 +102,256 @@
 <main class="content">
 <article class="article">
 
-<!-- Первый экран: единственный кусок сырой вёрстки. Внутри не должно быть
-     пустых строк — они разорвут HTML-блок markdown. Текст правится по месту. -->
-<section class="hero">
-<h1>Nestling</h1>
-<p class="lead">TypeScript-фреймворк для бэкенда: меньше, современнее и архитектурно проще, чем NestJS. Без рантайм-магии — <strong>гарантии вместо конвенций</strong>.</p>
-<div class="hero-cta">
-<a class="btn primary" href="#first-steps">Первые шаги →</a>
-<a class="btn ghost" href="#vs-nest">Чем отличается от NestJS</a>
-</div>
-<p style="color:var(--text-dim);font-size:14px;margin-top:8px">
-<span class="pill target">preview</span>&nbsp; Это превью целевой модели: API показан так, будто уже реализован полностью.
-</p>
-</section>
-<div class="grid">
-<div class="card"><span class="ic">🧩</span><h3>Модули — это значения</h3><p>Обычные объекты, а не классы с декораторами. Видимость задают ES-экспорты, а не рантайм-инкапсуляция.</p>
-</div>
-<div class="card"><span class="ic">📐</span><h3>Schema-first endpoints</h3><p>Вход и выход endpoint'а объявлены схемой: Zod, Valibot или любой другой валидатор Standard Schema. Валидация, типы и документация выводятся из одного источника.</p>
-</div>
-<div class="card"><span class="ic">🌊</span><h3>Пайплайн вместо middleware</h3><p>Плоские фазы <code>pre / ok / catch / finally</code>. Без <code>next()</code>, вложенных обёрток и скрытого потока управления.</p>
-</div>
-<div class="card"><span class="ic">⚡</span><h3>Жадный контейнер</h3><p>Весь граф строится на старте. Циклы, недостающие зависимости и невалидный конфиг — ошибка запуска, а не инцидент в три часа ночи.</p>
-</div>
-</div>
-<h2 id="what">Что такое Nestling</h2>
-<p>Nestling — backend-фреймворк на TypeScript для тех, кто привык к структуре NestJS, но не хочет платить за неё сложностью. Он берёт из Nest то, чем команды действительно пользуются, убирает лишнее и добавляет современные возможности языка и платформы.</p>
-<p>Главная идея — <strong>no runtime magic</strong>. Всё, что Nest делает через скрытую рефлексию и отложенную сборку, Nestling делает явно и на этапе сборки графа. Явный граф даёт то, чего у Nest нет: полную визуализацию, топологический порядок инициализации и остановки, проверку циклов и падение на старте вместо падения в проде.</p>
-<div class="note">
-<span class="note-t">Почему «nestling»</span>
-<p>Nestling — птенец: младший, лёгкий родственник большого Nest. Пакеты публикуются под скоупом <code>@nestling/*</code>. DI-ядро (<code>@nestling/container</code>) не имеет сторонних зависимостей и работает даже в браузере.</p>
-</div>
-<h2 id="philosophy">Семь принципов</h2>
-<p>Все решения в Nestling выводятся из небольшого набора принципов. Решение, которое им противоречит, отвергается, каким бы удобным оно ни казалось.</p>
+<h1>Гайд по Nestling</h1>
+<p>Гайд ведёт от первого сервиса к приложению из нескольких фич,
+развёрнутому в нескольких процессах. Каждая глава начинается с задачи,
+которую вы и так собираетесь решать, и раскрывает ровно те возможности
+фреймворка, без которых задача не решается. Возможности, которые задаче
+пока не нужны, глава называет в разделе «Пока не нужно» и отсылает к
+главе, где они появятся.</p>
+<p>Читатель гайда знает TypeScript и писал сервисы на Nest или Express.
+Термины берутся из <a href="../glossary.md">глоссария</a>. Целевое описание каждой
+подсистемы лежит в <a href="../design/README.md"><code>design/</code></a>, причины решений в
+<a href="../decisions/ideas.md"><code>decisions/ideas.md</code></a>; главы ссылаются на них в
+плашке.</p>
+<h2 id="как-читать">Как читать</h2>
+<p>Части 1 и 2 читайте подряд: они собирают один сервис, и каждая глава
+опирается на код предыдущей. Правила именования, которым следуют
+примеры, собраны в <a href="../conventions.md">conventions.md</a>. Часть 3 нужна, когда областей в приложении
+становится больше одной. Часть 4 нужна, когда одного процесса мало.
+Часть 5 читается по потребности: каждая её глава самостоятельна.</p>
+<p>Код всех глав лежит в <code>packages/examples.*</code>. Части 1 и 2 собирают
+<code>examples.users-service</code>, части 3 и 4 продолжают его в
+<code>examples.app-with-http</code> и <code>examples.split-nats</code>. Сниппет в главе
+начинается с пути к файлу примера и совпадает с ним. Сниппет, который
+показывает промежуточный шаг, помечен комментарием «шаг главы»; итоговая
+версия файла названа рядом.</p>
+<h2 id="часть-1-первый-сервис">Часть 1. Первый сервис</h2>
 <div class="tbl-wrap">
 <table>
 <thead>
 <tr>
-<th>Принцип</th>
-<th>Что это значит на практике</th>
+<th>Глава</th>
+<th>Задача</th>
+<th>Пример</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>No runtime magic</strong></td>
-<td>Зависимости объявляются явным массивом токенов. Скрытой рефлексии типов и отложенной сборки нет: граф известен на <code>build()</code>.</td>
+<td><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></td>
+<td>endpoint, фича, <code>makeApp</code>, транспорт <code>http()</code></td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td><strong>Guarantee over convention</strong></td>
-<td>Если что-то нельзя нарушать, это должно быть невозможно структурно, а не по договорённости. Пример: ранний <code>listen()</code> в <code>@OnInit</code> невозможен, потому что <code>dispatch</code> в этот момент ещё не существует.</td>
+<td><a href="02-input.html">2. Принять данные и не пропустить мусор</a></td>
+<td>схема <code>input</code>, path и query, <code>bind</code>, ответ <code>400</code></td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td><strong>Explicit over implicit</strong></td>
-<td>Порядок запуска ресурсов, состав пайплайна, границы модулей видны в коде. Ничто не подключается глобально за спиной автора.</td>
+<td><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></td>
+<td><code>makeFail</code>, код с категорией, <code>errors:</code>, <code>Ok.created</code></td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td><strong>Модули — значения</strong></td>
-<td>Модуль равен обычному объекту. Поэтому параметризованный модуль — это просто функция; <code>DynamicModule</code>, <code>forRoot</code> и <code>forRootAsync</code> не нужны.</td>
+<td><a href="04-handler-class.html">4. Хендлер как класс</a></td>
+<td>поле <code>handler</code>, <code>@Injectable</code>, юнит-тест через <code>new</code></td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td><strong>Жадный контейнер</strong></td>
-<td>Все провайдеры создаются на старте. Если фича не выбрана, её код не строится — это следствие, а не отдельный механизм.</td>
+<td><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></td>
+<td>токен интерфейса, <code>providers</code>, <code>@OnInit</code>, значения-провайдеры</td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td><strong>Schema-first endpoints</strong></td>
-<td>Endpoint объявляет вход и выход схемой любого валидатора Standard Schema. Схема — единый источник для валидации, типов TypeScript и OpenAPI/AsyncAPI.</td>
+<td><a href="06-config.html">6. Порт и адрес базы из окружения</a></td>
+<td><code>makeConfig</code>, ключи, <code>secret</code>, fail-fast</td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td><strong>Пайплайн работает со значениями</strong></td>
-<td>Пайплайн знает только абстрактную модель данных. Байты, сжатие, CORS и разбор multipart принадлежат транспорту, а не пайплайну.</td>
+<td><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></td>
+<td><code>assembleTest(app, …)</code>, <code>overrides</code>, <code>vars</code>, юнит-тест хендлера</td>
+<td><code>examples.users-service</code></td>
 </tr>
 </tbody>
 </table>
 </div>
-<h2 id="vs-nest">Что убрали из NestJS</h2>
-<p>Nestling ещё более opinionated, чем Nest. Проще всего понять его через список того, чего в нём осознанно нет, и того, что стоит на этом месте.</p>
+<h2 id="часть-2-сервис-в-проде">Часть 2. Сервис в проде</h2>
 <div class="tbl-wrap">
 <table>
 <thead>
 <tr>
-<th>В NestJS есть</th>
-<th>В Nestling</th>
-<th>Что вместо</th>
+<th>Глава</th>
+<th>Задача</th>
+<th>Пример</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>forwardRef</code> и циклические зависимости</td>
-<td class="no">нет</td>
-<td>Цикл — ошибка сборки на <code>build()</code>.</td>
+<td><a href="08-logging.html">8. Видеть каждый запрос в логе</a></td>
+<td>пайплайн <code>.pre</code> и <code>.finally</code>, слой, <code>compose</code>, <code>Ctx(RequestId)</code></td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td><code>REQUEST</code> / <code>TRANSIENT</code> scope</td>
-<td class="no">нет</td>
-<td>Состояние запроса живёт в типизированном контексте пайплайна, а не в контейнере. Глубокие сервисы читают его через <a href="fundamentals.html#context">инжектируемые ридеры</a> <code>Ctx(RequestId)</code>.</td>
+<td><a href="09-auth.html">9. Пускать только своих</a></td>
+<td>pre-юнит с отказом, контекст слоя, политики, <code>detached</code></td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td>Модули-классы, <code>@Module</code>, хуки модуля</td>
-<td class="no">нет</td>
-<td>Модуль — обычный объект. Вопроса «что раньше: <code>OnModuleInit</code> модуля или сервиса» не возникает.</td>
+<td><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></td>
+<td><code>multipart</code>, <code>upload</code>, <code>stream(T)</code> на входе и выходе</td>
+<td><code>examples.users-service</code></td>
 </tr>
 <tr>
-<td><code>DynamicModule</code> / <code>forRoot</code></td>
-<td class="no">нет</td>
-<td>Модуль — значение, поэтому <code>LoggingModule({ level: 'debug' })</code> — обычная функция.</td>
-</tr>
-<tr>
-<td>Middleware</td>
-<td class="no">нет</td>
-<td>Слово подразумевает обёртки и <code>next()</code>, которых здесь нет. Вместо него фазы <code>.pre</code> / <code>.ok</code> / <code>.catch</code> / <code>.finally</code>.</td>
-</tr>
-<tr>
-<td>Interceptors на RxJS</td>
-<td class="no">нет</td>
-<td>Фазы пайплайна. RxJS не входит в ядро; внутри хендлера он доступен как обычная зависимость.</td>
-</tr>
-<tr>
-<td>Exception filters как подсистема</td>
-<td class="no">нет</td>
-<td>Централизованное преобразование ошибок — обычный <code>.catch</code>-юнит.</td>
-</tr>
-<tr>
-<td>Guards и Pipes как отдельные сущности</td>
-<td class="no">нет</td>
-<td>Это <code>.pre</code>-юниты, которые дополняют типизированный контекст.</td>
-</tr>
-<tr>
-<td>Экспериментальные декораторы TS и <code>reflect-metadata</code></td>
-<td class="no">нет</td>
-<td>Стандартные декораторы ECMAScript. Ноль зависимостей в ядре контейнера.</td>
+<td><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></td>
+<td><code>openapi()</code>, <code>doc:</code>, операция с <code>http:</code>, <code>makeClient</code></td>
+<td><code>examples.users-service</code></td>
 </tr>
 </tbody>
 </table>
 </div>
-<div class="note good">
-<span class="note-t">Что осталось</span>
-<p>Три знакомых вида провайдеров (value, class, factory), <code>@Injectable</code>, инъекционные токены, хуки <code>@OnInit</code>/<code>@OnDestroy</code> в строгом топологическом порядке, модульная система — проще, чем в Nest, и необязательная. Контейнер можно использовать отдельно: во фронтенде, в CLI, рядом с Fastify.</p>
+<h2 id="часть-3-приложение-растёт">Часть 3. Приложение растёт</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Глава</th>
+<th>Задача</th>
+<th>Пример</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="12-features.html">12. Выделить вторую область</a></td>
+<td>граница фич, операция <code>request</code>, <code>implement</code>, <code>.caller</code>, плагины, модули</td>
+<td><code>examples.app-with-http</code></td>
+</tr>
+<tr>
+<td><a href="13-events.html">13. Оповещать соседей о случившемся</a></td>
+<td><code>event</code>, <code>command</code>, <code>subscriber</code>, ключ идемпотентности</td>
+<td><code>examples.app-with-http</code></td>
+</tr>
+<tr>
+<td><a href="14-live-feed.html">14. Живая лента для клиента</a></td>
+<td><code>events(T)</code>, <code>sse:</code>, <code>Topic</code>, <code>AbortSignal</code></td>
+<td><code>examples.app-with-http</code></td>
+</tr>
+<tr>
+<td><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></td>
+<td><code>stubs</code>, <code>testApp.emit</code>, <code>contextValue</code>, <code>checkTopologies</code></td>
+<td><code>examples.app-with-http</code>, <code>examples.split-nats</code></td>
+</tr>
+</tbody>
+</table>
 </div>
-<h2 id="first-steps">Первые шаги</h2>
-<p>У Nestling два уровня входа. Начните с минимального — <strong>без DI, классов и декораторов</strong>. Транспорт создаётся напрямую, endpoint — обычное значение, которое возвращает конструктор транспорта (<code>httpEndpoint</code>).</p>
-<div class="code" data-file="endpoints.ts" data-lang="typescript"><pre><code>import { makePipeline, validate } from '@nestling/pipeline';
-import { httpEndpoint } from '@nestling/transport.http';
-import { z } from 'zod';
-
-const CreateUser = z.object({
-  name: z.string().min(1).max(100),
-  email: z.email(),
-});
-type CreateUser = z.infer&lt;typeof CreateUser&gt;;
-
-export const createUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',                    // литерал: path-параметры видны типам
-  input: CreateUser,                 // схема входа
-  output: z.object({ id: z.string(), name: z.string() }),
-  pipeline: makePipeline().pre(withTiming),
-  handle: async (input: CreateUser) =&gt; {
-    // input уже проверен схемой и типизирован
-    return { id: crypto.randomUUID(), name: input.name };
-  },
-});</code></pre></div>
-<p>Чтобы обслуживать такой endpoint по HTTP, соберите таблицу маршрутов и передайте её транспорту:</p>
-<div class="code" data-file="main.ts" data-lang="typescript"><pre><code>import { makeDispatch } from '@nestling/transport';
-import { HttpTransport } from '@nestling/transport.http';
-import { createUser } from './endpoints';
-
-const server = new HttpTransport({ port: 3000 });
-const shutdown = new AbortController();
-
-await server.serve(makeDispatch([createUser]), shutdown.signal);</code></pre></div>
-<p>Схема <code>input</code> даёт хендлеру типизированный <code>input</code>: не <code>any</code> и не ручное приведение типа. Вход по ней проверяет рантайм перед хендлером. Вернуть можно просто значение (оно оборачивается в <code>Ok</code>) или явно <code>Ok.created(...)</code>. Отказ объявляется через <code>defineFail</code> и перечисляется в <code>errors:</code>. Та же операция для CLI объявляется как <code>cliEndpoint({ command: 'create-user', ... })</code>: меняются только транспортные поля, а схемы, пайплайн и хендлер остаются теми же.</p>
-<h2 id="two-levels">Два уровня фреймворка</h2>
-<p>Минимальный уровень выше — это ещё библиотека, а не фреймворк. Когда нужны DI, модули, хуки жизненного цикла и корректная остановка, вы переходите на полный уровень: <code>assemble</code> и модули. <strong>Декларация при этом не меняется</strong>: к ней добавляется <code>deps</code> (или класс-хендлер), а зависимости из контейнера получает <code>App</code>.</p>
-<div class="code" data-file="create-user.endpoint.ts" data-lang="typescript"><pre><code>import { httpEndpoint } from '@nestling/transport.http';
-import { Ok, type Output } from '@nestling/pipeline';
-import { basePipeline } from '../common/pipelines';
-import { EmailTaken } from './user.errors';
-import { UserService } from './user.service';
-
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/api/users',
-  input: CreateUser,
-  output: UserView,
-  errors: [EmailTaken],                      // отказы, которые может вернуть endpoint
-  pipeline: basePipeline,
-  deps: [UserService],                       // явный массив токенов
-  handle: (users) =&gt; async (input: CreateUser): Output&lt;UserView, EmailTaken&gt; =&gt; {
-    // внешняя функция вызывается один раз на сборке; замыкание — экземпляр
-    if (await users.findByEmail(input.email)) {
-      return EmailTaken({ email: input.email });   // 409 с кодом EMAIL_TAKEN
-    }
-    const user = await users.create(input);
-    return Ok.created(user, { Location: `/api/users/${user.id}` });
-  },
-});</code></pre></div>
-<p>Разделение на два уровня видно в системе типов. Транспорт в standalone-режиме принимает только декларации без неразрешённых зависимостей. Декларация с <code>deps</code>, классом-хендлером или классами-юнитами в пайплайне требует <code>App</code>, который получает их из контейнера на старте. Компилятор не даст смешать два уровня незаметно.</p>
-<div class="note">
-<span class="note-t">Куда дальше</span>
-<p><a href="concepts.html#endpoints">Основные концепции</a> — endpoints, DI, модули, <code>Ok</code>/<code>Fail</code> и пайплайн подробно. <a href="fundamentals.html#lifecycle">Основы</a> — контейнер, жизненный цикл, конфигурация, стриминг, схемы и OpenAPI, тестирование. <a href="scaling.html#monolith">Масштабирование</a> — модульный монолит, порты и разнесение по процессам без переписывания кода.</p>
+<h2 id="часть-4-разворачивать-по-частям">Часть 4. Разворачивать по частям</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Глава</th>
+<th>Задача</th>
+<th>Пример</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="16-select.html">16. Запускать только часть фич</a></td>
+<td><code>assemble(select)</code>, <code>includeDeps</code>, <code>load()</code> до сборки, <code>check()</code></td>
+<td><code>examples.app-with-http</code></td>
+</tr>
+<tr>
+<td><a href="17-split.html">17. Разнести фичи по процессам</a></td>
+<td><code>nats()</code>, <code>intercom</code>, <code>durable</code>, <code>propagate</code></td>
+<td><code>examples.split-nats</code></td>
+</tr>
+<tr>
+<td><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></td>
+<td>версия в имени, снапшот операций, <code>diffOperations</code></td>
+<td><code>examples.app-with-http</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="часть-5-редкие-задачи">Часть 5. Редкие задачи</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Глава</th>
+<th>Задача</th>
+<th>Пример</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="19-webhook.html">19. Webhook с проверкой подписи</a></td>
+<td><code>rawBody</code>, требование слоя к стартовому контексту</td>
+<td><code>examples.app-with-http</code></td>
+</tr>
+<tr>
+<td><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></td>
+<td><code>cliEndpoint</code>, <code>cli()</code>, argv и REPL, поток из stdin</td>
+<td><code>examples.simple-cli</code></td>
+</tr>
+<tr>
+<td><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></td>
+<td>семейства токенов, <code>.auto</code>, <code>.all</code>, <code>familyProvider</code></td>
+<td><code>examples.container</code></td>
+</tr>
+<tr>
+<td><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></td>
+<td>источники и привязка, <code>.keys</code>, общие ключи, <code>reloadable</code></td>
+<td><code>examples.container</code></td>
+</tr>
+<tr>
+<td><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></td>
+<td>реестр подписок, <code>tracked</code>, административные endpoint'ы</td>
+<td><code>examples.app-with-http</code></td>
+</tr>
+<tr>
+<td><a href="24-standalone.html">24. Без <code>makeApp</code></a></td>
+<td><code>makeDispatch</code>, <code>serve</code>, <code>ContainerBuilder</code></td>
+<td><code>examples.simple-http-server</code>, <code>examples.container</code></td>
+</tr>
+<tr>
+<td><a href="25-extending.html">25. Расширить ядро своим пакетом</a></td>
+<td>граница ядра, satellite, subpath <code>./testing</code></td>
+<td><code>@nestling/subscriptions</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="приложения">Приложения</h2>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Приложение</th>
+<th>О чём</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></td>
+<td>функция с <code>deps</code>, отказ броском, <code>.ok</code> и <code>.catch</code></td>
+</tr>
+<tr>
+<td><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></td>
+<td>чему соответствуют понятия Nest</td>
+</tr>
+<tr>
+<td><a href="appendix-c-coverage.html">В. Карта понятий</a></td>
+<td>понятие, глава, файл примера</td>
+</tr>
+</tbody>
+</table>
 </div>
 
   <nav class="pager">
     <span></span>
-    <a class="next" href="concepts.html#endpoints">
+    <a class="next" href="01-first-service.html">
       <div class="dir">Далее →</div>
-      <div class="ttl">Основные концепции</div>
+      <div class="ttl">1. Поднять сервис, который отвечает на запрос</div>
     </a>
   </nav>
 

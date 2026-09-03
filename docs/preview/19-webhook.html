@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<!-- СГЕНЕРИРОВАНО scripts/preview/build.mjs из docs/guide/. Правки вносить в главы гайда. -->
+<html lang="ru" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nestling — 19. Webhook с проверкой подписи</title>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
+  <a class="brand" href="index.html"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">preview</span></a>
+  <span class="spacer"></span>
+  <a class="tlink hide-sm" href="01-first-service.html">Первый сервис</a>
+  <a class="tlink hide-sm" href="12-features.html">Приложение растёт</a>
+  <a class="tlink hide-sm" href="17-split.html">По процессам</a>
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+</header>
+
+<div class="backdrop" onclick="__closeMenu()"></div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-group">
+  <p class="nav-title">Гайд</p>
+    <ul>
+      <li><a href="index.html">Гайд по Nestling</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 1. Первый сервис</p>
+    <ul>
+      <li><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></li>
+      <li><a href="02-input.html">2. Принять данные и не пропустить мусор</a></li>
+      <li><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></li>
+      <li><a href="04-handler-class.html">4. Хендлер как класс</a></li>
+      <li><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></li>
+      <li><a href="06-config.html">6. Порт и адрес базы из окружения</a></li>
+      <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 2. Сервис в проде</p>
+    <ul>
+      <li><a href="08-logging.html">8. Видеть каждый запрос в логе</a></li>
+      <li><a href="09-auth.html">9. Пускать только своих</a></li>
+      <li><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></li>
+      <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 3. Приложение растёт</p>
+    <ul>
+      <li><a href="12-features.html">12. Выделить вторую область</a></li>
+      <li><a href="13-events.html">13. Оповещать соседей о случившемся</a></li>
+      <li><a href="14-live-feed.html">14. Живая лента для клиента</a></li>
+      <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 4. Разворачивать по частям</p>
+    <ul>
+      <li><a href="16-select.html">16. Запускать только часть фич</a></li>
+      <li><a href="17-split.html">17. Разнести фичи по процессам</a></li>
+      <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Часть 5. Редкие задачи</p>
+    <ul>
+      <li><a href="19-webhook.html" class="active">19. Webhook с проверкой подписи</a></li>
+      <li><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></li>
+      <li><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></li>
+      <li><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></li>
+      <li><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></li>
+      <li><a href="24-standalone.html">24. Без `makeApp`</a></li>
+      <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
+    </ul>
+    <ul class="nav-sub">
+      <li><a href="#задача">Задача</a></li>
+      <li><a href="#решение">Решение</a></li>
+      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
+      <li><a href="#как-проверить">Как проверить</a></li>
+      <li><a href="#запускаемый-код">Запускаемый код</a></li>
+      <li><a href="#дальше">Дальше</a></li>
+    </ul>
+  </div>
+  <div class="nav-group">
+  <p class="nav-title">Приложения</p>
+    <ul>
+      <li><a href="appendix-a-alternatives.html">А. Альтернативные формы</a></li>
+      <li><a href="appendix-b-from-nestjs.html">Б. Из NestJS</a></li>
+      <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
+    </ul>
+  </div>
+</aside>
+
+<main class="content">
+<article class="article">
+
+<h1>18. Webhook с проверкой подписи</h1>
+<blockquote>
+<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-03).
+Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a>, раздел
+«Сырые байты: <code>rawBody</code>». Почему так: запись
+<a href="../decisions/ideas.md">ideas.md</a> «[2026-07-13] Канонизация HTTP-input:
+канон размещения + bind-карта».</p>
+</blockquote>
+<h2 id="задача">Задача</h2>
+<p>Внешняя система присылает события о пользователях на <code>POST /hooks/users</code>
+и подписывает тело HMAC-подписью в заголовке <code>x-signature</code>. Подпись нужно
+проверить по сырым байтам тела: сериализованный заново JSON даст другую
+подпись. Хендлер при этом должен получить payload, разобранный и
+проверенный схемой, как у любого другого endpoint'а. Bearer-токена у
+внешней системы нет, поэтому политика «каждый <code>POST</code> проверяет токен» из
+<a href="09-auth.html">главы 9</a> к этому endpoint'у не применима.</p>
+<h2 id="решение">Решение</h2>
+<h3>Шаг 1. Отказ проверки подписи</h3>
+<div class="code" data-file="packages/examples.app-with-http/src/features/users/users.errors.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/users.errors.ts
+export const InvalidSignature = makeFail('unauthorized:invalid_signature', {
+  status: 'unauthorized',
+  message: 'Webhook signature does not match the body',
+});</code></pre></div>
+<p>Отказ объявлен так же, как остальные отказы фичи. Статус <code>unauthorized</code>
+транспорт переводит в <code>401</code>.</p>
+<h3>Шаг 2. Секрет в секции конфига</h3>
+<div class="code" data-file="packages/examples.app-with-http/src/app.config.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.config.ts
+export const AppConfig = makeConfig('app', {
+  // …
+  webhookSecret: secret(from('WEBHOOK_SECRET', z.string().min(1))),
+});</code></pre></div>
+<p>Секрет читается из <code>WEBHOOK_SECRET</code>. Поле обязательно: без него
+приложение не стартует. <code>secret()</code> скрывает значение в печати секции и в
+тексте ошибок, как в <a href="06-config.html">главе 6</a>.</p>
+<h3>Шаг 3. Pre-юнит, который проверяет подпись</h3>
+<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
+import { createHmac, timingSafeEqual } from 'node:crypto';
+// …
+
+@Injectable([AppConfig])
+export class VerifySignature {
+  constructor(private readonly config: Config&lt;typeof AppConfig&gt;) {}
+
+  handle(ctx: ExtendableContext&lt;{ rawBody: Uint8Array }&gt;): void {
+    const provided = String(ctx.raw.attributes['x-signature'] ?? '');
+    const expected = createHmac('sha256', this.config.webhookSecret)
+      .update(ctx.input.rawBody)
+      .digest('hex');
+
+    const matches =
+      provided.length === expected.length &amp;&amp;
+      timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+
+    if (!matches) {
+      throw InvalidSignature();
+    }
+  }
+}</code></pre></div>
+<p><code>VerifySignature</code> устроен так же, как <code>Authenticate</code> из
+<a href="09-auth.html">главы 9</a>: класс-юнит с зависимостью от секции конфига,
+зарегистрированный в <code>providers:</code> модуля <code>UsersModule</code>.</p>
+<p>Отличие в типе контекста. <code>ExtendableContext&lt;{ rawBody: Uint8Array }&gt;</code>
+объявляет, что юниту нужны сырые байты тела в <code>ctx.input.rawBody</code>. Это
+поле кладёт транспорт до первого pre-юнита, если декларация помечена
+<code>rawBody: true</code>. Без пометки поля нет, и такой юнит в пайплайн не
+встанет: проверку делает компилятор (раздел «Что гарантирует фреймворк»).</p>
+<p>Заголовок подписи юнит читает из <code>ctx.raw.attributes</code>. Сравнение идёт
+через <code>timingSafeEqual</code>, чтобы время ответа не зависело от того, в каком
+байте подписи расхождение. При несовпадении юнит бросает отказ, и хендлер
+не вызывается.</p>
+<h3>Шаг 4. Декларация с <code>rawBody: true</code></h3>
+<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
+export const userWebhookHandler =
+  (users: UsersRepository) =&gt;
+  async (event: UserEventInput): Output&lt;UserEventOutput&gt; =&gt; {
+    await users.remove(event.userId);
+
+    return { received: true };
+  };
+
+export const UserWebhook = httpEndpoint({
+  method: 'POST',
+  path: '/hooks/users',
+  input: UserEventInput,
+  output: UserEventOutput,
+  errors: [InvalidSignature],
+  rawBody: true,
+  detached:
+    'webhook: подлинность проверяется подписью тела, а не bearer-токеном',
+  doc: { summary: 'Webhook о событиях пользователя', tags: ['users'] },
+  // Слой с требованием к стартовому контексту стоит снаружи: его
+  // требование выполняет транспорт, а не соседний слой
+  pipeline: compose(
+    makePipeline&lt;{ rawBody: Uint8Array }&gt;().pre(VerifySignature),
+    observability,
+  ),
+  handler: {
+    deps: [UsersRepository$],
+    handle: userWebhookHandler,
+  },
+});</code></pre></div>
+<p>В декларации четыре новых элемента.</p>
+<p><code>rawBody: true</code> включает доступ к байтам тела. Транспорт читает тело один
+раз: те же байты уходят в <code>ctx.input.rawBody</code> для юнита и разбираются в
+JSON для схемы <code>input</code>. Хендлер получает обычный проверенный payload и о
+байтах не знает.</p>
+<p><code>makePipeline&lt;{ rawBody: Uint8Array }&gt;()</code> объявляет требование слоя к
+стартовому контексту. Слой стоит первым аргументом <code>compose</code>: его
+требование выполняет транспорт, а внешнего слоя, который положил бы
+<code>rawBody</code>, нет. Слой <code>observability</code> стоит вторым и получает контекст, в
+котором подпись уже проверена.</p>
+<p><code>errors: [InvalidSignature]</code> объявляет отказ, который бросает юнит, а не
+хендлер. Правило из <a href="09-auth.html">главы 9</a> действует и здесь: список
+<code>errors:</code> описывает всё, что может получить клиент.</p>
+<p><code>detached</code> выводит endpoint из-под всех политик сборки с причиной.
+Политика из <code>root.ts</code> требует слой <code>authed</code> от каждого <code>POST</code>, а
+подлинность здесь подтверждает подпись. Причина печатается при старте и
+попадает в отчёт <code>check()</code>:</p>
+<div class="code"><pre><code>[nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не bearer-токеном</code></pre></div>
+<h3>Запросы</h3>
+<p>Подпись считается тем же алгоритмом, что в юните: HMAC-SHA256 от байтов
+тела, в hex.</p>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+
+body='{"type":"user.deleted","userId":"2"}'
+sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac hook | sed 's/^.* //')
+
+curl -X POST localhost:3000/hooks/users \
+  -H 'content-type: application/json' -H "x-signature: $sig" -d "$body"
+# {"received":true}                                                 200
+
+curl -X POST localhost:3000/hooks/users \
+  -H 'content-type: application/json' -H 'x-signature: deadbeef' -d "$body"
+# {"error":"Webhook signature does not match the body","code":"INVALID_SIGNATURE"}  401
+
+curl localhost:3000/users/2
+# {"error":"User 2 not found","code":"not_found:user","details":{"id":"2"}}  404</code></pre></div>
+<p>Первый запрос прошёл проверку, и хендлер удалил пользователя. Второй
+отклонён юнитом до хендлера. Строка аудита слоя <code>observability</code> есть в
+обоих случаях: слой стоит внутри и видит исход запроса.</p>
+<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
+<ul class="body">
+<li>
+<p>Слой с требованием <code>{ rawBody: Uint8Array }</code> на декларации без
+<code>rawBody: true</code> не компилируется. Ошибка типа называет недостающее поле
+и способ починить:</p>
+<div class="code"><pre><code>__error: "Pipeline requires context that the start context does not provide";
+missing: { rawBody: Uint8Array };
+hint: "declare 'rawBody: true', or provide the fields from an outer layer"</code></pre></div>
+<p>Забытая пометка находится в редакторе, а не запросом с <code>500</code>.</p>
+</li>
+<li>
+<p>Тело читается один раз. Байты для подписи и значение для схемы берутся
+из одного буфера, и расхождения между ними быть не может.</p>
+</li>
+<li>
+<p>Отказ из pre-юнита проходит ту же проверку <code>errors:</code>, что и отказ
+хендлера. Незадекларированный отказ клиент получил бы как <code>internal_error</code>.</p>
+</li>
+<li>
+<p><code>detached</code> требует причину. Пустая строка останавливает сборку, а
+причина печатается при старте и попадает в отчёт <code>check()</code>, поэтому
+список исключений из политик читается на ревью.</p>
+</li>
+</ul>
+<h2 id="как-проверить">Как проверить</h2>
+<div class="code" data-file="packages/examples.app-with-http/e2e/webhook.spec.e2e.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/e2e/webhook.spec.e2e.ts
+const sign = (body: string, secret = E2E_WEBHOOK_SECRET): string =&gt;
+  createHmac('sha256', secret).update(body).digest('hex');
+
+// …
+it('принимает тело с верной подписью и применяет событие', async () =&gt; {
+  const body = JSON.stringify({ type: 'user.deleted', userId: '2' });
+
+  const response = await client.raw('POST', '/hooks/users', body, {
+    'content-type': 'application/json',
+    'x-signature': sign(body),
+  });
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ received: true });
+  const deleted = await client.get('/users/2');
+  expect(deleted.status).toBe(404);
+});
+
+it('отклоняет тело с чужой подписью', async () =&gt; {
+  const body = JSON.stringify({ type: 'user.deleted', userId: '1' });
+
+  const response = await client.raw('POST', '/hooks/users', body, {
+    'content-type': 'application/json',
+    'x-signature': sign(body, 'wrong-secret'),
+  });
+
+  expect(response.status).toBe(401);
+  expect(await response.json()).toMatchObject({ code: 'unauthorized:invalid_signature' });
+  const kept = await client.get('/users/1');
+  expect(kept.status).toBe(200);
+});</code></pre></div>
+<p>Проверка подписи зависит от байтов тела, поэтому тест идёт по сети, а не
+через <code>testApp.call</code>: app-тест принимает готовый payload и тело не
+сериализует. Секрет в e2e-сборке привязан источником к ключам секции
+(<code>e2e/helpers/create-test-app.ts</code>), <code>process.env</code> тест не трогает.</p>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.app-with-http test:e2e</code></pre></div>
+<h2 id="запускаемый-код">Запускаемый код</h2>
+<ul class="body">
+<li><code>packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts</code>
+— юнит <code>VerifySignature</code>, хендлер и декларация.</li>
+<li><code>packages/examples.app-with-http/src/features/users/users.errors.ts</code> —
+отказ <code>InvalidSignature</code>.</li>
+<li><code>packages/examples.app-with-http/src/app.config.ts</code> — секрет
+<code>WEBHOOK_SECRET</code>.</li>
+<li><code>packages/examples.app-with-http/e2e/webhook.spec.e2e.ts</code> — тест по
+сети.</li>
+</ul>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+yarn workspace examples.app-with-http test:e2e</code></pre></div>
+<h2 id="дальше">Дальше</h2>
+<p>Те же декларации и пайплайн в командной строке:
+<a href="20-cli.html">глава 20</a>.</p>
+
+  <nav class="pager">
+    <a href="18-compatibility.html">
+      <div class="dir">← Назад</div>
+      <div class="ttl">18. Не сломать соседей при изменении операции</div>
+    </a>
+    <a class="next" href="20-cli.html">
+      <div class="dir">Далее →</div>
+      <div class="ttl">20. CLI-утилита на тех же примитивах</div>
+    </a>
+  </nav>
+
+</article>
+</main>
+</div>
+</body>
+</html>
