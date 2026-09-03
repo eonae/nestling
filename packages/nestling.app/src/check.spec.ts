@@ -5,7 +5,7 @@
  * не выполнилось и какими ошибками падает то, что не сходится.
  */
 
-import { assemble } from './app';
+import { makeApp } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 import { wireApp } from './testing';
@@ -20,7 +20,7 @@ import {
 } from '@nestling/container';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
-import { defineFail, makeEndpoint, Ok } from '@nestling/pipeline';
+import { makeEndpoint, makeFail, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
@@ -36,8 +36,7 @@ const zodConverter = (): SchemaDocConverter => ({
   toJsonSchema: (schema) => z.toJSONSchema(schema as z.ZodType),
 });
 
-const CardDeclined = defineFail('CARD_DECLINED', {
-  status: 'PAYMENT_REQUIRED',
+const CardDeclined = makeFail('payment_required:card_declined', {
   message: 'Card declined',
 });
 
@@ -68,7 +67,7 @@ describe('App.check() — фазы 0–1', () => {
     }
 
     const transport = new MockTransport();
-    const report = await assemble({
+    const report = await makeApp({
       features: [
         makeFeature({ name: 'module:resource', providers: [Connection] }),
       ],
@@ -85,7 +84,7 @@ describe('App.check() — фазы 0–1', () => {
     const Orphan = makeEndpoint({
       transport: CliTransport$,
       pattern: 'orphan',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     const spec = {
@@ -93,10 +92,10 @@ describe('App.check() — фазы 0–1', () => {
       transports: [asHttpTransport(new MockTransport())],
     };
 
-    await expect(assemble(spec).check()).rejects.toThrow(
+    await expect(makeApp(spec).check()).rejects.toThrow(
       /Transport 'cli'.*module:cli.*'transports:'/s,
     );
-    await expect(assemble(spec).run()).rejects.toThrow(
+    await expect(makeApp(spec).assemble().run()).rejects.toThrow(
       /Transport 'cli'.*module:cli.*'transports:'/s,
     );
   });
@@ -112,16 +111,15 @@ describe('App.check() — фазы 0–1', () => {
         httpEndpoint({
           method: 'GET',
           path: '/users',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
       ],
     });
 
-    const report = await assemble({
+    const report = await makeApp({
       features: [Users, Logging],
-      select: 'users',
       transports: [asHttpTransport(new MockTransport())],
-    }).check();
+    }).check('users');
 
     // Выбор строгий: `logging` не подтягивается ничем — поля `dependsOn`
     // у фичи нет
@@ -143,7 +141,7 @@ describe('App.check() — фазы 0–1', () => {
     }
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'module:service',
@@ -152,7 +150,7 @@ describe('App.check() — фазы 0–1', () => {
             httpEndpoint({
               method: 'GET',
               path: '/ping',
-              handle: async () => new Ok({}),
+              handler: async () => new Ok({}),
             }),
           ],
         }),
@@ -163,14 +161,15 @@ describe('App.check() — фазы 0–1', () => {
     await app.check();
     expect(inits).toEqual([]);
 
-    await app.run();
+    const assembled = app.assemble();
+    await assembled.run();
 
     expect(inits).toEqual(['init']);
     expect(transport.routes.map((route) => route.pattern)).toEqual([
       'GET /ping',
     ]);
 
-    await app.close();
+    await assembled.close();
   });
 });
 
@@ -192,19 +191,19 @@ describe('App.check() — опубликованные операции в от�
     name: 'billing',
     endpoints: [
       implement(ChargeCard, {
-        handle: async () => new Ok({ chargeId: 'c-1' }),
+        handler: async () => new Ok({ chargeId: 'c-1' }),
       }),
     ],
   });
 
   const assembleBilling = () =>
-    assemble({
+    makeApp({
       features: [billingModule],
       transports: [asHttpTransport(new MockTransport())],
     });
 
   it('несёт дескриптор с видом, формами и кодами отказов', async () => {
-    const report = await assembleBilling().check({
+    const report = await assembleBilling().check(undefined, {
       converters: [zodConverter()],
     });
 
@@ -215,7 +214,7 @@ describe('App.check() — опубликованные операции в от�
     expect(descriptor.name).toBe('check.billing.charge');
     expect(descriptor.kind).toBe('request');
     expect(descriptor.errors).toEqual([
-      { code: 'CARD_DECLINED', status: 'PAYMENT_REQUIRED' },
+      { code: 'payment_required:card_declined', category: 'payment_required' },
     ]);
     expect(descriptor.output.leaf).toMatchObject({
       leaf: 'schema',
@@ -246,7 +245,7 @@ describe('App.check() — опубликованные операции в от�
   });
 
   it('у приложения без операций поле пусто, а не отсутствует', async () => {
-    const report = await assemble({
+    const report = await makeApp({
       features: [
         makeFeature({
           name: 'module:http-only',
@@ -254,7 +253,7 @@ describe('App.check() — опубликованные операции в от�
             httpEndpoint({
               method: 'GET',
               path: '/ping',
-              handle: async () => new Ok({}),
+              handler: async () => new Ok({}),
             }),
           ],
         }),
@@ -271,18 +270,18 @@ describe('App.check() — опубликованные операции в от�
       input: z.object({ orderId: z.string() }),
     });
 
-    const report = await assemble({
+    const report = await makeApp({
       features: [
         makeFeature({
           name: 'module:orders',
           endpoints: [
             implement(OrderPlaced, {
               subscriber: 'billing',
-              handle: async () => new Ok(undefined),
+              handler: async () => new Ok(undefined),
             }),
             implement(OrderPlaced, {
               subscriber: 'analytics',
-              handle: async () => new Ok(undefined),
+              handler: async () => new Ok(undefined),
             }),
           ],
         }),
@@ -299,8 +298,8 @@ describe('App.check() — опубликованные операции в от�
   it('не выполняет @OnInit и не влияет на последующий run()', async () => {
     const app = assembleBilling();
 
-    const first = await app.check({ converters: [zodConverter()] });
-    const second = await app.check({ converters: [zodConverter()] });
+    const first = await app.check(undefined, { converters: [zodConverter()] });
+    const second = await app.check(undefined, { converters: [zodConverter()] });
 
     // Отчёт — значение: два прогона на одном графе равны как значения
     expect(second.operations).toEqual(first.operations);
@@ -327,7 +326,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
     const Ping = httpEndpoint({
       method: 'GET',
       path: '/ping',
-      handle: async () => new Ok({ pong: true }),
+      handler: async () => new Ok({ pong: true }),
     });
 
     const transport = new MockTransport();
@@ -337,16 +336,18 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
       .mockImplementation((): void => undefined);
 
     try {
-      const wired = await wireApp({
-        features: [
-          makeFeature({
-            name: 'module:service',
-            providers: [Service],
-            endpoints: [Ping],
-          }),
-        ],
-        transports: [asHttpTransport(transport)],
-      });
+      const wired = await wireApp(
+        makeApp({
+          features: [
+            makeFeature({
+              name: 'module:service',
+              providers: [Service],
+              endpoints: [Ping],
+            }),
+          ],
+          transports: [asHttpTransport(transport)],
+        }),
+      );
 
       expect(events).toEqual(['init']);
       expect(transport.serving).toBe(false);
@@ -386,15 +387,19 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
       }
     }
 
-    const wired = await wireApp({
-      features: [
-        makeFeature({
-          name: 'module:data',
-          providers: [PgPool, PgRepository],
-        }),
-      ],
-      overrides: [[IRepository, { find: () => 'fake' }]],
-    });
+    const wired = await wireApp(
+      makeApp({
+        features: [
+          makeFeature({
+            name: 'module:data',
+            providers: [PgPool, PgRepository],
+          }),
+        ],
+      }),
+      {
+        overrides: [[IRepository, { find: () => 'fake' }]],
+      },
+    );
 
     expect(wired.container.getOrThrow(IRepository).find()).toBe('fake');
     expect(wired.container.pruned).toEqual(['SeamPool']);
@@ -413,9 +418,13 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
       }
     }
 
-    const wired = await wireApp({
-      features: [makeFeature({ name: 'module:service', providers: [Service] })],
-    });
+    const wired = await wireApp(
+      makeApp({
+        features: [
+          makeFeature({ name: 'module:service', providers: [Service] }),
+        ],
+      }),
+    );
 
     wired.signal.addEventListener('abort', () => events.push('aborted'));
 

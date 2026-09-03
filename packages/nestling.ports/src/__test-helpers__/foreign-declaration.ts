@@ -16,5 +16,5 @@ const ForeignTransport$ = makeToken('transport:foreign');
 export const httpLikeDeclaration: AnyEndpointDefinition = makeEndpoint({
   transport: ForeignTransport$,
   pattern: 'GET /users',
-  handle: async () => new Ok({ users: [] }),
+  handler: async () => new Ok({ users: [] }),
 });

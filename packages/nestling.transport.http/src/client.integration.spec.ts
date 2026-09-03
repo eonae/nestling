@@ -17,7 +17,7 @@ import { HttpTransport } from './transport.js';
 import { describe, expect, it } from '@jest/globals';
 import { makeClient } from '@nestling/client';
 import type { HttpBinding } from '@nestling/operations';
-import { defineFail, makeRequest } from '@nestling/operations';
+import { makeFail, makeRequest } from '@nestling/operations';
 import { Fail, Ok } from '@nestling/pipeline';
 import type { ExecutableDeclaration } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
@@ -163,8 +163,7 @@ describe('round-trip: клиент собрал → транспорт разо�
 
 const User = z.object({ id: z.string(), email: z.string() });
 
-const EmailTaken = defineFail('INTEGRATION_EMAIL_TAKEN', {
-  status: 'CONFLICT',
+const EmailTaken = makeFail('conflict:integration_email_taken', {
   message: 'Email already taken',
   details: z.object({ email: z.string() }),
 });
@@ -193,14 +192,14 @@ const GetUser = makeRequest({
 
 const CreateUserRoute = httpEndpoint({
   operation: CreateUser,
-  handle: async ({ email, dryRun }) => {
+  handler: async ({ email, dryRun }) => {
     if (email === 'taken@example.com') {
       return EmailTaken({ email });
     }
     if (email === 'boom@example.com') {
       // Незадекларированный отказ — именно броском: вернуть его типы не
       // дают (множество E закрыто), а граница обязана нормализовать его в
-      // UNKNOWN, и клиент не должен притвориться, будто знает, что это
+      // internal_error, и клиент не должен притвориться, будто знает, что это
       throw Fail.forbidden('nope');
     }
     return new Ok({ id: dryRun === true ? 'dry' : 'u-1', email });
@@ -209,7 +208,7 @@ const CreateUserRoute = httpEndpoint({
 
 const GetUserRoute = httpEndpoint({
   operation: GetUser,
-  handle: async ({ id }) =>
+  handler: async ({ id }) =>
     new Promise<Ok<{ id: string; email: string }>>((resolve) => {
       // Достаточно медленно, чтобы успеть отменить
       setTimeout(() => resolve(new Ok({ id, email: 'slow@example.com' })), 200);
@@ -250,7 +249,7 @@ describe('интеграция: операция-форма httpEndpoint + makeC
 
     expect(result).toMatchObject({
       isFail: false,
-      status: 'OK',
+      status: 'ok',
       value: { id: 'u-1', email: 'a@b.c' },
     });
   });
@@ -269,19 +268,21 @@ describe('интеграция: операция-форма httpEndpoint + makeC
 
     expect(EmailTaken.is(result)).toBe(true);
     expect(result).toMatchObject({
-      status: 'CONFLICT',
+      code: 'conflict:integration_email_taken',
       details: { email: 'taken@example.com' },
     });
+    // Категория — производная от кода, а не поле с провода
+    expect((result as { category: string }).category).toBe('conflict');
   });
 
-  it('незадекларированный отказ приходит как UNKNOWN', async () => {
+  it('незадекларированный отказ приходит как internal_error', async () => {
     const result = await client().createUser({ email: 'boom@example.com' });
 
-    expect(result).toMatchObject({ isFail: true, code: 'UNKNOWN' });
+    expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
     expect(EmailTaken.is(result)).toBe(false);
   });
 
-  it('отмена по signal даёт UNKNOWN, а не исключение', async () => {
+  it('отмена по signal даёт internal_error, а не исключение', async () => {
     const controllerForCall = new AbortController();
     const pending = client().getUser(
       { id: '42' },
@@ -290,6 +291,9 @@ describe('интеграция: операция-форма httpEndpoint + makeC
 
     controllerForCall.abort();
 
-    expect(await pending).toMatchObject({ isFail: true, code: 'UNKNOWN' });
+    expect(await pending).toMatchObject({
+      isFail: true,
+      code: 'internal_error',
+    });
   });
 });

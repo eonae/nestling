@@ -90,7 +90,7 @@ const GetUser = httpEndpoint({
   input: z.object({ id: z.string() }),
   output: User,
   doc: { summary: 'Get user', tags: ['users'] },
-  handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
+  handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
 });
 
 const Health = httpEndpoint({
@@ -98,7 +98,7 @@ const Health = httpEndpoint({
   path: '/health',
   output: z.object({ status: z.string() }),
   doc: { hidden: 'liveness-проба балансировщика' },
-  handle: async () => new Ok({ status: 'up' }),
+  handler: async () => new Ok({ status: 'up' }),
 });
 
 const UsersModule = makeFeature({
@@ -110,7 +110,7 @@ const ListInvoices = httpEndpoint({
   method: 'GET',
   path: '/invoices',
   output: z.array(z.object({ id: z.string() })),
-  handle: async () => new Ok([]),
+  handler: async () => new Ok([]),
 });
 
 const BillingModule = makeFeature({
@@ -163,7 +163,7 @@ describe('openapi(...) — плагин-издатель', () => {
       method: 'POST',
       path: '/exotic',
       input: exotic,
-      handle: async () => new Ok({ ok: true }),
+      handler: async () => new Ok({ ok: true }),
     });
 
     let initialized = false;
@@ -243,7 +243,7 @@ describe('endpoint документации подчиняется полити�
     path: '/traced',
     output: z.object({ ok: z.boolean() }),
     pipeline: compose(observability, makePipeline<{ traced: boolean }>()),
-    handle: async () => new Ok({ ok: true }),
+    handler: async () => new Ok({ ok: true }),
   });
 
   const TracedModule = makeFeature({

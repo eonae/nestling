@@ -20,6 +20,7 @@
 import { NatsConfig } from './config.js';
 import type {
   NatsConnector,
+  NatsHeadersLike,
   NatsJetStreamManagerLike,
   NatsJsMsgLike,
   NatsLike,
@@ -29,7 +30,13 @@ import type {
 import { defaultConnector } from './connector.js';
 import { consumerNameOf, groupOf, streamNameOf } from './subject.js';
 import type { NatsCodec, WireEnvelope } from './wire.js';
-import { decodeEnvelope, encodeEnvelope, jsonCodec } from './wire.js';
+import {
+  decodeEnvelope,
+  decodeReply,
+  encodeEnvelope,
+  encodeReply,
+  jsonCodec,
+} from './wire.js';
 
 import type { ConfigProjection } from '@nestling/config';
 import type { InjectionToken } from '@nestling/container';
@@ -44,9 +51,9 @@ import type {
 } from '@nestling/pipeline';
 import {
   assertFormsSupported,
-  DeadlineExceeded,
+  InternalError,
   makeEmptyContext,
-  UnknownError,
+  Timeout,
 } from '@nestling/pipeline';
 import type {
   BusHandler,
@@ -98,15 +105,15 @@ const DEFAULT_MAX_DELIVER = 5;
 /**
  * Проверяет, что обработка завершилась решением.
  *
- * Решение — это успех или любой отказ с кодом, кроме `UNKNOWN`. Код
- * `UNKNOWN` означает, что решения не получилось: в него необработанное
+ * Решение — это успех или любой отказ с кодом, кроме `internal_error`. Код
+ * `internal_error` означает, что решения не получилось: в него необработанное
  * исключение превращает проверка на границе пайплайна.
  */
 function isSettled(response: ResponseContext): boolean {
   return (
     response.isSuccess ||
     (response.value?.code !== undefined &&
-      response.value.code !== UnknownError.code)
+      response.value.code !== InternalError.code)
   );
 }
 
@@ -153,7 +160,7 @@ export interface NatsTransportOptions {
 
   /**
    * Диагностический хук: необработанное исключение входящего сообщения
-   * стало отказом `UNKNOWN`
+   * стало отказом `internal_error`
    */
   onUnknownFail?: (info: UnknownFailInfo) => void;
 }
@@ -321,7 +328,7 @@ export class NatsBus implements IMessageBus, ITransport {
         },
       );
 
-      return this.#codec.decode(reply.data) as ResponseContext;
+      return decodeReply(this.#codec.decode(reply.data));
     } catch (error) {
       return this.#deliveryFailure(subject, error, {
         ceiling,
@@ -441,14 +448,17 @@ export class NatsBus implements IMessageBus, ITransport {
       );
 
       if (response) {
-        msg.respond(this.#codec.encode(response));
+        msg.respond(
+          this.#codec.encode(encodeReply(response)),
+          this.#replyOptions(response),
+        );
       }
     } catch (error) {
       this.#reportDelivery({ subject: msg.subject, error });
 
       // Ждущему ответа отказ передаётся значением. Fire-and-forget
       // адреса ответа не имеет, и там отчёт хуку — весь доступный канал
-      msg.respond(this.#codec.encode(failureResponse(error)));
+      msg.respond(this.#codec.encode(encodeReply(failureResponse(error))));
     }
   }
 
@@ -599,7 +609,7 @@ export class NatsBus implements IMessageBus, ITransport {
     // Fail-fast до обработки: бюджет, исчерпанный в транзите, означает, что
     // ответа уже никто не ждёт — исполнять endpoint незачем
     if (isExhausted(meta.deadline)) {
-      return failureResponse(DeadlineExceeded());
+      return failureResponse(Timeout());
     }
 
     const raw: Raw = {
@@ -663,17 +673,18 @@ export class NatsBus implements IMessageBus, ITransport {
 
       return {
         isSuccess: false,
-        status: 'SERVICE_UNAVAILABLE',
+        status: 'service_unavailable',
         value: {
           error:
             `Bus request to '${subject}' was not delivered: no responders ` +
             `are listening on the broker.`,
+          code: 'service_unavailable',
         },
       };
     }
 
-    if (code === 'TIMEOUT') {
-      // Ответ — тот же `DEADLINE_EXCEEDED`, что дал бы бюджет: множество
+    if (code === 'timeout') {
+      // Ответ — тот же `timeout`, что дал бы бюджет: множество
       // ответов порта закрыто, и новых кодов транспорт не вводит. А вот
       // **текст** называет источник ожидания, потому что «кончился бюджет
       // вызова» и «кончился потолок транспорта» чинятся по-разному
@@ -687,10 +698,10 @@ export class NatsBus implements IMessageBus, ITransport {
 
       return {
         isSuccess: false,
-        status: 'TIMEOUT',
+        status: 'timeout',
         value: {
           error: `Bus request to '${subject}' timed out: ${reason}.`,
-          code: DeadlineExceeded.code,
+          code: Timeout.code,
         },
       };
     }
@@ -699,11 +710,33 @@ export class NatsBus implements IMessageBus, ITransport {
 
     return {
       isSuccess: false,
-      status: 'SERVICE_UNAVAILABLE',
+      status: 'service_unavailable',
       value: {
         error: `Bus request to '${subject}' failed on the broker.`,
+        code: 'service_unavailable',
       },
     };
+  }
+
+  /**
+   * Заголовки ответного сообщения: заголовки `Ok` как есть.
+   *
+   * Это метаданные ответа, не зависящие от транспорта; у отказа заголовков
+   * нет. Без соединения (двойник закрыт) ответ уходит без заголовков.
+   */
+  #replyOptions(
+    response: ResponseContext,
+  ): { headers?: NatsHeadersLike } | undefined {
+    if (!response.isSuccess || !response.headers || !this.#connection) {
+      return undefined;
+    }
+
+    const headers = this.#connection.headers();
+    for (const [key, value] of Object.entries(response.headers)) {
+      headers.set(key, value);
+    }
+
+    return { headers };
   }
 
   /** Конверт отправки в заголовках */

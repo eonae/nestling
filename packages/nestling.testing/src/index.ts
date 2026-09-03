@@ -12,7 +12,7 @@
 export { assembleTest, TestApp } from './app.js';
 export type {
   EmitDelivery,
-  TestAssemblySpec,
+  TestAssemblyOptions,
   TestCallOptions,
   TestStub,
 } from './app.js';
@@ -31,11 +31,11 @@ export type {
   StubOutput,
 } from './stub.js';
 export { checkTopologies } from './topologies.js';
-export type { TopologyReport, TopologySpec } from './topologies.js';
+export type { TopologyReport } from './topologies.js';
 export { unwrap, UnwrapFailedError } from './unwrap.js';
 
 /**
- * Отчёт `App.check()` и его опции — реэкспорт типов: матрица топологий
+ * Отчёт `app.check()` и его опции — реэкспорт типов: матрица топологий
  * их принимает и возвращает, и тест не должен ради одной аннотации
  * импортировать `@nestling/app`.
  */

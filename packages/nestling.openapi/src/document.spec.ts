@@ -15,9 +15,9 @@ import type { StandardSchemaV1 } from '@nestling/operations';
 import { makeRequest, query } from '@nestling/operations';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import {
-  defineFail,
   events,
   jsonSchema,
+  makeFail,
   multipart,
   Ok,
   stream,
@@ -47,7 +47,7 @@ describe('документ строится из деклараций', () => {
       method: 'GET',
       path: '/users',
       output: z.array(User),
-      handle: async () => new Ok([]),
+      handler: async () => new Ok([]),
     });
 
     const document = documentOf([List]);
@@ -63,12 +63,12 @@ describe('документ строится из деклараций', () => {
       method: 'GET',
       path: '/users',
       output: z.array(User),
-      handle: async () => new Ok([]),
+      handler: async () => new Ok([]),
     });
 
     const Cli = cliEndpoint({
       command: 'seed-users',
-      handle: async () => new Ok({ seeded: 0 }),
+      handler: async () => new Ok({ seeded: 0 }),
     });
 
     expect(Object.keys(documentOf([Http, Cli]).paths)).toEqual(['/users']);
@@ -105,7 +105,7 @@ describe('адрес операции и её параметры', () => {
       path: '/users/:id',
       input: z.object({ id: z.string() }),
       output: User,
-      handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
+      handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
     const operation = documentOf([Get]).paths['/users/{id}'].get;
@@ -131,7 +131,7 @@ describe('адрес операции и её параметры', () => {
       }),
       bind: { dryRun: query() },
       output: User,
-      handle: async () => new Ok({ id: '1', email: 'a@b.c' }),
+      handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
     });
 
     const operation = documentOf([Create]).paths['/users'].post;
@@ -160,7 +160,7 @@ describe('адрес операции и её параметры', () => {
       path: '/users/search',
       input: z.object({ q: z.string(), limit: z.coerce.number().optional() }),
       output: z.array(User),
-      handle: async () => new Ok([]),
+      handler: async () => new Ok([]),
     });
 
     const operation = documentOf([Search]).paths['/users/search'].get;
@@ -179,7 +179,7 @@ describe('адрес операции и её параметры', () => {
       input: z.object({ tags: z.array(z.string()).optional() }),
       bind: { tags: query({ multiple: true }) },
       output: z.array(User),
-      handle: async () => new Ok([]),
+      handler: async () => new Ok([]),
     });
 
     const [tags] = documentOf([List]).paths['/users'].get.parameters ?? [];
@@ -193,12 +193,12 @@ describe('адрес операции и её параметры', () => {
     const first = httpEndpoint({
       method: 'POST',
       path: '/users',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
     const second = httpEndpoint({
       method: 'POST',
       path: '/users',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(() =>
@@ -224,7 +224,7 @@ describe('operationId выводится, а не объявляется', () =>
 
     const declaration = httpEndpoint({
       operation: CreateUser,
-      handle: async ({ email }) => new Ok({ id: '1', email }),
+      handler: async ({ email }) => new Ok({ id: '1', email }),
     });
 
     expect(
@@ -238,7 +238,7 @@ describe('operationId выводится, а не объявляется', () =>
       path: '/api/users/:id',
       input: z.object({ id: z.string() }),
       output: User,
-      handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
+      handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
     expect(documentOf([Get]).paths['/api/users/{id}'].get.operationId).toBe(
@@ -253,7 +253,7 @@ describe('media types выводятся из форм io', () => {
       method: 'GET',
       path: '/users/export',
       output: stream(User),
-      handle: async function* () {
+      handler: async function* () {
         yield { id: '1', email: 'a@b.c' };
       } as never,
     });
@@ -275,7 +275,7 @@ describe('media types выводятся из форм io', () => {
       method: 'GET',
       path: '/users/activity',
       output: events(z.object({ kind: z.string() })),
-      handle: async function* () {
+      handler: async function* () {
         yield { kind: 'created' };
       } as never,
     });
@@ -296,7 +296,7 @@ describe('media types выводятся из форм io', () => {
         files: { avatar: upload({ mime: ['image/png'] }) },
       }),
       output: z.object({ ok: z.boolean() }),
-      handle: async () => new Ok({ ok: true }),
+      handler: async () => new Ok({ ok: true }),
     });
 
     const operation = documentOf([Upload]).paths['/users/{id}/avatar'].post;
@@ -318,7 +318,7 @@ describe('media types выводятся из форм io', () => {
       method: 'POST',
       path: '/users/photos',
       input: multipart({ files: { photos: upload({ multiple: true }) } }),
-      handle: async () => new Ok({ ok: true }),
+      handler: async () => new Ok({ ok: true }),
     });
 
     const schema = documentOf([Upload]).paths['/users/photos'].post.requestBody
@@ -339,7 +339,7 @@ describe('media types выводятся из форм io', () => {
       path: '/hooks/stripe',
       input: z.object({ id: z.string() }),
       rawBody: true,
-      handle: async () => new Ok({ received: true }),
+      handler: async () => new Ok({ received: true }),
     });
 
     expect(
@@ -351,19 +351,16 @@ describe('media types выводятся из форм io', () => {
   });
 });
 
-const EmailTaken = defineFail('OPENAPI_EMAIL_TAKEN', {
-  status: 'CONFLICT',
+const EmailTaken = makeFail('conflict:openapi_email_taken', {
   message: 'Email already taken',
   details: z.object({ email: z.string() }),
 });
 
-const TooLong = defineFail('OPENAPI_TOO_LONG', {
-  status: 'BAD_REQUEST',
+const TooLong = makeFail('bad_request:openapi_too_long', {
   message: 'Too long',
 });
 
-const TooShort = defineFail('OPENAPI_TOO_SHORT', {
-  status: 'BAD_REQUEST',
+const TooShort = makeFail('bad_request:openapi_too_short', {
   message: 'Too short',
 });
 
@@ -375,8 +372,8 @@ describe('responses покрывают все ответы границы', () =
       input: z.object({ email: z.string() }),
       output: User,
       errors: [EmailTaken],
-      doc: { status: 'CREATED' },
-      handle: async () => new Ok({ id: '1', email: 'a@b.c' }),
+      doc: { status: 'created' },
+      handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
     });
 
     const responses = documentOf([Create]).paths['/users'].post.responses;
@@ -392,7 +389,7 @@ describe('responses покрывают все ответы границы', () =
       type: 'object',
       properties: {
         error: { type: 'string' },
-        code: { const: 'OPENAPI_EMAIL_TAKEN' },
+        code: { const: 'conflict:openapi_email_taken' },
         details: expect.objectContaining({ type: 'object' }),
       },
       required: ['error', 'code'],
@@ -405,7 +402,7 @@ describe('responses покрывают все ответы границы', () =
       path: '/users',
       output: User,
       errors: [TooLong, TooShort],
-      handle: async () => new Ok({ id: '1', email: 'a@b.c' }),
+      handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
     });
 
     const schema = documentOf([Create]).paths['/users'].post.responses['400']
@@ -420,7 +417,7 @@ describe('responses покрывают все ответы границы', () =
       path: '/users',
       input: z.object({ email: z.string() }),
       output: User,
-      handle: async () => new Ok({ id: '1', email: 'a@b.c' }),
+      handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
     });
 
     const responses = documentOf([Create]).paths['/users'].post.responses;
@@ -431,7 +428,7 @@ describe('responses покрывают все ответы границы', () =
           properties: { code: { const: string } };
         }
       ).properties.code.const,
-    ).toBe('VALIDATION_FAILED');
+    ).toBe('bad_request');
 
     expect(
       (
@@ -439,7 +436,7 @@ describe('responses покрывают все ответы границы', () =
           properties: { code: { const: string } };
         }
       ).properties.code.const,
-    ).toBe('UNKNOWN');
+    ).toBe('internal_error');
   });
 
   it('endpoint без выхода отвечает 204 без тела', () => {
@@ -447,7 +444,7 @@ describe('responses покрывают все ответы границы', () =
       method: 'DELETE',
       path: '/users/:id',
       input: z.object({ id: z.string() }),
-      handle: async () => new Ok(null),
+      handler: async () => new Ok(null),
     });
 
     const responses = documentOf([Remove]).paths['/users/{id}'].delete
@@ -477,7 +474,7 @@ describe('недокументируемая схема роняет постр�
       method: 'POST',
       path: '/users',
       input: exotic<{ id: string }>('valibot'),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(() => documentOf([Create])).toThrow(
@@ -493,7 +490,7 @@ describe('недокументируемая схема роняет постр�
         type: 'object',
         properties: { id: { type: 'string' } },
       }),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(
@@ -507,7 +504,7 @@ describe('недокументируемая схема роняет постр�
       method: 'GET',
       path: '/users/:id',
       input: z.object({ userId: z.string() }),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(() => documentOf([Get])).toThrow(
@@ -521,7 +518,7 @@ describe('недокументируемая схема роняет постр�
       path: '/users',
       input: z.object({ id: z.string() }),
       bind: { missing: query() } as never,
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(() => documentOf([List])).toThrow(
@@ -534,19 +531,19 @@ describe('недокументируемая схема роняет постр�
       method: 'POST',
       path: '/a',
       input: exotic<{ id: string }>('valibot'),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
     const second = httpEndpoint({
       method: 'POST',
       path: '/b',
       input: exotic<{ id: string }>('valibot'),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
     const third = httpEndpoint({
       method: 'POST',
       path: '/c',
       output: exotic<{ id: string }>('valibot'),
-      handle: async () => new Ok({ id: '1' }),
+      handler: async () => new Ok({ id: '1' }),
     });
 
     let message = '';
@@ -563,8 +560,7 @@ describe('недокументируемая схема роняет постр�
   });
 
   it('details отказа проверяются наравне с input и output', () => {
-    const Exotic = defineFail('OPENAPI_EXOTIC', {
-      status: 'CONFLICT',
+    const Exotic = makeFail('conflict:openapi_exotic', {
       message: 'Exotic',
       details: exotic<{ id: string }>('valibot'),
     });
@@ -573,11 +569,11 @@ describe('недокументируемая схема роняет постр�
       method: 'POST',
       path: '/users',
       errors: [Exotic],
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(() => documentOf([Create])).toThrow(
-      /errors\['OPENAPI_EXOTIC']\.details/,
+      /errors\['conflict:openapi_exotic']\.details/,
     );
   });
 });
@@ -588,7 +584,7 @@ describe('скрытый endpoint', () => {
     path: '/health',
     output: z.object({ status: z.string() }),
     doc: { hidden: 'liveness-проба балансировщика' },
-    handle: async () => new Ok({ status: 'up' }),
+    handler: async () => new Ok({ status: 'up' }),
   });
 
   it('не попадает в paths', () => {
@@ -601,7 +597,7 @@ describe('скрытый endpoint', () => {
       path: '/internal',
       input: exotic<{ id: string }>('arktype'),
       doc: { hidden: 'внутренняя ручка' },
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(() => documentOf([Hidden], { converters: [] })).not.toThrow();
@@ -616,7 +612,7 @@ describe('конвертер, отказавшийся переводить сх
       method: 'GET',
       path: '/report',
       output: z.object({ generatedAt: z.date() }),
-      handle: async () => new Ok({ generatedAt: new Date(0) }),
+      handler: async () => new Ok({ generatedAt: new Date(0) }),
     });
 
     expect(() => documentOf([Report])).toThrow(

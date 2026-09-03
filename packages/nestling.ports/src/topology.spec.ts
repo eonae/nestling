@@ -22,17 +22,17 @@ const OrderPlaced = makeEvent({
 });
 
 const chargeImpl = implement(ChargeCard, {
-  handle: async () => new Ok({ chargeId: 'c-1' }),
+  handler: async () => new Ok({ chargeId: 'c-1' }),
 });
 
 const billingSubscriber = implement(OrderPlaced, {
   subscriber: 'billing',
-  handle: async () => undefined,
+  handler: async () => undefined,
 });
 
 const analyticsSubscriber = implement(OrderPlaced, {
   subscriber: 'analytics',
-  handle: async () => undefined,
+  handler: async () => undefined,
 });
 
 describe('collectImplementations', () => {
@@ -75,7 +75,7 @@ describe('collectImplementations', () => {
 
   it('отвергает двух владельцев запроса, называя оба модуля', () => {
     const second = implement(ChargeCard, {
-      handle: async () => new Ok({ chargeId: 'c-2' }),
+      handler: async () => new Ok({ chargeId: 'c-2' }),
     });
 
     expect(() =>
@@ -89,7 +89,7 @@ describe('collectImplementations', () => {
   it('отвергает двух подписчиков события с одним именем', () => {
     const twin = implement(OrderPlaced, {
       subscriber: 'billing',
-      handle: async () => undefined,
+      handler: async () => undefined,
     });
 
     expect(() =>

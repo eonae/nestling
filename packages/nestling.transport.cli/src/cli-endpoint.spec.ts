@@ -6,8 +6,8 @@ import { cliEndpoint, CliTransport, CliTransport$ } from './index';
 
 import { describe, expect, it } from '@jest/globals';
 import {
-  defineFail,
   isEndpointDefinition,
+  makeFail,
   makePipeline,
   Ok,
   transportNameOf,
@@ -20,7 +20,7 @@ describe('cliEndpoint', () => {
     const ProcessStdin = cliEndpoint({
       command: 'process-stdin',
       output: z.object({ lines: z.number() }),
-      handle: async () => new Ok({ lines: 0 }),
+      handler: async () => new Ok({ lines: 0 }),
     });
 
     // Ссылка на транспорт — токен; строковое имя выводится из его id
@@ -32,7 +32,7 @@ describe('cliEndpoint', () => {
 
   it('пустое имя команды — ошибка в момент создания', () => {
     expect(() =>
-      cliEndpoint({ command: '', handle: async () => new Ok({}) }),
+      cliEndpoint({ command: '', handler: async () => new Ok({}) }),
     ).toThrow(/'command' must be a non-empty name/);
   });
 
@@ -42,7 +42,7 @@ describe('cliEndpoint', () => {
     const Vacuum = cliEndpoint({
       command: 'vacuum',
       detached: reason,
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(Vacuum.detached).toBe(reason);
@@ -51,7 +51,7 @@ describe('cliEndpoint', () => {
       cliEndpoint({
         command: 'vacuum',
         detached: '',
-        handle: async () => new Ok({}),
+        handler: async () => new Ok({}),
       }),
     ).toThrow(/'detached' must state a reason/);
   });
@@ -61,7 +61,7 @@ describe('cliEndpoint', () => {
       command: 'greet',
       output: z.object({ message: z.string() }),
       pipeline: makePipeline(),
-      handle: async () => new Ok({ message: 'hello' }),
+      handler: async () => new Ok({ message: 'hello' }),
     });
 
     const cli = new CliTransport({ argv: [] });
@@ -92,8 +92,10 @@ describe('cliEndpoint', () => {
       command: 'now',
       output: z.object({ now: z.string() }),
       pipeline: makePipeline(),
-      deps: [Clock],
-      handle: (clock) => async () => new Ok({ now: clock.now() }),
+      handler: {
+        deps: [Clock],
+        handle: (clock) => async () => new Ok({ now: clock.now() }),
+      },
     });
 
     const cli = new CliTransport({ argv: [] });
@@ -118,8 +120,7 @@ describe('cliEndpoint', () => {
 });
 
 describe('cliEndpoint — объявленные отказы', () => {
-  const TooManyLines = defineFail('TOO_MANY_LINES', {
-    status: 'TOO_MANY_REQUESTS',
+  const TooManyLines = makeFail('too_many_requests:too_many_lines', {
     details: z.object({ limit: z.number() }),
     message: (d) => `Only ${d.limit} lines allowed`,
   });
@@ -130,7 +131,7 @@ describe('cliEndpoint — объявленные отказы', () => {
       output: z.object({ lines: z.number() }),
       pipeline: makePipeline(),
       errors: [TooManyLines],
-      handle: async () => TooManyLines({ limit: 10 }),
+      handler: async () => TooManyLines({ limit: 10 }),
     });
 
     expect(Count.errors).toEqual([TooManyLines]);
@@ -148,8 +149,11 @@ describe('cliEndpoint — объявленные отказы', () => {
     // с кодом ответа не нужно
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'TOO_MANY_REQUESTS',
-      value: { code: 'TOO_MANY_LINES', details: { limit: 10 } },
+      status: 'too_many_requests',
+      value: {
+        code: 'too_many_requests:too_many_lines',
+        details: { limit: 10 },
+      },
     });
 
     await cli.close();
@@ -160,7 +164,7 @@ describe('cliEndpoint — объявленные отказы', () => {
       command: 'count',
       output: z.object({ lines: z.number() }),
       pipeline: makePipeline(),
-      handle: async () => {
+      handler: async () => {
         throw TooManyLines({ limit: 10 });
       },
     });
@@ -179,8 +183,8 @@ describe('cliEndpoint — объявленные отказы', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: { code: 'UNKNOWN' },
+      status: 'internal_error',
+      value: { code: 'internal_error' },
     });
     expect(seen).toHaveLength(1);
 

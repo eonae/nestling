@@ -16,13 +16,7 @@ import { compose, makePipeline } from './pipeline.js';
 
 import type { Schema, StandardSchemaV1 } from '@common/misc';
 import type { AnyPayload } from '@nestling/operations';
-import {
-  defineFail,
-  multipart,
-  Ok,
-  stream,
-  upload,
-} from '@nestling/operations';
+import { makeFail, multipart, Ok, stream, upload } from '@nestling/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
@@ -35,11 +29,8 @@ const raw = (payload?: unknown): Raw => ({
   attributes: {},
 });
 
-/** Отказ авторизации: нужен объявленным, иначе граница заменит его на `UNKNOWN` */
-const NoToken = defineFail('NO_TOKEN', {
-  status: 'UNAUTHORIZED',
-  message: 'No token',
-});
+/** Отказ авторизации: нужен объявленным, иначе граница заменит его на `internal_error` */
+const NoToken = makeFail('unauthorized:no_token', { message: 'No token' });
 
 const meta = (input?: AnyPayload): EndpointMeta => ({
   transport: 'test',
@@ -135,9 +126,9 @@ describe('Проверка входа выполняется без юнита �
     expect(called).toBe(false);
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
+      status: 'bad_request',
       value: {
-        code: 'VALIDATION_FAILED',
+        code: 'bad_request',
         details: [{ message: expect.any(String), path: ['n'] }],
       },
     });
@@ -149,8 +140,8 @@ describe('Проверка входа выполняется без юнита �
     expect(called).toBe(false);
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
-      value: { code: 'VALIDATION_FAILED' },
+      status: 'bad_request',
+      value: { code: 'bad_request' },
     });
   });
 
@@ -200,7 +191,7 @@ describe('Кандидат проверки', () => {
     );
 
     expect(called).toBe(false);
-    expect(response).toMatchObject({ value: { code: 'VALIDATION_FAILED' } });
+    expect(response).toMatchObject({ value: { code: 'bad_request' } });
   });
 
   it('ключ `payload` не попадает в мету хендлера', async () => {
@@ -247,7 +238,7 @@ describe('Порядок: `.pre`-юниты раньше проверки', () =
     expect(schemaCalled).toBe(false);
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'UNAUTHORIZED',
+      status: 'unauthorized',
     });
   });
 
@@ -284,7 +275,7 @@ describe('Порядок: `.pre`-юниты раньше проверки', () =
       'inner.finally',
       'outer.finally:failed',
     ]);
-    expect(response).toMatchObject({ value: { code: 'VALIDATION_FAILED' } });
+    expect(response).toMatchObject({ value: { code: 'bad_request' } });
     expect(hookCalls).toHaveLength(0);
   });
 });
@@ -355,8 +346,8 @@ describe('Форма `multipart`', () => {
     expect(called).toBe(false);
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
-      value: { code: 'VALIDATION_FAILED' },
+      status: 'bad_request',
+      value: { code: 'bad_request' },
     });
   });
 
@@ -375,8 +366,8 @@ describe('Форма `multipart`', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
-      value: { code: 'VALIDATION_FAILED' },
+      status: 'bad_request',
+      value: { code: 'bad_request' },
     });
   });
 });
@@ -395,8 +386,8 @@ describe('Ошибка конфигурации схемы — не ошибка
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: { code: 'UNKNOWN' },
+      status: 'internal_error',
+      value: { code: 'internal_error' },
     });
     expect(hookCalls).toHaveLength(1);
     expect((hookCalls[0].error as Error).name).toBe(
@@ -417,8 +408,8 @@ describe('Ошибка конфигурации схемы — не ошибка
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: { code: 'UNKNOWN' },
+      status: 'internal_error',
+      value: { code: 'internal_error' },
     });
     expect((hookCalls[0].error as Error).name).toBe('NotAStandardSchemaError');
   });

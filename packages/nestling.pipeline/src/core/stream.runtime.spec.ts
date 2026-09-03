@@ -200,8 +200,8 @@ describe('отложенный .finally у потокового ответа', (
     expect(isMidStreamFailure(error)).toBe(true);
     expect((error as { response: ResponseContext }).response).toMatchObject({
       isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: { code: 'UNKNOWN', error: 'Internal server error' },
+      status: 'internal_error',
+      value: { code: 'internal_error', error: 'Internal server error' },
     });
     expect(unknownFails).toHaveLength(1);
   });

@@ -48,8 +48,10 @@ const Report = httpEndpoint({
   method: 'GET',
   path: '/report',
   output: z.object({ at: z.number(), users: z.array(z.string()) }),
-  deps: [ReportService],
-  handle: (reports: ReportService) => async () => new Ok(reports.build()),
+  handler: {
+    deps: [ReportService],
+    handle: (reports: ReportService) => async () => new Ok(reports.build()),
+  },
 });
 
 const ReportsModule = makeFeature({

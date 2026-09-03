@@ -5,8 +5,8 @@ import type {
   AnyInput,
   AnyOutput,
   AnyPayload,
+  Category,
   EmptyInput,
-  ErrorStatus,
   StreamSummary,
   SuccessStatus,
 } from '@nestling/operations';
@@ -130,13 +130,13 @@ export interface ErrorDetails {
   error: string;
 
   /**
-   * Машинный код отказа — ось, независимая от статуса.
+   * Машинный код отказа: `category[:detail…]`.
    *
-   * Заполняется рантаймом из `Fail.code`; у отказа без кода поле
-   * отсутствует (а не равно `null` или пустой строке). По нему же
-   * проверка операции отказов решает, объявлен ли ответ.
+   * Заполняется рантаймом из `Fail.code`; у необработанной ошибки равен
+   * `internal_error`. По нему проверка контракта отказов решает, объявлен
+   * ли ответ, а получатель восстанавливает категорию.
    */
-  code?: string;
+  code: string;
 
   details?: unknown;
   stack?: string;
@@ -169,8 +169,8 @@ export interface ErrorResponseContext {
   /** Флаг успеха: у ошибки всегда `false` */
   isSuccess: false;
 
-  /** Статус ошибки */
-  status: ErrorStatus;
+  /** Категория отказа: первый сегмент его кода */
+  status: Category;
 
   /** HTTP заголовки (для HTTP transport) */
   headers?: Record<string, string>;

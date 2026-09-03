@@ -28,7 +28,7 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
     {
       name: 'слой на месте',
       code: `${prelude}
-        httpEndpoint({ method: 'GET', path: '/me', pipeline: authedBase, handle });`,
+        httpEndpoint({ method: 'GET', path: '/me', pipeline: authedBase, handler: handle });`,
       options,
     },
     {
@@ -38,7 +38,7 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
           method: 'GET',
           path: '/me',
           pipeline: compose(observability, authedBase),
-          handle,
+          handler: handle,
         });`,
       options,
     },
@@ -49,7 +49,7 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
           method: 'GET',
           path: '/me',
           pipeline: compose(observability, authedBase.pre(withTenant())),
-          handle,
+          handler: handle,
         });`,
       options,
     },
@@ -57,32 +57,32 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
       name: 'локальная переменная, собранная из слоя',
       code: `${prelude}
         const adminPipeline = compose(observability, authedBase);
-        httpEndpoint({ method: 'GET', path: '/admin', pipeline: adminPipeline, handle });`,
+        httpEndpoint({ method: 'GET', path: '/admin', pipeline: adminPipeline, handler: handle });`,
       options,
     },
     {
       name: 'пайплайн приезжает параметром фабрики — значение непрозрачно',
       code: `${prelude}
         export const makeUsersModule = (pipeline) =>
-          httpEndpoint({ method: 'GET', path: '/users', pipeline, handle });`,
+          httpEndpoint({ method: 'GET', path: '/users', pipeline, handler: handle });`,
       options,
     },
     {
       name: 'вызов неизвестной функции — значение непрозрачно',
       code: `${prelude}
-        httpEndpoint({ method: 'GET', path: '/users', pipeline: pipelineFor('users'), handle });`,
+        httpEndpoint({ method: 'GET', path: '/users', pipeline: pipelineFor('users'), handler: handle });`,
       options,
     },
     {
       name: 'импортированное значение без локального объявления',
       code: `import { basePipeline } from './pipelines.js';
-        httpEndpoint({ method: 'GET', path: '/users', pipeline: basePipeline, handle });`,
+        httpEndpoint({ method: 'GET', path: '/users', pipeline: basePipeline, handler: handle });`,
       options,
     },
     {
       name: 'spread в словаре — декларация непрозрачна',
       code: `${prelude}
-        httpEndpoint({ method: 'GET', path: '/users', ...common, handle });`,
+        httpEndpoint({ method: 'GET', path: '/users', ...common, handler: handle });`,
       options,
     },
     {
@@ -92,20 +92,20 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
           method: 'GET',
           path: '/health',
           detached: 'liveness-проба балансировщика',
-          handle,
+          handler: handle,
         });`,
       options,
     },
     {
       name: 'ручка вне фильтра пути',
       code: `${prelude}
-        httpEndpoint({ method: 'GET', path: '/health', pipeline: observability, handle });`,
+        httpEndpoint({ method: 'GET', path: '/health', pipeline: observability, handler: handle });`,
       options: [{ layer: 'authedBase', pattern: '^/admin' }],
     },
     {
       name: 'чужой конструктор',
       code: `${prelude}
-        cliEndpoint({ command: 'import', pipeline: observability, handle });`,
+        cliEndpoint({ command: 'import', pipeline: observability, handler: handle });`,
       options,
     },
   ],
@@ -116,7 +116,7 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
       // статус подсказки и указывать, где живёт гарантия
       name: 'другой слой',
       code: `${prelude}
-        httpEndpoint({ method: 'GET', path: '/users', pipeline: observability, handle });`,
+        httpEndpoint({ method: 'GET', path: '/users', pipeline: observability, handler: handle });`,
       options,
       errors: [
         {
@@ -136,7 +136,7 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
           method: 'GET',
           path: '/users',
           pipeline: compose(observability, logging),
-          handle,
+          handler: handle,
         });`,
       options,
       errors: [{ messageId: 'missingLayer' }],
@@ -144,14 +144,14 @@ ruleTester.run('endpoint-has-layer', endpointHasLayer, {
     {
       name: 'pipeline отсутствует вовсе',
       code: `${prelude}
-        httpEndpoint({ method: 'GET', path: '/users', handle });`,
+        httpEndpoint({ method: 'GET', path: '/users', handler: handle });`,
       options,
       errors: [{ messageId: 'missingLayer' }],
     },
     {
       name: 'ручка под фильтром пути',
       code: `${prelude}
-        httpEndpoint({ method: 'GET', path: '/admin/users', pipeline: observability, handle });`,
+        httpEndpoint({ method: 'GET', path: '/admin/users', pipeline: observability, handler: handle });`,
       options: [{ layer: 'authedBase', pattern: '^/admin' }],
       errors: [{ messageId: 'missingLayer' }],
     },

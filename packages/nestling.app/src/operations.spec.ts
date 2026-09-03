@@ -6,7 +6,7 @@
  * наружу и через какой интерком.
  */
 
-import { assemble } from './app';
+import { makeApp } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
@@ -46,7 +46,7 @@ const ClaimQuota = makeRequest({
 const QuotasFeature = makeFeature({
   name: 'quotas',
   endpoints: [
-    implement(ClaimQuota, { handle: async () => new Ok({ granted: 1 }) }),
+    implement(ClaimQuota, { handler: async () => new Ok({ granted: 1 }) }),
   ],
 });
 
@@ -56,11 +56,13 @@ const OrdersFeature = makeFeature({
     httpEndpoint({
       method: 'POST',
       path: '/orders',
-      deps: [ClaimQuota.caller],
-      handle: (quotas: Port<typeof ClaimQuota>) => async () => {
-        await quotas.call({ amount: 1 });
+      handler: {
+        deps: [ClaimQuota.caller],
+        handle: (quotas: Port<typeof ClaimQuota>) => async () => {
+          await quotas.call({ amount: 1 });
 
-        return new Ok({});
+          return new Ok({});
+        },
       },
     }),
   ],
@@ -68,7 +70,7 @@ const OrdersFeature = makeFeature({
 
 describe('карта операций в отчёте check()', () => {
   it('называет реализованное здесь и вызываемое', async () => {
-    const report = await assemble({
+    const report = await makeApp({
       features: [OrdersFeature, QuotasFeature],
       transports: [asHttpTransport(new MockTransport())],
     }).check();
@@ -84,12 +86,11 @@ describe('карта операций в отчёте check()', () => {
   });
 
   it('вызов без местной реализации уходит через назначенный интерком', async () => {
-    const report = await assemble({
+    const report = await makeApp({
       features: [OrdersFeature, QuotasFeature],
-      select: 'orders',
       transports: [asHttpTransport(new MockTransport()), asBus()],
       intercom: 'events',
-    }).check();
+    }).check('orders');
 
     expect(report.operations).toEqual([
       {
@@ -112,16 +113,16 @@ describe('карта операций в отчёте check()', () => {
         httpEndpoint({
           method: 'GET',
           path: '/health',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
       ],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Silent],
       transports: [asHttpTransport(new MockTransport()), asBus()],
       intercom: 'events',
-    });
+    }).assemble();
 
     await app.run();
 
@@ -146,7 +147,7 @@ describe('карта операций в отчёте check()', () => {
       ],
     });
 
-    const report = await assemble({
+    const report = await makeApp({
       features: [CallerFeature, QuotasFeature],
       transports: [asHttpTransport(new MockTransport())],
     }).check();

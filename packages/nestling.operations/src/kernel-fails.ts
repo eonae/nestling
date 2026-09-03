@@ -1,10 +1,10 @@
-import { defineFail } from './define-fail.js';
 import { jsonSchema } from './json-schema.js';
+import { makeFail } from './make-fail.js';
 
 import type { SchemaIssue, StandardSchemaV1 } from '@common/misc';
 
 /**
- * Схема деталей отказа валидации, написанная вручную.
+ * Схема деталей отказа проверки входа, написанная вручную.
  *
  * Standard Schema — интерфейс, поэтому ядро объявляет схему без
  * библиотеки-валидатора. Конвертеры документации вендор `nestling` не
@@ -52,28 +52,6 @@ const issuesSchema = jsonSchema(rawIssuesSchema, {
 });
 
 /**
- * Отказ, которым заменяется любой незадекларированный отказ на выходе из
- * пайплайна. Входит в множество ответов каждого endpoint'а без объявления
- * в `errors`.
- */
-export const UnknownError = defineFail('UNKNOWN', {
-  status: 'INTERNAL_ERROR',
-  message: 'Internal server error',
-});
-
-/**
- * Отказ валидации входа.
- *
- * Код ядра: иначе 400 от юнита `validate()` превращался бы на выходе из
- * пайплайна в 500 `UnknownError`.
- */
-export const ValidationFailed = defineFail('VALIDATION_FAILED', {
-  status: 'BAD_REQUEST',
-  message: 'Validation failed',
-  details: issuesSchema,
-});
-
-/**
  * Схема объекта с одним числовым полем; написана вручную и аннотирована,
  * как `issuesSchema`.
  */
@@ -105,48 +83,53 @@ function numberFieldSchema<K extends string>(
 }
 
 /**
- * Отказ лимита item-цепочки (`.limit(max)`).
+ * Отказы ядра. Каждый несёт голую категорию без уточнения и входит в
+ * множество ответов любого endpoint'а без объявления в `errors`.
  *
- * Код ядра по той же причине, что и `ValidationFailed`: 413 не должен
- * превращаться в 500.
+ * Набор закрыт и растёт только вместе с механизмами ядра, которые эти
+ * отказы порождают. Пользовательское определение с тем же кодом
+ * (`makeFail('bad_request')`) — тот же отказ по идентичности.
  */
-export const StreamLimitExceeded = defineFail('STREAM_LIMIT_EXCEEDED', {
-  status: 'PAYLOAD_TOO_LARGE',
-  details: numberFieldSchema('max'),
-  message: (d) => `Stream limit of ${d.max} item(s) exceeded`,
+
+/**
+ * Отказ проверки входа: значение не прошло схему `input`, поля
+ * `multipart` не прошли схему `fields`, разбор запроса не удался.
+ * Детали — `issues` в формате Standard Schema.
+ */
+export const BadRequest = makeFail('bad_request', {
+  message: 'Bad request',
+  details: issuesSchema,
 });
 
 /**
- * Отказ превышения лимита размера входа.
+ * Отказ превышения лимита входа: тело, строка потока, файл или число
+ * элементов item-цепочки (`.limit(n)`) больше допустимого.
  *
- * Его бросает транспорт, когда тело или одна строка потока не помещаются
- * в лимит. Код ядра по той же причине, что и у соседей: у потокового
- * входа лимит срабатывает во время чтения, то есть уже внутри хендлера,
- * и без кода ядра 413 превращался бы на границе в 500.
+ * У потокового входа лимит срабатывает во время чтения, то есть уже
+ * внутри хендлера, и без кода ядра 413 превращался бы на границе в 500.
  */
-export const PayloadTooLarge = defineFail('PAYLOAD_TOO_LARGE', {
-  status: 'PAYLOAD_TOO_LARGE',
+export const PayloadTooLarge = makeFail('payload_too_large', {
   details: numberFieldSchema('limit'),
-  message: (d) => `Payload exceeds the limit of ${d.limit} byte(s)`,
-});
-
-/** Отказ таймаута молчания источника (`.gapTimeout(ms)`) */
-export const StreamGapTimeout = defineFail('STREAM_GAP_TIMEOUT', {
-  status: 'TIMEOUT',
-  details: numberFieldSchema('ms'),
-  message: (d) => `Stream produced no item within ${d.ms}ms`,
+  message: (d) => `Payload exceeds the limit of ${d.limit}`,
 });
 
 /**
- * Отказ по истечении срока вызова (`meta.deadline` портов).
+ * Отказ по истечении срока: бюджет вызова порта (`meta.deadline`) или
+ * молчание потока дольше `.gapTimeout(ms)`.
  *
- * Код ядра по той же причине, что и соседние: 504 не должен превращаться
- * в 500. Объявлен здесь, а не в `@nestling/ports`, потому что набор кодов
- * ядра закрыт и не пополняется из других пакетов.
+ * Объявлен здесь, а не в `@nestling/ports`: набор кодов ядра закрыт и не
+ * пополняется из других пакетов. `@nestling/ports` его реэкспортирует.
  */
-export const DeadlineExceeded = defineFail('DEADLINE_EXCEEDED', {
-  status: 'TIMEOUT',
-  message: 'Call deadline exceeded',
+export const Timeout = makeFail('timeout', {
+  message: 'Operation timed out',
+});
+
+/**
+ * Отказ, которым заменяется любой незадекларированный отказ и любая
+ * необработанная ошибка на выходе из пайплайна.
+ */
+export const InternalError = makeFail('internal_error', {
+  message: 'Internal server error',
 });
 
 /**
@@ -154,12 +137,10 @@ export const DeadlineExceeded = defineFail('DEADLINE_EXCEEDED', {
  * пользовательский код нет.
  */
 const KERNEL_FAIL_CODES: ReadonlySet<string> = new Set([
-  UnknownError.code,
-  ValidationFailed.code,
+  BadRequest.code,
   PayloadTooLarge.code,
-  StreamLimitExceeded.code,
-  StreamGapTimeout.code,
-  DeadlineExceeded.code,
+  Timeout.code,
+  InternalError.code,
 ]);
 
 /**

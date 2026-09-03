@@ -66,6 +66,8 @@ export const UpdateUser = httpEndpoint({
   errors: [NothingToUpdate, EmailTaken, UserNotFound, Unauthorized],
   doc: { summary: 'Изменить пользователя', tags: ['users'] },
   pipeline: authed,
-  deps: [UsersRepository$],
-  handle: updateUserHandler,
+  handler: {
+    deps: [UsersRepository$],
+    handle: updateUserHandler,
+  },
 });

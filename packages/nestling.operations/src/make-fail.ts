@@ -1,6 +1,7 @@
-import type { AnyFail } from './result.js';
+import type { AnyFail, Ok } from './result.js';
 import { Fail, isFail } from './result.js';
-import type { ErrorStatus } from './status.js';
+import type { Category, FailCode } from './status.js';
+import { assertFailCode, categoryOf } from './status.js';
 
 import type { StandardSchemaV1 } from '@common/misc';
 import { validateSync } from '@common/misc';
@@ -21,7 +22,7 @@ export interface ResponseLike {
 }
 
 /** Контекст ответа-ошибки, суженный до конкретного определения отказа */
-export type FailResponseOf<TCode extends string, TDetails> = ResponseLike & {
+export type FailResponseOf<TCode extends FailCode, TDetails> = ResponseLike & {
   readonly isSuccess: false;
   readonly value: { readonly code: TCode; readonly details: TDetails };
 };
@@ -49,9 +50,9 @@ export interface FailCreateOptions {
  * возвращает это сужение, чтобы в `.catch` не приходилось проверять
  * `undefined`.
  */
-export type DeclaredFail<TCode extends string, TDetails> = [TDetails] extends [
-  undefined,
-]
+export type DeclaredFail<TCode extends FailCode, TDetails> = [
+  TDetails,
+] extends [undefined]
   ? Fail<TCode, undefined>
   : Fail<TCode, TDetails> & { readonly details: TDetails };
 
@@ -59,14 +60,14 @@ export type DeclaredFail<TCode extends string, TDetails> = [TDetails] extends [
  * Свойства определения отказа: всё, кроме самого вызова.
  */
 export interface FailDefinitionProps<
-  TCode extends string = string,
+  TCode extends FailCode = FailCode,
   TDetails = unknown,
 > {
   /** Машинный код; по нему отказ распознаётся */
   readonly code: TCode;
 
-  /** Статус ответа, не зависящий от транспорта */
-  readonly status: ErrorStatus;
+  /** Категория: первый сегмент кода. Её транспорт переводит в свой статус */
+  readonly category: Category;
 
   /** Схема деталей, если объявлена (нужна OpenAPI и клиентам) */
   readonly schema?: StandardSchemaV1;
@@ -88,7 +89,7 @@ export interface FailDefinitionProps<
 
 /** Определение отказа со схемой деталей: конструктор принимает детали */
 export interface FailDefinitionWithDetails<
-  TCode extends string = string,
+  TCode extends FailCode = FailCode,
   TDetails = unknown,
 > extends FailDefinitionProps<TCode, TDetails> {
   (
@@ -98,7 +99,7 @@ export interface FailDefinitionWithDetails<
 }
 
 /** Определение отказа без деталей: конструктор вызывается без аргументов */
-export interface FailDefinitionWithoutDetails<TCode extends string = string>
+export interface FailDefinitionWithoutDetails<TCode extends FailCode = FailCode>
   extends FailDefinitionProps<TCode, undefined> {
   (options?: FailCreateOptions): DeclaredFail<TCode, undefined>;
 }
@@ -109,19 +110,24 @@ export interface FailDefinitionWithoutDetails<TCode extends string = string>
  * Описывает только свойства, без сигнатуры вызова: декларации не важно,
  * сколько аргументов принимает конструктор.
  *
- * Отдельный интерфейс, а не `FailDefinitionProps<string, any>`: `any` в
+ * Отдельный интерфейс, а не `FailDefinitionProps<FailCode, any>`: `any` в
  * позиции деталей сводит условный `DeclaredFail` к ветке «без деталей», и
  * определения со схемой перестали бы подходить под тип списка.
  */
 export interface AnyFailDefinition {
-  readonly code: string;
-  readonly status: ErrorStatus;
+  readonly code: FailCode;
+  readonly category: Category;
   readonly schema?: StandardSchemaV1;
   readonly $fail?: AnyFail;
   is(value: unknown): boolean;
 }
 
-/** Тип отказа, который создаёт определение */
+/**
+ * Тип отказа, который создаёт определение.
+ *
+ * @internal Публичная запись множества отказов — сами определения:
+ * `Output<User, typeof UserNotFound>`.
+ */
 export type FailOf<D extends AnyFailDefinition> = Exclude<
   D['$fail'],
   undefined
@@ -138,29 +144,63 @@ export type FailsOf<E extends readonly AnyFailDefinition[]> = Exclude<
   undefined
 >;
 
-/** Спецификация определения со схемой деталей */
-export interface FailSpecWithDetails<S extends StandardSchemaV1> {
-  status: ErrorStatus;
+/**
+ * Разворачивает элемент `E` в тип отказа: определение — в отказ, который
+ * оно создаёт, готовый `Fail` — как есть.
+ *
+ * Условие одно и плоское: юнион определений раскладывается дистрибутивно.
+ */
+export type FailOfDef<D> = D extends AnyFailDefinition ? FailOf<D> : D;
 
+/**
+ * Синхронный результат хендлера: `Ok`, значение без обёртки или отказ из
+ * множества `E`.
+ *
+ * `E` записывается определениями отказов (`typeof UserNotFound`, юнион
+ * через `|`) или типами `Fail`. По умолчанию `E` равно `never`: endpoint
+ * без `errors` не может вернуть отказ.
+ */
+export type OutputSync<
+  TValue = unknown,
+  E extends AnyFailDefinition | AnyFail = never,
+> = Ok<TValue> | FailOfDef<E> | TValue;
+
+/**
+ * Асинхронный результат хендлера (см. {@link OutputSync}).
+ *
+ * @example
+ * ```typescript
+ * async handle(input: GetUserInput): Output<User, typeof UserNotFound> {
+ *   return (await this.users.byId(input.id)) ?? UserNotFound({ id: input.id });
+ * }
+ * ```
+ */
+export type Output<
+  TValue = unknown,
+  E extends AnyFailDefinition | AnyFail = never,
+> = Promise<Ok<TValue> | FailOfDef<E> | TValue>;
+
+/** Опции определения со схемой деталей */
+export interface FailSpecWithDetails<S extends StandardSchemaV1> {
   /**
    * Сообщение отказа: строка или функция от деталей, прошедших схему.
    * Других аргументов у функции нет: все данные отказа лежат в `details`.
+   * Без `message` сообщением становится код.
    */
-  message: string | ((details: StandardSchemaV1.InferOutput<S>) => string);
+  message?: string | ((details: StandardSchemaV1.InferOutput<S>) => string);
 
   /** Схема деталей: любая Standard Schema v1 */
   details: S;
 }
 
-/** Спецификация определения без деталей */
+/** Опции определения без деталей */
 export interface FailSpecWithoutDetails {
-  status: ErrorStatus;
-  message: string;
+  message?: string;
   details?: undefined;
 }
 
 /**
- * Проверяет, что значение создано `defineFail`.
+ * Проверяет, что значение создано `makeFail`.
  *
  * Используется при проверке списка `errors` в декларации и операции.
  */
@@ -190,60 +230,62 @@ function isErrorResponse(
  * Объявляет доменный отказ.
  *
  * Возвращает определение: вызываемое значение со свойствами `code`,
- * `status`, `schema` и предикатом `is`. Вызов определения создаёт `Fail`.
+ * `category`, `schema` и предикатом `is`. Вызов определения создаёт `Fail`.
  * Определение ничего не регистрирует; на приложение оно влияет только
  * через список `errors` декларации.
  *
- * Отказ распознаётся по `code`, а не по `instanceof`: отказ, полученный по
- * сети, — обычный объект без прототипа.
+ * Код — `category[:detail…]`. Категорию проверяет компилятор, формат
+ * сегментов — эта функция. Отказ распознаётся по `code`, а не по
+ * `instanceof`: отказ, полученный по сети, — обычный объект без прототипа.
  *
  * @example Отказ с деталями
  * ```typescript
- * export const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
- *   status: 'NOT_FOUND',
+ * export const OrderNotFound = makeFail('not_found:order', {
  *   details: z.object({ orderId: z.string() }),
  *   message: (d) => `Order ${d.orderId} not found`,
  * });
  *
- * throw OrderNotFound({ orderId: '42' });
+ * return OrderNotFound({ orderId: '42' });
  * throw OrderNotFound({ orderId: '42' }, { cause: dbError });
  * ```
  *
  * @example Отказ без деталей
  * ```typescript
- * export const EmailTaken = defineFail('EMAIL_TAKEN', {
- *   status: 'CONFLICT',
+ * export const EmailTaken = makeFail('conflict:email_taken', {
  *   message: 'Email already taken',
  * });
+ * export const Unauthorized = makeFail('unauthorized');
  *
- * throw EmailTaken();
+ * return EmailTaken();
  * ```
  *
- * @throws {Error} При конструировании: детали не прошли схему (текст
- * называет код отказа)
+ * @throws {Error} При объявлении: сегмент кода вне `[a-z_]+` или
+ * категория вне перечня. При конструировании: детали не прошли схему
+ * (текст называет код отказа)
  */
-export function defineFail<TCode extends string, S extends StandardSchemaV1>(
+export function makeFail<TCode extends FailCode, S extends StandardSchemaV1>(
   code: TCode,
-  spec: FailSpecWithDetails<S>,
+  options: FailSpecWithDetails<S>,
 ): FailDefinitionWithDetails<TCode, StandardSchemaV1.InferOutput<S>>;
-export function defineFail<TCode extends string>(
+export function makeFail<TCode extends FailCode>(
   code: TCode,
-  spec: FailSpecWithoutDetails,
+  options?: FailSpecWithoutDetails,
 ): FailDefinitionWithoutDetails<TCode>;
-export function defineFail(
-  code: string,
-  spec: {
-    status: ErrorStatus;
-    message: string | ((details: unknown) => string);
+export function makeFail(
+  code: FailCode,
+  options: {
+    message?: string | ((details: unknown) => string);
     details?: StandardSchemaV1;
-  },
+  } = {},
 ): AnyFailDefinition {
-  const { status, message, details: schema } = spec;
+  assertFailCode(code, 'makeFail(…)');
+
+  const { message = code, details: schema } = options;
 
   const definition = (
     first?: unknown,
     second?: FailCreateOptions,
-  ): Fail<string, unknown> => {
+  ): Fail<FailCode, unknown> => {
     // Со схемой первый аргумент — детали, без схемы — сразу опции.
     const details = schema
       ? validateSync(
@@ -252,20 +294,20 @@ export function defineFail(
           `Fail '${code}': details do not match the declared schema`,
         )
       : undefined;
-    const options = (schema ? second : (first as FailCreateOptions)) ?? {};
+    const createOptions =
+      (schema ? second : (first as FailCreateOptions)) ?? {};
 
     const text = typeof message === 'function' ? message(details) : message;
 
-    return new Fail<string, unknown>(status, text, {
-      code,
+    return new Fail<FailCode, unknown>(code, text, {
       details,
-      cause: options.cause,
+      cause: createOptions.cause,
     });
   };
 
   const props = {
     code,
-    status,
+    category: categoryOf(code),
     ...(schema ? { schema } : {}),
     is: (value: unknown): boolean => {
       if (isFail(value)) {

@@ -89,14 +89,14 @@ describe('makeDispatch', () => {
     pattern: 'GET /ping',
     output: z.object({ pong: z.boolean() }),
     pipeline: makePipeline(),
-    handle: async () => new Ok({ pong: true }),
+    handler: async () => new Ok({ pong: true }),
   });
 
   const Echo = makeEndpoint({
     transport: TestTransport$,
     pattern: 'POST /echo',
     input: z.object({ text: z.string() }),
-    handle: async (payload: { text: string }) => new Ok(payload),
+    handler: async (payload: { text: string }) => new Ok(payload),
   });
 
   it('исполняет endpoint с пайплайном', async () => {
@@ -128,9 +128,9 @@ describe('makeDispatch', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
+      status: 'bad_request',
       value: {
-        code: 'VALIDATION_FAILED',
+        code: 'bad_request',
         details: [{ message: expect.any(String), path: ['text'] }],
       },
     });
@@ -140,7 +140,7 @@ describe('makeDispatch', () => {
     const Nope = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /nope-fail',
-      handle: async () => {
+      handler: async () => {
         throw Fail.notFound('nope');
       },
     });
@@ -156,8 +156,8 @@ describe('makeDispatch', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: { code: 'UNKNOWN' },
+      status: 'internal_error',
+      value: { code: 'internal_error' },
     });
     expect(seen).toHaveLength(1);
   });
@@ -168,7 +168,7 @@ describe('makeDispatch', () => {
     const Raw = makeEndpoint({
       transport: TestTransport$,
       pattern: 'POST /raw',
-      handle: async (_payload: unknown, meta: { rawBody?: Uint8Array }) => {
+      handler: async (_payload: unknown, meta: { rawBody?: Uint8Array }) => {
         seen = meta as Record<string, unknown>;
         return new Ok({ ok: true });
       },
@@ -225,7 +225,7 @@ describe('makeDispatch', () => {
       transport: TestTransport$,
       pattern: 'GET /boom',
       pipeline: makePipeline(),
-      handle: async () => {
+      handler: async () => {
         throw new Error('secret detail');
       },
     });
@@ -250,17 +250,19 @@ describe('makeDispatch', () => {
     const Probe = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /probe',
-      deps: [Ctx(RequestId), Ctx(Signal)],
-      handle:
-        (requestId: CtxReader<string>, signal: CtxReader<AbortSignal>) =>
-        async () => {
-          // Пайплайна нет — переменную никто не клал; но контекст запроса
-          // открыт, поэтому это `undefined`, а не «контекста нет»
-          seen.requestId = requestId.peek();
-          seen.sameSignal = signal.get() === controller.signal;
+      handler: {
+        deps: [Ctx(RequestId), Ctx(Signal)],
+        handle:
+          (requestId: CtxReader<string>, signal: CtxReader<AbortSignal>) =>
+          async () => {
+            // Пайплайна нет — переменную никто не клал; но контекст запроса
+            // открыт, поэтому это `undefined`, а не «контекста нет»
+            seen.requestId = requestId.peek();
+            seen.sameSignal = signal.get() === controller.signal;
 
-          return new Ok({ ok: true });
-        },
+            return new Ok({ ok: true });
+          },
+      },
     });
 
     const readers = await contextReaders();
@@ -290,8 +292,10 @@ describe('makeDispatch', () => {
       transport: TestTransport$,
       pattern: 'GET /users',
       pipeline: makePipeline(),
-      deps: [UserService],
-      handle: (users) => async () => new Ok(users.getAll()),
+      handler: {
+        deps: [UserService],
+        handle: (users) => async () => new Ok(users.getAll()),
+      },
     });
 
     // @ts-expect-error: неразрешённые deps — сначала endpoint.resolve(...)

@@ -55,7 +55,7 @@ describe('команды через execute', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      value: { code: 'VALIDATION_FAILED' },
+      value: { code: 'bad_request' },
     });
   });
 

@@ -38,7 +38,7 @@ export interface DeclarationDoc {
   /**
    * Статус успешного ответа из перечня `successStatuses`.
    *
-   * По умолчанию `OK`; у endpoint'а без `output` — `NO_CONTENT`. С тем, что
+   * По умолчанию `ok`; у endpoint'а без `output` — `no_content`. С тем, что
    * возвращает хендлер, значение не сверяется: успешный статус не выражен
    * типом (открытый вопрос в `deferred.md`).
    */
@@ -140,8 +140,8 @@ export function assertDoc(
       `${where}: 'doc.status' must be one of ` +
         `${successStatuses.map((known) => `'${known}'`).join(', ')}, got ` +
         `${JSON.stringify(status)}. The slot declares the status of a ` +
-        `**successful** response; failures carry their own status in ` +
-        `defineFail(...).`,
+        `**successful** response; failures carry their category in the ` +
+        `code of makeFail(...).`,
     );
   }
 

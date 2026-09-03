@@ -52,7 +52,7 @@ describe('пользователи по HTTP', () => {
     });
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toMatchObject({ code: 'UNAUTHORIZED' });
+    expect(await response.json()).toMatchObject({ code: 'unauthorized' });
   });
 
   it('создаёт пользователя: 201, Location и отказы 409 и 400', async () => {
@@ -82,7 +82,7 @@ describe('пользователи по HTTP', () => {
       { auth: true },
     );
     expect(invalid.status).toBe(400);
-    expect(await invalid.json()).toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(await invalid.json()).toMatchObject({ code: 'bad_request' });
   });
 
   it('проверяет данные без записи по ?dryRun=true', async () => {

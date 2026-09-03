@@ -25,5 +25,5 @@ export const ExportLogs = httpEndpoint({
   method: 'GET',
   path: '/logs/export',
   output: stream(LogLine).limit(1000),
-  handle: async () => new Ok(generate(5)),
+  handler: async () => new Ok(generate(5)),
 });

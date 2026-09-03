@@ -110,8 +110,10 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
     // Документ не описывает сам себя: endpoint служебный, и в списке операций
     // API ей делать нечего
     doc: { hidden: 'служебная ручка: сам документ' },
-    deps: [OpenApiDocument$],
-    handle: (value: OpenApiDocument) => async () => new Ok(value),
+    handler: {
+      deps: [OpenApiDocument$],
+      handle: (value: OpenApiDocument) => async () => new Ok(value),
+    },
   });
 
   return makePlugin({

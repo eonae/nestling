@@ -26,6 +26,8 @@ export const getUserHandler =
 export const GetUser = httpEndpoint({
   operation: GetUserOperation,
   pipeline: observability,
-  deps: [UsersRepository$],
-  handle: getUserHandler,
+  handler: {
+    deps: [UsersRepository$],
+    handle: getUserHandler,
+  },
 });

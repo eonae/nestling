@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-empty-function --
- * Реализация события ответа не имеет: тело хендлера-фикстуры пусто по
- * существу, а не по недосмотру. */
 /* eslint-disable unicorn/no-useless-undefined --
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`). */
@@ -43,7 +40,7 @@ const UserRegistered = makeEvent({
 const QuotasFeature = makeFeature({
   name: 'quotas',
   endpoints: [
-    implement(ClaimQuota, { handle: async () => new Ok({ granted: 1 }) }),
+    implement(ClaimQuota, { handler: async () => new Ok({ granted: 1 }) }),
   ],
 });
 
@@ -52,11 +49,13 @@ const BillingFeature = makeFeature({
   endpoints: [
     implement(SendReceipt, {
       // Команда зовёт запрос: замыкание обязано идти транзитивно
-      deps: [ClaimQuota.caller],
-      handle: (quotas: Port<typeof ClaimQuota>) => async () => {
-        await quotas.call({ amount: 1 });
+      handler: {
+        deps: [ClaimQuota.caller],
+        handle: (quotas: Port<typeof ClaimQuota>) => async () => {
+          await quotas.call({ amount: 1 });
 
-        return undefined;
+          return undefined;
+        },
       },
     }),
   ],
@@ -75,7 +74,7 @@ class SignupService {
 const anyEndpoint = httpEndpoint({
   method: 'GET',
   path: '/users',
-  handle: async () => new Ok({}),
+  handler: async () => new Ok({}),
 });
 
 const declared = (...features: readonly ReturnType<typeof makeFeature>[]) =>
@@ -89,11 +88,13 @@ describe('closeOverCalls', () => {
         httpEndpoint({
           method: 'POST',
           path: '/users',
-          deps: [ClaimQuota.caller],
-          handle: (quotas: Port<typeof ClaimQuota>) => async () => {
-            await quotas.call({ amount: 1 });
+          handler: {
+            deps: [ClaimQuota.caller],
+            handle: (quotas: Port<typeof ClaimQuota>) => async () => {
+              await quotas.call({ amount: 1 });
 
-            return new Ok({});
+              return new Ok({});
+            },
           },
         }),
       ],
@@ -162,7 +163,7 @@ describe('closeOverCalls', () => {
       endpoints: [
         implement(UserRegistered, {
           subscriber: 'audit',
-          handle: async () => undefined,
+          handler: async () => undefined,
         }),
       ],
     });

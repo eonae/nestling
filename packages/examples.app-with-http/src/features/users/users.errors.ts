@@ -1,4 +1,4 @@
-import { defineFail } from '@nestling/operations';
+import { makeFail } from '@nestling/operations';
 import { z } from 'zod';
 
 /**
@@ -8,30 +8,20 @@ import { z } from 'zod';
  * `errors:`, и тот же список получают клиент и документ OpenAPI.
  */
 
-export const UserNotFound = defineFail('USER_NOT_FOUND', {
-  status: 'NOT_FOUND',
-  details: z.object({ id: z.string() }),
+export const UserNotFound = makeFail('not_found:user_not_found', { details: z.object({ id: z.string() }),
   message: (d) => `User ${d.id} not found`,
 });
 
-/** Статус `CONFLICT`: занятый email — конфликт с данными, а не ошибка формата */
-export const EmailTaken = defineFail('EMAIL_TAKEN', {
-  status: 'CONFLICT',
-  details: z.object({ email: z.string() }),
+/** Статус `conflict`: занятый email — конфликт с данными, а не ошибка формата */
+export const EmailTaken = makeFail('conflict:email_taken', { details: z.object({ email: z.string() }),
   message: (d) => `Email ${d.email} is already taken`,
 });
 
-export const NothingToUpdate = defineFail('NOTHING_TO_UPDATE', {
-  status: 'BAD_REQUEST',
-  message: 'No fields to update',
+export const NothingToUpdate = makeFail('bad_request:nothing_to_update', { message: 'No fields to update',
 });
 
-export const AvatarRequired = defineFail('AVATAR_REQUIRED', {
-  status: 'BAD_REQUEST',
-  message: 'Form field "avatar" is required',
+export const AvatarRequired = makeFail('bad_request:avatar_required', { message: 'Form field "avatar" is required',
 });
 
-export const InvalidSignature = defineFail('INVALID_SIGNATURE', {
-  status: 'UNAUTHORIZED',
-  message: 'Webhook signature does not match the body',
+export const InvalidSignature = makeFail('unauthorized:invalid_signature', { message: 'Webhook signature does not match the body',
 });

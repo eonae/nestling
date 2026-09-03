@@ -19,6 +19,7 @@ import type {
 } from '@nestling/container';
 import { dependenciesOf } from '@nestling/container';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
+import { handlerClassOf, handlerDependenciesOf } from '@nestling/pipeline';
 
 /**
  * Состав фичи или плагина: не больше одной из двух форм.
@@ -50,7 +51,8 @@ export interface BundleOptionsBase {
    * (`httpEndpoint`, `cliEndpoint`, `implement`).
    *
    * Инстанцировать в них нечего, поэтому в `providers` они не попадают.
-   * Зависимости хендлера регистрируются как обычные провайдеры.
+   * Класс-хендлер регистрирует сам endpoint; зависимости хендлера — это
+   * обычные провайдеры единицы.
    */
   readonly endpoints?: readonly AnyEndpointDefinition[];
 }
@@ -75,9 +77,9 @@ export type PluginOptions = BundleOptionsBase &
  * Фича приложения: имя, её модули и её endpoint'ы.
  *
  * Поля `dependsOn` у фичи нет. Зависимость одной фичи от другой выводится
- * из объявленных операций: вызывающая сторона названа в `deps` декларации,
- * реализация — в составе другой фичи. Дублировать это полем значило бы
- * завести второй источник истины, который не с чем сверить.
+ * из объявленных операций: вызывающая сторона названа в зависимостях
+ * хендлера, реализация — в составе другой фичи. Дублировать это полем
+ * значило бы завести второй источник истины, который не с чем сверить.
  */
 export interface Feature {
   /** Роль единицы; читается отчётами и проверкой границ */
@@ -327,8 +329,9 @@ export function resolveSelection(
   if (!features || features.length === 0) {
     if (select !== undefined) {
       throw new Error(
-        `'select' is given, but no features are declared. ` +
-          `Declare them in 'features:' of assemble({ … }) or drop 'select'.`,
+        `A selection is given, but no features are declared. ` +
+          `Declare them in 'features:' of makeApp({ … }) or assemble without ` +
+          `a selection.`,
       );
     }
 
@@ -355,8 +358,8 @@ export function resolveSelection(
 
   if (names.length === 0) {
     throw new Error(
-      `'select' is empty. "Nothing" is written by declaring no features at ` +
-        `all, not by an empty selection.`,
+      `The selection is empty. "Nothing" is written by declaring no ` +
+        `features at all, not by an empty selection.`,
     );
   }
 
@@ -366,7 +369,7 @@ export function resolveSelection(
 
     if (!feature) {
       throw new Error(
-        `Unknown feature '${name}' in 'select'. ` +
+        `Unknown feature '${name}' in the selection. ` +
           `Available features: ${[...declared.keys()].join(', ')}.`,
       );
     }
@@ -446,7 +449,8 @@ export function reachableModules(bundle: Bundle): Module[] {
 
 /**
  * Токены, которые единица запрашивает у контейнера: зависимости её
- * деклараций и её провайдеров.
+ * деклараций (объектная форма `handler` и класс-хендлер) и её
+ * провайдеров.
  *
  * Вызыватель операции — обычный токен, поэтому инжектировать его может и
  * декларация, и любой провайдер фичи. Читать одни декларации значило бы
@@ -460,7 +464,12 @@ export function injectedTokens(bundle: Bundle): InjectionToken[] {
   const tokens: InjectionToken[] = [];
 
   for (const endpoint of bundle.endpoints) {
-    tokens.push(...(endpoint.deps ?? []));
+    tokens.push(...handlerDependenciesOf(endpoint));
+
+    const handlerClass = handlerClassOf(endpoint);
+    if (handlerClass) {
+      tokens.push(...dependenciesOf(handlerClass));
+    }
   }
 
   for (const module of reachableModules(bundle)) {

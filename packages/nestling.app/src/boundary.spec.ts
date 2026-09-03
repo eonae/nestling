@@ -10,7 +10,7 @@
  * значения деклараций.
  */
 
-import { assemble } from './app';
+import { makeApp } from './app';
 import { buildOwnerMap } from './boundary';
 import { makeFeature, makePlugin } from './feature';
 import { MockTransport } from './helpers';
@@ -50,11 +50,13 @@ const anyEndpoint = (path: string, deps: readonly unknown[] = []) =>
   httpEndpoint({
     method: 'GET',
     path,
-    deps: deps as never,
-    handle:
-      (...injected: unknown[]) =>
-      async () =>
-        new Ok({ injected: injected.length }),
+    handler: {
+      deps: deps as never,
+      handle:
+        (...injected: unknown[]) =>
+        async () =>
+          new Ok({ injected: injected.length }),
+    },
   });
 
 describe('карта «модуль → владелец»', () => {
@@ -94,7 +96,7 @@ describe('фичи связаны только операциями', () => {
       endpoints: [anyEndpoint('/users', [UserService])],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Quotas, Users],
       transports: [asHttp()],
     });
@@ -112,7 +114,7 @@ describe('фичи связаны только операциями', () => {
       endpoints: [anyEndpoint('/users', [UserService])],
     });
 
-    const failure = await assemble({
+    const failure = await makeApp({
       features: [Quotas, Users],
       transports: [asHttp()],
     })
@@ -142,7 +144,7 @@ describe('фичи связаны только операциями', () => {
       endpoints: [anyEndpoint('/users', [Greeter])],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Users],
       plugins: [Infra],
       transports: [asHttp()],
@@ -158,7 +160,10 @@ describe('фичи связаны только операциями', () => {
       endpoints: [anyEndpoint('/users', [UserService])],
     });
 
-    const app = assemble({ features: [Users], transports: [asHttp()] });
+    const app = makeApp({
+      features: [Users],
+      transports: [asHttp()],
+    });
 
     await expect(app.check()).resolves.toBeDefined();
   });
@@ -173,7 +178,7 @@ describe('фичи связаны только операциями', () => {
     const Quotas = makeFeature({
       name: 'quotas',
       endpoints: [
-        implement(ClaimQuota, { handle: async () => new Ok({ granted: 1 }) }),
+        implement(ClaimQuota, { handler: async () => new Ok({ granted: 1 }) }),
       ],
     });
 
@@ -183,17 +188,19 @@ describe('фичи связаны только операциями', () => {
         httpEndpoint({
           method: 'POST',
           path: '/orders',
-          deps: [ClaimQuota.caller],
-          handle: (quotas: Port<typeof ClaimQuota>) => async () => {
-            await quotas.call({ amount: 1 });
+          handler: {
+            deps: [ClaimQuota.caller],
+            handle: (quotas: Port<typeof ClaimQuota>) => async () => {
+              await quotas.call({ amount: 1 });
 
-            return new Ok({});
+              return new Ok({});
+            },
           },
         }),
       ],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Quotas, Users],
       transports: [asHttp()],
     });
@@ -211,7 +218,7 @@ describe('плагин не зависит от фичи', () => {
       endpoints: [anyEndpoint('/report', [UserService])],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Users],
       plugins: [Infra],
       transports: [asHttp()],
@@ -237,7 +244,7 @@ describe('плагин не зависит от фичи', () => {
       endpoints: [anyEndpoint('/users', [QuotaService])],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Users],
       plugins: [logging('orders-api')],
       transports: [asHttp()],
@@ -253,7 +260,7 @@ describe('общий модуль обязан быть плагином', () =>
     const Users = makeFeature({ name: 'users', modules: [Shared] });
     const Orders = makeFeature({ name: 'orders', modules: [Shared] });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Users, Orders],
       transports: [asHttp()],
     });
@@ -286,7 +293,7 @@ describe('общий модуль обязан быть плагином', () =>
       endpoints: [anyEndpoint('/orders', [QuotaService])],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Users, Orders],
       plugins: [Infra],
       transports: [asHttp()],

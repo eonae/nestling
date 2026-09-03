@@ -19,7 +19,7 @@ import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { defineFail, makePipeline, Ok } from '@nestling/pipeline';
+import { makeFail, makePipeline, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
@@ -33,8 +33,7 @@ const servers = process.env.NATS_TEST_SERVERS;
  */
 const prefix = `nltest-${process.pid}.`;
 
-const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
-  status: 'CONFLICT',
+const QuotaExceeded = makeFail('conflict:quota_exceeded', {
   message: 'Quota exceeded',
 });
 
@@ -65,12 +64,12 @@ const ClaimImpl = implement(Claim, {
   pipeline: makePipeline().pre((ctx) => {
     seenAttributes = ctx.raw.attributes;
   }),
-  handle: async (input) =>
+  handler: async (input) =>
     deny ? QuotaExceeded() : new Ok({ granted: input.amount }),
 });
 
 const ShipImpl = implement(Ship, {
-  handle: async (input) => {
+  handler: async (input) => {
     shipped.push(input.orderId);
 
     return undefined;
@@ -79,7 +78,7 @@ const ShipImpl = implement(Ship, {
 
 const PlacedImpl = implement(Placed, {
   subscriber: 'archive',
-  handle: async (input) => {
+  handler: async (input) => {
     archived.push(input.orderId);
 
     return undefined;
@@ -137,7 +136,9 @@ suite('живой брокер', () => {
 
     const response = await caller.request('live.quotas.claim', { amount: 1 });
 
-    expect(response).toMatchObject({ value: { code: 'QUOTA_EXCEEDED' } });
+    expect(response).toMatchObject({
+      value: { code: 'conflict:quota_exceeded' },
+    });
 
     await owner.close();
     await caller.close();
@@ -202,7 +203,7 @@ suite('живой брокер', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'SERVICE_UNAVAILABLE',
+      status: 'service_unavailable',
     });
 
     await caller.close();

@@ -10,10 +10,10 @@ import { makeClient } from './client.js';
 
 import { describe, expect, it } from '@jest/globals';
 import {
-  defineFail,
   events,
   makeCommand,
   makeEvent,
+  makeFail,
   makeRequest,
   multipart,
   query,
@@ -23,8 +23,7 @@ import { z } from 'zod';
 
 const User = z.object({ id: z.string(), email: z.string() });
 
-const EmailTaken = defineFail('CLIENT_EMAIL_TAKEN', {
-  status: 'CONFLICT',
+const EmailTaken = makeFail('conflict:client_email_taken', {
   message: 'Email already taken',
   details: z.object({ email: z.string() }),
 });
@@ -323,7 +322,7 @@ describe('makeClient: разбор успеха', () => {
 
     expect(result.isFail).toBe(false);
     expect(result).toMatchObject({
-      status: 'CREATED',
+      status: 'created',
       value: { id: 'u-1', email: 'a@b.c' },
     });
   });
@@ -338,7 +337,7 @@ describe('makeClient: разбор успеха', () => {
     await expect(api.deleteUser({ id: '42' })).resolves.toBeUndefined();
   });
 
-  it('ответ, не прошедший схему, даёт UNKNOWN с issue в cause', async () => {
+  it('ответ, не прошедший схему, даёт internal_error с issue в cause', async () => {
     const stub = stubFetch(() => json(200, { id: 'u-1' }));
     const api = makeClient(
       { createUser: CreateUser },
@@ -347,7 +346,7 @@ describe('makeClient: разбор успеха', () => {
 
     const result = await api.createUser({ email: 'a@b.c' });
 
-    expect(result).toMatchObject({ isFail: true, code: 'UNKNOWN' });
+    expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
     expect((result as { cause?: unknown }).cause).toBeDefined();
   });
 
@@ -369,7 +368,7 @@ describe('makeClient: разбор отказа', () => {
     const stub = stubFetch(() =>
       json(409, {
         error: 'Email taken',
-        code: 'CLIENT_EMAIL_TAKEN',
+        code: 'conflict:client_email_taken',
         details: { email: 'a@b.c' },
       }),
     );
@@ -382,17 +381,19 @@ describe('makeClient: разбор отказа', () => {
 
     expect(EmailTaken.is(result)).toBe(true);
     expect(result).toMatchObject({
-      status: 'CONFLICT',
+      code: 'conflict:client_email_taken',
       message: 'Email taken',
       details: { email: 'a@b.c' },
     });
+    // Категория — производная от кода определения, не поле с провода
+    expect((result as { category: string }).category).toBe('conflict');
   });
 
-  it('статус берётся из определения, а не из ответа', async () => {
+  it('категория берётся из кода определения, а не из HTTP-кода ответа', async () => {
     const stub = stubFetch(() =>
       json(500, {
         error: 'Email taken',
-        code: 'CLIENT_EMAIL_TAKEN',
+        code: 'conflict:client_email_taken',
         details: { email: 'a@b.c' },
       }),
     );
@@ -401,12 +402,13 @@ describe('makeClient: разбор отказа', () => {
       { baseUrl, fetch: stub.fetch },
     );
 
-    expect(await api.createUser({ email: 'a@b.c' })).toMatchObject({
-      status: 'CONFLICT',
-    });
+    const result = await api.createUser({ email: 'a@b.c' });
+
+    expect(EmailTaken.is(result)).toBe(true);
+    expect((result as { category: string }).category).toBe('conflict');
   });
 
-  it('незадекларированный код даёт UNKNOWN с телом в cause', async () => {
+  it('незадекларированный код даёт internal_error с телом в cause', async () => {
     const body = { error: 'nope', code: 'SOMETHING_ELSE' };
     const stub = stubFetch(() => json(418, body));
     const api = makeClient(
@@ -416,15 +418,15 @@ describe('makeClient: разбор отказа', () => {
 
     const result = await api.createUser({ email: 'a@b.c' });
 
-    expect(result).toMatchObject({ isFail: true, code: 'UNKNOWN' });
+    expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
     expect((result as { cause?: unknown }).cause).toEqual(body);
   });
 
-  it('несошедшиеся детали дают UNKNOWN, а не отказ с мусором', async () => {
+  it('несошедшиеся детали дают internal_error, а не отказ с мусором', async () => {
     const stub = stubFetch(() =>
       json(409, {
         error: 'Email taken',
-        code: 'CLIENT_EMAIL_TAKEN',
+        code: 'conflict:client_email_taken',
         details: { wrong: 1 },
       }),
     );
@@ -435,11 +437,11 @@ describe('makeClient: разбор отказа', () => {
 
     const result = await api.createUser({ email: 'a@b.c' });
 
-    expect(result).toMatchObject({ isFail: true, code: 'UNKNOWN' });
+    expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
     expect(EmailTaken.is(result)).toBe(false);
   });
 
-  it('сетевой сбой не бросает — возвращает UNKNOWN', async () => {
+  it('сетевой сбой не бросает — возвращает internal_error', async () => {
     const failing = (() =>
       Promise.reject(
         new Error('ECONNREFUSED'),
@@ -452,11 +454,11 @@ describe('makeClient: разбор отказа', () => {
 
     const result = await api.createUser({ email: 'a@b.c' });
 
-    expect(result).toMatchObject({ isFail: true, code: 'UNKNOWN' });
+    expect(result).toMatchObject({ isFail: true, code: 'internal_error' });
     expect((result as { cause?: Error }).cause?.message).toBe('ECONNREFUSED');
   });
 
-  it('не-JSON тело даёт UNKNOWN', async () => {
+  it('не-JSON тело даёт internal_error', async () => {
     const stub = stubFetch(
       () => new Response('<html>502</html>', { status: 502 }),
     );
@@ -467,7 +469,7 @@ describe('makeClient: разбор отказа', () => {
 
     expect(await api.createUser({ email: 'a@b.c' })).toMatchObject({
       isFail: true,
-      code: 'UNKNOWN',
+      code: 'internal_error',
     });
   });
 
@@ -480,7 +482,7 @@ describe('makeClient: разбор отказа', () => {
 
     await expect(api.deleteUser({ id: '42' })).rejects.toMatchObject({
       isFail: true,
-      code: 'UNKNOWN',
+      code: 'internal_error',
     });
   });
 });
@@ -500,9 +502,9 @@ describe('makeClient: meta и конфигурация', () => {
 
     expect(result).toMatchObject({
       isFail: true,
-      code: 'DEADLINE_EXCEEDED',
-      status: 'TIMEOUT',
+      code: 'timeout',
     });
+    expect((result as { category: string }).category).toBe('timeout');
     expect(stub.calls).toHaveLength(0);
   });
 
@@ -519,7 +521,7 @@ describe('makeClient: meta и конфигурация', () => {
     expect(stub.calls[0].init.signal).toBe(controller.signal);
   });
 
-  it('отмена по signal даёт UNKNOWN, а не исключение', async () => {
+  it('отмена по signal даёт internal_error, а не исключение', async () => {
     const aborting = (() =>
       Promise.reject(
         Object.assign(new Error('This operation was aborted'), {
@@ -534,7 +536,7 @@ describe('makeClient: meta и конфигурация', () => {
 
     expect(await api.createUser({ email: 'a@b.c' })).toMatchObject({
       isFail: true,
-      code: 'UNKNOWN',
+      code: 'internal_error',
     });
   });
 

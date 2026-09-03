@@ -3,28 +3,27 @@
 /* eslint-disable unicorn/prefer-structured-clone --
  * JSON round-trip — предмет проверки: structuredClone сохранил бы прототип */
 /**
- * `Ok` и `Fail` как значения: дискриминант, `code`/`cause`,
+ * `Ok` и `Fail` как значения: дискриминант, `code`/`category`/`cause`,
  * несовместимость отказов с разными кодами и запрет `new Ok(fail)`.
  *
  * Типовые проверки живут здесь же, рядом с рантайм-ожиданиями: обе
  * стороны описывают одну и ту же форму значения.
  */
 
-import { defineFail } from './define-fail.js';
-import type { AnyFail, Output, OutputSync } from './result.js';
+import type { Output, OutputSync } from './make-fail.js';
+import { makeFail } from './make-fail.js';
+import type { AnyFail } from './result.js';
 import { Fail, isFail, Ok } from './result.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { z } from 'zod';
 
-const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
-  status: 'NOT_FOUND',
+const OrderNotFound = makeFail('not_found:order', {
   details: z.object({ orderId: z.string() }),
   message: (d) => `Order ${d.orderId} not found`,
 });
 
-const CardDeclined = defineFail('CARD_DECLINED', {
-  status: 'PAYMENT_REQUIRED',
+const CardDeclined = makeFail('payment_required:card_declined', {
   message: 'Card declined',
 });
 
@@ -49,7 +48,7 @@ describe('Ok/Fail — дискриминант isFail', () => {
 
     if (res.isFail) {
       // В этой ветке доступны поля отказа
-      expect(res.code).toBe('ORDER_NOT_FOUND');
+      expect(res.code).toBe('not_found:order');
       expect(res.details.orderId).toBe('42');
     } else {
       expect(res.value.id).toBeDefined();
@@ -57,7 +56,26 @@ describe('Ok/Fail — дискриминант isFail', () => {
   });
 });
 
-describe('Fail — code и cause', () => {
+describe('Ok — статусы успеха', () => {
+  it('статус по умолчанию — ok, фабрики дают остальные', () => {
+    expect(new Ok({ id: 1 }).status).toBe('ok');
+    expect(Ok.created({ id: 1 }).status).toBe('created');
+    expect(Ok.accepted({ id: 1 }).status).toBe('accepted');
+    expect(Ok.noContent().status).toBe('no_content');
+    expect(Ok.noContent().value).toBeNull();
+  });
+
+  it('заголовки — метаданные ответа, транспорт им не назначен', () => {
+    const ok = Ok.created({ id: 1 }, { Location: '/orders/1' });
+
+    expect(ok.headers).toEqual({ Location: '/orders/1' });
+    expect(
+      new Ok('accepted', { id: 1 }, { 'Retry-After': '5' }).headers,
+    ).toEqual({ 'Retry-After': '5' });
+  });
+});
+
+describe('Fail — code, category и cause', () => {
   it('cause доступен на значении и не является частью деталей', () => {
     const cause = new Error('connection refused');
     const fail = OrderNotFound({ orderId: '42' }, { cause });
@@ -66,18 +84,20 @@ describe('Fail — code и cause', () => {
     expect(fail.details).toEqual({ orderId: '42' });
   });
 
-  it('статические фабрики дают анонимный отказ (code: undefined)', () => {
-    const fail = Fail.notFound('nope');
-
-    expect(fail.code).toBeUndefined();
-    expect(fail.status).toBe('NOT_FOUND');
-    expect(fail.isFail).toBe(true);
+  it('категория выводится из кода', () => {
+    expect(new Fail('not_found:order', 'nope').category).toBe('not_found');
+    expect(new Fail('conflict', 'dup').category).toBe('conflict');
   });
 
-  it('новые статусы словаря доступны фабриками', () => {
-    expect(Fail.conflict('dup').status).toBe('CONFLICT');
-    expect(Fail.tooManyRequests('slow down').status).toBe('TOO_MANY_REQUESTS');
-    expect(Fail.timeout('too slow').status).toBe('TIMEOUT');
+  it('анонимные фабрики дают отказ с кодом, равным категории', () => {
+    const fail = Fail.notFound('nope');
+
+    expect(fail.code).toBe('not_found');
+    expect(fail.category).toBe('not_found');
+    expect(fail.isFail).toBe(true);
+    expect(Fail.conflict('dup').code).toBe('conflict');
+    expect(Fail.tooManyRequests('slow down').code).toBe('too_many_requests');
+    expect(Fail.timeout('too slow').code).toBe('timeout');
   });
 });
 
@@ -92,13 +112,13 @@ interface Order {
 // Отказы с разными кодами несовместимы по присваиванию
 {
   const notFound = OrderNotFound({ orderId: '1' });
-  // @ts-expect-error: Fail<'ORDER_NOT_FOUND'> не присваивается Fail<'CARD_DECLINED'>
+  // @ts-expect-error: Fail<'not_found:order'> не присваивается Fail<'payment_required:card_declined'>
   const declined: ReturnType<typeof CardDeclined> = notFound;
 }
 
 // Анонимный отказ не выдаёт себя за объявленный
 {
-  // @ts-expect-error: Fail<undefined> не присваивается Fail<'ORDER_NOT_FOUND'>
+  // @ts-expect-error: Fail<'not_found'> не присваивается Fail<'not_found:order'>
   const declared: ReturnType<typeof OrderNotFound> = Fail.notFound('nope');
 }
 
@@ -107,7 +127,7 @@ interface Order {
   // @ts-expect-error: Ok не оборачивает отказ
   const wrapped = new Ok(OrderNotFound({ orderId: '1' }));
   // @ts-expect-error: то же в форме со статусом
-  const wrappedWithStatus = new Ok('CREATED', CardDeclined());
+  const wrappedWithStatus = new Ok('created', CardDeclined());
 }
 
 // Output без объявленных отказов не принимает Fail
@@ -118,17 +138,29 @@ interface Order {
   const failing: OutputSync<Order> = OrderNotFound({ orderId: '1' });
 }
 
-// Output с объявленным множеством принимает только его члены
+// Output принимает определения и разворачивает их в отказы
+{
+  const declared: OutputSync<Order, typeof OrderNotFound> = OrderNotFound({
+    orderId: '1',
+  });
+  // @ts-expect-error: чужой отказ вне множества E
+  const foreign: OutputSync<Order, typeof OrderNotFound> = CardDeclined();
+
+  const either: OutputSync<Order, typeof OrderNotFound | typeof CardDeclined> =
+    CardDeclined();
+
+  const asyncDeclared: Output<Order, typeof OrderNotFound> = Promise.resolve(
+    OrderNotFound({ orderId: '1' }),
+  );
+}
+
+// Output принимает и готовые типы отказов
 {
   type Declared = ReturnType<typeof OrderNotFound>;
 
   const declared: OutputSync<Order, Declared> = OrderNotFound({ orderId: '1' });
   // @ts-expect-error: чужой отказ вне множества E
   const foreign: OutputSync<Order, Declared> = CardDeclined();
-
-  const asyncDeclared: Output<Order, Declared> = Promise.resolve(
-    OrderNotFound({ orderId: '1' }),
-  );
 }
 
 // AnyFail покрывает любой отказ — им ограничивается E

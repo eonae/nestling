@@ -2,7 +2,7 @@
  * Разбор ответа: успех, валидация по `output` и восстановление `Fail` из
  * ответа.
  *
- * Множество результата закрыто как `E ∪ UnknownError` — то же, что у порта.
+ * Множество результата закрыто как `E ∪ InternalError` — то же, что у порта.
  * Иных кодов клиент не вводит: `default`-ветка, написанная для `.caller`,
  * переносится на клиента без правок.
  */
@@ -16,9 +16,9 @@ import type {
 import {
   describeForm,
   Fail,
+  InternalError,
   isPrimitiveLeaf,
   Ok,
-  UnknownError,
 } from '@nestling/operations';
 
 /** Тело отказа по сети — то же, что собирает серверная граница */
@@ -31,23 +31,25 @@ interface WireFailure {
 /**
  * HTTP-код успеха обратно в статус.
  *
- * Прочие 2xx схлопываются в `OK`: словарь статусов ядра закрыт, и вводить
+ * Прочие 2xx схлопываются в `ok`: словарь статусов ядра закрыт, и вводить
  * ради экзотического кода новый элемент значило бы расширять операция
  * ответа по чужому решению.
  */
 const SUCCESS_BY_CODE: Readonly<Record<number, SuccessStatus>> = {
-  200: 'OK',
-  201: 'CREATED',
-  202: 'ACCEPTED',
-  204: 'NO_CONTENT',
+  200: 'ok',
+  201: 'created',
+  202: 'accepted',
+  204: 'no_content',
 };
 
-/** Отказ «что-то пошло не так, и операция этого не описывает» */
+/**
+ * Отказ «что-то пошло не так, и операция этого не описывает».
+ *
+ * Тот же `InternalError` по идентичности (код `internal_error`), но с
+ * текстом, называющим причину: потребителю клиента он нужен в логе.
+ */
 export function unknownFailure(message: string, cause: unknown): AnyFail {
-  return new Fail('INTERNAL_ERROR', message, {
-    code: UnknownError.code,
-    cause,
-  });
+  return new Fail(InternalError.code, message, { cause });
 }
 
 /**
@@ -89,7 +91,7 @@ function validateOutputValue(
     : { ok: true, value: sync.value };
 }
 
-/** Разбирает успешный ответ в `Ok` либо в `UnknownError` */
+/** Разбирает успешный ответ в `Ok` либо в `InternalError` */
 export function readSuccess(
   status: number,
   body: unknown,
@@ -98,10 +100,10 @@ export function readSuccess(
   where: string,
 ): Ok<unknown> | AnyFail {
   if (status === 204) {
-    return new Ok('NO_CONTENT', null);
+    return new Ok('no_content', null);
   }
 
-  const okStatus = SUCCESS_BY_CODE[status] ?? 'OK';
+  const okStatus = SUCCESS_BY_CODE[status] ?? 'ok';
 
   if (!validate) {
     return new Ok(okStatus, body as never);
@@ -120,10 +122,11 @@ export function readSuccess(
 /**
  * Восстанавливает отказ по коду из `errors:` операции.
  *
- * Статус берётся из **определения** (сервер мог ответить любым — операция
- * знает лучше), `message` — из ответа (он про конкретный случай), `details`
- * — тоже из ответа, но проверенные схемой определения. Не сошлись детали —
- * `UnknownError`: отказ с невалидными деталями хуже честного «не знаю».
+ * Код и категория берутся из **определения** (сервер мог ответить любым
+ * HTTP-кодом — операция знает лучше), `message` — из ответа (он про
+ * конкретный случай), `details` — тоже из ответа, но проверенные схемой
+ * определения. Не сошлись детали — `InternalError`: отказ с невалидными
+ * деталями хуже честного «не знаю».
  */
 export function readFailure(
   status: number,
@@ -174,8 +177,7 @@ export function readFailure(
       ? wire.error
       : definition.code;
 
-  return new Fail(definition.status, message, {
-    code: definition.code,
+  return new Fail(definition.code, message, {
     ...(details === undefined ? {} : { details }),
   });
 }

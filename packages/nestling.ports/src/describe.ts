@@ -95,13 +95,13 @@ export interface FormDescriptorValue {
   readonly files?: Readonly<Record<string, FileFieldDescriptor>>;
 }
 
-/** Объявленный отказ в дескрипторе: код и его статус */
+/** Объявленный отказ в дескрипторе: код и его категория */
 export interface FailDescriptor {
   /** Машинный код — идентичность отказа */
   readonly code: string;
 
-  /** Транспортно-нейтральный статус ответа */
-  readonly status: string;
+  /** Категория: первый сегмент кода, не зависит от транспорта */
+  readonly category: string;
 }
 
 /** Операция как значение снапшота */
@@ -281,7 +281,7 @@ interface OperationShape {
   readonly kind: OperationKind;
   readonly input?: unknown;
   readonly output?: unknown;
-  readonly errors?: readonly { code: string; status: string }[];
+  readonly errors?: readonly { code: string; category: string }[];
 }
 
 /**
@@ -299,7 +299,7 @@ function readShape(source: DescribeSource): OperationShape {
     kind?: unknown;
     input?: unknown;
     output?: unknown;
-    errors?: readonly { code: string; status: string }[];
+    errors?: readonly { code: string; category: string }[];
   };
 
   if (binding) {
@@ -358,7 +358,7 @@ export function describeOperation(
   const errors = [...(shape.errors ?? [])]
     .map((definition) => ({
       code: definition.code,
-      status: definition.status,
+      category: definition.category,
     }))
     .sort((left, right) => (left.code < right.code ? -1 : 1));
 

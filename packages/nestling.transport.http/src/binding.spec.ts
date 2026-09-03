@@ -32,7 +32,7 @@ describe('httpBindingOf — фолбэк на канон', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$('default'),
       pattern: 'GET /ping',
-      handle: async () => new Ok({ pong: true }),
+      handler: async () => new Ok({ pong: true }),
     });
 
     expect(httpBindingOf(Ping)).toEqual({
@@ -48,7 +48,7 @@ describe('httpBindingOf — фолбэк на канон', () => {
     const Raw = makeEndpoint({
       transport: HttpTransport$('default'),
       pattern: 'GET /users/:id',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     // Fail-fast — дело конструктора у владельца декларации; на горячем пути

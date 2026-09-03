@@ -22,8 +22,8 @@ import type {
   EndpointDefinition,
   FailsOf,
   HandlerClass,
-  HandlerFactory,
   HandlerFn,
+  HandlerWithDeps,
   MissingFields,
   Pipeline,
   StreamForm,
@@ -160,7 +160,7 @@ export interface HttpEndpointDictionary<
    *
    * @example
    * ```typescript
-   * doc: { summary: 'Create user', tags: ['users'], status: 'CREATED' }
+   * doc: { summary: 'Create user', tags: ['users'], status: 'created' }
    * ```
    */
   doc?: DeclarationDoc;
@@ -339,7 +339,7 @@ function fromOperation(
  *
  * Надстройка над `makeEndpoint` из ядра: добавляет поля транспорта,
  * собирает `pattern` как `` `${method} ${path}` `` и проверяет поля при
- * создании. Общая часть деклараций (`deps`, три формы `handle`, `resolve`,
+ * создании. Общая часть деклараций (три формы `handler`, `resolve`,
  * бренд) живёт в `makeEndpoint`.
  *
  * @example Функция-хендлер: декларация исполнима сразу
@@ -349,7 +349,7 @@ function fromOperation(
  *   path: '/health',
  *   output: HealthOutput,
  *   pipeline: basePipeline,
- *   handle: async () => Ok.of({ status: 'up' }),
+ *   handler: async () => Ok.of({ status: 'up' }),
  * });
  * ```
  *
@@ -361,12 +361,14 @@ function fromOperation(
  *   input: GetUserInput,
  *   output: User,
  *   pipeline: basePipeline,
- *   deps: [UserService],
- *   handle: (users) => async ({ id }) => new Ok(await users.getById(id)),
+ *   handler: {
+ *     deps: [UserService],
+ *     handle: (users) => async ({ id }) => new Ok(await users.getById(id)),
+ *   },
  * });
  * ```
  *
- * @example Класс-хендлер: регистрируется в `providers:`
+ * @example Класс-хендлер: endpoint создаёт экземпляр сам
  * ```typescript
  * export const CreateUser = httpEndpoint({
  *   method: 'POST',
@@ -374,7 +376,7 @@ function fromOperation(
  *   input: CreateUserInput,
  *   output: User,
  *   pipeline: basePipeline,
- *   handle: CreateUserHandler,
+ *   handler: CreateUserHandler,
  * });
  * ```
  *
@@ -388,7 +390,7 @@ function fromOperation(
  *   rawBody: true,                           // байты в стартовом контексте
  *   pipeline: compose(makePipeline<{ rawBody: Uint8Array }>()
  *     .pre(verifySignature(secret)), basePipeline),
- *   handle: async (event) => Ok.of({ received: event.id }),
+ *   handler: async (event) => Ok.of({ received: event.id }),
  * });
  * ```
  *
@@ -401,7 +403,7 @@ function fromOperation(
  * Порядок перегрузок задают два ограничения.
  *
  * Резолвинг: форма с функцией-хендлером стоит раньше формы с
- * класс-хендлером. Аргумент `handle` контекстно-чувствителен, первый проход
+ * класс-хендлером. Аргумент `handler` контекстно-чувствителен, первый проход
  * резолвинга его не проверяет, и класс-форма, стоящая раньше, побеждала бы;
  * параметр функции оставался бы без контекстного типа.
  *
@@ -420,8 +422,7 @@ export function httpEndpoint<
   PN = never,
 >(
   declaration: HttpOperationDictionary<C, P, PN> & {
-    deps?: undefined;
-    handle: HandlerFn<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>;
+    handler: HandlerFn<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>;
   },
 ): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN>;
 export function httpEndpoint<
@@ -431,8 +432,7 @@ export function httpEndpoint<
   D extends InjectionToken[] = InjectionToken[],
 >(
   declaration: HttpOperationDictionary<C, P, PN> & {
-    deps: [...D];
-    handle: HandlerFactory<
+    handler: HandlerWithDeps<
       D,
       InputFormOf<C>,
       OutputFormOf<C>,
@@ -453,8 +453,7 @@ export function httpEndpoint<
   > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>,
 >(
   declaration: HttpOperationDictionary<C, P, PN> & {
-    deps?: undefined;
-    handle: H;
+    handler: H;
   },
 ): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN | H>;
 export function httpEndpoint<
@@ -468,8 +467,7 @@ export function httpEndpoint<
   E extends readonly AnyFailDefinition[] = [],
 >(
   declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
-    deps?: undefined;
-    handle: HandlerFn<I, O, P, FailsOf<E>>;
+    handler: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function httpEndpoint<
@@ -484,8 +482,7 @@ export function httpEndpoint<
   E extends readonly AnyFailDefinition[] = [],
 >(
   declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
-    deps: [...D];
-    handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
+    handler: HandlerWithDeps<D, I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN | D[number]>;
 export function httpEndpoint<
@@ -505,8 +502,7 @@ export function httpEndpoint<
   PR extends AnyInput = EmptyInput,
 >(
   declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
-    deps?: undefined;
-    handle: C;
+    handler: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function httpEndpoint(
@@ -523,8 +519,7 @@ export function httpEndpoint(
       >
     | HttpOperationDictionary<any, any, unknown>
   ) & {
-    deps?: InjectionToken[];
-    handle: unknown;
+    handler: unknown;
   },
 ): AnyEndpointDefinition {
   // Операция-форму отличает ключ `operation`: в анонимной форме его нет

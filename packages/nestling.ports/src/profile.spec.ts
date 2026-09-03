@@ -170,7 +170,7 @@ describe('помощники бюджета', () => {
     await sleep(20);
 
     // Таймер тоже сработал, но «выиграл» вызывающий: его отмена остаётся
-    // `UnknownError`, какой была до появления бюджета
+    // `InternalError`, какой была до появления бюджета
     expect(budget.expired).toBe(false);
     budget.release();
   });
@@ -188,7 +188,7 @@ describe('Deadline — чтение бюджета из глубины', () => {
 
   const ChargeImpl = implement(Charge, {
     pipeline: makePipeline().pre(withDeadline()),
-    handle: async () => {
+    handler: async () => {
       seen = reader.peek();
 
       return new Ok({ seen: seen !== undefined });
@@ -236,7 +236,7 @@ describe('Deadline — чтение бюджета из глубины', () => {
 
     let thrown: unknown;
     const BareImpl = implement(Bare, {
-      handle: async () => {
+      handler: async () => {
         try {
           reader.get();
         } catch (error) {
@@ -277,7 +277,7 @@ describe('IdempotencyKey — чтение ключа из глубины', () =>
 
   const ShipImpl = implement(Ship, {
     pipeline: makePipeline().pre(withIdempotencyKey()),
-    handle: async () => {
+    handler: async () => {
       seen = reader.get();
 
       return undefined;
@@ -331,7 +331,7 @@ describe('policy-check присутствия переменной', () => {
   it('реализация со штатным писателем инвариант соблюдает', () => {
     const withKey = implement(Ship, {
       pipeline: makePipeline().pre(withIdempotencyKey()),
-      handle: async () => undefined,
+      handler: async () => undefined,
     });
 
     expect(policy.check([subject(withKey)])).toEqual([]);
@@ -343,7 +343,7 @@ describe('policy-check присутствия переменной', () => {
       input: z.object({ orderId: z.string() }),
     });
 
-    const bare = implement(Bare, { handle: async () => undefined });
+    const bare = implement(Bare, { handler: async () => undefined });
     const [violation] = policy.check([subject(bare)]);
 
     expect(violation.pattern).toBe('profile.policy.bare');
@@ -365,7 +365,7 @@ describe('явная передача остатка вглубь', () => {
   });
 
   const InnerImpl = implement(Inner, {
-    handle: async () => {
+    handler: async () => {
       await sleep(80);
 
       return new Ok({ done: true });
@@ -379,7 +379,7 @@ describe('явная передача остатка вглубь', () => {
 
   const OuterImpl = implement(Outer, {
     pipeline: makePipeline().pre(withDeadline()),
-    handle: async () => {
+    handler: async () => {
       innerResult = await inner.call(
         { id: 'i-1' },
         // Остаток общего бюджета отдаётся дальше **явно**: неявного
@@ -428,7 +428,7 @@ describe('явная передача остатка вглубь', () => {
       frameWithBudget(deadlineIn(30)),
     );
 
-    expect((innerResult as { code: string }).code).toBe('DEADLINE_EXCEEDED');
+    expect((innerResult as { code: string }).code).toBe('timeout');
   });
 
   it('без явной передачи вложенный вызов бюджета не наследует', async () => {

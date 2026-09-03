@@ -67,7 +67,7 @@ const Passthrough = makeRequest({
 let receivedPayload: unknown;
 
 const EchoImpl = implement(Echo, {
-  handle: async (input) => {
+  handler: async (input) => {
     receivedPayload = input;
 
     return new Ok({ received: input.items });
@@ -82,11 +82,11 @@ const DurablePlaced = makeEvent({
 
 const DurableImpl = implement(DurablePlaced, {
   subscriber: 'billing',
-  handle: async () => undefined,
+  handler: async () => undefined,
 });
 
 const PassthroughImpl = implement(Passthrough, {
-  handle: async (payload) => {
+  handler: async (payload) => {
     receivedPayload = payload;
 
     return new Ok({ ok: true });
@@ -97,7 +97,7 @@ let placedSeen: string[] = [];
 
 const PlacedImpl = implement(Placed, {
   subscriber: 'audit',
-  handle: async (input) => {
+  handler: async (input) => {
     placedSeen.push(input.id);
 
     return undefined;

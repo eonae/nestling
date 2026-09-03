@@ -34,8 +34,8 @@ import type {
 } from '@nestling/pipeline';
 import {
   assertFormsSupported,
-  DeadlineExceeded,
   makeEmptyContext,
+  Timeout,
 } from '@nestling/pipeline';
 import { Topic } from '@nestling/streams';
 import type {
@@ -332,7 +332,7 @@ class SubjectHub {
  *
  * Параметры вызова обрабатываются так же, как в сетевой шине:
  * относительный `timeoutMs` превращается в момент по часам получателя при
- * приёме, исчерпанный бюджет даёт `DeadlineExceeded` без вызова
+ * приёме, исчерпанный бюджет даёт `Timeout` без вызова
  * `dispatch.call`, ключ идемпотентности попадает в транспортные атрибуты
  * рядом с `subject`.
  */
@@ -623,7 +623,7 @@ export class InProcessBus implements IMessageBus, ITransport {
     // Бюджет, исчерпанный в пути, означает, что ответа уже никто не ждёт:
     // endpoint не выполняется
     if (isExhausted(meta.deadline)) {
-      return failureResponse(DeadlineExceeded());
+      return failureResponse(Timeout());
     }
 
     const raw: Raw = {
@@ -688,8 +688,8 @@ export class InProcessBus implements IMessageBus, ITransport {
 
     return {
       isSuccess: false,
-      status: 'SERVICE_UNAVAILABLE',
-      value: { error: error.message },
+      status: 'service_unavailable',
+      value: { error: error.message, code: 'service_unavailable' },
     };
   }
 

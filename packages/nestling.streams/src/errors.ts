@@ -3,7 +3,7 @@
  *
  * Пакет не знает ни про статусы, ни про `Fail`: пайплайн передаёт свои
  * фабрики (`onExceeded`/`onTimeout`), и тогда наружу летят kernel-отказы
- * `STREAM_LIMIT_EXCEEDED` / `STREAM_GAP_TIMEOUT`. Эти классы — дефолт для
+ * `payload_too_large` / `timeout`. Эти классы — дефолт для
  * satellite-кода, который применяет комбинаторы к своим потокам.
  */
 

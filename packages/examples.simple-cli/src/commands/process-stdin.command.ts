@@ -26,7 +26,7 @@ export const ProcessStdin = cliEndpoint({
   input: stream('binary'),
   output: ProcessStdinOutput,
   errors: [EmptyStdin],
-  handle: async (
+  handler: async (
     payload: AsyncIterableIterator<Buffer>,
   ): Output<ProcessStdinOutput, FailOf<typeof EmptyStdin>> => {
     let linesProcessed = 0;

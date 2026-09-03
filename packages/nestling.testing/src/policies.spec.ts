@@ -13,7 +13,7 @@ import { assembleTest } from './app';
 import { checkTopologies } from './topologies';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeFeature } from '@nestling/app';
+import { makeApp, makeFeature } from '@nestling/app';
 import { Injectable, OnInit } from '@nestling/container';
 import { compose, everyEndpoint, makePipeline, Ok } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
@@ -36,14 +36,14 @@ const Authed = httpEndpoint({
   method: 'GET',
   path: '/me',
   pipeline: compose(observability, authedBase),
-  handle: async () => new Ok({ id: '1' }),
+  handler: async () => new Ok({ id: '1' }),
 });
 
 const Unauthed = httpEndpoint({
   method: 'GET',
   path: '/admin/users',
   pipeline: observability,
-  handle: async () => new Ok({ users: [] }),
+  handler: async () => new Ok({ users: [] }),
 });
 
 describe('assembleTest — инварианты', () => {
@@ -59,28 +59,34 @@ describe('assembleTest — инварианты', () => {
     }
 
     await expect(
-      assembleTest({
-        features: [
-          makeFeature({
-            name: 'module:admin',
-            providers: [Connection],
-            endpoints: [Unauthed],
-          }),
-        ],
-        transports: [asHttpTransport(new SpyTransport())],
-        policies: [hasAuth()],
-      }),
+      assembleTest(
+        makeApp({
+          features: [
+            makeFeature({
+              name: 'module:admin',
+              providers: [Connection],
+              endpoints: [Unauthed],
+            }),
+          ],
+          transports: [asHttpTransport(new SpyTransport())],
+          policies: [hasAuth()],
+        }),
+      ),
     ).rejects.toThrow(/assembly policies[\S\s]*GET \/admin\/users/);
 
     expect(events).toEqual([]);
   });
 
   it('приложение под соблюдёнными политиками собирается', async () => {
-    await using app = await assembleTest({
-      features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
-      transports: [asHttpTransport(new SpyTransport())],
-      policies: [hasAuth()],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [
+          makeFeature({ name: 'module:profile', endpoints: [Authed] }),
+        ],
+        transports: [asHttpTransport(new SpyTransport())],
+        policies: [hasAuth()],
+      }),
+    );
 
     const response = await app.call(Authed);
 
@@ -100,17 +106,17 @@ describe('checkTopologies — инварианты по каждой топол�
       endpoints: [Unauthed],
     });
 
-    const spec = {
+    const app = makeApp({
       features: [ProfileFeature, AdminFeature],
       transports: [asHttpTransport(new SpyTransport())],
       policies: [hasAuth()],
-    };
+    });
 
     // Топология 'profile' инвариант держит, 'admin' — нет
-    await expect(checkTopologies(spec, ['profile', 'admin'])).rejects.toThrow(
+    await expect(checkTopologies(app, ['profile', 'admin'])).rejects.toThrow(
       /select: 'admin'[\S\s]*GET \/admin\/users/,
     );
 
-    await expect(checkTopologies(spec, ['profile'])).resolves.toHaveLength(1);
+    await expect(checkTopologies(app, ['profile'])).resolves.toHaveLength(1);
   });
 });

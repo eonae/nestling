@@ -1,7 +1,3 @@
-/* eslint-disable unicorn/throw-new-error --
- * `UnknownError(...)` и `ValidationFailed(...)` — вызываемые определения
- * `defineFail`, а не классы ошибок: `new` тут менял бы смысл записи, а имя
- * лишь выглядит классовым. */
 /**
  * Вызыватели: local- и remote-клиент плюс общий нормализатор ответа.
  *
@@ -37,19 +33,19 @@ import type {
   AnyInput,
   EndpointMeta,
   ExtendableContext,
-  Fail,
   Raw,
   ResponseContext,
 } from '@nestling/pipeline';
 import {
+  BadRequest,
   collectPropagatedContext,
-  DeadlineExceeded,
   describeForm,
+  InternalError,
   makeEmptyContext,
   Ok,
   parsePayload,
-  UnknownError,
-  ValidationFailed,
+  PayloadTooLarge,
+  Timeout,
 } from '@nestling/pipeline';
 
 /** Маркер отмены: вызов не ждёт обработчика, проигнорировавшего сигнал */
@@ -134,7 +130,7 @@ function validationFail(
   message: string,
   issues?: readonly { message: string }[],
 ): AnyFail {
-  return ValidationFailed(issues ?? [{ message }]);
+  return BadRequest(issues ?? [{ message }]);
 }
 
 /**
@@ -164,7 +160,7 @@ function validateInput(
     };
   } catch (error) {
     if (error instanceof SchemaValidationError) {
-      return { ok: false, fail: ValidationFailed(error.issues) };
+      return { ok: false, fail: BadRequest(error.issues) };
     }
 
     return {
@@ -181,9 +177,9 @@ function validateInput(
  *
  * Один и тот же для co-located и remote путей: код отказа сопоставляется с
  * определениями `errors` операции, и при совпадении создаётся `Fail`
- * этого определения со `status`, `code` и валидными `details`.
- * Незадекларированный или отсутствующий код даёт `UnknownError`, а
- * оригинал уходит в диагностический хук.
+ * этого определения с тем же `code`, производной категорией и валидными
+ * `details`. Незадекларированный или отсутствующий код даёт
+ * `InternalError`, а оригинал уходит в диагностический хук.
  *
  * Коды ядра восстанавливаются как `Fail` наравне с объявленными:
  * проверка ответа на границе считает их объявленными для любого
@@ -200,10 +196,14 @@ export function normalizePortResponse(
   }
 
   const code = response.value?.code;
+  // `InternalError` в списке нет намеренно: ответ `internal_error` от
+  // реализации — это уже нормализованный сбой, и вызывающая сторона
+  // обязана увидеть его в своём хуке, а не принять молча
   const definitions: readonly AnyFailDefinition[] = [
     ...(operation.errors ?? []),
-    ValidationFailed,
-    DeadlineExceeded,
+    BadRequest,
+    PayloadTooLarge,
+    Timeout,
   ];
   const definition =
     code === undefined
@@ -213,21 +213,19 @@ export function normalizePortResponse(
   if (!definition) {
     runtime.report({ operation: operation.name, error: original ?? response });
 
-    return UnknownError();
+    return InternalError();
   }
 
   try {
-    const construct = definition as unknown as (
-      details?: unknown,
-    ) => Fail<string, unknown>;
+    const construct = definition as unknown as (details?: unknown) => AnyFail;
 
     return definition.schema ? construct(response.value.details) : construct();
   } catch (error) {
     // Детали не прошли схему определения: операция перестала совпадать с
-    // реализацией — потребителю это `UnknownError`, диагностика хуку
+    // реализацией — потребителю это `InternalError`, диагностика хуку
     runtime.report({ operation: operation.name, error });
 
-    return UnknownError();
+    return InternalError();
   }
 }
 
@@ -260,7 +258,7 @@ function validateOutput(
     );
   } catch (error) {
     return error instanceof SchemaValidationError
-      ? ValidationFailed(error.issues)
+      ? BadRequest(error.issues)
       : validationFail(
           `Operation '${operation.name}': reply does not match its output schema`,
         );
@@ -298,10 +296,10 @@ async function raceAbort<T>(
  *
  * Различение по владению таймером, а не по `signal.reason`: `reason`
  * приходит из кода вызывающего и доверенным источником не является. Отмена
- * вызывающим остаётся `UnknownError`, какой была до появления бюджета.
+ * вызывающим остаётся `InternalError`, какой была до появления бюджета.
  */
 function abortedFail(budget: CallBudget): AnyFail {
-  return budget.expired ? DeadlineExceeded() : UnknownError();
+  return budget.expired ? Timeout() : InternalError();
 }
 
 /** Кадр запроса порта: тот же контекст, что построил бы транспорт */
@@ -354,7 +352,7 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
       // Fail-fast до вызова: бюджет, исчерпанный к этому моменту, означает,
       // что `dispatch` трогать незачем — обработчик не исполняется вовсе
       if (isExhausted(meta?.deadline)) {
-        return DeadlineExceeded() as never;
+        return Timeout() as never;
       }
 
       // Сбор — до `startBudget`: несериализуемое провозимое значение это
@@ -441,7 +439,7 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
 
       // Fail-fast до вызова: шина не трогается, сообщение не отправляется
       if (isExhausted(meta?.deadline)) {
-        return DeadlineExceeded() as never;
+        return Timeout() as never;
       }
 
       const bus = runtime.optionalBus(operation.name);
@@ -455,7 +453,7 @@ export function makeRemotePort(context: InvokerContext): Port<any> {
           ),
         });
 
-        return UnknownError() as never;
+        return InternalError() as never;
       }
 
       const budget = startBudget(meta?.deadline, meta?.signal);
@@ -656,7 +654,7 @@ function requirePropagatable(
  */
 function requireLiveBudget(meta: PortMeta | undefined): void {
   if (isExhausted(meta?.deadline)) {
-    throw DeadlineExceeded();
+    throw Timeout();
   }
 }
 

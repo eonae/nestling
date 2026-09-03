@@ -13,7 +13,7 @@
  *
  * Отдельный класс, потому что это единственная ошибка remote-пути, за
  * которую отвечает вызывающий: она возвращается ему отказом валидации, а
- * не превращается в `UnknownError` наравне с отказами обработчика.
+ * не превращается в `InternalError` наравне с отказами обработчика.
  */
 export class WireCopyError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {

@@ -16,35 +16,33 @@ import { buildRequest } from './request.js';
 import { readFailure, readSuccess, unknownFailure } from './response.js';
 
 import type {
+  AnyFail,
   AnyFailDefinition,
   AnyOperation,
   CommandOperation,
-  DeadlineExceeded,
-  Fail,
   FailOf,
   InputOf,
+  InternalError,
   Ok,
   OperationFailsOf,
   OutputOf,
   RequestOperation,
-  UnknownError,
+  Timeout,
 } from '@nestling/operations';
 import {
-  DeadlineExceeded as DeadlineExceededFail,
   describeForm,
   isFail,
   isPrimitiveLeaf,
+  Timeout as TimeoutFail,
 } from '@nestling/operations';
 
 /**
  * Отказы, которые клиент добавляет к объявленным операцией.
  *
- * То же закрытие, что у порта: множество ответов — `E ∪ UnknownError`, и
- * `DeadlineExceeded` входит в него как kernel-код механизма бюджета.
+ * То же закрытие, что у порта: множество ответов — `E ∪ InternalError`, и
+ * `Timeout` входит в него как kernel-код механизма бюджета.
  */
-export type ClientFail =
-  | FailOf<typeof UnknownError>
-  | FailOf<typeof DeadlineExceeded>;
+export type ClientFail = FailOf<typeof InternalError> | FailOf<typeof Timeout>;
 
 /** Множество ответов метода: успех, объявленный отказ или kernel-отказ */
 export type ClientResult<C extends AnyOperation> =
@@ -205,14 +203,14 @@ async function invoke(
   config: ClientConfig,
   payload: unknown,
   meta: ClientMeta | undefined,
-): Promise<Ok<unknown> | Fail<string | undefined, unknown>> {
+): Promise<Ok<unknown> | AnyFail> {
   const where = `client.${key}()`;
   const binding = operation.http as NonNullable<AnyOperation['http']>;
 
   // Бюджет проверяется **до** отправки: ходить в сеть за заведомо
   // просроченным ответом незачем
   if (meta?.deadline && meta.deadline.getTime() <= Date.now()) {
-    return DeadlineExceededFail();
+    return TimeoutFail();
   }
 
   // Дефект использования, а не ответ сервиса: непредставимое query-поле —
@@ -264,7 +262,7 @@ async function invoke(
       operation.output,
       config.validateOutput ?? true,
       where,
-    ) as Ok<unknown> | Fail<string | undefined, unknown>;
+    ) as Ok<unknown> | AnyFail;
   }
 
   return readFailure(
@@ -272,7 +270,7 @@ async function invoke(
     body,
     operation.errors as readonly AnyFailDefinition[] | undefined,
     where,
-  ) as Fail<string | undefined, unknown>;
+  ) as AnyFail;
 }
 
 /** Короткое описание сбоя сети для текста отказа */

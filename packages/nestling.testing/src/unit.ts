@@ -7,6 +7,7 @@ import { assembleTest } from './app.js';
 import type { TestConfig } from './config.js';
 
 import type { Bundle } from '@nestling/app';
+import { makeApp } from '@nestling/app';
 import type { TransportDeclaration } from '@nestling/transport';
 
 /** Словарь `testUnit` */
@@ -59,10 +60,14 @@ export async function testUnit(
   unit: Bundle,
   options: TestUnitOptions = {},
 ): Promise<TestApp> {
-  return await assembleTest({
+  // Мини-декларация вокруг единицы: тот же `makeApp`, что и в бою
+  const app = makeApp({
     ...(unit.role === 'plugin' ? { plugins: [unit] } : { features: [unit] }),
+    transports: options.transports ?? [],
+  });
+
+  return await assembleTest(app, {
     stubs: options.stubs,
     config: options.config,
-    transports: options.transports,
   });
 }

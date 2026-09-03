@@ -1,10 +1,11 @@
 /**
  * `responses`: все ответы границы, а не только успешный.
  *
- * Множество ответов endpoint'а закрыто как `E ∪ UnknownError` (модель
+ * Множество ответов endpoint'а закрыто как `E ∪ InternalError` (модель
  * ошибок), и документ обязан это отражать: объявленные отказы,
- * автоматический `400` от валидации входа и `default` —
- * незадекларированное, приведённое границей к `UNKNOWN`.
+ * автоматический `400` от проверки входа и `default` —
+ * незадекларированное, приведённое границей к `internal_error`. Ответы
+ * группируются по категории отказа: её транспорт переводит в HTTP-код.
  *
  * Тело отказа описывается **тем, что реально пишет транспорт**:
  * `{ error, code, details? }`. Придумывать здесь RFC 9457 нельзя — документ
@@ -16,7 +17,7 @@ import { convertLeaf } from './schema.js';
 import type { JsonValue, OpenApiResponse } from './types.js';
 
 import type { AnyFailDefinition, DeclarationDoc } from '@nestling/operations';
-import { UnknownError, ValidationFailed } from '@nestling/operations';
+import { BadRequest, InternalError } from '@nestling/operations';
 import { describeForm, mediaTypeOf } from '@nestling/pipeline';
 import { httpCodeOf } from '@nestling/transport.http';
 
@@ -42,20 +43,20 @@ export function planResponses(
   const [successCode, success] = planSuccess(input, context);
   responses[successCode] = success;
 
-  // Отказы группируются по коду ответа: у двух определений с одним
-  // статусом код совпадает, и второе не должно затирать первое
+  // Отказы группируются по коду ответа: у двух определений с одной
+  // категорией код совпадает, и второе не должно затирать первое
   const byCode = new Map<string, JsonValue[]>();
 
   const declared = [...(input.errors ?? [])];
 
-  // Валидация входа отвечает независимо от `errors:` — это kernel-код,
+  // Проверка входа отвечает независимо от `errors:` — это отказ ядра,
   // объявленный для любого endpoint'а со схемой входа
-  if (input.hasInputSchema && !declared.some(sameCode(ValidationFailed))) {
-    declared.push(ValidationFailed);
+  if (input.hasInputSchema && !declared.some(sameCode(BadRequest))) {
+    declared.push(BadRequest);
   }
 
   for (const definition of declared) {
-    const code = String(httpCodeOf(definition.status));
+    const code = String(httpCodeOf(definition.category));
     const schema = failSchema(definition, context);
 
     const group = byCode.get(code);
@@ -76,8 +77,8 @@ export function planResponses(
   }
 
   responses.default = jsonResponse(
-    `Undeclared failure, normalized by the boundary to '${UnknownError.code}'`,
-    failSchema(UnknownError, context),
+    `Undeclared failure, normalized by the boundary to '${InternalError.code}'`,
+    failSchema(InternalError, context),
   );
 
   return responses;
@@ -92,8 +93,8 @@ const sameCode =
 /**
  * Успешный ответ.
  *
- * Код — из `doc.status`; по умолчанию `OK`, а у endpoint'а без `output` —
- * `NO_CONTENT`. Перевод статуса в код делает та же таблица, что и в бою
+ * Код — из `doc.status`; по умолчанию `ok`, а у endpoint'а без `output` —
+ * `no_content`. Перевод статуса в код делает та же таблица, что и в бою
  * (`httpCodeOf` транспорта): второй копии таблицы у генератора нет.
  */
 function planSuccess(
@@ -103,7 +104,7 @@ function planSuccess(
   const form = describeForm(input.output);
   const hasOutput = form.leaf !== undefined;
 
-  const status = input.doc?.status ?? (hasOutput ? 'OK' : 'NO_CONTENT');
+  const status = input.doc?.status ?? (hasOutput ? 'ok' : 'no_content');
   const code = String(httpCodeOf(status));
 
   if (!hasOutput) {
@@ -182,7 +183,7 @@ function describeFails(
   declared: readonly AnyFailDefinition[],
 ): string {
   const codes = declared
-    .filter((definition) => String(httpCodeOf(definition.status)) === code)
+    .filter((definition) => String(httpCodeOf(definition.category)) === code)
     .map((definition) => definition.code);
 
   return codes.length === 1

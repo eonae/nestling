@@ -49,7 +49,7 @@ const Ticks = makeEndpoint({
   pattern: 'ticks:watch',
   output: events(Tick),
   pipeline: tracked,
-  handle: async (
+  handler: async (
     _payload: unknown,
     meta: { subscription: { id: string; signal: AbortSignal } },
   ): Output<AsyncIterable<Tick>> => new Ok(ticks(meta.subscription.signal)),
@@ -61,23 +61,25 @@ const Feed = makeEndpoint({
   pattern: 'subscriptions:watch',
   output: events(FeedEvent),
   pipeline: tracked,
-  deps: [SubscriptionRegistry],
-  handle:
-    (registry: SubscriptionRegistry) =>
-    async (
-      _payload: unknown,
-      meta: { subscription: { id: string; signal: AbortSignal } },
-    ): Output<AsyncIterable<FeedEvent>> => {
-      const feed = registry.watch(meta.subscription.signal);
+  handler: {
+    deps: [SubscriptionRegistry],
+    handle:
+      (registry: SubscriptionRegistry) =>
+      async (
+        _payload: unknown,
+        meta: { subscription: { id: string; signal: AbortSignal } },
+      ): Output<AsyncIterable<FeedEvent>> => {
+        const feed = registry.watch(meta.subscription.signal);
 
-      return new Ok(
-        (async function* () {
-          for await (const event of feed) {
-            yield { type: event.type, id: event.info.id };
-          }
-        })(),
-      );
-    },
+        return new Ok(
+          (async function* () {
+            for await (const event of feed) {
+              yield { type: event.type, id: event.info.id };
+            }
+          })(),
+        );
+      },
+  },
 });
 
 /** Поток из ответа границы: у `events`-endpoint'а значение — итератор */
@@ -270,7 +272,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
 
     const OpenedInOps = implement(SubscriptionOpened, {
       subscriber: 'ops',
-      handle: async (payload: { id: string; node?: string }) => {
+      handler: async (payload: { id: string; node?: string }) => {
         facts.push(`opened:${payload.node}:${payload.id.length > 0}`);
 
         return undefined;
@@ -279,7 +281,7 @@ describe('subscriptions(): факты жизненного цикла', () => {
 
     const ClosedInOps = implement(SubscriptionClosed, {
       subscriber: 'ops',
-      handle: async (payload: { reason: string }) => {
+      handler: async (payload: { reason: string }) => {
         facts.push(`closed:${payload.reason}`);
 
         return undefined;
@@ -318,7 +320,7 @@ describe('subscriptions(): слой композируется поверх пр
       pattern: 'ticks:composed',
       output: events(Tick),
       pipeline: composed,
-      handle: async (
+      handler: async (
         _payload: unknown,
         meta: {
           requestId: string;

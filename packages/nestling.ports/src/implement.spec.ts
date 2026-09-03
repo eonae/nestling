@@ -39,7 +39,7 @@ const unusedFail = (): never => {
 describe('implement', () => {
   it('строит обычную декларацию на транспорте шины', () => {
     const declaration = implement(ChargeCard, {
-      handle: async () => new Ok({ chargeId: 'c-1' }),
+      handler: async () => new Ok({ chargeId: 'c-1' }),
     });
 
     expect(isEndpointDefinition(declaration)).toBe(true);
@@ -57,13 +57,15 @@ describe('implement', () => {
     const ledger = { charge: (amount: number) => `c-${amount}` };
 
     const asFunction = implement(ChargeCard, {
-      handle: async () => new Ok({ chargeId: 'fn' }),
+      handler: async () => new Ok({ chargeId: 'fn' }),
     });
 
     const asFactory = implement(ChargeCard, {
-      deps: [Ledger],
-      handle: (deps) => async (input: { amount: number }) =>
-        new Ok({ chargeId: deps.charge(input.amount) }),
+      handler: {
+        deps: [Ledger],
+        handle: (deps) => async (input: { amount: number }) =>
+          new Ok({ chargeId: deps.charge(input.amount) }),
+      },
     });
 
     class ChargeHandler {
@@ -72,7 +74,7 @@ describe('implement', () => {
       }
     }
 
-    const asClass = implement(ChargeCard, { handle: ChargeHandler });
+    const asClass = implement(ChargeCard, { handler: ChargeHandler });
 
     const resolver = (token: unknown): unknown =>
       token === Ledger ? ledger : new ChargeHandler();
@@ -95,7 +97,7 @@ describe('implement', () => {
   it('переносит `detached` на декларацию', () => {
     const declaration = implement(ChargeCard, {
       detached: 'внутренний вызов: до auth не доходит',
-      handle: async () => new Ok({ chargeId: 'c-1' }),
+      handler: async () => new Ok({ chargeId: 'c-1' }),
     });
 
     expect(declaration.detached).toBe('внутренний вызов: до auth не доходит');
@@ -104,12 +106,12 @@ describe('implement', () => {
   it('разводит адрес в процессе и адрес на шине для события', () => {
     const billing = implement(OrderPlaced, {
       subscriber: 'billing',
-      handle: async () => undefined,
+      handler: async () => undefined,
     });
 
     const analytics = implement(OrderPlaced, {
       subscriber: 'analytics',
-      handle: async () => undefined,
+      handler: async () => undefined,
     });
 
     expect(billing.pattern).toBe('impl.orders.placed@billing');
@@ -122,7 +124,7 @@ describe('implement', () => {
     expect(() =>
       // @ts-expect-error — у события 0..N подписчиков, и каждый называет себя
       implement(OrderPlaced, {
-        handle: async () => undefined,
+        handler: async () => undefined,
       }),
     ).toThrow(/'event' operation has 0\.\.N subscribers.*subscriber/s);
   });
@@ -132,7 +134,7 @@ describe('implement', () => {
       implement(ChargeCard, {
         // @ts-expect-error — у запроса ровно один владелец
         subscriber: 'billing',
-        handle: async () => new Ok({ chargeId: 'c-1' }),
+        handler: async () => new Ok({ chargeId: 'c-1' }),
       }),
     ).toThrow(/'request' operation has exactly one owner/);
   });
@@ -146,7 +148,7 @@ describe('implement', () => {
 
     const declaration = implement(Durable, {
       subscriber: 'billing',
-      handle: async () => undefined,
+      handler: async () => undefined,
     });
 
     expect(busBindingOf(declaration)?.durable).toBe(true);
@@ -155,7 +157,7 @@ describe('implement', () => {
   it('биндинг недолговечной операции поля не несёт', () => {
     const declaration = implement(OrderPlaced, {
       subscriber: 'audit',
-      handle: async () => undefined,
+      handler: async () => undefined,
     });
 
     expect('durable' in (busBindingOf(declaration) as object)).toBe(false);
@@ -165,14 +167,14 @@ describe('implement', () => {
     expect(() =>
       implement(ChargeCard, {
         input: z.object({ other: z.string() }) as never,
-        handle: async () => new Ok({ chargeId: 'c-1' }),
+        handler: async () => new Ok({ chargeId: 'c-1' }),
       }),
     ).toThrow(/'input' belongs to the operation/);
   });
 
   it('секция http: в реализации по шине не участвует', () => {
     const declaration = implement(AddressedBoth, {
-      handle: async () => new Ok({ chargeId: 'c-2' }),
+      handler: async () => new Ok({ chargeId: 'c-2' }),
     });
 
     // Транспорт шины, subject — имя операции: HTTP-адрес на этот путь не

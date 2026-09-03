@@ -11,6 +11,7 @@
 import { assembleTest } from './app.js';
 import { familyOverride } from './overrides.js';
 
+import { makeApp } from '@nestling/app';
 import { makeToken, makeTokenFamily } from '@nestling/container';
 import type { ResponseContext } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
@@ -42,14 +43,14 @@ const GetUser = httpEndpoint({
   path: '/users/:id',
   input: z.object({ id: z.string() }),
   output: z.object({ id: z.string(), name: z.string() }),
-  handle: async (input) => new Ok({ id: input.id, name: 'Alice' }),
+  handler: async (input) => new Ok({ id: input.id, name: 'Alice' }),
 });
 
 const Ping = httpEndpoint({
   method: 'GET',
   path: '/ping',
   output: z.object({ pong: z.boolean() }),
-  handle: async () => new Ok({ pong: true }),
+  handler: async () => new Ok({ pong: true }),
 });
 
 // ---------------------------------------------------------------------------
@@ -57,7 +58,7 @@ const Ping = httpEndpoint({
 // ---------------------------------------------------------------------------
 
 async function overridesAcceptCompatibleFake(): Promise<void> {
-  await assembleTest({
+  await assembleTest(makeApp({}), {
     overrides: [
       [UsersRepository, { findById: async () => ({ id: '1' }) }],
       familyOverride(ILogger, () => ({ log: (): void => undefined })),
@@ -66,14 +67,14 @@ async function overridesAcceptCompatibleFake(): Promise<void> {
 }
 
 async function overridesRejectIncompatibleFake(): Promise<void> {
-  await assembleTest({
+  await assembleTest(makeApp({}), {
     // @ts-expect-error: фейк без `findById` не совместим с типом токена
     overrides: [[UsersRepository, { find: async () => null }]],
   });
 }
 
 async function familyOverrideRejectsIncompatibleMember(): Promise<void> {
-  await assembleTest({
+  await assembleTest(makeApp({}), {
     overrides: [
       // @ts-expect-error: член семейства обязан быть `ILoggerService`
       familyOverride(ILogger, () => ({ write: (): void => undefined })),
@@ -86,7 +87,7 @@ async function familyOverrideRejectsIncompatibleMember(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function callTypes(): Promise<void> {
-  const app = await assembleTest({});
+  const app = await assembleTest(makeApp({}));
 
   const user = await app.call(GetUser, { id: '1' });
   type _Result = Expect<

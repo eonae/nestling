@@ -685,17 +685,17 @@ function diffErrors(
 
     if (!was && is) {
       // Код, не объявленный в операции, всё равно приходит клиенту как
-      // `UnknownError`. Появление такого кода не ломает совместимость
+      // `InternalError`. Появление такого кода не ломает совместимость
       changes.add(operation, path, 'additive', 'declared failure added');
       continue;
     }
 
-    if (was && is && was.status !== is.status) {
+    if (was && is && was.category !== is.category) {
       changes.add(
         operation,
         path,
         'breaking',
-        `failure status changed: ${was.status} → ${is.status}`,
+        `failure category changed: ${was.category} → ${is.category}`,
       );
     }
   }

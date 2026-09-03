@@ -23,17 +23,16 @@ import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import {
   contextVar,
-  defineFail,
   Fail,
   isFail,
+  makeFail,
   makePipeline,
   Ok,
 } from '@nestling/pipeline';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
-const CardDeclined = defineFail('CARD_DECLINED', {
-  status: 'PAYMENT_REQUIRED',
+const CardDeclined = makeFail('payment_required:card_declined', {
   message: (d: { reason: string }) => `Card declined: ${d.reason}`,
   details: z.object({ reason: z.string() }),
 });
@@ -67,7 +66,7 @@ let behaviour: Behaviour = { kind: 'ok' };
 let seenSignal: AbortSignal | undefined;
 
 const ChargeCardImpl = implement(ChargeCard, {
-  handle: async (input, meta) => {
+  handler: async (input, meta) => {
     seenSignal = meta.signal;
 
     switch (behaviour.kind) {
@@ -101,14 +100,14 @@ const ShipOrderImpl = implement(ShipOrder, {
   pipeline: makePipeline().pre((ctx) => {
     shippedKeys.push(ctx.raw.attributes.idempotencyKey as string | undefined);
   }),
-  handle: async () => undefined,
+  handler: async () => undefined,
 });
 
 const subscribers: string[] = [];
 
 const OrderPlacedBilling = implement(OrderPlaced, {
   subscriber: 'billing',
-  handle: async () => {
+  handler: async () => {
     subscribers.push('billing');
 
     return undefined;
@@ -117,7 +116,7 @@ const OrderPlacedBilling = implement(OrderPlaced, {
 
 const OrderPlacedBroken = implement(OrderPlaced, {
   subscriber: 'analytics',
-  handle: async () => {
+  handler: async () => {
     throw new Error('analytics is broken');
   },
 });
@@ -214,12 +213,12 @@ describe.each([
     });
   });
 
-  it('незадекларированный отказ становится UnknownError', async () => {
+  it('незадекларированный отказ становится InternalError', async () => {
     behaviour = { kind: 'undeclared' };
 
     const result = await port.call({ amount: 10 });
 
-    expect((result as { code: string }).code).toBe('UNKNOWN');
+    expect((result as { code: string }).code).toBe('internal_error');
     expect(harnessed.failures).not.toHaveLength(0);
   });
 
@@ -228,7 +227,7 @@ describe.each([
 
     const result = await port.call({ amount: 10 });
 
-    expect((result as { code: string }).code).toBe('UNKNOWN');
+    expect((result as { code: string }).code).toBe('internal_error');
     expect(JSON.stringify(result)).not.toContain('internal detail');
   });
 
@@ -237,7 +236,7 @@ describe.each([
 
     const result = await port.call({ amount: 'ten' } as never);
 
-    expect((result as { code: string }).code).toBe('VALIDATION_FAILED');
+    expect((result as { code: string }).code).toBe('bad_request');
     expect(seenSignal).toBe(before);
   });
 
@@ -250,7 +249,7 @@ describe.each([
 
     const result = await pending;
 
-    expect((result as { code: string }).code).toBe('UNKNOWN');
+    expect((result as { code: string }).code).toBe('internal_error');
   });
 
   it('проносит сигнал вызова в meta обработчика', async () => {
@@ -270,8 +269,8 @@ describe.each([
       { deadline: new Date(Date.now() - 1) },
     );
 
-    expect((result as { code: string }).code).toBe('DEADLINE_EXCEEDED');
-    expect((result as { status: string }).status).toBe('TIMEOUT');
+    expect((result as { code: string }).code).toBe('timeout');
+    expect((result as { category: string }).category).toBe('timeout');
     // Ни один из двух исполнителей не тронут: обработчик не видел вызова,
     // шина не получила сообщения
     expect(seenSignal).toBe(before);
@@ -288,7 +287,7 @@ describe.each([
       { deadline: deadlineIn(10) },
     );
 
-    expect((result as { code: string }).code).toBe('DEADLINE_EXCEEDED');
+    expect((result as { code: string }).code).toBe('timeout');
   });
 
   it('обработчик видит исчерпание бюджета своим сигналом', async () => {
@@ -299,7 +298,7 @@ describe.each([
     expect(seenSignal?.aborted).toBe(true);
   });
 
-  it('отмена вызывающим остаётся UnknownError даже при живом бюджете', async () => {
+  it('отмена вызывающим остаётся InternalError даже при живом бюджете', async () => {
     behaviour = { kind: 'slow' };
     const controller = new AbortController();
 
@@ -310,7 +309,7 @@ describe.each([
     );
     controller.abort();
 
-    expect(((await pending) as { code: string }).code).toBe('UNKNOWN');
+    expect(((await pending) as { code: string }).code).toBe('internal_error');
   });
 
   it('вызов без бюджета таймера не заводит', async () => {
@@ -347,8 +346,8 @@ describe('идентичность путей биндинга', () => {
     );
 
     expect(results.map((result) => (result as { code: string }).code)).toEqual([
-      'DEADLINE_EXCEEDED',
-      'DEADLINE_EXCEEDED',
+      'timeout',
+      'timeout',
     ]);
   });
 });
@@ -410,7 +409,7 @@ describe('emitter', () => {
     ) as Emitter<any>;
 
     await expect(emitter.emit({ orderId: 42 } as never)).rejects.toMatchObject({
-      code: 'VALIDATION_FAILED',
+      code: 'bad_request',
     });
   });
 });
@@ -523,7 +522,7 @@ const InnerImpl = implement(Inner, {
     innerAttributes = ctx.raw.attributes;
     innerPayload = ctx.raw.payload;
   }),
-  handle: async () => new Ok({ ok: true }),
+  handler: async () => new Ok({ ok: true }),
 });
 
 const Outer = makeRequest({
@@ -540,7 +539,7 @@ const OuterImpl = implement(Outer, {
   pipeline: makePipeline()
     .pre(TenantId.provide(() => tenantValue as string))
     .pre(TraceId.provide(() => 'trace-1')),
-  handle: async () => {
+  handler: async () => {
     innerResult = await innerPort?.call({ id: 'x' });
 
     return new Ok({ ok: true });

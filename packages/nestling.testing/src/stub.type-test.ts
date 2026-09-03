@@ -15,8 +15,9 @@ import type { EmitDelivery } from './app.js';
 import { assembleTest } from './app.js';
 import { stub } from './stub.js';
 
+import { makeApp } from '@nestling/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { defineFail, Ok } from '@nestling/pipeline';
+import { makeFail, Ok } from '@nestling/pipeline';
 import type { Port, PortResult } from '@nestling/ports';
 import { z } from 'zod';
 
@@ -26,8 +27,7 @@ type Equal<A, B> =
     : false;
 type Expect<T extends true> = T;
 
-const QuotaExceeded = defineFail('TYPE_TEST_QUOTA_EXCEEDED', {
-  status: 'CONFLICT',
+const QuotaExceeded = makeFail('conflict:type_test_quota_exceeded', {
   message: 'Quota exceeded',
 });
 
@@ -53,7 +53,7 @@ const PlaceOrder = makeCommand({
 // ---------------------------------------------------------------------------
 
 async function stubAcceptsCompatibleFakes(): Promise<void> {
-  await assembleTest({
+  await assembleTest(makeApp({}), {
     stubs: [
       // голое значение — та же форма, что у обычного хендлера
       stub(ClaimQuota, async () => ({ granted: 1 })),
@@ -68,33 +68,32 @@ async function stubAcceptsCompatibleFakes(): Promise<void> {
 }
 
 async function stubRejectsIncompatibleValue(): Promise<void> {
-  await assembleTest({
+  await assembleTest(makeApp({}), {
     // @ts-expect-error: `granted` объявлен числом
     stubs: [stub(ClaimQuota, async () => ({ granted: 'many' }))],
   });
 }
 
 async function stubRejectsUndeclaredFail(): Promise<void> {
-  const Undeclared = defineFail('TYPE_TEST_UNDECLARED', {
-    status: 'NOT_FOUND',
+  const Undeclared = makeFail('not_found:type_test_undeclared', {
     message: 'Nope',
   });
 
-  await assembleTest({
+  await assembleTest(makeApp({}), {
     // @ts-expect-error: отказа нет в `errors:` операции
     stubs: [stub(ClaimQuota, async () => Undeclared())],
   });
 }
 
 async function stubRejectsEmitterShapeForRequest(): Promise<void> {
-  await assembleTest({
+  await assembleTest(makeApp({}), {
     // @ts-expect-error: `request` обязан ответить значением по `output`-схеме
     stubs: [stub(ClaimQuota, async () => undefined)],
   });
 }
 
 async function stubRejectsPortShapeForEvent(): Promise<void> {
-  await assembleTest({
+  await assembleTest(makeApp({}), {
     // @ts-expect-error: у `event` нет канала результата
     stubs: [stub(OrderPlaced, async () => ({ granted: 1 }))],
   });
@@ -138,7 +137,7 @@ async function callSiteIsIdentical(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function emitTypes(): Promise<void> {
-  const app = await assembleTest({});
+  const app = await assembleTest(makeApp({}));
 
   const deliveries = await app.emit(OrderPlaced, { orderId: 'o-1' });
 

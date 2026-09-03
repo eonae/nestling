@@ -13,8 +13,12 @@ import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
-import { defineFail, makeRequest } from '@nestling/operations';
-import { isEndpointDefinition, Ok } from '@nestling/pipeline';
+import { makeFail, makeRequest } from '@nestling/operations';
+import {
+  handlerDependenciesOf,
+  isEndpointDefinition,
+  Ok,
+} from '@nestling/pipeline';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({
@@ -23,8 +27,7 @@ const CreateUserInput = z.object({
 });
 const User = z.object({ id: z.string(), email: z.string() });
 
-const EmailTaken = defineFail('OPERATION_FORM_EMAIL_TAKEN', {
-  status: 'CONFLICT',
+const EmailTaken = makeFail('conflict:operation_form_email_taken', {
   message: 'Email already taken',
 });
 
@@ -58,7 +61,7 @@ describe('httpEndpoint({ operation, … })', () => {
   it('строит обычную HTTP-декларацию по адресу операции', () => {
     const declaration = httpEndpoint({
       operation: CreateUser,
-      handle: async ({ email }) => new Ok({ id: 'u-1', email }),
+      handler: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
     expect(isEndpointDefinition(declaration)).toBe(true);
@@ -69,7 +72,7 @@ describe('httpEndpoint({ operation, … })', () => {
   it('карта не пересчитывается — на декларации то же значение', () => {
     const declaration = httpEndpoint({
       operation: CreateUser,
-      handle: async ({ email }) => new Ok({ id: 'u-1', email }),
+      handler: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
     expect(declaration.binding).toBe(CreateUser.http);
@@ -79,7 +82,7 @@ describe('httpEndpoint({ operation, … })', () => {
   it('схемы и errors: берутся с операции', () => {
     const declaration = httpEndpoint({
       operation: CreateUser,
-      handle: async ({ email }) => new Ok({ id: 'u-1', email }),
+      handler: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
     expect(declaration.input).toBe(CreateUserInput);
@@ -90,16 +93,18 @@ describe('httpEndpoint({ operation, … })', () => {
   it('работают все три формы хендлера', () => {
     const asFunction = httpEndpoint({
       operation: GetUser,
-      handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
+      handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
     const asFactory = httpEndpoint({
       operation: CreateUser,
-      deps: [UserService],
-      handle:
-        (users) =>
-        async ({ email }) =>
-          new Ok({ id: users.create(email), email }),
+      handler: {
+        deps: [UserService],
+        handle:
+          (users) =>
+          async ({ email }) =>
+            new Ok({ id: users.create(email), email }),
+      },
     });
 
     class CreateUserHandler {
@@ -110,11 +115,11 @@ describe('httpEndpoint({ operation, … })', () => {
 
     const asClass = httpEndpoint({
       operation: CreateUser,
-      handle: CreateUserHandler,
+      handler: CreateUserHandler,
     });
 
     expect(asFunction.pattern).toBe('GET /users/:id');
-    expect(asFactory.deps).toEqual([UserService]);
+    expect(handlerDependenciesOf(asFactory)).toEqual([UserService]);
     expect(typeof asClass.resolve).toBe('function');
   });
 
@@ -122,7 +127,7 @@ describe('httpEndpoint({ operation, … })', () => {
     const declaration = httpEndpoint({
       operation: GetUser,
       detached: 'legacy route, migrated separately',
-      handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
+      handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
     expect(declaration.detached).toBe('legacy route, migrated separately');
@@ -132,7 +137,7 @@ describe('httpEndpoint({ operation, … })', () => {
     expect(() =>
       httpEndpoint({
         operation: ClaimQuota,
-        handle: async () => new Ok({ granted: true }),
+        handler: async () => new Ok({ granted: true }),
       }),
     ).toThrow(
       /operation-form\.quotas\.claim.*no 'http:' section.*implement\(operation-form\.quotas\.claim/s,
@@ -150,7 +155,7 @@ describe('httpEndpoint({ operation, … })', () => {
 
     const declaration = httpEndpoint({
       operation: Documented,
-      handle: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
+      handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
     expect(declaration.doc).toEqual({
@@ -226,14 +231,14 @@ const typeOnly = (): void => {
     input: z.object({ other: z.string() }),
     // @ts-expect-error: 'input' принадлежит операции; ошибка садится на
     // последний аргумент — элаборация последней перегрузки
-    handle: create,
+    handler: create,
   });
 
   httpEndpoint({
     operation: GetUser,
     path: '/other',
     // @ts-expect-error: 'path' принадлежит операции
-    handle: read,
+    handler: read,
   });
 
   httpEndpoint({
@@ -241,14 +246,14 @@ const typeOnly = (): void => {
     // @ts-expect-error: 'errors' принадлежит операции
     errors: [EmailTaken],
     // @ts-expect-error: элаборация последней перегрузки садится и сюда
-    handle: create,
+    handler: create,
   });
 
   httpEndpoint({
     operation: CreateUser,
     bind: { dryRun: query() },
     // @ts-expect-error: 'bind' принадлежит операции
-    handle: create,
+    handler: create,
   });
 };
 
@@ -260,7 +265,7 @@ describe('операция-форма: типы', () => {
   it('payload и возврат хендлера выведены из операции', () => {
     httpEndpoint({
       operation: CreateUser,
-      handle: async (input) => {
+      handler: async (input) => {
         // Тип payload — из формы `input` операции
         const email: string = input.email;
         return new Ok({ id: 'u-1', email });
@@ -270,7 +275,7 @@ describe('операция-форма: типы', () => {
     httpEndpoint({
       operation: CreateUser,
       // Отказ из `errors:` операции — разрешённый возврат
-      handle: async () => EmailTaken(),
+      handler: async () => EmailTaken(),
     });
 
     expect(true).toBe(true);

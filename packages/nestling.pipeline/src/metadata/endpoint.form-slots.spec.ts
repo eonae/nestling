@@ -71,7 +71,7 @@ describe('fail-fast форм в конструкторе декларации', 
         pattern: 'POST /x',
         input: multipart({ files: { report: upload() } }),
         output: stream(Row).tap((): void => undefined),
-        handle: async () => new Ok(noRows()),
+        handler: async () => new Ok(noRows()),
       }),
     ).not.toThrow();
   });

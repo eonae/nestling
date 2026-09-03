@@ -26,8 +26,8 @@ import type {
   EndpointDefinition,
   FailsOf,
   HandlerClass,
-  HandlerFactory,
   HandlerFn,
+  HandlerWithDeps,
   Pipeline,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
@@ -45,7 +45,7 @@ export interface ImplementDictionary<
 > {
   /**
    * Pipeline этой реализации. Классы-юниты допустимы: они попадают в
-   * `TNeeds` декларации и гасятся вместе с `deps`.
+   * `TNeeds` декларации и гасятся вместе с зависимостями хендлера.
    */
   pipeline?: Pipeline<AnyInput, P, PN>;
 
@@ -155,7 +155,7 @@ function patternOf(operation: AnyOperation, subscriber: unknown): string {
  * Строит реализацию операции.
  *
  * @param operation - Операция, объявленный `makeRequest`
- * @param declaration - Словарь исполнения: `deps`, `pipeline`, `handle`
+ * @param declaration - Словарь исполнения: `pipeline`, `handler`, `subscriber`
  * @returns Декларация-значение для `endpoints:` модуля
  * @throws {Error} Отсутствующий или лишний `subscriber`, переобъявление
  * интерфейса операции
@@ -163,9 +163,11 @@ function patternOf(operation: AnyOperation, subscriber: unknown): string {
  * @example
  * ```typescript
  * export const ChargeCardImpl = implement(ChargeCard, {
- *   deps: [Ledger],
  *   pipeline: basePipeline,
- *   handle: (ledger) => async (input) => Ok.of(await ledger.charge(input)),
+ *   handler: {
+ *     deps: [Ledger],
+ *     handle: (ledger) => async (input) => new Ok(await ledger.charge(input)),
+ *   },
  * });
  * ```
  */
@@ -180,8 +182,7 @@ export function implement<
   operation: Operation<I, O, E, K>,
   declaration: ImplementDictionary<P, PN> &
     SubscriberSlot<K> & {
-      deps?: undefined;
-      handle: HandlerFn<I, O, P, FailsOf<E>>;
+      handler: HandlerFn<I, O, P, FailsOf<E>>;
     },
 ): EndpointDefinition<I, O, P, PN>;
 export function implement<
@@ -196,8 +197,7 @@ export function implement<
   operation: Operation<I, O, E, K>,
   declaration: ImplementDictionary<P, PN> &
     SubscriberSlot<K> & {
-      deps: [...D];
-      handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
+      handler: HandlerWithDeps<D, I, O, P, FailsOf<E>>;
     },
 ): EndpointDefinition<I, O, P, PN | D[number]>;
 export function implement<
@@ -217,16 +217,14 @@ export function implement<
   operation: Operation<I, O, E, K>,
   declaration: ImplementDictionary<P, PN> &
     SubscriberSlot<K> & {
-      deps?: undefined;
-      handle: C;
+      handler: C;
     },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function implement(
   operation: AnyOperation,
   declaration: ImplementDictionary<any, unknown> & {
     subscriber?: string;
-    deps?: InjectionToken[];
-    handle: unknown;
+    handler: unknown;
   },
 ): AnyEndpointDefinition {
   assertOperation(operation);

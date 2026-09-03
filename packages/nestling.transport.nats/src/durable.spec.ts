@@ -13,13 +13,12 @@ import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeCommand, makeEvent } from '@nestling/operations';
-import { defineFail, makePipeline } from '@nestling/pipeline';
+import { makeFail, makePipeline } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
-const Rejected = defineFail('ORDER_REJECTED', {
-  status: 'CONFLICT',
+const Rejected = makeFail('conflict:order_rejected', {
   message: 'Order rejected',
 });
 
@@ -48,7 +47,7 @@ const makeSubscriber = (name: string) =>
   implement(Placed, {
     subscriber: name,
     pipeline: makePipeline().pre(() => undefined),
-    handle: async (input) => {
+    handler: async (input) => {
       handled.push(`${name}:${input.orderId}`);
 
       if (behaviour === 'throw') {
@@ -62,7 +61,7 @@ const makeSubscriber = (name: string) =>
 /** Обработчик команды: он умеет ответить объявленным отказом */
 const ChargeHandler = implement(Charge, {
   pipeline: makePipeline().pre(() => undefined),
-  handle: async (input) => {
+  handler: async (input) => {
     handled.push(`charge:${input.orderId}`);
 
     return behaviour === 'fail' ? Rejected() : undefined;

@@ -33,14 +33,14 @@ import type {
 import { EmitterFamily, PortFamily } from '@nestling/operations';
 import type { AnyFail, AnyFailDefinition } from '@nestling/pipeline';
 import {
-  DeadlineExceeded,
+  BadRequest,
   describeForm,
+  InternalError,
   isFail,
   Ok,
   parsePayload,
   SchemaValidationError,
-  UnknownError,
-  ValidationFailed,
+  Timeout,
 } from '@nestling/pipeline';
 import { isExhausted } from '@nestling/ports';
 
@@ -91,13 +91,13 @@ export type EmitStubImpl<C extends EmittingOperation<any, any, any, any>> = (
  *
  * Ровно то же множество, что закрывает `KernelPortFail`: проверка границы
  * считает эти коды объявленными для кого угодно, поэтому и фейк может
- * отвечать ими без объявления в `errors:`. Ветка `UnknownError` при этом
- * остаётся тестируемой — `UnknownError()` проходит наравне с объявленными.
+ * отвечать ими без объявления в `errors:`. Ветка `InternalError` при этом
+ * остаётся тестируемой — `InternalError()` проходит наравне с объявленными.
  */
 const KERNEL_CODES: ReadonlySet<string> = new Set([
-  UnknownError.code,
-  ValidationFailed.code,
-  DeadlineExceeded.code,
+  InternalError.code,
+  BadRequest.code,
+  Timeout.code,
 ]);
 
 /** Fail-fast для JS-потребителей: первый аргумент — значение `makeRequest` */
@@ -158,8 +158,8 @@ function parseLeaf(
       ok: false,
       fail:
         error instanceof SchemaValidationError
-          ? ValidationFailed(error.issues)
-          : ValidationFailed([{ message }]),
+          ? BadRequest(error.issues)
+          : BadRequest([{ message }]),
     };
   }
 }
@@ -200,7 +200,7 @@ function parseOutput(
  * Проверяет, что отказ фейка входит в операцию.
  *
  * Незадекларированный код — дефект **теста**, поэтому обёртка бросает, а не
- * нормализует его в `UnknownError`, как сделал бы боевой порт: тот защищает
+ * нормализует его в `InternalError`, как сделал бы боевой порт: тот защищает
  * потребителя от чужой реализации, которую не контролирует, а автор стаба
  * контролирует обе стороны, и молчаливое превращение только скрыло бы, что
  * фейк вышел за операция.
@@ -237,7 +237,7 @@ function requireDeclaredFail(operation: AnyOperation, fail: AnyFail): AnyFail {
  * Отказ, брошенный фейком, — тот же ответ, что и возвращённый («возврат
  * `Fail` эквивалентен броску»). А вот **не**-`Fail` пробрасывается как
  * есть: источник такого исключения — код самого теста, и превращать «фейк
- * упал» в «сосед вернул `UNKNOWN`» значит прятать дефект теста от теста.
+ * упал» в «сосед вернул `internal_error`» значит прятать дефект теста от теста.
  */
 function failOfThrown(operation: AnyOperation, error: unknown): AnyFail {
   if (isFail(error)) {
@@ -262,7 +262,7 @@ function makePortStub(
       // Fail-fast до вызова фейка: иначе тест на дедлайны проходил бы со
       // стабом и падал в проде
       if (isExhausted(meta?.deadline)) {
-        return DeadlineExceeded() as never;
+        return Timeout() as never;
       }
 
       let result: unknown;
@@ -286,7 +286,7 @@ function makePortStub(
       // Статус берётся из `Ok` фейка, а у голого значения он умолчательный:
       // форма результата та же, что у обычного хендлера
       return new Ok(
-        result instanceof Ok ? result.status : 'OK',
+        result instanceof Ok ? result.status : 'ok',
         output.value as never,
       ) as never;
     },
@@ -323,7 +323,7 @@ function makeEmitterStub(
       }
 
       if (isExhausted(meta?.deadline)) {
-        throw DeadlineExceeded();
+        throw Timeout();
       }
 
       try {

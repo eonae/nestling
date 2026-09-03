@@ -10,7 +10,7 @@ import { familyOverride } from './overrides';
 import { unwrap, UnwrapFailedError } from './unwrap';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import { Discovery$, makeFeature } from '@nestling/app';
+import { Discovery$, makeApp, makeFeature } from '@nestling/app';
 import type { Config } from '@nestling/config';
 import { makeConfig } from '@nestling/config';
 import {
@@ -24,7 +24,7 @@ import {
 } from '@nestling/container';
 import type { FilePart } from '@nestling/pipeline';
 import {
-  defineFail,
+  makeFail,
   makePipeline,
   multipart,
   Ok,
@@ -65,21 +65,23 @@ describe('assembleTest — приложение собрано, но запро�
       method: 'GET',
       path: '/ping',
       output: z.object({ pong: z.boolean() }),
-      handle: async () => new Ok({ pong: true }),
+      handler: async () => new Ok({ pong: true }),
     });
 
     const transport = new SpyTransport();
 
-    await using app = await assembleTest({
-      features: [
-        makeFeature({
-          name: 'module:ping',
-          providers: [Service],
-          endpoints: [Ping],
-        }),
-      ],
-      transports: [asHttpTransport(transport)],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [
+          makeFeature({
+            name: 'module:ping',
+            providers: [Service],
+            endpoints: [Ping],
+          }),
+        ],
+        transports: [asHttpTransport(transport)],
+      }),
+    );
 
     expect(events).toEqual(['init']);
     expect(transport.serving).toBe(false);
@@ -93,10 +95,12 @@ describe('assembleTest — приложение собрано, но запро�
       .mockImplementation((): void => undefined);
 
     try {
-      await using app = await assembleTest({
-        features: [makeFeature({ name: 'module:quiet' })],
-        transports: [asHttpTransport(new SpyTransport())],
-      });
+      await using app = await assembleTest(
+        makeApp({
+          features: [makeFeature({ name: 'module:quiet' })],
+          transports: [asHttpTransport(new SpyTransport())],
+        }),
+      );
 
       expect(app.features).toEqual(['module:quiet']);
       expect(process.listenerCount('SIGTERM')).toBe(before);
@@ -121,19 +125,21 @@ describe('assembleTest — приложение собрано, но запро�
     const Orphan = httpEndpoint({
       method: 'GET',
       path: '/orphan',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     await expect(
-      assembleTest({
-        features: [
-          makeFeature({
-            name: 'module:orphan',
-            providers: [Resource],
-            endpoints: [Orphan],
-          }),
-        ],
-      }),
+      assembleTest(
+        makeApp({
+          features: [
+            makeFeature({
+              name: 'module:orphan',
+              providers: [Resource],
+              endpoints: [Orphan],
+            }),
+          ],
+        }),
+      ),
     ).rejects.toThrow(/Transport 'http'.*module:orphan.*'transports:'/s);
 
     expect(inits).toEqual([]);
@@ -160,14 +166,16 @@ describe('assembleTest — приложение собрано, но запро�
       }
     }
 
-    const app = await assembleTest({
-      features: [
-        makeFeature({
-          name: 'module:resources',
-          providers: [Pool, Service],
-        }),
-      ],
-    });
+    const app = await assembleTest(
+      makeApp({
+        features: [
+          makeFeature({
+            name: 'module:resources',
+            providers: [Pool, Service],
+          }),
+        ],
+      }),
+    );
 
     await app.close();
     await app.close();
@@ -208,9 +216,11 @@ describe('assembleTest — overrides и прунинг', () => {
     method: 'GET',
     path: '/users',
     output: z.object({ users: z.array(z.string()) }),
-    deps: [Repository],
-    handle: (repository: IRepository) => async () =>
-      new Ok({ users: repository.all() }),
+    handler: {
+      deps: [Repository],
+      handle: (repository: IRepository) => async () =>
+        new Ok({ users: repository.all() }),
+    },
   });
 
   const DataModule = makeFeature({
@@ -220,11 +230,15 @@ describe('assembleTest — overrides и прунинг', () => {
   });
 
   it('подставляет фейк и прунит осиротевший узел', async () => {
-    await using app = await assembleTest({
-      features: [DataModule],
-      transports: [asHttpTransport(new SpyTransport())],
-      overrides: [[Repository, { all: () => ['from-fake'] }]],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [DataModule],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+      {
+        overrides: [[Repository, { all: () => ['from-fake'] }]],
+      },
+    );
 
     expect(unwrap(await app.call(ListUsers))).toEqual({
       users: ['from-fake'],
@@ -234,10 +248,12 @@ describe('assembleTest — overrides и прунинг', () => {
   });
 
   it('без overrides граф остаётся полным', async () => {
-    await using app = await assembleTest({
-      features: [DataModule],
-      transports: [asHttpTransport(new SpyTransport())],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [DataModule],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+    );
 
     expect(app.pruned).toEqual([]);
     expect(app.get(Pool)?.query()).toBe('from-pg');
@@ -245,8 +261,7 @@ describe('assembleTest — overrides и прунинг', () => {
 });
 
 describe('app.call — полный пайплайн in-proc', () => {
-  const NotFound = defineFail('USER_NOT_FOUND', {
-    status: 'NOT_FOUND',
+  const NotFound = makeFail('not_found:user_not_found', {
     message: 'User not found',
   });
 
@@ -257,7 +272,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     output: z.object({ id: z.string(), name: z.string() }),
     errors: [NotFound],
     pipeline: makePipeline(),
-    handle: async (input) =>
+    handler: async (input) =>
       input.id === '1' ? new Ok({ id: '1', name: 'Alice' }) : NotFound(),
   });
 
@@ -271,7 +286,7 @@ describe('app.call — полный пайплайн in-proc', () => {
       files: { avatar: upload() },
     }),
     output: z.object({ title: z.string() }),
-    handle: async (payload: {
+    handler: async (payload: {
       fields: { id: string; title: string };
       files: { avatar: FilePart };
     }) => {
@@ -295,7 +310,7 @@ describe('app.call — полный пайплайн in-proc', () => {
         attributes: ctx.raw.attributes,
       },
     })),
-    handle: async (_payload, meta) => new Ok(meta.seen),
+    handler: async (_payload, meta) => new Ok(meta.seen),
   });
 
   const UsersModule = makeFeature({
@@ -303,13 +318,13 @@ describe('app.call — полный пайплайн in-proc', () => {
     endpoints: [GetUser, Frame, UploadAvatar],
   });
 
-  const spec = {
+  const declaration = makeApp({
     features: [UsersModule],
     transports: [asHttpTransport(new SpyTransport())],
-  };
+  });
 
   it('исполняет endpoint целиком и отдаёт успех', async () => {
-    await using app = await assembleTest(spec);
+    await using app = await assembleTest(declaration);
 
     expect(unwrap(await app.call(GetUser, { id: '1' }))).toEqual({
       id: '1',
@@ -318,33 +333,35 @@ describe('app.call — полный пайплайн in-proc', () => {
   });
 
   it('отдаёт объявленный отказ со статусом и кодом', async () => {
-    await using app = await assembleTest(spec);
+    await using app = await assembleTest(declaration);
 
     const response = await app.call(GetUser, { id: '404' });
 
     expect(response.isSuccess).toBe(false);
     expect(response).toMatchObject({
-      status: 'NOT_FOUND',
-      value: { code: 'USER_NOT_FOUND' },
+      status: 'not_found',
+      value: { code: 'not_found:user_not_found' },
     });
     expect(() => unwrap(response)).toThrow(UnwrapFailedError);
-    expect(() => unwrap(response)).toThrow(/NOT_FOUND.*USER_NOT_FOUND/);
+    expect(() => unwrap(response)).toThrow(
+      /not_found.*not_found:user_not_found/,
+    );
   });
 
   it('отдаёт отказ валидации на невалидном входе', async () => {
-    await using app = await assembleTest(spec);
+    await using app = await assembleTest(declaration);
 
     const response = await app.call(GetUser, { id: 42 as unknown as string });
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
-      value: { code: 'VALIDATION_FAILED' },
+      status: 'bad_request',
+      value: { code: 'bad_request' },
     });
   });
 
   it('проверяет поля multipart так же, как транспорт', async () => {
-    await using app = await assembleTest(spec);
+    await using app = await assembleTest(declaration);
     uploadCalls = 0;
 
     const response = await app.call(UploadAvatar, {
@@ -354,14 +371,14 @@ describe('app.call — полный пайплайн in-proc', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
-      value: { code: 'VALIDATION_FAILED' },
+      status: 'bad_request',
+      value: { code: 'bad_request' },
     });
     expect(uploadCalls).toBe(0);
   });
 
   it('даёт слою честный, но пустой кадр запроса', async () => {
-    await using app = await assembleTest(spec);
+    await using app = await assembleTest(declaration);
 
     expect(unwrap(await app.call(Frame))).toEqual({
       transport: 'http',
@@ -378,7 +395,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     const Invoices = httpEndpoint({
       method: 'GET',
       path: '/invoices',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     const Billing = makeFeature({
@@ -386,11 +403,15 @@ describe('app.call — полный пайплайн in-proc', () => {
       endpoints: [Invoices],
     });
 
-    await using app = await assembleTest({
-      features: [UsersModule, Billing],
-      select: 'module:users',
-      transports: [asHttpTransport(new SpyTransport())],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [UsersModule, Billing],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+      {
+        select: 'module:users',
+      },
+    );
 
     await expect(app.call(Invoices)).rejects.toThrow(
       /GET \/invoices.*not part of the assembled application.*GET \/users\/:id/s,
@@ -407,7 +428,7 @@ describe('app.call — полный пайплайн in-proc', () => {
       method: 'GET',
       path: '/wait',
       pipeline: makePipeline(),
-      handle: async (_payload, meta) => {
+      handler: async (_payload, meta) => {
         onStarted();
         meta.signal.addEventListener('abort', () => onAborted(), {
           once: true,
@@ -417,10 +438,12 @@ describe('app.call — полный пайплайн in-proc', () => {
       },
     });
 
-    const app = await assembleTest({
-      features: [makeFeature({ name: 'module:wait', endpoints: [Wait] })],
-      transports: [asHttpTransport(new SpyTransport())],
-    });
+    const app = await assembleTest(
+      makeApp({
+        features: [makeFeature({ name: 'module:wait', endpoints: [Wait] })],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+    );
 
     const pending = app.call(Wait);
     await started;
@@ -446,18 +469,22 @@ describe('vars и familyOverride', () => {
   it('проецирует секцию из объекта, не трогая process.env', async () => {
     expect(process.env.USERS_PAGE_SIZE).toBeUndefined();
 
-    await using app = await assembleTest({
-      providers: [
-        {
-          provide: Page,
-          useFactory: (cfg: Config<typeof UsersConfig>) => ({
-            size: cfg.pageSize,
-          }),
-          deps: [UsersConfig],
-        },
-      ],
-      config: vars({ USERS_PAGE_SIZE: '10' }),
-    });
+    await using app = await assembleTest(
+      makeApp({
+        providers: [
+          {
+            provide: Page,
+            useFactory: (cfg: Config<typeof UsersConfig>) => ({
+              size: cfg.pageSize,
+            }),
+            deps: [UsersConfig],
+          },
+        ],
+      }),
+      {
+        config: vars({ USERS_PAGE_SIZE: '10' }),
+      },
+    );
 
     expect(app.get(Page)).toEqual({ size: 10 });
     expect(process.env.USERS_PAGE_SIZE).toBeUndefined();
@@ -467,16 +494,20 @@ describe('vars и familyOverride', () => {
     const source = vars({ RUNTIME_LOG_LEVEL: 'info' });
     const seen: string[] = [];
 
-    await using app = await assembleTest({
-      providers: [
-        {
-          provide: Runtime,
-          useFactory: (cfg: Config<typeof RuntimeConfig>) => cfg,
-          deps: [RuntimeConfig],
-        },
-      ],
-      config: [[source, '*']],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        providers: [
+          {
+            provide: Runtime,
+            useFactory: (cfg: Config<typeof RuntimeConfig>) => cfg,
+            deps: [RuntimeConfig],
+          },
+        ],
+      }),
+      {
+        config: [[source, '*']],
+      },
+    );
 
     const subscription = new AbortController();
     const cfg = app.get(Runtime);
@@ -505,31 +536,35 @@ describe('vars и familyOverride', () => {
 
     const Sink = makeToken<ILoggerService[]>('LoggerSink');
 
-    await using app = await assembleTest({
-      features: [
-        makeFeature({
-          name: 'module:logging',
-          providers: [
-            {
-              family: ILogger,
-              recipe: (scope: string) => {
-                productionCalls += 1;
-                return valueProvider(ILogger(scope), {
-                  log: (): void => undefined,
-                  scope,
-                } as ILoggerService);
+    await using app = await assembleTest(
+      makeApp({
+        features: [
+          makeFeature({
+            name: 'module:logging',
+            providers: [
+              {
+                family: ILogger,
+                recipe: (scope: string) => {
+                  productionCalls += 1;
+                  return valueProvider(ILogger(scope), {
+                    log: (): void => undefined,
+                    scope,
+                  } as ILoggerService);
+                },
               },
-            },
-            {
-              provide: Sink,
-              useFactory: (...loggers: ILoggerService[]) => loggers,
-              deps: [ILogger('users'), ILogger('orders')],
-            },
-          ],
-        }),
-      ],
-      overrides: [familyOverride(ILogger, () => noop)],
-    });
+              {
+                provide: Sink,
+                useFactory: (...loggers: ILoggerService[]) => loggers,
+                deps: [ILogger('users'), ILogger('orders')],
+              },
+            ],
+          }),
+        ],
+      }),
+      {
+        overrides: [familyOverride(ILogger, () => noop)],
+      },
+    );
 
     expect(productionCalls).toBe(0);
     expect(app.get(Sink)).toEqual([noop, noop]);
@@ -541,13 +576,17 @@ describe('Discovery$ в тестовом корне', () => {
     const Ping = httpEndpoint({
       method: 'GET',
       path: '/ping',
-      handle: async () => new Ok({ pong: true }),
+      handler: async () => new Ok({ pong: true }),
     });
 
-    await using app = await assembleTest({
-      features: [makeFeature({ name: 'module:discovery', endpoints: [Ping] })],
-      transports: [asHttpTransport(new SpyTransport())],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [
+          makeFeature({ name: 'module:discovery', endpoints: [Ping] }),
+        ],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+    );
 
     const discovery = app.get(Discovery$);
 

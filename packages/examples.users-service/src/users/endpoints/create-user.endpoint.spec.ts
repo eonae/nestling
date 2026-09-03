@@ -31,7 +31,7 @@ describe('createUserHandler', () => {
 
     expect(EmailTaken.is(result)).toBe(true);
     expect(result).toMatchObject({
-      status: 'CONFLICT',
+      status: 'conflict',
       details: { email: alice.email },
     });
   });

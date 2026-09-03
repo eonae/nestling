@@ -107,7 +107,7 @@ describe('app-тесты через assembleTest', () => {
 
     expect(await app.call(GetUser, { id: '404' })).toMatchObject({
       isSuccess: false,
-      status: 'NOT_FOUND',
+      status: 'not_found',
       value: { code: 'USER_NOT_FOUND' },
     });
   });
@@ -121,8 +121,8 @@ describe('app-тесты через assembleTest', () => {
 
     expect(await app.call(DeleteUser, { id: '1' })).toMatchObject({
       isSuccess: false,
-      status: 'UNAUTHORIZED',
-      value: { code: 'UNAUTHORIZED' },
+      status: 'unauthorized',
+      value: { code: 'unauthorized' },
     });
     expect(await repo.byId('1')).toEqual(alice);
   });
@@ -235,10 +235,10 @@ describe('фичи вызывают друг друга через операц�
     }
 
     // Отказ прошёл границу вызывающего endpoint'а без замены на
-    // `UnknownError`: его `errors:` объявляет отказ соседа наравне со своими
+    // `InternalError`: его `errors:` объявляет отказ соседа наравне со своими
     expect(await createUser(app, 'sixth')).toMatchObject({
       isSuccess: false,
-      status: 'TOO_MANY_REQUESTS',
+      status: 'too_many_requests',
       value: { code: QuotaExceeded.code, details: { limit: 5 } },
     });
   });
@@ -264,8 +264,8 @@ describe('фичи вызывают друг друга через операц�
 
     // Код ошибки задаёт ядро, объявлять его в `errors:` не нужно
     expect(refused).toMatchObject({
-      status: 'TIMEOUT',
-      code: 'DEADLINE_EXCEEDED',
+      status: 'timeout',
+      code: 'timeout',
     });
 
     // Реализация не вызывалась, место в квоте не занято
@@ -409,11 +409,11 @@ describe('документ OpenAPI', () => {
     const { responses } = documentOf(app).paths['/users'].post;
 
     const created = await createUser(app, 'doc');
-    expect(created.status).toBe('CREATED');
+    expect(created.status).toBe('created');
     expect(responses['201']).toBeDefined();
 
     const conflict = await createUser(app, 'doc');
-    expect(conflict.status).toBe('CONFLICT');
+    expect(conflict.status).toBe('conflict');
     expect(
       (
         responses['409'].content?.['application/json'].schema as {
@@ -459,7 +459,7 @@ describe('реестр подписок', () => {
       { id: listed.id },
       asClient,
     );
-    expect(killed.status).toBe('NO_CONTENT');
+    expect(killed.status).toBe('no_content');
 
     const tail: unknown[] = [];
     for await (const event of subscription) {
@@ -478,7 +478,7 @@ describe('реестр подписок', () => {
       await app.call(KillSubscription, { id: 'unknown' }, asClient),
     ).toMatchObject({
       isSuccess: false,
-      status: 'NOT_FOUND',
+      status: 'not_found',
       value: { code: 'SUBSCRIPTION_NOT_FOUND' },
     });
   });

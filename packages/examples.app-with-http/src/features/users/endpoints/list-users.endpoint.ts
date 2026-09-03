@@ -32,6 +32,8 @@ export const ListUsers = httpEndpoint({
   output: z.array(User),
   doc: { summary: 'Список пользователей', tags: ['users'] },
   pipeline: observability,
-  deps: [UsersRepository$, AppConfig],
-  handle: listUsersHandler,
+  handler: {
+    deps: [UsersRepository$, AppConfig],
+    handle: listUsersHandler,
+  },
 });

@@ -3,7 +3,7 @@ import { authed } from '../../plugins/auth';
 import { observability } from '../../plugins/logging';
 
 import type { FailOf } from '@nestling/operations';
-import { defineFail, events, Ok } from '@nestling/operations';
+import { makeFail, events, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose } from '@nestling/pipeline';
 import type {
@@ -43,9 +43,7 @@ type SubscriptionChange = z.infer<typeof SubscriptionChange>;
  * Реестр ведётся в каждом процессе отдельно, и `abort` действует только
  * в своём процессе.
  */
-export const SubscriptionNotFound = defineFail('SUBSCRIPTION_NOT_FOUND', {
-  status: 'NOT_FOUND',
-  details: z.object({ id: z.string() }),
+export const SubscriptionNotFound = makeFail('not_found:subscription_not_found', { details: z.object({ id: z.string() }),
   message: (d) => `Subscription ${d.id} is not active on this node`,
 });
 
@@ -68,10 +66,12 @@ export const ListSubscriptions = httpEndpoint({
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
   pipeline: observability,
-  deps: [SubscriptionRegistry],
-  handle:
-    (registry: SubscriptionRegistry) => async (): Output<Subscription[]> =>
-      registry.list().map((info) => toWire(info)),
+  handler: {
+    deps: [SubscriptionRegistry],
+    handle:
+      (registry: SubscriptionRegistry) => async (): Output<Subscription[]> =>
+        registry.list().map((info) => toWire(info)),
+  },
 });
 
 /**
@@ -85,18 +85,20 @@ export const KillSubscription = httpEndpoint({
   path: '/ops/subscriptions/:id',
   input: z.object({ id: z.string() }),
   errors: [SubscriptionNotFound, Unauthorized],
-  doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'NO_CONTENT' },
+  doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
   pipeline: authed,
-  deps: [SubscriptionRegistry],
-  handle:
-    (registry: SubscriptionRegistry) =>
-    async (payload: {
-      id: string;
-    }): Output<null, FailOf<typeof SubscriptionNotFound>> => {
-      const killed = registry.abort(payload.id, 'administrative kill');
+  handler: {
+    deps: [SubscriptionRegistry],
+    handle:
+      (registry: SubscriptionRegistry) =>
+      async (payload: {
+        id: string;
+      }): Output<null, FailOf<typeof SubscriptionNotFound>> => {
+        const killed = registry.abort(payload.id, 'administrative kill');
 
-      return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
-    },
+        return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
+      },
+  },
 });
 
 /**
@@ -116,25 +118,27 @@ export const WatchSubscriptions = httpEndpoint({
   },
   doc: { summary: 'Лента изменений реестра подписок (SSE)', tags: ['ops'] },
   pipeline: compose(observability, tracked),
-  deps: [SubscriptionRegistry],
-  handle:
-    (registry: SubscriptionRegistry) =>
-    async (
-      _payload: unknown,
-      meta: { subscription: TrackedSubscription },
-    ): Output<AsyncIterable<SubscriptionChange>> => {
-      const feed = registry.watch(meta.subscription.signal);
+  handler: {
+    deps: [SubscriptionRegistry],
+    handle:
+      (registry: SubscriptionRegistry) =>
+      async (
+        _payload: unknown,
+        meta: { subscription: TrackedSubscription },
+      ): Output<AsyncIterable<SubscriptionChange>> => {
+        const feed = registry.watch(meta.subscription.signal);
 
-      return new Ok(
-        (async function* () {
-          for await (const event of feed) {
-            yield {
-              type: event.type,
-              reason: event.type === 'closed' ? event.reason : undefined,
-              subscription: toWire(event.info),
-            };
-          }
-        })(),
-      );
-    },
+        return new Ok(
+          (async function* () {
+            for await (const event of feed) {
+              yield {
+                type: event.type,
+                reason: event.type === 'closed' ? event.reason : undefined,
+                subscription: toWire(event.info),
+              };
+            }
+          })(),
+        );
+      },
+  },
 });

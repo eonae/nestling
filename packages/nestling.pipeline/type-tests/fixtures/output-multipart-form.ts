@@ -14,5 +14,5 @@ export const BuildReport = httpEndpoint({
   path: '/reports',
   output: multipart({ files: { report: upload() } }),
   pipeline: makePipeline(),
-  handle: async () => new Ok(undefined),
+  handler: async () => new Ok(undefined),
 });

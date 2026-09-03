@@ -58,9 +58,11 @@ export const DeleteUser = httpEndpoint({
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],
-    status: 'NO_CONTENT',
+    status: 'no_content',
   },
   pipeline: compose(authed, makePipeline().catch(AuditDeletion)),
-  deps: [UsersRepository$],
-  handle: deleteUserHandler,
+  handler: {
+    deps: [UsersRepository$],
+    handle: deleteUserHandler,
+  },
 });

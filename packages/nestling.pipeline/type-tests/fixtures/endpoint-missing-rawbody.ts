@@ -14,5 +14,5 @@ export const StripeHook = httpEndpoint({
   method: 'POST',
   path: '/hooks/stripe',
   pipeline: makePipeline<{ rawBody: Uint8Array }>(),
-  handle: async () => new Ok({ received: true }),
+  handler: async () => new Ok({ received: true }),
 });

@@ -20,7 +20,7 @@ export const SayHello = httpEndpoint({
   path: '/',
   output: SayHelloOutput,
   pipeline: makePipeline().pre(withStartedAt),
-  handle: async (_payload, meta) => ({
+  handler: async (_payload, meta) => ({
     message: 'Hello from Nestling',
     startedAt: new Date(meta.startedAt).toISOString(),
   }),

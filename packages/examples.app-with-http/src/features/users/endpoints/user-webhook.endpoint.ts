@@ -85,6 +85,8 @@ export const UserWebhook = httpEndpoint({
     makePipeline<{ rawBody: Uint8Array }>().pre(VerifySignature),
     observability,
   ),
-  deps: [UsersRepository$],
-  handle: userWebhookHandler,
+  handler: {
+    deps: [UsersRepository$],
+    handle: userWebhookHandler,
+  },
 });

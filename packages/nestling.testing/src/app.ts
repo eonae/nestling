@@ -1,9 +1,10 @@
 /**
  * `assembleTest` — тестовый composition root и `TestApp` вокруг него.
  *
- * Собственного фазового рантайма здесь нет: пакет заводит **тот же** `App`
- * через шов `@nestling/app/testing` и останавливает его после фазы 3 WIRE.
- * Второй рантайм рядом с первым разошёлся бы с ним уже на первом change'е.
+ * Собственного фазового рантайма здесь нет: пакет собирает **ту же**
+ * декларацию `makeApp` через шов `@nestling/app/testing` и останавливает
+ * приложение после фазы 3 WIRE. Второй рантайм рядом с первым разошёлся
+ * бы с ним уже на первом change'е.
  */
 
 import type { TestConfig } from './config.js';
@@ -13,10 +14,11 @@ import { splitOverrides } from './overrides.js';
 import type { OperationStub } from './stub.js';
 import { stubbedOperations } from './stub.js';
 
-import type { Feature, FeatureSelection, Plugin } from '@nestling/app';
+import type { App, FeatureSelection } from '@nestling/app';
+import { isApp } from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
 import { wireApp } from '@nestling/app/testing';
-import type { InjectionToken, Provider } from '@nestling/container';
+import type { InjectionToken } from '@nestling/container';
 import { valueProvider } from '@nestling/container';
 import type {
   CommandMeta,
@@ -33,16 +35,12 @@ import type {
   ExtendableContext,
   InferInput,
   InferOutput,
-  Policy,
   Raw,
   ResponseContext,
 } from '@nestling/pipeline';
 import { makeEmptyContext, transportNameOf } from '@nestling/pipeline';
 import { busBindingOf, profileAttributes } from '@nestling/ports';
-import type {
-  DispatchOptions,
-  TransportDeclaration,
-} from '@nestling/transport';
+import type { DispatchOptions } from '@nestling/transport';
 
 /**
  * Свойства границы для одного `call`.
@@ -89,48 +87,27 @@ export interface EmitDelivery {
 }
 
 /**
- * Словарь тестовой сборки: боевой плюс `overrides` и `stubs`.
+ * Опции тестовой сборки: выбор фич и подстановки.
+ *
+ * Состав приложения — фичи, плагины, провайдеры, транспорты, интерком,
+ * политики — берётся из декларации `makeApp`; полей состава здесь нет.
  *
  * @template L - Список подстановок; выводится из литерала, чтобы каждая
  * пара проверялась по типу своего токена
  */
-export interface TestAssemblySpec<
+export interface TestAssemblyOptions<
   L extends readonly unknown[] = readonly TestOverride[],
 > {
-  /** Сквозная инфраструктура — та же, что в бою */
-  plugins?: readonly Plugin[];
-
-  /** Провайдеры корня */
-  providers?: readonly Provider[];
-
-  /** Фичи приложения; подмножество выбирается полем `select` */
-  features?: readonly Feature[];
-
-  /** Выбор фич — тот же, что в бою: опечатка падает на фазе 0 */
+  /** Выбор фич — тот же, что в бою: опечатка падает на фазе ASSEMBLE */
   select?: FeatureSelection;
 
   /**
-   * Транспорты — объявляются так же, как в проде.
+   * Конфиг теста: источник, одна привязка или их список.
    *
-   * Автоподстановки нет: endpoint на транспорте, которого нет в графе, —
-   * тот же fail-fast ASSEMBLE, что и в бою. Сокет всё равно не откроется,
-   * потому что START не выполняется.
+   * **Заменяет** привязку источников декларации целиком: тест изолирован
+   * от источников приложения так же, как от `process.env`.
    */
-  transports?: readonly TransportDeclaration[];
-
-  /** Транспорт, переносящий операции между процессами: имя экземпляра */
-  intercom?: string;
-
-  /** Конфиг: источник, одна привязка или их список */
   config?: TestConfig;
-
-  /**
-   * Инварианты сборки — те же значения, что в бою.
-   *
-   * Тестовый корень их **не ослабляет**: приложение, которое не собирается
-   * в проде, не должно собираться и в тесте.
-   */
-  policies?: readonly Policy[];
 
   /**
    * Подстановки: пары `токен → фейк` и подмены рецептов семейств.
@@ -483,18 +460,21 @@ function assertEmitting(
 /**
  * Собирает тестовое приложение и останавливает его после фазы 3 WIRE.
  *
- * Тот же словарь сборки, что у `assemble`, плюс `overrides` и `stubs`; те
- * же fail-fast'ы ASSEMBLE — сверка требуемых транспортов, формы io против
- * способностей транспорта, ацикличность графа и объявленные политики.
+ * Та же декларация, что у `main.ts`, плюс выбор фич, `overrides`, `stubs`
+ * и конфиг теста; те же fail-fast'ы ASSEMBLE — сверка требуемых
+ * транспортов, формы io против способностей транспорта, ацикличность
+ * графа и объявленные политики.
  *
- * @param spec - Словарь сборки с подстановками
+ * @param app - Декларация приложения (`makeApp`)
+ * @param options - Выбор фич и подстановки
  * @returns Приложение с `call`/`get`/`pruned`/`close`
+ * @throws {TypeError} Если первый аргумент — не декларация `makeApp`
  *
  * @example
  * ```typescript
- * await using app = await assembleTest({
- *   features: [UsersFeature],
- *   transports: [http()],
+ * import { app } from './app';
+ *
+ * await using testApp = await assembleTest(app, {
  *   overrides: [
  *     [UsersRepository, inMemoryUsersRepo()],
  *     familyOverride(ILogger, () => noopLogger),
@@ -504,30 +484,35 @@ function assertEmitting(
  * ```
  */
 export async function assembleTest<const L extends readonly TestOverride[]>(
-  spec: TestAssemblySpec<L> & { overrides?: ValidatedOverrides<L> } = {},
+  app: App,
+  options: TestAssemblyOptions<L> & { overrides?: ValidatedOverrides<L> } = {},
 ): Promise<TestApp> {
+  if (!isApp(app)) {
+    throw new TypeError(
+      'assembleTest(app, options): the first argument must be an ' +
+        'application declaration created by makeApp({ … }); the assembly ' +
+        'dictionary is not accepted here.',
+    );
+  }
+
   const { tokens, families } = splitOverrides(
-    spec.overrides as readonly TestOverride[] | undefined,
+    options.overrides as readonly TestOverride[] | undefined,
   );
 
-  const wired = await wireApp({
-    plugins: spec.plugins,
-    providers: [
-      ...(spec.providers ?? []),
-      // Стаб — поставка недостающего, а не подмена: обычный провайдер
-      ...(spec.stubs ?? []).map(([token, value]) =>
-        valueProvider(token, value),
-      ),
-    ],
-    features: spec.features,
-    select: spec.select,
-    transports: spec.transports,
-    ...(spec.intercom === undefined ? {} : { intercom: spec.intercom }),
-    config: toBindings(spec.config),
-    policies: spec.policies,
+  const wired = await wireApp(app, {
+    ...(options.select === undefined ? {} : { select: options.select }),
+    // Стаб — поставка недостающего, а не подмена: обычный провайдер
+    providers: (options.stubs ?? []).map(([token, value]) =>
+      valueProvider(token, value),
+    ),
+    // Конфиг теста заменяет привязку декларации; без него декларация
+    // читает свои источники
+    ...(options.config === undefined
+      ? {}
+      : { config: toBindings(options.config) }),
     overrides: tokens,
     familyOverrides: families,
   });
 
-  return new TestApp(wired, stubbedOperations(spec.stubs));
+  return new TestApp(wired, stubbedOperations(options.stubs));
 }

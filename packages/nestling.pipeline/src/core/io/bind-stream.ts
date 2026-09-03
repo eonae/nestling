@@ -16,10 +16,10 @@ import type {
   StreamSummary,
 } from '@nestling/operations';
 import {
+  BadRequest,
   isPrimitiveLeaf,
-  StreamGapTimeout,
-  StreamLimitExceeded,
-  ValidationFailed,
+  PayloadTooLarge,
+  Timeout,
 } from '@nestling/operations';
 import {
   batch,
@@ -52,7 +52,7 @@ export function isAsyncIterable(
  * Навешивает шаги цепочки в порядке объявления.
  *
  * `limit`/`gapTimeout` отказывают **kernel-отказами**: иначе проверка
- * границы потока превращала бы штатный отказ лимита в `500 UNKNOWN`.
+ * границы потока превращала бы штатный отказ лимита в `500 internal_error`.
  */
 function applyChain(
   source: AsyncIterable<unknown>,
@@ -72,14 +72,12 @@ function applyChain(
       }
       case 'limit': {
         current = limit(current, step.max, (max) =>
-          StreamLimitExceeded({ max }),
+          PayloadTooLarge({ limit: max }),
         );
         break;
       }
       case 'gapTimeout': {
-        current = gapTimeout(current, step.ms, (ms) =>
-          StreamGapTimeout({ ms }),
-        );
+        current = gapTimeout(current, step.ms, () => Timeout());
         break;
       }
       case 'throttle': {
@@ -128,7 +126,7 @@ async function* validateItems(
       if (skipInvalid) {
         continue;
       }
-      throw ValidationFailed(error.issues, { cause: error });
+      throw BadRequest(error.issues, { cause: error });
     }
 
     yield value;

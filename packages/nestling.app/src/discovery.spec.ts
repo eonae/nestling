@@ -24,7 +24,7 @@ const endpoint = (transport: TransportRef, pattern: string) =>
   makeEndpoint({
     transport,
     pattern,
-    handle: async () => new Ok({}),
+    handler: async () => new Ok({}),
   });
 
 describe('discoverEndpoints', () => {
@@ -33,7 +33,7 @@ describe('discoverEndpoints', () => {
       method: 'GET',
       path: '/users/:id',
       input: z.object({ id: z.string() }),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     const Users = makeFeature({ name: 'users', endpoints: [GetUser] });

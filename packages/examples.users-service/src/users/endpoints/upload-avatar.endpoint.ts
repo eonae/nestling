@@ -55,6 +55,8 @@ export const UploadAvatar = httpEndpoint({
   errors: [UserNotFound, AvatarRequired, Unauthorized],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
   pipeline: authed,
-  deps: [UsersRepository$],
-  handle: uploadAvatarHandler,
+  handler: {
+    deps: [UsersRepository$],
+    handle: uploadAvatarHandler,
+  },
 });

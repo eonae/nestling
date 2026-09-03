@@ -58,7 +58,7 @@ export const createUserHandler =
 
     if (claimed.isFail) {
       // Отказ соседа объявлен в `errors:` операции и уходит клиенту как
-      // есть. Исчерпанный бюджет приходит кодом ядра `DEADLINE_EXCEEDED`,
+      // есть. Исчерпанный бюджет приходит кодом ядра `timeout`,
       // объявлять его не нужно
       return claimed as FailOf<typeof QuotaExceeded>;
     }
@@ -93,12 +93,14 @@ export const createUserHandler =
 export const CreateUser = httpEndpoint({
   operation: CreateUserOperation,
   pipeline: authed,
-  deps: [
-    UsersRepository$,
-    ClaimQuota.caller,
-    UserRegistered.emitter,
-    SignupRecorded.emitter,
-    ActivityHub,
-  ],
-  handle: createUserHandler,
+  handler: {
+    deps: [
+      UsersRepository$,
+      ClaimQuota.caller,
+      UserRegistered.emitter,
+      SignupRecorded.emitter,
+      ActivityHub,
+    ],
+    handle: createUserHandler,
+  },
 });

@@ -232,7 +232,7 @@ describe('framing по форме output', () => {
         path: '/rows',
         output: stream(Row),
         pipeline: observing((outcome) => outcomes.push(`rows:${outcome}`)),
-        handle: async () => new Ok(rows('1', '2', '3')),
+        handler: async () => new Ok(rows('1', '2', '3')),
       }),
     );
 
@@ -243,7 +243,7 @@ describe('framing по форме output', () => {
         output: events(Event),
         sse: { id: (item) => item.id, event: (item) => item.kind },
         pipeline: makePipeline(),
-        handle: async () =>
+        handler: async () =>
           new Ok(
             (async function* (): AsyncIterableIterator<Event> {
               yield { id: '7', kind: 'created' };
@@ -310,7 +310,7 @@ describe('SSE: heartbeat, реконнект, дисконнект', () => {
         path: '/hub',
         output: events(Event),
         pipeline: observing((outcome) => outcomes.push(outcome)),
-        handle: async (
+        handler: async (
           _payload: unknown,
           meta: { signal: AbortSignal; lastEventId?: string },
         ) => {
@@ -392,7 +392,7 @@ describe('mid-stream политика', () => {
         path: '/rows-broken',
         output: stream(Row),
         pipeline: observing((outcome) => outcomes.push(`ndjson:${outcome}`)),
-        handle: async () =>
+        handler: async () =>
           new Ok(
             (async function* (): AsyncIterableIterator<Row> {
               yield { id: '1' };
@@ -408,7 +408,7 @@ describe('mid-stream политика', () => {
         path: '/live-broken',
         output: events(Event),
         pipeline: observing((outcome) => outcomes.push(`sse:${outcome}`)),
-        handle: async () =>
+        handler: async () =>
           new Ok(
             (async function* (): AsyncIterableIterator<Event> {
               yield { id: '1', kind: 'created' };
@@ -442,7 +442,7 @@ describe('mid-stream политика', () => {
 
     expect(response.body).toContain('data: {"id":"1","kind":"created"}');
     expect(response.body).toContain('event: error');
-    expect(response.body).toContain('"code":"UNKNOWN"');
+    expect(response.body).toContain('"code":"internal_error"');
 
     await until(() => outcomes.length > 0);
     expect(outcomes).toEqual(['sse:failed']);
@@ -468,7 +468,7 @@ describe('приём потокового входа и multipart', () => {
         input: stream(Row).limit(3),
         output: z.object({ imported: z.number() }),
         pipeline: summarizing,
-        handle: async (source: AsyncIterableIterator<Row>) => {
+        handler: async (source: AsyncIterableIterator<Row>) => {
           const ids: string[] = [];
           for await (const row of source) {
             ids.push(row.id);
@@ -489,7 +489,7 @@ describe('приём потокового входа и multipart', () => {
           },
         }),
         pipeline: makePipeline(),
-        handle: async (payload: {
+        handler: async (payload: {
           fields: { id: string };
           files: { avatar: FilePart };
         }) =>
@@ -538,7 +538,7 @@ describe('приём потокового входа и multipart', () => {
     );
 
     expect(response.status).toBe(400);
-    expect(JSON.parse(response.body).code).toBe('VALIDATION_FAILED');
+    expect(JSON.parse(response.body).code).toBe('bad_request');
   });
 
   it('.limit входной цепочки даёт 413 с кодом', async () => {
@@ -549,7 +549,7 @@ describe('приём потокового входа и multipart', () => {
     );
 
     expect(response.status).toBe(413);
-    expect(JSON.parse(response.body).code).toBe('STREAM_LIMIT_EXCEEDED');
+    expect(JSON.parse(response.body).code).toBe('payload_too_large');
   });
 
   it('multipart отдаёт файл под именем поля, path-параметр — в fields', async () => {
@@ -639,7 +639,7 @@ describe('close() завершает открытые events-соединени�
         path: '/hub',
         output: events(Event),
         pipeline: observing((outcome) => outcomes.push(outcome)),
-        handle: async (_payload: unknown, meta: { signal: AbortSignal }) =>
+        handler: async (_payload: unknown, meta: { signal: AbortSignal }) =>
           new Ok(hub.subscribe(meta.signal)),
       }),
     );

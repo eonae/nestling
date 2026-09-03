@@ -25,12 +25,12 @@ import { makePipeline } from '@nestling/pipeline';
  * без единого исполнимого поля.
  *
  * Разделение проходит не по времени передачи, а по составу: транспорту —
- * то, что уходит по сети, исполнение — ядру. Поэтому `handle`, `pipeline`,
- * `deps` и `resolve` в проекции отсутствуют и в рантайме.
+ * то, что уходит по сети, исполнение — ядру. Поэтому `handler`, `handle`,
+ * `pipeline` и `resolve` в проекции отсутствуют и в рантайме.
  */
 export type RouteDeclaration = Omit<
   AnyEndpointDefinition,
-  'handle' | 'pipeline' | 'deps' | 'resolve' | '$needs'
+  'handle' | 'handler' | 'pipeline' | 'resolve' | '$needs'
 >;
 
 /**

@@ -27,7 +27,7 @@ describe('doc — секция на значении декларации', () =
       transport: HttpTransport$,
       pattern: 'GET /users',
       doc: { summary: 'List users', tags: ['users'] },
-      handle: async () => new Ok([]),
+      handler: async () => new Ok([]),
     });
 
     expect(List.doc).toEqual({ summary: 'List users', tags: ['users'] });
@@ -37,21 +37,23 @@ describe('doc — секция на значении декларации', () =
     const List = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
-      doc: { summary: 'List users', status: 'OK' },
-      deps: [IClock$],
-      handle: (clock: IClock) => async () => new Ok({ at: clock.now() }),
+      doc: { summary: 'List users', status: 'ok' },
+      handler: {
+        deps: [IClock$],
+        handle: (clock: IClock) => async () => new Ok({ at: clock.now() }),
+      },
     });
 
     const resolved = List.resolve(() => ({ now: () => 0 }));
 
-    expect(resolved.doc).toEqual({ summary: 'List users', status: 'OK' });
+    expect(resolved.doc).toEqual({ summary: 'List users', status: 'ok' });
   });
 
   it('декларация без секции поля не несёт', () => {
     const List = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
-      handle: async () => new Ok([]),
+      handler: async () => new Ok([]),
     });
 
     expect('doc' in List).toBe(false);
@@ -69,7 +71,7 @@ describe('doc — секция на значении декларации', () =
       transport: HttpTransport$,
       pattern: 'GET /users',
       doc: { summary: 'List users', deprecated: true },
-      handle: async () => new Ok({ ok: true }),
+      handler: async () => new Ok({ ok: true }),
     });
 
     await expect(documented.handle({}, meta)).resolves.toMatchObject({
@@ -114,10 +116,10 @@ describe('doc — fail-fast словаря', () => {
 
   it('статус вне словаря успешных перечисляет допустимые', () => {
     expect(declare({ status: 'PARTIAL_CONTENT' })).toThrow(
-      /'doc.status' must be one of 'OK', 'CREATED', 'ACCEPTED', 'NO_CONTENT'/,
+      /'doc.status' must be one of 'ok', 'created', 'accepted', 'no_content'/,
     );
     // Отказный статус тоже вне словаря: слот описывает успех
-    expect(declare({ status: 'CONFLICT' })).toThrow(/'doc.status' must be/);
+    expect(declare({ status: 'conflict' })).toThrow(/'doc.status' must be/);
   });
 
   it('hidden без причины отвергается, и текст называет требование', () => {
@@ -149,7 +151,7 @@ describe('doc — типы', () => {
         pattern: 'GET /users',
         // @ts-expect-error: причина обязана быть строкой — `true` не форма opt-out'а
         doc: { hidden: true },
-        handle: async () => new Ok([]),
+        handler: async () => new Ok([]),
       }),
     ).toThrow(TypeError);
   });
@@ -161,7 +163,7 @@ describe('doc — типы', () => {
         pattern: 'GET /users',
         // @ts-expect-error: имя операции выводится, а не объявляется
         doc: { operationId: 'listUsers' },
-        handle: async () => new Ok([]),
+        handler: async () => new Ok([]),
       }),
     ).toThrow(TypeError);
   });

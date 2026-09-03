@@ -143,7 +143,7 @@ function decodeNdjsonLine(line: string): unknown {
  * схеме формы с учётом политики `onInvalid`. Лимит длины строки нужен,
  * чтобы незавершённая строка не росла бесконечно.
  *
- * @throws Fail отказ `PAYLOAD_TOO_LARGE` (413): строка длиннее `maxLineBytes`
+ * @throws Fail отказ `payload_too_large` (413): строка длиннее `maxLineBytes`
  * @throws JsonParseError строка не является валидным JSON
  */
 export async function* parseNdjson(

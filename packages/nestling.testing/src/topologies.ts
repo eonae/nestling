@@ -3,23 +3,12 @@
  */
 
 import type {
-  AssemblySpec,
+  App,
   CheckOptions,
   CheckReport,
   FeatureSelection,
 } from '@nestling/app';
-import { assemble } from '@nestling/app';
-import type { BusDeclaration, TransportDeclaration } from '@nestling/transport';
-
-/**
- * Словарь сборки для матрицы топологий.
- *
- * Транспорты здесь не литеральный список, поэтому имя интеркома
- * проверяется на сборке, а не типом.
- */
-export type TopologySpec = AssemblySpec<
-  readonly (TransportDeclaration | BusDeclaration)[]
->;
+import { isApp } from '@nestling/app';
 
 /** Отчёт одной топологии матрицы */
 export interface TopologyReport {
@@ -31,7 +20,7 @@ export interface TopologyReport {
 }
 
 /**
- * Прогоняет `App.check()` по каждой топологии из списка.
+ * Прогоняет `app.check()` по каждой топологии из списка.
  *
  * Разделение обязанностей намеренное: ядро фейлится быстро — первая же
  * несобираемая топология бросает свою ошибку, — а тестовый хелпер
@@ -46,37 +35,40 @@ export interface TopologyReport {
  * (`snapshotOperations`) без пересборки приложения: дескрипторы уже лежат
  * в отчёте каждой топологии.
  *
- * @param spec - Тот же словарь сборки, что попадёт в прод, без `select`
+ * @param app - Декларация приложения — та же, что у `main.ts`
  * @param selections - Варианты деплоя: `['all', 'users', 'ops']`
  * @param options - Опции `check()`; прокидываются в каждую топологию без
  * изменений. Вызов из двух аргументов ведёт себя ровно как прежде
  * @returns Отчёты по каждой топологии в порядке перечисления
+ * @throws {TypeError} Если первый аргумент — не декларация `makeApp`
  * @throws {Error} Если хотя бы одна топология не собралась; в сообщении
  * названы все несобравшиеся с их причинами
  *
  * @example
  * ```typescript
- * const reports = await checkTopologies(
- *   { features: [UsersFeature, OpsFeature], transports: [http()] },
- *   ['all', 'users', 'ops'],
- *   { converters: [zodConverter()] },
- * );
+ * const reports = await checkTopologies(app, ['all', 'users', 'ops'], {
+ *   converters: [zodConverter()],
+ * });
  * ```
  */
 export async function checkTopologies(
-  spec: TopologySpec,
+  app: App,
   selections: readonly FeatureSelection[],
   options: CheckOptions = {},
 ): Promise<TopologyReport[]> {
+  if (!isApp(app)) {
+    throw new TypeError(
+      'checkTopologies(app, selections): the first argument must be an ' +
+        'application declaration created by makeApp({ … }).',
+    );
+  }
+
   const reports: TopologyReport[] = [];
   const failures: string[] = [];
 
   for (const select of selections) {
     try {
-      reports.push({
-        select,
-        report: await assemble({ ...spec, select }).check(options),
-      });
+      reports.push({ select, report: await app.check(select, options) });
     } catch (error) {
       failures.push(
         `  - select: ${describeSelection(select)} — ${

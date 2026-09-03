@@ -140,12 +140,12 @@ describe('diffOperations: структурные правила', () => {
     const report = diffOperations(
       snapshot(
         operation('c', {
-          errors: [{ code: 'CARD_DECLINED', status: 'PAYMENT_REQUIRED' }],
+          errors: [{ code: 'CARD_DECLINED', category: 'payment_required' }],
         }),
       ),
       snapshot(
         operation('c', {
-          errors: [{ code: 'QUOTA_EXCEEDED', status: 'TOO_MANY_REQUESTS' }],
+          errors: [{ code: 'QUOTA_EXCEEDED', category: 'too_many_requests' }],
         }),
       ),
     );
@@ -160,16 +160,18 @@ describe('diffOperations: структурные правила', () => {
 
   it('смена статуса объявленного отказа — breaking', () => {
     const report = diffOperations(
-      snapshot(operation('c', { errors: [{ code: 'X', status: 'CONFLICT' }] })),
       snapshot(
-        operation('c', { errors: [{ code: 'X', status: 'NOT_FOUND' }] }),
+        operation('c', { errors: [{ code: 'X', category: 'conflict' }] }),
+      ),
+      snapshot(
+        operation('c', { errors: [{ code: 'X', category: 'not_found' }] }),
       ),
     );
 
     expect(report.breaking).toMatchObject([
       {
         path: 'errors.X',
-        description: 'failure status changed: CONFLICT → NOT_FOUND',
+        description: 'failure category changed: conflict → not_found',
       },
     ]);
   });
@@ -376,7 +378,7 @@ describe('diffOperations: unknown вместо молчаливой совмес
     const opaque = operation('c', {
       input: { kind: 'value', leaf: { leaf: 'opaque', vendor: 'zod' } },
       output: { kind: 'value', leaf: { leaf: 'opaque', vendor: 'zod' } },
-      errors: [{ code: 'X', status: 'CONFLICT' }],
+      errors: [{ code: 'X', category: 'conflict' }],
     });
 
     const report = diffOperations(snapshot(opaque), snapshot(opaque));
@@ -539,7 +541,7 @@ describe('подсказка bump’а имени', () => {
           output: { kind: 'value', leaf: schema(object({})) },
         }),
         operation('users.get', {
-          errors: [{ code: 'NEW', status: 'CONFLICT' }],
+          errors: [{ code: 'NEW', category: 'conflict' }],
         }),
       ),
     );
@@ -574,7 +576,7 @@ describe('formatCompatibility', () => {
       snapshot(
         operation('a', {
           output: { kind: 'value', leaf: schema(object({})) },
-          errors: [{ code: 'NEW', status: 'CONFLICT' }],
+          errors: [{ code: 'NEW', category: 'conflict' }],
         }),
         operation('b', {
           input: { kind: 'value', leaf: { leaf: 'opaque', vendor: 'zod' } },

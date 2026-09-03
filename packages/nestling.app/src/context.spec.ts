@@ -8,6 +8,7 @@
  */
 
 import { wireApp } from './testing/index.js';
+import { makeApp } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
@@ -41,10 +42,12 @@ beforeEach(() => {
 
 describe('contextKernel в корне', () => {
   it('класс с Ctx(RequestId) собирается без единого упоминания контекста', async () => {
-    const wired = await wireApp({
-      features: [DeepModule],
-      transports: [transportValue(MockTransport$, new MockTransport())],
-    });
+    const wired = await wireApp(
+      makeApp({
+        features: [DeepModule],
+        transports: [transportValue(MockTransport$, new MockTransport())],
+      }),
+    );
 
     const service = wired.container.getOrThrow(DeepService);
 
@@ -54,9 +57,11 @@ describe('contextKernel в корне', () => {
   });
 
   it('без читателей в графе нет ни одного узла семейства Ctx', async () => {
-    const wired = await wireApp({
-      transports: [transportValue(MockTransport$, new MockTransport())],
-    });
+    const wired = await wireApp(
+      makeApp({
+        transports: [transportValue(MockTransport$, new MockTransport())],
+      }),
+    );
 
     const { nodes } = await wired.container.toJSON();
 
@@ -66,10 +71,12 @@ describe('contextKernel в корне', () => {
   });
 
   it('узел ридера присутствует в сериализации графа', async () => {
-    const wired = await wireApp({
-      features: [DeepModule],
-      transports: [transportValue(MockTransport$, new MockTransport())],
-    });
+    const wired = await wireApp(
+      makeApp({
+        features: [DeepModule],
+        transports: [transportValue(MockTransport$, new MockTransport())],
+      }),
+    );
 
     const { nodes } = await wired.container.toJSON();
     const reader = nodes.find((node) => node.id === 'Ctx:requestId');
@@ -88,11 +95,15 @@ describe('contextKernel в корне', () => {
       peek: () => 'fixed',
     };
 
-    const wired = await wireApp({
-      features: [DeepModule],
-      transports: [transportValue(MockTransport$, new MockTransport())],
-      overrides: [[Ctx(RequestId), fake]],
-    });
+    const wired = await wireApp(
+      makeApp({
+        features: [DeepModule],
+        transports: [transportValue(MockTransport$, new MockTransport())],
+      }),
+      {
+        overrides: [[Ctx(RequestId), fake]],
+      },
+    );
 
     expect(wired.container.getOrThrow(DeepService).requestId).toBe(fake);
 

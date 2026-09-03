@@ -18,8 +18,8 @@ import { HttpTransport } from './transport.js';
 import type { Schema } from '@common/misc';
 import type { FilePart, PreUnitFn } from '@nestling/pipeline';
 import {
-  defineFail,
   Fail,
+  makeFail,
   makePipeline,
   multipart,
   Ok,
@@ -124,19 +124,16 @@ function getServer(transport: HttpTransport): Server {
 }
 
 /** Доменные отказы фикстур: канон — определение + `errors:` декларации */
-const EmailTaken = defineFail('EMAIL_TAKEN', {
-  status: 'CONFLICT',
+const EmailTaken = makeFail('conflict:email_taken', {
   message: 'Email already taken',
   details: z.object({ field: z.string() }),
 });
 
-const RateLimited = defineFail('RATE_LIMITED', {
-  status: 'TOO_MANY_REQUESTS',
+const RateLimited = makeFail('too_many_requests:rate_limited', {
   message: 'Too many requests',
 });
 
-const UpstreamTimeout = defineFail('UPSTREAM_TIMEOUT', {
-  status: 'TIMEOUT',
+const UpstreamTimeout = makeFail('timeout:upstream_timeout', {
   message: 'Upstream did not answer in time',
 });
 
@@ -156,7 +153,7 @@ describe('HttpTransport — error response safety', () => {
         method: 'POST',
         path: '/boom',
         pipeline: makePipeline(),
-        handle: () => {
+        handler: () => {
           throw new Error('db password invalid');
         },
       }),
@@ -167,19 +164,20 @@ describe('HttpTransport — error response safety', () => {
         path: '/fail',
         pipeline: makePipeline(),
         errors: [EmailTaken],
-        handle: () => {
+        handler: () => {
           throw EmailTaken({ field: 'email' });
         },
       }),
     );
-    // Тот же отказ, но незадекларированный: проверка границы снимет его
+    // Тот же отказ, но незадекларированный: проверка границы снимет его.
+    // Категория `conflict` — не код ядра, иначе анонимный отказ прошёл бы
     routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
         path: '/undeclared',
         pipeline: makePipeline(),
-        handle: () => {
-          throw Fail.badRequest('Email already taken', { field: 'email' });
+        handler: () => {
+          throw Fail.conflict('Email already taken', { field: 'email' });
         },
       }),
     );
@@ -189,7 +187,7 @@ describe('HttpTransport — error response safety', () => {
         path: '/rate-limited',
         pipeline: makePipeline(),
         errors: [RateLimited],
-        handle: () => {
+        handler: () => {
           throw RateLimited();
         },
       }),
@@ -200,7 +198,7 @@ describe('HttpTransport — error response safety', () => {
         path: '/timeout',
         pipeline: makePipeline(),
         errors: [UpstreamTimeout],
-        handle: () => {
+        handler: () => {
           throw UpstreamTimeout();
         },
       }),
@@ -213,7 +211,7 @@ describe('HttpTransport — error response safety', () => {
         method: 'POST',
         path: '/boom',
         pipeline: makePipeline(),
-        handle: () => {
+        handler: () => {
           throw new Error('boom');
         },
       }),
@@ -231,7 +229,10 @@ describe('HttpTransport — error response safety', () => {
     expect(response.status).toBe(500);
 
     const body = await response.json();
-    expect(body).toEqual({ error: 'Internal server error', code: 'UNKNOWN' });
+    expect(body).toEqual({
+      error: 'Internal server error',
+      code: 'internal_error',
+    });
     expect(JSON.stringify(body)).not.toContain('db password');
     expect(body.stack).toBeUndefined();
   });
@@ -252,28 +253,35 @@ describe('HttpTransport — error response safety', () => {
     const body = await response.json();
     expect(body).toEqual({
       error: 'Email already taken',
-      code: 'EMAIL_TAKEN',
+      code: 'conflict:email_taken',
       details: { field: 'email' },
     });
   });
 
-  it('незадекларированный отказ → 500 UNKNOWN, оригинал не раскрыт', async () => {
+  it('незадекларированный отказ → 500 internal_error, оригинал не раскрыт', async () => {
     const response = await fetch(`${baseUrl}/undeclared`, { method: 'POST' });
     expect(response.status).toBe(500);
 
     const body = await response.json();
-    expect(body).toEqual({ error: 'Internal server error', code: 'UNKNOWN' });
+    expect(body).toEqual({
+      error: 'Internal server error',
+      code: 'internal_error',
+    });
     expect(JSON.stringify(body)).not.toContain('Email already taken');
   });
 
   it('новые статусы словаря передаются в HTTP-ответ: 429 и 504', async () => {
     const limited = await fetch(`${baseUrl}/rate-limited`, { method: 'POST' });
     expect(limited.status).toBe(429);
-    expect(await limited.json()).toMatchObject({ code: 'RATE_LIMITED' });
+    expect(await limited.json()).toMatchObject({
+      code: 'too_many_requests:rate_limited',
+    });
 
     const timeout = await fetch(`${baseUrl}/timeout`, { method: 'POST' });
     expect(timeout.status).toBe(504);
-    expect(await timeout.json()).toMatchObject({ code: 'UPSTREAM_TIMEOUT' });
+    expect(await timeout.json()).toMatchObject({
+      code: 'timeout:upstream_timeout',
+    });
   });
 
   it('хук получает оригинал снятого отказа', async () => {
@@ -286,7 +294,7 @@ describe('HttpTransport — error response safety', () => {
         method: 'POST',
         path: '/undeclared',
         pipeline: makePipeline(),
-        handle: () => {
+        handler: () => {
           throw Fail.notFound('order 42');
         },
       }),
@@ -331,7 +339,7 @@ describe('HttpTransport — request validation errors', () => {
         method: 'POST',
         path: '/json',
         input: z.object({ name: z.string() }),
-        handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
+        handler: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
     );
 
@@ -341,7 +349,7 @@ describe('HttpTransport — request validation errors', () => {
         method: 'POST',
         path: '/fallback',
         input: z.object({ name: z.string() }),
-        handle: (payload: { name: string }) => ({ ok: payload.name }),
+        handler: (payload: { name: string }) => ({ ok: payload.name }),
       }),
     );
 
@@ -351,7 +359,7 @@ describe('HttpTransport — request validation errors', () => {
         method: 'POST',
         path: '/async-schema',
         input: asyncSchema,
-        handle: () => new Ok({ ok: true }),
+        handler: () => new Ok({ ok: true }),
       }),
     );
 
@@ -361,7 +369,7 @@ describe('HttpTransport — request validation errors', () => {
         method: 'POST',
         path: '/async-schema-bare',
         input: asyncSchema,
-        handle: () => new Ok({ ok: true }),
+        handler: () => new Ok({ ok: true }),
       }),
     );
 
@@ -371,7 +379,7 @@ describe('HttpTransport — request validation errors', () => {
         method: 'POST',
         path: '/not-a-schema',
         input: notASchema,
-        handle: () => new Ok({ ok: true }),
+        handler: () => new Ok({ ok: true }),
       }),
     );
 
@@ -404,7 +412,7 @@ describe('HttpTransport — request validation errors', () => {
     expect(response.status).toBe(400);
 
     const body = await response.json();
-    expect(body.error).toBe('Validation failed');
+    expect(body.error).toBe('Bad request');
     expect(Array.isArray(body.details)).toBe(true);
   });
 
@@ -425,7 +433,7 @@ describe('HttpTransport — request validation errors', () => {
       expect(body.details[0]).not.toHaveProperty('expected');
       expect(body.details[0]).not.toHaveProperty('received');
       // Kernel-код проставляется на обоих путях: пайплайн и fallback
-      expect(body.code).toBe('VALIDATION_FAILED');
+      expect(body.code).toBe('bad_request');
     }
   });
 
@@ -439,7 +447,7 @@ describe('HttpTransport — request validation errors', () => {
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
       error: 'Internal server error',
-      code: 'UNKNOWN',
+      code: 'internal_error',
     });
   });
 
@@ -453,7 +461,7 @@ describe('HttpTransport — request validation errors', () => {
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
       error: 'Internal server error',
-      code: 'UNKNOWN',
+      code: 'internal_error',
     });
   });
 
@@ -467,7 +475,7 @@ describe('HttpTransport — request validation errors', () => {
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
       error: 'Internal server error',
-      code: 'UNKNOWN',
+      code: 'internal_error',
     });
   });
 
@@ -503,7 +511,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         method: 'POST',
         path: '/users',
         input: z.object({ name: z.string() }),
-        handle: (payload: { name: string }) => new Ok(payload),
+        handler: (payload: { name: string }) => new Ok(payload),
       }),
     );
 
@@ -513,7 +521,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         method: 'PATCH',
         path: '/users/:id',
         input: z.object({ id: z.string(), name: z.string() }),
-        handle: (payload: { id: string; name: string }) => new Ok(payload),
+        handler: (payload: { id: string; name: string }) => new Ok(payload),
       }),
     );
 
@@ -523,7 +531,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         method: 'GET',
         path: '/tags',
         input: z.object({ tag: z.array(z.string()) }),
-        handle: (payload: { tag: string[] }) => new Ok(payload),
+        handler: (payload: { tag: string[] }) => new Ok(payload),
       }),
     );
 
@@ -534,7 +542,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         path: '/multi',
         input: z.object({ tag: z.array(z.string()) }),
         bind: { tag: query({ multiple: true }) },
-        handle: (payload: { tag: string[] }) => new Ok(payload),
+        handler: (payload: { tag: string[] }) => new Ok(payload),
       }),
     );
 
@@ -545,7 +553,8 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         path: '/marked',
         input: z.object({ name: z.string(), dryRun: z.string().optional() }),
         bind: { dryRun: query() },
-        handle: (payload: { name: string; dryRun?: string }) => new Ok(payload),
+        handler: (payload: { name: string; dryRun?: string }) =>
+          new Ok(payload),
       }),
     );
 
@@ -559,7 +568,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
           files: { avatar: upload() },
         }),
         pipeline: makePipeline(),
-        handle: (payload: {
+        handler: (payload: {
           fields: { id: string };
           files: { avatar: FilePart };
         }) =>
@@ -579,7 +588,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
           fields: z.object({ title: z.string().min(1) }),
           files: { report: upload() },
         }),
-        handle: (payload: {
+        handler: (payload: {
           fields: { title: string };
           files: { report: FilePart };
         }) =>
@@ -598,7 +607,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
         input: z.object({ event: z.string() }),
         rawBody: true,
         pipeline: makePipeline<{ rawBody: Uint8Array }>().pre(captureRawBody),
-        handle: (payload: { event: string }) => new Ok(payload),
+        handler: (payload: { event: string }) => new Ok(payload),
       }),
     );
 
@@ -618,7 +627,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
     expect(response.status).toBe(400);
 
     const body = await response.json();
-    expect(body.error).toBe('Validation failed');
+    expect(body.error).toBe('Bad request');
     expect(body.details).toEqual([
       { message: expect.any(String), path: ['name'] },
     ]);
@@ -687,7 +696,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.code).toBe('VALIDATION_FAILED');
+    expect(body.code).toBe('bad_request');
     expect(body.details).toEqual([
       { message: expect.any(String), path: ['title'] },
     ]);
@@ -736,7 +745,7 @@ describe('HttpTransport — тело читается только по треб
         method: 'GET',
         path: '/search',
         input: z.object({ q: z.string() }),
-        handle: (payload: { q: string }) => new Ok(payload),
+        handler: (payload: { q: string }) => new Ok(payload),
       }),
     );
     routesOf(transport).push(
@@ -746,7 +755,7 @@ describe('HttpTransport — тело читается только по треб
         input: z.object({ event: z.string() }),
         rawBody: true,
         pipeline: makePipeline<{ rawBody: Uint8Array }>(),
-        handle: (payload: { event: string }) => new Ok(payload),
+        handler: (payload: { event: string }) => new Ok(payload),
       }),
     );
     baseUrl = await listen(transport);
@@ -775,7 +784,11 @@ describe('HttpTransport — тело читается только по треб
     });
 
     expect(response.status).toBe(413);
-    expect(await response.json()).toEqual({ error: 'Payload too large' });
+    expect(await response.json()).toEqual({
+      error: 'Payload too large',
+      code: 'payload_too_large',
+      details: { limit: 100 },
+    });
   });
 });
 
@@ -792,7 +805,7 @@ describe('HttpTransport — body size limits', () => {
         method: 'POST',
         path: '/json',
         input: z.object({ name: z.string() }),
-        handle: (payload: { name: string }) => new Ok({ ok: payload.name }),
+        handler: (payload: { name: string }) => new Ok({ ok: payload.name }),
       }),
     );
     routesOf(small).push(
@@ -800,7 +813,7 @@ describe('HttpTransport — body size limits', () => {
         method: 'POST',
         path: '/stream',
         input: stream(z.object({ n: z.number() })),
-        handle: async (payload: AsyncIterable<unknown>) => {
+        handler: async (payload: AsyncIterable<unknown>) => {
           let count = 0;
           for await (const item of payload) {
             count += item ? 1 : 0;
@@ -816,7 +829,7 @@ describe('HttpTransport — body size limits', () => {
         path: '/stream-piped',
         input: stream(z.object({ n: z.number() })),
         pipeline: makePipeline(),
-        handle: async (payload: AsyncIterable<unknown>) => {
+        handler: async (payload: AsyncIterable<unknown>) => {
           let count = 0;
           for await (const item of payload) {
             count += item ? 1 : 0;
@@ -833,7 +846,7 @@ describe('HttpTransport — body size limits', () => {
         method: 'POST',
         path: '/json',
         input: z.object({ name: z.string() }),
-        handle: (payload: { name: string }) =>
+        handler: (payload: { name: string }) =>
           new Ok({ length: payload.name.length }),
       }),
     );
@@ -878,7 +891,7 @@ describe('HttpTransport — body size limits', () => {
       // код ядра проводит 413 через границу, не давая ей сделать 500
       expect(response.status).toBe(413);
       const body = await response.json();
-      expect(body.code).toBe('PAYLOAD_TOO_LARGE');
+      expect(body.code).toBe('payload_too_large');
     }
   });
 });
@@ -907,7 +920,7 @@ describe('HttpTransport — timeouts and graceful close', () => {
         method: 'GET',
         path: '/ping',
         pipeline: makePipeline(),
-        handle: () => new Ok({ pong: true }),
+        handler: () => new Ok({ pong: true }),
       }),
     );
     const baseUrl = await listen(transport);
@@ -943,7 +956,7 @@ describe('HttpTransport — timeouts and graceful close', () => {
         path: '/hang',
         pipeline: makePipeline(),
         // eslint-disable-next-line @typescript-eslint/no-empty-function
-        handle: () => new Promise<never>(() => {}), // никогда не резолвится
+        handler: () => new Promise<never>(() => {}), // никогда не резолвится
       }),
     );
     const baseUrl = await listen(transport);
@@ -996,7 +1009,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
         method: 'GET',
         path: '/slow',
         pipeline: makePipeline(),
-        handle,
+        handler: handle,
       }),
     );
     const baseUrl = await listen(transport);
@@ -1025,7 +1038,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
         method: 'GET',
         path: '/ping',
         pipeline: makePipeline(),
-        handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
+        handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
           captured = meta.signal;
           return new Ok({ pong: true });
         },
@@ -1055,7 +1068,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
         method: 'POST',
         path: '/graceful',
         pipeline: makePipeline(),
-        handle,
+        handler: handle,
       }),
     );
     const baseUrl = await listen(transport);
@@ -1085,7 +1098,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
       httpEndpoint({
         method: 'GET',
         path: '/raw',
-        handle: (_payload: unknown, meta: { signal: AbortSignal }) => {
+        handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
           const result = handle(_payload, meta);
           return result.then((ok) => ok.value);
         },
@@ -1115,7 +1128,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
         method: 'GET',
         path: '/ping',
         pipeline: makePipeline(),
-        handle: () => new Ok({ pong: true }),
+        handler: () => new Ok({ pong: true }),
       }),
     );
     const baseUrl = await listen(transport);

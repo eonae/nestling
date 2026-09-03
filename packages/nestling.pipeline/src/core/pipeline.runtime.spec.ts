@@ -23,18 +23,11 @@ import { compose, makePipeline } from './pipeline';
 
 import { jest } from '@jest/globals';
 import type {
-  AnyFail,
   AnyFailDefinition,
   AnyInput,
   EmptyInput,
 } from '@nestling/operations';
-import {
-  DeadlineExceeded,
-  defineFail,
-  Fail,
-  Ok,
-  ValidationFailed,
-} from '@nestling/operations';
+import { BadRequest, Fail, makeFail, Ok, Timeout } from '@nestling/operations';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
@@ -46,29 +39,18 @@ import { z } from 'zod';
 // незадекларированного — предмет отдельного describe.
 // ---------------------------------------------------------------------------
 
-const EmailTaken = defineFail('EMAIL_TAKEN', {
-  status: 'BAD_REQUEST',
+const EmailTaken = makeFail('bad_request:email_taken', {
   message: 'Email already taken',
   details: z.object({ field: z.string() }),
 });
 
-const NoToken = defineFail('NO_TOKEN', {
-  status: 'UNAUTHORIZED',
-  message: 'No token',
-});
+const NoToken = makeFail('unauthorized:no_token', { message: 'No token' });
 
-const Forbidden = defineFail('FORBIDDEN_HERE', {
-  status: 'FORBIDDEN',
-  message: 'nope',
-});
+const Forbidden = makeFail('forbidden:forbidden_here', { message: 'nope' });
 
-const Mapped = defineFail('MAPPED', {
-  status: 'BAD_REQUEST',
-  message: 'mapped',
-});
+const Mapped = makeFail('bad_request:mapped', { message: 'mapped' });
 
-const Rejected = defineFail('REJECTED', {
-  status: 'BAD_REQUEST',
+const Rejected = makeFail('bad_request:rejected', {
   message: 'Rejected on the response track',
 });
 
@@ -98,7 +80,6 @@ type LooseHandler = (
   payload: unknown,
   meta: Record<string, unknown> & {
     signal: AbortSignal;
-    fail: (e: AnyFail) => never;
   },
 ) => unknown;
 
@@ -141,19 +122,19 @@ describe('Pipeline v2 — normalization', () => {
 
     expect(response).toEqual({
       isSuccess: true,
-      status: 'OK',
+      status: 'ok',
       value: { hello: 'world' },
     });
   });
 
   it('сохраняет статус и заголовки из Ok', async () => {
     const response = await run(makePipeline(), () => {
-      return new Ok('CREATED', { id: 1 }, { 'x-test': '1' });
+      return new Ok('created', { id: 1 }, { 'x-test': '1' });
     });
 
     expect(response).toEqual({
       isSuccess: true,
-      status: 'CREATED',
+      status: 'created',
       value: { id: 1 },
       headers: { 'x-test': '1' },
     });
@@ -218,7 +199,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
         events.push('catch');
         // Partial ctx: поле, добавленное ДО падения, доступно
         expect(ctx.input.a).toBe('a-value');
-        expect(error.status).toBe('UNAUTHORIZED');
+        expect(error.status).toBe('unauthorized');
         return;
       });
 
@@ -229,7 +210,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'UNAUTHORIZED',
+      status: 'unauthorized',
       value: { error: 'No token' },
     });
     expect(events).toEqual(['pre1', 'pre2', 'catch']);
@@ -261,7 +242,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     });
 
     expect(response).toMatchObject({
-      status: 'BAD_REQUEST',
+      status: 'bad_request',
       value: { error: 'mapped' },
     });
     expect(seen).toEqual([
@@ -308,7 +289,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     expect(response.isSuccess).toBe(false);
     expect(response.value).toEqual({
       error: 'Internal server error',
-      code: 'UNKNOWN',
+      code: 'internal_error',
     });
     expect(JSON.stringify(response.value)).not.toContain('audit db');
     expect(events).toEqual(['ok', 'catch']);
@@ -337,7 +318,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     // объявленный ниже catch применим к текущему ответу.
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
+      status: 'bad_request',
     });
     expect(events).toEqual(['handler', 'ok', 'catch:BAD_REQUEST']);
   });
@@ -363,7 +344,7 @@ describe('Pipeline v2 — порядок фаз одного слоя', () => {
     expect(calls).toBe(2);
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
+      status: 'bad_request',
     });
   });
 });
@@ -491,7 +472,7 @@ describe('Pipeline v2 — слои и compose', () => {
       return new Ok({});
     });
 
-    expect(response).toMatchObject({ status: 'FORBIDDEN' });
+    expect(response).toMatchObject({ status: 'forbidden' });
     expect(events).toEqual(['pre:base', 'catch:base', 'finally:base']);
   });
 
@@ -582,7 +563,7 @@ describe('Pipeline v2 — finally и исходы', () => {
       throw new Error('boom');
     });
 
-    expect(seenStatus).toBe('BAD_REQUEST');
+    expect(seenStatus).toBe('bad_request');
   });
 
   it('finally видит уже нормализованный проверкой ответ и исход failed', async () => {
@@ -605,8 +586,8 @@ describe('Pipeline v2 — finally и исходы', () => {
 
     expect(seen).toEqual({
       outcome: 'failed',
-      status: 'INTERNAL_ERROR',
-      code: 'UNKNOWN',
+      status: 'internal_error',
+      code: 'internal_error',
     });
   });
 
@@ -766,10 +747,10 @@ describe('Pipeline v2 — политика раскрытия ошибок', () 
     const withoutOpt = await run(makePipeline(), failingHandler);
     expect(withoutOpt).toEqual({
       isSuccess: false,
-      status: 'BAD_REQUEST',
+      status: 'bad_request',
       value: {
         error: 'Email already taken',
-        code: 'EMAIL_TAKEN',
+        code: 'bad_request:email_taken',
         details: { field: 'email' },
       },
     });
@@ -779,18 +760,18 @@ describe('Pipeline v2 — политика раскрытия ошибок', () 
     });
     expect(withOpt.value).toEqual({
       error: 'Email already taken',
-      code: 'EMAIL_TAKEN',
+      code: 'bad_request:email_taken',
       details: { field: 'email' },
     });
   });
 
-  it('незадекларированный Fail не раскрывается: generic-тело с кодом UNKNOWN', async () => {
+  it('незадекларированный Fail не раскрывается: generic-тело с кодом internal_error', async () => {
     const response = await run(makePipeline(), failingHandler, { errors: [] });
 
     expect(response).toEqual({
       isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: { error: 'Internal server error', code: 'UNKNOWN' },
+      status: 'internal_error',
+      value: { error: 'Internal server error', code: 'internal_error' },
     });
     expect(JSON.stringify(response.value)).not.toContain('Email already taken');
   });
@@ -801,10 +782,10 @@ describe('Pipeline v2 — политика раскрытия ошибок', () 
     });
 
     expect(response.isSuccess).toBe(false);
-    expect(response.status).toBe('INTERNAL_ERROR');
+    expect(response.status).toBe('internal_error');
     expect(response.value).toEqual({
       error: 'Internal server error',
-      code: 'UNKNOWN',
+      code: 'internal_error',
     });
     expect(JSON.stringify(response.value)).not.toContain('db password');
     expect((response.value as { stack?: string }).stack).toBeUndefined();
@@ -820,7 +801,7 @@ describe('Pipeline v2 — политика раскрытия ошибок', () 
     );
 
     expect(response.isSuccess).toBe(false);
-    expect(response.status).toBe('INTERNAL_ERROR');
+    expect(response.status).toBe('internal_error');
     expect((response.value as { error: string }).error).toBe('boom');
     expect((response.value as { stack?: string }).stack).toContain('boom');
   });
@@ -860,10 +841,10 @@ describe('Pipeline v2 — возврат Fail эквивалентен брос�
 
     expect(response).toEqual({
       isSuccess: false,
-      status: 'BAD_REQUEST',
+      status: 'bad_request',
       value: {
         error: 'Email already taken',
-        code: 'EMAIL_TAKEN',
+        code: 'bad_request:email_taken',
         details: { field: 'email' },
       },
     });
@@ -887,8 +868,8 @@ describe('Pipeline v2 — возврат Fail эквивалентен брос�
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'UNAUTHORIZED',
-      value: { code: 'NO_TOKEN' },
+      status: 'unauthorized',
+      value: { code: 'unauthorized:no_token' },
     });
   });
 
@@ -905,9 +886,8 @@ describe('Pipeline v2 — возврат Fail эквивалентен брос�
 });
 
 describe('Pipeline v2 — проверка операции отказов', () => {
-  it('незадекларированный доменный отказ нормализуется в UNKNOWN/500', async () => {
-    const OrderNotFound = defineFail('ORDER_NOT_FOUND', {
-      status: 'NOT_FOUND',
+  it('незадекларированный доменный отказ нормализуется в internal_error/500', async () => {
+    const OrderNotFound = makeFail('not_found:order_not_found', {
       message: 'Order not found',
     });
 
@@ -921,8 +901,8 @@ describe('Pipeline v2 — проверка операции отказов', () 
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: { error: 'Internal server error', code: 'UNKNOWN' },
+      status: 'internal_error',
+      value: { error: 'Internal server error', code: 'internal_error' },
     });
   });
 
@@ -932,8 +912,8 @@ describe('Pipeline v2 — проверка операции отказов', () 
     });
 
     expect(response).toMatchObject({
-      status: 'INTERNAL_ERROR',
-      value: { code: 'UNKNOWN' },
+      status: 'internal_error',
+      value: { code: 'internal_error' },
     });
   });
 
@@ -952,8 +932,8 @@ describe('Pipeline v2 — проверка операции отказов', () 
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
-      value: { error: 'mapped', code: 'MAPPED' },
+      status: 'bad_request',
+      value: { error: 'mapped', code: 'bad_request:mapped' },
     });
   });
 
@@ -961,34 +941,34 @@ describe('Pipeline v2 — проверка операции отказов', () 
     const response = await run(
       makePipeline(),
       () => {
-        throw ValidationFailed([{ message: 'name must be a string' }]);
+        throw BadRequest([{ message: 'name must be a string' }]);
       },
       { errors: [] },
     );
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'BAD_REQUEST',
+      status: 'bad_request',
       value: {
-        code: 'VALIDATION_FAILED',
+        code: 'bad_request',
         details: [{ message: 'name must be a string' }],
       },
     });
   });
 
-  it('DEADLINE_EXCEEDED проходит проверку нетронутым, не становясь UNKNOWN', async () => {
+  it('timeout проходит проверку нетронутым, не становясь internal_error', async () => {
     const response = await run(
       makePipeline(),
       () => {
-        throw DeadlineExceeded();
+        throw Timeout();
       },
       { errors: [] },
     );
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'TIMEOUT',
-      value: { code: 'DEADLINE_EXCEEDED' },
+      status: 'timeout',
+      value: { code: 'timeout' },
     });
   });
 
@@ -1000,12 +980,12 @@ describe('Pipeline v2 — проверка операции отказов', () 
 
     // declaredErrors — дефолт makeCtx, поэтому здесь отказ объявлен.
     // Проверка «пустого множества» — соседний кейс с errors: []
-    expect(response.status).toBe('BAD_REQUEST');
+    expect(response.status).toBe('bad_request');
 
     const undeclared = await run(makePipeline(), failingHandler, {
       errors: [],
     });
-    expect(undeclared.status).toBe('INTERNAL_ERROR');
+    expect(undeclared.status).toBe('internal_error');
   });
 
   it("хук получает оригинал и метаданные endpoint'а, тело их не содержит", async () => {
@@ -1042,50 +1022,9 @@ describe('Pipeline v2 — проверка операции отказов', () 
 
       expect(spy).toHaveBeenCalledTimes(1);
       expect(String(spy.mock.calls[0][0])).toContain('[nestling]');
-      expect(response.status).toBe('INTERNAL_ERROR');
+      expect(response.status).toBe('internal_error');
     } finally {
       spy.mockRestore();
     }
-  });
-});
-
-describe('Pipeline v2 — meta.fail', () => {
-  it('бросает переданный отказ: ответ такой же, как у throw', async () => {
-    const response = await run(makePipeline(), (_payload, meta) =>
-      meta.fail(EmailTaken({ field: 'email' })),
-    );
-
-    expect(response).toMatchObject({
-      isSuccess: false,
-      status: 'BAD_REQUEST',
-      value: { code: 'EMAIL_TAKEN' },
-    });
-  });
-
-  it('ключ fail зарезервирован: поле pre-юнита перекрывается', async () => {
-    const overridingFail = (() =>
-      Promise.resolve({ fail: 'not-a-thrower' })) as PreUnitFn<
-      EmptyInput,
-      Record<string, unknown>
-    >;
-
-    const response = await run(
-      makePipeline().pre(overridingFail),
-      (_payload, meta) => ({ isFunction: typeof meta.fail === 'function' }),
-    );
-
-    expect(response).toMatchObject({ value: { isFunction: true } });
-  });
-
-  it('не-Fail из JS даёт TypeError', async () => {
-    const response = await run(makePipeline(), (_payload, meta) =>
-      (meta.fail as unknown as (e: unknown) => never)('boom'),
-    );
-
-    expect(response).toMatchObject({
-      isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: { code: 'UNKNOWN' },
-    });
   });
 });

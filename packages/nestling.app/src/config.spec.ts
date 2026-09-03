@@ -3,7 +3,7 @@
  * fail-fast на старте — до того, как транспорт начнёт слушать.
  */
 
-import { assemble } from './app';
+import { makeApp } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
@@ -70,10 +70,10 @@ describe('привязка конфига в assemble', () => {
   it('прогрессивность: без поля config секции читаются из process.env', async () => {
     await withEnv({ ROOTAPP_RETRIES: '3' }, async () => {
       const transport = new MockTransport();
-      const app = assemble({
+      const app = makeApp({
         features: [GreeterModule],
         transports: [transportValue(HttpTransport$('default'), transport)],
-      });
+      }).assemble();
 
       await app.run();
 
@@ -88,7 +88,7 @@ describe('привязка конфига в assemble', () => {
     await withEnv(
       { ROOTAPP_RETRIES: '1', ROOTAPP_GREETING: 'from-env' },
       async () => {
-        const app = assemble({
+        const app = makeApp({
           features: [GreeterModule],
           transports: [
             transportValue(HttpTransport$('default'), new MockTransport()),
@@ -103,7 +103,7 @@ describe('привязка конфига в assemble', () => {
               '*',
             ],
           ],
-        });
+        }).assemble();
 
         await app.run();
 
@@ -118,11 +118,11 @@ describe('привязка конфига в assemble', () => {
 
   it('невалидный конфиг роняет старт до приёма запросов', async () => {
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [GreeterModule],
       transports: [transportValue(HttpTransport$('default'), transport)],
       config: [[objectSource({ ROOTAPP_RETRIES: 'abc' }, 'test'), '*']],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(ConfigValidationError);
     expect(transport.serving).toBe(false);
@@ -130,10 +130,10 @@ describe('привязка конфига в assemble', () => {
 
   it('обязательный ключ, которого нет нигде, роняет старт', async () => {
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [GreeterModule],
       transports: [transportValue(HttpTransport$('default'), transport)],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(/ROOTAPP_RETRIES/);
     expect(transport.serving).toBe(false);

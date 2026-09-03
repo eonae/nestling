@@ -16,13 +16,12 @@ import { CONTEXT_HEADER, IDEMPOTENCY_HEADER, TIMEOUT_HEADER } from './wire.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { defineFail, makePipeline, Ok } from '@nestling/pipeline';
+import { makeFail, makePipeline, Ok } from '@nestling/pipeline';
 import { BusTransport$, implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
-const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
-  status: 'CONFLICT',
+const QuotaExceeded = makeFail('conflict:quota_exceeded', {
   message: 'Quota exceeded',
 });
 
@@ -53,7 +52,7 @@ const ClaimImpl = implement(Claim, {
   pipeline: makePipeline().pre((ctx) => {
     seenAttributes = ctx.raw.attributes;
   }),
-  handle: async (input) => {
+  handler: async (input) => {
     if (deny) {
       return QuotaExceeded();
     }
@@ -68,7 +67,7 @@ const ShipImpl = implement(Ship, {
   pipeline: makePipeline().pre((ctx) => {
     seenAttributes = ctx.raw.attributes;
   }),
-  handle: async (input) => {
+  handler: async (input) => {
     shipped.push(input.orderId);
 
     return undefined;
@@ -77,7 +76,7 @@ const ShipImpl = implement(Ship, {
 
 const PlacedBilling = implement(Placed, {
   subscriber: 'billing',
-  handle: async (input) => {
+  handler: async (input) => {
     notified.push(`billing:${input.orderId}`);
 
     return undefined;
@@ -86,7 +85,7 @@ const PlacedBilling = implement(Placed, {
 
 const PlacedAnalytics = implement(Placed, {
   subscriber: 'analytics',
-  handle: async (input) => {
+  handler: async (input) => {
     notified.push(`analytics:${input.orderId}`);
 
     return undefined;
@@ -148,8 +147,8 @@ describe('NatsBus — адресация и группы', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'CONFLICT',
-      value: { code: 'QUOTA_EXCEEDED' },
+      status: 'conflict',
+      value: { code: 'conflict:quota_exceeded' },
     });
 
     await owner.close();
@@ -314,7 +313,7 @@ describe('NatsBus — конверт и потолок', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      value: { code: 'DEADLINE_EXCEEDED' },
+      value: { code: 'timeout' },
     });
     expect(claimed).toEqual([]);
 
@@ -338,8 +337,8 @@ describe('NatsBus — конверт и потолок', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'TIMEOUT',
-      value: { code: 'DEADLINE_EXCEEDED' },
+      status: 'timeout',
+      value: { code: 'timeout' },
     });
     expect(String((response.value as { error?: string }).error)).toContain(
       'NATS_REQUEST_TIMEOUT',
@@ -388,7 +387,7 @@ describe('NatsBus — отказы доставки и фазы', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'SERVICE_UNAVAILABLE',
+      status: 'service_unavailable',
     });
     expect(String((response.value as { error?: string }).error)).toContain(
       'quotas.claim',

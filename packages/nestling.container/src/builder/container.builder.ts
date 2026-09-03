@@ -160,6 +160,33 @@ export class ContainerBuilder {
   }
 
   /**
+   * Регистрирует провайдеры с атрибуцией к модулю по имени.
+   *
+   * Само значение модуля не требуется: имя — метка узлов графа, и
+   * провайдер, добавленный сюда, неотличим от перечисленного в
+   * `providers:` этого модуля. Так сборка регистрирует класс-хендлер
+   * endpoint'а провайдером модуля-объявителя, не меняя значение модуля.
+   *
+   * @param moduleName - Имя модуля-владельца
+   * @param providers - Провайдеры или рецепты семейств
+   * @returns Тот же билдер, для цепочки вызовов
+   * @throws {Error} Если контейнер уже собран
+   */
+  registerIn(moduleName: string, ...providers: ModuleProvider[]): this {
+    if (this.#isBuilt) {
+      throw new Error(
+        'Cannot register providers or modules after container is built',
+      );
+    }
+
+    for (const provider of providers) {
+      this.registerModuleProvider(provider, moduleName);
+    }
+
+    return this;
+  }
+
+  /**
    * Собирает контейнер: проверяет зависимости и создаёт все экземпляры.
    *
    * Вызывается один раз после регистрации. Шаги:

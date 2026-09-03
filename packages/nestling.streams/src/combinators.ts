@@ -43,7 +43,7 @@ export async function* filter<T>(
  * операция, а не тихая обрезка.
  *
  * @param onExceeded - фабрика отказа; ядро подставляет kernel-отказ
- * `STREAM_LIMIT_EXCEEDED` (413)
+ * `payload_too_large` (413)
  */
 export async function* limit<T>(
   source: AsyncIterable<T>,

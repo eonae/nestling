@@ -26,21 +26,23 @@ import { implement, withIdempotencyKey } from '@nestling/ports';
  * `handle`, участие в discovery и политиках, вызов по значению в тестах.
  */
 export const ClaimQuotaImpl = implement(ClaimQuota, {
-  deps: [QuotaService, Logger$],
-  handle:
-    (quotas: QuotaService, logger: Logger) =>
-    async (payload: ClaimQuotaInput) => {
-      const claimed = quotas.claim();
+  handler: {
+    deps: [QuotaService, Logger$],
+    handle:
+      (quotas: QuotaService, logger: Logger) =>
+      async (payload: ClaimQuotaInput) => {
+        const claimed = quotas.claim();
 
-      if (!claimed.ok) {
-        logger.log(`quota exhausted, refusing ${payload.email}`);
+        if (!claimed.ok) {
+          logger.log(`quota exhausted, refusing ${payload.email}`);
 
-        // Вызывающий получит `Fail` и узнает его через `QuotaExceeded.is()`
-        return QuotaExceeded({ limit: quotas.limit });
-      }
+          // Вызывающий получит `Fail` и узнает его через `QuotaExceeded.is()`
+          return QuotaExceeded({ limit: quotas.limit });
+        }
 
-      return { remaining: claimed.remaining };
-    },
+        return { remaining: claimed.remaining };
+      },
+  },
 });
 
 /**
@@ -52,12 +54,14 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
  */
 export const UserRegisteredInQuotas = implement(UserRegistered, {
   subscriber: 'quotas',
-  deps: [Logger$],
-  handle: (logger: Logger) => async (payload: UserRegisteredInput) => {
-    logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
+  handler: {
+    deps: [Logger$],
+    handle: (logger: Logger) => async (payload: UserRegisteredInput) => {
+      logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
 
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
+      // eslint-disable-next-line unicorn/no-useless-undefined
+      return undefined;
+    },
   },
 });
 
@@ -70,12 +74,14 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
  */
 export const SignupRecordedImpl = implement(SignupRecorded, {
   pipeline: makePipeline().pre(withIdempotencyKey()),
-  deps: [SignupJournal],
-  handle: (journal: SignupJournal) => async (payload: SignupRecordedInput) => {
-    journal.record(payload.userId);
+  handler: {
+    deps: [SignupJournal],
+    handle: (journal: SignupJournal) => async (payload: SignupRecordedInput) => {
+      journal.record(payload.userId);
 
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
+      // eslint-disable-next-line unicorn/no-useless-undefined
+      return undefined;
+    },
   },
 });
 

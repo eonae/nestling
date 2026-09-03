@@ -9,15 +9,17 @@
 import { assembleTest } from './app';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeFeature } from '@nestling/app';
+import { makeApp, makeFeature } from '@nestling/app';
 import { wireApp } from '@nestling/app/testing';
 import { BuiltContainer, Injectable, OnDestroy } from '@nestling/container';
 
 describe('условие "testing" в тест-раннере', () => {
   it('резолвит @nestling/app/testing на исходники', async () => {
-    const wired = await wireApp({
-      features: [makeFeature({ name: 'module:wiring' })],
-    });
+    const wired = await wireApp(
+      makeApp({
+        features: [makeFeature({ name: 'module:wiring' })],
+      }),
+    );
 
     // Класс из исходников `@nestling/container`: если бы subpath резолвился
     // в `dist`, он притащил бы вторую копию пакета, и `instanceof` не
@@ -39,11 +41,13 @@ describe('условие "testing" в тест-раннере', () => {
     }
 
     {
-      await using app = await assembleTest({
-        features: [
-          makeFeature({ name: 'module:disposable', providers: [Resource] }),
-        ],
-      });
+      await using app = await assembleTest(
+        makeApp({
+          features: [
+            makeFeature({ name: 'module:disposable', providers: [Resource] }),
+          ],
+        }),
+      );
 
       expect(app.get(Resource)).toBeInstanceOf(Resource);
       expect(events).toEqual([]);

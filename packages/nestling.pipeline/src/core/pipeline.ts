@@ -35,17 +35,18 @@ import type {
   AnyFail,
   AnyInput,
   EmptyInput,
-  FailData,
   Output,
   OutputSync,
 } from '@nestling/operations';
 import {
+  categoryOf,
   describeForm,
+  InternalError,
+  isCategory,
   isFail,
   isKernelFailCode,
   isStreamKind,
   Ok,
-  UnknownError,
 } from '@nestling/operations';
 
 /**
@@ -74,7 +75,7 @@ export function isMidStreamFailure(value: unknown): value is MidStreamFailure {
 
 /**
  * Сведения об отказе, который не объявлен в `errors:` endpoint'а и
- * заменён на `UnknownError`.
+ * заменён на `InternalError`.
  *
  * Клиент получает только общее тело ответа; исходная ошибка целиком
  * передаётся сюда.
@@ -120,7 +121,7 @@ function reportUnknownFail(info: UnknownFailInfo): void {
   // eslint-disable-next-line no-console
   console.error(
     `[nestling] ${info.endpoint.transport} ${info.endpoint.pattern}: ` +
-      `undeclared ${what} normalized to '${UnknownError.code}'. ` +
+      `undeclared ${what} normalized to '${InternalError.code}'. ` +
       `Declare it in 'errors:' or handle it in a .catch unit.`,
     info.error,
   );
@@ -309,7 +310,7 @@ export interface Pipeline<
       payload: unknown,
       meta: (TAcc extends { payload: unknown }
         ? Omit<TAcc, 'payload'>
-        : TAcc) & { signal: AbortSignal; fail: (e: AnyFail) => never },
+        : TAcc) & { signal: AbortSignal },
     ) => OutputSync<TOutput, AnyFail> | Output<TOutput, AnyFail>,
     ctx: ExtendableContext<TAcc>,
     options?: ExecuteOptions,
@@ -673,6 +674,13 @@ class PipelineImpl {
      */
     let originalError: unknown;
 
+    /**
+     * Ответ порождён необработанной ошибкой (не `Fail`). Такой ответ уже
+     * несёт код `internal_error`, но объявленным не считается: хук обязан
+     * его увидеть.
+     */
+    let unhandled = false;
+
     try {
       // `.pre`-юниты слоёв, снаружи внутрь. Слой активирован с первого
       // своего `.pre`-юнита: его `.ok`/`.catch`/`.finally` выполнятся.
@@ -716,12 +724,11 @@ class PipelineImpl {
 
       setPhase(cell, 'handler');
 
-      // Ключи `signal` и `fail` зарезервированы: значения пайплайна
-      // перекрывают одноимённые поля из `.pre`-юнитов
+      // Ключ `signal` зарезервирован: значение пайплайна перекрывает
+      // одноимённое поле из `.pre`-юнитов
       const result = await handler(effectivePayload, {
         ...meta,
         signal: ctx.signal,
-        fail: throwFail,
       });
 
       // Возвращённый `Fail` обрабатывается как брошенный: `.ok`-юниты не
@@ -734,6 +741,7 @@ class PipelineImpl {
       }
     } catch (error) {
       originalError = error;
+      unhandled = !isFail(error);
       response = this.errorToResponse(error, exposeErrorDetails);
     }
 
@@ -759,9 +767,11 @@ class PipelineImpl {
             // же, как отказ хендлера
             if (isFail(replaced)) {
               originalError = replaced;
+              unhandled = false;
               response = this.errorToResponse(replaced, exposeErrorDetails);
             } else {
               originalError = replaced.isSuccess ? undefined : replaced;
+              unhandled = false;
               response = replaced;
             }
           }
@@ -769,6 +779,7 @@ class PipelineImpl {
           // Исключение из `.ok`/`.catch` — необработанная ошибка: ответ
           // заменяется, остальные юниты продолжают
           originalError = error;
+          unhandled = !isFail(error);
           response = this.errorToResponse(error, exposeErrorDetails);
         }
       }
@@ -780,6 +791,7 @@ class PipelineImpl {
     response = this.enforceDeclaredFails(
       response,
       originalError,
+      unhandled,
       ctx.endpoint,
       exposeErrorDetails,
       onUnknownFail,
@@ -828,6 +840,7 @@ class PipelineImpl {
           const failure = this.enforceDeclaredFails(
             this.errorToResponse(error, exposeErrorDetails),
             error,
+            !isFail(error),
             ctx.endpoint,
             exposeErrorDetails,
             onUnknownFail,
@@ -876,7 +889,7 @@ class PipelineImpl {
           }
         : {
             isSuccess: true,
-            status: 'OK',
+            status: 'ok',
             value: result,
           };
 
@@ -896,24 +909,26 @@ class PipelineImpl {
    *
    * Отказ (`Fail` или десериализованное значение с `isFail`) автор
    * написал сам, поэтому его `message`, `code` и `details` попадают в тело
-   * независимо от `exposeErrorDetails`. Незадекларированный отказ позже
-   * заменит `enforceDeclaredFails`.
+   * независимо от `exposeErrorDetails`. Категория восстанавливается из
+   * кода: у значения без прототипа аксессора нет. Незадекларированный
+   * отказ позже заменит `enforceDeclaredFails`.
    *
-   * Любая другая ошибка считается внутренней: по умолчанию клиенту уходит
-   * только общее сообщение, без `message` и `stack`.
+   * Любая другая ошибка считается внутренней: ответ несёт код
+   * `internal_error`, а клиенту по умолчанию уходит только общее
+   * сообщение, без `message` и `stack`.
    */
   private errorToResponse(
     error: unknown,
     exposeErrorDetails: boolean,
   ): ErrorResponseContext {
     if (isFail(error)) {
+      const code =
+        typeof error.code === 'string' ? error.code : InternalError.code;
+      const category = categoryOf(code);
       const errorValue: ErrorDetails = {
         error: typeof error.message === 'string' ? error.message : 'Error',
+        code,
       };
-
-      if (error.code !== undefined) {
-        errorValue.code = error.code;
-      }
 
       if (error.details !== undefined) {
         errorValue.details = error.details;
@@ -921,15 +936,18 @@ class PipelineImpl {
 
       return {
         isSuccess: false,
-        status: error.status ?? 'INTERNAL_ERROR',
+        status: isCategory(category) ? category : InternalError.category,
         value: errorValue,
       };
     }
 
     return {
       isSuccess: false,
-      status: 'INTERNAL_ERROR',
-      value: unhandledBody(error, exposeErrorDetails),
+      status: InternalError.category,
+      value: {
+        ...unhandledBody(error, exposeErrorDetails),
+        code: InternalError.code,
+      },
     };
   }
 
@@ -937,13 +955,14 @@ class PipelineImpl {
    * Проверяет ответ-ошибку по `errors:` endpoint'а.
    *
    * Ответ проходит, если его код объявлен в `errors:` или является кодом
-   * ядра. Любой другой ответ, включая ответ без кода (анонимный `Fail.*`,
-   * необработанная ошибка), заменяется на `UnknownError`; исходная ошибка
-   * передаётся в `onUnknownFail`.
+   * ядра. Любой другой ответ — незадекларированный отказ, анонимный
+   * `Fail.*` вне `errors:`, необработанная ошибка — заменяется на
+   * `InternalError`; исходная ошибка передаётся в `onUnknownFail`.
    */
   private enforceDeclaredFails(
     response: ResponseContext<unknown>,
     originalError: unknown,
+    unhandled: boolean,
     endpoint: EndpointMeta,
     exposeErrorDetails: boolean,
     onUnknownFail: (info: UnknownFailInfo) => void,
@@ -953,11 +972,11 @@ class PipelineImpl {
     }
 
     const code = response.value.code;
-    const declared =
-      code !== undefined &&
-      (endpoint.errors ?? []).some((definition) => definition.code === code);
+    const declared = (endpoint.errors ?? []).some(
+      (definition) => definition.code === code,
+    );
 
-    if (declared || isKernelFailCode(code)) {
+    if (!unhandled && (declared || isKernelFailCode(code))) {
       return response;
     }
 
@@ -969,10 +988,10 @@ class PipelineImpl {
     // клиенту не уходят
     return {
       isSuccess: false,
-      status: UnknownError.status,
+      status: InternalError.category,
       value: {
         ...unhandledBody(originalError, exposeErrorDetails),
-        code: UnknownError.code,
+        code: InternalError.code,
       },
     };
   }
@@ -992,6 +1011,7 @@ function unhandledBody(
         ? error.message
         : 'Unknown error'
       : 'Internal server error',
+    code: InternalError.code,
   };
 
   if (exposeErrorDetails && error instanceof Error && error.stack) {
@@ -999,23 +1019,6 @@ function unhandledBody(
   }
 
   return body;
-}
-
-/**
- * Реализация `meta.fail`: бросает переданный отказ.
- *
- * Проверка `isFail` нужна JS-потребителям, которых не сдерживают типы:
- * `meta.fail('boom')` падает понятным `TypeError`, а не уходит строкой в
- * ответ.
- */
-function throwFail(error: AnyFail | FailData): never {
-  if (!isFail(error)) {
-    throw new TypeError(
-      'meta.fail(e) expects a Fail value (create one with defineFail), ' +
-        `got ${typeof error}.`,
-    );
-  }
-  throw error;
 }
 
 /**

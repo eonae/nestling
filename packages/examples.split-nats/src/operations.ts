@@ -6,7 +6,7 @@
  */
 
 import {
-  defineFail,
+  makeFail,
   makeCommand,
   makeEvent,
   makeRequest,
@@ -14,9 +14,7 @@ import {
 import { z } from 'zod';
 
 /** Отказ владельца квот: лимит арендатора исчерпан */
-export const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
-  status: 'TOO_MANY_REQUESTS',
-  details: z.object({ limit: z.number() }),
+export const QuotaExceeded = makeFail('too_many_requests:quota_exceeded', { details: z.object({ limit: z.number() }),
   message: (details) => `Quota of ${details.limit} users is exhausted`,
 });
 

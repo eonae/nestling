@@ -13,9 +13,9 @@ import { implement } from './implement.js';
 import { makeCommand, makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import {
-  defineFail,
   events,
   jsonSchema,
+  makeFail,
   multipart,
   Ok,
   stream,
@@ -28,13 +28,11 @@ const zodConverter = (): SchemaDocConverter => ({
   toJsonSchema: (schema) => z.toJSONSchema(schema as z.ZodType),
 });
 
-const CardDeclined = defineFail('CARD_DECLINED', {
-  status: 'PAYMENT_REQUIRED',
+const CardDeclined = makeFail('payment_required:card_declined', {
   message: 'Card declined',
 });
 
-const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
-  status: 'TOO_MANY_REQUESTS',
+const QuotaExceeded = makeFail('too_many_requests:quota_exceeded', {
   message: 'Quota exhausted',
 });
 
@@ -81,8 +79,11 @@ describe('describeOperation', () => {
 
     // Коды отказов от конвертера не зависят — они и есть структурная часть
     expect(descriptor.errors).toEqual([
-      { code: 'CARD_DECLINED', status: 'PAYMENT_REQUIRED' },
-      { code: 'QUOTA_EXCEEDED', status: 'TOO_MANY_REQUESTS' },
+      { code: 'payment_required:card_declined', category: 'payment_required' },
+      {
+        code: 'too_many_requests:quota_exceeded',
+        category: 'too_many_requests',
+      },
     ]);
   });
 
@@ -180,7 +181,7 @@ describe('describeOperation', () => {
 
   it('описывает декларацию-реализацию так же, как её операция', () => {
     const Impl = implement(ChargeCard, {
-      handle: async () => new Ok({ chargeId: '1' }),
+      handler: async () => new Ok({ chargeId: '1' }),
     });
 
     expect(describeOperation(Impl, { converters: [zodConverter()] })).toEqual(

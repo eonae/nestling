@@ -18,6 +18,10 @@
 
 import type { NatsHeadersLike } from './connector.js';
 
+import type { SuccessStatus } from '@nestling/operations';
+import { categoryOf, InternalError, isCategory } from '@nestling/operations';
+import type { ErrorDetails, ResponseContext } from '@nestling/pipeline';
+
 /** Кодек тела сообщения: заменяем опцией фабрики */
 export interface NatsCodec {
   encode(value: unknown): Uint8Array;
@@ -57,6 +61,69 @@ export const SUBJECT_HEADER = 'Nl-Subject';
  * заголовка канонизации не подвергается, поэтому ключи живут в нём.
  */
 export const CONTEXT_HEADER = 'Nl-Ctx';
+
+/**
+ * Ответ req-reply в теле сообщения.
+ *
+ * Успех несёт свой статус (`created` и подобные не восстановить иначе),
+ * отказ — только тело с `code`: категория восстанавливается из кода на
+ * стороне вызывающего. Заголовки `Ok` едут заголовками сообщения, а не
+ * телом.
+ */
+export interface WireReply {
+  readonly isSuccess: boolean;
+  readonly status?: SuccessStatus;
+  readonly value: unknown;
+}
+
+/** Кладёт контекст ответа в тело ответного сообщения */
+export function encodeReply(response: ResponseContext): WireReply {
+  return response.isSuccess
+    ? { isSuccess: true, status: response.status, value: response.value }
+    : { isSuccess: false, value: response.value };
+}
+
+/**
+ * Восстанавливает контекст ответа из тела ответного сообщения.
+ *
+ * Тело без признака ответа (сообщение от чужого отвечающего) читается как
+ * необработанная ошибка: множество ответов шины закрыто, и новых форм
+ * транспорт не вводит.
+ */
+export function decodeReply(data: unknown): ResponseContext {
+  const reply = (typeof data === 'object' && data !== null ? data : {}) as {
+    isSuccess?: unknown;
+    status?: unknown;
+    value?: unknown;
+  };
+
+  if (reply.isSuccess === true) {
+    return {
+      isSuccess: true,
+      status:
+        typeof reply.status === 'string'
+          ? (reply.status as SuccessStatus)
+          : 'ok',
+      value: reply.value,
+    };
+  }
+
+  const value = (
+    typeof reply.value === 'object' && reply.value !== null ? reply.value : {}
+  ) as Partial<ErrorDetails>;
+  const code = typeof value.code === 'string' ? value.code : InternalError.code;
+  const category = categoryOf(code);
+
+  return {
+    isSuccess: false,
+    status: isCategory(category) ? category : InternalError.category,
+    value: {
+      ...value,
+      error: typeof value.error === 'string' ? value.error : 'Error',
+      code,
+    },
+  };
+}
 
 /** Конверт вызова — то же, что несут опции глаголов `IMessageBus` */
 export interface WireEnvelope {

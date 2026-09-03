@@ -5,7 +5,7 @@
 
 import { body, computeHttpBinding, query } from './http/binding.js';
 import { events, multipart, stream, upload } from './io/index.js';
-import { defineFail } from './define-fail.js';
+import { makeFail } from './make-fail.js';
 import { makeCommand, makeEvent, makeRequest } from './operation.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -269,8 +269,7 @@ describe('карта операции совпадает с картой одн�
 });
 
 describe('секция http не меняет операцию шины', () => {
-  const EmailTaken = defineFail('HTTP_SPEC_EMAIL_TAKEN', {
-    status: 'CONFLICT',
+  const EmailTaken = makeFail('conflict:http_spec_email_taken', {
     message: 'Email already taken',
   });
 

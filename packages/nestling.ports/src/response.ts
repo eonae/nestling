@@ -11,7 +11,12 @@
  */
 
 import type { ErrorDetails, ResponseContext } from '@nestling/pipeline';
-import { isFail } from '@nestling/pipeline';
+import {
+  categoryOf,
+  InternalError,
+  isCategory,
+  isFail,
+} from '@nestling/pipeline';
 
 /**
  * Строит ответ-ошибку из исключения.
@@ -20,20 +25,21 @@ import { isFail } from '@nestling/pipeline';
  */
 export function failureResponse(error: unknown): ResponseContext {
   if (isFail(error)) {
+    const code =
+      typeof error.code === 'string' ? error.code : InternalError.code;
+    const category = categoryOf(code);
     const value: ErrorDetails = {
       error: typeof error.message === 'string' ? error.message : 'Error',
+      code,
     };
 
-    if (error.code !== undefined) {
-      value.code = error.code;
-    }
     if (error.details !== undefined) {
       value.details = error.details;
     }
 
     return {
       isSuccess: false,
-      status: error.status ?? 'INTERNAL_ERROR',
+      status: isCategory(category) ? category : InternalError.category,
       value,
     };
   }
@@ -42,7 +48,7 @@ export function failureResponse(error: unknown): ResponseContext {
   // читать, а по сети они и не попали бы дальше
   return {
     isSuccess: false,
-    status: 'INTERNAL_ERROR',
-    value: { error: 'Internal server error' },
+    status: InternalError.category,
+    value: { error: 'Internal server error', code: InternalError.code },
   };
 }

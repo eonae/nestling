@@ -28,7 +28,7 @@ import type {
 
 /** Коды отказов клиента `nats` — двойник обязан говорить теми же */
 export const NATS_NO_RESPONDERS = '503';
-export const NATS_TIMEOUT = 'TIMEOUT';
+export const NATS_TIMEOUT = 'timeout';
 export const NATS_CONNECTION_CLOSED = 'CONNECTION_CLOSED';
 
 /** Отказ брокера: код тот же, что у настоящего клиента */

@@ -7,7 +7,7 @@
  * значение и вывод множества `E` в хендлер (все три формы `handle`).
  */
 
-import { defineFail, Fail, Ok } from '../core';
+import { Fail, makeFail, Ok } from '../core';
 import { makePipeline } from '../core/pipeline';
 
 import { makeEndpoint } from './endpoint';
@@ -19,14 +19,12 @@ import { z } from 'zod';
 /** Токен транспорта фикстур: декларация ссылается на транспорт значением */
 const HttpTransport$ = makeToken('transport:http');
 
-const OrderLimitReached = defineFail('ORDER_LIMIT_REACHED', {
-  status: 'CONFLICT',
+const OrderLimitReached = makeFail('conflict:order_limit_reached', {
   details: z.object({ limit: z.number() }),
   message: (d) => `Order limit of ${d.limit} reached`,
 });
 
-const CardDeclined = defineFail('CARD_DECLINED', {
-  status: 'PAYMENT_REQUIRED',
+const CardDeclined = makeFail('payment_required:card_declined', {
   message: 'Card declined',
 });
 
@@ -43,7 +41,7 @@ describe('errors: — проверка при создании декларац�
       transport: HttpTransport$,
       pattern: 'POST /orders',
       errors: [OrderLimitReached, CardDeclined],
-      handle: async () => new Ok({ id: '1' }),
+      handler: async () => new Ok({ id: '1' }),
     });
 
     expect(Endpoint.errors).toEqual([OrderLimitReached, CardDeclined]);
@@ -54,8 +52,11 @@ describe('errors: — проверка при создании декларац�
       transport: HttpTransport$,
       pattern: 'POST /orders',
       errors: [OrderLimitReached],
-      deps: [IBillingToken],
-      handle: (billing: IBilling) => async () => new Ok(await billing.charge()),
+      handler: {
+        deps: [IBillingToken],
+        handle: (billing: IBilling) => async () =>
+          new Ok(await billing.charge()),
+      },
     });
 
     const resolved = Endpoint.resolve(() => ({
@@ -72,7 +73,7 @@ describe('errors: — проверка при создании декларац�
         pattern: 'POST /orders',
         // Класс ошибки — не определение отказа
         errors: [OrderLimitReached, Fail as never],
-        handle: async () => new Ok({ id: '1' }),
+        handler: async () => new Ok({ id: '1' }),
       });
 
     expect(create).toThrow(/errors\[1] is not a fail definition/);
@@ -85,10 +86,12 @@ describe('errors: — проверка при создании декларац�
         transport: HttpTransport$,
         pattern: 'POST /orders',
         errors: [CardDeclined, CardDeclined],
-        handle: async () => new Ok({ id: '1' }),
+        handler: async () => new Ok({ id: '1' }),
       });
 
-    expect(create).toThrow(/duplicate error code 'CARD_DECLINED'/);
+    expect(create).toThrow(
+      /duplicate error code 'payment_required:card_declined'/,
+    );
     expect(create).toThrow(/POST \/orders/);
   });
 
@@ -98,7 +101,7 @@ describe('errors: — проверка при создании декларац�
         transport: HttpTransport$,
         pattern: 'POST /orders',
         errors: OrderLimitReached as never,
-        handle: async () => new Ok({ id: '1' }),
+        handler: async () => new Ok({ id: '1' }),
       });
 
     expect(create).toThrow(/'errors' must be an array/);
@@ -116,17 +119,17 @@ describe('errors: — проверка при создании декларац�
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [OrderLimitReached],
-    handle: async () => OrderLimitReached({ limit: 10 }),
+    handler: async () => OrderLimitReached({ limit: 10 }),
   });
 
-  const WithMetaFail = makeEndpoint({
+  const NoMetaFail = makeEndpoint({
     transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [OrderLimitReached],
-    handle: async (_payload, meta) => {
+    handler: async (_payload, meta) => {
+      // @ts-expect-error: в meta нет fail — канон доставки отказа это return
       meta.fail(OrderLimitReached({ limit: 10 }));
-      // Возврат недостижим: `fail` объявлен как `never`
       return new Ok({ id: '1' });
     },
   });
@@ -137,19 +140,7 @@ describe('errors: — проверка при создании декларац�
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [OrderLimitReached],
-    handle: async () => CardDeclined(),
-  });
-
-  const ForeignInMetaFail = makeEndpoint({
-    transport: HttpTransport$,
-    pattern: 'POST /orders',
-    output: OrderOutput,
-    errors: [OrderLimitReached],
-    handle: async (_payload, meta) => {
-      // @ts-expect-error: meta.fail сужен до множества errors:
-      meta.fail(CardDeclined());
-      return new Ok({ id: '1' });
-    },
+    handler: async () => CardDeclined(),
   });
 
   // @ts-expect-error: без errors: множество пусто — отказ вернуть нельзя
@@ -157,7 +148,7 @@ describe('errors: — проверка при создании декларац�
     transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
-    handle: async () => OrderLimitReached({ limit: 10 }),
+    handler: async () => OrderLimitReached({ limit: 10 }),
   });
 }
 
@@ -168,21 +159,25 @@ describe('errors: — проверка при создании декларац�
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [CardDeclined],
-    deps: [IBillingToken],
-    handle: (billing) => async () => {
-      const charged = await billing.charge();
-      return charged.id ? new Ok(charged) : CardDeclined();
+    handler: {
+      deps: [IBillingToken],
+      handle: (billing) => async () => {
+        const charged = await billing.charge();
+        return charged.id ? new Ok(charged) : CardDeclined();
+      },
     },
   });
 
+  // @ts-expect-error: OrderLimitReached не объявлен в errors:
   const Foreign = makeEndpoint({
     transport: HttpTransport$,
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [CardDeclined],
-    deps: [IBillingToken],
-    // @ts-expect-error: OrderLimitReached не объявлен в errors:
-    handle: (billing) => async () => OrderLimitReached({ limit: 10 }),
+    handler: {
+      deps: [IBillingToken],
+      handle: (billing) => async () => OrderLimitReached({ limit: 10 }),
+    },
   });
 }
 
@@ -205,7 +200,7 @@ describe('errors: — проверка при создании декларац�
     pattern: 'POST /orders',
     output: OrderOutput,
     errors: [CardDeclined],
-    handle: DeclaredHandler,
+    handler: DeclaredHandler,
   });
 
   const Foreign = makeEndpoint({
@@ -214,7 +209,7 @@ describe('errors: — проверка при создании декларац�
     output: OrderOutput,
     errors: [CardDeclined],
     // @ts-expect-error: OrderLimitReached не объявлен в errors:
-    handle: ForeignHandler,
+    handler: ForeignHandler,
   });
 }
 
@@ -226,7 +221,7 @@ describe('errors: — проверка при создании декларац�
     output: OrderOutput,
     pipeline: makePipeline().pre(() => ({ requestId: 'r-1' })),
     errors: [OrderLimitReached],
-    handle: async (_payload, meta) => {
+    handler: async (_payload, meta) => {
       const id: string = meta.requestId;
       return OrderLimitReached({ limit: 10 });
     },

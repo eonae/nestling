@@ -13,25 +13,25 @@ import { untilAborted } from '@nestling/streams';
 /** Соответствие статусов ответа кодам HTTP */
 /* eslint-disable prettier/prettier */
 const STATUS_MAP: Record<ProcessingStatus, number> = {
-  'OK': 200,
-  'CREATED': 201,
-  'ACCEPTED': 202,
-  'NO_CONTENT': 204,
-  'PAYMENT_REQUIRED': 402,
-  'BAD_REQUEST': 400,
-  'UNAUTHORIZED': 401,
-  'FORBIDDEN': 403,
-  'NOT_FOUND': 404,
-  'CONFLICT': 409,
+  'ok': 200,
+  'created': 201,
+  'accepted': 202,
+  'no_content': 204,
+  'payment_required': 402,
+  'bad_request': 400,
+  'unauthorized': 401,
+  'forbidden': 403,
+  'not_found': 404,
+  'conflict': 409,
   // «вход больше допустимого»: лимит item-цепочки, файл сверх upload({maxSize})
-  'PAYLOAD_TOO_LARGE': 413,
-  'TOO_MANY_REQUESTS': 429,
-  'INTERNAL_ERROR': 500,
-  'NOT_IMPLEMENTED': 501,
-  'SERVICE_UNAVAILABLE': 503,
+  'payload_too_large': 413,
+  'too_many_requests': 429,
+  'internal_error': 500,
+  'not_implemented': 501,
+  'service_unavailable': 503,
   // 504, а не 408: TIMEOUT в ядре — «операция не уложилась в бюджет»,
   // тогда как 408 про то, что клиент не дослал запрос.
-  'TIMEOUT': 504,
+  'timeout': 504,
 };
 /* eslint-enable prettier/prettier */
 
@@ -76,7 +76,7 @@ export interface SendOptions {
  * Неизвестный статус даёт `200`; из типизированного кода этот случай
  * недостижим, так как набор статусов закрыт.
  *
- * @param status - Статус ответа (`'CREATED'`, `'CONFLICT'`, …)
+ * @param status - Статус ответа (`'created'`, `'conflict'`, …)
  * @returns Код HTTP-ответа
  */
 export function httpCodeOf(status?: ProcessingStatus): number {
@@ -152,7 +152,7 @@ function encodeSseFrame(item: unknown, sse?: SseConfig): string {
 /**
  * Тело отказа посреди потока.
  *
- * Отказ уже прошёл проверку `errors`: незадекларированный стал `UNKNOWN`,
+ * Отказ уже прошёл проверку `errors`: незадекларированный стал `internal_error`,
  * оригинал ушёл в хук `onUnknownFail`.
  */
 function midStreamBody(error: unknown): { error: string; code?: string } {
@@ -178,10 +178,6 @@ async function writeNdjson(
   source: AsyncIterable<unknown>,
   options: SendOptions,
 ): Promise<void> {
-  if (!res.hasHeader('content-type')) {
-    res.setHeader('content-type', 'application/x-ndjson');
-  }
-
   try {
     for await (const item of untilAborted(source, options.signal)) {
       if (res.destroyed || res.writableEnded) {
@@ -212,9 +208,6 @@ async function writeSse(
   source: AsyncIterable<unknown>,
   options: SendOptions,
 ): Promise<void> {
-  res.setHeader('content-type', 'text/event-stream');
-  res.setHeader('cache-control', 'no-cache');
-  res.setHeader('connection', 'keep-alive');
   res.flushHeaders();
 
   const period =
@@ -258,10 +251,40 @@ async function writeSse(
 }
 
 /**
+ * Заголовки, которые транспорт ставит по форме `output`.
+ *
+ * Ставятся до заголовков `Ok`: заголовки ответа принадлежат хендлеру и
+ * перекрывают заголовки формы.
+ */
+function setFormHeaders(
+  res: ServerResponse,
+  kind: FormKind,
+  streaming: boolean,
+  empty: boolean,
+): void {
+  if (streaming && kind === 'events') {
+    res.setHeader('content-type', 'text/event-stream');
+    res.setHeader('cache-control', 'no-cache');
+    res.setHeader('connection', 'keep-alive');
+    return;
+  }
+
+  if (streaming) {
+    res.setHeader('content-type', 'application/x-ndjson');
+    return;
+  }
+
+  if (!empty) {
+    res.setHeader('content-type', 'application/json');
+  }
+}
+
+/**
  * Отправляет `ResponseContext` в `ServerResponse`.
  *
  * Способ кадрирования выбирается по объявленной форме `output`, а не по
  * типу значения: `stream` даёт NDJSON, `events` — SSE, остальное — JSON.
+ * Заголовки `Ok` пишутся как есть после заголовков формы.
  */
 export async function sendResponse(
   res: ServerResponse,
@@ -270,33 +293,33 @@ export async function sendResponse(
 ): Promise<void> {
   res.statusCode = httpCodeOf(response.status);
 
+  const kind = options.kind ?? 'value';
+  const streaming =
+    response.isSuccess &&
+    (kind === 'stream' || kind === 'events') &&
+    isAsyncIterable(response.value);
+
+  // value === null означает пустой ответ
+  const empty = response.value === null;
+
+  setFormHeaders(res, kind, streaming, empty);
+
   if (response.headers) {
     for (const [key, value] of Object.entries(response.headers)) {
       res.setHeader(key, value);
     }
   }
 
-  const kind = options.kind ?? 'value';
-
-  if (
-    response.isSuccess &&
-    (kind === 'stream' || kind === 'events') &&
-    isAsyncIterable(response.value)
-  ) {
+  if (streaming) {
     await (kind === 'events'
-      ? writeSse(res, response.value, options)
-      : writeNdjson(res, response.value, options));
+      ? writeSse(res, response.value as AsyncIterable<unknown>, options)
+      : writeNdjson(res, response.value as AsyncIterable<unknown>, options));
     return;
   }
 
-  // value === null означает пустой ответ
-  if (response.value === null) {
+  if (empty) {
     res.end();
     return;
-  }
-
-  if (!res.hasHeader('content-type')) {
-    res.setHeader('content-type', 'application/json');
   }
 
   const body = JSON.stringify(response.value);

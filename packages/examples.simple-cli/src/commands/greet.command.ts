@@ -23,7 +23,7 @@ export const Greet = cliEndpoint({
   command: 'greet',
   input: GreetInput,
   output: GreetOutput,
-  handle: async ({ args, shout }) => {
+  handler: async ({ args, shout }) => {
     const text = `Hello, ${args[0]}!`;
 
     return { greeting: shout ? text.toUpperCase() : text };

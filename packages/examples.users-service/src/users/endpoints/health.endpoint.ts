@@ -14,5 +14,5 @@ export const Health = httpEndpoint({
   detached:
     'проба балансировщика: строка аудита на каждый запрос заслоняет полезные записи',
   doc: { hidden: 'служебная проба, не часть публичного API' },
-  handle: async () => ({ status: 'up' }),
+  handler: async () => ({ status: 'up' }),
 });

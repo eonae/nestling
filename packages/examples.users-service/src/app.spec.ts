@@ -55,7 +55,7 @@ describe('users-service', () => {
 
     expect(await app.call(GetUser, { id: '404' })).toMatchObject({
       isSuccess: false,
-      status: 'NOT_FOUND',
+      status: 'not_found',
       value: { code: 'USER_NOT_FOUND', details: { id: '404' } },
     });
   });
@@ -90,8 +90,8 @@ describe('users-service', () => {
 
     expect(await app.call(DeleteUser, { id: '1' })).toMatchObject({
       isSuccess: false,
-      status: 'UNAUTHORIZED',
-      value: { code: 'UNAUTHORIZED' },
+      status: 'unauthorized',
+      value: { code: 'unauthorized' },
     });
     expect(await repo.byId('1')).toEqual(alice);
   });
@@ -110,7 +110,7 @@ describe('users-service', () => {
 
     expect(created).toMatchObject({
       isSuccess: true,
-      status: 'CREATED',
+      status: 'created',
       value: { name: 'Carol' },
     });
   });

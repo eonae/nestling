@@ -13,8 +13,8 @@ import type {
   EndpointMeta,
   FailsOf,
   HandlerClass,
-  HandlerFactory,
   HandlerFn,
+  HandlerWithDeps,
   Pipeline,
   Raw,
   ResponseContext,
@@ -90,7 +90,7 @@ export interface CliEndpointDictionary<
 
   /**
    * Pipeline для этой команды. Классы-юниты допустимы: они попадают в
-   * `TNeeds` декларации и гасятся вместе с `deps`.
+   * `TNeeds` декларации и гасятся вместе с зависимостями хендлера.
    */
   pipeline?: Pipeline<AnyInput, P, PN>;
 
@@ -109,8 +109,8 @@ export interface CliEndpointDictionary<
  * Конструктор CLI-деклараций.
  *
  * Тонкая надстройка над kernel-примитивом `makeEndpoint`: `transport` —
- * `'cli'`, `pattern` — имя команды. Общий механизм деклараций (`deps`,
- * три формы `handle`, `resolve`, бренд) живёт в `makeEndpoint`.
+ * `'cli'`, `pattern` — имя команды. Общий механизм деклараций (три формы
+ * `handler`, `resolve`, бренд) живёт в `makeEndpoint`.
  *
  * @example
  * ```typescript
@@ -133,8 +133,7 @@ export function cliEndpoint<
   E extends readonly AnyFailDefinition[] = [],
 >(
   declaration: CliEndpointDictionary<I, O, P, PN, E> & {
-    deps?: undefined;
-    handle: HandlerFn<I, O, P, FailsOf<E>>;
+    handler: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function cliEndpoint<
@@ -146,8 +145,7 @@ export function cliEndpoint<
   D extends InjectionToken[] = InjectionToken[],
 >(
   declaration: CliEndpointDictionary<I, O, P, PN, E> & {
-    deps: [...D];
-    handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
+    handler: HandlerWithDeps<D, I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN | D[number]>;
 export function cliEndpoint<
@@ -164,8 +162,7 @@ export function cliEndpoint<
   >,
 >(
   declaration: CliEndpointDictionary<I, O, P, PN, E> & {
-    deps?: undefined;
-    handle: C;
+    handler: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function cliEndpoint(
@@ -176,8 +173,7 @@ export function cliEndpoint(
     unknown,
     readonly AnyFailDefinition[]
   > & {
-    deps?: InjectionToken[];
-    handle: unknown;
+    handler: unknown;
   },
 ): AnyEndpointDefinition {
   const { command, on, ...rest } = declaration;
@@ -208,7 +204,7 @@ export interface CliInput {
 export interface CliTransportOptions {
   /**
    * Диагностический хук проверки границы: получает оригинал отказа,
-   * снятого нормализацией в `UnknownError`. Не задан — рантайм пишет в
+   * снятого нормализацией в `InternalError`. Не задан — рантайм пишет в
    * `console.error`.
    */
   onUnknownFail?: (info: UnknownFailInfo) => void;

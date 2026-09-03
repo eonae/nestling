@@ -122,7 +122,7 @@ export type { BusBinding } from './transport.js';
  *
  * Само определение живёт в `@nestling/pipeline`, где живёт закрытый набор
  * кодов ядра; здесь оно повторно экспортируется потому, что разбирает
- * результат `call` потребитель порта — и импортировать `DeadlineExceeded`
+ * результат `call` потребитель порта — и импортировать `Timeout`
  * ему естественно из того же пакета, что и всё остальное.
  */
-export { DeadlineExceeded } from '@nestling/pipeline';
+export { Timeout } from '@nestling/pipeline';

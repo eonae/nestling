@@ -200,7 +200,7 @@ describe('resolveSelection', () => {
     const Orders = feature('orders');
 
     expect(() => resolveSelection([Orders], 'nope')).toThrow(
-      /Unknown feature 'nope' in 'select'\. Available features: orders\./,
+      /Unknown feature 'nope' in the selection\. Available features: orders\./,
     );
   });
 
@@ -212,13 +212,13 @@ describe('resolveSelection', () => {
 
   it('пустой выбор — ошибка с объяснением, как записать «ничего»', () => {
     expect(() => resolveSelection([feature('orders')], '')).toThrow(
-      /'select' is empty/,
+      /The selection is empty/,
     );
   });
 
   it('select без features — ошибка', () => {
     expect(() => resolveSelection([], 'orders')).toThrow(
-      /'select' is given, but no features are declared/,
+      /A selection is given, but no features are declared/,
     );
   });
 });

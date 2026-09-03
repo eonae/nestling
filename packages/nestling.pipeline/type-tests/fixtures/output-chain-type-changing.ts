@@ -17,5 +17,5 @@ export const ExportRows = httpEndpoint({
   path: '/rows',
   output: stream(Row).batch(100),
   pipeline: makePipeline(),
-  handle: async () => new Ok((async function* () {})()),
+  handler: async () => new Ok((async function* () {})()),
 });

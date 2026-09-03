@@ -7,12 +7,8 @@
  * модуль-лист разрывает цикл импортов.
  */
 
-import type { FailOf } from './define-fail.js';
-import type {
-  DeadlineExceeded,
-  UnknownError,
-  ValidationFailed,
-} from './kernel-fails.js';
+import type { BadRequest, InternalError, Timeout } from './kernel-fails.js';
+import type { FailOf } from './make-fail.js';
 import type {
   AnyOperation,
   EmittingOperation,
@@ -87,9 +83,9 @@ export type MetaOf<C extends AnyOperation> = C extends { kind: 'command' }
  * множество ответов порта наравне с `errors` операции.
  */
 export type KernelPortFail =
-  | FailOf<typeof UnknownError>
-  | FailOf<typeof ValidationFailed>
-  | FailOf<typeof DeadlineExceeded>;
+  | FailOf<typeof InternalError>
+  | FailOf<typeof BadRequest>
+  | FailOf<typeof Timeout>;
 
 /**
  * Множество ответов вызова: успех, объявленный отказ или kernel-отказ.

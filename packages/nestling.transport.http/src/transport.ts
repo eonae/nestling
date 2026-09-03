@@ -42,10 +42,13 @@ import type {
 } from '@nestling/pipeline';
 import {
   assertFormsSupported,
+  BadRequest,
   bindInputStream,
   ClientDisconnectedError,
   describeForm,
+  InternalError,
   makeEmptyContext,
+  PayloadTooLarge,
   TransportClosingError,
 } from '@nestling/pipeline';
 import type {
@@ -88,7 +91,7 @@ export interface HttpTransportOptions {
 
   /**
    * Хук для незадекларированных отказов: получает оригинал отказа,
-   * который проверка `errors` заменила на `UnknownError`. Не задан —
+   * который проверка `errors` заменила на `InternalError`. Не задан —
    * рантайм пишет в `console.error`.
    */
   onUnknownFail?: (info: UnknownFailInfo) => void;
@@ -524,10 +527,11 @@ export class HttpTransport implements ITransport {
   /**
    * Отправляет ошибку разбора запроса или роутинга с подходящим статусом.
    *
-   * Статусы:
-   * - `JsonParseError`, `MultipartFieldError` — 400;
-   * - `PayloadTooLargeError` — 413;
-   * - остальное — 500; детали уходят только при `exposeErrorDetails`.
+   * Статусы и коды:
+   * - `JsonParseError`, `MultipartFieldError` — 400, `bad_request`;
+   * - `PayloadTooLargeError` — 413, `payload_too_large`;
+   * - остальное — 500, `internal_error`; детали уходят только при
+   *   `exposeErrorDetails`.
    *
    * Тела ошибок 400 и 413 описывают некорректный ввод и не раскрывают
    * внутреннее состояние сервера. Исход самого endpoint'а сюда не
@@ -542,11 +546,12 @@ export class HttpTransport implements ITransport {
     let status = 500;
     const body: {
       error: string;
-      code?: string;
+      code: string;
       details?: unknown;
       stack?: string;
     } = {
       error: 'Internal server error',
+      code: InternalError.code,
     };
 
     if (
@@ -555,9 +560,13 @@ export class HttpTransport implements ITransport {
     ) {
       status = 400;
       body.error = error.message;
+      body.code = BadRequest.code;
+      body.details = [{ message: error.message }];
     } else if (error instanceof PayloadTooLargeError) {
       status = 413;
       body.error = 'Payload too large';
+      body.code = PayloadTooLarge.code;
+      body.details = { limit: error.limit };
     } else if (this.exposeErrorDetails) {
       body.error = error instanceof Error ? error.message : 'Unknown error';
       if (error instanceof Error && error.stack) {

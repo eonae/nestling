@@ -32,7 +32,7 @@ export const CreateUser = httpEndpoint({
   input: CreateUserInput,
   output: CreateUserOutput,
   errors: [EmailTaken],
-  handle: async (
+  handler: async (
     input: CreateUserInput,
   ): Output<CreateUserOutput, FailOf<typeof EmailTaken>> => {
     if (taken.has(input.email)) {

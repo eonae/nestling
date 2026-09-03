@@ -56,15 +56,17 @@ export const UsersFeature = makeFeature({
       // Арендатор приходит в конверте сообщения. Юнит кладёт его в контекст
       // запроса, откуда вызыватель `quotas.claim` передаст его дальше
       pipeline: makePipeline().pre(TenantId.propagated()),
-      deps: [RegistrationService],
-      handle:
-        (registration: RegistrationService) =>
-        async (payload: RegisterUserInput) => {
-          await registration.register(payload.email);
+      handler: {
+        deps: [RegistrationService],
+        handle:
+          (registration: RegistrationService) =>
+          async (payload: RegisterUserInput) => {
+            await registration.register(payload.email);
 
-          // eslint-disable-next-line unicorn/no-useless-undefined
-          return undefined;
-        },
+            // eslint-disable-next-line unicorn/no-useless-undefined
+            return undefined;
+          },
+      },
     }),
   ],
 });

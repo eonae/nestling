@@ -1,19 +1,19 @@
 ## 1. Модель ошибок: `@nestling/operations`
 
-- [ ] 1.1 `categories`/`Category`/`FailCode` в `status.ts`; `successStatuses` в нижнем регистре; `ProcessingStatus = SuccessStatus | Category`; `ErrorStatus` удалён
-- [ ] 1.2 `Fail`: обязательный `code: FailCode`, производное `category`, поле `status` удалено; анонимные конструкторы `Fail.<category>(message)` дают код-категорию; `ErrorDetails` без `status`
-- [ ] 1.3 `makeFail(code, { details?, message? })` вместо `defineFail`: проверка категории типом, сегментов рантаймом; определение несёт `code`, `category`, `schema`, `is`; `FailOf` не экспортируется
-- [ ] 1.4 `Ok`: статусы `ok`/`created`/`accepted`/`no_content`; `Output<T, E>` принимает определения (`FailOfDef`), тесты типов
-- [ ] 1.5 Рантайм-тесты: формат кода, идентичность по коду, категория из кода, сериализация тела ответа
+- [x] 1.1 `categories`/`Category`/`FailCode` в `status.ts`; `successStatuses` в нижнем регистре; `ProcessingStatus = SuccessStatus | Category`; `ErrorStatus` удалён
+- [x] 1.2 `Fail`: обязательный `code: FailCode`, производное `category`, поле `status` удалено; анонимные конструкторы `Fail.<category>(message)` дают код-категорию; `ErrorDetails` без `status`
+- [x] 1.3 `makeFail(code, { details?, message? })` вместо `defineFail`: проверка категории типом, сегментов рантаймом; определение несёт `code`, `category`, `schema`, `is`; `FailOf` не экспортируется
+- [x] 1.4 `Ok`: статусы `ok`/`created`/`accepted`/`no_content`; `Output<T, E>` принимает определения (`FailOfDef`), тесты типов
+- [x] 1.5 Рантайм-тесты: формат кода, идентичность по коду, категория из кода, сериализация тела ответа
 
 ## 2. Ядро пайплайна: `@nestling/pipeline`
 
-- [ ] 2.1 Отказы ядра `BadRequest`, `PayloadTooLarge`, `Timeout`, `InternalError`; удалены `ValidationFailed`, `StreamLimitExceeded`, `StreamGapTimeout`, `DeadlineExceeded`, `UnknownError`; закрытый набор границы по кодам
-- [ ] 2.2 Проверка границы нормализует в `InternalError`; пользовательское определение с кодом-категорией ядра проходит; хук `onUnknownFail` сохранён; рантайм-тесты
-- [ ] 2.3 `meta` без `fail`: инъекция и типы; тесты на отсутствие ключа
-- [ ] 2.4 `makeEndpoint`: поле `handler` трёх форм, поля `deps`/`handle` отвергаются типом и рантаймом; `resolve` читает `handler.deps`; параметр неразрешённых зависимостей; тесты типов и рантайма
-- [ ] 2.5 Проверка входа отвечает `BadRequest` (`bad_request`); `ErrorStatus` в контексте ответа заменён категорией
-- [ ] 2.6 Бюджет типов `type-budget` не ухудшен (бенчмарк в `yarn verify`)
+- [x] 2.1 Отказы ядра `BadRequest`, `PayloadTooLarge`, `Timeout`, `InternalError`; удалены `ValidationFailed`, `StreamLimitExceeded`, `StreamGapTimeout`, `DeadlineExceeded`, `UnknownError`; закрытый набор границы по кодам
+- [x] 2.2 Проверка границы нормализует в `InternalError`; пользовательское определение с кодом-категорией ядра проходит; хук `onUnknownFail` сохранён; рантайм-тесты
+- [x] 2.3 `meta` без `fail`: инъекция и типы; тесты на отсутствие ключа
+- [x] 2.4 `makeEndpoint`: поле `handler` трёх форм, поля `deps`/`handle` отвергаются типом и рантаймом; `resolve` читает `handler.deps`; параметр неразрешённых зависимостей; тесты типов и рантайма
+- [x] 2.5 Проверка входа отвечает `BadRequest` (`bad_request`); `ErrorStatus` в контексте ответа заменён категорией
+- [x] 2.6 Бюджет типов `type-budget` не ухудшен (бенчмарк в `yarn verify`)
 
 ## 3. Транспорты, порты, клиент, документация
 
@@ -28,12 +28,12 @@
 
 ## 4. Composition root: `@nestling/app`, `@nestling/testing`
 
-- [ ] 4.1 `makeApp(spec): App` — брендированная декларация, проверки при создании, закрытый перечень полей без `select`
-- [ ] 4.2 `App.assemble(select?): AssembledApp` (синхронно, без чтения); класс `App` переименован в `AssembledApp` с `run()`/`close()`; `check` у `AssembledApp` удалён
-- [ ] 4.3 `App.check(select?, options?)`; отчёт без изменений; тесты матрицы
-- [ ] 4.4 Discovery регистрирует класс-хендлер из `handler` провайдером модуля-объявителя; повторная регистрация в `providers:` — ошибка ASSEMBLE с классом, паттерном и модулем; два endpoint'а делят экземпляр; тесты
-- [ ] 4.5 `assembleTest(app, { select?, overrides?, stubs?, config?, contextValue? })`: состав и политики из декларации, `config` теста заменяет привязку, `transports` не принимается; тесты
-- [ ] 4.6 `checkTopologies(app, selections, options?)`; `snapshotOperations` из отчётов; тесты
+- [x] 4.1 `makeApp(spec): App` — брендированная декларация, проверки при создании, закрытый перечень полей без `select`
+- [x] 4.2 `App.assemble(select?): AssembledApp` (синхронно, без чтения); класс `App` переименован в `AssembledApp` с `run()`/`close()`; `check` у `AssembledApp` удалён
+- [x] 4.3 `App.check(select?, options?)`; отчёт без изменений; тесты матрицы
+- [x] 4.4 Discovery регистрирует класс-хендлер из `handler` провайдером модуля-объявителя; повторная регистрация в `providers:` — ошибка ASSEMBLE с классом, паттерном и модулем; два endpoint'а делят экземпляр; тесты
+- [x] 4.5 `assembleTest(app, { select?, overrides?, stubs?, config?, contextValue? })`: состав и политики из декларации, `config` теста заменяет привязку, `transports` не принимается; тесты
+- [x] 4.6 `checkTopologies(app, selections, options?)`; `snapshotOperations` из отчётов; тесты
 - [ ] 4.7 README `@nestling/app`, `@nestling/testing`, `@nestling/operations`, `@nestling/pipeline`, транспортов, `ports`, `client`, `openapi`, `streams` — API и плашки статуса
 
 ## 5. Примеры

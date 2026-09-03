@@ -105,6 +105,33 @@ export type HandlerFactory<
 > = (...deps: UnwrapInjectionTokens<D>) => HandlerFn<I, O, P, E>;
 
 /**
+ * Форма `handler: { deps, handle }`: каррированная фабрика с явным списком
+ * токенов. Порядок аргументов `handle` совпадает с порядком `deps`.
+ */
+export interface HandlerWithDeps<
+  D extends InjectionToken[],
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  E extends AnyFail = never,
+> {
+  /** Токены зависимостей в порядке аргументов `handle` */
+  readonly deps: [...D];
+
+  /** Фабрика: получает зависимости, возвращает хендлер */
+  readonly handle: HandlerFactory<D, I, O, P, E>;
+}
+
+/**
+ * Поле `handler` в любой из трёх форм: функция без зависимостей, объект
+ * с `deps` и каррированной фабрикой, класс с методом `handle`.
+ */
+export type AnyEndpointHandler =
+  | HandlerFn<any, any, any, any>
+  | HandlerWithDeps<InjectionToken[], any, any, any, any>
+  | HandlerClass<any, any, any, any>;
+
+/**
  * Декларация endpoint'а: значение, описывающее операцию.
  *
  * Создаётся конструктором транспорта (`httpEndpoint`, `cliEndpoint`);
@@ -129,7 +156,16 @@ export interface EndpointDefinition<
   readonly pattern: string;
 
   /**
-   * Хендлер запроса.
+   * Хендлер в той форме, в какой его объявила декларация: функция,
+   * `{ deps, handle }` или класс.
+   *
+   * Читают его сборка и discovery: из объектной формы берутся токены
+   * `deps`, класс-форма регистрируется провайдером модуля-объявителя.
+   */
+  readonly handler: AnyEndpointHandler;
+
+  /**
+   * Исполнимый хендлер запроса: одна форма для рантайма.
    *
    * Пока у декларации есть зависимости без инстансов (`TNeeds` не
    * `never`), здесь лежит заглушка, которая бросает понятную ошибку. До
@@ -152,11 +188,8 @@ export interface EndpointDefinition<
    */
   readonly pipeline?: Pipeline<AnyInput, P, never>;
 
-  /** Токены зависимостей каррированной фабрики (в порядке объявления) */
-  readonly deps?: readonly InjectionToken[];
-
   /**
-   * Объявленные отказы endpoint'а: список определений `defineFail`.
+   * Объявленные отказы endpoint'а: список определений `makeFail`.
    *
    * Поле не зависит от транспорта и читается ядром: из него выводится тип
    * отказов хендлера, а транспорт переносит его в `EndpointMeta`, по
@@ -200,9 +233,9 @@ export interface EndpointDefinition<
    * Получает зависимости декларации и возвращает новую декларацию, готовую
    * к выполнению; исходная не меняется.
    *
-   * Форма с резолвером работает для всех трёх форм `handle` и заодно
+   * Форма с резолвером работает для всех трёх форм `handler` и заодно
    * создаёт инстансы классов-юнитов пайплайна. Позиционная форма (готовые
-   * инстансы в порядке `deps`) удобна в тестах, но не подходит для
+   * инстансы в порядке `handler.deps`) удобна в тестах, но не подходит для
    * класс-хендлера и пайплайна с классами-юнитами.
    *
    * Это две перегрузки, а не один параметр-объединение, чтобы IDE
@@ -246,10 +279,10 @@ export interface EndpointOptions<
   output?: O & ValidateOutputForm<O>;
 
   /**
-   * Объявленные отказы: список определений `defineFail`. Из него
+   * Объявленные отказы: список определений `makeFail`. Из него
    * выводится тип `E` хендлера: вернуть отказ вне списка нельзя.
    *
-   * Проверяется при создании декларации: элемент не из `defineFail` и
+   * Проверяется при создании декларации: элемент не из `makeFail` и
    * повторяющийся код — ошибка сразу.
    */
   errors?: E;
@@ -275,7 +308,7 @@ export interface EndpointOptions<
    *
    * @example
    * ```typescript
-   * doc: { summary: 'List users', tags: ['users'], status: 'OK' }
+   * doc: { summary: 'List users', tags: ['users'], status: 'ok' }
    * ```
    */
   doc?: DeclarationDoc;
@@ -294,6 +327,15 @@ export interface EndpointOptions<
    * ```
    */
   detached?: string;
+
+  /**
+   * @internal Зависимости принадлежат хендлеру: `handler: { deps, handle }`.
+   * Поле на верхнем уровне словаря отвергается типом и рантаймом.
+   */
+  deps?: never;
+
+  /** @internal Исполнение живёт в поле `handler` */
+  handle?: never;
 }
 
 // ---------------------------------------------------------------------------
@@ -302,7 +344,7 @@ export interface EndpointOptions<
 
 type AnyHandler = HandlerFn<any, any, any>;
 
-/** Форма `handle`, распознанная при создании декларации */
+/** Форма `handler`, распознанная при создании декларации */
 type HandlerForm =
   | { kind: 'fn'; fn: AnyHandler }
   | { kind: 'factory'; factory: (...deps: unknown[]) => AnyHandler }
@@ -318,6 +360,9 @@ interface EndpointState {
   errors?: readonly AnyFailDefinition[];
   doc?: DeclarationDoc;
   detached?: string;
+  /** Поле `handler` как объявлено */
+  handler: AnyEndpointHandler;
+  /** Токены объектной формы; у прочих форм пусто */
   deps: readonly InjectionToken[];
   form: HandlerForm;
   /** Хендлер с зависимостями; у формы `fn` есть сразу */
@@ -344,35 +389,64 @@ function isHandlerClass(value: unknown): value is HandlerClass {
   return Boolean(proto) && typeof proto?.handle === 'function';
 }
 
+/** Проверяет, что значение — объектная форма `{ deps, handle }` */
+function isHandlerWithDeps(
+  value: unknown,
+): value is HandlerWithDeps<InjectionToken[], any, any, any, any> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Array.isArray((value as { deps?: unknown }).deps) &&
+    typeof (value as { handle?: unknown }).handle === 'function'
+  );
+}
+
 /**
- * Распознаёт одну из трёх форм `handle`. Класс проверяется первым: у
- * каррированной фабрики (стрелочной функции) нет прототипа, а у обычного
- * хендлера в прототипе нет `handle`.
+ * Распознаёт одну из трёх форм `handler`. Класс проверяется первым: у
+ * функции-хендлера в прототипе нет `handle`, а у стрелочной функции нет
+ * прототипа вовсе.
  */
-function normalizeHandler(
-  handle: unknown,
-  deps: readonly InjectionToken[] | undefined,
-  pattern: string,
-): HandlerForm {
-  if (isHandlerClass(handle)) {
-    return { kind: 'class', ctor: handle };
+function normalizeHandler(handler: unknown, pattern: string): HandlerForm {
+  if (isHandlerClass(handler)) {
+    return { kind: 'class', ctor: handler };
   }
 
-  if (typeof handle !== 'function') {
-    throw new TypeError(
-      `Endpoint '${pattern}': 'handle' must be a function, a curried factory ` +
-        `with 'deps', or a class with a handle() method.`,
-    );
+  if (typeof handler === 'function') {
+    return { kind: 'fn', fn: handler as AnyHandler };
   }
 
-  if (Array.isArray(deps)) {
+  if (isHandlerWithDeps(handler)) {
     return {
       kind: 'factory',
-      factory: handle as (...deps: unknown[]) => AnyHandler,
+      factory: handler.handle as (...deps: unknown[]) => AnyHandler,
     };
   }
 
-  return { kind: 'fn', fn: handle as AnyHandler };
+  throw new TypeError(
+    `Endpoint '${pattern}': 'handler' must be a function (input, meta) => …, ` +
+      `an object { deps: [...], handle: (...deps) => (input, meta) => … }, ` +
+      `or a class with a handle() method.`,
+  );
+}
+
+/**
+ * Отвергает поля `deps` и `handle` на верхнем уровне словаря: типы их
+ * запрещают, а JS-потребителю нужен текст, называющий поле `handler`.
+ */
+function assertNoLegacyFields(
+  options: Record<string, unknown>,
+  pattern: string,
+): void {
+  for (const field of ['deps', 'handle'] as const) {
+    if (options[field] !== undefined) {
+      throw new TypeError(
+        `Endpoint '${pattern}': '${field}' is not a field of the ` +
+          `declaration. Dependencies belong to the handler: write ` +
+          `handler: { deps: [...], handle: (...deps) => (input, meta) => … }, ` +
+          `or pass a function or a class as 'handler'.`,
+      );
+    }
+  }
 }
 
 /**
@@ -392,7 +466,7 @@ function assertFailDefinitions(
 
   if (!Array.isArray(errors)) {
     throw new TypeError(
-      `${where}: 'errors' must be an array of defineFail() definitions.`,
+      `${where}: 'errors' must be an array of makeFail() definitions.`,
     );
   }
 
@@ -401,7 +475,7 @@ function assertFailDefinitions(
     if (!isFailDefinition(definition)) {
       throw new TypeError(
         `${where}: errors[${index}] is not a fail definition — ` +
-          `expected a value created by defineFail().`,
+          `expected a value created by makeFail().`,
       );
     }
 
@@ -457,7 +531,7 @@ function unresolvedHandler(state: EndpointState): AnyHandler {
 }
 
 /**
- * Получает инстансы всех `deps` через резолвер. Для каждого токена
+ * Получает инстансы всех `handler.deps` через резолвер. Для каждого токена
  * результат обязателен: `undefined` и `null` — ошибка.
  */
 function resolveWith(
@@ -576,6 +650,7 @@ function buildDefinition(state: EndpointState): AnyEndpointDefinition {
   const definition: Record<string, unknown> = {
     transport: state.transport,
     pattern: state.pattern,
+    handler: state.handler,
     handle: state.handle ?? unresolvedHandler(state),
     resolve: (argument: DependencyResolver | readonly unknown[]) =>
       resolveDefinition(state, argument),
@@ -605,9 +680,6 @@ function buildDefinition(state: EndpointState): AnyEndpointDefinition {
   if (state.detached !== undefined) {
     definition.detached = state.detached;
   }
-  if (state.deps.length > 0) {
-    definition.deps = state.deps;
-  }
 
   Object.defineProperty(definition, ENDPOINT_BRAND, {
     value: true,
@@ -634,9 +706,35 @@ export function isEndpointDefinition(
 }
 
 /**
- * Создаёт декларацию endpoint'а: распознаёт форму `handle`, запоминает
- * `deps`, переносит `errors:`, `doc` и `detached`, ставит метку и
- * добавляет `resolve`.
+ * Токены, которые декларация запрашивает у контейнера через объектную
+ * форму `handler: { deps, handle }`. У функции и класса — пусто:
+ * зависимости класса читает контейнер из `@Injectable`.
+ */
+export function handlerDependenciesOf(
+  definition: AnyEndpointDefinition,
+): readonly InjectionToken[] {
+  const { handler } = definition;
+
+  return isHandlerWithDeps(handler) ? handler.deps : [];
+}
+
+/**
+ * Класс-хендлер декларации, если она объявлена в класс-форме.
+ *
+ * Сборка регистрирует его провайдером модуля-объявителя: перечислять
+ * класс в `providers:` не нужно.
+ */
+export function handlerClassOf(
+  definition: AnyEndpointDefinition,
+): HandlerClass | undefined {
+  const { handler } = definition;
+
+  return isHandlerClass(handler) ? handler : undefined;
+}
+
+/**
+ * Создаёт декларацию endpoint'а: распознаёт форму `handler`, переносит
+ * `errors:`, `doc` и `detached`, ставит метку и добавляет `resolve`.
  *
  * В пользовательском коде вместо него используются конструкторы
  * транспортов (`httpEndpoint`, `cliEndpoint`): они построены над
@@ -649,7 +747,7 @@ export function isEndpointDefinition(
  *   pattern: 'GET /ping',
  *   output: PingOutput,
  *   pipeline: basePipeline,
- *   handle: async () => Ok.of({ pong: true }),
+ *   handler: async () => new Ok({ pong: true }),
  * });
  * ```
  */
@@ -661,8 +759,7 @@ export function makeEndpoint<
   E extends readonly AnyFailDefinition[] = [],
 >(
   options: EndpointOptions<I, O, P, PN, E> & {
-    deps?: undefined;
-    handle: HandlerFn<I, O, P, FailsOf<E>>;
+    handler: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function makeEndpoint<
@@ -674,8 +771,7 @@ export function makeEndpoint<
   D extends InjectionToken[] = InjectionToken[],
 >(
   options: EndpointOptions<I, O, P, PN, E> & {
-    deps: [...D];
-    handle: HandlerFactory<D, I, O, P, FailsOf<E>>;
+    handler: HandlerWithDeps<D, I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN | D[number]>;
 export function makeEndpoint<
@@ -692,8 +788,7 @@ export function makeEndpoint<
   >,
 >(
   options: EndpointOptions<I, O, P, PN, E> & {
-    deps?: undefined;
-    handle: C;
+    handler: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function makeEndpoint(
@@ -704,11 +799,14 @@ export function makeEndpoint(
     unknown,
     readonly AnyFailDefinition[]
   > & {
-    deps?: InjectionToken[];
-    handle: unknown;
+    handler: unknown;
   },
 ): AnyEndpointDefinition {
-  const form = normalizeHandler(options.handle, options.deps, options.pattern);
+  assertNoLegacyFields(
+    options as unknown as Record<string, unknown>,
+    options.pattern,
+  );
+  const form = normalizeHandler(options.handler, options.pattern);
   assertFailDefinitions(options.errors, options.pattern);
   assertDetached(options.detached, options.pattern);
   // Правила `doc` общие для декларации и операции; отличается только
@@ -731,7 +829,8 @@ export function makeEndpoint(
     errors: options.errors,
     doc: options.doc,
     detached: options.detached,
-    deps: options.deps ?? [],
+    handler: options.handler as AnyEndpointHandler,
+    deps: isHandlerWithDeps(options.handler) ? options.handler.deps : [],
     form,
     // Обычная функция готова сразу; остальные формы ждут resolve()
     handle: form.kind === 'fn' ? form.fn : undefined,

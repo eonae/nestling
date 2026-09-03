@@ -52,6 +52,6 @@ export const CreateUser = makeRequest({
     summary: 'Создать пользователя',
     description: '`?dryRun=true` проверяет данные без записи.',
     tags: ['users'],
-    status: 'CREATED',
+    status: 'created',
   },
 });

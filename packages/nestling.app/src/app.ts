@@ -1,38 +1,50 @@
 /* eslint-disable no-console */
 /**
- * `assemble` — единственный composition root и фазовый рантайм приложения.
+ * `makeApp` — единственный composition root; `AssembledApp` — фазовый
+ * рантайм приложения.
  *
- * Фазы: `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE → 4 START → 5 RUN`
- * и `6 SHUTDOWN` строгим реверсом. Фаза 0 живёт вне `assemble` (выбор
- * считается в корне). Фазы 0 и 1 fail-fast: ошибка сборки предшествует
- * захвату любых ресурсов.
+ * Декларация (`makeApp`) описывает, что такое приложение. Сборка
+ * (`app.assemble(select)`) выбирает, что запускает этот процесс. Фазы:
+ * `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE → 4 START → 5 RUN` и
+ * `6 SHUTDOWN` строгим реверсом; их выполняет `run()`. Фазы 0 и 1
+ * fail-fast: ошибка сборки предшествует захвату любых ресурсов.
  */
 
 import { assertFeatureBoundary, buildOwnerMap } from './boundary';
 import type { EndpointDiscovery } from './discovery';
 import { discoverEndpoints, Discovery$ } from './discovery';
-import type { Bundle, Feature } from './feature';
-import { modulesOf } from './feature';
+import type { Bundle, Feature, FeatureSelection } from './feature';
+import { modulesOf, resolveSelection } from './feature';
 import type { CheckedOperation } from './operations';
 import { mapOperations } from './operations';
 import type {
+  AppSpec,
   AssemblyPlan,
-  AssemblySpec,
+  NormalizedAppSpec,
   WiredApp,
   WiredEndpoint,
 } from './plan';
-import { makePlan, TEST_SEAM } from './plan';
+import {
+  CHECK_SEAM,
+  makePlan,
+  normalizeSpec,
+  TEST_SEAM,
+  transportTokensOf,
+} from './plan';
 import { closeOverCalls } from './selection';
 
 import { configKernel } from '@nestling/config';
 import type {
   BuiltContainer,
   InjectionToken,
+  Module,
+  ModuleProvider,
   Provider,
 } from '@nestling/container';
 import { ContainerBuilder, tokenId, valueProvider } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
+  HandlerClass,
   PolicySubject,
   SchemaDocConverter,
   TransportRef,
@@ -40,6 +52,8 @@ import type {
 import {
   assertFormsSupported,
   contextKernel,
+  handlerClassOf,
+  handlerDependenciesOf,
   transportNameOf,
 } from '@nestling/pipeline';
 import type { OperationDescriptor } from '@nestling/ports';
@@ -59,7 +73,7 @@ import type {
 } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
 
-export type { AssemblySpec } from './plan';
+export type { AppSpec, NormalizedAppSpec } from './plan';
 
 /** Endpoint в отчёте `check()`: чем обслуживается и кем объявлен */
 export interface CheckedEndpoint {
@@ -132,40 +146,149 @@ export interface CheckOptions {
 }
 
 /**
- * Собирает приложение.
+ * Бренд декларации приложения: неперечислимое symbol-свойство.
+ *
+ * По нему тестовый корень и матрица топологий отличают декларацию от
+ * словаря, случайно переданного вместо неё.
+ */
+const APP_BRAND = Symbol.for('nestling:app');
+
+/**
+ * Объявляет приложение.
  *
  * Единственный публичный composition root: фичи перечисляются в
  * `features:`, сквозная инфраструктура — в `plugins:`, транспорты
- * объявляются экземплярами, привязки конфига — полем `config`.
+ * объявляются экземплярами, привязки конфига — полем `config`. Выбор фич
+ * в словаре не пишется: его принимает `assemble(select)`.
  *
- * @param spec - Словарь сборки. Все поля опциональны
- * @returns Приложение с методами `run()` и `close()`
+ * Декларация проверяется при создании: бренды фич и плагинов, дубли
+ * имён фич, закрытый перечень полей, интерком среди транспортов.
+ *
+ * @param spec - Словарь декларации. Все поля опциональны
+ * @returns Декларация приложения с методами `assemble()` и `check()`
+ * @throws {TypeError} Неизвестное поле словаря, не фича в `features`, не
+ * плагин в `plugins`
+ * @throws {Error} Одноимённые разные фичи, интерком вне списка транспортов
  *
  * @example Одна фича и транспорт
  * ```typescript
- * await assemble({
+ * // app.ts
+ * export const app = makeApp({
  *   features: [OrdersFeature],
  *   transports: [http({ port: 3000 })],
- * }).run();
+ * });
+ *
+ * // main.ts
+ * await app.assemble().run();
  * ```
  *
- * @example Выбор подмножества фич и интерком
+ * @example Несколько фич, интерком и выбор в процессе
  * ```typescript
- * await assemble({
+ * export const app = makeApp({
  *   features: [OrdersFeature, BillingFeature],
  *   plugins: [appLogging],
- *   select: { features: load(RootConfig).features, includeDeps: true },
  *   transports: [http(), nats({ name: 'events' })],
  *   intercom: 'events',
- * }).run();
+ * });
+ *
+ * await app.assemble({ features: load(RootConfig).features, includeDeps: true }).run();
  * ```
  */
-export function assemble<const T extends readonly TransportDeclaration[] = []>(
-  spec: AssemblySpec<T> = {},
+export function makeApp<const T extends readonly TransportDeclaration[] = []>(
+  spec: AppSpec<T> = {},
 ): App {
-  // Подстановок здесь нет и не будет: `assemble` не принимает `overrides`
-  // даже как соблазн — это ключ тестового корня
-  return new App(makePlan(spec));
+  return new App(normalizeSpec(spec));
+}
+
+/**
+ * Проверяет, что значение — декларация приложения, созданная `makeApp`.
+ */
+export function isApp(value: unknown): value is App {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<symbol, unknown>)[APP_BRAND] === true
+  );
+}
+
+/**
+ * Декларация приложения: результат `makeApp`.
+ *
+ * Значение, а не процесс: одна декларация собирается сколько угодно раз с
+ * разным выбором. Публичная поверхность — `assemble(select?)` и
+ * `check(select?, options?)`.
+ */
+export class App {
+  /** Нормализованная декларация: списки скопированы, интерком найден */
+  readonly spec: NormalizedAppSpec;
+
+  /** @internal конструируется только `makeApp` */
+  constructor(spec: NormalizedAppSpec) {
+    this.spec = spec;
+
+    Object.defineProperty(this, APP_BRAND, {
+      value: true,
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+  }
+
+  /**
+   * Собирает приложение для этого процесса.
+   *
+   * Вызов синхронный и ничего не читает: ни `process.env`, ни граф.
+   * Фазы 0–5 выполняет `run()` собранного приложения; ошибки выбора
+   * (неизвестное имя фичи, пустой выбор) — ошибки фазы ASSEMBLE, их
+   * бросает `run()`.
+   *
+   * @param select - Выбор фич: `'all'`, `'orders,billing'`,
+   * `['orders', 'billing']` или `{ features, includeDeps }`. Отсутствует —
+   * выбраны все
+   * @returns Собранное приложение с методами `run()` и `close()`
+   */
+  assemble(select?: FeatureSelection): AssembledApp {
+    return new AssembledApp(makePlan(this.spec, select));
+  }
+
+  /**
+   * Структурный смок: фазы 0 BOOTSTRAP и 1 ASSEMBLE — и остановка.
+   *
+   * Выполняется: резолв выбора, регистрация модулей и провайдеров,
+   * discovery, построение графа (конструкторы отрабатывают), сверка
+   * требуемых транспортов, проверка форм io против их способностей и
+   * проверка объявленных политик.
+   *
+   * Не выполняется: `@OnInit`, WIRE, `@OnStart`, `serve` и `@OnDestroy`.
+   * Значит, ресурсы не захватываются, при условии что их не захватывают
+   * конструкторы, что и так нарушение фазовой модели.
+   *
+   * Проверка — «собрать и выбросить»: граф не сохраняется, на
+   * последующий `assemble()` той же декларации вызов не влияет, и гонять
+   * его можно по матрице `select`-топологий.
+   *
+   * @param select - Выбор фич в тех же формах, что у `assemble`
+   * @param options - Конвертеры схем для дескрипторов операций. Вызов
+   * без аргумента ведёт себя ровно как прежде
+   * @returns Отчёт о составе: фичи, endpoint'ы с транспортами, транспорты
+   * и дескрипторы опубликованных операций
+   * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах
+   *
+   * @example
+   * ```typescript
+   * for (const select of ['all', 'users', 'logging'] as const) {
+   *   await app.check(select);
+   * }
+   * ```
+   */
+  async check(
+    select?: FeatureSelection,
+    options: CheckOptions = {},
+  ): Promise<CheckReport> {
+    return await new AssembledApp(makePlan(this.spec, select))[CHECK_SEAM](
+      options,
+    );
+  }
 }
 
 /**
@@ -197,22 +320,56 @@ function publishedOperations(
   );
 }
 
+/** Класс, которым провайдер регистрирует узел, если это провайдер класса */
+function providedClass(provider: ModuleProvider): unknown {
+  if (typeof provider === 'function') {
+    return provider;
+  }
+
+  const definition = provider as { useClass?: unknown; provide?: unknown };
+
+  return definition.useClass ?? definition.provide;
+}
+
 /**
- * Приложение: результат `assemble`.
- *
- * Публичная поверхность — `run()`, `check()` и `close()`. Конструктор
- * принимает внутренний план сборки, тип которого пакет не экспортирует.
+ * Модули, в чьих `providers:` встречается класс. Фабрики провайдеров не
+ * разбираются: их значения известны только в `build()`, и повтор оттуда
+ * ловит контейнер общей ошибкой о занятом токене.
  */
-export class App {
+function modulesListing(
+  cls: HandlerClass,
+  modules: readonly Module[],
+): string[] {
+  return modules
+    .filter(
+      ({ providers }) =>
+        Array.isArray(providers) &&
+        providers.some((provider) => providedClass(provider) === cls),
+    )
+    .map(({ name }) => name);
+}
+
+/**
+ * Приложение, собранное для этого процесса: результат `app.assemble()`.
+ *
+ * Публичная поверхность — `run()` и `close()`. Конструктор принимает
+ * внутренний план сборки, тип которого пакет не экспортирует.
+ */
+export class AssembledApp {
   readonly #plan: AssemblyPlan;
 
   /**
    * Фактический состав фич: выбор, замкнутый по вызываемым операциям.
    *
-   * Считается один раз: `run()`, `check()` и шов обязаны видеть один и тот
-   * же состав.
+   * Считается на фазе ASSEMBLE один раз: `run()`, проверка и шов обязаны
+   * видеть один и тот же состав. До неё поле пусто.
    */
-  readonly #features: readonly Feature[];
+  #features?: readonly Feature[];
+
+  /** Имена фич, названных в выборе, — для строки состава */
+  #named: readonly string[] = [];
+
+  #includeDeps = false;
 
   #container?: BuiltContainer;
 
@@ -232,17 +389,9 @@ export class App {
   /** Снятие обработчиков сигналов процесса: закрытое приложение молчит */
   #detachSignals?: () => void;
 
-  /** @internal конструируется только `assemble` */
+  /** @internal конструируется только `App.assemble` и швами */
   constructor(plan: AssemblyPlan) {
     this.#plan = plan;
-    this.#features = plan.includeDeps
-      ? closeOverCalls(plan.features, plan.declaredFeatures)
-      : plan.features;
-  }
-
-  /** Единицы сборки: фактически выбранные фичи и все плагины */
-  get #bundles(): Bundle[] {
-    return [...this.#features, ...this.#plan.plugins];
   }
 
   /**
@@ -286,38 +435,18 @@ export class App {
   }
 
   /**
-   * Структурный смок: фазы 0 BOOTSTRAP и 1 ASSEMBLE — и остановка.
+   * Структурная проверка: фазы 0–1 и отчёт о составе.
    *
-   * Выполняется: резолв `select`, регистрация модулей и провайдеров,
-   * discovery, построение графа (конструкторы отрабатывают), сверка
-   * требуемых транспортов, проверка форм io против их способностей и
-   * проверка объявленных политик.
+   * Ключ — символ из непубличного модуля: снаружи проверку зовут через
+   * `App.check()`, у собранного приложения такого метода нет.
    *
-   * Не выполняется: `@OnInit`, WIRE, `@OnStart`, `serve` и `@OnDestroy`.
-   * Значит, ресурсы не захватываются, при условии что их не захватывают
-   * конструкторы, что и так нарушение фазовой модели.
-   *
-   * Собственный граф `check()` не сохраняет: на последующий `run()` вызов
-   * не влияет, и гонять его можно по матрице `select`-топологий.
-   *
-   * @param options - Конвертеры схем для дескрипторов операций. Вызов
-   * без аргумента ведёт себя ровно как прежде
-   * @returns Отчёт о составе: фичи, endpoint'ы с транспортами, транспорты
-   * и дескрипторы опубликованных операций
-   * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах
-   *
-   * @example
-   * ```typescript
-   * for (const select of ['all', 'users', 'logging'] as const) {
-   *   await assemble({ features, select, transports: [http()] }).check();
-   * }
-   * ```
+   * @internal
    */
-  async check(options: CheckOptions = {}): Promise<CheckReport> {
+  async [CHECK_SEAM](options: CheckOptions): Promise<CheckReport> {
     const { discovery } = await this.#assemble();
 
     return {
-      features: this.#features.map((feature) => feature.name),
+      features: this.#selectedFeatures().map((feature) => feature.name),
       endpoints: discovery.endpoints.map(({ endpoint, moduleName }) => ({
         pattern: endpoint.pattern,
         transport: transportNameOf(endpoint.transport),
@@ -332,8 +461,8 @@ export class App {
       published: publishedOperations(discovery, options),
       operations: mapOperations(
         discovery,
-        this.#bundles,
-        this.#plan.intercom?.name,
+        this.#bundles(),
+        this.#plan.spec.intercom?.name,
       ),
     };
   }
@@ -369,7 +498,7 @@ export class App {
     return {
       container,
       endpoints: wired,
-      features: this.#features,
+      features: this.#selectedFeatures(),
       signal: this.#shutdown.signal,
       close: () => this.close(),
     };
@@ -407,6 +536,39 @@ export class App {
     this.#detachSignals = undefined;
   }
 
+  /** Выбранные фичи; доступны после резолва выбора на фазе ASSEMBLE */
+  #selectedFeatures(): readonly Feature[] {
+    return this.#features ?? [];
+  }
+
+  /** Единицы сборки: фактически выбранные фичи и все плагины */
+  #bundles(): Bundle[] {
+    return [...this.#selectedFeatures(), ...this.#plan.spec.plugins];
+  }
+
+  /**
+   * Фаза 0: резолв выбора — до построения контейнера.
+   *
+   * Опечатка в имени фичи падает раньше любого `@OnInit`. Замыкание по
+   * вызовам считается здесь же, один раз.
+   */
+  #select(): void {
+    if (this.#features) {
+      return;
+    }
+
+    const selection = resolveSelection(
+      this.#plan.spec.features,
+      this.#plan.select,
+    );
+
+    this.#named = selection.features.map((feature) => feature.name);
+    this.#includeDeps = selection.includeDeps;
+    this.#features = selection.includeDeps
+      ? closeOverCalls(selection.features, selection.declared)
+      : selection.features;
+  }
+
   /**
    * Фаза 1: дерево модулей, discovery, граф, сверка транспортов и форм,
    * инварианты сборки — именно в этом порядке.
@@ -414,14 +576,19 @@ export class App {
    * Всё, что может не сойтись, сходится здесь: до `@OnInit` не доходит ни
    * одна неудовлетворённая потребность.
    *
-   * Общий метод для `run()`, `check()` и шва: собранный контейнер он
-   * возвращает, но не запоминает — иначе `check()` оставлял бы за собой
+   * Общий метод для `run()`, проверки и шва: собранный контейнер он
+   * возвращает, но не запоминает — иначе проверка оставляла бы за собой
    * граф, который никто не будет ни инициализировать, ни разрушать.
    */
   async #assemble(): Promise<{
     container: BuiltContainer;
     discovery: EndpointDiscovery;
   }> {
+    this.#select();
+
+    const { spec } = this.#plan;
+    const bundles = this.#bundles();
+
     const builder = new ContainerBuilder({
       overrides: this.#plan.overrides,
       familyOverrides: this.#plan.familyOverrides,
@@ -430,8 +597,9 @@ export class App {
     // Kernel-модуль конфига регистрируется всегда: иначе сценарий
     // «источник — только env, про конфиг в корне ничего не пишем» не
     // работал бы. Без привязок читалка тривиальна, а рецепты семейств не
-    // создают ни одного узла, пока никто не инжектит секцию.
-    builder.register(configKernel([...this.#plan.config]));
+    // создают ни одного узла, пока никто не инжектит секцию. Привязка
+    // теста заменяет привязку декларации целиком.
+    builder.register(configKernel([...(this.#plan.config ?? spec.config)]));
 
     // Kernel-модуль ambient-контекста — по той же причине и с той же ценой:
     // без единого `Ctx(...)` в `deps` он не создаёт ни одного узла, зато
@@ -443,7 +611,7 @@ export class App {
     // регистрации модулей, потому что топология реализаций операций нужна
     // kernel-модулю портов уже на регистрации: функция чистая, порядок ни
     // на что не влияет
-    const discovery = discoverEndpoints(this.#bundles);
+    const discovery = discoverEndpoints(bundles);
 
     // Состав приложения — узел графа. Регистрируется всегда и без
     // условий: провайдер-значение ничего не стоит, а условная
@@ -459,34 +627,41 @@ export class App {
     builder.register(
       portsKernel({
         implementations: collectImplementations(discovery.endpoints),
-        // Зависимости деклараций — тоже потребность: endpoint, зовущий
-        // порт, обязан получить вызыватель наравне с провайдером, который
-        // его инжектит
-        requested: discovery.endpoints.flatMap(
-          ({ endpoint }) => endpoint.deps ?? [],
+        // Зависимости объектной формы хендлера — тоже потребность:
+        // endpoint, зовущий порт, обязан получить вызыватель наравне с
+        // провайдером, который его инжектит. Класс-хендлер регистрируется
+        // провайдером, и его зависимости контейнер видит сам
+        requested: discovery.endpoints.flatMap(({ endpoint }) =>
+          handlerDependenciesOf(endpoint),
         ),
         // Назначенный интерком — единственный вход ветки «шину поставил
         // корень»: так подключается брокер, и in-proc реализация тогда не
         // регистрируется вовсе. Признак даёт роль, а не присутствие
         // провайдера в списке транспортов
-        rootSuppliesBus: this.#plan.intercom !== undefined,
+        rootSuppliesBus: spec.intercom !== undefined,
       }),
     );
 
     // Модули считаются от **фактического** состава: замыкание по вызовам
     // могло добавить фичу, и её провайдеры обязаны попасть в граф
-    const modules = modulesOf(this.#bundles);
+    const modules = modulesOf(bundles);
 
     if (modules.length > 0) {
       builder.register(...modules);
     }
 
-    if (this.#plan.providers.length > 0) {
-      builder.register(...this.#plan.providers);
+    // Класс-хендлер регистрирует сам endpoint — провайдером
+    // модуля-объявителя
+    this.#registerHandlerClasses(builder, discovery, bundles, modules);
+
+    const providers = [...spec.providers, ...this.#plan.extraProviders];
+    if (providers.length > 0) {
+      builder.register(...providers);
     }
 
-    if (this.#plan.transports.length > 0) {
-      builder.register(...(this.#plan.transports as Provider[]));
+    const transports = spec.transports.map(({ provider }) => provider);
+    if (transports.length > 0) {
+      builder.register(...(transports as Provider[]));
     }
 
     const container = await builder.build();
@@ -495,7 +670,7 @@ export class App {
     // разъезда процессов, важнее любого недостающего транспорта
     await assertFeatureBoundary(
       container,
-      buildOwnerMap(this.#features, this.#plan.plugins),
+      buildOwnerMap(this.#selectedFeatures(), spec.plugins),
     );
 
     this.#warnOnIdleIntercom(discovery);
@@ -507,6 +682,58 @@ export class App {
     this.#assertPolicies(discovery);
 
     return { container, discovery };
+  }
+
+  /**
+   * Регистрирует классы-хендлеры провайдерами модулей-объявителей.
+   *
+   * Класс — токен, поэтому один класс у двух endpoint'ов регистрируется
+   * один раз и даёт один экземпляр. Тот же класс в `providers:` любого
+   * модуля или корня — ошибка: у узла графа один источник.
+   *
+   * Атрибуция: для единицы с `providers:` — её синтетический модуль, для
+   * единицы с `modules:` — первый модуль, для единицы без состава — сама
+   * единица по имени.
+   */
+  #registerHandlerClasses(
+    builder: ContainerBuilder,
+    discovery: EndpointDiscovery,
+    bundles: readonly Bundle[],
+    modules: readonly Module[],
+  ): void {
+    const registered = new Set<HandlerClass>();
+    const rootProviders = [
+      ...this.#plan.spec.providers,
+      ...this.#plan.extraProviders,
+    ];
+
+    for (const { endpoint, moduleName } of discovery.endpoints) {
+      const cls = handlerClassOf(endpoint);
+
+      if (!cls || registered.has(cls)) {
+        continue;
+      }
+
+      const listedIn = modulesListing(cls, modules);
+      if (rootProviders.some((provider) => providedClass(provider) === cls)) {
+        listedIn.push('(root providers)');
+      }
+
+      if (listedIn.length > 0) {
+        throw new Error(
+          `Handler class '${cls.name}' of endpoint '${endpoint.pattern}' ` +
+            `(declared in '${moduleName}') is also listed in 'providers:' of ` +
+            `${listedIn.map((name) => `'${name}'`).join(', ')}. The endpoint ` +
+            `registers its handler class itself — remove it from 'providers:'.`,
+        );
+      }
+
+      const bundle = bundles.find(({ name }) => name === moduleName);
+      const owner = bundle?.modules[0]?.name ?? moduleName;
+
+      builder.registerIn(owner, cls);
+      registered.add(cls);
+    }
   }
 
   /**
@@ -599,7 +826,7 @@ export class App {
     const seen = new Set<TransportRef>();
 
     for (const token of [
-      ...this.#plan.transportTokens,
+      ...transportTokensOf(this.#plan.spec),
       ...discovery.transports.keys(),
     ]) {
       if (seen.has(token)) {
@@ -616,7 +843,7 @@ export class App {
    * Достаёт зависимость декларации из контейнера, называя в ошибке
    * endpoint, модуль-объявитель и способ починки.
    *
-   * Одинаково обслуживает все три источника: токен из `deps`,
+   * Одинаково обслуживает все три источника: токен из `handler.deps`,
    * класс-хендлер и класс-юнит пайплайна — для автора это одна и та же
    * незарегистрированная зависимость.
    */
@@ -651,11 +878,11 @@ export class App {
    * одного процесса, готовая к разъезду, законна.
    */
   #warnOnIdleIntercom(discovery: EndpointDiscovery): void {
-    const intercom = this.#plan.intercom;
+    const intercom = this.#plan.spec.intercom;
 
     if (
       !intercom ||
-      mapOperations(discovery, this.#bundles, intercom.name).length > 0
+      mapOperations(discovery, this.#bundles(), intercom.name).length > 0
     ) {
       return;
     }
@@ -664,7 +891,7 @@ export class App {
       `[nestling] intercom '${intercom.name}' is assigned, but this ` +
         `assembly declares no operations: nothing will be carried through ` +
         `it. Drop 'intercom:' with its transport, or check that the feature ` +
-        `that needs it is part of 'select'.`,
+        `that needs it is part of the selection.`,
     );
   }
 
@@ -689,7 +916,7 @@ export class App {
       throw new Error(
         `Transport '${name}' is required by endpoint '${endpoint.pattern}' ` +
           `declared in '${moduleName}', but the root does not declare it. ` +
-          `Add it to 'transports:' of assemble({ … }); a bus additionally ` +
+          `Add it to 'transports:' of makeApp({ … }); a bus additionally ` +
           `needs the intercom role ('intercom: <instance name>').`,
       );
     }
@@ -698,9 +925,9 @@ export class App {
   /**
    * Сверяет формы io деклараций со способностями инстансов транспортов.
    *
-   * Точка проверки для `App` — фаза ASSEMBLE: здесь известны и декларации,
-   * и инстансы из графа. Реализация и текст ошибки те же, что на
-   * standalone-пути (`serve`).
+   * Точка проверки для сборки — фаза ASSEMBLE: здесь известны и
+   * декларации, и инстансы из графа. Реализация и текст ошибки те же, что
+   * на standalone-пути (`serve`).
    */
   #assertFormsSupported(
     container: BuiltContainer,
@@ -722,7 +949,7 @@ export class App {
   /**
    * Проверяет объявленные инварианты на обнаруженных endpoint'ах.
    *
-   * Содержимое политики `App` не разбирает: его дело — собрать субъекты
+   * Содержимое политики сборка не разбирает: её дело — собрать субъекты
    * из discovery (`{ endpoint, moduleName }` уже структурно совпадает с
    * `PolicySubject`), позвать `check` и отформатировать результат.
    *
@@ -731,7 +958,9 @@ export class App {
    * складываются и бросаются одним исключением.
    */
   #assertPolicies(discovery: EndpointDiscovery): void {
-    if (this.#plan.policies.length === 0) {
+    const { policies } = this.#plan.spec;
+
+    if (policies.length === 0) {
       return;
     }
 
@@ -740,7 +969,7 @@ export class App {
     const groups: string[] = [];
     let total = 0;
 
-    for (const policy of this.#plan.policies) {
+    for (const policy of policies) {
       const violations = policy.check(subjects);
       if (violations.length === 0) {
         continue;
@@ -780,7 +1009,7 @@ export class App {
    * diff'е одного файла. Пустой список не печатается вовсе.
    */
   #announce(discovery: EndpointDiscovery): void {
-    const features = this.#features.map((feature) => feature.name);
+    const features = this.#selectedFeatures().map((feature) => feature.name);
     const transports = this.#serving.map(({ token }) => transportNameOf(token));
 
     console.log(
@@ -790,8 +1019,8 @@ export class App {
 
     // Фактический состав при замыкании — не украшение: выбор назвал одни
     // фичи, а собрались другие, и разойтись эти списки не должны молча
-    if (this.#plan.includeDeps) {
-      const named = this.#plan.features.map((feature) => feature.name);
+    if (this.#includeDeps) {
+      const named = this.#named;
       const added = features.filter((name) => !named.includes(name));
 
       console.log(

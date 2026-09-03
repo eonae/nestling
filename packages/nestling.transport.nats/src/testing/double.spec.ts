@@ -135,7 +135,7 @@ describe('двойник брокера — core', () => {
 
     await expect(
       broker.request('billing.silent', bytes('{}'), { timeout: 20 }),
-    ).rejects.toMatchObject({ code: 'TIMEOUT' });
+    ).rejects.toMatchObject({ code: 'timeout' });
   });
 
   it('дренаж соединения не закрывает брокер остальным', async () => {

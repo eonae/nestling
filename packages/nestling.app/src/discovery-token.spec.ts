@@ -6,7 +6,7 @@
  * топологию, и менять состав приложения через него нельзя.
  */
 
-import { assemble } from './app';
+import { makeApp } from './app';
 import type { EndpointDiscovery } from './discovery';
 import { Discovery$ } from './discovery';
 import { makeFeature } from './feature';
@@ -45,13 +45,13 @@ const observer = factoryProvider(
 const ListUsers = httpEndpoint({
   method: 'GET',
   path: '/users',
-  handle: async () => new Ok({ users: [] }),
+  handler: async () => new Ok({ users: [] }),
 });
 
 const ListInvoices = httpEndpoint({
   method: 'GET',
   path: '/invoices',
-  handle: async () => new Ok({ invoices: [] }),
+  handler: async () => new Ok({ invoices: [] }),
 });
 
 const UsersFeature = makeFeature({
@@ -81,10 +81,10 @@ beforeEach(() => {
 
 describe('Discovery$ — состав приложения на входе графа', () => {
   it("провайдер получает endpoint'ы с их атрибуцией к единицам", async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [UsersFeature],
       transports: [asHttpTransport(new MockTransport())],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -97,10 +97,10 @@ describe('Discovery$ — состав приложения на входе гр�
 
   it('инжектировано то же значение, с которым App начал принимать запросы', async () => {
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [UsersFeature, BillingFeature],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -114,11 +114,10 @@ describe('Discovery$ — состав приложения на входе гр�
   });
 
   it('невыбранная фича в значении отсутствует', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [UsersFeature, BillingFeature],
-      select: 'discovery-users',
       transports: [asHttpTransport(new MockTransport())],
-    });
+    }).assemble('discovery-users');
 
     await app.run();
 
@@ -128,11 +127,10 @@ describe('Discovery$ — состав приложения на входе гр�
   });
 
   it('выбор всех фич отражён в значении целиком', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [UsersFeature, BillingFeature],
-      select: 'all',
       transports: [asHttpTransport(new MockTransport())],
-    });
+    }).assemble('all');
 
     await app.run();
 
@@ -142,10 +140,10 @@ describe('Discovery$ — состав приложения на входе гр�
   });
 
   it('состав приложения через значение изменить нельзя', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [UsersFeature],
       transports: [asHttpTransport(new MockTransport())],
-    });
+    }).assemble();
 
     await app.run();
     const discovery = observed();
@@ -167,7 +165,7 @@ describe('Discovery$ — состав приложения на входе гр�
   });
 
   it('тестовый корень видит то же значение', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [UsersFeature],
       transports: [asHttpTransport(new MockTransport())],
     });

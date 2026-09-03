@@ -11,7 +11,7 @@ const HelpOutput = z.object({
 export const Help = cliEndpoint({
   command: 'help',
   output: HelpOutput,
-  handle: async () => {
+  handler: async () => {
     console.log('Available commands:');
     console.log('');
     console.log('  help');

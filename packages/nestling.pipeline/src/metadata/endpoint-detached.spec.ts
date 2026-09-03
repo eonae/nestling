@@ -30,7 +30,7 @@ describe('detached — причина на значении декларации
       transport: HttpTransport$,
       pattern: 'GET /health',
       detached: reason,
-      handle: async () => new Ok({ status: 'up' }),
+      handler: async () => new Ok({ status: 'up' }),
     });
 
     expect(Health.detached).toBe(reason);
@@ -41,8 +41,10 @@ describe('detached — причина на значении декларации
       transport: HttpTransport$,
       pattern: 'GET /health',
       detached: reason,
-      deps: [IClock$],
-      handle: (clock: IClock) => async () => new Ok({ at: clock.now() }),
+      handler: {
+        deps: [IClock$],
+        handle: (clock: IClock) => async () => new Ok({ at: clock.now() }),
+      },
     });
 
     const resolved = Health.resolve(() => ({ now: () => 0 }));
@@ -54,7 +56,7 @@ describe('detached — причина на значении декларации
     const Health = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /health',
-      handle: async () => new Ok({ status: 'up' }),
+      handler: async () => new Ok({ status: 'up' }),
     });
 
     expect('detached' in Health).toBe(false);
@@ -95,7 +97,7 @@ describe('detached — типы', () => {
         pattern: 'GET /health',
         // @ts-expect-error: причина обязана быть строкой — `true` не форма opt-out'а
         detached: true,
-        handle: async () => new Ok({ status: 'up' }),
+        handler: async () => new Ok({ status: 'up' }),
       }),
     ).toThrow(TypeError);
   });

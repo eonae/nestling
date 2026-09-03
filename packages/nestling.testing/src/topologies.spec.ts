@@ -6,7 +6,7 @@ import { SpyTransport } from './__fixtures__/transport';
 import { checkTopologies } from './topologies';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeFeature, makePlugin } from '@nestling/app';
+import { makeApp, makeFeature, makePlugin } from '@nestling/app';
 import { Injectable, makeToken, valueProvider } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
@@ -50,7 +50,7 @@ describe('checkTopologies', () => {
         httpEndpoint({
           method: 'GET',
           path: '/users',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
       ],
     });
@@ -60,11 +60,11 @@ describe('checkTopologies', () => {
     const transport = new SpyTransport();
 
     const reports = await checkTopologies(
-      {
+      makeApp({
         features: [UsersFeature, ReportsFeature],
         plugins: [loggingPlugin],
         transports: [asHttpTransport(transport)],
-      },
+      }),
       ['all', 'users', 'reports'],
     );
 
@@ -103,29 +103,27 @@ describe('checkTopologies', () => {
 
     const UsersFeature = makeFeature({
       name: 'users',
-      providers: [UsersHandler],
       endpoints: [
-        httpEndpoint({ method: 'GET', path: '/users', handle: UsersHandler }),
+        httpEndpoint({ method: 'GET', path: '/users', handler: UsersHandler }),
       ],
     });
 
     const ReportsFeature = makeFeature({
       name: 'reports',
-      providers: [ReportsHandler],
       endpoints: [
         httpEndpoint({
           method: 'GET',
           path: '/reports',
-          handle: ReportsHandler,
+          handler: ReportsHandler,
         }),
       ],
     });
 
     const error = await checkTopologies(
-      {
+      makeApp({
         features: [UsersFeature, ReportsFeature],
         transports: [asHttpTransport(new SpyTransport())],
-      },
+      }),
       ['all', 'users', 'reports'],
     ).catch((error_: Error) => error_);
 
@@ -154,21 +152,22 @@ describe('checkTopologies — операции и снапшот', () => {
   const QuotasFeature = makeFeature({
     name: 'quotas',
     endpoints: [
-      implement(ClaimQuota, { handle: async () => new Ok({ remaining: 1 }) }),
+      implement(ClaimQuota, { handler: async () => new Ok({ remaining: 1 }) }),
     ],
   });
 
   const UsersFeature = makeFeature({
     name: 'users',
     endpoints: [
-      implement(ListUsers, { handle: async () => new Ok({ total: 2 }) }),
+      implement(ListUsers, { handler: async () => new Ok({ total: 2 }) }),
     ],
   });
 
-  const spec = () => ({
-    features: [UsersFeature, QuotasFeature],
-    transports: [asHttpTransport(new SpyTransport())],
-  });
+  const spec = () =>
+    makeApp({
+      features: [UsersFeature, QuotasFeature],
+      transports: [asHttpTransport(new SpyTransport())],
+    });
 
   it('прокидывает конвертеры в каждую топологию', async () => {
     const reports = await checkTopologies(spec(), ['all', 'users'], {

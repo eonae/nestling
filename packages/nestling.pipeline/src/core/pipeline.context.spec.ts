@@ -294,7 +294,7 @@ describe('проекция не меняет исполнения', () => {
 
     expect(response).toMatchObject({
       isSuccess: true,
-      status: 'OK',
+      status: 'ok',
       value: { done: true },
     });
     expect(order).toEqual([

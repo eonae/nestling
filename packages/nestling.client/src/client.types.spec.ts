@@ -6,7 +6,7 @@
  *
  * Обещание — «та же ветвящаяся логика, что написана для `.caller`, работает
  * без правок». Значит, проверять надо ровно это: множество результата
- * закрыто как `Ok<Output> | Fail<E ∪ UnknownError>`, предикат определения
+ * закрыто как `Ok<Output> | Fail<E ∪ InternalError>`, предикат определения
  * сужает детали, а «забыл payload» — ошибка компиляции.
  */
 
@@ -14,13 +14,12 @@ import { makeClient } from './client.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Fail, Ok } from '@nestling/operations';
-import { defineFail, makeCommand, makeRequest } from '@nestling/operations';
+import { makeCommand, makeFail, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), email: z.string() });
 
-const EmailTaken = defineFail('CLIENT_TYPES_EMAIL_TAKEN', {
-  status: 'CONFLICT',
+const EmailTaken = makeFail('conflict:client_types_email_taken', {
   message: 'Email already taken',
   details: z.object({ email: z.string() }),
 });
@@ -57,18 +56,18 @@ type Expect<T extends true> = T;
 const typeOnly = async (): Promise<void> => {
   const result = await api.createUser({ email: 'a@b.c' });
 
-  // Множество результата закрыто: успех, объявленный отказ, `UnknownError`
+  // Множество результата закрыто: успех, объявленный отказ, `InternalError`
   // и kernel-отказ бюджета — и ничего сверх того
   type Result = typeof result;
   type _Closed = Expect<
     Exact<
       Result,
       | Ok<{ id: string; email: string }>
-      | (Fail<'CLIENT_TYPES_EMAIL_TAKEN', { email: string }> & {
+      | (Fail<'conflict:client_types_email_taken', { email: string }> & {
           readonly details: { email: string };
         })
-      | Fail<'UNKNOWN', undefined>
-      | Fail<'DEADLINE_EXCEEDED', undefined>
+      | Fail<'internal_error', undefined>
+      | Fail<'timeout', undefined>
     >
   >;
 
@@ -77,7 +76,7 @@ const typeOnly = async (): Promise<void> => {
     const email: string = result.details.email;
   } else if (result.isFail) {
     // В ветке «не наш отказ» остаются успех и kernel-отказы
-    const code: 'UNKNOWN' | 'DEADLINE_EXCEEDED' = result.code;
+    const code: 'internal_error' | 'timeout' = result.code;
   } else {
     const id: string = result.value.id;
   }

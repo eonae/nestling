@@ -137,7 +137,7 @@ describe('InProcessBus', () => {
 
         return {
           isSuccess: true,
-          status: 'OK',
+          status: 'ok',
           value: { echo: true },
         } as const;
       },
@@ -153,7 +153,7 @@ describe('InProcessBus', () => {
     expect(receivedSynchronously).toBe(false);
     expect(response).toEqual({
       isSuccess: true,
-      status: 'OK',
+      status: 'ok',
       value: { echo: true },
     });
 
@@ -198,7 +198,7 @@ describe('InProcessBus', () => {
     });
 
     const declaration = implement(Ping, {
-      handle: async (input) => new Ok({ doubled: input.value * 2 }),
+      handler: async (input) => new Ok({ doubled: input.value * 2 }),
     });
 
     const bus = new InProcessBus();
@@ -222,7 +222,7 @@ describe('InProcessBus', () => {
       (_payload, meta) => {
         seen.push(meta.deadline);
 
-        return { isSuccess: true, status: 'OK', value: {} } as const;
+        return { isSuccess: true, status: 'ok', value: {} } as const;
       },
       { group: 'owner' },
     );
@@ -287,7 +287,7 @@ describe('InProcessBus', () => {
 
     let executed = false;
     const declaration = implement(Ping, {
-      handle: async (input) => {
+      handler: async (input) => {
         executed = true;
 
         return new Ok({ doubled: input.value * 2 });
@@ -306,8 +306,8 @@ describe('InProcessBus', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'TIMEOUT',
-      value: { code: 'DEADLINE_EXCEEDED' },
+      status: 'timeout',
+      value: { code: 'timeout' },
     });
     expect(executed).toBe(false);
 
@@ -325,7 +325,7 @@ describe('InProcessBus', () => {
       pipeline: makePipeline().pre((ctx) => {
         seen.push(ctx.raw.attributes);
       }),
-      handle: async () => undefined,
+      handler: async () => undefined,
     });
 
     const bus = new InProcessBus();
@@ -356,7 +356,7 @@ describe('InProcessBus', () => {
 
     let aborted = false;
     const declaration = implement(Slow, {
-      handle: async (_input, meta) => {
+      handler: async (_input, meta) => {
         await new Promise((resolve) => {
           meta.signal.addEventListener('abort', resolve, { once: true });
         });
@@ -398,7 +398,7 @@ describe('InProcessBus', () => {
         seen.push(ctx.raw.attributes);
         payloads.push(ctx.raw.payload);
       }),
-      handle: async () => new Ok({ ok: true }),
+      handler: async () => new Ok({ ok: true }),
     });
 
     const bus = new InProcessBus();
@@ -497,7 +497,7 @@ describe('InProcessBus', () => {
     });
 
     const declaration = implement(Feed, {
-      handle: async function* () {
+      handler: async function* () {
         yield { chunk: 'a' };
       } as never,
     });

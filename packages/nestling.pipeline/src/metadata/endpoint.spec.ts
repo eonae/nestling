@@ -72,7 +72,7 @@ describe('makeEndpoint — формы handle', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
-      handle: async () => new Ok({ pong: true }),
+      handler: async () => new Ok({ pong: true }),
     });
 
     await expect(Ping.handle(undefined, meta)).resolves.toEqual(
@@ -86,8 +86,10 @@ describe('makeEndpoint — формы handle', () => {
       pattern: 'GET /users/:id',
       input: UserInput,
       output: UserOutput,
-      deps: [UserService],
-      handle: (users) => async (input) => new Ok(users.getById(input.id)),
+      handler: {
+        deps: [UserService],
+        handle: (users) => async (input) => new Ok(users.getById(input.id)),
+      },
     });
 
     const resolved = GetUser.resolve([new UserService()]);
@@ -111,7 +113,7 @@ describe('makeEndpoint — формы handle', () => {
       pattern: 'GET /users/:id',
       input: UserInput,
       output: UserOutput,
-      handle: GetUserHandler,
+      handler: GetUserHandler,
     });
 
     const instance = new GetUserHandler(new UserService());
@@ -126,8 +128,10 @@ describe('makeEndpoint — формы handle', () => {
     const GetUser = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
-      deps: [UserService],
-      handle: (users) => async () => new Ok(users.getById('1')),
+      handler: {
+        deps: [UserService],
+        handle: (users) => async () => new Ok(users.getById('1')),
+      },
     });
 
     expect(() => GetUser.handle(undefined, meta)).toThrow(
@@ -141,8 +145,10 @@ describe('makeEndpoint — формы handle', () => {
     const Endpoint = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /counted',
-      deps: [UserService],
-      handle: factory,
+      handler: {
+        deps: [UserService],
+        handle: factory,
+      },
     });
 
     const resolved = Endpoint.resolve([new UserService()]);
@@ -160,9 +166,11 @@ describe('makeEndpoint — resolve', () => {
     transport: HttpTransport$,
     pattern: 'GET /users/:id',
     input: UserInput,
-    deps: [UserService],
-    handle: (users) => async (input: { id: string }) =>
-      new Ok(users.getById(input.id)),
+    handler: {
+      deps: [UserService],
+      handle: (users) => async (input: { id: string }) =>
+        new Ok(users.getById(input.id)),
+    },
   });
 
   it('возвращает новое значение, исходную декларацию не трогает', async () => {
@@ -184,10 +192,12 @@ describe('makeEndpoint — resolve', () => {
     const NeedsLogger = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /logged',
-      deps: [ILogger],
-      handle: (logger) => async () => {
-        logger.log('served');
-        return new Ok({});
+      handler: {
+        deps: [ILogger],
+        handle: (logger) => async () => {
+          logger.log('served');
+          return new Ok({});
+        },
       },
     });
 
@@ -212,7 +222,7 @@ describe('makeEndpoint — resolve', () => {
     const WithClass = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /class',
-      handle: Handler,
+      handler: Handler,
     });
 
     expect(() => WithClass.resolve([new Handler()])).toThrow(
@@ -231,7 +241,7 @@ describe('makeEndpoint — resolve', () => {
       transport: HttpTransport$,
       pattern: 'GET /traced',
       pipeline: makePipeline().pre(WithTracing),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     const resolved = Traced.resolve(() => new WithTracing());
@@ -252,7 +262,7 @@ describe('makeEndpoint — resolve', () => {
       transport: HttpTransport$,
       pattern: 'GET /traced',
       pipeline: makePipeline().pre(WithTracing),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(() => Traced.resolve([])).toThrow(
@@ -266,8 +276,10 @@ describe('makeEndpoint — resolve', () => {
     const Endpoint = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /twice',
-      deps: [UserService],
-      handle: factory,
+      handler: {
+        deps: [UserService],
+        handle: factory,
+      },
     });
 
     const once = Endpoint.resolve([new UserService()]);
@@ -283,7 +295,7 @@ describe('makeEndpoint — бренд', () => {
   const Ping = makeEndpoint({
     transport: HttpTransport$,
     pattern: 'GET /ping',
-    handle: async () => new Ok({ pong: true }),
+    handler: async () => new Ok({ pong: true }),
   });
 
   it('декларация опознаётся предикатом', () => {
@@ -317,7 +329,7 @@ describe('makeEndpoint — бренд', () => {
     const created = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /side-effect-free',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     // Никаких реестров: значение существует ровно там, куда его положили
@@ -331,7 +343,7 @@ describe('ссылка на транспорт — токен', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(Ping.transport).toBe(HttpTransport$);
@@ -344,7 +356,7 @@ describe('ссылка на транспорт — токен', () => {
     const Command = makeEndpoint({
       transport: Cli$,
       pattern: 'sync',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(Command.transport).not.toBe(HttpTransport$);
@@ -365,7 +377,7 @@ describe('makeEndpoint — носитель binding', () => {
       transport: HttpTransport$,
       pattern: 'PATCH /users/:id',
       binding,
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(UpdateUser.binding).toBe(binding);
@@ -376,8 +388,10 @@ describe('makeEndpoint — носитель binding', () => {
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
       binding,
-      deps: [UserService],
-      handle: (users) => async () => new Ok(users.getById('1')),
+      handler: {
+        deps: [UserService],
+        handle: (users) => async () => new Ok(users.getById('1')),
+      },
     });
 
     const resolved = GetUser.resolve([new UserService()]);
@@ -391,7 +405,7 @@ describe('makeEndpoint — носитель binding', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
-      handle: async () => new Ok({ pong: true }),
+      handler: async () => new Ok({ pong: true }),
     });
 
     expect('binding' in Ping).toBe(false);
@@ -404,7 +418,7 @@ describe('makeEndpoint — носитель binding', () => {
       transport: makeToken('transport:nats'),
       pattern: 'users.get',
       binding: opaque,
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     expect(Weird.binding).toBe(opaque);
@@ -433,14 +447,16 @@ describe('makeEndpoint — типы', () => {
     const DepsFree = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
-      handle: async () => new Ok({ pong: true }),
+      handler: async () => new Ok({ pong: true }),
     });
 
     const Curried = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
-      deps: [UserService, ILogger],
-      handle: (users, logger) => async () => new Ok({}),
+      handler: {
+        deps: [UserService, ILogger],
+        handle: (users, logger) => async () => new Ok({}),
+      },
     });
 
     class GetUserHandler {
@@ -452,7 +468,7 @@ describe('makeEndpoint — типы', () => {
     const WithClass = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /class',
-      handle: GetUserHandler,
+      handler: GetUserHandler,
     });
 
     type _DepsFree = Expect<Equal<InferNeeds<typeof DepsFree>, never>>;
@@ -485,7 +501,7 @@ describe('makeEndpoint — типы', () => {
       transport: HttpTransport$,
       pattern: 'GET /traced',
       pipeline: makePipeline().pre(WithTracing),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     type _Traced = Expect<Equal<InferNeeds<typeof Traced>, typeof WithTracing>>;
@@ -497,14 +513,16 @@ describe('makeEndpoint — типы', () => {
     const DepsFree = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     const Curried = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
-      deps: [UserService],
-      handle: (users) => async () => new Ok({}),
+      handler: {
+        deps: [UserService],
+        handle: (users) => async () => new Ok({}),
+      },
     });
 
     const executable: EndpointDefinition<any, any, any, never> = DepsFree;
@@ -522,7 +540,7 @@ describe('makeEndpoint — типы', () => {
       input: UserInput,
       output: UserOutput,
       // @ts-expect-error: input даёт { id: string }, хендлер ждёт число
-      handle: async (input: { id: number }) => new Ok({ id: '1', name: 'a' }),
+      handler: async (input: { id: number }) => new Ok({ id: '1', name: 'a' }),
     });
 
     // @ts-expect-error: output требует { id, name }, хендлер отдаёт другое
@@ -531,19 +549,21 @@ describe('makeEndpoint — типы', () => {
       pattern: 'GET /users/:id',
       input: UserInput,
       output: UserOutput,
-      handle: async () => new Ok({ unexpected: true }),
+      handler: async () => new Ok({ unexpected: true }),
     });
 
     expect(true).toBe(true);
   });
 
   it('deps без каррированной формы хендлера — ошибка компиляции', () => {
+    // @ts-expect-error: с deps хендлер обязан быть каррированной фабрикой
     makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
-      deps: [UserService],
-      // @ts-expect-error: с deps хендлер обязан быть каррированной фабрикой
-      handle: async () => new Ok({}),
+      handler: {
+        deps: [UserService],
+        handle: async () => new Ok({}),
+      },
     });
 
     expect(true).toBe(true);

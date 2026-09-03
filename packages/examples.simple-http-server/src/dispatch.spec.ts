@@ -49,7 +49,7 @@ describe('вызов через dispatch без сокета', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      value: { code: 'VALIDATION_FAILED' },
+      value: { code: 'bad_request' },
     });
   });
 
@@ -61,7 +61,7 @@ describe('вызов через dispatch без сокета', () => {
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'CONFLICT',
+      status: 'conflict',
       value: { code: 'EMAIL_TAKEN', details: { email: 'taken@example.com' } },
     });
   });

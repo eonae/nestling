@@ -29,7 +29,7 @@ export const importUsersHandler =
     let skipped = 0;
 
     // Каждая строка уже проверена схемой `NewUser`: невалидная строка
-    // обрывает поток отказом `VALIDATION_FAILED`
+    // обрывает поток отказом `bad_request`
     for await (const row of rows) {
       if (await users.byEmail(row.email)) {
         skipped += 1;
@@ -52,6 +52,8 @@ export const ImportUsers = httpEndpoint({
   errors: [Unauthorized],
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
   pipeline: authed,
-  deps: [UsersRepository$],
-  handle: importUsersHandler,
+  handler: {
+    deps: [UsersRepository$],
+    handle: importUsersHandler,
+  },
 });

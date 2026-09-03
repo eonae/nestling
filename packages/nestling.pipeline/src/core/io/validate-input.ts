@@ -9,7 +9,7 @@
 import type { Schema } from '@common/misc';
 import { SchemaValidationError, validateSync } from '@common/misc';
 import type { FormDescriptor } from '@nestling/operations';
-import { isPrimitiveLeaf, ValidationFailed } from '@nestling/operations';
+import { BadRequest, isPrimitiveLeaf } from '@nestling/operations';
 
 /** Payload формы `multipart`: поля формы и файлы */
 interface MultipartPayload {
@@ -18,7 +18,7 @@ interface MultipartPayload {
 }
 
 /**
- * Превращает отказ схемы в kernel-отказ `ValidationFailed`.
+ * Превращает отказ схемы в отказ ядра `BadRequest`.
  *
  * Ошибки конфигурации приложения — async-схема
  * (`AsyncSchemaNotSupportedError`) и объект-не-схема
@@ -30,7 +30,7 @@ function check(schema: Schema, value: unknown): unknown {
     return validateSync(schema, value, 'Validation failed');
   } catch (error) {
     if (error instanceof SchemaValidationError) {
-      throw ValidationFailed(error.issues, { cause: error });
+      throw BadRequest(error.issues, { cause: error });
     }
 
     throw error;
@@ -54,7 +54,7 @@ function check(schema: Schema, value: unknown): unknown {
  * @param candidate - значение на проверку: `payload` из контекста, если
  * его положил `.pre`-юнит, иначе `raw.payload`
  * @returns выход схемы, то есть результат её трансформаций
- * @throws Fail отказ `VALIDATION_FAILED` (400), если значение не прошло схему
+ * @throws Fail отказ `bad_request` (400), если значение не прошло схему
  */
 export function validateInput(
   form: FormDescriptor,

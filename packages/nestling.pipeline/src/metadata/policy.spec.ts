@@ -38,7 +38,7 @@ function subject(options: {
     endpoint: (makeEndpoint as (o: unknown) => never)({
       transport,
       pattern,
-      handle,
+      handler: handle,
       ...rest,
     }),
     moduleName: moduleName ?? 'module:test',

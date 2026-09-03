@@ -40,16 +40,18 @@ export const ActivityStream = httpEndpoint({
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
   pipeline: compose(observability, tracked),
-  deps: [ActivityHub],
-  handle:
-    (hub: ActivityHub) =>
-    async (
-      _payload: unknown,
-      meta: { subscription: TrackedSubscription; lastEventId?: string },
-    ): Output<AsyncIterable<ActivityEvent>> => {
-      // Настоящая лента отдала бы историю с этого места
-      const since = meta.lastEventId ?? '0';
+  handler: {
+    deps: [ActivityHub],
+    handle:
+      (hub: ActivityHub) =>
+      async (
+        _payload: unknown,
+        meta: { subscription: TrackedSubscription; lastEventId?: string },
+      ): Output<AsyncIterable<ActivityEvent>> => {
+        // Настоящая лента отдала бы историю с этого места
+        const since = meta.lastEventId ?? '0';
 
-      return new Ok(hub.subscribe(meta.subscription.signal, since));
-    },
+        return new Ok(hub.subscribe(meta.subscription.signal, since));
+      },
+  },
 });

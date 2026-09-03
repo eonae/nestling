@@ -84,7 +84,7 @@ describe('потоковый вход через stdin', () => {
       pipeline: makePipeline().finally((_outcome, _res, ctx) => {
         summaries.push({ itemsIn: ctx.summary.itemsIn });
       }),
-      handle: async (source: AsyncIterableIterator<Row>) => {
+      handler: async (source: AsyncIterableIterator<Row>) => {
         const ids: string[] = [];
         for await (const row of source) {
           ids.push(row.id);
@@ -122,7 +122,7 @@ describe('потоковый вход через stdin', () => {
       input: stream(Row),
       output: z.object({ imported: z.number() }),
       pipeline: makePipeline(),
-      handle: async (source: AsyncIterableIterator<Row>) => {
+      handler: async (source: AsyncIterableIterator<Row>) => {
         let imported = 0;
         for await (const row of source) {
           imported += row.id.length > 0 ? 1 : 0;
@@ -145,8 +145,8 @@ describe('потоковый вход через stdin', () => {
 
       expect(response).toMatchObject({
         isSuccess: false,
-        status: 'BAD_REQUEST',
-        value: { code: 'VALIDATION_FAILED' },
+        status: 'bad_request',
+        value: { code: 'bad_request' },
       });
     } finally {
       restore();
@@ -163,7 +163,7 @@ describe('потоковый вход через stdin', () => {
       input: stream('binary'),
       output: z.object({ bytes: z.number() }),
       pipeline: makePipeline(),
-      handle: async (source: AsyncIterableIterator<Buffer>) => {
+      handler: async (source: AsyncIterableIterator<Buffer>) => {
         for await (const chunk of source) {
           bytes += chunk.length;
         }
@@ -198,7 +198,7 @@ describe('потоковый выход в stdout', () => {
       command: 'export',
       output: stream(Row),
       pipeline: observing((outcome) => outcomes.push(outcome)),
-      handle: async () =>
+      handler: async () =>
         new Ok(
           (async function* (): AsyncIterableIterator<Row> {
             yield { id: '1' };
@@ -234,7 +234,7 @@ describe('отказ регистрации несовместимых форм'
       command: 'watch',
       output: events(Row),
       pipeline: makePipeline(),
-      handle: async () =>
+      handler: async () =>
         new Ok(
           (async function* (): AsyncIterableIterator<Row> {
             yield { id: '1' };
@@ -256,7 +256,7 @@ describe('отказ регистрации несовместимых форм'
       command: 'upload',
       input: multipart({ files: { report: upload() } }),
       pipeline: makePipeline(),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     const cli = new CliTransport({ argv: [] });

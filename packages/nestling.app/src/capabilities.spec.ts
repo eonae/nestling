@@ -5,7 +5,7 @@
  * (standalone-путь).
  */
 
-import { assemble } from './app';
+import { makeApp } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
@@ -41,15 +41,15 @@ describe('capability-валидация через assemble', () => {
     const Watch = cliEndpoint({
       command: 'watch',
       output: events(Tick),
-      handle: async () => new Ok(noTicks()),
+      handler: async () => new Ok(noTicks()),
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:watch', endpoints: [Watch] })],
       transports: [
         asTransport(CliTransport$('default'), new CliTransport({ argv: [] })),
       ],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(
       /Endpoint 'watch' declared in 'module:watch': transport 'cli' does not support form 'events' in 'output'/,
@@ -61,13 +61,13 @@ describe('capability-валидация через assemble', () => {
       method: 'POST',
       path: '/upload',
       input: multipart({ files: { blob: upload() } }),
-      handle: async () => new Ok({ ok: true }),
+      handler: async () => new Ok({ ok: true }),
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:upload', endpoints: [Upload] })],
       transports: [asTransport(HttpTransport$('default'), new MockTransport())],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(
       /does not support form 'multipart' in 'input' \(supported: value\)/,
@@ -79,10 +79,10 @@ describe('capability-валидация через assemble', () => {
       method: 'GET',
       path: '/export',
       output: stream(Tick),
-      handle: async () => new Ok(noTicks()),
+      handler: async () => new Ok(noTicks()),
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:export', endpoints: [Export] })],
       transports: [
         asTransport(
@@ -90,7 +90,7 @@ describe('capability-валидация через assemble', () => {
           new HttpTransport({ port: 0, host: '127.0.0.1' }),
         ),
       ],
-    });
+    }).assemble();
 
     await app.run();
     await app.close();
@@ -101,16 +101,16 @@ describe('capability-валидация через assemble', () => {
       method: 'GET',
       path: '/live',
       output: events(Tick),
-      handle: async () => new Ok(noTicks()),
+      handler: async () => new Ok(noTicks()),
     });
 
     // Транспорт умеет только value-формы — как шина портов в V1
     const bus = new MockTransport();
 
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:live', endpoints: [Live] })],
       transports: [asTransport(HttpTransport$('default'), bus)],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(/does not support form 'events'/);
     expect(bus.serving).toBe(false);
@@ -123,7 +123,7 @@ describe('capability-валидация на standalone-пути', () => {
     const Upload = cliEndpoint({
       command: 'upload',
       input: multipart({ files: { blob: upload() } }) as never,
-      handle: async () => new Ok({ ok: true }),
+      handler: async () => new Ok({ ok: true }),
     });
 
     await expect(
@@ -141,7 +141,7 @@ describe('capability-валидация на standalone-пути', () => {
       method: 'GET',
       path: '/live',
       output: events(Tick),
-      handle: async () => new Ok(noTicks()),
+      handler: async () => new Ok(noTicks()),
     });
 
     const transport = new HttpTransport({ port: 0, host: '127.0.0.1' });

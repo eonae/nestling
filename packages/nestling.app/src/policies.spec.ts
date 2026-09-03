@@ -9,7 +9,7 @@
  * поверхности для аудита.
  */
 
-import { assemble } from './app';
+import { makeApp } from './app';
 import { makeFeature } from './feature';
 import { MockTransport } from './helpers';
 
@@ -37,27 +37,27 @@ const Authed = httpEndpoint({
   method: 'GET',
   path: '/me',
   pipeline: compose(observability, authedBase),
-  handle: async () => new Ok({ id: '1' }),
+  handler: async () => new Ok({ id: '1' }),
 });
 
 const Unauthed = httpEndpoint({
   method: 'GET',
   path: '/users',
   pipeline: compose(observability, base),
-  handle: async () => new Ok({ users: [] }),
+  handler: async () => new Ok({ users: [] }),
 });
 
 const NoPipeline = httpEndpoint({
   method: 'GET',
   path: '/metrics',
-  handle: async () => new Ok({ up: 1 }),
+  handler: async () => new Ok({ up: 1 }),
 });
 
 const Detached = httpEndpoint({
   method: 'GET',
   path: '/health',
   detached: 'liveness-проба балансировщика: до auth не доходит',
-  handle: async () => new Ok({ status: 'up' }),
+  handler: async () => new Ok({ status: 'up' }),
 });
 
 /** Текст отказа сборки: тесты диагностики читают сообщение целиком */
@@ -90,7 +90,7 @@ describe('политики — точка проверки', () => {
     }
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'module:users',
@@ -100,7 +100,7 @@ describe('политики — точка проверки', () => {
       ],
       transports: [asHttpTransport(transport)],
       policies: [hasAuth()],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(/assembly policies/);
 
@@ -113,10 +113,10 @@ describe('политики — точка проверки', () => {
     const Orphan = makeEndpoint({
       transport: CliTransport$,
       pattern: 'orphan',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:cli', endpoints: [Orphan] })],
       transports: [asHttpTransport(new MockTransport())],
       policies: [everyEndpoint().hasLayer(authedBase, 'authedBase')],
@@ -135,18 +135,17 @@ describe('политики — точка проверки', () => {
       endpoints: [Authed],
     });
 
-    const report = await assemble({
+    const report = await makeApp({
       features: [Users, Profile],
-      select: 'profile',
       transports: [asHttpTransport(new MockTransport())],
       policies: [hasAuth()],
-    }).check();
+    }).check('profile');
 
     expect(report.endpoints.map((e) => e.pattern)).toEqual(['GET /me']);
   });
 
   it('без политик поведение прежнее', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:users', endpoints: [Unauthed] })],
       transports: [asHttpTransport(new MockTransport())],
     });
@@ -155,7 +154,7 @@ describe('политики — точка проверки', () => {
   });
 
   it('пустой список политик эквивалентен их отсутствию', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({ name: 'module:users', endpoints: [NoPipeline] }),
       ],
@@ -168,14 +167,16 @@ describe('политики — точка проверки', () => {
 
   it("приложение без endpoint'ов проходит любую политику", async () => {
     await expect(
-      assemble({ policies: [everyEndpoint().hasLayer(authedBase)] }).check(),
+      makeApp({
+        policies: [everyEndpoint().hasLayer(authedBase)],
+      }).check(),
     ).resolves.toBeDefined();
   });
 });
 
 describe('политики — агрегированная диагностика', () => {
   it('перечисляет нарушения обеих политик, сгруппированные по политике', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'module:users',
@@ -202,7 +203,7 @@ describe('политики — агрегированная диагностик
   });
 
   it('соблюдённая политика в сообщении не упоминается', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
       transports: [asHttpTransport(new MockTransport())],
       policies: [hasAuth(), hasObservability()],
@@ -214,7 +215,7 @@ describe('политики — агрегированная диагностик
 
 describe('detached — поверхность для аудита', () => {
   it('помеченный endpoint не нарушает, непомеченный сосед — нарушает', async () => {
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'module:ops',
@@ -232,7 +233,7 @@ describe('detached — поверхность для аудита', () => {
   });
 
   it('отчёт check() несёт причину значением', async () => {
-    const report = await assemble({
+    const report = await makeApp({
       features: [
         makeFeature({
           name: 'module:ops',
@@ -255,10 +256,10 @@ describe('detached — поверхность для аудита', () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     try {
-      const withDetached = assemble({
+      const withDetached = makeApp({
         features: [makeFeature({ name: 'module:ops', endpoints: [Detached] })],
         transports: [asHttpTransport(new MockTransport())],
-      });
+      }).assemble();
 
       await withDetached.run();
       await withDetached.close();
@@ -273,12 +274,12 @@ describe('detached — поверхность для аудита', () => {
 
       log.mockClear();
 
-      const clean = assemble({
+      const clean = makeApp({
         features: [
           makeFeature({ name: 'module:profile', endpoints: [Authed] }),
         ],
         transports: [asHttpTransport(new MockTransport())],
-      });
+      }).assemble();
 
       await clean.run();
       await clean.close();

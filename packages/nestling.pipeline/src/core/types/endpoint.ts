@@ -15,9 +15,8 @@ import type {
  * Хендлер получает два отдельных параметра:
  * - payload: данные от пользователя, проверенные рантаймом по схеме
  *   `input` и типизированные ею (InferInput<I>)
- * - meta: все остальные поля из пайплайна (P без payload) плюс два
- *   зарезервированных ключа — `signal: AbortSignal` (сигнал отмены
- *   запроса) и `fail(e): never` (типизированный ранний выход)
+ * - meta: все остальные поля из пайплайна (P без payload) плюс
+ *   зарезервированный ключ `signal: AbortSignal` (сигнал отмены запроса)
  *
  * Это единственная форма хендлера на уровне рантайма: три пользовательские
  * формы (`(input, meta) => …`, каррированная фабрика, класс с методом
@@ -32,7 +31,7 @@ import type {
  * пустой объект)
  * @param E - множество объявленных отказов (`errors:` декларации). По
  * умолчанию пусто: без декларации хендлер не может **вернуть** отказ —
- * иначе типы разрешали бы то, что граница превратит в `UnknownError`.
+ * иначе типы разрешали бы то, что граница превратит в `InternalError`.
  */
 export type HandlerFn<
   I extends AnyPayload = AnyPayload,
@@ -43,6 +42,5 @@ export type HandlerFn<
   payload: InferInput<I>,
   meta: (P extends { payload: unknown } ? Omit<P, 'payload'> : P) & {
     signal: AbortSignal;
-    fail: (e: E) => never;
   },
 ) => OutputSync<InferOutput<O>, E> | Output<InferOutput<O>, E>;

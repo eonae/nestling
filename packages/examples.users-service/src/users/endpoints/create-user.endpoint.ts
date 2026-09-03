@@ -27,6 +27,8 @@ export const createUserHandler =
 export const CreateUser = httpEndpoint({
   operation: CreateUserOperation,
   pipeline: authed,
-  deps: [UsersRepository$],
-  handle: createUserHandler,
+  handler: {
+    deps: [UsersRepository$],
+    handle: createUserHandler,
+  },
 });

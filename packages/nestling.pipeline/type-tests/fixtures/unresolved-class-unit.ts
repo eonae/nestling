@@ -21,7 +21,7 @@ const endpoint = httpEndpoint({
   method: 'GET',
   path: '/health',
   pipeline: makePipeline().pre(WithTracing),
-  handle: async () => new Ok({ status: 'up' }),
+  handler: async () => new Ok({ status: 'up' }),
 });
 
 makeDispatch([endpoint]);

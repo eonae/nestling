@@ -3,7 +3,7 @@
  * зависимостей деклараций и строгий реверс shutdown.
  */
 
-import { assemble } from './app';
+import { makeApp } from './app';
 import { makeFeature, makePlugin } from './feature';
 import { MockTransport } from './helpers';
 
@@ -19,9 +19,9 @@ import {
 } from '@nestling/container';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import {
-  defineFail,
   makeEmptyContext,
   makeEndpoint,
+  makeFail,
   makePipeline,
   Ok,
   stream,
@@ -53,7 +53,7 @@ describe('assemble — discovery и регистрация', () => {
       path: '/test',
       input: z.object({ id: z.string() }),
       output: z.object({ result: z.string() }),
-      handle: async (input) => new Ok({ result: `test-${input.id}` }),
+      handler: async (input) => new Ok({ result: `test-${input.id}` }),
     });
 
     const TestModule = makeFeature({
@@ -62,10 +62,10 @@ describe('assemble — discovery и регистрация', () => {
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [TestModule],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -78,8 +78,7 @@ describe('assemble — discovery и регистрация', () => {
   });
 
   it('объявленные отказы попадают в проекцию маршрута', async () => {
-    const QuotaExceeded = defineFail('QUOTA_EXCEEDED', {
-      status: 'TOO_MANY_REQUESTS',
+    const QuotaExceeded = makeFail('too_many_requests:quota_exceeded', {
       message: 'Quota exceeded',
     });
 
@@ -91,9 +90,11 @@ describe('assemble — discovery и регистрация', () => {
       path: '/charge',
       output: z.object({ left: z.number() }),
       errors: [QuotaExceeded],
-      deps: [IQuota],
-      handle: (quota) => async () =>
-        quota.left() > 0 ? new Ok({ left: quota.left() }) : QuotaExceeded(),
+      handler: {
+        deps: [IQuota],
+        handle: (quota) => async () =>
+          quota.left() > 0 ? new Ok({ left: quota.left() }) : QuotaExceeded(),
+      },
     });
 
     const QuotaModule = makeFeature({
@@ -103,10 +104,10 @@ describe('assemble — discovery и регистрация', () => {
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [QuotaModule],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -119,16 +120,17 @@ describe('assemble — discovery и регистрация', () => {
     const ForeignEndpoint = httpEndpoint({
       method: 'GET',
       path: '/foreign',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     makeFeature({ name: 'module:foreign', endpoints: [ForeignEndpoint] });
 
     const transport = new MockTransport();
-    const app = assemble({
-      features: [], // модуль с endpoint'ом не зарегистрирован
+    const app = makeApp({
+      features: [],
+      // модуль с endpoint'ом не зарегистрирован
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     // Старт проходит, транспорт пуст: импорт файла ни на что не влияет
     await app.run();
@@ -140,10 +142,10 @@ describe('assemble — discovery и регистрация', () => {
 
   it("транспорт без обнаруженных endpoint'ов поднимается", async () => {
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:empty' })],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -154,7 +156,7 @@ describe('assemble — discovery и регистрация', () => {
   });
 
   it('пустая сборка допустима', async () => {
-    const app = assemble({});
+    const app = makeApp({}).assemble();
 
     await expect(app.run()).resolves.toBeUndefined();
     await app.close();
@@ -168,18 +170,20 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     const NeedsLogger = httpEndpoint({
       method: 'GET',
       path: '/logged',
-      deps: [ILogger],
-      handle: (logger) => async () => {
-        logger.log('served');
-        return new Ok({});
+      handler: {
+        deps: [ILogger],
+        handle: (logger) => async () => {
+          logger.log('served');
+          return new Ok({});
+        },
       },
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:bad', endpoints: [NeedsLogger] })],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(
       /Dependency 'ILogger'.*GET \/logged.*module:bad.*not available in the DI container/s,
@@ -198,21 +202,87 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     const CreateUser = httpEndpoint({
       method: 'POST',
       path: '/users',
-      handle: CreateUserHandler,
+      handler: CreateUserHandler,
     });
 
-    // Класс в providers: не перечислен — контейнер о нём не знает
+    // Класс в providers: не перечислен — endpoint регистрирует его сам
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
-        makeFeature({ name: 'module:bad-class', endpoints: [CreateUser] }),
+        makeFeature({ name: 'module:class', endpoints: [CreateUser] }),
       ],
       transports: [asHttpTransport(transport)],
+    }).assemble();
+
+    await app.run();
+
+    expect(transport.routes.map((route) => route.pattern)).toEqual([
+      'POST /users',
+    ]);
+
+    await app.close();
+  });
+
+  it('класс-хендлер, перечисленный в providers, — ошибка ASSEMBLE', async () => {
+    @Injectable([])
+    class CreateUserHandler {
+      async handle() {
+        return new Ok({});
+      }
+    }
+
+    const CreateUser = httpEndpoint({
+      method: 'POST',
+      path: '/users',
+      handler: CreateUserHandler,
     });
 
+    const transport = new MockTransport();
+    const app = makeApp({
+      features: [
+        makeFeature({
+          name: 'module:twice',
+          providers: [CreateUserHandler],
+          endpoints: [CreateUser],
+        }),
+      ],
+      transports: [asHttpTransport(transport)],
+    }).assemble();
+
     await expect(app.run()).rejects.toThrow(
-      /Dependency 'CreateUserHandler'.*POST \/users.*module:bad-class/s,
+      /Handler class 'CreateUserHandler'.*POST \/users.*'module:twice'/s,
     );
+    expect(transport.serving).toBe(false);
+  });
+
+  it('зависимость класса-хендлера без провайдера — ошибка с токеном и паттерном', async () => {
+    const ILogger = makeToken<{ log(): void }>('ILogger');
+
+    @Injectable([ILogger])
+    class CreateUserHandler {
+      constructor(private readonly logger: { log(): void }) {}
+
+      async handle() {
+        this.logger.log();
+        return new Ok({});
+      }
+    }
+
+    const CreateUser = httpEndpoint({
+      method: 'POST',
+      path: '/users',
+      handler: CreateUserHandler,
+    });
+
+    const transport = new MockTransport();
+    const app = makeApp({
+      features: [
+        makeFeature({ name: 'module:no-logger', endpoints: [CreateUser] }),
+      ],
+      transports: [asHttpTransport(transport)],
+    }).assemble();
+
+    await expect(app.run()).rejects.toThrow(/ILogger.*CreateUserHandler/s);
     expect(transport.serving).toBe(false);
   });
 
@@ -222,14 +292,14 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     const CliEndpoint = makeEndpoint({
       transport: CliTransport$,
       pattern: 'users:list',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [makeFeature({ name: 'module:cli', endpoints: [CliEndpoint] })],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(
       /Transport 'cli'.*users:list.*module:cli.*'transports:'/s,
@@ -252,10 +322,10 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     const Orphan = makeEndpoint({
       transport: CliTransport$,
       pattern: 'orphan',
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'module:with-resource',
@@ -264,7 +334,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
         }),
       ],
       transports: [asHttpTransport(new MockTransport())],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(/Transport 'cli'/);
     expect(opened).toEqual([]);
@@ -275,7 +345,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
       method: 'GET',
       path: '/watch',
       output: z.object({ id: z.string() }),
-      handle: async () => new Ok({ id: '1' }),
+      handler: async () => new Ok({ id: '1' }),
     });
 
     // Мок умеет только value: подменяем декларацию потоковой формой
@@ -283,16 +353,16 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
       transport: HttpTransport$('default'),
       pattern: 'GET /stream',
       output: stream(z.object({ id: z.string() })) as never,
-      handle: async () => new Ok({} as never),
+      handler: async () => new Ok({} as never),
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({ name: 'module:forms', endpoints: [Watch, Streaming] }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(
       /GET \/stream.*module:forms.*does not support form 'stream' in 'output'/s,
@@ -307,10 +377,10 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [Smuggling],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(
       /smuggling.*index 0.*not an endpoint declaration/s,
@@ -329,16 +399,16 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
       method: 'GET',
       path: '/broken',
       pipeline: makePipeline().pre(UnregisteredUnit),
-      handle: async () => new Ok({}),
+      handler: async () => new Ok({}),
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({ name: 'test-module', endpoints: [BrokenEndpoint] }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await expect(app.run()).rejects.toThrow(
       /Dependency 'UnregisteredUnit'.*GET \/broken.*not available in the DI container/s,
@@ -359,12 +429,14 @@ describe('assemble — фаза WIRE: резолв зависимостей де
     const DataEndpoint = httpEndpoint({
       method: 'GET',
       path: '/data',
-      deps: [TestService],
-      handle: (service) => async () => new Ok({ data: service.getData() }),
+      handler: {
+        deps: [TestService],
+        handle: (service) => async () => new Ok({ data: service.getData() }),
+      },
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'test-module',
@@ -373,7 +445,7 @@ describe('assemble — фаза WIRE: резолв зависимостей де
         }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -410,20 +482,20 @@ describe('assemble — фаза WIRE: резолв зависимостей де
     const Greet = httpEndpoint({
       method: 'GET',
       path: '/greet',
-      handle: GreetHandler,
+      handler: GreetHandler,
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'test-module',
-          providers: [Greeter, GreetHandler],
+          providers: [Greeter],
           endpoints: [Greet],
         }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -454,11 +526,11 @@ describe('assemble — фаза WIRE: резолв зависимостей де
       pipeline: makePipeline()
         .pre(WithTracing)
         .pre(async (ctx) => ({ echo: ctx.input.traceId })),
-      handle: async (_payload, meta) => new Ok({ traceId: meta.echo }),
+      handler: async (_payload, meta) => new Ok({ traceId: meta.echo }),
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'test-module',
@@ -467,7 +539,7 @@ describe('assemble — фаза WIRE: резолв зависимостей де
         }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -510,12 +582,12 @@ describe('assemble — порядок фаз и shutdown', () => {
     }
 
     const transport = new ObservingTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({ name: 'module:scheduler', providers: [Scheduler] }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -539,12 +611,12 @@ describe('assemble — порядок фаз и shutdown', () => {
     const second = new MockTransport(() => order.push('second-closed'));
     const Second$ = makeToken<ITransport>('transport:second');
 
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({ name: 'module:resource', providers: [Resource] }),
       ],
       transports: [asHttpTransport(first), transportValue(Second$, second)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -572,12 +644,12 @@ describe('assemble — порядок фаз и shutdown', () => {
     }
 
     const transport = new MockTransport(() => closes.push('closed'));
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({ name: 'module:resource', providers: [Resource] }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
     await app.run();
@@ -590,9 +662,9 @@ describe('assemble — порядок фаз и shutdown', () => {
   it('обработчики сигналов снимаются после close()', async () => {
     const before = process.listenerCount('SIGTERM');
 
-    const app = assemble({
+    const app = makeApp({
       transports: [asHttpTransport(new MockTransport())],
-    });
+    }).assemble();
 
     await app.run();
     expect(process.listenerCount('SIGTERM')).toBe(before + 1);
@@ -611,10 +683,10 @@ describe('assemble — порядок фаз и shutdown', () => {
         name: 'orders',
       });
 
-      const app = assemble({
+      const app = makeApp({
         features: [Orders],
         transports: [asHttpTransport(new MockTransport())],
-      });
+      }).assemble();
 
       await app.run();
 
@@ -668,23 +740,22 @@ describe('assemble — порядок фаз и shutdown', () => {
       host: '127.0.0.1',
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [
         makeFeature({
           name: 'test-module',
-          providers: [WaitHandler],
           endpoints: [
             httpEndpoint({
               method: 'GET',
               path: '/wait',
               pipeline: makePipeline(),
-              handle: WaitHandler,
+              handler: WaitHandler,
             }),
           ],
         }),
       ],
       transports: [asHttpTransport(httpTransport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -725,7 +796,7 @@ describe('assemble — фичи в приложении', () => {
         httpEndpoint({
           method: 'GET',
           path: '/orders',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
       ],
     });
@@ -737,17 +808,16 @@ describe('assemble — фичи в приложении', () => {
         httpEndpoint({
           method: 'GET',
           path: '/invoices',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
       ],
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [Orders, Billing],
-      select: 'orders',
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble('orders');
 
     await app.run();
 
@@ -769,13 +839,13 @@ describe('assemble — фичи в приложении', () => {
         httpEndpoint({
           method: 'GET',
           path: '/orders',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
       ],
     });
 
     const transport = new MockTransport();
-    const app = assemble({
+    const app = makeApp({
       features: [Orders],
       plugins: [
         makePlugin({
@@ -785,13 +855,13 @@ describe('assemble — фичи в приложении', () => {
             httpEndpoint({
               method: 'GET',
               path: '/root',
-              handle: async () => new Ok({}),
+              handler: async () => new Ok({}),
             }),
           ],
         }),
       ],
       transports: [asHttpTransport(transport)],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -815,14 +885,16 @@ describe('assemble — фичи в приложении', () => {
     });
 
     // Имя модуля — ключ атрибуции его провайдеров, поэтому два разных
-    // значения под одним именем роняют сборку на фазе 0, до построения
-    // контейнера и любого `@OnInit`
-    expect(() =>
-      assemble({
-        features: [Orders, Billing],
-        transports: [asHttpTransport(new MockTransport())],
-      }),
-    ).toThrow(/Two different modules are named 'module:shared'/);
+    // значения под одним именем роняют сборку на фазе ASSEMBLE, до
+    // построения контейнера и любого `@OnInit`
+    const app = makeApp({
+      features: [Orders, Billing],
+      transports: [asHttpTransport(new MockTransport())],
+    });
+
+    await expect(app.check()).rejects.toThrow(
+      /Two different modules are named 'module:shared'/,
+    );
   });
 
   it('транспорт невыбранной фичи не поднимается', async () => {
@@ -845,11 +917,10 @@ describe('assemble — фичи в приложении', () => {
       name: 'orders',
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Orders, Billing],
-      select: 'orders',
       transports: [asHttpTransport(new MockTransport())],
-    });
+    }).assemble('orders');
 
     await app.run();
 
@@ -870,24 +941,24 @@ describe('assemble — именованные экземпляры трансп�
         httpEndpoint({
           method: 'GET',
           path: '/orders',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
         httpEndpoint({
           method: 'GET',
           path: '/metrics',
           on: 'admin',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
       ],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Orders],
       transports: [
         transportValue(HttpTransport$('default'), publicApi),
         transportValue(HttpTransport$('admin'), adminApi, { name: 'admin' }),
       ],
-    });
+    }).assemble();
 
     await app.run();
 
@@ -909,12 +980,12 @@ describe('assemble — именованные экземпляры трансп�
           method: 'GET',
           path: '/metrics',
           on: 'admin',
-          handle: async () => new Ok({}),
+          handler: async () => new Ok({}),
         }),
       ],
     });
 
-    const app = assemble({
+    const app = makeApp({
       features: [Orders],
       transports: [asHttpTransport(new MockTransport())],
     });

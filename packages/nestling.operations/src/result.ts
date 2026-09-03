@@ -1,5 +1,7 @@
 import {
-  type ErrorStatus,
+  type Category,
+  categoryOf,
+  type FailCode,
   type SuccessStatus,
   successStatuses,
 } from './status';
@@ -8,10 +10,9 @@ import {
  * Отказ с любым кодом и любыми деталями.
  *
  * Используется там, где конкретный отказ не важен: ограничение
- * тип-параметра `E` в {@link Output}, тип аргумента `meta.fail` в рантайме,
- * список объявленных отказов декларации.
+ * тип-параметра `E` в `Output`, список объявленных отказов декларации.
  */
-export type AnyFail = Fail<string | undefined, any>;
+export type AnyFail = Fail<FailCode, any>;
 
 /**
  * Запрещает отказ в слоте значения {@link Ok}.
@@ -23,6 +24,10 @@ type NotFail<T> = [T] extends [AnyFail] ? never : unknown;
 
 /**
  * Успешный ответ: статус, значение и необязательные заголовки.
+ *
+ * Заголовки — метаданные ответа, не зависящие от транспорта. HTTP пишет
+ * их в заголовки ответа, NATS — в заголовки ответного сообщения, CLI
+ * отбрасывает.
  */
 export class Ok<TValue = unknown> {
   /**
@@ -65,7 +70,7 @@ export class Ok<TValue = unknown> {
       this.headers = headers;
     } else {
       // Вторая перегрузка: (value, headers?)
-      this.status = 'OK';
+      this.status = 'ok';
       this.value = statusOrValue as TValue;
       this.headers = valueOrHeaders as Record<string, string> | undefined;
     }
@@ -75,34 +80,25 @@ export class Ok<TValue = unknown> {
     value: T & NotFail<T>,
     headers?: Record<string, string>,
   ): Ok<T> {
-    return new Ok('CREATED', value, headers);
+    return new Ok('created', value, headers);
   }
 
   static accepted<T>(
     value: T & NotFail<T>,
     headers?: Record<string, string>,
   ): Ok<T> {
-    return new Ok('ACCEPTED', value, headers);
+    return new Ok('accepted', value, headers);
   }
 
   static noContent(headers?: Record<string, string>): Ok<null> {
-    return new Ok('NO_CONTENT', null, headers);
+    return new Ok('no_content', null, headers);
   }
 }
 
 /**
- * Опции конструктора {@link Fail}.
- *
- * `code` отвечает на вопрос «что случилось», `status` — «как ответить».
- * Код задают определения `defineFail`; у анонимного отказа кода нет.
+ * Опции конструктора {@link Fail}: детали и исходная ошибка.
  */
-export interface FailOptions<
-  TCode extends string | undefined = string | undefined,
-  TDetails = unknown,
-> {
-  /** Машинный код отказа */
-  code?: TCode;
-
+export interface FailOptions<TDetails = unknown> {
   /** Детали отказа; попадают в тело ответа */
   details?: TDetails;
 
@@ -118,19 +114,21 @@ export interface FailOptions<
  * вызовов при `throw`. Отказ распознаётся по `code` и `isFail`, а не по
  * `instanceof`: после десериализации прототип теряется.
  *
- * @param TCode - Машинный код; `undefined` у анонимного отказа
- * (`Fail.notFound(...)`, `new Fail('CONFLICT', …)`). Этот параметр делает
- * `Fail<'A'>` и `Fail<'B'>` несовместимыми
+ * У отказа одна ось — `code`. Категория (первый сегмент кода) выводится
+ * из него и отдельно не хранится.
+ *
+ * @param TCode - Код отказа. Этот параметр делает `Fail<'not_found:a'>` и
+ * `Fail<'not_found:b'>` несовместимыми
  * @param TDetails - Тип деталей; выводится из схемы определения
  */
 export class Fail<
-  TCode extends string | undefined = string | undefined,
+  TCode extends FailCode = FailCode,
   TDetails = unknown,
 > extends Error {
   /** Дискриминант ответа (см. {@link Ok.isFail}) */
   public readonly isFail = true as const;
 
-  public readonly status: ErrorStatus;
+  /** Машинный код: `category[:detail…]` */
   public readonly code: TCode;
 
   /**
@@ -142,9 +140,9 @@ export class Fail<
   declare readonly details?: TDetails;
 
   constructor(
-    status: ErrorStatus,
+    code: TCode,
     message: string,
-    options: FailOptions<TCode, TDetails> = {},
+    options: FailOptions<TDetails> = {},
   ) {
     // `cause` передаётся только если задан: `{ cause: undefined }` создало
     // бы own-свойство `cause` со значением `undefined`.
@@ -153,8 +151,7 @@ export class Fail<
       options.cause === undefined ? undefined : { cause: options.cause },
     );
     this.name = 'Failure';
-    this.status = status;
-    this.code = options.code as TCode;
+    this.code = code;
 
     if (options.details !== undefined) {
       (this as { details?: TDetails }).details = options.details;
@@ -167,88 +164,98 @@ export class Fail<
   }
 
   /**
-   * Фабрики типовых отказов.
+   * Категория отказа: первый сегмент кода.
    *
-   * Создают анонимный отказ (`code: undefined`). Такой отказ не входит в
-   * операция endpoint'а, и на выходе из пайплайна он заменяется на
-   * `UnknownError`. Доменные отказы объявляются через `defineFail` и
-   * список `errors` декларации.
+   * Аксессор, а не поле: в сериализованный отказ категория не попадает и
+   * восстанавливается из кода на другой стороне.
+   */
+  get category(): Category {
+    return categoryOf(this.code);
+  }
+
+  /**
+   * Фабрики анонимных отказов.
+   *
+   * Код такого отказа равен категории. В `errors:` он не объявлен, и на
+   * выходе из пайплайна заменяется на `InternalError`, если декларация не
+   * перечисляет определение с тем же кодом. Доменные отказы объявляются
+   * через `makeFail` и список `errors:` декларации.
    */
   static badRequest<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('BAD_REQUEST', message, { details });
+  ): Fail<'bad_request', D> {
+    return new Fail('bad_request', message, { details });
   }
 
   static unauthorized<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('UNAUTHORIZED', message, { details });
+  ): Fail<'unauthorized', D> {
+    return new Fail('unauthorized', message, { details });
   }
 
   static forbidden<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('FORBIDDEN', message, { details });
+  ): Fail<'forbidden', D> {
+    return new Fail('forbidden', message, { details });
   }
 
   static notFound<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('NOT_FOUND', message, { details });
+  ): Fail<'not_found', D> {
+    return new Fail('not_found', message, { details });
   }
 
   static conflict<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('CONFLICT', message, { details });
+  ): Fail<'conflict', D> {
+    return new Fail('conflict', message, { details });
   }
 
   static tooManyRequests<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('TOO_MANY_REQUESTS', message, { details });
+  ): Fail<'too_many_requests', D> {
+    return new Fail('too_many_requests', message, { details });
   }
 
   static timeout<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('TIMEOUT', message, { details });
+  ): Fail<'timeout', D> {
+    return new Fail('timeout', message, { details });
   }
 
   static internalError<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('INTERNAL_ERROR', message, { details });
+  ): Fail<'internal_error', D> {
+    return new Fail('internal_error', message, { details });
   }
 
   static notImplemented<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('NOT_IMPLEMENTED', message, { details });
+  ): Fail<'not_implemented', D> {
+    return new Fail('not_implemented', message, { details });
   }
 
   static serviceUnavailable<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('SERVICE_UNAVAILABLE', message, { details });
+  ): Fail<'service_unavailable', D> {
+    return new Fail('service_unavailable', message, { details });
   }
 
   static paymentRequired<D = unknown>(
     message: string,
     details?: D,
-  ): Fail<undefined, D> {
-    return new Fail<undefined, D>('PAYMENT_REQUIRED', message, { details });
+  ): Fail<'payment_required', D> {
+    return new Fail('payment_required', message, { details });
   }
 }
 
@@ -257,10 +264,10 @@ export class Fail<
  * но с дискриминантом `isFail`.
  *
  * С этой формой работают рантайм пайплайна и предикаты определений.
+ * Категории здесь нет: её даёт `categoryOf(code)`.
  */
 export interface FailData {
   readonly isFail: true;
-  readonly status?: ErrorStatus;
   readonly code?: string;
   readonly message?: string;
   readonly details?: unknown;
@@ -278,20 +285,3 @@ export function isFail(value: unknown): value is FailData {
     (value as { isFail?: unknown }).isFail === true
   );
 }
-
-/**
- * Синхронный результат хендлера: `Ok`, значение без обёртки или отказ из
- * множества `E`.
- *
- * По умолчанию `E` равно `never`: endpoint без `errors` не может вернуть
- * отказ.
- */
-export type OutputSync<TValue = unknown, E extends AnyFail = never> =
-  | Ok<TValue>
-  | E
-  | TValue;
-
-/** Асинхронный результат хендлера (см. {@link OutputSync}) */
-export type Output<TValue = unknown, E extends AnyFail = never> = Promise<
-  Ok<TValue> | E | TValue
->;

@@ -73,8 +73,8 @@ describe('bindInputStream', () => {
     );
 
     await expect(collect(bound)).rejects.toMatchObject({
-      code: 'VALIDATION_FAILED',
-      status: 'BAD_REQUEST',
+      code: 'bad_request',
+      status: 'bad_request',
     });
   });
 
@@ -169,7 +169,7 @@ describe('bindInputStream', () => {
 });
 
 describe('kernel-отказы цепочек проходят проверку операции отказов', () => {
-  it('.limit даёт 413 с кодом STREAM_LIMIT_EXCEEDED, а не 500 UNKNOWN', async () => {
+  it('.limit даёт 413 с кодом payload_too_large, а не 500 internal_error', async () => {
     const response = await runWith(stream(LogChunk).limit(2), [
       { level: 'a' },
       { level: 'b' },
@@ -178,12 +178,12 @@ describe('kernel-отказы цепочек проходят проверку �
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'PAYLOAD_TOO_LARGE',
-      value: { code: 'STREAM_LIMIT_EXCEEDED' },
+      status: 'payload_too_large',
+      value: { code: 'payload_too_large' },
     });
   });
 
-  it('.gapTimeout даёт 504 с кодом STREAM_GAP_TIMEOUT', async () => {
+  it('.gapTimeout даёт 504 с кодом timeout', async () => {
     async function* silent(): AsyncIterableIterator<LogChunk> {
       yield { level: 'a' };
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -204,8 +204,8 @@ describe('kernel-отказы цепочек проходят проверку �
 
     expect(response).toMatchObject({
       isSuccess: false,
-      status: 'TIMEOUT',
-      value: { code: 'STREAM_GAP_TIMEOUT' },
+      status: 'timeout',
+      value: { code: 'timeout' },
     });
   });
 
@@ -232,6 +232,6 @@ describe('kernel-отказы цепочек проходят проверку �
         return new Ok({});
       }, ctx);
 
-    expect(seen).toEqual(['catch:STREAM_LIMIT_EXCEEDED', 'finally:failed']);
+    expect(seen).toEqual(['catch:payload_too_large', 'finally:failed']);
   });
 });

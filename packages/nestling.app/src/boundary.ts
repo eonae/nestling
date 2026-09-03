@@ -50,9 +50,19 @@ export function buildOwnerMap(
     for (const module of reachableModules(plugin)) {
       owners.set(module.name, { name: plugin.name, role: 'plugin' });
     }
+
+    // Единица без состава всё равно владеет узлами: класс-хендлер
+    // регистрируется под её именем
+    if (!owners.has(plugin.name)) {
+      owners.set(plugin.name, { name: plugin.name, role: 'plugin' });
+    }
   }
 
   for (const feature of features) {
+    if (!owners.has(feature.name)) {
+      owners.set(feature.name, { name: feature.name, role: 'feature' });
+    }
+
     for (const module of reachableModules(feature)) {
       const owner = owners.get(module.name);
 
@@ -66,7 +76,7 @@ export function buildOwnerMap(
             `'${owner.name}' and '${feature.name}', so it has no single ` +
             `owner and an edge into it cannot be classified. A unit shared ` +
             `by two features is infrastructure: declare it with makePlugin ` +
-            `and list it in 'plugins:' of assemble({ … }).`,
+            `and list it in 'plugins:' of makeApp({ … }).`,
         );
       }
 

@@ -272,7 +272,7 @@ describe('Pipeline v2 — типизация ctx по фазам', () => {
       // @ts-expect-error: ok-юнит не может вернуть ошибку
       .ok(() => ({
         isSuccess: false as const,
-        status: 'INTERNAL_ERROR' as const,
+        status: 'internal_error' as const,
         value: { error: 'boom' },
       }));
 
@@ -281,7 +281,7 @@ describe('Pipeline v2 — типизация ctx по фазам', () => {
       // @ts-expect-error: catch-юнит не может вернуть успех
       .catch(() => ({
         isSuccess: true as const,
-        status: 'OK' as const,
+        status: 'ok' as const,
         value: {},
       }));
   });

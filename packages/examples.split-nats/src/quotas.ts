@@ -60,13 +60,15 @@ export const QuotasFeature = makeFeature({
       // Арендатор пришёл в конверте сообщения: юнит возвращает его в
       // контекст запроса, и `QuotaLedger` читает его оттуда
       pipeline: makePipeline().pre(TenantId.propagated()),
-      deps: [QuotaLedger],
-      handle: (ledger: QuotaLedger) => async () => {
-        const remaining = ledger.claim();
+      handler: {
+        deps: [QuotaLedger],
+        handle: (ledger: QuotaLedger) => async () => {
+          const remaining = ledger.claim();
 
-        return remaining === undefined
-          ? QuotaExceeded({ limit: ledger.limit })
-          : { remaining };
+          return remaining === undefined
+            ? QuotaExceeded({ limit: ledger.limit })
+            : { remaining };
+        },
       },
     }),
 
@@ -76,12 +78,14 @@ export const QuotasFeature = makeFeature({
       // и durable-потребителя
       subscriber: 'archive',
       pipeline: makePipeline().pre(TenantId.propagated()),
-      deps: [QuotaLedger],
-      handle: (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
-        ledger.archive(payload.id);
+      handler: {
+        deps: [QuotaLedger],
+        handle: (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
+          ledger.archive(payload.id);
 
-        // eslint-disable-next-line unicorn/no-useless-undefined
-        return undefined;
+          // eslint-disable-next-line unicorn/no-useless-undefined
+          return undefined;
+        },
       },
     }),
   ],

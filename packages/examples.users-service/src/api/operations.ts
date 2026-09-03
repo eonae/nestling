@@ -38,5 +38,5 @@ export const CreateUser = makeRequest({
   output: User,
   errors: [EmailTaken, Unauthorized],
   // Статус успеха назван явно: хендлер отвечает `Ok.created(...)`
-  doc: { summary: 'Создать пользователя', tags: ['users'], status: 'CREATED' },
+  doc: { summary: 'Создать пользователя', tags: ['users'], status: 'created' },
 });

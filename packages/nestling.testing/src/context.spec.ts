@@ -13,7 +13,7 @@ import { contextValue } from './context';
 import { unwrap } from './unwrap';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeFeature } from '@nestling/app';
+import { makeApp, makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, makePipeline, Ok, RequestId } from '@nestling/pipeline';
@@ -46,9 +46,11 @@ const Whoami = httpEndpoint({
   path: '/whoami',
   output: z.object({ requestId: z.string() }),
   pipeline: makePipeline().pre(RequestId.provide(() => 'from-pipeline')),
-  deps: [AuditLog],
-  handle: (audit: AuditLog) => async () =>
-    new Ok({ requestId: audit.current() }),
+  handler: {
+    deps: [AuditLog],
+    handle: (audit: AuditLog) => async () =>
+      new Ok({ requestId: audit.current() }),
+  },
 });
 
 const AuditModule = makeFeature({
@@ -59,11 +61,15 @@ const AuditModule = makeFeature({
 
 describe('contextValue', () => {
   it('сервис читает подставленное значение без app.call', async () => {
-    await using app = await assembleTest({
-      features: [AuditModule],
-      transports: [asHttpTransport(new SpyTransport())],
-      overrides: [contextValue(RequestId, 'req-1')],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [AuditModule],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+      {
+        overrides: [contextValue(RequestId, 'req-1')],
+      },
+    );
 
     const audit = app.get(AuditLog);
 
@@ -73,20 +79,26 @@ describe('contextValue', () => {
   });
 
   it('подмена приоритетна над значением, положенным пайплайном', async () => {
-    await using app = await assembleTest({
-      features: [AuditModule],
-      transports: [asHttpTransport(new SpyTransport())],
-      overrides: [contextValue(RequestId, 'req-1')],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [AuditModule],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+      {
+        overrides: [contextValue(RequestId, 'req-1')],
+      },
+    );
 
     expect(unwrap(await app.call(Whoami))).toEqual({ requestId: 'req-1' });
   });
 
   it('без подмены app.call даёт боевое поведение проекции', async () => {
-    await using app = await assembleTest({
-      features: [AuditModule],
-      transports: [asHttpTransport(new SpyTransport())],
-    });
+    await using app = await assembleTest(
+      makeApp({
+        features: [AuditModule],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+    );
 
     expect(unwrap(await app.call(Whoami))).toEqual({
       requestId: 'from-pipeline',

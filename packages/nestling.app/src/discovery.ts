@@ -24,7 +24,7 @@ export interface DiscoveredEndpoint {
  * на списках и карте). Причина не в аккуратности: результат отдаётся графу
  * под токеном `Discovery$`, а инжектируемый discovery — поверхность
  * интроспекции, а не точка расширения. Состав приложения определяется
- * списками `features` и `plugins` и полем `select`, и менять его из графа
+ * списками `features` и `plugins` и выбором фич, и менять его из графа
  * нельзя.
  */
 export interface EndpointDiscovery {
@@ -50,7 +50,7 @@ export interface EndpointDiscovery {
  *
  * Это поверхность **интроспекции**, а не точка расширения: значение
  * заморожено, менять состав приложения из графа нельзя. Единственный способ
- * для плагина увидеть **выбранную** топологию целиком, не дублируя `select`
+ * для плагина увидеть **выбранную** топологию целиком, не дублируя выбор фич
  * в корне.
  *
  * @example
@@ -180,7 +180,7 @@ const rejectMutation = (method: string) => (): never => {
   throw new TypeError(
     `Endpoint discovery is read-only: '${method}' would change what the ` +
       `application serves. The set of endpoints comes from the declared ` +
-      `features and plugins (and 'select'), not from the graph.`,
+      `features and plugins (and the selection), not from the graph.`,
   );
 };
 

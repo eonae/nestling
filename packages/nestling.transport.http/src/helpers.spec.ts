@@ -32,7 +32,7 @@ describe('httpEndpoint', () => {
       method: 'POST',
       path: '/api/users',
       input: z.object({ name: z.string() }),
-      handle: async (input) => new Ok({ name: input.name }),
+      handler: async (input) => new Ok({ name: input.name }),
     });
 
     // Ссылка на транспорт — токен; строковое имя выводится из его id
@@ -47,7 +47,7 @@ describe('httpEndpoint', () => {
       method: 'GET',
       path: '/metrics',
       on: 'admin',
-      handle,
+      handler: handle,
     });
 
     expect(Metrics.transport).toBe(HttpTransport$('admin'));
@@ -56,19 +56,19 @@ describe('httpEndpoint', () => {
 
   it('пустой path — ошибка в момент создания', () => {
     expect(() =>
-      httpEndpoint({ method: 'GET', path: '' as string, handle }),
+      httpEndpoint({ method: 'GET', path: '' as string, handler: handle }),
     ).toThrow(/'path' must be a non-empty string/);
   });
 
   it('path без ведущего слэша — ошибка в момент создания', () => {
     expect(() =>
-      httpEndpoint({ method: 'GET', path: 'users', handle }),
+      httpEndpoint({ method: 'GET', path: 'users', handler: handle }),
     ).toThrow(/'path' must start with '\/', got 'users'/);
   });
 
   it('повторяющийся path-параметр — ошибка с именем параметра', () => {
     expect(() =>
-      httpEndpoint({ method: 'GET', path: '/a/:id/b/:id', handle }),
+      httpEndpoint({ method: 'GET', path: '/a/:id/b/:id', handler: handle }),
     ).toThrow(/path parameter ':id' is declared twice/);
   });
 
@@ -77,7 +77,7 @@ describe('httpEndpoint', () => {
       method: 'GET',
       path: '/users/:id/orders/:orderId',
       input: z.object({ id: z.string(), orderId: z.string() }),
-      handle,
+      handler: handle,
     });
 
     expect(GetOrder.pattern).toBe('GET /users/:id/orders/:orderId');
@@ -102,7 +102,7 @@ describe('PathParams', () => {
       method: 'GET',
       path: '/users/:id',
       input: z.object({ id: z.string() }),
-      handle,
+      handler: handle,
     });
 
     // Литерал сохранён: из него построено правило «имя поля совпало с
@@ -125,7 +125,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
         tags: z.array(z.string()).optional(),
       }),
       bind: { expand: query(), tags: query({ multiple: true }) },
-      handle,
+      handler: handle,
     });
 
     // Карта доступна из одного импорта декларации — без App и без сервера
@@ -153,11 +153,13 @@ describe('httpEndpoint — bind-карта на значении', () => {
       method: 'GET',
       path: '/api/users/:id',
       input: z.object({ id: z.string() }),
-      deps: [UserService],
-      handle:
-        (users) =>
-        async ({ id }) =>
-          new Ok(users.get(id)),
+      handler: {
+        deps: [UserService],
+        handle:
+          (users) =>
+          async ({ id }) =>
+            new Ok(users.get(id)),
+      },
     });
 
     const resolved = GetUser.resolve([new UserService()]);
@@ -174,7 +176,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
         // По типам допустимо (место с методом не сверяется) — правило
         // проверяется в рантайме, при создании значения
         bind: { filter: body() },
-        handle,
+        handler: handle,
       }),
     ).toThrow(/'filter' is bound to the body, but 'GET' has no request body/);
   });
@@ -201,7 +203,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       // @ts-expect-error: перегрузок больше трёх — TypeScript печатает ошибку
       // последней (класс-формы), и она садится на этот аргумент. Настоящая
       // причина (несошедшийся 'bind') в тексте сообщения на месте.
-      handle,
+      handler: handle,
     });
 
     expect(true).toBe(true);
@@ -216,7 +218,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
         // @ts-expect-error: 'id' — path-параметр шаблона, перебиндить нельзя
         bind: { id: query() },
         // @ts-expect-error: см. выше — элаборация последней перегрузки
-        handle,
+        handler: handle,
       }),
     ).toThrow(/'id' is the path parameter ':id'/);
   });
@@ -227,7 +229,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       path: '/users/:id',
       input: UpdateUserInput,
       bind: { expand: query() },
-      handle,
+      handler: handle,
     });
 
     expect(Ok200.pattern).toBe('PATCH /users/:id');
@@ -244,7 +246,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       // packages/nestling.pipeline/type-tests/fixtures/endpoint-missing-rawbody.ts
       pipeline: makePipeline<{ rawBody: Uint8Array }>(),
       // @ts-expect-error: см. выше — элаборация последней перегрузки
-      handle,
+      handler: handle,
     });
 
     expect(true).toBe(true);
@@ -257,7 +259,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       input: z.object({ id: z.string() }),
       rawBody: true,
       pipeline: makePipeline<{ rawBody: Uint8Array }>(),
-      handle,
+      handler: handle,
     });
 
     expect(httpBindingOf(Hook).rawBody).toBe(true);
@@ -270,7 +272,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       input: z.object({ id: z.string() }),
       rawBody: true,
       pipeline: makePipeline(),
-      handle,
+      handler: handle,
     });
 
     const WithoutRawBody = httpEndpoint({
@@ -278,7 +280,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       path: '/plain',
       input: z.object({ id: z.string() }),
       pipeline: makePipeline(),
-      handle,
+      handler: handle,
     });
 
     expect(httpBindingOf(WithRawBody).rawBody).toBe(true);
@@ -292,7 +294,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       method: 'GET',
       path: '/health',
       detached: reason,
-      handle,
+      handler: handle,
     });
 
     expect(Health.detached).toBe(reason);
@@ -300,7 +302,12 @@ describe('httpEndpoint — типы bind и rawBody', () => {
     // Текст — тот же, что у kernel-примитива: транспорт причину не
     // интерпретирует и своей проверки не заводит
     expect(() =>
-      httpEndpoint({ method: 'GET', path: '/health', detached: '  ', handle }),
+      httpEndpoint({
+        method: 'GET',
+        path: '/health',
+        detached: '  ',
+        handler: handle,
+      }),
     ).toThrow(/'detached' must state a reason/);
   });
 
@@ -311,7 +318,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       method: 'POST',
       path: '/opaque',
       input: 'text',
-      handle,
+      handler: handle,
     });
 
     expect(Opaque.pattern).toBe('POST /opaque');

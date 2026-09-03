@@ -96,8 +96,8 @@ describe('snapshotOperations', () => {
       topology('all', [
         descriptor('billing.charge', {
           errors: [
-            { code: 'B_SECOND', status: 'CONFLICT' },
-            { code: 'A_FIRST', status: 'NOT_FOUND' },
+            { code: 'B_SECOND', category: 'conflict' },
+            { code: 'A_FIRST', category: 'not_found' },
           ],
         }),
       ]),

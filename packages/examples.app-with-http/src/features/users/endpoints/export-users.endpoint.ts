@@ -48,5 +48,5 @@ export const ExportUsers = httpEndpoint({
   output: stream(User).limit(MAX_ROWS),
   doc: { summary: 'Выгрузка пользователей в NDJSON', tags: ['users'] },
   pipeline: observability,
-  handle: ExportUsersHandler,
+  handler: ExportUsersHandler,
 });

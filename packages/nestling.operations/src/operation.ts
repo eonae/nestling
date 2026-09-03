@@ -24,15 +24,15 @@ import type {
   InferOutput,
   ValidateOutputForm,
 } from './io/index.js';
-import type {
-  AnyFailDefinition,
-  FailsOf as FailsOfDefinitions,
-} from './define-fail.js';
-import { isFailDefinition } from './define-fail.js';
 import type { DeclarationDoc } from './doc.js';
 import { assertDoc } from './doc.js';
 import type { EmitterToken, PortToken } from './families.js';
 import { EmitterFamily, PortFamily } from './families.js';
+import type {
+  AnyFailDefinition,
+  FailsOf as FailsOfDefinitions,
+} from './make-fail.js';
+import { isFailDefinition } from './make-fail.js';
 import { registerOperation } from './registry.js';
 
 /**
@@ -84,7 +84,7 @@ export interface Operation<
   /** Форма io выхода; у `command` и `event` ответ не доставляется */
   readonly output?: O;
 
-  /** Объявленные отказы: список определений `defineFail` */
+  /** Объявленные отказы: список определений `makeFail` */
   readonly errors?: E;
 
   /**
@@ -184,7 +184,7 @@ export type OutputOf<C extends AnyOperation> =
  * вызывающего.
  *
  * Для операции без `errors` даёт `never`: незадекларированный отказ
- * приходит потребителю только как `UnknownError`.
+ * приходит потребителю только как `InternalError`.
  *
  * Отличается от `FailsOf<E>` только аргументом: тот считает множество от
  * списка определений, этот — от операции.
@@ -220,8 +220,8 @@ export interface OperationSpec<
   output?: O & ValidateOutputForm<O>;
 
   /**
-   * Объявленные отказы: список определений `defineFail`. Проверяется при
-   * создании операции: элемент не из `defineFail` или повторяющийся код
+   * Объявленные отказы: список определений `makeFail`. Проверяется при
+   * создании операции: элемент не из `makeFail` или повторяющийся код
    * дают ошибку объявления, а не сборки приложения.
    */
   errors?: E;
@@ -279,7 +279,7 @@ function assertKind(
 }
 
 /**
- * Проверяет список `errors`: каждый элемент создан `defineFail`, коды не
+ * Проверяет список `errors`: каждый элемент создан `makeFail`, коды не
  * повторяются. Те же проверки делает декларация endpoint'а.
  */
 function assertFailDefinitions(
@@ -294,7 +294,7 @@ function assertFailDefinitions(
 
   if (!Array.isArray(errors)) {
     throw new TypeError(
-      `${where}: 'errors' must be an array of defineFail() definitions.`,
+      `${where}: 'errors' must be an array of makeFail() definitions.`,
     );
   }
 
@@ -303,7 +303,7 @@ function assertFailDefinitions(
     if (!isFailDefinition(definition)) {
       throw new TypeError(
         `${where}: errors[${index}] is not a fail definition — ` +
-          `expected a value created by defineFail().`,
+          `expected a value created by makeFail().`,
       );
     }
 

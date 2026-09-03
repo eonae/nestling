@@ -179,7 +179,7 @@ export function startBudget(
     signal: AbortSignal.any([caller, own.signal]),
     get expired(): boolean {
       // Вызывающий, взведший свой сигнал, «выигрывает»: его отмена
-      // остаётся `UnknownError`, каким была до появления бюджета
+      // остаётся `InternalError`, каким была до появления бюджета
       return own.signal.aborted && !caller.aborted;
     },
     release: () => clearTimeout(timer),

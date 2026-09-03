@@ -1,11 +1,10 @@
-import { defineFail } from './define-fail.js';
 import { EmitterFamily, PortFamily } from './families.js';
+import { makeFail } from './make-fail.js';
 import { makeCommand, makeEvent, makeRequest } from './operation.js';
 
 import { z } from 'zod';
 
-const CardDeclined = defineFail('CARD_DECLINED', {
-  status: 'PAYMENT_REQUIRED',
+const CardDeclined = makeFail('payment_required:card_declined', {
   message: 'Card declined',
   details: z.object({ reason: z.string() }),
 });
@@ -76,11 +75,11 @@ describe('конструкторы операций', () => {
     );
   });
 
-  it('отвергает элемент `errors:`, не созданный defineFail', () => {
+  it('отвергает элемент `errors:`, не созданный makeFail', () => {
     expect(() =>
       makeRequest({
         name: 'spec.bad.errors',
-        // Функция без бренда `defineFail`: ошибка, которую ловит проверка
+        // Функция без бренда `makeFail`: ошибка, которую ловит проверка
         // списка
         errors: [((): void => undefined) as never],
       }),
@@ -93,7 +92,9 @@ describe('конструкторы операций', () => {
         name: 'spec.duplicate.code',
         errors: [CardDeclined, CardDeclined],
       }),
-    ).toThrow(/Operation 'spec\.duplicate\.code'.*'CARD_DECLINED'/);
+    ).toThrow(
+      /Operation 'spec\.duplicate\.code'.*'payment_required:card_declined'/,
+    );
   });
 
   it('несёт флаг долговечности у события и у команды', () => {
@@ -133,13 +134,13 @@ describe('конструкторы операций', () => {
   it('несёт секцию `doc` и отдаёт её вместе с интерфейсом операции', () => {
     const Create = makeRequest({
       name: 'spec.doc.create',
-      doc: { summary: 'Create user', tags: ['users'], status: 'CREATED' },
+      doc: { summary: 'Create user', tags: ['users'], status: 'created' },
     });
 
     expect(Create.doc).toEqual({
       summary: 'Create user',
       tags: ['users'],
-      status: 'CREATED',
+      status: 'created',
     });
   });
 
@@ -159,7 +160,7 @@ describe('конструкторы операций', () => {
     expect(() =>
       makeRequest({
         name: 'spec.doc.status',
-        doc: { status: 'PARTIAL_CONTENT' as never },
+        doc: { status: 'partial_content' as never },
       }),
     ).toThrow(/Operation 'spec\.doc\.status': 'doc\.status' must be one of/);
   });

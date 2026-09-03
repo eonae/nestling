@@ -138,6 +138,8 @@ export function createEslintConfig(fileUrl) {
         'unicorn/prefer-top-level-await': 'off', // Надо только для mjs оставить
         'unicorn/prefer-regexp-test': 'off', // Агрится на любой метод match, а не только на regexf
         'unicorn/no-array-method-this-argument': 'off', // Агрится на любой метод find, а не только на find у массива
+        // `InternalError()` и подобные — определения `makeFail`, а не классы ошибок: `new` там менял бы смысл записи
+        'unicorn/throw-new-error': 'off',
         'unicorn/filename-case': 'error',
         'no-console': 'error',
         'sort-imports': 'off',
