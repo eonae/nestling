@@ -1,3 +1,60 @@
+[03.09.2026] Ревью гайда: декларация приложения, составной код отказа, поле `handler` (guide-review-1).
+
+Change #32 — первый, который вырос из чтения гайда, а не из плана. Ревью глав
+1–5 нашло три места, где объяснение спотыкалось о сам API. Все три поправлены
+в API, а не в тексте: если поведение трудно описать, обычно неудобно устроено
+поведение.
+
+Composition root разделён на два шага. `makeApp(spec)` возвращает декларацию
+приложения, `app.assemble(select?)` — `AssembledApp` с `run()` и `close()`.
+Выбор фич перестал быть полем словаря: состав приложения и выбор того, что
+запускает этот процесс, — разные вопросы, и теперь они разнесены по аргументам.
+`check(select?, options?)` живёт на декларации, `assembleTest(app, options)` и
+`checkTopologies(app, …)` принимают её же. Тип `App` — декларация, собранное
+приложение — `AssembledApp`; публичного конструктора у второго нет.
+
+У отказа осталась одна ось. Пара `status` + `code`, связь которой держалась
+соглашением, заменена составным кодом `category[:detail…]`: сегменты по
+`[a-z_]+`, первый — категория из закрытого перечня, остальные её уточняют.
+Категорию проверяет компилятор, формат сегментов — рантайм `makeFail`. Поля
+`status` у `Fail` нет, есть производная `category`; статусы успеха и категории
+пишутся в нижнем регистре. Отказы ядра несут голую категорию — `BadRequest`,
+`PayloadTooLarge`, `Timeout`, `InternalError`, — а определения
+`ValidationFailed`, `StreamLimitExceeded`, `StreamGapTimeout`,
+`DeadlineExceeded` и `UnknownError` удалены: это был слой имён над теми же
+категориями. Закрытое множество ответа стало `E ∪ InternalError`.
+
+Зависимости перешли к хендлеру. Поля `deps` и `handle` декларации заменены
+одним полем `handler` с тремя формами: функция, `{ deps, handle }`, класс.
+Endpoint создаёт класс-хендлер сам, повторная регистрация того же класса в
+`providers:` — ошибка сборки. Канон доставки отказа назван: `return`, потому
+что возвращённый отказ виден в типе `Output`. `meta.fail` удалён как третья
+форма того же действия. `Output<T, E>` принимает определения
+(`Output<User, typeof UserNotFound>`), `FailOf` ушёл из пользовательского кода.
+Заголовки `Ok` стали метаданными ответа, не зависящими от транспорта: HTTP
+пишет их в заголовки ответа, NATS — в заголовки ответного сообщения, CLI
+отбрасывает.
+
+Гайд переписан тем же change'ем: главы 1–5 по ревью, новая глава «Хендлер как
+класс» перед главой про DI, нумерация 5–24 сдвинута на единицу, health-проба
+ушла в плагин `ops`, правила именования выделены в `docs/conventions.md`.
+Превью документации собирается из `docs/guide/*.md` — страница на главу,
+навигация по частям гайда; прежние `preview/src/*.md` перенесены в
+`history/superseded`.
+
+BREAKING по всему периметру, обёрток и алиасов нет: `assemble(spec)`,
+`defineFail`, `status` у `Fail`, `deps` и `handle` как два поля, `meta.fail`,
+`FailOf` в пользовательском коде, `select` как поле словаря корня. Добавлена
+спека `docs-preview-guide`. Дельта-спеки влиты: `composition-root`,
+`structural-check`, `test-composition-root`, `assembly-policies`,
+`lifecycle-phases`, `config-sources-binding`, `domain-fail-definitions`,
+`error-values`, `endpoint-error-contract`, `endpoint-handler-di`,
+`endpoint-declarations`, `contract-implementations`,
+`endpoint-input-validation`, `http-request-validation-errors`,
+`http-transport-limits`, `stream-item-chains`, `port-deadline`,
+`openapi-document`, `typed-http-client`, `declaration-doc-metadata`. См. change
+`guide-review-1` и записи [2026-09-03] в ideas.md.
+
 [02.09.2026] Модель композиции: модуль, фича и плагин как три роли с разными правилами (composition-model).
 
 Change #31 — третий после закрытия плана V1 и самый крупный из ломающих. Он не
