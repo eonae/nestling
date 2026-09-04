@@ -38,15 +38,13 @@ packages/nestling.pipeline/type-tests/fixtures/endpoint-missing-rawbody.ts(17,3)
 
 exports[`pipeline type diagnostics endpoint-undeclared-fail 1`] = `
 "packages/nestling.pipeline/type-tests/fixtures/endpoint-undeclared-fail.ts(23,28): error TS2769: No overload matches this call.
-  Overload 1 of 3, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"conflict:order_limit_reached">[]> & { ...; }): EndpointDefinition<...>', gave the following error.
+  Overload 1 of 2, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"conflict:order_limit_reached">[]> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'OutputSync<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>> | Output<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>>'.
       Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'Output<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>>'.
         Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type '{ id: string; } | Fail<"conflict:order_limit_reached", undefined> | Ok<{ id: string; }>'.
           Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"conflict:order_limit_reached", undefined>'.
             Type '"payment_required:card_declined"' is not assignable to type '"conflict:order_limit_reached"'.
-  Overload 2 of 3, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"conflict:order_limit_reached">[]> & { ...; }): EndpointDefinition<...>', gave the following error.
-    Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HandlerWithDeps<InjectionToken[], AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, Fail<"conflict:order_limit_reached", undefined>>'.
-  Overload 3 of 3, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"conflict:order_limit_reached">[]> & { ...; }): EndpointDefinition<...>', gave the following error.
+  Overload 2 of 2, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"conflict:order_limit_reached">[]> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HandlerClass<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, Fail<"conflict:order_limit_reached", undefined>>'.
       Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, Fail<"conflict:order_limit_reached", undefined>>; }'."
 `;

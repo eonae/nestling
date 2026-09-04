@@ -13,11 +13,7 @@ import { assertDoc, assertFormSlots, isFailDefinition } from '../core/index.js';
 import type { HandlerFn } from '../core/types/index.js';
 
 import type { Constructor } from '@common/misc';
-import type {
-  InjectionToken,
-  Token,
-  UnwrapInjectionTokens,
-} from '@nestling/container';
+import type { InjectionToken, Token } from '@nestling/container';
 import { tokenId } from '@nestling/container';
 
 /**
@@ -93,42 +89,11 @@ export type HandlerClass<
 > = Constructor<{ handle: HandlerFn<I, O, P, E> }>;
 
 /**
- * Каррированная фабрика хендлера. Внешняя функция вызывается один раз, при
- * `resolve`, и получает зависимости; замыкание играет роль инстанса.
- */
-export type HandlerFactory<
-  D extends InjectionToken[],
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-  E extends AnyFail = never,
-> = (...deps: UnwrapInjectionTokens<D>) => HandlerFn<I, O, P, E>;
-
-/**
- * Форма `handler: { deps, handle }`: каррированная фабрика с явным списком
- * токенов. Порядок аргументов `handle` совпадает с порядком `deps`.
- */
-export interface HandlerWithDeps<
-  D extends InjectionToken[],
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-  E extends AnyFail = never,
-> {
-  /** Токены зависимостей в порядке аргументов `handle` */
-  readonly deps: [...D];
-
-  /** Фабрика: получает зависимости, возвращает хендлер */
-  readonly handle: HandlerFactory<D, I, O, P, E>;
-}
-
-/**
- * Поле `handler` в любой из трёх форм: функция без зависимостей, объект
- * с `deps` и каррированной фабрикой, класс с методом `handle`.
+ * Поле `handler` в одной из двух форм: функция без зависимостей или класс
+ * с методом `handle`.
  */
 export type AnyEndpointHandler =
   | HandlerFn<any, any, any, any>
-  | HandlerWithDeps<InjectionToken[], any, any, any, any>
   | HandlerClass<any, any, any, any>;
 
 /**
@@ -141,9 +106,9 @@ export type AnyEndpointHandler =
  * @template I - Форма входа: схема, примитив или форма io
  * @template O - Форма выхода
  * @template P - `input`, накопленный пайплайном
- * @template TNeeds - Зависимости, которым ещё нужен инстанс: токены `deps`,
- * класс-хендлер и классы-юниты пайплайна. `never` означает, что декларация
- * готова к выполнению; транспорты принимают только такую
+ * @template TNeeds - Зависимости, которым ещё нужен инстанс: класс-хендлер
+ * и классы-юниты пайплайна. `never` означает, что декларация готова к
+ * выполнению; транспорты принимают только такую
  */
 export interface EndpointDefinition<
   I extends AnyPayload = AnyPayload,
@@ -156,13 +121,13 @@ export interface EndpointDefinition<
   readonly pattern: string;
 
   /**
-   * Хендлер в той форме, в какой его объявила декларация: функция,
-   * `{ deps, handle }` или класс.
+   * Хендлер в той форме, в какой его объявила декларация: функция или
+   * класс.
    *
-   * Читают его сборка и discovery: из объектной формы берутся токены
-   * `deps`, класс-форма регистрируется провайдером модуля-объявителя.
+   * Читают его сборка и discovery: класс-форма регистрируется провайдером
+   * модуля-объявителя.
    */
-  readonly handler: AnyEndpointHandler;
+  readonly handler: HandlerFn<I, O, P> | HandlerClass;
 
   /**
    * Исполнимый хендлер запроса: одна форма для рантайма.
@@ -183,8 +148,8 @@ export interface EndpointDefinition<
    * Пайплайн endpoint'а.
    *
    * Классы-юниты пайплайна попадают в `TNeeds` декларации и получают
-   * инстансы тем же `resolve`, что и `deps`: транспорт получает пайплайн,
-   * готовый к выполнению.
+   * инстансы тем же `resolve`, что и класс-хендлер: транспорт получает
+   * пайплайн, готовый к выполнению.
    */
   readonly pipeline?: Pipeline<AnyInput, P, never>;
 
@@ -233,17 +198,12 @@ export interface EndpointDefinition<
    * Получает зависимости декларации и возвращает новую декларацию, готовую
    * к выполнению; исходная не меняется.
    *
-   * Форма с резолвером работает для всех трёх форм `handler` и заодно
-   * создаёт инстансы классов-юнитов пайплайна. Позиционная форма (готовые
-   * инстансы в порядке `handler.deps`) удобна в тестах, но не подходит для
-   * класс-хендлера и пайплайна с классами-юнитами.
-   *
-   * Это две перегрузки, а не один параметр-объединение, чтобы IDE
-   * показывала формы раздельно.
+   * Резолвер создаёт инстанс класса-хендлера и инстансы классов-юнитов
+   * пайплайна. Позиционной формы `resolve([...])` нет: класс-хендлер
+   * тестируется через `new` с фейками, а декларация без зависимостей
+   * исполнима без `resolve`.
    */
   resolve(resolver: DependencyResolver): EndpointDefinition<I, O, P, never>;
-  /* eslint-disable-next-line @typescript-eslint/unified-signatures */
-  resolve(instances: readonly unknown[]): EndpointDefinition<I, O, P, never>;
 }
 
 /** Декларация с любыми тип-параметрами */
@@ -289,7 +249,7 @@ export interface EndpointOptions<
 
   /**
    * Пайплайн endpoint'а. Классы-юниты допустимы: они попадают в `TNeeds`
-   * декларации и получают инстансы вместе с `deps`.
+   * декларации и получают инстансы вместе с классом-хендлером.
    */
   pipeline?: Pipeline<AnyInput, P, PN>;
 
@@ -329,7 +289,7 @@ export interface EndpointOptions<
   detached?: string;
 
   /**
-   * @internal Зависимости принадлежат хендлеру: `handler: { deps, handle }`.
+   * @internal Зависимости объявляет класс-хендлер декоратором `@Injectable`.
    * Поле на верхнем уровне словаря отвергается типом и рантаймом.
    */
   deps?: never;
@@ -347,7 +307,6 @@ type AnyHandler = HandlerFn<any, any, any>;
 /** Форма `handler`, распознанная при создании декларации */
 type HandlerForm =
   | { kind: 'fn'; fn: AnyHandler }
-  | { kind: 'factory'; factory: (...deps: unknown[]) => AnyHandler }
   | { kind: 'class'; ctor: HandlerClass };
 
 interface EndpointState {
@@ -362,8 +321,6 @@ interface EndpointState {
   detached?: string;
   /** Поле `handler` как объявлено */
   handler: AnyEndpointHandler;
-  /** Токены объектной формы; у прочих форм пусто */
-  deps: readonly InjectionToken[];
   form: HandlerForm;
   /** Хендлер с зависимостями; у формы `fn` есть сразу */
   handle?: AnyHandler;
@@ -389,22 +346,10 @@ function isHandlerClass(value: unknown): value is HandlerClass {
   return Boolean(proto) && typeof proto?.handle === 'function';
 }
 
-/** Проверяет, что значение — объектная форма `{ deps, handle }` */
-function isHandlerWithDeps(
-  value: unknown,
-): value is HandlerWithDeps<InjectionToken[], any, any, any, any> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    Array.isArray((value as { deps?: unknown }).deps) &&
-    typeof (value as { handle?: unknown }).handle === 'function'
-  );
-}
-
 /**
- * Распознаёт одну из трёх форм `handler`. Класс проверяется первым: у
- * функции-хендлера в прототипе нет `handle`, а у стрелочной функции нет
- * прототипа вовсе.
+ * Распознаёт одну из двух форм `handler` по значению. Класс проверяется
+ * первым: у функции-хендлера в прототипе нет `handle`, а у стрелочной
+ * функции нет прототипа вовсе.
  */
 function normalizeHandler(handler: unknown, pattern: string): HandlerForm {
   if (isHandlerClass(handler)) {
@@ -415,17 +360,11 @@ function normalizeHandler(handler: unknown, pattern: string): HandlerForm {
     return { kind: 'fn', fn: handler as AnyHandler };
   }
 
-  if (isHandlerWithDeps(handler)) {
-    return {
-      kind: 'factory',
-      factory: handler.handle as (...deps: unknown[]) => AnyHandler,
-    };
-  }
-
   throw new TypeError(
-    `Endpoint '${pattern}': 'handler' must be a function (input, meta) => …, ` +
-      `an object { deps: [...], handle: (...deps) => (input, meta) => … }, ` +
-      `or a class with a handle() method.`,
+    `Endpoint '${pattern}': 'handler' must be a function (input, meta) => … ` +
+      `or a class with a handle() method. The form ` +
+      `{ deps: [...], handle: … } is gone: declare a class under ` +
+      `@Injectable([...]) with a handle() method and pass the class.`,
   );
 }
 
@@ -441,9 +380,9 @@ function assertNoLegacyFields(
     if (options[field] !== undefined) {
       throw new TypeError(
         `Endpoint '${pattern}': '${field}' is not a field of the ` +
-          `declaration. Dependencies belong to the handler: write ` +
-          `handler: { deps: [...], handle: (...deps) => (input, meta) => … }, ` +
-          `or pass a function or a class as 'handler'.`,
+          `declaration. Execution lives in 'handler': pass a function ` +
+          `(input, meta) => … or a class under @Injectable([...]) with a ` +
+          `handle() method.`,
       );
     }
   }
@@ -531,117 +470,56 @@ function unresolvedHandler(state: EndpointState): AnyHandler {
 }
 
 /**
- * Получает инстансы всех `handler.deps` через резолвер. Для каждого токена
- * результат обязателен: `undefined` и `null` — ошибка.
- */
-function resolveWith(
-  resolver: DependencyResolver,
-  state: EndpointState,
-): unknown[] {
-  return state.deps.map((token) => {
-    const instance = resolver(token);
-    if (instance === undefined || instance === null) {
-      throw new Error(
-        `Endpoint '${state.pattern}': dependency '${describeToken(token)}' ` +
-          `was not provided by the resolver.`,
-      );
-    }
-    return instance;
-  });
-}
-
-/**
- * Создаёт инстансы классов-юнитов пайплайна тем же резолвером, что и для
- * `deps`, чтобы транспорт получил пайплайн, готовый к выполнению.
+ * Создаёт инстансы классов-юнитов пайплайна тем же резолвером, что и
+ * класс-хендлер, чтобы транспорт получил пайплайн, готовый к выполнению.
  */
 function bindPipeline(
   state: EndpointState,
-  resolver: DependencyResolver | null,
+  resolver: DependencyResolver,
 ): Pipeline<AnyInput, AnyInput, never> | undefined {
   if (!state.pipeline) {
     return undefined;
   }
 
-  return state.pipeline.bind((ctor) => {
-    if (!resolver) {
-      throw new Error(
-        `Endpoint '${state.pattern}': its pipeline uses the class unit ` +
-          `'${describeToken(ctor)}', which positional resolve([...]) cannot ` +
-          `materialize — use resolve(resolver) instead.`,
-      );
-    }
-    return resolver(ctor);
-  });
+  return state.pipeline.bind((ctor) => resolver(ctor));
 }
 
 function resolveDefinition(
   state: EndpointState,
-  argument: DependencyResolver | readonly unknown[],
+  argument: DependencyResolver,
 ): AnyEndpointDefinition {
-  const positional = Array.isArray(argument);
-  const resolver = positional ? null : (argument as DependencyResolver);
+  if (typeof argument !== 'function') {
+    throw new TypeError(
+      `Endpoint '${state.pattern}': resolve takes a resolver — ` +
+        `resolve((token) => container.getOrThrow(token)). There is no ` +
+        `positional resolve([...]).`,
+    );
+  }
+  const resolver = argument;
 
-  // Хендлер уже есть (обычная функция или результат прошлого `resolve`):
-  // остаётся создать инстансы классов-юнитов пайплайна. Поэтому повторный
-  // `resolve` не вызывает фабрику второй раз.
-  if (state.handle) {
+  // Хендлер уже есть: форма `fn` заполняет его при создании, класс-форма —
+  // при прошлом `resolve`. Остаётся создать инстансы классов-юнитов
+  // пайплайна; инстанс класса-хендлера второй раз не создаётся.
+  if (state.form.kind === 'fn' || state.handle !== undefined) {
     return buildDefinition({
       ...state,
       pipeline: bindPipeline(state, resolver),
     });
   }
 
-  if (positional && state.form.kind === 'class') {
+  const ctor = state.form.ctor;
+  const instance = resolver(ctor) as { handle?: AnyHandler } | undefined;
+  if (!instance || typeof instance.handle !== 'function') {
     throw new Error(
       `Endpoint '${state.pattern}': class handler ` +
-        `'${describeToken(state.form.ctor)}' can only be materialized by ` +
-        `resolve(resolver) — positional resolve([...]) has nothing to ` +
-        `instantiate it with.`,
+        `'${describeToken(ctor)}' was not provided by the resolver.`,
     );
-  }
-
-  let instances: unknown[];
-  if (positional) {
-    instances = [...(argument as readonly unknown[])];
-    if (instances.length !== state.deps.length) {
-      throw new Error(
-        `Endpoint '${state.pattern}': resolve([...]) got ${instances.length} ` +
-          `instance(s) for ${state.deps.length} declared dependency(-ies).`,
-      );
-    }
-  } else {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    instances = resolveWith(resolver!, state);
-  }
-
-  let handle: AnyHandler;
-  switch (state.form.kind) {
-    case 'fn': {
-      handle = state.form.fn;
-      break;
-    }
-    case 'factory': {
-      handle = state.form.factory(...instances);
-      break;
-    }
-    default: {
-      const ctor = state.form.ctor;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const instance = resolver!(ctor) as { handle?: AnyHandler } | undefined;
-      if (!instance || typeof instance.handle !== 'function') {
-        throw new Error(
-          `Endpoint '${state.pattern}': class handler ` +
-            `'${describeToken(ctor)}' was not provided by the resolver.`,
-        );
-      }
-      handle = instance.handle.bind(instance);
-    }
   }
 
   return buildDefinition({
     ...state,
     pipeline: bindPipeline(state, resolver),
-    handle,
+    handle: instance.handle.bind(instance),
   });
 }
 
@@ -652,8 +530,8 @@ function buildDefinition(state: EndpointState): AnyEndpointDefinition {
     pattern: state.pattern,
     handler: state.handler,
     handle: state.handle ?? unresolvedHandler(state),
-    resolve: (argument: DependencyResolver | readonly unknown[]) =>
-      resolveDefinition(state, argument),
+    resolve: (resolver: DependencyResolver) =>
+      resolveDefinition(state, resolver),
   };
 
   if (state.input !== undefined) {
@@ -706,19 +584,6 @@ export function isEndpointDefinition(
 }
 
 /**
- * Токены, которые декларация запрашивает у контейнера через объектную
- * форму `handler: { deps, handle }`. У функции и класса — пусто:
- * зависимости класса читает контейнер из `@Injectable`.
- */
-export function handlerDependenciesOf(
-  definition: AnyEndpointDefinition,
-): readonly InjectionToken[] {
-  const { handler } = definition;
-
-  return isHandlerWithDeps(handler) ? handler.deps : [];
-}
-
-/**
  * Класс-хендлер декларации, если она объявлена в класс-форме.
  *
  * Сборка регистрирует его провайдером модуля-объявителя: перечислять
@@ -733,7 +598,8 @@ export function handlerClassOf(
 }
 
 /**
- * Создаёт декларацию endpoint'а: распознаёт форму `handler`, переносит
+ * Создаёт декларацию endpoint'а: распознаёт форму `handler` (функция или
+ * класс), переносит
  * `errors:`, `doc` и `detached`, ставит метку и добавляет `resolve`.
  *
  * В пользовательском коде вместо него используются конструкторы
@@ -762,18 +628,6 @@ export function makeEndpoint<
     handler: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
-export function makeEndpoint<
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  E extends readonly AnyFailDefinition[] = [],
-  D extends InjectionToken[] = InjectionToken[],
->(
-  options: EndpointOptions<I, O, P, PN, E> & {
-    handler: HandlerWithDeps<D, I, O, P, FailsOf<E>>;
-  },
-): EndpointDefinition<I, O, P, PN | D[number]>;
 export function makeEndpoint<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,
@@ -830,7 +684,6 @@ export function makeEndpoint(
     doc: options.doc,
     detached: options.detached,
     handler: options.handler as AnyEndpointHandler,
-    deps: isHandlerWithDeps(options.handler) ? options.handler.deps : [],
     form,
     // Обычная функция готова сразу; остальные формы ждут resolve()
     handle: form.kind === 'fn' ? form.fn : undefined,

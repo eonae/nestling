@@ -4,7 +4,7 @@
  * фабрики вызова замыкают фикстуры своего теста */
 /**
  * `errors:` в декларации: проверка списка при создании, перенос на
- * значение и вывод множества `E` в хендлер (все три формы `handle`).
+ * значение и вывод множества `E` в хендлер (обе формы `handler`).
  */
 
 import { Fail, makeFail, Ok } from '../core/index.js';
@@ -33,7 +33,6 @@ const OrderOutput = z.object({ id: z.string() });
 interface IBilling {
   charge(): Promise<{ id: string }>;
 }
-const IBillingToken = makeToken<IBilling>('IBilling');
 
 describe('errors: — проверка при создании декларации', () => {
   it('список переносится на значение декларации', () => {
@@ -47,21 +46,25 @@ describe('errors: — проверка при создании декларац�
     expect(Endpoint.errors).toEqual([OrderLimitReached, CardDeclined]);
   });
 
-  it('список переживает резолв зависимостей', () => {
+  it('список переживает получение зависимостей', () => {
+    class ChargeHandler {
+      constructor(private readonly billing: IBilling) {}
+
+      async handle() {
+        return new Ok(await this.billing.charge());
+      }
+    }
+
     const Endpoint = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'POST /orders',
       errors: [OrderLimitReached],
-      handler: {
-        deps: [IBillingToken],
-        handle: (billing: IBilling) => async () =>
-          new Ok(await billing.charge()),
-      },
+      handler: ChargeHandler,
     });
 
-    const resolved = Endpoint.resolve(() => ({
-      charge: async () => ({ id: '1' }),
-    }));
+    const resolved = Endpoint.resolve(
+      () => new ChargeHandler({ charge: async () => ({ id: '1' }) }),
+    );
 
     expect(resolved.errors).toEqual([OrderLimitReached]);
   });
@@ -152,36 +155,7 @@ describe('errors: — проверка при создании декларац�
   });
 }
 
-// Форма 2 — каррированная фабрика
-{
-  const Declared = makeEndpoint({
-    transport: HttpTransport$,
-    pattern: 'POST /orders',
-    output: OrderOutput,
-    errors: [CardDeclined],
-    handler: {
-      deps: [IBillingToken],
-      handle: (billing) => async () => {
-        const charged = await billing.charge();
-        return charged.id ? new Ok(charged) : CardDeclined();
-      },
-    },
-  });
-
-  // @ts-expect-error: OrderLimitReached не объявлен в errors:
-  const Foreign = makeEndpoint({
-    transport: HttpTransport$,
-    pattern: 'POST /orders',
-    output: OrderOutput,
-    errors: [CardDeclined],
-    handler: {
-      deps: [IBillingToken],
-      handle: (billing) => async () => OrderLimitReached({ limit: 10 }),
-    },
-  });
-}
-
-// Форма 3 — класс-хендлер
+// Форма 2 — класс-хендлер
 {
   class DeclaredHandler {
     async handle() {

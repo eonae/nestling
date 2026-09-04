@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable unicorn/consistent-function-scoping, unicorn/no-useless-undefined */
 /**
- * Декларация endpoint'а — значение: рантайм трёх форм `handle`, резолв
+ * Декларация endpoint'а — значение: рантайм двух форм `handler`, получение
  * зависимостей и бренд. Плюс типовые тесты на `TNeeds`.
  */
 
@@ -52,8 +52,25 @@ class UserService {
   }
 }
 
+/** Класс-хендлер фикстур: зависимость приходит конструктором */
+class GetUserHandler {
+  constructor(private readonly users: UserService) {}
+
+  async handle(input: { id: string }) {
+    return new Ok(this.users.getById(input.id));
+  }
+}
+
 const UserInput = z.object({ id: z.string() });
 const UserOutput = z.object({ id: z.string(), name: z.string() });
+
+/**
+ * Вызов `makeEndpoint` так, как его сделает потребитель без типов: словарь
+ * подставляется мимо перегрузок, проверяется рантайм. Компилятор те же
+ * случаи ловит в разделе типовых тестов.
+ */
+const makeEndpointFromJs = (options: unknown) =>
+  makeEndpoint(options as Parameters<typeof makeEndpoint>[0]);
 
 /** Зарезервированный ключ meta: его инъецирует рантайм пайплайна */
 const meta = {
@@ -64,7 +81,7 @@ const meta = {
 // Рантайм
 // ============================================================================
 
-describe('makeEndpoint — формы handle', () => {
+describe('makeEndpoint — формы handler', () => {
   it('голая функция исполнима сразу, без резолва', async () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
@@ -77,34 +94,7 @@ describe('makeEndpoint — формы handle', () => {
     );
   });
 
-  it('каррированная фабрика исполняется после resolve', async () => {
-    const GetUser = makeEndpoint({
-      transport: HttpTransport$,
-      pattern: 'GET /users/:id',
-      input: UserInput,
-      output: UserOutput,
-      handler: {
-        deps: [UserService],
-        handle: (users) => async (input) => new Ok(users.getById(input.id)),
-      },
-    });
-
-    const resolved = GetUser.resolve([new UserService()]);
-
-    await expect(resolved.handle({ id: '7' }, meta)).resolves.toEqual(
-      new Ok({ id: '7', name: 'Alice' }),
-    );
-  });
-
-  it('класс-хендлер резолвится резолвером и сохраняет this', async () => {
-    class GetUserHandler {
-      constructor(private readonly users: UserService) {}
-
-      async handle(input: { id: string }) {
-        return new Ok(this.users.getById(input.id));
-      }
-    }
-
+  it('класс-хендлер исполняется после resolve и сохраняет this', async () => {
     const GetUser = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
@@ -121,40 +111,62 @@ describe('makeEndpoint — формы handle', () => {
     );
   });
 
-  it('до резолва handle бросает понятную ошибку, а не отдаёт undefined', () => {
+  it('до получения зависимостей handle бросает понятную ошибку', () => {
     const GetUser = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
-      handler: {
-        deps: [UserService],
-        handle: (users) => async () => new Ok(users.getById('1')),
-      },
+      input: UserInput,
+      handler: GetUserHandler,
     });
 
-    expect(() => GetUser.handle(undefined, meta)).toThrow(
+    expect(() => GetUser.handle({ id: '1' }, meta)).toThrow(
       /GET \/users\/:id.*unresolved dependencies/s,
     );
   });
 
-  it('внешний вызов фабрики — один раз на несколько запросов', async () => {
-    const factory = jest.fn((users: UserService) => async () => new Ok({}));
+  it('инстанс класса-хендлера создаётся один раз на несколько запросов', async () => {
+    const resolver = jest.fn(() => new GetUserHandler(new UserService()));
 
     const Endpoint = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /counted',
-      handler: {
-        deps: [UserService],
-        handle: factory,
-      },
+      input: UserInput,
+      handler: GetUserHandler,
     });
 
-    const resolved = Endpoint.resolve([new UserService()]);
+    const resolved = Endpoint.resolve(resolver);
 
-    await resolved.handle(undefined, meta);
-    await resolved.handle(undefined, meta);
-    await resolved.handle(undefined, meta);
+    await resolved.handle({ id: '1' }, meta);
+    await resolved.handle({ id: '1' }, meta);
+    await resolved.handle({ id: '1' }, meta);
 
-    expect(factory).toHaveBeenCalledTimes(1);
+    expect(resolver).toHaveBeenCalledTimes(1);
+  });
+
+  it('объект в handler отвергается с указанием на класс-форму', () => {
+    expect(() =>
+      makeEndpointFromJs({
+        transport: HttpTransport$,
+        pattern: 'GET /users',
+        handler: {
+          deps: [UserService],
+          handle: (users: UserService) => async () => new Ok({}),
+        },
+      }),
+    ).toThrow(
+      /Endpoint 'GET \/users'.*@Injectable\(\[\.{3}]\) with a handle\(\) method/s,
+    );
+  });
+
+  it('поля deps и handle на верхнем уровне словаря отвергаются', () => {
+    expect(() =>
+      makeEndpointFromJs({
+        transport: HttpTransport$,
+        pattern: 'GET /users',
+        deps: [UserService],
+        handler: async () => new Ok({}),
+      }),
+    ).toThrow(/'deps' is not a field of the declaration/);
   });
 });
 
@@ -163,16 +175,14 @@ describe('makeEndpoint — resolve', () => {
     transport: HttpTransport$,
     pattern: 'GET /users/:id',
     input: UserInput,
-    handler: {
-      deps: [UserService],
-      handle: (users) => async (input: { id: string }) =>
-        new Ok(users.getById(input.id)),
-    },
+    handler: GetUserHandler,
   });
 
+  const newHandler = () => new GetUserHandler(new UserService());
+
   it('возвращает новое значение, исходную декларацию не трогает', async () => {
-    const first = declaration.resolve([new UserService()]);
-    const second = declaration.resolve([new UserService()]);
+    const first = declaration.resolve(newHandler);
+    const second = declaration.resolve(newHandler);
 
     expect(first).not.toBe(declaration);
     expect(first).not.toBe(second);
@@ -185,46 +195,18 @@ describe('makeEndpoint — resolve', () => {
     await expect(second.handle({ id: '1' }, meta)).resolves.toBeInstanceOf(Ok);
   });
 
-  it('резолвер, не отдавший зависимость, — ошибка с именем токена', () => {
-    const NeedsLogger = makeEndpoint({
-      transport: HttpTransport$,
-      pattern: 'GET /logged',
-      handler: {
-        deps: [ILogger],
-        handle: (logger) => async () => {
-          logger.log('served');
-          return new Ok({});
-        },
-      },
-    });
-
-    expect(() => NeedsLogger.resolve(() => undefined)).toThrow(
-      /ILogger.*not provided by the resolver/s,
+  it('резолвер, не отдавший класс-хендлер, — ошибка с именем класса', () => {
+    expect(() => declaration.resolve(() => undefined)).toThrow(
+      /class handler 'GetUserHandler'.*not provided by the resolver/s,
     );
   });
 
-  it('позиционная форма сверяет число инстансов с deps', () => {
-    expect(() => declaration.resolve([])).toThrow(
-      /got 0 instance\(s\) for 1 declared/,
-    );
-  });
+  it('позиционная форма не принимается', () => {
+    const positional = [new GetUserHandler(new UserService())];
 
-  it('класс-хендлер требует резолвер-формы', () => {
-    class Handler {
-      async handle() {
-        return new Ok({});
-      }
-    }
-
-    const WithClass = makeEndpoint({
-      transport: HttpTransport$,
-      pattern: 'GET /class',
-      handler: Handler,
-    });
-
-    expect(() => WithClass.resolve([new Handler()])).toThrow(
-      /class handler 'Handler'.*resolve\(resolver\)/s,
-    );
+    expect(() =>
+      (declaration.resolve as (argument: unknown) => unknown)(positional),
+    ).toThrow(/resolve takes a resolver.*container\.getOrThrow/s);
   });
 
   it('связывает классы-юниты пайплайна тем же резолвером', async () => {
@@ -248,43 +230,22 @@ describe('makeEndpoint — resolve', () => {
     expect(resolved.pipeline).not.toBe(Traced.pipeline);
   });
 
-  it('пайплайн с классами-юнитами недоступен позиционной форме', () => {
-    class WithTracing {
-      handle(): { traceId: string } {
-        return { traceId: 'trace' };
-      }
-    }
-
-    const Traced = makeEndpoint({
-      transport: HttpTransport$,
-      pattern: 'GET /traced',
-      pipeline: makePipeline().pre(WithTracing),
-      handler: async () => new Ok({}),
-    });
-
-    expect(() => Traced.resolve([])).toThrow(
-      /class unit 'WithTracing'.*resolve\(resolver\)/s,
-    );
-  });
-
-  it('повторный resolve не вызывает фабрику второй раз', async () => {
-    const factory = jest.fn((users: UserService) => async () => new Ok({}));
+  it('повторный resolve не создаёт инстанс второй раз', async () => {
+    const resolver = jest.fn(() => new GetUserHandler(new UserService()));
 
     const Endpoint = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /twice',
-      handler: {
-        deps: [UserService],
-        handle: factory,
-      },
+      input: UserInput,
+      handler: GetUserHandler,
     });
 
-    const once = Endpoint.resolve([new UserService()]);
-    const twice = once.resolve([]);
+    const once = Endpoint.resolve(resolver);
+    const twice = once.resolve(() => undefined);
 
-    await twice.handle(undefined, meta);
+    await twice.handle({ id: '1' }, meta);
 
-    expect(factory).toHaveBeenCalledTimes(1);
+    expect(resolver).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -380,18 +341,18 @@ describe('makeEndpoint — носитель binding', () => {
     expect(UpdateUser.binding).toBe(binding);
   });
 
-  it('binding переживает резолв зависимостей', () => {
+  it('binding переживает получение зависимостей', () => {
     const GetUser = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users/:id',
+      input: UserInput,
       binding,
-      handler: {
-        deps: [UserService],
-        handle: (users) => async () => new Ok(users.getById('1')),
-      },
+      handler: GetUserHandler,
     });
 
-    const resolved = GetUser.resolve([new UserService()]);
+    const resolved = GetUser.resolve(
+      () => new GetUserHandler(new UserService()),
+    );
 
     expect(resolved.binding).toBe(binding);
     // Декларация иммутабельна: исходная не тронута
@@ -447,41 +408,21 @@ describe('makeEndpoint — типы', () => {
       handler: async () => new Ok({ pong: true }),
     });
 
-    const Curried = makeEndpoint({
-      transport: HttpTransport$,
-      pattern: 'GET /users/:id',
-      handler: {
-        deps: [UserService, ILogger],
-        handle: (users, logger) => async () => new Ok({}),
-      },
-    });
-
-    class GetUserHandler {
-      async handle() {
-        return new Ok({});
-      }
-    }
-
     const WithClass = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /class',
+      input: UserInput,
       handler: GetUserHandler,
     });
 
     type _DepsFree = Expect<Equal<InferNeeds<typeof DepsFree>, never>>;
-    type _Curried = Expect<
-      Equal<
-        InferNeeds<typeof Curried>,
-        typeof UserService | Token<ILoggerService>
-      >
-    >;
     type _WithClass = Expect<
       Equal<InferNeeds<typeof WithClass>, typeof GetUserHandler>
     >;
 
-    // Резолв возвращает исполнимую декларацию
+    // Получение зависимостей возвращает исполнимую декларацию
     type _Resolved = Expect<
-      Equal<InferNeeds<ReturnType<typeof Curried.resolve>>, never>
+      Equal<InferNeeds<ReturnType<typeof WithClass.resolve>>, never>
     >;
 
     expect(DepsFree.pattern).toBe('GET /ping');
@@ -506,26 +447,24 @@ describe('makeEndpoint — типы', () => {
     expect(Traced.pattern).toBe('GET /traced');
   });
 
-  it('исполнимая декларация присваиваема, декларация с deps — нет', () => {
+  it('исполнимая декларация присваиваема, декларация с классом — нет', () => {
     const DepsFree = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
       handler: async () => new Ok({}),
     });
 
-    const Curried = makeEndpoint({
+    const WithClass = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
-      handler: {
-        deps: [UserService],
-        handle: (users) => async () => new Ok({}),
-      },
+      input: UserInput,
+      handler: GetUserHandler,
     });
 
     const executable: EndpointDefinition<any, any, any, never> = DepsFree;
 
-    // @ts-expect-error: декларация с неразрешёнными deps не исполнима
-    const rejected: EndpointDefinition<any, any, any, never> = Curried;
+    // @ts-expect-error: декларация с неразрешёнными зависимостями не исполнима
+    const rejected: EndpointDefinition<any, any, any, never> = WithClass;
 
     expect(executable.pattern).toBe('GET /ping');
   });
@@ -552,17 +491,30 @@ describe('makeEndpoint — типы', () => {
     expect(true).toBe(true);
   });
 
-  it('deps без каррированной формы хендлера — ошибка компиляции', () => {
-    // @ts-expect-error: с deps хендлер обязан быть каррированной фабрикой
-    makeEndpoint({
-      transport: HttpTransport$,
-      pattern: 'GET /users',
-      handler: {
-        deps: [UserService],
-        handle: async () => new Ok({}),
-      },
-    });
+  it('объект в handler и позиционный resolve — ошибки компиляции', () => {
+    // Обе записи отвергает и рантайм, поэтому здесь они только компилируются
+    const compileOnly = () => {
+      makeEndpoint({
+        transport: HttpTransport$,
+        pattern: 'GET /users',
+        handler: {
+          // @ts-expect-error: `handler` принимает функцию или класс, не объект
+          deps: [UserService],
+          handle: async () => new Ok({}),
+        },
+      });
 
-    expect(true).toBe(true);
+      const WithClass = makeEndpoint({
+        transport: HttpTransport$,
+        pattern: 'GET /users',
+        input: UserInput,
+        handler: GetUserHandler,
+      });
+
+      // @ts-expect-error: `resolve` принимает резолвер, а не массив инстансов
+      WithClass.resolve([new GetUserHandler(new UserService())]);
+    };
+
+    expect(compileOnly).toBeInstanceOf(Function);
   });
 });

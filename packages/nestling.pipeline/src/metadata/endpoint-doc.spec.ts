@@ -19,8 +19,6 @@ interface IClock {
   now(): number;
 }
 
-const IClock$ = makeToken<IClock>('IClock');
-
 describe('doc — секция на значении декларации', () => {
   it('переносится на декларацию как есть', () => {
     const List = makeEndpoint({
@@ -33,18 +31,23 @@ describe('doc — секция на значении декларации', () =
     expect(List.doc).toEqual({ summary: 'List users', tags: ['users'] });
   });
 
-  it('переживает резолв зависимостей', () => {
+  it('переживает получение зависимостей', () => {
+    class ListHandler {
+      constructor(private readonly clock: IClock) {}
+
+      async handle() {
+        return new Ok({ at: this.clock.now() });
+      }
+    }
+
     const List = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /users',
       doc: { summary: 'List users', status: 'ok' },
-      handler: {
-        deps: [IClock$],
-        handle: (clock: IClock) => async () => new Ok({ at: clock.now() }),
-      },
+      handler: ListHandler,
     });
 
-    const resolved = List.resolve(() => ({ now: () => 0 }));
+    const resolved = List.resolve(() => new ListHandler({ now: () => 0 }));
 
     expect(resolved.doc).toEqual({ summary: 'List users', status: 'ok' });
   });

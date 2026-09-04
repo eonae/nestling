@@ -22,8 +22,6 @@ interface IClock {
   now(): number;
 }
 
-const IClock$ = makeToken<IClock>('IClock');
-
 describe('detached — причина на значении декларации', () => {
   it('строка переносится на декларацию', () => {
     const Health = makeEndpoint({
@@ -36,18 +34,23 @@ describe('detached — причина на значении декларации
     expect(Health.detached).toBe(reason);
   });
 
-  it('причина переживает резолв зависимостей', () => {
+  it('причина переживает получение зависимостей', () => {
+    class HealthHandler {
+      constructor(private readonly clock: IClock) {}
+
+      async handle() {
+        return new Ok({ at: this.clock.now() });
+      }
+    }
+
     const Health = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /health',
       detached: reason,
-      handler: {
-        deps: [IClock$],
-        handle: (clock: IClock) => async () => new Ok({ at: clock.now() }),
-      },
+      handler: HealthHandler,
     });
 
-    const resolved = Health.resolve(() => ({ now: () => 0 }));
+    const resolved = Health.resolve(() => new HealthHandler({ now: () => 0 }));
 
     expect(resolved.detached).toBe(reason);
   });
