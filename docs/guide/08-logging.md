@@ -222,6 +222,9 @@ export class DbUsersRepository implements UsersRepository {
   потому что тот же метод может быть вызван из `@OnInit`, где запроса
   ещё нет.
 
+Что переменная объявлена на каждом маршруте, где её читают, проверяет
+политика сборки `hasVar`: [глава 9](./09-auth.md).
+
 Слой можно расширить другим слоем функцией `compose`: `pre`-юниты
 внешнего слоя выполняются раньше, а `.finally` внешнего слоя выполняется
 позже, чем у внутреннего.
@@ -243,7 +246,7 @@ it('пишет строку аудита с идентификатором за�
   unwrap(await testApp.call(GetUser, { id: '1' }));
 
   expect(spy.lines).toContainEqual(
-    expect.stringMatching(/^\[[^\]]+] GET \/users\/:id OK \(completed\)$/),
+    expect.stringMatching(/^\[[^\]]+] GET \/users\/:id ok \(completed\)$/),
   );
 });
 ```
@@ -254,7 +257,7 @@ it('пишет строку аудита с идентификатором за�
 `testApp.call` нет, и `withRequestId()` генерирует идентификатор сам.
 
 Запрос несуществующего пользователя оставляет в логе строку
-`GET /users/:id NOT_FOUND (failed)`: отказ хендлера проходит через тот
+`GET /users/:id not_found (failed)`: отказ хендлера проходит через тот
 же `.finally`.
 
 ```bash

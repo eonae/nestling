@@ -1,12 +1,12 @@
-import { authed } from './auth';
-import { observability } from './observability';
-import { ops } from './ops.plugin';
-import { UsersFeature } from './users.feature';
+import { authed } from './auth.js';
+import { observability } from './observability.js';
+import { ops } from './ops.plugin.js';
+import { UsersFeature } from './users.feature.js';
 
 import { makeApp } from '@nestling/app';
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
-import { everyEndpoint } from '@nestling/pipeline';
+import { everyEndpoint, RequestId } from '@nestling/pipeline';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
 /**
@@ -39,6 +39,13 @@ export const app = makeApp({
     everyEndpoint({ pattern: /^(POST|PATCH|DELETE) / }).hasLayer(
       authed,
       'authed',
+    ),
+    // Хранилище читает `requestId` из контекста запроса. Политика требует,
+    // чтобы пайплайн эту переменную объявлял: иначе чтение вернуло бы
+    // `undefined` на том маршруте, где слой забыли подключить
+    everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
+      RequestId,
+      'requestId',
     ),
   ],
 });
