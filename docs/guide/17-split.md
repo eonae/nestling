@@ -1,6 +1,6 @@
 # 17. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `examples.split-nats` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.split-nats` (2026-09-04).
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
@@ -8,17 +8,13 @@
 > `durable` в контракте; `propagate` двумя каналами» и «Модель композиции:
 > фича, плагин, операция».
 
-## Задача
-
 Фичи `users` и `quotas` работают в одном процессе и общаются операциями.
 Нагрузка на квоты другая, и их хочется развернуть отдельным сервисом.
 Вызовы `quotas.claim` и подписку на `users.registered` переписывать не
 хочется: пусть те же фичи работают в двух процессах, а сообщения между ними
 переносит брокер.
 
-## Решение
-
-### Объявите шину и назначьте ей роль
+## Объявите шину и назначьте ей роль
 
 ```typescript
 // packages/examples.split-nats/src/app.ts
@@ -46,13 +42,16 @@ export const app = declareApp();
 умолчанию `nats://127.0.0.1:4222`. `intercom: 'events'` назначает этому
 транспорту роль переносчика операций. Пока роль не назначена, операции
 между фичами доставляет шина внутри процесса. После назначения её место
-занимает брокер: шина в приложении одна.
+занимает брокер: шина в приложении одна. Объявленная шина без назначенной
+роли останавливает сборку, а в роль интеркома встают только транспорты,
+переносящие операции: `http()` в `intercom:` не компилируется. Без роли
+переносчика вызов операции, чей владелец не выбран, останавливает сборку,
+как в главе [16](./16-select.md).
 
-Декларация одна на все процессы. Роль процесса задаёт выбор фич, который
-`main.ts` читает из `APP_FEATURES` до сборки, как в главе
-[16](./16-select.md).
+Роль процесса задаёт выбор фич, который `main.ts` читает из
+`APP_FEATURES` до сборки, как в главе [16](./16-select.md).
 
-### Оставьте код фич как есть
+## Оставьте код фич как есть
 
 ```typescript
 // packages/examples.split-nats/src/users.ts
@@ -93,7 +92,7 @@ export class RegistrationService {
 выполняется напрямую, а событие всё равно уходит через брокер: его
 подписчики могут быть в других процессах.
 
-### Объявите долговечность события
+## Долговечность события и контекст через границу процесса
 
 ```typescript
 // packages/examples.split-nats/src/operations.ts
@@ -108,7 +107,9 @@ export const UserRegistered = makeEvent({
 Транспорт NATS заводит под таким subject'ом поток JetStream: издатель
 ждёт подтверждения записи в поток, подписчик читает из потока и
 подтверждает обработку. Подписчик, который в момент публикации не работал,
-получит событие после запуска.
+получит событие после запуска. Поле принимают только `command` и `event`:
+у `request` вызывающий ждёт ответа, и `durable: true` для него не
+компилируется.
 
 ```typescript
 // packages/examples.split-nats/src/quotas.ts
@@ -135,8 +136,6 @@ export const UserRegistered = makeEvent({
 объявлена в операции, а не в корне, потому что о ней должны знать обе
 стороны: издатель ждёт подтверждения записи, подписчик читает из потока.
 
-### Передайте контекст запроса через границу процесса
-
 ```typescript
 // packages/examples.split-nats/src/context.ts
 export const TenantId = contextVar<string>()('tenantId', { propagate: true });
@@ -144,9 +143,9 @@ export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 
 Арендатор приходит от внешнего клиента и нужен в обоих процессах, но ни в
 одной схеме `input` его нет. `propagate: true` включает передачу
-переменной через границу порта. Вызыватель берёт значение из контекста
+переменной через границу порта: вызыватель берёт значение из контекста
 текущего запроса и кладёт его в заголовок сообщения `Nl-Ctx`. Передаётся
-только переменная с этой пометкой; остальной контекст через границу не
+только переменная с этой пометкой, остальной контекст через границу не
 проходит.
 
 ```typescript
@@ -175,7 +174,7 @@ export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 `quotas.claim`, и `users.registered` приходят из другого процесса.
 
 ```typescript
-// packages/examples.split-nats/src/quotas.ts
+// packages/examples.split-nats/src/quotas.ts (фрагмент)
 @Injectable([Ctx(TenantId)])
 export class QuotaLedger {
   readonly limit = 100;
@@ -196,7 +195,7 @@ export class QuotaLedger {
 положил его в заголовок, процесс `users` прочитал и передал дальше при
 вызове `quotas.claim`, процесс `quotas` прочитал снова.
 
-### Запустите два процесса
+## Запустите и проверьте два процесса
 
 ```bash
 docker run --rm -p 4222:4222 nats:2 -js
@@ -222,10 +221,8 @@ APP_FEATURES=users yarn workspace examples.split-nats start:dev
 nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"acme"}'
 ```
 
-Тот же корень с `APP_FEATURES=all` поднимает обе фичи одним процессом.
-Ни один файл фич при этом не меняется.
-
-### Проверьте путь через шину в одном процессе
+Тот же корень с `APP_FEATURES=all` поднимает обе фичи одним процессом. Ни
+один файл фич при этом не меняется.
 
 Политика диспатча `NESTLING_PORTS_DISPATCH=always-remote` отправляет
 каждый вызов операции как сообщение, даже когда владелец работает в этом
@@ -234,26 +231,11 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 путь, близкий к сетевому, до появления брокера. Тест на обе политики лежит
 в `packages/examples.app-with-http/src/app.spec.ts`.
 
-## Что гарантирует фреймворк
-
-- Вызов операции, владелец которой не выбран в сборке без интеркома,
-  останавливает сборку. Ошибка называет операцию и вызывателя и говорит,
-  что вызову некуда идти.
-- Объявленная шина без назначенной роли останавливает сборку. В роль
-  интеркома встают только транспорты, переносящие операции: `http()` в
-  `intercom:` не компилируется.
-- `durable: true` принимают только `command` и `event`. У `request`
-  вызывающий ждёт ответа, и поле для него не компилируется.
-- Через границу порта проходят только переменные с `propagate: true`.
-  Значения остальных переменных остаются в процессе вызывающего.
-
-## Как проверить
-
 Тест поднимает оба процесса в одном jest-процессе поверх двойника брокера
-`NatsDouble`. Сеть не нужна.
+`NatsDouble`, и сеть не нужна:
 
 ```typescript
-// packages/examples.split-nats/src/split.spec.ts
+// packages/examples.split-nats/src/split.spec.ts (фрагмент)
   it('два процесса общаются операциями через брокер', async () => {
     const broker = new NatsDouble();
     const topology = await run(broker, 'quotas', 'users');
@@ -283,41 +265,17 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 
 `run` создаёт по приложению на каждый выбор фич: `declareApp` с
 соединением к двойнику, затем `assemble(select)` на каждую роль.
-`broker.published` хранит все
-отправленные сообщения с заголовками: по нему тест проверяет subject'ы и
-арендатора в `Nl-Ctx`, а через `broker.jetstreamManager()` находит поток
-`nestling_users_registered`. Второй тест того же файла поднимает выбор
-`'all'` и проверяет, что `quotas.claim` на брокер не выходит.
-Третий собирает процесс `users` без владельца `quotas.claim` и
-убеждается, что сборка проходит.
-
-## Пока не нужно
-
-- Проверка, что изменение операции не сломает соседний процесс: снапшот
-  операций и `diffOperations` в главе [18](./18-compatibility.md).
-- Список открытых подписок и их принудительное закрытие: глава
-  [23](./23-ops.md).
-
-## Запускаемый код
-
-| Файл | Что показывает |
-|---|---|
-| `packages/examples.split-nats/src/app.ts` | одна декларация на все процессы: `nats()` и `intercom:` |
-| `packages/examples.split-nats/src/main.ts` | выбор фич из `APP_FEATURES` до сборки |
-| `packages/examples.split-nats/src/operations.ts` | команда, запрос и событие с `durable: true` |
-| `packages/examples.split-nats/src/context.ts` | переменная контекста с `propagate: true` |
-| `packages/examples.split-nats/src/users.ts` | фича без знания о транспорте и процессах |
-| `packages/examples.split-nats/src/quotas.ts` | владелец запроса и durable-подписчик, чтение контекста в сервисе |
-| `packages/examples.split-nats/src/split.spec.ts` | две топологии на двойнике брокера |
-| `packages/examples.split-nats/src/isolated.spec.ts` | фича без соседа и без брокера, глава [15](./15-testing-features.md) |
+`broker.published` хранит все отправленные сообщения с заголовками: по
+нему тест проверяет subject'ы и арендатора в `Nl-Ctx`, а через
+`broker.jetstreamManager()` находит поток `nestling_users_registered`.
+Второй тест того же файла поднимает выбор `'all'` и проверяет, что
+`quotas.claim` на брокер не выходит. Третий собирает процесс `users` без
+владельца `quotas.claim` и убеждается, что сборка проходит.
 
 ```bash
 yarn workspace examples.split-nats test
-APP_FEATURES=all yarn workspace examples.split-nats start:dev
 ```
 
-## Дальше
-
 Операция стала границей между процессами, и её изменение теперь может
-сломать соседний сервис. Как заметить это до выкладки, показывает глава
-[18. Не сломать соседей при изменении операции](./18-compatibility.md).
+сломать соседний сервис: [18. Не сломать соседей при изменении
+операции](./18-compatibility.md).

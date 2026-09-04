@@ -1,12 +1,10 @@
 # 23. Кто сейчас подключён и как его отключить
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
 > Целевое описание: [design/streaming.md](../design/streaming.md), раздел
 > «4.1 Реестр подписок». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-08-01] Реестр подписок:
 > результат dogfooding-замера».
-
-## Задача
 
 У сервиса есть лента по SSE из [главы 14](./14-live-feed.md), и клиенты
 держат её открытой часами. Эксплуатации нужно видеть список открытых
@@ -14,17 +12,14 @@
 наблюдать открытия и закрытия в реальном времени. Хендлер ленты при этом
 не должен знать, кто и зачем его закрыл.
 
-## Решение
-
 Реестр подписок живёт в отдельном пакете `@nestling/subscriptions`. Он
 написан на публичных примитивах ядра и подключается как плагин; ядро о
-нём не знает. Как устроен такой пакет, разбирает
-[глава 25](./25-extending.md).
+нём не знает.
 
-### Шаг 1. Плагин в корне
+## Плагин в корне
 
 ```typescript
-// packages/examples.app-with-http/src/app.ts
+// packages/examples.app-with-http/src/app.ts (фрагмент)
 import { subscriptions } from '@nestling/subscriptions';
 // …
 
@@ -49,16 +44,19 @@ export const app = makeApp({
 
 `subscriptions(options)` возвращает плагин. Значение создаётся один раз и
 перечисляется в `plugins:`, как плагин логирования из
-[главы 12](./12-features.md).
+[главы 12](./12-features.md). Класс-юниты слоя подписок регистрирует
+именно этот плагин: endpoint со слоем `tracked` в сборке без
+`appSubscriptions` останавливает старт на фазе ASSEMBLE, потому что
+незарегистрированный класс-юнит не создаётся.
 
 Опции описывают решения композиции. `identity` вычисляет подписчика из
 контекста запроса: здесь это `requestId` слоя `observability`, в
 приложении с аутентификацией на его месте был бы идентификатор
 пользователя. `labels` добавляет метки к записи. `publish: true`
-включает публикацию фактов открытия и закрытия операциями (шаг 4); по
+включает публикацию фактов открытия и закрытия операциями (см. далее); по
 умолчанию она выключена. `node` называет процесс в фактах.
 
-### Шаг 2. Слой `tracked` на endpoint'е подписки
+## Слой `tracked` на endpoint'е подписки
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
@@ -103,7 +101,12 @@ export const ActivityStream = httpEndpoint({
 `meta.signal`, после закрытия администратором продолжит отдавать данные:
 запись из реестра уйдёт, а поток нет.
 
-### Шаг 3. Endpoint'ы эксплуатации
+Что слой стоит на каждом endpoint'е с подпиской, можно проверить
+политикой `everyEndpoint({ pattern: /\/live$/ }).hasLayer(tracked)`, как в
+[главе 9](./09-auth.md). В примере такой политики нет: слой подключён на
+обоих `events`-endpoint'ах вручную.
+
+## Endpoint'ы эксплуатации
 
 Реестр инжектируется обычным токеном `SubscriptionRegistry`. Endpoint'ы
 лежат в фиче `ops`: у неё нет своих провайдеров, логирование,
@@ -161,7 +164,7 @@ export const KillSubscription = httpEndpoint({
 `authed`: удалять чужие подписки может только тот, кто предъявил токен.
 
 ```typescript
-// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts
+// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)
 export const WatchSubscriptions = httpEndpoint({
   method: 'GET',
   path: '/ops/subscriptions/live',
@@ -199,10 +202,10 @@ export const WatchSubscriptions = httpEndpoint({
 и видна в собственном списке. Своё событие `opened` она не получает: оно
 опубликовано до вызова хендлера, то есть до того, как хендлер подписался.
 
-### Шаг 4. Факты открытия и закрытия
+## Факты открытия и закрытия
 
 ```typescript
-// packages/examples.app-with-http/src/features/ops/subscription-facts.ts
+// packages/examples.app-with-http/src/features/ops/subscription-facts.ts (фрагмент)
 export const SubscriptionOpenedInOps = implement(SubscriptionOpened, {
   subscriber: 'ops',
   handler: {
@@ -225,26 +228,34 @@ export const SubscriptionOpenedInOps = implement(SubscriptionOpened, {
       },
   },
 });
+// …
 ```
 
 С `publish: true` реестр публикует события `subscriptions.opened` и
 `subscriptions.closed` как обычные операции вида `event` из
 [главы 13](./13-events.md). Фича `ops` подписана на оба через
-`implement` с именем подписчика. Реестр локален для процесса, а факты
-уходят на шину: в split-развёртывании из [главы 17](./17-split.md) один
-процесс собирает картину по всем узлам, и поле `node` говорит, где
-подписка открыта. Закрыть подписку в другом процессе через `abort` нельзя.
+`implement` с именем подписчика; реализация `SubscriptionClosedInOps`
+устроена так же. Реестр локален для процесса, а факты уходят на шину: в
+split-развёртывании из [главы 17](./17-split.md) один процесс собирает
+картину по всем узлам, и поле `node` говорит, где подписка открыта.
+Закрыть подписку в другом процессе через `abort` нельзя.
 
-### Шаг 5. Проба живости в той же фиче
+Пакет не тянет валидатор схем и не требует правок ядра: схемы фактов
+аннотированы `jsonSchema()`, поэтому они попадают в документ OpenAPI и в
+снапшот совместимости из [главы 18](./18-compatibility.md).
 
-`CheckHealth` с `detached` и `doc.hidden` из [главы 9](./09-auth.md) лежит
-в той же фиче `ops` (`features/ops/ops.feature.ts`): это endpoint для
-инфраструктуры, а не для пользователя API. Своих провайдеров у фичи
-нет, `providers: []`.
+## Проба живости в той же фиче
+
+Проба живости для балансировщика из [главы 9](./09-auth.md) в этом
+приложении называется `Health` и лежит в той же фиче `ops`
+(`features/ops/health.endpoint.ts`, `features/ops/ops.feature.ts`): она
+выведена из-под политик полем `detached` и скрыта из документа OpenAPI
+полем `doc.hidden`, как и в главе 9. Это endpoint для инфраструктуры, а
+не для пользователя API. Своих провайдеров у фичи нет, `providers: []`.
 Фича `ops` входит в любую топологию и выбирается явно, как показывает
 [глава 16](./16-select.md).
 
-### Запросы
+## Запросы
 
 ```bash
 API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
@@ -286,28 +297,13 @@ data: {"type":"closed","reason":"killed","subscription":{"id":"86cc…",…,"ite
 [app-with-http] [subscriptions] app-with-http: closed 86cc…: killed, 1 items
 ```
 
-## Что гарантирует фреймворк
-
-- Класс-юниты слоя `tracked` регистрирует плагин. Endpoint с `tracked`
-  в сборке без `appSubscriptions` останавливает старт на фазе ASSEMBLE:
-  незарегистрированный класс-юнит не создаётся.
-- Запись из реестра уходит только после закрытия потока. `abort` подаёт
-  сигнал, а удаляет запись `.finally`, который для потоковой формы
-  выполняется после завершения отдачи.
-- Что слой стоит на каждом endpoint'е с подпиской, проверяется политикой
-  `everyEndpoint({ pattern: /\/live$/ }).hasLayer(tracked)`, как в
-  [главе 9](./09-auth.md). В примере такой политики нет: слой подключён
-  на обоих `events`-endpoint'ах вручную.
-- Пакет не тянет валидатор схем и не требует правок ядра. Схемы фактов
-  аннотированы `jsonSchema()`, поэтому они попадают в документ OpenAPI и в
-  снапшот совместимости из [главы 18](./18-compatibility.md).
-
-## Как проверить
+## Проверка
 
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
 it('показывает подписку, завершает её и удаляет запись', async () => {
   await using testApp = await assembleTest(app, {
+    ...testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
@@ -324,7 +320,7 @@ it('показывает подписку, завершает её и удаля
     itemsOut: 0,
   });
 
-  unwrap(await createUser(app, 'subscriber'));
+  unwrap(await createUser(testApp, 'subscriber'));
   const delivered = await subscription.next();
   expect(delivered.value).toMatchObject({ kind: 'created' });
   expect(unwrap(await testApp.call(ListSubscriptions))[0].itemsOut).toBe(1);
@@ -358,37 +354,6 @@ App-тест проходит весь сценарий без сокета: `te
 ```bash
 yarn workspace examples.app-with-http test
 ```
-
-## Пока не нужно
-
-- Как пакет вроде `@nestling/subscriptions` пишется без правок ядра и
-  что для этого должно быть публичным: [глава 25](./25-extending.md).
-- Закрытие подписки в другом процессе. Реестр локален для узла, а
-  наблюдение кластерное через факты. Тема отложена, см.
-  [deferred.md](../decisions/deferred.md).
-
-## Запускаемый код
-
-- `packages/examples.app-with-http/src/app.ts` — плагин
-  `appSubscriptions`.
-- `packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts`
-  — подписка под слоем `tracked`.
-- `packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts`
-  — список, завершение и лента реестра.
-- `packages/examples.app-with-http/src/features/ops/subscription-facts.ts`
-  — подписчики фактов.
-- `packages/examples.app-with-http/src/features/ops/ops.feature.ts` —
-  фича `ops`.
-- `packages/examples.app-with-http/src/app.spec.ts` — `describe('реестр
-  подписок')`.
-
-```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
-curl -N localhost:3000/users/activity
-curl localhost:3000/ops/subscriptions
-```
-
-## Дальше
 
 Те же примитивы без `makeApp`: встраивание в чужой сервер и контейнер
 без приложения, [глава 24](./24-standalone.md).

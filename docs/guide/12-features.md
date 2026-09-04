@@ -1,6 +1,6 @@
 # 12. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -9,8 +9,6 @@
 > контракты» и «[2026-07-08] Kernel/user space; конфиг как token-families;
 > плагины».
 
-## Задача
-
 Регистрацию пользователей ограничивает квота, и её ведёт другая команда.
 Код квот должен жить отдельно: у него свои сервисы, свои тесты и свой
 владелец. Фича пользователей не должна инжектить сервис квот, потому что
@@ -18,15 +16,13 @@
 должен измениться. Логирование и проверка токена при этом остаются
 общими для обеих областей.
 
-## Решение
-
 Сервис из частей 1 и 2 продолжается в `examples.app-with-http`. Файлы
 переложены по областям: фичи лежат в `src/features/<имя>/`, общая
 инфраструктура в `src/plugins/<имя>/`, декларация приложения в `src/app.ts`.
 Код endpoint'ов, хранилища и конфига тот же, что в
 `examples.users-service`.
 
-### Шаг 1. Вторая фича
+## Вторая фича
 
 ```typescript
 // packages/examples.app-with-http/src/features/quotas/quota.service.ts
@@ -61,10 +57,9 @@ export const QuotasFeature = makeFeature({
 
 Фича `quotas` объявлена так же, как `users`: имя, провайдеры и
 endpoint'ы. `QuotaService` не экспортируется наружу и в `deps` других фич
-не попадает. Что лежит в `endpoints:`, объясняют шаги 4 и 5 и
-[глава 13](./13-events.md).
+не попадает.
 
-### Шаг 2. Граница фич
+## Граница фич
 
 Фича не может зависеть от провайдера другой фичи. Если в фиче `users`
 объявить провайдер `UsersReport` с `@Injectable([QuotaService])`, сборка
@@ -93,7 +88,7 @@ endpoint'ы. `QuotaService` не экспортируется наружу и в
 внутри процесса, операция имеет адрес и схемы и работает через любой
 транспорт.
 
-### Шаг 3. Операция вместо токена
+## Операция вместо токена
 
 ```typescript
 // packages/examples.app-with-http/src/operations.ts
@@ -107,7 +102,6 @@ import { z } from 'zod';
 
 /** Отказ «квота исчерпана». По сети приходит кодом и восстанавливается в `Fail` */
 export const QuotaExceeded = makeFail('too_many_requests:quota_exceeded', {
-  status: 'too_many_requests',
   details: z.object({ limit: z.number() }),
   message: (d) => `User quota of ${d.limit} is exhausted`,
 });
@@ -132,10 +126,9 @@ export const ClaimQuota = makeRequest({
 фронтенд.
 
 `makeRequest` объявляет операцию вида `request`: вызывающий ждёт ответ
-`Ok` или `Fail`, владелец у операции ровно один. Два других вида
-появятся в [главе 13](./13-events.md).
+`Ok` или `Fail`, владелец у операции ровно один.
 
-### Шаг 4. Реализация в фиче-владельце
+## Реализация в фиче-владельце
 
 ```typescript
 // packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
@@ -163,12 +156,17 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
 `implement(Operation, { deps, handler: handle })` создаёт декларацию endpoint'а на
 транспорте шины. От `httpEndpoint` она отличается конструктором и
 адресом: паттерном служит имя операции. Схемы `input`, `output` и
-`errors` берутся из операции и в реализации не повторяются. Всё
-остальное общее: `deps`, каррированный хендлер, вход проверяется по
-схеме, отказ вне списка `errors` заменяется на `InternalError`.
-Реализация перечисляется в `endpoints:` фичи рядом с HTTP-endpoint'ами.
+`errors` берутся из операции и в реализации не повторяются: повторное
+объявление любой из них — ошибка компиляции. Всё остальное общее: `deps`,
+каррированный хендлер, вход проверяется по схеме, отказ вне списка
+`errors` заменяется на `InternalError`. Реализация перечисляется в
+`endpoints:` фичи рядом с HTTP-endpoint'ами.
 
-### Шаг 5. Вызов через вызыватель
+Операция вида `request`, чей вызыватель инжектирован, а реализация в
+сборке отсутствует, останавливает сборку: вызову некуда идти. Два
+владельца одной операции тоже останавливают сборку.
+
+## Вызов через вызыватель
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
@@ -225,7 +223,9 @@ export const CreateUser = httpEndpoint({
 обычная зависимость, и хендлер получает объект типа `Port<typeof
 ClaimQuota>` с методом `call(input, meta?)`. Вызов всегда асинхронный и
 всегда возвращает `Ok` или `Fail`, даже когда реализация работает в
-этом же процессе. Отказ разбирает вызывающий.
+этом же процессе. Отказ разбирает вызывающий: множество его ответов
+закрыто — объявленные отказы плюс коды ядра, тип `claimed` не содержит
+ничего другого, и ветка `default` на месте вызова не нужна.
 
 Второй аргумент `call` — параметры вызова. `deadline` задаёт бюджет
 времени моментом, а не длительностью: `deadlineIn(500)` вычисляет момент
@@ -234,7 +234,9 @@ ClaimQuota>` с методом `call(input, meta?)`. Вызов всегда а�
 `internal_error`.
 
 Отказ соседа `QuotaExceeded` доходит до клиента, потому что операция
-`users.create` перечисляет его в `errors:` наравне со своими:
+`users.create` перечисляет его в `errors:` наравне со своими; отказ, не
+перечисленный в `errors:` вызывающего endpoint'а, заменяется на
+`InternalError` на выходе из пайплайна:
 
 ```typescript
 // packages/examples.app-with-http/src/api/operations.ts
@@ -257,7 +259,7 @@ curl -X POST localhost:3000/users \
 # {"error":"User quota of 5 is exhausted","code":"too_many_requests:quota_exceeded","details":{"limit":5}}
 ```
 
-### Шаг 6. Общее уходит в плагины
+## Общее уходит в плагины
 
 Логгер и слой `observability` нужны обеим фичам. Провайдер, от которого
 зависят две фичи, объявляется плагином:
@@ -329,7 +331,7 @@ export const authed = compose(observability, makePipeline().pre(Authenticate));
 одной фиче, и сборка останавливается с предложением перенести модуль в
 `plugins:`.
 
-### Шаг 7. Модули внутри фичи
+## Модули внутри фичи
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/users.feature.ts
@@ -365,7 +367,7 @@ export const UsersFeature = makeFeature({
 у неё два сервиса. Endpoint'ы в обоих случаях перечисляет фича, а не
 модуль.
 
-### Шаг 8. Декларация приложения
+## Декларация приложения
 
 ```typescript
 // packages/examples.app-with-http/src/app.ts
@@ -400,40 +402,25 @@ export const app = makeApp({
 
 Значение параметризованного плагина создаётся один раз и импортируется:
 второй вызов `logging({ … })` дал бы второй плагин с тем же именем, и
-сборка остановилась бы. Фича `ops` описана в [главе 23](./23-ops.md).
+сборка остановилась бы.
 
-## Что гарантирует фреймворк
-
-- Ребро между провайдерами двух фич и ребро из плагина в фичу
-  останавливают сборку на фазе ASSEMBLE с текстом, который называет обе
-  фичи и токен.
-- Операция вида `request`, чей вызыватель инжектирован, а реализация в
-  сборке отсутствует, останавливает сборку: вызову некуда идти. Два
-  владельца одной операции тоже останавливают сборку.
-- Переобъявить `input`, `output` или `errors` в `implement` нельзя: это
-  ошибка компиляции.
-- Множество ответов вызывателя закрыто: объявленные отказы плюс коды
-  ядра. Тип `claimed` не содержит ничего другого, и ветка `default` на
-  месте вызова не нужна.
-- Отказ соседа, которого нет в `errors:` вызывающего endpoint'а,
-  заменяется на `InternalError` на выходе из пайплайна.
-
-## Как проверить
+## Проверка
 
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
 it('возвращает отказ соседней фичи при исчерпанной квоте', async () => {
   await using testApp = await assembleTest(app, {
+    ...testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
   for (const index of [1, 2, 3, 4, 5]) {
-    unwrap(await createUser(app, String(index)));
+    unwrap(await createUser(testApp, String(index)));
   }
 
   // Отказ прошёл границу вызывающего endpoint'а без замены на
   // `InternalError`: его `errors:` объявляет отказ соседа наравне со своими
-  expect(await createUser(app, 'sixth')).toMatchObject({
+  expect(await createUser(testApp, 'sixth')).toMatchObject({
     isSuccess: false,
     status: 'too_many_requests',
     value: { code: QuotaExceeded.code, details: { limit: 5 } },
@@ -452,28 +439,6 @@ it('возвращает отказ соседней фичи при исчер�
 отправляет каждый вызов через шину как сообщение. Код вызова при этом не
 меняется.
 
-## Пока не нужно
-
-- Событие и команда, два других вида операций: [глава 13](./13-events.md).
-- Запуск части фич через `select`, который уже стоит в `main.ts`:
-  [глава 16](./16-select.md).
-- Брокер вместо шины внутри процесса: [глава 17](./17-split.md).
-- Версия операции и проверка совместимости:
-  [глава 18](./18-compatibility.md).
-
-## Запускаемый код
-
-- `packages/examples.app-with-http/src/operations.ts` — операции между
-  фичами.
-- `packages/examples.app-with-http/src/features/quotas/` — фича-владелец.
-- `packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts`
-  — вызов через вызыватель.
-- `packages/examples.app-with-http/src/plugins/logging/`,
-  `packages/examples.app-with-http/src/plugins/auth/` — плагины.
-- `packages/examples.app-with-http/src/app.ts` — декларация приложения.
-- `packages/examples.app-with-http/src/app.spec.ts` — тесты отказа
-  соседа, `deadline` и политики диспатча.
-
 ```bash
 API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
 for i in 1 2 3 4 5 6; do
@@ -485,8 +450,6 @@ done
 
 Тот же запуск с `NESTLING_PORTS_DISPATCH=always-remote` отправляет
 вызов `quotas.claim` через шину внутри процесса.
-
-## Дальше
 
 Квоты узнают о новом пользователе не по запросу, а по событию:
 [13. Оповещать соседей о случившемся](./13-events.md).

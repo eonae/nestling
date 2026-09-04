@@ -1,23 +1,17 @@
 # 3. Сказать клиенту, что пошло не так
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
 > Целевое описание: [design/errors.md](../design/errors.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-10] Модель ошибок:
 > Fail — значение, code-идентичность, `makeFail`, ошибки в контракте»,
 > «[2026-09-03] Код отказа: категория и уточнение; `makeFail`» и
 > «[2026-09-03] Заголовки `Ok` не зависят от транспорта».
 
-## Задача
-
 `GET /users/:id` должен отвечать `404`, если пользователя нет, а
 `POST /users` должен отвечать `409`, если email занят. Клиент должен
 отличать эти случаи по машинному коду, а не по тексту сообщения.
-Создание должно отвечать `201` с заголовком `Location`, удаление
-должно отвечать `204`.
-
-## Решение
-
-### Объявить отказы
+Создание должно отвечать `201` с заголовком `Location`, удаление должно
+отвечать `204`.
 
 ```typescript
 // packages/examples.users-service/src/users/users.errors.ts
@@ -42,8 +36,10 @@ export const EmailTaken = makeFail('conflict:email_taken', {
 
 Код отказа — единственная его ось. Он состоит из сегментов через
 двоеточие; первый сегмент — категория, остальные уточняют её. Категория
-говорит, как отвечать, уточнение — что именно случилось. Клиент
-сравнивает полный код, транспорт читает категорию.
+говорит, как отвечать, уточнение — что именно случилось. Клиент сравнивает
+полный код, транспорт читает категорию, и категория с кодом не
+расходится: она и есть его первый сегмент, поэтому объявить отказ с кодом
+`not_found:user` и ответить `409` невозможно.
 
 | Категория | HTTP |
 |---|---|
@@ -65,8 +61,6 @@ export const EmailTaken = makeFail('conflict:email_taken', {
 `makeFail` при вызове. Код из одной категории допустим, когда уточнять
 нечего: `makeFail('unauthorized')`.
 
-### Вернуть отказ из хендлера
-
 ```typescript
 // шаг главы 3; итоговая версия: packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
@@ -79,10 +73,10 @@ export const GetUser = httpEndpoint({
 });
 ```
 
-Константа `alice` заменяет хранилище из главы 5. Поле `errors`
-перечисляет отказы, которые endpoint может вернуть. Хендлер возвращает
-отказ значением, как обычный результат. Клиент получает тело с кодом и
-деталями:
+Константа `alice` заменяет хранилище: она стоит прямо в хендлере. Поле
+`errors` перечисляет отказы, которые endpoint может вернуть. Хендлер
+возвращает отказ значением, как обычный результат. Клиент получает тело с
+кодом и деталями:
 
 ```bash
 curl localhost:3000/users/9
@@ -91,9 +85,8 @@ curl localhost:3000/users/9
 
 Отказ доставляется `return`: возвращённый отказ виден в типе хендлера, и
 компилятор сверяет его со списком `errors`. Из глубины вызовов, где
-вернуть значение некому, отказ бросают: `throw UserNotFound({ id })`.
-Для ответа это одно и то же, и подробнее про бросок написано в
-приложении А.
+вернуть значение некому, отказ бросают: `throw UserNotFound({ id })`. Для
+ответа это одно и то же, и подробнее про бросок написано в приложении А.
 
 Тип возвращаемого значения записывается определениями отказов:
 
@@ -109,9 +102,10 @@ async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
 `Output<T, E>` описывает всё, что хендлер может вернуть: значение `T`,
 `Ok<T>` или отказ из `E`. В `E` идут сами определения:
 `Output<User, typeof UserNotFound | typeof EmailTaken>` для двух отказов.
-Без `errors` множество пусто, и вернуть отказ нельзя.
+Без `errors` множество пусто: хендлер, который вернёт отказ, не входящий
+в `errors`, не компилируется.
 
-### Успех со статусом и заголовками
+## Успех со статусом и заголовками
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts
@@ -133,8 +127,8 @@ async function handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
 отвечает `202`, `new Ok(value, headers)` отвечает `200` с заголовками.
 
 Заголовки `Ok` — метаданные ответа, а не HTTP-заголовки: хендлер о
-транспорте не знает. Что с ними делать, решает транспорт. HTTP пишет их
-в заголовки ответа, NATS кладёт в заголовки ответного сообщения, CLI
+транспорте не знает. Что с ними делать, решает транспорт. HTTP пишет их в
+заголовки ответа, NATS кладёт в заголовки ответного сообщения, CLI
 отбрасывает.
 
 ```typescript
@@ -163,10 +157,15 @@ export const DeleteUser = httpEndpoint({
 });
 ```
 
-В итоговом файле у `DeleteUser` есть ещё отказ `Unauthorized` и слой
-`authed`: удаление требует токен. Это глава 9.
+В итоговом файле у `DeleteUser` есть ещё отказ `Unauthorized`: удаление
+требует токен.
 
-### Незадекларированная ошибка
+```bash
+API_TOKEN=secret yarn workspace examples.users-service start:dev
+curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i
+```
+
+## Незадекларированная ошибка
 
 Всё, что дошло до границы пайплайна без объявления в `errors`, клиент
 получает как `internal_error` со статусом `500`: брошенное исключение,
@@ -184,19 +183,8 @@ export const DeleteUser = httpEndpoint({
 | `Timeout` | `timeout` | истёк бюджет вызова, поток молчит дольше допустимого |
 | `InternalError` | `internal_error` | всё незадекларированное |
 
-## Что гарантирует фреймворк
-
-- Хендлер не может вернуть отказ, которого нет в `errors`: тип `E` в
-  `Output<T, E>` выводится из списка, и такой `return` не компилируется.
-- Отказ, который всё же дошёл до границы пайплайна без объявления,
-  заменяется на `InternalError`. Список `errors` описывает всё, что
-  клиент может получить, кроме отказов ядра.
-- Категория не расходится с кодом: она и есть первый сегмент кода.
-  Объявить отказ с кодом `not_found:user` и ответить `409` невозможно.
-- Отказ узнаётся по коду, а не по классу. Поле `code` переживает
-  сериализацию, поэтому `UserNotFound.is(value)` работает и на клиенте.
-
-## Как проверить
+Ответ `testApp.call` несёт код отказа, а его `status` равен категории
+этого кода:
 
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
@@ -207,8 +195,10 @@ expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
 });
 ```
 
-Ответ `testApp.call` несёт код отказа, а его `status` равен категории
-этого кода. Юнит-тест хендлера проверяет отказ без приложения:
+Отказ узнаётся по коду, а не по классу: поле `code` переживает
+сериализацию, и `UserNotFound.is(value)` работает даже там, где исходного
+класса ошибки нет. Юнит-тест хендлера проверяет отказ тем же способом,
+без приложения:
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
@@ -220,27 +210,6 @@ expect(result).toMatchObject({
   details: { email: alice.email },
 });
 ```
-
-## Пока не нужно
-
-- Отказ, который бросает слой до хендлера: глава 9.
-- Отказы, общие для сервера и клиента: глава 11.
-- Отказ броском из глубины вызовов: приложение А.
-
-## Запускаемый код
-
-- `packages/examples.users-service/src/users/users.errors.ts`
-- `packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts`
-- `packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts`
-- `packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts`
-
-```bash
-API_TOKEN=secret yarn workspace examples.users-service start:dev
-curl localhost:3000/users/9
-curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i
-```
-
-## Дальше
 
 Хендлеры пока живут функциями в словаре декларации. Следующая глава
 переносит их в классы: [4. Хендлер как класс](./04-handler-class.md).

@@ -1,23 +1,17 @@
 # 11. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
 > к zod; OpenAPI через явные конвертеры» и «Типизированные клиенты из
 > контрактов».
 
-## Задача
-
 Команде фронтенда нужен документ OpenAPI, чтобы смотреть API и
 генерировать по нему код. Соседнему сервису на TypeScript нужен клиент
 с типами запросов, ответов и отказов. Ни документ, ни клиент не должны
 описываться второй раз руками: у сервера уже есть схемы, адреса и списки
 отказов в декларациях.
-
-## Решение
-
-### Шаг 1. Документ из деклараций
 
 ```typescript
 // packages/examples.users-service/src/app.ts
@@ -39,8 +33,7 @@ export const app = makeApp({
 ```
 
 `openapi()` — плагин: пакет, который подключается к корню и работает на
-всё приложение. Подробно плагины разобраны в
-[главе 12](./12-features.md). Здесь достаточно поставить его в
+всё приложение, а не на одну фичу. Здесь достаточно поставить его в
 `plugins:`.
 
 Плагин строит документ OpenAPI 3.1 из тех же деклараций, которые
@@ -50,14 +43,12 @@ export const app = makeApp({
 - `info` — заголовок документа.
 - `converters` — кто переводит схемы в JSON Schema. Ядро принимает любой
   валидатор Standard Schema и не умеет заглядывать внутрь схемы, поэтому
-  конвертер называется явно даже в приложении целиком на zod.
+  конвертер называется явно даже в приложении целиком на zod. Схема, для
+  которой нет конвертера, останавливает запуск: документ строится на фазе
+  ASSEMBLE, а не при первом запросе к `/openapi.json`.
 - `pipeline` — слой для endpoint'а `GET /openapi.json`. Политика из
   [главы 9](./09-auth.md) требует `observability` от каждого
   HTTP-endpoint'а, и endpoint плагина не исключение.
-
-Документ строится на фазе ASSEMBLE вместе с остальным графом. Схема, для
-которой нет конвертера, останавливает запуск до открытия сокета; ошибка
-называет endpoint и вендора схемы.
 
 ```bash
 curl -s http://localhost:3000/openapi.json | jq '.paths | keys'
@@ -70,7 +61,7 @@ curl -s http://localhost:3000/openapi.json | jq '.paths["/users"].post.responses
 проверки входа, `401` и `409` из `errors:`, `default` для `internal_error`.
 Форма `stream(User)` выгрузки описана как `application/x-ndjson`.
 
-### Шаг 2. Слот `doc:`
+## Слот `doc:`
 
 JSON Schema описывает данные, но не саму операцию. Название, теги и
 статус успеха объявляются в слоте `doc:`:
@@ -101,8 +92,8 @@ export const DeleteUser = httpEndpoint({
 | `hidden` | причина, по которой endpoint не попадает в документ |
 
 `operationId` не объявляется. Он берётся из имени операции, если
-endpoint реализует операцию (шаг 3), иначе из метода и пути: у
-`GET /users` это `get_users`.
+endpoint реализует операцию, иначе из метода и пути: у `GET /users` это
+`get_users`.
 
 Служебный endpoint убирается из документа полем `hidden` с причиной:
 
@@ -119,8 +110,9 @@ export const CheckHealth = httpEndpoint({
 });
 ```
 
-Формы `hidden: true` нет: причина обязательна, как у `detached`. Список
-скрытых endpoint'ов плагин печатает при старте:
+Формы `hidden: true` нет: причина обязательна, как у `detached`, и
+скрыть endpoint из документа можно только с ней. Список скрытых
+endpoint'ов плагин печатает при старте:
 
 ```
 [nestling] hidden from the API document: GET /health (declared in 'users') — служебная проба, не часть публичного API
@@ -128,7 +120,7 @@ export const CheckHealth = httpEndpoint({
 
 Печать отключается опцией `announceHidden: false`.
 
-### Шаг 3. Операция: адрес и схемы в одном месте
+## Операция: адрес и схемы в одном месте
 
 Клиенту нужны адрес, схемы и список отказов, но не хендлер и не
 зависимости. Эти части выносятся из декларации в операцию:
@@ -159,9 +151,10 @@ export const CreateUser = makeRequest({
 ```
 
 Операция — значение: имя, схемы `input` и `output`, список `errors:` и
-слот `doc:`. Секция `http:` описывает адрес. Строка `'GET /users/:id'`
-подходит для операции без пометок; объект `{ method, path }` нужен, когда
-есть `bind`, `rawBody` или `sse`.
+слот `doc:`. Секция `http:` описывает адрес; операция без неё отвергается
+в момент создания декларации `httpEndpoint({ operation })`. Строка
+`'GET /users/:id'` подходит для операции без пометок; объект
+`{ method, path }` нужен, когда есть `bind`, `rawBody` или `sse`.
 
 Отказ `Unauthorized` объявлен в `errors:` операции наравне с
 `EmailTaken`: клиент должен знать те же отказы, что получает от сервера,
@@ -171,17 +164,20 @@ export const CreateUser = makeRequest({
 отказов. В нём нет ни контейнера, ни пайплайна, ни транспорта, поэтому
 его можно импортировать во фронтенд.
 
-### Шаг 4. Реализация через операцию
+Реализация подключает операцию через `operation:`:
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
-export const getUserHandler =
-  (users: UsersRepository) =>
-  async (payload: GetUserInput): Output<User, typeof UserNotFound> => {
-    const user = await users.byId(payload.id);
+@Injectable([UsersRepository$])
+export class GetUserHandler {
+  constructor(private readonly users: UsersRepository) {}
 
-    return user ?? UserNotFound({ id: payload.id });
-  };
+  async handle(input: GetUserInput): Output<User, typeof UserNotFound> {
+    const user = await this.users.byId(input.id);
+
+    return user ?? UserNotFound({ id: input.id });
+  }
+}
 
 export const GetUser = httpEndpoint({
   operation: GetUserOperation,
@@ -192,11 +188,12 @@ export const GetUser = httpEndpoint({
 
 Поле `operation:` заменяет `method`, `path`, `input`, `output`, `errors`
 и `doc`: всё это берётся из операции. Повторное объявление любого из них
-в декларации не компилируется. Остаются `pipeline`, `deps` и `handle`.
-Так же устроен `CreateUser` в `create-user.endpoint.ts`: он подключает
-слой `authed` и отвечает `Ok.created`.
+в декларации не компилируется, поэтому сервер не может разойтись с
+клиентом в схемах. Остаются `pipeline` и `handler`. Так же
+устроен `CreateUser` в `create-user.endpoint.ts`: он подключает слой
+`authed` и отвечает `Ok.created`.
 
-### Шаг 5. Клиент
+## Клиент
 
 ```typescript
 // packages/examples.users-service/src/api/client.ts
@@ -233,13 +230,17 @@ async function main(): Promise<void> {
   const fetched = await api.getUser({ id: created.value.id });
   // …
 }
+
+await main();
 ```
 
 `makeClient(record, config)` возвращает объект с методом на каждую
 операцию. Имена методов задают ключи записи. Клиент раскладывает payload
 по адресу операции: `id` подставляется в путь, остальные поля уходят в
 тело или query по тому же правилу, по которому транспорт разбирает
-запрос.
+запрос. `makeClient` проверяет запись при создании и бросает `TypeError`
+с именем метода: операция без `http:`, потоковая или `multipart` форма,
+неабсолютный `baseUrl`.
 
 Метод возвращает `Ok` или `Fail`, а не бросает исключение. Отказ
 узнаётся по коду через `EmailTaken.is(created)`; после сериализации
@@ -265,21 +266,7 @@ API_TOKEN=secret yarn workspace examples.users-service client
 Скрипт импортирует два пакета: операции приложения и `@nestling/client`.
 Контейнер, пайплайн и транспорт в его граф импортов не попадают.
 
-## Что гарантирует фреймворк
-
-- Схема без конвертера останавливает запуск: документ строится на фазе
-  ASSEMBLE, а не при первом запросе к `/openapi.json`.
-- Операция без секции `http:` отвергается в момент создания декларации
-  `httpEndpoint({ operation })`.
-- Переобъявить `input`, `output` или `errors` в декларации с
-  `operation:` нельзя: это ошибка компиляции, и сервер не может разойтись
-  с клиентом в схемах.
-- `makeClient` проверяет запись при создании и бросает `TypeError` с
-  именем метода: операция без `http:`, потоковая или `multipart` форма,
-  неабсолютный `baseUrl`.
-- Скрыть endpoint из документа можно только с причиной.
-
-## Как проверить
+## Проверка
 
 В `src/app.spec.ts` теста на документ нет. Документ доступен в графе
 тестовой сборки значением под токеном `OpenApiDocument$`:
@@ -290,6 +277,7 @@ import { OpenApiDocument$ } from '@nestling/openapi';
 
 it('описывает каждый публичный endpoint и скрывает служебный', async () => {
   await using testApp = await assembleTest(app, {
+    config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
@@ -300,38 +288,8 @@ it('описывает каждый публичный endpoint и скрыва�
 });
 ```
 
-Клиент проверяется против запущенного сервера скриптом из шага 5.
-
-## Пока не нужно
-
-- Плагины как способ подключить общую инфраструктуру, включая ваш
-  собственный логгер, разобраны в [главе 12](./12-features.md).
-- Операции служат не только клиенту: через них фичи вызывают друг друга.
-  `implement` и `.caller` появятся в [главе 12](./12-features.md).
-- Версия операции и проверка совместимости при её изменении описаны в
-  [главе 18](./18-compatibility.md).
-- Документ можно собрать без запуска приложения чистой функцией
-  `buildOpenApiDocument`, например в CI. Она описана в README пакета
-  `@nestling/openapi`.
-
-## Запускаемый код
-
-- `packages/examples.users-service/src/app.ts` — плагин `openapi()`.
-- `packages/examples.users-service/src/api/operations.ts` — операции с
-  секцией `http:`.
-- `packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts`
-  и `create-user.endpoint.ts` — реализация через `operation:`.
-- `packages/examples.users-service/src/api/client.ts` — клиент.
-- `packages/examples.users-service/src/ops.plugin.ts`
-  — `doc.hidden`.
-
-```bash
-API_TOKEN=secret yarn workspace examples.users-service start:dev
-curl -s http://localhost:3000/openapi.json | jq '.paths | keys'
-API_TOKEN=secret yarn workspace examples.users-service client
-```
-
-## Дальше
+Клиент проверяется против запущенного сервера скриптом из раздела
+«Клиент».
 
 Сервис растёт, и рядом с пользователями появляется вторая область:
 [глава 12](./12-features.md).

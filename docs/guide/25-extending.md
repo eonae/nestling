@@ -1,28 +1,24 @@
 # 25. Расширить ядро своим пакетом
 
-> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-04).
 > Целевое описание: [design/principles.md](../design/principles.md), раздел
 > «Граница ядра», и [design/streaming.md](../design/streaming.md) §4.1.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-07-14]
 > «Kernel 1.0» — граница ядра» и «[2026-08-01] Реестр подписок: результат
 > dogfooding-замера».
 
-## Задача
-
 Приложению нужна возможность, которой в ядре нет: дедупликация команд по
 ключу идемпотентности, outbox, реестр открытых подписок с
-административным закрытием. Вы хотите написать её отдельным пакетом, не
-трогая ядро и не форкая его. Пакет должен подключаться к корню как обычный
-плагин, тестироваться через `assembleTest` и не тянуть в приложение ни
-вендора схем, ни хранилища.
+административным закрытием. Такой пакет пишется отдельно, не трогая ядро
+и не форкая его: он подключается к корню как обычный плагин, тестируется
+через `assembleTest` и не тянет в приложение ни вендора схем, ни
+хранилища.
 
 Такой пакет называется сателлитом: он собран поверх публичных примитивов
 ядра и живёт вне него. Образец в этой главе — `@nestling/subscriptions`,
 реестр подписок из [главы 23](./23-ops.md).
 
-## Решение
-
-### Шаг 1. Выберите публичные примитивы
+## Публичные примитивы
 
 Ядро не даёт сателлиту ни хуков, ни точек расширения. Всё, что нужно,
 уже есть в публичных пакетах:
@@ -40,7 +36,12 @@
 Standard Schema. `@nestling/app` нужен только тестам и лежит в
 `devDependencies`.
 
-### Шаг 2. Слой как экспортируемое значение
+Критерий границы ядра: сателлит пишется без правок ядра. Если
+возможность не выражается публичными примитивами, не хватает примитива,
+и чинится именно он, а не сателлит. Реестр подписок этот критерий
+прошёл: изменений в пакетах ядра за время его написания не было.
+
+## Слой как экспортируемое значение
 
 ```typescript
 // packages/nestling.subscriptions/src/layer.ts
@@ -88,10 +89,10 @@ export const tracked = makePipeline()
 tracked)`. Обязательность слоя задаёт политика корня
 `everyEndpoint({ … }).hasLayer(tracked)`, а не скрытый механизм пакета.
 
-### Шаг 3. Своё поле в `meta` и объединённый сигнал
+## Своё поле в `meta` и объединённый сигнал
 
 ```typescript
-// packages/nestling.subscriptions/src/registry.ts
+// packages/nestling.subscriptions/src/registry.ts (фрагмент)
   open(ctx: SubscriptionContext): TrackedSubscription {
     const id = crypto.randomUUID();
     const controller = new AbortController();
@@ -111,10 +112,10 @@ tracked)`. Обязательность слоя задаёт политика �
 остановку приложения и закрытие администратором. Метод `abort()` только
 взводит контроллер; запись удаляет `.finally`, когда поток дотёк.
 
-### Шаг 4. `Topic` как лента изменений
+## `Topic` как лента изменений
 
 ```typescript
-// packages/nestling.subscriptions/src/registry.ts
+// packages/nestling.subscriptions/src/registry.ts (фрагмент)
     this.#feed = new Topic<SubscriptionEvent>({
       buffer: options.feedBuffer ?? DEFAULT_FEED_BUFFER,
       onSlowConsumer: 'drop-oldest',
@@ -135,7 +136,7 @@ tracked)`. Обязательность слоя задаёт политика �
 наблюдатель теряет события по `drop-oldest`, `@OnDestroy` закрывает ленту
 на остановке, и наблюдатели завершаются нормально.
 
-### Шаг 5. Факты жизненного цикла операциями
+## Факты жизненного цикла операциями
 
 ```typescript
 // packages/nestling.subscriptions/src/operations.ts
@@ -168,7 +169,7 @@ export const SubscriptionOpened = makeEvent({
 Schema, и факты попадают в документ и в снапшот совместимости из
 [главы 18](./18-compatibility.md).
 
-### Шаг 6. Параметризованный плагин
+## Параметризованный плагин
 
 ```typescript
 // packages/nestling.subscriptions/src/module.ts
@@ -197,13 +198,16 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 [главы 12](./12-features.md): функция принимает решения композиции и
 возвращает значение `makePlugin`. Класс-юниты слоя регистрирует сам
 плагин, поэтому endpoint со слоем `tracked` без `subscriptions()` в корне
-останавливает сборку. Список `deps` фабрики зависит от опции `publish`:
-при выключенной публикации вызывателей операций в графе нет.
+останавливает сборку на фазе ASSEMBLE: класс-юнит слоя не получает
+зависимостей. Второе значение `subscriptions({ … })` в одном и том же
+корне тоже останавливает сборку: два плагина с одним именем. Список
+`deps` фабрики зависит от опции `publish`: при выключенной публикации
+вызывателей операций в графе нет.
 
-### Шаг 7. Тестовые двойники через subpath `./testing`
+## Тестовые двойники через subpath `./testing`
 
 ```json
-// packages/nestling.transport.nats/package.json
+// packages/nestling.transport.nats/package.json (фрагмент)
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -232,7 +236,7 @@ testEnvironmentOptions: { customExportConditions: ['testing', 'node', 'node-addo
 Пакету, который импортирует такой subpath, нужно `customConditions:
 ['testing']` в `tsconfig.json`.
 
-### Шаг 8. Свой транспорт
+## Свой транспорт
 
 ```typescript
 // packages/nestling.subscriptions/src/__fixtures__/transport.ts
@@ -262,37 +266,27 @@ export const testTransport = (): TransportDeclaration =>
 поле `capabilities` перечисляет формы io, которые он умеет передавать,
 `serve(dispatch, signal)` получает таблицу маршрутов и общий сигнал
 остановки, `close()` освобождает ресурсы. Метода запуска без маршрутов в
-интерфейсе нет. На транспорт ссылаются токеном экземпляра, а объявление
-для словаря `transports:` даёт `transportValue(token, instance)`.
-Реальные транспорты `http()`, `cli()` и `nats()` построены на том же
-интерфейсе.
+интерфейсе нет. Декларация, форма io которой не входит в `capabilities`
+транспорта, отклоняется до обслуживания первого запроса. На транспорт
+ссылаются токеном экземпляра, а объявление для словаря `transports:` даёт
+`transportValue(token, instance)`. Реальные транспорты `http()`, `cli()`
+и `nats()` построены на том же интерфейсе.
 
-## Что гарантирует фреймворк
-
-- Критерий границы ядра: сателлит пишется без правок ядра. Если
-  возможность не выражается публичными примитивами, не хватает примитива,
-  и чинится именно он, а не сателлит. Реестр подписок этот критерий
-  прошёл: изменений в пакетах ядра за время его написания не было.
-- Endpoint со слоем сателлита, но без его плагина в корне, останавливает
-  сборку на фазе ASSEMBLE: класс-юнит слоя не получает зависимости.
-- Второе значение `subscriptions({ … })` в одном корне останавливает
-  сборку: два плагина с одним именем.
-- Декларация, форма io которой не входит в `capabilities` транспорта,
-  отклоняется до обслуживания первого запроса.
-
-## Как проверить
+## Проверка
 
 Сателлит тестируется тем же тестовым корнем, что и приложение. Тест
 пакета собирает плагин, одну фичу и транспорт-фикстуру:
 
 ```typescript
-// packages/nestling.subscriptions/src/module.spec.ts
+// packages/nestling.subscriptions/src/module.spec.ts (фрагмент)
   it('видит подписку, убивает её и снимает запись', async () => {
-    await using testApp = await assembleTest({
-      plugins: [subscriptions()],
-      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
-      transports: [testTransport()],
-    });
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions()],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+        transports: [testTransport()],
+      }),
+    );
 
     const registry = testApp.get(SubscriptionRegistry);
     // …
@@ -329,22 +323,10 @@ Endpoint `Ticks` в тесте объявлен через `makeEndpoint` на �
 yarn workspace @nestling/subscriptions test
 ```
 
-## Запускаемый код
-
-| Файл | Что показывает |
-|---|---|
-| `packages/nestling.subscriptions/src/layer.ts` | слой из двух класс-юнитов как экспортируемое значение |
-| `packages/nestling.subscriptions/src/registry.ts` | singleton графа: `open`, `close`, `abort`, лента на `Topic` |
-| `packages/nestling.subscriptions/src/operations.ts` | факты жизненного цикла как `event`-операции |
-| `packages/nestling.subscriptions/src/schema.ts` | схемы без вендора с аннотацией `jsonSchema` |
-| `packages/nestling.subscriptions/src/module.ts` | параметризованный плагин |
-| `packages/nestling.subscriptions/src/__fixtures__/transport.ts` | транспорт на интерфейсе `ITransport` |
-| `packages/nestling.subscriptions/src/module.spec.ts` | сателлит в тестовом корне |
-
 Подключение в приложении:
 
 ```typescript
-// packages/examples.app-with-http/src/app.ts
+// packages/examples.app-with-http/src/app.ts (фрагмент)
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
@@ -354,8 +336,6 @@ export const appSubscriptions = subscriptions({
 ```
 
 Как этим пользуется эксплуатация, показывает [глава 23](./23-ops.md).
-
-## Дальше
 
 Это последняя глава. Целевое описание каждой подсистемы лежит в
 [design/](../design/README.md), причины решений в

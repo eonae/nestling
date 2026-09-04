@@ -1,12 +1,10 @@
 # 21. Логгер с именем потребителя и сбор вкладов из модулей
 
-> Гайд по текущему API; сверено с кодом `examples.container` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.container` (2026-09-04).
 > Целевое описание: [design/container.md](../design/container.md), раздел
 > «Семейства токенов». Почему так: записи [ideas.md](../decisions/ideas.md)
 > «Token families + модули без рантайм-инкапсуляции» [2026-07-06] и
 > «Multi-injection через token families: `Family.all`» [2026-07-10].
-
-## Задача
 
 Каждому сервису нужен логгер, который подписывает записи именем этого
 сервиса. Регистрировать отдельный провайдер логгера на каждый сервис не
@@ -17,9 +15,7 @@
 Обе задачи решает семейство токенов: один рецепт для многих зависимостей,
 которые различаются параметром.
 
-## Решение
-
-### Объявите семейство вместо токена
+## Семейство вместо токена
 
 ```typescript
 // packages/examples.container/src/logging/registry.ts
@@ -36,16 +32,20 @@ export const Logger = makeTokenFamily<Logger, [scope: string]>('Logger');
 `Logger('users')` возвращает токен члена с идентификатором `Logger:users`.
 Повторный вызов с тем же параметром возвращает тот же токен. Член
 семейства работает везде, где работает обычный токен: в `deps` класса, в
-зависимостях фабрики, в `container.get()`.
+зависимостях фабрики, в `container.get()`. Токен с тем же именем, но
+созданный напрямую через `makeToken('Logger:users')`, членом семейства не
+является: контейнер сообщает об отсутствующем провайдере, потому что
+принадлежность семейству хранится полем токена, а не строкой
+идентификатора.
 
 Интерфейс и семейство носят одно имя. В отличие от токена интерфейса из
 главы [5](./05-repository.md), суффикс `$` здесь не нужен: семейство
 вызывается как функция, и спутать его с интерфейсом в коде нельзя.
 
-### Запросите члена как обычную зависимость
+## Член как обычная зависимость
 
 ```typescript
-// packages/examples.container/src/users/users.service.ts
+// packages/examples.container/src/users/users.service.ts (фрагмент)
 @Injectable([UserRepository, Logger('users')])
 export class UserService {
   #repository: UserRepository;
@@ -63,10 +63,10 @@ export class UserService {
 регистрации провайдера для `Logger('users')`, ни отдельного модуля для
 этого не нужно.
 
-### Зарегистрируйте один рецепт на всё семейство
+## Один рецепт на всё семейство
 
 ```typescript
-// packages/examples.container/src/logging/logging.plugin.ts
+// packages/examples.container/src/logging/logging.plugin.ts (фрагмент)
 export const appLogging = makePlugin({
   name: 'app-logging',
   providers: [
@@ -109,7 +109,13 @@ export const appLogging = makePlugin({
 и визуализацию. Член, которого никто не запросил, не создаётся:
 `container.get(Logger('orphan'))` вернёт `null`.
 
-### Назовите члена по потребителю: `.auto`
+Член, запрошенный в `deps`, для которого рецепт не зарегистрирован,
+останавливает сборку с именем семейства и параметра. Рецепт, вернувший
+провайдер для другого токена, тоже останавливает сборку: ошибка называет
+семейство, параметр и фактический токен. Второй рецепт для того же
+семейства — ошибка регистрации.
+
+## Имя члена по потребителю: `.auto`
 
 ```typescript
 // packages/examples.container/src/users/users.repository.ts
@@ -122,7 +128,13 @@ export class UserRepository {
     this.#database = database;
     this.#logger = logger;
   }
-  // …
+
+  async findAll(): Promise<string[]> {
+    this.#logger.log('Loading all users');
+
+    const result = await this.#database.query('SELECT * FROM users');
+    return result.map((row: any) => row.name);
+  }
 }
 ```
 
@@ -136,13 +148,14 @@ export class UserRepository {
 Три ограничения `.auto`:
 
 - он допустим только в `deps` класса с `@Injectable`; в зависимостях
-  фабрики класса-потребителя нет, и это ошибка регистрации;
+  фабрики класса-потребителя нет, и это ошибка регистрации с подсказкой
+  написать явный вызов семейства;
 - анонимный класс с пустым `constructor.name` даёт ошибку при
   декорировании;
 - минификатор, который переименовывает классы, переименует и членов.
   Пакет рассчитан на серверный Node без минификации.
 
-### Соберите вклады из разных модулей: `.all`
+## Вклады из разных модулей: `.all`
 
 Объявите семейство вкладов:
 
@@ -158,8 +171,8 @@ export const HealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
 );
 ```
 
-Зарегистрируйте вклад там, где ему место. Вклад — обычный провайдер с
-токеном члена:
+Вклад — обычный провайдер с токеном члена, зарегистрированный там, где
+ему место:
 
 ```typescript
 // packages/examples.container/src/database/database.module.ts
@@ -176,14 +189,14 @@ export const DatabaseModule = makeModule({
 пришлось:
 
 ```typescript
-// packages/examples.container/src/api/api.module.ts
-    classProvider(HealthCheck('api'), ApiHealthCheck),
+// packages/examples.container/src/api/api.module.ts (фрагмент)
+classProvider(HealthCheck('api'), ApiHealthCheck),
 ```
 
 Агрегатор зависит от `HealthCheck.all` и получает массив всех вкладов:
 
 ```typescript
-// packages/examples.container/src/health/health.service.ts
+// packages/examples.container/src/health/health.service.ts (фрагмент)
 @Injectable([HealthCheck.all, HealthConfig, Logger.auto])
 export class HealthService {
   #checks: readonly HealthCheck[];
@@ -212,7 +225,7 @@ export class HealthService {
 ```
 
 `HealthCheck.all` стоит в `deps` рядом с секцией конфига и членом
-семейства логгеров: агрегат ничем не привилегирован. Тип зависимости
+семейства логгеров: агрегат ничем не привилегирован. Тип зависимости —
 `readonly HealthCheck[]`.
 
 При `build()`, когда рецепты перестали создавать новых членов, контейнер
@@ -233,30 +246,15 @@ export class HealthService {
   вклады, затем члены из рецепта; на порядок `dependsOn` не опирайтесь;
 - массив заморожен и общий для всех потребителей `.all`;
 - узел-агрегат не принадлежит модулю, и вклад чужого модуля попадает в
-  массив без дополнительных объявлений.
+  массив без дополнительных объявлений;
+- провайдера с `provide: HealthCheck.all` не бывает: этот узел создаёт
+  сборка, а ручная регистрация под тем же токеном — ошибка регистрации.
 
 Модули в примере связаны через `dependsOn`, как в главе
 [12](./12-features.md): `UsersModule` зависит от `DatabaseModule`, а
 `AppModule` перечисляет остальные.
 
-## Что гарантирует фреймворк
-
-Все проверки ниже выполняются на `build()`, до запуска приложения.
-
-- Член запрошен, а рецепт семейства не зарегистрирован: сборка
-  останавливается с именем семейства и параметра.
-- Рецепт вернул провайдер для другого токена: ошибка с именем семейства,
-  параметром и фактическим токеном.
-- Два рецепта на одно семейство: ошибка регистрации.
-- `makeToken('Logger:users')` членом семейства не является: контейнер
-  сообщает об отсутствующем провайдере. Принадлежность хранится полем
-  токена, а не строкой идентификатора.
-- `.auto` в зависимостях фабрики: ошибка регистрации с подсказкой написать
-  явный вызов семейства.
-- Провайдер с `provide: HealthCheck.all`: ошибка регистрации, этот узел
-  создаёт сборка.
-
-## Как проверить
+## Проверка
 
 Запустите пример и прочитайте вывод. Каждая строка подписана членом
 семейства, который её написал, а отчёт о здоровье содержит оба вклада:
@@ -271,23 +269,12 @@ export class HealthService {
 `familyOverride(Logger, () => …)` из `@nestling/testing` заменяет рецепт
 до создания членов. Подробнее в главе [15](./15-testing-features.md).
 
-## Запускаемый код
-
-- `packages/examples.container/src/logging/registry.ts`,
-  `logging/logging.plugin.ts`: семейство логгеров и его рецепт;
-- `users/users.service.ts`, `users/users.repository.ts`: член по параметру
-  и член по имени потребителя;
-- `health/registry.ts`, `health/health.service.ts`,
-  `database/database.module.ts`, `api/api.module.ts`: вклады и агрегатор.
-
 ```bash
 yarn workspace examples.container start:dev
 # граф с членами семейств в браузере
 yarn workspace examples.container export-metadata
 yarn workspace examples.container visualize
 ```
-
-## Дальше
 
 Тот же пример читает конфиг из нескольких источников и меняет значения
 без перезапуска: глава [22](./22-config-sources.md).

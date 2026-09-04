@@ -1,12 +1,10 @@
 # 22. Конфиг из файла и без перезапуска
 
-> Гайд по текущему API; сверено с кодом `examples.container` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.container` (2026-09-04).
 > Целевое описание: [design/config.md](../design/config.md), разделы 2–6.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Конфиг:
 > keys-capability вместо `configs:`-владения» [2026-07-10] и «Конфиг:
 > `secret()` и общие ключи» [2026-07-13].
-
-## Задача
 
 Часть значений в проде приходит не из окружения: из файла, из Vault, из
 объекта с умолчаниями для локального запуска. Один ключ, например
@@ -17,26 +15,22 @@
 невалидном конфиге описаны в главе [6](./06-config.md). Здесь только то,
 что появляется сверх этого.
 
-## Решение
-
-### Привяжите источник к ключам секции
+## Источник, привязанный к ключам секции
 
 ```typescript
 // packages/examples.container/src/main.ts
-export async function main() {
-  const app = makeApp({
-    features: [AppFeature],
-    plugins: [appLogging],
-    providers: [Demo],
-    config: [
-      [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
-      [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
-    ],
-  }).assemble();
+const app = makeApp({
+  features: [AppFeature],
+  plugins: [appLogging],
+  providers: [Demo],
+  config: [
+    [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+    [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
+  ],
+}).assemble();
 
-  await app.run();
-  await app.close();
-}
+await app.run();
+await app.close();
 ```
 
 Поле `config` принимает список пар «источник, цель». Источник — объект с
@@ -52,7 +46,9 @@ export async function main() {
 - порядок списка задаёт приоритет: ключ берётся из первой привязки, чья
   цель покрывает ключ и чей источник вернул не `undefined`;
 - цель ограничивает область источника: `objectSource` из первой строки
-  привязан к ключам секции `app` и для других секций не опрашивается;
+  привязан к ключам секции `app` и для других секций не опрашивается.
+  Цель, не покрывающая ни одного объявленного ключа, даёт предупреждение
+  на старте: так ловится опечатка в глобе;
 - `process.env` опрашивается последним и всегда; в список его не
   добавляют. `DATABASE_URL` в примере нигде не привязан и читается из
   окружения;
@@ -60,7 +56,12 @@ export async function main() {
   дальше решает схема поля: `.default()`, `.optional()` или ошибка
   валидации.
 
-Тот же список принимает `configKernel()` для контейнера без `makeApp`:
+Невалидный конфиг останавливает старт до открытия сокета:
+`ConfigValidationError` перечисляет все ошибки секции и то, из каких
+источников читалось каждое значение.
+
+Тот же список принимает `configKernel()` при сборке контейнера без
+`makeApp`, через `ContainerBuilder`:
 
 ```typescript
 // packages/examples.container/src/container.ts
@@ -80,10 +81,13 @@ export const makeContainer = async (
 };
 ```
 
-Сборка контейнера без приложения описана в главе
-[24](./24-standalone.md).
+`ContainerBuilder` собирает тот же граф, что `makeApp` в `main.ts` того
+же примера, но без фаз приложения и без транспортов. `configKernel`
+подключает ядро конфигурации, которое при сборке через `makeApp`
+регистрирует сама сборка. Плагин логирования регистрируется своими
+модулями: `appLogging.modules` — обычный массив значений.
 
-### Экспортируйте право привязки, а не секцию
+## Право привязки вместо секции
 
 ```typescript
 // packages/examples.container/src/config/app.config.ts
@@ -105,11 +109,11 @@ export { appConfigKeys } from './app.config';
 С секцией связаны два права. Токен секции даёт право читать её: кто
 импортировал `AppConfig`, тот может указать его в `deps`. `AppConfig.keys`
 даёт право привязать источник к её ключам и ничего больше: указать `.keys`
-в `deps` нельзя, это ошибка компиляции. Поэтому из папки конфига наружу
-уходит только `appConfigKeys`, а токен секции импортируют по прямому пути
-внутри приложения.
+в `deps` нельзя, это ошибка компиляции — право привязки не даёт права
+читать. Поэтому из папки конфига наружу уходит только `appConfigKeys`, а
+токен секции импортируют по прямому пути внутри приложения.
 
-### Читайте один ключ из двух секций
+## Общий ключ у двух секций
 
 ```typescript
 // packages/examples.container/src/health/health.config.ts
@@ -138,8 +142,7 @@ export const HealthConfig = makeConfig('health', {
 объявленным секциям и не обращается к источникам:
 
 ```typescript
-// packages/examples.container/src/config/secrets.spec.ts
-    // …
+// packages/examples.container/src/config/secrets.spec.ts (фрагмент)
     const entry = describeConfig().keys.find(
       (item) => item.key === 'DATABASE_URL',
     );
@@ -151,7 +154,7 @@ export const HealthConfig = makeConfig('health', {
     ]);
 ```
 
-### Меняйте значения без перезапуска
+## Значения без перезапуска
 
 ```typescript
 // packages/examples.container/src/runtime/runtime.config.ts
@@ -164,7 +167,8 @@ export const runtimeConfigKeys = RuntimeConfig.keys;
 
 `makeConfig.reloadable` объявляет секцию, значения которой обновляются на
 месте. Объект секции не пересоздаётся: ссылка, полученная в конструкторе,
-остаётся рабочей, а чтение поля отдаёт последнее валидное значение.
+остаётся рабочей, а чтение поля отдаёт последнее валидное значение. Поле
+с именем `onChange` в такой секции запрещено: это имя занято подпиской.
 
 ```typescript
 // packages/examples.container/src/runtime/rate-limiter.ts
@@ -217,21 +221,7 @@ export class RateLimiter {
 - reloadable-секция, ключи которой покрыты только источниками без
   `watch()`, поднимается и предупреждает при старте: обновлений не будет.
 
-## Что гарантирует фреймворк
-
-- `Section.keys` в `deps` не компилируется: право привязки не даёт права
-  читать.
-- Разный флаг `reloadable` у двух читателей одного ключа останавливает
-  `build()` с `ConfigSharedKeyError`.
-- Невалидный конфиг на старте останавливает приложение до открытия
-  сокета: `ConfigValidationError` перечисляет все ошибки секции и
-  опрошенные источники.
-- Цель привязки, не покрывающая ни одного объявленного ключа, даёт
-  предупреждение на старте: так ловится опечатка в глобе.
-- Поле с именем `onChange` в reloadable-секции запрещено: это имя занято
-  подпиской.
-
-## Как проверить
+## Проверка
 
 Тест собирает контейнер с источником, который потом меняет:
 
@@ -262,22 +252,10 @@ export class RateLimiter {
 `health` равна `{"databaseUrl":"***"}`, а чтение поля отдаёт настоящий
 адрес.
 
-## Запускаемый код
-
-- `packages/examples.container/src/main.ts`, `container.ts`: привязка
-  источников в двух корнях;
-- `config/app.config.ts`, `config/index.ts`: секция и экспорт `.keys`;
-- `health/health.config.ts`: второй читатель ключа;
-- `runtime/runtime.config.ts`, `runtime/rate-limiter.ts`,
-  `runtime/runtime.module.ts`: reloadable-секция и её потребитель;
-- `config/secrets.spec.ts`, `runtime/reload.spec.ts`: тесты.
-
 ```bash
 yarn workspace examples.container start:dev
 yarn workspace examples.container test
 ```
-
-## Дальше
 
 Эксплуатационные endpoint'ы: кто сейчас подключён к сервису и как
 завершить подписку. Глава [23](./23-ops.md).

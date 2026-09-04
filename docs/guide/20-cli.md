@@ -1,21 +1,17 @@
 # 20. CLI-утилита на тех же примитивах
 
-> Гайд по текущему API; сверено с кодом `examples.simple-cli` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.simple-cli` (2026-09-04).
 > Целевое описание: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Endpoint-декларации: per-transport
 > конструкторы, `deps`-инжект, формы хендлера».
 
-## Задача
-
 Рядом с сервисом нужен консольный инструмент: разовая команда с
 аргументами и обработка данных из stdin. Проверка входа, отказы со
-статусом и кодом и форма `stream` должны работать так же, как в HTTP,
-без второго набора правил для командной строки.
+статусом и кодом и форма `stream` работают так же, как в HTTP, без
+второго набора правил для командной строки.
 
-## Решение
-
-### Объявите команду с аргументами
+## Команда с аргументами
 
 ```typescript
 // packages/examples.simple-cli/src/commands/greet.command.ts
@@ -43,12 +39,16 @@ export const Greet = cliEndpoint({
 `cliEndpoint` объявляет команду так же, как `httpEndpoint` объявляет
 маршрут: те же `input`, `output`, `errors`, `pipeline`, `deps` и
 `handle`. Вместо метода и пути у команды одно поле `command`, оно же
-паттерн endpoint'а.
+паттерн endpoint'а. Имя команды проверяется в момент создания
+декларации: пустая строка в `command` — ошибка на импорте файла, а не
+при разборе первой команды.
 
 Вход команды собирается из аргументов процесса. Позиционные аргументы
 попадают в массив `args`. Опция `--key value` становится полем `key`,
 флаг `--flag` без значения даёт `true`. Собранный объект проверяет схема
-`input`, поэтому обязательность имени задаёт `z.array(...).min(1)`.
+`input` до вызова хендлера: обязательность имени задаёт
+`z.array(...).min(1)`, а команда `greet` без имени отвечает отказом
+`bad_request` с путём `args`, не вызывая хендлер.
 
 ```bash
 yarn workspace examples.simple-cli start:dev greet Alice --shout
@@ -63,10 +63,10 @@ yarn workspace examples.simple-cli start:dev greet Alice --shout
 Результат команды транспорт печатает в stdout как JSON. Хендлер не
 пишет в консоль сам.
 
-### Объявите команду без входа
+## Команда без входа
 
 ```typescript
-// packages/examples.simple-cli/src/commands/help.command.ts
+// packages/examples.simple-cli/src/commands/help.command.ts (фрагмент)
 export const Help = cliEndpoint({
   command: 'help',
   output: HelpOutput,
@@ -82,10 +82,10 @@ export const Help = cliEndpoint({
 сам, потому что это его вывод для человека, а результатом отдаёт
 подтверждение по схеме `output`.
 
-### Прочитайте stdin как поток
+## Поток из stdin
 
 ```typescript
-// packages/examples.simple-cli/src/commands/process-stdin.command.ts
+// packages/examples.simple-cli/src/commands/process-stdin.command.ts (фрагмент)
 export const ProcessStdin = cliEndpoint({
   command: 'process-stdin',
   input: stream('binary'),
@@ -112,21 +112,22 @@ export const ProcessStdin = cliEndpoint({
 ```
 
 Форма `stream('binary')` на входе отдаёт хендлеру чанки stdin как есть.
-Форма `stream(T)` со схемой читала бы stdin как NDJSON и проверяла каждую
-строку схемой, как в главе [10](./10-files-and-streams.md). Потоковый
-`output` транспорт пишет в stdout тем же NDJSON.
+Форма `stream(T)` со схемой читала бы stdin как NDJSON и проверяла бы
+каждую строку схемой, как в главе [10](./10-files-and-streams.md), а
+потоковый `output` транспорт писал бы в stdout тем же NDJSON.
 
 ```typescript
 // packages/examples.simple-cli/src/errors.ts
 export const EmptyStdin = makeFail('bad_request:empty_stdin', {
-  status: 'bad_request',
   message: 'No data received on stdin',
 });
 ```
 
-Отказ объявляется тем же `makeFail`, что и в HTTP. Статус не зависит от
-транспорта: HTTP перевёл бы `bad_request` в 400, CLI печатает его как
-есть.
+Отказ объявляется тем же `makeFail`, что и в HTTP: код вида
+`категория:конкретный_повод`, из которого читается категория ответа, и
+необязательные `message` и `details`. Категория не зависит от
+транспорта: CLI печатает код как есть, HTTP перевело бы `bad_request` в
+400.
 
 ```bash
 printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin
@@ -141,7 +142,7 @@ Processing: b
 }
 ```
 
-### Запустите транспорт
+## Транспорт и режимы запуска
 
 ```typescript
 // packages/examples.simple-cli/src/main.ts
@@ -173,29 +174,27 @@ async function main() {
 до `exit`, `quit` или конца ввода. Пример выбирает режим по наличию
 аргументов.
 
+Формы `events` и `multipart` транспорт отклоняет при регистрации.
+Ошибка называет команду и форму: у команды нет соединения, обрыв
+которого был бы нормальным завершением, а файлы приходят путями в
+аргументах.
+
 Пример собирает `dispatch` напрямую, потому что у команд нет
 зависимостей. Команде с `deps` нужен контейнер: объявите её в фиче и
-объявите приложение через `makeApp` с транспортом `cli()` в `transports:`. Как это
-выглядит, показывает минимальный пример в
-[README пакета](../../packages/nestling.transport.cli/README.md). Сборка
-без `makeApp` разобрана в главе [24](./24-standalone.md).
+объявите приложение через `makeApp` с транспортом `cli()` в
+`transports:`. Минимальный пример — в [README
+пакета](../../packages/nestling.transport.cli/README.md).
 
-## Что гарантирует фреймворк
+## Проверка
 
-- Вход проверяется схемой до вызова хендлера. Команда `greet` без имени
-  печатает `bad_request` с кодом `bad_request` и путём `args`, а
-  хендлер не вызывается.
-- Пустое имя команды останавливает создание декларации, а не запуск.
-- Формы `events` и `multipart` транспорт отклоняет при регистрации.
-  Ошибка называет команду и форму: у команды нет соединения, обрыв
-  которого был бы нормальным завершением, а файлы приходят путями в
-  аргументах.
-- Команда, которой нет в `dispatch`, даёт ошибку с именем команды.
-
-## Как проверить
+Команды выполняются через `execute`: аргументы разбирает `parseArgv`,
+ответ приходит значением, stdout в этом пути не участвует.
 
 ```typescript
-// packages/examples.simple-cli/src/commands.spec.ts
+// packages/examples.simple-cli/src/commands.spec.ts (фрагмент)
+describe('команды через execute', () => {
+  let cli: CliTransport;
+
   beforeEach(async () => {
     // Пустой `argv`: `serve` регистрирует команды и ничего не выполняет
     cli = new CliTransport({ mode: 'argv', argv: [] });
@@ -222,33 +221,26 @@ async function main() {
       value: { code: 'bad_request' },
     });
   });
+
+  it('не знает команду, которой нет в dispatch', async () => {
+    await expect(cli.execute(parseArgv(['deploy']))).rejects.toThrow(
+      'Command "deploy" not found',
+    );
+  });
+  // …
+});
 ```
 
 `parseArgv` собирает вход из массива строк по тем же правилам, что и
-запуск из терминала. `execute` выполняет одну команду через `dispatch` и
-возвращает ответ значением, ничего не печатая. Команда `process-stdin`
-читает `process.stdin` напрямую, поэтому в тест через `execute` она не
-попала.
-
-## Запускаемый код
-
-| Файл | Что показывает |
-|---|---|
-| `packages/examples.simple-cli/src/commands/greet.command.ts` | вход `{ args, ...options }` |
-| `packages/examples.simple-cli/src/commands/help.command.ts` | команда без входа |
-| `packages/examples.simple-cli/src/commands/process-stdin.command.ts` | `stream('binary')` из stdin и отказ |
-| `packages/examples.simple-cli/src/errors.ts` | отказ с транспортно-независимой категорией |
-| `packages/examples.simple-cli/src/main.ts` | `CliTransport` в режимах argv и REPL |
-| `packages/examples.simple-cli/src/commands.spec.ts` | команды через `execute(parseArgv(...))` |
+запуск из терминала. Команда `process-stdin` читает `process.stdin`
+напрямую, поэтому в тест через `execute` она не попала. Команда,
+которой нет в `dispatch`, — не отказ значением, а исключение с её
+именем: `execute` в этом случае не строит контекст запроса.
 
 ```bash
-yarn workspace examples.simple-cli start:dev greet Alice --shout
-printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin
 yarn workspace examples.simple-cli start:dev            # REPL
 yarn workspace examples.simple-cli test
 ```
-
-## Дальше
 
 Глава [21. Логгер с именем потребителя и сбор вкладов](./21-token-families.md)
 показывает семейства токенов: один рецепт на много зависимостей.

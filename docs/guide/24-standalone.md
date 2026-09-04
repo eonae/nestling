@@ -1,7 +1,7 @@
 # 24. Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `examples.simple-http-server` (2026-09-03)
-> и `examples.container` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.simple-http-server` (2026-09-04)
+> и `examples.container` (2026-09-04).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
 > [design/container.md](../design/container.md). Почему так: записи
@@ -9,16 +9,12 @@
 > `@OnStart`, гарантия `dispatch`» и «Token families + модули без
 > рантайм-инкапсуляции».
 
-## Задача
-
 Приложение целиком не нужно. Нужно встроить несколько endpoint'ов в
 существующий процесс или скрипт, или собрать граф зависимостей без
 транспорта, например для экспорта в визуализацию. Оба случая решаются
 теми же примитивами, из которых состоит сборка приложения.
 
-## Решение
-
-### HTTP-сервер из транспорта и `dispatch`
+## HTTP-сервер из транспорта и `dispatch`
 
 ```typescript
 // packages/examples.simple-http-server/src/main.ts
@@ -55,18 +51,22 @@ process.on('SIGINT', () => void stop('SIGINT'));
 ```
 
 Три шага, которые сборка делает на фазах WIRE и START, здесь написаны
-руками. `makeDispatch` строит таблицу «паттерн, хендлер» из деклараций.
-`serve(dispatch, signal)` открывает сокет и начинает принимать запросы.
+руками. `makeDispatch` строит таблицу «паттерн, хендлер» из деклараций,
+принимая только декларации без `deps`, класс-хендлеров и классов-юнитов:
+декларация с зависимостями не проходит по типам, и вызов не
+компилируется. Две декларации одного транспорта с одним и тем же
+паттерном останавливают `makeDispatch` с ошибкой. У транспорта нет
+метода `listen()` без аргументов: принимать запросы он начинает только в
+`serve(dispatch, signal)`, когда таблица маршрутов уже построена.
 Остановку по сигналу процесса корень вешает сам: сигнал прерывает
 выполняющиеся запросы, `close()` ждёт закрытия соединений.
 
-`makeDispatch` принимает только декларации без `deps`, класс-хендлеров
-и классов-юнитов. Декларации с зависимостями сначала получают их через
-`endpoint.resolve(...)`; в собранном приложении это делает контейнер. Читать
-`process.env` в корне здесь допустимо: секции конфига без ядра конфигурации
-нет.
+Декларации с зависимостями сначала получают их через
+`endpoint.resolve(...)`; в собранном приложении это делает контейнер.
+Читать `process.env` в корне здесь допустимо: секции конфига без ядра
+конфигурации нет.
 
-### Endpoint без пайплайна и endpoint с pre-юнитом
+## Endpoint без пайплайна и endpoint с pre-юнитом
 
 ```typescript
 // packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts
@@ -130,7 +130,7 @@ curl -N localhost:3000/logs/export
 Второй возвращает 409 с кодом `conflict:email_taken`. Третий отдаёт NDJSON из
 формы `stream(T)`.
 
-### Контейнер без приложения
+## Контейнер без приложения
 
 ```typescript
 // packages/examples.container/src/container.ts
@@ -151,15 +151,17 @@ export const makeContainer = async (
 ```
 
 `ContainerBuilder` собирает тот же граф, что `makeApp` в `main.ts` того
-же примера, но без фаз приложения и транспортов. Ядро конфигурации, которое
-сборка регистрирует сама, здесь подключается вызовом `configKernel` с
-привязкой источников к ключам секций, как в главе
-[22](./22-config-sources.md). Плагин логирования регистрируется своими
-модулями: `appLogging.modules` — обычный массив значений. `build()`
-создаёт все провайдеры сразу и проверяет граф.
+же примера, но без фаз приложения и транспортов. Ядро конфигурации,
+которое сборка через `makeApp` регистрирует сама, здесь подключается
+вызовом `configKernel` с привязкой источников к ключам секций, как в
+главе [22](./22-config-sources.md). Плагин логирования регистрируется
+своими модулями: `appLogging.modules` — обычный массив значений.
+`build()` создаёт все провайдеры сразу и проверяет граф целиком:
+отсутствующая зависимость и цикл останавливают сборку одной ошибкой со
+списком узлов.
 
 ```typescript
-// packages/examples.container/src/runtime/reload.spec.ts
+// packages/examples.container/src/runtime/reload.spec.ts (фрагмент)
     container = await makeContainer(source);
     await container.init();
     // Подписка `onChange` открывается в `@OnStart`
@@ -184,25 +186,15 @@ export const main = async () => {
 
   await writeFile('di-metadata.json', json);
 };
+
+main().catch(console.error);
 ```
 
 `toJSON()` отдаёт граф с узлами, рёбрами и принадлежностью модулям.
 Скрипт пишет его в файл, а `@nestling/viz` рисует в браузере. Транспорт
 для этого не нужен, поэтому скрипт собирает контейнер, а не приложение.
 
-## Что гарантирует фреймворк
-
-- `makeDispatch` принимает только исполнимые декларации. Декларация с
-  `deps` или класс-хендлером не проходит по типам: вызов не компилируется.
-- Две декларации одного транспорта с одним паттерном останавливают
-  `makeDispatch` с ошибкой.
-- У транспорта нет метода `listen()` без аргументов. Принимать запросы
-  он начинает только в `serve(dispatch, signal)`, когда таблица маршрутов
-  уже построена.
-- `build()` проверяет граф целиком: отсутствующая зависимость и цикл
-  останавливают сборку одной ошибкой со списком узлов.
-
-## Как проверить
+## Проверка
 
 ```typescript
 // packages/examples.simple-http-server/src/dispatch.spec.ts
@@ -241,25 +233,10 @@ const call = (endpoint: ExecutableDeclaration, payload?: unknown) => {
 `dispatch.call` исполняет endpoint тем же путём, что и транспорт. Остальные
 тесты файла проверяют отказ схемы, объявленный отказ и потоковый ответ.
 
-## Запускаемый код
-
-| Файл | Что показывает |
-|---|---|
-| `packages/examples.simple-http-server/src/main.ts` | `HttpTransport`, `makeDispatch`, `serve`, остановка по сигналу |
-| `packages/examples.simple-http-server/src/endpoints/say-hello.endpoint.ts` | pre-юнит и чтение `meta` |
-| `packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts` | endpoint без `pipeline` |
-| `packages/examples.simple-http-server/src/endpoints/export-logs.endpoint.ts` | `stream(T)` на выходе без приложения |
-| `packages/examples.simple-http-server/src/dispatch.spec.ts` | вызов через `dispatch.call` |
-| `packages/examples.container/src/container.ts` | `ContainerBuilder` с ядром конфигурации |
-| `packages/examples.container/src/cli.ts` | экспорт графа для `@nestling/viz` |
-
 ```bash
-yarn workspace examples.simple-http-server start:dev
 yarn workspace examples.simple-http-server test
 yarn workspace examples.container export-metadata && yarn workspace examples.container visualize
 ```
-
-## Дальше
 
 Глава [25. Расширить ядро своим пакетом](./25-extending.md) показывает,
 как поверх тех же публичных примитивов пишется отдельный пакет.

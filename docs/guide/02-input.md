@@ -1,22 +1,16 @@
 # 2. Принять данные и не пропустить мусор
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md),
 > [design/schemas.md](../design/schemas.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
 > канон размещения + bind-карта» и «[2026-08-29] Проверка входа по
 > `input`: обязанность рантайма, точка после `.pre`-юнитов».
 
-## Задача
-
 Сервису нужны три endpoint'а: `POST /users` принимает пользователя в
 теле, `GET /users/:id` отдаёт его по идентификатору, `GET /users?limit=10`
 отдаёт список. Хендлер должен получать уже проверенные данные нужного
-типа, а невалидный запрос должен получать `400` до вызова хендлера.
-
-## Решение
-
-### Схема данных
+типа, а невалидный запрос — `400` до вызова хендлера.
 
 ```typescript
 // packages/examples.users-service/src/users/user.ts
@@ -46,14 +40,12 @@ export const CreateUserInput = User.pick({ name: true, email: true }).extend({
 export type CreateUserInput = z.infer<typeof CreateUserInput>;
 ```
 
-Схема описывает то, что передаётся по сети. Из неё же выводится тип
-для хендлера, поэтому отдельного интерфейса `User` писать не нужно.
-Схема входа называется по операции с суффиксом `Input`:
-`CreateUserInput`, `ListUsersInput` ([conventions.md](../conventions.md)).
-Nestling принимает любую схему, реализующую Standard Schema: zod,
-valibot, arktype. В примерах используется zod.
-
-### Тело запроса
+Схема описывает то, что передаётся по сети. Из неё же выводится тип для
+хендлера, поэтому отдельного интерфейса `User` писать не нужно. Схема
+входа называется по операции с суффиксом `Input`: `CreateUserInput`,
+`ListUsersInput` ([conventions.md](../conventions.md)). Nestling
+принимает любую схему, реализующую Standard Schema: zod, valibot,
+arktype. В примерах используется zod.
 
 ```typescript
 // шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts
@@ -66,9 +58,12 @@ export const CreateUser = httpEndpoint({
 });
 ```
 
-Поле `input` задаёт схему входа. Рантайм проверяет вход по ней перед
-вызовом хендлера, и хендлер получает данные типа `CreateUserInput`.
-Запрос, который схему не проходит, получает `400` с кодом `bad_request`:
+Поле `input` задаёт схему входа. Проверка входа — обязанность рантайма, а
+не хендлера или юнита пайплайна: отключить её нельзя, а принять любое
+значение можно только явной схемой `z.unknown()`. Рантайм проверяет вход
+перед вызовом хендлера, и хендлер получает данные типа `CreateUserInput`;
+обращение к полю, которого в схеме нет, не компилируется. Запрос, который
+схему не проходит, получает `400` с кодом `bad_request`:
 
 ```bash
 curl -X POST localhost:3000/users \
@@ -80,8 +75,6 @@ curl -X POST localhost:3000/users \
 
 Поле `details` описывает каждую проблему в формате Standard Schema, без
 полей конкретного валидатора.
-
-### Параметр пути
 
 ```typescript
 // шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
@@ -98,8 +91,6 @@ export const GetUser = httpEndpoint({
 значение берётся из пути. Отдельно объявлять, откуда читать поле, не
 нужно.
 
-### Query-строка
-
 ```typescript
 // шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
 const ListUsersInput = z.object({
@@ -115,12 +106,13 @@ export const ListUsers = httpEndpoint({
 });
 ```
 
-Константы `alice` и `bob` здесь заменяют хранилище, которое появится в
-главе 5. У `GET` нет тела, поэтому поля `input` читаются из query-строки. Query
-несёт строки, число из строки делает схема: `z.coerce.number()`. Запрос
-`GET /users?limit=abc` получает `400` с путём `["limit"]` в `details`.
+Константы `alice` и `bob` здесь заменяют хранилище: данные пока лежат
+прямо в хендлере. У `GET` нет тела, поэтому поля `input` читаются из
+query-строки. Query несёт строки, число из строки делает схема:
+`z.coerce.number()`. Запрос `GET /users?limit=abc` получает `400` с путём
+`["limit"]` в `details`.
 
-### Правило размещения полей
+## Правило размещения полей
 
 Поля `input` раскладываются по частям HTTP-запроса по фиксированному
 правилу.
@@ -130,11 +122,12 @@ export const ListUsers = httpEndpoint({
 3. Остальные поля берутся из query для методов без тела (`GET`, `HEAD`,
    `DELETE`, `OPTIONS`, `TRACE`) и из тела для остальных.
 
-Слияния полей из нескольких мест нет. Поле `name` у `POST /users`,
-присланное в query-строке, во входные данные не попадёт и даст ошибку
-проверки.
+Слияния полей из нескольких мест нет: поле читается ровно из одного места
+запроса, а значение из другого места не подмешивается и не перекрывает
+объявленное. Поле `name` у `POST /users`, присланное в query-строке, во
+входные данные не попадёт и даст ошибку проверки.
 
-### Пометка места: `query()` и `body()`
+## Пометка места: `query()` и `body()`
 
 Умолчание правила иногда не совпадает с адресом, который вы хотите
 получить. Флаг «только проверить, не записывать» естественно передавать
@@ -168,33 +161,19 @@ path-параметре и `bind` при неструктурном входе (
 сырые байты) дают ошибку на импорте.
 
 Здесь `bind` объявлен на операции, а не на endpoint'е: адрес и схемы
-этого endpoint'а вынесены в `api/operations.ts` ради типизированного
-клиента (глава 11). У анонимной декларации `httpEndpoint({ method, path,
-bind })` пометки лежат прямо в словаре.
+этого endpoint'а вынесены в `api/operations.ts`, откуда их же импортирует
+клиент. У анонимной декларации `httpEndpoint({ method, path, bind })`
+пометки лежат прямо в словаре.
 
-### Как это лежит в примере
+## Как это лежит в примере
 
-В итоговом примере хендлеры этих трёх endpoint'ов — классы (глава 4),
-они получают зависимости из контейнера (глава 5) и подключают слой
-пайплайна (глава 8). `GetUser` и `CreateUser` объявлены не через `method`
-и `path`, а через операцию: адрес, схемы и пометки `bind` вынесены в
-`api/operations.ts`, чтобы их импортировал типизированный клиент. Это
-объясняет глава 11.
+В итоговом примере хендлеры этих трёх endpoint'ов — классы, которые
+получают зависимости из контейнера. `GetUser` и `CreateUser` объявлены не
+через `method` и `path`, а через операцию: адрес, схемы и пометки `bind`
+вынесены в `api/operations.ts`.
 
-## Что гарантирует фреймворк
-
-- Вход проверяется всегда: это обязанность рантайма, а не юнита
-  пайплайна. Отключить проверку нельзя; принять любое значение можно
-  схемой `z.unknown()`.
-- Тип входных данных в хендлере совпадает с выходом схемы. Обращение к
-  полю, которого в схеме нет, не компилируется.
-- Поле читается ровно из одного места запроса. Значение из другого места
-  не подмешивается и не перекрывает объявленное.
-
-## Как проверить
-
-Тест из главы 7 вызывает `GetUser` и `ListUsers` через полный пайплайн
-без открытия сокета:
+Тест вызывает `GetUser` и `ListUsers` через полный пайплайн без открытия
+сокета:
 
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
@@ -205,19 +184,6 @@ expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);
 Входные данные в `testApp.call` типизированы схемой `input`: передать
 `{ id: 1 }` вместо строки нельзя.
 
-## Пока не нужно
-
-- Отказы с машинным кодом, `404` и `409`: глава 3.
-- Файлы и потоки на входе: глава 10.
-
-## Запускаемый код
-
-- `packages/examples.users-service/src/users/user.ts`
-- `packages/examples.users-service/src/api/operations.ts`
-- `packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts`
-- `packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts`
-- `packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts`
-
 ```bash
 API_TOKEN=secret yarn workspace examples.users-service start:dev
 curl localhost:3000/users/1
@@ -227,8 +193,6 @@ curl -X POST 'localhost:3000/users?dryRun=true' \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'
 ```
-
-## Дальше
 
 Хендлер получает проверенные данные, но пока не умеет отказать:
 пользователя с таким `id` может не быть. Следующая глава: [3. Сказать

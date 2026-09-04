@@ -1,13 +1,11 @@
 # 16. Запускать только часть фич
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
 > Целевое описание: [design/composition.md](../design/composition.md)
 > «L2 — фичи и `select`» и «`check()`». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Модульный монолит: фичи,
 > `select`» и «[2026-09-02] Модель
 > композиции: фича, плагин, операция».
-
-## Задача
 
 Приложение состоит из фич `users`, `quotas` и `ops`. Локально оно
 запускается одним процессом. В проде пользовательский API и служебные
@@ -15,12 +13,15 @@ endpoint'ы разворачиваются отдельно, и каждый п�
 только свои фичи. Один и тот же код должен собираться во все три роли, а
 неверный состав должен останавливать сборку, а не первый запрос.
 
-## Решение
-
-### Прочитайте выбор фич до сборки
+## Прочитайте выбор фич до сборки
 
 ```typescript
 // packages/examples.app-with-http/src/main.ts
+import { app } from './app';
+
+import { from, load, makeConfig } from '@nestling/config';
+import { z } from 'zod';
+
 /**
  * Секция корня: выбор фич читается до сборки контейнера.
  *
@@ -35,16 +36,11 @@ const RootConfig = makeConfig('root', {
  * Точка входа. `APP_FEATURES=users` поднимает фичу пользователей и те
  * фичи, чьи операции она вызывает; `APP_FEATURES=all` поднимает все.
  */
-async function main(): Promise<void> {
-  const cfg = load(RootConfig);
+const cfg = load(RootConfig);
 
-  await app.assemble({ features: cfg.features, includeDeps: true }).run();
-
-  console.log('app-with-http: GET /health, GET /users, GET /openapi.json');
-}
+await app.assemble({ features: cfg.features, includeDeps: true }).run();
 ```
 
-Секция `RootConfig` объявлена как любая другая, но читается иначе.
 `load(section)` читает значения до сборки контейнера: синхронно и только
 из `process.env`. Так устроено потому, что выбор фич определяет состав
 контейнера, а секция внутри контейнера появилась бы уже после выбора.
@@ -54,7 +50,7 @@ async function main(): Promise<void> {
 Ключ `APP_FEATURES` задан через `from()`: у корня свой префикс `root`,
 потому что префикс `app` уже занят секцией приложения.
 
-### Формы выбора
+## Формы выбора и замыкание по вызовам
 
 | Запись | Что выбирает |
 |---|---|
@@ -66,12 +62,11 @@ async function main(): Promise<void> {
 Строковая форма нужна потому, что выбор приходит из переменной
 окружения. Если `features:` заданы, а `select` нет, выбраны все фичи.
 Плагины из `plugins:` в выбор не входят: они есть в каждом процессе.
-
-Невыбранная фича отсутствует в процессе целиком. Её провайдеры не
+Невыбранная фича отсутствует в процессе целиком: её провайдеры не
 создаются, её endpoint'ы не регистрируются, её реализации операций не
-подписываются.
-
-### Замыкание по вызовам
+подписываются. Неизвестное имя в `select` останавливает сборку, и ошибка
+перечисляет доступные фичи, так же как две фичи с одним именем, пустой
+выбор и `select` без `features:`.
 
 ```bash
 APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
@@ -81,7 +76,6 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.
 [nestling] features: users, quotas; transports: http, bus
 [nestling] selection closed over calls: users + quotas
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не bearer-токеном
-app-with-http: GET /health, GET /users, GET /openapi.json
 ```
 
 Выбрана одна фича, а в процессе две. `includeDeps: true` замыкает выбор
@@ -104,8 +98,6 @@ app-with-http: GET /health, GET /users, GET /openapi.json
 [nestling] selection closed over calls: ops (nothing added)
 ```
 
-### Что происходит без замыкания
-
 Сборка с выбором `'users'` без `includeDeps` останавливается на фазе
 ASSEMBLE:
 
@@ -120,17 +112,20 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 ```
 
 Ошибка называет операцию, вызывателя и два способа починить: включить
-владельца в выбор или назначить интерком, когда владелец работает в другом
-процессе. Второй способ разбирает глава [17](./17-split.md).
+владельца в выбор или назначить интерком, когда владелец работает в
+другом процессе.
 
-### Плагины есть в любой топологии
+## Плагины и проверка каждой роли без сокетов
 
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
-    await using testApp = await assembleTest(app, { select: 'ops' });
+    await using testApp = await assembleTest(app, {
+      ...testConfig,
+      select: 'ops',
+    });
 
     expect(testApp.get(Logger$)).not.toBeNull();
     expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
@@ -141,8 +136,6 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 Логирование, аутентификация, реестр подписок и документ OpenAPI
 подключены через `plugins:` и не зависят от `select`. Провайдеров фичи
 `users` в этой сборке нет.
-
-### Проверьте каждую роль без сокетов
 
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
@@ -160,10 +153,12 @@ const checked = makeApp({
 ```
 
 `check()` у приложения выполняет фазы 0 и 1: выбор фич, регистрацию,
-discovery, `build()` и проверку политик. `@OnInit`, `@OnStart` и
-`serve` не вызываются, ресурсы не захватываются. `checkTopologies(app,
-selections)` из `@nestling/testing` вызывает `check()` для каждого
-варианта `select` и собирает ошибки всех вариантов в одно сообщение.
+discovery, `build()` и проверку политик. `@OnInit`, `@OnStart` и `serve`
+не вызываются, ресурсы не захватываются. Он бросает те же ошибки, что
+бросил бы `run()` на фазах 0 и 1, и не влияет на последующий `run()` того
+же приложения. `checkTopologies(app, selections)` из `@nestling/testing`
+вызывает `check()` для каждого варианта `select` и собирает ошибки всех
+вариантов в одно сообщение.
 
 Подстановок `check()` не принимает: он проверяет честный граф. Поэтому
 секреты приходят не из `vars()`, а привязкой источника к ключам секции в
@@ -174,7 +169,7 @@ selections)` из `@nestling/testing` вызывает `check()` для кажд
 // packages/examples.app-with-http/src/app.spec.ts
   it('собирает каждый вариант деплоя без сокетов', async () => {
     const usersWithDeps = { features: 'users', includeDeps: true } as const;
-    const reports = await checkTopologies(app, [
+    const reports = await checkTopologies(checked, [
       'all',
       usersWithDeps,
       'ops',
@@ -206,7 +201,7 @@ selections)` из `@nestling/testing` вызывает `check()` для кажд
 ```typescript
 // packages/examples.app-with-http/src/app.spec.ts
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
-    const [{ report }] = await checkTopologies(app, ['all']);
+    const [{ report }] = await checkTopologies(checked, ['all']);
 
     expect(
       report.endpoints
@@ -218,56 +213,15 @@ selections)` из `@nestling/testing` вызывает `check()` для кажд
 ```
 
 Политики из главы [9](./09-auth.md) проверяются в каждой топологии
-матрицы. Инвариант, который держится при выборе `'all'` и ломается на
-подмножестве, виден в тесте, а не при выкладке. Причины `detached`
-приходят значениями в отчёте: тест сравнивает список, а не читает
-вывод в консоли.
-
-## Что гарантирует фреймворк
-
-- Неизвестное имя в `select` останавливает сборку, и ошибка перечисляет
-  доступные фичи. Две фичи с одним именем, пустой выбор и `select` без
-  `features:` тоже останавливают сборку.
-- Вызов операции, владелец которой не выбран, останавливает сборку на
-  фазе ASSEMBLE. Без интеркома у такого вызова нет адресата.
-- `check()` бросает те же ошибки, что бросил бы `run()` на фазах 0 и 1,
-  и не влияет на последующий `run()` того же приложения.
-- Политики проверяются в каждой топологии, а не только в полной сборке.
-
-## Как проверить
-
-Тесты «матрица select-топологий» и «фичи и плагины в сборке» в
-`app.spec.ts` покрывают замыкание по вызовам, состав отчёта и `detached`.
-Запуск с `APP_FEATURES` проверяет то же самое вручную:
+матрицы, а не только в полной сборке. Инвариант, который держится при
+выборе `'all'` и ломается на подмножестве, виден в тесте, а не при
+выкладке. Причины `detached` приходят значениями в отчёте: тест сравнивает
+список, а не читает вывод в консоли.
 
 ```bash
 yarn workspace examples.app-with-http test
 APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
 ```
 
-## Пока не нужно
-
-- Владелец операции в другом процессе, `nats()` и `intercom:`: глава
-  [17](./17-split.md).
-- Проверка, что изменение операции не сломало соседнюю роль: глава
-  [18](./18-compatibility.md).
-
-## Запускаемый код
-
-| Файл | Что показывает |
-|---|---|
-| `packages/examples.app-with-http/src/main.ts` | `load()` до сборки, `from('APP_FEATURES')`, `select` с `includeDeps` |
-| `packages/examples.app-with-http/src/app.ts` | одна декларация на все роли |
-| `packages/examples.app-with-http/src/app.spec.ts` | `select` в тесте, `checkTopologies`, отчёт с `detached` |
-
-```bash
-APP_FEATURES=all API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
-APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
-APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
-```
-
-## Дальше
-
-Роли собираются по отдельности, но пока работают в одном процессе.
-Следующая глава разносит их по процессам, не меняя код фич:
+Роли собираются по отдельности, но пока работают в одном процессе:
 [17. Разнести фичи по процессам](./17-split.md).

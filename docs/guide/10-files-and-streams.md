@@ -1,21 +1,17 @@
 # 10. Файлы и большие выгрузки
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
 > [design/streaming.md](../design/streaming.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Стриминг: `stream(T)` ≠ `events(T)`,
 > AbortSignal, источники событий» и «Два скоупа обработки: request-pipeline
 > и item-цепочки».
 
-## Задача
-
 Три запроса не укладываются в «JSON туда, JSON обратно». Пользователь
 загружает аватар: файл плюс поля формы. Администратор выгружает всех
 пользователей файлом, который может не поместиться в память. Тот же
 администратор загружает список пользователей из такого же файла, и
 сервер должен обрабатывать его построчно, не дожидаясь конца.
-
-## Решение
 
 Вход и выход endpoint'а описывает форма io. До этой главы формой была
 схема как есть: одно JSON-значение. Ещё две формы решают три задачи
@@ -27,7 +23,7 @@
 | `multipart({ fields, files })` | поля формы и файлы | `multipart/form-data` |
 | `stream(T)` | конечный поток значений `T` | `application/x-ndjson` |
 
-### Шаг 1. Файл в форме
+## Файл в форме
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts
@@ -80,26 +76,30 @@ export const UploadAvatar = httpEndpoint({
 Форма `multipart({ fields, files })` описывает запрос из двух частей.
 Схема `fields` проверяет текстовые поля формы. Path-параметры добавляются
 к ним, поэтому `id` из адреса попадает в `fields.id`. Объект `files`
-перечисляет файловые поля; `upload()` объявляет одно из них.
+перечисляет файловые поля; `upload()` объявляет одно из них. Тип payload
+хендлера выводится из формы целиком: для `multipart` это
+`{ fields, files }` с типами по схеме `fields` и объявленным файлам.
 
 Хендлер получает payload вида `{ fields, files }`. Файл приходит как
 `FilePart`: имя поля, имя файла, MIME-тип и поток байтов
 `stream: AsyncIterable<Uint8Array>`. Хендлер примера файл не читает и
 сохраняет только путь.
 
-Ограничения объявлены на самом поле и применяются во время разбора.
+Ограничения объявлены на самом поле и применяются во время разбора, до
+того как тело буферизуется целиком.
 
 - Файл больше `maxSize` прерывает чтение и даёт `413`. Сервер не
   буферизует файл целиком, чтобы потом отказать.
 - Файл с MIME-типом вне списка отклоняется с `400` до чтения его тела.
-- Файловое поле, которого нет в `files`, отклоняется с `400`: форма
-  закрыта.
+- Форма закрыта: файловое поле, которого нет в `files`, отклоняется с
+  `400`, и второй файл в поле без `multiple: true` — тоже.
 
 Единственное, что форма не гарантирует, это наличие поля. Форма без
 файла даёт `files.avatar` равным `undefined`, и хендлер отвечает
 объявленным отказом `AvatarRequired`.
 
 ```bash
+API_TOKEN=secret yarn workspace examples.users-service start:dev
 curl -X POST http://localhost:3000/users/1/avatar \
   -H 'authorization: Bearer secret' -F 'avatar=@photo.png;type=image/png'
 # {"id":"1","name":"Alice","email":"alice@example.com","avatarUrl":"/uploads/1/photo.png"}
@@ -111,7 +111,7 @@ curl -X POST http://localhost:3000/users/1/avatar \
 Несколько файлов в одном поле объявляются как
 `upload({ multiple: true })`; тогда хендлер получает `FilePart[]`.
 
-### Шаг 2. Выгрузка потоком
+## Выгрузка потоком
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts
@@ -175,7 +175,7 @@ curl -N http://localhost:3000/users/export
 # {"id":"2","name":"Bob","email":"bob@example.com"}
 ```
 
-### Шаг 3. Загрузка потоком
+## Загрузка потоком
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts
@@ -228,7 +228,8 @@ export const ImportUsers = httpEndpoint({
 
 Форма `stream(ImportRow)` на входе означает, что тело запроса читается
 построчно как NDJSON. Хендлер получает `AsyncIterableIterator<ImportRow>`
-и читает его циклом `for await` в своём темпе.
+и читает его циклом `for await` в своём темпе — так же, как для `stream(T)`
+на входе тип payload выводится формой.
 
 Каждую строку проверяет схема `ImportRow` до того, как строка попадёт в
 хендлер. Невалидная строка обрывает запрос отказом `bad_request`
@@ -236,7 +237,9 @@ export const ImportUsers = httpEndpoint({
 `User.pick({ name: true, email: true })`: те же поля, что принимает
 `POST /users`, без флага `dryRun`.
 
-Два шага item-цепочки защищают сервер от клиента.
+Два шага item-цепочки защищают сервер от клиента, и оба, как лимиты
+загрузки файла, срабатывают во время чтения: тело сверх лимита не
+накапливается в памяти.
 
 - `.limit(n)` обрывает запрос после `n` строк отказом
   `payload_too_large`, код `413`.
@@ -263,20 +266,7 @@ printf '{"name":"Eve","email":"not-an-email"}\n' | curl -X POST http://localhost
 `{ validate: false }` отключает проверку. По умолчанию невалидная строка
 обрывает запрос.
 
-## Что гарантирует фреймворк
-
-- Тип payload хендлера выводится из формы. Для `multipart` это
-  `{ fields, files }` с типами по схеме `fields` и объявленным файлам,
-  для `stream(T)` на входе это `AsyncIterableIterator<T>`.
-- Шаг, который меняет тип элемента, например `.batch(100)`, на выходе не
-  компилируется: схема `output` описывает элемент, который уходит по
-  сети.
-- Лимиты файлов и потоков срабатывают во время чтения. Тело сверх лимита
-  не буферизуется.
-- Форма `multipart` закрыта: незаявленное файловое поле и второй файл в
-  поле без `multiple` дают `400`.
-
-## Как проверить
+## Проверка
 
 В `src/app.spec.ts` тестов на эти три endpoint'а нет, потому что разбор
 формы и NDJSON выполняет транспорт, а `testApp.call` принимает готовый
@@ -291,6 +281,7 @@ item-цепочка при этом выполняются, как при зап
 // иллюстрация; в src/app.spec.ts этого теста нет
 it('импортирует строки и пропускает занятые email', async () => {
   await using testApp = await assembleTest(app, {
+    config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice])]],
   });
 
@@ -307,42 +298,8 @@ it('импортирует строки и пропускает занятые e
 });
 ```
 
-Для `ExportUsers` значение `unwrap(await testApp.call(ExportUsers))` является
-`AsyncIterable`, который читается тем же `for await`.
-
-## Пока не нужно
-
-- Открытая подписка, которая не заканчивается, пока клиент подключён,
-  объявляется формой `events(T)` и отдаётся как SSE. Это
-  [глава 14](./14-live-feed.md).
-- Шаги item-цепочки `.tap`, `.filter` и `.batch` на входе, где тип
-  элемента менять можно, описаны в
-  [приложении А](./appendix-a-alternatives.md).
-- Сырые байты тела для проверки подписи webhook'а запрашиваются
-  полем `rawBody: true`. Это [глава 19](./19-webhook.md).
-
-## Запускаемый код
-
-- `packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts`
-  — форма `multipart` и `upload`.
-- `packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts`
-  — `stream(T)` на выходе.
-- `packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts`
-  — `stream(T)` на входе с `.limit` и `.gapTimeout`.
-- `packages/examples.users-service/src/users/users.errors.ts` — отказ
-  `AvatarRequired`.
-
-```bash
-API_TOKEN=secret yarn workspace examples.users-service start:dev
-curl -N http://localhost:3000/users/export
-curl -X POST http://localhost:3000/users/1/avatar \
-  -H 'authorization: Bearer secret' -F 'avatar=@photo.png;type=image/png'
-curl -X POST http://localhost:3000/users/import \
-  -H 'authorization: Bearer secret' -H 'content-type: application/x-ndjson' \
-  --data-binary @rows.ndjson
-```
-
-## Дальше
+Для `ExportUsers` значение `unwrap(await testApp.call(ExportUsers))`
+является `AsyncIterable`, который читается тем же `for await`.
 
 Документ OpenAPI и типизированный клиент из тех же деклараций:
 [глава 11](./11-openapi-and-client.md).

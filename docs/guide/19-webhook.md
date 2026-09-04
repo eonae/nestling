@@ -1,12 +1,10 @@
 # 19. Webhook с проверкой подписи
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-03).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md), раздел
 > «Сырые байты: `rawBody`». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
 > канон размещения + bind-карта».
-
-## Задача
 
 Внешняя система присылает события о пользователях на `POST /hooks/users`
 и подписывает тело HMAC-подписью в заголовке `x-signature`. Подпись нужно
@@ -16,14 +14,11 @@
 внешней системы нет, поэтому политика «каждый `POST` проверяет токен» из
 [главы 9](./09-auth.md) к этому endpoint'у не применима.
 
-## Решение
-
-### Шаг 1. Отказ проверки подписи
+## Отказ и секрет подписи
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/users.errors.ts
 export const InvalidSignature = makeFail('unauthorized:invalid_signature', {
-  status: 'unauthorized',
   message: 'Webhook signature does not match the body',
 });
 ```
@@ -31,10 +26,8 @@ export const InvalidSignature = makeFail('unauthorized:invalid_signature', {
 Отказ объявлен так же, как остальные отказы фичи. Статус `unauthorized`
 транспорт переводит в `401`.
 
-### Шаг 2. Секрет в секции конфига
-
 ```typescript
-// packages/examples.app-with-http/src/app.config.ts
+// packages/examples.app-with-http/src/app.config.ts (фрагмент)
 export const AppConfig = makeConfig('app', {
   // …
   webhookSecret: secret(from('WEBHOOK_SECRET', z.string().min(1))),
@@ -45,10 +38,10 @@ export const AppConfig = makeConfig('app', {
 приложение не стартует. `secret()` скрывает значение в печати секции и в
 тексте ошибок, как в [главе 6](./06-config.md).
 
-### Шаг 3. Pre-юнит, который проверяет подпись
+## Pre-юнит, который проверяет подпись
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
+// packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts (фрагмент)
 import { createHmac, timingSafeEqual } from 'node:crypto';
 // …
 
@@ -73,22 +66,22 @@ export class VerifySignature {
 }
 ```
 
-`VerifySignature` устроен так же, как `Authenticate` из
-[главы 9](./09-auth.md): класс-юнит с зависимостью от секции конфига,
+`VerifySignature` устроен так же, как `Authenticate` из [главы
+9](./09-auth.md): класс-юнит с зависимостью от секции конфига,
 зарегистрированный в `providers:` модуля `UsersModule`.
 
 Отличие в типе контекста. `ExtendableContext<{ rawBody: Uint8Array }>`
 объявляет, что юниту нужны сырые байты тела в `ctx.input.rawBody`. Это
 поле кладёт транспорт до первого pre-юнита, если декларация помечена
-`rawBody: true`. Без пометки поля нет, и такой юнит в пайплайн не
-встанет: проверку делает компилятор (раздел «Что гарантирует фреймворк»).
+`rawBody: true`. Без пометки поля нет, и такой юнит в пайплайн не встанет
+— проверку делает компилятор.
 
 Заголовок подписи юнит читает из `ctx.raw.attributes`. Сравнение идёт
 через `timingSafeEqual`, чтобы время ответа не зависело от того, в каком
 байте подписи расхождение. При несовпадении юнит бросает отказ, и хендлер
 не вызывается.
 
-### Шаг 4. Декларация с `rawBody: true`
+## Декларация с `rawBody: true`
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
@@ -123,33 +116,45 @@ export const UserWebhook = httpEndpoint({
 });
 ```
 
-В декларации четыре новых элемента.
-
 `rawBody: true` включает доступ к байтам тела. Транспорт читает тело один
 раз: те же байты уходят в `ctx.input.rawBody` для юнита и разбираются в
-JSON для схемы `input`. Хендлер получает обычный проверенный payload и о
-байтах не знает.
+JSON для схемы `input`, поэтому расхождения между байтами подписи и
+проверенным значением быть не может. Хендлер получает обычный проверенный
+payload и о байтах не знает.
 
 `makePipeline<{ rawBody: Uint8Array }>()` объявляет требование слоя к
 стартовому контексту. Слой стоит первым аргументом `compose`: его
 требование выполняет транспорт, а внешнего слоя, который положил бы
 `rawBody`, нет. Слой `observability` стоит вторым и получает контекст, в
-котором подпись уже проверена.
+котором подпись уже проверена. Слой с таким требованием на декларации без
+`rawBody: true` не компилируется, и ошибка типа называет недостающее поле
+и способ починить:
+
+```
+__error: "Pipeline requires context that the start context does not provide";
+missing: { rawBody: Uint8Array };
+hint: "declare 'rawBody: true', or provide the fields from an outer layer"
+```
+
+Забытая пометка находится в редакторе, а не запросом с `500`.
 
 `errors: [InvalidSignature]` объявляет отказ, который бросает юнит, а не
 хендлер. Правило из [главы 9](./09-auth.md) действует и здесь: список
-`errors:` описывает всё, что может получить клиент.
+`errors:` описывает всё, что может получить клиент, и отказ из pre-юнита
+проходит ту же проверку, что и отказ хендлера. Незадекларированный отказ
+клиент получил бы как `internal_error`.
 
-`detached` выводит endpoint из-под всех политик сборки с причиной.
-Политика из `root.ts` требует слой `authed` от каждого `POST`, а
-подлинность здесь подтверждает подпись. Причина печатается при старте и
-попадает в отчёт `check()`:
+`detached` выводит endpoint из-под всех политик сборки с причиной и
+требует её: пустая строка останавливает сборку. Политика из `root.ts`
+требует слой `authed` от каждого `POST`, а подлинность здесь подтверждает
+подпись. Причина печатается при старте и попадает в отчёт `check()`,
+поэтому список исключений из политик читается на ревью:
 
 ```
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не bearer-токеном
 ```
 
-### Запросы
+## Запросы и проверка
 
 Подпись считается тем же алгоритмом, что в юните: HMAC-SHA256 от байтов
 тела, в hex.
@@ -176,31 +181,12 @@ curl localhost:3000/users/2
 отклонён юнитом до хендлера. Строка аудита слоя `observability` есть в
 обоих случаях: слой стоит внутри и видит исход запроса.
 
-## Что гарантирует фреймворк
-
-- Слой с требованием `{ rawBody: Uint8Array }` на декларации без
-  `rawBody: true` не компилируется. Ошибка типа называет недостающее поле
-  и способ починить:
-
-  ```
-  __error: "Pipeline requires context that the start context does not provide";
-  missing: { rawBody: Uint8Array };
-  hint: "declare 'rawBody: true', or provide the fields from an outer layer"
-  ```
-
-  Забытая пометка находится в редакторе, а не запросом с `500`.
-- Тело читается один раз. Байты для подписи и значение для схемы берутся
-  из одного буфера, и расхождения между ними быть не может.
-- Отказ из pre-юнита проходит ту же проверку `errors:`, что и отказ
-  хендлера. Незадекларированный отказ клиент получил бы как `internal_error`.
-- `detached` требует причину. Пустая строка останавливает сборку, а
-  причина печатается при старте и попадает в отчёт `check()`, поэтому
-  список исключений из политик читается на ревью.
-
-## Как проверить
+Проверка подписи зависит от байтов тела, поэтому тест идёт по сети, а не
+через `testApp.call`: app-тест принимает готовый payload и тело не
+сериализует.
 
 ```typescript
-// packages/examples.app-with-http/e2e/webhook.spec.e2e.ts
+// packages/examples.app-with-http/e2e/webhook.spec.e2e.ts (фрагмент)
 const sign = (body: string, secret = E2E_WEBHOOK_SECRET): string =>
   createHmac('sha256', secret).update(body).digest('hex');
 
@@ -234,32 +220,12 @@ it('отклоняет тело с чужой подписью', async () => {
 });
 ```
 
-Проверка подписи зависит от байтов тела, поэтому тест идёт по сети, а не
-через `testApp.call`: app-тест принимает готовый payload и тело не
-сериализует. Секрет в e2e-сборке привязан источником к ключам секции
+Секрет в e2e-сборке привязан источником к ключам секции
 (`e2e/helpers/create-test-app.ts`), `process.env` тест не трогает.
 
 ```bash
 yarn workspace examples.app-with-http test:e2e
 ```
 
-## Запускаемый код
-
-- `packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts`
-  — юнит `VerifySignature`, хендлер и декларация.
-- `packages/examples.app-with-http/src/features/users/users.errors.ts` —
-  отказ `InvalidSignature`.
-- `packages/examples.app-with-http/src/app.config.ts` — секрет
-  `WEBHOOK_SECRET`.
-- `packages/examples.app-with-http/e2e/webhook.spec.e2e.ts` — тест по
-  сети.
-
-```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
-yarn workspace examples.app-with-http test:e2e
-```
-
-## Дальше
-
-Те же декларации и пайплайн в командной строке:
-[глава 20](./20-cli.md).
+Те же декларации и пайплайн работают и в командной строке: [20.
+CLI-утилита на тех же примитивах](./20-cli.md).
