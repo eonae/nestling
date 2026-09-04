@@ -53,7 +53,6 @@ import {
   assertFormsSupported,
   contextKernel,
   handlerClassOf,
-  handlerDependenciesOf,
   transportNameOf,
 } from '@nestling/pipeline';
 import type { OperationDescriptor } from '@nestling/ports';
@@ -627,13 +626,6 @@ export class AssembledApp {
     builder.register(
       portsKernel({
         implementations: collectImplementations(discovery.endpoints),
-        // Зависимости объектной формы хендлера — тоже потребность:
-        // endpoint, зовущий порт, обязан получить вызыватель наравне с
-        // провайдером, который его инжектит. Класс-хендлер регистрируется
-        // провайдером, и его зависимости контейнер видит сам
-        requested: discovery.endpoints.flatMap(({ endpoint }) =>
-          handlerDependenciesOf(endpoint),
-        ),
         // Назначенный интерком — единственный вход ветки «шину поставил
         // корень»: так подключается брокер, и in-proc реализация тогда не
         // регистрируется вовсе. Признак даёт роль, а не присутствие

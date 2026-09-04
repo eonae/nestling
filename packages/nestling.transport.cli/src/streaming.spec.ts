@@ -132,6 +132,7 @@ describe('потоковый вход через stdin', () => {
     });
 
     const cli = new CliTransport({
+      argv: [],
       onUnknownFail: (): void => undefined,
     });
     await cli.serve(makeDispatch([Import]), new AbortController().signal);

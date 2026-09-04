@@ -19,7 +19,7 @@ import type {
 } from '@nestling/container';
 import { dependenciesOf } from '@nestling/container';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
-import { handlerClassOf, handlerDependenciesOf } from '@nestling/pipeline';
+import { handlerClassOf } from '@nestling/pipeline';
 
 /**
  * Состав фичи или плагина: не больше одной из двух форм.
@@ -449,8 +449,7 @@ export function reachableModules(bundle: Bundle): Module[] {
 
 /**
  * Токены, которые единица запрашивает у контейнера: зависимости её
- * деклараций (объектная форма `handler` и класс-хендлер) и её
- * провайдеров.
+ * классов-хендлеров и её провайдеров.
  *
  * Вызыватель операции — обычный токен, поэтому инжектировать его может и
  * декларация, и любой провайдер фичи. Читать одни декларации значило бы
@@ -464,8 +463,6 @@ export function injectedTokens(bundle: Bundle): InjectionToken[] {
   const tokens: InjectionToken[] = [];
 
   for (const endpoint of bundle.endpoints) {
-    tokens.push(...handlerDependenciesOf(endpoint));
-
     const handlerClass = handlerClassOf(endpoint);
     if (handlerClass) {
       tokens.push(...dependenciesOf(handlerClass));

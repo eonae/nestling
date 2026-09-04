@@ -44,19 +44,23 @@ const QuotasFeature = makeFeature({
   ],
 });
 
+// Команда зовёт запрос: замыкание обязано идти транзитивно
+@Injectable([ClaimQuota.caller])
+class SendReceiptHandler {
+  constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
+
+  async handle() {
+    await this.quotas.call({ amount: 1 });
+
+    return undefined;
+  }
+}
+
 const BillingFeature = makeFeature({
   name: 'billing',
   endpoints: [
     implement(SendReceipt, {
-      // Команда зовёт запрос: замыкание обязано идти транзитивно
-      handler: {
-        deps: [ClaimQuota.caller],
-        handle: (quotas: Port<typeof ClaimQuota>) => async () => {
-          await quotas.call({ amount: 1 });
-
-          return undefined;
-        },
-      },
+      handler: SendReceiptHandler,
     }),
   ],
 });
@@ -82,20 +86,24 @@ const declared = (...features: readonly ReturnType<typeof makeFeature>[]) =>
 
 describe('closeOverCalls', () => {
   it('тянет реализацию операции, вызванной декларацией', () => {
+    @Injectable([ClaimQuota.caller])
+    class PlaceOrderHandler {
+      constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
+
+      async handle() {
+        await this.quotas.call({ amount: 1 });
+
+        return new Ok({});
+      }
+    }
+
     const Users = makeFeature({
       name: 'users',
       endpoints: [
         httpEndpoint({
           method: 'POST',
           path: '/users',
-          handler: {
-            deps: [ClaimQuota.caller],
-            handle: (quotas: Port<typeof ClaimQuota>) => async () => {
-              await quotas.call({ amount: 1 });
-
-              return new Ok({});
-            },
-          },
+          handler: PlaceOrderHandler,
         }),
       ],
     });

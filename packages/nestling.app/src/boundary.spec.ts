@@ -16,6 +16,7 @@ import { makeFeature, makePlugin } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { InjectionToken } from '@nestling/container';
 import { Injectable, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
@@ -46,18 +47,27 @@ class Logger {
   log(): void {}
 }
 
-const anyEndpoint = (path: string, deps: readonly unknown[] = []) =>
-  httpEndpoint({
-    method: 'GET',
-    path,
-    handler: {
-      deps: deps as never,
-      handle:
-        (...injected: unknown[]) =>
-        async () =>
-          new Ok({ injected: injected.length }),
-    },
-  });
+/**
+ * Endpoint с произвольным списком зависимостей: класс-хендлер собирается
+ * на месте, декоратор применяется вызовом — фикстуре нужен список, а не
+ * литерал в исходнике.
+ */
+const anyEndpoint = (path: string, deps: readonly unknown[] = []) => {
+  @Injectable(deps as InjectionToken[])
+  class AnyHandler {
+    readonly injected: readonly unknown[];
+
+    constructor(...injected: unknown[]) {
+      this.injected = injected;
+    }
+
+    async handle() {
+      return new Ok({ injected: this.injected.length });
+    }
+  }
+
+  return httpEndpoint({ method: 'GET', path, handler: AnyHandler });
+};
 
 describe('карта «модуль → владелец»', () => {
   it('плагин владеет модулем, достижимым и из фичи', () => {
@@ -182,20 +192,24 @@ describe('фичи связаны только операциями', () => {
       ],
     });
 
+    @Injectable([ClaimQuota.caller])
+    class PlaceOrderHandler {
+      constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
+
+      async handle() {
+        await this.quotas.call({ amount: 1 });
+
+        return new Ok({});
+      }
+    }
+
     const Users = makeFeature({
       name: 'users',
       endpoints: [
         httpEndpoint({
           method: 'POST',
           path: '/orders',
-          handler: {
-            deps: [ClaimQuota.caller],
-            handle: (quotas: Port<typeof ClaimQuota>) => async () => {
-              await quotas.call({ amount: 1 });
-
-              return new Ok({});
-            },
-          },
+          handler: PlaceOrderHandler,
         }),
       ],
     });

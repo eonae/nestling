@@ -40,17 +40,22 @@ class AuditLog {
   }
 }
 
+@Injectable([AuditLog])
+class WhoamiHandler {
+  constructor(private readonly audit: AuditLog) {}
+
+  async handle() {
+    return new Ok({ requestId: this.audit.current() });
+  }
+}
+
 /** Endpoint, чей пайплайн кладёт **свой** requestId */
 const Whoami = httpEndpoint({
   method: 'GET',
   path: '/whoami',
   output: z.object({ requestId: z.string() }),
   pipeline: makePipeline().pre(RequestId.provide(() => 'from-pipeline')),
-  handler: {
-    deps: [AuditLog],
-    handle: (audit: AuditLog) => async () =>
-      new Ok({ requestId: audit.current() }),
-  },
+  handler: WhoamiHandler,
 });
 
 const AuditModule = makeFeature({

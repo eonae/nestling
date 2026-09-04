@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import * as readline from 'node:readline';
 
-import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, makeTokenFamily } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
@@ -14,7 +13,6 @@ import type {
   FailsOf,
   HandlerClass,
   HandlerFn,
-  HandlerWithDeps,
   Pipeline,
   Raw,
   ResponseContext,
@@ -136,18 +134,6 @@ export function cliEndpoint<
     handler: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
-export function cliEndpoint<
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  E extends readonly AnyFailDefinition[] = [],
-  D extends InjectionToken[] = InjectionToken[],
->(
-  declaration: CliEndpointDictionary<I, O, P, PN, E> & {
-    handler: HandlerWithDeps<D, I, O, P, FailsOf<E>>;
-  },
-): EndpointDefinition<I, O, P, PN | D[number]>;
 export function cliEndpoint<
   I extends AnyPayload = AnyPayload,
   O extends AnyOutput = AnyOutput,

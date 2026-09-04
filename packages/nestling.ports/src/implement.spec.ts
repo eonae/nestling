@@ -53,31 +53,25 @@ describe('implement', () => {
     });
   });
 
-  it('принимает три формы `handle` и резолвит их одним `resolve`', async () => {
+  it('принимает обе формы `handler` и получает их одним `resolve`', async () => {
     const ledger = { charge: (amount: number) => `c-${amount}` };
 
     const asFunction = implement(ChargeCard, {
       handler: async () => new Ok({ chargeId: 'fn' }),
     });
 
-    const asFactory = implement(ChargeCard, {
-      handler: {
-        deps: [Ledger],
-        handle: (deps) => async (input: { amount: number }) =>
-          new Ok({ chargeId: deps.charge(input.amount) }),
-      },
-    });
-
     class ChargeHandler {
+      constructor(private readonly ledger: { charge(a: number): string }) {}
+
       async handle(input: { amount: number }) {
-        return new Ok({ chargeId: `class-${input.amount}` });
+        return new Ok({ chargeId: this.ledger.charge(input.amount) });
       }
     }
 
     const asClass = implement(ChargeCard, { handler: ChargeHandler });
 
     const resolver = (token: unknown): unknown =>
-      token === Ledger ? ledger : new ChargeHandler();
+      token === Ledger ? ledger : new ChargeHandler(ledger);
 
     const meta = { signal: new AbortController().signal, fail: unusedFail };
 
@@ -86,12 +80,8 @@ describe('implement', () => {
     ).resolves.toEqual(new Ok({ chargeId: 'fn' }));
 
     await expect(
-      asFactory.resolve(resolver).handle({ amount: 7 }, meta),
-    ).resolves.toEqual(new Ok({ chargeId: 'c-7' }));
-
-    await expect(
       asClass.resolve(resolver).handle({ amount: 3 }, meta),
-    ).resolves.toEqual(new Ok({ chargeId: 'class-3' }));
+    ).resolves.toEqual(new Ok({ chargeId: 'c-3' }));
   });
 
   it('переносит `detached` на декларацию', () => {

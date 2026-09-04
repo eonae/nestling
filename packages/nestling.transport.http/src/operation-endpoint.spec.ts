@@ -12,13 +12,8 @@ import { httpEndpoint } from './helpers.js';
 import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeToken } from '@nestling/container';
 import { makeFail, makeRequest } from '@nestling/operations';
-import {
-  handlerDependenciesOf,
-  isEndpointDefinition,
-  Ok,
-} from '@nestling/pipeline';
+import { handlerClassOf, isEndpointDefinition, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({
@@ -53,10 +48,6 @@ const ClaimQuota = makeRequest({
   output: z.object({ granted: z.boolean() }),
 });
 
-const UserService = makeToken<{ create: (email: string) => string }>(
-  'OperationFormUserService',
-);
-
 describe('httpEndpoint({ operation, … })', () => {
   it('строит обычную HTTP-декларацию по адресу операции', () => {
     const declaration = httpEndpoint({
@@ -90,26 +81,19 @@ describe('httpEndpoint({ operation, … })', () => {
     expect(declaration.errors).toEqual([EmailTaken]);
   });
 
-  it('работают все три формы хендлера', () => {
+  it('работают обе формы хендлера', () => {
     const asFunction = httpEndpoint({
       operation: GetUser,
       handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
-    const asFactory = httpEndpoint({
-      operation: CreateUser,
-      handler: {
-        deps: [UserService],
-        handle:
-          (users) =>
-          async ({ email }) =>
-            new Ok({ id: users.create(email), email }),
-      },
-    });
-
     class CreateUserHandler {
+      constructor(
+        private readonly users: { create: (email: string) => string },
+      ) {}
+
       async handle({ email }: { email: string }) {
-        return new Ok({ id: 'u-2', email });
+        return new Ok({ id: this.users.create(email), email });
       }
     }
 
@@ -119,8 +103,7 @@ describe('httpEndpoint({ operation, … })', () => {
     });
 
     expect(asFunction.pattern).toBe('GET /users/:id');
-    expect(handlerDependenciesOf(asFactory)).toEqual([UserService]);
-    expect(typeof asClass.resolve).toBe('function');
+    expect(handlerClassOf(asClass)).toBe(CreateUserHandler);
   });
 
   it('detached передаётся в декларацию, как у любой другой', () => {

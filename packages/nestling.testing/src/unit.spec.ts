@@ -44,14 +44,20 @@ class ReportService {
   }
 }
 
+@Injectable([ReportService])
+class ReportHandler {
+  constructor(private readonly reports: ReportService) {}
+
+  async handle() {
+    return new Ok(this.reports.build());
+  }
+}
+
 const Report = httpEndpoint({
   method: 'GET',
   path: '/report',
   output: z.object({ at: z.number(), users: z.array(z.string()) }),
-  handler: {
-    deps: [ReportService],
-    handle: (reports: ReportService) => async () => new Ok(reports.build()),
-  },
+  handler: ReportHandler,
 });
 
 const ReportsModule = makeFeature({

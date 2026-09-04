@@ -84,17 +84,24 @@ describe('assemble — discovery и регистрация', () => {
 
     const IQuota = makeToken<{ left(): number }>('IQuota');
 
-    // Форма с deps: `errors:` обязан пережить `resolve` контейнером
+    @Injectable([IQuota])
+    class ChargeHandler {
+      constructor(private readonly quota: { left(): number }) {}
+
+      async handle() {
+        const left = this.quota.left();
+
+        return left > 0 ? new Ok({ left }) : QuotaExceeded();
+      }
+    }
+
+    // Класс-форма: `errors:` обязан пережить получение зависимостей
     const Charge = httpEndpoint({
       method: 'POST',
       path: '/charge',
       output: z.object({ left: z.number() }),
       errors: [QuotaExceeded],
-      handler: {
-        deps: [IQuota],
-        handle: (quota) => async () =>
-          quota.left() > 0 ? new Ok({ left: quota.left() }) : QuotaExceeded(),
-      },
+      handler: ChargeHandler,
     });
 
     const QuotaModule = makeFeature({
@@ -164,33 +171,6 @@ describe('assemble — discovery и регистрация', () => {
 });
 
 describe('assemble — fail-fast фазы ASSEMBLE', () => {
-  it('токен из deps без провайдера — ошибка старта с паттерном и модулем', async () => {
-    const ILogger = makeToken<{ log(message: string): void }>('ILogger');
-
-    const NeedsLogger = httpEndpoint({
-      method: 'GET',
-      path: '/logged',
-      handler: {
-        deps: [ILogger],
-        handle: (logger) => async () => {
-          logger.log('served');
-          return new Ok({});
-        },
-      },
-    });
-
-    const transport = new MockTransport();
-    const app = makeApp({
-      features: [makeFeature({ name: 'module:bad', endpoints: [NeedsLogger] })],
-      transports: [asHttpTransport(transport)],
-    }).assemble();
-
-    await expect(app.run()).rejects.toThrow(
-      /Dependency 'ILogger'.*GET \/logged.*module:bad.*not available in the DI container/s,
-    );
-    expect(transport.serving).toBe(false);
-  });
-
   it('класс-хендлер без регистрации провайдером — ошибка старта', async () => {
     @Injectable([])
     class CreateUserHandler {
@@ -426,13 +406,19 @@ describe('assemble — фаза WIRE: резолв зависимостей де
       }
     }
 
+    @Injectable([TestService])
+    class DataHandler {
+      constructor(private readonly service: TestService) {}
+
+      async handle() {
+        return new Ok({ data: this.service.getData() });
+      }
+    }
+
     const DataEndpoint = httpEndpoint({
       method: 'GET',
       path: '/data',
-      handler: {
-        deps: [TestService],
-        handle: (service) => async () => new Ok({ data: service.getData() }),
-      },
+      handler: DataHandler,
     });
 
     const transport = new MockTransport();

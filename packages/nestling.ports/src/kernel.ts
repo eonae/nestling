@@ -29,16 +29,13 @@ import { busBindingOf, BusTransport$ } from './transport.js';
 
 import type {
   BuiltContainer,
-  InjectionToken,
   Module,
   ModuleProvider,
   Token,
 } from '@nestling/container';
 import {
   factoryProvider,
-  familyOf,
   familyProvider,
-  makeToken,
   makeTokenFamily,
 } from '@nestling/container';
 import type { AnyOperation, Emitter, Port } from '@nestling/operations';
@@ -66,33 +63,10 @@ const PortRuntimeFamily = makeTokenFamily<PortRuntime, [id: string]>(
 /** Токен держателя исполнителей: наполняется фазой WIRE */
 const PortRuntimeToken: Token<PortRuntime> = PortRuntimeFamily('kernel');
 
-/**
- * Токен якоря запрошенных вызывателей.
- *
- * Члены семейств становятся узлами графа по `deps` **провайдеров**, а
- * декларация не провайдер: фаза WIRE резолвит её зависимости, когда граф
- * уже собран. Якорь — провайдер, который делает потребность декларации
- * видимой сборке. Без якоря `deps: [C.caller]` у endpoint'а давал бы «no
- * provider» в WIRE вместо вызывателя.
- *
- * @internal
- */
-const PortAnchorToken: Token<Record<never, never>> =
-  makeToken('kernel:PortAnchor');
-
 /** Опции kernel-модуля портов */
 export interface PortsKernelOptions {
   /** Топология реализаций, вычисленная discovery */
   implementations?: OperationTopology;
-
-  /**
-   * Токены зависимостей обнаруженных деклараций.
-   *
-   * Из них берутся члены семейств вызывателей: операция, запрошенный
-   * только endpoint'ом, становится узлом графа наравне с операцией,
-   * запрошенным провайдером.
-   */
-  requested?: readonly InjectionToken[];
 
   /** Опции in-proc шины */
   bus?: InProcessBusOptions;
@@ -314,18 +288,6 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
       deps: invokerDeps,
     })),
   ];
-
-  // Вызыватели, запрошенные декларациями: их потребность иначе не видна
-  // сборке (см. `PortAnchorToken`)
-  const anchored = (options.requested ?? []).filter((token) => {
-    const family = familyOf(token);
-
-    return family === PortFamily || family === EmitterFamily;
-  });
-
-  if (anchored.length > 0) {
-    providers.push(factoryProvider(PortAnchorToken, () => ({}), anchored));
-  }
 
   if (busInGraph) {
     // Транспорт шины — первичный узел. `MessageBus$` — алиас его инстанса.

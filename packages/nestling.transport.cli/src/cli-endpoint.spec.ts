@@ -108,10 +108,18 @@ describe('cliEndpoint', () => {
     expect(printed[0]).not.toContain('X-Trace');
   });
 
-  it('декларация с deps обслуживается после резолва зависимостей', async () => {
+  it('класс-хендлер обслуживается после получения зависимостей', async () => {
     class Clock {
       now() {
         return 'fixed';
+      }
+    }
+
+    class NowHandler {
+      constructor(private readonly clock: Clock) {}
+
+      async handle() {
+        return new Ok({ now: this.clock.now() });
       }
     }
 
@@ -119,15 +127,12 @@ describe('cliEndpoint', () => {
       command: 'now',
       output: z.object({ now: z.string() }),
       pipeline: makePipeline(),
-      handler: {
-        deps: [Clock],
-        handle: (clock) => async () => new Ok({ now: clock.now() }),
-      },
+      handler: NowHandler,
     });
 
     const cli = new CliTransport({ argv: [] });
     await cli.serve(
-      makeDispatch([Now.resolve([new Clock()])]),
+      makeDispatch([Now.resolve(() => new NowHandler(new Clock()))]),
       new AbortController().signal,
     );
 
@@ -198,6 +203,7 @@ describe('cliEndpoint — объявленные отказы', () => {
 
     const seen: unknown[] = [];
     const cli = new CliTransport({
+      argv: [],
       onUnknownFail: (info) => seen.push(info.error),
     });
     await cli.serve(makeDispatch([Count]), new AbortController().signal);

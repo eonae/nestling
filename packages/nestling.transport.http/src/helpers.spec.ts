@@ -142,10 +142,18 @@ describe('httpEndpoint — bind-карта на значении', () => {
     });
   });
 
-  it('резолв зависимостей карту не теряет', () => {
+  it('получение зависимостей карту не теряет', () => {
     class UserService {
       get(id: string) {
         return { id };
+      }
+    }
+
+    class GetUserHandler {
+      constructor(private readonly users: UserService) {}
+
+      async handle({ id }: { id: string }) {
+        return new Ok(this.users.get(id));
       }
     }
 
@@ -153,16 +161,12 @@ describe('httpEndpoint — bind-карта на значении', () => {
       method: 'GET',
       path: '/api/users/:id',
       input: z.object({ id: z.string() }),
-      handler: {
-        deps: [UserService],
-        handle:
-          (users) =>
-          async ({ id }) =>
-            new Ok(users.get(id)),
-      },
+      handler: GetUserHandler,
     });
 
-    const resolved = GetUser.resolve([new UserService()]);
+    const resolved = GetUser.resolve(
+      () => new GetUserHandler(new UserService()),
+    );
 
     expect(httpBindingOf(resolved)).toEqual(httpBindingOf(GetUser));
   });

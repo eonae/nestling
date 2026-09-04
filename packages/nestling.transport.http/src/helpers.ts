@@ -2,7 +2,6 @@ import type { BindMap, BindMark } from './binding.js';
 import { assertHttpPath, computeHttpBinding } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
-import type { InjectionToken } from '@nestling/container';
 import type {
   AnyOperation,
   DeclarationDoc,
@@ -23,7 +22,6 @@ import type {
   FailsOf,
   HandlerClass,
   HandlerFn,
-  HandlerWithDeps,
   MissingFields,
   Pipeline,
   StreamForm,
@@ -353,21 +351,6 @@ function fromOperation(
  * });
  * ```
  *
- * @example Фабрика хендлера: внешний вызов выполняется один раз на сборке
- * ```typescript
- * export const GetUser = httpEndpoint({
- *   method: 'GET',
- *   path: '/users/:id',
- *   input: GetUserInput,
- *   output: User,
- *   pipeline: basePipeline,
- *   handler: {
- *     deps: [UserService],
- *     handle: (users) => async ({ id }) => new Ok(await users.getById(id)),
- *   },
- * });
- * ```
- *
  * @example Класс-хендлер: endpoint создаёт экземпляр сам
  * ```typescript
  * export const CreateUser = httpEndpoint({
@@ -407,10 +390,10 @@ function fromOperation(
  * резолвинга его не проверяет, и класс-форма, стоящая раньше, побеждала бы;
  * параметр функции оставался бы без контекстного типа.
  *
- * Диагностика: при числе перегрузок больше трёх TypeScript печатает ошибку
- * только последней. Последней стоит класс-форма, поэтому к настоящей
- * причине (несошедшийся `bind`, литерал `__error` слота `pipeline`)
- * добавляется шум про `HandlerClass`.
+ * Диагностика: TypeScript печатает ошибку только последней перегрузки.
+ * Последней стоит класс-форма, поэтому к настоящей причине (несошедшийся
+ * `bind`, литерал `__error` слота `pipeline`) добавляется шум про
+ * `HandlerClass`.
  *
  * Операция-форма стоит первой: её поля не пересекаются с анонимной формой
  * (`operation` против `method` и `path`), поэтому на резолвинг она не
@@ -425,22 +408,6 @@ export function httpEndpoint<
     handler: HandlerFn<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>;
   },
 ): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN>;
-export function httpEndpoint<
-  C extends AnyOperation,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  D extends InjectionToken[] = InjectionToken[],
->(
-  declaration: HttpOperationDictionary<C, P, PN> & {
-    handler: HandlerWithDeps<
-      D,
-      InputFormOf<C>,
-      OutputFormOf<C>,
-      P,
-      OperationFailsOf<C>
-    >;
-  },
-): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN | D[number]>;
 export function httpEndpoint<
   C extends AnyOperation,
   P extends AnyInput = AnyInput,
@@ -470,21 +437,6 @@ export function httpEndpoint<
     handler: HandlerFn<I, O, P, FailsOf<E>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
-export function httpEndpoint<
-  Path extends string,
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  D extends InjectionToken[] = InjectionToken[],
-  RB extends boolean | undefined = undefined,
-  PR extends AnyInput = EmptyInput,
-  E extends readonly AnyFailDefinition[] = [],
->(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
-    handler: HandlerWithDeps<D, I, O, P, FailsOf<E>>;
-  },
-): EndpointDefinition<I, O, P, PN | D[number]>;
 export function httpEndpoint<
   Path extends string,
   I extends AnyPayload = AnyPayload,

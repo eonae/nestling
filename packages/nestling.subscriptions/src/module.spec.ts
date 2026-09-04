@@ -19,6 +19,7 @@ import type { SubscriptionEvent } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestling/app';
+import { Injectable } from '@nestling/container';
 import { events, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose, makeEndpoint, makePipeline } from '@nestling/pipeline';
@@ -55,31 +56,33 @@ const Ticks = makeEndpoint({
   ): Output<AsyncIterable<Tick>> => new Ok(ticks(meta.subscription.signal)),
 });
 
+@Injectable([SubscriptionRegistry])
+class FeedHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: { id: string; signal: AbortSignal } },
+  ): Output<AsyncIterable<FeedEvent>> {
+    const feed = this.registry.watch(meta.subscription.signal);
+
+    return new Ok(
+      (async function* () {
+        for await (const event of feed) {
+          yield { type: event.type, id: event.info.id };
+        }
+      })(),
+    );
+  }
+}
+
 /** Живой просмотр ленты — сам подписка (рекурсивный случай) */
 const Feed = makeEndpoint({
   transport: TestTransport$,
   pattern: 'subscriptions:watch',
   output: events(FeedEvent),
   pipeline: tracked,
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) =>
-      async (
-        _payload: unknown,
-        meta: { subscription: { id: string; signal: AbortSignal } },
-      ): Output<AsyncIterable<FeedEvent>> => {
-        const feed = registry.watch(meta.subscription.signal);
-
-        return new Ok(
-          (async function* () {
-            for await (const event of feed) {
-              yield { type: event.type, id: event.info.id };
-            }
-          })(),
-        );
-      },
-  },
+  handler: FeedHandler,
 });
 
 /** Поток из ответа границы: у `events`-endpoint'а значение — итератор */

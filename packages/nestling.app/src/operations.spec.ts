@@ -11,7 +11,7 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import { makeToken } from '@nestling/container';
+import { Injectable, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
@@ -50,20 +50,24 @@ const QuotasFeature = makeFeature({
   ],
 });
 
+@Injectable([ClaimQuota.caller])
+class PlaceOrderHandler {
+  constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
+
+  async handle() {
+    await this.quotas.call({ amount: 1 });
+
+    return new Ok({});
+  }
+}
+
 const OrdersFeature = makeFeature({
   name: 'orders',
   endpoints: [
     httpEndpoint({
       method: 'POST',
       path: '/orders',
-      handler: {
-        deps: [ClaimQuota.caller],
-        handle: (quotas: Port<typeof ClaimQuota>) => async () => {
-          await quotas.call({ amount: 1 });
-
-          return new Ok({});
-        },
-      },
+      handler: PlaceOrderHandler,
     }),
   ],
 });

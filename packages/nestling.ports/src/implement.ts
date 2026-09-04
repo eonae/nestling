@@ -11,7 +11,6 @@
 
 import { BusTransport$, makeBusBinding } from './transport.js';
 
-import type { InjectionToken } from '@nestling/container';
 import type {
   AnyOperation,
   Operation,
@@ -27,7 +26,6 @@ import type {
   FailsOf,
   HandlerClass,
   HandlerFn,
-  HandlerWithDeps,
   Pipeline,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
@@ -45,7 +43,7 @@ export interface ImplementDictionary<
 > {
   /**
    * Pipeline этой реализации. Классы-юниты допустимы: они попадают в
-   * `TNeeds` декларации и гасятся вместе с зависимостями хендлера.
+   * `TNeeds` декларации и получают инстансы вместе с классом-хендлером.
    */
   pipeline?: Pipeline<AnyInput, P, PN>;
 
@@ -162,12 +160,18 @@ function patternOf(operation: AnyOperation, subscriber: unknown): string {
  *
  * @example
  * ```typescript
+ * \@Injectable([Ledger])
+ * class ChargeCardHandler {
+ *   constructor(private readonly ledger: Ledger) {}
+ *
+ *   async handle(input: ChargeInput) {
+ *     return new Ok(await this.ledger.charge(input));
+ *   }
+ * }
+ *
  * export const ChargeCardImpl = implement(ChargeCard, {
  *   pipeline: basePipeline,
- *   handler: {
- *     deps: [Ledger],
- *     handle: (ledger) => async (input) => new Ok(await ledger.charge(input)),
- *   },
+ *   handler: ChargeCardHandler,
  * });
  * ```
  */
@@ -185,21 +189,6 @@ export function implement<
       handler: HandlerFn<I, O, P, FailsOf<E>>;
     },
 ): EndpointDefinition<I, O, P, PN>;
-export function implement<
-  I extends AnyPayload,
-  O extends AnyOutput,
-  E extends readonly AnyFailDefinition[],
-  K extends OperationKind,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  D extends InjectionToken[] = InjectionToken[],
->(
-  operation: Operation<I, O, E, K>,
-  declaration: ImplementDictionary<P, PN> &
-    SubscriberSlot<K> & {
-      handler: HandlerWithDeps<D, I, O, P, FailsOf<E>>;
-    },
-): EndpointDefinition<I, O, P, PN | D[number]>;
 export function implement<
   I extends AnyPayload,
   O extends AnyOutput,

@@ -76,6 +76,21 @@ const BillingFeature = makeFeature({
   ],
 });
 
+@Injectable([ChargeCard.caller])
+class PlaceOrderHandler {
+  constructor(private readonly billing: Port<typeof ChargeCard>) {}
+
+  async handle(input: { amount: number }) {
+    const charge = await this.billing.call({ amount: input.amount });
+
+    if (charge.isFail) {
+      return charge as never;
+    }
+
+    return new Ok({ chargeId: charge.value.chargeId });
+  }
+}
+
 /** Фича-потребитель: инжектит вызыватели и зовёт их из HTTP-endpoint'а */
 const OrdersFeature = makeFeature({
   name: 'orders',
@@ -85,20 +100,7 @@ const OrdersFeature = makeFeature({
       path: '/orders',
       input: z.object({ amount: z.number() }),
       output: z.object({ chargeId: z.string() }),
-      handler: {
-        deps: [ChargeCard.caller],
-        handle:
-          (billing: Port<typeof ChargeCard>) =>
-          async (input: { amount: number }) => {
-            const charge = await billing.call({ amount: input.amount });
-
-            if (charge.isFail) {
-              return charge as never;
-            }
-
-            return new Ok({ chargeId: charge.value.chargeId });
-          },
-      },
+      handler: PlaceOrderHandler,
     }),
   ],
 });
@@ -299,6 +301,19 @@ describe('assemble — порты', () => {
       'Notifier',
     );
 
+    @Injectable([Notifier])
+    class NotifyHandler {
+      constructor(
+        private readonly notifier: { emit: (orderId: string) => Promise<void> },
+      ) {}
+
+      async handle(input: { orderId: string }) {
+        await this.notifier.emit(input.orderId);
+
+        return new Ok({ accepted: true });
+      }
+    }
+
     const NotifierFeature = makeFeature({
       name: 'notifier',
       providers: [
@@ -317,16 +332,7 @@ describe('assemble — порты', () => {
           method: 'POST',
           path: '/notify',
           input: z.object({ orderId: z.string() }),
-          handler: {
-            deps: [Notifier],
-            handle:
-              (notifier: { emit: (orderId: string) => Promise<void> }) =>
-              async (input: { orderId: string }) => {
-                await notifier.emit(input.orderId);
-
-                return new Ok({ accepted: true });
-              },
-          },
+          handler: NotifyHandler,
         }),
       ],
     });

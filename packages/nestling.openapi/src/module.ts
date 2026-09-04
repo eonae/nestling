@@ -23,7 +23,7 @@ import type { OpenApiDocument, OpenApiOptions } from './types.js';
 import type { EndpointDiscovery, Plugin } from '@nestling/app';
 import { Discovery$, makePlugin } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
-import { factoryProvider, makeToken } from '@nestling/container';
+import { factoryProvider, Injectable, makeToken } from '@nestling/container';
 import type { AnyInput, Pipeline } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -102,6 +102,15 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
   const { path, pipeline, detached, announceHidden, ...documentOptions } =
     options;
 
+  @Injectable([OpenApiDocument$])
+  class DocumentHandler {
+    constructor(private readonly document: OpenApiDocument) {}
+
+    async handle() {
+      return new Ok(this.document);
+    }
+  }
+
   const document = httpEndpoint({
     method: 'GET',
     path: path ?? '/openapi.json',
@@ -110,10 +119,7 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
     // Документ не описывает сам себя: endpoint служебный, и в списке операций
     // API ей делать нечего
     doc: { hidden: 'служебная ручка: сам документ' },
-    handler: {
-      deps: [OpenApiDocument$],
-      handle: (value: OpenApiDocument) => async () => new Ok(value),
-    },
+    handler: DocumentHandler,
   });
 
   return makePlugin({

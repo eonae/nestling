@@ -212,15 +212,20 @@ describe('assembleTest — overrides и прунинг', () => {
     }
   }
 
+  @Injectable([Repository])
+  class ListUsersHandler {
+    constructor(private readonly repository: IRepository) {}
+
+    async handle() {
+      return new Ok({ users: this.repository.all() });
+    }
+  }
+
   const ListUsers = httpEndpoint({
     method: 'GET',
     path: '/users',
     output: z.object({ users: z.array(z.string()) }),
-    handler: {
-      deps: [Repository],
-      handle: (repository: IRepository) => async () =>
-        new Ok({ users: repository.all() }),
-    },
+    handler: ListUsersHandler,
   });
 
   const DataModule = makeFeature({

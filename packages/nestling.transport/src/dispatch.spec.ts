@@ -247,27 +247,31 @@ describe('makeDispatch', () => {
     const controller = new AbortController();
     const seen: { requestId?: string; sameSignal?: boolean } = {};
 
+    class ProbeHandler {
+      constructor(
+        private readonly requestId: CtxReader<string>,
+        private readonly signal: CtxReader<AbortSignal>,
+      ) {}
+
+      async handle() {
+        // Пайплайна нет — переменную никто не клал; но контекст запроса
+        // открыт, поэтому это `undefined`, а не «контекста нет»
+        seen.requestId = this.requestId.peek();
+        seen.sameSignal = this.signal.get() === controller.signal;
+
+        return new Ok({ ok: true });
+      }
+    }
+
     const Probe = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /probe',
-      handler: {
-        deps: [Ctx(RequestId), Ctx(Signal)],
-        handle:
-          (requestId: CtxReader<string>, signal: CtxReader<AbortSignal>) =>
-          async () => {
-            // Пайплайна нет — переменную никто не клал; но контекст запроса
-            // открыт, поэтому это `undefined`, а не «контекста нет»
-            seen.requestId = requestId.peek();
-            seen.sameSignal = signal.get() === controller.signal;
-
-            return new Ok({ ok: true });
-          },
-      },
+      handler: ProbeHandler,
     });
 
     const readers = await contextReaders();
     const dispatch = makeDispatch([
-      Probe.resolve([readers.requestId, readers.signal]),
+      Probe.resolve(() => new ProbeHandler(readers.requestId, readers.signal)),
     ]);
 
     const ctx = makeEmptyContext(
@@ -287,22 +291,29 @@ describe('makeDispatch', () => {
     expect(seen).toEqual({ requestId: undefined, sameSignal: true });
   });
 
-  it('декларация с нерезолвенными зависимостями не проходит по типам', () => {
+  it('декларация с неразрешёнными зависимостями не проходит по типам', () => {
+    class ListUsersHandler {
+      constructor(private readonly users: UserService) {}
+
+      async handle() {
+        return new Ok(this.users.getAll());
+      }
+    }
+
     const WithDeps = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /users',
       pipeline: makePipeline(),
-      handler: {
-        deps: [UserService],
-        handle: (users) => async () => new Ok(users.getAll()),
-      },
+      handler: ListUsersHandler,
     });
 
-    // @ts-expect-error: неразрешённые deps — сначала endpoint.resolve(...)
+    // @ts-expect-error: зависимости не получены — сначала endpoint.resolve(...)
     makeDispatch([WithDeps]);
 
-    // Резолв снимает ограничение
-    const dispatch = makeDispatch([WithDeps.resolve([new UserService()])]);
+    // Получение зависимостей снимает ограничение
+    const dispatch = makeDispatch([
+      WithDeps.resolve(() => new ListUsersHandler(new UserService())),
+    ]);
 
     expect(dispatch.routes.map((route) => route.pattern)).toEqual([
       'GET /users',
