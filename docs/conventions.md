@@ -56,6 +56,13 @@
   `GetUserHandler`. Метод называется `handle`.
 - Хендлер-функция называется по операции в lowerCamelCase с суффиксом
   `Handler`: `getUserHandler`.
+- Реализация операции (`implement`) — значение с суффиксом `Impl`:
+  `ClaimQuotaImpl`. Её класс-хендлер называется по операции:
+  `ClaimQuotaHandler`.
+- Подписчик события — значение `<Событие>In<Фича>`:
+  `UserRegisteredInQuotas`. Его класс-хендлер добавляет тот же суффикс:
+  `UserRegisteredInQuotasHandler`. Имя фичи в значении совпадает со
+  строкой `subscriber:`.
 
 ## Пайплайн
 
@@ -66,7 +73,12 @@
 ## Файлы
 
 - Один endpoint на файл: `<имя-через-дефис>.endpoint.ts`, например
-  `get-user.endpoint.ts`.
+  `get-user.endpoint.ts`. Реализация операции — тоже endpoint, поэтому
+  файл называется так же: `claim-quota.endpoint.ts`,
+  `user-registered-in-quotas.endpoint.ts`.
+- Реализации, объявленные прямо в файле фичи, выносятся по файлам, как
+  только их становится больше одной: файл фичи перечисляет состав, а не
+  хранит исполнение.
 - Фича: `<имя>.feature.ts`. Плагин: `<имя>.plugin.ts`. Репозиторий:
   `<имя>.repository.ts`. Отказы фичи: `<имя>.errors.ts`. Секция конфига:
   `<имя>.config.ts`.

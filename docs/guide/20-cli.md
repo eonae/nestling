@@ -1,6 +1,6 @@
 # 20. CLI-утилита на тех же примитивах
 
-> Гайд по текущему API; сверено с кодом `examples.simple-cli` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.simple-cli` (2026-09-05).
 > Целевое описание: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Endpoint-декларации: per-transport
@@ -37,8 +37,8 @@ export const Greet = cliEndpoint({
 ```
 
 `cliEndpoint` объявляет команду так же, как `httpEndpoint` объявляет
-маршрут: те же `input`, `output`, `errors`, `pipeline`, `deps` и
-`handle`. Вместо метода и пути у команды одно поле `command`, оно же
+маршрут: те же `input`, `output`, `errors`, `pipeline` и `handler`.
+Вместо метода и пути у команды одно поле `command`, оно же
 паттерн endpoint'а. Имя команды проверяется в момент создания
 декларации: пустая строка в `command` — ошибка на импорте файла, а не
 при разборе первой команды.
@@ -180,8 +180,8 @@ async function main() {
 аргументах.
 
 Пример собирает `dispatch` напрямую, потому что у команд нет
-зависимостей. Команде с `deps` нужен контейнер: объявите её в фиче и
-объявите приложение через `makeApp` с транспортом `cli()` в
+зависимостей. Команде с классом-хендлером нужен контейнер: объявите её в
+фиче и объявите приложение через `makeApp` с транспортом `cli()` в
 `transports:`. Минимальный пример — в [README
 пакета](../../packages/nestling.transport.cli/README.md).
 

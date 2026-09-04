@@ -1,6 +1,6 @@
 # 13. Оповещать соседей о случившемся
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
 > Целевое описание: [design/operations.md](../design/operations.md),
 > разделы «Три вида» и «Профиль вызова». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Порты: межфичевое
@@ -35,18 +35,22 @@ export const UserRegistered = makeEvent({
 файле, что запрос `ClaimQuota` из [главы 12](./12-features.md).
 
 ```typescript
-// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+// packages/examples.app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts
+@Injectable([Logger$])
+class UserRegisteredInQuotasHandler {
+  constructor(private readonly logger: Logger) {}
+
+  async handle(payload: UserRegisteredInput) {
+    this.logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
+
+    // eslint-disable-next-line unicorn/no-useless-undefined
+    return undefined;
+  }
+}
+
 export const UserRegisteredInQuotas = implement(UserRegistered, {
   subscriber: 'quotas',
-  handler: {
-    deps: [Logger$],
-    handle: (logger: Logger) => async (payload: UserRegisteredInput) => {
-      logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
-
-      // eslint-disable-next-line unicorn/no-useless-undefined
-      return undefined;
-    },
-  },
+  handler: UserRegisteredInQuotasHandler,
 });
 ```
 
@@ -69,42 +73,42 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
-export const createUserHandler =
-  (
-    users: UsersRepository,
-    quotas: Port<typeof ClaimQuota>,
-    registered: Emitter<typeof UserRegistered>,
-    signup: Emitter<typeof SignupRecorded>,
-    activity: ActivityHub,
-  ) =>
-  async (
+@Injectable([
+  UsersRepository$,
+  ClaimQuota.caller,
+  UserRegistered.emitter,
+  SignupRecorded.emitter,
+  ActivityHub,
+])
+class CreateUserHandler {
+  constructor(
+    private readonly users: UsersRepository,
+    private readonly quotas: Port<typeof ClaimQuota>,
+    private readonly registered: Emitter<typeof UserRegistered>,
+    private readonly signup: Emitter<typeof SignupRecorded>,
+    private readonly activity: ActivityHub,
+  ) {}
+
+  async handle(
     payload: CreateUserInput,
-  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> => {
+  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> {
     // …
-    const user = await users.insert({
+    const user = await this.users.insert({
       name: payload.name,
       email: payload.email,
     });
 
     // Событие: `emit` завершается по факту доставки, отказ подписчика
     // сюда не приходит
-    await registered.emit({ id: user.id, email: user.email });
+    await this.registered.emit({ id: user.id, email: user.email });
     // …
-  };
+  }
+}
 
 export const CreateUser = httpEndpoint({
   operation: CreateUserOperation,
   pipeline: authed,
-  handler: {
-    deps: [
-      UsersRepository$,
-      ClaimQuota.caller,
-      UserRegistered.emitter,
-      SignupRecorded.emitter,
-      ActivityHub,
-    ],
-    handle: createUserHandler,
-  },
+  handler: CreateUserHandler,
 });
 ```
 
@@ -146,7 +150,7 @@ export const SignupRecorded = makeCommand({
 // packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
     // Команда: ключ идемпотентности задаёт вызывающий, чтобы повтор после
     // сбоя нёс тот же ключ. Без ключа порт сгенерировал бы новый
-    await signup.emit(
+    await this.signup.emit(
       { userId: user.id, email: user.email },
       { idempotencyKey: user.id },
     );
@@ -161,18 +165,22 @@ export const SignupRecorded = makeCommand({
 Владелец команды читает ключ из контекста:
 
 ```typescript
-// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+// packages/examples.app-with-http/src/features/quotas/signup-recorded.endpoint.ts
+@Injectable([SignupJournal])
+class SignupRecordedHandler {
+  constructor(private readonly journal: SignupJournal) {}
+
+  async handle(payload: SignupRecordedInput) {
+    this.journal.record(payload.userId);
+
+    // eslint-disable-next-line unicorn/no-useless-undefined
+    return undefined;
+  }
+}
+
 export const SignupRecordedImpl = implement(SignupRecorded, {
   pipeline: makePipeline().pre(withIdempotencyKey()),
-  handler: {
-    deps: [SignupJournal],
-    handle: (journal: SignupJournal) => async (payload: SignupRecordedInput) => {
-      journal.record(payload.userId);
-
-      // eslint-disable-next-line unicorn/no-useless-undefined
-      return undefined;
-    },
-  },
+  handler: SignupRecordedHandler,
 });
 ```
 

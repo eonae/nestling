@@ -1,6 +1,6 @@
 # 23. Кто сейчас подключён и как его отключить
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
 > Целевое описание: [design/streaming.md](../design/streaming.md), раздел
 > «4.1 Реестр подписок». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-08-01] Реестр подписок:
@@ -60,6 +60,21 @@ export const app = makeApp({
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+@Injectable([ActivityHub])
+class ActivityStreamHandler {
+  constructor(private readonly hub: ActivityHub) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: TrackedSubscription; lastEventId?: string },
+  ): Output<AsyncIterable<ActivityEvent>> {
+    // Настоящая лента отдала бы историю с этого места
+    const since = meta.lastEventId ?? '0';
+
+    return new Ok(this.hub.subscribe(meta.subscription.signal, since));
+  }
+}
+
 export const ActivityStream = httpEndpoint({
   method: 'GET',
   path: '/users/activity',
@@ -70,20 +85,7 @@ export const ActivityStream = httpEndpoint({
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
   pipeline: compose(observability, tracked),
-  handler: {
-    deps: [ActivityHub],
-    handle:
-      (hub: ActivityHub) =>
-      async (
-        _payload: unknown,
-        meta: { subscription: TrackedSubscription; lastEventId?: string },
-      ): Output<AsyncIterable<ActivityEvent>> => {
-        // Настоящая лента отдала бы историю с этого места
-        const since = meta.lastEventId ?? '0';
-
-        return new Ok(hub.subscribe(meta.subscription.signal, since));
-      },
-  },
+  handler: ActivityStreamHandler,
 });
 ```
 
@@ -114,18 +116,22 @@ export const ActivityStream = httpEndpoint({
 
 ```typescript
 // packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts
+@Injectable([SubscriptionRegistry])
+class ListSubscriptionsHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(): Output<Subscription[]> {
+    return this.registry.list().map((info) => toWire(info));
+  }
+}
+
 export const ListSubscriptions = httpEndpoint({
   method: 'GET',
   path: '/ops/subscriptions',
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
   pipeline: observability,
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) => async (): Output<Subscription[]> =>
-        registry.list().map((info) => toWire(info)),
-  },
+  handler: ListSubscriptionsHandler,
 });
 ```
 
@@ -135,6 +141,19 @@ export const ListSubscriptions = httpEndpoint({
 
 ```typescript
 // packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts
+@Injectable([SubscriptionRegistry])
+class KillSubscriptionHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(payload: {
+    id: string;
+  }): Output<null, typeof SubscriptionNotFound> {
+    const killed = this.registry.abort(payload.id, 'administrative kill');
+
+    return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
+  }
+}
+
 export const KillSubscription = httpEndpoint({
   method: 'DELETE',
   path: '/ops/subscriptions/:id',
@@ -142,18 +161,7 @@ export const KillSubscription = httpEndpoint({
   errors: [SubscriptionNotFound, Unauthorized],
   doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
   pipeline: authed,
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) =>
-      async (payload: {
-        id: string;
-      }): Output<null, typeof SubscriptionNotFound> => {
-        const killed = registry.abort(payload.id, 'administrative kill');
-
-        return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
-      },
-  },
+  handler: KillSubscriptionHandler,
 });
 ```
 
@@ -165,6 +173,26 @@ export const KillSubscription = httpEndpoint({
 
 ```typescript
 // packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)
+@Injectable([SubscriptionRegistry])
+class WatchSubscriptionsHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: TrackedSubscription },
+  ): Output<AsyncIterable<SubscriptionChange>> {
+    const feed = this.registry.watch(meta.subscription.signal);
+
+    return new Ok(
+      (async function* () {
+        for await (const event of feed) {
+          // …
+        }
+      })(),
+    );
+  }
+}
+
 export const WatchSubscriptions = httpEndpoint({
   method: 'GET',
   path: '/ops/subscriptions/live',
@@ -175,25 +203,7 @@ export const WatchSubscriptions = httpEndpoint({
   },
   doc: { summary: 'Лента изменений реестра подписок (SSE)', tags: ['ops'] },
   pipeline: compose(observability, tracked),
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) =>
-      async (
-        _payload: unknown,
-        meta: { subscription: TrackedSubscription },
-      ): Output<AsyncIterable<SubscriptionChange>> => {
-        const feed = registry.watch(meta.subscription.signal);
-
-        return new Ok(
-          (async function* () {
-            for await (const event of feed) {
-              // …
-            }
-          })(),
-        );
-      },
-  },
+  handler: WatchSubscriptionsHandler,
 });
 ```
 
@@ -206,27 +216,29 @@ export const WatchSubscriptions = httpEndpoint({
 
 ```typescript
 // packages/examples.app-with-http/src/features/ops/subscription-facts.ts (фрагмент)
+@Injectable([Logger$])
+class SubscriptionOpenedInOpsHandler {
+  constructor(private readonly logger: Logger) {}
+
+  async handle(payload: {
+    node?: string;
+    id: string;
+    transport: string;
+    pattern: string;
+  }) {
+    this.logger.log(
+      `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
+        `(${payload.transport} ${payload.pattern})`,
+    );
+
+    // eslint-disable-next-line unicorn/no-useless-undefined
+    return undefined;
+  }
+}
+
 export const SubscriptionOpenedInOps = implement(SubscriptionOpened, {
   subscriber: 'ops',
-  handler: {
-    deps: [Logger$],
-    handle:
-      (logger: Logger) =>
-      async (payload: {
-        node?: string;
-        id: string;
-        transport: string;
-        pattern: string;
-      }) => {
-        logger.log(
-          `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
-            `(${payload.transport} ${payload.pattern})`,
-        );
-
-        // eslint-disable-next-line unicorn/no-useless-undefined
-        return undefined;
-      },
-  },
+  handler: SubscriptionOpenedInOpsHandler,
 });
 // …
 ```

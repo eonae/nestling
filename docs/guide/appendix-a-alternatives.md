@@ -1,6 +1,6 @@
 # Приложение А. Альтернативные формы
 
-> Каждая форма показана в одном месте примера `examples.app-with-http` (2026-09-03).
+> Каждая форма показана в одном месте примера `examples.app-with-http` (2026-09-05).
 
 Главы гайда используют одну форму записи для каждой задачи. Фреймворк
 допускает и другие. Здесь они собраны в одном месте: где показана
@@ -8,63 +8,12 @@
 
 | Задача | Форма по умолчанию | Альтернатива | Где показана |
 |---|---|---|---|
-| Хендлер с зависимостями | класс-хендлер | функция с `deps` | `features/users/endpoints/update-user.endpoint.ts` |
 | Отказ из хендлера | `return Fail` | `throw Fail` из глубины вызовов | `plugins/auth/authenticate.ts`, `user-webhook.endpoint.ts` |
 | Реакция на ошибку | `.finally` с `outcome` | `.catch` с `.is()` | `features/users/endpoints/delete-user.endpoint.ts` |
 | Подмена успешного ответа | хендлер формирует ответ | `.ok`-юнит | в примере нет |
 | Успех без тела | голое значение | `Ok.noContent()`, `Ok.accepted()` | `delete-user.endpoint.ts` |
 | Состав фичи | `providers:` | `modules:` | `features/users/users.feature.ts` |
 | Выбор фич | объект `{ features, includeDeps }` | строка через запятую | `packages/nestling.app/README.md` |
-
-## Функция с `deps`
-
-```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/update-user.endpoint.ts
-export const updateUserHandler =
-  (users: UsersRepository) =>
-  async (
-    input: UpdateUserInput,
-  ): Output<
-    User,
-    typeof NothingToUpdate | typeof EmailTaken | typeof UserNotFound
-  > => {
-    const { id, ...changes } = input;
-
-    if (Object.keys(changes).length === 0) {
-      return NothingToUpdate();
-    }
-
-    // …
-
-    const user = await users.patch(id, changes);
-
-    return user ?? UserNotFound({ id });
-  };
-
-export const UpdateUser = httpEndpoint({
-  method: 'PATCH',
-  path: '/users/:id',
-  input: UpdateUserInput,
-  output: User,
-  errors: [NothingToUpdate, EmailTaken, UserNotFound, Unauthorized],
-  pipeline: authed,
-  handler: {
-    deps: [UsersRepository$],
-    handle: updateUserHandler,
-  },
-});
-```
-
-Поле `handler` в объектной форме несёт список токенов и каррированную
-фабрику. Внешняя функция принимает зависимости и вызывается один раз при
-сборке, внутренняя принимает данные запроса; замыкание играет роль
-экземпляра. Порядок аргументов внешней функции совпадает с порядком
-`deps`. Тестируется такой хендлер вызовом фабрики с фейками, без
-контейнера.
-
-Выбирайте эту форму для хендлера в несколько строк: она короче класса.
-Когда у хендлера появляются приватные методы, класс из
-[главы 4](./04-handler-class.md) читается лучше.
 
 ## Отказ броском
 

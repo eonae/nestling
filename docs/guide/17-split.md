@@ -1,6 +1,6 @@
 # 17. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `examples.split-nats` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.split-nats` (2026-09-05).
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
@@ -120,21 +120,25 @@ export const UserRegistered = makeEvent({
 
 ```typescript
 // packages/examples.split-nats/src/quotas.ts
+@Injectable([QuotaLedger])
+class UserRegisteredInArchiveHandler {
+  constructor(private readonly ledger: QuotaLedger) {}
+
+  async handle(payload: UserRegisteredInput) {
+    this.ledger.archive(payload.id);
+
+    // eslint-disable-next-line unicorn/no-useless-undefined
+    return undefined;
+  }
+}
+
     implement(UserRegistered, {
       // Имя подписчика — адрес подписки: в одном процессе различает
       // подписки на одно событие, у брокера становится именем queue-группы
       // и durable-потребителя
       subscriber: 'archive',
       pipeline: makePipeline().pre(TenantId.propagated()),
-      handler: {
-        deps: [QuotaLedger],
-        handle: (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
-          ledger.archive(payload.id);
-
-          // eslint-disable-next-line unicorn/no-useless-undefined
-          return undefined;
-        },
-      },
+      handler: UserRegisteredInArchiveHandler,
     }),
 ```
 
@@ -157,21 +161,23 @@ export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 
 ```typescript
 // packages/examples.split-nats/src/users.ts
+@Injectable([RegistrationService])
+class RegisterUserHandler {
+  constructor(private readonly registration: RegistrationService) {}
+
+  async handle(payload: RegisterUserInput) {
+    await this.registration.register(payload.email);
+
+    // eslint-disable-next-line unicorn/no-useless-undefined
+    return undefined;
+  }
+}
+
     implement(RegisterUser, {
       // Арендатор приходит в конверте сообщения. Юнит кладёт его в контекст
       // запроса, откуда вызыватель `quotas.claim` передаст его дальше
       pipeline: makePipeline().pre(TenantId.propagated()),
-      handler: {
-        deps: [RegistrationService],
-        handle:
-          (registration: RegistrationService) =>
-          async (payload: RegisterUserInput) => {
-            await registration.register(payload.email);
-
-            // eslint-disable-next-line unicorn/no-useless-undefined
-            return undefined;
-          },
-      },
+      handler: RegisterUserHandler,
     }),
 ```
 

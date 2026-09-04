@@ -1,6 +1,6 @@
 # 15. Тестировать фичу без соседей
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http`, `examples.split-nats` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http`, `examples.split-nats` (2026-09-05).
 > Целевое описание: [design/testing.md](../design/testing.md) §3 и §4.
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestling/testing`)».

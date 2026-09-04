@@ -1,6 +1,6 @@
 # Приложение В. Карта понятий
 
-> Собрано по главам гайда (2026-09-03). Понятие ведёт в главу, где оно вводится, и в файл примера, где показано.
+> Собрано по главам гайда (2026-09-05). Понятие ведёт в главу, где оно вводится, и в файл примера, где показано.
 
 ## Часть 1. Первый сервис
 
@@ -76,7 +76,7 @@
 
 | Понятие | Глава | Файл примера |
 |---|---|---|
-| `implement` | [12](./12-features.md), [13](./13-events.md) | `packages/examples.app-with-http/src/features/quotas/quotas.feature.ts` |
+| `implement` | [12](./12-features.md), [13](./13-events.md) | `packages/examples.app-with-http/src/features/quotas/claim-quota.endpoint.ts` |
 | `.caller` | [12](./12-features.md) | `packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts` |
 | `deadline` | [12](./12-features.md) | `packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts` |
 | `makePlugin` | [12](./12-features.md) | `packages/examples.app-with-http/src/plugins/logging/logging.plugin.ts` |
@@ -84,11 +84,11 @@
 | `makeModule` | [12](./12-features.md) | `packages/examples.app-with-http/src/features/users/users.feature.ts` |
 | `NESTLING_PORTS_DISPATCH` | [12](./12-features.md), [17](./17-split.md) | `packages/examples.app-with-http/src/app.spec.ts` |
 | `makeEvent` | [13](./13-events.md) | `packages/examples.app-with-http/src/operations.ts` |
-| `subscriber` | [13](./13-events.md) | `packages/examples.app-with-http/src/features/quotas/quotas.feature.ts` |
+| `subscriber` | [13](./13-events.md) | `packages/examples.app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts` |
 | `.emitter` | [13](./13-events.md) | `packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts` |
 | `makeCommand` | [13](./13-events.md) | `packages/examples.app-with-http/src/operations.ts` |
 | `idempotencyKey` | [13](./13-events.md) | `packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts` |
-| `withIdempotencyKey` | [13](./13-events.md) | `packages/examples.app-with-http/src/features/quotas/quotas.feature.ts` |
+| `withIdempotencyKey` | [13](./13-events.md) | `packages/examples.app-with-http/src/features/quotas/signup-recorded.endpoint.ts` |
 | `BusTransport$` | [13](./13-events.md) | `packages/examples.app-with-http/src/app.ts` |
 | вид операции | [13](./13-events.md) | `packages/examples.app-with-http/src/operations.ts` |
 | `Topic` | [14](./14-live-feed.md) | `packages/examples.app-with-http/src/features/users/activity.hub.ts` |

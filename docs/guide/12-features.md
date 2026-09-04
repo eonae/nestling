@@ -1,6 +1,6 @@
 # 12. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -131,36 +131,41 @@ export const ClaimQuota = makeRequest({
 ## Реализация в фиче-владельце
 
 ```typescript
-// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+// packages/examples.app-with-http/src/features/quotas/claim-quota.endpoint.ts
+@Injectable([QuotaService, Logger$])
+class ClaimQuotaHandler {
+  constructor(
+    private readonly quotas: QuotaService,
+    private readonly logger: Logger,
+  ) {}
+
+  async handle(payload: ClaimQuotaInput) {
+    const claimed = this.quotas.claim();
+
+    if (!claimed.ok) {
+      this.logger.log(`quota exhausted, refusing ${payload.email}`);
+
+      // Вызывающий получит `Fail` и узнает его через `QuotaExceeded.is()`
+      return QuotaExceeded({ limit: this.quotas.limit });
+    }
+
+    return { remaining: claimed.remaining };
+  }
+}
+
 export const ClaimQuotaImpl = implement(ClaimQuota, {
-  handler: {
-    deps: [QuotaService, Logger$],
-    handle:
-      (quotas: QuotaService, logger: Logger) =>
-      async (payload: ClaimQuotaInput) => {
-        const claimed = quotas.claim();
-
-        if (!claimed.ok) {
-          logger.log(`quota exhausted, refusing ${payload.email}`);
-
-          // Вызывающий получит `Fail` и узнает его через `QuotaExceeded.is()`
-          return QuotaExceeded({ limit: quotas.limit });
-        }
-
-        return { remaining: claimed.remaining };
-      },
-  },
+  handler: ClaimQuotaHandler,
 });
 ```
 
-`implement(Operation, { deps, handler: handle })` создаёт декларацию endpoint'а на
-транспорте шины. От `httpEndpoint` она отличается конструктором и
-адресом: паттерном служит имя операции. Схемы `input`, `output` и
-`errors` берутся из операции и в реализации не повторяются: повторное
-объявление любой из них — ошибка компиляции. Всё остальное общее: `deps`,
-каррированный хендлер, вход проверяется по схеме, отказ вне списка
-`errors` заменяется на `InternalError`. Реализация перечисляется в
-`endpoints:` фичи рядом с HTTP-endpoint'ами.
+`implement(Operation, { handler })` создаёт декларацию endpoint'а на
+транспорте шины. От `httpEndpoint` её отличают конструктор и адрес:
+паттерном служит имя операции. Схемы `input`, `output` и `errors`
+берутся из операции и в реализации не повторяются — повторное
+объявление любой из них ошибка компиляции. Остальное общее с
+`httpEndpoint`: класс-хендлер, вход проверяется по схеме, отказ вне
+списка `errors` заменяется на `InternalError`. Реализация перечисляется
+в `endpoints:` фичи рядом с HTTP-endpoint'ами.
 
 Операция вида `request`, чей вызыватель инжектирован, а реализация в
 сборке отсутствует, останавливает сборку: вызову некуда идти. Два
@@ -172,20 +177,26 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
 // packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
 const QUOTA_CALL_BUDGET_MS = 500;
 
-export const createUserHandler =
-  (
-    users: UsersRepository,
-    quotas: Port<typeof ClaimQuota>,
+@Injectable([
+  UsersRepository$,
+  ClaimQuota.caller,
+  // …
+])
+class CreateUserHandler {
+  constructor(
+    private readonly users: UsersRepository,
+    private readonly quotas: Port<typeof ClaimQuota>,
     // …
-  ) =>
-  async (
+  ) {}
+
+  async handle(
     payload: CreateUserInput,
-  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> => {
-    if (await users.byEmail(payload.email)) {
+  ): Output<User, typeof EmailTaken | typeof QuotaExceeded> {
+    if (await this.users.byEmail(payload.email)) {
       return EmailTaken({ email: payload.email });
     }
     // …
-    const claimed = await quotas.call(
+    const claimed = await this.quotas.call(
       { email: payload.email },
       { deadline: deadlineIn(QUOTA_CALL_BUDGET_MS) },
     );
@@ -197,30 +208,24 @@ export const createUserHandler =
       return claimed as ReturnType<typeof QuotaExceeded>;
     }
 
-    const user = await users.insert({
+    const user = await this.users.insert({
       name: payload.name,
       email: payload.email,
     });
     // …
     return Ok.created(user, { Location: `/users/${user.id}` });
-  };
+  }
+}
 
 export const CreateUser = httpEndpoint({
   operation: CreateUserOperation,
   pipeline: authed,
-  handler: {
-    deps: [
-      UsersRepository$,
-      ClaimQuota.caller,
-      // …
-    ],
-    handle: createUserHandler,
-  },
+  handler: CreateUserHandler,
 });
 ```
 
-`ClaimQuota.caller` — токен вызывателя. Он перечисляется в `deps` как
-обычная зависимость, и хендлер получает объект типа `Port<typeof
+`ClaimQuota.caller` — токен вызывателя. Он перечисляется в `@Injectable`
+как обычная зависимость, и хендлер получает объект типа `Port<typeof
 ClaimQuota>` с методом `call(input, meta?)`. Вызов всегда асинхронный и
 всегда возвращает `Ok` или `Fail`, даже когда реализация работает в
 этом же процессе. Отказ разбирает вызывающий: множество его ответов

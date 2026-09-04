@@ -1,6 +1,6 @@
 # 19. Webhook с проверкой подписи
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md), раздел
 > «Сырые байты: `rawBody`». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
@@ -85,13 +85,16 @@ export class VerifySignature {
 
 ```typescript
 // packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
-export const userWebhookHandler =
-  (users: UsersRepository) =>
-  async (event: UserEventInput): Output<UserEventOutput> => {
-    await users.remove(event.userId);
+@Injectable([UsersRepository$])
+class UserWebhookHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(event: UserEventInput): Output<UserEventOutput> {
+    await this.users.remove(event.userId);
 
     return { received: true };
-  };
+  }
+}
 
 export const UserWebhook = httpEndpoint({
   method: 'POST',
@@ -109,10 +112,7 @@ export const UserWebhook = httpEndpoint({
     makePipeline<{ rawBody: Uint8Array }>().pre(VerifySignature),
     observability,
   ),
-  handler: {
-    deps: [UsersRepository$],
-    handle: userWebhookHandler,
-  },
+  handler: UserWebhookHandler,
 });
 ```
 

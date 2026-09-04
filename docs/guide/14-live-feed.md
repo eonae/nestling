@@ -1,6 +1,6 @@
 # 14. Живая лента для клиента
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
 > Целевое описание: [design/streaming.md](../design/streaming.md), разделы
 > «`stream(T)` и `events(T)`» и «Источники событий». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Стриминг: `stream(T)` ≠
@@ -107,6 +107,21 @@ const ActivityEvent = z.object({
 
 type ActivityEvent = z.infer<typeof ActivityEvent>;
 
+@Injectable([ActivityHub])
+class ActivityStreamHandler {
+  constructor(private readonly hub: ActivityHub) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: TrackedSubscription; lastEventId?: string },
+  ): Output<AsyncIterable<ActivityEvent>> {
+    // Настоящая лента отдала бы историю с этого места
+    const since = meta.lastEventId ?? '0';
+
+    return new Ok(this.hub.subscribe(meta.subscription.signal, since));
+  }
+}
+
 export const ActivityStream = httpEndpoint({
   method: 'GET',
   path: '/users/activity',
@@ -117,20 +132,7 @@ export const ActivityStream = httpEndpoint({
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
   pipeline: compose(observability, tracked),
-  handler: {
-    deps: [ActivityHub],
-    handle:
-      (hub: ActivityHub) =>
-      async (
-        _payload: unknown,
-        meta: { subscription: TrackedSubscription; lastEventId?: string },
-      ): Output<AsyncIterable<ActivityEvent>> => {
-        // Настоящая лента отдала бы историю с этого места
-        const since = meta.lastEventId ?? '0';
-
-        return new Ok(hub.subscribe(meta.subscription.signal, since));
-      },
-  },
+  handler: ActivityStreamHandler,
 });
 ```
 
@@ -171,15 +173,15 @@ export const ActivityStream = httpEndpoint({
 ```typescript
 // packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts (фрагмент)
     // Лента активности: `publish` не ждёт ни одного подписчика
-    activity.publish('created', user.id);
+    this.activity.publish('created', user.id);
 
     // Статус 201 и заголовок задаются на успешном ответе
     return Ok.created(user, { Location: `/users/${user.id}` });
 ```
 
-`ActivityHub` инжектируется в хендлер регистрации через `deps`, как любой
-провайдер. Публикация не замедляет создание пользователя ни на одного
-подключённого клиента.
+`ActivityHub` инжектируется в хендлер регистрации через `@Injectable`,
+как любой провайдер. Публикация не замедляет создание пользователя ни
+на одного подключённого клиента.
 
 ## Что видит клиент
 
