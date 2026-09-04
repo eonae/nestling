@@ -1,0 +1,18 @@
+{
+  // Конфиг фикстур: файлы под `fixtures/` намеренно НЕ компилируются —
+  // их диагностики и есть предмет снапшот-тестов. Каталог исключён из
+  // проекта пакета и из линта (см. tsconfig.json пакета и .config/eslint.config.js).
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    // Пакеты резолвятся на исходники: снапшот снимается с той же формы
+    // типов, что видит разработчик в редакторе, а не со сборки `dist`.
+    "paths": {
+      "@nestling/*": ["../../nestling.*/src/index.ts"],
+      "@common/*": ["../../common.*/src/index.ts"]
+    }
+  },
+  "include": ["fixtures"]
+}
