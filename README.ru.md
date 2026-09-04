@@ -33,9 +33,9 @@ Nestling собирает приложение из декларативных �
 - **Операции между фичами.** Фича вызывает соседа через операцию, а не через
   его сервис. Тот же код работает в одном процессе и в нескольких, через
   NATS.
-- **Один composition root.** `assemble({ features, plugins, transports,
-  config, policies })` собирает приложение и проводит его по фазам
-  жизненного цикла.
+- **Один composition root.** `makeApp({ features, plugins, transports,
+  config, policies })` объявляет приложение; `assemble(select)` собирает его
+  для этого процесса, а `run()` проводит по фазам жизненного цикла.
 
 Принципы, по которым принимаются решения, описаны в
 [docs/design/principles.md](./docs/design/principles.md).
@@ -47,7 +47,7 @@ npm install @nestling/app @nestling/transport.http zod
 ```
 
 ```typescript
-import { assemble, makeFeature } from '@nestling/app';
+import { makeApp, makeFeature } from '@nestling/app';
 import { http, httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -57,19 +57,22 @@ const GetUser = httpEndpoint({
   path: '/users/:id',
   input: z.object({ id: z.string() }), // `id` берётся из пути
   output: z.object({ id: z.string(), name: z.string() }),
-  handle: async ({ id }) => ({ id, name: 'Alice' }),
+  handler: async ({ id }) => ({ id, name: 'Alice' }),
 });
 
 const UsersFeature = makeFeature({ name: 'users', endpoints: [GetUser] });
 
-await assemble({
+const app = makeApp({
   features: [UsersFeature],
   transports: [http({ port: 3000 })],
-}).run();
+});
+
+await app.assemble().run();
 ```
 
-Приложение отвечает на `GET /users/42`, проверяет вход и выход по схемам и
-останавливается по `SIGTERM`. Дальше читайте
+Приложение отвечает на `GET /users/42`, проверяет вход по схеме `input` и
+останавливается по `SIGTERM`. Схема `output` типизирует хендлер и описывает
+ответ; тело ответа сверяет с ней типизированный клиент на приёме. Дальше читайте
 [гайд](./docs/guide/README.md): он ведёт от этого файла к приложению из
 нескольких фич в нескольких процессах.
 
@@ -102,7 +105,7 @@ await assemble({
 |---|---|
 | [`@nestling/app`](./packages/nestling.app/) | Composition root: `assemble`, фичи и плагины, `select`, фазы жизненного цикла, политики |
 | [`@nestling/transport.http`](./packages/nestling.transport.http/) | HTTP на `node:http`: `httpEndpoint`, маршрутизация, JSON, NDJSON, SSE, multipart |
-| [`@nestling/operations`](./packages/nestling.operations/) | Общее для сервера и клиента: операции, `defineFail`, `Ok`/`Fail`, формы io |
+| [`@nestling/operations`](./packages/nestling.operations/) | Общее для сервера и клиента: операции, `makeFail`, `Ok`/`Fail`, формы io |
 | [`@nestling/config`](./packages/nestling.config/) | Конфигурация секциями со схемами, источники и их привязка, секреты, reloadable |
 | [`@nestling/container`](./packages/nestling.container/) | Контейнер зависимостей: токены, провайдеры, семейства токенов, модули, хуки жизненного цикла |
 | [`@nestling/pipeline`](./packages/nestling.pipeline/) | Пайплайн обработки запроса, слои, политики, асинхронный контекст |

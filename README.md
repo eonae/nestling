@@ -35,9 +35,9 @@ dependency container verifies the whole graph at startup.
 - **Operations between features.** A feature calls its neighbour through an
   operation, not through its service. The same code runs in one process and
   in several, over NATS.
-- **One composition root.** `assemble({ features, plugins, transports,
-  config, policies })` builds the application and drives it through the
-  lifecycle phases.
+- **One composition root.** `makeApp({ features, plugins, transports,
+  config, policies })` declares the application; `assemble(select)` builds it
+  for this process and `run()` drives it through the lifecycle phases.
 
 The principles behind the design are described in
 [docs/design/principles.md](./docs/design/principles.md) (Russian).
@@ -49,7 +49,7 @@ npm install @nestling/app @nestling/transport.http zod
 ```
 
 ```typescript
-import { assemble, makeFeature } from '@nestling/app';
+import { makeApp, makeFeature } from '@nestling/app';
 import { http, httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -59,19 +59,23 @@ const GetUser = httpEndpoint({
   path: '/users/:id',
   input: z.object({ id: z.string() }), // `id` comes from the path
   output: z.object({ id: z.string(), name: z.string() }),
-  handle: async ({ id }) => ({ id, name: 'Alice' }),
+  handler: async ({ id }) => ({ id, name: 'Alice' }),
 });
 
 const UsersFeature = makeFeature({ name: 'users', endpoints: [GetUser] });
 
-await assemble({
+const app = makeApp({
   features: [UsersFeature],
   transports: [http({ port: 3000 })],
-}).run();
+});
+
+await app.assemble().run();
 ```
 
-The application answers `GET /users/42`, validates input and output against
-the schemas and shuts down on `SIGTERM`. Continue with the
+The application answers `GET /users/42`, validates the input against the
+`input` schema and shuts down on `SIGTERM`. The `output` schema types the
+handler and describes the response; the typed client checks the body
+against it on receipt. Continue with the
 [guide](./docs/guide/README.md): it grows this file into an application of
 several features running in several processes.
 
@@ -104,7 +108,7 @@ For application authors:
 |---|---|
 | [`@nestling/app`](./packages/nestling.app/) | Composition root: `assemble`, features and plugins, `select`, lifecycle phases, policies |
 | [`@nestling/transport.http`](./packages/nestling.transport.http/) | HTTP on `node:http`: `httpEndpoint`, routing, JSON, NDJSON, SSE, multipart |
-| [`@nestling/operations`](./packages/nestling.operations/) | Shared by server and client: operations, `defineFail`, `Ok`/`Fail`, io forms |
+| [`@nestling/operations`](./packages/nestling.operations/) | Shared by server and client: operations, `makeFail`, `Ok`/`Fail`, io forms |
 | [`@nestling/config`](./packages/nestling.config/) | Configuration as schema-typed sections, sources and their binding, secrets, reloadable sections |
 | [`@nestling/container`](./packages/nestling.container/) | Dependency container: tokens, providers, token families, modules, lifecycle hooks |
 | [`@nestling/pipeline`](./packages/nestling.pipeline/) | Request pipeline, layers, policies, async context |

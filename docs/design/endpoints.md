@@ -9,7 +9,9 @@
 > [deferred](../decisions/deferred.md),
 > «Стиль документации: правила, глоссарий, перенос обоснований из `design/`» [2026-08-29],
 > «Проверка входа по `input`: обязанность рантайма, точка после `.pre`-юнитов» [2026-08-29],
-> «Поле `handler`: зависимости принадлежат хендлеру; канон `return`; `Output<T, typeof Def>`» [2026-09-03].
+> «Поле `handler`: зависимости принадлежат хендлеру; канон `return`; `Output<T, typeof Def>`» [2026-09-03],
+> «Две формы хендлера: функция без зависимостей и класс» [2026-09-04],
+> «Отказы слоя: объявление в `.pre(unit, { errors })`, канал `return` у pre-юнита, эффективное множество `errors`» [2026-09-04].
 > Статус реализации —
 > [roadmap](../decisions/roadmap.md).
 
@@ -55,10 +57,7 @@ export const CreateOrder = httpEndpoint({
   output: Order,
   errors: [OrderLimitReached],       // типизированный канал E (errors.md)
   pipeline: basePipeline,
-  handler: {
-    deps: [OrdersService],
-    handle: (orders) => async (input, meta) => new Ok(orders.create(input)),
-  },
+  handler: CreateOrderHandler,       // класс с @Injectable([OrdersService]), см. §3
 });
 ```
 
@@ -86,8 +85,11 @@ bind-карты (§4): Standard Schema не отдаёт перечень клю
 
 **`errors:`.** Это поле ядро интерпретирует, в отличие от непрозрачного
 биндинга. Из него выводится тип отказов хендлера, и оно же передаётся через
-`EndpointMeta` в проверку операции отказов на выходе из пайплайна.
-Конструкторы транспортов поле только пробрасывают.
+`EndpointMeta` в проверку операции отказов на выходе из пайплайна. К нему
+добавляются отказы, объявленные слоями пайплайна ([pipeline.md
+§3](./pipeline.md)). В форме с операцией отказы пайплайна обязаны входить
+в `errors:` операции, иначе декларация не компилируется. Конструкторы
+транспортов поле только пробрасывают.
 
 **`detached: '<причина>'`.** Пометка выводит endpoint из-под всех
 инвариантов сборки ([pipeline.md §7](./pipeline.md)). Поле не зависит от
@@ -125,19 +127,19 @@ bind-карты (§4): Standard Schema не отдаёт перечень клю
 циклы проверяются как для любого узла. Узел создаётся
 жадно на фазе ASSEMBLE, паттерн регистрируется на фазе WIRE.
 
-## 3. Поле `handler`: три формы
+## 3. Поле `handler`: две формы
 
 Всё, что относится к исполнению, лежит в поле `handler`. Декларация
 описывает адрес, схемы, отказы и пайплайн; зависимости принадлежат
-хендлеру, а не декларации.
+хендлеру, а не декларации. Правило совпадает с правилом для юнитов
+пайплайна: зависимости из контейнера получает класс.
 
 | Форма | Когда |
 |---|---|
 | `handler: (input, meta) => …` | без зависимостей. Единственная форма, которую принимают standalone-транспорты (`server.route`): endpoint с зависимостями туда не проходит по типам |
-| `handler: { deps: […], handle: (…deps) => (input, meta) => … }` | каррированная фабрика. Внешний вызов происходит один раз при сборке (как конструктор), замыкание становится инстансом. Порядок аргументов `handle` совпадает с порядком `deps` |
 | `handler: Class` | класс с `@Injectable` и методом `handle`. Endpoint создаёт экземпляр сам: он становится провайдером этого класса, и регистрировать класс в `providers:` не нужно; повторная регистрация — ошибка сборки |
 
-Во всех трёх формах `meta` содержит зарезервированный ключ
+В обеих формах `meta` содержит зарезервированный ключ
 `signal: AbortSignal` (отмена запроса) и поля контекста, накопленные
 `.pre`-юнитами. Если pre-юнит добавил поле `signal`, инъекция его
 перекрывает. Возвращаемый тип сверяется и со схемой `output`, и со списком
@@ -172,19 +174,16 @@ export const CreateOrder = httpEndpoint({
 });                              // сверка со схемами в точке декларации, implements не нужен
 ```
 
-Unit-тест хендлера не требует фреймворка: каррированная фабрика вызывается
-с фейками, класс создаётся через `new CreateOrderHandler(fakes…)`. Импортов
-из `@nestling/*` в таком тесте нет.
+Unit-тест хендлера не требует фреймворка: класс создаётся через
+`new CreateOrderHandler(fakes…)`, функция вызывается напрямую. Импортов из
+`@nestling/*` в таком тесте нет.
 
 **Неразрешённые зависимости в типе.** Тип endpoint'а содержит всё, что ещё
-не получено из контейнера: токены `handler.deps`, класс хендлера и классы
-юнитов пайплайна. `server.route()` принимает только endpoint без них, так
-же как `Pipeline<any, never>`. Зависимости получаются одним шагом
+не получено из контейнера: класс хендлера и классы юнитов пайплайна.
+`server.route()` принимает только endpoint без них, так же как
+`Pipeline<any, never>`. Зависимости получаются одним шагом
 `endpoint.resolve(resolver)`; тот же вызов связывает юниты пайплайна тем же
 резолвером. App делает это на фазе WIRE для каждой обнаруженной декларации.
-Позиционная форма `endpoint.resolve([...])` предназначена для каррированной
-фабрики вне контейнера (тесты). Класс-хендлер и пайплайн с классами-юнитами
-требуют формы с резолвером: создать их инстансы иначе нечем.
 
 ## 4. HTTP: размещение полей `input` и bind-карта
 
@@ -212,10 +211,7 @@ export const CreateUser = httpEndpoint({
   bind: { dryRun: query(), tags: query({ multiple: true }) },
   output: User,
   pipeline: basePipeline,
-  handler: {
-    deps: [UserService],
-    handle: (users) => async (input) => new Ok(await users.add(input)),
-  },
+  handler: AddMemberHandler,   // класс с @Injectable([UserService])
 });
 ```
 
@@ -318,17 +314,25 @@ input: multipart({
 передаче событий по HTTP, объявляется в полях HTTP-декларации:
 
 ```typescript
+@Injectable([ActivityHub])
+export class ActivityStreamHandler {
+  constructor(private hub: ActivityHub) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { signal: AbortSignal; lastEventId?: string },
+  ) {
+    return new Ok(this.hub.subscribe(meta.signal));
+  }
+}
+
 export const ActivityStream = httpEndpoint({
   method: 'GET',
   path: '/activity/live',
   output: events(ActivityEvent),
   sse: { id: (e) => e.id, event: (e) => e.kind, heartbeat: 15_000 },
   pipeline: basePipeline,
-  handler: {
-    deps: [ActivityHub],
-    handle: (hub) => async (_payload, meta: { signal: AbortSignal; lastEventId?: string }) =>
-      new Ok(hub.subscribe(meta.signal)),
-  },
+  handler: ActivityStreamHandler,
 });
 ```
 
