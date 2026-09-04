@@ -1,7 +1,7 @@
-import { AppConfig } from '../config/app.config';
-import type { Database } from '../interfaces';
-import { Database$ } from '../interfaces';
-import { Logger } from '../logging';
+import { AppConfig } from '../config/app.config.js';
+import type { Database } from '../interfaces.js';
+import { Database$ } from '../interfaces.js';
+import { Logger } from '../logging/index.js';
 
 import type { Config } from '@nestling/config';
 import { Injectable } from '@nestling/container';

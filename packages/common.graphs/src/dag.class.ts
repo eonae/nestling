@@ -1,4 +1,4 @@
-import type { INode } from './interfaces';
+import type { INode } from './interfaces.js';
 
 /**
  * Направление обхода графа зависимостей

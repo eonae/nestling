@@ -3,10 +3,10 @@
  * с той же валидацией, что у проекции из контейнера.
  */
 
-import { ConfigValidationError } from './errors';
-import { load } from './load';
-import { makeConfig } from './section';
-import { objectSource } from './source';
+import { ConfigValidationError } from './errors.js';
+import { load } from './load.js';
+import { makeConfig } from './section.js';
+import { objectSource } from './source.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { z } from 'zod';

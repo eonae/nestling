@@ -1,4 +1,4 @@
-import { withStartedAt } from '../common/units';
+import { withStartedAt } from '../common/units.js';
 
 import { makePipeline } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';

@@ -11,29 +11,28 @@ import { isAsyncIterable, isMidStreamFailure } from '@nestling/pipeline';
 import { untilAborted } from '@nestling/streams';
 
 /** Соответствие статусов ответа кодам HTTP */
-/* eslint-disable prettier/prettier */
+
 const STATUS_MAP: Record<ProcessingStatus, number> = {
-  'ok': 200,
-  'created': 201,
-  'accepted': 202,
-  'no_content': 204,
-  'payment_required': 402,
-  'bad_request': 400,
-  'unauthorized': 401,
-  'forbidden': 403,
-  'not_found': 404,
-  'conflict': 409,
+  ok: 200,
+  created: 201,
+  accepted: 202,
+  no_content: 204,
+  payment_required: 402,
+  bad_request: 400,
+  unauthorized: 401,
+  forbidden: 403,
+  not_found: 404,
+  conflict: 409,
   // «вход больше допустимого»: лимит item-цепочки, файл сверх upload({maxSize})
-  'payload_too_large': 413,
-  'too_many_requests': 429,
-  'internal_error': 500,
-  'not_implemented': 501,
-  'service_unavailable': 503,
+  payload_too_large: 413,
+  too_many_requests: 429,
+  internal_error: 500,
+  not_implemented: 501,
+  service_unavailable: 503,
   // 504, а не 408: TIMEOUT в ядре — «операция не уложилась в бюджет»,
   // тогда как 408 про то, что клиент не дослал запрос.
-  'timeout': 504,
+  timeout: 504,
 };
-/* eslint-enable prettier/prettier */
 
 /** Период heartbeat SSE по умолчанию */
 export const DEFAULT_SSE_HEARTBEAT = 15_000;

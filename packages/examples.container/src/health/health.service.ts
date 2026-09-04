@@ -1,7 +1,7 @@
-import { Logger } from '../logging';
+import { Logger } from '../logging/index.js';
 
-import { HealthConfig } from './health.config';
-import { HealthCheck } from './registry';
+import { HealthConfig } from './health.config.js';
+import { HealthCheck } from './registry.js';
 
 import type { Config } from '@nestling/config';
 import { Injectable } from '@nestling/container';

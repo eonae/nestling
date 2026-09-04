@@ -25,7 +25,7 @@ export const app = makeApp({
 
 ```typescript
 // packages/examples.users-service/src/app.spec.ts
-import { app } from './app';
+import { app } from './app.js';
 
 /** Конфиг теста: объект вместо `process.env` */
 const testConfig = vars({ API_TOKEN: 'test-token' });

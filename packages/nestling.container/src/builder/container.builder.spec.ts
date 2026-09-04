@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 
-import { makeToken } from '../common';
-import { makeModule } from '../modules';
+import { makeToken } from '../common.js';
+import { makeModule } from '../modules/index.js';
 import {
   classProvider,
   factoryProvider,
   Injectable,
   valueProvider,
-} from '../providers';
+} from '../providers/index.js';
 
-import { ContainerBuilder } from './container.builder';
+import { ContainerBuilder } from './container.builder.js';
 
 /** Опции параметризованного инфраструктурного модуля */
 const LoggingOptions$ = makeToken<{ pretty: boolean }>('LoggingOptions');

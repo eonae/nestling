@@ -1,5 +1,5 @@
-import type { User } from './users/user';
-import type { UsersRepository } from './users/users.repository';
+import type { User } from './users/user.js';
+import type { UsersRepository } from './users/users.repository.js';
 
 /**
  * Фейк хранилища поверх массива: без соединения и без `@OnInit`.

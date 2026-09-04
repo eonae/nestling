@@ -8,9 +8,9 @@ import type {
   FailsOf,
   Pipeline,
   ValidateOutputForm,
-} from '../core';
-import { assertDoc, assertFormSlots, isFailDefinition } from '../core';
-import type { HandlerFn } from '../core/types';
+} from '../core/index.js';
+import { assertDoc, assertFormSlots, isFailDefinition } from '../core/index.js';
+import type { HandlerFn } from '../core/types/index.js';
 
 import type { Constructor } from '@common/misc';
 import type {

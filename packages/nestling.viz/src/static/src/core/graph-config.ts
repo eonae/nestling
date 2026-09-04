@@ -1,4 +1,4 @@
-import type { ForceGraphData } from '../types/graph3d';
+import type { ForceGraphData } from '../types/graph3d.js';
 
 interface GraphConfig {
   width: number;

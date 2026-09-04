@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 
-import { makeToken } from '../common';
-import { Injectable } from '../providers';
+import { makeToken } from '../common.js';
+import { Injectable } from '../providers/index.js';
 
-import { getLifecycleHooks, OnDestroy, OnInit, OnStart } from './lifecycle';
+import { getLifecycleHooks, OnDestroy, OnInit, OnStart } from './lifecycle.js';
 
 describe('метаданные хуков жизненного цикла', () => {
   it('собирает хуки @OnInit', () => {

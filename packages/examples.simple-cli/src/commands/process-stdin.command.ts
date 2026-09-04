@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { EmptyStdin } from '../errors';
+import { EmptyStdin } from '../errors.js';
 
 import { stream } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';

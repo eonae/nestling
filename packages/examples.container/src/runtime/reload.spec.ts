@@ -3,9 +3,9 @@
  * видит новое без пересборки, подписка получает уведомление.
  */
 
-import { makeContainer } from '../container';
+import { makeContainer } from '../container.js';
 
-import { RateLimiter } from './rate-limiter';
+import { RateLimiter } from './rate-limiter.js';
 
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import type { ObjectSource } from '@nestling/config';

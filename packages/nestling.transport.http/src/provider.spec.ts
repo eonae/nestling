@@ -3,8 +3,8 @@
  * фактический адрес после старта приёма запросов.
  */
 
-import { HttpTransport$ } from './token';
-import { http, HttpTransport } from './transport';
+import { HttpTransport$ } from './token.js';
+import { http, HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { configKernel } from '@nestling/config';

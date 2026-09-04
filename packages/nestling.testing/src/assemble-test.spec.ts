@@ -3,11 +3,11 @@
  * `call` через полный пайплайн, конфиг объектом и SHUTDOWN.
  */
 
-import { SpyTransport } from './__fixtures__/transport';
-import { assembleTest } from './app';
-import { vars } from './config';
-import { familyOverride } from './overrides';
-import { unwrap, UnwrapFailedError } from './unwrap';
+import { SpyTransport } from './__fixtures__/transport.js';
+import { assembleTest } from './app.js';
+import { vars } from './config.js';
+import { familyOverride } from './overrides.js';
+import { unwrap, UnwrapFailedError } from './unwrap.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import { Discovery$, makeApp, makeFeature } from '@nestling/app';

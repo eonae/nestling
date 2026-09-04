@@ -1,4 +1,4 @@
-import { GraphNode } from './graphTypes';
+import { GraphNode } from './graphTypes.js';
 
 export interface IEventBus {
   on(event: string, callback: (data?: unknown) => void): void;

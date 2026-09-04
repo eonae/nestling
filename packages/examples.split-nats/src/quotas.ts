@@ -7,9 +7,9 @@
  * Транспортом служит шина, которую поставил корень.
  */
 
-import { TenantId } from './context';
-import type { UserRegisteredInput } from './operations';
-import { ClaimQuota, QuotaExceeded, UserRegistered } from './operations';
+import { TenantId } from './context.js';
+import type { UserRegisteredInput } from './operations.js';
+import { ClaimQuota, QuotaExceeded, UserRegistered } from './operations.js';
 
 import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';

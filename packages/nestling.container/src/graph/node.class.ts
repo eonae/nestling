@@ -1,4 +1,4 @@
-import type { Hook, LifecycleHooks } from '../lifecycle';
+import type { Hook, LifecycleHooks } from '../lifecycle/index.js';
 
 import type { INode } from '@common/graphs';
 

@@ -1,4 +1,4 @@
-import { RateLimiter } from './rate-limiter';
+import { RateLimiter } from './rate-limiter.js';
 
 import { makeModule } from '@nestling/container';
 

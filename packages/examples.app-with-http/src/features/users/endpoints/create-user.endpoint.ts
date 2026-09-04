@@ -1,17 +1,17 @@
-import type { CreateUserInput } from '../../../api/operations';
-import { CreateUser as CreateUserOperation } from '../../../api/operations';
-import type { QuotaExceeded } from '../../../operations';
+import type { CreateUserInput } from '../../../api/operations.js';
+import { CreateUser as CreateUserOperation } from '../../../api/operations.js';
+import type { QuotaExceeded } from '../../../operations.js';
 import {
   ClaimQuota,
   SignupRecorded,
   UserRegistered,
-} from '../../../operations';
-import { authed } from '../../../plugins/auth';
-import { ActivityHub } from '../activity.hub';
-import type { User } from '../user';
-import { EmailTaken } from '../users.errors';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+} from '../../../operations.js';
+import { authed } from '../../../plugins/auth/index.js';
+import { ActivityHub } from '../activity.hub.js';
+import type { User } from '../user.js';
+import { EmailTaken } from '../users.errors.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import { Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';

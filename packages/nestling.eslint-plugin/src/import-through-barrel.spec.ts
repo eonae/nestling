@@ -13,7 +13,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { importThroughBarrel } from './import-through-barrel';
+import { importThroughBarrel } from './import-through-barrel.js';
 
 import { RuleTester } from 'eslint';
 import tseslint from 'typescript-eslint';

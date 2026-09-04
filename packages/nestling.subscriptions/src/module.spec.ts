@@ -10,12 +10,12 @@
  * собирается, и два значения модуля в одном корне роняют сборку.
  */
 
-import { testTransport, TestTransport$ } from './__fixtures__/transport';
-import { tracked } from './layer';
-import { subscriptions } from './module';
-import { SubscriptionClosed, SubscriptionOpened } from './operations';
-import { SubscriptionRegistry } from './registry';
-import type { SubscriptionEvent } from './types';
+import { testTransport, TestTransport$ } from './__fixtures__/transport.js';
+import { tracked } from './layer.js';
+import { subscriptions } from './module.js';
+import { SubscriptionClosed, SubscriptionOpened } from './operations.js';
+import { SubscriptionRegistry } from './registry.js';
+import type { SubscriptionEvent } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestling/app';

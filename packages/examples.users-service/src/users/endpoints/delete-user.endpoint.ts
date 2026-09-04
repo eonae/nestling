@@ -1,8 +1,8 @@
-import { authed } from '../../auth';
-import { Unauthorized } from '../../errors';
-import { UserNotFound } from '../users.errors';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import { authed } from '../../auth.js';
+import { Unauthorized } from '../../errors.js';
+import { UserNotFound } from '../users.errors.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import { Injectable } from '@nestling/container';
 import { Ok } from '@nestling/operations';

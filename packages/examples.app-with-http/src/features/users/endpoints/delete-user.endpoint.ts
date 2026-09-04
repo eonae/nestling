@@ -1,10 +1,10 @@
-import { Unauthorized } from '../../../errors';
-import { authed } from '../../../plugins/auth';
-import type { Logger } from '../../../plugins/logging';
-import { Logger$ } from '../../../plugins/logging';
-import { UserNotFound } from '../users.errors';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import { Unauthorized } from '../../../errors.js';
+import { authed } from '../../../plugins/auth/index.js';
+import type { Logger } from '../../../plugins/logging/index.js';
+import { Logger$ } from '../../../plugins/logging/index.js';
+import { UserNotFound } from '../users.errors.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import { Injectable } from '@nestling/container';
 import { Ok } from '@nestling/operations';

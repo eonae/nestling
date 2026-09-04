@@ -1,5 +1,5 @@
-import type { Logger } from '../../plugins/logging';
-import { Logger$ } from '../../plugins/logging';
+import type { Logger } from '../../plugins/logging/index.js';
+import { Logger$ } from '../../plugins/logging/index.js';
 
 import { implement } from '@nestling/ports';
 import {

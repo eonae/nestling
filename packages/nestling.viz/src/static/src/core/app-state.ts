@@ -1,6 +1,10 @@
-import type { Graph3D, ForceGraphNode, ForceGraphData } from '../types/graph3d';
-import type { GraphNode } from '../types';
-import { eventBus, EVENTS } from './event-bus';
+import type {
+  Graph3D,
+  ForceGraphNode,
+  ForceGraphData,
+} from '../types/graph3d.js';
+import type { GraphNode } from '../types/index.js';
+import { eventBus, EVENTS } from './event-bus.js';
 
 class FocusState {
   private state = {

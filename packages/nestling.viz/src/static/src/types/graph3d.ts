@@ -1,5 +1,5 @@
 import { ForceGraph3DInstance, NodeObject, LinkObject } from '3d-force-graph';
-import { GraphNode, GraphLink, GraphData } from './graphTypes';
+import { GraphNode, GraphLink, GraphData } from './graphTypes.js';
 
 // Тип для 3D узла - это NodeObject с нашими дополнительными свойствами
 export interface ForceGraphNode extends NodeObject {

@@ -1,9 +1,9 @@
-import { CreateUser as CreateUserOperation } from '../../api/operations';
-import { authed } from '../../auth';
-import type { CreateUserInput, User } from '../user';
-import { EmailTaken } from '../users.errors';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import { CreateUser as CreateUserOperation } from '../../api/operations.js';
+import { authed } from '../../auth.js';
+import type { CreateUserInput, User } from '../user.js';
+import { EmailTaken } from '../users.errors.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import { Injectable } from '@nestling/container';
 import { Ok } from '@nestling/operations';

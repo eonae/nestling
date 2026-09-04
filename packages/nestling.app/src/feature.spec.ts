@@ -3,14 +3,14 @@
  * ролей и fail-fast расхождений.
  */
 
-import type { Feature } from './feature';
+import type { Feature } from './feature.js';
 import {
   makeFeature,
   makePlugin,
   modulesOf,
   reachablePlugins,
   resolveSelection,
-} from './feature';
+} from './feature.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeModule } from '@nestling/container';

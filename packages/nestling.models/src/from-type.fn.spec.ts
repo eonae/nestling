@@ -1,4 +1,4 @@
-import { fromType } from './from-type.fn';
+import { fromType } from './from-type.fn.js';
 
 import { z } from 'zod';
 

@@ -2,7 +2,7 @@
  * Конструктор CLI-деклараций и обслуживание команды транспортом.
  */
 
-import { cliEndpoint, CliTransport, CliTransport$ } from './index';
+import { cliEndpoint, CliTransport, CliTransport$ } from './index.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import {

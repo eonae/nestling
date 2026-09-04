@@ -3,9 +3,9 @@
  * зависимостей деклараций и строгий реверс shutdown.
  */
 
-import { makeApp } from './app';
-import { makeFeature, makePlugin } from './feature';
-import { MockTransport } from './helpers';
+import { makeApp } from './app.js';
+import { makeFeature, makePlugin } from './feature.js';
+import { MockTransport } from './helpers.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import {

@@ -1,4 +1,4 @@
-import { fromScratch } from './from-scratch.fn';
+import { fromScratch } from './from-scratch.fn.js';
 
 import { z } from 'zod';
 

@@ -6,12 +6,12 @@ import {
   ImportUsers,
   ListUsers,
   UploadAvatar,
-} from './users/endpoints';
-import { DbUsersRepository } from './users/users.repository';
-import { Authenticate } from './auth';
-import { Database } from './database';
-import { ConsoleLogger } from './logging';
-import { AuditOutcome } from './observability';
+} from './users/endpoints/index.js';
+import { DbUsersRepository } from './users/users.repository.js';
+import { Authenticate } from './auth.js';
+import { Database } from './database.js';
+import { ConsoleLogger } from './logging.js';
+import { AuditOutcome } from './observability.js';
 
 import { makeFeature } from '@nestling/app';
 

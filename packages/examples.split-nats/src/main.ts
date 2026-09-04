@@ -6,7 +6,7 @@
  * процессом. Код фич во всех трёх запусках один и тот же.
  */
 
-import { app } from './app';
+import { app } from './app.js';
 
 import { load, makeConfig } from '@nestling/config';
 import { z } from 'zod';

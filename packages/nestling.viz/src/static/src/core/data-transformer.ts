@@ -1,7 +1,10 @@
-import { getModuleColor } from './colors';
-import type { ExportedGraph } from '../types/graph';
-import type { GraphData, GraphLink } from '../types';
-import { adaptDataToForceGraph, type ForceGraphData } from '../types/graph3d';
+import { getModuleColor } from './colors.js';
+import type { ExportedGraph } from '../types/graph.js';
+import type { GraphData, GraphLink } from '../types/index.js';
+import {
+  adaptDataToForceGraph,
+  type ForceGraphData,
+} from '../types/graph3d.js';
 
 /**
  * Преобразует экспортированные данные в формат для 3d-force-graph

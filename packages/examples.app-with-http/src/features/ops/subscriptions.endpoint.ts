@@ -1,6 +1,6 @@
-import { Unauthorized } from '../../errors';
-import { authed } from '../../plugins/auth';
-import { observability } from '../../plugins/logging';
+import { Unauthorized } from '../../errors.js';
+import { authed } from '../../plugins/auth/index.js';
+import { observability } from '../../plugins/logging/index.js';
 
 import { events, makeFail, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';

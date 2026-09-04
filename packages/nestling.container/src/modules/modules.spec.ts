@@ -1,4 +1,4 @@
-import { isModule, makeModule } from './modules';
+import { isModule, makeModule } from './modules.js';
 
 describe('функции модулей', () => {
   it('создаёт модуль через makeModule', () => {

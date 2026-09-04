@@ -1,4 +1,4 @@
-import type { Constructor, InjectionToken, Token } from '../common';
+import type { Constructor, InjectionToken, Token } from '../common.js';
 
 /**
  * Токен члена семейства: обычный токен плюс два поля принадлежности.

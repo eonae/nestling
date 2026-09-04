@@ -6,9 +6,9 @@
  * упадёт и тайпчек, и рантайм-проверка.
  */
 
-import { makeCtx } from './__fixtures__/context';
-import type { CloseReason } from './types';
-import { kindOfOutput } from './types';
+import { makeCtx } from './__fixtures__/context.js';
+import type { CloseReason } from './types.js';
+import { kindOfOutput } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { events, stream } from '@nestling/operations';

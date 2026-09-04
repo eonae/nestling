@@ -4,7 +4,7 @@ import {
   type FailCode,
   type SuccessStatus,
   successStatuses,
-} from './status';
+} from './status.js';
 
 /**
  * Отказ с любым кодом и любыми деталями.

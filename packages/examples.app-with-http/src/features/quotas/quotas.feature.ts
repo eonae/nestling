@@ -2,18 +2,18 @@ import type {
   ClaimQuotaInput,
   SignupRecordedInput,
   UserRegisteredInput,
-} from '../../operations';
+} from '../../operations.js';
 import {
   ClaimQuota,
   QuotaExceeded,
   SignupRecorded,
   UserRegistered,
-} from '../../operations';
-import type { Logger } from '../../plugins/logging';
-import { Logger$ } from '../../plugins/logging';
+} from '../../operations.js';
+import type { Logger } from '../../plugins/logging/index.js';
+import { Logger$ } from '../../plugins/logging/index.js';
 
-import { QuotaService } from './quota.service';
-import { SignupJournal } from './signup.journal';
+import { QuotaService } from './quota.service.js';
+import { SignupJournal } from './signup.journal.js';
 
 import { makeFeature } from '@nestling/app';
 import { makePipeline } from '@nestling/pipeline';

@@ -1,2 +1,2 @@
-export * from './dag.class';
-export * from './interfaces';
+export * from './dag.class.js';
+export * from './interfaces.js';

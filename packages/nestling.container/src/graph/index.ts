@@ -1,2 +1,2 @@
-export * from './node.class';
-export * from './graph.class';
+export * from './node.class.js';
+export * from './graph.class.js';

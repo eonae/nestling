@@ -9,9 +9,9 @@
  * поверхности для аудита.
  */
 
-import { makeApp } from './app';
-import { makeFeature } from './feature';
-import { MockTransport } from './helpers';
+import { makeApp } from './app.js';
+import { makeFeature } from './feature.js';
+import { MockTransport } from './helpers.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import { Injectable, makeToken, OnInit } from '@nestling/container';

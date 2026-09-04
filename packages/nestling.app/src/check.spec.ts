@@ -5,10 +5,10 @@
  * не выполнилось и какими ошибками падает то, что не сходится.
  */
 
-import { makeApp } from './app';
-import { makeFeature } from './feature';
-import { MockTransport } from './helpers';
-import { wireApp } from './testing';
+import { wireApp } from './testing/index.js';
+import { makeApp } from './app.js';
+import { makeFeature } from './feature.js';
+import { MockTransport } from './helpers.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import {

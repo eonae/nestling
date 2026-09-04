@@ -1,6 +1,6 @@
-import { AppConfig } from '../config/app.config';
+import { AppConfig } from '../config/app.config.js';
 
-import { Logger } from './registry';
+import { Logger } from './registry.js';
 
 import { makePlugin } from '@nestling/app';
 import type { Config } from '@nestling/config';

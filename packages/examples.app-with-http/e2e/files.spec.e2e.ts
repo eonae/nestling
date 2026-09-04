@@ -2,8 +2,8 @@ import {
   closeTestApp,
   createTestApp,
   type TestAppContext,
-} from './helpers/create-test-app';
-import { HttpClient } from './helpers/http-client';
+} from './helpers/create-test-app.js';
+import { HttpClient } from './helpers/http-client.js';
 
 /** Первые байты PNG: транспорт проверяет MIME, а не содержимое */
 const png = (): FormData => {

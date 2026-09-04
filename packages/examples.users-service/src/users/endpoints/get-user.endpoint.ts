@@ -1,10 +1,10 @@
-import type { GetUserInput } from '../../api/operations';
-import { GetUser as GetUserOperation } from '../../api/operations';
-import { observability } from '../../observability';
-import type { User } from '../user';
-import { UserNotFound } from '../users.errors';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import type { GetUserInput } from '../../api/operations.js';
+import { GetUser as GetUserOperation } from '../../api/operations.js';
+import { observability } from '../../observability.js';
+import type { User } from '../user.js';
+import { UserNotFound } from '../users.errors.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import { Injectable } from '@nestling/container';
 import type { Output } from '@nestling/pipeline';

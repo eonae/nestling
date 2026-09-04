@@ -1,6 +1,6 @@
-import { highlightState } from './app-state';
-import { DIMMED_NODE_COLOR } from './colors';
-import type { ForceGraphNode } from '../types/graph3d';
+import { highlightState } from './app-state.js';
+import { DIMMED_NODE_COLOR } from './colors.js';
+import type { ForceGraphNode } from '../types/graph3d.js';
 import type { NodeObject } from '3d-force-graph';
 
 interface NodeStyling {

@@ -1,8 +1,8 @@
-export * from './abort';
-export * from './context';
-export * from './io';
-export * from './pipeline';
-export * from './types';
+export * from './abort.js';
+export * from './context/index.js';
+export * from './io/index.js';
+export * from './pipeline.js';
+export * from './types/index.js';
 
 /**
  * Реэкспорт декларативного слоя, переехавшего в `@nestling/operations`.

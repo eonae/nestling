@@ -1,5 +1,5 @@
-import type { EmptyInput } from '../core';
-import type { PreUnitFn, Raw } from '../core/types';
+import type { EmptyInput } from '../core/index.js';
+import type { PreUnitFn, Raw } from '../core/types/index.js';
 
 /**
  * Добавляет `identity` в контекст запроса.

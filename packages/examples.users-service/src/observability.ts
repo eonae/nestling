@@ -1,5 +1,5 @@
-import type { Logger } from './logging';
-import { Logger$ } from './logging';
+import type { Logger } from './logging.js';
+import { Logger$ } from './logging.js';
 
 import { Injectable } from '@nestling/container';
 import type {

@@ -1,4 +1,4 @@
-import type { PreUnitFn } from '../core/types';
+import type { PreUnitFn } from '../core/types/index.js';
 
 /**
  * Добавляет `permissions` в контекст запроса.

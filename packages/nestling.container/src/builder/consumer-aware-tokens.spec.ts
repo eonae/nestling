@@ -1,14 +1,14 @@
-import type { Constructor } from '../common';
-import { makeToken } from '../common';
+import type { Constructor } from '../common.js';
+import { makeToken } from '../common.js';
 import {
   factoryProvider,
   familyProvider,
   Injectable,
   makeTokenFamily,
   valueProvider,
-} from '../providers';
+} from '../providers/index.js';
 
-import { ContainerBuilder } from './container.builder';
+import { ContainerBuilder } from './container.builder.js';
 
 interface ILoggerService {
   scope: string;

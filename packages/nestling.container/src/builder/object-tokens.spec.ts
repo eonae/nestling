@@ -1,7 +1,7 @@
-import { makeToken, tokenId } from '../common';
-import { Injectable, valueProvider } from '../providers';
+import { makeToken, tokenId } from '../common.js';
+import { Injectable, valueProvider } from '../providers/index.js';
 
-import { ContainerBuilder } from './container.builder';
+import { ContainerBuilder } from './container.builder.js';
 
 interface ILogger {
   scope: string;

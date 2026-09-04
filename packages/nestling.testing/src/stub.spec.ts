@@ -7,9 +7,9 @@
  * место стаба в сборке.
  */
 
-import { assembleTest } from './app';
-import { stub } from './stub';
-import { testUnit } from './unit';
+import { assembleTest } from './app.js';
+import { stub } from './stub.js';
+import { testUnit } from './unit.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestling/app';

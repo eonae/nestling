@@ -10,28 +10,28 @@
  * fail-fast: ошибка сборки предшествует захвату любых ресурсов.
  */
 
-import { assertFeatureBoundary, buildOwnerMap } from './boundary';
-import type { EndpointDiscovery } from './discovery';
-import { discoverEndpoints, Discovery$ } from './discovery';
-import type { Bundle, Feature, FeatureSelection } from './feature';
-import { modulesOf, resolveSelection } from './feature';
-import type { CheckedOperation } from './operations';
-import { mapOperations } from './operations';
+import { assertFeatureBoundary, buildOwnerMap } from './boundary.js';
+import type { EndpointDiscovery } from './discovery.js';
+import { discoverEndpoints, Discovery$ } from './discovery.js';
+import type { Bundle, Feature, FeatureSelection } from './feature.js';
+import { modulesOf, resolveSelection } from './feature.js';
+import type { CheckedOperation } from './operations.js';
+import { mapOperations } from './operations.js';
 import type {
   AppSpec,
   AssemblyPlan,
   NormalizedAppSpec,
   WiredApp,
   WiredEndpoint,
-} from './plan';
+} from './plan.js';
 import {
   CHECK_SEAM,
   makePlan,
   normalizeSpec,
   TEST_SEAM,
   transportTokensOf,
-} from './plan';
-import { closeOverCalls } from './selection';
+} from './plan.js';
+import { closeOverCalls } from './selection.js';
 
 import { configKernel } from '@nestling/config';
 import type {
@@ -73,7 +73,7 @@ import type {
 } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
 
-export type { AppSpec, NormalizedAppSpec } from './plan';
+export type { AppSpec, NormalizedAppSpec } from './plan.js';
 
 /** Endpoint в отчёте `check()`: чем обслуживается и кем объявлен */
 export interface CheckedEndpoint {

@@ -5,14 +5,14 @@
  * не фича: провайдер, достижимый из двух фич, живёт в плагине.
  */
 
-import { observability } from '../logging';
+import { observability } from '../logging/index.js';
 
-import { Authenticate } from './authenticate';
+import { Authenticate } from './authenticate.js';
 
 import { makePlugin } from '@nestling/app';
 import { compose, makePipeline } from '@nestling/pipeline';
 
-export { type Caller } from './authenticate';
+export { type Caller } from './authenticate.js';
 
 export const appAuth = makePlugin({
   name: 'app-auth',

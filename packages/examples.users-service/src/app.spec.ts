@@ -5,12 +5,17 @@
  * принимает подмены, выбор фич и конфиг теста.
  */
 
-import { CreateUser, DeleteUser, GetUser, ListUsers } from './users/endpoints';
-import { UsersRepository$ } from './users/users.repository';
-import { app } from './app';
-import type { Logger } from './logging';
-import { Logger$ } from './logging';
-import { inMemoryUsersRepo } from './testing';
+import {
+  CreateUser,
+  DeleteUser,
+  GetUser,
+  ListUsers,
+} from './users/endpoints/index.js';
+import { UsersRepository$ } from './users/users.repository.js';
+import { app } from './app.js';
+import type { Logger } from './logging.js';
+import { Logger$ } from './logging.js';
+import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { assembleTest, unwrap, vars } from '@nestling/testing';

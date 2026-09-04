@@ -1,8 +1,8 @@
-import { AppConfig } from '../../../app.config';
-import { observability } from '../../../plugins/logging';
-import { User } from '../user';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import { AppConfig } from '../../../app.config.js';
+import { observability } from '../../../plugins/logging/index.js';
+import { User } from '../user.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import type { Config } from '@nestling/config';
 import type { Output } from '@nestling/pipeline';

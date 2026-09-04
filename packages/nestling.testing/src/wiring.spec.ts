@@ -6,7 +6,7 @@
  * узнать об этом надо здесь, а не в чужом падении через три change'а.
  */
 
-import { assembleTest } from './app';
+import { assembleTest } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestling/app';

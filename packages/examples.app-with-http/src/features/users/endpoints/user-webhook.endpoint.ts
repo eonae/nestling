@@ -1,10 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { AppConfig } from '../../../app.config';
-import { observability } from '../../../plugins/logging';
-import { InvalidSignature } from '../users.errors';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import { AppConfig } from '../../../app.config.js';
+import { observability } from '../../../plugins/logging/index.js';
+import { InvalidSignature } from '../users.errors.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import type { Config } from '@nestling/config';
 import { Injectable } from '@nestling/container';

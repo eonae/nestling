@@ -4,10 +4,10 @@
  * создании и типизация пути (`PathParams`).
  */
 
-import type { PathParams } from './binding';
-import { body, httpBindingOf, query } from './binding';
-import { httpEndpoint } from './helpers';
-import { HttpTransport$ } from './token';
+import type { PathParams } from './binding.js';
+import { body, httpBindingOf, query } from './binding.js';
+import { httpEndpoint } from './helpers.js';
+import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
 import {

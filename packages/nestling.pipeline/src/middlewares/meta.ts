@@ -1,6 +1,6 @@
-import type { EmptyInput } from '../core';
-import { RequestId } from '../core';
-import type { PreUnitFn } from '../core/types';
+import type { EmptyInput } from '../core/index.js';
+import { RequestId } from '../core/index.js';
+import type { PreUnitFn } from '../core/types/index.js';
 
 /**
  * Добавляет `requestId` в контекст запроса.

@@ -1,4 +1,4 @@
-import type { ModuleProvider, ProvidersFactory } from '../providers';
+import type { ModuleProvider, ProvidersFactory } from '../providers/index.js';
 
 /**
  * Модуль: обычный объект, который группирует провайдеры под именем.

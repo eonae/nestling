@@ -8,9 +8,9 @@
  * собирается в проде, не должно собираться в тесте.
  */
 
-import { SpyTransport } from './__fixtures__/transport';
-import { assembleTest } from './app';
-import { checkTopologies } from './topologies';
+import { SpyTransport } from './__fixtures__/transport.js';
+import { assembleTest } from './app.js';
+import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestling/app';

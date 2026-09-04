@@ -1,6 +1,6 @@
-import type { InjectionToken } from '../common';
-import { tokenId } from '../common';
-import type { DIGraph, DINode, JsonDIGraph } from '../graph';
+import type { InjectionToken } from '../common.js';
+import { tokenId } from '../common.js';
+import type { DIGraph, DINode, JsonDIGraph } from '../graph/index.js';
 
 import type { VisitCallback, VisitOptions } from '@common/graphs';
 

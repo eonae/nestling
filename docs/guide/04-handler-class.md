@@ -88,7 +88,7 @@ endpoint'ам, и они разделят один экземпляр: клас�
 
 ```typescript
 // packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
-import { CreateUserHandler } from './create-user.endpoint';
+import { CreateUserHandler } from './create-user.endpoint.js';
 
 it('возвращает отказ EmailTaken для занятого email', async () => {
   const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));

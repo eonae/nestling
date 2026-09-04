@@ -8,11 +8,11 @@
  * содержимое политики не заглядывает.
  */
 
-import type { AnyContextVar } from '../core';
-import { declaresVar, derivesFrom } from '../core';
+import type { AnyContextVar } from '../core/index.js';
+import { declaresVar, derivesFrom } from '../core/index.js';
 
-import type { AnyEndpointDefinition, TransportRef } from './endpoint';
-import { transportNameOf } from './endpoint';
+import type { AnyEndpointDefinition, TransportRef } from './endpoint.js';
+import { transportNameOf } from './endpoint.js';
 
 /**
  * Endpoint, попавший под проверку: декларация и её модуль-объявитель.

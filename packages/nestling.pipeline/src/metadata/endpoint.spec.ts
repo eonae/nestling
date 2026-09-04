@@ -5,15 +5,15 @@
  * зависимостей и бренд. Плюс типовые тесты на `TNeeds`.
  */
 
-import { Ok } from '../core';
-import { makePipeline } from '../core/pipeline';
+import { Ok } from '../core/index.js';
+import { makePipeline } from '../core/pipeline.js';
 
-import type { EndpointDefinition } from './endpoint';
+import type { EndpointDefinition } from './endpoint.js';
 import {
   isEndpointDefinition,
   makeEndpoint,
   transportNameOf,
-} from './endpoint';
+} from './endpoint.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import type { Token } from '@nestling/container';

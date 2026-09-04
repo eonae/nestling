@@ -8,8 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "verify": "nx run-many -t build typecheck lint test type-budget",
-    "verify:fresh": "nx run-many -t build typecheck lint test type-budget --skip-nx-cache",
+    "verify": "nx run-many -t build typecheck lint test type-budget && node scripts/smoke.mjs",
+    "verify:fresh": "nx run-many -t build typecheck lint test type-budget --skip-nx-cache && node scripts/smoke.mjs",
     "docs:audit": "node .claude/skills/docs-audit/scripts/check.mjs",
     "docs:preview": "node scripts/preview/build.mjs",
     "docs:preview:watch": "node scripts/preview/build.mjs --watch"

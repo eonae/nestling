@@ -6,7 +6,7 @@
  * принимает только `Pipeline<_, _, never>`.
  */
 
-import { makeDispatch } from './dispatch';
+import { makeDispatch } from './dispatch.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { ContainerBuilder, makeToken } from '@nestling/container';

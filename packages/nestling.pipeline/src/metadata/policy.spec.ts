@@ -7,11 +7,11 @@
  * руками, ровно в той форме, в какой их отдаёт discovery.
  */
 
-import { compose, contextVar, makePipeline, Ok } from '../core';
+import { compose, contextVar, makePipeline, Ok } from '../core/index.js';
 
-import { makeEndpoint } from './endpoint';
-import type { PolicySubject } from './policy';
-import { everyEndpoint } from './policy';
+import { makeEndpoint } from './endpoint.js';
+import type { PolicySubject } from './policy.js';
+import { everyEndpoint } from './policy.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';

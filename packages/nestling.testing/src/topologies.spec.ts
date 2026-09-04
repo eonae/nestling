@@ -2,8 +2,8 @@
  * `checkTopologies` — матрица `select`-топологий и перечень всех отказов.
  */
 
-import { SpyTransport } from './__fixtures__/transport';
-import { checkTopologies } from './topologies';
+import { SpyTransport } from './__fixtures__/transport.js';
+import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature, makePlugin } from '@nestling/app';

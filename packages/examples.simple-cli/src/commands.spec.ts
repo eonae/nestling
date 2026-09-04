@@ -3,7 +3,7 @@
  * stdout не участвует.
  */
 
-import { Greet, Help, ProcessStdin } from './commands';
+import { Greet, Help, ProcessStdin } from './commands/index.js';
 
 import {
   afterEach,

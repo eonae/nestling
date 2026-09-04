@@ -5,8 +5,8 @@ import {
   createTestApp,
   E2E_WEBHOOK_SECRET,
   type TestAppContext,
-} from './helpers/create-test-app';
-import { HttpClient } from './helpers/http-client';
+} from './helpers/create-test-app.js';
+import { HttpClient } from './helpers/http-client.js';
 
 /** Подпись тела тем же алгоритмом, что проверяет `VerifySignature` */
 const sign = (body: string, secret = E2E_WEBHOOK_SECRET): string =>

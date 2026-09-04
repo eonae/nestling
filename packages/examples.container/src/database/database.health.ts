@@ -1,6 +1,6 @@
-import type { HealthCheck } from '../health';
-import type { Database } from '../interfaces';
-import { Database$ } from '../interfaces';
+import type { HealthCheck } from '../health/index.js';
+import type { Database } from '../interfaces.js';
+import { Database$ } from '../interfaces.js';
 
 import { Injectable } from '@nestling/container';
 

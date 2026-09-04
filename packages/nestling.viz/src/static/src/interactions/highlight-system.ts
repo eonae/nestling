@@ -1,7 +1,7 @@
-import { highlightState } from '../core/app-state';
-import { eventBus, EVENTS } from '../core/event-bus';
-import type { Graph3D, ForceGraphNode } from '../types/graph3d';
-import { adaptNodeFromForceGraph } from '../types/graph3d';
+import { highlightState } from '../core/app-state.js';
+import { eventBus, EVENTS } from '../core/event-bus.js';
+import type { Graph3D, ForceGraphNode } from '../types/graph3d.js';
+import { adaptNodeFromForceGraph } from '../types/graph3d.js';
 
 /**
  * Принудительное обновление подсветки

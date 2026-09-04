@@ -1,7 +1,7 @@
-import { AppModule } from './app.feature';
-import { appConfigKeys } from './config';
-import { appLogging } from './logging';
-import { runtimeConfigKeys } from './runtime';
+import { appConfigKeys } from './config/index.js';
+import { appLogging } from './logging/index.js';
+import { runtimeConfigKeys } from './runtime/index.js';
+import { AppModule } from './app.feature.js';
 
 import type { ConfigSource } from '@nestling/config';
 import { configKernel, objectSource } from '@nestling/config';

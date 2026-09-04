@@ -1,4 +1,4 @@
-import { HealthService } from './health.service';
+import { HealthService } from './health.service.js';
 
 import { makeModule } from '@nestling/container';
 

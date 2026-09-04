@@ -6,10 +6,10 @@
  * адрес; реализация подключает операцию через `httpEndpoint({ operation })`.
  */
 
-import { Unauthorized } from '../errors';
-import { NewUser, User } from '../features/users/user';
-import { EmailTaken, UserNotFound } from '../features/users/users.errors';
-import { QuotaExceeded } from '../operations';
+import { Unauthorized } from '../errors.js';
+import { NewUser, User } from '../features/users/user.js';
+import { EmailTaken, UserNotFound } from '../features/users/users.errors.js';
+import { QuotaExceeded } from '../operations.js';
 
 import { makeRequest, query } from '@nestling/operations';
 import { z } from 'zod';

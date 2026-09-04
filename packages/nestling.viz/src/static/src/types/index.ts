@@ -1,5 +1,5 @@
-export * from './graph3d';
-export * from './graphTypes';
-export * from './eventBus';
+export * from './graph3d.js';
+export * from './graphTypes.js';
+export * from './eventBus.js';
 
-export type { ExportedGraph, ExportedGraphNode } from './graph';
+export type { ExportedGraph, ExportedGraphNode } from './graph.js';

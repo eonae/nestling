@@ -1,7 +1,7 @@
-import { observability } from '../../../plugins/logging';
-import { User } from '../user';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import { observability } from '../../../plugins/logging/index.js';
+import { User } from '../user.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import { Injectable } from '@nestling/container';
 import { Ok, stream } from '@nestling/operations';

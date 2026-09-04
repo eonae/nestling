@@ -6,10 +6,10 @@
  * замера: satellite объявляет операция, не подключая вендора схем.
  */
 
-import { makeCtx } from './__fixtures__/context';
-import { SubscriptionClosed, SubscriptionOpened } from './operations';
-import { SubscriptionRegistry } from './registry';
-import type { SubscriptionEvent } from './types';
+import { makeCtx } from './__fixtures__/context.js';
+import { SubscriptionClosed, SubscriptionOpened } from './operations.js';
+import { SubscriptionRegistry } from './registry.js';
+import type { SubscriptionEvent } from './types.js';
 
 import type { StandardSchemaV1 } from '@common/misc';
 import { describe, expect, it } from '@jest/globals';

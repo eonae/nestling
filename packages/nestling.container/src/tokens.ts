@@ -13,5 +13,5 @@
  * символы.
  */
 
-export * from './common';
-export * from './providers/token-family';
+export * from './common.js';
+export * from './providers/token-family.js';

@@ -3,7 +3,7 @@
  * что и у транспорта, но кадр запроса собирает тест.
  */
 
-import { CreateUser, ExportLogs, SayHello } from './endpoints';
+import { CreateUser, ExportLogs, SayHello } from './endpoints/index.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { EndpointMeta, Raw } from '@nestling/pipeline';

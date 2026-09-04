@@ -5,8 +5,8 @@
  * `app.emit` — доставка факта или команды всем co-located подписчикам.
  */
 
-import { assembleTest } from './app';
-import { stub } from './stub';
+import { assembleTest } from './app.js';
+import { stub } from './stub.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestling/app';

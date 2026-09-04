@@ -1,6 +1,6 @@
-import { ConsoleLogger, Logger$ } from './logger';
-import { LoggerConfig } from './logger.config';
-import { AuditOutcome } from './observability';
+import { LoggerConfig } from './logger.config.js';
+import { ConsoleLogger, Logger$ } from './logger.js';
+import { AuditOutcome } from './observability.js';
 
 import type { Plugin } from '@nestling/app';
 import { makePlugin } from '@nestling/app';

@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
-import { CreateUser, ExportLogs, SayHello } from './endpoints';
+import { CreateUser, ExportLogs, SayHello } from './endpoints/index.js';
 
 import { makeDispatch } from '@nestling/transport';
 import { HttpTransport } from '@nestling/transport.http';

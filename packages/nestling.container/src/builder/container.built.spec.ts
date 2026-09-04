@@ -1,9 +1,18 @@
-import { makeToken } from '../common';
-import { getLifecycleHooks, OnDestroy, OnInit, OnStart } from '../lifecycle';
-import { makeModule } from '../modules';
-import { classProvider, Injectable, valueProvider } from '../providers';
+import { makeToken } from '../common.js';
+import {
+  getLifecycleHooks,
+  OnDestroy,
+  OnInit,
+  OnStart,
+} from '../lifecycle/index.js';
+import { makeModule } from '../modules/index.js';
+import {
+  classProvider,
+  Injectable,
+  valueProvider,
+} from '../providers/index.js';
 
-import { ContainerBuilder } from './container.builder';
+import { ContainerBuilder } from './container.builder.js';
 
 describe('BuiltContainer', () => {
   interface IServiceA {

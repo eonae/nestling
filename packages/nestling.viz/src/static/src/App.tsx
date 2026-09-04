@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { useGraphData } from './hooks/useGraphData';
-import { eventBus } from './core/event-bus';
-import { GraphRenderer } from './components/GraphRenderer';
-import { ModulesBrowser } from './components/ModulesBrowser';
-import { ModuleDetailPanel } from './components/ModuleDetailPanel';
-import { LoadingScreen } from './components/LoadingScreen';
+import { useGraphData } from './hooks/useGraphData.js';
+import { eventBus } from './core/event-bus.js';
+import { GraphRenderer } from './components/GraphRenderer.js';
+import { ModulesBrowser } from './components/ModulesBrowser.js';
+import { ModuleDetailPanel } from './components/ModuleDetailPanel.js';
+import { LoadingScreen } from './components/LoadingScreen.js';
 
 export function App() {
   const { graphData, isLoading, error, loadGraphData } = useGraphData();

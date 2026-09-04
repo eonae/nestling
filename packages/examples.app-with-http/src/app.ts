@@ -1,8 +1,8 @@
-import { OpsFeature } from './features/ops/ops.feature';
-import { QuotasFeature } from './features/quotas/quotas.feature';
-import { UsersFeature } from './features/users/users.feature';
-import { appAuth, authed } from './plugins/auth';
-import { logging, observability } from './plugins/logging';
+import { OpsFeature } from './features/ops/ops.feature.js';
+import { QuotasFeature } from './features/quotas/quotas.feature.js';
+import { UsersFeature } from './features/users/users.feature.js';
+import { appAuth, authed } from './plugins/auth/index.js';
+import { logging, observability } from './plugins/logging/index.js';
 
 import { makeApp } from '@nestling/app';
 import { openapi } from '@nestling/openapi';

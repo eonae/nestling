@@ -1,4 +1,4 @@
-import { EmailTaken } from '../errors';
+import { EmailTaken } from '../errors.js';
 
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';

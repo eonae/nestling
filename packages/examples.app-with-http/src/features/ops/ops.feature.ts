@@ -1,13 +1,13 @@
-import { Health } from './health.endpoint';
+import { Health } from './health.endpoint.js';
 import {
   SubscriptionClosedInOps,
   SubscriptionOpenedInOps,
-} from './subscription-facts';
+} from './subscription-facts.js';
 import {
   KillSubscription,
   ListSubscriptions,
   WatchSubscriptions,
-} from './subscriptions.endpoint';
+} from './subscriptions.endpoint.js';
 
 import { makeFeature } from '@nestling/app';
 

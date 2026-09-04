@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 
-import { makeContainer } from './container';
+import { makeContainer } from './container.js';
 
 export const main = async () => {
   const container = await makeContainer();

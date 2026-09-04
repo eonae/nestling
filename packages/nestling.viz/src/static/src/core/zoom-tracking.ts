@@ -1,7 +1,7 @@
-import type { Graph3D, ForceGraphNode } from '../types/graph3d';
+import type { Graph3D, ForceGraphNode } from '../types/graph3d.js';
 import type { NodeObject } from '3d-force-graph';
 import { Vector3 } from 'three';
-import { eventBus } from './event-bus';
+import { eventBus } from './event-bus.js';
 
 export function initializeZoomTracking(
   graph: Graph3D,

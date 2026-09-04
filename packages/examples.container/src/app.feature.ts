@@ -1,8 +1,8 @@
-import { ApiModule } from './api';
-import { AppService } from './app.service';
-import { HealthModule } from './health';
-import { RuntimeModule } from './runtime';
-import { UsersModule } from './users';
+import { ApiModule } from './api/index.js';
+import { HealthModule } from './health/index.js';
+import { RuntimeModule } from './runtime/index.js';
+import { UsersModule } from './users/index.js';
+import { AppService } from './app.service.js';
 
 import { makeFeature } from '@nestling/app';
 import { makeModule } from '@nestling/container';

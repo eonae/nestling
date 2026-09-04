@@ -1,11 +1,11 @@
-import { AppConfig } from './config/app.config';
-import { AppService } from './app.service';
-import { HealthService } from './health';
-import type { ApiClient, Database } from './interfaces';
-import { ApiClient$, Database$ } from './interfaces';
-import { Logger } from './logging';
-import { RateLimiter } from './runtime';
-import { UserService } from './users';
+import { AppConfig } from './config/app.config.js';
+import { HealthService } from './health/index.js';
+import { Logger } from './logging/index.js';
+import { RateLimiter } from './runtime/index.js';
+import { UserService } from './users/index.js';
+import { AppService } from './app.service.js';
+import type { ApiClient, Database } from './interfaces.js';
+import { ApiClient$, Database$ } from './interfaces.js';
 
 import type { Config } from '@nestling/config';
 import { Injectable, OnStart } from '@nestling/container';

@@ -1,8 +1,8 @@
-import { HealthCheck } from '../health';
-import { Database$ } from '../interfaces';
+import { HealthCheck } from '../health/index.js';
+import { Database$ } from '../interfaces.js';
 
-import { DatabaseHealthCheck } from './database.health';
-import { InMemoryDatabase } from './database.service';
+import { DatabaseHealthCheck } from './database.health.js';
+import { InMemoryDatabase } from './database.service.js';
 
 import { classProvider, makeModule } from '@nestling/container';
 

@@ -1,1 +1,1 @@
-export * from './static-server';
+export * from './static-server.js';

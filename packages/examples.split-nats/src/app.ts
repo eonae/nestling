@@ -5,8 +5,8 @@
  * Состав транспортов не зависит от роли: `nats()` объявлен всегда.
  */
 
-import { QuotasFeature } from './quotas';
-import { UsersFeature } from './users';
+import { QuotasFeature } from './quotas.js';
+import { UsersFeature } from './users.js';
 
 import type { App } from '@nestling/app';
 import { makeApp } from '@nestling/app';

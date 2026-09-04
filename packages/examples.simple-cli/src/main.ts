@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 
-import { Greet, Help, ProcessStdin } from './commands';
+import { Greet, Help, ProcessStdin } from './commands/index.js';
 
 import { makeDispatch } from '@nestling/transport';
 import { CliTransport } from '@nestling/transport.cli';

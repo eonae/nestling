@@ -6,15 +6,15 @@
  * клиент шины заменён `app.emit`. Код фичи тот же, что в `split.spec.ts`.
  */
 
-import { app } from './app';
+import { app } from './app.js';
 import {
   ClaimQuota,
   QuotaExceeded,
   RegisterUser,
   UserRegistered,
-} from './operations';
-import { QuotasFeature } from './quotas';
-import { UsersFeature } from './users';
+} from './operations.js';
+import { QuotasFeature } from './quotas.js';
+import { UsersFeature } from './users.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp } from '@nestling/app';

@@ -9,8 +9,8 @@
  * реализацию: иначе `includeDeps` обещает больше, чем делает.
  */
 
-import { makeFeature } from './feature';
-import { closeOverCalls } from './selection';
+import { makeFeature } from './feature.js';
+import { closeOverCalls } from './selection.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { Injectable } from '@nestling/container';

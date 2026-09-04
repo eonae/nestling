@@ -1,17 +1,17 @@
-import { focusState, graphState } from '../core/app-state';
-import { eventBus, EVENTS } from '../core/event-bus';
+import { focusState, graphState } from '../core/app-state.js';
+import { eventBus, EVENTS } from '../core/event-bus.js';
 import {
   highlightModulesSoftly,
   highlightSingleNodeSoftly,
-} from './highlight-system';
+} from './highlight-system.js';
 import type {
   Graph3D,
   ForceGraphNode,
   ForceGraphData,
   CameraPosition,
-} from '../types/graph3d';
-import { adaptNodeFromForceGraph } from '../types/graph3d';
-import { calculateModuleFocusDistance } from '../core/graph-config';
+} from '../types/graph3d.js';
+import { adaptNodeFromForceGraph } from '../types/graph3d.js';
+import { calculateModuleFocusDistance } from '../core/graph-config.js';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

@@ -1,4 +1,4 @@
-import { DINode } from './node.class';
+import { DINode } from './node.class.js';
 
 describe('DINode', () => {
   const TokenA = 'TokenA';

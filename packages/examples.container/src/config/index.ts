@@ -3,4 +3,4 @@
  * остаётся приватным: потребители внутри приложения импортируют его из
  * `./app.config` напрямую.
  */
-export { appConfigKeys } from './app.config';
+export { appConfigKeys } from './app.config.js';

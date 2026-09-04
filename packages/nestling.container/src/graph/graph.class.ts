@@ -1,4 +1,4 @@
-import type { DINode } from './node.class';
+import type { DINode } from './node.class.js';
 
 import { DAG } from '@common/graphs';
 

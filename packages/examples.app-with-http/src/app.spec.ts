@@ -6,22 +6,26 @@ import {
   KillSubscription,
   ListSubscriptions,
   WatchSubscriptions,
-} from './features/ops/subscriptions.endpoint';
-import { ClaimQuotaImpl } from './features/quotas/quotas.feature';
-import { ActivityHub } from './features/users/activity.hub';
+} from './features/ops/subscriptions.endpoint.js';
+import { ClaimQuotaImpl } from './features/quotas/quotas.feature.js';
+import { ActivityHub } from './features/users/activity.hub.js';
 import {
   ActivityStream,
   CreateUser,
   DeleteUser,
   GetUser,
   ListUsers,
-} from './features/users/endpoints';
-import { UsersRepository$ } from './features/users/users.repository';
-import { type Logger, Logger$, observability } from './plugins/logging';
-import { app } from './app';
-import { appConfigKeys } from './app.config';
-import { ClaimQuota, QuotaExceeded } from './operations';
-import { inMemoryUsersRepo } from './testing';
+} from './features/users/endpoints/index.js';
+import { UsersRepository$ } from './features/users/users.repository.js';
+import {
+  type Logger,
+  Logger$,
+  observability,
+} from './plugins/logging/index.js';
+import { appConfigKeys } from './app.config.js';
+import { app } from './app.js';
+import { ClaimQuota, QuotaExceeded } from './operations.js';
+import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp } from '@nestling/app';

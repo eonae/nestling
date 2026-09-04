@@ -1,10 +1,10 @@
-import { AppConfig } from '../config/app.config';
-import { HealthCheck } from '../health';
-import type { ApiClient } from '../interfaces';
-import { ApiClient$ } from '../interfaces';
-import { Logger } from '../logging';
+import { AppConfig } from '../config/app.config.js';
+import { HealthCheck } from '../health/index.js';
+import type { ApiClient } from '../interfaces.js';
+import { ApiClient$ } from '../interfaces.js';
+import { Logger } from '../logging/index.js';
 
-import { ApiHealthCheck } from './api.health';
+import { ApiHealthCheck } from './api.health.js';
 
 import type { Config } from '@nestling/config';
 import {

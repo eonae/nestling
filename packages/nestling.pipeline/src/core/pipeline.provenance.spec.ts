@@ -9,11 +9,11 @@
  * неизменности исполнения: провенанс не участвует в рантайме.
  */
 
-import type { EndpointMeta, ExtendableContext } from './types/context';
-import { makeEmptyContext } from './types/context';
-import type { Raw } from './types/raw';
-import type { AnyPipeline, Pipeline } from './pipeline';
-import { compose, derivesFrom, makePipeline } from './pipeline';
+import type { EndpointMeta, ExtendableContext } from './types/context.js';
+import { makeEmptyContext } from './types/context.js';
+import type { Raw } from './types/raw.js';
+import type { AnyPipeline, Pipeline } from './pipeline.js';
+import { compose, derivesFrom, makePipeline } from './pipeline.js';
 
 import type { AnyInput, EmptyInput } from '@nestling/operations';
 import { Ok } from '@nestling/operations';

@@ -1,4 +1,4 @@
-import type { GraphNode } from './graphTypes';
+import type { GraphNode } from './graphTypes.js';
 
 export const EVENTS = {
   MODULE_FOCUSED: 'module:focused',

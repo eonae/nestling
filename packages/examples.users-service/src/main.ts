@@ -1,4 +1,4 @@
-import { app } from './app';
+import { app } from './app.js';
 
 /**
  * Точка входа: `assemble()` собирает приложение для этого процесса,

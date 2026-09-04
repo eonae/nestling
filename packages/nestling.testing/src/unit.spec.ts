@@ -2,9 +2,9 @@
  * `testUnit` — модуль в изоляции и требование явных стабов.
  */
 
-import { SpyTransport } from './__fixtures__/transport';
-import { testUnit } from './unit';
-import { unwrap } from './unwrap';
+import { SpyTransport } from './__fixtures__/transport.js';
+import { testUnit } from './unit.js';
+import { unwrap } from './unwrap.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFeature } from '@nestling/app';

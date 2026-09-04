@@ -1,7 +1,7 @@
-import type { User } from './users/user';
-import { AppConfig } from './app.config';
-import type { Logger } from './logging';
-import { Logger$ } from './logging';
+import type { User } from './users/user.js';
+import { AppConfig } from './app.config.js';
+import type { Logger } from './logging.js';
+import { Logger$ } from './logging.js';
 
 import type { Config } from '@nestling/config';
 import { Injectable, OnDestroy, OnInit } from '@nestling/container';

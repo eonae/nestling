@@ -1,6 +1,6 @@
-import type { Database } from '../interfaces';
-import { Database$ } from '../interfaces';
-import { Logger } from '../logging';
+import type { Database } from '../interfaces.js';
+import { Database$ } from '../interfaces.js';
+import { Logger } from '../logging/index.js';
 
 import { Injectable } from '@nestling/container';
 

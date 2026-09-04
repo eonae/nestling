@@ -7,10 +7,10 @@
  * значение и вывод множества `E` в хендлер (все три формы `handle`).
  */
 
-import { Fail, makeFail, Ok } from '../core';
-import { makePipeline } from '../core/pipeline';
+import { Fail, makeFail, Ok } from '../core/index.js';
+import { makePipeline } from '../core/pipeline.js';
 
-import { makeEndpoint } from './endpoint';
+import { makeEndpoint } from './endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';

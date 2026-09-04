@@ -10,10 +10,10 @@
  * значения деклараций.
  */
 
-import { makeApp } from './app';
-import { buildOwnerMap } from './boundary';
-import { makeFeature, makePlugin } from './feature';
-import { MockTransport } from './helpers';
+import { makeApp } from './app.js';
+import { buildOwnerMap } from './boundary.js';
+import { makeFeature, makePlugin } from './feature.js';
+import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { Injectable, makeToken } from '@nestling/container';

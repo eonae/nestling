@@ -15,17 +15,17 @@
 // (change pipeline-drop-after). Если тип вернётся в экспорт — директива
 // станет неиспользованной и tsc сообщит об этом.
 // @ts-expect-error: AfterUnitFn больше не экспортируется из @nestling/pipeline
-import type { AfterUnitFn } from '../index';
-import { withIdentity, withPermissions } from '../middlewares';
-import type { Logger } from '../middlewares/logging';
-import { withRequestLogging } from '../middlewares/logging';
-import { withRequestId } from '../middlewares/meta';
+import type { AfterUnitFn } from '../index.js';
+import { withIdentity, withPermissions } from '../middlewares/index.js';
+import type { Logger } from '../middlewares/logging.js';
+import { withRequestLogging } from '../middlewares/logging.js';
+import { withRequestId } from '../middlewares/meta.js';
 
-import { withTiming } from './__test-helpers__/middleware';
-import type { ExtendableContext } from './types/context';
-import type { PreUnitFn } from './types/unit';
-import type { AnyPipeline, Pipeline, PipelineTypes } from './pipeline';
-import { compose, makePipeline } from './pipeline';
+import { withTiming } from './__test-helpers__/middleware.js';
+import type { ExtendableContext } from './types/context.js';
+import type { PreUnitFn } from './types/unit.js';
+import type { AnyPipeline, Pipeline, PipelineTypes } from './pipeline.js';
+import { compose, makePipeline } from './pipeline.js';
 
 import type { AnyInput, EmptyInput } from '@nestling/operations';
 

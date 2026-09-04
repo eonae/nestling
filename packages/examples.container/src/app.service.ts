@@ -1,4 +1,4 @@
-import { Logger } from './logging';
+import { Logger } from './logging/index.js';
 
 import { Injectable, OnInit } from '@nestling/container';
 

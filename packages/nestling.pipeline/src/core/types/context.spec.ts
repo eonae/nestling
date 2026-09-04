@@ -4,9 +4,9 @@
  * до первого pre-юнита (сырые байты тела при `rawBody: true`).
  */
 
-import type { EndpointMeta } from './context';
-import { makeEmptyContext } from './context';
-import type { Raw } from './raw';
+import type { EndpointMeta } from './context.js';
+import { makeEmptyContext } from './context.js';
+import type { Raw } from './raw.js';
 
 import { describe, expect, it } from '@jest/globals';
 

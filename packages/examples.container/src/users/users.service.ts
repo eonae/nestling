@@ -1,6 +1,6 @@
-import { Logger } from '../logging';
+import { Logger } from '../logging/index.js';
 
-import { UserRepository } from './users.repository';
+import { UserRepository } from './users.repository.js';
 
 import { Injectable, OnDestroy, OnInit } from '@nestling/container';
 

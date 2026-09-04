@@ -1,20 +1,24 @@
 import * as THREE from 'three';
 import ForceGraph3D, { NodeObject } from '3d-force-graph';
-import { transformData } from '../core/data-transformer';
-import { focusState, highlightState, graphState } from '../core/app-state';
-import { eventBus, EVENTS } from '../core/event-bus';
-import { focusOnModuleImproved } from '../interactions/focus-system';
-import { resetHighlighting } from '../interactions/highlight-system';
-import type { Graph3D, ForceGraphNode, ForceGraphData } from '../types/graph3d';
-import type { GraphNode } from '../types';
-import { adaptNodeFromForceGraph } from '../types/graph3d';
+import { transformData } from '../core/data-transformer.js';
+import { focusState, highlightState, graphState } from '../core/app-state.js';
+import { eventBus, EVENTS } from '../core/event-bus.js';
+import { focusOnModuleImproved } from '../interactions/focus-system.js';
+import { resetHighlighting } from '../interactions/highlight-system.js';
+import type {
+  Graph3D,
+  ForceGraphNode,
+  ForceGraphData,
+} from '../types/graph3d.js';
+import type { GraphNode } from '../types/index.js';
+import { adaptNodeFromForceGraph } from '../types/graph3d.js';
 import {
   calculateOptimalCameraDistance,
   createGraphConfig,
-} from '../core/graph-config';
-import { createNodeStyling } from '../core/node-styling';
-import { createLinkStyling } from '../core/link-styling';
-import { initializeZoomTracking } from '../core/zoom-tracking';
+} from '../core/graph-config.js';
+import { createNodeStyling } from '../core/node-styling.js';
+import { createLinkStyling } from '../core/link-styling.js';
+import { initializeZoomTracking } from '../core/zoom-tracking.js';
 
 interface ModuleFocusData {
   moduleName: string;

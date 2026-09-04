@@ -6,7 +6,7 @@
  * различаются.
  */
 
-import { declareApp } from './app';
+import { declareApp } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { AssembledApp } from '@nestling/app';

@@ -7,9 +7,9 @@
  * сборки приложения.
  */
 
-import { Ok } from '../core';
+import { Ok } from '../core/index.js';
 
-import { makeEndpoint } from './endpoint';
+import { makeEndpoint } from './endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';

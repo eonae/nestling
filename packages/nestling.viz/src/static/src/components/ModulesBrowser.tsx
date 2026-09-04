@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Module } from '../types';
-import { EVENTS } from '../core/event-bus';
-import { IEventBus } from '../types';
+import { Module } from '../types/index.js';
+import { EVENTS } from '../core/event-bus.js';
+import { IEventBus } from '../types/index.js';
 import {
   safeGetEventData,
   isModuleFocusedEventData,
-} from '../utils/typeGuards';
+} from '../utils/typeGuards.js';
 
 interface ModulesBrowserProps {
   modules: Module[];

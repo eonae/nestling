@@ -1,5 +1,3 @@
-import { ActivityHub } from './activity.hub';
-import { Database } from './database';
 import {
   ActivityStream,
   AuditDeletion,
@@ -13,8 +11,10 @@ import {
   UploadAvatar,
   UserWebhook,
   VerifySignature,
-} from './endpoints';
-import { DbUsersRepository } from './users.repository';
+} from './endpoints/index.js';
+import { ActivityHub } from './activity.hub.js';
+import { Database } from './database.js';
+import { DbUsersRepository } from './users.repository.js';
 
 import { makeFeature } from '@nestling/app';
 import { makeModule } from '@nestling/container';

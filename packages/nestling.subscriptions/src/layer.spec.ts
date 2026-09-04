@@ -7,11 +7,11 @@
  * отмены, не трогая сигнал запроса.
  */
 
-import { makeCtx } from './__fixtures__/context';
-import type { TrackSubscription, UntrackSubscription } from './layer';
-import { tracked } from './layer';
-import { SubscriptionRegistry } from './registry';
-import type { TrackedSubscription } from './types';
+import { makeCtx } from './__fixtures__/context.js';
+import type { TrackSubscription, UntrackSubscription } from './layer.js';
+import { tracked } from './layer.js';
+import { SubscriptionRegistry } from './registry.js';
+import type { TrackedSubscription } from './types.js';
 
 import type { Constructor } from '@common/misc';
 import { describe, expect, it } from '@jest/globals';

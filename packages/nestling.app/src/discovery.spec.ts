@@ -5,8 +5,8 @@
  * а список единиц плоский по построению.
  */
 
-import { discoverEndpoints } from './discovery';
-import { makeFeature, makePlugin } from './feature';
+import { discoverEndpoints } from './discovery.js';
+import { makeFeature, makePlugin } from './feature.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';

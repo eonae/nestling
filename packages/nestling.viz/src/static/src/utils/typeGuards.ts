@@ -1,4 +1,4 @@
-import { ModuleFocusedEventData, ZoomUpdateEventData } from '../types';
+import { ModuleFocusedEventData, ZoomUpdateEventData } from '../types/index.js';
 
 /**
  * Type guard для проверки что объект является ModuleFocusedEventData

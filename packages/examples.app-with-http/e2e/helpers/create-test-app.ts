@@ -1,5 +1,5 @@
-import { app } from '../../src/app';
-import { appConfigKeys } from '../../src/app.config';
+import { appConfigKeys } from '../../src/app.config.js';
+import { app } from '../../src/app.js';
 
 import type { AssembledApp } from '@nestling/app';
 import { makeApp } from '@nestling/app';

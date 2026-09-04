@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { GraphData } from '../types';
-import { render, cleanupGraph } from '../renderer/graph-renderer';
-import { ErrorScreen } from './ErrorScreen';
-import { ZoomIndicator, type ZoomInfo } from './ZoomIndicator';
-import { IEventBus } from '../types';
-import { safeGetEventData, isZoomUpdateEventData } from '../utils/typeGuards';
+import { GraphData } from '../types/index.js';
+import { render, cleanupGraph } from '../renderer/graph-renderer.js';
+import { ErrorScreen } from './ErrorScreen.js';
+import { ZoomIndicator, type ZoomInfo } from './ZoomIndicator.js';
+import { IEventBus } from '../types/index.js';
+import {
+  safeGetEventData,
+  isZoomUpdateEventData,
+} from '../utils/typeGuards.js';
 
 interface GraphRendererProps {
   graphData: GraphData;

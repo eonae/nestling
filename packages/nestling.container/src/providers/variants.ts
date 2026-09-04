@@ -1,8 +1,8 @@
-import type { Constructor, InjectionToken, Token } from '../common';
+import type { Constructor, InjectionToken, Token } from '../common.js';
 
-import { injectableMetaStorage } from './injectable.metadata';
-import type { TokenFamily } from './token-family';
-import { isTokenFamily } from './token-family';
+import { readInjectableMeta } from './injectable.metadata.js';
+import type { TokenFamily } from './token-family.js';
+import { isTokenFamily } from './token-family.js';
 
 /**
  * Общая часть всех определений провайдеров: токен регистрации.
@@ -149,7 +149,7 @@ export function classProvider<T>(
   provide: InjectionToken<T>,
   useClass: Constructor<T>,
 ): ClassProviderDefinition<T> {
-  const metadata = injectableMetaStorage.get(useClass);
+  const metadata = readInjectableMeta(useClass);
   if (!metadata) {
     throw new Error(
       `Class ${useClass.name} can't be used in classProvider without @Injectable decorator. If you need register third party class prefer useFactory.`,
@@ -391,7 +391,7 @@ export function dependenciesOf(
   provider: ModuleProvider,
 ): readonly InjectionToken[] {
   if (typeof provider === 'function') {
-    return injectableMetaStorage.get(provider)?.dependencies ?? [];
+    return readInjectableMeta(provider)?.dependencies ?? [];
   }
 
   if (isFamilyDefinition(provider)) {

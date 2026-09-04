@@ -1,4 +1,4 @@
-import { E2E_TOKEN } from './create-test-app';
+import { E2E_TOKEN } from './create-test-app.js';
 
 /** Запросы e2e-тестов: обёртка над `fetch` с заголовком авторизации по флагу */
 export class HttpClient {

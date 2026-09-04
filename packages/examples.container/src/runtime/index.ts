@@ -1,3 +1,3 @@
-export * from './rate-limiter';
-export * from './runtime.config';
-export * from './runtime.module';
+export * from './rate-limiter.js';
+export * from './runtime.config.js';
+export * from './runtime.module.js';

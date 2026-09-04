@@ -472,7 +472,7 @@ function assertEmitting(
  *
  * @example
  * ```typescript
- * import { app } from './app';
+ * import { app } from './app.js';
  *
  * await using testApp = await assembleTest(app, {
  *   overrides: [

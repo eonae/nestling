@@ -1,4 +1,4 @@
-import { app } from './app';
+import { app } from './app.js';
 
 import { from, load, makeConfig } from '@nestling/config';
 import { z } from 'zod';

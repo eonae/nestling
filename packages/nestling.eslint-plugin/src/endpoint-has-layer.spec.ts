@@ -6,7 +6,7 @@
  * значение непрозрачно, зафиксирована тестом как **молчание**.
  */
 
-import { endpointHasLayer } from './endpoint-has-layer';
+import { endpointHasLayer } from './endpoint-has-layer.js';
 
 import { RuleTester } from 'eslint';
 

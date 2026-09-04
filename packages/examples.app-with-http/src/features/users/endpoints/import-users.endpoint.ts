@@ -1,8 +1,8 @@
-import { Unauthorized } from '../../../errors';
-import { authed } from '../../../plugins/auth';
-import { NewUser } from '../user';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import { Unauthorized } from '../../../errors.js';
+import { authed } from '../../../plugins/auth/index.js';
+import { NewUser } from '../user.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import { stream } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';

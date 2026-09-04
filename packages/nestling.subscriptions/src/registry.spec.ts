@@ -3,10 +3,10 @@
  * фикстура. Так проверяется сам реестр, а не его слой.
  */
 
-import { makeCtx } from './__fixtures__/context';
-import { SubscriptionKilledError } from './errors';
-import { SubscriptionRegistry } from './registry';
-import type { CloseReason, SubscriptionEvent } from './types';
+import { makeCtx } from './__fixtures__/context.js';
+import { SubscriptionKilledError } from './errors.js';
+import { SubscriptionRegistry } from './registry.js';
+import type { CloseReason, SubscriptionEvent } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { events } from '@nestling/operations';

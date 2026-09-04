@@ -13,13 +13,13 @@
  * meta.signal и политика раскрытия ошибок (exposeErrorDetails).
  */
 
-import type { EndpointMeta, ExtendableContext } from './types/context';
-import { makeEmptyContext } from './types/context';
-import type { Raw } from './types/raw';
-import type { PreUnitFn } from './types/unit';
-import { ClientDisconnectedError, TransportClosingError } from './abort';
-import type { AnyPipeline, ExecuteOptions, Pipeline } from './pipeline';
-import { compose, makePipeline } from './pipeline';
+import type { EndpointMeta, ExtendableContext } from './types/context.js';
+import { makeEmptyContext } from './types/context.js';
+import type { Raw } from './types/raw.js';
+import type { PreUnitFn } from './types/unit.js';
+import { ClientDisconnectedError, TransportClosingError } from './abort.js';
+import type { AnyPipeline, ExecuteOptions, Pipeline } from './pipeline.js';
+import { compose, makePipeline } from './pipeline.js';
 
 import { jest } from '@jest/globals';
 import type {

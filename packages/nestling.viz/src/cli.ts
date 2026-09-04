@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { visualize } from './visualize';
+import { visualize } from './visualize.js';
 
 const program = new Command();
 

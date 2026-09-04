@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 
-import { ContainerBuilder } from '../builder';
-import { makeToken } from '../common';
-import { makeModule } from '../modules';
-import { classProvider, Injectable } from '../providers';
+import { ContainerBuilder } from '../builder/index.js';
+import { makeToken } from '../common.js';
+import { makeModule } from '../modules/index.js';
+import { classProvider, Injectable } from '../providers/index.js';
 
 describe('DIGraph', () => {
   interface IServiceA {}

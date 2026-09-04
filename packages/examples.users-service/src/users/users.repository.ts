@@ -1,8 +1,8 @@
-import { Database } from '../database';
-import type { Logger } from '../logging';
-import { Logger$ } from '../logging';
+import { Database } from '../database.js';
+import type { Logger } from '../logging.js';
+import { Logger$ } from '../logging.js';
 
-import type { User } from './user';
+import type { User } from './user.js';
 
 import { Injectable, makeToken } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';

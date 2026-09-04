@@ -9,9 +9,9 @@
  * `API_TOKEN=secret yarn workspace examples.users-service client`
  */
 
-import { EmailTaken, UserNotFound } from '../users/users.errors';
+import { EmailTaken, UserNotFound } from '../users/users.errors.js';
 
-import { CreateUser, GetUser } from './operations';
+import { CreateUser, GetUser } from './operations.js';
 
 import { makeClient } from '@nestling/client';
 

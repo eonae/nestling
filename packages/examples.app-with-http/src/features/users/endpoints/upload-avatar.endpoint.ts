@@ -1,9 +1,9 @@
-import { Unauthorized } from '../../../errors';
-import { authed } from '../../../plugins/auth';
-import { User } from '../user';
-import { AvatarRequired, UserNotFound } from '../users.errors';
-import type { UsersRepository } from '../users.repository';
-import { UsersRepository$ } from '../users.repository';
+import { Unauthorized } from '../../../errors.js';
+import { authed } from '../../../plugins/auth/index.js';
+import { User } from '../user.js';
+import { AvatarRequired, UserNotFound } from '../users.errors.js';
+import type { UsersRepository } from '../users.repository.js';
+import { UsersRepository$ } from '../users.repository.js';
 
 import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';

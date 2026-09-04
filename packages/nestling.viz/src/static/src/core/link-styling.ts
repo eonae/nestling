@@ -1,12 +1,12 @@
-import { highlightState, graphState } from './app-state';
+import { highlightState, graphState } from './app-state.js';
 import {
   LINK_ARROW_COLOR,
   LINK_DEFAULT_COLOR,
   LINK_HIGHLIGHTED_COLOR,
   LINK_DIMMED_COLOR,
   hexToRgba,
-} from './colors';
-import type { ForceGraphLink, ForceGraphNode } from '../types/graph3d';
+} from './colors.js';
+import type { ForceGraphLink, ForceGraphNode } from '../types/graph3d.js';
 import type { LinkObject, NodeObject } from '3d-force-graph';
 
 /**

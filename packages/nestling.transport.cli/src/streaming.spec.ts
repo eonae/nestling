@@ -8,7 +8,7 @@
 
 import { Readable } from 'node:stream';
 
-import { cliEndpoint, CliTransport } from './index';
+import { cliEndpoint, CliTransport } from './index.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Outcome, PhasedPipeline } from '@nestling/pipeline';

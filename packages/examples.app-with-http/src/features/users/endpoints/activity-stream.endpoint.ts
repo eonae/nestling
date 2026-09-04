@@ -1,5 +1,5 @@
-import { observability } from '../../../plugins/logging';
-import { ActivityHub } from '../activity.hub';
+import { observability } from '../../../plugins/logging/index.js';
+import { ActivityHub } from '../activity.hub.js';
 
 import { events, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';

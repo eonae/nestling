@@ -9,8 +9,8 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 
-import { app } from './app';
-import { appConfigKeys } from './app.config';
+import { appConfigKeys } from './app.config.js';
+import { app } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp } from '@nestling/app';

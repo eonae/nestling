@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { GraphData, GraphLink, GraphNode, Module } from '../types';
-import { ExportedGraph } from '../types/graph';
-import { getModuleColor } from '../core/colors';
+import { GraphData, GraphLink, GraphNode, Module } from '../types/index.js';
+import { ExportedGraph } from '../types/graph.js';
+import { getModuleColor } from '../core/colors.js';
 
 export function useGraphData() {
   const [graphData, setGraphData] = useState<GraphData | null>(null);

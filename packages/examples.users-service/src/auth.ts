@@ -1,6 +1,6 @@
-import { AppConfig } from './app.config';
-import { Unauthorized } from './errors';
-import { observability } from './observability';
+import { AppConfig } from './app.config.js';
+import { Unauthorized } from './errors.js';
+import { observability } from './observability.js';
 
 import type { Config } from '@nestling/config';
 import { Injectable } from '@nestling/container';

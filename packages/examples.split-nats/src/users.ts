@@ -8,9 +8,9 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { TenantId } from './context';
-import type { RegisterUserInput } from './operations';
-import { ClaimQuota, RegisterUser, UserRegistered } from './operations';
+import { TenantId } from './context.js';
+import type { RegisterUserInput } from './operations.js';
+import { ClaimQuota, RegisterUser, UserRegistered } from './operations.js';
 
 import { makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';

@@ -103,7 +103,7 @@ export const appConfigKeys = AppConfig.keys;
 
 ```typescript
 // packages/examples.container/src/config/index.ts
-export { appConfigKeys } from './app.config';
+export { appConfigKeys } from './app.config.js';
 ```
 
 С секцией связаны два права. Токен секции даёт право читать её: кто

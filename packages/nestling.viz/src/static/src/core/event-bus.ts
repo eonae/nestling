@@ -1,4 +1,4 @@
-import { IEventBus } from '../types';
+import { IEventBus } from '../types/index.js';
 
 // Единый EventBus для всего приложения
 class EventBus implements IEventBus {

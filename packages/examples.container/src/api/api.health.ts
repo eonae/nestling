@@ -1,6 +1,6 @@
-import type { HealthCheck } from '../health';
-import type { ApiClient } from '../interfaces';
-import { ApiClient$ } from '../interfaces';
+import type { HealthCheck } from '../health/index.js';
+import type { ApiClient } from '../interfaces.js';
+import { ApiClient$ } from '../interfaces.js';
 
 import { Injectable } from '@nestling/container';
 

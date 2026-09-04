@@ -3,10 +3,10 @@
  * контейнера и транспорта.
  */
 
-import { inMemoryUsersRepo } from '../../testing';
-import { EmailTaken } from '../users.errors';
+import { inMemoryUsersRepo } from '../../testing.js';
+import { EmailTaken } from '../users.errors.js';
 
-import { CreateUserHandler } from './create-user.endpoint';
+import { CreateUserHandler } from './create-user.endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
 

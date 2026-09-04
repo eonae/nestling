@@ -6,9 +6,9 @@
  * адрес; реализация подключает операцию через `httpEndpoint({ operation })`.
  */
 
-import { Unauthorized } from '../errors';
-import { CreateUserInput, User } from '../users/user';
-import { EmailTaken, UserNotFound } from '../users/users.errors';
+import { Unauthorized } from '../errors.js';
+import { CreateUserInput, User } from '../users/user.js';
+import { EmailTaken, UserNotFound } from '../users/users.errors.js';
 
 import { body, makeRequest, query } from '@nestling/operations';
 import { z } from 'zod';

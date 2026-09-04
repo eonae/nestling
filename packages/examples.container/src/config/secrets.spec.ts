@@ -5,9 +5,9 @@
 
 import { inspect } from 'node:util';
 
-import { HealthConfig } from '../health';
+import { HealthConfig } from '../health/index.js';
 
-import { AppConfig } from './app.config';
+import { AppConfig } from './app.config.js';
 
 import type { Config } from '@nestling/config';
 import { describeConfig } from '@nestling/config';
@@ -23,7 +23,7 @@ const DB_URL = `postgresql://user:${PASSWORD}@db:5432/app`;
 const boot = async (): Promise<BuiltContainer> => {
   process.env.DATABASE_URL = DB_URL;
 
-  const { makeContainer } = await import('../container');
+  const { makeContainer } = await import('../container.js');
 
   return await makeContainer();
 };

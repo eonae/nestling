@@ -1,6 +1,6 @@
-import { makeToken } from '../common';
-import { OnDestroy, OnInit } from '../lifecycle';
-import { makeModule } from '../modules';
+import { makeToken } from '../common.js';
+import { OnDestroy, OnInit } from '../lifecycle/index.js';
+import { makeModule } from '../modules/index.js';
 import {
   classProvider,
   factoryProvider,
@@ -8,9 +8,9 @@ import {
   Injectable,
   makeTokenFamily,
   valueProvider,
-} from '../providers';
+} from '../providers/index.js';
 
-import { ContainerBuilder } from './container.builder';
+import { ContainerBuilder } from './container.builder.js';
 
 interface HealthCheck {
   name: string;

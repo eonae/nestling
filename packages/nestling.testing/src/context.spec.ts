@@ -7,10 +7,10 @@
  * ридер не подменивший, обязан видеть ровно боевую проекцию.
  */
 
-import { SpyTransport } from './__fixtures__/transport';
-import { assembleTest } from './app';
-import { contextValue } from './context';
-import { unwrap } from './unwrap';
+import { SpyTransport } from './__fixtures__/transport.js';
+import { assembleTest } from './app.js';
+import { contextValue } from './context.js';
+import { unwrap } from './unwrap.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestling/app';

@@ -5,9 +5,9 @@
  * (standalone-путь).
  */
 
-import { makeApp } from './app';
-import { makeFeature } from './feature';
-import { MockTransport } from './helpers';
+import { makeApp } from './app.js';
+import { makeFeature } from './feature.js';
+import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { TransportRef } from '@nestling/pipeline';

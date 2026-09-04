@@ -1,8 +1,8 @@
-import { AppFeature } from './app.feature';
-import { appConfigKeys } from './config';
-import { Demo } from './demo';
-import { appLogging } from './logging';
-import { runtimeConfigKeys } from './runtime';
+import { appConfigKeys } from './config/index.js';
+import { appLogging } from './logging/index.js';
+import { runtimeConfigKeys } from './runtime/index.js';
+import { AppFeature } from './app.feature.js';
+import { Demo } from './demo.js';
 
 import { makeApp } from '@nestling/app';
 import { objectSource } from '@nestling/config';

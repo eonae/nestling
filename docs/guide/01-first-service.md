@@ -112,7 +112,7 @@ export const app = makeApp({
 
 ```typescript
 // packages/examples.users-service/src/main.ts
-import { app } from './app';
+import { app } from './app.js';
 
 await app.assemble().run();
 ```
