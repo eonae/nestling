@@ -1,6 +1,6 @@
 # 6. Порт и адрес базы из окружения
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-08] Kernel/user
 > space; конфиг как token-families; плагины» и «[2026-07-13] Конфиг:

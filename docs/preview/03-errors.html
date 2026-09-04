@@ -42,13 +42,8 @@
       <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#успех-со-статусом-и-заголовками">Успех со статусом и заголовками</a></li>
+      <li><a href="#незадекларированная-ошибка">Незадекларированная ошибка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -104,21 +99,18 @@
 
 <h1>3. Сказать клиенту, что пошло не так</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/errors.md">design/errors.md</a>. Почему так:
 записи <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-10] Модель ошибок:
 Fail — значение, code-идентичность, <code>makeFail</code>, ошибки в контракте»,
 «[2026-09-03] Код отказа: категория и уточнение; <code>makeFail</code>» и
 «[2026-09-03] Заголовки <code>Ok</code> не зависят от транспорта».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p><code>GET /users/:id</code> должен отвечать <code>404</code>, если пользователя нет, а
 <code>POST /users</code> должен отвечать <code>409</code>, если email занят. Клиент должен
 отличать эти случаи по машинному коду, а не по тексту сообщения.
-Создание должно отвечать <code>201</code> с заголовком <code>Location</code>, удаление
-должно отвечать <code>204</code>.</p>
-<h2 id="решение">Решение</h2>
-<h3>Объявить отказы</h3>
+Создание должно отвечать <code>201</code> с заголовком <code>Location</code>, удаление должно
+отвечать <code>204</code>.</p>
 <div class="code" data-file="packages/examples.users-service/src/users/users.errors.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/users.errors.ts
 import { makeFail } from '@nestling/operations';
 import { z } from 'zod';
@@ -138,8 +130,10 @@ export const EmailTaken = makeFail('conflict:email_taken', {
 <code>UserNotFound({ id })</code>.</p>
 <p>Код отказа — единственная его ось. Он состоит из сегментов через
 двоеточие; первый сегмент — категория, остальные уточняют её. Категория
-говорит, как отвечать, уточнение — что именно случилось. Клиент
-сравнивает полный код, транспорт читает категорию.</p>
+говорит, как отвечать, уточнение — что именно случилось. Клиент сравнивает
+полный код, транспорт читает категорию, и категория с кодом не
+расходится: она и есть его первый сегмент, поэтому объявить отказ с кодом
+<code>not_found:user</code> и ответить <code>409</code> невозможно.</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -204,7 +198,6 @@ export const EmailTaken = makeFail('conflict:email_taken', {
 не компилируется. Формат остальных сегментов — <code>[a-z_]+</code>, его проверяет
 <code>makeFail</code> при вызове. Код из одной категории допустим, когда уточнять
 нечего: <code>makeFail('unauthorized')</code>.</p>
-<h3>Вернуть отказ из хендлера</h3>
 <div class="code" data-lang="typescript"><pre><code>// шаг главы 3; итоговая версия: packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
   method: 'GET',
@@ -214,17 +207,16 @@ export const GetUser = httpEndpoint({
   errors: [UserNotFound],
   handler: async ({ id }) =&gt; (id === '1' ? alice : UserNotFound({ id })),
 });</code></pre></div>
-<p>Константа <code>alice</code> заменяет хранилище из главы 5. Поле <code>errors</code>
-перечисляет отказы, которые endpoint может вернуть. Хендлер возвращает
-отказ значением, как обычный результат. Клиент получает тело с кодом и
-деталями:</p>
+<p>Константа <code>alice</code> заменяет хранилище: она стоит прямо в хендлере. Поле
+<code>errors</code> перечисляет отказы, которые endpoint может вернуть. Хендлер
+возвращает отказ значением, как обычный результат. Клиент получает тело с
+кодом и деталями:</p>
 <div class="code" data-lang="bash"><pre><code>curl localhost:3000/users/9
 # {"error":"User 9 not found","code":"not_found:user","details":{"id":"9"}}</code></pre></div>
 <p>Отказ доставляется <code>return</code>: возвращённый отказ виден в типе хендлера, и
 компилятор сверяет его со списком <code>errors</code>. Из глубины вызовов, где
-вернуть значение некому, отказ бросают: <code>throw UserNotFound({ id })</code>.
-Для ответа это одно и то же, и подробнее про бросок написано в
-приложении А.</p>
+вернуть значение некому, отказ бросают: <code>throw UserNotFound({ id })</code>. Для
+ответа это одно и то же, и подробнее про бросок написано в приложении А.</p>
 <p>Тип возвращаемого значения записывается определениями отказов:</p>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
 async function handle(input: GetUserInput): Output&lt;User, typeof UserNotFound&gt; {
@@ -233,10 +225,14 @@ async function handle(input: GetUserInput): Output&lt;User, typeof UserNotFound&
   return user ?? UserNotFound({ id: input.id });
 }</code></pre></div>
 <p><code>Output&lt;T, E&gt;</code> описывает всё, что хендлер может вернуть: значение <code>T</code>,
-<code>Ok&lt;T&gt;</code> или отказ из <code>E</code>. В <code>E</code> идут сами определения:
+<code>Ok&lt;T&gt;</code>, отказ из <code>E</code> или отказ ядра. В <code>E</code> идут сами определения:
 <code>Output&lt;User, typeof UserNotFound | typeof EmailTaken&gt;</code> для двух отказов.
-Без <code>errors</code> множество пусто, и вернуть отказ нельзя.</p>
-<h3>Успех со статусом и заголовками</h3>
+Без <code>errors</code> множество пусто: хендлер, который вернёт доменный отказ, не
+входящий в <code>errors</code>, не компилируется. Отказы ядра объявления не требуют
+ни здесь, ни в <code>errors</code> — их список ниже.</p>
+<p>У endpoint'а без <code>output</code> значения нет, и хендлер компилируется без
+<code>return</code>.</p>
+<h2 id="успех-со-статусом-и-заголовками">Успех со статусом и заголовками</h2>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts
 async function handle(input: CreateUserInput): Output&lt;User, typeof EmailTaken&gt; {
   if (await users.byEmail(input.email)) {
@@ -253,8 +249,8 @@ async function handle(input: CreateUserInput): Output&lt;User, typeof EmailTaken
 <code>Ok.created(value, headers)</code> отвечает <code>201</code>, <code>Ok.accepted(value)</code>
 отвечает <code>202</code>, <code>new Ok(value, headers)</code> отвечает <code>200</code> с заголовками.</p>
 <p>Заголовки <code>Ok</code> — метаданные ответа, а не HTTP-заголовки: хендлер о
-транспорте не знает. Что с ними делать, решает транспорт. HTTP пишет их
-в заголовки ответа, NATS кладёт в заголовки ответного сообщения, CLI
+транспорте не знает. Что с ними делать, решает транспорт. HTTP пишет их в
+заголовки ответа, NATS кладёт в заголовки ответного сообщения, CLI
 отбрасывает.</p>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
 async function handle(
@@ -275,16 +271,19 @@ export const DeleteUser = httpEndpoint({
   handler: async ({ id }) =&gt;
     (await remove(id)) ? Ok.noContent() : UserNotFound({ id }),
 });</code></pre></div>
-<p>В итоговом файле у <code>DeleteUser</code> есть ещё отказ <code>Unauthorized</code> и слой
-<code>authed</code>: удаление требует токен. Это глава 9.</p>
-<h3>Незадекларированная ошибка</h3>
+<p>В итоговом файле у <code>DeleteUser</code> есть ещё слой <code>authed</code>: удаление требует
+токен. Отказ <code>Unauthorized</code> объявляет сам слой, поэтому в <code>errors:</code> он не
+появляется (<a href="09-auth.html">глава 9</a>).</p>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i</code></pre></div>
+<h2 id="незадекларированная-ошибка">Незадекларированная ошибка</h2>
 <p>Всё, что дошло до границы пайплайна без объявления в <code>errors</code>, клиент
 получает как <code>internal_error</code> со статусом <code>500</code>: брошенное исключение,
 отказ из глубины сервиса, отказ, которого нет в списке. Оригинал ошибки
 попадает в лог сервера, тело ответа общее. Так детали внутренних ошибок
 не уходят наружу.</p>
-<p>Отказы ядра входят в список каждого endpoint'а без объявления. Каждый
-несёт голую категорию:</p>
+<p>Отказы ядра входят в список каждого endpoint'а без объявления — и на
+границе, и в типе <code>Output</code>. Каждый несёт голую категорию:</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -318,27 +317,18 @@ export const DeleteUser = httpEndpoint({
 </tbody>
 </table>
 </div>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Хендлер не может вернуть отказ, которого нет в <code>errors</code>: тип <code>E</code> в
-<code>Output&lt;T, E&gt;</code> выводится из списка, и такой <code>return</code> не компилируется.</li>
-<li>Отказ, который всё же дошёл до границы пайплайна без объявления,
-заменяется на <code>InternalError</code>. Список <code>errors</code> описывает всё, что
-клиент может получить, кроме отказов ядра.</li>
-<li>Категория не расходится с кодом: она и есть первый сегмент кода.
-Объявить отказ с кодом <code>not_found:user</code> и ответить <code>409</code> невозможно.</li>
-<li>Отказ узнаётся по коду, а не по классу. Поле <code>code</code> переживает
-сериализацию, поэтому <code>UserNotFound.is(value)</code> работает и на клиенте.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+<p>Ответ <code>testApp.call</code> несёт код отказа, а его <code>status</code> равен категории
+этого кода:</p>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
 expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
   status: 'not_found',
   value: { code: 'not_found:user', details: { id: '404' } },
 });</code></pre></div>
-<p>Ответ <code>testApp.call</code> несёт код отказа, а его <code>status</code> равен категории
-этого кода. Юнит-тест хендлера проверяет отказ без приложения:</p>
+<p>Отказ узнаётся по коду, а не по классу: поле <code>code</code> переживает
+сериализацию, и <code>UserNotFound.is(value)</code> работает даже там, где исходного
+класса ошибки нет. Юнит-тест хендлера проверяет отказ тем же способом,
+без приложения:</p>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
 const result = await handler.handle({ name: 'Alice II', email: alice.email });
 
@@ -347,23 +337,6 @@ expect(result).toMatchObject({
   code: 'conflict:email_taken',
   details: { email: alice.email },
 });</code></pre></div>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Отказ, который бросает слой до хендлера: глава 9.</li>
-<li>Отказы, общие для сервера и клиента: глава 11.</li>
-<li>Отказ броском из глубины вызовов: приложение А.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/users/users.errors.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts</code></li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
-curl localhost:3000/users/9
-curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>Хендлеры пока живут функциями в словаре декларации. Следующая глава
 переносит их в классы: <a href="04-handler-class.html">4. Хендлер как класс</a>.</p>
 

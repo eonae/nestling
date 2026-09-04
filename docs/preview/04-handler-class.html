@@ -42,13 +42,9 @@
       <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#экземпляр-создаёт-фреймворк">Экземпляр создаёт фреймворк</a></li>
+      <li><a href="#юнит-тест-без-фреймворка">Юнит-тест без фреймворка</a></li>
+      <li><a href="#две-формы-поля-handler">Две формы поля handler</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -104,19 +100,16 @@
 
 <h1>4. Хендлер как класс</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a> §3.
 Почему так: запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-09-03] Поле
 <code>handler</code>: зависимости принадлежат хендлеру; канон <code>return</code>;
 <code>Output&lt;T, typeof Def&gt;</code>».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Хендлеры из предыдущих глав лежат функциями внутри словаря декларации.
 Такой хендлер трудно тестировать отдельно: чтобы вызвать его, нужно
 достать его из декларации. Хендлер нужно вынести в отдельное значение,
 которое видно тесту и в которое дальше можно добавить зависимости.</p>
-<h2 id="решение">Решение</h2>
-<h3>Класс с методом <code>handle</code></h3>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
 import { Injectable } from '@nestling/container';
 import type { Output } from '@nestling/pipeline';
@@ -145,15 +138,15 @@ export const ListUsers = httpEndpoint({
 });</code></pre></div>
 <p>Класс объявляет метод <code>handle</code> с той же сигнатурой, что была у функции:
 входные данные и необязательный <code>meta</code>. Декоратор <code>@Injectable()</code> без
-аргумента помечает класс как узел графа без зависимостей; список
-зависимостей появится в главе 5.</p>
+аргумента помечает класс как узел графа без зависимостей.</p>
 <p>Поле <code>handler</code> принимает класс. <code>implements</code> не нужен: сигнатуру <code>handle</code>
-сверяет со схемами <code>input</code> и <code>output</code> сам конструктор декларации.
-Хендлер, который возвращает объект другой формы, не компилируется на
-строке <code>handler: ListUsersHandler</code>.</p>
-<h3>Экземпляр создаёт фреймворк</h3>
+сверяет со схемами <code>input</code> и <code>output</code> сам конструктор декларации в точке
+декларации. Хендлер, который возвращает объект другой формы, не
+компилируется на строке <code>handler: ListUsersHandler</code>.</p>
+<h2 id="экземпляр-создаёт-фреймворк">Экземпляр создаёт фреймворк</h2>
 <p>Endpoint регистрирует класс-хендлер сам: при сборке он добавляет
 провайдер этого класса в модуль той единицы, которая объявила endpoint.
+<code>new</code> в коде приложения не нужен, зависимости приходят в конструктор.
 Перечислять класс в <code>providers:</code> фичи не нужно:</p>
 <div class="code" data-file="packages/examples.users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
@@ -164,18 +157,21 @@ export const UsersFeature = makeFeature({
   endpoints: [ListUsers, GetUser, CreateUser],
 });</code></pre></div>
 <p>Класс, перечисленный и в <code>handler</code>, и в <code>providers:</code>, останавливает
-сборку: у узла графа один источник. Сообщение называет класс, паттерн
-endpoint'а и модуль, в котором нашлась вторая регистрация.</p>
+сборку на фазе ASSEMBLE, а не даёт два экземпляра: у узла графа один
+источник. Сообщение называет класс, паттерн endpoint'а и модуль, в
+котором нашлась вторая регистрация.</p>
 <p>Экземпляр создаётся один раз, при сборке приложения, и переиспользуется
 между запросами — как обычный singleton контейнера. Хранить в поле
 данные одного запроса нельзя: они утекут в следующий. Всё, что относится
 к запросу, приходит аргументами <code>handle</code>.</p>
-<p>Два endpoint'а с одним классом-хендлером делят один экземпляр: класс
-служит себе токеном, и провайдер регистрируется один раз.</p>
-<h3>Юнит-тест без фреймворка</h3>
+<p>На самом классе нет метаданных endpoint'а: адрес, схемы и отказы живут в
+декларации. Поэтому один и тот же класс можно поставить хендлером двум
+endpoint'ам, и они разделят один экземпляр: класс служит себе токеном, и
+провайдер регистрируется один раз.</p>
+<h2 id="юнит-тест-без-фреймворка">Юнит-тест без фреймворка</h2>
 <p>Класс — обычное значение, поэтому тест создаёт его через <code>new</code>:</p>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
-import { CreateUserHandler } from './create-user.endpoint';
+import { CreateUserHandler } from './create-user.endpoint.js';
 
 it('возвращает отказ EmailTaken для занятого email', async () =&gt; {
   const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
@@ -185,10 +181,12 @@ it('возвращает отказ EmailTaken для занятого email', a
   expect(EmailTaken.is(result)).toBe(true);
 });</code></pre></div>
 <p>Ни контейнера, ни транспорта, ни импортов из <code>@nestling/app</code> такому
-тесту не нужно. Аргумент конструктора здесь — фейк хранилища; откуда он
-берётся в приложении, показывает глава 5.</p>
-<h3>Три формы поля <code>handler</code></h3>
-<p>Класс — не единственная форма. Поле <code>handler</code> принимает три:</p>
+тесту не нужно. Аргумент конструктора здесь — фейк хранилища. Тест,
+который вызывает endpoint через полный пайплайн, проверяет тот же класс
+другим способом — через декларацию, а не через <code>new</code>.</p>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
+<h2 id="две-формы-поля-handler">Две формы поля <code>handler</code></h2>
+<p>Класс — не единственная форма. Поле <code>handler</code> принимает две:</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -205,54 +203,20 @@ it('возвращает отказ EmailTaken для занятого email', a
 <td>зависимостей нет, хендлер в две строки</td>
 </tr>
 <tr>
-<td>объект с <code>deps</code></td>
-<td><code>handler: { deps: [Token], handle: (dep) =&gt; async (input) =&gt; … }</code></td>
-<td>зависимости есть, класс не нужен</td>
-</tr>
-<tr>
 <td>класс</td>
 <td><code>handler: SomeHandler</code></td>
-<td>зависимости есть, хендлер длиннее пары строк</td>
+<td>зависимости есть</td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Классовая форма — канон этого гайда: она сохраняет привычную структуру
-«конструктор плюс метод». Форма с <code>deps</code> описана в приложении А; на
+<p>Зависимости из контейнера получает класс — то же правило, что у
+провайдеров и у юнитов пайплайна. Функция остаётся для хендлера, которому
+получать нечего: пробы вроде <code>/health</code> и первая глава этого гайда. На
 поведение endpoint'а выбор формы не влияет.</p>
 <p>Полей <code>deps</code> и <code>handle</code> на верхнем уровне словаря декларации нет:
 зависимости принадлежат хендлеру, а не адресу и схемам. Их присутствие —
 ошибка компиляции.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Сигнатура <code>handle</code> сверяется со схемами <code>input</code> и <code>output</code> в точке
-декларации, без <code>implements</code> и без базового класса.</li>
-<li>Экземпляр класса-хендлера создаёт контейнер: <code>new</code> в коде приложения
-не нужен, зависимости приходят в конструктор.</li>
-<li>Класс, зарегистрированный дважды — полем <code>handler</code> и в <code>providers:</code>, —
-останавливает сборку на фазе ASSEMBLE, а не даёт два экземпляра.</li>
-<li>На классе нет метаданных endpoint'а: адрес, схемы и отказы живут в
-декларации. Один и тот же класс можно поставить хендлером двум
-endpoint'ам.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
-<p>Юнит-тест хендлера из раздела выше и app-тест из главы 7 проверяют один
-и тот же класс: первый — вызовом <code>new</code>, второй — через полный пайплайн.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Зависимости в конструкторе и токены: глава 5.</li>
-<li>Слои пайплайна вокруг хендлера: глава 8.</li>
-<li>Форма с <code>deps</code> и функция без зависимостей: приложение А.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts</code></li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>Хендлер стал классом, но данные всё ещё лежат в константах. Следующая
 глава подключает хранилище: <a href="05-repository.html">5. Откуда хендлер берёт
 репозиторий</a>.</p>

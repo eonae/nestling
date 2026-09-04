@@ -42,13 +42,9 @@
       <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#правило-размещения-полей">Правило размещения полей</a></li>
+      <li><a href="#пометка-места-query-и-body">Пометка места: query() и body()</a></li>
+      <li><a href="#как-это-лежит-в-примере">Как это лежит в примере</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -104,20 +100,17 @@
 
 <h1>2. Принять данные и не пропустить мусор</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a>,
 <a href="../design/schemas.md">design/schemas.md</a>. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-13] Канонизация HTTP-input:
 канон размещения + bind-карта» и «[2026-08-29] Проверка входа по
 <code>input</code>: обязанность рантайма, точка после <code>.pre</code>-юнитов».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Сервису нужны три endpoint'а: <code>POST /users</code> принимает пользователя в
 теле, <code>GET /users/:id</code> отдаёт его по идентификатору, <code>GET /users?limit=10</code>
 отдаёт список. Хендлер должен получать уже проверенные данные нужного
-типа, а невалидный запрос должен получать <code>400</code> до вызова хендлера.</p>
-<h2 id="решение">Решение</h2>
-<h3>Схема данных</h3>
+типа, а невалидный запрос — <code>400</code> до вызова хендлера.</p>
 <div class="code" data-file="packages/examples.users-service/src/users/user.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/user.ts
 import { z } from 'zod';
 
@@ -143,13 +136,12 @@ export const CreateUserInput = User.pick({ name: true, email: true }).extend({
 });
 
 export type CreateUserInput = z.infer&lt;typeof CreateUserInput&gt;;</code></pre></div>
-<p>Схема описывает то, что передаётся по сети. Из неё же выводится тип
-для хендлера, поэтому отдельного интерфейса <code>User</code> писать не нужно.
-Схема входа называется по операции с суффиксом <code>Input</code>:
-<code>CreateUserInput</code>, <code>ListUsersInput</code> (<a href="../conventions.md">conventions.md</a>).
-Nestling принимает любую схему, реализующую Standard Schema: zod,
-valibot, arktype. В примерах используется zod.</p>
-<h3>Тело запроса</h3>
+<p>Схема описывает то, что передаётся по сети. Из неё же выводится тип для
+хендлера, поэтому отдельного интерфейса <code>User</code> писать не нужно. Схема
+входа называется по операции с суффиксом <code>Input</code>: <code>CreateUserInput</code>,
+<code>ListUsersInput</code> (<a href="../conventions.md">conventions.md</a>). Nestling
+принимает любую схему, реализующую Standard Schema: zod, valibot,
+arktype. В примерах используется zod.</p>
 <div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint({
   method: 'POST',
@@ -158,9 +150,12 @@ export const CreateUser = httpEndpoint({
   output: User,
   handler: async (input) =&gt; ({ id: '1', ...input }),
 });</code></pre></div>
-<p>Поле <code>input</code> задаёт схему входа. Рантайм проверяет вход по ней перед
-вызовом хендлера, и хендлер получает данные типа <code>CreateUserInput</code>.
-Запрос, который схему не проходит, получает <code>400</code> с кодом <code>bad_request</code>:</p>
+<p>Поле <code>input</code> задаёт схему входа. Проверка входа — обязанность рантайма, а
+не хендлера или юнита пайплайна: отключить её нельзя, а принять любое
+значение можно только явной схемой <code>z.unknown()</code>. Рантайм проверяет вход
+перед вызовом хендлера, и хендлер получает данные типа <code>CreateUserInput</code>;
+обращение к полю, которого в схеме нет, не компилируется. Запрос, который
+схему не проходит, получает <code>400</code> с кодом <code>bad_request</code>:</p>
 <div class="code" data-lang="bash"><pre><code>curl -X POST localhost:3000/users \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"nope"}'
@@ -168,7 +163,6 @@ export const CreateUser = httpEndpoint({
 #  "details":[{"message":"Invalid email address","path":["email"]}]}</code></pre></div>
 <p>Поле <code>details</code> описывает каждую проблему в формате Standard Schema, без
 полей конкретного валидатора.</p>
-<h3>Параметр пути</h3>
 <div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
   method: 'GET',
@@ -180,7 +174,6 @@ export const GetUser = httpEndpoint({
 <p>Поле схемы с именем <code>id</code> совпало с path-параметром <code>:id</code>, поэтому его
 значение берётся из пути. Отдельно объявлять, откуда читать поле, не
 нужно.</p>
-<h3>Query-строка</h3>
 <div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
 const ListUsersInput = z.object({
   limit: z.coerce.number().int().positive().optional(),
@@ -193,11 +186,12 @@ export const ListUsers = httpEndpoint({
   output: z.array(User),
   handler: async (input) =&gt; [alice, bob].slice(0, input.limit ?? 20),
 });</code></pre></div>
-<p>Константы <code>alice</code> и <code>bob</code> здесь заменяют хранилище, которое появится в
-главе 5. У <code>GET</code> нет тела, поэтому поля <code>input</code> читаются из query-строки. Query
-несёт строки, число из строки делает схема: <code>z.coerce.number()</code>. Запрос
-<code>GET /users?limit=abc</code> получает <code>400</code> с путём <code>[&quot;limit&quot;]</code> в <code>details</code>.</p>
-<h3>Правило размещения полей</h3>
+<p>Константы <code>alice</code> и <code>bob</code> здесь заменяют хранилище: данные пока лежат
+прямо в хендлере. У <code>GET</code> нет тела, поэтому поля <code>input</code> читаются из
+query-строки. Query несёт строки, число из строки делает схема:
+<code>z.coerce.number()</code>. Запрос <code>GET /users?limit=abc</code> получает <code>400</code> с путём
+<code>[&quot;limit&quot;]</code> в <code>details</code>.</p>
+<h2 id="правило-размещения-полей">Правило размещения полей</h2>
 <p>Поля <code>input</code> раскладываются по частям HTTP-запроса по фиксированному
 правилу.</p>
 <ol class="body">
@@ -206,10 +200,11 @@ export const ListUsers = httpEndpoint({
 <li>Остальные поля берутся из query для методов без тела (<code>GET</code>, <code>HEAD</code>,
 <code>DELETE</code>, <code>OPTIONS</code>, <code>TRACE</code>) и из тела для остальных.</li>
 </ol>
-<p>Слияния полей из нескольких мест нет. Поле <code>name</code> у <code>POST /users</code>,
-присланное в query-строке, во входные данные не попадёт и даст ошибку
-проверки.</p>
-<h3>Пометка места: <code>query()</code> и <code>body()</code></h3>
+<p>Слияния полей из нескольких мест нет: поле читается ровно из одного места
+запроса, а значение из другого места не подмешивается и не перекрывает
+объявленное. Поле <code>name</code> у <code>POST /users</code>, присланное в query-строке, во
+входные данные не попадёт и даст ошибку проверки.</p>
+<h2 id="пометка-места-query-и-body">Пометка места: <code>query()</code> и <code>body()</code></h2>
 <p>Умолчание правила иногда не совпадает с адресом, который вы хотите
 получить. Флаг «только проверить, не записывать» естественно передавать
 в query-строке, а данные пользователя — в теле:</p>
@@ -236,46 +231,21 @@ POST-запроса непомеченные поля читаются из те
 path-параметре и <code>bind</code> при неструктурном входе (поток, <code>multipart</code>,
 сырые байты) дают ошибку на импорте.</p>
 <p>Здесь <code>bind</code> объявлен на операции, а не на endpoint'е: адрес и схемы
-этого endpoint'а вынесены в <code>api/operations.ts</code> ради типизированного
-клиента (глава 11). У анонимной декларации <code>httpEndpoint({ method, path, bind })</code> пометки лежат прямо в словаре.</p>
-<h3>Как это лежит в примере</h3>
-<p>В итоговом примере хендлеры этих трёх endpoint'ов — классы (глава 4),
-они получают зависимости из контейнера (глава 5) и подключают слой
-пайплайна (глава 8). <code>GetUser</code> и <code>CreateUser</code> объявлены не через <code>method</code>
-и <code>path</code>, а через операцию: адрес, схемы и пометки <code>bind</code> вынесены в
-<code>api/operations.ts</code>, чтобы их импортировал типизированный клиент. Это
-объясняет глава 11.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Вход проверяется всегда: это обязанность рантайма, а не юнита
-пайплайна. Отключить проверку нельзя; принять любое значение можно
-схемой <code>z.unknown()</code>.</li>
-<li>Тип входных данных в хендлере совпадает с выходом схемы. Обращение к
-полю, которого в схеме нет, не компилируется.</li>
-<li>Поле читается ровно из одного места запроса. Значение из другого места
-не подмешивается и не перекрывает объявленное.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
-<p>Тест из главы 7 вызывает <code>GetUser</code> и <code>ListUsers</code> через полный пайплайн
-без открытия сокета:</p>
+этого endpoint'а вынесены в <code>api/operations.ts</code>, откуда их же импортирует
+клиент. У анонимной декларации <code>httpEndpoint({ method, path, bind })</code>
+пометки лежат прямо в словаре.</p>
+<h2 id="как-это-лежит-в-примере">Как это лежит в примере</h2>
+<p>В итоговом примере хендлеры этих трёх endpoint'ов — классы, которые
+получают зависимости из контейнера. <code>GetUser</code> и <code>CreateUser</code> объявлены не
+через <code>method</code> и <code>path</code>, а через операцию: адрес, схемы и пометки <code>bind</code>
+вынесены в <code>api/operations.ts</code>.</p>
+<p>Тест вызывает <code>GetUser</code> и <code>ListUsers</code> через полный пайплайн без открытия
+сокета:</p>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
 expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual(alice);
 expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);</code></pre></div>
 <p>Входные данные в <code>testApp.call</code> типизированы схемой <code>input</code>: передать
 <code>{ id: 1 }</code> вместо строки нельзя.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Отказы с машинным кодом, <code>404</code> и <code>409</code>: глава 3.</li>
-<li>Файлы и потоки на входе: глава 10.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/users/user.ts</code></li>
-<li><code>packages/examples.users-service/src/api/operations.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></li>
-</ul>
 <div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
 curl localhost:3000/users/1
 curl 'localhost:3000/users?limit=1'
@@ -283,7 +253,6 @@ curl -X POST 'localhost:3000/users?dryRun=true' \
   -H 'authorization: Bearer secret' \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>Хендлер получает проверенные данные, но пока не умеет отказать:
 пользователя с таким <code>id</code> может не быть. Следующая глава: <a href="03-errors.html">3. Сказать
 клиенту, что пошло не так</a>.</p>

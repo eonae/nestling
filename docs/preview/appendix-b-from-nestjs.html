@@ -103,7 +103,7 @@
 
 <h1>Приложение Б. Из NestJS</h1>
 <blockquote>
-<p>Соответствия сверены с design/ и README пакетов (2026-09-03).</p>
+<p>Соответствия сверены с design/ и README пакетов (2026-09-05).</p>
 </blockquote>
 <p>Таблицы ниже отвечают на вопрос «чем в Nestling записывается то, что в
 NestJS я делал вот так». В колонке «Чем отличается» одна фраза о
@@ -159,9 +159,9 @@ NestJS я делал вот так». В колонке «Чем отличае�
 </tr>
 <tr>
 <td><code>@Controller()</code> с <code>@Get()</code>, <code>@Post()</code></td>
-<td><code>httpEndpoint({ method, path, input, output, handler: handle })</code></td>
-<td>endpoint это значение с адресом, схемами и хендлером; класс-хендлер остаётся как одна из форм</td>
-<td><a href="01-first-service.html">1</a>, <a href="appendix-a-alternatives.html">приложение А</a></td>
+<td><code>httpEndpoint({ method, path, input, output, handler })</code></td>
+<td>endpoint это значение с адресом, схемами и хендлером; хендлер — функция или класс с методом <code>handle</code></td>
+<td><a href="01-first-service.html">1</a>, <a href="04-handler-class.html">4</a></td>
 </tr>
 </tbody>
 </table>

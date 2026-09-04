@@ -1,6 +1,6 @@
 # 11. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -72,7 +72,7 @@ export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
   input: DeleteUserInput,
-  errors: [UserNotFound, Unauthorized],
+  errors: [UserNotFound],
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],

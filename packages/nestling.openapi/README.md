@@ -59,11 +59,16 @@ writeFileSync('openapi.json', JSON.stringify(
 |---|---|
 | путь и метод, `parameter` или `requestBody` | bind-карта декларации (`:param` становится `{param}`) |
 | media types | `mediaTypeOf` — то же правило, что у транспорта и клиента |
-| `responses` | `output`, `errors:`, автоматический `400` и `default` (`internal_error`) |
+| `responses` | `output`, эффективное множество отказов декларации (`errors:` плюс отказы слоёв пайплайна), автоматический `400` и `default` (`internal_error`) |
 | HTTP-коды | `httpCodeOf` из `@nestling/transport.http` |
 | `summary`, `tags`, `deprecated`, успешный статус | слот `doc:` декларации или операции |
 | `operationId` | имя операции, иначе слаг из метода и пути; отдельно не объявляется |
 | JSON Schema листьев | конвертер вендора или аннотация `jsonSchema(schema, json)` |
+
+Множество отказов генератор читает с декларации и повторно не собирает:
+endpoint со слоем, объявившим `Unauthorized`, несёт ответ `401`, даже
+если в его `errors:` этого определения нет. Определение, объявленное и
+слоем, и декларацией, даёт один ответ.
 
 ## Проверка на старте
 

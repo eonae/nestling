@@ -51,13 +51,9 @@
       <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#подключение-к-endpointам">Подключение к endpoint'ам</a></li>
+      <li><a href="#идентификатор-запроса-в-глубине-графа">Идентификатор запроса в глубине графа</a></li>
+      <li><a href="#проверка">Проверка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -102,21 +98,18 @@
 <main class="content">
 <article class="article">
 
-<h1>7. Видеть каждый запрос в логе</h1>
+<h1>8. Видеть каждый запрос в логе</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/pipeline.md">design/pipeline.md</a>. Почему так:
 записи <a href="../decisions/ideas.md">ideas.md</a> «Pipeline v2: плоские фазы, слои,
 композиция константами» и «Асинхронный контекст: read-only ALS-проекция
 pipeline-контекста».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
-<p>Сервис отвечает клиентам, но что с ним происходит, видно только по их
-ответам. Нужно, чтобы каждый запрос оставлял строку в логе: адрес, статус
-и чем запрос закончился. Строки одного запроса, в том числе из глубины
-кода, должны связываться между собой по общему идентификатору.</p>
-<h2 id="решение">Решение</h2>
-<h3>Шаг 1. Логгер как зависимость</h3>
+<p>Сервис отвечает клиентам, но что с ним происходит, видно только по
+ответам. Каждый запрос должен оставлять строку в логе: адрес, статус и
+то, чем он закончился. Строки одного запроса, даже из глубины кода,
+должны связываться между собой по общему идентификатору.</p>
 <div class="code" data-file="packages/examples.users-service/src/logging.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/logging.ts
 import { Injectable, makeToken } from '@nestling/container';
 
@@ -145,10 +138,10 @@ export class ConsoleLogger implements Logger {
 токеном. Класс попадает в <code>providers:</code> фичи. Всё, что пишет в лог,
 зависит от токена, поэтому тест подменит логгер одной строкой в
 <code>overrides</code>.</p>
-<h3>Шаг 2. Пайплайн: что происходит вокруг хендлера</h3>
-<p>Пайплайн — последовательность юнитов вокруг хендлера. Юнит — одна
-функция или класс. Пайплайн объявляется вызовом <code>makePipeline()</code> и
-читается сверху вниз как порядок исполнения:</p>
+<p>Всё, что происходит вокруг хендлера, описывает пайплайн —
+последовательность юнитов. Юнит — одна функция или класс. Пайплайн
+объявляется вызовом <code>makePipeline()</code> и читается сверху вниз как порядок
+исполнения:</p>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -225,19 +218,22 @@ export const observability = makePipeline()
 аргумента.</p>
 <ul class="body">
 <li><code>outcome</code> — чем закончился запрос: <code>completed</code>, <code>failed</code>,
-<code>disconnected</code> или <code>aborted</code>.</li>
+<code>disconnected</code> или <code>aborted</code>. <code>.finally</code> вызывается при любом из них,
+включая обрыв соединения и остановку приложения, и ошибка внутри
+<code>.finally</code> не меняет ответ.</li>
 <li><code>res</code> — итоговый ответ. <code>res.status</code> не зависит от транспорта: <code>ok</code>,
 <code>created</code>, <code>not_found</code>. В HTTP-код его переводит транспорт.</li>
 <li><code>ctx</code> — контекст запроса. <code>ctx.input</code> — поля, накопленные pre-юнитами;
 <code>ctx.raw.pattern</code> — паттерн endpoint'а, например <code>GET /users/:id</code>.</li>
 </ul>
 <p>Тип <code>ExtendableContext&lt;{ requestId?: string }&gt;</code> описывает, что юнит ждёт
-от контекста. Поле объявлено необязательным: в <code>.finally</code> попадают и
-запросы, на которых pre-юнит не успел выполниться.</p>
-<p><code>observability</code> — слой. Слой — это один вызов <code>makePipeline()</code> с цепочкой
-методов, и он является обычным значением. Это значение экспортируется и
-подключается к каждому endpoint'у.</p>
-<h3>Шаг 3. Подключить слой к endpoint'ам</h3>
+от контекста: поле объявлено необязательным, потому что в <code>.finally</code>
+попадают и запросы, на которых pre-юнит не успел выполниться. Поле вне
+объявленного типа не компилируется, и <code>ctx.input.requestId</code> здесь имеет
+тип <code>string | undefined</code>.</p>
+<p><code>observability</code> — слой: один вызов <code>makePipeline()</code> с цепочкой методов,
+обычное значение. Оно экспортируется и подключается к каждому endpoint'у.</p>
+<h2 id="подключение-к-endpointам">Подключение к endpoint'ам</h2>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint({
   method: 'GET',
@@ -251,7 +247,8 @@ export const ListUsers = httpEndpoint({
 <p>Поле <code>pipeline:</code> принимает слой. Endpoint без этого поля тоже работает:
 у <code>CheckHealth</code> из <a href="01-first-service.html">главы 1</a> пайплайна нет.</p>
 <p>Класс-юнит создаёт контейнер, поэтому <code>AuditOutcome</code> регистрируется в
-<code>providers:</code> фичи рядом с логгером:</p>
+<code>providers:</code> фичи рядом с логгером. Класс-юнит, которого нет в
+<code>providers:</code>, останавливает сборку на фазе ASSEMBLE, до открытия сокета.</p>
 <div class="code" data-file="packages/examples.users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
@@ -269,10 +266,10 @@ export const UsersFeature = makeFeature({
 curl -H 'x-request-id: req-42' http://localhost:3000/users/1</code></pre></div>
 <p>В логе появятся две строки с одним идентификатором:</p>
 <div class="code"><pre><code>[users-service] [req-42] byId 1
-[users-service] [req-42] GET /users/:id OK (completed)</code></pre></div>
+[users-service] [req-42] GET /users/:id ok (completed)</code></pre></div>
 <p>Первую строку пишет хранилище, вторую пишет <code>AuditOutcome</code>. Без заголовка
 <code>x-request-id</code> на месте <code>req-42</code> будет случайный UUID.</p>
-<h3>Шаг 4. Идентификатор запроса в глубине графа</h3>
+<h2 id="идентификатор-запроса-в-глубине-графа">Идентификатор запроса в глубине графа</h2>
 <p>Строку <code>byId 1</code> пишет <code>DbUsersRepository</code>. Хендлер не передаёт ему
 <code>requestId</code> параметром: хранилище читает значение из контекста само.</p>
 <div class="code" data-file="packages/examples.users-service/src/users/users.repository.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/users.repository.ts
@@ -300,43 +297,31 @@ export class DbUsersRepository implements UsersRepository {
   }
 }</code></pre></div>
 <p><code>RequestId</code> — переменная контекста, которую объявляет <code>withRequestId()</code>.
-<code>Ctx(RequestId)</code> — токен читателя этой переменной. Читатель является
-обычным узлом графа: зависимость хранилища от контекста запроса видна в
-<code>deps</code> и в визуализации графа, а тест подменяет её через <code>contextValue</code>.</p>
+<code>Ctx(RequestId)</code> — токен читателя этой переменной, типизированный
+значением переменной как <code>CtxReader&lt;string&gt;</code>. Читатель — обычный узел
+графа: зависимость хранилища от контекста запроса видна в <code>deps</code> и в
+визуализации графа, а тест подменяет её через <code>contextValue</code>.</p>
 <p>Пока выполняется запрос, накопленный контекст пайплайна доступен любому
 коду, который был вызван из хендлера, на любой глубине. Читатель даёт
 два метода.</p>
 <ul class="body">
-<li><code>get()</code> возвращает значение или бросает ошибку, если запроса нет или
-переменная не объявлена в пайплайне.</li>
+<li><code>get()</code> возвращает значение или бросает ошибку с указанием причины,
+если запроса нет или переменная не объявлена в пайплайне.</li>
 <li><code>peek()</code> возвращает значение или <code>undefined</code>. Хранилище использует его,
 потому что тот же метод может быть вызван из <code>@OnInit</code>, где запроса
 ещё нет.</li>
 </ul>
-<h3>Шаг 5. Слои складываются</h3>
-<p>Слой можно расширить другим слоем функцией <code>compose</code>. <code>pre</code>-юниты
+<p>Что переменная объявлена на каждом маршруте, где её читают, проверяет
+политика сборки <code>hasVar</code>: <a href="09-auth.html">глава 9</a>.</p>
+<p>Слой можно расширить другим слоем функцией <code>compose</code>: <code>pre</code>-юниты
 внешнего слоя выполняются раньше, а <code>.finally</code> внешнего слоя выполняется
-позже, чем у внутреннего. В <a href="09-auth.html">главе 9</a> от <code>observability</code>
-будет составлен слой <code>authed</code>.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Класс-юнит, которого нет в <code>providers:</code>, останавливает сборку на фазе
-ASSEMBLE, до открытия сокета.</li>
-<li>Поля контекста типизированы. Юнит объявляет, что ждёт от контекста,
-типом <code>ExtendableContext&lt;…&gt;</code>; <code>ctx.input.requestId</code> в <code>.finally</code>
-имеет тип <code>string | undefined</code>, а поле вне объявленного типа не
-компилируется.</li>
-<li><code>Ctx(RequestId)</code> типизирован значением переменной: <code>CtxReader&lt;string&gt;</code>.
-Читатель для переменной, которую пайплайн не объявляет, бросает ошибку
-с указанием причины при вызове <code>get()</code>; <code>peek()</code> возвращает <code>undefined</code>.</li>
-<li><code>.finally</code> вызывается всегда, включая отказ, обрыв соединения и
-остановку приложения. Ошибка внутри <code>.finally</code> не меняет ответ.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+позже, чем у внутреннего.</p>
+<h2 id="проверка">Проверка</h2>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
 it('пишет строку аудита с идентификатором запроса', async () =&gt; {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {
+    config: testConfig,
     overrides: [
       [UsersRepository$, inMemoryUsersRepo([alice])],
       [Logger$, spy.logger],
@@ -346,45 +331,19 @@ it('пишет строку аудита с идентификатором за�
   unwrap(await testApp.call(GetUser, { id: '1' }));
 
   expect(spy.lines).toContainEqual(
-    expect.stringMatching(/^\[[^\]]+] GET \/users\/:id OK \(completed\)$/),
+    expect.stringMatching(/^\[[^\]]+] GET \/users\/:id ok \(completed\)$/),
   );
 });</code></pre></div>
 <p>Тест подменяет логгер объектом, который копит строки, и вызывает endpoint
 через <code>testApp.call</code>. Вызов проходит весь пайплайн, поэтому <code>.finally</code>
-выполняется и строка аудита попадает в <code>spy.lines</code>. Заголовков в
+выполняется, и строка аудита попадает в <code>spy.lines</code>. Заголовков в
 <code>testApp.call</code> нет, и <code>withRequestId()</code> генерирует идентификатор сам.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Фазы <code>.ok</code> и <code>.catch</code> нужны, когда ответ надо изменить или разобрать
-отказ по коду. Они описаны в
-<a href="appendix-a-alternatives.html">приложении А</a>.</li>
-<li>Проверка, что слой есть у каждого endpoint'а, появится в
-<a href="09-auth.html">главе 9</a> вместе с политиками сборки.</li>
-<li>Логгер, общий для нескольких фич, станет плагином в
-<a href="12-features.html">главе 12</a>.</li>
-<li>Логгер, который знает имя своего потребителя, строится на семействе
-токенов в <a href="21-token-families.html">главе 21</a>.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/logging.ts</code> — интерфейс, токен и
-реализация логгера.</li>
-<li><code>packages/examples.users-service/src/observability.ts</code> — слой с
-<code>withRequestId()</code> и юнитом <code>AuditOutcome</code>.</li>
-<li><code>packages/examples.users-service/src/users/users.repository.ts</code> —
-чтение <code>requestId</code> через <code>Ctx(RequestId)</code>.</li>
-<li><code>packages/examples.users-service/src/users.feature.ts</code> — регистрация
-класса-юнита в <code>providers:</code>.</li>
-<li><code>packages/examples.users-service/src/app.spec.ts</code> — тест строки аудита.</li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
-curl -H 'x-request-id: req-42' http://localhost:3000/users/1
-curl http://localhost:3000/users/404</code></pre></div>
-<p>Второй запрос даёт в логе <code>GET /users/:id NOT_FOUND (failed)</code>: отказ
-хендлера проходит через тот же <code>.finally</code>.</p>
-<h2 id="дальше">Дальше</h2>
-<p>Слой, который проверяет токен и не даёт забыть себя на новом
-endpoint'е: <a href="09-auth.html">глава 9</a>.</p>
+<p>Запрос несуществующего пользователя оставляет в логе строку
+<code>GET /users/:id not_found (failed)</code>: отказ хендлера проходит через тот
+же <code>.finally</code>.</p>
+<div class="code" data-lang="bash"><pre><code>curl http://localhost:3000/users/404</code></pre></div>
+<p>Слой, который проверяет токен и не даёт забыть себя на новом endpoint'е:
+<a href="09-auth.html">глава 9</a>.</p>
 
   <nav class="pager">
     <a href="07-testing.html">

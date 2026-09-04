@@ -80,13 +80,13 @@
       <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#плагин-в-корне">Плагин в корне</a></li>
+      <li><a href="#слой-tracked-на-endpointе-подписки">Слой tracked на endpoint'е подписки</a></li>
+      <li><a href="#endpointы-эксплуатации">Endpoint'ы эксплуатации</a></li>
+      <li><a href="#факты-открытия-и-закрытия">Факты открытия и закрытия</a></li>
+      <li><a href="#проба-живости-в-той-же-фиче">Проба живости в той же фиче</a></li>
+      <li><a href="#запросы">Запросы</a></li>
+      <li><a href="#проверка">Проверка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -102,27 +102,24 @@
 <main class="content">
 <article class="article">
 
-<h1>22. Кто сейчас подключён и как его отключить</h1>
+<h1>23. Кто сейчас подключён и как его отключить</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/streaming.md">design/streaming.md</a>, раздел
 «4.1 Реестр подписок». Почему так: запись
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-08-01] Реестр подписок:
 результат dogfooding-замера».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>У сервиса есть лента по SSE из <a href="14-live-feed.html">главы 14</a>, и клиенты
 держат её открытой часами. Эксплуатации нужно видеть список открытых
 подписок этого процесса, закрывать зависшую подписку по идентификатору и
 наблюдать открытия и закрытия в реальном времени. Хендлер ленты при этом
 не должен знать, кто и зачем его закрыл.</p>
-<h2 id="решение">Решение</h2>
 <p>Реестр подписок живёт в отдельном пакете <code>@nestling/subscriptions</code>. Он
 написан на публичных примитивах ядра и подключается как плагин; ядро о
-нём не знает. Как устроен такой пакет, разбирает
-<a href="25-extending.html">глава 25</a>.</p>
-<h3>Шаг 1. Плагин в корне</h3>
-<div class="code" data-file="packages/examples.app-with-http/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.ts
+нём не знает.</p>
+<h2 id="плагин-в-корне">Плагин в корне</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.ts (фрагмент)
 import { subscriptions } from '@nestling/subscriptions';
 // …
 
@@ -145,15 +142,33 @@ export const app = makeApp({
 });</code></pre></div>
 <p><code>subscriptions(options)</code> возвращает плагин. Значение создаётся один раз и
 перечисляется в <code>plugins:</code>, как плагин логирования из
-<a href="12-features.html">главы 12</a>.</p>
+<a href="12-features.html">главы 12</a>. Класс-юниты слоя подписок регистрирует
+именно этот плагин: endpoint со слоем <code>tracked</code> в сборке без
+<code>appSubscriptions</code> останавливает старт на фазе ASSEMBLE, потому что
+незарегистрированный класс-юнит не создаётся.</p>
 <p>Опции описывают решения композиции. <code>identity</code> вычисляет подписчика из
 контекста запроса: здесь это <code>requestId</code> слоя <code>observability</code>, в
 приложении с аутентификацией на его месте был бы идентификатор
 пользователя. <code>labels</code> добавляет метки к записи. <code>publish: true</code>
-включает публикацию фактов открытия и закрытия операциями (шаг 4); по
+включает публикацию фактов открытия и закрытия операциями (см. далее); по
 умолчанию она выключена. <code>node</code> называет процесс в фактах.</p>
-<h3>Шаг 2. Слой <code>tracked</code> на endpoint'е подписки</h3>
+<h2 id="слой-tracked-на-endpointе-подписки">Слой <code>tracked</code> на endpoint'е подписки</h2>
 <div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+@Injectable([ActivityHub])
+class ActivityStreamHandler {
+  constructor(private readonly hub: ActivityHub) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: TrackedSubscription; lastEventId?: string },
+  ): Output&lt;AsyncIterable&lt;ActivityEvent&gt;&gt; {
+    // Настоящая лента отдала бы историю с этого места
+    const since = meta.lastEventId ?? '0';
+
+    return new Ok(this.hub.subscribe(meta.subscription.signal, since));
+  }
+}
+
 export const ActivityStream = httpEndpoint({
   method: 'GET',
   path: '/users/activity',
@@ -164,20 +179,7 @@ export const ActivityStream = httpEndpoint({
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
   pipeline: compose(observability, tracked),
-  handler: {
-    deps: [ActivityHub],
-    handle:
-      (hub: ActivityHub) =&gt;
-      async (
-        _payload: unknown,
-        meta: { subscription: TrackedSubscription; lastEventId?: string },
-      ): Output&lt;AsyncIterable&lt;ActivityEvent&gt;&gt; =&gt; {
-        // Настоящая лента отдала бы историю с этого места
-        const since = meta.lastEventId ?? '0';
-
-        return new Ok(hub.subscribe(meta.subscription.signal, since));
-      },
-  },
+  handler: ActivityStreamHandler,
 });</code></pre></div>
 <p><code>tracked</code> — слой пайплайна из пакета. Его <code>.pre</code>-юнит регистрирует
 подписку в реестре до вызова хендлера, а <code>.finally</code>-юнит снимает запись,
@@ -191,28 +193,49 @@ export const ActivityStream = httpEndpoint({
 поток по всем трём причинам. Хендлер, который слушает только
 <code>meta.signal</code>, после закрытия администратором продолжит отдавать данные:
 запись из реестра уйдёт, а поток нет.</p>
-<h3>Шаг 3. Endpoint'ы эксплуатации</h3>
+<p>Что слой стоит на каждом endpoint'е с подпиской, можно проверить
+политикой <code>everyEndpoint({ pattern: /\/live$/ }).hasLayer(tracked)</code>, как в
+<a href="09-auth.html">главе 9</a>. В примере такой политики нет: слой подключён на
+обоих <code>events</code>-endpoint'ах вручную.</p>
+<h2 id="endpointы-эксплуатации">Endpoint'ы эксплуатации</h2>
 <p>Реестр инжектируется обычным токеном <code>SubscriptionRegistry</code>. Endpoint'ы
 лежат в фиче <code>ops</code>: у неё нет своих провайдеров, логирование,
 аутентификация и реестр приходят плагинами.</p>
 <div class="code" data-file="packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts
+@Injectable([SubscriptionRegistry])
+class ListSubscriptionsHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(): Output&lt;Subscription[]&gt; {
+    return this.registry.list().map((info) =&gt; toWire(info));
+  }
+}
+
 export const ListSubscriptions = httpEndpoint({
   method: 'GET',
   path: '/ops/subscriptions',
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
   pipeline: observability,
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) =&gt; async (): Output&lt;Subscription[]&gt; =&gt;
-        registry.list().map((info) =&gt; toWire(info)),
-  },
+  handler: ListSubscriptionsHandler,
 });</code></pre></div>
 <p><code>registry.list()</code> отдаёт снимки записей: идентификатор, транспорт,
 паттерн, вид формы, подписчика, метки, время старта и число отданных
 элементов. <code>toWire</code> переводит снимок в схему ответа API.</p>
 <div class="code" data-file="packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts
+@Injectable([SubscriptionRegistry])
+class KillSubscriptionHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(payload: {
+    id: string;
+  }): Output&lt;null, typeof SubscriptionNotFound&gt; {
+    const killed = this.registry.abort(payload.id, 'administrative kill');
+
+    return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
+  }
+}
+
 export const KillSubscription = httpEndpoint({
   method: 'DELETE',
   path: '/ops/subscriptions/:id',
@@ -220,25 +243,34 @@ export const KillSubscription = httpEndpoint({
   errors: [SubscriptionNotFound, Unauthorized],
   doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
   pipeline: authed,
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) =&gt;
-      async (payload: {
-        id: string;
-      }): Output&lt;null, typeof SubscriptionNotFound&gt; =&gt; {
-        const killed = registry.abort(payload.id, 'administrative kill');
-
-        return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
-      },
-  },
+  handler: KillSubscriptionHandler,
 });</code></pre></div>
 <p><code>registry.abort(id, reason)</code> взводит сигнал администратора и возвращает
 <code>false</code>, если записи нет. Запись из реестра при этом не удаляется: её
 снимет <code>.finally</code> слоя <code>tracked</code>, когда поток действительно закроется.
 Реестр отражает факт, а не опережает его. Endpoint стоит под слоем
 <code>authed</code>: удалять чужие подписки может только тот, кто предъявил токен.</p>
-<div class="code" data-file="packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)
+@Injectable([SubscriptionRegistry])
+class WatchSubscriptionsHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: TrackedSubscription },
+  ): Output&lt;AsyncIterable&lt;SubscriptionChange&gt;&gt; {
+    const feed = this.registry.watch(meta.subscription.signal);
+
+    return new Ok(
+      (async function* () {
+        for await (const event of feed) {
+          // …
+        }
+      })(),
+    );
+  }
+}
+
 export const WatchSubscriptions = httpEndpoint({
   method: 'GET',
   path: '/ops/subscriptions/live',
@@ -249,69 +281,57 @@ export const WatchSubscriptions = httpEndpoint({
   },
   doc: { summary: 'Лента изменений реестра подписок (SSE)', tags: ['ops'] },
   pipeline: compose(observability, tracked),
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) =&gt;
-      async (
-        _payload: unknown,
-        meta: { subscription: TrackedSubscription },
-      ): Output&lt;AsyncIterable&lt;SubscriptionChange&gt;&gt; =&gt; {
-        const feed = registry.watch(meta.subscription.signal);
-
-        return new Ok(
-          (async function* () {
-            for await (const event of feed) {
-              // …
-            }
-          })(),
-        );
-      },
-  },
+  handler: WatchSubscriptionsHandler,
 });</code></pre></div>
 <p><code>registry.watch(signal)</code> отдаёт <code>AsyncIterable</code> событий <code>opened</code> и
 <code>closed</code>. Лента сама является подпиской: она композирована от <code>tracked</code>
 и видна в собственном списке. Своё событие <code>opened</code> она не получает: оно
 опубликовано до вызова хендлера, то есть до того, как хендлер подписался.</p>
-<h3>Шаг 4. Факты открытия и закрытия</h3>
-<div class="code" data-file="packages/examples.app-with-http/src/features/ops/subscription-facts.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscription-facts.ts
+<h2 id="факты-открытия-и-закрытия">Факты открытия и закрытия</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscription-facts.ts (фрагмент)
+@Injectable([Logger$])
+class SubscriptionOpenedInOpsHandler {
+  constructor(private readonly logger: Logger) {}
+
+  async handle(payload: {
+    node?: string;
+    id: string;
+    transport: string;
+    pattern: string;
+  }) {
+    this.logger.log(
+      `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
+        `(${payload.transport} ${payload.pattern})`,
+    );
+  }
+}
+
 export const SubscriptionOpenedInOps = implement(SubscriptionOpened, {
   subscriber: 'ops',
-  handler: {
-    deps: [Logger$],
-    handle:
-      (logger: Logger) =&gt;
-      async (payload: {
-        node?: string;
-        id: string;
-        transport: string;
-        pattern: string;
-      }) =&gt; {
-        logger.log(
-          `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
-            `(${payload.transport} ${payload.pattern})`,
-        );
-
-        // eslint-disable-next-line unicorn/no-useless-undefined
-        return undefined;
-      },
-  },
-});</code></pre></div>
+  handler: SubscriptionOpenedInOpsHandler,
+});
+// …</code></pre></div>
 <p>С <code>publish: true</code> реестр публикует события <code>subscriptions.opened</code> и
 <code>subscriptions.closed</code> как обычные операции вида <code>event</code> из
 <a href="13-events.html">главы 13</a>. Фича <code>ops</code> подписана на оба через
-<code>implement</code> с именем подписчика. Реестр локален для процесса, а факты
-уходят на шину: в split-развёртывании из <a href="17-split.html">главы 17</a> один
-процесс собирает картину по всем узлам, и поле <code>node</code> говорит, где
-подписка открыта. Закрыть подписку в другом процессе через <code>abort</code> нельзя.</p>
-<h3>Шаг 5. Проба живости в той же фиче</h3>
-<p><code>CheckHealth</code> с <code>detached</code> и <code>doc.hidden</code> из <a href="09-auth.html">главы 9</a> лежит
-в той же фиче <code>ops</code> (<code>features/ops/ops.feature.ts</code>): это endpoint для
-инфраструктуры, а не для пользователя API. Своих провайдеров у фичи
-нет, <code>providers: []</code>.
+<code>implement</code> с именем подписчика; реализация <code>SubscriptionClosedInOps</code>
+устроена так же. Реестр локален для процесса, а факты уходят на шину: в
+split-развёртывании из <a href="17-split.html">главы 17</a> один процесс собирает
+картину по всем узлам, и поле <code>node</code> говорит, где подписка открыта.
+Закрыть подписку в другом процессе через <code>abort</code> нельзя.</p>
+<p>Пакет не тянет валидатор схем и не требует правок ядра: схемы фактов
+аннотированы <code>jsonSchema()</code>, поэтому они попадают в документ OpenAPI и в
+снапшот совместимости из <a href="18-compatibility.html">главы 18</a>.</p>
+<h2 id="проба-живости-в-той-же-фиче">Проба живости в той же фиче</h2>
+<p>Проба живости для балансировщика из <a href="09-auth.html">главы 9</a> в этом
+приложении называется <code>Health</code> и лежит в той же фиче <code>ops</code>
+(<code>features/ops/health.endpoint.ts</code>, <code>features/ops/ops.feature.ts</code>): она
+выведена из-под политик полем <code>detached</code> и скрыта из документа OpenAPI
+полем <code>doc.hidden</code>, как и в главе 9. Это endpoint для инфраструктуры, а
+не для пользователя API. Своих провайдеров у фичи нет, <code>providers: []</code>.
 Фича <code>ops</code> входит в любую топологию и выбирается явно, как показывает
 <a href="16-select.html">глава 16</a>.</p>
-<h3>Запросы</h3>
+<h2 id="запросы">Запросы</h2>
 <div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
 
 # в отдельных терминалах: подписка и лента реестра
@@ -329,7 +349,7 @@ curl localhost:3000/ops/subscriptions
 # [{"id":"d5bd…","pattern":"GET /ops/subscriptions/live",…,"itemsOut":2}]
 
 curl -X DELETE localhost:3000/ops/subscriptions/nope -H 'authorization: Bearer secret'
-# {"error":"Subscription nope is not active on this node","code":"SUBSCRIPTION_NOT_FOUND","details":{"id":"nope"}}  404</code></pre></div>
+# {"error":"Subscription nope is not active on this node","code":"not_found:subscription","details":{"id":"nope"}}  404</code></pre></div>
 <p>Терминал с <code>curl -N localhost:3000/users/activity</code> после <code>DELETE</code>
 завершается: поток закрыт сигналом администратора. Лента реестра получила
 два кадра:</p>
@@ -341,26 +361,11 @@ data: {"type":"closed","reason":"killed","subscription":{"id":"86cc…",…,"ite
 <p>Подписчик фактов в <code>ops</code> записал те же события в лог:</p>
 <div class="code"><pre><code>[app-with-http] [subscriptions] app-with-http: opened 86cc… (http GET /users/activity)
 [app-with-http] [subscriptions] app-with-http: closed 86cc…: killed, 1 items</code></pre></div>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Класс-юниты слоя <code>tracked</code> регистрирует плагин. Endpoint с <code>tracked</code>
-в сборке без <code>appSubscriptions</code> останавливает старт на фазе ASSEMBLE:
-незарегистрированный класс-юнит не создаётся.</li>
-<li>Запись из реестра уходит только после закрытия потока. <code>abort</code> подаёт
-сигнал, а удаляет запись <code>.finally</code>, который для потоковой формы
-выполняется после завершения отдачи.</li>
-<li>Что слой стоит на каждом endpoint'е с подпиской, проверяется политикой
-<code>everyEndpoint({ pattern: /\/live$/ }).hasLayer(tracked)</code>, как в
-<a href="09-auth.html">главе 9</a>. В примере такой политики нет: слой подключён
-на обоих <code>events</code>-endpoint'ах вручную.</li>
-<li>Пакет не тянет валидатор схем и не требует правок ядра. Схемы фактов
-аннотированы <code>jsonSchema()</code>, поэтому они попадают в документ OpenAPI и в
-снапшот совместимости из <a href="18-compatibility.html">главы 18</a>.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+<h2 id="проверка">Проверка</h2>
 <div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
 it('показывает подписку, завершает её и удаляет запись', async () =&gt; {
   await using testApp = await assembleTest(app, {
+    ...testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
@@ -377,7 +382,7 @@ it('показывает подписку, завершает её и удаля
     itemsOut: 0,
   });
 
-  unwrap(await createUser(app, 'subscriber'));
+  unwrap(await createUser(testApp, 'subscriber'));
   const delivered = await subscription.next();
   expect(delivered.value).toMatchObject({ kind: 'created' });
   expect(unwrap(await testApp.call(ListSubscriptions))[0].itemsOut).toBe(1);
@@ -403,35 +408,9 @@ it('показывает подписку, завершает её и удаля
 <code>events</code>-endpoint'е возвращает итератор, список показывает запись до
 первого элемента, <code>KillSubscription</code> закрывает поток, и итерация
 завершается сама. Два других теста того же <code>describe</code> проверяют отказ
-<code>SUBSCRIPTION_NOT_FOUND</code> и то, что лента реестра не видит собственного
+<code>not_found:subscription</code> и то, что лента реестра не видит собственного
 <code>opened</code>.</p>
 <div class="code" data-lang="bash"><pre><code>yarn workspace examples.app-with-http test</code></pre></div>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Как пакет вроде <code>@nestling/subscriptions</code> пишется без правок ядра и
-что для этого должно быть публичным: <a href="25-extending.html">глава 25</a>.</li>
-<li>Закрытие подписки в другом процессе. Реестр локален для узла, а
-наблюдение кластерное через факты. Тема отложена, см.
-<a href="../decisions/deferred.md">deferred.md</a>.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.app-with-http/src/app.ts</code> — плагин
-<code>appSubscriptions</code>.</li>
-<li><code>packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts</code>
-— подписка под слоем <code>tracked</code>.</li>
-<li><code>packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts</code>
-— список, завершение и лента реестра.</li>
-<li><code>packages/examples.app-with-http/src/features/ops/subscription-facts.ts</code>
-— подписчики фактов.</li>
-<li><code>packages/examples.app-with-http/src/features/ops/ops.feature.ts</code> —
-фича <code>ops</code>.</li>
-<li><code>packages/examples.app-with-http/src/app.spec.ts</code> — <code>describe('реестр подписок')</code>.</li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
-curl -N localhost:3000/users/activity
-curl localhost:3000/ops/subscriptions</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>Те же примитивы без <code>makeApp</code>: встраивание в чужой сервер и контейнер
 без приложения, <a href="24-standalone.html">глава 24</a>.</p>
 

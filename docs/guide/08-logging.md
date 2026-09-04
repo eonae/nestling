@@ -1,6 +1,6 @@
 # 8. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
 > композиция константами» и «Асинхронный контекст: read-only ALS-проекция

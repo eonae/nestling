@@ -51,13 +51,10 @@
       <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#файл-в-форме">Файл в форме</a></li>
+      <li><a href="#выгрузка-потоком">Выгрузка потоком</a></li>
+      <li><a href="#загрузка-потоком">Загрузка потоком</a></li>
+      <li><a href="#проверка">Проверка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -102,22 +99,20 @@
 <main class="content">
 <article class="article">
 
-<h1>9. Файлы и большие выгрузки</h1>
+<h1>10. Файлы и большие выгрузки</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a> §5 и
 <a href="../design/streaming.md">design/streaming.md</a>. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «Стриминг: <code>stream(T)</code> ≠ <code>events(T)</code>,
 AbortSignal, источники событий» и «Два скоупа обработки: request-pipeline
 и item-цепочки».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Три запроса не укладываются в «JSON туда, JSON обратно». Пользователь
 загружает аватар: файл плюс поля формы. Администратор выгружает всех
 пользователей файлом, который может не поместиться в память. Тот же
 администратор загружает список пользователей из такого же файла, и
 сервер должен обрабатывать его построчно, не дожидаясь конца.</p>
-<h2 id="решение">Решение</h2>
 <p>Вход и выход endpoint'а описывает форма io. До этой главы формой была
 схема как есть: одно JSON-значение. Ещё две формы решают три задачи
 выше.</p>
@@ -149,7 +144,7 @@ AbortSignal, источники событий» и «Два скоупа обр
 </tbody>
 </table>
 </div>
-<h3>Шаг 1. Файл в форме</h3>
+<h2 id="файл-в-форме">Файл в форме</h2>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts
 import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';
@@ -190,7 +185,7 @@ export const UploadAvatar = httpEndpoint({
     },
   }),
   output: User,
-  errors: [UserNotFound, AvatarRequired, Unauthorized],
+  errors: [UserNotFound, AvatarRequired],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
   pipeline: authed,
   handler: UploadAvatarHandler,
@@ -198,23 +193,27 @@ export const UploadAvatar = httpEndpoint({
 <p>Форма <code>multipart({ fields, files })</code> описывает запрос из двух частей.
 Схема <code>fields</code> проверяет текстовые поля формы. Path-параметры добавляются
 к ним, поэтому <code>id</code> из адреса попадает в <code>fields.id</code>. Объект <code>files</code>
-перечисляет файловые поля; <code>upload()</code> объявляет одно из них.</p>
+перечисляет файловые поля; <code>upload()</code> объявляет одно из них. Тип payload
+хендлера выводится из формы целиком: для <code>multipart</code> это
+<code>{ fields, files }</code> с типами по схеме <code>fields</code> и объявленным файлам.</p>
 <p>Хендлер получает payload вида <code>{ fields, files }</code>. Файл приходит как
 <code>FilePart</code>: имя поля, имя файла, MIME-тип и поток байтов
 <code>stream: AsyncIterable&lt;Uint8Array&gt;</code>. Хендлер примера файл не читает и
 сохраняет только путь.</p>
-<p>Ограничения объявлены на самом поле и применяются во время разбора.</p>
+<p>Ограничения объявлены на самом поле и применяются во время разбора, до
+того как тело буферизуется целиком.</p>
 <ul class="body">
 <li>Файл больше <code>maxSize</code> прерывает чтение и даёт <code>413</code>. Сервер не
 буферизует файл целиком, чтобы потом отказать.</li>
 <li>Файл с MIME-типом вне списка отклоняется с <code>400</code> до чтения его тела.</li>
-<li>Файловое поле, которого нет в <code>files</code>, отклоняется с <code>400</code>: форма
-закрыта.</li>
+<li>Форма закрыта: файловое поле, которого нет в <code>files</code>, отклоняется с
+<code>400</code>, и второй файл в поле без <code>multiple: true</code> — тоже.</li>
 </ul>
 <p>Единственное, что форма не гарантирует, это наличие поля. Форма без
 файла даёт <code>files.avatar</code> равным <code>undefined</code>, и хендлер отвечает
 объявленным отказом <code>AvatarRequired</code>.</p>
-<div class="code" data-lang="bash"><pre><code>curl -X POST http://localhost:3000/users/1/avatar \
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+curl -X POST http://localhost:3000/users/1/avatar \
   -H 'authorization: Bearer secret' -F 'avatar=@photo.png;type=image/png'
 # {"id":"1","name":"Alice","email":"alice@example.com","avatarUrl":"/uploads/1/photo.png"}
 curl -X POST http://localhost:3000/users/1/avatar \
@@ -222,7 +221,7 @@ curl -X POST http://localhost:3000/users/1/avatar \
 # {"error":"File field 'avatar' expects one of image/png, image/jpeg, got 'text/plain'"} 400</code></pre></div>
 <p>Несколько файлов в одном поле объявляются как
 <code>upload({ multiple: true })</code>; тогда хендлер получает <code>FilePart[]</code>.</p>
-<h3>Шаг 2. Выгрузка потоком</h3>
+<h2 id="выгрузка-потоком">Выгрузка потоком</h2>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts
 import { Ok, stream } from '@nestling/operations';
 
@@ -275,7 +274,7 @@ NDJSON, по одному JSON-объекту на строку, с chunked-ко
 #
 # {"id":"1","name":"Alice","email":"alice@example.com"}
 # {"id":"2","name":"Bob","email":"bob@example.com"}</code></pre></div>
-<h3>Шаг 3. Загрузка потоком</h3>
+<h2 id="загрузка-потоком">Загрузка потоком</h2>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts
 import { stream } from '@nestling/operations';
 
@@ -317,20 +316,22 @@ export const ImportUsers = httpEndpoint({
   path: '/users/import',
   input: stream(ImportRow).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
   output: ImportResult,
-  errors: [Unauthorized],
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
   pipeline: authed,
   handler: ImportUsersHandler,
 });</code></pre></div>
 <p>Форма <code>stream(ImportRow)</code> на входе означает, что тело запроса читается
 построчно как NDJSON. Хендлер получает <code>AsyncIterableIterator&lt;ImportRow&gt;</code>
-и читает его циклом <code>for await</code> в своём темпе.</p>
+и читает его циклом <code>for await</code> в своём темпе — так же, как для <code>stream(T)</code>
+на входе тип payload выводится формой.</p>
 <p>Каждую строку проверяет схема <code>ImportRow</code> до того, как строка попадёт в
 хендлер. Невалидная строка обрывает запрос отказом <code>bad_request</code>
 с кодом <code>400</code>; хендлер видит только проверенные значения. Схема строки —
 <code>User.pick({ name: true, email: true })</code>: те же поля, что принимает
 <code>POST /users</code>, без флага <code>dryRun</code>.</p>
-<p>Два шага item-цепочки защищают сервер от клиента.</p>
+<p>Два шага item-цепочки защищают сервер от клиента, и оба, как лимиты
+загрузки файла, срабатывают во время чтения: тело сверх лимита не
+накапливается в памяти.</p>
 <ul class="body">
 <li><code>.limit(n)</code> обрывает запрос после <code>n</code> строк отказом
 <code>payload_too_large</code>, код <code>413</code>.</li>
@@ -351,20 +352,7 @@ printf '{"name":"Eve","email":"not-an-email"}\n' | curl -X POST http://localhost
 <p>Проверку элементов можно ослабить в самой форме: <code>stream(ImportRow, { onInvalid: 'skip' })</code> пропускает невалидные строки, а
 <code>{ validate: false }</code> отключает проверку. По умолчанию невалидная строка
 обрывает запрос.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Тип payload хендлера выводится из формы. Для <code>multipart</code> это
-<code>{ fields, files }</code> с типами по схеме <code>fields</code> и объявленным файлам,
-для <code>stream(T)</code> на входе это <code>AsyncIterableIterator&lt;T&gt;</code>.</li>
-<li>Шаг, который меняет тип элемента, например <code>.batch(100)</code>, на выходе не
-компилируется: схема <code>output</code> описывает элемент, который уходит по
-сети.</li>
-<li>Лимиты файлов и потоков срабатывают во время чтения. Тело сверх лимита
-не буферизуется.</li>
-<li>Форма <code>multipart</code> закрыта: незаявленное файловое поле и второй файл в
-поле без <code>multiple</code> дают <code>400</code>.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+<h2 id="проверка">Проверка</h2>
 <p>В <code>src/app.spec.ts</code> тестов на эти три endpoint'а нет, потому что разбор
 формы и NDJSON выполняет транспорт, а <code>testApp.call</code> принимает готовый
 payload. Проверить их можно двумя способами.</p>
@@ -374,6 +362,7 @@ item-цепочка при этом выполняются, как при зап
 <div class="code" data-lang="typescript"><pre><code>// иллюстрация; в src/app.spec.ts этого теста нет
 it('импортирует строки и пропускает занятые email', async () =&gt; {
   await using testApp = await assembleTest(app, {
+    config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice])]],
   });
 
@@ -388,38 +377,8 @@ it('импортирует строки и пропускает занятые e
 
   expect(unwrap(result)).toEqual({ imported: 1, skipped: 1 });
 });</code></pre></div>
-<p>Для <code>ExportUsers</code> значение <code>unwrap(await testApp.call(ExportUsers))</code> является
-<code>AsyncIterable</code>, который читается тем же <code>for await</code>.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Открытая подписка, которая не заканчивается, пока клиент подключён,
-объявляется формой <code>events(T)</code> и отдаётся как SSE. Это
-<a href="14-live-feed.html">глава 14</a>.</li>
-<li>Шаги item-цепочки <code>.tap</code>, <code>.filter</code> и <code>.batch</code> на входе, где тип
-элемента менять можно, описаны в
-<a href="appendix-a-alternatives.html">приложении А</a>.</li>
-<li>Сырые байты тела для проверки подписи webhook'а запрашиваются
-полем <code>rawBody: true</code>. Это <a href="19-webhook.html">глава 19</a>.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts</code>
-— форма <code>multipart</code> и <code>upload</code>.</li>
-<li><code>packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts</code>
-— <code>stream(T)</code> на выходе.</li>
-<li><code>packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts</code>
-— <code>stream(T)</code> на входе с <code>.limit</code> и <code>.gapTimeout</code>.</li>
-<li><code>packages/examples.users-service/src/users/users.errors.ts</code> — отказ
-<code>AvatarRequired</code>.</li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
-curl -N http://localhost:3000/users/export
-curl -X POST http://localhost:3000/users/1/avatar \
-  -H 'authorization: Bearer secret' -F 'avatar=@photo.png;type=image/png'
-curl -X POST http://localhost:3000/users/import \
-  -H 'authorization: Bearer secret' -H 'content-type: application/x-ndjson' \
-  --data-binary @rows.ndjson</code></pre></div>
-<h2 id="дальше">Дальше</h2>
+<p>Для <code>ExportUsers</code> значение <code>unwrap(await testApp.call(ExportUsers))</code>
+является <code>AsyncIterable</code>, который читается тем же <code>for await</code>.</p>
 <p>Документ OpenAPI и типизированный клиент из тех же деклараций:
 <a href="11-openapi-and-client.html">глава 11</a>.</p>
 

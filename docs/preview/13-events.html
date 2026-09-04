@@ -60,13 +60,11 @@
       <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#публикация">Публикация</a></li>
+      <li><a href="#команда-с-ключом-идемпотентности">Команда с ключом идемпотентности</a></li>
+      <li><a href="#три-вида-операций">Три вида операций</a></li>
+      <li><a href="#что-видно-в-логе">Что видно в логе</a></li>
+      <li><a href="#проверка">Проверка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -102,23 +100,20 @@
 <main class="content">
 <article class="article">
 
-<h1>12. Оповещать соседей о случившемся</h1>
+<h1>13. Оповещать соседей о случившемся</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/operations.md">design/operations.md</a>,
 разделы «Три вида» и «Профиль вызова». Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-08] Порты: межфичевое
 общение через контракты» и «[2026-07-31] Порты: бюджет вызова моментом,
 ключ идемпотентности у команд».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Фича квот должна узнавать о каждом созданном пользователе, но ответ
 клиенту не должен ждать её обработки. Завтра о том же захочет узнать
 рассылка, и код регистрации не должен меняться. Кроме того, квоты ведут
 журнал регистраций, и повторную доставку одного сообщения журнал должен
 отличать от новой регистрации.</p>
-<h2 id="решение">Решение</h2>
-<h3>Шаг 1. Событие</h3>
 <div class="code" data-file="packages/examples.app-with-http/src/operations.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.ts
 export const UserRegisteredInput = z.object({
   id: z.string(),
@@ -134,81 +129,81 @@ export const UserRegistered = makeEvent({
 <p><code>makeEvent</code> объявляет операцию вида <code>event</code>: факт, который уже случился.
 У события есть имя и схема <code>input</code>, а <code>output</code> и <code>errors</code> нет: ответа
 у факта не бывает. Подписчиков у события может быть сколько угодно,
-включая ноль. Событие лежит в том же файле, что запрос <code>ClaimQuota</code> из
-<a href="12-features.html">главы 12</a>.</p>
-<h3>Шаг 2. Подписчик</h3>
-<div class="code" data-file="packages/examples.app-with-http/src/features/quotas/quotas.feature.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+включая ноль — тогда <code>emit</code> завершается сразу. Событие лежит в том же
+файле, что запрос <code>ClaimQuota</code> из <a href="12-features.html">главы 12</a>.</p>
+<div class="code" data-file="packages/examples.app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts
+@Injectable([Logger$])
+class UserRegisteredInQuotasHandler {
+  constructor(private readonly logger: Logger) {}
+
+  async handle(payload: UserRegisteredInput) {
+    this.logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
+  }
+}
+
 export const UserRegisteredInQuotas = implement(UserRegistered, {
   subscriber: 'quotas',
-  handler: {
-    deps: [Logger$],
-    handle: (logger: Logger) =&gt; async (payload: UserRegisteredInput) =&gt; {
-      logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
-
-      // eslint-disable-next-line unicorn/no-useless-undefined
-      return undefined;
-    },
-  },
+  handler: UserRegisteredInQuotasHandler,
 });</code></pre></div>
 <p>Подписчик — та же декларация <code>implement</code>, что у запроса, с одним
-отличием: поле <code>subscriber</code> обязательно. Оно даёт подписке имя. Внутри
+отличием: поле <code>subscriber</code> обязательно у реализации события и
+запрещено у реализации запроса и команды. Оно даёт подписке имя. Внутри
 процесса паттерн endpoint'а складывается как <code>users.registered@quotas</code>,
-и два подписчика одного события различаются именами. У брокера имя
-становится именем группы получателей, поэтому его задаёт автор, а не
-фреймворк.</p>
-<p>Хендлер события ничего не возвращает. Сигнатура хендлера в ядре
-описывает результат как <code>Output&lt;undefined&gt;</code>, поэтому в конце стоит
-<code>return undefined</code> с отключённым правилом линтера.</p>
+и два подписчика одного события различаются именами; с одинаковым именем
+сборка остановится. У брокера имя становится именем группы получателей,
+поэтому его задаёт автор, а не фреймворк.</p>
+<p>Хендлер события ничего не возвращает. У операции без <code>output</code> тип
+значения — <code>void</code>, поэтому <code>return</code> в конце не нужен.</p>
 <p>Подписчик перечисляется в <code>endpoints:</code> фичи рядом с реализацией
 запроса; список из <a href="12-features.html">главы 12</a> уже содержит его.</p>
-<h3>Шаг 3. Публикация</h3>
+<h2 id="публикация">Публикация</h2>
 <div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
-export const createUserHandler =
-  (
-    users: UsersRepository,
-    quotas: Port&lt;typeof ClaimQuota&gt;,
-    registered: Emitter&lt;typeof UserRegistered&gt;,
-    signup: Emitter&lt;typeof SignupRecorded&gt;,
-    activity: ActivityHub,
-  ) =&gt;
-  async (
+@Injectable([
+  UsersRepository$,
+  ClaimQuota.caller,
+  UserRegistered.emitter,
+  SignupRecorded.emitter,
+  ActivityHub,
+])
+class CreateUserHandler {
+  constructor(
+    private readonly users: UsersRepository,
+    private readonly quotas: Port&lt;typeof ClaimQuota&gt;,
+    private readonly registered: Emitter&lt;typeof UserRegistered&gt;,
+    private readonly signup: Emitter&lt;typeof SignupRecorded&gt;,
+    private readonly activity: ActivityHub,
+  ) {}
+
+  async handle(
     payload: CreateUserInput,
-  ): Output&lt;User, typeof EmailTaken | typeof QuotaExceeded&gt; =&gt; {
+  ): Output&lt;User, typeof EmailTaken | typeof QuotaExceeded&gt; {
     // …
-    const user = await users.insert({
+    const user = await this.users.insert({
       name: payload.name,
       email: payload.email,
     });
 
     // Событие: `emit` завершается по факту доставки, отказ подписчика
     // сюда не приходит
-    await registered.emit({ id: user.id, email: user.email });
+    await this.registered.emit({ id: user.id, email: user.email });
     // …
-  };
+  }
+}
 
 export const CreateUser = httpEndpoint({
   operation: CreateUserOperation,
   pipeline: authed,
-  handler: {
-    deps: [
-      UsersRepository$,
-      ClaimQuota.caller,
-      UserRegistered.emitter,
-      SignupRecorded.emitter,
-      ActivityHub,
-    ],
-    handle: createUserHandler,
-  },
+  handler: CreateUserHandler,
 });</code></pre></div>
 <p><code>UserRegistered.emitter</code> — токен эмиттера. Хендлер получает объект типа
 <code>Emitter&lt;typeof UserRegistered&gt;</code> с методом <code>emit(payload, meta?)</code>.
 <code>emit</code> возвращает <code>Promise&lt;void&gt;</code>, который завершается, когда сообщение
 доставлено, а не когда подписчик его обработал. Отказ или исключение
 подписчика к вызывающему не приходят: они попадают в диагностический
-хук шины. Если подписчиков нет, <code>emit</code> завершается сразу.</p>
+хук шины.</p>
 <p>Новый подписчик появляется без правок в <code>create-user</code>: достаточно ещё
 одного <code>implement(UserRegistered, { subscriber: '…' })</code> в любой фиче.</p>
-<h3>Шаг 4. Команда с ключом идемпотентности</h3>
+<h2 id="команда-с-ключом-идемпотентности">Команда с ключом идемпотентности</h2>
 <p>Запись в журнал квот делает не событие, а команда:</p>
 <div class="code" data-file="packages/examples.app-with-http/src/operations.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.ts
 export const SignupRecordedInput = z.object({
@@ -224,12 +219,12 @@ export const SignupRecorded = makeCommand({
 });</code></pre></div>
 <p><code>makeCommand</code> объявляет операцию вида <code>command</code>: сообщение без ответа,
 у которого ровно один владелец. У команды в <code>meta</code> есть поле
-<code>idempotencyKey</code>. У события и запроса его нет, и обращение к нему у них
-не компилируется.</p>
+<code>idempotencyKey</code>: тип <code>meta</code> выбирается по виду операции, и обращение к
+этому полю у события или запроса не компилируется.</p>
 <div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
     // Команда: ключ идемпотентности задаёт вызывающий, чтобы повтор после
     // сбоя нёс тот же ключ. Без ключа порт сгенерировал бы новый
-    await signup.emit(
+    await this.signup.emit(
       { userId: user.id, email: user.email },
       { idempotencyKey: user.id },
     );</code></pre></div>
@@ -239,18 +234,19 @@ export const SignupRecorded = makeCommand({
 явного ключа тоже уходит с ключом: его генерирует эмиттер, и он
 одинаков для всех повторных доставок одного <code>emit</code>.</p>
 <p>Владелец команды читает ключ из контекста:</p>
-<div class="code" data-file="packages/examples.app-with-http/src/features/quotas/quotas.feature.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+<div class="code" data-file="packages/examples.app-with-http/src/features/quotas/signup-recorded.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/signup-recorded.endpoint.ts
+@Injectable([SignupJournal])
+class SignupRecordedHandler {
+  constructor(private readonly journal: SignupJournal) {}
+
+  async handle(payload: SignupRecordedInput) {
+    this.journal.record(payload.userId);
+  }
+}
+
 export const SignupRecordedImpl = implement(SignupRecorded, {
   pipeline: makePipeline().pre(withIdempotencyKey()),
-  handler: {
-    deps: [SignupJournal],
-    handle: (journal: SignupJournal) =&gt; async (payload: SignupRecordedInput) =&gt; {
-      journal.record(payload.userId);
-
-      // eslint-disable-next-line unicorn/no-useless-undefined
-      return undefined;
-    },
-  },
+  handler: SignupRecordedHandler,
 });</code></pre></div>
 <div class="code" data-file="packages/examples.app-with-http/src/features/quotas/signup.journal.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/signup.journal.ts
 @Injectable([Logger$, Ctx(IdempotencyKey)])
@@ -283,7 +279,7 @@ export class SignupJournal {
 Здесь фильтр указывает на транспорт шины <code>BusTransport$</code> и паттерн
 команды, а проверка <code>hasVar</code> требует, чтобы пайплайн объявлял
 переменную. Без <code>withIdempotencyKey()</code> сборка остановится.</p>
-<h3>Три вида операций</h3>
+<h2 id="три-вида-операций">Три вида операций</h2>
 <div class="tbl-wrap">
 <table>
 <thead>
@@ -327,9 +323,8 @@ export class SignupJournal {
 <p>Запрос подходит, когда без ответа продолжить нельзя: регистрация ждёт,
 займётся ли место в квоте. Событие подходит, когда факт уже случился и
 кому он нужен, решают подписчики. Команда подходит, когда получатель
-ровно один и повтор доставки нужно отличать от нового намерения. Признак
-<code>durable</code> объясняет <a href="17-split.html">глава 17</a>.</p>
-<h3>Что видно в логе</h3>
+ровно один и повтор доставки нужно отличать от нового намерения.</p>
+<h2 id="что-видно-в-логе">Что видно в логе</h2>
 <p>Запустите сервис с уровнем <code>debug</code> и создайте пользователя:</p>
 <div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook LOG_LEVEL=debug \
   yarn workspace examples.app-with-http start:dev
@@ -343,27 +338,13 @@ curl -X POST localhost:3000/users \
 <p>Вторую строку пишет подписчик события, третью пишет журнал: ключом
 пришёл идентификатор пользователя. Подписчик и журнал работают в
 собственном контексте запроса: значения контекста вызывающего, включая
-<code>requestId</code>, в реализацию не попадают. Как передать значение через
-границу вызова, показывает <a href="17-split.html">глава 17</a>.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Поле <code>subscriber</code> обязательно у реализации события и запрещено у
-реализации запроса и команды: нарушение останавливает сборку.</li>
-<li>Два подписчика одного события с одним именем останавливают сборку.</li>
-<li>Событие без подписчиков собирается и работает: <code>emit</code> завершается
-сразу.</li>
-<li>Поле <code>idempotencyKey</code> есть только в <code>meta</code> команды. Тип <code>meta</code>
-выбирается по виду операции, и лишнее поле у события или запроса не
-компилируется.</li>
-<li>Команда всегда доставляется с ключом: переданным или сгенерированным.</li>
-<li>Политика <code>hasVar(IdempotencyKey)</code> останавливает сборку, если пайплайн
-реализации не объявляет переменную.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+<code>requestId</code>, в реализацию не попадают.</p>
+<h2 id="проверка">Проверка</h2>
 <div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
 it('доставляет ключ идемпотентности команды до сервиса в глубине', async () =&gt; {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {
+    ...testConfig,
     overrides: [
       [UsersRepository$, inMemoryUsersRepo()],
       [Logger$, spy.logger],
@@ -385,36 +366,6 @@ it('доставляет ключ идемпотентности команды 
 доставке, а обработчик команды выполняется после неё. Ключ в строке
 совпадает с идентификатором пользователя: значение, которое задал
 вызывающий, дошло до сервиса в глубине графа без параметра.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Доставка, которая переживает перезапуск подписчика, признак <code>durable</code>
-и передача значений контекста через границу вызова:
-<a href="17-split.html">глава 17</a>.</li>
-<li>Подписка на события чужого пакета, например факты реестра подписок:
-<a href="23-ops.html">глава 23</a>.</li>
-<li>Проверка, что изменение схемы события не сломало подписчиков:
-<a href="18-compatibility.html">глава 18</a>.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.app-with-http/src/operations.ts</code> — событие и
-команда.</li>
-<li><code>packages/examples.app-with-http/src/features/quotas/quotas.feature.ts</code>
-— подписчик события и реализация команды.</li>
-<li><code>packages/examples.app-with-http/src/features/quotas/signup.journal.ts</code>
-— чтение ключа через <code>Ctx(IdempotencyKey)</code>.</li>
-<li><code>packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts</code>
-— <code>emit</code> события и команды.</li>
-<li><code>packages/examples.app-with-http/src/app.ts</code> — политика <code>hasVar</code>.</li>
-<li><code>packages/examples.app-with-http/src/app.spec.ts</code> — тест ключа
-идемпотентности.</li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook LOG_LEVEL=debug \
-  yarn workspace examples.app-with-http start:dev
-curl -X POST localhost:3000/users \
-  -H 'authorization: Bearer secret' -H 'content-type: application/json' \
-  -d '{"name":"User 1","email":"user1@example.com"}'</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>О новом пользователе хочет знать не только сосед по процессу, но и
 клиент в браузере: <a href="14-live-feed.html">14. Живая лента для клиента</a>.</p>
 

@@ -42,13 +42,9 @@
       <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#секция-как-зависимость">Секция как зависимость</a></li>
+      <li><a href="#секреты">Секреты</a></li>
+      <li><a href="#обязательные-значения">Обязательные значения</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -104,19 +100,16 @@
 
 <h1>6. Порт и адрес базы из окружения</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/config.md">design/config.md</a>. Почему так:
 записи <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-08] Kernel/user
 space; конфиг как token-families; плагины» и «[2026-07-13] Конфиг:
 <code>secret()</code> и общие ключи».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Порт, адрес базы и токен API должны приходить из переменных окружения.
 Секреты не должны попадать в логи. Если обязательной переменной нет,
 приложение должно упасть при старте, а не отвечать <code>500</code> на первом
 запросе.</p>
-<h2 id="решение">Решение</h2>
-<h3>Секция конфига</h3>
 <div class="code" data-file="packages/examples.users-service/src/app.config.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.config.ts
 import { from, makeConfig, secret } from '@nestling/config';
 import { z } from 'zod';
@@ -196,7 +189,7 @@ export const AppConfig = makeConfig('app', {
 </div>
 <p>Значения окружения приходят строками. Число из строки делает схема,
 поэтому у <code>pageSize</code> стоит <code>z.coerce.number()</code>.</p>
-<h3>Секция как зависимость</h3>
+<h2 id="секция-как-зависимость">Секция как зависимость</h2>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
 @Injectable([UsersRepository$, AppConfig])
 export class ListUsersHandler {
@@ -225,7 +218,7 @@ export const ListUsers = httpEndpoint({
 <code>@Injectable</code>. Регистрировать её в <code>providers</code> не нужно: узел графа
 создаётся самим фактом упоминания. Тип значения даёт
 <code>Config&lt;typeof AppConfig&gt;</code>: поле <code>config.pageSize</code> имеет тип <code>number</code>.</p>
-<p>Так же секцию читает <code>Database</code> из главы 5:</p>
+<p>Так же секцию читает <code>Database</code>, как в главе 5:</p>
 <div class="code" data-file="packages/examples.users-service/src/database.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/database.ts
 @Injectable([AppConfig, Logger$])
 export class Database {
@@ -239,71 +232,35 @@ export class Database {
     // …
   }
 }</code></pre></div>
-<h3>Секреты</h3>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret APP_PAGE_SIZE=1 yarn workspace examples.users-service start:dev
+curl 'localhost:3000/users'</code></pre></div>
+<h2 id="секреты">Секреты</h2>
 <p><code>secret()</code> помечает поле, значение которого не должно попадать в вывод.
 Для потребителя ничего не меняется: <code>config.databaseUrl</code> возвращает
-настоящую строку. Меняется то, что печатает фреймворк. <code>console.log</code>
-и <code>JSON.stringify</code> секции показывают <code>'***'</code> вместо значения, а ошибка
+настоящую строку. Меняется то, что печатает фреймворк. <code>console.log</code> и
+<code>JSON.stringify</code> секции показывают <code>'***'</code> вместо значения, а ошибка
 валидации заменяет сообщение валидатора на <code>&lt;redacted&gt;</code>.</p>
 <p>За свои строки отвечает потребитель: <code>Database</code> пишет в лог только хост,
-а не URL целиком.</p>
-<h3>Обязательные значения</h3>
+а не URL целиком. Секретное поле не печатается фреймворком ни в отчётах,
+ни в ошибках — строки, которые пишет сам потребитель, фреймворк не
+контролирует.</p>
+<h2 id="обязательные-значения">Обязательные значения</h2>
 <p>У <code>apiToken</code> нет умолчания. Запустите приложение без <code>API_TOKEN</code>:</p>
 <div class="code"><pre><code>failed to start: ConfigValidationError: Config section 'app' is invalid:
   - API_TOKEN (field 'apiToken'): Invalid input: expected string, received undefined
 Sources consulted, in priority order: process.env</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service start:dev   # без API_TOKEN: ошибка при старте</code></pre></div>
 <p>Секция проверяется при сборке графа, до <code>@OnInit</code> и до открытия сокета.
 Все проваленные поля секции собираются в одну ошибку. Значение, которое
 не задано, в тексте ошибки не скрывается: «ключ не задан» и есть то, что
-нужно увидеть.</p>
-<h3>Порт транспорта</h3>
-<div class="code" data-file="packages/examples.users-service/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts
-  // Порт и хост приходят из секции транспорта: `HTTP_PORT`, `HTTP_HOST`
-  transports: [http()],</code></pre></div>
-<p>У транспорта своя секция с ключами <code>HTTP_PORT</code> и <code>HTTP_HOST</code>, по
-умолчанию <code>3000</code> и <code>0.0.0.0</code>. Опция <code>http({ port: 8080 })</code> имеет
-приоритет над переменной. Тестам порт не нужен вовсе: тестовая сборка не
-открывает сокет (глава 7).</p>
+нужно увидеть. <code>process.env</code> читает ядро, и только оно: секция описывает,
+что именно читается, а потребитель получает типизированный объект.</p>
+<p>У транспорта своя секция с тем же правилом: ключи <code>HTTP_PORT</code> и
+<code>HTTP_HOST</code>, по умолчанию <code>3000</code> и <code>0.0.0.0</code>. Опция <code>http({ port: 8080 })</code>
+имеет приоритет над переменной. Тестовой сборке порт не нужен вовсе: она
+не открывает сокет.</p>
 <div class="code" data-lang="bash"><pre><code>API_TOKEN=secret HTTP_PORT=8080 yarn workspace examples.users-service start:dev
 curl localhost:8080/users</code></pre></div>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Невалидный конфиг останавливает приложение при сборке, а не при первом
-обращении к полю. Ошибка называет переменную, поле и причину.</li>
-<li><code>process.env</code> читает ядро, и только оно. Секция описывает, что именно
-читается, а потребитель получает типизированный объект.</li>
-<li>Секретное поле не печатается фреймворком ни в отчётах, ни в ошибках.
-Строки, которые пишет сам потребитель, фреймворк не контролирует.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
-await using testApp = await assembleTest(app, {
-  config: vars({ API_TOKEN: 'test-token', APP_PAGE_SIZE: '1' }),
-  overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
-});
-
-expect(unwrap(await testApp.call(ListUsers, {}))).toEqual([alice]);</code></pre></div>
-<p><code>vars()</code> подставляет значения переменных вместо <code>process.env</code>; заданный
-конфиг заменяет привязку источников из декларации целиком. Как устроена
-тестовая сборка, объясняет глава 7.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Источники, кроме окружения, и их привязка к ключам через <code>.keys</code>:
-глава 22.</li>
-<li>Ключ, который читают две секции: глава 22.</li>
-<li>Секция, значения которой обновляются без перезапуска: глава 22.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/app.config.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></li>
-<li><code>packages/examples.users-service/src/database.ts</code></li>
-<li><code>packages/examples.users-service/src/app.ts</code></li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret APP_PAGE_SIZE=1 yarn workspace examples.users-service start:dev
-curl 'localhost:3000/users'
-yarn workspace examples.users-service start:dev   # без API_TOKEN: ошибка при старте</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>Сервис работает, и пора закрепить это тестами, которые не поднимают
 сокет и не требуют базы. Следующая глава: <a href="07-testing.html">7. Убедиться, что работает,
 без запуска сервера</a>.</p>

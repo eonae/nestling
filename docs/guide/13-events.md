@@ -42,9 +42,6 @@ class UserRegisteredInQuotasHandler {
 
   async handle(payload: UserRegisteredInput) {
     this.logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
-
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
   }
 }
 
@@ -62,9 +59,8 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 сборка остановится. У брокера имя становится именем группы получателей,
 поэтому его задаёт автор, а не фреймворк.
 
-Хендлер события ничего не возвращает. Сигнатура хендлера в ядре
-описывает результат как `Output<undefined>`, поэтому в конце стоит
-`return undefined` с отключённым правилом линтера.
+Хендлер события ничего не возвращает. У операции без `output` тип
+значения — `void`, поэтому `return` в конце не нужен.
 
 Подписчик перечисляется в `endpoints:` фичи рядом с реализацией
 запроса; список из [главы 12](./12-features.md) уже содержит его.
@@ -172,9 +168,6 @@ class SignupRecordedHandler {
 
   async handle(payload: SignupRecordedInput) {
     this.journal.record(payload.userId);
-
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
   }
 }
 

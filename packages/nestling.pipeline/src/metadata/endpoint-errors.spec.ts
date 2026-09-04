@@ -264,7 +264,7 @@ describe('эффективное множество: errors: плюс отказ
   });
 }
 
-// Хендлер вправе вернуть отказ, объявленный слоем
+// Хендлер может вернуть отказ, объявленный слоем
 {
   const authed = makePipeline().pre(() => Unauthorized(), {
     errors: [Unauthorized],

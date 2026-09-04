@@ -1,6 +1,6 @@
 # 10. Файлы и большие выгрузки
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
 > [design/streaming.md](../design/streaming.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Стриминг: `stream(T)` ≠ `events(T)`,
@@ -66,7 +66,7 @@ export const UploadAvatar = httpEndpoint({
     },
   }),
   output: User,
-  errors: [UserNotFound, AvatarRequired, Unauthorized],
+  errors: [UserNotFound, AvatarRequired],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
   pipeline: authed,
   handler: UploadAvatarHandler,
@@ -219,7 +219,6 @@ export const ImportUsers = httpEndpoint({
   path: '/users/import',
   input: stream(ImportRow).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
   output: ImportResult,
-  errors: [Unauthorized],
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
   pipeline: authed,
   handler: ImportUsersHandler,

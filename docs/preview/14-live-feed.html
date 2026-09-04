@@ -60,13 +60,10 @@
       <li><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#источник-событий">Источник событий</a></li>
+      <li><a href="#endpoint-с-формой-events">Endpoint с формой events</a></li>
+      <li><a href="#публикация-из-хендлера">Публикация из хендлера</a></li>
+      <li><a href="#что-видит-клиент">Что видит клиент</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -102,22 +99,20 @@
 <main class="content">
 <article class="article">
 
-<h1>13. Живая лента для клиента</h1>
+<h1>14. Живая лента для клиента</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/streaming.md">design/streaming.md</a>, разделы
 «<code>stream(T)</code> и <code>events(T)</code>» и «Источники событий». Почему так: запись
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-06] Стриминг: <code>stream(T)</code> ≠
 <code>events(T)</code>, AbortSignal, источники событий».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Клиент хочет видеть новых пользователей сразу, без опроса списка.
 Соединение живёт долго и закрывается, когда клиент уходит, и это не
 ошибка. После обрыва клиент должен продолжить с того события, на котором
 остановился. Один медленный клиент не должен задерживать остальных.</p>
-<h2 id="решение">Решение</h2>
-<h3>Шаг 1. Источник событий</h3>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/activity.hub.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/activity.hub.ts
+<h2 id="источник-событий">Источник событий</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/activity.hub.ts (фрагмент)
 @Injectable([])
 export class ActivityHub {
   readonly #topic = new Topic&lt;ActivityEvent&gt;({ buffer: 256 });
@@ -179,12 +174,20 @@ export class ActivityHub {
 ни одного подписчика и возвращается сразу. <code>subscribe(signal)</code> возвращает
 <code>AsyncIterableIterator</code>, который завершается, когда взведён <code>signal</code>,
 когда вызван <code>close()</code> и когда потребитель выходит из итерации. У каждой
-подписки свой буфер.</p>
+подписки свой буфер, поэтому медленный клиент не тормозит остальных.</p>
 <p>Хаб хранит последние события, чтобы после реконнекта отдать пропущенное:
 <code>subscribe</code> сначала выдаёт историю с идентификатором больше <code>since</code>,
 затем живые события. Хук <code>@OnDestroy</code> закрывает тему при остановке
 приложения, и все подписки завершаются штатно.</p>
-<h3>Шаг 2. Endpoint с формой <code>events</code></h3>
+<p><code>Topic</code> принимает опцию <code>buffer</code>: размер буфера на одного подписчика, по
+умолчанию <code>1024</code>, <code>0</code> отключает буферизацию. Опция <code>onSlowConsumer</code>
+задаёт поведение при переполнении буфера подписчика. При <code>drop-oldest</code>
+(значение по умолчанию) самое старое событие отстающего подписчика
+выбрасывается, и подписка продолжает работать. При <code>disconnect</code> подписка
+отстающего завершается. Остальные подписчики в обоих случаях не
+затронуты. Хаб примера держит буфер на 256 событий с политикой по
+умолчанию.</p>
+<h2 id="endpoint-с-формой-events">Endpoint с формой <code>events</code></h2>
 <div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
 const ActivityEvent = z.object({
   id: z.string(),
@@ -194,6 +197,21 @@ const ActivityEvent = z.object({
 });
 
 type ActivityEvent = z.infer&lt;typeof ActivityEvent&gt;;
+
+@Injectable([ActivityHub])
+class ActivityStreamHandler {
+  constructor(private readonly hub: ActivityHub) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: TrackedSubscription; lastEventId?: string },
+  ): Output&lt;AsyncIterable&lt;ActivityEvent&gt;&gt; {
+    // Настоящая лента отдала бы историю с этого места
+    const since = meta.lastEventId ?? '0';
+
+    return new Ok(this.hub.subscribe(meta.subscription.signal, since));
+  }
+}
 
 export const ActivityStream = httpEndpoint({
   method: 'GET',
@@ -205,20 +223,7 @@ export const ActivityStream = httpEndpoint({
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
   pipeline: compose(observability, tracked),
-  handler: {
-    deps: [ActivityHub],
-    handle:
-      (hub: ActivityHub) =&gt;
-      async (
-        _payload: unknown,
-        meta: { subscription: TrackedSubscription; lastEventId?: string },
-      ): Output&lt;AsyncIterable&lt;ActivityEvent&gt;&gt; =&gt; {
-        // Настоящая лента отдала бы историю с этого места
-        const since = meta.lastEventId ?? '0';
-
-        return new Ok(hub.subscribe(meta.subscription.signal, since));
-      },
-  },
+  handler: ActivityStreamHandler,
 });</code></pre></div>
 <p><code>events(T)</code> — форма io для открытой подписки. Она отличается от
 <code>stream(T)</code> из <a href="10-files-and-streams.html">главы 10</a>:</p>
@@ -256,56 +261,35 @@ export const ActivityStream = httpEndpoint({
 </table>
 </div>
 <p>Хендлер вызывается один раз на соединение и возвращает <code>AsyncIterable</code>.
-Транспорт отдаёт элементы кадрами SSE. Секция <code>sse:</code> задаёт поля кадра:
-<code>id</code> попадает в строку <code>id:</code>, <code>event</code> в строку <code>event:</code>. Клиент, который
+Транспорт отдаёт элементы кадрами SSE. Он закрывает итератор при
+отключении клиента и при остановке приложения: подписка снимается с
+темы, буфер освобождается. Секция <code>sse:</code> задаёт поля кадра: <code>id</code>
+попадает в строку <code>id:</code>, <code>event</code> в строку <code>event:</code>. Клиент, который
 переподключился, присылает заголовок <code>Last-Event-ID</code>, и транспорт кладёт
-его в <code>meta.lastEventId</code> уже типизированным. Откуда продолжить, решает
-хендлер.</p>
+его в <code>meta.lastEventId</code> уже типизированным полем, поэтому заголовок не
+нужно читать из сырого запроса. Откуда продолжить, решает хендлер.</p>
 <p>Слой <code>tracked</code> из пакета <code>@nestling/subscriptions</code> регистрирует подписку
 в реестре и даёт хендлеру <code>meta.subscription.signal</code>. Этот сигнал
 объединяет сигнал запроса с административной отменой из реестра, поэтому
-хендлер слушает только его. Реестр описан в <a href="23-ops.html">главе 23</a>.</p>
-<p>Юниты <code>.finally</code> слоя <code>observability</code> для потокового ответа выполняются
-после того, как поток закончился или оборвался. Отключение клиента даёт
-исход <code>disconnected</code>, и строка аудита пишется с ним.</p>
-<h3>Шаг 3. Публикация из хендлера</h3>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+хендлер слушает только его.</p>
+<p>Для потокового ответа юниты <code>.finally</code> слоя <code>observability</code> выполняются
+после того, как поток закончился или оборвался, поэтому исход честен:
+отключение клиента даёт <code>disconnected</code>, источник, который закончился сам,
+даёт <code>completed</code>, отказ даёт <code>failed</code>. Отказ посреди потока приходит
+клиенту именованным событием <code>error</code>, и соединение закрывается. Имя
+<code>error</code> зарезервировано: прикладное событие с таким именем отвергается
+при создании декларации.</p>
+<h2 id="публикация-из-хендлера">Публикация из хендлера</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts (фрагмент)
     // Лента активности: `publish` не ждёт ни одного подписчика
-    activity.publish('created', user.id);
+    this.activity.publish('created', user.id);
 
     // Статус 201 и заголовок задаются на успешном ответе
     return Ok.created(user, { Location: `/users/${user.id}` });</code></pre></div>
-<p><code>ActivityHub</code> инжектируется в хендлер регистрации через <code>deps</code>, как
-любой провайдер. Публикация не замедляет создание пользователя ни на
-одного подключённого клиента.</p>
-<h3>Шаг 4. Медленный подписчик</h3>
-<p><code>Topic</code> принимает две опции.</p>
-<div class="tbl-wrap">
-<table>
-<thead>
-<tr>
-<th>Опция</th>
-<th>Что делает</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>buffer</code></td>
-<td>размер буфера на одного подписчика, по умолчанию <code>1024</code>; <code>0</code> отключает буферизацию</td>
-</tr>
-<tr>
-<td><code>onSlowConsumer</code></td>
-<td>что делать при переполнении буфера подписчика: <code>'drop-oldest'</code> по умолчанию или <code>'disconnect'</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>При <code>drop-oldest</code> самое старое событие отстающего подписчика
-выбрасывается, и подписка продолжает работать. При <code>disconnect</code> подписка
-отстающего завершается. Остальные подписчики в обоих случаях не
-затронуты. Хаб примера держит буфер на 256 событий с политикой по
-умолчанию.</p>
-<h3>Что видит клиент</h3>
+<p><code>ActivityHub</code> инжектируется в хендлер регистрации через <code>@Injectable</code>,
+как любой провайдер. Публикация не замедляет создание пользователя ни
+на одного подключённого клиента.</p>
+<h2 id="что-видит-клиент">Что видит клиент</h2>
 <p>Откройте ленту в одном терминале и создайте пользователя в другом:</p>
 <div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
 curl -N localhost:3000/users/activity</code></pre></div>
@@ -320,20 +304,7 @@ data: {"id":"1","kind":"created","userId":"3","at":"2026-09-03T04:34:57.017Z"}</
 <div class="code" data-lang="bash"><pre><code>curl -N localhost:3000/users/activity -H 'Last-Event-ID: 2'</code></pre></div>
 <p>Лента начнётся с события <code>3</code>: хендлер получил <code>meta.lastEventId</code> и
 отдал историю после него.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Для потокового ответа <code>.finally</code> выполняется после завершения потока,
-поэтому исход честен: <code>disconnected</code> при отключении клиента,
-<code>completed</code>, если источник закончился сам, <code>failed</code> при отказе.</li>
-<li>Транспорт закрывает итератор при отключении клиента и при остановке
-приложения. Подписка снимается с темы, буфер освобождается.</li>
-<li>Отказ посреди потока приходит клиенту именованным событием <code>error</code>, и
-соединение закрывается. Имя <code>error</code> зарезервировано: прикладное
-событие с таким именем отвергается при создании декларации.</li>
-<li>Значение <code>meta.lastEventId</code> типизировано: заголовок не нужно читать из
-сырого запроса.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+<p>Кадры SSE проверяет e2e-тест на настоящем сокете:</p>
 <div class="code" data-file="packages/examples.app-with-http/e2e/streaming.spec.e2e.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/e2e/streaming.spec.e2e.ts
 it('отдаёт событие создания по SSE', async () =&gt; {
   const controller = new AbortController();
@@ -364,32 +335,10 @@ it('отдаёт событие создания по SSE', async () =&gt; {
 
   controller.abort();
 });</code></pre></div>
-<p>Кадры SSE проверяет e2e-тест на настоящем сокете. В app-тесте
-<code>testApp.call(ActivityStream)</code> возвращает ответ, у которого <code>value</code> является
-<code>AsyncIterableIterator</code>: тест читает события через <code>next()</code> без
-транспорта. Так устроены тесты реестра подписок в <code>app.spec.ts</code>.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Список открытых подписок, их принудительное закрытие и факты открытия
-и закрытия: <a href="23-ops.html">глава 23</a>.</li>
-<li>Окна по времени, слияние источников и другие мостики к RxJS: раздел
-«Граница с RxJS» в <a href="../design/streaming.md">design/streaming.md</a>.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.app-with-http/src/features/users/activity.hub.ts</code> —
-источник событий поверх <code>Topic</code>.</li>
-<li><code>packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts</code>
-— endpoint с формой <code>events</code> и секцией <code>sse</code>.</li>
-<li><code>packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts</code>
-— публикация в ленту.</li>
-<li><code>packages/examples.app-with-http/e2e/streaming.spec.e2e.ts</code> — тест
-кадра SSE.</li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
-curl -N localhost:3000/users/activity
-curl -N localhost:3000/users/activity -H 'Last-Event-ID: 2'</code></pre></div>
-<h2 id="дальше">Дальше</h2>
+<p>В app-тесте <code>testApp.call(ActivityStream)</code> возвращает ответ, у которого
+<code>value</code> является <code>AsyncIterableIterator</code>: тест читает события через
+<code>next()</code> без транспорта. Так устроены тесты реестра подписок в
+<code>app.spec.ts</code>.</p>
 <p>Фича <code>users</code> зависит от квот, но тест фичи не должен поднимать соседа:
 <a href="15-testing-features.html">15. Тестировать фичу без соседей</a>.</p>
 

@@ -80,12 +80,11 @@
       <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#команда-с-аргументами">Команда с аргументами</a></li>
+      <li><a href="#команда-без-входа">Команда без входа</a></li>
+      <li><a href="#поток-из-stdin">Поток из stdin</a></li>
+      <li><a href="#транспорт-и-режимы-запуска">Транспорт и режимы запуска</a></li>
+      <li><a href="#проверка">Проверка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -101,21 +100,19 @@
 <main class="content">
 <article class="article">
 
-<h1>19. CLI-утилита на тех же примитивах</h1>
+<h1>20. CLI-утилита на тех же примитивах</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.simple-cli</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.simple-cli</code> (2026-09-05).
 Целевое описание: <a href="../design/transports.md">design/transports.md</a> §5,
 <a href="../design/endpoints.md">design/endpoints.md</a>. Почему так: запись
 <a href="../decisions/ideas.md">ideas.md</a> «Endpoint-декларации: per-transport
 конструкторы, <code>deps</code>-инжект, формы хендлера».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Рядом с сервисом нужен консольный инструмент: разовая команда с
 аргументами и обработка данных из stdin. Проверка входа, отказы со
-статусом и кодом и форма <code>stream</code> должны работать так же, как в HTTP,
-без второго набора правил для командной строки.</p>
-<h2 id="решение">Решение</h2>
-<h3>Объявите команду с аргументами</h3>
+статусом и кодом и форма <code>stream</code> работают так же, как в HTTP, без
+второго набора правил для командной строки.</p>
+<h2 id="команда-с-аргументами">Команда с аргументами</h2>
 <div class="code" data-file="packages/examples.simple-cli/src/commands/greet.command.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands/greet.command.ts
 const GreetInput = z.object({
   args: z.array(z.string()).min(1, 'name is required'),
@@ -137,21 +134,25 @@ export const Greet = cliEndpoint({
   },
 });</code></pre></div>
 <p><code>cliEndpoint</code> объявляет команду так же, как <code>httpEndpoint</code> объявляет
-маршрут: те же <code>input</code>, <code>output</code>, <code>errors</code>, <code>pipeline</code>, <code>deps</code> и
-<code>handle</code>. Вместо метода и пути у команды одно поле <code>command</code>, оно же
-паттерн endpoint'а.</p>
+маршрут: те же <code>input</code>, <code>output</code>, <code>errors</code>, <code>pipeline</code> и <code>handler</code>.
+Вместо метода и пути у команды одно поле <code>command</code>, оно же
+паттерн endpoint'а. Имя команды проверяется в момент создания
+декларации: пустая строка в <code>command</code> — ошибка на импорте файла, а не
+при разборе первой команды.</p>
 <p>Вход команды собирается из аргументов процесса. Позиционные аргументы
 попадают в массив <code>args</code>. Опция <code>--key value</code> становится полем <code>key</code>,
 флаг <code>--flag</code> без значения даёт <code>true</code>. Собранный объект проверяет схема
-<code>input</code>, поэтому обязательность имени задаёт <code>z.array(...).min(1)</code>.</p>
+<code>input</code> до вызова хендлера: обязательность имени задаёт
+<code>z.array(...).min(1)</code>, а команда <code>greet</code> без имени отвечает отказом
+<code>bad_request</code> с путём <code>args</code>, не вызывая хендлер.</p>
 <div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-cli start:dev greet Alice --shout</code></pre></div>
 <div class="code" data-lang="json"><pre><code>{
   "greeting": "HELLO, ALICE!"
 }</code></pre></div>
 <p>Результат команды транспорт печатает в stdout как JSON. Хендлер не
 пишет в консоль сам.</p>
-<h3>Объявите команду без входа</h3>
-<div class="code" data-file="packages/examples.simple-cli/src/commands/help.command.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands/help.command.ts
+<h2 id="команда-без-входа">Команда без входа</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands/help.command.ts (фрагмент)
 export const Help = cliEndpoint({
   command: 'help',
   output: HelpOutput,
@@ -164,8 +165,8 @@ export const Help = cliEndpoint({
 <p>Команда без <code>input</code> получает пустой payload. Справку хендлер печатает
 сам, потому что это его вывод для человека, а результатом отдаёт
 подтверждение по схеме <code>output</code>.</p>
-<h3>Прочитайте stdin как поток</h3>
-<div class="code" data-file="packages/examples.simple-cli/src/commands/process-stdin.command.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands/process-stdin.command.ts
+<h2 id="поток-из-stdin">Поток из stdin</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands/process-stdin.command.ts (фрагмент)
 export const ProcessStdin = cliEndpoint({
   command: 'process-stdin',
   input: stream('binary'),
@@ -190,17 +191,18 @@ export const ProcessStdin = cliEndpoint({
   },
 });</code></pre></div>
 <p>Форма <code>stream('binary')</code> на входе отдаёт хендлеру чанки stdin как есть.
-Форма <code>stream(T)</code> со схемой читала бы stdin как NDJSON и проверяла каждую
-строку схемой, как в главе <a href="10-files-and-streams.html">10</a>. Потоковый
-<code>output</code> транспорт пишет в stdout тем же NDJSON.</p>
+Форма <code>stream(T)</code> со схемой читала бы stdin как NDJSON и проверяла бы
+каждую строку схемой, как в главе <a href="10-files-and-streams.html">10</a>, а
+потоковый <code>output</code> транспорт писал бы в stdout тем же NDJSON.</p>
 <div class="code" data-file="packages/examples.simple-cli/src/errors.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/errors.ts
 export const EmptyStdin = makeFail('bad_request:empty_stdin', {
-  status: 'bad_request',
   message: 'No data received on stdin',
 });</code></pre></div>
-<p>Отказ объявляется тем же <code>makeFail</code>, что и в HTTP. Статус не зависит от
-транспорта: HTTP перевёл бы <code>bad_request</code> в 400, CLI печатает его как
-есть.</p>
+<p>Отказ объявляется тем же <code>makeFail</code>, что и в HTTP: код вида
+<code>категория:конкретный_повод</code>, из которого читается категория ответа, и
+необязательные <code>message</code> и <code>details</code>. Категория не зависит от
+транспорта: CLI печатает код как есть, HTTP перевело бы <code>bad_request</code> в
+400.</p>
 <div class="code" data-lang="bash"><pre><code>printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin</code></pre></div>
 <div class="code"><pre><code>Processing: a
 Processing: b
@@ -208,7 +210,7 @@ Processing: b
   "linesProcessed": 2,
   "totalBytes": 4
 }</code></pre></div>
-<h3>Запустите транспорт</h3>
+<h2 id="транспорт-и-режимы-запуска">Транспорт и режимы запуска</h2>
 <div class="code" data-file="packages/examples.simple-cli/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/main.ts
 const argv = process.argv.slice(2);
 
@@ -235,26 +237,22 @@ async function main() {
 чего <code>serve</code> возвращается. В режиме <code>'repl'</code> команды читаются из stdin
 до <code>exit</code>, <code>quit</code> или конца ввода. Пример выбирает режим по наличию
 аргументов.</p>
-<p>Пример собирает <code>dispatch</code> напрямую, потому что у команд нет
-зависимостей. Команде с <code>deps</code> нужен контейнер: объявите её в фиче и
-объявите приложение через <code>makeApp</code> с транспортом <code>cli()</code> в <code>transports:</code>. Как это
-выглядит, показывает минимальный пример в
-<a href="../../packages/nestling.transport.cli/README.md">README пакета</a>. Сборка
-без <code>makeApp</code> разобрана в главе <a href="24-standalone.html">24</a>.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Вход проверяется схемой до вызова хендлера. Команда <code>greet</code> без имени
-печатает <code>bad_request</code> с кодом <code>bad_request</code> и путём <code>args</code>, а
-хендлер не вызывается.</li>
-<li>Пустое имя команды останавливает создание декларации, а не запуск.</li>
-<li>Формы <code>events</code> и <code>multipart</code> транспорт отклоняет при регистрации.
+<p>Формы <code>events</code> и <code>multipart</code> транспорт отклоняет при регистрации.
 Ошибка называет команду и форму: у команды нет соединения, обрыв
 которого был бы нормальным завершением, а файлы приходят путями в
-аргументах.</li>
-<li>Команда, которой нет в <code>dispatch</code>, даёт ошибку с именем команды.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
-<div class="code" data-file="packages/examples.simple-cli/src/commands.spec.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands.spec.ts
+аргументах.</p>
+<p>Пример собирает <code>dispatch</code> напрямую, потому что у команд нет
+зависимостей. Команде с классом-хендлером нужен контейнер: объявите её в
+фиче и объявите приложение через <code>makeApp</code> с транспортом <code>cli()</code> в
+<code>transports:</code>. Минимальный пример — в <a href="../../packages/nestling.transport.cli/README.md">README
+пакета</a>.</p>
+<h2 id="проверка">Проверка</h2>
+<p>Команды выполняются через <code>execute</code>: аргументы разбирает <code>parseArgv</code>,
+ответ приходит значением, stdout в этом пути не участвует.</p>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands.spec.ts (фрагмент)
+describe('команды через execute', () =&gt; {
+  let cli: CliTransport;
+
   beforeEach(async () =&gt; {
     // Пустой `argv`: `serve` регистрирует команды и ничего не выполняет
     cli = new CliTransport({ mode: 'argv', argv: [] });
@@ -280,54 +278,22 @@ async function main() {
       isSuccess: false,
       value: { code: 'bad_request' },
     });
-  });</code></pre></div>
+  });
+
+  it('не знает команду, которой нет в dispatch', async () =&gt; {
+    await expect(cli.execute(parseArgv(['deploy']))).rejects.toThrow(
+      'Command "deploy" not found',
+    );
+  });
+  // …
+});</code></pre></div>
 <p><code>parseArgv</code> собирает вход из массива строк по тем же правилам, что и
-запуск из терминала. <code>execute</code> выполняет одну команду через <code>dispatch</code> и
-возвращает ответ значением, ничего не печатая. Команда <code>process-stdin</code>
-читает <code>process.stdin</code> напрямую, поэтому в тест через <code>execute</code> она не
-попала.</p>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<div class="tbl-wrap">
-<table>
-<thead>
-<tr>
-<th>Файл</th>
-<th>Что показывает</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>packages/examples.simple-cli/src/commands/greet.command.ts</code></td>
-<td>вход <code>{ args, ...options }</code></td>
-</tr>
-<tr>
-<td><code>packages/examples.simple-cli/src/commands/help.command.ts</code></td>
-<td>команда без входа</td>
-</tr>
-<tr>
-<td><code>packages/examples.simple-cli/src/commands/process-stdin.command.ts</code></td>
-<td><code>stream('binary')</code> из stdin и отказ</td>
-</tr>
-<tr>
-<td><code>packages/examples.simple-cli/src/errors.ts</code></td>
-<td>отказ с транспортно-независимым статусом</td>
-</tr>
-<tr>
-<td><code>packages/examples.simple-cli/src/main.ts</code></td>
-<td><code>CliTransport</code> в режимах argv и REPL</td>
-</tr>
-<tr>
-<td><code>packages/examples.simple-cli/src/commands.spec.ts</code></td>
-<td>команды через <code>execute(parseArgv(...))</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-cli start:dev greet Alice --shout
-printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin
-yarn workspace examples.simple-cli start:dev            # REPL
+запуск из терминала. Команда <code>process-stdin</code> читает <code>process.stdin</code>
+напрямую, поэтому в тест через <code>execute</code> она не попала. Команда,
+которой нет в <code>dispatch</code>, — не отказ значением, а исключение с её
+именем: <code>execute</code> в этом случае не строит контекст запроса.</p>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-cli start:dev            # REPL
 yarn workspace examples.simple-cli test</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>Глава <a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a>
 показывает семейства токенов: один рецепт на много зависимостей.</p>
 

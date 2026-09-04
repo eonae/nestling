@@ -80,12 +80,15 @@
       <li><a href="25-extending.html" class="active">25. Расширить ядро своим пакетом</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#публичные-примитивы">Публичные примитивы</a></li>
+      <li><a href="#слой-как-экспортируемое-значение">Слой как экспортируемое значение</a></li>
+      <li><a href="#своё-поле-в-meta-и-объединённый-сигнал">Своё поле в meta и объединённый сигнал</a></li>
+      <li><a href="#topic-как-лента-изменений">Topic как лента изменений</a></li>
+      <li><a href="#факты-жизненного-цикла-операциями">Факты жизненного цикла операциями</a></li>
+      <li><a href="#параметризованный-плагин">Параметризованный плагин</a></li>
+      <li><a href="#тестовые-двойники-через-subpath-testing">Тестовые двойники через subpath ./testing</a></li>
+      <li><a href="#свой-транспорт">Свой транспорт</a></li>
+      <li><a href="#проверка">Проверка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -101,27 +104,25 @@
 <main class="content">
 <article class="article">
 
-<h1>24. Расширить ядро своим пакетом</h1>
+<h1>25. Расширить ядро своим пакетом</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>nestling.subscriptions</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>nestling.subscriptions</code> (2026-09-05).
 Целевое описание: <a href="../design/principles.md">design/principles.md</a>, раздел
 «Граница ядра», и <a href="../design/streaming.md">design/streaming.md</a> §4.1.
 Почему так: записи <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-14]
 «Kernel 1.0» — граница ядра» и «[2026-08-01] Реестр подписок: результат
 dogfooding-замера».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Приложению нужна возможность, которой в ядре нет: дедупликация команд по
 ключу идемпотентности, outbox, реестр открытых подписок с
-административным закрытием. Вы хотите написать её отдельным пакетом, не
-трогая ядро и не форкая его. Пакет должен подключаться к корню как обычный
-плагин, тестироваться через <code>assembleTest</code> и не тянуть в приложение ни
-вендора схем, ни хранилища.</p>
+административным закрытием. Такой пакет пишется отдельно, не трогая ядро
+и не форкая его: он подключается к корню как обычный плагин, тестируется
+через <code>assembleTest</code> и не тянет в приложение ни вендора схем, ни
+хранилища.</p>
 <p>Такой пакет называется сателлитом: он собран поверх публичных примитивов
 ядра и живёт вне него. Образец в этой главе — <code>@nestling/subscriptions</code>,
 реестр подписок из <a href="23-ops.html">главы 23</a>.</p>
-<h2 id="решение">Решение</h2>
-<h3>Шаг 1. Выберите публичные примитивы</h3>
+<h2 id="публичные-примитивы">Публичные примитивы</h2>
 <p>Ядро не даёт сателлиту ни хуков, ни точек расширения. Всё, что нужно,
 уже есть в публичных пакетах:</p>
 <div class="tbl-wrap">
@@ -170,7 +171,11 @@ dogfooding-замера».</p>
 <p>В <code>dependencies</code> пакета только эти пакеты и <code>@common/misc</code> с типами
 Standard Schema. <code>@nestling/app</code> нужен только тестам и лежит в
 <code>devDependencies</code>.</p>
-<h3>Шаг 2. Слой как экспортируемое значение</h3>
+<p>Критерий границы ядра: сателлит пишется без правок ядра. Если
+возможность не выражается публичными примитивами, не хватает примитива,
+и чинится именно он, а не сателлит. Реестр подписок этот критерий
+прошёл: изменений в пакетах ядра за время его написания не было.</p>
+<h2 id="слой-как-экспортируемое-значение">Слой как экспортируемое значение</h2>
 <div class="code" data-file="packages/nestling.subscriptions/src/layer.ts" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/layer.ts
 @Injectable([SubscriptionRegistry])
 export class TrackSubscription {
@@ -211,8 +216,8 @@ export const tracked = makePipeline()
 действительно завершилась. Своего хука или таймера реестру не нужно.</p>
 <p>Приложение подключает слой так же, как любой свой: <code>compose(observability, tracked)</code>. Обязательность слоя задаёт политика корня
 <code>everyEndpoint({ … }).hasLayer(tracked)</code>, а не скрытый механизм пакета.</p>
-<h3>Шаг 3. Своё поле в <code>meta</code> и объединённый сигнал</h3>
-<div class="code" data-file="packages/nestling.subscriptions/src/registry.ts" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/registry.ts
+<h2 id="своё-поле-в-meta-и-объединённый-сигнал">Своё поле в <code>meta</code> и объединённый сигнал</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/registry.ts (фрагмент)
   open(ctx: SubscriptionContext): TrackedSubscription {
     const id = crypto.randomUUID();
     const controller = new AbortController();
@@ -229,8 +234,8 @@ export const tracked = makePipeline()
 контроллер записи, и хендлер одной подпиской получает отключение клиента,
 остановку приложения и закрытие администратором. Метод <code>abort()</code> только
 взводит контроллер; запись удаляет <code>.finally</code>, когда поток дотёк.</p>
-<h3>Шаг 4. <code>Topic</code> как лента изменений</h3>
-<div class="code" data-file="packages/nestling.subscriptions/src/registry.ts" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/registry.ts
+<h2 id="topic-как-лента-изменений"><code>Topic</code> как лента изменений</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/registry.ts (фрагмент)
     this.#feed = new Topic&lt;SubscriptionEvent&gt;({
       buffer: options.feedBuffer ?? DEFAULT_FEED_BUFFER,
       onSlowConsumer: 'drop-oldest',
@@ -248,7 +253,7 @@ export const tracked = makePipeline()
 <a href="14-live-feed.html">главе 14</a>: <code>push</code> не ждёт наблюдателей, медленный
 наблюдатель теряет события по <code>drop-oldest</code>, <code>@OnDestroy</code> закрывает ленту
 на остановке, и наблюдатели завершаются нормально.</p>
-<h3>Шаг 5. Факты жизненного цикла операциями</h3>
+<h2 id="факты-жизненного-цикла-операциями">Факты жизненного цикла операциями</h2>
 <div class="code" data-file="packages/nestling.subscriptions/src/operations.ts" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/operations.ts
 export const SubscriptionOpened = makeEvent({
   name: 'subscriptions.opened',
@@ -276,7 +281,7 @@ export const SubscriptionOpened = makeEvent({
 приложению вендора. Аннотация <code>jsonSchema(...)</code> даёт этим схемам JSON
 Schema, и факты попадают в документ и в снапшот совместимости из
 <a href="18-compatibility.html">главы 18</a>.</p>
-<h3>Шаг 6. Параметризованный плагин</h3>
+<h2 id="параметризованный-плагин">Параметризованный плагин</h2>
 <div class="code" data-file="packages/nestling.subscriptions/src/module.ts" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/module.ts
 export const subscriptions = (options: SubscriptionsOptions = {}): Plugin =&gt; {
   const deps: readonly InjectionToken[] = options.publish
@@ -301,10 +306,13 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin =&gt; 
 <a href="12-features.html">главы 12</a>: функция принимает решения композиции и
 возвращает значение <code>makePlugin</code>. Класс-юниты слоя регистрирует сам
 плагин, поэтому endpoint со слоем <code>tracked</code> без <code>subscriptions()</code> в корне
-останавливает сборку. Список <code>deps</code> фабрики зависит от опции <code>publish</code>:
-при выключенной публикации вызывателей операций в графе нет.</p>
-<h3>Шаг 7. Тестовые двойники через subpath <code>./testing</code></h3>
-<div class="code" data-file="packages/nestling.transport.nats/package.json" data-lang="json"><pre><code>// packages/nestling.transport.nats/package.json
+останавливает сборку на фазе ASSEMBLE: класс-юнит слоя не получает
+зависимостей. Второе значение <code>subscriptions({ … })</code> в одном и том же
+корне тоже останавливает сборку: два плагина с одним именем. Список
+<code>deps</code> фабрики зависит от опции <code>publish</code>: при выключенной публикации
+вызывателей операций в графе нет.</p>
+<h2 id="тестовые-двойники-через-subpath-testing">Тестовые двойники через subpath <code>./testing</code></h2>
+<div class="code" data-lang="json"><pre><code>// packages/nestling.transport.nats/package.json (фрагмент)
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -325,7 +333,7 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin =&gt; 
 <div class="code" data-lang="javascript"><pre><code>// jest
 testEnvironmentOptions: { customExportConditions: ['testing', 'node', 'node-addons'] }</code></pre></div>
 <p>Пакету, который импортирует такой subpath, нужно <code>customConditions: ['testing']</code> в <code>tsconfig.json</code>.</p>
-<h3>Шаг 8. Свой транспорт</h3>
+<h2 id="свой-транспорт">Свой транспорт</h2>
 <div class="code" data-file="packages/nestling.subscriptions/src/__fixtures__/transport.ts" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/__fixtures__/transport.ts
 export const TestTransport$: Token&lt;ITransport&gt; =
   makeToken&lt;ITransport&gt;('transport:test');
@@ -351,33 +359,23 @@ export const testTransport = (): TransportDeclaration =&gt;
 поле <code>capabilities</code> перечисляет формы io, которые он умеет передавать,
 <code>serve(dispatch, signal)</code> получает таблицу маршрутов и общий сигнал
 остановки, <code>close()</code> освобождает ресурсы. Метода запуска без маршрутов в
-интерфейсе нет. На транспорт ссылаются токеном экземпляра, а объявление
-для словаря <code>transports:</code> даёт <code>transportValue(token, instance)</code>.
-Реальные транспорты <code>http()</code>, <code>cli()</code> и <code>nats()</code> построены на том же
-интерфейсе.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Критерий границы ядра: сателлит пишется без правок ядра. Если
-возможность не выражается публичными примитивами, не хватает примитива,
-и чинится именно он, а не сателлит. Реестр подписок этот критерий
-прошёл: изменений в пакетах ядра за время его написания не было.</li>
-<li>Endpoint со слоем сателлита, но без его плагина в корне, останавливает
-сборку на фазе ASSEMBLE: класс-юнит слоя не получает зависимости.</li>
-<li>Второе значение <code>subscriptions({ … })</code> в одном корне останавливает
-сборку: два плагина с одним именем.</li>
-<li>Декларация, форма io которой не входит в <code>capabilities</code> транспорта,
-отклоняется до обслуживания первого запроса.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+интерфейсе нет. Декларация, форма io которой не входит в <code>capabilities</code>
+транспорта, отклоняется до обслуживания первого запроса. На транспорт
+ссылаются токеном экземпляра, а объявление для словаря <code>transports:</code> даёт
+<code>transportValue(token, instance)</code>. Реальные транспорты <code>http()</code>, <code>cli()</code>
+и <code>nats()</code> построены на том же интерфейсе.</p>
+<h2 id="проверка">Проверка</h2>
 <p>Сателлит тестируется тем же тестовым корнем, что и приложение. Тест
 пакета собирает плагин, одну фичу и транспорт-фикстуру:</p>
-<div class="code" data-file="packages/nestling.subscriptions/src/module.spec.ts" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/module.spec.ts
+<div class="code" data-lang="typescript"><pre><code>// packages/nestling.subscriptions/src/module.spec.ts (фрагмент)
   it('видит подписку, убивает её и снимает запись', async () =&gt; {
-    await using testApp = await assembleTest({
-      plugins: [subscriptions()],
-      features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
-      transports: [testTransport()],
-    });
+    await using testApp = await assembleTest(
+      makeApp({
+        plugins: [subscriptions()],
+        features: [makeFeature({ name: 'module:ticks', endpoints: [Ticks] })],
+        transports: [testTransport()],
+      }),
+    );
 
     const registry = testApp.get(SubscriptionRegistry);
     // …
@@ -408,49 +406,8 @@ export const testTransport = (): TransportDeclaration =&gt;
 <code>testApp.close()</code> поток дотекает, <code>.finally</code> снимает запись, и наблюдатель
 ленты завершается нормально.</p>
 <div class="code" data-lang="bash"><pre><code>yarn workspace @nestling/subscriptions test</code></pre></div>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<div class="tbl-wrap">
-<table>
-<thead>
-<tr>
-<th>Файл</th>
-<th>Что показывает</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>packages/nestling.subscriptions/src/layer.ts</code></td>
-<td>слой из двух класс-юнитов как экспортируемое значение</td>
-</tr>
-<tr>
-<td><code>packages/nestling.subscriptions/src/registry.ts</code></td>
-<td>singleton графа: <code>open</code>, <code>close</code>, <code>abort</code>, лента на <code>Topic</code></td>
-</tr>
-<tr>
-<td><code>packages/nestling.subscriptions/src/operations.ts</code></td>
-<td>факты жизненного цикла как <code>event</code>-операции</td>
-</tr>
-<tr>
-<td><code>packages/nestling.subscriptions/src/schema.ts</code></td>
-<td>схемы без вендора с аннотацией <code>jsonSchema</code></td>
-</tr>
-<tr>
-<td><code>packages/nestling.subscriptions/src/module.ts</code></td>
-<td>параметризованный плагин</td>
-</tr>
-<tr>
-<td><code>packages/nestling.subscriptions/src/__fixtures__/transport.ts</code></td>
-<td>транспорт на интерфейсе <code>ITransport</code></td>
-</tr>
-<tr>
-<td><code>packages/nestling.subscriptions/src/module.spec.ts</code></td>
-<td>сателлит в тестовом корне</td>
-</tr>
-</tbody>
-</table>
-</div>
 <p>Подключение в приложении:</p>
-<div class="code" data-file="packages/examples.app-with-http/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.ts
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.ts (фрагмент)
 export const appSubscriptions = subscriptions({
   identity: (ctx) =&gt; (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) =&gt; ({ transport: ctx.endpoint.transport }),
@@ -458,7 +415,6 @@ export const appSubscriptions = subscriptions({
   node: 'app-with-http',
 });</code></pre></div>
 <p>Как этим пользуется эксплуатация, показывает <a href="23-ops.html">глава 23</a>.</p>
-<h2 id="дальше">Дальше</h2>
 <p>Это последняя глава. Целевое описание каждой подсистемы лежит в
 <a href="../design/README.md">design/</a>, причины решений в
 <a href="../decisions/ideas.md">decisions/ideas.md</a>. Альтернативные формы,

@@ -60,13 +60,10 @@
       <li><a href="15-testing-features.html" class="active">15. Тестировать фичу без соседей</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#соберите-одну-фичу-без-соседей">Соберите одну фичу без соседей</a></li>
+      <li><a href="#стабы-вместо-соседних-операций">Стабы вместо соседних операций</a></li>
+      <li><a href="#вызов-и-проверка-через-матрицу-топологий">Вызов и проверка через матрицу топологий</a></li>
+      <li><a href="#подмена-в-app-тесте-контекст-граф-топологии">Подмена в app-тесте: контекст, граф, топологии</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -102,27 +99,24 @@
 <main class="content">
 <article class="article">
 
-<h1>14. Тестировать фичу без соседей</h1>
+<h1>15. Тестировать фичу без соседей</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code>, <code>examples.split-nats</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code>, <code>examples.split-nats</code> (2026-09-05).
 Целевое описание: <a href="../design/testing.md">design/testing.md</a> §3 и §4.
 Почему так: запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-10] Пакет
 тестирования (<code>@nestling/testing</code>)».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Фича <code>users</code> вызывает <code>quotas.claim</code> и отправляет <code>users.registered</code> и
 <code>quotas.record-signup</code>. Команда квот ещё не написала реализацию, а тесты
 регистрации нужны сейчас. И наоборот: фичу нужно проверить одну, без
 соседей, так, чтобы тест не зависел от их кода и от брокера.</p>
 <p>Основа из главы <a href="07-testing.html">7</a> считается известной: <code>assembleTest</code>,
 <code>testApp.call</code>, <code>unwrap</code>, <code>overrides</code> и <code>vars</code>.</p>
-<h2 id="решение">Решение</h2>
-<h3>Соберите одну фичу</h3>
-<div class="code" data-lang="typescript"><pre><code>// шаг главы 15; итоговая версия: packages/examples.split-nats/src/isolated.spec.ts
-await using testApp = await assembleTest({
-  features: [UsersFeature, QuotasFeature],
-  select: 'users',
-});</code></pre></div>
+<h2 id="соберите-одну-фичу-без-соседей">Соберите одну фичу без соседей</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
+const isolated = makeApp({ features: [UsersFeature, QuotasFeature] });
+
+await using testApp = await assembleTest(isolated, { select: 'users' });</code></pre></div>
 <p>Поле <code>select</code> в тестовой сборке работает так же, как в корне: в графе
 остаются только выбранные фичи. Такая сборка останавливается на фазе
 ASSEMBLE:</p>
@@ -136,14 +130,13 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 <p>Вызыватель <code>ClaimQuota.caller</code> в зависимостях фичи <code>users</code> требует
 владельца операции. В сборке из одной фичи владельца нет, и его место
 занимает стаб.</p>
-<h3>Поставьте стабы операций</h3>
+<h2 id="стабы-вместо-соседних-операций">Стабы вместо соседних операций</h2>
 <div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
   it('регистрирует пользователя через стабы соседних операций', async () =&gt; {
     const claimed: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
 
-    await using testApp = await assembleTest({
-      features: [UsersFeature, QuotasFeature],
+    await using testApp = await assembleTest(isolated, {
       select: 'users',
       // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
       // сборке нет: обе стороны заменены стабами
@@ -162,16 +155,16 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 для <code>request</code> это <code>ClaimQuota.caller</code>, для <code>command</code> и <code>event</code> это
 <code>.emitter</code>. Пара передаётся полем <code>stubs:</code>. Провайдер стаба имеет
 приоритет над боевым рецептом вызывателя, поэтому проверка владельца не
-срабатывает, и фича собирается.</p>
+срабатывает, и фича собирается — подмена узла, которого в графе нет,
+сборку не останавливает. Стаб операции, у которой есть владелец в
+выбранных фичах, тоже допустим: он имеет приоритет над владельцем.</p>
 <p><code>impl</code> получает payload с типом из схемы <code>input</code> операции и возвращает
 значение с типом из <code>output</code>. Фейк, не подходящий операции, не
 компилируется. Своего spy у стаба нет: в <code>impl</code> подходит обычная функция
-или <code>jest.fn()</code>.</p>
-<p>Список застабанных операций доступен как <code>testApp.stubbed</code>: имена по
-алфавиту.</p>
-<h3>Стаб проверяется схемой операции</h3>
-<p>Стаб не может разойтись с операцией. Вход проверяется формой <code>input</code>,
-успешный ответ формой <code>output</code>. Если стаб <code>quotas.claim</code> вернёт
+или <code>jest.fn()</code>. Список застабанных операций доступен как
+<code>testApp.stubbed</code>: имена по алфавиту.</p>
+<p>Стаб не может разойтись с операцией и в рантайме. Вход проверяется формой
+<code>input</code>, успешный ответ формой <code>output</code>. Если стаб <code>quotas.claim</code> вернёт
 <code>{ left: 1 }</code> вместо <code>{ remaining }</code>, вызывающий получит отказ, а не
 неверное значение:</p>
 <div class="code"><pre><code>{
@@ -184,7 +177,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 }</code></pre></div>
 <p>Отказ из стаба обязан входить в <code>errors:</code> операции. Объявленный отказ
 проходит как есть, так же, как пришёл бы от настоящего владельца:</p>
-<div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
       stubs: [
         // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
         // есть, так же, как настоящий владелец по сети
@@ -194,11 +187,11 @@ a bus transport ('transports: [nats({ name: "events" })]' with
         }),
       ],</code></pre></div>
 <p>Незадекларированный код останавливает тест ошибкой с именем операции,
-кодом и разрешённым набором. Исчерпанный <code>deadline</code> даёт
-<code>timeout</code> до вызова <code>impl</code>, а <code>emit</code> команды всегда несёт
-<code>idempotencyKey</code>, как у боевого порта.</p>
-<h3>Вызовите команду или событие снаружи</h3>
-<div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
+кодом и разрешённым набором, а не превращается в <code>InternalError</code>.
+Исчерпанный <code>deadline</code> даёт <code>timeout</code> до вызова <code>impl</code>, а <code>emit</code> команды
+всегда несёт <code>idempotencyKey</code>, как у боевого порта.</p>
+<h2 id="вызов-и-проверка-через-матрицу-топологий">Вызов и проверка через матрицу топологий</h2>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
     const [{ subscriber, response }] = await testApp.emit(RegisterUser, {
       email: 'alice@example.com',
     });
@@ -213,15 +206,17 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 подписчику в этом процессе через его полный пайплайн и возвращает список
 доставок: имя подписчика и ответ. У события подписчиков может не быть,
 тогда список пуст. У команды подписчик обязателен: без него <code>emit</code>
-завершается ошибкой адресации. <code>request</code>-операцию через <code>emit</code> вызвать
-нельзя, это ошибка компиляции: у неё владелец, а не подписчики.</p>
+завершается ошибкой адресации со списком доступных subject'ов.
+<code>request</code>-операцию через <code>emit</code> вызвать нельзя, это ошибка компиляции: у
+неё владелец, а не подписчики.</p>
 <p>Стаб эмиттера здесь не мешает. Стаб подменяет то, что фича отправляет
 наружу, а <code>emit</code> ведёт сообщение снаружи внутрь.</p>
-<h3>Проверьте, что застабанные операции кто-то реализует</h3>
+<p>Стаб делает тестовый граф меньше боевого: операцию, которую никто не
+реализует, стаб скроет. Поэтому рядом со стабами стоит проверка честного
+графа:</p>
 <div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
   it('каждая застабанная операция реализована в одной из топологий', async () =&gt; {
-    await using testApp = await assembleTest({
-      features: [UsersFeature, QuotasFeature],
+    await using testApp = await assembleTest(isolated, {
       select: 'users',
       stubs: [
         stub(ClaimQuota, async () =&gt; ({ remaining: 1 })),
@@ -232,11 +227,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 
     // Матрица проверяет граф без подстановок: стаб операции, которой не
     // реализует ни одна топология, здесь станет виден
-    const topologies = await checkTopologies(app, [
-      'all',
-      'users',
-      'quotas',
-    ]);
+    const topologies = await checkTopologies(app, ['all', 'users', 'quotas']);
 
     const published = new Set(
       topologies.flatMap(({ report }) =&gt;
@@ -247,17 +238,19 @@ a bus transport ('transports: [nats({ name: "events" })]' with
     expect(testApp.stubbed.filter((name) =&gt; !published.has(name))).toEqual([]);
     expect(testApp.stubbed).toEqual(['quotas.claim', 'users.registered']);
   });</code></pre></div>
-<p>Стаб делает тестовый граф меньше боевого. Операцию, которую никто не
-реализует, стаб скроет. Поэтому рядом со стабами стоит проверка честного
-графа: <code>checkTopologies</code> собирает каждую топологию без подстановок и
-возвращает отчёт с полем <code>operations</code>. Тест сравнивает <code>testApp.stubbed</code> с
-объединением опубликованных операций. Подробно матрицу разбирает глава
-<a href="16-select.html">16</a>.</p>
-<h3>Подставьте значение переменной контекста</h3>
+<p><code>checkTopologies</code> собирает каждую топологию без подстановок и возвращает
+отчёт с полем <code>operations</code>. Тест сравнивает <code>testApp.stubbed</code> с
+объединением опубликованных операций.</p>
+<h2 id="подмена-в-app-тесте-контекст-граф-топологии">Подмена в app-тесте: контекст, граф, топологии</h2>
+<p>Хранилище читает <code>requestId</code> ридером <code>Ctx(RequestId)</code> из главы
+<a href="08-logging.html">8</a>. Ридер является узлом графа, поэтому подменяется тем
+же списком <code>overrides</code>. <code>contextValue(Variable, value)</code> даёт ридер с
+постоянным значением:</p>
 <div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
   it('contextValue подставляет значение переменной в тестовом корне', async () =&gt; {
     const spy = spyLogger();
     await using testApp = await assembleTest(app, {
+      ...testConfig,
       overrides: [[Logger$, spy.logger], contextValue(RequestId, 'req-fixed')],
     });
 
@@ -265,17 +258,17 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 
     expect(spy.lines).toContain('[req-fixed] byId 1');
   });</code></pre></div>
-<p>Хранилище читает <code>requestId</code> ридером <code>Ctx(RequestId)</code> из главы
-<a href="08-logging.html">8</a>. Ридер является узлом графа, поэтому подменяется тем
-же списком <code>overrides</code>. <code>contextValue(Variable, value)</code> даёт ридер с
-постоянным значением. Слой <code>observability</code> по-прежнему кладёт свой
-<code>requestId</code> в контекст, но сервис читает подставленное значение.</p>
-<h3>Проверьте состав графа</h3>
+<p>Слой <code>observability</code> по-прежнему кладёт свой <code>requestId</code> в контекст, но
+сервис читает подставленное значение. Семейство токенов целиком
+подменяет <code>familyOverride(Family, make)</code> в том же списке <code>overrides</code>.</p>
 <div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () =&gt; {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
-    await using testApp = await assembleTest(app, { select: 'ops' });
+    await using testApp = await assembleTest(app, {
+      ...testConfig,
+      select: 'ops',
+    });
 
     expect(testApp.get(Logger$)).not.toBeNull();
     expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
@@ -284,78 +277,23 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 
   it('замыкает выбор по вызываемым операциям', async () =&gt; {
     await using testApp = await assembleTest(app, {
+      ...testConfig,
       select: { features: 'users', includeDeps: true },
     });
 
     expect(testApp.features).toEqual(['users', 'quotas']);
   });</code></pre></div>
-<p><code>testApp.get(token)</code> возвращает инстанс из собранного графа или <code>null</code>, если
-узла в графе нет. <code>testApp.features</code> перечисляет выбранные фичи после
-замыкания по вызовам.</p>
-<p>Семейство токенов целиком подменяет <code>familyOverride(Family, make)</code> в том
-же списке <code>overrides</code>; семейства появляются в главе
-<a href="21-token-families.html">21</a>.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Стаб типизирован операцией: <code>impl</code> с другим входом или выходом не
-компилируется. Вход и успешный ответ стаба проверяются схемами операции
-при каждом вызове.</li>
-<li>Отказ из стаба обязан входить в <code>errors:</code> операции или в коды ядра.
-Незадекларированный код останавливает тест ошибкой, а не превращается в
-<code>InternalError</code>.</li>
-<li><code>request</code>-операция через <code>testApp.emit</code> не компилируется. Команда без
-подписчика в сборке даёт ошибку адресации со списком доступных
-subject'ов.</li>
-<li>Подмена узла, которого нет в графе, останавливает сборку. Стаб
-операции, у которой есть владелец в выбранных фичах, тоже допустим: он
-имеет приоритет над владельцем.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
-<p>Файл <code>isolated.spec.ts</code> целиком состоит из тестов этой главы: сборка одной
-фичи, стабы с успехом и с отказом, <code>testApp.emit</code> и сверка <code>testApp.stubbed</code> с
-матрицей. Тесты <code>contextValue</code> и состава графа лежат в <code>app.spec.ts</code>
-примера <code>app-with-http</code>.</p>
+<p><code>testApp.get(token)</code> возвращает инстанс из собранного графа или <code>null</code>,
+если узла в графе нет. <code>testApp.features</code> перечисляет выбранные фичи
+после замыкания по вызовам.</p>
+<p>Файл <code>isolated.spec.ts</code> целиком состоит из тестов этой главы: сборка
+одной фичи, стабы с успехом и с отказом, <code>testApp.emit</code> и сверка
+<code>testApp.stubbed</code> с матрицей. Тесты <code>contextValue</code> и состава графа лежат
+в <code>app.spec.ts</code> примера <code>app-with-http</code>.</p>
 <div class="code" data-lang="bash"><pre><code>yarn workspace examples.split-nats test
 yarn workspace examples.app-with-http test</code></pre></div>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Матрица топологий как проверка деплоя, отчёт <code>check()</code> и <code>detached</code>:
-глава <a href="16-select.html">16</a>.</li>
-<li>Снапшот операций и проверка совместимости: глава
-<a href="18-compatibility.html">18</a>.</li>
-<li>Тест одной фичи или плагина без словаря сборки, <code>testUnit</code>:
-<a href="../../packages/nestling.testing/README.md">README <code>@nestling/testing</code></a>.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<div class="tbl-wrap">
-<table>
-<thead>
-<tr>
-<th>Файл</th>
-<th>Что показывает</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>packages/examples.split-nats/src/isolated.spec.ts</code></td>
-<td><code>select</code> одной фичи, <code>stubs</code>, <code>testApp.emit</code>, <code>testApp.stubbed</code> против <code>checkTopologies</code></td>
-</tr>
-<tr>
-<td><code>packages/examples.app-with-http/src/app.spec.ts</code></td>
-<td><code>contextValue</code>, <code>testApp.get</code>, <code>testApp.features</code>, <code>select</code> в тесте</td>
-</tr>
-<tr>
-<td><code>packages/examples.app-with-http/src/testing.ts</code></td>
-<td>фейк хранилища для <code>overrides</code></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.split-nats test
-yarn workspace examples.app-with-http test</code></pre></div>
-<h2 id="дальше">Дальше</h2>
-<p>Тесты собирают фичи по отдельности. Так же собирается и приложение в
-проде: <a href="16-select.html">16. Запускать только часть фич</a>.</p>
+<p>Приложение в проде собирается так же, по частям: <a href="16-select.html">16. Запускать только
+часть фич</a>.</p>
 
   <nav class="pager">
     <a href="14-live-feed.html">

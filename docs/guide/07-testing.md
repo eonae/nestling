@@ -1,6 +1,6 @@
 # 7. Убедиться, что работает, без запуска сервера
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
 > Целевое описание: [design/testing.md](../design/testing.md). Почему так:
 > запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestling/testing`)».

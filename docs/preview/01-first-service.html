@@ -42,13 +42,8 @@
       <li><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#как-это-лежит-в-примере">Как это лежит в примере</a></li>
+      <li><a href="#запуск">Запуск</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -104,19 +99,16 @@
 
 <h1>1. Поднять сервис, который отвечает на запрос</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/composition.md">design/composition.md</a>,
 <a href="../design/endpoints.md">design/endpoints.md</a>. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-09-02] Модель композиции: фича,
 плагин, операция» и «[2026-09-03] Декларация приложения: <code>makeApp</code>,
 <code>assemble(select)</code>, <code>AssembledApp</code>».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
-<p>Вам нужен HTTP-сервис, который отвечает JSON на <code>GET /users</code>. Он должен
-стартовать одной командой и останавливаться по <code>SIGTERM</code> без обрыва
-запросов, которые уже обрабатываются.</p>
-<h2 id="решение">Решение</h2>
-<h3>Endpoint, фича и корень в одном файле</h3>
+<p>Начнём с HTTP-сервиса, который отвечает JSON на <code>GET /users</code>. Он стартует
+одной командой и останавливается по <code>SIGTERM</code>, не обрывая запросы, которые
+уже обрабатываются. Целиком он умещается в один файл.</p>
 <div class="code" data-lang="typescript"><pre><code>// шаг главы 1; итоговая версия: packages/examples.users-service/src/main.ts
 import { makeApp, makeFeature } from '@nestling/app';
 import { http, httpEndpoint } from '@nestling/transport.http';
@@ -143,25 +135,31 @@ const app = makeApp({
 
 await app.assemble().run();</code></pre></div>
 <p>Приложение состоит из трёх значений плюс сборка.</p>
-<p>Декларация endpoint'а <code>ListUsers</code> описывает адрес, схему ответа и
-хендлер. <code>httpEndpoint</code> собирает паттерн из <code>method</code> и <code>path</code>:
-<code>GET /users</code>. Схема <code>output</code> задаёт форму ответа и тип возвращаемого
-значения хендлера. Хендлер возвращает обычный массив, транспорт
-сериализует его в JSON. Пользователи пока лежат в самом хендлере: откуда
-брать их из базы, показывает глава 5.</p>
+<p>Декларация endpoint'а <code>ListUsers</code> описывает адрес, схему ответа и хендлер.
+<code>httpEndpoint</code> собирает паттерн из <code>method</code> и <code>path</code>: <code>GET /users</code>. Схема
+<code>output</code> задаёт форму ответа и заодно тип возвращаемого значения: хендлер,
+который вернёт объект другой формы, не скомпилируется. Сам хендлер отдаёт
+обычный массив, транспорт сериализует его в JSON.</p>
+<p>Путь проверяется в момент создания декларации. Пустой путь, путь без
+ведущего <code>/</code>, повторяющийся path-параметр — ошибка на импорте файла, а не
+на старте приложения.</p>
 <p>Фича <code>UsersFeature</code> перечисляет endpoint'ы под своим именем. Пока фича
-одна, и приложение выглядит так, будто фич нет. Что даёт деление на фичи,
-показывает глава 12.</p>
+одна, и приложение выглядит так, будто фич нет: что даёт деление, станет
+видно, когда областей станет больше одной.</p>
 <p><code>makeApp</code> объявляет приложение: список фич и список транспортов. <code>http()</code>
-объявляет HTTP-транспорт: порт и хост он читает из своей секции конфига,
-по умолчанию <code>3000</code> и <code>0.0.0.0</code>. Декларация — значение: она ничего не
-читает и ничего не запускает.</p>
+объявляет HTTP-транспорт; порт и хост он берёт из своей секции конфига, по
+умолчанию <code>3000</code> и <code>0.0.0.0</code>. Декларация — значение: она ничего не читает и
+ничего не запускает. Проверяется она тоже при создании — бренды фич,
+повторяющиеся имена, перечень полей, — поэтому опечатка в словаре падает на
+импорте, а не на старте.</p>
 <p><code>app.assemble()</code> собирает приложение для этого процесса, <code>run()</code> строит
 граф, проверяет его, открывает сокет и ставит обработчики <code>SIGTERM</code> и
-<code>SIGINT</code>. По сигналу транспорт перестаёт принимать новые запросы,
-сообщает текущим об отмене через <code>meta.signal</code> и закрывается, когда они
-завершатся.</p>
-<h3>Как это лежит в примере</h3>
+<code>SIGINT</code>. Порядок здесь — гарантия: сокет открывается после того, как граф
+собран и проверен, и принять запрос раньше готовой таблицы маршрутов
+транспорт не может — метода запуска без неё у него нет. По сигналу
+транспорт перестаёт принимать новые запросы, сообщает текущим об отмене и
+закрывается, когда они завершатся.</p>
+<h2 id="как-это-лежит-в-примере">Как это лежит в примере</h2>
 <p>В итоговом примере каждое значение живёт в своём файле.</p>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint({
@@ -170,101 +168,42 @@ export const ListUsers = httpEndpoint({
   output: z.array(User),
   handler: ListUsersHandler,
 });</code></pre></div>
-<p>Хендлер здесь — класс, а не функция: так его удобнее тестировать и
-дополнять зависимостями. Классовую форму показывает глава 4, а пока
-достаточно знать, что поле <code>handler</code> принимает и функцию, и класс.</p>
-<div class="code" data-file="packages/examples.users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts
+<p>Хендлер здесь — класс, а не функция: поле <code>handler</code> принимает обе формы.</p>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts (фрагмент)
 export const UsersFeature = makeFeature({
   name: 'users',
-  providers: [
-    // … главы 5, 6 и 8
-  ],
-  endpoints: [
-    ListUsers,
-    // … главы 2, 3 и 10
-  ],
+  endpoints: [ListUsers /* … */],
+  // …
 });</code></pre></div>
 <p>Файл <code>app.ts</code> объявляет приложение и экспортирует одно значение — <code>app</code>:</p>
-<div class="code" data-file="packages/examples.users-service/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts (фрагмент)
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [
-    // … главы 11 и 23
-  ],
   transports: [http()],
-  policies: [
-    // … глава 9
-  ],
+  // …
 });</code></pre></div>
-<p>Файл <code>main.ts</code> импортирует <code>app</code> и запускает его. Других экспортов у него
-нет:</p>
+<p>Файл <code>main.ts</code> импортирует <code>app</code> и запускает его. Больше в нём нет ничего:
+ни функции-обёртки, ни обработчика ошибок, ни печати адресов. Обработчики
+сигналов ставит <code>run()</code>, а упавший старт роняет процесс сам.</p>
 <div class="code" data-file="packages/examples.users-service/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/main.ts
-async function main(): Promise&lt;void&gt; {
-  await app.assemble().run();
+import { app } from './app.js';
 
-  console.log('users-service: GET /health, GET /users, GET /openapi.json');
-}
-
-main().catch((error: unknown) =&gt; {
-  console.error('failed to start:', error);
-  // eslint-disable-next-line unicorn/no-process-exit
-  process.exit(1);
-});</code></pre></div>
-<p>Деление на два файла нужно потому, что декларацию читают не только точка
-входа: её же берут тесты (глава 7) и проверка топологий (глава 16).
-Аргумент <code>assemble(select)</code> выбирает, какие фичи поднимает этот процесс;
-до главы 16 он не нужен, и вызов остаётся пустым. Правила именования
-файлов собраны в <a href="../conventions.md">conventions.md</a>.</p>
-<h3>Запуск</h3>
+await app.assemble().run();</code></pre></div>
+<p>Деление на два файла нужно потому, что декларацию читает не только точка
+входа: её же берут тесты и проверка топологий. Правила именования файлов
+собраны в <a href="../conventions.md">conventions.md</a>.</p>
+<h2 id="запуск">Запуск</h2>
 <div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev</code></pre></div>
-<p>Переменная <code>API_TOKEN</code> нужна итоговому примеру: секция конфига объявляет
-её обязательной, и без неё приложение не стартует. Что это значит и
-откуда берутся остальные значения, объясняет глава 6. Пока задайте любую
-строку.</p>
+<p>Переменная <code>API_TOKEN</code> нужна итоговому примеру: одна из его секций конфига
+объявляет её обязательной, и без неё приложение не стартует. Пока задайте
+любую строку.</p>
 <p>При старте приложение печатает состав сборки:</p>
-<div class="code"><pre><code>[nestling] features: users; transports: http
-users-service: GET /health, GET /users, GET /openapi.json</code></pre></div>
+<div class="code"><pre><code>[nestling] features: users; transports: http</code></pre></div>
 <p>Проверьте ответ:</p>
 <div class="code" data-lang="bash"><pre><code>curl localhost:3000/users
 # [{"id":"1","name":"Alice"},{"id":"2","name":"Bob"}]</code></pre></div>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Путь проверяется в момент создания декларации. Пустой путь, путь без
-ведущего <code>/</code> и повторяющийся path-параметр дают ошибку на этапе
-импорта модуля, а не на старте приложения.</li>
-<li>Тип возвращаемого значения хендлера сверяется со схемой <code>output</code> в точке
-декларации. Хендлер, который возвращает объект другой формы, не
-компилируется.</li>
-<li><code>makeApp</code> проверяет декларацию при создании: бренды фич и плагинов,
-повторяющиеся имена фич, перечень полей. Опечатка в словаре — ошибка на
-импорте, а не на старте.</li>
-<li>Сокет открывается после того, как граф собран и проверен. Транспорт
-не может принять запрос раньше, чем готова таблица маршрутов: у него нет
-метода запуска без неё.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
-<p>Тесты, которые вызывают endpoint без открытия сокета, появляются в
-главе 7. Для первой главы достаточно <code>curl</code> из раздела «Запуск».</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Пайплайн, то есть код до и после хендлера: глава 8.</li>
-<li>Хендлер как класс: глава 4.</li>
-<li>Зависимости хендлера и провайдеры: глава 5.</li>
-<li>Конфиг и переменные окружения: глава 6.</li>
-<li>Выбор фич в <code>assemble(select)</code>: глава 16.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts</code></li>
-<li><code>packages/examples.users-service/src/users.feature.ts</code></li>
-<li><code>packages/examples.users-service/src/app.ts</code></li>
-<li><code>packages/examples.users-service/src/main.ts</code></li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
-curl localhost:3000/users</code></pre></div>
-<h2 id="дальше">Дальше</h2>
-<p>Сервис отвечает на запрос без параметров. Следующая глава принимает
-данные от клиента и проверяет их: <a href="02-input.html">2. Принять данные и не пропустить
+<p>Сервис отвечает на запрос без параметров. Дальше он научится принимать
+данные от клиента и проверять их: <a href="02-input.html">2. Принять данные и не пропустить
 мусор</a>.</p>
 
   <nav class="pager">

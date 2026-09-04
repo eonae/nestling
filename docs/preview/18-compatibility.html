@@ -68,12 +68,9 @@
       <li><a href="18-compatibility.html" class="active">18. Не сломать соседей при изменении операции</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#снапшот-операций-сборки">Снапшот операций сборки</a></li>
+      <li><a href="#сравнение-с-baseline-и-вердикты">Сравнение с baseline и вердикты</a></li>
+      <li><a href="#обновите-baseline-осознанно">Обновите baseline осознанно</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -101,28 +98,45 @@
 <main class="content">
 <article class="article">
 
-<h1>17. Не сломать соседей при изменении операции</h1>
+<h1>18. Не сломать соседей при изменении операции</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/operations.md">design/operations.md</a> §1.6 и
 §1.7. Почему так: запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-31]
 Версионирование контрактов: снапшот, вердикт по слоту,
 третий вердикт <code>unknown</code>».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Фичи разнесены по командам и процессам. Схема <code>quotas.claim</code> меняется в
 одном репозитории, а вызывает её процесс, который выкатывается отдельно.
 Нужно заметить несовместимое изменение операции в CI, до выкладки, и
 знать, что с ним делать.</p>
-<h2 id="решение">Решение</h2>
-<h3>Версия входит в имя</h3>
 <p>Отдельного поля версии у операции нет. Несовместимая версия получает
 новое имя: <code>quotas.claim.v2</code>. Имя операции служит адресом на шине, поэтому
 старая и новая версии могут работать рядом, пока потребители переходят на
-новую. Суффикс <code>.vN</code> фреймворк не требует и не разбирает; имя без версии
+новую. Суффикс <code>.vN</code> фреймворк не требует и не разбирает, имя без версии
 допустимо.</p>
-<h3>Опишите операции сборки снапшотом</h3>
+<h2 id="снапшот-операций-сборки">Снапшот операций сборки</h2>
 <div class="code" data-file="packages/examples.app-with-http/src/operations.compat.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.compat.spec.ts
+/**
+ * Та же декларация с секретами из объекта: `check()` собирает граф, и
+ * секция читается
+ */
+const checked = makeApp({
+  features: app.spec.features,
+  plugins: app.spec.plugins,
+  policies: app.spec.policies,
+  transports: app.spec.transports,
+  config: [
+    [
+      objectSource(
+        { API_TOKEN: 'test-token', WEBHOOK_SECRET: 'test-hook' },
+        'test',
+      ),
+      appConfigKeys,
+    ],
+  ],
+});
+
 /** Варианты деплоя: снапшот объединяет то, что публикует каждый */
 const TOPOLOGIES = [
   'all',
@@ -139,21 +153,26 @@ const readBaseline = (): OperationSnapshot =&gt;
 /** Текущий состав операций: матрица топологий, сведённая в снапшот */
 const currentSnapshot = async (): Promise&lt;OperationSnapshot&gt; =&gt;
   snapshotOperations(
-    await checkTopologies(app, [...TOPOLOGIES], {
+    await checkTopologies(checked, [...TOPOLOGIES], {
       converters: [zodConverter()],
     }),
   );</code></pre></div>
-<p>Источник описаний тот же, что в главе <a href="16-select.html">16</a>: отчёт
-<code>check()</code> каждой топологии содержит поле <code>operations</code> с дескрипторами
-опубликованных операций. Дескриптор описывает имя, вид, формы <code>input</code> и
-<code>output</code> и список отказов с кодами и статусами. Листовые схемы переводит
-в JSON Schema конвертер вендора: тот же <code>zodConverter</code>, что строит
-документ OpenAPI в главе <a href="11-openapi-and-client.html">11</a>. Без
-конвертера лист помечается непрозрачным, и сравнение по нему даёт
-вердикт <code>unknown</code>.</p>
-<p><code>snapshotOperations(reports)</code> сводит матрицу в один снапшот
-объединением. Каждая операция помнит, какие топологии её опубликовали:</p>
-<div class="code" data-file="packages/examples.app-with-http/operations.snapshot.json" data-lang="json"><pre><code>// packages/examples.app-with-http/operations.snapshot.json
+<p><code>checked</code> — та же декларация приложения, что и в главе
+<a href="16-select.html">16</a>: секреты привязаны источником к ключам секции, потому
+что <code>check()</code> собирает граф и читает секцию конфига, а подстановок не
+принимает. Источник описаний — отчёт <code>check()</code> каждой топологии из той же
+главы: он содержит поле <code>operations</code> с дескрипторами опубликованных
+операций. Дескриптор описывает имя, вид, формы <code>input</code> и <code>output</code> и
+список отказов с кодами и категориями. Листовые схемы переводит в JSON
+Schema конвертер вендора, тот же <code>zodConverter</code>, что строит документ
+OpenAPI в главе <a href="11-openapi-and-client.html">11</a>. Без конвертера лист
+помечается непрозрачным, и сравнение по нему даёт вердикт <code>unknown</code>.</p>
+<p><code>snapshotOperations(reports)</code> сводит матрицу в один снапшот объединением.
+Снапшот строится из discovery, то есть из реализаций, которые топология
+публикует: операция, объявленная, но не реализованная ни в одной
+топологии, в снапшот не попадает. Каждая опубликованная операция помнит,
+какие топологии её опубликовали:</p>
+<div class="code" data-lang="json"><pre><code>// packages/examples.app-with-http/operations.snapshot.json (фрагмент)
 {
   "snapshotVersion": 1,
   "operations": [
@@ -187,8 +206,9 @@ const currentSnapshot = async (): Promise&lt;OperationSnapshot&gt; =&gt;
 <p>Снапшот лежит в репозитории обычным файлом. <code>serializeSnapshot</code> даёт
 детерминированный вывод: операции по имени, отказы по коду, ключи JSON
 Schema отсортированы. Один и тот же граф даёт побайтово один и тот же
-файл.</p>
-<h3>Сравните с baseline в тесте</h3>
+файл, поэтому расхождение файла со сборкой означает изменение операций, а
+не порядка сериализации.</p>
+<h2 id="сравнение-с-baseline-и-вердикты">Сравнение с baseline и вердикты</h2>
 <div class="code" data-file="packages/examples.app-with-http/src/operations.compat.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.compat.spec.ts
   it('текущая сборка совпадает с опубликованным снапшотом', async () =&gt; {
     const current = await currentSnapshot();
@@ -212,25 +232,29 @@ Schema отсортированы. Один и тот же граф даёт п�
     );
   });</code></pre></div>
 <p><code>diffOperations(baseline, current)</code> сравнивает два снапшота и даёт
-каждому расхождению ровно один вердикт. Отчёт содержит списки
-<code>breaking</code>, <code>additive</code> и <code>unknown</code> с именем операции, JSON-путём и
-описанием, а также сводку по операциям. <code>formatCompatibility(report)</code>
-печатает отчёт для человека:</p>
+каждому расхождению ровно один вердикт. Отчёт содержит списки <code>breaking</code>,
+<code>additive</code> и <code>unknown</code> с именем операции, JSON-путём и описанием, а также
+сводку по операциям. <code>formatCompatibility(report)</code> печатает отчёт для
+человека:</p>
 <div class="code"><pre><code>Operation compatibility: 0 breaking, 0 additive, 0 unknown</code></pre></div>
 <p><code>diffOperations</code> не участвует в сборке и не бросает исключений из-за
-результата сравнения. Что считать ошибкой, решает тест: здесь падает
-любое расхождение, включая <code>additive</code>, чтобы каждое изменение операции
-попадало в снапшот осознанно.</p>
+результата сравнения, кроме одного случая: baseline с неизвестной
+<code>snapshotVersion</code> — это ошибка автора проверки. Что считать ошибкой теста,
+решает сам тест: здесь падает любое расхождение, включая <code>additive</code>,
+чтобы каждое изменение операции попадало в снапшот осознанно.</p>
 <p>Вердикт зависит от слота. Схема <code>input</code> описывает то, что приходит в
 реализацию, поэтому сужение принимаемого ломает вызывающих: новое
 обязательное свойство, удалённое свойство, более узкий тип. Схема
 <code>output</code> описывает то, что реализация обещает, поэтому ослабление
 обещания ломает вызывающих: удалённое свойство, переход <code>required</code> в
 <code>optional</code>. Всё, что правила не покрывают, получает <code>unknown</code>: незнакомые
-ключевые слова JSON Schema, <code>oneOf</code> и <code>$ref</code>, смена вендора,
-непрозрачный лист. <code>unknown</code> не означает «совместимо».</p>
-<h3>Что показывает несовместимое изменение</h3>
-<div class="code" data-file="packages/examples.app-with-http/src/operations.compat.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.compat.spec.ts
+ключевые слова JSON Schema, <code>oneOf</code> и <code>$ref</code>, смена вендора, непрозрачный
+лист. <code>unknown</code> не означает «совместимо» и не пропускается как
+совместимое.</p>
+<p>Третий тест файла правит baseline, а не код: добавляет в <code>output</code>
+операции <code>quotas.claim</code> обязательное поле <code>reservedUntil</code>. Так выглядел
+бы снапшот до изменения, которым это поле убрали:</p>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.compat.spec.ts (фрагмент)
     const report = diffOperations(baseline, current);
 
     expect(report.breaking).toMatchObject([
@@ -249,14 +273,11 @@ Schema отсортированы. Один и тот же граф даёт п�
       unknown: 0,
       suggestedName: 'quotas.claim.v2',
     });</code></pre></div>
-<p>Третий тест файла правит baseline, а не код: добавляет в <code>output</code>
-операции <code>quotas.claim</code> обязательное поле <code>reservedUntil</code>. Так выглядел
-бы снапшот до изменения, которым это поле убрали. Сравнение даёт одно
-расхождение с вердиктом <code>breaking</code> и путём <code>output.reservedUntil</code>.
-Операция с хотя бы одним <code>breaking</code> получает в сводке <code>suggestedName</code>.
-Это единственное место, где суффикс <code>.vN</code> распознаётся; переименования не
-происходит.</p>
-<h3>Обновите baseline осознанно</h3>
+<p>Сравнение даёт одно расхождение с вердиктом <code>breaking</code> и путём
+<code>output.reservedUntil</code>. Операция с хотя бы одним <code>breaking</code> получает в
+сводке <code>suggestedName</code>. Это единственное место, где суффикс <code>.vN</code>
+распознаётся, переименования при этом не происходит.</p>
+<h2 id="обновите-baseline-осознанно">Обновите baseline осознанно</h2>
 <p>Совместимое изменение, например новое необязательное поле в <code>output</code>,
 даёт вердикт <code>additive</code>. Тест на него тоже падает, и это ожидаемый шаг:
 перезапишите снапшот и закоммитьте его вместе с изменением операции.</p>
@@ -265,60 +286,13 @@ Schema отсортированы. Один и тот же граф даёт п�
 <code>quotas.claim.v2</code> рядом с <code>quotas.claim</code>, реализуйте обе операции в фиче
 <code>quotas</code>, переведите вызывающих на новую и удалите старую, когда
 вызывающих не осталось. Снапшот обновляется на каждом шаге: сначала
-появляется операция, потом исчезает старая. Удаление операции из
-снапшота тест этого примера тоже считает ошибкой, потому что
-<code>diffOperations</code> относит его к <code>breaking</code>.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Один граф даёт побайтово один и тот же снапшот. Расхождение файла со
-сборкой означает изменение операций, а не порядка сериализации.</li>
-<li>Каждое расхождение получает ровно один вердикт. Непокрытое правилами
-изменение помечается <code>unknown</code>, а не пропускается как совместимое.</li>
-<li><code>diffOperations</code> не бросает из-за результата сравнения. Единственное
-исключение: baseline с неизвестной <code>snapshotVersion</code>, это ошибка
-автора проверки.</li>
-<li>Снапшот строится из discovery, то есть из реализаций, которые
-топология публикует. Операция, объявленная, но не реализованная ни в
-одной топологии, в снапшот не попадает.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
-<p>Файл <code>operations.compat.spec.ts</code> целиком является проверкой этой главы.
-Первый тест сравнивает сборку с baseline, второй проверяет объединение
-топологий, третий показывает вердикт <code>breaking</code> на подготовленном
-baseline.</p>
+появляется операция, потом исчезает старая. Удаление операции из снапшота
+тест этого примера тоже считает ошибкой, потому что <code>diffOperations</code>
+относит его к <code>breaking</code>.</p>
 <div class="code" data-lang="bash"><pre><code>yarn workspace examples.app-with-http test src/operations.compat.spec.ts</code></pre></div>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<div class="tbl-wrap">
-<table>
-<thead>
-<tr>
-<th>Файл</th>
-<th>Что показывает</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>packages/examples.app-with-http/src/operations.compat.spec.ts</code></td>
-<td>матрица с конвертером, снапшот, сравнение, обновление baseline</td>
-</tr>
-<tr>
-<td><code>packages/examples.app-with-http/operations.snapshot.json</code></td>
-<td>baseline в репозитории с полем <code>topologies</code></td>
-</tr>
-<tr>
-<td><code>packages/examples.app-with-http/src/operations.ts</code></td>
-<td>операции, которые попадают в снапшот</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.app-with-http test src/operations.compat.spec.ts
-UPDATE_SNAPSHOT=1 yarn workspace examples.app-with-http test src/operations.compat.spec.ts</code></pre></div>
-<h2 id="дальше">Дальше</h2>
-<p>Часть 4 закончена: приложение собирается в роли, разносится по процессам
-и проверяет совместимость операций. Часть 5 читается по потребности,
-начиная с webhook'а с проверкой подписи:
-<a href="19-webhook.html">19. Webhook с проверкой подписи</a>.</p>
+<p>Часть 4 закончена, а часть 5 читается по потребности — начиная с
+webhook'а с проверкой подписи: <a href="19-webhook.html">19. Webhook с проверкой
+подписи</a>.</p>
 
   <nav class="pager">
     <a href="17-split.html">

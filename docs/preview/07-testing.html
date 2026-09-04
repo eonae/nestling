@@ -42,13 +42,9 @@
       <li><a href="07-testing.html" class="active">7. Убедиться, что работает, без запуска сервера</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#вызов-через-полный-пайплайн">Вызов через полный пайплайн</a></li>
+      <li><a href="#подмена-узлов-графа">Подмена узлов графа</a></li>
+      <li><a href="#юнит-тест-хендлера">Юнит-тест хендлера</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -104,45 +100,37 @@
 
 <h1>7. Убедиться, что работает, без запуска сервера</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/testing.md">design/testing.md</a>. Почему так:
 запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-10] Пакет
 тестирования (<code>@nestling/testing</code>)».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Тесты должны вызывать endpoint'ы через тот же пайплайн, что и запросы по
 сети, но без сокета, без базы и без переменных окружения. Отдельно нужен
 быстрый юнит-тест хендлера, в котором нет ни контейнера, ни приложения.</p>
-<h2 id="решение">Решение</h2>
-<h3>Одна декларация для точки входа и тестов</h3>
-<div class="code" data-file="packages/examples.users-service/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts (фрагмент)
 export const app = makeApp({
   features: [UsersFeature],
-  plugins: [
-    // …
-  ],
   transports: [http()],
-  policies: [
-    // …
-  ],
+  // …
 });</code></pre></div>
-<p>Тест должен собирать то же приложение, что и <code>main.ts</code>: те же фичи,
-плагины и политики. Поэтому декларация лежит в отдельном файле, а
+<p>Тест должен собирать то же приложение, что и <code>main.ts</code>, — весь его
+состав целиком. Поэтому декларация лежит в отдельном файле, а
 <code>main.ts</code> и тесты импортируют одно и то же значение <code>app</code>. Словарь
 состава в тест не копируется: <code>assembleTest</code> принимает саму декларацию.</p>
-<p>Тест задаёт только то, что относится к прогону: подмены, выбор фич и
-конфиг.</p>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
-import { app } from './app';
+import { app } from './app.js';
 
 /** Конфиг теста: объект вместо `process.env` */
 const testConfig = vars({ API_TOKEN: 'test-token' });</code></pre></div>
-<p>Транспорты подменять не нужно: тестовая сборка не выполняет START,
-поэтому сокет не открывается и порт не занимается.</p>
-<h3>Вызов через полный пайплайн</h3>
+<p>Тест задаёт только то, что относится к прогону: подмены, выбор фич и
+конфиг. Транспорты подменять не нужно: тестовая сборка не выполняет
+START, поэтому сокет не открывается и порт не занимается.</p>
+<h2 id="вызов-через-полный-пайплайн">Вызов через полный пайплайн</h2>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
 it('отдаёт пользователя через полный пайплайн', async () =&gt; {
   await using testApp = await assembleTest(app, {
+    config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
   });
 
@@ -150,26 +138,28 @@ it('отдаёт пользователя через полный пайплай
   expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);
 });</code></pre></div>
 <p><code>assembleTest(app, options)</code> собирает ту же декларацию и проводит
-приложение по фазам до <code>WIRE</code>: граф построен, политики проверены,
-<code>@OnInit</code> выполнен, таблица маршрутов создана. Сокет не открывается,
-обработчики сигналов не ставятся. <code>await using</code> закрывает приложение в
-конце теста. Переменная названа <code>testApp</code>, чтобы не затенять <code>app</code> из
-<code>app.ts</code>.</p>
-<p><code>testApp.call(Endpoint, payload)</code> вызывает endpoint по значению декларации.
-Запрос проходит все слои пайплайна, проверку входа по схеме и проверку
-отказов по <code>errors</code>. Разбор пути, query и тела не выполняется: <code>call</code>
-принимает готовый payload. <code>unwrap</code> возвращает значение успешного ответа
-или бросает ошибку с категорией и кодом отказа.</p>
-<h3>Ответ с отказом</h3>
+приложение по фазам до <code>WIRE</code>: граф построен, политики проверены так же,
+как при старте, <code>@OnInit</code> выполнен, таблица маршрутов создана. Тестовая
+сборка их не ослабляет: приложение, которое не собирается в бою, не
+собирается и в тесте. Сокет не открывается, обработчики сигналов не
+ставятся. <code>await using</code> закрывает приложение в конце теста. Переменная
+названа <code>testApp</code>, чтобы не затенять <code>app</code> из <code>app.ts</code>.</p>
+<p><code>testApp.call(Endpoint, payload)</code> вызывает endpoint по значению
+декларации и проверяет тот же вход, что и запрос по сети, — поэтому
+<code>testApp.call</code> и HTTP дают один результат. Запрос проходит все слои
+пайплайна, проверку входа по схеме и проверку отказов по <code>errors</code>.
+Разбор пути, query и тела не выполняется: <code>call</code> принимает готовый
+payload. <code>unwrap</code> возвращает значение успешного ответа или бросает ошибку
+с категорией и кодом отказа.</p>
+<p>Ответ несёт <code>isSuccess</code>, <code>status</code> и <code>value</code>. Для отказа в <code>value</code> лежат
+код и детали, а <code>status</code> равен категории кода:</p>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
 expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
   status: 'not_found',
   value: { code: 'not_found:user', details: { id: '404' } },
 });</code></pre></div>
-<p>Ответ <code>testApp.call</code> несёт <code>isSuccess</code>, <code>status</code> и <code>value</code>. Для отказа в
-<code>value</code> лежат код и детали, а <code>status</code> равен категории кода.</p>
-<h3>Подмена хранилища</h3>
+<h2 id="подмена-узлов-графа">Подмена узлов графа</h2>
 <div class="code" data-file="packages/examples.users-service/src/testing.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/testing.ts
 export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
   const rows: User[] = seed.map((user) =&gt; ({ ...user }));
@@ -180,12 +170,13 @@ export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
     // …
   };
 }</code></pre></div>
-<p>Фейк реализует интерфейс <code>UsersRepository</code> поверх массива. Он лежит
-рядом с интерфейсом: изменился интерфейс, и фейк перестал
-компилироваться в том же коммите.</p>
+<p>Фейк реализует интерфейс <code>UsersRepository</code> поверх массива. Он лежит рядом
+с интерфейсом: изменился интерфейс, и фейк перестал компилироваться в том
+же коммите.</p>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
 it('не создаёт узлы, которые нужны только подменённому хранилищу', async () =&gt; {
   await using testApp = await assembleTest(app, {
+    config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
@@ -193,12 +184,13 @@ it('не создаёт узлы, которые нужны только под�
   // контейнер его не создаёт, и `@OnInit` не вызывается
   expect(testApp.pruned).toContain('Database');
 });</code></pre></div>
-<p><code>overrides</code> заменяет узел графа по токену. Подмена происходит до создания
-инстансов, поэтому поддерево, которое больше никому не нужно, из графа
-выпадает. От <code>Database</code> зависит только боевой репозиторий: после
-подмены контейнер её не создаёт, и соединение не открывается. <code>testApp.pruned</code>
-перечисляет выпавшие узлы.</p>
-<h3>Конфиг без <code>process.env</code></h3>
+<p><code>overrides</code> заменяет узел графа по токену; пара в нём типизирована,
+поэтому фейк, не совпадающий с типом токена, не компилируется, а подмена
+токена, которого нет в графе, останавливает сборку. Подмена происходит до
+создания инстансов, поэтому поддерево, которое больше никому не нужно, из
+графа выпадает. От <code>Database</code> зависит только боевой репозиторий: после
+подмены контейнер её не создаёт, и соединение не открывается.
+<code>testApp.pruned</code> перечисляет выпавшие узлы.</p>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
 it('читает размер страницы из конфига', async () =&gt; {
   await using testApp = await assembleTest(app, {
@@ -208,10 +200,11 @@ it('читает размер страницы из конфига', async () =&
 
   expect(unwrap(await testApp.call(ListUsers, {}))).toEqual([alice]);
 });</code></pre></div>
-<p><code>vars(record)</code> даёт источник конфига из объекта. <code>process.env</code> не
-читается и не меняется, поэтому тесты изолированы и могут идти
-параллельно.</p>
-<h3>Юнит-тест хендлера</h3>
+<p><code>vars(record)</code> даёт источник конфига из объекта и заменяет привязку
+источников декларации целиком: <code>process.env</code> не читается и не меняется,
+поэтому тесты изолированы и могут идти параллельно, а боевой источник в
+тесте не инициализируется.</p>
+<h2 id="юнит-тест-хендлера">Юнит-тест хендлера</h2>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
 describe('CreateUserHandler', () =&gt; {
   it('создаёт пользователя и отвечает created с заголовком Location', async () =&gt; {
@@ -229,49 +222,13 @@ describe('CreateUserHandler', () =&gt; {
     });
   });
 });</code></pre></div>
-<p>Класс-хендлер из главы 4 создаётся через <code>new</code> с фейком. Такой тест
+<p>Класс-хендлер, как в главе 4, создаётся через <code>new</code> с фейком. Такой тест
 проверяет логику хендлера и не проверяет пайплайн, схемы и список
-<code>errors</code>: это работа app-теста.</p>
-<h3>Запуск</h3>
+<code>errors</code>: это работа теста, который вызывает endpoint через полный
+пайплайн.</p>
 <div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
-<p>Тесты слоя проверки токена, которые тоже лежат в <code>app.spec.ts</code>,
-разбирает глава 9.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Пара в <code>overrides</code> типизирована: фейк, не совпадающий с типом токена,
-не компилируется. Подмена токена, которого нет в графе, останавливает
-сборку.</li>
-<li>Политики декларации проверяются в тесте так же, как при старте.
-Тестовая сборка их не ослабляет: приложение, которое не собирается в
-бою, не собирается и в тесте.</li>
-<li>Конфиг теста заменяет привязку источников декларации целиком, поэтому
-боевой источник в тесте не инициализируется.</li>
-<li>Вход <code>testApp.call</code> проверяет тот же рантайм, что и при запросе по сети,
-поэтому <code>testApp.call</code> и HTTP дают один результат.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
-<p>Глава целиком состоит из тестов. Файл <code>app.spec.ts</code> покрывает пайплайн,
-отказы, подмену и конфиг; файл <code>create-user.endpoint.spec.ts</code> покрывает
-хендлер отдельно.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Заглушка операции соседней фичи через <code>stubs</code> и вызов события через
-<code>testApp.emit</code>: глава 15.</li>
-<li>Подмена переменной контекста через <code>contextValue</code>: глава 15.</li>
-<li>Матрица сборок <code>checkTopologies</code>: глава 16.</li>
-<li>Подмена семейства токенов через <code>familyOverride</code>: глава 21.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/app.ts</code></li>
-<li><code>packages/examples.users-service/src/app.spec.ts</code></li>
-<li><code>packages/examples.users-service/src/testing.ts</code></li>
-<li><code>packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts</code></li>
-</ul>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
-<h2 id="дальше">Дальше</h2>
-<p>Сервис собран и покрыт тестами. Часть 2 готовит его к продакшену,
-начиная с журнала запросов: <a href="08-logging.html">8. Видеть каждый запрос в
+<p>Сервис собран и покрыт тестами. Следующая часть готовит его к
+продакшену, начиная с журнала запросов: <a href="08-logging.html">8. Видеть каждый запрос в
 логе</a>.</p>
 
   <nav class="pager">

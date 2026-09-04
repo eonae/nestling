@@ -55,6 +55,8 @@
 | `Ctx` | [8](./08-logging.md) | `packages/examples.users-service/src/users/users.repository.ts` |
 | `CtxReader` | [8](./08-logging.md) | `packages/examples.users-service/src/users/users.repository.ts` |
 | `compose` | [8](./08-logging.md), [9](./09-auth.md) | `packages/examples.users-service/src/auth.ts` |
+| отказы слоя (`.pre(unit, { errors })`) | [9](./09-auth.md) | `packages/examples.users-service/src/auth.ts` |
+| эффективное множество отказов | [9](./09-auth.md) | `packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts` |
 | `everyEndpoint` | [9](./09-auth.md) | `packages/examples.users-service/src/app.ts` |
 | `.hasLayer` | [9](./09-auth.md) | `packages/examples.users-service/src/app.ts` |
 | `detached` | [9](./09-auth.md) | `packages/examples.users-service/src/ops.plugin.ts` |
@@ -78,6 +80,7 @@
 |---|---|---|
 | `implement` | [12](./12-features.md), [13](./13-events.md) | `packages/examples.app-with-http/src/features/quotas/claim-quota.endpoint.ts` |
 | `.caller` | [12](./12-features.md) | `packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts` |
+| сверка отказов слоя с операцией | [12](./12-features.md) | `packages/examples.app-with-http/src/api/operations.ts` |
 | `deadline` | [12](./12-features.md) | `packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts` |
 | `makePlugin` | [12](./12-features.md) | `packages/examples.app-with-http/src/plugins/logging/logging.plugin.ts` |
 | `factoryProvider` | [12](./12-features.md) | `packages/examples.app-with-http/src/plugins/logging/logging.plugin.ts` |

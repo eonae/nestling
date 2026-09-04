@@ -80,12 +80,11 @@
       <li><a href="25-extending.html">25. Расширить ядро своим пакетом</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#источник-привязанный-к-ключам-секции">Источник, привязанный к ключам секции</a></li>
+      <li><a href="#право-привязки-вместо-секции">Право привязки вместо секции</a></li>
+      <li><a href="#общий-ключ-у-двух-секций">Общий ключ у двух секций</a></li>
+      <li><a href="#значения-без-перезапуска">Значения без перезапуска</a></li>
+      <li><a href="#проверка">Проверка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -101,15 +100,14 @@
 <main class="content">
 <article class="article">
 
-<h1>21. Конфиг из файла и без перезапуска</h1>
+<h1>22. Конфиг из файла и без перезапуска</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.container</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.container</code> (2026-09-04).
 Целевое описание: <a href="../design/config.md">design/config.md</a>, разделы 2–6.
 Почему так: записи <a href="../decisions/ideas.md">ideas.md</a> «Конфиг:
 keys-capability вместо <code>configs:</code>-владения» [2026-07-10] и «Конфиг:
 <code>secret()</code> и общие ключи» [2026-07-13].</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Часть значений в проде приходит не из окружения: из файла, из Vault, из
 объекта с умолчаниями для локального запуска. Один ключ, например
 <code>DATABASE_URL</code>, читают две секции. Лимит запросов нужно менять на ходу,
@@ -117,23 +115,20 @@ keys-capability вместо <code>configs:</code>-владения» [2026-07-1
 <p>Объявление секции, вывод ключей, <code>secret()</code> и остановка старта на
 невалидном конфиге описаны в главе <a href="06-config.html">6</a>. Здесь только то,
 что появляется сверх этого.</p>
-<h2 id="решение">Решение</h2>
-<h3>Привяжите источник к ключам секции</h3>
+<h2 id="источник-привязанный-к-ключам-секции">Источник, привязанный к ключам секции</h2>
 <div class="code" data-file="packages/examples.container/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/main.ts
-export async function main() {
-  const app = makeApp({
-    features: [AppFeature],
-    plugins: [appLogging],
-    providers: [Demo],
-    config: [
-      [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
-      [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
-    ],
-  }).assemble();
+const app = makeApp({
+  features: [AppFeature],
+  plugins: [appLogging],
+  providers: [Demo],
+  config: [
+    [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+    [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
+  ],
+}).assemble();
 
-  await app.run();
-  await app.close();
-}</code></pre></div>
+await app.run();
+await app.close();</code></pre></div>
 <p>Поле <code>config</code> принимает список пар «источник, цель». Источник — объект с
 интерфейсом <code>ConfigSource</code>: обязательный метод <code>get(key)</code> и необязательные
 <code>name</code>, <code>init()</code>, <code>watch(notify)</code> и <code>close()</code>. Цель — <code>.keys</code> секции, глоб
@@ -146,7 +141,9 @@ export async function main() {
 <li>порядок списка задаёт приоритет: ключ берётся из первой привязки, чья
 цель покрывает ключ и чей источник вернул не <code>undefined</code>;</li>
 <li>цель ограничивает область источника: <code>objectSource</code> из первой строки
-привязан к ключам секции <code>app</code> и для других секций не опрашивается;</li>
+привязан к ключам секции <code>app</code> и для других секций не опрашивается.
+Цель, не покрывающая ни одного объявленного ключа, даёт предупреждение
+на старте: так ловится опечатка в глобе;</li>
 <li><code>process.env</code> опрашивается последним и всегда; в список его не
 добавляют. <code>DATABASE_URL</code> в примере нигде не привязан и читается из
 окружения;</li>
@@ -154,7 +151,11 @@ export async function main() {
 дальше решает схема поля: <code>.default()</code>, <code>.optional()</code> или ошибка
 валидации.</li>
 </ul>
-<p>Тот же список принимает <code>configKernel()</code> для контейнера без <code>makeApp</code>:</p>
+<p>Невалидный конфиг останавливает старт до открытия сокета:
+<code>ConfigValidationError</code> перечисляет все ошибки секции и то, из каких
+источников читалось каждое значение.</p>
+<p>Тот же список принимает <code>configKernel()</code> при сборке контейнера без
+<code>makeApp</code>, через <code>ContainerBuilder</code>:</p>
 <div class="code" data-file="packages/examples.container/src/container.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/container.ts
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
@@ -170,9 +171,12 @@ export const makeContainer = async (
     .register(AppModule)
     .build();
 };</code></pre></div>
-<p>Сборка контейнера без приложения описана в главе
-<a href="24-standalone.html">24</a>.</p>
-<h3>Экспортируйте право привязки, а не секцию</h3>
+<p><code>ContainerBuilder</code> собирает тот же граф, что <code>makeApp</code> в <code>main.ts</code> того
+же примера, но без фаз приложения и без транспортов. <code>configKernel</code>
+подключает ядро конфигурации, которое при сборке через <code>makeApp</code>
+регистрирует сама сборка. Плагин логирования регистрируется своими
+модулями: <code>appLogging.modules</code> — обычный массив значений.</p>
+<h2 id="право-привязки-вместо-секции">Право привязки вместо секции</h2>
 <div class="code" data-file="packages/examples.container/src/config/app.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/config/app.config.ts
 export const AppConfig = makeConfig('app', {
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -183,14 +187,14 @@ export const AppConfig = makeConfig('app', {
 
 export const appConfigKeys = AppConfig.keys;</code></pre></div>
 <div class="code" data-file="packages/examples.container/src/config/index.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/config/index.ts
-export { appConfigKeys } from './app.config';</code></pre></div>
+export { appConfigKeys } from './app.config.js';</code></pre></div>
 <p>С секцией связаны два права. Токен секции даёт право читать её: кто
 импортировал <code>AppConfig</code>, тот может указать его в <code>deps</code>. <code>AppConfig.keys</code>
 даёт право привязать источник к её ключам и ничего больше: указать <code>.keys</code>
-в <code>deps</code> нельзя, это ошибка компиляции. Поэтому из папки конфига наружу
-уходит только <code>appConfigKeys</code>, а токен секции импортируют по прямому пути
-внутри приложения.</p>
-<h3>Читайте один ключ из двух секций</h3>
+в <code>deps</code> нельзя, это ошибка компиляции — право привязки не даёт права
+читать. Поэтому из папки конфига наружу уходит только <code>appConfigKeys</code>, а
+токен секции импортируют по прямому пути внутри приложения.</p>
+<h2 id="общий-ключ-у-двух-секций">Общий ключ у двух секций</h2>
 <div class="code" data-file="packages/examples.container/src/health/health.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/health/health.config.ts
 export const HealthConfig = makeConfig('health', {
   databaseUrl: from(
@@ -213,8 +217,7 @@ export const HealthConfig = makeConfig('health', {
 </ul>
 <p>Кто читает ключ, показывает <code>describeConfig()</code>. Снимок строится по
 объявленным секциям и не обращается к источникам:</p>
-<div class="code" data-file="packages/examples.container/src/config/secrets.spec.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/config/secrets.spec.ts
-    // …
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.container/src/config/secrets.spec.ts (фрагмент)
     const entry = describeConfig().keys.find(
       (item) =&gt; item.key === 'DATABASE_URL',
     );
@@ -224,7 +227,7 @@ export const HealthConfig = makeConfig('health', {
       'app',
       'health',
     ]);</code></pre></div>
-<h3>Меняйте значения без перезапуска</h3>
+<h2 id="значения-без-перезапуска">Значения без перезапуска</h2>
 <div class="code" data-file="packages/examples.container/src/runtime/runtime.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/runtime.config.ts
 export const RuntimeConfig = makeConfig.reloadable('runtime', {
   rps: z.coerce.number().int().positive().default(100),
@@ -233,7 +236,8 @@ export const RuntimeConfig = makeConfig.reloadable('runtime', {
 export const runtimeConfigKeys = RuntimeConfig.keys;</code></pre></div>
 <p><code>makeConfig.reloadable</code> объявляет секцию, значения которой обновляются на
 месте. Объект секции не пересоздаётся: ссылка, полученная в конструкторе,
-остаётся рабочей, а чтение поля отдаёт последнее валидное значение.</p>
+остаётся рабочей, а чтение поля отдаёт последнее валидное значение. Поле
+с именем <code>onChange</code> в такой секции запрещено: это имя занято подпиской.</p>
 <div class="code" data-file="packages/examples.container/src/runtime/rate-limiter.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/rate-limiter.ts
 @Injectable([RuntimeConfig, Logger.auto])
 export class RateLimiter {
@@ -281,21 +285,7 @@ export class RateLimiter {
 <li>reloadable-секция, ключи которой покрыты только источниками без
 <code>watch()</code>, поднимается и предупреждает при старте: обновлений не будет.</li>
 </ul>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li><code>Section.keys</code> в <code>deps</code> не компилируется: право привязки не даёт права
-читать.</li>
-<li>Разный флаг <code>reloadable</code> у двух читателей одного ключа останавливает
-<code>build()</code> с <code>ConfigSharedKeyError</code>.</li>
-<li>Невалидный конфиг на старте останавливает приложение до открытия
-сокета: <code>ConfigValidationError</code> перечисляет все ошибки секции и
-опрошенные источники.</li>
-<li>Цель привязки, не покрывающая ни одного объявленного ключа, даёт
-предупреждение на старте: так ловится опечатка в глобе.</li>
-<li>Поле с именем <code>onChange</code> в reloadable-секции запрещено: это имя занято
-подпиской.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+<h2 id="проверка">Проверка</h2>
 <p>Тест собирает контейнер с источником, который потом меняет:</p>
 <div class="code" data-file="packages/examples.container/src/runtime/reload.spec.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/reload.spec.ts
   it('отдаёт новое значение после обновления источника', async () =&gt; {
@@ -319,19 +309,8 @@ export class RateLimiter {
 <p>Секреты и общий ключ проверяет <code>config/secrets.spec.ts</code>: печать секции
 <code>health</code> равна <code>{&quot;databaseUrl&quot;:&quot;***&quot;}</code>, а чтение поля отдаёт настоящий
 адрес.</p>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.container/src/main.ts</code>, <code>container.ts</code>: привязка
-источников в двух корнях;</li>
-<li><code>config/app.config.ts</code>, <code>config/index.ts</code>: секция и экспорт <code>.keys</code>;</li>
-<li><code>health/health.config.ts</code>: второй читатель ключа;</li>
-<li><code>runtime/runtime.config.ts</code>, <code>runtime/rate-limiter.ts</code>,
-<code>runtime/runtime.module.ts</code>: reloadable-секция и её потребитель;</li>
-<li><code>config/secrets.spec.ts</code>, <code>runtime/reload.spec.ts</code>: тесты.</li>
-</ul>
 <div class="code" data-lang="bash"><pre><code>yarn workspace examples.container start:dev
 yarn workspace examples.container test</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>Эксплуатационные endpoint'ы: кто сейчас подключён к сервису и как
 завершить подписку. Глава <a href="23-ops.html">23</a>.</p>
 

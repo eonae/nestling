@@ -103,7 +103,7 @@
 
 <h1>Приложение В. Карта понятий</h1>
 <blockquote>
-<p>Собрано по главам гайда (2026-09-03). Понятие ведёт в главу, где оно вводится, и в файл примера, где показано.</p>
+<p>Собрано по главам гайда (2026-09-05). Понятие ведёт в главу, где оно вводится, и в файл примера, где показано.</p>
 </blockquote>
 <h2 id="часть-1-первый-сервис">Часть 1. Первый сервис</h2>
 <div class="tbl-wrap">
@@ -351,6 +351,16 @@
 <td><code>packages/examples.users-service/src/auth.ts</code></td>
 </tr>
 <tr>
+<td>отказы слоя (<code>.pre(unit, { errors })</code>)</td>
+<td><a href="09-auth.html">9</a></td>
+<td><code>packages/examples.users-service/src/auth.ts</code></td>
+</tr>
+<tr>
+<td>эффективное множество отказов</td>
+<td><a href="09-auth.html">9</a></td>
+<td><code>packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts</code></td>
+</tr>
+<tr>
 <td><code>everyEndpoint</code></td>
 <td><a href="09-auth.html">9</a></td>
 <td><code>packages/examples.users-service/src/app.ts</code></td>
@@ -447,12 +457,17 @@
 <tr>
 <td><code>implement</code></td>
 <td><a href="12-features.html">12</a>, <a href="13-events.html">13</a></td>
-<td><code>packages/examples.app-with-http/src/features/quotas/quotas.feature.ts</code></td>
+<td><code>packages/examples.app-with-http/src/features/quotas/claim-quota.endpoint.ts</code></td>
 </tr>
 <tr>
 <td><code>.caller</code></td>
 <td><a href="12-features.html">12</a></td>
 <td><code>packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts</code></td>
+</tr>
+<tr>
+<td>сверка отказов слоя с операцией</td>
+<td><a href="12-features.html">12</a></td>
+<td><code>packages/examples.app-with-http/src/api/operations.ts</code></td>
 </tr>
 <tr>
 <td><code>deadline</code></td>
@@ -487,7 +502,7 @@
 <tr>
 <td><code>subscriber</code></td>
 <td><a href="13-events.html">13</a></td>
-<td><code>packages/examples.app-with-http/src/features/quotas/quotas.feature.ts</code></td>
+<td><code>packages/examples.app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts</code></td>
 </tr>
 <tr>
 <td><code>.emitter</code></td>
@@ -507,7 +522,7 @@
 <tr>
 <td><code>withIdempotencyKey</code></td>
 <td><a href="13-events.html">13</a></td>
-<td><code>packages/examples.app-with-http/src/features/quotas/quotas.feature.ts</code></td>
+<td><code>packages/examples.app-with-http/src/features/quotas/signup-recorded.endpoint.ts</code></td>
 </tr>
 <tr>
 <td><code>BusTransport$</code></td>

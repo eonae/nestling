@@ -51,13 +51,10 @@
       <li><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#подключение-слоя-и-политики">Подключение слоя и политики</a></li>
+      <li><a href="#вторая-проверка-переменная-контекста-объявлена">Вторая проверка: переменная контекста объявлена</a></li>
+      <li><a href="#исключение-из-политик-и-подсказка-в-редакторе">Исключение из политик и подсказка в редакторе</a></li>
+      <li><a href="#проверка">Проверка</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -102,33 +99,30 @@
 <main class="content">
 <article class="article">
 
-<h1>8. Пускать только своих</h1>
+<h1>9. Пускать только своих</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/pipeline.md">design/pipeline.md</a> и
 <a href="../design/composition.md">design/composition.md</a>. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «Pipeline v2: плоские фазы, слои,
-композиция константами» и «Policy-check на собранном графе; <code>detached</code> —
-только с причиной».</p>
+композиция константами», «Policy-check на собранном графе; <code>detached</code> —
+только с причиной» и «[2026-09-04] Отказы слоя: объявление в
+<code>.pre(unit, { errors })</code>, канал <code>return</code> у pre-юнита, эффективное
+множество <code>errors</code>».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Читать список пользователей может кто угодно, а создавать, менять и
-удалять их может только тот, кто предъявил токен. Проверка должна
-выполняться до хендлера и отвечать <code>401</code> с машинным кодом. Забыть её на
-новом endpoint'е должно быть нельзя.</p>
-<h2 id="решение">Решение</h2>
-<h3>Шаг 1. Отказ проверки</h3>
+удалять их может только тот, кто предъявил токен. Проверка выполняется
+до хендлера и отвечает <code>401</code> с машинным кодом. Забыть её на новом
+endpoint'е должно быть нельзя.</p>
 <div class="code" data-file="packages/examples.users-service/src/errors.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/errors.ts
 import { makeFail } from '@nestling/operations';
 
-/** Отказ проверки токена. Его бросает pre-юнит слоя `authed`. */
+/** Отказ проверки токена. Его возвращает pre-юнит слоя `authed`. */
 export const Unauthorized = makeFail('unauthorized', {
-  status: 'unauthorized',
   message: 'Bearer token is missing or invalid',
 });</code></pre></div>
 <p>Отказ объявлен так же, как отказы хендлеров в <a href="03-errors.html">главе 3</a>.
 Статус <code>unauthorized</code> транспорт переводит в HTTP-код <code>401</code>.</p>
-<h3>Шаг 2. Pre-юнит, который проверяет токен</h3>
 <div class="code" data-file="packages/examples.users-service/src/auth.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/auth.ts
 import type { Config } from '@nestling/config';
 import { Injectable } from '@nestling/container';
@@ -144,7 +138,9 @@ export interface Caller {
 export class Authenticate {
   constructor(private readonly config: Config&lt;typeof AppConfig&gt;) {}
 
-  handle(ctx: ExtendableContext&lt;EmptyInput&gt;): { caller: Caller } {
+  handle(
+    ctx: ExtendableContext&lt;EmptyInput&gt;,
+  ): { caller: Caller } | ReturnType&lt;typeof Unauthorized&gt; {
     const header = ctx.raw.attributes.authorization;
     const token =
       typeof header === 'string' &amp;&amp; header.startsWith('Bearer ')
@@ -152,14 +148,17 @@ export class Authenticate {
         : undefined;
 
     if (token === undefined || token !== this.config.apiToken) {
-      throw Unauthorized();
+      return Unauthorized();
     }
 
     return { caller: { id: 'api-token' } };
   }
 }
 
-export const authed = compose(observability, makePipeline().pre(Authenticate));</code></pre></div>
+export const authed = compose(
+  observability,
+  makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
+);</code></pre></div>
 <p><code>Authenticate</code> — pre-юнит в форме класса. Ему нужна секция конфига из
 <a href="06-config.html">главы 6</a>, поэтому зависимость объявлена в <code>@Injectable</code>,
 а сам класс регистрируется в <code>providers:</code> фичи.</p>
@@ -168,23 +167,30 @@ HTTP-запроса; имена заголовков приведены к ни�
 сравнивает токен со значением <code>apiToken</code> из секции конфига.</p>
 <p>Юнит завершается одним из двух способов.</p>
 <ul class="body">
-<li><code>throw Unauthorized()</code> останавливает пайплайн: хендлер не вызывается,
+<li><code>return Unauthorized()</code> останавливает пайплайн: хендлер не вызывается,
 и ответная фаза получает этот отказ.</li>
 <li><code>return { caller: … }</code> добавляет поле в контекст. Его увидят следующие
 юниты и хендлер.</li>
 </ul>
+<p>Отказ юнита объявляется в точке подключения — вторым аргументом <code>.pre</code>.
+Вернуть отказ вне этого списка нельзя: компилятор отвергнет юнит прямо в
+<code>.pre</code>. Поле <code>caller</code> в накопленный контекст при отказе не попадает:
+рантайм узнаёт отказ до записи результата в контекст.</p>
 <p><code>authed</code> — новый слой, составленный из двух: <code>compose(outer, inner)</code>.
 Pre-юниты внешнего слоя выполняются раньше, поэтому <code>requestId</code> уже
 лежит в контексте, когда проверяется токен, а строка аудита пишется и
-для отклонённых запросов. Слой <code>authed</code> происходит от <code>observability</code>, и
-это будет важно для политики в шаге 4.</p>
-<h3>Шаг 3. Подключить слой и объявить отказ</h3>
+для отклонённых запросов. Слой <code>authed</code> происходит от <code>observability</code> —
+это использует политика сборки ниже.</p>
+<p>Слой может объявить требование к внешнему контексту сигнатурой
+<code>makePipeline&lt;{ caller: Caller }&gt;()</code>. Композиция такого слоя с внешним
+слоем, который поле <code>caller</code> не добавляет, не компилируется.</p>
+<h2 id="подключение-слоя-и-политики">Подключение слоя и политики</h2>
 <div class="code" data-file="packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
   input: DeleteUserInput,
-  errors: [UserNotFound, Unauthorized],
+  errors: [UserNotFound],
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],
@@ -193,14 +199,22 @@ export const DeleteUser = httpEndpoint({
   pipeline: authed,
   handler: DeleteUserHandler,
 });</code></pre></div>
-<p>Endpoint подключает <code>authed</code> вместо <code>observability</code>. Отказ <code>Unauthorized</code>
-бросает слой, а не хендлер, но в <code>errors:</code> его объявляет endpoint: список
-<code>errors:</code> описывает всё, что может получить клиент. Отказ, которого нет
-в списке, граница пайплайна заменяет на <code>internal_error</code> с кодом <code>500</code>.</p>
+<p>Endpoint подключает <code>authed</code> вместо <code>observability</code>. <code>Unauthorized</code> в
+<code>errors:</code> не перечислен: его объявил слой. Множество отказов endpoint'а
+складывается из <code>errors:</code> словаря и отказов его слоёв, и это множество
+получают тип хендлера, проверка на границе и документ OpenAPI. Отказ из
+pre-юнита проходит ту же проверку, что и отказ хендлера:
+незадекларированный отказ граница пайплайна заменяет на <code>internal_error</code>
+с кодом <code>500</code>.</p>
+<p>Один и тот же отказ можно объявить и на слое, и в <code>errors:</code> — множество
+считает его одним. Обратный порядок работы тоже становится проще: новый
+endpoint со слоем <code>authed</code> отвечает <code>401</code> и показывает этот ответ в
+OpenAPI, не перечисляя чужой отказ у себя. Политика <code>hasLayer</code> ниже
+требует слой у всех мутирующих endpoint'ов, поэтому <code>401</code> появляется у
+каждого из них разом.</p>
 <p>Поля, которые pre-юниты положили в контекст, хендлер получает вторым
-аргументом вместе с двумя зарезервированными ключами: <code>signal</code> для отмены
-запроса и <code>fail</code> для раннего выхода. Хендлеры примера имя вызывающего не
-используют, но могли бы:</p>
+аргументом вместе с зарезервированным ключом <code>signal</code> — сигналом отмены
+запроса. Хендлеры примера имя вызывающего не используют, но могли бы:</p>
 <div class="code" data-lang="typescript"><pre><code>// иллюстрация; хендлеры примера поле caller не читают
 handle:
   (users: UsersRepository) =&gt;
@@ -209,10 +223,9 @@ handle:
   },</code></pre></div>
 <p>Проверьте ответы:</p>
 <div class="code" data-lang="bash"><pre><code>curl -X DELETE http://localhost:3000/users/2
-# {"error":"Bearer token is missing or invalid","code":"UNAUTHORIZED"} 401
+# {"error":"Bearer token is missing or invalid","code":"unauthorized"} 401
 curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 # 204</code></pre></div>
-<h3>Шаг 4. Политики: гарантия вместо дисциплины</h3>
 <p>Новый endpoint с <code>pipeline: observability</code> компилируется и работает, но
 пропускает всех. Чтобы такой endpoint не дошёл до запуска, корень
 объявляет политики сборки:</p>
@@ -242,10 +255,9 @@ export const app = makeApp({
 на паттерне. <code>.hasLayer(layer, label)</code> требует, чтобы пайплайн каждого
 отобранного endpoint'а происходил от этого слоя. <code>label</code> попадает в текст
 нарушения.</p>
-<p>Слой сравнивается по ссылке, а не по содержимому. <code>authed</code> составлен из
-<code>observability</code>, поэтому endpoint с <code>pipeline: authed</code> удовлетворяет обеим
-политикам. Слой с тем же набором юнитов, объявленный в другом файле,
-первую политику не пройдёт.</p>
+<p>Слой сравнивается по ссылке, а не по содержимому: копия с тем же
+содержимым, объявленная в другом файле, политику не проходит, и обойти
+проверку переобъявлением слоя нельзя.</p>
 <p>Политики проверяются на фазе ASSEMBLE: до <code>@OnInit</code>, до открытия сокета.
 Endpoint <code>POST /rogue</code> со слоем <code>observability</code> остановит запуск с таким
 сообщением:</p>
@@ -255,9 +267,33 @@ policy: every endpoint (pattern /^(POST|PATCH|DELETE) /) has layer 'authed'
   - POST /rogue (http, module 'rogue'): its pipeline is not composed from layer 'authed'
 
 Fix each handle by composing the required layer into its 'pipeline:', or opt out deliberately with detached: '&lt;reason&gt;' in its declaration.</code></pre></div>
-<p>Endpoint без <code>pipeline:</code> политику тоже нарушает: для инварианта
-«endpoint защищён» отсутствие пайплайна и отсутствие слоя неразличимы.</p>
-<h3>Шаг 5. Исключение с причиной</h3>
+<p>Сообщение называет endpoint, политику и два способа починить. Endpoint
+без <code>pipeline:</code> политику тоже нарушает: для инварианта «endpoint защищён»
+отсутствие пайплайна и отсутствие слоя неразличимы.</p>
+<h2 id="вторая-проверка-переменная-контекста-объявлена">Вторая проверка: переменная контекста объявлена</h2>
+<p>В <a href="08-logging.html">главе 8</a> хранилище читало идентификатор запроса через
+<code>Ctx(RequestId)</code>. Читатель отдаёт значение, которое положил pre-юнит слоя.
+Если к маршруту слой не подключён, <code>peek()</code> вернёт <code>undefined</code>, а <code>get()</code>
+бросит ошибку. Компилятор такой пропуск не видит: у хранилища нет типа
+входа запроса, и читатель одинаков для всех маршрутов.</p>
+<p>Присутствие переменной требует второй предикат:</p>
+<div class="code" data-file="packages/examples.users-service/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts
+everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
+  RequestId,
+  'requestId',
+),</code></pre></div>
+<p><code>hasVar(variable, label)</code> требует, чтобы пайплайн отобранного endpoint'а
+объявлял эту переменную. Объявлением считается pre-юнит вида
+<code>Var.provide(…)</code>; <code>withRequestId()</code> из главы 8 — такой юнит. Юнит, который
+кладёт поле <code>requestId</code> в контекст обычной функцией, читателям значение
+даёт, но предикат его не засчитывает: иначе проверка сводилась бы к
+совпадению имён полей.</p>
+<p>Предикаты закрывают два разных пропуска. <code>hasLayer</code> отвечает за слой,
+который забыли подключить, <code>hasVar</code> — за значение, которое читают из
+глубины графа. Устроены они одинаково: фильтр отбирает endpoint'ы,
+предикат проверяет пайплайн, нарушения всех политик собираются в одно
+сообщение.</p>
+<h2 id="исключение-из-политик-и-подсказка-в-редакторе">Исключение из политик и подсказка в редакторе</h2>
 <p>Проба живости для балансировщика не должна писать строку аудита на каждый
 запрос. Endpoint выводится из-под политик полем <code>detached</code>:</p>
 <div class="code" data-file="packages/examples.users-service/src/ops.plugin.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/ops.plugin.ts
@@ -273,9 +309,9 @@ export const CheckHealth = httpEndpoint({
 <p><code>detached</code> принимает только непустую строку с причиной; формы <code>detached: true</code> нет. Причина видна в диффе, печатается при старте и попадает в
 отчёт <code>check()</code>:</p>
 <div class="code"><pre><code>[nestling] detached from policies: GET /health (http) — проба балансировщика: …</code></pre></div>
-<p>Поле <code>doc.hidden</code> относится к документу OpenAPI и описано в
-<a href="11-openapi-and-client.html">главе 11</a>.</p>
-<h3>Шаг 6. Подсказка в редакторе</h3>
+<p>Поле <code>doc.hidden</code> управляет документом OpenAPI, а не политиками сборки.</p>
+<p>Правило <code>endpoint-has-layer</code> из <code>@nestling/eslint-plugin</code> подсказывает
+про тот же инвариант прямо в редакторе:</p>
 <div class="code" data-file="packages/examples.users-service/eslint.config.js" data-lang="javascript"><pre><code>// packages/examples.users-service/eslint.config.js
 export default [
   ...createEslintConfig(import.meta.url),
@@ -290,28 +326,14 @@ export default [
     },
   },
 ];</code></pre></div>
-<p>Правило <code>endpoint-has-layer</code> из <code>@nestling/eslint-plugin</code> подсвечивает
-<code>httpEndpoint</code> без нужного слоя прямо в редакторе. Правило синтаксическое
-и видит только текст декларации, поэтому его уровень <code>warn</code>. Гарантию
-даёт политика на собранном графе.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Endpoint, который меняет данные и не подключил <code>authed</code>, останавливает
-сборку до открытия сокета. Сообщение называет endpoint, политику и два
-способа починить.</li>
-<li>Копия слоя с тем же содержимым политику не проходит: сравнение идёт по
-ссылке, и обойти проверку переобъявлением слоя нельзя.</li>
-<li>Отказ из pre-юнита проходит ту же проверку <code>errors:</code>, что и отказ
-хендлера. Незадекларированный отказ становится <code>internal_error</code>.</li>
-<li>Слой может объявить требование к внешнему контексту:
-<code>makePipeline&lt;{ caller: Caller }&gt;()</code>. Композиция такого слоя с внешним
-слоем, который <code>caller</code> не добавляет, не компилируется.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
+<p>Правило синтаксическое и видит только текст декларации, поэтому его
+уровень <code>warn</code>. Гарантию даёт политика на собранном графе.</p>
+<h2 id="проверка">Проверка</h2>
 <div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
 it('отклоняет запись без токена до вызова хендлера', async () =&gt; {
   const repo = inMemoryUsersRepo([alice]);
   await using testApp = await assembleTest(app, {
+    config: testConfig,
     overrides: [[UsersRepository$, repo]],
   });
 
@@ -325,6 +347,7 @@ it('отклоняет запись без токена до вызова хен
 
 it('создаёт пользователя по токену из конфига', async () =&gt; {
   await using testApp = await assembleTest(app, {
+    config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
   });
 
@@ -340,47 +363,21 @@ it('создаёт пользователя по токену из конфиг�
     value: { name: 'Carol' },
   });
 });</code></pre></div>
-<p><code>testApp.call</code> без заголовков даёт отказ <code>unauthorized</code>, и хранилище остаётся
-нетронутым: хендлер не вызывался. Заголовки в app-тесте передаются опцией
-<code>attributes</code>. Значение токена берётся из <code>vars({ API_TOKEN: 'test-token' })</code>
-в опциях теста. Политики в тестовой сборке те же, что в <code>main.ts</code>: тест
-собирает ту же декларацию <code>app</code>, а не копию её словаря.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Токен из конфига заменяет настоящую проверку личности. Проверка JWT
-или запрос к сервису сессий пишется в том же юните; форма слоя и
-политики не меняются.</li>
-<li>Права и роли — поля <code>caller</code>, которые вы добавите сами. Готовые юниты
-<code>withIdentity</code> и <code>withPermissions</code> из <code>@nestling/pipeline</code> описаны в
-README пакета.</li>
-<li>Политика <code>.hasVar(variable)</code> проверяет, что пайплайн объявляет
-переменную контекста. Она понадобится в <a href="13-events.html">главе 13</a>.</li>
-<li>Отчёт <code>check()</code> со списком <code>detached</code>-endpoint'ов появится в
-<a href="16-select.html">главе 16</a>.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<ul class="body">
-<li><code>packages/examples.users-service/src/errors.ts</code> — отказ <code>Unauthorized</code>.</li>
-<li><code>packages/examples.users-service/src/auth.ts</code> — юнит <code>Authenticate</code> и
-слой <code>authed</code>.</li>
-<li><code>packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts</code>
-и <code>create-user.endpoint.ts</code> — endpoint'ы под слоем <code>authed</code>.</li>
-<li><code>packages/examples.users-service/src/ops.plugin.ts</code>
-— исключение с <code>detached</code>.</li>
-<li><code>packages/examples.users-service/src/app.ts</code> — политики.</li>
-<li><code>packages/examples.users-service/eslint.config.js</code> — правило для
-редактора.</li>
-</ul>
+<p><code>testApp.call</code> без заголовков даёт отказ <code>unauthorized</code>, и хранилище
+остаётся нетронутым: хендлер не вызывался. Заголовки в app-тесте
+передаются опцией <code>attributes</code>. Значение токена берётся из
+<code>vars({ API_TOKEN: 'test-token' })</code> в опциях теста. Политики в тестовой
+сборке те же, что в <code>main.ts</code>: тест собирает ту же декларацию <code>app</code>, а
+не копию её словаря.</p>
 <div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
 curl -X POST http://localhost:3000/users \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'
-# 401 UNAUTHORIZED
+# 401 unauthorized
 curl -X POST http://localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'
 # 201, Location: /users/3</code></pre></div>
-<h2 id="дальше">Дальше</h2>
 <p>Файлы, выгрузки и импорт, которые не помещаются в память:
 <a href="10-files-and-streams.html">глава 10</a>.</p>
 

@@ -68,13 +68,10 @@
       <li><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#задача">Задача</a></li>
-      <li><a href="#решение">Решение</a></li>
-      <li><a href="#что-гарантирует-фреймворк">Что гарантирует фреймворк</a></li>
-      <li><a href="#как-проверить">Как проверить</a></li>
-      <li><a href="#пока-не-нужно">Пока не нужно</a></li>
-      <li><a href="#запускаемый-код">Запускаемый код</a></li>
-      <li><a href="#дальше">Дальше</a></li>
+      <li><a href="#объявите-шину-и-назначьте-ей-роль">Объявите шину и назначьте ей роль</a></li>
+      <li><a href="#оставьте-код-фич-как-есть">Оставьте код фич как есть</a></li>
+      <li><a href="#долговечность-события-и-контекст-через-границу-процесса">Долговечность события и контекст через границу процесса</a></li>
+      <li><a href="#запустите-и-проверьте-два-процесса">Запустите и проверьте два процесса</a></li>
     </ul>
   </div>
   <div class="nav-group">
@@ -102,9 +99,9 @@
 <main class="content">
 <article class="article">
 
-<h1>16. Разнести фичи по процессам, не меняя их код</h1>
+<h1>17. Разнести фичи по процессам, не меняя их код</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.split-nats</code> (2026-09-03).
+<p>Гайд по текущему API; сверено с кодом <code>examples.split-nats</code> (2026-09-05).
 Целевое описание: <a href="../design/composition.md">design/composition.md</a> «L4»,
 <a href="../design/operations.md">design/operations.md</a> §3 и §4.4,
 <a href="../design/transports.md">design/transports.md</a> §7. Почему так: записи
@@ -112,14 +109,18 @@
 <code>durable</code> в контракте; <code>propagate</code> двумя каналами» и «Модель композиции:
 фича, плагин, операция».</p>
 </blockquote>
-<h2 id="задача">Задача</h2>
 <p>Фичи <code>users</code> и <code>quotas</code> работают в одном процессе и общаются операциями.
 Нагрузка на квоты другая, и их хочется развернуть отдельным сервисом.
 Вызовы <code>quotas.claim</code> и подписку на <code>users.registered</code> переписывать не
 хочется: пусть те же фичи работают в двух процессах, а сообщения между ними
 переносит брокер.</p>
-<h2 id="решение">Решение</h2>
-<h3>Объявите шину и назначьте ей роль</h3>
+<p>Обратное направление даёт локальный запуск. Та же декларация с
+<code>assemble('all')</code> поднимает все фичи в одном процессе, и операции между
+ними доставляет шина внутри процесса: вызов <code>quotas.claim</code> на брокер не
+выходит. Брокер и несколько процессов нужны стенду, а не разработчику —
+локально приложение запускается одной командой и тогда, когда на стенде
+его фичи разнесены по сервисам.</p>
+<h2 id="объявите-шину-и-назначьте-ей-роль">Объявите шину и назначьте ей роль</h2>
 <div class="code" data-file="packages/examples.split-nats/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/app.ts
 export function declareApp(transport: NatsTransportOptions = {}): App {
   return makeApp({
@@ -142,11 +143,14 @@ export const app = declareApp();</code></pre></div>
 умолчанию <code>nats://127.0.0.1:4222</code>. <code>intercom: 'events'</code> назначает этому
 транспорту роль переносчика операций. Пока роль не назначена, операции
 между фичами доставляет шина внутри процесса. После назначения её место
-занимает брокер: шина в приложении одна.</p>
-<p>Декларация одна на все процессы. Роль процесса задаёт выбор фич, который
-<code>main.ts</code> читает из <code>APP_FEATURES</code> до сборки, как в главе
-<a href="16-select.html">16</a>.</p>
-<h3>Оставьте код фич как есть</h3>
+занимает брокер: шина в приложении одна. Объявленная шина без назначенной
+роли останавливает сборку, а в роль интеркома встают только транспорты,
+переносящие операции: <code>http()</code> в <code>intercom:</code> не компилируется. Без роли
+переносчика вызов операции, чей владелец не выбран, останавливает сборку,
+как в главе <a href="16-select.html">16</a>.</p>
+<p>Роль процесса задаёт выбор фич, который <code>main.ts</code> читает из
+<code>APP_FEATURES</code> до сборки, как в главе <a href="16-select.html">16</a>.</p>
+<h2 id="оставьте-код-фич-как-есть">Оставьте код фич как есть</h2>
 <div class="code" data-file="packages/examples.split-nats/src/users.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/users.ts
 @Injectable([ClaimQuota.caller, UserRegistered.emitter])
 export class RegistrationService {
@@ -181,7 +185,7 @@ export class RegistrationService {
 При выборе <code>'all'</code> обе фичи работают в одном процессе, запрос
 выполняется напрямую, а событие всё равно уходит через брокер: его
 подписчики могут быть в других процессах.</p>
-<h3>Объявите долговечность события</h3>
+<h2 id="долговечность-события-и-контекст-через-границу-процесса">Долговечность события и контекст через границу процесса</h2>
 <div class="code" data-file="packages/examples.split-nats/src/operations.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/operations.ts
 export const UserRegistered = makeEvent({
   name: 'users.registered',
@@ -192,59 +196,60 @@ export const UserRegistered = makeEvent({
 Транспорт NATS заводит под таким subject'ом поток JetStream: издатель
 ждёт подтверждения записи в поток, подписчик читает из потока и
 подтверждает обработку. Подписчик, который в момент публикации не работал,
-получит событие после запуска.</p>
+получит событие после запуска. Поле принимают только <code>command</code> и <code>event</code>:
+у <code>request</code> вызывающий ждёт ответа, и <code>durable: true</code> для него не
+компилируется.</p>
 <div class="code" data-file="packages/examples.split-nats/src/quotas.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/quotas.ts
+@Injectable([QuotaLedger])
+class UserRegisteredInArchiveHandler {
+  constructor(private readonly ledger: QuotaLedger) {}
+
+  async handle(payload: UserRegisteredInput) {
+    this.ledger.archive(payload.id);
+  }
+}
+
     implement(UserRegistered, {
       // Имя подписчика — адрес подписки: в одном процессе различает
       // подписки на одно событие, у брокера становится именем queue-группы
       // и durable-потребителя
       subscriber: 'archive',
       pipeline: makePipeline().pre(TenantId.propagated()),
-      handler: {
-        deps: [QuotaLedger],
-        handle: (ledger: QuotaLedger) =&gt; async (payload: UserRegisteredInput) =&gt; {
-          ledger.archive(payload.id);
-
-          // eslint-disable-next-line unicorn/no-useless-undefined
-          return undefined;
-        },
-      },
+      handler: UserRegisteredInArchiveHandler,
     }),</code></pre></div>
 <p>Имя подписчика из главы <a href="13-events.html">13</a> здесь получает вторую
 работу: у брокера оно становится именем durable-потребителя. Долговечность
 объявлена в операции, а не в корне, потому что о ней должны знать обе
 стороны: издатель ждёт подтверждения записи, подписчик читает из потока.</p>
-<h3>Передайте контекст запроса через границу процесса</h3>
 <div class="code" data-file="packages/examples.split-nats/src/context.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/context.ts
 export const TenantId = contextVar&lt;string&gt;()('tenantId', { propagate: true });</code></pre></div>
 <p>Арендатор приходит от внешнего клиента и нужен в обоих процессах, но ни в
 одной схеме <code>input</code> его нет. <code>propagate: true</code> включает передачу
-переменной через границу порта. Вызыватель берёт значение из контекста
+переменной через границу порта: вызыватель берёт значение из контекста
 текущего запроса и кладёт его в заголовок сообщения <code>Nl-Ctx</code>. Передаётся
-только переменная с этой пометкой; остальной контекст через границу не
+только переменная с этой пометкой, остальной контекст через границу не
 проходит.</p>
 <div class="code" data-file="packages/examples.split-nats/src/users.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/users.ts
+@Injectable([RegistrationService])
+class RegisterUserHandler {
+  constructor(private readonly registration: RegistrationService) {}
+
+  async handle(payload: RegisterUserInput) {
+    await this.registration.register(payload.email);
+  }
+}
+
     implement(RegisterUser, {
       // Арендатор приходит в конверте сообщения. Юнит кладёт его в контекст
       // запроса, откуда вызыватель `quotas.claim` передаст его дальше
       pipeline: makePipeline().pre(TenantId.propagated()),
-      handler: {
-        deps: [RegistrationService],
-        handle:
-          (registration: RegistrationService) =&gt;
-          async (payload: RegisterUserInput) =&gt; {
-            await registration.register(payload.email);
-
-            // eslint-disable-next-line unicorn/no-useless-undefined
-            return undefined;
-          },
-      },
+      handler: RegisterUserHandler,
     }),</code></pre></div>
 <p>На принимающей стороне значение лежит в атрибутах сообщения. Юнит
 <code>TenantId.propagated()</code> переносит его в асинхронный контекст запроса. Тот
 же юнит стоит в пайплайне обеих реализаций фичи <code>quotas</code>, потому что и
 <code>quotas.claim</code>, и <code>users.registered</code> приходят из другого процесса.</p>
-<div class="code" data-file="packages/examples.split-nats/src/quotas.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/quotas.ts
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/quotas.ts (фрагмент)
 @Injectable([Ctx(TenantId)])
 export class QuotaLedger {
   readonly limit = 100;
@@ -262,7 +267,7 @@ export class QuotaLedger {
 зависимостях провайдера. Значение прошло два перехода: внешний клиент
 положил его в заголовок, процесс <code>users</code> прочитал и передал дальше при
 вызове <code>quotas.claim</code>, процесс <code>quotas</code> прочитал снова.</p>
-<h3>Запустите два процесса</h3>
+<h2 id="запустите-и-проверьте-два-процесса">Запустите и проверьте два процесса</h2>
 <div class="code" data-lang="bash"><pre><code>docker run --rm -p 4222:4222 nats:2 -js</code></pre></div>
 <p>Флаг <code>-js</code> включает JetStream. Без него поток под <code>users.registered</code> не
 создастся, и сборка остановится.</p>
@@ -275,32 +280,17 @@ APP_FEATURES=users yarn workspace examples.split-nats start:dev</code></pre></di
 <p>Команду регистрации кладёт на шину внешний клиент. Арендатор передаётся
 заголовком контекста:</p>
 <div class="code" data-lang="bash"><pre><code>nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"acme"}'</code></pre></div>
-<p>Тот же корень с <code>APP_FEATURES=all</code> поднимает обе фичи одним процессом.
-Ни один файл фич при этом не меняется.</p>
-<h3>Проверьте путь через шину в одном процессе</h3>
+<p>Тот же корень с <code>APP_FEATURES=all</code> поднимает обе фичи одним процессом. Ни
+один файл фич при этом не меняется.</p>
 <p>Политика диспатча <code>NESTLING_PORTS_DISPATCH=always-remote</code> отправляет
 каждый вызов операции как сообщение, даже когда владелец работает в этом
 же процессе. На шине внутри процесса это означает асинхронный барьер,
 копию payload и проверку ответа по схеме <code>output</code>. Так вызовы проходят
 путь, близкий к сетевому, до появления брокера. Тест на обе политики лежит
 в <code>packages/examples.app-with-http/src/app.spec.ts</code>.</p>
-<h2 id="что-гарантирует-фреймворк">Что гарантирует фреймворк</h2>
-<ul class="body">
-<li>Вызов операции, владелец которой не выбран в сборке без интеркома,
-останавливает сборку. Ошибка называет операцию и вызывателя и говорит,
-что вызову некуда идти.</li>
-<li>Объявленная шина без назначенной роли останавливает сборку. В роль
-интеркома встают только транспорты, переносящие операции: <code>http()</code> в
-<code>intercom:</code> не компилируется.</li>
-<li><code>durable: true</code> принимают только <code>command</code> и <code>event</code>. У <code>request</code>
-вызывающий ждёт ответа, и поле для него не компилируется.</li>
-<li>Через границу порта проходят только переменные с <code>propagate: true</code>.
-Значения остальных переменных остаются в процессе вызывающего.</li>
-</ul>
-<h2 id="как-проверить">Как проверить</h2>
 <p>Тест поднимает оба процесса в одном jest-процессе поверх двойника брокера
-<code>NatsDouble</code>. Сеть не нужна.</p>
-<div class="code" data-file="packages/examples.split-nats/src/split.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/split.spec.ts
+<code>NatsDouble</code>, и сеть не нужна:</p>
+<div class="code" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/split.spec.ts (фрагмент)
   it('два процесса общаются операциями через брокер', async () =&gt; {
     const broker = new NatsDouble();
     const topology = await run(broker, 'quotas', 'users');
@@ -328,71 +318,16 @@ APP_FEATURES=users yarn workspace examples.split-nats start:dev</code></pre></di
   });</code></pre></div>
 <p><code>run</code> создаёт по приложению на каждый выбор фич: <code>declareApp</code> с
 соединением к двойнику, затем <code>assemble(select)</code> на каждую роль.
-<code>broker.published</code> хранит все
-отправленные сообщения с заголовками: по нему тест проверяет subject'ы и
-арендатора в <code>Nl-Ctx</code>, а через <code>broker.jetstreamManager()</code> находит поток
-<code>nestling_users_registered</code>. Второй тест того же файла поднимает выбор
-<code>'all'</code> и проверяет, что <code>quotas.claim</code> на брокер не выходит.
-Третий собирает процесс <code>users</code> без владельца <code>quotas.claim</code> и
-убеждается, что сборка проходит.</p>
-<h2 id="пока-не-нужно">Пока не нужно</h2>
-<ul class="body">
-<li>Проверка, что изменение операции не сломает соседний процесс: снапшот
-операций и <code>diffOperations</code> в главе <a href="18-compatibility.html">18</a>.</li>
-<li>Список открытых подписок и их принудительное закрытие: глава
-<a href="23-ops.html">23</a>.</li>
-</ul>
-<h2 id="запускаемый-код">Запускаемый код</h2>
-<div class="tbl-wrap">
-<table>
-<thead>
-<tr>
-<th>Файл</th>
-<th>Что показывает</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>packages/examples.split-nats/src/app.ts</code></td>
-<td>одна декларация на все процессы: <code>nats()</code> и <code>intercom:</code></td>
-</tr>
-<tr>
-<td><code>packages/examples.split-nats/src/main.ts</code></td>
-<td>выбор фич из <code>APP_FEATURES</code> до сборки</td>
-</tr>
-<tr>
-<td><code>packages/examples.split-nats/src/operations.ts</code></td>
-<td>команда, запрос и событие с <code>durable: true</code></td>
-</tr>
-<tr>
-<td><code>packages/examples.split-nats/src/context.ts</code></td>
-<td>переменная контекста с <code>propagate: true</code></td>
-</tr>
-<tr>
-<td><code>packages/examples.split-nats/src/users.ts</code></td>
-<td>фича без знания о транспорте и процессах</td>
-</tr>
-<tr>
-<td><code>packages/examples.split-nats/src/quotas.ts</code></td>
-<td>владелец запроса и durable-подписчик, чтение контекста в сервисе</td>
-</tr>
-<tr>
-<td><code>packages/examples.split-nats/src/split.spec.ts</code></td>
-<td>две топологии на двойнике брокера</td>
-</tr>
-<tr>
-<td><code>packages/examples.split-nats/src/isolated.spec.ts</code></td>
-<td>фича без соседа и без брокера, глава <a href="15-testing-features.html">15</a></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.split-nats test
-APP_FEATURES=all yarn workspace examples.split-nats start:dev</code></pre></div>
-<h2 id="дальше">Дальше</h2>
+<code>broker.published</code> хранит все отправленные сообщения с заголовками: по
+нему тест проверяет subject'ы и арендатора в <code>Nl-Ctx</code>, а через
+<code>broker.jetstreamManager()</code> находит поток <code>nestling_users_registered</code>.
+Второй тест того же файла поднимает выбор <code>'all'</code> и проверяет, что
+<code>quotas.claim</code> на брокер не выходит. Третий собирает процесс <code>users</code> без
+владельца <code>quotas.claim</code> и убеждается, что сборка проходит.</p>
+<div class="code" data-lang="bash"><pre><code>yarn workspace examples.split-nats test</code></pre></div>
 <p>Операция стала границей между процессами, и её изменение теперь может
-сломать соседний сервис. Как заметить это до выкладки, показывает глава
-<a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a>.</p>
+сломать соседний сервис: <a href="18-compatibility.html">18. Не сломать соседей при изменении
+операции</a>.</p>
 
   <nav class="pager">
     <a href="16-select.html">

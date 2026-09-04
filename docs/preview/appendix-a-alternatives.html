@@ -88,8 +88,7 @@
       <li><a href="appendix-c-coverage.html">В. Карта понятий</a></li>
     </ul>
     <ul class="nav-sub">
-      <li><a href="#функция-с-deps">Функция с deps</a></li>
-      <li><a href="#отказ-броском">Отказ броском</a></li>
+      <li><a href="#отказ-из-юнита">Отказ из юнита</a></li>
       <li><a href="#слой-catch-с-проверкой-по-коду">Слой .catch с проверкой по коду</a></li>
       <li><a href="#ok-юнит">.ok-юнит</a></li>
       <li><a href="#oknocontent-и-okaccepted">Ok.noContent() и Ok.accepted()</a></li>
@@ -104,7 +103,7 @@
 
 <h1>Приложение А. Альтернативные формы</h1>
 <blockquote>
-<p>Каждая форма показана в одном месте примера <code>examples.app-with-http</code> (2026-09-03).</p>
+<p>Каждая форма показана в одном месте примера <code>examples.app-with-http</code> (2026-09-05).</p>
 </blockquote>
 <p>Главы гайда используют одну форму записи для каждой задачи. Фреймворк
 допускает и другие. Здесь они собраны в одном месте: где показана
@@ -121,16 +120,16 @@
 </thead>
 <tbody>
 <tr>
-<td>Хендлер с зависимостями</td>
-<td>класс-хендлер</td>
-<td>функция с <code>deps</code></td>
-<td><code>features/users/endpoints/update-user.endpoint.ts</code></td>
-</tr>
-<tr>
 <td>Отказ из хендлера</td>
 <td><code>return Fail</code></td>
 <td><code>throw Fail</code> из глубины вызовов</td>
-<td><code>plugins/auth/authenticate.ts</code>, <code>user-webhook.endpoint.ts</code></td>
+<td><code>user-webhook.endpoint.ts</code></td>
+</tr>
+<tr>
+<td>Отказ из pre-юнита</td>
+<td><code>return Fail</code> с объявлением на слое</td>
+<td><code>throw Fail</code> из глубины вызовов</td>
+<td><code>plugins/auth/authenticate.ts</code></td>
 </tr>
 <tr>
 <td>Реакция на ошибку</td>
@@ -165,66 +164,51 @@
 </tbody>
 </table>
 </div>
-<h2 id="функция-с-deps">Функция с <code>deps</code></h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/update-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/update-user.endpoint.ts
-export const updateUserHandler =
-  (users: UsersRepository) =&gt;
-  async (
-    input: UpdateUserInput,
-  ): Output&lt;
-    User,
-    typeof NothingToUpdate | typeof EmailTaken | typeof UserNotFound
-  &gt; =&gt; {
-    const { id, ...changes } = input;
-
-    if (Object.keys(changes).length === 0) {
-      return NothingToUpdate();
-    }
-
-    // …
-
-    const user = await users.patch(id, changes);
-
-    return user ?? UserNotFound({ id });
-  };
-
-export const UpdateUser = httpEndpoint({
-  method: 'PATCH',
-  path: '/users/:id',
-  input: UpdateUserInput,
-  output: User,
-  errors: [NothingToUpdate, EmailTaken, UserNotFound, Unauthorized],
-  pipeline: authed,
-  handler: {
-    deps: [UsersRepository$],
-    handle: updateUserHandler,
-  },
-});</code></pre></div>
-<p>Поле <code>handler</code> в объектной форме несёт список токенов и каррированную
-фабрику. Внешняя функция принимает зависимости и вызывается один раз при
-сборке, внутренняя принимает данные запроса; замыкание играет роль
-экземпляра. Порядок аргументов внешней функции совпадает с порядком
-<code>deps</code>. Тестируется такой хендлер вызовом фабрики с фейками, без
-контейнера.</p>
-<p>Выбирайте эту форму для хендлера в несколько строк: она короче класса.
-Когда у хендлера появляются приватные методы, класс из
-<a href="04-handler-class.html">главы 4</a> читается лучше.</p>
-<h2 id="отказ-броском">Отказ броском</h2>
+<h2 id="отказ-из-юнита">Отказ из юнита</h2>
 <div class="code" data-file="packages/examples.app-with-http/src/plugins/auth/authenticate.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/plugins/auth/authenticate.ts
     if (token === undefined || token !== this.config.apiToken) {
-      throw Unauthorized();
-    }</code></pre></div>
-<p>У pre-юнита нет канала возврата отказа: его возвращаемое значение
-добавляется в контекст. Поэтому юнит бросает отказ. Для ответа возврат и
-бросок неразличимы: рантайм останавливает пайплайн, хендлер не
-вызывается, ответная фаза получает этот <code>Fail</code>. Отказ юнита объявляет в
-<code>errors:</code> endpoint, как в <a href="09-auth.html">главе 9</a>.</p>
-<p>Тот же способ работает в глубине вызовов: сервис, у которого нет канала
-возврата к границе, бросает отказ, и хендлер его не перехватывает.
-Компилятор бросок не видит, поэтому такой отказ обязан быть объявлен в
-<code>errors:</code>: незадекларированный рантайм заменит на <code>InternalError</code> (500).
-Канон гайда — <code>return</code>: возвращённый отказ виден в типе <code>Output</code>, и
-список исходов хендлера описан целиком.</p>
+      return Unauthorized();
+    }
+// подключение юнита объявляет его отказы
+makePipeline().pre(Authenticate, { errors: [Unauthorized] });</code></pre></div>
+<p>Канон — <code>return</code>, как у хендлера. Отказ объявляется вторым аргументом
+<code>.pre</code>, и компилятор проверяет возврат по этому списку. Рантайм узнаёт
+отказ до записи результата в контекст, поэтому в накопленный <code>input</code> он
+не попадает. Как это работает — <a href="09-auth.html">глава 9</a>.</p>
+<div class="tbl-wrap">
+<table>
+<thead>
+<tr>
+<th>Форма</th>
+<th>Видит компилятор</th>
+<th>Где объявляется</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>return Fail</code> из pre-юнита</td>
+<td>да</td>
+<td>второй аргумент <code>.pre</code></td>
+</tr>
+<tr>
+<td><code>throw Fail</code> из pre-юнита</td>
+<td>нет</td>
+<td><code>.pre</code> или <code>errors:</code> endpoint'а</td>
+</tr>
+<tr>
+<td><code>throw Fail</code> из глубины вызовов</td>
+<td>нет</td>
+<td><code>errors:</code> endpoint'а или операции</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>throw</code> остаётся для доставки из глубины: сервис, у которого нет канала
+возврата к границе, бросает отказ, и хендлер его не перехватывает. Для
+ответа возврат и бросок неразличимы: рантайм останавливает пайплайн,
+хендлер не вызывается, ответная фаза получает этот <code>Fail</code>. Компилятор
+бросок не видит, поэтому такой отказ обязан быть объявлен: незадекларированный
+рантайм заменит на <code>InternalError</code> (500).</p>
 <h2 id="слой-catch-с-проверкой-по-коду">Слой <code>.catch</code> с проверкой по коду</h2>
 <div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
 @Injectable([Logger$])

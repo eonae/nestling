@@ -1,11 +1,13 @@
 # 9. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
-> композиция константами» и «Policy-check на собранном графе; `detached` —
-> только с причиной».
+> композиция константами», «Policy-check на собранном графе; `detached` —
+> только с причиной» и «[2026-09-04] Отказы слоя: объявление в
+> `.pre(unit, { errors })`, канал `return` у pre-юнита, эффективное
+> множество `errors`».
 
 Читать список пользователей может кто угодно, а создавать, менять и
 удалять их может только тот, кто предъявил токен. Проверка выполняется
@@ -16,7 +18,7 @@ endpoint'е должно быть нельзя.
 // packages/examples.users-service/src/errors.ts
 import { makeFail } from '@nestling/operations';
 
-/** Отказ проверки токена. Его бросает pre-юнит слоя `authed`. */
+/** Отказ проверки токена. Его возвращает pre-юнит слоя `authed`. */
 export const Unauthorized = makeFail('unauthorized', {
   message: 'Bearer token is missing or invalid',
 });
@@ -41,7 +43,9 @@ export interface Caller {
 export class Authenticate {
   constructor(private readonly config: Config<typeof AppConfig>) {}
 
-  handle(ctx: ExtendableContext<EmptyInput>): { caller: Caller } {
+  handle(
+    ctx: ExtendableContext<EmptyInput>,
+  ): { caller: Caller } | ReturnType<typeof Unauthorized> {
     const header = ctx.raw.attributes.authorization;
     const token =
       typeof header === 'string' && header.startsWith('Bearer ')
@@ -49,14 +53,17 @@ export class Authenticate {
         : undefined;
 
     if (token === undefined || token !== this.config.apiToken) {
-      throw Unauthorized();
+      return Unauthorized();
     }
 
     return { caller: { id: 'api-token' } };
   }
 }
 
-export const authed = compose(observability, makePipeline().pre(Authenticate));
+export const authed = compose(
+  observability,
+  makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
+);
 ```
 
 `Authenticate` — pre-юнит в форме класса. Ему нужна секция конфига из
@@ -69,10 +76,15 @@ HTTP-запроса; имена заголовков приведены к ни�
 
 Юнит завершается одним из двух способов.
 
-- `throw Unauthorized()` останавливает пайплайн: хендлер не вызывается,
+- `return Unauthorized()` останавливает пайплайн: хендлер не вызывается,
   и ответная фаза получает этот отказ.
 - `return { caller: … }` добавляет поле в контекст. Его увидят следующие
   юниты и хендлер.
+
+Отказ юнита объявляется в точке подключения — вторым аргументом `.pre`.
+Вернуть отказ вне этого списка нельзя: компилятор отвергнет юнит прямо в
+`.pre`. Поле `caller` в накопленный контекст при отказе не попадает:
+рантайм узнаёт отказ до записи результата в контекст.
 
 `authed` — новый слой, составленный из двух: `compose(outer, inner)`.
 Pre-юниты внешнего слоя выполняются раньше, поэтому `requestId` уже
@@ -92,7 +104,7 @@ export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
   input: DeleteUserInput,
-  errors: [UserNotFound, Unauthorized],
+  errors: [UserNotFound],
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],
@@ -103,11 +115,20 @@ export const DeleteUser = httpEndpoint({
 });
 ```
 
-Endpoint подключает `authed` вместо `observability`. Отказ `Unauthorized`
-бросает слой, а не хендлер, но в `errors:` его объявляет endpoint: список
-`errors:` описывает всё, что может получить клиент. Отказ из pre-юнита
-проходит ту же проверку `errors:`, что и отказ хендлера: незадекларированный
-отказ граница пайплайна заменяет на `internal_error` с кодом `500`.
+Endpoint подключает `authed` вместо `observability`. `Unauthorized` в
+`errors:` не перечислен: его объявил слой. Множество отказов endpoint'а
+складывается из `errors:` словаря и отказов его слоёв, и это множество
+получают тип хендлера, проверка на границе и документ OpenAPI. Отказ из
+pre-юнита проходит ту же проверку, что и отказ хендлера:
+незадекларированный отказ граница пайплайна заменяет на `internal_error`
+с кодом `500`.
+
+Один и тот же отказ можно объявить и на слое, и в `errors:` — множество
+считает его одним. Обратный порядок работы тоже становится проще: новый
+endpoint со слоем `authed` отвечает `401` и показывает этот ответ в
+OpenAPI, не перечисляя чужой отказ у себя. Политика `hasLayer` ниже
+требует слой у всех мутирующих endpoint'ов, поэтому `401` появляется у
+каждого из них разом.
 
 Поля, которые pre-юниты положили в контекст, хендлер получает вторым
 аргументом вместе с зарезервированным ключом `signal` — сигналом отмены

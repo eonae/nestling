@@ -230,9 +230,6 @@ class SubscriptionOpenedInOpsHandler {
       `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
         `(${payload.transport} ${payload.pattern})`,
     );
-
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
   }
 }
 

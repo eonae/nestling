@@ -40,7 +40,7 @@ const makeAppUnderTest = () =>
   });
 
 describe('отказ слоя в собранном приложении', () => {
-  it('доезжает до ответа со своим кодом без объявления на декларации', async () => {
+  it('попадает в ответ со своим кодом без объявления на декларации', async () => {
     await using test = await assembleTest(makeAppUnderTest());
 
     const response = await test.call(Profile, undefined, { attributes: {} });
