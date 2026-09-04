@@ -1,4 +1,4 @@
-import type { AnyFail, Ok } from './result.js';
+import type { AnyFail } from './result.js';
 import { Fail, isFail } from './result.js';
 import type { Category, FailCode } from './status.js';
 import { assertFailCode, categoryOf } from './status.js';
@@ -151,34 +151,6 @@ export type FailsOf<E extends readonly AnyFailDefinition[]> = Exclude<
  * Условие одно и плоское: юнион определений раскладывается дистрибутивно.
  */
 export type FailOfDef<D> = D extends AnyFailDefinition ? FailOf<D> : D;
-
-/**
- * Синхронный результат хендлера: `Ok`, значение без обёртки или отказ из
- * множества `E`.
- *
- * `E` записывается определениями отказов (`typeof UserNotFound`, юнион
- * через `|`) или типами `Fail`. По умолчанию `E` равно `never`: endpoint
- * без `errors` не может вернуть отказ.
- */
-export type OutputSync<
-  TValue = unknown,
-  E extends AnyFailDefinition | AnyFail = never,
-> = Ok<TValue> | FailOfDef<E> | TValue;
-
-/**
- * Асинхронный результат хендлера (см. {@link OutputSync}).
- *
- * @example
- * ```typescript
- * async handle(input: GetUserInput): Output<User, typeof UserNotFound> {
- *   return (await this.users.byId(input.id)) ?? UserNotFound({ id: input.id });
- * }
- * ```
- */
-export type Output<
-  TValue = unknown,
-  E extends AnyFailDefinition | AnyFail = never,
-> = Promise<Ok<TValue> | FailOfDef<E> | TValue>;
 
 /** Опции определения со схемой деталей */
 export interface FailSpecWithDetails<S extends StandardSchemaV1> {

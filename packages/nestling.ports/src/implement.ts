@@ -15,9 +15,11 @@ import type {
   AnyOperation,
   Operation,
   OperationKind,
+  ValidateOperationFails,
 } from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
+  AnyFail,
   AnyFailDefinition,
   AnyInput,
   AnyOutput,
@@ -28,7 +30,7 @@ import type {
   HandlerFn,
   Pipeline,
 } from '@nestling/pipeline';
-import { makeEndpoint } from '@nestling/pipeline';
+import { assertLayerFailsDeclared, makeEndpoint } from '@nestling/pipeline';
 
 /**
  * Словарь реализации: только исполнение.
@@ -38,14 +40,21 @@ import { makeEndpoint } from '@nestling/pipeline';
  * компиляции в точке декларации, а не расхождение, найденное в проде.
  */
 export interface ImplementDictionary<
+  C extends AnyOperation = AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
+  PF extends AnyFail = never,
 > {
   /**
    * Pipeline этой реализации. Классы-юниты допустимы: они попадают в
    * `TNeeds` декларации и получают инстансы вместе с классом-хендлером.
+   *
+   * Отказы, объявленные слоями пайплайна, обязаны входить в `errors:`
+   * операции: контракт импортирует вызывающая сторона, и пайплайна
+   * реализации она не видит. У события `errors:` нет, поэтому слой с
+   * доменным отказом там не компилируется.
    */
-  pipeline?: Pipeline<AnyInput, P, PN>;
+  pipeline?: Pipeline<AnyInput, P, PN, PF> & ValidateOperationFails<C, PF>;
 
   /** Причина вывода реализации из-под инвариантов сборки */
   detached?: string;
@@ -182,9 +191,10 @@ export function implement<
   K extends OperationKind,
   P extends AnyInput = AnyInput,
   PN = never,
+  PF extends AnyFail = never,
 >(
   operation: Operation<I, O, E, K>,
-  declaration: ImplementDictionary<P, PN> &
+  declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF> &
     SubscriberSlot<K> & {
       handler: HandlerFn<I, O, P, FailsOf<E>>;
     },
@@ -196,6 +206,7 @@ export function implement<
   K extends OperationKind,
   P extends AnyInput = AnyInput,
   PN = never,
+  PF extends AnyFail = never,
   C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
     I,
     O,
@@ -204,14 +215,14 @@ export function implement<
   >,
 >(
   operation: Operation<I, O, E, K>,
-  declaration: ImplementDictionary<P, PN> &
+  declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF> &
     SubscriberSlot<K> & {
       handler: C;
     },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function implement(
   operation: AnyOperation,
-  declaration: ImplementDictionary<any, unknown> & {
+  declaration: ImplementDictionary<AnyOperation, any, unknown, AnyFail> & {
     subscriber?: string;
     handler: unknown;
   },
@@ -220,6 +231,11 @@ export function implement(
   assertNoInterfaceOverride(
     declaration as unknown as Record<string, unknown>,
     operation,
+  );
+  assertLayerFailsDeclared(
+    declaration.pipeline,
+    operation.errors,
+    `implement(${operation.name}, { … })`,
   );
 
   const { subscriber, ...rest } = declaration;

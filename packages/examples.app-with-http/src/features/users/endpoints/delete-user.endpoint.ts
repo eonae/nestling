@@ -1,4 +1,3 @@
-import { Unauthorized } from '../../../errors.js';
 import { authed } from '../../../plugins/auth/index.js';
 import type { Logger } from '../../../plugins/logging/index.js';
 import { Logger$ } from '../../../plugins/logging/index.js';
@@ -54,7 +53,7 @@ export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
   input: DeleteUserInput,
-  errors: [UserNotFound, Unauthorized],
+  errors: [UserNotFound],
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],

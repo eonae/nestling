@@ -1,4 +1,3 @@
-import { Unauthorized } from '../../../errors.js';
 import { authed } from '../../../plugins/auth/index.js';
 import { User } from '../user.js';
 import { AvatarRequired, UserNotFound } from '../users.errors.js';
@@ -53,7 +52,7 @@ export const UploadAvatar = httpEndpoint({
     },
   }),
   output: User,
-  errors: [UserNotFound, AvatarRequired, Unauthorized],
+  errors: [UserNotFound, AvatarRequired],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
   pipeline: authed,
   handler: UploadAvatarHandler,

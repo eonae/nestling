@@ -4,6 +4,7 @@ import * as readline from 'node:readline';
 import { factoryProvider, makeTokenFamily } from '@nestling/container';
 import type {
   AnyEndpointDefinition,
+  AnyFail,
   AnyFailDefinition,
   AnyInput,
   AnyOutput,
@@ -70,6 +71,7 @@ export interface CliEndpointDictionary<
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
+  PF extends AnyFail = never,
 > {
   /** Имя команды; оно же паттерн endpoint'а */
   command: string;
@@ -89,8 +91,11 @@ export interface CliEndpointDictionary<
   /**
    * Pipeline для этой команды. Классы-юниты допустимы: они попадают в
    * `TNeeds` декларации и гасятся вместе с зависимостями хендлера.
+   *
+   * Отказы, объявленные слоями пайплайна, входят в эффективное множество
+   * команды: перечислять их в `errors:` не нужно.
    */
-  pipeline?: Pipeline<AnyInput, P, PN>;
+  pipeline?: Pipeline<AnyInput, P, PN, PF>;
 
   /**
    * Причина вывода команды из-под инвариантов сборки. Транспорт поле не
@@ -129,9 +134,10 @@ export function cliEndpoint<
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
+  PF extends AnyFail = never,
 >(
-  declaration: CliEndpointDictionary<I, O, P, PN, E> & {
-    handler: HandlerFn<I, O, P, FailsOf<E>>;
+  declaration: CliEndpointDictionary<I, O, P, PN, E, PF> & {
+    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function cliEndpoint<
@@ -140,14 +146,15 @@ export function cliEndpoint<
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
-  C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
+  PF extends AnyFail = never,
+  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>> = HandlerClass<
     I,
     O,
     P,
-    FailsOf<E>
+    FailsOf<E> | NoInfer<PF>
   >,
 >(
-  declaration: CliEndpointDictionary<I, O, P, PN, E> & {
+  declaration: CliEndpointDictionary<I, O, P, PN, E, PF> & {
     handler: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
@@ -157,7 +164,8 @@ export function cliEndpoint(
     any,
     any,
     unknown,
-    readonly AnyFailDefinition[]
+    readonly AnyFailDefinition[],
+    AnyFail
   > & {
     handler: unknown;
   },

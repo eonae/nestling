@@ -85,8 +85,9 @@ describe('фича users в изоляции', () => {
       select: 'users',
       stubs: [
         stub(ClaimQuota, async () => ({ remaining: 1 })),
-        // eslint-disable-next-line unicorn/no-useless-undefined
-        stub(UserRegistered, () => undefined),
+        // Подписчик события ничего не возвращает: у события нет `output`
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        stub(UserRegistered, () => {}),
       ],
     });
 

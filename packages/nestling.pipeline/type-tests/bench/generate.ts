@@ -37,12 +37,33 @@ export interface GeneratedGraph {
 
 const HEADER = `/* СГЕНЕРИРОВАНО type-tests/bench/generate.ts — не редактировать */
 /* eslint-disable */
-import type { AnyInput, PreUnitFn, UnitResolver } from '@nestling/pipeline';
+import type {
+  AnyInput,
+  FailDefinitionWithoutDetails,
+  PreUnitFn,
+  UnitResolver,
+} from '@nestling/pipeline';
 import { compose, makePipeline, Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 
 declare const resolve: UnitResolver;
 `;
+
+/**
+ * Буквенный суффикс кода отказа по номеру слоя: сегмент кода — `[a-z_]+`,
+ * поэтому номер записывается буквами.
+ */
+function codeSuffix(index: number): string {
+  let rest = index;
+  let suffix = '';
+
+  do {
+    suffix = String.fromCodePoint(97 + (rest % 26)) + suffix;
+    rest = Math.floor(rest / 26);
+  } while (rest > 0);
+
+  return suffix;
+}
 
 /**
  * Собирает исходник графа: `layers` слоёв, каждый требует поле
@@ -59,12 +80,16 @@ export function generateGraph({
 
   const lines: string[] = HEADER.split('\n');
 
+  // Каждый слой объявляет свой отказ: множество `TFails` растёт вместе с
+  // числом слоёв, и бюджет меряет именно эту цену
   for (let i = 0; i < layers; i++) {
+    const fail = `f${i}Fail`;
     lines.push(
       `declare const u${i}: PreUnitFn<AnyInput, { f${i}: string }>;`,
+      `declare const ${fail}: FailDefinitionWithoutDetails<'conflict:bench_${codeSuffix(i)}'>;`,
       i === 0
-        ? `const l${i} = makePipeline().pre(u${i});`
-        : `const l${i} = makePipeline<{ f${i - 1}: string }>().pre(u${i});`,
+        ? `const l${i} = makePipeline().pre(u${i}, { errors: [${fail}] });`
+        : `const l${i} = makePipeline<{ f${i - 1}: string }>().pre(u${i}, { errors: [${fail}] });`,
     );
   }
 

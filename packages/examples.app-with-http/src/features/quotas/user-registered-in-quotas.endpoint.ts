@@ -12,9 +12,6 @@ class UserRegisteredInQuotasHandler {
 
   async handle(payload: UserRegisteredInput) {
     this.logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
-
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
   }
 }
 

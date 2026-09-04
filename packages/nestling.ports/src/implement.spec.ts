@@ -1,13 +1,19 @@
-/* eslint-disable unicorn/no-useless-undefined --
- * Реализация операции без `output` возвращает `undefined` явно: так
- * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
- * ему не соответствует. */
+/* eslint-disable unicorn/consistent-function-scoping --
+ * фабрики вызова замыкают фикстуры своего теста */
+/* eslint-disable @typescript-eslint/no-empty-function --
+ * реализация операции без `output` ничего не возвращает: пустое тело —
+ * поддерживаемая форма хендлера */
 import { implement } from './implement.js';
 import { busBindingOf, BusTransport$ } from './transport.js';
 
 import { makeToken } from '@nestling/container';
-import { makeEvent, makeRequest } from '@nestling/operations';
-import { isEndpointDefinition, Ok } from '@nestling/pipeline';
+import { makeEvent, makeFail, makeRequest } from '@nestling/operations';
+import {
+  isEndpointDefinition,
+  makePipeline,
+  Ok,
+  Timeout,
+} from '@nestling/pipeline';
 import { z } from 'zod';
 
 const Ledger = makeToken<{ charge: (amount: number) => string }>('Ledger');
@@ -31,10 +37,84 @@ const AddressedBoth = makeRequest({
   output: z.object({ chargeId: z.string() }),
 });
 
+const Unauthorized = makeFail('unauthorized', { message: 'No token' });
+
+const QuotaExceeded = makeFail('conflict:impl_quota_exceeded', {
+  message: 'Quota exceeded',
+});
+
+/** Запрос, объявляющий один доменный отказ */
+const ClaimQuota = makeRequest({
+  name: 'impl.quotas.claim',
+  input: z.object({ userId: z.string() }),
+  output: z.object({ left: z.number() }),
+  errors: [QuotaExceeded],
+});
+
 /** Бросатель `meta.fail`: ни один хендлер этих тестов его не зовёт */
 const unusedFail = (): never => {
   throw new Error('meta.fail is not used in these tests');
 };
+
+describe('implement — отказы слоя сверяются с операцией', () => {
+  it('слой с отказом вне errors: операции отвергается при создании', () => {
+    const create = () =>
+      implement(ClaimQuota, {
+        pipeline: makePipeline().pre(() => Unauthorized(), {
+          errors: [Unauthorized],
+        }) as never,
+        handler: async () => new Ok({ left: 1 }),
+      });
+
+    expect(create).toThrow(/impl\.quotas\.claim/);
+    expect(create).toThrow(/unauthorized/);
+    expect(create).toThrow(/'errors:' of the operation/);
+  });
+
+  it('слой, объявляющий отказ операции, проходит', () => {
+    const declaration = implement(ClaimQuota, {
+      pipeline: makePipeline().pre(() => QuotaExceeded(), {
+        errors: [QuotaExceeded],
+      }),
+      handler: async () => new Ok({ left: 1 }),
+    });
+
+    expect(declaration.errors).toEqual([QuotaExceeded]);
+  });
+
+  it('событие без errors: отвергает слой с доменным отказом', () => {
+    const create = () =>
+      implement(OrderPlaced, {
+        subscriber: 'archive',
+        pipeline: makePipeline().pre(() => Unauthorized(), {
+          errors: [Unauthorized],
+        }) as never,
+        handler: async () => {},
+      });
+
+    expect(create).toThrow(/impl\.orders\.placed/);
+    expect(create).toThrow(/unauthorized/);
+  });
+
+  it('подписчик со слоем без объявленных отказов компилируется и создаётся', () => {
+    const declaration = implement(OrderPlaced, {
+      subscriber: 'archive',
+      pipeline: makePipeline().pre(() => ({ tenantId: 't-1' })),
+      handler: async () => {},
+    });
+
+    expect(declaration.errors).toBeUndefined();
+  });
+
+  it('отказ ядра на слое объявления в операции не требует', () => {
+    const declaration = implement(ClaimQuota, {
+      pipeline: makePipeline().pre(() => Timeout(), { errors: [Timeout] }),
+      handler: async () => new Ok({ left: 1 }),
+    });
+
+    expect(declaration.errors).toEqual([QuotaExceeded, Timeout]);
+  });
+});
 
 describe('implement', () => {
   it('строит обычную декларацию на транспорте шины', () => {
@@ -96,12 +176,12 @@ describe('implement', () => {
   it('разводит адрес в процессе и адрес на шине для события', () => {
     const billing = implement(OrderPlaced, {
       subscriber: 'billing',
-      handler: async () => undefined,
+      handler: async () => {},
     });
 
     const analytics = implement(OrderPlaced, {
       subscriber: 'analytics',
-      handler: async () => undefined,
+      handler: async () => {},
     });
 
     expect(billing.pattern).toBe('impl.orders.placed@billing');
@@ -114,7 +194,7 @@ describe('implement', () => {
     expect(() =>
       // @ts-expect-error — у события 0..N подписчиков, и каждый называет себя
       implement(OrderPlaced, {
-        handler: async () => undefined,
+        handler: async () => {},
       }),
     ).toThrow(/'event' operation has 0\.\.N subscribers.*subscriber/s);
   });
@@ -138,7 +218,7 @@ describe('implement', () => {
 
     const declaration = implement(Durable, {
       subscriber: 'billing',
-      handler: async () => undefined,
+      handler: async () => {},
     });
 
     expect(busBindingOf(declaration)?.durable).toBe(true);
@@ -147,7 +227,7 @@ describe('implement', () => {
   it('биндинг недолговечной операции поля не несёт', () => {
     const declaration = implement(OrderPlaced, {
       subscriber: 'audit',
-      handler: async () => undefined,
+      handler: async () => {},
     });
 
     expect('durable' in (busBindingOf(declaration) as object)).toBe(false);

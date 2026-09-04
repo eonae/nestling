@@ -1,5 +1,4 @@
 import { authed } from '../../auth.js';
-import { Unauthorized } from '../../errors.js';
 import { User } from '../user.js';
 import { AvatarRequired, UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
@@ -53,7 +52,7 @@ export const UploadAvatar = httpEndpoint({
     },
   }),
   output: User,
-  errors: [UserNotFound, AvatarRequired, Unauthorized],
+  errors: [UserNotFound, AvatarRequired],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
   pipeline: authed,
   handler: UploadAvatarHandler,

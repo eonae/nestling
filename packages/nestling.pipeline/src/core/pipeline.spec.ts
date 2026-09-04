@@ -56,18 +56,27 @@ const mockLogger: Logger = {
 // ============================================================================
 
 // Извлекает требования слоя (TReq) из pipeline
-type InferReq<P> = P extends { $types?: PipelineTypes<infer R, any, any> }
+type InferReq<P> = P extends { $types?: PipelineTypes<infer R, any, any, any> }
   ? R
   : never;
 
 // Извлекает накопленный input (TAcc) из pipeline
-type InferAcc<P> = P extends { $types?: PipelineTypes<any, infer A, any> }
+type InferAcc<P> = P extends { $types?: PipelineTypes<any, infer A, any, any> }
   ? A
   : never;
 
 // Извлекает TNeeds из pipeline
-type InferNeeds<P> = P extends { $types?: PipelineTypes<any, any, infer N> }
+type InferNeeds<P> = P extends {
+  $types?: PipelineTypes<any, any, infer N, any>;
+}
   ? N
+  : never;
+
+// Извлекает объявленные отказы (TFails) из pipeline
+type InferFails<P> = P extends {
+  $types?: PipelineTypes<any, any, any, infer F>;
+}
+  ? F
   : never;
 
 type Equal<A, B> =

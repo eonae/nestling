@@ -54,9 +54,6 @@ class RegisterUserHandler {
 
   async handle(payload: RegisterUserInput) {
     await this.registration.register(payload.email);
-
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
   }
 }
 

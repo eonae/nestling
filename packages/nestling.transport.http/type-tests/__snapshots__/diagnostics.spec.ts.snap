@@ -8,9 +8,10 @@ exports[`httpEndpoint type diagnostics class-undeclared-fail 1`] = `
         The types returned by 'handle(...)' are incompatible between these types.
           Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'OutputSync<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>> | Output<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
             Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'Output<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
-              Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type '{ id: string; email: string; } | Fail<"conflict:email_taken", undefined> | Ok<{ id: string; email: string; }>'.
-                Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"conflict:email_taken", undefined>'.
-                  Type '"payment_required:card_declined"' is not assignable to type '"conflict:email_taken"'."
+              Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'OutputSync<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
+                Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"internal_error", undefined> | Fail<"timeout", undefined> | Fail<"conflict:email_taken", undefined>'.
+                  Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"internal_error", undefined>'.
+                    Type '"payment_required:card_declined"' is not assignable to type '"internal_error"'."
 `;
 
 exports[`httpEndpoint type diagnostics class-wrong-input 1`] = `
@@ -34,7 +35,7 @@ exports[`httpEndpoint type diagnostics class-wrong-output 1`] = `
         The types returned by 'handle(...)' are incompatible between these types.
           Type 'Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'OutputSync<{ id: string; email: string; }, never> | Output<{ id: string; email: string; }, never>'.
             Type 'Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'Output<{ id: string; email: string; }, never>'.
-              Type 'Ok<{ unexpected: boolean; }>' is not assignable to type '{ id: string; email: string; } | Ok<{ id: string; email: string; }>'.
+              Type 'Ok<{ unexpected: boolean; }>' is not assignable to type 'OutputSync<{ id: string; email: string; }, never>'.
                 Type 'Ok<{ unexpected: boolean; }>' is not assignable to type 'Ok<{ id: string; email: string; }>'.
                   Type '{ unexpected: boolean; }' is missing the following properties from type '{ id: string; email: string; }': id, email"
 `;
@@ -57,6 +58,36 @@ exports[`httpEndpoint type diagnostics object-form-removed 1`] = `
 "packages/nestling.transport.http/type-tests/fixtures/object-form-removed.ts(25,5): error TS2769: No overload matches this call.
   The last overload gave the following error.
     Object literal may only specify known properties, and 'deps' does not exist in type 'HandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>'."
+`;
+
+exports[`httpEndpoint type diagnostics operation-layer-fail-undeclared 1`] = `
+"packages/nestling.transport.http/type-tests/fixtures/operation-layer-fail-undeclared.ts(34,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'PipelineBuilder<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'Pipeline<EmptyInput, AnyInput, never, never>'.
+      Types of property '$types' are incompatible.
+        Type 'PipelineTypes<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>> | undefined' is not assignable to type 'PipelineTypes<EmptyInput, AnyInput, never, never> | undefined'.
+          Type 'PipelineTypes<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'PipelineTypes<EmptyInput, AnyInput, never, never>'.
+            Type 'Fail<"unauthorized", undefined>' is not assignable to type 'never'.
+              Type 'typeof CreateUserHandler' is not assignable to type 'HandlerClass<AnyPayload, AnyOutput, AnyInput, never>'.
+                Construct signature return types 'CreateUserHandler' and '{ handle: HandlerFn<AnyPayload, AnyOutput, AnyInput, never>; }' are incompatible.
+                  The types of 'handle' are incompatible between these types.
+                    Type '(payload: { email: string; }) => Promise<Ok<{ id: string; email: string; }>>' is not assignable to type 'HandlerFn<AnyPayload, AnyOutput, AnyInput, never>'.
+                      Types of parameters 'payload' and 'payload' are incompatible.
+                        Type 'unknown' is not assignable to type '{ email: string; }'.
+
+packages/nestling.transport.http/type-tests/fixtures/operation-layer-fail-undeclared.ts(35,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'PipelineBuilder<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'Pipeline<EmptyInput, AnyInput, never, never>'.
+      Types of property '$types' are incompatible.
+        Type 'PipelineTypes<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>> | undefined' is not assignable to type 'PipelineTypes<EmptyInput, AnyInput, never, never> | undefined'.
+          Type 'PipelineTypes<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'PipelineTypes<EmptyInput, AnyInput, never, never>'.
+            Type 'Fail<"unauthorized", undefined>' is not assignable to type 'never'.
+              Type 'typeof CreateUserHandler' is not assignable to type 'HandlerClass<AnyPayload, AnyOutput, AnyInput, never>'.
+                Construct signature return types 'CreateUserHandler' and '{ handle: HandlerFn<AnyPayload, AnyOutput, AnyInput, never>; }' are incompatible.
+                  The types of 'handle' are incompatible between these types.
+                    Type '(payload: { email: string; }) => Promise<Ok<{ id: string; email: string; }>>' is not assignable to type 'HandlerFn<AnyPayload, AnyOutput, AnyInput, never>'.
+                      Types of parameters 'payload' and 'payload' are incompatible.
+                        Type 'unknown' is not assignable to type '{ email: string; }'."
 `;
 
 exports[`httpEndpoint type diagnostics operation-redeclared-input 1`] = `

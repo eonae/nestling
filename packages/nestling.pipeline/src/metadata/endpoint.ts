@@ -9,7 +9,13 @@ import type {
   Pipeline,
   ValidateOutputForm,
 } from '../core/index.js';
-import { assertDoc, assertFormSlots, isFailDefinition } from '../core/index.js';
+import {
+  assertDoc,
+  assertFormSlots,
+  declaredFailsOf,
+  isFailDefinition,
+  isKernelFailCode,
+} from '../core/index.js';
 import type { HandlerFn } from '../core/types/index.js';
 
 import type { Constructor } from '@common/misc';
@@ -151,14 +157,17 @@ export interface EndpointDefinition<
    * инстансы тем же `resolve`, что и класс-хендлер: транспорт получает
    * пайплайн, готовый к выполнению.
    */
-  readonly pipeline?: Pipeline<AnyInput, P, never>;
+  readonly pipeline?: Pipeline<AnyInput, P, never, AnyFail>;
 
   /**
-   * Объявленные отказы endpoint'а: список определений `makeFail`.
+   * Эффективное множество отказов endpoint'а: `errors:` словаря плюс
+   * отказы, объявленные слоями пайплайна. Список определений `makeFail`,
+   * в котором каждый `code` встречается один раз.
    *
    * Поле не зависит от транспорта и читается ядром: из него выводится тип
    * отказов хендлера, а транспорт переносит его в `EndpointMeta`, по
-   * которому пайплайн проверяет ответ-ошибку.
+   * которому пайплайн проверяет ответ-ошибку. Генератор OpenAPI читает то
+   * же поле и ничего не пересчитывает.
    */
   readonly errors?: readonly AnyFailDefinition[];
 
@@ -221,6 +230,7 @@ export interface EndpointOptions<
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
+  PF extends AnyFail = never,
 > {
   /** Токен транспорта: его проставляет транспортный конструктор */
   transport: TransportRef;
@@ -239,8 +249,9 @@ export interface EndpointOptions<
   output?: O & ValidateOutputForm<O>;
 
   /**
-   * Объявленные отказы: список определений `makeFail`. Из него
-   * выводится тип `E` хендлера: вернуть отказ вне списка нельзя.
+   * Объявленные отказы: список определений `makeFail`. Вместе с отказами
+   * слоёв пайплайна из него выводится тип `E` хендлера: вернуть доменный
+   * отказ вне этого множества нельзя.
    *
    * Проверяется при создании декларации: элемент не из `makeFail` и
    * повторяющийся код — ошибка сразу.
@@ -250,8 +261,11 @@ export interface EndpointOptions<
   /**
    * Пайплайн endpoint'а. Классы-юниты допустимы: они попадают в `TNeeds`
    * декларации и получают инстансы вместе с классом-хендлером.
+   *
+   * Отказы, объявленные слоями пайплайна, входят в эффективное множество
+   * декларации: перечислять их в `errors:` не нужно.
    */
-  pipeline?: Pipeline<AnyInput, P, PN>;
+  pipeline?: Pipeline<AnyInput, P, PN, PF>;
 
   /**
    * Данные транспорта о декларации. Переносятся на значение как есть; ядро
@@ -314,7 +328,7 @@ interface EndpointState {
   pattern: string;
   input?: unknown;
   output?: unknown;
-  pipeline?: Pipeline<AnyInput, AnyInput, unknown>;
+  pipeline?: Pipeline<AnyInput, AnyInput, unknown, AnyFail>;
   binding?: unknown;
   errors?: readonly AnyFailDefinition[];
   doc?: DeclarationDoc;
@@ -458,6 +472,72 @@ function assertDetached(
   }
 }
 
+/**
+ * Складывает эффективное множество отказов декларации: `errors:` словаря
+ * плюс отказы, объявленные слоями её пайплайна.
+ *
+ * Определения с одним `code` считаются одним отказом, и первым остаётся
+ * то, что объявила декларация. Множество без слоёв и без `errors:`
+ * отсутствует: поля `errors` у такой декларации нет.
+ */
+function effectiveErrors(
+  declared: readonly AnyFailDefinition[] | undefined,
+  pipeline: unknown,
+): readonly AnyFailDefinition[] | undefined {
+  const fromLayers = declaredFailsOf(pipeline);
+  if (fromLayers.length === 0) {
+    return declared;
+  }
+
+  const merged = [...(declared ?? [])];
+  const codes = new Set(merged.map((definition) => definition.code));
+
+  for (const definition of fromLayers) {
+    if (!codes.has(definition.code)) {
+      codes.add(definition.code);
+      merged.push(definition);
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Проверяет, что отказы, объявленные слоями пайплайна, входят в список
+ * `declared`.
+ *
+ * Проверку выполняют конструкторы реализаций операции (`implement`,
+ * `httpEndpoint({ operation })`): интерфейс операции принадлежит операции,
+ * и её `errors:` — полный список того, что увидит клиент. Отказы ядра из
+ * проверки исключены: граница пропускает их у любого endpoint'а.
+ *
+ * @param where - Адресат в тексте ошибки: конструктор и имя операции
+ * @throws {Error} Слой объявляет отказ, которого нет в `declared`
+ */
+export function assertLayerFailsDeclared(
+  pipeline: unknown,
+  declared: readonly AnyFailDefinition[] | undefined,
+  where: string,
+): void {
+  const codes = new Set((declared ?? []).map((definition) => definition.code));
+  const missing = declaredFailsOf(pipeline)
+    .filter(
+      (definition) =>
+        !codes.has(definition.code) && !isKernelFailCode(definition.code),
+    )
+    .map((definition) => definition.code);
+
+  if (missing.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    `${where}: the pipeline declares fails the operation does not — ` +
+      `${missing.join(', ')}. Add the definitions to 'errors:' of the ` +
+      `operation: its list is what the client sees.`,
+  );
+}
+
 /** Заглушка `handle` для декларации, у которой ещё нет зависимостей */
 function unresolvedHandler(state: EndpointState): AnyHandler {
   return () => {
@@ -476,7 +556,7 @@ function unresolvedHandler(state: EndpointState): AnyHandler {
 function bindPipeline(
   state: EndpointState,
   resolver: DependencyResolver,
-): Pipeline<AnyInput, AnyInput, never> | undefined {
+): Pipeline<AnyInput, AnyInput, never, AnyFail> | undefined {
   if (!state.pipeline) {
     return undefined;
   }
@@ -623,9 +703,12 @@ export function makeEndpoint<
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
+  PF extends AnyFail = never,
 >(
-  options: EndpointOptions<I, O, P, PN, E> & {
-    handler: HandlerFn<I, O, P, FailsOf<E>>;
+  options: EndpointOptions<I, O, P, PN, E, PF> & {
+    // `NoInfer` держит `PF` за слотом `pipeline`: иначе отказ, возвращённый
+    // хендлером, сам попадал бы в множество и проверка ничего не значила бы
+    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function makeEndpoint<
@@ -634,14 +717,15 @@ export function makeEndpoint<
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
-  C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
+  PF extends AnyFail = never,
+  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>> = HandlerClass<
     I,
     O,
     P,
-    FailsOf<E>
+    FailsOf<E> | NoInfer<PF>
   >,
 >(
-  options: EndpointOptions<I, O, P, PN, E> & {
+  options: EndpointOptions<I, O, P, PN, E, PF> & {
     handler: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
@@ -651,7 +735,8 @@ export function makeEndpoint(
     any,
     any,
     unknown,
-    readonly AnyFailDefinition[]
+    readonly AnyFailDefinition[],
+    AnyFail
   > & {
     handler: unknown;
   },
@@ -677,10 +762,10 @@ export function makeEndpoint(
     input: options.input,
     output: options.output,
     pipeline: options.pipeline as
-      | Pipeline<AnyInput, AnyInput, unknown>
+      | Pipeline<AnyInput, AnyInput, unknown, AnyFail>
       | undefined,
     binding: options.binding,
-    errors: options.errors,
+    errors: effectiveErrors(options.errors, options.pipeline),
     doc: options.doc,
     detached: options.detached,
     handler: options.handler as AnyEndpointHandler,

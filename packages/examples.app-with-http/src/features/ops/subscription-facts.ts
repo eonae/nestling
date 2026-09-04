@@ -30,9 +30,6 @@ class SubscriptionOpenedInOpsHandler {
       `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
         `(${payload.transport} ${payload.pattern})`,
     );
-
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
   }
 }
 
@@ -55,9 +52,6 @@ class SubscriptionClosedInOpsHandler {
       `[subscriptions] ${payload.node ?? 'local'}: closed ${payload.id}: ` +
         `${payload.reason}, ${payload.itemsOut.toString()} items`,
     );
-
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
   }
 }
 

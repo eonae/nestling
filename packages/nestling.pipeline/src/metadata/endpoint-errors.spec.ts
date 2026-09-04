@@ -7,7 +7,7 @@
  * значение и вывод множества `E` в хендлер (обе формы `handler`).
  */
 
-import { Fail, makeFail, Ok } from '../core/index.js';
+import { Fail, makeFail, Ok, Timeout } from '../core/index.js';
 import { makePipeline } from '../core/pipeline.js';
 
 import { makeEndpoint } from './endpoint.js';
@@ -27,6 +27,8 @@ const OrderLimitReached = makeFail('conflict:order_limit_reached', {
 const CardDeclined = makeFail('payment_required:card_declined', {
   message: 'Card declined',
 });
+
+const Unauthorized = makeFail('unauthorized', { message: 'No token' });
 
 const OrderOutput = z.object({ id: z.string() });
 
@@ -111,6 +113,81 @@ describe('errors: — проверка при создании декларац�
   });
 });
 
+describe('эффективное множество: errors: плюс отказы слоёв', () => {
+  it('отказ слоя попадает на значение декларации без errors:', () => {
+    const Endpoint = makeEndpoint({
+      transport: HttpTransport$,
+      pattern: 'POST /orders',
+      pipeline: makePipeline().pre(() => Unauthorized(), {
+        errors: [Unauthorized],
+      }),
+      handler: async () => new Ok({ id: '1' }),
+    });
+
+    expect(Endpoint.errors).toEqual([Unauthorized]);
+  });
+
+  it('отказы декларации и слоя складываются', () => {
+    const Endpoint = makeEndpoint({
+      transport: HttpTransport$,
+      pattern: 'POST /orders',
+      errors: [OrderLimitReached],
+      pipeline: makePipeline().pre(() => Unauthorized(), {
+        errors: [Unauthorized],
+      }),
+      handler: async () => OrderLimitReached({ limit: 10 }),
+    });
+
+    expect(Endpoint.errors).toEqual([OrderLimitReached, Unauthorized]);
+  });
+
+  it('определение, объявленное и на слое, и в errors:, считается одним', () => {
+    const Endpoint = makeEndpoint({
+      transport: HttpTransport$,
+      pattern: 'POST /orders',
+      errors: [Unauthorized],
+      pipeline: makePipeline().pre(() => Unauthorized(), {
+        errors: [Unauthorized],
+      }),
+      handler: async () => Unauthorized(),
+    });
+
+    expect(Endpoint.errors).toEqual([Unauthorized]);
+  });
+
+  it('множество переживает получение зависимостей', () => {
+    class ChargeHandler {
+      async handle() {
+        return new Ok({ id: '1' });
+      }
+    }
+
+    const Endpoint = makeEndpoint({
+      transport: HttpTransport$,
+      pattern: 'POST /orders',
+      pipeline: makePipeline().pre(() => Unauthorized(), {
+        errors: [Unauthorized],
+      }),
+      handler: ChargeHandler,
+    });
+
+    expect(Endpoint.resolve(() => new ChargeHandler()).errors).toEqual([
+      Unauthorized,
+    ]);
+  });
+
+  it('пайплайн без объявленных отказов поля errors не добавляет', () => {
+    const Endpoint = makeEndpoint({
+      transport: HttpTransport$,
+      pattern: 'POST /orders',
+      pipeline: makePipeline().pre(() => ({ requestId: 'r-1' })),
+      handler: async () => new Ok({ id: '1' }),
+    });
+
+    expect(Endpoint.errors).toBeUndefined();
+  });
+});
+
 // ============================================================================
 // Типовые проверки: вывод E в обеих формах handler
 // ============================================================================
@@ -184,6 +261,71 @@ describe('errors: — проверка при создании декларац�
     errors: [CardDeclined],
     // @ts-expect-error: OrderLimitReached не объявлен в errors:
     handler: ForeignHandler,
+  });
+}
+
+// Хендлер вправе вернуть отказ, объявленный слоем
+{
+  const authed = makePipeline().pre(() => Unauthorized(), {
+    errors: [Unauthorized],
+  });
+
+  const LayerFail = makeEndpoint({
+    transport: HttpTransport$,
+    pattern: 'POST /orders',
+    output: OrderOutput,
+    pipeline: authed,
+    handler: async () => Unauthorized(),
+  });
+
+  // @ts-expect-error: CardDeclined не объявлен ни на слое, ни в errors:
+  const Foreign = makeEndpoint({
+    transport: HttpTransport$,
+    pattern: 'POST /orders',
+    output: OrderOutput,
+    pipeline: authed,
+    handler: async () => CardDeclined(),
+  });
+}
+
+// Отказы ядра допустимы без объявления, доменные — нет
+{
+  const KernelOnly = makeEndpoint({
+    transport: HttpTransport$,
+    pattern: 'POST /orders',
+    output: OrderOutput,
+    handler: async () => Timeout(),
+  });
+
+  // @ts-expect-error: доменный отказ без объявления вернуть нельзя
+  const DomainWithoutErrors = makeEndpoint({
+    transport: HttpTransport$,
+    pattern: 'POST /orders',
+    output: OrderOutput,
+    handler: async () => CardDeclined(),
+  });
+}
+
+// Декларация без `output`: хендлер ничего не возвращает
+{
+  const NoOutput = makeEndpoint({
+    transport: HttpTransport$,
+    pattern: 'POST /orders/close',
+    handler: async () => {
+      // тело без `return`
+    },
+  });
+
+  const NoContent = makeEndpoint({
+    transport: HttpTransport$,
+    pattern: 'POST /orders/close',
+    handler: () => Ok.noContent(),
+  });
+
+  const ExplicitNull = makeEndpoint({
+    transport: HttpTransport$,
+    pattern: 'POST /orders/close',
+    handler: () => new Ok(null),
   });
 }
 

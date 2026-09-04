@@ -33,8 +33,12 @@ import { computeOutcome } from './abort.js';
 import type { Constructor } from '@common/misc';
 import type {
   AnyFail,
+  AnyFailDefinition,
   AnyInput,
   EmptyInput,
+  FailOf,
+  FailsOf,
+  KernelFail,
   Output,
   OutputSync,
 } from '@nestling/operations';
@@ -44,6 +48,7 @@ import {
   InternalError,
   isCategory,
   isFail,
+  isFailDefinition,
   isKernelFailCode,
   isStreamKind,
   Ok,
@@ -184,6 +189,12 @@ type PreConflictError<TCurrentInput, TAdd> = Simplify<{
   conflicting: ConflictingFields<TCurrentInput, TAdd>;
 }>;
 
+/** Тип-ошибка `.pre`: юнит возвращает отказ вне списка `errors` этого `.pre` */
+type PreUndeclaredFailError<TUndeclared> = Simplify<{
+  __error: 'Pre-unit returns a fail that is not declared in errors of this .pre';
+  undeclared: TUndeclared;
+}>;
+
 /**
  * Общие ключи `A` и `B`, у которых типы различаются.
  *
@@ -195,31 +206,77 @@ type ConflictingKeys<A, B> = {
 }[OverlapKeys<A, B>];
 
 /**
- * Проверяет, что требования `TReq` и добавка `TAdd` юнита совместимы с
- * накопленным `input`. Возвращает `M`, если да, и тип-ошибку, если нет.
- * `TAdd` нормализуется до проверки: юнит без добавки (`undefined`, `never`)
- * ни с чем не конфликтует.
+ * Проверяет, что требования `TReq`, добавка и отказы юнита совместимы с
+ * накопленным `input` и со списком `errors` этого `.pre`.
+ *
+ * Возвращает `M`, если да, и тип-ошибку, если нет. Порядок проверок —
+ * от внешнего к внутреннему: сначала требования к контексту, затем
+ * перезапись полей, затем незадекларированный отказ.
  */
-type CheckPreCompatibility<TCurrentInput, TReq, TAdd, M> = [
+type CheckPreUnit<TCurrentInput, TReq, TAdd, TReturned, M> = [
   TCurrentInput,
 ] extends [TReq]
-  ? [ConflictingKeys<TCurrentInput, NormalizeAddition<TAdd>>] extends [never]
-    ? M
-    : PreConflictError<TCurrentInput, NormalizeAddition<TAdd>>
+  ? [ConflictingKeys<TCurrentInput, TAdd>] extends [never]
+    ? [TReturned] extends [never]
+      ? M
+      : PreUndeclaredFailError<TReturned>
+    : PreConflictError<TCurrentInput, TAdd>
   : PreRequirementError<TCurrentInput, TReq>;
 
 /**
- * Проверяет совместимость `.pre`-юнита любой из трёх форм (функция,
- * инстанс, класс) с накопленным `input`.
+ * Функция юнита, извлечённая из его формы: у класса и у инстанса это
+ * `handle`, у функции — она сама.
  */
-type ValidatePreUnit<TCurrentInput extends AnyInput, M> =
-  M extends Constructor<UnitInstance<PreUnitFn<infer TReq, infer TAdd>>>
-    ? CheckPreCompatibility<TCurrentInput, TReq, TAdd, M>
-    : M extends PreUnitFn<infer TReq, infer TAdd>
-      ? CheckPreCompatibility<TCurrentInput, TReq, TAdd, M>
-      : M extends UnitInstance<PreUnitFn<infer TReq, infer TAdd>>
-        ? CheckPreCompatibility<TCurrentInput, TReq, TAdd, M>
-        : never;
+type UnitFnOf<M> =
+  M extends Constructor<UnitInstance<infer F>>
+    ? F
+    : M extends UnitInstance<infer F>
+      ? F
+      : M;
+
+/** Результат `.pre`-юнита любой формы, развёрнутый из `Promise` */
+type PreUnitResult<M> =
+  UnitFnOf<M> extends (...args: any[]) => infer R ? Awaited<R> : never;
+
+/**
+ * Отказы, которые юнит возвращает значением.
+ *
+ * У юнита с результатом `any` отказов нет: `any` поглотил бы проверку и
+ * сделал бы такой юнит ошибкой в любом `.pre`.
+ */
+type ReturnedFails<TResult> = 0 extends 1 & TResult
+  ? never
+  : Extract<TResult, AnyFail>;
+
+/** Добавка юнита: результат без отказа и без «ничего» */
+type AdditionOf<TResult> = NormalizeAddition<
+  /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- `void` в результате юнита — поддерживаемая форма: юнит-наблюдатель пишется как обычная функция без `return` (см. `PreUnitFn`) */
+  Exclude<TResult, AnyFail | undefined | void>
+>;
+
+/** Отказы, которые `.pre` разрешает вернуть: объявленные плюс отказы ядра */
+type AllowedFails<F extends readonly AnyFailDefinition[]> =
+  | FailsOf<F>
+  | FailOf<KernelFail>;
+
+/**
+ * Проверяет `.pre`-юнит любой из трёх форм (функция, инстанс, класс):
+ * требования к накопленному `input`, добавку и возвращаемые отказы.
+ */
+type ValidatePreUnit<
+  TCurrentInput extends AnyInput,
+  F extends readonly AnyFailDefinition[],
+  M,
+> =
+  UnitFnOf<M> extends PreUnitFn<infer TReq, any, any>
+    ? CheckPreUnit<
+        TCurrentInput,
+        TReq,
+        AdditionOf<PreUnitResult<M>>,
+        Exclude<ReturnedFails<PreUnitResult<M>>, AllowedFails<F>>,
+        M
+      >
+    : never;
 
 /**
  * Приводит добавку юнита к объекту: `undefined` и `never` становятся `{}`,
@@ -234,14 +291,7 @@ type NormalizeAddition<TAdd> = [TAdd] extends [never]
       {};
 
 /** Добавка `.pre`-юнита любой формы, приведённая к объекту */
-type ExtractAddition<M> =
-  M extends Constructor<UnitInstance<PreUnitFn<any, infer TAdd>>>
-    ? NormalizeAddition<TAdd>
-    : M extends PreUnitFn<any, infer TAdd>
-      ? NormalizeAddition<TAdd>
-      : M extends UnitInstance<PreUnitFn<any, infer TAdd>>
-        ? NormalizeAddition<TAdd>
-        : never;
+type ExtractAddition<M> = AdditionOf<PreUnitResult<M>>;
 
 /**
  * Отложенная зависимость юнита: для класс-формы это её конструктор,
@@ -257,10 +307,12 @@ export interface PipelineTypes<
   TReq extends AnyInput,
   TAcc extends AnyInput,
   TNeeds,
+  TFails extends AnyFail,
 > {
   req: TReq;
   acc: TAcc;
   needs: TNeeds;
+  fails: TFails;
 }
 
 /** Создаёт инстанс класса-юнита для `bind()`; обычно это контейнер */
@@ -275,20 +327,23 @@ export type UnitResolver = (ctor: Constructor<unknown>) => unknown;
  * @template TNeeds - Классы-юниты, которым ещё нужен инстанс. `never` —
  * пайплайн готов к выполнению; иначе нужен `bind()` (`App` вызывает его
  * на фазе WIRE)
+ * @template TFails - Отказы, объявленные при подключении `.pre`-юнитов.
+ * Декларация складывает их со своим `errors:` в эффективное множество
  */
 export interface Pipeline<
   TReq extends AnyInput = EmptyInput,
   TAcc extends AnyInput = TReq,
   TNeeds = never,
+  TFails extends AnyFail = never,
 > {
   /** @internal Существует только в типах; по нему выводятся параметры */
-  readonly $types?: PipelineTypes<TReq, TAcc, TNeeds>;
+  readonly $types?: PipelineTypes<TReq, TAcc, TNeeds, TFails>;
 
   /**
    * Создаёт инстансы классов-юнитов через `resolve` (обычно это контейнер)
    * и возвращает пайплайн, готовый к выполнению (`TNeeds = never`).
    */
-  bind(resolve: UnitResolver): Pipeline<TReq, TAcc, never>;
+  bind(resolve: UnitResolver): Pipeline<TReq, TAcc, never, TFails>;
 
   /**
    * Выполняет запрос: `.pre`-юниты, проверку входа по схеме `input`,
@@ -305,7 +360,7 @@ export interface Pipeline<
    * @param options - Опции выполнения
    */
   executeWithHandler<TOutput>(
-    this: Pipeline<TReq, TAcc, never>,
+    this: Pipeline<TReq, TAcc, never, TFails>,
     handler: (
       payload: unknown,
       meta: (TAcc extends { payload: unknown }
@@ -326,21 +381,37 @@ export interface PhasedPipeline<
   TReq extends AnyInput = EmptyInput,
   TAcc extends AnyInput = TReq,
   TNeeds = never,
-> extends Pipeline<TReq, TAcc, TNeeds> {
+  TFails extends AnyFail = never,
+> extends Pipeline<TReq, TAcc, TNeeds, TFails> {
   /** Добавляет юнит для успешного ответа; юнит видит полный `ctx` */
   ok<M extends UnitLike<OkUnitFn<TAcc>>>(
     unit: M,
-  ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>>;
+  ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>, TFails>;
 
   /** Добавляет юнит для ответа-ошибки; поля своего слоя в `ctx` — `Partial` */
   catch<M extends UnitLike<CatchUnitFn<ResponseTrackInput<TReq, TAcc>>>>(
     unit: M,
-  ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>>;
+  ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>, TFails>;
 
   /** Добавляет наблюдатель исхода; вызывается всегда и последним */
   finally<M extends UnitLike<FinallyUnitFn<ResponseTrackInput<TReq, TAcc>>>>(
     unit: M,
-  ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>>;
+  ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>, TFails>;
+}
+
+/** Второй аргумент `.pre`: объявление отказов подключаемого юнита */
+export interface PreOptions<
+  F extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
+> {
+  /**
+   * Отказы, которыми может завершиться юнит: список определений `makeFail`.
+   *
+   * Юнит вправе вернуть отказ только из этого списка или отказ ядра;
+   * остальное — ошибка компиляции в точке `.pre`. Декларация со слоем
+   * получает эти отказы в своё эффективное множество и не перечисляет их
+   * в `errors:`.
+   */
+  errors: F;
 }
 
 /** Пайплайн, к которому ещё можно добавлять `.pre`-юниты */
@@ -348,11 +419,24 @@ export interface PipelineBuilder<
   TReq extends AnyInput = EmptyInput,
   TAcc extends AnyInput = TReq,
   TNeeds = never,
-> extends PhasedPipeline<TReq, TAcc, TNeeds> {
-  /** Добавляет юнит до хендлера; его добавка расширяет `input` */
-  pre<M extends UnitLike<PreUnitFn<any, any>>>(
-    unit: ValidatePreUnit<TAcc, M>,
-  ): PipelineBuilder<TReq, TAcc & ExtractAddition<M>, TNeeds | ExtractNeeds<M>>;
+  TFails extends AnyFail = never,
+> extends PhasedPipeline<TReq, TAcc, TNeeds, TFails> {
+  /**
+   * Добавляет юнит до хендлера; его добавка расширяет `input`, а
+   * объявленные вторым аргументом отказы — множество отказов пайплайна.
+   */
+  pre<
+    M extends UnitLike<PreUnitFn<any, any, any>>,
+    F extends readonly AnyFailDefinition[] = [],
+  >(
+    unit: ValidatePreUnit<TAcc, F, M>,
+    options?: PreOptions<F>,
+  ): PipelineBuilder<
+    TReq,
+    TAcc & ExtractAddition<M>,
+    TNeeds | ExtractNeeds<M>,
+    TFails | FailsOf<F>
+  >;
 }
 
 /**
@@ -362,7 +446,7 @@ export interface PipelineBuilder<
  * слой заставлял компилятор разворачивать всю цепочку на каждом уровне
  * вложенности (`type-tests/BUDGET.md`).
  */
-export type AnyPipeline = Pipeline<any, any, any>;
+export type AnyPipeline = Pipeline<any, any, any, any>;
 
 /**
  * Проверяет в `compose`, что внешние слои дают всё, что требует внутренний
@@ -373,11 +457,13 @@ export type AnyPipeline = Pipeline<any, any, any>;
  * пересечения с типом слоя: иначе первая строка диагностики продолжалась
  * бы хвостом `& PipelineBuilder<...>`.
  */
-type Guard<Provided, R extends AnyInput, A extends AnyInput, N> = [
+type Guard<
   Provided,
-] extends [R]
-  ? Pipeline<R, A, N>
-  : ComposeError<Provided, R>;
+  R extends AnyInput,
+  A extends AnyInput,
+  N,
+  F extends AnyFail,
+> = [Provided] extends [R] ? Pipeline<R, A, N, F> : ComposeError<Provided, R>;
 
 // ---------------------------------------------------------------------------
 // Рантайм
@@ -426,6 +512,82 @@ function normalizeUnit(unit: unknown): UnitEntry {
   throw new TypeError(
     'Pipeline unit must be a function, an instance with handle(), or a class with handle()',
   );
+}
+
+/** Имя юнита для текстов ошибок: у инстанса — имя его класса */
+function describeUnit(unit: unknown): string {
+  if (typeof unit === 'function') {
+    return unit.name || '<anonymous>';
+  }
+
+  const ctor = (unit as { constructor?: { name?: string } } | undefined)
+    ?.constructor;
+
+  return ctor?.name ?? String(unit);
+}
+
+/**
+ * Проверяет список `errors` второго аргумента `.pre`: каждый элемент
+ * создан `makeFail`, коды не повторяются. Текст ошибки называет юнит.
+ *
+ * Правило то же, что у `errors:` декларации; отличается только адресат в
+ * тексте.
+ */
+function readPreFails(
+  options: { errors?: unknown } | undefined,
+  unit: unknown,
+): readonly AnyFailDefinition[] {
+  const errors = options?.errors;
+  if (errors === undefined) {
+    return [];
+  }
+
+  const where = `pre(${describeUnit(unit)}, { errors })`;
+
+  if (!Array.isArray(errors)) {
+    throw new TypeError(
+      `${where}: 'errors' must be an array of makeFail() definitions.`,
+    );
+  }
+
+  const seen = new Set<string>();
+  for (const [index, definition] of errors.entries()) {
+    if (!isFailDefinition(definition)) {
+      throw new TypeError(
+        `${where}: errors[${index}] is not a fail definition — ` +
+          `expected a value created by makeFail().`,
+      );
+    }
+
+    if (seen.has(definition.code)) {
+      throw new Error(`${where}: duplicate error code '${definition.code}'.`);
+    }
+    seen.add(definition.code);
+  }
+
+  return errors as readonly AnyFailDefinition[];
+}
+
+/**
+ * Складывает множества определений отказов, считая совпадением равенство
+ * `code`: два определения с одним кодом — один отказ.
+ */
+function mergeFails(
+  sets: Iterable<Iterable<AnyFailDefinition>>,
+): ReadonlySet<AnyFailDefinition> {
+  const merged = new Set<AnyFailDefinition>();
+  const codes = new Set<string>();
+
+  for (const set of sets) {
+    for (const definition of set) {
+      if (!codes.has(definition.code)) {
+        codes.add(definition.code);
+        merged.add(definition);
+      }
+    }
+  }
+
+  return merged;
 }
 
 function cloneLayer(layer: Layer): Layer {
@@ -477,6 +639,15 @@ class PipelineImpl {
      * `hasVar`).
      */
     private readonly declared: ReadonlySet<AnyContextVar> = new Set(),
+    /**
+     * Отказы, объявленные при подключении `.pre`-юнитов этого пайплайна.
+     *
+     * Правила те же, что у `declared`: `compose` объединяет множества,
+     * методы билдера и `bind()` их сохраняют. Множество читает
+     * `makeEndpoint`: оно складывает его с `errors:` декларации в
+     * эффективное множество отказов endpoint'а.
+     */
+    private readonly declaredFails: ReadonlySet<AnyFailDefinition> = new Set(),
   ) {}
 
   static emptyLayer(): PipelineImpl {
@@ -494,6 +665,8 @@ class PipelineImpl {
       // Переменные, наоборот, объединяются здесь: `declaresVar` обход не
       // делает
       new Set(pipelines.flatMap((p) => [...p.declared])),
+      // Отказы объединяются по тому же правилу; совпадение — по `code`
+      mergeFails(pipelines.map((p) => p.declaredFails)),
     );
   }
 
@@ -535,10 +708,16 @@ class PipelineImpl {
     return pipeline.declared.has(variable);
   }
 
+  /** Отказы, объявленные слоями пайплайна; обход источников не нужен */
+  static declaredFailsOf(pipeline: PipelineImpl): readonly AnyFailDefinition[] {
+    return [...pipeline.declaredFails];
+  }
+
   private withOwnLayer(
     mutate: (layer: Layer) => void,
     sealed: boolean,
     declares?: AnyContextVar,
+    fails: readonly AnyFailDefinition[] = [],
   ): PipelineImpl {
     if (this.composed) {
       throw new Error(
@@ -553,23 +732,38 @@ class PipelineImpl {
     const declared = declares
       ? new Set([...this.declared, declares])
       : this.declared;
+    const declaredFails =
+      fails.length > 0
+        ? mergeFails([this.declaredFails, fails])
+        : this.declaredFails;
 
     // Новый пайплайн помнит предшественника: `authed.pre(x)` для политики
     // `hasLayer(authed)` по-прежнему содержит `authed`
-    return new PipelineImpl([layer], sealed, false, [this], declared);
+    return new PipelineImpl(
+      [layer],
+      sealed,
+      false,
+      [this],
+      declared,
+      declaredFails,
+    );
   }
 
-  pre(unit: unknown): PipelineImpl {
+  pre(unit: unknown, options?: { errors?: unknown }): PipelineImpl {
     if (this.sealed) {
       throw new Error(
         'pre() is not available after a response-phase method (.ok/.catch/.finally)',
       );
     }
+    // Список проверяется здесь же, где объявлен: ошибка называет юнит
+    const fails = readPreFails(options, unit);
+
     // Объявителем переменной считается только юнит из `<Var>.provide(…)`
     return this.withOwnLayer(
       (l) => l.pre.push(normalizeUnit(unit)),
       false,
       declaredVarOf(unit),
+      fails,
     );
   }
 
@@ -622,6 +816,7 @@ class PipelineImpl {
       // и до фазы WIRE, и после
       [this],
       this.declared,
+      this.declaredFails,
     );
   }
 
@@ -687,9 +882,16 @@ class PipelineImpl {
       for (const layer of this.layers) {
         activated.push(layer);
         for (const entry of layer.pre) {
-          const append = (await materialized(entry)(currentCtx)) as
-            | AnyAddition
-            | undefined;
+          const result = await materialized(entry)(currentCtx);
+
+          // Отказ, возвращённый юнитом, идёт тем же путём, что брошенный:
+          // в контекст он не пишется, следующие юниты и хендлер не
+          // вызываются, ответную фазу открывает тот же `catch`
+          if (isFail(result)) {
+            throw result;
+          }
+
+          const append = result as AnyAddition | undefined;
 
           currentCtx = {
             ...currentCtx,
@@ -1038,10 +1240,11 @@ function unhandledBody(
  */
 export function makePipeline<
   TReq extends AnyInput = EmptyInput,
->(): PipelineBuilder<TReq, TReq, never> {
+>(): PipelineBuilder<TReq, TReq, never, never> {
   return PipelineImpl.emptyLayer() as unknown as PipelineBuilder<
     TReq,
     TReq,
+    never,
     never
   >;
 }
@@ -1056,47 +1259,56 @@ export function compose<
   RA extends AnyInput,
   AA extends AnyInput,
   NA,
+  FA extends AnyFail,
   RB extends AnyInput,
   AB extends AnyInput,
   NB,
+  FB extends AnyFail,
 >(
-  outer: Pipeline<RA, AA, NA>,
-  inner: Guard<AA, RB, AB, NB>,
-): Pipeline<RA, AA & AB, NA | NB>;
+  outer: Pipeline<RA, AA, NA, FA>,
+  inner: Guard<AA, RB, AB, NB, FB>,
+): Pipeline<RA, AA & AB, NA | NB, FA | FB>;
 export function compose<
   RA extends AnyInput,
   AA extends AnyInput,
   NA,
+  FA extends AnyFail,
   RB extends AnyInput,
   AB extends AnyInput,
   NB,
+  FB extends AnyFail,
   RC extends AnyInput,
   AC extends AnyInput,
   NC,
+  FC extends AnyFail,
 >(
-  outer: Pipeline<RA, AA, NA>,
-  middle: Guard<AA, RB, AB, NB>,
-  inner: Guard<AA & AB, RC, AC, NC>,
-): Pipeline<RA, AA & AB & AC, NA | NB | NC>;
+  outer: Pipeline<RA, AA, NA, FA>,
+  middle: Guard<AA, RB, AB, NB, FB>,
+  inner: Guard<AA & AB, RC, AC, NC, FC>,
+): Pipeline<RA, AA & AB & AC, NA | NB | NC, FA | FB | FC>;
 export function compose<
   RA extends AnyInput,
   AA extends AnyInput,
   NA,
+  FA extends AnyFail,
   RB extends AnyInput,
   AB extends AnyInput,
   NB,
+  FB extends AnyFail,
   RC extends AnyInput,
   AC extends AnyInput,
   NC,
+  FC extends AnyFail,
   RD extends AnyInput,
   AD extends AnyInput,
   ND,
+  FD extends AnyFail,
 >(
-  a: Pipeline<RA, AA, NA>,
-  b: Guard<AA, RB, AB, NB>,
-  c: Guard<AA & AB, RC, AC, NC>,
-  d: Guard<AA & AB & AC, RD, AD, ND>,
-): Pipeline<RA, AA & AB & AC & AD, NA | NB | NC | ND>;
+  a: Pipeline<RA, AA, NA, FA>,
+  b: Guard<AA, RB, AB, NB, FB>,
+  c: Guard<AA & AB, RC, AC, NC, FC>,
+  d: Guard<AA & AB & AC, RD, AD, ND, FD>,
+): Pipeline<RA, AA & AB & AC & AD, NA | NB | NC | ND, FA | FB | FC | FD>;
 export function compose(...pipelines: AnyPipeline[]): AnyPipeline {
   if (pipelines.length < 2) {
     throw new Error('compose() expects at least two layers');
@@ -1122,6 +1334,24 @@ export function derivesFrom(pipeline: unknown, layer: unknown): boolean {
   }
 
   return PipelineImpl.derivesFrom(pipeline, layer);
+}
+
+/**
+ * Возвращает отказы, объявленные слоями `pipeline`.
+ *
+ * Объявлением считается второй аргумент `.pre(unit, { errors })`.
+ * Определения с одним `code` схлопнуты в одно: множество уже сложено
+ * `compose` и методами билдера. Значение не пайплайна даёт пустой список.
+ *
+ * @internal Из этого множества `makeEndpoint` собирает эффективное
+ * множество отказов endpoint'а
+ */
+export function declaredFailsOf(
+  pipeline: unknown,
+): readonly AnyFailDefinition[] {
+  return pipeline instanceof PipelineImpl
+    ? PipelineImpl.declaredFailsOf(pipeline)
+    : [];
 }
 
 /**

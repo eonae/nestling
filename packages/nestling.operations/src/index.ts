@@ -16,6 +16,7 @@ export type { Schema, SchemaIssue, StandardSchemaV1 } from '@common/misc';
 
 export * from './operation.js';
 export * from './make-fail.js';
+export * from './output.js';
 export * from './doc.js';
 export * from './families.js';
 export * from './http/index.js';

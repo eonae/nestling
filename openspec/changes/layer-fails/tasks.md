@@ -1,33 +1,33 @@
 ## 1. Типы и рантайм пайплайна (`@nestling/pipeline`)
 
-- [ ] 1.1 `core/types/unit.ts`: `PreUnitFn<TInput, TAddition, TFail = never>` — результат `TAddition | TFail | undefined | void` синхронно и в `Promise`
-- [ ] 1.2 `core/pipeline.ts`: `.pre(unit, { errors })` — проверка списка при вызове (не определение, дубль кода — ошибка с именем юнита); `PipelineTypes.fails`, `Pipeline<TReq, TAcc, TNeeds, TFails = never>`, `AnyPipeline` с `any` в четвёртой позиции; `.ok`/`.catch`/`.finally` сохраняют `TFails`
-- [ ] 1.3 `ValidatePreUnit`: возвращённый отказ входит в объявленные ∪ отказы ядра, иначе литерал `__error` с полем `undeclared`; `ExtractAddition` берёт `Exclude<Return, AnyFail>`
-- [ ] 1.4 Значение: `declaredFails: ReadonlySet<AnyFailDefinition>` рядом с `declared`; `compose` объединяет, `bind` и деривация копируют; совпадение по `code`; публичный доступ для `makeEndpoint`
-- [ ] 1.5 Рантайм: `isFail(result)` после каждого pre-юнита до записи в контекст — переход к ответной фазе тем же путём, что при броске
-- [ ] 1.6 `makeEndpoint`: эффективное множество `errors:` ∪ `declaredFails` с дедупом по коду — в `EndpointDefinition.errors` и `EndpointMeta.errors`; тип `E` хендлера — `FailsOf<Errors> | TFails`
-- [ ] 1.7 Рантайм-тесты: возврат объявленного отказа из pre останавливает пайплайн и не пишет поле в `input`; возврат незадекларированного — граница даёт `InternalError`; `throw` как прежде; отказ слоя проходит границу без объявления на endpoint'е; дубль слой/декларация — одно определение; `compose`/`bind`/деривация сохраняют множество
-- [ ] 1.8 `type-tests`: фикстуры `pre-return-undeclared-fail`, `compose-fails-union` (успешный вывод `TFails`), обновление снапшотов; `yarn workspace @nestling/pipeline type-budget --report` до и после; бенч-граф дополнен объявленными отказами на каждом слое; при сдвиге порогов — строка в `BUDGET.md`
+- [x] 1.1 `core/types/unit.ts`: `PreUnitFn<TInput, TAddition, TFail = never>` — результат `TAddition | TFail | undefined | void` синхронно и в `Promise`
+- [x] 1.2 `core/pipeline.ts`: `.pre(unit, { errors })` — проверка списка при вызове (не определение, дубль кода — ошибка с именем юнита); `PipelineTypes.fails`, `Pipeline<TReq, TAcc, TNeeds, TFails = never>`, `AnyPipeline` с `any` в четвёртой позиции; `.ok`/`.catch`/`.finally` сохраняют `TFails`
+- [x] 1.3 `ValidatePreUnit`: возвращённый отказ входит в объявленные ∪ отказы ядра, иначе литерал `__error` с полем `undeclared`; `ExtractAddition` берёт `Exclude<Return, AnyFail>`
+- [x] 1.4 Значение: `declaredFails: ReadonlySet<AnyFailDefinition>` рядом с `declared`; `compose` объединяет, `bind` и деривация копируют; совпадение по `code`; публичный доступ для `makeEndpoint`
+- [x] 1.5 Рантайм: `isFail(result)` после каждого pre-юнита до записи в контекст — переход к ответной фазе тем же путём, что при броске
+- [x] 1.6 `makeEndpoint`: эффективное множество `errors:` ∪ `declaredFails` с дедупом по коду — в `EndpointDefinition.errors` и `EndpointMeta.errors`; тип `E` хендлера — `FailsOf<Errors> | TFails`
+- [x] 1.7 Рантайм-тесты: возврат объявленного отказа из pre останавливает пайплайн и не пишет поле в `input`; возврат незадекларированного — граница даёт `InternalError`; `throw` как прежде; отказ слоя проходит границу без объявления на endpoint'е; дубль слой/декларация — одно определение; `compose`/`bind`/деривация сохраняют множество
+- [x] 1.8 `type-tests`: фикстуры `pre-return-undeclared-fail`, `compose-fails-union` (успешный вывод `TFails`), обновление снапшотов; `yarn workspace @nestling/pipeline type-budget --report` до и после; бенч-граф дополнен объявленными отказами на каждом слое; при сдвиге порогов — строка в `BUDGET.md`
 
 ## 2. Тип результата хендлера (`@nestling/operations`)
 
-- [ ] 2.1 Экспортировать объединение определений ядра (`KernelFail`: `BadRequest | PayloadTooLarge | Timeout | InternalError`); `OutputSync`/`Output` включают его; `E` по умолчанию остаётся `never`
+- [x] 2.1 Экспортировать объединение определений ядра (`KernelFail`: `BadRequest | PayloadTooLarge | Timeout | InternalError`); `OutputSync`/`Output` включают его; `E` по умолчанию остаётся `never`
 - [ ] 2.2 `InferOutput<undefined>` даёт `void`; `HandlerFn` без `output` принимает `Promise<void>` и `void`; совместимость `Ok.noContent()`/`new Ok(null)` зафиксирована и описана в README
 - [ ] 2.3 Тесты типов (`// @ts-expect-error` и позитивные): `return Timeout()` без `errors:`; `return claimed` после `isFail`; доменный отказ без объявления — ошибка; `async () => {}` без `output`; `() => Ok.noContent()`
 - [ ] 2.4 README `operations`: `Output` с отказами ядра, `void` без `output`
 
 ## 3. Конструкторы деклараций и форма с операцией
 
-- [ ] 3.1 `@nestling/transport.http`: `httpEndpoint({ operation, pipeline })` — условный тип слота `pipeline` (`TFails` ⊆ `OperationFailsOf<C>` ∪ ядро) с литералом `__error`/`undeclared`/`hint`; анонимная форма пропускает `TFails` в эффективное множество; рантайм-проверка при создании декларации с именем операции, слоя и кодов
-- [ ] 3.2 `@nestling/ports` `implement`: та же проверка; событие без `errors:` отвергает слой с доменными отказами
-- [ ] 3.3 `@nestling/transport.cli`: `TFails` в эффективное множество
-- [ ] 3.4 `@nestling/app`: если проверка при создании декларации недостижима для какой-то формы — зеркало на ASSEMBLE; тест сборки
-- [ ] 3.5 `type-tests` `transport.http`: фикстура `operation-layer-fail-undeclared`; снапшот прочитан: первая строка называет незадекларированный код
+- [x] 3.1 `@nestling/transport.http`: `httpEndpoint({ operation, pipeline })` — условный тип слота `pipeline` (`TFails` ⊆ `OperationFailsOf<C>` ∪ ядро) с литералом `__error`/`undeclared`/`hint`; анонимная форма пропускает `TFails` в эффективное множество; рантайм-проверка при создании декларации с именем операции, слоя и кодов
+- [x] 3.2 `@nestling/ports` `implement`: та же проверка; событие без `errors:` отвергает слой с доменными отказами
+- [x] 3.3 `@nestling/transport.cli`: `TFails` в эффективное множество
+- [x] 3.4 `@nestling/app`: если проверка при создании декларации недостижима для какой-то формы — зеркало на ASSEMBLE; тест сборки
+- [x] 3.5 `type-tests` `transport.http`: фикстура `operation-layer-fail-undeclared`; снапшот прочитан: первая строка называет незадекларированный код
 
 ## 4. Потребители эффективного множества
 
-- [ ] 4.1 `@nestling/openapi`: `responses` по `EndpointDefinition.errors` без пересчёта; тест — слой с `Unauthorized` даёт `401` у endpoint'а без `Unauthorized` в `errors:`; дубль слой/декларация — один ответ
-- [ ] 4.2 `@nestling/testing`: тип ответа `testApp.call` включает отказы слоя и ядра; тест
+- [x] 4.1 `@nestling/openapi`: `responses` по `EndpointDefinition.errors` без пересчёта; тест — слой с `Unauthorized` даёт `401` у endpoint'а без `Unauthorized` в `errors:`; дубль слой/декларация — один ответ
+- [x] 4.2 `@nestling/testing`: тип ответа `testApp.call` включает отказы слоя и ядра; тест
 - [ ] 4.3 `@nestling/ports`: `PortResult` без изменений; убедиться, что проброс результата порта из хендлера компилируется без каста (пример `create-user`)
 
 ## 5. Примеры

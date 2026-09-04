@@ -105,9 +105,11 @@ export type InferOutput<O> =
         : // Multipart в выходе нелегален — значения у него нет
           O extends AnyMultipartForm
           ? never
-          : // Undefined
+          : // Формы `output` нет: значения у ответа нет, и хендлер
+            // компилируется без `return`
             O extends undefined
-            ? undefined
+            ? /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- `void` здесь и есть ответ «значения нет»: из него `OutputSync` собирает тип результата хендлера */
+              void
             : // Схема (по умолчанию)
               InferSchemaType<O>;
 

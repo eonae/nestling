@@ -45,15 +45,28 @@ export type ResponseTrackInput<
 > = TReq & Partial<Omit<TAcc, keyof TReq>>;
 
 /**
+ * Результат pre-юнита: добавка к накопленному input, отказ или ничего.
+ */
+export type PreResult<
+  TAddition extends Optional<AnyAddition>,
+  TFail extends AnyFail,
+> = TAddition | TFail | undefined | void;
+
+/**
  * Pre-юнит (функциональная форма): получает контекст, возвращает добавку
- * к накопленному input (или ничего).
+ * к накопленному input, отказ или ничего.
+ *
+ * Отказ объявляется вторым аргументом `.pre(unit, { errors })`: вернуть
+ * можно только объявленный там отказ или отказ ядра. Возвращённый отказ
+ * начинает ответную фазу, и в накопленный input он не попадает.
  */
 export type PreUnitFn<
   TInput extends AnyInput = EmptyInput,
   TAddition extends Optional<AnyAddition> = undefined,
+  TFail extends AnyFail = never,
 > = (
   ctx: ExtendableContext<TInput>,
-) => Promise<TAddition | undefined | void> | TAddition | undefined | void;
+) => Promise<PreResult<TAddition, TFail>> | PreResult<TAddition, TFail>;
 
 /**
  * Ok-юнит: вызывается только для успешного ответа, видит полный

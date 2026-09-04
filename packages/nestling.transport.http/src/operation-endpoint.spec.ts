@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/consistent-function-scoping --
+ * фабрики вызова замыкают фикстуры своего теста */
 /**
  * Операция-форма `httpEndpoint`: вторая сторона одного значения.
  *
@@ -13,7 +15,13 @@ import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeFail, makeRequest } from '@nestling/operations';
-import { handlerClassOf, isEndpointDefinition, Ok } from '@nestling/pipeline';
+import {
+  BadRequest,
+  handlerClassOf,
+  isEndpointDefinition,
+  makePipeline,
+  Ok,
+} from '@nestling/pipeline';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({
@@ -25,6 +33,8 @@ const User = z.object({ id: z.string(), email: z.string() });
 const EmailTaken = makeFail('conflict:operation_form_email_taken', {
   message: 'Email already taken',
 });
+
+const Unauthorized = makeFail('unauthorized', { message: 'No token' });
 
 const CreateUser = makeRequest({
   name: 'operation-form.users.create',
@@ -239,6 +249,47 @@ const typeOnly = (): void => {
     handler: create,
   });
 };
+
+describe('операция-форма: отказы слоя сверяются с операцией', () => {
+  it('слой с отказом вне операции отвергается при создании декларации', () => {
+    const create = () =>
+      httpEndpoint({
+        operation: CreateUser,
+        pipeline: makePipeline().pre(() => Unauthorized(), {
+          errors: [Unauthorized],
+        }) as never,
+        handler: async () => new Ok({ id: 'u-1', email: 'a@b.c' }),
+      });
+
+    expect(create).toThrow(/operation-form\.users\.create/);
+    expect(create).toThrow(/unauthorized/);
+    expect(create).toThrow(/'errors:' of the operation/);
+  });
+
+  it('слой, согласованный с операцией, создаёт декларацию', () => {
+    const declaration = httpEndpoint({
+      operation: CreateUser,
+      pipeline: makePipeline().pre(() => EmailTaken(), {
+        errors: [EmailTaken],
+      }),
+      handler: async () => new Ok({ id: 'u-1', email: 'a@b.c' }),
+    });
+
+    expect(declaration.errors).toEqual([EmailTaken]);
+  });
+
+  it('отказ ядра на слое объявления в операции не требует', () => {
+    const declaration = httpEndpoint({
+      operation: CreateUser,
+      pipeline: makePipeline().pre(() => BadRequest([{ message: 'bad' }]), {
+        errors: [BadRequest],
+      }),
+      handler: async () => new Ok({ id: 'u-1', email: 'a@b.c' }),
+    });
+
+    expect(declaration.errors).toEqual([EmailTaken, BadRequest]);
+  });
+});
 
 describe('операция-форма: типы', () => {
   it('переобъявление интерфейса не компилируется', () => {

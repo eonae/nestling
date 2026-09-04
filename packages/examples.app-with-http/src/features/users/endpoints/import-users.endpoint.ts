@@ -1,4 +1,3 @@
-import { Unauthorized } from '../../../errors.js';
 import { authed } from '../../../plugins/auth/index.js';
 import { NewUser } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
@@ -53,7 +52,6 @@ export const ImportUsers = httpEndpoint({
   path: '/users/import',
   input: stream(NewUser).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
   output: ImportResult,
-  errors: [Unauthorized],
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
   pipeline: authed,
   handler: ImportUsersHandler,

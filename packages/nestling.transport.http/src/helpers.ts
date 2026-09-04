@@ -10,9 +10,11 @@ import type {
   OperationFailsOf,
   OutputFormOf,
   SseConfig,
+  ValidateOperationFails,
 } from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
+  AnyFail,
   AnyFailDefinition,
   AnyInput,
   AnyOutput,
@@ -27,7 +29,7 @@ import type {
   StreamForm,
   ValidateOutputForm,
 } from '@nestling/pipeline';
-import { makeEndpoint } from '@nestling/pipeline';
+import { assertLayerFailsDeclared, makeEndpoint } from '@nestling/pipeline';
 import { DEFAULT_INSTANCE } from '@nestling/transport';
 
 // Типы разметки пути и ключей `bind` (`PathParams`, `BindMap`) общие с
@@ -94,6 +96,7 @@ export interface HttpEndpointDictionary<
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = AnyInput,
   E extends readonly AnyFailDefinition[] = [],
+  PF extends AnyFail = never,
 > {
   /** HTTP-метод endpoint'а */
   method: HttpMethod;
@@ -150,7 +153,7 @@ export interface HttpEndpointDictionary<
    * Пайплайн endpoint'а. Юниты-классы допустимы: они попадают в `TNeeds`
    * декларации и получают зависимости из контейнера вместе с `deps`.
    */
-  pipeline?: Pipeline<PR, P, PN> & ValidateStart<PR, StartContext<RB, O>>;
+  pipeline?: Pipeline<PR, P, PN, PF> & ValidateStart<PR, StartContext<RB, O>>;
 
   /**
    * Документация операции. Транспорт передаёт поле в `makeEndpoint` без
@@ -196,6 +199,7 @@ export interface HttpOperationDictionary<
   C extends AnyOperation = AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
+  PF extends AnyFail = never,
 > {
   /** Операция, объявленный `makeRequest` с секцией `http:` */
   operation: C;
@@ -203,8 +207,12 @@ export interface HttpOperationDictionary<
   /**
    * Пайплайн декларации. Юниты-классы допустимы: они попадают в `TNeeds`
    * декларации и получают зависимости из контейнера вместе с `deps`.
+   *
+   * Отказы, объявленные слоями пайплайна, обязаны входить в `errors:`
+   * операции: контракт импортирует клиент, и он о пайплайне реализации не
+   * знает. Нарушение — ошибка компиляции на этом слоте.
    */
-  pipeline?: Pipeline<AnyInput, P, PN>;
+  pipeline?: Pipeline<AnyInput, P, PN, PF> & ValidateOperationFails<C, PF>;
 
   /** Причина, по которой endpoint выведен из-под политик сборки */
   detached?: string;
@@ -309,6 +317,11 @@ function fromOperation(
 
   assertOperation(operation);
   assertOperationOwned(rest, operation);
+  assertLayerFailsDeclared(
+    rest.pipeline,
+    operation.errors,
+    `httpEndpoint({ operation: ${operation.name}, … })`,
+  );
 
   const binding = operation.http;
   if (!binding) {
@@ -403,8 +416,9 @@ export function httpEndpoint<
   C extends AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
+  PF extends AnyFail = never,
 >(
-  declaration: HttpOperationDictionary<C, P, PN> & {
+  declaration: HttpOperationDictionary<C, P, PN, PF> & {
     handler: HandlerFn<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>;
   },
 ): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN>;
@@ -412,6 +426,7 @@ export function httpEndpoint<
   C extends AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
+  PF extends AnyFail = never,
   H extends HandlerClass<
     InputFormOf<C>,
     OutputFormOf<C>,
@@ -419,7 +434,7 @@ export function httpEndpoint<
     OperationFailsOf<C>
   > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>,
 >(
-  declaration: HttpOperationDictionary<C, P, PN> & {
+  declaration: HttpOperationDictionary<C, P, PN, PF> & {
     handler: H;
   },
 ): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN | H>;
@@ -432,9 +447,10 @@ export function httpEndpoint<
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = EmptyInput,
   E extends readonly AnyFailDefinition[] = [],
+  PF extends AnyFail = never,
 >(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
-    handler: HandlerFn<I, O, P, FailsOf<E>>;
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
+    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function httpEndpoint<
@@ -444,16 +460,17 @@ export function httpEndpoint<
   P extends AnyInput = AnyInput,
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
-  C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
+  PF extends AnyFail = never,
+  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>> = HandlerClass<
     I,
     O,
     P,
-    FailsOf<E>
+    FailsOf<E> | NoInfer<PF>
   >,
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = EmptyInput,
 >(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E> & {
+  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
     handler: C;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
@@ -467,9 +484,10 @@ export function httpEndpoint(
         unknown,
         boolean | undefined,
         any,
-        readonly AnyFailDefinition[]
+        readonly AnyFailDefinition[],
+        AnyFail
       >
-    | HttpOperationDictionary<any, any, unknown>
+    | HttpOperationDictionary<any, any, unknown, AnyFail>
   ) & {
     handler: unknown;
   },

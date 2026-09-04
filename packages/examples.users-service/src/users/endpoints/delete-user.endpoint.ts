@@ -1,5 +1,4 @@
 import { authed } from '../../auth.js';
-import { Unauthorized } from '../../errors.js';
 import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
@@ -26,14 +25,15 @@ export class DeleteUserHandler {
 }
 
 /**
- * Отказ `Unauthorized` бросает слой, а не хендлер, но объявляет его
- * endpoint: список `errors:` описывает всё, что может получить клиент.
+ * `Unauthorized` объявляет слой `authed`, поэтому в `errors:` его нет:
+ * эффективное множество endpoint'а складывается из этого списка и отказов
+ * его слоёв.
  */
 export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
   input: DeleteUserInput,
-  errors: [UserNotFound, Unauthorized],
+  errors: [UserNotFound],
   doc: {
     summary: 'Удалить пользователя',
     tags: ['users'],

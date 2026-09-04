@@ -28,12 +28,15 @@ import type { DeclarationDoc } from './doc.js';
 import { assertDoc } from './doc.js';
 import type { EmitterToken, PortToken } from './families.js';
 import { EmitterFamily, PortFamily } from './families.js';
+import type { KernelFail } from './kernel-fails.js';
 import type {
   AnyFailDefinition,
+  FailOf,
   FailsOf as FailsOfDefinitions,
 } from './make-fail.js';
 import { isFailDefinition } from './make-fail.js';
 import { registerOperation } from './registry.js';
+import type { AnyFail } from './result.js';
 
 /**
  * Вид операции. Определяет, как доставляется вызов.
@@ -195,6 +198,38 @@ export type OperationFailsOf<C extends AnyOperation> =
       ? FailsOfDefinitions<E>
       : never
     : never;
+
+/**
+ * Отказы пайплайна реализации, которых операция не объявила.
+ *
+ * Отказы ядра из множества вычитаются: их граница пропускает у любой
+ * реализации, и объявлять их в контракте незачем.
+ */
+export type UndeclaredOperationFails<
+  C extends AnyOperation,
+  PF extends AnyFail,
+> = Exclude<PF, OperationFailsOf<C> | FailOf<KernelFail>>;
+
+/**
+ * Проверяет слот `pipeline` реализации: отказы, объявленные её слоями,
+ * входят в `errors:` операции.
+ *
+ * При успехе — `unknown`, то есть слот принимает пайплайн как есть. При
+ * нарушении — литерал ошибки в форме диагностик пайплайна: `__error`
+ * называет правило, `undeclared` — отказы вне контракта, `hint` — починку.
+ * Расширять множество операции автоматически нельзя: операцию импортирует
+ * клиент, и он о пайплайне реализации не знает.
+ */
+export type ValidateOperationFails<
+  C extends AnyOperation,
+  PF extends AnyFail,
+> = [UndeclaredOperationFails<C, PF>] extends [never]
+  ? unknown
+  : {
+      __error: 'Layer may fail with errors the operation does not declare';
+      undeclared: UndeclaredOperationFails<C, PF>;
+      hint: "add the definitions to 'errors:' of the operation";
+    };
 
 /** Полная спецификация операции: общий вход трёх конструкторов */
 export interface OperationSpec<

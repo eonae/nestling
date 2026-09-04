@@ -71,9 +71,6 @@ class UserRegisteredInArchiveHandler {
 
   async handle(payload: UserRegisteredInput) {
     this.ledger.archive(payload.id);
-
-    // eslint-disable-next-line unicorn/no-useless-undefined
-    return undefined;
   }
 }
 

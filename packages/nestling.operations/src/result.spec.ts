@@ -10,8 +10,8 @@
  * стороны описывают одну и ту же форму значения.
  */
 
-import type { Output, OutputSync } from './make-fail.js';
 import { makeFail } from './make-fail.js';
+import type { Output, OutputSync } from './output.js';
 import type { AnyFail } from './result.js';
 import { Fail, isFail, Ok } from './result.js';
 

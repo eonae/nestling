@@ -1,4 +1,3 @@
-import { Unauthorized } from '../../../errors.js';
 import { authed } from '../../../plugins/auth/index.js';
 import { User } from '../user.js';
 import { EmailTaken, NothingToUpdate, UserNotFound } from '../users.errors.js';
@@ -57,7 +56,7 @@ export const UpdateUser = httpEndpoint({
   path: '/users/:id',
   input: UpdateUserInput,
   output: User,
-  errors: [NothingToUpdate, EmailTaken, UserNotFound, Unauthorized],
+  errors: [NothingToUpdate, EmailTaken, UserNotFound],
   doc: { summary: 'Изменить пользователя', tags: ['users'] },
   pipeline: authed,
   handler: UpdateUserHandler,

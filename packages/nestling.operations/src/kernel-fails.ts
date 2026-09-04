@@ -133,6 +133,19 @@ export const InternalError = makeFail('internal_error', {
 });
 
 /**
+ * Объединение определений отказов ядра.
+ *
+ * Из него `Output` собирает отказы, которые хендлер возвращает без
+ * объявления в `errors:`. Набор совпадает с набором кодов ниже: список
+ * закрыт, и оба места меняются вместе.
+ */
+export type KernelFail =
+  | typeof BadRequest
+  | typeof PayloadTooLarge
+  | typeof Timeout
+  | typeof InternalError;
+
+/**
  * Закрытый набор кодов ядра. Публичного способа добавить в него
  * пользовательский код нет.
  */

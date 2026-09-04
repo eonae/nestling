@@ -1,4 +1,3 @@
-import { Unauthorized } from '../../errors.js';
 import { authed } from '../../plugins/auth/index.js';
 import { observability } from '../../plugins/logging/index.js';
 
@@ -102,7 +101,7 @@ export const KillSubscription = httpEndpoint({
   method: 'DELETE',
   path: '/ops/subscriptions/:id',
   input: z.object({ id: z.string() }),
-  errors: [SubscriptionNotFound, Unauthorized],
+  errors: [SubscriptionNotFound],
   doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
   pipeline: authed,
   handler: KillSubscriptionHandler,

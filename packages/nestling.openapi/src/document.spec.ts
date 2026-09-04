@@ -18,6 +18,7 @@ import {
   events,
   jsonSchema,
   makeFail,
+  makePipeline,
   multipart,
   Ok,
   stream,
@@ -364,6 +365,8 @@ const TooShort = makeFail('bad_request:openapi_too_short', {
   message: 'Too short',
 });
 
+const Unauthorized = makeFail('unauthorized', { message: 'No token' });
+
 describe('responses покрывают все ответы границы', () => {
   it('объявленный отказ становится ответом своего кода', () => {
     const Create = httpEndpoint({
@@ -394,6 +397,52 @@ describe('responses покрывают все ответы границы', () =
       },
       required: ['error', 'code'],
     });
+  });
+
+  it('отказ слоя становится ответом без errors: у декларации', () => {
+    const authed = makePipeline().pre(() => Unauthorized(), {
+      errors: [Unauthorized],
+    });
+
+    const Create = httpEndpoint({
+      method: 'POST',
+      path: '/users',
+      output: User,
+      pipeline: authed,
+      handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
+    });
+
+    const responses = documentOf([Create]).paths['/users'].post.responses;
+
+    expect(Object.keys(responses).sort()).toEqual(['200', '401', 'default']);
+    expect(responses['401'].content?.['application/json'].schema).toEqual({
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+        code: { const: 'unauthorized' },
+      },
+      required: ['error', 'code'],
+    });
+  });
+
+  it('отказ, объявленный и слоем, и декларацией, даёт один ответ', () => {
+    const authed = makePipeline().pre(() => Unauthorized(), {
+      errors: [Unauthorized],
+    });
+
+    const Create = httpEndpoint({
+      method: 'POST',
+      path: '/users',
+      output: User,
+      errors: [Unauthorized],
+      pipeline: authed,
+      handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
+    });
+
+    const schema = documentOf([Create]).paths['/users'].post.responses['401']
+      .content?.['application/json'].schema as { oneOf?: unknown[] };
+
+    expect(schema.oneOf).toBeUndefined();
   });
 
   it('два отказа на одном коде сводятся в oneOf', () => {

@@ -66,9 +66,10 @@ class CreateUserHandler {
 
     if (claimed.isFail) {
       // Отказ соседа объявлен в `errors:` операции и уходит клиенту как
-      // есть. Исчерпанный бюджет приходит кодом ядра `timeout`,
-      // объявлять его не нужно
-      return claimed as ReturnType<typeof QuotaExceeded>;
+      // есть. Исчерпанный бюджет приходит кодом ядра `timeout`: отказы
+      // ядра входят в `Output` без объявления, поэтому приведение типов
+      // здесь не нужно
+      return claimed;
     }
 
     const user = await this.users.insert({

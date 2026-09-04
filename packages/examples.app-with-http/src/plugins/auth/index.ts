@@ -5,6 +5,7 @@
  * не фича: провайдер, достижимый из двух фич, живёт в плагине.
  */
 
+import { Unauthorized } from '../../errors.js';
 import { observability } from '../logging/index.js';
 
 import { Authenticate } from './authenticate.js';
@@ -22,5 +23,12 @@ export const appAuth = makePlugin({
 /**
  * Слой для endpoint'ов, которые меняют данные: наблюдаемость плюс
  * проверка токена. Хендлер получает `meta.caller`.
+ *
+ * `Unauthorized` объявлен здесь, при подключении юнита: endpoint'ы со
+ * слоем получают этот отказ в своё множество и в документ OpenAPI, не
+ * перечисляя его у себя.
  */
-export const authed = compose(observability, makePipeline().pre(Authenticate));
+export const authed = compose(
+  observability,
+  makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
+);

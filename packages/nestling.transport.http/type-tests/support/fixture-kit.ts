@@ -21,6 +21,8 @@ export const EmailTaken = makeFail('conflict:email_taken', {
   message: 'Email already taken',
 });
 
+export const Unauthorized = makeFail('unauthorized', { message: 'No token' });
+
 /** Операция с HTTP-адресом: вход формы с `operation:` */
 export const CreateUser = makeRequest({
   name: 'type-tests.users.create',
