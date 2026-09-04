@@ -1,16 +1,16 @@
-import { ContainerBuilder } from '../builder';
-import type { Token } from '../common';
-import { makeToken } from '../common';
+import { ContainerBuilder } from '../builder/index.js';
+import type { Token } from '../common.js';
+import { makeToken } from '../common.js';
 
-import { Injectable } from './injectable.decorator';
-import { injectableMetaStorage } from './injectable.metadata';
-import { familyOf, isTokenFamily, makeTokenFamily } from './token-family';
+import { Injectable } from './injectable.decorator.js';
+import { readInjectableMeta } from './injectable.metadata.js';
+import { familyOf, isTokenFamily, makeTokenFamily } from './token-family.js';
 import {
   factoryProvider,
   familyProvider,
   isFamilyDefinition,
   valueProvider,
-} from './variants';
+} from './variants.js';
 
 interface ILoggerService {
   scope: string;
@@ -100,9 +100,7 @@ describe('токен Family.all', () => {
     }
 
     expect(token).toBe(ILogger.all);
-    expect(injectableMetaStorage.get(Aggregator)?.dependencies).toEqual([
-      ILogger.all,
-    ]);
+    expect(readInjectableMeta(Aggregator)?.dependencies).toEqual([ILogger.all]);
   });
 
   it('не является членом семейства', () => {
@@ -179,7 +177,7 @@ describe('член семейства как обычный токен', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    expect(injectableMetaStorage.get(MetaService)?.dependencies).toEqual([
+    expect(readInjectableMeta(MetaService)?.dependencies).toEqual([
       ILogger('meta'),
     ]);
   });

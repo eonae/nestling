@@ -3,10 +3,10 @@ import type {
   InjectionToken,
   Token,
   UnwrapInjectionTokens,
-} from '../common';
+} from '../common.js';
 
-import { injectableMetaStorage } from './injectable.metadata';
-import { resolveAutoDependency } from './token-family';
+import { writeInjectableMeta } from './injectable.metadata.js';
+import { resolveAutoDependency } from './token-family.js';
 
 /**
  * Помечает класс как провайдер с явным токеном.
@@ -129,7 +129,7 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
       resolveAutoDependency(dep, constructor),
     );
 
-    injectableMetaStorage.set(constructor, { injectionToken, dependencies });
+    writeInjectableMeta(constructor, { injectionToken, dependencies });
     return constructor;
   };
 }

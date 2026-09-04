@@ -64,7 +64,7 @@ function rememberHook(
  *
  * @internal
  */
-export const lifecycleMetadata = new WeakMap<object, LifecycleMetadata>();
+const lifecycleMetadata = new WeakMap<object, LifecycleMetadata>();
 
 /**
  * Помечает метод как хук инициализации.

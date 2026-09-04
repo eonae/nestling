@@ -1,10 +1,10 @@
-import type { Constructor, InjectionToken } from '../common';
-import { tokenId } from '../common';
-import type { DINodeData, DINodeMetadata } from '../graph';
-import { DIGraph, DINode } from '../graph';
-import { getLifecycleHooks } from '../lifecycle';
-import type { Module } from '../modules';
-import { isModule } from '../modules';
+import type { Constructor, InjectionToken } from '../common.js';
+import { tokenId } from '../common.js';
+import type { DINodeData, DINodeMetadata } from '../graph/index.js';
+import { DIGraph, DINode } from '../graph/index.js';
+import { getLifecycleHooks } from '../lifecycle/index.js';
+import type { Module } from '../modules/index.js';
+import { isModule } from '../modules/index.js';
 import type {
   ClassProviderDefinition,
   FactoryProviderDefinition,
@@ -15,20 +15,20 @@ import type {
   ProviderDefinition,
   ProvidersFactory,
   TokenFamily,
-} from '../providers';
+} from '../providers/index.js';
 import {
   asFamilyMember,
   getAllSentinelFamily,
   getAutoSentinelFamily,
-  injectableMetaStorage,
   isClassDefinition,
   isDefinition,
   isFactoryProvider,
   isFamilyDefinition,
   isValueDefinition,
-} from '../providers';
+  readInjectableMeta,
+} from '../providers/index.js';
 
-import { BuiltContainer } from './container.built';
+import { BuiltContainer } from './container.built.js';
 
 /**
  * Предел числа раундов создания членов семейств в `build()`.
@@ -299,7 +299,7 @@ export class ContainerBuilder {
       return plainOrCls;
     }
 
-    const meta = injectableMetaStorage.get(plainOrCls);
+    const meta = readInjectableMeta(plainOrCls);
     if (!meta) {
       throw new Error(
         `Class ${plainOrCls.name} is missing @Injectable decorator`,

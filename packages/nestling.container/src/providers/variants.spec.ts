@@ -1,7 +1,7 @@
-import { makeToken } from '../common';
+import { makeToken } from '../common.js';
 
-import { Injectable } from './injectable.decorator';
-import { injectableMetaStorage } from './injectable.metadata';
+import { Injectable } from './injectable.decorator.js';
+import { readInjectableMeta } from './injectable.metadata.js';
 import {
   classProvider,
   factoryProvider,
@@ -9,7 +9,7 @@ import {
   isFactoryProvider,
   isValueDefinition,
   valueProvider,
-} from './variants';
+} from './variants.js';
 
 describe('конструкторы провайдеров', () => {
   interface IService {
@@ -71,7 +71,7 @@ describe('конструкторы провайдеров', () => {
   });
 
   it('хранит метаданные @Injectable в WeakMap', () => {
-    const metadata = injectableMetaStorage.get(Service);
+    const metadata = readInjectableMeta(Service);
 
     expect(metadata?.injectionToken).toBe(TokenService);
     expect(metadata?.dependencies).toEqual([]);
