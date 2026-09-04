@@ -9,6 +9,48 @@ import { writeInjectableMeta } from './injectable.metadata.js';
 import { resolveAutoDependency } from './token-family.js';
 
 /**
+ * Тип-ошибка: список зависимостей длиннее списка параметров конструктора.
+ *
+ * Поля перечислены отображённым типом, а не литералом: иначе TypeScript
+ * печатает имя алиаса, и текст `__error` в диагностике пропадает.
+ */
+type DependencyLengthError<Expected, Actual> = {
+  [K in keyof {
+    __error: unknown;
+    expected: unknown;
+    actual: unknown;
+  }]: K extends '__error'
+    ? 'Dependency list is longer than the constructor parameter list'
+    : K extends 'expected'
+      ? Expected
+      : Actual;
+};
+
+/**
+ * Проверяет длину списка зависимостей против конструктора.
+ *
+ * Длина `ConstructorParameters<T>` — объединение у конструктора с
+ * необязательными параметрами (`1 | 2`) и `number` у конструктора с
+ * rest-параметром, поэтому `extends` принимает оба случая. Совпало —
+ * `unknown`, который в пересечении с `T` ничего не меняет; не совпало —
+ * тип-ошибка, и класс перестаёт подходить под параметр декоратора.
+ *
+ * Длину проверяет только компилятор. `Function.length` в рантайме не
+ * отличает необязательный параметр от отсутствующего — `logger?: ILogger`
+ * он считает наравне с обязательным, — поэтому та же проверка на значении
+ * отвергала бы список, который компилятор принимает.
+ */
+type ValidDependencyLength<
+  T extends Constructor,
+  TDependencies extends readonly unknown[],
+> = TDependencies['length'] extends ConstructorParameters<T>['length']
+  ? unknown
+  : DependencyLengthError<
+      ConstructorParameters<T>['length'],
+      TDependencies['length']
+    >;
+
+/**
  * Помечает класс как провайдер с явным токеном.
  *
  * Используется, когда класс реализует интерфейс и регистрируется под
@@ -36,7 +78,7 @@ export function Injectable<I, TDependencies extends InjectionToken[]>(
   id: Token<I>,
   dependencies: [...TDependencies],
 ): <T extends new (...args: UnwrapInjectionTokens<TDependencies>) => I>(
-  constructor: T,
+  constructor: T & ValidDependencyLength<T, TDependencies>,
   context: ClassDecoratorContext<T>,
 ) => T;
 
@@ -76,7 +118,7 @@ export function Injectable(): <T extends new () => any>(
 export function Injectable<TDependencies extends InjectionToken[]>(
   deps: [...TDependencies],
 ): <T extends new (...args: UnwrapInjectionTokens<TDependencies>) => any>(
-  constructor: T,
+  constructor: T & ValidDependencyLength<T, TDependencies>,
   context: ClassDecoratorContext<T>,
 ) => T;
 
@@ -90,7 +132,7 @@ export function Injectable<TDependencies extends InjectionToken[]>(
 export function Injectable<TDependencies extends InjectionToken[]>(
   deps: [...TDependencies],
 ): <T extends new (...args: UnwrapInjectionTokens<TDependencies>) => any>(
-  constructor: T,
+  constructor: T & ValidDependencyLength<T, TDependencies>,
   context: ClassDecoratorContext,
 ) => T;
 
