@@ -35,13 +35,16 @@ export class AuditDeletion {
   }
 }
 
-export const deleteUserHandler =
-  (users: UsersRepository) =>
-  async (payload: DeleteUserInput): Output<null, typeof UserNotFound> => {
-    const removed = await users.remove(payload.id);
+@Injectable([UsersRepository$])
+class DeleteUserHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(payload: DeleteUserInput): Output<null, typeof UserNotFound> {
+    const removed = await this.users.remove(payload.id);
 
     return removed ? Ok.noContent() : UserNotFound({ id: payload.id });
-  };
+  }
+}
 
 /**
  * Отказ `Unauthorized` бросает слой, а не хендлер, но объявляет его
@@ -58,8 +61,5 @@ export const DeleteUser = httpEndpoint({
     status: 'no_content',
   },
   pipeline: compose(authed, makePipeline().catch(AuditDeletion)),
-  handler: {
-    deps: [UsersRepository$],
-    handle: deleteUserHandler,
-  },
+  handler: DeleteUserHandler,
 });

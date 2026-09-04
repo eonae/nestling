@@ -5,6 +5,7 @@ import { EmailTaken, NothingToUpdate, UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
+import { Injectable } from '@nestling/container';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -22,14 +23,16 @@ type UpdateUserInput = z.infer<typeof UpdateUserInput>;
  * тип `Output` перечисляет их определениями. Отказ вне списка не
  * компилируется.
  */
-export const updateUserHandler =
-  (users: UsersRepository) =>
-  async (
+@Injectable([UsersRepository$])
+class UpdateUserHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(
     payload: UpdateUserInput,
   ): Output<
     User,
     typeof NothingToUpdate | typeof EmailTaken | typeof UserNotFound
-  > => {
+  > {
     const { id, ...changes } = payload;
 
     if (Object.keys(changes).length === 0) {
@@ -37,16 +40,17 @@ export const updateUserHandler =
     }
 
     if (changes.email) {
-      const existing = await users.byEmail(changes.email);
+      const existing = await this.users.byEmail(changes.email);
       if (existing && existing.id !== id) {
         return EmailTaken({ email: changes.email });
       }
     }
 
-    const user = await users.patch(id, changes);
+    const user = await this.users.patch(id, changes);
 
     return user ?? UserNotFound({ id });
-  };
+  }
+}
 
 export const UpdateUser = httpEndpoint({
   method: 'PATCH',
@@ -56,8 +60,5 @@ export const UpdateUser = httpEndpoint({
   errors: [NothingToUpdate, EmailTaken, UserNotFound, Unauthorized],
   doc: { summary: 'Изменить пользователя', tags: ['users'] },
   pipeline: authed,
-  handler: {
-    deps: [UsersRepository$],
-    handle: updateUserHandler,
-  },
+  handler: UpdateUserHandler,
 });

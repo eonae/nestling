@@ -52,7 +52,7 @@ await makeApp({
 **Анонимная форма** описывает адрес и схемы на месте:
 
 ```ts
-httpEndpoint({ method, path, input, output, errors, bind, rawBody, sse, pipeline, deps, doc, handle, detached });
+httpEndpoint({ method, path, input, output, errors, bind, rawBody, sse, pipeline, doc, handler, detached });
 ```
 
 Это тонкий слой над `makeEndpoint` из `@nestling/pipeline`: он добавляет
@@ -63,7 +63,7 @@ HTTP-поля и собирает `pattern` как `` `${method} ${path}` ``. `p
 с секцией `http:`:
 
 ```ts
-httpEndpoint({ operation: CreateUser, deps, pipeline, handle, detached });
+httpEndpoint({ operation: CreateUser, pipeline, handler, detached });
 ```
 
 Поля `method`, `path`, `bind`, `rawBody`, `sse`, `input`, `output`,

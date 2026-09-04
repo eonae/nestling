@@ -12,12 +12,12 @@ import { httpEndpoint } from '@nestling/transport.http';
 const MAX_ROWS = 100_000;
 
 /**
- * Альтернативная форма: класс-хендлер.
+ * Класс-хендлер: форма для хендлера с зависимостями.
  *
- * Класс с `@Injectable` и методом `handle` регистрируется в `providers:`
- * модуля, и `deps` у декларации нет. Сигнатура `handle` сверяется со
- * схемами в точке декларации, `implements` не нужен. Основная форма в
- * остальных endpoint'ах: каррированная фабрика.
+ * Зависимости перечисляет `@Injectable`, а не поле декларации: у endpoint'а
+ * `deps` нет. Сигнатура `handle` сверяется со схемами в точке декларации,
+ * `implements` не нужен. Без зависимостей хендлер объявляется обычной
+ * функцией, как у `Health`.
  */
 @Injectable([UsersRepository$])
 export class ExportUsersHandler {

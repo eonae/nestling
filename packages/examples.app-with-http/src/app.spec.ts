@@ -7,7 +7,7 @@ import {
   ListSubscriptions,
   WatchSubscriptions,
 } from './features/ops/subscriptions.endpoint.js';
-import { ClaimQuotaImpl } from './features/quotas/quotas.feature.js';
+import { ClaimQuotaImpl } from './features/quotas/claim-quota.endpoint.js';
 import { ActivityHub } from './features/users/activity.hub.js';
 import {
   ActivityStream,

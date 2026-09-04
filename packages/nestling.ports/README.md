@@ -40,17 +40,21 @@ export const ClaimQuota = makeRequest({
 });
 
 // Реализация: endpoint, который обслуживает операция
-export const ClaimQuotaImpl = implement(ClaimQuota, {
-  handler: {
-    deps: [QuotaService],
-    handle: (quotas) => async (payload) => {
-      const claimed = quotas.claim();
+@Injectable([QuotaService])
+class ClaimQuotaHandler {
+  constructor(private readonly quotas: QuotaService) {}
 
-      return claimed.ok
-        ? new Ok({ remaining: claimed.remaining })
-        : QuotaExceeded({ limit: quotas.limit });
-    },
-  },
+  async handle() {
+    const claimed = this.quotas.claim();
+
+    return claimed.ok
+      ? new Ok({ remaining: claimed.remaining })
+      : QuotaExceeded({ limit: this.quotas.limit });
+  }
+}
+
+export const ClaimQuotaImpl = implement(ClaimQuota, {
+  handler: ClaimQuotaHandler,
 });
 
 export const QuotasModule = makeFeature({
@@ -60,18 +64,22 @@ export const QuotasModule = makeFeature({
 });
 
 // Вызов из другой фичи: порт инжектируется как обычная зависимость
+@Injectable([ClaimQuota.caller])
+class CreateUserHandler {
+  constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
+
+  async handle(input: CreateUserInput) {
+    const claimed = await this.quotas.call({ email: input.email });
+    if (claimed.isFail) {
+      return claimed;                      // отказ соседа разбирает вызывающий
+    }
+    /* … */
+  }
+}
+
 export const CreateUser = httpEndpoint({
   /* … */
-  handler: {
-    deps: [ClaimQuota.caller],
-    handle: (quotas) => async (input) => {
-      const claimed = await quotas.call({ email: input.email });
-      if (claimed.isFail) {
-        return claimed;                    // отказ соседа разбирает вызывающий
-      }
-      /* … */
-    },
-  },
+  handler: CreateUserHandler,
 });
 ```
 
@@ -181,11 +189,17 @@ await ship.emit({ orderId }, { idempotencyKey: orderId });
 `signal`.
 
 ```typescript
-handler: {
-  deps: [Ctx(Deadline), ChargeCard.caller],
-  handle: (deadline, charge) => async (input) =>
-    charge.call(input, { deadline: deadline.peek() }),
-},
+@Injectable([Ctx(Deadline), ChargeCard.caller])
+class ChargeHandler {
+  constructor(
+    private readonly deadline: CtxReader<number>,
+    private readonly charge: Port<typeof ChargeCard>,
+  ) {}
+
+  async handle(input: ChargeInput) {
+    return this.charge.call(input, { deadline: this.deadline.peek() });
+  }
+}
 ```
 
 ### Политика диспатча

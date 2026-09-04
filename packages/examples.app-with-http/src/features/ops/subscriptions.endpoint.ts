@@ -2,6 +2,7 @@ import { Unauthorized } from '../../errors.js';
 import { authed } from '../../plugins/auth/index.js';
 import { observability } from '../../plugins/logging/index.js';
 
+import { Injectable } from '@nestling/container';
 import { events, makeFail, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose } from '@nestling/pipeline';
@@ -59,6 +60,15 @@ const toWire = (info: SubscriptionInfo): Subscription => ({
   itemsOut: info.itemsOut,
 });
 
+@Injectable([SubscriptionRegistry])
+class ListSubscriptionsHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(): Output<Subscription[]> {
+    return this.registry.list().map((info) => toWire(info));
+  }
+}
+
 /** Список активных подписок узла. Реестр инжектируется обычным токеном */
 export const ListSubscriptions = httpEndpoint({
   method: 'GET',
@@ -66,13 +76,21 @@ export const ListSubscriptions = httpEndpoint({
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
   pipeline: observability,
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) => async (): Output<Subscription[]> =>
-        registry.list().map((info) => toWire(info)),
-  },
+  handler: ListSubscriptionsHandler,
 });
+
+@Injectable([SubscriptionRegistry])
+class KillSubscriptionHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(payload: {
+    id: string;
+  }): Output<null, typeof SubscriptionNotFound> {
+    const killed = this.registry.abort(payload.id, 'administrative kill');
+
+    return killed ? Ok.noContent() : SubscriptionNotFound({ id: payload.id });
+  }
+}
 
 /**
  * Административное завершение подписки.
@@ -87,21 +105,32 @@ export const KillSubscription = httpEndpoint({
   errors: [SubscriptionNotFound, Unauthorized],
   doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
   pipeline: authed,
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) =>
-      async (payload: {
-        id: string;
-      }): Output<null, typeof SubscriptionNotFound> => {
-        const killed = registry.abort(payload.id, 'administrative kill');
-
-        return killed
-          ? Ok.noContent()
-          : SubscriptionNotFound({ id: payload.id });
-      },
-  },
+  handler: KillSubscriptionHandler,
 });
+
+@Injectable([SubscriptionRegistry])
+class WatchSubscriptionsHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: TrackedSubscription },
+  ): Output<AsyncIterable<SubscriptionChange>> {
+    const feed = this.registry.watch(meta.subscription.signal);
+
+    return new Ok(
+      (async function* () {
+        for await (const event of feed) {
+          yield {
+            type: event.type,
+            reason: event.type === 'closed' ? event.reason : undefined,
+            subscription: toWire(event.info),
+          };
+        }
+      })(),
+    );
+  }
+}
 
 /**
  * Лента изменений реестра: сама является подпиской.
@@ -120,27 +149,5 @@ export const WatchSubscriptions = httpEndpoint({
   },
   doc: { summary: 'Лента изменений реестра подписок (SSE)', tags: ['ops'] },
   pipeline: compose(observability, tracked),
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle:
-      (registry: SubscriptionRegistry) =>
-      async (
-        _payload: unknown,
-        meta: { subscription: TrackedSubscription },
-      ): Output<AsyncIterable<SubscriptionChange>> => {
-        const feed = registry.watch(meta.subscription.signal);
-
-        return new Ok(
-          (async function* () {
-            for await (const event of feed) {
-              yield {
-                type: event.type,
-                reason: event.type === 'closed' ? event.reason : undefined,
-                subscription: toWire(event.info),
-              };
-            }
-          })(),
-        );
-      },
-  },
+  handler: WatchSubscriptionsHandler,
 });

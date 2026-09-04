@@ -107,7 +107,7 @@ export interface CliEndpointDictionary<
  * Конструктор CLI-деклараций.
  *
  * Тонкая надстройка над kernel-примитивом `makeEndpoint`: `transport` —
- * `'cli'`, `pattern` — имя команды. Общий механизм деклараций (три формы
+ * `'cli'`, `pattern` — имя команды. Общий механизм деклараций (обе формы
  * `handler`, `resolve`, бренд) живёт в `makeEndpoint`.
  *
  * @example

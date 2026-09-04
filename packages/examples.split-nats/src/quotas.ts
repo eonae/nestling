@@ -52,6 +52,31 @@ export class QuotaLedger {
   }
 }
 
+@Injectable([QuotaLedger])
+class ClaimQuotaHandler {
+  constructor(private readonly ledger: QuotaLedger) {}
+
+  async handle() {
+    const remaining = this.ledger.claim();
+
+    return remaining === undefined
+      ? QuotaExceeded({ limit: this.ledger.limit })
+      : { remaining };
+  }
+}
+
+@Injectable([QuotaLedger])
+class UserRegisteredInArchiveHandler {
+  constructor(private readonly ledger: QuotaLedger) {}
+
+  async handle(payload: UserRegisteredInput) {
+    this.ledger.archive(payload.id);
+
+    // eslint-disable-next-line unicorn/no-useless-undefined
+    return undefined;
+  }
+}
+
 export const QuotasFeature = makeFeature({
   name: 'quotas',
   providers: [QuotaLedger],
@@ -60,16 +85,7 @@ export const QuotasFeature = makeFeature({
       // Арендатор пришёл в конверте сообщения: юнит возвращает его в
       // контекст запроса, и `QuotaLedger` читает его оттуда
       pipeline: makePipeline().pre(TenantId.propagated()),
-      handler: {
-        deps: [QuotaLedger],
-        handle: (ledger: QuotaLedger) => async () => {
-          const remaining = ledger.claim();
-
-          return remaining === undefined
-            ? QuotaExceeded({ limit: ledger.limit })
-            : { remaining };
-        },
-      },
+      handler: ClaimQuotaHandler,
     }),
 
     implement(UserRegistered, {
@@ -78,16 +94,7 @@ export const QuotasFeature = makeFeature({
       // и durable-потребителя
       subscriber: 'archive',
       pipeline: makePipeline().pre(TenantId.propagated()),
-      handler: {
-        deps: [QuotaLedger],
-        handle:
-          (ledger: QuotaLedger) => async (payload: UserRegisteredInput) => {
-            ledger.archive(payload.id);
-
-            // eslint-disable-next-line unicorn/no-useless-undefined
-            return undefined;
-          },
-      },
+      handler: UserRegisteredInArchiveHandler,
     }),
   ],
 });

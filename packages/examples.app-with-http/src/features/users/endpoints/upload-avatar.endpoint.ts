@@ -5,6 +5,7 @@ import { AvatarRequired, UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
+import { Injectable } from '@nestling/container';
 import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
@@ -18,12 +19,14 @@ const AvatarFields = z.object({ id: z.string() });
 
 type AvatarFields = z.infer<typeof AvatarFields>;
 
-export const uploadAvatarHandler =
-  (users: UsersRepository) =>
-  async (payload: {
+@Injectable([UsersRepository$])
+class UploadAvatarHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(payload: {
     fields: AvatarFields;
     files: { avatar: FilePart };
-  }): Output<User, typeof UserNotFound | typeof AvatarRequired> => {
+  }): Output<User, typeof UserNotFound | typeof AvatarRequired> {
     const { fields, files } = payload;
 
     // Размер и тип файла проверил транспорт по `upload({ maxSize, mime })`.
@@ -33,10 +36,11 @@ export const uploadAvatarHandler =
     }
 
     const avatarUrl = `/uploads/${fields.id}/${files.avatar.filename}`;
-    const user = await users.patch(fields.id, { avatarUrl });
+    const user = await this.users.patch(fields.id, { avatarUrl });
 
     return user ?? UserNotFound({ id: fields.id });
-  };
+  }
+}
 
 /** Форма `multipart`: поля проверяет схема `fields`, файлы приходят под объявленными именами */
 export const UploadAvatar = httpEndpoint({
@@ -52,8 +56,5 @@ export const UploadAvatar = httpEndpoint({
   errors: [UserNotFound, AvatarRequired, Unauthorized],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
   pipeline: authed,
-  handler: {
-    deps: [UsersRepository$],
-    handle: uploadAvatarHandler,
-  },
+  handler: UploadAvatarHandler,
 });

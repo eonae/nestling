@@ -42,7 +42,7 @@ node dist/main.js hello Alice --loud
 
 ## Команда
 
-`cliEndpoint({ command, input, output, errors, pipeline, deps, handle, detached })`
+`cliEndpoint({ command, input, output, errors, pipeline, handler, detached })`
 — конструктор декларации, тонкий слой над `makeEndpoint` из
 `@nestling/pipeline`. Транспорт декларации — токен пакета `CliTransport$('default')`
 с коротким именем `'cli'`; имя команды становится паттерном endpoint'а.

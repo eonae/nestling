@@ -14,7 +14,7 @@ const PORT = Number(process.env.PORT) || 3000;
 
 const server = new HttpTransport({ port: PORT });
 
-// У деклараций нет `deps`, поэтому `makeDispatch` принимает их как есть
+// У деклараций нет зависимостей, поэтому `makeDispatch` принимает их как есть
 const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
 
 // Общий сигнал остановки: после взвода транспорт не принимает новые запросы

@@ -1,6 +1,7 @@
 import { observability } from '../../../plugins/logging/index.js';
 import { ActivityHub } from '../activity.hub.js';
 
+import { Injectable } from '@nestling/container';
 import { events, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose } from '@nestling/pipeline';
@@ -17,6 +18,21 @@ const ActivityEvent = z.object({
 });
 
 type ActivityEvent = z.infer<typeof ActivityEvent>;
+
+@Injectable([ActivityHub])
+class ActivityStreamHandler {
+  constructor(private readonly hub: ActivityHub) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { subscription: TrackedSubscription; lastEventId?: string },
+  ): Output<AsyncIterable<ActivityEvent>> {
+    // Настоящая лента отдала бы историю с этого места
+    const since = meta.lastEventId ?? '0';
+
+    return new Ok(this.hub.subscribe(meta.subscription.signal, since));
+  }
+}
 
 /**
  * Лента активности по SSE.
@@ -40,18 +56,5 @@ export const ActivityStream = httpEndpoint({
   },
   doc: { summary: 'Лента активности (SSE)', tags: ['users'] },
   pipeline: compose(observability, tracked),
-  handler: {
-    deps: [ActivityHub],
-    handle:
-      (hub: ActivityHub) =>
-      async (
-        _payload: unknown,
-        meta: { subscription: TrackedSubscription; lastEventId?: string },
-      ): Output<AsyncIterable<ActivityEvent>> => {
-        // Настоящая лента отдала бы историю с этого места
-        const since = meta.lastEventId ?? '0';
-
-        return new Ok(hub.subscribe(meta.subscription.signal, since));
-      },
-  },
+  handler: ActivityStreamHandler,
 });

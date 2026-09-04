@@ -6,17 +6,21 @@ import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
+import { Injectable } from '@nestling/container';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 
-export const getUserHandler =
-  (users: UsersRepository) =>
-  async (payload: GetUserInput): Output<User, typeof UserNotFound> => {
-    const user = await users.byId(payload.id);
+@Injectable([UsersRepository$])
+class GetUserHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(payload: GetUserInput): Output<User, typeof UserNotFound> {
+    const user = await this.users.byId(payload.id);
 
     // Отказ возвращается значением. Для ответа это то же, что бросок
     return user ?? UserNotFound({ id: payload.id });
-  };
+  }
+}
 
 /**
  * Адрес, схемы и `errors:` живут в операции `api/operations.ts`: ту же
@@ -25,8 +29,5 @@ export const getUserHandler =
 export const GetUser = httpEndpoint({
   operation: GetUserOperation,
   pipeline: observability,
-  handler: {
-    deps: [UsersRepository$],
-    handle: getUserHandler,
-  },
+  handler: GetUserHandler,
 });

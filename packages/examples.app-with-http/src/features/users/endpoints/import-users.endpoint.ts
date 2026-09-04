@@ -4,6 +4,7 @@ import { NewUser } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
+import { Injectable } from '@nestling/container';
 import { stream } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -22,26 +23,29 @@ const MAX_ROWS = 10_000;
 /** Пауза между строками, после которой запрос отклоняется: ответ `504` */
 const GAP_TIMEOUT_MS = 30_000;
 
-export const importUsersHandler =
-  (users: UsersRepository) =>
-  async (rows: AsyncIterableIterator<NewUser>): Output<ImportResult> => {
+@Injectable([UsersRepository$])
+class ImportUsersHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(rows: AsyncIterableIterator<NewUser>): Output<ImportResult> {
     let imported = 0;
     let skipped = 0;
 
     // Каждая строка уже проверена схемой `NewUser`: невалидная строка
     // обрывает поток отказом `bad_request`
     for await (const row of rows) {
-      if (await users.byEmail(row.email)) {
+      if (await this.users.byEmail(row.email)) {
         skipped += 1;
         continue;
       }
 
-      await users.insert(row);
+      await this.users.insert(row);
       imported += 1;
     }
 
     return { imported, skipped };
-  };
+  }
+}
 
 /** Форма `stream(T)` на входе: тело запроса читается построчно как NDJSON */
 export const ImportUsers = httpEndpoint({
@@ -52,8 +56,5 @@ export const ImportUsers = httpEndpoint({
   errors: [Unauthorized],
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
   pipeline: authed,
-  handler: {
-    deps: [UsersRepository$],
-    handle: importUsersHandler,
-  },
+  handler: ImportUsersHandler,
 });

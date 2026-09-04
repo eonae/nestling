@@ -51,13 +51,16 @@ export class VerifySignature {
   }
 }
 
-export const userWebhookHandler =
-  (users: UsersRepository) =>
-  async (event: UserEventInput): Output<UserEventOutput> => {
-    await users.remove(event.userId);
+@Injectable([UsersRepository$])
+class UserWebhookHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(event: UserEventInput): Output<UserEventOutput> {
+    await this.users.remove(event.userId);
 
     return { received: true };
-  };
+  }
+}
 
 /**
  * Webhook с проверкой подписи.
@@ -85,8 +88,5 @@ export const UserWebhook = httpEndpoint({
     makePipeline<{ rawBody: Uint8Array }>().pre(VerifySignature),
     observability,
   ),
-  handler: {
-    deps: [UsersRepository$],
-    handle: userWebhookHandler,
-  },
+  handler: UserWebhookHandler,
 });
