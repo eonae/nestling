@@ -125,9 +125,10 @@ SHALL NOT существовать до фазы WIRE.
   где `Ping` — deps-free декларация
 - **THEN** сервер поднимается и обслуживает `Ping`
 
-#### Scenario: Декларация с `deps` в standalone
+#### Scenario: Декларация с неразрешёнными зависимостями в standalone
 
-- **WHEN** в `makeDispatch` передана декларация с непогашенными `deps`
+- **WHEN** в `makeDispatch` передана декларация с классом-хендлером,
+  который ещё не получил инстанс
 - **THEN** это ошибка компиляции — сначала `endpoint.resolve(resolver)`
 
 #### Scenario: Остановка по сигналу
