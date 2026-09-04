@@ -16,10 +16,6 @@ const RootConfig = makeConfig('app', {
   features: z.string().default('all'),
 });
 
-async function main(): Promise<void> {
-  const cfg = load(RootConfig);
+const cfg = load(RootConfig);
 
-  await app.assemble(cfg.features).run();
-}
-
-void main();
+await app.assemble(cfg.features).run();

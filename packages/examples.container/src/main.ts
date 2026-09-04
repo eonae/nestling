@@ -15,20 +15,15 @@ import { objectSource } from '@nestling/config';
  * подключён всегда с низшим приоритетом: `DATABASE_URL` приходит из него
  * без объявления. Порядок списка задаёт приоритет источников.
  */
-export async function main() {
-  const app = makeApp({
-    features: [AppFeature],
-    plugins: [appLogging],
-    providers: [Demo],
-    config: [
-      [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
-      [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
-    ],
-  }).assemble();
+const app = makeApp({
+  features: [AppFeature],
+  plugins: [appLogging],
+  providers: [Demo],
+  config: [
+    [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+    [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
+  ],
+}).assemble();
 
-  await app.run();
-  await app.close();
-}
-
-// eslint-disable-next-line no-console
-main().catch(console.error);
+await app.run();
+await app.close();
