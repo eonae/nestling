@@ -27,8 +27,7 @@ Fastify на Node 22 и до 0.99 на Node 24, а разброс req/s межд
   `AbortController` запроса, без композиции. Транспорт держит реестр
   контроллеров выполняющихся запросов: `handle` добавляет контроллер,
   событие `'close'` ответа удаляет, `close()` взводит каждый оставшийся с
-  `TransportClosingError` до дренажа соединений. Запрос, пришедший после
-  начала остановки, получает уже взведённый сигнал с той же причиной.
+  `TransportClosingError` до дренажа соединений.
   Причины отмены (`ClientDisconnectedError`, `TransportClosingError`) и
   наблюдаемое поведение `meta.signal` не меняются.
 - `@nestling/ports`, in-process шина: `request` с `options.signal`

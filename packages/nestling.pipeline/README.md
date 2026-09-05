@@ -518,6 +518,12 @@ export class UsersRepository {
   `everyEndpoint(…).hasVar(RequestId)`. Типы уже покрывают юнит, читающий
   `ctx.input.requestId`; политика покрывает чтения из глубины графа, где
   типов входа нет.
+- Ячейка живёт в `AsyncLocalStorage`. Рекомендуемая версия Node — 24: в
+  ней хранилище работает на `AsyncContextFrame`. В Node 22 хранилище
+  включает хуки промисов на весь процесс, и это стоит около 14%
+  пропускной способности HTTP-сервера; флаг
+  `--experimental-async-context-frame` включает тот же режим, что в
+  Node 24.
 
 ## Отмена: `meta.signal`
 

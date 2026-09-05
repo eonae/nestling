@@ -142,8 +142,11 @@ const scenarios: Scenario[] = [
 /** Итог одного замера */
 interface Measurement {
   rps: number;
+  /** Разброс req/s между секундами замера: паузы видны здесь, а не в среднем */
+  rpsStddev: number;
   latencyAverage: number;
   latencyP99: number;
+  latencyMax: number;
   errors: number;
   non2xx: number;
 }
@@ -158,8 +161,10 @@ async function measure(url: string, scenario: Scenario): Promise<Measurement> {
 
   return {
     rps: result.requests.average,
+    rpsStddev: result.requests.stddev,
     latencyAverage: result.latency.average,
     latencyP99: result.latency.p99,
+    latencyMax: result.latency.max,
     errors: result.errors,
     non2xx: result.non2xx,
   };
@@ -177,11 +182,13 @@ async function warmup(url: string, scenario: Scenario): Promise<void> {
 
 function row(name: string, value: Measurement): string {
   const rps = Math.round(value.rps).toString().padStart(9);
+  const stddev = Math.round(value.rpsStddev).toString().padStart(9);
   const average = value.latencyAverage.toFixed(2).padStart(9);
   const p99 = value.latencyP99.toFixed(2).padStart(9);
+  const max = value.latencyMax.toFixed(0).padStart(9);
   const bad = (value.errors + value.non2xx).toString().padStart(7);
 
-  return `${name.padEnd(10)}${rps}${average}${p99}${bad}`;
+  return `${name.padEnd(10)}${rps}${stddev}${average}${p99}${max}${bad}`;
 }
 
 async function main(): Promise<void> {
@@ -210,7 +217,7 @@ async function main(): Promise<void> {
 
       console.log(scenario.name);
       console.log(
-        `${'сервер'.padEnd(10)}${'req/s'.padStart(9)}${'ср. мс'.padStart(9)}${'p99 мс'.padStart(9)}${'ошибок'.padStart(7)}`,
+        `${'сервер'.padEnd(10)}${'req/s'.padStart(9)}${'σ req/s'.padStart(9)}${'ср. мс'.padStart(9)}${'p99 мс'.padStart(9)}${'max мс'.padStart(9)}${'ошибок'.padStart(7)}`,
       );
       console.log(row('nestling', measured.nestling));
       console.log(row('fastify', measured.fastify));

@@ -11,6 +11,8 @@
  * явная передача остатка вложенному вызову.
  */
 
+import { getEventListeners } from 'node:events';
+
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 import { makeLocalEmitter, makeLocalPort } from './invoker.js';
@@ -171,6 +173,33 @@ describe('помощники бюджета', () => {
 
     // Таймер тоже сработал, но «выиграл» вызывающий: его отмена остаётся
     // `InternalError`, какой была до появления бюджета
+    expect(budget.expired).toBe(false);
+    budget.release();
+  });
+
+  it('release() снимает слушатель с сигнала вызывающего', () => {
+    const controller = new AbortController();
+    const before = getEventListeners(controller.signal, 'abort').length;
+
+    const budget = startBudget(deadlineIn(1000), controller.signal);
+    expect(getEventListeners(controller.signal, 'abort').length).toBe(
+      before + 1,
+    );
+
+    budget.release();
+
+    expect(getEventListeners(controller.signal, 'abort').length).toBe(before);
+    expect(budget.signal.aborted).toBe(false);
+  });
+
+  it('уже взведённый сигнал вызывающего взводит бюджет сразу', () => {
+    const controller = new AbortController();
+    controller.abort(new Error('caller gone'));
+
+    const budget = startBudget(deadlineIn(1000), controller.signal);
+
+    expect(budget.signal.aborted).toBe(true);
+    expect((budget.signal.reason as Error).message).toBe('caller gone');
     expect(budget.expired).toBe(false);
     budget.release();
   });

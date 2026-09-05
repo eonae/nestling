@@ -159,11 +159,18 @@ export class HttpTransport implements ITransport {
   /** Фактический адрес; не задан до `serve` и после `close()` */
   private listening?: { host: string; port: number };
 
-  /**
-   * Контроллер отмены на уровне транспорта: срабатывает в `close()`, и
-   * через `AbortSignal.any` отмену получает каждый выполняющийся запрос.
-   */
+  /** Контроллер остановки транспорта: взводится первым шагом `close()` */
   private closeController?: AbortController;
+
+  /**
+   * Контроллеры выполняющихся запросов. `handle` добавляет контроллер,
+   * событие `'close'` ответа удаляет, `close()` взводит каждый оставшийся.
+   *
+   * Реестр вместо композитного сигнала на запрос: `AbortSignal.any` стоит
+   * около 2 µs на вызов и копит `WeakRef` на сигнале остановки
+   * (ideas.md [2026-09-05]).
+   */
+  private readonly active = new Set<AbortController>();
 
   /** Лимит тела с учётом дефолта; `0` — без лимита */
   private readonly maxBodySize: number;
@@ -283,10 +290,15 @@ export class HttpTransport implements ITransport {
     this.listening = undefined;
     this.dispatch = undefined;
 
-    // Отмена доходит до каждого meta.signal через AbortSignal.any: реестр
-    // контроллеров запросов не нужен
-    this.closeController?.abort(new TransportClosingError());
+    // Сначала контроллер остановки, затем каждый запрос в полёте: их
+    // `meta.signal` взведён до начала дренажа
+    const reason = new TransportClosingError();
+    this.closeController?.abort(reason);
     this.closeController = undefined;
+    for (const controller of this.active) {
+      controller.abort(reason);
+    }
+    this.active.clear();
 
     const closeTimeout =
       options.timeout ?? this.options.closeTimeout ?? DEFAULT_CLOSE_TIMEOUT;
@@ -354,16 +366,16 @@ export class HttpTransport implements ITransport {
       }
     };
 
-    // Сигнал запроса: контроллер дисконнекта клиента плюс сигнал остановки
-    // транспорта, объединённые AbortSignal.any
+    // Сигнал запроса: собственный контроллер. Дисконнект клиента взводит
+    // его здесь, остановка транспорта — из `close()` через реестр
     const requestController = new AbortController();
-    const signal = this.closeController
-      ? AbortSignal.any([requestController.signal, this.closeController.signal])
-      : requestController.signal;
+    const { signal } = requestController;
+    this.active.add(requestController);
 
     // 'close' на response приходит и после штатного завершения ответа,
     // поэтому дисконнектом считаем только недописанный ответ
     nativeRes.on('close', () => {
+      this.active.delete(requestController);
       if (!nativeRes.writableFinished) {
         requestController.abort(new ClientDisconnectedError());
       }

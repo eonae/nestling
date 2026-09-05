@@ -1252,4 +1252,77 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
 
     await transport.close();
   });
+
+  it('серия запросов оставляет реестр контроллеров пустым', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/ping',
+        pipeline: makePipeline(),
+        handler: () => new Ok({ pong: true }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    for (let i = 0; i < 20; i++) {
+      const response = await fetch(`${baseUrl}/ping`);
+      await response.json();
+    }
+
+    // Событие 'close' ответа приходит после его завершения: даём ему дойти
+    await new Promise((r) => setTimeout(r, 50));
+
+    const { active } = transport as unknown as {
+      active: Set<AbortController>;
+    };
+    expect(active.size).toBe(0);
+
+    await transport.close();
+  });
+
+  it('close() взводит сигналы всех запросов в полёте', async () => {
+    const transport = makeTransport({ closeTimeout: 5000 });
+    const signals: AbortSignal[] = [];
+    let onAllStarted!: () => void;
+    const allStarted = new Promise<void>((r) => (onAllStarted = r));
+
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/hold',
+        pipeline: makePipeline(),
+        handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
+          signals.push(meta.signal);
+          if (signals.length === 3) {
+            onAllStarted();
+          }
+
+          const aborted = new Promise<void>((resolve) => {
+            meta.signal.addEventListener('abort', () => resolve(), {
+              once: true,
+            });
+          });
+
+          return aborted.then(() => new Ok({ done: true }));
+        },
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const pending = Promise.all(
+      [1, 2, 3].map(() => fetch(`${baseUrl}/hold`).catch(() => null)),
+    );
+    await allStarted;
+
+    await transport.close();
+
+    expect(signals).toHaveLength(3);
+    for (const signal of signals) {
+      expect(signal.aborted).toBe(true);
+      expect((signal.reason as Error).message).toBe('transport closing');
+    }
+
+    await pending;
+  });
 });

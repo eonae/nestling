@@ -2,6 +2,8 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
+import { getEventListeners } from 'node:events';
+
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 
@@ -373,6 +375,105 @@ describe('InProcessBus', () => {
     await new Promise((resolve) => setTimeout(resolve, 60));
 
     expect(aborted).toBe(true);
+
+    await bus.close();
+  });
+
+  it('отмена вызывающим доходит до обработчика с той же причиной', async () => {
+    const Hold = makeRequest({
+      name: 'bus.signal.caller',
+      input: z.object({ id: z.number() }),
+      output: z.object({ reason: z.string() }),
+    });
+
+    const declaration = implement(Hold, {
+      handler: async (_input, meta) => {
+        await new Promise((resolve) => {
+          meta.signal.addEventListener('abort', resolve, { once: true });
+        });
+
+        return { reason: (meta.signal.reason as Error).message };
+      },
+    });
+
+    const bus = new InProcessBus();
+    await bus.serve(makeDispatch([declaration]), new AbortController().signal);
+
+    const controller = new AbortController();
+    const pending = bus.request(
+      'bus.signal.caller',
+      { id: 1 },
+      { signal: controller.signal },
+    );
+    await settle();
+    controller.abort(new Error('caller gone'));
+
+    expect(await pending).toMatchObject({
+      isSuccess: true,
+      value: { reason: 'caller gone' },
+    });
+
+    await bus.close();
+  });
+
+  it('close() взводит сигнал вызова в полёте', async () => {
+    const Hold = makeRequest({
+      name: 'bus.signal.close',
+      input: z.object({ id: z.number() }),
+      output: z.object({ aborted: z.boolean() }),
+    });
+
+    const declaration = implement(Hold, {
+      handler: async (_input, meta) => {
+        await new Promise((resolve) => {
+          meta.signal.addEventListener('abort', resolve, { once: true });
+        });
+
+        return { aborted: meta.signal.aborted };
+      },
+    });
+
+    const bus = new InProcessBus();
+    await bus.serve(makeDispatch([declaration]), new AbortController().signal);
+
+    const pending = bus.request(
+      'bus.signal.close',
+      { id: 1 },
+      { signal: new AbortController().signal },
+    );
+    await settle();
+    await bus.close();
+
+    expect(await pending).toMatchObject({
+      isSuccess: true,
+      value: { aborted: true },
+    });
+  });
+
+  it('завершённый вызов не оставляет ни записи в реестре, ни слушателя на сигнале', async () => {
+    const Quick = makeRequest({
+      name: 'bus.signal.clean',
+      input: z.object({ id: z.number() }),
+      output: z.object({ ok: z.boolean() }),
+    });
+
+    const declaration = implement(Quick, {
+      handler: async () => ({ ok: true }),
+    });
+
+    const bus = new InProcessBus();
+    await bus.serve(makeDispatch([declaration]), new AbortController().signal);
+
+    const controller = new AbortController();
+    await bus.request(
+      'bus.signal.clean',
+      { id: 1 },
+      { signal: controller.signal },
+    );
+
+    expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0);
+    const { active } = bus as unknown as { active: Set<AbortController> };
+    expect(active.size).toBe(0);
 
     await bus.close();
   });

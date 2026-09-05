@@ -27,6 +27,10 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 33–36 добавлены 2026-09-04 по ревью фреймворка
 ([d/09](../history/discussions/09-framework-review.md)): шесть записей
 [ideas.md [2026-09-04]](./ideas.md).
+37 добавлен 2026-09-05 по второму ревью
+([d/10](../history/discussions/10-framework-review-2.md), профиль горячего
+пути): запись [ideas.md [2026-09-05]](./ideas.md) «Сигнал отмены запроса:
+реестр контроллеров вместо `AbortSignal.any`».
 
 | # | Change | Суть | Размер | Статус |
 |---|---|---|---|---|
@@ -66,6 +70,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 34 | `layer-fails` | отказы слоя: `.pre(unit, { errors })`, `TFails` у пайплайна и множество определений на значении, канал `return` у pre-юнита, эффективное множество `errors` endpoint'а (граница, OpenAPI, `Output`), проверка «отказы пайплайна входят в `errors:` операции» в типах и при создании декларации; `Output<T, E>` допускает отказы ядра, `void` у хендлера без `output`; главы 3, 9, 13, приложение А | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-09-05-layer-fails/), [ideas.md [2026-09-04]](./ideas.md) «Отказы слоя», «`Output<T, E>` допускает отказы ядра» |
 | 35 | `http-transport-boundary` | граница `@nestling/transport.http` в README пакета (обещания и то, что не входит: HTTP/2, WebSocket, TLS); байтовые части как публичная поверхность — satellite-транспорт поверх своего `node:http`-сервера собран из одних публичных экспортов в спеке пакета, экспорт `HTTP_CAPABILITIES`; бенчмарк относительно Fastify с записью результата в ideas.md | S | **done** — [архив](../../openspec/changes/archive/2026-09-05-http-transport-boundary/), новая спека [`http-transport-boundary`](../../openspec/specs/http-transport-boundary/spec.md), [ideas.md [2026-09-04]](./ideas.md) «Граница `@nestling/transport.http`» |
 | 36 | `guide-concept-map` | README гайда: приложение Б вторым документом сразу после вводного абзаца, раздел «Карта понятий» — таблица «понятие, одно предложение, глава» на 25 строк по частям 1–4; спека `docs-preview-guide` получила требование о разделах README вне «Часть N.»/«Приложения» | S | **done** — [архив](../../openspec/changes/archive/2026-09-05-guide-concept-map/), [ideas.md [2026-09-04]](./ideas.md) «Подача гайда»; формулировка прогрессивного раскрытия в `principles.md` синхронизирована раньше и в объём change'а не входила |
+| 37 | `abort-signal-registry` | сигнал запроса без `AbortSignal.any`: реестр контроллеров в `transport.http`, контроллер вызова со слушателем в бюджете и in-process шине `@nestling/ports`; бенчмарк печатает разброс и максимум латентности; Node 24 в README | S | **в работе** — [change](../../openspec/changes/abort-signal-registry/) |
 
 ## Порядок и зависимости
 

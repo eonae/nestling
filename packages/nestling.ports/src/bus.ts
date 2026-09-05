@@ -20,6 +20,7 @@ import {
   startBudget,
 } from './profile.js';
 import { failureResponse } from './response.js';
+import { followSignal } from './signal.js';
 import { BUS_TRANSPORT_NAME, busBindingOf } from './transport.js';
 import { structuralCopy } from './wire.js';
 
@@ -371,6 +372,13 @@ export class InProcessBus implements IMessageBus, ITransport {
 
   #closed = false;
 
+  /**
+   * Контроллеры вызовов `request` в полёте, у которых есть `options.signal`:
+   * `close()` взводит каждый. Вызов без сигнала вызывающего получает
+   * сигнал шины напрямую и в реестр не попадает.
+   */
+  private readonly active = new Set<AbortController>();
+
   constructor(private readonly options: InProcessBusOptions = {}) {}
 
   /**
@@ -472,21 +480,39 @@ export class InProcessBus implements IMessageBus, ITransport {
       return this.#undeliverable(subject, 'no subscriber is listening');
     }
 
-    const signal =
-      options.signal === undefined
-        ? this.#signal
-        : AbortSignal.any([options.signal, this.#signal]);
-
     // Момент приёма: относительный timeout превращается в момент по часам
     // получателя
-    const deadline = deadlineFromTimeout(options.timeoutMs);
-
-    const response = await entry.handler(wire, {
+    const envelope = {
       subject,
-      signal,
-      deadline,
+      deadline: deadlineFromTimeout(options.timeoutMs),
       ...(context === undefined ? {} : { context }),
-    });
+    };
+
+    let response: Awaited<ReturnType<BusHandler>>;
+
+    if (options.signal === undefined) {
+      response = await entry.handler(wire, {
+        ...envelope,
+        signal: this.#signal,
+      });
+    } else {
+      // Собственный контроллер вызова: за сигналом вызывающего он следует
+      // слушателем, остановку шины получает через реестр. Композитный
+      // сигнал на вызов стоил около 2 µs (ideas.md [2026-09-05])
+      const call = new AbortController();
+      const unfollow = followSignal(options.signal, call);
+      this.active.add(call);
+
+      try {
+        response = await entry.handler(wire, {
+          ...envelope,
+          signal: call.signal,
+        });
+      } finally {
+        unfollow();
+        this.active.delete(call);
+      }
+    }
 
     if (!response) {
       return this.#undeliverable(subject, 'the subscriber returned no reply');
@@ -569,6 +595,12 @@ export class InProcessBus implements IMessageBus, ITransport {
   async close(): Promise<void> {
     this.#closed = true;
     this.#closing.abort();
+
+    // Вызовы в полёте видят остановку своим сигналом до закрытия тем
+    for (const call of this.active) {
+      call.abort(this.#signal.reason);
+    }
+    this.active.clear();
 
     for (const hub of this.#hubs.values()) {
       hub.topic.close();
