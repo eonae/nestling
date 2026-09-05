@@ -130,7 +130,7 @@ class SatelliteTransport implements ITransport {
       `http://${req.headers.host || 'localhost'}`,
     );
 
-    const binding = httpBindingOf(match.declaration);
+    const binding = httpBindingOf(match.route.declaration);
     const body = bindingNeedsBody(binding) ? await parseJson(req) : undefined;
 
     const payload = assemblePayload(binding, {
@@ -148,18 +148,18 @@ class SatelliteTransport implements ITransport {
 
     const endpoint: EndpointMeta = {
       transport: HTTP_TRANSPORT_NAME,
-      pattern: match.declaration.pattern,
-      input: match.declaration.input,
-      output: match.declaration.output,
-      errors: match.declaration.errors,
+      pattern: match.route.declaration.pattern,
+      input: match.route.declaration.input,
+      output: match.route.declaration.output,
+      errors: match.route.declaration.errors,
     };
 
     const ctx = makeEmptyContext(raw, endpoint, this.closeController?.signal);
 
-    const response = await dispatch.call(match.declaration.pattern, ctx);
+    const response = await dispatch.call(match.route.declaration.pattern, ctx);
 
     await sendResponse(res, response, {
-      kind: describeForm(match.declaration.output).kind,
+      kind: describeForm(match.route.declaration.output).kind,
       summary: ctx.summary,
     });
   }

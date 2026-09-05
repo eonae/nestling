@@ -4,7 +4,6 @@ import {
   makeCell,
   runInScope,
   setPhase,
-  updateInput,
 } from './context/store.js';
 import type { AnyContextVar } from './context/variable.js';
 import { declaredVarOf, isContextVar } from './context/variable.js';
@@ -648,7 +647,21 @@ class PipelineImpl {
      * эффективное множество отказов endpoint'а.
      */
     private readonly declaredFails: ReadonlySet<AnyFailDefinition> = new Set(),
-  ) {}
+  ) {
+    // Слои после конструктора не меняются: методы билдера и `bind()`
+    // возвращают новый экземпляр. Поэтому инварианты, которые раньше
+    // проверялись на каждый запрос, считаются здесь один раз
+    this.unresolvedUnit = layers
+      .flatMap((layer) => [...layer.pre, ...layer.responses, ...layer.finals])
+      .find((entry) => entry.ctor)?.ctor;
+    this.hasFinals = layers.some((layer) => layer.finals.length > 0);
+  }
+
+  /** Первый класс-юнит без экземпляра; `execute` отказывает по нему */
+  private readonly unresolvedUnit: UnitEntry['ctor'];
+
+  /** Есть ли хоть один `.finally`-юнит; без них ответная фаза их не ждёт */
+  private readonly hasFinals: boolean;
 
   static emptyLayer(): PipelineImpl {
     return new PipelineImpl([{ pre: [], responses: [], finals: [] }], false);
@@ -828,8 +841,11 @@ class PipelineImpl {
    * Область открывается всегда, даже если в приложении нет ни одного
    * читателя `Ctx`: цена — одна ячейка и `als.run` на запрос, зато рантайм
    * пайплайна не зависит от сборки графа.
+   *
+   * Метод не `async`: он возвращает промис `execute` как есть, без
+   * собственной обёртки и лишнего тика микротасков.
    */
-  async executeWithHandler(
+  executeWithHandler(
     handler: (payload: unknown, meta: AnyAddition) => unknown,
     ctx: ExtendableContext<AnyInput>,
     options: ExecuteOptions = {},
@@ -845,12 +861,9 @@ class PipelineImpl {
     ctx: ExtendableContext<AnyInput>,
     options: ExecuteOptions = {},
   ): Promise<ResponseContext<unknown>> {
-    const unresolved = this.layers
-      .flatMap((l) => [...l.pre, ...l.responses, ...l.finals])
-      .find((entry) => entry.ctor);
-    if (unresolved?.ctor) {
+    if (this.unresolvedUnit) {
       throw new Error(
-        `Pipeline has unresolved class units (${unresolved.ctor.name}); ` +
+        `Pipeline has unresolved class units (${this.unresolvedUnit.name}); ` +
           'call bind() or run under App',
       );
     }
@@ -858,9 +871,11 @@ class PipelineImpl {
     const exposeErrorDetails = options.exposeErrorDetails ?? false;
     const onUnknownFail = options.onUnknownFail ?? reportUnknownFail;
 
-    let currentCtx: ExtendableContext<AnyInput> = ctx;
     let response: ResponseContext<unknown>;
-    const activated: Layer[] = [];
+
+    // Слои активируются строго по порядку, поэтому активированные — это
+    // префикс `layers`, и ответной фазе хватает его длины
+    let activatedCount = 0;
 
     /**
      * Исходная ошибка текущего ответа-ошибки: `enforceDeclaredFails` передаёт
@@ -880,9 +895,9 @@ class PipelineImpl {
       // `.pre`-юниты слоёв, снаружи внутрь. Слой активирован с первого
       // своего `.pre`-юнита: его `.ok`/`.catch`/`.finally` выполнятся.
       for (const layer of this.layers) {
-        activated.push(layer);
+        activatedCount += 1;
         for (const entry of layer.pre) {
-          const result = await materialized(entry)(currentCtx);
+          const result = await materialized(entry)(ctx);
 
           // Отказ, возвращённый юнитом, идёт тем же путём, что брошенный:
           // в контекст он не пишется, следующие юниты и хендлер не
@@ -891,23 +906,16 @@ class PipelineImpl {
             throw result;
           }
 
-          const append = result as AnyAddition | undefined;
-
-          currentCtx = {
-            ...currentCtx,
-            input: {
-              ...currentCtx.input,
-              ...append,
-            },
-          };
-
-          // Ячейка контекста обновляется после каждого юнита: сервис,
-          // вызванный следующим юнитом, читает через `Ctx` тот же `input`
-          updateInput(cell, currentCtx.input);
+          // Результат дописывается в тот же объект `input`: ячейка контекста
+          // ссылается на него с создания, и сервис, вызванный следующим
+          // юнитом, читает через `Ctx` уже дополненный контекст
+          if (result !== undefined && result !== null) {
+            Object.assign(ctx.input, result as AnyAddition);
+          }
         }
       }
 
-      const finalInput = currentCtx.input;
+      const finalInput = ctx.input;
       const { payload, ...meta } = finalInput as AnyAddition & {
         payload?: unknown;
       };
@@ -951,8 +959,8 @@ class PipelineImpl {
 
     // `.ok`/`.catch`: активированные слои изнутри наружу, юниты слоя в
     // порядке объявления. Юнит выполняется, если подходит текущему ответу.
-    const innerToOuter = [...activated].reverse();
-    for (const layer of innerToOuter) {
+    for (let index = activatedCount - 1; index >= 0; index--) {
+      const layer = this.layers[index];
       for (const entry of layer.responses) {
         const applicable = (entry.phase === 'ok') === response.isSuccess;
         if (!applicable) {
@@ -960,7 +968,7 @@ class PipelineImpl {
         }
 
         try {
-          const replaced = (await materialized(entry)(response, currentCtx)) as
+          const replaced = (await materialized(entry)(response, ctx)) as
             | ResponseContext<unknown>
             | AnyFail
             | undefined;
@@ -1005,10 +1013,11 @@ class PipelineImpl {
       outcome: Outcome,
       settled: ResponseContext<unknown>,
     ): Promise<void> => {
-      for (const layer of innerToOuter) {
+      for (let index = activatedCount - 1; index >= 0; index--) {
+        const layer = this.layers[index];
         for (const entry of layer.finals) {
           try {
-            await materialized(entry)(outcome, settled, currentCtx);
+            await materialized(entry)(outcome, settled, ctx);
           } catch {
             // намеренно: `.finally` — наблюдатель, его ошибки ответ не меняют
           }
@@ -1064,7 +1073,9 @@ class PipelineImpl {
 
     setPhase(cell, 'finally');
 
-    await runFinals(computeOutcome(ctx.signal, response), response);
+    if (this.hasFinals) {
+      await runFinals(computeOutcome(ctx.signal, response), response);
+    }
 
     return response;
   }

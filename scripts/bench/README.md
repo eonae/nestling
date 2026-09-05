@@ -31,9 +31,11 @@ BENCH_ROUNDS=3 yarn bench:http --markdown   # медиана из трёх, св
 | `nestling` | маршрут, `AbortController`, область `AsyncLocalStorage`, проверка path-параметра схемой, хендлер, проверка ответа по `errors:`, `.finally` |
 | `fastify`, `hono`, `express` | маршрут, область `AsyncLocalStorage` через хук или middleware, проверка path-параметра той же zod-схемой, хендлер |
 | `fastify-bare`, `hono-bare`, `express-bare` | маршрут и хендлер; параметр читается как есть |
+| `nestling-layers`, `fastify-layers` | поверх первого яруса: идентификатор запроса из заголовка или `randomUUID`, арендатор из `x-tenant`, счётчик исходов после ответа; у Nestling слой из двух pre-юнитов и `.finally`, у Fastify хуки `onRequest` и `onResponse` |
 
 Первый ярус отвечает на вопрос «сколько стоит фреймворк при равных
-обязанностях», второй — «какова нижняя граница цены самого фреймворка».
+обязанностях», второй — «какова нижняя граница цены самого фреймворка»,
+третий — «сколько стоят слои вокруг хендлера».
 На `POST` все серверы разбирают JSON и проверяют тело одной схемой.
 
 Каждый сервер работает в отдельном процессе, а клиент autocannon — в
@@ -47,7 +49,7 @@ BENCH_ROUNDS=3 yarn bench:http --markdown   # медиана из трёх, св
 | `BENCH_DURATION` | секунды на один замер | `10` |
 | `BENCH_CONNECTIONS` | одновременных соединений | `50` |
 | `BENCH_ROUNDS` | прогонов по всем серверам; в отчёт идёт прогон с медианным req/s | `1` |
-| `BENCH_SERVERS` | серверы через запятую, например `nestling,fastify,fastify-bare` | все |
+| `BENCH_SERVERS` | серверы через запятую, например `nestling,fastify,nestling-layers` | все |
 | `BENCH_REFERENCE` | сервер для колонки «отношение» | `fastify` |
 | `BENCH_NODE` | путь к бинарю Node для серверов | текущий `node` |
 

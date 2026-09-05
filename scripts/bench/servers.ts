@@ -13,12 +13,18 @@
  * - Голый вариант (`fastify-bare`, `hono-bare`, `express-bare`): маршрут и
  *   ответ, параметр читается как есть. Это нижняя граница цены самого
  *   фреймворка.
+ * - Вариант со слоями (`nestling-layers`, `fastify-layers`): поверх
+ *   обязанностей выше идентификатор запроса из заголовка или `randomUUID`,
+ *   арендатор из заголовка `x-tenant` и счётчик исходов после ответа. У
+ *   Nestling это слой из двух pre-юнитов и `.finally`, у Fastify — хуки
+ *   `onRequest` и `onResponse`. Это цена слоёв.
  *
  * Пакеты Nestling берутся из `dist`, поэтому перед запуском нужна сборка.
  * Каждый сервер поднимает `bench/server.ts` в отдельном процессе.
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 
 import { serve as serveHono } from '@hono/node-server';
@@ -27,7 +33,7 @@ import Fastify from 'fastify';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { Ok } from '@nestling/pipeline';
+import { makePipeline, Ok, withRequestId } from '@nestling/pipeline';
 import { makeDispatch } from '@nestling/transport';
 import { httpEndpoint, HttpTransport } from '@nestling/transport.http';
 
@@ -111,9 +117,56 @@ const nestling: ServerStarter = async () => {
   return { port: address.port, stop: () => transport.close() };
 };
 
+/** Счётчик исходов: `.finally` и `onResponse` пишут сюда */
+const outcomes = new Map<string, number>();
+const countOutcome = (outcome: string): void => {
+  outcomes.set(outcome, (outcomes.get(outcome) ?? 0) + 1);
+};
+
+/** Nestling со слоем: идентификатор запроса, арендатор, `.finally` */
+const nestlingLayers: ServerStarter = async () => {
+  const layered = makePipeline()
+    .pre(withRequestId())
+    .pre((ctx) => ({
+      tenant: String(ctx.raw.attributes['x-tenant'] ?? 'default'),
+    }))
+    .finally((outcome) => countOutcome(outcome));
+
+  const GetUser = httpEndpoint({
+    method: 'GET',
+    path: '/users/:id',
+    input: IdParam,
+    output: User,
+    pipeline: layered,
+    handler: ({ id }) => new Ok(userOf(id)),
+  });
+
+  const CreateUser = httpEndpoint({
+    method: 'POST',
+    path: '/users',
+    input: NewUser,
+    output: User,
+    pipeline: layered,
+    handler: (body) => new Ok(createdOf(body)),
+  });
+
+  const transport = new HttpTransport({ port: 0, host: HOST });
+  await transport.serve(
+    makeDispatch([GetUser, CreateUser]),
+    new AbortController().signal,
+  );
+
+  const address = transport.address();
+  if (!address) {
+    throw new Error('HttpTransport did not report an address after serve()');
+  }
+
+  return { port: address.port, stop: () => transport.close() };
+};
+
 /** Fastify; `sameDuties` добавляет проверку параметра и область запроса */
 const fastify =
-  (sameDuties: boolean): ServerStarter =>
+  (sameDuties: boolean, layers = false): ServerStarter =>
   async () => {
     const app = Fastify({ logger: false });
 
@@ -123,7 +176,22 @@ const fastify =
       app.addHook('onRequest', (request, _reply, done) => {
         requestScope.run({ path: request.url }, done);
       });
+    }
 
+    if (layers) {
+      app.addHook('onRequest', (request, _reply, done) => {
+        const store = requestScope.getStore() as Record<string, unknown>;
+        store.requestId = request.headers['x-request-id'] ?? randomUUID();
+        store.tenant = String(request.headers['x-tenant'] ?? 'default');
+        done();
+      });
+      app.addHook('onResponse', (_request, reply, done) => {
+        countOutcome(reply.statusCode < 400 ? 'completed' : 'failed');
+        done();
+      });
+    }
+
+    if (sameDuties) {
       app.get('/users/:id', (request) =>
         userOf(IdParam.parse(request.params).id),
       );
@@ -215,4 +283,6 @@ export const SERVERS: Readonly<Record<string, ServerStarter>> = {
   'fastify-bare': fastify(false),
   'hono-bare': hono(false),
   'express-bare': expressServer(false),
+  'nestling-layers': nestlingLayers,
+  'fastify-layers': fastify(true, true),
 };

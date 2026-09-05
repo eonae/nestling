@@ -1,9 +1,10 @@
 /**
  * Ячейка запроса и её хранилище на `AsyncLocalStorage`.
  *
- * Ячейку пишет только рантайм пайплайна: открывает область, обновляет
- * ссылку на накопленный `input` после каждого `.pre`-юнита и отмечает
- * фазу. Публичного сеттера пакет не экспортирует.
+ * Ячейку пишет только рантайм пайплайна: открывает область и отмечает
+ * фазу. Накопленный `input` — тот же объект, в который pre-юниты
+ * дописывают поля, поэтому обновлять ссылку после юнита не нужно.
+ * Публичного сеттера пакет не экспортирует.
  *
  * Хранилище — состояние модуля `@nestling/pipeline`, как реестры семейств
  * в `@nestling/container`. Две копии пакета в `node_modules` дадут два
@@ -63,11 +64,6 @@ export const makeCell = (
  */
 export const runInScope = <R>(cell: RequestCell, fn: () => R): R =>
   store.run(cell, fn);
-
-/** Обновляет ссылку на накопленный `input` после `.pre`-юнита */
-export const updateInput = (cell: RequestCell, input: AnyInput): void => {
-  cell.input = input;
-};
 
 /** Отмечает переход к фазе `phase` */
 export const setPhase = (cell: RequestCell, phase: ContextPhase): void => {

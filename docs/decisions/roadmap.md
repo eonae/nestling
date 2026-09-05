@@ -31,6 +31,8 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 ([d/10](../history/discussions/10-framework-review-2.md), профиль горячего
 пути): запись [ideas.md [2026-09-05]](./ideas.md) «Сигнал отмены запроса:
 реестр контроллеров вместо `AbortSignal.any`».
+38 добавлен 2026-09-05 по d/10 §5.5 и бенчмарку с равными обязанностями:
+второй эшелон горячего пути без потери гарантий.
 
 | # | Change | Суть | Размер | Статус |
 |---|---|---|---|---|
@@ -71,6 +73,7 @@ d/06 П.3). Состав breaking-окна фиксации публичного
 | 35 | `http-transport-boundary` | граница `@nestling/transport.http` в README пакета (обещания и то, что не входит: HTTP/2, WebSocket, TLS); байтовые части как публичная поверхность — satellite-транспорт поверх своего `node:http`-сервера собран из одних публичных экспортов в спеке пакета, экспорт `HTTP_CAPABILITIES`; бенчмарк относительно Fastify с записью результата в ideas.md | S | **done** — [архив](../../openspec/changes/archive/2026-09-05-http-transport-boundary/), новая спека [`http-transport-boundary`](../../openspec/specs/http-transport-boundary/spec.md), [ideas.md [2026-09-04]](./ideas.md) «Граница `@nestling/transport.http`» |
 | 36 | `guide-concept-map` | README гайда: приложение Б вторым документом сразу после вводного абзаца, раздел «Карта понятий» — таблица «понятие, одно предложение, глава» на 25 строк по частям 1–4; спека `docs-preview-guide` получила требование о разделах README вне «Часть N.»/«Приложения» | S | **done** — [архив](../../openspec/changes/archive/2026-09-05-guide-concept-map/), [ideas.md [2026-09-04]](./ideas.md) «Подача гайда»; формулировка прогрессивного раскрытия в `principles.md` синхронизирована раньше и в объём change'а не входила |
 | 37 | `abort-signal-registry` | сигнал запроса без `AbortSignal.any`: реестр контроллеров в `transport.http`, контроллер вызова со слушателем в бюджете и in-process шине `@nestling/ports`; бенчмарк печатает разброс и максимум латентности; Node 24 в README | S | **в работе** — [change](../../openspec/changes/abort-signal-registry/) |
+| 38 | `hot-path-trim` | обвязка запроса без лишней работы: `writeHead` с `content-length` и тело буфером, адрес без `new URL`, запись маршрута с bind-картой и формами, инварианты пайплайна в конструкторе, меньше `await`, контекст в одном объекте; каждый пункт по замеру `nestling,fastify` | S–M | **в работе** — [change](../../openspec/changes/hot-path-trim/) |
 
 ## Порядок и зависимости
 

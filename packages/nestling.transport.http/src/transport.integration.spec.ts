@@ -1326,3 +1326,112 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     await pending;
   });
 });
+
+/** Сырой GET через node:http: нужны rawHeaders, fetch склеивает дубликаты */
+function rawGet(
+  baseUrl: string,
+  path: string,
+): Promise<{ status: number; headers: Map<string, string[]>; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = request(`${baseUrl}${path}`, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        const headers = new Map<string, string[]>();
+        for (let i = 0; i < res.rawHeaders.length; i += 2) {
+          const name = res.rawHeaders[i].toLowerCase();
+          headers.set(name, [
+            ...(headers.get(name) ?? []),
+            res.rawHeaders[i + 1],
+          ]);
+        }
+        resolve({
+          status: res.statusCode ?? 0,
+          headers,
+          body: Buffer.concat(chunks).toString(),
+        });
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+describe('HttpTransport — ответ формы value и raw.pattern', () => {
+  it('JSON-ответ несёт content-length по длине тела', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/users/42',
+        pipeline: makePipeline(),
+        handler: () => new Ok({ id: '42', name: 'Алиса' }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, headers, body } = await rawGet(baseUrl, '/users/42');
+
+    expect(status).toBe(200);
+    expect(headers.get('content-type')).toEqual(['application/json']);
+    expect(headers.get('content-length')).toEqual([
+      String(Buffer.byteLength(body)),
+    ]);
+    expect(JSON.parse(body)).toEqual({ id: '42', name: 'Алиса' });
+
+    await transport.close();
+  });
+
+  it('заголовок хендлера перекрывает заголовок формы в любом регистре', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/plain',
+        pipeline: makePipeline(),
+        handler: () =>
+          Ok.created('hello', {
+            'Content-Type': 'text/plain',
+            Location: '/plain/1',
+          }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, headers } = await rawGet(baseUrl, '/plain');
+
+    expect(status).toBe(201);
+    expect(headers.get('content-type')).toEqual(['text/plain']);
+    expect(headers.get('location')).toEqual(['/plain/1']);
+
+    await transport.close();
+  });
+
+  it('raw.pattern несёт путь как прислан клиентом, а query читается картой', async () => {
+    const transport = makeTransport();
+    let seen: string | undefined;
+    const observe = makePipeline().finally((_outcome, _res, ctx) => {
+      seen = ctx.raw.pattern;
+    });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/users/:id',
+        input: z.object({
+          id: z.string(),
+          limit: z.coerce.number().optional(),
+        }),
+        pipeline: observe,
+        handler: (input) => new Ok(input),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const response = await fetch(`${baseUrl}/users/a%20b?limit=1`);
+
+    expect(await response.json()).toEqual({ id: 'a b', limit: 1 });
+    expect(seen).toBe('GET /users/a%20b');
+
+    await transport.close();
+  });
+});
