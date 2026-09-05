@@ -158,6 +158,7 @@ yarn install
 yarn verify          # build + typecheck + lint + test across all packages
 yarn docs:audit      # documentation consistency check
 yarn docs:preview    # build the HTML preview of the docs
+yarn bench:http      # HTTP transport against Fastify; a reference point, not a gate
 ```
 
 A monorepo on Yarn workspaces and Nx: packages live in `packages/`,
