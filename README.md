@@ -80,70 +80,15 @@ against it on receipt. Continue with the
 [guide](./docs/guide/README.md): it grows this file into an application of
 several features running in several processes.
 
-## Guide
-
-| Part | Covers |
-|---|---|
-| [1. First service](./docs/guide/README.md#часть-1-первый-сервис) | endpoints, schemas, failures, a repository, config, tests |
-| [2. Service in production](./docs/guide/README.md#часть-2-сервис-в-проде) | logging, token check, files and streams, OpenAPI and the client |
-| [3. The application grows](./docs/guide/README.md#часть-3-приложение-растёт) | features, operations, events, a live feed, testing a feature alone |
-| [4. Deploying in parts](./docs/guide/README.md#часть-4-разворачивать-по-частям) | `select`, NATS, operation compatibility |
-| [5. Rare tasks](./docs/guide/README.md#часть-5-редкие-задачи) | webhooks, CLI, token families, config sources, operations, no `assemble` |
-
-## Examples
-
-| Example | What it shows | Guide chapters |
-|---|---|---|
-| [`examples.users-service`](./packages/examples.users-service/) | A users service: endpoints, repository, config, layers, files, OpenAPI, client, tests | 1–10 |
-| [`examples.app-with-http`](./packages/examples.app-with-http/) | The same service as three features: operations, events, SSE, `select`, subscription registry, compatibility snapshot | 11–15, 17, 18, 22 |
-| [`examples.split-nats`](./packages/examples.split-nats/) | The same features in several processes over NATS | 16 |
-| [`examples.simple-cli`](./packages/examples.simple-cli/) | A CLI tool: commands as endpoints, REPL, a stream from stdin | 19 |
-| [`examples.container`](./packages/examples.container/) | The container alone: token families, config sources, reloadable config, graph for `viz` | 20, 21, 23 |
-| [`examples.simple-http-server`](./packages/examples.simple-http-server/) | HTTP without `assemble`: `makeDispatch` and `serve` | 23 |
-
-## Packages
-
-For application authors:
-
-| Package | What it does |
-|---|---|
-| [`@nestling/app`](./packages/nestling.app/) | Composition root: `assemble`, features and plugins, `select`, lifecycle phases, policies |
-| [`@nestling/transport.http`](./packages/nestling.transport.http/) | HTTP on `node:http`: `httpEndpoint`, routing, JSON, NDJSON, SSE, multipart |
-| [`@nestling/operations`](./packages/nestling.operations/) | Shared by server and client: operations, `makeFail`, `Ok`/`Fail`, io forms |
-| [`@nestling/config`](./packages/nestling.config/) | Configuration as schema-typed sections, sources and their binding, secrets, reloadable sections |
-| [`@nestling/container`](./packages/nestling.container/) | Dependency container: tokens, providers, token families, modules, lifecycle hooks |
-| [`@nestling/pipeline`](./packages/nestling.pipeline/) | Request pipeline, layers, policies, async context |
-| [`@nestling/ports`](./packages/nestling.ports/) | Implementing and calling operations between features, the in-process bus |
-| [`@nestling/testing`](./packages/nestling.testing/) | Test composition root: `assembleTest`, `overrides`, operation stubs, `checkTopologies` |
-
-Transports and the bus:
-
-| Package | What it does |
-|---|---|
-| [`@nestling/transport.cli`](./packages/nestling.transport.cli/) | CLI commands as endpoints: single-shot and REPL |
-| [`@nestling/transport.nats`](./packages/nestling.transport.nats/) | NATS as the application bus: operations across processes, `durable` delivery |
-| [`@nestling/transport`](./packages/nestling.transport/) | Transport interface and `makeDispatch` for running without `assemble` |
-| [`@nestling/streams`](./packages/nestling.streams/) | `Topic<T>` and stream combinators over `AsyncIterable` |
-
-Tools and satellites:
-
-| Package | What it does |
-|---|---|
-| [`@nestling/client`](./packages/nestling.client/) | Typed HTTP client built from operations, for frontends and other services |
-| [`@nestling/openapi`](./packages/nestling.openapi/) | OpenAPI 3.1 document derived from endpoint declarations |
-| [`@nestling/openapi.zod`](./packages/nestling.openapi.zod/) | zod schema converter for `@nestling/openapi` |
-| [`@nestling/subscriptions`](./packages/nestling.subscriptions/) | Registry of active subscriptions: list, forced close, live watch |
-| [`@nestling/viz`](./packages/nestling.viz/) | Interactive dependency graph visualisation in the browser |
-| [`@nestling/eslint-plugin`](./packages/nestling.eslint-plugin/) | ESLint rules: module boundary by barrel, hints on endpoint declarations |
-| [`@nestling/models`](./packages/nestling.models/) | zod io models checked against a TypeScript type |
-
 ## Documentation
 
-The entry point is [`docs/README.md`](./docs/README.md). The folder defines
-the status of a document:
+The entry point is [`docs/README.md`](./docs/README.md): the folder map, the
+package list and the rules for keeping documentation in sync. The folder
+defines the status of a document:
 
-- [`docs/guide/`](./docs/guide/README.md) — the guide to the current API;
-  chapters are verified against the example code;
+- [`docs/guide/`](./docs/guide/README.md) — the guide to the current API; its
+  table of contents lists every chapter, the parts they form and the example
+  each chapter is verified against;
 - [`docs/design/`](./docs/design/README.md) — the target V1 state, the full
   API description;
 - [`docs/decisions/`](./docs/decisions/ideas.md) — the decision log: what,
@@ -158,7 +103,7 @@ Package READMEs document the current state of the code.
 yarn install
 yarn verify          # build + typecheck + lint + test across all packages
 yarn docs:audit      # documentation consistency check
-yarn docs:preview    # build the HTML preview of the docs
+yarn docs:build      # build the HTML documentation site
 yarn bench:http      # HTTP transport against Fastify; a reference point, not a gate
 ```
 
