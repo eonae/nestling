@@ -1,6 +1,6 @@
 {
   // Сборка пакета. Отличается от проекта пакета только тем, что эмитит в
-  // `dist` и не берёт туда спеки
+  // `dist` и не берёт туда тестовый код: спеки, проверки типов и фикстуры
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
@@ -12,6 +12,8 @@
     "dist",
     "node_modules",
     "src/**/*.spec.ts",
-    "src/**/*.test.ts"
+    "src/**/*.test.ts",
+    "src/**/*.type-test.ts",
+    "src/**/__fixtures__/**"
   ]
 }

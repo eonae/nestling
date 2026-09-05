@@ -50,7 +50,7 @@ Nestling — TypeScript-фреймворк («меньше, современне
 | Файл | Роль |
 | --- | --- |
 | `tsconfig.json` | Проект пакета: редактор и ESLint. Покрывает весь TypeScript пакета — `src`, спеки, `e2e`, `type-tests`. `noEmit` |
-| `tsconfig.build.json` | Сборка: эмитит `src` в `dist` без спеков. Только у пакетов, которые собирает tsc |
+| `tsconfig.build.json` | Сборка: эмитит `src` в `dist` без тестового кода. Только у пакетов, которые собирает tsc |
 | `eslint.config.js` | `createEslintConfig(import.meta.url)` из `.config/eslint.config.js` |
 | `jest.config.js` | `createJestConfig(import.meta.url)` из `jest.config.base.js` |
 
@@ -64,9 +64,12 @@ Nestling — TypeScript-фреймворк («меньше, современне
 
 Два правила, которые легко нарушить:
 
-- **Спеки входят в проект пакета, но не в сборку.** Исключишь их из
-  `tsconfig.json` — в редакторе пропадут типы `describe` и `expect`.
-  Забудешь исключить в `tsconfig.build.json` — они уедут в `dist`.
+- **Тестовый код входит в проект пакета, но не в сборку.** Это спеки
+  (`*.spec.ts`, `*.test.ts`), проверки типов (`*.type-test.ts`) и
+  фикстуры (`__fixtures__`). Исключишь их из `tsconfig.json` — в
+  редакторе пропадут типы `describe` и `expect`. Забудешь исключить в
+  `tsconfig.build.json` — они уедут в `dist` вместе с импортами
+  `devDependencies`, которых у потребителя нет.
 - **ESLint читает пакетный `tsconfig.json`.** Файл, не входящий в проект,
   линтер не разберёт: сгенерированное и фикстуры перечислены в `ignores`
   общего конфига.
