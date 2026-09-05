@@ -1,4 +1,4 @@
-import type { ServerResponse } from 'node:http';
+import type { OutgoingHttpHeaders, ServerResponse } from 'node:http';
 
 import type { SseConfig } from '@nestling/operations';
 import type {
@@ -250,32 +250,20 @@ async function writeSse(
 }
 
 /**
- * Заголовки, которые транспорт ставит по форме `output`.
+ * Заголовки потокового ответа по форме `output`.
  *
  * Ставятся до заголовков `Ok`: заголовки ответа принадлежат хендлеру и
  * перекрывают заголовки формы.
  */
-function setFormHeaders(
-  res: ServerResponse,
-  kind: FormKind,
-  streaming: boolean,
-  empty: boolean,
-): void {
-  if (streaming && kind === 'events') {
+function setStreamHeaders(res: ServerResponse, kind: FormKind): void {
+  if (kind === 'events') {
     res.setHeader('content-type', 'text/event-stream');
     res.setHeader('cache-control', 'no-cache');
     res.setHeader('connection', 'keep-alive');
     return;
   }
 
-  if (streaming) {
-    res.setHeader('content-type', 'application/x-ndjson');
-    return;
-  }
-
-  if (!empty) {
-    res.setHeader('content-type', 'application/json');
-  }
+  res.setHeader('content-type', 'application/x-ndjson');
 }
 
 /**
@@ -283,45 +271,63 @@ function setFormHeaders(
  *
  * Способ кадрирования выбирается по объявленной форме `output`, а не по
  * типу значения: `stream` даёт NDJSON, `events` — SSE, остальное — JSON.
- * Заголовки `Ok` пишутся как есть после заголовков формы.
+ * Заголовки `Ok` перекрывают заголовки формы; имя приводится к нижнему
+ * регистру, поэтому `'Content-Type'` хендлера заменяет `content-type`
+ * формы, а не добавляется вторым заголовком.
+ *
+ * Ответ формы `value` уходит одним `writeHead` с `content-length` и телом
+ * в буфере: так `node:http` не проверяет имена заголовков по одному и не
+ * считает длину тела второй раз.
  */
 export async function sendResponse(
   res: ServerResponse,
   response: ResponseContext,
   options: SendOptions = {},
 ): Promise<void> {
-  res.statusCode = httpCodeOf(response.status);
-
+  const status = httpCodeOf(response.status);
   const kind = options.kind ?? 'value';
   const streaming =
     response.isSuccess &&
     (kind === 'stream' || kind === 'events') &&
     isAsyncIterable(response.value);
 
-  // value === null означает пустой ответ
-  const empty = response.value === null;
-
-  setFormHeaders(res, kind, streaming, empty);
-
-  if (response.headers) {
-    for (const [key, value] of Object.entries(response.headers)) {
-      res.setHeader(key, value);
-    }
-  }
-
   if (streaming) {
+    res.statusCode = status;
+    setStreamHeaders(res, kind);
+    if (response.headers) {
+      for (const [key, value] of Object.entries(response.headers)) {
+        res.setHeader(key, value);
+      }
+    }
+
     await (kind === 'events'
       ? writeSse(res, response.value as AsyncIterable<unknown>, options)
       : writeNdjson(res, response.value as AsyncIterable<unknown>, options));
     return;
   }
 
+  // value === null означает пустой ответ
+  const empty = response.value === null;
+  const headers: OutgoingHttpHeaders = {};
+
+  if (!empty) {
+    headers['content-type'] = 'application/json';
+  }
+  if (response.headers) {
+    for (const [key, value] of Object.entries(response.headers)) {
+      headers[key.toLowerCase()] = value;
+    }
+  }
+
   if (empty) {
+    res.writeHead(status, headers);
     res.end();
     return;
   }
 
-  const body = JSON.stringify(response.value);
-  countBytes(options.summary, Buffer.byteLength(body ?? ''));
+  const body = Buffer.from(JSON.stringify(response.value) ?? '');
+  headers['content-length'] = body.length;
+  countBytes(options.summary, body.length);
+  res.writeHead(status, headers);
   res.end(body);
 }

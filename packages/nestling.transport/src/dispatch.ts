@@ -175,7 +175,9 @@ export function makeDispatch(
         (definition.pipeline as Pipeline<AnyInput, AnyInput, never>) ??
         emptyPipeline;
 
-      return await pipeline.executeWithHandler(definition.handle, ctx, options);
+      // Промис возвращается как есть: `return await` добавил бы тик
+      // микротасков на каждый запрос, а стек ошибки он не улучшает
+      return pipeline.executeWithHandler(definition.handle, ctx, options);
     },
   };
 }

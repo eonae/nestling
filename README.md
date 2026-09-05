@@ -10,6 +10,7 @@
 
 Nestling is under active development towards V1; APIs change. Use in
 production at your own risk. Documentation and examples are in Russian.
+Requires Node 24.
 
 ## What it is
 

@@ -1252,4 +1252,186 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
 
     await transport.close();
   });
+
+  it('серия запросов оставляет реестр контроллеров пустым', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/ping',
+        pipeline: makePipeline(),
+        handler: () => new Ok({ pong: true }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    for (let i = 0; i < 20; i++) {
+      const response = await fetch(`${baseUrl}/ping`);
+      await response.json();
+    }
+
+    // Событие 'close' ответа приходит после его завершения: даём ему дойти
+    await new Promise((r) => setTimeout(r, 50));
+
+    const { active } = transport as unknown as {
+      active: Set<AbortController>;
+    };
+    expect(active.size).toBe(0);
+
+    await transport.close();
+  });
+
+  it('close() взводит сигналы всех запросов в полёте', async () => {
+    const transport = makeTransport({ closeTimeout: 5000 });
+    const signals: AbortSignal[] = [];
+    let onAllStarted!: () => void;
+    const allStarted = new Promise<void>((r) => (onAllStarted = r));
+
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/hold',
+        pipeline: makePipeline(),
+        handler: (_payload: unknown, meta: { signal: AbortSignal }) => {
+          signals.push(meta.signal);
+          if (signals.length === 3) {
+            onAllStarted();
+          }
+
+          const aborted = new Promise<void>((resolve) => {
+            meta.signal.addEventListener('abort', () => resolve(), {
+              once: true,
+            });
+          });
+
+          return aborted.then(() => new Ok({ done: true }));
+        },
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const pending = Promise.all(
+      [1, 2, 3].map(() => fetch(`${baseUrl}/hold`).catch(() => null)),
+    );
+    await allStarted;
+
+    await transport.close();
+
+    expect(signals).toHaveLength(3);
+    for (const signal of signals) {
+      expect(signal.aborted).toBe(true);
+      expect((signal.reason as Error).message).toBe('transport closing');
+    }
+
+    await pending;
+  });
+});
+
+/** Сырой GET через node:http: нужны rawHeaders, fetch склеивает дубликаты */
+function rawGet(
+  baseUrl: string,
+  path: string,
+): Promise<{ status: number; headers: Map<string, string[]>; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = request(`${baseUrl}${path}`, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        const headers = new Map<string, string[]>();
+        for (let i = 0; i < res.rawHeaders.length; i += 2) {
+          const name = res.rawHeaders[i].toLowerCase();
+          headers.set(name, [
+            ...(headers.get(name) ?? []),
+            res.rawHeaders[i + 1],
+          ]);
+        }
+        resolve({
+          status: res.statusCode ?? 0,
+          headers,
+          body: Buffer.concat(chunks).toString(),
+        });
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+describe('HttpTransport — ответ формы value и raw.pattern', () => {
+  it('JSON-ответ несёт content-length по длине тела', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/users/42',
+        pipeline: makePipeline(),
+        handler: () => new Ok({ id: '42', name: 'Алиса' }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, headers, body } = await rawGet(baseUrl, '/users/42');
+
+    expect(status).toBe(200);
+    expect(headers.get('content-type')).toEqual(['application/json']);
+    expect(headers.get('content-length')).toEqual([
+      String(Buffer.byteLength(body)),
+    ]);
+    expect(JSON.parse(body)).toEqual({ id: '42', name: 'Алиса' });
+
+    await transport.close();
+  });
+
+  it('заголовок хендлера перекрывает заголовок формы в любом регистре', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/plain',
+        pipeline: makePipeline(),
+        handler: () =>
+          Ok.created('hello', {
+            'Content-Type': 'text/plain',
+            Location: '/plain/1',
+          }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, headers } = await rawGet(baseUrl, '/plain');
+
+    expect(status).toBe(201);
+    expect(headers.get('content-type')).toEqual(['text/plain']);
+    expect(headers.get('location')).toEqual(['/plain/1']);
+
+    await transport.close();
+  });
+
+  it('raw.pattern несёт путь как прислан клиентом, а query читается картой', async () => {
+    const transport = makeTransport();
+    let seen: string | undefined;
+    const observe = makePipeline().finally((_outcome, _res, ctx) => {
+      seen = ctx.raw.pattern;
+    });
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/users/:id',
+        input: z.object({
+          id: z.string(),
+          limit: z.coerce.number().optional(),
+        }),
+        pipeline: observe,
+        handler: (input) => new Ok(input),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const response = await fetch(`${baseUrl}/users/a%20b?limit=1`);
+
+    expect(await response.json()).toEqual({ id: 'a b', limit: 1 });
+    expect(seen).toBe('GET /users/a%20b');
+
+    await transport.close();
+  });
 });

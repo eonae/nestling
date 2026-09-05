@@ -6,12 +6,7 @@ import {
 } from 'node:http';
 
 import { DEFAULT_SSE_HEARTBEAT, sendResponse } from './adapter.js';
-import {
-  assemblePayload,
-  bindingNeedsBody,
-  httpBindingOf,
-  readQuery,
-} from './binding.js';
+import { assemblePayload, readQuery } from './binding.js';
 import { HttpConfig } from './config.js';
 import {
   JsonParseError,
@@ -45,7 +40,6 @@ import {
   BadRequest,
   bindInputStream,
   ClientDisconnectedError,
-  describeForm,
   InternalError,
   makeEmptyContext,
   PayloadTooLarge,
@@ -159,11 +153,18 @@ export class HttpTransport implements ITransport {
   /** Фактический адрес; не задан до `serve` и после `close()` */
   private listening?: { host: string; port: number };
 
-  /**
-   * Контроллер отмены на уровне транспорта: срабатывает в `close()`, и
-   * через `AbortSignal.any` отмену получает каждый выполняющийся запрос.
-   */
+  /** Контроллер остановки транспорта: взводится первым шагом `close()` */
   private closeController?: AbortController;
+
+  /**
+   * Контроллеры выполняющихся запросов. `handle` добавляет контроллер,
+   * событие `'close'` ответа удаляет, `close()` взводит каждый оставшийся.
+   *
+   * Реестр вместо композитного сигнала на запрос: `AbortSignal.any` стоит
+   * около 2 µs на вызов и копит `WeakRef` на сигнале остановки
+   * (ideas.md [2026-09-05]).
+   */
+  private readonly active = new Set<AbortController>();
 
   /** Лимит тела с учётом дефолта; `0` — без лимита */
   private readonly maxBodySize: number;
@@ -283,10 +284,15 @@ export class HttpTransport implements ITransport {
     this.listening = undefined;
     this.dispatch = undefined;
 
-    // Отмена доходит до каждого meta.signal через AbortSignal.any: реестр
-    // контроллеров запросов не нужен
-    this.closeController?.abort(new TransportClosingError());
+    // Сначала контроллер остановки, затем каждый запрос в полёте: их
+    // `meta.signal` взведён до начала дренажа
+    const reason = new TransportClosingError();
+    this.closeController?.abort(reason);
     this.closeController = undefined;
+    for (const controller of this.active) {
+      controller.abort(reason);
+    }
+    this.active.clear();
 
     const closeTimeout =
       options.timeout ?? this.options.closeTimeout ?? DEFAULT_CLOSE_TIMEOUT;
@@ -354,44 +360,47 @@ export class HttpTransport implements ITransport {
       }
     };
 
-    // Сигнал запроса: контроллер дисконнекта клиента плюс сигнал остановки
-    // транспорта, объединённые AbortSignal.any
+    // Сигнал запроса: собственный контроллер. Дисконнект клиента взводит
+    // его здесь, остановка транспорта — из `close()` через реестр
     const requestController = new AbortController();
-    const signal = this.closeController
-      ? AbortSignal.any([requestController.signal, this.closeController.signal])
-      : requestController.signal;
+    const { signal } = requestController;
+    this.active.add(requestController);
 
     // 'close' на response приходит и после штатного завершения ответа,
     // поэтому дисконнектом считаем только недописанный ответ
     nativeRes.on('close', () => {
+      this.active.delete(requestController);
       if (!nativeRes.writableFinished) {
         requestController.abort(new ClientDisconnectedError());
       }
     });
 
     try {
-      const route = this.router.find(nativeReq);
+      const found = this.router.find(nativeReq);
       const dispatch = this.dispatch;
-      if (!route || !dispatch) {
+      if (!found || !dispatch) {
         nativeRes.statusCode = 404;
         nativeRes.end('Not Found');
         return;
       }
 
-      const url = new URL(
-        nativeReq.url || '/',
-        `http://${nativeReq.headers.host || 'localhost'}`,
-      );
+      // Bind-карта, формы и признаки чтения вычислены при регистрации
+      // маршрута: на запрос остаётся только чтение
+      const { route, params } = found;
+      const { declaration, binding, inputForm, outputForm } = route;
 
-      // Bind-карта говорит, откуда читать каждое поле. Декларация из
-      // `makeEndpoint` карты не несёт: тогда карта вычисляется из `pattern`
-      // без пометок
-      const binding = httpBindingOf(route.declaration);
-      const query = readQuery(url.searchParams, binding.fields);
-
-      // Форма input определяет, как читается тело
-      const inputForm = describeForm(route.declaration.input);
-      const outputForm = describeForm(route.declaration.output);
+      // Путь берётся срезом до `?`, как прислан клиентом; query
+      // разбирается только когда её читает карта и она есть в запросе
+      const rawUrl = nativeReq.url || '/';
+      const separator = rawUrl.indexOf('?');
+      const path = separator === -1 ? rawUrl : rawUrl.slice(0, separator);
+      const query =
+        route.readsQuery && separator !== -1
+          ? readQuery(
+              new URLSearchParams(rawUrl.slice(separator + 1)),
+              binding.fields,
+            )
+          : {};
 
       // Потоковый вход оборачивается ядром только после создания контекста:
       // счётчики живут в нём
@@ -416,7 +425,7 @@ export class HttpTransport implements ITransport {
           const fields = assemblePayload(binding, {
             query,
             body: multipart.fields,
-            params: route.params,
+            params,
             rest: 'body',
           });
 
@@ -446,7 +455,7 @@ export class HttpTransport implements ITransport {
             addBytesIn(raw.length);
             startInput = { rawBody: raw };
             body = parseJsonBuffer(raw);
-          } else if (inputForm.leaf && bindingNeedsBody(binding)) {
+          } else if (inputForm.leaf && route.needsBody) {
             // Тело читается только тогда, когда его требует карта: у GET
             // без body-пометок оно не буферизуется вовсе
             const raw = await readBody(nativeReq, this.maxBodySize);
@@ -454,11 +463,7 @@ export class HttpTransport implements ITransport {
             body = parseJsonBuffer(raw);
           }
 
-          payload = assemblePayload(binding, {
-            query,
-            body,
-            params: route.params,
-          });
+          payload = assemblePayload(binding, { query, body, params });
         }
       }
 
@@ -473,19 +478,19 @@ export class HttpTransport implements ITransport {
 
       const raw: Raw = {
         transport: HTTP_TRANSPORT_NAME,
-        pattern: `${nativeReq.method || 'GET'} ${url.pathname}`,
+        pattern: `${nativeReq.method || 'GET'} ${path}`,
         payload,
         attributes: nativeReq.headers as Record<string, string>,
       };
 
       const endpointMeta: EndpointMeta = {
         transport: HTTP_TRANSPORT_NAME,
-        pattern: route.declaration.pattern,
-        input: route.declaration.input,
-        output: route.declaration.output,
+        pattern: declaration.pattern,
+        input: declaration.input,
+        output: declaration.output,
         // Объявленные отказы попадают в проверку `errors` только через
         // контекст: глобального реестра нет
-        errors: route.declaration.errors,
+        errors: declaration.errors,
       };
 
       const ctx = makeEmptyContext(raw, endpointMeta, signal, startInput);
@@ -511,14 +516,10 @@ export class HttpTransport implements ITransport {
 
       // Endpoint исполняет ядро одинаково для всех транспортов; транспорту
       // остаётся отправить ответ
-      const responseContext = await dispatch.call(
-        route.declaration.pattern,
-        ctx,
-        {
-          exposeErrorDetails: this.exposeErrorDetails,
-          onUnknownFail: this.options.onUnknownFail,
-        },
-      );
+      const responseContext = await dispatch.call(declaration.pattern, ctx, {
+        exposeErrorDetails: this.exposeErrorDetails,
+        onUnknownFail: this.options.onUnknownFail,
+      });
 
       await send(responseContext);
       this.drainFileStreams(multipart);

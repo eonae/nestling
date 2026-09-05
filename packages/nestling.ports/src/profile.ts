@@ -14,6 +14,8 @@
  *   сборке.
  */
 
+import { followSignal } from './signal.js';
+
 import type { EmptyInput, PreUnitFn } from '@nestling/pipeline';
 import { contextVar } from '@nestling/pipeline';
 
@@ -114,12 +116,12 @@ export function profileAttributes(meta: {
 const NEVER_ABORTED = new AbortController().signal;
 
 /**
- * Бюджет в полёте: композированный сигнал плюс признак «оборвал именно
- * таймер бюджета».
+ * Бюджет в полёте: сигнал вызова плюс признак «оборвал именно таймер
+ * бюджета».
  */
 export interface CallBudget {
   /**
-   * Сигнал вызова: композиция таймера бюджета и сигнала вызывающего.
+   * Сигнал вызова: взводится таймером бюджета и сигналом вызывающего.
    * Передаётся в контекст обработчика, поэтому кооперативная реализация
    * видит исчерпание бюджета своим `ctx.signal`.
    */
@@ -137,7 +139,7 @@ export interface CallBudget {
   release(): void;
 }
 
-/** Бюджета нет — ни таймера, ни композиции: на горячем пути ноль объектов */
+/** Бюджета нет — ни таймера, ни слушателя: на горячем пути ноль объектов */
 function unbounded(signal: AbortSignal): CallBudget {
   return {
     signal,
@@ -169,20 +171,37 @@ export function startBudget(
   }
 
   const own = new AbortController();
-  const timer = setTimeout(() => own.abort(), Math.max(0, remaining));
+  let timedOut = false;
+  const timer = setTimeout(
+    () => {
+      timedOut = true;
+      own.abort();
+    },
+    Math.max(0, remaining),
+  );
 
   // Чужой дедлайн не повод держать event loop живым: процесс, которому
   // больше нечего делать, завершается, не дожидаясь истечения бюджета
   timer.unref?.();
 
+  // Отмена вызывающего доходит до `own` слушателем, а не композитным
+  // сигналом: `AbortSignal.any` стоит около 2 µs на вызов (ideas.md
+  // [2026-09-05]). `NEVER_ABORTED` не взводится никогда, слушатель на нём
+  // лишний
+  const unfollow =
+    caller === NEVER_ABORTED ? undefined : followSignal(caller, own);
+
   return {
-    signal: AbortSignal.any([caller, own.signal]),
+    signal: own.signal,
     get expired(): boolean {
       // Вызывающий, взведший свой сигнал, «выигрывает»: его отмена
       // остаётся `InternalError`, каким была до появления бюджета
-      return own.signal.aborted && !caller.aborted;
+      return timedOut && !caller.aborted;
     },
-    release: () => clearTimeout(timer),
+    release: () => {
+      clearTimeout(timer);
+      unfollow?.();
+    },
   };
 }
 
