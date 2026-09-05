@@ -27,7 +27,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*",
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/operations": "workspace:*",

@@ -29,7 +29,6 @@ const repoRoot = resolve(here, '../../..');
 const ALLOW = [
   '@common/misc',
   '@nestling/container/tokens',
-  '@nestling/streams',
   '@standard-schema/spec',
 ];
 

@@ -21,7 +21,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*",
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/operations": "workspace:*",
@@ -33,6 +32,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@common/misc": "workspace:*",
     "@nestling/client": "workspace:*",
     "@types/busboy": "^1.5.4"
   }
