@@ -16,9 +16,9 @@
 эти файлы не тянет.
 
 Второй: у семи пакетов объявленные зависимости расходятся с
-импортируемыми. Лишнее объявление заставляет ставить пакет, который не
-нужен; недостающее работает только потому, что пакет оказался в дереве
-по другой причине.
+импортируемыми — девять расхождений. Лишнее объявление заставляет ставить
+пакет, который не нужен; недостающее работает только потому, что пакет
+оказался в дереве по другой причине.
 
 Оба дефекта искажают и картину графа: ложное ребро `testing` →
 `transport.http` существует только из-за первого.
@@ -30,11 +30,14 @@
   `@nestling/testing` уходят `overrides.type-test.*`, `stub.type-test.*`
   и `__fixtures__`, из `dist` пакета `@nestling/subscriptions` —
   `__fixtures__`.
-- Лишние объявления уходят из `package.json`: `@common/misc` у `app`,
+- Лишние объявления уходят из `dependencies`: `@common/misc` у `app`,
   `transport`, `transport.cli` и `transport.nats`; `@nestling/streams` у
-  `operations`.
-- Недостающее объявление добавляется: `@nestling/app` у
-  `subscriptions`.
+  `operations`. У `transport.http` `@common/misc` импортируется только из
+  спека, поэтому объявление переезжает в `devDependencies`.
+- Недостающие объявления добавляются: `@nestling/app` у `subscriptions`;
+  `zod` у `transport.nats` переезжает из `devDependencies` в
+  `dependencies` — `src/config.ts` строит им схему секции, и `dist` тянет
+  пакет в рантайме.
 - Список разрешённых импортов в тесте границы `@nestling/operations`
   теряет `@nestling/streams`: пакет его не импортирует.
 
@@ -67,8 +70,9 @@
 
 - **Конфигурация сборки:** `tsconfig.build.json` пакетов, которые
   собирает tsc.
-- **Манифесты:** `package.json` шести пакетов — `app`, `operations`,
-  `subscriptions`, `transport`, `transport.cli`, `transport.nats`.
+- **Манифесты:** `package.json` семи пакетов — `app`, `operations`,
+  `subscriptions`, `transport`, `transport.cli`, `transport.http`,
+  `transport.nats`.
 - **Тесты:** `packages/nestling.operations/src/boundary.spec.ts` —
   список `ALLOW`.
 - **Содержимое `dist`:** уходят шесть файлов у `@nestling/testing` и
