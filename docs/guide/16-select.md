@@ -1,6 +1,6 @@
 # 16. Запускать только часть фич
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-05).
 > Целевое описание: [design/composition.md](../design/composition.md)
 > «L2 — фичи и `select`» и «`check()`». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Модульный монолит: фичи,
@@ -16,7 +16,7 @@ endpoint'ы разворачиваются отдельно, и каждый п�
 ## Прочитайте выбор фич до сборки
 
 ```typescript
-// packages/examples.app-with-http/src/main.ts
+// examples/app-with-http/src/main.ts
 import { app } from './app.js';
 
 import { from, load, makeConfig } from '@nestling/config';
@@ -69,7 +69,7 @@ await app.assemble({ features: cfg.features, includeDeps: true }).run();
 выбор и `select` без `features:`.
 
 ```bash
-APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 ```
 
 ```
@@ -118,7 +118,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 ## Плагины и проверка каждой роли без сокетов
 
 ```typescript
-// packages/examples.app-with-http/src/app.spec.ts
+// examples/app-with-http/src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
@@ -138,7 +138,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 `users` в этой сборке нет.
 
 ```typescript
-// packages/examples.app-with-http/src/app.spec.ts
+// examples/app-with-http/src/app.spec.ts
 /**
  * Декларация для `check()`: подстановок у структурной проверки нет,
  * поэтому значения секретов привязываются источником к ключам секции
@@ -166,7 +166,7 @@ discovery, `build()` и проверку политик. `@OnInit`, `@OnStart` �
 потому что `build()` создаёт секцию конфига.
 
 ```typescript
-// packages/examples.app-with-http/src/app.spec.ts
+// examples/app-with-http/src/app.spec.ts
   it('собирает каждый вариант деплоя без сокетов', async () => {
     const usersWithDeps = { features: 'users', includeDeps: true } as const;
     const reports = await checkTopologies(checked, [
@@ -199,7 +199,7 @@ discovery, `build()` и проверку политик. `@OnInit`, `@OnStart` �
 операций видны под именами вида `subscriptions.opened@ops`.
 
 ```typescript
-// packages/examples.app-with-http/src/app.spec.ts
+// examples/app-with-http/src/app.spec.ts
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
     const [{ report }] = await checkTopologies(checked, ['all']);
 
@@ -219,8 +219,8 @@ discovery, `build()` и проверку политик. `@OnInit`, `@OnStart` �
 список, а не читает вывод в консоли.
 
 ```bash
-yarn workspace examples.app-with-http test
-APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+yarn workspace @examples/app-with-http test
+APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 ```
 
 Роли собираются по отдельности, но пока работают в одном процессе:

@@ -1,6 +1,6 @@
 # 17. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `examples.split-nats` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-05).
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
@@ -24,7 +24,7 @@
 ## Объявите шину и назначьте ей роль
 
 ```typescript
-// packages/examples.split-nats/src/app.ts
+// examples/split-nats/src/app.ts
 export function declareApp(transport: NatsTransportOptions = {}): App {
   return makeApp({
     features: [UsersFeature, QuotasFeature],
@@ -61,7 +61,7 @@ export const app = declareApp();
 ## Оставьте код фич как есть
 
 ```typescript
-// packages/examples.split-nats/src/users.ts
+// examples/split-nats/src/users.ts
 @Injectable([ClaimQuota.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
@@ -102,7 +102,7 @@ export class RegistrationService {
 ## Долговечность события и контекст через границу процесса
 
 ```typescript
-// packages/examples.split-nats/src/operations.ts
+// examples/split-nats/src/operations.ts
 export const UserRegistered = makeEvent({
   name: 'users.registered',
   durable: true,
@@ -119,7 +119,7 @@ export const UserRegistered = makeEvent({
 компилируется.
 
 ```typescript
-// packages/examples.split-nats/src/quotas.ts
+// examples/split-nats/src/quotas.ts
 @Injectable([QuotaLedger])
 class UserRegisteredInArchiveHandler {
   constructor(private readonly ledger: QuotaLedger) {}
@@ -145,7 +145,7 @@ class UserRegisteredInArchiveHandler {
 стороны: издатель ждёт подтверждения записи, подписчик читает из потока.
 
 ```typescript
-// packages/examples.split-nats/src/context.ts
+// examples/split-nats/src/context.ts
 export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 ```
 
@@ -157,7 +157,7 @@ export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 проходит.
 
 ```typescript
-// packages/examples.split-nats/src/users.ts
+// examples/split-nats/src/users.ts
 @Injectable([RegistrationService])
 class RegisterUserHandler {
   constructor(private readonly registration: RegistrationService) {}
@@ -181,7 +181,7 @@ class RegisterUserHandler {
 `quotas.claim`, и `users.registered` приходят из другого процесса.
 
 ```typescript
-// packages/examples.split-nats/src/quotas.ts (фрагмент)
+// examples/split-nats/src/quotas.ts (фрагмент)
 @Injectable([Ctx(TenantId)])
 export class QuotaLedger {
   readonly limit = 100;
@@ -212,8 +212,8 @@ docker run --rm -p 4222:4222 nats:2 -js
 создастся, и сборка остановится.
 
 ```bash
-APP_FEATURES=quotas yarn workspace examples.split-nats start:dev
-APP_FEATURES=users yarn workspace examples.split-nats start:dev
+APP_FEATURES=quotas yarn workspace @examples/split-nats start:dev
+APP_FEATURES=users yarn workspace @examples/split-nats start:dev
 ```
 
 Владельца запроса запускайте первым. У брокера нет очереди ожидания для
@@ -236,13 +236,13 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 же процессе. На шине внутри процесса это означает асинхронный барьер,
 копию payload и проверку ответа по схеме `output`. Так вызовы проходят
 путь, близкий к сетевому, до появления брокера. Тест на обе политики лежит
-в `packages/examples.app-with-http/src/app.spec.ts`.
+в `examples/app-with-http/src/app.spec.ts`.
 
 Тест поднимает оба процесса в одном jest-процессе поверх двойника брокера
 `NatsDouble`, и сеть не нужна:
 
 ```typescript
-// packages/examples.split-nats/src/split.spec.ts (фрагмент)
+// examples/split-nats/src/split.spec.ts (фрагмент)
   it('два процесса общаются операциями через брокер', async () => {
     const broker = new NatsDouble();
     const topology = await run(broker, 'quotas', 'users');
@@ -280,7 +280,7 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 владельца `quotas.claim` и убеждается, что сборка проходит.
 
 ```bash
-yarn workspace examples.split-nats test
+yarn workspace @examples/split-nats test
 ```
 
 Операция стала границей между процессами, и её изменение теперь может

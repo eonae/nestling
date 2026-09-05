@@ -108,7 +108,7 @@ yarn bench:http      # HTTP transport against Fastify; a reference point, not a 
 ```
 
 A monorepo on Yarn workspaces and Nx: packages live in `packages/`,
-documentation in `docs/`.
+examples in `examples/`, documentation in `docs/`.
 
 ## Contributing
 

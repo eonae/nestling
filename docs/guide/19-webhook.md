@@ -1,6 +1,6 @@
 # 19. Webhook с проверкой подписи
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-05).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md), раздел
 > «Сырые байты: `rawBody`». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
@@ -17,7 +17,7 @@
 ## Отказ и секрет подписи
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/users.errors.ts
+// examples/app-with-http/src/features/users/users.errors.ts
 export const InvalidSignature = makeFail('unauthorized:invalid_signature', {
   message: 'Webhook signature does not match the body',
 });
@@ -27,7 +27,7 @@ export const InvalidSignature = makeFail('unauthorized:invalid_signature', {
 транспорт переводит в `401`.
 
 ```typescript
-// packages/examples.app-with-http/src/app.config.ts (фрагмент)
+// examples/app-with-http/src/app.config.ts (фрагмент)
 export const AppConfig = makeConfig('app', {
   // …
   webhookSecret: secret(from('WEBHOOK_SECRET', z.string().min(1))),
@@ -41,7 +41,7 @@ export const AppConfig = makeConfig('app', {
 ## Pre-юнит, который проверяет подпись
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts (фрагмент)
+// examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts (фрагмент)
 import { createHmac, timingSafeEqual } from 'node:crypto';
 // …
 
@@ -84,7 +84,7 @@ export class VerifySignature {
 ## Декларация с `rawBody: true`
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
+// examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
 @Injectable([UsersRepository$])
 class UserWebhookHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -160,7 +160,7 @@ hint: "declare 'rawBody: true', or provide the fields from an outer layer"
 тела, в hex.
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 
 body='{"type":"user.deleted","userId":"2"}'
 sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac hook | sed 's/^.* //')
@@ -186,7 +186,7 @@ curl localhost:3000/users/2
 сериализует.
 
 ```typescript
-// packages/examples.app-with-http/e2e/webhook.spec.e2e.ts (фрагмент)
+// examples/app-with-http/e2e/webhook.spec.e2e.ts (фрагмент)
 const sign = (body: string, secret = E2E_WEBHOOK_SECRET): string =>
   createHmac('sha256', secret).update(body).digest('hex');
 
@@ -224,7 +224,7 @@ it('отклоняет тело с чужой подписью', async () => {
 (`e2e/helpers/create-test-app.ts`), `process.env` тест не трогает.
 
 ```bash
-yarn workspace examples.app-with-http test:e2e
+yarn workspace @examples/app-with-http test:e2e
 ```
 
 Те же декларации и пайплайн работают и в командной строке: [20.

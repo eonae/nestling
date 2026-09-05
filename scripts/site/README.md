@@ -75,7 +75,7 @@ README или ссылка `./*.md` ведёт на несуществующую
 
 ````md
 ```typescript
-// packages/examples.users-service/src/app.ts
+// examples/users-service/src/app.ts
 export const app = makeApp({ features: [UsersFeature] });
 ```
 ````

@@ -1,6 +1,6 @@
 # 5. Откуда хендлер берёт репозиторий
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-05).
 > Целевое описание: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Token families + модули
@@ -13,7 +13,7 @@ endpoint'а. Хендлерам нужен репозиторий, репози�
 остановке, а endpoint не должен собирать всё это руками.
 
 ```typescript
-// packages/examples.users-service/src/users/users.repository.ts
+// examples/users-service/src/users/users.repository.ts
 export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
 ```
 
@@ -23,7 +23,7 @@ export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
 с тем же именем; так же названы токены ядра, например `HttpTransport$`.
 
 ```typescript
-// packages/examples.users-service/src/users/users.repository.ts
+// examples/users-service/src/users/users.repository.ts
 /** Хранилище пользователей: всё, что endpoint'ам нужно от базы */
 export interface UsersRepository {
   all(): Promise<User[]>;
@@ -44,7 +44,7 @@ export interface UsersRepository {
 ## Хендлер и репозиторий как зависимости
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+// examples/users-service/src/users/endpoints/get-user.endpoint.ts
 @Injectable([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -84,7 +84,7 @@ export const GetUser = httpEndpoint({
 Реализация репозитория объявляется так же:
 
 ```typescript
-// packages/examples.users-service/src/users/users.repository.ts
+// examples/users-service/src/users/users.repository.ts
 @Injectable(UsersRepository$, [Database, Logger$, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
@@ -116,7 +116,7 @@ export class DbUsersRepository implements UsersRepository {
 классы-юниты пайплайна:
 
 ```typescript
-// packages/examples.users-service/src/users.feature.ts
+// examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -149,7 +149,7 @@ export const UsersFeature = makeFeature({
 обработки запросов контейнер ничего не резолвит.
 
 ```typescript
-// packages/examples.users-service/src/database.ts
+// examples/users-service/src/database.ts
 @Injectable([AppConfig, Logger$])
 export class Database {
   #users: User[] | undefined;
@@ -224,7 +224,7 @@ providers: [
 Хендлер создаётся с фейком репозитория, без контейнера и без транспорта:
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
 
 const result = await handler.handle({ name: 'Carol', email: 'carol@example.com' });
@@ -236,7 +236,7 @@ expect(result).toMatchObject({
 ```
 
 ```bash
-API_TOKEN=secret yarn workspace examples.users-service start:dev
+API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl localhost:3000/users/1
 ```
 

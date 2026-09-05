@@ -1,6 +1,6 @@
 # 12. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-05).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -16,16 +16,16 @@
 должен измениться. Логирование и проверка токена при этом остаются
 общими для обеих областей.
 
-Сервис из частей 1 и 2 продолжается в `examples.app-with-http`. Файлы
+Сервис из частей 1 и 2 продолжается в `app-with-http`. Файлы
 переложены по областям: фичи лежат в `src/features/<имя>/`, общая
 инфраструктура в `src/plugins/<имя>/`, декларация приложения в `src/app.ts`.
 Код endpoint'ов, хранилища и конфига тот же, что в
-`examples.users-service`.
+`users-service`.
 
 ## Вторая фича
 
 ```typescript
-// packages/examples.app-with-http/src/features/quotas/quota.service.ts
+// examples/app-with-http/src/features/quotas/quota.service.ts
 @Injectable([])
 export class QuotaService {
   /** Лимит пользователей; в примере намеренно маленький */
@@ -47,7 +47,7 @@ export class QuotaService {
 ```
 
 ```typescript
-// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+// examples/app-with-http/src/features/quotas/quotas.feature.ts
 export const QuotasFeature = makeFeature({
   name: 'quotas',
   providers: [QuotaService, SignupJournal],
@@ -91,7 +91,7 @@ endpoint'ы. `QuotaService` не экспортируется наружу и в
 ## Операция вместо токена
 
 ```typescript
-// packages/examples.app-with-http/src/operations.ts
+// examples/app-with-http/src/operations.ts
 import {
   makeFail,
   makeCommand,
@@ -131,7 +131,7 @@ export const ClaimQuota = makeRequest({
 ## Реализация в фиче-владельце
 
 ```typescript
-// packages/examples.app-with-http/src/features/quotas/claim-quota.endpoint.ts
+// examples/app-with-http/src/features/quotas/claim-quota.endpoint.ts
 @Injectable([QuotaService, Logger$])
 class ClaimQuotaHandler {
   constructor(
@@ -174,7 +174,7 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
 ## Вызов через вызыватель
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
 const QUOTA_CALL_BUDGET_MS = 500;
 
 @Injectable([
@@ -248,7 +248,7 @@ ClaimQuota>` с методом `call(input, meta?)`. Вызов всегда а�
 реализации не видит:
 
 ```typescript
-// packages/examples.app-with-http/src/api/operations.ts
+// examples/app-with-http/src/api/operations.ts
 export const CreateUser = makeRequest({
   name: 'users.create',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
@@ -281,7 +281,7 @@ curl -X POST localhost:3000/users \
 зависят две фичи, объявляется плагином:
 
 ```typescript
-// packages/examples.app-with-http/src/plugins/logging/logging.plugin.ts
+// examples/app-with-http/src/plugins/logging/logging.plugin.ts
 export interface LoggingOptions {
   /** Имя сервиса в префиксе каждой записи */
   service: string;
@@ -315,7 +315,7 @@ export const logging = (options: LoggingOptions): Plugin =>
 пересборки:
 
 ```typescript
-// packages/examples.app-with-http/src/plugins/logging/logger.config.ts
+// examples/app-with-http/src/plugins/logging/logger.config.ts
 export const LoggerConfig = makeConfig('log', {
   level: z.enum(['debug', 'info', 'error']).default('info'),
 });
@@ -332,7 +332,7 @@ export const loggerConfigKeys = LoggerConfig.keys;
 Проверка токена устроена так же:
 
 ```typescript
-// packages/examples.app-with-http/src/plugins/auth/index.ts
+// examples/app-with-http/src/plugins/auth/index.ts
 export const appAuth = makePlugin({
   name: 'app-auth',
   providers: [Authenticate],
@@ -350,7 +350,7 @@ export const authed = compose(observability, makePipeline().pre(Authenticate));
 ## Модули внутри фичи
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/users.feature.ts
+// examples/app-with-http/src/features/users/users.feature.ts
 export const UsersModule = makeModule({
   name: 'module:users',
   providers: [
@@ -386,7 +386,7 @@ export const UsersFeature = makeFeature({
 ## Декларация приложения
 
 ```typescript
-// packages/examples.app-with-http/src/app.ts
+// examples/app-with-http/src/app.ts
 export const appLogging = logging({ service: 'app-with-http' });
 // …
 export const app = makeApp({
@@ -423,7 +423,7 @@ export const app = makeApp({
 ## Проверка
 
 ```typescript
-// packages/examples.app-with-http/src/app.spec.ts
+// examples/app-with-http/src/app.spec.ts
 it('возвращает отказ соседней фичи при исчерпанной квоте', async () => {
   await using testApp = await assembleTest(app, {
     ...testConfig,
@@ -456,7 +456,7 @@ it('возвращает отказ соседней фичи при исчер�
 меняется.
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 for i in 1 2 3 4 5 6; do
   curl -s -X POST localhost:3000/users \
     -H 'authorization: Bearer secret' -H 'content-type: application/json' \

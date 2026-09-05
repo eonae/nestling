@@ -85,9 +85,12 @@ for (const f of chapterFiles) {
   }
   const [, examples, checkedAt] = m;
   for (const example of [...examples.matchAll(/`([^`]+)`/g)].map((x) => x[1])) {
-    const pkg = `packages/${example}`;
-    if (!existsSync(join(ROOT, pkg))) {
-      add('ERROR', 'guide-example', file, `пример ${pkg} не существует`);
+    // Обычно глава сверена с примером; глава про сателлит (25) — с пакетом
+    const pkg = [`examples/${example}`, `packages/${example}`]
+      .find((p) => existsSync(join(ROOT, p)));
+    if (!pkg) {
+      add('ERROR', 'guide-example', file,
+        `нет ни examples/${example}, ни packages/${example}`);
       continue;
     }
     const lastCommit = git('log', '-1', '--format=%cs', '--', pkg);

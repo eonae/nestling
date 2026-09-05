@@ -1,6 +1,6 @@
 # 10. Файлы и большие выгрузки
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-05).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
 > [design/streaming.md](../design/streaming.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Стриминг: `stream(T)` ≠ `events(T)`,
@@ -26,7 +26,7 @@
 ## Файл в форме
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts
+// examples/users-service/src/users/endpoints/upload-avatar.endpoint.ts
 import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';
 
@@ -99,7 +99,7 @@ export const UploadAvatar = httpEndpoint({
 объявленным отказом `AvatarRequired`.
 
 ```bash
-API_TOKEN=secret yarn workspace examples.users-service start:dev
+API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl -X POST http://localhost:3000/users/1/avatar \
   -H 'authorization: Bearer secret' -F 'avatar=@photo.png;type=image/png'
 # {"id":"1","name":"Alice","email":"alice@example.com","avatarUrl":"/uploads/1/photo.png"}
@@ -114,7 +114,7 @@ curl -X POST http://localhost:3000/users/1/avatar \
 ## Выгрузка потоком
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts
+// examples/users-service/src/users/endpoints/export-users.endpoint.ts
 import { Ok, stream } from '@nestling/operations';
 
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
@@ -178,7 +178,7 @@ curl -N http://localhost:3000/users/export
 ## Загрузка потоком
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts
+// examples/users-service/src/users/endpoints/import-users.endpoint.ts
 import { stream } from '@nestling/operations';
 
 const ImportResult = z.object({

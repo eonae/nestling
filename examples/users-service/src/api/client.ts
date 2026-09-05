@@ -6,7 +6,7 @@
  * транспорт сюда не попадают.
  *
  * Запуск при поднятом сервере:
- * `API_TOKEN=secret yarn workspace examples.users-service client`
+ * `API_TOKEN=secret yarn workspace @examples/users-service client`
  */
 
 import { EmailTaken, UserNotFound } from '../users/users.errors.js';

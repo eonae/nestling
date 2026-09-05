@@ -1,7 +1,7 @@
 # 24. Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `examples.simple-http-server` (2026-09-05)
-> и `examples.container` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-05)
+> и `container` (2026-09-05).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
 > [design/container.md](../design/container.md). Почему так: записи
@@ -17,7 +17,7 @@
 ## HTTP-сервер из транспорта и `dispatch`
 
 ```typescript
-// packages/examples.simple-http-server/src/main.ts
+// examples/simple-http-server/src/main.ts
 const PORT = Number(process.env.PORT) || 3000;
 
 const server = new HttpTransport({ port: PORT });
@@ -70,7 +70,7 @@ process.on('SIGINT', () => void stop('SIGINT'));
 ## Endpoint без пайплайна и endpoint с pre-юнитом
 
 ```typescript
-// packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts
+// examples/simple-http-server/src/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint({
   method: 'POST',
   path: '/users',
@@ -94,7 +94,7 @@ export const CreateUser = httpEndpoint({
 списком `errors:`, контекст запроса открыт.
 
 ```typescript
-// packages/examples.simple-http-server/src/common/units.ts
+// examples/simple-http-server/src/common/units.ts
 export const withStartedAt: PreUnitFn<
   EmptyInput,
   { startedAt: number }
@@ -102,7 +102,7 @@ export const withStartedAt: PreUnitFn<
 ```
 
 ```typescript
-// packages/examples.simple-http-server/src/endpoints/say-hello.endpoint.ts
+// examples/simple-http-server/src/endpoints/say-hello.endpoint.ts
 export const SayHello = httpEndpoint({
   method: 'GET',
   path: '/',
@@ -120,7 +120,7 @@ Pre-юнит возвращает добавку к контексту. Хенд
 выводится из юнита.
 
 ```bash
-yarn workspace examples.simple-http-server start:dev
+yarn workspace @examples/simple-http-server start:dev
 curl localhost:3000/
 curl -X POST localhost:3000/users -H 'content-type: application/json' \
   -d '{"name":"Alice","email":"taken@example.com"}'
@@ -134,7 +134,7 @@ curl -N localhost:3000/logs/export
 ## Контейнер без приложения
 
 ```typescript
-// packages/examples.container/src/container.ts
+// examples/container/src/container.ts
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
@@ -162,7 +162,7 @@ export const makeContainer = async (
 списком узлов.
 
 ```typescript
-// packages/examples.container/src/runtime/reload.spec.ts (фрагмент)
+// examples/container/src/runtime/reload.spec.ts (фрагмент)
     container = await makeContainer(source);
     await container.init();
     // Подписка `onChange` открывается в `@OnStart`
@@ -178,7 +178,7 @@ export const makeContainer = async (
 инстанс по токену.
 
 ```typescript
-// packages/examples.container/src/cli.ts
+// examples/container/src/cli.ts
 export const main = async () => {
   const container = await makeContainer();
 
@@ -198,7 +198,7 @@ main().catch(console.error);
 ## Проверка
 
 ```typescript
-// packages/examples.simple-http-server/src/dispatch.spec.ts
+// examples/simple-http-server/src/dispatch.spec.ts
 const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
 
 /** Вызывает endpoint с готовым payload, минуя разбор HTTP-запроса */
@@ -235,8 +235,8 @@ const call = (endpoint: ExecutableDeclaration, payload?: unknown) => {
 тесты файла проверяют отказ схемы, объявленный отказ и потоковый ответ.
 
 ```bash
-yarn workspace examples.simple-http-server test
-yarn workspace examples.container export-metadata && yarn workspace examples.container visualize
+yarn workspace @examples/simple-http-server test
+yarn workspace @examples/container export-metadata && yarn workspace @examples/container visualize
 ```
 
 Глава [25. Расширить ядро своим пакетом](./25-extending.md) показывает,

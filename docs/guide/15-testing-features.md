@@ -1,6 +1,6 @@
 # 15. Тестировать фичу без соседей
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http`, `examples.split-nats` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `app-with-http`, `split-nats` (2026-09-05).
 > Целевое описание: [design/testing.md](../design/testing.md) §3 и §4.
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestling/testing`)».
@@ -16,7 +16,7 @@
 ## Соберите одну фичу без соседей
 
 ```typescript
-// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
+// examples/split-nats/src/isolated.spec.ts (фрагмент)
 const isolated = makeApp({ features: [UsersFeature, QuotasFeature] });
 
 await using testApp = await assembleTest(isolated, { select: 'users' });
@@ -43,7 +43,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 ## Стабы вместо соседних операций
 
 ```typescript
-// packages/examples.split-nats/src/isolated.spec.ts
+// examples/split-nats/src/isolated.spec.ts
   it('регистрирует пользователя через стабы соседних операций', async () => {
     const claimed: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
@@ -99,7 +99,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 проходит как есть, так же, как пришёл бы от настоящего владельца:
 
 ```typescript
-// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
+// examples/split-nats/src/isolated.spec.ts (фрагмент)
       stubs: [
         // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
         // есть, так же, как настоящий владелец по сети
@@ -118,7 +118,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 ## Вызов и проверка через матрицу топологий
 
 ```typescript
-// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
+// examples/split-nats/src/isolated.spec.ts (фрагмент)
     const [{ subscriber, response }] = await testApp.emit(RegisterUser, {
       email: 'alice@example.com',
     });
@@ -147,7 +147,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 графа:
 
 ```typescript
-// packages/examples.split-nats/src/isolated.spec.ts
+// examples/split-nats/src/isolated.spec.ts
   it('каждая застабанная операция реализована в одной из топологий', async () => {
     await using testApp = await assembleTest(isolated, {
       select: 'users',
@@ -185,7 +185,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 постоянным значением:
 
 ```typescript
-// packages/examples.app-with-http/src/app.spec.ts
+// examples/app-with-http/src/app.spec.ts
   it('contextValue подставляет значение переменной в тестовом корне', async () => {
     const spy = spyLogger();
     await using testApp = await assembleTest(app, {
@@ -204,7 +204,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 подменяет `familyOverride(Family, make)` в том же списке `overrides`.
 
 ```typescript
-// packages/examples.app-with-http/src/app.spec.ts
+// examples/app-with-http/src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () => {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
@@ -238,8 +238,8 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 в `app.spec.ts` примера `app-with-http`.
 
 ```bash
-yarn workspace examples.split-nats test
-yarn workspace examples.app-with-http test
+yarn workspace @examples/split-nats test
+yarn workspace @examples/app-with-http test
 ```
 
 Приложение в проде собирается так же, по частям: [16. Запускать только
