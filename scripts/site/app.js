@@ -43,6 +43,16 @@
     if (bd) bd.classList.remove('show');
   };
 
+  /* Пункт сайдбара ведёт якорем внутрь того же файла: смена страницы меню
+     больше не закрывает, поэтому закрываем его сами. */
+  function closeMenuOnNav() {
+    var sb = document.querySelector('.sidebar');
+    if (!sb) return;
+    sb.addEventListener('click', function (e) {
+      if (e.target.closest('a[href^="#"]')) window.__closeMenu();
+    });
+  }
+
   /* ---------- Scroll spy: читаемая глава и её раздел ---------- */
 
   /* Положение элемента от начала документа: сумма смещений по цепочке */
@@ -149,6 +159,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     applyThemeIcon();
+    closeMenuOnNav();
     addHeadingAnchors();
     initScrollSpy();
   });
