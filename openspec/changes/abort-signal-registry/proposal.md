@@ -39,9 +39,13 @@ Fastify на Node 22 и до 0.99 на Node 24, а разброс req/s межд
   бюджета следует за сигналом вызывающего слушателем вместо
   `AbortSignal.any`; `release()` снимает и таймер, и слушатель. Признак
   `expired` по-прежнему считается по владению таймером.
-- Бенчмарк `scripts/bench/http-vs-fastify.ts` печатает разброс req/s и
-  максимальную латентность: по одной колонке среднего req/s паузы не
-  видны. Повторный замер записывается в ideas.md вместе с решением.
+- Бенчмарк переезжает в `scripts/bench/http.ts`: серверы Nestling,
+  Fastify, Express и Hono поднимаются по очереди в отдельных процессах,
+  раннер печатает таблицу на сценарий и сводку с отношением к Fastify,
+  разброс req/s и максимум латентности (по одной колонке среднего паузы не
+  видны), флаг `--markdown`, `BENCH_NODE` для замера на другой версии
+  Node. README бенчмарка объясняет по профилю, откуда остаток разрыва с
+  Fastify. Повторный замер записывается в ideas.md вместе с решением.
 - Документация: `docs/design/transports.md` описывает реестр вместо
   композиции; README `@nestling/pipeline` и корневой README называют
   Node 24 рекомендуемой версией и флаг
@@ -81,8 +85,9 @@ Fastify на Node 22 и до 0.99 на Node 24, а разброс req/s межд
 - `packages/nestling.ports/src/profile.ts`, `bus.ts` — контроллер
   вызова со слушателем и реестр шины; новый внутренний модуль с помощником
   «следовать за сигналом»; `profile.spec.ts`, `bus.spec.ts` — тесты.
-- `scripts/bench/http-vs-fastify.ts`, `scripts/bench/README.md` — новые
-  колонки вывода.
+- `scripts/bench/http.ts`, `servers.ts`, `server.ts`, `README.md` — новый
+  раннер; `http-vs-fastify.ts` удалён; `express`, `hono`,
+  `@hono/node-server` в devDependencies корня.
 - `docs/decisions/ideas.md` — новая запись с решением и таблицей замера;
   `docs/design/transports.md` — абзац про сигнал запроса;
   `docs/decisions/roadmap.md` — строка change'а.

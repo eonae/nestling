@@ -74,6 +74,23 @@
       и `@nestling/client`; главы гайда правок не требуют
 - [x] 4.6 Линтер `docs-style` по изменённым текстам — 0 запрещённых слов
 
+## 7. Бенчмарк: четыре сервера в отдельных процессах
+
+- [x] 7.1 `express`, `@types/express`, `hono`, `@hono/node-server` —
+      devDependencies корня
+- [x] 7.2 `scripts/bench/servers.ts`: фабрики серверов nestling, fastify,
+      express, hono с одной парой endpoint'ов; `scripts/bench/server.ts`:
+      точка входа дочернего процесса, печатает `NODE=` и `PORT=`
+- [x] 7.3 `scripts/bench/http.ts`: раннер поднимает серверы по очереди в
+      дочерних процессах (`tsx/cli` под `BENCH_NODE`), прогоняет
+      autocannon, печатает таблицу на сценарий и сводку с отношением к
+      Fastify; флаг `--markdown`; `BENCH_SERVERS`; `bench:http` в
+      `package.json` указывает на него, `http-vs-fastify.ts` удалён
+- [x] 7.4 `scripts/bench/README.md`: файлы, переменные, колонки, раздел
+      «Почему Nestling медленнее Fastify» по профилю
+- [x] 7.5 Прогон на Node 22 и Node 24; результат добавлен к записи
+      ideas.md [2026-09-05]
+
 ## 5. Проверка
 
 - [x] 5.1 `yarn verify` зелёный
