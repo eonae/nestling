@@ -151,8 +151,9 @@ a:hover { text-decoration: underline; }
   color: var(--accent-strong); background: var(--accent-soft); font-weight: 600;
 }
 :root[data-theme="dark"] .nav-group li a.active { color: var(--accent); }
-/* on-page anchors */
-.nav-sub { margin: 2px 0 6px 0; }
+/* on-page anchors — разделы читаемой главы, список раскрывает app.js */
+.nav-sub { display: none; margin: 2px 0 6px 0; }
+.nav-sub.open { display: block; }
 .nav-sub li a {
   font-size: 13.5px; padding: 4px 10px 4px 20px; font-weight: 450;
   border-left: 2px solid var(--border);
@@ -166,6 +167,14 @@ a:hover { text-decoration: underline; }
   width: 100%;
 }
 .article { max-width: var(--maxw); margin: 0 auto; }
+
+/* ---------- Chapters ---------- */
+/* Отступ под шапку даёт scroll-padding-top у html: свой scroll-margin
+   сложился бы с ним, и после перехода по якорю читаемой считалась бы
+   предыдущая глава. */
+.chapter + .chapter {
+  margin-top: 64px; padding-top: 64px; border-top: 1px solid var(--border);
+}
 
 .crumbs { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
 .crumbs a { color: var(--text-dim); }
@@ -221,7 +230,7 @@ ul.body li, ol.body li { margin: 8px 0; }
 .code pre::-webkit-scrollbar { height: 9px; }
 .code pre::-webkit-scrollbar-thumb { background: #39342c; border-radius: 8px; }
 
-/* syntax spans (added by app.js) */
+/* syntax spans (added by build.mjs) */
 .tok-key { color: var(--syn-key); }
 .tok-str { color: var(--syn-str); }
 .tok-com { color: var(--syn-com); font-style: italic; }
@@ -320,4 +329,15 @@ td code, th code { white-space: nowrap; }
 }
 @media (max-width: 560px) {
   .topbar .hide-sm { display: none; }
+}
+
+/* ---------- Print ---------- */
+@media print {
+  .topbar, .sidebar, .backdrop, .pager, .anchor { display: none; }
+  .content { margin-left: 0; padding: 0; }
+  .layout { display: block; }
+  .chapter { break-before: page; }
+  .chapter + .chapter { margin-top: 0; padding-top: 0; border-top: none; }
+  .chapter:first-child { break-before: auto; }
+  .code, .note, .card, table { break-inside: avoid; }
 }

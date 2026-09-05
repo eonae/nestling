@@ -1,6 +1,10 @@
-/* Сайт документации Nestling — тема, подсветка, навигация. Zero deps. */
+/* Гайд Nestling — тема, меню, ведение по прокрутке. Zero deps. */
 (function () {
   'use strict';
+
+  function list(selector) {
+    return Array.prototype.slice.call(document.querySelectorAll(selector));
+  }
 
   /* ---------- Theme ---------- */
   var root = document.documentElement;
@@ -39,100 +43,101 @@
     if (bd) bd.classList.remove('show');
   };
 
-  /* ---------- Syntax highlight (lightweight TS/JS) ---------- */
-  var KW = ('const|let|var|function|return|await|async|new|class|interface|type|import|export|' +
-    'from|extends|implements|if|else|for|of|in|while|switch|case|default|break|continue|throw|' +
-    'try|catch|finally|typeof|instanceof|as|void|this|super|yield|enum|public|private|protected|' +
-    'readonly|static|declare|namespace|true|false|null|undefined|infer|keyof|satisfies');
+  /* ---------- Scroll spy: читаемая глава и её раздел ---------- */
 
-  var RE = new RegExp(
-    '(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)' +          // 1 comment
-    '|(`(?:\\\\.|[^`\\\\])*`|\'(?:\\\\.|[^\'\\\\])*\'|"(?:\\\\.|[^"\\\\])*")' + // 2 string
-    '|(@[A-Za-z_]\\w*)' +                               // 3 decorator
-    '|\\b(\\d[\\d_]*\\.?\\d*)\\b' +                     // 4 number
-    '|\\b(' + KW + ')\\b' +                             // 5 keyword
-    '|\\b([A-Z][A-Za-z0-9_]*)\\b' +                     // 6 Type
-    '|\\b([a-z_$][\\w$]*)(?=\\s*\\()',                  // 7 fn call
-    'g');
-
-  function esc(s) {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  /* Положение элемента от начала документа: сумма смещений по цепочке */
+  function docTop(el) {
+    var y = 0;
+    while (el) { y += el.offsetTop; el = el.offsetParent; }
+    return y;
   }
 
-  function highlight(src) {
-    var out = '', last = 0, m;
-    RE.lastIndex = 0;
-    while ((m = RE.exec(src)) !== null) {
-      if (m.index > last) out += esc(src.slice(last, m.index));
-      var cls, txt = m[0];
-      if (m[1]) cls = 'tok-com';
-      else if (m[2]) cls = 'tok-str';
-      else if (m[3]) cls = 'tok-deco';
-      else if (m[4]) cls = 'tok-num';
-      else if (m[5]) cls = 'tok-key';
-      else if (m[6]) cls = 'tok-type';
-      else cls = 'tok-fn';
-      out += '<span class="' + cls + '">' + esc(txt) + '</span>';
-      last = m.index + txt.length;
-    }
-    out += esc(src.slice(last));
-    return out;
+  /* Строка, по которой считается «читаемое место»: под фиксированной шапкой */
+  function readingLine() {
+    var pad = getComputedStyle(root).scrollPaddingTop || '80';
+    return window.scrollY + (parseInt(pad, 10) || 80) + 4;
   }
 
-  function decorateCode() {
-    var blocks = document.querySelectorAll('.code');
-    blocks.forEach(function (block) {
-      var code = block.querySelector('code');
-      if (!code || block.dataset.done) return;
-      block.dataset.done = '1';
-
-      var fname = block.getAttribute('data-file') || '';
-      var lang = block.getAttribute('data-lang') || 'ts';
-
-      var head = document.createElement('div');
-      head.className = 'code-head';
-      head.innerHTML =
-        '<span class="dot"></span><span class="dot"></span><span class="dot"></span>' +
-        (fname ? '<span class="fname">' + esc(fname) + '</span>' : '') +
-        '<span class="lang">' + esc(lang) + '</span>';
-      block.insertBefore(head, block.firstChild);
-
-      code.innerHTML = highlight(code.textContent);
-    });
-  }
-
-  /* ---------- Active anchor on scroll ---------- */
   function initScrollSpy() {
-    var subs = document.querySelectorAll('.nav-sub a[href^="#"]');
-    if (!subs.length) return;
-    var map = {};
-    subs.forEach(function (a) {
-      var id = a.getAttribute('href').slice(1);
-      map[id] = a;
+    var chapters = list('.chapter');
+    if (!chapters.length) return;
+
+    var navs = {};   /* slug главы  → её пункт сайдбара */
+    var subs = {};   /* slug главы  → список её разделов */
+    var marks = {};  /* id раздела  → его подпункт */
+
+    list('.sidebar a[data-chapter]').forEach(function (a) {
+      navs[a.getAttribute('data-chapter')] = a;
     });
-    var heads = [];
-    Object.keys(map).forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) heads.push(el);
+    list('.nav-sub[data-for]').forEach(function (ul) {
+      subs[ul.getAttribute('data-for')] = ul;
     });
-    if (!heads.length) return;
+    list('.nav-sub a[href^="#"]').forEach(function (a) {
+      marks[a.getAttribute('href').slice(1)] = a;
+    });
+
+    var heads = list('.chapter h2[id]');
+    var chapterTops = [];
+    var headTops = [];
+    var openSlug = null;
+    var markedId = null;
+
+    function measure() {
+      chapterTops = chapters.map(docTop);
+      headTops = heads.map(docTop);
+    }
+
+    function showChapter(slug) {
+      if (slug === openSlug) return;
+      if (navs[openSlug]) navs[openSlug].classList.remove('active');
+      if (subs[openSlug]) subs[openSlug].classList.remove('open');
+      if (navs[slug]) navs[slug].classList.add('active');
+      if (subs[slug]) subs[slug].classList.add('open');
+      openSlug = slug;
+    }
+
+    function markSection(id) {
+      if (id === markedId) return;
+      if (marks[markedId]) marks[markedId].classList.remove('active');
+      if (marks[id]) marks[id].classList.add('active');
+      markedId = id;
+    }
 
     function onScroll() {
-      var top = window.scrollY + parseInt(getComputedStyle(document.documentElement).scrollPaddingTop || '80') + 4;
-      var cur = heads[0];
-      for (var i = 0; i < heads.length; i++) {
-        if (heads[i].offsetTop <= top) cur = heads[i]; else break;
+      var line = readingLine();
+
+      var i = 0;
+      while (i + 1 < chapterTops.length && chapterTops[i + 1] <= line) i++;
+      var slug = chapters[i].id;
+      showChapter(slug);
+
+      /* Раздел ищется в читаемой главе: её имя стоит приставкой в id */
+      var prefix = slug + '--';
+      var current = null;
+      for (var j = 0; j < heads.length; j++) {
+        if (headTops[j] > line) break;
+        if (heads[j].id.indexOf(prefix) === 0) current = heads[j].id;
       }
-      subs.forEach(function (a) { a.classList.remove('active'); });
-      if (cur && map[cur.id]) map[cur.id].classList.add('active');
+      markSection(current);
     }
-    window.addEventListener('scroll', onScroll, { passive: true });
+
+    var ticking = false;
+    function schedule() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () { ticking = false; onScroll(); });
+    }
+
+    measure();
     onScroll();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', function () { measure(); onScroll(); });
+    window.addEventListener('load', function () { measure(); onScroll(); });
   }
 
   /* ---------- Anchor links on headings ---------- */
   function addHeadingAnchors() {
-    document.querySelectorAll('.article h2[id], .article h3[id]').forEach(function (h) {
+    list('.chapter h2[id], .chapter h3[id]').forEach(function (h) {
       var a = document.createElement('a');
       a.className = 'anchor';
       a.href = '#' + h.id;
@@ -144,7 +149,6 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     applyThemeIcon();
-    decorateCode();
     addHeadingAnchors();
     initScrollSpy();
   });
