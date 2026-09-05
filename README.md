@@ -10,9 +10,7 @@
 
 Nestling is under active development towards V1; APIs change. Use in
 production at your own risk. Documentation and examples are in Russian.
-Node 24 is the recommended runtime; on Node 22 run with
-`--experimental-async-context-frame` to get the same request-context
-performance.
+Requires Node 24.
 
 ## What it is
 

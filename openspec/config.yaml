@@ -3,7 +3,7 @@ schema: spec-driven
 context: |
   Nestling — лёгкая, современная альтернатива NestJS. Монорепо: yarn workspaces (+lerna/nx).
   Tech stack: TypeScript 5.7 strict, ESM, стандартные ES-декораторы (НЕ experimentalDecorators,
-  без reflect-metadata), zod v4 (peer dependency), Node.js 22, jest
+  без reflect-metadata), zod v4 (peer dependency), Node.js 24, jest
   (NODE_OPTIONS=--experimental-vm-modules; тесты запускаются per-package: `yarn test`).
   Пакеты: @nestling/container (DI), @nestling/pipeline (типизированный пайплайн, Ok/Fail,
   endpoints), @nestling/app (сборка приложения), @nestling/transport.http (node:http +

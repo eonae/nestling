@@ -14,7 +14,11 @@
  * Переменные окружения:
  * - `BENCH_DURATION` — секунды на замер (по умолчанию 10);
  * - `BENCH_CONNECTIONS` — одновременных соединений (по умолчанию 50);
+ * - `BENCH_ROUNDS` — прогонов по всем серверам; в отчёт идёт прогон с
+ *   медианным req/s (по умолчанию 1);
  * - `BENCH_SERVERS` — список серверов через запятую (по умолчанию все);
+ * - `BENCH_REFERENCE` — сервер для колонки отношения (по умолчанию
+ *   `fastify`);
  * - `BENCH_NODE` — путь к бинарю Node для серверов (по умолчанию текущий).
  *
  * Флаг `--markdown` печатает сводную таблицу в Markdown для записи в
@@ -58,10 +62,13 @@ const SELECTED = (process.env.BENCH_SERVERS ?? Object.keys(SERVERS).join(','))
   .map((name) => name.trim())
   .filter(Boolean);
 
+/** Прогонов по всем серверам; в отчёт идёт прогон с медианным req/s */
+const ROUNDS = Math.max(1, Number(process.env.BENCH_ROUNDS ?? 1));
+
 const MARKDOWN = process.argv.includes('--markdown');
 
 /** Сервер, относительно которого считается отношение */
-const REFERENCE = 'fastify';
+const REFERENCE = process.env.BENCH_REFERENCE ?? 'fastify';
 
 const HOST = '127.0.0.1';
 
@@ -191,14 +198,14 @@ async function warmup(url: string, scenario: Scenario): Promise<void> {
 }
 
 const COLUMNS = [
-  ['сервер', 10],
+  ['сервер', 14],
   ['req/s', 9],
   ['σ req/s', 9],
   ['ср. мс', 9],
   ['p99 мс', 9],
   ['max мс', 9],
   ['ошибок', 7],
-  ['к fastify', 10],
+  [`к ${REFERENCE}`, 10],
 ] as const;
 
 function header(): string {
@@ -227,6 +234,16 @@ function row(name: string, value: Measurement, ratio: number | undefined): strin
 /** Результаты: сервер → сценарий → замер */
 type Results = Map<string, Map<string, Measurement>>;
 
+/**
+ * Прогон с медианным req/s. При чётном числе прогонов берётся нижний из
+ * двух средних: усреднять латентности разных прогонов нельзя.
+ */
+function median(runs: Measurement[]): Measurement {
+  const sorted = [...runs].sort((a, b) => a.rps - b.rps);
+
+  return sorted[Math.floor((sorted.length - 1) / 2)];
+}
+
 function ratioTo(
   results: Results,
   server: string,
@@ -244,7 +261,7 @@ function printSummary(results: Results): void {
   const servers = [...results.keys()];
 
   if (MARKDOWN) {
-    const head = scenarios.flatMap((s) => [`${s.name}, req/s`, 'к fastify']);
+    const head = scenarios.flatMap((s) => [`${s.name}, req/s`, `к ${REFERENCE}`]);
     console.log(`| сервер | ${head.join(' | ')} |`);
     console.log(`|---|${head.map(() => '---:').join('|')}|`);
     for (const server of servers) {
@@ -261,10 +278,10 @@ function printSummary(results: Results): void {
     return;
   }
 
-  console.log('Сводка (среднее req/s и отношение к fastify)');
-  const titles = scenarios.flatMap((s) => [s.name, 'к fastify']);
+  console.log(`Сводка (среднее req/s и отношение к ${REFERENCE})`);
+  const titles = scenarios.flatMap((s) => [s.name, `к ${REFERENCE}`]);
   console.log(
-    'сервер'.padEnd(10) + titles.map((t) => t.padStart(16)).join(''),
+    'сервер'.padEnd(14) + titles.map((t) => t.padStart(16)).join(''),
   );
   for (const server of servers) {
     const cells = scenarios.flatMap((s) => {
@@ -275,29 +292,43 @@ function printSummary(results: Results): void {
         ratio === undefined ? '—' : ratio.toFixed(2),
       ];
     });
-    console.log(server.padEnd(10) + cells.map((c) => c.padStart(16)).join(''));
+    console.log(server.padEnd(14) + cells.map((c) => c.padStart(16)).join(''));
   }
 }
 
 async function main(): Promise<void> {
-  const results: Results = new Map();
+  /** Все прогоны: сервер → сценарий → замеры по раундам */
+  const runs = new Map<string, Map<string, Measurement[]>>();
   const versions = new Set<string>();
 
-  for (const name of SELECTED) {
-    const server = await spawnServer(name);
-    versions.add(server.version);
-    const own = new Map<string, Measurement>();
-    results.set(name, own);
+  for (let round = 0; round < ROUNDS; round++) {
+    for (const name of SELECTED) {
+      const server = await spawnServer(name);
+      versions.add(server.version);
+      const own = runs.get(name) ?? new Map<string, Measurement[]>();
+      runs.set(name, own);
 
-    try {
-      for (const scenario of scenarios) {
-        await warmup(server.url, scenario);
-        own.set(scenario.name, await measure(server.url, scenario));
+      try {
+        for (const scenario of scenarios) {
+          await warmup(server.url, scenario);
+          const measured = await measure(server.url, scenario);
+          own.set(scenario.name, [
+            ...(own.get(scenario.name) ?? []),
+            measured,
+          ]);
+        }
+      } finally {
+        await server.stop();
       }
-    } finally {
-      await server.stop();
     }
   }
+
+  const results: Results = new Map(
+    [...runs].map(([name, own]) => [
+      name,
+      new Map([...own].map(([scenario, list]) => [scenario, median(list)])),
+    ]),
+  );
 
   console.log('Условия замера');
   console.log(`  дата:     ${new Date().toISOString().slice(0, 10)}`);
@@ -305,6 +336,7 @@ async function main(): Promise<void> {
   console.log(`  ос:       ${platform()} ${release()} ${arch()}`);
   console.log(`  cpu:      ${cpus()[0]?.model ?? 'unknown'} × ${cpus().length}`);
   console.log(`  нагрузка: ${CONNECTIONS} соединений, ${DURATION} c, сервер в отдельном процессе`);
+  console.log(`  прогонов: ${ROUNDS}${ROUNDS > 1 ? ', в отчёте прогон с медианным req/s' : ''}`);
   console.log('');
 
   for (const scenario of scenarios) {

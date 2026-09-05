@@ -358,11 +358,9 @@ new HttpTransport({
 Таймауты, не заданные явно, берут значения по умолчанию из Node.
 `close({ timeout })` принимает разовое значение вместо `closeTimeout`.
 
-Рекомендуемая версия Node — 24. В Node 22 контекст запроса
-(`AsyncLocalStorage` в `@nestling/pipeline`) стоит около 14% пропускной
-способности; флаг `--experimental-async-context-frame` убирает эту
-цену. Замер относительно Fastify — `yarn bench:http`, результат в записи
-ideas.md [2026-09-05].
+Пакет рассчитан на Node 24. Замер относительно Fastify, Hono и Express —
+`yarn bench:http`; результат и разбор разницы — `scripts/bench/README.md`
+и запись ideas.md [2026-09-05].
 
 ## Границы пакета
 

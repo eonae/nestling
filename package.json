@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Lightweight replacement for Nest.js with ECMAScript decorators and other nice simplifications",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "workspaces": [
     "packages/*"
