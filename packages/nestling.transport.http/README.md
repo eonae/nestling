@@ -6,9 +6,10 @@ multipart через `busboy`) и выбор формата ответа по т
 NDJSON для `stream(T)`, SSE для `events(T)`.
 
 > 🚧 Активная разработка, API может меняться. CORS, ограничение частоты
-> запросов и сжатие пока не реализованы. Валидатора среди зависимостей нет:
-> транспорт проверяет данные через `@nestling/pipeline` любой схемой
-> [Standard Schema](https://standardschema.dev).
+> запросов и сжатие пока не реализованы. Валидатор для схем приложения
+> пакет не выбирает: данные проверяет `@nestling/pipeline` любой схемой
+> [Standard Schema](https://standardschema.dev). Пакет `zod` в
+> зависимостях нужен только конфиг-секции (`HTTP_PORT`, `HTTP_HOST`).
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
 > Гайды: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
 > [глава 5. Хендлеру нужен репозиторий](../../docs/guide/05-repository.md),
@@ -333,8 +334,9 @@ await makeApp({ features: [UsersFeature], transports: [http({ port: 3000 })] }).
 | `httpBindingOf(definition)` | bind-карта декларации |
 | `httpCodeOf(status)` | HTTP-код для статуса успеха или категории отказа |
 | `httpConfigKeys` | ключи секции конфига `HTTP_PORT`, `HTTP_HOST` |
+| `HTTP_CAPABILITIES` | формы io транспорта; их же отдаёт `HttpTransport.capabilities` |
 | `PathParams<Path>` | тип имён `:param` из шаблона пути |
-| `JsonParseError`, `PayloadTooLargeError`, `ChunkTooLargeError`, `MultipartFieldError` | ошибки разбора запроса |
+| `JsonParseError`, `PayloadTooLargeError`, `MultipartFieldError` | ошибки разбора запроса |
 
 ### Опции `HttpTransport`
 
@@ -358,5 +360,48 @@ new HttpTransport({
 
 ## Границы пакета
 
-Пакет не реализует CORS, сжатие и ограничение частоты запросов; `events`
-на входе и `multipart` на выходе не поддерживаются.
+Пакет обещает:
+
+- **HTTP/1.1 поверх `node:http`.** Стороннего HTTP-сервера под капотом
+  нет.
+- **Формы io.** На входе `value`, `stream` и `multipart`; на выходе
+  `value`, `stream` и `events`.
+- **`rawBody`.** Байты запроса попадают в стартовый контекст одним
+  чтением, из них же разбирается значение.
+- **Лимиты тела и файлов.** `maxBodySize` ограничивает буферизуемое тело
+  и строку NDJSON, `upload({ maxSize, mime })` — файл multipart.
+- **Таймауты `node:http`.** `requestTimeout`, `headersTimeout` и
+  `keepAliveTimeout` задаются опциями транспорта.
+- **Дренаж соединений при остановке.** `close()` ждёт активные запросы до
+  `closeTimeout`, затем закрывает оставшиеся соединения.
+- **Адрес из секции конфига.** Порт и хост приходят из `HTTP_PORT` и
+  `HTTP_HOST`; фактический адрес после старта даёт `address()`.
+
+В пакет не входят:
+
+- **HTTP/2 и WebSocket.** Их берёт на себя обратный прокси перед сервисом
+  или отдельный транспорт.
+- **TLS-терминация.** Её берёт на себя обратный прокси.
+- **`events` на входе и `multipart` на выходе.** Декларация с такой
+  формой отвергается на сборке, до открытия сокета.
+
+CORS, сжатие и ограничение частоты запросов пока не реализованы.
+
+### Байтовые части — публичная поверхность
+
+Транспорт поверх другого HTTP-сервера собирается из экспортов пакета и
+не трогает ни его, ни ядро:
+
+| Часть | Экспорт |
+|---|---|
+| разбор тела по форме io | `readBody`, `parseJson`, `parseRaw`, `parseNdjson`, `parseMultipartForm` |
+| чтение bind-карты | `httpBindingOf`, `readQuery`, `assemblePayload`, `bindingNeedsBody` |
+| таблица статусов | `httpCodeOf` |
+| кадрирование NDJSON и SSE | `sendResponse` |
+| формы io транспорта | `HTTP_CAPABILITIES` |
+| поиск маршрута | `HttpRouter` |
+
+Рабочий пример такого транспорта — `src/satellite.integration.spec.ts`:
+он поднимает свой `node:http`-сервер и отвечает на `GET` и `POST` тем же,
+чем `HttpTransport`. Не хватает части — добавляется экспорт, а не
+обходной код у автора транспорта.
