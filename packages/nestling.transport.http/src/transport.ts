@@ -126,8 +126,12 @@ export interface HttpTransportOptions {
  * `events` на входе нет: клиентский поток событий — задача
  * WebSocket-транспорта. `multipart` на выходе нет: эта форма только
  * входная.
+ *
+ * Это же значение отдаёт `HttpTransport.capabilities`. Транспорт поверх
+ * другого HTTP-сервера объявляет свои формы им, а не повторяет литерал:
+ * копия разошлась бы с пакетом при следующей правке.
  */
-const HTTP_CAPABILITIES: TransportCapabilities = {
+export const HTTP_CAPABILITIES: TransportCapabilities = {
   input: new Set(['value', 'stream', 'multipart']),
   output: new Set(['value', 'stream', 'events']),
 };
