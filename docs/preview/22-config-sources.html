@@ -102,7 +102,7 @@
 
 <h1>22. Конфиг из файла и без перезапуска</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.container</code> (2026-09-04).
+<p>Гайд по текущему API; сверено с кодом <code>container</code> (2026-09-05).
 Целевое описание: <a href="../design/config.md">design/config.md</a>, разделы 2–6.
 Почему так: записи <a href="../decisions/ideas.md">ideas.md</a> «Конфиг:
 keys-capability вместо <code>configs:</code>-владения» [2026-07-10] и «Конфиг:
@@ -116,7 +116,7 @@ keys-capability вместо <code>configs:</code>-владения» [2026-07-1
 невалидном конфиге описаны в главе <a href="06-config.html">6</a>. Здесь только то,
 что появляется сверх этого.</p>
 <h2 id="источник-привязанный-к-ключам-секции">Источник, привязанный к ключам секции</h2>
-<div class="code" data-file="packages/examples.container/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/main.ts
+<div class="code" data-file="examples/container/src/main.ts" data-lang="typescript"><pre><code>// examples/container/src/main.ts
 const app = makeApp({
   features: [AppFeature],
   plugins: [appLogging],
@@ -156,7 +156,7 @@ await app.close();</code></pre></div>
 источников читалось каждое значение.</p>
 <p>Тот же список принимает <code>configKernel()</code> при сборке контейнера без
 <code>makeApp</code>, через <code>ContainerBuilder</code>:</p>
-<div class="code" data-file="packages/examples.container/src/container.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/container.ts
+<div class="code" data-file="examples/container/src/container.ts" data-lang="typescript"><pre><code>// examples/container/src/container.ts
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise&lt;BuiltContainer&gt; =&gt; {
@@ -177,7 +177,7 @@ export const makeContainer = async (
 регистрирует сама сборка. Плагин логирования регистрируется своими
 модулями: <code>appLogging.modules</code> — обычный массив значений.</p>
 <h2 id="право-привязки-вместо-секции">Право привязки вместо секции</h2>
-<div class="code" data-file="packages/examples.container/src/config/app.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/config/app.config.ts
+<div class="code" data-file="examples/container/src/config/app.config.ts" data-lang="typescript"><pre><code>// examples/container/src/config/app.config.ts
 export const AppConfig = makeConfig('app', {
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   databaseUrl: secret(
@@ -186,7 +186,7 @@ export const AppConfig = makeConfig('app', {
 });
 
 export const appConfigKeys = AppConfig.keys;</code></pre></div>
-<div class="code" data-file="packages/examples.container/src/config/index.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/config/index.ts
+<div class="code" data-file="examples/container/src/config/index.ts" data-lang="typescript"><pre><code>// examples/container/src/config/index.ts
 export { appConfigKeys } from './app.config.js';</code></pre></div>
 <p>С секцией связаны два права. Токен секции даёт право читать её: кто
 импортировал <code>AppConfig</code>, тот может указать его в <code>deps</code>. <code>AppConfig.keys</code>
@@ -195,7 +195,7 @@ export { appConfigKeys } from './app.config.js';</code></pre></div>
 читать. Поэтому из папки конфига наружу уходит только <code>appConfigKeys</code>, а
 токен секции импортируют по прямому пути внутри приложения.</p>
 <h2 id="общий-ключ-у-двух-секций">Общий ключ у двух секций</h2>
-<div class="code" data-file="packages/examples.container/src/health/health.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/health/health.config.ts
+<div class="code" data-file="examples/container/src/health/health.config.ts" data-lang="typescript"><pre><code>// examples/container/src/health/health.config.ts
 export const HealthConfig = makeConfig('health', {
   databaseUrl: from(
     'DATABASE_URL',
@@ -217,7 +217,7 @@ export const HealthConfig = makeConfig('health', {
 </ul>
 <p>Кто читает ключ, показывает <code>describeConfig()</code>. Снимок строится по
 объявленным секциям и не обращается к источникам:</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.container/src/config/secrets.spec.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/container/src/config/secrets.spec.ts (фрагмент)
     const entry = describeConfig().keys.find(
       (item) =&gt; item.key === 'DATABASE_URL',
     );
@@ -228,7 +228,7 @@ export const HealthConfig = makeConfig('health', {
       'health',
     ]);</code></pre></div>
 <h2 id="значения-без-перезапуска">Значения без перезапуска</h2>
-<div class="code" data-file="packages/examples.container/src/runtime/runtime.config.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/runtime.config.ts
+<div class="code" data-file="examples/container/src/runtime/runtime.config.ts" data-lang="typescript"><pre><code>// examples/container/src/runtime/runtime.config.ts
 export const RuntimeConfig = makeConfig.reloadable('runtime', {
   rps: z.coerce.number().int().positive().default(100),
 });
@@ -238,7 +238,7 @@ export const runtimeConfigKeys = RuntimeConfig.keys;</code></pre></div>
 месте. Объект секции не пересоздаётся: ссылка, полученная в конструкторе,
 остаётся рабочей, а чтение поля отдаёт последнее валидное значение. Поле
 с именем <code>onChange</code> в такой секции запрещено: это имя занято подпиской.</p>
-<div class="code" data-file="packages/examples.container/src/runtime/rate-limiter.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/rate-limiter.ts
+<div class="code" data-file="examples/container/src/runtime/rate-limiter.ts" data-lang="typescript"><pre><code>// examples/container/src/runtime/rate-limiter.ts
 @Injectable([RuntimeConfig, Logger.auto])
 export class RateLimiter {
   /** Значения `rps`, пришедшие через `onChange` */
@@ -287,7 +287,7 @@ export class RateLimiter {
 </ul>
 <h2 id="проверка">Проверка</h2>
 <p>Тест собирает контейнер с источником, который потом меняет:</p>
-<div class="code" data-file="packages/examples.container/src/runtime/reload.spec.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/reload.spec.ts
+<div class="code" data-file="examples/container/src/runtime/reload.spec.ts" data-lang="typescript"><pre><code>// examples/container/src/runtime/reload.spec.ts
   it('отдаёт новое значение после обновления источника', async () =&gt; {
     source.set('RUNTIME_RPS', '20');
     await settle();
@@ -309,8 +309,8 @@ export class RateLimiter {
 <p>Секреты и общий ключ проверяет <code>config/secrets.spec.ts</code>: печать секции
 <code>health</code> равна <code>{&quot;databaseUrl&quot;:&quot;***&quot;}</code>, а чтение поля отдаёт настоящий
 адрес.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.container start:dev
-yarn workspace examples.container test</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/container start:dev
+yarn workspace @examples/container test</code></pre></div>
 <p>Эксплуатационные endpoint'ы: кто сейчас подключён к сервису и как
 завершить подписку. Глава <a href="23-ops.html">23</a>.</p>
 

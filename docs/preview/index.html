@@ -125,9 +125,9 @@
 примеры, собраны в <a href="../conventions.md">conventions.md</a>. Часть 3 нужна, когда областей в приложении
 становится больше одной. Часть 4 нужна, когда одного процесса мало.
 Часть 5 читается по потребности: каждая её глава самостоятельна.</p>
-<p>Код всех глав лежит в <code>packages/examples.*</code>. Части 1 и 2 собирают
-<code>examples.users-service</code>, части 3 и 4 продолжают его в
-<code>examples.app-with-http</code> и <code>examples.split-nats</code>. Сниппет в главе
+<p>Код всех глав лежит в <code>examples/*</code>. Части 1 и 2 собирают
+<code>users-service</code>, части 3 и 4 продолжают его в
+<code>app-with-http</code> и <code>split-nats</code>. Сниппет в главе
 начинается с пути к файлу примера и совпадает с ним. Сниппет, который
 показывает промежуточный шаг, помечен комментарием «шаг главы»; итоговая
 версия файла названа рядом.</p>
@@ -395,37 +395,37 @@
 <tr>
 <td><a href="01-first-service.html">1. Поднять сервис, который отвечает на запрос</a></td>
 <td>endpoint, фича, <code>makeApp</code>, транспорт <code>http()</code></td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="02-input.html">2. Принять данные и не пропустить мусор</a></td>
 <td>схема <code>input</code>, path и query, <code>bind</code>, ответ <code>400</code></td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="03-errors.html">3. Сказать клиенту, что пошло не так</a></td>
 <td><code>makeFail</code>, код с категорией, <code>errors:</code>, <code>Ok.created</code></td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="04-handler-class.html">4. Хендлер как класс</a></td>
 <td>поле <code>handler</code>, <code>@Injectable</code>, юнит-тест через <code>new</code></td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="05-repository.html">5. Откуда хендлер берёт репозиторий</a></td>
 <td>токен интерфейса, <code>providers</code>, <code>@OnInit</code>, значения-провайдеры</td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="06-config.html">6. Порт и адрес базы из окружения</a></td>
 <td><code>makeConfig</code>, ключи, <code>secret</code>, fail-fast</td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="07-testing.html">7. Убедиться, что работает, без запуска сервера</a></td>
 <td><code>assembleTest(app, …)</code>, <code>overrides</code>, <code>vars</code>, юнит-тест хендлера</td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 </tbody>
 </table>
@@ -444,22 +444,22 @@
 <tr>
 <td><a href="08-logging.html">8. Видеть каждый запрос в логе</a></td>
 <td>пайплайн <code>.pre</code> и <code>.finally</code>, слой, <code>compose</code>, <code>Ctx(RequestId)</code></td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="09-auth.html">9. Пускать только своих</a></td>
 <td>pre-юнит с отказом, контекст слоя, политики <code>hasLayer</code> и <code>hasVar</code>, <code>detached</code></td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="10-files-and-streams.html">10. Файлы и большие выгрузки</a></td>
 <td><code>multipart</code>, <code>upload</code>, <code>stream(T)</code> на входе и выходе</td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 <tr>
 <td><a href="11-openapi-and-client.html">11. Отдать фронтенду документацию и клиент</a></td>
 <td><code>openapi()</code>, <code>doc:</code>, операция с <code>http:</code>, <code>makeClient</code></td>
-<td><code>examples.users-service</code></td>
+<td><code>users-service</code></td>
 </tr>
 </tbody>
 </table>
@@ -478,22 +478,22 @@
 <tr>
 <td><a href="12-features.html">12. Выделить вторую область</a></td>
 <td>граница фич, операция <code>request</code>, <code>implement</code>, <code>.caller</code>, плагины, модули</td>
-<td><code>examples.app-with-http</code></td>
+<td><code>app-with-http</code></td>
 </tr>
 <tr>
 <td><a href="13-events.html">13. Оповещать соседей о случившемся</a></td>
 <td><code>event</code>, <code>command</code>, <code>subscriber</code>, ключ идемпотентности</td>
-<td><code>examples.app-with-http</code></td>
+<td><code>app-with-http</code></td>
 </tr>
 <tr>
 <td><a href="14-live-feed.html">14. Живая лента для клиента</a></td>
 <td><code>events(T)</code>, <code>sse:</code>, <code>Topic</code>, <code>AbortSignal</code></td>
-<td><code>examples.app-with-http</code></td>
+<td><code>app-with-http</code></td>
 </tr>
 <tr>
 <td><a href="15-testing-features.html">15. Тестировать фичу без соседей</a></td>
 <td><code>stubs</code>, <code>testApp.emit</code>, <code>contextValue</code>, <code>checkTopologies</code></td>
-<td><code>examples.app-with-http</code>, <code>examples.split-nats</code></td>
+<td><code>app-with-http</code>, <code>split-nats</code></td>
 </tr>
 </tbody>
 </table>
@@ -512,17 +512,17 @@
 <tr>
 <td><a href="16-select.html">16. Запускать только часть фич</a></td>
 <td><code>assemble(select)</code>, <code>includeDeps</code>, <code>load()</code> до сборки, <code>check()</code></td>
-<td><code>examples.app-with-http</code></td>
+<td><code>app-with-http</code></td>
 </tr>
 <tr>
 <td><a href="17-split.html">17. Разнести фичи по процессам</a></td>
 <td><code>nats()</code>, <code>intercom</code>, <code>durable</code>, <code>propagate</code></td>
-<td><code>examples.split-nats</code></td>
+<td><code>split-nats</code></td>
 </tr>
 <tr>
 <td><a href="18-compatibility.html">18. Не сломать соседей при изменении операции</a></td>
 <td>версия в имени, снапшот операций, <code>diffOperations</code></td>
-<td><code>examples.app-with-http</code></td>
+<td><code>app-with-http</code></td>
 </tr>
 </tbody>
 </table>
@@ -541,32 +541,32 @@
 <tr>
 <td><a href="19-webhook.html">19. Webhook с проверкой подписи</a></td>
 <td><code>rawBody</code>, требование слоя к стартовому контексту</td>
-<td><code>examples.app-with-http</code></td>
+<td><code>app-with-http</code></td>
 </tr>
 <tr>
 <td><a href="20-cli.html">20. CLI-утилита на тех же примитивах</a></td>
 <td><code>cliEndpoint</code>, <code>cli()</code>, argv и REPL, поток из stdin</td>
-<td><code>examples.simple-cli</code></td>
+<td><code>simple-cli</code></td>
 </tr>
 <tr>
 <td><a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a></td>
 <td>семейства токенов, <code>.auto</code>, <code>.all</code>, <code>familyProvider</code></td>
-<td><code>examples.container</code></td>
+<td><code>container</code></td>
 </tr>
 <tr>
 <td><a href="22-config-sources.html">22. Конфиг из файла и без перезапуска</a></td>
 <td>источники и привязка, <code>.keys</code>, общие ключи, <code>reloadable</code></td>
-<td><code>examples.container</code></td>
+<td><code>container</code></td>
 </tr>
 <tr>
 <td><a href="23-ops.html">23. Кто сейчас подключён и как его отключить</a></td>
 <td>реестр подписок, <code>tracked</code>, административные endpoint'ы</td>
-<td><code>examples.app-with-http</code></td>
+<td><code>app-with-http</code></td>
 </tr>
 <tr>
 <td><a href="24-standalone.html">24. Без <code>makeApp</code></a></td>
 <td><code>makeDispatch</code>, <code>serve</code>, <code>ContainerBuilder</code></td>
-<td><code>examples.simple-http-server</code>, <code>examples.container</code></td>
+<td><code>simple-http-server</code>, <code>container</code></td>
 </tr>
 <tr>
 <td><a href="25-extending.html">25. Расширить ядро своим пакетом</a></td>

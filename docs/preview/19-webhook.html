@@ -101,7 +101,7 @@
 
 <h1>19. Webhook с проверкой подписи</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a>, раздел
 «Сырые байты: <code>rawBody</code>». Почему так: запись
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-13] Канонизация HTTP-input:
@@ -115,13 +115,13 @@
 внешней системы нет, поэтому политика «каждый <code>POST</code> проверяет токен» из
 <a href="09-auth.html">главы 9</a> к этому endpoint'у не применима.</p>
 <h2 id="отказ-и-секрет-подписи">Отказ и секрет подписи</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/users.errors.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/users.errors.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/users.errors.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/users.errors.ts
 export const InvalidSignature = makeFail('unauthorized:invalid_signature', {
   message: 'Webhook signature does not match the body',
 });</code></pre></div>
 <p>Отказ объявлен так же, как остальные отказы фичи. Статус <code>unauthorized</code>
 транспорт переводит в <code>401</code>.</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.config.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.config.ts (фрагмент)
 export const AppConfig = makeConfig('app', {
   // …
   webhookSecret: secret(from('WEBHOOK_SECRET', z.string().min(1))),
@@ -130,7 +130,7 @@ export const AppConfig = makeConfig('app', {
 приложение не стартует. <code>secret()</code> скрывает значение в печати секции и в
 тексте ошибок, как в <a href="06-config.html">главе 6</a>.</p>
 <h2 id="pre-юнит-который-проверяет-подпись">Pre-юнит, который проверяет подпись</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts (фрагмент)
 import { createHmac, timingSafeEqual } from 'node:crypto';
 // …
 
@@ -166,7 +166,7 @@ export class VerifySignature {
 байте подписи расхождение. При несовпадении юнит бросает отказ, и хендлер
 не вызывается.</p>
 <h2 id="декларация-с-rawbody-true">Декларация с <code>rawBody: true</code></h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
 @Injectable([UsersRepository$])
 class UserWebhookHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -226,7 +226,7 @@ hint: "declare 'rawBody: true', or provide the fields from an outer layer"</code
 <h2 id="запросы-и-проверка">Запросы и проверка</h2>
 <p>Подпись считается тем же алгоритмом, что в юните: HMAC-SHA256 от байтов
 тела, в hex.</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 
 body='{"type":"user.deleted","userId":"2"}'
 sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac hook | sed 's/^.* //')
@@ -247,7 +247,7 @@ curl localhost:3000/users/2
 <p>Проверка подписи зависит от байтов тела, поэтому тест идёт по сети, а не
 через <code>testApp.call</code>: app-тест принимает готовый payload и тело не
 сериализует.</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/e2e/webhook.spec.e2e.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/e2e/webhook.spec.e2e.ts (фрагмент)
 const sign = (body: string, secret = E2E_WEBHOOK_SECRET): string =&gt;
   createHmac('sha256', secret).update(body).digest('hex');
 
@@ -281,7 +281,7 @@ it('отклоняет тело с чужой подписью', async () =&gt; 
 });</code></pre></div>
 <p>Секрет в e2e-сборке привязан источником к ключам секции
 (<code>e2e/helpers/create-test-app.ts</code>), <code>process.env</code> тест не трогает.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.app-with-http test:e2e</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/app-with-http test:e2e</code></pre></div>
 <p>Те же декларации и пайплайн работают и в командной строке: <a href="20-cli.html">20.
 CLI-утилита на тех же примитивах</a>.</p>
 

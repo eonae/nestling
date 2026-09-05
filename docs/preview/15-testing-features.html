@@ -101,7 +101,7 @@
 
 <h1>15. Тестировать фичу без соседей</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code>, <code>examples.split-nats</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>app-with-http</code>, <code>split-nats</code> (2026-09-05).
 Целевое описание: <a href="../design/testing.md">design/testing.md</a> §3 и §4.
 Почему так: запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-10] Пакет
 тестирования (<code>@nestling/testing</code>)».</p>
@@ -113,7 +113,7 @@
 <p>Основа из главы <a href="07-testing.html">7</a> считается известной: <code>assembleTest</code>,
 <code>testApp.call</code>, <code>unwrap</code>, <code>overrides</code> и <code>vars</code>.</p>
 <h2 id="соберите-одну-фичу-без-соседей">Соберите одну фичу без соседей</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/split-nats/src/isolated.spec.ts (фрагмент)
 const isolated = makeApp({ features: [UsersFeature, QuotasFeature] });
 
 await using testApp = await assembleTest(isolated, { select: 'users' });</code></pre></div>
@@ -131,7 +131,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 владельца операции. В сборке из одной фичи владельца нет, и его место
 занимает стаб.</p>
 <h2 id="стабы-вместо-соседних-операций">Стабы вместо соседних операций</h2>
-<div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
+<div class="code" data-file="examples/split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// examples/split-nats/src/isolated.spec.ts
   it('регистрирует пользователя через стабы соседних операций', async () =&gt; {
     const claimed: { email: string }[] = [];
     const registered: { id: string; email: string }[] = [];
@@ -177,7 +177,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 }</code></pre></div>
 <p>Отказ из стаба обязан входить в <code>errors:</code> операции. Объявленный отказ
 проходит как есть, так же, как пришёл бы от настоящего владельца:</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/split-nats/src/isolated.spec.ts (фрагмент)
       stubs: [
         // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
         // есть, так же, как настоящий владелец по сети
@@ -191,7 +191,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 Исчерпанный <code>deadline</code> даёт <code>timeout</code> до вызова <code>impl</code>, а <code>emit</code> команды
 всегда несёт <code>idempotencyKey</code>, как у боевого порта.</p>
 <h2 id="вызов-и-проверка-через-матрицу-топологий">Вызов и проверка через матрицу топологий</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/split-nats/src/isolated.spec.ts (фрагмент)
     const [{ subscriber, response }] = await testApp.emit(RegisterUser, {
       email: 'alice@example.com',
     });
@@ -214,7 +214,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 <p>Стаб делает тестовый граф меньше боевого: операцию, которую никто не
 реализует, стаб скроет. Поэтому рядом со стабами стоит проверка честного
 графа:</p>
-<div class="code" data-file="packages/examples.split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// packages/examples.split-nats/src/isolated.spec.ts
+<div class="code" data-file="examples/split-nats/src/isolated.spec.ts" data-lang="typescript"><pre><code>// examples/split-nats/src/isolated.spec.ts
   it('каждая застабанная операция реализована в одной из топологий', async () =&gt; {
     await using testApp = await assembleTest(isolated, {
       select: 'users',
@@ -246,7 +246,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 <a href="08-logging.html">8</a>. Ридер является узлом графа, поэтому подменяется тем
 же списком <code>overrides</code>. <code>contextValue(Variable, value)</code> даёт ридер с
 постоянным значением:</p>
-<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+<div class="code" data-file="examples/app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.spec.ts
   it('contextValue подставляет значение переменной в тестовом корне', async () =&gt; {
     const spy = spyLogger();
     await using testApp = await assembleTest(app, {
@@ -261,7 +261,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 <p>Слой <code>observability</code> по-прежнему кладёт свой <code>requestId</code> в контекст, но
 сервис читает подставленное значение. Семейство токенов целиком
 подменяет <code>familyOverride(Family, make)</code> в том же списке <code>overrides</code>.</p>
-<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+<div class="code" data-file="examples/app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () =&gt; {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
@@ -290,8 +290,8 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 одной фичи, стабы с успехом и с отказом, <code>testApp.emit</code> и сверка
 <code>testApp.stubbed</code> с матрицей. Тесты <code>contextValue</code> и состава графа лежат
 в <code>app.spec.ts</code> примера <code>app-with-http</code>.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.split-nats test
-yarn workspace examples.app-with-http test</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/split-nats test
+yarn workspace @examples/app-with-http test</code></pre></div>
 <p>Приложение в проде собирается так же, по частям: <a href="16-select.html">16. Запускать только
 часть фич</a>.</p>
 

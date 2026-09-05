@@ -100,7 +100,7 @@
 
 <h1>18. Не сломать соседей при изменении операции</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/operations.md">design/operations.md</a> §1.6 и
 §1.7. Почему так: запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-31]
 Версионирование контрактов: снапшот, вердикт по слоту,
@@ -116,7 +116,7 @@
 новую. Суффикс <code>.vN</code> фреймворк не требует и не разбирает, имя без версии
 допустимо.</p>
 <h2 id="снапшот-операций-сборки">Снапшот операций сборки</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/operations.compat.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.compat.spec.ts
+<div class="code" data-file="examples/app-with-http/src/operations.compat.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/operations.compat.spec.ts
 /**
  * Та же декларация с секретами из объекта: `check()` собирает граф, и
  * секция читается
@@ -172,7 +172,7 @@ OpenAPI в главе <a href="11-openapi-and-client.html">11</a>. Без кон
 публикует: операция, объявленная, но не реализованная ни в одной
 топологии, в снапшот не попадает. Каждая опубликованная операция помнит,
 какие топологии её опубликовали:</p>
-<div class="code" data-lang="json"><pre><code>// packages/examples.app-with-http/operations.snapshot.json (фрагмент)
+<div class="code" data-lang="json"><pre><code>// examples/app-with-http/operations.snapshot.json (фрагмент)
 {
   "snapshotVersion": 1,
   "operations": [
@@ -209,7 +209,7 @@ Schema отсортированы. Один и тот же граф даёт п�
 файл, поэтому расхождение файла со сборкой означает изменение операций, а
 не порядка сериализации.</p>
 <h2 id="сравнение-с-baseline-и-вердикты">Сравнение с baseline и вердикты</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/operations.compat.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.compat.spec.ts
+<div class="code" data-file="examples/app-with-http/src/operations.compat.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/operations.compat.spec.ts
   it('текущая сборка совпадает с опубликованным снапшотом', async () =&gt; {
     const current = await currentSnapshot();
 
@@ -254,7 +254,7 @@ Schema отсортированы. Один и тот же граф даёт п�
 <p>Третий тест файла правит baseline, а не код: добавляет в <code>output</code>
 операции <code>quotas.claim</code> обязательное поле <code>reservedUntil</code>. Так выглядел
 бы снапшот до изменения, которым это поле убрали:</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.compat.spec.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/operations.compat.spec.ts (фрагмент)
     const report = diffOperations(baseline, current);
 
     expect(report.breaking).toMatchObject([
@@ -281,7 +281,7 @@ Schema отсортированы. Один и тот же граф даёт п�
 <p>Совместимое изменение, например новое необязательное поле в <code>output</code>,
 даёт вердикт <code>additive</code>. Тест на него тоже падает, и это ожидаемый шаг:
 перезапишите снапшот и закоммитьте его вместе с изменением операции.</p>
-<div class="code" data-lang="bash"><pre><code>UPDATE_SNAPSHOT=1 yarn workspace examples.app-with-http test src/operations.compat.spec.ts</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>UPDATE_SNAPSHOT=1 yarn workspace @examples/app-with-http test src/operations.compat.spec.ts</code></pre></div>
 <p>Несовместимое изменение делается через новое имя. Объявите
 <code>quotas.claim.v2</code> рядом с <code>quotas.claim</code>, реализуйте обе операции в фиче
 <code>quotas</code>, переведите вызывающих на новую и удалите старую, когда
@@ -289,7 +289,7 @@ Schema отсортированы. Один и тот же граф даёт п�
 появляется операция, потом исчезает старая. Удаление операции из снапшота
 тест этого примера тоже считает ошибкой, потому что <code>diffOperations</code>
 относит его к <code>breaking</code>.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.app-with-http test src/operations.compat.spec.ts</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/app-with-http test src/operations.compat.spec.ts</code></pre></div>
 <p>Часть 4 закончена, а часть 5 читается по потребности — начиная с
 webhook'а с проверкой подписи: <a href="19-webhook.html">19. Webhook с проверкой
 подписи</a>.</p>

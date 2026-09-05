@@ -103,7 +103,7 @@
 
 <h1>Приложение А. Альтернативные формы</h1>
 <blockquote>
-<p>Каждая форма показана в одном месте примера <code>examples.app-with-http</code> (2026-09-05).</p>
+<p>Каждая форма показана в одном месте примера <code>app-with-http</code> (2026-09-05).</p>
 </blockquote>
 <p>Главы гайда используют одну форму записи для каждой задачи. Фреймворк
 допускает и другие. Здесь они собраны в одном месте: где показана
@@ -165,7 +165,7 @@
 </table>
 </div>
 <h2 id="отказ-из-юнита">Отказ из юнита</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/plugins/auth/authenticate.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/plugins/auth/authenticate.ts
+<div class="code" data-file="examples/app-with-http/src/plugins/auth/authenticate.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/plugins/auth/authenticate.ts
     if (token === undefined || token !== this.config.apiToken) {
       return Unauthorized();
     }
@@ -210,7 +210,7 @@ makePipeline().pre(Authenticate, { errors: [Unauthorized] });</code></pre></div>
 бросок не видит, поэтому такой отказ обязан быть объявлен: незадекларированный
 рантайм заменит на <code>InternalError</code> (500).</p>
 <h2 id="слой-catch-с-проверкой-по-коду">Слой <code>.catch</code> с проверкой по коду</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
 @Injectable([Logger$])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
@@ -241,7 +241,7 @@ export class AuditDeletion {
 <p>Выбирайте <code>.ok</code>, когда заголовок или преобразование ответа нужны
 нескольким endpoint'ам и не должны повторяться в хендлерах.</p>
 <h2 id="oknocontent-и-okaccepted"><code>Ok.noContent()</code> и <code>Ok.accepted()</code></h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
     return removed ? Ok.noContent() : UserNotFound({ id: input.id });</code></pre></div>
 <p>Голое значение из хендлера отвечает <code>200</code>. <code>Ok.created(value, headers)</code>
 отвечает <code>201</code>, <code>Ok.noContent()</code> отвечает <code>204</code> без тела,
@@ -251,13 +251,13 @@ export class AuditDeletion {
 ответа; они не зависят от транспорта, и что с ними делать, решает
 транспорт.</p>
 <h2 id="providers-и-modules-у-фичи"><code>providers:</code> и <code>modules:</code> у фичи</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/quotas/quotas.feature.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+<div class="code" data-file="examples/app-with-http/src/features/quotas/quotas.feature.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/quotas/quotas.feature.ts
 export const QuotasFeature = makeFeature({
   name: 'quotas',
   providers: [QuotaService, SignupJournal],
   endpoints: [ClaimQuotaImpl, UserRegisteredInQuotas, SignupRecordedImpl],
 });</code></pre></div>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/users.feature.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/users.feature.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],

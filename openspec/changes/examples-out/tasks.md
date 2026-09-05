@@ -82,30 +82,30 @@
 
 ## 7. Проверка
 
-- [ ] 7.1 `grep -rn "packages/examples" .` не находит вхождений вне
+- [x] 7.1 `grep -rn "packages/examples" .` не находит вхождений вне
   `docs/history/`, `openspec/changes/archive/` и записей
   `docs/decisions/` — три намеренных исключения (design D5)
-- [ ] 7.2 `grep -rn "yarn workspace examples\."` не находит вхождений вне
+- [x] 7.2 `grep -rn "yarn workspace examples\."` не находит вхождений вне
   тех же трёх мест
-- [ ] 7.3 `yarn verify:fresh` зелёный — сборка, тайпчек, линт, тесты и
+- [x] 7.3 `yarn verify:fresh` зелёный — сборка, тайпчек, линт, тесты и
   type-budget без nx-кеша, плюс smoke по всем пакетам
-- [ ] 7.4 `yarn docs:preview` собирается без ошибок; выборочно открыта
+- [x] 7.4 `yarn docs:preview` собирается без ошибок; выборочно открыта
   страница главы с подписью сниппета — `data-file` содержит новый путь
-- [ ] 7.5 `yarn workspace @examples/users-service start:dev` поднимается
+- [x] 7.5 `yarn workspace @examples/users-service start:dev` поднимается
   (проверка, что имя пакета и скрипты живы)
 
 ## 8. Definition of Done
 
-- [ ] 8.1 Все задачи разделов 1–7 отмечены
-- [ ] 8.2 `yarn verify` зелёный (build + typecheck + lint + test +
+- [x] 8.1 Все задачи разделов 1–7 отмечены
+- [x] 8.2 `yarn verify` зелёный (build + typecheck + lint + test +
   type-budget по всем пакетам, smoke)
-- [ ] 8.3 README затронутых пакетов обновлены, включая плашки статуса:
+- [x] 8.3 README затронутых пакетов обновлены, включая плашки статуса:
   затронут только `packages/nestling.viz/README.md` (ссылка на пример),
   плашки статуса не меняются — состав и API пакетов те же
-- [ ] 8.4 `design/` и `decisions/` синхронизированы по правилам
+- [x] 8.4 `design/` и `decisions/` синхронизированы по правилам
   `CLAUDE.md`: `docs/design/composition.md` правится, `decisions/`
   получает только строку в `roadmap.md`
-- [ ] 8.5 `yarn docs:audit` — 0 ERROR
-- [ ] 8.6 Примеры мигрированы, главы гайда пересверены с обновлённой
+- [x] 8.5 `yarn docs:audit` — 0 ERROR
+- [x] 8.6 Примеры мигрированы, главы гайда пересверены с обновлённой
   датой в плашке «сверено с кодом»
 - [ ] 8.7 Коммиты осмысленные, ветка `change/examples-out` запушена

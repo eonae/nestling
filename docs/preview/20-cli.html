@@ -102,7 +102,7 @@
 
 <h1>20. CLI-утилита на тех же примитивах</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.simple-cli</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>simple-cli</code> (2026-09-05).
 Целевое описание: <a href="../design/transports.md">design/transports.md</a> §5,
 <a href="../design/endpoints.md">design/endpoints.md</a>. Почему так: запись
 <a href="../decisions/ideas.md">ideas.md</a> «Endpoint-декларации: per-transport
@@ -113,7 +113,7 @@
 статусом и кодом и форма <code>stream</code> работают так же, как в HTTP, без
 второго набора правил для командной строки.</p>
 <h2 id="команда-с-аргументами">Команда с аргументами</h2>
-<div class="code" data-file="packages/examples.simple-cli/src/commands/greet.command.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands/greet.command.ts
+<div class="code" data-file="examples/simple-cli/src/commands/greet.command.ts" data-lang="typescript"><pre><code>// examples/simple-cli/src/commands/greet.command.ts
 const GreetInput = z.object({
   args: z.array(z.string()).min(1, 'name is required'),
   shout: z.boolean().optional(),
@@ -145,14 +145,14 @@ export const Greet = cliEndpoint({
 <code>input</code> до вызова хендлера: обязательность имени задаёт
 <code>z.array(...).min(1)</code>, а команда <code>greet</code> без имени отвечает отказом
 <code>bad_request</code> с путём <code>args</code>, не вызывая хендлер.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-cli start:dev greet Alice --shout</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/simple-cli start:dev greet Alice --shout</code></pre></div>
 <div class="code" data-lang="json"><pre><code>{
   "greeting": "HELLO, ALICE!"
 }</code></pre></div>
 <p>Результат команды транспорт печатает в stdout как JSON. Хендлер не
 пишет в консоль сам.</p>
 <h2 id="команда-без-входа">Команда без входа</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands/help.command.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/simple-cli/src/commands/help.command.ts (фрагмент)
 export const Help = cliEndpoint({
   command: 'help',
   output: HelpOutput,
@@ -166,7 +166,7 @@ export const Help = cliEndpoint({
 сам, потому что это его вывод для человека, а результатом отдаёт
 подтверждение по схеме <code>output</code>.</p>
 <h2 id="поток-из-stdin">Поток из stdin</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands/process-stdin.command.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/simple-cli/src/commands/process-stdin.command.ts (фрагмент)
 export const ProcessStdin = cliEndpoint({
   command: 'process-stdin',
   input: stream('binary'),
@@ -194,7 +194,7 @@ export const ProcessStdin = cliEndpoint({
 Форма <code>stream(T)</code> со схемой читала бы stdin как NDJSON и проверяла бы
 каждую строку схемой, как в главе <a href="10-files-and-streams.html">10</a>, а
 потоковый <code>output</code> транспорт писал бы в stdout тем же NDJSON.</p>
-<div class="code" data-file="packages/examples.simple-cli/src/errors.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/errors.ts
+<div class="code" data-file="examples/simple-cli/src/errors.ts" data-lang="typescript"><pre><code>// examples/simple-cli/src/errors.ts
 export const EmptyStdin = makeFail('bad_request:empty_stdin', {
   message: 'No data received on stdin',
 });</code></pre></div>
@@ -203,7 +203,7 @@ export const EmptyStdin = makeFail('bad_request:empty_stdin', {
 необязательные <code>message</code> и <code>details</code>. Категория не зависит от
 транспорта: CLI печатает код как есть, HTTP перевело бы <code>bad_request</code> в
 400.</p>
-<div class="code" data-lang="bash"><pre><code>printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>printf "a\nb\n" | yarn workspace @examples/simple-cli start:dev process-stdin</code></pre></div>
 <div class="code"><pre><code>Processing: a
 Processing: b
 {
@@ -211,7 +211,7 @@ Processing: b
   "totalBytes": 4
 }</code></pre></div>
 <h2 id="транспорт-и-режимы-запуска">Транспорт и режимы запуска</h2>
-<div class="code" data-file="packages/examples.simple-cli/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/main.ts
+<div class="code" data-file="examples/simple-cli/src/main.ts" data-lang="typescript"><pre><code>// examples/simple-cli/src/main.ts
 const argv = process.argv.slice(2);
 
 const cli = new CliTransport({
@@ -249,7 +249,7 @@ async function main() {
 <h2 id="проверка">Проверка</h2>
 <p>Команды выполняются через <code>execute</code>: аргументы разбирает <code>parseArgv</code>,
 ответ приходит значением, stdout в этом пути не участвует.</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.simple-cli/src/commands.spec.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/simple-cli/src/commands.spec.ts (фрагмент)
 describe('команды через execute', () =&gt; {
   let cli: CliTransport;
 
@@ -292,8 +292,8 @@ describe('команды через execute', () =&gt; {
 напрямую, поэтому в тест через <code>execute</code> она не попала. Команда,
 которой нет в <code>dispatch</code>, — не отказ значением, а исключение с её
 именем: <code>execute</code> в этом случае не строит контекст запроса.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-cli start:dev            # REPL
-yarn workspace examples.simple-cli test</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/simple-cli start:dev            # REPL
+yarn workspace @examples/simple-cli test</code></pre></div>
 <p>Глава <a href="21-token-families.html">21. Логгер с именем потребителя и сбор вкладов</a>
 показывает семейства токенов: один рецепт на много зависимостей.</p>
 

@@ -101,8 +101,8 @@
 
 <h1>24. Без <code>makeApp</code></h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.simple-http-server</code> (2026-09-05)
-и <code>examples.container</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>simple-http-server</code> (2026-09-05)
+и <code>container</code> (2026-09-05).
 Целевое описание: <a href="../design/transports.md">design/transports.md</a> §1,
 <a href="../design/composition.md">design/composition.md</a> §1,
 <a href="../design/container.md">design/container.md</a>. Почему так: записи
@@ -115,7 +115,7 @@
 транспорта, например для экспорта в визуализацию. Оба случая решаются
 теми же примитивами, из которых состоит сборка приложения.</p>
 <h2 id="http-сервер-из-транспорта-и-dispatch">HTTP-сервер из транспорта и <code>dispatch</code></h2>
-<div class="code" data-file="packages/examples.simple-http-server/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/main.ts
+<div class="code" data-file="examples/simple-http-server/src/main.ts" data-lang="typescript"><pre><code>// examples/simple-http-server/src/main.ts
 const PORT = Number(process.env.PORT) || 3000;
 
 const server = new HttpTransport({ port: PORT });
@@ -162,7 +162,7 @@ process.on('SIGINT', () =&gt; void stop('SIGINT'));</code></pre></div>
 Читать <code>process.env</code> в корне здесь допустимо: секции конфига без ядра
 конфигурации нет.</p>
 <h2 id="endpoint-без-пайплайна-и-endpoint-с-pre-юнитом">Endpoint без пайплайна и endpoint с pre-юнитом</h2>
-<div class="code" data-file="packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/endpoints/create-user.endpoint.ts
+<div class="code" data-file="examples/simple-http-server/src/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/simple-http-server/src/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint({
   method: 'POST',
   path: '/users',
@@ -182,12 +182,12 @@ export const CreateUser = httpEndpoint({
 <p>Поле <code>pipeline</code> необязательно. Декларацию без него исполняет тот же
 рантайм с пустым пайплайном: вход проверяется схемой, ответ сверяется со
 списком <code>errors:</code>, контекст запроса открыт.</p>
-<div class="code" data-file="packages/examples.simple-http-server/src/common/units.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/common/units.ts
+<div class="code" data-file="examples/simple-http-server/src/common/units.ts" data-lang="typescript"><pre><code>// examples/simple-http-server/src/common/units.ts
 export const withStartedAt: PreUnitFn&lt;
   EmptyInput,
   { startedAt: number }
 &gt; = () =&gt; ({ startedAt: Date.now() });</code></pre></div>
-<div class="code" data-file="packages/examples.simple-http-server/src/endpoints/say-hello.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/endpoints/say-hello.endpoint.ts
+<div class="code" data-file="examples/simple-http-server/src/endpoints/say-hello.endpoint.ts" data-lang="typescript"><pre><code>// examples/simple-http-server/src/endpoints/say-hello.endpoint.ts
 export const SayHello = httpEndpoint({
   method: 'GET',
   path: '/',
@@ -201,7 +201,7 @@ export const SayHello = httpEndpoint({
 <p>Pre-юнит возвращает добавку к контексту. Хендлер читает её из второго
 аргумента <code>meta</code> вместе с <code>signal</code> и <code>fail</code>; тип поля <code>startedAt</code>
 выводится из юнита.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-http-server start:dev
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/simple-http-server start:dev
 curl localhost:3000/
 curl -X POST localhost:3000/users -H 'content-type: application/json' \
   -d '{"name":"Alice","email":"taken@example.com"}'
@@ -210,7 +210,7 @@ curl -N localhost:3000/logs/export</code></pre></div>
 Второй возвращает 409 с кодом <code>conflict:email_taken</code>. Третий отдаёт NDJSON из
 формы <code>stream(T)</code>.</p>
 <h2 id="контейнер-без-приложения">Контейнер без приложения</h2>
-<div class="code" data-file="packages/examples.container/src/container.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/container.ts
+<div class="code" data-file="examples/container/src/container.ts" data-lang="typescript"><pre><code>// examples/container/src/container.ts
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise&lt;BuiltContainer&gt; =&gt; {
@@ -234,7 +234,7 @@ export const makeContainer = async (
 <code>build()</code> создаёт все провайдеры сразу и проверяет граф целиком:
 отсутствующая зависимость и цикл останавливают сборку одной ошибкой со
 списком узлов.</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.container/src/runtime/reload.spec.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/container/src/runtime/reload.spec.ts (фрагмент)
     container = await makeContainer(source);
     await container.init();
     // Подписка `onChange` открывается в `@OnStart`
@@ -246,7 +246,7 @@ export const makeContainer = async (
 топологическом порядке, <code>start()</code> выполняет <code>@OnStart</code>, <code>destroy()</code>
 выполняет <code>@OnDestroy</code> в обратном порядке. <code>getOrThrow(token)</code> возвращает
 инстанс по токену.</p>
-<div class="code" data-file="packages/examples.container/src/cli.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/cli.ts
+<div class="code" data-file="examples/container/src/cli.ts" data-lang="typescript"><pre><code>// examples/container/src/cli.ts
 export const main = async () =&gt; {
   const container = await makeContainer();
 
@@ -261,7 +261,7 @@ main().catch(console.error);</code></pre></div>
 Скрипт пишет его в файл, а <code>@nestling/viz</code> рисует в браузере. Транспорт
 для этого не нужен, поэтому скрипт собирает контейнер, а не приложение.</p>
 <h2 id="проверка">Проверка</h2>
-<div class="code" data-file="packages/examples.simple-http-server/src/dispatch.spec.ts" data-lang="typescript"><pre><code>// packages/examples.simple-http-server/src/dispatch.spec.ts
+<div class="code" data-file="examples/simple-http-server/src/dispatch.spec.ts" data-lang="typescript"><pre><code>// examples/simple-http-server/src/dispatch.spec.ts
 const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
 
 /** Вызывает endpoint с готовым payload, минуя разбор HTTP-запроса */
@@ -294,8 +294,8 @@ const call = (endpoint: ExecutableDeclaration, payload?: unknown) =&gt; {
 строит начальный контекст из описания запроса и декларации, а
 <code>dispatch.call</code> исполняет endpoint тем же путём, что и транспорт. Остальные
 тесты файла проверяют отказ схемы, объявленный отказ и потоковый ответ.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.simple-http-server test
-yarn workspace examples.container export-metadata &amp;&amp; yarn workspace examples.container visualize</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/simple-http-server test
+yarn workspace @examples/container export-metadata &amp;&amp; yarn workspace @examples/container visualize</code></pre></div>
 <p>Глава <a href="25-extending.html">25. Расширить ядро своим пакетом</a> показывает,
 как поверх тех же публичных примитивов пишется отдельный пакет.</p>
 

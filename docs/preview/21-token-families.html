@@ -103,7 +103,7 @@
 
 <h1>21. Логгер с именем потребителя и сбор вкладов из модулей</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.container</code> (2026-09-04).
+<p>Гайд по текущему API; сверено с кодом <code>container</code> (2026-09-05).
 Целевое описание: <a href="../design/container.md">design/container.md</a>, раздел
 «Семейства токенов». Почему так: записи <a href="../decisions/ideas.md">ideas.md</a>
 «Token families + модули без рантайм-инкапсуляции» [2026-07-06] и
@@ -117,7 +117,7 @@
 <p>Обе задачи решает семейство токенов: один рецепт для многих зависимостей,
 которые различаются параметром.</p>
 <h2 id="семейство-вместо-токена">Семейство вместо токена</h2>
-<div class="code" data-file="packages/examples.container/src/logging/registry.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/logging/registry.ts
+<div class="code" data-file="examples/container/src/logging/registry.ts" data-lang="typescript"><pre><code>// examples/container/src/logging/registry.ts
 import { makeTokenFamily } from '@nestling/container';
 
 export interface Logger {
@@ -138,7 +138,7 @@ export const Logger = makeTokenFamily&lt;Logger, [scope: string]&gt;('Logger');<
 главы <a href="05-repository.html">5</a>, суффикс <code>$</code> здесь не нужен: семейство
 вызывается как функция, и спутать его с интерфейсом в коде нельзя.</p>
 <h2 id="член-как-обычная-зависимость">Член как обычная зависимость</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.container/src/users/users.service.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/container/src/users/users.service.ts (фрагмент)
 @Injectable([UserRepository, Logger('users')])
 export class UserService {
   #repository: UserRepository;
@@ -154,7 +154,7 @@ export class UserService {
 регистрации провайдера для <code>Logger('users')</code>, ни отдельного модуля для
 этого не нужно.</p>
 <h2 id="один-рецепт-на-всё-семейство">Один рецепт на всё семейство</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.container/src/logging/logging.plugin.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/container/src/logging/logging.plugin.ts (фрагмент)
 export const appLogging = makePlugin({
   name: 'app-logging',
   providers: [
@@ -199,7 +199,7 @@ export const appLogging = makePlugin({
 семейство, параметр и фактический токен. Второй рецепт для того же
 семейства — ошибка регистрации.</p>
 <h2 id="имя-члена-по-потребителю-auto">Имя члена по потребителю: <code>.auto</code></h2>
-<div class="code" data-file="packages/examples.container/src/users/users.repository.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/users/users.repository.ts
+<div class="code" data-file="examples/container/src/users/users.repository.ts" data-lang="typescript"><pre><code>// examples/container/src/users/users.repository.ts
 @Injectable([Database$, Logger.auto])
 export class UserRepository {
   #database: Database;
@@ -235,7 +235,7 @@ export class UserRepository {
 </ul>
 <h2 id="вклады-из-разных-модулей-all">Вклады из разных модулей: <code>.all</code></h2>
 <p>Объявите семейство вкладов:</p>
-<div class="code" data-file="packages/examples.container/src/health/registry.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/health/registry.ts
+<div class="code" data-file="examples/container/src/health/registry.ts" data-lang="typescript"><pre><code>// examples/container/src/health/registry.ts
 export interface HealthCheck {
   readonly name: string;
   check(): Promise&lt;string&gt;;
@@ -246,7 +246,7 @@ export const HealthCheck = makeTokenFamily&lt;HealthCheck, [name: string]&gt;(
 );</code></pre></div>
 <p>Вклад — обычный провайдер с токеном члена, зарегистрированный там, где
 ему место:</p>
-<div class="code" data-file="packages/examples.container/src/database/database.module.ts" data-lang="typescript"><pre><code>// packages/examples.container/src/database/database.module.ts
+<div class="code" data-file="examples/container/src/database/database.module.ts" data-lang="typescript"><pre><code>// examples/container/src/database/database.module.ts
 export const DatabaseModule = makeModule({
   name: 'module:database',
   providers: [
@@ -256,10 +256,10 @@ export const DatabaseModule = makeModule({
 });</code></pre></div>
 <p>Второй вклад лежит в другом модуле, и первый модуль для него менять не
 пришлось:</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.container/src/api/api.module.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/container/src/api/api.module.ts (фрагмент)
 classProvider(HealthCheck('api'), ApiHealthCheck),</code></pre></div>
 <p>Агрегатор зависит от <code>HealthCheck.all</code> и получает массив всех вкладов:</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.container/src/health/health.service.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/container/src/health/health.service.ts (фрагмент)
 @Injectable([HealthCheck.all, HealthConfig, Logger.auto])
 export class HealthService {
   #checks: readonly HealthCheck[];
@@ -321,10 +321,10 @@ export class HealthService {
 <p>В app-тесте семейство подменяется целиком, а не по члену:
 <code>familyOverride(Logger, () =&gt; …)</code> из <code>@nestling/testing</code> заменяет рецепт
 до создания членов. Подробнее в главе <a href="15-testing-features.html">15</a>.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.container start:dev
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/container start:dev
 # граф с членами семейств в браузере
-yarn workspace examples.container export-metadata
-yarn workspace examples.container visualize</code></pre></div>
+yarn workspace @examples/container export-metadata
+yarn workspace @examples/container visualize</code></pre></div>
 <p>Тот же пример читает конфиг из нескольких источников и меняет значения
 без перезапуска: глава <a href="22-config-sources.html">22</a>.</p>
 

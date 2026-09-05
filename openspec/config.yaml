@@ -27,5 +27,5 @@ rules:
       Последним разделом tasks.md всегда идёт «Definition of Done» с чекбоксами:
       `yarn verify` зелёный; README затронутых пакетов обновлены (включая плашки
       статуса); design/ и decisions/ синхронизированы по правилам CLAUDE.md;
-      `yarn docs:audit` — 0 ERROR; затронутые packages/examples.* мигрированы,
+      `yarn docs:audit` — 0 ERROR; затронутые examples/* мигрированы,
       гайды пересверены с обновлённой датой в плашке «сверено с кодом»

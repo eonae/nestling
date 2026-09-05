@@ -101,7 +101,7 @@
 
 <h1>10. Файлы и большие выгрузки</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a> §5 и
 <a href="../design/streaming.md">design/streaming.md</a>. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «Стриминг: <code>stream(T)</code> ≠ <code>events(T)</code>,
@@ -145,7 +145,7 @@ AbortSignal, источники событий» и «Два скоупа обр
 </table>
 </div>
 <h2 id="файл-в-форме">Файл в форме</h2>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/upload-avatar.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/upload-avatar.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/upload-avatar.endpoint.ts
 import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';
 
@@ -212,7 +212,7 @@ export const UploadAvatar = httpEndpoint({
 <p>Единственное, что форма не гарантирует, это наличие поля. Форма без
 файла даёт <code>files.avatar</code> равным <code>undefined</code>, и хендлер отвечает
 объявленным отказом <code>AvatarRequired</code>.</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl -X POST http://localhost:3000/users/1/avatar \
   -H 'authorization: Bearer secret' -F 'avatar=@photo.png;type=image/png'
 # {"id":"1","name":"Alice","email":"alice@example.com","avatarUrl":"/uploads/1/photo.png"}
@@ -222,7 +222,7 @@ curl -X POST http://localhost:3000/users/1/avatar \
 <p>Несколько файлов в одном поле объявляются как
 <code>upload({ multiple: true })</code>; тогда хендлер получает <code>FilePart[]</code>.</p>
 <h2 id="выгрузка-потоком">Выгрузка потоком</h2>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/export-users.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/export-users.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/export-users.endpoint.ts
 import { Ok, stream } from '@nestling/operations';
 
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
@@ -275,7 +275,7 @@ NDJSON, по одному JSON-объекту на строку, с chunked-ко
 # {"id":"1","name":"Alice","email":"alice@example.com"}
 # {"id":"2","name":"Bob","email":"bob@example.com"}</code></pre></div>
 <h2 id="загрузка-потоком">Загрузка потоком</h2>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/import-users.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/import-users.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/import-users.endpoint.ts
 import { stream } from '@nestling/operations';
 
 const ImportResult = z.object({

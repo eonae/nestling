@@ -99,7 +99,7 @@
 
 <h1>3. Сказать клиенту, что пошло не так</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/errors.md">design/errors.md</a>. Почему так:
 записи <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-10] Модель ошибок:
 Fail — значение, code-идентичность, <code>makeFail</code>, ошибки в контракте»,
@@ -111,7 +111,7 @@ Fail — значение, code-идентичность, <code>makeFail</code>,
 отличать эти случаи по машинному коду, а не по тексту сообщения.
 Создание должно отвечать <code>201</code> с заголовком <code>Location</code>, удаление должно
 отвечать <code>204</code>.</p>
-<div class="code" data-file="packages/examples.users-service/src/users/users.errors.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/users.errors.ts
+<div class="code" data-file="examples/users-service/src/users/users.errors.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/users.errors.ts
 import { makeFail } from '@nestling/operations';
 import { z } from 'zod';
 
@@ -198,7 +198,7 @@ export const EmailTaken = makeFail('conflict:email_taken', {
 не компилируется. Формат остальных сегментов — <code>[a-z_]+</code>, его проверяет
 <code>makeFail</code> при вызове. Код из одной категории допустим, когда уточнять
 нечего: <code>makeFail('unauthorized')</code>.</p>
-<div class="code" data-lang="typescript"><pre><code>// шаг главы 3; итоговая версия: packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+<div class="code" data-lang="typescript"><pre><code>// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
   method: 'GET',
   path: '/users/:id',
@@ -218,7 +218,7 @@ export const GetUser = httpEndpoint({
 вернуть значение некому, отказ бросают: <code>throw UserNotFound({ id })</code>. Для
 ответа это одно и то же, и подробнее про бросок написано в приложении А.</p>
 <p>Тип возвращаемого значения записывается определениями отказов:</p>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/get-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/get-user.endpoint.ts
 async function handle(input: GetUserInput): Output&lt;User, typeof UserNotFound&gt; {
   const user = await users.byId(input.id);
 
@@ -233,7 +233,7 @@ async function handle(input: GetUserInput): Output&lt;User, typeof UserNotFound&
 <p>У endpoint'а без <code>output</code> значения нет, и хендлер компилируется без
 <code>return</code>.</p>
 <h2 id="успех-со-статусом-и-заголовками">Успех со статусом и заголовками</h2>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/create-user.endpoint.ts
 async function handle(input: CreateUserInput): Output&lt;User, typeof EmailTaken&gt; {
   if (await users.byEmail(input.email)) {
     return EmailTaken({ email: input.email });
@@ -252,7 +252,7 @@ async function handle(input: CreateUserInput): Output&lt;User, typeof EmailTaken
 транспорте не знает. Что с ними делать, решает транспорт. HTTP пишет их в
 заголовки ответа, NATS кладёт в заголовки ответного сообщения, CLI
 отбрасывает.</p>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
 async function handle(
   input: DeleteUserInput,
 ): Output&lt;null, typeof UserNotFound&gt; {
@@ -262,7 +262,7 @@ async function handle(
 }</code></pre></div>
 <p><code>Ok.noContent()</code> отвечает <code>204</code> без тела. У декларации <code>DeleteUser</code> нет
 поля <code>output</code>.</p>
-<div class="code" data-lang="typescript"><pre><code>// шаг главы 3; итоговая версия: packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
+<div class="code" data-lang="typescript"><pre><code>// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
@@ -274,7 +274,7 @@ export const DeleteUser = httpEndpoint({
 <p>В итоговом файле у <code>DeleteUser</code> есть ещё слой <code>authed</code>: удаление требует
 токен. Отказ <code>Unauthorized</code> объявляет сам слой, поэтому в <code>errors:</code> он не
 появляется (<a href="09-auth.html">глава 9</a>).</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i</code></pre></div>
 <h2 id="незадекларированная-ошибка">Незадекларированная ошибка</h2>
 <p>Всё, что дошло до границы пайплайна без объявления в <code>errors</code>, клиент
@@ -319,7 +319,7 @@ curl -X DELETE localhost:3000/users/2 -H 'authorization: Bearer secret' -i</code
 </div>
 <p>Ответ <code>testApp.call</code> несёт код отказа, а его <code>status</code> равен категории
 этого кода:</p>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
   status: 'not_found',
@@ -329,7 +329,7 @@ expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
 сериализацию, и <code>UserNotFound.is(value)</code> работает даже там, где исходного
 класса ошибки нет. Юнит-тест хендлера проверяет отказ тем же способом,
 без приложения:</p>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 const result = await handler.handle({ name: 'Alice II', email: alice.email });
 
 expect(EmailTaken.is(result)).toBe(true);

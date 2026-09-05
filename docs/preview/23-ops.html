@@ -104,7 +104,7 @@
 
 <h1>23. Кто сейчас подключён и как его отключить</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/streaming.md">design/streaming.md</a>, раздел
 «4.1 Реестр подписок». Почему так: запись
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-08-01] Реестр подписок:
@@ -119,7 +119,7 @@
 написан на публичных примитивах ядра и подключается как плагин; ядро о
 нём не знает.</p>
 <h2 id="плагин-в-корне">Плагин в корне</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.ts (фрагмент)
 import { subscriptions } from '@nestling/subscriptions';
 // …
 
@@ -153,7 +153,7 @@ export const app = makeApp({
 включает публикацию фактов открытия и закрытия операциями (см. далее); по
 умолчанию она выключена. <code>node</code> называет процесс в фактах.</p>
 <h2 id="слой-tracked-на-endpointе-подписки">Слой <code>tracked</code> на endpoint'е подписки</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
 @Injectable([ActivityHub])
 class ActivityStreamHandler {
   constructor(private readonly hub: ActivityHub) {}
@@ -201,7 +201,7 @@ export const ActivityStream = httpEndpoint({
 <p>Реестр инжектируется обычным токеном <code>SubscriptionRegistry</code>. Endpoint'ы
 лежат в фиче <code>ops</code>: у неё нет своих провайдеров, логирование,
 аутентификация и реестр приходят плагинами.</p>
-<div class="code" data-file="packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/ops/subscriptions.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
 @Injectable([SubscriptionRegistry])
 class ListSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -222,7 +222,7 @@ export const ListSubscriptions = httpEndpoint({
 <p><code>registry.list()</code> отдаёт снимки записей: идентификатор, транспорт,
 паттерн, вид формы, подписчика, метки, время старта и число отданных
 элементов. <code>toWire</code> переводит снимок в схему ответа API.</p>
-<div class="code" data-file="packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/ops/subscriptions.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
 @Injectable([SubscriptionRegistry])
 class KillSubscriptionHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -250,7 +250,7 @@ export const KillSubscription = httpEndpoint({
 снимет <code>.finally</code> слоя <code>tracked</code>, когда поток действительно закроется.
 Реестр отражает факт, а не опережает его. Endpoint стоит под слоем
 <code>authed</code>: удалять чужие подписки может только тот, кто предъявил токен.</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)
 @Injectable([SubscriptionRegistry])
 class WatchSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
@@ -288,7 +288,7 @@ export const WatchSubscriptions = httpEndpoint({
 и видна в собственном списке. Своё событие <code>opened</code> она не получает: оно
 опубликовано до вызова хендлера, то есть до того, как хендлер подписался.</p>
 <h2 id="факты-открытия-и-закрытия">Факты открытия и закрытия</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/ops/subscription-facts.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/ops/subscription-facts.ts (фрагмент)
 @Injectable([Logger$])
 class SubscriptionOpenedInOpsHandler {
   constructor(private readonly logger: Logger) {}
@@ -332,7 +332,7 @@ split-развёртывании из <a href="17-split.html">главы 17</a> 
 Фича <code>ops</code> входит в любую топологию и выбирается явно, как показывает
 <a href="16-select.html">глава 16</a>.</p>
 <h2 id="запросы">Запросы</h2>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 
 # в отдельных терминалах: подписка и лента реестра
 curl -N localhost:3000/users/activity
@@ -362,7 +362,7 @@ data: {"type":"closed","reason":"killed","subscription":{"id":"86cc…",…,"ite
 <div class="code"><pre><code>[app-with-http] [subscriptions] app-with-http: opened 86cc… (http GET /users/activity)
 [app-with-http] [subscriptions] app-with-http: closed 86cc…: killed, 1 items</code></pre></div>
 <h2 id="проверка">Проверка</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+<div class="code" data-file="examples/app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.spec.ts
 it('показывает подписку, завершает её и удаляет запись', async () =&gt; {
   await using testApp = await assembleTest(app, {
     ...testConfig,
@@ -410,7 +410,7 @@ it('показывает подписку, завершает её и удаля
 завершается сама. Два других теста того же <code>describe</code> проверяют отказ
 <code>not_found:subscription</code> и то, что лента реестра не видит собственного
 <code>opened</code>.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.app-with-http test</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/app-with-http test</code></pre></div>
 <p>Те же примитивы без <code>makeApp</code>: встраивание в чужой сервер и контейнер
 без приложения, <a href="24-standalone.html">глава 24</a>.</p>
 

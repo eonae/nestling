@@ -106,7 +106,7 @@
 
 <h1>12. Выделить вторую область и не дать ей лезть в чужие сервисы</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/composition.md">design/composition.md</a>,
 разделы «Граница фичи» и «Плагин», и
 <a href="../design/operations.md">design/operations.md</a>. Почему так: записи
@@ -121,13 +121,13 @@
 однажды квоты уедут в отдельный процесс, и код регистрации при этом не
 должен измениться. Логирование и проверка токена при этом остаются
 общими для обеих областей.</p>
-<p>Сервис из частей 1 и 2 продолжается в <code>examples.app-with-http</code>. Файлы
+<p>Сервис из частей 1 и 2 продолжается в <code>app-with-http</code>. Файлы
 переложены по областям: фичи лежат в <code>src/features/&lt;имя&gt;/</code>, общая
 инфраструктура в <code>src/plugins/&lt;имя&gt;/</code>, декларация приложения в <code>src/app.ts</code>.
 Код endpoint'ов, хранилища и конфига тот же, что в
-<code>examples.users-service</code>.</p>
+<code>users-service</code>.</p>
 <h2 id="вторая-фича">Вторая фича</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/quotas/quota.service.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/quota.service.ts
+<div class="code" data-file="examples/app-with-http/src/features/quotas/quota.service.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/quotas/quota.service.ts
 @Injectable([])
 export class QuotaService {
   /** Лимит пользователей; в примере намеренно маленький */
@@ -146,7 +146,7 @@ export class QuotaService {
     return { ok: true, remaining: this.limit - this.#used };
   }
 }</code></pre></div>
-<div class="code" data-file="packages/examples.app-with-http/src/features/quotas/quotas.feature.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+<div class="code" data-file="examples/app-with-http/src/features/quotas/quotas.feature.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/quotas/quotas.feature.ts
 export const QuotasFeature = makeFeature({
   name: 'quotas',
   providers: [QuotaService, SignupJournal],
@@ -196,7 +196,7 @@ endpoint'ы. <code>QuotaService</code> не экспортируется нар�
 внутри процесса, операция имеет адрес и схемы и работает через любой
 транспорт.</p>
 <h2 id="операция-вместо-токена">Операция вместо токена</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/operations.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/operations.ts
+<div class="code" data-file="examples/app-with-http/src/operations.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/operations.ts
 import {
   makeFail,
   makeCommand,
@@ -230,7 +230,7 @@ export const ClaimQuota = makeRequest({
 <p><code>makeRequest</code> объявляет операцию вида <code>request</code>: вызывающий ждёт ответ
 <code>Ok</code> или <code>Fail</code>, владелец у операции ровно один.</p>
 <h2 id="реализация-в-фиче-владельце">Реализация в фиче-владельце</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/quotas/claim-quota.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/quotas/claim-quota.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/quotas/claim-quota.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/quotas/claim-quota.endpoint.ts
 @Injectable([QuotaService, Logger$])
 class ClaimQuotaHandler {
   constructor(
@@ -267,7 +267,7 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
 сборке отсутствует, останавливает сборку: вызову некуда идти. Два
 владельца одной операции тоже останавливают сборку.</p>
 <h2 id="вызов-через-вызыватель">Вызов через вызыватель</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
 const QUOTA_CALL_BUDGET_MS = 500;
 
 @Injectable([
@@ -334,7 +334,7 @@ export const CreateUser = httpEndpoint({
 остаётся, хотя endpoint его больше не объявляет: этот отказ объявил слой
 <code>authed</code>, а операция — контракт для клиента, и клиент пайплайна
 реализации не видит:</p>
-<div class="code" data-file="packages/examples.app-with-http/src/api/operations.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/api/operations.ts
+<div class="code" data-file="examples/app-with-http/src/api/operations.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/api/operations.ts
 export const CreateUser = makeRequest({
   name: 'users.create',
   http: { method: 'POST', path: '/users', bind: { dryRun: query() } },
@@ -357,7 +357,7 @@ export const CreateUser = makeRequest({
 <h2 id="общее-уходит-в-плагины">Общее уходит в плагины</h2>
 <p>Логгер и слой <code>observability</code> нужны обеим фичам. Провайдер, от которого
 зависят две фичи, объявляется плагином:</p>
-<div class="code" data-file="packages/examples.app-with-http/src/plugins/logging/logging.plugin.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/plugins/logging/logging.plugin.ts
+<div class="code" data-file="examples/app-with-http/src/plugins/logging/logging.plugin.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/plugins/logging/logging.plugin.ts
 export interface LoggingOptions {
   /** Имя сервиса в префиксе каждой записи */
   service: string;
@@ -386,7 +386,7 @@ export const logging = (options: LoggingOptions): Plugin =&gt;
 сервиса задаёт параметр, потому что оно решается при сборке. Уровень
 логирования приходит из конфиг-секции, потому что он меняется без
 пересборки:</p>
-<div class="code" data-file="packages/examples.app-with-http/src/plugins/logging/logger.config.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/plugins/logging/logger.config.ts
+<div class="code" data-file="examples/app-with-http/src/plugins/logging/logger.config.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/plugins/logging/logger.config.ts
 export const LoggerConfig = makeConfig('log', {
   level: z.enum(['debug', 'info', 'error']).default('info'),
 });
@@ -398,7 +398,7 @@ export const loggerConfigKeys = LoggerConfig.keys;</code></pre></div>
 из фичи нельзя, а привязать источник к её ключам через <code>config:</code> в корне
 можно.</p>
 <p>Проверка токена устроена так же:</p>
-<div class="code" data-file="packages/examples.app-with-http/src/plugins/auth/index.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/plugins/auth/index.ts
+<div class="code" data-file="examples/app-with-http/src/plugins/auth/index.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/plugins/auth/index.ts
 export const appAuth = makePlugin({
   name: 'app-auth',
   providers: [Authenticate],
@@ -411,7 +411,7 @@ export const authed = compose(observability, makePipeline().pre(Authenticate));<
 одной фиче, и сборка останавливается с предложением перенести модуль в
 <code>plugins:</code>.</p>
 <h2 id="модули-внутри-фичи">Модули внутри фичи</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/users.feature.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/users.feature.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/users.feature.ts
 export const UsersModule = makeModule({
   name: 'module:users',
   providers: [
@@ -442,7 +442,7 @@ export const UsersFeature = makeFeature({
 у неё два сервиса. Endpoint'ы в обоих случаях перечисляет фича, а не
 модуль.</p>
 <h2 id="декларация-приложения">Декларация приложения</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.ts
+<div class="code" data-file="examples/app-with-http/src/app.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.ts
 export const appLogging = logging({ service: 'app-with-http' });
 // …
 export const app = makeApp({
@@ -474,7 +474,7 @@ export const app = makeApp({
 второй вызов <code>logging({ … })</code> дал бы второй плагин с тем же именем, и
 сборка остановилась бы.</p>
 <h2 id="проверка">Проверка</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+<div class="code" data-file="examples/app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.spec.ts
 it('возвращает отказ соседней фичи при исчерпанной квоте', async () =&gt; {
   await using testApp = await assembleTest(app, {
     ...testConfig,
@@ -502,7 +502,7 @@ it('возвращает отказ соседней фичи при исчер�
 вызывает реализацию из этого же процесса напрямую, <code>always-remote</code>
 отправляет каждый вызов через шину как сообщение. Код вызова при этом не
 меняется.</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 for i in 1 2 3 4 5 6; do
   curl -s -X POST localhost:3000/users \
     -H 'authorization: Bearer secret' -H 'content-type: application/json' \
