@@ -30,9 +30,15 @@ Change второй в серии «Раскладка монорепы»
   его в `dist/cli.js` через esbuild, где external — только `commander`.
 - Объявленные, но не импортируемые зависимости уходят из `package.json`:
   `@common/misc` у `app`, `transport`, `transport.cli` и `transport.nats`,
-  `@nestling/streams` у `operations`. Недостающие объявления добавляются:
-  `@nestling/app` и `@nestling/transport` у `subscriptions`,
-  `@nestling/transport.http` у `testing`.
+  `@nestling/streams` у `operations`. Недостающее объявление добавляется:
+  `@nestling/app` у `subscriptions`.
+- Сборка перестаёт выносить наружу тестовый код. Шаблон
+  `tsconfig.build.json` исключает `*.spec.ts` и `*.test.ts`, но не
+  `*.type-test.ts` и не `__fixtures__`: в `dist` пакета
+  `@nestling/testing` лежат `overrides.type-test.js`, `stub.type-test.js`
+  и каталог фикстур, а первый из них импортирует `@nestling/transport.http`
+  и `zod` — обе зависимости у пакета только в `devDependencies`.
+  У `@nestling/subscriptions` в `dist` лежит `__fixtures__`.
 - Список разрешённых импортов в тесте границы `@nestling/operations`
   теряет `@common/misc` и `@nestling/streams`.
 

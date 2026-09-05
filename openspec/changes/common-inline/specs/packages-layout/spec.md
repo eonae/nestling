@@ -89,3 +89,29 @@ SHALL оставаться только при технической причи
 - **WHEN** пакету нужен только тип `StandardSchemaV1` и ничего больше
 - **THEN** он импортирует его из `@standard-schema/spec` напрямую, не
   заводя зависимости от `@nestling/operations`
+
+### Requirement: Сборка пакета не выносит наружу тестовый код
+
+`dist` пакета SHALL содержать только его исходники. Файлы проверки типов
+(`*.type-test.ts`), спеки и каталоги фикстур (`__fixtures__`) SHALL быть
+исключены в `tsconfig.build.json` наравне с `*.spec.ts` и `*.test.ts`.
+
+Ни один файл в `dist` SHALL NOT импортировать пакет из
+`devDependencies`: у установившего пакет такой зависимости нет, и импорт
+не разрешится.
+
+#### Scenario: Проверка типов не попадает в dist
+
+- **WHEN** пакет собран и в `src` есть `overrides.type-test.ts`
+- **THEN** в `dist` нет ни `overrides.type-test.js`, ни его `.d.ts`
+
+#### Scenario: Фикстуры не попадают в dist
+
+- **WHEN** пакет собран и в `src` есть каталог `__fixtures__`
+- **THEN** в `dist` этого каталога нет
+
+#### Scenario: Импорт devDependency из dist
+
+- **WHEN** файл в `dist` импортирует пакет, объявленный только в
+  `devDependencies`
+- **THEN** это расхождение с требованием
