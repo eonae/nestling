@@ -326,7 +326,7 @@ yarn workspace @nestling/subscriptions test
 Подключение в приложении:
 
 ```typescript
-// packages/examples.app-with-http/src/app.ts (фрагмент)
+// examples/app-with-http/src/app.ts (фрагмент)
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),

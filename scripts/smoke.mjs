@@ -5,7 +5,11 @@
  * относительные специфаеры в `dist` дословно, а Node ESM не понимает ни
  * импорт каталога (`./core`), ни специфаер без расширения. Тайпчек этого
  * не видит — `moduleResolution: bundler` такие импорты разрешает, — и не
- * видят ни jest (гоняет исходники), ни примеры (собираются esbuild'ом).
+ * видит jest: он гоняет исходники.
+ *
+ * Проверяется каждый пакет `packages/*` с собранным `dist/index.js`.
+ * Примеры лежат в `examples/` и сюда не попадают: их собирает esbuild в
+ * бандл, где специфаеры уже разрешены.
  *
  * Прогон: `node scripts/smoke.mjs` (входит в `yarn verify`).
  */
@@ -26,7 +30,6 @@ const root = resolve(import.meta.dirname, '..');
 const NODE_ARGS = ['--conditions=testing'];
 
 const targets = readdirSync(join(root, 'packages'))
-  .filter((name) => !name.startsWith('examples.'))
   .map((name) => {
     const dir = join(root, 'packages', name);
     const manifest = join(dir, 'package.json');

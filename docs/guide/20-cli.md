@@ -1,6 +1,6 @@
 # 20. CLI-утилита на тех же примитивах
 
-> Гайд по текущему API; сверено с кодом `examples.simple-cli` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `simple-cli` (2026-09-05).
 > Целевое описание: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Endpoint-декларации: per-transport
@@ -14,7 +14,7 @@
 ## Команда с аргументами
 
 ```typescript
-// packages/examples.simple-cli/src/commands/greet.command.ts
+// examples/simple-cli/src/commands/greet.command.ts
 const GreetInput = z.object({
   args: z.array(z.string()).min(1, 'name is required'),
   shout: z.boolean().optional(),
@@ -51,7 +51,7 @@ export const Greet = cliEndpoint({
 `bad_request` с путём `args`, не вызывая хендлер.
 
 ```bash
-yarn workspace examples.simple-cli start:dev greet Alice --shout
+yarn workspace @examples/simple-cli start:dev greet Alice --shout
 ```
 
 ```json
@@ -66,7 +66,7 @@ yarn workspace examples.simple-cli start:dev greet Alice --shout
 ## Команда без входа
 
 ```typescript
-// packages/examples.simple-cli/src/commands/help.command.ts (фрагмент)
+// examples/simple-cli/src/commands/help.command.ts (фрагмент)
 export const Help = cliEndpoint({
   command: 'help',
   output: HelpOutput,
@@ -85,7 +85,7 @@ export const Help = cliEndpoint({
 ## Поток из stdin
 
 ```typescript
-// packages/examples.simple-cli/src/commands/process-stdin.command.ts (фрагмент)
+// examples/simple-cli/src/commands/process-stdin.command.ts (фрагмент)
 export const ProcessStdin = cliEndpoint({
   command: 'process-stdin',
   input: stream('binary'),
@@ -117,7 +117,7 @@ export const ProcessStdin = cliEndpoint({
 потоковый `output` транспорт писал бы в stdout тем же NDJSON.
 
 ```typescript
-// packages/examples.simple-cli/src/errors.ts
+// examples/simple-cli/src/errors.ts
 export const EmptyStdin = makeFail('bad_request:empty_stdin', {
   message: 'No data received on stdin',
 });
@@ -130,7 +130,7 @@ export const EmptyStdin = makeFail('bad_request:empty_stdin', {
 400.
 
 ```bash
-printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin
+printf "a\nb\n" | yarn workspace @examples/simple-cli start:dev process-stdin
 ```
 
 ```
@@ -145,7 +145,7 @@ Processing: b
 ## Транспорт и режимы запуска
 
 ```typescript
-// packages/examples.simple-cli/src/main.ts
+// examples/simple-cli/src/main.ts
 const argv = process.argv.slice(2);
 
 const cli = new CliTransport({
@@ -191,7 +191,7 @@ async function main() {
 ответ приходит значением, stdout в этом пути не участвует.
 
 ```typescript
-// packages/examples.simple-cli/src/commands.spec.ts (фрагмент)
+// examples/simple-cli/src/commands.spec.ts (фрагмент)
 describe('команды через execute', () => {
   let cli: CliTransport;
 
@@ -238,8 +238,8 @@ describe('команды через execute', () => {
 именем: `execute` в этом случае не строит контекст запроса.
 
 ```bash
-yarn workspace examples.simple-cli start:dev            # REPL
-yarn workspace examples.simple-cli test
+yarn workspace @examples/simple-cli start:dev            # REPL
+yarn workspace @examples/simple-cli test
 ```
 
 Глава [21. Логгер с именем потребителя и сбор вкладов](./21-token-families.md)

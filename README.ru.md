@@ -90,12 +90,12 @@ await app.assemble().run();
 
 | Пример | О чём | Главы гайда |
 |---|---|---|
-| [`examples.users-service`](./packages/examples.users-service/) | Сервис пользователей: endpoint'ы, репозиторий, конфиг, слои, файлы, OpenAPI, клиент, тесты | 1–10 |
-| [`examples.app-with-http`](./packages/examples.app-with-http/) | Тот же сервис из трёх фич: операции, события, SSE, `select`, реестр подписок, снапшот совместимости | 11–15, 17, 18, 22 |
-| [`examples.split-nats`](./packages/examples.split-nats/) | Те же фичи в нескольких процессах через NATS | 16 |
-| [`examples.simple-cli`](./packages/examples.simple-cli/) | CLI-утилита: команды как endpoint'ы, REPL, поток из stdin | 19 |
-| [`examples.container`](./packages/examples.container/) | Контейнер: семейства токенов, источники конфига, reloadable, граф для `viz` | 20, 21, 23 |
-| [`examples.simple-http-server`](./packages/examples.simple-http-server/) | HTTP без `assemble`: `makeDispatch` и `serve` | 23 |
+| [`users-service`](./examples/users-service/) | Сервис пользователей: endpoint'ы, репозиторий, конфиг, слои, файлы, OpenAPI, клиент, тесты | 1–10 |
+| [`app-with-http`](./examples/app-with-http/) | Тот же сервис из трёх фич: операции, события, SSE, `select`, реестр подписок, снапшот совместимости | 11–15, 17, 18, 22 |
+| [`split-nats`](./examples/split-nats/) | Те же фичи в нескольких процессах через NATS | 16 |
+| [`simple-cli`](./examples/simple-cli/) | CLI-утилита: команды как endpoint'ы, REPL, поток из stdin | 19 |
+| [`container`](./examples/container/) | Контейнер: семейства токенов, источники конфига, reloadable, граф для `viz` | 20, 21, 23 |
+| [`simple-http-server`](./examples/simple-http-server/) | HTTP без `assemble`: `makeDispatch` и `serve` | 23 |
 
 ## Пакеты
 
@@ -158,7 +158,7 @@ yarn docs:preview    # сборка HTML-превью документации
 ```
 
 Монорепозиторий на Yarn workspaces и Nx: пакеты лежат в `packages/`,
-документация в `docs/`.
+примеры в `examples/`, документация в `docs/`.
 
 ## Участие
 

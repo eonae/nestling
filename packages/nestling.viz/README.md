@@ -22,7 +22,7 @@ nestling-viz di-metadata.json
 | `-s, --silent` | не печатать сообщения в консоль |
 
 Рабочий пример — скрипты `export-metadata` и `visualize` в
-[`examples.container`](../examples.container/).
+[`container`](../../examples/container/).
 
 ## Границы пакета
 

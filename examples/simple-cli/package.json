@@ -1,7 +1,8 @@
 {
-  "name": "examples.simple-http-server",
+  "name": "@examples/simple-cli",
+  "private": true,
   "version": "0.1.0",
-  "description": "HTTP server without assemble: transport, makeDispatch, serve",
+  "description": "CLI tool on Nestling endpoints: argv, REPL, stdin stream",
   "type": "module",
   "scripts": {
     "clear": "rm -rf dist",
@@ -17,7 +18,7 @@
     "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
     "@nestling/transport": "workspace:*",
-    "@nestling/transport.http": "workspace:*",
+    "@nestling/transport.cli": "workspace:*",
     "zod": "^4.0.0"
   }
 }

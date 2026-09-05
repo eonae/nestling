@@ -1,6 +1,6 @@
 # 6. Порт и адрес базы из окружения
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-05).
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-08] Kernel/user
 > space; конфиг как token-families; плагины» и «[2026-07-13] Конфиг:
@@ -12,7 +12,7 @@
 запросе.
 
 ```typescript
-// packages/examples.users-service/src/app.config.ts
+// examples/users-service/src/app.config.ts
 import { from, makeConfig, secret } from '@nestling/config';
 import { z } from 'zod';
 
@@ -63,7 +63,7 @@ export const AppConfig = makeConfig('app', {
 ## Секция как зависимость
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+// examples/users-service/src/users/endpoints/list-users.endpoint.ts
 @Injectable([UsersRepository$, AppConfig])
 export class ListUsersHandler {
   constructor(
@@ -97,7 +97,7 @@ export const ListUsers = httpEndpoint({
 Так же секцию читает `Database`, как в главе 5:
 
 ```typescript
-// packages/examples.users-service/src/database.ts
+// examples/users-service/src/database.ts
 @Injectable([AppConfig, Logger$])
 export class Database {
   // …
@@ -113,7 +113,7 @@ export class Database {
 ```
 
 ```bash
-API_TOKEN=secret APP_PAGE_SIZE=1 yarn workspace examples.users-service start:dev
+API_TOKEN=secret APP_PAGE_SIZE=1 yarn workspace @examples/users-service start:dev
 curl 'localhost:3000/users'
 ```
 
@@ -141,7 +141,7 @@ Sources consulted, in priority order: process.env
 ```
 
 ```bash
-yarn workspace examples.users-service start:dev   # без API_TOKEN: ошибка при старте
+yarn workspace @examples/users-service start:dev   # без API_TOKEN: ошибка при старте
 ```
 
 Секция проверяется при сборке графа, до `@OnInit` и до открытия сокета.
@@ -156,7 +156,7 @@ yarn workspace examples.users-service start:dev   # без API_TOKEN: ошибк
 не открывает сокет.
 
 ```bash
-API_TOKEN=secret HTTP_PORT=8080 yarn workspace examples.users-service start:dev
+API_TOKEN=secret HTTP_PORT=8080 yarn workspace @examples/users-service start:dev
 curl localhost:8080/users
 ```
 

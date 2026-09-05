@@ -94,12 +94,12 @@ several features running in several processes.
 
 | Example | What it shows | Guide chapters |
 |---|---|---|
-| [`examples.users-service`](./packages/examples.users-service/) | A users service: endpoints, repository, config, layers, files, OpenAPI, client, tests | 1–10 |
-| [`examples.app-with-http`](./packages/examples.app-with-http/) | The same service as three features: operations, events, SSE, `select`, subscription registry, compatibility snapshot | 11–15, 17, 18, 22 |
-| [`examples.split-nats`](./packages/examples.split-nats/) | The same features in several processes over NATS | 16 |
-| [`examples.simple-cli`](./packages/examples.simple-cli/) | A CLI tool: commands as endpoints, REPL, a stream from stdin | 19 |
-| [`examples.container`](./packages/examples.container/) | The container alone: token families, config sources, reloadable config, graph for `viz` | 20, 21, 23 |
-| [`examples.simple-http-server`](./packages/examples.simple-http-server/) | HTTP without `assemble`: `makeDispatch` and `serve` | 23 |
+| [`users-service`](./examples/users-service/) | A users service: endpoints, repository, config, layers, files, OpenAPI, client, tests | 1–10 |
+| [`app-with-http`](./examples/app-with-http/) | The same service as three features: operations, events, SSE, `select`, subscription registry, compatibility snapshot | 11–15, 17, 18, 22 |
+| [`split-nats`](./examples/split-nats/) | The same features in several processes over NATS | 16 |
+| [`simple-cli`](./examples/simple-cli/) | A CLI tool: commands as endpoints, REPL, a stream from stdin | 19 |
+| [`container`](./examples/container/) | The container alone: token families, config sources, reloadable config, graph for `viz` | 20, 21, 23 |
+| [`simple-http-server`](./examples/simple-http-server/) | HTTP without `assemble`: `makeDispatch` and `serve` | 23 |
 
 ## Packages
 
@@ -163,7 +163,7 @@ yarn bench:http      # HTTP transport against Fastify; a reference point, not a 
 ```
 
 A monorepo on Yarn workspaces and Nx: packages live in `packages/`,
-documentation in `docs/`.
+examples in `examples/`, documentation in `docs/`.
 
 ## Contributing
 

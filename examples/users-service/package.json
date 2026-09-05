@@ -1,6 +1,6 @@
 {
-  "name": "examples.app-with-http",
-  "version": "1.0.0",
+  "name": "@examples/users-service",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/bundle.js",
@@ -13,9 +13,7 @@
     "client": "run -T tsx src/api/client.ts",
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
-    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules run -T jest --config jest.e2e.config.js",
-    "test:all": "yarn run test && yarn run test:e2e"
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
   "dependencies": {
     "@nestling/app": "workspace:*",
@@ -26,10 +24,6 @@
     "@nestling/openapi.zod": "workspace:*",
     "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
-    "@nestling/ports": "workspace:*",
-    "@nestling/streams": "workspace:*",
-    "@nestling/subscriptions": "workspace:*",
-    "@nestling/transport": "workspace:*",
     "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
   },

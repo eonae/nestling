@@ -20,13 +20,13 @@ export const Help = cliEndpoint({
     console.log('  greet <name> [--shout]');
     console.log('    Print a greeting');
     console.log(
-      '    Example: yarn workspace examples.simple-cli start:dev greet Alice --shout',
+      '    Example: yarn workspace @examples/simple-cli start:dev greet Alice --shout',
     );
     console.log('');
     console.log('  process-stdin');
     console.log('    Count lines and bytes read from stdin');
     console.log(
-      String.raw`    Example: printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin`,
+      String.raw`    Example: printf "a\nb\n" | yarn workspace @examples/simple-cli start:dev process-stdin`,
     );
     console.log('');
 

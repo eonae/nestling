@@ -1,6 +1,6 @@
 # 18. Не сломать соседей при изменении операции
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-05).
 > Целевое описание: [design/operations.md](../design/operations.md) §1.6 и
 > §1.7. Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-31]
 > Версионирование контрактов: снапшот, вердикт по слоту,
@@ -20,7 +20,7 @@
 ## Снапшот операций сборки
 
 ```typescript
-// packages/examples.app-with-http/src/operations.compat.spec.ts
+// examples/app-with-http/src/operations.compat.spec.ts
 /**
  * Та же декларация с секретами из объекта: `check()` собирает граф, и
  * секция читается
@@ -81,7 +81,7 @@ OpenAPI в главе [11](./11-openapi-and-client.md). Без конверте�
 какие топологии её опубликовали:
 
 ```json
-// packages/examples.app-with-http/operations.snapshot.json (фрагмент)
+// examples/app-with-http/operations.snapshot.json (фрагмент)
 {
   "snapshotVersion": 1,
   "operations": [
@@ -124,7 +124,7 @@ Schema отсортированы. Один и тот же граф даёт п�
 ## Сравнение с baseline и вердикты
 
 ```typescript
-// packages/examples.app-with-http/src/operations.compat.spec.ts
+// examples/app-with-http/src/operations.compat.spec.ts
   it('текущая сборка совпадает с опубликованным снапшотом', async () => {
     const current = await currentSnapshot();
 
@@ -179,7 +179,7 @@ Operation compatibility: 0 breaking, 0 additive, 0 unknown
 бы снапшот до изменения, которым это поле убрали:
 
 ```typescript
-// packages/examples.app-with-http/src/operations.compat.spec.ts (фрагмент)
+// examples/app-with-http/src/operations.compat.spec.ts (фрагмент)
     const report = diffOperations(baseline, current);
 
     expect(report.breaking).toMatchObject([
@@ -212,7 +212,7 @@ Operation compatibility: 0 breaking, 0 additive, 0 unknown
 перезапишите снапшот и закоммитьте его вместе с изменением операции.
 
 ```bash
-UPDATE_SNAPSHOT=1 yarn workspace examples.app-with-http test src/operations.compat.spec.ts
+UPDATE_SNAPSHOT=1 yarn workspace @examples/app-with-http test src/operations.compat.spec.ts
 ```
 
 Несовместимое изменение делается через новое имя. Объявите
@@ -224,7 +224,7 @@ UPDATE_SNAPSHOT=1 yarn workspace examples.app-with-http test src/operations.comp
 относит его к `breaking`.
 
 ```bash
-yarn workspace examples.app-with-http test src/operations.compat.spec.ts
+yarn workspace @examples/app-with-http test src/operations.compat.spec.ts
 ```
 
 Часть 4 закончена, а часть 5 читается по потребности — начиная с
