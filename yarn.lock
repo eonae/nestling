@@ -1161,7 +1161,6 @@ __metadata:
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/testing": "workspace:*"
-    "@nestling/transport": "workspace:*"
     "@nestling/transport.nats": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1736,7 +1735,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/app@workspace:packages/nestling.app"
   dependencies:
-    "@common/misc": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
@@ -1835,7 +1833,6 @@ __metadata:
   dependencies:
     "@common/misc": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/streams": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1917,7 +1914,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/transport.cli@workspace:packages/nestling.transport.cli"
   dependencies:
-    "@common/misc": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/streams": "workspace:*"
@@ -1949,7 +1945,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/transport.nats@workspace:packages/nestling.transport.nats"
   dependencies:
-    "@common/misc": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
@@ -1966,7 +1961,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/transport@workspace:packages/nestling.transport"
   dependencies:
-    "@common/misc": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     zod: "npm:^4.0.0"

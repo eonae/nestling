@@ -18,9 +18,10 @@
 | `@nestling/pipeline` | `makePipeline` для слоя `tracked`, `Outcome` и типы контекста |
 | `@nestling/operations` | `makeRequest` / `makeCommand` / `makeEvent` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema` |
 | `@nestling/streams` | `Topic`: лента изменений |
+| `@nestling/app` | `makePlugin`: пакет отдаётся приложению плагином |
 | `@common/misc` | типы Standard Schema |
 
-Внешних зависимостей, вендора схем и `@nestling/app` в пакете нет.
+Внешних зависимостей и вендора схем в пакете нет.
 
 ## Установка
 
@@ -214,6 +215,6 @@ type CloseReason = Outcome | 'killed';
 
 ## Dev-зависимости
 
-Тесты используют `@nestling/testing` (и через него `@nestling/app`),
-`@nestling/ports` и `@nestling/transport`. Это `devDependencies`: граф
-зависимостей пакета в production — пять пакетов из таблицы выше.
+Тесты используют `@nestling/testing`, `@nestling/ports` и
+`@nestling/transport`. Это `devDependencies`: граф зависимостей пакета в
+production — шесть пакетов из таблицы выше.

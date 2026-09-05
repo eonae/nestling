@@ -22,13 +22,13 @@
   "license": "MIT",
   "dependencies": {
     "@common/misc": "workspace:*",
+    "@nestling/app": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
     "@nestling/streams": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/app": "workspace:*",
     "@nestling/ports": "workspace:*",
     "@nestling/testing": "workspace:*",
     "@nestling/transport": "workspace:*",

@@ -29,13 +29,13 @@
     "@nestling/ports": "workspace:*",
     "@nestling/streams": "workspace:*",
     "@nestling/subscriptions": "workspace:*",
-    "@nestling/transport": "workspace:*",
     "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nestling/eslint-plugin": "workspace:*",
-    "@nestling/testing": "workspace:*"
+    "@nestling/testing": "workspace:*",
+    "@nestling/transport": "workspace:*"
   },
   "nx": {
     "targets": {
