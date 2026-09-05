@@ -101,4 +101,4 @@
       change примеры и текст глав не затронуты, отметить как неприменимое
 - [x] 8.7 `node .claude/skills/docs-style/scripts/lint.mjs` по изменённым
       текстам — 0 запрещённых слов
-- [ ] 8.8 Коммиты осмысленные, ветка `change/docs-layout-cleanup` запушена
+- [x] 8.8 Коммиты осмысленные, ветка `change/docs-layout-cleanup` запушена
