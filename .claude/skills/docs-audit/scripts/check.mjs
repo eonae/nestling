@@ -207,7 +207,16 @@ for (const f of readdirSync(ROOT).filter((f) => f.endsWith('.md'))) {
   }
 }
 
-// ── 7. Нумерация history/discussions/NN-* ───────────────────────────────────
+// ── 7. Сайт документации не отслеживается git ───────────────────────────────
+// docs/.site/ — результат `yarn docs:build`. Файл оттуда в индексе означает,
+// что сборку закоммитили: дальше каждая правка главы даёт второй дифф.
+
+for (const p of git('ls-files', '--', 'docs/.site').split('\n').filter(Boolean)) {
+  add('ERROR', 'site-tracked', join(ROOT, p),
+    'сгенерированный сайт не отслеживается git — убери из индекса (`git rm --cached`)');
+}
+
+// ── 8. Нумерация history/discussions/NN-* ───────────────────────────────────
 
 const discDir = join(DOCS, 'history', 'discussions');
 const discFiles = mdFiles(discDir);

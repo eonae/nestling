@@ -29,7 +29,8 @@ node .claude/skills/docs-audit/scripts/check.mjs
 полноту карт в обе стороны (гайды — таблица в `docs/README.md`, design-доки —
 карта в `docs/design/README.md`), битые относительные ссылки,
 незакоммиченные правки замороженного `docs/history/`, посторонние `.md`
-в корне, нумерацию `history/discussions/NN-*`. Exit 1 — есть ERROR.
+в корне, отслеживание git'ом собранного сайта `docs/.site/`, нумерацию
+`history/discussions/NN-*`. Exit 1 — есть ERROR.
 Findings скрипта переноси в отчёт как есть, не перепроверяя вручную.
 
 ## Слой 2 — семантический дрейф

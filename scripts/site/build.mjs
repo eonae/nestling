@@ -1,18 +1,26 @@
 #!/usr/bin/env node
 /**
- * Сборка docs/preview: главы гайда (`docs/guide/*.md`) → статический HTML.
+ * Сборка сайта документации: главы гайда (`docs/guide/*.md`) → статический HTML.
  *
  * Источник текста один — гайд. Состав и порядок страниц берутся из
  * `docs/guide/README.md`: заголовки `## Часть N. …` и `## Приложения`
  * дают группы сайдбара, строки таблиц под ними — страницы. Каркас
- * страницы живёт в `docs/preview/src/layout.html`; HTML в `docs/preview/`
- * — результат сборки, руками не правится.
+ * страницы и тема лежат рядом со скриптом, в `scripts/site/`; HTML в
+ * `docs/.site/` — результат сборки, git его не отслеживает.
  *
- *   yarn docs:preview           — собрать один раз
- *   yarn docs:preview --watch   — пересобирать при изменении docs/guide/
+ *   yarn docs:build   — собрать один раз
+ *   yarn docs:dev     — пересобирать при изменении docs/guide/ и scripts/site/
  */
 
-import { readdirSync, readFileSync, watch, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdirSync,
+  rmSync,
+  readdirSync,
+  readFileSync,
+  watch,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,10 +28,14 @@ import MarkdownIt from 'markdown-it';
 import attrs from 'markdown-it-attrs';
 import container from 'markdown-it-container';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PREVIEW = join(ROOT, 'docs', 'preview');
-const SRC = join(PREVIEW, 'src');
+/** Каталог скрипта: рядом лежат каркас страницы и тема */
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, '..', '..');
+const OUT = join(ROOT, 'docs', '.site');
 const GUIDE = join(ROOT, 'docs', 'guide');
+
+/** Файлы темы: браузер берёт их рядом со страницей, поэтому сборка их копирует */
+const THEME = ['styles.css', 'app.js'];
 
 /** Стартовая страница: README гайда */
 const INDEX_SLUG = 'index';
@@ -134,7 +146,7 @@ md.renderer.rules.table_close = () => '</table>\n</div>\n';
 /* ------------------------------------------------------- состав из README */
 
 /**
- * Читает состав превью из README гайда.
+ * Читает состав сайта из README гайда.
  *
  * Группа — заголовок `## Часть N. …` или `## Приложения`; страницы группы
  * — строки таблицы под ним: первая ячейка несёт ссылку на главу и её
@@ -214,7 +226,7 @@ function assertComplete(pages) {
  * Переписывает ссылки между главами в ссылки между страницами.
  *
  * `./NN-имя.md#якорь` → `NN-имя.html#якорь`. Ссылки в другие папки
- * `docs/` остаются как есть: `guide/` и `preview/` — соседние папки, и
+ * `docs/` остаются как есть: `guide/` и `.site/` — соседние папки, и
  * относительный путь у них совпадает.
  *
  * @throws {BuildError} Ссылка на главу, которой нет среди страниц
@@ -230,7 +242,7 @@ function rewriteLinks(text, slug, slugs) {
       if (!slugs.has(target)) {
         throw new BuildError(
           `docs/guide/${slug}.md ссылается на './${target}.md', которого нет ` +
-            `среди страниц превью`,
+            `среди страниц сайта`,
         );
       }
 
@@ -351,11 +363,16 @@ function renderPager({ prev, next }) {
 /* ------------------------------------------------------------------ сборка */
 
 function build() {
-  const layout = readFileSync(join(SRC, 'layout.html'), 'utf8');
+  const layout = readFileSync(join(HERE, 'layout.html'), 'utf8');
   const readme = readFileSync(join(GUIDE, 'README.md'), 'utf8');
 
   const outline = readOutline(readme);
   assertComplete(outline);
+
+  // Каталог собирается заново: страница удалённой главы иначе осталась бы
+  // лежать в выводе и открываться по прежнему адресу
+  rmSync(OUT, { recursive: true, force: true });
+  mkdirSync(OUT, { recursive: true });
 
   const slugs = new Set(outline.map((page) => page.slug));
 
@@ -383,8 +400,13 @@ function build() {
         renderPager({ prev: pages[index - 1], next: pages[index + 1] }),
       );
 
-    writeFileSync(join(PREVIEW, `${page.slug}.html`), html);
-    console.log(`  docs/preview/${page.slug}.html`);
+    writeFileSync(join(OUT, `${page.slug}.html`), html);
+    console.log(`  docs/.site/${page.slug}.html`);
+  }
+
+  // Тема лежит рядом с генератором, а браузер ищет её рядом со страницей
+  for (const file of THEME) {
+    copyFileSync(join(HERE, file), join(OUT, file));
   }
 }
 
@@ -394,7 +416,7 @@ function buildOrExit() {
     build();
   } catch (error) {
     if (error instanceof BuildError) {
-      console.error(`Сборка превью не удалась: ${error.message}`);
+      console.error(`Сборка сайта не удалась: ${error.message}`);
       process.exit(1);
     }
 
@@ -402,7 +424,7 @@ function buildOrExit() {
   }
 }
 
-console.log('Сборка превью:');
+console.log('Сборка сайта:');
 buildOrExit();
 
 if (process.argv.includes('--watch')) {
@@ -420,6 +442,6 @@ if (process.argv.includes('--watch')) {
   };
 
   watch(GUIDE, { recursive: true }, rebuild);
-  watch(SRC, { recursive: true }, rebuild);
-  console.log('\nЖду изменений в docs/guide/ …  (Ctrl+C — выход)');
+  watch(HERE, { recursive: true }, rebuild);
+  console.log('\nЖду изменений в docs/guide/ и scripts/site/ …  (Ctrl+C — выход)');
 }

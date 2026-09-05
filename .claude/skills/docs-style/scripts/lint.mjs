@@ -83,7 +83,7 @@ const DEFAULT_TARGETS = [
   'docs/guides',
   'docs/glossary.md',
   'docs/README.md',
-  'docs/preview/src',
+  'scripts/site',
   'README.ru.md',
   ...readdirSync(join(ROOT, 'packages'))
     .flatMap((p) => ['README.md', 'README.ru.md', 'src'].map((f) => join('packages', p, f))),

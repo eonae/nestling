@@ -15,8 +15,8 @@
     "verify:fresh": "nx run-many -t build typecheck lint test type-budget --skip-nx-cache && node scripts/smoke.mjs",
     "bench:http": "tsx scripts/bench/http.ts",
     "docs:audit": "node .claude/skills/docs-audit/scripts/check.mjs",
-    "docs:preview": "node scripts/preview/build.mjs",
-    "docs:preview:watch": "node scripts/preview/build.mjs --watch"
+    "docs:build": "node scripts/site/build.mjs",
+    "docs:dev": "node scripts/site/build.mjs --watch"
   },
   "devDependencies": {
     "@eslint/compat": "~1.1.1",
