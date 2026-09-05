@@ -1,19 +1,20 @@
 #!/usr/bin/env node
 /**
- * Сборка сайта документации: главы гайда (`docs/guide/*.md`) → статический HTML.
+ * Сборка гайда: главы `docs/guide/*.md` → один файл `docs/.site/index.html`.
  *
- * Источник текста один — гайд. Состав и порядок страниц берутся из
+ * Источник текста один — гайд. Состав и порядок разделов берутся из
  * `docs/guide/README.md`: заголовки `## Часть N. …` и `## Приложения`
- * дают группы сайдбара, строки таблиц под ними — страницы. Каркас
- * страницы и тема лежат рядом со скриптом, в `scripts/site/`; HTML в
- * `docs/.site/` — результат сборки, git его не отслеживает.
+ * дают группы сайдбара, строки таблиц под ними — главы. Каркас документа
+ * и тема лежат рядом со скриптом, в `scripts/site/`; оформление,
+ * поведение и подсветка кода попадают внутрь собранного файла, поэтому он
+ * открывается в одиночку. Каталог `docs/.site/` — результат сборки, git
+ * его не отслеживает.
  *
  *   yarn docs:build   — собрать один раз
  *   yarn docs:dev     — пересобирать при изменении docs/guide/ и scripts/site/
  */
 
 import {
-  copyFileSync,
   mkdirSync,
   rmSync,
   readdirSync,
@@ -28,17 +29,25 @@ import MarkdownIt from 'markdown-it';
 import attrs from 'markdown-it-attrs';
 import container from 'markdown-it-container';
 
-/** Каталог скрипта: рядом лежат каркас страницы и тема */
+/** Каталог скрипта: рядом лежат каркас документа и тема */
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
 const OUT = join(ROOT, 'docs', '.site');
 const GUIDE = join(ROOT, 'docs', 'guide');
 
-/** Файлы темы: браузер берёт их рядом со страницей, поэтому сборка их копирует */
-const THEME = ['styles.css', 'app.js'];
+/** Единственный файл вывода */
+const FILE = 'index.html';
 
-/** Стартовая страница: README гайда */
+/** Раздел README гайда: он открывает документ */
 const INDEX_SLUG = 'index';
+
+/**
+ * Разделитель приставки главы в идентификаторе заголовка.
+ *
+ * Дефисов два, потому что имена глав и якоря содержат по одному:
+ * одиночный не отличил бы приставку от продолжения имени.
+ */
+const ANCHOR_SEP = '--';
 
 /** Алиасы языков: то, что пишем в ```-заборе → значение data-lang. */
 const LANG_ALIAS = { ts: 'typescript', js: 'javascript' };
@@ -50,8 +59,67 @@ const escapeHtml = (s) =>
 
 const escapeAttr = (s) => escapeHtml(s).replace(/"/g, '&quot;');
 
+/** Подстановка в каркас: значение попадает дословно, `$` в нём не спецсимвол */
+const fill = (template, slot, value) => template.replace(slot, () => value);
+
 /** Ошибка сборки: текст уже объясняет, что править в гайде */
 class BuildError extends Error {}
+
+/* --------------------------------------------------------------- подсветка */
+
+/**
+ * Подсветка выполняется здесь, а не в браузере.
+ *
+ * Файл пересылают, печатают и открывают в режиме чтения — везде, где
+ * JavaScript выключен, разметка токенов должна уже лежать в HTML.
+ * Язык гайда один, поэтому правил хватает семи групп.
+ */
+const KEYWORDS =
+  'const|let|var|function|return|await|async|new|class|interface|type|import|export|' +
+  'from|extends|implements|if|else|for|of|in|while|switch|case|default|break|continue|throw|' +
+  'try|catch|finally|typeof|instanceof|as|void|this|super|yield|enum|public|private|protected|' +
+  'readonly|static|declare|namespace|true|false|null|undefined|infer|keyof|satisfies';
+
+const TOKENS = new RegExp(
+  '(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)' + // 1 комментарий
+    '|(`(?:\\\\.|[^`\\\\])*`|\'(?:\\\\.|[^\'\\\\])*\'|"(?:\\\\.|[^"\\\\])*")' + // 2 строка
+    '|(@[A-Za-z_]\\w*)' + // 3 декоратор
+    '|\\b(\\d[\\d_]*\\.?\\d*)\\b' + // 4 число
+    '|\\b(' + KEYWORDS + ')\\b' + // 5 ключевое слово
+    '|\\b([A-Z][A-Za-z0-9_]*)\\b' + // 6 тип
+    '|\\b([a-z_$][\\w$]*)(?=\\s*\\()', // 7 вызов
+  'g',
+);
+
+/** Классы групп `TOKENS` по порядку */
+const TOKEN_CLASSES = [
+  'tok-com',
+  'tok-str',
+  'tok-deco',
+  'tok-num',
+  'tok-key',
+  'tok-type',
+  'tok-fn',
+];
+
+function highlight(code) {
+  let out = '';
+  let last = 0;
+  let m;
+
+  TOKENS.lastIndex = 0;
+  while ((m = TOKENS.exec(code)) !== null) {
+    if (m.index > last) {
+      out += escapeHtml(code.slice(last, m.index));
+    }
+
+    const group = TOKEN_CLASSES.findIndex((_, i) => m[i + 1] !== undefined);
+    out += `<span class="${TOKEN_CLASSES[group]}">${escapeHtml(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+
+  return out + escapeHtml(code.slice(last));
+}
 
 /* ---------------------------------------------------------------- markdown */
 
@@ -114,10 +182,21 @@ function fileOf(code) {
   return m ? m[1] : '';
 }
 
+/** Шапка блока кода: три точки, имя файла и язык */
+function renderCodeHead(file, lang) {
+  const dots = '<span class="dot"></span>'.repeat(3);
+  const name = file ? `<span class="fname">${escapeHtml(file)}</span>` : '';
+
+  return (
+    `<div class="code-head">${dots}${name}` +
+    `<span class="lang">${escapeHtml(lang)}</span></div>`
+  );
+}
+
 /**
  * ```ts            → <div class="code" data-lang="typescript">
  * Подпись `data-file` берётся из первой строки-комментария сниппета.
- * Подсветку делает app.js в браузере, здесь только разметка.
+ * Шапка блока и разметка токенов пишутся сразу: браузеру доделывать нечего.
  */
 md.renderer.rules.fence = (tokens, idx) => {
   const info = tokens[idx].info.trim();
@@ -128,7 +207,11 @@ md.renderer.rules.fence = (tokens, idx) => {
   const fileAttr = file ? ` data-file="${escapeAttr(file)}"` : '';
   const langAttr = lang ? ` data-lang="${escapeAttr(lang)}"` : '';
 
-  return `<div class="code"${fileAttr}${langAttr}><pre><code>${escapeHtml(code)}</code></pre></div>\n`;
+  return (
+    `<div class="code"${fileAttr}${langAttr}>` +
+    renderCodeHead(file, lang || 'ts') +
+    `<pre><code>${highlight(code)}</code></pre></div>\n`
+  );
 };
 
 // Списки в статье оформляются как ul.body / ol.body — если класс не задан явно.
@@ -146,16 +229,16 @@ md.renderer.rules.table_close = () => '</table>\n</div>\n';
 /* ------------------------------------------------------- состав из README */
 
 /**
- * Читает состав сайта из README гайда.
+ * Читает состав документа из README гайда.
  *
- * Группа — заголовок `## Часть N. …` или `## Приложения`; страницы группы
- * — строки таблицы под ним: первая ячейка несёт ссылку на главу и её
+ * Группа — заголовок `## Часть N. …` или `## Приложения`; главы группы —
+ * строки таблицы под ним: первая ячейка несёт ссылку на главу и её
  * заголовок.
  *
- * @returns Страницы в порядке README: `{ slug, title, group }`
+ * @returns Главы в порядке README: `{ slug, title, group }`
  */
 function readOutline(readme) {
-  const pages = [];
+  const chapters = [];
   let group;
 
   for (const line of readme.split('\n')) {
@@ -177,33 +260,33 @@ function readOutline(readme) {
       );
     }
 
-    pages.push({ slug: cell[2], title: cell[1], group });
+    chapters.push({ slug: cell[2], title: cell[1], group });
   }
 
-  if (pages.length === 0) {
+  if (chapters.length === 0) {
     throw new BuildError(
       'docs/guide/README.md: в таблицах нет ни одной ссылки на главу',
     );
   }
 
-  return pages;
+  return chapters;
 }
 
 /**
  * Сверяет состав README с файлами `docs/guide`.
  *
- * Расхождение в любую сторону — ошибка сборки: страница без главы
- * собралась бы пустой, а глава без строки README не попала бы в
- * навигацию и осталась бы недоступной.
+ * Расхождение в любую сторону — ошибка сборки: раздел без главы собрался
+ * бы пустым, а глава без строки README не попала бы в навигацию и
+ * осталась бы недоступной.
  */
-function assertComplete(pages) {
-  const listed = new Set(pages.map((page) => page.slug));
+function assertComplete(chapters) {
+  const listed = new Set(chapters.map((chapter) => chapter.slug));
 
   const files = readdirSync(GUIDE)
     .filter((name) => name.endsWith('.md') && name !== 'README.md')
     .map((name) => name.replace(/\.md$/, ''));
 
-  for (const { slug } of pages) {
+  for (const { slug } of chapters) {
     if (!files.includes(slug)) {
       throw new BuildError(
         `docs/guide/README.md называет главу '${slug}.md', которой нет в docs/guide`,
@@ -223,38 +306,55 @@ function assertComplete(pages) {
 /* ------------------------------------------------------------------ ссылки */
 
 /**
- * Переписывает ссылки между главами в ссылки между страницами.
+ * Идентификатор заголовка: приставка главы плюс якорь.
  *
- * `./NN-имя.md#якорь` → `NN-имя.html#якорь`. Ссылки в другие папки
+ * Главы лежат в одном файле, а «Запуск» и «Что дальше» встречаются в них
+ * многократно: без приставки такие `id` столкнулись бы, и ссылка вела бы
+ * в первую попавшуюся главу.
+ */
+function anchorId(slug, anchor) {
+  return `${slug}${ANCHOR_SEP}${anchor}`;
+}
+
+/**
+ * Переписывает ссылки главы в якоря одного документа.
+ *
+ * `./NN-имя.md#якорь` → `#NN-имя--якорь`, `./NN-имя.md` → `#NN-имя`,
+ * `](#якорь)` внутри главы → `#NN-имя--якорь`. Ссылки в другие папки
  * `docs/` остаются как есть: `guide/` и `.site/` — соседние папки, и
  * относительный путь у них совпадает.
  *
- * @throws {BuildError} Ссылка на главу, которой нет среди страниц
+ * @throws {BuildError} Ссылка на главу, которой нет среди разделов
  */
 function rewriteLinks(text, slug, slugs) {
-  return text.replace(
-    /\(\.\/([\w-]+)\.md(#[^)]*)?\)/g,
-    (all, target, anchor = '') => {
-      if (target === 'README') {
-        return `(${INDEX_SLUG}.html${anchor})`;
-      }
+  // Сначала ссылки внутрь своей главы: иначе приставку получил бы и
+  // результат переписывания ссылок на соседние главы
+  const local = text.replace(
+    /\]\(#([^)\s]+)\)/g,
+    (all, anchor) => `](#${anchorId(slug, anchor)})`,
+  );
 
-      if (!slugs.has(target)) {
+  return local.replace(
+    /\(\.\/([\w-]+)\.md(?:#([^)]*))?\)/g,
+    (all, target, anchor) => {
+      const chapter = target === 'README' ? INDEX_SLUG : target;
+
+      if (chapter !== INDEX_SLUG && !slugs.has(chapter)) {
         throw new BuildError(
           `docs/guide/${slug}.md ссылается на './${target}.md', которого нет ` +
-            `среди страниц сайта`,
+            `среди глав документа`,
         );
       }
 
-      return `(${target}.html${anchor})`;
+      return `(#${anchor ? anchorId(chapter, anchor) : chapter})`;
     },
   );
 }
 
 /* ------------------------------------------------------------------ каркас */
 
-/** Заголовки `##` открытой страницы: подпункты её группы в сайдбаре */
-function sectionsOf(text) {
+/** Заголовки `##` главы: её подпункты в сайдбаре */
+function sectionsOf(text, slug) {
   const sections = [];
 
   for (const line of text.split('\n')) {
@@ -264,7 +364,10 @@ function sectionsOf(text) {
     }
 
     const label = m[1].replace(/`/g, '');
-    sections.push({ label, anchor: m[3] ?? slugifyAnchor(label) });
+    sections.push({
+      label,
+      anchor: anchorId(slug, m[3] ?? slugifyAnchor(label)),
+    });
   }
 
   return sections;
@@ -272,7 +375,7 @@ function sectionsOf(text) {
 
 /**
  * Якорь заголовка по правилам `markdown-it-anchor`, которых здесь нет:
- * ссылки внутри страницы строит сам генератор, поэтому правило одно и то
+ * ссылки внутри документа строит сам генератор, поэтому правило одно и то
  * же для сайдбара и для разметки заголовка.
  */
 function slugifyAnchor(label) {
@@ -283,11 +386,16 @@ function slugifyAnchor(label) {
     .replace(/\s+/g, '-');
 }
 
-/** Ставит `id` заголовкам `##`, чтобы подпункты сайдбара вели внутрь страницы */
-function anchorHeadings(html, sections) {
+/** Ставит `id` заголовкам `##` и приставляет главу к явным `{#id}` */
+function anchorHeadings(html, sections, slug) {
   let index = 0;
 
-  return html.replace(/<h2(\s[^>]*)?>/g, (all, attrs = '') => {
+  const explicit = html.replace(
+    /(<h[1-6][^>]*\sid=")([^"]*)(")/g,
+    (all, head, id, tail) => `${head}${escapeAttr(anchorId(slug, id))}${tail}`,
+  );
+
+  return explicit.replace(/<h2(\s[^>]*)?>/g, (all, attrs = '') => {
     const section = sections[index++];
 
     if (!section || /\bid=/.test(attrs)) {
@@ -298,58 +406,67 @@ function anchorHeadings(html, sections) {
   });
 }
 
-function renderSidebar(current, pages) {
+/**
+ * Пункт главы в сайдбаре и список её разделов.
+ *
+ * Разделы лежат в разметке у каждой главы, а показываются у читаемой:
+ * двадцать восемь глав сразу дали бы больше сотни подпунктов. Какую
+ * главу читают, решает встроенный скрипт.
+ */
+function renderNavItem(chapter) {
+  const slug = escapeAttr(chapter.slug);
+  const link =
+    `      <li><a href="#${slug}" data-chapter="${slug}">` +
+    `${escapeHtml(chapter.title)}</a>`;
+
+  if (chapter.sections.length === 0) {
+    return `${link}</li>`;
+  }
+
+  const sub = chapter.sections
+    .map(
+      (section) =>
+        `          <li><a href="#${escapeAttr(section.anchor)}">` +
+        `${escapeHtml(section.label)}</a></li>`,
+    )
+    .join('\n');
+
+  return (
+    `${link}\n        <ul class="nav-sub" data-for="${slug}">\n` +
+    `${sub}\n        </ul></li>`
+  );
+}
+
+/** Один сайдбар на документ: все части и главы, ссылки якорями */
+function renderSidebar(chapters) {
   const groups = [];
 
-  for (const page of pages) {
+  for (const chapter of chapters) {
     const last = groups.at(-1);
 
-    if (last && last.name === page.group) {
-      last.pages.push(page);
+    if (last && last.name === chapter.group) {
+      last.chapters.push(chapter);
     } else {
-      groups.push({ name: page.group, pages: [page] });
+      groups.push({ name: chapter.group, chapters: [chapter] });
     }
   }
 
-  const rendered = groups.map(({ name, pages: items }) => {
+  const rendered = groups.map(({ name, chapters: items }) => {
     const title = `  <p class="nav-title">${escapeHtml(name)}</p>`;
-    const links = items
-      .map((page) => {
-        const active = page.slug === current.slug ? ' class="active"' : '';
-        return (
-          `      <li><a href="${escapeAttr(page.slug)}.html"${active}>` +
-          `${escapeHtml(page.title)}</a></li>`
-        );
-      })
-      .join('\n');
+    const links = items.map(renderNavItem).join('\n');
 
-    const open = items.some((page) => page.slug === current.slug);
-    if (!open) {
-      return `  <div class="nav-group">\n${title}\n    <ul>\n${links}\n    </ul>\n  </div>`;
-    }
-
-    const sub = current.sections
-      .map(
-        (section) =>
-          `      <li><a href="#${escapeAttr(section.anchor)}">${escapeHtml(section.label)}</a></li>`,
-      )
-      .join('\n');
-
-    const subList = sub
-      ? `\n    <ul class="nav-sub">\n${sub}\n    </ul>`
-      : '';
-
-    return `  <div class="nav-group">\n${title}\n    <ul>\n${links}\n    </ul>${subList}\n  </div>`;
+    return `  <div class="nav-group">\n${title}\n    <ul>\n${links}\n    </ul>\n  </div>`;
   });
 
   return `<aside class="sidebar">\n${rendered.join('\n')}\n</aside>`;
 }
 
+/** Ссылки на соседние главы: они лежат ниже и выше в том же файле */
 function renderPager({ prev, next }) {
-  const link = (page, dir, cls) =>
-    `    <a${cls ? ` class="${cls}"` : ''} href="${escapeAttr(page.slug)}.html">\n` +
+  const link = (chapter, dir, cls) =>
+    `    <a${cls ? ` class="${cls}"` : ''} href="#${escapeAttr(chapter.slug)}">\n` +
     `      <div class="dir">${escapeHtml(dir)}</div>\n` +
-    `      <div class="ttl">${escapeHtml(page.title)}</div>\n` +
+    `      <div class="ttl">${escapeHtml(chapter.title)}</div>\n` +
     `    </a>`;
 
   const parts = [prev ? link(prev, '← Назад', '') : '    <span></span>'];
@@ -364,50 +481,60 @@ function renderPager({ prev, next }) {
 
 function build() {
   const layout = readFileSync(join(HERE, 'layout.html'), 'utf8');
+  const styles = readFileSync(join(HERE, 'styles.css'), 'utf8');
+  const script = readFileSync(join(HERE, 'app.js'), 'utf8');
   const readme = readFileSync(join(GUIDE, 'README.md'), 'utf8');
 
   const outline = readOutline(readme);
   assertComplete(outline);
 
-  // Каталог собирается заново: страница удалённой главы иначе осталась бы
-  // лежать в выводе и открываться по прежнему адресу
+  // Каталог собирается заново: файл прошлой сборки иначе остался бы лежать
+  // в выводе и открываться по прежнему адресу
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
 
-  const slugs = new Set(outline.map((page) => page.slug));
+  const slugs = new Set(outline.map((chapter) => chapter.slug));
 
-  // Стартовая страница — сам README; в сайдбаре она не пункт, а группа
-  // «Гайд по Nestling» со ссылкой на себя
-  const pages = [
+  // Документ открывает README гайда; в сайдбаре он — группа «Гайд»
+  const chapters = [
     { slug: INDEX_SLUG, title: 'Гайд по Nestling', group: 'Гайд', source: readme },
-    ...outline.map((page) => ({
-      ...page,
-      source: readFileSync(join(GUIDE, `${page.slug}.md`), 'utf8'),
+    ...outline.map((chapter) => ({
+      ...chapter,
+      source: readFileSync(join(GUIDE, `${chapter.slug}.md`), 'utf8'),
     })),
-  ];
+  ].map((chapter) => ({
+    ...chapter,
+    sections: sectionsOf(chapter.source, chapter.slug),
+  }));
 
-  for (const [index, page] of pages.entries()) {
-    const sections = sectionsOf(page.source);
-    const text = rewriteLinks(page.source, page.slug, slugs);
-    const article = anchorHeadings(md.render(text), sections);
-
-    const html = layout
-      .replace('{{title}}', escapeHtml(`Nestling — ${page.title}`))
-      .replace('{{sidebar}}', renderSidebar({ ...page, sections }, pages))
-      .replace('{{article}}', article)
-      .replace(
-        '{{pager}}',
-        renderPager({ prev: pages[index - 1], next: pages[index + 1] }),
+  const body = chapters
+    .map((chapter, index) => {
+      const text = rewriteLinks(chapter.source, chapter.slug, slugs);
+      const article = anchorHeadings(
+        md.render(text),
+        chapter.sections,
+        chapter.slug,
       );
+      const pager = renderPager({
+        prev: chapters[index - 1],
+        next: chapters[index + 1],
+      });
 
-    writeFileSync(join(OUT, `${page.slug}.html`), html);
-    console.log(`  docs/.site/${page.slug}.html`);
-  }
+      return (
+        `<section class="chapter" id="${escapeAttr(chapter.slug)}">\n` +
+        `${article}${pager}</section>`
+      );
+    })
+    .join('\n');
 
-  // Тема лежит рядом с генератором, а браузер ищет её рядом со страницей
-  for (const file of THEME) {
-    copyFileSync(join(HERE, file), join(OUT, file));
-  }
+  let html = fill(layout, '{{title}}', escapeHtml('Nestling — гайд'));
+  html = fill(html, '{{styles}}', styles);
+  html = fill(html, '{{sidebar}}', renderSidebar(chapters));
+  html = fill(html, '{{chapters}}', body);
+  html = fill(html, '{{script}}', script);
+
+  writeFileSync(join(OUT, FILE), html);
+  console.log(`  docs/.site/${FILE} — глав: ${chapters.length}`);
 }
 
 /** Ошибка гайда печатается строкой: стектрейс генератора читателю не нужен */
