@@ -1,4 +1,4 @@
-/* Nestling docs preview — тема, подсветка, навигация. Zero deps. */
+/* Сайт документации Nestling — тема, подсветка, навигация. Zero deps. */
 (function () {
   'use strict';
 

@@ -342,5 +342,4 @@ export const appSubscriptions = subscriptions({
 [decisions/ideas.md](../decisions/ideas.md). Альтернативные формы,
 которые главы показывали по одному разу, собраны в
 [приложении А](./appendix-a-alternatives.md); соответствия понятиям
-NestJS в [приложении Б](./appendix-b-from-nestjs.md); карта «понятие,
-глава, файл» в [приложении В](./appendix-c-coverage.md).
+NestJS в [приложении Б](./appendix-b-from-nestjs.md).

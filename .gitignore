@@ -4,6 +4,9 @@ node_modules
 docs.rsdk
 *.tsbuildinfo
 
+# Сайт документации: результат `yarn docs:build`
+docs/.site/
+
 # Logs
 logs
 *.log

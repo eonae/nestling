@@ -12,8 +12,6 @@ docs/
 ├── decisions/     ← журнал решений: когда, что, почему, отвергнутые варианты.
 ├── guide/         ← гайд по ТЕКУЩЕМУ API: главы от первого сервиса к split-развёртыванию,
 │                 каждая сверена с кодом примера.
-├── preview/       ← статический HTML-просмотр гайда; не источник истины.
-│                 Собирается из guide/ командой `yarn docs:preview`.
 ├── glossary.md    ← термины и правила их написания.
 ├── conventions.md ← соглашения об именовании в коде приложения; по ним пишутся правила линтера.
 └── history/       ← замороженная история. Не редактируется.
@@ -22,6 +20,11 @@ docs/
     ├── superseded/    — дизайны, замещённые более новыми решениями
     └── worklog/       — рабочие заметки времён реализации
 ```
+
+Сайт документации собирается из `guide/` командой `yarn docs:build`.
+Генератор и тема лежат в [`scripts/site/`](../scripts/site/), результат —
+в `docs/.site/`. Этот каталог не отслеживается git и источником истины не
+является: правится глава, а не собранная страница.
 
 Актуальное состояние **кода** документируют README пакетов
 (`packages/*/README.md`) — они публикуются с npm и живут рядом с кодом.
@@ -61,12 +64,50 @@ design-доки описывают **только целевое V1** (как б
   осознанно не принято/не запланировано; контекст, что уже придумано,
   триггер возврата. Для тем без своей записи в ideas.md.
 
+## Пакеты
+
+Для автора приложения:
+
+| Пакет | Что делает |
+|---|---|
+| [`@nestling/app`](../packages/nestling.app/) | Composition root: `assemble`, фичи и плагины, `select`, фазы жизненного цикла, политики |
+| [`@nestling/transport.http`](../packages/nestling.transport.http/) | HTTP на `node:http`: `httpEndpoint`, маршрутизация, JSON, NDJSON, SSE, multipart |
+| [`@nestling/operations`](../packages/nestling.operations/) | Общее для сервера и клиента: операции, `makeFail`, `Ok`/`Fail`, формы io |
+| [`@nestling/config`](../packages/nestling.config/) | Конфигурация секциями со схемами, источники и их привязка, секреты, reloadable |
+| [`@nestling/container`](../packages/nestling.container/) | Контейнер зависимостей: токены, провайдеры, семейства токенов, модули, хуки жизненного цикла |
+| [`@nestling/pipeline`](../packages/nestling.pipeline/) | Пайплайн обработки запроса, слои, политики, асинхронный контекст |
+| [`@nestling/ports`](../packages/nestling.ports/) | Реализация и вызов операций между фичами, шина внутри процесса |
+| [`@nestling/testing`](../packages/nestling.testing/) | Тестовый composition root: `assembleTest`, `overrides`, стабы операций, `checkTopologies` |
+
+Транспорты и шина:
+
+| Пакет | Что делает |
+|---|---|
+| [`@nestling/transport.cli`](../packages/nestling.transport.cli/) | Команды CLI как endpoint'ы: однократный запуск и REPL |
+| [`@nestling/transport.nats`](../packages/nestling.transport.nats/) | NATS как шина приложения: операции между процессами, `durable`-доставка |
+| [`@nestling/transport`](../packages/nestling.transport/) | Интерфейс транспорта и `makeDispatch` для запуска без `assemble` |
+| [`@nestling/streams`](../packages/nestling.streams/) | `Topic<T>` и комбинаторы потоков на `AsyncIterable` |
+
+Инструменты и сателлиты:
+
+| Пакет | Что делает |
+|---|---|
+| [`@nestling/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
+| [`@nestling/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
+| [`@nestling/openapi.zod`](../packages/nestling.openapi.zod/) | Конвертер схем zod для `@nestling/openapi` |
+| [`@nestling/subscriptions`](../packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
+| [`@nestling/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
+| [`@nestling/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, подсказки по декларациям endpoint'ов |
+| [`@nestling/models`](../packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
+
 ## Правила ведения
 
 1. **Папка = статус.** Никаких «наполовину актуальных» документов.
 2. **`design/` — единственное место, где целевой API описан целиком.**
    Меняется решение → правится design-док по месту + добавляется запись
-   в `decisions/`. «Почему» живёт в decisions, «что» — в design.
+   в `decisions/`. «Почему» живёт в decisions, «что» — в design. В записи
+   пишется и то, как к решению пришли: контекст и отвергнутые варианты, а
+   не один итог.
 3. **В `design/` нет порядка работ и статусов реализации** — только
    целевое V1 и ссылки: на записи ideas.md (логика) и на roadmap (статус).
    Слова «v2» в целевых доках не существует: осознанно исключённое из V1 —
@@ -76,7 +117,7 @@ design-доки описывают **только целевое V1** (как б
 5. **Каждый design-док начинается с плашки** «Целевое состояние V1» со
    ссылками на записи журнала и roadmap.
 6. **Новые дискуссии** — сразу в `history/discussions/NN-тема.md`.
-   Корень репозитория для документации закрыт (кроме README).
+   Корень репозитория для документации закрыт (кроме README и `CLAUDE.md`).
 7. **Главы гайда сверяются с примерами.** Каждая глава в `guide/`
    начинается с плашки «сверено с кодом <пример> (дата)». Изменил пример —
    обнови главу и дату.
