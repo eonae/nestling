@@ -85,8 +85,10 @@ const DEFAULT_TARGETS = [
   'docs/README.md',
   'docs/preview/src',
   'README.ru.md',
-  ...readdirSync(join(ROOT, 'packages'))
-    .flatMap((p) => ['README.md', 'README.ru.md', 'src'].map((f) => join('packages', p, f))),
+  ...['packages', 'examples'].flatMap((dir) =>
+    readdirSync(join(ROOT, dir))
+      .flatMap((p) => ['README.md', 'README.ru.md', 'src'].map((f) => join(dir, p, f))),
+  ),
 ];
 
 const args = process.argv.slice(2);

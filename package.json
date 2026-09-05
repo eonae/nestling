@@ -8,7 +8,8 @@
   },
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
     "verify": "nx run-many -t build typecheck lint test type-budget && node scripts/smoke.mjs",

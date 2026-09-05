@@ -1,5 +1,6 @@
 {
-  "name": "examples.container",
+  "name": "@examples/container",
+  "private": true,
   "version": "0.1.0",
   "description": "Container without transport: modules, token families, config sources, reloadable sections",
   "type": "module",

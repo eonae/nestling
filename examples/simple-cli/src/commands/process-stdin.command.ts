@@ -18,7 +18,7 @@ type ProcessStdinOutput = z.infer<typeof ProcessStdinOutput>;
  * `process-stdin`: читает stdin как поток байтов и считает строки.
  *
  * Запуск:
- *   printf "a\nb\n" | yarn workspace examples.simple-cli start:dev process-stdin
+ *   printf "a\nb\n" | yarn workspace @examples/simple-cli start:dev process-stdin
  */
 export const ProcessStdin = cliEndpoint({
   command: 'process-stdin',

@@ -407,7 +407,7 @@ export const testTransport = (): TransportDeclaration =&gt;
 ленты завершается нормально.</p>
 <div class="code" data-lang="bash"><pre><code>yarn workspace @nestling/subscriptions test</code></pre></div>
 <p>Подключение в приложении:</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.ts (фрагмент)
 export const appSubscriptions = subscriptions({
   identity: (ctx) =&gt; (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) =&gt; ({ transport: ctx.endpoint.transport }),

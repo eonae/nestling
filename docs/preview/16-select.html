@@ -100,7 +100,7 @@
 
 <h1>16. Запускать только часть фич</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/composition.md">design/composition.md</a>
 «L2 — фичи и <code>select</code>» и «<code>check()</code>». Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-08] Модульный монолит: фичи,
@@ -113,7 +113,7 @@ endpoint'ы разворачиваются отдельно, и каждый п�
 только свои фичи. Один и тот же код должен собираться во все три роли, а
 неверный состав должен останавливать сборку, а не первый запрос.</p>
 <h2 id="прочитайте-выбор-фич-до-сборки">Прочитайте выбор фич до сборки</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/main.ts
+<div class="code" data-file="examples/app-with-http/src/main.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/main.ts
 import { app } from './app.js';
 
 import { from, load, makeConfig } from '@nestling/config';
@@ -180,7 +180,7 @@ await app.assemble({ features: cfg.features, includeDeps: true }).run();</code><
 подписываются. Неизвестное имя в <code>select</code> останавливает сборку, и ошибка
 перечисляет доступные фичи, так же как две фичи с одним именем, пустой
 выбор и <code>select</code> без <code>features:</code>.</p>
-<div class="code" data-lang="bash"><pre><code>APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev</code></pre></div>
 <div class="code"><pre><code>[nestling] features: users, quotas; transports: http, bus
 [nestling] selection closed over calls: users + quotas
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не bearer-токеном</code></pre></div>
@@ -211,7 +211,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 владельца в выбор или назначить интерком, когда владелец работает в
 другом процессе.</p>
 <h2 id="плагины-и-проверка-каждой-роли-без-сокетов">Плагины и проверка каждой роли без сокетов</h2>
-<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+<div class="code" data-file="examples/app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.spec.ts
   it('подключает плагины и только выбранную фичу', async () =&gt; {
     // `ops` выбрана одна: провайдеров фичи `users` в графе нет, а плагины
     // есть в любой сборке
@@ -227,7 +227,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 <p>Логирование, аутентификация, реестр подписок и документ OpenAPI
 подключены через <code>plugins:</code> и не зависят от <code>select</code>. Провайдеров фичи
 <code>users</code> в этой сборке нет.</p>
-<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+<div class="code" data-file="examples/app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.spec.ts
 /**
  * Декларация для `check()`: подстановок у структурной проверки нет,
  * поэтому значения секретов привязываются источником к ключам секции
@@ -250,7 +250,7 @@ discovery, <code>build()</code> и проверку политик. <code>@OnIni
 секреты приходят не из <code>vars()</code>, а привязкой источника к ключам секции в
 самой декларации. Секреты <code>API_TOKEN</code> и <code>WEBHOOK_SECRET</code> нужны и здесь,
 потому что <code>build()</code> создаёт секцию конфига.</p>
-<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+<div class="code" data-file="examples/app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.spec.ts
   it('собирает каждый вариант деплоя без сокетов', async () =&gt; {
     const usersWithDeps = { features: 'users', includeDeps: true } as const;
     const reports = await checkTopologies(checked, [
@@ -279,7 +279,7 @@ discovery, <code>build()</code> и проверку политик. <code>@OnIni
 <code>detached</code>, <code>transports</code> и <code>operations</code>. Endpoint <code>GET /openapi.json</code>
 в отчёте роли <code>ops</code> принадлежит плагину документации, а реализации
 операций видны под именами вида <code>subscriptions.opened@ops</code>.</p>
-<div class="code" data-file="packages/examples.app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/app.spec.ts
+<div class="code" data-file="examples/app-with-http/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/app.spec.ts
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () =&gt; {
     const [{ report }] = await checkTopologies(checked, ['all']);
 
@@ -295,8 +295,8 @@ discovery, <code>build()</code> и проверку политик. <code>@OnIni
 выборе <code>'all'</code> и ломается на подмножестве, виден в тесте, а не при
 выкладке. Причины <code>detached</code> приходят значениями в отчёте: тест сравнивает
 список, а не читает вывод в консоли.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.app-with-http test
-APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/app-with-http test
+APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev</code></pre></div>
 <p>Роли собираются по отдельности, но пока работают в одном процессе:
 <a href="17-split.html">17. Разнести фичи по процессам</a>.</p>
 

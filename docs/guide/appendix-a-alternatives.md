@@ -1,6 +1,6 @@
 # Приложение А. Альтернативные формы
 
-> Каждая форма показана в одном месте примера `examples.app-with-http` (2026-09-05).
+> Каждая форма показана в одном месте примера `app-with-http` (2026-09-05).
 
 Главы гайда используют одну форму записи для каждой задачи. Фреймворк
 допускает и другие. Здесь они собраны в одном месте: где показана
@@ -19,7 +19,7 @@
 ## Отказ из юнита
 
 ```typescript
-// packages/examples.app-with-http/src/plugins/auth/authenticate.ts
+// examples/app-with-http/src/plugins/auth/authenticate.ts
     if (token === undefined || token !== this.config.apiToken) {
       return Unauthorized();
     }
@@ -48,7 +48,7 @@ makePipeline().pre(Authenticate, { errors: [Unauthorized] });
 ## Слой `.catch` с проверкой по коду
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
 @Injectable([Logger$])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
@@ -88,7 +88,7 @@ export class AuditDeletion {
 ## `Ok.noContent()` и `Ok.accepted()`
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
+// examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
     return removed ? Ok.noContent() : UserNotFound({ id: input.id });
 ```
 
@@ -103,7 +103,7 @@ export class AuditDeletion {
 ## `providers:` и `modules:` у фичи
 
 ```typescript
-// packages/examples.app-with-http/src/features/quotas/quotas.feature.ts
+// examples/app-with-http/src/features/quotas/quotas.feature.ts
 export const QuotasFeature = makeFeature({
   name: 'quotas',
   providers: [QuotaService, SignupJournal],
@@ -112,7 +112,7 @@ export const QuotasFeature = makeFeature({
 ```
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/users.feature.ts
+// examples/app-with-http/src/features/users/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],

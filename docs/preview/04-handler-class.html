@@ -100,7 +100,7 @@
 
 <h1>4. Хендлер как класс</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a> §3.
 Почему так: запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-09-03] Поле
 <code>handler</code>: зависимости принадлежат хендлеру; канон <code>return</code>;
@@ -110,7 +110,7 @@
 Такой хендлер трудно тестировать отдельно: чтобы вызвать его, нужно
 достать его из декларации. Хендлер нужно вынести в отдельное значение,
 которое видно тесту и в которое дальше можно добавить зависимости.</p>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/list-users.endpoint.ts
 import { Injectable } from '@nestling/container';
 import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -148,7 +148,7 @@ export const ListUsers = httpEndpoint({
 провайдер этого класса в модуль той единицы, которая объявила endpoint.
 <code>new</code> в коде приложения не нужен, зависимости приходят в конструктор.
 Перечислять класс в <code>providers:</code> фичи не нужно:</p>
-<div class="code" data-file="packages/examples.users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts
+<div class="code" data-file="examples/users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -170,7 +170,7 @@ endpoint'ам, и они разделят один экземпляр: клас�
 провайдер регистрируется один раз.</p>
 <h2 id="юнит-тест-без-фреймворка">Юнит-тест без фреймворка</h2>
 <p>Класс — обычное значение, поэтому тест создаёт его через <code>new</code>:</p>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 import { CreateUserHandler } from './create-user.endpoint.js';
 
 it('возвращает отказ EmailTaken для занятого email', async () =&gt; {
@@ -184,7 +184,7 @@ it('возвращает отказ EmailTaken для занятого email', a
 тесту не нужно. Аргумент конструктора здесь — фейк хранилища. Тест,
 который вызывает endpoint через полный пайплайн, проверяет тот же класс
 другим способом — через декларацию, а не через <code>new</code>.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/users-service test</code></pre></div>
 <h2 id="две-формы-поля-handler">Две формы поля <code>handler</code></h2>
 <p>Класс — не единственная форма. Поле <code>handler</code> принимает две:</p>
 <div class="tbl-wrap">

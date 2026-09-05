@@ -1,6 +1,6 @@
 # 11. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-05).
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -14,7 +14,7 @@
 отказов в декларациях.
 
 ```typescript
-// packages/examples.users-service/src/app.ts
+// examples/users-service/src/app.ts
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
@@ -67,7 +67,7 @@ JSON Schema описывает данные, но не саму операцию
 статус успеха объявляются в слоте `doc:`:
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
+// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
@@ -98,7 +98,7 @@ endpoint реализует операцию, иначе из метода и п
 Служебный endpoint убирается из документа полем `hidden` с причиной:
 
 ```typescript
-// packages/examples.users-service/src/ops.plugin.ts
+// examples/users-service/src/ops.plugin.ts
 export const CheckHealth = httpEndpoint({
   method: 'GET',
   path: '/health',
@@ -126,7 +126,7 @@ endpoint'ов плагин печатает при старте:
 зависимости. Эти части выносятся из декларации в операцию:
 
 ```typescript
-// packages/examples.users-service/src/api/operations.ts
+// examples/users-service/src/api/operations.ts
 import { makeRequest } from '@nestling/operations';
 
 export const GetUserInput = z.object({ id: z.string() });
@@ -167,7 +167,7 @@ export const CreateUser = makeRequest({
 Реализация подключает операцию через `operation:`:
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+// examples/users-service/src/users/endpoints/get-user.endpoint.ts
 @Injectable([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -196,7 +196,7 @@ export const GetUser = httpEndpoint({
 ## Клиент
 
 ```typescript
-// packages/examples.users-service/src/api/client.ts
+// examples/users-service/src/api/client.ts
 import { makeClient } from '@nestling/client';
 
 /** Имена методов задаёт потребитель: ключи объекта */
@@ -257,8 +257,8 @@ await main();
 Запустите сервер и скрипт:
 
 ```bash
-API_TOKEN=secret yarn workspace examples.users-service start:dev
-API_TOKEN=secret yarn workspace examples.users-service client
+API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn workspace @examples/users-service client
 # created 3
 # fetched Carol
 ```

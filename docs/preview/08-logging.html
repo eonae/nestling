@@ -100,7 +100,7 @@
 
 <h1>8. Видеть каждый запрос в логе</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/pipeline.md">design/pipeline.md</a>. Почему так:
 записи <a href="../decisions/ideas.md">ideas.md</a> «Pipeline v2: плоские фазы, слои,
 композиция константами» и «Асинхронный контекст: read-only ALS-проекция
@@ -110,7 +110,7 @@ pipeline-контекста».</p>
 ответам. Каждый запрос должен оставлять строку в логе: адрес, статус и
 то, чем он закончился. Строки одного запроса, даже из глубины кода,
 должны связываться между собой по общему идентификатору.</p>
-<div class="code" data-file="packages/examples.users-service/src/logging.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/logging.ts
+<div class="code" data-file="examples/users-service/src/logging.ts" data-lang="typescript"><pre><code>// examples/users-service/src/logging.ts
 import { Injectable, makeToken } from '@nestling/container';
 
 /** Логгер приложения */
@@ -177,7 +177,7 @@ export class ConsoleLogger implements Logger {
 </div>
 <p>Для лога нужны две фазы: <code>.pre</code>, чтобы положить идентификатор запроса в
 контекст, и <code>.finally</code>, чтобы записать итог.</p>
-<div class="code" data-file="packages/examples.users-service/src/observability.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/observability.ts
+<div class="code" data-file="examples/users-service/src/observability.ts" data-lang="typescript"><pre><code>// examples/users-service/src/observability.ts
 import { Injectable } from '@nestling/container';
 import type {
   ExtendableContext,
@@ -234,7 +234,7 @@ export const observability = makePipeline()
 <p><code>observability</code> — слой: один вызов <code>makePipeline()</code> с цепочкой методов,
 обычное значение. Оно экспортируется и подключается к каждому endpoint'у.</p>
 <h2 id="подключение-к-endpointам">Подключение к endpoint'ам</h2>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint({
   method: 'GET',
   path: '/users',
@@ -249,7 +249,7 @@ export const ListUsers = httpEndpoint({
 <p>Класс-юнит создаёт контейнер, поэтому <code>AuditOutcome</code> регистрируется в
 <code>providers:</code> фичи рядом с логгером. Класс-юнит, которого нет в
 <code>providers:</code>, останавливает сборку на фазе ASSEMBLE, до открытия сокета.</p>
-<div class="code" data-file="packages/examples.users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts
+<div class="code" data-file="examples/users-service/src/users.feature.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -262,7 +262,7 @@ export const UsersFeature = makeFeature({
   // …
 });</code></pre></div>
 <p>Запустите сервис и выполните запрос:</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl -H 'x-request-id: req-42' http://localhost:3000/users/1</code></pre></div>
 <p>В логе появятся две строки с одним идентификатором:</p>
 <div class="code"><pre><code>[users-service] [req-42] byId 1
@@ -272,7 +272,7 @@ curl -H 'x-request-id: req-42' http://localhost:3000/users/1</code></pre></div>
 <h2 id="идентификатор-запроса-в-глубине-графа">Идентификатор запроса в глубине графа</h2>
 <p>Строку <code>byId 1</code> пишет <code>DbUsersRepository</code>. Хендлер не передаёт ему
 <code>requestId</code> параметром: хранилище читает значение из контекста само.</p>
-<div class="code" data-file="packages/examples.users-service/src/users/users.repository.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/users.repository.ts
+<div class="code" data-file="examples/users-service/src/users/users.repository.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/users.repository.ts
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, RequestId } from '@nestling/pipeline';
 
@@ -317,7 +317,7 @@ export class DbUsersRepository implements UsersRepository {
 внешнего слоя выполняются раньше, а <code>.finally</code> внешнего слоя выполняется
 позже, чем у внутреннего.</p>
 <h2 id="проверка">Проверка</h2>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 it('пишет строку аудита с идентификатором запроса', async () =&gt; {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {

@@ -1,6 +1,6 @@
 # 14. Живая лента для клиента
 
-> Гайд по текущему API; сверено с кодом `examples.app-with-http` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-05).
 > Целевое описание: [design/streaming.md](../design/streaming.md), разделы
 > «`stream(T)` и `events(T)`» и «Источники событий». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Стриминг: `stream(T)` ≠
@@ -14,7 +14,7 @@
 ## Источник событий
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/activity.hub.ts (фрагмент)
+// examples/app-with-http/src/features/users/activity.hub.ts (фрагмент)
 @Injectable([])
 export class ActivityHub {
   readonly #topic = new Topic<ActivityEvent>({ buffer: 256 });
@@ -97,7 +97,7 @@ export class ActivityHub {
 ## Endpoint с формой `events`
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+// examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
 const ActivityEvent = z.object({
   id: z.string(),
   kind: z.enum(['created', 'updated', 'deleted']),
@@ -171,7 +171,7 @@ export const ActivityStream = httpEndpoint({
 ## Публикация из хендлера
 
 ```typescript
-// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts (фрагмент)
+// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts (фрагмент)
     // Лента активности: `publish` не ждёт ни одного подписчика
     this.activity.publish('created', user.id);
 
@@ -188,7 +188,7 @@ export const ActivityStream = httpEndpoint({
 Откройте ленту в одном терминале и создайте пользователя в другом:
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 curl -N localhost:3000/users/activity
 ```
 
@@ -218,7 +218,7 @@ curl -N localhost:3000/users/activity -H 'Last-Event-ID: 2'
 Кадры SSE проверяет e2e-тест на настоящем сокете:
 
 ```typescript
-// packages/examples.app-with-http/e2e/streaming.spec.e2e.ts
+// examples/app-with-http/e2e/streaming.spec.e2e.ts
 it('отдаёт событие создания по SSE', async () => {
   const controller = new AbortController();
   const feed = await fetch(`${context.baseUrl}/users/activity`, {

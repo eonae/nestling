@@ -101,7 +101,7 @@
 
 <h1>9. Пускать только своих</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/pipeline.md">design/pipeline.md</a> и
 <a href="../design/composition.md">design/composition.md</a>. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «Pipeline v2: плоские фазы, слои,
@@ -114,7 +114,7 @@
 удалять их может только тот, кто предъявил токен. Проверка выполняется
 до хендлера и отвечает <code>401</code> с машинным кодом. Забыть её на новом
 endpoint'е должно быть нельзя.</p>
-<div class="code" data-file="packages/examples.users-service/src/errors.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/errors.ts
+<div class="code" data-file="examples/users-service/src/errors.ts" data-lang="typescript"><pre><code>// examples/users-service/src/errors.ts
 import { makeFail } from '@nestling/operations';
 
 /** Отказ проверки токена. Его возвращает pre-юнит слоя `authed`. */
@@ -123,7 +123,7 @@ export const Unauthorized = makeFail('unauthorized', {
 });</code></pre></div>
 <p>Отказ объявлен так же, как отказы хендлеров в <a href="03-errors.html">главе 3</a>.
 Статус <code>unauthorized</code> транспорт переводит в HTTP-код <code>401</code>.</p>
-<div class="code" data-file="packages/examples.users-service/src/auth.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/auth.ts
+<div class="code" data-file="examples/users-service/src/auth.ts" data-lang="typescript"><pre><code>// examples/users-service/src/auth.ts
 import type { Config } from '@nestling/config';
 import { Injectable } from '@nestling/container';
 import type { EmptyInput, ExtendableContext } from '@nestling/pipeline';
@@ -185,7 +185,7 @@ Pre-юниты внешнего слоя выполняются раньше, п
 <code>makePipeline&lt;{ caller: Caller }&gt;()</code>. Композиция такого слоя с внешним
 слоем, который поле <code>caller</code> не добавляет, не компилируется.</p>
 <h2 id="подключение-слоя-и-политики">Подключение слоя и политики</h2>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
@@ -229,7 +229,7 @@ curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 <p>Новый endpoint с <code>pipeline: observability</code> компилируется и работает, но
 пропускает всех. Чтобы такой endpoint не дошёл до запуска, корень
 объявляет политики сборки:</p>
-<div class="code" data-file="packages/examples.users-service/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts
+<div class="code" data-file="examples/users-service/src/app.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.ts
 import { everyEndpoint } from '@nestling/pipeline';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
@@ -277,7 +277,7 @@ Fix each handle by composing the required layer into its 'pipeline:', or opt out
 бросит ошибку. Компилятор такой пропуск не видит: у хранилища нет типа
 входа запроса, и читатель одинаков для всех маршрутов.</p>
 <p>Присутствие переменной требует второй предикат:</p>
-<div class="code" data-file="packages/examples.users-service/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts
+<div class="code" data-file="examples/users-service/src/app.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.ts
 everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
   RequestId,
   'requestId',
@@ -296,7 +296,7 @@ everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
 <h2 id="исключение-из-политик-и-подсказка-в-редакторе">Исключение из политик и подсказка в редакторе</h2>
 <p>Проба живости для балансировщика не должна писать строку аудита на каждый
 запрос. Endpoint выводится из-под политик полем <code>detached</code>:</p>
-<div class="code" data-file="packages/examples.users-service/src/ops.plugin.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/ops.plugin.ts
+<div class="code" data-file="examples/users-service/src/ops.plugin.ts" data-lang="typescript"><pre><code>// examples/users-service/src/ops.plugin.ts
 export const CheckHealth = httpEndpoint({
   method: 'GET',
   path: '/health',
@@ -312,7 +312,7 @@ export const CheckHealth = httpEndpoint({
 <p>Поле <code>doc.hidden</code> управляет документом OpenAPI, а не политиками сборки.</p>
 <p>Правило <code>endpoint-has-layer</code> из <code>@nestling/eslint-plugin</code> подсказывает
 про тот же инвариант прямо в редакторе:</p>
-<div class="code" data-file="packages/examples.users-service/eslint.config.js" data-lang="javascript"><pre><code>// packages/examples.users-service/eslint.config.js
+<div class="code" data-file="examples/users-service/eslint.config.js" data-lang="javascript"><pre><code>// examples/users-service/eslint.config.js
 export default [
   ...createEslintConfig(import.meta.url),
   {
@@ -329,7 +329,7 @@ export default [
 <p>Правило синтаксическое и видит только текст декларации, поэтому его
 уровень <code>warn</code>. Гарантию даёт политика на собранном графе.</p>
 <h2 id="проверка">Проверка</h2>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 it('отклоняет запись без токена до вызова хендлера', async () =&gt; {
   const repo = inMemoryUsersRepo([alice]);
   await using testApp = await assembleTest(app, {
@@ -369,7 +369,7 @@ it('создаёт пользователя по токену из конфиг�
 <code>vars({ API_TOKEN: 'test-token' })</code> в опциях теста. Политики в тестовой
 сборке те же, что в <code>main.ts</code>: тест собирает ту же декларацию <code>app</code>, а
 не копию её словаря.</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl -X POST http://localhost:3000/users \
   -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'

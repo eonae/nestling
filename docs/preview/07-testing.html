@@ -100,7 +100,7 @@
 
 <h1>7. Убедиться, что работает, без запуска сервера</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/testing.md">design/testing.md</a>. Почему так:
 запись <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-10] Пакет
 тестирования (<code>@nestling/testing</code>)».</p>
@@ -108,7 +108,7 @@
 <p>Тесты должны вызывать endpoint'ы через тот же пайплайн, что и запросы по
 сети, но без сокета, без базы и без переменных окружения. Отдельно нужен
 быстрый юнит-тест хендлера, в котором нет ни контейнера, ни приложения.</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/users-service/src/app.ts (фрагмент)
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
@@ -118,7 +118,7 @@ export const app = makeApp({
 состав целиком. Поэтому декларация лежит в отдельном файле, а
 <code>main.ts</code> и тесты импортируют одно и то же значение <code>app</code>. Словарь
 состава в тест не копируется: <code>assembleTest</code> принимает саму декларацию.</p>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 import { app } from './app.js';
 
 /** Конфиг теста: объект вместо `process.env` */
@@ -127,7 +127,7 @@ const testConfig = vars({ API_TOKEN: 'test-token' });</code></pre></div>
 конфиг. Транспорты подменять не нужно: тестовая сборка не выполняет
 START, поэтому сокет не открывается и порт не занимается.</p>
 <h2 id="вызов-через-полный-пайплайн">Вызов через полный пайплайн</h2>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 it('отдаёт пользователя через полный пайплайн', async () =&gt; {
   await using testApp = await assembleTest(app, {
     config: testConfig,
@@ -153,14 +153,14 @@ payload. <code>unwrap</code> возвращает значение успешн�
 с категорией и кодом отказа.</p>
 <p>Ответ несёт <code>isSuccess</code>, <code>status</code> и <code>value</code>. Для отказа в <code>value</code> лежат
 код и детали, а <code>status</code> равен категории кода:</p>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 expect(await testApp.call(GetUser, { id: '404' })).toMatchObject({
   isSuccess: false,
   status: 'not_found',
   value: { code: 'not_found:user', details: { id: '404' } },
 });</code></pre></div>
 <h2 id="подмена-узлов-графа">Подмена узлов графа</h2>
-<div class="code" data-file="packages/examples.users-service/src/testing.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/testing.ts
+<div class="code" data-file="examples/users-service/src/testing.ts" data-lang="typescript"><pre><code>// examples/users-service/src/testing.ts
 export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
   const rows: User[] = seed.map((user) =&gt; ({ ...user }));
 
@@ -173,7 +173,7 @@ export function inMemoryUsersRepo(seed: readonly User[] = []): UsersRepository {
 <p>Фейк реализует интерфейс <code>UsersRepository</code> поверх массива. Он лежит рядом
 с интерфейсом: изменился интерфейс, и фейк перестал компилироваться в том
 же коммите.</p>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 it('не создаёт узлы, которые нужны только подменённому хранилищу', async () =&gt; {
   await using testApp = await assembleTest(app, {
     config: testConfig,
@@ -191,7 +191,7 @@ it('не создаёт узлы, которые нужны только под�
 графа выпадает. От <code>Database</code> зависит только боевой репозиторий: после
 подмены контейнер её не создаёт, и соединение не открывается.
 <code>testApp.pruned</code> перечисляет выпавшие узлы.</p>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 it('читает размер страницы из конфига', async () =&gt; {
   await using testApp = await assembleTest(app, {
     config: vars({ API_TOKEN: 'test-token', APP_PAGE_SIZE: '1' }),
@@ -205,7 +205,7 @@ it('читает размер страницы из конфига', async () =&
 поэтому тесты изолированы и могут идти параллельно, а боевой источник в
 тесте не инициализируется.</p>
 <h2 id="юнит-тест-хендлера">Юнит-тест хендлера</h2>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/create-user.endpoint.spec.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 describe('CreateUserHandler', () =&gt; {
   it('создаёт пользователя и отвечает created с заголовком Location', async () =&gt; {
     const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
@@ -226,7 +226,7 @@ describe('CreateUserHandler', () =&gt; {
 проверяет логику хендлера и не проверяет пайплайн, схемы и список
 <code>errors</code>: это работа теста, который вызывает endpoint через полный
 пайплайн.</p>
-<div class="code" data-lang="bash"><pre><code>yarn workspace examples.users-service test</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>yarn workspace @examples/users-service test</code></pre></div>
 <p>Сервис собран и покрыт тестами. Следующая часть готовит его к
 продакшену, начиная с журнала запросов: <a href="08-logging.html">8. Видеть каждый запрос в
 логе</a>.</p>

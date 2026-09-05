@@ -1,6 +1,6 @@
 # 8. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-05).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
 > композиция константами» и «Асинхронный контекст: read-only ALS-проекция
@@ -12,7 +12,7 @@
 должны связываться между собой по общему идентификатору.
 
 ```typescript
-// packages/examples.users-service/src/logging.ts
+// examples/users-service/src/logging.ts
 import { Injectable, makeToken } from '@nestling/container';
 
 /** Логгер приложения */
@@ -59,7 +59,7 @@ export class ConsoleLogger implements Logger {
 контекст, и `.finally`, чтобы записать итог.
 
 ```typescript
-// packages/examples.users-service/src/observability.ts
+// examples/users-service/src/observability.ts
 import { Injectable } from '@nestling/container';
 import type {
   ExtendableContext,
@@ -123,7 +123,7 @@ export const observability = makePipeline()
 ## Подключение к endpoint'ам
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+// examples/users-service/src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint({
   method: 'GET',
   path: '/users',
@@ -143,7 +143,7 @@ export const ListUsers = httpEndpoint({
 `providers:`, останавливает сборку на фазе ASSEMBLE, до открытия сокета.
 
 ```typescript
-// packages/examples.users-service/src/users.feature.ts
+// examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -160,7 +160,7 @@ export const UsersFeature = makeFeature({
 Запустите сервис и выполните запрос:
 
 ```bash
-API_TOKEN=secret yarn workspace examples.users-service start:dev
+API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 ```
 
@@ -180,7 +180,7 @@ curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 `requestId` параметром: хранилище читает значение из контекста само.
 
 ```typescript
-// packages/examples.users-service/src/users/users.repository.ts
+// examples/users-service/src/users/users.repository.ts
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, RequestId } from '@nestling/pipeline';
 
@@ -232,7 +232,7 @@ export class DbUsersRepository implements UsersRepository {
 ## Проверка
 
 ```typescript
-// packages/examples.users-service/src/app.spec.ts
+// examples/users-service/src/app.spec.ts
 it('пишет строку аудита с идентификатором запроса', async () => {
   const spy = spyLogger();
   await using testApp = await assembleTest(app, {

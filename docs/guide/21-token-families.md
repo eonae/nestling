@@ -1,6 +1,6 @@
 # 21. Логгер с именем потребителя и сбор вкладов из модулей
 
-> Гайд по текущему API; сверено с кодом `examples.container` (2026-09-04).
+> Гайд по текущему API; сверено с кодом `container` (2026-09-05).
 > Целевое описание: [design/container.md](../design/container.md), раздел
 > «Семейства токенов». Почему так: записи [ideas.md](../decisions/ideas.md)
 > «Token families + модули без рантайм-инкапсуляции» [2026-07-06] и
@@ -18,7 +18,7 @@
 ## Семейство вместо токена
 
 ```typescript
-// packages/examples.container/src/logging/registry.ts
+// examples/container/src/logging/registry.ts
 import { makeTokenFamily } from '@nestling/container';
 
 export interface Logger {
@@ -45,7 +45,7 @@ export const Logger = makeTokenFamily<Logger, [scope: string]>('Logger');
 ## Член как обычная зависимость
 
 ```typescript
-// packages/examples.container/src/users/users.service.ts (фрагмент)
+// examples/container/src/users/users.service.ts (фрагмент)
 @Injectable([UserRepository, Logger('users')])
 export class UserService {
   #repository: UserRepository;
@@ -66,7 +66,7 @@ export class UserService {
 ## Один рецепт на всё семейство
 
 ```typescript
-// packages/examples.container/src/logging/logging.plugin.ts (фрагмент)
+// examples/container/src/logging/logging.plugin.ts (фрагмент)
 export const appLogging = makePlugin({
   name: 'app-logging',
   providers: [
@@ -118,7 +118,7 @@ export const appLogging = makePlugin({
 ## Имя члена по потребителю: `.auto`
 
 ```typescript
-// packages/examples.container/src/users/users.repository.ts
+// examples/container/src/users/users.repository.ts
 @Injectable([Database$, Logger.auto])
 export class UserRepository {
   #database: Database;
@@ -160,7 +160,7 @@ export class UserRepository {
 Объявите семейство вкладов:
 
 ```typescript
-// packages/examples.container/src/health/registry.ts
+// examples/container/src/health/registry.ts
 export interface HealthCheck {
   readonly name: string;
   check(): Promise<string>;
@@ -175,7 +175,7 @@ export const HealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
 ему место:
 
 ```typescript
-// packages/examples.container/src/database/database.module.ts
+// examples/container/src/database/database.module.ts
 export const DatabaseModule = makeModule({
   name: 'module:database',
   providers: [
@@ -189,14 +189,14 @@ export const DatabaseModule = makeModule({
 пришлось:
 
 ```typescript
-// packages/examples.container/src/api/api.module.ts (фрагмент)
+// examples/container/src/api/api.module.ts (фрагмент)
 classProvider(HealthCheck('api'), ApiHealthCheck),
 ```
 
 Агрегатор зависит от `HealthCheck.all` и получает массив всех вкладов:
 
 ```typescript
-// packages/examples.container/src/health/health.service.ts (фрагмент)
+// examples/container/src/health/health.service.ts (фрагмент)
 @Injectable([HealthCheck.all, HealthConfig, Logger.auto])
 export class HealthService {
   #checks: readonly HealthCheck[];
@@ -270,10 +270,10 @@ export class HealthService {
 до создания членов. Подробнее в главе [15](./15-testing-features.md).
 
 ```bash
-yarn workspace examples.container start:dev
+yarn workspace @examples/container start:dev
 # граф с членами семейств в браузере
-yarn workspace examples.container export-metadata
-yarn workspace examples.container visualize
+yarn workspace @examples/container export-metadata
+yarn workspace @examples/container visualize
 ```
 
 Тот же пример читает конфиг из нескольких источников и меняет значения

@@ -100,7 +100,7 @@
 
 <h1>2. Принять данные и не пропустить мусор</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/endpoints.md">design/endpoints.md</a>,
 <a href="../design/schemas.md">design/schemas.md</a>. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-13] Канонизация HTTP-input:
@@ -111,7 +111,7 @@
 теле, <code>GET /users/:id</code> отдаёт его по идентификатору, <code>GET /users?limit=10</code>
 отдаёт список. Хендлер должен получать уже проверенные данные нужного
 типа, а невалидный запрос — <code>400</code> до вызова хендлера.</p>
-<div class="code" data-file="packages/examples.users-service/src/users/user.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/user.ts
+<div class="code" data-file="examples/users-service/src/users/user.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/user.ts
 import { z } from 'zod';
 
 /** Пользователь в ответах API. Одна схема на все endpoint'ы. */
@@ -142,7 +142,7 @@ export type CreateUserInput = z.infer&lt;typeof CreateUserInput&gt;;</code></pre
 <code>ListUsersInput</code> (<a href="../conventions.md">conventions.md</a>). Nestling
 принимает любую схему, реализующую Standard Schema: zod, valibot,
 arktype. В примерах используется zod.</p>
-<div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/create-user.endpoint.ts
+<div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint({
   method: 'POST',
   path: '/users',
@@ -163,7 +163,7 @@ export const CreateUser = httpEndpoint({
 #  "details":[{"message":"Invalid email address","path":["email"]}]}</code></pre></div>
 <p>Поле <code>details</code> описывает каждую проблему в формате Standard Schema, без
 полей конкретного валидатора.</p>
-<div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+<div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
   method: 'GET',
   path: '/users/:id',
@@ -174,7 +174,7 @@ export const GetUser = httpEndpoint({
 <p>Поле схемы с именем <code>id</code> совпало с path-параметром <code>:id</code>, поэтому его
 значение берётся из пути. Отдельно объявлять, откуда читать поле, не
 нужно.</p>
-<div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+<div class="code" data-lang="typescript"><pre><code>// шаг главы 2; итоговая версия: examples/users-service/src/users/endpoints/list-users.endpoint.ts
 const ListUsersInput = z.object({
   limit: z.coerce.number().int().positive().optional(),
 });
@@ -208,7 +208,7 @@ query-строки. Query несёт строки, число из строки 
 <p>Умолчание правила иногда не совпадает с адресом, который вы хотите
 получить. Флаг «только проверить, не записывать» естественно передавать
 в query-строке, а данные пользователя — в теле:</p>
-<div class="code" data-file="packages/examples.users-service/src/api/operations.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/api/operations.ts
+<div class="code" data-file="examples/users-service/src/api/operations.ts" data-lang="typescript"><pre><code>// examples/users-service/src/api/operations.ts
 export const CreateUser = makeRequest({
   name: 'users.create',
   http: {
@@ -241,12 +241,12 @@ path-параметре и <code>bind</code> при неструктурном �
 вынесены в <code>api/operations.ts</code>.</p>
 <p>Тест вызывает <code>GetUser</code> и <code>ListUsers</code> через полный пайплайн без открытия
 сокета:</p>
-<div class="code" data-file="packages/examples.users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.spec.ts
+<div class="code" data-file="examples/users-service/src/app.spec.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.spec.ts
 expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual(alice);
 expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);</code></pre></div>
 <p>Входные данные в <code>testApp.call</code> типизированы схемой <code>input</code>: передать
 <code>{ id: 1 }</code> вместо строки нельзя.</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl localhost:3000/users/1
 curl 'localhost:3000/users?limit=1'
 curl -X POST 'localhost:3000/users?dryRun=true' \

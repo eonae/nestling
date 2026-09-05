@@ -1,6 +1,6 @@
 # 1. Поднять сервис, который отвечает на запрос
 
-> Гайд по текущему API; сверено с кодом `examples.users-service` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-05).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-09-02] Модель композиции: фича,
@@ -12,7 +12,7 @@
 уже обрабатываются. Целиком он умещается в один файл.
 
 ```typescript
-// шаг главы 1; итоговая версия: packages/examples.users-service/src/main.ts
+// шаг главы 1; итоговая версия: examples/users-service/src/main.ts
 import { makeApp, makeFeature } from '@nestling/app';
 import { http, httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -75,7 +75,7 @@ await app.assemble().run();
 В итоговом примере каждое значение живёт в своём файле.
 
 ```typescript
-// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+// examples/users-service/src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint({
   method: 'GET',
   path: '/users',
@@ -87,7 +87,7 @@ export const ListUsers = httpEndpoint({
 Хендлер здесь — класс, а не функция: поле `handler` принимает обе формы.
 
 ```typescript
-// packages/examples.users-service/src/users.feature.ts (фрагмент)
+// examples/users-service/src/users.feature.ts (фрагмент)
 export const UsersFeature = makeFeature({
   name: 'users',
   endpoints: [ListUsers /* … */],
@@ -98,7 +98,7 @@ export const UsersFeature = makeFeature({
 Файл `app.ts` объявляет приложение и экспортирует одно значение — `app`:
 
 ```typescript
-// packages/examples.users-service/src/app.ts (фрагмент)
+// examples/users-service/src/app.ts (фрагмент)
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
@@ -111,7 +111,7 @@ export const app = makeApp({
 сигналов ставит `run()`, а упавший старт роняет процесс сам.
 
 ```typescript
-// packages/examples.users-service/src/main.ts
+// examples/users-service/src/main.ts
 import { app } from './app.js';
 
 await app.assemble().run();
@@ -124,7 +124,7 @@ await app.assemble().run();
 ## Запуск
 
 ```bash
-API_TOKEN=secret yarn workspace examples.users-service start:dev
+API_TOKEN=secret yarn workspace @examples/users-service start:dev
 ```
 
 Переменная `API_TOKEN` нужна итоговому примеру: одна из его секций конфига

@@ -101,7 +101,7 @@
 
 <h1>11. Отдать фронтенду документацию и клиент</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/schemas.md">design/schemas.md</a> §2.1 и
 <a href="../design/operations.md">design/operations.md</a> §5. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «Схемы: Standard Schema вместо привязки
@@ -113,7 +113,7 @@
 с типами запросов, ответов и отказов. Ни документ, ни клиент не должны
 описываться второй раз руками: у сервера уже есть схемы, адреса и списки
 отказов в декларациях.</p>
-<div class="code" data-file="packages/examples.users-service/src/app.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts
+<div class="code" data-file="examples/users-service/src/app.ts" data-lang="typescript"><pre><code>// examples/users-service/src/app.ts
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
@@ -156,7 +156,7 @@ curl -s http://localhost:3000/openapi.json | jq '.paths["/users"].post.responses
 <h2 id="слот-doc">Слот <code>doc:</code></h2>
 <p>JSON Schema описывает данные, но не саму операцию. Название, теги и
 статус успеха объявляются в слоте <code>doc:</code>:</p>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/delete-user.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/delete-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
@@ -206,7 +206,7 @@ export const DeleteUser = httpEndpoint({
 endpoint реализует операцию, иначе из метода и пути: у <code>GET /users</code> это
 <code>get_users</code>.</p>
 <p>Служебный endpoint убирается из документа полем <code>hidden</code> с причиной:</p>
-<div class="code" data-file="packages/examples.users-service/src/ops.plugin.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/ops.plugin.ts
+<div class="code" data-file="examples/users-service/src/ops.plugin.ts" data-lang="typescript"><pre><code>// examples/users-service/src/ops.plugin.ts
 export const CheckHealth = httpEndpoint({
   method: 'GET',
   path: '/health',
@@ -224,7 +224,7 @@ endpoint'ов плагин печатает при старте:</p>
 <h2 id="операция-адрес-и-схемы-в-одном-месте">Операция: адрес и схемы в одном месте</h2>
 <p>Клиенту нужны адрес, схемы и список отказов, но не хендлер и не
 зависимости. Эти части выносятся из декларации в операцию:</p>
-<div class="code" data-file="packages/examples.users-service/src/api/operations.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/api/operations.ts
+<div class="code" data-file="examples/users-service/src/api/operations.ts" data-lang="typescript"><pre><code>// examples/users-service/src/api/operations.ts
 import { makeRequest } from '@nestling/operations';
 
 export const GetUserInput = z.object({ id: z.string() });
@@ -258,7 +258,7 @@ export const CreateUser = makeRequest({
 отказов. В нём нет ни контейнера, ни пайплайна, ни транспорта, поэтому
 его можно импортировать во фронтенд.</p>
 <p>Реализация подключает операцию через <code>operation:</code>:</p>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/get-user.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/get-user.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/get-user.endpoint.ts
 @Injectable([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -282,7 +282,7 @@ export const GetUser = httpEndpoint({
 устроен <code>CreateUser</code> в <code>create-user.endpoint.ts</code>: он подключает слой
 <code>authed</code> и отвечает <code>Ok.created</code>.</p>
 <h2 id="клиент">Клиент</h2>
-<div class="code" data-file="packages/examples.users-service/src/api/client.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/api/client.ts
+<div class="code" data-file="examples/users-service/src/api/client.ts" data-lang="typescript"><pre><code>// examples/users-service/src/api/client.ts
 import { makeClient } from '@nestling/client';
 
 /** Имена методов задаёт потребитель: ключи объекта */
@@ -336,8 +336,8 @@ await main();</code></pre></div>
 <code>validateOutput: false</code>. Вторым аргументом метод принимает <code>signal</code> для
 отмены и <code>deadline</code> для бюджета времени.</p>
 <p>Запустите сервер и скрипт:</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev
-API_TOKEN=secret yarn workspace examples.users-service client
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace @examples/users-service start:dev
+API_TOKEN=secret yarn workspace @examples/users-service client
 # created 3
 # fetched Carol</code></pre></div>
 <p>Скрипт импортирует два пакета: операции приложения и <code>@nestling/client</code>.

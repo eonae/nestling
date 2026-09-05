@@ -99,7 +99,7 @@
 
 <h1>1. Поднять сервис, который отвечает на запрос</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.users-service</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>users-service</code> (2026-09-05).
 Целевое описание: <a href="../design/composition.md">design/composition.md</a>,
 <a href="../design/endpoints.md">design/endpoints.md</a>. Почему так: записи
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-09-02] Модель композиции: фича,
@@ -109,7 +109,7 @@
 <p>Начнём с HTTP-сервиса, который отвечает JSON на <code>GET /users</code>. Он стартует
 одной командой и останавливается по <code>SIGTERM</code>, не обрывая запросы, которые
 уже обрабатываются. Целиком он умещается в один файл.</p>
-<div class="code" data-lang="typescript"><pre><code>// шаг главы 1; итоговая версия: packages/examples.users-service/src/main.ts
+<div class="code" data-lang="typescript"><pre><code>// шаг главы 1; итоговая версия: examples/users-service/src/main.ts
 import { makeApp, makeFeature } from '@nestling/app';
 import { http, httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -161,7 +161,7 @@ await app.assemble().run();</code></pre></div>
 закрывается, когда они завершатся.</p>
 <h2 id="как-это-лежит-в-примере">Как это лежит в примере</h2>
 <p>В итоговом примере каждое значение живёт в своём файле.</p>
-<div class="code" data-file="packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users/endpoints/list-users.endpoint.ts
+<div class="code" data-file="examples/users-service/src/users/endpoints/list-users.endpoint.ts" data-lang="typescript"><pre><code>// examples/users-service/src/users/endpoints/list-users.endpoint.ts
 export const ListUsers = httpEndpoint({
   method: 'GET',
   path: '/users',
@@ -169,14 +169,14 @@ export const ListUsers = httpEndpoint({
   handler: ListUsersHandler,
 });</code></pre></div>
 <p>Хендлер здесь — класс, а не функция: поле <code>handler</code> принимает обе формы.</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.users-service/src/users.feature.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/users-service/src/users.feature.ts (фрагмент)
 export const UsersFeature = makeFeature({
   name: 'users',
   endpoints: [ListUsers /* … */],
   // …
 });</code></pre></div>
 <p>Файл <code>app.ts</code> объявляет приложение и экспортирует одно значение — <code>app</code>:</p>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.users-service/src/app.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/users-service/src/app.ts (фрагмент)
 export const app = makeApp({
   features: [UsersFeature],
   transports: [http()],
@@ -185,7 +185,7 @@ export const app = makeApp({
 <p>Файл <code>main.ts</code> импортирует <code>app</code> и запускает его. Больше в нём нет ничего:
 ни функции-обёртки, ни обработчика ошибок, ни печати адресов. Обработчики
 сигналов ставит <code>run()</code>, а упавший старт роняет процесс сам.</p>
-<div class="code" data-file="packages/examples.users-service/src/main.ts" data-lang="typescript"><pre><code>// packages/examples.users-service/src/main.ts
+<div class="code" data-file="examples/users-service/src/main.ts" data-lang="typescript"><pre><code>// examples/users-service/src/main.ts
 import { app } from './app.js';
 
 await app.assemble().run();</code></pre></div>
@@ -193,7 +193,7 @@ await app.assemble().run();</code></pre></div>
 входа: её же берут тесты и проверка топологий. Правила именования файлов
 собраны в <a href="../conventions.md">conventions.md</a>.</p>
 <h2 id="запуск">Запуск</h2>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace examples.users-service start:dev</code></pre></div>
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret yarn workspace @examples/users-service start:dev</code></pre></div>
 <p>Переменная <code>API_TOKEN</code> нужна итоговому примеру: одна из его секций конфига
 объявляет её обязательной, и без неё приложение не стартует. Пока задайте
 любую строку.</p>

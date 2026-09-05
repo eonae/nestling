@@ -101,7 +101,7 @@
 
 <h1>14. Живая лента для клиента</h1>
 <blockquote>
-<p>Гайд по текущему API; сверено с кодом <code>examples.app-with-http</code> (2026-09-05).
+<p>Гайд по текущему API; сверено с кодом <code>app-with-http</code> (2026-09-05).
 Целевое описание: <a href="../design/streaming.md">design/streaming.md</a>, разделы
 «<code>stream(T)</code> и <code>events(T)</code>» и «Источники событий». Почему так: запись
 <a href="../decisions/ideas.md">ideas.md</a> «[2026-07-06] Стриминг: <code>stream(T)</code> ≠
@@ -112,7 +112,7 @@
 ошибка. После обрыва клиент должен продолжить с того события, на котором
 остановился. Один медленный клиент не должен задерживать остальных.</p>
 <h2 id="источник-событий">Источник событий</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/activity.hub.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/activity.hub.ts (фрагмент)
 @Injectable([])
 export class ActivityHub {
   readonly #topic = new Topic&lt;ActivityEvent&gt;({ buffer: 256 });
@@ -188,7 +188,7 @@ export class ActivityHub {
 затронуты. Хаб примера держит буфер на 256 событий с политикой по
 умолчанию.</p>
 <h2 id="endpoint-с-формой-events">Endpoint с формой <code>events</code></h2>
-<div class="code" data-file="packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
+<div class="code" data-file="examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
 const ActivityEvent = z.object({
   id: z.string(),
   kind: z.enum(['created', 'updated', 'deleted']),
@@ -280,7 +280,7 @@ export const ActivityStream = httpEndpoint({
 <code>error</code> зарезервировано: прикладное событие с таким именем отвергается
 при создании декларации.</p>
 <h2 id="публикация-из-хендлера">Публикация из хендлера</h2>
-<div class="code" data-lang="typescript"><pre><code>// packages/examples.app-with-http/src/features/users/endpoints/create-user.endpoint.ts (фрагмент)
+<div class="code" data-lang="typescript"><pre><code>// examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts (фрагмент)
     // Лента активности: `publish` не ждёт ни одного подписчика
     this.activity.publish('created', user.id);
 
@@ -291,7 +291,7 @@ export const ActivityStream = httpEndpoint({
 на одного подключённого клиента.</p>
 <h2 id="что-видит-клиент">Что видит клиент</h2>
 <p>Откройте ленту в одном терминале и создайте пользователя в другом:</p>
-<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace examples.app-with-http start:dev
+<div class="code" data-lang="bash"><pre><code>API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
 curl -N localhost:3000/users/activity</code></pre></div>
 <div class="code" data-lang="bash"><pre><code>curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
@@ -305,7 +305,7 @@ data: {"id":"1","kind":"created","userId":"3","at":"2026-09-03T04:34:57.017Z"}</
 <p>Лента начнётся с события <code>3</code>: хендлер получил <code>meta.lastEventId</code> и
 отдал историю после него.</p>
 <p>Кадры SSE проверяет e2e-тест на настоящем сокете:</p>
-<div class="code" data-file="packages/examples.app-with-http/e2e/streaming.spec.e2e.ts" data-lang="typescript"><pre><code>// packages/examples.app-with-http/e2e/streaming.spec.e2e.ts
+<div class="code" data-file="examples/app-with-http/e2e/streaming.spec.e2e.ts" data-lang="typescript"><pre><code>// examples/app-with-http/e2e/streaming.spec.e2e.ts
 it('отдаёт событие создания по SSE', async () =&gt; {
   const controller = new AbortController();
   const feed = await fetch(`${context.baseUrl}/users/activity`, {
