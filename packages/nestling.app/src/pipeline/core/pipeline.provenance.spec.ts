@@ -9,6 +9,8 @@
  * неизменности исполнения: провенанс не участвует в рантайме.
  */
 
+import { spyLogger } from '../../logger/__fixtures__/spy.js';
+
 import type { EndpointMeta, ExtendableContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
@@ -48,9 +50,12 @@ async function run(pipeline: AnyPipeline, handler: () => unknown) {
   return executable.executeWithHandler(
     handler,
     makeCtx() as ExtendableContext<AnyInput>,
-    { onUnknownFail: () => {} },
+    { logger: silent },
   );
 }
+
+/** Логгер, глушащий умолчание ядра в выводе тестов */
+const silent = spyLogger().logger;
 
 describe('провенанс композиции', () => {
   it('compose записывает оба слоя-аргумента', () => {

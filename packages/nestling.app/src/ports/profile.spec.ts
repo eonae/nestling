@@ -13,6 +13,7 @@
 
 import { getEventListeners } from 'node:events';
 
+import { spyLogger } from '../logger/__fixtures__/spy.js';
 import type {
   AnyEndpointDefinition,
   AnyInput,
@@ -96,10 +97,9 @@ async function harness(
   dispatch: Dispatch;
   close: () => Promise<void>;
 }> {
-  const runtime = new PortRuntime(() => {
-    /* отказы этих тестов наблюдаются напрямую */
-  });
-  const bus = new InProcessBus();
+  // Отказы этих тестов наблюдаются напрямую: записи логгера не читаются
+  const runtime = new PortRuntime(spyLogger().logger);
+  const bus = new InProcessBus({ logger: spyLogger().logger });
   const dispatch = makeDispatch(
     declarations.map((declaration) => declaration.resolve(() => ({}))),
   );

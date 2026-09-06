@@ -389,8 +389,6 @@ export function makeLocalPort(context: InvokerContext): Port<any> {
             // Stack внутрь чужой фичи не передаётся — как и при передаче
             // по сети
             exposeErrorDetails: false,
-            onUnknownFail: (info) =>
-              runtime.report({ operation: operation.name, error: info.error }),
           }),
           budget.signal,
         );
@@ -556,8 +554,6 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
         void dispatch
           .call(pattern, ctx, {
             exposeErrorDetails: false,
-            onUnknownFail: (info) =>
-              runtime.report({ operation: operation.name, error: info.error }),
           })
           .then((response) => {
             if (!response.isSuccess) {

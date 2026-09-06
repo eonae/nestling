@@ -8,7 +8,6 @@
 
 import { Config, ConfigSection } from './families.js';
 import { projectSection } from './project.js';
-import type { ConfigReaderOptions } from './reader.js';
 import { ConfigReader } from './reader.js';
 import { lookupSection } from './registry.js';
 import type { ConfigBinding } from './source.js';
@@ -20,11 +19,11 @@ import { familyProvider, makeToken } from '@nestling/container';
  * Приватный токен читалки: из `index.ts` не экспортируется, поэтому
  * инжектить её пользовательскому коду нечем — kernel-граница держится
  * видимостью ES-модулей, а не рантайм-проверкой.
+ *
+ * @internal Сборка приложения берёт по нему читалку после `build()`, чтобы
+ * подключить логгер (`attachLogger`)
  */
-const ConfigReaderToken = makeToken<ConfigReader>('kernel:ConfigReader');
-
-/** Опции kernel-модуля конфига */
-export type ConfigKernelOptions = ConfigReaderOptions;
+export const ConfigReaderToken = makeToken<ConfigReader>('kernel:ConfigReader');
 
 /**
  * Находит декларацию по префиксу и проецирует секцию.
@@ -51,7 +50,6 @@ const materializeSection = (prefix: string, reader: ConfigReader): unknown => {
  * Собирает kernel-модуль конфига.
  *
  * @param bindings - Плоский список `[source, target]`; порядок = приоритет
- * @param options - Канал предупреждений
  *
  * @example
  * ```typescript
@@ -63,7 +61,6 @@ const materializeSection = (prefix: string, reader: ConfigReader): unknown => {
  */
 export const configKernel = (
   bindings: readonly ConfigBinding[] = [],
-  options: ConfigKernelOptions = {},
 ): Module => ({
   name: 'kernel:config',
   providers: [
@@ -73,7 +70,7 @@ export const configKernel = (
       // инстанцирования делает `init()` источников гарантированно более
       // ранним, чем проекция любой секции.
       useFactory: async () => {
-        const reader = new ConfigReader(bindings, options);
+        const reader = new ConfigReader(bindings);
         await reader.init();
 
         return reader;

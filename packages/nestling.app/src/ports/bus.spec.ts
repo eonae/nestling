@@ -4,6 +4,7 @@
  * ему не соответствует. */
 import { getEventListeners } from 'node:events';
 
+import { spyLogger } from '../logger/__fixtures__/spy.js';
 import { makePipeline, Ok, stream } from '../pipeline/index.js';
 import { makeDispatch } from '../transport/index.js';
 
@@ -17,6 +18,9 @@ import { z } from 'zod';
 const settle = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
+
+/** Логгер, глушащий умолчание ядра в выводе тестов */
+const silent = spyLogger().logger;
 
 describe('InProcessBus', () => {
   it('доставляет команду ровно одному члену группы', async () => {
@@ -53,11 +57,9 @@ describe('InProcessBus', () => {
     await bus.close();
   });
 
-  it('изолирует отказ подписчика и отдаёт его диагностическому хуку', async () => {
-    const failures: string[] = [];
-    const bus = new InProcessBus({
-      onDeliveryFailure: ({ subject }) => failures.push(subject),
-    });
+  it('изолирует отказ подписчика и пишет отказ в логгер', async () => {
+    const spy = spyLogger();
+    const bus = new InProcessBus({ logger: spy.logger });
 
     const seen: string[] = [];
     bus.subscribe(
@@ -75,17 +77,22 @@ describe('InProcessBus', () => {
     await settle();
 
     expect(seen).toEqual(['healthy']);
-    expect(failures).toEqual(['bus.isolation']);
+    expect(spy.entries).toEqual([
+      {
+        level: 'error',
+        message: 'bus delivery failed',
+        fields: {
+          subject: 'bus.isolation',
+          err: expect.objectContaining({ message: 'subscriber is broken' }),
+        },
+      },
+    ]);
 
     await bus.close();
   });
 
   it('после закрытия не доставляет ничего', async () => {
-    const bus = new InProcessBus({
-      onDeliveryFailure: () => {
-        /* доставка молчит: тест смотрит на другое */
-      },
-    });
+    const bus = new InProcessBus({ logger: silent });
     const seen: unknown[] = [];
 
     bus.subscribe('bus.closed', (payload) => void seen.push(payload), {
@@ -180,11 +187,7 @@ describe('InProcessBus', () => {
   });
 
   it('запросу без подписчика отвечает отказом', async () => {
-    const bus = new InProcessBus({
-      onDeliveryFailure: () => {
-        /* доставка молчит: тест смотрит на другое */
-      },
-    });
+    const bus = new InProcessBus({ logger: silent });
 
     const response = await bus.request('bus.orphan', {});
 

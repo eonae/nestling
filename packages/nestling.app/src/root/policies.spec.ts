@@ -19,12 +19,13 @@ import {
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
+import { entriesWith, loggerProbe } from './__fixtures__/logger.js';
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { Injectable, makeToken, OnInit } from '@nestling/container';
 
 const asTransport = (transport: ITransport) =>
@@ -253,45 +254,40 @@ describe('detached — поверхность для аудита', () => {
     expect(me?.detached).toBeUndefined();
   });
 
-  it("список печатается на старте, а без detached-endpoint'ов — не печатается", async () => {
-    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+  it("список — записи info на старте, а без detached-endpoint'ов записей нет", async () => {
+    const detachedProbe = loggerProbe();
+    const withDetached = makeApp({
+      features: [makeFeature({ name: 'module:ops', endpoints: [Detached] })],
+      transports: [asTransport(new MockTransport())],
+      providers: [detachedProbe.provider],
+    }).assemble();
 
-    try {
-      const withDetached = makeApp({
-        features: [makeFeature({ name: 'module:ops', endpoints: [Detached] })],
-        transports: [asTransport(new MockTransport())],
-      }).assemble();
+    await withDetached.run();
+    await withDetached.close();
 
-      await withDetached.run();
-      await withDetached.close();
+    expect(entriesWith(detachedProbe, 'detached from policies')).toEqual([
+      {
+        level: 'info',
+        message: 'detached from policies',
+        fields: {
+          scope: 'nestling',
+          pattern: 'GET /health',
+          transport: 'test',
+          reason: expect.stringContaining('liveness-проба'),
+        },
+      },
+    ]);
 
-      expect(
-        log.mock.calls.some(([line]) =>
-          String(line).includes(
-            'detached from policies: GET /health (test) — liveness-проба',
-          ),
-        ),
-      ).toBe(true);
+    const cleanProbe = loggerProbe();
+    const clean = makeApp({
+      features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
+      transports: [asTransport(new MockTransport())],
+      providers: [cleanProbe.provider],
+    }).assemble();
 
-      log.mockClear();
+    await clean.run();
+    await clean.close();
 
-      const clean = makeApp({
-        features: [
-          makeFeature({ name: 'module:profile', endpoints: [Authed] }),
-        ],
-        transports: [asTransport(new MockTransport())],
-      }).assemble();
-
-      await clean.run();
-      await clean.close();
-
-      expect(
-        log.mock.calls.some(([line]) =>
-          String(line).includes('detached from policies'),
-        ),
-      ).toBe(false);
-    } finally {
-      log.mockRestore();
-    }
+    expect(entriesWith(cleanProbe, 'detached from policies')).toEqual([]);
   });
 });

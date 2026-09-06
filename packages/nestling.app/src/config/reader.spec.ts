@@ -1,3 +1,6 @@
+import type { SpyLogger } from '../logger/__fixtures__/spy.js';
+import { spyLogger } from '../logger/__fixtures__/spy.js';
+
 import type { SectionDeclaration } from './declaration.js';
 import { ConfigKeys } from './keys.js';
 import { ConfigReader } from './reader.js';
@@ -26,15 +29,11 @@ const declaration = (prefix: string, keys: readonly string[]) =>
     consumed: false,
   }) satisfies SectionDeclaration;
 
-const warnings: string[] = [];
-const onWarn = (message: string): void => {
-  warnings.push(message);
-};
+/** Шпион логгера: предупреждения читалки попадают сюда после `attachLogger` */
+let spy: SpyLogger = spyLogger();
 
-/** Заглушка вместо `console.warn` — правило запрещает пустое тело. */
-const noop = (): void => {
-  return;
-};
+/** Сообщения предупреждений в порядке записи */
+const warnings = (): string[] => spy.entries.map((entry) => entry.message);
 
 /** Источник, который никогда ничего не знает — «пропускаю ход» на любой ключ. */
 const silent = (name: string): ConfigSource => ({
@@ -45,7 +44,7 @@ const silent = (name: string): ConfigSource => ({
 
 beforeEach(() => {
   resetConfigRegistry();
-  warnings.length = 0;
+  spy = spyLogger();
   delete process.env.ORDERS_MAX_ITEMS;
 });
 
@@ -54,13 +53,10 @@ describe('разрешение ключа', () => {
     const first = objectSource({ ORDERS_MAX_ITEMS: 'first' }, 'first');
     const second = objectSource({ ORDERS_MAX_ITEMS: 'second' }, 'second');
 
-    const reader = new ConfigReader(
-      [
-        [first, '*'],
-        [second, '*'],
-      ],
-      { onWarn },
-    );
+    const reader = new ConfigReader([
+      [first, '*'],
+      [second, '*'],
+    ]);
     await reader.init();
 
     expect(reader.read('ORDERS_MAX_ITEMS')).toBe('first');
@@ -70,7 +66,7 @@ describe('разрешение ключа', () => {
     process.env.ORDERS_MAX_ITEMS = 'from-env';
 
     const empty = objectSource({}, 'empty');
-    const reader = new ConfigReader([[empty, '*']], { onWarn });
+    const reader = new ConfigReader([[empty, '*']]);
     await reader.init();
 
     expect(reader.read('ORDERS_MAX_ITEMS')).toBe('from-env');
@@ -90,10 +86,9 @@ describe('разрешение ключа', () => {
     const get = jest.fn(() => 'x');
     const scoped: ConfigSource = { name: 'scoped', get };
 
-    const reader = new ConfigReader(
-      [[scoped, new ConfigKeys('orders', ['ORDERS_MAX_ITEMS'])]],
-      { onWarn },
-    );
+    const reader = new ConfigReader([
+      [scoped, new ConfigKeys('orders', ['ORDERS_MAX_ITEMS'])],
+    ]);
     await reader.init();
 
     reader.read('USERS_PAGE_SIZE');
@@ -108,13 +103,10 @@ describe('разрешение ключа', () => {
     // Второй источник намеренно безымянный: он должен получить позиционное имя
     const anonymous: ConfigSource = { ...silent('x'), name: undefined };
 
-    const reader = new ConfigReader(
-      [
-        [objectSource({}, 'vault'), '*'],
-        [anonymous, '*'],
-      ],
-      { onWarn },
-    );
+    const reader = new ConfigReader([
+      [objectSource({}, 'vault'), '*'],
+      [anonymous, '*'],
+    ]);
 
     expect(reader.sources).toEqual(['vault', 'source #2', 'process.env']);
   });
@@ -136,7 +128,7 @@ describe('жизненный цикл источников', () => {
       },
     };
 
-    const reader = new ConfigReader([[source, '*']], { onWarn });
+    const reader = new ConfigReader([[source, '*']]);
     await reader.init();
     reader.read('ANY');
 
@@ -148,13 +140,10 @@ describe('жизненный цикл источников', () => {
     const withClose: ConfigSource = { ...silent('a'), close };
     const withoutClose = silent('b');
 
-    const reader = new ConfigReader(
-      [
-        [withClose, '*'],
-        [withoutClose, '*'],
-      ],
-      { onWarn },
-    );
+    const reader = new ConfigReader([
+      [withClose, '*'],
+      [withoutClose, '*'],
+    ]);
     await reader.init();
     await reader.close();
 
@@ -166,46 +155,48 @@ describe('предупреждения', () => {
   it('таргет, не покрывший ни одного объявленного ключа, виден на старте', async () => {
     registerSection(declaration('orders', ['ORDERS_URL']));
 
-    const reader = new ConfigReader(
-      [[objectSource({}, 'vault'), ['*_UR', '*_URL']]],
-      { onWarn },
-    );
+    const reader = new ConfigReader([
+      [objectSource({}, 'vault'), ['*_UR', '*_URL']],
+    ]);
     await reader.init();
+    reader.attachLogger(spy.logger);
 
-    expect(warnings).toEqual([
+    expect(warnings()).toEqual([
       expect.stringContaining("source 'vault' targets '*_UR'"),
     ]);
   });
 
-  it('уходят в подменённый канал, а не в console.warn', async () => {
-    const spy = jest.spyOn(console, 'warn').mockImplementation(noop);
+  it('копятся до подключения логгера и уходят в него разом', async () => {
+    const reader = new ConfigReader([[objectSource({}, 'v'), '*_NOPE']]);
+    await reader.init();
 
-    try {
-      const reader = new ConfigReader([[objectSource({}, 'v'), '*_NOPE']], {
-        onWarn,
-      });
-      await reader.init();
+    expect(spy.entries).toEqual([]);
 
-      expect(warnings).toHaveLength(1);
-      expect(spy).not.toHaveBeenCalled();
-    } finally {
-      spy.mockRestore();
-    }
+    reader.attachLogger(spy.logger);
+
+    expect(spy.entries).toEqual([
+      {
+        level: 'warn',
+        message: expect.stringContaining("targets '*_NOPE'"),
+        fields: {},
+      },
+    ]);
+
+    // Буфер отдан один раз: повторное подключение ничего не повторяет
+    const another = spyLogger();
+    reader.attachLogger(another.logger);
+
+    expect(another.entries).toEqual([]);
   });
 
-  it('по умолчанию пишут в console.warn с префиксом пакета', async () => {
-    const spy = jest.spyOn(console, 'warn').mockImplementation(noop);
+  it('после подключения идут в логгер напрямую', async () => {
+    const reader = new ConfigReader([]);
+    await reader.init();
+    reader.attachLogger(spy.logger);
 
-    try {
-      const reader = new ConfigReader([[objectSource({}, 'v'), '*_NOPE']]);
-      await reader.init();
+    reader.warn('late');
 
-      expect(spy).toHaveBeenCalledWith(
-        expect.stringContaining('[nestling/config]'),
-      );
-    } finally {
-      spy.mockRestore();
-    }
+    expect(warnings()).toEqual(['late']);
   });
 });
 

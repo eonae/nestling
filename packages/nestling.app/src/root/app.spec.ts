@@ -15,12 +15,13 @@ import {
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
+import { entriesWith, loggerProbe } from './__fixtures__/logger.js';
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature, makePlugin } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import {
   Injectable,
   makeModule,
@@ -657,34 +658,103 @@ describe('assemble — порядок фаз и shutdown', () => {
     expect(process.listenerCount('SIGTERM')).toBe(before);
   });
 
-  it('состав сборки печатается одной строкой', async () => {
-    const log = jest
-      .spyOn(console, 'log')
-      .mockImplementation((): void => undefined);
+  it('состав сборки — одна запись info логгера ядра', async () => {
+    const probe = loggerProbe();
+    const Orders = makeFeature({
+      name: 'orders',
+    });
 
-    try {
-      const Orders = makeFeature({
-        name: 'orders',
-      });
+    const app = makeApp({
+      features: [Orders],
+      transports: [asTransport(new MockTransport())],
+      providers: [probe.provider],
+    }).assemble();
 
-      const app = makeApp({
-        features: [Orders],
-        transports: [asTransport(new MockTransport())],
-      }).assemble();
+    await app.run();
 
-      await app.run();
+    expect(probe.entries).toContainEqual({
+      level: 'info',
+      message: 'features: orders; transports: test',
+      fields: {
+        scope: 'nestling',
+        features: ['orders'],
+        transports: ['test'],
+      },
+    });
 
-      expect(log).toHaveBeenCalledWith(
-        expect.stringContaining('features: orders'),
-      );
-      expect(log).toHaveBeenCalledWith(
-        expect.stringContaining('transports: test'),
-      );
+    await app.close();
+  });
 
-      await app.close();
-    } finally {
-      log.mockRestore();
-    }
+  it('замыкание выбора по вызовам — запись info с названными и добавленными', async () => {
+    const probe = loggerProbe();
+    const Orders = makeFeature({ name: 'orders' });
+    const Billing = makeFeature({ name: 'billing' });
+
+    const app = makeApp({
+      features: [Orders, Billing],
+      transports: [asTransport(new MockTransport())],
+      providers: [probe.provider],
+    }).assemble({ features: ['orders'], includeDeps: true });
+
+    await app.run();
+
+    expect(entriesWith(probe, 'selection closed over calls')).toEqual([
+      {
+        level: 'info',
+        message: 'selection closed over calls',
+        fields: { scope: 'nestling', named: ['orders'], added: [] },
+      },
+    ]);
+
+    await app.close();
+  });
+
+  it('предупреждение контейнера о совпадающих id уходит в логгер уровнем warn', async () => {
+    const probe = loggerProbe();
+
+    const app = makeApp({
+      providers: [
+        probe.provider,
+        valueProvider(makeToken<string>('Twin'), 'left'),
+        valueProvider(makeToken<string>('Twin'), 'right'),
+      ],
+      transports: [asTransport(new MockTransport())],
+    }).assemble();
+
+    await app.run();
+
+    expect(probe.entries).toContainEqual({
+      level: 'warn',
+      message: expect.stringContaining('ambiguous token ids: Twin'),
+      fields: { scope: 'nestling' },
+    });
+
+    await app.close();
+  });
+
+  it('сигнал процесса — запись info с полем signal', async () => {
+    const probe = loggerProbe();
+
+    const app = makeApp({
+      transports: [asTransport(new MockTransport())],
+      providers: [probe.provider],
+    }).assemble();
+
+    await app.run();
+
+    // Обработчик поставлен приложением, поэтому сигнал не роняет процесс;
+    // `emit` зовёт его синхронно, а `close()` идёт уже фоном
+    process.emit('SIGTERM', 'SIGTERM');
+
+    expect(entriesWith(probe, 'shutting down')).toEqual([
+      {
+        level: 'info',
+        message: 'shutting down',
+        fields: { scope: 'nestling', signal: 'SIGTERM' },
+      },
+    ]);
+
+    await app.close();
   });
 
   it('close() взводит meta.signal запроса в полёте до @OnDestroy', async () => {

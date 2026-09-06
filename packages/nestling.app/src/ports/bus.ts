@@ -13,13 +13,14 @@
  * приложения.
  */
 
+import { defaultLogger } from '../logger/console.js';
+import type { Logger } from '../logger/interface.js';
 import type {
   EndpointMeta,
   FormKind,
   Raw,
   ResponseContext,
   TransportCapabilities,
-  UnknownFailInfo,
 } from '../pipeline/index.js';
 import {
   assertFormsSupported,
@@ -213,13 +214,11 @@ export interface InProcessBusOptions {
   buffer?: number;
 
   /**
-   * Хук диагностики: вызывается при отказе доставки (подписчик бросил
-   * исключение, получателя нет). Без хука шина пишет в `console.error`.
+   * Логгер отказов доставки: подписчик бросил исключение, получателя нет.
+   * Kernel-модуль передаёт `Logger$('nestling:bus')`; без логгера — умолчание
+   * ядра, чтобы standalone-шина ничего не проглатывала молча.
    */
-  onDeliveryFailure?: (info: { subject: string; error: unknown }) => void;
-
-  /** Хук диагностики незадекларированных отказов у входящих сообщений */
-  onUnknownFail?: (info: UnknownFailInfo) => void;
+  logger?: Logger;
 }
 
 /** Формы io, которые поддерживает шина: только `value` на входе и выходе */
@@ -380,7 +379,11 @@ export class InProcessBus implements IMessageBus, ITransport {
    */
   private readonly active = new Set<AbortController>();
 
-  constructor(private readonly options: InProcessBusOptions = {}) {}
+  readonly #logger: Logger;
+
+  constructor(private readonly options: InProcessBusOptions = {}) {
+    this.#logger = options.logger ?? defaultLogger;
+  }
 
   /**
    * Подписывает маршруты реализаций операций на их subject'ы. Вызывается
@@ -688,7 +691,6 @@ export class InProcessBus implements IMessageBus, ITransport {
       return await dispatch.call(route.pattern, ctx, {
         // Стек исключения через шину не передаётся, как и по сети
         exposeErrorDetails: false,
-        onUnknownFail: this.options.onUnknownFail,
       });
     } catch (error) {
       // Endpoint без пайплайна бросает отказ: проверка ответа живёт в
@@ -726,14 +728,8 @@ export class InProcessBus implements IMessageBus, ITransport {
     };
   }
 
-  /** Сообщает об отказе доставки: в хук `onDeliveryFailure` или в консоль */
+  /** Отказ доставки — запись `error` с subject'ом и оригиналом в `err` */
   #report(subject: string, error: unknown): void {
-    if (this.options.onDeliveryFailure) {
-      this.options.onDeliveryFailure({ subject, error });
-      return;
-    }
-
-    // eslint-disable-next-line no-console
-    console.error(`[nestling] bus delivery failed on '${subject}':`, error);
+    this.#logger.error('bus delivery failed', { subject, err: error });
   }
 }

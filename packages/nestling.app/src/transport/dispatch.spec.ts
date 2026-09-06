@@ -6,6 +6,7 @@
  * принимает только `Pipeline<_, _, never>`.
  */
 
+import { spyLogger } from '../logger/__fixtures__/spy.js';
 import type {
   AnyInput,
   CtxReader,
@@ -25,7 +26,7 @@ import {
 
 import { makeDispatch } from './dispatch.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { ContainerBuilder, makeToken } from '@nestling/container';
 import { z } from 'zod';
 
@@ -146,13 +147,12 @@ describe('makeDispatch', () => {
       },
     });
 
-    const dispatch = makeDispatch([Nope]);
-    const seen: unknown[] = [];
+    const spy = spyLogger();
+    const dispatch = makeDispatch([Nope], { logger: spy.logger });
 
     const response = await dispatch.call(
       'GET /nope-fail',
       contextFor('GET /nope-fail'),
-      { onUnknownFail: (info) => seen.push(info.error) },
     );
 
     expect(response).toMatchObject({
@@ -160,7 +160,53 @@ describe('makeDispatch', () => {
       status: 'internal_error',
       value: { code: 'internal_error' },
     });
-    expect(seen).toHaveLength(1);
+    expect(spy.entries).toEqual([
+      {
+        level: 'error',
+        message: 'undeclared fail normalized to internal_error',
+        fields: {
+          transport: 'test',
+          pattern: 'GET /nope-fail',
+          code: 'not_found',
+          err: expect.objectContaining({ message: 'nope' }),
+        },
+      },
+    ]);
+  });
+
+  it('без логгера незадекларированный отказ уходит в stderr', async () => {
+    const Nope = makeEndpoint({
+      transport: TestTransport$,
+      pattern: 'GET /standalone-fail',
+      handler: async () => {
+        throw Fail.notFound('nope');
+      },
+    });
+
+    const dispatch = makeDispatch([Nope]);
+    const lines: string[] = [];
+    const write = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation((chunk: unknown) => {
+        lines.push(String(chunk));
+
+        return true;
+      });
+
+    try {
+      await dispatch.call(
+        'GET /standalone-fail',
+        contextFor('GET /standalone-fail'),
+      );
+    } finally {
+      write.mockRestore();
+    }
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(
+      'ERROR undeclared fail normalized to internal_error transport=test pattern="GET /standalone-fail" code=not_found err=',
+    );
+    expect(lines[0]).toContain('nope');
   });
 
   it('стартовый контекст транспорта доходит до хендлера без пайплайна', async () => {
@@ -221,7 +267,7 @@ describe('makeDispatch', () => {
     );
   });
 
-  it('опции границы передаются аргументом и доходят до диагностического хука', async () => {
+  it('опции границы передаются аргументом; логгер хранится в dispatch', async () => {
     const Boom = makeEndpoint({
       transport: TestTransport$,
       pattern: 'GET /boom',
@@ -231,17 +277,18 @@ describe('makeDispatch', () => {
       },
     });
 
-    const dispatch = makeDispatch([Boom]);
-    const seen: string[] = [];
+    const spy = spyLogger();
+    const dispatch = makeDispatch([Boom], { logger: spy.logger });
 
     const response = await dispatch.call('GET /boom', contextFor('GET /boom'), {
       exposeErrorDetails: true,
-      onUnknownFail: (info) => seen.push(info.endpoint.pattern),
     });
 
     expect(response.isSuccess).toBe(false);
     expect(response.value).toMatchObject({ error: 'secret detail' });
-    expect(seen).toEqual(['GET /boom']);
+    expect(spy.entries.map((entry) => entry.fields.pattern)).toEqual([
+      'GET /boom',
+    ]);
   });
 
   it('endpoint без пайплайна исполняется под тем же scope запроса', async () => {

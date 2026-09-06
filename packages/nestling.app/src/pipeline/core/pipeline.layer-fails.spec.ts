@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars --
  * блок типовых проверок объявляет значения ради компилятора, не ради рантайма */
-/* eslint-disable @typescript-eslint/no-empty-function --
- * заглушка `onUnknownFail` глушит диагностику в выводе тестов */
 /* eslint-disable unicorn/consistent-function-scoping --
  * юниты и фабрики вызова замыкают фикстуры своего теста */
 /* eslint-disable unicorn/no-useless-undefined --
@@ -13,6 +11,8 @@
  * Эффективное множество декларации проверяет
  * `metadata/endpoint-errors.spec.ts`; здесь — сам пайплайн.
  */
+
+import { spyLogger } from '../../logger/__fixtures__/spy.js';
 
 import type {
   EndpointMeta,
@@ -73,9 +73,12 @@ async function run(
   return executable.executeWithHandler(
     handler,
     makeCtx(errors) as ExtendableContext<AnyInput>,
-    { onUnknownFail: () => {} },
+    { logger: silent },
   );
 }
+
+/** Логгер, глушащий умолчание ядра в выводе тестов */
+const silent = spyLogger().logger;
 
 describe('.pre(unit, { errors }) — проверка списка', () => {
   it('объявленные отказы попадают на значение пайплайна', () => {

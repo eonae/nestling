@@ -16,11 +16,6 @@ import type { BuiltContainer } from '@nestling/container';
 import { ContainerBuilder, Injectable } from '@nestling/container';
 import { z } from 'zod';
 
-const warnings: string[] = [];
-const onWarn = (message: string): void => {
-  warnings.push(message);
-};
-
 /** Два законных взгляда на один ключ: число и строка. */
 const OrdersConfig = makeConfig('orders', {
   port: from('PORT', z.coerce.number()),
@@ -73,9 +68,7 @@ const build = async (
   register: (builder: ContainerBuilder) => void,
 ): Promise<BuiltContainer> => {
   const builder = new ContainerBuilder();
-  builder.register(
-    configKernel([[objectSource(values, 'test'), '*']], { onWarn }),
-  );
+  builder.register(configKernel([[objectSource(values, 'test'), '*']]));
   register(builder);
 
   return await builder.build();
@@ -94,10 +87,6 @@ const buildFailure = async <E extends Error>(
 
   throw new Error('build() succeeded, expected a failure');
 };
-
-beforeEach(() => {
-  warnings.length = 0;
-});
 
 describe('ключ — разделяемый read-only ресурс', () => {
   it('две секции читают ключ своими схемами, и обе проекции валидны', async () => {

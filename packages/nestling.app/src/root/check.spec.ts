@@ -12,12 +12,13 @@ import { wireApp } from '../testing/index.js';
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
+import { loggerProbe } from './__fixtures__/logger.js';
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import {
   Injectable,
   makeToken,
@@ -332,9 +333,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
 
     const transport = new MockTransport();
     const before = process.listenerCount('SIGTERM');
-    const log = jest
-      .spyOn(console, 'log')
-      .mockImplementation((): void => undefined);
+    const probe = loggerProbe();
 
     try {
       const wired = await wireApp(
@@ -347,13 +346,17 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
             }),
           ],
           transports: [asTransport(transport)],
+          providers: [probe.provider],
         }),
       );
 
       expect(events).toEqual(['init']);
       expect(transport.serving).toBe(false);
       expect(process.listenerCount('SIGTERM')).toBe(before);
-      expect(log).not.toHaveBeenCalled();
+      // Состав сборки объявляет START, до которого шов не доходит
+      expect(probe.entries.filter((entry) => entry.level === 'info')).toEqual(
+        [],
+      );
 
       // Endpoint адресуется идентичностью декларации, а не строкой паттерна
       const endpoint = wired.endpoints.get(Ping);
@@ -364,7 +367,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
 
       await wired.close();
     } finally {
-      log.mockRestore();
+      // Ничего восстанавливать не нужно: шпион живёт в графе этой сборки
     }
   });
 

@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-empty-function --
- * noop-заглушка `console.log`: тест смотрит на состав напечатанного, а не
- * на сам вывод. */
 /* eslint-disable unicorn/no-useless-undefined --
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`). */
@@ -22,12 +19,13 @@ import {
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
+import { entriesWith, loggerProbe } from './__fixtures__/logger.js';
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { Injectable, makeToken, OnInit, OnStart } from '@nestling/container';
 import { makeEvent, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
@@ -361,46 +359,40 @@ describe('assemble — порты', () => {
     await app.close();
   });
 
-  it('печатает деградацию долговечности только при старте приёма запросов', async () => {
-    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+  it('деградация долговечности — запись warn только при старте приёма запросов', async () => {
+    const degradedProbe = loggerProbe();
+    const degraded = makeApp({
+      features: [DurableFeature],
+      transports: [asTransport(new MockTransport())],
+      config: portsConfig(),
+      providers: [degradedProbe.provider],
+    }).assemble();
 
-    try {
-      const degraded = makeApp({
-        features: [DurableFeature],
-        transports: [asTransport(new MockTransport())],
-        config: portsConfig(),
-      }).assemble();
+    await degraded.run();
+    await degraded.close();
 
-      await degraded.run();
-      await degraded.close();
+    const message = 'durable delivery is not available on this bus';
+    const records = entriesWith(degradedProbe, message);
 
-      const lines = log.mock.calls.filter(([line]) =>
-        String(line).includes('durable delivery is not available'),
-      );
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      level: 'warn',
+      fields: { scope: 'nestling', operations: ['app.durable.placed'] },
+    });
 
-      expect(lines).toHaveLength(1);
-      expect(String(lines[0][0])).toContain('app.durable.placed');
+    // То же приложение без долговечных операций молчит
+    const plainProbe = loggerProbe();
+    const plain = makeApp({
+      features: [BillingFeature],
+      transports: [asTransport(new MockTransport())],
+      config: portsConfig(),
+      providers: [plainProbe.provider],
+    }).assemble();
 
-      log.mockClear();
+    await plain.run();
+    await plain.close();
 
-      // То же приложение без долговечных операций молчит
-      const plain = makeApp({
-        features: [BillingFeature],
-        transports: [asTransport(new MockTransport())],
-        config: portsConfig(),
-      }).assemble();
-
-      await plain.run();
-      await plain.close();
-
-      expect(
-        log.mock.calls.some(([line]) =>
-          String(line).includes('durable delivery is not available'),
-        ),
-      ).toBe(false);
-    } finally {
-      log.mockRestore();
-    }
+    expect(entriesWith(plainProbe, message)).toEqual([]);
   });
 
   it('корень поставил шину: приложение обслуживается ею, а не in-proc', async () => {

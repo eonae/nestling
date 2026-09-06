@@ -2,6 +2,8 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
+import type { SpyEntry } from '../logger/__fixtures__/spy.js';
+import { spyLogger } from '../logger/__fixtures__/spy.js';
 import type { AnyEndpointDefinition } from '../pipeline/index.js';
 import {
   contextVar,
@@ -23,7 +25,6 @@ import {
   makeRemotePort,
 } from './invoker.js';
 import { deadlineIn } from './profile.js';
-import type { PortFailureInfo } from './runtime.js';
 import { PortRuntime } from './runtime.js';
 
 // Только `jest`: остальные глобали инъектируются раннером, а объект
@@ -124,7 +125,7 @@ const OrderPlacedBroken = implement(OrderPlaced, {
 
 interface Harness {
   runtime: PortRuntime;
-  failures: PortFailureInfo[];
+  failures: readonly SpyEntry[];
   bus: InProcessBus;
   close: () => Promise<void>;
 }
@@ -133,13 +134,10 @@ interface Harness {
 async function harness(
   declarations: readonly AnyEndpointDefinition[],
 ): Promise<Harness> {
-  const failures: PortFailureInfo[] = [];
-  const runtime = new PortRuntime((info) => failures.push(info));
-  const bus = new InProcessBus({
-    onDeliveryFailure: () => {
-      /* доставка ломается намеренно: тест смотрит на изоляцию */
-    },
-  });
+  const spy = spyLogger();
+  const runtime = new PortRuntime(spy.logger);
+  // Доставка ломается намеренно: тест смотрит на изоляцию, а не на записи
+  const bus = new InProcessBus({ logger: spyLogger().logger });
 
   const dispatch = makeDispatch(
     declarations.map((declaration) => declaration.resolve(() => ({}))),
@@ -148,7 +146,7 @@ async function harness(
   await bus.serve(dispatch, new AbortController().signal);
   runtime.bind({ dispatch, bus });
 
-  return { runtime, failures, bus, close: () => bus.close() };
+  return { runtime, failures: spy.entries, bus, close: () => bus.close() };
 }
 
 const portContext = (harnessed: Harness): InvokerContext => ({
@@ -624,9 +622,7 @@ describe.each([
 
 describe('несвязанный рантайм', () => {
   it('вызов до фазы WIRE — ошибка с именем операции и фазой', async () => {
-    const runtime = new PortRuntime(() => {
-      /* отказы этого теста не наблюдаются */
-    });
+    const runtime = new PortRuntime(spyLogger().logger);
     const port = makeLocalPort({
       operation: ChargeCard,
       runtime,

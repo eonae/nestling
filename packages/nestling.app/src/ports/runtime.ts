@@ -9,11 +9,12 @@
  * ошибкой с понятным сообщением, а не молчаливым ожиданием.
  */
 
+import type { Logger } from '../logger/interface.js';
 import type { Dispatch } from '../transport/index.js';
 
 import type { IMessageBus } from './bus.js';
 
-/** Диагностический отчёт вызывателя: то, что не попало на call-site */
+/** Отказ вызывателя, который не попал на call-site */
 export interface PortFailureInfo {
   /** Имя операции, на котором случился отказ */
   readonly operation: string;
@@ -35,7 +36,7 @@ export interface PortExecutors {
 export class PortRuntime {
   #executors?: PortExecutors;
 
-  constructor(private readonly onFailure?: (info: PortFailureInfo) => void) {}
+  constructor(private readonly logger: Logger) {}
 
   /** Связан ли рантайм (фаза WIRE пройдена) */
   get bound(): boolean {
@@ -80,15 +81,12 @@ export class PortRuntime {
     return this.#requireBound(operation).bus;
   }
 
-  /** Диагностический канал: отказ, не попавший на call-site */
+  /** Отказ, не попавший на call-site, — запись `error` с оригиналом в `err` */
   report(info: PortFailureInfo): void {
-    if (this.onFailure) {
-      this.onFailure(info);
-      return;
-    }
-
-    // eslint-disable-next-line no-console
-    console.error(`[nestling] port '${info.operation}' failure:`, info.error);
+    this.logger.error('port failure', {
+      operation: info.operation,
+      err: info.error,
+    });
   }
 
   #requireBound(operation: string): PortExecutors {

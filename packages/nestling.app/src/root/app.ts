@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * `makeApp` — единственный composition root; `AssembledApp` — фазовый
  * рантайм приложения.
@@ -11,6 +10,9 @@
  */
 
 import { configKernel } from '../config/index.js';
+import { ConfigReaderToken } from '../config/kernel.js';
+import type { Logger } from '../logger/index.js';
+import { Logger$, loggerKernel } from '../logger/index.js';
 import type {
   AnyEndpointDefinition,
   HandlerClass,
@@ -407,14 +409,14 @@ export class AssembledApp {
     this.#started = true;
 
     // 1 ASSEMBLE — граф, discovery и все fail-fast'ы до захвата ресурсов
-    const { container, discovery } = await this.#assemble();
+    const { container, discovery, logger } = await this.#assemble();
     this.#container = container;
 
     // 2 INIT
     await container.init();
 
     // 3 WIRE — резолв зависимостей деклараций и `dispatch` на транспорт
-    const { dispatches } = this.#wire(container, discovery);
+    const { dispatches } = this.#wire(container, discovery, logger);
 
     // 4 START — сначала хуки графа, затем старт приёма запросов
     // транспортами
@@ -430,8 +432,8 @@ export class AssembledApp {
       this.#serving.push({ token, transport });
     }
 
-    this.#announce(discovery);
-    this.#attachSignals();
+    this.#announce(discovery, logger);
+    this.#attachSignals(logger);
   }
 
   /**
@@ -482,7 +484,7 @@ export class AssembledApp {
     this.#started = true;
 
     // 1 ASSEMBLE — те же fail-fast'ы, что и в бою
-    const { container, discovery } = await this.#assemble();
+    const { container, discovery, logger } = await this.#assemble();
     this.#container = container;
 
     // 2 INIT
@@ -491,7 +493,7 @@ export class AssembledApp {
     // 3 WIRE — и остановка: START, `#announce()` и `#attachSignals()` не
     // выполняются, поэтому тест не начинает принимать запросы и не
     // трогает процесс
-    const { wired } = this.#wire(container, discovery);
+    const { wired } = this.#wire(container, discovery, logger);
 
     this.#shutdown = new AbortController();
 
@@ -579,10 +581,13 @@ export class AssembledApp {
    * Общий метод для `run()`, проверки и шва: собранный контейнер он
    * возвращает, но не запоминает — иначе проверка оставляла бы за собой
    * граф, который никто не будет ни инициализировать, ни разрушать.
+   * Вместе с контейнером возвращается логгер сборки: он узел графа, и
+   * взять его можно только после `build()`.
    */
   async #assemble(): Promise<{
     container: BuiltContainer;
     discovery: EndpointDiscovery;
+    logger: Logger;
   }> {
     this.#select();
 
@@ -605,6 +610,11 @@ export class AssembledApp {
     // без единого `Ctx(...)` в `deps` он не создаёт ни одного узла, зато
     // в корне про request-контекст не пишется ни строки
     builder.register(contextKernel());
+
+    // Kernel-модуль логгера — тоже всегда. Умолчание под `RootLogger$`
+    // объявлено полем `defaults`, поэтому провайдер приложения заменяет
+    // его без ошибки дубля, в каком бы порядке модули ни регистрировались
+    builder.register(loggerKernel());
 
     // Discovery — плоским проходом по выбранным фичам и подключённым
     // плагинам: невыбранные фичи в нём не участвуют вовсе. Считается до
@@ -659,6 +669,20 @@ export class AssembledApp {
 
     const container = await builder.build();
 
+    // Логгер существует с этой строки: до `build()` узлов нет, и всё, что
+    // хотело писать раньше, копило записи значениями. Сначала предупреждения
+    // контейнера, затем накопленное читалкой конфига — она получает свой
+    // логгер и дальше пишет напрямую
+    const logger = container.getOrThrow(Logger$('nestling'));
+
+    for (const warning of container.warnings) {
+      logger.warn(warning);
+    }
+
+    container
+      .getOrThrow(ConfigReaderToken)
+      .attachLogger(container.getOrThrow(Logger$('nestling:config')));
+
     // Граница фич — первой на собранном графе: ребро, которое не переживёт
     // разъезда процессов, важнее любого недостающего транспорта
     await assertFeatureBoundary(
@@ -666,7 +690,7 @@ export class AssembledApp {
       buildOwnerMap(this.#selectedFeatures(), spec.plugins),
     );
 
-    this.#warnOnIdleIntercom(discovery);
+    this.#warnOnIdleIntercom(discovery, logger);
     this.#assertRequiredTransports(container, discovery);
     this.#assertFormsSupported(container, discovery);
     // Инварианты — последними: сперва «граф вообще собирается», потом
@@ -674,7 +698,7 @@ export class AssembledApp {
     // незарегистрированного транспорта, увела бы автора не туда.
     this.#assertPolicies(discovery);
 
-    return { container, discovery };
+    return { container, discovery, logger };
   }
 
   /**
@@ -743,6 +767,7 @@ export class AssembledApp {
   #wire(
     container: BuiltContainer,
     discovery: EndpointDiscovery,
+    logger: Logger,
   ): {
     dispatches: Map<TransportRef, Dispatch>;
     wired: Map<AnyEndpointDefinition, WiredEndpoint>;
@@ -776,10 +801,13 @@ export class AssembledApp {
       });
     }
 
+    // Логгер незадекларированных отказов живёт в `dispatch`, а не в опциях
+    // вызова: у сборки он есть один раз, а транспорту ради одного вызова
+    // зависимость от логгера не нужна
     const dispatches = new Map(
       [...executable].map(([token, endpoints]) => [
         token,
-        makeDispatch(endpoints),
+        makeDispatch(endpoints, { logger }),
       ]),
     );
 
@@ -870,7 +898,7 @@ export class AssembledApp {
    * она нужна, не выбрана. Это предупреждение, а не ошибка: топология из
    * одного процесса, готовая к разъезду, законна.
    */
-  #warnOnIdleIntercom(discovery: EndpointDiscovery): void {
+  #warnOnIdleIntercom(discovery: EndpointDiscovery, logger: Logger): void {
     const intercom = this.#plan.spec.intercom;
 
     if (
@@ -880,11 +908,15 @@ export class AssembledApp {
       return;
     }
 
-    console.warn(
-      `[nestling] intercom '${intercom.name}' is assigned, but this ` +
-        `assembly declares no operations: nothing will be carried through ` +
-        `it. Drop 'intercom:' with its transport, or check that the feature ` +
-        `that needs it is part of the selection.`,
+    logger.warn(
+      'intercom is assigned, but this assembly declares no operations',
+      {
+        transport: intercom.name,
+        hint:
+          `nothing will be carried through it. Drop 'intercom:' with its ` +
+          `transport, or check that the feature that needs it is part of the ` +
+          `selection`,
+      },
     );
   }
 
@@ -999,15 +1031,19 @@ export class AssembledApp {
    *
    * Плюс список detached-endpoint'ов с причинами: opt-out из
    * инвариантов обязан быть поверхностью для аудита, а не строчкой в
-   * diff'е одного файла. Пустой список не печатается вовсе.
+   * diff'е одного файла. Пустой список не даёт ни одной записи.
+   *
+   * Всё уровнем `info`, кроме деградации долговечности: расхождение
+   * объявленного с обслуживаемым — предупреждение.
    */
-  #announce(discovery: EndpointDiscovery): void {
+  #announce(discovery: EndpointDiscovery, logger: Logger): void {
     const features = this.#selectedFeatures().map((feature) => feature.name);
     const transports = this.#serving.map(({ token }) => transportNameOf(token));
 
-    console.log(
-      `[nestling] features: ${features.join(', ') || '(none)'}; ` +
+    logger.info(
+      `features: ${features.join(', ') || '(none)'}; ` +
         `transports: ${transports.join(', ') || '(none)'}`,
+      { features, transports },
     );
 
     // Фактический состав при замыкании — не украшение: выбор назвал одни
@@ -1016,10 +1052,7 @@ export class AssembledApp {
       const named = this.#named;
       const added = features.filter((name) => !named.includes(name));
 
-      console.log(
-        `[nestling] selection closed over calls: ${named.join(', ') || '(none)'}` +
-          (added.length > 0 ? ` + ${added.join(', ')}` : ' (nothing added)'),
-      );
+      logger.info('selection closed over calls', { named, added });
     }
 
     // Деградация долговечности — рядом с составом и по тем же основаниям,
@@ -1034,12 +1067,12 @@ export class AssembledApp {
       : [];
 
     if (undurable.length > 0) {
-      console.log(
-        `[nestling] durable delivery is not available on this bus: ` +
-          `${undurable.join(', ')} — served without persistence. Register a ` +
-          `bus transport that supports it (for example nats()) to make the ` +
-          `guarantee real.`,
-      );
+      logger.warn('durable delivery is not available on this bus', {
+        operations: undurable,
+        hint:
+          'served without persistence. Register a bus transport that ' +
+          'supports it (for example nats()) to make the guarantee real',
+      });
     }
 
     for (const { endpoint } of discovery.endpoints) {
@@ -1047,21 +1080,22 @@ export class AssembledApp {
         continue;
       }
 
-      console.log(
-        `[nestling] detached from policies: ${endpoint.pattern} ` +
-          `(${transportNameOf(endpoint.transport)}) — ${endpoint.detached}`,
-      );
+      logger.info('detached from policies', {
+        pattern: endpoint.pattern,
+        transport: transportNameOf(endpoint.transport),
+        reason: endpoint.detached,
+      });
     }
   }
 
   /** Корректная остановка по сигналам процесса. Снимается в `close()` */
-  #attachSignals(): void {
+  #attachSignals(logger: Logger): void {
     const handlers: [NodeJS.Signals, () => void][] = (
       ['SIGTERM', 'SIGINT'] as NodeJS.Signals[]
     ).map((signal) => [
       signal,
       () => {
-        console.log(`${signal} received, shutting down...`);
+        logger.info('shutting down', { signal });
         void this.close();
       },
     ]);

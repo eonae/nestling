@@ -3,6 +3,9 @@
  * keep-last-good на невалидном обновлении.
  */
 
+import type { SpyLogger } from '../logger/__fixtures__/spy.js';
+import { spyLogger } from '../logger/__fixtures__/spy.js';
+
 import type { SectionDeclaration } from './declaration.js';
 import type { Config } from './families.js';
 import { projectSection, reloadableOf } from './project.js';
@@ -21,17 +24,22 @@ const Runtime = makeConfig.reloadable('runtime', {
 
 type RuntimeValues = Config<typeof Runtime>;
 
-const warnings: string[] = [];
+/** Шпион логгера: предупреждения читалки попадают сюда после `attachLogger` */
+let spy: SpyLogger = spyLogger();
+
+/** Сообщения предупреждений в порядке записи */
+const warnings = (): string[] => spy.entries.map((entry) => entry.message);
 
 /** Поднимает читалку с одним объектным источником и проецирует секцию. */
 const project = async (
   values: Record<string, unknown>,
 ): Promise<{ cfg: RuntimeValues; source: ObjectSource }> => {
   const source = objectSource(values, 'test');
-  const reader = new ConfigReader([[source, '*']], {
-    onWarn: (message) => warnings.push(message),
-  });
+  const reader = new ConfigReader([[source, '*']]);
   await reader.init();
+  // Логгер подключается после `init()`, как это делает сборка приложения:
+  // предупреждения `refresh()` дальше идут в него напрямую
+  reader.attachLogger(spy.logger);
 
   const declaration = lookupSection('runtime') as SectionDeclaration;
 
@@ -48,7 +56,7 @@ const settle = async (): Promise<void> => {
 };
 
 beforeEach(() => {
-  warnings.length = 0;
+  spy = spyLogger();
 });
 
 describe('объявление reloadable-секции', () => {
@@ -147,9 +155,12 @@ describe('асимметрия старта и обновления', () => {
 
     expect(cfg.rps).toBe(10);
     expect(seen).toEqual([]);
-    expect(warnings.at(-1)).toMatch(
-      /keeping last known good values.+'runtime'/,
-    );
+    expect(spy.entries.at(-1)).toMatchObject({
+      level: 'warn',
+      message: expect.stringMatching(
+        /keeping last known good values.+'runtime'/,
+      ),
+    });
   });
 
   it('частичное обновление не применяется наполовину', async () => {
@@ -173,16 +184,19 @@ describe('асимметрия старта и обновления', () => {
 
 describe('источник без наблюдения', () => {
   it('reloadable на голом env поднимается с предупреждением', async () => {
-    const reader = new ConfigReader([], {
-      onWarn: (message) => warnings.push(message),
-    });
+    const reader = new ConfigReader([]);
     await reader.init();
 
     const declaration = lookupSection('runtime') as SectionDeclaration;
     const cfg = projectSection(declaration, reader) as RuntimeValues;
 
+    // Предупреждение записано до подключения логгера и ждёт его в буфере
     expect(cfg.rps).toBe(100);
-    expect(warnings).toEqual([
+    expect(warnings()).toEqual([]);
+
+    reader.attachLogger(spy.logger);
+
+    expect(warnings()).toEqual([
       expect.stringContaining('no source that supports watch'),
     ]);
   });

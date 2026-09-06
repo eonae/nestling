@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-empty-function --
- * noop-заглушки `console`: тест смотрит на состав напечатанного, а не на
- * сам вывод. */
 /**
  * Карта операций в отчёте `check()`: что реализовано здесь, что уходит
  * наружу и через какой интерком.
@@ -11,12 +8,13 @@ import type { Port } from '../ports/index.js';
 import { BusTransport$, implement, InProcessBus } from '../ports/index.js';
 import { transportValue } from '../transport/index.js';
 
+import { loggerProbe } from './__fixtures__/logger.js';
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { Injectable, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { z } from 'zod';
@@ -109,8 +107,7 @@ describe('карта операций в отчёте check()', () => {
   });
 
   it('интерком без операций даёт предупреждение, а не ошибку', async () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const probe = loggerProbe();
 
     const Silent = makeFeature({
       name: 'silent',
@@ -127,17 +124,21 @@ describe('карта операций в отчёте check()', () => {
       features: [Silent],
       transports: [asTransport(new MockTransport()), asBus()],
       intercom: 'events',
+      providers: [probe.provider],
     }).assemble();
 
     await app.run();
 
-    expect(warn.mock.calls.flat().join(' ')).toMatch(
-      /intercom 'events' is assigned, but this assembly declares no operations/,
-    );
+    expect(probe.entries).toContainEqual({
+      level: 'warn',
+      message: 'intercom is assigned, but this assembly declares no operations',
+      fields: expect.objectContaining({
+        scope: 'nestling',
+        transport: 'events',
+      }),
+    });
 
     await app.close();
-    warn.mockRestore();
-    log.mockRestore();
   });
 
   it('видит вызов, объявленный провайдером, а не декларацией', async () => {

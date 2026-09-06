@@ -9,14 +9,16 @@
  * начавшему принимать запросы, нечего маршрутизировать.
  */
 
+import { defaultLogger } from '../logger/console.js';
+import type { Logger } from '../logger/interface.js';
 import type {
   AnyEndpointDefinition,
   AnyInput,
   EndpointDefinition,
+  ExecuteOptions,
   ExtendableContext,
   Pipeline,
   ResponseContext,
-  UnknownFailInfo,
 } from '../pipeline/index.js';
 import { makePipeline } from '../pipeline/index.js';
 
@@ -43,9 +45,21 @@ export type RouteDeclaration = Omit<
 export interface DispatchOptions {
   /** Раскрывать ли клиенту детали необработанных (не `Fail`) ошибок */
   exposeErrorDetails?: boolean;
+}
 
-  /** Диагностический хук на отказ, которого нет в объявленных `errors:` */
-  onUnknownFail?: (info: UnknownFailInfo) => void;
+/**
+ * Опции `makeDispatch`: то, что принадлежит таблице маршрутов, а не вызову.
+ *
+ * Логгер хранится здесь, а не передаётся в `call`: у сборки он есть один
+ * раз, а транспорту ради одного вызова не нужна зависимость от логгера.
+ */
+export interface MakeDispatchOptions {
+  /**
+   * Логгер для незадекларированных отказов. Без него — умолчание ядра
+   * (уровень `info`, формат `text`), чтобы standalone-путь ничего не
+   * проглатывал молча.
+   */
+  logger?: Logger;
 }
 
 /**
@@ -131,6 +145,7 @@ const emptyPipeline = makePipeline() as Pipeline<AnyInput, AnyInput, never>;
  * `endpoint.resolve(resolver)` (под `App` это делает фаза WIRE).
  *
  * @param endpoints - Исполнимые декларации одного транспорта
+ * @param options - Логгер незадекларированных отказов
  * @returns Диспетчер: проекции маршрутов и исполнение по паттерну
  *
  * @example
@@ -141,9 +156,16 @@ const emptyPipeline = makePipeline() as Pipeline<AnyInput, AnyInput, never>;
  */
 export function makeDispatch(
   endpoints: readonly ExecutableDeclaration[],
+  options: MakeDispatchOptions = {},
 ): Dispatch {
   const table = new Map<string, AnyEndpointDefinition>();
   const routes: RouteDeclaration[] = [];
+  const logger = options.logger ?? defaultLogger;
+
+  // Опции рантайма собраны заранее: горячий путь не создаёт объект на
+  // каждый вызов, а политика раскрытия ошибок принимает два значения
+  const exposing: ExecuteOptions = { exposeErrorDetails: true, logger };
+  const concealing: ExecuteOptions = { exposeErrorDetails: false, logger };
 
   for (const definition of endpoints) {
     const existing = table.get(definition.pattern);
@@ -161,7 +183,7 @@ export function makeDispatch(
   return {
     routes: Object.freeze(routes),
 
-    async call(pattern, ctx, options = {}) {
+    async call(pattern, ctx, callOptions = {}) {
       const definition = table.get(pattern);
 
       if (!definition) {
@@ -177,7 +199,11 @@ export function makeDispatch(
 
       // Промис возвращается как есть: `return await` добавил бы тик
       // микротасков на каждый запрос, а стек ошибки он не улучшает
-      return pipeline.executeWithHandler(definition.handle, ctx, options);
+      return pipeline.executeWithHandler(
+        definition.handle,
+        ctx,
+        callOptions.exposeErrorDetails === true ? exposing : concealing,
+      );
     },
   };
 }
