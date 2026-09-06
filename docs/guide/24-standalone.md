@@ -178,10 +178,10 @@ kernel-модуля — `contextKernel()` и `loggerKernel()` — регистр
     await container.destroy();
 ```
 
-Хуки жизненного цикла вызываются явно: `init()` выполняет `@OnInit` в
-топологическом порядке, `start()` выполняет `@OnStart`, `destroy()`
-выполняет `@OnDestroy` в обратном порядке. `getOrThrow(token)` возвращает
-инстанс по токену.
+Фазы вызываются явно: `init()` создаёт экземпляры и захватывает ресурсы в
+топологическом порядке, `start(signal)` выполняет `@OnStart`, `destroy()`
+вызывает `release` ресурсов в обратном порядке. До завершения `init()`
+контейнер экземпляров не отдаёт: `getOrThrow(token)` бросает ошибку фазы.
 
 ```typescript
 // examples/container/src/cli.ts

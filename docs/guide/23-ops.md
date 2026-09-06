@@ -60,7 +60,7 @@ export const app = makeApp({
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/activity-stream.endpoint.ts
-@Injectable([ActivityHub])
+@Handler([ActivityHub])
 class ActivityStreamHandler {
   constructor(private readonly hub: ActivityHub) {}
 
@@ -116,7 +116,7 @@ export const ActivityStream = httpEndpoint({
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 class ListSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -141,7 +141,7 @@ export const ListSubscriptions = httpEndpoint({
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 class KillSubscriptionHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -173,7 +173,7 @@ export const KillSubscription = httpEndpoint({
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 class WatchSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -216,7 +216,7 @@ export const WatchSubscriptions = httpEndpoint({
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscription-facts.ts (фрагмент)
-@Injectable([Logger$.auto])
+@Handler([Logger$.auto])
 class SubscriptionOpenedInOpsHandler {
   constructor(private readonly logger: Logger) {}
 

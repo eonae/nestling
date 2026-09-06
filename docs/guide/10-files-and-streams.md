@@ -35,7 +35,7 @@ const MiB = 1024 * 1024;
 // `id` приходит из path-параметра и подмешивается к полям формы
 const AvatarFields = z.object({ id: z.string() });
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class UploadAvatarHandler {
   constructor(private readonly users: UsersRepository) {}
 
@@ -120,7 +120,7 @@ import { Ok, stream } from '@nestling/operations';
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
 const MAX_ROWS = 100_000;
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class ExportUsersHandler {
   constructor(private readonly users: UsersRepository) {}
 
@@ -192,7 +192,7 @@ const MAX_ROWS = 10_000;
 /** Пауза между строками, после которой запрос отклоняется: ответ `504` */
 const GAP_TIMEOUT_MS = 30_000;
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class ImportUsersHandler {
   constructor(private readonly users: UsersRepository) {}
 

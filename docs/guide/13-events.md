@@ -36,7 +36,7 @@ export const UserRegistered = makeEvent({
 
 ```typescript
 // examples/app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts
-@Injectable([Logger$.auto])
+@Handler([Logger$.auto])
 class UserRegisteredInQuotasHandler {
   constructor(private readonly logger: Logger) {}
 
@@ -72,7 +72,7 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
-@Injectable([
+@Handler([
   UsersRepository$,
   ClaimQuota.caller,
   UserRegistered.emitter,
@@ -165,7 +165,7 @@ export const SignupRecorded = makeCommand({
 
 ```typescript
 // examples/app-with-http/src/features/quotas/signup-recorded.endpoint.ts
-@Injectable([SignupJournal])
+@Handler([SignupJournal])
 class SignupRecordedHandler {
   constructor(private readonly journal: SignupJournal) {}
 
@@ -182,7 +182,7 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
 
 ```typescript
 // examples/app-with-http/src/features/quotas/signup.journal.ts
-@Injectable([Logger$.auto, Ctx(IdempotencyKey)])
+@Component([Logger$.auto, Ctx(IdempotencyKey)])
 export class SignupJournal {
   constructor(
     private readonly logger: Logger,

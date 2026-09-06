@@ -178,7 +178,7 @@ export const runtimeConfigKeys = RuntimeConfig.keys;
 
 ```typescript
 // examples/container/src/runtime/rate-limiter.ts
-@Injectable([RuntimeConfig, Logger$.auto])
+@Component([RuntimeConfig, Logger$.auto])
 export class RateLimiter {
   /** Значения `rps`, пришедшие через `onChange` */
   readonly history: number[] = [];

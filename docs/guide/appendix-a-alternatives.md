@@ -49,7 +49,7 @@ makePipeline().pre(Authenticate, { errors: [Unauthorized] });
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
-@Injectable([Logger$.auto])
+@Component([Logger$.auto])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
 

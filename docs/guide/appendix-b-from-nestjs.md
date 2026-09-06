@@ -23,13 +23,13 @@ NestJS я делал вот так». В колонке «Чем отличае�
 
 | NestJS | Nestling | Чем отличается | Глава |
 |---|---|---|---|
-| `@Injectable()` с `emitDecoratorMetadata` | `@Injectable([deps])` | зависимости перечисляются явным списком токенов; `reflect-metadata` не нужен | [5](./05-repository.md) |
+| `@Injectable()` с `emitDecoratorMetadata` | `@Component([deps])`, `@Resource([deps])`, `@Handler([deps])` | декоратор называет роль класса, зависимости перечисляются явным списком токенов; `reflect-metadata` не нужен | [5](./05-repository.md) |
 | `@Inject(TOKEN)` | токен в списке `deps` и позиция в конструкторе | интерфейс получает токен `Name$` через `makeToken` | [5](./05-repository.md) |
 | `forwardRef()` | нет | цикл зависимостей это ошибка `build()` | [5](./05-repository.md) |
 | `Scope.REQUEST` | `Ctx(Var)` и слой пайплайна, который кладёт значение | провайдеры остаются синглтонами, а данные запроса читаются из асинхронного контекста | [8](./08-logging.md) |
 | `Scope.TRANSIENT` с `INQUIRER` | `Family.auto` | член семейства с именем потребителя создаётся при сборке, а не на каждый инжект | [21](./21-token-families.md) |
 | провайдер с `useFactory` и `inject` | `factoryProvider(token, factory, deps)` | тот же смысл, зависимости позиционные | [5](./05-repository.md) |
-| `OnModuleInit`, `OnApplicationBootstrap`, `OnModuleDestroy` | `@OnInit()`, `@OnStart()`, `@OnDestroy()` на методах провайдера | хуки вызываются в топологическом порядке графа, только на провайдерах | [5](./05-repository.md) |
+| `OnModuleInit`, `OnApplicationBootstrap`, `OnModuleDestroy` | `static acquire` и `release` ресурса, `@OnStart()` на методе провайдера | захват идёт в топологическом порядке графа, освобождение — в обратном; хук старта один | [5](./05-repository.md) |
 | `ModuleRef.get()` | нет | контейнер наружу не отдаётся; инстансы получают через `deps` или в `@OnStart` | [5](./05-repository.md) |
 
 ## Обработка запроса

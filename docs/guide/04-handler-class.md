@@ -1,6 +1,6 @@
 # 4. Хендлер как класс
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §3.
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-09-03] Поле
 > `handler`: зависимости принадлежат хендлеру; канон `return`;
@@ -24,7 +24,7 @@ const ListUsersInput = z.object({
 
 type ListUsersInput = z.infer<typeof ListUsersInput>;
 
-@Injectable()
+@Handler()
 export class ListUsersHandler {
   async handle(input: ListUsersInput): Output<User[]> {
     return [alice, bob].slice(0, input.limit ?? 20);
@@ -41,8 +41,10 @@ export const ListUsers = httpEndpoint({
 ```
 
 Класс объявляет метод `handle` с той же сигнатурой, что была у функции:
-входные данные и необязательный `meta`. Декоратор `@Injectable()` без
-аргумента помечает класс как узел графа без зависимостей.
+входные данные и необязательный `meta`. Декоратор `@Handler()` называет
+роль класса — хендлер декларации, — а пустой список означает, что
+зависимостей у него нет. Роль требует метода `handle`: класс без него под
+`@Handler` не компилируется.
 
 Поле `handler` принимает класс. `implements` не нужен: сигнатуру `handle`
 сверяет со схемами `input` и `output` сам конструктор декларации в точке

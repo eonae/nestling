@@ -1,6 +1,6 @@
 # 9. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
@@ -38,7 +38,7 @@ export interface Caller {
   id: string;
 }
 
-@Injectable([AppConfig])
+@Handler([AppConfig])
 export class Authenticate {
   constructor(private readonly config: Config<typeof AppConfig>) {}
 
@@ -66,8 +66,9 @@ export const authed = compose(
 ```
 
 `Authenticate` — pre-юнит в форме класса. Ему нужна секция конфига из
-[главы 6](./06-config.md), поэтому зависимость объявлена в `@Injectable`,
-а сам класс регистрируется в `providers:` фичи.
+[главы 6](./06-config.md), поэтому зависимость объявлена в декораторе
+роли. Роль здесь `@Handler`: у юнита есть метод `handle`. Сам класс
+регистрируется в `providers:` фичи.
 
 Метод `handle` получает контекст запроса. `ctx.raw.attributes` — заголовки
 HTTP-запроса; имена заголовков приведены к нижнему регистру. Юнит
@@ -189,7 +190,7 @@ export const app = makeApp({
 содержимым, объявленная в другом файле, политику не проходит, и обойти
 проверку переобъявлением слоя нельзя.
 
-Политики проверяются на фазе ASSEMBLE: до `@OnInit`, до открытия сокета.
+Политики проверяются на фазе ASSEMBLE: до создания экземпляров, до открытия сокета.
 Endpoint `POST /rogue` со слоем `observability` остановит запуск с таким
 сообщением:
 

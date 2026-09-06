@@ -45,7 +45,7 @@ export const AppConfig = makeConfig('app', {
 import { createHmac, timingSafeEqual } from 'node:crypto';
 // …
 
-@Injectable([AppConfig])
+@Handler([AppConfig])
 export class VerifySignature {
   constructor(private readonly config: Config<typeof AppConfig>) {}
 
@@ -85,7 +85,7 @@ export class VerifySignature {
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 class UserWebhookHandler {
   constructor(private readonly users: UsersRepository) {}
 

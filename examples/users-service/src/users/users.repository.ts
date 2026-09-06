@@ -4,7 +4,7 @@ import type { User } from './user.js';
 
 import type { CtxReader, Logger } from '@nestling/app';
 import { Ctx, Logger$, RequestId } from '@nestling/app';
-import { Injectable, makeToken } from '@nestling/container';
+import { Component, makeToken } from '@nestling/container';
 
 /** Хранилище пользователей: всё, что endpoint'ам нужно от базы */
 export interface UsersRepository {

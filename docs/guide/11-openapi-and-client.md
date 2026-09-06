@@ -168,7 +168,7 @@ export const CreateUser = makeRequest({
 
 ```typescript
 // examples/users-service/src/users/endpoints/get-user.endpoint.ts
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
 

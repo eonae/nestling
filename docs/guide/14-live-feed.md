@@ -15,7 +15,7 @@
 
 ```typescript
 // examples/app-with-http/src/features/users/activity.hub.ts (фрагмент)
-@Injectable([])
+@Component([])
 export class ActivityHub {
   readonly #topic = new Topic<ActivityEvent>({ buffer: 256 });
 
@@ -107,7 +107,7 @@ const ActivityEvent = z.object({
 
 type ActivityEvent = z.infer<typeof ActivityEvent>;
 
-@Injectable([ActivityHub])
+@Handler([ActivityHub])
 class ActivityStreamHandler {
   constructor(private readonly hub: ActivityHub) {}
 
@@ -179,7 +179,7 @@ export const ActivityStream = httpEndpoint({
     return Ok.created(user, { Location: `/users/${user.id}` });
 ```
 
-`ActivityHub` инжектируется в хендлер регистрации через `@Injectable`,
+`ActivityHub` инжектируется в хендлер регистрации через `@Handler`,
 как любой провайдер. Публикация не замедляет создание пользователя ни
 на одного подключённого клиента.
 
