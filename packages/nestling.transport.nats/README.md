@@ -187,9 +187,13 @@ NATS_TEST_SERVERS=nats://127.0.0.1:4222 yarn workspace @nestling/transport.nats 
 | `connect` | коннектор к брокеру (`NatsConnector`); по умолчанию `defaultConnector` на клиенте `nats` |
 | `codec` | кодек тела сообщения (`NatsCodec`); по умолчанию `jsonCodec` |
 | `maxDeliver` | число попыток доставки долговечного сообщения до `term` |
-| `onDeliveryFailure` | хук отказа доставки (`NatsDeliveryFailure`) |
-| `onConnectionChange` | хук смены состояния соединения (`NatsConnectionInfo`) |
-| `onUnknownFail` | хук незадекларированной ошибки |
+| `onConnectionChange` | хук смены состояния соединения (`NatsConnectionInfo`); это событие для приложения, без хука транспорт ничего не пишет |
+
+Отказы доставки транспорт пишет в логгер ядра `Logger$('nestling:nats')`
+записью `error` с полями `subject`, `terminated` (когда попытки исчерпаны)
+и оригиналом в `err`. Незадекларированный отказ входящего сообщения
+записывает `dispatch` сборки. Прямой `new NatsBus(options)` принимает
+`NatsBusOptions`: те же опции плюс обязательный `logger`.
 
 ### Экспорты
 

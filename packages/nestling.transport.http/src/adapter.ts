@@ -152,7 +152,7 @@ function encodeSseFrame(item: unknown, sse?: SseConfig): string {
  * Тело отказа посреди потока.
  *
  * Отказ уже прошёл проверку `errors`: незадекларированный стал `internal_error`,
- * оригинал ушёл в хук `onUnknownFail`.
+ * оригинал записан в логгер `dispatch`.
  */
 function midStreamBody(error: unknown): { error: string; code?: string } {
   if (isMidStreamFailure(error)) {

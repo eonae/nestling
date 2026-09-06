@@ -10,11 +10,12 @@
 
 import type { NatsDouble } from './testing/double.js';
 import { NatsDouble as Broker, natsDouble } from './testing/double.js';
-import type { NatsTransportOptions } from './transport.js';
+import type { NatsBusOptions } from './transport.js';
 import { nats, NatsBus } from './transport.js';
 import { CONTEXT_HEADER, IDEMPOTENCY_HEADER, TIMEOUT_HEADER } from './wire.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { Fields, Logger, LogLevel } from '@nestling/app';
 import {
   BusTransport$,
   implement,
@@ -106,14 +107,64 @@ const settle = async (ms = 0): Promise<void> => {
 async function process(
   broker: NatsDouble,
   declarations: readonly Parameters<typeof makeDispatch>[0][number][],
-  options: NatsTransportOptions = {},
+  options: Partial<NatsBusOptions> = {},
 ): Promise<NatsBus> {
-  const bus = new NatsBus({ connect: natsDouble(broker), ...options });
+  const bus = new NatsBus({
+    connect: natsDouble(broker),
+    logger: spyLogger().logger,
+    ...options,
+  });
 
   await bus.connect();
   await bus.serve(makeDispatch(declarations), new AbortController().signal);
 
   return bus;
+}
+
+/** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
+function spyLogger(): { logger: Logger; entries: LogEntry[] } {
+  const entries: LogEntry[] = [];
+  const make = (bindings: Fields): Logger => {
+    const write =
+      (level: LogLevel) =>
+      (first: string | Error | Fields, second?: Fields): void => {
+        if (typeof first === 'string') {
+          entries.push({
+            level,
+            message: first,
+            fields: { ...bindings, ...second },
+          });
+        } else if (first instanceof Error) {
+          entries.push({
+            level,
+            message: first.message,
+            fields: { ...bindings, ...second, err: first },
+          });
+        } else {
+          entries.push({
+            level,
+            message: '',
+            fields: { ...bindings, ...first },
+          });
+        }
+      };
+
+    return {
+      debug: write('debug'),
+      info: write('info'),
+      warn: write('warn'),
+      error: write('error'),
+      child: (extra) => make({ ...bindings, ...extra }),
+    };
+  };
+
+  return { logger: make({}), entries };
+}
+
+interface LogEntry {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: Fields;
 }
 
 describe('NatsBus — адресация и группы', () => {
@@ -408,11 +459,8 @@ describe('NatsBus — конверт и потолок', () => {
 describe('NatsBus — отказы доставки и фазы', () => {
   it('никто не слушает subject — SERVICE_UNAVAILABLE с адресом', async () => {
     const broker = new Broker();
-    const caller = await process(broker, [], {
-      onDeliveryFailure: () => {
-        /* отказ ожидаем: тест смотрит на ответ */
-      },
-    });
+    // Отказ ожидаем: тест смотрит на ответ, записи копит шпион
+    const caller = await process(broker, []);
 
     const response = await caller.request('quotas.claim', { amount: 1 });
 
@@ -429,7 +477,10 @@ describe('NatsBus — отказы доставки и фазы', () => {
 
   it('attach проверяет формы io и подписок не заводит', async () => {
     const broker = new Broker();
-    const bus = new NatsBus({ connect: natsDouble(broker) });
+    const bus = new NatsBus({
+      connect: natsDouble(broker),
+      logger: spyLogger().logger,
+    });
 
     await bus.connect();
     bus.attach(makeDispatch([ClaimImpl]));
@@ -458,7 +509,10 @@ describe('NatsBus — отказы доставки и фазы', () => {
   });
 
   it('объявляет способности значением: value-формы, remote, durable', async () => {
-    const bus = new NatsBus({ connect: natsDouble(new Broker()) });
+    const bus = new NatsBus({
+      connect: natsDouble(new Broker()),
+      logger: spyLogger().logger,
+    });
 
     expect([...bus.capabilities.input]).toEqual(['value']);
     expect([...bus.capabilities.output]).toEqual(['value']);

@@ -13,7 +13,7 @@ import { ContainerBuilder } from '@nestling/container';
 /** Строит контейнер с kernel-модулем конфига и объявленным транспортом */
 async function build(declaration: ReturnType<typeof http>) {
   return await new ContainerBuilder()
-    .register(configKernel([], { onWarn: (): void => undefined }))
+    .register(configKernel([]))
     .register(declaration.provider)
     .build();
 }

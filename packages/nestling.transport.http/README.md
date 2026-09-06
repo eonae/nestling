@@ -279,8 +279,8 @@ await makeApp({ features: [UsersFeature], transports: [http({ port: 3000 })] }).
   Опция `exposeErrorDetails: true` раскрывает их (только для разработки).
   Задекларированный отказ (его `code` есть в `errors:` endpoint'а или это
   код ядра) сохраняет `message`, `code` и `details`. Оригинал
-  заменённого отказа передаётся в `onUnknownFail` (по умолчанию
-  `console.error`).
+  заменённого отказа уходит записью `error` в логгер ядра: под `App` это
+  `Logger$('nestling')`, без него — умолчание ядра в `stderr`.
 - Размер тела ограничен. Буферизуемые тела (JSON, raw, text) и длина
   строки NDJSON ограничены `maxBodySize` (по умолчанию 1 MiB); чтение
   прерывается заранее и возвращает `413`. `maxBodySize: 0` снимает лимит.
@@ -349,7 +349,6 @@ new HttpTransport({
   host: '0.0.0.0',
   maxBodySize: 1024 * 1024,   // байт; 0 снимает лимит
   exposeErrorDetails: false,  // раскрывать message и stack необработанных ошибок
-  onUnknownFail: undefined,   // получает оригинал заменённого отказа; по умолчанию console.error
   requestTimeout: undefined,  // server.requestTimeout из node:http (мс)
   headersTimeout: undefined,  // server.headersTimeout (мс)
   keepAliveTimeout: undefined,// server.keepAliveTimeout (мс)

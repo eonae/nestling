@@ -21,7 +21,6 @@ import type {
   RouteDeclaration,
   TransportCapabilities,
   TransportDeclaration,
-  UnknownFailInfo,
   ValidateOutputForm,
 } from '@nestling/app';
 import {
@@ -193,13 +192,6 @@ export interface CliInput {
  */
 export interface CliTransportOptions {
   /**
-   * Диагностический хук проверки границы: получает оригинал отказа,
-   * снятого нормализацией в `InternalError`. Не задан — рантайм пишет в
-   * `console.error`.
-   */
-  onUnknownFail?: (info: UnknownFailInfo) => void;
-
-  /**
    * Что делает `serve` для командной строки:
    *
    * - `'argv'` (по умолчанию) — single-shot: одна команда из аргументов
@@ -363,7 +355,6 @@ export class CliTransport implements ITransport {
     const response = await dispatch.call(input.command, ctx, {
       // CLI — локальный инструмент: детали ошибок (stack) в терминале полезны
       exposeErrorDetails: true,
-      onUnknownFail: this.options.onUnknownFail,
     });
 
     // Потоковый выход: NDJSON в stdout, завершение по концу потока и по

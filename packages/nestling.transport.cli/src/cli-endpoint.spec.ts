@@ -5,6 +5,7 @@
 import { cliEndpoint, CliTransport, CliTransport$ } from './index.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
+import type { Fields, Logger, LogLevel } from '@nestling/app';
 import {
   isEndpointDefinition,
   makeDispatch,
@@ -14,6 +15,52 @@ import {
   transportNameOf,
 } from '@nestling/app';
 import { z } from 'zod';
+
+/** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
+function spyLogger(): { logger: Logger; entries: LogEntry[] } {
+  const entries: LogEntry[] = [];
+  const make = (bindings: Fields): Logger => {
+    const write =
+      (level: LogLevel) =>
+      (first: string | Error | Fields, second?: Fields): void => {
+        if (typeof first === 'string') {
+          entries.push({
+            level,
+            message: first,
+            fields: { ...bindings, ...second },
+          });
+        } else if (first instanceof Error) {
+          entries.push({
+            level,
+            message: first.message,
+            fields: { ...bindings, ...second, err: first },
+          });
+        } else {
+          entries.push({
+            level,
+            message: '',
+            fields: { ...bindings, ...first },
+          });
+        }
+      };
+
+    return {
+      debug: write('debug'),
+      info: write('info'),
+      warn: write('warn'),
+      error: write('error'),
+      child: (extra) => make({ ...bindings, ...extra }),
+    };
+  };
+
+  return { logger: make({}), entries };
+}
+
+interface LogEntry {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: Fields;
+}
 
 describe('cliEndpoint', () => {
   it("имя команды становится паттерном endpoint'а", () => {
@@ -201,12 +248,12 @@ describe('cliEndpoint — объявленные отказы', () => {
       },
     });
 
-    const seen: unknown[] = [];
-    const cli = new CliTransport({
-      argv: [],
-      onUnknownFail: (info) => seen.push(info.error),
-    });
-    await cli.serve(makeDispatch([Count]), new AbortController().signal);
+    const spy = spyLogger();
+    const cli = new CliTransport({ argv: [] });
+    await cli.serve(
+      makeDispatch([Count], { logger: spy.logger }),
+      new AbortController().signal,
+    );
 
     const response = await cli.execute({
       command: 'count',
@@ -219,7 +266,18 @@ describe('cliEndpoint — объявленные отказы', () => {
       status: 'internal_error',
       value: { code: 'internal_error' },
     });
-    expect(seen).toHaveLength(1);
+    expect(spy.entries).toEqual([
+      {
+        level: 'error',
+        message: 'undeclared fail normalized to internal_error',
+        fields: {
+          transport: 'cli',
+          pattern: 'count',
+          code: expect.any(String),
+          err: expect.objectContaining({ message: expect.any(String) }),
+        },
+      },
+    ]);
 
     await cli.close();
   });
