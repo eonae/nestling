@@ -7,26 +7,6 @@ interface ILogger {
   scope: string;
 }
 
-/** Перехватывает `console.warn` на время вызова и отдаёт собранные строки. */
-const captureWarnings = async <T>(
-  body: () => Promise<T>,
-): Promise<[T, string[]]> => {
-  /* eslint-disable no-console -- перехват предупреждения и есть предмет теста */
-  const warnings: string[] = [];
-  const original = console.warn;
-
-  console.warn = (...args: unknown[]): void => {
-    warnings.push(args.map(String).join(' '));
-  };
-
-  try {
-    return [await body(), warnings];
-  } finally {
-    console.warn = original;
-  }
-  /* eslint-enable no-console */
-};
-
 describe('идентичность токена', () => {
   it('два вызова makeToken с одним id дают разные токены', () => {
     const first = makeToken<ILogger>('ILogger');
@@ -49,9 +29,10 @@ describe('идентичность токена', () => {
     Injectable([])(Logger, {} as ClassDecoratorContext);
     Injectable([])(OtherLogger, {} as ClassDecoratorContext);
 
-    const [container] = await captureWarnings(() =>
-      new ContainerBuilder().register(Logger).register(OtherLogger).build(),
-    );
+    const container = await new ContainerBuilder()
+      .register(Logger)
+      .register(OtherLogger)
+      .build();
 
     expect(container.getOrThrow(Logger).source).toBe('left');
     expect(container.getOrThrow(OtherLogger).source).toBe('right');
@@ -62,20 +43,20 @@ describe('идентичность токена', () => {
     );
   });
 
-  it('предупреждает о совпавших идентификаторах узлов', async () => {
+  it('отдаёт предупреждение о совпавших идентификаторах узлов значением', async () => {
     const first = makeToken<string>('Duplicated');
     const second = makeToken<string>('Duplicated');
 
-    const [container, warnings] = await captureWarnings(() =>
-      new ContainerBuilder()
-        .register(valueProvider(first, 'left'))
-        .register(valueProvider(second, 'right'))
-        .build(),
-    );
+    const container = await new ContainerBuilder()
+      .register(valueProvider(first, 'left'))
+      .register(valueProvider(second, 'right'))
+      .build();
 
     expect(container.getOrThrow(first)).toBe('left');
     expect(container.getOrThrow(second)).toBe('right');
-    expect(warnings.join('\n')).toContain('ambiguous token ids: Duplicated');
+    expect(container.warnings).toHaveLength(1);
+    expect(container.warnings[0]).toContain('ambiguous token ids: Duplicated');
+    expect(Object.isFrozen(container.warnings)).toBe(true);
 
     // Адреса разошлись, поэтому отчёт остаётся читаемым и в этом случае
     expect(container.getById('Duplicated')).toBe('left');
