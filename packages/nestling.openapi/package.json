@@ -27,7 +27,6 @@
     "@nestling/transport.http": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/app": "workspace:*",
     "@nestling/openapi.zod": "workspace:*",
     "@nestling/transport.cli": "workspace:*",
     "typescript": "5.7.3",

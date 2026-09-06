@@ -55,7 +55,7 @@
 - [x] 7.1 В `packages/nestling.app/eslint.config.js` добавлены блоки по `files` с `no-restricted-imports`: зоны `pipeline`, `config`, `transport`, `ports` по таблице из `design.md`
 - [x] 7.2 Проверено, что запрещённый импорт валит `yarn lint` пакета, а разрешённый проходит
 - [x] 7.3 Тест `@nestling/subscriptions` проверяет список имён, импортируемых из `@nestling/app`: `assemble`, объявления фичи и плагина в нём нет
-- [x] 7.4 Списки разрешённых импортов в тестах границы `operations`, `client`, `app`, `openapi` сверены с фактическими
+- [x] 7.4 Списки разрешённых импортов в тестах границы `operations`, `client`, `openapi` сверены с фактическими
 - [x] 7.5 `yarn verify:fresh` зелёный один раз после последнего слияния
 
 ## 8. Примеры
@@ -74,15 +74,15 @@
 
 ## 10. Спеки
 
-- [ ] 10.1 Разделы `## Purpose` в `openspec/specs/{contracts-package-boundary,config-reloadable,endpoint-type-diagnostics,event-sources-topic,message-bus}/spec.md` названы новыми именами пакетов — дельты покрывают только требования
-- [ ] 10.2 `openspec validate package-consolidation --strict` проходит
+- [x] 10.1 Разделы `## Purpose` в `openspec/specs/{contracts-package-boundary,config-reloadable,endpoint-type-diagnostics,event-sources-topic,message-bus}/spec.md` названы новыми именами пакетов — дельты покрывают только требования
+- [x] 10.2 `openspec validate package-consolidation --strict` проходит
 
 ## 11. Definition of Done
 
-- [ ] 11.1 Все задачи выше отмечены
-- [ ] 11.2 `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` + `type-budget` по всем пакетам плюс smoke)
-- [ ] 11.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 11.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
-- [ ] 11.5 `yarn docs:audit` — 0 ERROR
-- [ ] 11.6 Затронутые `examples/*` мигрированы, главы гайда пересверены с обновлённой датой в плашке «сверено с кодом»
+- [x] 11.1 Все задачи выше отмечены
+- [x] 11.2 `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` + `type-budget` по всем пакетам плюс smoke)
+- [x] 11.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 11.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
+- [x] 11.5 `yarn docs:audit` — 0 ERROR
+- [x] 11.6 Затронутые `examples/*` мигрированы, главы гайда пересверены с обновлённой датой в плашке «сверено с кодом»
 - [ ] 11.7 Коммиты осмысленные, ветка `change/package-consolidation` запушена

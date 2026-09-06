@@ -74,8 +74,8 @@ SHALL лежать в `src/root`, а не файлами верхнего уро
 
 Тест границы, обходящий замыкание импортов собранного `dist`, SHALL
 оставаться средством проверки границ **пакета** (`@nestling/operations`,
-`@nestling/client`, `@nestling/app`, `@nestling/openapi`) и SHALL NOT
-применяться к направлению между каталогами.
+`@nestling/client`, `@nestling/openapi`) и SHALL NOT применяться к
+направлению между каталогами.
 
 #### Scenario: Импорт против направления не проходит линтер
 
