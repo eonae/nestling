@@ -25,7 +25,12 @@ const boot = async (): Promise<BuiltContainer> => {
 
   const { makeContainer } = await import('../container.js');
 
-  return await makeContainer();
+  const container = await makeContainer();
+  // `getOrThrow` ниже читает секции конфига — экземпляры появляются на
+  // фазе INIT
+  await container.init();
+
+  return container;
 };
 
 describe('секреты в примере', () => {

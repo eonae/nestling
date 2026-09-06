@@ -2,10 +2,10 @@ import type { HealthCheck } from '../health/index.js';
 import type { ApiClient } from '../interfaces.js';
 import { ApiClient$ } from '../interfaces.js';
 
-import { Injectable } from '@nestling/container';
+import { Component } from '@nestling/container';
 
 /** Проверка внешнего API: второй вклад в семейство `HealthCheck` */
-@Injectable([ApiClient$])
+@Component([ApiClient$])
 export class ApiHealthCheck implements HealthCheck {
   readonly name = 'api';
 

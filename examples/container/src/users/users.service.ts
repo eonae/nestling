@@ -5,9 +5,9 @@ import { UserRepository } from './users.repository.js';
 
 import type { Logger } from '@nestling/app';
 import { Logger$ } from '@nestling/app';
-import { Injectable, OnDestroy, OnInit } from '@nestling/container';
+import { Component, OnStart } from '@nestling/container';
 
-@Injectable([UserRepository, Counter$('users'), Logger$('users')])
+@Component([UserRepository, Counter$('users'), Logger$('users')])
 export class UserService {
   #repository: UserRepository;
   #calls: Counter;
@@ -17,16 +17,20 @@ export class UserService {
     this.#repository = repository;
     this.#calls = calls;
     this.#logger = logger;
-  }
-
-  @OnInit()
-  async initialize(): Promise<void> {
     this.#logger.info('UserService initialized');
   }
 
-  @OnDestroy()
-  async cleanup(): Promise<void> {
-    this.#logger.info('UserService cleanup', { calls: this.#calls.value });
+  /**
+   * Пишет итог использования при остановке.
+   *
+   * Хук ничего не захватывает: он лишь подписывается на сигнал остановки,
+   * тот же, что получают транспорты, — и читает его на SHUTDOWN.
+   */
+  @OnStart()
+  watchShutdown(signal: AbortSignal): void {
+    signal.addEventListener('abort', () => {
+      this.#logger.info('UserService cleanup', { calls: this.#calls.value });
+    });
   }
 
   async getUsers(): Promise<string[]> {

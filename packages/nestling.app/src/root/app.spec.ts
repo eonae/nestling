@@ -29,7 +29,6 @@ import { MockTransport } from './helpers.js';
 import { describe, expect, it } from '@jest/globals';
 import {
   Component,
-  factoryProvider,
   Handler,
   makeModule,
   makeToken,
@@ -509,9 +508,10 @@ describe('assemble — фаза WIRE: резолв зависимостей де
   });
 
   it('классы-юниты пайплайна связываются контейнером', async () => {
-    // Юнит пайплайна несёт метод `handle` — форму хендлера, а не
-    // компонента, — поэтому у токена нет декоратора роли: класс
-    // регистрируется явной фабрикой, как класс из чужого пакета
+    // Юнит пайплайна несёт метод `handle`, то есть роль хендлера. Его
+    // позиция — `providers:` единицы: класс-хендлер endpoint'а туда бы не
+    // встал, а юнит пайплайна живёт именно там
+    @Handler([])
     class WithTracing {
       handle(): { traceId: string } {
         return { traceId: 'trace-from-di' };
@@ -532,9 +532,7 @@ describe('assemble — фаза WIRE: резолв зависимостей де
       features: [
         makeFeature({
           name: 'test-module',
-          providers: [
-            factoryProvider(WithTracing, () => new WithTracing(), []),
-          ],
+          providers: [WithTracing],
           endpoints: [TracedEndpoint],
         }),
       ],
