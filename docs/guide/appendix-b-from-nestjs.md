@@ -14,8 +14,8 @@ NestJS я делал вот так». В колонке «Чем отличае�
 | `NestFactory.create(AppModule)` и `app.listen()` | `makeApp({ features, transports }).assemble().run()` | `run()` проводит приложение по фазам и сам устанавливает остановку по `SIGTERM` | [1](./01-first-service.md) |
 | `@Module({ providers, imports })` | `makeModule({ providers, dependsOn })` | модуль это объект, а не класс; хуков жизненного цикла у модуля нет | [12](./12-features.md) |
 | `@Module({ controllers })` | `makeFeature({ providers, endpoints })` | endpoint'ы перечисляет фича, а не модуль; фича может быть вынесена в отдельный процесс | [1](./01-first-service.md), [12](./12-features.md) |
-| `exports` модуля | нет | видимость держат ES-модули: токен, который не экспортирован из файла, нельзя инжектировать | [5](./05-repository.md) |
-| `@Global()` | `makePlugin` и поле `plugins:` корня | плагин есть в каждом процессе, и к нему обращаются токеном | [12](./12-features.md) |
+| `exports` модуля | нет | видимость держат ES-модули: DI-токен, который не экспортирован из файла, нельзя инжектировать | [5](./05-repository.md) |
+| `@Global()` | `makePlugin` и поле `plugins:` корня | плагин есть в каждом процессе, и к нему обращаются DI-токеном | [12](./12-features.md) |
 | `DynamicModule`, `forRoot(options)` | функция, которая возвращает модуль или плагин | значение создаётся один раз и передаётся в корень | [12](./12-features.md) |
 | `@Controller()` с `@Get()`, `@Post()` | `httpEndpoint({ method, path, input, output, handler })` | endpoint это значение с адресом, схемами и хендлером; хендлер — функция или класс с методом `handle` | [1](./01-first-service.md), [4](./04-handler-class.md) |
 
@@ -23,8 +23,8 @@ NestJS я делал вот так». В колонке «Чем отличае�
 
 | NestJS | Nestling | Чем отличается | Глава |
 |---|---|---|---|
-| `@Injectable()` с `emitDecoratorMetadata` | `@Component([deps])`, `@Resource([deps])`, `@Handler([deps])` | декоратор называет роль класса, зависимости перечисляются явным списком токенов; `reflect-metadata` не нужен | [5](./05-repository.md) |
-| `@Inject(TOKEN)` | токен в списке `deps` и позиция в конструкторе | интерфейс получает токен `Name$` через `makeToken` | [5](./05-repository.md) |
+| `@Injectable()` с `emitDecoratorMetadata` | `@Component([deps])`, `@Resource([deps])`, `@Handler([deps])` | декоратор называет роль класса, зависимости перечисляются явным списком DI-токенов; `reflect-metadata` не нужен | [5](./05-repository.md) |
+| `@Inject(TOKEN)` | DI-токен в списке `deps` и позиция в конструкторе | интерфейс получает DI-токен `Name$` через `makeToken` | [5](./05-repository.md) |
 | `forwardRef()` | нет | цикл зависимостей это ошибка `build()` | [5](./05-repository.md) |
 | `Scope.REQUEST` | `Ctx(Var)` и слой пайплайна, который кладёт значение | провайдеры остаются синглтонами, а данные запроса читаются из асинхронного контекста | [8](./08-logging.md) |
 | `Scope.TRANSIENT` с `INQUIRER` | `Family.auto` | член семейства с именем потребителя создаётся при сборке, а не на каждый инжект | [21](./21-token-families.md) |
@@ -72,7 +72,7 @@ NestJS я делал вот так». В колонке «Чем отличае�
 
 - `forwardRef`: цикл зависимостей не собирается.
 - Скоупов `REQUEST` и `TRANSIENT`: данные запроса живут в асинхронном
-  контексте, экземпляр на потребителя даёт семейство токенов.
+  контексте, экземпляр на потребителя даёт семейство DI-токенов.
 - `exports` у модуля: границу видимости держат ES-модули.
 - `next()` в обработке запроса: юниты пайплайна не оборачивают друг
   друга.

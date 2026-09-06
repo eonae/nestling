@@ -129,7 +129,7 @@ openapi({ info: { title: 'My API', version: '1.0.0' },
 | `buildOpenApiDocument(endpoints, options)` | чистая функция: вход — то же значение, что отдаёт discovery; ни контейнера, ни транспортов |
 | `buildOpenApiDocument(app, { select?, switches?, ...options })` | та же функция от декларации приложения и аргумента сборки: discovery без графа и источников; документ для CI без запуска приложения |
 | `openapi(options)` | параметризованный модуль: строит документ на фазе 1 ASSEMBLE и отдаёт его endpoint'ом (`GET /openapi.json`) |
-| `OpenApiDocument$` | токен готового документа; endpoint — способ его отдать, а не место, где он появляется |
+| `OpenApiDocument$` | DI-токен готового документа; endpoint — способ его отдать, а не место, где он появляется |
 
 - `@nestling/openapi` не знает ни про один валидатор. Он принимает тот же
   `SchemaDocConverter`, что и снапшот операций, и не заводит свой тип.

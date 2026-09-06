@@ -75,7 +75,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples
 ```
 [nestling] features: users, quotas; transports: http, bus
 [nestling] selection closed over calls: users + quotas
-[nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не bearer-токеном
+[nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
 
 Выбрана одна фича, а в процессе две. `includeDeps: true` замыкает выбор

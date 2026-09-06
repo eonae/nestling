@@ -11,8 +11,8 @@
 проверить по сырым байтам тела: сериализованный заново JSON даст другую
 подпись. Хендлер при этом должен получить payload, разобранный и
 проверенный схемой, как у любого другого endpoint'а. Bearer-токена у
-внешней системы нет, поэтому политика «каждый `POST` проверяет токен» из
-[главы 9](./09-auth.md) к этому endpoint'у не применима.
+внешней системы нет, поэтому политика «каждый `POST` проверяет
+Bearer-токен» из [главы 9](./09-auth.md) к этому endpoint'у не применима.
 
 ## Отказ и секрет подписи
 
@@ -104,7 +104,7 @@ export const UserWebhook = httpEndpoint({
   errors: [InvalidSignature],
   rawBody: true,
   detached:
-    'webhook: подлинность проверяется подписью тела, а не bearer-токеном',
+    'webhook: подлинность проверяется подписью тела, а не Bearer-токеном',
   doc: { summary: 'Webhook о событиях пользователя', tags: ['users'] },
   // Слой с требованием к стартовому контексту стоит снаружи: его
   // требование выполняет транспорт, а не соседний слой
@@ -151,7 +151,7 @@ hint: "declare 'rawBody: true', or provide the fields from an outer layer"
 поэтому список исключений из политик читается на ревью:
 
 ```
-[nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не bearer-токеном
+[nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
 
 ## Запросы и проверка

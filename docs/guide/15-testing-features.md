@@ -65,7 +65,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
     });
 ```
 
-`stub(Operation, impl)` возвращает пару из токена вызывателя и фейка:
+`stub(Operation, impl)` возвращает пару из DI-токена вызывателя и фейка:
 для `request` это `ClaimQuota.caller`, для `command` и `event` это
 `.emitter`. Пара передаётся полем `stubs:`. Провайдер стаба имеет
 приоритет над боевым рецептом вызывателя, поэтому проверка владельца не
@@ -208,7 +208,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 ```
 
 Слой `observability` по-прежнему кладёт свой `requestId` в контекст, но
-сервис читает подставленное значение. Семейство токенов целиком
+сервис читает подставленное значение. Семейство DI-токенов целиком
 подменяет `familyOverride(Family, make)` в том же списке `overrides`.
 
 ```typescript

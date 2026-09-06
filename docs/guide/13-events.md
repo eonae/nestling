@@ -111,7 +111,7 @@ export const CreateUser = httpEndpoint({
 });
 ```
 
-`UserRegistered.emitter` — токен эмиттера. Хендлер получает объект типа
+`UserRegistered.emitter` — DI-токен эмиттера. Хендлер получает объект типа
 `Emitter<typeof UserRegistered>` с методом `emit(payload, meta?)`.
 `emit` возвращает `Promise<void>`, который завершается, когда сообщение
 доставлено, а не когда подписчик его обработал. Отказ или исключение

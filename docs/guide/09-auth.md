@@ -10,7 +10,7 @@
 > множество `errors`».
 
 Читать список пользователей может кто угодно, а создавать, менять и
-удалять их может только тот, кто предъявил токен. Проверка выполняется
+удалять их может только тот, кто предъявил Bearer-токен. Проверка выполняется
 до хендлера и отвечает `401` с машинным кодом. Забыть её на новом
 endpoint'е должно быть нельзя.
 
@@ -18,7 +18,7 @@ endpoint'е должно быть нельзя.
 // examples/users-service/src/errors.ts
 import { makeFail } from '@nestling/operations';
 
-/** Отказ проверки токена. Его возвращает pre-юнит слоя `authed`. */
+/** Отказ проверки Bearer-токена. Его возвращает pre-юнит слоя `authed`. */
 export const Unauthorized = makeFail('unauthorized', {
   message: 'Bearer token is missing or invalid',
 });
@@ -72,7 +72,7 @@ export const authed = compose(
 
 Метод `handle` получает контекст запроса. `ctx.raw.attributes` — заголовки
 HTTP-запроса; имена заголовков приведены к нижнему регистру. Юнит
-сравнивает токен со значением `apiToken` из секции конфига.
+сравнивает Bearer-токен со значением `apiToken` из секции конфига.
 
 Юнит завершается одним из двух способов.
 
@@ -88,7 +88,7 @@ HTTP-запроса; имена заголовков приведены к ни�
 
 `authed` — новый слой, составленный из двух: `compose(outer, inner)`.
 Pre-юниты внешнего слоя выполняются раньше, поэтому `requestId` уже
-лежит в контексте, когда проверяется токен, а строка аудита пишется и
+лежит в контексте, когда проверяется Bearer-токен, а строка аудита пишется и
 для отклонённых запросов. Слой `authed` происходит от `observability` —
 это использует политика сборки ниже.
 
@@ -171,7 +171,7 @@ export const app = makeApp({
       observability,
       'observability',
     ),
-    // Каждый endpoint, который меняет данные, проверяет токен
+    // Каждый endpoint, который меняет данные, проверяет Bearer-токен
     everyEndpoint({ pattern: /^(POST|PATCH|DELETE) / }).hasLayer(
       authed,
       'authed',
@@ -181,7 +181,7 @@ export const app = makeApp({
 ```
 
 Политика — инвариант над собранным графом. `everyEndpoint(filter)`
-отбирает endpoint'ы: по токену транспорта или по регулярному выражению
+отбирает endpoint'ы: по DI-токену транспорта или по регулярному выражению
 на паттерне. `.hasLayer(layer, label)` требует, чтобы пайплайн каждого
 отобранного endpoint'а происходил от этого слоя. `label` попадает в текст
 нарушения.
@@ -293,7 +293,7 @@ export default [
 
 ```typescript
 // examples/users-service/src/app.spec.ts
-it('отклоняет запись без токена до вызова хендлера', async () => {
+it('отклоняет запись без Bearer-токена до вызова хендлера', async () => {
   const repo = inMemoryUsersRepo([alice]);
   await using testApp = await assembleTest(app, {
     config: testConfig,
@@ -308,7 +308,7 @@ it('отклоняет запись без токена до вызова хен
   expect(await repo.byId('1')).toEqual(alice);
 });
 
-it('создаёт пользователя по токену из конфига', async () => {
+it('создаёт пользователя по Bearer-токену из конфига', async () => {
   await using testApp = await assembleTest(app, {
     config: testConfig,
     overrides: [[UsersRepository$, inMemoryUsersRepo()]],
@@ -330,7 +330,7 @@ it('создаёт пользователя по токену из конфиг�
 
 `testApp.call` без заголовков даёт отказ `unauthorized`, и хранилище
 остаётся нетронутым: хендлер не вызывался. Заголовки в app-тесте
-передаются опцией `attributes`. Значение токена берётся из
+передаются опцией `attributes`. Значение Bearer-токена берётся из
 `vars({ API_TOKEN: 'test-token' })` в опциях теста. Политики в тестовой
 сборке те же, что в `main.ts`: тест собирает ту же декларацию `app`, а
 не копию её словаря.
