@@ -45,7 +45,7 @@ describe('пользователи по HTTP', () => {
     });
   });
 
-  it('не принимает запись без токена', async () => {
+  it('не принимает запись без Bearer-токена', async () => {
     const response = await client.json('POST', '/users', {
       name: 'Eve',
       email: 'eve@example.com',

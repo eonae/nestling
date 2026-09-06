@@ -68,7 +68,7 @@ class ListSubscriptionsHandler {
   }
 }
 
-/** Список активных подписок узла. Реестр инжектируется обычным токеном */
+/** Список активных подписок узла. Реестр инжектируется обычным DI-токеном */
 export const ListSubscriptions = httpEndpoint({
   method: 'GET',
   path: '/ops/subscriptions',

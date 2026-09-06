@@ -17,7 +17,7 @@ export interface UsersRepository {
 }
 
 /**
- * Токен хранилища. Endpoint'ы зависят от него, а не от класса, поэтому
+ * DI-токен хранилища. Endpoint'ы зависят от него, а не от класса, поэтому
  * тест подменяет хранилище одной строкой в `overrides`.
  */
 export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');

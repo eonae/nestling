@@ -62,7 +62,7 @@ const checked = makeApp({
   config: [[objectSource(testEnv, 'test'), appConfigKeys]],
 });
 
-/** Заголовки запроса с верным токеном */
+/** Заголовки запроса с верным Bearer-токеном */
 const asClient = { attributes: { authorization: 'Bearer test-token' } };
 
 /** Создаёт пользователя через полный пайплайн endpoint'а */
@@ -103,7 +103,7 @@ describe('app-тесты через assembleTest', () => {
     });
   });
 
-  it('отклоняет запись без токена до вызова хендлера', async () => {
+  it('отклоняет запись без Bearer-токена до вызова хендлера', async () => {
     const repo = inMemoryUsersRepo([alice]);
     await using testApp = await assembleTest(app, {
       ...testConfig,

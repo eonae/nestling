@@ -69,7 +69,7 @@ describe('users-service', () => {
     expect(unwrap(await testApp.call(ListUsers, {}))).toEqual([alice]);
   });
 
-  it('отклоняет запись без токена до вызова хендлера', async () => {
+  it('отклоняет запись без Bearer-токена до вызова хендлера', async () => {
     const repo = inMemoryUsersRepo([alice]);
     await using testApp = await assembleTest(app, {
       config: testConfig,
@@ -84,7 +84,7 @@ describe('users-service', () => {
     expect(await repo.byId('1')).toEqual(alice);
   });
 
-  it('создаёт пользователя по токену из конфига', async () => {
+  it('создаёт пользователя по Bearer-токену из конфига', async () => {
     await using testApp = await assembleTest(app, {
       config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo()]],
