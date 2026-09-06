@@ -9,6 +9,7 @@
  * поверхности для аудита.
  */
 
+import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
@@ -24,36 +25,35 @@ import {
 } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 
-const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+const asTransport = (transport: ITransport) =>
+  transportValue(TestTransport$('default'), transport);
 
 const base = makePipeline().pre(() => {});
 const authedBase = makePipeline().pre(() => {});
 const observability = makePipeline().pre(() => {});
 
-const Authed = httpEndpoint({
+const Authed = testEndpoint({
   method: 'GET',
   path: '/me',
   pipeline: compose(observability, authedBase),
   handler: async () => new Ok({ id: '1' }),
 });
 
-const Unauthed = httpEndpoint({
+const Unauthed = testEndpoint({
   method: 'GET',
   path: '/users',
   pipeline: compose(observability, base),
   handler: async () => new Ok({ users: [] }),
 });
 
-const NoPipeline = httpEndpoint({
+const NoPipeline = testEndpoint({
   method: 'GET',
   path: '/metrics',
   handler: async () => new Ok({ up: 1 }),
 });
 
-const Detached = httpEndpoint({
+const Detached = testEndpoint({
   method: 'GET',
   path: '/health',
   detached: 'liveness-проба балансировщика: до auth не доходит',
@@ -69,7 +69,7 @@ const messageOf = async (assembling: Promise<unknown>): Promise<string> =>
   );
 
 const hasAuth = () =>
-  everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
+  everyEndpoint({ transport: TestTransport$('default') }).hasLayer(
     authedBase,
     'authedBase',
   );
@@ -98,7 +98,7 @@ describe('политики — точка проверки', () => {
           endpoints: [Unauthed],
         }),
       ],
-      transports: [asHttpTransport(transport)],
+      transports: [asTransport(transport)],
       policies: [hasAuth()],
     }).assemble();
 
@@ -118,7 +118,7 @@ describe('политики — точка проверки', () => {
 
     const app = makeApp({
       features: [makeFeature({ name: 'module:cli', endpoints: [Orphan] })],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       policies: [everyEndpoint().hasLayer(authedBase, 'authedBase')],
     });
 
@@ -137,7 +137,7 @@ describe('политики — точка проверки', () => {
 
     const report = await makeApp({
       features: [Users, Profile],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       policies: [hasAuth()],
     }).check('profile');
 
@@ -147,7 +147,7 @@ describe('политики — точка проверки', () => {
   it('без политик поведение прежнее', async () => {
     const app = makeApp({
       features: [makeFeature({ name: 'module:users', endpoints: [Unauthed] })],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     });
 
     await expect(app.check()).resolves.toBeDefined();
@@ -158,7 +158,7 @@ describe('политики — точка проверки', () => {
       features: [
         makeFeature({ name: 'module:users', endpoints: [NoPipeline] }),
       ],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       policies: [],
     });
 
@@ -183,7 +183,7 @@ describe('политики — агрегированная диагностик
           endpoints: [Unauthed, NoPipeline],
         }),
       ],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       policies: [hasAuth(), hasObservability()],
     });
 
@@ -192,12 +192,12 @@ describe('политики — агрегированная диагностик
     // Три нарушения: два endpoint'а под auth-политикой и endpoint без
     // пайплайна под политикой observability
     expect(message).toContain('3 endpoint violation(s)');
-    expect(message).toContain("policy: every endpoint (transport 'http')");
+    expect(message).toContain("policy: every endpoint (transport 'test')");
     expect(message).toContain(
       "policy: every endpoint has layer 'observability'",
     );
-    expect(message).toContain("GET /users (http, module 'module:users')");
-    expect(message).toContain("GET /metrics (http, module 'module:users')");
+    expect(message).toContain("GET /users (test, module 'module:users')");
+    expect(message).toContain("GET /metrics (test, module 'module:users')");
     expect(message).toContain('declares no pipeline');
     expect(message).toContain("detached: '<reason>'");
   });
@@ -205,7 +205,7 @@ describe('политики — агрегированная диагностик
   it('соблюдённая политика в сообщении не упоминается', async () => {
     const app = makeApp({
       features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       policies: [hasAuth(), hasObservability()],
     });
 
@@ -222,7 +222,7 @@ describe('detached — поверхность для аудита', () => {
           endpoints: [Detached, NoPipeline],
         }),
       ],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       policies: [hasAuth()],
     });
 
@@ -240,7 +240,7 @@ describe('detached — поверхность для аудита', () => {
           endpoints: [Detached, Authed],
         }),
       ],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).check();
 
     const health = report.endpoints.find((e) => e.pattern === 'GET /health');
@@ -258,7 +258,7 @@ describe('detached — поверхность для аудита', () => {
     try {
       const withDetached = makeApp({
         features: [makeFeature({ name: 'module:ops', endpoints: [Detached] })],
-        transports: [asHttpTransport(new MockTransport())],
+        transports: [asTransport(new MockTransport())],
       }).assemble();
 
       await withDetached.run();
@@ -267,7 +267,7 @@ describe('detached — поверхность для аудита', () => {
       expect(
         log.mock.calls.some(([line]) =>
           String(line).includes(
-            'detached from policies: GET /health (http) — liveness-проба',
+            'detached from policies: GET /health (test) — liveness-проба',
           ),
         ),
       ).toBe(true);
@@ -278,7 +278,7 @@ describe('detached — поверхность для аудита', () => {
         features: [
           makeFeature({ name: 'module:profile', endpoints: [Authed] }),
         ],
-        transports: [asHttpTransport(new MockTransport())],
+        transports: [asTransport(new MockTransport())],
       }).assemble();
 
       await clean.run();

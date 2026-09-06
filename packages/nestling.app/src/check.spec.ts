@@ -5,6 +5,7 @@
  * не выполнилось и какими ошибками падает то, что не сходится.
  */
 
+import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { wireApp } from './testing/index.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
@@ -24,11 +25,10 @@ import { makeEndpoint, makeFail, Ok } from '@nestling/pipeline';
 import { implement } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
-const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+const asTransport = (transport: ITransport) =>
+  transportValue(TestTransport$('default'), transport);
 
 /** Конвертер-фикстура: те же десять строк, что показывает гайд */
 const zodConverter = (): SchemaDocConverter => ({
@@ -71,12 +71,12 @@ describe('App.check() — фазы 0–1', () => {
       features: [
         makeFeature({ name: 'module:resource', providers: [Connection] }),
       ],
-      transports: [asHttpTransport(transport)],
+      transports: [asTransport(transport)],
     }).check();
 
     expect(events).toEqual(['constructed']);
     expect(transport.serving).toBe(false);
-    expect(report.transports).toEqual(['http']);
+    expect(report.transports).toEqual(['test']);
   });
 
   it('падает той же ошибкой, что и run()', async () => {
@@ -89,7 +89,7 @@ describe('App.check() — фазы 0–1', () => {
 
     const spec = {
       features: [makeFeature({ name: 'module:cli', endpoints: [Orphan] })],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     };
 
     await expect(makeApp(spec).check()).rejects.toThrow(
@@ -108,7 +108,7 @@ describe('App.check() — фазы 0–1', () => {
     const Users = makeFeature({
       name: 'users',
       endpoints: [
-        httpEndpoint({
+        testEndpoint({
           method: 'GET',
           path: '/users',
           handler: async () => new Ok({}),
@@ -118,14 +118,14 @@ describe('App.check() — фазы 0–1', () => {
 
     const report = await makeApp({
       features: [Users, Logging],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).check('users');
 
     // Выбор строгий: `logging` не подтягивается ничем — поля `dependsOn`
     // у фичи нет
     expect(report.features).toEqual(['users']);
     expect(report.endpoints).toEqual([
-      { pattern: 'GET /users', transport: 'http', module: 'users' },
+      { pattern: 'GET /users', transport: 'test', module: 'users' },
     ]);
   });
 
@@ -147,7 +147,7 @@ describe('App.check() — фазы 0–1', () => {
           name: 'module:service',
           providers: [Service],
           endpoints: [
-            httpEndpoint({
+            testEndpoint({
               method: 'GET',
               path: '/ping',
               handler: async () => new Ok({}),
@@ -155,7 +155,7 @@ describe('App.check() — фазы 0–1', () => {
           ],
         }),
       ],
-      transports: [asHttpTransport(transport)],
+      transports: [asTransport(transport)],
     });
 
     await app.check();
@@ -199,7 +199,7 @@ describe('App.check() — опубликованные операции в от�
   const assembleBilling = () =>
     makeApp({
       features: [billingModule],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     });
 
   it('несёт дескриптор с видом, формами и кодами отказов', async () => {
@@ -248,9 +248,9 @@ describe('App.check() — опубликованные операции в от�
     const report = await makeApp({
       features: [
         makeFeature({
-          name: 'module:http-only',
+          name: 'module:endpoints-only',
           endpoints: [
-            httpEndpoint({
+            testEndpoint({
               method: 'GET',
               path: '/ping',
               handler: async () => new Ok({}),
@@ -258,7 +258,7 @@ describe('App.check() — опубликованные операции в от�
           ],
         }),
       ],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).check();
 
     expect(report.published).toEqual([]);
@@ -286,7 +286,7 @@ describe('App.check() — опубликованные операции в от�
           ],
         }),
       ],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).check();
 
     expect(report.published.map(({ name }) => name)).toEqual([
@@ -323,7 +323,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
       }
     }
 
-    const Ping = httpEndpoint({
+    const Ping = testEndpoint({
       method: 'GET',
       path: '/ping',
       handler: async () => new Ok({ pong: true }),
@@ -345,7 +345,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
               endpoints: [Ping],
             }),
           ],
-          transports: [asHttpTransport(transport)],
+          transports: [asTransport(transport)],
         }),
       );
 

@@ -1,10 +1,10 @@
 ## 1. Подготовка: разорвать будущий цикл в графе проектов
 
-- [ ] 1.1 Завести фикстуру транспорта в `packages/nestling.app/src/__fixtures__/test-transport.ts`: токен транспорта, конструктор декларации поверх `makeEndpoint`, значение `capabilities`
-- [ ] 1.2 Перевести на неё одиннадцать спеков `@nestling/app` (`app`, `boundary`, `capabilities`, `check`, `config`, `discovery`, `discovery-token`, `operations`, `policies`, `ports`, `selection`)
-- [ ] 1.3 Утверждения, проверяющие поведение самого HTTP-транспорта, перенести в спеки `@nestling/transport.http`
-- [ ] 1.4 Убрать `@nestling/transport.http` и `@nestling/transport.cli` из `devDependencies` пакета `app`
-- [ ] 1.5 `yarn verify` зелёный
+- [x] 1.1 Завести фикстуру транспорта в `packages/nestling.app/src/__fixtures__/test-transport.ts`: токен транспорта, конструктор декларации поверх `makeEndpoint`, значение `capabilities`
+- [x] 1.2 Перевести на неё одиннадцать спеков `@nestling/app` (`app`, `boundary`, `capabilities`, `check`, `config`, `discovery`, `discovery-token`, `operations`, `policies`, `ports`, `selection`)
+- [x] 1.3 Утверждения, проверяющие поведение самого HTTP-транспорта, перенести в спеки `@nestling/transport.http`
+- [x] 1.4 Убрать `@nestling/transport.http` и `@nestling/transport.cli` из `devDependencies` пакета `app`
+- [x] 1.5 `yarn verify` зелёный
 
 ## 2. `streams` в `@nestling/operations`
 

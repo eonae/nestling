@@ -656,3 +656,40 @@ describe('close() завершает открытые events-соединени�
     expect(outcomes).toEqual(['aborted']);
   });
 });
+
+describe('способности транспорта при регистрации', () => {
+  it('stream и events в output принимаются на serve', async () => {
+    const transport = makeTransport(silent);
+
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/rows',
+        output: stream(Row),
+        pipeline: makePipeline(),
+        handler: async () => new Ok(rows('1')),
+      }),
+      httpEndpoint({
+        method: 'GET',
+        path: '/live',
+        output: events(Event),
+        pipeline: makePipeline(),
+        handler: async () =>
+          new Ok(
+            (async function* (): AsyncIterableIterator<Event> {
+              yield { id: '1', kind: 'created' };
+            })(),
+          ),
+      }),
+    );
+
+    await expect(
+      transport.serve(
+        makeDispatch(routesOf(transport)),
+        new AbortController().signal,
+      ),
+    ).resolves.toBeUndefined();
+
+    await transport.close();
+  });
+});

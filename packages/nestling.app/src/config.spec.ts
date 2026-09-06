@@ -3,6 +3,7 @@
  * fail-fast на старте — до того, как транспорт начнёт слушать.
  */
 
+import { TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
@@ -16,7 +17,6 @@ import {
 } from '@nestling/config';
 import { Injectable } from '@nestling/container';
 import { transportValue } from '@nestling/transport';
-import { HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const RootConfig = makeConfig('rootapp', {
@@ -72,7 +72,7 @@ describe('привязка конфига в assemble', () => {
       const transport = new MockTransport();
       const app = makeApp({
         features: [GreeterModule],
-        transports: [transportValue(HttpTransport$('default'), transport)],
+        transports: [transportValue(TestTransport$('default'), transport)],
       }).assemble();
 
       await app.run();
@@ -91,7 +91,7 @@ describe('привязка конфига в assemble', () => {
         const app = makeApp({
           features: [GreeterModule],
           transports: [
-            transportValue(HttpTransport$('default'), new MockTransport()),
+            transportValue(TestTransport$('default'), new MockTransport()),
           ],
           config: [
             [objectSource({ ROOTAPP_RETRIES: '5' }, 'high'), '*'],
@@ -120,7 +120,7 @@ describe('привязка конфига в assemble', () => {
     const transport = new MockTransport();
     const app = makeApp({
       features: [GreeterModule],
-      transports: [transportValue(HttpTransport$('default'), transport)],
+      transports: [transportValue(TestTransport$('default'), transport)],
       config: [[objectSource({ ROOTAPP_RETRIES: 'abc' }, 'test'), '*']],
     }).assemble();
 
@@ -132,7 +132,7 @@ describe('привязка конфига в assemble', () => {
     const transport = new MockTransport();
     const app = makeApp({
       features: [GreeterModule],
-      transports: [transportValue(HttpTransport$('default'), transport)],
+      transports: [transportValue(TestTransport$('default'), transport)],
     }).assemble();
 
     await expect(app.run()).rejects.toThrow(/ROOTAPP_RETRIES/);

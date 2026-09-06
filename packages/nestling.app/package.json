@@ -35,8 +35,6 @@
     "@nestling/transport": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/transport.cli": "workspace:*",
-    "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
   }
 }

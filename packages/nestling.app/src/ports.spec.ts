@@ -9,6 +9,7 @@
  * WIRE и обе политики диспатча — переключаемые конфигом, а не кодом.
  */
 
+import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
@@ -28,16 +29,15 @@ import {
 } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
-const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+const asTransport = (transport: ITransport) =>
+  transportValue(TestTransport$('default'), transport);
 
 const contextFor = (pattern: string, payload?: unknown) =>
   makeEmptyContext(
-    { transport: 'http', pattern, payload, attributes: {} },
-    { transport: 'http', pattern },
+    { transport: 'test', pattern, payload, attributes: {} },
+    { transport: 'test', pattern },
   ) as ExtendableContext<AnyInput>;
 
 const ChargeCard = makeRequest({
@@ -95,7 +95,7 @@ class PlaceOrderHandler {
 const OrdersFeature = makeFeature({
   name: 'orders',
   endpoints: [
-    httpEndpoint({
+    testEndpoint({
       method: 'POST',
       path: '/orders',
       input: z.object({ amount: z.number() }),
@@ -171,16 +171,16 @@ describe('assemble — порты', () => {
     ['local-first'],
     ['always-remote'],
   ])('две фичи общаются операцией при политике %s', async (dispatch) => {
-    const http = new MockTransport();
+    const transport = new MockTransport();
     const app = makeApp({
       features: [OrdersFeature, BillingFeature],
-      transports: [asHttpTransport(http)],
+      transports: [asTransport(transport)],
       config: portsConfig(dispatch),
     }).assemble();
 
     await app.run();
 
-    const response = await http.dispatch?.call(
+    const response = await transport.dispatch?.call(
       'POST /orders',
       contextFor('POST /orders', { amount: 42 }),
     );
@@ -195,16 +195,16 @@ describe('assemble — порты', () => {
   });
 
   it('транспорт шины начинает принимать запросы вместе с реализациями', async () => {
-    const http = new MockTransport();
+    const transport = new MockTransport();
     const app = makeApp({
       features: [OrdersFeature, BillingFeature],
-      transports: [asHttpTransport(http)],
+      transports: [asTransport(transport)],
       config: portsConfig(),
     });
 
     const report = await app.check();
 
-    expect(report.transports).toEqual(['http', 'bus']);
+    expect(report.transports).toEqual(['test', 'bus']);
     expect(report.endpoints.map((endpoint) => endpoint.pattern)).toEqual(
       expect.arrayContaining([
         'app.billing.charge',
@@ -214,13 +214,13 @@ describe('assemble — порты', () => {
   });
 
   it('приложение без операций не упоминает шину ни в чём', async () => {
-    const http = new MockTransport();
+    const transport = new MockTransport();
     const app = makeApp({
       features: [
         makeFeature({
           name: 'module:plain',
           endpoints: [
-            httpEndpoint({
+            testEndpoint({
               method: 'GET',
               path: '/ping',
               handler: async () => new Ok({ pong: true }),
@@ -228,12 +228,12 @@ describe('assemble — порты', () => {
           ],
         }),
       ],
-      transports: [asHttpTransport(http)],
+      transports: [asTransport(transport)],
     });
 
     const report = await app.check();
 
-    expect(report.transports).toEqual(['http']);
+    expect(report.transports).toEqual(['test']);
 
     const assembled = app.assemble();
     await assembled.run();
@@ -243,7 +243,7 @@ describe('assemble — порты', () => {
   it('`select` без фичи-владельца роняет сборку на ASSEMBLE', async () => {
     const app = makeApp({
       features: [LonelyFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       config: portsConfig(),
     });
 
@@ -284,7 +284,7 @@ describe('assemble — порты', () => {
 
     const app = makeApp({
       features: [WarmupFeature, BillingFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       config: portsConfig(),
     }).assemble();
 
@@ -328,7 +328,7 @@ describe('assemble — порты', () => {
         },
       ],
       endpoints: [
-        httpEndpoint({
+        testEndpoint({
           method: 'POST',
           path: '/notify',
           input: z.object({ orderId: z.string() }),
@@ -337,16 +337,16 @@ describe('assemble — порты', () => {
       ],
     });
 
-    const http = new MockTransport();
+    const transport = new MockTransport();
     const app = makeApp({
       features: [NotifierFeature, BillingFeature],
-      transports: [asHttpTransport(http)],
+      transports: [asTransport(transport)],
       config: portsConfig(),
     }).assemble();
 
     await app.run();
 
-    await http.dispatch?.call(
+    await transport.dispatch?.call(
       'POST /notify',
       contextFor('POST /notify', { orderId: 'o-1' }),
     );
@@ -366,7 +366,7 @@ describe('assemble — порты', () => {
     try {
       const degraded = makeApp({
         features: [DurableFeature],
-        transports: [asHttpTransport(new MockTransport())],
+        transports: [asTransport(new MockTransport())],
         config: portsConfig(),
       }).assemble();
 
@@ -385,7 +385,7 @@ describe('assemble — порты', () => {
       // То же приложение без долговечных операций молчит
       const plain = makeApp({
         features: [BillingFeature],
-        transports: [asHttpTransport(new MockTransport())],
+        transports: [asTransport(new MockTransport())],
         config: portsConfig(),
       }).assemble();
 
@@ -407,7 +407,7 @@ describe('assemble — порты', () => {
     const app = makeApp({
       features: [BillingFeature],
       transports: [
-        asHttpTransport(new MockTransport()),
+        asTransport(new MockTransport()),
         transportValue(BusTransport$, bus, { name: 'events', bus: true }),
       ],
       intercom: 'events',
@@ -431,7 +431,7 @@ describe('assemble — порты', () => {
     const app = makeApp({
       features: [LonelyFeature],
       transports: [
-        asHttpTransport(new MockTransport()),
+        asTransport(new MockTransport()),
         transportValue(BusTransport$, bus, { name: 'events', bus: true }),
       ],
       intercom: 'events',
@@ -448,7 +448,7 @@ describe('assemble — порты', () => {
   it('без remote-шины тот же потребитель по-прежнему валит сборку', async () => {
     const app = makeApp({
       features: [LonelyFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
       config: portsConfig(),
     }).assemble();
 

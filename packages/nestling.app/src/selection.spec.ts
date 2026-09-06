@@ -9,6 +9,7 @@
  * реализацию: иначе `includeDeps` обещает больше, чем делает.
  */
 
+import { testEndpoint } from './__fixtures__/test-transport.js';
 import { makeFeature } from './feature.js';
 import { closeOverCalls } from './selection.js';
 
@@ -18,7 +19,6 @@ import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
 import type { Emitter, Port } from '@nestling/ports';
 import { implement } from '@nestling/ports';
-import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const ClaimQuota = makeRequest({
@@ -75,7 +75,7 @@ class SignupService {
   }
 }
 
-const anyEndpoint = httpEndpoint({
+const anyEndpoint = testEndpoint({
   method: 'GET',
   path: '/users',
   handler: async () => new Ok({}),
@@ -100,7 +100,7 @@ describe('closeOverCalls', () => {
     const Users = makeFeature({
       name: 'users',
       endpoints: [
-        httpEndpoint({
+        testEndpoint({
           method: 'POST',
           path: '/users',
           handler: PlaceOrderHandler,

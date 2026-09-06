@@ -1741,8 +1741,6 @@ __metadata:
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
-    "@nestling/transport.cli": "workspace:*"
-    "@nestling/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft

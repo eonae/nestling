@@ -5,6 +5,7 @@
  * а список единиц плоский по построению.
  */
 
+import { testEndpoint } from './__fixtures__/test-transport.js';
 import { discoverEndpoints } from './discovery.js';
 import { makeFeature, makePlugin } from './feature.js';
 
@@ -12,7 +13,6 @@ import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
 import type { TransportRef } from '@nestling/pipeline';
 import { makeEndpoint, Ok, transportNameOf } from '@nestling/pipeline';
-import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
 /** Токены транспортов фикстур: ссылка декларации — значение, а не строка */
@@ -29,7 +29,7 @@ const endpoint = (transport: TransportRef, pattern: string) =>
 
 describe('discoverEndpoints', () => {
   it('несёт атрибуцию к объявившей единице', () => {
-    const GetUser = httpEndpoint({
+    const GetUser = testEndpoint({
       method: 'GET',
       path: '/users/:id',
       input: z.object({ id: z.string() }),
@@ -47,7 +47,7 @@ describe('discoverEndpoints', () => {
     });
 
     // Транспорт и паттерн читаются с самой декларации; транспорт — токен
-    expect(transportNameOf(endpoints[0].endpoint.transport)).toBe('http');
+    expect(transportNameOf(endpoints[0].endpoint.transport)).toBe('test');
     expect(endpoints[0].endpoint.pattern).toBe('GET /users/:id');
   });
 

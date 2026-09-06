@@ -6,6 +6,7 @@
  * наружу и через какой интерком.
  */
 
+import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
@@ -17,11 +18,10 @@ import { Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
 import { BusTransport$, implement, InProcessBus } from '@nestling/ports';
 import { transportValue } from '@nestling/transport';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
-const asHttpTransport = (transport: MockTransport) =>
-  transportValue(HttpTransport$('default'), transport);
+const asTransport = (transport: MockTransport) =>
+  transportValue(TestTransport$('default'), transport);
 
 /** Шина, доставляющая за пределы процесса: вход remote-биндинга */
 class RemoteBus extends InProcessBus {
@@ -64,7 +64,7 @@ class PlaceOrderHandler {
 const OrdersFeature = makeFeature({
   name: 'orders',
   endpoints: [
-    httpEndpoint({
+    testEndpoint({
       method: 'POST',
       path: '/orders',
       handler: PlaceOrderHandler,
@@ -76,7 +76,7 @@ describe('карта операций в отчёте check()', () => {
   it('называет реализованное здесь и вызываемое', async () => {
     const report = await makeApp({
       features: [OrdersFeature, QuotasFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).check();
 
     expect(report.operations).toEqual([
@@ -92,7 +92,7 @@ describe('карта операций в отчёте check()', () => {
   it('вызов без местной реализации уходит через назначенный интерком', async () => {
     const report = await makeApp({
       features: [OrdersFeature, QuotasFeature],
-      transports: [asHttpTransport(new MockTransport()), asBus()],
+      transports: [asTransport(new MockTransport()), asBus()],
       intercom: 'events',
     }).check('orders');
 
@@ -114,7 +114,7 @@ describe('карта операций в отчёте check()', () => {
     const Silent = makeFeature({
       name: 'silent',
       endpoints: [
-        httpEndpoint({
+        testEndpoint({
           method: 'GET',
           path: '/health',
           handler: async () => new Ok({}),
@@ -124,7 +124,7 @@ describe('карта операций в отчёте check()', () => {
 
     const app = makeApp({
       features: [Silent],
-      transports: [asHttpTransport(new MockTransport()), asBus()],
+      transports: [asTransport(new MockTransport()), asBus()],
       intercom: 'events',
     }).assemble();
 
@@ -153,7 +153,7 @@ describe('карта операций в отчёте check()', () => {
 
     const report = await makeApp({
       features: [CallerFeature, QuotasFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).check();
 
     expect(report.operations).toEqual([

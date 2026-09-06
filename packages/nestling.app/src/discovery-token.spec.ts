@@ -6,6 +6,7 @@
  * топологию, и менять состав приложения через него нельзя.
  */
 
+import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import type { EndpointDiscovery } from './discovery.js';
 import { Discovery$ } from './discovery.js';
@@ -17,10 +18,9 @@ import { factoryProvider, makeToken } from '@nestling/container';
 import { Ok } from '@nestling/pipeline';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 
-const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+const asTransport = (transport: ITransport) =>
+  transportValue(TestTransport$('default'), transport);
 
 /**
  * Что увидел модуль-наблюдатель последней сборки.
@@ -42,13 +42,13 @@ const observer = factoryProvider(
   [Discovery$],
 );
 
-const ListUsers = httpEndpoint({
+const ListUsers = testEndpoint({
   method: 'GET',
   path: '/users',
   handler: async () => new Ok({ users: [] }),
 });
 
-const ListInvoices = httpEndpoint({
+const ListInvoices = testEndpoint({
   method: 'GET',
   path: '/invoices',
   handler: async () => new Ok({ invoices: [] }),
@@ -83,7 +83,7 @@ describe('Discovery$ — состав приложения на входе гр�
   it("провайдер получает endpoint'ы с их атрибуцией к единицам", async () => {
     const app = makeApp({
       features: [UsersFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).assemble();
 
     await app.run();
@@ -99,7 +99,7 @@ describe('Discovery$ — состав приложения на входе гр�
     const transport = new MockTransport();
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
-      transports: [asHttpTransport(transport)],
+      transports: [asTransport(transport)],
     }).assemble();
 
     await app.run();
@@ -116,7 +116,7 @@ describe('Discovery$ — состав приложения на входе гр�
   it('невыбранная фича в значении отсутствует', async () => {
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).assemble('discovery-users');
 
     await app.run();
@@ -129,7 +129,7 @@ describe('Discovery$ — состав приложения на входе гр�
   it('выбор всех фич отражён в значении целиком', async () => {
     const app = makeApp({
       features: [UsersFeature, BillingFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).assemble('all');
 
     await app.run();
@@ -142,7 +142,7 @@ describe('Discovery$ — состав приложения на входе гр�
   it('состав приложения через значение изменить нельзя', async () => {
     const app = makeApp({
       features: [UsersFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     }).assemble();
 
     await app.run();
@@ -154,7 +154,7 @@ describe('Discovery$ — состав приложения на входе гр�
 
     expect(() =>
       (discovery.transports as unknown as Map<unknown, unknown>).set(
-        HttpTransport$,
+        TestTransport$,
         [],
       ),
     ).toThrow(/read-only/);
@@ -167,7 +167,7 @@ describe('Discovery$ — состав приложения на входе гр�
   it('тестовый корень видит то же значение', async () => {
     const app = makeApp({
       features: [UsersFeature],
-      transports: [asHttpTransport(new MockTransport())],
+      transports: [asTransport(new MockTransport())],
     });
 
     // `check()` проходит фазы 0–1: провайдеры строятся, значит и наблюдатель

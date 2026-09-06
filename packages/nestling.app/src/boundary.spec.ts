@@ -10,6 +10,7 @@
  * значения деклараций.
  */
 
+import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { buildOwnerMap } from './boundary.js';
 import { makeFeature, makePlugin } from './feature.js';
@@ -23,11 +24,10 @@ import { Ok } from '@nestling/pipeline';
 import type { Port } from '@nestling/ports';
 import { implement } from '@nestling/ports';
 import { transportValue } from '@nestling/transport';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
-const asHttp = () =>
-  transportValue(HttpTransport$('default'), new MockTransport());
+const asTransport = () =>
+  transportValue(TestTransport$('default'), new MockTransport());
 
 @Injectable([])
 class QuotaService {
@@ -66,7 +66,7 @@ const anyEndpoint = (path: string, deps: readonly unknown[] = []) => {
     }
   }
 
-  return httpEndpoint({ method: 'GET', path, handler: AnyHandler });
+  return testEndpoint({ method: 'GET', path, handler: AnyHandler });
 };
 
 describe('карта «модуль → владелец»', () => {
@@ -108,7 +108,7 @@ describe('фичи связаны только операциями', () => {
 
     const app = makeApp({
       features: [Quotas, Users],
-      transports: [asHttp()],
+      transports: [asTransport()],
     });
 
     await expect(app.check()).rejects.toThrow(
@@ -126,7 +126,7 @@ describe('фичи связаны только операциями', () => {
 
     const failure = await makeApp({
       features: [Quotas, Users],
-      transports: [asHttp()],
+      transports: [asTransport()],
     })
       .check()
       .catch((error: unknown) => error);
@@ -157,7 +157,7 @@ describe('фичи связаны только операциями', () => {
     const app = makeApp({
       features: [Users],
       plugins: [Infra],
-      transports: [asHttp()],
+      transports: [asTransport()],
     });
 
     await expect(app.check()).resolves.toBeDefined();
@@ -172,7 +172,7 @@ describe('фичи связаны только операциями', () => {
 
     const app = makeApp({
       features: [Users],
-      transports: [asHttp()],
+      transports: [asTransport()],
     });
 
     await expect(app.check()).resolves.toBeDefined();
@@ -206,7 +206,7 @@ describe('фичи связаны только операциями', () => {
     const Users = makeFeature({
       name: 'users',
       endpoints: [
-        httpEndpoint({
+        testEndpoint({
           method: 'POST',
           path: '/orders',
           handler: PlaceOrderHandler,
@@ -216,7 +216,7 @@ describe('фичи связаны только операциями', () => {
 
     const app = makeApp({
       features: [Quotas, Users],
-      transports: [asHttp()],
+      transports: [asTransport()],
     });
 
     await expect(app.check()).resolves.toBeDefined();
@@ -235,7 +235,7 @@ describe('плагин не зависит от фичи', () => {
     const app = makeApp({
       features: [Users],
       plugins: [Infra],
-      transports: [asHttp()],
+      transports: [asTransport()],
     });
 
     await expect(app.check()).rejects.toThrow(
@@ -261,7 +261,7 @@ describe('плагин не зависит от фичи', () => {
     const app = makeApp({
       features: [Users],
       plugins: [logging('orders-api')],
-      transports: [asHttp()],
+      transports: [asTransport()],
     });
 
     await expect(app.check()).resolves.toBeDefined();
@@ -276,7 +276,7 @@ describe('общий модуль обязан быть плагином', () =>
 
     const app = makeApp({
       features: [Users, Orders],
-      transports: [asHttp()],
+      transports: [asTransport()],
     });
 
     await expect(app.check()).rejects.toThrow(
@@ -310,7 +310,7 @@ describe('общий модуль обязан быть плагином', () =>
     const app = makeApp({
       features: [Users, Orders],
       plugins: [Infra],
-      transports: [asHttp()],
+      transports: [asTransport()],
     });
 
     await expect(app.check()).resolves.toBeDefined();
