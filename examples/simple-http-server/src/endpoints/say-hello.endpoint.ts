@@ -1,6 +1,6 @@
 import { withStartedAt } from '../common/units.js';
 
-import { makePipeline } from '@nestling/pipeline';
+import { makePipeline } from '@nestling/app';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 

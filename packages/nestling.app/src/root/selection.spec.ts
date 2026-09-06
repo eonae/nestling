@@ -9,6 +9,7 @@
  * реализацию: иначе `includeDeps` обещает больше, чем делает.
  */
 
+import { Ok } from '../pipeline/index.js';
 import type { Emitter, Port } from '../ports/index.js';
 import { implement } from '../ports/index.js';
 
@@ -19,7 +20,6 @@ import { closeOverCalls } from './selection.js';
 import { describe, expect, it } from '@jest/globals';
 import { Injectable } from '@nestling/container';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const ClaimQuota = makeRequest({

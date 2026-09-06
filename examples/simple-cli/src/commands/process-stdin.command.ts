@@ -2,8 +2,8 @@
 
 import { EmptyStdin } from '../errors.js';
 
+import type { Output } from '@nestling/app';
 import { stream } from '@nestling/operations';
-import type { Output } from '@nestling/pipeline';
 import { cliEndpoint } from '@nestling/transport.cli';
 import { z } from 'zod';
 

@@ -6,6 +6,27 @@
  * call-site у обоих клиентов идентичен — в этом весь смысл порта.
  */
 
+import type {
+  AnyFail,
+  AnyFailDefinition,
+  AnyInput,
+  EndpointMeta,
+  ExtendableContext,
+  Raw,
+  ResponseContext,
+} from '../pipeline/index.js';
+import {
+  BadRequest,
+  collectPropagatedContext,
+  describeForm,
+  InternalError,
+  makeEmptyContext,
+  Ok,
+  parsePayload,
+  PayloadTooLarge,
+  Timeout,
+} from '../pipeline/index.js';
+
 import type { CallBudget } from './profile.js';
 import {
   isExhausted,
@@ -27,26 +48,6 @@ import type {
   Port,
   PortMeta,
 } from '@nestling/operations';
-import type {
-  AnyFail,
-  AnyFailDefinition,
-  AnyInput,
-  EndpointMeta,
-  ExtendableContext,
-  Raw,
-  ResponseContext,
-} from '@nestling/pipeline';
-import {
-  BadRequest,
-  collectPropagatedContext,
-  describeForm,
-  InternalError,
-  makeEmptyContext,
-  Ok,
-  parsePayload,
-  PayloadTooLarge,
-  Timeout,
-} from '@nestling/pipeline';
 
 /** Маркер отмены: вызов не ждёт обработчика, проигнорировавшего сигнал */
 const ABORTED = Symbol('nestling:port-aborted');

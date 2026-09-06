@@ -2,17 +2,6 @@ import type { BindMap, BindMark } from './binding.js';
 import { assertHttpPath, computeHttpBinding } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
-import { DEFAULT_INSTANCE } from '@nestling/app';
-import type {
-  AnyOperation,
-  DeclarationDoc,
-  HttpMethod,
-  InputFormOf,
-  OperationFailsOf,
-  OutputFormOf,
-  SseConfig,
-  ValidateOperationFails,
-} from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
   AnyFail,
@@ -29,8 +18,22 @@ import type {
   Pipeline,
   StreamForm,
   ValidateOutputForm,
-} from '@nestling/pipeline';
-import { assertLayerFailsDeclared, makeEndpoint } from '@nestling/pipeline';
+} from '@nestling/app';
+import {
+  assertLayerFailsDeclared,
+  DEFAULT_INSTANCE,
+  makeEndpoint,
+} from '@nestling/app';
+import type {
+  AnyOperation,
+  DeclarationDoc,
+  HttpMethod,
+  InputFormOf,
+  OperationFailsOf,
+  OutputFormOf,
+  SseConfig,
+  ValidateOperationFails,
+} from '@nestling/operations';
 
 // Типы разметки пути и ключей `bind` (`PathParams`, `BindMap`) общие с
 // секцией `http:` операции и живут в `@nestling/operations`;
@@ -60,7 +63,7 @@ export type StartContext<
  * и `Pipeline<{ rawBody }, …>` присваивался бы слоту
  * `Pipeline<EmptyInput, …>` даже без пометки `rawBody: true`. Условный
  * тип в позиции слота решает это так же, как проверка точки композиции
- * в `@nestling/pipeline`.
+ * в `@nestling/app`.
  *
  * Форма литерала ошибки (`__error` и `missing` с типами полей) общая для
  * всех проверок пайплайна; `hint` называет действие, которое чинит ошибку.

@@ -1,10 +1,9 @@
+import type { TransportCapabilities } from '../pipeline/index.js';
 import type {
   Dispatch,
   ITransport,
   RouteDeclaration,
 } from '../transport/index.js';
-
-import type { TransportCapabilities } from '@nestling/pipeline';
 
 /** Способности мока по умолчанию: всё, кроме потоков и файлов */
 const VALUE_ONLY: TransportCapabilities = {

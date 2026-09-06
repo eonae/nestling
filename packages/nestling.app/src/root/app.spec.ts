@@ -3,6 +3,15 @@
  * зависимостей деклараций и строгий реверс shutdown.
  */
 
+import type { AnyInput, ExtendableContext } from '../pipeline/index.js';
+import {
+  makeEmptyContext,
+  makeEndpoint,
+  makeFail,
+  makePipeline,
+  Ok,
+  stream,
+} from '../pipeline/index.js';
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
@@ -21,15 +30,6 @@ import {
   OnStart,
   valueProvider,
 } from '@nestling/container';
-import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
-import {
-  makeEmptyContext,
-  makeEndpoint,
-  makeFail,
-  makePipeline,
-  Ok,
-  stream,
-} from '@nestling/pipeline';
 import { z } from 'zod';
 
 /** Регистрирует готовый инстанс транспорта под его токеном */

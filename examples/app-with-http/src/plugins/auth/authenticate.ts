@@ -1,9 +1,8 @@
 import { AppConfig } from '../../app.config.js';
 import { Unauthorized } from '../../errors.js';
 
-import type { Config } from '@nestling/app';
+import type { Config, EmptyInput, ExtendableContext } from '@nestling/app';
 import { Injectable } from '@nestling/container';
-import type { EmptyInput, ExtendableContext } from '@nestling/pipeline';
 
 /** Тот, от чьего имени выполняется запрос */
 export interface Caller {

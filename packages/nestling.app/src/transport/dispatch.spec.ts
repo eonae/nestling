@@ -6,15 +6,11 @@
  * принимает только `Pipeline<_, _, never>`.
  */
 
-import { makeDispatch } from './dispatch.js';
-
-import { describe, expect, it } from '@jest/globals';
-import { ContainerBuilder, makeToken } from '@nestling/container';
 import type {
   AnyInput,
   CtxReader,
   ExtendableContext,
-} from '@nestling/pipeline';
+} from '../pipeline/index.js';
 import {
   contextKernel,
   Ctx,
@@ -25,7 +21,12 @@ import {
   Ok,
   RequestId,
   Signal,
-} from '@nestling/pipeline';
+} from '../pipeline/index.js';
+
+import { makeDispatch } from './dispatch.js';
+
+import { describe, expect, it } from '@jest/globals';
+import { ContainerBuilder, makeToken } from '@nestling/container';
 import { z } from 'zod';
 
 const TestTransport$ = makeToken('transport:test');

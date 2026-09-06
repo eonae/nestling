@@ -5,6 +5,8 @@
  * не выполнилось и какими ошибками падает то, что не сходится.
  */
 
+import type { SchemaDocConverter } from '../pipeline/index.js';
+import { makeEndpoint, makeFail, Ok } from '../pipeline/index.js';
 import { implement } from '../ports/index.js';
 import { wireApp } from '../testing/index.js';
 import type { ITransport } from '../transport/index.js';
@@ -24,8 +26,6 @@ import {
   OnStart,
 } from '@nestling/container';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import type { SchemaDocConverter } from '@nestling/pipeline';
-import { makeEndpoint, makeFail, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>

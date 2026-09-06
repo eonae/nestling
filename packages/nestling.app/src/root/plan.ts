@@ -11,6 +11,11 @@
 
 import type { ConfigBinding } from '../config/index.js';
 import type {
+  AnyEndpointDefinition,
+  Policy,
+  TransportRef,
+} from '../pipeline/index.js';
+import type {
   BusDeclaration,
   Dispatch,
   ExecutableDeclaration,
@@ -26,11 +31,6 @@ import type {
   Provider,
   TokenOverride,
 } from '@nestling/container';
-import type {
-  AnyEndpointDefinition,
-  Policy,
-  TransportRef,
-} from '@nestling/pipeline';
 
 /**
  * Имена транспортов, годных в роль интеркома.

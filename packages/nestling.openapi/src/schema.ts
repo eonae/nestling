@@ -10,8 +10,8 @@
 import type { Diagnostics } from './diagnostics.js';
 import type { JsonSchemaObject, JsonValue } from './types.js';
 
-import type { SchemaDocConverter } from '@nestling/pipeline';
-import { isPrimitiveLeaf, leafJsonSchema } from '@nestling/pipeline';
+import type { SchemaDocConverter } from '@nestling/app';
+import { isPrimitiveLeaf, leafJsonSchema } from '@nestling/app';
 
 /** Контекст конвертации одного endpoint'а */
 export interface ConvertContext {

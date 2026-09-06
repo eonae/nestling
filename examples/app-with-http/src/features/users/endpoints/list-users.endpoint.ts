@@ -4,9 +4,8 @@ import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Config } from '@nestling/app';
+import type { Config, Output } from '@nestling/app';
 import { Injectable } from '@nestling/container';
-import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 

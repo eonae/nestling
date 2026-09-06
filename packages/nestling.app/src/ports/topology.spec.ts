@@ -2,12 +2,13 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
+import { Ok } from '../pipeline/index.js';
+
 import { httpLikeDeclaration } from './__test-helpers__/foreign-declaration.js';
 import { implement } from './implement.js';
 import { collectImplementations } from './topology.js';
 
 import { makeEvent, makeRequest } from '@nestling/operations';
-import { Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const ChargeCard = makeRequest({

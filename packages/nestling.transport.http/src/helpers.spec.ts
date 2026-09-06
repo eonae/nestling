@@ -15,7 +15,7 @@ import {
   makePipeline,
   Ok,
   transportNameOf,
-} from '@nestling/pipeline';
+} from '@nestling/app';
 import { z } from 'zod';
 
 type Equal<A, B> =

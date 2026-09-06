@@ -2,43 +2,42 @@
 import * as readline from 'node:readline';
 
 import type {
-  Dispatch,
-  ITransport,
-  RouteDeclaration,
-  TransportDeclaration,
-} from '@nestling/app';
-import { DEFAULT_INSTANCE, makeTransportDeclaration } from '@nestling/app';
-import { factoryProvider, makeTokenFamily } from '@nestling/container';
-import { untilAborted } from '@nestling/operations';
-import type {
   AnyEndpointDefinition,
   AnyFail,
   AnyFailDefinition,
   AnyInput,
   AnyOutput,
   AnyPayload,
+  Dispatch,
   EndpointDefinition,
   EndpointMeta,
   FailsOf,
   HandlerClass,
   HandlerFn,
+  ITransport,
   Pipeline,
   Raw,
   ResponseContext,
+  RouteDeclaration,
   TransportCapabilities,
+  TransportDeclaration,
   UnknownFailInfo,
   ValidateOutputForm,
-} from '@nestling/pipeline';
+} from '@nestling/app';
 import {
   assertFormsSupported,
   bindInputStream,
+  DEFAULT_INSTANCE,
   describeForm,
   isAsyncIterable,
   makeEmptyContext,
   makeEndpoint,
+  makeTransportDeclaration,
   TransportClosingError,
   transportNameOf,
-} from '@nestling/pipeline';
+} from '@nestling/app';
+import { factoryProvider, makeTokenFamily } from '@nestling/container';
+import { untilAborted } from '@nestling/operations';
 
 /**
  * Семейство токенов CLI-транспорта: один член на экземпляр.

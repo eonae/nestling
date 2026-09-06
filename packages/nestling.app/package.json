@@ -22,17 +22,27 @@
     "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
+    "type-budget": "run -T tsx type-tests/bench/run.ts"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@common/misc": "workspace:*",
     "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*",
-    "@nestling/pipeline": "workspace:*"
+    "@nestling/operations": "workspace:*"
   },
   "devDependencies": {
     "zod": "^4.0.0"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "dependsOn": [
+          "^build",
+          "build"
+        ]
+      }
+    }
   }
 }

@@ -2,6 +2,15 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
+import type { AnyEndpointDefinition } from '../pipeline/index.js';
+import {
+  contextVar,
+  Fail,
+  isFail,
+  makeFail,
+  makePipeline,
+  Ok,
+} from '../pipeline/index.js';
 import { makeDispatch } from '../transport/index.js';
 
 import { InProcessBus } from './bus.js';
@@ -22,15 +31,6 @@ import { PortRuntime } from './runtime.js';
 import { jest } from '@jest/globals';
 import type { Emitter, Port } from '@nestling/operations';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import type { AnyEndpointDefinition } from '@nestling/pipeline';
-import {
-  contextVar,
-  Fail,
-  isFail,
-  makeFail,
-  makePipeline,
-  Ok,
-} from '@nestling/pipeline';
 import { z } from 'zod';
 
 const CardDeclined = makeFail('payment_required:card_declined', {

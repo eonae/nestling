@@ -5,7 +5,7 @@
  * переносящий такой endpoint на класс-хендлер.
  */
 
-import { Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/app';
 import { httpEndpoint } from '@nestling/transport.http';
 
 import { User, UserInput } from '../support/fixture-kit.js';

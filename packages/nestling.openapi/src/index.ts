@@ -40,4 +40,4 @@ export type {
  * ради удобства импорта было бы ровно тем расщеплением, от которого этот
  * операция и защищает.
  */
-export type { SchemaDocConverter } from '@nestling/pipeline';
+export type { SchemaDocConverter } from '@nestling/app';

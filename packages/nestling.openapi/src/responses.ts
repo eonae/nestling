@@ -16,9 +16,9 @@ import type { ConvertContext } from './schema.js';
 import { convertLeaf } from './schema.js';
 import type { JsonValue, OpenApiResponse } from './types.js';
 
+import { describeForm, mediaTypeOf } from '@nestling/app';
 import type { AnyFailDefinition, DeclarationDoc } from '@nestling/operations';
 import { BadRequest, InternalError } from '@nestling/operations';
-import { describeForm, mediaTypeOf } from '@nestling/pipeline';
 import { httpCodeOf } from '@nestling/transport.http';
 
 /** Что генератор знает об ответах endpoint'а */

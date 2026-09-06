@@ -7,11 +7,11 @@
  * топология портов (кто чей владелец).
  */
 
+import { transportNameOf } from '../pipeline/index.js';
 import type { TransportToken } from '../transport/index.js';
 
 import { makeToken } from '@nestling/container';
 import type { OperationKind } from '@nestling/operations';
-import { transportNameOf } from '@nestling/pipeline';
 
 /**
  * Токен транспорта шины.

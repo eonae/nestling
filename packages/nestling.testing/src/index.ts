@@ -64,4 +64,4 @@ export type {
 } from '@nestling/app';
 
 /** Интерфейс вендор-конвертера: его принимает `checkTopologies` */
-export type { SchemaDocConverter } from '@nestling/pipeline';
+export type { SchemaDocConverter } from '@nestling/app';

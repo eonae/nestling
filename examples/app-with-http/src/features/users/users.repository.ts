@@ -4,9 +4,9 @@ import { Logger$ } from '../../plugins/logging/index.js';
 import { Database } from './database.js';
 import type { NewUser, User } from './user.js';
 
+import type { CtxReader } from '@nestling/app';
+import { Ctx, RequestId } from '@nestling/app';
 import { Injectable, makeToken } from '@nestling/container';
-import type { CtxReader } from '@nestling/pipeline';
-import { Ctx, RequestId } from '@nestling/pipeline';
 
 /** Хранилище пользователей: всё, что endpoint'ам нужно от базы */
 export interface UsersRepository {

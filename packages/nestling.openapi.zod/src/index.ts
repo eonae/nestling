@@ -13,7 +13,7 @@
  * посчитана в журнале решений и принята.
  */
 
-import type { SchemaDocConverter } from '@nestling/pipeline';
+import type { SchemaDocConverter } from '@nestling/app';
 import { z } from 'zod';
 
 /** Опции `z.toJSONSchema` — принимаются как есть, кроме `io` */

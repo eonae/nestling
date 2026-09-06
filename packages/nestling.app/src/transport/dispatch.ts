@@ -17,8 +17,8 @@ import type {
   Pipeline,
   ResponseContext,
   UnknownFailInfo,
-} from '@nestling/pipeline';
-import { makePipeline } from '@nestling/pipeline';
+} from '../pipeline/index.js';
+import { makePipeline } from '../pipeline/index.js';
 
 /**
  * Проекция декларации для транспорта: всё нужное для роутинга и парсинга,

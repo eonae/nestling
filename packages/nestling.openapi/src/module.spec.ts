@@ -11,23 +11,26 @@ import { openapi, OpenApiDocument$ } from './module.js';
 import type { OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Dispatch, ITransport } from '@nestling/app';
-import { makeApp, makeFeature, transportValue } from '@nestling/app';
-import { factoryProvider, makeToken, OnInit } from '@nestling/container';
-import { zodConverter } from '@nestling/openapi.zod';
-import type { StandardSchemaV1 } from '@nestling/operations';
 import type {
   AnyInput,
+  Dispatch,
   ExtendableContext,
+  ITransport,
   TransportCapabilities,
-} from '@nestling/pipeline';
+} from '@nestling/app';
 import {
   compose,
   everyEndpoint,
+  makeApp,
   makeEmptyContext,
+  makeFeature,
   makePipeline,
   Ok,
-} from '@nestling/pipeline';
+  transportValue,
+} from '@nestling/app';
+import { factoryProvider, makeToken, OnInit } from '@nestling/container';
+import { zodConverter } from '@nestling/openapi.zod';
+import type { StandardSchemaV1 } from '@nestling/operations';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 

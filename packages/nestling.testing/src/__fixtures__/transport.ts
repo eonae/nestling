@@ -1,5 +1,8 @@
-import type { Dispatch, ITransport } from '@nestling/app';
-import type { TransportCapabilities } from '@nestling/pipeline';
+import type {
+  Dispatch,
+  ITransport,
+  TransportCapabilities,
+} from '@nestling/app';
 
 /**
  * Способности фикстуры: те же формы входа, что у HTTP, кроме потоковых.

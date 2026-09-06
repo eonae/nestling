@@ -1,6 +1,6 @@
 import { EmailTaken } from '../errors.js';
 
-import type { Output } from '@nestling/pipeline';
+import type { Output } from '@nestling/app';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 

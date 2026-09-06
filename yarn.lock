@@ -1103,7 +1103,6 @@ __metadata:
     "@nestling/openapi": "workspace:*"
     "@nestling/openapi.zod": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@nestling/subscriptions": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport.http": "workspace:*"
@@ -1127,7 +1126,6 @@ __metadata:
   dependencies:
     "@nestling/app": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@nestling/transport.cli": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1139,7 +1137,6 @@ __metadata:
   dependencies:
     "@nestling/app": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1152,7 +1149,6 @@ __metadata:
     "@nestling/app": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport.nats": "workspace:*"
     zod: "npm:^4.0.0"
@@ -1170,7 +1166,6 @@ __metadata:
     "@nestling/openapi": "workspace:*"
     "@nestling/openapi.zod": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
@@ -1730,7 +1725,6 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1777,7 +1771,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/openapi.zod@workspace:packages/nestling.openapi.zod"
   dependencies:
-    "@nestling/pipeline": "workspace:*"
+    "@nestling/app": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   peerDependencies:
@@ -1793,7 +1787,6 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/openapi.zod": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@nestling/transport.cli": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     typescript: "npm:5.7.3"
@@ -1812,18 +1805,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestling/pipeline@workspace:*, @nestling/pipeline@workspace:packages/nestling.pipeline":
-  version: 0.0.0-use.local
-  resolution: "@nestling/pipeline@workspace:packages/nestling.pipeline"
-  dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    typescript: "npm:5.7.3"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
 "@nestling/subscriptions@workspace:*, @nestling/subscriptions@workspace:packages/nestling.subscriptions":
   version: 0.0.0-use.local
   resolution: "@nestling/subscriptions@workspace:packages/nestling.subscriptions"
@@ -1832,7 +1813,6 @@ __metadata:
     "@nestling/app": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@nestling/testing": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
@@ -1846,7 +1826,6 @@ __metadata:
     "@nestling/app": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
@@ -1860,7 +1839,6 @@ __metadata:
     "@nestling/app": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1874,7 +1852,6 @@ __metadata:
     "@nestling/client": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     "@types/busboy": "npm:^1.5.4"
     busboy: "npm:^1.6.0"
     find-my-way: "npm:^8.2.0"
@@ -1889,7 +1866,6 @@ __metadata:
     "@nestling/app": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
     nats: "npm:^2.29.3"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"

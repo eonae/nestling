@@ -15,9 +15,15 @@ import { nats, NatsBus } from './transport.js';
 import { CONTEXT_HEADER, IDEMPOTENCY_HEADER, TIMEOUT_HEADER } from './wire.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { BusTransport$, implement, makeDispatch } from '@nestling/app';
+import {
+  BusTransport$,
+  implement,
+  makeDispatch,
+  makeFail,
+  makePipeline,
+  Ok,
+} from '@nestling/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { makeFail, makePipeline, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const QuotaExceeded = makeFail('conflict:quota_exceeded', {

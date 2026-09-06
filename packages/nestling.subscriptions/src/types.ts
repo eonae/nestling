@@ -7,8 +7,8 @@
  * заводится.
  */
 
+import type { EndpointMeta, Outcome } from '@nestling/app';
 import { describeForm, isStreamKind } from '@nestling/operations';
-import type { EndpointMeta, Outcome } from '@nestling/pipeline';
 
 /**
  * Форма ответа отслеживаемого endpoint'а.

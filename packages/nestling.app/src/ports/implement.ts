@@ -9,14 +9,6 @@
  * дополнительного кода.
  */
 
-import { BusTransport$, makeBusBinding } from './transport.js';
-
-import type {
-  AnyOperation,
-  Operation,
-  OperationKind,
-  ValidateOperationFails,
-} from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
   AnyFail,
@@ -29,8 +21,17 @@ import type {
   HandlerClass,
   HandlerFn,
   Pipeline,
-} from '@nestling/pipeline';
-import { assertLayerFailsDeclared, makeEndpoint } from '@nestling/pipeline';
+} from '../pipeline/index.js';
+import { assertLayerFailsDeclared, makeEndpoint } from '../pipeline/index.js';
+
+import { BusTransport$, makeBusBinding } from './transport.js';
+
+import type {
+  AnyOperation,
+  Operation,
+  OperationKind,
+  ValidateOperationFails,
+} from '@nestling/operations';
 
 /**
  * Словарь реализации: только исполнение.

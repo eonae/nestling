@@ -25,32 +25,31 @@ import { HttpRouter } from './router.js';
 import { HTTP_TRANSPORT_NAME, HttpTransport$ } from './token.js';
 
 import type {
+  AnyInput,
   ConfigProjection,
   Dispatch,
-  ITransport,
-  TransportDeclaration,
-} from '@nestling/app';
-import { DEFAULT_INSTANCE, makeTransportDeclaration } from '@nestling/app';
-import type { InjectionToken } from '@nestling/container';
-import { factoryProvider } from '@nestling/container';
-import type {
-  AnyInput,
   EndpointMeta,
+  ITransport,
   Raw,
   StreamSummary,
   TransportCapabilities,
+  TransportDeclaration,
   UnknownFailInfo,
-} from '@nestling/pipeline';
+} from '@nestling/app';
 import {
   assertFormsSupported,
   BadRequest,
   bindInputStream,
   ClientDisconnectedError,
+  DEFAULT_INSTANCE,
   InternalError,
   makeEmptyContext,
+  makeTransportDeclaration,
   PayloadTooLarge,
   TransportClosingError,
-} from '@nestling/pipeline';
+} from '@nestling/app';
+import type { InjectionToken } from '@nestling/container';
+import { factoryProvider } from '@nestling/container';
 
 /** Лимит размера буферизуемого тела запроса по умолчанию (1 MiB) */
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;

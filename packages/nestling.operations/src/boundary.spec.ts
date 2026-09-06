@@ -60,7 +60,7 @@ describe('@nestling/operations: package boundary', () => {
         [
           "export * from './leaf.js';",
           // Упоминание запрещённого пакета в комментарии импортом не является
-          '// см. @nestling/pipeline — from "@nestling/pipeline"',
+          '// см. @nestling/app — from "@nestling/app"',
           "export { ok } from '@common/misc';",
         ].join('\n'),
       );
@@ -68,7 +68,7 @@ describe('@nestling/operations: package boundary', () => {
         resolve(fixture, 'dist/leaf.js'),
         [
           "import { createHash } from 'node:crypto';",
-          "import { Fail } from '@nestling/pipeline';",
+          "import { Fail } from '@nestling/app';",
           'export const leaf = () => [createHash, Fail];',
         ].join('\n'),
       );
@@ -81,14 +81,14 @@ describe('@nestling/operations: package boundary', () => {
 
       expect(violations).toHaveLength(2);
       expect(violations.map((v) => v.specifier).sort()).toEqual([
-        '@nestling/pipeline',
+        '@nestling/app',
         'node:crypto',
       ]);
       expect(violations.every((v) => v.module === 'dist/leaf.js')).toBe(true);
 
       const text = formatViolations(violations);
       expect(text).toContain('dist/leaf.js');
-      expect(text).toContain('@nestling/pipeline');
+      expect(text).toContain('@nestling/app');
       expect(text).toContain('node:crypto');
     } finally {
       rmSync(fixture, { recursive: true, force: true });

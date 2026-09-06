@@ -14,9 +14,16 @@ import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { ITransport } from '@nestling/app';
-import { makeApp, makeFeature, transportValue } from '@nestling/app';
+import {
+  compose,
+  everyEndpoint,
+  makeApp,
+  makeFeature,
+  makePipeline,
+  Ok,
+  transportValue,
+} from '@nestling/app';
 import { Injectable, OnInit } from '@nestling/container';
-import { compose, everyEndpoint, makePipeline, Ok } from '@nestling/pipeline';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 
 const asHttpTransport = (transport: ITransport) =>

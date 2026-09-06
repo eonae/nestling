@@ -10,6 +10,7 @@
  * значения деклараций.
  */
 
+import { Ok } from '../pipeline/index.js';
 import type { Port } from '../ports/index.js';
 import { implement } from '../ports/index.js';
 import { transportValue } from '../transport/index.js';
@@ -24,7 +25,6 @@ import { describe, expect, it } from '@jest/globals';
 import type { InjectionToken } from '@nestling/container';
 import { Injectable, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
-import { Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const asTransport = () =>

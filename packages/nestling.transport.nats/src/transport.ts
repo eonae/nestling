@@ -45,41 +45,37 @@ import type {
   BusSubscription,
   ConfigProjection,
   Dispatch,
+  EndpointMeta,
+  FormKind,
   IMessageBus,
   ITransport,
   PublishOptions,
+  Raw,
   RequestOptions,
+  ResponseContext,
   RouteDeclaration,
   SubscribeOptions,
+  TransportCapabilities,
+  UnknownFailInfo,
 } from '@nestling/app';
 import {
+  assertFormsSupported,
   BUS_TRANSPORT_NAME,
   busBindingOf,
   BusTransport$,
   deadlineFromTimeout,
   DEFAULT_INSTANCE,
   failureResponse,
+  InternalError,
   isExhausted,
+  makeEmptyContext,
   makeTransportDeclaration,
   profileAttributes,
   startBudget,
+  Timeout,
 } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, OnInit } from '@nestling/container';
-import type {
-  EndpointMeta,
-  FormKind,
-  Raw,
-  ResponseContext,
-  TransportCapabilities,
-  UnknownFailInfo,
-} from '@nestling/pipeline';
-import {
-  assertFormsSupported,
-  InternalError,
-  makeEmptyContext,
-  Timeout,
-} from '@nestling/pipeline';
 
 /** Проекция конфиг-секции транспорта — то, что инжектится в фабрику */
 type NatsConfigValues = ConfigProjection<typeof NatsConfig>;

@@ -21,7 +21,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@nestling/pipeline": "workspace:*"
+    "@nestling/app": "workspace:*"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

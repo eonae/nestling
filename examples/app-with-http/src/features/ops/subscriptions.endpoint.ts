@@ -1,10 +1,10 @@
 import { authed } from '../../plugins/auth/index.js';
 import { observability } from '../../plugins/logging/index.js';
 
+import type { Output } from '@nestling/app';
+import { compose } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { events, makeFail, Ok } from '@nestling/operations';
-import type { Output } from '@nestling/pipeline';
-import { compose } from '@nestling/pipeline';
 import type {
   SubscriptionInfo,
   TrackedSubscription,

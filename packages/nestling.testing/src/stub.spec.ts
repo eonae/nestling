@@ -13,11 +13,17 @@ import { testUnit } from './unit.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Emitter, Port } from '@nestling/app';
-import { implement, makeApp, makeFeature } from '@nestling/app';
+import {
+  implement,
+  InternalError,
+  makeApp,
+  makeFail,
+  makeFeature,
+  Ok,
+} from '@nestling/app';
 import { Injectable, makeToken } from '@nestling/container';
 import type { CommandMeta, PortMeta } from '@nestling/operations';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { InternalError, makeFail, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 /** Квота исчерпана — задекларированный отказ операции */

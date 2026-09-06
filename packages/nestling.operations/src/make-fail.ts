@@ -9,7 +9,7 @@ import { validateSync } from '@common/misc';
 /**
  * Контекст ответа в том виде, в каком его видит предикат `is`.
  *
- * Это структурный тип, а не `ResponseContext` из `@nestling/pipeline`:
+ * Это структурный тип, а не `ResponseContext` из `@nestling/app`:
  * пакет операций не импортирует серверный код. `ResponseContext`
  * удовлетворяет этому типу, поэтому сужение в `.catch`-юните работает.
  *

@@ -28,12 +28,11 @@ import { ClaimQuota, QuotaExceeded } from './operations.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, objectSource } from '@nestling/app';
+import { makeApp, objectSource, RequestId } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import type { OpenApiDocument } from '@nestling/openapi';
 import { openapi, OpenApiDocument$ } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
-import { RequestId } from '@nestling/pipeline';
 import { SubscriptionRegistry } from '@nestling/subscriptions';
 import {
   assembleTest,

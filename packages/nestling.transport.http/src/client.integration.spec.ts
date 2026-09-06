@@ -16,11 +16,10 @@ import { HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { ExecutableDeclaration } from '@nestling/app';
-import { makeDispatch } from '@nestling/app';
+import { Fail, makeDispatch, Ok } from '@nestling/app';
 import { makeClient } from '@nestling/client';
 import type { HttpBinding } from '@nestling/operations';
 import { makeFail, makeRequest } from '@nestling/operations';
-import { Fail, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------

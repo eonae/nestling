@@ -1,7 +1,8 @@
+import type { TransportCapabilities } from '../pipeline/index.js';
+
 import type { Dispatch } from './dispatch.js';
 
 import type { Token } from '@nestling/container';
-import type { TransportCapabilities } from '@nestling/pipeline';
 
 /**
  * Токен транспорта: уточнение kernel-типа `TransportRef` до `ITransport`.

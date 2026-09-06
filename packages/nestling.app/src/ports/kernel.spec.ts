@@ -3,6 +3,8 @@
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { configKernel, objectSource } from '../config/index.js';
+import type { AnyEndpointDefinition, TransportRef } from '../pipeline/index.js';
+import { Ok } from '../pipeline/index.js';
 import type { Dispatch } from '../transport/index.js';
 import { makeDispatch } from '../transport/index.js';
 
@@ -27,8 +29,6 @@ import {
   makeRequest,
   PortFamily,
 } from '@nestling/operations';
-import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
-import { Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const Echo = makeRequest({

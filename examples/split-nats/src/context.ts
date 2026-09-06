@@ -8,6 +8,6 @@
  * процессов, не появляясь ни в одной схеме `input`.
  */
 
-import { contextVar } from '@nestling/pipeline';
+import { contextVar } from '@nestling/app';
 
 export const TenantId = contextVar<string>()('tenantId', { propagate: true });

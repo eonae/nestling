@@ -18,9 +18,9 @@
 
 import type { NatsHeadersLike } from './connector.js';
 
+import type { ErrorDetails, ResponseContext } from '@nestling/app';
 import type { SuccessStatus } from '@nestling/operations';
 import { categoryOf, InternalError, isCategory } from '@nestling/operations';
-import type { ErrorDetails, ResponseContext } from '@nestling/pipeline';
 
 /** Кодек тела сообщения: заменяем опцией фабрики */
 export interface NatsCodec {

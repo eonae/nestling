@@ -4,13 +4,13 @@
  * ему не соответствует. */
 import { getEventListeners } from 'node:events';
 
+import { makePipeline, Ok, stream } from '../pipeline/index.js';
 import { makeDispatch } from '../transport/index.js';
 
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 
 import { makeCommand, makeRequest } from '@nestling/operations';
-import { makePipeline, Ok, stream } from '@nestling/pipeline';
 import { z } from 'zod';
 
 /** Даёт насосам доставки провернуться */

@@ -4,7 +4,7 @@ CLI-транспорт Nestling: те же endpoint'ы и пайплайны, ч
 маршрутов — команды, а stdin служит потоковым входом.
 
 > 🚧 Активная разработка, API может меняться. Валидатора среди зависимостей
-> нет: команды проверяются через `@nestling/pipeline` любой схемой
+> нет: команды проверяются через `@nestling/app` любой схемой
 > [Standard Schema](https://standardschema.dev).
 > Гайд: [глава 20. CLI-утилита на тех же примитивах](../../docs/guide/20-cli.md).
 
@@ -18,7 +18,7 @@ npm install @nestling/transport.cli
 
 ```ts
 import { assemble } from '@nestling/app';
-import { Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/app';
 import { cli, cliEndpoint } from '@nestling/transport.cli';
 import { z } from 'zod';
 
@@ -44,7 +44,7 @@ node dist/main.js hello Alice --loud
 
 `cliEndpoint({ command, input, output, errors, pipeline, handler, detached })`
 — конструктор декларации, тонкий слой над `makeEndpoint` из
-`@nestling/pipeline`. Транспорт декларации — токен пакета `CliTransport$('default')`
+`@nestling/app`. Транспорт декларации — токен пакета `CliTransport$('default')`
 с коротким именем `'cli'`; имя команды становится паттерном endpoint'а.
 Пустое имя команды бросает ошибку при создании декларации.
 

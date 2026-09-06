@@ -22,7 +22,6 @@
     "@nestling/openapi": "workspace:*",
     "@nestling/openapi.zod": "workspace:*",
     "@nestling/operations": "workspace:*",
-    "@nestling/pipeline": "workspace:*",
     "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
   },

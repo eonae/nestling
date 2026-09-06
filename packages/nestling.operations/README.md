@@ -12,7 +12,7 @@
 
 ## Без серверного кода
 
-В графе импортов пакета нет серверного кода: ни `@nestling/pipeline`, ни
+В графе импортов пакета нет серверного кода: ни `@nestling/app`, ни
 `@nestling/app`, ни транспортов, ни `@nestling/config`, ни модулей
 `node:*`. Единственная внешняя зависимость — типы `@standard-schema/spec`.
 Примитив токена приходит через subpath `@nestling/container/tokens`: это два
@@ -305,7 +305,7 @@ input: z.object({ payload: jsonSchema(ExoticSchema, { type: 'object' }) })
 | [`@nestling/client`](../nestling.client) | bind-карту, схему `output` и `errors`: собирает запрос, проверяет ответ, восстанавливает `Fail` |
 | [`@nestling/transport.http`](../nestling.transport.http) | ту же карту: разбирает запрос в payload; реэкспортирует `query()`/`body()` |
 | [`@nestling/ports`](../nestling.ports) | `.caller`/`.emitter`, `implement`, шину |
-| [`@nestling/pipeline`](../nestling.pipeline) | реэкспортирует `Ok`/`Fail`, `makeFail`, формы io, `jsonSchema()` |
+| [`@nestling/app`](../nestling.pipeline) | реэкспортирует `Ok`/`Fail`, `makeFail`, формы io, `jsonSchema()` |
 | [`@nestling/openapi`](../nestling.openapi) | bind-карту, формы io, `errors` и `doc` |
 
 `makeRequest` / `makeCommand` / `makeEvent` импортируется только из `@nestling/operations`;
@@ -324,4 +324,4 @@ input: z.object({ payload: jsonSchema(ExoticSchema, { type: 'object' }) })
 
 Пакет не выполняет запросы, не реализует операции и ничего не
 регистрирует в приложении: реализация и вызов живут в
-`@nestling/ports`, обработка запроса — в `@nestling/pipeline`.
+`@nestling/ports`, обработка запроса — в `@nestling/app`.

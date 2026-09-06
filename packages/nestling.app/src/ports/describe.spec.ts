@@ -7,11 +7,7 @@
  * настолько, насколько их раскрыл конвертер.
  */
 
-import { canonicalizeJson, describeOperation } from './describe.js';
-import { implement } from './implement.js';
-
-import { makeCommand, makeRequest } from '@nestling/operations';
-import type { SchemaDocConverter } from '@nestling/pipeline';
+import type { SchemaDocConverter } from '../pipeline/index.js';
 import {
   events,
   jsonSchema,
@@ -20,7 +16,12 @@ import {
   Ok,
   stream,
   upload,
-} from '@nestling/pipeline';
+} from '../pipeline/index.js';
+
+import { canonicalizeJson, describeOperation } from './describe.js';
+import { implement } from './implement.js';
+
+import { makeCommand, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const zodConverter = (): SchemaDocConverter => ({

@@ -11,10 +11,9 @@
 import { assembleTest } from './app.js';
 import { familyOverride } from './overrides.js';
 
-import { makeApp } from '@nestling/app';
+import type { ResponseContext } from '@nestling/app';
+import { makeApp, Ok } from '@nestling/app';
 import { makeToken, makeTokenFamily } from '@nestling/container';
-import type { ResponseContext } from '@nestling/pipeline';
-import { Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 

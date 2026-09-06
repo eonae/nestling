@@ -17,22 +17,23 @@
  * деталь реализации.
  */
 
-import type { BusBindingBearer } from './transport.js';
-import { busBindingOf } from './transport.js';
-
-import type { AnyOperation, OperationKind } from '@nestling/operations';
 import type {
   FormKind,
   SchemaDocConverter,
   UploadSpec,
-} from '@nestling/pipeline';
+} from '../pipeline/index.js';
 import {
   assertConverters,
   describeForm,
   isPrimitiveLeaf,
   leafJsonSchema,
   schemaVendorOf,
-} from '@nestling/pipeline';
+} from '../pipeline/index.js';
+
+import type { BusBindingBearer } from './transport.js';
+import { busBindingOf } from './transport.js';
+
+import type { AnyOperation, OperationKind } from '@nestling/operations';
 
 /** JSON-значение: всё, что переживает `JSON.parse(JSON.stringify(...))` */
 export type JsonValue =

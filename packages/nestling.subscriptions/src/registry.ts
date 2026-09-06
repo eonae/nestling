@@ -24,10 +24,10 @@ import type {
 } from './types.js';
 import { kindOfOutput } from './types.js';
 
+import type { AnyInput, ExtendableContext, Outcome } from '@nestling/app';
 import { OnDestroy } from '@nestling/container';
 import type { Emitter } from '@nestling/operations';
 import { Topic } from '@nestling/operations';
-import type { AnyInput, ExtendableContext, Outcome } from '@nestling/pipeline';
 
 /** Контекст запроса в терминах реестра: конкретный input ему безразличен */
 export type SubscriptionContext = ExtendableContext<AnyInput>;

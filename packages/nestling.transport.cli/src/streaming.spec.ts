@@ -11,16 +11,16 @@ import { Readable } from 'node:stream';
 import { cliEndpoint, CliTransport } from './index.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeDispatch } from '@nestling/app';
-import type { Outcome, PhasedPipeline } from '@nestling/pipeline';
+import type { Outcome, PhasedPipeline } from '@nestling/app';
 import {
   events,
+  makeDispatch,
   makePipeline,
   multipart,
   Ok,
   stream,
   upload,
-} from '@nestling/pipeline';
+} from '@nestling/app';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

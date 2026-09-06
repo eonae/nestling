@@ -6,6 +6,7 @@
  * топологию, и менять состав приложения через него нельзя.
  */
 
+import { Ok } from '../pipeline/index.js';
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
@@ -18,7 +19,6 @@ import { MockTransport } from './helpers.js';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { factoryProvider, makeToken } from '@nestling/container';
-import { Ok } from '@nestling/pipeline';
 
 const asTransport = (transport: ITransport) =>
   transportValue(TestTransport$('default'), transport);

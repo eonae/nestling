@@ -9,6 +9,13 @@
  * поверхности для аудита.
  */
 
+import {
+  compose,
+  everyEndpoint,
+  makeEndpoint,
+  makePipeline,
+  Ok,
+} from '../pipeline/index.js';
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
@@ -19,13 +26,6 @@ import { MockTransport } from './helpers.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
 import { Injectable, makeToken, OnInit } from '@nestling/container';
-import {
-  compose,
-  everyEndpoint,
-  makeEndpoint,
-  makePipeline,
-  Ok,
-} from '@nestling/pipeline';
 
 const asTransport = (transport: ITransport) =>
   transportValue(TestTransport$('default'), transport);

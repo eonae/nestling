@@ -3,17 +3,18 @@
 /* eslint-disable @typescript-eslint/no-empty-function --
  * реализация операции без `output` ничего не возвращает: пустое тело —
  * поддерживаемая форма хендлера */
-import { implement } from './implement.js';
-import { busBindingOf, BusTransport$ } from './transport.js';
-
-import { makeToken } from '@nestling/container';
-import { makeEvent, makeFail, makeRequest } from '@nestling/operations';
 import {
   isEndpointDefinition,
   makePipeline,
   Ok,
   Timeout,
-} from '@nestling/pipeline';
+} from '../pipeline/index.js';
+
+import { implement } from './implement.js';
+import { busBindingOf, BusTransport$ } from './transport.js';
+
+import { makeToken } from '@nestling/container';
+import { makeEvent, makeFail, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const Ledger = makeToken<{ charge: (amount: number) => string }>('Ledger');

@@ -135,7 +135,7 @@ overrides: [
   токен, на который есть ссылка.
 - `contextValue(variable, value)` — сокращённая запись
   `valueProvider(Ctx(variable), reader)`. Читатель переменной контекста
-  ([`@nestling/pipeline`](../nestling.pipeline)) — обычный узел графа, и
+  ([`@nestling/app`](../nestling.pipeline)) — обычный узел графа, и
   подменяется как любой другой. Заданное значение читается и вне запроса
   (при прямом вызове сервиса) и имеет приоритет над рецептом семейства: в
   `testApp.call` сервис прочитает то, что задал тест, а не то, что записал
@@ -345,7 +345,7 @@ resolve: { conditions: ['testing', 'node'] }
 | `checkTopologies(app, selections, options?)`, `TopologyReport` | матрица `check()` |
 | `CheckReport`, `CheckOptions` | реэкспорт типов из `@nestling/app` |
 | `snapshotOperations`, `serializeSnapshot`, `diffOperations`, `formatCompatibility` | реэкспорт из `@nestling/ports`, чтобы CI-тест обходился одним импортом |
-| `SchemaDocConverter` | тип конвертера схем (реэкспорт из `@nestling/pipeline`) |
+| `SchemaDocConverter` | тип конвертера схем (реэкспорт из `@nestling/app`) |
 
 ## Границы пакета
 

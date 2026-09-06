@@ -3,9 +3,9 @@ import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
+import type { Output } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { Ok, stream } from '@nestling/operations';
-import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */

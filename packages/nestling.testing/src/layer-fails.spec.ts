@@ -10,8 +10,14 @@ import { SpyTransport } from './__fixtures__/transport.js';
 import { assembleTest } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, makeFeature, transportValue } from '@nestling/app';
-import { makeFail, makePipeline, Ok } from '@nestling/pipeline';
+import {
+  makeApp,
+  makeFail,
+  makeFeature,
+  makePipeline,
+  Ok,
+  transportValue,
+} from '@nestling/app';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 

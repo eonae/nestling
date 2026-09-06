@@ -11,7 +11,7 @@
  * точнее.
  */
 
-import { makePipeline, Ok } from '@nestling/pipeline';
+import { makePipeline, Ok } from '@nestling/app';
 import { httpEndpoint } from '@nestling/transport.http';
 
 import {

@@ -23,8 +23,7 @@
   "dependencies": {
     "@nestling/app": "workspace:*",
     "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*",
-    "@nestling/pipeline": "workspace:*"
+    "@nestling/operations": "workspace:*"
   },
   "devDependencies": {
     "@nestling/transport.http": "workspace:*",

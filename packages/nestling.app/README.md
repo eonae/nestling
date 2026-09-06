@@ -14,7 +14,7 @@ Composition root приложения Nestling. `makeApp(spec)` объявляе
 ## Установка
 
 ```bash
-npm install @nestling/app @nestling/container @nestling/pipeline
+npm install @nestling/app @nestling/container @nestling/app
 ```
 
 Транспорт устанавливается отдельно: `@nestling/transport.http`,
@@ -103,7 +103,7 @@ await app.assemble().run();
 
 Три модуля регистрируются всегда, и корень их не упоминает: конфиг
 ([`@nestling/config`](../nestling.config)), асинхронный контекст запроса
-([`@nestling/pipeline`](../nestling.pipeline)) и порты
+([`@nestling/app`](../nestling.pipeline)) и порты
 ([`@nestling/ports`](../nestling.ports)). Их узлы — члены семейств токенов,
 поэтому они создаются только тогда, когда кто-то их инжектит; приложение,
 которое ими не пользуется, не получает ни одного лишнего узла.
@@ -253,7 +253,7 @@ export const app = makeApp({
 ## Контекст запроса
 
 Модуль ядра для чтения асинхронного контекста
-([`@nestling/pipeline`](../nestling.pipeline)) регистрируется всегда. Узлы
+([`@nestling/app`](../nestling.pipeline)) регистрируется всегда. Узлы
 семейства `Ctx` создаются только для тех переменных, которые кто-то указал
 в `deps`; без единого `Ctx(...)` граф не получает ни одного узла. Класс с
 `Ctx(RequestId)` в `deps` собирается и работает как обычно: зависимость —
@@ -264,7 +264,7 @@ export const app = makeApp({
 ## Политики
 
 ```typescript
-import { everyEndpoint } from '@nestling/pipeline';
+import { everyEndpoint } from '@nestling/app';
 
 makeApp({
   features: [UsersFeature],
@@ -276,7 +276,7 @@ makeApp({
 });
 ```
 
-Набор предикатов живёт в [`@nestling/pipeline`](../nestling.pipeline). Этот
+Набор предикатов живёт в [`@nestling/app`](../nestling.pipeline). Этот
 пакет только собирает endpoint'ы из discovery, вызывает проверку и
 форматирует результат.
 
@@ -375,5 +375,5 @@ Subpath `@nestling/app/testing`: `wireApp(app, options?)`, типы
 ## Границы пакета
 
 Пакет не содержит транспортов, валидации и пайплайна: транспорты живут в
-`@nestling/transport.*`, пайплайн и декларации — в `@nestling/pipeline`,
+`@nestling/transport.*`, пайплайн и декларации — в `@nestling/app`,
 тестовые подстановки — в `@nestling/testing`.

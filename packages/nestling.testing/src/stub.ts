@@ -12,7 +12,18 @@
  * тесте, а не в проде.
  */
 
-import { isExhausted } from '@nestling/app';
+import type { AnyFail, AnyFailDefinition } from '@nestling/app';
+import {
+  BadRequest,
+  describeForm,
+  InternalError,
+  isExhausted,
+  isFail,
+  Ok,
+  parsePayload,
+  SchemaValidationError,
+  Timeout,
+} from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import { asFamilyMember } from '@nestling/container';
 import type {
@@ -32,17 +43,6 @@ import type {
   Schema,
 } from '@nestling/operations';
 import { EmitterFamily, PortFamily } from '@nestling/operations';
-import type { AnyFail, AnyFailDefinition } from '@nestling/pipeline';
-import {
-  BadRequest,
-  describeForm,
-  InternalError,
-  isFail,
-  Ok,
-  parsePayload,
-  SchemaValidationError,
-  Timeout,
-} from '@nestling/pipeline';
 
 /**
  * Стаб операции: пара `токен вызывателя → фейк`.

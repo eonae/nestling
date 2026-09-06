@@ -3,10 +3,9 @@ import { observability } from './observability.js';
 import { ops } from './ops.plugin.js';
 import { UsersFeature } from './users.feature.js';
 
-import { makeApp } from '@nestling/app';
+import { everyEndpoint, makeApp, RequestId } from '@nestling/app';
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
-import { everyEndpoint, RequestId } from '@nestling/pipeline';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
 /**

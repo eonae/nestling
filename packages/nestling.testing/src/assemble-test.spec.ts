@@ -10,13 +10,18 @@ import { familyOverride } from './overrides.js';
 import { unwrap, UnwrapFailedError } from './unwrap.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import type { Config, ITransport } from '@nestling/app';
+import type { Config, FilePart, ITransport } from '@nestling/app';
 import {
   Discovery$,
   makeApp,
   makeConfig,
+  makeFail,
   makeFeature,
+  makePipeline,
+  multipart,
+  Ok,
   transportValue,
+  upload,
 } from '@nestling/app';
 import {
   Injectable,
@@ -27,14 +32,6 @@ import {
   OnStart,
   valueProvider,
 } from '@nestling/container';
-import type { FilePart } from '@nestling/pipeline';
-import {
-  makeFail,
-  makePipeline,
-  multipart,
-  Ok,
-  upload,
-} from '@nestling/pipeline';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 

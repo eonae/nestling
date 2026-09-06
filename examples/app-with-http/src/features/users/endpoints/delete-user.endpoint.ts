@@ -5,10 +5,10 @@ import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
+import type { ErrorResponseContext, Output } from '@nestling/app';
+import { compose, makePipeline } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { Ok } from '@nestling/operations';
-import type { ErrorResponseContext, Output } from '@nestling/pipeline';
-import { compose, makePipeline } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 

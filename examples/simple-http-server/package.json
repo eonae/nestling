@@ -17,7 +17,6 @@
   "dependencies": {
     "@nestling/app": "workspace:*",
     "@nestling/operations": "workspace:*",
-    "@nestling/pipeline": "workspace:*",
     "@nestling/transport.http": "workspace:*",
     "zod": "^4.0.0"
   }

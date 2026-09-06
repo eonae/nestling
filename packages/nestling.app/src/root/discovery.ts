@@ -1,9 +1,10 @@
+import type { AnyEndpointDefinition, TransportRef } from '../pipeline/index.js';
+import { isEndpointDefinition } from '../pipeline/index.js';
+
 import type { Bundle } from './feature.js';
 
 import type { InjectionToken } from '@nestling/container';
 import { makeToken } from '@nestling/container';
-import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
-import { isEndpointDefinition } from '@nestling/pipeline';
 
 /**
  * Обнаруженный endpoint с атрибуцией к объявившей единице

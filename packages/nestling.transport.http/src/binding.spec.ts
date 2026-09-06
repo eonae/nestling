@@ -17,8 +17,8 @@ import {
 import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
+import { makeEndpoint } from '@nestling/app';
 import { Ok } from '@nestling/operations';
-import { makeEndpoint } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const Input = z.object({

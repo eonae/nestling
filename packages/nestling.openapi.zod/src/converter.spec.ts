@@ -6,7 +6,7 @@
 import { zodConverter } from './index.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { leafJsonSchema } from '@nestling/pipeline';
+import { leafJsonSchema } from '@nestling/app';
 import { z } from 'zod';
 
 describe('zodConverter', () => {

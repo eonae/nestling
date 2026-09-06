@@ -10,6 +10,7 @@
  * операции.
  */
 
+import type { TransportRef } from '../pipeline/index.js';
 import type { Dispatch, ITransport } from '../transport/index.js';
 
 import type { IMessageBus, InProcessBusOptions } from './bus.js';
@@ -46,7 +47,6 @@ import {
   lookupOperation,
   PortFamily,
 } from '@nestling/operations';
-import type { TransportRef } from '@nestling/pipeline';
 
 /**
  * Семейство токенов держателя исполнителей с единственным членом.

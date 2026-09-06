@@ -14,6 +14,19 @@
  */
 
 import type {
+  EndpointMeta,
+  FormKind,
+  Raw,
+  ResponseContext,
+  TransportCapabilities,
+  UnknownFailInfo,
+} from '../pipeline/index.js';
+import {
+  assertFormsSupported,
+  makeEmptyContext,
+  Timeout,
+} from '../pipeline/index.js';
+import type {
   Dispatch,
   ITransport,
   RouteDeclaration,
@@ -32,19 +45,6 @@ import { structuralCopy } from './wire.js';
 
 import { makeToken } from '@nestling/container';
 import { Topic } from '@nestling/operations';
-import type {
-  EndpointMeta,
-  FormKind,
-  Raw,
-  ResponseContext,
-  TransportCapabilities,
-  UnknownFailInfo,
-} from '@nestling/pipeline';
-import {
-  assertFormsSupported,
-  makeEmptyContext,
-  Timeout,
-} from '@nestling/pipeline';
 
 /** Метаданные доставленного сообщения, доступные обработчику */
 export interface BusMessageMeta {

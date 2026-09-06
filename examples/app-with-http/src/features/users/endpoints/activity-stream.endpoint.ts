@@ -1,10 +1,10 @@
 import { observability } from '../../../plugins/logging/index.js';
 import { ActivityHub } from '../activity.hub.js';
 
+import type { Output } from '@nestling/app';
+import { compose } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { events, Ok } from '@nestling/operations';
-import type { Output } from '@nestling/pipeline';
-import { compose } from '@nestling/pipeline';
 import type { TrackedSubscription } from '@nestling/subscriptions';
 import { tracked } from '@nestling/subscriptions';
 import { httpEndpoint } from '@nestling/transport.http';

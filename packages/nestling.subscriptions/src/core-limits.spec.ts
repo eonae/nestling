@@ -15,9 +15,9 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
+import type { Outcome, Raw } from '@nestling/app';
+import { makeEmptyContext, makePipeline } from '@nestling/app';
 import { events, Ok } from '@nestling/operations';
-import type { Outcome, Raw } from '@nestling/pipeline';
-import { makeEmptyContext, makePipeline } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

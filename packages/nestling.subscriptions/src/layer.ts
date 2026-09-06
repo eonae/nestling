@@ -11,9 +11,9 @@ import type { SubscriptionContext } from './registry.js';
 import { SubscriptionRegistry } from './registry.js';
 import type { TrackedSubscription } from './types.js';
 
+import type { Outcome, ResponseContext } from '@nestling/app';
+import { makePipeline } from '@nestling/app';
 import { Injectable } from '@nestling/container';
-import type { Outcome, ResponseContext } from '@nestling/pipeline';
-import { makePipeline } from '@nestling/pipeline';
 
 /**
  * Регистрация подписки перед вызовом хендлера.

@@ -20,12 +20,15 @@
 import { buildOpenApiDocument, hiddenEndpoints } from './document.js';
 import type { OpenApiDocument, OpenApiOptions } from './types.js';
 
-import type { EndpointDiscovery, Plugin } from '@nestling/app';
-import { Discovery$, makePlugin } from '@nestling/app';
+import type {
+  AnyInput,
+  EndpointDiscovery,
+  Pipeline,
+  Plugin,
+} from '@nestling/app';
+import { Discovery$, makePlugin, Ok } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, Injectable, makeToken } from '@nestling/container';
-import type { AnyInput, Pipeline } from '@nestling/pipeline';
-import { Ok } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 
 /**

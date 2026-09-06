@@ -11,6 +11,19 @@
  */
 
 import { configKernel } from '../config/index.js';
+import type {
+  AnyEndpointDefinition,
+  HandlerClass,
+  PolicySubject,
+  SchemaDocConverter,
+  TransportRef,
+} from '../pipeline/index.js';
+import {
+  assertFormsSupported,
+  contextKernel,
+  handlerClassOf,
+  transportNameOf,
+} from '../pipeline/index.js';
 import type { OperationDescriptor } from '../ports/index.js';
 import {
   bindPorts,
@@ -59,19 +72,6 @@ import type {
   Provider,
 } from '@nestling/container';
 import { ContainerBuilder, tokenId, valueProvider } from '@nestling/container';
-import type {
-  AnyEndpointDefinition,
-  HandlerClass,
-  PolicySubject,
-  SchemaDocConverter,
-  TransportRef,
-} from '@nestling/pipeline';
-import {
-  assertFormsSupported,
-  contextKernel,
-  handlerClassOf,
-  transportNameOf,
-} from '@nestling/pipeline';
 
 export type { AppSpec, NormalizedAppSpec } from './plan.js';
 

@@ -7,6 +7,8 @@
  * `valueProvider`.
  */
 
+import type { CtxReader } from '../pipeline/index.js';
+import { Ctx, RequestId } from '../pipeline/index.js';
 import { wireApp } from '../testing/index.js';
 import { transportValue } from '../transport/index.js';
 
@@ -16,8 +18,6 @@ import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { Injectable, makeToken } from '@nestling/container';
-import type { CtxReader } from '@nestling/pipeline';
-import { Ctx, RequestId } from '@nestling/pipeline';
 
 /** Токен транспорта-заглушки: приёма запросов в тестовом прогоне нет */
 const MockTransport$ = makeToken<MockTransport>('transport:mock');

@@ -7,11 +7,12 @@
  * токен и провайдер, который заводит узел графа.
  */
 
+import type { TransportRef } from '../pipeline/index.js';
+
 import type { ITransport } from './interfaces.js';
 
 import type { Provider } from '@nestling/container';
 import { valueProvider } from '@nestling/container';
-import type { TransportRef } from '@nestling/pipeline';
 
 /**
  * Объявление экземпляра транспорта.

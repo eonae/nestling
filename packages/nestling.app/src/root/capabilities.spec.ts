@@ -8,6 +8,8 @@
  * проверяет собственными спеками.
  */
 
+import type { TransportRef } from '../pipeline/index.js';
+import { events, multipart, Ok, stream, upload } from '../pipeline/index.js';
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
@@ -21,8 +23,6 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { TransportRef } from '@nestling/pipeline';
-import { events, multipart, Ok, stream, upload } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const Tick = z.object({ at: z.string() });

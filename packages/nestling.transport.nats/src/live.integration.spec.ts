@@ -18,9 +18,14 @@
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { implement, makeDispatch } from '@nestling/app';
+import {
+  implement,
+  makeDispatch,
+  makeFail,
+  makePipeline,
+  Ok,
+} from '@nestling/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { makeFail, makePipeline, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const servers = process.env.NATS_TEST_SERVERS;

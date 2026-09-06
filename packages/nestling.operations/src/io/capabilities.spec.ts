@@ -3,7 +3,7 @@
  * транспорт умеет принимать и отдавать.
  *
  * Проверки форм в конструкторе декларации живут рядом с конструктором:
- * `@nestling/pipeline`, `metadata/endpoint.form-slots.spec.ts`.
+ * `@nestling/app`, `metadata/endpoint.form-slots.spec.ts`.
  */
 
 import type {

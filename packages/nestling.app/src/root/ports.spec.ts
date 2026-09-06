@@ -10,6 +10,8 @@
  */
 
 import { objectSource } from '../config/index.js';
+import type { AnyInput, ExtendableContext } from '../pipeline/index.js';
+import { makeEmptyContext, Ok } from '../pipeline/index.js';
 import type { Port } from '../ports/index.js';
 import {
   BusTransport$,
@@ -28,8 +30,6 @@ import { MockTransport } from './helpers.js';
 import { describe, expect, it, jest } from '@jest/globals';
 import { Injectable, makeToken, OnInit, OnStart } from '@nestling/container';
 import { makeEvent, makeRequest } from '@nestling/operations';
-import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
-import { makeEmptyContext, Ok } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>

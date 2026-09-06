@@ -8,9 +8,8 @@ import { unwrap } from './unwrap.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { ITransport } from '@nestling/app';
-import { makeFeature, transportValue } from '@nestling/app';
+import { makeFeature, Ok, transportValue } from '@nestling/app';
 import { Injectable, makeToken } from '@nestling/container';
-import { Ok } from '@nestling/pipeline';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 

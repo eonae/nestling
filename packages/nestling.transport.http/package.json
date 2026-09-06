@@ -24,7 +24,6 @@
     "@nestling/app": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/operations": "workspace:*",
-    "@nestling/pipeline": "workspace:*",
     "busboy": "^1.6.0",
     "find-my-way": "^8.2.0",
     "zod": "^4.0.0"

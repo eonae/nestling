@@ -14,8 +14,29 @@ import { splitOverrides } from './overrides.js';
 import type { OperationStub } from './stub.js';
 import { stubbedOperations } from './stub.js';
 
-import type { App, DispatchOptions, FeatureSelection } from '@nestling/app';
-import { busBindingOf, isApp, profileAttributes } from '@nestling/app';
+import type {
+  AnyEndpointDefinition,
+  AnyInput,
+  AnyOutput,
+  AnyPayload,
+  App,
+  DispatchOptions,
+  EndpointDefinition,
+  EndpointMeta,
+  ExtendableContext,
+  FeatureSelection,
+  InferInput,
+  InferOutput,
+  Raw,
+  ResponseContext,
+} from '@nestling/app';
+import {
+  busBindingOf,
+  isApp,
+  makeEmptyContext,
+  profileAttributes,
+  transportNameOf,
+} from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
 import { wireApp } from '@nestling/app/testing';
 import type { InjectionToken } from '@nestling/container';
@@ -25,20 +46,6 @@ import type {
   EmittingOperation,
   InvokeArgs,
 } from '@nestling/operations';
-import type {
-  AnyEndpointDefinition,
-  AnyInput,
-  AnyOutput,
-  AnyPayload,
-  EndpointDefinition,
-  EndpointMeta,
-  ExtendableContext,
-  InferInput,
-  InferOutput,
-  Raw,
-  ResponseContext,
-} from '@nestling/pipeline';
-import { makeEmptyContext, transportNameOf } from '@nestling/pipeline';
 
 /**
  * Свойства границы для одного `call`.

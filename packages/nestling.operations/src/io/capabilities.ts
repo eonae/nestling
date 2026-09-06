@@ -40,7 +40,7 @@ export interface FormBearingDefinition {
  * Короткое имя транспорта из id токена (`transport:http:default` →
  * `'http'`, `transport:http:admin` → `'http:admin'`).
  *
- * Повторяет `transportNameOf` из `@nestling/pipeline`: импортировать его
+ * Повторяет `transportNameOf` из `@nestling/app`: импортировать его
  * сюда нельзя, а правило умещается в несколько строк.
  */
 const shortTransportName = (token: Token<any>): string => {

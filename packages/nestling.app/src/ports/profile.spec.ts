@@ -13,6 +13,20 @@
 
 import { getEventListeners } from 'node:events';
 
+import type {
+  AnyEndpointDefinition,
+  AnyInput,
+  CtxReader,
+  ExtendableContext,
+} from '../pipeline/index.js';
+import {
+  contextKernel,
+  Ctx,
+  everyEndpoint,
+  makeEmptyContext,
+  makePipeline,
+  Ok,
+} from '../pipeline/index.js';
 import type { Dispatch } from '../transport/index.js';
 import { makeDispatch } from '../transport/index.js';
 
@@ -37,20 +51,6 @@ import { BusTransport$ } from './transport.js';
 import { ContainerBuilder, makeToken } from '@nestling/container';
 import type { Emitter, Port } from '@nestling/operations';
 import { makeCommand, makeRequest } from '@nestling/operations';
-import type {
-  AnyEndpointDefinition,
-  AnyInput,
-  CtxReader,
-  ExtendableContext,
-} from '@nestling/pipeline';
-import {
-  contextKernel,
-  Ctx,
-  everyEndpoint,
-  makeEmptyContext,
-  makePipeline,
-  Ok,
-} from '@nestling/pipeline';
 import { z } from 'zod';
 
 const sleep = (ms: number): Promise<void> =>

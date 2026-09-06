@@ -4,10 +4,14 @@ import { UsersFeature } from './features/users/users.feature.js';
 import { appAuth, authed } from './plugins/auth/index.js';
 import { logging, observability } from './plugins/logging/index.js';
 
-import { BusTransport$, IdempotencyKey, makeApp } from '@nestling/app';
+import {
+  BusTransport$,
+  everyEndpoint,
+  IdempotencyKey,
+  makeApp,
+} from '@nestling/app';
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
-import { everyEndpoint } from '@nestling/pipeline';
 import { subscriptions } from '@nestling/subscriptions';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 

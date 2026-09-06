@@ -7,9 +7,10 @@
  * выдуманном токене.
  */
 
+import type { AnyEndpointDefinition } from '../../pipeline/index.js';
+import { makeEndpoint, Ok } from '../../pipeline/index.js';
+
 import { makeToken } from '@nestling/container';
-import type { AnyEndpointDefinition } from '@nestling/pipeline';
-import { makeEndpoint, Ok } from '@nestling/pipeline';
 
 const ForeignTransport$ = makeToken('transport:foreign');
 

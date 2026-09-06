@@ -9,9 +9,8 @@ import { assembleTest } from './app.js';
 import { stub } from './stub.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { implement, makeApp, makeFeature } from '@nestling/app';
+import { implement, makeApp, makeFeature, makePipeline } from '@nestling/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
-import { makePipeline } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const PlaceOrder = makeCommand({

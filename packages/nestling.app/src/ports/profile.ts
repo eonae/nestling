@@ -14,10 +14,10 @@
  *   сборке.
  */
 
-import { followSignal } from './signal.js';
+import type { EmptyInput, PreUnitFn } from '../pipeline/index.js';
+import { contextVar } from '../pipeline/index.js';
 
-import type { EmptyInput, PreUnitFn } from '@nestling/pipeline';
-import { contextVar } from '@nestling/pipeline';
+import { followSignal } from './signal.js';
 
 /**
  * Атрибут бюджета: абсолютный момент **по часам получателя**.

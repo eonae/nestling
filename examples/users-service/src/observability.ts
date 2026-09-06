@@ -1,13 +1,13 @@
 import type { Logger } from './logging.js';
 import { Logger$ } from './logging.js';
 
-import { Injectable } from '@nestling/container';
 import type {
   ExtendableContext,
   Outcome,
   ResponseContext,
-} from '@nestling/pipeline';
-import { makePipeline, withRequestId } from '@nestling/pipeline';
+} from '@nestling/app';
+import { makePipeline, withRequestId } from '@nestling/app';
+import { Injectable } from '@nestling/container';
 
 /**
  * Юнит `.finally`: пишет строку аудита по завершении каждого запроса.

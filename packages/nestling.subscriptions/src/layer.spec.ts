@@ -15,9 +15,9 @@ import type { TrackedSubscription } from './types.js';
 
 import type { Constructor } from '@common/misc';
 import { describe, expect, it } from '@jest/globals';
+import type { ExtendableContext, ResponseContext } from '@nestling/app';
+import { compose, makePipeline } from '@nestling/app';
 import { events, Ok } from '@nestling/operations';
-import type { ExtendableContext, ResponseContext } from '@nestling/pipeline';
-import { compose, makePipeline } from '@nestling/pipeline';
 import { z } from 'zod';
 
 const Item = z.object({ id: z.string() });

@@ -1,14 +1,14 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'node:http';
 
-import type { SseConfig } from '@nestling/operations';
-import { untilAborted } from '@nestling/operations';
 import type {
   FormKind,
   ProcessingStatus,
   ResponseContext,
   StreamSummary,
-} from '@nestling/pipeline';
-import { isAsyncIterable, isMidStreamFailure } from '@nestling/pipeline';
+} from '@nestling/app';
+import { isAsyncIterable, isMidStreamFailure } from '@nestling/app';
+import type { SseConfig } from '@nestling/operations';
+import { untilAborted } from '@nestling/operations';
 
 /** Соответствие статусов ответа кодам HTTP */
 

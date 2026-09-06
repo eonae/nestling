@@ -5,7 +5,7 @@
  * же места, что у функции: диагностика обязана называть метод `handle`.
  */
 
-import { Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/app';
 import { httpEndpoint } from '@nestling/transport.http';
 
 import { User, UserInput } from '../support/fixture-kit.js';

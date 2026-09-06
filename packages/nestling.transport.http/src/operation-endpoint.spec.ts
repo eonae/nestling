@@ -14,14 +14,14 @@ import { httpEndpoint } from './helpers.js';
 import { HttpTransport$ } from './token.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeFail, makeRequest } from '@nestling/operations';
 import {
   BadRequest,
   handlerClassOf,
   isEndpointDefinition,
   makePipeline,
   Ok,
-} from '@nestling/pipeline';
+} from '@nestling/app';
+import { makeFail, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({

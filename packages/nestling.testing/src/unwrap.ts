@@ -3,7 +3,7 @@
  * `isSuccess`.
  */
 
-import type { ResponseContext } from '@nestling/pipeline';
+import type { ResponseContext } from '@nestling/app';
 
 /**
  * Ошибка `unwrap`: отказ там, где тест ждал успеха.

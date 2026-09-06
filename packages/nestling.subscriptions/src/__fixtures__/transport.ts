@@ -6,11 +6,15 @@
  * фикстура их просто перечисляет.
  */
 
-import type { Dispatch, ITransport, TransportDeclaration } from '@nestling/app';
+import type {
+  Dispatch,
+  ITransport,
+  TransportCapabilities,
+  TransportDeclaration,
+} from '@nestling/app';
 import { transportValue } from '@nestling/app';
 import type { Token } from '@nestling/container';
 import { makeToken } from '@nestling/container';
-import type { TransportCapabilities } from '@nestling/pipeline';
 
 /** Транспорт умеет и значения, и потоки: подписка — его штатная форма */
 const STREAMING: TransportCapabilities = {

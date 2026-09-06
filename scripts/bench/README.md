@@ -91,7 +91,7 @@ CPU-профиль сервера Nestling под этой нагрузкой (N
 | Доля | Что | У Fastify |
 |---|---|---|
 | 3.6% | `@nestling/transport.http`: `sendResponse`, `handle`, `assemblePayload` | 2.4% собственного кода на те же обязанности |
-| 1.7% | `@nestling/pipeline`: `execute`, проверка `errors:`, `normalizeResponse` | нет: маршрут вызывает хендлер напрямую |
+| 1.7% | `@nestling/app`: `execute`, проверка `errors:`, `normalizeResponse` | нет: маршрут вызывает хендлер напрямую |
 | 2.4% | микротаски: четыре `await` на запрос против двух | около 1% |
 | 0.7% | `find-my-way` | 0.5%: тот же маршрутизатор |
 | 0.5% | `_storeHeader` и `writeHead` из `node:http` | 0.4% |

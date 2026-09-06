@@ -9,8 +9,7 @@
  * типом значило бы притворяться, что генератор её понимает.
  */
 
-import type { DiscoveredEndpoint } from '@nestling/app';
-import type { SchemaDocConverter } from '@nestling/pipeline';
+import type { DiscoveredEndpoint, SchemaDocConverter } from '@nestling/app';
 
 /** JSON-значение: всё, что переживает `JSON.parse(JSON.stringify(...))` */
 export type JsonValue =

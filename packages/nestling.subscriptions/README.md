@@ -15,7 +15,7 @@
 | Зависимость | Для чего |
 |---|---|
 | `@nestling/container` | `@Injectable`, `@OnDestroy`, `makeModule`: юниты слоя и модуль |
-| `@nestling/pipeline` | `makePipeline` для слоя `tracked`, `Outcome` и типы контекста |
+| `@nestling/app` | `makePipeline` для слоя `tracked`, `Outcome` и типы контекста |
 | `@nestling/operations` | `makeRequest` / `makeCommand` / `makeEvent` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema` |
 | `@nestling/operations` | `Topic`: лента изменений |
 | `@nestling/app` | `makePlugin`: пакет отдаётся приложению плагином |

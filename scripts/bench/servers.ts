@@ -33,7 +33,7 @@ import Fastify from 'fastify';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { makePipeline, Ok, withRequestId } from '@nestling/pipeline';
+import { makePipeline, Ok, withRequestId } from '@nestling/app';
 import { makeDispatch } from '@nestling/app';
 import { httpEndpoint, HttpTransport } from '@nestling/transport.http';
 

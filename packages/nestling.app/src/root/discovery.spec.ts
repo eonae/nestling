@@ -5,14 +5,15 @@
  * а список единиц плоский по построению.
  */
 
+import type { TransportRef } from '../pipeline/index.js';
+import { makeEndpoint, Ok, transportNameOf } from '../pipeline/index.js';
+
 import { testEndpoint } from './__fixtures__/test-transport.js';
 import { discoverEndpoints } from './discovery.js';
 import { makeFeature, makePlugin } from './feature.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
-import type { TransportRef } from '@nestling/pipeline';
-import { makeEndpoint, Ok, transportNameOf } from '@nestling/pipeline';
 import { z } from 'zod';
 
 /** Токены транспортов фикстур: ссылка декларации — значение, а не строка */

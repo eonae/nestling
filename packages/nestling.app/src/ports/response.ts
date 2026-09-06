@@ -10,13 +10,13 @@
  * ошибка даёт общее сообщение без `stack`.
  */
 
-import type { ErrorDetails, ResponseContext } from '@nestling/pipeline';
+import type { ErrorDetails, ResponseContext } from '../pipeline/index.js';
 import {
   categoryOf,
   InternalError,
   isCategory,
   isFail,
-} from '@nestling/pipeline';
+} from '../pipeline/index.js';
 
 /**
  * Строит ответ-ошибку из исключения.

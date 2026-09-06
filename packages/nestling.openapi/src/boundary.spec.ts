@@ -37,7 +37,7 @@ const ALLOW = [
   '@nestling/app',
   '@nestling/container',
   '@nestling/operations',
-  '@nestling/pipeline',
+  '@nestling/app',
   '@nestling/app',
   '@nestling/transport.http',
 ];

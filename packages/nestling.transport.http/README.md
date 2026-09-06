@@ -7,7 +7,7 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 
 > 🚧 Активная разработка, API может меняться. CORS, ограничение частоты
 > запросов и сжатие пока не реализованы. Валидатор для схем приложения
-> пакет не выбирает: данные проверяет `@nestling/pipeline` любой схемой
+> пакет не выбирает: данные проверяет `@nestling/app` любой схемой
 > [Standard Schema](https://standardschema.dev). Пакет `zod` в
 > зависимостях нужен только конфиг-секции (`HTTP_PORT`, `HTTP_HOST`).
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
@@ -25,7 +25,7 @@ npm install @nestling/transport.http
 
 ```ts
 import { makeApp } from '@nestling/app';
-import { Ok } from '@nestling/pipeline';
+import { Ok } from '@nestling/app';
 import { http, httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -56,7 +56,7 @@ await makeApp({
 httpEndpoint({ method, path, input, output, errors, bind, rawBody, sse, pipeline, doc, handler, detached });
 ```
 
-Это тонкий слой над `makeEndpoint` из `@nestling/pipeline`: он добавляет
+Это тонкий слой над `makeEndpoint` из `@nestling/app`: он добавляет
 HTTP-поля и собирает `pattern` как `` `${method} ${path}` ``. `path` —
 литеральный тип; `PathParams<Path>` выводит из него имена `:param`.
 Список `errors:` складывается с отказами слоёв пайплайна: перечислять

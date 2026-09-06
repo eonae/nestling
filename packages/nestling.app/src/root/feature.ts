@@ -12,14 +12,15 @@
  * токенами.
  */
 
+import type { AnyEndpointDefinition } from '../pipeline/index.js';
+import { handlerClassOf } from '../pipeline/index.js';
+
 import type {
   InjectionToken,
   Module,
   ModuleProvider,
 } from '@nestling/container';
 import { dependenciesOf } from '@nestling/container';
-import type { AnyEndpointDefinition } from '@nestling/pipeline';
-import { handlerClassOf } from '@nestling/pipeline';
 
 /**
  * Состав фичи или плагина: не больше одной из двух форм.

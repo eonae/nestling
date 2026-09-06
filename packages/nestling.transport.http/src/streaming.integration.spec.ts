@@ -12,18 +12,22 @@ import { httpEndpoint } from './helpers.js';
 import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
-import type { ExecutableDeclaration } from '@nestling/app';
-import { makeDispatch } from '@nestling/app';
-import { Topic } from '@nestling/operations';
-import type { FilePart, Outcome, PhasedPipeline } from '@nestling/pipeline';
+import type {
+  ExecutableDeclaration,
+  FilePart,
+  Outcome,
+  PhasedPipeline,
+} from '@nestling/app';
 import {
   events,
+  makeDispatch,
   makePipeline,
   multipart,
   Ok,
   stream,
   upload,
-} from '@nestling/pipeline';
+} from '@nestling/app';
+import { Topic } from '@nestling/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

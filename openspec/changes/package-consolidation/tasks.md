@@ -42,13 +42,13 @@
 
 ## 6. `pipeline` в `@nestling/app`
 
-- [ ] 6.1 `packages/nestling.pipeline/src` перенесён в `packages/nestling.app/src/pipeline`
-- [ ] 6.2 Экспорты подняты в `src/index.ts`
-- [ ] 6.3 `packages/nestling.pipeline/type-tests` перенесён в `packages/nestling.app/type-tests`; `tsconfig.json` пакета `app` включает `type-tests` и исключает `type-tests/fixtures`
-- [ ] 6.4 Скрипт `type-budget` перенесён в `packages/nestling.app/package.json`; пороги и снапшоты диагностик прогнаны заново
-- [ ] 6.5 Импорты `@nestling/pipeline` переписаны на `@nestling/app`
-- [ ] 6.6 Каталог `packages/nestling.pipeline` удалён; манифесты потребителей обновлены
-- [ ] 6.7 `yarn verify` зелёный
+- [x] 6.1 `packages/nestling.pipeline/src` перенесён в `packages/nestling.app/src/pipeline`
+- [x] 6.2 Экспорты подняты в `src/index.ts`
+- [x] 6.3 `packages/nestling.pipeline/type-tests` перенесён в `packages/nestling.app/type-tests`; `tsconfig.json` пакета `app` включает `type-tests` и исключает `type-tests/fixtures`
+- [x] 6.4 Скрипт `type-budget` перенесён в `packages/nestling.app/package.json`; пороги и снапшоты диагностик прогнаны заново
+- [x] 6.5 Импорты `@nestling/pipeline` переписаны на `@nestling/app`
+- [x] 6.6 Каталог `packages/nestling.pipeline` удалён; манифесты потребителей обновлены
+- [x] 6.7 `yarn verify` зелёный
 
 ## 7. Направление зависимостей и границы
 

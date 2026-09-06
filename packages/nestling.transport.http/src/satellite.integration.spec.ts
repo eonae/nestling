@@ -26,19 +26,20 @@ import {
   sendResponse,
 } from './index.js';
 
-import type { Dispatch, ITransport } from '@nestling/app';
-import { makeDispatch } from '@nestling/app';
 import type {
+  Dispatch,
   EndpointMeta,
+  ITransport,
   Raw,
   TransportCapabilities,
-} from '@nestling/pipeline';
+} from '@nestling/app';
 import {
   assertFormsSupported,
   describeForm,
+  makeDispatch,
   makeEmptyContext,
   Ok,
-} from '@nestling/pipeline';
+} from '@nestling/app';
 import { z } from 'zod';
 
 /**
