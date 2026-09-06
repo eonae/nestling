@@ -41,6 +41,11 @@ change'ей, разделяющих публикуемые пакеты и пр�
 41 и 42 добавлены 2026-09-05 по записи
 [ideas.md [2026-09-05]](./ideas.md) «Раскладка монорепы»: второй и третий
 change'ы серии, начатой `examples-out`.
+44–53 добавлены 2026-09-06 по ревью жизненного цикла и композиции
+([d/12](../history/discussions/12-lifecycle-and-composition-review.md)):
+десять записей [ideas.md [2026-09-06]](./ideas.md). Порядок: 44 и 42
+первыми (термины и раскладка пакетов), затем 45 и 46 как фундамент, на
+нём 49, 50 и 53; 47, 48, 51 и 52 независимы.
 
 | # | Change | Суть | Размер | Статус |
 |---|---|---|---|---|
@@ -87,6 +92,16 @@ change'ы серии, начатой `examples-out`.
 | 41 | `packaging-cleanup` | два дефекта упаковки: `tsconfig.build.json` не исключал `*.type-test.ts` и `__fixtures__`, и они попадали в `dist` вместе с импортом двух `devDependencies`; манифесты семи пакетов расходились с фактическими импортами | S | **done** — [архив](../../openspec/changes/archive/2026-09-05-packaging-cleanup/), новая спека [`packages-layout`](../../openspec/specs/packages-layout/spec.md); сплошная сверка добавила к семи расхождениям ещё два и две правки в манифестах `examples/`, [ideas.md [2026-09-05]](./ideas.md) «Раскладка монорепы» |
 | 42 | `package-consolidation` | ядро в три пакета: `container`, `operations` (+ формы io, `streams`), `app` (+ `pipeline`, `config`, `ports`, `transport`); три пакета `@common/*` остаются под своими именами; 22 каталога `packages/` становятся 17, 63 ребра — 29, восемь уровней глубины — шесть; приложение импортирует из трёх пакетов вместо восьми; направление зависимостей держит правило, миграция примеров, глав гайда, README и `design/composition.md` | L, breaking | план — [ideas.md [2026-09-05]](./ideas.md) «Раскладка монорепы» |
 | 43 | `guide-single-file` | гайд одним файлом: `yarn docs:build` кладёт в `docs/.site/` один `index.html` вместо двадцати восьми страниц; тема и поведение встраиваются в него, ссылки между главами становятся якорями с приставкой главы (`#06-config--секреты`), подсветка кода выполняется на сборке | S, breaking | **done** — [архив](../../openspec/changes/archive/2026-09-06-guide-single-file/), спека [`docs-site`](../../openspec/specs/docs-site/spec.md) переписана на один файл |
+| 44 | `docs-di-token` | термин «DI-токен» везде: гайд, README пакетов, JSDoc, комментарии и сообщения ошибок; линтер стиля ловит голое «токен»; токен доступа в главе 9 — «Bearer-токен» | S | план — [ideas.md [2026-09-06]](./ideas.md) «Термины и гайд» |
+| 45 | `sync-assemble` | фаза 0 BOOTSTRAP отдельно: источники читаются в снимок до сборки, секции считаются из снимка; `build()` синхронный и без I/O; `factoryProvider` и фабрики провайдеров модулей только синхронные, Promise из фабрики — ошибка сборки; `check()` принимает `config` | M, breaking | план — [ideas.md [2026-09-06]](./ideas.md) «Фаза 0 BOOTSTRAP» |
+| 46 | `resources-and-roles` | `@Component`, `@Resource`, `@Handler` с брендами позиций; `resourceProvider`; экземпляры создаются на INIT, `acquire` и `release`, `@OnInit` и `@OnDestroy` удалены, `@Injectable` удалён; `classProvider` вместо перегрузки с DI-токеном; `capabilities` на объявлении транспорта; глава 5 гайда с `Database` как ресурсом | L, breaking | план — [ideas.md [2026-09-06]](./ideas.md) «Ресурсы и роли классов»; после 45 |
+| 47 | `switches` | `makeSwitch`, `pick` и `when` во всех списках единиц, `switches:` корня, типизированный аргумент `assemble`, измерение в `check()` и `checkTopologies`, `.schema` для `RootConfig`; формы корня `{ endpoints, providers? }`, `{ endpoints, modules? }`, `{ features }`; глава о композиции после главы 1, главы 2 и 5 в шаг-форме | M, breaking | план — [ideas.md [2026-09-06]](./ideas.md) «Переключатели состава» |
+| 48 | `kernel-logger` | интерфейс `Logger` с тремя формами вызова и `child`, `RootLogger$` с умолчанием ядра, семейство `Logger$` с `.auto`; ядро пишет только через него, `onWarn` и `onUnknownFail` удалены; секция `nestlingLog`; глава 8 гайда | M | план — [ideas.md [2026-09-06]](./ideas.md) «Логгер ядра» |
+| 49 | `http-server` | `httpServer({ name })` как ресурс, `http({ server })`, секция порта семейством по имени сервера, опция `port` удалена, `listen` последним на START; дубликат «транспорт, паттерн» падает на ASSEMBLE | M, breaking | план — [ideas.md [2026-09-06]](./ideas.md) «HTTP-сервер как ресурс»; после 46 |
+| 50 | `http-handler-form` | `Handler<Op>`, `HttpHandler<Op>`, `HandlerMeta`, `HttpHandlerMeta`, `HttpOutput`, `HttpResponse`; `Ok` без заголовков; стартовый контекст транспорта и юниты `withHeader`, `withClientIp`, `httpAccessLog`; `implement` принимает только хендлер без `http` | M, breaking | план — [ideas.md [2026-09-06]](./ideas.md) «HTTP-хендлер явной формой»; после 46 |
+| 51 | `config-derived` | `derived([deps], fn)` с наследованием секретности и пересчётом, `env({ prefix })`, `describeConfig({ converters })`; глава 6 гайда | S–M | план — [ideas.md [2026-09-06]](./ideas.md) «Конфиг: `derived`…» |
+| 52 | `openapi-declaration` | `buildOpenApiDocument(app, { select?, switches?, … })` от декларации и аргумента сборки, без графа и источников; скрипт для CI в примере | S | план — [ideas.md [2026-09-06]](./ideas.md) «Документ OpenAPI без запуска»; после 47 |
+| 53 | `health` | `HealthCheck$` и `Health$` в ядре, флаг `critical`, таймаут и кэш через `nestlingHealth`; `httpProbes()`; `health` у ресурса; главы 1, 9 и 23 гайда | M | план — [ideas.md [2026-09-06]](./ideas.md) «Пробы»; после 46 и 48 |
 
 ## Порядок и зависимости
 
@@ -405,6 +420,16 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | 41 | `packaging-cleanup` | S | **done** — [архив](../../openspec/changes/archive/2026-09-05-packaging-cleanup/); опубликованный `@nestling/testing` нёс в `dist` файлы проверки типов и фикстуры, а один из них импортировал `@nestling/transport.http` и `zod` из `devDependencies`: у установившего их нет; сплошная сверка нашла девять расхождений «объявлено ≠ импортируется» у семи пакетов и ещё два в `examples/` |
 | 42 | `package-consolidation` | L, breaking | восемь пакетов ядра не дают выбора: `pipeline` тянет `container`, `operations` и `streams`, остальные тянут `pipeline` — их ставят вместе; идёт последним, по дереву, очищенному 39 и 41 |
 | 43 | `guide-single-file` | S, breaking | гайд читают подряд, а отдать его целиком было нельзя: страницы ссылались друг на друга по именам файлов, тема лежала соседними файлами, и копия страницы теряла оформление; подсветка в браузере пропадала везде, где JavaScript не выполняется |
+| 44 | `docs-di-token` | S | голое «токен» в главе 9 означало то Bearer-токен, то DI-токен через десять строк |
+| 45 | `sync-assemble` | M, breaking | фаза 0 из design-дока в коде отсутствовала: источники читала async-фабрика внутри графа, а билдер ждал фабрики вопреки синхронному типу; без снимка до сборки невозможны ни синхронный `check()`, ни переключатели |
+| 46 | `resources-and-roles` | L, breaking | проверка `#users \| undefined` в гайде защищала от вызова, который фазы уже исключают; убрать её можно только созданием зависимых после захвата; `@Injectable(token, deps)` смешивал две заботы |
+| 47 | `switches` | M, breaking | состав по значению из окружения выражался либо непрозрачной фабрикой, либо фичей ради одного провайдера; маленьким сервисам навязывалось понятие фичи |
+| 48 | `kernel-logger` | M | ядро писало тремя каналами, приложения заводили логгер заново, семейство `ILogger` жило только в примере |
+| 49 | `http-server` | M, breaking | transports.md противоречил себе про порт, два экземпляра читали один `HTTP_PORT`, а дубликат паттерна ловился на START после захвата ресурсов |
+| 50 | `http-handler-form` | M, breaking | `Location` в заголовках `Ok` был HTTP под чужим именем, редирект и cookie не выражались вовсе; юниты, знающие транспорт, не имели правила |
+| 51 | `config-derived` | S–M | вычисляемые поля требовали класса-прокси, общий `.env` на несколько сервисов не поддерживался, описания полей не попадали в документацию |
+| 52 | `openapi-declaration` | S | документ для CI собирался тремя строками через `discoverEndpoints` без учёта аргумента сборки |
+| 53 | `health` | M | deferred выводил liveness из фазы, а гайд делал пробу endpoint'ом с `detached`; два дизайна жили параллельно |
 
 Change'и 29–38 ломающие, хотя окно фиксации публичного API закрыто
 волной 2. Это осознанно: они правят гарантии, а не добавляют способности,

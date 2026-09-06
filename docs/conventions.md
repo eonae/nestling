@@ -37,12 +37,17 @@
   уточняют её: `not_found:user`, `conflict:email_taken`. Код из одной
   категории допустим: `unauthorized`.
 
-## Токены и провайдеры
+## DI-токены и провайдеры
 
-- Класс сам себе токен и называется как класс: `Database`.
-- Токен интерфейса называется как интерфейс с суффиксом `$`:
-  `UsersRepository$` для `UsersRepository`. Так же названы токены ядра:
-  `HttpTransport$`, `Logger$`.
+- Класс сам себе DI-токен и называется как класс: `Database`.
+- DI-токен интерфейса называется как интерфейс с суффиксом `$`:
+  `UsersRepository$` для `UsersRepository`. Так же названы DI-токены ядра
+  и семейства: `HttpTransport$`, `RootLogger$`, `Logger$`, `HealthCheck$`.
+  Других правил для суффикса нет.
+- Роль класса задаёт декоратор: `@Component([deps])` для сервиса,
+  `@Resource([deps])` для пула или соединения, `@Handler([deps])` для
+  хендлера. Реализация интерфейса регистрируется в `providers:` через
+  `classProvider(UsersRepository$, DbUsersRepository)`.
 - Класс, реализующий интерфейс, получает префикс по способу реализации:
   `DbUsersRepository`. Фейк для тестов называется по той же схеме в
   lowerCamelCase, если это функция: `inMemoryUsersRepo`.
@@ -53,7 +58,9 @@
 ## Хендлеры
 
 - Класс-хендлер называется по операции с суффиксом `Handler`:
-  `GetUserHandler`. Метод называется `handle`.
+  `GetUserHandler`. Метод называется `handle`. Класс помечается
+  `@Handler([deps])` и может объявлять `implements Handler<typeof GetUser>`;
+  HTTP-хендлер объявляет `implements HttpHandler<typeof Login>`.
 - Хендлер-функция называется по операции в lowerCamelCase с суффиксом
   `Handler`: `getUserHandler`.
 - Реализация операции (`implement`) — значение с суффиксом `Impl`:
@@ -63,6 +70,15 @@
   `UserRegisteredInQuotas`. Его класс-хендлер добавляет тот же суффикс:
   `UserRegisteredInQuotasHandler`. Имя фичи в значении совпадает со
   строкой `subscriber:`.
+
+## Переключатели
+
+- Переключатель называется по тому, что он выбирает, в PascalCase:
+  `Storage = makeSwitch('storage', ['s3', 'local'])`. Имя в нижнем
+  регистре совпадает с полем `RootConfig`, из которого приходит значение:
+  `storage: Storage.schema`.
+- Двухпозиционный переключатель называется по тому, что включает:
+  `Metrics = makeSwitch('metrics')`.
 
 ## Пайплайн
 
@@ -81,7 +97,7 @@
   хранит исполнение.
 - Фича: `<имя>.feature.ts`. Плагин: `<имя>.plugin.ts`. Репозиторий:
   `<имя>.repository.ts`. Отказы фичи: `<имя>.errors.ts`. Секция конфига:
-  `<имя>.config.ts`.
+  `<имя>.config.ts`. Переключатели приложения: `switches.ts`.
 - Операции, которые импортирует клиент, лежат в `api/operations.ts`.
   Файл импортирует только `@nestling/operations`, схемы и определения
   отказов.

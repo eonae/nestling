@@ -12,8 +12,8 @@
 | Док | О чём |
 |---|---|
 | [principles.md](./principles.md) | опорные принципы и сквозные границы |
-| [container.md](./container.md) | DI: токены, провайдеры, token families, модули, видимость |
-| [composition.md](./composition.md) | composition root: `makeApp`, `assemble(select)`, фазы жизненного цикла, features/`select`, L0–L4 |
+| [container.md](./container.md) | DI: DI-токены, роли классов (компонент, ресурс, хендлер), семейства, модули, логгер ядра, видимость |
+| [composition.md](./composition.md) | composition root: `makeApp`, `assemble(args)`, фазы жизненного цикла, формы корня, features/`select`, переключатели, пробы и логгер ядра, L0–L4 |
 | [pipeline.md](./pipeline.md) | request-pipeline: фазы, слои, `compose`, формы юнитов |
 | [endpoints.md](./endpoints.md) | декларации: операция первична, per-transport конструкторы, формы io, HTTP-канон |
 | [operations.md](./operations.md) | операции и порты, шина, dispatch-политики, внешние клиенты |
@@ -21,5 +21,5 @@
 | [errors.md](./errors.md) | модель ошибок: `Ok`/`Fail`, `makeFail`, коды с категорией, `E ∪ InternalError` |
 | [schemas.md](./schemas.md) | Standard Schema на границах, OpenAPI/AsyncAPI через конвертеры |
 | [streaming.md](./streaming.md) | стриминг: `stream`/`events`, item-цепочки, `Topic`, граница с RxJS |
-| [transports.md](./transports.md) | транспорты: `serve(dispatch)`, байтовый уровень (сжатие, CORS, парсинг по io-декларации) |
-| [testing.md](./testing.md) | `@nestling/testing`: `assembleTest(app, …)`, стабы, `check(select)` |
+| [transports.md](./transports.md) | транспорты: `serve(dispatch)`, сервер как ресурс, юниты транспорта, пробы, байтовый уровень (сжатие, CORS, парсинг по io-декларации) |
+| [testing.md](./testing.md) | `@nestling/testing`: `assembleTest(app, …)`, стабы, `check(args)` |

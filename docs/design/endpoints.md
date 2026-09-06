@@ -11,7 +11,10 @@
 > «Проверка входа по `input`: обязанность рантайма, точка после `.pre`-юнитов» [2026-08-29],
 > «Поле `handler`: зависимости принадлежат хендлеру; канон `return`; `Output<T, typeof Def>`» [2026-09-03],
 > «Две формы хендлера: функция без зависимостей и класс» [2026-09-04],
-> «Отказы слоя: объявление в `.pre(unit, { errors })`, канал `return` у pre-юнита, эффективное множество `errors`» [2026-09-04].
+> «Отказы слоя: объявление в `.pre(unit, { errors })`, канал `return` у pre-юнита, эффективное множество `errors`» [2026-09-04],
+> «Ресурсы и роли классов: `@Component`, `@Resource`, `@Handler`; экземпляры на INIT» [2026-09-06],
+> «HTTP-хендлер явной формой: `Handler<Op>`, `HttpHandler<Op>`, `HttpResponse`; `Ok` без заголовков; юниты транспорта» [2026-09-06],
+> «HTTP-сервер как ресурс: `httpServer({ name })`, `http({ server })`; дубликат паттерна на ASSEMBLE» [2026-09-06].
 > Статус реализации —
 > [roadmap](../decisions/roadmap.md).
 
@@ -57,7 +60,7 @@ export const CreateOrder = httpEndpoint({
   output: Order,
   errors: [OrderLimitReached],       // типизированный канал E (errors.md)
   pipeline: basePipeline,
-  handler: CreateOrderHandler,       // класс с @Injectable([OrdersService]), см. §3
+  handler: CreateOrderHandler,       // класс с @Handler([OrdersService]), см. §3
 });
 ```
 
@@ -124,10 +127,17 @@ bind-карты (§4): Standard Schema не отдаёт перечень клю
 
 **Узел графа.** Endpoint — обычный узел графа с синтетическим id
 (`endpoint:POST /orders`). Рёбра зависимостей хендлера видны в визуализации и `explain()`;
-циклы проверяются как для любого узла. Узел создаётся
-жадно на фазе ASSEMBLE, паттерн регистрируется на фазе WIRE.
+циклы проверяются как для любого узла. Узел появляется в графе на фазе
+ASSEMBLE, паттерн регистрируется на фазе WIRE.
 
-## 3. Поле `handler`: две формы
+**Порядок деклараций.** Порядка у endpoint'ов нет: порядок в `endpoints:`
+и порядок фич на маршрутизацию не влияют. HTTP-транспорт ищет маршрут по
+дереву паттернов, и статический сегмент побеждает параметр независимо от
+того, какая декларация зарегистрирована раньше. Две декларации с одним
+паттерном на одном экземпляре транспорта — ошибка ASSEMBLE с именами обеих
+единиц ([transports.md](./transports.md)).
+
+## 3. Поле `handler`: формы и интерфейсы
 
 Всё, что относится к исполнению, лежит в поле `handler`. Декларация
 описывает адрес, схемы, отказы и пайплайн; зависимости принадлежат
@@ -137,46 +147,77 @@ bind-карты (§4): Standard Schema не отдаёт перечень клю
 | Форма | Когда |
 |---|---|
 | `handler: (input, meta) => …` | без зависимостей. Единственная форма, которую принимают standalone-транспорты (`server.route`): endpoint с зависимостями туда не проходит по типам |
-| `handler: Class` | класс с `@Injectable` и методом `handle`. Endpoint создаёт экземпляр сам: он становится провайдером этого класса, и регистрировать класс в `providers:` не нужно; повторная регистрация — ошибка сборки |
+| `handler: Class` | класс с `@Handler([deps])` и методом `handle`. Endpoint создаёт экземпляр сам: он становится провайдером этого класса, и регистрировать класс в `providers:` не нужно; класс-хендлер в `providers:` не компилируется ([container.md](./container.md)) |
+| HTTP-хендлер | функция или класс, чей `meta` содержит `http`, а результат — `HttpOutput`. Допустим только в анонимном `httpEndpoint` (ниже) |
 
 В обеих формах `meta` содержит зарезервированный ключ
 `signal: AbortSignal` (отмена запроса) и поля контекста, накопленные
-`.pre`-юнитами. Если pre-юнит добавил поле `signal`, инъекция его
-перекрывает. Возвращаемый тип сверяется и со схемой `output`, и со списком
-`errors:` — в точке декларации ([errors.md](./errors.md)). Отказ
-возвращается значением; `throw` — доставка из глубины вызовов
-([errors.md §1](./errors.md)).
+`.pre`-юнитами; тип этого объекта — `HandlerMeta`. Если pre-юнит добавил
+поле `signal`, инъекция его перекрывает. Возвращаемый тип сверяется и со
+схемой `output`, и со списком `errors:` — в точке декларации
+([errors.md](./errors.md)). Отказ возвращается значением; `throw` —
+доставка из глубины вызовов ([errors.md §1](./errors.md)).
 
 Классовая форма — канон для кода приложения: она сохраняет привычную после
-NestJS структуру «конструктор плюс метод», но без декораторной декларации:
+NestJS структуру «конструктор плюс метод», но без декораторной декларации.
+Интерфейс `Handler<typeof Op>` выводится из операции: типы входа,
+результата и отказов приходят из неё и руками не переписываются.
+`implements` даёт автодополнение и раннюю ошибку в классе; окончательная
+сверка со схемами остаётся в слоте `handler:`, потому что у анонимного
+`httpEndpoint` операции нет.
 
 ```typescript
-@Injectable([OrdersService, ChargeCard.caller])
-export class CreateOrderHandler {
+@Handler([OrdersService, ChargeCard.caller])
+export class CreateOrderHandler implements Handler<typeof CreateOrder> {
   constructor(
     private orders: OrdersService,
     private billing: Port<typeof ChargeCard>,
   ) {}
-  async handle(
-    input: NewOrder,
-    meta: { signal: AbortSignal },
-  ): Output<Order, typeof OrderLimitReached> { /* ... */ }
+  async handle(input: NewOrder, meta: HandlerMeta) { /* ... */ }
 }
 
-export const CreateOrder = httpEndpoint({
-  method: 'POST',
-  path: '/orders',
-  input: NewOrder,
-  output: Order,
-  errors: [OrderLimitReached],
+export const CreateOrderImpl = implement(CreateOrder, {
   pipeline: basePipeline,
   handler: CreateOrderHandler,   // класс — поле типизированного вызова:
-});                              // сверка со схемами в точке декларации, implements не нужен
+});                              // сверка со схемами в точке декларации
 ```
 
 Unit-тест хендлера не требует фреймворка: класс создаётся через
 `new CreateOrderHandler(fakes…)`, функция вызывается напрямую. Импортов из
 `@nestling/*` в таком тесте нет.
+
+### HTTP-хендлер
+
+Хендлер, которому нужны HTTP-метаданные запроса или HTTP-специфичный
+ответ, объявляет это сигнатурой: `meta` типа `HttpHandlerMeta` с полем
+`http: HttpRequest` (заголовки, метод, url, адрес клиента), результат
+`HttpOutput<T, E>`. `HttpOutput` — `Output<T, E>` плюс `HttpResponse`.
+`HttpResponse.redirect(location, { status?, headers?, cookies? })` даёт
+редирект, `HttpResponse.of(ok, { headers?, cookies? })` — обычный ответ с
+заголовками.
+
+```typescript
+@Handler([Sessions])
+export class LoginHandler implements HttpHandler<typeof Login> {
+  constructor(private sessions: Sessions) {}
+  async handle(
+    input: Credentials,
+    meta: HttpHandlerMeta,
+  ): HttpOutput<never, typeof BadCredentials> {
+    const session = await this.sessions.open(input, meta.http.ip);
+    if (session.isFail) return session;
+    return HttpResponse.redirect('/app', { cookies: [session.cookie] });
+  }
+}
+```
+
+Анонимный `httpEndpoint` принимает обе формы. Операция-форма
+`httpEndpoint({ operation })` и `implement` принимают только хендлер без
+`http` в `meta`: класс с HTTP-метаданными туда не проходит по типам, и
+невозможность переиспользовать его на шине видна при компиляции. `Ok`
+заголовков не несёт; статусы успеха (`Ok.created`) от транспорта не
+зависят и остаются у обеих форм. Редирект в документе OpenAPI — ответ 3xx
+с заголовком `Location`.
 
 **Неразрешённые зависимости в типе.** Тип endpoint'а содержит всё, что ещё
 не получено из контейнера: класс хендлера и классы юнитов пайплайна.
@@ -211,7 +252,7 @@ export const CreateUser = httpEndpoint({
   bind: { dryRun: query(), tags: query({ multiple: true }) },
   output: User,
   pipeline: basePipeline,
-  handler: AddMemberHandler,   // класс с @Injectable([UserService])
+  handler: AddMemberHandler,   // класс с @Handler([UserService])
 });
 ```
 
@@ -314,7 +355,7 @@ input: multipart({
 передаче событий по HTTP, объявляется в полях HTTP-декларации:
 
 ```typescript
-@Injectable([ActivityHub])
+@Handler([ActivityHub])
 export class ActivityStreamHandler {
   constructor(private hub: ActivityHub) {}
 

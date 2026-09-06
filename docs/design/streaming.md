@@ -178,7 +178,7 @@ interface StreamSummary {
 подписчиков:
 
 ```typescript
-@Injectable([])
+@Component()
 export class OrdersHub {
   #topic = new Topic<Order>({ buffer: 1000, onSlowConsumer: 'disconnect' });
   publish(order: Order) { this.#topic.push(order); }
@@ -342,7 +342,7 @@ export const AggregateMetrics = httpEndpoint({
 ### Пример: слияние двух хабов (DI, класс-хендлер)
 
 ```typescript
-@Injectable([OrdersHub, PaymentsHub])
+@Handler([OrdersHub, PaymentsHub])
 export class ActivityFeedHandler {
   constructor(
     private readonly orders: OrdersHub,
