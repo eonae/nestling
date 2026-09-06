@@ -2,19 +2,21 @@
  * `testUnit` — модуль в изоляции и требование явных стабов.
  */
 
-import { SpyTransport } from './__fixtures__/transport.js';
+import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { testUnit } from './unit.js';
 import { unwrap } from './unwrap.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { ITransport } from '@nestling/app';
 import { makeFeature, Ok, transportValue } from '@nestling/app';
-import { Injectable, makeToken } from '@nestling/container';
+import { Component, Handler, makeToken } from '@nestling/container';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+  transportValue(HttpTransport$('default'), transport, {
+    capabilities: HTTP_LIKE,
+  });
 
 interface ILoggerService {
   log(message: string): void;
@@ -28,7 +30,7 @@ const ILogger = makeToken<ILoggerService>('IsolatedLogger');
 const IClock = makeToken<IClockService>('IsolatedClock');
 const IUsers = makeToken<{ all(): string[] }>('IsolatedUsers');
 
-@Injectable([ILogger, IClock, IUsers])
+@Component([ILogger, IClock, IUsers])
 class ReportService {
   constructor(
     private readonly logger: ILoggerService,
@@ -42,7 +44,7 @@ class ReportService {
   }
 }
 
-@Injectable([ReportService])
+@Handler([ReportService])
 class ReportHandler {
   constructor(private readonly reports: ReportService) {}
 

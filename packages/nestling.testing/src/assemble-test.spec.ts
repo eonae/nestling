@@ -3,7 +3,7 @@
  * `call` через полный пайплайн, конфиг объектом и SHUTDOWN.
  */
 
-import { SpyTransport } from './__fixtures__/transport.js';
+import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { assembleTest } from './app.js';
 import { vars } from './config.js';
 import { spyLogger } from './logger.js';
@@ -27,19 +27,22 @@ import {
   upload,
 } from '@nestling/app';
 import {
-  Injectable,
+  classProvider,
+  Component,
+  Handler,
   makeToken,
   makeTokenFamily,
-  OnDestroy,
-  OnInit,
   OnStart,
+  Resource,
   valueProvider,
 } from '@nestling/container';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+  transportValue(HttpTransport$('default'), transport, {
+    capabilities: HTTP_LIKE,
+  });
 
 /** Даёт микрозадачам подписки прокрутиться */
 const settle = async (): Promise<void> => {
@@ -48,13 +51,12 @@ const settle = async (): Promise<void> => {
 };
 
 describe('assembleTest — приложение собрано, но запросы не принимает', () => {
-  it('выполняет @OnInit и строит dispatch, но не START', async () => {
+  it('выполняет конструктор (INIT) и строит dispatch, но не @OnStart', async () => {
     const events: string[] = [];
 
-    @Injectable([])
+    @Component([])
     class Service {
-      @OnInit()
-      open(): void {
+      constructor() {
         events.push('init');
       }
 
@@ -117,10 +119,9 @@ describe('assembleTest — приложение собрано, но запро�
   it('отклоняет endpoint без транспорта той же ошибкой, что и бой', async () => {
     const inits: string[] = [];
 
-    @Injectable([])
-    class Resource {
-      @OnInit()
-      open(): void {
+    @Component([])
+    class Unreached {
+      constructor() {
         inits.push('init');
       }
     }
@@ -137,7 +138,7 @@ describe('assembleTest — приложение собрано, но запро�
           features: [
             makeFeature({
               name: 'module:orphan',
-              providers: [Resource],
+              providers: [Unreached],
               endpoints: [Orphan],
             }),
           ],
@@ -151,20 +152,26 @@ describe('assembleTest — приложение собрано, но запро�
   it('закрывается реверсом и переживает повторный close()', async () => {
     const events: string[] = [];
 
-    @Injectable([])
+    @Resource([])
     class Pool {
-      @OnDestroy()
-      disconnect(): void {
+      static async acquire(_signal: AbortSignal): Promise<Pool> {
+        return new Pool();
+      }
+
+      release(): void {
         events.push('destroy:pool');
       }
     }
 
-    @Injectable([Pool])
+    @Resource([Pool])
     class Service {
+      static async acquire(pool: Pool, _signal: AbortSignal): Promise<Service> {
+        return new Service(pool);
+      }
+
       constructor(readonly pool: Pool) {}
 
-      @OnDestroy()
-      drain(): void {
+      release(): void {
         events.push('destroy:service');
       }
     }
@@ -199,14 +206,14 @@ describe('assembleTest — overrides и прунинг', () => {
   const Pool = makeToken<IPool>('AppPool');
   const Repository = makeToken<IRepository>('AppRepository');
 
-  @Injectable(Pool, [])
+  @Component([])
   class PgPool implements IPool {
     query(): string {
       return 'from-pg';
     }
   }
 
-  @Injectable(Repository, [Pool])
+  @Component([Pool])
   class PgRepository implements IRepository {
     constructor(private readonly pool: IPool) {}
 
@@ -215,7 +222,7 @@ describe('assembleTest — overrides и прунинг', () => {
     }
   }
 
-  @Injectable([Repository])
+  @Handler([Repository])
   class ListUsersHandler {
     constructor(private readonly repository: IRepository) {}
 
@@ -233,7 +240,10 @@ describe('assembleTest — overrides и прунинг', () => {
 
   const DataModule = makeFeature({
     name: 'module:data',
-    providers: [PgPool, PgRepository],
+    providers: [
+      classProvider(Pool, PgPool),
+      classProvider(Repository, PgRepository),
+    ],
     endpoints: [ListUsers],
   });
 
@@ -606,7 +616,7 @@ describe('Discovery$ в тестовом корне', () => {
 
 describe('assembleTest — логгер ядра', () => {
   it('подмена RootLogger$ перехватывает записи сервиса с Logger$.auto', async () => {
-    @Injectable([Logger$.auto])
+    @Component([Logger$.auto])
     class UsersRepository {
       constructor(private readonly logger: Logger) {}
 

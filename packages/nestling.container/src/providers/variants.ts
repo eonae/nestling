@@ -1,6 +1,6 @@
 import type { Constructor, InjectionToken, Token } from '../common.js';
 
-import { readInjectableMeta } from './injectable.metadata.js';
+import { readRoleMeta } from './role.metadata.js';
 import type { TokenFamily } from './token-family.js';
 import { isTokenFamily } from './token-family.js';
 
@@ -79,8 +79,8 @@ export type SyncValue<T> = T extends PromiseLike<unknown> ? never : T;
  * Провайдер, создающий значение фабричной функцией.
  *
  * Подходит для сложной логики создания и классов сторонних библиотек без
- * `@Injectable`. Фабрика синхронна: захват соединения — дело хука
- * `@OnInit`, а не сборки.
+ * декоратора роли. Фабрика синхронна: захват соединения — дело ресурса, а
+ * не сборки.
  *
  * @template T - Тип создаваемого значения
  *
@@ -101,14 +101,66 @@ export interface FactoryProviderDefinition<T> extends BaseDefinition<T> {
 }
 
 /**
- * Определение провайдера любого вида: класс, значение или фабрика.
+ * Класс-ресурс: значение создаёт `static acquire`, а не конструктор.
+ *
+ * Конструктор ресурса контейнеру недоступен и может быть приватным,
+ * поэтому тип называет только статическую фабрику и имя класса.
+ *
+ * @template T - Тип захваченного значения
+ */
+export interface ResourceClass<T = any> {
+  /** Захватывает значение: зависимости по порядку, сигнал последним */
+  acquire(...args: any[]): Promise<T>;
+  /** Имя класса */
+  readonly name: string;
+}
+
+/**
+ * Провайдер ресурса: значение захватывается на INIT и освобождается на
+ * SHUTDOWN.
+ *
+ * `acquire` получает зависимости из `deps` в порядке объявления, а
+ * последним аргументом — сигнал остановки старта. `release` получает
+ * захваченное значение.
+ *
+ * @template T - Тип захваченного значения
+ *
+ * @example
+ * ```typescript
+ * const provider: ResourceProviderDefinition<Pool> = {
+ *   provide: Pool$,
+ *   deps: [DbConfig],
+ *   acquire: (cfg, signal) => createPool(cfg.url, { signal }),
+ *   release: (pool) => pool.end(),
+ * };
+ * ```
+ */
+export interface ResourceProviderDefinition<T = unknown>
+  extends BaseDefinition<T> {
+  /** Зависимости, передаваемые в `acquire` перед сигналом */
+  deps?: readonly InjectionToken[];
+  /** Захват: последним аргументом приходит сигнал остановки старта */
+  acquire: (...args: any[]) => T | Promise<T>;
+  /**
+   * Освобождение захваченного значения.
+   *
+   * Параметр типизирован `any`, как аргументы фабрики: точный тип задаёт
+   * `resourceProvider`, а хранимое определение обязано оставаться
+   * присваиваемым `ProviderDefinition<unknown>`.
+   */
+  release: (value: any) => void | Promise<void>;
+}
+
+/**
+ * Определение провайдера любого вида: класс, значение, фабрика или ресурс.
  *
  * @template T - Тип значения
  */
 export type ProviderDefinition<T = unknown> =
   | ClassProviderDefinition<T>
   | ValueProviderDefinition<T>
-  | FactoryProviderDefinition<T>;
+  | FactoryProviderDefinition<T>
+  | ResourceProviderDefinition<T>;
 
 /**
  * Превращает массив токенов (объектных или классов) в массив их типов.
@@ -140,39 +192,64 @@ export type FactoryProviderWithDeps<
 };
 
 /**
- * Создаёт провайдер класса.
+ * Создаёт провайдер класса: привязывает DI-токен интерфейса к реализации.
  *
- * Класс должен быть помечен `@Injectable`: зависимости берутся из
- * метаданных декоратора.
+ * Единственный способ зарегистрировать класс под чужим токеном:
+ * декораторы роли токена не принимают. Класс должен быть компонентом или
+ * ресурсом; зависимости берутся из метаданных декоратора. Класс-ресурс
+ * даёт провайдер ресурса — захват на INIT и `release` на SHUTDOWN.
  *
- * @template T - Тип создаваемого экземпляра
+ * @template T - Тип создаваемого значения
  * @param provide - Токен, под которым регистрируется провайдер
- * @param useClass - Класс с декоратором `@Injectable`
- * @returns Определение провайдера класса
- * @throws {Error} Если у класса нет декоратора `@Injectable`
+ * @param useClass - Класс с декоратором `@Component` или `@Resource`
+ * @returns Определение провайдера класса или ресурса
+ * @throws {Error} Если у класса нет декоратора роли или его роль — хендлер
  *
  * @example
  * ```typescript
- * @Injectable(ILogger, [])
- * class ConsoleLogger implements ILogger {}
+ * @Component([])
+ * class ConsoleLogger implements Logger {}
  *
- * const provider = classProvider(ILogger, ConsoleLogger);
+ * const provider = classProvider(Logger$, ConsoleLogger);
  * ```
  */
 export function classProvider<T>(
   provide: InjectionToken<T>,
-  useClass: Constructor<T>,
-): ClassProviderDefinition<T> {
-  const metadata = readInjectableMeta(useClass);
+  useClass: Constructor<T> | ResourceClass<T>,
+): ClassProviderDefinition<T> | ResourceProviderDefinition<T> {
+  const metadata = readRoleMeta(useClass);
+
   if (!metadata) {
     throw new Error(
-      `Class ${useClass.name} can't be used in classProvider without @Injectable decorator. If you need register third party class prefer useFactory.`,
+      `Class '${useClass.name}' has no role decorator, so classProvider cannot register it. ` +
+        `Declare it @Component([...]) or @Resource([...]); a class from another package ` +
+        `is registered with factoryProvider or resourceProvider instead.`,
     );
+  }
+
+  if (metadata.role === 'handler') {
+    throw new Error(
+      `Class '${useClass.name}' is declared @Handler, so classProvider cannot register it. ` +
+        `A handler class belongs in the 'handler:' slot of a declaration and is registered by ` +
+        `the endpoint itself.`,
+    );
+  }
+
+  if (metadata.role === 'resource') {
+    const cls = useClass as ResourceClass<T>;
+
+    return {
+      provide,
+      deps: metadata.dependencies,
+      acquire: (...args: unknown[]) => cls.acquire(...args),
+      release: (value: T) =>
+        (value as { release(): void | Promise<void> }).release(),
+    };
   }
 
   return {
     provide,
-    useClass,
+    useClass: useClass as Constructor<T>,
     deps: metadata.dependencies,
   };
 }
@@ -238,12 +315,74 @@ export function factoryProvider<T, TDeps extends readonly InjectionToken[]>(
 }
 
 /**
+ * Провайдер ресурса с типизированными зависимостями: типы аргументов
+ * `acquire` выводятся из списка `deps`, а сигнал идёт последним.
+ *
+ * @template T - Тип захваченного значения
+ * @template TDeps - Массив токенов зависимостей
+ */
+export type ResourceProviderWithDeps<
+  T,
+  TDeps extends readonly InjectionToken[],
+> = ResourceProviderDefinition<T> & {
+  acquire: (...args: [...UnwrapTokens<TDeps>, AbortSignal]) => T | Promise<T>;
+  deps: TDeps;
+};
+
+/**
+ * Создаёт провайдер ресурса.
+ *
+ * Функциональная форма ресурса: для классов чужих пакетов и для значений
+ * без класса — там же, где нужен `factoryProvider`. Контейнер зовёт
+ * `acquire` на фазе INIT в топологическом порядке и `release` на SHUTDOWN
+ * в обратном.
+ *
+ * @template T - Тип захваченного значения
+ * @template TDeps - Массив токенов зависимостей
+ * @param provide - Токен, под которым регистрируется провайдер
+ * @param definition - Зависимости, захват и освобождение
+ * @returns Определение провайдера ресурса
+ *
+ * @example
+ * ```typescript
+ * const provider = resourceProvider(Pool$, {
+ *   deps: [DbConfig],
+ *   acquire: (cfg, signal) => createPool(cfg.url, { signal }),
+ *   release: (pool) => pool.end(),
+ * });
+ * ```
+ */
+export function resourceProvider<T, TDeps extends readonly InjectionToken[]>(
+  provide: InjectionToken<T>,
+  definition: {
+    /** Токены, передаваемые в `acquire` перед сигналом */
+    readonly deps: TDeps;
+    /** Захват: последним аргументом приходит сигнал остановки старта */
+    readonly acquire: (
+      ...args: [...UnwrapTokens<TDeps>, AbortSignal]
+    ) => T | Promise<T>;
+    /** Освобождение захваченного значения */
+    readonly release: (value: T) => void | Promise<void>;
+  },
+): ResourceProviderWithDeps<T, TDeps> {
+  return {
+    provide,
+    deps: definition.deps,
+    acquire: definition.acquire,
+    release: definition.release,
+  };
+}
+
+/**
  * То, что можно зарегистрировать в контейнере: явное определение
- * провайдера или класс с декоратором `@Injectable`.
+ * провайдера или класс с декоратором роли.
  *
  * @template T - Тип значения
  */
-export type Provider<T = unknown> = ProviderDefinition<T> | Constructor<T>;
+export type Provider<T = unknown> =
+  | ProviderDefinition<T>
+  | Constructor<T>
+  | ResourceClass<T>;
 
 /**
  * Единственный рецепт для целого семейства токенов.
@@ -381,10 +520,21 @@ export const isFactoryProvider = <T>(
 ): provider is FactoryProviderDefinition<T> => 'useFactory' in provider;
 
 /**
+ * Проверяет, что определение — провайдер ресурса.
+ *
+ * @template T - Тип значения
+ * @param provider - Проверяемое определение
+ * @returns `true`, если это `ResourceProviderDefinition`
+ */
+export const isResourceDefinition = <T>(
+  provider: ProviderDefinition<T>,
+): provider is ResourceProviderDefinition<T> => 'acquire' in provider;
+
+/**
  * Токены, которые провайдер запрашивает у контейнера.
  *
  * Читает объявленное значение, ничего не вызывая: у класса зависимости
- * берутся из метаданных `@Injectable`, у определения — из `deps`. Нужна
+ * берутся из метаданных декоратора роли, у определения — из `deps`. Нужна
  * тем, кто разбирает состав приложения **до** построения графа: выбор фич
  * и карта операций считаются на фазе ASSEMBLE, когда узлов ещё нет.
  *
@@ -405,7 +555,7 @@ export function dependenciesOf(
   provider: ModuleProvider,
 ): readonly InjectionToken[] {
   if (typeof provider === 'function') {
-    return readInjectableMeta(provider)?.dependencies ?? [];
+    return readRoleMeta(provider)?.dependencies ?? [];
   }
 
   if (isFamilyDefinition(provider)) {

@@ -9,18 +9,24 @@ import { BusTransport$, implement, InProcessBus } from '../ports/index.js';
 import { transportValue } from '../transport/index.js';
 
 import { loggerProbe } from './__fixtures__/logger.js';
-import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
+import {
+  testEndpoint,
+  TestTransport$,
+  VALUE_ONLY,
+} from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeToken } from '@nestling/container';
+import { Handler, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const asTransport = (transport: MockTransport) =>
-  transportValue(TestTransport$('default'), transport);
+  transportValue(TestTransport$('default'), transport, {
+    capabilities: VALUE_ONLY,
+  });
 
 /** Шина, доставляющая за пределы процесса: вход remote-биндинга */
 class RemoteBus extends InProcessBus {
@@ -31,6 +37,7 @@ const asBus = () =>
   transportValue(BusTransport$, new RemoteBus(), {
     name: 'events',
     bus: true,
+    capabilities: VALUE_ONLY,
   });
 
 /** Токен сервиса-вызывателя: операцию зовёт провайдер, а не декларация */
@@ -49,7 +56,7 @@ const QuotasFeature = makeFeature({
   ],
 });
 
-@Injectable([ClaimQuota.caller])
+@Handler([ClaimQuota.caller])
 class PlaceOrderHandler {
   constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
 
@@ -124,7 +131,7 @@ describe('карта операций в отчёте check()', () => {
       features: [Silent],
       transports: [asTransport(new MockTransport()), asBus()],
       intercom: 'events',
-      providers: [probe.provider],
+      logger: probe.logger,
     }).assemble();
 
     await app.run();

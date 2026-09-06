@@ -22,23 +22,23 @@
 // examples/users-service/src/database.ts
 import type { Config, Logger } from '@nestling/app';
 import { Logger$ } from '@nestling/app';
-import { Injectable, OnDestroy, OnInit } from '@nestling/container';
+import { Resource } from '@nestling/container';
 
-@Injectable([AppConfig, Logger$.auto])
+@Resource([AppConfig, Logger$.auto])
 export class Database {
-  // …
-  @OnInit()
-  connect(): void {
+  static async acquire(
+    config: Config<typeof AppConfig>,
+    logger: Logger,
+    _signal: AbortSignal,
+  ): Promise<Database> {
     // В лог уходит только хост: значение поля секретное
-    this.logger.info('database connected', {
-      host: new URL(this.config.databaseUrl).host,
+    logger.info('database connected', {
+      host: new URL(config.databaseUrl).host,
     });
     // …
   }
 
-  @OnDestroy()
-  disconnect(): void {
-    this.#users = undefined;
+  release(): void {
     this.logger.info('database disconnected');
   }
 }
@@ -105,12 +105,12 @@ import type {
   ResponseContext,
 } from '@nestling/app';
 import { Logger$, makePipeline, withRequestId } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 
 /**
  * Юнит `.finally`: пишет строку аудита по завершении каждого запроса.
  */
-@Injectable([Logger$.auto])
+@Handler([Logger$.auto])
 export class AuditOutcome {
   constructor(private readonly logger: Logger) {}
 
@@ -135,8 +135,9 @@ export const observability = makePipeline()
 кладёт его в контекст полем `requestId`.
 
 `AuditOutcome` — юнит `.finally` в форме класса. Класс нужен, потому что
-юниту требуется логгер из контейнера: зависимости объявлены в
-`@Injectable`, как у любого провайдера. Метод `handle` получает три
+юниту требуется логгер из контейнера: зависимости объявлены в декораторе
+роли. Роль здесь `@Handler` — у класса есть метод `handle`; в `providers:`
+фичи он остаётся обычным узлом графа. Метод `handle` получает три
 аргумента.
 
 - `outcome` — чем закончился запрос: `completed`, `failed`,
@@ -155,8 +156,8 @@ export const observability = makePipeline()
 
 Идентификатор запроса в записи аудита есть, хотя юнит его не передаёт.
 Логгер ядра читает `requestId` из контекста запроса сам и добавляет его
-полем к каждой записи, сделанной внутри запроса. Вне запроса, например в
-`@OnInit`, поля нет.
+полем к каждой записи, сделанной внутри запроса. Вне запроса, например при
+захвате ресурса, поля нет.
 
 `observability` — слой: один вызов `makePipeline()` с цепочкой методов,
 обычное значение. Оно экспортируется и подключается к каждому endpoint'у.
@@ -223,7 +224,7 @@ curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 import type { CtxReader, Logger } from '@nestling/app';
 import { Ctx, Logger$, RequestId } from '@nestling/app';
 
-@Injectable(UsersRepository$, [Database, Logger$.auto, Ctx(RequestId)])
+@Component([Database, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
     private readonly db: Database,
@@ -258,8 +259,8 @@ export class DbUsersRepository implements UsersRepository {
 - `get()` возвращает значение или бросает ошибку с указанием причины,
   если запроса нет или переменная не объявлена в пайплайне.
 - `peek()` возвращает значение или `undefined`. Хранилище использует его,
-  потому что тот же метод может быть вызван из `@OnInit`, где запроса
-  ещё нет.
+  потому что тот же метод может быть вызван при захвате ресурса, где
+  запроса ещё нет.
 
 Хранилище кладёт `requestId` полем записи само, потому что значение ему
 нужно: это его способ прочитать контекст. Для записи логгера этого не
@@ -276,19 +277,23 @@ export class DbUsersRepository implements UsersRepository {
 ## Свой логгер
 
 Логгер ядра по умолчанию пишет в `stderr` текстом или JSON. Библиотека
-логирования подключается одним провайдером под токеном `RootLogger$`:
+логирования подключается полем `logger` корня:
 
 ```typescript
-export const appLogging = makePlugin({
-  name: 'app-logging',
-  providers: [factoryProvider(RootLogger$, () => pinoAdapter(pino()), [])],
+// app.ts
+export const app = makeApp({
+  features: [UsersFeature],
+  transports: [http()],
+  logger: pinoAdapter(pino()),
 });
 ```
 
 Замена корня меняет все члены `Logger$`: и `Logger$.auto` в сервисах, и
-записи самого ядра. Ошибки дубля нет: умолчание ядра уступает провайдеру
-приложения. Провайдер под `RootLogger$` не может зависеть от `Logger$(x)`:
-это цикл, и сборка назовёт его путь.
+записи самого ядра, включая предупреждения сборки. Значение готовое:
+корневой логгер создаётся до графа, поэтому зависеть от его узлов он не
+может — всё нужное ему передают. Второго способа объявить корень нет:
+провайдер под `RootLogger$` в `providers:` — ошибка сборки, и её текст
+называет опцию `logger`.
 
 ## Проверка
 
@@ -317,8 +322,9 @@ it('пишет запись аудита через логгер ядра', asyn
 ```
 
 `spyLogger()` из `@nestling/testing` возвращает логгер, который копит
-записи в `entries` вместо `stderr`. Подмена `RootLogger$` перехватывает
-записи всех членов `Logger$` — и сервисов, и самого ядра. Вызов
+записи в `entries` вместо `stderr`. Подмена `RootLogger$` в `overrides`
+тестового корня перехватывает записи всех членов `Logger$` — и сервисов, и
+ядра — начиная с фазы INIT. Вызов
 `testApp.call` проходит весь пайплайн, поэтому `.finally` выполняется, и
 запись аудита попадает в `spy.entries`. Каждая запись — `{ level,
 message, fields }`; поле `scope` несёт область члена семейства.

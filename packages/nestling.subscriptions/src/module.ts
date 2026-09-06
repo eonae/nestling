@@ -16,8 +16,8 @@ import { SubscriptionRegistry } from './registry.js';
 import type { Plugin } from '@nestling/app';
 import { makePlugin } from '@nestling/app';
 import type {
-  FactoryProviderDefinition,
   InjectionToken,
+  ResourceProviderDefinition,
 } from '@nestling/container';
 import type { Emitter } from '@nestling/operations';
 
@@ -65,13 +65,17 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
     ? [SubscriptionOpened.emitter, SubscriptionClosed.emitter]
     : [];
 
-  const registry: FactoryProviderDefinition<SubscriptionRegistry> = {
+  // Реестр — ресурс: он держит ленту, которую надо закрыть на SHUTDOWN.
+  // Функциональная форма, а не класс под `@Resource`: список зависимостей
+  // здесь зависит от решения композиции (`publish`), а декоратор статичен
+  const registry: ResourceProviderDefinition<SubscriptionRegistry> = {
     provide: SubscriptionRegistry,
-    useFactory: (
+    deps,
+    acquire: (
       opened?: Emitter<typeof SubscriptionOpened>,
       closed?: Emitter<typeof SubscriptionClosed>,
     ) => new SubscriptionRegistry(options, opened, closed),
-    deps,
+    release: (value: SubscriptionRegistry) => value.release(),
   };
 
   return makePlugin({

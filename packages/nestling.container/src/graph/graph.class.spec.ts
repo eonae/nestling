@@ -3,7 +3,7 @@
 import { ContainerBuilder } from '../builder/index.js';
 import { makeToken } from '../common.js';
 import { makeModule } from '../modules/index.js';
-import { classProvider, Injectable } from '../providers/index.js';
+import { classProvider, Component } from '../providers/index.js';
 
 describe('DIGraph', () => {
   interface IServiceA {}
@@ -12,10 +12,10 @@ describe('DIGraph', () => {
   const TokenA = makeToken<IServiceA>('TokenA');
   const TokenB = makeToken<IServiceB>('TokenB');
 
-  @Injectable(TokenA, [])
+  @Component([])
   class ServiceA implements IServiceA {}
 
-  @Injectable(TokenB, [TokenA] as const)
+  @Component([TokenA] as const)
   class ServiceB implements IServiceB {
     constructor(private readonly a: IServiceA) {
       void this.a;

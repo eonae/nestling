@@ -1,18 +1,17 @@
 import { makeToken } from '../common.js';
-import {
-  getLifecycleHooks,
-  OnDestroy,
-  OnInit,
-  OnStart,
-} from '../lifecycle/index.js';
+import { getLifecycleHooks, OnStart } from '../lifecycle/index.js';
 import { makeModule } from '../modules/index.js';
 import {
   classProvider,
-  Injectable,
+  Component,
+  Resource,
   valueProvider,
 } from '../providers/index.js';
 
 import { ContainerBuilder } from './container.builder.js';
+
+/** Канал остановки для фазы START: в этих тестах его никто не взводит */
+const idleSignal = (): AbortSignal => new AbortController().signal;
 
 describe('BuiltContainer', () => {
   interface IServiceA {
@@ -34,49 +33,35 @@ describe('BuiltContainer', () => {
   beforeEach(() => {
     lifecycleLog = [];
 
-    @Injectable(TokenA, [])
+    @Component([])
     class ServiceAImpl implements IServiceA {
-      value(): string {
-        return 'a';
+      constructor() {
+        lifecycleLog.push('A:new');
       }
 
-      @OnInit()
-      async initHook(): Promise<void> {
-        lifecycleLog.push('A:init');
+      value(): string {
+        return 'a';
       }
 
       @OnStart()
       async startHook(): Promise<void> {
         lifecycleLog.push('A:start');
       }
-
-      @OnDestroy()
-      async destroyHook(): Promise<void> {
-        lifecycleLog.push('A:destroy');
-      }
     }
 
-    @Injectable(TokenB, [TokenA] as const)
+    @Component([TokenA] as const)
     class ServiceBImpl implements IServiceB {
-      constructor(private readonly a: IServiceA) {}
+      constructor(private readonly a: IServiceA) {
+        lifecycleLog.push('B:new');
+      }
 
       value(): string {
         return `B(${this.a.value()})`;
       }
 
-      @OnInit()
-      async initHook(): Promise<void> {
-        lifecycleLog.push('B:init');
-      }
-
       @OnStart()
       async startHook(): Promise<void> {
         lifecycleLog.push('B:start');
-      }
-
-      @OnDestroy()
-      async destroyHook(): Promise<void> {
-        lifecycleLog.push('B:destroy');
       }
     }
 
@@ -84,35 +69,60 @@ describe('BuiltContainer', () => {
     ServiceB = ServiceBImpl;
   });
 
-  async function buildContainer() {
-    return new ContainerBuilder()
+  const buildContainer = () =>
+    new ContainerBuilder()
       .register(classProvider(TokenA, ServiceA))
       .register(classProvider(TokenB, ServiceB))
       .register(valueProvider(TokenConfig, { ready: true }))
       .build();
-  }
 
   it('возвращает зарегистрированные экземпляры через get', async () => {
-    const container = await buildContainer();
+    const container = buildContainer();
+    await container.init();
 
     expect(container.getOrThrow(TokenA).value()).toBe('a');
     expect(container.getOrThrow(TokenB).value()).toBe('B(a)');
   });
 
   it('возвращает null из get для незарегистрированного токена', async () => {
-    const container = await buildContainer();
-    const MissingToken = makeToken('Missing');
+    const container = buildContainer();
+    await container.init();
 
-    expect(container.get(MissingToken)).toBeNull();
+    expect(container.get(makeToken('Missing'))).toBeNull();
   });
 
   it('бросает ошибку в getOrThrow для незарегистрированного токена', async () => {
-    const container = await buildContainer();
-    const MissingToken = makeToken('Missing');
+    const container = buildContainer();
+    await container.init();
 
-    expect(() => container.getOrThrow(MissingToken)).toThrow(
+    expect(() => container.getOrThrow(makeToken('Missing'))).toThrow(
       "Instance for token 'Missing' not found",
     );
+  });
+
+  it('до init() get бросает ошибку фазы, а не отдаёт null', () => {
+    const container = buildContainer();
+
+    expect(() => container.get(TokenA)).toThrow(/phase INIT/);
+    expect(() => container.getOrThrow(TokenA)).toThrow(/phase INIT/);
+    expect(() => container.getById('TokenA')).toThrow(/phase INIT/);
+  });
+
+  it('ошибка фазы отличима от ошибки «токен не зарегистрирован»', () => {
+    const container = buildContainer();
+
+    expect(() => container.getOrThrow(makeToken('Missing'))).toThrow(
+      /not found/,
+    );
+    expect(() => container.getOrThrow(TokenA)).not.toThrow(/not found/);
+  });
+
+  it('has отвечает про регистрацию и до INIT, не создавая экземпляров', () => {
+    const container = buildContainer();
+
+    expect(container.has(TokenA)).toBe(true);
+    expect(container.has(makeToken('Missing'))).toBe(false);
+    expect(lifecycleLog).toEqual([]);
   });
 
   it('возвращает зарегистрированные ложные значения из getOrThrow', async () => {
@@ -126,41 +136,65 @@ describe('BuiltContainer', () => {
       .register(valueProvider(FalseToken, false))
       .build();
 
+    await container.init();
+
     expect(container.getOrThrow(ZeroToken)).toBe(0);
     expect(container.getOrThrow(EmptyToken)).toBe('');
     expect(container.getOrThrow(FalseToken)).toBe(false);
   });
 
-  it('выполняет хуки жизненного цикла в правильном порядке', async () => {
-    const container = await buildContainer();
+  it('создаёт экземпляры на init() в топологическом порядке', async () => {
+    const container = buildContainer();
+
+    expect(lifecycleLog).toEqual([]);
 
     await container.init();
-    expect(lifecycleLog).toEqual(['A:init', 'B:init']);
 
-    await container.destroy();
-    expect(lifecycleLog).toEqual([
-      'A:init',
-      'B:init',
-      'B:destroy',
-      'A:destroy',
-    ]);
+    expect(lifecycleLog).toEqual(['A:new', 'B:new']);
   });
 
-  it('выполняет хуки @OnStart в топологическом порядке после всех @OnInit', async () => {
-    const container = await buildContainer();
+  it('выполняет хуки @OnStart в топологическом порядке после INIT', async () => {
+    const container = buildContainer();
 
     await container.init();
-    await container.start();
+    await container.start(idleSignal());
 
-    expect(lifecycleLog).toEqual(['A:init', 'B:init', 'A:start', 'B:start']);
+    expect(lifecycleLog).toEqual(['A:new', 'B:new', 'A:start', 'B:start']);
+  });
+
+  it('передаёт хуку @OnStart канал остановки', async () => {
+    const Token = makeToken<unknown>('Watching');
+    let aborted = false;
+
+    @Component([])
+    class Watching {
+      @OnStart()
+      start(signal: AbortSignal): void {
+        signal.addEventListener('abort', () => {
+          aborted = true;
+        });
+      }
+    }
+
+    const shutdown = new AbortController();
+    const container = new ContainerBuilder()
+      .register(classProvider(Token, Watching))
+      .build();
+
+    await container.init();
+    await container.start(shutdown.signal);
+
+    shutdown.abort();
+
+    expect(aborted).toBe(true);
   });
 
   it('выполняет хуки @OnStart один раз при повторном start()', async () => {
-    const container = await buildContainer();
+    const container = buildContainer();
 
     await container.init();
-    await container.start();
-    await container.start();
+    await container.start(idleSignal());
+    await container.start(idleSignal());
 
     expect(lifecycleLog.filter((entry) => entry.endsWith(':start'))).toEqual([
       'A:start',
@@ -175,13 +209,15 @@ describe('BuiltContainer', () => {
       .register(valueProvider(Token, { ok: true }))
       .build();
 
-    await expect(container.start()).resolves.toBeUndefined();
+    await container.init();
+
+    await expect(container.start(idleSignal())).resolves.toBeUndefined();
   });
 
   it('пробрасывает ошибку из хука @OnStart', async () => {
     const Token = makeToken('Failing');
 
-    @Injectable(Token, [])
+    @Component([])
     class Failing {
       @OnStart()
       async startHook(): Promise<void> {
@@ -195,18 +231,83 @@ describe('BuiltContainer', () => {
 
     await container.init();
 
-    await expect(container.start()).rejects.toThrow('start failed');
+    await expect(container.start(idleSignal())).rejects.toThrow('start failed');
+  });
+
+  it('освобождает ресурсы в обратном топологическом порядке', async () => {
+    const Pool$ = makeToken<Pool>('Pool');
+
+    @Resource([])
+    class Pool {
+      static async acquire(_signal: AbortSignal): Promise<Pool> {
+        lifecycleLog.push('pool:acquire');
+        return new Pool();
+      }
+
+      release(): void {
+        lifecycleLog.push('pool:release');
+      }
+    }
+
+    @Resource([Pool$] as const)
+    class Cache {
+      static async acquire(_pool: Pool, _signal: AbortSignal): Promise<Cache> {
+        lifecycleLog.push('cache:acquire');
+        return new Cache();
+      }
+
+      release(): void {
+        lifecycleLog.push('cache:release');
+      }
+    }
+
+    const container = new ContainerBuilder()
+      .register(classProvider(Pool$, Pool))
+      .register(Cache)
+      .build();
+
+    await container.init();
+    await container.destroy();
+
+    expect(lifecycleLog).toEqual([
+      'pool:acquire',
+      'cache:acquire',
+      'cache:release',
+      'pool:release',
+    ]);
+  });
+
+  it('повторный destroy() не освобождает ресурс дважды', async () => {
+    const Pool$ = makeToken<Pool>('Pool');
+
+    @Resource([])
+    class Pool {
+      static async acquire(_signal: AbortSignal): Promise<Pool> {
+        return new Pool();
+      }
+
+      release(): void {
+        lifecycleLog.push('pool:release');
+      }
+    }
+
+    const container = new ContainerBuilder()
+      .register(classProvider(Pool$, Pool))
+      .build();
+
+    await container.init();
+    await container.destroy();
+    await container.destroy();
+
+    expect(lifecycleLog).toEqual(['pool:release']);
   });
 
   it('находит хуки у экземпляра, созданного вне контейнера', () => {
-    const hooks = getLifecycleHooks(new ServiceA());
-
-    expect(hooks.onInit).toHaveLength(1);
-    expect(hooks.onDestroy).toHaveLength(1);
+    expect(getLifecycleHooks(new ServiceA()).onStart).toHaveLength(1);
   });
 
-  it('обходит граф зависимостей', async () => {
-    const container = await buildContainer();
+  it('обходит граф зависимостей до создания экземпляров', async () => {
+    const container = buildContainer();
     const visited: string[] = [];
 
     await container.traverse((node) => {
@@ -219,13 +320,13 @@ describe('BuiltContainer', () => {
     expect(visited).toContain('TokenB');
     expect(visited).toContain('TokenConfig');
     // TokenB зависит от TokenA, поэтому TokenA идёт раньше
-    const tokenAIndex = visited.indexOf('TokenA');
-    const tokenBIndex = visited.indexOf('TokenB');
-    expect(tokenAIndex).toBeLessThan(tokenBIndex);
+    expect(visited.indexOf('TokenA')).toBeLessThan(visited.indexOf('TokenB'));
+    // И ни одного конструктора при этом не выполнено
+    expect(lifecycleLog).toEqual([]);
   });
 
-  it('перебирает узлы синхронно через forEachNode', async () => {
-    const container = await buildContainer();
+  it('перебирает узлы синхронно через forEachNode', () => {
+    const container = buildContainer();
     const visited: string[] = [];
 
     container.forEachNode((node) => {

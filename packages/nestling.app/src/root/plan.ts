@@ -10,6 +10,7 @@
  */
 
 import type { ConfigBinding } from '../config/index.js';
+import type { Logger } from '../logger/index.js';
 import type {
   AnyEndpointDefinition,
   Policy,
@@ -70,6 +71,17 @@ export interface AppSpec<
   providers?: readonly Provider[];
 
   /**
+   * Корневой логгер приложения — готовое значение.
+   *
+   * Единственный способ заменить `ConsoleLogger` ядра: провайдер под
+   * `RootLogger$` в `providers:` становится ошибкой дубля. Значение
+   * обязано быть готовым: корень существует раньше графа и потому не может
+   * зависеть от его узлов. Записи всех фаз, включая предупреждения
+   * сборки, уходят сюда, а члены `Logger$(scope)` строятся от него.
+   */
+  logger?: Logger;
+
+  /**
    * Транспорты корня — объявления экземпляров (`http()`, `cli()`,
    * `nats({ name: 'events' })`).
    */
@@ -99,7 +111,7 @@ export interface AppSpec<
    * (`everyEndpoint({ … }).hasLayer(…)`).
    *
    * Проверяются на фазе 1 ASSEMBLE, последними из fail-fast'ов сборки: до
-   * `@OnInit` не доходит ни одно нарушение. Поле опционально — приложение
+   * INIT не доходит ни одно нарушение. Поле опционально — приложение
    * без инвариантов собирается ровно как прежде.
    */
   policies?: readonly Policy[];
@@ -114,6 +126,7 @@ export const APP_SPEC_FIELDS = [
   'intercom',
   'config',
   'policies',
+  'logger',
 ] as const;
 
 /**
@@ -130,6 +143,9 @@ export interface NormalizedAppSpec {
   readonly intercom?: TransportDeclaration;
   readonly config: readonly ConfigBinding[];
   readonly policies: readonly Policy[];
+
+  /** Корневой логгер корня; без него им служит `ConsoleLogger` ядра */
+  readonly logger?: Logger;
 }
 
 /**
@@ -323,6 +339,7 @@ export function normalizeSpec(spec: AppSpec<any> = {}): NormalizedAppSpec {
     ...(intercom ? { intercom } : {}),
     config: [...(spec.config ?? [])],
     policies: [...(spec.policies ?? [])],
+    ...(spec.logger ? { logger: spec.logger } : {}),
   };
 }
 
@@ -396,7 +413,7 @@ export interface WiredEndpoint {
  * не напечатана.
  */
 export interface WiredApp {
-  /** Собранный граф: `@OnInit` выполнены, `@OnStart` — нет */
+  /** Собранный граф: экземпляры созданы и ресурсы захвачены, `@OnStart` — нет */
   readonly container: BuiltContainer;
 
   /** Endpoint'ы приложения, адресуемые по идентичности их деклараций */

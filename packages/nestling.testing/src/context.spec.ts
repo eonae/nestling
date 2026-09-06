@@ -7,7 +7,7 @@
  * ридер не подменивший, обязан видеть ровно боевую проекцию.
  */
 
-import { SpyTransport } from './__fixtures__/transport.js';
+import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { assembleTest } from './app.js';
 import { contextValue } from './context.js';
 import { unwrap } from './unwrap.js';
@@ -23,15 +23,17 @@ import {
   RequestId,
   transportValue,
 } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Component, Handler } from '@nestling/container';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: SpyTransport) =>
-  transportValue(HttpTransport$('default'), transport);
+  transportValue(HttpTransport$('default'), transport, {
+    capabilities: HTTP_LIKE,
+  });
 
 /** Глубокий сервис: контекст читает ридером, параметром его не получает */
-@Injectable([Ctx(RequestId)])
+@Component([Ctx(RequestId)])
 class AuditLog {
   constructor(private readonly requestId: CtxReader<string>) {}
 
@@ -46,7 +48,7 @@ class AuditLog {
   }
 }
 
-@Injectable([AuditLog])
+@Handler([AuditLog])
 class WhoamiHandler {
   constructor(private readonly audit: AuditLog) {}
 

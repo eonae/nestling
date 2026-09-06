@@ -1,6 +1,6 @@
 # 5. Откуда хендлер берёт репозиторий
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Token families + модули
@@ -45,7 +45,7 @@ export interface UsersRepository {
 
 ```typescript
 // examples/users-service/src/users/endpoints/get-user.endpoint.ts
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
 
@@ -63,10 +63,10 @@ export const GetUser = httpEndpoint({
 });
 ```
 
-`@Injectable([UsersRepository$])` перечисляет зависимости класса явным
-списком токенов. Порядок списка совпадает с порядком аргументов
-конструктора, а тип аргумента сверяется с типом токена: поставить в
-конструктор аргумент другого типа не получится.
+`@Handler([UsersRepository$])` объявляет роль класса и перечисляет его
+зависимости явным списком токенов. Порядок списка совпадает с порядком
+аргументов конструктора, а тип аргумента сверяется с типом токена:
+поставить в конструктор аргумент другого типа не получится.
 
 Декоратор здесь стандартный, из ECMAScript. Список токенов записан
 значением, поэтому `reflect-metadata` и `emitDecoratorMetadata` не нужны
@@ -85,7 +85,7 @@ export const GetUser = httpEndpoint({
 
 ```typescript
 // examples/users-service/src/users/users.repository.ts
-@Injectable(UsersRepository$, [Database, Logger$.auto, Ctx(RequestId)])
+@Component([Database, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
     private readonly db: Database,
@@ -103,14 +103,19 @@ export class DbUsersRepository implements UsersRepository {
 }
 ```
 
-У `@Injectable` три формы. `@Injectable()` — класс без зависимостей.
-`@Injectable([deps])` регистрирует класс под его же именем: так объявлен
-`Database`. `@Injectable(token, [deps])` регистрирует класс под токеном:
-контейнер отдаёт `DbUsersRepository` тому, кто запросил
-`UsersRepository$`. Имя реализации говорит, как она реализована:
-`DbUsersRepository` для базы, `inMemoryUsersRepo` для фейка
-([conventions.md](../conventions.md)). Зависимость `Ctx(RequestId)`
-читает идентификатор запроса из контекста.
+Декоратор называет **роль** класса, а не способность быть зависимостью.
+Ролей три: `@Component` — обычный класс, `@Resource` — то, что надо
+захватить и отпустить, `@Handler` — класс с методом `handle`. Форму класса
+проверяет компилятор: метод `handle` у компонента и `static acquire` у
+хендлера не компилируются.
+
+Токена декоратор не принимает: класс регистрируется под собственным
+именем. Чтобы контейнер отдавал `DbUsersRepository` тому, кто запросил
+`UsersRepository$`, привязку пишут в `providers:` фичи —
+`classProvider(UsersRepository$, DbUsersRepository)`. Имя реализации
+говорит, как она реализована: `DbUsersRepository` для базы,
+`inMemoryUsersRepo` для фейка ([conventions.md](../conventions.md)).
+Зависимость `Ctx(RequestId)` читает идентификатор запроса из контекста.
 
 Фича перечисляет провайдеры, которые создаёт контейнер, — сервисы и
 классы-юниты пайплайна:
@@ -119,7 +124,12 @@ export class DbUsersRepository implements UsersRepository {
 // examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
-  providers: [Database, DbUsersRepository, AuditOutcome, Authenticate],
+  providers: [
+    Database,
+    classProvider(UsersRepository$, DbUsersRepository),
+    AuditOutcome,
+    Authenticate,
+  ],
   endpoints: [
     ListUsers,
     GetUser,
@@ -134,7 +144,7 @@ export const UsersFeature = makeFeature({
 
 Классов-хендлеров здесь нет: их регистрируют сами endpoint'ы.
 
-## Зависимость зависимости и хуки
+## Зависимость зависимости и ресурсы
 
 Репозиторию нужна база, базе нужны конфиг и логгер. Ни один потребитель
 этого не собирает: контейнер строит граф целиком и проверяет его целиком
@@ -142,52 +152,53 @@ export const UsersFeature = makeFeature({
 недостающих токенов, цикл зависимостей тоже её останавливает. Во время
 обработки запросов контейнер ничего не резолвит.
 
+База держит соединение, а соединение надо открыть и закрыть. Это и есть
+ресурс:
+
 ```typescript
 // examples/users-service/src/database.ts
-@Injectable([AppConfig, Logger$.auto])
+@Resource([AppConfig, Logger$.auto])
 export class Database {
-  #users: User[] | undefined;
-
-  constructor(
-    private readonly config: Config<typeof AppConfig>,
-    private readonly logger: Logger,
-  ) {}
-
-  @OnInit()
-  connect(): void {
+  static async acquire(
+    config: Config<typeof AppConfig>,
+    logger: Logger,
+    _signal: AbortSignal,
+  ): Promise<Database> {
     // В лог уходит только хост: значение поля секретное
-    this.logger.info('database connected', {
-      host: new URL(this.config.databaseUrl).host,
+    logger.info('database connected', {
+      host: new URL(config.databaseUrl).host,
     });
-    this.#users = [
+
+    return new Database(logger, [
       { id: '1', name: 'Alice', email: 'alice@example.com' },
       { id: '2', name: 'Bob', email: 'bob@example.com' },
-    ];
+    ]);
   }
 
-  @OnDestroy()
-  disconnect(): void {
-    this.#users = undefined;
+  private constructor(
+    private readonly logger: Logger,
+    /** Таблица пользователей */
+    readonly users: User[],
+  ) {}
+
+  release(): void {
+    this.users.length = 0;
     this.logger.info('database disconnected');
-  }
-
-  /** Таблица пользователей */
-  get users(): User[] {
-    if (!this.#users) {
-      throw new Error('Database is not connected: @OnInit has not run yet');
-    }
-
-    return this.#users;
   }
 }
 ```
 
-Хук `@OnInit` вызывается после того, как создан весь граф, и только
-после того, как выполнены зависимости узла; `@OnDestroy` вызывается при
-остановке в обратном порядке, до их разрушения. Соединение открывается в
-хуке, а не в конструкторе: конструктор только принимает зависимости, и до
-`@OnInit` его сосед по графу может быть ещё не готов. В примере вместо
-соединения — таблица в памяти.
+Экземпляр создаёт `static acquire`, а не конструктор: захват асинхронен и
+может провалиться, а конструктор ни того, ни другого не умеет. Зависимости
+приходят в `acquire` в порядке списка, последним аргументом — сигнал
+остановки старта: если процесс сворачивают во время захвата, соединение
+можно не открывать. `release` вызывается на остановке, в порядке,
+обратном захвату.
+
+Отсюда главное свойство: потребитель ресурса создаётся **после** захвата и
+получает готовое значение. Поэтому у `users` нет ни `| undefined`, ни
+геттера с проверкой — состояния «ещё не подключились» у поля просто нет. В
+примере вместо соединения — таблица в памяти.
 
 ## Провайдеры без класса
 
@@ -210,8 +221,10 @@ providers: [
 зависимостями. Собственные зависимости фабрики перечисляются третьим
 аргументом: контейнер их создаёт и передаёт в том же порядке. Списки
 зависимостей типизированы: аргумент другого типа, чем токен в той же
-позиции, не компилируется — как для `deps` фабрики, так и для
-`@Injectable` класса. Инжектировать при этом можно
+позиции, не компилируется — как для `deps` фабрики, так и для декоратора
+роли. Соединение чужой библиотеки объявляют
+`resourceProvider(token, { deps, acquire, release })`: та же пара захвата и
+освобождения, только без класса. Инжектировать при этом можно
 только токен, который удалось импортировать: инкапсуляция держится на
 экспортах ES-модулей, а не на механизме времени выполнения.
 

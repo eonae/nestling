@@ -6,8 +6,6 @@
  * его.
  */
 
-import type { CtxReader } from '../pipeline/core/context/index.js';
-import { makeCtxReader } from '../pipeline/core/context/reader.js';
 import { makeCell, runInScope } from '../pipeline/core/context/store.js';
 
 import { ConsoleLogger, defaultLogger } from './console.js';
@@ -248,10 +246,10 @@ describe('ConsoleLogger: формат text', () => {
 });
 
 describe('ConsoleLogger: идентификатор запроса', () => {
-  const reader = makeCtxReader('requestId') as CtxReader<string>;
-
+  // Логгер читает `requestId` из ambient-контекста напрямую: корень
+  // существует раньше графа, поэтому узла-ридера у него нет
   it('внутри области запроса запись несёт requestId', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' }, reader);
+    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
     const cell = makeCell(new AbortController().signal, {
       requestId: 'req-42',
     });
@@ -262,7 +260,7 @@ describe('ConsoleLogger: идентификатор запроса', () => {
   });
 
   it('поле вызова важнее значения из контекста', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' }, reader);
+    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
     const cell = makeCell(new AbortController().signal, {
       requestId: 'req-42',
     });
@@ -275,7 +273,7 @@ describe('ConsoleLogger: идентификатор запроса', () => {
   });
 
   it('вне запроса поля нет', () => {
-    const logger = new ConsoleLogger({ level: 'info', format: 'json' }, reader);
+    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
 
     expect(single(() => logger.info('started'))).not.toHaveProperty(
       'requestId',
@@ -283,10 +281,9 @@ describe('ConsoleLogger: идентификатор запроса', () => {
   });
 
   it('дочерний логгер читает тот же контекст', () => {
-    const child = new ConsoleLogger(
-      { level: 'info', format: 'json' },
-      reader,
-    ).child({ scope: 'users' });
+    const child = new ConsoleLogger({ level: 'info', format: 'json' }).child({
+      scope: 'users',
+    });
     const cell = makeCell(new AbortController().signal, { requestId: 'req-1' });
 
     const record = single(() => runInScope(cell, () => child.info('x')));

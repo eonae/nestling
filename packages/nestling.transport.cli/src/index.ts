@@ -215,7 +215,7 @@ export interface CliTransportOptions {
  * был бы нормальным завершением. `multipart` нет: файлы приходят путями в
  * аргументах, а не полями формы.
  */
-const CLI_CAPABILITIES: TransportCapabilities = {
+export const CLI_CAPABILITIES: TransportCapabilities = {
   input: new Set(['value', 'stream']),
   output: new Set(['value', 'stream']),
 };
@@ -230,9 +230,6 @@ const CLI_CAPABILITIES: TransportCapabilities = {
  * своей копии исполнения у транспорта нет.
  */
 export class CliTransport implements ITransport {
-  /** Способности транспорта: читает `assertFormsSupported` на сборке */
-  readonly capabilities: TransportCapabilities = CLI_CAPABILITIES;
-
   /** Диспетчер, полученный в `serve`; до этого исполнять нечего */
   #dispatch?: Dispatch;
 
@@ -266,7 +263,7 @@ export class CliTransport implements ITransport {
     }
 
     for (const route of dispatch.routes) {
-      assertFormsSupported(route, this.capabilities);
+      assertFormsSupported(route, CLI_CAPABILITIES);
     }
 
     this.#dispatch = dispatch;
@@ -551,6 +548,7 @@ export const cli = <const Name extends string = typeof DEFAULT_INSTANCE>(
   const token = CliTransport$(name);
 
   return makeTransportDeclaration({
+    capabilities: CLI_CAPABILITIES,
     name,
     token,
     provider: factoryProvider(

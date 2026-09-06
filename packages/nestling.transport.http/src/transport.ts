@@ -109,9 +109,11 @@ export interface HttpTransportOptions {
  * WebSocket-транспорта. `multipart` на выходе нет: эта форма только
  * входная.
  *
- * Это же значение отдаёт `HttpTransport.capabilities`. Транспорт поверх
- * другого HTTP-сервера объявляет свои формы им, а не повторяет литерал:
- * копия разошлась бы с пакетом при следующей правке.
+ * Одна константа на пакет и два её потребителя: объявление `http()` — его
+ * читает проверка форм на фазе ASSEMBLE — и `serve`, который сверяет
+ * маршруты на standalone-пути. Транспорт поверх другого HTTP-сервера
+ * объявляет свои формы ею же, а не повторяет литерал: копия разошлась бы с
+ * пакетом при следующей правке.
  */
 export const HTTP_CAPABILITIES: TransportCapabilities = {
   input: new Set(['value', 'stream', 'multipart']),
@@ -126,12 +128,6 @@ export const HTTP_CAPABILITIES: TransportCapabilities = {
  * Endpoint исполняет ядро; своей логики исполнения у транспорта нет.
  */
 export class HttpTransport implements ITransport {
-  /**
-   * Поддерживаемые формы io. Их читает `assertFormsSupported` до приёма
-   * первого запроса.
-   */
-  readonly capabilities: TransportCapabilities = HTTP_CAPABILITIES;
-
   private readonly router: HttpRouter;
   private server?: Server;
 
@@ -188,7 +184,7 @@ export class HttpTransport implements ITransport {
     }
 
     for (const route of dispatch.routes) {
-      assertFormsSupported(route, this.capabilities);
+      assertFormsSupported(route, HTTP_CAPABILITIES);
       this.router.route(route);
     }
 
@@ -626,6 +622,7 @@ export const http = <const Name extends string = typeof DEFAULT_INSTANCE>(
   return makeTransportDeclaration({
     name,
     token,
+    capabilities: HTTP_CAPABILITIES,
     provider: factoryProvider(
       token,
       (config: HttpConfigValues) =>

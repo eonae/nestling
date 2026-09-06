@@ -57,12 +57,16 @@ const enumeration = <T extends string>(
   },
 });
 
+/** Префикс секции логгера ядра */
+export const NESTLING_LOG_PREFIX = 'nestlingLog';
+
 /**
  * Секция конфигурации логгера: `NESTLING_LOG_LEVEL` и `NESTLING_LOG_FORMAT`.
  *
- * @internal Инжектится `ConsoleLogger`; наружу отдаётся только `.keys`
+ * @internal Проецируется на фазе 0 корневым логгером; наружу отдаётся
+ * только `.keys`
  */
-export const NestlingLogConfig = makeConfig('nestlingLog', {
+export const NestlingLogConfig = makeConfig(NESTLING_LOG_PREFIX, {
   level: enumeration(LEVELS, 'info'),
   format: enumeration(FORMATS, 'text'),
 });

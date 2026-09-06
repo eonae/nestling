@@ -1,6 +1,7 @@
 /**
  * Секция как узел графа: создаётся при инжекте, участвует в топологическом
- * порядке сборки, проходит fail-fast валидацию в `build()`.
+ * порядке сборки, проходит fail-fast валидацию на сборке — рецепт семейства
+ * отдаёт готовое значение, а не фабрику для фазы INIT.
  */
 
 import { from } from './declaration.js';
@@ -12,7 +13,7 @@ import { makeConfig } from './section.js';
 import { objectSource } from './source.js';
 
 import type { BuiltContainer } from '@nestling/container';
-import { ContainerBuilder, Injectable, makeToken } from '@nestling/container';
+import { Component, ContainerBuilder, makeToken } from '@nestling/container';
 import { z } from 'zod';
 
 const OrdersConfig = makeConfig('orders', {
@@ -22,12 +23,18 @@ const OrdersConfig = makeConfig('orders', {
 
 const LonelyConfig = makeConfig('lonely', { value: z.string().optional() });
 
-@Injectable([OrdersConfig])
+@Component([OrdersConfig])
 class OrdersService {
   constructor(readonly cfg: Config<typeof OrdersConfig>) {}
 }
 
-/** Ловит отказ сборки, оставляя тип ошибки конкретным. */
+/**
+ * Ловит отказ сборки, оставляя тип ошибки конкретным.
+ *
+ * Секция — провайдер значения: `build()` вычисляет проекцию сразу, и
+ * ошибка секции доходит наружу как есть — рецепт семейства её не
+ * оборачивает.
+ */
 const buildFailure = async (
   values: Record<string, unknown>,
   register?: (builder: ContainerBuilder) => void,
@@ -41,6 +48,7 @@ const buildFailure = async (
   throw new Error('build() succeeded, expected ConfigValidationError');
 };
 
+/** Собирает граф; секции уже провалидированы, экземпляры — после `init()`. */
 const build = async (
   values: Record<string, unknown>,
   register: (builder: ContainerBuilder) => void = (builder) => {
@@ -53,7 +61,10 @@ const build = async (
   );
   register(builder);
 
-  return builder.build();
+  const container = builder.build();
+  await container.init();
+
+  return container;
 };
 
 describe('создание секции', () => {
@@ -111,9 +122,12 @@ describe('создание секции', () => {
 
 describe('fail-fast на сборке', () => {
   it('невалидное значение роняет build()', async () => {
-    await expect(
-      build({ ORDERS_MAX_ITEMS: 'abc', DATABASE_URL: 'postgres://x' }),
-    ).rejects.toThrow(ConfigValidationError);
+    const failure = await buildFailure({
+      ORDERS_MAX_ITEMS: 'abc',
+      DATABASE_URL: 'postgres://x',
+    });
+
+    expect(failure).toBeInstanceOf(ConfigValidationError);
   });
 
   it('называет все проваленные поля разом, а не первое', async () => {
@@ -123,7 +137,7 @@ describe('fail-fast на сборке', () => {
       gamma: z.coerce.number(),
     });
 
-    @Injectable([ThreeFields])
+    @Component([ThreeFields])
     class Consumer {
       constructor(readonly cfg: Config<typeof ThreeFields>) {}
     }

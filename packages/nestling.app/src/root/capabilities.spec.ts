@@ -17,6 +17,7 @@ import {
   ALL_FORMS,
   testEndpoint,
   TestTransport$,
+  VALUE_ONLY,
 } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
@@ -32,8 +33,11 @@ async function* noTicks(): AsyncIterableIterator<{ at: string }> {
 }
 
 /** Объявляет готовый инстанс транспорта экземпляром по умолчанию */
-const asTransport = (token: TransportRef, transport: ITransport) =>
-  transportValue(token, transport);
+const asTransport = (
+  token: TransportRef,
+  transport: ITransport,
+  capabilities = VALUE_ONLY,
+) => transportValue(token, transport, { capabilities });
 
 describe('capability-валидация через assemble', () => {
   it('форма вне способностей падает на сборке, называя endpoint, единицу, слот и форму', async () => {
@@ -80,11 +84,13 @@ describe('capability-валидация через assemble', () => {
       handler: async () => new Ok(noTicks()),
     });
 
-    const transport = new MockTransport(undefined, ALL_FORMS);
+    const transport = new MockTransport();
 
     const app = makeApp({
       features: [makeFeature({ name: 'module:export', endpoints: [Export] })],
-      transports: [asTransport(TestTransport$('default'), transport)],
+      transports: [
+        asTransport(TestTransport$('default'), transport, ALL_FORMS),
+      ],
     }).assemble();
 
     await app.run();

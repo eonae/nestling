@@ -2,8 +2,8 @@ import { ContainerBuilder } from '../builder/index.js';
 import type { Token } from '../common.js';
 import { makeToken } from '../common.js';
 
-import { Injectable } from './injectable.decorator.js';
-import { readInjectableMeta } from './injectable.metadata.js';
+import { Component } from './role.decorators.js';
+import { readRoleMeta } from './role.metadata.js';
 import { familyOf, isTokenFamily, makeTokenFamily } from './token-family.js';
 import {
   factoryProvider,
@@ -94,13 +94,13 @@ describe('токен Family.all', () => {
     // изменяемым массивом не скомпилируется.
     const token: Token<readonly ILoggerService[]> = ILogger.all;
 
-    @Injectable([ILogger.all])
+    @Component([ILogger.all])
     class Aggregator {
       constructor(readonly loggers: readonly ILoggerService[]) {}
     }
 
     expect(token).toBe(ILogger.all);
-    expect(readInjectableMeta(Aggregator)?.dependencies).toEqual([ILogger.all]);
+    expect(readRoleMeta(Aggregator)?.dependencies).toEqual([ILogger.all]);
   });
 
   it('не является членом семейства', () => {
@@ -130,7 +130,7 @@ describe('член семейства как обычный токен', () => {
       'PlainLogger',
     );
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class UserService {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -139,6 +139,8 @@ describe('член семейства как обычный токен', () => {
       .register(valueProvider(ILogger('users'), makeLogger('users')))
       .register(UserService)
       .build();
+
+    await container.init();
 
     const logger = container.getOrThrow(ILogger('users'));
     const service = container.getOrThrow(UserService);
@@ -164,21 +166,21 @@ describe('член семейства как обычный токен', () => {
       )
       .build();
 
+    await container.init();
+
     expect(container.getOrThrow(IReporter)).toBe('db');
   });
 
-  it('записывает токен члена в метаданные @Injectable', () => {
+  it('записывает токен члена в метаданные @Component', () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'MetaLogger',
     );
 
-    @Injectable([ILogger('meta')])
+    @Component([ILogger('meta')])
     class MetaService {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    expect(readInjectableMeta(MetaService)?.dependencies).toEqual([
-      ILogger('meta'),
-    ]);
+    expect(readRoleMeta(MetaService)?.dependencies).toEqual([ILogger('meta')]);
   });
 });

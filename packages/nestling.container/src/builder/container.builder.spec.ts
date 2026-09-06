@@ -5,8 +5,8 @@ import { makeModule } from '../modules/index.js';
 import type { ModuleProvider } from '../providers/index.js';
 import {
   classProvider,
+  Component,
   factoryProvider,
-  Injectable,
   valueProvider,
 } from '../providers/index.js';
 
@@ -44,7 +44,7 @@ describe('ContainerBuilder', () => {
   const TokenC = makeToken<IServiceC>('TokenC');
   const TokenConfig = makeToken<{ feature: boolean }>('TokenConfig');
 
-  @Injectable(TokenA, [])
+  @Component([])
   class ServiceA implements IServiceA {
     readonly id = 'A';
 
@@ -53,7 +53,7 @@ describe('ContainerBuilder', () => {
     }
   }
 
-  @Injectable(TokenB, [TokenA] as const)
+  @Component([TokenA] as const)
   class ServiceB implements IServiceB {
     constructor(private readonly a: IServiceA) {}
 
@@ -62,7 +62,7 @@ describe('ContainerBuilder', () => {
     }
   }
 
-  @Injectable(TokenC, [TokenA, TokenB] as const)
+  @Component([TokenA, TokenB] as const)
   class ServiceC implements IServiceC {
     constructor(
       private readonly a: IServiceA,
@@ -75,12 +75,14 @@ describe('ContainerBuilder', () => {
   }
 
   describe('регистрация провайдеров', () => {
-    it('собирает контейнер синхронно, без ожидания', () => {
+    it('собирает контейнер синхронно, без ожидания', async () => {
       const container = new ContainerBuilder()
         .register(classProvider(TokenA, ServiceA))
         .build();
 
       expect(container).not.toBeInstanceOf(Promise);
+
+      await container.init();
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
@@ -88,6 +90,8 @@ describe('ContainerBuilder', () => {
       const container = new ContainerBuilder()
         .register(classProvider(TokenA, ServiceA))
         .build();
+
+      await container.init();
 
       const instance = container.getOrThrow(TokenA);
       expect(instance.id).toBe('A');
@@ -100,6 +104,8 @@ describe('ContainerBuilder', () => {
       const container = new ContainerBuilder()
         .register(valueProvider(TokenConfig, config))
         .build();
+
+      await container.init();
 
       expect(container.get(TokenConfig)).toBe(config);
     });
@@ -118,11 +124,12 @@ describe('ContainerBuilder', () => {
         .register(provider)
         .build();
 
-      const instance = container.getOrThrow(TokenB);
-      expect(instance.b()).toBe('factory(a)');
+      await container.init();
+
+      expect(container.getOrThrow(TokenB).b()).toBe('factory(a)');
     });
 
-    it('отвергает асинхронную фабрику провайдера, называя токен', () => {
+    it('отвергает асинхронную фабрику провайдера, называя токен', async () => {
       // Литерал провайдера типом не закрывается: `Module.providers` и
       // `register` принимают значение `unknown`, поэтому асинхронную
       // фабрику ловит только рантайм-проверка сборки
@@ -137,31 +144,34 @@ describe('ContainerBuilder', () => {
         deps: [TokenA] as const,
       };
 
-      const builder = new ContainerBuilder()
+      const container = new ContainerBuilder()
         .register(classProvider(TokenA, ServiceA))
-        .register(asyncProvider);
+        .register(asyncProvider)
+        .build();
 
-      expect(() => builder.build()).toThrow(
+      await expect(container.init()).rejects.toThrow(
         /Factory of provider 'TokenB' returned a Promise/,
       );
     });
 
-    it('называет место захвата внешнего мира в ошибке фабрики', () => {
+    it('называет место захвата внешнего мира в ошибке фабрики', async () => {
       const asyncProvider = {
         provide: TokenB,
         useFactory: async () => ({ b: () => 'async' }) satisfies IServiceB,
         deps: [] as const,
       };
 
-      const builder = new ContainerBuilder().register(asyncProvider);
+      const container = new ContainerBuilder().register(asyncProvider).build();
 
-      expect(() => builder.build()).toThrow(/@OnInit/);
+      await expect(container.init()).rejects.toThrow(/@Resource/);
     });
 
-    it('регистрирует класс с @Injectable без явного определения', async () => {
+    it('регистрирует класс с декоратором роли под его собственным токеном', async () => {
       const container = new ContainerBuilder().register(ServiceA).build();
 
-      expect(container.getOrThrow(TokenA).a()).toBe('a');
+      await container.init();
+
+      expect(container.getOrThrow(ServiceA).a()).toBe('a');
     });
 
     it('принимает модули и провайдеры в цепочке register()', async () => {
@@ -174,6 +184,8 @@ describe('ContainerBuilder', () => {
         .register(ModuleA, classProvider(TokenB, ServiceB))
         .register(classProvider(TokenC, ServiceC))
         .build();
+
+      await container.init();
 
       expect(container.getOrThrow(TokenC).c()).toBe('C(B(a), a)');
     });
@@ -227,6 +239,7 @@ describe('ContainerBuilder', () => {
       });
 
       const container = new ContainerBuilder().register(ModuleB).build();
+      await container.init();
 
       expect(container.getOrThrow(TokenB).b()).toBe('B(a)');
     });
@@ -247,6 +260,8 @@ describe('ContainerBuilder', () => {
         .build();
 
       expect(factoryCalls).toEqual(['sync']);
+
+      await container.init();
       expect(container.get(TokenConfig)).toEqual({ feature: true });
     });
 
@@ -313,6 +328,8 @@ describe('ContainerBuilder', () => {
         .build();
 
       expect(factoryRuns).toBe(1);
+
+      await container.init();
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
 
@@ -333,6 +350,8 @@ describe('ContainerBuilder', () => {
       const container = new ContainerBuilder().register(Left, Right).build();
 
       expect(factoryRuns).toBe(1);
+
+      await container.init();
       expect(container.getOrThrow(TokenA).id).toBe('A');
     });
 
@@ -345,6 +364,7 @@ describe('ContainerBuilder', () => {
       Left.dependsOn = [Right];
 
       const container = new ContainerBuilder().register(Left).build();
+      await container.init();
 
       expect(container.getOrThrow(TokenA).a()).toBe('a');
     });
@@ -378,14 +398,14 @@ describe('ContainerBuilder', () => {
   });
 
   describe('проверки и ошибки', () => {
-    it('отклоняет класс без @Injectable', () => {
+    it('отклоняет класс без декоратора роли, называя позицию', () => {
       // eslint-disable-next-line @typescript-eslint/no-extraneous-class
       class PlainClass {}
 
       const builder = new ContainerBuilder();
 
       expect(() => builder.register(PlainClass)).toThrow(
-        'Class PlainClass is missing @Injectable decorator',
+        /Class 'PlainClass' listed in 'providers:' has no role decorator.*factoryProvider or resourceProvider/s,
       );
     });
 
@@ -405,14 +425,14 @@ describe('ContainerBuilder', () => {
       const TokenX = makeToken<IServiceX>('TokenX');
       const TokenY = makeToken<IServiceY>('TokenY');
 
-      @Injectable(TokenX, [TokenY] as const)
+      @Component([TokenY] as const)
       class ServiceX implements IServiceX {
         constructor(private readonly y: IServiceY) {
           void this.y;
         }
       }
 
-      @Injectable(TokenY, [TokenX] as const)
+      @Component([TokenX] as const)
       class ServiceY implements IServiceY {
         constructor(private readonly x: IServiceX) {
           void this.x;
@@ -424,7 +444,7 @@ describe('ContainerBuilder', () => {
         .register(classProvider(TokenY, ServiceY));
 
       expect(() => builder.build()).toThrow(
-        "Circular dependency detected while instantiating 'TokenX'",
+        /Cycles detected in the graph:\nCycle 1:(?: Token[XY] →){2} Token[XY]/,
       );
     });
   });

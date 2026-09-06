@@ -5,11 +5,21 @@ import type { DIGraph, DINode, JsonDIGraph } from '../graph/index.js';
 import type { VisitCallback, VisitOptions } from '@common/graphs';
 
 /**
- * Собранный контейнер с созданными экземплярами.
+ * Текст ошибки обращения к значению до фазы INIT.
  *
- * Контейнер неизменяем: он отдаёт экземпляры, выполняет хуки жизненного
- * цикла и обходит граф зависимостей. Регистрировать что-то после сборки
- * нельзя.
+ * `null` здесь не годится: он означает «токен не зарегистрирован» и о фазе
+ * ничего не говорит. Проверить регистрацию без экземпляра умеет `has()`.
+ */
+const phaseErrorMessage = (token: string): string =>
+  `Instance for token '${token}' does not exist yet: instances are created in phase INIT, ` +
+  `and init() has not completed. Assembly-phase checks use has(token) instead.`;
+
+/**
+ * Собранный контейнер: граф провайдеров и слоты их значений.
+ *
+ * Контейнер неизменяем: регистрировать что-то после сборки нельзя.
+ * `build()` проверил граф и не создал ни одного экземпляра — значения
+ * появляются в `init()`, целиком и в топологическом порядке.
  *
  * @example
  * ```typescript
@@ -35,6 +45,9 @@ export class BuiltContainer {
    */
   readonly #nodeIds: ReadonlyMap<InjectionToken, string>;
 
+  /** Значения созданы: до этого аксессоры бросают ошибку фазы */
+  #initialized = false;
+
   /** Хуки `@OnStart` выполняются один раз, а не при каждом `start()` */
   #started = false;
 
@@ -55,7 +68,7 @@ export class BuiltContainer {
    * подмены из `overrides`.
    *
    * Без `overrides` список пуст. Он нужен, чтобы на вопрос «почему мой
-   * `@OnInit` не выполнился» отвечали данные, а не чтение исходников.
+   * ресурс не захватился» отвечали данные, а не чтение исходников.
    */
   get pruned(): readonly string[] {
     return this.#pruned;
@@ -64,55 +77,92 @@ export class BuiltContainer {
   /**
    * Предупреждения сборки: сегодня это совпадающие идентификаторы токенов.
    *
-   * Билдер ничего не печатает: во время `build()` логгера ещё нет, он сам
-   * узел графа. Сборка приложения пишет список в логгер после `build()`;
-   * без неё список читают руками. Без предупреждений список пуст.
+   * Билдер ничего не печатает: во время `build()` логгера у него нет.
+   * Сборка приложения пишет список в корневой логгер после `build()`; без
+   * неё список читают руками. Без предупреждений список пуст.
    */
   get warnings(): readonly string[] {
     return this.#warnings;
   }
 
   /**
-   * Выполняет хуки `@OnInit` всех провайдеров.
+   * Фаза INIT: создаёт значения всех узлов в топологическом порядке.
    *
-   * Порядок топологический: сначала зависимости, потом те, кто от них
-   * зависит.
+   * Компонент конструируется, значение отдаётся как есть, фабрика
+   * вызывается, ресурс захватывается `await acquire`. Потребитель ресурса
+   * получает в конструктор уже захваченное значение.
    *
-   * @throws {Error} Если любой хук бросил ошибку
+   * Провал захвата взводит сигнал `acquire` и освобождает уже захваченное
+   * в обратном топологическом порядке; старт падает исходной ошибкой, а
+   * ошибки `release` прикладываются к ней. Повторный вызов ничего не
+   * создаёт заново.
+   *
+   * @param signal - Сигнал остановки старта; уходит последним аргументом
+   * `acquire`
+   * @throws {Error} Если конструктор, фабрика или `acquire` бросили
    *
    * @example
    * ```typescript
    * const container = builder.build();
-   * await container.init(); // все хуки @OnInit
+   * await container.init();
    * ```
    */
-  async init(): Promise<void> {
-    await this.#graph.traverse(
-      async (node) => {
-        await node.runInitHooks();
-      },
-      { direction: 'topological' },
-    );
+  async init(signal?: AbortSignal): Promise<void> {
+    if (this.#initialized) {
+      return;
+    }
+
+    // Собственный контроллер, а не переданный сигнал: провал захвата обязан
+    // свернуть захваты, которые ещё идут, а чужим каналом остановки
+    // контейнер не распоряжается
+    const acquisition = new AbortController();
+    const forward = (): void => acquisition.abort(signal?.reason);
+
+    signal?.addEventListener('abort', forward, { once: true });
+
+    const acquired: DINode[] = [];
+
+    try {
+      await this.#graph.traverse(
+        async (node) => {
+          await (node as DINode).instantiate(acquisition.signal);
+
+          if ((node as DINode).isResource) {
+            acquired.push(node as DINode);
+          }
+        },
+        { direction: 'topological' },
+      );
+    } catch (error) {
+      acquisition.abort();
+      await rollback(acquired, error);
+      throw error;
+    } finally {
+      signal?.removeEventListener('abort', forward);
+    }
+
+    this.#initialized = true;
   }
 
   /**
-   * Выполняет хуки `@OnStart` всех провайдеров.
+   * Фаза START: выполняет хуки `@OnStart` всех узлов.
    *
-   * Порядок топологический, как в `init()`: хук видит свои зависимости
-   * уже запущенными. Сама фаза идёт после `init()` всего графа и после
-   * WIRE; этим `@OnStart` отличается от `@OnInit`.
+   * Порядок топологический, как в `init()`: хук видит свои зависимости уже
+   * запущенными. Аргументом хук получает сигнал остановки — тот же, что
+   * получают транспорты в `serve`.
    *
    * Повторный вызов ничего не делает.
    *
+   * @param signal - Канал остановки, передаваемый хукам
    * @throws {Error} Если любой хук бросил ошибку
    *
    * @example
    * ```typescript
-   * await container.init();
-   * await container.start(); // все хуки @OnStart
+   * await container.init(signal);
+   * await container.start(signal);
    * ```
    */
-  async start(): Promise<void> {
+  async start(signal: AbortSignal): Promise<void> {
     if (this.#started) {
       return;
     }
@@ -120,29 +170,30 @@ export class BuiltContainer {
 
     await this.#graph.traverse(
       async (node) => {
-        await node.runStartHooks();
+        await (node as DINode).runStartHooks(signal);
       },
       { direction: 'topological' },
     );
   }
 
   /**
-   * Выполняет хуки `@OnDestroy` всех провайдеров.
+   * Фаза SHUTDOWN: освобождает ресурсы в обратном топологическом порядке.
    *
-   * Порядок обратный топологическому: сначала зависимые, потом их
-   * зависимости.
+   * Компонентам вызова не достаётся: освобождать им нечего. `release`
+   * каждого ресурса выполняется ровно один раз, поэтому повторный вызов
+   * ничего не повторяет.
    *
-   * @throws {Error} Если любой хук бросил ошибку
+   * @throws {Error} Если любой `release` бросил ошибку
    *
    * @example
    * ```typescript
-   * await container.destroy(); // все хуки @OnDestroy
+   * await container.destroy();
    * ```
    */
   async destroy(): Promise<void> {
     await this.#graph.traverse(
       async (node) => {
-        await node.runDestroyHooks();
+        await (node as DINode).release();
       },
       { direction: 'reverse-topological' },
     );
@@ -151,27 +202,46 @@ export class BuiltContainer {
   /**
    * Возвращает экземпляр по токену.
    *
-   * Не бросает ошибок: для незарегистрированного токена возвращает `null`.
-   * Зарегистрированное значение `null` или `undefined` неотличимо от
-   * незарегистрированного токена; чтобы проверить наличие, используйте
-   * {@link getOrThrow}.
+   * Не бросает ошибок для незарегистрированного токена: возвращает `null`.
+   * Контракт действует с фазы INIT — до неё вызов бросает ошибку фазы,
+   * потому что `null` там означал бы «не зарегистрирован».
    *
    * @template T - Тип экземпляра
    * @param token - Токен: класс или объектный токен
    * @returns Экземпляр или `null`, если токен не зарегистрирован
+   * @throws {Error} Если `init()` ещё не завершён
    *
    * @example
    * ```typescript
    * const userService = container.get(UserService);
-   * const logger = container.get(ILogger);
    * ```
    */
   get<T>(token: InjectionToken<T>): T | null {
-    const id = this.#nodeIds.get(token as InjectionToken);
+    const node = this.#nodeOf(token);
 
-    const node = id === undefined ? undefined : this.#graph.getNode(id);
+    if (node && !this.#initialized) {
+      throw new Error(phaseErrorMessage(tokenId(token)));
+    }
 
     return (node?.instance as T) ?? null;
+  }
+
+  /**
+   * Проверяет, что токен зарегистрирован, не требуя экземпляра.
+   *
+   * Тем и отличается от {@link get}: проверкам фазы ASSEMBLE нужен факт
+   * регистрации, а экземпляров тогда ещё нет.
+   *
+   * @param token - Токен: класс или объектный токен
+   * @returns `true`, если у токена есть узел графа
+   *
+   * @example
+   * ```typescript
+   * container.has(HttpTransport$('default'));
+   * ```
+   */
+  has(token: InjectionToken<unknown>): boolean {
+    return this.#nodeOf(token) !== undefined;
   }
 
   /**
@@ -184,9 +254,16 @@ export class BuiltContainer {
    *
    * @param id - Адрес узла, как он напечатан в отчёте
    * @returns Экземпляр или `null`, если узла с таким адресом нет
+   * @throws {Error} Если `init()` ещё не завершён
    */
   getById(id: string): unknown {
-    return this.#graph.getNode(id)?.instance ?? null;
+    const node = this.#graph.getNode(id);
+
+    if (node && !this.#initialized) {
+      throw new Error(phaseErrorMessage(id));
+    }
+
+    return node?.instance ?? null;
   }
 
   /**
@@ -198,7 +275,8 @@ export class BuiltContainer {
    * @template T - Тип экземпляра
    * @param token - Токен: класс или объектный токен
    * @returns Экземпляр
-   * @throws {Error} Если токен не зарегистрирован
+   * @throws {Error} Если токен не зарегистрирован или `init()` ещё не
+   * завершён — это две разные ошибки с разными текстами
    *
    * @example
    * ```typescript
@@ -206,11 +284,14 @@ export class BuiltContainer {
    * ```
    */
   getOrThrow<T>(token: InjectionToken<T>): T {
-    const id = this.#nodeIds.get(token as InjectionToken);
+    const node = this.#nodeOf(token);
 
-    const node = id === undefined ? undefined : this.#graph.getNode(id);
     if (!node) {
       throw new Error(`Instance for token '${tokenId(token)}' not found`);
+    }
+
+    if (!this.#initialized) {
+      throw new Error(phaseErrorMessage(tokenId(token)));
     }
 
     return node.instance as T;
@@ -219,9 +300,11 @@ export class BuiltContainer {
   /**
    * Перебирает узлы графа синхронно, вызывая `callback` на каждом.
    *
+   * Работает до INIT: обход читает метаданные и рёбра, а не значения.
+   *
    * Отличие от {@link traverse}: тот ждёт колбэк, потому что его дело —
-   * хуки жизненного цикла. Проверкам фазы сборки ждать нечего, а сама
-   * фаза синхронна.
+   * фазы жизненного цикла. Проверкам фазы сборки ждать нечего, а сама фаза
+   * синхронна.
    *
    * Порядка обхода нет: проверка утверждает что-то про каждый узел, а не
    * про их последовательность.
@@ -253,4 +336,46 @@ export class BuiltContainer {
   async toJSON(): Promise<JsonDIGraph> {
     return await this.#graph.toJSON();
   }
+
+  /** Узел токена или `undefined`, если токен не зарегистрирован */
+  #nodeOf(token: InjectionToken<unknown>): DINode | undefined {
+    const id = this.#nodeIds.get(token as InjectionToken);
+
+    return id === undefined ? undefined : this.#graph.getNode(id);
+  }
+}
+
+/**
+ * Освобождает захваченное в обратном топологическом порядке и
+ * прикладывает ошибки `release` к причине провала.
+ *
+ * Причину не подменяет: автору нужна первая ошибка — та, из-за которой
+ * захват не состоялся, — а не последняя.
+ */
+async function rollback(
+  acquired: readonly DINode[],
+  cause: unknown,
+): Promise<void> {
+  const failures: unknown[] = [];
+
+  for (const node of [...acquired].reverse()) {
+    try {
+      await node.release();
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+
+  if (failures.length === 0 || !(cause instanceof Error)) {
+    return;
+  }
+
+  const message = 'release failed while rolling back a failed acquire';
+
+  cause.cause =
+    cause.cause === undefined
+      ? failures.length === 1
+        ? failures[0]
+        : new AggregateError(failures, message)
+      : new AggregateError([cause.cause, ...failures], message);
 }

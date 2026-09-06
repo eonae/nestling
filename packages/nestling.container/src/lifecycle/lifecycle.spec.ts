@@ -1,142 +1,61 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 
-import { makeToken } from '../common.js';
-import { Injectable } from '../providers/index.js';
+import { Component } from '../providers/index.js';
 
-import { getLifecycleHooks, OnDestroy, OnInit, OnStart } from './lifecycle.js';
+import { getLifecycleHooks, OnStart } from './lifecycle.js';
 
 describe('метаданные хуков жизненного цикла', () => {
-  it('собирает хуки @OnInit', () => {
-    const token = makeToken('Service');
-
-    @Injectable(token, [])
-    class Service {
-      @OnInit()
-      init(): void {}
-    }
-
-    const hooks = getLifecycleHooks(new Service());
-
-    expect(hooks.onInit).toHaveLength(1);
-    expect(hooks.onDestroy).toHaveLength(0);
-  });
-
-  it('собирает хуки @OnDestroy', () => {
-    const token = makeToken('Cleanup');
-
-    @Injectable(token, [])
-    class Cleanup {
-      @OnDestroy()
-      dispose(): void {}
-    }
-
-    const hooks = getLifecycleHooks(new Cleanup());
-
-    expect(hooks.onInit).toHaveLength(0);
-    expect(hooks.onDestroy).toHaveLength(1);
-  });
-
-  it('не дублирует хуки при нескольких экземплярах', () => {
-    const token = makeToken('Repeated');
-
-    @Injectable(token, [])
-    class Repeated {
-      @OnInit()
-      init(): void {}
-
-      @OnDestroy()
-      dispose(): void {}
-    }
-
-    const instances = [new Repeated(), new Repeated(), new Repeated()];
-
-    for (const instance of instances) {
-      const hooks = getLifecycleHooks(instance);
-
-      expect(hooks.onInit).toHaveLength(1);
-      expect(hooks.onDestroy).toHaveLength(1);
-    }
-  });
-
-  it('собирает несколько хуков одного вида', () => {
-    const token = makeToken('Multi');
-
-    @Injectable(token, [])
-    class Multi {
-      @OnInit()
-      initOne(): void {}
-
-      @OnInit()
-      initTwo(): void {}
-
-      @OnDestroy()
-      destroyOne(): void {}
-
-      @OnDestroy()
-      destroyTwo(): void {}
-    }
-
-    const hooks = getLifecycleHooks(new Multi());
-
-    expect(hooks.onInit).toHaveLength(2);
-    expect(hooks.onDestroy).toHaveLength(2);
-  });
-
   it('собирает хуки @OnStart', () => {
-    const token = makeToken('Started');
-
-    @Injectable(token, [])
+    @Component()
     class Started {
       @OnStart()
       start(): void {}
     }
 
-    const hooks = getLifecycleHooks(new Started());
-
-    expect(hooks.onInit).toHaveLength(0);
-    expect(hooks.onStart).toHaveLength(1);
-    expect(hooks.onDestroy).toHaveLength(0);
+    expect(getLifecycleHooks(new Started()).onStart).toHaveLength(1);
   });
 
-  it('собирает все три вида хуков одного класса', () => {
-    const token = makeToken('ThreePhase');
-
-    @Injectable(token, [])
-    class ThreePhase {
-      @OnInit()
-      init(): void {}
+  it('собирает несколько хуков одного класса', () => {
+    @Component()
+    class Multi {
+      @OnStart()
+      startOne(): void {}
 
       @OnStart()
-      start(): void {}
-
-      @OnDestroy()
-      dispose(): void {}
+      startTwo(): void {}
     }
 
-    const hooks = getLifecycleHooks(new ThreePhase());
-
-    expect(hooks.onInit).toHaveLength(1);
-    expect(hooks.onStart).toHaveLength(1);
-    expect(hooks.onDestroy).toHaveLength(1);
+    expect(getLifecycleHooks(new Multi()).onStart).toHaveLength(2);
   });
 
-  it('не дублирует хуки @OnStart при нескольких экземплярах', () => {
-    const token = makeToken('RepeatedStart');
-
-    @Injectable(token, [])
-    class RepeatedStart {
+  it('не дублирует хуки при нескольких экземплярах', () => {
+    @Component()
+    class Repeated {
       @OnStart()
       start(): void {}
     }
 
-    const instances = [
-      new RepeatedStart(),
-      new RepeatedStart(),
-      new RepeatedStart(),
-    ];
-
-    for (const instance of instances) {
+    for (const instance of [new Repeated(), new Repeated(), new Repeated()]) {
       expect(getLifecycleHooks(instance).onStart).toHaveLength(1);
     }
+  });
+
+  it('других списков хуков не отдаёт', () => {
+    @Component()
+    class OnlyStart {
+      @OnStart()
+      start(): void {}
+    }
+
+    expect(Object.keys(getLifecycleHooks(new OnlyStart()))).toEqual([
+      'onStart',
+    ]);
+  });
+
+  it('класс без хуков даёт пустой список', () => {
+    @Component()
+    class Plain {}
+
+    expect(getLifecycleHooks(new Plain()).onStart).toHaveLength(0);
   });
 });

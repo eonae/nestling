@@ -8,5 +8,5 @@
 export type { LogFormat } from './config.js';
 export { logConfigKeys } from './config.js';
 export type { Fields, Logger, LogLevel, LogMethod } from './interface.js';
-export { loggerKernel } from './kernel.js';
+export { loggerKernel, makeKernelLogger } from './kernel.js';
 export { Logger$, RootLogger$ } from './tokens.js';

@@ -6,7 +6,7 @@
  * своим кодом. Endpoint при этом не перечисляет отказ в `errors:`.
  */
 
-import { SpyTransport } from './__fixtures__/transport.js';
+import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { assembleTest } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -41,7 +41,11 @@ const makeAppUnderTest = () =>
     features: [
       makeFeature({ name: 'module:layer-fails', endpoints: [Profile] }),
     ],
-    transports: [transportValue(HttpTransport$('default'), new SpyTransport())],
+    transports: [
+      transportValue(HttpTransport$('default'), new SpyTransport(), {
+        capabilities: HTTP_LIKE,
+      }),
+    ],
   });
 
 describe('отказ слоя в собранном приложении', () => {

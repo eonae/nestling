@@ -95,7 +95,7 @@ export class PortRuntime {
         `Port '${operation}' was called before phase 3 WIRE, where ports are ` +
           `bound to the bus dispatch. Executable handles do not exist before ` +
           `WIRE, so there is nothing to call yet: move the call to @OnStart ` +
-          `or later (@OnInit is phase 2).`,
+          `or later (INIT is phase 2).`,
       );
     }
 

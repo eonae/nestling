@@ -13,24 +13,30 @@ import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
 import { loggerProbe } from './__fixtures__/logger.js';
-import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
+import {
+  ALL_FORMS,
+  testEndpoint,
+  TestTransport$,
+} from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import {
-  Injectable,
+  classProvider,
+  Component,
   makeToken,
-  OnDestroy,
-  OnInit,
   OnStart,
+  Resource,
 } from '@nestling/container';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>
-  transportValue(TestTransport$('default'), transport);
+  transportValue(TestTransport$('default'), transport, {
+    capabilities: ALL_FORMS,
+  });
 
 /** Конвертер-фикстура: те же десять строк, что показывает гайд */
 const zodConverter = (): SchemaDocConverter => ({
@@ -43,18 +49,16 @@ const CardDeclined = makeFail('payment_required:card_declined', {
 });
 
 describe('App.check() — фазы 0–1', () => {
-  it('строит граф, не выполняя @OnInit и не начиная принимать запросы', async () => {
+  it('строит граф, не создавая ни одного экземпляра, и не начинает принимать запросы', async () => {
     const events: string[] = [];
 
-    @Injectable([])
+    // Захват, старт и освобождение — все три отмечены, чтобы показать:
+    // структурная проверка не трогает ни один из них
+    @Resource([])
     class Connection {
-      constructor() {
-        events.push('constructed');
-      }
-
-      @OnInit()
-      open(): void {
-        events.push('init');
+      static async acquire(_signal: AbortSignal): Promise<Connection> {
+        events.push('acquired');
+        return new Connection();
       }
 
       @OnStart()
@@ -62,9 +66,8 @@ describe('App.check() — фазы 0–1', () => {
         events.push('start');
       }
 
-      @OnDestroy()
-      close(): void {
-        events.push('destroy');
+      release(): void {
+        events.push('released');
       }
     }
 
@@ -76,7 +79,7 @@ describe('App.check() — фазы 0–1', () => {
       transports: [asTransport(transport)],
     }).check();
 
-    expect(events).toEqual(['constructed']);
+    expect(events).toEqual([]);
     expect(transport.serving).toBe(false);
     expect(report.transports).toEqual(['test']);
   });
@@ -134,10 +137,9 @@ describe('App.check() — фазы 0–1', () => {
   it('не мешает последующему run() того же приложения', async () => {
     const inits: string[] = [];
 
-    @Injectable([])
+    @Component([])
     class Service {
-      @OnInit()
-      open(): void {
+      constructor() {
         inits.push('init');
       }
     }
@@ -297,7 +299,7 @@ describe('App.check() — опубликованные операции в от�
     expect(report.published[0].kind).toBe('event');
   });
 
-  it('не выполняет @OnInit и не влияет на последующий run()', async () => {
+  it('не создаёт ни одного экземпляра и не влияет на последующий run()', async () => {
     const app = assembleBilling();
 
     const first = await app.check(undefined, { converters: [zodConverter()] });
@@ -312,10 +314,9 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
   it('доводит до WIRE и останавливается', async () => {
     const events: string[] = [];
 
-    @Injectable([])
+    @Component([])
     class Service {
-      @OnInit()
-      open(): void {
+      constructor() {
         events.push('init');
       }
 
@@ -346,7 +347,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
             }),
           ],
           transports: [asTransport(transport)],
-          providers: [probe.provider],
+          logger: probe.logger,
         }),
       );
 
@@ -367,7 +368,7 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
 
       await wired.close();
     } finally {
-      // Ничего восстанавливать не нужно: шпион живёт в графе этой сборки
+      // Ничего восстанавливать не нужно: шпион живёт в корне этой сборки
     }
   });
 
@@ -375,14 +376,14 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
     const IPool = makeToken<{ query(): string }>('SeamPool');
     const IRepository = makeToken<{ find(): string }>('SeamRepository');
 
-    @Injectable(IPool, [])
+    @Component([])
     class PgPool {
       query(): string {
         return 'real';
       }
     }
 
-    @Injectable(IRepository, [IPool])
+    @Component([IPool])
     class PgRepository {
       constructor(private readonly pool: { query(): string }) {}
 
@@ -396,7 +397,10 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
         features: [
           makeFeature({
             name: 'module:data',
-            providers: [PgPool, PgRepository],
+            providers: [
+              classProvider(IPool, PgPool),
+              classProvider(IRepository, PgRepository),
+            ],
           }),
         ],
       }),
@@ -411,13 +415,16 @@ describe('шов @nestling/app/testing — фазы 0–3', () => {
     await wired.close();
   });
 
-  it('взводит общий сигнал и выполняет @OnDestroy на close()', async () => {
+  it('взводит общий сигнал и выполняет release() на close()', async () => {
     const events: string[] = [];
 
-    @Injectable([])
+    @Resource([])
     class Service {
-      @OnDestroy()
-      stop(): void {
+      static async acquire(_signal: AbortSignal): Promise<Service> {
+        return new Service();
+      }
+
+      release(): void {
         events.push('destroy');
       }
     }

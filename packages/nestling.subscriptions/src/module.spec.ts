@@ -27,7 +27,7 @@ import {
   makeFeature,
   makePipeline,
 } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { events, Ok } from '@nestling/operations';
 import { assembleTest } from '@nestling/testing';
 import { z } from 'zod';
@@ -61,7 +61,7 @@ const Ticks = makeEndpoint({
   ): Output<AsyncIterable<Tick>> => new Ok(ticks(meta.subscription.signal)),
 });
 
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 class FeedHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
 

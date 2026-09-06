@@ -1,4 +1,4 @@
-import type { Constructor, InjectionToken, Token } from '../common.js';
+import type { InjectionToken, Token } from '../common.js';
 
 /**
  * Токен члена семейства: обычный токен плюс два поля принадлежности.
@@ -47,7 +47,7 @@ export interface FamilyAllToken<T = unknown> extends Token<readonly T[]> {
  * Семейство токенов: один рецепт, много членов, различаемых параметром.
  *
  * Вызов семейства возвращает мемоизированный {@link FamilyMemberToken},
- * поэтому член годится везде, где нужен токен: в `deps` у `@Injectable`
+ * поэтому член годится везде, где нужен токен: в `deps` у декоратора роли
  * и фабричного провайдера, в `container.get()`. Члены создаются на сборке
  * (см. `familyProvider`), а не при обращении в рантайме.
  *
@@ -71,10 +71,10 @@ export interface TokenFamily<
   readonly familyName: string;
   /**
    * Токен-заместитель «член по имени потребителя».
-   * `@Injectable([Family.auto])` записывает в метаданные класса
+   * `@Component([Family.auto])` записывает в метаданные класса
    * `Family('<ИмяКласса>')`.
    *
-   * Разрешён только в `deps` класса с декоратором `@Injectable`.
+   * Разрешён только в `deps` класса с декоратором роли.
    */
   readonly auto: FamilyAutoToken<T>;
   /**
@@ -114,7 +114,7 @@ const families = new WeakSet<object>();
  * ```typescript
  * const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Logger');
  *
- * @Injectable([ILogger('users')])
+ * @Component([ILogger('users')])
  * class UserService {
  *   constructor(private logger: ILoggerService) {}
  * }
@@ -246,14 +246,14 @@ export const getAllSentinelFamily = (
 /**
  * Заменяет токен `.auto` на члена, названного по классу-потребителю.
  *
- * Вызывается декоратором `@Injectable` в момент декорирования: потребитель
- * известен статически, в рантайме ничего не вычисляется.
+ * Вызывается декоратором роли в момент декорирования: потребитель известен
+ * статически, в рантайме ничего не вычисляется.
  *
  * @internal
  */
 export const resolveAutoDependency = <T>(
   dep: InjectionToken<T>,
-  consumer: Constructor,
+  consumer: { readonly name: string },
 ): InjectionToken<T> => {
   const family = getAutoSentinelFamily(dep);
   if (!family) {

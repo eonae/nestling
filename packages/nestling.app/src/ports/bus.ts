@@ -221,8 +221,14 @@ export interface InProcessBusOptions {
   logger?: Logger;
 }
 
-/** Формы io, которые поддерживает шина: только `value` на входе и выходе */
-const BUS_CAPABILITIES: TransportCapabilities = {
+/**
+ * Формы io, которые поддерживает шина: только `value` на входе и выходе.
+ *
+ * Константа пакета: её кладёт в объявление kernel-модуль портов, её же
+ * читает `serve` на standalone-пути — реализация проверки и текст ошибки
+ * едины.
+ */
+export const BUS_CAPABILITIES: TransportCapabilities = {
   input: new Set<FormKind>(['value']),
   output: new Set<FormKind>(['value']),
 };
@@ -338,9 +344,6 @@ class SubjectHub {
  * рядом с `subject`.
  */
 export class InProcessBus implements IMessageBus, ITransport {
-  /** Поддерживаемые формы io; их проверяет `assertFormsSupported` на сборке */
-  readonly capabilities: TransportCapabilities = BUS_CAPABILITIES;
-
   /**
    * За пределы процесса шина не доставляет: тема живёт в памяти этого
    * процесса. Поэтому операция без реализации в этой сборке — ошибка
@@ -410,7 +413,7 @@ export class InProcessBus implements IMessageBus, ITransport {
     // Формы io проверяются до первой доставки: без `assemble` это
     // единственная точка проверки, текст ошибки тот же, что при сборке
     for (const route of dispatch.routes) {
-      assertFormsSupported(route, this.capabilities);
+      assertFormsSupported(route, BUS_CAPABILITIES);
     }
 
     this.#dispatch = dispatch;

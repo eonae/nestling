@@ -41,7 +41,7 @@ export interface LogMethod {
  *
  * @example
  * ```typescript
- * @Injectable([Logger$.auto])
+ * @Component([Logger$.auto])
  * export class UsersRepository {
  *   constructor(private readonly logger: Logger) {}
  *

@@ -170,7 +170,7 @@ function patternOf(operation: AnyOperation, subscriber: unknown): string {
  *
  * @example
  * ```typescript
- * \@Injectable([Ledger])
+ * \@Component([Ledger])
  * class ChargeCardHandler {
  *   constructor(private readonly ledger: Ledger) {}
  *

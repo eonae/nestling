@@ -60,7 +60,7 @@ async function reasonOf(
   registry.close(id, outcome);
 
   const [, closed] = await readEvents(feed, 2);
-  registry.dispose();
+  registry.release();
 
   if (closed?.type !== 'closed') {
     throw new Error('лента не отдала событие закрытия');
@@ -218,7 +218,7 @@ describe('SubscriptionRegistry: лента', () => {
     registry.close(id, 'disconnected');
 
     const seen = await readEvents(feed, 2);
-    registry.dispose();
+    registry.release();
 
     expect(seen).toHaveLength(2);
     expect(seen[0]).toMatchObject({ type: 'opened', info: { id } });
@@ -233,7 +233,7 @@ describe('SubscriptionRegistry: лента', () => {
     const registry = new SubscriptionRegistry();
     const feed = registry.watch();
 
-    registry.dispose();
+    registry.release();
 
     await expect(collect(feed)).resolves.toEqual([]);
   });

@@ -154,7 +154,7 @@ describe('makeEndpoint — формы handler', () => {
         },
       }),
     ).toThrow(
-      /Endpoint 'GET \/users'.*@Injectable\(\[\.{3}]\) with a handle\(\) method/s,
+      /Endpoint 'GET \/users'.*@Handler\(\[\.{3}]\) with a handle\(\) method/s,
     );
   });
 

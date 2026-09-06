@@ -134,7 +134,7 @@ const declare = <R extends ConfigRecord, P extends string, Values>(
  * });
  * export const ordersKeys = OrdersConfig.keys;
  *
- * @Injectable([OrdersConfig])
+ * @Component([OrdersConfig])
  * class OrdersService {
  *   constructor(private cfg: Config<typeof OrdersConfig>) {}
  * }

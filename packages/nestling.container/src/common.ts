@@ -81,10 +81,13 @@ export type UnwrapInjectionTokens<T extends InjectionToken[]> = {
  *
  * const ILogger = makeToken<ILogger>('ILogger');
  *
- * @Injectable(ILogger, [])
+ * @Component([])
  * class ConsoleLogger implements ILogger {
  *   log(message: string) { console.log(message); }
  * }
+ *
+ * // Регистрация под токеном интерфейса — провайдером класса
+ * classProvider(ILogger, ConsoleLogger);
  * ```
  */
 export const makeToken = <T>(id: string): Token<T> =>

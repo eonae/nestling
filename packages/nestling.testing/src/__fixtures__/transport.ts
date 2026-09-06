@@ -9,8 +9,12 @@ import type {
  *
  * `multipart` нужен тесту, который сверяет проверку входа через `app.call`
  * с поведением транспорта; потоков тестам пакета по-прежнему не нужно.
+ *
+ * Способности — данные объявления транспорта (`transportValue(..., {
+ * capabilities })`), а не экземпляра, поэтому константа экспортируется
+ * отдельно от класса.
  */
-const HTTP_LIKE: TransportCapabilities = {
+export const HTTP_LIKE: TransportCapabilities = {
   input: new Set(['value', 'multipart']),
   output: new Set(['value']),
 };
@@ -32,8 +36,6 @@ export class SpyTransport implements ITransport {
    */
   dispatch?: Dispatch;
   signal?: AbortSignal;
-
-  readonly capabilities: TransportCapabilities = HTTP_LIKE;
 
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
     this.dispatch = dispatch;

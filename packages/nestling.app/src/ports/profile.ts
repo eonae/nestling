@@ -218,7 +218,7 @@ export function startBudget(
  *
  * @example
  * ```typescript
- * @Injectable([Ctx(Deadline), ChargeCard.caller])
+ * @Component([Ctx(Deadline), ChargeCard.caller])
  * class PlaceOrder {
  *   constructor(
  *     private readonly deadline: CtxReader<Date | undefined>,

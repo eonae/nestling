@@ -10,7 +10,7 @@
  * Гарантия на старте отдельным кодом **не пишется** — она следствие жадного
  * контейнера: фабрика провайдера зовётся на фазе 1 ASSEMBLE, поэтому любая
  * диагностика генератора роняет сборку там же, где падают все прочие
- * структурные сверки — до `@OnInit` и до `serve`. Ленивого построения нет и
+ * структурные сверки — до INIT и до `serve`. Ленивого построения нет и
  * не будет: оно уничтожило бы ровно ту гарантию, ради которой всё
  * затевалось.
  */
@@ -27,7 +27,7 @@ import type {
 } from '@nestling/app';
 import { Discovery$, Logger$, makePlugin, Ok } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
-import { factoryProvider, Injectable, makeToken } from '@nestling/container';
+import { factoryProvider, Handler, makeToken } from '@nestling/container';
 import { httpEndpoint } from '@nestling/transport.http';
 
 /**
@@ -105,7 +105,7 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
   const { path, pipeline, detached, announceHidden, ...documentOptions } =
     options;
 
-  @Injectable([OpenApiDocument$])
+  @Handler([OpenApiDocument$])
   class DocumentHandler {
     constructor(private readonly document: OpenApiDocument) {}
 

@@ -1,13 +1,16 @@
+import type { Constructor } from '../common.js';
 import { makeToken } from '../common.js';
 
-import { Injectable } from './injectable.decorator.js';
-import { readInjectableMeta } from './injectable.metadata.js';
+import { Component, Handler, Resource } from './role.decorators.js';
+import { readRoleMeta } from './role.metadata.js';
 import {
   classProvider,
   factoryProvider,
   isClassDefinition,
   isFactoryProvider,
+  isResourceDefinition,
   isValueDefinition,
+  resourceProvider,
   valueProvider,
 } from './variants.js';
 
@@ -18,29 +21,75 @@ describe('конструкторы провайдеров', () => {
 
   const TokenService = makeToken<IService>('TokenService');
 
-  @Injectable(TokenService, [] as const)
+  @Component()
   class Service implements IService {
     ready(): boolean {
       return true;
     }
   }
 
-  it('создаёт провайдер класса из класса с @Injectable', () => {
+  it('создаёт провайдер класса из компонента', () => {
     const provider = classProvider(TokenService, Service);
 
     expect(provider.provide).toBe(TokenService);
-    expect(provider.useClass).toBe(Service);
-    expect(provider.deps).toEqual([]);
     expect(isClassDefinition(provider)).toBe(true);
+    expect((provider as { useClass: unknown }).useClass).toBe(Service);
+    expect(provider.deps).toEqual([]);
   });
 
-  it('бросает ошибку для класса без @Injectable', () => {
+  it('бросает ошибку для класса без декоратора роли', () => {
     // eslint-disable-next-line @typescript-eslint/no-extraneous-class
     class Plain {}
 
     expect(() => classProvider(TokenService, Plain)).toThrow(
-      /can't be used in classProvider without @Injectable decorator/,
+      /has no role decorator/,
     );
+  });
+
+  it('бросает ошибку для класса-хендлера', () => {
+    @Handler()
+    class Endpoint {
+      handle(): boolean {
+        return true;
+      }
+    }
+
+    expect(() =>
+      // Тип `classProvider` хендлер и так не принимает; проверяется, что
+      // из JS вызов падает понятной ошибкой
+      classProvider(TokenService, Endpoint as unknown as Constructor<IService>),
+    ).toThrow(/is declared @Handler/);
+  });
+
+  it('из класса-ресурса делает провайдер ресурса', async () => {
+    const released: string[] = [];
+
+    @Resource()
+    class Connection {
+      static async acquire(): Promise<Connection> {
+        return new Connection();
+      }
+
+      release(): void {
+        released.push('connection');
+      }
+    }
+
+    const Connection$ = makeToken<Connection>('Connection$');
+    const provider = classProvider(Connection$, Connection);
+
+    expect(isResourceDefinition(provider)).toBe(true);
+
+    const resource = provider as {
+      acquire: (...args: unknown[]) => Promise<unknown>;
+      release: (value: unknown) => void;
+    };
+
+    const value = await resource.acquire(new AbortController().signal);
+    resource.release(value);
+
+    expect(value).toBeInstanceOf(Connection);
+    expect(released).toEqual(['connection']);
   });
 
   it('создаёт провайдер значения', () => {
@@ -70,10 +119,25 @@ describe('конструкторы провайдеров', () => {
     expect(isFactoryProvider(provider)).toBe(true);
   });
 
-  it('хранит метаданные @Injectable в WeakMap', () => {
-    const metadata = readInjectableMeta(Service);
+  it('создаёт провайдер ресурса функциональной формой', () => {
+    const Dsn = makeToken<string>('Dsn');
+    const Pool$ = makeToken<{ end(): void }>('Pool');
 
-    expect(metadata?.injectionToken).toBe(TokenService);
+    const provider = resourceProvider(Pool$, {
+      deps: [Dsn] as const,
+      acquire: (dsn: string) => ({ end: () => dsn }),
+      release: (pool) => pool.end(),
+    });
+
+    expect(provider.provide).toBe(Pool$);
+    expect(provider.deps).toEqual([Dsn]);
+    expect(isResourceDefinition(provider)).toBe(true);
+  });
+
+  it('хранит метаданные роли в WeakMap', () => {
+    const metadata = readRoleMeta(Service);
+
+    expect(metadata?.role).toBe('component');
     expect(metadata?.dependencies).toEqual([]);
   });
 });

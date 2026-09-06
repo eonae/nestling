@@ -12,10 +12,15 @@ import { ContainerBuilder } from '@nestling/container';
 
 /** Строит контейнер с kernel-модулем конфига и объявленным транспортом */
 async function build(declaration: ReturnType<typeof http>) {
-  return new ContainerBuilder()
+  const container = new ContainerBuilder()
     .register(configKernel(await bootstrapConfig([])))
     .register(declaration.provider)
     .build();
+
+  // Экземпляры создаёт INIT: до него транспорта в графе нет
+  await container.init();
+
+  return container;
 }
 
 /** Выставляет одну переменную окружения или снимает её */

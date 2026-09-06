@@ -39,7 +39,11 @@ export type { ConfigGlob, ConfigTarget } from './keys.js';
  * Фаза 0 конфига: `bootstrapConfig` поднимает источники вне контейнера,
  * `configKernel` вносит готовую читалку в граф значением.
  */
-export { bootstrapConfig, configKernel } from './kernel.js';
+export {
+  bootstrapConfig,
+  configKernel,
+  readSectionSnapshot,
+} from './kernel.js';
 /**
  * Читалка — результат фазы 0, только как тип.
  *

@@ -2,7 +2,7 @@
  * `checkTopologies` — матрица `select`-топологий и перечень всех отказов.
  */
 
-import { SpyTransport } from './__fixtures__/transport.js';
+import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { vars } from './config.js';
 import { checkTopologies } from './topologies.js';
 
@@ -21,13 +21,15 @@ import {
   snapshotOperations,
   transportValue,
 } from '@nestling/app';
-import { Injectable, makeToken, valueProvider } from '@nestling/container';
+import { Handler, makeToken, valueProvider } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+  transportValue(HttpTransport$('default'), transport, {
+    capabilities: HTTP_LIKE,
+  });
 
 /** Конвертер-фикстура поверх штатного конвертера валидатора */
 const zodConverter = (): SchemaDocConverter => ({
@@ -85,7 +87,7 @@ describe('checkTopologies', () => {
   it('называет все несобираемые топологии в одном сообщении', async () => {
     // Оба endpoint'а требуют логгер, а плагин, который его поставляет,
     // в этой сборке не подключён: ни одна топология не собирается
-    @Injectable([ILogger])
+    @Handler([ILogger])
     class UsersHandler {
       constructor(private readonly logger: { log(): void }) {}
 
@@ -95,7 +97,7 @@ describe('checkTopologies', () => {
       }
     }
 
-    @Injectable([ILogger])
+    @Handler([ILogger])
     class ReportsHandler {
       constructor(private readonly logger: { log(): void }) {}
 
@@ -145,7 +147,7 @@ describe('checkTopologies', () => {
       pageSize: z.coerce.number(),
     });
 
-    @Injectable([TopologyConfig])
+    @Handler([TopologyConfig])
     class UsersHandler {
       constructor(private readonly cfg: Config<typeof TopologyConfig>) {}
 

@@ -6,11 +6,11 @@
  * исчезни ошибка компиляции, tsc сообщит о неиспользованной директиве.
  */
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function */
 
 import { makeToken } from '../common.js';
 
-import { factoryProvider } from './variants.js';
+import { factoryProvider, resourceProvider } from './variants.js';
 
 interface IConnection {
   query(sql: string): string;
@@ -39,3 +39,18 @@ const promiseFactory = factoryProvider(
   (dsn) => Promise.resolve(connect(dsn)),
   [Dsn] as const,
 );
+
+/** Ресурс: `acquire` получает зависимости и сигнал последним */
+const pool = resourceProvider(Connection, {
+  deps: [Dsn] as const,
+  acquire: (dsn, signal) => (signal.aborted ? connect('') : connect(dsn)),
+  release: (connection) => void connection.query('close'),
+});
+
+/** Сигнал в списке зависимостей не объявляется: он приходит сам */
+const wrongDeps = resourceProvider(Connection, {
+  deps: [Dsn, Dsn] as const,
+  // @ts-expect-error токенов два, поэтому `acquire` принимает три аргумента
+  acquire: (dsn: string, signal: AbortSignal) => connect(dsn),
+  release: () => {},
+});

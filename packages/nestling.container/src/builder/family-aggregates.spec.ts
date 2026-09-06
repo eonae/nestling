@@ -1,12 +1,12 @@
 import { makeToken } from '../common.js';
-import { OnDestroy, OnInit } from '../lifecycle/index.js';
 import { makeModule } from '../modules/index.js';
 import {
   classProvider,
+  Component,
   factoryProvider,
   familyProvider,
-  Injectable,
   makeTokenFamily,
+  Resource,
   valueProvider,
 } from '../providers/index.js';
 
@@ -26,17 +26,17 @@ describe('состав агрегата', () => {
       'ComposedCheck',
     );
 
-    @Injectable([])
+    @Component([])
     class DbCheck implements HealthCheck {
       readonly name = 'db';
     }
 
-    @Injectable([])
+    @Component([])
     class RedisCheck implements HealthCheck {
       readonly name = 'redis';
     }
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
@@ -56,6 +56,8 @@ describe('состав агрегата', () => {
       .register(HealthEndpoint)
       .build();
 
+    await container.init();
+
     const endpoint = container.getOrThrow(HealthEndpoint);
 
     // Рецепт семейства не зарегистрирован: явных провайдеров достаточно.
@@ -71,17 +73,17 @@ describe('состав агрегата', () => {
       'MaterializedCheck',
     );
 
-    @Injectable([IHealthCheck('db')])
+    @Component([IHealthCheck('db')])
     class DbConsumer {
       constructor(readonly check: HealthCheck) {}
     }
 
-    @Injectable([IHealthCheck.auto])
+    @Component([IHealthCheck.auto])
     class AutoConsumer {
       constructor(readonly check: HealthCheck) {}
     }
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
@@ -97,6 +99,8 @@ describe('состав агрегата', () => {
       )
       .register(DbConsumer, AutoConsumer, HealthEndpoint)
       .build();
+
+    await container.init();
 
     const endpoint = container.getOrThrow(HealthEndpoint);
     const json = await container.toJSON();
@@ -114,12 +118,12 @@ describe('состав агрегата', () => {
       'SharedCheck',
     );
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class FirstEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
-    @Injectable([IHealthCheck.all, IHealthCheck('db')])
+    @Component([IHealthCheck.all, IHealthCheck('db')])
     class SecondEndpoint {
       constructor(
         readonly checks: readonly HealthCheck[],
@@ -131,6 +135,8 @@ describe('состав агрегата', () => {
       .register(valueProvider(IHealthCheck('db'), { name: 'db' }))
       .register(FirstEndpoint, SecondEndpoint)
       .build();
+
+    await container.init();
 
     const first = container.getOrThrow(FirstEndpoint);
     const second = container.getOrThrow(SecondEndpoint);
@@ -149,12 +155,14 @@ describe('состав агрегата', () => {
       'EmptyCheck',
     );
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
     const container = new ContainerBuilder().register(HealthEndpoint).build();
+
+    await container.init();
 
     const json = await container.toJSON();
     const aggregate = json.nodes.find((node) => node.id === 'EmptyCheck.all');
@@ -169,7 +177,7 @@ describe('состав агрегата', () => {
       'FrozenCheck',
     );
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
@@ -178,6 +186,8 @@ describe('состав агрегата', () => {
       .register(valueProvider(IHealthCheck('db'), { name: 'db' }))
       .register(HealthEndpoint)
       .build();
+
+    await container.init();
 
     const { checks } = container.getOrThrow(HealthEndpoint);
 
@@ -201,7 +211,7 @@ describe('порядок членов агрегата', () => {
         providers: [valueProvider(IHealthCheck(name), { name })],
       });
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
@@ -210,6 +220,8 @@ describe('порядок членов агрегата', () => {
       .register(contributor('a'), contributor('b'), contributor('c'))
       .register(HealthEndpoint)
       .build();
+
+    await container.init();
 
     expect(namesOf(container.getOrThrow(HealthEndpoint).checks)).toEqual([
       'a',
@@ -223,12 +235,12 @@ describe('порядок членов агрегата', () => {
       'MixedOrderCheck',
     );
 
-    @Injectable([IHealthCheck('redis')])
+    @Component([IHealthCheck('redis')])
     class RedisConsumer {
       constructor(readonly check: HealthCheck) {}
     }
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
@@ -243,6 +255,8 @@ describe('порядок членов агрегата', () => {
       .register(RedisConsumer, HealthEndpoint)
       .build();
 
+    await container.init();
+
     expect(namesOf(container.getOrThrow(HealthEndpoint).checks)).toEqual([
       'db',
       'redis',
@@ -256,7 +270,7 @@ describe('агрегат — обычный узел графа', () => {
       'CyclicCheck',
     );
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class DbCheck implements HealthCheck {
       readonly name = 'db';
 
@@ -268,43 +282,44 @@ describe('агрегат — обычный узел графа', () => {
     );
 
     expect(() => builder.build()).toThrow(
-      /Circular dependency.*CyclicCheck.all/s,
+      /Cycles detected in the graph:[\S\s]*CyclicCheck.all[\S\s]*CyclicCheck:db/,
     );
   });
 
-  it('выполняет хуки членов раньше потребителя при init и позже при destroy', async () => {
+  it('захватывает членов раньше потребителя и освобождает их позже', async () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'HookedCheck',
     );
     const calls: string[] = [];
 
-    @Injectable([])
+    @Resource([])
     class DbCheck implements HealthCheck {
       readonly name = 'db';
 
-      @OnInit()
-      async initialize(): Promise<void> {
-        calls.push('init:db');
+      static async acquire(_signal: AbortSignal): Promise<DbCheck> {
+        calls.push('acquire:db');
+        return new DbCheck();
       }
 
-      @OnDestroy()
-      async cleanup(): Promise<void> {
-        calls.push('destroy:db');
+      release(): void {
+        calls.push('release:db');
       }
     }
 
-    @Injectable([IHealthCheck.all])
+    @Resource([IHealthCheck.all] as const)
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
 
-      @OnInit()
-      async initialize(): Promise<void> {
-        calls.push('init:endpoint');
+      static async acquire(
+        checks: readonly HealthCheck[],
+        _signal: AbortSignal,
+      ): Promise<HealthEndpoint> {
+        calls.push('acquire:endpoint');
+        return new HealthEndpoint(checks);
       }
 
-      @OnDestroy()
-      async cleanup(): Promise<void> {
-        calls.push('destroy:endpoint');
+      release(): void {
+        calls.push('release:endpoint');
       }
     }
 
@@ -317,10 +332,10 @@ describe('агрегат — обычный узел графа', () => {
     await container.destroy();
 
     expect(calls).toEqual([
-      'init:db',
-      'init:endpoint',
-      'destroy:endpoint',
-      'destroy:db',
+      'acquire:db',
+      'acquire:endpoint',
+      'release:endpoint',
+      'release:db',
     ]);
   });
 
@@ -329,7 +344,7 @@ describe('агрегат — обычный узел графа', () => {
       'GraphCheck',
     );
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
@@ -373,6 +388,8 @@ describe('агрегат — обычный узел графа', () => {
       )
       .build();
 
+    await container.init();
+
     expect(container.getOrThrow(IReport)).toBe('db');
   });
 
@@ -381,7 +398,7 @@ describe('агрегат — обычный узел графа', () => {
       'UnreferencedCheck',
     );
 
-    @Injectable([IHealthCheck('db')])
+    @Component([IHealthCheck('db')])
     class DbConsumer {
       constructor(readonly check: HealthCheck) {}
     }
@@ -406,7 +423,7 @@ describe('агрегат и модули', () => {
       'CrossModuleCheck',
     );
 
-    @Injectable([IHealthCheck.all])
+    @Component([IHealthCheck.all])
     class HealthEndpoint {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
@@ -425,6 +442,8 @@ describe('агрегат и модули', () => {
       .register(DbModule)
       .register(ApiModule)
       .build();
+
+    await container.init();
 
     expect(namesOf(container.getOrThrow(HealthEndpoint).checks)).toEqual([
       'db',

@@ -29,7 +29,7 @@ export const RootLogger$ = makeToken<Logger>('RootLogger');
  *
  * @example
  * ```typescript
- * @Injectable([Logger$.auto])
+ * @Component([Logger$.auto])
  * class OrdersService {
  *   constructor(private readonly logger: Logger) {}
  * }

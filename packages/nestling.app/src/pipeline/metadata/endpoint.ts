@@ -303,7 +303,7 @@ export interface EndpointOptions<
   detached?: string;
 
   /**
-   * @internal Зависимости объявляет класс-хендлер декоратором `@Injectable`.
+   * @internal Зависимости объявляет класс-хендлер декоратором `@Handler`.
    * Поле на верхнем уровне словаря отвергается типом и рантаймом.
    */
   deps?: never;
@@ -378,7 +378,7 @@ function normalizeHandler(handler: unknown, pattern: string): HandlerForm {
     `Endpoint '${pattern}': 'handler' must be a function (input, meta) => … ` +
       `or a class with a handle() method. The form ` +
       `{ deps: [...], handle: … } is gone: declare a class under ` +
-      `@Injectable([...]) with a handle() method and pass the class.`,
+      `@Handler([...]) with a handle() method and pass the class.`,
   );
 }
 
@@ -395,7 +395,7 @@ function assertNoLegacyFields(
       throw new TypeError(
         `Endpoint '${pattern}': '${field}' is not a field of the ` +
           `declaration. Execution lives in 'handler': pass a function ` +
-          `(input, meta) => … or a class under @Injectable([...]) with a ` +
+          `(input, meta) => … or a class under @Handler([...]) with a ` +
           `handle() method.`,
       );
     }
