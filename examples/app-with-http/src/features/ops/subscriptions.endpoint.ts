@@ -3,7 +3,7 @@ import { observability } from '../../plugins/observability/index.js';
 
 import type { Output } from '@nestling/app';
 import { compose } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { events, makeFail, Ok } from '@nestling/operations';
 import type {
   SubscriptionInfo,
@@ -59,7 +59,7 @@ const toWire = (info: SubscriptionInfo): Subscription => ({
   itemsOut: info.itemsOut,
 });
 
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 class ListSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -78,7 +78,7 @@ export const ListSubscriptions = httpEndpoint({
   handler: ListSubscriptionsHandler,
 });
 
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 class KillSubscriptionHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -107,7 +107,7 @@ export const KillSubscription = httpEndpoint({
   handler: KillSubscriptionHandler,
 });
 
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 class WatchSubscriptionsHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
 

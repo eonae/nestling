@@ -5,7 +5,7 @@ import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Config, Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -17,7 +17,7 @@ const ListUsersInput = z.object({
 
 type ListUsersInput = z.infer<typeof ListUsersInput>;
 
-@Injectable([UsersRepository$, AppConfig])
+@Handler([UsersRepository$, AppConfig])
 class ListUsersHandler {
   constructor(
     private readonly users: UsersRepository,

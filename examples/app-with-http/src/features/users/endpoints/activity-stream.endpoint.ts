@@ -3,7 +3,7 @@ import { ActivityHub } from '../activity.hub.js';
 
 import type { Output } from '@nestling/app';
 import { compose } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { events, Ok } from '@nestling/operations';
 import type { TrackedSubscription } from '@nestling/subscriptions';
 import { tracked } from '@nestling/subscriptions';
@@ -19,7 +19,7 @@ const ActivityEvent = z.object({
 
 type ActivityEvent = z.infer<typeof ActivityEvent>;
 
-@Injectable([ActivityHub])
+@Handler([ActivityHub])
 class ActivityStreamHandler {
   constructor(private readonly hub: ActivityHub) {}
 

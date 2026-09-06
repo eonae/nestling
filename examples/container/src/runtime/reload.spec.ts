@@ -22,6 +22,9 @@ describe('reloadable-секция', () => {
   let container: BuiltContainer;
   let source: ObjectSource;
   let limiter: RateLimiter;
+  // Канал остановки для `@OnStart`: `RateLimiter` снимает подписку `onChange`
+  // по нему же, отдельного `AbortController` у него нет
+  let shutdown: AbortController;
 
   beforeAll(async () => {
     // Секция `health` читает `DATABASE_URL` без значения по умолчанию
@@ -29,12 +32,14 @@ describe('reloadable-секция', () => {
     source = objectSource({ RUNTIME_RPS: '10' }, 'runtime');
     container = await makeContainer(source);
     await container.init();
+    shutdown = new AbortController();
     // Подписка `onChange` открывается в `@OnStart`
-    await container.start();
+    await container.start(shutdown.signal);
     limiter = container.getOrThrow(RateLimiter);
   });
 
   afterAll(async () => {
+    shutdown.abort();
     await container.destroy();
     delete process.env.DATABASE_URL;
   });

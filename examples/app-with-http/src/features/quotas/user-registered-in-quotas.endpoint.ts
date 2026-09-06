@@ -3,9 +3,9 @@ import { UserRegistered } from '../../operations.js';
 
 import type { Logger } from '@nestling/app';
 import { implement, Logger$ } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 
-@Injectable([Logger$.auto])
+@Handler([Logger$.auto])
 class UserRegisteredInQuotasHandler {
   constructor(private readonly logger: Logger) {}
 

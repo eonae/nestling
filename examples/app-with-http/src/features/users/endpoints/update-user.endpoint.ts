@@ -5,7 +5,7 @@ import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -22,7 +22,7 @@ type UpdateUserInput = z.infer<typeof UpdateUserInput>;
  * тип `Output` перечисляет их определениями. Отказ вне списка не
  * компилируется.
  */
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 class UpdateUserHandler {
   constructor(private readonly users: UsersRepository) {}
 

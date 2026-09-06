@@ -2,7 +2,6 @@ import { AppConfig } from '../config/app.config.js';
 import type { Counter } from '../counters/index.js';
 import { Counter$ } from '../counters/index.js';
 import type { Database } from '../interfaces.js';
-import { Database$ } from '../interfaces.js';
 
 import type { Config, Logger } from '@nestling/app';
 import { Logger$ } from '@nestling/app';

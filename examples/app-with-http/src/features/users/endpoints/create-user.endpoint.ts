@@ -15,7 +15,7 @@ import { UsersRepository$ } from '../users.repository.js';
 
 import type { Emitter, Output, Port } from '@nestling/app';
 import { deadlineIn } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { Ok } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
 
@@ -27,7 +27,7 @@ import { httpEndpoint } from '@nestling/transport.http';
  */
 const QUOTA_CALL_BUDGET_MS = 500;
 
-@Injectable([
+@Handler([
   UsersRepository$,
   ClaimQuota.caller,
   UserRegistered.emitter,
@@ -97,7 +97,7 @@ class CreateUserHandler {
 
 /**
  * Адрес, схемы, bind-карта и `errors:` живут в операции `api/operations.ts`.
- * Вызыватели соседней фичи перечислены в `@Injectable` как обычные
+ * Вызыватели соседней фичи перечислены в `@Handler` как обычные
  * зависимости.
  */
 export const CreateUser = httpEndpoint({

@@ -7,7 +7,10 @@ import {
   ListUsers,
   UploadAvatar,
 } from './users/endpoints/index.js';
-import { DbUsersRepository, UsersRepository$ } from './users/users.repository.js';
+import {
+  DbUsersRepository,
+  UsersRepository$,
+} from './users/users.repository.js';
 import { Authenticate } from './auth.js';
 import { Database } from './database.js';
 import { AuditOutcome } from './observability.js';

@@ -4,7 +4,7 @@ import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { Ok, stream } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
 
@@ -14,12 +14,12 @@ const MAX_ROWS = 100_000;
 /**
  * Класс-хендлер: форма для хендлера с зависимостями.
  *
- * Зависимости перечисляет `@Injectable`, а не поле декларации: у endpoint'а
+ * Зависимости перечисляет `@Handler`, а не поле декларации: у endpoint'а
  * `deps` нет. Сигнатура `handle` сверяется со схемами в точке декларации,
  * `implements` не нужен. Без зависимостей хендлер объявляется обычной
  * функцией, как у `Health`.
  */
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class ExportUsersHandler {
   constructor(private readonly users: UsersRepository) {}
 

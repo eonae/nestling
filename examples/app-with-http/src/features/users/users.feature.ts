@@ -14,10 +14,10 @@ import {
 } from './endpoints/index.js';
 import { ActivityHub } from './activity.hub.js';
 import { Database } from './database.js';
-import { DbUsersRepository } from './users.repository.js';
+import { DbUsersRepository, UsersRepository$ } from './users.repository.js';
 
 import { makeFeature } from '@nestling/app';
-import { makeModule } from '@nestling/container';
+import { classProvider, makeModule } from '@nestling/container';
 
 /**
  * Модуль пользователей: группирует провайдеры фичи под именем.
@@ -30,7 +30,7 @@ export const UsersModule = makeModule({
   name: 'module:users',
   providers: [
     Database,
-    DbUsersRepository,
+    classProvider(UsersRepository$, DbUsersRepository),
     ActivityHub,
     AuditDeletion,
     VerifySignature,

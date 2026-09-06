@@ -5,7 +5,7 @@ import { UsersRepository$ } from '../users.repository.js';
 
 import type { ErrorResponseContext, Logger, Output } from '@nestling/app';
 import { compose, Logger$, makePipeline } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { Ok } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -21,7 +21,7 @@ type DeleteUserInput = z.infer<typeof DeleteUserInput>;
  * узнаётся через `.is()`. Юнит ничего не возвращает, и ответ идёт дальше
  * без изменений.
  */
-@Injectable([Logger$.auto])
+@Handler([Logger$.auto])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
 
@@ -32,7 +32,7 @@ export class AuditDeletion {
   }
 }
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 class DeleteUserHandler {
   constructor(private readonly users: UsersRepository) {}
 
