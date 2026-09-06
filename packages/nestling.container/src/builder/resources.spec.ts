@@ -6,7 +6,13 @@
  */
 
 import { makeToken } from '../common.js';
-import { Component, Resource, resourceProvider } from '../providers/index.js';
+import {
+  Component,
+  familyProvider,
+  makeTokenFamily,
+  Resource,
+  resourceProvider,
+} from '../providers/index.js';
 
 import { ContainerBuilder } from './container.builder.js';
 
@@ -286,26 +292,48 @@ describe('ресурсы', () => {
     expect(calls).toEqual(['db:acquire']);
   });
 
-  it('рецепт семейства может отдавать ресурс', async () => {
-    const Pool$ = makeToken<{ name: string }>('Pool');
+  it('рецепт семейства отдаёт ресурс: каждый член захватывается отдельно', async () => {
+    const Pool$ = makeTokenFamily<{ name: string }, [name: string]>('Pool');
+
+    @Component([Pool$('users'), Pool$('orders')] as const)
+    class Reports {
+      constructor(
+        readonly users: { name: string },
+        readonly orders: { name: string },
+      ) {}
+    }
 
     const container = new ContainerBuilder()
       .register(
-        resourceProvider(Pool$, {
-          deps: [] as const,
-          acquire: () => {
-            calls.push('pool:acquire');
-            return { name: 'default' };
-          },
-          release: () => void calls.push('pool:release'),
-        }),
+        familyProvider(Pool$, (name) =>
+          resourceProvider(Pool$(name), {
+            deps: [] as const,
+            acquire: () => {
+              calls.push(`pool:acquire(${name})`);
+
+              return { name };
+            },
+            release: () => void calls.push(`pool:release(${name})`),
+          }),
+        ),
       )
+      .register(Reports)
       .build();
 
     await container.init();
     await container.destroy();
 
-    expect(calls).toEqual(['pool:acquire', 'pool:release']);
+    // Порядок между независимыми членами не задан, поэтому сверяется
+    // состав и то, что освобождение идёт после захвата
+    expect(calls.slice(0, 2).sort()).toEqual([
+      'pool:acquire(orders)',
+      'pool:acquire(users)',
+    ]);
+    expect(calls.slice(2).sort()).toEqual([
+      'pool:release(orders)',
+      'pool:release(users)',
+    ]);
+    expect(container.getOrThrow(Reports).users.name).toBe('users');
   });
 
   it('конструктор ресурса контейнер не вызывает', async () => {
