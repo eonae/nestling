@@ -38,6 +38,15 @@ import { BuiltContainer } from './container.built.js';
  */
 const MAX_MATERIALIZATION_ROUNDS = 100;
 
+/**
+ * Похоже ли значение на промис.
+ *
+ * Проверяется `then`, а не `instanceof Promise`: фабрика может вернуть
+ * промис чужой реализации, и ждать его сборка всё равно не станет.
+ */
+const isThenable = (value: unknown): value is PromiseLike<unknown> =>
+  typeof (value as PromiseLike<unknown> | null)?.then === 'function';
+
 /** Зарегистрированный рецепт семейства и модуль, через который он пришёл. */
 interface FamilyRecipeEntry {
   /** Возвращает определение провайдера для одного члена */
@@ -96,7 +105,7 @@ export interface ContainerBuilderOptions {
  *
  * @example
  * ```typescript
- * const container = await new ContainerBuilder()
+ * const container = new ContainerBuilder()
  *   .register(UserService)
  *   .register(DatabaseService)
  *   .build();
@@ -206,20 +215,20 @@ export class ContainerBuilder {
    *
    * @example
    * ```typescript
-   * const container = await new ContainerBuilder()
+   * const container = new ContainerBuilder()
    *   .register(UserService)
    *   .build();
    *
    * await container.init();
    * ```
    */
-  async build(): Promise<BuiltContainer> {
+  build(): BuiltContainer {
     if (this.#isBuilt) {
       throw new Error('Container is already built');
     }
 
     // Шаг 1: развернуть фабрики провайдеров модулей в обычные регистрации
-    await this.appendFactoryProviders();
+    this.appendFactoryProviders();
 
     // Шаг 2: подменить рецепты семейств — строго до создания членов, иначе
     // члены создались бы по боевому рецепту
@@ -242,7 +251,7 @@ export class ContainerBuilder {
     this.assertDependenciesSatisfied();
 
     // Шаг 8: создать экземпляры
-    const instances = await this.instantiateAll();
+    const instances = this.instantiateAll();
 
     // Шаг 9: построить граф зависимостей из экземпляров
     const { graph, nodeIds } = this.buildDependencyGraph(instances);
@@ -771,26 +780,44 @@ export class ContainerBuilder {
   }
 
   /** Создаёт значение по провайдеру любого вида. */
-  private async createInstance(
+  private createInstance(
     provider: ProviderDefinition,
     instances: Map<InjectionToken, unknown>,
-  ): Promise<unknown> {
+  ): unknown {
     if (isClassDefinition(provider)) {
       return this.createClassInstance(provider, instances);
     } else if (isValueDefinition(provider)) {
       return provider.useValue;
     } else if (isFactoryProvider(provider)) {
       const args = provider.deps.map((dep) => instances.get(dep));
-      return await provider.useFactory(...args);
+      const instance = provider.useFactory(...args);
+
+      // Тип фабрики `Promise` уже запрещает, но `Module.providers`
+      // типизирован значением `unknown`: литерал провайдера с асинхронной
+      // фабрикой компилятор пропускает, и ловит его только эта проверка.
+      if (isThenable(instance)) {
+        throw new Error(
+          `Factory of provider '${tokenId(provider.provide)}' returned a Promise, but assembly is synchronous and does no I/O. Acquire connections in an @OnInit hook instead.`,
+        );
+      }
+
+      return instance;
     } else {
       throw new Error('Unknown provider type');
     }
   }
 
   /** Разворачивает фабрики провайдеров модулей в обычные регистрации. */
-  private async appendFactoryProviders(): Promise<void> {
+  private appendFactoryProviders(): void {
     for (const [moduleName, factory] of this.#providersFactories.entries()) {
-      const providers = await factory();
+      const providers = factory();
+
+      if (isThenable(providers)) {
+        throw new Error(
+          `Providers factory of module '${moduleName}' returned a Promise, but assembly is synchronous and does no I/O. Build the list of providers without reading files, network or connections.`,
+        );
+      }
+
       for (const provider of providers) {
         this.registerModuleProvider(provider, moduleName);
       }
@@ -798,11 +825,11 @@ export class ContainerBuilder {
   }
 
   /** Создаёт экземпляры всех провайдеров в порядке зависимостей. */
-  private async instantiateAll(): Promise<Map<InjectionToken, unknown>> {
+  private instantiateAll(): Map<InjectionToken, unknown> {
     const instances = new Map<InjectionToken, unknown>();
     const instantiating = new Set<InjectionToken>();
 
-    const instantiateOne = async (token: InjectionToken): Promise<void> => {
+    const instantiateOne = (token: InjectionToken): void => {
       if (instances.has(token)) {
         return;
       }
@@ -827,17 +854,17 @@ export class ContainerBuilder {
       }
 
       for (const dep of dependenciesOf(provider)) {
-        await instantiateOne(dep);
+        instantiateOne(dep);
       }
 
-      const instance = await this.createInstance(provider, instances);
+      const instance = this.createInstance(provider, instances);
       instances.set(token, instance);
 
       instantiating.delete(token);
     };
 
     for (const token of this.#providers.keys()) {
-      await instantiateOne(token);
+      instantiateOne(token);
     }
 
     return instances;

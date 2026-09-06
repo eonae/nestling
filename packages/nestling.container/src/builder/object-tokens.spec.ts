@@ -8,9 +8,7 @@ interface ILogger {
 }
 
 /** Перехватывает `console.warn` на время вызова и отдаёт собранные строки. */
-const captureWarnings = async <T>(
-  body: () => Promise<T>,
-): Promise<[T, string[]]> => {
+const captureWarnings = <T>(body: () => T): [T, string[]] => {
   /* eslint-disable no-console -- перехват предупреждения и есть предмет теста */
   const warnings: string[] = [];
   const original = console.warn;
@@ -20,7 +18,7 @@ const captureWarnings = async <T>(
   };
 
   try {
-    return [await body(), warnings];
+    return [body(), warnings];
   } finally {
     console.warn = original;
   }
@@ -49,7 +47,7 @@ describe('идентичность токена', () => {
     Injectable([])(Logger, {} as ClassDecoratorContext);
     Injectable([])(OtherLogger, {} as ClassDecoratorContext);
 
-    const [container] = await captureWarnings(() =>
+    const [container] = captureWarnings(() =>
       new ContainerBuilder().register(Logger).register(OtherLogger).build(),
     );
 
@@ -66,7 +64,7 @@ describe('идентичность токена', () => {
     const first = makeToken<string>('Duplicated');
     const second = makeToken<string>('Duplicated');
 
-    const [container, warnings] = await captureWarnings(() =>
+    const [container, warnings] = captureWarnings(() =>
       new ContainerBuilder()
         .register(valueProvider(first, 'left'))
         .register(valueProvider(second, 'right'))
@@ -85,7 +83,7 @@ describe('идентичность токена', () => {
   it('отдаёт экземпляр по адресу узла из отчёта', async () => {
     const ILogger = makeToken<ILogger>('ReportedLogger');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(ILogger, { scope: 'users' }))
       .build();
 

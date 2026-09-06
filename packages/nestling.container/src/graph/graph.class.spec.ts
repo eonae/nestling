@@ -34,7 +34,7 @@ describe('DIGraph', () => {
       dependsOn: [ModuleA],
     });
 
-    const container = await new ContainerBuilder().register(ModuleB).build();
+    const container = new ContainerBuilder().register(ModuleB).build();
 
     const json = await container.toJSON();
 

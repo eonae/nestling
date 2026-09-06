@@ -56,7 +56,7 @@ describe('overrides: подстановка узла графа', () => {
       }
     }
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
       .register(PgPool, PgRepository)
@@ -107,7 +107,7 @@ describe('overrides: подстановка узла графа', () => {
       }
     }
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, new FakeRepository()]],
     })
       .register(RealRepository, Service)
@@ -137,7 +137,7 @@ describe('overrides: подстановка узла графа', () => {
       providers: [RealRepository],
     });
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
       .register(UsersModule)
@@ -156,7 +156,7 @@ describe('overrides: подстановка узла графа', () => {
       overrides: [[Missing, 'fake']],
     }).register(valueProvider(Repository, { find: () => 'real' }));
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /Override targets token 'Missing', but no provider for it is registered\..*modules and features/s,
     );
   });
@@ -176,7 +176,7 @@ describe('overrides: подстановка узла графа', () => {
       )
       .register(valueProvider(Repository, { find: () => 'real' }));
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /member of token family 'OverrideLogger'.*only once something injects it/s,
     );
   });
@@ -189,7 +189,7 @@ describe('overrides: подстановка узла графа', () => {
       ],
     }).register(valueProvider(Repository, { find: () => 'real' }));
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /Token 'Repository' is overridden twice/,
     );
   });
@@ -217,7 +217,7 @@ describe('familyOverrides: подмена рецепта семейства', ()
       ) {}
     }
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       familyOverrides: [
         {
           family: ILogger,
@@ -259,7 +259,7 @@ describe('familyOverrides: подмена рецепта семейства', ()
       ],
     }).register(valueProvider(Repository, { find: () => 'real' }));
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /Token family 'DoubleOverrideLogger' is overridden twice/,
     );
   });
@@ -343,7 +343,7 @@ describe('прунинг: без overrides сборка тождественна
       ],
     });
 
-    const container = await new ContainerBuilder().register(DataModule).build();
+    const container = new ContainerBuilder().register(DataModule).build();
 
     await container.init();
     await container.destroy();
@@ -386,7 +386,7 @@ describe('прунинг: без overrides сборка тождественна
         factoryProvider(TokenY, () => ({ id: 'y' }), [TokenX] as const),
       );
 
-    await expect(builder.build()).rejects.toThrow(/Circular dependency/);
+    expect(() => builder.build()).toThrow(/Circular dependency/);
   });
 });
 
@@ -425,7 +425,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
       }
     }
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
       .register(PgPool, PgRepository)
@@ -469,7 +469,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
       }
     }
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
       .register(PgPool, PgRepository, ReportsService)
@@ -483,7 +483,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
     const TokenB = makeToken<{ id: string }>('ChainB');
     const TokenC = makeToken<{ id: string }>('ChainC');
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
       .register(factoryProvider(TokenC, () => ({ id: 'c' }), [] as const))
@@ -506,7 +506,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
     const ISinkFamily = makeTokenFamily<ISink, [scope: string]>('KeptSink');
     const Aggregated = makeToken<readonly ISink[]>('KeptAggregated');
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
       .register(
@@ -547,7 +547,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
     // `.all`, поэтому удаляется. Если бы агрегат создавался до прунинга,
     // его зависимости указывали бы на удалённого члена, и сборка упала бы
     // на недостающем провайдере вместо агрегата из оставшихся.
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
       .register(
@@ -602,7 +602,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
 
     const ISinkFamily = makeTokenFamily<ISink, [scope: string]>('OrphanSink');
 
-    const container = await new ContainerBuilder({
+    const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
       .register(
@@ -642,7 +642,12 @@ describe('перечень недостающих зависимостей', () 
         ] as const),
       );
 
-    const error = await builder.build().catch((error_: Error) => error_);
+    let error: unknown;
+    try {
+      builder.build();
+    } catch (error_) {
+      error = error_;
+    }
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain('Unsatisfied dependencies (3)');
@@ -672,7 +677,7 @@ describe('перечень недостающих зависимостей', () 
         ] as const),
       );
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       `- 'SharedMissingClock' required by 'Repository', 'Reports'`,
     );
   });
@@ -695,7 +700,7 @@ describe('перечень недостающих зависимостей', () 
         ] as const),
       );
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /Unsatisfied dependencies \(1\):[\S\s]*'HintFamily:users' required by 'Repository'/,
     );
   });

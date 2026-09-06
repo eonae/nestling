@@ -51,7 +51,7 @@ describe('состав агрегата', () => {
       providers: [classProvider(IHealthCheck('redis'), RedisCheck)],
     });
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(DbModule, RedisModule)
       .register(HealthEndpoint)
       .build();
@@ -89,7 +89,7 @@ describe('состав агрегата', () => {
     // Токен создан, но от него никто не зависит и провайдера у него нет.
     const orphan = IHealthCheck('orphan');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(IHealthCheck, (name) =>
           valueProvider(IHealthCheck(name), { name }),
@@ -127,7 +127,7 @@ describe('состав агрегата', () => {
       ) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(IHealthCheck('db'), { name: 'db' }))
       .register(FirstEndpoint, SecondEndpoint)
       .build();
@@ -154,9 +154,7 @@ describe('состав агрегата', () => {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
-    const container = await new ContainerBuilder()
-      .register(HealthEndpoint)
-      .build();
+    const container = new ContainerBuilder().register(HealthEndpoint).build();
 
     const json = await container.toJSON();
     const aggregate = json.nodes.find((node) => node.id === 'EmptyCheck.all');
@@ -176,7 +174,7 @@ describe('состав агрегата', () => {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(IHealthCheck('db'), { name: 'db' }))
       .register(HealthEndpoint)
       .build();
@@ -208,7 +206,7 @@ describe('порядок членов агрегата', () => {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(contributor('a'), contributor('b'), contributor('c'))
       .register(HealthEndpoint)
       .build();
@@ -235,7 +233,7 @@ describe('порядок членов агрегата', () => {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(IHealthCheck, (name) =>
           valueProvider(IHealthCheck(name), { name }),
@@ -269,7 +267,7 @@ describe('агрегат — обычный узел графа', () => {
       classProvider(IHealthCheck('db'), DbCheck),
     );
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /Circular dependency.*CyclicCheck.all/s,
     );
   });
@@ -310,7 +308,7 @@ describe('агрегат — обычный узел графа', () => {
       }
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(classProvider(IHealthCheck('db'), DbCheck))
       .register(HealthEndpoint)
       .build();
@@ -336,7 +334,7 @@ describe('агрегат — обычный узел графа', () => {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(IHealthCheck('db'), { name: 'db' }))
       .register(valueProvider(IHealthCheck('redis'), { name: 'redis' }))
       .register(HealthEndpoint)
@@ -364,7 +362,7 @@ describe('агрегат — обычный узел графа', () => {
     );
     const IReport = makeToken<string>('FactoryCheckReport');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(IHealthCheck('db'), { name: 'db' }))
       .register(
         factoryProvider(
@@ -388,7 +386,7 @@ describe('агрегат — обычный узел графа', () => {
       constructor(readonly check: HealthCheck) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(IHealthCheck('db'), { name: 'db' }))
       .register(DbConsumer)
       .build();
@@ -423,7 +421,7 @@ describe('агрегат и модули', () => {
       providers: [HealthEndpoint],
     });
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(DbModule)
       .register(ApiModule)
       .build();
@@ -454,12 +452,12 @@ describe('токен агрегата зарезервирован', () => {
 
     const SneakyModule = makeModule({
       name: 'module:sneaky',
-      providers: async () => [valueProvider(IHealthCheck.all, [])],
+      providers: () => [valueProvider(IHealthCheck.all, [])],
     });
 
     const builder = new ContainerBuilder().register(SneakyModule);
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /'ReservedModuleCheck.all' is reserved for the aggregate node/,
     );
   });

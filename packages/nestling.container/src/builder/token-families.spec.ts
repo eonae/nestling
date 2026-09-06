@@ -38,7 +38,7 @@ describe('создание членов семейства', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(familyProvider(ILogger, recipe))
       .register(ServiceA, ServiceB)
       .build();
@@ -72,7 +72,7 @@ describe('создание членов семейства', () => {
       ) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(familyProvider(ILogger, recipe))
       .register(ServiceA)
       .build();
@@ -100,7 +100,7 @@ describe('создание членов семейства', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(ILogger, (scope) =>
           factoryProvider(
@@ -135,7 +135,7 @@ describe('создание членов семейства', () => {
     // Токен создан и есть в реестре семейства, но от него никто не зависит.
     const orphan = ILogger('orphan');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(ILogger, (scope) =>
           valueProvider(ILogger(scope), { scope }),
@@ -168,7 +168,7 @@ describe('ошибки создания членов', () => {
       )
       .register(ServiceA);
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /family 'Wrong'.*parameter 'users'.*'Wrong:other'.*expected 'Wrong:users'/s,
     );
   });
@@ -185,7 +185,7 @@ describe('ошибки создания членов', () => {
 
     const builder = new ContainerBuilder().register(ServiceA);
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /'NoRecipe:users'.*family 'NoRecipe'.*parameter 'users'.*no familyProvider/s,
     );
   });
@@ -224,7 +224,7 @@ describe('ошибки создания членов', () => {
       )
       .register(ServiceA);
 
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /Recipe of token family 'Boom' failed for parameter 'users'/,
     );
   });
@@ -249,9 +249,7 @@ describe('ошибки создания членов', () => {
       )
       .register(ServiceA);
 
-    await expect(builder.build()).rejects.toThrow(
-      /did not converge after 100 rounds/,
-    );
+    expect(() => builder.build()).toThrow(/did not converge after 100 rounds/);
   });
 
   it('токен из makeToken рецепту семейства не отдаётся', async () => {
@@ -275,7 +273,7 @@ describe('ошибки создания членов', () => {
 
     // Членство читается полем токена, поэтому похожий `id` семейство не
     // задевает: это обычная недостающая зависимость
-    await expect(builder.build()).rejects.toThrow(
+    expect(() => builder.build()).toThrow(
       /Unsatisfied dependencies \(1\):[\S\s]*'LookAlike:users' required by 'ServiceA'/,
     );
   });
@@ -305,7 +303,7 @@ describe('члены семейства — обычные узлы графа',
       )
       .register(ServiceB);
 
-    await expect(builder.build()).rejects.toThrow(/Circular dependency/);
+    expect(() => builder.build()).toThrow(/Circular dependency/);
   });
 
   it('выполняет хуки члена ровно один раз', async () => {
@@ -332,7 +330,7 @@ describe('члены семейства — обычные узлы графа',
       constructor(readonly logger: ILoggerService) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(ILogger, (scope) => ({
           provide: ILogger(scope),
@@ -369,7 +367,7 @@ describe('члены семейства — обычные узлы графа',
       ],
     });
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(LoggingModule)
       .register(ServiceA)
       .build();
@@ -390,7 +388,7 @@ describe('члены семейства — обычные узлы графа',
       constructor(readonly logger: ILoggerService) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(ILogger, (scope) =>
           valueProvider(ILogger(scope), { scope }),
@@ -417,14 +415,14 @@ describe('члены семейства — обычные узлы графа',
 
     const LoggingModule = makeModule({
       name: 'module:logging-factory',
-      providers: async () => [
+      providers: () => [
         familyProvider(ILogger, (scope) =>
           valueProvider(ILogger(scope), { scope }),
         ),
       ],
     });
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(LoggingModule)
       .register(ServiceA)
       .build();

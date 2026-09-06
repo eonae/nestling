@@ -23,7 +23,7 @@ describe('Family.auto', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(ILogger, (scope) =>
           valueProvider(ILogger(scope), { scope }),
@@ -53,7 +53,7 @@ describe('Family.auto', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(ILogger, (scope) =>
           valueProvider(ILogger(scope), { scope }),
@@ -83,7 +83,7 @@ describe('Family.auto', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(
         familyProvider(ILogger, (scope) =>
           valueProvider(ILogger(scope), { scope }),
