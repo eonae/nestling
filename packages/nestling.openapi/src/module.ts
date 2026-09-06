@@ -15,18 +15,17 @@
  * затевалось.
  */
 
-/* eslint-disable no-console */
-
 import { buildOpenApiDocument, hiddenEndpoints } from './document.js';
 import type { OpenApiDocument, OpenApiOptions } from './types.js';
 
 import type {
   AnyInput,
   EndpointDiscovery,
+  Logger,
   Pipeline,
   Plugin,
 } from '@nestling/app';
-import { Discovery$, makePlugin, Ok } from '@nestling/app';
+import { Discovery$, Logger$, makePlugin, Ok } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, Injectable, makeToken } from '@nestling/container';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -70,9 +69,10 @@ export interface OpenApiServeOptions<
   readonly detached?: string;
 
   /**
-   * Печатать ли на старте список скрытых endpoint'ов с причинами.
+   * Писать ли на старте список скрытых endpoint'ов с причинами в логгер
+   * ядра (`Logger$('nestling:openapi')`, уровень `info`).
    *
-   * По умолчанию печатает: `doc.hidden` — тотальный opt-out, и он обязан
+   * По умолчанию пишет: `doc.hidden` — тотальный opt-out, и он обязан
    * быть поверхностью для аудита, как список detached-endpoint'ов. В самом
    * документе списка нет: документ уходит наружу.
    */
@@ -130,29 +130,31 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
     providers: [
       factoryProvider(
         OpenApiDocument$,
-        (discovery: EndpointDiscovery) =>
-          build(discovery, documentOptions, announceHidden ?? true),
-        [Discovery$],
+        (discovery: EndpointDiscovery, logger: Logger) =>
+          build(discovery, documentOptions, announceHidden ?? true, logger),
+        [Discovery$, Logger$('nestling:openapi')],
       ),
     ],
     endpoints: [document],
   });
 }
 
-/** Строит документ и печатает список скрытых endpoint'ов */
+/** Строит документ и пишет в логгер список скрытых endpoint'ов */
 function build(
   discovery: EndpointDiscovery,
   options: OpenApiOptions,
   announceHidden: boolean,
+  logger: Logger,
 ): OpenApiDocument {
   if (announceHidden) {
     for (const { pattern, moduleName, reason } of hiddenEndpoints(
       discovery.endpoints,
     )) {
-      console.log(
-        `[nestling] hidden from the API document: ${pattern} ` +
-          `(declared in '${moduleName}') — ${reason}`,
-      );
+      logger.info('hidden from the API document', {
+        pattern,
+        module: moduleName,
+        reason,
+      });
     }
   }
 

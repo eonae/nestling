@@ -362,7 +362,6 @@ export class TestApp {
 
     return await wired.dispatch.call(executable.pattern, ctx, {
       exposeErrorDetails: options.exposeErrorDetails ?? true,
-      onUnknownFail: options.onUnknownFail,
     });
   }
 

@@ -18,6 +18,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { ExtendableContext, ResponseContext } from '@nestling/app';
 import { compose, makePipeline } from '@nestling/app';
 import { events, Ok } from '@nestling/operations';
+import { spyLogger } from '@nestling/testing';
 import { z } from 'zod';
 
 const Item = z.object({ id: z.string() });
@@ -162,9 +163,8 @@ describe('tracked: запись живёт столько же, сколько �
         return new Ok({ id: '1' });
       },
       ctxFor({ output: Item }),
-      // Отказ ожидаемый: дефолтный наблюдатель проверки на границе только
-      // шумел бы
-      { onUnknownFail: (): void => undefined },
+      // Отказ ожидаемый: умолчание ядра писало бы его в stderr
+      { logger: spyLogger().logger },
     );
 
     expect(handled).toBe(false);

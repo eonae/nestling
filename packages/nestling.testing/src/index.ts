@@ -21,6 +21,8 @@ export type { TestConfig } from './config.js';
 export { contextValue } from './context.js';
 export { testUnit } from './unit.js';
 export type { TestUnitOptions } from './unit.js';
+export { spyLogger } from './logger.js';
+export type { LogEntry, SpyLogger } from './logger.js';
 export { familyOverride } from './overrides.js';
 export type { TestOverride } from './overrides.js';
 export { stub } from './stub.js';

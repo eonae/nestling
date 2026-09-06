@@ -679,9 +679,12 @@ export class AssembledApp {
       logger.warn(warning);
     }
 
+    // Читалки может не быть: в тестовой сборке подмена корня логгера
+    // снимает единственное ребро к ней, и прунинг выбрасывает узел. Тогда
+    // она не создавалась и предупреждений не копила — подключать нечего
     container
-      .getOrThrow(ConfigReaderToken)
-      .attachLogger(container.getOrThrow(Logger$('nestling:config')));
+      .get(ConfigReaderToken)
+      ?.attachLogger(container.getOrThrow(Logger$('nestling:config')));
 
     // Граница фич — первой на собранном графе: ребро, которое не переживёт
     // разъезда процессов, важнее любого недостающего транспорта

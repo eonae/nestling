@@ -41,17 +41,17 @@
 
 ## 7. Транспорты и OpenAPI
 
-- [ ] 7.1 `@nestling/transport.http`: `HttpTransportOptions.onUnknownFail` удалён; `serve` передаёт `dispatch.call` только `exposeErrorDetails`; спеки `provider.spec.ts`, `transport.integration.spec.ts`, `streaming.integration.spec.ts` переведены на `spyLogger()`; README (раздел ошибок, таблица опций)
-- [ ] 7.2 `@nestling/transport.cli`: `CliTransportOptions.onUnknownFail` удалён; вывод результата в `stdout`/`stderr` не меняется; спеки; README
-- [ ] 7.3 `@nestling/transport.nats`: `nats()` объявляет зависимость `Logger$('nestling:nats')`; `#reportDelivery` пишет `error`; `onDeliveryFailure` и `onUnknownFail` удалены, `onConnectionChange` остаётся; спеки `transport.spec.ts`, `durable.spec.ts`; README
-- [ ] 7.4 `@nestling/openapi`: фабрика документа зависит от `Logger$('nestling:openapi')`; `announceHidden` пишет `info('hidden from the API document', { pattern, module, reason })`; `module.spec.ts`; README
-- [ ] 7.5 `@nestling/subscriptions`: спека `layer.spec.ts` без `onUnknownFail`
+- [x] 7.1 `@nestling/transport.http`: `HttpTransportOptions.onUnknownFail` удалён; `serve` передаёт `dispatch.call` только `exposeErrorDetails`; спеки `provider.spec.ts`, `transport.integration.spec.ts`, `streaming.integration.spec.ts` переведены на `spyLogger()`; README (раздел ошибок, таблица опций)
+- [x] 7.2 `@nestling/transport.cli`: `CliTransportOptions.onUnknownFail` удалён; вывод результата в `stdout`/`stderr` не меняется; спеки; README
+- [x] 7.3 `@nestling/transport.nats`: `nats()` объявляет зависимость `Logger$('nestling:nats')`; `#reportDelivery` пишет `error`; `onDeliveryFailure` и `onUnknownFail` удалены, `onConnectionChange` остаётся; спеки `transport.spec.ts`, `durable.spec.ts`; README
+- [x] 7.4 `@nestling/openapi`: фабрика документа зависит от `Logger$('nestling:openapi')`; `announceHidden` пишет `info('hidden from the API document', { pattern, module, reason })`; `module.spec.ts`; README
+- [x] 7.5 `@nestling/subscriptions`: спека `layer.spec.ts` без `onUnknownFail`
 
 ## 8. `@nestling/testing`
 
-- [ ] 8.1 `spyLogger()` — `{ logger, entries }` с `LogEntry { level, message, fields }`; `child` пишет в тот же список с объединёнными привязками; экспорт типов `LogEntry`
-- [ ] 8.2 `TestCallOptions` без `onUnknownFail`; `testApp.call` передаёт `dispatch.call` только `exposeErrorDetails`
-- [ ] 8.3 Тесты `app.spec.ts`, `stub.spec.ts`, `wiring.spec.ts`, `policies.spec.ts` пакета; README (раздел `testApp.call`, новый раздел `spyLogger()`, справочник API)
+- [x] 8.1 `spyLogger()` — `{ logger, entries }` с `LogEntry { level, message, fields }`; `child` пишет в тот же список с объединёнными привязками; экспорт типов `LogEntry`
+- [x] 8.2 `TestCallOptions` без `onUnknownFail`; `testApp.call` передаёт `dispatch.call` только `exposeErrorDetails`
+- [x] 8.3 Тесты `app.spec.ts`, `stub.spec.ts`, `wiring.spec.ts`, `policies.spec.ts` пакета; README (раздел `testApp.call`, новый раздел `spyLogger()`, справочник API)
 
 ## 9. Примеры
 

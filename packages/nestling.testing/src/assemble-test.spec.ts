@@ -6,13 +6,15 @@
 import { SpyTransport } from './__fixtures__/transport.js';
 import { assembleTest } from './app.js';
 import { vars } from './config.js';
+import { spyLogger } from './logger.js';
 import { familyOverride } from './overrides.js';
 import { unwrap, UnwrapFailedError } from './unwrap.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import type { Config, FilePart, ITransport } from '@nestling/app';
+import type { Config, FilePart, ITransport, Logger } from '@nestling/app';
 import {
   Discovery$,
+  Logger$,
   makeApp,
   makeConfig,
   makeFail,
@@ -20,6 +22,7 @@ import {
   makePipeline,
   multipart,
   Ok,
+  RootLogger$,
   transportValue,
   upload,
 } from '@nestling/app';
@@ -598,5 +601,75 @@ describe('Discovery$ в тестовом корне', () => {
     expect(discovery?.endpoints).toEqual([
       { endpoint: Ping, moduleName: 'module:discovery' },
     ]);
+  });
+});
+
+describe('assembleTest — логгер ядра', () => {
+  it('подмена RootLogger$ перехватывает записи сервиса с Logger$.auto', async () => {
+    @Injectable([Logger$.auto])
+    class UsersRepository {
+      constructor(private readonly logger: Logger) {}
+
+      byId(id: string): void {
+        this.logger.info('byId', { id });
+      }
+    }
+
+    const app = makeApp({
+      features: [makeFeature({ name: 'users', providers: [UsersRepository] })],
+    });
+
+    const spy = spyLogger();
+    await using testApp = await assembleTest(app, {
+      overrides: [[RootLogger$, spy.logger]],
+    });
+
+    const repository = testApp.get(UsersRepository);
+    expect(repository).not.toBeNull();
+    repository?.byId('1');
+
+    expect(spy.entries).toContainEqual({
+      level: 'info',
+      message: 'byId',
+      fields: { scope: 'UsersRepository', id: '1' },
+    });
+  });
+
+  it('незадекларированный отказ — запись error с транспортом, паттерном и кодом', async () => {
+    const Boom = httpEndpoint({
+      method: 'GET',
+      path: '/boom',
+      handler: async () => {
+        throw makeFail('not_found:nope', { message: 'nope' })();
+      },
+    });
+
+    const app = makeApp({
+      features: [makeFeature({ name: 'boom', endpoints: [Boom] })],
+      transports: [asHttpTransport(new SpyTransport())],
+    });
+
+    const spy = spyLogger();
+    await using testApp = await assembleTest(app, {
+      overrides: [[RootLogger$, spy.logger]],
+    });
+
+    const response = await testApp.call(Boom);
+
+    expect(response).toMatchObject({
+      isSuccess: false,
+      value: { code: 'internal_error' },
+    });
+    expect(spy.entries).toContainEqual({
+      level: 'error',
+      message: 'undeclared fail normalized to internal_error',
+      fields: {
+        scope: 'nestling',
+        transport: 'http',
+        pattern: 'GET /boom',
+        code: 'not_found:nope',
+        err: expect.objectContaining({ message: 'nope' }),
+      },
+    });
   });
 });
