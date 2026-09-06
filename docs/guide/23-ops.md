@@ -1,6 +1,6 @@
 # 23. Кто сейчас подключён и как его отключить
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-07).
 > Целевое описание: [design/streaming.md](../design/streaming.md), раздел
 > «4.1 Реестр подписок». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-08-01] Реестр подписок:
@@ -158,7 +158,7 @@ export const KillSubscription = httpEndpoint({
   method: 'DELETE',
   path: '/ops/subscriptions/:id',
   input: z.object({ id: z.string() }),
-  errors: [SubscriptionNotFound, Unauthorized],
+  errors: [SubscriptionNotFound],
   doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
   pipeline: authed,
   handler: KillSubscriptionHandler,

@@ -1,6 +1,6 @@
 # 17. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-07).
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
