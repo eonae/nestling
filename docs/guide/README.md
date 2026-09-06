@@ -53,6 +53,7 @@
 | юнит | Одна функция или класс в пайплайне | [8](./08-logging.md) |
 | слой (пайплайна) | Один вызов `makePipeline()` с цепочкой методов, который `compose` складывает с другими | [8](./08-logging.md) |
 | контекст (`ctx`) | Типизированный объект запроса, который дополняют `.pre`-юниты, а читают хендлер и остальные юниты | [8](./08-logging.md) |
+| логгер ядра | Интерфейс `Logger`, корень `RootLogger$` и семейство `Logger$` с `.auto`: через него пишут и ядро, и приложение | [8](./08-logging.md) |
 | политика | Инвариант над собранным графом, который проверяется на фазе ASSEMBLE | [9](./09-auth.md) |
 | форма io | Вид входа или выхода endpoint'а: `value`, `stream(T)`, `events(T)`, `multipart()`, `upload()` | [10](./10-files-and-streams.md) |
 | операция | Единица общения между фичами: имя, схемы `input` и `output`, список `errors` | [12](./12-features.md) |
@@ -141,7 +142,7 @@ Nestling переносит проверки как можно раньше: ч�
 |---|---|---|
 | [19. Webhook с проверкой подписи](./19-webhook.md) | `rawBody`, требование слоя к стартовому контексту | `app-with-http` |
 | [20. CLI-утилита на тех же примитивах](./20-cli.md) | `cliEndpoint`, `cli()`, argv и REPL, поток из stdin | `simple-cli` |
-| [21. Логгер с именем потребителя и сбор вкладов](./21-token-families.md) | семейства токенов, `.auto`, `.all`, `familyProvider` | `container` |
+| [21. Зависимости по имени и сбор вкладов из модулей](./21-token-families.md) | семейства токенов, `familyProvider`, `.auto` на `Logger$`, `.all` | `container` |
 | [22. Конфиг из файла и без перезапуска](./22-config-sources.md) | источники и привязка, `.keys`, общие ключи, `reloadable` | `container` |
 | [23. Кто сейчас подключён и как его отключить](./23-ops.md) | реестр подписок, `tracked`, административные endpoint'ы | `app-with-http` |
 | [24. Без `makeApp`](./24-standalone.md) | `makeDispatch`, `serve`, `ContainerBuilder` | `simple-http-server`, `container` |
