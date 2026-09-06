@@ -11,7 +11,7 @@
 
 ### Requirement: makePipeline со словарём фаз заменяет definePipeline().use()
 
-Пакет `@nestling/pipeline` SHALL предоставлять `makePipeline()` — билдер
+Пакет `@nestling/app` SHALL предоставлять `makePipeline()` — билдер
 одного слоя с методами `.pre`, `.ok`, `.catch`, `.finally`. Словарь
 ответной фазы SHALL быть исчерпан тройкой `.ok`/`.catch`/`.finally`
 (зеркало `then`/`catch`/`finally` у `Promise`): постпроцессор,
@@ -29,7 +29,7 @@
 #### Scenario: Старый API отсутствует
 
 - **WHEN** код импортирует `definePipeline` или `MiddlewareFn`
-  из `@nestling/pipeline`
+  из `@nestling/app`
 - **THEN** импорт не резолвится (ошибка компиляции)
 
 ### Requirement: Type-state билдера — pre недоступен после ответных методов

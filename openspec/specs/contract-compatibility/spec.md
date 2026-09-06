@@ -17,7 +17,7 @@
 
 ### Requirement: Дескриптор операции — JSON-значение
 
-`@nestling/ports` SHALL экспортировать `describeContract`, строящий по
+`@nestling/app` SHALL экспортировать `describeContract`, строящий по
 операции (или по несущей её декларации-реализации) `OperationDescriptor` —
 значение, целиком сериализуемое в JSON: имя, вид (`request`/`command`/
 `event`), дескриптор формы `input`, дескриптор формы `output` и список
@@ -75,7 +75,7 @@ JSON Schema, полученная конвертером, непрозрачны
 
 ### Requirement: Снапшот — детерминированно сериализуемое значение
 
-`@nestling/ports` SHALL экспортировать тип `ContractSnapshot`
+`@nestling/app` SHALL экспортировать тип `ContractSnapshot`
 (`{ snapshotVersion, contracts }`) и `snapshotContracts(reports)`, сводящую
 отчёты структурной проверки в один снапшот.
 
@@ -111,7 +111,7 @@ JSON Schema, полученная конвертером, непрозрачны
 
 ### Requirement: `diffContracts` — закрытый словарь вердиктов
 
-`@nestling/ports` SHALL экспортировать
+`@nestling/app` SHALL экспортировать
 `diffContracts(baseline: ContractSnapshot, current: ContractSnapshot): CompatibilityReport`.
 Каждое расхождение SHALL получать ровно один вердикт из закрытого словаря
 `breaking` | `additive` | `unknown` и SHALL нести имя операции, путь до
@@ -194,7 +194,7 @@ SHALL применяться одинаково ко всем трём вида�
 
 `CompatibilityReport` SHALL быть значением с расхождениями,
 сгруппированными по вердикту (`breaking`, `additive`, `unknown`), — тест
-сравнивает состав, а не парсит stdout. `@nestling/ports` SHALL
+сравнивает состав, а не парсит stdout. `@nestling/app` SHALL
 экспортировать `formatCompatibility(report): string`, печатающий отчёт
 человеку: секции по вердиктам, счётчик в каждой, и — при непустой секции
 `unknown` — строка о том, что подключение конвертера уточнит вердикты.

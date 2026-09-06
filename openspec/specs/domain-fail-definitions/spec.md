@@ -145,7 +145,7 @@ SHALL давать `true` для значения, потерявшего про
 ### Requirement: Kernel-коды входят в контракт неявно
 
 Ядро SHALL определять встроенные отказы тем же `makeFail` и экспортировать
-их из `@nestling/pipeline`: `BadRequest` (код `bad_request`, детали —
+их из `@nestling/app`: `BadRequest` (код `bad_request`, детали —
 `issues` проверки входа), `PayloadTooLarge` (код `payload_too_large`,
 детали `{ limit }`), `Timeout` (код `timeout`) и `InternalError` (код
 `internal_error`). Код отказа ядра SHALL быть голой категорией без
@@ -158,7 +158,7 @@ endpoint'а без объявления в `errors:`. Пользовательс
 же кодом (`makeFail('bad_request')`) SHALL быть тем же отказом по
 идентичности и SHALL проходить страж границы.
 
-`Timeout` SHALL реэкспортироваться из `@nestling/ports` для потребителей,
+`Timeout` SHALL реэкспортироваться из `@nestling/app` для потребителей,
 разбирающих результат вызова порта. Регистрации определения в наборе
 **из другого пакета** SHALL NOT существовать.
 

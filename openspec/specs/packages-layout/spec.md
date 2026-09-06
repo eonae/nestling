@@ -64,7 +64,7 @@ SHALL быть объявлен в `devDependencies`.
 
 #### Scenario: Лишнее объявление
 
-- **WHEN** `package.json` пакета объявляет `@nestling/streams`, а ни один
+- **WHEN** `package.json` пакета объявляет `@nestling/operations`, а ни один
   модуль `src/` вне тестовых файлов его не импортирует
 - **THEN** это расхождение с требованием
 
@@ -91,5 +91,5 @@ SHALL быть объявлен в `devDependencies`.
 #### Scenario: Лишнее имя в списке
 
 - **WHEN** список разрешённых импортов `@nestling/operations` называет
-  `@nestling/streams`, а пакет его не импортирует
+  `@nestling/app`, а пакет его не импортирует
 - **THEN** имя убирается, и тест границы остаётся зелёным

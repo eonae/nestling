@@ -24,7 +24,8 @@
 - `makeFail`, определения kernel-отказов (включая `InternalError`),
   `Ok`, `Fail`, `isFail` и словари статусов;
 - формы io (`stream`, `events`, `multipart`, `upload`) и их описатели;
-- пометки размещения `query()`/`body()`, тип bind-карты и её вычисление.
+- пометки размещения `query()`/`body()`, тип bind-карты и её вычисление;
+- `Topic`, комбинаторы item-цепочек и утилиты итерации под `AbortSignal`.
 
 Перечисленные символы SHALL иметь ровно один физический дом: дублирующих
 определений (второй `Fail`, второй `makeFail`) SHALL NOT существовать.
@@ -37,16 +38,15 @@
 #### Scenario: Идентичность значений не двоится
 
 - **WHEN** `Fail`, полученный из `@nestling/operations`, и `Fail`,
-  полученный реэкспортом из `@nestling/pipeline`, сравниваются
+  полученный реэкспортом из `@nestling/app`, сравниваются
 - **THEN** это одно и то же значение
 
 ### Requirement: Граф импортов пакета не содержит серверного кода
 
 Замыкание импортов `@nestling/operations` SHALL NOT содержать
-`@nestling/container` (главный экспорт), `@nestling/pipeline`,
-`@nestling/app`, транспортов, `@nestling/config` и модулей `node:*`.
-Внешних runtime-зависимостей у пакета SHALL NOT быть: транзитивно
-допустим только `@standard-schema/spec` (типы).
+`@nestling/container` (главный экспорт), `@nestling/app`, транспортов и
+модулей `node:*`. Внешних runtime-зависимостей у пакета SHALL NOT быть:
+транзитивно допустим только `@standard-schema/spec` (типы).
 
 Примитив токена инжекции SHALL импортироваться subpath-экспортом
 `@nestling/container/tokens`, отдающим листовые модули без
@@ -60,14 +60,14 @@ tree-shaking в инструменте потребителя.
 #### Scenario: Тест ловит запрещённый импорт
 
 - **WHEN** в исходники `@nestling/operations` добавлен импорт
-  `@nestling/pipeline` или `node:crypto`
+  `@nestling/app` или `node:crypto`
 - **THEN** тест границы падает, называя модуль и запрещённый импорт
 
 #### Scenario: Операции импортируются во фронтовую сборку
 
 - **WHEN** фронтовый бандл импортирует `@nestling/operations` и
   `@nestling/client`
-- **THEN** в бандл не попадают контейнер, pipeline, транспорты и
+- **THEN** в бандл не попадают контейнер, пайплайн, транспорты и
   Node-специфика
 
 #### Scenario: Вызывающие стороны остаются членами семейств
@@ -82,12 +82,12 @@ tree-shaking в инструменте потребителя.
 Символы, переехавшие в `@nestling/operations`, SHALL оставаться доступными
 из пакетов, которые экспортировали их прежде:
 
-- `@nestling/pipeline` SHALL реэкспортировать `Ok`, `Fail`, `isFail`,
+- `@nestling/app` SHALL реэкспортировать `Ok`, `Fail`, `isFail`,
   статусы, `makeFail`, kernel-отказы и формы io;
 - `@nestling/transport.http` SHALL реэкспортировать `query()`, `body()` и
   тип bind-карты.
 
-`@nestling/ports` SHALL NOT реэкспортировать конструкторы операций и их
+`@nestling/app` SHALL NOT реэкспортировать конструкторы операций и их
 типы: этот реэкспорт вернул бы декларацию операции в пакет с
 серверными зависимостями и сделал бы упаковочную гарантию вопросом
 дисциплины импортов. Каноническим импортом конструкторов SHALL быть
@@ -96,12 +96,12 @@ tree-shaking в инструменте потребителя.
 #### Scenario: Хендлер не меняет импортов
 
 - **WHEN** существующий код импортирует `Fail` и `makeFail` из
-  `@nestling/pipeline`
+  `@nestling/app`
 - **THEN** он компилируется и работает как прежде
 
-#### Scenario: `makeRequest` из `@nestling/ports` не резолвится
+#### Scenario: `makeRequest` из `@nestling/app` не резолвится
 
-- **WHEN** код импортирует `makeRequest` из `@nestling/ports`
+- **WHEN** код импортирует `makeRequest` из `@nestling/app`
 - **THEN** это ошибка компиляции, а сообщение о недоступном экспорте
   указывает на `@nestling/operations`
 

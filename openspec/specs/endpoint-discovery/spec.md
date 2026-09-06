@@ -21,7 +21,7 @@ skip.
 выбранным фичам и подключённым плагинам**, и только им. Глобальных реестров,
 наполняемых при импорте модуля с декларациями, в публичном API SHALL не
 быть: функции `registerEndpoint`, `getAllEndpoints`, `clearEndpointRegistry`
-SHALL быть удалены из `@nestling/pipeline`. Декларация эндпоинта SHALL быть
+SHALL быть удалены из `@nestling/app`. Декларация эндпоинта SHALL быть
 значением (см. capability `endpoint-declarations`); создание декларации SHALL
 NOT иметь побочных эффектов, а декораторов-носителей метаданных эндпоинта
 SHALL NOT существовать.
@@ -43,7 +43,7 @@ SHALL NOT существовать.
 #### Scenario: Реестра нет в публичном API
 
 - **WHEN** код импортирует `registerEndpoint`, `getAllEndpoints` или
-  `clearEndpointRegistry` из `@nestling/pipeline`
+  `clearEndpointRegistry` из `@nestling/app`
 - **THEN** импорт не резолвится (ошибка компиляции)
 
 ### Requirement: Эндпоинты объявляет единица, а не модуль

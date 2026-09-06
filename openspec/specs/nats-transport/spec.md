@@ -19,7 +19,7 @@ JSON по умолчанию. Клиент брокера изолирован �
 
 Пакет `@nestling/transport.nats` SHALL экспортировать фабрику `nats(options?)`,
 возвращающую **обычный транспорт-провайдер** под токеном транспорта шины
-(`BusTransport$` из `@nestling/ports`), и класс `NatsBus`, реализующий
+(`BusTransport$` из `@nestling/app`), и класс `NatsBus`, реализующий
 одновременно `IMessageBus` (исходящая сторона) и `ITransport` (входящая).
 Отдельной сущности «messaging» рядом с «transports» SHALL NOT существовать.
 

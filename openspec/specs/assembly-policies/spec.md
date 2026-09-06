@@ -111,7 +111,7 @@ composition root и проверяются на фазе `1 ASSEMBLE`, где в
 
 ### Requirement: `Policy` — открытый интерфейс словаря предикатов
 
-`@nestling/pipeline` SHALL экспортировать типы `Policy`, `PolicySubject` и
+`@nestling/app` SHALL экспортировать типы `Policy`, `PolicySubject` и
 `PolicyViolation`. `Policy` SHALL нести `describe(): string` (описание для
 диагностики) и `check(subjects: readonly PolicySubject[]): readonly
 PolicyViolation[]`. `PolicySubject` SHALL нести декларацию и имя

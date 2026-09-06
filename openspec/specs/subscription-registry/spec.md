@@ -25,14 +25,21 @@
 примитивах: фазах пайплайна `.pre`/`.finally`, класс-форме юнита,
 `AbortSignal`, DI-контейнере, `Topic` и операциях.
 
-Пакет SHALL NOT иметь внешних зависимостей и SHALL NOT зависеть от
-`@nestling/app`: перечень зависимостей — `@nestling/container`,
-`@nestling/pipeline`, `@nestling/operations`, `@nestling/streams`,
+Пакет SHALL NOT иметь внешних зависимостей; перечень внутренних —
+`@nestling/container`, `@nestling/app`, `@nestling/operations`,
 `@common/misc`.
 
-Реализация change'а SHALL NOT вносить изменений ни в один kernel-пакет
-(`@nestling/pipeline`, `@nestling/app`, `@nestling/container`,
-`@nestling/ports`, `@nestling/operations`, `@nestling/streams`,
+Поставляемый код пакета SHALL импортировать из `@nestling/app` только
+примитивы пайплайна, транспорта и форму поставки плагином (`makePlugin`,
+`Plugin`) и SHALL NOT импортировать сборку приложения (`makeApp`, `App`,
+`AssembledApp`, `isApp`) и объявление фичи (`makeFeature`, `Feature`,
+выбор состава). Список имён, импортируемых из `@nestling/app`, SHALL
+проверяться тестом пакета. До слияния ядра эту границу держало отсутствие
+`@nestling/app` в зависимостях; после слияния композиционный корень лежит
+в том же пакете, что и пайплайн, поэтому границу держит список имён.
+
+Реализация change'а SHALL NOT вносить изменений ни в один пакет ядра
+(`@nestling/container`, `@nestling/operations`, `@nestling/app`,
 `@nestling/transport*`). Любая потребность в такой правке SHALL быть
 зафиксирована записью журнала решений как находка, а не закрыта точечным
 изменением ядра.
@@ -40,12 +47,18 @@
 #### Scenario: Пакет самодостаточен
 
 - **WHEN** приложение импортирует `@nestling/subscriptions`
-- **THEN** в графе зависимостей пакета нет внешних библиотек и нет
+- **THEN** в графе зависимостей пакета нет внешних библиотек
+
+#### Scenario: Композиционный корень не импортируется
+
+- **WHEN** тест пакета читает имена, импортированные поставляемым кодом из
   `@nestling/app`
+- **THEN** среди них нет сборки приложения и объявления фичи, а
+  `makePlugin` есть
 
 #### Scenario: Kernel-пакеты не тронуты
 
-- **WHEN** сравниваются kernel-пакеты до и после реализации change'а
+- **WHEN** сравниваются пакеты ядра до и после реализации change'а
 - **THEN** диффа в них нет
 
 ### Requirement: Слой `tracked` регистрирует подписку на входе и снимает на выходе

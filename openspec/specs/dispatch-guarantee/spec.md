@@ -35,7 +35,7 @@ SHALL NOT существовать, равно как и метода регис
 
 ### Requirement: `dispatch` — фазовый ресурс, разделяющий провод и исполнение
 
-`@nestling/transport` SHALL экспортировать тип `Dispatch` и конструктор
+`@nestling/app` SHALL экспортировать тип `Dispatch` и конструктор
 `makeDispatch(endpoints)`, где `endpoints` — **исполнимые** декларации
 (`TNeeds = never`). `Dispatch` SHALL нести:
 

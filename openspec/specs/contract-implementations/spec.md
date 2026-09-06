@@ -14,7 +14,7 @@
 
 ### Requirement: `implement` строит обычную декларацию на транспорте шины
 
-`@nestling/ports` SHALL экспортировать
+`@nestling/app` SHALL экспортировать
 `implement(Contract, { pipeline?, handler, subscriber?, detached? })`,
 возвращающий `EndpointDefinition`, построенный тем же kernel-примитивом
 `makeEndpoint`, что и транспортные конструкторы. Декларация SHALL нести токен

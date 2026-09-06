@@ -108,7 +108,7 @@ Schema v1 (нет `~standard` либо `~standard.version !== 1`), ядро SHAL
 ### Requirement: Validation logic has a single implementation
 
 Валидация SHALL выполняться единственной функцией `validateSync`
-(`@common/misc`; `@nestling/pipeline` SHALL реэкспортировать её и
+(`@common/misc`; `@nestling/app` SHALL реэкспортировать её и
 сопутствующие `SchemaValidationError`, `SchemaIssue`, `normalizeIssues`,
 `assertStandardSchema`, `AsyncSchemaNotSupportedError`,
 `NotAStandardSchemaError` из прежнего места, чтобы публичный API не менялся).
@@ -120,10 +120,10 @@ endpoint'а рантаймом пайплайна (capability `endpoint-input-va
 Транспорты SHALL NOT содержать собственных веток валидации payload: они
 собирают значение, а проверяет его рантайм.
 
-Дом функции — `@common/misc`, а не `@nestling/pipeline`, потому что
-конфигурация читается и валидируется до существования запроса: зависимость
-`@nestling/config → @nestling/pipeline` инвертировала бы порядок фаз
-жизненного цикла.
+Дом функции — `@common/misc`, а не `@nestling/app`, потому что
+конфигурация читается и валидируется до существования запроса: слой
+конфигурации внутри `@nestling/app` не зависит от слоя пайплайна, и
+общая функция не может лежать ни в одном из них.
 
 #### Scenario: Одинаковая ошибка на разных путях
 
@@ -141,7 +141,7 @@ endpoint'а рантаймом пайплайна (capability `endpoint-input-va
 #### Scenario: Прежние импорты продолжают работать
 
 - **WHEN** код импортирует `validateSync` или `SchemaValidationError` из
-  `@nestling/pipeline`
+  `@nestling/app`
 - **THEN** импорт разрешается реэкспортом, поведение идентично прямому импорту
   из `@common/misc`
 
@@ -153,9 +153,9 @@ endpoint'а рантаймом пайплайна (capability `endpoint-input-va
 
 ### Requirement: Core does not depend on a validator
 
-Пакеты ядра (`@common/misc`, `@nestling/container`, `@nestling/config`,
-`@nestling/pipeline`, `@nestling/app`, `@nestling/transport`,
-`@nestling/transport.http`, `@nestling/transport.cli`) SHALL NOT объявлять
+Пакеты ядра (`@common/misc`, `@nestling/container`,
+`@nestling/operations`, `@nestling/app`, `@nestling/transport.http`,
+`@nestling/transport.cli`) SHALL NOT объявлять
 валидатор схем в `dependencies` или `peerDependencies` и SHALL NOT
 импортировать его в рантайме. Единственной схемной зависимостью SHALL быть
 types-only `@standard-schema/spec`, а тип `StandardSchemaV1` SHALL
@@ -184,7 +184,7 @@ types-only `@standard-schema/spec`, а тип `StandardSchemaV1` SHALL
 #### Scenario: Конфиг принимает схему любого вендора
 
 - **WHEN** секция объявлена со схемами разных валидаторов в разных полях
-- **THEN** `@nestling/config` работает с ними одинаково и не объявляет ни один
+- **THEN** `@nestling/app` работает с ними одинаково и не объявляет ни один
   валидатор в зависимостях
 
 ### Requirement: Явная JSON Schema объявляется аннотацией рядом со схемой

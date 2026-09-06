@@ -17,7 +17,7 @@
 
 ### Requirement: `secret(leaf)` — обёртка листа, помечающая поле секретным
 
-Пакет `@nestling/config` SHALL экспортировать `secret(leaf)` — обёртку листа
+Пакет `@nestling/app` SHALL экспортировать `secret(leaf)` — обёртку листа
 секции, помечающую поле секретным. Обёртка SHALL принимать как схему
 Standard Schema v1, так и результат `from(key, schema)`, поэтому точное имя
 ключа и секретность SHALL композироваться: `secret(from('DATABASE_URL', …))`.
