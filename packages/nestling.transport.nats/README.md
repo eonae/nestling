@@ -15,7 +15,7 @@ NATS как шина приложения: доставляет вызовы о�
 ## Установка
 
 ```bash
-npm install @nestling/transport.nats @nestling/ports
+npm install @nestling/transport.nats @nestling/app
 ```
 
 ## Минимальный пример

@@ -68,17 +68,18 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
+Семнадцать каталогов `packages/`. Ядро — три из них: `@nestling/container`,
+`@nestling/operations` и `@nestling/app`; их ставят вместе, поэтому и имён
+у ядра три.
+
 Для автора приложения:
 
 | Пакет | Что делает |
 |---|---|
-| [`@nestling/app`](../packages/nestling.app/) | Composition root: `assemble`, фичи и плагины, `select`, фазы жизненного цикла, политики |
-| [`@nestling/transport.http`](../packages/nestling.transport.http/) | HTTP на `node:http`: `httpEndpoint`, маршрутизация, JSON, NDJSON, SSE, multipart |
-| [`@nestling/operations`](../packages/nestling.operations/) | Общее для сервера и клиента: операции, `makeFail`, `Ok`/`Fail`, формы io |
-| [`@nestling/config`](../packages/nestling.config/) | Конфигурация секциями со схемами, источники и их привязка, секреты, reloadable |
+| [`@nestling/app`](../packages/nestling.app/) | Ядро одним пакетом: пайплайн, конфигурация, порты, абстракция транспорта и composition root (`assemble`, фичи и плагины, `select`, фазы жизненного цикла, политики) |
 | [`@nestling/container`](../packages/nestling.container/) | Контейнер зависимостей: токены, провайдеры, семейства токенов, модули, хуки жизненного цикла |
-| [`@nestling/pipeline`](../packages/nestling.pipeline/) | Пайплайн обработки запроса, слои, политики, асинхронный контекст |
-| [`@nestling/ports`](../packages/nestling.ports/) | Реализация и вызов операций между фичами, шина внутри процесса |
+| [`@nestling/operations`](../packages/nestling.operations/) | Общее для сервера и клиента: операции, `makeFail`, `Ok`/`Fail`, формы io, `Topic` и комбинаторы потоков |
+| [`@nestling/transport.http`](../packages/nestling.transport.http/) | HTTP на `node:http`: `httpEndpoint`, маршрутизация, JSON, NDJSON, SSE, multipart |
 | [`@nestling/testing`](../packages/nestling.testing/) | Тестовый composition root: `assembleTest`, `overrides`, стабы операций, `checkTopologies` |
 
 Транспорты и шина:
@@ -87,8 +88,6 @@ design-доки описывают **только целевое V1** (как б
 |---|---|
 | [`@nestling/transport.cli`](../packages/nestling.transport.cli/) | Команды CLI как endpoint'ы: однократный запуск и REPL |
 | [`@nestling/transport.nats`](../packages/nestling.transport.nats/) | NATS как шина приложения: операции между процессами, `durable`-доставка |
-| [`@nestling/transport`](../packages/nestling.transport/) | Интерфейс транспорта и `makeDispatch` для запуска без `assemble` |
-| [`@nestling/streams`](../packages/nestling.streams/) | `Topic<T>` и комбинаторы потоков на `AsyncIterable` |
 
 Инструменты и сателлиты:
 
@@ -101,6 +100,14 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestling/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
 | [`@nestling/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, подсказки по декларациям endpoint'ов |
 | [`@nestling/models`](../packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
+
+Внутренние, вне скоупа `@nestling`:
+
+| Пакет | Что делает |
+|---|---|
+| [`@common/misc`](../packages/common.misc/) | Схемный кернел (`validateSync` и ошибки схем) и общие вспомогательные типы |
+| [`@common/graphs`](../packages/common.graphs/) | Утилиты направленных ациклических графов: ими пользуется контейнер |
+| [`@common/static-server`](../packages/common.static-server/) | Сервер статических файлов без зависимостей: им пользуется `@nestling/viz` |
 
 ## Правила ведения
 

@@ -111,7 +111,7 @@ bind-карта живут в `@nestling/operations`. У пакета нет run
 без runtime-импортов; благодаря этому `.caller` и `.emitter` — настоящие члены
 семейств токенов.
 
-Рантайм (вызыватели, шина, биндинг) живёт в `@nestling/ports`. Он
+Рантайм (вызыватели, шина, биндинг) живёт в `@nestling/app`. Он
 реэкспортирует типы вызывателей (`Port`, `Emitter`, `PortMeta`), но не
 `makeRequest` / `makeCommand` / `makeEvent`: объявление операции импортируется только из
 `@nestling/operations`.

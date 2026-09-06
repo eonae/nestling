@@ -187,8 +187,8 @@ export class OrdersHub {
 ```
 
 `Topic` — небольшой broadcast-примитив: ограниченный буфер плюс
-`AbortSignal`. Он живёт в пакете `@nestling/streams` без внешних
-зависимостей; на него опираются также конфигурация (`reloadable`,
+`AbortSignal`. Он живёт в пакете `@nestling/operations`, у которого нет
+внешних зависимостей; на него опираются также конфигурация (`reloadable`,
 [config.md](./config.md)) и шина портов.
 
 ```typescript

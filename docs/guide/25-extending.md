@@ -1,6 +1,6 @@
 # 25. Расширить ядро своим пакетом
 
-> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-06).
 > Целевое описание: [design/principles.md](../design/principles.md), раздел
 > «Граница ядра», и [design/streaming.md](../design/streaming.md) §4.1.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-07-14]
@@ -27,9 +27,9 @@
 |---|---|---|
 | `makePlugin` | `@nestling/app` | подключение к корню через `plugins:` |
 | `@Injectable`, `@OnDestroy` | `@nestling/container` | реестр как singleton графа, класс-юниты слоя |
-| `makePipeline`, фазы `.pre` и `.finally` | `@nestling/pipeline` | слой `tracked`: запись живёт столько, сколько подписка |
+| `makePipeline`, фазы `.pre` и `.finally` | `@nestling/app` | слой `tracked`: запись живёт столько, сколько подписка |
 | `AbortSignal` | стандарт языка | сигнал подписки, объединяющий три причины отмены |
-| `Topic` | `@nestling/streams` | лента изменений реестра |
+| `Topic` | `@nestling/operations` | лента изменений реестра |
 | `makeEvent`, `jsonSchema` | `@nestling/operations` | факты жизненного цикла для других фич и процессов |
 
 В `dependencies` пакета только эти пакеты и `@common/misc` с типами
@@ -262,7 +262,7 @@ export const testTransport = (): TransportDeclaration =>
   transportValue(TestTransport$, new TestTransport());
 ```
 
-Транспорт реализует интерфейс `ITransport` из `@nestling/transport`:
+Транспорт реализует интерфейс `ITransport` из `@nestling/app`:
 поле `capabilities` перечисляет формы io, которые он умеет передавать,
 `serve(dispatch, signal)` получает таблицу маршрутов и общий сигнал
 остановки, `close()` освобождает ресурсы. Метода запуска без маршрутов в

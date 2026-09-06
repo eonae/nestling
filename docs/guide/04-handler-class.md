@@ -1,6 +1,6 @@
 # 4. Хендлер как класс
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-06).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §3.
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-09-03] Поле
 > `handler`: зависимости принадлежат хендлеру; канон `return`;
@@ -13,8 +13,8 @@
 
 ```typescript
 // examples/users-service/src/users/endpoints/list-users.endpoint.ts
+import type { Output } from '@nestling/app';
 import { Injectable } from '@nestling/container';
-import type { Output } from '@nestling/pipeline';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 

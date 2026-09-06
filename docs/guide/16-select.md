@@ -1,6 +1,6 @@
 # 16. Запускать только часть фич
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-06).
 > Целевое описание: [design/composition.md](../design/composition.md)
 > «L2 — фичи и `select`» и «`check()`». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Модульный монолит: фичи,
@@ -19,7 +19,7 @@ endpoint'ы разворачиваются отдельно, и каждый п�
 // examples/app-with-http/src/main.ts
 import { app } from './app.js';
 
-import { from, load, makeConfig } from '@nestling/config';
+import { from, load, makeConfig } from '@nestling/app';
 import { z } from 'zod';
 
 /**

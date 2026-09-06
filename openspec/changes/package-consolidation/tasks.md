@@ -60,17 +60,17 @@
 
 ## 8. Примеры
 
-- [ ] 8.1 Импорты и манифесты шести примеров `examples/*` переписаны на три имени плюс транспорт
-- [ ] 8.2 `node scripts/smoke.mjs` проходит; ни один пример не тянет исчезнувшее имя
+- [x] 8.1 Импорты и манифесты шести примеров `examples/*` переписаны на три имени плюс транспорт
+- [x] 8.2 `node scripts/smoke.mjs` проходит; ни один пример не тянет исчезнувшее имя
 
 ## 9. Документация
 
-- [ ] 9.1 README сливаемых пакетов сложены в `packages/nestling.app/README.md` и `packages/nestling.operations/README.md`; плашки статуса обновлены
-- [ ] 9.2 README пакетов-потребителей (`testing`, `subscriptions`, `transport.http`, `transport.cli`, `transport.nats`, `common.misc`) названы новыми именами
-- [ ] 9.3 Таблицы пакетов в `docs/README.md` перестроены на 17 каталогов
-- [ ] 9.4 `docs/glossary.md`, `docs/design/operations.md`, `docs/design/streaming.md`, `docs/design/transports.md` обновлены
-- [ ] 9.5 Девять глав гайда обновлены (`04`, `06`, `08`, `09`, `13`, `14`, `16`, `25`, приложение А), дата в плашке «сверено с кодом» поднята
-- [ ] 9.6 `node .claude/skills/docs-style/scripts/lint.mjs` по изменённым текстам — 0 запрещённых слов
+- [x] 9.1 README сливаемых пакетов сложены в `packages/nestling.app/README.md` и `packages/nestling.operations/README.md`; плашки статуса обновлены
+- [x] 9.2 README пакетов-потребителей (`testing`, `subscriptions`, `transport.http`, `transport.cli`, `transport.nats`, `common.misc`) названы новыми именами
+- [x] 9.3 Таблицы пакетов в `docs/README.md` перестроены на 17 каталогов
+- [x] 9.4 `docs/glossary.md`, `docs/design/operations.md`, `docs/design/streaming.md`, `docs/design/transports.md` обновлены
+- [x] 9.5 Девять глав гайда обновлены (`04`, `06`, `08`, `09`, `13`, `14`, `16`, `25`, приложение А), дата в плашке «сверено с кодом» поднята
+- [x] 9.6 `node .claude/skills/docs-style/scripts/lint.mjs` по изменённым текстам — 0 запрещённых слов
 
 ## 10. Спеки
 

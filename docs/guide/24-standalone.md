@@ -1,7 +1,7 @@
 # 24. Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-05)
-> и `container` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-06)
+> и `container` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
 > [design/container.md](../design/container.md). Почему так: записи

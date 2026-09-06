@@ -135,7 +135,7 @@ overrides: [
   токен, на который есть ссылка.
 - `contextValue(variable, value)` — сокращённая запись
   `valueProvider(Ctx(variable), reader)`. Читатель переменной контекста
-  ([`@nestling/app`](../nestling.pipeline)) — обычный узел графа, и
+  ([`@nestling/app`](../nestling.app)) — обычный узел графа, и
   подменяется как любой другой. Заданное значение читается и вне запроса
   (при прямом вызове сервиса) и имеет приоритет над рецептом семейства: в
   `testApp.call` сервис прочитает то, что задал тест, а не то, что записал
@@ -267,7 +267,7 @@ expect(report.breaking).toEqual([]);
 вердикт `unknown`. `diffOperations` — чистая функция от двух значений; она
 не участвует в сборке и не бросает ошибок по результату сравнения. Правила
 вердиктов и ведение baseline описаны в
-[`@nestling/ports`](../nestling.ports).
+[`@nestling/app`](../nestling.app).
 
 ## `vars()`: конфиг из объекта
 
@@ -344,7 +344,7 @@ resolve: { conditions: ['testing', 'node'] }
 | `contextValue(variable, value)` | подмена переменной контекста запроса |
 | `checkTopologies(app, selections, options?)`, `TopologyReport` | матрица `check()` |
 | `CheckReport`, `CheckOptions` | реэкспорт типов из `@nestling/app` |
-| `snapshotOperations`, `serializeSnapshot`, `diffOperations`, `formatCompatibility` | реэкспорт из `@nestling/ports`, чтобы CI-тест обходился одним импортом |
+| `snapshotOperations`, `serializeSnapshot`, `diffOperations`, `formatCompatibility` | реэкспорт из `@nestling/app`, чтобы CI-тест обходился одним импортом |
 | `SchemaDocConverter` | тип конвертера схем (реэкспорт из `@nestling/app`) |
 
 ## Границы пакета

@@ -15,10 +15,8 @@
 | Зависимость | Для чего |
 |---|---|
 | `@nestling/container` | `@Injectable`, `@OnDestroy`, `makeModule`: юниты слоя и модуль |
-| `@nestling/app` | `makePipeline` для слоя `tracked`, `Outcome` и типы контекста |
-| `@nestling/operations` | `makeRequest` / `makeCommand` / `makeEvent` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema` |
-| `@nestling/operations` | `Topic`: лента изменений |
-| `@nestling/app` | `makePlugin`: пакет отдаётся приложению плагином |
+| `@nestling/app` | `makePipeline` для слоя `tracked`, `Outcome` и типы контекста, `makePlugin`: пакет отдаётся приложению плагином |
+| `@nestling/operations` | `makeRequest` / `makeCommand` / `makeEvent` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema`, `Topic` для ленты изменений |
 | `@common/misc` | типы Standard Schema |
 
 Внешних зависимостей и вендора схем в пакете нет.
@@ -215,6 +213,5 @@ type CloseReason = Outcome | 'killed';
 
 ## Dev-зависимости
 
-Тесты используют `@nestling/testing`, `@nestling/ports` и
-`@nestling/transport`. Это `devDependencies`: граф зависимостей пакета в
-production — шесть пакетов из таблицы выше.
+Тесты используют `@nestling/testing`. Это `devDependencies`: граф
+зависимостей пакета в production — четыре пакета из таблицы выше.

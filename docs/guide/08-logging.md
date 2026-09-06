@@ -1,6 +1,6 @@
 # 8. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-05).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-06).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
 > композиция константами» и «Асинхронный контекст: read-only ALS-проекция
@@ -60,13 +60,13 @@ export class ConsoleLogger implements Logger {
 
 ```typescript
 // examples/users-service/src/observability.ts
-import { Injectable } from '@nestling/container';
 import type {
   ExtendableContext,
   Outcome,
   ResponseContext,
-} from '@nestling/pipeline';
-import { makePipeline, withRequestId } from '@nestling/pipeline';
+} from '@nestling/app';
+import { makePipeline, withRequestId } from '@nestling/app';
+import { Injectable } from '@nestling/container';
 
 /**
  * Юнит `.finally`: пишет строку аудита по завершении каждого запроса.
@@ -93,7 +93,7 @@ export const observability = makePipeline()
   .finally(AuditOutcome);
 ```
 
-`withRequestId()` — готовый pre-юнит из `@nestling/pipeline`. Он берёт
+`withRequestId()` — готовый pre-юнит из `@nestling/app`. Он берёт
 идентификатор из заголовка `x-request-id` или генерирует случайный и
 кладёт его в контекст полем `requestId`.
 
@@ -181,8 +181,8 @@ curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 
 ```typescript
 // examples/users-service/src/users/users.repository.ts
-import type { CtxReader } from '@nestling/pipeline';
-import { Ctx, RequestId } from '@nestling/pipeline';
+import type { CtxReader } from '@nestling/app';
+import { Ctx, RequestId } from '@nestling/app';
 
 @Injectable(UsersRepository$, [Database, Logger$, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
