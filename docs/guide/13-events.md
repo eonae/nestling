@@ -36,12 +36,15 @@ export const UserRegistered = makeEvent({
 
 ```typescript
 // examples/app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 class UserRegisteredInQuotasHandler {
   constructor(private readonly logger: Logger) {}
 
   async handle(payload: UserRegisteredInput) {
-    this.logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
+    this.logger.info('quota bookkeeping', {
+      userId: payload.id,
+      email: payload.email,
+    });
   }
 }
 
@@ -179,7 +182,7 @@ export const SignupRecordedImpl = implement(SignupRecorded, {
 
 ```typescript
 // examples/app-with-http/src/features/quotas/signup.journal.ts
-@Injectable([Logger$, Ctx(IdempotencyKey)])
+@Injectable([Logger$.auto, Ctx(IdempotencyKey)])
 export class SignupJournal {
   constructor(
     private readonly logger: Logger,
@@ -188,7 +191,10 @@ export class SignupJournal {
 
   /** Записывает регистрацию вместе с ключом идемпотентности */
   record(userId: string): void {
-    this.logger.debug(`signup ${userId} recorded, intent ${this.intent.get()}`);
+    this.logger.debug('signup recorded', {
+      userId,
+      intent: this.intent.get(),
+    });
   }
 }
 ```
@@ -235,7 +241,7 @@ export class SignupJournal {
 Запустите сервис с уровнем `debug` и создайте пользователя:
 
 ```bash
-API_TOKEN=secret WEBHOOK_SECRET=hook LOG_LEVEL=debug \
+API_TOKEN=secret WEBHOOK_SECRET=hook NESTLING_LOG_LEVEL=debug \
   yarn workspace @examples/app-with-http start:dev
 curl -X POST localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
@@ -243,10 +249,10 @@ curl -X POST localhost:3000/users \
 ```
 
 ```
-[app-with-http] [b7600481-…] insert user1@example.com
-[app-with-http] quota bookkeeping: user 3 (user1@example.com)
-[app-with-http] signup 3 recorded, intent 3
-[app-with-http] [b7600481-…] POST /users CREATED (completed)
+2026-09-06T12:00:00.000Z DEBUG DbUsersRepository insert user1@example.com requestId=b7600481-…
+2026-09-06T12:00:00.001Z INFO  UserRegisteredInQuotasHandler quota bookkeeping userId=3 email=user1@example.com
+2026-09-06T12:00:00.002Z DEBUG SignupJournal signup recorded userId=3 intent=3
+2026-09-06T12:00:00.003Z INFO  AuditOutcome POST /users created requestId=b7600481-… outcome=completed
 ```
 
 Вторую строку пишет подписчик события, третью пишет журнал: ключом
@@ -264,26 +270,31 @@ it('доставляет ключ идемпотентности команды 
     ...testConfig,
     overrides: [
       [UsersRepository$, inMemoryUsersRepo()],
-      [Logger$, spy.logger],
+      [RootLogger$, spy.logger],
     ],
   });
 
-  unwrap(await createUser(app, 'signed'));
+  unwrap(await createUser(testApp, 'signed'));
 
   // `emit` завершается по доставке, а не по обработке
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   // Ключом вызывающий задал id пользователя, и журнал получил его
-  expect(spy.lines).toContainEqual(
-    expect.stringMatching(/^signup (\d+) recorded, intent \1$/),
+  const recorded = spy.entries.find(
+    (entry) => entry.message === 'signup recorded',
   );
+  expect(recorded?.fields).toEqual({
+    scope: 'SignupJournal',
+    userId: expect.any(String),
+    intent: recorded?.fields.userId,
+  });
 });
 ```
 
-Тест создаёт пользователя через полный пайплайн и читает строку
-журнала. Пауза в один тик нужна, потому что `emit` завершается по
-доставке, а обработчик команды выполняется после неё. Ключ в строке
-совпадает с идентификатором пользователя: значение, которое задал
+Тест создаёт пользователя через полный пайплайн и находит запись
+журнала по её `message`. Пауза в один тик нужна, потому что `emit`
+завершается по доставке, а обработчик команды выполняется после неё.
+Поле `intent` записи совпадает с `userId`: значение, которое задал
 вызывающий, дошло до сервиса в глубине графа без параметра.
 
 О новом пользователе хочет знать не только сосед по процессу, но и

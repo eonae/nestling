@@ -21,10 +21,10 @@
 // examples/container/src/main.ts
 const app = makeApp({
   features: [AppFeature],
-  plugins: [appLogging],
+  plugins: [appCounters],
   providers: [Demo],
   config: [
-    [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
     [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
   ],
 }).assemble();
@@ -71,11 +71,17 @@ export const makeContainer = async (
   return await new ContainerBuilder()
     .register(
       configKernel([
-        [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+        [
+          objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'),
+          appConfigKeys,
+        ],
         [runtime, runtimeConfigKeys],
       ]),
     )
-    .register(...appLogging.modules)
+    // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
+    // секцию `nestlingLog` и идентификатор запроса из контекста
+    .register(contextKernel(), loggerKernel())
+    .register(...appCounters.modules)
     .register(AppModule)
     .build();
 };
@@ -83,16 +89,17 @@ export const makeContainer = async (
 
 `ContainerBuilder` собирает тот же граф, что `makeApp` в `main.ts` того
 же примера, но без фаз приложения и без транспортов. `configKernel`
-подключает ядро конфигурации, которое при сборке через `makeApp`
-регистрирует сама сборка. Плагин логирования регистрируется своими
-модулями: `appLogging.modules` — обычный массив значений.
+подключает ядро конфигурации, а `contextKernel()` и `loggerKernel()` —
+контекст запроса и логгер ядра. При сборке через `makeApp` все три
+регистрирует сама сборка. Плагин `appCounters` регистрируется своими
+модулями: `appCounters.modules` — обычный массив значений.
 
 ## Право привязки вместо секции
 
 ```typescript
 // examples/container/src/config/app.config.ts
 export const AppConfig = makeConfig('app', {
-  logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  metricsPrefix: z.string().min(1).default('app'),
   databaseUrl: secret(
     from('DATABASE_URL', z.url().default('postgresql://localhost:5432/myapp')),
   ),
@@ -172,7 +179,7 @@ export const runtimeConfigKeys = RuntimeConfig.keys;
 
 ```typescript
 // examples/container/src/runtime/rate-limiter.ts
-@Injectable([RuntimeConfig, Logger.auto])
+@Injectable([RuntimeConfig, Logger$.auto])
 export class RateLimiter {
   /** Значения `rps`, пришедшие через `onChange` */
   readonly history: number[] = [];
@@ -192,7 +199,7 @@ export class RateLimiter {
   watch(): void {
     this.config.onChange(this.#unsubscribe.signal, (next) => {
       this.history.push(next.rps);
-      this.logger.log(`rate limit changed to ${next.rps} rps`);
+      this.logger.info('rate limit changed', { rps: next.rps });
     });
   }
 

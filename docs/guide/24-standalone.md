@@ -141,11 +141,17 @@ export const makeContainer = async (
   return await new ContainerBuilder()
     .register(
       configKernel([
-        [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+        [
+          objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'),
+          appConfigKeys,
+        ],
         [runtime, runtimeConfigKeys],
       ]),
     )
-    .register(...appLogging.modules)
+    // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
+    // секцию `nestlingLog` и идентификатор запроса из контекста
+    .register(contextKernel(), loggerKernel())
+    .register(...appCounters.modules)
     .register(AppModule)
     .build();
 };
@@ -155,11 +161,13 @@ export const makeContainer = async (
 же примера, но без фаз приложения и транспортов. Ядро конфигурации,
 которое сборка через `makeApp` регистрирует сама, здесь подключается
 вызовом `configKernel` с привязкой источников к ключам секций, как в
-главе [22](./22-config-sources.md). Плагин логирования регистрируется
-своими модулями: `appLogging.modules` — обычный массив значений.
-`build()` создаёт все провайдеры сразу и проверяет граф целиком:
-отсутствующая зависимость и цикл останавливают сборку одной ошибкой со
-списком узлов.
+главе [22](./22-config-sources.md). Логгер ядра читает секцию
+`nestlingLog` и идентификатор запроса из контекста, поэтому без `App`
+эти два kernel-модуля — `contextKernel()` и `loggerKernel()` —
+регистрируются руками. Плагин `appCounters` регистрируется своими
+модулями: `appCounters.modules` — обычный массив значений. `build()`
+создаёт все провайдеры сразу и проверяет граф целиком: отсутствующая
+зависимость и цикл останавливают сборку одной ошибкой со списком узлов.
 
 ```typescript
 // examples/container/src/runtime/reload.spec.ts (фрагмент)

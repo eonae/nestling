@@ -127,13 +127,13 @@ a bus transport ('transports: [nats({ name: "events" })]' with
       select: 'ops',
     });
 
-    expect(testApp.get(Logger$)).not.toBeNull();
+    expect(testApp.get(AuditOutcome)).not.toBeNull();
     expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
     expect(testApp.get(ActivityHub)).toBeNull();
   });
 ```
 
-Логирование, аутентификация, реестр подписок и документ OpenAPI
+Наблюдаемость, аутентификация, реестр подписок и документ OpenAPI
 подключены через `plugins:` и не зависят от `select`. Провайдеров фичи
 `users` в этой сборке нет.
 

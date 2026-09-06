@@ -62,21 +62,24 @@
 
 ## 10. Гайд
 
-- [ ] 10.1 Глава 8 переписана вокруг логгера ядра: `Logger$.auto`, три формы, поля, `child`, `requestId` из контекста без ручного префикса, `NESTLING_LOG_LEVEL` и `NESTLING_LOG_FORMAT`, замена корня одним провайдером, `spyLogger()`; сниппеты совпадают с `users-service`
-- [ ] 10.2 Главы 5, 6, 12, 13, 15, 16, 23 и приложение А: `@Injectable([Logger$])` → `Logger$.auto`, `log(...)` → `info(...)`, подмена `[RootLogger$, spy.logger]`, `testApp.get(Logger$)` → `testApp.get(RootLogger$)`; глава 12 — абзац о параметризованном плагине перенесён на плагин с параметром
-- [ ] 10.3 Глава 21: рецепт семейства на собственном семействе примера, `.auto` на `Logger$.auto`, `.all` на `HealthCheck`; заголовок и первый абзац пересверены с новым предметом
-- [ ] 10.4 `guide/README.md`: строка «логгер ядра» в карте понятий (глава 8), строка главы 21 в таблице части 5; плашки «сверено с кодом» затронутых глав с датой правки
-- [ ] 10.5 `node .claude/skills/docs-style/scripts/lint.mjs docs/guide packages/*/README.md` → 0 запрещённых слов
+- [x] 10.1 Глава 8 переписана вокруг логгера ядра: `Logger$.auto`, три формы, поля, `child`, `requestId` из контекста без ручного префикса, `NESTLING_LOG_LEVEL` и `NESTLING_LOG_FORMAT`, замена корня одним провайдером, `spyLogger()`; сниппеты совпадают с `users-service`
+- [x] 10.2 Главы 5, 6, 12, 13, 15, 16, 23 и приложение А: `@Injectable([Logger$])` → `Logger$.auto`, `log(...)` → `info(...)`, подмена `[RootLogger$, spy.logger]`, `testApp.get(Logger$)` → `testApp.get(RootLogger$)`; глава 12 — абзац о параметризованном плагине перенесён на плагин с параметром
+- [x] 10.3 Глава 21: рецепт семейства на собственном семействе примера, `.auto` на `Logger$.auto`, `.all` на `HealthCheck`; заголовок и первый абзац пересверены с новым предметом
+- [x] 10.4 `guide/README.md`: строка «логгер ядра» в карте понятий (глава 8), строка главы 21 в таблице части 5; плашки «сверено с кодом» затронутых глав с датой правки
+- [x] 10.5 `node .claude/skills/docs-style/scripts/lint.mjs docs/guide packages/*/README.md` → 0 запрещённых слов
 
 ## 11. Design и decisions
 
-- [ ] 11.1 `design/errors.md` (§ нормализации: логгер вместо хука), `design/transports.md` (§1: опции границы без `onUnknownFail`), `design/config.md` (§3: предупреждения через логгер вместо `onWarn`), `design/testing.md` (`spyLogger()` рядом с `familyOverride`), `design/container.md` («Логгер ядра»: `defaults` модуля и `warnings`; «Модули»: поле `defaults`), `design/composition.md` (§6 «Логгер»: области `nestling:<область>`)
-- [ ] 11.2 README `@nestling/app`: раздел «Логгер ядра» (интерфейс, `RootLogger$`, `Logger$`, секция `nestlingLog`, области ядра, замена корня, правило про цикл), «Ошибки» и «`Dispatch`» без `onUnknownFail`, «Готовые юниты», «Справочник API: конфигурация» без `ConfigKernelOptions`/`ConfigWarn`, «Порты» без хуков, справочник API логгера, плашка статуса
-- [ ] 11.3 `yarn docs:audit` → 0 ERROR
+- [x] 11.1 `design/errors.md` (§ нормализации: логгер вместо хука), `design/transports.md` (§1: опции границы без `onUnknownFail`), `design/config.md` (§3: предупреждения через логгер вместо `onWarn`), `design/testing.md` (`spyLogger()` рядом с `familyOverride`), `design/container.md` («Логгер ядра»: `defaults` модуля и `warnings`; «Модули»: поле `defaults`), `design/composition.md` (§6 «Логгер»: области `nestling:<область>`)
+- [x] 11.2 README `@nestling/app`: раздел «Логгер ядра» (интерфейс, `RootLogger$`, `Logger$`, секция `nestlingLog`, области ядра, замена корня, правило про цикл), «Ошибки» и «`Dispatch`» без `onUnknownFail`, «Готовые юниты», «Справочник API: конфигурация» без `ConfigKernelOptions`/`ConfigWarn`, «Порты» без хуков, справочник API логгера, плашка статуса
+- [x] 11.3 `yarn docs:audit` → 0 ERROR
 
 ## 12. Замер
 
-- [ ] 12.1 Прогнать бенчмарк из change `hot-path-trim` на `GET` и `POST`; разница с базой в пределах погрешности; результат записан в PR
+- [x] 12.1 Прогнать бенчмарк из change `hot-path-trim` на `GET` и `POST`; разница с базой в пределах погрешности; результат записан в PR
+  - Замер 2026-09-06, Node 24.10 (серверы), Apple M1 Max, 50 соединений, 10 с, медиана из трёх (`BENCH_SERVERS=nestling,nestling-layers,fastify`):
+    `nestling` — `GET` 48 403 req/s (0.91 к `fastify`, база 0.92), `POST` 41 837 (1.14, база 1.14);
+    `nestling-layers` — `GET` 45 380 (0.85, база 0.85), `POST` 38 599 (1.05, база 1.06)
 
 ## Definition of Done
 

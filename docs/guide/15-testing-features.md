@@ -190,12 +190,19 @@ a bus transport ('transports: [nats({ name: "events" })]' with
     const spy = spyLogger();
     await using testApp = await assembleTest(app, {
       ...testConfig,
-      overrides: [[Logger$, spy.logger], contextValue(RequestId, 'req-fixed')],
+      overrides: [
+        [RootLogger$, spy.logger],
+        contextValue(RequestId, 'req-fixed'),
+      ],
     });
 
     unwrap(await testApp.call(GetUser, { id: '1' }));
 
-    expect(spy.lines).toContain('[req-fixed] byId 1');
+    expect(spy.entries).toContainEqual({
+      level: 'debug',
+      message: 'byId 1',
+      fields: { scope: 'DbUsersRepository', requestId: 'req-fixed' },
+    });
   });
 ```
 
@@ -213,7 +220,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
       select: 'ops',
     });
 
-    expect(testApp.get(Logger$)).not.toBeNull();
+    expect(testApp.get(AuditOutcome)).not.toBeNull();
     expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
     expect(testApp.get(ActivityHub)).toBeNull();
   });
