@@ -65,7 +65,7 @@ NOT существовать.
 - **WHEN** у endpoint'а пайплайн `compose(outer, inner)` с `.catch` и
   `.finally` в обоих слоях, и приходит невалидный payload
 - **THEN** `.catch` и `.finally` обоих слоёв вызваны с ответом 400, исход
-  `failed`, хук `onUnknownFail` не вызван
+  `failed`, записи `error` о незадекларированном отказе в логгере нет
 
 #### Scenario: Схема, принимающая всё, отключает проверку
 
@@ -152,15 +152,16 @@ SHALL NOT попадать ни в типах, ни в рантайме. Про�
 Standard Schema v1 (`NotAStandardSchemaError`), рантайм SHALL NOT
 превращать это в отказ 400. Ошибка SHALL обрабатываться как
 необработанная: ответ с кодом `internal_error`, нормализованным в
-`InternalError`, оригинал передаётся хуку `onUnknownFail`. Поведение SHALL
-быть одинаковым для endpoint'ов с пайплайном и без.
+`InternalError`, оригинал записывается уровнем `error` в логгер
+`dispatch`. Поведение SHALL быть одинаковым для endpoint'ов с пайплайном
+и без.
 
 #### Scenario: Async-схема без пайплайна
 
 - **WHEN** endpoint без `pipeline` объявлен со схемой, чей `validate`
   возвращает Promise, и приходит запрос
-- **THEN** ответ 500 с `code: 'internal_error'`, хук `onUnknownFail` получил
-  `AsyncSchemaNotSupportedError`
+- **THEN** ответ 500 с `code: 'internal_error'`, а запись `error` в
+  логгере несёт `AsyncSchemaNotSupportedError` в `err`
 
 #### Scenario: Объект-не-схема с пайплайном
 
