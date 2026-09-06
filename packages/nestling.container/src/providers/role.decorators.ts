@@ -122,7 +122,7 @@ type ValidComponentShape<T> = T extends { acquire(...args: any[]): any }
  * Записывает роль и список зависимостей в метаданные класса.
  *
  * `Family.auto` заменяется на члена здесь, при декорировании: класс
- * потребителя уже известен, поэтому в метаданные попадает обычный токен
+ * потребителя уже известен, поэтому в метаданные попадает обычный DI-токен
  * члена, и дальше заместителя никто не видит.
  */
 function decorateRole(role: ClassRole, declared: readonly InjectionToken[]) {
@@ -160,14 +160,14 @@ export function Component(): <T extends new () => any>(
 ) => T;
 
 /**
- * Объявляет компонент; токеном служит сам класс.
+ * Объявляет компонент; DI-токеном служит сам класс.
  *
  * Зависимости приходят в конструктор в порядке списка. Класс с методом
  * `handle` — хендлер, класс со `static acquire` — ресурс: их компонентом
  * объявить нельзя, это ошибка компиляции.
  *
- * @template TDependencies - Массив токенов зависимостей
- * @param deps - Токены, передаваемые в конструктор по порядку
+ * @template TDependencies - Массив DI-токенов зависимостей
+ * @param deps - DI-токены, передаваемые в конструктор по порядку
  *
  * @example
  * ```typescript
@@ -188,10 +188,10 @@ export function Component<TDependencies extends InjectionToken[]>(
 
 /**
  * Объявляет компонент; в зависимостях допустимы и классы, и объектные
- * токены.
+ * DI-токены.
  *
- * @template TDependencies - Массив токенов зависимостей
- * @param deps - Классы или токены, передаваемые в конструктор по порядку
+ * @template TDependencies - Массив DI-токенов зависимостей
+ * @param deps - Классы или DI-токены, передаваемые в конструктор по порядку
  */
 export function Component<TDependencies extends InjectionToken[]>(
   deps: [...TDependencies],
@@ -227,14 +227,14 @@ export function Handler(): <T extends new () => HandlerShape>(
 ) => T;
 
 /**
- * Объявляет класс-хендлер декларации; токеном служит сам класс.
+ * Объявляет класс-хендлер декларации; DI-токеном служит сам класс.
  *
  * Класс живёт в слоте `handler:` декларации и регистрируется самим
  * endpoint'ом: перечислять его в `providers:` не нужно, а перечисленный —
  * ошибка фазы ASSEMBLE.
  *
- * @template TDependencies - Массив токенов зависимостей
- * @param deps - Токены, передаваемые в конструктор по порядку
+ * @template TDependencies - Массив DI-токенов зависимостей
+ * @param deps - DI-токены, передаваемые в конструктор по порядку
  *
  * @example
  * ```typescript
@@ -256,10 +256,10 @@ export function Handler<TDependencies extends InjectionToken[]>(
 
 /**
  * Объявляет класс-хендлер; в зависимостях допустимы и классы, и объектные
- * токены.
+ * DI-токены.
  *
- * @template TDependencies - Массив токенов зависимостей
- * @param deps - Классы или токены, передаваемые в конструктор по порядку
+ * @template TDependencies - Массив DI-токенов зависимостей
+ * @param deps - Классы или DI-токены, передаваемые в конструктор по порядку
  */
 export function Handler<TDependencies extends InjectionToken[]>(
   deps: [...TDependencies],
@@ -296,7 +296,7 @@ export function Resource(): <T extends ResourceShape<[]>>(
 ) => T;
 
 /**
- * Объявляет ресурс; токеном служит сам класс.
+ * Объявляет ресурс; DI-токеном служит сам класс.
  *
  * Экземпляр создаёт `static acquire`: контейнер зовёт её на фазе INIT,
  * передавая значения зависимостей в порядке списка и сигнал остановки
@@ -307,8 +307,8 @@ export function Resource(): <T extends ResourceShape<[]>>(
  * Эталон списка — параметры `acquire` без последнего: `signal` в список не
  * входит.
  *
- * @template TDependencies - Массив токенов зависимостей
- * @param deps - Токены, передаваемые в `acquire` по порядку
+ * @template TDependencies - Массив DI-токенов зависимостей
+ * @param deps - DI-токены, передаваемые в `acquire` по порядку
  *
  * @example
  * ```typescript

@@ -28,7 +28,7 @@ export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
  * `Ctx(RequestId)` читает идентификатор запроса из контекста: в лог он
  * попадает без передачи параметром. Значение кладёт слой `observability`.
  *
- * Привязку к токену интерфейса записывает `classProvider(UsersRepository$,
+ * Привязку к DI-токену интерфейса записывает `classProvider(UsersRepository$,
  * DbUsersRepository)` в `providers:` фичи.
  */
 @Component([Database, Logger$.auto, Ctx(RequestId)])

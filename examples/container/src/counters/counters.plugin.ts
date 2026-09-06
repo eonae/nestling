@@ -25,7 +25,7 @@ class InMemoryCounter implements Counter {
 }
 
 /**
- * Плагин счётчиков: инфраструктура, к которой обращаются токеном из
+ * Плагин счётчиков: инфраструктура, к которой обращаются DI-токеном из
  * любого модуля.
  */
 export const appCounters = makePlugin({

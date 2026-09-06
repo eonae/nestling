@@ -66,7 +66,9 @@ describe('идентичность DI-токена', () => {
     expect(container.getOrThrow(first)).toBe('left');
     expect(container.getOrThrow(second)).toBe('right');
     expect(container.warnings).toHaveLength(1);
-    expect(container.warnings[0]).toContain('ambiguous DI token ids: Duplicated');
+    expect(container.warnings[0]).toContain(
+      'ambiguous DI token ids: Duplicated',
+    );
     expect(Object.isFrozen(container.warnings)).toBe(true);
 
     // Адреса разошлись, поэтому отчёт остаётся читаемым и в этом случае

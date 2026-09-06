@@ -129,7 +129,7 @@ describe('ContainerBuilder', () => {
       expect(container.getOrThrow(TokenB).b()).toBe('factory(a)');
     });
 
-    it('отвергает асинхронную фабрику провайдера, называя токен', async () => {
+    it('отвергает асинхронную фабрику провайдера, называя DI-токен', async () => {
       // Литерал провайдера типом не закрывается: `Module.providers` и
       // `register` принимают значение `unknown`, поэтому асинхронную
       // фабрику ловит только рантайм-проверка сборки
@@ -166,7 +166,7 @@ describe('ContainerBuilder', () => {
       await expect(container.init()).rejects.toThrow(/@Resource/);
     });
 
-    it('регистрирует класс с декоратором роли под его собственным токеном', async () => {
+    it('регистрирует класс с декоратором роли под его собственным DI-токеном', async () => {
       const container = new ContainerBuilder().register(ServiceA).build();
 
       await container.init();

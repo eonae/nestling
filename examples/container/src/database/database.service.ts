@@ -11,7 +11,7 @@ import { Component } from '@nestling/container';
  * База данных в памяти: реализация DI-токена `Database$`.
  *
  * Секция конфига инжектится как обычная зависимость: регистрировать её
- * отдельно не нужно. Привязку класса к токену `Database$` даёт
+ * отдельно не нужно. Привязку класса к DI-токену `Database$` даёт
  * `classProvider` в `database.module.ts`, а не сам декоратор.
  */
 @Component([AppConfig, Counter$('queries'), Logger$('db')])
