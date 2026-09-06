@@ -1,9 +1,10 @@
 /**
- * Конфиг в корне: прогрессивность (только env), приоритет источников и
- * fail-fast на старте — до того, как транспорт начнёт слушать.
+ * Конфиг в корне: прогрессивность (только env), приоритет источников,
+ * граница фазы 0 и fail-fast на старте — до того, как транспорт начнёт
+ * слушать.
  */
 
-import type { Config } from '../config/index.js';
+import type { Config, ConfigSource } from '../config/index.js';
 import {
   ConfigValidationError,
   makeConfig,
@@ -17,7 +18,7 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable } from '@nestling/container';
+import { Injectable, OnDestroy } from '@nestling/container';
 import { z } from 'zod';
 
 const RootConfig = makeConfig('rootapp', {
@@ -63,8 +64,58 @@ const withEnv = async (
   }
 };
 
+/** Отметки фаз в порядке их наступления */
+const phases: string[] = [];
+
+@Injectable([RootConfig])
+class PhaseProbe {
+  constructor(cfg: Config<typeof RootConfig>) {
+    projected.push(cfg);
+    phases.push('construct');
+  }
+
+  @OnDestroy()
+  destroyHook(): void {
+    phases.push('destroy');
+  }
+}
+
+const ProbeFeature = makeFeature({
+  name: 'module:probe',
+  providers: [PhaseProbe],
+});
+
+/** Источник, отмечающий свои вызовы: им и проверяется граница фазы 0. */
+const probeSource = (
+  values: Record<string, string>,
+  name = 'probe',
+): { source: ConfigSource; reads: string[] } => {
+  const reads: string[] = [];
+
+  return {
+    reads,
+    source: {
+      name,
+      init: async () => {
+        await Promise.resolve();
+        phases.push('init');
+      },
+      get: (key) => {
+        reads.push(key);
+
+        return values[key];
+      },
+      close: async () => {
+        await Promise.resolve();
+        phases.push('close');
+      },
+    },
+  };
+};
+
 beforeEach(() => {
   projected.length = 0;
+  phases.length = 0;
 });
 
 describe('привязка конфига в assemble', () => {
@@ -138,5 +189,111 @@ describe('привязка конфига в assemble', () => {
 
     await expect(app.run()).rejects.toThrow(/ROOTAPP_RETRIES/);
     expect(transport.serving).toBe(false);
+  });
+});
+
+describe('фаза 0 BOOTSTRAP', () => {
+  it('поднимает источники до графа, а сборка их не опрашивает', async () => {
+    const { source, reads } = probeSource({ ROOTAPP_RETRIES: '3' });
+
+    const app = makeApp({
+      features: [ProbeFeature],
+      transports: [
+        transportValue(TestTransport$('default'), new MockTransport()),
+      ],
+      config: [[source, '*']],
+    }).assemble();
+
+    await app.run();
+
+    // `init()` источника завершился до создания первого провайдера
+    expect(phases).toEqual(['init', 'construct']);
+
+    // Ключ прочитан ровно один раз — снимком фазы 0; проекция секции
+    // на фазе 1 идёт уже в снимок
+    expect(reads.filter((key) => key === 'ROOTAPP_RETRIES')).toHaveLength(1);
+    expect(projected).toEqual([{ greeting: 'hi', retries: 3 }]);
+
+    await app.close();
+  });
+
+  it('закрывает источники на shutdown, после @OnDestroy графа', async () => {
+    const { source } = probeSource({ ROOTAPP_RETRIES: '3' });
+
+    const app = makeApp({
+      features: [ProbeFeature],
+      transports: [
+        transportValue(TestTransport$('default'), new MockTransport()),
+      ],
+      config: [[source, '*']],
+    }).assemble();
+
+    await app.run();
+    await app.close();
+
+    expect(phases).toEqual(['init', 'construct', 'destroy', 'close']);
+  });
+
+  it('отказ источника роняет старт, называя его, и графа не строит', async () => {
+    const failing: ConfigSource = {
+      name: 'vault',
+      init: () => {
+        throw new Error('connection refused');
+      },
+      // eslint-disable-next-line unicorn/no-useless-undefined
+      get: () => undefined,
+    };
+
+    const transport = new MockTransport();
+    const app = makeApp({
+      features: [ProbeFeature],
+      transports: [transportValue(TestTransport$('default'), transport)],
+      config: [[failing, '*']],
+    }).assemble();
+
+    await expect(app.run()).rejects.toThrow(/Config source 'vault'/);
+
+    expect(phases).toEqual([]);
+    expect(transport.serving).toBe(false);
+  });
+});
+
+describe('check() и источники', () => {
+  it('с config: vars({ … }) привязки декларации не поднимаются', async () => {
+    const { source } = probeSource({ ROOTAPP_RETRIES: '3' }, 'declared');
+
+    const app = makeApp({
+      features: [ProbeFeature],
+      transports: [
+        transportValue(TestTransport$('default'), new MockTransport()),
+      ],
+      config: [[source, '*']],
+    });
+
+    await app.check(undefined, {
+      config: objectSource({ ROOTAPP_RETRIES: '7' }, 'vars'),
+    });
+
+    // Ни `init()`, ни `close()` объявленного источника: проверка обошлась
+    // переданным и ввода-вывода не сделала
+    expect(phases).toEqual(['construct']);
+  });
+
+  it('закрывает источники сразу после отчёта, хотя графа не разрушает', async () => {
+    const { source } = probeSource({ ROOTAPP_RETRIES: '3' });
+
+    const app = makeApp({
+      features: [ProbeFeature],
+      transports: [
+        transportValue(TestTransport$('default'), new MockTransport()),
+      ],
+      config: [[source, '*']],
+    });
+
+    await app.check();
+
+    // `@OnDestroy` не выполнялся — проверка контейнер не разрушает, — а
+    // источники уже закрыты
+    expect(phases).toEqual(['init', 'construct', 'close']);
   });
 });

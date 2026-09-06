@@ -1,10 +1,11 @@
 /**
  * Слой конфигурации: секции поверх token families.
  *
- * Экспорт намеренно узкий. Читалка (`ConfigReader`) и её токен здесь
- * отсутствуют: kernel-граница держится видимостью ES-модулей, а не
- * рантайм-проверками. Семейство `ConfigSection` тоже приватно — секция
- * инжектится своим собственным токеном.
+ * Экспорт намеренно узкий. Класс читалки и её токен здесь отсутствуют:
+ * kernel-граница держится видимостью ES-модулей, а не рантайм-проверками —
+ * наружу выходит только тип `ConfigReader`, чтобы назвать результат фазы 0.
+ * Семейство `ConfigSection` тоже приватно — секция инжектится своим
+ * собственным токеном.
  */
 
 export type {
@@ -20,7 +21,11 @@ export type {
   SecretField,
 } from './declaration.js';
 export { from, secret } from './declaration.js';
-export { ConfigSharedKeyError, ConfigValidationError } from './errors.js';
+export {
+  ConfigSharedKeyError,
+  ConfigSourceError,
+  ConfigValidationError,
+} from './errors.js';
 export type { ConfigFieldFailure, SharedKeyReader } from './errors.js';
 /**
  * `Config` — и семейство одиночных ключей (значение), и тип проекции
@@ -30,7 +35,19 @@ export { Config } from './families.js';
 export type { Config as ConfigProjection } from './families.js';
 export { ConfigKeys } from './keys.js';
 export type { ConfigGlob, ConfigTarget } from './keys.js';
-export { configKernel } from './kernel.js';
+/**
+ * Фаза 0 конфига: `bootstrapConfig` поднимает источники вне контейнера,
+ * `configKernel` вносит готовую читалку в граф значением.
+ */
+export { bootstrapConfig, configKernel } from './kernel.js';
+/**
+ * Читалка — результат фазы 0, только как тип.
+ *
+ * Конструктора наружу нет, DI-токена тоже: читалку нельзя ни создать, ни
+ * инжектить. Имя нужно, чтобы назвать значение, которое отдаёт
+ * `bootstrapConfig` и принимает `configKernel`.
+ */
+export type { ConfigReader } from './kernel.js';
 /**
  * Первичное чтение секции — фаза 0: `select` считается до сборки, а
  * значит до читалки и привязанных источников.
@@ -47,5 +64,10 @@ export type {
   ConfigSharedKeyDescription,
 } from './registry.js';
 export { makeConfig } from './section.js';
-export { objectSource } from './source.js';
-export type { ConfigBinding, ConfigSource, ObjectSource } from './source.js';
+export { objectSource, toBindings } from './source.js';
+export type {
+  ConfigBinding,
+  ConfigInput,
+  ConfigSource,
+  ObjectSource,
+} from './source.js';

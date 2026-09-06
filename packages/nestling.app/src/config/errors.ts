@@ -110,3 +110,31 @@ export class ConfigSharedKeyError extends Error {
     this.name = 'ConfigSharedKeyError';
   }
 }
+
+/**
+ * Источник не поднялся на фазе 0.
+ *
+ * Ошибка называет источник по имени: «конфиг не прочитался» без ответа на
+ * «какой источник» отправляет искать наугад. Исходная ошибка лежит в
+ * `cause` — деталь отказа знает источник, а не ядро.
+ *
+ * Повторов ядро не делает: сколько раз и с какой паузой повторять, знает
+ * источник, и объявляет это параметром своей фабрики.
+ */
+export class ConfigSourceError extends Error {
+  constructor(
+    /** Имя источника из привязки */
+    readonly source: string,
+    /** Исходная ошибка `init()` */
+    cause: unknown,
+  ) {
+    super(
+      `Config source '${source}' failed to initialize, so the application ` +
+        `cannot start: phase 0 reads every bound source before the container ` +
+        `is built. Retries belong to the source itself — declare them in its ` +
+        `factory if the failure is transient.`,
+      { cause },
+    );
+    this.name = 'ConfigSourceError';
+  }
+}

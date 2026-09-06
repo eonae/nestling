@@ -80,7 +80,7 @@ async function contextReaders(): Promise<{
     deps: [Ctx(Deadline), Ctx(IdempotencyKey)],
   });
 
-  const container = await builder.build();
+  const container = builder.build();
 
   return {
     deadline: container.getOrThrow(Ctx(Deadline)),

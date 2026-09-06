@@ -10,7 +10,12 @@
  * fail-fast: ошибка сборки предшествует захвату любых ресурсов.
  */
 
-import { configKernel } from '../config/index.js';
+import type {
+  ConfigBinding,
+  ConfigInput,
+  ConfigReader,
+} from '../config/index.js';
+import { bootstrapConfig, configKernel, toBindings } from '../config/index.js';
 import type {
   AnyEndpointDefinition,
   HandlerClass,
@@ -143,6 +148,17 @@ export interface CheckOptions {
    * Строгость выбирает потребитель дескриптора, а не проверка.
    */
   readonly converters?: readonly SchemaDocConverter[];
+
+  /**
+   * Источники конфига проверки: голый источник, одна привязка или список
+   * привязок.
+   *
+   * **Заменяет** привязки декларации целиком — те же три формы, что у
+   * тестового корня. С `config: vars({ … })` проверка обходится без
+   * источников и без ввода-вывода. Без поля поднимаются привязки
+   * декларации.
+   */
+  readonly config?: ConfigInput;
 }
 
 /**
@@ -374,6 +390,14 @@ export class AssembledApp {
   #container?: BuiltContainer;
 
   /**
+   * Читалка конфига, поднятая на фазе 0.
+   *
+   * Живёт время `run()`, а не время контейнера: её `close()` — явный шаг
+   * SHUTDOWN после `container.destroy()`.
+   */
+  #reader?: ConfigReader;
+
+  /**
    * Транспорты в порядке запуска (фаза START).
    *
    * Shutdown идёт этим списком в реверсе.
@@ -406,8 +430,13 @@ export class AssembledApp {
     }
     this.#started = true;
 
+    // 0 BOOTSTRAP — резолв выбора и подъём источников конфига: единственный
+    // ввод-вывод до INIT
+    const reader = await this.#bootstrap();
+    this.#reader = reader;
+
     // 1 ASSEMBLE — граф, discovery и все fail-fast'ы до захвата ресурсов
-    const { container, discovery } = await this.#assemble();
+    const { container, discovery } = this.#assemble(reader);
     this.#container = container;
 
     // 2 INIT
@@ -443,8 +472,23 @@ export class AssembledApp {
    * @internal
    */
   async [CHECK_SEAM](options: CheckOptions): Promise<CheckReport> {
-    const { discovery } = await this.#assemble();
+    // Переданный `config` заменяет привязки декларации целиком: с
+    // `config: vars({ … })` проверка обходится без источников
+    const reader = await this.#bootstrap(
+      options.config === undefined ? undefined : toBindings(options.config),
+    );
 
+    try {
+      return this.#report(this.#assemble(reader).discovery, options);
+    } finally {
+      // Контейнер проверка не разрушает, поэтому источники закрываются
+      // сразу после отчёта — иначе они остались бы открытыми
+      await reader.close();
+    }
+  }
+
+  /** Отчёт о составе по результату discovery */
+  #report(discovery: EndpointDiscovery, options: CheckOptions): CheckReport {
     return {
       features: this.#selectedFeatures().map((feature) => feature.name),
       endpoints: discovery.endpoints.map(({ endpoint, moduleName }) => ({
@@ -481,8 +525,13 @@ export class AssembledApp {
     }
     this.#started = true;
 
+    // 0 BOOTSTRAP — привязки прогона уже в плане: тест изолирован от
+    // источников приложения так же, как от `process.env`
+    const reader = await this.#bootstrap();
+    this.#reader = reader;
+
     // 1 ASSEMBLE — те же fail-fast'ы, что и в бою
-    const { container, discovery } = await this.#assemble();
+    const { container, discovery } = this.#assemble(reader);
     this.#container = container;
 
     // 2 INIT
@@ -532,6 +581,11 @@ export class AssembledApp {
     await this.#container?.destroy();
     this.#container = undefined;
 
+    // 4. Источники конфига — последними: читалка живёт время `run()`, а
+    // не время контейнера, и хука в графе у неё нет
+    await this.#reader?.close();
+    this.#reader = undefined;
+
     this.#detachSignals?.();
     this.#detachSignals = undefined;
   }
@@ -570,22 +624,43 @@ export class AssembledApp {
   }
 
   /**
+   * Фаза 0: резолв выбора и подъём источников конфига.
+   *
+   * Единственный ввод-вывод до INIT и единственное место, где он
+   * происходит раньше графа. После неё значения ключей лежат в снимке, и
+   * фазе 1 читать уже нечего.
+   *
+   * @param config - Привязки, заменяющие привязки плана целиком; проверка
+   * передаёт сюда свой `config:`
+   */
+  async #bootstrap(config?: readonly ConfigBinding[]): Promise<ConfigReader> {
+    this.#select();
+
+    const { spec } = this.#plan;
+
+    return await bootstrapConfig([
+      ...(config ?? this.#plan.config ?? spec.config),
+    ]);
+  }
+
+  /**
    * Фаза 1: дерево модулей, discovery, граф, сверка транспортов и форм,
    * инварианты сборки — именно в этом порядке.
    *
-   * Всё, что может не сойтись, сходится здесь: до `@OnInit` не доходит ни
-   * одна неудовлетворённая потребность.
+   * Синхронна и без ввода-вывода: всё, что читает внешний мир, осталось на
+   * фазе 0. Всё, что может не сойтись, сходится здесь: до `@OnInit` не
+   * доходит ни одна неудовлетворённая потребность.
    *
    * Общий метод для `run()`, проверки и шва: собранный контейнер он
    * возвращает, но не запоминает — иначе проверка оставляла бы за собой
    * граф, который никто не будет ни инициализировать, ни разрушать.
+   *
+   * @param reader - Читалка со снимком фазы 0
    */
-  async #assemble(): Promise<{
+  #assemble(reader: ConfigReader): {
     container: BuiltContainer;
     discovery: EndpointDiscovery;
-  }> {
-    this.#select();
-
+  } {
     const { spec } = this.#plan;
     const bundles = this.#bundles();
 
@@ -597,9 +672,9 @@ export class AssembledApp {
     // Kernel-модуль конфига регистрируется всегда: иначе сценарий
     // «источник — только env, про конфиг в корне ничего не пишем» не
     // работал бы. Без привязок читалка тривиальна, а рецепты семейств не
-    // создают ни одного узла, пока никто не инжектит секцию. Привязка
-    // теста заменяет привязку декларации целиком.
-    builder.register(configKernel([...(this.#plan.config ?? spec.config)]));
+    // создают ни одного узла, пока никто не инжектит секцию. Читалка
+    // входит значением: источники подняты на фазе 0.
+    builder.register(configKernel(reader));
 
     // Kernel-модуль ambient-контекста — по той же причине и с той же ценой:
     // без единого `Ctx(...)` в `deps` он не создаёт ни одного узла, зато
@@ -657,11 +732,11 @@ export class AssembledApp {
       builder.register(...(transports as Provider[]));
     }
 
-    const container = await builder.build();
+    const container = builder.build();
 
     // Граница фич — первой на собранном графе: ребро, которое не переживёт
     // разъезда процессов, важнее любого недостающего транспорта
-    await assertFeatureBoundary(
+    assertFeatureBoundary(
       container,
       buildOwnerMap(this.#selectedFeatures(), spec.plugins),
     );

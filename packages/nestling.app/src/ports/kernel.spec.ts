@@ -2,7 +2,11 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
-import { configKernel, objectSource } from '../config/index.js';
+import {
+  bootstrapConfig,
+  configKernel,
+  objectSource,
+} from '../config/index.js';
 import type { AnyEndpointDefinition, TransportRef } from '../pipeline/index.js';
 import { Ok } from '../pipeline/index.js';
 import type { Dispatch } from '../transport/index.js';
@@ -157,7 +161,9 @@ async function assemble(options: {
   );
 
   const builder = new ContainerBuilder();
-  builder.register(configKernel([[source, portsConfigKeys]]));
+  builder.register(
+    configKernel(await bootstrapConfig([[source, portsConfigKeys]])),
+  );
   builder.register(
     portsKernel({
       implementations: collectImplementations(
@@ -187,7 +193,7 @@ async function assemble(options: {
     builder.register(consumer);
   }
 
-  const container = await builder.build();
+  const container = builder.build();
   const bus = container.get(MessageBus$) as InProcessBus | null;
 
   if (options.wire === false) {

@@ -10,7 +10,7 @@ import type { SectionDeclaration } from './declaration.js';
 import { from, secret } from './declaration.js';
 import { ConfigValidationError, REDACTED } from './errors.js';
 import type { Config } from './families.js';
-import { configKernel } from './kernel.js';
+import { bootstrapConfig, configKernel } from './kernel.js';
 import { load } from './load.js';
 import { projectSection, reloadableOf } from './project.js';
 import { ConfigReader } from './reader.js';
@@ -75,11 +75,13 @@ const build = async (
 ): Promise<BuiltContainer> => {
   const builder = new ContainerBuilder();
   builder.register(
-    configKernel([[objectSource(values, 'test'), '*']], { onWarn }),
+    configKernel(
+      await bootstrapConfig([[objectSource(values, 'test'), '*']], { onWarn }),
+    ),
   );
   register(builder);
 
-  return await builder.build();
+  return builder.build();
 };
 
 /** Поднимает читалку с одним объектным источником и проецирует секцию. */
