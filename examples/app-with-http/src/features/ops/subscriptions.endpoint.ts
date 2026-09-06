@@ -1,5 +1,5 @@
 import { authed } from '../../plugins/auth/index.js';
-import { observability } from '../../plugins/logging/index.js';
+import { observability } from '../../plugins/observability/index.js';
 
 import type { Output } from '@nestling/app';
 import { compose } from '@nestling/app';

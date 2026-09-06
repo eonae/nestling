@@ -13,31 +13,17 @@ import {
 } from './users/endpoints/index.js';
 import { UsersRepository$ } from './users/users.repository.js';
 import { app } from './app.js';
-import type { Logger } from './logging.js';
-import { Logger$ } from './logging.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { assembleTest, unwrap, vars } from '@nestling/testing';
+import { RootLogger$ } from '@nestling/app';
+import { assembleTest, spyLogger, unwrap, vars } from '@nestling/testing';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };
 
 /** Конфиг теста: объект вместо `process.env` */
 const testConfig = vars({ API_TOKEN: 'test-token' });
-
-/** Логгер, который копит строки: по ним тест читает аудит */
-const spyLogger = (): { lines: string[]; logger: Logger } => {
-  const lines: string[] = [];
-
-  return {
-    lines,
-    logger: {
-      log: (line) => void lines.push(line),
-      error: (line) => void lines.push(line),
-    },
-  };
-};
 
 describe('users-service', () => {
   it('отдаёт пользователя через полный пайплайн', async () => {
@@ -118,20 +104,47 @@ describe('users-service', () => {
     });
   });
 
-  it('пишет строку аудита с идентификатором запроса', async () => {
+  it('пишет запись аудита через логгер ядра', async () => {
+    // Подмена корня перехватывает записи всех членов Logger$: и ядра, и
+    // приложения. Область записи — имя класса, взявшего Logger$.auto
     const spy = spyLogger();
     await using testApp = await assembleTest(app, {
       config: testConfig,
       overrides: [
         [UsersRepository$, inMemoryUsersRepo([alice])],
-        [Logger$, spy.logger],
+        [RootLogger$, spy.logger],
       ],
     });
 
     unwrap(await testApp.call(GetUser, { id: '1' }));
 
-    expect(spy.lines).toContainEqual(
-      expect.stringMatching(/^\[[^\]]+] GET \/users\/:id ok \(completed\)$/),
+    expect(spy.entries).toContainEqual({
+      level: 'info',
+      message: 'GET /users/:id ok',
+      fields: { scope: 'AuditOutcome', outcome: 'completed' },
+    });
+  });
+
+  it('хранилище пишет идентификатор запроса полем записи', async () => {
+    const spy = spyLogger();
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
+      overrides: [[RootLogger$, spy.logger]],
+    });
+
+    unwrap(await testApp.call(GetUser, { id: '1' }));
+
+    // Endpoint вызван без requestId, и параметром он в хранилище не
+    // передан: значение прочитано из контекста запроса
+    expect(spy.entries).toContainEqual({
+      level: 'debug',
+      message: 'byId 1',
+      fields: { scope: 'DbUsersRepository', requestId: expect.any(String) },
+    });
+    expect(spy.entries).not.toContainEqual(
+      expect.objectContaining({
+        fields: expect.objectContaining({ requestId: 'n/a' }),
+      }),
     );
   });
 });

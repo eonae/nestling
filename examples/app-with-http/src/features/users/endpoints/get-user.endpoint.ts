@@ -1,6 +1,6 @@
 import type { GetUserInput } from '../../../api/operations.js';
 import { GetUser as GetUserOperation } from '../../../api/operations.js';
-import { observability } from '../../../plugins/logging/index.js';
+import { observability } from '../../../plugins/observability/index.js';
 import type { User } from '../user.js';
 import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';

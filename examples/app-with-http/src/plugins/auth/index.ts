@@ -6,7 +6,7 @@
  */
 
 import { Unauthorized } from '../../errors.js';
-import { observability } from '../logging/index.js';
+import { observability } from '../observability/index.js';
 
 import { Authenticate } from './authenticate.js';
 

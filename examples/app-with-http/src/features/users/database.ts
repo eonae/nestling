@@ -1,10 +1,9 @@
 import { AppConfig } from '../../app.config.js';
-import type { Logger } from '../../plugins/logging/index.js';
-import { Logger$ } from '../../plugins/logging/index.js';
 
 import type { User } from './user.js';
 
-import type { Config } from '@nestling/app';
+import type { Config, Logger } from '@nestling/app';
+import { Logger$ } from '@nestling/app';
 import { Injectable, OnDestroy, OnInit } from '@nestling/container';
 
 /**
@@ -13,7 +12,7 @@ import { Injectable, OnDestroy, OnInit } from '@nestling/container';
  * Соединение открывается в `@OnInit`, а не в конструкторе, и закрывается
  * в `@OnDestroy`. До `@OnInit` обращение к таблице бросает ошибку.
  */
-@Injectable([AppConfig, Logger$])
+@Injectable([AppConfig, Logger$.auto])
 export class Database {
   #users: User[] | undefined;
 
@@ -25,9 +24,9 @@ export class Database {
   @OnInit()
   connect(): void {
     // В лог уходит только хост: значение поля секретное
-    this.logger.log(
-      `database connected: ${new URL(this.config.databaseUrl).host}`,
-    );
+    this.logger.info('database connected', {
+      host: new URL(this.config.databaseUrl).host,
+    });
     this.#users = [
       { id: '1', name: 'Alice', email: 'alice@example.com' },
       { id: '2', name: 'Bob', email: 'bob@example.com' },
@@ -37,7 +36,7 @@ export class Database {
   @OnDestroy()
   disconnect(): void {
     this.#users = undefined;
-    this.logger.log('database disconnected');
+    this.logger.info('database disconnected');
   }
 
   /** Таблица пользователей */

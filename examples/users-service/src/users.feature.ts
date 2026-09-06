@@ -10,7 +10,6 @@ import {
 import { DbUsersRepository } from './users/users.repository.js';
 import { Authenticate } from './auth.js';
 import { Database } from './database.js';
-import { ConsoleLogger } from './logging.js';
 import { AuditOutcome } from './observability.js';
 
 import { makeFeature } from '@nestling/app';
@@ -24,13 +23,7 @@ import { makeFeature } from '@nestling/app';
  */
 export const UsersFeature = makeFeature({
   name: 'users',
-  providers: [
-    ConsoleLogger,
-    Database,
-    DbUsersRepository,
-    AuditOutcome,
-    Authenticate,
-  ],
+  providers: [Database, DbUsersRepository, AuditOutcome, Authenticate],
   endpoints: [
     ListUsers,
     GetUser,

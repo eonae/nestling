@@ -1,14 +1,13 @@
 import type { ClaimQuotaInput } from '../../operations.js';
 import { ClaimQuota, QuotaExceeded } from '../../operations.js';
-import type { Logger } from '../../plugins/logging/index.js';
-import { Logger$ } from '../../plugins/logging/index.js';
 
 import { QuotaService } from './quota.service.js';
 
-import { implement } from '@nestling/app';
+import type { Logger } from '@nestling/app';
+import { implement, Logger$ } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 
-@Injectable([QuotaService, Logger$])
+@Injectable([QuotaService, Logger$.auto])
 class ClaimQuotaHandler {
   constructor(
     private readonly quotas: QuotaService,
@@ -19,7 +18,7 @@ class ClaimQuotaHandler {
     const claimed = this.quotas.claim();
 
     if (!claimed.ok) {
-      this.logger.log(`quota exhausted, refusing ${payload.email}`);
+      this.logger.info('quota exhausted', { email: payload.email });
 
       // Вызывающий получит `Fail` и узнает его через `QuotaExceeded.is()`
       return QuotaExceeded({ limit: this.quotas.limit });

@@ -1,8 +1,5 @@
-import type { Logger } from '../../plugins/logging/index.js';
-import { Logger$ } from '../../plugins/logging/index.js';
-
-import type { CtxReader } from '@nestling/app';
-import { Ctx, IdempotencyKey } from '@nestling/app';
+import type { CtxReader, Logger } from '@nestling/app';
+import { Ctx, IdempotencyKey, Logger$ } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 
 /**
@@ -15,7 +12,7 @@ import { Injectable } from '@nestling/container';
  * Дедупликации здесь нет: ядро доставляет ключ до обработчика, а что с
  * ним делать, решает владелец команды.
  */
-@Injectable([Logger$, Ctx(IdempotencyKey)])
+@Injectable([Logger$.auto, Ctx(IdempotencyKey)])
 export class SignupJournal {
   constructor(
     private readonly logger: Logger,
@@ -24,6 +21,9 @@ export class SignupJournal {
 
   /** Записывает регистрацию вместе с ключом идемпотентности */
   record(userId: string): void {
-    this.logger.debug(`signup ${userId} recorded, intent ${this.intent.get()}`);
+    this.logger.debug('signup recorded', {
+      userId,
+      intent: this.intent.get(),
+    });
   }
 }

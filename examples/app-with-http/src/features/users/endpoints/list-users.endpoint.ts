@@ -1,5 +1,5 @@
 import { AppConfig } from '../../../app.config.js';
-import { observability } from '../../../plugins/logging/index.js';
+import { observability } from '../../../plugins/observability/index.js';
 import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';

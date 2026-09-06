@@ -1,7 +1,5 @@
-import type { Logger } from '../../plugins/logging/index.js';
-import { Logger$ } from '../../plugins/logging/index.js';
-
-import { implement } from '@nestling/app';
+import type { Logger } from '@nestling/app';
+import { implement, Logger$ } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import {
   SubscriptionClosed,
@@ -16,7 +14,7 @@ import {
  * процессам: каждый узел публикует свои факты.
  */
 
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 class SubscriptionOpenedInOpsHandler {
   constructor(private readonly logger: Logger) {}
 
@@ -26,10 +24,12 @@ class SubscriptionOpenedInOpsHandler {
     transport: string;
     pattern: string;
   }) {
-    this.logger.log(
-      `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
-        `(${payload.transport} ${payload.pattern})`,
-    );
+    this.logger.info('subscription opened', {
+      node: payload.node ?? 'local',
+      id: payload.id,
+      transport: payload.transport,
+      pattern: payload.pattern,
+    });
   }
 }
 
@@ -38,7 +38,7 @@ export const SubscriptionOpenedInOps = implement(SubscriptionOpened, {
   handler: SubscriptionOpenedInOpsHandler,
 });
 
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 class SubscriptionClosedInOpsHandler {
   constructor(private readonly logger: Logger) {}
 
@@ -48,10 +48,12 @@ class SubscriptionClosedInOpsHandler {
     reason: string;
     itemsOut: number;
   }) {
-    this.logger.log(
-      `[subscriptions] ${payload.node ?? 'local'}: closed ${payload.id}: ` +
-        `${payload.reason}, ${payload.itemsOut.toString()} items`,
-    );
+    this.logger.info('subscription closed', {
+      node: payload.node ?? 'local',
+      id: payload.id,
+      reason: payload.reason,
+      itemsOut: payload.itemsOut,
+    });
   }
 }
 
