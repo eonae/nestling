@@ -26,8 +26,8 @@ import { kindOfOutput } from './types.js';
 
 import { OnDestroy } from '@nestling/container';
 import type { Emitter } from '@nestling/operations';
+import { Topic } from '@nestling/operations';
 import type { AnyInput, ExtendableContext, Outcome } from '@nestling/pipeline';
-import { Topic } from '@nestling/streams';
 
 /** Контекст запроса в терминах реестра: конкретный input ему безразличен */
 export type SubscriptionContext = ExtendableContext<AnyInput>;

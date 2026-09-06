@@ -8,7 +8,7 @@
 > Гайд: [глава 12. Выделить вторую область](../../docs/guide/12-features.md).
 
 Зависимости: `@nestling/container`, `@nestling/operations`,
-`@nestling/pipeline`, `@nestling/transport`, `@nestling/streams`,
+`@nestling/pipeline`, `@nestling/transport`, `@nestling/operations`,
 `@nestling/config`, `@common/misc`. Валидатор схем пакет не выбирает:
 лист операции — любое значение
 [Standard Schema v1](https://standardschema.dev).
@@ -265,7 +265,7 @@ subject'ы своих маршрутов. Вызов порта в `@OnInit` з�
 Интерфейс объявляет две возможности значениями: `remote` (доставляет ли
 шина за пределы процесса; вход привязки вызывателей) и `durable` (умеет
 ли долговечную доставку). У `InProcessBus` оба равны `false`. Её
-broadcast построен на `Topic` из `@nestling/streams`, поэтому публикация
+broadcast построен на `Topic` из `@nestling/operations`, поэтому публикация
 никогда не ждёт медленного подписчика.
 
 Composition root про шину может ничего не знать: модуль ядра портов

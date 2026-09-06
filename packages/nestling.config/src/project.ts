@@ -13,7 +13,7 @@ import {
 } from './redact.js';
 
 import { SchemaValidationError, validateSync } from '@common/misc';
-import { Topic } from '@nestling/streams';
+import { Topic } from '@nestling/operations';
 
 /** Значения секции — сырой рекорд до заморозки/обёртки геттерами */
 type Values = Record<string, unknown>;

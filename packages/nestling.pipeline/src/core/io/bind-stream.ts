@@ -17,19 +17,17 @@ import type {
 } from '@nestling/operations';
 import {
   BadRequest,
-  isPrimitiveLeaf,
-  PayloadTooLarge,
-  Timeout,
-} from '@nestling/operations';
-import {
   batch,
   filter,
   gapTimeout,
+  isPrimitiveLeaf,
   limit,
+  PayloadTooLarge,
   tap,
   throttle,
+  Timeout,
   untilAborted,
-} from '@nestling/streams';
+} from '@nestling/operations';
 
 /** Что рантайму нужно от контекста запроса, чтобы обернуть поток */
 export interface StreamBindContext {

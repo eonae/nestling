@@ -24,8 +24,7 @@
   "dependencies": {
     "@common/misc": "workspace:*",
     "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*",
-    "@nestling/streams": "workspace:*"
+    "@nestling/operations": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.7.3",

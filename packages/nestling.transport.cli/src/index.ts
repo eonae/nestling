@@ -2,6 +2,7 @@
 import * as readline from 'node:readline';
 
 import { factoryProvider, makeTokenFamily } from '@nestling/container';
+import { untilAborted } from '@nestling/operations';
 import type {
   AnyEndpointDefinition,
   AnyFail,
@@ -30,7 +31,6 @@ import {
   makeEndpoint,
   TransportClosingError,
 } from '@nestling/pipeline';
-import { untilAborted } from '@nestling/streams';
 import type {
   Dispatch,
   ITransport,

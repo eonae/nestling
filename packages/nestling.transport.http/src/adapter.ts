@@ -1,6 +1,7 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'node:http';
 
 import type { SseConfig } from '@nestling/operations';
+import { untilAborted } from '@nestling/operations';
 import type {
   FormKind,
   ProcessingStatus,
@@ -8,7 +9,6 @@ import type {
   StreamSummary,
 } from '@nestling/pipeline';
 import { isAsyncIterable, isMidStreamFailure } from '@nestling/pipeline';
-import { untilAborted } from '@nestling/streams';
 
 /** Соответствие статусов ответа кодам HTTP */
 

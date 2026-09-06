@@ -25,6 +25,7 @@ import { BUS_TRANSPORT_NAME, busBindingOf } from './transport.js';
 import { structuralCopy } from './wire.js';
 
 import { makeToken } from '@nestling/container';
+import { Topic } from '@nestling/operations';
 import type {
   EndpointMeta,
   FormKind,
@@ -38,7 +39,6 @@ import {
   makeEmptyContext,
   Timeout,
 } from '@nestling/pipeline';
-import { Topic } from '@nestling/streams';
 import type {
   Dispatch,
   ITransport,
@@ -326,7 +326,7 @@ class SubjectHub {
 /**
  * Шина внутри одного процесса: реализует `IMessageBus` и `ITransport`.
  *
- * Рассылка построена на `Topic` из `@nestling/streams`: у каждого
+ * Рассылка построена на `Topic` из `@nestling/operations`: у каждого
  * подписчика свой ограниченный буфер, поэтому публикация никогда не ждёт
  * обработчика. Долговечной доставки, повторов и персистентности нет: для
  * них нужен внешний брокер.

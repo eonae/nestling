@@ -1106,7 +1106,6 @@ __metadata:
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
-    "@nestling/streams": "workspace:*"
     "@nestling/subscriptions": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
@@ -1761,7 +1760,7 @@ __metadata:
   dependencies:
     "@common/misc": "workspace:*"
     "@nestling/container": "workspace:*"
-    "@nestling/streams": "workspace:*"
+    "@nestling/operations": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1843,7 +1842,6 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
-    "@nestling/streams": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1858,18 +1856,9 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/streams": "workspace:*"
     "@nestling/transport": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@nestling/streams@workspace:*, @nestling/streams@workspace:packages/nestling.streams":
-  version: 0.0.0-use.local
-  resolution: "@nestling/streams@workspace:packages/nestling.streams"
-  dependencies:
-    typescript: "npm:5.7.3"
   languageName: unknown
   linkType: soft
 
@@ -1883,7 +1872,6 @@ __metadata:
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
     "@nestling/ports": "workspace:*"
-    "@nestling/streams": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
     typescript: "npm:5.7.3"
@@ -1913,8 +1901,8 @@ __metadata:
   resolution: "@nestling/transport.cli@workspace:packages/nestling.transport.cli"
   dependencies:
     "@nestling/container": "workspace:*"
+    "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/streams": "workspace:*"
     "@nestling/transport": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1930,7 +1918,6 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/streams": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@types/busboy": "npm:^1.5.4"
     busboy: "npm:^1.6.0"

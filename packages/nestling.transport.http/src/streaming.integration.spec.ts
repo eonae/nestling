@@ -12,6 +12,7 @@ import { httpEndpoint } from './helpers.js';
 import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
+import { Topic } from '@nestling/operations';
 import type { FilePart, Outcome, PhasedPipeline } from '@nestling/pipeline';
 import {
   events,
@@ -21,7 +22,6 @@ import {
   stream,
   upload,
 } from '@nestling/pipeline';
-import { Topic } from '@nestling/streams';
 import type { ExecutableDeclaration } from '@nestling/transport';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';

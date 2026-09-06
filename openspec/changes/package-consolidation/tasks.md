@@ -8,12 +8,12 @@
 
 ## 2. `streams` в `@nestling/operations`
 
-- [ ] 2.1 `git mv packages/nestling.streams/src` → `packages/nestling.operations/src/streams`, баррель каталога сохранён
-- [ ] 2.2 Экспорты `streams` подняты в `packages/nestling.operations/src/index.ts`
-- [ ] 2.3 Импорты `@nestling/streams` переписаны на `@nestling/operations` в `packages/`, `examples/`, `scripts/`
-- [ ] 2.4 Каталог `packages/nestling.streams` удалён; `@nestling/streams` убран из манифестов
-- [ ] 2.5 Тест границы `@nestling/operations` зелёный без правки списка разрешённых импортов
-- [ ] 2.6 `yarn verify` зелёный
+- [x] 2.1 `git mv packages/nestling.streams/src` → `packages/nestling.operations/src/streams`, баррель каталога сохранён
+- [x] 2.2 Экспорты `streams` подняты в `packages/nestling.operations/src/index.ts`
+- [x] 2.3 Импорты `@nestling/streams` переписаны на `@nestling/operations` в `packages/`, `examples/`, `scripts/`
+- [x] 2.4 Каталог `packages/nestling.streams` удалён; `@nestling/streams` убран из манифестов
+- [x] 2.5 Тест границы `@nestling/operations` зелёный без правки списка разрешённых импортов
+- [x] 2.6 `yarn verify` зелёный
 
 ## 3. `ports` в `@nestling/app`
 

@@ -25,7 +25,6 @@
     "@nestling/container": "workspace:*",
     "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
-    "@nestling/streams": "workspace:*",
     "@nestling/transport": "workspace:*",
     "busboy": "^1.6.0",
     "find-my-way": "^8.2.0",

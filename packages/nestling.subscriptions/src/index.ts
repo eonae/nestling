@@ -4,7 +4,7 @@
  * Satellite-пакет: ни строки в ядре. Всё, из чего он собран, — публичные
  * примитивы: фазы `.pre`/`.finally` и класс-форма юнита
  * (`@nestling/pipeline`), `AbortSignal`, DI (`@nestling/container`),
- * `Topic` (`@nestling/streams`) и операции (`@nestling/operations`).
+ * `Topic` (`@nestling/operations`) и операции (`@nestling/operations`).
  *
  * Наружу уходят четыре вещи: реестр (токен и его API), слой `tracked`,
  * фабрика модуля и типы модели — плюс две `event`-операции, которыми

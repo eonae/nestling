@@ -25,7 +25,7 @@ describe('@nestling/client: граница пакета', () => {
         '@common/misc',
         '@nestling/container/tokens',
         '@nestling/operations',
-        '@nestling/streams',
+        '@nestling/operations',
         '@standard-schema/spec',
       ],
     });

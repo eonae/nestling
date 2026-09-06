@@ -9,9 +9,8 @@ import { SubscriptionRegistry } from './registry.js';
 import type { CloseReason, SubscriptionEvent } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { events } from '@nestling/operations';
+import { collect, events } from '@nestling/operations';
 import type { Outcome } from '@nestling/pipeline';
-import { collect } from '@nestling/streams';
 import { z } from 'zod';
 
 const Item = z.object({ id: z.string() });

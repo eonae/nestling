@@ -315,7 +315,7 @@ input: multipart({
 
 Набор комбинаторов фиксирован: `.tap`, `.filter`, `.limit`, `.gapTimeout`,
 `.throttle`, `.batch`, `.through` (реализованы в
-[`@nestling/streams`](../nestling.streams)). Каждый возвращает новую форму,
+[`@nestling/operations`](../nestling.streams)). Каждый возвращает новую форму,
 поэтому цепочки переиспользуются через функции:
 
 ```typescript
