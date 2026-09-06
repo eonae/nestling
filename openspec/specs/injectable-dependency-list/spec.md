@@ -14,42 +14,53 @@
 
 ## Requirements
 
-### Requirement: Список зависимостей сверяется с конструктором по типам, порядку и длине
+### Requirement: Список зависимостей сверяется с параметрами роли по типам, порядку и длине
 
-Декоратор `@Injectable([deps])` и форма `@Injectable(token, [deps])` SHALL
-проверять на компиляции, что список токенов совместим с параметрами
-конструктора по типам, по порядку и по длине. Длина списка SHALL быть
-допустимой длиной `ConstructorParameters<T>`: конструктор с
-необязательными параметрами SHALL принимать список любой длины из
-допустимого диапазона, конструктор с rest-параметром SHALL принимать
-список любой длины. Список длиннее максимальной длины SHALL быть ошибкой
-компиляции; диагностика SHALL иметь форму литерала `__error` с ожидаемой и
-фактической длиной, по правилу capability `pipeline-type-diagnostics`.
+Декораторы роли `@Component([deps])`, `@Handler([deps])` и
+`@Resource([deps])` SHALL проверять на компиляции, что список токенов
+совместим с параметрами по типам, по порядку и по длине.
+
+Эталон параметров SHALL зависеть от роли: у `@Component` и `@Handler` —
+`ConstructorParameters<T>`, у `@Resource` — параметры `static acquire` без
+последнего (`signal: AbortSignal`).
+
+Длина списка SHALL быть допустимой длиной эталона: необязательные
+параметры SHALL давать диапазон длин, rest-параметр SHALL снимать верхнюю
+границу. Список длиннее максимальной длины SHALL быть ошибкой компиляции;
+диагностика SHALL иметь форму литерала `__error` с ожидаемой и фактической
+длиной, по правилу capability `pipeline-type-diagnostics`.
 
 #### Scenario: Лишний токен
 
 - **WHEN** класс с конструктором из одного параметра декорирован
-  `@Injectable([UsersRepository$, Logger$])`
+  `@Component([UsersRepository$, Logger$])`
 - **THEN** это ошибка компиляции, первая строка которой называет длину
   списка и число параметров конструктора
 
 #### Scenario: Недостающий токен
 
 - **WHEN** класс с конструктором из двух обязательных параметров
-  декорирован `@Injectable([UsersRepository$])`
+  декорирован `@Component([UsersRepository$])`
 - **THEN** это ошибка компиляции
 
 #### Scenario: Необязательный параметр
 
 - **WHEN** конструктор объявлен `constructor(repo: UsersRepository, logger?: Logger)`
-- **THEN** `@Injectable([UsersRepository$])` и
-  `@Injectable([UsersRepository$, Logger$])` компилируются, а список из
+- **THEN** `@Component([UsersRepository$])` и
+  `@Component([UsersRepository$, Logger$])` компилируются, а список из
   трёх токенов — ошибка компиляции
 
 #### Scenario: Rest-параметр
 
 - **WHEN** конструктор объявлен `constructor(...deps: Dependency[])`
 - **THEN** список любой длины компилируется
+
+#### Scenario: Эталон ресурса — параметры `acquire`
+
+- **WHEN** класс со `static acquire(config: DbConfigValues, signal: AbortSignal)`
+  декорирован `@Resource([DbConfig, Logger$])`
+- **THEN** это ошибка компиляции: эталон — один параметр, `signal` в
+  список не входит
 
 #### Scenario: Тип и порядок
 
@@ -59,21 +70,22 @@
 
 ### Requirement: Длину списка проверяет только компилятор
 
-`@Injectable` SHALL NOT сверять длину списка зависимостей с
-`constructor.length` при декорировании. `Function.length` не отличает
-необязательный параметр от отсутствующего: `constructor(repo, logger?)`
-он считает за два обязательных, поэтому проверка на значении отвергала бы
-список, который компилятор принимает.
+Декораторы роли SHALL NOT сверять длину списка зависимостей с
+`Function.length` при декорировании — ни с `constructor.length`, ни с
+`acquire.length`. `Function.length` не отличает необязательный параметр от
+отсутствующего: `constructor(repo, logger?)` он считает за два
+обязательных, поэтому проверка на значении отвергала бы список, который
+компилятор принимает.
 
 #### Scenario: Список короче конструктора декорируется
 
 - **WHEN** класс с `constructor(repo, logger)` декорирован
-  `Injectable([UsersRepository$])` без проверки типов
+  `Component([UsersRepository$])` без проверки типов
 - **THEN** декорирование проходит; случай ловит только компилятор, а
   недостающую зависимость — сборка графа
 
 #### Scenario: Лишний токен не проверяется рантаймом
 
 - **WHEN** класс с `constructor(repo)` декорирован
-  `Injectable([UsersRepository$, Logger$])` без проверки типов
+  `Component([UsersRepository$, Logger$])` без проверки типов
 - **THEN** декорирование проходит; случай ловит только компилятор
