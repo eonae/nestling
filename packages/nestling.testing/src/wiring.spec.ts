@@ -11,7 +11,7 @@ import { assembleTest } from './app.js';
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, makeFeature } from '@nestling/app';
 import { wireApp } from '@nestling/app/testing';
-import { BuiltContainer, Injectable, OnDestroy } from '@nestling/container';
+import { BuiltContainer, Resource } from '@nestling/container';
 
 describe('условие "testing" в тест-раннере', () => {
   it('резолвит @nestling/app/testing на исходники', async () => {
@@ -32,9 +32,12 @@ describe('условие "testing" в тест-раннере', () => {
   it('вызывает Symbol.asyncDispose по выходу из блока `await using`', async () => {
     const events: string[] = [];
 
-    @Injectable([])
-    class Resource {
-      @OnDestroy()
+    @Resource([])
+    class Disposable {
+      static async acquire(_signal: AbortSignal): Promise<Disposable> {
+        return new Disposable();
+      }
+
       release(): void {
         events.push('destroy');
       }
@@ -44,12 +47,15 @@ describe('условие "testing" в тест-раннере', () => {
       await using app = await assembleTest(
         makeApp({
           features: [
-            makeFeature({ name: 'module:disposable', providers: [Resource] }),
+            makeFeature({
+              name: 'module:disposable',
+              providers: [Disposable],
+            }),
           ],
         }),
       );
 
-      expect(app.get(Resource)).toBeInstanceOf(Resource);
+      expect(app.get(Disposable)).toBeInstanceOf(Disposable);
       expect(events).toEqual([]);
     }
 

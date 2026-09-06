@@ -7,7 +7,7 @@
  * токен и провайдер, который заводит узел графа.
  */
 
-import type { TransportRef } from '../pipeline/index.js';
+import type { TransportCapabilities, TransportRef } from '../pipeline/index.js';
 
 import type { ITransport } from './interfaces.js';
 
@@ -28,6 +28,15 @@ export interface TransportDeclaration<Name extends string = string> {
 
   /** Провайдер экземпляра */
   readonly provider: Provider<ITransport>;
+
+  /**
+   * Формы io, которые транспорт умеет принимать и отдавать.
+   *
+   * Данные объявления, а не экземпляра: на фазе ASSEMBLE экземпляров нет,
+   * а проверка форм идёт там. Поле обязательное — собственное объявление
+   * транспорта без него не компилируется.
+   */
+  readonly capabilities: TransportCapabilities;
 }
 
 /**
@@ -74,28 +83,42 @@ export const DEFAULT_INSTANCE = 'default';
  *
  * @param token - Токен экземпляра
  * @param instance - Готовый транспорт
- * @param options - Имя экземпляра и признак переносчика операций
+ * @param options - Способности транспорта, имя экземпляра и признак
+ * переносчика операций
  * @returns Объявление экземпляра
  */
 export function transportValue<const Name extends string = 'default'>(
   token: TransportRef,
   instance: ITransport,
-  options: { readonly name?: Name; readonly bus: true },
+  options: {
+    readonly name?: Name;
+    readonly capabilities: TransportCapabilities;
+    readonly bus: true;
+  },
 ): BusDeclaration<Name>;
 export function transportValue<const Name extends string = 'default'>(
   token: TransportRef,
   instance: ITransport,
-  options?: { readonly name?: Name; readonly bus?: false },
+  options: {
+    readonly name?: Name;
+    readonly capabilities: TransportCapabilities;
+    readonly bus?: false;
+  },
 ): TransportDeclaration<Name>;
 export function transportValue(
   token: TransportRef,
   instance: ITransport,
-  options: { readonly name?: string; readonly bus?: boolean } = {},
+  options: {
+    readonly name?: string;
+    readonly capabilities: TransportCapabilities;
+    readonly bus?: boolean;
+  },
 ): TransportDeclaration {
   const declaration: TransportDeclaration = {
     name: options.name ?? DEFAULT_INSTANCE,
     token,
     provider: valueProvider(token, instance),
+    capabilities: options.capabilities,
   };
 
   return makeTransportDeclaration(

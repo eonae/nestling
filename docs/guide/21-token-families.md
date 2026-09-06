@@ -1,6 +1,6 @@
 # 21. Зависимости по имени и сбор вкладов из модулей
 
-> Гайд по текущему API; сверено с кодом `container` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `container` (2026-09-07).
 > Целевое описание: [design/container.md](../design/container.md), разделы
 > «Семейства DI-токенов» и «Логгер ядра». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Token families + модули без
@@ -52,7 +52,7 @@ export const Counter$ = makeTokenFamily<Counter, [name: string]>('Counter');
 
 ```typescript
 // examples/container/src/users/users.service.ts (фрагмент)
-@Injectable([UserRepository, Counter$('users'), Logger$('users')])
+@Component([UserRepository, Counter$('users'), Logger$('users')])
 export class UserService {
   #repository: UserRepository;
   #calls: Counter;
@@ -117,11 +117,11 @@ export const appCounters = makePlugin({
    зависеть от членов того же или другого семейства.
 
 Дальше член ничем не отличается от провайдера, зарегистрированного
-вручную. Он создаётся при сборке. Два потребителя `Counter$('users')`
-получают один экземпляр: `UserService` увеличивает счётчик, а `Demo`
-читает его значение. Член участвует в проверке циклов, получает `@OnInit`
-и `@OnDestroy` в топологическом порядке, попадает в `toJSON()` и
-визуализацию. Член, которого никто не запросил, не создаётся:
+вручную. Узлом он становится при сборке, а значением — на INIT. Два
+потребителя `Counter$('users')` получают один экземпляр: `UserService`
+увеличивает счётчик, а `Demo` читает его значение. Член участвует в
+проверке циклов, создаётся и освобождается в топологическом порядке
+наравне с прочими узлами, попадает в `toJSON()` и визуализацию. Член, которого никто не запросил, не создаётся:
 `container.get(Counter$('orphan'))` вернёт `null`.
 
 Член, запрошенный в `deps`, для которого рецепт не зарегистрирован,
@@ -134,7 +134,7 @@ export const appCounters = makePlugin({
 
 ```typescript
 // examples/container/src/users/users.repository.ts
-@Injectable([Database$, Logger$.auto])
+@Component([Database$, Logger$.auto])
 export class UserRepository {
   #database: Database;
   #logger: Logger;
@@ -164,7 +164,7 @@ export class UserRepository {
 
 Три ограничения `.auto`:
 
-- он допустим только в `deps` класса с `@Injectable`; в зависимостях
+- он допустим только в `deps` класса с декоратором роли; в зависимостях
   фабрики класса-потребителя нет, и это ошибка регистрации с подсказкой
   написать явный вызов семейства;
 - анонимный класс с пустым `constructor.name` даёт ошибку при
@@ -214,7 +214,7 @@ classProvider(HealthCheck('api'), ApiHealthCheck),
 
 ```typescript
 // examples/container/src/health/health.service.ts (фрагмент)
-@Injectable([HealthCheck.all, HealthConfig, Logger$.auto])
+@Component([HealthCheck.all, HealthConfig, Logger$.auto])
 export class HealthService {
   #checks: readonly HealthCheck[];
   #config: Config<typeof HealthConfig>;

@@ -8,7 +8,7 @@
  * собирается в проде, не должно собираться в тесте.
  */
 
-import { SpyTransport } from './__fixtures__/transport.js';
+import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
 import { assembleTest } from './app.js';
 import { checkTopologies } from './topologies.js';
 
@@ -23,11 +23,13 @@ import {
   Ok,
   transportValue,
 } from '@nestling/app';
-import { Injectable, OnInit } from '@nestling/container';
+import { Component } from '@nestling/container';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 
 const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+  transportValue(HttpTransport$('default'), transport, {
+    capabilities: HTTP_LIKE,
+  });
 
 const observability = makePipeline().pre(() => {});
 const authedBase = makePipeline().pre(() => {});
@@ -56,10 +58,9 @@ describe('assembleTest — инварианты', () => {
   it('нарушение отклоняет сборку тем же сообщением, что и в бою', async () => {
     const events: string[] = [];
 
-    @Injectable([])
+    @Component([])
     class Connection {
-      @OnInit()
-      open(): void {
+      constructor() {
         events.push('init');
       }
     }

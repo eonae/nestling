@@ -2,7 +2,7 @@ import { AppConfig } from '../../app.config.js';
 import { Unauthorized } from '../../errors.js';
 
 import type { Config, EmptyInput, ExtendableContext } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 
 /** Тот, от чьего имени выполняется запрос */
 export interface Caller {
@@ -15,7 +15,7 @@ export interface Caller {
  * Токен сравнивается со значением из секции конфига. При неверном токене
  * юнит возвращает отказ, и ни следующие юниты, ни хендлер не вызываются.
  */
-@Injectable([AppConfig])
+@Handler([AppConfig])
 export class Authenticate {
   constructor(private readonly config: Config<typeof AppConfig>) {}
 

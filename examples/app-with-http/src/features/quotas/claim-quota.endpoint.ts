@@ -5,9 +5,9 @@ import { QuotaService } from './quota.service.js';
 
 import type { Logger } from '@nestling/app';
 import { implement, Logger$ } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 
-@Injectable([QuotaService, Logger$.auto])
+@Handler([QuotaService, Logger$.auto])
 class ClaimQuotaHandler {
   constructor(
     private readonly quotas: QuotaService,

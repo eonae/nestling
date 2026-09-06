@@ -13,7 +13,7 @@ import type { TrackedSubscription } from './types.js';
 
 import type { Outcome, ResponseContext } from '@nestling/app';
 import { makePipeline } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 
 /**
  * Регистрация подписки перед вызовом хендлера.
@@ -21,7 +21,7 @@ import { Injectable } from '@nestling/container';
  * Добавка типизирована, поэтому хендлер видит `meta.subscription` в типах —
  * а не узнаёт о нём из документации.
  */
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 export class TrackSubscription {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -37,7 +37,7 @@ export class TrackSubscription {
  * после того, как поток дотёк, оборвался или был закрыт потребителем.
  * Поэтому запись живёт ровно столько, сколько живёт сама подписка.
  */
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 export class UntrackSubscription {
   constructor(private readonly registry: SubscriptionRegistry) {}
 

@@ -48,18 +48,18 @@
 
 `build()` SHALL создавать синтетический узел-агрегат для каждого семейства,
 чей `Family.all` упомянут в deps хотя бы одного зарегистрированного провайдера.
-Агрегат SHALL создаваться после фикспоинта материализации членов семейств и до
-инстанциации, регистрироваться обычным провайдером с deps = токены всех
+Агрегат SHALL создаваться после фикспоинта создания членов семейств и до
+построения графа, регистрироваться обычным провайдером с deps = токены всех
 зарегистрированных членов семейства и значением — массивом их инстансов.
 Массив SHALL быть заморожен (`Object.freeze`) и типизирован как `readonly T[]`.
 `Family.all`, не упомянутый в deps, SHALL NOT порождать узла: после `build()`
-`container.get(Family.all)` для него возвращает `null`.
+`container.has(Family.all)` для него возвращает `false`.
 
 #### Scenario: Aggregate collects contributions registered by different modules
 
 - **WHEN** модуль `db` регистрирует `classProvider(IHealthCheck('db'), DbCheck)`,
   модуль `redis` — `classProvider(IHealthCheck('redis'), RedisCheck)`, а класс
-  объявлен как `@Injectable([IHealthCheck.all])`
+  объявлен как `@Component([IHealthCheck.all])`
 - **THEN** в конструктор инжектится массив из двух инстансов — тех же, что
   лежат в узлах `"HealthCheck:db"` и `"HealthCheck:redis"`, — а в графе
   присутствует узел `"HealthCheck:{all}"` с двумя зависимостями
@@ -74,8 +74,7 @@
 
 - **WHEN** зарегистрированы вклады `IHealthCheck('db')` и `IHealthCheck('redis')`,
   но `IHealthCheck.all` не упомянут в deps ни одного провайдера
-- **THEN** после `build()` узла `"HealthCheck:{all}"` в графе нет и
-  `container.get(IHealthCheck.all)` возвращает `null`
+- **THEN** узла агрегата в графе нет
 
 ### Requirement: Aggregate composition covers every registered member and forces no materialization
 
@@ -160,10 +159,10 @@
 Узел-агрегат SHALL участвовать во всех механизмах контейнера наравне с
 обычными узлами: присутствие в графе (`toJSON()`/`traverse()`) и визуализации,
 детекция циклов (включая цикл `агрегат → член → агрегат`), топологический
-порядок `init()`/`destroy()` (вклады инициализируются до потребителей агрегата
-и уничтожаются после них). `Family.all` SHALL быть допустим в deps любого вида
-определения — классового `@Injectable`, `factoryProvider`, `classProvider` и
-провайдера, порождённого рецептом семейства.
+порядок `init()`/`destroy()` (вклады создаются до потребителей агрегата и
+освобождаются после них). `Family.all` SHALL быть допустим в deps любого вида
+определения — класса с декоратором роли, `factoryProvider`, `classProvider`,
+`resourceProvider` и провайдера, порождённого рецептом семейства.
 
 #### Scenario: Cycle through the aggregate is detected
 
@@ -172,12 +171,12 @@
 - **THEN** `build()` бросает ошибку о циклической зависимости, упоминающую
   токен агрегата `"HealthCheck:{all}"`
 
-#### Scenario: Lifecycle order across the aggregate
+#### Scenario: Порядок захвата и освобождения вокруг агрегата
 
-- **WHEN** вклады имеют `@OnInit`/`@OnDestroy`, потребитель агрегата — тоже, и
+- **WHEN** вклады объявлены ресурсами, потребитель агрегата — тоже, и
   вызваны `container.init()`, затем `container.destroy()`
-- **THEN** init-хуки вкладов вызваны до init-хука потребителя, а destroy-хуки
-  вкладов — после destroy-хука потребителя, каждый ровно один раз
+- **THEN** `acquire` вкладов вызваны до `acquire` потребителя, а `release`
+  вкладов — после `release` потребителя, каждый ровно один раз
 
 #### Scenario: all is allowed in factory provider deps
 

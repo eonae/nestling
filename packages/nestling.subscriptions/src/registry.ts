@@ -25,7 +25,6 @@ import type {
 import { kindOfOutput } from './types.js';
 
 import type { AnyInput, ExtendableContext, Outcome } from '@nestling/app';
-import { OnDestroy } from '@nestling/container';
 import type { Emitter } from '@nestling/operations';
 import { Topic } from '@nestling/operations';
 
@@ -343,13 +342,15 @@ export class SubscriptionRegistry {
   }
 
   /**
-   * SHUTDOWN: лента закрывается, наблюдатели завершаются нормально.
+   * Освобождение на SHUTDOWN: лента закрывается, наблюдатели завершаются
+   * нормально.
    *
    * Записи снимать здесь не нужно и нечем: сигнал приложения взведён,
    * потоковые ответы завершаются, и каждый снимает свою запись сам.
+   *
+   * Зовёт его провайдер ресурса, которым модуль регистрирует реестр.
    */
-  @OnDestroy()
-  dispose(): void {
+  release(): void {
     this.#feed.close();
   }
 

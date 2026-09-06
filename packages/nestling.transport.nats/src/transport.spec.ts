@@ -11,7 +11,7 @@
 import type { NatsDouble } from './testing/double.js';
 import { NatsDouble as Broker, natsDouble } from './testing/double.js';
 import type { NatsBusOptions } from './transport.js';
-import { nats, NatsBus } from './transport.js';
+import { BUS_CAPABILITIES, nats, NatsBus } from './transport.js';
 import { CONTEXT_HEADER, IDEMPOTENCY_HEADER, TIMEOUT_HEADER } from './wire.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -514,8 +514,8 @@ describe('NatsBus — отказы доставки и фазы', () => {
       logger: spyLogger().logger,
     });
 
-    expect([...bus.capabilities.input]).toEqual(['value']);
-    expect([...bus.capabilities.output]).toEqual(['value']);
+    expect([...BUS_CAPABILITIES.input]).toEqual(['value']);
+    expect([...BUS_CAPABILITIES.output]).toEqual(['value']);
     expect(bus.remote).toBe(true);
     expect(bus.durable).toBe(true);
   });

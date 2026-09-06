@@ -1,9 +1,8 @@
-import type { Constructor } from '../common.js';
 import { makeToken } from '../common.js';
 import {
+  Component,
   factoryProvider,
   familyProvider,
-  Injectable,
   makeTokenFamily,
   valueProvider,
 } from '../providers/index.js';
@@ -18,7 +17,7 @@ describe('Family.auto', () => {
   it('заменяется на члена с именем класса-потребителя', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('AutoOne');
 
-    @Injectable([ILogger.auto])
+    @Component([ILogger.auto])
     class CreateUserEndpoint {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -32,6 +31,8 @@ describe('Family.auto', () => {
       .register(CreateUserEndpoint)
       .build();
 
+    await container.init();
+
     expect(container.getOrThrow(CreateUserEndpoint).logger.scope).toBe(
       'CreateUserEndpoint',
     );
@@ -43,12 +44,12 @@ describe('Family.auto', () => {
   it('даёт двум потребителям двух разных членов из одного рецепта', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('AutoTwo');
 
-    @Injectable([ILogger.auto])
+    @Component([ILogger.auto])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    @Injectable([ILogger.auto])
+    @Component([ILogger.auto])
     class ServiceB {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -61,6 +62,8 @@ describe('Family.auto', () => {
       )
       .register(ServiceA, ServiceB)
       .build();
+
+    await container.init();
 
     const json = await container.toJSON();
     const ids = json.nodes.map((node) => node.id);
@@ -78,7 +81,7 @@ describe('Family.auto', () => {
     );
     const IReport = makeToken<string>('AutoDedupReport');
 
-    @Injectable([ILogger.auto])
+    @Component([ILogger.auto])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -96,6 +99,8 @@ describe('Family.auto', () => {
         ] as const),
       )
       .build();
+
+    await container.init();
 
     const json = await container.toJSON();
 
@@ -124,7 +129,7 @@ describe('Family.auto', () => {
         ] as const),
       ),
     ).toThrow(
-      /'AutoFactory.auto' is only allowed in deps of a class decorated with @Injectable/,
+      /'AutoFactory.auto' is only allowed in deps of a class with a role decorator/,
     );
   });
 
@@ -133,17 +138,17 @@ describe('Family.auto', () => {
       'AutoAnon',
     );
 
-    const decorate = Injectable([ILogger.auto]);
+    // Декоратор применяется напрямую, а не через `@`: форма класса
+    // компилятору здесь неизвестна, поэтому вызов проходит мимо проверки
+    // формы так же, как в role.decorators.spec.ts
+    const decorate = Component([ILogger.auto]) as unknown as (
+      target: unknown,
+    ) => unknown;
     const anonymous = class {
       constructor(readonly logger: ILoggerService) {}
     };
     Object.defineProperty(anonymous, 'name', { value: '' });
 
-    expect(() =>
-      decorate(
-        anonymous as unknown as Constructor,
-        {} as ClassDecoratorContext<Constructor>,
-      ),
-    ).toThrow(/Cannot resolve 'AutoAnon.auto'/);
+    expect(() => decorate(anonymous)).toThrow(/Cannot resolve 'AutoAnon.auto'/);
   });
 });

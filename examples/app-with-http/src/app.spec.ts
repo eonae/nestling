@@ -125,7 +125,7 @@ describe('app-тесты через assembleTest', () => {
     });
 
     // Соединение с базой нужно только боевому хранилищу: после подмены
-    // контейнер его не создаёт, и `@OnInit` не вызывается
+    // контейнер его не создаёт, и `acquire` не вызывается
     expect(testApp.pruned).toContain('Database');
     expect(testApp.get(HttpTransport$('default'))).not.toBeNull();
   });

@@ -13,7 +13,7 @@ import type { SectionDeclaration } from './declaration.js';
 import { from, secret } from './declaration.js';
 import { ConfigValidationError, REDACTED } from './errors.js';
 import type { Config } from './families.js';
-import { bootstrapConfig, configKernel, ConfigReaderToken } from './kernel.js';
+import { bootstrapConfig, configKernel } from './kernel.js';
 import { load } from './load.js';
 import { projectSection, reloadableOf } from './project.js';
 import { ConfigReader } from './reader.js';
@@ -24,7 +24,7 @@ import type { ObjectSource } from './source.js';
 import { objectSource } from './source.js';
 
 import type { BuiltContainer } from '@nestling/container';
-import { ContainerBuilder, Injectable } from '@nestling/container';
+import { Component, ContainerBuilder } from '@nestling/container';
 import { z } from 'zod';
 
 /** Сообщение вендора, по которому видно утечку значения. */
@@ -52,17 +52,17 @@ const PlainConfig = makeConfig('plain', {
   logLevel: z.string().default('info'),
 });
 
-@Injectable([VaultConfig])
+@Component([VaultConfig])
 class VaultService {
   constructor(readonly cfg: Config<typeof VaultConfig>) {}
 }
 
-@Injectable([MirrorConfig])
+@Component([MirrorConfig])
 class MirrorService {
   constructor(readonly cfg: Config<typeof MirrorConfig>) {}
 }
 
-@Injectable([PlainConfig])
+@Component([PlainConfig])
 class PlainService {
   constructor(readonly cfg: Config<typeof PlainConfig>) {}
 }
@@ -77,14 +77,15 @@ const build = async (
   values: Record<string, unknown>,
   register: (builder: ContainerBuilder) => void,
 ): Promise<BuiltContainer> => {
+  const reader = await bootstrapConfig([[objectSource(values, 'test'), '*']]);
+  reader.attachLogger(spy.logger);
+
   const builder = new ContainerBuilder();
-  builder.register(
-    configKernel(await bootstrapConfig([[objectSource(values, 'test'), '*']])),
-  );
+  builder.register(configKernel(reader));
   register(builder);
 
   const container = builder.build();
-  container.getOrThrow(ConfigReaderToken).attachLogger(spy.logger);
+  await container.init();
 
   return container;
 };
@@ -107,7 +108,13 @@ const project = async (
   };
 };
 
-/** Ловит отказ сборки, оставляя тип ошибки конкретным. */
+/**
+ * Ловит отказ сборки, оставляя тип ошибки конкретным.
+ *
+ * Секция — провайдер значения: `build()` вычисляет проекцию сразу, и
+ * ошибка секции доходит наружу как есть — рецепт семейства её не
+ * оборачивает.
+ */
 const buildFailure = async (
   values: Record<string, unknown>,
   register: (builder: ContainerBuilder) => void,
@@ -159,7 +166,7 @@ describe('редактирование в ошибке валидации', () =
       port: z.coerce.number(),
     });
 
-    @Injectable([Mixed])
+    @Component([Mixed])
     class MixedService {
       constructor(readonly cfg: Config<typeof Mixed>) {}
     }
@@ -184,7 +191,7 @@ describe('редактирование в ошибке валидации', () =
       token: from('VAULT_API_TOKEN', z.string().min(50)),
     });
 
-    @Injectable([Strict])
+    @Component([Strict])
     class StrictService {
       constructor(readonly cfg: Config<typeof Strict>) {}
     }
@@ -341,8 +348,8 @@ describe('снимок реестра', () => {
   });
 });
 
-describe('обратная совместимость поведения', () => {
-  it('приложение без единого secret() ведёт себя ровно как раньше', async () => {
+describe('секция без secret() через компонент DI', () => {
+  it('без единого secret() объект не получает служебных членов сериализации', async () => {
     const container = await build({}, (builder) => {
       builder.register(PlainService);
     });

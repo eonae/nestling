@@ -35,8 +35,6 @@ export class TestTransport implements ITransport {
   dispatch?: Dispatch;
   signal?: AbortSignal;
 
-  readonly capabilities: TransportCapabilities = STREAMING;
-
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
     this.dispatch = dispatch;
     this.signal = signal;
@@ -50,4 +48,6 @@ export class TestTransport implements ITransport {
 
 /** Объявление транспорта для словаря `transports:` */
 export const testTransport = (): TransportDeclaration =>
-  transportValue(TestTransport$, new TestTransport());
+  transportValue(TestTransport$, new TestTransport(), {
+    capabilities: STREAMING,
+  });

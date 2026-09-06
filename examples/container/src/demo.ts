@@ -10,16 +10,17 @@ import { ApiClient$, Database$ } from './interfaces.js';
 
 import type { Config, Logger } from '@nestling/app';
 import { Logger$ } from '@nestling/app';
-import { Injectable, OnStart } from '@nestling/container';
+import { Component, OnStart } from '@nestling/container';
 
 /**
- * Провайдер с `@OnStart`: показывает собранный граф.
+ * Компонент с `@OnStart`: показывает собранный граф.
  *
- * `@OnStart` выполняется, когда граф собран и `@OnInit` всех провайдеров
- * завершён. Под `assemble` это единственное место, где код приложения
- * получает инстансы: сам контейнер наружу не отдаётся.
+ * `@OnStart` выполняется на фазе START, после того как фаза INIT создала
+ * экземпляры всех компонентов и захватила все ресурсы. Под `assemble` это
+ * единственное место, где код приложения получает инстансы: сам контейнер
+ * наружу не отдаётся.
  */
-@Injectable([
+@Component([
   UserService,
   Database$,
   ApiClient$,

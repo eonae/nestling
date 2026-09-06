@@ -1,11 +1,12 @@
 import { makeToken } from '../common.js';
-import { OnDestroy, OnInit } from '../lifecycle/index.js';
 import { makeModule } from '../modules/index.js';
 import {
+  classProvider,
+  Component,
   factoryProvider,
   familyProvider,
-  Injectable,
   makeTokenFamily,
+  Resource,
   valueProvider,
 } from '../providers/index.js';
 
@@ -28,12 +29,12 @@ describe('создание членов семейства', () => {
       return valueProvider(ILogger(scope), { scope });
     };
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceB {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -42,6 +43,8 @@ describe('создание членов семейства', () => {
       .register(familyProvider(ILogger, recipe))
       .register(ServiceA, ServiceB)
       .build();
+
+    await container.init();
 
     const json = await container.toJSON();
 
@@ -64,7 +67,7 @@ describe('создание членов семейства', () => {
       return valueProvider(ILogger(scope), { scope });
     };
 
-    @Injectable([ILogger('users'), ILogger('db')])
+    @Component([ILogger('users'), ILogger('db')])
     class ServiceA {
       constructor(
         readonly users: ILoggerService,
@@ -76,6 +79,8 @@ describe('создание членов семейства', () => {
       .register(familyProvider(ILogger, recipe))
       .register(ServiceA)
       .build();
+
+    await container.init();
 
     expect([...calls].sort()).toEqual(['db', 'users']);
 
@@ -95,7 +100,7 @@ describe('создание членов семейства', () => {
       'ChainMetrics',
     );
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -120,6 +125,8 @@ describe('создание членов семейства', () => {
       .register(ServiceA)
       .build();
 
+    await container.init();
+
     expect(container.getOrThrow(ILogger('users')).scope).toBe('users/users');
     expect(container.getOrThrow(IMetrics('users')).name).toBe('users');
   });
@@ -127,7 +134,7 @@ describe('создание членов семейства', () => {
   it('не создаёт членов, от которых никто не зависит', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Orphan');
 
-    @Injectable([ILogger('used')])
+    @Component([ILogger('used')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -155,7 +162,7 @@ describe('ошибки создания членов', () => {
   it('отклоняет рецепт, вернувший провайдер другого токена', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Wrong');
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -178,7 +185,7 @@ describe('ошибки создания членов', () => {
       'NoRecipe',
     );
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -208,10 +215,12 @@ describe('ошибки создания членов', () => {
     ).toThrow(/token family 'Twice' is already registered/);
   });
 
-  it('оборачивает ошибку рецепта с именем семейства и параметром', async () => {
+  it('пробрасывает ошибку рецепта как есть', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Boom');
 
-    @Injectable([ILogger('users')])
+    class RecipeError extends Error {}
+
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -219,20 +228,42 @@ describe('ошибки создания членов', () => {
     const builder = new ContainerBuilder()
       .register(
         familyProvider(ILogger, () => {
-          throw new Error('recipe exploded');
+          throw new RecipeError('recipe exploded');
+        }),
+      )
+      .register(ServiceA);
+
+    // Рецепт бывает и вычислением значения — например проекцией секции
+    // конфига, — и тип его ошибки важнее места, где она случилась
+    expect(() => builder.build()).toThrow(RecipeError);
+    expect(() => builder.build()).toThrow('recipe exploded');
+  });
+
+  it('оборачивает не-ошибку из рецепта, называя семейство и параметр', async () => {
+    const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Thrown');
+
+    @Component([ILogger('users')])
+    class ServiceA {
+      constructor(readonly logger: ILoggerService) {}
+    }
+
+    const builder = new ContainerBuilder()
+      .register(
+        familyProvider(ILogger, () => {
+          throw 'not an error';
         }),
       )
       .register(ServiceA);
 
     expect(() => builder.build()).toThrow(
-      /Recipe of token family 'Boom' failed for parameter 'users'/,
+      /Recipe of token family 'Thrown' failed for parameter 'users'/,
     );
   });
 
   it('останавливает рецепт, который порождает членов бесконечно', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Endless');
 
-    @Injectable([ILogger('a')])
+    @Component([ILogger('a')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -258,7 +289,7 @@ describe('ошибки создания членов', () => {
     );
     const impostor = makeToken<ILoggerService>('LookAlike:users');
 
-    @Injectable([impostor])
+    @Component([impostor])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -284,7 +315,7 @@ describe('члены семейства — обычные узлы графа',
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Cyclic');
     const IServiceB = makeToken<{ id: string }>('CyclicServiceB');
 
-    @Injectable(IServiceB, [ILogger('a')])
+    @Component([ILogger('a')])
     class ServiceB {
       readonly id = 'B';
 
@@ -301,51 +332,50 @@ describe('члены семейства — обычные узлы графа',
           ),
         ),
       )
-      .register(ServiceB);
+      .register(classProvider(IServiceB, ServiceB));
 
-    expect(() => builder.build()).toThrow(/Circular dependency/);
+    expect(() => builder.build()).toThrow(
+      /Cycles detected in the graph:[\S\s]*Cyclic:a[\S\s]*CyclicServiceB/,
+    );
   });
 
-  it('выполняет хуки члена ровно один раз', async () => {
+  it('захватывает и освобождает члена ровно один раз', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Hooked');
     const calls: string[] = [];
 
-    @Injectable([])
+    @Resource([])
     class HookedLogger implements ILoggerService {
       readonly scope = 'hooked';
 
-      @OnInit()
-      async initialize(): Promise<void> {
-        calls.push('init');
+      static async acquire(_signal: AbortSignal): Promise<HookedLogger> {
+        calls.push('acquire');
+        return new HookedLogger();
       }
 
-      @OnDestroy()
-      async cleanup(): Promise<void> {
-        calls.push('destroy');
+      release(): void {
+        calls.push('release');
       }
     }
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
 
     const container = new ContainerBuilder()
       .register(
-        familyProvider(ILogger, (scope) => ({
-          provide: ILogger(scope),
-          useClass: HookedLogger,
-          deps: [],
-        })),
+        familyProvider(ILogger, (scope) =>
+          classProvider(ILogger(scope), HookedLogger),
+        ),
       )
       .register(ServiceA)
       .build();
 
     await container.init();
-    expect(calls).toEqual(['init']);
+    expect(calls).toEqual(['acquire']);
 
     await container.destroy();
-    expect(calls).toEqual(['init', 'destroy']);
+    expect(calls).toEqual(['acquire', 'release']);
   });
 
   it('привязывает члена к модулю, зарегистрировавшему рецепт', async () => {
@@ -353,7 +383,7 @@ describe('члены семейства — обычные узлы графа',
       'Attributed',
     );
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -383,7 +413,7 @@ describe('члены семейства — обычные узлы графа',
       'Moduleless',
     );
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -408,7 +438,7 @@ describe('члены семейства — обычные узлы графа',
       'FromFactory',
     );
 
-    @Injectable([ILogger('users')])
+    @Component([ILogger('users')])
     class ServiceA {
       constructor(readonly logger: ILoggerService) {}
     }
@@ -426,6 +456,8 @@ describe('члены семейства — обычные узлы графа',
       .register(LoggingModule)
       .register(ServiceA)
       .build();
+
+    await container.init();
 
     expect(container.getOrThrow(ILogger('users')).scope).toBe('users');
   });

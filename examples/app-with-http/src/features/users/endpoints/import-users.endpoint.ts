@@ -4,7 +4,7 @@ import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { stream } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -22,7 +22,7 @@ const MAX_ROWS = 10_000;
 /** Пауза между строками, после которой запрос отклоняется: ответ `504` */
 const GAP_TIMEOUT_MS = 30_000;
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 class ImportUsersHandler {
   constructor(private readonly users: UsersRepository) {}
 

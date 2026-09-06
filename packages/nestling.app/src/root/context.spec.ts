@@ -13,12 +13,13 @@ import { wireApp } from '../testing/index.js';
 import { transportValue } from '../transport/index.js';
 
 import { loggerProbe } from './__fixtures__/logger.js';
+import { VALUE_ONLY } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeToken } from '@nestling/container';
+import { Component, makeToken } from '@nestling/container';
 
 /** Токен транспорта-заглушки: приёма запросов в тестовом прогоне нет */
 const MockTransport$ = makeToken<MockTransport>('transport:mock');
@@ -26,7 +27,7 @@ const MockTransport$ = makeToken<MockTransport>('transport:mock');
 /** Куда приземляются ридеры: контейнер App не публичен */
 const injected: CtxReader<string>[] = [];
 
-@Injectable([Ctx(RequestId)])
+@Component([Ctx(RequestId)])
 class DeepService {
   constructor(readonly requestId: CtxReader<string>) {
     injected.push(requestId);
@@ -47,7 +48,11 @@ describe('contextKernel в корне', () => {
     const wired = await wireApp(
       makeApp({
         features: [DeepModule],
-        transports: [transportValue(MockTransport$, new MockTransport())],
+        transports: [
+          transportValue(MockTransport$, new MockTransport(), {
+            capabilities: VALUE_ONLY,
+          }),
+        ],
       }),
     );
 
@@ -58,21 +63,23 @@ describe('contextKernel в корне', () => {
     await wired.close();
   });
 
-  it('без читателей приложения единственный узел Ctx — ридер логгера ядра', async () => {
-    // `ConsoleLogger` читает `requestId` из контекста, поэтому его ридер
-    // есть в каждом графе с умолчанием под `RootLogger$`. Это провайдер-
-    // значение ридера: узел ничего не стоит и ничего не захватывает
+  it('без читателей приложения ни один узел Ctx не создаётся', async () => {
+    // `ConsoleLogger` (логгер по умолчанию) читает `requestId` из
+    // ambient-контекста напрямую, минуя DI: корень создаётся на фазе 0,
+    // раньше первого узла графа, и зависеть от `Ctx(RequestId)` не может
     const wired = await wireApp(
       makeApp({
-        transports: [transportValue(MockTransport$, new MockTransport())],
+        transports: [
+          transportValue(MockTransport$, new MockTransport(), {
+            capabilities: VALUE_ONLY,
+          }),
+        ],
       }),
     );
 
     const { nodes } = await wired.container.toJSON();
 
-    expect(
-      nodes.filter((node) => node.id.startsWith('Ctx:')).map((n) => n.id),
-    ).toEqual(['Ctx:requestId']);
+    expect(nodes.filter((node) => node.id.startsWith('Ctx:'))).toEqual([]);
 
     await wired.close();
   });
@@ -81,8 +88,12 @@ describe('contextKernel в корне', () => {
     const probe = loggerProbe();
     const wired = await wireApp(
       makeApp({
-        transports: [transportValue(MockTransport$, new MockTransport())],
-        providers: [probe.provider],
+        transports: [
+          transportValue(MockTransport$, new MockTransport(), {
+            capabilities: VALUE_ONLY,
+          }),
+        ],
+        logger: probe.logger,
       }),
     );
 
@@ -97,7 +108,11 @@ describe('contextKernel в корне', () => {
     const wired = await wireApp(
       makeApp({
         features: [DeepModule],
-        transports: [transportValue(MockTransport$, new MockTransport())],
+        transports: [
+          transportValue(MockTransport$, new MockTransport(), {
+            capabilities: VALUE_ONLY,
+          }),
+        ],
       }),
     );
 
@@ -121,7 +136,11 @@ describe('contextKernel в корне', () => {
     const wired = await wireApp(
       makeApp({
         features: [DeepModule],
-        transports: [transportValue(MockTransport$, new MockTransport())],
+        transports: [
+          transportValue(MockTransport$, new MockTransport(), {
+            capabilities: VALUE_ONLY,
+          }),
+        ],
       }),
       {
         overrides: [[Ctx(RequestId), fake]],

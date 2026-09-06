@@ -29,6 +29,7 @@ import {
   ContainerBuilder,
   factoryProvider,
   makeToken,
+  valueProvider,
 } from '@nestling/container';
 import type { Emitter, Port } from '@nestling/operations';
 import {
@@ -165,14 +166,18 @@ async function assemble(options: {
   );
 
   // Записи логгера здесь не наблюдаются: отказы вызывателей и доставки
-  // проверяются отдельными тестами, а тест смотрит на биндинг
-  const builder = new ContainerBuilder({
-    overrides: [[RootLogger$, spyLogger().logger]],
-  });
+  // проверяются отдельными тестами, а тест смотрит на биндинг. Корень
+  // логгера живёт вне графа, поэтому регистрируется значением — так же,
+  // как это делает сборка приложения
+  const builder = new ContainerBuilder();
   builder.register(
     configKernel(await bootstrapConfig([[source, portsConfigKeys]])),
   );
-  builder.register(contextKernel(), loggerKernel());
+  builder.register(
+    contextKernel(),
+    loggerKernel(),
+    valueProvider(RootLogger$, spyLogger().logger),
+  );
   builder.register(
     portsKernel({
       implementations: collectImplementations(
@@ -195,6 +200,10 @@ async function assemble(options: {
   }
 
   const container = builder.build();
+
+  // Экземпляры создаёт INIT: до него граф собран, но пуст
+  await container.init();
+
   const bus = container.get(MessageBus$) as InProcessBus | null;
 
   if (options.wire === false) {

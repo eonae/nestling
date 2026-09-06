@@ -1,4 +1,4 @@
-import { Injectable } from '@nestling/container';
+import { Component } from '@nestling/container';
 
 /**
  * Счётчик квоты: сервис фичи квот.
@@ -6,7 +6,7 @@ import { Injectable } from '@nestling/container';
  * Наружу не экспортируется и в `deps` других фич не попадает: соседняя
  * фича обращается к квотам через операцию `quotas.claim`.
  */
-@Injectable([])
+@Component([])
 export class QuotaService {
   /** Лимит пользователей; в примере намеренно маленький */
   readonly limit = 5;

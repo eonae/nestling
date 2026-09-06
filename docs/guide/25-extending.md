@@ -1,6 +1,6 @@
 # 25. Расширить ядро своим пакетом
 
-> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-07).
 > Целевое описание: [design/principles.md](../design/principles.md), раздел
 > «Граница ядра», и [design/streaming.md](../design/streaming.md) §4.1.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-07-14]
@@ -26,7 +26,7 @@
 | Примитив | Пакет | Для чего реестру |
 |---|---|---|
 | `makePlugin` | `@nestling/app` | подключение к корню через `plugins:` |
-| `@Injectable`, `@OnDestroy` | `@nestling/container` | реестр как singleton графа, класс-юниты слоя |
+| `@Handler`, `resourceProvider` | `@nestling/container` | реестр как ресурс графа, класс-юниты слоя |
 | `makePipeline`, фазы `.pre` и `.finally` | `@nestling/app` | слой `tracked`: запись живёт столько, сколько подписка |
 | `AbortSignal` | стандарт языка | сигнал подписки, объединяющий три причины отмены |
 | `Topic` | `@nestling/operations` | лента изменений реестра |
@@ -45,7 +45,7 @@ Standard Schema. `@nestling/app` нужен только тестам и леж�
 
 ```typescript
 // packages/nestling.subscriptions/src/layer.ts
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 export class TrackSubscription {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -54,7 +54,7 @@ export class TrackSubscription {
   }
 }
 
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 export class UntrackSubscription {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -125,16 +125,16 @@ tracked)`. Обязательность слоя задаёт политика �
     return this.#feed.subscribe(signal);
   }
   // …
-  @OnDestroy()
-  dispose(): void {
+  release(): void {
     this.#feed.close();
   }
 ```
 
 Лента реестра устроена так же, как лента активности в
 [главе 14](./14-live-feed.md): `push` не ждёт наблюдателей, медленный
-наблюдатель теряет события по `drop-oldest`, `@OnDestroy` закрывает ленту
-на остановке, и наблюдатели завершаются нормально.
+наблюдатель теряет события по `drop-oldest`. Реестр объявлен ресурсом
+(`resourceProvider` в модуле плагина), поэтому его `release` закрывает
+ленту на остановке, и наблюдатели завершаются нормально.
 
 ## Факты жизненного цикла операциями
 
@@ -245,8 +245,6 @@ export const TestTransport$: Token<ITransport> =
 
 export class TestTransport implements ITransport {
   // …
-  readonly capabilities: TransportCapabilities = STREAMING;
-
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
     this.dispatch = dispatch;
     this.signal = signal;
@@ -259,18 +257,24 @@ export class TestTransport implements ITransport {
 }
 
 export const testTransport = (): TransportDeclaration =>
-  transportValue(TestTransport$, new TestTransport());
+  transportValue(TestTransport$, new TestTransport(), {
+    capabilities: STREAMING,
+  });
 ```
 
 Транспорт реализует интерфейс `ITransport` из `@nestling/app`:
-поле `capabilities` перечисляет формы io, которые он умеет передавать,
 `serve(dispatch, signal)` получает таблицу маршрутов и общий сигнал
 остановки, `close()` освобождает ресурсы. Метода запуска без маршрутов в
-интерфейсе нет. Декларация, форма io которой не входит в `capabilities`
-транспорта, отклоняется до обслуживания первого запроса. На транспорт
-ссылаются токеном экземпляра, а объявление для словаря `transports:` даёт
-`transportValue(token, instance)`. Реальные транспорты `http()`, `cli()`
-и `nats()` построены на том же интерфейсе.
+интерфейсе нет.
+
+Формы io, которые транспорт умеет передавать, объявляет не экземпляр, а
+**объявление**: поле `capabilities` у `TransportDeclaration`. Так проверка
+форм идёт на фазе ASSEMBLE, где экземпляров ещё нет. Декларация, форма io
+которой не входит в способности транспорта, отклоняется до обслуживания
+первого запроса. На транспорт ссылаются токеном экземпляра, а объявление
+для словаря `transports:` даёт `transportValue(token, instance, { capabilities })`.
+Реальные транспорты `http()`, `cli()` и `nats()` построены на том же
+интерфейсе и кладут в объявление свою константу способностей.
 
 ## Проверка
 

@@ -10,14 +10,10 @@
  * конфига и портов. Наружу идут интерфейс, токены и ключи секции.
  */
 
-import type { CtxReader } from '../pipeline/core/context/index.js';
-import { Ctx, RequestId } from '../pipeline/core/context/index.js';
+import { ambientRequestId } from '../pipeline/core/context/index.js';
 
 import type { LogConfig, LogFormat } from './config.js';
-import { NestlingLogConfig } from './config.js';
 import type { Fields, Logger, LogLevel, LogMethod } from './interface.js';
-
-import { Injectable } from '@nestling/container';
 
 /** Порядок уровней: запись ниже порога отбрасывается */
 const RANK: Readonly<Record<LogLevel, number>> = {
@@ -167,24 +163,19 @@ function formatError(err: unknown): string {
  * - `json`: одна строка с полями `time`, `level`, привязками, `requestId`,
  *   `msg`, полями вызова и `err` в виде `{ name, message, stack, cause? }`.
  *
- * `requestId` читается из `Ctx(RequestId)` в момент записи и добавляется
- * полем, если он есть и поле не задано вызовом. Вне запроса поля нет.
+ * `requestId` читается из ambient-контекста запроса в момент записи и
+ * добавляется полем, если он есть и поле не задано вызовом. Вне запроса
+ * поля нет. Узлом графа логгер не является: корень создаётся на фазе 0,
+ * раньше первого узла, поэтому зависеть от `Ctx(RequestId)` он не может.
  */
-@Injectable([NestlingLogConfig, Ctx(RequestId)])
 export class ConsoleLogger implements Logger {
   readonly #config: LogConfig;
-  readonly #requestId: CtxReader<string> | undefined;
   readonly #bindings: Fields;
   readonly #threshold: number;
   readonly #format: LogFormat;
 
-  constructor(
-    config: LogConfig,
-    requestId?: CtxReader<string>,
-    bindings: Fields = {},
-  ) {
+  constructor(config: LogConfig, bindings: Fields = {}) {
     this.#config = config;
-    this.#requestId = requestId;
     this.#bindings = bindings;
     this.#threshold = RANK[config.level];
     this.#format = config.format;
@@ -202,9 +193,9 @@ export class ConsoleLogger implements Logger {
   readonly error: LogMethod = (first: FirstArgument, second?: Fields): void =>
     this.#write('error', first, second);
 
-  /** Дочерний логгер с теми же секцией и ридером и объединёнными привязками */
+  /** Дочерний логгер с той же секцией и объединёнными привязками */
   child(bindings: Fields): Logger {
-    return new ConsoleLogger(this.#config, this.#requestId, {
+    return new ConsoleLogger(this.#config, {
       ...this.#bindings,
       ...bindings,
     });
@@ -222,7 +213,7 @@ export class ConsoleLogger implements Logger {
     // (`scope` среди них), идентификатор запроса, сообщение, поля, ошибка
     const data: Record<string, unknown> = { ...this.#bindings };
 
-    const requestId = this.#requestId?.peek();
+    const requestId = ambientRequestId();
     if (
       requestId !== undefined &&
       !('requestId' in rest) &&
@@ -309,9 +300,9 @@ function formatText(
 /**
  * Логгер для standalone-путей без `App`: `makeDispatch`, `new InProcessBus()`.
  *
- * Без секции и ридера: уровень `info`, формат `text`, без `requestId`.
- * Правило «незадекларированный отказ не проглатывается молча» держится на
- * нём. Из пакета не экспортируется.
+ * Без секции: уровень `info`, формат `text`. Правило «незадекларированный
+ * отказ не проглатывается молча» держится на нём. Из пакета не
+ * экспортируется.
  */
 export const defaultLogger: Logger = new ConsoleLogger({
   level: 'info',

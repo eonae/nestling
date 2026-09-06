@@ -8,7 +8,7 @@ import { UsersRepository$ } from '../users.repository.js';
 
 import type { Config, ExtendableContext, Output } from '@nestling/app';
 import { compose, makePipeline } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -30,7 +30,7 @@ type UserEventOutput = z.infer<typeof UserEventOutput>;
  * другой HMAC. Байты приходят в стартовом контексте, когда декларация
  * помечена `rawBody: true`. Секрет читается из секции конфига.
  */
-@Injectable([AppConfig])
+@Handler([AppConfig])
 export class VerifySignature {
   constructor(private readonly config: Config<typeof AppConfig>) {}
 
@@ -50,7 +50,7 @@ export class VerifySignature {
   }
 }
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 class UserWebhookHandler {
   constructor(private readonly users: UsersRepository) {}
 

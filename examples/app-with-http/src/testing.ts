@@ -2,7 +2,7 @@ import type { User } from './features/users/user.js';
 import type { UsersRepository } from './features/users/users.repository.js';
 
 /**
- * Фейк хранилища поверх массива: без соединения и без `@OnInit`.
+ * Фейк хранилища поверх массива: без соединения и без захвата ресурса.
  *
  * Лежит рядом с интерфейсом: изменился `UsersRepository`, и фейк перестал
  * компилироваться в том же коммите.

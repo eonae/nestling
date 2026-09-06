@@ -1,6 +1,6 @@
 # 6. Порт и адрес базы из окружения
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-08] Kernel/user
 > space; конфиг как token-families; плагины» и «[2026-07-13] Конфиг:
@@ -64,7 +64,7 @@ export const AppConfig = makeConfig('app', {
 
 ```typescript
 // examples/users-service/src/users/endpoints/list-users.endpoint.ts
-@Injectable([UsersRepository$, AppConfig])
+@Handler([UsersRepository$, AppConfig])
 export class ListUsersHandler {
   constructor(
     private readonly users: UsersRepository,
@@ -90,7 +90,7 @@ export const ListUsers = httpEndpoint({
 ```
 
 Секция инжектируется как обычная зависимость: токен `AppConfig` в списке
-`@Injectable`. Регистрировать её в `providers` не нужно: узел графа
+декоратора роли. Регистрировать её в `providers` не нужно: узел графа
 создаётся самим фактом упоминания. Тип значения даёт
 `Config<typeof AppConfig>`: поле `config.pageSize` имеет тип `number`.
 
@@ -98,14 +98,16 @@ export const ListUsers = httpEndpoint({
 
 ```typescript
 // examples/users-service/src/database.ts
-@Injectable([AppConfig, Logger$.auto])
+@Resource([AppConfig, Logger$.auto])
 export class Database {
-  // …
-  @OnInit()
-  connect(): void {
+  static async acquire(
+    config: Config<typeof AppConfig>,
+    logger: Logger,
+    _signal: AbortSignal,
+  ): Promise<Database> {
     // В лог уходит только хост: значение поля секретное
-    this.logger.info('database connected', {
-      host: new URL(this.config.databaseUrl).host,
+    logger.info('database connected', {
+      host: new URL(config.databaseUrl).host,
     });
     // …
   }
@@ -144,7 +146,7 @@ Sources consulted, in priority order: process.env
 yarn workspace @examples/users-service start:dev   # без API_TOKEN: ошибка при старте
 ```
 
-Секция проверяется при сборке графа, до `@OnInit` и до открытия сокета.
+Секция проверяется при сборке графа, до создания экземпляров и до открытия сокета.
 Все проваленные поля секции собираются в одну ошибку. Значение, которое
 не задано, в тексте ошибки не скрывается: «ключ не задан» и есть то, что
 нужно увидеть. `process.env` читает ядро, и только оно: секция описывает,

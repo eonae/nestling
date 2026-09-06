@@ -34,7 +34,7 @@ subject'ом, видом операции и (для `event`) именем по�
 #### Scenario: Реализация объявляется как endpoint
 
 - **WHEN** объявлено `implement(ChargeCard, { pipeline: basePipeline, handler: ChargeCardHandler })`,
-  где `ChargeCardHandler` — класс под `@Injectable([Ledger])` с методом
+  где `ChargeCardHandler` — класс под `@Handler([Ledger])` с методом
   `handle`, и значение указано в `endpoints:` модуля
 - **THEN** оно обнаруживается discovery, требует транспорт шины и исполняется
   тем же путём, что HTTP-endpoint того же модуля

@@ -1,6 +1,6 @@
 import type { CtxReader, Logger } from '@nestling/app';
 import { Ctx, IdempotencyKey, Logger$ } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Component } from '@nestling/container';
 
 /**
  * Журнал регистраций: читает ключ идемпотентности из контекста.
@@ -12,7 +12,7 @@ import { Injectable } from '@nestling/container';
  * Дедупликации здесь нет: ядро доставляет ключ до обработчика, а что с
  * ним делать, решает владелец команды.
  */
-@Injectable([Logger$.auto, Ctx(IdempotencyKey)])
+@Component([Logger$.auto, Ctx(IdempotencyKey)])
 export class SignupJournal {
   constructor(
     private readonly logger: Logger,

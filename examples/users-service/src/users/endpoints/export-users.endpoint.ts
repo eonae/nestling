@@ -4,14 +4,14 @@ import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { Ok, stream } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
 
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
 const MAX_ROWS = 100_000;
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class ExportUsersHandler {
   constructor(private readonly users: UsersRepository) {}
 

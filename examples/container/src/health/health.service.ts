@@ -3,13 +3,13 @@ import { HealthCheck } from './registry.js';
 
 import type { Config, Logger } from '@nestling/app';
 import { Logger$ } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Component } from '@nestling/container';
 
 /**
  * Агрегатор проверок: `HealthCheck.all` даёт массив всех вкладов, где бы
  * они ни были зарегистрированы. Массив заморожен и типизирован `readonly`.
  */
-@Injectable([HealthCheck.all, HealthConfig, Logger$.auto])
+@Component([HealthCheck.all, HealthConfig, Logger$.auto])
 export class HealthService {
   #checks: readonly HealthCheck[];
   #config: Config<typeof HealthConfig>;

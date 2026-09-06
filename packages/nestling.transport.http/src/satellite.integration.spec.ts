@@ -15,6 +15,7 @@ import { createServer } from 'node:http';
 import {
   assemblePayload,
   bindingNeedsBody,
+  http,
   HTTP_CAPABILITIES,
   HTTP_TRANSPORT_NAME,
   httpBindingOf,
@@ -233,8 +234,8 @@ describe('satellite-транспорт поверх байтовых часте�
   });
 
   it('объявляет формы io тем же значением, что HttpTransport', () => {
-    expect(satellite.capabilities).toBe(reference.capabilities);
     expect(satellite.capabilities).toBe(HTTP_CAPABILITIES);
+    expect(http().capabilities).toBe(HTTP_CAPABILITIES);
   });
 
   it('GET с JSON-ответом даёт то же, что HttpTransport', async () => {

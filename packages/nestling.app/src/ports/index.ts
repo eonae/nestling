@@ -14,7 +14,7 @@
  * реализация пишется без правок ядра» осталась бы обещанием.
  */
 
-export { InProcessBus, MessageBus$ } from './bus.js';
+export { BUS_CAPABILITIES, InProcessBus, MessageBus$ } from './bus.js';
 export type {
   BusHandler,
   BusMessageMeta,

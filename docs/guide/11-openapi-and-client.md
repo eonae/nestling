@@ -1,6 +1,6 @@
 # 11. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -168,7 +168,7 @@ export const CreateUser = makeRequest({
 
 ```typescript
 // examples/users-service/src/users/endpoints/get-user.endpoint.ts
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
 

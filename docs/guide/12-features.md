@@ -1,6 +1,6 @@
 # 12. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-07).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -26,7 +26,7 @@
 
 ```typescript
 // examples/app-with-http/src/features/quotas/quota.service.ts
-@Injectable([])
+@Component([])
 export class QuotaService {
   /** Лимит пользователей; в примере намеренно маленький */
   readonly limit = 5;
@@ -62,7 +62,7 @@ endpoint'ы. `QuotaService` не экспортируется наружу и в
 ## Граница фич
 
 Фича не может зависеть от провайдера другой фичи. Если в фиче `users`
-объявить провайдер `UsersReport` с `@Injectable([QuotaService])`, сборка
+объявить провайдер `UsersReport` с `@Component([QuotaService])`, сборка
 остановится на фазе ASSEMBLE:
 
 ```
@@ -132,7 +132,7 @@ export const ClaimQuota = makeRequest({
 
 ```typescript
 // examples/app-with-http/src/features/quotas/claim-quota.endpoint.ts
-@Injectable([QuotaService, Logger$.auto])
+@Handler([QuotaService, Logger$.auto])
 class ClaimQuotaHandler {
   constructor(
     private readonly quotas: QuotaService,
@@ -177,7 +177,7 @@ export const ClaimQuotaImpl = implement(ClaimQuota, {
 // examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
 const QUOTA_CALL_BUDGET_MS = 500;
 
-@Injectable([
+@Handler([
   UsersRepository$,
   ClaimQuota.caller,
   // …
@@ -225,7 +225,7 @@ export const CreateUser = httpEndpoint({
 });
 ```
 
-`ClaimQuota.caller` — токен вызывателя. Он перечисляется в `@Injectable`
+`ClaimQuota.caller` — токен вызывателя. Он перечисляется в декораторе роли
 как обычная зависимость, и хендлер получает объект типа `Port<typeof
 ClaimQuota>` с методом `call(input, meta?)`. Вызов всегда асинхронный и
 всегда возвращает `Ok` или `Fail`, даже когда реализация работает в
@@ -324,7 +324,10 @@ export const appAuth = makePlugin({
   providers: [Authenticate],
 });
 
-export const authed = compose(observability, makePipeline().pre(Authenticate));
+export const authed = compose(
+  observability,
+  makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
+);
 ```
 
 Класс-юнит `Authenticate` нужен endpoint'ам фич `users` и `ops`, поэтому
@@ -341,9 +344,8 @@ export const UsersModule = makeModule({
   name: 'module:users',
   providers: [
     Database,
-    DbUsersRepository,
+    classProvider(UsersRepository$, DbUsersRepository),
     ActivityHub,
-    ExportUsersHandler,
     AuditDeletion,
     VerifySignature,
   ],

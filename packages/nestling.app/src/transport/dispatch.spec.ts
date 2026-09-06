@@ -50,6 +50,9 @@ async function contextReaders(): Promise<{
 
   const container = builder.build();
 
+  // Ридеры — узлы графа: их создаёт INIT
+  await container.init();
+
   return {
     requestId: container.getOrThrow(Ctx(RequestId)),
     signal: container.getOrThrow(Ctx(Signal)),

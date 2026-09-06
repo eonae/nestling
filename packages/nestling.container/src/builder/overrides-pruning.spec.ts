@@ -1,11 +1,13 @@
 import { makeToken } from '../common.js';
-import { OnDestroy, OnInit } from '../lifecycle/index.js';
+import { OnStart } from '../lifecycle/index.js';
 import { makeModule } from '../modules/index.js';
 import {
+  classProvider,
+  Component,
   factoryProvider,
   familyProvider,
-  Injectable,
   makeTokenFamily,
+  Resource,
   valueProvider,
 } from '../providers/index.js';
 
@@ -15,9 +17,9 @@ import { ContainerBuilder } from './container.builder.js';
  * Подстановка узлов и прунинг со стороны контейнера: замена узла значением,
  * удаление осиротевшего поддерева и перечень недостающих зависимостей.
  *
- * Тесты проверяют наблюдаемые следствия: какие конструкторы выполнились,
- * что осталось в `toJSON()`, в каком порядке отработали хуки. Внутренние
- * структуры билдера не проверяются.
+ * Тесты проверяют наблюдаемые следствия: какие конструкторы и захваты
+ * ресурсов выполнились, что осталось в `toJSON()`, в каком порядке
+ * отработали хуки. Внутренние структуры билдера не проверяются.
  */
 
 interface IRepository {
@@ -36,7 +38,7 @@ describe('overrides: подстановка узла графа', () => {
   it('не вызывает конструктор боевого провайдера ни разу', async () => {
     let constructed = 0;
 
-    @Injectable(Pool, [])
+    @Component([])
     class PgPool implements IPool {
       constructor() {
         constructed += 1;
@@ -47,7 +49,7 @@ describe('overrides: подстановка узла графа', () => {
       }
     }
 
-    @Injectable(Repository, [Pool] as const)
+    @Component([Pool] as const)
     class PgRepository implements IRepository {
       constructor(private readonly pool: IPool) {}
 
@@ -59,8 +61,13 @@ describe('overrides: подстановка узла графа', () => {
     const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
-      .register(PgPool, PgRepository)
+      .register(
+        classProvider(Pool, PgPool),
+        classProvider(Repository, PgRepository),
+      )
       .build();
+
+    await container.init();
 
     expect(constructed).toBe(0);
     expect(container.getOrThrow(Repository).find('1')).toBe('fake');
@@ -69,15 +76,13 @@ describe('overrides: подстановка узла графа', () => {
   it('делает подставленное значение обычным узлом с хуками в общем порядке', async () => {
     const order: string[] = [];
 
+    // Подмена всегда становится провайдером значения: она не создаётся и не
+    // освобождается контейнером, поэтому единственный хук, применимый к ней
+    // как к любому другому узлу, — @OnStart
     class FakeRepository implements IRepository {
-      @OnInit()
+      @OnStart()
       open(): void {
-        order.push('init:fake');
-      }
-
-      @OnDestroy()
-      close(): void {
-        order.push('destroy:fake');
+        order.push('start:fake');
       }
 
       find(): string {
@@ -85,22 +90,17 @@ describe('overrides: подстановка узла графа', () => {
       }
     }
 
-    @Injectable([Repository] as const)
+    @Component([Repository] as const)
     class Service {
       constructor(readonly repository: IRepository) {}
 
-      @OnInit()
+      @OnStart()
       warmup(): void {
-        order.push('init:service');
-      }
-
-      @OnDestroy()
-      drain(): void {
-        order.push('destroy:service');
+        order.push('start:service');
       }
     }
 
-    @Injectable(Repository, [])
+    @Component([])
     class RealRepository implements IRepository {
       find(): string {
         return 'real';
@@ -110,22 +110,17 @@ describe('overrides: подстановка узла графа', () => {
     const container = new ContainerBuilder({
       overrides: [[Repository, new FakeRepository()]],
     })
-      .register(RealRepository, Service)
+      .register(classProvider(Repository, RealRepository), Service)
       .build();
 
     await container.init();
-    await container.destroy();
+    await container.start(new AbortController().signal);
 
-    expect(order).toEqual([
-      'init:fake',
-      'init:service',
-      'destroy:service',
-      'destroy:fake',
-    ]);
+    expect(order).toEqual(['start:fake', 'start:service']);
   });
 
   it('сохраняет модуль-владелец заменённого узла', async () => {
-    @Injectable(Repository, [])
+    @Component([])
     class RealRepository implements IRepository {
       find(): string {
         return 'real';
@@ -134,7 +129,7 @@ describe('overrides: подстановка узла графа', () => {
 
     const UsersModule = makeModule({
       name: 'users',
-      providers: [RealRepository],
+      providers: [classProvider(Repository, RealRepository)],
     });
 
     const container = new ContainerBuilder({
@@ -208,7 +203,7 @@ describe('familyOverrides: подмена рецепта семейства', ()
 
     let productionCalls = 0;
 
-    @Injectable([ILogger('users'), ILogger('orders'), ILogger('billing')])
+    @Component([ILogger('users'), ILogger('orders'), ILogger('billing')])
     class Service {
       constructor(
         readonly users: ILoggerService,
@@ -234,6 +229,8 @@ describe('familyOverrides: подмена рецепта семейства', ()
       )
       .register(Service)
       .build();
+
+    await container.init();
 
     const service = container.getOrThrow(Service);
 
@@ -277,16 +274,15 @@ describe('прунинг: без overrides сборка тождественна
     const Aggregated = makeToken<readonly ISink[]>('Aggregated');
     const Orphan = makeToken<{ id: string }>('Orphan');
 
-    @Injectable(Pool, [])
+    @Resource([])
     class PgPool implements IPool {
-      @OnInit()
-      connect(): void {
-        order.push('init:Pool');
+      static async acquire(_signal: AbortSignal): Promise<PgPool> {
+        order.push('acquire:Pool');
+        return new PgPool();
       }
 
-      @OnDestroy()
-      disconnect(): void {
-        order.push('destroy:Pool');
+      release(): void {
+        order.push('release:Pool');
       }
 
       query(): string {
@@ -294,21 +290,24 @@ describe('прунинг: без overrides сборка тождественна
       }
     }
 
-    @Injectable(Repository, [Pool, ISinkFamily('repo')] as const)
+    @Resource([Pool, ISinkFamily('repo')] as const)
     class PgRepository implements IRepository {
+      static async acquire(
+        pool: IPool,
+        sink: ISink,
+        _signal: AbortSignal,
+      ): Promise<PgRepository> {
+        order.push('acquire:Repository');
+        return new PgRepository(pool, sink);
+      }
+
       constructor(
         private readonly pool: IPool,
         readonly sink: ISink,
       ) {}
 
-      @OnInit()
-      warmup(): void {
-        order.push('init:Repository');
-      }
-
-      @OnDestroy()
-      drain(): void {
-        order.push('destroy:Repository');
+      release(): void {
+        order.push('release:Repository');
       }
 
       find(): string {
@@ -316,7 +315,7 @@ describe('прунинг: без overrides сборка тождественна
       }
     }
 
-    @Injectable(Reports, [Pool] as const)
+    @Component([Pool] as const)
     class ReportsService {
       constructor(private readonly pool: IPool) {}
 
@@ -328,9 +327,9 @@ describe('прунинг: без overrides сборка тождественна
     const DataModule = makeModule({
       name: 'data',
       providers: [
-        PgPool,
-        PgRepository,
-        ReportsService,
+        classProvider(Pool, PgPool),
+        classProvider(Repository, PgRepository),
+        classProvider(Reports, ReportsService),
         familyProvider(ISinkFamily, (scope) =>
           valueProvider(ISinkFamily(scope), { scope }),
         ),
@@ -369,10 +368,10 @@ describe('прунинг: без overrides сборка тождественна
 
     expect(container.pruned).toEqual([]);
     expect(order).toEqual([
-      'init:Pool',
-      'init:Repository',
-      'destroy:Repository',
-      'destroy:Pool',
+      'acquire:Pool',
+      'acquire:Repository',
+      'release:Repository',
+      'release:Pool',
     ]);
   });
 
@@ -386,7 +385,7 @@ describe('прунинг: без overrides сборка тождественна
         factoryProvider(TokenY, () => ({ id: 'y' }), [TokenX] as const),
       );
 
-    expect(() => builder.build()).toThrow(/Circular dependency/);
+    expect(() => builder.build()).toThrow(/Cycles detected in the graph/);
   });
 });
 
@@ -395,20 +394,16 @@ describe('прунинг: осиротевшие поддеревья', () => {
     let connected = 0;
     const hooks: string[] = [];
 
-    @Injectable(Pool, [])
+    @Resource([])
     class PgPool implements IPool {
-      constructor() {
+      static async acquire(_signal: AbortSignal): Promise<PgPool> {
         connected += 1;
+        hooks.push('acquire:Pool');
+        return new PgPool();
       }
 
-      @OnInit()
-      open(): void {
-        hooks.push('init:Pool');
-      }
-
-      @OnDestroy()
-      close(): void {
-        hooks.push('destroy:Pool');
+      release(): void {
+        hooks.push('release:Pool');
       }
 
       query(): string {
@@ -416,7 +411,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
       }
     }
 
-    @Injectable(Repository, [Pool] as const)
+    @Component([Pool] as const)
     class PgRepository implements IRepository {
       constructor(private readonly pool: IPool) {}
 
@@ -428,7 +423,10 @@ describe('прунинг: осиротевшие поддеревья', () => {
     const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
-      .register(PgPool, PgRepository)
+      .register(
+        classProvider(Pool, PgPool),
+        classProvider(Repository, PgRepository),
+      )
       .build();
 
     await container.init();
@@ -444,14 +442,14 @@ describe('прунинг: осиротевшие поддеревья', () => {
   });
 
   it('оставляет разделяемую зависимость', async () => {
-    @Injectable(Pool, [])
+    @Component([])
     class PgPool implements IPool {
       query(): string {
         return 'real';
       }
     }
 
-    @Injectable(Repository, [Pool] as const)
+    @Component([Pool] as const)
     class PgRepository implements IRepository {
       constructor(private readonly pool: IPool) {}
 
@@ -460,7 +458,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
       }
     }
 
-    @Injectable(Reports, [Pool] as const)
+    @Component([Pool] as const)
     class ReportsService {
       constructor(private readonly pool: IPool) {}
 
@@ -472,8 +470,14 @@ describe('прунинг: осиротевшие поддеревья', () => {
     const container = new ContainerBuilder({
       overrides: [[Repository, { find: () => 'fake' }]],
     })
-      .register(PgPool, PgRepository, ReportsService)
+      .register(
+        classProvider(Pool, PgPool),
+        classProvider(Repository, PgRepository),
+        classProvider(Reports, ReportsService),
+      )
       .build();
+
+    await container.init();
 
     expect(container.pruned).toEqual([]);
     expect(container.getOrThrow(Pool).query()).toBe('real');
@@ -528,6 +532,8 @@ describe('прунинг: осиротевшие поддеревья', () => {
       )
       .build();
 
+    await container.init();
+
     expect(container.pruned).toEqual([]);
     expect(container.getOrThrow(Aggregated)).toEqual([
       { scope: 'a' },
@@ -575,6 +581,8 @@ describe('прунинг: осиротевшие поддеревья', () => {
         ),
       )
       .build();
+
+    await container.init();
 
     const { nodes } = await container.toJSON();
 

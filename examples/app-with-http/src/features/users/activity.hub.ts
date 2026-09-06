@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy } from '@nestling/container';
+import { Resource } from '@nestling/container';
 import { Topic } from '@nestling/operations';
 
 /** Событие ленты активности: его получает каждый подписчик SSE-endpoint'а */
@@ -13,13 +13,19 @@ export interface ActivityEvent {
 const HISTORY_SIZE = 256;
 
 /**
- * Источник событий ленты: обычный провайдер поверх `Topic`.
+ * Источник событий ленты: ресурс поверх `Topic`.
  *
  * `push` не ждёт подписчиков, у каждой подписки свой буфер, медленный
- * клиент не тормозит остальных.
+ * клиент не тормозит остальных. Ресурс нужен ради `release`: закрыть
+ * `Topic` и завершить нормально все открытые подписки можно только явным
+ * вызовом на остановке.
  */
-@Injectable([])
+@Resource([])
 export class ActivityHub {
+  static async acquire(_signal: AbortSignal): Promise<ActivityHub> {
+    return new ActivityHub();
+  }
+
   readonly #topic = new Topic<ActivityEvent>({ buffer: 256 });
 
   /** Последние события: с них продолжается подписка после реконнекта */
@@ -80,8 +86,7 @@ export class ActivityHub {
   }
 
   /** При остановке приложения все подписки завершаются нормально */
-  @OnDestroy()
-  close(): void {
+  release(): void {
     this.#topic.close();
   }
 }

@@ -2,10 +2,10 @@ import type { HealthCheck } from '../health/index.js';
 import type { Database } from '../interfaces.js';
 import { Database$ } from '../interfaces.js';
 
-import { Injectable } from '@nestling/container';
+import { Component } from '@nestling/container';
 
 /** Проверка базы: вклад модуля в семейство `HealthCheck` */
-@Injectable([Database$])
+@Component([Database$])
 export class DatabaseHealthCheck implements HealthCheck {
   readonly name = 'database';
 

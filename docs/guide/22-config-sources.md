@@ -1,6 +1,6 @@
 # 22. Конфиг из файла и без перезапуска
 
-> Гайд по текущему API; сверено с кодом `container` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `container` (2026-09-07).
 > Целевое описание: [design/config.md](../design/config.md), разделы 2–6.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Конфиг:
 > keys-capability вместо `configs:`-владения» [2026-07-10] и «Конфиг:
@@ -178,12 +178,10 @@ export const runtimeConfigKeys = RuntimeConfig.keys;
 
 ```typescript
 // examples/container/src/runtime/rate-limiter.ts
-@Injectable([RuntimeConfig, Logger$.auto])
+@Component([RuntimeConfig, Logger$.auto])
 export class RateLimiter {
   /** Значения `rps`, пришедшие через `onChange` */
   readonly history: number[] = [];
-
-  readonly #unsubscribe = new AbortController();
 
   constructor(
     private readonly config: Config<typeof RuntimeConfig>,
@@ -195,16 +193,11 @@ export class RateLimiter {
   }
 
   @OnStart()
-  watch(): void {
-    this.config.onChange(this.#unsubscribe.signal, (next) => {
+  watch(signal: AbortSignal): void {
+    this.config.onChange(signal, (next) => {
       this.history.push(next.rps);
       this.logger.info('rate limit changed', { rps: next.rps });
     });
-  }
-
-  @OnDestroy()
-  stop(): void {
-    this.#unsubscribe.abort();
   }
 }
 ```
@@ -212,10 +205,11 @@ export class RateLimiter {
 У потребителя два способа увидеть новое значение. Первый: читать поле при
 каждом обращении, как делает `limit`. Подписка для этого не нужна. Второй:
 `onChange(signal, callback)`, когда на смену значения нужно отреагировать,
-например перестроить ресурс. Подписка снимается, когда взводится
-`signal`; здесь его держит `AbortController`, который `@OnDestroy`
-взводит при остановке. Значение, скопированное в конструкторе, не
-обновится, поэтому reloadable включается для секции явно.
+например перестроить ресурс. Подписка снимается, когда взводится `signal`;
+хук `@OnStart` получает его аргументом — это тот же канал остановки, что
+получают транспорты, поэтому своего `AbortController` держать не нужно.
+Значение, скопированное в конструкторе, не обновится, поэтому reloadable
+включается для секции явно.
 
 Обновления приходят от источника с методом `watch()`. У `objectSource`
 он есть: вызов `set(key, value)` уведомляет читалку. Два отличия от

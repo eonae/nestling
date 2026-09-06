@@ -1,5 +1,5 @@
 import { makeToken, tokenId } from '../common.js';
-import { Injectable, valueProvider } from '../providers/index.js';
+import { Component, valueProvider } from '../providers/index.js';
 
 import { ContainerBuilder } from './container.builder.js';
 
@@ -26,13 +26,22 @@ describe('идентичность токена', () => {
       readonly source = 'right';
     };
 
-    Injectable([])(Logger, {} as ClassDecoratorContext);
-    Injectable([])(OtherLogger, {} as ClassDecoratorContext);
+    // Декоратор применяется напрямую, а не через `@`: форма класса
+    // компилятору здесь неизвестна, поэтому вызов проходит мимо проверки
+    // формы так же, как в role.decorators.spec.ts
+    const decorateComponent = Component as unknown as (
+      deps: unknown[],
+    ) => (target: unknown) => unknown;
+
+    decorateComponent([])(Logger);
+    decorateComponent([])(OtherLogger);
 
     const container = new ContainerBuilder()
       .register(Logger)
       .register(OtherLogger)
       .build();
+
+    await container.init();
 
     expect(container.getOrThrow(Logger).source).toBe('left');
     expect(container.getOrThrow(OtherLogger).source).toBe('right');
@@ -43,7 +52,7 @@ describe('идентичность токена', () => {
     );
   });
 
-  it('отдаёт предупреждение о совпавших идентификаторах узлов значением', () => {
+  it('отдаёт предупреждение о совпавших идентификаторах узлов значением', async () => {
     const first = makeToken<string>('Duplicated');
     const second = makeToken<string>('Duplicated');
 
@@ -51,6 +60,8 @@ describe('идентичность токена', () => {
       .register(valueProvider(first, 'left'))
       .register(valueProvider(second, 'right'))
       .build();
+
+    await container.init();
 
     expect(container.getOrThrow(first)).toBe('left');
     expect(container.getOrThrow(second)).toBe('right');
@@ -72,6 +83,8 @@ describe('идентичность токена', () => {
 
     const { nodes } = await container.toJSON();
     const [node] = nodes;
+
+    await container.init();
 
     expect(container.getById(node.id)).toBe(container.getOrThrow(ILogger));
     expect(container.getById('nothing-like-this')).toBeNull();

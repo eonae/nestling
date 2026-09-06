@@ -2,7 +2,7 @@ import { RuntimeConfig } from './runtime.config.js';
 
 import type { Config, Logger } from '@nestling/app';
 import { Logger$ } from '@nestling/app';
-import { Injectable, OnDestroy, OnStart } from '@nestling/container';
+import { Component, OnStart } from '@nestling/container';
 
 /**
  * Потребитель reloadable-секции.
@@ -11,12 +11,10 @@ import { Injectable, OnDestroy, OnStart } from '@nestling/container';
  * действует без подписки. Подписка нужна только для реакции на смену:
  * здесь она пишет в лог и запоминает историю.
  */
-@Injectable([RuntimeConfig, Logger$.auto])
+@Component([RuntimeConfig, Logger$.auto])
 export class RateLimiter {
   /** Значения `rps`, пришедшие через `onChange` */
   readonly history: number[] = [];
-
-  readonly #unsubscribe = new AbortController();
 
   constructor(
     private readonly config: Config<typeof RuntimeConfig>,
@@ -27,16 +25,17 @@ export class RateLimiter {
     return this.config.rps;
   }
 
+  /**
+   * Открывает подписку на смену секции.
+   *
+   * Сигнал — канал остановки приложения, тот же, что получают транспорты:
+   * подписка снимается им, отдельный `AbortController` не нужен.
+   */
   @OnStart()
-  watch(): void {
-    this.config.onChange(this.#unsubscribe.signal, (next) => {
+  watch(signal: AbortSignal): void {
+    this.config.onChange(signal, (next) => {
       this.history.push(next.rps);
       this.logger.info('rate limit changed', { rps: next.rps });
     });
-  }
-
-  @OnDestroy()
-  stop(): void {
-    this.#unsubscribe.abort();
   }
 }

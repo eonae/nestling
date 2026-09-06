@@ -2,7 +2,7 @@
  * Модуль-издатель: точка построения, топология и подчинение политикам.
  *
  * Главное здесь — **когда** строится документ. Обещана гарантия на старте:
- * непокрытая схема роняет сборку до `@OnInit` и до `serve`, а не при первом
+ * непокрытая схема роняет старт до `serve`, а не при первом
  * запросе `/openapi.json`. Проверяется это наблюдаемо: конструкторы с
  * ресурсами не отработали, а транспорт не начал принимать запросы.
  */
@@ -29,14 +29,12 @@ import {
   makeFeature,
   makePipeline,
   Ok,
-  RootLogger$,
   transportValue,
 } from '@nestling/app';
 import {
   factoryProvider,
   makeToken,
-  OnInit,
-  valueProvider,
+  resourceProvider,
 } from '@nestling/container';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { StandardSchemaV1 } from '@nestling/operations';
@@ -103,7 +101,6 @@ const VALUE_ONLY: TransportCapabilities = {
 class SpyTransport implements ITransport {
   serving = false;
   dispatch?: Dispatch;
-  readonly capabilities = VALUE_ONLY;
 
   async serve(dispatch: Dispatch): Promise<void> {
     this.dispatch = dispatch;
@@ -116,7 +113,9 @@ class SpyTransport implements ITransport {
 }
 
 const asHttpTransport = (transport: ITransport) =>
-  transportValue(HttpTransport$('default'), transport);
+  transportValue(HttpTransport$('default'), transport, {
+    capabilities: VALUE_ONLY,
+  });
 
 /** Пустой стартовый контекст: документ отдаётся endpoint'ом без входа */
 const contextFor = (pattern: string) =>
@@ -185,7 +184,7 @@ describe('openapi(...) — плагин-издатель', () => {
       features: [UsersModule],
       plugins: [openapi({ info, converters: [zodConverter()] })],
       transports: [asHttpTransport(new SpyTransport())],
-      providers: [valueProvider(RootLogger$, spy.logger)],
+      logger: spy.logger,
     }).assemble();
 
     await app.run();
@@ -229,7 +228,7 @@ describe('openapi(...) — плагин-издатель', () => {
         openapi({ info, converters: [zodConverter()], announceHidden: false }),
       ],
       transports: [asHttpTransport(new SpyTransport())],
-      providers: [valueProvider(RootLogger$, spy.logger)],
+      logger: spy.logger,
     }).assemble();
 
     await app.run();
@@ -271,7 +270,7 @@ describe('openapi(...) — плагин-издатель', () => {
     await app.close();
   });
 
-  it('непокрытая схема роняет сборку на ASSEMBLE — до @OnInit и до приёма запросов', async () => {
+  it('непокрытая схема роняет старт на INIT — до приёма запросов', async () => {
     const exotic: StandardSchemaV1<unknown, { id: string }> = {
       '~standard': {
         version: 1,
@@ -287,21 +286,28 @@ describe('openapi(...) — плагин-издатель', () => {
       handler: async () => new Ok({ ok: true }),
     });
 
-    let initialized = false;
+    let acquired = false;
+    let released = false;
 
-    class Resource {
-      @OnInit()
-      open(): void {
-        initialized = true;
-      }
-    }
+    const Pool$ = makeToken<{ open: true }>('Pool');
+    const pool = resourceProvider(Pool$, {
+      deps: [] as const,
+      acquire: () => {
+        acquired = true;
+
+        return { open: true as const };
+      },
+      release: () => {
+        released = true;
+      },
+    });
 
     const transport = new SpyTransport();
     const app = makeApp({
       features: [
         makeFeature({
           name: 'module:exotic',
-          providers: [factoryProvider(Resource, () => new Resource(), [])],
+          providers: [pool],
           endpoints: [Exotic],
         }),
       ],
@@ -313,7 +319,11 @@ describe('openapi(...) — плагин-издатель', () => {
 
     await expect(app.run()).rejects.toThrow(/cannot be documented/);
 
-    expect(initialized).toBe(false);
+    // Документ строит провайдер, а провайдеры выполняются на INIT: старт
+    // падает до приёма запросов, но после захвата ресурсов графа —
+    // поэтому захваченное освобождается откатом
+    expect(acquired).toBe(true);
+    expect(released).toBe(true);
     expect(transport.serving).toBe(false);
 
     await app.close();

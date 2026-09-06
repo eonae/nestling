@@ -1,6 +1,6 @@
 # 17. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-07).
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
@@ -62,7 +62,7 @@ export const app = declareApp();
 
 ```typescript
 // examples/split-nats/src/users.ts
-@Injectable([ClaimQuota.caller, UserRegistered.emitter])
+@Component([ClaimQuota.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
     private readonly quotas: Port<typeof ClaimQuota>,
@@ -120,7 +120,7 @@ export const UserRegistered = makeEvent({
 
 ```typescript
 // examples/split-nats/src/quotas.ts
-@Injectable([QuotaLedger])
+@Handler([QuotaLedger])
 class UserRegisteredInArchiveHandler {
   constructor(private readonly ledger: QuotaLedger) {}
 
@@ -158,7 +158,7 @@ export const TenantId = contextVar<string>()('tenantId', { propagate: true });
 
 ```typescript
 // examples/split-nats/src/users.ts
-@Injectable([RegistrationService])
+@Handler([RegistrationService])
 class RegisterUserHandler {
   constructor(private readonly registration: RegistrationService) {}
 
@@ -182,7 +182,7 @@ class RegisterUserHandler {
 
 ```typescript
 // examples/split-nats/src/quotas.ts (фрагмент)
-@Injectable([Ctx(TenantId)])
+@Component([Ctx(TenantId)])
 export class QuotaLedger {
   readonly limit = 100;
   readonly used = new Map<string, number>();

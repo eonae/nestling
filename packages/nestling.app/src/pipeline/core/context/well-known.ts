@@ -18,7 +18,7 @@ import { contextVar, readonlyContextVar, SIGNAL_KEY } from './variable.js';
  *
  * @example
  * ```typescript
- * @Injectable([Ctx(Signal)])
+ * @Component([Ctx(Signal)])
  * export class UpstreamClient {
  *   constructor(private readonly signal: CtxReader<AbortSignal>) {}
  *

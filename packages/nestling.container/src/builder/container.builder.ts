@@ -1,12 +1,11 @@
 import type { Constructor, InjectionToken } from '../common.js';
 import { tokenId } from '../common.js';
-import type { DINodeData, DINodeMetadata } from '../graph/index.js';
+import type { DINodeMetadata } from '../graph/index.js';
 import { DIGraph, DINode } from '../graph/index.js';
-import { getLifecycleHooks } from '../lifecycle/index.js';
 import type { Module } from '../modules/index.js';
 import { isModule } from '../modules/index.js';
 import type {
-  ClassProviderDefinition,
+  ClassRole,
   FactoryProviderDefinition,
   FamilyMemberToken,
   FamilyProviderDefinition,
@@ -14,18 +13,18 @@ import type {
   Provider,
   ProviderDefinition,
   ProvidersFactory,
+  ResourceClass,
   TokenFamily,
 } from '../providers/index.js';
 import {
   asFamilyMember,
+  decoratorOf,
   getAllSentinelFamily,
   getAutoSentinelFamily,
-  isClassDefinition,
   isDefinition,
-  isFactoryProvider,
   isFamilyDefinition,
   isValueDefinition,
-  readInjectableMeta,
+  readRoleMeta,
 } from '../providers/index.js';
 
 import { BuiltContainer } from './container.built.js';
@@ -37,14 +36,6 @@ import { BuiltContainer } from './container.built.js';
  * бы членов бесконечно; предел превращает это в ошибку сборки.
  */
 const MAX_MATERIALIZATION_ROUNDS = 100;
-
-/** Умолчание модуля: провайдер и модуль, который его объявил. */
-interface DefaultEntry {
-  /** Определение провайдера, приведённое к явному виду */
-  provider: ProviderDefinition;
-  /** Модуль, объявивший умолчание */
-  moduleName: string;
-}
 
 /**
  * Похоже ли значение на промис.
@@ -106,7 +97,8 @@ export interface ContainerBuilderOptions {
  * Билдер контейнера.
  *
  * Принимает провайдеры, рецепты семейств и модули через `register()`, а в
- * `build()` проверяет граф и создаёт все экземпляры сразу.
+ * `build()` строит граф и проверяет его целиком. Экземпляры создаёт
+ * `init()` собранного контейнера, тоже целиком.
  *
  * Внутренние карты ключуются **токеном**, а не его идентификатором: два
  * токена с одинаковым `id` — два разных узла графа.
@@ -124,7 +116,6 @@ export class ContainerBuilder {
   readonly #providersFactories = new Map<string, ProvidersFactory>();
   readonly #providerToModule = new Map<InjectionToken, string>();
   readonly #familyRecipes = new Map<TokenFamily<any, any>, FamilyRecipeEntry>();
-  readonly #defaults = new Map<InjectionToken, DefaultEntry>();
   readonly #modules = new Map<string, Module>();
   readonly #overrides: readonly TokenOverride<any>[];
   readonly #familyOverrides: readonly FamilyOverrideEntry<any, any>[];
@@ -178,53 +169,58 @@ export class ContainerBuilder {
   }
 
   /**
-   * Регистрирует провайдеры с атрибуцией к модулю по имени.
+   * Регистрирует класс-хендлер декларации с атрибуцией к модулю по имени.
    *
-   * Само значение модуля не требуется: имя — метка узлов графа, и
-   * провайдер, добавленный сюда, неотличим от перечисленного в
-   * `providers:` этого модуля. Так сборка регистрирует класс-хендлер
-   * endpoint'а провайдером модуля-объявителя, не меняя значение модуля.
+   * Единственная позиция, где принимается роль хендлера: сам endpoint
+   * заводит узел для своего класса, а `providers:` его отвергает. Значение
+   * модуля не требуется — имя это метка узлов графа.
    *
-   * @param moduleName - Имя модуля-владельца
-   * @param providers - Провайдеры или рецепты семейств
+   * @param moduleName - Имя модуля-объявителя endpoint'а
+   * @param handlers - Классы с декоратором `@Handler`
    * @returns Тот же билдер, для цепочки вызовов
-   * @throws {Error} Если контейнер уже собран
+   * @throws {Error} Если контейнер уже собран или у класса не та роль
    */
-  registerIn(moduleName: string, ...providers: ModuleProvider[]): this {
+  registerHandlerIn(moduleName: string, ...handlers: Constructor[]): this {
     if (this.#isBuilt) {
       throw new Error(
         'Cannot register providers or modules after container is built',
       );
     }
 
-    for (const provider of providers) {
-      this.registerModuleProvider(provider, moduleName);
+    for (const handler of handlers) {
+      this.registerProvider(
+        this.resolveClass(handler, 'handler', "the 'handler:' slot"),
+        moduleName,
+      );
     }
 
     return this;
   }
 
   /**
-   * Собирает контейнер: проверяет зависимости и создаёт все экземпляры.
+   * Собирает контейнер: строит граф провайдеров и проверяет его.
+   *
+   * Экземпляров не создаёт ни одного: ни конструктор, ни фабрика
+   * провайдера здесь не выполняются — значения появляются в `init()`.
+   * Фабрика провайдеров модуля вызывается, потому что возвращает состав, а
+   * не значения.
    *
    * Вызывается один раз после регистрации. Шаги:
    * 1. разворачивает фабрики провайдеров модулей;
-   * 2. регистрирует умолчания модулей, у которых нет соперника;
-   * 3. подменяет рецепты семейств из `familyOverrides` — до создания членов;
-   * 4. создаёт членов семейств, упомянутых в зависимостях;
-   * 5. подменяет узлы из `overrides` провайдерами-значениями;
-   * 6. удаляет поддеревья, осиротевшие после подмены;
-   * 7. создаёт узел-агрегат для каждого упомянутого `Family.all`;
-   * 8. перечисляет все зависимости без провайдера одной ошибкой;
-   * 9. создаёт экземпляры;
-   * 10. строит граф зависимостей;
-   * 11. проверяет граф на циклы.
+   * 2. подменяет рецепты семейств из `familyOverrides` — до создания членов;
+   * 3. создаёт членов семейств, упомянутых в зависимостях;
+   * 4. подменяет узлы из `overrides` провайдерами-значениями;
+   * 5. удаляет поддеревья, осиротевшие после подмены;
+   * 6. создаёт узел-агрегат для каждого упомянутого `Family.all`;
+   * 7. перечисляет все зависимости без провайдера одной ошибкой;
+   * 8. строит граф из провайдеров;
+   * 9. проверяет граф на циклы.
    *
    * Предупреждения сборки (сегодня — о совпадающих идентификаторах
    * токенов) не печатаются: они отдаются значением `warnings` собранного
    * контейнера.
    *
-   * @returns Собранный контейнер с доступом к экземплярам
+   * @returns Собранный контейнер: граф с пустыми слотами значений
    * @throws {Error} Если контейнер уже собран или найден цикл
    *
    * @example
@@ -244,38 +240,31 @@ export class ContainerBuilder {
     // Шаг 1: развернуть фабрики провайдеров модулей в обычные регистрации
     this.appendFactoryProviders();
 
-    // Шаг 2: зарегистрировать умолчания без соперника — после фабрик, чтобы
-    // соперник из фабрики был виден, и до подстановок, чтобы `overrides`
-    // нашли умолчание как обычный провайдер
-    this.applyDefaults();
-
-    // Шаг 3: подменить рецепты семейств — строго до создания членов, иначе
+    // Шаг 2: подменить рецепты семейств — строго до создания членов, иначе
     // члены создались бы по боевому рецепту
     this.applyFamilyOverrides();
 
-    // Шаг 4: превратить упомянутых членов семейств в обычные провайдеры
+    // Шаг 3: превратить упомянутых членов семейств в обычные провайдеры
     this.materializeFamilyMembers();
 
-    // Шаг 5: подменить узлы из `overrides`, запомнив их прежние зависимости
+    // Шаг 4: подменить узлы из `overrides`, запомнив их прежние зависимости
     const dependenciesBeforeOverrides = this.applyOverrides();
 
-    // Шаг 6: удалить поддеревья, осиротевшие после подмены
+    // Шаг 5: удалить поддеревья, осиротевшие после подмены
     const pruned = this.pruneOrphans(dependenciesBeforeOverrides);
 
-    // Шаг 7: превратить упомянутые `.all` в провайдеры-агрегаты — после
+    // Шаг 6: превратить упомянутые `.all` в провайдеры-агрегаты — после
     // прунинга, чтобы агрегат собрался из оставшихся членов
     this.materializeFamilyAggregates();
 
-    // Шаг 8: перечислить все зависимости без провайдера одной ошибкой
+    // Шаг 7: перечислить все зависимости без провайдера одной ошибкой
     this.assertDependenciesSatisfied();
 
-    // Шаг 9: создать экземпляры
-    const instances = this.instantiateAll();
+    // Шаг 8: построить граф зависимостей из провайдеров
+    const { graph, nodeIds, warnings } = this.buildDependencyGraph();
 
-    // Шаг 10: построить граф зависимостей из экземпляров
-    const { graph, nodeIds, warnings } = this.buildDependencyGraph(instances);
-
-    // Шаг 11: проверить граф на циклы
+    // Шаг 9: проверить граф на циклы — рёбра проставлены вторым проходом,
+    // поэтому цикл представим в графе и печатается полным путём
     graph.ensureAcyclic();
 
     this.#isBuilt = true;
@@ -318,77 +307,84 @@ export class ContainerBuilder {
         this.registerModuleProvider(provider, m.name);
       }
     }
-
-    for (const provider of m.defaults || []) {
-      this.registerDefault(provider, m.name);
-    }
   }
 
   /**
-   * Запоминает умолчание модуля до `build()`.
+   * Приводит провайдер к явному определению.
    *
-   * Соперник умолчания может прийти позже, любым путём регистрации, поэтому
-   * здесь умолчание только проверяется и откладывается; в граф оно попадает
-   * в `build()`. Два умолчания под одним токеном — ошибка сразу: у каждого
-   * своя реализация, и молчаливый выбор одной из них прятал бы вторую.
+   * Класс в `providers:` обязан быть компонентом или ресурсом: роль
+   * сверяется с позицией здесь, до создания каких бы то ни было
+   * экземпляров.
    */
-  private registerDefault(provider: Provider, moduleName: string): void {
-    const resolved = this.resolveProvider(provider);
-    const token = this.getToken(resolved);
-
-    assertNotAggregateToken(token);
-    assertNoAutoSentinels(resolved, tokenId(token));
-
-    const taken = this.#defaults.get(token);
-    if (taken) {
-      throw new Error(
-        `Modules '${taken.moduleName}' and '${moduleName}' both declare a default for token '${tokenId(token)}'. A default is the fallback for a token nobody provides, so only one module can own it - keep the default in one module and register the other implementation in 'providers:'`,
-      );
-    }
-
-    this.#defaults.set(token, { provider: resolved, moduleName });
-  }
-
-  /**
-   * Регистрирует умолчания модулей, для которых к этому моменту не
-   * зарегистрирован ни один провайдер.
-   *
-   * Выполняется после разворачивания фабрик провайдеров: соперник из
-   * фабрики иначе был бы не виден. Узел атрибутируется модулю, объявившему
-   * умолчание.
-   */
-  private applyDefaults(): void {
-    for (const [token, { provider, moduleName }] of this.#defaults) {
-      if (this.#providers.has(token)) {
-        continue;
-      }
-
-      this.registerProvider(provider, moduleName);
-    }
-  }
-
-  private resolveProvider(
-    plainOrCls: ProviderDefinition | Constructor,
-  ): ProviderDefinition {
+  private resolveProvider(plainOrCls: Provider): ProviderDefinition {
     if (isDefinition(plainOrCls)) {
       return plainOrCls;
     }
 
-    const meta = readInjectableMeta(plainOrCls);
+    // Позиция `providers:` принимает любую объявленную роль: класс-юнит
+    // пайплайна несёт метод `handle`, то есть роль хендлера, и живёт
+    // именно здесь. Класс-хендлер endpoint'а регистрирует сам endpoint —
+    // его же в `providers:` ловит отдельная проверка сборки приложения
+    return this.resolveClass(
+      plainOrCls as Constructor,
+      ['component', 'resource', 'handler'],
+      "'providers:'",
+    );
+  }
+
+  /**
+   * Превращает класс в определение провайдера, сверив его роль с позицией.
+   *
+   * Ошибка называет класс, позицию и декоратор, которого она ждёт: форма
+   * класса — дело компилятора, а позиция известна только сборке.
+   */
+  private resolveClass(
+    cls: Constructor,
+    expected: ClassRole | readonly ClassRole[],
+    position: string,
+  ): ProviderDefinition {
+    const allowed = typeof expected === 'string' ? [expected] : expected;
+    const meta = readRoleMeta(cls);
+
     if (!meta) {
       throw new Error(
-        `Class ${plainOrCls.name} is missing @Injectable decorator`,
+        `Class '${cls.name}' listed in ${position} has no role decorator. ` +
+          `Declare it ${allowed.map(decoratorOf).join(', ')}; a class from another ` +
+          `package is registered with factoryProvider or resourceProvider instead.`,
       );
     }
 
+    if (!allowed.includes(meta.role)) {
+      throw new Error(
+        `Class '${cls.name}' is declared ${decoratorOf(meta.role)}, but ${position} ` +
+          `accepts ${allowed.map(decoratorOf).join(' or ')}. ` +
+          `Move it to the position of its role, or change the role decorator.`,
+      );
+    }
+
+    if (meta.role === 'resource') {
+      const resource = cls as unknown as ResourceClass;
+
+      return {
+        provide: cls,
+        deps: meta.dependencies,
+        acquire: (...args: unknown[]) => resource.acquire(...args),
+        release: (value: unknown) =>
+          (value as { release(): void | Promise<void> }).release(),
+      };
+    }
+
     return {
-      provide: meta.injectionToken,
-      useClass: plainOrCls,
+      provide: cls,
+      useClass: cls,
       deps: meta.dependencies,
     };
   }
 
-  private getToken<T>(provider: Provider<T>): InjectionToken<T> {
+  /** Токен регистрации: у определения — его `provide`, у класса — сам класс */
+  private getToken<T>(
+    provider: ProviderDefinition<T> | Constructor<T>,
+  ): InjectionToken<T> {
     return isDefinition(provider) ? provider.provide : provider;
   }
 
@@ -531,6 +527,14 @@ export class ContainerBuilder {
     try {
       definition = entry.recipe(param);
     } catch (error) {
+      // Ошибка рецепта пробрасывается как есть: рецепт бывает и
+      // вычислением значения (проекция секции конфига), и его ошибка —
+      // ошибка домена со своим типом и текстом. Обёртка спрятала бы и то,
+      // и другое. Обёртывается только то, что ошибкой не является
+      if (error instanceof Error) {
+        throw error;
+      }
+
       throw new Error(
         `Recipe of token family '${family.familyName}' failed for parameter '${param}'`,
         { cause: error },
@@ -834,45 +838,6 @@ export class ContainerBuilder {
     );
   }
 
-  /** Создаёт экземпляр по class-провайдеру. */
-  private createClassInstance(
-    provider: ClassProviderDefinition,
-    instances: Map<InjectionToken, unknown>,
-  ): unknown {
-    const deps = provider.deps || [];
-    const args = deps.map((dep) => instances.get(dep));
-
-    return new provider.useClass(...args);
-  }
-
-  /** Создаёт значение по провайдеру любого вида. */
-  private createInstance(
-    provider: ProviderDefinition,
-    instances: Map<InjectionToken, unknown>,
-  ): unknown {
-    if (isClassDefinition(provider)) {
-      return this.createClassInstance(provider, instances);
-    } else if (isValueDefinition(provider)) {
-      return provider.useValue;
-    } else if (isFactoryProvider(provider)) {
-      const args = provider.deps.map((dep) => instances.get(dep));
-      const instance = provider.useFactory(...args);
-
-      // Тип фабрики `Promise` уже запрещает, но `Module.providers`
-      // типизирован значением `unknown`: литерал провайдера с асинхронной
-      // фабрикой компилятор пропускает, и ловит его только эта проверка.
-      if (isThenable(instance)) {
-        throw new Error(
-          `Factory of provider '${tokenId(provider.provide)}' returned a Promise, but assembly is synchronous and does no I/O. Acquire connections in an @OnInit hook instead.`,
-        );
-      }
-
-      return instance;
-    } else {
-      throw new Error('Unknown provider type');
-    }
-  }
-
   /** Разворачивает фабрики провайдеров модулей в обычные регистрации. */
   private appendFactoryProviders(): void {
     for (const [moduleName, factory] of this.#providersFactories.entries()) {
@@ -890,138 +855,52 @@ export class ContainerBuilder {
     }
   }
 
-  /** Создаёт экземпляры всех провайдеров в порядке зависимостей. */
-  private instantiateAll(): Map<InjectionToken, unknown> {
-    const instances = new Map<InjectionToken, unknown>();
-    const instantiating = new Set<InjectionToken>();
-
-    const instantiateOne = (token: InjectionToken): void => {
-      if (instances.has(token)) {
-        return;
-      }
-
-      if (instantiating.has(token)) {
-        // `instantiating` — стек обхода в глубину, поэтому его хвост от
-        // повторённого токена и есть цикл. Полный путь важен для узлов,
-        // которых пользователь не писал руками, например агрегата семейства.
-        throw new Error(
-          `Circular dependency detected while instantiating '${tokenId(token)}': ${cyclePath(
-            instantiating,
-            token,
-          )}`,
-        );
-      }
-
-      instantiating.add(token);
-
-      const provider = this.#providers.get(token);
-      if (!provider) {
-        throw new Error(`Provider for token '${tokenId(token)}' not found`);
-      }
-
-      for (const dep of dependenciesOf(provider)) {
-        instantiateOne(dep);
-      }
-
-      const instance = this.createInstance(provider, instances);
-      instances.set(token, instance);
-
-      instantiating.delete(token);
-    };
-
-    for (const token of this.#providers.keys()) {
-      instantiateOne(token);
-    }
-
-    return instances;
-  }
-
   /**
-   * Строит граф зависимостей из созданных экземпляров.
+   * Строит граф зависимостей из провайдеров.
    *
    * Узел графа адресуется строкой: она печатается в `toJSON()`, в отчётах
    * и в текстах ошибок. Идентификаторы токенов уникальностью не связаны,
    * поэтому одноимённым узлам добавляется суффикс, а сборка предупреждает
    * о неоднозначности отчётов.
+   *
+   * Проходов два: сперва узлы, потом рёбра. Так цикл представим в графе и
+   * его ловит `ensureAcyclic()` — с полным путём, а не отказом построить
+   * узел.
    */
-  private buildDependencyGraph(instances: Map<InjectionToken, unknown>): {
+  private buildDependencyGraph(): {
     graph: DIGraph;
     nodeIds: ReadonlyMap<InjectionToken, string>;
     warnings: readonly string[];
   } {
     const { ids: nodeIds, warnings } = this.assignNodeIds([
-      ...instances.keys(),
+      ...this.#providers.keys(),
     ]);
 
     const graph = new DIGraph();
-    const nodes = new Map<string, DINode>();
-    const nodeData = new Map<string, DINodeData>();
+    const nodes = new Map<InjectionToken, DINode>();
 
-    // Первый проход: данные каждого узла
-    for (const [token, instance] of instances) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const provider = this.#providers.get(token)!;
-      const moduleName = this.#providerToModule.get(token);
-
-      const hooks = getLifecycleHooks(instance);
-
-      const metadata: DINodeMetadata = { module: moduleName };
-
-      const deps = dependenciesOf(provider).map(
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        (dep) => nodeIds.get(dep)!,
-      );
+    // Первый проход: узлы без рёбер
+    for (const [token, provider] of this.#providers) {
+      const metadata: DINodeMetadata = {
+        module: this.#providerToModule.get(token),
+      };
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      nodeData.set(nodeIds.get(token)!, {
-        instance,
-        metadata,
-        hooks,
-        deps,
-      });
+      const node = new DINode(nodeIds.get(token)!, { provider, metadata });
+
+      nodes.set(token, node);
+      graph.addNode(node);
     }
 
-    // Второй проход: узлы создаются в топологическом порядке, чтобы
-    // зависимости существовали раньше зависимых
-    const visited = new Set<string>();
-    const creating = new Set<string>();
-
-    const createRecursive = (id: string): DINode => {
-      if (nodes.has(id)) {
+    // Второй проход: рёбра в порядке списка `deps` — порядок задаёт порядок
+    // аргументов конструктора, фабрики и `acquire`
+    for (const [token, provider] of this.#providers) {
+      const dependencies = dependenciesOf(provider).map(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return nodes.get(id)!;
-      }
+        (dep) => nodes.get(dep)!,
+      );
 
-      if (creating.has(id)) {
-        throw new Error(
-          `Circular dependency detected during node creation: ${id}`,
-        );
-      }
-
-      creating.add(id);
-
-      const data = nodeData.get(id);
-      if (!data) {
-        throw new Error(`Node data not found for token: ${id}`);
-      }
-
-      const dependencies = data.deps.map(createRecursive);
-
-      const node = new DINode(id, dependencies, data);
-
-      graph.addNode(node);
-
-      nodes.set(id, node);
-      creating.delete(id);
-      visited.add(id);
-
-      return node;
-    };
-
-    for (const id of nodeData.keys()) {
-      if (!visited.has(id)) {
-        createRecursive(id);
-      }
+      nodes.get(token)?.linkDependencies(dependencies);
     }
 
     return { graph, nodeIds, warnings };
@@ -1154,24 +1033,10 @@ const assertNoAutoSentinels = (
 
     if (family) {
       throw new Error(
-        `'${family.familyName}.auto' is only allowed in deps of a class decorated with @Injectable, but it appeared in deps of provider '${consumerId}'. Use an explicit '${family.familyName}('<name>')' member token instead`,
+        `'${family.familyName}.auto' is only allowed in deps of a class with a role decorator, but it appeared in deps of provider '${consumerId}'. Use an explicit '${family.familyName}('<name>')' member token instead`,
       );
     }
   }
-};
-
-/**
- * Строит путь цикла, замкнутого повторным входом в `token`: хвост стека
- * создания экземпляров от этого токена плюс сам токен.
- */
-const cyclePath = (
-  instantiating: ReadonlySet<InjectionToken>,
-  token: InjectionToken,
-): string => {
-  const stack = [...instantiating];
-  const start = stack.indexOf(token);
-
-  return [...stack.slice(start), token].map((t) => tokenId(t)).join(' → ');
 };
 
 /**

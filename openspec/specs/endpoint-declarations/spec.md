@@ -366,7 +366,7 @@ Bind-карта SHALL браться с операции как есть и SHAL
 
 - **WHEN** объявлено `httpEndpoint({ operation: CreateUser, handler: CreateUserHandler })`,
   где операция несёт `http: 'POST /users'`, а `CreateUserHandler` — класс
-  под `@Injectable([UserService])` с методом `handle`
+  под `@Handler([UserService])` с методом `handle`
 - **THEN** создаётся обычная HTTP-декларация на `POST /users` со схемами и
   `errors:` операции
 
@@ -391,6 +391,7 @@ Bind-карта SHALL браться с операции как есть и SHAL
 - **WHEN** такая декларация объявлена в `endpoints:` модуля
 - **THEN** discovery, `policies`, визуализация и pipeline работают так же,
   как для анонимной HTTP-декларации
+
 ### Requirement: Форма с `operation:` сверяет отказы пайплайна с операцией
 
 В форме `httpEndpoint({ operation, pipeline, handler })` слот `pipeline`

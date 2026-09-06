@@ -3,7 +3,11 @@ import { app } from '../../src/app.js';
 
 import type { AssembledApp } from '@nestling/app';
 import { makeApp, objectSource, transportValue } from '@nestling/app';
-import { HttpTransport, HttpTransport$ } from '@nestling/transport.http';
+import {
+  HTTP_CAPABILITIES,
+  HttpTransport,
+  HttpTransport$,
+} from '@nestling/transport.http';
 
 /** Токен, который e2e-тесты передают в заголовке `authorization` */
 export const E2E_TOKEN = 'e2e-token';
@@ -33,7 +37,11 @@ export async function createTestApp(): Promise<TestAppContext> {
     features: app.spec.features,
     plugins: app.spec.plugins,
     policies: app.spec.policies,
-    transports: [transportValue(HttpTransport$('default'), transport)],
+    transports: [
+      transportValue(HttpTransport$('default'), transport, {
+        capabilities: HTTP_CAPABILITIES,
+      }),
+    ],
     config: [
       [
         objectSource(

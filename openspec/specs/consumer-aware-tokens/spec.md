@@ -4,29 +4,36 @@
 
 Сахар `Family.auto` для случая «член семейства именуется своим потребителем»
 (канонический пример — логгер со скоупом класса). Резолюция сентинела в
-конкретный членский токен происходит в момент декорирования `@Injectable`,
-где потребитель известен статически, — рантайм-резолюции и transient-скоупа
-не возникает. Опирается на capability `token-families`.
+конкретный членский токен происходит в момент декорирования любым из трёх
+декораторов роли, где потребитель известен статически, — рантайм-резолюции
+и transient-скоупа не возникает. Опирается на capability `token-families`.
 
 ## Requirements
 
 ### Requirement: Family.auto resolves to the consumer class member at decoration time
 
 `Family.auto` SHALL быть сентинел-токеном (типизированным как
-`TokenString<T>`), который декоратор `@Injectable` при декорировании класса
-заменяет на `Family('<ИмяКласса>')` — потребитель известен статически, и в
-метаданные класса SHALL записываться уже резолвленный членский токен.
-Резолюция SHALL происходить в момент регистрации (декорирования), без какой
-бы то ни было рантайм-резолюции; материализация полученного члена на
-`build()` подчиняется общим правилам capability `token-families`.
+`TokenString<T>`), который декоратор роли — `@Component`, `@Resource` или
+`@Handler` — при декорировании класса заменяет на `Family('<ИмяКласса>')`:
+потребитель известен статически, и в метаданные класса SHALL записываться
+уже резолвленный членский токен. Резолюция SHALL происходить в момент
+регистрации (декорирования), без какой бы то ни было рантайм-резолюции;
+создание полученного члена узлом графа на `build()` подчиняется общим
+правилам capability `token-families`.
 
 #### Scenario: auto resolves to class-named member
 
 - **WHEN** класс объявлен как
-  `@Injectable([ILogger.auto]) class CreateUserEndpoint {}` и контейнер с
+  `@Handler([ILogger.auto]) class CreateUserEndpoint {}` и контейнер с
   `familyProvider(ILogger, recipe)` собран
 - **THEN** в конструктор инжектится член `"Logger:CreateUserEndpoint"`,
   созданный рецептом с параметром `'CreateUserEndpoint'`
+
+#### Scenario: auto в списке ресурса
+
+- **WHEN** класс объявлен как
+  `@Resource([ILogger.auto]) class Database {}` со `static acquire(logger, signal)`
+- **THEN** в `acquire` приходит член `"Logger:Database"`
 
 #### Scenario: Two consumers with auto get distinct members
 
@@ -43,8 +50,8 @@
 
 ### Requirement: Family.auto is limited to class decorators in v1
 
-Использование `Family.auto` SHALL быть допустимо только в deps классового
-`@Injectable`. Сентинел, оказавшийся в deps фабричного провайдера, рецепта
+Использование `Family.auto` SHALL быть допустимо только в deps декоратора
+роли. Сентинел, оказавшийся в deps фабричного провайдера, рецепта
 семейства или иного определения без класса-потребителя, SHALL приводить к
 ошибке регистрации или сборки с подсказкой использовать явный вызов
 `Family('<имя>')`. Декорирование класса без имени (анонимного) с
@@ -55,12 +62,12 @@
 - **WHEN** зарегистрирован `factoryProvider(IFoo, factory, [ILogger.auto])`
   и вызван `build()`
 - **THEN** регистрация или сборка завершается ошибкой, упоминающей
-  недопустимость `.auto` вне классового `@Injectable` и явный вызов
+  недопустимость `.auto` вне декоратора роли и явный вызов
   семейства как замену
 
 #### Scenario: auto on anonymous class is rejected
 
-- **WHEN** `@Injectable([ILogger.auto])` применяется к классу с пустым
+- **WHEN** `@Component([ILogger.auto])` применяется к классу с пустым
   `constructor.name`
 - **THEN** декорирование бросает ошибку о невозможности определить имя
   потребителя

@@ -20,18 +20,25 @@ import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
 import { entriesWith, loggerProbe } from './__fixtures__/logger.js';
-import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
+import {
+  ALL_FORMS,
+  testEndpoint,
+  TestTransport$,
+  VALUE_ONLY,
+} from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeToken, OnInit, OnStart } from '@nestling/container';
+import { Handler, makeToken, OnStart, Resource } from '@nestling/container';
 import { makeEvent, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>
-  transportValue(TestTransport$('default'), transport);
+  transportValue(TestTransport$('default'), transport, {
+    capabilities: ALL_FORMS,
+  });
 
 const contextFor = (pattern: string, payload?: unknown) =>
   makeEmptyContext(
@@ -75,7 +82,7 @@ const BillingFeature = makeFeature({
   ],
 });
 
-@Injectable([ChargeCard.caller])
+@Handler([ChargeCard.caller])
 class PlaceOrderHandler {
   constructor(private readonly billing: Port<typeof ChargeCard>) {}
 
@@ -239,32 +246,42 @@ describe('assemble — порты', () => {
     await assembled.close();
   });
 
-  it('`select` без фичи-владельца роняет сборку на ASSEMBLE', async () => {
+  it('`select` без фичи-владельца роняет сборку на WIRE', async () => {
+    // Достижимость вызывателя — забота WIRE, а не структурной проверки:
+    // `check()` не доходит до связывания портов, поэтому падает `run()`
     const app = makeApp({
       features: [LonelyFeature],
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
-    });
+    }).assemble();
 
-    await expect(app.check()).rejects.toThrow(
+    await expect(app.run()).rejects.toThrow(
       /'app\.lonely\.request'.*no selected feature implements it/s,
     );
   });
 
-  it('порт связан к моменту `@OnStart` и не связан в `@OnInit`', async () => {
+  it('порт связан к моменту `@OnStart` и не связан при захвате ресурса (INIT)', async () => {
     const seen: string[] = [];
 
-    @Injectable([ChargeCard.caller])
+    @Resource([ChargeCard.caller])
     class Warmup {
-      constructor(private readonly billing: Port<typeof ChargeCard>) {}
-
-      @OnInit()
-      async onInit(): Promise<void> {
-        // Фаза 2: `dispatch` ещё не рождён, связывать вызыватель не с чем
-        await this.billing
+      static async acquire(
+        billing: Port<typeof ChargeCard>,
+        _signal: AbortSignal,
+      ): Promise<Warmup> {
+        // Фаза INIT: WIRE ещё впереди, связывать вызыватель не с чем
+        await billing
           .call({ amount: 1 })
           .catch((error: Error) => void seen.push(`init: ${error.message}`));
+
+        return new Warmup(billing);
       }
+
+      constructor(private readonly billing: Port<typeof ChargeCard>) {}
+
+      // Тест про связывание порта, а не про освобождение: отпускать нечего
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      release(): void {}
 
       @OnStart()
       async onStart(): Promise<void> {
@@ -300,7 +317,7 @@ describe('assemble — порты', () => {
       'Notifier',
     );
 
-    @Injectable([Notifier])
+    @Handler([Notifier])
     class NotifyHandler {
       constructor(
         private readonly notifier: { emit: (orderId: string) => Promise<void> },
@@ -365,7 +382,7 @@ describe('assemble — порты', () => {
       features: [DurableFeature],
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
-      providers: [degradedProbe.provider],
+      logger: degradedProbe.logger,
     }).assemble();
 
     await degraded.run();
@@ -386,7 +403,7 @@ describe('assemble — порты', () => {
       features: [BillingFeature],
       transports: [asTransport(new MockTransport())],
       config: portsConfig(),
-      providers: [plainProbe.provider],
+      logger: plainProbe.logger,
     }).assemble();
 
     await plain.run();
@@ -401,7 +418,11 @@ describe('assemble — порты', () => {
       features: [BillingFeature],
       transports: [
         asTransport(new MockTransport()),
-        transportValue(BusTransport$, bus, { name: 'events', bus: true }),
+        transportValue(BusTransport$, bus, {
+          name: 'events',
+          bus: true,
+          capabilities: VALUE_ONLY,
+        }),
       ],
       intercom: 'events',
       config: portsConfig(),
@@ -425,7 +446,11 @@ describe('assemble — порты', () => {
       features: [LonelyFeature],
       transports: [
         asTransport(new MockTransport()),
-        transportValue(BusTransport$, bus, { name: 'events', bus: true }),
+        transportValue(BusTransport$, bus, {
+          name: 'events',
+          bus: true,
+          capabilities: VALUE_ONLY,
+        }),
       ],
       intercom: 'events',
       config: portsConfig(),

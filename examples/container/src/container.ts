@@ -9,10 +9,12 @@ import {
   configKernel,
   contextKernel,
   loggerKernel,
+  makeKernelLogger,
   objectSource,
+  RootLogger$,
 } from '@nestling/app';
 import type { BuiltContainer } from '@nestling/container';
-import { ContainerBuilder } from '@nestling/container';
+import { ContainerBuilder, valueProvider } from '@nestling/container';
 
 /**
  * Сборка контейнера без приложения: тот же граф, что собирает `main.ts`
@@ -37,6 +39,9 @@ export const makeContainer = async (
   return (
     new ContainerBuilder()
       .register(configKernel(config))
+      // Корневой логгер живёт вне графа: `makeApp` создаёт его на фазе 0 и
+      // регистрирует значением сам, здесь это делает вызывающий код
+      .register(valueProvider(RootLogger$, makeKernelLogger(config)))
       // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
       // секцию `nestlingLog` и идентификатор запроса из контекста
       .register(contextKernel(), loggerKernel())

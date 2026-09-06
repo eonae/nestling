@@ -27,7 +27,7 @@ import {
   makeFeature,
   makePipeline,
 } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { events, Ok } from '@nestling/operations';
 import { assembleTest } from '@nestling/testing';
 import { z } from 'zod';
@@ -61,7 +61,7 @@ const Ticks = makeEndpoint({
   ): Output<AsyncIterable<Tick>> => new Ok(ticks(meta.subscription.signal)),
 });
 
-@Injectable([SubscriptionRegistry])
+@Handler([SubscriptionRegistry])
 class FeedHandler {
   constructor(private readonly registry: SubscriptionRegistry) {}
 
@@ -182,7 +182,7 @@ describe('subscriptions(): реестр в собранном приложени
     await waitFor(() => registry.size === 0);
 
     // Лента закрыта — наблюдатель завершился нормально, а не завис.
-    // Событие закрытия он при этом уже не увидит: `@OnDestroy` освобождает
+    // Событие закрытия он при этом уже не увидит: `release` освобождает
     // ленту раньше, чем дотекут потоки, и это цена детерминированного
     // освобождения — наблюдатель ленты сам уходит на SHUTDOWN
     await expect(observing).resolves.toBeUndefined();

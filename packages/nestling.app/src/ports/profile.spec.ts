@@ -83,6 +83,9 @@ async function contextReaders(): Promise<{
 
   const container = builder.build();
 
+  // Ридеры — узлы графа: их создаёт INIT
+  await container.init();
+
   return {
     deadline: container.getOrThrow(Ctx(Deadline)),
     key: container.getOrThrow(Ctx(IdempotencyKey)),

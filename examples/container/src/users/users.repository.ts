@@ -3,13 +3,13 @@ import { Database$ } from '../interfaces.js';
 
 import type { Logger } from '@nestling/app';
 import { Logger$ } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Component } from '@nestling/container';
 
 /**
  * `Logger$.auto` подставляет член `Logger$('UserRepository')`: имя берётся
  * из класса-потребителя в момент декорирования.
  */
-@Injectable([Database$, Logger$.auto])
+@Component([Database$, Logger$.auto])
 export class UserRepository {
   #database: Database;
   #logger: Logger;

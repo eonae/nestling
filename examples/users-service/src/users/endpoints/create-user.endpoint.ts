@@ -6,11 +6,11 @@ import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { Ok } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class CreateUserHandler {
   constructor(private readonly users: UsersRepository) {}
 

@@ -14,7 +14,7 @@
 
 | Зависимость | Для чего |
 |---|---|
-| `@nestling/container` | `@Injectable`, `@OnDestroy`, `makeModule`: юниты слоя и модуль |
+| `@nestling/container` | `@Handler`, `resourceProvider`, `makeModule`: юниты слоя и модуль |
 | `@nestling/app` | `makePipeline` для слоя `tracked`, `Outcome` и типы контекста, `makePlugin`: пакет отдаётся приложению плагином |
 | `@nestling/operations` | `makeRequest` / `makeCommand` / `makeEvent` для фактов жизненного цикла, `describeForm`/`isStreamKind`, `jsonSchema`, `Topic` для ленты изменений |
 | `@common/misc` | типы Standard Schema |
@@ -206,7 +206,8 @@ type CloseReason = Outcome | 'killed';
   остаётся в реестре до конца жизни процесса. Это ограничение ядра,
   зафиксированное как находка №4 замера и закреплённое тестом
   `src/core-limits.spec.ts`.
-- `@OnDestroy` закрывает ленту, поэтому на SHUTDOWN наблюдатели
+- Реестр объявлен ресурсом, и его `release` закрывает ленту, поэтому на
+  SHUTDOWN наблюдатели
   завершаются нормально, но не видят события закрытия подписок, которые
   завершаются после них. Иначе наблюдатель, сам будучи подпиской, мешал бы
   процессу остановиться.

@@ -2,19 +2,19 @@ import { AppConfig } from '../config/app.config.js';
 import type { Counter } from '../counters/index.js';
 import { Counter$ } from '../counters/index.js';
 import type { Database } from '../interfaces.js';
-import { Database$ } from '../interfaces.js';
 
 import type { Config, Logger } from '@nestling/app';
 import { Logger$ } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Component } from '@nestling/container';
 
 /**
  * База данных в памяти: реализация токена `Database$`.
  *
  * Секция конфига инжектится как обычная зависимость: регистрировать её
- * отдельно не нужно.
+ * отдельно не нужно. Привязку класса к токену `Database$` даёт
+ * `classProvider` в `database.module.ts`, а не сам декоратор.
  */
-@Injectable(Database$, [AppConfig, Counter$('queries'), Logger$('db')])
+@Component([AppConfig, Counter$('queries'), Logger$('db')])
 export class InMemoryDatabase implements Database {
   #config: Config<typeof AppConfig>;
   #queries: Counter;

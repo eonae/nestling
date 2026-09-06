@@ -1,6 +1,6 @@
 # 19. Webhook с проверкой подписи
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-07).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md), раздел
 > «Сырые байты: `rawBody`». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
@@ -45,7 +45,7 @@ export const AppConfig = makeConfig('app', {
 import { createHmac, timingSafeEqual } from 'node:crypto';
 // …
 
-@Injectable([AppConfig])
+@Handler([AppConfig])
 export class VerifySignature {
   constructor(private readonly config: Config<typeof AppConfig>) {}
 
@@ -85,7 +85,7 @@ export class VerifySignature {
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/user-webhook.endpoint.ts
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 class UserWebhookHandler {
   constructor(private readonly users: UsersRepository) {}
 
@@ -145,7 +145,7 @@ hint: "declare 'rawBody: true', or provide the fields from an outer layer"
 клиент получил бы как `internal_error`.
 
 `detached` выводит endpoint из-под всех политик сборки с причиной и
-требует её: пустая строка останавливает сборку. Политика из `root.ts`
+требует её: пустая строка останавливает сборку. Политика из `app.ts`
 требует слой `authed` от каждого `POST`, а подлинность здесь подтверждает
 подпись. Причина печатается при старте и попадает в отчёт `check()`,
 поэтому список исключений из политик читается на ревью:

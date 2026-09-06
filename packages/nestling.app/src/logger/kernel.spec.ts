@@ -1,8 +1,9 @@
 /**
- * Kernel-модуль логгера в графе: умолчание под корнем, семейство областей,
- * `.auto`, замена корня и секция `nestlingLog`.
+ * Логгер ядра: корень вне графа, семейство областей, `.auto` и секция
+ * `nestlingLog`.
  */
 
+import type { ConfigReader } from '../config/index.js';
 import {
   bootstrapConfig,
   configKernel,
@@ -13,17 +14,17 @@ import { contextKernel } from '../pipeline/core/context/index.js';
 import { spyLogger } from './__fixtures__/spy.js';
 import { ConsoleLogger } from './console.js';
 import type { Logger } from './interface.js';
-import { loggerKernel } from './kernel.js';
+import { loggerKernel, makeKernelLogger } from './kernel.js';
 import { Logger$, RootLogger$ } from './tokens.js';
 
 import { jest } from '@jest/globals';
-import type { ContainerBuilderOptions, Module } from '@nestling/container';
+import type { ContainerBuilderOptions } from '@nestling/container';
 import {
+  Component,
   ContainerBuilder,
   factoryProvider,
-  Injectable,
-  makeModule,
   makeToken,
+  valueProvider,
 } from '@nestling/container';
 
 const Service$ = makeToken<Logger>('Service');
@@ -31,15 +32,22 @@ const Service$ = makeToken<Logger>('Service');
 /**
  * Минимальный граф ядра: конфиг, контекст запроса и логгер.
  *
- * Асинхронен из-за фазы 0: снимок конфига снимается до сборки, поэтому
- * `withEnv` в тесте обязан отработать раньше вызова.
+ * Асинхронен из-за фазы 0: корень логгера создаётся от снимка конфига до
+ * сборки, поэтому `withEnv` в тесте обязан отработать раньше вызова.
  */
-const kernelBuilder = async (options: ContainerBuilderOptions = {}) =>
-  new ContainerBuilder(options).register(
-    configKernel(await bootstrapConfig()),
+const kernelBuilder = async (
+  options: ContainerBuilderOptions = {},
+  root?: Logger,
+) => {
+  const reader = await bootstrapConfig();
+
+  return new ContainerBuilder(options).register(
+    configKernel(reader),
     contextKernel(),
     loggerKernel(),
+    valueProvider(RootLogger$, root ?? makeKernelLogger(reader)),
   );
+};
 
 /** Выставляет переменные окружения на время теста */
 function withEnv(values: Record<string, string>): () => void {
@@ -60,24 +68,60 @@ function withEnv(values: Record<string, string>): () => void {
   };
 }
 
-describe('loggerKernel: корень и семейство', () => {
-  it('без соперника под RootLogger$ стоит ConsoleLogger', async () => {
+describe('корневой логгер вне графа', () => {
+  it('умолчание ядра — ConsoleLogger от снимка секции', async () => {
+    const reader: ConfigReader = await bootstrapConfig();
+
+    expect(makeKernelLogger(reader)).toBeInstanceOf(ConsoleLogger);
+  });
+
+  it('корень зарегистрирован провайдером значения и атрибутирован сборке', async () => {
     const builder = await kernelBuilder();
     const container = builder.build();
+
+    await container.init();
 
     expect(container.get(RootLogger$)).toBeInstanceOf(ConsoleLogger);
     expect(container.get(Logger$('nestling'))).toBeInstanceOf(ConsoleLogger);
 
     const { nodes } = await container.toJSON();
 
-    expect(nodes.find((n) => n.id === 'RootLogger')?.metadata.module).toBe(
-      'kernel:logger',
-    );
     expect(nodes.find((n) => n.id === 'Logger:nestling')?.metadata.module).toBe(
       'kernel:logger',
     );
   });
 
+  it('второй провайдер под RootLogger$ — ошибка дубля', async () => {
+    const builder = await kernelBuilder();
+
+    expect(() =>
+      builder.register(
+        factoryProvider(RootLogger$, () => spyLogger().logger, []),
+      ),
+    ).toThrow(/Provider for token 'RootLogger' is already registered/);
+  });
+
+  it('логгер приложения заменяет корень целиком', async () => {
+    const spy = spyLogger();
+
+    const builder = await kernelBuilder({}, spy.logger);
+    const container = builder
+      .register(
+        factoryProvider(Service$, (logger) => logger, [Logger$('users')]),
+      )
+      .build();
+
+    await container.init();
+
+    container.getOrThrow(Service$).warn('x');
+
+    expect(spy.entries).toEqual([
+      { level: 'warn', message: 'x', fields: { scope: 'users' } },
+    ]);
+  });
+});
+
+describe('loggerKernel: семейство областей', () => {
   it('член семейства — дочерний логгер корня с привязкой scope', async () => {
     const spy = spyLogger();
 
@@ -90,6 +134,8 @@ describe('loggerKernel: корень и семейство', () => {
       )
       .build();
 
+    await container.init();
+
     container.getOrThrow(Service$).info('byId', { id: '1' });
 
     expect(spy.entries).toEqual([
@@ -100,7 +146,7 @@ describe('loggerKernel: корень и семейство', () => {
   it('.auto даёт член по имени класса-потребителя', async () => {
     const spy = spyLogger();
 
-    @Injectable([Logger$.auto])
+    @Component([Logger$.auto])
     class UsersRepository {
       constructor(readonly logger: Logger) {}
     }
@@ -110,6 +156,8 @@ describe('loggerKernel: корень и семейство', () => {
     });
     const container = builder.register(UsersRepository).build();
 
+    await container.init();
+
     container.getOrThrow(UsersRepository).logger.debug('select');
 
     expect(spy.entries[0]?.fields).toEqual({ scope: 'UsersRepository' });
@@ -117,47 +165,9 @@ describe('loggerKernel: корень и семейство', () => {
       container.getOrThrow(UsersRepository).logger,
     );
   });
-
-  it.each([
-    ['плагин раньше ядра', true],
-    ['плагин после ядра', false],
-  ])(
-    'провайдер плагина под RootLogger$ заменяет умолчание без ошибки дубля (%s)',
-    async (_name, pluginFirst) => {
-      const spy = spyLogger();
-      const plugin: Module = makeModule({
-        name: 'plugin:logging',
-        providers: [factoryProvider(RootLogger$, () => spy.logger, [])],
-      });
-
-      const kernel = await kernelBuilder();
-      const builder = pluginFirst
-        ? new ContainerBuilder().register(
-            plugin,
-            configKernel(await bootstrapConfig()),
-            contextKernel(),
-            loggerKernel(),
-          )
-        : kernel.register(plugin);
-
-      const container = builder
-        .register(
-          factoryProvider(Service$, (logger) => logger, [Logger$('users')]),
-        )
-        .build();
-
-      expect(container.get(RootLogger$)).toBe(spy.logger);
-
-      container.getOrThrow(Service$).warn('x');
-
-      expect(spy.entries).toEqual([
-        { level: 'warn', message: 'x', fields: { scope: 'users' } },
-      ]);
-    },
-  );
 });
 
-describe('loggerKernel: секция nestlingLog', () => {
+describe('секция nestlingLog', () => {
   it('уровень и формат читаются из NESTLING_LOG_LEVEL и NESTLING_LOG_FORMAT', async () => {
     const restore = withEnv({
       NESTLING_LOG_LEVEL: 'warn',
@@ -167,6 +177,9 @@ describe('loggerKernel: секция nestlingLog', () => {
     try {
       const builder = await kernelBuilder();
       const container = builder.build();
+
+      await container.init();
+
       const logger = container.getOrThrow(Logger$('nestling'));
 
       const lines: string[] = [];
@@ -197,14 +210,14 @@ describe('loggerKernel: секция nestlingLog', () => {
     }
   });
 
-  it('невалидный NESTLING_LOG_LEVEL роняет сборку с перечнем значений', async () => {
+  it('невалидный NESTLING_LOG_LEVEL роняет фазу 0 с перечнем значений', async () => {
     const restore = withEnv({ NESTLING_LOG_LEVEL: 'loud' });
 
     try {
-      const build = kernelBuilder().then((builder) => builder.build());
+      const reader = await bootstrapConfig();
 
-      await expect(build).rejects.toBeInstanceOf(ConfigValidationError);
-      await expect(build).rejects.toThrow(
+      expect(() => makeKernelLogger(reader)).toThrow(ConfigValidationError);
+      expect(() => makeKernelLogger(reader)).toThrow(
         /'debug', 'info', 'warn', 'error'.*got "loud"/s,
       );
     } finally {
@@ -212,16 +225,16 @@ describe('loggerKernel: секция nestlingLog', () => {
     }
   });
 
-  it('подмена корня выбрасывает секцию из графа: значение не проверяется', async () => {
+  it('логгер приложения снимает чтение секции: она не проверяется', async () => {
     const restore = withEnv({ NESTLING_LOG_LEVEL: 'loud' });
 
     try {
-      const builder = await kernelBuilder({
-        overrides: [[RootLogger$, spyLogger().logger]],
-      });
+      const builder = await kernelBuilder({}, spyLogger().logger);
       const container = builder.build();
 
-      expect(container.pruned).toContain('ConfigSection:nestlingLog');
+      await container.init();
+
+      expect(container.get(RootLogger$)).not.toBeInstanceOf(ConsoleLogger);
     } finally {
       restore();
     }

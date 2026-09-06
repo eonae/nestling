@@ -20,16 +20,22 @@ import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
 import { entriesWith, loggerProbe } from './__fixtures__/logger.js';
-import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
+import {
+  ALL_FORMS,
+  testEndpoint,
+  TestTransport$,
+} from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, makeToken, OnInit } from '@nestling/container';
+import { Component, makeToken } from '@nestling/container';
 
 const asTransport = (transport: ITransport) =>
-  transportValue(TestTransport$('default'), transport);
+  transportValue(TestTransport$('default'), transport, {
+    capabilities: ALL_FORMS,
+  });
 
 const base = makePipeline().pre(() => {});
 const authedBase = makePipeline().pre(() => {});
@@ -80,14 +86,13 @@ const hasObservability = () =>
   everyEndpoint().hasLayer(observability, 'observability');
 
 describe('политики — точка проверки', () => {
-  it('нарушение падает до @OnInit и до начала приёма запросов', async () => {
+  it('нарушение падает до создания экземпляров (INIT) и до начала приёма запросов', async () => {
     const events: string[] = [];
 
-    @Injectable([])
+    @Component([])
     class Connection {
-      @OnInit()
-      open(): void {
-        events.push('init');
+      constructor() {
+        events.push('constructed');
       }
     }
 
@@ -259,7 +264,7 @@ describe('detached — поверхность для аудита', () => {
     const withDetached = makeApp({
       features: [makeFeature({ name: 'module:ops', endpoints: [Detached] })],
       transports: [asTransport(new MockTransport())],
-      providers: [detachedProbe.provider],
+      logger: detachedProbe.logger,
     }).assemble();
 
     await withDetached.run();
@@ -282,7 +287,7 @@ describe('detached — поверхность для аудита', () => {
     const clean = makeApp({
       features: [makeFeature({ name: 'module:profile', endpoints: [Authed] })],
       transports: [asTransport(new MockTransport())],
-      providers: [cleanProbe.provider],
+      logger: cleanProbe.logger,
     }).assemble();
 
     await clean.run();

@@ -10,6 +10,7 @@
 import { currentCell } from './store.js';
 import type { AnyContextVar } from './variable.js';
 import { isContextVar, SIGNAL_KEY } from './variable.js';
+import { RequestId } from './well-known.js';
 
 import type { Token } from '@nestling/container';
 import { makeTokenFamily } from '@nestling/container';
@@ -47,7 +48,7 @@ export const CtxFamily = makeTokenFamily<AnyCtxReader, [key: string]>('Ctx');
 
 /**
  * Возвращает токен ридера переменной. Это обычный токен: он годится в
- * `deps` класса с `@Injectable`, фабричного провайдера, декларации
+ * `deps` класса с декоратором роли, фабричного провайдера, декларации
  * endpoint'а и в `container.get()`.
  *
  * @param variable - Значение переменной (`contextVar<T>()('key')`)
@@ -55,7 +56,7 @@ export const CtxFamily = makeTokenFamily<AnyCtxReader, [key: string]>('Ctx');
  *
  * @example
  * ```typescript
- * @Injectable([Ctx(RequestId), ILogger])
+ * @Component([Ctx(RequestId), ILogger])
  * export class UsersRepository {
  *   constructor(
  *     private readonly requestId: CtxReader<string>,
@@ -92,7 +93,7 @@ function unavailable(key: string, phase?: string): ContextVarUnavailableError {
   if (phase === undefined) {
     return new ContextVarUnavailableError(
       `Context variable '${key}' is unavailable: there is no request context ` +
-        `here (@OnInit, @OnStart, cron or a background task run outside a ` +
+        `here (acquire, @OnStart, cron or a background task run outside a ` +
         `request). Use peek() if the code legitimately runs on both paths.`,
     );
   }
@@ -157,3 +158,19 @@ export const makeCtxReader = (key: string): AnyCtxReader => ({
     return cell.input[key];
   },
 });
+
+/**
+ * Идентификатор текущего запроса из ambient-контекста или `undefined` вне
+ * запроса.
+ *
+ * Чтение мимо графа: корневой логгер существует раньше узлов, поэтому
+ * зависеть от ридера `Ctx(RequestId)` он не может, а поле `requestId` в
+ * записи обязан ставить.
+ *
+ * @internal
+ */
+export const ambientRequestId = (): string | undefined => {
+  const value = currentCell()?.input[RequestId.key];
+
+  return typeof value === 'string' ? value : undefined;
+};

@@ -1,6 +1,6 @@
 # 15. Тестировать фичу без соседей
 
-> Гайд по текущему API; сверено с кодом `app-with-http`, `split-nats` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `app-with-http`, `split-nats` (2026-09-07).
 > Целевое описание: [design/testing.md](../design/testing.md) §3 и §4.
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestling/testing`)».
@@ -153,8 +153,9 @@ a bus transport ('transports: [nats({ name: "events" })]' with
       select: 'users',
       stubs: [
         stub(ClaimQuota, async () => ({ remaining: 1 })),
-        // eslint-disable-next-line unicorn/no-useless-undefined
-        stub(UserRegistered, () => undefined),
+        // Подписчик события ничего не возвращает: у события нет `output`
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        stub(UserRegistered, () => {}),
       ],
     });
 

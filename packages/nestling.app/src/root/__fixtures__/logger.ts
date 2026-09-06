@@ -1,31 +1,20 @@
 /**
- * Шпион логгера для спек сборки: провайдер ставит его корнем приложения.
+ * Шпион логгера для спек сборки: его ставят корневым логгером приложения.
  *
- * Провайдер под `RootLogger$` в `providers:` корня заменяет умолчание
- * kernel-модуля, поэтому все записи ядра и приложения попадают в `entries`.
+ * Опция `logger` корня — единственный способ заменить корень, поэтому все
+ * записи ядра и приложения, включая записи фаз 0 и 1, попадают в
+ * `entries`.
  */
 
 import type { SpyEntry, SpyLogger } from '../../logger/__fixtures__/spy.js';
 import { spyLogger } from '../../logger/__fixtures__/spy.js';
-import { RootLogger$ } from '../../logger/tokens.js';
 
-import type { Provider } from '@nestling/container';
-import { valueProvider } from '@nestling/container';
+/** Шпион логгера: значение для поля `logger` корня */
+export type LoggerProbe = SpyLogger;
 
-/** Шпион и провайдер, который делает его корнем сборки */
-export interface LoggerProbe extends SpyLogger {
-  readonly provider: Provider;
-}
-
-/** Создаёт шпион и провайдер `RootLogger$` для `providers:` корня */
+/** Создаёт шпион для `logger:` корня */
 export function loggerProbe(): LoggerProbe {
-  const spy = spyLogger();
-
-  return {
-    logger: spy.logger,
-    entries: spy.entries,
-    provider: valueProvider(RootLogger$, spy.logger),
-  };
+  return spyLogger();
 }
 
 /** Записи с заданным сообщением */

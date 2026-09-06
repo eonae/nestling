@@ -15,14 +15,19 @@ import type {
   ConfigReader,
 } from '../config/index.js';
 import { bootstrapConfig, configKernel, toBindings } from '../config/index.js';
-import { ConfigReaderToken } from '../config/kernel.js';
 import type { Logger } from '../logger/index.js';
-import { Logger$, loggerKernel } from '../logger/index.js';
+import {
+  Logger$,
+  loggerKernel,
+  makeKernelLogger,
+  RootLogger$,
+} from '../logger/index.js';
 import type {
   AnyEndpointDefinition,
   HandlerClass,
   PolicySubject,
   SchemaDocConverter,
+  TransportCapabilities,
   TransportRef,
 } from '../pipeline/index.js';
 import {
@@ -34,7 +39,9 @@ import {
 import type { OperationDescriptor } from '../ports/index.js';
 import {
   bindPorts,
+  BUS_CAPABILITIES,
   busBindingOf,
+  BusTransport$,
   collectImplementations,
   describeOperation,
   portsKernel,
@@ -176,8 +183,9 @@ const APP_BRAND = Symbol.for('nestling:app');
  *
  * Единственный публичный composition root: фичи перечисляются в
  * `features:`, сквозная инфраструктура — в `plugins:`, транспорты
- * объявляются экземплярами, привязки конфига — полем `config`. Выбор фич
- * в словаре не пишется: его принимает `assemble(select)`.
+ * объявляются экземплярами, привязки конфига — полем `config`, корневой
+ * логгер — полем `logger`. Выбор фич в словаре не пишется: его принимает
+ * `assemble(select)`.
  *
  * Декларация проверяется при создании: бренды фич и плагинов, дубли
  * имён фич, закрытый перечень полей, интерком среди транспортов.
@@ -273,13 +281,13 @@ export class App {
    * Структурный смок: фазы 0 BOOTSTRAP и 1 ASSEMBLE — и остановка.
    *
    * Выполняется: резолв выбора, регистрация модулей и провайдеров,
-   * discovery, построение графа (конструкторы отрабатывают), сверка
-   * требуемых транспортов, проверка форм io против их способностей и
-   * проверка объявленных политик.
+   * discovery, построение графа, сверка требуемых транспортов, проверка
+   * форм io против способностей объявленных транспортов и проверка
+   * объявленных политик.
    *
-   * Не выполняется: `@OnInit`, WIRE, `@OnStart`, `serve` и `@OnDestroy`.
-   * Значит, ресурсы не захватываются, при условии что их не захватывают
-   * конструкторы, что и так нарушение фазовой модели.
+   * Не выполняется ни один конструктор: экземпляры создаёт INIT, а
+   * проверка до него не доходит. `acquire`, WIRE, `@OnStart`, `serve` и
+   * `release` тоже не выполняются.
    *
    * Проверка — «собрать и выбросить»: граф не сохраняется, на
    * последующий `assemble()` той же декларации вызов не влияет, и гонять
@@ -432,32 +440,40 @@ export class AssembledApp {
     }
     this.#started = true;
 
-    // 0 BOOTSTRAP — резолв выбора и подъём источников конфига: единственный
-    // ввод-вывод до INIT
-    const reader = await this.#bootstrap();
+    // 0 BOOTSTRAP — резолв выбора, подъём источников конфига и корневой
+    // логгер: единственный ввод-вывод до INIT
+    const { reader, root } = await this.#bootstrap();
     this.#reader = reader;
 
     // 1 ASSEMBLE — граф, discovery и все fail-fast'ы до захвата ресурсов
-    const { container, discovery, logger } = this.#assemble(reader);
+    const { container, discovery } = this.#assemble(reader, root);
     this.#container = container;
 
-    // 2 INIT
-    await container.init();
+    // Канал остановки создаётся до INIT: его получают и `acquire` ресурсов,
+    // и хуки `@OnStart`, и `serve` транспортов — один и тот же сигнал
+    this.#shutdown = new AbortController();
+    const { signal } = this.#shutdown;
+
+    // 2 INIT — экземпляры и захват ресурсов
+    await container.init(signal);
+
+    // С этой строки ядро пишет через узел графа: подмена корня в тестовом
+    // прогоне действует с INIT, и записи фазы RUN обязаны её видеть
+    const logger = container.getOrThrow(Logger$('nestling'));
 
     // 3 WIRE — резолв зависимостей деклараций и `dispatch` на транспорт
     const { dispatches } = this.#wire(container, discovery, logger);
 
     // 4 START — сначала хуки графа, затем старт приёма запросов
     // транспортами
-    await container.start();
+    await container.start(signal);
 
-    this.#shutdown = new AbortController();
     for (const [token, dispatch] of dispatches) {
       const transport = container.getOrThrow<ITransport>(
         token as InjectionToken<ITransport>,
       );
 
-      await transport.serve(dispatch, this.#shutdown.signal);
+      await transport.serve(dispatch, signal);
       this.#serving.push({ token, transport });
     }
 
@@ -476,12 +492,12 @@ export class AssembledApp {
   async [CHECK_SEAM](options: CheckOptions): Promise<CheckReport> {
     // Переданный `config` заменяет привязки декларации целиком: с
     // `config: vars({ … })` проверка обходится без источников
-    const reader = await this.#bootstrap(
+    const { reader, root } = await this.#bootstrap(
       options.config === undefined ? undefined : toBindings(options.config),
     );
 
     try {
-      return this.#report(this.#assemble(reader).discovery, options);
+      return this.#report(this.#assemble(reader, root).discovery, options);
     } finally {
       // Контейнер проверка не разрушает, поэтому источники закрываются
       // сразу после отчёта — иначе они остались бы открытыми
@@ -529,28 +545,33 @@ export class AssembledApp {
 
     // 0 BOOTSTRAP — привязки прогона уже в плане: тест изолирован от
     // источников приложения так же, как от `process.env`
-    const reader = await this.#bootstrap();
+    const { reader, root } = await this.#bootstrap();
     this.#reader = reader;
 
     // 1 ASSEMBLE — те же fail-fast'ы, что и в бою
-    const { container, discovery, logger } = this.#assemble(reader);
+    const { container, discovery } = this.#assemble(reader, root);
     this.#container = container;
 
+    this.#shutdown = new AbortController();
+    const { signal } = this.#shutdown;
+
     // 2 INIT
-    await container.init();
+    await container.init(signal);
 
     // 3 WIRE — и остановка: START, `#announce()` и `#attachSignals()` не
     // выполняются, поэтому тест не начинает принимать запросы и не
     // трогает процесс
-    const { wired } = this.#wire(container, discovery, logger);
-
-    this.#shutdown = new AbortController();
+    const { wired } = this.#wire(
+      container,
+      discovery,
+      container.getOrThrow(Logger$('nestling')),
+    );
 
     return {
       container,
       endpoints: wired,
       features: this.#selectedFeatures(),
-      signal: this.#shutdown.signal,
+      signal,
       close: () => this.close(),
     };
   }
@@ -578,7 +599,7 @@ export class AssembledApp {
     }
     this.#serving = [];
 
-    // 3. И только теперь — `@OnDestroy` в реверсе топологического
+    // 3. И только теперь — `release` ресурсов в реверсе топологического
     // порядка
     await this.#container?.destroy();
     this.#container = undefined;
@@ -605,7 +626,7 @@ export class AssembledApp {
   /**
    * Фаза 0: резолв выбора — до построения контейнера.
    *
-   * Опечатка в имени фичи падает раньше любого `@OnInit`. Замыкание по
+   * Опечатка в имени фичи падает раньше любого захвата. Замыкание по
    * вызовам считается здесь же, один раз.
    */
   #select(): void {
@@ -626,23 +647,36 @@ export class AssembledApp {
   }
 
   /**
-   * Фаза 0: резолв выбора и подъём источников конфига.
+   * Фаза 0: резолв выбора, подъём источников конфига и корневой логгер.
    *
    * Единственный ввод-вывод до INIT и единственное место, где он
    * происходит раньше графа. После неё значения ключей лежат в снимке, и
    * фазе 1 читать уже нечего.
    *
+   * Корневой логгер создаётся здесь же и живёт вне графа: ядро пишет уже
+   * на этой фазе, а первый узел появляется только на INIT. Читалка конфига
+   * получает свой логгер сразу — накопленные ею предупреждения уходят в
+   * тот же логгер, что и записи фазы RUN.
+   *
    * @param config - Привязки, заменяющие привязки плана целиком; проверка
    * передаёт сюда свой `config:`
    */
-  async #bootstrap(config?: readonly ConfigBinding[]): Promise<ConfigReader> {
+  async #bootstrap(
+    config?: readonly ConfigBinding[],
+  ): Promise<{ reader: ConfigReader; root: Logger }> {
     this.#select();
 
     const { spec } = this.#plan;
 
-    return await bootstrapConfig([
+    const reader = await bootstrapConfig([
       ...(config ?? this.#plan.config ?? spec.config),
     ]);
+
+    const root = spec.logger ?? makeKernelLogger(reader);
+
+    reader.attachLogger(root.child({ scope: 'nestling:config' }));
+
+    return { reader, root };
   }
 
   /**
@@ -650,21 +684,23 @@ export class AssembledApp {
    * инварианты сборки — именно в этом порядке.
    *
    * Синхронна и без ввода-вывода: всё, что читает внешний мир, осталось на
-   * фазе 0. Всё, что может не сойтись, сходится здесь: до `@OnInit` не
-   * доходит ни одна неудовлетворённая потребность.
+   * фазе 0. Всё, что может не сойтись, сходится здесь: до INIT не доходит
+   * ни одна неудовлетворённая потребность, и ни один конструктор не
+   * выполняется.
    *
    * Общий метод для `run()`, проверки и шва: собранный контейнер он
    * возвращает, но не запоминает — иначе проверка оставляла бы за собой
    * граф, который никто не будет ни инициализировать, ни разрушать.
-   * Вместе с контейнером возвращается логгер сборки: он узел графа, и
-   * взять его можно только после `build()`.
    *
    * @param reader - Читалка со снимком фазы 0
+   * @param root - Корневой логгер, созданный на фазе 0
    */
-  #assemble(reader: ConfigReader): {
+  #assemble(
+    reader: ConfigReader,
+    root: Logger,
+  ): {
     container: BuiltContainer;
     discovery: EndpointDiscovery;
-    logger: Logger;
   } {
     const { spec } = this.#plan;
     const bundles = this.#bundles();
@@ -686,9 +722,9 @@ export class AssembledApp {
     // в корне про request-контекст не пишется ни строки
     builder.register(contextKernel());
 
-    // Kernel-модуль логгера — тоже всегда. Умолчание под `RootLogger$`
-    // объявлено полем `defaults`, поэтому провайдер приложения заменяет
-    // его без ошибки дубля, в каком бы порядке модули ни регистрировались
+    // Kernel-модуль логгера — тоже всегда: рецепт семейства областей и два
+    // члена ядра. Самого корня в модуле нет — он создан на фазе 0 и
+    // регистрируется провайдером значения ниже, последним
     builder.register(loggerKernel());
 
     // Discovery — плоским проходом по выбранным фичам и подключённым
@@ -742,24 +778,21 @@ export class AssembledApp {
       builder.register(...(transports as Provider[]));
     }
 
+    // Корень логгера — последним: провайдер приложения под `RootLogger$`
+    // обязан упасть ошибкой, называющей опцию корня, а не общей ошибкой
+    // дубля
+    this.#registerRootLogger(builder, root);
+
     const container = builder.build();
 
-    // Логгер существует с этой строки: до `build()` узлов нет, и всё, что
-    // хотело писать раньше, копило записи значениями. Сначала предупреждения
-    // контейнера, затем накопленное читалкой конфига — она получает свой
-    // логгер и дальше пишет напрямую
-    const logger = container.getOrThrow(Logger$('nestling'));
+    // Записи фаз 0–1 идут в тот же корень, что и узлы графа с фазы INIT:
+    // до INIT члена семейства ещё нет, поэтому сборка строит своего
+    // ребёнка сама
+    const logger = root.child({ scope: 'nestling' });
 
     for (const warning of container.warnings) {
       logger.warn(warning);
     }
-
-    // Читалки может не быть: в тестовой сборке подмена корня логгера
-    // снимает единственное ребро к ней, и прунинг выбрасывает узел. Тогда
-    // она не создавалась и предупреждений не копила — подключать нечего
-    container
-      .get(ConfigReaderToken)
-      ?.attachLogger(container.getOrThrow(Logger$('nestling:config')));
 
     // Граница фич — первой на собранном графе: ребро, которое не переживёт
     // разъезда процессов, важнее любого недостающего транспорта
@@ -770,13 +803,34 @@ export class AssembledApp {
 
     this.#warnOnIdleIntercom(discovery, logger);
     this.#assertRequiredTransports(container, discovery);
-    this.#assertFormsSupported(container, discovery);
+    this.#assertFormsSupported(discovery);
     // Инварианты — последними: сперва «граф вообще собирается», потом
     // утверждения на нём. Политика, ругающаяся на endpoint
     // незарегистрированного транспорта, увела бы автора не туда.
     this.#assertPolicies(discovery);
 
-    return { container, discovery, logger };
+    return { container, discovery };
+  }
+
+  /**
+   * Регистрирует корневой логгер провайдером значения.
+   *
+   * Второго способа объявить корень нет: провайдер под `RootLogger$` в
+   * `providers:` даёт ошибку дубля, потому что иначе оставался бы вопрос,
+   * кто из двух пишет на фазе 0.
+   */
+  #registerRootLogger(builder: ContainerBuilder, root: Logger): void {
+    try {
+      builder.register(valueProvider(RootLogger$, root));
+    } catch (error) {
+      throw new Error(
+        `A provider for 'RootLogger' is declared by the application, but the ` +
+          `root logger is set by the 'logger' option of makeApp({ … }) — it ` +
+          `exists before the graph, so records of phases 0 and 1 go to it too. ` +
+          `Remove the provider and pass the logger as 'logger: <value>'.`,
+        { cause: error },
+      );
+    }
   }
 
   /**
@@ -784,7 +838,8 @@ export class AssembledApp {
    *
    * Класс — токен, поэтому один класс у двух endpoint'ов регистрируется
    * один раз и даёт один экземпляр. Тот же класс в `providers:` любого
-   * модуля или корня — ошибка: у узла графа один источник.
+   * модуля или корня — ошибка: у узла графа один источник. Роль класса
+   * сверяется с позицией: слот `handler:` принимает только `@Handler`.
    *
    * Атрибуция: для единицы с `providers:` — её синтетический модуль, для
    * единицы с `modules:` — первый модуль, для единицы без состава — сама
@@ -826,7 +881,7 @@ export class AssembledApp {
       const bundle = bundles.find(({ name }) => name === moduleName);
       const owner = bundle?.modules[0]?.name ?? moduleName;
 
-      builder.registerIn(owner, cls);
+      builder.registerHandlerIn(owner, cls);
       registered.add(cls);
     }
   }
@@ -961,7 +1016,7 @@ export class AssembledApp {
         `Dependency '${name}' required by endpoint '${pattern}' ` +
           `declared in module '${moduleName}' is not available in the DI ` +
           `container. Register it in 'providers:' of a module ` +
-          `(classes — with @Injectable).`,
+          `(classes — with @Component or @Resource).`,
       );
     }
 
@@ -1009,7 +1064,9 @@ export class AssembledApp {
     discovery: EndpointDiscovery,
   ): void {
     for (const [token, endpoints] of discovery.transports) {
-      if (container.get(token as InjectionToken<ITransport>)) {
+      // Наличие — это регистрация, а не экземпляр: на фазе ASSEMBLE
+      // экземпляров нет ни у кого
+      if (container.has(token as InjectionToken<ITransport>)) {
         continue;
       }
 
@@ -1026,24 +1083,36 @@ export class AssembledApp {
   }
 
   /**
-   * Сверяет формы io деклараций со способностями инстансов транспортов.
+   * Сверяет формы io деклараций со способностями объявленных транспортов.
    *
-   * Точка проверки для сборки — фаза ASSEMBLE: здесь известны и
-   * декларации, и инстансы из графа. Реализация и текст ошибки те же, что
-   * на standalone-пути (`serve`).
+   * Способности читаются из `transports:`, а не из графа: на фазе ASSEMBLE
+   * экземпляров нет. Реализация и текст ошибки те же, что на
+   * standalone-пути (`serve`).
+   *
+   * Транспорт, зарегистрированный мимо `transports:` корня, объявления не
+   * имеет, и его формы сверяет только собственный `serve`.
    */
-  #assertFormsSupported(
-    container: BuiltContainer,
-    discovery: EndpointDiscovery,
-  ): void {
+  #assertFormsSupported(discovery: EndpointDiscovery): void {
+    const capabilities = new Map<TransportRef, TransportCapabilities>([
+      // Шину in-proc ставит kernel-модуль портов, а не `transports:` корня:
+      // объявления у неё нет, а формы её endpoint'ов сверяются на той же
+      // фазе, что и у прочих. Объявление корня перекрывает эту запись
+      [BusTransport$ as TransportRef, BUS_CAPABILITIES],
+      ...this.#plan.spec.transports.map(
+        (declaration) => [declaration.token, declaration.capabilities] as const,
+      ),
+    ]);
+
     for (const { endpoint, moduleName } of discovery.endpoints) {
-      const transport = container.getOrThrow<ITransport>(
-        endpoint.transport as InjectionToken<ITransport>,
-      );
+      const supported = capabilities.get(endpoint.transport);
+
+      if (!supported) {
+        continue;
+      }
 
       assertFormsSupported(
         endpoint as AnyEndpointDefinition,
-        transport.capabilities,
+        supported,
         `declared in '${moduleName}'`,
       );
     }

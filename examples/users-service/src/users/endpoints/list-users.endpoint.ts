@@ -5,7 +5,7 @@ import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Config, Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -19,9 +19,9 @@ type ListUsersInput = z.infer<typeof ListUsersInput>;
 
 /**
  * Хендлер — класс с методом `handle`. Экземпляр создаёт фреймворк:
- * зависимости перечислены в `@Injectable` и приходят в конструктор.
+ * зависимости перечислены в `@Handler` и приходят в конструктор.
  */
-@Injectable([UsersRepository$, AppConfig])
+@Handler([UsersRepository$, AppConfig])
 export class ListUsersHandler {
   constructor(
     private readonly users: UsersRepository,

@@ -13,7 +13,7 @@ import { makeConfig } from './section.js';
 import { objectSource } from './source.js';
 
 import type { BuiltContainer } from '@nestling/container';
-import { ContainerBuilder, Injectable } from '@nestling/container';
+import { Component, ContainerBuilder } from '@nestling/container';
 import { z } from 'zod';
 
 /** Два законных взгляда на один ключ: число и строка. */
@@ -38,27 +38,27 @@ const HotConfig = makeConfig.reloadable('hot', {
   dbUrl: from('DATABASE_URL', z.string()),
 });
 
-@Injectable([OrdersConfig])
+@Component([OrdersConfig])
 class OrdersService {
   constructor(readonly cfg: Config<typeof OrdersConfig>) {}
 }
 
-@Injectable([AdminConfig])
+@Component([AdminConfig])
 class AdminService {
   constructor(readonly cfg: Config<typeof AdminConfig>) {}
 }
 
-@Injectable([RuntimeConfig])
+@Component([RuntimeConfig])
 class RuntimeService {
   constructor(readonly cfg: Config<typeof RuntimeConfig>) {}
 }
 
-@Injectable([BillingConfig])
+@Component([BillingConfig])
 class BillingService {
   constructor(readonly cfg: Config<typeof BillingConfig>) {}
 }
 
-@Injectable([HotConfig])
+@Component([HotConfig])
 class HotService {
   constructor(readonly cfg: Config<typeof HotConfig>) {}
 }
@@ -73,10 +73,19 @@ const build = async (
   );
   register(builder);
 
-  return builder.build();
+  const container = builder.build();
+  await container.init();
+
+  return container;
 };
 
-/** Ловит отказ сборки, оставляя тип ошибки конкретным. */
+/**
+ * Ловит отказ сборки, оставляя тип ошибки конкретным.
+ *
+ * Секция — провайдер значения: `build()` вычисляет проекцию сразу, и
+ * ошибка секции доходит наружу как есть — рецепт семейства её не
+ * оборачивает.
+ */
 const buildFailure = async <E extends Error>(
   values: Record<string, unknown>,
   register: (builder: ContainerBuilder) => void,

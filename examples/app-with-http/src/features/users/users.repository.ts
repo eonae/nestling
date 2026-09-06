@@ -3,7 +3,7 @@ import type { NewUser, User } from './user.js';
 
 import type { CtxReader, Logger } from '@nestling/app';
 import { Ctx, Logger$, RequestId } from '@nestling/app';
-import { Injectable, makeToken } from '@nestling/container';
+import { Component, makeToken } from '@nestling/container';
 
 /** Хранилище пользователей: всё, что endpoint'ам нужно от базы */
 export interface UsersRepository {
@@ -26,8 +26,11 @@ export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
  *
  * `Ctx(RequestId)` читает идентификатор запроса из контекста: в лог он
  * попадает без передачи параметром. Значение кладёт слой `observability`.
+ *
+ * Привязку к токену интерфейса записывает `classProvider(UsersRepository$,
+ * DbUsersRepository)` в `providers:` модуля.
  */
-@Injectable(UsersRepository$, [Database, Logger$.auto, Ctx(RequestId)])
+@Component([Database, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
     private readonly db: Database,
@@ -89,7 +92,7 @@ export class DbUsersRepository implements UsersRepository {
    * Пишет запись уровня `debug` с идентификатором запроса полем.
    *
    * `peek()` вместо `get()`: тот же метод может быть вызван вне запроса,
-   * например из `@OnInit`, и тогда идентификатора нет.
+   * например из хука `@OnStart`, и тогда идентификатора нет.
    */
   private trace(operation: string): void {
     this.logger.debug(operation, { requestId: this.requestId.peek() ?? 'n/a' });

@@ -15,7 +15,11 @@ import type { Port } from '../ports/index.js';
 import { implement } from '../ports/index.js';
 import { transportValue } from '../transport/index.js';
 
-import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
+import {
+  testEndpoint,
+  TestTransport$,
+  VALUE_ONLY,
+} from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { buildOwnerMap } from './boundary.js';
 import { makeFeature, makePlugin } from './feature.js';
@@ -23,14 +27,16 @@ import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { InjectionToken } from '@nestling/container';
-import { Injectable, makeToken } from '@nestling/container';
+import { Component, Handler, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
 const asTransport = () =>
-  transportValue(TestTransport$('default'), new MockTransport());
+  transportValue(TestTransport$('default'), new MockTransport(), {
+    capabilities: VALUE_ONLY,
+  });
 
-@Injectable([])
+@Component([])
 class QuotaService {
   claim(): number {
     return 1;
@@ -38,12 +44,12 @@ class QuotaService {
 }
 
 /** Потребитель чужого сервиса: ребро, которое не переживёт разъезда */
-@Injectable([QuotaService])
+@Component([QuotaService])
 class UserService {
   constructor(readonly quotas: QuotaService) {}
 }
 
-@Injectable([])
+@Component([])
 class Logger {
   log(): void {}
 }
@@ -54,7 +60,7 @@ class Logger {
  * литерал в исходнике.
  */
 const anyEndpoint = (path: string, deps: readonly unknown[] = []) => {
-  @Injectable(deps as InjectionToken[])
+  @Handler(deps as InjectionToken[])
   class AnyHandler {
     readonly injected: readonly unknown[];
 
@@ -144,7 +150,7 @@ describe('фичи связаны только операциями', () => {
   it('обращение к плагину разрешено', async () => {
     const Infra = makePlugin({ name: '@acme/logging', providers: [Logger] });
 
-    @Injectable([Logger])
+    @Component([Logger])
     class Greeter {
       constructor(readonly logger: Logger) {}
     }
@@ -193,7 +199,7 @@ describe('фичи связаны только операциями', () => {
       ],
     });
 
-    @Injectable([ClaimQuota.caller])
+    @Handler([ClaimQuota.caller])
     class PlaceOrderHandler {
       constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
 

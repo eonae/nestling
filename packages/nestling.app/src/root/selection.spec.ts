@@ -18,7 +18,7 @@ import { makeFeature } from './feature.js';
 import { closeOverCalls } from './selection.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable } from '@nestling/container';
+import { Component, Handler } from '@nestling/container';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
 
@@ -46,7 +46,7 @@ const QuotasFeature = makeFeature({
 });
 
 // Команда зовёт запрос: замыкание обязано идти транзитивно
-@Injectable([ClaimQuota.caller])
+@Handler([ClaimQuota.caller])
 class SendReceiptHandler {
   constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
 
@@ -67,7 +67,7 @@ const BillingFeature = makeFeature({
 });
 
 /** Сервис-вызыватель: операцию зовёт провайдер, а не декларация */
-@Injectable([ClaimQuota.caller])
+@Component([ClaimQuota.caller])
 class SignupService {
   constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
 
@@ -87,7 +87,7 @@ const declared = (...features: readonly ReturnType<typeof makeFeature>[]) =>
 
 describe('closeOverCalls', () => {
   it('тянет реализацию операции, вызванной декларацией', () => {
-    @Injectable([ClaimQuota.caller])
+    @Handler([ClaimQuota.caller])
     class PlaceOrderHandler {
       constructor(private readonly quotas: Port<typeof ClaimQuota>) {}
 

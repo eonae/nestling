@@ -86,7 +86,7 @@
 `family` и `param`. Повторный вызов с тем же параметром SHALL возвращать тот
 же токен и не создавать новой записи в реестре членов семейства. Члены
 семейства SHALL быть полноценными `InjectionToken` — пригодными в deps
-`@Injectable`, deps фабричных провайдеров и в
+класса с декоратором роли, deps фабричных провайдеров и в
 `container.get()`/`getOrThrow()`.
 
 #### Scenario: Member token id and memoization
@@ -98,8 +98,8 @@
 
 #### Scenario: Member usable as ordinary injection token
 
-- **WHEN** класс объявлен как `@Injectable([ILogger('users')])` и контейнер
-  с зарегистрированным `familyProvider` собран
+- **WHEN** класс объявлен как `@Component([ILogger('users')])` и контейнер
+  с зарегистрированным `familyProvider` собран и проинициализирован
 - **THEN** зависимость инжектится в конструктор как обычная, а
   `container.getOrThrow(ILogger('users'))` возвращает тот же инстанс
 
@@ -190,11 +190,12 @@ SHALL вызывать рецепт ровно один раз, регистри
 
 ### Requirement: Family members are ordinary graph nodes
 
-Материализованные члены семейства SHALL участвовать во всех механизмах
-контейнера наравне с обычными узлами: жадная инстанциация на `build()`,
-детекция циклов (включая циклы через членов семейства), lifecycle-хуки
-(`@OnInit` при `init()` в топологическом порядке, `@OnDestroy` при
-`destroy()` в обратном), наличие в графе (`toJSON()`/`traverse()`).
+Члены семейства, ставшие узлами графа, SHALL участвовать во всех
+механизмах контейнера наравне с обычными узлами: узлом член становится на `build()`,
+значением — на INIT; детекция циклов (включая циклы через членов
+семейства); создание в топологическом порядке при `init()` и освобождение
+ресурса в обратном при `destroy()`; наличие в графе
+(`toJSON()`/`traverse()`).
 
 #### Scenario: Cycle through a family member is detected
 
@@ -202,13 +203,12 @@ SHALL вызывать рецепт ровно один раз, регистри
   `ServiceB` объявляет dep `ILogger('a')`
 - **THEN** `build()` бросает ошибку о циклической зависимости
 
-#### Scenario: Lifecycle hooks of a member run once
+#### Scenario: Захват и освобождение члена происходят по одному разу
 
-- **WHEN** рецепт возвращает `classProvider` с классом, имеющим
-  `@OnInit`/`@OnDestroy`, член материализован и вызваны
+- **WHEN** рецепт возвращает `classProvider` с классом-ресурсом и вызваны
   `container.init()` и затем `container.destroy()`
-- **THEN** init-хук члена вызван ровно один раз при `init()` и
-  destroy-хук — ровно один раз при `destroy()`
+- **THEN** `acquire` члена вызван ровно один раз при `init()` и `release` —
+  ровно один раз при `destroy()`
 
 ### Requirement: Family members inherit module attribution
 

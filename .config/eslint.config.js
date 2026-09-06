@@ -102,7 +102,13 @@ export function createEslintConfig(fileUrl) {
         // TODO: По крайней мере пока
         '@typescript-eslint/explicit-function-return-type': 'off',
         '@typescript-eslint/consistent-type-imports': 'error',
-        '@typescript-eslint/no-unused-vars': 'error',
+        // Параметр с подчёркиванием — объявленный намеренно и неиспользуемый.
+        // Так объявляется `signal` у `static acquire` ресурса: тип роли
+        // требует его в сигнатуре, а конкретному захвату он бывает не нужен
+        '@typescript-eslint/no-unused-vars': [
+          'error',
+          { argsIgnorePattern: '^_' },
+        ],
         '@typescript-eslint/no-non-null-assertion': 'error',
         '@typescript-eslint/member-ordering': 'off',
         'no-tabs': 'error',

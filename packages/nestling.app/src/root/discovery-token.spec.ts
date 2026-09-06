@@ -10,7 +10,11 @@ import { Ok } from '../pipeline/index.js';
 import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
-import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
+import {
+  testEndpoint,
+  TestTransport$,
+  VALUE_ONLY,
+} from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import type { EndpointDiscovery } from './discovery.js';
 import { Discovery$ } from './discovery.js';
@@ -21,7 +25,9 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 import { factoryProvider, makeToken } from '@nestling/container';
 
 const asTransport = (transport: ITransport) =>
-  transportValue(TestTransport$('default'), transport);
+  transportValue(TestTransport$('default'), transport, {
+    capabilities: VALUE_ONLY,
+  });
 
 /**
  * Что увидел модуль-наблюдатель последней сборки.
@@ -165,18 +171,20 @@ describe('Discovery$ — состав приложения на входе гр�
     await app.close();
   });
 
-  it('тестовый корень видит то же значение', async () => {
+  it('check() не создаёт экземпляров — наблюдатель Discovery$ не срабатывает', async () => {
     const app = makeApp({
       features: [UsersFeature],
       transports: [asTransport(new MockTransport())],
     });
 
-    // `check()` проходит фазы 0–1: провайдеры строятся, значит и наблюдатель
-    // отрабатывает — того же discovery, что попадёт в отчёт
+    // `check()` — это фазы 0–1: ни один провайдер, включая фабрику-
+    // наблюдателя, не строится. Отчёт складывается из того же discovery,
+    // но инжекции, которая его вернула бы наружу, не происходит
     const report = await app.check();
 
-    expect(patternsOf(observed())).toEqual(
-      report.endpoints.map(({ pattern }) => pattern).sort(),
-    );
+    expect(() => observed()).toThrow('Discovery$ was never injected');
+    expect(report.endpoints.map(({ pattern }) => pattern)).toEqual([
+      'GET /users',
+    ]);
   });
 });

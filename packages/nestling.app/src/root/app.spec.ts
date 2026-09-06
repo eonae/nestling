@@ -16,26 +16,33 @@ import type { ITransport } from '../transport/index.js';
 import { transportValue } from '../transport/index.js';
 
 import { entriesWith, loggerProbe } from './__fixtures__/logger.js';
-import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
+import {
+  ALL_FORMS,
+  testEndpoint,
+  TestTransport$,
+  VALUE_ONLY,
+} from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature, makePlugin } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import {
-  Injectable,
+  Component,
+  Handler,
   makeModule,
   makeToken,
-  OnDestroy,
-  OnInit,
   OnStart,
+  Resource,
   valueProvider,
 } from '@nestling/container';
 import { z } from 'zod';
 
-/** Регистрирует готовый инстанс транспорта под его токеном */
+/** Регистрирует готовый инстанс транспорта под его токеном, способный на всё */
 const asTransport = (transport: ITransport) =>
-  transportValue(TestTransport$('default'), transport);
+  transportValue(TestTransport$('default'), transport, {
+    capabilities: ALL_FORMS,
+  });
 
 /** Контекст, который построил бы транспорт: тестам хватает пустого */
 const contextFor = (pattern: string, payload?: unknown, signal?: AbortSignal) =>
@@ -83,7 +90,7 @@ describe('assemble — discovery и регистрация', () => {
 
     const IQuota = makeToken<{ left(): number }>('IQuota');
 
-    @Injectable([IQuota])
+    @Handler([IQuota])
     class ChargeHandler {
       constructor(private readonly quota: { left(): number }) {}
 
@@ -171,7 +178,7 @@ describe('assemble — discovery и регистрация', () => {
 
 describe('assemble — fail-fast фазы ASSEMBLE', () => {
   it('класс-хендлер без регистрации провайдером — ошибка старта', async () => {
-    @Injectable([])
+    @Handler([])
     class CreateUserHandler {
       async handle() {
         return new Ok({});
@@ -203,7 +210,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
   });
 
   it('класс-хендлер, перечисленный в providers, — ошибка ASSEMBLE', async () => {
-    @Injectable([])
+    @Handler([])
     class CreateUserHandler {
       async handle() {
         return new Ok({});
@@ -237,7 +244,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
   it('зависимость класса-хендлера без провайдера — ошибка с токеном и паттерном', async () => {
     const ILogger = makeToken<{ log(): void }>('ILogger');
 
-    @Injectable([ILogger])
+    @Handler([ILogger])
     class CreateUserHandler {
       constructor(private readonly logger: { log(): void }) {}
 
@@ -286,13 +293,12 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     expect(transport.serving).toBe(false);
   });
 
-  it('ошибка сборки предшествует @OnInit', async () => {
+  it('ошибка сборки предшествует созданию любого экземпляра (INIT)', async () => {
     const opened: string[] = [];
 
-    @Injectable([])
+    @Component([])
     class Connection {
-      @OnInit()
-      open(): void {
+      constructor() {
         opened.push('connection');
       }
     }
@@ -340,7 +346,11 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
       features: [
         makeFeature({ name: 'module:forms', endpoints: [Watch, Streaming] }),
       ],
-      transports: [asTransport(transport)],
+      transports: [
+        transportValue(TestTransport$('default'), transport, {
+          capabilities: VALUE_ONLY,
+        }),
+      ],
     }).assemble();
 
     await expect(app.run()).rejects.toThrow(
@@ -398,14 +408,14 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
 
 describe('assemble — фаза WIRE: резолв зависимостей деклараций', () => {
   it('хендлер получает инстанс из DI', async () => {
-    @Injectable([])
+    @Component([])
     class TestService {
       getData() {
         return 'service-data';
       }
     }
 
-    @Injectable([TestService])
+    @Handler([TestService])
     class DataHandler {
       constructor(private readonly service: TestService) {}
 
@@ -448,14 +458,14 @@ describe('assemble — фаза WIRE: резолв зависимостей де
   });
 
   it('класс-хендлер резолвится контейнером как обычный провайдер', async () => {
-    @Injectable([])
+    @Component([])
     class Greeter {
       greet() {
         return 'hi';
       }
     }
 
-    @Injectable([Greeter])
+    @Handler([Greeter])
     class GreetHandler {
       constructor(private readonly greeter: Greeter) {}
 
@@ -498,7 +508,10 @@ describe('assemble — фаза WIRE: резолв зависимостей де
   });
 
   it('классы-юниты пайплайна связываются контейнером', async () => {
-    @Injectable([])
+    // Юнит пайплайна несёт метод `handle`, то есть роль хендлера. Его
+    // позиция — `providers:` единицы: класс-хендлер endpoint'а туда бы не
+    // встал, а юнит пайплайна живёт именно там
+    @Handler([])
     class WithTracing {
       handle(): { traceId: string } {
         return { traceId: 'trace-from-di' };
@@ -543,14 +556,13 @@ describe('assemble — фаза WIRE: резолв зависимостей де
 });
 
 describe('assemble — порядок фаз и shutdown', () => {
-  it('порядок наблюдаем: сначала @OnInit, затем @OnStart, затем serve', async () => {
+  it('порядок наблюдаем: сначала конструктор (INIT), затем @OnStart, затем serve', async () => {
     const order: string[] = [];
 
-    @Injectable([])
+    @Component([])
     class Scheduler {
-      @OnInit()
-      init(): void {
-        order.push('init');
+      constructor() {
+        order.push('constructed');
       }
 
       @OnStart()
@@ -576,18 +588,21 @@ describe('assemble — порядок фаз и shutdown', () => {
 
     await app.run();
 
-    expect(order).toEqual(['init', 'start', 'serve']);
+    expect(order).toEqual(['constructed', 'start', 'serve']);
 
     await app.close();
   });
 
-  it('shutdown идёт реверсом: сигнал, close() транспортов, @OnDestroy', async () => {
+  it('shutdown идёт реверсом: сигнал, close() транспортов, release()', async () => {
     const order: string[] = [];
 
-    @Injectable([])
-    class Resource {
-      @OnDestroy()
-      destroy(): void {
+    @Resource([])
+    class Teardown {
+      static async acquire(_signal: AbortSignal): Promise<Teardown> {
+        return new Teardown();
+      }
+
+      release(): void {
         order.push('container-destroyed');
       }
     }
@@ -598,9 +613,12 @@ describe('assemble — порядок фаз и shutdown', () => {
 
     const app = makeApp({
       features: [
-        makeFeature({ name: 'module:resource', providers: [Resource] }),
+        makeFeature({ name: 'module:resource', providers: [Teardown] }),
       ],
-      transports: [asTransport(first), transportValue(Second$, second)],
+      transports: [
+        asTransport(first),
+        transportValue(Second$, second, { capabilities: ALL_FORMS }),
+      ],
     }).assemble();
 
     await app.run();
@@ -620,10 +638,13 @@ describe('assemble — порядок фаз и shutdown', () => {
   it('run() и close() идемпотентны', async () => {
     const closes: string[] = [];
 
-    @Injectable([])
-    class Resource {
-      @OnDestroy()
-      destroy(): void {
+    @Resource([])
+    class Teardown {
+      static async acquire(_signal: AbortSignal): Promise<Teardown> {
+        return new Teardown();
+      }
+
+      release(): void {
         closes.push('destroyed');
       }
     }
@@ -631,7 +652,7 @@ describe('assemble — порядок фаз и shutdown', () => {
     const transport = new MockTransport(() => closes.push('closed'));
     const app = makeApp({
       features: [
-        makeFeature({ name: 'module:resource', providers: [Resource] }),
+        makeFeature({ name: 'module:resource', providers: [Teardown] }),
       ],
       transports: [asTransport(transport)],
     }).assemble();
@@ -667,7 +688,7 @@ describe('assemble — порядок фаз и shutdown', () => {
     const app = makeApp({
       features: [Orders],
       transports: [asTransport(new MockTransport())],
-      providers: [probe.provider],
+      logger: probe.logger,
     }).assemble();
 
     await app.run();
@@ -693,7 +714,7 @@ describe('assemble — порядок фаз и shutdown', () => {
     const app = makeApp({
       features: [Orders, Billing],
       transports: [asTransport(new MockTransport())],
-      providers: [probe.provider],
+      logger: probe.logger,
     }).assemble({ features: ['orders'], includeDeps: true });
 
     await app.run();
@@ -714,11 +735,11 @@ describe('assemble — порядок фаз и shutdown', () => {
 
     const app = makeApp({
       providers: [
-        probe.provider,
         valueProvider(makeToken<string>('Twin'), 'left'),
         valueProvider(makeToken<string>('Twin'), 'right'),
       ],
       transports: [asTransport(new MockTransport())],
+      logger: probe.logger,
     }).assemble();
 
     await app.run();
@@ -737,7 +758,7 @@ describe('assemble — порядок фаз и shutdown', () => {
 
     const app = makeApp({
       transports: [asTransport(new MockTransport())],
-      providers: [probe.provider],
+      logger: probe.logger,
     }).assemble();
 
     await app.run();
@@ -757,14 +778,14 @@ describe('assemble — порядок фаз и shutdown', () => {
     await app.close();
   });
 
-  it('close() взводит meta.signal запроса в полёте до @OnDestroy', async () => {
+  it('close() взводит meta.signal запроса в полёте до release()', async () => {
     const order: string[] = [];
     let onStarted!: () => void;
     const started = new Promise<void>((r) => (onStarted = r));
     let onAborted!: (reason: unknown) => void;
     const aborted = new Promise<unknown>((r) => (onAborted = r));
 
-    @Injectable([])
+    @Handler([])
     class WaitHandler {
       handle(_payload: unknown, meta: { signal: AbortSignal }) {
         onStarted();
@@ -775,9 +796,17 @@ describe('assemble — порядок фаз и shutdown', () => {
         );
         return aborted.then(() => ({ done: true }));
       }
+    }
 
-      @OnDestroy()
-      destroy() {
+    // Хендлер не отпускает ресурсов сам — освобождение проверяет
+    // отдельный ресурс модуля, захваченный вместе с графом
+    @Resource([])
+    class Teardown {
+      static async acquire(_signal: AbortSignal): Promise<Teardown> {
+        return new Teardown();
+      }
+
+      release(): void {
         order.push('container-destroyed');
       }
     }
@@ -802,6 +831,7 @@ describe('assemble — порядок фаз и shutdown', () => {
       features: [
         makeFeature({
           name: 'test-module',
+          providers: [Teardown],
           endpoints: [
             testEndpoint({
               method: 'GET',
@@ -837,7 +867,7 @@ describe('assemble — фичи в приложении', () => {
   it("невыбранная фича не строит провайдеров и не регистрирует endpoint'ов", async () => {
     const built: string[] = [];
 
-    @Injectable([])
+    @Component([])
     class BillingService {
       constructor() {
         built.push('billing');
@@ -940,7 +970,7 @@ describe('assemble — фичи в приложении', () => {
 
     // Имя модуля — ключ атрибуции его провайдеров, поэтому два разных
     // значения под одним именем роняют сборку на фазе ASSEMBLE, до
-    // построения контейнера и любого `@OnInit`
+    // построения контейнера и создания любого экземпляра
     const app = makeApp({
       features: [Orders, Billing],
       transports: [asTransport(new MockTransport())],
@@ -1009,8 +1039,13 @@ describe('assemble — именованные экземпляры трансп�
     const app = makeApp({
       features: [Orders],
       transports: [
-        transportValue(TestTransport$('default'), publicApi),
-        transportValue(TestTransport$('admin'), adminApi, { name: 'admin' }),
+        transportValue(TestTransport$('default'), publicApi, {
+          capabilities: ALL_FORMS,
+        }),
+        transportValue(TestTransport$('admin'), adminApi, {
+          name: 'admin',
+          capabilities: ALL_FORMS,
+        }),
       ],
     }).assemble();
 

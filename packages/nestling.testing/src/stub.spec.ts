@@ -21,7 +21,7 @@ import {
   makeFeature,
   Ok,
 } from '@nestling/app';
-import { Injectable, makeToken } from '@nestling/container';
+import { Component, makeToken } from '@nestling/container';
 import type { CommandMeta, PortMeta } from '@nestling/operations';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
@@ -292,7 +292,7 @@ describe('stub — профиль вызова', () => {
 // ---------------------------------------------------------------------------
 
 /** Фича-потребитель: инжектит вызыватель операции, которой рядом нет */
-@Injectable([ClaimQuota.caller])
+@Component([ClaimQuota.caller])
 class QuotaConsumer {
   constructor(readonly quotas: Port<typeof ClaimQuota>) {}
 }
@@ -377,7 +377,7 @@ describe('stub — место в сборке', () => {
   });
 
   it('оставляет соседнюю операцию боевому вызывателю', async () => {
-    @Injectable([ChargeCard.caller, ClaimQuota.caller])
+    @Component([ChargeCard.caller, ClaimQuota.caller])
     class MixedConsumer {
       constructor(
         readonly billing: Port<typeof ChargeCard>,
@@ -413,7 +413,7 @@ describe('stub — место в сборке', () => {
   });
 
   it('разрешён поверх реализованной операции и виден в stubbed', async () => {
-    @Injectable([ChargeCard.caller])
+    @Component([ChargeCard.caller])
     class BillingConsumer {
       constructor(readonly billing: Port<typeof ChargeCard>) {}
     }
@@ -444,7 +444,7 @@ describe('stub — место в сборке', () => {
   it('перечисляет застабанные операции по алфавиту, без обычных пар', async () => {
     const IClock = makeToken<{ now(): number }>('StubClock');
 
-    @Injectable([ClaimQuota.caller, PlaceOrder.emitter])
+    @Component([ClaimQuota.caller, PlaceOrder.emitter])
     class BothConsumer {
       constructor(
         readonly quotas: Port<typeof ClaimQuota>,

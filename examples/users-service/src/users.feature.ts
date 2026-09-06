@@ -7,12 +7,16 @@ import {
   ListUsers,
   UploadAvatar,
 } from './users/endpoints/index.js';
-import { DbUsersRepository } from './users/users.repository.js';
+import {
+  DbUsersRepository,
+  UsersRepository$,
+} from './users/users.repository.js';
 import { Authenticate } from './auth.js';
 import { Database } from './database.js';
 import { AuditOutcome } from './observability.js';
 
 import { makeFeature } from '@nestling/app';
+import { classProvider } from '@nestling/container';
 
 /**
  * Фича пользователей: провайдеры и endpoint'ы.
@@ -23,7 +27,12 @@ import { makeFeature } from '@nestling/app';
  */
 export const UsersFeature = makeFeature({
   name: 'users',
-  providers: [Database, DbUsersRepository, AuditOutcome, Authenticate],
+  providers: [
+    Database,
+    classProvider(UsersRepository$, DbUsersRepository),
+    AuditOutcome,
+    Authenticate,
+  ],
   endpoints: [
     ListUsers,
     GetUser,

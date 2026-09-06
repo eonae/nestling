@@ -5,7 +5,7 @@ import type {
   ResponseContext,
 } from '@nestling/app';
 import { Logger$, makePipeline, withRequestId } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 
 /**
  * Юнит `.finally`: пишет строку аудита по завершении каждого запроса.
@@ -13,7 +13,7 @@ import { Injectable } from '@nestling/container';
  * Это класс, потому что юниту нужен логгер из контейнера. Класс-юнит
  * регистрируется в `providers:` фичи, как любой другой провайдер.
  */
-@Injectable([Logger$.auto])
+@Handler([Logger$.auto])
 export class AuditOutcome {
   constructor(private readonly logger: Logger) {}
 

@@ -76,7 +76,7 @@ import {
   Timeout,
 } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
-import { factoryProvider, OnInit } from '@nestling/container';
+import { resourceProvider } from '@nestling/container';
 
 /** Проекция конфиг-секции транспорта — то, что инжектится в фабрику */
 type NatsConfigValues = ConfigProjection<typeof NatsConfig>;
@@ -85,9 +85,10 @@ type NatsConfigValues = ConfigProjection<typeof NatsConfig>;
  * Способности шины по формам io: только value с обеих сторон.
  *
  * Те же, что у in-proc шины, и по той же причине: стриминг по шине вне V1,
- * и объявлять способность, которой нет, транспорт не станет.
+ * и объявлять способность, которой нет, транспорт не станет. Константа
+ * пакета: её кладёт в объявление `nats()`, её же читает `attach`.
  */
-const BUS_CAPABILITIES: TransportCapabilities = {
+export const BUS_CAPABILITIES: TransportCapabilities = {
   input: new Set<FormKind>(['value']),
   output: new Set<FormKind>(['value']),
 };
@@ -175,9 +176,6 @@ export interface NatsBusOptions extends NatsTransportOptions {
  * есть уровень L4.
  */
 export class NatsBus implements IMessageBus, ITransport {
-  /** Способности транспорта: читает `assertFormsSupported` на сборке */
-  readonly capabilities: TransportCapabilities = BUS_CAPABILITIES;
-
   /** Доставляет за пределы процесса — вход биндинга вызывателей */
   readonly remote = true;
 
@@ -204,11 +202,10 @@ export class NatsBus implements IMessageBus, ITransport {
   /**
    * Захватывает соединение — фаза INIT.
    *
-   * Именно здесь, а не в момент первой отправки: соединение это ресурс, и
-   * к `@OnStart` исходящая сторона обязана быть работоспособной. Вызов
-   * порта из `@OnStart` уходит на брокер.
+   * Соединение это ресурс: объявление `nats()` регистрирует шину
+   * провайдером ресурса, и захват завершается раньше, чем выполнится
+   * первый `@OnStart`. Вызов порта из `@OnStart` уходит на брокер.
    */
-  @OnInit()
   async connect(): Promise<void> {
     if (this.#connection) {
       return;
@@ -249,7 +246,7 @@ export class NatsBus implements IMessageBus, ITransport {
     }
 
     for (const route of dispatch.routes) {
-      assertFormsSupported(route, this.capabilities);
+      assertFormsSupported(route, BUS_CAPABILITIES);
     }
 
     this.#dispatch = dispatch;
@@ -817,21 +814,27 @@ export const nats = <const Name extends string = typeof DEFAULT_INSTANCE>(
     name,
     bus: true,
     token: BusTransport$,
-    provider: factoryProvider(
-      BusTransport$,
-      (config: NatsConfigValues, logger: Logger) =>
-        new NatsBus({
+    capabilities: BUS_CAPABILITIES,
+    provider: resourceProvider(BusTransport$, {
+      deps: [
+        NatsConfig as unknown as InjectionToken<NatsConfigValues>,
+        Logger$('nestling:nats'),
+      ] as const,
+      acquire: async (config: NatsConfigValues, logger: Logger) => {
+        const bus = new NatsBus({
           servers: config.servers,
           requestTimeout: config.requestTimeout,
           subjectPrefix: config.subjectPrefix,
           // Явные опции сильнее конфига: спред идёт последним
           ...transportOptions,
           logger,
-        }),
-      [
-        NatsConfig as unknown as InjectionToken<NatsConfigValues>,
-        Logger$('nestling:nats'),
-      ],
-    ),
+        });
+
+        await bus.connect();
+
+        return bus;
+      },
+      release: (bus: ITransport) => bus.close?.(),
+    }),
   });
 };

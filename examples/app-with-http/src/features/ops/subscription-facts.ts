@@ -1,6 +1,6 @@
 import type { Logger } from '@nestling/app';
 import { implement, Logger$ } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import {
   SubscriptionClosed,
   SubscriptionOpened,
@@ -14,7 +14,7 @@ import {
  * процессам: каждый узел публикует свои факты.
  */
 
-@Injectable([Logger$.auto])
+@Handler([Logger$.auto])
 class SubscriptionOpenedInOpsHandler {
   constructor(private readonly logger: Logger) {}
 
@@ -38,7 +38,7 @@ export const SubscriptionOpenedInOps = implement(SubscriptionOpened, {
   handler: SubscriptionOpenedInOpsHandler,
 });
 
-@Injectable([Logger$.auto])
+@Handler([Logger$.auto])
 class SubscriptionClosedInOpsHandler {
   constructor(private readonly logger: Logger) {}
 

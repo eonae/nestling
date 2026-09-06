@@ -78,6 +78,23 @@ export const bootstrapConfig = async (
 };
 
 /**
+ * Проецирует объявленную секцию из снимка фазы 0, мимо графа.
+ *
+ * Нужна тому, что существует раньше первого узла: корневой логгер
+ * создаётся до построения контейнера и читает свою секцию так же, как
+ * прочитал бы её узел графа.
+ *
+ * @param prefix - Префикс секции
+ * @param reader - Читалка со снимком фазы 0
+ * @returns Проекция секции
+ * @internal
+ */
+export const readSectionSnapshot = <T>(
+  prefix: string,
+  reader: ConfigReader,
+): T => materializeSection(prefix, reader) as T;
+
+/**
  * Собирает kernel-модуль конфига вокруг готовой читалки.
  *
  * Читалка входит в граф значением: асинхронной фабрики у неё нет, потому
@@ -97,15 +114,17 @@ export const configKernel = (reader: ConfigReader): Module => ({
       provide: ConfigReaderToken,
       useValue: reader,
     },
+    // Рецепты отдают провайдеры **значения**, а не фабрики: проекция
+    // секции — это данные снимка фазы 0, а не экземпляр. Поэтому она
+    // считается и валидируется на сборке, как и требует fail-fast, а
+    // фаза INIT остаётся местом создания экземпляров
     familyProvider(ConfigSection, (prefix) => ({
       provide: ConfigSection(prefix),
-      useFactory: (reader: ConfigReader) => materializeSection(prefix, reader),
-      deps: [ConfigReaderToken],
+      useValue: materializeSection(prefix, reader),
     })),
     familyProvider(Config, (key) => ({
       provide: Config(key),
-      useFactory: (reader: ConfigReader) => reader.read(key),
-      deps: [ConfigReaderToken],
+      useValue: reader.read(key),
     })),
   ],
 });

@@ -1,21 +1,17 @@
-import type { TransportCapabilities } from '../pipeline/index.js';
 import type {
   Dispatch,
   ITransport,
   RouteDeclaration,
 } from '../transport/index.js';
 
-/** Способности мока по умолчанию: всё, кроме потоков и файлов */
-const VALUE_ONLY: TransportCapabilities = {
-  input: new Set(['value']),
-  output: new Set(['value']),
-};
-
 /**
  * Транспорт-наблюдатель для тестов приложения.
  *
  * Держит полученный `dispatch`: тест видит и маршруты, которые ему
  * достались, и может исполнить endpoint, не поднимая сокета.
+ *
+ * Способностей у него нет: формы io объявляет `transportValue(...)`, как у
+ * любого транспорта.
  */
 export class MockTransport implements ITransport {
   /** Маршруты, полученные в `serve`. До старта приёма запросов список пуст */
@@ -30,14 +26,7 @@ export class MockTransport implements ITransport {
   /** Сигнал остановки, полученный в `serve` */
   signal?: AbortSignal;
 
-  readonly capabilities: TransportCapabilities;
-
-  constructor(
-    private readonly onClose?: () => void,
-    capabilities: TransportCapabilities = VALUE_ONLY,
-  ) {
-    this.capabilities = capabilities;
-  }
+  constructor(private readonly onClose?: () => void) {}
 
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
     this.dispatch = dispatch;

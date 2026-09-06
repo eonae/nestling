@@ -12,13 +12,13 @@ import {
 } from '../config/index.js';
 import { transportValue } from '../transport/index.js';
 
-import { TestTransport$ } from './__fixtures__/test-transport.js';
+import { TestTransport$, VALUE_ONLY } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Injectable, OnDestroy } from '@nestling/container';
+import { Component, Resource } from '@nestling/container';
 import { z } from 'zod';
 
 const RootConfig = makeConfig('rootapp', {
@@ -29,7 +29,7 @@ const RootConfig = makeConfig('rootapp', {
 /** Куда приземляются спроецированные значения: контейнер App не публичен. */
 const projected: Config<typeof RootConfig>[] = [];
 
-@Injectable([RootConfig])
+@Component([RootConfig])
 class Greeter {
   constructor(cfg: Config<typeof RootConfig>) {
     projected.push(cfg);
@@ -67,15 +67,24 @@ const withEnv = async (
 /** Отметки фаз в порядке их наступления */
 const phases: string[] = [];
 
-@Injectable([RootConfig])
+/**
+ * Ресурс-зонд: захват отмечает фазу INIT, освобождение — фазу SHUTDOWN.
+ * Захват читает секцию конфига, поэтому виден и порядок относительно
+ * источников.
+ */
+@Resource([RootConfig])
 class PhaseProbe {
-  constructor(cfg: Config<typeof RootConfig>) {
+  static async acquire(
+    cfg: Config<typeof RootConfig>,
+    _signal: AbortSignal,
+  ): Promise<PhaseProbe> {
     projected.push(cfg);
     phases.push('construct');
+
+    return new PhaseProbe();
   }
 
-  @OnDestroy()
-  destroyHook(): void {
+  release(): void {
     phases.push('destroy');
   }
 }
@@ -124,7 +133,11 @@ describe('привязка конфига в assemble', () => {
       const transport = new MockTransport();
       const app = makeApp({
         features: [GreeterModule],
-        transports: [transportValue(TestTransport$('default'), transport)],
+        transports: [
+          transportValue(TestTransport$('default'), transport, {
+            capabilities: VALUE_ONLY,
+          }),
+        ],
       }).assemble();
 
       await app.run();
@@ -143,7 +156,9 @@ describe('привязка конфига в assemble', () => {
         const app = makeApp({
           features: [GreeterModule],
           transports: [
-            transportValue(TestTransport$('default'), new MockTransport()),
+            transportValue(TestTransport$('default'), new MockTransport(), {
+              capabilities: VALUE_ONLY,
+            }),
           ],
           config: [
             [objectSource({ ROOTAPP_RETRIES: '5' }, 'high'), '*'],
@@ -172,11 +187,19 @@ describe('привязка конфига в assemble', () => {
     const transport = new MockTransport();
     const app = makeApp({
       features: [GreeterModule],
-      transports: [transportValue(TestTransport$('default'), transport)],
+      transports: [
+        transportValue(TestTransport$('default'), transport, {
+          capabilities: VALUE_ONLY,
+        }),
+      ],
       config: [[objectSource({ ROOTAPP_RETRIES: 'abc' }, 'test'), '*']],
     }).assemble();
 
-    await expect(app.run()).rejects.toThrow(ConfigValidationError);
+    // Секция — провайдер значения: сборка вычисляет её сразу, и ошибка
+    // валидации доходит наружу как есть
+    const failure = await app.run().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ConfigValidationError);
     expect(transport.serving).toBe(false);
   });
 
@@ -184,7 +207,11 @@ describe('привязка конфига в assemble', () => {
     const transport = new MockTransport();
     const app = makeApp({
       features: [GreeterModule],
-      transports: [transportValue(TestTransport$('default'), transport)],
+      transports: [
+        transportValue(TestTransport$('default'), transport, {
+          capabilities: VALUE_ONLY,
+        }),
+      ],
     }).assemble();
 
     await expect(app.run()).rejects.toThrow(/ROOTAPP_RETRIES/);
@@ -199,14 +226,16 @@ describe('фаза 0 BOOTSTRAP', () => {
     const app = makeApp({
       features: [ProbeFeature],
       transports: [
-        transportValue(TestTransport$('default'), new MockTransport()),
+        transportValue(TestTransport$('default'), new MockTransport(), {
+          capabilities: VALUE_ONLY,
+        }),
       ],
       config: [[source, '*']],
     }).assemble();
 
     await app.run();
 
-    // `init()` источника завершился до создания первого провайдера
+    // `init()` источника завершился до захвата первого ресурса
     expect(phases).toEqual(['init', 'construct']);
 
     // Ключ прочитан ровно один раз — снимком фазы 0; проекция секции
@@ -217,13 +246,15 @@ describe('фаза 0 BOOTSTRAP', () => {
     await app.close();
   });
 
-  it('закрывает источники на shutdown, после @OnDestroy графа', async () => {
+  it('закрывает источники на shutdown, после освобождения ресурса графа', async () => {
     const { source } = probeSource({ ROOTAPP_RETRIES: '3' });
 
     const app = makeApp({
       features: [ProbeFeature],
       transports: [
-        transportValue(TestTransport$('default'), new MockTransport()),
+        transportValue(TestTransport$('default'), new MockTransport(), {
+          capabilities: VALUE_ONLY,
+        }),
       ],
       config: [[source, '*']],
     }).assemble();
@@ -247,7 +278,11 @@ describe('фаза 0 BOOTSTRAP', () => {
     const transport = new MockTransport();
     const app = makeApp({
       features: [ProbeFeature],
-      transports: [transportValue(TestTransport$('default'), transport)],
+      transports: [
+        transportValue(TestTransport$('default'), transport, {
+          capabilities: VALUE_ONLY,
+        }),
+      ],
       config: [[failing, '*']],
     }).assemble();
 
@@ -265,7 +300,9 @@ describe('check() и источники', () => {
     const app = makeApp({
       features: [ProbeFeature],
       transports: [
-        transportValue(TestTransport$('default'), new MockTransport()),
+        transportValue(TestTransport$('default'), new MockTransport(), {
+          capabilities: VALUE_ONLY,
+        }),
       ],
       config: [[source, '*']],
     });
@@ -274,9 +311,10 @@ describe('check() и источники', () => {
       config: objectSource({ ROOTAPP_RETRIES: '7' }, 'vars'),
     });
 
-    // Ни `init()`, ни `close()` объявленного источника: проверка обошлась
+    // `check()` не создаёт экземпляров: ресурс не захватывается, а
+    // объявленный источник не поднимается вовсе — проверка обошлась
     // переданным и ввода-вывода не сделала
-    expect(phases).toEqual(['construct']);
+    expect(phases).toEqual([]);
   });
 
   it('закрывает источники сразу после отчёта, хотя графа не разрушает', async () => {
@@ -285,15 +323,17 @@ describe('check() и источники', () => {
     const app = makeApp({
       features: [ProbeFeature],
       transports: [
-        transportValue(TestTransport$('default'), new MockTransport()),
+        transportValue(TestTransport$('default'), new MockTransport(), {
+          capabilities: VALUE_ONLY,
+        }),
       ],
       config: [[source, '*']],
     });
 
     await app.check();
 
-    // `@OnDestroy` не выполнялся — проверка контейнер не разрушает, — а
+    // Ресурс не захватывался — `check()` не создаёт экземпляров, — а
     // источники уже закрыты
-    expect(phases).toEqual(['init', 'construct', 'close']);
+    expect(phases).toEqual(['init', 'close']);
   });
 });
