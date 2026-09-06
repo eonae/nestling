@@ -138,13 +138,13 @@ curl -N localhost:3000/logs/export
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
-  return await new ContainerBuilder()
-    .register(
-      configKernel([
-        [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
-        [runtime, runtimeConfigKeys],
-      ]),
-    )
+  const config = await bootstrapConfig([
+    [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+    [runtime, runtimeConfigKeys],
+  ]);
+
+  return new ContainerBuilder()
+    .register(configKernel(config))
     .register(...appLogging.modules)
     .register(AppModule)
     .build();
@@ -154,12 +154,12 @@ export const makeContainer = async (
 `ContainerBuilder` собирает тот же граф, что `makeApp` в `main.ts` того
 же примера, но без фаз приложения и транспортов. Ядро конфигурации,
 которое сборка через `makeApp` регистрирует сама, здесь подключается
-вызовом `configKernel` с привязкой источников к ключам секций, как в
-главе [22](./22-config-sources.md). Плагин логирования регистрируется
-своими модулями: `appLogging.modules` — обычный массив значений.
-`build()` создаёт все провайдеры сразу и проверяет граф целиком:
-отсутствующая зависимость и цикл останавливают сборку одной ошибкой со
-списком узлов.
+двумя шагами: `bootstrapConfig` поднимает источники по привязкам к ключам
+секций (как в главе [22](./22-config-sources.md)), а `configKernel` вносит
+готовую читалку в граф. Плагин логирования регистрируется своими модулями:
+`appLogging.modules` — обычный массив значений. `build()` синхронен: он
+создаёт все провайдеры сразу и проверяет граф целиком — отсутствующая
+зависимость и цикл останавливают сборку одной ошибкой со списком узлов.
 
 ```typescript
 // examples/container/src/runtime/reload.spec.ts (фрагмент)

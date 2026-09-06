@@ -60,7 +60,7 @@ await app.close();
 `ConfigValidationError` перечисляет все ошибки секции и то, из каких
 источников читалось каждое значение.
 
-Тот же список принимает `configKernel()` при сборке контейнера без
+Тот же список принимает `bootstrapConfig()` при сборке контейнера без
 `makeApp`, через `ContainerBuilder`:
 
 ```typescript
@@ -68,13 +68,13 @@ await app.close();
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
-  return await new ContainerBuilder()
-    .register(
-      configKernel([
-        [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
-        [runtime, runtimeConfigKeys],
-      ]),
-    )
+  const config = await bootstrapConfig([
+    [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+    [runtime, runtimeConfigKeys],
+  ]);
+
+  return new ContainerBuilder()
+    .register(configKernel(config))
     .register(...appLogging.modules)
     .register(AppModule)
     .build();
@@ -82,10 +82,12 @@ export const makeContainer = async (
 ```
 
 `ContainerBuilder` собирает тот же граф, что `makeApp` в `main.ts` того
-же примера, но без фаз приложения и без транспортов. `configKernel`
-подключает ядро конфигурации, которое при сборке через `makeApp`
-регистрирует сама сборка. Плагин логирования регистрируется своими
-модулями: `appLogging.modules` — обычный массив значений.
+же примера, но без фаз приложения и без транспортов. Фазы здесь две и они
+разделены явно: `bootstrapConfig` поднимает источники — это единственный
+ввод-вывод, — а `build()` собирает граф синхронно. Ядро конфигурации, которое
+при сборке через `makeApp` регистрирует сама сборка, здесь подключает
+`configKernel(config)`. Плагин логирования регистрируется своими модулями:
+`appLogging.modules` — обычный массив значений.
 
 ## Право привязки вместо секции
 
