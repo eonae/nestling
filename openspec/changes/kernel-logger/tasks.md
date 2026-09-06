@@ -58,7 +58,7 @@
 - [x] 9.1 `examples/users-service`: удалить `logging.ts`; `Database`, `DbUsersRepository`, `AuditOutcome` зависят от `Logger$.auto` и пишут через `info`/`debug` с полями; `ConsoleLogger` убран из `providers:` фичи; `app.spec.ts` использует `spyLogger()` из `@nestling/testing` и подмену `RootLogger$`, проверяет `requestId` в полях записи
 - [x] 9.2 `examples/app-with-http`: `plugins/logging` → плагин наблюдаемости без собственного логгера и без секции `LoggerConfig`; все `@Injectable([Logger$])` → `Logger$.auto`; `app.spec.ts` на `spyLogger()`; `.env`/README примера — `NESTLING_LOG_LEVEL` вместо `LOG_LEVEL`
 - [x] 9.3 `examples/container`: семейство `Logger` примера заменено на `Logger$` ядра (`.auto` в `UserRepository` и `HealthService`); рецепт семейства показан на семействе, которое пример объявляет сам (например, `Counter$(name)` поверх секции конфига); вывод примера пересверен
-- [ ] 9.4 `yarn workspaces foreach` в `examples/*`: `verify` и `smoke` зелёные
+- [x] 9.4 `yarn workspaces foreach` в `examples/*`: `verify` и `smoke` зелёные
 
 ## 10. Гайд
 
@@ -83,10 +83,10 @@
 
 ## Definition of Done
 
-- [ ] все задачи выше отмечены
-- [ ] `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` + `type-budget` по всем пакетам)
-- [ ] README затронутых пакетов обновлены, включая плашки статуса
-- [ ] `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
-- [ ] `yarn docs:audit` → 0 ERROR
-- [ ] затронутые `examples/*` мигрированы, главы гайда пересверены с обновлённой датой в плашке «сверено с кодом»
-- [ ] коммиты осмысленные, ветка `change/kernel-logger` запушена
+- [x] все задачи выше отмечены
+- [x] `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` + `type-budget` по всем пакетам)
+- [x] README затронутых пакетов обновлены, включая плашки статуса
+- [x] `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
+- [x] `yarn docs:audit` → 0 ERROR
+- [x] затронутые `examples/*` мигрированы, главы гайда пересверены с обновлённой датой в плашке «сверено с кодом»
+- [x] коммиты осмысленные, ветка `change/kernel-logger` запушена
