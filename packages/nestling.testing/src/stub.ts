@@ -12,6 +12,7 @@
  * тесте, а не в проде.
  */
 
+import { isExhausted } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import { asFamilyMember } from '@nestling/container';
 import type {
@@ -42,7 +43,6 @@ import {
   SchemaValidationError,
   Timeout,
 } from '@nestling/pipeline';
-import { isExhausted } from '@nestling/ports';
 
 /**
  * Стаб операции: пара `токен вызывателя → фейк`.

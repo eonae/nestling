@@ -38,6 +38,25 @@ import {
   jsonCodec,
 } from './wire.js';
 
+import type {
+  BusHandler,
+  BusMessageMeta,
+  BusSubscription,
+  IMessageBus,
+  PublishOptions,
+  RequestOptions,
+  SubscribeOptions,
+} from '@nestling/app';
+import {
+  BUS_TRANSPORT_NAME,
+  busBindingOf,
+  BusTransport$,
+  deadlineFromTimeout,
+  failureResponse,
+  isExhausted,
+  profileAttributes,
+  startBudget,
+} from '@nestling/app';
 import type { ConfigProjection } from '@nestling/config';
 import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, OnInit } from '@nestling/container';
@@ -55,25 +74,6 @@ import {
   makeEmptyContext,
   Timeout,
 } from '@nestling/pipeline';
-import type {
-  BusHandler,
-  BusMessageMeta,
-  BusSubscription,
-  IMessageBus,
-  PublishOptions,
-  RequestOptions,
-  SubscribeOptions,
-} from '@nestling/ports';
-import {
-  BUS_TRANSPORT_NAME,
-  busBindingOf,
-  BusTransport$,
-  deadlineFromTimeout,
-  failureResponse,
-  isExhausted,
-  profileAttributes,
-  startBudget,
-} from '@nestling/ports';
 import type {
   BusDeclaration,
   Dispatch,

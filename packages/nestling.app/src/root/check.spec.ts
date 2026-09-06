@@ -5,8 +5,10 @@
  * не выполнилось и какими ошибками падает то, что не сходится.
  */
 
+import { implement } from '../ports/index.js';
+import { wireApp } from '../testing/index.js';
+
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
-import { wireApp } from './testing/index.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
@@ -22,7 +24,6 @@ import {
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { makeEndpoint, makeFail, Ok } from '@nestling/pipeline';
-import { implement } from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
 import { z } from 'zod';

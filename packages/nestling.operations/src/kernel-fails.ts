@@ -117,8 +117,8 @@ export const PayloadTooLarge = makeFail('payload_too_large', {
  * Отказ по истечении срока: бюджет вызова порта (`meta.deadline`) или
  * молчание потока дольше `.gapTimeout(ms)`.
  *
- * Объявлен здесь, а не в `@nestling/ports`: набор кодов ядра закрыт и не
- * пополняется из других пакетов. `@nestling/ports` его реэкспортирует.
+ * Объявлен здесь, а не в `@nestling/app`: набор кодов ядра закрыт и не
+ * пополняется из других пакетов. `@nestling/app` его реэкспортирует.
  */
 export const Timeout = makeFail('timeout', {
   message: 'Operation timed out',

@@ -5,8 +5,8 @@ import { Logger$ } from '../../plugins/logging/index.js';
 
 import { QuotaService } from './quota.service.js';
 
+import { implement } from '@nestling/app';
 import { Injectable } from '@nestling/container';
-import { implement } from '@nestling/ports';
 
 @Injectable([QuotaService, Logger$])
 class ClaimQuotaHandler {

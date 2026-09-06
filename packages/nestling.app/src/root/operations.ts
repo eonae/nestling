@@ -6,6 +6,8 @@
  * ASSEMBLE, до открытия сокета.
  */
 
+import { busBindingOf } from '../ports/index.js';
+
 import type { EndpointDiscovery } from './discovery.js';
 import type { Bundle } from './feature.js';
 import { injectedTokens } from './feature.js';
@@ -17,7 +19,6 @@ import {
   lookupOperation,
   PortFamily,
 } from '@nestling/operations';
-import { busBindingOf } from '@nestling/ports';
 
 /** Операция в отчёте `check()` */
 export interface CheckedOperation {

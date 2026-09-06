@@ -11,12 +11,13 @@
  * топология, а не недостача.
  */
 
+import { busBindingOf } from '../ports/index.js';
+
 import type { Feature } from './feature.js';
 import { injectedTokens } from './feature.js';
 
 import { asFamilyMember } from '@nestling/container';
 import { EmitterFamily, PortFamily } from '@nestling/operations';
-import { busBindingOf } from '@nestling/ports';
 
 /**
  * Имена операций видов `request` и `command`, которые вызывает фича.

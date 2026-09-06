@@ -138,7 +138,7 @@ interface Assembled {
 
 /**
  * Мини-корень: те же шаги, что делает `App` в фазах ASSEMBLE и WIRE, но без
- * зависимости от `@nestling/app` (стрелка зависимостей идёт оттуда сюда).
+ * импорта каталога `root` (стрелка зависимостей идёт оттуда сюда).
  */
 async function assemble(options: {
   declarations?: readonly AnyEndpointDefinition[];

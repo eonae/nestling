@@ -10,6 +10,16 @@
  * fail-fast: ошибка сборки предшествует захвату любых ресурсов.
  */
 
+import type { OperationDescriptor } from '../ports/index.js';
+import {
+  bindPorts,
+  busBindingOf,
+  collectImplementations,
+  describeOperation,
+  portsKernel,
+  undurableOperations,
+} from '../ports/index.js';
+
 import { assertFeatureBoundary, buildOwnerMap } from './boundary.js';
 import type { EndpointDiscovery } from './discovery.js';
 import { discoverEndpoints, Discovery$ } from './discovery.js';
@@ -55,15 +65,6 @@ import {
   handlerClassOf,
   transportNameOf,
 } from '@nestling/pipeline';
-import type { OperationDescriptor } from '@nestling/ports';
-import {
-  bindPorts,
-  busBindingOf,
-  collectImplementations,
-  describeOperation,
-  portsKernel,
-  undurableOperations,
-} from '@nestling/ports';
 import type {
   Dispatch,
   ExecutableDeclaration,

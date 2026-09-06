@@ -3,9 +3,9 @@ import { SignupRecorded } from '../../operations.js';
 
 import { SignupJournal } from './signup.journal.js';
 
+import { implement, withIdempotencyKey } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { makePipeline } from '@nestling/pipeline';
-import { implement, withIdempotencyKey } from '@nestling/ports';
 
 @Injectable([SignupJournal])
 class SignupRecordedHandler {

@@ -19,9 +19,9 @@ import type {
   OpenApiPathItem,
 } from './types.js';
 
+import { busBindingOf } from '@nestling/app';
 import type { AnyEndpointDefinition } from '@nestling/pipeline';
 import { assertConverters, describeForm } from '@nestling/pipeline';
-import { busBindingOf } from '@nestling/ports';
 import type { HttpBinding } from '@nestling/transport.http';
 import { httpBindingOf, isHttpBinding } from '@nestling/transport.http';
 

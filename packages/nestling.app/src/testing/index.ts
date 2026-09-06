@@ -13,13 +13,17 @@
  * общему `AbortController`. Всё остальное — дело `@nestling/testing`.
  */
 
-import type { App } from '../app.js';
-import { AssembledApp, isApp } from '../app.js';
-import type { FeatureSelection } from '../feature.js';
-import type { TestSubstitutions, WiredApp } from '../plan.js';
-import { makePlan, TEST_SEAM } from '../plan.js';
+import type { App } from '../root/app.js';
+import { AssembledApp, isApp } from '../root/app.js';
+import type { FeatureSelection } from '../root/feature.js';
+import type { TestSubstitutions, WiredApp } from '../root/plan.js';
+import { makePlan, TEST_SEAM } from '../root/plan.js';
 
-export type { TestSubstitutions, WiredApp, WiredEndpoint } from '../plan.js';
+export type {
+  TestSubstitutions,
+  WiredApp,
+  WiredEndpoint,
+} from '../root/plan.js';
 
 /**
  * Опции тестового прогона: выбор фич и подстановки.

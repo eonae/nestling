@@ -1,8 +1,8 @@
 import type { Logger } from '../../plugins/logging/index.js';
 import { Logger$ } from '../../plugins/logging/index.js';
 
+import { implement } from '@nestling/app';
 import { Injectable } from '@nestling/container';
-import { implement } from '@nestling/ports';
 import {
   SubscriptionClosed,
   SubscriptionOpened,

@@ -162,7 +162,7 @@ function assertKey(key: string): void {
 
 /**
  * Реестр провозимых переменных: состояние модуля, как реестр операций в
- * `@nestling/ports`.
+ * `@nestling/app`.
  *
  * Множество провозимого известно из объявлений, а не из конфигурации, и
  * вызывающему порту нужно знать его целиком без инжекта. Два объявления с
@@ -184,7 +184,7 @@ export const propagatedKeys = (): readonly string[] => [
  *
  * @returns Объект «ключ: значение» или `undefined`, если провозить нечего
  *
- * @internal Единственный потребитель — порт из `@nestling/ports`
+ * @internal Единственный потребитель — порт из `@nestling/app`
  */
 export function collectPropagatedContext():
   | Record<string, unknown>

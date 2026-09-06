@@ -27,11 +27,11 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@common/misc": "workspace:*",
     "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
-    "@nestling/ports": "workspace:*",
     "@nestling/transport": "workspace:*"
   },
   "devDependencies": {

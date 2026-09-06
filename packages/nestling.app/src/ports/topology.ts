@@ -39,10 +39,10 @@ export interface OperationTopologyEntry {
 export type OperationTopology = ReadonlyMap<string, OperationTopologyEntry>;
 
 /**
- * Обнаруженная декларация — структурный вход, а не тип `@nestling/app`.
+ * Обнаруженная декларация — структурный вход, а не тип каталога `root`.
  *
- * Стрелка зависимостей идёт от корня к пакету, поэтому топология описывает
- * то, что ей нужно, сама: паттерн, биндинг и модуль-объявитель.
+ * Стрелка зависимостей идёт от корня к слою портов, поэтому топология
+ * описывает то, что ей нужно, сама: паттерн, биндинг и модуль-объявитель.
  */
 export interface DiscoveredDeclaration {
   readonly endpoint: { readonly pattern: string; readonly binding?: unknown };

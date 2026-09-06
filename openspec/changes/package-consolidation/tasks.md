@@ -17,12 +17,12 @@
 
 ## 3. `ports` в `@nestling/app`
 
-- [ ] 3.1 Собственный код `app` перенесён `git mv` из `src/*.ts` в `src/root/`, заведён баррель `src/root/index.ts`
-- [ ] 3.2 `packages/nestling.ports/src` перенесён в `packages/nestling.app/src/ports`
-- [ ] 3.3 Экспорты портов подняты в `src/index.ts`; дублирующий реэкспорт `Timeout` в слое портов удалён
-- [ ] 3.4 Импорты `@nestling/ports` переписаны на `@nestling/app` в `packages/`, `examples/`
-- [ ] 3.5 Каталог `packages/nestling.ports` удалён; манифесты потребителей обновлены
-- [ ] 3.6 `yarn verify` зелёный
+- [x] 3.1 Собственный код `app` перенесён `git mv` из `src/*.ts` в `src/root/`, заведён баррель `src/root/index.ts`
+- [x] 3.2 `packages/nestling.ports/src` перенесён в `packages/nestling.app/src/ports`
+- [x] 3.3 Экспорты портов подняты в `src/index.ts`; дублирующий реэкспорт `Timeout` в слое портов удалён
+- [x] 3.4 Импорты `@nestling/ports` переписаны на `@nestling/app` в `packages/`, `examples/`
+- [x] 3.5 Каталог `packages/nestling.ports` удалён; манифесты потребителей обновлены
+- [x] 3.6 `yarn verify` зелёный
 
 ## 4. `transport` в `@nestling/app`
 

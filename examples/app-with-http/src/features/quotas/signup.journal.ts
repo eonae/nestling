@@ -1,10 +1,10 @@
 import type { Logger } from '../../plugins/logging/index.js';
 import { Logger$ } from '../../plugins/logging/index.js';
 
+import { IdempotencyKey } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx } from '@nestling/pipeline';
-import { IdempotencyKey } from '@nestling/ports';
 
 /**
  * Журнал регистраций: читает ключ идемпотентности из контекста.

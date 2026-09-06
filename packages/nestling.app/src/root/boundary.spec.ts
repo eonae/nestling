@@ -10,6 +10,9 @@
  * значения деклараций.
  */
 
+import type { Port } from '../ports/index.js';
+import { implement } from '../ports/index.js';
+
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { buildOwnerMap } from './boundary.js';
@@ -21,8 +24,6 @@ import type { InjectionToken } from '@nestling/container';
 import { Injectable, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
-import type { Port } from '@nestling/ports';
-import { implement } from '@nestling/ports';
 import { transportValue } from '@nestling/transport';
 import { z } from 'zod';
 

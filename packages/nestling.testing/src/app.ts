@@ -15,7 +15,7 @@ import type { OperationStub } from './stub.js';
 import { stubbedOperations } from './stub.js';
 
 import type { App, FeatureSelection } from '@nestling/app';
-import { isApp } from '@nestling/app';
+import { busBindingOf, isApp, profileAttributes } from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
 import { wireApp } from '@nestling/app/testing';
 import type { InjectionToken } from '@nestling/container';
@@ -39,7 +39,6 @@ import type {
   ResponseContext,
 } from '@nestling/pipeline';
 import { makeEmptyContext, transportNameOf } from '@nestling/pipeline';
-import { busBindingOf, profileAttributes } from '@nestling/ports';
 import type { DispatchOptions } from '@nestling/transport';
 
 /**

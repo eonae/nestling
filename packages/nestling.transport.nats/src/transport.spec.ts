@@ -15,9 +15,9 @@ import { nats, NatsBus } from './transport.js';
 import { CONTEXT_HEADER, IDEMPOTENCY_HEADER, TIMEOUT_HEADER } from './wire.js';
 
 import { describe, expect, it } from '@jest/globals';
+import { BusTransport$, implement } from '@nestling/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { makeFail, makePipeline, Ok } from '@nestling/pipeline';
-import { BusTransport$, implement } from '@nestling/ports';
 import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 

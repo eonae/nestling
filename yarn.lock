@@ -1105,7 +1105,6 @@ __metadata:
     "@nestling/openapi.zod": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/ports": "workspace:*"
     "@nestling/subscriptions": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
@@ -1158,7 +1157,6 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/ports": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport.nats": "workspace:*"
     zod: "npm:^4.0.0"
@@ -1734,11 +1732,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/app@workspace:packages/nestling.app"
   dependencies:
+    "@common/misc": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1815,7 +1813,6 @@ __metadata:
     "@nestling/openapi.zod": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.cli": "workspace:*"
     "@nestling/transport.http": "workspace:*"
@@ -1847,21 +1844,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestling/ports@workspace:*, @nestling/ports@workspace:packages/nestling.ports":
-  version: 0.0.0-use.local
-  resolution: "@nestling/ports@workspace:packages/nestling.ports"
-  dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/config": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/pipeline": "workspace:*"
-    "@nestling/transport": "workspace:*"
-    typescript: "npm:5.7.3"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
 "@nestling/subscriptions@workspace:*, @nestling/subscriptions@workspace:packages/nestling.subscriptions":
   version: 0.0.0-use.local
   resolution: "@nestling/subscriptions@workspace:packages/nestling.subscriptions"
@@ -1871,7 +1853,6 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/ports": "workspace:*"
     "@nestling/testing": "workspace:*"
     "@nestling/transport": "workspace:*"
     typescript: "npm:5.7.3"
@@ -1888,7 +1869,6 @@ __metadata:
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
     "@nestling/transport.http": "workspace:*"
     typescript: "npm:5.7.3"
@@ -1930,11 +1910,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/transport.nats@workspace:packages/nestling.transport.nats"
   dependencies:
+    "@nestling/app": "workspace:*"
     "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
-    "@nestling/ports": "workspace:*"
     "@nestling/transport": "workspace:*"
     nats: "npm:^2.29.3"
     typescript: "npm:5.7.3"

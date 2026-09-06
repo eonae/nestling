@@ -9,6 +9,14 @@
  * WIRE и обе политики диспатча — переключаемые конфигом, а не кодом.
  */
 
+import type { Port } from '../ports/index.js';
+import {
+  BusTransport$,
+  implement,
+  InProcessBus,
+  portsConfigKeys,
+} from '../ports/index.js';
+
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
@@ -20,13 +28,6 @@ import { Injectable, makeToken, OnInit, OnStart } from '@nestling/container';
 import { makeEvent, makeRequest } from '@nestling/operations';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import { makeEmptyContext, Ok } from '@nestling/pipeline';
-import type { Port } from '@nestling/ports';
-import {
-  BusTransport$,
-  implement,
-  InProcessBus,
-  portsConfigKeys,
-} from '@nestling/ports';
 import type { ITransport } from '@nestling/transport';
 import { transportValue } from '@nestling/transport';
 import { z } from 'zod';

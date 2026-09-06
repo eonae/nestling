@@ -6,6 +6,9 @@
  * наружу и через какой интерком.
  */
 
+import type { Port } from '../ports/index.js';
+import { BusTransport$, implement, InProcessBus } from '../ports/index.js';
+
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
@@ -15,8 +18,6 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { Injectable, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
-import type { Port } from '@nestling/ports';
-import { BusTransport$, implement, InProcessBus } from '@nestling/ports';
 import { transportValue } from '@nestling/transport';
 import { z } from 'zod';
 

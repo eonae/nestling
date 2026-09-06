@@ -18,12 +18,11 @@ import { SubscriptionRegistry } from './registry.js';
 import type { SubscriptionEvent } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, makeFeature } from '@nestling/app';
+import { implement, makeApp, makeFeature } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { events, Ok } from '@nestling/operations';
 import type { Output } from '@nestling/pipeline';
 import { compose, makeEndpoint, makePipeline } from '@nestling/pipeline';
-import { implement } from '@nestling/ports';
 import { assembleTest } from '@nestling/testing';
 import { z } from 'zod';
 

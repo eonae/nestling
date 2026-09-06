@@ -28,7 +28,7 @@
     "@nestling/pipeline": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/ports": "workspace:*",
+    "@nestling/app": "workspace:*",
     "@nestling/testing": "workspace:*",
     "@nestling/transport": "workspace:*",
     "typescript": "5.7.3",

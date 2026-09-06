@@ -42,7 +42,7 @@ export { unwrap, UnwrapFailedError } from './unwrap.js';
 export type { CheckOptions, CheckReport } from '@nestling/app';
 
 /**
- * Снапшот и дифф операций — реэкспорт из `@nestling/ports`.
+ * Снапшот и дифф операций — реэкспорт из `@nestling/app`.
  *
  * CI-тест матрицы («собери снапшот, сравни с baseline, напечатай отчёт»)
  * пишется одним импортом: топологии, сведение и сравнение живут в разных
@@ -53,7 +53,7 @@ export {
   formatCompatibility,
   serializeSnapshot,
   snapshotOperations,
-} from '@nestling/ports';
+} from '@nestling/app';
 export type {
   CompatibilityChange,
   CompatibilityReport,
@@ -61,7 +61,7 @@ export type {
   OperationDescriptor,
   OperationSnapshot,
   SnapshotOperation,
-} from '@nestling/ports';
+} from '@nestling/app';
 
 /** Интерфейс вендор-конвертера: его принимает `checkTopologies` */
 export type { SchemaDocConverter } from '@nestling/pipeline';

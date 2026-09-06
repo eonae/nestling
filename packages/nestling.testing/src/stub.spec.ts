@@ -12,13 +12,12 @@ import { stub } from './stub.js';
 import { testUnit } from './unit.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, makeFeature } from '@nestling/app';
+import type { Emitter, Port } from '@nestling/app';
+import { implement, makeApp, makeFeature } from '@nestling/app';
 import { Injectable, makeToken } from '@nestling/container';
 import type { CommandMeta, PortMeta } from '@nestling/operations';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { InternalError, makeFail, Ok } from '@nestling/pipeline';
-import type { Emitter, Port } from '@nestling/ports';
-import { implement } from '@nestling/ports';
 import { z } from 'zod';
 
 /** Квота исчерпана — задекларированный отказ операции */

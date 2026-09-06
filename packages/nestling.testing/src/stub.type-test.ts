@@ -15,10 +15,10 @@ import type { EmitDelivery } from './app.js';
 import { assembleTest } from './app.js';
 import { stub } from './stub.js';
 
+import type { Port, PortResult } from '@nestling/app';
 import { makeApp } from '@nestling/app';
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import { makeFail, Ok } from '@nestling/pipeline';
-import type { Port, PortResult } from '@nestling/ports';
 import { z } from 'zod';
 
 type Equal<A, B> =

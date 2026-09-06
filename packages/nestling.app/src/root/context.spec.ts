@@ -7,7 +7,8 @@
  * `valueProvider`.
  */
 
-import { wireApp } from './testing/index.js';
+import { wireApp } from '../testing/index.js';
+
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';

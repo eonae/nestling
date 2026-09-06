@@ -32,6 +32,6 @@ export * from './streams/index.js';
 /**
  * Из реестра имён экспортируется только чтение. `registerOperation`
  * вызывает один `makeRequest`; `lookupOperation` нужен рецептам семейств в
- * `@nestling/ports`, которые получают параметром имя операции.
+ * `@nestling/app`, которые получают параметром имя операции.
  */
 export { lookupOperation } from './registry.js';
