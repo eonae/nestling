@@ -344,9 +344,8 @@ export const UsersModule = makeModule({
   name: 'module:users',
   providers: [
     Database,
-    DbUsersRepository,
+    classProvider(UsersRepository$, DbUsersRepository),
     ActivityHub,
-    ExportUsersHandler,
     AuditDeletion,
     VerifySignature,
   ],

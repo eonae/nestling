@@ -229,7 +229,7 @@ describe('SubscriptionRegistry: лента', () => {
     });
   });
 
-  it('завершает наблюдателей на @OnDestroy без ошибки', async () => {
+  it('завершает наблюдателей освобождением без ошибки', async () => {
     const registry = new SubscriptionRegistry();
     const feed = registry.watch();
 
