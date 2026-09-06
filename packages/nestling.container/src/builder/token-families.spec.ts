@@ -250,7 +250,6 @@ describe('ошибки создания членов', () => {
     const builder = new ContainerBuilder()
       .register(
         familyProvider(ILogger, () => {
-          // eslint-disable-next-line @typescript-eslint/only-throw-error
           throw 'not an error';
         }),
       )

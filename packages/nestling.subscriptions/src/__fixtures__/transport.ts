@@ -35,7 +35,6 @@ export class TestTransport implements ITransport {
   dispatch?: Dispatch;
   signal?: AbortSignal;
 
-
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
     this.dispatch = dispatch;
     this.signal = signal;

@@ -5,7 +5,7 @@ import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
 import type { Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import type { FilePart } from '@nestling/operations';
 import { multipart, upload } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -18,7 +18,7 @@ const AvatarFields = z.object({ id: z.string() });
 
 type AvatarFields = z.infer<typeof AvatarFields>;
 
-@Injectable([UsersRepository$])
+@Handler([UsersRepository$])
 export class UploadAvatarHandler {
   constructor(private readonly users: UsersRepository) {}
 

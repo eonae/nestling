@@ -14,7 +14,7 @@ import { ClaimQuota, RegisterUser, UserRegistered } from './operations.js';
 
 import type { Emitter, Port } from '@nestling/app';
 import { implement, makeFeature, makePipeline } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Component, Handler } from '@nestling/container';
 
 /**
  * Регистрирует пользователей.
@@ -23,7 +23,7 @@ import { Injectable } from '@nestling/container';
  * фичи. Вызов `this.quotas.call(...)` выглядит одинаково, когда владелец
  * работает в этом же процессе и когда он в другом.
  */
-@Injectable([ClaimQuota.caller, UserRegistered.emitter])
+@Component([ClaimQuota.caller, UserRegistered.emitter])
 export class RegistrationService {
   constructor(
     private readonly quotas: Port<typeof ClaimQuota>,
@@ -46,7 +46,7 @@ export class RegistrationService {
   }
 }
 
-@Injectable([RegistrationService])
+@Handler([RegistrationService])
 class RegisterUserHandler {
   constructor(private readonly registration: RegistrationService) {}
 

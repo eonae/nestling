@@ -13,7 +13,7 @@ import { ClaimQuota, QuotaExceeded, UserRegistered } from './operations.js';
 
 import type { CtxReader } from '@nestling/app';
 import { Ctx, implement, makeFeature, makePipeline } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Component, Handler } from '@nestling/container';
 
 /**
  * Учёт квот по арендаторам: сколько мест занято и кто заархивирован.
@@ -22,7 +22,7 @@ import { Injectable } from '@nestling/container';
  * запроса ридером `Ctx(TenantId)`. Значение в контекст кладёт юнит
  * `TenantId.propagated()` в пайплайне реализации.
  */
-@Injectable([Ctx(TenantId)])
+@Component([Ctx(TenantId)])
 export class QuotaLedger {
   readonly limit = 100;
   readonly used = new Map<string, number>();
@@ -50,7 +50,7 @@ export class QuotaLedger {
   }
 }
 
-@Injectable([QuotaLedger])
+@Handler([QuotaLedger])
 class ClaimQuotaHandler {
   constructor(private readonly ledger: QuotaLedger) {}
 
@@ -63,7 +63,7 @@ class ClaimQuotaHandler {
   }
 }
 
-@Injectable([QuotaLedger])
+@Handler([QuotaLedger])
 class UserRegisteredInArchiveHandler {
   constructor(private readonly ledger: QuotaLedger) {}
 

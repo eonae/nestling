@@ -29,14 +29,12 @@ import {
   makeFeature,
   makePipeline,
   Ok,
-  RootLogger$,
   transportValue,
 } from '@nestling/app';
 import {
   factoryProvider,
   makeToken,
   resourceProvider,
-  valueProvider,
 } from '@nestling/container';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { StandardSchemaV1 } from '@nestling/operations';
@@ -289,6 +287,7 @@ describe('openapi(...) — плагин-издатель', () => {
     });
 
     let acquired = false;
+    let released = false;
 
     const Pool$ = makeToken<{ open: true }>('Pool');
     const pool = resourceProvider(Pool$, {
@@ -298,7 +297,9 @@ describe('openapi(...) — плагин-издатель', () => {
 
         return { open: true as const };
       },
-      release: () => {},
+      release: () => {
+        released = true;
+      },
     });
 
     const transport = new SpyTransport();
@@ -319,8 +320,10 @@ describe('openapi(...) — плагин-издатель', () => {
     await expect(app.run()).rejects.toThrow(/cannot be documented/);
 
     // Документ строит провайдер, а провайдеры выполняются на INIT: старт
-    // падает до приёма запросов, но после захвата ресурсов графа
+    // падает до приёма запросов, но после захвата ресурсов графа —
+    // поэтому захваченное освобождается откатом
     expect(acquired).toBe(true);
+    expect(released).toBe(true);
     expect(transport.serving).toBe(false);
 
     await app.close();

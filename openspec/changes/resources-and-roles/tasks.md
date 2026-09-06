@@ -85,7 +85,7 @@
 - [x] 6.1 `@nestling/openapi`: классы на `@Component`/`@Handler`
 - [x] 6.2 `@nestling/subscriptions`: слои на `@Component`, реестр с
       `@OnDestroy` → ресурс с `release`
-- [ ] 6.3 `@nestling/testing`: `assembleTest`, `stub`, фикстуры и
+- [x] 6.3 `@nestling/testing`: `assembleTest`, `stub`, фикстуры и
       документация методов
 - [x] 6.4 `@nestling/app`: kernel-модули (логгер, конфиг, порты, контекст)
       на новые декораторы
