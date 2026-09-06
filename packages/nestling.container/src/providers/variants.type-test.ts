@@ -50,7 +50,7 @@ const pool = resourceProvider(Connection, {
 /** Сигнал в списке зависимостей не объявляется: он приходит сам */
 const wrongDeps = resourceProvider(Connection, {
   deps: [Dsn, Dsn] as const,
-  // @ts-expect-error токенов два, поэтому `acquire` принимает три аргумента
+  // @ts-expect-error DI-токенов два, поэтому `acquire` принимает три аргумента
   acquire: (dsn: string, signal: AbortSignal) => connect(dsn),
   release: () => {},
 });

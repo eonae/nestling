@@ -8,7 +8,7 @@ export interface Counter {
 }
 
 /**
- * Семейство токенов счётчиков: `Counter$('users')` — токен `Counter:users`.
+ * Семейство DI-токенов счётчиков: `Counter$('users')` — DI-токен `Counter:users`.
  *
  * Рецепт на всё семейство поставляет плагин `appCounters`; контейнер
  * создаёт только те члены, которые кто-то запросил в `deps`.

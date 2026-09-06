@@ -54,7 +54,7 @@ export const Feed = httpEndpoint({
   },
 });
 
-// 3. Реестр: обычный singleton, инжектируется обычным токеном
+// 3. Реестр: обычный singleton, инжектируется обычным DI-токеном
 export const ListSubscriptions = httpEndpoint({
   method: 'GET',
   path: '/api/ops/subscriptions',
@@ -174,7 +174,7 @@ type CloseReason = Outcome | 'killed';
 |---|---|
 | `subscriptions(options)` | фабрика плагина |
 | `tracked` | слой пайплайна, который регистрирует подписку |
-| `SubscriptionRegistry` | реестр и его токен |
+| `SubscriptionRegistry` | реестр и его DI-токен |
 | `SubscriptionOpened`, `SubscriptionClosed` | `event`-операции фактов |
 | `SubscriptionKilledError` | ошибка, с которой закрывается подписка после `abort` |
 | `SubscriptionInfo`, `SubscriptionFilter`, `SubscriptionEvent`, `CloseReason`, `SubscriptionKind`, `TrackedSubscription` | типы модели |

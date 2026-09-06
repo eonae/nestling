@@ -17,7 +17,7 @@ export interface UsersRepository {
 }
 
 /**
- * Токен хранилища. Endpoint'ы зависят от него, а не от класса, поэтому
+ * DI-токен хранилища. Endpoint'ы зависят от него, а не от класса, поэтому
  * тест подменяет хранилище одной строкой в `overrides`.
  */
 export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
@@ -28,7 +28,7 @@ export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
  * `Ctx(RequestId)` читает идентификатор запроса из контекста: в лог он
  * попадает без передачи параметром. Значение кладёт слой `observability`.
  *
- * Привязку к токену интерфейса записывает `classProvider(UsersRepository$,
+ * Привязку к DI-токену интерфейса записывает `classProvider(UsersRepository$,
  * DbUsersRepository)` в `providers:` фичи.
  */
 @Component([Database, Logger$.auto, Ctx(RequestId)])

@@ -98,7 +98,7 @@ describe('корневой логгер вне графа', () => {
       builder.register(
         factoryProvider(RootLogger$, () => spyLogger().logger, []),
       ),
-    ).toThrow(/Provider for token 'RootLogger' is already registered/);
+    ).toThrow(/Provider for DI token 'RootLogger' is already registered/);
   });
 
   it('логгер приложения заменяет корень целиком', async () => {

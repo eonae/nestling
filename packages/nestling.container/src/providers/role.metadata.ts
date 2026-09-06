@@ -14,7 +14,7 @@ export interface RoleMetadata {
   /** Роль класса */
   role: ClassRole;
   /**
-   * Токены зависимостей. У компонента и хендлера они приходят в
+   * DI-токены зависимостей. У компонента и хендлера они приходят в
    * конструктор, у ресурса — в `static acquire` перед сигналом.
    */
   dependencies: InjectionToken[];

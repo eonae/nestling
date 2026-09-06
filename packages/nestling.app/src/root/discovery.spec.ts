@@ -16,7 +16,7 @@ import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
 import { z } from 'zod';
 
-/** Токены транспортов фикстур: ссылка декларации — значение, а не строка */
+/** DI-токены транспортов фикстур: ссылка декларации — значение, а не строка */
 const Http$ = makeToken('transport:http') as TransportRef;
 const Cli$ = makeToken('transport:cli') as TransportRef;
 
@@ -47,7 +47,7 @@ describe('discoverEndpoints', () => {
       moduleName: 'users',
     });
 
-    // Транспорт и паттерн читаются с самой декларации; транспорт — токен
+    // Транспорт и паттерн читаются с самой декларации; транспорт — DI-токен
     expect(transportNameOf(endpoints[0].endpoint.transport)).toBe('test');
     expect(endpoints[0].endpoint.pattern).toBe('GET /users/:id');
   });
@@ -120,7 +120,7 @@ describe('discoverEndpoints', () => {
 
     const { transports } = discoverEndpoints([Mixed]);
 
-    // Ключ карты — токен транспорта, а не его строковое имя
+    // Ключ карты — DI-токен транспорта, а не его строковое имя
     expect(new Set(transports.keys())).toEqual(new Set([Cli$, Http$]));
     expect(transports.get(Http$)).toHaveLength(2);
     expect(transports.get(Cli$)).toHaveLength(1);

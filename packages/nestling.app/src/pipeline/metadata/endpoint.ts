@@ -23,21 +23,21 @@ import type { InjectionToken, Token } from '@nestling/container';
 import { tokenId } from '@nestling/container';
 
 /**
- * Токен транспорта, который обслуживает декларацию.
+ * DI-токен транспорта, который обслуживает декларацию.
  *
  * Здесь тип не уточнён (`Token<any>`): `ITransport` живёт в
  * `@nestling/app`, который сам зависит от этого пакета. Уточнённый
  * `Token<ITransport>` объявляет транспортный пакет
  * (`TransportToken`). Строковое имя транспорта для `Raw` и `EndpointMeta`
- * выводится из id токена функцией `transportNameOf`.
+ * выводится из id DI-токена функцией `transportNameOf`.
  */
 export type TransportRef = Token<any>;
 
 /**
- * Возвращает имя транспорта из id его токена.
+ * Возвращает имя транспорта из id его DI-токена.
  *
- * Токены транспортов называются `transport:http`: префикс отличает их от
- * пользовательских токенов в графе, а слоям пайплайна нужно короткое
+ * DI-токены транспортов называются `transport:http`: префикс отличает их от
+ * пользовательских DI-токенов в графе, а слоям пайплайна нужно короткое
  * `'http'`. У именованного экземпляра к имени добавляется его собственное
  * (`'http:admin'`); экземпляр по умолчанию называется как вид транспорта,
  * поэтому приложение с одним HTTP про имена не пишет ни строки.
@@ -53,11 +53,11 @@ export const transportNameOf = (ref: TransportRef): string => {
     : named;
 };
 
-/** Префикс id транспортного токена */
+/** Префикс id транспортного DI-токена */
 const TRANSPORT_PREFIX = 'transport:';
 
 /**
- * Хвост id токена экземпляра по умолчанию.
+ * Хвост id DI-токена экземпляра по умолчанию.
  *
  * Имя экземпляра по умолчанию объявляет `@nestling/app`, который
  * зависит от этого пакета; здесь оно повторено строкой, чтобы зависимость
@@ -75,7 +75,7 @@ const DEFAULT_SUFFIX = ':default';
 const ENDPOINT_BRAND = Symbol.for('nestling:endpoint');
 
 /**
- * Функция, которая по токену (строке или классу) возвращает инстанс.
+ * Функция, которая по DI-токену (строке или классу) возвращает инстанс.
  *
  * Под `App` это обёртка над контейнером; в тестах — любая функция.
  */
@@ -122,7 +122,7 @@ export interface EndpointDefinition<
   P extends AnyInput = AnyInput,
   TNeeds = never,
 > {
-  /** Токен транспорта, обслуживающего endpoint (см. {@link TransportRef}) */
+  /** DI-токен транспорта, обслуживающего endpoint (см. {@link TransportRef}) */
   readonly transport: TransportRef;
   readonly pattern: string;
 
@@ -232,7 +232,7 @@ export interface EndpointOptions<
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
 > {
-  /** Токен транспорта: его проставляет транспортный конструктор */
+  /** DI-токен транспорта: его проставляет транспортный конструктор */
   transport: TransportRef;
   pattern: string;
 
@@ -340,7 +340,7 @@ interface EndpointState {
   handle?: AnyHandler;
 }
 
-/** Имя токена для текстов ошибок */
+/** Имя DI-токена для текстов ошибок */
 function describeToken(token: unknown): string {
   if (typeof token === 'function' && token.name) {
     return token.name;
@@ -689,7 +689,7 @@ export function handlerClassOf(
  * @example
  * ```typescript
  * const Ping = makeEndpoint({
- *   transport: HttpTransport$,          // токен транспорта, не строка
+ *   transport: HttpTransport$,          // DI-токен транспорта, не строка
  *   pattern: 'GET /ping',
  *   output: PingOutput,
  *   pipeline: basePipeline,

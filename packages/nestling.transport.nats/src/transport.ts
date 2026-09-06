@@ -2,7 +2,7 @@
  * `NatsBus` — шина приложения на брокере: снаружи `IMessageBus`, изнутри
  * `ITransport`.
  *
- * Использует ту же форму и тот же токен (`BusTransport$`), что и
+ * Использует ту же форму и тот же DI-токен (`BusTransport$`), что и
  * `InProcessBus`: брокер не добавляется к in-proc шине, а заменяет её.
  *
  * Фазы жизненного цикла:
@@ -170,7 +170,7 @@ export interface NatsBusOptions extends NatsTransportOptions {
 /**
  * Шина приложения на NATS.
  *
- * Регистрируется фабрикой {@link nats} под токеном `BusTransport$` — тем
+ * Регистрируется фабрикой {@link nats} под DI-токеном `BusTransport$` — тем
  * же, которым пользуется in-proc шина. Ни одна декларация `implement(...)`,
  * ни одна операция и ни один call-site при подключении не меняются: это и
  * есть уровень L4.

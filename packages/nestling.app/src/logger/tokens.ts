@@ -15,7 +15,7 @@ import { makeToken, makeTokenFamily } from '@nestling/container';
  *
  * Kernel-модуль объявляет под ним `ConsoleLogger` умолчанием; провайдер
  * приложения заменяет умолчание без ошибки дубля. Провайдер под этим
- * токеном не может зависеть от `Logger$(x)`: это цикл, и сборка назовёт
+ * DI-токеном не может зависеть от `Logger$(x)`: это цикл, и сборка назовёт
  * его путь.
  */
 export const RootLogger$ = makeToken<Logger>('RootLogger');

@@ -74,10 +74,10 @@ const toField = (prefix: string, name: string, leaf: unknown): SectionField => {
 };
 
 /**
- * Строит декларацию и её токен.
+ * Строит декларацию и её DI-токен.
  *
- * Токен — сам член семейства `ConfigSection`, на который дописан `.keys`.
- * Инжект токена и упоминание члена — одно и то же ребро графа, потому что
+ * DI-токен — сам член семейства `ConfigSection`, на который дописан `.keys`.
+ * Инжект DI-токена и упоминание члена — одно и то же ребро графа, потому что
  * это одно и то же значение.
  */
 const declare = <R extends ConfigRecord, P extends string, Values>(
@@ -110,8 +110,8 @@ const declare = <R extends ConfigRecord, P extends string, Values>(
 
   registerSection(declaration);
 
-  // Токен секции и член семейства — одно значение: рецепт семейства
-  // создаёт узел ровно для того токена, который стоит в `deps`
+  // DI-токен секции и член семейства — одно значение: рецепт семейства
+  // создаёт узел ровно для того DI-токена, который стоит в `deps`
   const token = ConfigSection(prefix);
 
   Object.defineProperty(token, 'keys', { value: keys, enumerable: true });
@@ -124,7 +124,7 @@ const declare = <R extends ConfigRecord, P extends string, Values>(
  *
  * @param prefix - Префикс имён ключей (`'orders'` → `ORDERS_*`)
  * @param record - Рекорд полей; лист — любая Standard Schema v1 или `from()`
- * @returns Токен секции; наружу из пакета отдают только `.keys`
+ * @returns DI-токен секции; наружу из пакета отдают только `.keys`
  *
  * @example
  * ```typescript

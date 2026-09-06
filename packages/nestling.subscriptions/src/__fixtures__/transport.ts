@@ -22,7 +22,7 @@ const STREAMING: TransportCapabilities = {
   output: new Set(['value', 'stream', 'events']),
 };
 
-/** Токен транспорта тестов */
+/** DI-токен транспорта тестов */
 export const TestTransport$: Token<ITransport> =
   makeToken<ITransport>('transport:test');
 

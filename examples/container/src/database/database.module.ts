@@ -10,7 +10,7 @@ export const DatabaseModule = makeModule({
   name: 'module:database',
   providers: [
     classProvider(Database$, InMemoryDatabase),
-    // Вклад в семейство: обычный провайдер с членским токеном
+    // Вклад в семейство: обычный провайдер с членским DI-токеном
     classProvider(HealthCheck('database'), DatabaseHealthCheck),
   ],
 });

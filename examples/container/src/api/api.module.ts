@@ -16,7 +16,7 @@ import {
 export const ApiModule = makeModule({
   name: 'module:api',
   providers: [
-    // Фабрика получает зависимости позиционно, в порядке массива токенов
+    // Фабрика получает зависимости позиционно, в порядке массива DI-токенов
     factoryProvider(
       ApiClient$,
       (config: Config<typeof AppConfig>, logger: Logger): ApiClient => {

@@ -122,11 +122,11 @@ export interface ReloadableConfig<R extends ConfigRecord> {
 }
 
 /**
- * Токен секции — право инжекта.
+ * DI-токен секции — право инжекта.
  *
  * Это сам член семейства `ConfigSection`, на который дописан `.keys`:
  * инжект секции и упоминание члена — одно и то же ребро графа, потому что
- * это один и тот же токен.
+ * это один и тот же DI-токен.
  */
 export interface ConfigSectionToken<Values, Prefix extends string = string>
   extends Token<Values> {
@@ -161,7 +161,7 @@ export interface SectionDeclaration {
   readonly reloadable: boolean;
   /** Поля в порядке объявления */
   readonly fields: readonly SectionField[];
-  /** Хэндл ключей — то же значение, что лежит на `.keys` токена */
+  /** Хэндл ключей — то же значение, что лежит на `.keys` DI-токена */
   readonly keys: ConfigKeys;
   /**
    * Секция создана графом, то есть кто-то её инжектнул.

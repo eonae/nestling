@@ -46,7 +46,7 @@ const isThenable = (value: unknown): value is PromiseLike<unknown> =>
  * конструктором, значением, фабрикой или `await acquire`.
  */
 export class DINode implements INode<DINode> {
-  /** Идентификатор токена в строковой форме */
+  /** Идентификатор DI-токена в строковой форме */
   readonly id: string;
   /** Провайдер узла */
   readonly provider: ProviderDefinition;

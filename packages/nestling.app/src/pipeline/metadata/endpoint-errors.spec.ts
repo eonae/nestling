@@ -16,7 +16,7 @@ import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
 import { z } from 'zod';
 
-/** Токен транспорта фикстур: декларация ссылается на транспорт значением */
+/** DI-токен транспорта фикстур: декларация ссылается на транспорт значением */
 const HttpTransport$ = makeToken('transport:http');
 
 const OrderLimitReached = makeFail('conflict:order_limit_reached', {

@@ -7,8 +7,8 @@ interface ILogger {
   scope: string;
 }
 
-describe('идентичность токена', () => {
-  it('два вызова makeToken с одним id дают разные токены', () => {
+describe('идентичность DI-токена', () => {
+  it('два вызова makeToken с одним id дают разные DI-токены', () => {
     const first = makeToken<ILogger>('ILogger');
     const second = makeToken<ILogger>('ILogger');
 
@@ -66,7 +66,9 @@ describe('идентичность токена', () => {
     expect(container.getOrThrow(first)).toBe('left');
     expect(container.getOrThrow(second)).toBe('right');
     expect(container.warnings).toHaveLength(1);
-    expect(container.warnings[0]).toContain('ambiguous token ids: Duplicated');
+    expect(container.warnings[0]).toContain(
+      'ambiguous DI token ids: Duplicated',
+    );
     expect(Object.isFrozen(container.warnings)).toBe(true);
 
     // Адреса разошлись, поэтому отчёт остаётся читаемым и в этом случае

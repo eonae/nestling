@@ -88,7 +88,7 @@ describe('состав агрегата', () => {
       constructor(readonly checks: readonly HealthCheck[]) {}
     }
 
-    // Токен создан, но от него никто не зависит и провайдера у него нет.
+    // DI-токен создан, но от него никто не зависит и провайдера у него нет.
     const orphan = IHealthCheck('orphan');
 
     const container = new ContainerBuilder()
@@ -451,7 +451,7 @@ describe('агрегат и модули', () => {
   });
 });
 
-describe('токен агрегата зарезервирован', () => {
+describe('DI-токен агрегата зарезервирован', () => {
   it('отклоняет провайдер для .all, зарегистрированный вручную', () => {
     const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
       'ReservedCheck',
@@ -460,7 +460,7 @@ describe('токен агрегата зарезервирован', () => {
     const builder = new ContainerBuilder();
 
     expect(() => builder.register(valueProvider(IHealthCheck.all, []))).toThrow(
-      /'ReservedCheck.all' is reserved for the aggregate node of token family 'ReservedCheck'/,
+      /'ReservedCheck.all' is reserved for the aggregate node of DI token family 'ReservedCheck'/,
     );
   });
 

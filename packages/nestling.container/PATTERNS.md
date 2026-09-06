@@ -23,7 +23,7 @@
 @Inject(SOME_STRING_OR_SYMBOL) readonly service: ISomeInterface
 ```
 
-`SOME_STRING_OR_SYMBOL` здесь — токен. В Nestling токен создаётся
+`SOME_STRING_OR_SYMBOL` здесь — DI-токен. В Nestling DI-токен создаётся
 функцией `makeToken<ISomeInterface>('SomeInterface')`.
 
 ## DI: внедрение зависимостей

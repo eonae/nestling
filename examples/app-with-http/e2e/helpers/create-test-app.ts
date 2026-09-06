@@ -9,7 +9,7 @@ import {
   HttpTransport$,
 } from '@nestling/transport.http';
 
-/** Токен, который e2e-тесты передают в заголовке `authorization` */
+/** Bearer-токен, который e2e-тесты передают в заголовке `authorization` */
 export const E2E_TOKEN = 'e2e-token';
 
 /** Секрет, которым e2e-тесты подписывают webhook */

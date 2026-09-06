@@ -6,7 +6,7 @@
  * (`@nestling/app`), `AbortSignal`, DI (`@nestling/container`),
  * `Topic` (`@nestling/operations`) и операции (`@nestling/operations`).
  *
- * Наружу уходят четыре вещи: реестр (токен и его API), слой `tracked`,
+ * Наружу уходят четыре вещи: реестр (DI-токен и его API), слой `tracked`,
  * фабрика модуля и типы модели — плюс две `event`-операции, которыми
  * пакет публикует факты жизненного цикла.
  *

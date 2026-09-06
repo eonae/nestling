@@ -20,7 +20,7 @@ import type { Token } from '@nestling/container';
 import { makeToken } from '@nestling/container';
 import { z } from 'zod';
 
-/** Токен транспорта фикстур: декларация ссылается на транспорт значением */
+/** DI-токен транспорта фикстур: декларация ссылается на транспорт значением */
 const HttpTransport$ = makeToken('transport:http');
 
 // ============================================================================
@@ -296,8 +296,8 @@ describe('makeEndpoint — бренд', () => {
   });
 });
 
-describe('ссылка на транспорт — токен', () => {
-  it('декларация несёт именно токен, а имя выводится из его id', () => {
+describe('ссылка на транспорт — DI-токен', () => {
+  it('декларация несёт именно DI-токен, а имя выводится из его id', () => {
     const Ping = makeEndpoint({
       transport: HttpTransport$,
       pattern: 'GET /ping',
@@ -308,7 +308,7 @@ describe('ссылка на транспорт — токен', () => {
     expect(transportNameOf(Ping.transport)).toBe('http');
   });
 
-  it('два транспорта различимы по токену, а не по имени', () => {
+  it('два транспорта различимы по DI-токену, а не по имени', () => {
     const Cli$ = makeToken('transport:cli');
 
     const Command = makeEndpoint({
@@ -321,7 +321,7 @@ describe('ссылка на транспорт — токен', () => {
     expect(transportNameOf(Command.transport)).toBe('cli');
   });
 
-  it('токен без префикса остаётся своим же именем', () => {
+  it('DI-токен без префикса остаётся своим же именем', () => {
     expect(transportNameOf(makeToken('bus'))).toBe('bus');
   });
 });

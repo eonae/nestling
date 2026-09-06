@@ -46,7 +46,7 @@ describe('логгер корня', () => {
   it('опция logger принимает записи фаз 0–1 и фазы RUN', async () => {
     const probe = loggerProbe();
 
-    // Два разных токена с одним идентификатором — повод для предупреждения
+    // Два разных DI-токена с одним идентификатором — повод для предупреждения
     // контейнера на фазе 1
     const First$ = makeToken<string>('Ambiguous');
     const Second$ = makeToken<string>('Ambiguous');
@@ -65,9 +65,9 @@ describe('логгер корня', () => {
 
     // Предупреждение сборки — фаза 1, строка состава — фаза RUN, и оба в
     // одном логгере
-    expect(messages.some((text) => text.includes('ambiguous token ids'))).toBe(
-      true,
-    );
+    expect(
+      messages.some((text) => text.includes('ambiguous DI token ids')),
+    ).toBe(true);
     expect(messages.some((text) => text.startsWith('features:'))).toBe(true);
   });
 

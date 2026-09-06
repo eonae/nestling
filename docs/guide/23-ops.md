@@ -110,9 +110,9 @@ export const ActivityStream = httpEndpoint({
 
 ## Endpoint'ы эксплуатации
 
-Реестр инжектируется обычным токеном `SubscriptionRegistry`. Endpoint'ы
-лежат в фиче `ops`: у неё нет своих провайдеров, наблюдаемость,
-аутентификация и реестр приходят плагинами.
+Реестр инжектируется обычным DI-токеном `SubscriptionRegistry`.
+Endpoint'ы лежат в фиче `ops`: у неё нет своих провайдеров,
+наблюдаемость, аутентификация и реестр приходят плагинами.
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscriptions.endpoint.ts
@@ -169,7 +169,8 @@ export const KillSubscription = httpEndpoint({
 `false`, если записи нет. Запись из реестра при этом не удаляется: её
 снимет `.finally` слоя `tracked`, когда поток действительно закроется.
 Реестр отражает факт, а не опережает его. Endpoint стоит под слоем
-`authed`: удалять чужие подписки может только тот, кто предъявил токен.
+`authed`: удалять чужие подписки может только тот, кто предъявил
+DI-токен.
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)

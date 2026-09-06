@@ -152,8 +152,8 @@ describe('длина списка зависимостей', () => {
     expect(readRoleMeta(Service)?.dependencies).toHaveLength(2);
   });
 
-  it('лишний токен — ошибка компиляции', () => {
-    // @ts-expect-error: конструктор принимает один параметр, токенов два
+  it('лишний DI-токен — ошибка компиляции', () => {
+    // @ts-expect-error: конструктор принимает один параметр, DI-токенов два
     @Component([UsersRepository, Logger$])
     class TooMany {
       constructor(readonly repo: UsersRepository) {}
@@ -162,8 +162,8 @@ describe('длина списка зависимостей', () => {
     expect(TooMany).toBeDefined();
   });
 
-  it('недостающий токен — ошибка компиляции', () => {
-    // @ts-expect-error: конструктор требует два параметра, токен один
+  it('недостающий DI-токен — ошибка компиляции', () => {
+    // @ts-expect-error: конструктор требует два параметра, DI-токен один
     @Component([UsersRepository])
     class TooFew {
       constructor(
@@ -192,7 +192,7 @@ describe('длина списка зависимостей', () => {
       ) {}
     }
 
-    // @ts-expect-error: параметров самое большее два, токенов три
+    // @ts-expect-error: параметров самое большее два, DI-токенов три
     @Component([UsersRepository, Logger$, Logger$])
     class TooMany {
       constructor(
@@ -217,8 +217,8 @@ describe('длина списка зависимостей', () => {
     expect(Many).toBeDefined();
   });
 
-  it('порядок токенов сверяется с параметрами', () => {
-    // @ts-expect-error: порядок токенов не совпадает с порядком параметров
+  it('порядок DI-токенов сверяется с параметрами', () => {
+    // @ts-expect-error: порядок DI-токенов не совпадает с порядком параметров
     @Component([Logger$, UsersRepository])
     class Swapped {
       constructor(

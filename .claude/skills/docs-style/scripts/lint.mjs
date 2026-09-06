@@ -9,8 +9,8 @@
  * Запуск из корня репозитория:
  *   node .claude/skills/docs-style/scripts/lint.mjs [--warn] [--json] [путь ...]
  *
- * Без путей проверяет docs/design, docs/guides, docs/glossary.md,
- * docs/README.md, README пакетов и src/ всех пакетов. docs/history и
+ * Без путей проверяет docs/design, docs/guide, docs/glossary.md,
+ * docs/conventions.md, docs/README.md, README пакетов и src/ всех пакетов. docs/history и
  * docs/decisions не проверяются никогда: первая папка заморожена, вторая —
  * append-only.
  *
@@ -74,14 +74,19 @@ export const BANNED = [
   [word('мешок(а|у|ом|е)?|мешк(а|у|ом|е)'), '«набор», «список», «объект»'],
   [word('луковиц[аыуе]'), '«вложенные обёртки», «модель middleware с `next()`»'],
   [word('(env-)?пол(а|у|ом)?'), '«process.env с низшим приоритетом», «источник по умолчанию»'],
+  [
+    /(?<!DI-)(?<!Bearer-)(?<![а-яёa-z])[Тт]окен(а|у|ом|е|ы|ов|ам|ами|ах)?(?![а-яё])/iu,
+    '«DI-токен» — или «Bearer-токен», если речь о токене доступа',
+  ],
 ];
 
 const IGNORED_DIRS = new Set(['node_modules', 'dist', '.git', 'history', 'decisions', 'coverage']);
 
 const DEFAULT_TARGETS = [
   'docs/design',
-  'docs/guides',
+  'docs/guide',
   'docs/glossary.md',
+  'docs/conventions.md',
   'docs/README.md',
   'scripts/site',
   'README.ru.md',

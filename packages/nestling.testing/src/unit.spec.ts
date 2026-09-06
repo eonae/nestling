@@ -83,7 +83,7 @@ describe('testUnit', () => {
     });
   });
 
-  it('называет все недостающие токены, а не первый', async () => {
+  it('называет все недостающие DI-токены, а не первый', async () => {
     const error = await testUnit(ReportsModule, {
       stubs: [[ILogger, { log: (): void => undefined }]],
       transports: [asHttpTransport(new SpyTransport())],

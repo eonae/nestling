@@ -22,7 +22,7 @@ import { EmitterFamily, PortFamily } from '@nestling/operations';
 /**
  * Имена операций видов `request` и `command`, которые вызывает фича.
  *
- * Источник — все токены единицы: вызыватель инжектируют и декларации, и
+ * Источник — все DI-токены единицы: вызыватель инжектируют и декларации, и
  * обычные провайдеры.
  */
 function callsOf(feature: Feature): Set<string> {

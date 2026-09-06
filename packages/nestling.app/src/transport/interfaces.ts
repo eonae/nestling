@@ -3,9 +3,9 @@ import type { Dispatch } from './dispatch.js';
 import type { Token } from '@nestling/container';
 
 /**
- * Токен транспорта: уточнение kernel-типа `TransportRef` до `ITransport`.
+ * DI-токен транспорта: уточнение kernel-типа `TransportRef` до `ITransport`.
  *
- * Транспортный пакет объявляет свой токен именно так; декларации ссылаются
+ * Транспортный пакет объявляет свой DI-токен именно так; декларации ссылаются
  * на транспорт этим значением, а `App` резолвит по нему инстанс из графа.
  */
 export type TransportToken = Token<ITransport>;

@@ -1,9 +1,9 @@
 /**
- * Точка входа subpath'а `@nestling/container/tokens`: токены и семейства
- * токенов без остального контейнера.
+ * Точка входа subpath'а `@nestling/container/tokens`: DI-токены и семейства
+ * DI-токенов без остального контейнера.
  *
- * Экспортирует два модуля без runtime-импортов: `common.ts` (токен и его
- * строковая форма) и `providers/token-family.ts` (семейства токенов).
+ * Экспортирует два модуля без runtime-импортов: `common.ts` (DI-токен и его
+ * строковая форма) и `providers/token-family.ts` (семейства DI-токенов).
  * Импорт этого subpath'а не тянет ни билдер графа, ни `@common/graphs`.
  *
  * Нужен пакету `@nestling/operations`: операция создаёт `.caller` и

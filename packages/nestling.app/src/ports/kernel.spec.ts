@@ -420,7 +420,7 @@ describe('portsKernel', () => {
     await app.close();
   });
 
-  it('шину поставил корень: оба токена дают его инстанс', async () => {
+  it('шину поставил корень: оба DI-токена дают его инстанс', async () => {
     const rootBus = new FakeRemoteBus();
     const app = await assemble({ declarations: [EchoImpl], rootBus });
 

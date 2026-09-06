@@ -68,7 +68,7 @@ class UserWebhookHandler {
  * `makePipeline<{ rawBody: Uint8Array }>()` компилируется только с этой
  * пометкой. Хендлер получает payload, разобранный из тех же байтов.
  *
- * Подлинность проверяется подписью, а не bearer-токеном, поэтому endpoint
+ * Подлинность проверяется подписью, а не Bearer-токеном, поэтому endpoint
  * выведен из-под политики `authed` через `detached` с причиной.
  */
 export const UserWebhook = httpEndpoint({
@@ -79,7 +79,7 @@ export const UserWebhook = httpEndpoint({
   errors: [InvalidSignature],
   rawBody: true,
   detached:
-    'webhook: подлинность проверяется подписью тела, а не bearer-токеном',
+    'webhook: подлинность проверяется подписью тела, а не Bearer-токеном',
   doc: { summary: 'Webhook о событиях пользователя', tags: ['users'] },
   // Слой с требованием к стартовому контексту стоит снаружи: его
   // требование выполняет транспорт, а не соседний слой

@@ -4,7 +4,7 @@ import type { PreUnitFn, Raw } from '../core/types/index.js';
 /**
  * Добавляет `identity` в контекст запроса.
  *
- * Читает `raw.attributes`, чтобы извлечь токен или сессию.
+ * Читает `raw.attributes`, чтобы извлечь Bearer-токен или сессию.
  *
  * @param authenticate - Функция аутентификации: получает `Raw` и
  * возвращает identity

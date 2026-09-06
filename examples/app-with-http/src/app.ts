@@ -62,7 +62,7 @@ export const app = makeApp({
       observability,
       'observability',
     ),
-    // Каждый endpoint, который меняет данные, проверяет токен
+    // Каждый endpoint, который меняет данные, проверяет Bearer-токен
     everyEndpoint({
       transport: HttpTransport$('default'),
       pattern: /^(POST|PATCH|DELETE) /,

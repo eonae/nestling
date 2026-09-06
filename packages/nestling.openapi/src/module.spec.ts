@@ -204,7 +204,7 @@ describe('openapi(...) — плагин-издатель', () => {
           reason: 'liveness-проба балансировщика',
         },
       },
-      // Собственная ручка документа тоже скрыта — и тоже названа в записи
+      // Собственный endpoint документа тоже скрыт — и тоже назван в записи
       {
         level: 'info',
         message: 'hidden from the API document',
@@ -435,7 +435,7 @@ describe('endpoint документации подчиняется полити�
 });
 
 describe('документ доступен значением', () => {
-  it('токен OpenApiDocument$ отдаёт тот же документ, что и endpoint', async () => {
+  it('DI-токен OpenApiDocument$ отдаёт тот же документ, что и endpoint', async () => {
     let injected: OpenApiDocument | undefined;
 
     const Observer$ = makeToken<'observed'>('spec:openapi-observer');

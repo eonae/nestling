@@ -144,7 +144,7 @@ describe('overrides: подстановка узла графа', () => {
     expect(node?.metadata).toEqual({ module: 'users' });
   });
 
-  it('падает на override токена, которого нет в графе', async () => {
+  it('падает на override DI-токена, которого нет в графе', async () => {
     const Missing = makeToken<string>('Missing');
 
     const builder = new ContainerBuilder({
@@ -152,7 +152,7 @@ describe('overrides: подстановка узла графа', () => {
     }).register(valueProvider(Repository, { find: () => 'real' }));
 
     expect(() => builder.build()).toThrow(
-      /Override targets token 'Missing', but no provider for it is registered\..*modules and features/s,
+      /Override targets DI token 'Missing', but no provider for it is registered\..*modules and features/s,
     );
   });
 
@@ -172,11 +172,11 @@ describe('overrides: подстановка узла графа', () => {
       .register(valueProvider(Repository, { find: () => 'real' }));
 
     expect(() => builder.build()).toThrow(
-      /member of token family 'OverrideLogger'.*only once something injects it/s,
+      /member of DI token family 'OverrideLogger'.*only once something injects it/s,
     );
   });
 
-  it('падает на двух override одного токена', async () => {
+  it('падает на двух override одного DI-токена', async () => {
     const builder = new ContainerBuilder({
       overrides: [
         [Repository, { find: () => 'first' }],
@@ -185,7 +185,7 @@ describe('overrides: подстановка узла графа', () => {
     }).register(valueProvider(Repository, { find: () => 'real' }));
 
     expect(() => builder.build()).toThrow(
-      /Token 'Repository' is overridden twice/,
+      /DI token 'Repository' is overridden twice/,
     );
   });
 });
@@ -632,7 +632,7 @@ describe('прунинг: осиротевшие поддеревья', () => {
 });
 
 describe('перечень недостающих зависимостей', () => {
-  it('называет все недостающие токены с их потребителями', async () => {
+  it('называет все недостающие DI-токены с их потребителями', async () => {
     const ILoggerToken = makeToken<{ log(): void }>('MissingLogger');
     const IClock = makeToken<{ now(): number }>('MissingClock');
     const IUsers = makeToken<{ all(): string[] }>('MissingUsers');
@@ -670,7 +670,7 @@ describe('перечень недостающих зависимостей', () 
     );
   });
 
-  it('перечисляет всех потребителей одного недостающего токена', async () => {
+  it('перечисляет всех потребителей одного недостающего DI-токена', async () => {
     const IClock = makeToken<{ now(): number }>('SharedMissingClock');
 
     const builder = new ContainerBuilder()
@@ -690,7 +690,7 @@ describe('перечень недостающих зависимостей', () 
     );
   });
 
-  it('токен, похожий на члена семейства, остаётся недостающей зависимостью', async () => {
+  it('DI-токен, похожий на члена семейства, остаётся недостающей зависимостью', async () => {
     const ILogger = makeTokenFamily<{ scope: string }, [scope: string]>(
       'HintFamily',
     );

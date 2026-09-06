@@ -7,11 +7,11 @@ import type { VisitCallback, VisitOptions } from '@common/graphs';
 /**
  * Текст ошибки обращения к значению до фазы INIT.
  *
- * `null` здесь не годится: он означает «токен не зарегистрирован» и о фазе
+ * `null` здесь не годится: он означает «DI-токен не зарегистрирован» и о фазе
  * ничего не говорит. Проверить регистрацию без экземпляра умеет `has()`.
  */
 const phaseErrorMessage = (token: string): string =>
-  `Instance for token '${token}' does not exist yet: instances are created in phase INIT, ` +
+  `Instance for DI token '${token}' does not exist yet: instances are created in phase INIT, ` +
   `and init() has not completed. Assembly-phase checks use has(token) instead.`;
 
 /**
@@ -38,9 +38,9 @@ export class BuiltContainer {
   readonly #warnings: readonly string[];
 
   /**
-   * Токен → адрес его узла в графе.
+   * DI-токен → адрес его узла в графе.
    *
-   * Поиск идёт по токену, а не по его `id`: идентификатор служит
+   * Поиск идёт по DI-токену, а не по его `id`: идентификатор служит
    * отображению и уникальностью не связан.
    */
   readonly #nodeIds: ReadonlyMap<InjectionToken, string>;
@@ -75,7 +75,7 @@ export class BuiltContainer {
   }
 
   /**
-   * Предупреждения сборки: сегодня это совпадающие идентификаторы токенов.
+   * Предупреждения сборки: сегодня это совпадающие идентификаторы DI-токенов.
    *
    * Билдер ничего не печатает: во время `build()` логгера у него нет.
    * Сборка приложения пишет список в корневой логгер после `build()`; без
@@ -200,15 +200,15 @@ export class BuiltContainer {
   }
 
   /**
-   * Возвращает экземпляр по токену.
+   * Возвращает экземпляр по DI-токену.
    *
-   * Не бросает ошибок для незарегистрированного токена: возвращает `null`.
+   * Не бросает ошибок для незарегистрированного DI-токена: возвращает `null`.
    * Контракт действует с фазы INIT — до неё вызов бросает ошибку фазы,
    * потому что `null` там означал бы «не зарегистрирован».
    *
    * @template T - Тип экземпляра
-   * @param token - Токен: класс или объектный токен
-   * @returns Экземпляр или `null`, если токен не зарегистрирован
+   * @param token - DI-токен: класс или объектный DI-токен
+   * @returns Экземпляр или `null`, если DI-токен не зарегистрирован
    * @throws {Error} Если `init()` ещё не завершён
    *
    * @example
@@ -227,13 +227,13 @@ export class BuiltContainer {
   }
 
   /**
-   * Проверяет, что токен зарегистрирован, не требуя экземпляра.
+   * Проверяет, что DI-токен зарегистрирован, не требуя экземпляра.
    *
    * Тем и отличается от {@link get}: проверкам фазы ASSEMBLE нужен факт
    * регистрации, а экземпляров тогда ещё нет.
    *
-   * @param token - Токен: класс или объектный токен
-   * @returns `true`, если у токена есть узел графа
+   * @param token - DI-токен: класс или объектный DI-токен
+   * @returns `true`, если у DI-токена есть узел графа
    *
    * @example
    * ```typescript
@@ -249,7 +249,7 @@ export class BuiltContainer {
    *
    * Поверхность интроспекции: адрес попадает в `toJSON()`, в тексты
    * ошибок и в отчёты, и по нему бывает нужно достать сам экземпляр.
-   * Для обычного доступа есть {@link get} — он ищет по токену и не
+   * Для обычного доступа есть {@link get} — он ищет по DI-токену и не
    * зависит от того, разошлись ли идентификаторы.
    *
    * @param id - Адрес узла, как он напечатан в отчёте
@@ -267,15 +267,15 @@ export class BuiltContainer {
   }
 
   /**
-   * Возвращает экземпляр по токену или бросает ошибку.
+   * Возвращает экземпляр по DI-токену или бросает ошибку.
    *
-   * Наличие определяется регистрацией токена, а не значением:
+   * Наличие определяется регистрацией DI-токена, а не значением:
    * зарегистрированные `0`, `''` и `false` возвращаются как есть.
    *
    * @template T - Тип экземпляра
-   * @param token - Токен: класс или объектный токен
+   * @param token - DI-токен: класс или объектный DI-токен
    * @returns Экземпляр
-   * @throws {Error} Если токен не зарегистрирован или `init()` ещё не
+   * @throws {Error} Если DI-токен не зарегистрирован или `init()` ещё не
    * завершён — это две разные ошибки с разными текстами
    *
    * @example
@@ -287,7 +287,7 @@ export class BuiltContainer {
     const node = this.#nodeOf(token);
 
     if (!node) {
-      throw new Error(`Instance for token '${tokenId(token)}' not found`);
+      throw new Error(`Instance for DI token '${tokenId(token)}' not found`);
     }
 
     if (!this.#initialized) {
@@ -337,7 +337,7 @@ export class BuiltContainer {
     return await this.#graph.toJSON();
   }
 
-  /** Узел токена или `undefined`, если токен не зарегистрирован */
+  /** Узел DI-токена или `undefined`, если DI-токен не зарегистрирован */
   #nodeOf(token: InjectionToken<unknown>): DINode | undefined {
     const id = this.#nodeIds.get(token as InjectionToken);
 

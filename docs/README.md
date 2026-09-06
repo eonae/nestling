@@ -77,7 +77,7 @@ design-доки описывают **только целевое V1** (как б
 | Пакет | Что делает |
 |---|---|
 | [`@nestling/app`](../packages/nestling.app/) | Ядро одним пакетом: пайплайн, конфигурация, порты, абстракция транспорта и composition root (`assemble`, фичи и плагины, `select`, фазы жизненного цикла, политики) |
-| [`@nestling/container`](../packages/nestling.container/) | Контейнер зависимостей: токены, провайдеры, семейства токенов, модули, хуки жизненного цикла |
+| [`@nestling/container`](../packages/nestling.container/) | Контейнер зависимостей: DI-токены, провайдеры, семейства DI-токенов, модули, хуки жизненного цикла |
 | [`@nestling/operations`](../packages/nestling.operations/) | Общее для сервера и клиента: операции, `makeFail`, `Ok`/`Fail`, формы io, `Topic` и комбинаторы потоков |
 | [`@nestling/transport.http`](../packages/nestling.transport.http/) | HTTP на `node:http`: `httpEndpoint`, маршрутизация, JSON, NDJSON, SSE, multipart |
 | [`@nestling/testing`](../packages/nestling.testing/) | Тестовый composition root: `assembleTest`, `overrides`, стабы операций, `checkTopologies` |

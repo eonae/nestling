@@ -11,7 +11,7 @@ import { makeFeature } from '@nestling/app';
  * `users.registered`.
  *
  * В `providers:` только собственные сервисы. Наружу фича отдаёт операции,
- * а не токены, поэтому её можно вынести в отдельный процесс без правок в
+ * а не DI-токены, поэтому её можно вынести в отдельный процесс без правок в
  * фиче `users`.
  */
 export const QuotasFeature = makeFeature({

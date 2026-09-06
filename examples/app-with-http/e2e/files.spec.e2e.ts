@@ -79,7 +79,7 @@ describe('загрузка файлов', () => {
     expect(response.status).toBe(400);
   });
 
-  it('не принимает файл без токена', async () => {
+  it('не принимает файл без Bearer-токена', async () => {
     const response = await client.raw('POST', '/users/1/avatar', png());
 
     expect(response.status).toBe(401);

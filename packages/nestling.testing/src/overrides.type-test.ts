@@ -53,7 +53,7 @@ const Ping = httpEndpoint({
 });
 
 // ---------------------------------------------------------------------------
-// overrides: пара типизирована типом своего токена
+// overrides: пара типизирована типом своего DI-токена
 // ---------------------------------------------------------------------------
 
 async function overridesAcceptCompatibleFake(): Promise<void> {
@@ -67,7 +67,7 @@ async function overridesAcceptCompatibleFake(): Promise<void> {
 
 async function overridesRejectIncompatibleFake(): Promise<void> {
   await assembleTest(makeApp({}), {
-    // @ts-expect-error: фейк без `findById` не совместим с типом токена
+    // @ts-expect-error: фейк без `findById` не совместим с типом DI-токена
     overrides: [[UsersRepository, { find: async () => null }]],
   });
 }

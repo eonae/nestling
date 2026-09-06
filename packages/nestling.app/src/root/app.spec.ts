@@ -38,7 +38,7 @@ import {
 } from '@nestling/container';
 import { z } from 'zod';
 
-/** Регистрирует готовый инстанс транспорта под его токеном, способный на всё */
+/** Регистрирует готовый инстанс транспорта под его DI-токеном, способный на всё */
 const asTransport = (transport: ITransport) =>
   transportValue(TestTransport$('default'), transport, {
     capabilities: ALL_FORMS,
@@ -241,7 +241,7 @@ describe('assemble — fail-fast фазы ASSEMBLE', () => {
     expect(transport.serving).toBe(false);
   });
 
-  it('зависимость класса-хендлера без провайдера — ошибка с токеном и паттерном', async () => {
+  it('зависимость класса-хендлера без провайдера — ошибка с DI-токеном и паттерном', async () => {
     const ILogger = makeToken<{ log(): void }>('ILogger');
 
     @Handler([ILogger])
@@ -746,7 +746,7 @@ describe('assemble — порядок фаз и shutdown', () => {
 
     expect(probe.entries).toContainEqual({
       level: 'warn',
-      message: expect.stringContaining('ambiguous token ids: Twin'),
+      message: expect.stringContaining('ambiguous DI token ids: Twin'),
       fields: { scope: 'nestling' },
     });
 

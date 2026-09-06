@@ -162,8 +162,8 @@ export const DeleteUser = httpEndpoint({
 ```
 
 В итоговом файле у `DeleteUser` есть ещё слой `authed`: удаление требует
-токен. Отказ `Unauthorized` объявляет сам слой, поэтому в `errors:` он не
-появляется ([глава 9](./09-auth.md)).
+Bearer-токен. Отказ `Unauthorized` объявляет сам слой, поэтому в `errors:`
+он не появляется ([глава 9](./09-auth.md)).
 
 ```bash
 API_TOKEN=secret yarn workspace @examples/users-service start:dev

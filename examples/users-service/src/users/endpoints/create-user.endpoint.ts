@@ -34,7 +34,7 @@ export class CreateUserHandler {
   }
 }
 
-/** Создание требует токен: слой `authed` проверяет его до хендлера */
+/** Создание требует Bearer-токен: слой `authed` проверяет его до хендлера */
 export const CreateUser = httpEndpoint({
   operation: CreateUserOperation,
   pipeline: authed,

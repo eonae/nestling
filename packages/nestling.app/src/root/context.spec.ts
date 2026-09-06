@@ -21,7 +21,7 @@ import { MockTransport } from './helpers.js';
 import { describe, expect, it } from '@jest/globals';
 import { Component, makeToken } from '@nestling/container';
 
-/** Токен транспорта-заглушки: приёма запросов в тестовом прогоне нет */
+/** DI-токен транспорта-заглушки: приёма запросов в тестовом прогоне нет */
 const MockTransport$ = makeToken<MockTransport>('transport:mock');
 
 /** Куда приземляются ридеры: контейнер App не публичен */

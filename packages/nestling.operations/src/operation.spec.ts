@@ -48,7 +48,7 @@ describe('конструкторы операций', () => {
     expect(Event.emitter).toBe(EmitterFamily('spec.invokers.event'));
   });
 
-  it('повторное обращение к вызывателю даёт тот же токен', () => {
+  it('повторное обращение к вызывателю даёт тот же DI-токен', () => {
     const Operation = makeRequest({ name: 'spec.identity.caller' });
 
     expect(Operation.caller).toBe(Operation.caller);
