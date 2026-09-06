@@ -324,7 +324,10 @@ export const appAuth = makePlugin({
   providers: [Authenticate],
 });
 
-export const authed = compose(observability, makePipeline().pre(Authenticate));
+export const authed = compose(
+  observability,
+  makePipeline().pre(Authenticate, { errors: [Unauthorized] }),
+);
 ```
 
 Класс-юнит `Authenticate` нужен endpoint'ам фич `users` и `ops`, поэтому
