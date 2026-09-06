@@ -17,7 +17,6 @@ export type {
   TestStub,
 } from './app.js';
 export { vars } from './config.js';
-export type { TestConfig } from './config.js';
 export { contextValue } from './context.js';
 export { testUnit } from './unit.js';
 export type { TestUnitOptions } from './unit.js';

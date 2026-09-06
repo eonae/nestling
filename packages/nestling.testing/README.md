@@ -261,7 +261,9 @@ console.log(formatCompatibility(report));
 expect(report.breaking).toEqual([]);
 ```
 
-`options` передаются в `check()` каждой топологии. Без конвертеров
+`options` передаются в `check()` каждой топологии — `config:` в том числе:
+матрица с `config: vars({ … })` проверяет состав, не поднимая ни одного
+источника декларации. Без конвертеров
 дескрипторы всё равно строятся: структурная часть (вид, формы io, коды и
 категории отказов) точная, а листовые схемы помечаются непрозрачными, что даёт
 вердикт `unknown`. `diffOperations` — чистая функция от двух значений; она
@@ -339,7 +341,7 @@ resolve: { conditions: ['testing', 'node'] }
 | `stub(operation, impl)` | пара «токен вызывателя, заглушка» для `stubs:` |
 | `OperationStub`, `RequestStubImpl`, `EmitStubImpl`, `StubOutput` | типы заглушек |
 | `unwrap(response)`, `UnwrapFailedError` | значение успешного ответа или ошибка |
-| `vars(record)`, `TestConfig` | источник конфига для тестов и тип поля `config:` |
+| `vars(record)` | источник конфига для тестов; форму поля `config:` описывает `ConfigInput` из `@nestling/app` |
 | `familyOverride(family, make)`, `TestOverride` | подмена рецепта семейства |
 | `contextValue(variable, value)` | подмена переменной контекста запроса |
 | `checkTopologies(app, selections, options?)`, `TopologyReport` | матрица `check()` |

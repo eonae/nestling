@@ -7,8 +7,6 @@
  * бы с ним уже на первом change'е.
  */
 
-import type { TestConfig } from './config.js';
-import { toBindings } from './config.js';
 import type { TestOverride, ValidatedOverrides } from './overrides.js';
 import { splitOverrides } from './overrides.js';
 import type { OperationStub } from './stub.js';
@@ -20,6 +18,7 @@ import type {
   AnyOutput,
   AnyPayload,
   App,
+  ConfigInput,
   DispatchOptions,
   EndpointDefinition,
   EndpointMeta,
@@ -35,6 +34,7 @@ import {
   isApp,
   makeEmptyContext,
   profileAttributes,
+  toBindings,
   transportNameOf,
 } from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
@@ -112,7 +112,7 @@ export interface TestAssemblyOptions<
    * **Заменяет** привязку источников декларации целиком: тест изолирован
    * от источников приложения так же, как от `process.env`.
    */
-  config?: TestConfig;
+  config?: ConfigInput;
 
   /**
    * Подстановки: пары `токен → фейк` и подмены рецептов семейств.
