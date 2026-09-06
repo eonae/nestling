@@ -9,9 +9,9 @@
  * ошибкой с понятным сообщением, а не молчаливым ожиданием.
  */
 
-import type { IMessageBus } from './bus.js';
+import type { Dispatch } from '../transport/index.js';
 
-import type { Dispatch } from '@nestling/transport';
+import type { IMessageBus } from './bus.js';
 
 /** Диагностический отчёт вызывателя: то, что не попало на call-site */
 export interface PortFailureInfo {

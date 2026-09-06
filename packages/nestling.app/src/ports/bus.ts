@@ -13,6 +13,12 @@
  * приложения.
  */
 
+import type {
+  Dispatch,
+  ITransport,
+  RouteDeclaration,
+} from '../transport/index.js';
+
 import {
   deadlineFromTimeout,
   isExhausted,
@@ -39,11 +45,6 @@ import {
   makeEmptyContext,
   Timeout,
 } from '@nestling/pipeline';
-import type {
-  Dispatch,
-  ITransport,
-  RouteDeclaration,
-} from '@nestling/transport';
 
 /** Метаданные доставленного сообщения, доступные обработчику */
 export interface BusMessageMeta {

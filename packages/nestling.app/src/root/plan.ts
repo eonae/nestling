@@ -9,6 +9,13 @@
  * поверхности пакета нет.
  */
 
+import type {
+  BusDeclaration,
+  Dispatch,
+  ExecutableDeclaration,
+  TransportDeclaration,
+} from '../transport/index.js';
+
 import type { Feature, FeatureSelection, Plugin } from './feature.js';
 import { reachablePlugins, resolveSelection } from './feature.js';
 
@@ -24,12 +31,6 @@ import type {
   Policy,
   TransportRef,
 } from '@nestling/pipeline';
-import type {
-  BusDeclaration,
-  Dispatch,
-  ExecutableDeclaration,
-  TransportDeclaration,
-} from '@nestling/transport';
 
 /**
  * Имена транспортов, годных в роль интеркома.

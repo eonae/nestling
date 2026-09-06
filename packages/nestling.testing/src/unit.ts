@@ -6,9 +6,8 @@ import type { TestApp, TestStub } from './app.js';
 import { assembleTest } from './app.js';
 import type { TestConfig } from './config.js';
 
-import type { Bundle } from '@nestling/app';
+import type { Bundle, TransportDeclaration } from '@nestling/app';
 import { makeApp } from '@nestling/app';
-import type { TransportDeclaration } from '@nestling/transport';
 
 /** Словарь `testUnit` */
 export interface TestUnitOptions {

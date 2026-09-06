@@ -8,6 +8,7 @@
  */
 
 import { wireApp } from '../testing/index.js';
+import { transportValue } from '../transport/index.js';
 
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
@@ -17,7 +18,6 @@ import { describe, expect, it } from '@jest/globals';
 import { Injectable, makeToken } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, RequestId } from '@nestling/pipeline';
-import { transportValue } from '@nestling/transport';
 
 /** Токен транспорта-заглушки: приёма запросов в тестовом прогоне нет */
 const MockTransport$ = makeToken<MockTransport>('transport:mock');

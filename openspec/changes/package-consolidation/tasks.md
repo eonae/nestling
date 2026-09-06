@@ -26,11 +26,11 @@
 
 ## 4. `transport` в `@nestling/app`
 
-- [ ] 4.1 `packages/nestling.transport/src` перенесён в `packages/nestling.app/src/transport`
-- [ ] 4.2 Экспорты подняты в `src/index.ts`; дублирующие реэкспорты `transportNameOf` и `TransportCapabilities` удалены
-- [ ] 4.3 Импорты `@nestling/transport` переписаны на `@nestling/app`
-- [ ] 4.4 Каталог `packages/nestling.transport` удалён; манифесты потребителей обновлены
-- [ ] 4.5 `yarn verify` зелёный
+- [x] 4.1 `packages/nestling.transport/src` перенесён в `packages/nestling.app/src/transport`
+- [x] 4.2 Экспорты подняты в `src/index.ts`; дублирующие реэкспорты `transportNameOf` и `TransportCapabilities` удалены
+- [x] 4.3 Импорты `@nestling/transport` переписаны на `@nestling/app`
+- [x] 4.4 Каталог `packages/nestling.transport` удалён; манифесты потребителей обновлены
+- [x] 4.5 `yarn verify` зелёный
 
 ## 5. `config` в `@nestling/app`
 

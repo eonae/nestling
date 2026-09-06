@@ -16,6 +16,8 @@ import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
 import type { Schema } from '@common/misc';
+import type { ExecutableDeclaration } from '@nestling/app';
+import { makeDispatch } from '@nestling/app';
 import type { FilePart, PreUnitFn } from '@nestling/pipeline';
 import {
   Fail,
@@ -28,8 +30,6 @@ import {
   Timeout,
   upload,
 } from '@nestling/pipeline';
-import type { ExecutableDeclaration } from '@nestling/transport';
-import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 /**

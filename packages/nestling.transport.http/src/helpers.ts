@@ -2,6 +2,7 @@ import type { BindMap, BindMark } from './binding.js';
 import { assertHttpPath, computeHttpBinding } from './binding.js';
 import { HttpTransport$ } from './token.js';
 
+import { DEFAULT_INSTANCE } from '@nestling/app';
 import type {
   AnyOperation,
   DeclarationDoc,
@@ -30,7 +31,6 @@ import type {
   ValidateOutputForm,
 } from '@nestling/pipeline';
 import { assertLayerFailsDeclared, makeEndpoint } from '@nestling/pipeline';
-import { DEFAULT_INSTANCE } from '@nestling/transport';
 
 // Типы разметки пути и ключей `bind` (`PathParams`, `BindMap`) общие с
 // секцией `http:` операции и живут в `@nestling/operations`;

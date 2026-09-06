@@ -8,6 +8,7 @@
 
 import type { Port } from '../ports/index.js';
 import { BusTransport$, implement, InProcessBus } from '../ports/index.js';
+import { transportValue } from '../transport/index.js';
 
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
@@ -18,7 +19,6 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { Injectable, makeToken } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { Ok } from '@nestling/pipeline';
-import { transportValue } from '@nestling/transport';
 import { z } from 'zod';
 
 const asTransport = (transport: MockTransport) =>

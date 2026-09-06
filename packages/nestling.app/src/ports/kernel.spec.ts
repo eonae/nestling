@@ -2,6 +2,9 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
+import type { Dispatch } from '../transport/index.js';
+import { makeDispatch } from '../transport/index.js';
+
 import type { InProcessBus } from './bus.js';
 import { InProcessBus as InProcessBusClass, MessageBus$ } from './bus.js';
 import { portsConfigKeys } from './config.js';
@@ -26,8 +29,6 @@ import {
 } from '@nestling/operations';
 import type { AnyEndpointDefinition, TransportRef } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
-import type { Dispatch } from '@nestling/transport';
-import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 const Echo = makeRequest({

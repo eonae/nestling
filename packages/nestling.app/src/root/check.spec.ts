@@ -7,6 +7,8 @@
 
 import { implement } from '../ports/index.js';
 import { wireApp } from '../testing/index.js';
+import type { ITransport } from '../transport/index.js';
+import { transportValue } from '../transport/index.js';
 
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
@@ -24,8 +26,6 @@ import {
 import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { makeEndpoint, makeFail, Ok } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>

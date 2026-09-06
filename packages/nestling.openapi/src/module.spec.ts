@@ -11,7 +11,8 @@ import { openapi, OpenApiDocument$ } from './module.js';
 import type { OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, makeFeature } from '@nestling/app';
+import type { Dispatch, ITransport } from '@nestling/app';
+import { makeApp, makeFeature, transportValue } from '@nestling/app';
 import { factoryProvider, makeToken, OnInit } from '@nestling/container';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { StandardSchemaV1 } from '@nestling/operations';
@@ -27,8 +28,6 @@ import {
   makePipeline,
   Ok,
 } from '@nestling/pipeline';
-import type { Dispatch, ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 

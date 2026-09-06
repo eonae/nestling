@@ -112,7 +112,7 @@ export function iterateInScope<T>(
  * «контекста нет», поэтому поведение сервиса не зависит от того, есть ли
  * у endpoint'а пайплайн. `Ctx(Signal)` работает одинаково в обоих случаях.
  *
- * @internal Единственный потребитель — прямой путь в `@nestling/transport`
+ * @internal Единственный потребитель — прямой путь в `@nestling/app`
  */
 export const runInRequestScope = <R>(signal: AbortSignal, fn: () => R): R =>
   runInScope(makeCell(signal, {}, 'handler'), fn);

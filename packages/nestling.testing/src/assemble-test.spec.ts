@@ -10,7 +10,13 @@ import { familyOverride } from './overrides.js';
 import { unwrap, UnwrapFailedError } from './unwrap.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import { Discovery$, makeApp, makeFeature } from '@nestling/app';
+import type { ITransport } from '@nestling/app';
+import {
+  Discovery$,
+  makeApp,
+  makeFeature,
+  transportValue,
+} from '@nestling/app';
 import type { Config } from '@nestling/config';
 import { makeConfig } from '@nestling/config';
 import {
@@ -30,8 +36,6 @@ import {
   Ok,
   upload,
 } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 

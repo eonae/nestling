@@ -3,6 +3,9 @@
  * зависимостей деклараций и строгий реверс shutdown.
  */
 
+import type { ITransport } from '../transport/index.js';
+import { transportValue } from '../transport/index.js';
+
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature, makePlugin } from './feature.js';
@@ -27,8 +30,6 @@ import {
   Ok,
   stream,
 } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 import { z } from 'zod';
 
 /** Регистрирует готовый инстанс транспорта под его токеном */

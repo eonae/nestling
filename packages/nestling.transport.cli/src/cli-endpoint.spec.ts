@@ -5,6 +5,7 @@
 import { cliEndpoint, CliTransport, CliTransport$ } from './index.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
+import { makeDispatch } from '@nestling/app';
 import {
   isEndpointDefinition,
   makeFail,
@@ -12,7 +13,6 @@ import {
   Ok,
   transportNameOf,
 } from '@nestling/pipeline';
-import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 describe('cliEndpoint', () => {

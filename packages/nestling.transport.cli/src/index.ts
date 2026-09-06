@@ -1,6 +1,13 @@
 /* eslint-disable no-console */
 import * as readline from 'node:readline';
 
+import type {
+  Dispatch,
+  ITransport,
+  RouteDeclaration,
+  TransportDeclaration,
+} from '@nestling/app';
+import { DEFAULT_INSTANCE, makeTransportDeclaration } from '@nestling/app';
 import { factoryProvider, makeTokenFamily } from '@nestling/container';
 import { untilAborted } from '@nestling/operations';
 import type {
@@ -30,18 +37,8 @@ import {
   makeEmptyContext,
   makeEndpoint,
   TransportClosingError,
-} from '@nestling/pipeline';
-import type {
-  Dispatch,
-  ITransport,
-  RouteDeclaration,
-  TransportDeclaration,
-} from '@nestling/transport';
-import {
-  DEFAULT_INSTANCE,
-  makeTransportDeclaration,
   transportNameOf,
-} from '@nestling/transport';
+} from '@nestling/pipeline';
 
 /**
  * Семейство токенов CLI-транспорта: один член на экземпляр.

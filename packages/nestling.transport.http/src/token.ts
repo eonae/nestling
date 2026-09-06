@@ -1,7 +1,7 @@
+import type { ITransport } from '@nestling/app';
+import { DEFAULT_INSTANCE } from '@nestling/app';
 import { makeTokenFamily } from '@nestling/container';
 import { transportNameOf } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { DEFAULT_INSTANCE } from '@nestling/transport';
 
 /**
  * Семейство токенов HTTP-транспорта: один член на экземпляр.

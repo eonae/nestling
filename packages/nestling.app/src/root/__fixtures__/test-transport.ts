@@ -8,6 +8,9 @@
  * самое ценой зависимости на пакет, который сам зависит от `@nestling/app`.
  */
 
+import type { ITransport } from '../../transport/index.js';
+import { DEFAULT_INSTANCE } from '../../transport/index.js';
+
 import type { TokenFamily } from '@nestling/container';
 import { makeTokenFamily } from '@nestling/container';
 import type {
@@ -24,8 +27,6 @@ import type {
   TransportCapabilities,
 } from '@nestling/pipeline';
 import { makeEndpoint } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { DEFAULT_INSTANCE } from '@nestling/transport';
 
 /**
  * Семейство токенов транспорта-фейка: один член на экземпляр.

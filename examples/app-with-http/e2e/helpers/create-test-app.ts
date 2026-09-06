@@ -2,9 +2,8 @@ import { appConfigKeys } from '../../src/app.config.js';
 import { app } from '../../src/app.js';
 
 import type { AssembledApp } from '@nestling/app';
-import { makeApp } from '@nestling/app';
+import { makeApp, transportValue } from '@nestling/app';
 import { objectSource } from '@nestling/config';
-import { transportValue } from '@nestling/transport';
 import { HttpTransport, HttpTransport$ } from '@nestling/transport.http';
 
 /** Токен, который e2e-тесты передают в заголовке `authorization` */

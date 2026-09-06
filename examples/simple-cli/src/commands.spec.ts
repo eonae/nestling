@@ -13,7 +13,7 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import { makeDispatch } from '@nestling/transport';
+import { makeDispatch } from '@nestling/app';
 import { CliTransport, parseArgv } from '@nestling/transport.cli';
 
 /** Глушит вывод справки в тесте */

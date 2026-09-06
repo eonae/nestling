@@ -8,7 +8,7 @@
 
 import type { ExtendableContext, EmptyInput } from '@nestling/pipeline';
 import { makePipeline, Ok } from '@nestling/pipeline';
-import { makeDispatch } from '@nestling/transport';
+import { makeDispatch } from '@nestling/app';
 import { httpEndpoint } from '@nestling/transport.http';
 
 class WithTracing {

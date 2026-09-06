@@ -14,7 +14,7 @@ import { splitOverrides } from './overrides.js';
 import type { OperationStub } from './stub.js';
 import { stubbedOperations } from './stub.js';
 
-import type { App, FeatureSelection } from '@nestling/app';
+import type { App, DispatchOptions, FeatureSelection } from '@nestling/app';
 import { busBindingOf, isApp, profileAttributes } from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
 import { wireApp } from '@nestling/app/testing';
@@ -39,7 +39,6 @@ import type {
   ResponseContext,
 } from '@nestling/pipeline';
 import { makeEmptyContext, transportNameOf } from '@nestling/pipeline';
-import type { DispatchOptions } from '@nestling/transport';
 
 /**
  * Свойства границы для одного `call`.

@@ -9,6 +9,9 @@
  * поверхности для аудита.
  */
 
+import type { ITransport } from '../transport/index.js';
+import { transportValue } from '../transport/index.js';
+
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
@@ -23,8 +26,6 @@ import {
   makePipeline,
   Ok,
 } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 
 const asTransport = (transport: ITransport) =>
   transportValue(TestTransport$('default'), transport);

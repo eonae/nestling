@@ -31,9 +31,9 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@nestling/app": "workspace:*",
     "@nestling/eslint-plugin": "workspace:*",
-    "@nestling/testing": "workspace:*",
-    "@nestling/transport": "workspace:*"
+    "@nestling/testing": "workspace:*"
   },
   "nx": {
     "targets": {

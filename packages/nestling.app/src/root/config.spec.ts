@@ -3,6 +3,8 @@
  * fail-fast на старте — до того, как транспорт начнёт слушать.
  */
 
+import { transportValue } from '../transport/index.js';
+
 import { TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
@@ -16,7 +18,6 @@ import {
   objectSource,
 } from '@nestling/config';
 import { Injectable } from '@nestling/container';
-import { transportValue } from '@nestling/transport';
 import { z } from 'zod';
 
 const RootConfig = makeConfig('rootapp', {

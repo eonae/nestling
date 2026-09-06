@@ -34,7 +34,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { makePipeline, Ok, withRequestId } from '@nestling/pipeline';
-import { makeDispatch } from '@nestling/transport';
+import { makeDispatch } from '@nestling/app';
 import { httpEndpoint, HttpTransport } from '@nestling/transport.http';
 
 const HOST = '127.0.0.1';

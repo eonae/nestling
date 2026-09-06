@@ -3,7 +3,7 @@
 
 import { CreateUser, ExportLogs, SayHello } from './endpoints/index.js';
 
-import { makeDispatch } from '@nestling/transport';
+import { makeDispatch } from '@nestling/app';
 import { HttpTransport } from '@nestling/transport.http';
 
 /**

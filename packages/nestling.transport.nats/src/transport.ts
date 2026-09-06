@@ -39,12 +39,16 @@ import {
 } from './wire.js';
 
 import type {
+  BusDeclaration,
   BusHandler,
   BusMessageMeta,
   BusSubscription,
+  Dispatch,
   IMessageBus,
+  ITransport,
   PublishOptions,
   RequestOptions,
+  RouteDeclaration,
   SubscribeOptions,
 } from '@nestling/app';
 import {
@@ -52,8 +56,10 @@ import {
   busBindingOf,
   BusTransport$,
   deadlineFromTimeout,
+  DEFAULT_INSTANCE,
   failureResponse,
   isExhausted,
+  makeTransportDeclaration,
   profileAttributes,
   startBudget,
 } from '@nestling/app';
@@ -74,16 +80,6 @@ import {
   makeEmptyContext,
   Timeout,
 } from '@nestling/pipeline';
-import type {
-  BusDeclaration,
-  Dispatch,
-  ITransport,
-  RouteDeclaration,
-} from '@nestling/transport';
-import {
-  DEFAULT_INSTANCE,
-  makeTransportDeclaration,
-} from '@nestling/transport';
 
 /** Проекция конфиг-секции транспорта — то, что инжектится в фабрику */
 type NatsConfigValues = ConfigProjection<typeof NatsConfig>;

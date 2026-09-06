@@ -13,6 +13,9 @@
 
 import { getEventListeners } from 'node:events';
 
+import type { Dispatch } from '../transport/index.js';
+import { makeDispatch } from '../transport/index.js';
+
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 import { makeLocalEmitter, makeLocalPort } from './invoker.js';
@@ -48,8 +51,6 @@ import {
   makePipeline,
   Ok,
 } from '@nestling/pipeline';
-import type { Dispatch } from '@nestling/transport';
-import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 const sleep = (ms: number): Promise<void> =>

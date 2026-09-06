@@ -13,11 +13,10 @@ import { contextValue } from './context.js';
 import { unwrap } from './unwrap.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, makeFeature } from '@nestling/app';
+import { makeApp, makeFeature, transportValue } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import type { CtxReader } from '@nestling/pipeline';
 import { Ctx, makePipeline, Ok, RequestId } from '@nestling/pipeline';
-import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 

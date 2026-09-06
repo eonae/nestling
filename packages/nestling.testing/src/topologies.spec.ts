@@ -6,6 +6,7 @@ import { SpyTransport } from './__fixtures__/transport.js';
 import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { ITransport } from '@nestling/app';
 import {
   diffOperations,
   formatCompatibility,
@@ -14,13 +15,12 @@ import {
   makeFeature,
   makePlugin,
   snapshotOperations,
+  transportValue,
 } from '@nestling/app';
 import { Injectable, makeToken, valueProvider } from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import type { SchemaDocConverter } from '@nestling/pipeline';
 import { Ok } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
 

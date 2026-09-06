@@ -2,10 +2,10 @@ import type { IncomingMessage } from 'node:http';
 
 import { bindingNeedsBody, httpBindingOf } from './binding.js';
 
+import type { RouteDeclaration } from '@nestling/app';
 import type { HttpBinding } from '@nestling/operations';
 import type { FormDescriptor } from '@nestling/pipeline';
 import { describeForm } from '@nestling/pipeline';
-import type { RouteDeclaration } from '@nestling/transport';
 import Router from 'find-my-way';
 
 /**

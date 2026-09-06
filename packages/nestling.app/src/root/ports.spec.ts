@@ -16,6 +16,8 @@ import {
   InProcessBus,
   portsConfigKeys,
 } from '../ports/index.js';
+import type { ITransport } from '../transport/index.js';
+import { transportValue } from '../transport/index.js';
 
 import { testEndpoint, TestTransport$ } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
@@ -28,8 +30,6 @@ import { Injectable, makeToken, OnInit, OnStart } from '@nestling/container';
 import { makeEvent, makeRequest } from '@nestling/operations';
 import type { AnyInput, ExtendableContext } from '@nestling/pipeline';
 import { makeEmptyContext, Ok } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>

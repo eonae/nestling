@@ -13,11 +13,10 @@ import { assembleTest } from './app.js';
 import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, makeFeature } from '@nestling/app';
+import type { ITransport } from '@nestling/app';
+import { makeApp, makeFeature, transportValue } from '@nestling/app';
 import { Injectable, OnInit } from '@nestling/container';
 import { compose, everyEndpoint, makePipeline, Ok } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 
 const asHttpTransport = (transport: ITransport) =>

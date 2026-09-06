@@ -8,6 +8,9 @@
  * проверяет собственными спеками.
  */
 
+import type { ITransport } from '../transport/index.js';
+import { transportValue } from '../transport/index.js';
+
 import {
   ALL_FORMS,
   testEndpoint,
@@ -20,8 +23,6 @@ import { MockTransport } from './helpers.js';
 import { describe, expect, it } from '@jest/globals';
 import type { TransportRef } from '@nestling/pipeline';
 import { events, multipart, Ok, stream, upload } from '@nestling/pipeline';
-import type { ITransport } from '@nestling/transport';
-import { transportValue } from '@nestling/transport';
 import { z } from 'zod';
 
 const Tick = z.object({ at: z.string() });

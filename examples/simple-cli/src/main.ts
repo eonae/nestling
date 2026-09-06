@@ -3,7 +3,7 @@
 
 import { Greet, Help, ProcessStdin } from './commands/index.js';
 
-import { makeDispatch } from '@nestling/transport';
+import { makeDispatch } from '@nestling/app';
 import { CliTransport } from '@nestling/transport.cli';
 
 /**

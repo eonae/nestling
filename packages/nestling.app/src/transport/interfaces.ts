@@ -4,29 +4,12 @@ import type { Token } from '@nestling/container';
 import type { TransportCapabilities } from '@nestling/pipeline';
 
 /**
- * Способности транспорта по формам io.
- *
- * Тип объявлен ядром (`@nestling/pipeline`), потому что множество форм —
- * kernel-понятие, и проверка биндинга (`assertFormsSupported`) обязана
- * быть одной реализацией для всех путей регистрации. Здесь он
- * реэкспортируется, чтобы автору транспорта хватило одного импорта.
- */
-export type { TransportCapabilities } from '@nestling/pipeline';
-
-/**
  * Токен транспорта: уточнение kernel-типа `TransportRef` до `ITransport`.
  *
  * Транспортный пакет объявляет свой токен именно так; декларации ссылаются
  * на транспорт этим значением, а `App` резолвит по нему инстанс из графа.
  */
 export type TransportToken = Token<ITransport>;
-
-/**
- * Короткое имя транспорта из id его токена (`transport:http` → `'http'`).
- *
- * Реэкспорт ядра: имя нужно транспорту для `Raw`/`EndpointMeta`, и правило
- * вывода обязано быть одно.
- */
 
 /**
  * Базовый интерфейс транспорта
@@ -65,5 +48,3 @@ export interface ITransport {
    */
   close?(): Promise<void>;
 }
-
-export { transportNameOf } from '@nestling/pipeline';

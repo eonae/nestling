@@ -12,6 +12,8 @@ import { httpEndpoint } from './helpers.js';
 import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
+import type { ExecutableDeclaration } from '@nestling/app';
+import { makeDispatch } from '@nestling/app';
 import { Topic } from '@nestling/operations';
 import type { FilePart, Outcome, PhasedPipeline } from '@nestling/pipeline';
 import {
@@ -22,8 +24,6 @@ import {
   stream,
   upload,
 } from '@nestling/pipeline';
-import type { ExecutableDeclaration } from '@nestling/transport';
-import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

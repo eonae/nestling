@@ -2,6 +2,8 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
+import { makeDispatch } from '../transport/index.js';
+
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 import type { InvokerContext } from './invoker.js';
@@ -29,7 +31,6 @@ import {
   makePipeline,
   Ok,
 } from '@nestling/pipeline';
-import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 const CardDeclined = makeFail('payment_required:card_declined', {

@@ -32,7 +32,6 @@
     "@nestling/container": "workspace:*",
     "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",
-    "@nestling/transport": "workspace:*",
     "nats": "^2.29.3",
     "zod": "^4.0.0"
   },

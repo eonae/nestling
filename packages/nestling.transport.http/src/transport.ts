@@ -24,6 +24,8 @@ import {
 import { HttpRouter } from './router.js';
 import { HTTP_TRANSPORT_NAME, HttpTransport$ } from './token.js';
 
+import type { Dispatch, ITransport, TransportDeclaration } from '@nestling/app';
+import { DEFAULT_INSTANCE, makeTransportDeclaration } from '@nestling/app';
 import type { ConfigProjection } from '@nestling/config';
 import type { InjectionToken } from '@nestling/container';
 import { factoryProvider } from '@nestling/container';
@@ -45,15 +47,6 @@ import {
   PayloadTooLarge,
   TransportClosingError,
 } from '@nestling/pipeline';
-import type {
-  Dispatch,
-  ITransport,
-  TransportDeclaration,
-} from '@nestling/transport';
-import {
-  DEFAULT_INSTANCE,
-  makeTransportDeclaration,
-} from '@nestling/transport';
 
 /** Лимит размера буферизуемого тела запроса по умолчанию (1 MiB) */
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;

@@ -19,6 +19,13 @@ import {
   portsKernel,
   undurableOperations,
 } from '../ports/index.js';
+import type {
+  Dispatch,
+  ExecutableDeclaration,
+  ITransport,
+  TransportDeclaration,
+} from '../transport/index.js';
+import { makeDispatch } from '../transport/index.js';
 
 import { assertFeatureBoundary, buildOwnerMap } from './boundary.js';
 import type { EndpointDiscovery } from './discovery.js';
@@ -65,13 +72,6 @@ import {
   handlerClassOf,
   transportNameOf,
 } from '@nestling/pipeline';
-import type {
-  Dispatch,
-  ExecutableDeclaration,
-  ITransport,
-  TransportDeclaration,
-} from '@nestling/transport';
-import { makeDispatch } from '@nestling/transport';
 
 export type { AppSpec, NormalizedAppSpec } from './plan.js';
 

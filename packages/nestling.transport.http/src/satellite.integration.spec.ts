@@ -26,6 +26,8 @@ import {
   sendResponse,
 } from './index.js';
 
+import type { Dispatch, ITransport } from '@nestling/app';
+import { makeDispatch } from '@nestling/app';
 import type {
   EndpointMeta,
   Raw,
@@ -37,8 +39,6 @@ import {
   makeEmptyContext,
   Ok,
 } from '@nestling/pipeline';
-import type { Dispatch, ITransport } from '@nestling/transport';
-import { makeDispatch } from '@nestling/transport';
 import { z } from 'zod';
 
 /**
