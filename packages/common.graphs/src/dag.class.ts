@@ -47,6 +47,18 @@ export class DAG<T extends INode<T>> {
   }
 
   /**
+   * Перебирает узлы синхронно, без порядка обхода
+   *
+   * Отличие от `traverse`: тот ждёт колбэк, потому что его дело — хуки
+   * жизненного цикла. Проверке на собранном графе ждать нечего.
+   */
+  forEachNode(callback: (node: Readonly<T>) => void): void {
+    for (const node of this.nodes.values()) {
+      callback(node);
+    }
+  }
+
+  /**
    * Обходит граф с заданными опциями
    */
   async traverse(

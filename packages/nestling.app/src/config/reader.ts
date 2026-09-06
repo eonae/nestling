@@ -9,13 +9,11 @@ import type { Logger } from '../logger/interface.js';
 
 import type { SectionDeclaration } from './declaration.js';
 import type { SharedKeyReader } from './errors.js';
-import { ConfigSharedKeyError } from './errors.js';
+import { ConfigSharedKeyError, ConfigSourceError } from './errors.js';
 import type { ConfigTarget } from './keys.js';
 import { describeTarget, targetCovers } from './keys.js';
 import { declaredKeys } from './registry.js';
 import type { ConfigBinding, ConfigSource } from './source.js';
-
-import { OnDestroy } from '@nestling/container';
 
 /**
  * Что читалка должна перепроецировать по сигналу источника.
@@ -41,9 +39,10 @@ interface ResolvedBinding {
  * Разрешает ключи по привязкам; `process.env` читается последним, с
  * низшим приоритетом.
  *
- * Узел графа с асинхронной фабрикой: порядок инстанцирования гарантирует,
- * что `init()` всех источников отработал до проекции любой секции — это
- * топология, а не отдельная фаза.
+ * Создаётся вне контейнера, на фазе 0: `init()` поднимает источники и
+ * снимает снимок объявленных ключей, а в граф читалка входит уже готовым
+ * значением. Фазе 1 остаётся чтение из снимка, поэтому сборка синхронна и
+ * ввода-вывода не делает.
  */
 export class ConfigReader {
   readonly #bindings: readonly ResolvedBinding[];
@@ -61,6 +60,16 @@ export class ConfigReader {
   #logger?: Logger;
 
   /**
+   * Снимок фазы 0: ключ → его значение.
+   *
+   * Значения объявленных ключей кладёт `init()`. Ключ, которого в реестре
+   * нет, — член семейства `Config(key)` под unbound-глобом — попадает сюда
+   * первым чтением: состав таких членов известен только внутри `build()`,
+   * а `get()` источника синхронен по контракту.
+   */
+  readonly #snapshot = new Map<string, unknown>();
+
+  /**
    * Ключ → первый заявивший его читатель.
    *
    * Живёт на экземпляре читалки, то есть ровно одну сборку: проверка
@@ -71,8 +80,8 @@ export class ConfigReader {
   readonly #claims = new Map<string, SharedKeyReader>();
 
   /**
-   * Живая ссылка на `process.env`, а не снимок: единственный контакт ядра
-   * с окружением, и тесту достаточно выставить переменную до сборки.
+   * Живая ссылка на `process.env`, а не копия: единственный контакт ядра
+   * с окружением, и тесту достаточно выставить переменную до фазы 0.
    */
   readonly #env = process.env;
 
@@ -87,17 +96,33 @@ export class ConfigReader {
   }
 
   /**
-   * Поднимает источники и сверяет таргеты с реестром объявленных ключей.
+   * Фаза 0: поднимает источники, снимает снимок объявленных ключей и
+   * сверяет таргеты с реестром.
+   *
+   * `init()` каждого источника зовётся один раз, по порядку привязок.
+   * Повторы при временно недоступном источнике — забота самого источника:
+   * цену и уместность повтора знает он, ядру нечем отличить временный
+   * отказ от постоянного.
    *
    * Наблюдение навешивается после инициализации: до неё источнику нечего
    * сообщать, а секции ещё не спроецированы.
+   *
+   * @throws {ConfigSourceError} Если `init()` источника отказал
    */
   async init(): Promise<void> {
     for (const binding of this.#bindings) {
-      await binding.source.init?.();
+      try {
+        await binding.source.init?.();
+      } catch (error) {
+        throw new ConfigSourceError(binding.name, error);
+      }
     }
 
     this.#warnAboutEmptyTargets();
+
+    for (const key of declaredKeys()) {
+      this.#snapshot.set(key, this.#lookup(key));
+    }
 
     for (const binding of this.#bindings) {
       binding.source.watch?.(() => {
@@ -107,25 +132,21 @@ export class ConfigReader {
   }
 
   /**
-   * Значение ключа или `undefined`.
+   * Значение ключа из снимка фазы 0 или `undefined`.
    *
-   * Привязки просматриваются по порядку (порядок = приоритет): выигрывает
-   * первая, чей таргет покрывает ключ и чей источник вернул не-`undefined`.
-   * Источник, чей таргет ключ не покрывает, не опрашивается вовсе.
+   * Ключ вне снимка — тот, которого не называет ни одна объявленная
+   * секция, — читается на месте и запоминается: ввода-вывода это не
+   * делает, `get()` источника синхронен по контракту.
    */
   read(key: string): unknown {
-    for (const binding of this.#bindings) {
-      if (!binding.targets.some((target) => targetCovers(target, key))) {
-        continue;
-      }
-
-      const value = binding.source.get(key);
-      if (value !== undefined) {
-        return value;
-      }
+    if (this.#snapshot.has(key)) {
+      return this.#snapshot.get(key);
     }
 
-    return this.#env[key];
+    const value = this.#lookup(key);
+    this.#snapshot.set(key, value);
+
+    return value;
   }
 
   /**
@@ -215,18 +236,57 @@ export class ConfigReader {
     }
   }
 
-  /** Закрывает источники в общем shutdown контейнера */
-  @OnDestroy()
+  /**
+   * Закрывает источники — явным шагом фазы SHUTDOWN.
+   *
+   * Не хук `@OnDestroy`: читалка живёт время `run()`, а не время
+   * контейнера. Проверка состава контейнер не разрушает, и источники после
+   * неё остались бы открытыми.
+   */
   async close(): Promise<void> {
     for (const binding of this.#bindings) {
       await binding.source.close?.();
     }
   }
 
+  /**
+   * Перечитывает ключи reloadable-секций в снимок и перепроецирует их.
+   *
+   * Снимок обновляется до перепроекции: иначе секция считалась бы из
+   * старых значений, а семейство `Config(key)` отдавало бы третьи.
+   */
   #refreshAll(): void {
+    for (const section of this.#reloadable) {
+      for (const key of section.keys) {
+        this.#snapshot.set(key, this.#lookup(key));
+      }
+    }
+
     for (const section of this.#reloadable) {
       section.refresh();
     }
+  }
+
+  /**
+   * Спрашивает значение у источников, минуя снимок.
+   *
+   * Привязки просматриваются по порядку (порядок = приоритет): выигрывает
+   * первая, чей таргет покрывает ключ и чей источник вернул не-`undefined`.
+   * Источник, чей таргет ключ не покрывает, не опрашивается вовсе.
+   */
+  #lookup(key: string): unknown {
+    for (const binding of this.#bindings) {
+      if (!binding.targets.some((target) => targetCovers(target, key))) {
+        continue;
+      }
+
+      const value = binding.source.get(key);
+      if (value !== undefined) {
+        return value;
+      }
+    }
+
+    return this.#env[key];
   }
 
   #hasWatchingSource(keys: readonly string[]): boolean {

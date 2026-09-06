@@ -48,7 +48,7 @@ async function contextReaders(): Promise<{
     deps: [Ctx(RequestId), Ctx(Signal)],
   });
 
-  const container = await builder.build();
+  const container = builder.build();
 
   return {
     requestId: container.getOrThrow(Ctx(RequestId)),

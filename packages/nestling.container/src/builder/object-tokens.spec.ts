@@ -29,7 +29,7 @@ describe('идентичность токена', () => {
     Injectable([])(Logger, {} as ClassDecoratorContext);
     Injectable([])(OtherLogger, {} as ClassDecoratorContext);
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(Logger)
       .register(OtherLogger)
       .build();
@@ -43,11 +43,11 @@ describe('идентичность токена', () => {
     );
   });
 
-  it('отдаёт предупреждение о совпавших идентификаторах узлов значением', async () => {
+  it('отдаёт предупреждение о совпавших идентификаторах узлов значением', () => {
     const first = makeToken<string>('Duplicated');
     const second = makeToken<string>('Duplicated');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(first, 'left'))
       .register(valueProvider(second, 'right'))
       .build();
@@ -66,7 +66,7 @@ describe('идентичность токена', () => {
   it('отдаёт экземпляр по адресу узла из отчёта', async () => {
     const ILogger = makeToken<ILogger>('ReportedLogger');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(ILogger, { scope: 'users' }))
       .build();
 

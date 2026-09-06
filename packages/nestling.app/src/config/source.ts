@@ -51,6 +51,48 @@ export type ConfigBinding = readonly [
   target: ConfigTarget | readonly ConfigTarget[],
 ];
 
+/**
+ * Форма поля `config:` у проверки состава и тестового корня.
+ *
+ * Три формы вместо одной: голый источник (сокращённая запись для
+ * `[[source, '*']]`), одна привязка и список привязок. В боевом
+ * `makeApp({ config })` сокращённой записи нет: там привязка — акт с
+ * приоритетами, и умолчание «весь источник» неуместно.
+ */
+export type ConfigInput =
+  | ConfigSource
+  | ConfigBinding
+  | readonly ConfigBinding[];
+
+/** Значение похоже на привязку `[источник, таргет]`? */
+const isBinding = (value: unknown): value is ConfigBinding =>
+  Array.isArray(value) &&
+  value.length === 2 &&
+  typeof (value[0] as ConfigSource | undefined)?.get === 'function';
+
+/**
+ * Приводит три формы `config:` к плоскому списку привязок.
+ *
+ * @param config - Источник, привязка или список привязок
+ * @returns Плоский список привязок; пустой, если `config` не задан
+ */
+export const toBindings = (config?: ConfigInput): ConfigBinding[] => {
+  if (!config) {
+    return [];
+  }
+
+  if (isBinding(config)) {
+    return [config];
+  }
+
+  if (Array.isArray(config)) {
+    return [...(config as readonly ConfigBinding[])];
+  }
+
+  // Голый источник: «весь источник» — единственное осмысленное умолчание
+  return [[config as ConfigSource, '*']];
+};
+
 /** Объектный источник с наблюдением — для тестов и in-proc сценариев */
 export interface ObjectSource extends ConfigSource {
   /** Задаёт значение и уведомляет наблюдателей */

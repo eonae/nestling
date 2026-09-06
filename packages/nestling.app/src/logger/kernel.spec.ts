@@ -3,7 +3,11 @@
  * `.auto`, замена корня и секция `nestlingLog`.
  */
 
-import { configKernel, ConfigValidationError } from '../config/index.js';
+import {
+  bootstrapConfig,
+  configKernel,
+  ConfigValidationError,
+} from '../config/index.js';
 import { contextKernel } from '../pipeline/core/context/index.js';
 
 import { spyLogger } from './__fixtures__/spy.js';
@@ -24,10 +28,15 @@ import {
 
 const Service$ = makeToken<Logger>('Service');
 
-/** Минимальный граф ядра: конфиг, контекст запроса и логгер */
-const kernelBuilder = (options: ContainerBuilderOptions = {}) =>
+/**
+ * Минимальный граф ядра: конфиг, контекст запроса и логгер.
+ *
+ * Асинхронен из-за фазы 0: снимок конфига снимается до сборки, поэтому
+ * `withEnv` в тесте обязан отработать раньше вызова.
+ */
+const kernelBuilder = async (options: ContainerBuilderOptions = {}) =>
   new ContainerBuilder(options).register(
-    configKernel(),
+    configKernel(await bootstrapConfig()),
     contextKernel(),
     loggerKernel(),
   );
@@ -53,7 +62,8 @@ function withEnv(values: Record<string, string>): () => void {
 
 describe('loggerKernel: корень и семейство', () => {
   it('без соперника под RootLogger$ стоит ConsoleLogger', async () => {
-    const container = await kernelBuilder().build();
+    const builder = await kernelBuilder();
+    const container = builder.build();
 
     expect(container.get(RootLogger$)).toBeInstanceOf(ConsoleLogger);
     expect(container.get(Logger$('nestling'))).toBeInstanceOf(ConsoleLogger);
@@ -71,9 +81,10 @@ describe('loggerKernel: корень и семейство', () => {
   it('член семейства — дочерний логгер корня с привязкой scope', async () => {
     const spy = spyLogger();
 
-    const container = await kernelBuilder({
+    const builder = await kernelBuilder({
       overrides: [[RootLogger$, spy.logger]],
-    })
+    });
+    const container = builder
       .register(
         factoryProvider(Service$, (logger) => logger, [Logger$('users')]),
       )
@@ -94,11 +105,10 @@ describe('loggerKernel: корень и семейство', () => {
       constructor(readonly logger: Logger) {}
     }
 
-    const container = await kernelBuilder({
+    const builder = await kernelBuilder({
       overrides: [[RootLogger$, spy.logger]],
-    })
-      .register(UsersRepository)
-      .build();
+    });
+    const container = builder.register(UsersRepository).build();
 
     container.getOrThrow(UsersRepository).logger.debug('select');
 
@@ -120,16 +130,17 @@ describe('loggerKernel: корень и семейство', () => {
         providers: [factoryProvider(RootLogger$, () => spy.logger, [])],
       });
 
+      const kernel = await kernelBuilder();
       const builder = pluginFirst
         ? new ContainerBuilder().register(
             plugin,
-            configKernel(),
+            configKernel(await bootstrapConfig()),
             contextKernel(),
             loggerKernel(),
           )
-        : kernelBuilder().register(plugin);
+        : kernel.register(plugin);
 
-      const container = await builder
+      const container = builder
         .register(
           factoryProvider(Service$, (logger) => logger, [Logger$('users')]),
         )
@@ -154,7 +165,8 @@ describe('loggerKernel: секция nestlingLog', () => {
     });
 
     try {
-      const container = await kernelBuilder().build();
+      const builder = await kernelBuilder();
+      const container = builder.build();
       const logger = container.getOrThrow(Logger$('nestling'));
 
       const lines: string[] = [];
@@ -189,7 +201,7 @@ describe('loggerKernel: секция nestlingLog', () => {
     const restore = withEnv({ NESTLING_LOG_LEVEL: 'loud' });
 
     try {
-      const build = kernelBuilder().build();
+      const build = kernelBuilder().then((builder) => builder.build());
 
       await expect(build).rejects.toBeInstanceOf(ConfigValidationError);
       await expect(build).rejects.toThrow(
@@ -204,9 +216,10 @@ describe('loggerKernel: секция nestlingLog', () => {
     const restore = withEnv({ NESTLING_LOG_LEVEL: 'loud' });
 
     try {
-      const container = await kernelBuilder({
+      const builder = await kernelBuilder({
         overrides: [[RootLogger$, spyLogger().logger]],
-      }).build();
+      });
+      const container = builder.build();
 
       expect(container.pruned).toContain('ConfigSection:nestlingLog');
     } finally {

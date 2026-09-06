@@ -1,22 +1,12 @@
 /**
  * Конфиг тестового прогона: объектом, а не через `process.env`.
- */
-
-import type { ConfigBinding, ConfigSource, ObjectSource } from '@nestling/app';
-import { objectSource } from '@nestling/app';
-
-/**
- * Форма поля `config:` тестового корня.
  *
- * Три формы вместо одной: голый источник (сокращённая запись для
- * `[[source, '*']]`), одна привязка и список привязок. В боевом `assemble`
- * сокращённой записи нет: там привязка — акт с приоритетами, и умолчание
- * «весь источник» неуместно.
+ * Форм у поля `config:` три, и живут они в `@nestling/app` (`ConfigInput`,
+ * `toBindings`): их принимает и проверка состава, и тестовый корень.
  */
-export type TestConfig =
-  | ConfigSource
-  | ConfigBinding
-  | readonly ConfigBinding[];
+
+import type { ObjectSource } from '@nestling/app';
+import { objectSource } from '@nestling/app';
 
 /**
  * Именованный объектный источник конфигурации.
@@ -40,32 +30,3 @@ export type TestConfig =
 export const vars = (
   record: Readonly<Record<string, unknown>> = {},
 ): ObjectSource => objectSource(record, 'vars');
-
-/** Значение похоже на привязку `[источник, таргет]`? */
-const isBinding = (value: unknown): value is ConfigBinding =>
-  Array.isArray(value) &&
-  value.length === 2 &&
-  typeof (value[0] as ConfigSource | undefined)?.get === 'function';
-
-/**
- * Приводит три формы `config:` к плоскому списку привязок.
- *
- * @internal
- */
-export const toBindings = (config?: TestConfig): ConfigBinding[] => {
-  if (!config) {
-    return [];
-  }
-
-  if (isBinding(config)) {
-    return [config];
-  }
-
-  if (Array.isArray(config)) {
-    return [...(config as readonly ConfigBinding[])];
-  }
-
-  // Голый источник: тестовому корню «весь источник» — единственное
-  // осмысленное умолчание
-  return [[config as ConfigSource, '*']];
-};

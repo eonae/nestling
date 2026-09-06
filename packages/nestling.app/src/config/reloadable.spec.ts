@@ -97,6 +97,21 @@ describe('read-latest без подписки', () => {
     expect(cfg.rps).toBe(20);
   });
 
+  it('обновление доходит до снимка фазы 0', async () => {
+    const source = objectSource({ RUNTIME_RPS: '10' }, 'test');
+    const reader = new ConfigReader([[source, '*']]);
+    await reader.init();
+
+    const declaration = lookupSection('runtime') as SectionDeclaration;
+    projectSection(declaration, reader);
+
+    source.set('RUNTIME_RPS', '20');
+
+    // Снимок перечитан до перепроекции: семейство `Config(key)` и секция
+    // не могут разойтись в значении одного ключа
+    expect(reader.read('RUNTIME_RPS')).toBe('20');
+  });
+
   it('присвоить полю нельзя', async () => {
     const { cfg } = await project({});
 

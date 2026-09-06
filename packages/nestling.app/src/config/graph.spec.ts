@@ -6,7 +6,7 @@
 import { from } from './declaration.js';
 import { ConfigValidationError } from './errors.js';
 import { Config } from './families.js';
-import { configKernel } from './kernel.js';
+import { bootstrapConfig, configKernel } from './kernel.js';
 import { describeConfig } from './registry.js';
 import { makeConfig } from './section.js';
 import { objectSource } from './source.js';
@@ -48,10 +48,12 @@ const build = async (
   },
 ): Promise<BuiltContainer> => {
   const builder = new ContainerBuilder();
-  builder.register(configKernel([[objectSource(values, 'test'), '*']]));
+  builder.register(
+    configKernel(await bootstrapConfig([[objectSource(values, 'test'), '*']])),
+  );
   register(builder);
 
-  return await builder.build();
+  return builder.build();
 };
 
 describe('создание секции', () => {

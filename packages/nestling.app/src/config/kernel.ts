@@ -1,8 +1,8 @@
 /**
- * Kernel-модуль конфига: читалка и рецепты двух семейств.
+ * Фаза 0 конфига и kernel-модуль вокруг её результата.
  *
- * Корень регистрирует его **всегда**: если нужен только `process.env`, в
- * корне про конфиг не пишешь ничего. Без привязок читалка читает только
+ * Корень регистрирует модуль **всегда**: если нужен только `process.env`,
+ * в корне про конфиг не пишешь ничего. Без привязок читалка читает только
  * `process.env`, а рецепты не создают узел, пока никто не инжектит секцию.
  */
 
@@ -47,35 +47,55 @@ const materializeSection = (prefix: string, reader: ConfigReader): unknown => {
 };
 
 /**
- * Собирает kernel-модуль конфига.
+ * Выполняет фазу 0 BOOTSTRAP: поднимает привязанные источники и снимает
+ * снимок объявленных ключей.
+ *
+ * Читалка создаётся вне контейнера — так граница фазы видна в коде: до
+ * этого вызова ввод-вывод есть, после его нет. Порядок «источники раньше
+ * секций» держит фаза, а не топология графа.
  *
  * @param bindings - Плоский список `[source, target]`; порядок = приоритет
+ * @returns Читалку со снятым снимком — её принимает {@link configKernel}
+ * @throws {ConfigSourceError} Если `init()` источника отказал
  *
  * @example
  * ```typescript
- * configKernel([
+ * const reader = await bootstrapConfig([
  *   [vault(), [ordersKeys]],
  *   [file('config.yaml'), ['*_URL']],
  * ]);
+ *
+ * builder.register(configKernel(reader));
  * ```
  */
-export const configKernel = (
+export const bootstrapConfig = async (
   bindings: readonly ConfigBinding[] = [],
-): Module => ({
+): Promise<ConfigReader> => {
+  const reader = new ConfigReader(bindings);
+  await reader.init();
+
+  return reader;
+};
+
+/**
+ * Собирает kernel-модуль конфига вокруг готовой читалки.
+ *
+ * Читалка входит в граф значением: асинхронной фабрики у неё нет, потому
+ * что источники подняты раньше — на фазе 0.
+ *
+ * @param reader - Результат {@link bootstrapConfig}
+ *
+ * @example
+ * ```typescript
+ * builder.register(configKernel(await bootstrapConfig(bindings)));
+ * ```
+ */
+export const configKernel = (reader: ConfigReader): Module => ({
   name: 'kernel:config',
   providers: [
     {
       provide: ConfigReaderToken,
-      // Асинхронная фабрика: `instantiateAll` её дожидается, а порядок
-      // инстанцирования делает `init()` источников гарантированно более
-      // ранним, чем проекция любой секции.
-      useFactory: async () => {
-        const reader = new ConfigReader(bindings);
-        await reader.init();
-
-        return reader;
-      },
-      deps: [],
+      useValue: reader,
     },
     familyProvider(ConfigSection, (prefix) => ({
       provide: ConfigSection(prefix),
@@ -89,3 +109,11 @@ export const configKernel = (
     })),
   ],
 });
+
+/**
+ * Тип читалки — тому, кто держит её живой на время `run()`.
+ *
+ * Только тип: конструктор наружу не выходит, поэтому создать читалку можно
+ * единственным способом — вызвать {@link bootstrapConfig}.
+ */
+export { type ConfigReader } from './reader.js';

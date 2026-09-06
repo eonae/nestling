@@ -7,13 +7,13 @@ import { HttpTransport$ } from './token.js';
 import { http, HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { configKernel, makeDispatch } from '@nestling/app';
+import { bootstrapConfig, configKernel, makeDispatch } from '@nestling/app';
 import { ContainerBuilder } from '@nestling/container';
 
 /** Строит контейнер с kernel-модулем конфига и объявленным транспортом */
 async function build(declaration: ReturnType<typeof http>) {
-  return await new ContainerBuilder()
-    .register(configKernel([]))
+  return new ContainerBuilder()
+    .register(configKernel(await bootstrapConfig([])))
     .register(declaration.provider)
     .build();
 }

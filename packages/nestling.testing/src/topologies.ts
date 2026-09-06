@@ -35,10 +35,13 @@ export interface TopologyReport {
  * (`snapshotOperations`) без пересборки приложения: дескрипторы уже лежат
  * в отчёте каждой топологии.
  *
+ * Опции прокидываются в каждую топологию без изменений — `config:` в том
+ * числе: матрица с `config: vars({ … })` проверяет состав без единого
+ * источника, а значит и без ввода-вывода.
+ *
  * @param app - Декларация приложения — та же, что у `main.ts`
  * @param selections - Варианты деплоя: `['all', 'users', 'ops']`
- * @param options - Опции `check()`; прокидываются в каждую топологию без
- * изменений. Вызов из двух аргументов ведёт себя ровно как прежде
+ * @param options - Опции `check()`: конвертеры схем и конфиг проверки
  * @returns Отчёты по каждой топологии в порядке перечисления
  * @throws {TypeError} Если первый аргумент — не декларация `makeApp`
  * @throws {Error} Если хотя бы одна топология не собралась; в сообщении
@@ -48,6 +51,7 @@ export interface TopologyReport {
  * ```typescript
  * const reports = await checkTopologies(app, ['all', 'users', 'ops'], {
  *   converters: [zodConverter()],
+ *   config: vars({ ORDERS_MAX_ITEMS: '10' }),
  * });
  * ```
  */

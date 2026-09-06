@@ -85,7 +85,7 @@ describe('BuiltContainer', () => {
   });
 
   async function buildContainer() {
-    return await new ContainerBuilder()
+    return new ContainerBuilder()
       .register(classProvider(TokenA, ServiceA))
       .register(classProvider(TokenB, ServiceB))
       .register(valueProvider(TokenConfig, { ready: true }))
@@ -120,7 +120,7 @@ describe('BuiltContainer', () => {
     const EmptyToken = makeToken<string>('Empty');
     const FalseToken = makeToken<boolean>('False');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(ZeroToken, 0))
       .register(valueProvider(EmptyToken, ''))
       .register(valueProvider(FalseToken, false))
@@ -171,7 +171,7 @@ describe('BuiltContainer', () => {
   it('проходит, если ни у одного провайдера нет @OnStart', async () => {
     const Token = makeToken<{ ok: boolean }>('NoHooks');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(Token, { ok: true }))
       .build();
 
@@ -189,7 +189,7 @@ describe('BuiltContainer', () => {
       }
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(classProvider(Token, Failing))
       .build();
 
@@ -224,6 +224,20 @@ describe('BuiltContainer', () => {
     expect(tokenAIndex).toBeLessThan(tokenBIndex);
   });
 
+  it('перебирает узлы синхронно через forEachNode', async () => {
+    const container = await buildContainer();
+    const visited: string[] = [];
+
+    container.forEachNode((node) => {
+      visited.push(node.id);
+    });
+
+    expect(visited).toHaveLength(3);
+    expect(visited).toEqual(
+      expect.arrayContaining(['TokenA', 'TokenB', 'TokenConfig']),
+    );
+  });
+
   it('сериализует метаданные графа в JSON', async () => {
     const ModuleA = makeModule({
       name: 'ModuleA',
@@ -236,7 +250,7 @@ describe('BuiltContainer', () => {
       dependsOn: [ModuleA],
     });
 
-    const container = await new ContainerBuilder().register(ModuleB).build();
+    const container = new ContainerBuilder().register(ModuleB).build();
 
     const json = await container.toJSON();
 

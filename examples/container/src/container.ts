@@ -5,6 +5,7 @@ import { AppModule } from './app.feature.js';
 
 import type { ConfigSource } from '@nestling/app';
 import {
+  bootstrapConfig,
   configKernel,
   contextKernel,
   loggerKernel,
@@ -18,26 +19,29 @@ import { ContainerBuilder } from '@nestling/container';
  * через `assemble`. Используется скриптом экспорта графа (`cli.ts`) и
  * тестами, которым нужен доступ к инстансам.
  *
+ * Фазы здесь ровно две и они разделены явно: `bootstrapConfig` поднимает
+ * источники (фаза 0, единственный ввод-вывод), `build()` собирает граф
+ * синхронно (фаза 1).
+ *
  * @param runtime - Источник секции `runtime`; тест передаёт сюда объект,
  * который потом меняет
  */
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
-  return await new ContainerBuilder()
-    .register(
-      configKernel([
-        [
-          objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'),
-          appConfigKeys,
-        ],
-        [runtime, runtimeConfigKeys],
-      ]),
-    )
-    // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
-    // секцию `nestlingLog` и идентификатор запроса из контекста
-    .register(contextKernel(), loggerKernel())
-    .register(...appCounters.modules)
-    .register(AppModule)
-    .build();
+  const config = await bootstrapConfig([
+    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
+    [runtime, runtimeConfigKeys],
+  ]);
+
+  return (
+    new ContainerBuilder()
+      .register(configKernel(config))
+      // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
+      // секцию `nestlingLog` и идентификатор запроса из контекста
+      .register(contextKernel(), loggerKernel())
+      .register(...appCounters.modules)
+      .register(AppModule)
+      .build()
+  );
 };

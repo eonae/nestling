@@ -13,7 +13,7 @@ import type { SectionDeclaration } from './declaration.js';
 import { from, secret } from './declaration.js';
 import { ConfigValidationError, REDACTED } from './errors.js';
 import type { Config } from './families.js';
-import { configKernel, ConfigReaderToken } from './kernel.js';
+import { bootstrapConfig, configKernel, ConfigReaderToken } from './kernel.js';
 import { load } from './load.js';
 import { projectSection, reloadableOf } from './project.js';
 import { ConfigReader } from './reader.js';
@@ -78,10 +78,12 @@ const build = async (
   register: (builder: ContainerBuilder) => void,
 ): Promise<BuiltContainer> => {
   const builder = new ContainerBuilder();
-  builder.register(configKernel([[objectSource(values, 'test'), '*']]));
+  builder.register(
+    configKernel(await bootstrapConfig([[objectSource(values, 'test'), '*']])),
+  );
   register(builder);
 
-  const container = await builder.build();
+  const container = builder.build();
   container.getOrThrow(ConfigReaderToken).attachLogger(spy.logger);
 
   return container;

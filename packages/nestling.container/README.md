@@ -57,7 +57,7 @@ const UsersModule = makeModule({
   providers: [ConsoleLogger, UserService],
 });
 
-const container = await new ContainerBuilder().register(UsersModule).build();
+const container = new ContainerBuilder().register(UsersModule).build();
 await container.init();
 
 container.getOrThrow(UserService).getUsers();
@@ -125,13 +125,20 @@ const logger = classProvider(ILogger, ConsoleLogger);
 // готовое значение
 const config = valueProvider('CONFIG', { apiUrl: 'https://api.example.com' });
 
-// фабрика: функция получает зависимости и возвращает значение
+// фабрика: синхронная функция получает зависимости и возвращает значение
 const apiClient = factoryProvider(
   IApiClient,
   (config) => new ApiClient(config.apiUrl),
   ['CONFIG'], // зависимости фабрики
 );
 ```
+
+Сборка синхронна и ввода-вывода не делает, поэтому фабрика синхронна тоже:
+`Promise` в её возвращаемом значении не компилируется, а литерал провайдера
+с асинхронной фабрикой роняет `build()` ошибкой, называющей DI-токен.
+Соединение захватывают в хуке `@OnInit`, а не при создании узла. Та же
+цена у фабрики `providers:` модуля: `Promise` из неё — ошибка сборки с
+именем модуля.
 
 ### Декоратор `@Injectable`
 
@@ -192,7 +199,7 @@ const UserModule = makeModule({
   providers: [UserRepository, UserService],
 });
 
-const container = await new ContainerBuilder().register(UserModule).build();
+const container = new ContainerBuilder().register(UserModule).build();
 ```
 
 Достаточно зарегистрировать корневой модуль: модули из `dependsOn`
@@ -202,7 +209,7 @@ const container = await new ContainerBuilder().register(UserModule).build();
 Провайдеры можно регистрировать и без модулей, по одному:
 
 ```typescript
-const container = await new ContainerBuilder()
+const container = new ContainerBuilder()
   .register(DatabaseService)
   .register(UserRepository)
   .register(UserService)
@@ -295,7 +302,7 @@ values of the same module.
 ```typescript
 import { ContainerBuilder } from '@nestling/container';
 
-const container = await new ContainerBuilder()
+const container = new ContainerBuilder()
   .register(UserService)
   .register(DatabaseService)
   .register(LoggerService)
@@ -387,7 +394,7 @@ describe('UserService', () => {
   });
 
   it('инициализируется', async () => {
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(classProvider(IService, MyService))
       .build();
     // у каждого теста свой конструктор и чистые метаданные
@@ -598,7 +605,7 @@ const LoggingModule = makeModule({
 [`@nestling/testing`](../nestling.testing).
 
 ```typescript
-const container = await new ContainerBuilder({
+const container = new ContainerBuilder({
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
   familyOverrides: [{ family: ILogger, recipe: (scope) => valueProvider(ILogger(scope), noop) }],
 }).register(UsersModule).build();
@@ -629,7 +636,7 @@ container.pruned; // ['UsersStore'] — узлы, выброшенные как 
 Готовый граф доступен целиком:
 
 ```typescript
-const container = await new ContainerBuilder().register(UsersModule).build();
+const container = new ContainerBuilder().register(UsersModule).build();
 
 // Экспорт в JSON
 const graph = await container.toJSON();
@@ -731,7 +738,7 @@ const UserModule = makeModule({
 
 // 4. Сборка и использование
 async function main() {
-  const container = await new ContainerBuilder().register(UserModule).build();
+  const container = new ContainerBuilder().register(UserModule).build();
 
   await container.init();
 
@@ -785,7 +792,7 @@ main().catch(console.error);
 |---|---|
 | `new ContainerBuilder(options?)` | билдер; опции `overrides`, `familyOverrides` |
 | `.register(...items)` | регистрирует провайдеры, рецепты семейств и модули |
-| `.build()` | проверяет граф, создаёт экземпляры, возвращает `BuiltContainer` |
+| `.build()` | синхронно: проверяет граф, создаёт экземпляры, возвращает `BuiltContainer` |
 | `container.get(token)` | экземпляр или `null`, если токен не зарегистрирован |
 | `container.getOrThrow(token)` | экземпляр; бросает ошибку, если токен не зарегистрирован |
 | `container.init()` | вызывает `@OnInit` в топологическом порядке |
@@ -794,7 +801,8 @@ main().catch(console.error);
 | `container.pruned` | идентификаторы узлов, выброшенных прунингом; пуст без `overrides` |
 | `container.warnings` | предупреждения сборки (совпадающие `id` токенов); пуст, если предупреждений нет |
 | `container.toJSON()` | граф зависимостей в JSON |
-| `container.traverse(callback, options)` | обход графа |
+| `container.forEachNode(callback)` | синхронный перебор узлов — для проверок на собранном графе |
+| `container.traverse(callback, options)` | обход графа; ждёт колбэк, потому что его дело — хуки жизненного цикла |
 
 ### Subpath `@nestling/container/tokens`
 

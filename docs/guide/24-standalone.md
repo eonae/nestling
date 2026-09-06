@@ -138,16 +138,13 @@ curl -N localhost:3000/logs/export
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
-  return await new ContainerBuilder()
-    .register(
-      configKernel([
-        [
-          objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'),
-          appConfigKeys,
-        ],
-        [runtime, runtimeConfigKeys],
-      ]),
-    )
+  const config = await bootstrapConfig([
+    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
+    [runtime, runtimeConfigKeys],
+  ]);
+
+  return new ContainerBuilder()
+    .register(configKernel(config))
     // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
     // секцию `nestlingLog` и идентификатор запроса из контекста
     .register(contextKernel(), loggerKernel())
@@ -160,13 +157,14 @@ export const makeContainer = async (
 `ContainerBuilder` собирает тот же граф, что `makeApp` в `main.ts` того
 же примера, но без фаз приложения и транспортов. Ядро конфигурации,
 которое сборка через `makeApp` регистрирует сама, здесь подключается
-вызовом `configKernel` с привязкой источников к ключам секций, как в
-главе [22](./22-config-sources.md). Логгер ядра читает секцию
-`nestlingLog` и идентификатор запроса из контекста, поэтому без `App`
-эти два kernel-модуля — `contextKernel()` и `loggerKernel()` —
-регистрируются руками. Плагин `appCounters` регистрируется своими
-модулями: `appCounters.modules` — обычный массив значений. `build()`
-создаёт все провайдеры сразу и проверяет граф целиком: отсутствующая
+двумя шагами: `bootstrapConfig` поднимает источники по привязкам к ключам
+секций (как в главе [22](./22-config-sources.md)), а `configKernel` вносит
+готовую читалку в граф. Логгер ядра читает секцию `nestlingLog` и
+идентификатор запроса из контекста, поэтому без `App` эти два
+kernel-модуля — `contextKernel()` и `loggerKernel()` — регистрируются
+руками. Плагин `appCounters` регистрируется своими модулями:
+`appCounters.modules` — обычный массив значений. `build()` синхронен: он
+создаёт все провайдеры сразу и проверяет граф целиком — отсутствующая
 зависимость и цикл останавливают сборку одной ошибкой со списком узлов.
 
 ```typescript

@@ -5,9 +5,9 @@
  * переживает, а операция переживает. Значит, к фиче — только операциями, к
  * плагину — токенами.
  *
- * Механизм тот же, что был у проверки экспортов: обход собранного графа с
- * чтением метки узла. Карта другая — не «узел → модуль», а «модуль →
- * фича-владелец», и выводится она из состава.
+ * Механизм тот же, что был у проверки экспортов: перебор узлов собранного
+ * графа с чтением метки узла. Карта другая — не «узел → модуль», а
+ * «модуль → фича-владелец», и выводится она из состава.
  */
 
 import type { Feature, Plugin } from './feature.js';
@@ -123,17 +123,20 @@ const pluginToFeatureMessage = (
  * Нарушения собираются все сразу: чинить границу по одному ребру за
  * перезапуск — не режим работы.
  *
+ * Перебор синхронный (`forEachNode`, а не `traverse`): проверка фазы 1
+ * ничего не ждёт, и вся фаза проходит без единого `await`.
+ *
  * @param container - Собранный контейнер
  * @param owners - Карта «модуль → владелец»
  * @throws {Error} Если найдено хотя бы одно запрещённое ребро
  */
-export async function assertFeatureBoundary(
+export function assertFeatureBoundary(
   container: BuiltContainer,
   owners: OwnerMap,
-): Promise<void> {
+): void {
   const violations: string[] = [];
 
-  await container.traverse((node) => {
+  container.forEachNode((node) => {
     const consumer = node.metadata.module;
     const from = consumer === undefined ? undefined : owners.get(consumer);
 

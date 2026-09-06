@@ -63,10 +63,24 @@ export interface ValueProviderDefinition<T = unknown>
 }
 
 /**
+ * Значение фабрики без `Promise`.
+ *
+ * Условный тип, а не просто `T`: он стоит в невыводимой позиции, поэтому
+ * тип значения задаёт токен, а фабрика, объявленная `async`, не проходит
+ * по типу. Литерал провайдера внутри модуля этим типом не закрывается —
+ * `Module.providers` типизирован значением `unknown`, — и его ловит
+ * рантайм-проверка `build()`.
+ *
+ * @template T - Тип значения
+ */
+export type SyncValue<T> = T extends PromiseLike<unknown> ? never : T;
+
+/**
  * Провайдер, создающий значение фабричной функцией.
  *
- * Подходит для сложной логики создания, асинхронной инициализации и
- * классов сторонних библиотек без `@Injectable`.
+ * Подходит для сложной логики создания и классов сторонних библиотек без
+ * `@Injectable`. Фабрика синхронна: захват соединения — дело хука
+ * `@OnInit`, а не сборки.
  *
  * @template T - Тип создаваемого значения
  *
@@ -80,8 +94,8 @@ export interface ValueProviderDefinition<T = unknown>
  * ```
  */
 export interface FactoryProviderDefinition<T> extends BaseDefinition<T> {
-  /** Фабрика, создающая значение */
-  useFactory: (...args: any[]) => T;
+  /** Фабрика, создающая значение; `Promise` в возвращаемом типе запрещён */
+  useFactory: (...args: any[]) => SyncValue<T>;
   /** Зависимости, передаваемые фабрике аргументами */
   deps: readonly InjectionToken[];
 }
@@ -121,7 +135,7 @@ export type FactoryProviderWithDeps<
   T,
   TDeps extends readonly InjectionToken[],
 > = FactoryProviderDefinition<T> & {
-  useFactory: (...args: UnwrapTokens<TDeps>) => T;
+  useFactory: (...args: UnwrapTokens<TDeps>) => SyncValue<T>;
   deps: TDeps;
 };
 
@@ -191,7 +205,8 @@ export function valueProvider<T>(
  * Создаёт фабричный провайдер.
  *
  * Фабрика получает зависимости аргументами в порядке `deps` и возвращает
- * значение. Фабрика может быть синхронной или асинхронной.
+ * значение. Фабрика синхронна: `Promise` в возвращаемом значении не
+ * компилируется, потому что фаза сборки не выполняет ввода-вывода.
  *
  * @template T - Тип создаваемого значения
  * @template TDeps - Массив токенов зависимостей
@@ -212,7 +227,7 @@ export function valueProvider<T>(
  */
 export function factoryProvider<T, TDeps extends readonly InjectionToken[]>(
   provide: InjectionToken<T>,
-  useFactory: (...args: UnwrapTokens<TDeps>) => T,
+  useFactory: (...args: UnwrapTokens<TDeps>) => SyncValue<T>,
   deps: TDeps,
 ): FactoryProviderWithDeps<T, TDeps> {
   return {
@@ -312,14 +327,13 @@ export type ModuleProvider<T = unknown> =
 /**
  * Фабрика провайдеров модуля: функция, возвращающая массив провайдеров.
  *
- * Вызывается в `build()`. Может быть асинхронной и возвращать рецепты
- * семейств наряду с обычными провайдерами.
+ * Вызывается в `build()` и потому синхронна: фаза сборки не выполняет
+ * ввода-вывода. Возвращать рецепты семейств наряду с обычными провайдерами
+ * можно.
  *
  * @template T - Тип значений
  */
-export type ProvidersFactory<T = unknown> = () =>
-  | ModuleProvider<T>[]
-  | Promise<ModuleProvider<T>[]>;
+export type ProvidersFactory<T = unknown> = () => ModuleProvider<T>[];
 
 /**
  * Проверяет, что провайдер — явное определение, а не класс.

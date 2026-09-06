@@ -2,7 +2,11 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
-import { configKernel, objectSource } from '../config/index.js';
+import {
+  bootstrapConfig,
+  configKernel,
+  objectSource,
+} from '../config/index.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 import { loggerKernel } from '../logger/kernel.js';
 import { RootLogger$ } from '../logger/tokens.js';
@@ -165,7 +169,9 @@ async function assemble(options: {
   const builder = new ContainerBuilder({
     overrides: [[RootLogger$, spyLogger().logger]],
   });
-  builder.register(configKernel([[source, portsConfigKeys]]));
+  builder.register(
+    configKernel(await bootstrapConfig([[source, portsConfigKeys]])),
+  );
   builder.register(contextKernel(), loggerKernel());
   builder.register(
     portsKernel({
@@ -188,7 +194,7 @@ async function assemble(options: {
     builder.register(consumer);
   }
 
-  const container = await builder.build();
+  const container = builder.build();
   const bus = container.get(MessageBus$) as InProcessBus | null;
 
   if (options.wire === false) {

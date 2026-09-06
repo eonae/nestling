@@ -2,6 +2,7 @@ import type { SpyLogger } from '../logger/__fixtures__/spy.js';
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 
 import type { SectionDeclaration } from './declaration.js';
+import { ConfigSourceError } from './errors.js';
 import { ConfigKeys } from './keys.js';
 import { ConfigReader } from './reader.js';
 import { registerSection, resetConfigRegistry } from './registry.js';
@@ -148,6 +149,84 @@ describe('жизненный цикл источников', () => {
     await reader.close();
 
     expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('снимок фазы 0', () => {
+  it('init() читает объявленные ключи, чтение источник не трогает', async () => {
+    registerSection(declaration('orders', ['ORDERS_MAX_ITEMS']));
+
+    const get = jest.fn(() => '10');
+    const source: ConfigSource = { name: 'snapshot', get };
+
+    const reader = new ConfigReader([[source, '*']]);
+    await reader.init();
+
+    expect(get).toHaveBeenCalledTimes(1);
+
+    expect(reader.read('ORDERS_MAX_ITEMS')).toBe('10');
+    expect(reader.read('ORDERS_MAX_ITEMS')).toBe('10');
+
+    // Значение пришло из снимка: источник опрошен всё тем же один раз
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('значение снимка не меняется вслед за источником', async () => {
+    registerSection(declaration('orders', ['ORDERS_MAX_ITEMS']));
+
+    const source = objectSource({ ORDERS_MAX_ITEMS: '10' }, 'snapshot');
+    const reader = new ConfigReader([[source, '*']]);
+    await reader.init();
+
+    source.set('ORDERS_MAX_ITEMS', '20');
+
+    expect(reader.read('ORDERS_MAX_ITEMS')).toBe('10');
+  });
+
+  it('ключ вне реестра читается по промаху и запоминается', async () => {
+    const get = jest.fn(() => 'localhost:50051');
+    const source: ConfigSource = { name: 'globs', get };
+
+    const reader = new ConfigReader([[source, '*']]);
+    await reader.init();
+
+    // Реестр пуст, значит снимок тоже: первое чтение идёт к источнику
+    expect(get).not.toHaveBeenCalled();
+
+    expect(reader.read('ORDERS_GRPC_ADDRESS')).toBe('localhost:50051');
+    expect(reader.read('ORDERS_GRPC_ADDRESS')).toBe('localhost:50051');
+
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('отказ init() называет источник и несёт исходную ошибку', async () => {
+    const cause = new Error('connection refused');
+    const failing: ConfigSource = {
+      ...silent('vault'),
+      init: () => {
+        throw cause;
+      },
+    };
+
+    const reader = new ConfigReader([[failing, '*']]);
+    const error = await reader.init().catch((error_: unknown) => error_);
+
+    expect(error).toBeInstanceOf(ConfigSourceError);
+    expect((error as ConfigSourceError).source).toBe('vault');
+    expect((error as ConfigSourceError).cause).toBe(cause);
+    expect((error as ConfigSourceError).message).toMatch(/'vault'/);
+  });
+
+  it('init() источника вызывается один раз: повторы — дело источника', async () => {
+    const init = jest.fn(async () => {
+      await Promise.reject(new Error('temporarily unavailable'));
+    });
+    const flaky: ConfigSource = { ...silent('flaky'), init };
+
+    const reader = new ConfigReader([[flaky, '*']]);
+
+    await expect(reader.init()).rejects.toThrow(/Config source 'flaky'/);
+    expect(init).toHaveBeenCalledTimes(1);
   });
 });
 

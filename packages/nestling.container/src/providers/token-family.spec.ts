@@ -135,7 +135,7 @@ describe('член семейства как обычный токен', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(ILogger('users'), makeLogger('users')))
       .register(UserService)
       .build();
@@ -155,7 +155,7 @@ describe('член семейства как обычный токен', () => {
 
     const IReporter = makeToken<string>('Reporter');
 
-    const container = await new ContainerBuilder()
+    const container = new ContainerBuilder()
       .register(valueProvider(ILogger('db'), makeLogger('db')))
       .register(
         factoryProvider(IReporter, (logger: ILoggerService) => logger.scope, [

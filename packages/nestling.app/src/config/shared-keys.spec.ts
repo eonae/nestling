@@ -7,7 +7,7 @@
 import { from } from './declaration.js';
 import { ConfigSharedKeyError, ConfigValidationError } from './errors.js';
 import type { Config } from './families.js';
-import { configKernel } from './kernel.js';
+import { bootstrapConfig, configKernel } from './kernel.js';
 import { describeConfig } from './registry.js';
 import { makeConfig } from './section.js';
 import { objectSource } from './source.js';
@@ -68,10 +68,12 @@ const build = async (
   register: (builder: ContainerBuilder) => void,
 ): Promise<BuiltContainer> => {
   const builder = new ContainerBuilder();
-  builder.register(configKernel([[objectSource(values, 'test'), '*']]));
+  builder.register(
+    configKernel(await bootstrapConfig([[objectSource(values, 'test'), '*']])),
+  );
   register(builder);
 
-  return await builder.build();
+  return builder.build();
 };
 
 /** Ловит отказ сборки, оставляя тип ошибки конкретным. */

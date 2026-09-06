@@ -13,7 +13,7 @@ import type { VisitCallback, VisitOptions } from '@common/graphs';
  *
  * @example
  * ```typescript
- * const container = await new ContainerBuilder()
+ * const container = new ContainerBuilder()
  *   .register(UserService)
  *   .build();
  *
@@ -82,7 +82,7 @@ export class BuiltContainer {
    *
    * @example
    * ```typescript
-   * const container = await builder.build();
+   * const container = builder.build();
    * await container.init(); // все хуки @OnInit
    * ```
    */
@@ -214,6 +214,22 @@ export class BuiltContainer {
     }
 
     return node.instance as T;
+  }
+
+  /**
+   * Перебирает узлы графа синхронно, вызывая `callback` на каждом.
+   *
+   * Отличие от {@link traverse}: тот ждёт колбэк, потому что его дело —
+   * хуки жизненного цикла. Проверкам фазы сборки ждать нечего, а сама
+   * фаза синхронна.
+   *
+   * Порядка обхода нет: проверка утверждает что-то про каждый узел, а не
+   * про их последовательность.
+   *
+   * @param callback - Функция, вызываемая для каждого узла
+   */
+  forEachNode(callback: (node: Readonly<DINode>) => void): void {
+    this.#graph.forEachNode(callback);
   }
 
   /**

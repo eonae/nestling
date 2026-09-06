@@ -60,7 +60,7 @@ await app.close();
 `ConfigValidationError` перечисляет все ошибки секции и то, из каких
 источников читалось каждое значение.
 
-Тот же список принимает `configKernel()` при сборке контейнера без
+Тот же список принимает `bootstrapConfig()` при сборке контейнера без
 `makeApp`, через `ContainerBuilder`:
 
 ```typescript
@@ -68,16 +68,13 @@ await app.close();
 export const makeContainer = async (
   runtime: ConfigSource = objectSource({}, 'runtime'),
 ): Promise<BuiltContainer> => {
-  return await new ContainerBuilder()
-    .register(
-      configKernel([
-        [
-          objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'),
-          appConfigKeys,
-        ],
-        [runtime, runtimeConfigKeys],
-      ]),
-    )
+  const config = await bootstrapConfig([
+    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
+    [runtime, runtimeConfigKeys],
+  ]);
+
+  return new ContainerBuilder()
+    .register(configKernel(config))
     // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
     // секцию `nestlingLog` и идентификатор запроса из контекста
     .register(contextKernel(), loggerKernel())
@@ -88,7 +85,9 @@ export const makeContainer = async (
 ```
 
 `ContainerBuilder` собирает тот же граф, что `makeApp` в `main.ts` того
-же примера, но без фаз приложения и без транспортов. `configKernel`
+же примера, но без фаз приложения и без транспортов. Фазы здесь две и они
+разделены явно: `bootstrapConfig` поднимает источники — это единственный
+ввод-вывод, — а `build()` собирает граф синхронно. `configKernel(config)`
 подключает ядро конфигурации, а `contextKernel()` и `loggerKernel()` —
 контекст запроса и логгер ядра. При сборке через `makeApp` все три
 регистрирует сама сборка. Плагин `appCounters` регистрируется своими

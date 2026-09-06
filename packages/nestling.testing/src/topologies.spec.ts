@@ -3,17 +3,20 @@
  */
 
 import { SpyTransport } from './__fixtures__/transport.js';
+import { vars } from './config.js';
 import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { ITransport, SchemaDocConverter } from '@nestling/app';
+import type { Config, ITransport, SchemaDocConverter } from '@nestling/app';
 import {
   diffOperations,
   formatCompatibility,
   implement,
   makeApp,
+  makeConfig,
   makeFeature,
   makePlugin,
+  objectSource,
   Ok,
   snapshotOperations,
   transportValue,
@@ -135,6 +138,55 @@ describe('checkTopologies', () => {
     expect((error as Error).message).toContain(`select: 'users'`);
     expect((error as Error).message).toContain(`select: 'reports'`);
     expect((error as Error).message).toContain('TopologyLogger');
+  });
+
+  it('прокидывает config в каждую топологию, обходясь без источников', async () => {
+    const TopologyConfig = makeConfig('topology', {
+      pageSize: z.coerce.number(),
+    });
+
+    @Injectable([TopologyConfig])
+    class UsersHandler {
+      constructor(private readonly cfg: Config<typeof TopologyConfig>) {}
+
+      async handle() {
+        return new Ok({ pageSize: this.cfg.pageSize });
+      }
+    }
+
+    const UsersFeature = makeFeature({
+      name: 'users',
+      endpoints: [
+        httpEndpoint({ method: 'GET', path: '/users', handler: UsersHandler }),
+      ],
+    });
+
+    const declared = objectSource({ TOPOLOGY_PAGE_SIZE: '5' }, 'declared');
+    let initialized = false;
+
+    const reports = await checkTopologies(
+      makeApp({
+        features: [UsersFeature],
+        transports: [asHttpTransport(new SpyTransport())],
+        config: [
+          [
+            {
+              ...declared,
+              init: () => {
+                initialized = true;
+              },
+            },
+            '*',
+          ],
+        ],
+      }),
+      ['all', 'users'],
+      { config: vars({ TOPOLOGY_PAGE_SIZE: '10' }) },
+    );
+
+    expect(reports).toHaveLength(2);
+    // Привязки декларации заменены целиком: их источник не поднимался
+    expect(initialized).toBe(false);
   });
 });
 
