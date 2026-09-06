@@ -1,14 +1,15 @@
 import type { Database } from '../interfaces.js';
 import { Database$ } from '../interfaces.js';
-import { Logger } from '../logging/index.js';
 
+import type { Logger } from '@nestling/app';
+import { Logger$ } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 
 /**
- * `Logger.auto` подставляет член `Logger('UserRepository')`: имя берётся
+ * `Logger$.auto` подставляет член `Logger$('UserRepository')`: имя берётся
  * из класса-потребителя в момент декорирования.
  */
-@Injectable([Database$, Logger.auto])
+@Injectable([Database$, Logger$.auto])
 export class UserRepository {
   #database: Database;
   #logger: Logger;
@@ -19,7 +20,7 @@ export class UserRepository {
   }
 
   async findAll(): Promise<string[]> {
-    this.#logger.log('Loading all users');
+    this.#logger.info('Loading all users');
 
     const result = await this.#database.query('SELECT * FROM users');
     return result.map((row: any) => row.name);

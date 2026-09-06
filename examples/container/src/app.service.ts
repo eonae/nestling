@@ -1,14 +1,14 @@
-import { Logger } from './logging/index.js';
-
+import type { Logger } from '@nestling/app';
+import { Logger$ } from '@nestling/app';
 import { Injectable, OnInit } from '@nestling/container';
 
-@Injectable([Logger('app')])
+@Injectable([Logger$('app')])
 export class AppService {
   constructor(private logger: Logger) {}
 
   @OnInit()
   async initialize(): Promise<void> {
-    this.logger.log('AppService initialized');
+    this.logger.info('AppService initialized');
   }
 
   async getAppInfo(): Promise<string> {

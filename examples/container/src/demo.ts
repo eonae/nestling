@@ -1,13 +1,15 @@
 import { AppConfig } from './config/app.config.js';
+import type { Counter } from './counters/index.js';
+import { Counter$ } from './counters/index.js';
 import { HealthService } from './health/index.js';
-import { Logger } from './logging/index.js';
 import { RateLimiter } from './runtime/index.js';
 import { UserService } from './users/index.js';
 import { AppService } from './app.service.js';
 import type { ApiClient, Database } from './interfaces.js';
 import { ApiClient$, Database$ } from './interfaces.js';
 
-import type { Config } from '@nestling/app';
+import type { Config, Logger } from '@nestling/app';
+import { Logger$ } from '@nestling/app';
 import { Injectable, OnStart } from '@nestling/container';
 
 /**
@@ -21,11 +23,13 @@ import { Injectable, OnStart } from '@nestling/container';
   UserService,
   Database$,
   ApiClient$,
-  Logger('app'),
+  Logger$('app'),
   AppService,
   HealthService,
   RateLimiter,
   AppConfig,
+  Counter$('users'),
+  Counter$('queries'),
 ])
 export class Demo {
   constructor(
@@ -37,23 +41,32 @@ export class Demo {
     private readonly health: HealthService,
     private readonly limiter: RateLimiter,
     private readonly config: Config<typeof AppConfig>,
+    private readonly userCalls: Counter,
+    private readonly queries: Counter,
   ) {}
 
   @OnStart()
   async show(): Promise<void> {
     await this.database.connect();
 
-    // Секретное поле печатается как `'***'`; спред `{ ...config }` вернул бы
-    // настоящее значение
-    this.logger.log('Config (printed):', this.config);
-    this.logger.log('Config (as JSON):', JSON.stringify(this.config));
+    // Секретное поле печатается как `'***'`: логгер сериализует объект
+    // через JSON, а спред `{ ...config }` вернул бы настоящее значение
+    this.logger.info('Config', { config: this.config });
 
-    this.logger.log('Users:', await this.users.getUsers());
-    this.logger.log('API Response:', await this.api.get('/api/users'));
-    this.logger.log('App Info:', await this.app.getAppInfo());
-    this.logger.log('Rate limit:', this.limiter.limit);
+    this.logger.info('Users', { users: await this.users.getUsers() });
+    this.logger.info('API Response', {
+      response: await this.api.get('/api/users'),
+    });
+    this.logger.info('App Info', { info: await this.app.getAppInfo() });
+    this.logger.info('Rate limit', { rps: this.limiter.limit });
 
     // Вклады из module:database и module:api собраны в массив на build()
-    this.logger.log('Health:', await this.health.report());
+    this.logger.info('Health', { report: await this.health.report() });
+
+    // Члены одного семейства из одного рецепта: у каждого свой счёт
+    this.logger.info('Counters', {
+      [this.userCalls.name]: this.userCalls.value,
+      [this.queries.name]: this.queries.value,
+    });
   }
 }
