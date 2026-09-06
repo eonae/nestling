@@ -52,11 +52,11 @@
 
 ## 7. Направление зависимостей и границы
 
-- [ ] 7.1 В `packages/nestling.app/eslint.config.js` добавлены блоки по `files` с `no-restricted-imports`: зоны `pipeline`, `config`, `transport`, `ports` по таблице из `design.md`
-- [ ] 7.2 Проверено, что запрещённый импорт валит `yarn lint` пакета, а разрешённый проходит
-- [ ] 7.3 Тест `@nestling/subscriptions` проверяет список имён, импортируемых из `@nestling/app`: `assemble`, объявления фичи и плагина в нём нет
-- [ ] 7.4 Списки разрешённых импортов в тестах границы `operations`, `client`, `app`, `openapi` сверены с фактическими
-- [ ] 7.5 `yarn verify:fresh` зелёный один раз после последнего слияния
+- [x] 7.1 В `packages/nestling.app/eslint.config.js` добавлены блоки по `files` с `no-restricted-imports`: зоны `pipeline`, `config`, `transport`, `ports` по таблице из `design.md`
+- [x] 7.2 Проверено, что запрещённый импорт валит `yarn lint` пакета, а разрешённый проходит
+- [x] 7.3 Тест `@nestling/subscriptions` проверяет список имён, импортируемых из `@nestling/app`: `assemble`, объявления фичи и плагина в нём нет
+- [x] 7.4 Списки разрешённых импортов в тестах границы `operations`, `client`, `app`, `openapi` сверены с фактическими
+- [x] 7.5 `yarn verify:fresh` зелёный один раз после последнего слияния
 
 ## 8. Примеры
 
