@@ -95,7 +95,7 @@
 - [ ] 7.1 `examples/users-service`: `database.ts` — ресурс, поле без
       `| undefined`
 - [ ] 7.2 `examples/app-with-http`: то же для `features/users/database.ts`
-- [ ] 7.3 Прочие примеры: `@Injectable` → `@Component`/`@Handler`
+- [x] 7.3 Прочие примеры: `@Injectable` → `@Component`/`@Handler`
 
 ## 8. Документация
 

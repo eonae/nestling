@@ -1,6 +1,6 @@
 # 24. Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-06)
+> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-07)
 > и `container` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
@@ -145,6 +145,9 @@ export const makeContainer = async (
 
   return new ContainerBuilder()
     .register(configKernel(config))
+    // Корневой логгер живёт вне графа: `makeApp` создаёт его на фазе 0 и
+    // регистрирует значением сам, здесь это делает вызывающий код
+    .register(valueProvider(RootLogger$, makeKernelLogger(config)))
     // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
     // секцию `nestlingLog` и идентификатор запроса из контекста
     .register(contextKernel(), loggerKernel())
@@ -159,22 +162,26 @@ export const makeContainer = async (
 которое сборка через `makeApp` регистрирует сама, здесь подключается
 двумя шагами: `bootstrapConfig` поднимает источники по привязкам к ключам
 секций (как в главе [22](./22-config-sources.md)), а `configKernel` вносит
-готовую читалку в граф. Логгер ядра читает секцию `nestlingLog` и
-идентификатор запроса из контекста, поэтому без `App` эти два
-kernel-модуля — `contextKernel()` и `loggerKernel()` — регистрируются
+готовую читалку в граф. Корневой логгер живёт вне графа: `makeApp` создаёт
+его на фазе 0 сам, а без `App` его создаёт вызывающий код —
+`makeKernelLogger(config)` — и регистрирует значением под `RootLogger$`.
+Kernel-модули `contextKernel()` и `loggerKernel()` тоже регистрируются
 руками. Плагин `appCounters` регистрируется своими модулями:
 `appCounters.modules` — обычный массив значений. `build()` синхронен: он
-создаёт все провайдеры сразу и проверяет граф целиком — отсутствующая
-зависимость и цикл останавливают сборку одной ошибкой со списком узлов.
+строит граф и проверяет его целиком — отсутствующая зависимость и цикл
+останавливают сборку одной ошибкой со списком узлов. Экземпляров он не
+создаёт: их создаёт `init()`.
 
 ```typescript
 // examples/container/src/runtime/reload.spec.ts (фрагмент)
     container = await makeContainer(source);
     await container.init();
-    // Подписка `onChange` открывается в `@OnStart`
-    await container.start();
+    shutdown = new AbortController();
+    // Подписка `onChange` открывается в `@OnStart` и снимается сигналом
+    await container.start(shutdown.signal);
     limiter = container.getOrThrow(RateLimiter);
     // …
+    shutdown.abort();
     await container.destroy();
 ```
 

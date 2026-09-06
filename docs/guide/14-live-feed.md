@@ -1,6 +1,6 @@
 # 14. Живая лента для клиента
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-06).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-07).
 > Целевое описание: [design/streaming.md](../design/streaming.md), разделы
 > «`stream(T)` и `events(T)`» и «Источники событий». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Стриминг: `stream(T)` ≠
@@ -15,8 +15,12 @@
 
 ```typescript
 // examples/app-with-http/src/features/users/activity.hub.ts (фрагмент)
-@Component([])
+@Resource([])
 export class ActivityHub {
+  static async acquire(_signal: AbortSignal): Promise<ActivityHub> {
+    return new ActivityHub();
+  }
+
   readonly #topic = new Topic<ActivityEvent>({ buffer: 256 });
 
   /** Последние события: с них продолжается подписка после реконнекта */
@@ -66,14 +70,14 @@ export class ActivityHub {
   }
   // …
   /** При остановке приложения все подписки завершаются нормально */
-  @OnDestroy()
-  close(): void {
+  release(): void {
     this.#topic.close();
   }
 }
 ```
 
-Источник событий — обычный провайдер. Внутри него `Topic` из
+Источник событий — ресурс: закрыть `Topic` и завершить открытые подписки
+можно только явным вызовом на остановке, а это и есть `release`. Внутри него `Topic` из
 `@nestling/operations`: источник с любым числом подписчиков. `push` не ждёт
 ни одного подписчика и возвращается сразу. `subscribe(signal)` возвращает
 `AsyncIterableIterator`, который завершается, когда взведён `signal`,
@@ -82,8 +86,8 @@ export class ActivityHub {
 
 Хаб хранит последние события, чтобы после реконнекта отдать пропущенное:
 `subscribe` сначала выдаёт историю с идентификатором больше `since`,
-затем живые события. Хук `@OnDestroy` закрывает тему при остановке
-приложения, и все подписки завершаются штатно.
+затем живые события. `release` закрывает тему при остановке приложения, и
+все подписки завершаются штатно.
 
 `Topic` принимает опцию `buffer`: размер буфера на одного подписчика, по
 умолчанию `1024`, `0` отключает буферизацию. Опция `onSlowConsumer`
@@ -179,8 +183,8 @@ export const ActivityStream = httpEndpoint({
     return Ok.created(user, { Location: `/users/${user.id}` });
 ```
 
-`ActivityHub` инжектируется в хендлер регистрации через `@Handler`,
-как любой провайдер. Публикация не замедляет создание пользователя ни
+`ActivityHub` инжектируется в хендлер регистрации списком зависимостей
+`@Handler`, как любой провайдер. Публикация не замедляет создание пользователя ни
 на одного подключённого клиента.
 
 ## Что видит клиент
