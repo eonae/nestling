@@ -4,8 +4,7 @@ import { runtimeConfigKeys } from './runtime/index.js';
 import { AppFeature } from './app.feature.js';
 import { Demo } from './demo.js';
 
-import { makeApp } from '@nestling/app';
-import { objectSource } from '@nestling/config';
+import { makeApp, objectSource } from '@nestling/app';
 
 /**
  * Composition root без транспорта: приложение проходит фазы и остаётся в

@@ -10,15 +10,14 @@ import { familyOverride } from './overrides.js';
 import { unwrap, UnwrapFailedError } from './unwrap.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import type { ITransport } from '@nestling/app';
+import type { Config, ITransport } from '@nestling/app';
 import {
   Discovery$,
   makeApp,
+  makeConfig,
   makeFeature,
   transportValue,
 } from '@nestling/app';
-import type { Config } from '@nestling/config';
-import { makeConfig } from '@nestling/config';
 import {
   Injectable,
   makeToken,

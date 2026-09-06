@@ -6,7 +6,7 @@ import { Logger } from '../logging/index.js';
 
 import { ApiHealthCheck } from './api.health.js';
 
-import type { Config } from '@nestling/config';
+import type { Config } from '@nestling/app';
 import {
   classProvider,
   factoryProvider,

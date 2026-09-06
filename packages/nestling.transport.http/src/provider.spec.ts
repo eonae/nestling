@@ -7,8 +7,7 @@ import { HttpTransport$ } from './token.js';
 import { http, HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeDispatch } from '@nestling/app';
-import { configKernel } from '@nestling/config';
+import { configKernel, makeDispatch } from '@nestling/app';
 import { ContainerBuilder } from '@nestling/container';
 
 /** Строит контейнер с kernel-модулем конфига и объявленным транспортом */

@@ -28,8 +28,7 @@ import { ClaimQuota, QuotaExceeded } from './operations.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp } from '@nestling/app';
-import { objectSource } from '@nestling/config';
+import { makeApp, objectSource } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import type { OpenApiDocument } from '@nestling/openapi';
 import { openapi, OpenApiDocument$ } from '@nestling/openapi';

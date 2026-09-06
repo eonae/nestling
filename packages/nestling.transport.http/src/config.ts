@@ -3,10 +3,10 @@
  *
  * Наружу уходит только `keys` (право привязать источник); токен секции
  * остаётся приватным, и инжектировать её может только этот пакет
- * (см. `@nestling/config`).
+ * (см. `@nestling/app`).
  */
 
-import { makeConfig } from '@nestling/config';
+import { makeConfig } from '@nestling/app';
 import { z } from 'zod';
 
 /**

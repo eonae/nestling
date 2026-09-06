@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@nestling/app": "workspace:*",
-    "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*"
   },
   "devDependencies": {

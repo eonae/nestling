@@ -2,7 +2,7 @@ import { Logger } from '../logging/index.js';
 
 import { RuntimeConfig } from './runtime.config.js';
 
-import type { Config } from '@nestling/config';
+import type { Config } from '@nestling/app';
 import { Injectable, OnDestroy, OnStart } from '@nestling/container';
 
 /**

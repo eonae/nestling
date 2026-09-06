@@ -2,6 +2,7 @@
  * Реализация операции без `output` возвращает `undefined` явно: так
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
+import { configKernel, objectSource } from '../config/index.js';
 import type { Dispatch } from '../transport/index.js';
 import { makeDispatch } from '../transport/index.js';
 
@@ -13,7 +14,6 @@ import { bindPorts, portsKernel, undurableOperations } from './kernel.js';
 import { collectImplementations } from './topology.js';
 import { BusTransport$ } from './transport.js';
 
-import { configKernel, objectSource } from '@nestling/config';
 import type { BuiltContainer } from '@nestling/container';
 import {
   ContainerBuilder,

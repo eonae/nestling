@@ -8,7 +8,7 @@
 
 import { app } from './app.js';
 
-import { load, makeConfig } from '@nestling/config';
+import { load, makeConfig } from '@nestling/app';
 import { z } from 'zod';
 
 /** Секция корня: выбор фич читается до сборки контейнера */

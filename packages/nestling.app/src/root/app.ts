@@ -10,6 +10,7 @@
  * fail-fast: ошибка сборки предшествует захвату любых ресурсов.
  */
 
+import { configKernel } from '../config/index.js';
 import type { OperationDescriptor } from '../ports/index.js';
 import {
   bindPorts,
@@ -50,7 +51,6 @@ import {
 } from './plan.js';
 import { closeOverCalls } from './selection.js';
 
-import { configKernel } from '@nestling/config';
 import type {
   BuiltContainer,
   InjectionToken,

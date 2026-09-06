@@ -3,6 +3,12 @@
  * fail-fast на старте — до того, как транспорт начнёт слушать.
  */
 
+import type { Config } from '../config/index.js';
+import {
+  ConfigValidationError,
+  makeConfig,
+  objectSource,
+} from '../config/index.js';
 import { transportValue } from '../transport/index.js';
 
 import { TestTransport$ } from './__fixtures__/test-transport.js';
@@ -11,12 +17,6 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Config } from '@nestling/config';
-import {
-  ConfigValidationError,
-  makeConfig,
-  objectSource,
-} from '@nestling/config';
 import { Injectable } from '@nestling/container';
 import { z } from 'zod';
 

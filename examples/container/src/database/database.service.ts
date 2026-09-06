@@ -3,7 +3,7 @@ import type { Database } from '../interfaces.js';
 import { Database$ } from '../interfaces.js';
 import { Logger } from '../logging/index.js';
 
-import type { Config } from '@nestling/config';
+import type { Config } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 
 /**

@@ -2,9 +2,8 @@ import { LoggerConfig } from './logger.config.js';
 import { ConsoleLogger, Logger$ } from './logger.js';
 import { AuditOutcome } from './observability.js';
 
-import type { Plugin } from '@nestling/app';
+import type { Config, Plugin } from '@nestling/app';
 import { makePlugin } from '@nestling/app';
-import type { Config } from '@nestling/config';
 import { factoryProvider } from '@nestling/container';
 
 /** Параметры плагина: то, что задаёт состав графа */

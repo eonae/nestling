@@ -3,8 +3,8 @@ import { appLogging } from './logging/index.js';
 import { runtimeConfigKeys } from './runtime/index.js';
 import { AppModule } from './app.feature.js';
 
-import type { ConfigSource } from '@nestling/config';
-import { configKernel, objectSource } from '@nestling/config';
+import type { ConfigSource } from '@nestling/app';
+import { configKernel, objectSource } from '@nestling/app';
 import type { BuiltContainer } from '@nestling/container';
 import { ContainerBuilder } from '@nestling/container';
 

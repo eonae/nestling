@@ -22,7 +22,6 @@
   "license": "MIT",
   "dependencies": {
     "@nestling/app": "workspace:*",
-    "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/operations": "workspace:*",
     "@nestling/pipeline": "workspace:*",

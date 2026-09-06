@@ -1,7 +1,7 @@
 import { AppConfig } from '../../app.config.js';
 import { Unauthorized } from '../../errors.js';
 
-import type { Config } from '@nestling/config';
+import type { Config } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import type { EmptyInput, ExtendableContext } from '@nestling/pipeline';
 

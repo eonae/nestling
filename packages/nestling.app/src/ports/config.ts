@@ -12,8 +12,9 @@
  * видимостью ES-модулей, снаружи доступен только `.keys`.
  */
 
+import { makeConfig } from '../config/index.js';
+
 import type { StandardSchemaV1 } from '@common/misc';
-import { makeConfig } from '@nestling/config';
 
 /**
  * Политика диспатча.

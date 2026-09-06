@@ -34,11 +34,11 @@
 
 ## 5. `config` в `@nestling/app`
 
-- [ ] 5.1 `packages/nestling.config/src` перенесён в `packages/nestling.app/src/config`
-- [ ] 5.2 Экспорты подняты в `src/index.ts`; дублирующие реэкспорты `ConfigBinding` и `ConfigTarget` в корне удалены
-- [ ] 5.3 Импорты `@nestling/config` переписаны на `@nestling/app`
-- [ ] 5.4 Каталог `packages/nestling.config` удалён; манифесты потребителей обновлены
-- [ ] 5.5 `yarn verify` зелёный
+- [x] 5.1 `packages/nestling.config/src` перенесён в `packages/nestling.app/src/config`
+- [x] 5.2 Экспорты подняты в `src/index.ts`; дублирующие реэкспорты `ConfigBinding` и `ConfigTarget` в корне удалены
+- [x] 5.3 Импорты `@nestling/config` переписаны на `@nestling/app`
+- [x] 5.4 Каталог `packages/nestling.config` удалён; манифесты потребителей обновлены
+- [x] 5.5 `yarn verify` зелёный
 
 ## 6. `pipeline` в `@nestling/app`
 

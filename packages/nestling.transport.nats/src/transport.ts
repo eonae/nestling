@@ -43,6 +43,7 @@ import type {
   BusHandler,
   BusMessageMeta,
   BusSubscription,
+  ConfigProjection,
   Dispatch,
   IMessageBus,
   ITransport,
@@ -63,7 +64,6 @@ import {
   profileAttributes,
   startBudget,
 } from '@nestling/app';
-import type { ConfigProjection } from '@nestling/config';
 import type { InjectionToken } from '@nestling/container';
 import { factoryProvider, OnInit } from '@nestling/container';
 import type {

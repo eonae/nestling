@@ -7,7 +7,7 @@ import { AppService } from './app.service.js';
 import type { ApiClient, Database } from './interfaces.js';
 import { ApiClient$, Database$ } from './interfaces.js';
 
-import type { Config } from '@nestling/config';
+import type { Config } from '@nestling/app';
 import { Injectable, OnStart } from '@nestling/container';
 
 /**

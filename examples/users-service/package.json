@@ -18,7 +18,6 @@
   "dependencies": {
     "@nestling/app": "workspace:*",
     "@nestling/client": "workspace:*",
-    "@nestling/config": "workspace:*",
     "@nestling/container": "workspace:*",
     "@nestling/openapi": "workspace:*",
     "@nestling/openapi.zod": "workspace:*",

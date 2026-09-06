@@ -4,7 +4,7 @@ import { Logger$ } from '../../plugins/logging/index.js';
 
 import type { User } from './user.js';
 
-import type { Config } from '@nestling/config';
+import type { Config } from '@nestling/app';
 import { Injectable, OnDestroy, OnInit } from '@nestling/container';
 
 /**

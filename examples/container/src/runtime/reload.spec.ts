@@ -8,8 +8,8 @@ import { makeContainer } from '../container.js';
 import { RateLimiter } from './rate-limiter.js';
 
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import type { ObjectSource } from '@nestling/config';
-import { objectSource } from '@nestling/config';
+import type { ObjectSource } from '@nestling/app';
+import { objectSource } from '@nestling/app';
 import type { BuiltContainer } from '@nestling/container';
 
 /** Даёт уведомлениям подписки выполниться */

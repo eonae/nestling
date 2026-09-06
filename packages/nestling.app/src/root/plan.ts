@@ -9,6 +9,7 @@
  * поверхности пакета нет.
  */
 
+import type { ConfigBinding } from '../config/index.js';
 import type {
   BusDeclaration,
   Dispatch,
@@ -19,7 +20,6 @@ import type {
 import type { Feature, FeatureSelection, Plugin } from './feature.js';
 import { reachablePlugins, resolveSelection } from './feature.js';
 
-import type { ConfigBinding } from '@nestling/config';
 import type {
   BuiltContainer,
   FamilyOverrideEntry,

@@ -2,8 +2,8 @@ import { AppConfig } from '../config/app.config.js';
 
 import { Logger } from './registry.js';
 
+import type { Config } from '@nestling/app';
 import { makePlugin } from '@nestling/app';
-import type { Config } from '@nestling/config';
 import { factoryProvider, familyProvider } from '@nestling/container';
 
 /**

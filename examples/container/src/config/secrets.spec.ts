@@ -9,8 +9,8 @@ import { HealthConfig } from '../health/index.js';
 
 import { AppConfig } from './app.config.js';
 
-import type { Config } from '@nestling/config';
-import { describeConfig } from '@nestling/config';
+import type { Config } from '@nestling/app';
+import { describeConfig } from '@nestling/app';
 import type { BuiltContainer } from '@nestling/container';
 
 const PASSWORD = 'sup3r-s3cret';

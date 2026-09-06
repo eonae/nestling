@@ -1098,7 +1098,6 @@ __metadata:
   dependencies:
     "@nestling/app": "workspace:*"
     "@nestling/client": "workspace:*"
-    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/eslint-plugin": "workspace:*"
     "@nestling/openapi": "workspace:*"
@@ -1117,7 +1116,6 @@ __metadata:
   resolution: "@examples/container@workspace:examples/container"
   dependencies:
     "@nestling/app": "workspace:*"
-    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
@@ -1152,7 +1150,6 @@ __metadata:
   resolution: "@examples/split-nats@workspace:examples/split-nats"
   dependencies:
     "@nestling/app": "workspace:*"
-    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
@@ -1168,7 +1165,6 @@ __metadata:
   dependencies:
     "@nestling/app": "workspace:*"
     "@nestling/client": "workspace:*"
-    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/eslint-plugin": "workspace:*"
     "@nestling/openapi": "workspace:*"
@@ -1732,7 +1728,6 @@ __metadata:
   resolution: "@nestling/app@workspace:packages/nestling.app"
   dependencies:
     "@common/misc": "workspace:*"
-    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
@@ -1744,18 +1739,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestling/client@workspace:packages/nestling.client"
   dependencies:
-    "@nestling/operations": "workspace:*"
-    typescript: "npm:5.7.3"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@nestling/config@workspace:*, @nestling/config@workspace:packages/nestling.config":
-  version: 0.0.0-use.local
-  resolution: "@nestling/config@workspace:packages/nestling.config"
-  dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
@@ -1861,7 +1844,6 @@ __metadata:
   resolution: "@nestling/testing@workspace:packages/nestling.testing"
   dependencies:
     "@nestling/app": "workspace:*"
-    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
@@ -1890,7 +1872,6 @@ __metadata:
     "@common/misc": "workspace:*"
     "@nestling/app": "workspace:*"
     "@nestling/client": "workspace:*"
-    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"
@@ -1906,7 +1887,6 @@ __metadata:
   resolution: "@nestling/transport.nats@workspace:packages/nestling.transport.nats"
   dependencies:
     "@nestling/app": "workspace:*"
-    "@nestling/config": "workspace:*"
     "@nestling/container": "workspace:*"
     "@nestling/operations": "workspace:*"
     "@nestling/pipeline": "workspace:*"

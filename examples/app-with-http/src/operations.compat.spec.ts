@@ -13,8 +13,7 @@ import { appConfigKeys } from './app.config.js';
 import { app } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp } from '@nestling/app';
-import { objectSource } from '@nestling/config';
+import { makeApp, objectSource } from '@nestling/app';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { OperationSnapshot } from '@nestling/testing';
 import {

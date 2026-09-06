@@ -2,12 +2,8 @@
  * Конфиг тестового прогона: объектом, а не через `process.env`.
  */
 
-import type {
-  ConfigBinding,
-  ConfigSource,
-  ObjectSource,
-} from '@nestling/config';
-import { objectSource } from '@nestling/config';
+import type { ConfigBinding, ConfigSource, ObjectSource } from '@nestling/app';
+import { objectSource } from '@nestling/app';
 
 /**
  * Форма поля `config:` тестового корня.
