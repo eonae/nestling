@@ -31,14 +31,31 @@ export interface Token<T = unknown> {
 }
 
 /**
+ * Класс как DI-токен.
+ *
+ * Публичного конструктора не требует: ресурс создаётся `static acquire`, и
+ * его конструктор бывает приватным, — а токеном остаётся тот же класс.
+ * Класс опознаётся по ссылке; `prototype` несёт тип значения, `name` —
+ * только для отображения.
+ *
+ * @template T - Тип экземпляра
+ */
+export interface ClassToken<T = unknown> {
+  /** Прототип: несёт тип экземпляра */
+  readonly prototype: T;
+  /** Имя класса */
+  readonly name: string;
+}
+
+/**
  * Токен: идентификатор зависимости в контейнере.
  *
- * Объектный токен (создаётся `makeToken`) или конструктор класса. Класс
- * тоже опознаётся по ссылке, а его имя — только для отображения.
+ * Объектный токен (создаётся `makeToken`) или класс. Класс тоже
+ * опознаётся по ссылке, а его имя — только для отображения.
  *
  * @template T - Тип значения, которое стоит за токеном
  */
-export type InjectionToken<T = unknown> = Token<T> | Constructor<T>;
+export type InjectionToken<T = unknown> = Token<T> | ClassToken<T>;
 
 /**
  * Превращает массив токенов в массив их типов.
@@ -54,7 +71,7 @@ export type InjectionToken<T = unknown> = Token<T> | Constructor<T>;
  * ```
  */
 export type UnwrapInjectionTokens<T extends InjectionToken[]> = {
-  [K in keyof T]: T[K] extends Constructor<infer V>
+  [K in keyof T]: T[K] extends ClassToken<infer V>
     ? V
     : T[K] extends Token<infer U>
       ? U
@@ -124,4 +141,4 @@ export const isToken = (value: unknown): value is Token =>
  * ```
  */
 export const tokenId = <T>(token: InjectionToken<T>): string =>
-  typeof token === 'function' ? token.name : token.id;
+  isToken(token) ? token.id : token.name;

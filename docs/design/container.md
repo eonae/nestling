@@ -32,7 +32,9 @@ export class UserService {
 }
 ```
 
-- Класс служит DI-токеном сам себе. Интерфейсы и значения регистрируются
+- Класс служит DI-токеном сам себе — в том числе класс с приватным
+  конструктором: экземпляр ресурса создаёт `static acquire`, а токеном
+  остаётся тот же класс. Интерфейсы и значения регистрируются
   через явные DI-токены (`makeToken<T>(id)`) и примитивы
   `classProvider(token, Class)`, `factoryProvider(token, fn, deps)`,
   `resourceProvider(token, spec)`, `valueProvider(token, value)`. Это

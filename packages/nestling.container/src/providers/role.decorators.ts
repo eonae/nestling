@@ -292,7 +292,7 @@ export function Handler<TDependencies extends InjectionToken[]>(
  */
 export function Resource(): <T extends ResourceShape<[]>>(
   constructor: T,
-  context: ClassDecoratorContext,
+  context: ClassDecoratorContext<any>,
 ) => T;
 
 /**
@@ -330,7 +330,9 @@ export function Resource<TDependencies extends InjectionToken[]>(
   deps: [...TDependencies],
 ): <T extends ResourceShape<UnwrapInjectionTokens<TDependencies>>>(
   constructor: T & ValidAcquireLength<T, TDependencies>,
-  context: ClassDecoratorContext,
+  // Контекст типизирован `any`: у ресурса конструктор бывает приватным, а
+  // `ClassDecoratorContext<T>` требует публичного
+  context: ClassDecoratorContext<any>,
 ) => T;
 
 export function Resource<TDependencies extends InjectionToken[]>(

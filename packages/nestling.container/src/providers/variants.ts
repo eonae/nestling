@@ -1,4 +1,9 @@
-import type { Constructor, InjectionToken, Token } from '../common.js';
+import type {
+  ClassToken,
+  Constructor,
+  InjectionToken,
+  Token,
+} from '../common.js';
 
 import { readRoleMeta } from './role.metadata.js';
 import type { TokenFamily } from './token-family.js';
@@ -167,14 +172,13 @@ export type ProviderDefinition<T = unknown> =
  *
  * @template T - Массив токенов
  */
-export type UnwrapTokens<T extends readonly (Token<unknown> | Constructor)[]> =
-  {
-    [K in keyof T]: T[K] extends Constructor<infer V>
-      ? V
-      : T[K] extends Token<infer U>
-        ? U
-        : never;
-  };
+export type UnwrapTokens<T extends readonly InjectionToken[]> = {
+  [K in keyof T]: T[K] extends ClassToken<infer V>
+    ? V
+    : T[K] extends Token<infer U>
+      ? U
+      : never;
+};
 
 /**
  * Фабричный провайдер с типизированными зависимостями: типы аргументов
