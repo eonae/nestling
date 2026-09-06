@@ -21,7 +21,7 @@
 
 #### Scenario: Транспорт объявляет свои формы io
 
-- **WHEN** внешний код читает `capabilities` инстанса `HttpTransport`
+- **WHEN** внешний код читает `capabilities` объявления `http()`
 - **THEN** значение равно `{ input: {value, stream, multipart}, output:
   {value, stream, events} }`
 

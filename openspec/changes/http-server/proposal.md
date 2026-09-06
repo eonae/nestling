@@ -96,5 +96,5 @@
   `examples/simple-http-server`.
 - Гайд: глава 6 (порт из конфига), глава 24 (standalone), README пакетов
   `@nestling/openapi` и `@nestling/testing` в части примеров с `http({ port })`.
-- Предпосылка: `@Resource` из change `resources-and-roles`. Этот change
-  ветвится после его вливания в `main`.
+- Предпосылка выполнена: `resources-and-roles` влит в `main`, `@Resource`
+  с `acquire`/`release` и создание экземпляров на INIT доступны.

@@ -1,14 +1,14 @@
 ## 1. Ядро: роль слушателя и порядок фаз
 
-- [ ] 1.1 Ветка перебазирована на `main` с влитым `resources-and-roles`: `@Resource`, `acquire`/`release` и создание экземпляров на INIT доступны
-- [ ] 1.2 `IListener` в `@nestling/app`: `listen(): Promise<void>` и `drain(): Promise<void>`; `node:http` в ядро не входит
-- [ ] 1.3 `ServerDeclaration` рядом с `TransportDeclaration`: имя, токен, провайдер, дискриминатор `kind`; `makeServerDeclaration` для конструкторов пакетов
+- [x] 1.1 Ветка перебазирована на `main` с влитым `resources-and-roles`: `@Resource`, `acquire`/`release` и создание экземпляров на INIT доступны
+- [ ] 1.2 `IListener` в `@nestling/app`: `listen(): Promise<void>` и `drain(): Promise<void>`; `node:http` в ядро не входит. JSDoc разграничивает `drain()` (шаг реверса START) и `release()` ресурса
+- [ ] 1.3 `ServerDeclaration` рядом с `TransportDeclaration`: имя, токен, провайдер, дискриминатор `kind`; поля `capabilities` у сервера нет; `makeServerDeclaration` для конструкторов пакетов
 - [ ] 1.4 Поле `transports:` корня принимает union объявлений; типы различают транспорт и сервер
 - [ ] 1.5 Регистрация вложенного объявления сервера из `TransportDeclaration.server`; дедупликация по токену, ошибка ASSEMBLE на два разных объявления с одним именем
-- [ ] 1.6 START в `App`: `@OnStart` → `serve` всех транспортов → `listen` всех серверов в порядке объявления
-- [ ] 1.7 SHUTDOWN в `App`: сигнал → `drain()` серверов в обратном порядке → `close()` транспортов → `destroy()` контейнера
+- [ ] 1.6 START в `App`: `container.start(signal)` → `serve` всех транспортов → `listen` всех серверов в порядке объявления
+- [ ] 1.7 SHUTDOWN в `App`: сигнал → `drain()` серверов в обратном порядке → `close()` транспортов → `destroy()` контейнера (`release` ресурсов, сервер среди них)
 - [ ] 1.8 `app.servers` — доступ к объявленным серверам по образцу `app.transports`
-- [ ] 1.9 Спеки ядра: порядок START и SHUTDOWN наблюдаем, `listen` после всех `serve`, дедупликация сервера, ошибка на одноимённые объявления
+- [ ] 1.9 Спеки ядра: порядок START и SHUTDOWN наблюдаем, `listen` после всех `serve`, сокета нет до START, дедупликация сервера, ошибка на одноимённые объявления
 
 ## 2. Конфиг: секция на экземпляр
 
@@ -19,7 +19,7 @@
 
 ## 3. HTTP-сервер как ресурс
 
-- [ ] 3.1 Класс сервера с `@Resource`: `acquire` создаёт `http.Server` без прослушивания, `release` дренажит соединения
+- [ ] 3.1 Класс сервера с `@Resource`: `acquire` создаёт `http.Server` без прослушивания, `release` отпускает дескриптор и идемпотентен после `drain()`
 - [ ] 3.2 Секция сервера: `HTTP_PORT`, `HTTP_HOST` у `'default'`, `HTTP_ADMIN_PORT`, `HTTP_ADMIN_HOST` у `name: 'admin'`
 - [ ] 3.3 `listen()` открывает сокет; `address()` отдаёт фактический адрес и `null` до `listen` и после дренажа
 - [ ] 3.4 `attach(handler)` строит цепочку обработчиков; при единственном обработчике цепочка вырождается в прямой вызов
@@ -37,7 +37,8 @@
 - [ ] 4.4 `close()` отменяет запросы в обработке и не трогает сокет
 - [ ] 4.5 Опции `port`, `host`, таймауты `node:http` и `closeTimeout` удалены из `HttpTransportOptions`
 - [ ] 4.6 `http({ server?, name?, … })`: без `server` объявляет собственный сервер с тем же именем и кладёт его в поле `server` объявления
-- [ ] 4.7 Спеки транспорта: присоединение к общему серверу, пропуск чужого маршрута, отмена запросов при закрытии
+- [ ] 4.7 Сценарии `transport-providers` о standalone-пути и объявлении в корне переписаны: `new HttpTransport(server)`, `transports: [http()]` без `port`
+- [ ] 4.8 Спеки транспорта: присоединение к общему серверу, пропуск чужого маршрута, отмена запросов при закрытии
 
 ## 5. Уникальность паттернов на ASSEMBLE
 
