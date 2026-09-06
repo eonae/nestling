@@ -34,7 +34,6 @@ import type {
   StreamSummary,
   TransportCapabilities,
   TransportDeclaration,
-  UnknownFailInfo,
 } from '@nestling/app';
 import {
   assertFormsSupported,
@@ -78,13 +77,6 @@ export interface HttpTransportOptions {
    * сообщение. Включайте только в доверенном окружении.
    */
   exposeErrorDetails?: boolean;
-
-  /**
-   * Хук для незадекларированных отказов: получает оригинал отказа,
-   * который проверка `errors` заменила на `InternalError`. Не задан —
-   * рантайм пишет в `console.error`.
-   */
-  onUnknownFail?: (info: UnknownFailInfo) => void;
 
   /** `server.requestTimeout` (мс). Не задан — дефолт Node. */
   requestTimeout?: number;
@@ -514,7 +506,6 @@ export class HttpTransport implements ITransport {
       // остаётся отправить ответ
       const responseContext = await dispatch.call(declaration.pattern, ctx, {
         exposeErrorDetails: this.exposeErrorDetails,
-        onUnknownFail: this.options.onUnknownFail,
       });
 
       await send(responseContext);

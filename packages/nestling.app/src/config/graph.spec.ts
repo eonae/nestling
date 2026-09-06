@@ -15,11 +15,6 @@ import type { BuiltContainer } from '@nestling/container';
 import { ContainerBuilder, Injectable, makeToken } from '@nestling/container';
 import { z } from 'zod';
 
-const warnings: string[] = [];
-const onWarn = (message: string): void => {
-  warnings.push(message);
-};
-
 const OrdersConfig = makeConfig('orders', {
   maxItems: z.coerce.number().default(100),
   databaseUrl: from('DATABASE_URL', z.string()),
@@ -53,17 +48,11 @@ const build = async (
   },
 ): Promise<BuiltContainer> => {
   const builder = new ContainerBuilder();
-  builder.register(
-    configKernel([[objectSource(values, 'test'), '*']], { onWarn }),
-  );
+  builder.register(configKernel([[objectSource(values, 'test'), '*']]));
   register(builder);
 
   return await builder.build();
 };
-
-beforeEach(() => {
-  warnings.length = 0;
-});
 
 describe('создание секции', () => {
   it('инжект секции создаёт узел, видимый контейнеру', async () => {

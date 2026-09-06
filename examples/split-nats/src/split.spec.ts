@@ -10,6 +10,7 @@ import { declareApp } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { AssembledApp } from '@nestling/app';
+import { spyLogger } from '@nestling/testing';
 import { NatsBus } from '@nestling/transport.nats';
 import { NatsDouble, natsDouble } from '@nestling/transport.nats/testing';
 
@@ -48,7 +49,11 @@ async function untilPublished(
 
 /** Внешний клиент: кладёт команду на шину */
 async function outsideClient(broker: NatsDouble): Promise<NatsBus> {
-  const bus = new NatsBus({ connect: natsDouble(broker) });
+  // Отказы доставки внешнего клиента тест не читает: записи копит шпион
+  const bus = new NatsBus({
+    connect: natsDouble(broker),
+    logger: spyLogger().logger,
+  });
   await bus.connect();
 
   return bus;

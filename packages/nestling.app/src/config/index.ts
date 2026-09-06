@@ -36,8 +36,6 @@ export { configKernel } from './kernel.js';
  * значит до читалки и привязанных источников.
  */
 export { load } from './load.js';
-export type { ConfigKernelOptions } from './kernel.js';
-export type { ConfigWarn } from './reader.js';
 export { describeConfig, keysGlob } from './registry.js';
 export type {
   ConfigDescription,

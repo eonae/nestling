@@ -1,12 +1,10 @@
-import type { Logger } from './logging.js';
-import { Logger$ } from './logging.js';
-
 import type {
   ExtendableContext,
+  Logger,
   Outcome,
   ResponseContext,
 } from '@nestling/app';
-import { makePipeline, withRequestId } from '@nestling/app';
+import { Logger$, makePipeline, withRequestId } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 
 /**
@@ -15,7 +13,7 @@ import { Injectable } from '@nestling/container';
  * Это класс, потому что юниту нужен логгер из контейнера. Класс-юнит
  * регистрируется в `providers:` фичи, как любой другой провайдер.
  */
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 export class AuditOutcome {
   constructor(private readonly logger: Logger) {}
 
@@ -24,11 +22,9 @@ export class AuditOutcome {
     res: ResponseContext,
     ctx: ExtendableContext<{ requestId?: string }>,
   ): void {
-    // В ответной фазе поля своего слоя опциональны: pre-юнит мог не
-    // выполниться, отсюда `?? 'n/a'`
-    this.logger.log(
-      `[${ctx.input.requestId ?? 'n/a'}] ${ctx.raw.pattern} ${res.status} (${outcome})`,
-    );
+    // Идентификатор запроса в запись кладёт логгер ядра: он читает его из
+    // контекста сам, и руками префикс не пишется
+    this.logger.info(`${ctx.raw.pattern} ${res.status}`, { outcome });
   }
 }
 

@@ -33,7 +33,7 @@ export const appSubscriptions = subscriptions({
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   plugins: [
-    appLogging,
+    appObservability,
     appAuth,
     appSubscriptions,
     // …
@@ -43,7 +43,7 @@ export const app = makeApp({
 ```
 
 `subscriptions(options)` возвращает плагин. Значение создаётся один раз и
-перечисляется в `plugins:`, как плагин логирования из
+перечисляется в `plugins:`, как параметризованный плагин из
 [главы 12](./12-features.md). Класс-юниты слоя подписок регистрирует
 именно этот плагин: endpoint со слоем `tracked` в сборке без
 `appSubscriptions` останавливает старт на фазе ASSEMBLE, потому что
@@ -111,7 +111,7 @@ export const ActivityStream = httpEndpoint({
 ## Endpoint'ы эксплуатации
 
 Реестр инжектируется обычным токеном `SubscriptionRegistry`. Endpoint'ы
-лежат в фиче `ops`: у неё нет своих провайдеров, логирование,
+лежат в фиче `ops`: у неё нет своих провайдеров, наблюдаемость,
 аутентификация и реестр приходят плагинами.
 
 ```typescript
@@ -216,7 +216,7 @@ export const WatchSubscriptions = httpEndpoint({
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscription-facts.ts (фрагмент)
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 class SubscriptionOpenedInOpsHandler {
   constructor(private readonly logger: Logger) {}
 
@@ -226,10 +226,12 @@ class SubscriptionOpenedInOpsHandler {
     transport: string;
     pattern: string;
   }) {
-    this.logger.log(
-      `[subscriptions] ${payload.node ?? 'local'}: opened ${payload.id} ` +
-        `(${payload.transport} ${payload.pattern})`,
-    );
+    this.logger.info('subscription opened', {
+      node: payload.node ?? 'local',
+      id: payload.id,
+      transport: payload.transport,
+      pattern: payload.pattern,
+    });
   }
 }
 
@@ -302,8 +304,8 @@ data: {"type":"closed","reason":"killed","subscription":{"id":"86cc…",…,"ite
 Подписчик фактов в `ops` записал те же события в лог:
 
 ```
-[app-with-http] [subscriptions] app-with-http: opened 86cc… (http GET /users/activity)
-[app-with-http] [subscriptions] app-with-http: closed 86cc…: killed, 1 items
+2026-09-06T12:00:00.000Z INFO  SubscriptionOpenedInOpsHandler subscription opened node=app-with-http id=86cc… transport=http pattern=GET /users/activity
+2026-09-06T12:00:00.001Z INFO  SubscriptionClosedInOpsHandler subscription closed node=app-with-http id=86cc… reason=killed itemsOut=1
 ```
 
 ## Проверка

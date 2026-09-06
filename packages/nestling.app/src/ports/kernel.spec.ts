@@ -3,6 +3,10 @@
  * записана сигнатура хендлера в ядре (`Output<undefined>`), и `() => {}`
  * ему не соответствует. */
 import { configKernel, objectSource } from '../config/index.js';
+import { spyLogger } from '../logger/__fixtures__/spy.js';
+import { loggerKernel } from '../logger/kernel.js';
+import { RootLogger$ } from '../logger/tokens.js';
+import { contextKernel } from '../pipeline/core/context/index.js';
 import type { AnyEndpointDefinition, TransportRef } from '../pipeline/index.js';
 import { Ok } from '../pipeline/index.js';
 import type { Dispatch } from '../transport/index.js';
@@ -156,8 +160,13 @@ async function assemble(options: {
       : { NESTLING_PORTS_DISPATCH: options.dispatch },
   );
 
-  const builder = new ContainerBuilder();
+  // Записи логгера здесь не наблюдаются: отказы вызывателей и доставки
+  // проверяются отдельными тестами, а тест смотрит на биндинг
+  const builder = new ContainerBuilder({
+    overrides: [[RootLogger$, spyLogger().logger]],
+  });
   builder.register(configKernel([[source, portsConfigKeys]]));
+  builder.register(contextKernel(), loggerKernel());
   builder.register(
     portsKernel({
       implementations: collectImplementations(
@@ -166,14 +175,6 @@ async function assemble(options: {
           moduleName: 'module:test',
         })),
       ),
-      onPortFailure: () => {
-        /* отказы вызывателей проверяются отдельными тестами */
-      },
-      bus: {
-        onDeliveryFailure: () => {
-          /* доставка молчит: тест смотрит на биндинг */
-        },
-      },
       ...(options.rootBus === undefined ? {} : { rootSuppliesBus: true }),
     }),
   );
@@ -374,11 +375,8 @@ describe('portsKernel', () => {
       [Orphan.caller],
     );
 
-    const rootBus = new FakeRemoteBus({
-      onDeliveryFailure: () => {
-        /* владельца нет нигде в кластере: тест смотрит на биндинг */
-      },
-    });
+    // Владельца нет нигде в кластере: тест смотрит на биндинг, не на записи
+    const rootBus = new FakeRemoteBus({ logger: spyLogger().logger });
 
     const app = await assemble({ consumers: [orphanConsumer], rootBus });
 

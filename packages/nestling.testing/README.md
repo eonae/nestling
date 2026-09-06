@@ -108,8 +108,44 @@ const res = await testApp.call(CreateUser, { name: 'Alice' });
   bind-карты.
 - `exposeErrorDetails` по умолчанию включён: в тесте детали ошибок нужны.
 
-Опции `call` (`TestCallOptions`): `attributes`, `exposeErrorDetails`,
-`onUnknownFail`.
+Опции `call` (`TestCallOptions`): `attributes`, `exposeErrorDetails`.
+Незадекларированный отказ уходит записью `error` в логгер ядра; в тесте
+его перехватывает `spyLogger()` через подмену `RootLogger$`.
+
+## `spyLogger()`: записи логгера значениями
+
+`spyLogger()` возвращает `{ logger, entries }`: логгер ядра, который копит
+записи в `entries` вместо `stderr`. Подмена `[RootLogger$, spy.logger]` в
+`overrides` перехватывает записи всех членов `Logger$` — и ядра, и
+приложения: член семейства строится как `root.child({ scope })`, а
+дочерний логгер шпиона пишет в тот же список.
+
+```typescript
+import { RootLogger$ } from '@nestling/app';
+import { assembleTest, spyLogger } from '@nestling/testing';
+
+const spy = spyLogger();
+await using testApp = await assembleTest(app, {
+  overrides: [[RootLogger$, spy.logger]],
+});
+
+await testApp.call(GetUser, { id: '1' });
+
+expect(spy.entries).toContainEqual({
+  level: 'info',
+  message: 'byId',
+  fields: { scope: 'UsersRepository', id: '1' },
+});
+```
+
+Запись — `{ level, message, fields }`. Форма `(error, fields?)` кладёт
+сообщение ошибки в `message`, а саму ошибку в `fields.err`; форма
+`(fields)` даёт пустое `message`. Записи ядра приходят с областью
+`nestling` или `nestling:<область>` в `fields.scope`: незадекларированный
+отказ — `error` с полями `transport`, `pattern`, `code` и `err`.
+
+Логгер шпиона можно передать и напрямую: в `withRequestLogging(spy.logger)`
+или в `makeDispatch(endpoints, { logger: spy.logger })` без `App`.
 
 ## `overrides`: подмена узлов графа
 
@@ -341,6 +377,7 @@ resolve: { conditions: ['testing', 'node'] }
 | `unwrap(response)`, `UnwrapFailedError` | значение успешного ответа или ошибка |
 | `vars(record)`, `TestConfig` | источник конфига для тестов и тип поля `config:` |
 | `familyOverride(family, make)`, `TestOverride` | подмена рецепта семейства |
+| `spyLogger()`, `SpyLogger`, `LogEntry` | логгер, который копит записи значениями; подменяет `RootLogger$` |
 | `contextValue(variable, value)` | подмена переменной контекста запроса |
 | `checkTopologies(app, selections, options?)`, `TopologyReport` | матрица `check()` |
 | `CheckReport`, `CheckOptions` | реэкспорт типов из `@nestling/app` |

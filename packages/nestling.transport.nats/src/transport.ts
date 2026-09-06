@@ -49,6 +49,7 @@ import type {
   FormKind,
   IMessageBus,
   ITransport,
+  Logger,
   PublishOptions,
   Raw,
   RequestOptions,
@@ -56,7 +57,6 @@ import type {
   RouteDeclaration,
   SubscribeOptions,
   TransportCapabilities,
-  UnknownFailInfo,
 } from '@nestling/app';
 import {
   assertFormsSupported,
@@ -68,6 +68,7 @@ import {
   failureResponse,
   InternalError,
   isExhausted,
+  Logger$,
   makeEmptyContext,
   makeTransportDeclaration,
   profileAttributes,
@@ -144,17 +145,25 @@ export interface NatsTransportOptions {
   /** Лимит попыток durable-доставки */
   maxDeliver?: number;
 
-  /** Диагностический хук отказов доставки */
-  onDeliveryFailure?: (info: NatsDeliveryFailure) => void;
-
-  /** Диагностический хук смены состояния соединения */
-  onConnectionChange?: (info: NatsConnectionInfo) => void;
-
   /**
-   * Диагностический хук: необработанное исключение входящего сообщения
-   * стало отказом `internal_error`
+   * Хук смены состояния соединения.
+   *
+   * Это событие для приложения, а не канал вывода: без хука транспорт
+   * ничего не пишет.
    */
-  onUnknownFail?: (info: UnknownFailInfo) => void;
+  onConnectionChange?: (info: NatsConnectionInfo) => void;
+}
+
+/**
+ * Опции экземпляра шины: опции транспорта плюс логгер.
+ *
+ * Логгер обязателен: отказ доставки не должен проглатываться молча.
+ * Фабрика `nats()` передаёт `Logger$('nestling:nats')`; прямой
+ * `new NatsBus(...)` в тестах передаёт свой.
+ */
+export interface NatsBusOptions extends NatsTransportOptions {
+  /** Логгер отказов доставки: записи `error` с `subject` и оригиналом в `err` */
+  logger: Logger;
 }
 
 /**
@@ -179,13 +188,16 @@ export class NatsBus implements IMessageBus, ITransport {
   readonly #codec: NatsCodec;
   readonly #closing = new AbortController();
 
+  readonly #logger: Logger;
+
   #connection?: NatsLike;
   #dispatch?: Dispatch;
   #subscriptions: NatsSubscriptionLike[] = [];
   #closed = false;
 
-  constructor(options: NatsTransportOptions = {}) {
+  constructor(options: NatsBusOptions) {
     this.#options = options;
+    this.#logger = options.logger;
     this.#codec = options.codec ?? jsonCodec;
   }
 
@@ -628,9 +640,6 @@ export class NatsBus implements IMessageBus, ITransport {
       return await dispatch.call(route.pattern, ctx, {
         // По сети stack не передаётся
         exposeErrorDetails: false,
-        ...(this.#options.onUnknownFail === undefined
-          ? {}
-          : { onUnknownFail: this.#options.onUnknownFail }),
       });
     } finally {
       budget.release();
@@ -770,17 +779,11 @@ export class NatsBus implements IMessageBus, ITransport {
   }
 
   #reportDelivery(info: NatsDeliveryFailure): void {
-    if (this.#options.onDeliveryFailure) {
-      this.#options.onDeliveryFailure(info);
-
-      return;
-    }
-
-    // eslint-disable-next-line no-console
-    console.error(
-      `[nestling] nats delivery failed on '${info.subject}':`,
-      info.error,
-    );
+    this.#logger.error('nats delivery failed', {
+      subject: info.subject,
+      ...(info.terminated === undefined ? {} : { terminated: info.terminated }),
+      err: info.error,
+    });
   }
 }
 
@@ -816,15 +819,19 @@ export const nats = <const Name extends string = typeof DEFAULT_INSTANCE>(
     token: BusTransport$,
     provider: factoryProvider(
       BusTransport$,
-      (config: NatsConfigValues) =>
+      (config: NatsConfigValues, logger: Logger) =>
         new NatsBus({
           servers: config.servers,
           requestTimeout: config.requestTimeout,
           subjectPrefix: config.subjectPrefix,
           // Явные опции сильнее конфига: спред идёт последним
           ...transportOptions,
+          logger,
         }),
-      [NatsConfig as unknown as InjectionToken<NatsConfigValues>],
+      [
+        NatsConfig as unknown as InjectionToken<NatsConfigValues>,
+        Logger$('nestling:nats'),
+      ],
     ),
   });
 };

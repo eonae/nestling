@@ -17,18 +17,15 @@ import {
   ListUsers,
 } from './features/users/endpoints/index.js';
 import { UsersRepository$ } from './features/users/users.repository.js';
-import {
-  type Logger,
-  Logger$,
-  observability,
-} from './plugins/logging/index.js';
+import { observability } from './plugins/observability/index.js';
+import { AuditOutcome } from './plugins/observability/observability.js';
 import { appConfigKeys } from './app.config.js';
 import { app } from './app.js';
 import { ClaimQuota, QuotaExceeded } from './operations.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, objectSource, RequestId } from '@nestling/app';
+import { makeApp, objectSource, RequestId, RootLogger$ } from '@nestling/app';
 import type { InjectionToken } from '@nestling/container';
 import type { OpenApiDocument } from '@nestling/openapi';
 import { openapi, OpenApiDocument$ } from '@nestling/openapi';
@@ -38,6 +35,7 @@ import {
   assembleTest,
   checkTopologies,
   contextValue,
+  spyLogger,
   unwrap,
   vars,
 } from '@nestling/testing';
@@ -66,14 +64,6 @@ const checked = makeApp({
 
 /** Заголовки запроса с верным токеном */
 const asClient = { attributes: { authorization: 'Bearer test-token' } };
-
-/** Логгер, который копит строки: по ним тест читает аудит и трассировку */
-const spyLogger = (): { lines: string[]; logger: Logger } => {
-  const lines: string[] = [];
-  const push = (line: string): void => void lines.push(line);
-
-  return { lines, logger: { debug: push, log: push, error: push } };
-};
 
 /** Создаёт пользователя через полный пайплайн endpoint'а */
 const createUser = (
@@ -153,27 +143,42 @@ describe('асинхронный контекст в глубине графа',
     const spy = spyLogger();
     await using testApp = await assembleTest(app, {
       ...testConfig,
-      overrides: [[Logger$, spy.logger]],
+      overrides: [[RootLogger$, spy.logger]],
     });
 
     unwrap(await testApp.call(GetUser, { id: '1' }));
 
     // Endpoint вызван без requestId, и параметром он в хранилище не
     // передан: значение прочитано из контекста
-    expect(spy.lines).toContainEqual(expect.stringMatching(/^\[.+] byId 1$/));
-    expect(spy.lines).not.toContainEqual(expect.stringContaining('[n/a]'));
+    expect(spy.entries).toContainEqual({
+      level: 'debug',
+      message: 'byId 1',
+      fields: { scope: 'DbUsersRepository', requestId: expect.any(String) },
+    });
+    expect(spy.entries).not.toContainEqual(
+      expect.objectContaining({
+        fields: expect.objectContaining({ requestId: 'n/a' }),
+      }),
+    );
   });
 
   it('contextValue подставляет значение переменной в тестовом корне', async () => {
     const spy = spyLogger();
     await using testApp = await assembleTest(app, {
       ...testConfig,
-      overrides: [[Logger$, spy.logger], contextValue(RequestId, 'req-fixed')],
+      overrides: [
+        [RootLogger$, spy.logger],
+        contextValue(RequestId, 'req-fixed'),
+      ],
     });
 
     unwrap(await testApp.call(GetUser, { id: '1' }));
 
-    expect(spy.lines).toContain('[req-fixed] byId 1');
+    expect(spy.entries).toContainEqual({
+      level: 'debug',
+      message: 'byId 1',
+      fields: { scope: 'DbUsersRepository', requestId: 'req-fixed' },
+    });
   });
 });
 
@@ -186,7 +191,7 @@ describe('фичи и плагины в сборке', () => {
       select: 'ops',
     });
 
-    expect(testApp.get(Logger$)).not.toBeNull();
+    expect(testApp.get(AuditOutcome)).not.toBeNull();
     expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
     expect(testApp.get(ActivityHub)).toBeNull();
   });
@@ -203,10 +208,10 @@ describe('фичи и плагины в сборке', () => {
   it('даёт фичам один экземпляр плагина', async () => {
     await using testApp = await assembleTest(app, testConfig);
 
-    const logger = testApp.get(Logger$);
+    const audit = testApp.get(AuditOutcome);
 
-    expect(logger).not.toBeNull();
-    expect(testApp.get(Logger$)).toBe(logger);
+    expect(audit).not.toBeNull();
+    expect(testApp.get(AuditOutcome)).toBe(audit);
   });
 });
 
@@ -286,7 +291,7 @@ describe('фичи вызывают друг друга через операц�
       ...testConfig,
       overrides: [
         [UsersRepository$, inMemoryUsersRepo()],
-        [Logger$, spy.logger],
+        [RootLogger$, spy.logger],
       ],
     });
 
@@ -296,9 +301,14 @@ describe('фичи вызывают друг друга через операц�
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Ключом вызывающий задал id пользователя, и журнал получил его
-    expect(spy.lines).toContainEqual(
-      expect.stringMatching(/^signup (\d+) recorded, intent \1$/),
+    const recorded = spy.entries.find(
+      (entry) => entry.message === 'signup recorded',
     );
+    expect(recorded?.fields).toEqual({
+      scope: 'SignupJournal',
+      userId: expect.any(String),
+      intent: recorded?.fields.userId,
+    });
   });
 });
 

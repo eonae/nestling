@@ -1,8 +1,7 @@
-import { Logger } from '../logging/index.js';
-
 import { RuntimeConfig } from './runtime.config.js';
 
-import type { Config } from '@nestling/app';
+import type { Config, Logger } from '@nestling/app';
+import { Logger$ } from '@nestling/app';
 import { Injectable, OnDestroy, OnStart } from '@nestling/container';
 
 /**
@@ -12,7 +11,7 @@ import { Injectable, OnDestroy, OnStart } from '@nestling/container';
  * действует без подписки. Подписка нужна только для реакции на смену:
  * здесь она пишет в лог и запоминает историю.
  */
-@Injectable([RuntimeConfig, Logger.auto])
+@Injectable([RuntimeConfig, Logger$.auto])
 export class RateLimiter {
   /** Значения `rps`, пришедшие через `onChange` */
   readonly history: number[] = [];
@@ -32,7 +31,7 @@ export class RateLimiter {
   watch(): void {
     this.config.onChange(this.#unsubscribe.signal, (next) => {
       this.history.push(next.rps);
-      this.logger.log(`rate limit changed to ${next.rps} rps`);
+      this.logger.info('rate limit changed', { rps: next.rps });
     });
   }
 

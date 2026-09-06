@@ -6,11 +6,14 @@
 
 import { inspect } from 'node:util';
 
+import type { SpyLogger } from '../logger/__fixtures__/spy.js';
+import { spyLogger } from '../logger/__fixtures__/spy.js';
+
 import type { SectionDeclaration } from './declaration.js';
 import { from, secret } from './declaration.js';
 import { ConfigValidationError, REDACTED } from './errors.js';
 import type { Config } from './families.js';
-import { configKernel } from './kernel.js';
+import { configKernel, ConfigReaderToken } from './kernel.js';
 import { load } from './load.js';
 import { projectSection, reloadableOf } from './project.js';
 import { ConfigReader } from './reader.js';
@@ -64,22 +67,24 @@ class PlainService {
   constructor(readonly cfg: Config<typeof PlainConfig>) {}
 }
 
-const warnings: string[] = [];
-const onWarn = (message: string): void => {
-  warnings.push(message);
-};
+/** Шпион логгера: предупреждения читалки попадают сюда после `attachLogger` */
+let spy: SpyLogger = spyLogger();
+
+/** Сообщения предупреждений в порядке записи */
+const warnings = (): string[] => spy.entries.map((entry) => entry.message);
 
 const build = async (
   values: Record<string, unknown>,
   register: (builder: ContainerBuilder) => void,
 ): Promise<BuiltContainer> => {
   const builder = new ContainerBuilder();
-  builder.register(
-    configKernel([[objectSource(values, 'test'), '*']], { onWarn }),
-  );
+  builder.register(configKernel([[objectSource(values, 'test'), '*']]));
   register(builder);
 
-  return await builder.build();
+  const container = await builder.build();
+  container.getOrThrow(ConfigReaderToken).attachLogger(spy.logger);
+
+  return container;
 };
 
 /** Поднимает читалку с одним объектным источником и проецирует секцию. */
@@ -88,8 +93,9 @@ const project = async (
   prefix: string,
 ): Promise<{ cfg: Record<string, unknown>; source: ObjectSource }> => {
   const source = objectSource(values, 'test');
-  const reader = new ConfigReader([[source, '*']], { onWarn });
+  const reader = new ConfigReader([[source, '*']]);
   await reader.init();
+  reader.attachLogger(spy.logger);
 
   const declaration = lookupSection(prefix) as SectionDeclaration;
 
@@ -114,7 +120,7 @@ const buildFailure = async (
 };
 
 beforeEach(() => {
-  warnings.length = 0;
+  spy = spyLogger();
 });
 
 describe('редактирование в ошибке валидации', () => {
@@ -225,9 +231,9 @@ describe('редактирование в ошибке валидации', () =
     source.set('HOTSECRET_PASSWORD', 'no');
 
     expect(cfg.password).toBe('good');
-    expect(warnings.join('\n')).toContain('keeping last known good values');
-    expect(warnings.join('\n')).toContain(REDACTED);
-    expect(warnings.join('\n')).not.toMatch(/at least 3/i);
+    expect(warnings().join('\n')).toContain('keeping last known good values');
+    expect(warnings().join('\n')).toContain(REDACTED);
+    expect(warnings().join('\n')).not.toMatch(/at least 3/i);
   });
 });
 

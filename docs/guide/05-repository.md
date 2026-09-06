@@ -85,7 +85,7 @@ export const GetUser = httpEndpoint({
 
 ```typescript
 // examples/users-service/src/users/users.repository.ts
-@Injectable(UsersRepository$, [Database, Logger$, Ctx(RequestId)])
+@Injectable(UsersRepository$, [Database, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
     private readonly db: Database,
@@ -119,13 +119,7 @@ export class DbUsersRepository implements UsersRepository {
 // examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
-  providers: [
-    ConsoleLogger,
-    Database,
-    DbUsersRepository,
-    AuditOutcome,
-    Authenticate,
-  ],
+  providers: [Database, DbUsersRepository, AuditOutcome, Authenticate],
   endpoints: [
     ListUsers,
     GetUser,
@@ -150,7 +144,7 @@ export const UsersFeature = makeFeature({
 
 ```typescript
 // examples/users-service/src/database.ts
-@Injectable([AppConfig, Logger$])
+@Injectable([AppConfig, Logger$.auto])
 export class Database {
   #users: User[] | undefined;
 
@@ -162,9 +156,9 @@ export class Database {
   @OnInit()
   connect(): void {
     // В лог уходит только хост: значение поля секретное
-    this.logger.log(
-      `database connected: ${new URL(this.config.databaseUrl).host}`,
-    );
+    this.logger.info('database connected', {
+      host: new URL(this.config.databaseUrl).host,
+    });
     this.#users = [
       { id: '1', name: 'Alice', email: 'alice@example.com' },
       { id: '2', name: 'Bob', email: 'bob@example.com' },
@@ -174,7 +168,7 @@ export class Database {
   @OnDestroy()
   disconnect(): void {
     this.#users = undefined;
-    this.logger.log('database disconnected');
+    this.logger.info('database disconnected');
   }
 
   /** Таблица пользователей */

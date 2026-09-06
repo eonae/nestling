@@ -11,13 +11,13 @@
  * 6. TNeeds: класс-юнит блокирует исполнение до bind().
  */
 
+import { spyLogger } from '../../logger/__fixtures__/spy.js';
 // Публичная поверхность пакета: `AfterUnitFn` удалён вместе с фазой `.after`
 // (change pipeline-drop-after). Если тип вернётся в экспорт — директива
 // станет неиспользованной и tsc сообщит об этом.
 // @ts-expect-error: AfterUnitFn больше не экспортируется из @nestling/app
 import type { AfterUnitFn } from '../index.js';
 import { withIdentity, withPermissions } from '../middlewares/index.js';
-import type { Logger } from '../middlewares/logging.js';
 import { withRequestLogging } from '../middlewares/logging.js';
 import { withRequestId } from '../middlewares/meta.js';
 
@@ -45,11 +45,7 @@ const mockAuthenticator = async (): Promise<User> => ({
   email: 'john.doe@example.com',
 });
 
-const mockLogger: Logger = {
-  log: () => {
-    /* noop */
-  },
-};
+const mockLogger = spyLogger().logger;
 
 // ============================================================================
 // Утилиты для типовых проверок

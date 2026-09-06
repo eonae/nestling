@@ -15,7 +15,10 @@ import type {
   AnyInput,
   Dispatch,
   ExtendableContext,
+  Fields,
   ITransport,
+  Logger,
+  LogLevel,
   TransportCapabilities,
 } from '@nestling/app';
 import {
@@ -26,13 +29,65 @@ import {
   makeFeature,
   makePipeline,
   Ok,
+  RootLogger$,
   transportValue,
 } from '@nestling/app';
-import { factoryProvider, makeToken, OnInit } from '@nestling/container';
+import {
+  factoryProvider,
+  makeToken,
+  OnInit,
+  valueProvider,
+} from '@nestling/container';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { StandardSchemaV1 } from '@nestling/operations';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
+
+/** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
+function spyLogger(): { logger: Logger; entries: LogEntry[] } {
+  const entries: LogEntry[] = [];
+  const make = (bindings: Fields): Logger => {
+    const write =
+      (level: LogLevel) =>
+      (first: string | Error | Fields, second?: Fields): void => {
+        if (typeof first === 'string') {
+          entries.push({
+            level,
+            message: first,
+            fields: { ...bindings, ...second },
+          });
+        } else if (first instanceof Error) {
+          entries.push({
+            level,
+            message: first.message,
+            fields: { ...bindings, ...second, err: first },
+          });
+        } else {
+          entries.push({
+            level,
+            message: '',
+            fields: { ...bindings, ...first },
+          });
+        }
+      };
+
+    return {
+      debug: write('debug'),
+      info: write('info'),
+      warn: write('warn'),
+      error: write('error'),
+      child: (extra) => make({ ...bindings, ...extra }),
+    };
+  };
+
+  return { logger: make({}), entries };
+}
+
+interface LogEntry {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: Fields;
+}
 
 const info = { title: 'Test API', version: '1.0.0' };
 
@@ -124,6 +179,70 @@ const UsersFeature = UsersModule;
 const BillingFeature = BillingModule;
 
 describe('openapi(...) — плагин-издатель', () => {
+  it('announceHidden пишет info на каждый скрытый endpoint', async () => {
+    const spy = spyLogger();
+    const app = makeApp({
+      features: [UsersModule],
+      plugins: [openapi({ info, converters: [zodConverter()] })],
+      transports: [asHttpTransport(new SpyTransport())],
+      providers: [valueProvider(RootLogger$, spy.logger)],
+    }).assemble();
+
+    await app.run();
+
+    expect(
+      spy.entries.filter(
+        (entry) => entry.message === 'hidden from the API document',
+      ),
+    ).toEqual([
+      {
+        level: 'info',
+        message: 'hidden from the API document',
+        fields: {
+          scope: 'nestling:openapi',
+          pattern: 'GET /health',
+          module: 'module:openapi-users',
+          reason: 'liveness-проба балансировщика',
+        },
+      },
+      // Собственная ручка документа тоже скрыта — и тоже названа в записи
+      {
+        level: 'info',
+        message: 'hidden from the API document',
+        fields: {
+          scope: 'nestling:openapi',
+          pattern: 'GET /openapi.json',
+          module: '@nestling/openapi',
+          reason: 'служебная ручка: сам документ',
+        },
+      },
+    ]);
+
+    await app.close();
+  });
+
+  it('announceHidden: false не даёт ни одной записи', async () => {
+    const spy = spyLogger();
+    const app = makeApp({
+      features: [UsersModule],
+      plugins: [
+        openapi({ info, converters: [zodConverter()], announceHidden: false }),
+      ],
+      transports: [asHttpTransport(new SpyTransport())],
+      providers: [valueProvider(RootLogger$, spy.logger)],
+    }).assemble();
+
+    await app.run();
+
+    expect(
+      spy.entries.filter(
+        (entry) => entry.message === 'hidden from the API document',
+      ),
+    ).toEqual([]);
+
+    await app.close();
+  });
+
   it("отдаёт документ endpoint'ом и не описывает сам себя", async () => {
     const transport = new SpyTransport();
     const app = makeApp({

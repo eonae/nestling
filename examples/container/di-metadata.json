@@ -8,6 +8,22 @@
       "dependencies": []
     },
     {
+      "id": "Ctx:requestId",
+      "metadata": {
+        "module": "kernel:context"
+      },
+      "dependencies": []
+    },
+    {
+      "id": "ConfigSection:nestlingLog",
+      "metadata": {
+        "module": "kernel:config"
+      },
+      "dependencies": [
+        "kernel:ConfigReader"
+      ]
+    },
+    {
       "id": "ConfigSection:app",
       "metadata": {
         "module": "kernel:config"
@@ -26,57 +42,121 @@
       ]
     },
     {
-      "id": "Logger:db",
+      "id": "ConfigSection:runtime",
       "metadata": {
-        "module": "module:logging"
+        "module": "kernel:config"
+      },
+      "dependencies": [
+        "kernel:ConfigReader"
+      ]
+    },
+    {
+      "id": "RootLogger",
+      "metadata": {
+        "module": "kernel:logger"
+      },
+      "dependencies": [
+        "ConfigSection:nestlingLog",
+        "Ctx:requestId"
+      ]
+    },
+    {
+      "id": "Counter:queries",
+      "metadata": {
+        "module": "app-counters"
       },
       "dependencies": [
         "ConfigSection:app"
+      ]
+    },
+    {
+      "id": "Counter:users",
+      "metadata": {
+        "module": "app-counters"
+      },
+      "dependencies": [
+        "ConfigSection:app"
+      ]
+    },
+    {
+      "id": "Logger:nestling",
+      "metadata": {
+        "module": "kernel:logger"
+      },
+      "dependencies": [
+        "RootLogger"
+      ]
+    },
+    {
+      "id": "Logger:nestling:config",
+      "metadata": {
+        "module": "kernel:logger"
+      },
+      "dependencies": [
+        "RootLogger"
+      ]
+    },
+    {
+      "id": "Logger:db",
+      "metadata": {
+        "module": "kernel:logger"
+      },
+      "dependencies": [
+        "RootLogger"
       ]
     },
     {
       "id": "Logger:UserRepository",
       "metadata": {
-        "module": "module:logging"
+        "module": "kernel:logger"
       },
       "dependencies": [
-        "ConfigSection:app"
+        "RootLogger"
       ]
     },
     {
       "id": "Logger:users",
       "metadata": {
-        "module": "module:logging"
+        "module": "kernel:logger"
       },
       "dependencies": [
-        "ConfigSection:app"
+        "RootLogger"
       ]
     },
     {
       "id": "Logger:api",
       "metadata": {
-        "module": "module:logging"
+        "module": "kernel:logger"
       },
       "dependencies": [
-        "ConfigSection:app"
+        "RootLogger"
       ]
     },
     {
       "id": "Logger:HealthService",
       "metadata": {
-        "module": "module:logging"
+        "module": "kernel:logger"
       },
       "dependencies": [
-        "ConfigSection:app"
+        "RootLogger"
+      ]
+    },
+    {
+      "id": "Logger:RateLimiter",
+      "metadata": {
+        "module": "kernel:logger"
+      },
+      "dependencies": [
+        "RootLogger"
       ]
     },
     {
       "id": "Logger:app",
       "metadata": {
-        "module": "module:logging"
+        "module": "kernel:logger"
       },
       "dependencies": [
-        "ConfigSection:app"
+        "RootLogger"
       ]
     },
     {
@@ -86,6 +166,7 @@
       },
       "dependencies": [
         "ConfigSection:app",
+        "Counter:queries",
         "Logger:db"
       ]
     },
@@ -97,6 +178,16 @@
       "dependencies": [
         "ConfigSection:app",
         "Logger:api"
+      ]
+    },
+    {
+      "id": "RateLimiter",
+      "metadata": {
+        "module": "module:runtime"
+      },
+      "dependencies": [
+        "ConfigSection:runtime",
+        "Logger:RateLimiter"
       ]
     },
     {
@@ -143,11 +234,12 @@
       },
       "dependencies": [
         "UserRepository",
+        "Counter:users",
         "Logger:users"
       ]
     },
     {
-      "id": "HealthCheck:{all}",
+      "id": "HealthCheck.all",
       "metadata": {},
       "dependencies": [
         "HealthCheck:database",
@@ -160,7 +252,7 @@
         "module": "module:health"
       },
       "dependencies": [
-        "HealthCheck:{all}",
+        "HealthCheck.all",
         "ConfigSection:health",
         "Logger:HealthService"
       ]

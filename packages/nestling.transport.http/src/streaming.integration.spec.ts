@@ -14,7 +14,10 @@ import { HttpTransport } from './transport.js';
 
 import type {
   ExecutableDeclaration,
+  Fields,
   FilePart,
+  Logger,
+  LogLevel,
   Outcome,
   PhasedPipeline,
 } from '@nestling/app';
@@ -36,8 +39,54 @@ type Row = z.infer<typeof Row>;
 const Event = z.object({ id: z.string(), kind: z.string() });
 type Event = z.infer<typeof Event>;
 
-/** Заглушка диагностики: дефолтный console.error шумит в выводе тестов */
-const silent = { onUnknownFail: (): void => undefined };
+/** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
+function spyLogger(): { logger: Logger; entries: LogEntry[] } {
+  const entries: LogEntry[] = [];
+  const make = (bindings: Fields): Logger => {
+    const write =
+      (level: LogLevel) =>
+      (first: string | Error | Fields, second?: Fields): void => {
+        if (typeof first === 'string') {
+          entries.push({
+            level,
+            message: first,
+            fields: { ...bindings, ...second },
+          });
+        } else if (first instanceof Error) {
+          entries.push({
+            level,
+            message: first.message,
+            fields: { ...bindings, ...second, err: first },
+          });
+        } else {
+          entries.push({
+            level,
+            message: '',
+            fields: { ...bindings, ...first },
+          });
+        }
+      };
+
+    return {
+      debug: write('debug'),
+      info: write('info'),
+      warn: write('warn'),
+      error: write('error'),
+      child: (extra) => make({ ...bindings, ...extra }),
+    };
+  };
+
+  return { logger: make({}), entries };
+}
+
+interface LogEntry {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: Fields;
+}
+
+/** Умолчание ядра пишет в stderr и шумит в выводе тестов: записи копит шпион */
+const silent = spyLogger().logger;
 
 /**
  * Транспорт для теста: эфемерный порт и loopback-хост.
@@ -70,7 +119,7 @@ function routesOf(transport: HttpTransport): ExecutableDeclaration[] {
 /** Поднимает транспорт на эфемерном порту, возвращает базовый URL */
 async function listen(transport: HttpTransport): Promise<string> {
   await transport.serve(
-    makeDispatch(routesOf(transport)),
+    makeDispatch(routesOf(transport), { logger: silent }),
     new AbortController().signal,
   );
 
@@ -228,7 +277,7 @@ describe('framing по форме output', () => {
   const outcomes: string[] = [];
 
   beforeAll(async () => {
-    transport = makeTransport({ ...silent, sseHeartbeat: 0 });
+    transport = makeTransport({ sseHeartbeat: 0 });
 
     routesOf(transport).push(
       httpEndpoint({
@@ -306,7 +355,7 @@ describe('SSE: heartbeat, реконнект, дисконнект', () => {
 
   beforeAll(async () => {
     hub = new Topic<Event>({ buffer: 8 });
-    transport = makeTransport({ ...silent, sseHeartbeat: 20 });
+    transport = makeTransport({ sseHeartbeat: 20 });
 
     routesOf(transport).push(
       httpEndpoint({
@@ -388,7 +437,7 @@ describe('mid-stream политика', () => {
   const outcomes: string[] = [];
 
   beforeAll(async () => {
-    transport = makeTransport({ ...silent, sseHeartbeat: 0 });
+    transport = makeTransport({ sseHeartbeat: 0 });
 
     routesOf(transport).push(
       httpEndpoint({
@@ -459,7 +508,7 @@ describe('приём потокового входа и multipart', () => {
   let lastSummary: { itemsIn: number; bytesIn?: number } | undefined;
 
   beforeAll(async () => {
-    transport = makeTransport({ ...silent, maxBodySize: 64 * 1024 });
+    transport = makeTransport({ maxBodySize: 64 * 1024 });
 
     const summarizing = makePipeline().finally((_outcome, _res, ctx) => {
       lastSummary = { ...ctx.summary };
@@ -635,7 +684,7 @@ describe('close() завершает открытые events-соединени�
   it('сигнал взводится, итератор закрывается, соединение завершается', async () => {
     const hub = new Topic<Event>({ buffer: 4 });
     const outcomes: string[] = [];
-    const transport = makeTransport({ ...silent, sseHeartbeat: 0 });
+    const transport = makeTransport({ sseHeartbeat: 0 });
 
     routesOf(transport).push(
       httpEndpoint({
@@ -663,7 +712,7 @@ describe('close() завершает открытые events-соединени�
 
 describe('способности транспорта при регистрации', () => {
   it('stream и events в output принимаются на serve', async () => {
-    const transport = makeTransport(silent);
+    const transport = makeTransport();
 
     routesOf(transport).push(
       httpEndpoint({
@@ -689,7 +738,7 @@ describe('способности транспорта при регистрац�
 
     await expect(
       transport.serve(
-        makeDispatch(routesOf(transport)),
+        makeDispatch(routesOf(transport), { logger: silent }),
         new AbortController().signal,
       ),
     ).resolves.toBeUndefined();

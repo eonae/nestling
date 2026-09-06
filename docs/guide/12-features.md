@@ -13,8 +13,8 @@
 Код квот должен жить отдельно: у него свои сервисы, свои тесты и свой
 владелец. Фича пользователей не должна инжектить сервис квот, потому что
 однажды квоты уедут в отдельный процесс, и код регистрации при этом не
-должен измениться. Логирование и проверка токена при этом остаются
-общими для обеих областей.
+должен измениться. Слой наблюдаемости и проверка токена при этом
+остаются общими для обеих областей.
 
 Сервис из частей 1 и 2 продолжается в `app-with-http`. Файлы
 переложены по областям: фичи лежат в `src/features/<имя>/`, общая
@@ -132,7 +132,7 @@ export const ClaimQuota = makeRequest({
 
 ```typescript
 // examples/app-with-http/src/features/quotas/claim-quota.endpoint.ts
-@Injectable([QuotaService, Logger$])
+@Injectable([QuotaService, Logger$.auto])
 class ClaimQuotaHandler {
   constructor(
     private readonly quotas: QuotaService,
@@ -143,7 +143,7 @@ class ClaimQuotaHandler {
     const claimed = this.quotas.claim();
 
     if (!claimed.ok) {
-      this.logger.log(`quota exhausted, refusing ${payload.email}`);
+      this.logger.info('quota exhausted', { email: payload.email });
 
       // Вызывающий получит `Fail` и узнает его через `QuotaExceeded.is()`
       return QuotaExceeded({ limit: this.quotas.limit });
@@ -277,57 +277,43 @@ curl -X POST localhost:3000/users \
 
 ## Общее уходит в плагины
 
-Логгер и слой `observability` нужны обеим фичам. Провайдер, от которого
-зависят две фичи, объявляется плагином:
+Слой `observability` нужен обеим фичам. Провайдер, от которого зависят
+две фичи, объявляется плагином:
 
 ```typescript
-// examples/app-with-http/src/plugins/logging/logging.plugin.ts
-export interface LoggingOptions {
-  /** Имя сервиса в префиксе каждой записи */
-  service: string;
-}
-
-export const logging = (options: LoggingOptions): Plugin =>
-  makePlugin({
-    name: 'app-logging',
-    providers: [
-      // Фабрика соединяет параметр плагина и значение из секции
-      factoryProvider(
-        Logger$,
-        (config: Config<typeof LoggerConfig>) =>
-          new ConsoleLogger(options.service, config.level),
-        [LoggerConfig],
-      ),
-      // Класс-юнит слоя `observability`: без регистрации слой не соберётся
-      AuditOutcome,
-    ],
-  });
+// examples/app-with-http/src/plugins/observability/observability.plugin.ts
+export const appObservability: Plugin = makePlugin({
+  name: 'app-observability',
+  // Класс-юнит слоя `observability`: без регистрации слой не соберётся
+  providers: [AuditOutcome],
+});
 ```
 
 Плагин — сквозная инфраструктура. `makePlugin` принимает то же, что
 `makeFeature`: имя, провайдеры, при необходимости endpoint'ы. Разница в
 роли: плагин перечисляется в `plugins:` корня, есть в каждом процессе, и
-фичи обращаются к нему токенами.
+фичи обращаются к нему токенами. У `appObservability` параметров нет:
+логгер юниту даёт ядро, а уровень записи задаёт `NESTLING_LOG_LEVEL`
+логгера ядра ([глава 8](./08-logging.md)), поэтому значение плагина одно
+и объявлено прямо здесь.
 
-Параметризованный плагин — функция, которая возвращает значение. Имя
-сервиса задаёт параметр, потому что оно решается при сборке. Уровень
-логирования приходит из конфиг-секции, потому что он меняется без
-пересборки:
+Параметризованный плагин — функция, которая возвращает значение:
 
 ```typescript
-// examples/app-with-http/src/plugins/logging/logger.config.ts
-export const LoggerConfig = makeConfig('log', {
-  level: z.enum(['debug', 'info', 'error']).default('info'),
+// examples/app-with-http/src/app.ts
+export const appSubscriptions = subscriptions({
+  identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
+  labels: (ctx) => ({ transport: ctx.endpoint.transport }),
+  publish: true,
+  node: 'app-with-http',
 });
-
-/** Право привязать источник к ключам секции. Токен секции наружу не выходит */
-export const loggerConfigKeys = LoggerConfig.keys;
 ```
 
-Из плагина экспортируются фабрика, токен `Logger$`, слой `observability`
-и `loggerConfigKeys`. Токен секции остаётся внутри: инжектировать её
-из фичи нельзя, а привязать источник к её ключам через `config:` в корне
-можно.
+`subscriptions(options)` из пакета `@nestling/subscriptions` собирает
+реестр подписок. Параметры `identity` и `labels` — функции, которые
+вычисляют подписчика и метки записи из контекста запроса. Параметр
+`node` — имя узла в реестре. Флаг `publish: true` включает публикацию
+событий открытия и закрытия подписки.
 
 Проверка токена устроена так же:
 
@@ -387,12 +373,10 @@ export const UsersFeature = makeFeature({
 
 ```typescript
 // examples/app-with-http/src/app.ts
-export const appLogging = logging({ service: 'app-with-http' });
-// …
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   plugins: [
-    appLogging,
+    appObservability,
     appAuth,
     appSubscriptions,
     openapi({
@@ -417,8 +401,8 @@ export const app = makeApp({
 ```
 
 Значение параметризованного плагина создаётся один раз и импортируется:
-второй вызов `logging({ … })` дал бы второй плагин с тем же именем, и
-сборка остановилась бы.
+второй вызов `subscriptions({ … })` дал бы второй плагин с тем же
+именем, и сборка остановилась бы.
 
 ## Проверка
 

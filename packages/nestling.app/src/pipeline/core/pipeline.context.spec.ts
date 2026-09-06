@@ -7,6 +7,8 @@
  * пайплайна, а не DI: узел графа проверяется тестами kernel-модуля.
  */
 
+import { spyLogger } from '../../logger/__fixtures__/spy.js';
+
 import type { CtxReader } from './context/reader.js';
 import { makeCtxReader } from './context/reader.js';
 import { RequestId, Signal } from './context/well-known.js';
@@ -66,9 +68,12 @@ async function run(
   return executable.executeWithHandler(
     handler as never,
     ctx as ExtendableContext<AnyInput>,
-    { onUnknownFail: (): void => undefined },
+    { logger: silent },
   );
 }
+
+/** Логгер, глушащий умолчание ядра в выводе тестов */
+const silent = spyLogger().logger;
 
 describe('проекция обновляется после каждого .pre-юнита', () => {
   it('юнит видит поля предыдущих юнитов и не видит своих последователей', async () => {

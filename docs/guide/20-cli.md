@@ -242,5 +242,5 @@ yarn workspace @examples/simple-cli start:dev            # REPL
 yarn workspace @examples/simple-cli test
 ```
 
-Глава [21. Логгер с именем потребителя и сбор вкладов](./21-token-families.md)
+Глава [21. Зависимости по имени и сбор вкладов из модулей](./21-token-families.md)
 показывает семейства токенов: один рецепт на много зависимостей.

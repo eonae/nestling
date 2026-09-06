@@ -1,5 +1,5 @@
 import { appConfigKeys } from './config/index.js';
-import { appLogging } from './logging/index.js';
+import { appCounters } from './counters/index.js';
 import { runtimeConfigKeys } from './runtime/index.js';
 import { AppFeature } from './app.feature.js';
 import { Demo } from './demo.js';
@@ -12,14 +12,16 @@ import { makeApp, objectSource } from '@nestling/app';
  *
  * Источники конфига привязываются к ключам секций. `process.env`
  * подключён всегда с низшим приоритетом: `DATABASE_URL` приходит из него
- * без объявления. Порядок списка задаёт приоритет источников.
+ * без объявления. Порядок списка задаёт приоритет источников. Уровень и
+ * формат логгера ядра задают `NESTLING_LOG_LEVEL` и `NESTLING_LOG_FORMAT`
+ * из `process.env`.
  */
 const app = makeApp({
   features: [AppFeature],
-  plugins: [appLogging],
+  plugins: [appCounters],
   providers: [Demo],
   config: [
-    [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+    [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
     [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],
   ],
 }).assemble();

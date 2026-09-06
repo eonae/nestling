@@ -12,6 +12,7 @@ import { Ctx, RequestId } from '../pipeline/index.js';
 import { wireApp } from '../testing/index.js';
 import { transportValue } from '../transport/index.js';
 
+import { loggerProbe } from './__fixtures__/logger.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
@@ -57,10 +58,31 @@ describe('contextKernel в корне', () => {
     await wired.close();
   });
 
-  it('без читателей в графе нет ни одного узла семейства Ctx', async () => {
+  it('без читателей приложения единственный узел Ctx — ридер логгера ядра', async () => {
+    // `ConsoleLogger` читает `requestId` из контекста, поэтому его ридер
+    // есть в каждом графе с умолчанием под `RootLogger$`. Это провайдер-
+    // значение ридера: узел ничего не стоит и ничего не захватывает
     const wired = await wireApp(
       makeApp({
         transports: [transportValue(MockTransport$, new MockTransport())],
+      }),
+    );
+
+    const { nodes } = await wired.container.toJSON();
+
+    expect(
+      nodes.filter((node) => node.id.startsWith('Ctx:')).map((n) => n.id),
+    ).toEqual(['Ctx:requestId']);
+
+    await wired.close();
+  });
+
+  it('с подменённым корнем логгера в графе нет ни одного узла семейства Ctx', async () => {
+    const probe = loggerProbe();
+    const wired = await wireApp(
+      makeApp({
+        transports: [transportValue(MockTransport$, new MockTransport())],
+        providers: [probe.provider],
       }),
     );
 

@@ -12,6 +12,7 @@ import { NatsDouble as Broker, natsDouble } from './testing/double.js';
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { Fields, Logger, LogLevel } from '@nestling/app';
 import { implement, makeDispatch, makeFail, makePipeline } from '@nestling/app';
 import { makeCommand, makeEvent } from '@nestling/operations';
 import { z } from 'zod';
@@ -78,17 +79,62 @@ async function process(
   broker: Broker,
   declarations: readonly Parameters<typeof makeDispatch>[0][number][],
 ): Promise<NatsBus> {
+  // Повторы ожидаемы: тест смотрит на состав доставок, записи копит шпион
   const bus = new NatsBus({
     connect: natsDouble(broker),
-    onDeliveryFailure: () => {
-      /* повторы ожидаемы: тест смотрит на состав доставок */
-    },
+    logger: spyLogger().logger,
   });
 
   await bus.connect();
   await bus.serve(makeDispatch(declarations), new AbortController().signal);
 
   return bus;
+}
+
+/** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
+function spyLogger(): { logger: Logger; entries: LogEntry[] } {
+  const entries: LogEntry[] = [];
+  const make = (bindings: Fields): Logger => {
+    const write =
+      (level: LogLevel) =>
+      (first: string | Error | Fields, second?: Fields): void => {
+        if (typeof first === 'string') {
+          entries.push({
+            level,
+            message: first,
+            fields: { ...bindings, ...second },
+          });
+        } else if (first instanceof Error) {
+          entries.push({
+            level,
+            message: first.message,
+            fields: { ...bindings, ...second, err: first },
+          });
+        } else {
+          entries.push({
+            level,
+            message: '',
+            fields: { ...bindings, ...first },
+          });
+        }
+      };
+
+    return {
+      debug: write('debug'),
+      info: write('info'),
+      warn: write('warn'),
+      error: write('error'),
+      child: (extra) => make({ ...bindings, ...extra }),
+    };
+  };
+
+  return { logger: make({}), entries };
+}
+
+interface LogEntry {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: Fields;
 }
 
 describe('долговечная доставка', () => {
@@ -227,19 +273,15 @@ describe('долговечная доставка', () => {
     await publisher.close();
   });
 
-  it('исчерпание попыток снимает доставку и отчитывается хуку', async () => {
+  it('исчерпание попыток снимает доставку и пишет об этом в логгер', async () => {
     const broker = new Broker();
     behaviour = 'throw';
 
-    const terminated: string[] = [];
+    const spy = spyLogger();
     const subscriber = new NatsBus({
       connect: natsDouble(broker),
       maxDeliver: 2,
-      onDeliveryFailure: (info) => {
-        if (info.terminated) {
-          terminated.push(info.subject);
-        }
-      },
+      logger: spy.logger,
     });
 
     await subscriber.connect();
@@ -257,7 +299,21 @@ describe('долговечная доставка', () => {
     await settle(30);
 
     expect(handled).toHaveLength(2);
-    expect(terminated).toEqual(['durable.orders.placed']);
+
+    const terminated = spy.entries.filter(
+      (entry) => entry.fields.terminated === true,
+    );
+    expect(terminated).toEqual([
+      {
+        level: 'error',
+        message: 'nats delivery failed',
+        fields: {
+          subject: 'durable.orders.placed',
+          terminated: true,
+          err: expect.anything(),
+        },
+      },
+    ]);
 
     await subscriber.close();
     await publisher.close();
@@ -273,7 +329,10 @@ describe('долговечная доставка', () => {
       subjects: ['legacy.orders.placed'],
     });
 
-    const bus = new NatsBus({ connect: natsDouble(broker) });
+    const bus = new NatsBus({
+      connect: natsDouble(broker),
+      logger: spyLogger().logger,
+    });
     await bus.connect();
 
     await expect(

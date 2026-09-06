@@ -14,7 +14,8 @@ endpoint'ы проходом по фичам и плагинам, проводи
 > [`docs/design/pipeline.md`](../../docs/design/pipeline.md),
 > [`docs/design/config.md`](../../docs/design/config.md),
 > [`docs/design/operations.md`](../../docs/design/operations.md),
-> [`docs/design/transports.md`](../../docs/design/transports.md);
+> [`docs/design/transports.md`](../../docs/design/transports.md),
+> [`docs/design/container.md`](../../docs/design/container.md) («Логгер ядра»);
 > гайды — [глава 5. Хендлеру нужен репозиторий](../../docs/guide/05-repository.md),
 > [глава 6. Порт и адрес базы из окружения](../../docs/guide/06-config.md),
 > [глава 8. Видеть каждый запрос в логе](../../docs/guide/08-logging.md),
@@ -122,11 +123,13 @@ await app.assemble().run();
 
 #### Модули ядра
 
-Три модуля регистрируются всегда, и корень их не упоминает: конфиг
-(слой конфигурации), асинхронный контекст запроса (слой пайплайна) и
-порты (слой портов). Их узлы — члены семейств токенов,
-поэтому они создаются только тогда, когда кто-то их инжектит; приложение,
-которое ими не пользуется, не получает ни одного лишнего узла.
+Четыре модуля регистрируются всегда, и корень их не упоминает: конфиг
+(слой конфигурации), асинхронный контекст запроса (слой пайплайна),
+порты (слой портов) и логгер (раздел «Логгер ядра»). Узлы первых трёх —
+члены семейств токенов, поэтому они создаются только тогда, когда кто-то
+их инжектит; приложение, которое ими не пользуется, не получает ни одного
+лишнего узла. Логгер регистрируется узлом всегда: сборка пишет через него
+сама.
 
 Шина внутри процесса регистрируется, только если в приложении есть хотя бы
 одна реализация операции и корень не назначил интерком. Так подключается
@@ -628,8 +631,10 @@ makeApp({
 - Всё незадекларированное, что дошло до выхода из пайплайна, — голый
   `throw`, отказ из глубины сервиса, анонимный `Fail.notFound(...)` без
   кода — заменяется на `InternalError` (`internal_error`, 500). Оригинал целиком
-  передаётся в `ExecuteOptions.onUnknownFail` (по умолчанию
-  `console.error`); клиент получает общее тело ответа.
+  уходит записью `error` в логгер `dispatch` (раздел «Логгер ядра»):
+  сообщение `undeclared fail normalized to internal_error`, поля
+  `transport`, `pattern`, `code` и оригинал в `err`. Клиент получает
+  общее тело ответа.
 - Отказы ядра входят в множество ответов каждого endpoint'а без
   объявления: `InternalError` (`internal_error`), `BadRequest`
   (`bad_request`: проверка входа, разбор запроса и поэлементная проверка
@@ -839,15 +844,15 @@ const withTenant = () =>
   TenantId.provide((ctx) => ctx.raw.attributes['x-tenant'] as string);
 
 // Читатель: член приватного семейства `Ctx` — обычный узел графа
-@Injectable([Ctx(RequestId), ILogger])
+@Injectable([Ctx(RequestId), Logger$.auto])
 export class UsersRepository {
   constructor(
     private readonly requestId: CtxReader<string>,
-    private readonly logger: ILoggerService,
+    private readonly logger: Logger,
   ) {}
 
   async byId(id: string) {
-    this.logger.debug(`[${this.requestId.peek() ?? 'n/a'}] select ${id}`);
+    this.logger.debug('select', { id, requestId: this.requestId.peek() });
   }
 }
 ```
@@ -937,9 +942,156 @@ export class UsersRepository {
 | Юнит | Что делает |
 |---|---|
 | `withRequestId()` | кладёт в контекст `requestId` и объявляет переменную `RequestId` |
-| `withRequestLogging(logger)` | пишет в `logger.log` строку о начале обработки запроса; в контекст ничего не добавляет |
+| `withRequestLogging(logger)` | пишет через `Logger` ядра запись `info` о начале обработки запроса с полями `transport` и `pattern`; в контекст ничего не добавляет |
 | `withIdentity(authenticate)` | вызывает `authenticate(raw)` и кладёт результат в `identity` |
 | `withPermissions(getPermissions)` | вызывает `getPermissions(identity)` и кладёт результат в `permissions`; требует `identity` в контексте |
+
+## Логгер ядра
+
+Ядро и приложение пишут через один интерфейс. Реализацию выбирает
+провайдер под `RootLogger$`; ядро от библиотек логирования не зависит.
+
+```typescript
+import type { Logger } from '@nestling/app';
+import { Logger$ } from '@nestling/app';
+
+@Injectable([Logger$.auto])
+export class UsersRepository {
+  constructor(private readonly logger: Logger) {}
+
+  async byId(id: string) {
+    this.logger.debug('select', { id });
+  }
+}
+```
+
+### Интерфейс
+
+```ts
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type Fields = Record<string, unknown> & { err?: unknown };
+
+interface Logger {
+  debug(message: string, fields?: Fields): void;
+  debug(error: Error, fields?: Fields): void;
+  debug(fields: Fields): void;
+  // info, warn, error — те же три формы
+  child(bindings: Fields): Logger;
+}
+```
+
+- Форма с `Error` первым аргументом берёт сообщение из `error.message` и
+  кладёт саму ошибку в `err`. `Fail` наследует `Error` и проходит той же
+  формой: `logger.warn(UserNotFound({ id }))`.
+- Ключ `err` зарезервирован за ошибкой: реализация сериализует его как
+  ошибку (`name`, `message`, `stack`, `cause`), а не как произвольное
+  значение.
+- `child(bindings)` возвращает логгер, который добавляет `bindings` к
+  каждой записи. Привязки дочернего логгера накладываются поверх
+  родительских, поля вызова — поверх привязок.
+
+### `RootLogger$` и `Logger$`
+
+`RootLogger$` — DI-токен корня. `Logger$(scope)` — семейство с рецептом
+`root.child({ scope })`; `Logger$.auto` даёт член по имени
+класса-потребителя. Замена провайдера под `RootLogger$` меняет все члены,
+потребители членов замены не видят.
+
+Kernel-модуль объявляет `ConsoleLogger` умолчанием под `RootLogger$`
+полем `defaults` модуля ([`@nestling/container`](../nestling.container)),
+поэтому провайдер приложения под тем же токеном заменяет умолчание без
+ошибки дубля, в каком бы порядке модули ни регистрировались:
+
+```typescript
+export const appLogging = makePlugin({
+  name: 'app-logging',
+  providers: [factoryProvider(RootLogger$, () => pinoAdapter(pino()), [])],
+});
+```
+
+Провайдер под `RootLogger$` не может зависеть от `Logger$(x)`: член
+семейства строится из корня, и это цикл. Сборка называет его путь.
+
+### `ConsoleLogger` и секция `nestlingLog`
+
+Реализация по умолчанию читает уровень и формат из kernel-секции
+`nestlingLog`; класс и токен секции не экспортируются, наружу идёт только
+`logConfigKeys`.
+
+| Ключ | Значения | По умолчанию |
+|---|---|---|
+| `NESTLING_LOG_LEVEL` | `debug`, `info`, `warn`, `error` | `info` |
+| `NESTLING_LOG_FORMAT` | `text`, `json` | `text` |
+
+Запись уровня ниже заданного отбрасывается; невалидное значение роняет
+старт валидацией секции. Записи уходят в `stderr` одной строкой каждая:
+у CLI-транспорта `stdout` занят результатом команды.
+
+- `text`: `<время ISO> <УРОВЕНЬ> <scope> <сообщение> key=value …`;
+  значения-объекты через `JSON.stringify`; `err` — `err=<name>: <message>`
+  и стек на следующих строках.
+- `json`: объект с полями `time`, `level`, `scope`, привязками,
+  `requestId`, `msg`, полями вызова и `err` в виде
+  `{ name, message, stack, cause? }`.
+
+Идентификатор запроса реализация читает из `Ctx(RequestId)` в момент
+записи и добавляет полем `requestId`, если он есть и поле не задано
+вызовом. Вне запроса поля нет. Поэтому ридер `Ctx(RequestId)` есть в
+каждом графе с умолчанием под `RootLogger$`.
+
+Секция не reloadable: reloadable-секция без наблюдающего источника
+предупреждает, а на голом `process.env` это каждое приложение.
+
+### Что пишет ядро
+
+Ядро пишет только через `Logger$('nestling')` и области
+`nestling:<область>`: `nestling:config`, `nestling:ports`, `nestling:bus`,
+`nestling:nats`, `nestling:openapi`. Каждая область — узел графа, виден в
+визуализации. Вне `ConsoleLogger` ядро к `console` и потокам процесса не
+обращается.
+
+| Событие | Уровень | Сообщение | Поля |
+|---|---|---|---|
+| состав сборки на старте | `info` | `features: …; transports: …` | `features`, `transports` |
+| выбор замкнут по вызовам | `info` | `selection closed over calls` | `named`, `added` |
+| endpoint выведен из-под политик | `info` | `detached from policies` | `pattern`, `transport`, `reason` |
+| сигнал процесса | `info` | `shutting down` | `signal` |
+| операции обслуживаются недолговечно | `warn` | `durable delivery is not available on this bus` | `operations` |
+| интерком без операций | `warn` | `intercom is assigned, but this assembly declares no operations` | `transport` |
+| предупреждение конфига или контейнера | `warn` | текст предупреждения | — |
+| незадекларированный отказ | `error` | `undeclared fail normalized to internal_error` | `transport`, `pattern`, `code`, `err` |
+| отказ порта | `error` | `port failure` | `operation`, `err` |
+| отказ доставки шины | `error` | `bus delivery failed` | `subject`, `err` |
+
+Предупреждения читалки конфига копятся до появления логгера и уходят в
+него сразу после `build()`; предупреждения контейнера сборка берёт из
+`container.warnings`. `check()` строку состава не пишет, предупреждения —
+пишет.
+
+Standalone-пути без `App` — `makeDispatch(endpoints)` и
+`new InProcessBus()` — используют `ConsoleLogger` с умолчаниями (уровень
+`info`, формат `text`, без `requestId`), поэтому незадекларированный
+отказ не проглатывается молча. Свой логгер передаётся опцией:
+`makeDispatch(endpoints, { logger })`, `new InProcessBus({ logger })`.
+
+В тесте записи перехватывает `spyLogger()` из
+[`@nestling/testing`](../nestling.testing): подмена
+`[RootLogger$, spy.logger]` в `overrides` даёт список записей всех
+членов `Logger$` — и ядра, и приложения.
+
+### Справочник API: логгер
+
+| Экспорт | Что это |
+|---|---|
+| `Logger`, `LogMethod`, `Fields`, `LogLevel` | интерфейс логгера, тип метода уровня, тип полей, тип уровня |
+| `RootLogger$` | DI-токен корня; провайдер приложения заменяет умолчание ядра |
+| `Logger$(scope)`, `Logger$.auto` | семейство областей и член по имени потребителя |
+| `logConfigKeys` | ключи секции `nestlingLog` для `config:` в корне |
+| `loggerKernel()` | kernel-модуль логгера; регистрируется сборкой |
+| `LogFormat` | тип формата записи |
+
+Не экспортируются: `ConsoleLogger`, токен секции `nestlingLog` и умолчание
+для standalone-путей. Реализации ядра приватны, как у конфига и портов.
 
 ## Конфигурация
 
@@ -1089,7 +1241,7 @@ const cfg = load(RootConfig); // синхронно, только process.env
 | `from(key, schema)` | задаёт точное имя ключа поля |
 | `secret(leaf)` | помечает поле секретным |
 | `load(section)` | читает секцию до сборки контейнера, только из `process.env` |
-| `configKernel(bindings?, options?)` | модуль, который привязывает источники к ключам |
+| `configKernel(bindings?)` | модуль, который привязывает источники к ключам |
 | `objectSource(values?, name?)` | источник поверх обычного объекта, с `set`/`assign` |
 | `describeConfig()` | снимок реестра секций и ключей |
 | `keysGlob(pattern)` | объявляет unbound-глоб ключей |
@@ -1100,7 +1252,6 @@ const cfg = load(RootConfig); // синхронно, только process.env
 | `ConfigSectionToken`, `ConfigValues`, `ConfigRecord`, `ConfigField` | типы декларации секции |
 | `FromField`, `SecretField`, `ReloadableConfig` | типы обёрток и дополнения проекции reloadable-секции |
 | `ConfigSource`, `ConfigBinding`, `ObjectSource` | типы источника и привязки |
-| `ConfigKernelOptions`, `ConfigWarn` | опции `configKernel` и канал предупреждений |
 | `ConfigValidationError`, `ConfigFieldFailure` | ошибка невалидной секции и одно провалившееся поле |
 | `ConfigSharedKeyError`, `SharedKeyReader` | ошибка несогласованного `reloadable` общего ключа |
 | `ConfigDescription`, `ConfigSectionDescription`, `ConfigKeyDescription`, `ConfigSharedKeyDescription`, `ConfigKeyReader` | типы снимка `describeConfig()` |
@@ -1439,9 +1590,12 @@ console.log(formatCompatibility(report));
 | `diffOperations`, `formatCompatibility`, `suggestBump`, `CompatibilityReport` | сравнение снапшотов |
 | `Port`, `Emitter`, `PortMeta`, `CommandMeta`, `PortResult`, … | типы вызывателей (реэкспорт из `@nestling/operations`) |
 
-`InProcessBusOptions`: `buffer` (размер буфера на подписчика),
-`onDeliveryFailure` (хук отказа доставки), `onUnknownFail` (хук
-незадекларированной ошибки).
+`InProcessBusOptions`: `buffer` (размер буфера на подписчика) и
+`logger` (логгер отказов доставки; kernel-модуль передаёт
+`Logger$('nestling:bus')`, без него — умолчание ядра). Отказ доставки —
+запись `error('bus delivery failed', { subject, err })`; отказ порта, не
+попавший на call-site, — `error('port failure', { operation, err })` через
+`Logger$('nestling:ports')`.
 
 Не экспортируются: реестр операций, семейства `Port`/`Emitter` и их
 рецепты, держатель исполнителей и его токен, токен секции конфига. Это
@@ -1503,16 +1657,21 @@ interface Dispatch {
 `call`.
 
 `call(pattern, ctx, options?)` бросает ошибку, если `pattern` не
-принадлежит этому `dispatch`. Опции границы (`DispatchOptions`) передаются
-аргументом `call`, а не хранятся в таблице маршрутов: они описывают
+принадлежит этому `dispatch`. Опция границы (`DispatchOptions`) передаётся
+аргументом `call`, а не хранится в таблице маршрутов: она описывает
 конкретный транспорт, а не набор маршрутов.
 
 | Опция | Что делает |
 |---|---|
 | `exposeErrorDetails` | раскрывать ли клиенту детали ошибок, не являющихся `Fail` |
-| `onUnknownFail` | хук диагностики: вызывается, когда ответ с незадекларированным кодом заменяется на `InternalError` |
 
-`makeDispatch(endpoints)` принимает только исполнимые декларации
+Логгер незадекларированных отказов, напротив, принадлежит таблице:
+`makeDispatch(endpoints, { logger })` получает его один раз (под `App` —
+`Logger$('nestling')`), а без него берёт умолчание ядра. Ответ с
+незадекларированным кодом заменяется на `InternalError`, и оригинал уходит
+записью `error` (раздел «Логгер ядра»).
+
+`makeDispatch(endpoints, options?)` принимает только исполнимые декларации
 (`ExecutableDeclaration`, то есть `EndpointDefinition<I, O, P, never>`).
 Декларация с `deps`, класс-хендлером или классами-юнитами в пайплайне
 сначала получает зависимости через `endpoint.resolve(resolver)`;
@@ -1566,9 +1725,10 @@ support form 'events' in 'output' (supported: value, stream).
 | `transportNameOf(token)` | короткое имя транспорта по токену |
 | `Dispatch` | таблица маршрутов и исполнение |
 | `RouteDeclaration` | проекция декларации без исполнения |
-| `DispatchOptions` | опции границы для `call` |
+| `DispatchOptions` | опция границы для `call` |
+| `MakeDispatchOptions` | опции `makeDispatch`: логгер незадекларированных отказов |
 | `ExecutableDeclaration` | декларация, у которой все зависимости уже получены |
-| `makeDispatch(endpoints)` | строит `Dispatch` из исполнимых деклараций |
+| `makeDispatch(endpoints, options?)` | строит `Dispatch` из исполнимых деклараций |
 | `toRouteDeclaration(definition)` | проекция одной декларации |
 
 ## Границы пакета

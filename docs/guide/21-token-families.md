@@ -1,84 +1,98 @@
-# 21. Логгер с именем потребителя и сбор вкладов из модулей
+# 21. Зависимости по имени и сбор вкладов из модулей
 
 > Гайд по текущему API; сверено с кодом `container` (2026-09-06).
-> Целевое описание: [design/container.md](../design/container.md), раздел
-> «Семейства токенов». Почему так: записи [ideas.md](../decisions/ideas.md)
-> «Token families + модули без рантайм-инкапсуляции» [2026-07-06] и
-> «Multi-injection через token families: `Family.all`» [2026-07-10].
+> Целевое описание: [design/container.md](../design/container.md), разделы
+> «Семейства DI-токенов» и «Логгер ядра». Почему так: записи
+> [ideas.md](../decisions/ideas.md) «Token families + модули без
+> рантайм-инкапсуляции» [2026-07-06], «Multi-injection через token
+> families: `Family.all`» [2026-07-10] и «Логгер ядра: `RootLogger$`,
+> семейство `Logger$` с `.auto` и `child`» [2026-09-06].
 
-Каждому сервису нужен логгер, который подписывает записи именем этого
-сервиса. Регистрировать отдельный провайдер логгера на каждый сервис не
-хочется. Вторая задача из той же области: проверки здоровья регистрируют
-разные модули, а собирает их один сервис, которому список проверок заранее
-не известен.
+Сервисам нужны счётчики: один считает вызовы, другой считает запросы к
+базе. Счётчики одинаковы, различаются только именем, и регистрировать
+отдельный провайдер на каждый не хочется. Вторая задача из той же
+области: проверки здоровья регистрируют разные модули, а собирает их один
+сервис, которому список проверок заранее не известен.
 
 Обе задачи решает семейство токенов: один рецепт для многих зависимостей,
-которые различаются параметром.
+которые различаются параметром. На том же механизме построен логгер ядра
+из главы [8](./08-logging.md).
 
 ## Семейство вместо токена
 
 ```typescript
-// examples/container/src/logging/registry.ts
+// examples/container/src/counters/registry.ts
 import { makeTokenFamily } from '@nestling/container';
 
-export interface Logger {
-  log(...args: unknown[]): void;
+/** Счётчик с именем: считает события одного вида */
+export interface Counter {
+  readonly name: string;
+  readonly value: number;
+  increment(): number;
 }
 
-export const Logger = makeTokenFamily<Logger, [scope: string]>('Logger');
+export const Counter$ = makeTokenFamily<Counter, [name: string]>('Counter');
 ```
 
 `makeTokenFamily<T, [param]>(id)` возвращает функцию-семейство. Вызов
-`Logger('users')` возвращает токен члена с идентификатором `Logger:users`.
-Повторный вызов с тем же параметром возвращает тот же токен. Член
-семейства работает везде, где работает обычный токен: в `deps` класса, в
-зависимостях фабрики, в `container.get()`. Токен с тем же именем, но
-созданный напрямую через `makeToken('Logger:users')`, членом семейства не
-является: контейнер сообщает об отсутствующем провайдере, потому что
-принадлежность семейству хранится полем токена, а не строкой
-идентификатора.
+`Counter$('users')` возвращает токен члена с идентификатором
+`Counter:users`. Повторный вызов с тем же параметром возвращает тот же
+токен. Член семейства работает везде, где работает обычный токен: в
+`deps` класса, в зависимостях фабрики, в `container.get()`. Токен с тем
+же именем, но созданный напрямую через `makeToken('Counter:users')`,
+членом семейства не является: контейнер сообщает об отсутствующем
+провайдере, потому что принадлежность семейству хранится полем токена, а
+не строкой идентификатора.
 
-Интерфейс и семейство носят одно имя. В отличие от токена интерфейса из
-главы [5](./05-repository.md), суффикс `$` здесь не нужен: семейство
-вызывается как функция, и спутать его с интерфейсом в коде нельзя.
+Интерфейс называется `Counter`, семейство — `Counter$`, как токен
+интерфейса из главы [5](./05-repository.md): семейство вызывается как
+функция, и суффикс отличает его от интерфейса в импортах.
 
 ## Член как обычная зависимость
 
 ```typescript
 // examples/container/src/users/users.service.ts (фрагмент)
-@Injectable([UserRepository, Logger('users')])
+@Injectable([UserRepository, Counter$('users'), Logger$('users')])
 export class UserService {
   #repository: UserRepository;
+  #calls: Counter;
   #logger: Logger;
 
-  constructor(repository: UserRepository, logger: Logger) {
+  constructor(repository: UserRepository, calls: Counter, logger: Logger) {
     this.#repository = repository;
+    this.#calls = calls;
     this.#logger = logger;
   }
+
   // …
+
+  async getUsers(): Promise<string[]> {
+    this.#calls.increment();
+
+    return await this.#repository.findAll();
+  }
 }
 ```
 
 Потребитель указывает члена в `deps` и получает его в конструкторе. Ни
-регистрации провайдера для `Logger('users')`, ни отдельного модуля для
-этого не нужно.
+регистрации провайдера для `Counter$('users')`, ни отдельного модуля для
+этого не нужно. Рядом стоит `Logger$('users')` — член семейства логгера
+ядра: тот же механизм, только рецепт зарегистрирован ядром.
 
 ## Один рецепт на всё семейство
 
 ```typescript
-// examples/container/src/logging/logging.plugin.ts (фрагмент)
-export const appLogging = makePlugin({
-  name: 'app-logging',
+// examples/container/src/counters/counters.plugin.ts (фрагмент)
+export const appCounters = makePlugin({
+  name: 'app-counters',
   providers: [
-    // …
-    familyProvider(Logger, (scope) =>
+    // Один рецепт на всё семейство: `name` — параметр запрошенного члена.
+    // Префикс читается из секции конфига, как любая зависимость
+    familyProvider(Counter$, (name) =>
       factoryProvider(
-        Logger(scope),
-        (config: Config<typeof AppConfig>) => ({
-          log: (...args: unknown[]) =>
-            // …
-            console.log(`[${config.logLevel}] Logger:${scope}`, ...args),
-        }),
+        Counter$(name),
+        (config: Config<typeof AppConfig>) =>
+          new InMemoryCounter(`${config.metricsPrefix}.${name}`),
         [AppConfig] as const,
       ),
     ),
@@ -90,7 +104,7 @@ export const appLogging = makePlugin({
 параметр члена и возвращает обычное определение провайдера:
 `factoryProvider`, `classProvider` или `valueProvider`. У провайдера из
 рецепта есть свои `deps`: здесь член зависит от секции конфига и читает из
-неё уровень логирования. Рецепт лежит в плагине, потому что логгер нужен
+неё префикс имени. Рецепт лежит в плагине, потому что счётчики нужны
 каждому модулю; плагины описаны в главе [12](./12-features.md).
 
 При `build()` контейнер делает четыре шага.
@@ -103,11 +117,12 @@ export const appLogging = makePlugin({
    зависеть от членов того же или другого семейства.
 
 Дальше член ничем не отличается от провайдера, зарегистрированного
-вручную. Он создаётся при сборке. Два потребителя `Logger('users')`
-получают один экземпляр. Он участвует в проверке циклов, получает
-`@OnInit` и `@OnDestroy` в топологическом порядке, попадает в `toJSON()`
-и визуализацию. Член, которого никто не запросил, не создаётся:
-`container.get(Logger('orphan'))` вернёт `null`.
+вручную. Он создаётся при сборке. Два потребителя `Counter$('users')`
+получают один экземпляр: `UserService` увеличивает счётчик, а `Demo`
+читает его значение. Член участвует в проверке циклов, получает `@OnInit`
+и `@OnDestroy` в топологическом порядке, попадает в `toJSON()` и
+визуализацию. Член, которого никто не запросил, не создаётся:
+`container.get(Counter$('orphan'))` вернёт `null`.
 
 Член, запрошенный в `deps`, для которого рецепт не зарегистрирован,
 останавливает сборку с именем семейства и параметра. Рецепт, вернувший
@@ -119,7 +134,7 @@ export const appLogging = makePlugin({
 
 ```typescript
 // examples/container/src/users/users.repository.ts
-@Injectable([Database$, Logger.auto])
+@Injectable([Database$, Logger$.auto])
 export class UserRepository {
   #database: Database;
   #logger: Logger;
@@ -130,7 +145,7 @@ export class UserRepository {
   }
 
   async findAll(): Promise<string[]> {
-    this.#logger.log('Loading all users');
+    this.#logger.info('Loading all users');
 
     const result = await this.#database.query('SELECT * FROM users');
     return result.map((row: any) => row.name);
@@ -138,12 +153,14 @@ export class UserRepository {
 }
 ```
 
-`Logger.auto` в `deps` класса `UserRepository` превращается в
-`Logger('UserRepository')` в момент декорирования. Имя берётся из
+`Logger$.auto` в `deps` класса `UserRepository` превращается в
+`Logger$('UserRepository')` в момент декорирования. Имя берётся из
 `constructor.name`, поэтому во время выполнения ничего не вычисляется.
-В выводе примера это строка
-`[debug] Logger:UserRepository Loading all users`. Явный
-`Logger('UserRepository')` и `.auto` в том же классе дают один узел графа.
+В выводе примера это запись
+`INFO  UserRepository Loading all users`: область члена стоит в каждой
+строке. Явный `Logger$('UserRepository')` и `.auto` в том же классе дают
+один узел графа. `.auto` есть у любого семейства, `Counter$.auto` в том
+числе.
 
 Три ограничения `.auto`:
 
@@ -197,7 +214,7 @@ classProvider(HealthCheck('api'), ApiHealthCheck),
 
 ```typescript
 // examples/container/src/health/health.service.ts (фрагмент)
-@Injectable([HealthCheck.all, HealthConfig, Logger.auto])
+@Injectable([HealthCheck.all, HealthConfig, Logger$.auto])
 export class HealthService {
   #checks: readonly HealthCheck[];
   #config: Config<typeof HealthConfig>;
@@ -256,18 +273,24 @@ export class HealthService {
 
 ## Проверка
 
-Запустите пример и прочитайте вывод. Каждая строка подписана членом
-семейства, который её написал, а отчёт о здоровье содержит оба вклада:
+Запустите пример и прочитайте вывод. Каждая запись подписана областью
+логгера, который её написал, отчёт о здоровье содержит оба вклада, а
+последняя запись — счётчики из одного рецепта, каждый со своим значением:
 
 ```
-[debug] Logger:UserRepository Loading all users
-[debug] Logger:HealthService Running 2 health checks against localhost:5432
-[debug] Logger:app CheckHealth: [ 'database: ok', 'api: ok' ]
+2026-09-06T17:43:18.018Z INFO  UserRepository Loading all users
+2026-09-06T17:43:18.019Z INFO  HealthService Running health checks checks=2 host=localhost:5432
+2026-09-06T17:43:18.019Z INFO  app Health report=["database: ok","api: ok"]
+2026-09-06T17:43:18.019Z INFO  app Counters demo.users=1 demo.queries=2
 ```
+
+Префикс `demo` пришёл из секции конфига через рецепт: `metricsPrefix`
+читается из `APP_METRICS_PREFIX`, который пример привязывает в `main.ts`.
 
 В app-тесте семейство подменяется целиком, а не по члену:
-`familyOverride(Logger, () => …)` из `@nestling/testing` заменяет рецепт
-до создания членов. Подробнее в главе [15](./15-testing-features.md).
+`familyOverride(Counter$, () => …)` из `@nestling/testing` заменяет рецепт
+до создания членов. Записи логгера перехватывает `spyLogger()` подменой
+`RootLogger$`: глава [15](./15-testing-features.md).
 
 ```bash
 yarn workspace @examples/container start:dev

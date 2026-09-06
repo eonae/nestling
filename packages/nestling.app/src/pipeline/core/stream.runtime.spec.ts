@@ -3,6 +3,8 @@
  * счётчики `summary`, поэлементная валидация и kernel-отказы цепочек.
  */
 
+import { spyLogger } from '../../logger/__fixtures__/spy.js';
+
 import type { EndpointMeta, ResponseContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
@@ -71,8 +73,8 @@ async function* brokenOnly(): AsyncIterableIterator<unknown> {
   yield { id: 42 };
 }
 
-/** Заглушка диагностики: дефолтный console.error шумит в выводе тестов */
-const silent = { onUnknownFail: (): void => undefined };
+/** Логгер-шпион: умолчание ядра шумит в выводе тестов */
+const silent = { logger: spyLogger().logger };
 
 describe('отложенный .finally у потокового ответа', () => {
   it('вызывается после последнего элемента, а не после ответной фазы', async () => {
@@ -186,13 +188,13 @@ describe('отложенный .finally у потокового ответа', (
   });
 
   it('mid-stream отказ нормализуется проверкой операции отказов', async () => {
-    const unknownFails: unknown[] = [];
+    const spy = spyLogger();
 
     const ctx = makeEmptyContext(raw(), meta(undefined, stream(Row)));
     const response = await makePipeline().executeWithHandler(
       async () => new Ok(failing()),
       ctx,
-      { onUnknownFail: (info) => unknownFails.push(info.error) },
+      { logger: spy.logger },
     );
 
     const { error } = await drain((response as { value: unknown }).value);
@@ -203,7 +205,7 @@ describe('отложенный .finally у потокового ответа', (
       status: 'internal_error',
       value: { code: 'internal_error', error: 'Internal server error' },
     });
-    expect(unknownFails).toHaveLength(1);
+    expect(spy.entries).toHaveLength(1);
   });
 
   it('не-потоковый endpoint финализируется сразу, как раньше', async () => {

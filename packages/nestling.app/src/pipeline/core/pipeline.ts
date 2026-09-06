@@ -1,3 +1,6 @@
+import { defaultLogger } from '../../logger/console.js';
+import type { Logger } from '../../logger/interface.js';
+
 import type { RequestCell } from './context/store.js';
 import {
   iterateInScope,
@@ -59,8 +62,8 @@ import {
  * Заголовки к этому моменту уже отправлены, и статус изменить нельзя.
  * Поэтому наружу уходит не исходная ошибка, а готовый контекст ответа
  * `response`: транспорт собирает из него кадр ошибки (`event: error` для
- * SSE) или обрывает соединение (NDJSON). Исходная ошибка уже передана в
- * `onUnknownFail`.
+ * SSE) или обрывает соединение (NDJSON). Исходная ошибка уже записана в
+ * логгер.
  */
 export class MidStreamFailure extends Error {
   constructor(
@@ -75,21 +78,6 @@ export class MidStreamFailure extends Error {
 /** Проверяет, что значение — `MidStreamFailure` */
 export function isMidStreamFailure(value: unknown): value is MidStreamFailure {
   return value instanceof MidStreamFailure;
-}
-
-/**
- * Сведения об отказе, который не объявлен в `errors:` endpoint'а и
- * заменён на `InternalError`.
- *
- * Клиент получает только общее тело ответа; исходная ошибка целиком
- * передаётся сюда.
- */
-export interface UnknownFailInfo {
-  /** Исходный отказ или необработанная ошибка */
-  error: unknown;
-
-  /** Метаданные endpoint'а: транспорт, паттерн, объявленные отказы */
-  endpoint: EndpointMeta;
 }
 
 /**
@@ -108,27 +96,29 @@ export interface ExecuteOptions {
   exposeErrorDetails?: boolean;
 
   /**
-   * Хук для отказов, не объявленных в `errors:`. По умолчанию —
-   * `console.error`, чтобы такой отказ не терялся молча.
+   * Логгер для отказов, не объявленных в `errors:`. Без него запись уходит
+   * в логгер ядра по умолчанию, чтобы такой отказ не терялся молча.
    */
-  onUnknownFail?: (info: UnknownFailInfo) => void;
+  logger?: Logger;
 }
 
 /**
- * Хук `onUnknownFail` по умолчанию: пишет в `console.error` endpoint, код
- * отказа и подсказку добавить его в `errors:`.
+ * Пишет незадекларированный отказ в логгер: сообщение постоянное, чтобы
+ * по нему искать; транспорт, паттерн, код отказа и оригинал — поля.
  */
-function reportUnknownFail(info: UnknownFailInfo): void {
-  const code = isFail(info.error) ? info.error.code : undefined;
-  const what = code ? `fail '${code}'` : 'unhandled error';
+function reportUnknownFail(
+  logger: Logger,
+  error: unknown,
+  endpoint: EndpointMeta,
+): void {
+  const code = isFail(error) ? error.code : undefined;
 
-  // eslint-disable-next-line no-console
-  console.error(
-    `[nestling] ${info.endpoint.transport} ${info.endpoint.pattern}: ` +
-      `undeclared ${what} normalized to '${InternalError.code}'. ` +
-      `Declare it in 'errors:' or handle it in a .catch unit.`,
-    info.error,
-  );
+  logger.error(`undeclared fail normalized to ${InternalError.code}`, {
+    transport: endpoint.transport,
+    pattern: endpoint.pattern,
+    ...(code === undefined ? {} : { code }),
+    err: error,
+  });
 }
 
 type OverlapKeys<A, B> = keyof A & keyof B;
@@ -869,7 +859,7 @@ class PipelineImpl {
     }
 
     const exposeErrorDetails = options.exposeErrorDetails ?? false;
-    const onUnknownFail = options.onUnknownFail ?? reportUnknownFail;
+    const logger = options.logger ?? defaultLogger;
 
     let response: ResponseContext<unknown>;
 
@@ -1004,7 +994,7 @@ class PipelineImpl {
       unhandled,
       ctx.endpoint,
       exposeErrorDetails,
-      onUnknownFail,
+      logger,
     );
 
     // `.finally`: изнутри наружу, всегда. Исключения наблюдателей на ответ
@@ -1047,14 +1037,14 @@ class PipelineImpl {
             return;
           }
 
-          // Та же проверка `errors:` и тот же хук, что на обычном пути
+          // Та же проверка `errors:` и тот же логгер, что на обычном пути
           const failure = this.enforceDeclaredFails(
             this.errorToResponse(error, exposeErrorDetails),
             error,
             !isFail(error),
             ctx.endpoint,
             exposeErrorDetails,
-            onUnknownFail,
+            logger,
           ) as ErrorResponseContext;
 
           await runFinals(computeOutcome(ctx.signal, delivered, true), failure);
@@ -1170,7 +1160,7 @@ class PipelineImpl {
    * Ответ проходит, если его код объявлен в `errors:` или является кодом
    * ядра. Любой другой ответ — незадекларированный отказ, анонимный
    * `Fail.*` вне `errors:`, необработанная ошибка — заменяется на
-   * `InternalError`; исходная ошибка передаётся в `onUnknownFail`.
+   * `InternalError`; исходная ошибка записывается в логгер.
    */
   private enforceDeclaredFails(
     response: ResponseContext<unknown>,
@@ -1178,7 +1168,7 @@ class PipelineImpl {
     unhandled: boolean,
     endpoint: EndpointMeta,
     exposeErrorDetails: boolean,
-    onUnknownFail: (info: UnknownFailInfo) => void,
+    logger: Logger,
   ): ResponseContext<unknown> {
     if (response.isSuccess) {
       return response;
@@ -1194,8 +1184,8 @@ class PipelineImpl {
     }
 
     // Исходной ошибки может не быть (ответ собрал `.catch`-юнит вручную);
-    // тогда хук получает сам ответ
-    onUnknownFail({ error: originalError ?? response, endpoint });
+    // тогда в запись попадает сам ответ
+    reportUnknownFail(logger, originalError ?? response, endpoint);
 
     // Тело как у необработанной ошибки: детали незадекларированного отказа
     // клиенту не уходят

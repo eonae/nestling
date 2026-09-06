@@ -7,11 +7,13 @@
  * успехом.
  */
 
+import { spyLogger } from '../../logger/__fixtures__/spy.js';
+import type { Logger } from '../../logger/interface.js';
+
 import type { EndpointMeta, ResponseContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
 import type { PreUnitFn } from './types/unit.js';
-import type { UnknownFailInfo } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
 import type { Schema, StandardSchemaV1 } from '@common/misc';
@@ -92,12 +94,15 @@ const deny: PreUnitFn<Record<string, never>, never> = async () => {
   throw NoToken();
 };
 
+/** Логгер, глушащий умолчание ядра в выводе тестов */
+const silent = spyLogger().logger;
+
 /** Собирает ответ и то, что увидел хендлер */
 async function run(
   pipeline: unknown,
   input: AnyPayload | undefined,
   payload?: unknown,
-  options?: { onUnknownFail?: (info: UnknownFailInfo) => void },
+  options?: { logger?: Logger },
 ): Promise<{ response: ResponseContext; seen: unknown; called: boolean }> {
   let seen: unknown;
   let called = false;
@@ -109,7 +114,8 @@ async function run(
       return new Ok({ ok: true });
     },
     ctxFor(input, payload),
-    options ?? {},
+    // Умолчание ядра пишет в stderr; в тестах записи копит шпион
+    { logger: options?.logger ?? silent },
   );
 
   return { response, seen, called };
@@ -261,12 +267,12 @@ describe('Порядок: `.pre`-юниты раньше проверки', () =
         seen.push('inner.finally');
       });
 
-    const hookCalls: UnknownFailInfo[] = [];
+    const spy = spyLogger();
     const { response } = await run(
       compose(outer, inner),
       Row,
       { id: 42 },
-      { onUnknownFail: (info) => hookCalls.push(info) },
+      { logger: spy.logger },
     );
 
     expect(seen).toEqual([
@@ -276,7 +282,7 @@ describe('Порядок: `.pre`-юниты раньше проверки', () =
       'outer.finally:failed',
     ]);
     expect(response).toMatchObject({ value: { code: 'bad_request' } });
-    expect(hookCalls).toHaveLength(0);
+    expect(spy.entries).toHaveLength(0);
   });
 });
 
@@ -373,15 +379,15 @@ describe('Форма `multipart`', () => {
 });
 
 describe('Ошибка конфигурации схемы — не ошибка входа', () => {
-  it('async-схема даёт 500 и оригинал в хуке', async () => {
+  it('async-схема даёт 500 и оригинал в записи логгера', async () => {
     const asyncSchema = fakeSchema(() => Promise.resolve({ value: {} }));
-    const hookCalls: UnknownFailInfo[] = [];
+    const spy = spyLogger();
 
     const { response } = await run(
       makePipeline(),
       asyncSchema as unknown as Schema,
       {},
-      { onUnknownFail: (info) => hookCalls.push(info) },
+      { logger: spy.logger },
     );
 
     expect(response).toMatchObject({
@@ -389,21 +395,22 @@ describe('Ошибка конфигурации схемы — не ошибка
       status: 'internal_error',
       value: { code: 'internal_error' },
     });
-    expect(hookCalls).toHaveLength(1);
-    expect((hookCalls[0].error as Error).name).toBe(
+    expect(spy.entries).toHaveLength(1);
+    expect(spy.entries[0].level).toBe('error');
+    expect((spy.entries[0].fields.err as Error).name).toBe(
       'AsyncSchemaNotSupportedError',
     );
   });
 
   it('объект-не-схема даёт 500', async () => {
     const notASchema = { parse: (value: unknown) => value };
-    const hookCalls: UnknownFailInfo[] = [];
+    const spy = spyLogger();
 
     const { response } = await run(
       makePipeline(),
       notASchema as unknown as Schema,
       {},
-      { onUnknownFail: (info) => hookCalls.push(info) },
+      { logger: spy.logger },
     );
 
     expect(response).toMatchObject({
@@ -411,6 +418,8 @@ describe('Ошибка конфигурации схемы — не ошибка
       status: 'internal_error',
       value: { code: 'internal_error' },
     });
-    expect((hookCalls[0].error as Error).name).toBe('NotAStandardSchemaError');
+    expect((spy.entries[0].fields.err as Error).name).toBe(
+      'NotAStandardSchemaError',
+    );
   });
 });

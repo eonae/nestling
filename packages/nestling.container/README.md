@@ -213,6 +213,38 @@ const container = await new ContainerBuilder()
 Контейнер не регистрирует транзитивные зависимости сам: каждый провайдер,
 который кому-то нужен, должен быть зарегистрирован явно.
 
+#### Умолчания модуля: `defaults`
+
+Поле `defaults` перечисляет провайдеры, которые попадают в граф, только
+если к моменту `build()` под их токеном никто не зарегистрирован. Так
+модуль ядра объявляет реализацию по умолчанию, а приложение заменяет её
+одним провайдером без ошибки дубля:
+
+```typescript
+const LoggerKernel = makeModule({
+  name: 'kernel:logger',
+  defaults: [classProvider(RootLogger$, ConsoleLogger)],
+});
+
+const LoggingPlugin = makeModule({
+  name: 'plugin:logging',
+  providers: [factoryProvider(RootLogger$, () => pinoLogger, [])],
+});
+
+// Порядок регистрации не важен: под RootLogger$ окажется pinoLogger
+await new ContainerBuilder().register(LoggerKernel, LoggingPlugin).build();
+```
+
+Соперник умолчания может прийти любым путём: из `providers` модуля, из
+фабрики провайдеров, из `register()`. Умолчание применяется в `build()`
+после разворачивания фабрик и до подстановок, поэтому `overrides`
+тестовой сборки находят его как обычный провайдер. Узел атрибутируется
+модулю, объявившему умолчание.
+
+Два умолчания под одним токеном — ошибка регистрации с именами обоих
+модулей: у каждого своя реализация, и молчаливый выбор одной из них
+прятал бы вторую.
+
 #### Параметризованные модули
 
 Модуль с параметрами — функция, которая возвращает модуль:
@@ -252,11 +284,13 @@ values of the same module.
 
 ### Сборка графа
 
-`build()` выполняет три шага:
+`build()` выполняет четыре шага:
 
-1. регистрирует провайдеры и модули;
+1. разворачивает фабрики провайдеров модулей и применяет умолчания
+   без соперника;
 2. проверяет граф: отсутствующие зависимости, циклы, дубликаты;
-3. создаёт экземпляры всех провайдеров в топологическом порядке.
+3. создаёт экземпляры всех провайдеров в топологическом порядке;
+4. собирает предупреждения сборки в `container.warnings`.
 
 ```typescript
 import { ContainerBuilder } from '@nestling/container';
@@ -279,6 +313,24 @@ Unsatisfied dependencies (2):
   - 'UsersRepository' required by 'ReportService', 'ExportService'
 Register a provider for each of them (in 'providers:' of a module, or via register()).
 ```
+
+Предупреждения сборки — значение, а не печать. `container.warnings` —
+замороженный список строк; без предупреждений он пуст. Сегодня
+предупреждение одно: два разных токена с одним `id`. Узлы при этом
+различаются суффиксом `#N`, а отчёты становятся неоднозначными:
+
+```typescript
+const container = await new ContainerBuilder()
+  .register(valueProvider(makeToken('Clock'), left))
+  .register(valueProvider(makeToken('Clock'), right))
+  .build();
+
+container.warnings; // ["ambiguous token ids: Clock. Different tokens share an id, …"]
+```
+
+Билдер ничего не печатает сам: логгер — узел графа, которого во время
+`build()` ещё нет. Сборка приложения из `@nestling/app` пишет список в
+логгер ядра после `build()`; без неё список читают руками.
 
 ### Жизненный цикл
 
@@ -715,7 +767,7 @@ main().catch(console.error);
 | `makeTokenFamily<T, [param: string]>(name)` | создаёт семейство; `Family(param)` возвращает мемоизированный токен `"<name>:<param>"`, `Family.auto` — член по имени класса-потребителя, `Family.all` — агрегат `Token<readonly T[]>` |
 | `Injectable(deps)` | декоратор класса; токен — сам класс |
 | `Injectable(token, deps)` | декоратор класса с явным токеном интерфейса |
-| `makeModule(module)` | создаёт модуль: `name`, `providers`, `dependsOn` |
+| `makeModule(module)` | создаёт модуль: `name`, `providers`, `defaults`, `dependsOn` |
 
 ### Провайдеры
 
@@ -740,6 +792,7 @@ main().catch(console.error);
 | `container.start()` | вызывает `@OnStart` в топологическом порядке; повторный вызов ничего не делает |
 | `container.destroy()` | вызывает `@OnDestroy` в обратном порядке |
 | `container.pruned` | идентификаторы узлов, выброшенных прунингом; пуст без `overrides` |
+| `container.warnings` | предупреждения сборки (совпадающие `id` токенов); пуст, если предупреждений нет |
 | `container.toJSON()` | граф зависимостей в JSON |
 | `container.traverse(callback, options)` | обход графа |
 

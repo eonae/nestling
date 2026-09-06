@@ -38,6 +38,14 @@ import { BuiltContainer } from './container.built.js';
  */
 const MAX_MATERIALIZATION_ROUNDS = 100;
 
+/** Умолчание модуля: провайдер и модуль, который его объявил. */
+interface DefaultEntry {
+  /** Определение провайдера, приведённое к явному виду */
+  provider: ProviderDefinition;
+  /** Модуль, объявивший умолчание */
+  moduleName: string;
+}
+
 /** Зарегистрированный рецепт семейства и модуль, через который он пришёл. */
 interface FamilyRecipeEntry {
   /** Возвращает определение провайдера для одного члена */
@@ -107,6 +115,7 @@ export class ContainerBuilder {
   readonly #providersFactories = new Map<string, ProvidersFactory>();
   readonly #providerToModule = new Map<InjectionToken, string>();
   readonly #familyRecipes = new Map<TokenFamily<any, any>, FamilyRecipeEntry>();
+  readonly #defaults = new Map<InjectionToken, DefaultEntry>();
   readonly #modules = new Map<string, Module>();
   readonly #overrides: readonly TokenOverride<any>[];
   readonly #familyOverrides: readonly FamilyOverrideEntry<any, any>[];
@@ -191,15 +200,20 @@ export class ContainerBuilder {
    *
    * Вызывается один раз после регистрации. Шаги:
    * 1. разворачивает фабрики провайдеров модулей;
-   * 2. подменяет рецепты семейств из `familyOverrides` — до создания членов;
-   * 3. создаёт членов семейств, упомянутых в зависимостях;
-   * 4. подменяет узлы из `overrides` провайдерами-значениями;
-   * 5. удаляет поддеревья, осиротевшие после подмены;
-   * 6. создаёт узел-агрегат для каждого упомянутого `Family.all`;
-   * 7. перечисляет все зависимости без провайдера одной ошибкой;
-   * 8. создаёт экземпляры;
-   * 9. строит граф зависимостей;
-   * 10. проверяет граф на циклы.
+   * 2. регистрирует умолчания модулей, у которых нет соперника;
+   * 3. подменяет рецепты семейств из `familyOverrides` — до создания членов;
+   * 4. создаёт членов семейств, упомянутых в зависимостях;
+   * 5. подменяет узлы из `overrides` провайдерами-значениями;
+   * 6. удаляет поддеревья, осиротевшие после подмены;
+   * 7. создаёт узел-агрегат для каждого упомянутого `Family.all`;
+   * 8. перечисляет все зависимости без провайдера одной ошибкой;
+   * 9. создаёт экземпляры;
+   * 10. строит граф зависимостей;
+   * 11. проверяет граф на циклы.
+   *
+   * Предупреждения сборки (сегодня — о совпадающих идентификаторах
+   * токенов) не печатаются: они отдаются значением `warnings` собранного
+   * контейнера.
    *
    * @returns Собранный контейнер с доступом к экземплярам
    * @throws {Error} Если контейнер уже собран или найден цикл
@@ -221,38 +235,43 @@ export class ContainerBuilder {
     // Шаг 1: развернуть фабрики провайдеров модулей в обычные регистрации
     await this.appendFactoryProviders();
 
-    // Шаг 2: подменить рецепты семейств — строго до создания членов, иначе
+    // Шаг 2: зарегистрировать умолчания без соперника — после фабрик, чтобы
+    // соперник из фабрики был виден, и до подстановок, чтобы `overrides`
+    // нашли умолчание как обычный провайдер
+    this.applyDefaults();
+
+    // Шаг 3: подменить рецепты семейств — строго до создания членов, иначе
     // члены создались бы по боевому рецепту
     this.applyFamilyOverrides();
 
-    // Шаг 3: превратить упомянутых членов семейств в обычные провайдеры
+    // Шаг 4: превратить упомянутых членов семейств в обычные провайдеры
     this.materializeFamilyMembers();
 
-    // Шаг 4: подменить узлы из `overrides`, запомнив их прежние зависимости
+    // Шаг 5: подменить узлы из `overrides`, запомнив их прежние зависимости
     const dependenciesBeforeOverrides = this.applyOverrides();
 
-    // Шаг 5: удалить поддеревья, осиротевшие после подмены
+    // Шаг 6: удалить поддеревья, осиротевшие после подмены
     const pruned = this.pruneOrphans(dependenciesBeforeOverrides);
 
-    // Шаг 6: превратить упомянутые `.all` в провайдеры-агрегаты — после
+    // Шаг 7: превратить упомянутые `.all` в провайдеры-агрегаты — после
     // прунинга, чтобы агрегат собрался из оставшихся членов
     this.materializeFamilyAggregates();
 
-    // Шаг 7: перечислить все зависимости без провайдера одной ошибкой
+    // Шаг 8: перечислить все зависимости без провайдера одной ошибкой
     this.assertDependenciesSatisfied();
 
-    // Шаг 8: создать экземпляры
+    // Шаг 9: создать экземпляры
     const instances = await this.instantiateAll();
 
-    // Шаг 9: построить граф зависимостей из экземпляров
-    const { graph, nodeIds } = this.buildDependencyGraph(instances);
+    // Шаг 10: построить граф зависимостей из экземпляров
+    const { graph, nodeIds, warnings } = this.buildDependencyGraph(instances);
 
-    // Шаг 10: проверить граф на циклы
+    // Шаг 11: проверить граф на циклы
     graph.ensureAcyclic();
 
     this.#isBuilt = true;
 
-    return new BuiltContainer(graph, pruned, nodeIds);
+    return new BuiltContainer(graph, pruned, nodeIds, warnings);
   }
 
   /**
@@ -289,6 +308,53 @@ export class ContainerBuilder {
       for (const provider of m.providers || []) {
         this.registerModuleProvider(provider, m.name);
       }
+    }
+
+    for (const provider of m.defaults || []) {
+      this.registerDefault(provider, m.name);
+    }
+  }
+
+  /**
+   * Запоминает умолчание модуля до `build()`.
+   *
+   * Соперник умолчания может прийти позже, любым путём регистрации, поэтому
+   * здесь умолчание только проверяется и откладывается; в граф оно попадает
+   * в `build()`. Два умолчания под одним токеном — ошибка сразу: у каждого
+   * своя реализация, и молчаливый выбор одной из них прятал бы вторую.
+   */
+  private registerDefault(provider: Provider, moduleName: string): void {
+    const resolved = this.resolveProvider(provider);
+    const token = this.getToken(resolved);
+
+    assertNotAggregateToken(token);
+    assertNoAutoSentinels(resolved, tokenId(token));
+
+    const taken = this.#defaults.get(token);
+    if (taken) {
+      throw new Error(
+        `Modules '${taken.moduleName}' and '${moduleName}' both declare a default for token '${tokenId(token)}'. A default is the fallback for a token nobody provides, so only one module can own it - keep the default in one module and register the other implementation in 'providers:'`,
+      );
+    }
+
+    this.#defaults.set(token, { provider: resolved, moduleName });
+  }
+
+  /**
+   * Регистрирует умолчания модулей, для которых к этому моменту не
+   * зарегистрирован ни один провайдер.
+   *
+   * Выполняется после разворачивания фабрик провайдеров: соперник из
+   * фабрики иначе был бы не виден. Узел атрибутируется модулю, объявившему
+   * умолчание.
+   */
+  private applyDefaults(): void {
+    for (const [token, { provider, moduleName }] of this.#defaults) {
+      if (this.#providers.has(token)) {
+        continue;
+      }
+
+      this.registerProvider(provider, moduleName);
     }
   }
 
@@ -854,8 +920,11 @@ export class ContainerBuilder {
   private buildDependencyGraph(instances: Map<InjectionToken, unknown>): {
     graph: DIGraph;
     nodeIds: ReadonlyMap<InjectionToken, string>;
+    warnings: readonly string[];
   } {
-    const nodeIds = this.assignNodeIds([...instances.keys()]);
+    const { ids: nodeIds, warnings } = this.assignNodeIds([
+      ...instances.keys(),
+    ]);
 
     const graph = new DIGraph();
     const nodes = new Map<string, DINode>();
@@ -928,7 +997,7 @@ export class ContainerBuilder {
       }
     }
 
-    return { graph, nodeIds };
+    return { graph, nodeIds, warnings };
   }
 
   /**
@@ -936,14 +1005,17 @@ export class ContainerBuilder {
    *
    * Совпадение идентификаторов подмены не вызывает — токены разные, узлы
    * тоже, — но делает отчёты неоднозначными, поэтому второй и следующие
-   * узлы получают суффикс, а сборка печатает предупреждение.
+   * узлы получают суффикс, а сборка возвращает предупреждение. Печатать
+   * его билдеру нечем: логгер — узел графа, который здесь только строится.
    */
-  private assignNodeIds(
-    tokens: readonly InjectionToken[],
-  ): ReadonlyMap<InjectionToken, string> {
+  private assignNodeIds(tokens: readonly InjectionToken[]): {
+    ids: ReadonlyMap<InjectionToken, string>;
+    warnings: readonly string[];
+  } {
     const ids = new Map<InjectionToken, string>();
     const taken = new Map<string, number>();
     const ambiguous: string[] = [];
+    const warnings: string[] = [];
 
     for (const token of tokens) {
       const id = tokenId(token);
@@ -964,15 +1036,14 @@ export class ContainerBuilder {
     }
 
     if (ambiguous.length > 0) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[nestling] ambiguous token ids: ${ambiguous.join(', ')}. ` +
+      warnings.push(
+        `ambiguous token ids: ${ambiguous.join(', ')}. ` +
           `Different tokens share an id, so reports and the dependency graph ` +
           `name them apart with a '#N' suffix. Give each token its own id.`,
       );
     }
 
-    return ids;
+    return { ids, warnings };
   }
 }
 

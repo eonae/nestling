@@ -49,13 +49,13 @@ makePipeline().pre(Authenticate, { errors: [Unauthorized] });
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
 
   handle(res: ErrorResponseContext): void {
     if (UserNotFound.is(res.value)) {
-      this.logger.log(`[audit] delete refused: ${res.value.message}`);
+      this.logger.info('delete refused', { reason: res.value.message });
     }
   }
 }

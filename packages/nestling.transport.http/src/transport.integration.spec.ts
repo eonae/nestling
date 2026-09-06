@@ -16,7 +16,14 @@ import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
 import type { Schema } from '@common/misc';
-import type { ExecutableDeclaration, FilePart, PreUnitFn } from '@nestling/app';
+import type {
+  ExecutableDeclaration,
+  Fields,
+  FilePart,
+  Logger,
+  LogLevel,
+  PreUnitFn,
+} from '@nestling/app';
 import {
   Fail,
   makeDispatch,
@@ -59,8 +66,60 @@ function routesOf(transport: HttpTransport): ExecutableDeclaration[] {
   return created;
 }
 
+/** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
+function spyLogger(): { logger: Logger; entries: LogEntry[] } {
+  const entries: LogEntry[] = [];
+  const make = (bindings: Fields): Logger => {
+    const write =
+      (level: LogLevel) =>
+      (first: string | Error | Fields, second?: Fields): void => {
+        if (typeof first === 'string') {
+          entries.push({
+            level,
+            message: first,
+            fields: { ...bindings, ...second },
+          });
+        } else if (first instanceof Error) {
+          entries.push({
+            level,
+            message: first.message,
+            fields: { ...bindings, ...second, err: first },
+          });
+        } else {
+          entries.push({
+            level,
+            message: '',
+            fields: { ...bindings, ...first },
+          });
+        }
+      };
+
+    return {
+      debug: write('debug'),
+      info: write('info'),
+      warn: write('warn'),
+      error: write('error'),
+      child: (extra) => make({ ...bindings, ...extra }),
+    };
+  };
+
+  return { logger: make({}), entries };
+}
+
+interface LogEntry {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: Fields;
+}
+
 /** Контроллеры `serve`: их взвод — второй канал остановки рядом с close() */
 const controllers = new WeakMap<HttpTransport, AbortController>();
+
+/** Логгер, с которым транспорт поднимается в `listen`; без записи — общий */
+const loggers = new WeakMap<HttpTransport, Logger>();
+
+const loggerOf = (transport: HttpTransport): Logger =>
+  loggers.get(transport) ?? silent;
 
 /**
  * Поднимает транспорт на эфемерном порту, возвращает базовый URL.
@@ -69,7 +128,10 @@ async function listen(transport: HttpTransport): Promise<string> {
   const controller = new AbortController();
   controllers.set(transport, controller);
 
-  await transport.serve(makeDispatch(routesOf(transport)), controller.signal);
+  await transport.serve(
+    makeDispatch(routesOf(transport), { logger: loggerOf(transport) }),
+    controller.signal,
+  );
 
   const address = transport.address();
   if (!address) {
@@ -138,8 +200,8 @@ const UpstreamTimeout = makeFail('timeout:upstream_timeout', {
   message: 'Upstream did not answer in time',
 });
 
-/** Заглушка диагностики: дефолтный console.error шумит в выводе тестов */
-const silent = { onUnknownFail: (): void => undefined };
+/** Умолчание ядра пишет в stderr и шумит в выводе тестов: записи копит шпион */
+const silent = spyLogger().logger;
 
 describe('HttpTransport — error response safety', () => {
   let transport: HttpTransport;
@@ -148,7 +210,7 @@ describe('HttpTransport — error response safety', () => {
   let exposedUrl: string;
 
   beforeAll(async () => {
-    transport = makeTransport(silent);
+    transport = makeTransport();
     routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
@@ -206,7 +268,7 @@ describe('HttpTransport — error response safety', () => {
     );
     baseUrl = await listen(transport);
 
-    exposed = makeTransport({ exposeErrorDetails: true, ...silent });
+    exposed = makeTransport({ exposeErrorDetails: true });
     routesOf(exposed).push(
       httpEndpoint({
         method: 'POST',
@@ -285,11 +347,10 @@ describe('HttpTransport — error response safety', () => {
     });
   });
 
-  it('хук получает оригинал снятого отказа', async () => {
-    const seen: unknown[] = [];
-    const hooked = makeTransport({
-      onUnknownFail: (info) => seen.push(info.error),
-    });
+  it('логгер dispatch получает оригинал снятого отказа', async () => {
+    const spy = spyLogger();
+    const hooked = makeTransport();
+    loggers.set(hooked, spy.logger);
     routesOf(hooked).push(
       httpEndpoint({
         method: 'POST',
@@ -305,8 +366,18 @@ describe('HttpTransport — error response safety', () => {
     try {
       const response = await fetch(`${url}/undeclared`, { method: 'POST' });
       expect(response.status).toBe(500);
-      expect(seen).toHaveLength(1);
-      expect((seen[0] as Error).message).toBe('order 42');
+      expect(spy.entries).toEqual([
+        {
+          level: 'error',
+          message: 'undeclared fail normalized to internal_error',
+          fields: {
+            transport: 'http',
+            pattern: 'POST /undeclared',
+            code: 'not_found',
+            err: expect.objectContaining({ message: 'order 42' }),
+          },
+        },
+      ]);
     } finally {
       await hooked.close();
     }
@@ -322,7 +393,7 @@ describe('HttpTransport — категория отказа и заголовк�
   let baseUrl: string;
 
   beforeAll(async () => {
-    transport = makeTransport(silent);
+    transport = makeTransport();
     routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
@@ -430,7 +501,7 @@ describe('HttpTransport — request validation errors', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
-    transport = makeTransport(silent);
+    transport = makeTransport();
 
     // JSON endpoint с пайплайном: проверку входа делает рантайм
     routesOf(transport).push(

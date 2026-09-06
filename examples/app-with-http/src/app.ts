@@ -2,7 +2,10 @@ import { OpsFeature } from './features/ops/ops.feature.js';
 import { QuotasFeature } from './features/quotas/quotas.feature.js';
 import { UsersFeature } from './features/users/users.feature.js';
 import { appAuth, authed } from './plugins/auth/index.js';
-import { logging, observability } from './plugins/logging/index.js';
+import {
+  appObservability,
+  observability,
+} from './plugins/observability/index.js';
 
 import {
   BusTransport$,
@@ -21,9 +24,6 @@ import { http, HttpTransport$ } from '@nestling/transport.http';
  * раз.
  */
 
-/** Логирование: имя сервиса задаётся здесь, уровень приходит из `LOG_LEVEL` */
-export const appLogging = logging({ service: 'app-with-http' });
-
 /**
  * Реестр подписок из пакета `@nestling/subscriptions`.
  *
@@ -41,7 +41,7 @@ export const appSubscriptions = subscriptions({
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   plugins: [
-    appLogging,
+    appObservability,
     appAuth,
     appSubscriptions,
     // Документ строится на фазе ASSEMBLE из тех же деклараций, которые

@@ -1,4 +1,4 @@
-import { observability } from '../../../plugins/logging/index.js';
+import { observability } from '../../../plugins/observability/index.js';
 import { ActivityHub } from '../activity.hub.js';
 
 import type { Output } from '@nestling/app';

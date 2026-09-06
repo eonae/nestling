@@ -1,10 +1,15 @@
 import { appConfigKeys } from './config/index.js';
-import { appLogging } from './logging/index.js';
+import { appCounters } from './counters/index.js';
 import { runtimeConfigKeys } from './runtime/index.js';
 import { AppModule } from './app.feature.js';
 
 import type { ConfigSource } from '@nestling/app';
-import { configKernel, objectSource } from '@nestling/app';
+import {
+  configKernel,
+  contextKernel,
+  loggerKernel,
+  objectSource,
+} from '@nestling/app';
 import type { BuiltContainer } from '@nestling/container';
 import { ContainerBuilder } from '@nestling/container';
 
@@ -22,11 +27,17 @@ export const makeContainer = async (
   return await new ContainerBuilder()
     .register(
       configKernel([
-        [objectSource({ APP_LOG_LEVEL: 'debug' }, 'defaults'), appConfigKeys],
+        [
+          objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'),
+          appConfigKeys,
+        ],
         [runtime, runtimeConfigKeys],
       ]),
     )
-    .register(...appLogging.modules)
+    // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
+    // секцию `nestlingLog` и идентификатор запроса из контекста
+    .register(contextKernel(), loggerKernel())
+    .register(...appCounters.modules)
     .register(AppModule)
     .build();
 };

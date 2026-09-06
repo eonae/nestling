@@ -5,6 +5,8 @@
  * токен, поэтому инжектить её пользовательскому коду нечем.
  */
 
+import type { Logger } from '../logger/interface.js';
+
 import type { SectionDeclaration } from './declaration.js';
 import type { SharedKeyReader } from './errors.js';
 import { ConfigSharedKeyError } from './errors.js';
@@ -14,15 +16,6 @@ import { declaredKeys } from './registry.js';
 import type { ConfigBinding, ConfigSource } from './source.js';
 
 import { OnDestroy } from '@nestling/container';
-
-/** Канал предупреждений — подменяемый, чтобы тест их перехватывал */
-export type ConfigWarn = (message: string) => void;
-
-/** Опции читалки */
-export interface ConfigReaderOptions {
-  /** По умолчанию — `console.warn` с префиксом `[nestling/config]` */
-  onWarn?: ConfigWarn;
-}
 
 /**
  * Что читалка должна перепроецировать по сигналу источника.
@@ -44,11 +37,6 @@ interface ResolvedBinding {
   readonly name: string;
 }
 
-const defaultWarn: ConfigWarn = (message) => {
-  // eslint-disable-next-line no-console
-  console.warn(`[nestling/config] ${message}`);
-};
-
 /**
  * Разрешает ключи по привязкам; `process.env` читается последним, с
  * низшим приоритетом.
@@ -59,8 +47,18 @@ const defaultWarn: ConfigWarn = (message) => {
  */
 export class ConfigReader {
   readonly #bindings: readonly ResolvedBinding[];
-  readonly #warn: ConfigWarn;
   readonly #reloadable = new Set<Reloadable>();
+
+  /**
+   * Предупреждения, накопленные до подключения логгера.
+   *
+   * Логгер — узел графа, а читалка создаётся раньше него и не может от
+   * него зависеть: реализация логгера читает секцию конфига. Поэтому до
+   * `attachLogger` предупреждения копятся, а после — идут напрямую.
+   */
+  readonly #pending: string[] = [];
+
+  #logger?: Logger;
 
   /**
    * Ключ → первый заявивший его читатель.
@@ -78,11 +76,7 @@ export class ConfigReader {
    */
   readonly #env = process.env;
 
-  constructor(
-    bindings: readonly ConfigBinding[] = [],
-    options: ConfigReaderOptions = {},
-  ) {
-    this.#warn = options.onWarn ?? defaultWarn;
+  constructor(bindings: readonly ConfigBinding[] = []) {
     this.#bindings = bindings.map(([source, target], index) => ({
       source,
       targets: Array.isArray(target)
@@ -177,9 +171,31 @@ export class ConfigReader {
     return [...this.#bindings.map((binding) => binding.name), 'process.env'];
   }
 
-  /** Предупреждение через подменяемый канал */
+  /**
+   * Предупреждение: в логгер, если он подключён, иначе в буфер до
+   * подключения.
+   */
   warn(message: string): void {
-    this.#warn(message);
+    if (this.#logger) {
+      this.#logger.warn(message);
+    } else {
+      this.#pending.push(message);
+    }
+  }
+
+  /**
+   * Подключает логгер: отдаёт накопленные предупреждения и переключает
+   * `warn` на прямую запись.
+   *
+   * Сборка приложения вызывает его сразу после `build()` с
+   * `Logger$('nestling:config')`. Повторный вызов заменяет логгер.
+   */
+  attachLogger(logger: Logger): void {
+    this.#logger = logger;
+
+    for (const message of this.#pending.splice(0)) {
+      logger.warn(message);
+    }
   }
 
   /**
@@ -193,7 +209,7 @@ export class ConfigReader {
     this.#reloadable.add(section);
 
     if (!this.#hasWatchingSource(section.keys)) {
-      this.#warn(
+      this.warn(
         `reloadable config section is bound to no source that supports watch, so its values will never change: keys ${section.keys.join(', ')}`,
       );
     }
@@ -239,7 +255,7 @@ export class ConfigReader {
           continue;
         }
 
-        this.#warn(
+        this.warn(
           `binding of source '${binding.name}' targets ${describeTarget(target)}, which covers none of the declared config keys`,
         );
       }

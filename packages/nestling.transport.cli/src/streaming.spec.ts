@@ -11,7 +11,13 @@ import { Readable } from 'node:stream';
 import { cliEndpoint, CliTransport } from './index.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Outcome, PhasedPipeline } from '@nestling/app';
+import type {
+  Fields,
+  Logger,
+  LogLevel,
+  Outcome,
+  PhasedPipeline,
+} from '@nestling/app';
 import {
   events,
   makeDispatch,
@@ -70,6 +76,52 @@ function captureStdout(): { written: string[]; restore: () => void } {
  */
 function observing(record: (outcome: Outcome) => void): PhasedPipeline {
   return makePipeline().finally(record);
+}
+
+/** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
+function spyLogger(): { logger: Logger; entries: LogEntry[] } {
+  const entries: LogEntry[] = [];
+  const make = (bindings: Fields): Logger => {
+    const write =
+      (level: LogLevel) =>
+      (first: string | Error | Fields, second?: Fields): void => {
+        if (typeof first === 'string') {
+          entries.push({
+            level,
+            message: first,
+            fields: { ...bindings, ...second },
+          });
+        } else if (first instanceof Error) {
+          entries.push({
+            level,
+            message: first.message,
+            fields: { ...bindings, ...second, err: first },
+          });
+        } else {
+          entries.push({
+            level,
+            message: '',
+            fields: { ...bindings, ...first },
+          });
+        }
+      };
+
+    return {
+      debug: write('debug'),
+      info: write('info'),
+      warn: write('warn'),
+      error: write('error'),
+      child: (extra) => make({ ...bindings, ...extra }),
+    };
+  };
+
+  return { logger: make({}), entries };
+}
+
+interface LogEntry {
+  readonly level: LogLevel;
+  readonly message: string;
+  readonly fields: Fields;
 }
 
 describe('потоковый вход через stdin', () => {
@@ -131,11 +183,12 @@ describe('потоковый вход через stdin', () => {
       },
     });
 
-    const cli = new CliTransport({
-      argv: [],
-      onUnknownFail: (): void => undefined,
-    });
-    await cli.serve(makeDispatch([Import]), new AbortController().signal);
+    const cli = new CliTransport({ argv: [] });
+    // Умолчание ядра пишет в stderr и шумит в выводе тестов
+    await cli.serve(
+      makeDispatch([Import], { logger: spyLogger().logger }),
+      new AbortController().signal,
+    );
 
     try {
       const response = await cli.execute({

@@ -7,7 +7,9 @@ import { createEslintConfig } from '../../.config/eslint.config.js';
  * специфаер импорта — достаточный признак: `../pipeline/index.js` виден в
  * тексте файла. Список — это порядок слоёв: конфиг читается до запроса,
  * пайплайн ничего не знает о транспорте, транспорт — о портах, порты — о
- * композиционном корне.
+ * композиционном корне. Логгер стоит над конфигом и контекстом запроса:
+ * его реализация читает секцию и `Ctx(RequestId)`, а пайплайн берёт у
+ * него только интерфейс и умолчание для standalone-путей.
  *
  * Правило живёт в конфиге пакета, а не в общем: раскладка слоёв есть
  * свойство этого пакета.
@@ -15,6 +17,7 @@ import { createEslintConfig } from '../../.config/eslint.config.js';
 const zones = [
   { zone: 'pipeline', forbidden: ['config', 'transport', 'ports', 'root'] },
   { zone: 'config', forbidden: ['pipeline', 'transport', 'ports', 'root'] },
+  { zone: 'logger', forbidden: ['transport', 'ports', 'root'] },
   { zone: 'transport', forbidden: ['config', 'ports', 'root'] },
   { zone: 'ports', forbidden: ['root'] },
 ];

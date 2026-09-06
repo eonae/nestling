@@ -1,12 +1,10 @@
-import type { Logger } from './logger.js';
-import { Logger$ } from './logger.js';
-
 import type {
   ExtendableContext,
+  Logger,
   Outcome,
   ResponseContext,
 } from '@nestling/app';
-import { makePipeline, withRequestId } from '@nestling/app';
+import { Logger$, makePipeline, withRequestId } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 
 /**
@@ -15,7 +13,7 @@ import { Injectable } from '@nestling/container';
  * Класс, потому что юниту нужен логгер из контейнера. Регистрируется в
  * `providers:` плагина.
  */
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 export class AuditOutcome {
   constructor(private readonly logger: Logger) {}
 
@@ -24,11 +22,9 @@ export class AuditOutcome {
     res: ResponseContext,
     ctx: ExtendableContext<{ requestId?: string }>,
   ): void {
-    // В ответной фазе поля своего слоя опциональны: pre-юнит мог не
-    // выполниться, отсюда `?? 'n/a'`
-    this.logger.log(
-      `[${ctx.input.requestId ?? 'n/a'}] ${ctx.raw.pattern} ${res.status} (${outcome})`,
-    );
+    // Идентификатор запроса в запись кладёт логгер ядра: он читает его из
+    // контекста сам, и руками префикс не пишется
+    this.logger.info(`${ctx.raw.pattern} ${res.status}`, { outcome });
   }
 }
 
@@ -36,7 +32,7 @@ export class AuditOutcome {
  * Слой наблюдаемости: кладёт `requestId` в контекст и пишет аудит.
  *
  * Слой — значение. Endpoint подключает его через `pipeline:`, а политика в
- * `root.ts` проверяет по ссылке, что слой есть у каждого HTTP-endpoint'а.
+ * `app.ts` проверяет по ссылке, что слой есть у каждого HTTP-endpoint'а.
  */
 export const observability = makePipeline()
   .pre(withRequestId())

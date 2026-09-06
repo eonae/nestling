@@ -10,6 +10,8 @@
  * операции.
  */
 
+import type { Logger } from '../logger/interface.js';
+import { Logger$ } from '../logger/tokens.js';
 import type { TransportRef } from '../pipeline/index.js';
 import type { Dispatch, ITransport } from '../transport/index.js';
 
@@ -24,7 +26,6 @@ import {
   makeRemoteEmitter,
   makeRemotePort,
 } from './invoker.js';
-import type { PortFailureInfo } from './runtime.js';
 import { PortRuntime } from './runtime.js';
 import type { OperationTopology } from './topology.js';
 import type { BusBindingBearer } from './transport.js';
@@ -69,8 +70,8 @@ export interface PortsKernelOptions {
   /** Топология реализаций, вычисленная discovery */
   implementations?: OperationTopology;
 
-  /** Опции in-proc шины */
-  bus?: InProcessBusOptions;
+  /** Опции in-proc шины; логгер шина получает от kernel-модуля */
+  bus?: Pick<InProcessBusOptions, 'buffer'>;
 
   /**
    * Корень поставил транспорт шины сам (`nats()` в `transports:`).
@@ -81,9 +82,6 @@ export interface PortsKernelOptions {
    * kernel-модуль о словаре сборки не знает.
    */
   rootSuppliesBus?: boolean;
-
-  /** Диагностический хук вызывателей */
-  onPortFailure?: (info: PortFailureInfo) => void;
 }
 
 /** Операция по имени члена семейства или понятная ошибка */
@@ -266,8 +264,8 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
   const providers: ModuleProvider[] = [
     factoryProvider(
       PortRuntimeToken,
-      () => new PortRuntime(options.onPortFailure),
-      [],
+      (logger: Logger) => new PortRuntime(logger),
+      [Logger$('nestling:ports')],
     ),
     familyProvider(PortFamily, (name) => ({
       provide: PortFamily(name),
@@ -298,7 +296,11 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
     // дают один и тот же инстанс независимо от того, кто его поставил
     if (!rootSuppliesBus) {
       providers.push(
-        factoryProvider(BusTransport$, () => new InProcessBus(options.bus), []),
+        factoryProvider(
+          BusTransport$,
+          (logger: Logger) => new InProcessBus({ ...options.bus, logger }),
+          [Logger$('nestling:bus')],
+        ),
       );
     }
 

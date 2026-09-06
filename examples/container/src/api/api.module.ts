@@ -2,11 +2,11 @@ import { AppConfig } from '../config/app.config.js';
 import { HealthCheck } from '../health/index.js';
 import type { ApiClient } from '../interfaces.js';
 import { ApiClient$ } from '../interfaces.js';
-import { Logger } from '../logging/index.js';
 
 import { ApiHealthCheck } from './api.health.js';
 
-import type { Config } from '@nestling/app';
+import type { Config, Logger } from '@nestling/app';
+import { Logger$ } from '@nestling/app';
 import {
   classProvider,
   factoryProvider,
@@ -20,17 +20,17 @@ export const ApiModule = makeModule({
     factoryProvider(
       ApiClient$,
       (config: Config<typeof AppConfig>, logger: Logger): ApiClient => {
-        logger.log(
-          `Creating API client for ${new URL(config.databaseUrl).host}`,
-        );
+        logger.info('Creating API client', {
+          host: new URL(config.databaseUrl).host,
+        });
         return {
           get: async (url: string) => {
-            logger.log(`API call to ${url}`);
+            logger.info('API call', { url });
             return { data: 'mock response' };
           },
         };
       },
-      [AppConfig, Logger('api')] as const,
+      [AppConfig, Logger$('api')] as const,
     ),
     classProvider(HealthCheck('api'), ApiHealthCheck),
   ],

@@ -35,10 +35,12 @@ app-тесты подменяют зависимости на границах �
 ```typescript
 import { app } from './app';   // та же декларация makeApp, что у main.ts
 
+const spy = spyLogger();
+
 await using testApp = await assembleTest(app, {
   overrides: [
     [OrdersRepository, inMemoryOrdersRepo()],
-    familyOverride(Logger$, () => noopLogger),
+    [RootLogger$, spy.logger],
   ],
   config: vars({ ORDERS_MAX_ITEMS: '10' }),
   stubs: [stub(ChargeCard, async () => ({ chargeId: 'test' }))],
@@ -172,9 +174,21 @@ keep-last-good, `onChange`. `process.env` не трогается, поэтом�
 
 ### Сквозные зависимости: `familyOverride`
 
-`familyOverride(Logger$, () => noop)` подменяет рецепт семейства целиком,
-до создания его членов, поэтому боевой рецепт не вызывается ни разу.
-Передаётся тем же списком `overrides:`.
+`familyOverride(GrpcClient$, () => fakeClient)` подменяет рецепт
+семейства целиком, до создания его членов, поэтому боевой рецепт не
+вызывается ни разу. Передаётся тем же списком `overrides:`.
+
+### Записи логгера: `spyLogger`
+
+`spyLogger()` возвращает `{ logger, entries }`: логгер ядра, который
+копит записи `{ level, message, fields }` значениями. Подмена
+`[RootLogger$, spy.logger]` перехватывает записи всех членов `Logger$` —
+и ядра, и приложения: член семейства строится как `root.child({ scope })`
+([container.md](./container.md), «Логгер ядра»), а дочерний логгер
+шпиона пишет в тот же список. Тест проверяет `entries` по полям, а не
+разбирает `stderr`. Тот же логгер передаётся напрямую в юнит
+(`withRequestLogging(spy.logger)`) или в `makeDispatch(endpoints, { logger })`
+без `App`.
 
 ### Транспорт
 

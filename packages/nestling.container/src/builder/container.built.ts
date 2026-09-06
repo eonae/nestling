@@ -25,6 +25,7 @@ import type { VisitCallback, VisitOptions } from '@common/graphs';
 export class BuiltContainer {
   readonly #graph: DIGraph;
   readonly #pruned: readonly string[];
+  readonly #warnings: readonly string[];
 
   /**
    * Токен → адрес его узла в графе.
@@ -41,10 +42,12 @@ export class BuiltContainer {
     graph: DIGraph,
     pruned: readonly string[] = [],
     nodeIds: ReadonlyMap<InjectionToken, string> = new Map(),
+    warnings: readonly string[] = [],
   ) {
     this.#graph = graph;
     this.#pruned = Object.freeze([...pruned]);
     this.#nodeIds = nodeIds;
+    this.#warnings = Object.freeze([...warnings]);
   }
 
   /**
@@ -56,6 +59,17 @@ export class BuiltContainer {
    */
   get pruned(): readonly string[] {
     return this.#pruned;
+  }
+
+  /**
+   * Предупреждения сборки: сегодня это совпадающие идентификаторы токенов.
+   *
+   * Билдер ничего не печатает: во время `build()` логгера ещё нет, он сам
+   * узел графа. Сборка приложения пишет список в логгер после `build()`;
+   * без неё список читают руками. Без предупреждений список пуст.
+   */
+  get warnings(): readonly string[] {
+    return this.#warnings;
   }
 
   /**

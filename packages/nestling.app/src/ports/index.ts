@@ -90,7 +90,6 @@ export {
 } from './profile.js';
 export type { CallBudget } from './profile.js';
 export { failureResponse } from './response.js';
-export type { PortFailureInfo } from './runtime.js';
 export {
   serializeSnapshot,
   SNAPSHOT_VERSION,

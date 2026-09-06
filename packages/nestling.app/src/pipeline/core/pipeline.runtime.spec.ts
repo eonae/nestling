@@ -13,6 +13,8 @@
  * meta.signal и политика раскрытия ошибок (exposeErrorDetails).
  */
 
+import { spyLogger } from '../../logger/__fixtures__/spy.js';
+
 import type { EndpointMeta, ExtendableContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
@@ -87,8 +89,8 @@ type LooseHandler = (
  * Выполняет pipeline с ослабленными типами (как это делают транспорты):
  * рантайм-тестам важен порядок исполнения, а не вывод типов.
  *
- * Хук `onUnknownFail` по умолчанию заглушён: дефолтный `console.error`
- * полезен в бою и бесполезен в выводе тестов. Тесты про диагностику
+ * Логгер по умолчанию заглушён шпионом: умолчание ядра пишет в `stderr`,
+ * что полезно в бою и бесполезно в выводе тестов. Тесты про диагностику
  * ставят свой.
  */
 async function run(
@@ -108,9 +110,12 @@ async function run(
   return executable.executeWithHandler(
     handler,
     makeCtx(opts.signal, opts.errors) as ExtendableContext<AnyInput>,
-    { onUnknownFail: () => {}, ...opts.options },
+    { logger: silent, ...opts.options },
   );
 }
+
+/** Логгер, глушащий умолчание ядра в выводе тестов */
+const silent = spyLogger().logger;
 
 const failingHandler = (): never => {
   throw EmailTaken({ field: 'email' });
@@ -975,7 +980,6 @@ describe('Pipeline v2 — проверка операции отказов', () 
   it('пайплайн без декларации: объявленными считаются только kernel-коды', async () => {
     const response = await run(makePipeline(), failingHandler, {
       errors: undefined,
-      options: { onUnknownFail: () => {} },
     });
 
     // declaredErrors — дефолт makeCtx, поэтому здесь отказ объявлен.
@@ -988,8 +992,8 @@ describe('Pipeline v2 — проверка операции отказов', () 
     expect(undeclared.status).toBe('internal_error');
   });
 
-  it("хук получает оригинал и метаданные endpoint'а, тело их не содержит", async () => {
-    const seen: { error: unknown; pattern: string }[] = [];
+  it('запись логгера несёт оригинал, транспорт, паттерн и код; тело их не содержит', async () => {
+    const spy = spyLogger();
     const original = EmailTaken({ field: 'email' });
 
     const response = await run(
@@ -997,34 +1001,68 @@ describe('Pipeline v2 — проверка операции отказов', () 
       () => {
         throw original;
       },
-      {
-        errors: [],
-        options: {
-          onUnknownFail: (info) =>
-            seen.push({ error: info.error, pattern: info.endpoint.pattern }),
-        },
-      },
+      { errors: [], options: { logger: spy.logger } },
     );
 
-    expect(seen).toEqual([{ error: original, pattern: 'TEST /' }]);
+    expect(spy.entries).toEqual([
+      {
+        level: 'error',
+        message: 'undeclared fail normalized to internal_error',
+        fields: {
+          transport: 'test',
+          pattern: 'TEST /',
+          code: 'bad_request:email_taken',
+          err: original,
+        },
+      },
+    ]);
     expect(JSON.stringify(response.value)).not.toContain('email');
   });
 
-  it('без хука диагностика уходит в console.error, ответ не меняется', async () => {
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  it('необработанная ошибка даёт запись без кода', async () => {
+    const spy = spyLogger();
+    const original = new Error('boom');
+
+    await run(
+      makePipeline(),
+      () => {
+        throw original;
+      },
+      { errors: [], options: { logger: spy.logger } },
+    );
+
+    expect(spy.entries).toHaveLength(1);
+    expect(spy.entries[0].fields).toEqual({
+      transport: 'test',
+      pattern: 'TEST /',
+      err: original,
+    });
+  });
+
+  it('без логгера запись уходит в умолчание ядра (stderr), ответ не меняется', async () => {
+    const lines: string[] = [];
+    const write = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation((chunk: unknown) => {
+        lines.push(String(chunk));
+
+        return true;
+      });
 
     try {
       const response = await run(makePipeline(), failingHandler, {
         errors: [],
-        // Заглушка run() снимается: проверяем именно дефолт рантайма
-        options: { onUnknownFail: undefined },
+        // Шпион run() снимается: проверяем именно дефолт рантайма
+        options: { logger: undefined },
       });
 
-      expect(spy).toHaveBeenCalledTimes(1);
-      expect(String(spy.mock.calls[0][0])).toContain('[nestling]');
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain(
+        'ERROR undeclared fail normalized to internal_error transport=test pattern="TEST /" code=bad_request:email_taken err=',
+      );
       expect(response.status).toBe('internal_error');
     } finally {
-      spy.mockRestore();
+      write.mockRestore();
     }
   });
 });

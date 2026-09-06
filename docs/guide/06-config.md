@@ -98,15 +98,15 @@ export const ListUsers = httpEndpoint({
 
 ```typescript
 // examples/users-service/src/database.ts
-@Injectable([AppConfig, Logger$])
+@Injectable([AppConfig, Logger$.auto])
 export class Database {
   // …
   @OnInit()
   connect(): void {
     // В лог уходит только хост: значение поля секретное
-    this.logger.log(
-      `database connected: ${new URL(this.config.databaseUrl).host}`,
-    );
+    this.logger.info('database connected', {
+      host: new URL(this.config.databaseUrl).host,
+    });
     // …
   }
 }

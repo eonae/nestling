@@ -1,12 +1,10 @@
 import { authed } from '../../../plugins/auth/index.js';
-import type { Logger } from '../../../plugins/logging/index.js';
-import { Logger$ } from '../../../plugins/logging/index.js';
 import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { ErrorResponseContext, Output } from '@nestling/app';
-import { compose, makePipeline } from '@nestling/app';
+import type { ErrorResponseContext, Logger, Output } from '@nestling/app';
+import { compose, Logger$, makePipeline } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 import { Ok } from '@nestling/operations';
 import { httpEndpoint } from '@nestling/transport.http';
@@ -23,13 +21,13 @@ type DeleteUserInput = z.infer<typeof DeleteUserInput>;
  * узнаётся через `.is()`. Юнит ничего не возвращает, и ответ идёт дальше
  * без изменений.
  */
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
 
   handle(res: ErrorResponseContext): void {
     if (UserNotFound.is(res.value)) {
-      this.logger.log(`[audit] delete refused: ${res.value.message}`);
+      this.logger.info('delete refused', { reason: res.value.message });
     }
   }
 }

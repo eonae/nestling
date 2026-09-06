@@ -36,8 +36,9 @@ SHALL NOT существовать, равно как и метода регис
 ### Requirement: `dispatch` — фазовый ресурс, разделяющий провод и исполнение
 
 `@nestling/app` SHALL экспортировать тип `Dispatch` и конструктор
-`makeDispatch(endpoints)`, где `endpoints` — **исполнимые** декларации
-(`TNeeds = never`). `Dispatch` SHALL нести:
+`makeDispatch(endpoints, options?)`, где `endpoints` — **исполнимые**
+декларации (`TNeeds = never`), а `options` — `{ logger?: Logger }`.
+`Dispatch` SHALL нести:
 
 - `routes` — проекции деклараций, содержащие всё нужное транспорту для
   роутинга и парсинга (паттерн, io-декларация, bind-карта, транспортный
@@ -47,6 +48,11 @@ SHALL NOT существовать, равно как и метода регис
   пайплайна, возвращающее `ResponseContext`. Декларация без `pipeline`
   SHALL исполняться тем же рантаймом с пустым пайплайном; отдельной ветки
   прямого вызова хендлера SHALL NOT быть.
+
+Логгер SHALL храниться в `dispatch` рядом с таблицей маршрутов и
+передаваться рантайму при каждом `call`; без него SHALL использоваться
+умолчание ядра. Опции `call` (`DispatchOptions`) SHALL нести только
+`exposeErrorDetails`; поля `onUnknownFail` SHALL NOT существовать.
 
 `makeDispatch` SHALL вызываться в фазе WIRE — после того, как зависимости
 деклараций получены из контейнера. Один `dispatch` SHALL строиться на один
@@ -79,7 +85,7 @@ SHALL NOT существовать, равно как и метода регис
 - **WHEN** endpoint объявлен без `pipeline` и без `errors:`, а его хендлер
   бросает `Fail.notFound('nope')`
 - **THEN** `dispatch.call` возвращает `ResponseContext` с `internal_error`/500, а
-  оригинал отказа передан хуку `onUnknownFail`
+  оригинал отказа записан уровнем `error` в логгер `dispatch`
 
 #### Scenario: Транспорт получает только свои endpoint'ы
 
@@ -89,9 +95,15 @@ SHALL NOT существовать, равно как и метода регис
 
 #### Scenario: Опции границы передаются аргументом
 
-- **WHEN** транспорт вызывает `call` с `{ exposeErrorDetails, onUnknownFail }`
-- **THEN** исполнение учитывает их; сам `dispatch` этих политик SHALL NOT
-  хранить
+- **WHEN** транспорт вызывает `call` с `{ exposeErrorDetails }`
+- **THEN** исполнение учитывает опцию; сам `dispatch` этой политики SHALL
+  NOT хранить
+
+#### Scenario: Логгер привязан к `dispatch`
+
+- **WHEN** `App` строит `dispatch` на фазе WIRE
+- **THEN** он передаёт `Logger$('nestling')`, и транспорт о логгере не
+  знает
 
 ### Requirement: Ранний go-live невозможен структурно
 

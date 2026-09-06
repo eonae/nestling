@@ -18,6 +18,7 @@
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { Logger } from '@nestling/app';
 import {
   implement,
   makeDispatch,
@@ -89,6 +90,17 @@ const PlacedImpl = implement(Placed, {
   },
 });
 
+/** Логгер живого прогона: пишет записи в stderr одной строкой на запись */
+const liveLogger: Logger = {
+  debug: () => undefined,
+  info: () => undefined,
+  warn: (...args: unknown[]) =>
+    process.stderr.write(`warn ${JSON.stringify(args)}\n`),
+  error: (...args: unknown[]) =>
+    process.stderr.write(`error ${JSON.stringify(args)}\n`),
+  child: () => liveLogger,
+};
+
 const settle = async (ms = 100): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, ms));
 };
@@ -100,6 +112,8 @@ async function bus(
     servers: (servers ?? '').split(','),
     subjectPrefix: prefix,
     requestTimeout: 5000,
+    // Живой брокер: записи об отказах доставки интересны в выводе прогона
+    logger: liveLogger,
   });
 
   await transport.connect();

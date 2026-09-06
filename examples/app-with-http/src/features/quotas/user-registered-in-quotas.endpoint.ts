@@ -1,17 +1,19 @@
 import type { UserRegisteredInput } from '../../operations.js';
 import { UserRegistered } from '../../operations.js';
-import type { Logger } from '../../plugins/logging/index.js';
-import { Logger$ } from '../../plugins/logging/index.js';
 
-import { implement } from '@nestling/app';
+import type { Logger } from '@nestling/app';
+import { implement, Logger$ } from '@nestling/app';
 import { Injectable } from '@nestling/container';
 
-@Injectable([Logger$])
+@Injectable([Logger$.auto])
 class UserRegisteredInQuotasHandler {
   constructor(private readonly logger: Logger) {}
 
   async handle(payload: UserRegisteredInput) {
-    this.logger.log(`quota bookkeeping: user ${payload.id} (${payload.email})`);
+    this.logger.info('quota bookkeeping', {
+      userId: payload.id,
+      email: payload.email,
+    });
   }
 }
 

@@ -112,8 +112,9 @@ export const Import = cliEndpoint({
 а незадекларированный отказ на выходе заменяется на `InternalError`
 ([`docs/design/errors.md`](../../docs/design/errors.md)). Статус
 печатается как есть: CLI не нуждается в таблице кодов. Оригинал
-заменённого отказа передаётся в хук `onUnknownFail` из опций транспорта.
-Детали необработанных ошибок (`stack`) в терминале показываются всегда.
+заменённого отказа уходит записью `error` в логгер ядра (`stderr`, а не
+`stdout`: вывод команды остаётся чистым). Детали необработанных ошибок
+(`stack`) в терминале показываются всегда.
 
 Ошибка валидации приходит как `SchemaValidationError` с
 `issues: { message, path? }[]` — формат Standard Schema без полей
@@ -134,7 +135,7 @@ Standard Schema, — ошибка конфигурации: `AsyncSchemaNotSuppo
 | `CliTransport$('default')` | токен транспорта; короткое имя `'cli'` |
 | `parseArgv(argv)` | разбор аргументов в `CliInput` |
 | `CliInput` | `{ command, args, options }` |
-| `CliTransportOptions` | `mode`, `argv`, `onUnknownFail` |
+| `CliTransportOptions` | `mode`, `argv` |
 
 ## Границы пакета
 
