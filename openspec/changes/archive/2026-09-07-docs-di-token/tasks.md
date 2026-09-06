@@ -106,12 +106,12 @@
       `docs/conventions.md`, `docs/README.md`, `packages`, `examples`,
       `README.ru.md` даёт только оправданные вхождения: перечисление
       запрещённых форм в блоке `docs-style: off` глоссария
-- [ ] 11.3 Обновить `docs/decisions/roadmap.md`: строка 44 — **done** со
+- [x] 11.3 Обновить `docs/decisions/roadmap.md`: строка 44 — **done** со
       ссылкой на архив; добавить абзац в `archlog.md`
 
 ## 12. Definition of Done
 
-- [ ] 12.1 Все задачи выше отмечены
+- [x] 12.1 Все задачи выше отмечены
 - [x] 12.2 `yarn verify` зелёный
 - [x] 12.3 README затронутых пакетов обновлены, включая плашки статуса
 - [x] 12.4 `design/` и `decisions/` синхронизированы по правилам
