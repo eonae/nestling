@@ -816,6 +816,7 @@ main().catch(console.error);
 | Функция | Что делает |
 |---|---|
 | `makeToken<T>(id)` | создаёт объектный токен `Token<T>` для интерфейса или значения |
+| `readRoleMeta(cls)` | роль и список зависимостей класса или `undefined`, если декоратора роли нет |
 | `makeTokenFamily<T, [param: string]>(name)` | создаёт семейство; `Family(param)` возвращает мемоизированный токен `"<name>:<param>"`, `Family.auto` — член по имени класса-потребителя, `Family.all` — агрегат `Token<readonly T[]>` |
 | `Component(deps?)` | декоратор компонента; токен — сам класс |
 | `Resource(deps?)` | декоратор ресурса: `static acquire` и `release` |

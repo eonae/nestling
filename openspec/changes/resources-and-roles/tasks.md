@@ -92,9 +92,9 @@
 
 ## 7. Примеры
 
-- [ ] 7.1 `examples/users-service`: `database.ts` — ресурс, поле без
+- [x] 7.1 `examples/users-service`: `database.ts` — ресурс, поле без
       `| undefined`
-- [ ] 7.2 `examples/app-with-http`: то же для `features/users/database.ts`
+- [x] 7.2 `examples/app-with-http`: то же для `features/users/database.ts`
 - [x] 7.3 Прочие примеры: `@Injectable` → `@Component`/`@Handler`
 
 ## 8. Документация
@@ -115,10 +115,10 @@
 ## 9. Definition of Done
 
 - [ ] 9.1 Все задачи выше отмечены
-- [ ] 9.2 `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` +
+- [x] 9.2 `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` +
       `type-budget` по всем пакетам)
-- [ ] 9.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 9.4 `design/` и `decisions/` синхронизированы по правилам
+- [x] 9.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 9.4 `design/` и `decisions/` синхронизированы по правилам
       `CLAUDE.md`
 - [ ] 9.5 `yarn docs:audit` — 0 ERROR
 - [ ] 9.6 Затронутые `examples/*` мигрированы, главы гайда пересверены с
