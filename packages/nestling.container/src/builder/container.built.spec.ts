@@ -84,19 +84,19 @@ describe('BuiltContainer', () => {
     expect(container.getOrThrow(TokenB).value()).toBe('B(a)');
   });
 
-  it('возвращает null из get для незарегистрированного токена', async () => {
+  it('возвращает null из get для незарегистрированного DI-токена', async () => {
     const container = buildContainer();
     await container.init();
 
     expect(container.get(makeToken('Missing'))).toBeNull();
   });
 
-  it('бросает ошибку в getOrThrow для незарегистрированного токена', async () => {
+  it('бросает ошибку в getOrThrow для незарегистрированного DI-токена', async () => {
     const container = buildContainer();
     await container.init();
 
     expect(() => container.getOrThrow(makeToken('Missing'))).toThrow(
-      "Instance for token 'Missing' not found",
+      "Instance for DI token 'Missing' not found",
     );
   });
 
@@ -108,7 +108,7 @@ describe('BuiltContainer', () => {
     expect(() => container.getById('TokenA')).toThrow(/phase INIT/);
   });
 
-  it('ошибка фазы отличима от ошибки «токен не зарегистрирован»', () => {
+  it('ошибка фазы отличима от ошибки «DI-токен не зарегистрирован»', () => {
     const container = buildContainer();
 
     expect(() => container.getOrThrow(makeToken('Missing'))).toThrow(

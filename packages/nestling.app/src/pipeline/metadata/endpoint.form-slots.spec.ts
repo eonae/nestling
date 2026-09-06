@@ -14,7 +14,7 @@ import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
 
-/** Токен транспорта фикстур: декларация ссылается на транспорт значением */
+/** DI-токен транспорта фикстур: декларация ссылается на транспорт значением */
 const TestTransport$ = makeToken('transport:test');
 
 /**

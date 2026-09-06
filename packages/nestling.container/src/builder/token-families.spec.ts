@@ -139,7 +139,7 @@ describe('создание членов семейства', () => {
       constructor(readonly logger: ILoggerService) {}
     }
 
-    // Токен создан и есть в реестре семейства, но от него никто не зависит.
+    // DI-токен создан и есть в реестре семейства, но от него никто не зависит.
     const orphan = ILogger('orphan');
 
     const container = new ContainerBuilder()
@@ -159,7 +159,7 @@ describe('создание членов семейства', () => {
 });
 
 describe('ошибки создания членов', () => {
-  it('отклоняет рецепт, вернувший провайдер другого токена', async () => {
+  it('отклоняет рецепт, вернувший провайдер другого DI-токена', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>('Wrong');
 
     @Component([ILogger('users')])
@@ -212,7 +212,7 @@ describe('ошибки создания членов', () => {
           valueProvider(ILogger(scope), { scope: `other:${scope}` }),
         ),
       ),
-    ).toThrow(/token family 'Twice' is already registered/);
+    ).toThrow(/DI token family 'Twice' is already registered/);
   });
 
   it('пробрасывает ошибку рецепта как есть', async () => {
@@ -256,7 +256,7 @@ describe('ошибки создания членов', () => {
       .register(ServiceA);
 
     expect(() => builder.build()).toThrow(
-      /Recipe of token family 'Thrown' failed for parameter 'users'/,
+      /Recipe of DI token family 'Thrown' failed for parameter 'users'/,
     );
   });
 
@@ -283,7 +283,7 @@ describe('ошибки создания членов', () => {
     expect(() => builder.build()).toThrow(/did not converge after 100 rounds/);
   });
 
-  it('токен из makeToken рецепту семейства не отдаётся', async () => {
+  it('DI-токен из makeToken рецепту семейства не отдаётся', async () => {
     const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
       'LookAlike',
     );
@@ -302,7 +302,7 @@ describe('ошибки создания членов', () => {
       )
       .register(ServiceA);
 
-    // Членство читается полем токена, поэтому похожий `id` семейство не
+    // Членство читается полем DI-токена, поэтому похожий `id` семейство не
     // задевает: это обычная недостающая зависимость
     expect(() => builder.build()).toThrow(
       /Unsatisfied dependencies \(1\):[\S\s]*'LookAlike:users' required by 'ServiceA'/,

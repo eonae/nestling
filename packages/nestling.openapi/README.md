@@ -42,7 +42,7 @@ makeApp({
 |---|---|
 | `buildOpenApiDocument(endpoints, options)` | чистая функция; CI кладёт `openapi.json` в артефакты, не поднимая приложение |
 | `openapi(options)` | плагин: строит документ на фазе ASSEMBLE и отдаёт его endpoint'ом `GET /openapi.json` |
-| `OpenApiDocument$` | токен готового документа для провайдера, которому документ нужен значением |
+| `OpenApiDocument$` | DI-токен готового документа для провайдера, которому документ нужен значением |
 
 Вход чистой функции — то же значение, что возвращает `discoverEndpoints`:
 

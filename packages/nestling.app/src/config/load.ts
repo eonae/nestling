@@ -26,7 +26,7 @@ import { SchemaValidationError, validateSync } from '@common/misc';
  * проекции из контейнера: независимая по полям, все отказы — в одну
  * ошибку, fail-fast.
  *
- * @param section - Токен секции, объявленной `makeConfig`
+ * @param section - DI-токен секции, объявленной `makeConfig`
  * @returns Замороженные значения секции
  * @throws {ConfigValidationError} Если хотя бы одно поле невалидно
  *
@@ -41,7 +41,7 @@ import { SchemaValidationError, validateSync } from '@common/misc';
 export const load = <Values>(
   section: ConfigSectionToken<Values, string>,
 ): Values => {
-  // Префикс лежит на keys-хэндле токена — том же значении, которым секция
+  // Префикс лежит на keys-хэндле DI-токена — том же значении, которым секция
   // привязывается к источникам
   const prefix = section.keys.prefix;
   const declaration = lookupSection(prefix);

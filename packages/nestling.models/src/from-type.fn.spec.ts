@@ -422,7 +422,7 @@ describe('fromType().makeModel', () => {
       expect(result.page).toBe(5);
     });
 
-    it('убирает префикс Bearer из токена', () => {
+    it('убирает префикс Bearer из заголовка authorization', () => {
       interface AuthProto {
         authorization?: string;
       }

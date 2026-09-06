@@ -162,16 +162,16 @@ describe('обёртка secret()', () => {
   });
 });
 
-describe('токен секции', () => {
+describe('DI-токен секции', () => {
   it('идентификатор — член семейства ConfigSection', () => {
     expect(tokenId(OrdersConfig)).toBe('ConfigSection:orders');
   });
 
-  it('токен секции и есть член семейства', () => {
+  it('DI-токен секции и есть член семейства', () => {
     expect(OrdersConfig).toBe(ConfigSection('orders'));
   });
 
-  it('`.keys` — хэндл, а не токен', () => {
+  it('`.keys` — хэндл, а не DI-токен', () => {
     expect(OrdersConfig.keys).toBeInstanceOf(ConfigKeys);
     expect(OrdersConfig.keys.prefix).toBe('orders');
   });

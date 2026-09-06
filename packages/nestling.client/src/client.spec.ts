@@ -385,7 +385,7 @@ describe('makeClient: разбор отказа', () => {
       message: 'Email taken',
       details: { email: 'a@b.c' },
     });
-    // Категория — производная от кода определения, не поле с провода
+    // Категория — производная от кода определения, не поле из ответа
     expect((result as { category: string }).category).toBe('conflict');
   });
 

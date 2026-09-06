@@ -1,5 +1,5 @@
 /**
- * Семейства токенов `PortFamily` и `EmitterFamily` и типы их значений:
+ * Семейства DI-токенов `PortFamily` и `EmitterFamily` и типы их значений:
  * `Port`, `Emitter`, `PortMeta`, `CommandMeta`.
  *
  * Отдельный файл: на семейства ссылаются и операция (`.caller` / `.emitter`
@@ -67,7 +67,7 @@ export interface CommandMeta extends PortMeta {
  * `PortMeta`.
  *
  * Условие проверяет поле `kind`, а не `C extends CommandOperation`:
- * операция содержит токен вызывающей стороны, тот — `InvokeArgs`, а тот
+ * операция содержит DI-токен вызывающей стороны, тот — `InvokeArgs`, а тот
  * снова `MetaOf`. Структурная проверка операции целиком уходит в
  * бесконечную рекурсию и роняет `tsc`; проверка дискриминанта — нет.
  */
@@ -135,7 +135,7 @@ export interface Emitter<C extends EmittingOperation<any, any, any, any>> {
  * создаёт один узел графа для этой операции; операция, которую никто не
  * вызывает, узлов не создаёт.
  *
- * @internal Пользовательский код получает токен через `Operation.caller`
+ * @internal Пользовательский код получает DI-токен через `Operation.caller`
  */
 export const PortFamily = makeTokenFamily<Port<any>, [name: string]>('Port');
 
@@ -143,17 +143,17 @@ export const PortFamily = makeTokenFamily<Port<any>, [name: string]>('Port');
  * Семейство эмиттеров: один член на операцию вида `command` или `event`
  * (см. {@link PortFamily}).
  *
- * @internal Пользовательский код получает токен через `Operation.emitter`
+ * @internal Пользовательский код получает DI-токен через `Operation.emitter`
  */
 export const EmitterFamily = makeTokenFamily<Emitter<any>, [name: string]>(
   'Emitter',
 );
 
-/** Токен порта операции: член семейства, типизированный операцией */
+/** DI-токен порта операции: член семейства, типизированный операцией */
 export type PortToken<C extends RequestOperation<any, any, any>> = Token<
   Port<C>
 >;
 
-/** Токен эмиттера операции: член семейства, типизированный операцией */
+/** DI-токен эмиттера операции: член семейства, типизированный операцией */
 export type EmitterToken<C extends EmittingOperation<any, any, any, any>> =
   Token<Emitter<C>>;

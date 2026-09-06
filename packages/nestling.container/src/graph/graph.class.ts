@@ -4,7 +4,7 @@ import { DAG } from '@common/graphs';
 
 /** Узел графа зависимостей в виде JSON. */
 export interface JsonDINode {
-  /** Идентификатор токена */
+  /** Идентификатор DI-токена */
   id: string;
   /** Метаданные узла */
   metadata: {

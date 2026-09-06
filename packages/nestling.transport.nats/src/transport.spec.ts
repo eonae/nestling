@@ -211,7 +211,7 @@ describe('NatsBus — адресация и группы', () => {
     await caller.close();
   });
 
-  it('заголовки Ok уезжают заголовками ответного сообщения', async () => {
+  it('заголовки Ok попадают в заголовки ответного сообщения', async () => {
     const broker = new Broker();
     const Tagged = implement(Claim, {
       handler: async (input) =>
@@ -520,7 +520,7 @@ describe('NatsBus — отказы доставки и фазы', () => {
     expect(bus.durable).toBe(true);
   });
 
-  it('фабрика регистрирует транспорт под токеном шины', () => {
+  it('фабрика регистрирует транспорт под DI-токеном шины', () => {
     expect(nats().token).toBe(BusTransport$);
   });
 });

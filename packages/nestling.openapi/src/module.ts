@@ -31,7 +31,7 @@ import { factoryProvider, Handler, makeToken } from '@nestling/container';
 import { httpEndpoint } from '@nestling/transport.http';
 
 /**
- * Токен готового документа.
+ * DI-токен готового документа.
  *
  * Публичен намеренно: документ бывает нужен не только своему endpoint'у —
  * его инжектируют, чтобы отдать в другом формате, положить в артефакт или

@@ -77,13 +77,13 @@ const expired = (): Date => new Date(Date.now() - 1000);
 // ---------------------------------------------------------------------------
 
 describe('stub — фейк-вызыватель как значение', () => {
-  it('даёт пару с токеном порта у операцию-запроса', () => {
+  it('даёт пару с DI-токеном порта у операцию-запроса', () => {
     const [token] = stub(ClaimQuota, async () => ({ granted: 1 }));
 
     expect(token).toBe(ClaimQuota.caller);
   });
 
-  it('даёт пару с токеном эмиттера у события', () => {
+  it('даёт пару с DI-токеном эмиттера у события', () => {
     const [token] = stub(OrderPlaced, () => undefined);
 
     expect(token).toBe(OrderPlaced.emitter);

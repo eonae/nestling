@@ -4,7 +4,7 @@
  * Транспортов одного вида в сборке может быть несколько: публичный HTTP и
  * админский слушают разные порты и обслуживают разные endpoint'ы. Поэтому
  * корень перечисляет не провайдеры, а **объявления**: имя экземпляра, его
- * токен и провайдер, который заводит узел графа.
+ * DI-токен и провайдер, который заводит узел графа.
  */
 
 import type { TransportCapabilities, TransportRef } from '../pipeline/index.js';
@@ -23,7 +23,7 @@ export interface TransportDeclaration<Name extends string = string> {
   /** Имя экземпляра: `'default'`, `'admin'`, `'events'` */
   readonly name: Name;
 
-  /** Токен, под которым экземпляр попадает в граф */
+  /** DI-токен, под которым экземпляр попадает в граф */
   readonly token: TransportRef;
 
   /** Провайдер экземпляра */
@@ -60,7 +60,7 @@ export interface BusDeclaration<Name extends string = string>
  * Зовут его конструкторы транспортов (`http`, `cli`, `nats`), а не
  * прикладной код.
  *
- * @param declaration - Имя, токен и провайдер экземпляра
+ * @param declaration - Имя, DI-токен и провайдер экземпляра
  * @returns То же объявление, замороженное
  */
 export const makeTransportDeclaration = <D extends TransportDeclaration>(
@@ -81,7 +81,7 @@ export const DEFAULT_INSTANCE = 'default';
  * Путь для тестов и для транспорта, собранного вручную: значение уже
  * создано, контейнеру остаётся зарегистрировать его узлом.
  *
- * @param token - Токен экземпляра
+ * @param token - DI-токен экземпляра
  * @param instance - Готовый транспорт
  * @param options - Способности транспорта, имя экземпляра и признак
  * переносчика операций

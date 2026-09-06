@@ -57,7 +57,7 @@ interface FamilyRecipeEntry {
 /**
  * Подстановка узла графа значением в тестовой сборке.
  *
- * Пара позиционная: подменить можно только токен, на который есть ссылка.
+ * Пара позиционная: подменить можно только DI-токен, на который есть ссылка.
  * Формы с адресом-строкой нет: она обходила бы видимость ES-модулей.
  */
 export type TokenOverride<T = unknown> = readonly [
@@ -66,7 +66,7 @@ export type TokenOverride<T = unknown> = readonly [
 ];
 
 /**
- * Подмена рецепта целого семейства токенов в тестовой сборке.
+ * Подмена рецепта целого семейства DI-токенов в тестовой сборке.
  *
  * Та же пара семейства и рецепта, что у `familyProvider(family, recipe)`.
  * Применяется поверх зарегистрированного рецепта и строго до создания
@@ -100,8 +100,8 @@ export interface ContainerBuilderOptions {
  * `build()` строит граф и проверяет его целиком. Экземпляры создаёт
  * `init()` собранного контейнера, тоже целиком.
  *
- * Внутренние карты ключуются **токеном**, а не его идентификатором: два
- * токена с одинаковым `id` — два разных узла графа.
+ * Внутренние карты ключуются **DI-токеном**, а не его идентификатором: два
+ * DI-токена с одинаковым `id` — два разных узла графа.
  *
  * @example
  * ```typescript
@@ -217,7 +217,7 @@ export class ContainerBuilder {
    * 9. проверяет граф на циклы.
    *
    * Предупреждения сборки (сегодня — о совпадающих идентификаторах
-   * токенов) не печатаются: они отдаются значением `warnings` собранного
+   * DI-токенов) не печатаются: они отдаются значением `warnings` собранного
    * контейнера.
    *
    * @returns Собранный контейнер: граф с пустыми слотами значений
@@ -381,7 +381,7 @@ export class ContainerBuilder {
     };
   }
 
-  /** Токен регистрации: у определения — его `provide`, у класса — сам класс */
+  /** DI-токен регистрации: у определения — его `provide`, у класса — сам класс */
   private getToken<T>(
     provider: ProviderDefinition<T> | Constructor<T>,
   ): InjectionToken<T> {
@@ -404,9 +404,9 @@ export class ContainerBuilder {
   }
 
   /**
-   * Регистрирует единственный рецепт семейства токенов.
+   * Регистрирует единственный рецепт семейства DI-токенов.
    *
-   * Сам рецепт — не узел графа, у него нет своего токена. Он хранится
+   * Сам рецепт — не узел графа, у него нет своего DI-токена. Он хранится
    * отдельно и используется при создании членов в `build()`.
    */
   private registerFamilyProvider(
@@ -417,7 +417,7 @@ export class ContainerBuilder {
 
     if (this.#familyRecipes.has(family)) {
       throw new Error(
-        `Family provider for token family '${family.familyName}' is already registered`,
+        `Family provider for DI token family '${family.familyName}' is already registered`,
       );
     }
 
@@ -439,7 +439,7 @@ export class ContainerBuilder {
 
     if (this.#providers.has(token)) {
       throw new Error(
-        `Provider for token '${tokenId(token)}' is already registered`,
+        `Provider for DI token '${tokenId(token)}' is already registered`,
       );
     }
 
@@ -519,7 +519,7 @@ export class ContainerBuilder {
 
     if (!entry) {
       throw new Error(
-        `Member '${member.id}' of token family '${family.familyName}' (parameter '${param}') is requested as a dependency, but no familyProvider for family '${family.familyName}' is registered`,
+        `Member '${member.id}' of DI token family '${family.familyName}' (parameter '${param}') is requested as a dependency, but no familyProvider for family '${family.familyName}' is registered`,
       );
     }
 
@@ -536,14 +536,14 @@ export class ContainerBuilder {
       }
 
       throw new Error(
-        `Recipe of token family '${family.familyName}' failed for parameter '${param}'`,
+        `Recipe of DI token family '${family.familyName}' failed for parameter '${param}'`,
         { cause: error },
       );
     }
 
     if (definition.provide !== (member as InjectionToken)) {
       throw new Error(
-        `Recipe of token family '${family.familyName}' for parameter '${param}' returned a provider for token '${tokenId(definition.provide)}', expected '${member.id}'`,
+        `Recipe of DI token family '${family.familyName}' for parameter '${param}' returned a provider for DI token '${tokenId(definition.provide)}', expected '${member.id}'`,
       );
     }
 
@@ -559,7 +559,7 @@ export class ContainerBuilder {
    * `toJSON()`, визуализация.
    *
    * Повторять сбор членов после этого шага не нужно: зависимости агрегата —
-   * токены, у которых провайдеры уже есть.
+   * DI-токены, у которых провайдеры уже есть.
    */
   private materializeFamilyAggregates(): void {
     const aggregates = new Map<InjectionToken, TokenFamily<any, any>>();
@@ -585,7 +585,7 @@ export class ContainerBuilder {
   }
 
   /**
-   * Возвращает провайдер узла-агрегата: фабрику над токенами всех
+   * Возвращает провайдер узла-агрегата: фабрику над DI-токенами всех
    * зарегистрированных членов семейства.
    *
    * Массив заморожен: это снимок сборки, общий для всех потребителей
@@ -605,12 +605,12 @@ export class ContainerBuilder {
   }
 
   /**
-   * Возвращает токены зарегистрированных членов семейства в порядке
+   * Возвращает DI-токены зарегистрированных членов семейства в порядке
    * регистрации.
    *
    * `#providers` хранит порядок вставки, поэтому сначала идут явные
    * провайдеры в порядке регистрации модулей, затем члены, созданные
-   * рецептом, в порядке раундов. Членство читается полем токена, а не
+   * рецептом, в порядке раундов. Членство читается полем DI-токена, а не
    * разбором его идентификатора.
    */
   private collectFamilyMemberTokens(
@@ -658,12 +658,12 @@ export class ContainerBuilder {
   }
 
   /**
-   * Подменяет провайдер каждого токена из `overrides` провайдером-значением.
+   * Подменяет провайдер каждого DI-токена из `overrides` провайдером-значением.
    *
    * Привязка к модулю не меняется: она хранится в отдельной карте по
-   * токену, поэтому узел графа сохраняет владельца.
+   * DI-токену, поэтому узел графа сохраняет владельца.
    *
-   * @returns Зависимости каждого подменённого токена до подмены — первая
+   * @returns Зависимости каждого подменённого DI-токена до подмены — первая
    * половина входа для прунинга
    */
   private applyOverrides(): Map<InjectionToken, readonly InjectionToken[]> {
@@ -672,14 +672,14 @@ export class ContainerBuilder {
     for (const [token, value] of this.#overrides) {
       if (before.has(token)) {
         throw new Error(
-          `Token '${tokenId(token)}' is overridden twice - 'last one wins' is not applied; leave a single override for it`,
+          `DI token '${tokenId(token)}' is overridden twice - 'last one wins' is not applied; leave a single override for it`,
         );
       }
 
       const provider = this.#providers.get(token);
       if (!provider) {
         throw new Error(
-          `Override targets token '${tokenId(token)}', but no provider for it is registered.${overrideMissingHint(
+          `Override targets DI token '${tokenId(token)}', but no provider for it is registered.${overrideMissingHint(
             token,
           )}`,
         );
@@ -700,9 +700,9 @@ export class ContainerBuilder {
    * Удаляет узлы, достижимые только через зависимости подменённого узла.
    *
    * У жадного контейнера нет понятия корня (зарегистрирован — значит
-   * нужен), поэтому корни вычисляются: токены, на которые никто не
+   * нужен), поэтому корни вычисляются: DI-токены, на которые никто не
    * ссылается в объединении отношений зависимости до и после подмены, плюс
-   * токены, недостижимые из этих корней (участники циклов: они должны
+   * DI-токены, недостижимые из этих корней (участники циклов: они должны
    * дойти до проверки циклов, а не исчезнуть).
    *
    * Объединение даёт нужную асимметрию: пул, который был нужен
@@ -710,7 +710,7 @@ export class ContainerBuilder {
    * удаляется. Без `overrides` оба отношения совпадают, каждый узел
    * достижим из корней, и прунинг ничего не меняет.
    *
-   * @param before - Зависимости подменённых токенов до подмены
+   * @param before - Зависимости подменённых DI-токенов до подмены
    * @returns Идентификаторы удалённых узлов в порядке регистрации
    */
   private pruneOrphans(
@@ -798,7 +798,7 @@ export class ContainerBuilder {
    * Перечисляет все зависимости без провайдера одной ошибкой — до создания
    * экземпляров.
    *
-   * Создание экземпляров упало бы на первом же отсутствующем токене, и
+   * Создание экземпляров упало бы на первом же отсутствующем DI-токене, и
    * зависимости пришлось бы чинить по одной за перезапуск. Строгая сборка
    * сообщает всё сразу.
    */
@@ -859,7 +859,7 @@ export class ContainerBuilder {
    * Строит граф зависимостей из провайдеров.
    *
    * Узел графа адресуется строкой: она печатается в `toJSON()`, в отчётах
-   * и в текстах ошибок. Идентификаторы токенов уникальностью не связаны,
+   * и в текстах ошибок. Идентификаторы DI-токенов уникальностью не связаны,
    * поэтому одноимённым узлам добавляется суффикс, а сборка предупреждает
    * о неоднозначности отчётов.
    *
@@ -907,9 +907,9 @@ export class ContainerBuilder {
   }
 
   /**
-   * Раздаёт узлам графа адреса: обычно это идентификатор токена.
+   * Раздаёт узлам графа адреса: обычно это идентификатор DI-токена.
    *
-   * Совпадение идентификаторов подмены не вызывает — токены разные, узлы
+   * Совпадение идентификаторов подмены не вызывает — DI-токены разные, узлы
    * тоже, — но делает отчёты неоднозначными, поэтому второй и следующие
    * узлы получают суффикс, а сборка возвращает предупреждение. Печатать
    * его билдеру нечем: логгер — узел графа, который здесь только строится.
@@ -943,9 +943,9 @@ export class ContainerBuilder {
 
     if (ambiguous.length > 0) {
       warnings.push(
-        `ambiguous token ids: ${ambiguous.join(', ')}. ` +
-          `Different tokens share an id, so reports and the dependency graph ` +
-          `name them apart with a '#N' suffix. Give each token its own id.`,
+        `ambiguous DI token ids: ${ambiguous.join(', ')}. ` +
+          `Different DI tokens share an id, so reports and the dependency graph ` +
+          `name them apart with a '#N' suffix. Give each DI token its own id.`,
       );
     }
 
@@ -959,7 +959,7 @@ const dependenciesOf = (
 ): readonly InjectionToken[] =>
   isValueDefinition(provider) ? [] : provider.deps || [];
 
-/** Токены, достижимые из `seeds` по `relation`, включая сами `seeds`. */
+/** DI-токены, достижимые из `seeds` по `relation`, включая сами `seeds`. */
 const reachableFrom = (
   seeds: readonly InjectionToken[],
   relation: ReadonlyMap<InjectionToken, Iterable<InjectionToken>>,
@@ -997,7 +997,7 @@ const overrideMissingHint = (token: InjectionToken): string => {
   const member = asFamilyMember(token);
 
   if (member) {
-    return ` It is a member of token family '${member.family.familyName}': a member token becomes a graph node only once something injects it. Override the family recipe instead (familyOverride) or override a member that is actually injected.`;
+    return ` It is a member of DI token family '${member.family.familyName}': a member DI token becomes a graph node only once something injects it. Override the family recipe instead (familyOverride) or override a member that is actually injected.`;
   }
 
   return ` Check that it is registered by the modules and features this application selected.`;
@@ -1033,14 +1033,14 @@ const assertNoAutoSentinels = (
 
     if (family) {
       throw new Error(
-        `'${family.familyName}.auto' is only allowed in deps of a class with a role decorator, but it appeared in deps of provider '${consumerId}'. Use an explicit '${family.familyName}('<name>')' member token instead`,
+        `'${family.familyName}.auto' is only allowed in deps of a class with a role decorator, but it appeared in deps of provider '${consumerId}'. Use an explicit '${family.familyName}('<name>')' member DI token instead`,
       );
     }
   }
 };
 
 /**
- * Отклоняет провайдер, зарегистрированный вручную под токеном `Family.all`.
+ * Отклоняет провайдер, зарегистрированный вручную под DI-токеном `Family.all`.
  *
  * Этот узел билдер создаёт сам в `build()`. Ручной провайдер дал бы узлу
  * два источника истины: то граф, то регистрация. Для подмены состава
@@ -1055,7 +1055,7 @@ const assertNotAggregateToken = (token: InjectionToken): void => {
 
   if (family) {
     throw new Error(
-      `Token '${tokenId(token)}' is reserved for the aggregate node of token family '${family.familyName}' and cannot be provided by hand. Contribute to the family with a member token, e.g. ${family.familyName}('<param>')`,
+      `DI token '${tokenId(token)}' is reserved for the aggregate node of DI token family '${family.familyName}' and cannot be provided by hand. Contribute to the family with a member DI token, e.g. ${family.familyName}('<param>')`,
     );
   }
 };

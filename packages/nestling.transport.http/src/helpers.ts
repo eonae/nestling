@@ -524,7 +524,7 @@ export function httpEndpoint(
 
   return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
     ...rest,
-    // Токен, а не строка: приложение выводит список транспортов из графа,
+    // DI-токен, а не строка: приложение выводит список транспортов из графа,
     // поэтому ссылка должна совпадать со значением, под которым транспорт
     // зарегистрирован
     transport: HttpTransport$(on ?? DEFAULT_INSTANCE),

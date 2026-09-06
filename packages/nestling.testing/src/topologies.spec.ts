@@ -41,7 +41,7 @@ const ILogger = makeToken<{ log(): void }>('TopologyLogger');
 
 /**
  * Логирование — плагин: оно есть в каждом процессе, и к нему обращаются
- * токеном. В словарь `select` плагин не входит.
+ * DI-токеном. В словарь `select` плагин не входит.
  */
 const loggingPlugin = makePlugin({
   name: '@nestling/topology-logging',

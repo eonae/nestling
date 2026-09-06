@@ -26,7 +26,7 @@ export interface TransportCapabilities {
 /**
  * Декларация в объёме, нужном для проверки возможностей.
  *
- * `transport` — токен транспорта; в текст ошибки попадает его короткое
+ * `transport` — DI-токен транспорта; в текст ошибки попадает его короткое
  * имя.
  */
 export interface FormBearingDefinition {
@@ -37,7 +37,7 @@ export interface FormBearingDefinition {
 }
 
 /**
- * Короткое имя транспорта из id токена (`transport:http:default` →
+ * Короткое имя транспорта из id DI-токена (`transport:http:default` →
  * `'http'`, `transport:http:admin` → `'http:admin'`).
  *
  * Повторяет `transportNameOf` из `@nestling/app`: импортировать его

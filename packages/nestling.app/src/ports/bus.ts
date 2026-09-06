@@ -205,7 +205,7 @@ export interface IMessageBus {
   ): BusSubscription;
 }
 
-/** Токен шины. Ядро запрашивает по нему `IMessageBus`, а не реализацию */
+/** DI-токен шины. Ядро запрашивает по нему `IMessageBus`, а не реализацию */
 export const MessageBus$ = makeToken<IMessageBus>('MessageBus');
 
 /** Опции шины внутри процесса */

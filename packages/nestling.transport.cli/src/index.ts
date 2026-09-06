@@ -39,7 +39,7 @@ import { factoryProvider, makeTokenFamily } from '@nestling/container';
 import { untilAborted } from '@nestling/operations';
 
 /**
- * Семейство токенов CLI-транспорта: один член на экземпляр.
+ * Семейство DI-токенов CLI-транспорта: один член на экземпляр.
  *
  * Им ссылается на транспорт каждая `cliEndpoint`-декларация; `App` берёт по
  * нему инстанс из графа. Декларация выбирает экземпляр через `on:`; без

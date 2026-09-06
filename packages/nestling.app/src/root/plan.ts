@@ -156,7 +156,7 @@ export interface NormalizedAppSpec {
  * а не боевого.
  */
 export interface TestSubstitutions {
-  /** Пары «токен → фейк»: узел графа заменяется до инстанциации */
+  /** Пары «DI-токен → фейк»: узел графа заменяется до инстанциации */
   overrides?: readonly TokenOverride<any>[];
 
   /** Подмены рецептов семейств — до создания членов */
@@ -432,7 +432,7 @@ export interface WiredApp {
   close(): Promise<void>;
 }
 
-/** Токены транспортов плана — для порядка запуска */
+/** DI-токены транспортов плана — для порядка запуска */
 export const transportTokensOf = (
   spec: NormalizedAppSpec,
 ): readonly TransportRef[] => spec.transports.map(({ token }) => token);

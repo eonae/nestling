@@ -33,7 +33,7 @@ await app.assemble(load(RootConfig).features).run();
 ```
 
 `nats(options?)` возвращает обычный провайдер транспорта, зарегистрированный
-под `BusTransport$` — тем же токеном, что и in-process шина. Когда корень
+под `BusTransport$` — тем же DI-токеном, что и in-process шина. Когда корень
 передаёт его, модуль ядра портов не регистрирует `InProcessBus`, а
 `MessageBus$` указывает на тот же экземпляр: в приложении ровно одна шина.
 
@@ -175,7 +175,7 @@ NATS_TEST_SERVERS=nats://127.0.0.1:4222 yarn workspace @nestling/transport.nats 
 | `NATS_REQUEST_TIMEOUT` | `30000` | потолок запрос-ответа, мс |
 | `NATS_SUBJECT_PREFIX` | пусто | разделение окружений на общем кластере |
 
-Наружу из секции уходит только `natsConfigKeys`; токен секции остаётся
+Наружу из секции уходит только `natsConfigKeys`; DI-токен секции остаётся
 приватным. Явные опции `nats({ servers, requestTimeout, subjectPrefix })`
 сильнее конфига.
 

@@ -70,7 +70,7 @@ describe('cliEndpoint', () => {
       handler: async () => new Ok({ lines: 0 }),
     });
 
-    // Ссылка на транспорт — токен; строковое имя выводится из его id
+    // Ссылка на транспорт — DI-токен; строковое имя выводится из его id
     expect(ProcessStdin.transport).toBe(CliTransport$('default'));
     expect(transportNameOf(ProcessStdin.transport)).toBe('cli');
     expect(ProcessStdin.pattern).toBe('process-stdin');

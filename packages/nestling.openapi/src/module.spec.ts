@@ -435,7 +435,7 @@ describe('endpoint документации подчиняется полити�
 });
 
 describe('документ доступен значением', () => {
-  it('токен OpenApiDocument$ отдаёт тот же документ, что и endpoint', async () => {
+  it('DI-токен OpenApiDocument$ отдаёт тот же документ, что и endpoint', async () => {
     let injected: OpenApiDocument | undefined;
 
     const Observer$ = makeToken<'observed'>('spec:openapi-observer');

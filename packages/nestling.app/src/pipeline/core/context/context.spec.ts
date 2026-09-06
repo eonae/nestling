@@ -55,7 +55,7 @@ describe('contextVar — объявление переменной', () => {
     >;
   });
 
-  it('одноимённые переменные — разные значения, но один токен ридера', () => {
+  it('одноимённые переменные — разные значения, но один DI-токен ридера', () => {
     const first = contextVar<string>()('requestId');
     const second = contextVar<string>()('requestId');
 

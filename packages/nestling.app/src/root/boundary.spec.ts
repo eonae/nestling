@@ -5,7 +5,7 @@
  * Граница фичи: карта «модуль → владелец» и проверка рёбер собранного
  * графа.
  *
- * Правило одно: к фиче обращаются операциями, к плагину — токенами.
+ * Правило одно: к фиче обращаются операциями, к плагину — DI-токенами.
  * Проверяется оно на графе, поэтому и тесты идут через сборку, а не через
  * значения деклараций.
  */
@@ -119,11 +119,11 @@ describe('фичи связаны только операциями', () => {
     });
 
     await expect(app.check()).rejects.toThrow(
-      /Feature 'users' depends on feature 'quotas' by token/,
+      /Feature 'users' depends on feature 'quotas' by DI token/,
     );
   });
 
-  it('ошибка называет обе фичи, токен и замену вызовом операции', async () => {
+  it('ошибка называет обе фичи, DI-токен и замену вызовом операции', async () => {
     const Quotas = makeFeature({ name: 'quotas', providers: [QuotaService] });
     const Users = makeFeature({
       name: 'users',

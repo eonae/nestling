@@ -40,7 +40,7 @@ const asBus = () =>
     capabilities: VALUE_ONLY,
   });
 
-/** Токен сервиса-вызывателя: операцию зовёт провайдер, а не декларация */
+/** DI-токен сервиса-вызывателя: операцию зовёт провайдер, а не декларация */
 const SignupToken = makeToken<{ quotas: unknown }>('SignupService');
 
 const ClaimQuota = makeRequest({

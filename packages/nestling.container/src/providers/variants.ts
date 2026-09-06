@@ -10,12 +10,12 @@ import type { TokenFamily } from './token-family.js';
 import { isTokenFamily } from './token-family.js';
 
 /**
- * Общая часть всех определений провайдеров: токен регистрации.
+ * Общая часть всех определений провайдеров: DI-токен регистрации.
  *
  * @template T - Тип значения, которое даёт провайдер
  */
 interface BaseDefinition<T> {
-  /** Токен, под которым провайдер доступен в контейнере */
+  /** DI-токен, под которым провайдер доступен в контейнере */
   provide: InjectionToken<T>;
 }
 
@@ -71,7 +71,7 @@ export interface ValueProviderDefinition<T = unknown>
  * Значение фабрики без `Promise`.
  *
  * Условный тип, а не просто `T`: он стоит в невыводимой позиции, поэтому
- * тип значения задаёт токен, а фабрика, объявленная `async`, не проходит
+ * тип значения задаёт DI-токен, а фабрика, объявленная `async`, не проходит
  * по типу. Литерал провайдера внутри модуля этим типом не закрывается —
  * `Module.providers` типизирован значением `unknown`, — и его ловит
  * рантайм-проверка `build()`.
@@ -168,9 +168,9 @@ export type ProviderDefinition<T = unknown> =
   | ResourceProviderDefinition<T>;
 
 /**
- * Превращает массив токенов (объектных или классов) в массив их типов.
+ * Превращает массив DI-токенов (объектных или классов) в массив их типов.
  *
- * @template T - Массив токенов
+ * @template T - Массив DI-токенов
  */
 export type UnwrapTokens<T extends readonly InjectionToken[]> = {
   [K in keyof T]: T[K] extends ClassToken<infer V>
@@ -185,7 +185,7 @@ export type UnwrapTokens<T extends readonly InjectionToken[]> = {
  * фабрики выводятся из списка `deps`.
  *
  * @template T - Тип создаваемого значения
- * @template TDeps - Массив токенов зависимостей
+ * @template TDeps - Массив DI-токенов зависимостей
  */
 export type FactoryProviderWithDeps<
   T,
@@ -198,13 +198,13 @@ export type FactoryProviderWithDeps<
 /**
  * Создаёт провайдер класса: привязывает DI-токен интерфейса к реализации.
  *
- * Единственный способ зарегистрировать класс под чужим токеном:
- * декораторы роли токена не принимают. Класс должен быть компонентом или
+ * Единственный способ зарегистрировать класс под чужим DI-токеном:
+ * декораторы роли DI-токена не принимают. Класс должен быть компонентом или
  * ресурсом; зависимости берутся из метаданных декоратора. Класс-ресурс
  * даёт провайдер ресурса — захват на INIT и `release` на SHUTDOWN.
  *
  * @template T - Тип создаваемого значения
- * @param provide - Токен, под которым регистрируется провайдер
+ * @param provide - DI-токен, под которым регистрируется провайдер
  * @param useClass - Класс с декоратором `@Component` или `@Resource`
  * @returns Определение провайдера класса или ресурса
  * @throws {Error} Если у класса нет декоратора роли или его роль — хендлер
@@ -262,7 +262,7 @@ export function classProvider<T>(
  * Создаёт провайдер готового значения.
  *
  * @template T - Тип значения
- * @param provide - Токен, под которым регистрируется провайдер
+ * @param provide - DI-токен, под которым регистрируется провайдер
  * @param useValue - Значение
  * @returns Определение провайдера значения
  *
@@ -290,10 +290,10 @@ export function valueProvider<T>(
  * компилируется, потому что фаза сборки не выполняет ввода-вывода.
  *
  * @template T - Тип создаваемого значения
- * @template TDeps - Массив токенов зависимостей
- * @param provide - Токен, под которым регистрируется провайдер
+ * @template TDeps - Массив DI-токенов зависимостей
+ * @param provide - DI-токен, под которым регистрируется провайдер
  * @param useFactory - Фабрика, создающая значение
- * @param deps - Токены зависимостей, передаваемых фабрике
+ * @param deps - DI-токены зависимостей, передаваемых фабрике
  * @returns Определение фабричного провайдера с типизированными
  * зависимостями
  *
@@ -323,7 +323,7 @@ export function factoryProvider<T, TDeps extends readonly InjectionToken[]>(
  * `acquire` выводятся из списка `deps`, а сигнал идёт последним.
  *
  * @template T - Тип захваченного значения
- * @template TDeps - Массив токенов зависимостей
+ * @template TDeps - Массив DI-токенов зависимостей
  */
 export type ResourceProviderWithDeps<
   T,
@@ -342,8 +342,8 @@ export type ResourceProviderWithDeps<
  * в обратном.
  *
  * @template T - Тип захваченного значения
- * @template TDeps - Массив токенов зависимостей
- * @param provide - Токен, под которым регистрируется провайдер
+ * @template TDeps - Массив DI-токенов зависимостей
+ * @param provide - DI-токен, под которым регистрируется провайдер
  * @param definition - Зависимости, захват и освобождение
  * @returns Определение провайдера ресурса
  *
@@ -359,7 +359,7 @@ export type ResourceProviderWithDeps<
 export function resourceProvider<T, TDeps extends readonly InjectionToken[]>(
   provide: InjectionToken<T>,
   definition: {
-    /** Токены, передаваемые в `acquire` перед сигналом */
+    /** DI-токены, передаваемые в `acquire` перед сигналом */
     readonly deps: TDeps;
     /** Захват: последним аргументом приходит сигнал остановки старта */
     readonly acquire: (
@@ -389,10 +389,10 @@ export type Provider<T = unknown> =
   | ResourceClass<T>;
 
 /**
- * Единственный рецепт для целого семейства токенов.
+ * Единственный рецепт для целого семейства DI-токенов.
  *
  * Рецепт возвращает обычное определение провайдера для запрошенного члена;
- * билдер проверяет, что его `provide` совпадает с токеном члена.
+ * билдер проверяет, что его `provide` совпадает с DI-токеном члена.
  *
  * @template T - Тип значения каждого члена
  * @template Params - Параметры члена
@@ -408,7 +408,7 @@ export interface FamilyProviderDefinition<
 }
 
 /**
- * Создаёт рецепт для целого семейства токенов.
+ * Создаёт рецепт для целого семейства DI-токенов.
  *
  * Результат принимают `ContainerBuilder.register()` и `providers` модуля
  * (массив или фабрика). В `build()` контейнер собирает всех членов,
@@ -535,7 +535,7 @@ export const isResourceDefinition = <T>(
 ): provider is ResourceProviderDefinition<T> => 'acquire' in provider;
 
 /**
- * Токены, которые провайдер запрашивает у контейнера.
+ * DI-токены, которые провайдер запрашивает у контейнера.
  *
  * Читает объявленное значение, ничего не вызывая: у класса зависимости
  * берутся из метаданных декоратора роли, у определения — из `deps`. Нужна
@@ -548,7 +548,7 @@ export const isResourceDefinition = <T>(
  *
  * @param provider - Провайдер модуля: класс, определение или рецепт
  * семейства
- * @returns Токены зависимостей в порядке объявления
+ * @returns DI-токены зависимостей в порядке объявления
  *
  * @example
  * ```typescript

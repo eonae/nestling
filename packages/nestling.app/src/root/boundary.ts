@@ -1,9 +1,9 @@
 /**
  * Граница фичи: карта «модуль → владелец» и проверка рёбер графа.
  *
- * Правило одно и следует из критерия ролей: токен границу процесса не
+ * Правило одно и следует из критерия ролей: DI-токен границу процесса не
  * переживает, а операция переживает. Значит, к фиче — только операциями, к
- * плагину — токенами.
+ * плагину — DI-токенами.
  *
  * Механизм тот же, что был у проверки экспортов: перебор узлов собранного
  * графа с чтением метки узла. Карта другая — не «узел → модуль», а
@@ -94,9 +94,9 @@ const crossFeatureMessage = (
   consumer: string,
   dependency: string,
 ): string =>
-  `Feature '${from}' depends on feature '${to}' by token: ` +
+  `Feature '${from}' depends on feature '${to}' by DI token: ` +
   `'${consumer}' injects '${dependency}'. Features are connected by ` +
-  `operations only — a token does not survive a process boundary, so this ` +
+  `operations only — a DI token does not survive a process boundary, so this ` +
   `edge breaks the moment the two features are deployed apart. Declare the ` +
   `call as an operation (makeRequest / makeCommand), inject its '.caller' ` +
   `and implement it in '${to}'.`;
@@ -112,7 +112,7 @@ const pluginToFeatureMessage = (
   `'${consumer}' injects '${dependency}'. Infrastructure that knows about ` +
   `business logic can be neither reused nor shipped separately, and it stops ` +
   `assembling as soon as '${to}' is not selected. Take the value as a ` +
-  `parameter of the plugin, or inject a token the plugin declares itself.`;
+  `parameter of the plugin, or inject a DI token the plugin declares itself.`;
 
 /**
  * Проверяет рёбра собранного графа против карты владельцев.

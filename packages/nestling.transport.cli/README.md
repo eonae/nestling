@@ -44,9 +44,10 @@ node dist/main.js hello Alice --loud
 
 `cliEndpoint({ command, input, output, errors, pipeline, handler, detached })`
 — конструктор декларации, тонкий слой над `makeEndpoint` из
-`@nestling/app`. Транспорт декларации — токен пакета `CliTransport$('default')`
-с коротким именем `'cli'`; имя команды становится паттерном endpoint'а.
-Пустое имя команды бросает ошибку при создании декларации.
+`@nestling/app`. Транспорт декларации — DI-токен пакета
+`CliTransport$('default')` с коротким именем `'cli'`; имя команды становится
+паттерном endpoint'а. Пустое имя команды бросает ошибку при создании
+декларации.
 
 Вход команды с формой `value` собирается из аргументов процесса:
 `--key value` становится опцией, `--flag` без значения — `true`, остальное
@@ -132,7 +133,7 @@ Standard Schema, — ошибка конфигурации: `AsyncSchemaNotSuppo
 | `cliEndpoint(declaration)` | конструктор декларации команды |
 | `cli(options?)` | провайдер транспорта для `transports:` или `providers:` |
 | `CliTransport` | класс транспорта: `serve`, `execute`, `close` |
-| `CliTransport$('default')` | токен транспорта; короткое имя `'cli'` |
+| `CliTransport$('default')` | DI-токен транспорта; короткое имя `'cli'` |
 | `parseArgv(argv)` | разбор аргументов в `CliInput` |
 | `CliInput` | `{ command, args, options }` |
 | `CliTransportOptions` | `mode`, `argv` |

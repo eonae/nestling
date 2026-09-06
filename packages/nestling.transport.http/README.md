@@ -267,7 +267,7 @@ await makeApp({ features: [UsersFeature], transports: [http({ port: 3000 })] }).
 остальными. Порт и хост приходят из секции конфига пакета (`HTTP_PORT`,
 `HTTP_HOST`). Приоритет: явные опции фабрики, затем конфиг, затем
 значение по умолчанию. Наружу экспортируется только `httpConfigKeys`;
-токен секции остаётся приватным.
+DI-токен секции остаётся приватным.
 
 ## Безопасность и лимиты
 
@@ -332,7 +332,7 @@ await makeApp({ features: [UsersFeature], transports: [http({ port: 3000 })] }).
 | `httpEndpoint(declaration)` | конструктор декларации (анонимная форма и форма с операцией) |
 | `http(options?)` | провайдер транспорта для `transports:` или `providers:` |
 | `HttpTransport` | класс транспорта для ручного запуска |
-| `HttpTransport$('default')`, `HTTP_TRANSPORT_NAME` | токен транспорта и его короткое имя `'http'` |
+| `HttpTransport$('default')`, `HTTP_TRANSPORT_NAME` | DI-токен транспорта и его короткое имя `'http'` |
 | `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/operations`) |
 | `httpBindingOf(definition)` | bind-карта декларации |
 | `httpCodeOf(status)` | HTTP-код для статуса успеха или категории отказа |

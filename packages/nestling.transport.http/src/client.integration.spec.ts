@@ -270,7 +270,7 @@ describe('интеграция: операция-форма httpEndpoint + makeC
       code: 'conflict:integration_email_taken',
       details: { email: 'taken@example.com' },
     });
-    // Категория — производная от кода, а не поле с провода
+    // Категория — производная от кода, а не поле из ответа
     expect((result as { category: string }).category).toBe('conflict');
   });
 

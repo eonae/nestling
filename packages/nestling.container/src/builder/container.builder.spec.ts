@@ -205,7 +205,7 @@ describe('ContainerBuilder', () => {
             id: 'value2',
           } satisfies IServiceA),
         ),
-      ).toThrow("Provider for token 'TokenA' is already registered");
+      ).toThrow("Provider for DI token 'TokenA' is already registered");
     });
 
     it('отклоняет регистрацию после build()', async () => {

@@ -33,7 +33,7 @@ export class DAG<T extends INode<T>> {
    */
   addNode(node: T): void {
     if (this.nodes.has(node.id)) {
-      throw new Error(`DI node for token '${node.id}' already exists`);
+      throw new Error(`Node for DI token '${node.id}' already exists`);
     }
 
     this.nodes.set(node.id, node);
