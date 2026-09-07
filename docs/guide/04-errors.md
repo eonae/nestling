@@ -1,4 +1,4 @@
-# 3. Сказать клиенту, что пошло не так
+# 4. Сказать клиенту, что пошло не так
 
 > Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/errors.md](../design/errors.md). Почему так:
@@ -62,7 +62,7 @@ export const EmailTaken = makeFail('conflict:email_taken', {
 нечего: `makeFail('unauthorized')`.
 
 ```typescript
-// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
   method: 'GET',
   path: '/users/:id',
@@ -150,7 +150,7 @@ async function handle(
 поля `output`.
 
 ```typescript
-// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
 export const DeleteUser = httpEndpoint({
   method: 'DELETE',
   path: '/users/:id',
@@ -163,7 +163,7 @@ export const DeleteUser = httpEndpoint({
 
 В итоговом файле у `DeleteUser` есть ещё слой `authed`: удаление требует
 Bearer-токен. Отказ `Unauthorized` объявляет сам слой, поэтому в `errors:`
-он не появляется ([глава 9](./09-auth.md)).
+он не появляется ([глава 10](./10-auth.md)).
 
 ```bash
 API_TOKEN=secret yarn workspace @examples/users-service start:dev
@@ -217,4 +217,4 @@ expect(result).toMatchObject({
 ```
 
 Хендлеры пока живут функциями в словаре декларации. Следующая глава
-переносит их в классы: [4. Хендлер как класс](./04-handler-class.md).
+переносит их в классы: [5. Хендлер как класс](./05-handler-class.md).

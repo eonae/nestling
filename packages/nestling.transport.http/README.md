@@ -13,8 +13,8 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 > `HTTP_HOST`).
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
 > Гайды: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
-> [глава 5. Хендлеру нужен репозиторий](../../docs/guide/05-repository.md),
-> [глава 12. Выделить вторую область](../../docs/guide/12-features.md).
+> [глава 6. Хендлеру нужен репозиторий](../../docs/guide/06-repository.md),
+> [глава 13. Выделить вторую область](../../docs/guide/13-features.md).
 
 ## Установка
 

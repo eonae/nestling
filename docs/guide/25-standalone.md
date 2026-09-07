@@ -1,4 +1,4 @@
-# 24. Без `makeApp`
+# 25. Без `makeApp`
 
 > Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-07)
 > и `container` (2026-09-06).
@@ -170,7 +170,7 @@ export const makeContainer = async (
 же примера, но без фаз приложения и транспортов. Ядро конфигурации,
 которое сборка через `makeApp` регистрирует сама, здесь подключается
 двумя шагами: `bootstrapConfig` поднимает источники по привязкам к ключам
-секций (как в главе [22](./22-config-sources.md)), а `configKernel` вносит
+секций (как в главе [23](./23-config-sources.md)), а `configKernel` вносит
 готовую читалку в граф. Корневой логгер живёт вне графа: `makeApp` создаёт
 его на фазе 0 сам, а без `App` его создаёт вызывающий код —
 `makeKernelLogger(config)` — и регистрирует значением под `RootLogger$`.
@@ -261,5 +261,5 @@ yarn workspace @examples/simple-http-server test
 yarn workspace @examples/container export-metadata && yarn workspace @examples/container visualize
 ```
 
-Глава [25. Расширить ядро своим пакетом](./25-extending.md) показывает,
+Глава [26. Расширить ядро своим пакетом](./26-extending.md) показывает,
 как поверх тех же публичных примитивов пишется отдельный пакет.

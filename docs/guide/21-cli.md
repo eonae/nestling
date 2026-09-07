@@ -1,4 +1,4 @@
-# 20. CLI-утилита на тех же примитивах
+# 21. CLI-утилита на тех же примитивах
 
 > Гайд по текущему API; сверено с кодом `simple-cli` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §5,
@@ -113,7 +113,7 @@ export const ProcessStdin = cliEndpoint({
 
 Форма `stream('binary')` на входе отдаёт хендлеру чанки stdin как есть.
 Форма `stream(T)` со схемой читала бы stdin как NDJSON и проверяла бы
-каждую строку схемой, как в главе [10](./10-files-and-streams.md), а
+каждую строку схемой, как в главе [11](./11-files-and-streams.md), а
 потоковый `output` транспорт писал бы в stdout тем же NDJSON.
 
 ```typescript
@@ -243,5 +243,5 @@ yarn workspace @examples/simple-cli test
 ```
 
 Глава
-[21. Зависимости по имени и сбор вкладов из модулей](./21-token-families.md)
+[22. Зависимости по имени и сбор вкладов из модулей](./22-token-families.md)
 показывает семейства DI-токенов: один рецепт на много зависимостей.

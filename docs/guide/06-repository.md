@@ -1,4 +1,4 @@
-# 5. Откуда хендлер берёт репозиторий
+# 6. Откуда хендлер берёт репозиторий
 
 > Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/container.md](../design/container.md),
@@ -45,7 +45,7 @@ export interface UsersRepository {
 ## Хендлер и репозиторий как зависимости
 
 ```typescript
-// examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// шаг главы 6; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
 @Handler([UsersRepository$])
 export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
@@ -58,8 +58,11 @@ export class GetUserHandler {
 }
 
 export const GetUser = httpEndpoint({
-  operation: GetUserOperation,
-  pipeline: observability,
+  method: 'GET',
+  path: '/users/:id',
+  input: GetUserInput,
+  output: User,
+  errors: [UserNotFound],
   handler: GetUserHandler,
 });
 ```
@@ -81,7 +84,7 @@ rest-параметром — любая.
 
 В декларации ничего про зависимости не написано: она называет адрес,
 схемы, отказы и пайплайн. Экземпляр хендлера с готовыми зависимостями
-создаёт контейнер, как в главе 4.
+создаёт контейнер, как в главе 5.
 
 Реализация репозитория объявляется так же:
 
@@ -249,5 +252,5 @@ API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl localhost:3000/users/1
 ```
 
-`Database` читает адрес базы из секции конфига. Следующая глава: [6. Порт
-и адрес базы из окружения](./06-config.md).
+`Database` читает адрес базы из секции конфига. Следующая глава: [7. Порт
+и адрес базы из окружения](./07-config.md).

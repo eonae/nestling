@@ -1,4 +1,4 @@
-# 2. Принять данные и не пропустить мусор
+# 3. Принять данные и не пропустить мусор
 
 > Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md),
@@ -48,7 +48,7 @@ export type CreateUserInput = z.infer<typeof CreateUserInput>;
 arktype. В примерах используется zod.
 
 ```typescript
-// шаг главы 2; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.ts
 export const CreateUser = httpEndpoint({
   method: 'POST',
   path: '/users',
@@ -77,7 +77,7 @@ curl -X POST localhost:3000/users \
 полей конкретного валидатора.
 
 ```typescript
-// шаг главы 2; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
 export const GetUser = httpEndpoint({
   method: 'GET',
   path: '/users/:id',
@@ -92,7 +92,7 @@ export const GetUser = httpEndpoint({
 нужно.
 
 ```typescript
-// шаг главы 2; итоговая версия: examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/list-users.endpoint.ts
 const ListUsersInput = z.object({
   limit: z.coerce.number().int().positive().optional(),
 });
@@ -134,17 +134,14 @@ query-строки. Query несёт строки, число из строки 
 в query-строке, а данные пользователя — в теле:
 
 ```typescript
-// examples/users-service/src/api/operations.ts
-export const CreateUser = makeRequest({
-  name: 'users.create',
-  http: {
-    method: 'POST',
-    path: '/users',
-    bind: { dryRun: query(), name: body() },
-  },
+// шаг главы 3; итоговая версия: examples/users-service/src/api/operations.ts
+export const CreateUser = httpEndpoint({
+  method: 'POST',
+  path: '/users',
+  bind: { dryRun: query(), name: body() },
   input: CreateUserInput,
   output: User,
-  // …
+  handler: async (input) => ({ id: '1', ...input }),
 });
 ```
 
@@ -160,10 +157,10 @@ POST-запроса непомеченные поля читаются из те
 path-параметре и `bind` при неструктурном входе (поток, `multipart`,
 сырые байты) дают ошибку на импорте.
 
-Здесь `bind` объявлен на операции, а не на endpoint'е: адрес и схемы
-этого endpoint'а вынесены в `api/operations.ts`, откуда их же импортирует
-клиент. У анонимной декларации `httpEndpoint({ method, path, bind })`
-пометки лежат прямо в словаре.
+Пометки лежат прямо в словаре декларации. В итоговом примере адрес и
+схемы этого endpoint'а вынесены в операцию `api/operations.ts` — оттуда их
+же импортирует клиент, — и `bind` объявлен на ней. Операции вводит
+[13. Выделить вторую область](./13-features.md).
 
 ## Как это лежит в примере
 
@@ -195,5 +192,5 @@ curl -X POST 'localhost:3000/users?dryRun=true' \
 ```
 
 Хендлер получает проверенные данные, но пока не умеет отказать:
-пользователя с таким `id` может не быть. Следующая глава: [3. Сказать
-клиенту, что пошло не так](./03-errors.md).
+пользователя с таким `id` может не быть. Следующая глава: [4. Сказать
+клиенту, что пошло не так](./04-errors.md).
