@@ -31,7 +31,7 @@ makeApp({
       pipeline: observability,        // если политика корня требует слой от каждого endpoint'а
     }),
   ],
-  transports: [http({ port: 3000 })],
+  transports: [http()],
 });
 // GET /openapi.json
 ```

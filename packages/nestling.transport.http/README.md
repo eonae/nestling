@@ -9,7 +9,8 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 > запросов и сжатие пока не реализованы. Валидатор для схем приложения
 > пакет не выбирает: данные проверяет `@nestling/app` любой схемой
 > [Standard Schema](https://standardschema.dev). Пакет `zod` в
-> зависимостях нужен только конфиг-секции (`HTTP_PORT`, `HTTP_HOST`).
+> зависимостях нужен только конфиг-секции сервера (`HTTP_PORT`,
+> `HTTP_HOST`).
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
 > Гайды: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
 > [глава 5. Хендлеру нужен репозиторий](../../docs/guide/05-repository.md),
@@ -39,12 +40,15 @@ export const GetUser = httpEndpoint({
 
 await makeApp({
   features: [UsersFeature],                 // фича, где объявлен GetUser
-  transports: [http({ port: 3000 })],       // провайдер, а не инстанс
+  transports: [http()],                     // объявление, а не инстанс
 }).assemble().run();
 ```
 
-Без `makeApp` транспорт запускается вручную: `serve(dispatch, signal)`
-(раздел «Запуск»).
+Порт и хост приходят из `HTTP_PORT` и `HTTP_HOST`: сокет держит сервер,
+которого `http()` объявляет сам (раздел «Сервер»).
+
+Без `makeApp` транспорт и сервер поднимаются вручную: `serve(dispatch,
+signal)` и `listen()` (раздел «Запуск»).
 
 ## Декларация endpoint'а
 
@@ -233,41 +237,68 @@ chunked-тело), а SSE-ответ получает кадр `event: error` с
 отписывает подписки `Topic`. Входные потоки при ошибке дочитываются, чтобы
 соединение не осталось наполовину прочитанным.
 
-## Запуск: `serve(dispatch, signal)`
+## Запуск: `serve(dispatch, signal)` и `listen()`
 
 ```ts
-const server = new HttpTransport({ port: 3000 });
+const server = new HttpServer({ port: 3000, host: '0.0.0.0' });
+const transport = new HttpTransport(server);
 const shutdown = new AbortController();
 
-await server.serve(makeDispatch([SayHello, CreateUser]), shutdown.signal);
+await transport.serve(makeDispatch([SayHello, CreateUser]), shutdown.signal);
+await server.listen();
 ```
 
-`serve` — единственный способ начать приём запросов: метода `listen()` и
-регистрации отдельных endpoint'ов нет. Маршруты приходят проекциями в
-`dispatch.routes`, а endpoint выполняет `dispatch.call`. Транспорт отвечает
-только за разбор запроса, формат ответа и `sendResponse`. Под `assemble`
-тот же `dispatch` собирается на фазе WIRE.
+`serve` — единственный способ начать обслуживать запросы: регистрации
+отдельных endpoint'ов нет. Маршруты приходят проекциями в
+`dispatch.routes`, а endpoint выполняет `dispatch.call`. Транспорт
+отвечает только за разбор запроса, формат ответа и `sendResponse`. Под
+`assemble` тот же `dispatch` собирается на фазе WIRE.
 
-`address()` возвращает фактический адрес после запуска и `null` до `serve`
-и после `close()`. Это нужно тестам с `port: 0`: `serve` не принимает
-хост и порт аргументами.
+Сокет открывает сервер, и делает это после `serve`: к моменту `listen()`
+обработчики присоединены, поэтому запрос не может прийти раньше, чем его
+есть кому обслужить. Останавливается связка тем же порядком в реверсе:
+`server.drain()` дочитывает открытые соединения, `transport.close()`
+отменяет запросы в обработке.
 
 `makeDispatch` принимает только готовые к запуску декларации: сначала
 получите зависимости (`endpoint.resolve(...)`) или объявите endpoint в
 модуле и запустите его под `assemble`.
 
-## Провайдер `http(options?)`
+## Сервер: `httpServer(options?)`
 
 ```ts
-await makeApp({ features: [UsersFeature], transports: [http({ port: 3000 })] }).assemble().run();
+await makeApp({ features: [UsersFeature], transports: [http()] }).assemble().run();
 ```
 
-`http()` возвращает провайдер, а не инстанс. Транспорт — обычный узел
-графа: контейнер инжектит его зависимости, а жизненный цикл идёт вместе с
-остальными. Порт и хост приходят из секции конфига пакета (`HTTP_PORT`,
-`HTTP_HOST`). Приоритет: явные опции фабрики, затем конфиг, затем
-значение по умолчанию. Наружу экспортируется только `httpConfigKeys`;
-токен секции остаётся приватным.
+Сокет держит сервер — отдельный узел графа, а не транспорт. Разделяемая
+вещь именно сокет: два слушателя на один порт не биндятся, а транспортов
+на одном порту бывает несколько.
+
+`http()` без `server` объявляет собственный сервер с тем же именем, что у
+транспорта, поэтому в корне про сервер не пишется ни строки. Явное
+объявление нужно там, где на одном сокете работает больше одного
+транспорта:
+
+```ts
+const api = httpServer({ name: 'api' });
+
+await makeApp({
+  features: [UsersFeature],
+  transports: [api, http({ server: api }), graphql({ server: api })],
+}).assemble().run();
+```
+
+Порт и хост сервер читает из секции по своему имени: `HTTP_PORT` и
+`HTTP_HOST` у сервера по умолчанию, `HTTP_API_PORT` и `HTTP_API_HOST` у
+`name: 'api'`. Опций адреса у фабрик нет: адрес меняется без пересборки
+образа, поэтому он в конфиге. Наружу экспортируется только
+`httpServerKeys(name?)`; токен секции остаётся приватным.
+
+Обработчики выстраиваются в цепочку в порядке присоединения. Запрос,
+который не взял ни один транспорт, получает `404` от сервера.
+
+`address()` сервера возвращает фактический адрес после `listen()` и
+`null` до него и после дренажа. Это нужно тестам с `HTTP_PORT=0`.
 
 ## Безопасность и лимиты
 
@@ -330,35 +361,43 @@ await makeApp({ features: [UsersFeature], transports: [http({ port: 3000 })] }).
 | Имя | Что это |
 |---|---|
 | `httpEndpoint(declaration)` | конструктор декларации (анонимная форма и форма с операцией) |
-| `http(options?)` | провайдер транспорта для `transports:` или `providers:` |
+| `http(options?)` | объявление транспорта для `transports:` или `providers:` |
+| `httpServer(options?)` | объявление сервера для `transports:` |
 | `HttpTransport` | класс транспорта для ручного запуска |
+| `HttpServer` | класс сервера: сокет, цепочка обработчиков, `address()` |
 | `HttpTransport$('default')`, `HTTP_TRANSPORT_NAME` | токен транспорта и его короткое имя `'http'` |
+| `HttpServer$('default')` | токен сервера |
 | `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/operations`) |
 | `httpBindingOf(definition)` | bind-карта декларации |
 | `httpCodeOf(status)` | HTTP-код для статуса успеха или категории отказа |
-| `httpConfigKeys` | ключи секции конфига `HTTP_PORT`, `HTTP_HOST` |
+| `httpServerKeys(name?)` | ключи секции сервера: `HTTP_PORT`, `HTTP_HOST` |
 | `HTTP_CAPABILITIES` | формы io транспорта; их же отдаёт `HttpTransport.capabilities` |
 | `PathParams<Path>` | тип имён `:param` из шаблона пути |
 | `JsonParseError`, `PayloadTooLargeError`, `MultipartFieldError` | ошибки разбора запроса |
 
-### Опции `HttpTransport`
+### Опции `HttpTransport` и `HttpServer`
 
 ```ts
-new HttpTransport({
-  port: 3000,
-  host: '0.0.0.0',
+new HttpTransport(server, {
   maxBodySize: 1024 * 1024,   // байт; 0 снимает лимит
   exposeErrorDetails: false,  // раскрывать message и stack необработанных ошибок
+  sseHeartbeat: 15_000,       // период heartbeat-комментариев SSE (мс); 0 выключает
+});
+
+new HttpServer({
+  port: 3000,                 // под `assemble` приходит из HTTP_PORT
+  host: '0.0.0.0',            // под `assemble` приходит из HTTP_HOST
   requestTimeout: undefined,  // server.requestTimeout из node:http (мс)
   headersTimeout: undefined,  // server.headersTimeout (мс)
   keepAliveTimeout: undefined,// server.keepAliveTimeout (мс)
-  closeTimeout: 10_000,       // ожидание активных соединений при close() (мс)
-  sseHeartbeat: 15_000,       // период heartbeat-комментариев SSE (мс); 0 выключает
+  closeTimeout: 10_000,       // ожидание активных соединений при drain() (мс)
 });
 ```
 
-Таймауты, не заданные явно, берут значения по умолчанию из Node.
-`close({ timeout })` принимает разовое значение вместо `closeTimeout`.
+Опции сокета — у сервера, опции разбора запроса — у транспорта.
+Таймауты, не заданные явно, берут значения по умолчанию из Node. Под
+`assemble` таймауты задаются аргументом `httpServer({ … })`, а порт и
+хост приходят из конфига.
 
 Пакет рассчитан на Node 24. Замер относительно Fastify, Hono и Express —
 `yarn bench:http`; результат и разбор разницы — `scripts/bench/README.md`
@@ -377,11 +416,12 @@ new HttpTransport({
 - **Лимиты тела и файлов.** `maxBodySize` ограничивает буферизуемое тело
   и строку NDJSON, `upload({ maxSize, mime })` — файл multipart.
 - **Таймауты `node:http`.** `requestTimeout`, `headersTimeout` и
-  `keepAliveTimeout` задаются опциями транспорта.
-- **Дренаж соединений при остановке.** `close()` ждёт активные запросы до
-  `closeTimeout`, затем закрывает оставшиеся соединения.
+  `keepAliveTimeout` задаются опциями сервера.
+- **Дренаж соединений при остановке.** `drain()` сервера ждёт активные
+  запросы до `closeTimeout`, затем закрывает оставшиеся соединения;
+  `close()` транспорта отменяет запросы в обработке.
 - **Адрес из секции конфига.** Порт и хост приходят из `HTTP_PORT` и
-  `HTTP_HOST`; фактический адрес после старта даёт `address()`.
+  `HTTP_HOST`; фактический адрес после старта даёт `address()` сервера.
 
 В пакет не входят:
 

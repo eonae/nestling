@@ -14,13 +14,14 @@
 транспорта, например для экспорта в визуализацию. Оба случая решаются
 теми же примитивами, из которых состоит сборка приложения.
 
-## HTTP-сервер из транспорта и `dispatch`
+## HTTP-сервер из сервера, транспорта и `dispatch`
 
 ```typescript
 // examples/simple-http-server/src/main.ts
 const PORT = Number(process.env.PORT) || 3000;
 
-const server = new HttpTransport({ port: PORT });
+const server = new HttpServer({ port: PORT, host: '0.0.0.0' });
+const transport = new HttpTransport(server);
 
 // У деклараций нет `deps`, поэтому `makeDispatch` принимает их как есть
 const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
@@ -28,8 +29,11 @@ const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
 // Общий сигнал остановки: после взвода транспорт не принимает новые запросы
 const shutdown = new AbortController();
 
-server
+transport
   .serve(dispatch, shutdown.signal)
+  // Порядок тот же, что на фазе START: обработчик присоединён, и только
+  // потом открывается сокет
+  .then(() => server.listen())
   .then(() => {
     console.log(`HTTP server listening on http://localhost:${PORT}`);
   })
@@ -38,11 +42,13 @@ server
     process.exit(1);
   });
 
-// Остановка: сигнал отменяет выполняющиеся запросы, `close()` ждёт соединения
+// Остановка тем же реверсом: сигнал, дренаж соединений сервером, отмена
+// запросов в обработке транспортом
 const stop = async (signal: string): Promise<void> => {
   console.log(`${signal} received, shutting down`);
   shutdown.abort();
-  await server.close();
+  await server.drain();
+  await transport.close();
   process.exit(0);
 };
 
@@ -50,17 +56,20 @@ process.on('SIGTERM', () => void stop('SIGTERM'));
 process.on('SIGINT', () => void stop('SIGINT'));
 ```
 
-Три шага, которые сборка делает на фазах WIRE и START, здесь написаны
-руками. `makeDispatch` строит таблицу «паттерн, хендлер» из деклараций,
-принимая только исполнимые декларации — без неразрешённых зависимостей у
+Шаги, которые сборка делает на фазах WIRE и START, здесь написаны руками.
+`makeDispatch` строит таблицу «паттерн, хендлер» из деклараций, принимая
+только исполнимые декларации — без неразрешённых зависимостей у
 класса-хендлера и классов-юнитов пайплайна: декларация с зависимостями не
 проходит по типам, и вызов не компилируется. Две декларации одного
 транспорта с одним и тем же паттерном останавливают `makeDispatch` с
-ошибкой. У транспорта нет
-метода `listen()` без аргументов: принимать запросы он начинает только в
-`serve(dispatch, signal)`, когда таблица маршрутов уже построена.
-Остановку по сигналу процесса корень вешает сам: сигнал прерывает
-выполняющиеся запросы, `close()` ждёт закрытия соединений.
+ошибкой.
+
+Сокет держит сервер, а не транспорт. Транспорт присоединяет к нему
+обработчик в `serve(dispatch, signal)`, и только потом `listen()`
+открывает сокет: так запрос не может прийти раньше, чем таблица маршрутов
+построена. Под `makeApp` тот же порядок даёт фаза START. Остановку по
+сигналу процесса корень вешает сам: `drain()` дочитывает открытые
+соединения, `close()` отменяет запросы в обработке.
 
 Декларации с зависимостями сначала получают их через
 `endpoint.resolve(...)`; в собранном приложении это делает контейнер.

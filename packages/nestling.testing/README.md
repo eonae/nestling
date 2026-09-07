@@ -336,7 +336,7 @@ await using testApp = await testUnit(ReportsFeature, {
     [IClock, { now: () => 42 }],
     stub(ChargeCard, async () => ({ chargeId: 'c1' })),
   ],
-  transports: [http({ port: 0 })],
+  transports: [http()],
 });
 ```
 
