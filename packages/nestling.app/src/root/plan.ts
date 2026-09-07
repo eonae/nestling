@@ -20,7 +20,9 @@ import type {
   BusDeclaration,
   Dispatch,
   ExecutableDeclaration,
+  ServerDeclaration,
   TransportDeclaration,
+  TransportEntry,
 } from '../transport/index.js';
 
 import type { Feature, FeatureSelection, Plugin } from './feature.js';
@@ -39,7 +41,7 @@ import type {
  * Пусто, когда ни один объявленный транспорт не переносит операции: тогда
  * `intercom:` не принимает ничего, и назначение роли отвергает компилятор.
  */
-export type IntercomName<T extends readonly TransportDeclaration[]> = Extract<
+export type IntercomName<T extends readonly TransportEntry[]> = Extract<
   T[number],
   BusDeclaration
 >['name'];
@@ -54,7 +56,7 @@ export type IntercomName<T extends readonly TransportDeclaration[]> = Extract<
  * @template T - Объявленные транспорты; из них выводится словарь `intercom`
  */
 export interface AppSpec<
-  T extends readonly TransportDeclaration[] = readonly TransportDeclaration[],
+  T extends readonly TransportEntry[] = readonly TransportEntry[],
 > {
   /** Фичи приложения; подмножество выбирает аргумент `assemble(select)` */
   features?: readonly Feature[];
@@ -84,6 +86,10 @@ export interface AppSpec<
   /**
    * Транспорты корня — объявления экземпляров (`http()`, `cli()`,
    * `nats({ name: 'events' })`).
+   *
+   * Здесь же перечисляются серверы (`httpServer({ name: 'api' })`): сокет
+   * держит отдельный узел, и объявляется он рядом с транспортом, который
+   * на нём работает. Что есть что, различает дискриминатор `kind`.
    */
   transports?: T;
 
@@ -140,6 +146,16 @@ export interface NormalizedAppSpec {
   readonly plugins: readonly Plugin[];
   readonly providers: readonly Provider[];
   readonly transports: readonly TransportDeclaration[];
+
+  /**
+   * Серверы сборки в порядке объявления: перечисленные в `transports:`
+   * явно и вложенные в объявления транспортов полем `server`.
+   *
+   * Дедупликация уже выполнена: один и тот же сервер, названный дважды,
+   * стоит здесь один раз.
+   */
+  readonly servers: readonly ServerDeclaration[];
+
   readonly intercom?: TransportDeclaration;
   readonly config: readonly ConfigBinding[];
   readonly policies: readonly Policy[];
@@ -247,6 +263,60 @@ function resolveIntercom(
   return declaration;
 }
 
+/**
+ * Собирает серверы сборки: перечисленные в `transports:` явно и вложенные
+ * в объявления транспортов полем `server`.
+ *
+ * Один и тот же сервер встречается дважды штатно — элементом списка и
+ * аргументом `http({ server: api })`, — поэтому повтор **того же**
+ * объявления даёт одну регистрацию. Два **разных** объявления с одним
+ * именем — ошибка: имя задаёт префикс конфиг-секции сервера, и молча
+ * выбрать одно из двух значит выбрать за автора, чей порт слушать.
+ *
+ * @param entries - Элементы поля `transports:` в порядке объявления
+ * @returns Объявления серверов без повторов, в порядке первого упоминания
+ * @throws {Error} Два разных объявления сервера с одним именем
+ */
+function collectServers(
+  entries: readonly TransportEntry[],
+): readonly ServerDeclaration[] {
+  const byName = new Map<string, ServerDeclaration>();
+
+  const add = (declaration: ServerDeclaration): void => {
+    const existing = byName.get(declaration.name);
+
+    if (existing === declaration) {
+      return;
+    }
+
+    if (existing) {
+      throw new Error(
+        `Two different server declarations are named ` +
+          `'${declaration.name}'. The name is the prefix of the server's ` +
+          `config section, so both would read the same port. Declare the ` +
+          `server once (const api = httpServer({ name: ` +
+          `'${declaration.name}' })) and pass that value to every transport ` +
+          `that works on it.`,
+      );
+    }
+
+    byName.set(declaration.name, declaration);
+  };
+
+  for (const entry of entries) {
+    if (entry.kind === 'server') {
+      add(entry);
+      continue;
+    }
+
+    if (entry.server) {
+      add(entry.server);
+    }
+  }
+
+  return [...byName.values()];
+}
+
 /** Проверяет, что каждый элемент списка — единица нужной роли */
 function assertBundles(
   values: unknown,
@@ -328,7 +398,11 @@ export function normalizeSpec(spec: AppSpec<any> = {}): NormalizedAppSpec {
   // привезли два плагина, регистрируется один раз — дедупликация ссылочная
   const plugins = reachablePlugins(spec.plugins ?? []);
 
-  const transports = [...(spec.transports ?? [])];
+  const entries = [...(spec.transports ?? [])];
+  const transports = entries.filter(
+    (entry): entry is TransportDeclaration => entry.kind === 'transport',
+  );
+  const servers = collectServers(entries);
   const intercom = resolveIntercom(transports, spec.intercom);
 
   return {
@@ -336,6 +410,7 @@ export function normalizeSpec(spec: AppSpec<any> = {}): NormalizedAppSpec {
     plugins,
     providers: [...(spec.providers ?? [])],
     transports,
+    servers,
     ...(intercom ? { intercom } : {}),
     config: [...(spec.config ?? [])],
     policies: [...(spec.policies ?? [])],

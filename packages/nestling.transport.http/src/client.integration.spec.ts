@@ -12,6 +12,7 @@
 
 import { assemblePayload, query, readQuery } from './binding.js';
 import { httpEndpoint } from './helpers.js';
+import { HttpServer } from './server.js';
 import { HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -215,11 +216,13 @@ const GetUserRoute = httpEndpoint({
 });
 
 describe('интеграция: операция-форма httpEndpoint + makeClient', () => {
+  let server: HttpServer;
   let transport: HttpTransport;
   let baseUrl: string;
 
   beforeAll(async () => {
-    transport = new HttpTransport({ port: 0, host: '127.0.0.1' });
+    server = new HttpServer({ port: 0, host: '127.0.0.1' });
+    transport = new HttpTransport(server);
     const controller = new AbortController();
 
     const routes: ExecutableDeclaration[] = [
@@ -228,15 +231,17 @@ describe('интеграция: операция-форма httpEndpoint + makeC
     ];
 
     await transport.serve(makeDispatch(routes), controller.signal);
+    await server.listen();
 
-    const address = transport.address();
+    const address = server.address();
     if (!address) {
-      throw new Error('transport did not report an address after serve()');
+      throw new Error('server did not report an address after listen()');
     }
     baseUrl = `http://127.0.0.1:${address.port}`;
   });
 
   afterAll(async () => {
+    await server.drain();
     await transport.close();
   });
 

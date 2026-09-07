@@ -9,6 +9,7 @@
 import { request } from 'node:http';
 
 import { httpEndpoint } from './helpers.js';
+import { HttpServer } from './server.js';
 import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
@@ -88,14 +89,55 @@ interface LogEntry {
 /** Умолчание ядра пишет в stderr и шумит в выводе тестов: записи копит шпион */
 const silent = spyLogger().logger;
 
+/** Серверы тестовых транспортов: сокет держит сервер, а не транспорт */
+const servers = new WeakMap<HttpTransport, HttpServer>();
+
+/** Сигналы прогонов: взводятся первым шагом остановки, как в `App` */
+const controllers = new WeakMap<HttpTransport, AbortController>();
+
 /**
- * Транспорт для теста: эфемерный порт и loopback-хост.
+ * Транспорт для теста вместе с его сервером: эфемерный порт и
+ * loopback-хост.
  *
- * Аргументов у `serve` кроме `dispatch` и `signal` нет, поэтому адрес
- * задаётся опциями, а фактический порт читается через `address()`.
+ * Адреса у транспорта нет: сокетом владеет сервер, поэтому порт задаётся
+ * ему, а фактический читается через `address()` сервера.
  */
-function makeTransport(options: HttpTransportOptions = {}): HttpTransport {
-  return new HttpTransport({ port: 0, host: '127.0.0.1', ...options });
+function makeTransport(
+  options: HttpTransportOptions & { readonly closeTimeout?: number } = {},
+): HttpTransport {
+  const { closeTimeout, ...transportOptions } = options;
+
+  const server = new HttpServer({
+    port: 0,
+    host: '127.0.0.1',
+    ...(closeTimeout === undefined ? {} : { closeTimeout }),
+  });
+
+  const transport = new HttpTransport(server, transportOptions);
+  servers.set(transport, server);
+
+  return transport;
+}
+
+/** Сервер тестового транспорта */
+function serverOf(transport: HttpTransport): HttpServer {
+  const server = servers.get(transport);
+
+  if (!server) {
+    throw new Error('transport was not created by makeTransport()');
+  }
+
+  return server;
+}
+
+/**
+ * Останавливает связку в том же порядке, что фаза SHUTDOWN: взвод
+ * сигнала, дренаж сервера, отмена запросов в обработке транспортом.
+ */
+async function shutdown(transport: HttpTransport): Promise<void> {
+  controllers.get(transport)?.abort();
+  await serverOf(transport).drain();
+  await transport.close();
 }
 
 /**
@@ -116,16 +158,23 @@ function routesOf(transport: HttpTransport): ExecutableDeclaration[] {
   return created;
 }
 
-/** Поднимает транспорт на эфемерном порту, возвращает базовый URL */
+/** Поднимает транспорт и его сервер на эфемерном порту, отдаёт базовый URL */
 async function listen(transport: HttpTransport): Promise<string> {
+  const controller = new AbortController();
+  controllers.set(transport, controller);
+
   await transport.serve(
     makeDispatch(routesOf(transport), { logger: silent }),
-    new AbortController().signal,
+    controller.signal,
   );
 
-  const address = transport.address();
+  // Сокет открывается последним шагом START — после `serve`
+  const server = serverOf(transport);
+  await server.listen();
+
+  const address = server.address();
   if (!address) {
-    throw new Error('transport did not report an address after serve()');
+    throw new Error('server did not report an address after listen()');
   }
 
   return `http://127.0.0.1:${address.port}`;
@@ -310,7 +359,7 @@ describe('framing по форме output', () => {
   });
 
   afterAll(async () => {
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('stream отдаётся NDJSON и завершается штатно', async () => {
@@ -378,7 +427,7 @@ describe('SSE: heartbeat, реконнект, дисконнект', () => {
 
   afterAll(async () => {
     hub.close();
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('heartbeat держит молчащее соединение живым, не считаясь элементом', async () => {
@@ -475,7 +524,7 @@ describe('mid-stream политика', () => {
   });
 
   afterAll(async () => {
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('NDJSON: соединение обрывается, исход — failed', async () => {
@@ -557,7 +606,7 @@ describe('приём потокового входа и multipart', () => {
   });
 
   afterAll(async () => {
-    await transport.close();
+    await shutdown(transport);
   });
 
   const post = async (
@@ -680,11 +729,11 @@ describe('приём потокового входа и multipart', () => {
   });
 });
 
-describe('close() завершает открытые events-соединения', () => {
+describe('остановка завершает открытые events-соединения', () => {
   it('сигнал взводится, итератор закрывается, соединение завершается', async () => {
     const hub = new Topic<Event>({ buffer: 4 });
     const outcomes: string[] = [];
-    const transport = makeTransport({ sseHeartbeat: 0 });
+    const transport = makeTransport({ sseHeartbeat: 0, closeTimeout: 1000 });
 
     routesOf(transport).push(
       httpEndpoint({
@@ -702,7 +751,7 @@ describe('close() завершает открытые events-соединени�
 
     await until(() => hub.subscribers === 1);
 
-    await transport.close({ timeout: 1000 });
+    await shutdown(transport);
     await connection.done;
 
     await until(() => hub.subscribers === 0);
@@ -743,6 +792,6 @@ describe('способности транспорта при регистрац�
       ),
     ).resolves.toBeUndefined();
 
-    await transport.close();
+    await shutdown(transport);
   });
 });

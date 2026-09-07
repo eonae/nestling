@@ -26,7 +26,8 @@ export const app = makeApp({
       pipeline: observability,
     }),
   ],
-  // Порт и хост приходят из секции транспорта: `HTTP_PORT`, `HTTP_HOST`
+  // Сокетом владеет сервер: `http()` объявляет его сам, а порт и хост
+  // сервер читает из своей секции — `HTTP_PORT`, `HTTP_HOST`
   transports: [http()],
   policies: [
     // У каждого HTTP-endpoint'а есть слой наблюдаемости

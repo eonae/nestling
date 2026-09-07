@@ -4,15 +4,17 @@
 import { CreateUser, ExportLogs, SayHello } from './endpoints/index.js';
 
 import { makeDispatch } from '@nestling/app';
-import { HttpTransport } from '@nestling/transport.http';
+import { HttpServer, HttpTransport } from '@nestling/transport.http';
 
 /**
- * HTTP-сервер без `assemble`: транспорт создаётся напрямую, таблицу
- * маршрутов строит `makeDispatch`, сервер запускает `serve`.
+ * HTTP-сервер без `assemble`: сервер и транспорт создаются напрямую,
+ * таблицу маршрутов строит `makeDispatch`, обработчик присоединяет
+ * `serve`, сокет открывает `listen`.
  */
 const PORT = Number(process.env.PORT) || 3000;
 
-const server = new HttpTransport({ port: PORT });
+const server = new HttpServer({ port: PORT, host: '0.0.0.0' });
+const transport = new HttpTransport(server);
 
 // У деклараций нет зависимостей, поэтому `makeDispatch` принимает их как есть
 const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
@@ -20,8 +22,11 @@ const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
 // Общий сигнал остановки: после взвода транспорт не принимает новые запросы
 const shutdown = new AbortController();
 
-server
+transport
   .serve(dispatch, shutdown.signal)
+  // Порядок тот же, что на фазе START: обработчик присоединён, и только
+  // потом открывается сокет
+  .then(() => server.listen())
   .then(() => {
     console.log(`HTTP server listening on http://localhost:${PORT}`);
   })
@@ -30,11 +35,13 @@ server
     process.exit(1);
   });
 
-// Остановка: сигнал отменяет выполняющиеся запросы, `close()` ждёт соединения
+// Остановка тем же реверсом: сигнал, дренаж соединений сервером, отмена
+// запросов в обработке транспортом
 const stop = async (signal: string): Promise<void> => {
   console.log(`${signal} received, shutting down`);
   shutdown.abort();
-  await server.close();
+  await server.drain();
+  await transport.close();
   process.exit(0);
 };
 

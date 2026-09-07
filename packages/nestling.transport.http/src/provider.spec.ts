@@ -1,21 +1,35 @@
 /**
- * Транспорт как обычный провайдер: конфиг-секция, приоритет опций и
- * фактический адрес после старта приёма запросов.
+ * Транспорт как обычный провайдер: собственный сервер, присоединение к
+ * общему и пропуск чужого маршрута.
  */
 
+import { httpEndpoint } from './helpers.js';
+import { HttpServer, httpServer, HttpServer$ } from './server.js';
 import { HttpTransport$ } from './token.js';
 import { http, HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { bootstrapConfig, configKernel, makeDispatch } from '@nestling/app';
+import type { ExecutableDeclaration } from '@nestling/app';
+import {
+  bootstrapConfig,
+  configKernel,
+  makeDispatch,
+  makePipeline,
+  Ok,
+} from '@nestling/app';
 import { ContainerBuilder } from '@nestling/container';
 
-/** Строит контейнер с kernel-модулем конфига и объявленным транспортом */
+/** Строит контейнер с kernel-модулем конфига, транспортом и его сервером */
 async function build(declaration: ReturnType<typeof http>) {
-  const container = new ContainerBuilder()
+  const builder = new ContainerBuilder()
     .register(configKernel(await bootstrapConfig([])))
-    .register(declaration.provider)
-    .build();
+    .register(declaration.provider);
+
+  if (declaration.server) {
+    builder.register(declaration.server.provider);
+  }
+
+  const container = builder.build();
 
   // Экземпляры создаёт INIT: до него транспорта в графе нет
   await container.init();
@@ -23,121 +37,87 @@ async function build(declaration: ReturnType<typeof http>) {
   return container;
 }
 
-/** Выставляет одну переменную окружения или снимает её */
-function applyEnv(key: string, value: string | undefined): void {
-  if (value === undefined) {
-    Reflect.deleteProperty(process.env, key);
-  } else {
-    process.env[key] = value;
-  }
-}
-
-/** Ставит переменные окружения на время одного теста */
-function withEnv(vars: Record<string, string | undefined>): () => void {
-  const previous = new Map(
-    Object.keys(vars).map((key) => [key, process.env[key]]),
-  );
-
-  for (const [key, value] of Object.entries(vars)) {
-    applyEnv(key, value);
-  }
-
-  return () => {
-    for (const [key, value] of previous) {
-      applyEnv(key, value);
-    }
-  };
-}
-
-/** Опции транспорта, снятые с инстанса: они приватны, но проверяемы */
-const optionsOf = (transport: HttpTransport): { port?: number } =>
-  (transport as unknown as { options: { port?: number } }).options;
+/** Endpoint-заглушка: отвечает своим именем на своём пути */
+const ping = (path: string, body: string): ExecutableDeclaration =>
+  httpEndpoint({
+    method: 'GET',
+    path,
+    pipeline: makePipeline(),
+    handler: () => new Ok({ body }),
+  }) as unknown as ExecutableDeclaration;
 
 describe('http() — объявление экземпляра', () => {
-  it('порт берётся из конфиг-секции', async () => {
-    const restore = withEnv({ HTTP_PORT: '8080' });
+  it('без server объявляет собственный сервер с тем же именем', () => {
+    const declaration = http({ name: 'admin' });
 
-    try {
-      const container = await build(http());
-      const transport = container.getOrThrow(
-        HttpTransport$('default'),
-      ) as HttpTransport;
-
-      expect(optionsOf(transport).port).toBe(8080);
-    } finally {
-      restore();
-    }
+    expect(declaration.server?.name).toBe('admin');
+    expect(declaration.server?.token).toBe(HttpServer$('admin'));
   });
 
-  it('явная опция перекрывает конфиг', async () => {
-    const restore = withEnv({ HTTP_PORT: '8080' });
+  it('с server присоединяется к переданному объявлению', () => {
+    const api = httpServer({ name: 'api' });
 
-    try {
-      const container = await build(http({ port: 3000 }));
-      const transport = container.getOrThrow(
-        HttpTransport$('default'),
-      ) as HttpTransport;
-
-      expect(optionsOf(transport).port).toBe(3000);
-    } finally {
-      restore();
-    }
+    expect(http({ server: api }).server).toBe(api);
   });
 
-  it('невалидное значение конфига валит сборку до захвата сокета', async () => {
-    const restore = withEnv({ HTTP_PORT: 'abc' });
+  it('транспорт получает сервер зависимостью', async () => {
+    const container = await build(http());
+    const transport = container.getOrThrow(HttpTransport$('default'));
+    const server = container.getOrThrow(HttpServer$('default'));
 
-    try {
-      await expect(build(http())).rejects.toThrow(/HTTP_PORT/);
-    } finally {
-      restore();
-    }
-  });
+    expect((transport as unknown as { server: HttpServer }).server).toBe(
+      server,
+    );
 
-  it('без переменных окружения работает дефолт транспорта', async () => {
-    const restore = withEnv({ HTTP_PORT: undefined, HTTP_HOST: undefined });
-
-    try {
-      const container = await build(http());
-      const transport = container.getOrThrow(
-        HttpTransport$('default'),
-      ) as HttpTransport;
-
-      expect(optionsOf(transport).port).toBe(3000);
-    } finally {
-      restore();
-    }
+    await server.release();
   });
 });
 
-describe('HttpTransport.address()', () => {
-  it('до serve адреса нет', () => {
-    expect(new HttpTransport({ port: 0 }).address()).toBeNull();
+describe('HttpTransport — общий сервер', () => {
+  it('два транспорта обслуживают свои маршруты на одном сокете', async () => {
+    const server = new HttpServer({ port: 0, host: '127.0.0.1' });
+    const first = new HttpTransport(server);
+    const second = new HttpTransport(server);
+    const { signal } = new AbortController();
+
+    await first.serve(makeDispatch([ping('/first', 'first')]), signal);
+    await second.serve(makeDispatch([ping('/second', 'second')]), signal);
+    await server.listen();
+
+    const baseUrl = `http://127.0.0.1:${server.address()?.port}`;
+
+    try {
+      // Маршрут второго транспорта обслужен: первый вернул «не мой»
+      const second_ = await fetch(`${baseUrl}/second`);
+      expect(second_.status).toBe(200);
+      expect(await second_.json()).toEqual({ body: 'second' });
+
+      const first_ = await fetch(`${baseUrl}/first`);
+      expect(first_.status).toBe(200);
+      expect(await first_.json()).toEqual({ body: 'first' });
+
+      // Путь, которого нет ни у одного, — `404` от сервера
+      const missing = await fetch(`${baseUrl}/nowhere`);
+      expect(missing.status).toBe(404);
+    } finally {
+      await server.drain();
+      await first.close();
+      await second.close();
+    }
   });
 
-  it('после serve отдаёт фактически занятый порт, после close — null', async () => {
-    const transport = new HttpTransport({ port: 0, host: '127.0.0.1' });
+  it('транспорт не открывает сокет сам', async () => {
+    const server = new HttpServer({ port: 0, host: '127.0.0.1' });
+    const transport = new HttpTransport(server);
 
     await transport.serve(makeDispatch([]), new AbortController().signal);
 
-    const address = transport.address();
-    expect(address).not.toBeNull();
-    expect(address?.port).toBeGreaterThan(0);
+    // `serve` присоединил обработчик, но адреса нет: сокет открывает
+    // сервер, и делает это следующим шагом START
+    expect(server.address()).toBeNull();
+    expect(transport).not.toHaveProperty('address');
 
     await transport.close();
-    expect(transport.address()).toBeNull();
-  });
-
-  it('взвод сигнала останавливает транспорт', async () => {
-    const transport = new HttpTransport({ port: 0, host: '127.0.0.1' });
-    const controller = new AbortController();
-
-    await transport.serve(makeDispatch([]), controller.signal);
-    controller.abort();
-
-    // Остановка асинхронна: ждём микрозадачи обработчика сигнала
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(transport.address()).toBeNull();
+    await server.release();
   });
 });

@@ -12,6 +12,8 @@ import { connect } from 'node:net';
 
 import { query } from './binding.js';
 import { httpEndpoint } from './helpers.js';
+import type { HttpServerOptions } from './server.js';
+import { HttpServer } from './server.js';
 import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
@@ -38,14 +40,63 @@ import {
 } from '@nestling/app';
 import { z } from 'zod';
 
+/** Серверы тестовых транспортов: сокет держит сервер, а не транспорт */
+const servers = new WeakMap<HttpTransport, HttpServer>();
+
 /**
- * Транспорт для теста: эфемерный порт и loopback-хост.
+ * Транспорт для теста вместе с его сервером: эфемерный порт и
+ * loopback-хост.
  *
- * Аргументов у `serve` кроме `dispatch` и `signal` нет, поэтому адрес
- * задаётся опциями, а фактический порт читается через `address()`.
+ * Адреса у транспорта нет вовсе — сокетом владеет сервер, поэтому порт
+ * задаётся ему, а фактический читается через `address()` сервера. Опции
+ * сокета (`requestTimeout`, `headersTimeout`, `keepAliveTimeout`,
+ * `closeTimeout`) уходят серверу, остальные — транспорту.
  */
-function makeTransport(options: HttpTransportOptions = {}): HttpTransport {
-  return new HttpTransport({ port: 0, host: '127.0.0.1', ...options });
+function makeTransport(
+  options: HttpTransportOptions & HttpServerOptions = {},
+): HttpTransport {
+  const {
+    requestTimeout,
+    headersTimeout,
+    keepAliveTimeout,
+    closeTimeout,
+    ...transportOptions
+  } = options;
+
+  const server = new HttpServer({
+    port: 0,
+    host: '127.0.0.1',
+    ...(requestTimeout === undefined ? {} : { requestTimeout }),
+    ...(headersTimeout === undefined ? {} : { headersTimeout }),
+    ...(keepAliveTimeout === undefined ? {} : { keepAliveTimeout }),
+    ...(closeTimeout === undefined ? {} : { closeTimeout }),
+  });
+
+  const transport = new HttpTransport(server, transportOptions);
+  servers.set(transport, server);
+
+  return transport;
+}
+
+/** Сервер тестового транспорта */
+function serverOf(transport: HttpTransport): HttpServer {
+  const server = servers.get(transport);
+
+  if (!server) {
+    throw new Error('transport was not created by makeTransport()');
+  }
+
+  return server;
+}
+
+/**
+ * Останавливает связку в том же порядке, что фаза SHUTDOWN: взвод
+ * сигнала, дренаж сервера, отмена запросов в обработке транспортом.
+ */
+async function shutdown(transport: HttpTransport): Promise<void> {
+  controllers.get(transport)?.abort();
+  await serverOf(transport).drain();
+  await transport.close();
 }
 
 /**
@@ -128,14 +179,19 @@ async function listen(transport: HttpTransport): Promise<string> {
   const controller = new AbortController();
   controllers.set(transport, controller);
 
+  const server = serverOf(transport);
+
   await transport.serve(
     makeDispatch(routesOf(transport), { logger: loggerOf(transport) }),
     controller.signal,
   );
 
-  const address = transport.address();
+  // Сокет открывается последним шагом START — после `serve`
+  await server.listen();
+
+  const address = server.address();
   if (!address) {
-    throw new Error('transport did not report an address after serve()');
+    throw new Error('server did not report an address after listen()');
   }
 
   return `http://127.0.0.1:${address.port}`;
@@ -183,7 +239,7 @@ function requestWithBody(
 }
 
 function getServer(transport: HttpTransport): Server {
-  return (transport as unknown as { server: Server }).server;
+  return (serverOf(transport) as unknown as { server: Server }).server;
 }
 
 /** Доменные отказы фикстур: канон — определение + `errors:` декларации */
@@ -283,8 +339,8 @@ describe('HttpTransport — error response safety', () => {
   });
 
   afterAll(async () => {
-    await transport.close();
-    await exposed.close();
+    await shutdown(transport);
+    await shutdown(exposed);
   });
 
   it('unhandled error → generic 500 без деталей', async () => {
@@ -379,7 +435,7 @@ describe('HttpTransport — error response safety', () => {
         },
       ]);
     } finally {
-      await hooked.close();
+      await shutdown(hooked);
     }
   });
 });
@@ -444,7 +500,7 @@ describe('HttpTransport — категория отказа и заголовк�
   });
 
   afterAll(async () => {
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('категория отказа переводится в HTTP-код: not_found → 404', async () => {
@@ -557,7 +613,7 @@ describe('HttpTransport — request validation errors', () => {
   });
 
   afterAll(async () => {
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('битый JSON → 400 Invalid JSON body без stack', async () => {
@@ -785,7 +841,7 @@ describe('HttpTransport — strict-приём по bind-карте', () => {
   });
 
   afterAll(async () => {
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('поле, присланное не в своё место, отбрасывается → 400 с именем поля', async () => {
@@ -932,7 +988,7 @@ describe('HttpTransport — тело читается только по треб
   });
 
   afterAll(async () => {
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('тело у GET не буферизуется: запрос обрабатывается по query', async () => {
@@ -1024,8 +1080,8 @@ describe('HttpTransport — body size limits', () => {
   });
 
   afterAll(async () => {
-    await small.close();
-    await unlimited.close();
+    await shutdown(small);
+    await shutdown(unlimited);
   });
 
   it('JSON больше лимита → 413', async () => {
@@ -1066,7 +1122,7 @@ describe('HttpTransport — body size limits', () => {
   });
 });
 
-describe('HttpTransport — timeouts and graceful close', () => {
+describe('HttpServer — timeouts and graceful drain', () => {
   it('таймауты применяются к серверу', async () => {
     const transport = makeTransport({
       requestTimeout: 5000,
@@ -1080,10 +1136,10 @@ describe('HttpTransport — timeouts and graceful close', () => {
     expect(server.headersTimeout).toBe(2000);
     expect(server.keepAliveTimeout).toBe(1000);
 
-    await transport.close();
+    await shutdown(transport);
   });
 
-  it('close() с идущим keep-alive завершается быстро', async () => {
+  it('дренаж с идущим keep-alive завершается быстро', async () => {
     const transport = makeTransport({ keepAliveTimeout: 60_000 });
     routesOf(transport).push(
       httpEndpoint({
@@ -1109,7 +1165,7 @@ describe('HttpTransport — timeouts and graceful close', () => {
     });
 
     const started = process.hrtime.bigint();
-    await transport.close();
+    await shutdown(transport);
     const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
 
     // Не ждём keepAliveTimeout (60s) — closeIdleConnections рубит сразу.
@@ -1118,8 +1174,8 @@ describe('HttpTransport — timeouts and graceful close', () => {
     socket.destroy();
   });
 
-  it('close() с зависшим запросом завершается по closeTimeout', async () => {
-    const transport = makeTransport();
+  it('дренаж с зависшим запросом завершается по closeTimeout', async () => {
+    const transport = makeTransport({ closeTimeout: 300 });
     routesOf(transport).push(
       httpEndpoint({
         method: 'POST',
@@ -1139,7 +1195,7 @@ describe('HttpTransport — timeouts and graceful close', () => {
     await new Promise((r) => setTimeout(r, 100));
 
     const started = process.hrtime.bigint();
-    await transport.close({ timeout: 300 });
+    await shutdown(transport);
     const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
 
     expect(elapsedMs).toBeGreaterThanOrEqual(250);
@@ -1197,7 +1253,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     expect((reason as Error).message).toBe('client disconnected');
 
     await pending;
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('штатное завершение (keep-alive) не взводит сигнал', async () => {
@@ -1227,10 +1283,10 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     expect(captured).toBeDefined();
     expect(captured?.aborted).toBe(false);
 
-    await transport.close();
+    await shutdown(transport);
   });
 
-  it('close(): кооперативный хендлер завершается заметно раньше closeTimeout', async () => {
+  it('остановка: кооперативный хендлер завершается заметно раньше closeTimeout', async () => {
     const transport = makeTransport({ closeTimeout: 5000 });
     const { handle, started, aborted } = makeAwaitingHandler();
     routesOf(transport).push(
@@ -1249,7 +1305,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     await started;
 
     const startedAt = process.hrtime.bigint();
-    await transport.close();
+    await shutdown(transport);
     const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
 
     // Дренаж по кооперативному завершению, а не force-close по таймауту.
@@ -1288,7 +1344,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     expect((reason as Error).message).toBe('client disconnected');
 
     await pending;
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('серия запросов не накапливает слушателей transport-level сигнала', async () => {
@@ -1320,7 +1376,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     const after = getEventListeners(closeSignal, 'abort').length;
     expect(after).toBeLessThanOrEqual(baseline);
 
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('серия запросов оставляет реестр контроллеров пустым', async () => {
@@ -1348,10 +1404,10 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     };
     expect(active.size).toBe(0);
 
-    await transport.close();
+    await shutdown(transport);
   });
 
-  it('close() взводит сигналы всех запросов в полёте', async () => {
+  it('close() транспорта взводит сигналы всех запросов в полёте', async () => {
     const transport = makeTransport({ closeTimeout: 5000 });
     const signals: AbortSignal[] = [];
     let onAllStarted!: () => void;
@@ -1385,7 +1441,7 @@ describe('HttpTransport — request cancellation (meta.signal)', () => {
     );
     await allStarted;
 
-    await transport.close();
+    await shutdown(transport);
 
     expect(signals).toHaveLength(3);
     for (const signal of signals) {
@@ -1449,7 +1505,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     ]);
     expect(JSON.parse(body)).toEqual({ id: '42', name: 'Алиса' });
 
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('заголовок хендлера перекрывает заголовок формы в любом регистре', async () => {
@@ -1474,7 +1530,7 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     expect(headers.get('content-type')).toEqual(['text/plain']);
     expect(headers.get('location')).toEqual(['/plain/1']);
 
-    await transport.close();
+    await shutdown(transport);
   });
 
   it('raw.pattern несёт путь как прислан клиентом, а query читается картой', async () => {
@@ -1502,6 +1558,6 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     expect(await response.json()).toEqual({ id: 'a b', limit: 1 });
     expect(seen).toBe('GET /users/a%20b');
 
-    await transport.close();
+    await shutdown(transport);
   });
 });

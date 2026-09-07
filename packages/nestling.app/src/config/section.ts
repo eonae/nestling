@@ -17,7 +17,7 @@ import type {
 } from './declaration.js';
 import { FromField, SecretField } from './declaration.js';
 import { ConfigSection } from './families.js';
-import { ConfigKeys, deriveKey } from './keys.js';
+import { ConfigKeys, deriveKey, derivePrefix } from './keys.js';
 import { registerSection } from './registry.js';
 
 import type { Schema } from '@common/misc';
@@ -163,3 +163,60 @@ makeConfig.reloadable = <R extends ConfigRecord, P extends string>(
   record: R,
 ): ConfigSectionToken<ConfigValues<R> & ReloadableConfig<R>, P> =>
   declare<R, P, ConfigValues<R> & ReloadableConfig<R>>(prefix, record, true);
+
+/**
+ * Объявляет секцию-семейство: одна секция на каждый экземпляр пакета.
+ *
+ * Нужна там, где экземпляров несколько, а значения у них разные:
+ * HTTP-сервер по умолчанию и админский слушают разные порты, поэтому
+ * читать один `HTTP_PORT` они не могут. Префикс строится из имени
+ * экземпляра: `'default'` даёт ключи пакета как есть (`HTTP_PORT`),
+ * `'admin'` — с добавкой (`HTTP_ADMIN_PORT`).
+ *
+ * Секция одного имени объявляется один раз: повторный вызов с тем же
+ * именем отдаёт тот же токен, то есть тот же узел графа. Дескриптор
+ * `.keys` у каждого экземпляра свой, поэтому привязка источника адресует
+ * ключи одного экземпляра, а не всего пакета.
+ *
+ * @param prefix - Префикс пакета (`'http'`)
+ * @param record - Рекорд полей; тот же, что у `makeConfig`
+ * @returns Функция «имя экземпляра → токен его секции»
+ *
+ * @example
+ * ```typescript
+ * const HttpServerConfig = makeConfig.family('http', {
+ *   port: z.coerce.number().int().default(3000),
+ *   host: z.string().default('0.0.0.0'),
+ * });
+ *
+ * HttpServerConfig('default').keys; // HTTP_PORT, HTTP_HOST
+ * HttpServerConfig('admin').keys;   // HTTP_ADMIN_PORT, HTTP_ADMIN_HOST
+ * ```
+ */
+makeConfig.family = <R extends ConfigRecord, P extends string>(
+  prefix: P,
+  record: R,
+): ((instance: string) => ConfigSectionToken<ConfigValues<R>, string>) => {
+  const declared = new Map<
+    string,
+    ConfigSectionToken<ConfigValues<R>, string>
+  >();
+
+  return (instance: string) => {
+    const existing = declared.get(instance);
+
+    if (existing) {
+      return existing;
+    }
+
+    const token = declare<R, string, ConfigValues<R>>(
+      derivePrefix(prefix, instance),
+      record,
+      false,
+    );
+
+    declared.set(instance, token);
+
+    return token;
+  };
+};
