@@ -5,3 +5,4 @@ export * from './get-user.endpoint.js';
 export * from './import-users.endpoint.js';
 export * from './list-users.endpoint.js';
 export * from './upload-avatar.endpoint.js';
+export * from './welcome-email.endpoint.js';

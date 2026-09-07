@@ -1,4 +1,4 @@
-import { authed } from '../../auth.js';
+import { transactional } from '../../persistence.js';
 import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
@@ -58,6 +58,6 @@ export const ImportUsers = httpEndpoint({
   input: stream(ImportRow).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
   output: ImportResult,
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
-  pipeline: authed,
+  pipeline: transactional,
   handler: ImportUsersHandler,
 });
