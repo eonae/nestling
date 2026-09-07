@@ -26,6 +26,7 @@ export * from './io/index.js';
 export * from './json-schema.js';
 export * from './kernel-fails.js';
 export * from './result.js';
+export * from './schema-doc.js';
 export * from './status.js';
 export * from './streams/index.js';
 

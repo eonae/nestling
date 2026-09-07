@@ -59,6 +59,35 @@ export class ConfigValidationError extends Error {
   }
 }
 
+/**
+ * Функция вычисляемого поля бросила.
+ *
+ * Отдельная ошибка, а не запись в `failures` у {@link ConfigValidationError}:
+ * та запись несёт имя ключа и нормализованные issues схемы, а у вычисляемого
+ * поля нет ни ключа, ни схемы. Названы секция, поле и его зависимости —
+ * искать причину нужно в них, а деталь отказа лежит в `cause`.
+ */
+export class ConfigDerivedError extends Error {
+  constructor(
+    /** Префикс секции */
+    readonly section: string,
+    /** Имя вычисляемого поля */
+    readonly field: string,
+    /** Имена полей-зависимостей в порядке объявления */
+    readonly deps: readonly string[],
+    /** Исходная ошибка функции поля */
+    cause: unknown,
+  ) {
+    super(
+      `Config section '${section}' failed to compute derived field ` +
+        `'${field}' from [${deps.join(', ')}]: ` +
+        (cause instanceof Error ? cause.message : String(cause)),
+      { cause },
+    );
+    this.name = 'ConfigDerivedError';
+  }
+}
+
 /** Один читатель ключа в тексте {@link ConfigSharedKeyError} */
 export interface SharedKeyReader {
   /** Префикс секции */

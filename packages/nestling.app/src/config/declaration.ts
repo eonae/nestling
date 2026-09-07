@@ -95,12 +95,72 @@ type FieldOutput<F> =
   F extends SecretField<infer L> ? LeafOutput<L> : LeafOutput<F>;
 
 /**
+ * Вычисляемое поле секции: список зависимостей и функция от их значений.
+ *
+ * Ключа у поля нет: значение берётся из других полей той же секции, а не из
+ * источника. Тот же класс-а-не-литерал, что у {@link FromField}.
+ */
+export class DerivedField<
+  D extends readonly string[] = readonly string[],
+  T = unknown,
+> {
+  constructor(
+    /** Имена полей рекорда, значения которых получает {@link compute} */
+    readonly deps: D,
+    /** Функция поля; аргументы идут в порядке {@link deps} */
+    readonly compute: (...values: unknown[]) => T,
+  ) {
+    Object.freeze(this);
+  }
+}
+
+/** Рекорд вычисляемых полей — то, что возвращает третий аргумент `makeConfig` */
+export type DerivedRecord = Record<string, DerivedField>;
+
+/** Пустой рекорд вычисляемых полей: секция объявлена без третьего аргумента */
+type NoDerived = Record<never, never>;
+
+/**
+ * Конструктор вычисляемого поля, типизированный рекордом секции.
+ *
+ * `deps` ограничен именами полей рекорда, а типы аргументов `fn` выведены из
+ * схем этих полей. Поэтому опечатка в имени и ложная аннотация аргумента —
+ * ошибки компиляции, а не рантайм-проверки в момент объявления. Зависеть от
+ * другого вычисляемого поля нечем: в рекорде их нет.
+ */
+export type DerivedConstructor<R extends ConfigRecord> = <
+  const D extends readonly (keyof R & string)[],
+  T,
+>(
+  deps: D,
+  fn: (...values: { -readonly [I in keyof D]: FieldOutput<R[D[I]]> }) => T,
+) => DerivedField<D, T>;
+
+/** Третий аргумент `makeConfig`: конструктор на входе, рекорд полей на выходе */
+export type DeriveFn<R extends ConfigRecord, D extends DerivedRecord> = (
+  derived: DerivedConstructor<R>,
+) => D;
+
+/** Выход вычисляемого поля — возврат его функции */
+type DerivedOutput<F> =
+  F extends DerivedField<readonly string[], infer T> ? T : never;
+
+/**
  * Проекция секции: объект, где тип каждого поля — выход его схемы.
+ *
+ * Вычисляемые поля стоят наравне с обычными: их тип — возврат функции поля.
+ * Порядок членов тот же, что у объявления: сначала поля рекорда, затем
+ * вычисляемые.
  *
  * Read-only: значения секции неизменяемы, объект заморожен на `build()`.
  */
-export type ConfigValues<R extends ConfigRecord> = {
+export type ConfigValues<
+  R extends ConfigRecord,
+  D extends DerivedRecord = NoDerived,
+> = {
   readonly [K in keyof R]: FieldOutput<R[K]>;
+} & {
+  readonly [K in keyof D]: DerivedOutput<D[K]>;
 };
 
 /**
@@ -108,7 +168,10 @@ export type ConfigValues<R extends ConfigRecord> = {
  *
  * У обычной секции этих членов нет — ни в типах, ни в рантайме.
  */
-export interface ReloadableConfig<R extends ConfigRecord> {
+export interface ReloadableConfig<
+  R extends ConfigRecord,
+  D extends DerivedRecord = NoDerived,
+> {
   /**
    * Подписка на успешное обновление секции; снимается по взведению `signal`.
    *
@@ -117,7 +180,7 @@ export interface ReloadableConfig<R extends ConfigRecord> {
    */
   onChange(
     signal: AbortSignal,
-    callback: (next: ConfigValues<R>) => void,
+    callback: (next: ConfigValues<R, D>) => void,
   ): void;
 }
 
@@ -153,6 +216,23 @@ export interface SectionField {
   readonly secret: boolean;
 }
 
+/** Вычисляемое поле секции в разобранном виде */
+export interface SectionDerived {
+  /** Имя поля в проекции */
+  readonly name: string;
+  /** Имена полей-зависимостей в порядке объявления */
+  readonly deps: readonly string[];
+  /**
+   * Ключи полей-зависимостей в том же порядке.
+   *
+   * Разрешаются один раз, при объявлении: секретность поля считается по
+   * ключам зависимостей, а перебирать рекорд на каждый вопрос незачем.
+   */
+  readonly depKeys: readonly string[];
+  /** Функция поля; аргументы идут в порядке {@link deps} */
+  readonly compute: (...values: unknown[]) => unknown;
+}
+
 /** Запись реестра: всё, что известно о секции без обращения к источникам */
 export interface SectionDeclaration {
   /** Префикс секции — ключ реестра */
@@ -161,6 +241,8 @@ export interface SectionDeclaration {
   readonly reloadable: boolean;
   /** Поля в порядке объявления */
   readonly fields: readonly SectionField[];
+  /** Вычисляемые поля в порядке объявления */
+  readonly derived: readonly SectionDerived[];
   /** Хэндл ключей — то же значение, что лежит на `.keys` DI-токена */
   readonly keys: ConfigKeys;
   /**

@@ -34,6 +34,7 @@ const declaration = (
         },
       },
     })),
+  derived: [],
   keys: new ConfigKeys(
     prefix,
     fields.map((field) =>
@@ -101,6 +102,7 @@ describe('describeConfig()', () => {
             secret: false,
           },
         ],
+        derived: [],
       },
     ]);
     expect(JSON.stringify(snapshot)).not.toContain('value');

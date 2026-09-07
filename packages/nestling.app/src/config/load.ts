@@ -9,6 +9,7 @@
 import type { ConfigSectionToken } from './declaration.js';
 import type { ConfigFieldFailure } from './errors.js';
 import { ConfigValidationError } from './errors.js';
+import { applyDerived } from './project.js';
 import {
   defineDisplayHooks,
   secretFieldsOf,
@@ -29,6 +30,7 @@ import { SchemaValidationError, validateSync } from '@common/misc';
  * @param section - DI-токен секции, объявленной `makeConfig`
  * @returns Замороженные значения секции
  * @throws {ConfigValidationError} Если хотя бы одно поле невалидно
+ * @throws {ConfigDerivedError} Если функция вычисляемого поля бросила
  *
  * @example
  * ```typescript
@@ -79,9 +81,13 @@ export const load = <Values>(
     throw new ConfigValidationError(prefix, failures, ['process.env']);
   }
 
+  // Вычисляемые поля — тем же правилом и в том же порядке, что у проекции из
+  // контейнера: второй копии правила первичное чтение не заводит.
+  applyDerived(declaration, values);
+
   // Первичная проекция — такая же проекция секции: печать редактируется
   // тем же правилом, что и у секции из контейнера.
-  defineDisplayHooks(values, secretFieldsOf(declaration.fields), () => values);
+  defineDisplayHooks(values, secretFieldsOf(declaration), () => values);
 
   return Object.freeze(values) as Values;
 };

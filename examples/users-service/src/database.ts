@@ -19,10 +19,9 @@ export class Database {
     logger: Logger,
     _signal: AbortSignal,
   ): Promise<Database> {
-    // В лог уходит только хост: значение поля секретное
-    logger.info('database connected', {
-      host: new URL(config.databaseUrl).host,
-    });
+    // В лог уходит только хост, а не адрес целиком: хост считает
+    // вычисляемое поле секции
+    logger.info('database connected', { host: config.databaseHost });
 
     return new Database(logger, [
       { id: '1', name: 'Alice', email: 'alice@example.com' },

@@ -5,8 +5,11 @@
  * документации на этапе сборки артефактов, без обращения к источникам.
  */
 
-import type { SectionDeclaration } from './declaration.js';
+import type { SectionDeclaration, SectionDerived } from './declaration.js';
 import type { ConfigGlob } from './keys.js';
+
+import type { LeafJsonSchema, SchemaDocConverter } from '@nestling/operations';
+import { assertConverters, leafJsonSchema } from '@nestling/operations';
 
 /** Префикс → декларация */
 const sections = new Map<string, SectionDeclaration>();
@@ -93,6 +96,18 @@ export const registerSection = (declaration: SectionDeclaration): void => {
  */
 export const isSecretKey = (key: string): boolean => secretKeys.has(key);
 
+/**
+ * Секретно ли вычисляемое поле — да, если секретна хотя бы одна зависимость.
+ *
+ * Правило одностороннее и намеренно грубое: значение, собранное из секрета,
+ * секретно целиком, даже если секрет в нём — четверть строки. Снять пометку
+ * нечем, и это дешевле утечки.
+ *
+ * @internal
+ */
+export const isSecretDerived = (derived: SectionDerived): boolean =>
+  derived.depKeys.some(isSecretKey);
+
 /** Декларация секции по префиксу */
 export const lookupSection = (prefix: string): SectionDeclaration | undefined =>
   sections.get(prefix);
@@ -139,6 +154,25 @@ export interface ConfigKeyDescription {
    * пометил его кто-то другой: секретность — свойство ключа, а не объявления.
    */
   readonly secret: boolean;
+  /**
+   * JSON Schema листа и исход конвертации.
+   *
+   * Есть только при переданных `converters`. Описание, умолчание и
+   * перечисление значений лежат полями самой схемы (`description`,
+   * `default`, `enum`): отдельных полей снимка для них нет, иначе список
+   * «важных» свойств пришлось бы фиксировать во фреймворке.
+   */
+  readonly schema?: LeafJsonSchema;
+}
+
+/** Описание вычисляемого поля в снимке реестра */
+export interface ConfigDerivedDescription {
+  /** Имя поля в проекции */
+  readonly field: string;
+  /** Имена полей-зависимостей в порядке объявления */
+  readonly deps: readonly string[];
+  /** Поле секретно, потому что секретна хотя бы одна его зависимость */
+  readonly secret: boolean;
 }
 
 /** Один читатель ключа в key-центричном индексе снимка */
@@ -176,6 +210,19 @@ export interface ConfigSectionDescription {
   /** Секция инжектнута кем-то и потому создана графом */
   readonly consumed: boolean;
   readonly keys: readonly ConfigKeyDescription[];
+  /** Вычисляемые поля; в `keys` их нет — ключа у них нет */
+  readonly derived: readonly ConfigDerivedDescription[];
+}
+
+/** Опции снимка реестра */
+export interface ConfigDescribeOptions {
+  /**
+   * Конвертеры схем — те же, что принимает генерация OpenAPI.
+   *
+   * Без них описания ключей остаются прежними: полей JSON Schema в снимке
+   * просто нет.
+   */
+  readonly converters?: readonly SchemaDocConverter[];
 }
 
 /** Снимок реестра: без значений и без сети */
@@ -187,15 +234,33 @@ export interface ConfigDescription {
 }
 
 /**
- * Снимок реестра объявлений: секции, их ключи, флаг `reloadable`,
- * key-центричный индекс читателей, объявленные unbound-глобы.
+ * Снимок реестра объявлений: секции, их ключи и вычисляемые поля, флаг
+ * `reloadable`, key-центричный индекс читателей, объявленные unbound-глобы.
  *
  * Значений ключей в снимке нет и обращения к источникам он не требует.
  * Две проекции одних данных обслуживают два разных запроса: «что читает эта
  * секция» (`sections`) и «кто читает этот ключ» (`keys`).
+ *
+ * С `converters` описание каждого ключа несёт JSON Schema его листа и исход
+ * конвертации. Схема берётся тем же диспетчером листа, что и генерация
+ * документации, с направлением `input`: снимок описывает то, что человек
+ * пишет в окружение, а не то, что получает потребитель после преобразований.
+ *
+ * @param options - Конвертеры схем; без них снимок остаётся прежним
+ *
+ * @example
+ * ```typescript
+ * const snapshot = describeConfig({ converters: [zodConverter()] });
+ * ```
  */
-export const describeConfig = (): ConfigDescription =>
-  Object.freeze({
+export const describeConfig = (
+  options?: ConfigDescribeOptions,
+): ConfigDescription => {
+  const converters = options?.converters;
+
+  assertConverters(converters);
+
+  return Object.freeze({
     sections: [...sections.values()].map((section) =>
       Object.freeze({
         prefix: section.prefix,
@@ -207,6 +272,20 @@ export const describeConfig = (): ConfigDescription =>
             field: field.name,
             exact: field.exact,
             secret: isSecretKey(field.key),
+            ...(converters
+              ? {
+                  schema: leafJsonSchema(converters, field.schema, {
+                    io: 'input',
+                  }),
+                }
+              : {}),
+          }),
+        ),
+        derived: section.derived.map((field) =>
+          Object.freeze({
+            field: field.name,
+            deps: [...field.deps],
+            secret: isSecretDerived(field),
           }),
         ),
       }),
@@ -220,6 +299,7 @@ export const describeConfig = (): ConfigDescription =>
     ),
     globs: [...globs],
   });
+};
 
 /**
  * Очищает реестр.

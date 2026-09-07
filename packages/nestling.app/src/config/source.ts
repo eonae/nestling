@@ -93,6 +93,47 @@ export const toBindings = (config?: ConfigInput): ConfigBinding[] => {
   return [[config as ConfigSource, '*']];
 };
 
+/** Опции источника окружения */
+export interface EnvSourceOptions {
+  /** Приставка к имени ключа: `'SERVICE_1_'` даёт `SERVICE_1_HTTP_PORT` */
+  readonly prefix?: string;
+}
+
+/**
+ * Источник окружения с приставкой к имени ключа.
+ *
+ * Читает `<prefix><KEY>` и отдаёт значение под именем `KEY`. Так один `.env`
+ * обслуживает несколько сервисов: секции, их поля и дескрипторы `.keys`
+ * остаются относительными, а приставка живёт в источнике.
+ *
+ * Приоритет задаётся позицией привязки, как у любого источника. Ключ,
+ * которого под приставкой нет, читается неявным `process.env` без неё,
+ * поэтому общий ключ остаётся общим.
+ *
+ * `init()`, `watch()` и `close()` у источника отсутствуют: читать перед
+ * стартом нечего, следить не за чем, освобождать нечего. `process.env`
+ * берётся живой ссылкой — тем же способом, что и в читалке.
+ *
+ * @param options - Приставка к имени ключа
+ *
+ * @example
+ * ```typescript
+ * await makeApp({
+ *   config: [[env({ prefix: 'SERVICE_1_' }), '*']],
+ *   // …
+ * }).assemble().run();
+ * ```
+ */
+export const env = (options: EnvSourceOptions = {}): ConfigSource => {
+  const prefix = options.prefix ?? '';
+  const values = process.env;
+
+  return {
+    name: prefix ? `env(${prefix}*)` : 'env',
+    get: (key) => values[`${prefix}${key}`],
+  };
+};
+
 /** Объектный источник с наблюдением — для тестов и in-proc сценариев */
 export interface ObjectSource extends ConfigSource {
   /** Задаёт значение и уведомляет наблюдателей */
