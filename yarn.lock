@@ -1744,6 +1744,7 @@ __metadata:
   resolution: "@nestling/container@workspace:packages/nestling.container"
   dependencies:
     "@common/graphs": "workspace:*"
+    "@standard-schema/spec": "npm:^1.1.0"
   languageName: unknown
   linkType: soft
 
