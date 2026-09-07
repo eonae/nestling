@@ -1,14 +1,16 @@
 # @nestling/container
 
-Контейнер зависимостей для TypeScript: без сторонних зависимостей, на
-стандартных декораторах ECMAScript, с полной проверкой графа на сборке.
-Основа остальных пакетов Nestling; работает и отдельно — в CLI, во
-фронтенде, рядом с любым HTTP-фреймворком.
+Контейнер зависимостей для TypeScript: на стандартных декораторах
+ECMAScript, с полной проверкой графа на сборке. Основа остальных пакетов
+Nestling; работает и отдельно — в CLI, во фронтенде, рядом с любым
+HTTP-фреймворком.
 
 > 🚧 В активной разработке, API меняется. Целевое состояние —
-> [`docs/design/container.md`](../../docs/design/container.md); гайд по
-> семействам DI-токенов —
-> [глава 21. Логгер с именем потребителя и сбор вкладов](../../docs/guide/21-token-families.md).
+> [`docs/design/container.md`](../../docs/design/container.md); гайды —
+> [глава 22. Логгер с именем потребителя и сбор вкладов](../../docs/guide/22-token-families.md)
+> по семействам DI-токенов и
+> [глава 17. Запускать только часть фич](../../docs/guide/17-select.md)
+> по переключателям состава.
 
 ## Установка
 
@@ -237,7 +239,7 @@ rest-параметром — любая. Лишний DI-токен даёт д
 
 ### Модули
 
-Модуль — обычный объект: имя, провайдеры и импорты других модулей.
+Модуль — обычный объект: имя, провайдеры и модули, от которых он зависит.
 
 ```typescript
 import { makeModule } from '@nestling/container';
@@ -310,6 +312,60 @@ values of the same module.
 Поэтому повторный вызов фабрики модуля, даже с теми же опциями, даёт второе
 значение под тем же именем, и сборка падает с этой ошибкой. Сравнение
 модулей — по ссылке; опции структурно не сравниваются.
+
+### Переключатели состава
+
+Переключатель выбирает одну из объявленных веток состава по значению,
+известному до сборки. Ветка — значение, а не функция: обе ветки читаются
+без выполнения кода.
+
+```typescript
+import { makeSwitch } from '@nestling/container';
+
+export const Storage = makeSwitch('storage', ['s3', 'local']); // перечисление
+export const Metrics = makeSwitch('metrics'); //                  'on' | 'off'
+export const Debug = makeSwitch('debug', { default: 'off' });
+
+export const StorageModule = makeModule({
+  name: 'module:storage',
+  providers: [
+    UploadsService,
+    Storage.pick({ s3: [S3Client, S3Storage], local: [LocalStorage] }),
+    Metrics.when(StorageMetrics), // то же, что pick({ on: …, off: [] })
+  ],
+});
+```
+
+Таблица `pick` перечисляет все значения переключателя; неполная таблица не
+компилируется. Ветка — одно значение, массив значений или пустой массив.
+Ветка внутри ветки раскрывается тем же проходом.
+
+Ветка стоит в `providers:` и `dependsOn:` модуля. Значения приходят опцией
+билдера, и без неё ветка роняет регистрацию:
+
+```typescript
+const container = new ContainerBuilder({ switches: { storage: 's3' } })
+  .register(StorageModule)
+  .build();
+```
+
+Раскрытие не копирует модуль: билдер читает его списки и регистрирует
+результат, поэтому правило «два разных значения с одним именем — ошибка»
+работает как прежде.
+
+DI-токена у переключателя нет: выбор не инжектируется, состав не протекает
+в рантайм. У приложения значения приходят аргументом сборки
+`app.assemble(args)` — словарь переключателей объявляет корень
+([`@nestling/app`](../nestling.app)).
+
+Поле `schema` — Standard Schema значений с умолчанием; ею описывают поле
+секции конфига, не добавляя валидатор в зависимости пакета:
+
+```typescript
+export const RootConfig = makeConfig('app', {
+  storage: Storage.schema, // APP_STORAGE: 's3' | 'local'
+});
+```
 
 ### Сборка графа
 
@@ -827,6 +883,21 @@ main().catch(console.error);
 | `Handler(deps?)` | декоратор класса-хендлера: метод `handle` |
 | `makeModule(module)` | создаёт модуль: `name`, `providers`, `dependsOn` |
 
+### Переключатели состава
+
+| Член | Что делает |
+|---|---|
+| `makeSwitch(name)` | двухпозиционный переключатель `'on' \| 'off'` без умолчания |
+| `makeSwitch(name, { default })` | двухпозиционный с умолчанием |
+| `makeSwitch(name, values)` | перечисление; значений не меньше двух и все различны |
+| `makeSwitch(name, values, { default })` | перечисление с умолчанием; умолчание обязано быть одним из значений |
+| `Switch.pick(table)` | ветка состава; таблица обязана перечислить все значения |
+| `Switch.when(items)` | у двухпозиционного: то же, что `pick({ on: items, off: [] })` |
+| `Switch.schema` | Standard Schema значений с умолчанием — для поля секции конфига |
+| `resolveBranches(items, values, missing?)` | раскрывает ветки списка в элементы выбранных значений |
+| `branchCandidates(items)` | элементы всех веток без выбора — для проверок раньше значений |
+| `switchesUsed(items)` | переключатели, использованные ветками списка, без повторов |
+
 ### Провайдеры
 
 | Функция | Что делает |
@@ -842,7 +913,7 @@ main().catch(console.error);
 
 | Член | Что делает |
 |---|---|
-| `new ContainerBuilder(options?)` | билдер; опции `overrides`, `familyOverrides` |
+| `new ContainerBuilder(options?)` | билдер; опции `overrides`, `familyOverrides`, `switches` |
 | `.register(...items)` | регистрирует провайдеры, рецепты семейств и модули |
 | `.build()` | синхронно: строит и проверяет граф, не создавая экземпляров; возвращает `BuiltContainer` |
 | `container.get(token)` | экземпляр или `null`, если DI-токен не зарегистрирован; до `init()` бросает ошибку фазы |

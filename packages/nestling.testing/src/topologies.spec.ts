@@ -1,5 +1,5 @@
 /**
- * `checkTopologies` — матрица `select`-топологий и перечень всех отказов.
+ * `checkTopologies` — матрица топологий и перечень всех отказов.
  */
 
 import { HTTP_LIKE, SpyTransport } from './__fixtures__/transport.js';
@@ -21,7 +21,12 @@ import {
   snapshotOperations,
   transportValue,
 } from '@nestling/app';
-import { Handler, makeToken, valueProvider } from '@nestling/container';
+import {
+  Handler,
+  makeSwitch,
+  makeToken,
+  valueProvider,
+} from '@nestling/container';
 import { makeRequest } from '@nestling/operations';
 import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
 import { z } from 'zod';
@@ -74,7 +79,7 @@ describe('checkTopologies', () => {
       ['all', 'users', 'reports'],
     );
 
-    expect(reports.map(({ select }) => select)).toEqual([
+    expect(reports.map(({ args }) => args)).toEqual([
       'all',
       'users',
       'reports',
@@ -137,8 +142,8 @@ describe('checkTopologies', () => {
     expect((error as Error).message).toContain(
       '3 of 3 topologies did not assemble',
     );
-    expect((error as Error).message).toContain(`select: 'users'`);
-    expect((error as Error).message).toContain(`select: 'reports'`);
+    expect((error as Error).message).toContain(`args: 'users'`);
+    expect((error as Error).message).toContain(`args: 'reports'`);
     expect((error as Error).message).toContain('TopologyLogger');
   });
 
@@ -265,6 +270,43 @@ describe('checkTopologies — операции и снапшот', () => {
       snapshot.operations.find(({ name }) => name === 'matrix.users.list')
         ?.topologies,
     ).toEqual(['all', 'users']);
+  });
+
+  it('перебирает ветки переключателя, и отчёт называет своё значение', async () => {
+    const Storage = makeSwitch('storage', ['s3', 'local']);
+    const S3$ = makeToken<string>('TopologyS3');
+    const Local$ = makeToken<string>('TopologyLocal');
+
+    const UploadsFeature = makeFeature({
+      name: 'uploads',
+      providers: [
+        Storage.pick({
+          s3: [valueProvider(S3$, 's3')],
+          local: [valueProvider(Local$, 'local')],
+        }),
+      ],
+      endpoints: [
+        httpEndpoint({
+          method: 'POST',
+          path: '/uploads',
+          handler: async () => new Ok({}),
+        }),
+      ],
+    });
+
+    const reports = await checkTopologies(
+      makeApp({
+        features: [UploadsFeature],
+        switches: [Storage],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+      [{ storage: 's3' }, { storage: 'local' }],
+    );
+
+    expect(reports.map(({ report }) => report.switches)).toEqual([
+      { storage: 's3' },
+      { storage: 'local' },
+    ]);
   });
 
   it('дифф снапшота с самим собой не находит расхождений', async () => {

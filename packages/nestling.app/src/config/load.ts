@@ -1,7 +1,7 @@
 /**
  * Первичное чтение секции — фаза 0 (BOOTSTRAP).
  *
- * Единственное пред-сборочное чтение конфига: `select` вычисляется до
+ * Единственное пред-сборочное чтение конфига: аргумент сборки вычисляется до
  * построения контейнера, а значит до читалки и до привязанных источников.
  * Поэтому `load` знает ровно один источник — `process.env`.
  */
@@ -35,7 +35,7 @@ import { SchemaValidationError, validateSync } from '@common/misc';
  * const RootConfig = makeConfig('app', { features: z.string().default('all') });
  *
  * const cfg = load(RootConfig);
- * await assemble({ features: [...], select: cfg.features }).run();
+ * await app.assemble({ features: cfg.features }).run();
  * ```
  */
 export const load = <Values>(

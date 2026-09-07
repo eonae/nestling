@@ -31,6 +31,7 @@ import {
 const checked = makeApp({
   features: app.spec.features,
   plugins: app.spec.plugins,
+  switches: app.spec.switches,
   policies: app.spec.policies,
   transports: app.spec.transports,
   config: [

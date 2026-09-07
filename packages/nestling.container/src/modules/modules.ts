@@ -1,4 +1,5 @@
 import type { ModuleProvider, ProvidersFactory } from '../providers/index.js';
+import type { Branchable } from '../switches/index.js';
 
 /**
  * Модуль: обычный объект, который группирует провайдеры под именем.
@@ -22,16 +23,18 @@ export interface Module {
   name: string;
   /**
    * Провайдеры модуля: классы с декоратором роли, определения провайдеров,
-   * рецепты семейств (`familyProvider(...)`) или фабрика, возвращающая их
+   * рецепты семейств (`familyProvider(...)`), ветки переключателей или
+   * фабрика, возвращающая провайдеры
    */
-  providers?: ModuleProvider[] | ProvidersFactory;
+  providers?: readonly Branchable<ModuleProvider>[] | ProvidersFactory;
   /**
    * Модули, без которых этот не работает: они регистрируются вместе с ним.
    *
    * Поле не даёт доступа к чужим провайдерам — доступ даёт DI-токен, а
-   * провайдеры глобальны.
+   * провайдеры глобальны. Ветка переключателя стоит здесь наравне с
+   * модулем.
    */
-  dependsOn?: Module[];
+  dependsOn?: readonly Branchable<Module>[];
 }
 
 /**

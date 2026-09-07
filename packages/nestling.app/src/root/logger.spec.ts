@@ -15,7 +15,6 @@ import {
   VALUE_ONLY,
 } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
-import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -28,18 +27,13 @@ const asTransport = (transport: MockTransport) =>
     capabilities: VALUE_ONLY,
   });
 
-/** Фича с одним endpoint'ом: сборке нужно что-то обнаружить */
-const feature = () =>
-  makeFeature({
-    name: 'module:ping',
-    endpoints: [
-      testEndpoint({
-        method: 'GET',
-        path: '/ping',
-        output: z.object({ ok: z.boolean() }),
-        handler: async () => new Ok({ ok: true }),
-      }),
-    ],
+/** Endpoint корня: сборке нужно что-то обнаружить */
+const ping = () =>
+  testEndpoint({
+    method: 'GET',
+    path: '/ping',
+    output: z.object({ ok: z.boolean() }),
+    handler: async () => new Ok({ ok: true }),
   });
 
 describe('логгер корня', () => {
@@ -52,7 +46,7 @@ describe('логгер корня', () => {
     const Second$ = makeToken<string>('Ambiguous');
 
     const app = makeApp({
-      features: [feature()],
+      endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
       providers: [valueProvider(First$, 'a'), valueProvider(Second$, 'b')],
       logger: probe.logger,
@@ -73,7 +67,7 @@ describe('логгер корня', () => {
 
   it('без опции корнем служит ConsoleLogger ядра', async () => {
     const app = makeApp({
-      features: [feature()],
+      endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
     }).assemble();
 
@@ -86,7 +80,7 @@ describe('логгер корня', () => {
     const Service$ = makeToken<unknown>('Service');
 
     const app = makeApp({
-      features: [feature()],
+      endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
       providers: [
         factoryProvider(
@@ -116,7 +110,7 @@ describe('логгер корня', () => {
     const probe = loggerProbe();
 
     const app = makeApp({
-      features: [feature()],
+      endpoints: [ping()],
       transports: [asTransport(new MockTransport())],
       providers: [valueProvider(RootLogger$, probe.logger)],
     }).assemble();

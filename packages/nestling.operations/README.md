@@ -11,7 +11,7 @@
 > 🚧 Пакет в активной разработке, API может меняться. Целевой дизайн —
 > [`docs/design/operations.md`](../../docs/design/operations.md) и
 > [`docs/design/streaming.md`](../../docs/design/streaming.md), гайд —
-> [глава 11. Отдать фронтенду документацию и клиент](../../docs/guide/11-openapi-and-client.md).
+> [глава 12. Отдать фронтенду документацию и клиент](../../docs/guide/12-openapi-and-client.md).
 
 ## Без серверного кода
 

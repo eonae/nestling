@@ -22,7 +22,8 @@ import {
 } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { buildOwnerMap } from './boundary.js';
-import { makeFeature, makePlugin } from './feature.js';
+import type { Bundle, ResolvedBundle } from './feature.js';
+import { makeFeature, makePlugin, resolveBundle } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -76,13 +77,17 @@ const anyEndpoint = (path: string, deps: readonly unknown[] = []) => {
   return testEndpoint({ method: 'GET', path, handler: AnyHandler });
 };
 
+/** Единица с раскрытыми ветками: у этих фикстур веток нет */
+const resolved = (bundle: Bundle): ResolvedBundle =>
+  resolveBundle(bundle, {}, () => new Error('no switches'));
+
 describe('карта «модуль → владелец»', () => {
   it('плагин владеет модулем, достижимым и из фичи', () => {
     const Shared = { name: 'shared', providers: [Logger] };
     const Infra = makePlugin({ name: '@acme/logging', modules: [Shared] });
     const Users = makeFeature({ name: 'users', modules: [Shared] });
 
-    const owners = buildOwnerMap([Users], [Infra]);
+    const owners = buildOwnerMap([resolved(Users)], [resolved(Infra)], {});
 
     expect(owners.get('shared')).toEqual({
       name: '@acme/logging',
@@ -95,7 +100,7 @@ describe('карта «модуль → владелец»', () => {
     const Api = { name: 'users-api', dependsOn: [Core] };
     const Users = makeFeature({ name: 'users', modules: [Api] });
 
-    const owners = buildOwnerMap([Users], []);
+    const owners = buildOwnerMap([resolved(Users)], [], {});
 
     expect(owners.get('users-core')).toEqual({
       name: 'users',
@@ -296,9 +301,9 @@ describe('общий модуль обязан быть плагином', () =>
     const Users = makeFeature({ name: 'users', modules: [Shared] });
     const Orders = makeFeature({ name: 'orders', modules: [Shared] });
 
-    expect(() => buildOwnerMap([Users, Orders], [])).toThrow(
-      /declare it with makePlugin and list it in 'plugins:'/,
-    );
+    expect(() =>
+      buildOwnerMap([resolved(Users), resolved(Orders)], [], {}),
+    ).toThrow(/declare it with makePlugin and list it in 'plugins:'/);
   });
 
   it('тот же модуль, объявленный плагином, сборку не ломает', async () => {

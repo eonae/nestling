@@ -18,12 +18,12 @@ import type {
   AnyOutput,
   AnyPayload,
   App,
+  AssembleArgs,
   ConfigInput,
   DispatchOptions,
   EndpointDefinition,
   EndpointMeta,
   ExtendableContext,
-  FeatureSelection,
   InferInput,
   InferOutput,
   Raw,
@@ -39,7 +39,7 @@ import {
 } from '@nestling/app';
 import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
 import { wireApp } from '@nestling/app/testing';
-import type { InjectionToken } from '@nestling/container';
+import type { AnySwitch, InjectionToken } from '@nestling/container';
 import { valueProvider } from '@nestling/container';
 import type {
   CommandMeta,
@@ -92,19 +92,24 @@ export interface EmitDelivery {
 }
 
 /**
- * Опции тестовой сборки: выбор фич и подстановки.
+ * Опции тестовой сборки: аргумент сборки и подстановки.
  *
  * Состав приложения — фичи, плагины, провайдеры, транспорты, интерком,
  * политики — берётся из декларации `makeApp`; полей состава здесь нет.
  *
  * @template L - Список подстановок; выводится из литерала, чтобы каждая
  * пара проверялась по типу своего DI-токена
+ * @template S - Переключатели декларации; из них выведен тип аргумента
  */
 export interface TestAssemblyOptions<
   L extends readonly unknown[] = readonly TestOverride[],
+  S extends readonly AnySwitch[] = readonly AnySwitch[],
 > {
-  /** Выбор фич — тот же, что в бою: опечатка падает на фазе ASSEMBLE */
-  select?: FeatureSelection;
+  /**
+   * Аргумент сборки — тот же, что в бою: выбор фич и значения
+   * переключателей. Опечатка падает на фазе ASSEMBLE.
+   */
+  args?: AssembleArgs<S>;
 
   /**
    * Конфиг теста: источник, одна привязка или их список.
@@ -285,7 +290,7 @@ export class TestApp {
         `Operation '${operation.name}' (kind 'command') has no owner in the ` +
           `assembled application: no registered module declares ` +
           `implement(${operation.name}, { … }) — check that the feature ` +
-          `owning it is part of 'select'. Available subjects: ` +
+          `owning it is part of the assembly argument. Available subjects: ` +
           `${this.#busSubjects().join(', ') || '(none)'}.`,
       );
     }
@@ -414,7 +419,7 @@ export class TestApp {
     throw new Error(
       `Endpoint '${String(endpoint?.pattern)}' is not part of the assembled ` +
         `application: it is declared by a module that was not registered, or ` +
-        `by a feature that 'select' left out. Available handles: ` +
+        `by a feature that the assembly argument left out. Available handles: ` +
         `${available || '(none)'}.`,
     );
   }
@@ -464,13 +469,13 @@ function assertEmitting(
 /**
  * Собирает тестовое приложение и останавливает его после фазы 3 WIRE.
  *
- * Та же декларация, что у `main.ts`, плюс выбор фич, `overrides`, `stubs`
- * и конфиг теста; те же fail-fast'ы ASSEMBLE — сверка требуемых
- * транспортов, формы io против способностей транспорта, ацикличность
- * графа и объявленные политики.
+ * Та же декларация, что у `main.ts`, плюс аргумент сборки, `overrides`,
+ * `stubs` и конфиг теста; те же fail-fast'ы ASSEMBLE — раскрытие веток
+ * переключателей, сверка требуемых транспортов, формы io против
+ * способностей транспорта, ацикличность графа и объявленные политики.
  *
  * @param app - Декларация приложения (`makeApp`)
- * @param options - Выбор фич и подстановки
+ * @param options - Аргумент сборки и подстановки
  * @returns Приложение с `call`/`get`/`pruned`/`close`
  * @throws {TypeError} Если первый аргумент — не декларация `makeApp`
  *
@@ -479,6 +484,7 @@ function assertEmitting(
  * import { app } from './app.js';
  *
  * await using testApp = await assembleTest(app, {
+ *   args: { features: 'users', storage: 'local' },
  *   overrides: [
  *     [UsersRepository, inMemoryUsersRepo()],
  *     familyOverride(ILogger, () => noopLogger),
@@ -487,9 +493,14 @@ function assertEmitting(
  * });
  * ```
  */
-export async function assembleTest<const L extends readonly TestOverride[]>(
-  app: App,
-  options: TestAssemblyOptions<L> & { overrides?: ValidatedOverrides<L> } = {},
+export async function assembleTest<
+  const L extends readonly TestOverride[],
+  const S extends readonly AnySwitch[] = readonly AnySwitch[],
+>(
+  app: App<S>,
+  options: TestAssemblyOptions<L, S> & {
+    overrides?: ValidatedOverrides<L>;
+  } = {},
 ): Promise<TestApp> {
   if (!isApp(app)) {
     throw new TypeError(
@@ -504,7 +515,7 @@ export async function assembleTest<const L extends readonly TestOverride[]>(
   );
 
   const wired = await wireApp(app, {
-    ...(options.select === undefined ? {} : { select: options.select }),
+    ...(options.args === undefined ? {} : { args: options.args }),
     // Стаб — поставка недостающего, а не подмена: обычный провайдер
     providers: (options.stubs ?? []).map(([token, value]) =>
       valueProvider(token, value),

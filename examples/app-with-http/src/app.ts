@@ -13,6 +13,7 @@ import {
   IdempotencyKey,
   makeApp,
 } from '@nestling/app';
+import { makeSwitch } from '@nestling/container';
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 import { subscriptions } from '@nestling/subscriptions';
@@ -38,6 +39,19 @@ export const appSubscriptions = subscriptions({
   node: 'app-with-http',
 });
 
+/**
+ * Переключатель состава: документация нужна в dev-контуре и не нужна за
+ * периметром. Значение приходит аргументом сборки — `APP_DOCS`.
+ */
+export const Docs = makeSwitch('docs', { default: 'on' });
+
+/** Плагин документации: обе ветки переключателя видны статически */
+export const appOpenapi = openapi({
+  info: { title: 'Users API', version: '1.0.0' },
+  converters: [zodConverter()],
+  pipeline: observability,
+});
+
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   plugins: [
@@ -45,13 +59,10 @@ export const app = makeApp({
     appAuth,
     appSubscriptions,
     // Документ строится на фазе ASSEMBLE из тех же деклараций, которые
-    // обслуживают запросы
-    openapi({
-      info: { title: 'Users API', version: '1.0.0' },
-      converters: [zodConverter()],
-      pipeline: observability,
-    }),
+    // обслуживают запросы. При `docs=off` плагина в сборке нет целиком
+    Docs.when(appOpenapi),
   ],
+  switches: [Docs],
   // Сокетом владеет сервер: `http()` объявляет его сам, а порт и хост
   // сервер читает из своей секции — `HTTP_PORT`, `HTTP_HOST`
   transports: [http()],

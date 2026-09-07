@@ -13,9 +13,10 @@
 
 import { busBindingOf } from '../ports/index.js';
 
-import type { Feature } from './feature.js';
+import type { ResolvedBundle } from './feature.js';
 import { injectedTokens } from './feature.js';
 
+import type { SwitchValues } from '@nestling/container';
 import { asFamilyMember } from '@nestling/container';
 import { EmitterFamily, PortFamily } from '@nestling/operations';
 
@@ -25,10 +26,10 @@ import { EmitterFamily, PortFamily } from '@nestling/operations';
  * Источник — все DI-токены единицы: вызыватель инжектируют и декларации, и
  * обычные провайдеры.
  */
-function callsOf(feature: Feature): Set<string> {
+function callsOf(feature: ResolvedBundle, values: SwitchValues): Set<string> {
   const calls = new Set<string>();
 
-  for (const dependency of injectedTokens(feature)) {
+  for (const dependency of injectedTokens(feature, values)) {
     const member = asFamilyMember(dependency);
 
     if (member?.family === PortFamily || member?.family === EmitterFamily) {
@@ -46,9 +47,9 @@ function callsOf(feature: Feature): Set<string> {
  * нужно, чтобы дотянуться до невыбранной.
  */
 function implementers(
-  declared: ReadonlyMap<string, Feature>,
-): Map<string, Feature> {
-  const owners = new Map<string, Feature>();
+  declared: ReadonlyMap<string, ResolvedBundle>,
+): Map<string, ResolvedBundle> {
+  const owners = new Map<string, ResolvedBundle>();
 
   for (const feature of declared.values()) {
     for (const endpoint of feature.endpoints) {
@@ -69,14 +70,19 @@ function implementers(
 /**
  * Замыкает выбор по вызываемым операциям.
  *
- * @param selected - Фичи, названные в `select`
- * @param declared - Все объявленные фичи
+ * Ветки переключателей к этому моменту уже раскрыты: замыкание видит тот
+ * же состав, что и discovery.
+ *
+ * @param selected - Фичи, названные в аргументе сборки
+ * @param declared - Все объявленные фичи с раскрытыми ветками
+ * @param values - Значения переключателей фазы ASSEMBLE
  * @returns Выбор плюс фичи, реализующие вызываемые операции
  */
 export function closeOverCalls(
-  selected: readonly Feature[],
-  declared: ReadonlyMap<string, Feature>,
-): Feature[] {
+  selected: readonly ResolvedBundle[],
+  declared: ReadonlyMap<string, ResolvedBundle>,
+  values: SwitchValues,
+): ResolvedBundle[] {
   const owners = implementers(declared);
 
   const chosen = [...selected];
@@ -90,7 +96,7 @@ export function closeOverCalls(
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const feature = queue.shift()!;
 
-    for (const call of callsOf(feature)) {
+    for (const call of callsOf(feature, values)) {
       const owner = owners.get(call);
 
       if (!owner || seen.has(owner)) {

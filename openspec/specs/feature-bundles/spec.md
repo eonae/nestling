@@ -18,6 +18,12 @@ composition root отдаёт билдеру модули выбранных ф�
 ровно одной из двух форм состава: `providers` или `modules`. Обе формы
 одновременно SHALL быть ошибкой типа.
 
+Списки `providers`, `modules` и `endpoints` SHALL принимать ветки
+переключателей наравне со своими элементами (capability
+`composition-switches`). Ветка SHALL раскрываться на фазе ASSEMBLE, до
+discovery: невыбранная ветка отсутствует в приложении так же, как
+невыбранная фича.
+
 Фича SHALL объявляться конструктором `makeFeature`. Она SHALL NOT наследовать
 `Module`: она содержит модули, а не расширяет их тип.
 
@@ -37,6 +43,12 @@ SHALL NOT существовать.
 
 - **WHEN** объявлена фича `{ name: 'users', modules: [UsersCore, UsersApi] }`
 - **THEN** значение принимается, а узлы несут метки своих модулей
+
+#### Scenario: Фича с веткой в составе
+
+- **WHEN** объявлена фича `{ name: 'uploads', modules: [StorageModule, Debug.when(DebugModule)] }`
+- **THEN** при `debug=off` в графе нет ни одного провайдера `DebugModule`,
+  а список модулей фичи содержит один модуль
 
 #### Scenario: Обе формы одновременно отвергаются
 

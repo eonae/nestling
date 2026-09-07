@@ -15,9 +15,11 @@
 
 import type { App } from '../root/app.js';
 import { AssembledApp, isApp } from '../root/app.js';
-import type { FeatureSelection } from '../root/feature.js';
+import type { AssembleArgs } from '../root/args.js';
 import type { TestSubstitutions, WiredApp } from '../root/plan.js';
 import { makePlan, TEST_SEAM } from '../root/plan.js';
+
+import type { AnySwitch } from '@nestling/container';
 
 export type {
   TestSubstitutions,
@@ -26,13 +28,20 @@ export type {
 } from '../root/plan.js';
 
 /**
- * Опции тестового прогона: выбор фич и подстановки.
+ * Опции тестового прогона: аргумент сборки и подстановки.
  *
  * Состав приложения берётся из декларации; полей состава здесь нет.
+ *
+ * @template S - Переключатели декларации; из них выведен тип аргумента
  */
-export interface WireOptions extends TestSubstitutions {
-  /** Выбор фич — тот же, что в бою: опечатка падает на фазе ASSEMBLE */
-  select?: FeatureSelection;
+export interface WireOptions<
+  S extends readonly AnySwitch[] = readonly AnySwitch[],
+> extends TestSubstitutions {
+  /**
+   * Аргумент сборки — тот же, что в бою: опечатка падает на фазе
+   * ASSEMBLE.
+   */
+  args?: AssembleArgs<S>;
 }
 
 /**
@@ -45,8 +54,8 @@ export interface WireOptions extends TestSubstitutions {
  * обработчики сигналов процесса, ни строка состава в stdout.
  *
  * @param app - Декларация приложения (`makeApp`)
- * @param options - Выбор фич, `overrides`/`familyOverrides`, провайдеры
- * стабов и привязка конфига теста
+ * @param options - Аргумент сборки, `overrides`/`familyOverrides`,
+ * провайдеры стабов и привязка конфига теста
  * @returns Приложение, остановленное после WIRE
  * @throws {TypeError} Если первый аргумент — не декларация `makeApp`
  *
@@ -57,9 +66,9 @@ export interface WireOptions extends TestSubstitutions {
  * });
  * ```
  */
-export async function wireApp(
-  app: App,
-  options: WireOptions = {},
+export async function wireApp<const S extends readonly AnySwitch[]>(
+  app: App<S>,
+  options: WireOptions<S> = {},
 ): Promise<WiredApp> {
   if (!isApp(app)) {
     throw new TypeError(
@@ -68,8 +77,8 @@ export async function wireApp(
     );
   }
 
-  const { select, ...substitutions } = options;
-  const assembled = new AssembledApp(makePlan(app.spec, select, substitutions));
+  const { args, ...substitutions } = options;
+  const assembled = new AssembledApp(makePlan(app.spec, args, substitutions));
 
   return await assembled[TEST_SEAM]();
 }

@@ -6,7 +6,7 @@
 
 > 🚧 Активная разработка, API может меняться.
 > Дизайн: [`docs/design/operations.md`](../../docs/design/operations.md) §5.
-> Гайд: [глава 11. Отдать фронтенду документацию и клиент](../../docs/guide/11-openapi-and-client.md).
+> Гайд: [глава 12. Отдать фронтенду документацию и клиент](../../docs/guide/12-openapi-and-client.md).
 
 ## Установка
 

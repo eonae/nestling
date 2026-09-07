@@ -26,6 +26,8 @@ import {
   isValueDefinition,
   readRoleMeta,
 } from '../providers/index.js';
+import type { SwitchValues } from '../switches/index.js';
+import { resolveBranches } from '../switches/index.js';
 
 import { BuiltContainer } from './container.built.js';
 
@@ -91,6 +93,16 @@ export interface ContainerBuilderOptions {
    * См. {@link FamilyOverrideEntry}.
    */
   familyOverrides?: readonly FamilyOverrideEntry<any, any>[];
+
+  /**
+   * Значения переключателей состава: `{ storage: 's3' }`.
+   *
+   * Ими раскрываются ветки в `providers:` и `dependsOn:` регистрируемых
+   * модулей. Без опции карта пуста, и ветка роняет регистрацию: контейнер,
+   * собранный напрямую, веток не поддерживает, пока ему их не передали.
+   * Сборка приложения передаёт сюда карту фазы ASSEMBLE.
+   */
+  switches?: SwitchValues;
 }
 
 /**
@@ -119,6 +131,7 @@ export class ContainerBuilder {
   readonly #modules = new Map<string, Module>();
   readonly #overrides: readonly TokenOverride<any>[];
   readonly #familyOverrides: readonly FamilyOverrideEntry<any, any>[];
+  readonly #switches: SwitchValues;
 
   #isBuilt = false;
 
@@ -128,6 +141,7 @@ export class ContainerBuilder {
   constructor(options: ContainerBuilderOptions = {}) {
     this.#overrides = options.overrides ?? [];
     this.#familyOverrides = options.familyOverrides ?? [];
+    this.#switches = options.switches ?? {};
   }
 
   /**
@@ -280,6 +294,10 @@ export class ContainerBuilder {
    * инфраструктурным модулем), пропускается. Другое значение под занятым
    * именем — ошибка: имя привязывает провайдеры к модулю, и молчаливый
    * пропуск второго значения потерял бы его провайдеры.
+   *
+   * Ветки списков раскрываются здесь же, при чтении. Копии модуля при этом
+   * не заводится: идентичность остаётся значением, и правило одного имени
+   * работает как прежде.
    */
   private registerModule(m: Module): void {
     const loaded = this.#modules.get(m.name);
@@ -296,14 +314,14 @@ export class ContainerBuilder {
     // должен завершить обход, а не войти в него снова
     this.#modules.set(m.name, m);
 
-    for (const required of m.dependsOn || []) {
+    for (const required of resolveBranches(m.dependsOn, this.#switches)) {
       this.registerModule(required);
     }
 
     if (typeof m.providers === 'function') {
       this.#providersFactories.set(m.name, m.providers);
     } else {
-      for (const provider of m.providers || []) {
+      for (const provider of resolveBranches(m.providers, this.#switches)) {
         this.registerModuleProvider(provider, m.name);
       }
     }

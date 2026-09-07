@@ -14,7 +14,8 @@ import type { Emitter, Port } from '../ports/index.js';
 import { implement } from '../ports/index.js';
 
 import { testEndpoint } from './__fixtures__/test-transport.js';
-import { makeFeature } from './feature.js';
+import type { Feature, ResolvedBundle } from './feature.js';
+import { makeFeature, resolveBundle } from './feature.js';
 import { closeOverCalls } from './selection.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -82,8 +83,27 @@ const anyEndpoint = testEndpoint({
   handler: async () => new Ok({}),
 });
 
-const declared = (...features: readonly ReturnType<typeof makeFeature>[]) =>
-  new Map(features.map((feature) => [feature.name, feature]));
+/**
+ * Раскрытие с запоминанием: замыкание сверяет единицы по идентичности,
+ * поэтому одна фича обязана давать одно значение.
+ */
+const cache = new Map<Feature, ResolvedBundle>();
+
+const resolved = (feature: Feature): ResolvedBundle => {
+  const known = cache.get(feature);
+
+  if (known) {
+    return known;
+  }
+
+  const fresh = resolveBundle(feature, {}, () => new Error('no switches'));
+  cache.set(feature, fresh);
+
+  return fresh;
+};
+
+const declared = (...features: readonly Feature[]) =>
+  new Map(features.map((feature) => [feature.name, resolved(feature)]));
 
 describe('closeOverCalls', () => {
   it('тянет реализацию операции, вызванной декларацией', () => {
@@ -109,7 +129,11 @@ describe('closeOverCalls', () => {
       ],
     });
 
-    const chosen = closeOverCalls([Users], declared(Users, QuotasFeature));
+    const chosen = closeOverCalls(
+      [resolved(Users)],
+      declared(Users, QuotasFeature),
+      {},
+    );
 
     expect(chosen.map(({ name }) => name)).toEqual(['users', 'quotas']);
   });
@@ -121,7 +145,11 @@ describe('closeOverCalls', () => {
       endpoints: [anyEndpoint],
     });
 
-    const chosen = closeOverCalls([Users], declared(Users, QuotasFeature));
+    const chosen = closeOverCalls(
+      [resolved(Users)],
+      declared(Users, QuotasFeature),
+      {},
+    );
 
     expect(chosen.map(({ name }) => name)).toEqual(['users', 'quotas']);
   });
@@ -136,7 +164,11 @@ describe('closeOverCalls', () => {
       endpoints: [anyEndpoint],
     });
 
-    const chosen = closeOverCalls([Users], declared(Users, QuotasFeature));
+    const chosen = closeOverCalls(
+      [resolved(Users)],
+      declared(Users, QuotasFeature),
+      {},
+    );
 
     expect(chosen.map(({ name }) => name)).toEqual(['users', 'quotas']);
   });
@@ -155,8 +187,9 @@ describe('closeOverCalls', () => {
     });
 
     const chosen = closeOverCalls(
-      [Users],
+      [resolved(Users)],
       declared(Users, BillingFeature, QuotasFeature),
+      {},
     );
 
     expect(chosen.map(({ name }) => name)).toEqual([
@@ -190,8 +223,9 @@ describe('closeOverCalls', () => {
     });
 
     const chosen = closeOverCalls(
-      [Subscriber],
+      [resolved(Subscriber)],
       declared(Subscriber, Publisher),
+      {},
     );
 
     expect(chosen.map(({ name }) => name)).toEqual(['subscriber']);
@@ -206,7 +240,11 @@ describe('closeOverCalls', () => {
       endpoints: [anyEndpoint],
     });
 
-    const chosen = closeOverCalls([Users], declared(Users, QuotasFeature));
+    const chosen = closeOverCalls(
+      [resolved(Users)],
+      declared(Users, QuotasFeature),
+      {},
+    );
 
     // Фабрика вызывается в `build()`, поэтому её вызовы здесь не видны:
     // такой вызов ловит проверка достижимости на собранном графе

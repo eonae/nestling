@@ -14,7 +14,11 @@ import {
   RootLogger$,
 } from '@nestling/app';
 import type { BuiltContainer } from '@nestling/container';
-import { ContainerBuilder, valueProvider } from '@nestling/container';
+import {
+  ContainerBuilder,
+  resolveBranches,
+  valueProvider,
+} from '@nestling/container';
 
 /**
  * Сборка контейнера без приложения: тот же граф, что собирает `main.ts`
@@ -45,7 +49,8 @@ export const makeContainer = async (
       // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
       // секцию `nestlingLog` и идентификатор запроса из контекста
       .register(contextKernel(), loggerKernel())
-      .register(...appCounters.modules)
+      // Веток переключателей у примера нет, поэтому карта значений пуста
+      .register(...resolveBranches(appCounters.modules, {}))
       .register(AppModule)
       .build()
   );

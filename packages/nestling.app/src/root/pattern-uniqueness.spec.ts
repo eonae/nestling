@@ -14,13 +14,22 @@ import {
 } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { discoverEndpoints } from './discovery.js';
-import { makeFeature } from './feature.js';
+import type { Bundle } from './feature.js';
+import { makeFeature, resolveBundle } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { Resource } from '@nestling/container';
 import { makeEvent, makeRequest } from '@nestling/operations';
 import { z } from 'zod';
+
+/** Discovery видит состав с раскрытыми ветками: единицы приходят к ней резолвнутыми */
+const discover = (bundles: readonly Bundle[]) =>
+  discoverEndpoints(
+    bundles.map((bundle) =>
+      resolveBundle(bundle, {}, () => new Error('no switches')),
+    ),
+  );
 
 /** Декларация с заданным паттерном и экземпляром транспорта */
 const ping = (method: string, path: string, on?: string) =>
@@ -43,7 +52,7 @@ describe('discovery — паттерн уникален внутри экзем�
       endpoints: [ping('GET', '/users')],
     });
 
-    expect(() => discoverEndpoints([users, admin])).toThrow(
+    expect(() => discover([users, admin])).toThrow(
       /'GET \/users' on transport 'test', declared in 'users', 'admin'/,
     );
   });
@@ -58,7 +67,7 @@ describe('discovery — паттерн уникален внутри экзем�
       endpoints: [ping('GET', '/health', 'admin')],
     });
 
-    expect(() => discoverEndpoints([users, ops])).not.toThrow();
+    expect(() => discover([users, ops])).not.toThrow();
   });
 
   it('метод входит в паттерн', () => {
@@ -67,7 +76,7 @@ describe('discovery — паттерн уникален внутри экзем�
       endpoints: [ping('GET', '/users'), ping('POST', '/users')],
     });
 
-    expect(() => discoverEndpoints([users])).not.toThrow();
+    expect(() => discover([users])).not.toThrow();
   });
 
   it('несколько дубликатов перечисляются одной ошибкой', () => {
@@ -82,7 +91,7 @@ describe('discovery — паттерн уникален внутри экзем�
 
     let message = '';
     try {
-      discoverEndpoints([users, admin]);
+      discover([users, admin]);
     } catch (error) {
       message = (error as Error).message;
     }
@@ -113,6 +122,7 @@ describe('дубликат падает до захвата ресурсов', (
     const users = makeFeature({
       name: 'users',
       endpoints: [ping('GET', '/users')],
+      providers: [Pool],
     });
     const admin = makeFeature({
       name: 'admin',
@@ -121,7 +131,6 @@ describe('дубликат падает до захвата ресурсов', (
 
     const app = makeApp({
       features: [users, admin],
-      providers: [Pool],
       transports: [
         transportValue(TestTransport$('default'), new MockTransport(), {
           capabilities: ALL_FORMS,
@@ -158,7 +167,7 @@ describe('правило шины остаётся отдельным', () => {
 
     // Discovery про операции ничего не говорит: их владельца проверяет
     // топология операций, своим текстом ошибки
-    expect(() => discoverEndpoints([first, second])).not.toThrow();
+    expect(() => discover([first, second])).not.toThrow();
   });
 
   it('у события несколько подписчиков на один subject', () => {
@@ -186,6 +195,6 @@ describe('правило шины остаётся отдельным', () => {
       ],
     });
 
-    expect(() => discoverEndpoints([audit, mailer])).not.toThrow();
+    expect(() => discover([audit, mailer])).not.toThrow();
   });
 });

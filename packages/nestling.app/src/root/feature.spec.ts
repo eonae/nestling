@@ -3,12 +3,13 @@
  * ролей и fail-fast расхождений.
  */
 
-import type { Feature } from './feature.js';
+import type { Bundle, Feature, ResolvedBundle } from './feature.js';
 import {
   makeFeature,
   makePlugin,
   modulesOf,
   reachablePlugins,
+  resolveBundle,
   resolveSelection,
 } from './feature.js';
 
@@ -16,6 +17,10 @@ import { describe, expect, it } from '@jest/globals';
 import { makeModule } from '@nestling/container';
 
 const moduleNamed = (name: string) => makeModule({ name });
+
+/** Единица с раскрытыми ветками: у этих фикстур веток нет */
+const resolved = (bundle: Bundle): ResolvedBundle =>
+  resolveBundle(bundle, {}, () => new Error('no switches'));
 
 const feature = (name: string) =>
   makeFeature({ name, modules: [moduleNamed(`module:${name}`)] });
@@ -30,7 +35,7 @@ describe('makeFeature', () => {
 
     expect(Users.role).toBe('feature');
     expect(Users.modules).toHaveLength(1);
-    expect(Users.modules[0]?.name).toBe('users');
+    expect(resolved(Users).modules[0]?.name).toBe('users');
     expect(Object.isFrozen(Users)).toBe(true);
   });
 
@@ -43,7 +48,7 @@ describe('makeFeature', () => {
       ],
     });
 
-    expect(Users.modules.map(({ name }) => name)).toEqual([
+    expect(resolved(Users).modules.map(({ name }) => name)).toEqual([
       'module:users-core',
       'module:users-api',
     ]);
@@ -135,7 +140,7 @@ describe('modulesOf', () => {
     const Left = makeFeature({ name: 'left', modules: [Shared] });
     const Right = makeFeature({ name: 'right', modules: [Shared] });
 
-    expect(modulesOf([Left, Right])).toEqual([Shared]);
+    expect(modulesOf([resolved(Left), resolved(Right)])).toEqual([Shared]);
   });
 
   it('роняет сборку на двух разных значениях под одним именем', () => {
@@ -148,7 +153,7 @@ describe('modulesOf', () => {
       modules: [makeModule({ name: 'module:shared' })],
     });
 
-    expect(() => modulesOf([Left, Right])).toThrow(
+    expect(() => modulesOf([resolved(Left), resolved(Right)])).toThrow(
       /Two different modules are named 'module:shared'/,
     );
   });
@@ -174,13 +179,14 @@ describe('resolveSelection', () => {
     expect(namesOf(features)).toEqual(['billing', 'orders']);
   });
 
-  it('объектная форма несёт includeDeps', () => {
+  it('флаг замыкания приходит третьим аргументом', () => {
     const Orders = feature('orders');
 
-    const { features, includeDeps } = resolveSelection([Orders], {
-      features: 'orders',
-      includeDeps: true,
-    });
+    const { features, includeDeps } = resolveSelection(
+      [Orders],
+      'orders',
+      true,
+    );
 
     expect(namesOf(features)).toEqual(['orders']);
     expect(includeDeps).toBe(true);

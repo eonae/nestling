@@ -94,6 +94,19 @@ export interface ServerDeclaration<Name extends string = string> {
 export type TransportEntry = TransportDeclaration | ServerDeclaration;
 
 /**
+ * Отбирает транспорты среди элементов `transports:`.
+ *
+ * Предикат, а не проверка на месте: разделять список приходится и сборке,
+ * и нормализации декларации.
+ *
+ * @param entry - Элемент поля `transports:`
+ * @returns `true`, если объявлен транспорт, а не сервер
+ */
+export const isTransport = (
+  entry: TransportEntry,
+): entry is TransportDeclaration => entry.kind === 'transport';
+
+/**
  * Объявление транспорта, который переносит объявленные операции.
  *
  * Отдельный тип, а не флаг: только такое объявление встаёт в роль

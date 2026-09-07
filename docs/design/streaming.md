@@ -276,7 +276,7 @@ interface SubscriptionRegistry {
 - Обязательность слоя задаётся политикой, а не скрытым механизмом:
   `everyEndpoint({ … }).hasLayer(tracked)` ([composition.md](./composition.md)).
 
-Гайд: [глава 23 «Кто сейчас подключён и как его отключить»](../guide/23-ops.md).
+Гайд: [глава 24 «Кто сейчас подключён и как его отключить»](../guide/24-ops.md).
 
 ## 5. Граница с RxJS
 

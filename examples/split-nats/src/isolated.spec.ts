@@ -33,7 +33,7 @@ describe('фича users в изоляции', () => {
     const registered: { id: string; email: string }[] = [];
 
     await using testApp = await assembleTest(isolated, {
-      select: 'users',
+      args: 'users',
       // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
       // сборке нет: обе стороны заменены стабами
       stubs: [
@@ -64,7 +64,7 @@ describe('фича users в изоляции', () => {
     const registered: unknown[] = [];
 
     await using testApp = await assembleTest(isolated, {
-      select: 'users',
+      args: 'users',
       stubs: [
         // Отказ объявлен в `errors:` операции, поэтому стаб отдаёт его как
         // есть, так же, как настоящий владелец по сети
@@ -82,7 +82,7 @@ describe('фича users в изоляции', () => {
 
   it('каждая застабанная операция реализована в одной из топологий', async () => {
     await using testApp = await assembleTest(isolated, {
-      select: 'users',
+      args: 'users',
       stubs: [
         stub(ClaimQuota, async () => ({ remaining: 1 })),
         // Подписчик события ничего не возвращает: у события нет `output`

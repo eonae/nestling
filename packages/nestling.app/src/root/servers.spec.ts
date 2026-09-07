@@ -84,6 +84,7 @@ describe('START — сокет открывается последним', () =>
     }
 
     const app = makeApp({
+      endpoints: [],
       providers: [Pool],
       transports: [testTransport({ server, marks })],
     }).assemble();
@@ -167,6 +168,7 @@ describe('SHUTDOWN — строгий реверс', () => {
     }
 
     const app = makeApp({
+      endpoints: [],
       providers: [Pool],
       transports: [
         testTransport({ name: 'first', server: first, marks }),

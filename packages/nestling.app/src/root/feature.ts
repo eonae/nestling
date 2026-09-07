@@ -16,11 +16,14 @@ import type { AnyEndpointDefinition } from '../pipeline/index.js';
 import { handlerClassOf } from '../pipeline/index.js';
 
 import type {
+  AnySwitch,
+  Branchable,
   InjectionToken,
   Module,
   ModuleProvider,
+  SwitchValues,
 } from '@nestling/container';
-import { dependenciesOf } from '@nestling/container';
+import { dependenciesOf, resolveBranches } from '@nestling/container';
 
 /**
  * Состав фичи или плагина: не больше одной из двух форм.
@@ -33,18 +36,18 @@ import { dependenciesOf } from '@nestling/container';
 export type BundleComposition =
   | {
       /** Провайдеры единицы; их узлы несут её имя меткой */
-      readonly providers?: readonly ModuleProvider[];
+      readonly providers?: readonly Branchable<ModuleProvider>[];
       readonly modules?: undefined;
     }
   | {
       /** Модули единицы; их узлы несут метки своих модулей */
-      readonly modules?: readonly Module[];
+      readonly modules?: readonly Branchable<Module>[];
       readonly providers?: undefined;
     };
 
 /** Общая часть объявления фичи и плагина */
 export interface BundleOptionsBase {
-  /** Имя единицы; у фичи им же она называется в `select` */
+  /** Имя единицы; у фичи им же она называется в аргументе сборки */
   readonly name: string;
 
   /**
@@ -55,7 +58,7 @@ export interface BundleOptionsBase {
    * Класс-хендлер регистрирует сам endpoint; зависимости хендлера — это
    * обычные провайдеры единицы.
    */
-  readonly endpoints?: readonly AnyEndpointDefinition[];
+  readonly endpoints?: readonly Branchable<AnyEndpointDefinition>[];
 }
 
 /** Словарь объявления фичи */
@@ -86,20 +89,25 @@ export interface Feature {
   /** Роль единицы; читается отчётами и проверкой границ */
   readonly role: 'feature';
 
-  /** Имя фичи; им же она называется в `select` */
+  /** Имя фичи; им же она называется в аргументе сборки */
   readonly name: string;
 
-  /** Модули фичи: они попадут в контейнер, если фича выбрана */
-  readonly modules: readonly Module[];
+  /**
+   * Модули фичи: они попадут в контейнер, если фича выбрана.
+   *
+   * Ветки переключателей раскрывает фаза ASSEMBLE — значения известны ей,
+   * а не объявлению.
+   */
+  readonly modules: readonly Branchable<Module>[];
 
-  /** Endpoint'ы фичи в порядке объявления */
-  readonly endpoints: readonly AnyEndpointDefinition[];
+  /** Endpoint'ы фичи в порядке объявления, возможно с ветками */
+  readonly endpoints: readonly Branchable<AnyEndpointDefinition>[];
 }
 
 /**
  * Плагин: сквозная инфраструктура, которая есть в каждом процессе.
  *
- * В словарь `select` не входит и не выбирается: единица, доступная всем
+ * В выбор фич не входит и не выбирается: единица, доступная всем
  * DI-токенами, обязана быть везде.
  */
 export interface Plugin {
@@ -109,11 +117,11 @@ export interface Plugin {
   /** Имя плагина; совпадает с именем npm-пакета, который его поставляет */
   readonly name: string;
 
-  /** Модули плагина */
-  readonly modules: readonly Module[];
+  /** Модули плагина, возможно с ветками переключателей */
+  readonly modules: readonly Branchable<Module>[];
 
-  /** Endpoint'ы плагина в порядке объявления */
-  readonly endpoints: readonly AnyEndpointDefinition[];
+  /** Endpoint'ы плагина в порядке объявления, возможно с ветками */
+  readonly endpoints: readonly Branchable<AnyEndpointDefinition>[];
 
   /** Плагины, без которых этот не работает */
   readonly dependsOn: readonly Plugin[];
@@ -123,37 +131,63 @@ export interface Plugin {
 export type Bundle = Feature | Plugin;
 
 /**
- * Форма `select`.
+ * Единица состава с раскрытыми ветками: то, с чем работает фаза ASSEMBLE.
  *
- * Строковая форма — граница процесса (аргумент бинарника, переменная
- * окружения), она строковая по природе; опечатка ловится fail-fast'ом с
- * перечнем доступных имён. Объектная форма добавляет `includeDeps`.
+ * Раскрытие делается один раз на сборку и запоминается по исходной
+ * единице: discovery, карта владельцев и атрибуция endpoint'ов сверяют
+ * единицы по идентичности значения.
  */
-export type FeatureSelection =
-  | string
-  | readonly string[]
-  | {
-      /** Имена выбранных фич либо `'all'` */
-      readonly features: string | readonly string[];
+export interface ResolvedBundle {
+  /** Роль единицы; читается отчётами и проверкой границ */
+  readonly role: 'feature' | 'plugin';
 
-      /**
-       * Замкнуть выбор по вызываемым операциям видов `request` и
-       * `command`.
-       *
-       * События в замыкании не участвуют: у события ноль или больше
-       * подписчиков, и отсутствие подписчика в этом процессе допустимо.
-       */
-      readonly includeDeps?: boolean;
-    };
+  /** Имя единицы */
+  readonly name: string;
+
+  /** Модули единицы после раскрытия веток */
+  readonly modules: readonly Module[];
+
+  /** Endpoint'ы единицы после раскрытия веток */
+  readonly endpoints: readonly AnyEndpointDefinition[];
+}
+
+/**
+ * Раскрывает ветки в списках единицы.
+ *
+ * Модули не копируются: раскрывается только список, в котором они стоят.
+ * `providers:` и `dependsOn:` самих модулей раскрывает контейнер при
+ * регистрации.
+ *
+ * @param bundle - Фича или плагин
+ * @param values - Значения переключателей фазы ASSEMBLE
+ * @param missing - Ошибка на ветке переключателя вне `switches:`
+ * @returns Единица с раскрытыми списками
+ */
+export function resolveBundle(
+  bundle: Bundle,
+  values: SwitchValues,
+  missing: (declared: AnySwitch) => Error,
+): ResolvedBundle {
+  return {
+    role: bundle.role,
+    name: bundle.name,
+    modules: resolveBranches(bundle.modules, values, missing),
+    endpoints: resolveBranches(bundle.endpoints, values, missing),
+  };
+}
 
 /** Проверяет имя и форму состава — одинаково для обеих ролей */
 function normalize(
   constructorName: 'makeFeature' | 'makePlugin',
   options: BundleOptionsBase & {
-    readonly providers?: readonly ModuleProvider[];
-    readonly modules?: readonly Module[];
+    readonly providers?: readonly Branchable<ModuleProvider>[];
+    readonly modules?: readonly Branchable<Module>[];
   },
-): { name: string; modules: Module[]; endpoints: AnyEndpointDefinition[] } {
+): {
+  name: string;
+  modules: readonly Branchable<Module>[];
+  endpoints: readonly Branchable<AnyEndpointDefinition>[];
+} {
   const { name, providers, modules, endpoints = [] } = options;
 
   if (typeof name !== 'string' || name.trim().length === 0) {
@@ -177,8 +211,9 @@ function normalize(
   }
 
   // Плоская форма нормализуется в один модуль с именем единицы: дальше
-  // состав однороден, и карта «модуль → владелец» строится одинаково
-  const own: Module[] = providers
+  // состав однороден, и карта «модуль → владелец» строится одинаково.
+  // Ветки остаются в списке провайдеров: их раскроет контейнер
+  const own: readonly Branchable<Module>[] = providers
     ? [{ name, providers: [...providers] }]
     : [...(modules ?? [])];
 
@@ -286,10 +321,10 @@ function indexByName(features: readonly Feature[]): Map<string, Feature> {
 }
 
 /** Разбирает имена выбора; форму-строку режет по запятой */
-function readNames(select: string | readonly string[]): string[] {
-  const names = Array.isArray(select)
-    ? [...(select as readonly string[])]
-    : String(select).split(',');
+function readNames(requested: string | readonly string[]): string[] {
+  const names = Array.isArray(requested)
+    ? [...(requested as readonly string[])]
+    : String(requested).split(',');
 
   return names.map((name) => name.trim()).filter((name) => name.length > 0);
 }
@@ -315,20 +350,23 @@ export interface NormalizedSelection {
  * discovery и потому живёт в `App`.
  *
  * @param features - Фичи, перечисленные в корне
- * @param select - Форма выбора; отсутствует — выбраны все
+ * @param requested - Имена выбранных фич либо `'all'`; отсутствуют —
+ * выбраны все
+ * @param includeDeps - Замкнуть выбор по вызываемым операциям
  * @returns Выбранные фичи, флаг замыкания и словарь объявленных
  *
  * @throws {Error} Неизвестное имя, одноимённые фичи, пустой выбор или
- * `select` без `features`
+ * выбор без объявленных фич
  */
 export function resolveSelection(
   features: readonly Feature[] | undefined,
-  select?: FeatureSelection,
+  requested?: string | readonly string[],
+  includeDeps = false,
 ): NormalizedSelection {
   const empty = { features: [], includeDeps: false, declared: new Map() };
 
   if (!features || features.length === 0) {
-    if (select !== undefined) {
+    if (requested !== undefined) {
       throw new Error(
         `A selection is given, but no features are declared. ` +
           `Declare them in 'features:' of makeApp({ … }) or assemble without ` +
@@ -340,16 +378,6 @@ export function resolveSelection(
   }
 
   const declared = indexByName(features);
-
-  const requested =
-    select !== undefined && typeof select === 'object' && !Array.isArray(select)
-      ? (select as { features: string | readonly string[] }).features
-      : (select as string | readonly string[] | undefined);
-
-  const includeDeps =
-    select !== undefined && typeof select === 'object' && !Array.isArray(select)
-      ? ((select as { includeDeps?: boolean }).includeDeps ?? false)
-      : false;
 
   if (requested === undefined || requested === 'all') {
     return { features: [...features], includeDeps, declared };
@@ -389,7 +417,7 @@ export function resolveSelection(
  * ошибка. Молчаливый пропуск одноимённого модуля потерял бы его
  * провайдеры, и «обнаружено» разошлось бы с «собрано».
  */
-export function modulesOf(bundles: readonly Bundle[]): Module[] {
+export function modulesOf(bundles: readonly ResolvedBundle[]): Module[] {
   const byName = new Map<string, Module>();
   const modules: Module[] = [];
 
@@ -423,9 +451,17 @@ export function modulesOf(bundles: readonly Bundle[]): Module[] {
  * Модули, достижимые из единицы: её собственные плюс их `dependsOn`.
  *
  * Дедупликация по ссылке: тот же модуль, привезённый двумя путями, в
- * списке один раз.
+ * списке один раз. Ветки в `dependsOn` раскрываются при чтении — так же,
+ * как их читает контейнер.
+ *
+ * @param bundle - Единица с раскрытыми списками
+ * @param values - Значения переключателей фазы ASSEMBLE
+ * @returns Модули в порядке обхода
  */
-export function reachableModules(bundle: Bundle): Module[] {
+export function reachableModules(
+  bundle: ResolvedBundle,
+  values: SwitchValues,
+): Module[] {
   const seen = new Set<Module>();
   const found: Module[] = [];
 
@@ -436,7 +472,7 @@ export function reachableModules(bundle: Bundle): Module[] {
     seen.add(module);
     found.push(module);
 
-    for (const required of module.dependsOn ?? []) {
+    for (const required of resolveBranches(module.dependsOn, values)) {
       visit(required);
     }
   };
@@ -460,7 +496,10 @@ export function reachableModules(bundle: Bundle): Module[] {
  * вызывается в `build()`, а состав считается до него. Вызов из такого
  * модуля остаётся виден проверке достижимости на собранном графе.
  */
-export function injectedTokens(bundle: Bundle): InjectionToken[] {
+export function injectedTokens(
+  bundle: ResolvedBundle,
+  values: SwitchValues,
+): InjectionToken[] {
   const tokens: InjectionToken[] = [];
 
   for (const endpoint of bundle.endpoints) {
@@ -470,14 +509,14 @@ export function injectedTokens(bundle: Bundle): InjectionToken[] {
     }
   }
 
-  for (const module of reachableModules(bundle)) {
+  for (const module of reachableModules(bundle, values)) {
     const { providers } = module;
 
     if (!Array.isArray(providers)) {
       continue;
     }
 
-    for (const provider of providers) {
+    for (const provider of resolveBranches(providers, values)) {
       tokens.push(...dependenciesOf(provider));
     }
   }

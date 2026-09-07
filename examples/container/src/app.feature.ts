@@ -3,6 +3,7 @@ import { HealthModule } from './health/index.js';
 import { RuntimeModule } from './runtime/index.js';
 import { UsersModule } from './users/index.js';
 import { AppService } from './app.service.js';
+import { Demo } from './demo.js';
 
 import { makeFeature } from '@nestling/app';
 import { makeModule } from '@nestling/container';
@@ -14,8 +15,20 @@ export const AppModule = makeModule({
   dependsOn: [UsersModule, ApiModule, HealthModule, RuntimeModule],
 });
 
+/**
+ * Демонстрация собранного графа: `@OnStart` живёт внутри фичи.
+ *
+ * Провайдеров у корня нет: они принимаются только рядом с `endpoints:`, а
+ * `Demo` зависит от сервисов фичи — ребро «фича → провайдер корня» не
+ * имело бы владельца.
+ */
+export const DemoModule = makeModule({
+  name: 'module:demo',
+  providers: [Demo],
+});
+
 /** Единственная фича примера; она содержит модули, а не наследует их */
 export const AppFeature = makeFeature({
   name: 'app',
-  modules: [AppModule],
+  modules: [AppModule, DemoModule],
 });

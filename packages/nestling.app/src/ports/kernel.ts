@@ -132,8 +132,9 @@ function assertReachable(
     `Operation '${operation.name}' (kind '${operation.kind}') is injected as ` +
       `'.${invoker}', but no selected feature implements it and this ` +
       `assembly has no intercom, so the call has nowhere to go. Either add ` +
-      `the feature that implements it to 'select' (or close the selection ` +
-      `over calls with 'select: { features, includeDeps: true }'), or ` +
+      `the feature that implements it to the assembly argument (or close ` +
+      `the selection over calls with 'assemble({ features, includeDeps: ` +
+      `true })'), or ` +
       `assign the intercom role to a bus transport ('transports: ` +
       `[nats({ name: "events" })]' with 'intercom: "events"') when the owner ` +
       `lives in another process.`,

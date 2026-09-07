@@ -352,7 +352,7 @@ function makeEmitterStub(
  * ```typescript
  * await using app = await assembleTest({
  *   features: [OrdersFeature],
- *   select: 'orders',
+ *   args: 'orders',
  *   stubs: [stub(ClaimQuota, async () => ({ granted: 1 }))],
  * });
  * ```

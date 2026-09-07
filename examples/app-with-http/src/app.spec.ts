@@ -17,10 +17,14 @@ import {
   ListUsers,
 } from './features/users/endpoints/index.js';
 import { UsersRepository$ } from './features/users/users.repository.js';
-import { observability } from './plugins/observability/index.js';
+import { appAuth } from './plugins/auth/index.js';
+import {
+  appObservability,
+  observability,
+} from './plugins/observability/index.js';
 import { AuditOutcome } from './plugins/observability/observability.js';
 import { appConfigKeys } from './app.config.js';
-import { app } from './app.js';
+import { app, appSubscriptions } from './app.js';
 import { ClaimQuota, QuotaExceeded } from './operations.js';
 import { inMemoryUsersRepo } from './testing.js';
 
@@ -57,6 +61,7 @@ const testConfig = { config: vars(testEnv) };
 const checked = makeApp({
   features: app.spec.features,
   plugins: app.spec.plugins,
+  switches: app.spec.switches,
   policies: app.spec.policies,
   transports: app.spec.transports,
   config: [[objectSource(testEnv, 'test'), appConfigKeys]],
@@ -188,7 +193,7 @@ describe('фичи и плагины в сборке', () => {
     // есть в любой сборке
     await using testApp = await assembleTest(app, {
       ...testConfig,
-      select: 'ops',
+      args: 'ops',
     });
 
     expect(testApp.get(AuditOutcome)).not.toBeNull();
@@ -199,7 +204,7 @@ describe('фичи и плагины в сборке', () => {
   it('замыкает выбор по вызываемым операциям', async () => {
     await using testApp = await assembleTest(app, {
       ...testConfig,
-      select: { features: 'users', includeDeps: true },
+      args: { features: 'users', includeDeps: true },
     });
 
     expect(testApp.features).toEqual(['users', 'quotas']);
@@ -337,6 +342,22 @@ describe('матрица select-топологий', () => {
     ]);
   });
 
+  it('проверяет обе ветки переключателя документации', async () => {
+    const [withDocs, withoutDocs] = await checkTopologies(checked, [
+      { features: 'all', docs: 'on' },
+      { features: 'all', docs: 'off' },
+    ]);
+
+    expect(withDocs.report.switches).toEqual({ docs: 'on' });
+    expect(withoutDocs.report.switches).toEqual({ docs: 'off' });
+
+    const patternsOf = (report: (typeof withDocs)['report']) =>
+      report.endpoints.map(({ pattern }) => pattern);
+
+    expect(patternsOf(withDocs.report)).toContain('GET /openapi.json');
+    expect(patternsOf(withoutDocs.report)).not.toContain('GET /openapi.json');
+  });
+
   it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
     const [{ report }] = await checkTopologies(checked, ['all']);
 
@@ -368,9 +389,9 @@ describe('документ OpenAPI', () => {
     transports: app.spec.transports,
     policies: app.spec.policies,
     plugins: [
-      ...app.spec.plugins.filter(
-        (plugin) => plugin.name !== '@nestling/openapi',
-      ),
+      appObservability,
+      appAuth,
+      appSubscriptions,
       openapi({
         info: { title: 'Users API', version: '1.0.0' },
         converters: [zodConverter()],

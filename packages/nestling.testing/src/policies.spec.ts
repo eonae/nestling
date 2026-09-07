@@ -121,7 +121,7 @@ describe('checkTopologies — инварианты по каждой топол�
 
     // Топология 'profile' инвариант держит, 'admin' — нет
     await expect(checkTopologies(app, ['profile', 'admin'])).rejects.toThrow(
-      /select: 'admin'[\S\s]*GET \/admin\/users/,
+      /args: 'admin'[\S\s]*GET \/admin\/users/,
     );
 
     await expect(checkTopologies(app, ['profile'])).resolves.toHaveLength(1);
