@@ -59,7 +59,7 @@ Endpoint регистрирует класс-хендлер сам: при сб�
 Перечислять класс в `providers:` фичи не нужно:
 
 ```typescript
-// examples/users-service/src/users.feature.ts
+// шаг главы 4; итоговая версия: examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [

@@ -68,10 +68,14 @@ export const UploadAvatar = httpEndpoint({
   output: User,
   errors: [UserNotFound, AvatarRequired],
   doc: { summary: 'Загрузить аватар', tags: ['users'] },
-  pipeline: authed,
+  pipeline: transactional,
   handler: UploadAvatarHandler,
 });
 ```
+
+Слой `transactional` — из [главы 26](./26-database-and-transaction.md):
+он открывает транзакцию запроса и приносит с собой проверку
+Bearer-токена, потому что композирован от `authed`.
 
 Форма `multipart({ fields, files })` описывает запрос из двух частей.
 Схема `fields` проверяет текстовые поля формы. Path-параметры добавляются
@@ -220,7 +224,7 @@ export const ImportUsers = httpEndpoint({
   input: stream(ImportRow).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
   output: ImportResult,
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
-  pipeline: authed,
+  pipeline: transactional,
   handler: ImportUsersHandler,
 });
 ```
