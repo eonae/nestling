@@ -95,7 +95,7 @@ export interface OpenApiServeOptions<
  *     converters: [zodConverter()],
  *     pipeline: observabilityBase,
  *   })],
- *   transports: [http({ port: 3000 })],
+ *   transports: [http()],
  * });
  * ```
  */

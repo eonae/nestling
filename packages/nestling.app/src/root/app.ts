@@ -50,8 +50,9 @@ import {
 import type {
   Dispatch,
   ExecutableDeclaration,
+  IListener,
   ITransport,
-  TransportDeclaration,
+  TransportEntry,
 } from '../transport/index.js';
 import { makeDispatch } from '../transport/index.js';
 
@@ -201,7 +202,7 @@ const APP_BRAND = Symbol.for('nestling:app');
  * // app.ts
  * export const app = makeApp({
  *   features: [OrdersFeature],
- *   transports: [http({ port: 3000 })],
+ *   transports: [http()],
  * });
  *
  * // main.ts
@@ -220,7 +221,7 @@ const APP_BRAND = Symbol.for('nestling:app');
  * await app.assemble({ features: load(RootConfig).features, includeDeps: true }).run();
  * ```
  */
-export function makeApp<const T extends readonly TransportDeclaration[] = []>(
+export function makeApp<const T extends readonly TransportEntry[] = []>(
   spec: AppSpec<T> = {},
 ): App {
   return new App(normalizeSpec(spec));
@@ -414,6 +415,16 @@ export class AssembledApp {
    */
   #serving: { token: TransportRef; transport: ITransport }[] = [];
 
+  /**
+   * Серверы, открывшие сокет (фаза START), в порядке `listen`.
+   *
+   * Дренаж идёт этим списком в реверсе — и до `close()` транспортов.
+   */
+  #listening: IListener[] = [];
+
+  /** Объявленные серверы по имени экземпляра; заполняется на INIT */
+  #servers = new Map<string, IListener>();
+
   /** Канал остановки, переданный транспортам в `serve` */
   #shutdown?: AbortController;
 
@@ -454,8 +465,10 @@ export class AssembledApp {
     this.#shutdown = new AbortController();
     const { signal } = this.#shutdown;
 
-    // 2 INIT — экземпляры и захват ресурсов
+    // 2 INIT — экземпляры и захват ресурсов; серверы среди них, но сокет
+    // ни один из них не открывает
     await container.init(signal);
+    this.#collectServers(container);
 
     // С этой строки ядро пишет через узел графа: подмена корня в тестовом
     // прогоне действует с INIT, и записи фазы RUN обязаны её видеть
@@ -464,10 +477,10 @@ export class AssembledApp {
     // 3 WIRE — резолв зависимостей деклараций и `dispatch` на транспорт
     const { dispatches } = this.#wire(container, discovery, logger);
 
-    // 4 START — сначала хуки графа, затем старт приёма запросов
-    // транспортами
+    // 4 START, шаг 1 — хуки графа
     await container.start(signal);
 
+    // 4 START, шаг 2 — транспорты присоединяют обработчики; сокета ещё нет
     for (const [token, dispatch] of dispatches) {
       const transport = container.getOrThrow<ITransport>(
         token as InjectionToken<ITransport>,
@@ -475,6 +488,14 @@ export class AssembledApp {
 
       await transport.serve(dispatch, signal);
       this.#serving.push({ token, transport });
+    }
+
+    // 4 START, шаг 3 — серверы открывают сокет, в порядке объявления.
+    // Последним, а не первым: запрос не может прийти раньше, чем каждый
+    // транспорт присоединил свой обработчик
+    for (const server of this.#servers.values()) {
+      await server.listen();
+      this.#listening.push(server);
     }
 
     this.#announce(discovery, logger);
@@ -557,6 +578,7 @@ export class AssembledApp {
 
     // 2 INIT
     await container.init(signal);
+    this.#collectServers(container);
 
     // 3 WIRE — и остановка: START, `#announce()` и `#attachSignals()` не
     // выполняются, поэтому тест не начинает принимать запросы и не
@@ -577,10 +599,22 @@ export class AssembledApp {
   }
 
   /**
+   * Объявленные серверы по имени экземпляра.
+   *
+   * Доступ к сокету изнутри теста и хелпера: `HTTP_PORT=0` отдаёт
+   * фактический порт только через `address()` сервера. Пусто до фазы INIT:
+   * экземпляров до неё нет.
+   */
+  get servers(): ReadonlyMap<string, IListener> {
+    return this.#servers;
+  }
+
+  /**
    * Выполняет фазу SHUTDOWN строгим реверсом START.
    *
-   * Порядок: взвод сигнала, затем `close()` транспортов в обратном
-   * порядке, затем `container.destroy()`. Идемпотентен.
+   * Порядок: взвод сигнала, `drain()` серверов в обратном порядке,
+   * `close()` транспортов в обратном порядке, `container.destroy()`.
+   * Идемпотентен.
    */
   async close(): Promise<void> {
     if (this.#closed || !this.#started) {
@@ -593,24 +627,48 @@ export class AssembledApp {
     this.#shutdown?.abort();
     this.#shutdown = undefined;
 
-    // 2. Дренаж соединений — в порядке, обратном порядку `serve`
+    // 2. Дренаж соединений — в порядке, обратном порядку `listen`. Раньше
+    // транспортов: сервер обязан перестать принимать соединения до того,
+    // как обработчик, который их обслуживает, перестанет существовать
+    for (const server of [...this.#listening].reverse()) {
+      await server.drain();
+    }
+    this.#listening = [];
+
+    // 3. Отмена запросов в обработке — в порядке, обратном порядку `serve`
     for (const { transport } of [...this.#serving].reverse()) {
       await transport.close?.();
     }
     this.#serving = [];
 
-    // 3. И только теперь — `release` ресурсов в реверсе топологического
-    // порядка
+    // 4. И только теперь — `release` ресурсов в реверсе топологического
+    // порядка; сервер среди них
     await this.#container?.destroy();
     this.#container = undefined;
+    this.#servers = new Map();
 
-    // 4. Источники конфига — последними: читалка живёт время `run()`, а
+    // 5. Источники конфига — последними: читалка живёт время `run()`, а
     // не время контейнера, и хука в графе у неё нет
     await this.#reader?.close();
     this.#reader = undefined;
 
     this.#detachSignals?.();
     this.#detachSignals = undefined;
+  }
+
+  /**
+   * Достаёт объявленные серверы из графа — сразу после INIT.
+   *
+   * Порядок карты — порядок объявления: им же идёт `listen` на START, а
+   * дренаж идёт его реверсом.
+   */
+  #collectServers(container: BuiltContainer): void {
+    this.#servers = new Map(
+      this.#plan.spec.servers.map(({ name, token }) => [
+        name,
+        container.getOrThrow<IListener>(token as InjectionToken<IListener>),
+      ]),
+    );
   }
 
   /** Выбранные фичи; доступны после резолва выбора на фазе ASSEMBLE */
@@ -773,9 +831,15 @@ export class AssembledApp {
       builder.register(...providers);
     }
 
-    const transports = spec.transports.map(({ provider }) => provider);
-    if (transports.length > 0) {
-      builder.register(...(transports as Provider[]));
+    // Серверы регистрируются вместе с транспортами: объявление сервера
+    // приходит и элементом `transports:`, и полем `server` объявления
+    // транспорта, а `normalizeSpec` уже свёл их без повторов
+    const nodes = [
+      ...spec.transports.map(({ provider }) => provider),
+      ...spec.servers.map(({ provider }) => provider),
+    ];
+    if (nodes.length > 0) {
+      builder.register(...(nodes as Provider[]));
     }
 
     // Корень логгера — последним: провайдер приложения под `RootLogger$`

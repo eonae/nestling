@@ -105,3 +105,46 @@ export const screamingSnake = (value: string): string =>
 /** Имя ключа поля секции: `<PREFIX>_<FIELD>` */
 export const deriveKey = (prefix: string, field: string): string =>
   `${screamingSnake(prefix)}_${screamingSnake(field)}`;
+
+/**
+ * Имя экземпляра, которое не даёт добавки к префиксу секции.
+ *
+ * То же значение, что `DEFAULT_INSTANCE` у объявлений транспортов: имя
+ * экземпляра по умолчанию одно на обе стороны. Строка повторена, чтобы
+ * слой конфига не зависел от слоя транспортов.
+ */
+const DEFAULT_INSTANCE = 'default';
+
+/**
+ * Префикс секции экземпляра: `'http'` и `'admin'` дают `http_admin`.
+ *
+ * Имя экземпляра приводится к тому же виду, что имя поля в ключ: дефисы и
+ * пробелы становятся подчёркиванием, границы слов — тоже. Имя `'default'`
+ * добавки не даёт, поэтому приложение с одним экземпляром читает ключи
+ * пакета без вставки: `HTTP_PORT`, а не `HTTP_DEFAULT_PORT`.
+ *
+ * @param prefix - Префикс пакета (`'http'`)
+ * @param instance - Имя экземпляра (`'default'`, `'admin'`)
+ * @returns Префикс секции этого экземпляра
+ * @throws {Error} Имя, из которого не выходит ни одного символа префикса
+ */
+export const derivePrefix = (prefix: string, instance: string): string => {
+  if (instance === DEFAULT_INSTANCE) {
+    return prefix;
+  }
+
+  const suffix = screamingSnake(instance.replaceAll(/[\s-]+/g, '_'))
+    .replaceAll(/^_+|_+$/g, '')
+    .toLowerCase();
+
+  if (suffix === '') {
+    throw new Error(
+      `Instance name ${JSON.stringify(instance)} yields an empty config ` +
+        `section prefix next to '${prefix}'. The name becomes the prefix of ` +
+        `the instance's keys (${screamingSnake(prefix)}_ADMIN_* for 'admin'), ` +
+        `so it must contain letters or digits.`,
+    );
+  }
+
+  return `${prefix}_${suffix}`;
+};

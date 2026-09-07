@@ -1,13 +1,7 @@
-import {
-  createServer,
-  type IncomingMessage,
-  type Server,
-  type ServerResponse,
-} from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { DEFAULT_SSE_HEARTBEAT, sendResponse } from './adapter.js';
 import { assemblePayload, readQuery } from './binding.js';
-import { HttpConfig } from './config.js';
 import {
   JsonParseError,
   MultipartFieldError,
@@ -22,15 +16,17 @@ import {
   readBody,
 } from './parser.js';
 import { HttpRouter } from './router.js';
+import type { HttpServer } from './server.js';
+import { httpServer, HttpServer$ } from './server.js';
 import { HTTP_TRANSPORT_NAME, HttpTransport$ } from './token.js';
 
 import type {
   AnyInput,
-  ConfigProjection,
   Dispatch,
   EndpointMeta,
   ITransport,
   Raw,
+  ServerDeclaration,
   StreamSummary,
   TransportCapabilities,
   TransportDeclaration,
@@ -47,23 +43,13 @@ import {
   PayloadTooLarge,
   TransportClosingError,
 } from '@nestling/app';
-import type { InjectionToken } from '@nestling/container';
 import { factoryProvider } from '@nestling/container';
 
 /** Лимит размера буферизуемого тела запроса по умолчанию (1 MiB) */
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
 
-/** Значения конфиг-секции транспорта, которые получает фабрика */
-type HttpConfigValues = ConfigProjection<typeof HttpConfig>;
-
-/** Сколько `close()` ждёт активные соединения по умолчанию (10 с) */
-const DEFAULT_CLOSE_TIMEOUT = 10_000;
-
 /** Опции HTTP-транспорта */
 export interface HttpTransportOptions {
-  port?: number;
-  host?: string;
-
   /**
    * Лимит размера буферизуемого тела запроса в байтах (JSON, raw, text),
    * размера файла в multipart и длины строки NDJSON. По умолчанию 1 MiB.
@@ -77,22 +63,6 @@ export interface HttpTransportOptions {
    * сообщение. Включайте только в доверенном окружении.
    */
   exposeErrorDetails?: boolean;
-
-  /** `server.requestTimeout` (мс). Не задан — дефолт Node. */
-  requestTimeout?: number;
-
-  /** `server.headersTimeout` (мс). Не задан — дефолт Node. */
-  headersTimeout?: number;
-
-  /** `server.keepAliveTimeout` (мс). Не задан — дефолт Node. */
-  keepAliveTimeout?: number;
-
-  /**
-   * Сколько ждать завершения активных соединений при `close()` (мс).
-   * По истечении оставшиеся соединения закрываются принудительно.
-   * По умолчанию 10 с.
-   */
-  closeTimeout?: number;
 
   /**
    * Период heartbeat-комментариев SSE по умолчанию (мс). `0` отключает.
@@ -126,16 +96,16 @@ export const HTTP_CAPABILITIES: TransportCapabilities = {
  * Переводит запросы в значения и обратно: находит маршрут, разбирает вход
  * по форме io и bind-карте, строит контекст и передаёт его `dispatch.call`.
  * Endpoint исполняет ядро; своей логики исполнения у транспорта нет.
+ *
+ * Сокет транспорту не принадлежит: его держит `HttpServer`, а транспорт
+ * присоединяет к нему обработчик в `serve`. Поэтому `listen` и `address()`
+ * здесь отсутствуют, а несколько транспортов работают на одном порту.
  */
 export class HttpTransport implements ITransport {
   private readonly router: HttpRouter;
-  private server?: Server;
 
   /** Диспетчер из `serve`; до вызова `serve` исполнять нечего */
   private dispatch?: Dispatch;
-
-  /** Фактический адрес; не задан до `serve` и после `close()` */
-  private listening?: { host: string; port: number };
 
   /** Контроллер остановки транспорта: взводится первым шагом `close()` */
   private closeController?: AbortController;
@@ -159,7 +129,15 @@ export class HttpTransport implements ITransport {
   /** Период heartbeat SSE с учётом дефолта; `0` — без heartbeat */
   private readonly sseHeartbeat: number;
 
-  constructor(private readonly options: HttpTransportOptions = {}) {
+  /**
+   * @param server - Сервер, к которому транспорт присоединяет обработчик;
+   * его же он делит с другими транспортами того же сокета
+   * @param options - Опции разбора и ответа; адреса среди них нет
+   */
+  constructor(
+    private readonly server: HttpServer,
+    private readonly options: HttpTransportOptions = {},
+  ) {
     this.router = new HttpRouter();
     this.maxBodySize = options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE;
     this.exposeErrorDetails = options.exposeErrorDetails ?? false;
@@ -167,20 +145,23 @@ export class HttpTransport implements ITransport {
   }
 
   /**
-   * Начинает принимать запросы.
+   * Присоединяет обработчик к серверу.
    *
    * Маршруты берутся из `dispatch.routes`, endpoint исполняет
-   * `dispatch.call`. Формы io сверяются с поддерживаемыми до открытия
-   * сокета: без `App` это та же проверка с тем же текстом ошибки, что на
-   * фазе ASSEMBLE.
+   * `dispatch.call`. Формы io сверяются с поддерживаемыми здесь же: без
+   * `App` это та же проверка с тем же текстом ошибки, что на фазе
+   * ASSEMBLE.
+   *
+   * Сокет при этом не открывается: его открывает сервер следующим шагом
+   * START, когда обработчики присоединили все транспорты.
    *
    * @param dispatch - Маршруты этого транспорта и функция исполнения
    * @param signal - Сигнал остановки; `App` подаёт его первым шагом
    * SHUTDOWN
    */
   async serve(dispatch: Dispatch, signal: AbortSignal): Promise<void> {
-    if (this.server) {
-      throw new Error('Server is already listening');
+    if (this.dispatch) {
+      throw new Error('Transport is already serving');
     }
 
     for (const route of dispatch.routes) {
@@ -189,87 +170,29 @@ export class HttpTransport implements ITransport {
     }
 
     this.dispatch = dispatch;
-
-    const listenPort = this.options.port ?? 3000;
-    const listenHost = this.options.host ?? '0.0.0.0';
-
     this.closeController = new AbortController();
 
     // Внешний сигнал останавливает транспорт так же, как `close()`
     signal.addEventListener('abort', () => void this.close(), { once: true });
 
-    return new Promise((resolve, reject) => {
-      this.server = createServer((req, res) => {
-        this.handle(req, res).catch(() => {
-          if (!res.headersSent) {
-            res.statusCode = 500;
-            res.end('Internal Server Error');
-          }
-        });
-      });
-
-      // Таймауты node:http меняются только при явных опциях; иначе
-      // остаются дефолты Node
-      if (this.options.requestTimeout !== undefined) {
-        this.server.requestTimeout = this.options.requestTimeout;
-      }
-      if (this.options.headersTimeout !== undefined) {
-        this.server.headersTimeout = this.options.headersTimeout;
-      }
-      if (this.options.keepAliveTimeout !== undefined) {
-        this.server.keepAliveTimeout = this.options.keepAliveTimeout;
-      }
-
-      this.server.listen(listenPort, listenHost, () => {
-        // Фактический адрес известен только теперь: при `port: 0` его
-        // выбирает ядро ОС
-        const address = this.server?.address();
-        this.listening =
-          address && typeof address === 'object'
-            ? { host: address.address, port: address.port }
-            : { host: listenHost, port: listenPort };
-
-        resolve();
-      });
-
-      this.server.on('error', (error) => {
-        reject(error);
-      });
-    });
+    this.server.attach((req, res) => this.handle(req, res));
   }
 
   /**
-   * Возвращает фактический адрес транспорта.
+   * Отменяет запросы в обработке.
    *
-   * `null` до `serve` и после `close()`. Нужен при `port: 0`, когда порт
-   * выбирает ОС, например в интеграционных тестах.
+   * Сокета не касается: соединения дренажит сервер, и делает это раньше —
+   * первым шагом SHUTDOWN. Здесь взводятся `meta.signal` всех in-flight
+   * запросов, чтобы хендлеры завершились кооперативно.
    */
-  address(): { host: string; port: number } | null {
-    return this.listening ?? null;
-  }
-
-  /**
-   * Останавливает сервер, дав активным запросам завершиться.
-   *
-   * Порядок: подаёт сигнал отмены всем выполняющимся запросам, перестаёт
-   * принимать новые соединения (`server.close`), сразу закрывает
-   * простаивающие keep-alive (`closeIdleConnections`), ждёт завершения
-   * активных запросов до `closeTimeout` и закрывает оставшиеся
-   * принудительно (`closeAllConnections`). Завершается за конечное время
-   * даже при живых keep-alive соединениях.
-   */
-  async close(options: { timeout?: number } = {}): Promise<void> {
-    if (!this.server) {
+  async close(): Promise<void> {
+    if (!this.dispatch) {
       return;
     }
 
-    const server = this.server;
-    this.server = undefined;
-    this.listening = undefined;
     this.dispatch = undefined;
 
-    // Сначала контроллер остановки, затем каждый запрос в полёте: их
-    // `meta.signal` взведён до начала дренажа
+    // Сначала контроллер остановки, затем каждый запрос в полёте
     const reason = new TransportClosingError();
     this.closeController?.abort(reason);
     this.closeController = undefined;
@@ -277,52 +200,19 @@ export class HttpTransport implements ITransport {
       controller.abort(reason);
     }
     this.active.clear();
-
-    const closeTimeout =
-      options.timeout ?? this.options.closeTimeout ?? DEFAULT_CLOSE_TIMEOUT;
-
-    return new Promise((resolve, reject) => {
-      // Активные запросы ждём до closeTimeout, затем закрываем принудительно.
-      // Таймер не должен держать процесс живым
-      const timer = setTimeout(() => {
-        server.closeAllConnections();
-      }, closeTimeout);
-      if (typeof timer.unref === 'function') {
-        timer.unref();
-      }
-
-      // Keep-alive соединение, освободившееся после начала close(), Node сам
-      // не закрывает: без периодической зачистки ожидание длилось бы до
-      // keep-alive таймаута клиента
-      const idleSweep = setInterval(() => {
-        server.closeIdleConnections();
-      }, 100);
-      if (typeof idleSweep.unref === 'function') {
-        idleSweep.unref();
-      }
-
-      // server.close ждёт завершения всех соединений; колбэк — когда закрылись
-      server.close((error) => {
-        clearTimeout(timer);
-        clearInterval(idleSweep);
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
-
-      // Простаивающие keep-alive соединения закрываем немедленно, иначе
-      // server.close ждал бы их таймаута со стороны клиента.
-      server.closeIdleConnections();
-    });
   }
 
-  /** Обрабатывает один HTTP-запрос */
+  /**
+   * Обрабатывает один HTTP-запрос.
+   *
+   * Возвращает `false`, когда маршрут не найден: значит, запрос не этого
+   * транспорта, и сервер отдаёт его следующему обработчику цепочки.
+   * Ответ `404` — дело сервера, а не транспорта.
+   */
   private async handle(
     nativeReq: IncomingMessage,
     nativeRes: ServerResponse,
-  ): Promise<void> {
+  ): Promise<boolean> {
     // Переменные объявлены до try, чтобы catch мог дочитать непрочитанные
     // файловые потоки
     let multipart: MultipartResult | undefined;
@@ -363,9 +253,8 @@ export class HttpTransport implements ITransport {
       const found = this.router.find(nativeReq);
       const dispatch = this.dispatch;
       if (!found || !dispatch) {
-        nativeRes.statusCode = 404;
-        nativeRes.end('Not Found');
-        return;
+        this.active.delete(requestController);
+        return false;
       }
 
       // Bind-карта, формы и признаки чтения вычислены при регистрации
@@ -510,6 +399,8 @@ export class HttpTransport implements ITransport {
       this.drainFileStreams(multipart);
       this.sendError(nativeRes, error);
     }
+
+    return true;
   }
 
   /**
@@ -600,39 +491,58 @@ export class HttpTransport implements ITransport {
  * его зависимости инжектит контейнер. Экземпляров может быть несколько;
  * каждый получает своё имя, а декларация выбирает свой через `on:`.
  *
- * Приоритет значений: явные опции фабрики, затем конфиг (`HTTP_PORT`,
- * `HTTP_HOST`), затем дефолт транспорта.
+ * Сокет транспорту не принадлежит. Без `server` фабрика объявляет
+ * собственный сервер с тем же именем, что у транспорта, и корень
+ * регистрирует его вместе с транспортом — поэтому `transports: [http()]`
+ * работает без единого упоминания сервера. С `server` транспорт
+ * присоединяется к уже объявленному: так на одном сокете работают
+ * несколько транспортов. Порт и хост приходят из секции сервера
+ * (`HTTP_PORT`, `HTTP_HOST`); опций адреса у транспорта нет.
  *
- * @example
+ * @param options - Имя экземпляра, сервер и опции разбора запроса
+ * @returns Объявление транспорта для `transports:` корня
+ *
+ * @example Один транспорт и его сервер
  * ```typescript
- * await assemble({ features: [Users], transports: [http()] }).run();
+ * await makeApp({ features: [Users], transports: [http()] }).assemble().run();
+ * ```
  *
- * await assemble({
+ * @example Публичный и админский сокеты
+ * ```typescript
+ * await makeApp({
  *   features: [Users, Ops],
- *   transports: [http({ port: 3000 }), http({ name: 'admin', port: 3001 })],
- * }).run();
+ *   transports: [http(), http({ name: 'admin' })],
+ * }).assemble().run();
  * ```
  */
 export const http = <const Name extends string = typeof DEFAULT_INSTANCE>(
-  options: HttpTransportOptions & { readonly name?: Name } = {},
+  options: HttpTransportOptions & {
+    readonly name?: Name;
+
+    /**
+     * Сервер, на котором работает транспорт.
+     *
+     * Без него фабрика объявляет собственный сервер с именем транспорта.
+     */
+    readonly server?: ServerDeclaration;
+  } = {},
 ): TransportDeclaration<Name> => {
-  const { name = DEFAULT_INSTANCE as Name, ...transportOptions } = options;
+  const {
+    name = DEFAULT_INSTANCE as Name,
+    server = httpServer({ name }),
+    ...transportOptions
+  } = options;
   const token = HttpTransport$(name);
 
   return makeTransportDeclaration({
     name,
     token,
     capabilities: HTTP_CAPABILITIES,
+    server,
     provider: factoryProvider(
       token,
-      (config: HttpConfigValues) =>
-        new HttpTransport({
-          port: config.port,
-          host: config.host,
-          // Явные опции сильнее конфига: спред идёт последним
-          ...transportOptions,
-        }),
-      [HttpConfig as unknown as InjectionToken<HttpConfigValues>],
+      (instance: HttpServer) => new HttpTransport(instance, transportOptions),
+      [HttpServer$(server.name)],
     ),
   });
 };

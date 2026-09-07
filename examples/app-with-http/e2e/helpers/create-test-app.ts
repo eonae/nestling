@@ -2,12 +2,9 @@ import { appConfigKeys } from '../../src/app.config.js';
 import { app } from '../../src/app.js';
 
 import type { AssembledApp } from '@nestling/app';
-import { makeApp, objectSource, transportValue } from '@nestling/app';
-import {
-  HTTP_CAPABILITIES,
-  HttpTransport,
-  HttpTransport$,
-} from '@nestling/transport.http';
+import { makeApp, objectSource } from '@nestling/app';
+import type { HttpServer } from '@nestling/transport.http';
+import { http, httpServer, httpServerKeys } from '@nestling/transport.http';
 
 /** Bearer-токен, который e2e-тесты передают в заголовке `authorization` */
 export const E2E_TOKEN = 'e2e-token';
@@ -23,25 +20,20 @@ export interface TestAppContext {
 /**
  * Поднимает приложение на эфемерном порту.
  *
- * Транспорт создаётся руками и регистрируется значением: тесту нужен
- * фактический адрес, а порт `0` отдаёт его только после `serve()`.
- * Секреты привязываются источником к ключам секции, `process.env` не
- * трогается.
+ * Порт задаётся ключом `HTTP_PORT=0` из объекта-источника: сокетом владеет
+ * сервер, а фактический адрес известен только после `listen`. Секреты
+ * привязываются тем же способом, `process.env` не трогается.
  */
 export async function createTestApp(): Promise<TestAppContext> {
-  const transport = new HttpTransport({ port: 0, host: '127.0.0.1' });
+  const api = httpServer();
 
-  // Та же декларация, что в `app.ts`, с транспортом на порту `0` и
-  // секретами из объекта: состав берётся из `app.spec`
+  // Та же декларация, что в `app.ts`, с эфемерным портом и секретами из
+  // объекта: состав берётся из `app.spec`
   const assembled = makeApp({
     features: app.spec.features,
     plugins: app.spec.plugins,
     policies: app.spec.policies,
-    transports: [
-      transportValue(HttpTransport$('default'), transport, {
-        capabilities: HTTP_CAPABILITIES,
-      }),
-    ],
+    transports: [api, http({ server: api })],
     config: [
       [
         objectSource(
@@ -50,14 +42,19 @@ export async function createTestApp(): Promise<TestAppContext> {
         ),
         appConfigKeys,
       ],
+      [
+        objectSource({ HTTP_PORT: '0', HTTP_HOST: '127.0.0.1' }, 'e2e-http'),
+        httpServerKeys(),
+      ],
     ],
   }).assemble();
 
   await assembled.run();
 
-  const address = transport.address();
+  const server = assembled.servers.get(api.name) as HttpServer | undefined;
+  const address = server?.address();
   if (!address) {
-    throw new Error('transport did not report an address after serve()');
+    throw new Error('server did not report an address after listen()');
   }
 
   return { app: assembled, baseUrl: `http://127.0.0.1:${address.port}` };

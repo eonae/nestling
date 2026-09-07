@@ -1,4 +1,5 @@
 export * from './transport.js';
+export * from './server.js';
 export * from './token.js';
 export * from './router.js';
 export * from './parser.js';
@@ -8,7 +9,8 @@ export * from './binding.js';
 export * from './errors.js';
 
 /**
- * Из конфиг-секции наружу уходит только `keys`: право привязать источник.
- * DI-токен секции остаётся приватным.
+ * Из конфиг-секции наружу уходит только дескриптор ключей: право
+ * привязать источник. DI-токен секции остаётся приватным, и у каждого
+ * сервера он свой.
  */
-export { httpConfigKeys } from './config.js';
+export { httpServerKeys } from './config.js';

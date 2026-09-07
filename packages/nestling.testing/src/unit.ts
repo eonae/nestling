@@ -5,7 +5,7 @@
 import type { TestApp, TestStub } from './app.js';
 import { assembleTest } from './app.js';
 
-import type { Bundle, ConfigInput, TransportDeclaration } from '@nestling/app';
+import type { Bundle, ConfigInput, TransportEntry } from '@nestling/app';
 import { makeApp } from '@nestling/app';
 
 /** Словарь `testUnit` */
@@ -23,8 +23,13 @@ export interface TestUnitOptions {
   /** Конфиг: источник, одна привязка или их список */
   config?: ConfigInput;
 
-  /** Транспорты для endpoint'ов единицы — объявляются явно, как и в бою */
-  transports?: readonly TransportDeclaration[];
+  /**
+   * Транспорты для endpoint'ов единицы — объявляются явно, как и в бою.
+   *
+   * Здесь же перечисляются серверы; порта им не нужно: тестовая сборка
+   * останавливается на WIRE и сокета не открывает.
+   */
+  transports?: readonly TransportEntry[];
 }
 
 /**

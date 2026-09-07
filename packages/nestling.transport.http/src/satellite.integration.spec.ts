@@ -21,6 +21,7 @@ import {
   httpBindingOf,
   httpEndpoint,
   HttpRouter,
+  HttpServer,
   HttpTransport,
   parseJson,
   readQuery,
@@ -202,6 +203,7 @@ async function answerOf(response: Response): Promise<Answer> {
 
 describe('satellite-транспорт поверх байтовых частей пакета', () => {
   let satellite: SatelliteTransport;
+  let referenceServer: HttpServer;
   let reference: HttpTransport;
   let controller: AbortController;
   let referenceUrl: string;
@@ -215,21 +217,24 @@ describe('satellite-транспорт поверх байтовых часте�
       controller.signal,
     );
 
-    reference = new HttpTransport({ port: 0, host: '127.0.0.1' });
+    referenceServer = new HttpServer({ port: 0, host: '127.0.0.1' });
+    reference = new HttpTransport(referenceServer);
     await reference.serve(
       makeDispatch([GetUser, CreateUser]),
       controller.signal,
     );
+    await referenceServer.listen();
 
-    const address = reference.address();
+    const address = referenceServer.address();
     if (!address) {
-      throw new Error('transport did not report an address after serve()');
+      throw new Error('server did not report an address after listen()');
     }
     referenceUrl = `http://127.0.0.1:${address.port}`;
   });
 
   afterAll(async () => {
     await satellite.close();
+    await referenceServer.drain();
     await reference.close();
   });
 

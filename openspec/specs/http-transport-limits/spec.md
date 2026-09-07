@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Лимиты и таймауты HTTP-транспорта: размер тела запроса, таймауты сервера,
-дренаж соединений при остановке.
+Лимиты и таймауты HTTP-пакета: размер тела запроса и файлов у транспорта,
+таймауты сокета и дренаж соединений при остановке — у сервера.
 
 ## Requirements
 
@@ -87,43 +87,52 @@ Heartbeat-кадры SSE SHALL NOT участвовать в лимитах и S
 
 ### Requirement: Server timeouts are configurable
 
-`HttpTransportOptions` SHALL поддерживать `requestTimeout`, `headersTimeout`,
+`HttpServerOptions` SHALL поддерживать `requestTimeout`, `headersTimeout`,
 `keepAliveTimeout`; значения SHALL применяться к `node:http`-серверу при
-`listen()`. Дефолты Node сохраняются, если опции не заданы.
+`listen()`. Дефолты Node сохраняются, если опции не заданы. У опций
+транспорта этих полей SHALL NOT быть: таймауты сокета принадлежат серверу
+(capability `http-server-resource`).
 
 #### Scenario: Custom timeouts applied
 
-- **WHEN** транспорт создан с `{ requestTimeout: 5000, headersTimeout: 2000, keepAliveTimeout: 1000 }`
+- **WHEN** сервер создан с `{ requestTimeout: 5000, headersTimeout: 2000, keepAliveTimeout: 1000 }`
 - **THEN** после `listen()` у сервера `server.requestTimeout === 5000`,
   `server.headersTimeout === 2000`, `server.keepAliveTimeout === 1000`
 
 ### Requirement: Graceful close drains connections
 
-`close()` SHALL: взвести сигналы всех in-flight запросов (см. capability
-`http-request-cancellation`), перестать принимать новые соединения,
-немедленно закрыть простаивающие keep-alive соединения, дождаться завершения
-активных запросов до `closeTimeout` (дефолт 10s) и принудительно закрыть
-оставшиеся соединения по его истечении. Кооперативное завершение по сигналу —
-основной механизм дренажа; принудительное закрытие по `closeTimeout` —
-fallback для хендлеров, игнорирующих сигнал. `close()` SHALL завершаться
-за конечное время при наличии живых keep-alive соединений.
+Дренаж соединений SHALL принадлежать серверу (capability
+`http-server-resource`), а отмена запросов в обработке — транспорту.
+
+`drain()` сервера SHALL: перестать принимать новые соединения, немедленно
+закрыть простаивающие keep-alive соединения, дождаться завершения активных
+запросов до `closeTimeout` (дефолт 10s) и принудительно закрыть оставшиеся
+соединения по его истечении. `drain()` SHALL завершаться за конечное время
+при наличии живых keep-alive соединений. Опция `closeTimeout` SHALL
+задаваться аргументом `httpServer()`.
+
+`close()` транспорта SHALL взводить сигналы всех in-flight запросов (см.
+capability `http-request-cancellation`) и SHALL NOT трогать сокет.
+Кооперативное завершение по сигналу — основной механизм дренажа;
+принудительное закрытие по `closeTimeout` — fallback для хендлеров,
+игнорирующих сигнал.
 
 #### Scenario: Close with idle keep-alive connection
 
 - **WHEN** клиент держит открытое keep-alive соединение без активного запроса
-  и вызывается `close()`
-- **THEN** `close()` завершается, не дожидаясь таймаута keep-alive клиента
+  и приложение закрывается
+- **THEN** дренаж завершается, не дожидаясь таймаута keep-alive клиента
 
 #### Scenario: Close with hung in-flight request
 
 - **WHEN** активный запрос не завершается дольше `closeTimeout`
   (хендлер игнорирует `meta.signal`)
 - **THEN** по истечении `closeTimeout` соединение принудительно закрывается
-  и `close()` завершается
+  и дренаж завершается
 
 #### Scenario: Close with cooperative in-flight request
 
 - **WHEN** активный запрос обрабатывается хендлером, завершающимся
-  по `meta.signal`, и вызывается `close()`
-- **THEN** `close()` завершается дренажом заметно раньше `closeTimeout`,
-  без принудительного закрытия соединений
+  по `meta.signal`, и приложение закрывается
+- **THEN** дренаж завершается заметно раньше `closeTimeout`, без
+  принудительного закрытия соединений

@@ -1,5 +1,6 @@
 import type { AnyEndpointDefinition, TransportRef } from '../pipeline/index.js';
-import { isEndpointDefinition } from '../pipeline/index.js';
+import { isEndpointDefinition, transportNameOf } from '../pipeline/index.js';
+import { busBindingOf } from '../ports/index.js';
 
 import type { Bundle } from './feature.js';
 
@@ -163,6 +164,8 @@ export function discoverEndpoints(
     }
   }
 
+  assertPatternsUnique(transports);
+
   // Заморозка — не церемония: это же значение попадает в граф под
   // `Discovery$`, и «поменять состав приложения из провайдера» должно быть
   // невозможно, а не просто не принято
@@ -174,6 +177,74 @@ export function discoverEndpoints(
     endpoints: Object.freeze(endpoints),
     transports: freezeMap(transports),
   });
+}
+
+/**
+ * Проверяет, что паттерн уникален внутри экземпляра транспорта.
+ *
+ * Правило одно для всех транспортов, потому что живёт в ядре: две фичи,
+ * объявившие `GET /users` на одном транспорте, — ошибка независимо от
+ * того, HTTP это или CLI. Экземпляры различаются DI-токеном, поэтому один
+ * паттерн на транспорте по умолчанию и на `on: 'admin'` допустим.
+ *
+ * Декларации операций пропускаются: у события подписчиков бывает
+ * несколько, и все они адресуются одним subject'ом. Владельца операции
+ * проверяет топология операций — своим правилом и своим текстом ошибки.
+ *
+ * Проверка идёт до создания первого экземпляра, поэтому дубликат падает
+ * раньше захвата ресурсов, а не на `serve`.
+ *
+ * @throws {Error} Один паттерн объявлен дважды на одном экземпляре
+ */
+function assertPatternsUnique(
+  transports: ReadonlyMap<TransportRef, readonly DiscoveredEndpoint[]>,
+): void {
+  const duplicates: string[] = [];
+
+  for (const [token, group] of transports) {
+    const byPattern = new Map<string, DiscoveredEndpoint[]>();
+
+    for (const discovered of group) {
+      if (busBindingOf(discovered.endpoint)) {
+        continue;
+      }
+
+      const seen = byPattern.get(discovered.endpoint.pattern);
+
+      if (seen) {
+        seen.push(discovered);
+      } else {
+        byPattern.set(discovered.endpoint.pattern, [discovered]);
+      }
+    }
+
+    for (const [pattern, declared] of byPattern) {
+      if (declared.length < 2) {
+        continue;
+      }
+
+      const units = declared
+        .map(({ moduleName }) => `'${moduleName}'`)
+        .join(', ');
+
+      duplicates.push(
+        `  - '${pattern}' on transport '${transportNameOf(token)}', ` +
+          `declared in ${units}`,
+      );
+    }
+  }
+
+  if (duplicates.length === 0) {
+    return;
+  }
+
+  // Все дубликаты сразу: чинить их по одному за прогон — не режим работы
+  throw new Error(
+    `${duplicates.length} pattern(s) declared more than once on the same ` +
+      `transport instance:\n${duplicates.join('\n')}\n\nOne instance serves ` +
+      `one pattern once. Give one of the declarations another pattern, or ` +
+      `move it to another transport instance ('on: <instance name>').`,
+  );
 }
 
 /** Мутатор карты, подменённый броском с понятным сообщением */

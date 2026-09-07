@@ -10,7 +10,13 @@ import { describe, expect, it } from '@jest/globals';
 import type { ITransport } from '@nestling/app';
 import { makeFeature, Ok, transportValue } from '@nestling/app';
 import { Component, Handler, makeToken } from '@nestling/container';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+import type { HttpServer } from '@nestling/transport.http';
+import {
+  http,
+  httpEndpoint,
+  HttpServer$,
+  HttpTransport$,
+} from '@nestling/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
@@ -77,6 +83,27 @@ describe('testUnit', () => {
       transports: [asHttpTransport(new SpyTransport())],
     });
 
+    expect(unwrap(await app.call(Report))).toEqual({
+      at: 42,
+      users: ['Alice'],
+    });
+  });
+
+  it('настоящий `http()` собирается без порта и не открывает сокет', async () => {
+    // Тестовая сборка останавливается на WIRE, поэтому `listen` не
+    // вызывается вовсе: порт в `vars` нужен только боевому прогону
+    await using app = await testUnit(ReportsModule, {
+      stubs: [
+        [ILogger, { log: (): void => undefined }],
+        [IClock, { now: () => 42 }],
+        [IUsers, { all: () => ['Alice'] }],
+      ],
+      transports: [http()],
+    });
+
+    const server = app.get(HttpServer$('default')) as HttpServer;
+
+    expect(server.address()).toBeNull();
     expect(unwrap(await app.call(Report))).toEqual({
       at: 42,
       users: ['Alice'],
