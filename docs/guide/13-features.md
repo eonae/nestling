@@ -300,7 +300,7 @@ export const appObservability: Plugin = makePlugin({
 Параметризованный плагин — функция, которая возвращает значение:
 
 ```typescript
-// examples/app-with-http/src/app.ts
+// examples/app-with-http/src/app.ts (фрагмент)
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { requestId?: string }).requestId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
@@ -381,12 +381,11 @@ export const app = makeApp({
     appObservability,
     appAuth,
     appSubscriptions,
-    openapi({
-      info: { title: 'Users API', version: '1.0.0' },
-      converters: [zodConverter()],
-      pipeline: observability,
-    }),
+    // Плагин документации стоит под переключателем состава — его вводит
+    // [глава 17](./17-select.md)
+    Docs.when(appOpenapi),
   ],
+  switches: [Docs],
   transports: [http()],
   policies: [
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
