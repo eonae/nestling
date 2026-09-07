@@ -2,7 +2,6 @@ import { appConfigKeys } from './config/index.js';
 import { appCounters } from './counters/index.js';
 import { runtimeConfigKeys } from './runtime/index.js';
 import { AppFeature } from './app.feature.js';
-import { Demo } from './demo.js';
 
 import { makeApp, objectSource } from '@nestling/app';
 
@@ -19,7 +18,6 @@ import { makeApp, objectSource } from '@nestling/app';
 const app = makeApp({
   features: [AppFeature],
   plugins: [appCounters],
-  providers: [Demo],
   config: [
     [objectSource({ APP_METRICS_PREFIX: 'demo' }, 'defaults'), appConfigKeys],
     [objectSource({ RUNTIME_RPS: '50' }, 'runtime'), runtimeConfigKeys],

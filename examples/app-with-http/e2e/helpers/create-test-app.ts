@@ -32,6 +32,7 @@ export async function createTestApp(): Promise<TestAppContext> {
   const assembled = makeApp({
     features: app.spec.features,
     plugins: app.spec.plugins,
+    switches: app.spec.switches,
     policies: app.spec.policies,
     transports: [api, http({ server: api })],
     config: [

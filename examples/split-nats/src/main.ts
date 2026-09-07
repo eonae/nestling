@@ -11,11 +11,16 @@ import { app } from './app.js';
 import { load, makeConfig } from '@nestling/app';
 import { z } from 'zod';
 
-/** Секция корня: выбор фич читается до сборки контейнера */
+/**
+ * Секция корня: аргумент сборки читается до контейнера.
+ *
+ * Поля секции названы как поля аргумента, поэтому `cfg` подходит
+ * `assemble` целиком.
+ */
 const RootConfig = makeConfig('app', {
   features: z.string().default('all'),
 });
 
 const cfg = load(RootConfig);
 
-await app.assemble(cfg.features).run();
+await app.assemble(cfg).run();
