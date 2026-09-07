@@ -24,53 +24,64 @@ import type {
   TransportDeclaration,
   TransportEntry,
 } from '../transport/index.js';
+import { isTransport } from '../transport/index.js';
 
-import type { Feature, FeatureSelection, Plugin } from './feature.js';
-import { reachablePlugins, resolveSelection } from './feature.js';
+import type { AssembleArgs } from './args.js';
+import { RESERVED_ARG_FIELDS } from './args.js';
+import type { Feature, Plugin, ResolvedBundle } from './feature.js';
+import { resolveSelection } from './feature.js';
 
 import type {
+  AnySwitch,
+  Branchable,
   BuiltContainer,
   FamilyOverrideEntry,
+  Module,
+  ModuleProvider,
   Provider,
   TokenOverride,
 } from '@nestling/container';
+import { branchCandidates } from '@nestling/container';
 
 /**
  * Имена транспортов, годных в роль интеркома.
  *
  * Пусто, когда ни один объявленный транспорт не переносит операции: тогда
  * `intercom:` не принимает ничего, и назначение роли отвергает компилятор.
+ * Транспорт под веткой переключателя в словарь не входит: роль интеркома
+ * назначается тому, кто есть в каждой сборке.
  */
-export type IntercomName<T extends readonly TransportEntry[]> = Extract<
-  T[number],
-  BusDeclaration
->['name'];
+export type IntercomName<T extends readonly Branchable<TransportEntry>[]> =
+  Extract<T[number], BusDeclaration>['name'];
 
 /**
- * Словарь декларации приложения: аргумент `makeApp`.
- *
- * Каждое поле опционально: приложение из одной фичи и одного транспорта не
- * упоминает ни плагин, ни конфиг. Выбора фич здесь нет: он меняет состав
- * процесса, а не приложения, и передаётся в `app.assemble(select)`.
+ * Общая часть словаря `makeApp`: поля, которые есть у всех трёх форм
+ * состава.
  *
  * @template T - Объявленные транспорты; из них выводится словарь `intercom`
+ * @template S - Объявленные переключатели; из них выводится аргумент сборки
  */
-export interface AppSpec<
-  T extends readonly TransportEntry[] = readonly TransportEntry[],
+export interface AppSpecCommon<
+  T extends readonly Branchable<TransportEntry>[],
+  S extends readonly AnySwitch[],
 > {
-  /** Фичи приложения; подмножество выбирает аргумент `assemble(select)` */
-  features?: readonly Feature[];
-
   /**
    * Сквозная инфраструктура: логирование, метрики, документация.
    *
    * Плагины подключены всегда — они не входят в словарь выбора и не
-   * выбираются.
+   * выбираются. Ветка переключателя стоит здесь наравне с плагином.
    */
-  plugins?: readonly Plugin[];
+  plugins?: readonly Branchable<Plugin>[];
 
-  /** Провайдеры корня (когда заводить единицу незачем) */
-  providers?: readonly Provider[];
+  /**
+   * Переключатели состава приложения.
+   *
+   * Из списка выводится тип аргумента сборки: поле переключателя с
+   * умолчанием необязательно, без умолчания обязательно. Без поля
+   * переключателей у приложения нет, и аргумент принимает только
+   * `features` и `includeDeps`.
+   */
+  switches?: S;
 
   /**
    * Корневой логгер приложения — готовое значение.
@@ -123,11 +134,61 @@ export interface AppSpec<
   policies?: readonly Policy[];
 }
 
+/**
+ * Словарь декларации приложения: аргумент `makeApp`.
+ *
+ * Состав описывается ровно одной из трёх форм, и это проверяет тип:
+ * `{ endpoints, providers? }`, `{ endpoints, modules? }` или
+ * `{ features }`. Первые две — состав одной фичи без имени; их endpoint'ы
+ * атрибутируются единице с именем `app`. Выбора фич здесь нет: он меняет
+ * состав процесса, а не приложения, и передаётся в
+ * `app.assemble(args)`.
+ *
+ * @template T - Объявленные транспорты; из них выводится словарь `intercom`
+ * @template S - Объявленные переключатели; из них выводится аргумент сборки
+ */
+export type AppSpec<
+  T extends
+    readonly Branchable<TransportEntry>[] = readonly Branchable<TransportEntry>[],
+  S extends readonly AnySwitch[] = readonly AnySwitch[],
+> =
+  | (AppSpecCommon<T, S> & {
+      /** Endpoint'ы корня; их обслуживает единица с именем `app` */
+      endpoints: readonly Branchable<AnyEndpointDefinition>[];
+
+      /** Провайдеры корня; их узлы несут метку модуля `app` */
+      providers?: readonly Branchable<ModuleProvider>[];
+
+      modules?: never;
+      features?: never;
+    })
+  | (AppSpecCommon<T, S> & {
+      /** Endpoint'ы корня; их обслуживает единица с именем `app` */
+      endpoints: readonly Branchable<AnyEndpointDefinition>[];
+
+      /** Модули корня; их узлы несут метки своих модулей */
+      modules?: readonly Branchable<Module>[];
+
+      providers?: never;
+      features?: never;
+    })
+  | (AppSpecCommon<T, S> & {
+      /** Фичи приложения; подмножество выбирает аргумент сборки */
+      features?: readonly Feature[];
+
+      endpoints?: never;
+      providers?: never;
+      modules?: never;
+    });
+
 /** Поля словаря `makeApp`: перечень закрыт */
 export const APP_SPEC_FIELDS = [
   'features',
+  'endpoints',
+  'modules',
   'plugins',
   'providers',
+  'switches',
   'transports',
   'intercom',
   'config',
@@ -138,24 +199,34 @@ export const APP_SPEC_FIELDS = [
 /**
  * Нормализованная декларация: то, что `makeApp` проверил и запомнил.
  *
- * Плагины замкнуты по `dependsOn`, интерком найден среди транспортов,
- * списки скопированы. `select` здесь нет: он приходит в план.
+ * Корень плоских форм превращён в единицу `app`, интерком найден среди
+ * транспортов, списки скопированы. Ветки переключателей остаются
+ * нераскрытыми: значения известны только сборке. Аргумента сборки здесь
+ * нет — он приходит в план.
  */
 export interface NormalizedAppSpec {
   readonly features: readonly Feature[];
-  readonly plugins: readonly Plugin[];
-  readonly providers: readonly Provider[];
-  readonly transports: readonly TransportDeclaration[];
+  /**
+   * Единица корня: состав форм `{ endpoints, providers? }` и
+   * `{ endpoints, modules? }` под именем `app`.
+   *
+   * Отсутствует у формы с `features:`. В выбор не входит и не
+   * выбирается — она и есть корень.
+   */
+  readonly root?: Feature;
+
+  readonly plugins: readonly Branchable<Plugin>[];
+  readonly switches: readonly AnySwitch[];
 
   /**
-   * Серверы сборки в порядке объявления: перечисленные в `transports:`
-   * явно и вложенные в объявления транспортов полем `server`.
+   * Элементы поля `transports:` в порядке объявления: транспорты и
+   * серверы вперемешку, ветки нераскрыты.
    *
-   * Дедупликация уже выполнена: один и тот же сервер, названный дважды,
-   * стоит здесь один раз.
+   * Что есть что, различает дискриминатор `kind`, а разделяет сборка:
+   * до раскрытия веток состав списка неизвестен. Серверы, вложенные в
+   * объявления транспортов полем `server`, тоже собирает она.
    */
-  readonly servers: readonly ServerDeclaration[];
-
+  readonly transports: readonly Branchable<TransportEntry>[];
   readonly intercom?: TransportDeclaration;
   readonly config: readonly ConfigBinding[];
   readonly policies: readonly Policy[];
@@ -191,7 +262,7 @@ export interface TestSubstitutions {
 }
 
 /**
- * Нормализованный план сборки: декларация плюс выбор и подстановки.
+ * Нормализованный план сборки: декларация плюс аргумент и подстановки.
  *
  * Тип не покидает пакет: так `new AssembledApp({ … })` невыразим по
  * типам, и единственной публичной точкой сборки остаётся
@@ -202,8 +273,8 @@ export interface TestSubstitutions {
 export interface AssemblyPlan {
   readonly spec: NormalizedAppSpec;
 
-  /** Выбор фич; отсутствует — выбраны все */
-  readonly select?: FeatureSelection;
+  /** Аргумент сборки; отсутствует — выбраны все фичи и умолчания */
+  readonly args?: AssembleArgs<any>;
 
   readonly overrides: readonly TokenOverride<any>[];
   readonly familyOverrides: readonly FamilyOverrideEntry<any, any>[];
@@ -277,7 +348,7 @@ function resolveIntercom(
  * @returns Объявления серверов без повторов, в порядке первого упоминания
  * @throws {Error} Два разных объявления сервера с одним именем
  */
-function collectServers(
+export function collectServers(
   entries: readonly TransportEntry[],
 ): readonly ServerDeclaration[] {
   const byName = new Map<string, ServerDeclaration>();
@@ -354,8 +425,8 @@ function assertKnownFields(spec: Record<string, unknown>): void {
     if (field === 'select') {
       throw new TypeError(
         `makeApp({ … }): 'select' is not a field of the declaration. The ` +
-          `selection is an argument of assembly: app.assemble(select) or ` +
-          `app.check(select).`,
+          `selection is part of the assembly argument: app.assemble(args) or ` +
+          `app.check(args).`,
       );
     }
 
@@ -373,44 +444,179 @@ function assertKnownFields(spec: Record<string, unknown>): void {
   }
 }
 
+/** Имя внутренней единицы, в которую нормализуется корень плоских форм */
+export const ROOT_UNIT_NAME = 'app';
+
+/** Три допустимые формы состава — для сообщения о смешанной записи */
+const COMPOSITION_FORMS = `{ endpoints, providers? }, { endpoints, modules? } or { features }`;
+
+/**
+ * Отвергает смешанную запись состава, называя три допустимые формы.
+ *
+ * Типы такую запись уже не пропускают, но JS-потребителей типы не
+ * сдерживают: без проверки половина состава молча потерялась бы.
+ */
+function assertComposition(spec: Record<string, unknown>): void {
+  const flat = spec['endpoints'] !== undefined;
+  const grouped = spec['features'] !== undefined;
+
+  if (flat && grouped) {
+    throw new TypeError(
+      `makeApp({ … }): 'endpoints' and 'features' describe the composition ` +
+        `twice. Declare exactly one of ${COMPOSITION_FORMS}.`,
+    );
+  }
+
+  if (spec['providers'] !== undefined && spec['modules'] !== undefined) {
+    throw new TypeError(
+      `makeApp({ … }): 'providers' and 'modules' describe the composition ` +
+        `twice. Declare exactly one of ${COMPOSITION_FORMS}.`,
+    );
+  }
+
+  if (
+    !flat &&
+    (spec['providers'] !== undefined || spec['modules'] !== undefined)
+  ) {
+    const field = spec['providers'] === undefined ? 'modules' : 'providers';
+
+    throw new TypeError(
+      `makeApp({ … }): '${field}' needs 'endpoints:' beside it — it is the ` +
+        `composition of the root unit. A provider shared by several features ` +
+        `is declared by a plugin (makePlugin), so that the edge 'feature → ` +
+        `provider' has an owner. Declare exactly one of ${COMPOSITION_FORMS}.`,
+    );
+  }
+}
+
+/**
+ * Проверяет словарь `switches:`: значения-переключатели, занятые имена и
+ * дубли.
+ */
+function normalizeSwitches(values: unknown): readonly AnySwitch[] {
+  if (values === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(values)) {
+    throw new TypeError(
+      `makeApp({ … }): 'switches' must be an array of values created by ` +
+        `makeSwitch().`,
+    );
+  }
+
+  const byName = new Map<string, AnySwitch>();
+
+  for (const [index, declared] of (values as AnySwitch[]).entries()) {
+    if (typeof declared?.name !== 'string' || !Array.isArray(declared.values)) {
+      throw new TypeError(
+        `makeApp({ … }): switches[${index}] is not a switch — expected a ` +
+          `value created by makeSwitch().`,
+      );
+    }
+
+    if ((RESERVED_ARG_FIELDS as readonly string[]).includes(declared.name)) {
+      throw new Error(
+        `Switch '${declared.name}' cannot be declared: the assembly argument ` +
+          `already has a field with that name. Rename the switch.`,
+      );
+    }
+
+    const seen = byName.get(declared.name);
+
+    if (seen && seen !== declared) {
+      throw new Error(
+        `Two different switches are named '${declared.name}'. The name is the ` +
+          `field of the assembly argument, so it must be unique.`,
+      );
+    }
+
+    byName.set(declared.name, declared);
+  }
+
+  return [...(values as AnySwitch[])];
+}
+
+/**
+ * Собирает единицу корня из плоской формы состава.
+ *
+ * Дальше состав однороден: discovery, атрибуция модулей, карта владельцев
+ * и проверка границ работают одним кодом.
+ */
+function normalizeRoot(spec: {
+  endpoints?: readonly Branchable<AnyEndpointDefinition>[];
+  providers?: readonly Branchable<ModuleProvider>[];
+  modules?: readonly Branchable<Module>[];
+}): Feature | undefined {
+  if (spec.endpoints === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(spec.endpoints)) {
+    throw new TypeError(
+      `makeApp({ … }): 'endpoints' must be an array of endpoint declarations.`,
+    );
+  }
+
+  const modules: readonly Branchable<Module>[] = spec.providers
+    ? [{ name: ROOT_UNIT_NAME, providers: [...spec.providers] }]
+    : [...(spec.modules ?? [])];
+
+  return Object.freeze({
+    role: 'feature' as const,
+    name: ROOT_UNIT_NAME,
+    modules: Object.freeze(modules),
+    endpoints: Object.freeze([...spec.endpoints]),
+  });
+}
+
 /**
  * Проверяет словарь `makeApp` и нормализует его.
  *
  * Проверки при создании — те же, что раньше делал план до выбора: бренды
- * фич и плагинов, дубли имён фич, закрытый перечень полей, интерком.
+ * фич и плагинов, дубли имён фич и имён переключателей, форма состава,
+ * закрытый перечень полей, интерком.
  *
  * @internal
  */
-export function normalizeSpec(spec: AppSpec<any> = {}): NormalizedAppSpec {
+export function normalizeSpec(spec: AppSpec<any, any> = {}): NormalizedAppSpec {
   if (typeof spec !== 'object' || spec === null || Array.isArray(spec)) {
     throw new TypeError('makeApp(spec): spec must be a dictionary object.');
   }
 
-  assertKnownFields(spec as unknown as Record<string, unknown>);
+  const fields = spec as unknown as Record<string, unknown>;
+
+  assertKnownFields(fields);
+  assertComposition(fields);
   assertBundles(spec.features, 'feature', 'features');
-  assertBundles(spec.plugins, 'plugin', 'plugins');
+  assertBundles(branchCandidates(spec.plugins), 'plugin', 'plugins');
 
   // Одноимённые разные фичи — ошибка декларации, а не сборки: словарь
   // выбора должен быть однозначным уже здесь
   resolveSelection(spec.features);
 
-  // Плагины замыкаются по `dependsOn`: вспомогательный модуль, который
-  // привезли два плагина, регистрируется один раз — дедупликация ссылочная
-  const plugins = reachablePlugins(spec.plugins ?? []);
+  const root = normalizeRoot(spec);
 
+  // Интерком и имена серверов проверяются по кандидатам всех веток: и
+  // роль, и имя назначаются объявлению, а не сборке, поэтому опечатка
+  // ловится здесь. Разделяет список на транспорты и серверы сборка: до
+  // раскрытия веток состав неизвестен
   const entries = [...(spec.transports ?? [])];
-  const transports = entries.filter(
-    (entry): entry is TransportDeclaration => entry.kind === 'transport',
+  const candidates = branchCandidates(entries);
+
+  collectServers(candidates);
+
+  const intercom = resolveIntercom(
+    candidates.filter(isTransport),
+    spec.intercom,
   );
-  const servers = collectServers(entries);
-  const intercom = resolveIntercom(transports, spec.intercom);
 
   return {
     features: [...(spec.features ?? [])],
-    plugins,
-    providers: [...(spec.providers ?? [])],
-    transports,
-    servers,
+    ...(root ? { root } : {}),
+    plugins: [...(spec.plugins ?? [])],
+    switches: normalizeSwitches(spec.switches),
+    transports: entries,
     ...(intercom ? { intercom } : {}),
     config: [...(spec.config ?? [])],
     policies: [...(spec.policies ?? [])],
@@ -419,21 +625,21 @@ export function normalizeSpec(spec: AppSpec<any> = {}): NormalizedAppSpec {
 }
 
 /**
- * Строит план сборки: декларация, выбор и подстановки.
+ * Строит план сборки: декларация, аргумент и подстановки.
  *
- * Выбор здесь не резолвится: ошибки выбора — ошибки фазы ASSEMBLE, их
+ * Аргумент здесь не разбирается: его ошибки — ошибки фазы ASSEMBLE, их
  * бросает `run()` или `check()`, а `assemble()` ничего не читает.
  *
  * @internal
  */
 export function makePlan(
   spec: NormalizedAppSpec,
-  select?: FeatureSelection,
+  args?: AssembleArgs<any>,
   substitutions: TestSubstitutions = {},
 ): AssemblyPlan {
   return {
     spec,
-    ...(select === undefined ? {} : { select }),
+    ...(args === undefined ? {} : { args }),
     overrides: [...(substitutions.overrides ?? [])],
     familyOverrides: [...(substitutions.familyOverrides ?? [])],
     extraProviders: [...(substitutions.providers ?? [])],
@@ -495,7 +701,7 @@ export interface WiredApp {
   readonly endpoints: ReadonlyMap<AnyEndpointDefinition, WiredEndpoint>;
 
   /** Выбранные фичи — то же, что увидел бы `run()` */
-  readonly features: readonly Feature[];
+  readonly features: readonly ResolvedBundle[];
 
   /**
    * Общий сигнал прогона: передаётся в каждый `call`, взводится на
@@ -507,7 +713,7 @@ export interface WiredApp {
   close(): Promise<void>;
 }
 
-/** DI-токены транспортов плана — для порядка запуска */
+/** DI-токены объявленных транспортов — для порядка запуска */
 export const transportTokensOf = (
-  spec: NormalizedAppSpec,
-): readonly TransportRef[] => spec.transports.map(({ token }) => token);
+  transports: readonly TransportDeclaration[],
+): readonly TransportRef[] => transports.map(({ token }) => token);

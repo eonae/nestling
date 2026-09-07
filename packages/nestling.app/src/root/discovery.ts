@@ -2,7 +2,7 @@ import type { AnyEndpointDefinition, TransportRef } from '../pipeline/index.js';
 import { isEndpointDefinition, transportNameOf } from '../pipeline/index.js';
 import { busBindingOf } from '../ports/index.js';
 
-import type { Bundle } from './feature.js';
+import type { ResolvedBundle } from './feature.js';
 
 import type { InjectionToken } from '@nestling/container';
 import { makeToken } from '@nestling/container';
@@ -104,11 +104,11 @@ function describeValue(value: unknown): string {
  * ```
  */
 export function discoverEndpoints(
-  bundles: readonly Bundle[],
+  bundles: readonly ResolvedBundle[],
 ): EndpointDiscovery {
   const endpoints: DiscoveredEndpoint[] = [];
   const transports = new Map<TransportRef, DiscoveredEndpoint[]>();
-  const declared = new Map<string, Bundle>();
+  const declared = new Map<string, ResolvedBundle>();
 
   for (const bundle of bundles) {
     const seenBundle = declared.get(bundle.name);

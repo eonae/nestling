@@ -8,7 +8,7 @@
 
 > 🚧 Активная разработка, API меняется. Целевой дизайн:
 > [`docs/design/testing.md`](../../docs/design/testing.md).
-> Гайд: [глава 7. Убедиться, что работает, без запуска сервера](../../docs/guide/07-testing.md).
+> Гайд: [глава 8. Убедиться, что работает, без запуска сервера](../../docs/guide/08-testing.md).
 
 Пакет не вводит ни раннера, ни матчеров, ни snapshot-механики: jest
 остаётся jest'ом.
@@ -42,11 +42,11 @@ expect(unwrap(await testApp.call(GetUser, { id: '1' }))).toEqual({ id: '1', name
 Состав приложения — фичи, плагины, провайдеры, транспорты, интерком,
 политики — берётся из декларации: словарь состава в тест не копируется, и
 те же инварианты проверяются здесь, что и в production. В опциях остаются
-выбор фич и подстановки.
+аргумент сборки и подстановки.
 
 | Опция | Что это |
 |---|---|
-| `select` | выбор фич в тех же формах, что у `app.assemble(select)` |
+| `args` | аргумент сборки в тех же формах, что у `app.assemble(args)`: выбор фич и значения переключателей |
 | `overrides` | подмена узлов графа: пары «DI-токен и заглушка», рецепты семейств, переменные контекста |
 | `stubs` | поставка недостающего: пары «DI-токен и значение», заглушки операций |
 | `config` | привязка источников конфига; **заменяет** привязку декларации целиком |
@@ -257,10 +257,22 @@ const [{ subscriber, response }] = await testApp.emit(PlaceOrder, { orderId: 'o-
 await checkTopologies(app, ['all', 'users', 'ops']);
 ```
 
-`checkTopologies(app, selections, options?)` возвращает
-`TopologyReport[]` — пары `{ select, report }`. Ядро останавливается на
+`checkTopologies(app, topologies, options?)` возвращает
+`TopologyReport[]` — пары `{ args, report }`. Ядро останавливается на
 первой ошибке; хелпер собирает ошибки всех топологий и бросает одно
 сообщение с причиной по каждой.
+
+Топология описывается аргументом сборки целиком, поэтому матрица
+перебирает и ветки переключателей рядом с выбором фич:
+
+```typescript
+const [s3, local] = await checkTopologies(app, [
+  { features: 'all', storage: 's3' },
+  { features: 'all', storage: 'local' },
+]);
+
+expect(local.report.switches).toEqual({ storage: 'local' });
+```
 
 Политики декларации проверяются в каждой топологии матрицы, поэтому
 инвариант, который держится при выборе `'all'` и ломается на
@@ -382,7 +394,7 @@ resolve: { conditions: ['testing', 'node'] }
 | `familyOverride(family, make)`, `TestOverride` | подмена рецепта семейства |
 | `spyLogger()`, `SpyLogger`, `LogEntry` | логгер, который копит записи значениями; подменяет `RootLogger$` |
 | `contextValue(variable, value)` | подмена переменной контекста запроса |
-| `checkTopologies(app, selections, options?)`, `TopologyReport` | матрица `check()` |
+| `checkTopologies(app, topologies, options?)`, `TopologyReport` | матрица `check()` по аргументам сборки |
 | `CheckReport`, `CheckOptions` | реэкспорт типов из `@nestling/app` |
 | `snapshotOperations`, `serializeSnapshot`, `diffOperations`, `formatCompatibility` | реэкспорт из `@nestling/app`, чтобы CI-тест обходился одним импортом |
 | `SchemaDocConverter` | тип конвертера схем (реэкспорт из `@nestling/app`) |

@@ -10,7 +10,8 @@ import { makeEndpoint, Ok, transportNameOf } from '../pipeline/index.js';
 
 import { testEndpoint } from './__fixtures__/test-transport.js';
 import { discoverEndpoints } from './discovery.js';
-import { makeFeature, makePlugin } from './feature.js';
+import type { Bundle, ResolvedBundle } from './feature.js';
+import { makeFeature, makePlugin, resolveBundle } from './feature.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeToken } from '@nestling/container';
@@ -28,6 +29,28 @@ const endpoint = (transport: TransportRef, pattern: string) =>
     handler: async () => new Ok({}),
   });
 
+/**
+ * Discovery видит состав с раскрытыми ветками. Раскрытие запоминается:
+ * функция сверяет единицы по идентичности значения.
+ */
+const cache = new Map<Bundle, ResolvedBundle>();
+
+const discover = (bundles: readonly Bundle[]) =>
+  discoverEndpoints(
+    bundles.map((bundle) => {
+      const known = cache.get(bundle);
+
+      if (known) {
+        return known;
+      }
+
+      const fresh = resolveBundle(bundle, {}, () => new Error('no switches'));
+      cache.set(bundle, fresh);
+
+      return fresh;
+    }),
+  );
+
 describe('discoverEndpoints', () => {
   it('несёт атрибуцию к объявившей единице', () => {
     const GetUser = testEndpoint({
@@ -39,7 +62,7 @@ describe('discoverEndpoints', () => {
 
     const Users = makeFeature({ name: 'users', endpoints: [GetUser] });
 
-    const { endpoints } = discoverEndpoints([Users]);
+    const { endpoints } = discover([Users]);
 
     expect(endpoints).toHaveLength(1);
     expect(endpoints[0]).toMatchObject({
@@ -56,7 +79,7 @@ describe('discoverEndpoints', () => {
     const Docs = endpoint(Http$, 'GET /openapi.json');
     const Ping = endpoint(Http$, 'GET /ping');
 
-    const { endpoints } = discoverEndpoints([
+    const { endpoints } = discover([
       makeFeature({ name: 'users', endpoints: [Ping] }),
       makePlugin({ name: '@acme/docs', endpoints: [Docs] }),
     ]);
@@ -71,7 +94,7 @@ describe('discoverEndpoints', () => {
     const First = endpoint(Http$, 'GET /first');
     const Second = endpoint(Http$, 'GET /second');
 
-    const { endpoints } = discoverEndpoints([
+    const { endpoints } = discover([
       makeFeature({ name: 'a', endpoints: [First] }),
       makeFeature({ name: 'b', endpoints: [Second] }),
     ]);
@@ -85,7 +108,7 @@ describe('discoverEndpoints', () => {
   it('одна декларация, повторённая в единице, регистрируется один раз', () => {
     const Once = endpoint(Http$, 'GET /once');
 
-    const { endpoints } = discoverEndpoints([
+    const { endpoints } = discover([
       makeFeature({ name: 'users', endpoints: [Once, Once] }),
     ]);
 
@@ -96,14 +119,14 @@ describe('discoverEndpoints', () => {
     const Once = endpoint(Http$, 'GET /once');
     const Users = makeFeature({ name: 'users', endpoints: [Once] });
 
-    expect(discoverEndpoints([Users, Users]).endpoints).toHaveLength(1);
+    expect(discover([Users, Users]).endpoints).toHaveLength(1);
   });
 
   it('две разные единицы под одним именем — ошибка', () => {
     const Left = makeFeature({ name: 'users', endpoints: [] });
     const Right = makeFeature({ name: 'users', endpoints: [] });
 
-    expect(() => discoverEndpoints([Left, Right])).toThrow(
+    expect(() => discover([Left, Right])).toThrow(
       /Two different features are named 'users'/,
     );
   });
@@ -118,7 +141,7 @@ describe('discoverEndpoints', () => {
       ],
     });
 
-    const { transports } = discoverEndpoints([Mixed]);
+    const { transports } = discover([Mixed]);
 
     // Ключ карты — DI-токен транспорта, а не его строковое имя
     expect(new Set(transports.keys())).toEqual(new Set([Cli$, Http$]));
@@ -132,7 +155,7 @@ describe('discoverEndpoints', () => {
     }
 
     expect(() =>
-      discoverEndpoints([
+      discover([
         makeFeature({
           name: 'users',
           endpoints: [new NotADeclaration()] as never,
@@ -144,7 +167,7 @@ describe('discoverEndpoints', () => {
   });
 
   it('результат только для чтения: состав из графа не меняют', () => {
-    const discovery = discoverEndpoints([
+    const discovery = discover([
       makeFeature({ name: 'users', endpoints: [endpoint(Http$, 'GET /x')] }),
     ]);
 

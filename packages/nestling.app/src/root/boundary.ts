@@ -10,10 +10,10 @@
  * «модуль → фича-владелец», и выводится она из состава.
  */
 
-import type { Feature, Plugin } from './feature.js';
+import type { ResolvedBundle } from './feature.js';
 import { reachableModules } from './feature.js';
 
-import type { BuiltContainer } from '@nestling/container';
+import type { BuiltContainer, SwitchValues } from '@nestling/container';
 
 /** Владелец модуля: единица, из состава которой он достижим */
 export interface ModuleOwner {
@@ -35,19 +35,21 @@ export type OwnerMap = ReadonlyMap<string, ModuleOwner>;
  * фич, владельца не имеет — и это ошибка сборки: ребро в такой модуль
  * невозможно классифицировать, пока не решено, чья он часть.
  *
- * @param features - Выбранные фичи
- * @param plugins - Подключённые плагины
+ * @param features - Выбранные фичи с раскрытыми ветками
+ * @param plugins - Подключённые плагины с раскрытыми ветками
+ * @param values - Значения переключателей фазы ASSEMBLE
  * @returns Карта владельцев
  * @throws {Error} Если модуль достижим из двух и более фич
  */
 export function buildOwnerMap(
-  features: readonly Feature[],
-  plugins: readonly Plugin[],
+  features: readonly ResolvedBundle[],
+  plugins: readonly ResolvedBundle[],
+  values: SwitchValues,
 ): OwnerMap {
   const owners = new Map<string, ModuleOwner>();
 
   for (const plugin of plugins) {
-    for (const module of reachableModules(plugin)) {
+    for (const module of reachableModules(plugin, values)) {
       owners.set(module.name, { name: plugin.name, role: 'plugin' });
     }
 
@@ -63,7 +65,7 @@ export function buildOwnerMap(
       owners.set(feature.name, { name: feature.name, role: 'feature' });
     }
 
-    for (const module of reachableModules(feature)) {
+    for (const module of reachableModules(feature, values)) {
       const owner = owners.get(module.name);
 
       if (owner?.role === 'plugin') {

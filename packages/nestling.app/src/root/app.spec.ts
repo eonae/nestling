@@ -699,6 +699,7 @@ describe('assemble — порядок фаз и shutdown', () => {
       fields: {
         scope: 'nestling',
         features: ['orders'],
+        switches: {},
         transports: ['test'],
       },
     });
@@ -734,6 +735,7 @@ describe('assemble — порядок фаз и shutdown', () => {
     const probe = loggerProbe();
 
     const app = makeApp({
+      endpoints: [],
       providers: [
         valueProvider(makeToken<string>('Twin'), 'left'),
         valueProvider(makeToken<string>('Twin'), 'right'),

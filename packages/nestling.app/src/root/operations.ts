@@ -9,9 +9,10 @@
 import { busBindingOf } from '../ports/index.js';
 
 import type { EndpointDiscovery } from './discovery.js';
-import type { Bundle } from './feature.js';
+import type { ResolvedBundle } from './feature.js';
 import { injectedTokens } from './feature.js';
 
+import type { SwitchValues } from '@nestling/container';
 import { asFamilyMember } from '@nestling/container';
 import type { OperationKind } from '@nestling/operations';
 import {
@@ -44,11 +45,14 @@ export interface CheckedOperation {
 }
 
 /** Имена операций, вызываемых единицами сборки */
-function calledOperations(bundles: readonly Bundle[]): Set<string> {
+function calledOperations(
+  bundles: readonly ResolvedBundle[],
+  values: SwitchValues,
+): Set<string> {
   const called = new Set<string>();
 
   for (const bundle of bundles) {
-    for (const dependency of injectedTokens(bundle)) {
+    for (const dependency of injectedTokens(bundle, values)) {
       const member = asFamilyMember(dependency);
 
       if (member?.family === PortFamily || member?.family === EmitterFamily) {
@@ -71,12 +75,14 @@ function calledOperations(bundles: readonly Bundle[]): Set<string> {
  * @param discovery - Состав приложения
  * @param bundles - Выбранные фичи и подключённые плагины: их провайдеры
  * тоже инжектируют вызыватели
+ * @param values - Значения переключателей фазы ASSEMBLE
  * @param intercom - Имя транспорта, назначенного переносчиком операций
  * @returns Операции в порядке имени
  */
 export function mapOperations(
   discovery: EndpointDiscovery,
-  bundles: readonly Bundle[],
+  bundles: readonly ResolvedBundle[],
+  values: SwitchValues,
   intercom?: string,
 ): readonly CheckedOperation[] {
   const implemented = new Set<string>();
@@ -89,7 +95,7 @@ export function mapOperations(
     }
   }
 
-  const called = calledOperations(bundles);
+  const called = calledOperations(bundles, values);
   const names = [...new Set([...implemented, ...called])].sort();
 
   return names.map((name) => {

@@ -3,7 +3,7 @@
  * рантайм приложения.
  *
  * Декларация (`makeApp`) описывает, что такое приложение. Сборка
- * (`app.assemble(select)`) выбирает, что запускает этот процесс. Фазы:
+ * (`app.assemble(args)`) выбирает, что запускает этот процесс. Фазы:
  * `0 BOOTSTRAP → 1 ASSEMBLE → 2 INIT → 3 WIRE → 4 START → 5 RUN` и
  * `6 SHUTDOWN` строгим реверсом; их выполняет `run()`. Фазы 0 и 1
  * fail-fast: ошибка сборки предшествует захвату любых ресурсов.
@@ -52,15 +52,24 @@ import type {
   ExecutableDeclaration,
   IListener,
   ITransport,
+  ServerDeclaration,
+  TransportDeclaration,
   TransportEntry,
 } from '../transport/index.js';
-import { makeDispatch } from '../transport/index.js';
+import { isTransport, makeDispatch } from '../transport/index.js';
 
+import type { AssembleArgs, ParsedArgs } from './args.js';
+import { parseArgs, resolveSwitchValues, undeclaredSwitch } from './args.js';
 import { assertFeatureBoundary, buildOwnerMap } from './boundary.js';
 import type { EndpointDiscovery } from './discovery.js';
 import { discoverEndpoints, Discovery$ } from './discovery.js';
-import type { Bundle, Feature, FeatureSelection } from './feature.js';
-import { modulesOf, resolveSelection } from './feature.js';
+import type { Bundle, Feature, ResolvedBundle } from './feature.js';
+import {
+  modulesOf,
+  reachablePlugins,
+  resolveBundle,
+  resolveSelection,
+} from './feature.js';
 import type { CheckedOperation } from './operations.js';
 import { mapOperations } from './operations.js';
 import type {
@@ -72,6 +81,7 @@ import type {
 } from './plan.js';
 import {
   CHECK_SEAM,
+  collectServers,
   makePlan,
   normalizeSpec,
   TEST_SEAM,
@@ -80,15 +90,26 @@ import {
 import { closeOverCalls } from './selection.js';
 
 import type {
+  AnySwitch,
+  Branchable,
   BuiltContainer,
   InjectionToken,
   Module,
   ModuleProvider,
   Provider,
+  SwitchValues,
 } from '@nestling/container';
-import { ContainerBuilder, tokenId, valueProvider } from '@nestling/container';
+import {
+  branchCandidates,
+  ContainerBuilder,
+  resolveBranches,
+  switchesUsed,
+  tokenId,
+  valueProvider,
+} from '@nestling/container';
 
 export type { AppSpec, NormalizedAppSpec } from './plan.js';
+export type { AssembleArgs, AssembleObject, SwitchFields } from './args.js';
 
 /** Endpoint в отчёте `check()`: чем обслуживается и кем объявлен */
 export interface CheckedEndpoint {
@@ -120,6 +141,15 @@ export interface CheckedEndpoint {
 export interface CheckReport {
   /** Имена выбранных фич, включая добавленные через `dependsOn` */
   readonly features: readonly string[];
+
+  /**
+   * Значение каждого переключателя декларации в порядке объявления.
+   *
+   * Второе измерение состава рядом с первым: топология описывается
+   * выбором фич и ветками вместе. У приложения без `switches:` поле
+   * пусто.
+   */
+  readonly switches: Readonly<Record<string, string>>;
 
   /** Endpoint'ы, найденные discovery, с их транспортами */
   readonly endpoints: readonly CheckedEndpoint[];
@@ -182,26 +212,31 @@ const APP_BRAND = Symbol.for('nestling:app');
 /**
  * Объявляет приложение.
  *
- * Единственный публичный composition root: фичи перечисляются в
- * `features:`, сквозная инфраструктура — в `plugins:`, транспорты
- * объявляются экземплярами, привязки конфига — полем `config`, корневой
- * логгер — полем `logger`. Выбор фич в словаре не пишется: его принимает
- * `assemble(select)`.
+ * Единственный публичный composition root. Состав описывается одной из
+ * трёх форм: `{ endpoints, providers? }`, `{ endpoints, modules? }` или
+ * `{ features }`. Сквозная инфраструктура перечисляется в `plugins:`,
+ * переключатели состава — в `switches:`, транспорты объявляются
+ * экземплярами, привязки конфига — полем `config`, корневой логгер —
+ * полем `logger`. Выбор фич в словаре не пишется: он часть аргумента
+ * `assemble(args)`.
  *
- * Декларация проверяется при создании: бренды фич и плагинов, дубли
- * имён фич, закрытый перечень полей, интерком среди транспортов.
+ * Декларация проверяется при создании: бренды фич и плагинов, дубли имён
+ * фич и имён переключателей, форма состава, закрытый перечень полей,
+ * интерком среди транспортов.
  *
  * @param spec - Словарь декларации. Все поля опциональны
  * @returns Декларация приложения с методами `assemble()` и `check()`
- * @throws {TypeError} Неизвестное поле словаря, не фича в `features`, не
- * плагин в `plugins`
- * @throws {Error} Одноимённые разные фичи, интерком вне списка транспортов
+ * @throws {TypeError} Неизвестное поле словаря, смешанная форма состава,
+ * не фича в `features`, не плагин в `plugins`
+ * @throws {Error} Одноимённые разные фичи или переключатели, интерком вне
+ * списка транспортов
  *
- * @example Одна фича и транспорт
+ * @example Endpoint'ы и транспорт без фичи
  * ```typescript
  * // app.ts
  * export const app = makeApp({
- *   features: [OrdersFeature],
+ *   endpoints: [CreateOrder],
+ *   providers: [OrdersService],
  *   transports: [http()],
  * });
  *
@@ -209,28 +244,30 @@ const APP_BRAND = Symbol.for('nestling:app');
  * await app.assemble().run();
  * ```
  *
- * @example Несколько фич, интерком и выбор в процессе
+ * @example Фичи, переключатели и аргумент сборки
  * ```typescript
  * export const app = makeApp({
  *   features: [OrdersFeature, BillingFeature],
  *   plugins: [appLogging],
+ *   switches: [Storage],
  *   transports: [http(), nats({ name: 'events' })],
  *   intercom: 'events',
  * });
  *
- * await app.assemble({ features: load(RootConfig).features, includeDeps: true }).run();
+ * await app.assemble({ features: 'orders', storage: 's3' }).run();
  * ```
  */
-export function makeApp<const T extends readonly TransportEntry[] = []>(
-  spec: AppSpec<T> = {},
-): App {
-  return new App(normalizeSpec(spec));
+export function makeApp<
+  const T extends readonly Branchable<TransportEntry>[] = [],
+  const S extends readonly AnySwitch[] = [],
+>(spec: AppSpec<T, S> = {}): App<S> {
+  return new App<S>(normalizeSpec(spec));
 }
 
 /**
  * Проверяет, что значение — декларация приложения, созданная `makeApp`.
  */
-export function isApp(value: unknown): value is App {
+export function isApp(value: unknown): value is App<any> {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -242,10 +279,12 @@ export function isApp(value: unknown): value is App {
  * Декларация приложения: результат `makeApp`.
  *
  * Значение, а не процесс: одна декларация собирается сколько угодно раз с
- * разным выбором. Публичная поверхность — `assemble(select?)` и
- * `check(select?, options?)`.
+ * разным аргументом. Публичная поверхность — `assemble(args?)` и
+ * `check(args?, options?)`.
+ *
+ * @template S - Переключатели декларации; из них выведен тип аргумента
  */
-export class App {
+export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
   /** Нормализованная декларация: списки скопированы, интерком найден */
   readonly spec: NormalizedAppSpec;
 
@@ -265,26 +304,27 @@ export class App {
    * Собирает приложение для этого процесса.
    *
    * Вызов синхронный и ничего не читает: ни `process.env`, ни граф.
-   * Фазы 0–5 выполняет `run()` собранного приложения; ошибки выбора
-   * (неизвестное имя фичи, пустой выбор) — ошибки фазы ASSEMBLE, их
-   * бросает `run()`.
+   * Фазы 0–5 выполняет `run()` собранного приложения; ошибки аргумента
+   * (неизвестное имя фичи, пустой выбор, значение переключателя не из
+   * словаря) — ошибки фазы ASSEMBLE, их бросает `run()`.
    *
-   * @param select - Выбор фич: `'all'`, `'orders,billing'`,
-   * `['orders', 'billing']` или `{ features, includeDeps }`. Отсутствует —
-   * выбраны все
+   * @param args - Аргумент сборки: `'all'`, `'orders,billing'`,
+   * `['orders', 'billing']` или `{ features, includeDeps, …значения
+   * переключателей }`. Отсутствует — выбраны все фичи и умолчания
    * @returns Собранное приложение с методами `run()` и `close()`
    */
-  assemble(select?: FeatureSelection): AssembledApp {
-    return new AssembledApp(makePlan(this.spec, select));
+  assemble(args?: AssembleArgs<S>): AssembledApp {
+    return new AssembledApp(makePlan(this.spec, args));
   }
 
   /**
    * Структурный смок: фазы 0 BOOTSTRAP и 1 ASSEMBLE — и остановка.
    *
-   * Выполняется: резолв выбора, регистрация модулей и провайдеров,
-   * discovery, построение графа, сверка требуемых транспортов, проверка
-   * форм io против способностей объявленных транспортов и проверка
-   * объявленных политик.
+   * Выполняется: разбор аргумента сборки, раскрытие веток
+   * переключателей, регистрация модулей и провайдеров, discovery,
+   * построение графа, сверка требуемых транспортов, проверка форм io
+   * против способностей объявленных транспортов и проверка объявленных
+   * политик.
    *
    * Не выполняется ни один конструктор: экземпляры создаёт INIT, а
    * проверка до него не доходит. `acquire`, WIRE, `@OnStart`, `serve` и
@@ -292,27 +332,27 @@ export class App {
    *
    * Проверка — «собрать и выбросить»: граф не сохраняется, на
    * последующий `assemble()` той же декларации вызов не влияет, и гонять
-   * его можно по матрице `select`-топологий.
+   * его можно по матрице топологий.
    *
-   * @param select - Выбор фич в тех же формах, что у `assemble`
-   * @param options - Конвертеры схем для дескрипторов операций. Вызов
-   * без аргумента ведёт себя ровно как прежде
-   * @returns Отчёт о составе: фичи, endpoint'ы с транспортами, транспорты
-   * и дескрипторы опубликованных операций
+   * @param args - Аргумент сборки в тех же формах, что у `assemble`
+   * @param options - Конвертеры схем для дескрипторов операций и конфиг
+   * проверки
+   * @returns Отчёт о составе: фичи, значения переключателей, endpoint'ы с
+   * транспортами, транспорты и дескрипторы опубликованных операций
    * @throws {Error} Те же ошибки, что бросил бы `run()` на этих фазах
    *
    * @example
    * ```typescript
-   * for (const select of ['all', 'users', 'logging'] as const) {
-   *   await app.check(select);
+   * for (const args of ['all', 'users', 'logging'] as const) {
+   *   await app.check(args);
    * }
    * ```
    */
   async check(
-    select?: FeatureSelection,
+    args?: AssembleArgs<S>,
     options: CheckOptions = {},
   ): Promise<CheckReport> {
-    return await new AssembledApp(makePlan(this.spec, select))[CHECK_SEAM](
+    return await new AssembledApp(makePlan(this.spec, args))[CHECK_SEAM](
       options,
     );
   }
@@ -366,12 +406,15 @@ function providedClass(provider: ModuleProvider): unknown {
 function modulesListing(
   cls: HandlerClass,
   modules: readonly Module[],
+  values: SwitchValues,
 ): string[] {
   return modules
     .filter(
       ({ providers }) =>
         Array.isArray(providers) &&
-        providers.some((provider) => providedClass(provider) === cls),
+        resolveBranches(providers, values).some(
+          (provider) => providedClass(provider) === cls,
+        ),
     )
     .map(({ name }) => name);
 }
@@ -386,12 +429,30 @@ export class AssembledApp {
   readonly #plan: AssemblyPlan;
 
   /**
-   * Фактический состав фич: выбор, замкнутый по вызываемым операциям.
+   * Фактический состав фич: выбор, замкнутый по вызываемым операциям, с
+   * раскрытыми ветками.
    *
    * Считается на фазе ASSEMBLE один раз: `run()`, проверка и шов обязаны
    * видеть один и тот же состав. До неё поле пусто.
    */
-  #features?: readonly Feature[];
+  #features?: readonly ResolvedBundle[];
+
+  /** Единица корня и плагины после раскрытия веток */
+  #alwaysOn: readonly ResolvedBundle[] = [];
+
+  /** Транспорты сборки после раскрытия веток */
+  #transports: readonly TransportDeclaration[] = [];
+
+  /**
+   * Серверы сборки после раскрытия веток, в порядке объявления.
+   *
+   * Собраны из элементов `transports:` и из полей `server` объявлений
+   * транспортов, без повторов.
+   */
+  #serverDecls: readonly ServerDeclaration[] = [];
+
+  /** Значения переключателей этой сборки в порядке объявления */
+  #switches: SwitchValues = {};
 
   /** Имена фич, названных в выборе, — для строки состава */
   #named: readonly string[] = [];
@@ -530,6 +591,7 @@ export class AssembledApp {
   #report(discovery: EndpointDiscovery, options: CheckOptions): CheckReport {
     return {
       features: this.#selectedFeatures().map((feature) => feature.name),
+      switches: this.#switches,
       endpoints: discovery.endpoints.map(({ endpoint, moduleName }) => ({
         pattern: endpoint.pattern,
         transport: transportNameOf(endpoint.transport),
@@ -545,6 +607,7 @@ export class AssembledApp {
       operations: mapOperations(
         discovery,
         this.#bundles(),
+        this.#switches,
         this.#plan.spec.intercom?.name,
       ),
     };
@@ -664,7 +727,7 @@ export class AssembledApp {
    */
   #collectServers(container: BuiltContainer): void {
     this.#servers = new Map(
-      this.#plan.spec.servers.map(({ name, token }) => [
+      this.#serverDecls.map(({ name, token }) => [
         name,
         container.getOrThrow<IListener>(token as InjectionToken<IListener>),
       ]),
@@ -672,36 +735,98 @@ export class AssembledApp {
   }
 
   /** Выбранные фичи; доступны после резолва выбора на фазе ASSEMBLE */
-  #selectedFeatures(): readonly Feature[] {
+  #selectedFeatures(): readonly ResolvedBundle[] {
     return this.#features ?? [];
   }
 
-  /** Единицы сборки: фактически выбранные фичи и все плагины */
-  #bundles(): Bundle[] {
-    return [...this.#selectedFeatures(), ...this.#plan.spec.plugins];
+  /** Единицы сборки: корень, фактически выбранные фичи и все плагины */
+  #bundles(): ResolvedBundle[] {
+    return [...this.#selectedFeatures(), ...this.#alwaysOn];
   }
 
   /**
-   * Фаза 0: резолв выбора — до построения контейнера.
+   * Фаза 0: разбор аргумента сборки, значения переключателей, раскрытие
+   * веток и резолв выбора — до построения контейнера.
    *
-   * Опечатка в имени фичи падает раньше любого захвата. Замыкание по
-   * вызовам считается здесь же, один раз.
+   * Порядок задан фазовой моделью: значения считаются первыми, ветки
+   * раскрываются вторыми, замыкание по вызовам — последним. Так замыкание
+   * видит уже выбранный состав: ветка может привезти endpoint, который
+   * зовёт операцию соседней фичи.
+   *
+   * Опечатка в имени фичи или значение вне словаря переключателя падают
+   * раньше любого захвата.
    */
   #select(): void {
     if (this.#features) {
       return;
     }
 
-    const selection = resolveSelection(
-      this.#plan.spec.features,
-      this.#plan.select,
+    const { spec } = this.#plan;
+
+    const parsed: ParsedArgs = parseArgs(this.#plan.args, spec.switches);
+    const values = resolveSwitchValues(spec.switches, parsed);
+
+    this.#switches = values;
+
+    const resolve = (bundle: Bundle): ResolvedBundle =>
+      resolveBundle(bundle, values, undeclaredSwitch);
+
+    // Плагины замыкаются по `dependsOn` уже после раскрытия: ветка в
+    // `plugins:` корня может привезти плагин со своими зависимостями
+    const plugins = reachablePlugins(
+      resolveBranches(spec.plugins, values, undeclaredSwitch),
     );
 
-    this.#named = selection.features.map((feature) => feature.name);
+    this.#alwaysOn = [
+      ...(spec.root ? [resolve(spec.root)] : []),
+      ...plugins.map((plugin) => resolve(plugin)),
+    ];
+
+    // Транспорты и серверы разделяются здесь: до раскрытия веток состав
+    // списка неизвестен
+    const entries = resolveBranches(spec.transports, values, undeclaredSwitch);
+
+    this.#transports = entries.filter(isTransport);
+    this.#serverDecls = collectServers(entries);
+
+    const selection = resolveSelection(
+      spec.features,
+      parsed.features,
+      parsed.includeDeps,
+    );
+
+    // Раскрытие делается один раз на фичу и запоминается: discovery и
+    // карта владельцев сверяют единицы по идентичности значения
+    const resolved = new Map<Feature, ResolvedBundle>();
+    const of = (feature: Feature): ResolvedBundle => {
+      const known = resolved.get(feature);
+
+      if (known) {
+        return known;
+      }
+
+      const fresh = resolve(feature);
+      resolved.set(feature, fresh);
+
+      return fresh;
+    };
+
+    const selected = selection.features.map((feature) => of(feature));
+
+    this.#named = selected.map((feature) => feature.name);
     this.#includeDeps = selection.includeDeps;
     this.#features = selection.includeDeps
-      ? closeOverCalls(selection.features, selection.declared)
-      : selection.features;
+      ? closeOverCalls(
+          selected,
+          new Map(
+            [...selection.declared].map(([name, feature]) => [
+              name,
+              of(feature),
+            ]),
+          ),
+          values,
+        )
+      : selected;
   }
 
   /**
@@ -766,6 +891,9 @@ export class AssembledApp {
     const builder = new ContainerBuilder({
       overrides: this.#plan.overrides,
       familyOverrides: this.#plan.familyOverrides,
+      // Ветки в `providers:` и `dependsOn:` модулей раскрывает билдер —
+      // там, где эти списки читаются
+      switches: this.#switches,
     });
 
     // Kernel-модуль конфига регистрируется всегда: иначе сценарий
@@ -818,6 +946,11 @@ export class AssembledApp {
     // могло добавить фичу, и её провайдеры обязаны попасть в граф
     const modules = modulesOf(bundles);
 
+    // Ветки внутри модулей раскроет билдер, но перечень переключателей
+    // знает только корень: его сообщение называет `switches:`, а не опцию
+    // билдера
+    this.#assertSwitchesDeclared(modules);
+
     if (modules.length > 0) {
       builder.register(...modules);
     }
@@ -826,17 +959,18 @@ export class AssembledApp {
     // модуля-объявителя
     this.#registerHandlerClasses(builder, discovery, bundles, modules);
 
-    const providers = [...spec.providers, ...this.#plan.extraProviders];
-    if (providers.length > 0) {
-      builder.register(...providers);
+    // Провайдеры корня едут модулем `app` вместе с остальным его составом;
+    // здесь остаются только стабы тестового прогона
+    if (this.#plan.extraProviders.length > 0) {
+      builder.register(...this.#plan.extraProviders);
     }
 
     // Серверы регистрируются вместе с транспортами: объявление сервера
     // приходит и элементом `transports:`, и полем `server` объявления
-    // транспорта, а `normalizeSpec` уже свёл их без повторов
+    // транспорта, а `collectServers` уже свёл их без повторов
     const nodes = [
-      ...spec.transports.map(({ provider }) => provider),
-      ...spec.servers.map(({ provider }) => provider),
+      ...this.#transports.map(({ provider }) => provider),
+      ...this.#serverDecls.map(({ provider }) => provider),
     ];
     if (nodes.length > 0) {
       builder.register(...(nodes as Provider[]));
@@ -862,7 +996,14 @@ export class AssembledApp {
     // разъезда процессов, важнее любого недостающего транспорта
     assertFeatureBoundary(
       container,
-      buildOwnerMap(this.#selectedFeatures(), spec.plugins),
+      buildOwnerMap(
+        [
+          ...this.#selectedFeatures(),
+          ...this.#alwaysOn.filter(({ role }) => role === 'feature'),
+        ],
+        this.#alwaysOn.filter(({ role }) => role === 'plugin'),
+        this.#switches,
+      ),
     );
 
     this.#warnOnIdleIntercom(discovery, logger);
@@ -874,6 +1015,50 @@ export class AssembledApp {
     this.#assertPolicies(discovery);
 
     return { container, discovery };
+  }
+
+  /**
+   * Отвергает ветку на переключателе, которого нет в `switches:` корня.
+   *
+   * Списки единиц раскрывает сборка и ловит это сама; `providers:` и
+   * `dependsOn:` модулей раскрывает билдер, а он знает только карту
+   * значений. Проход идёт по всем веткам, а не по выбранным: `pick` на
+   * незаявленном переключателе — ошибка декларации, и от выбора она не
+   * зависит.
+   */
+  #assertSwitchesDeclared(modules: readonly Module[]): void {
+    const declared = new Set(
+      this.#plan.spec.switches.map(({ name }) => name as string),
+    );
+    const seen = new Set<Module>();
+
+    const visit = (module: Module): void => {
+      if (seen.has(module)) {
+        return;
+      }
+      seen.add(module);
+
+      const used = [
+        ...switchesUsed(
+          Array.isArray(module.providers) ? module.providers : [],
+        ),
+        ...switchesUsed(module.dependsOn),
+      ];
+
+      for (const declaration of used) {
+        if (!declared.has(declaration.name)) {
+          throw undeclaredSwitch(declaration);
+        }
+      }
+
+      for (const required of branchCandidates(module.dependsOn)) {
+        visit(required);
+      }
+    };
+
+    for (const module of modules) {
+      visit(module);
+    }
   }
 
   /**
@@ -912,14 +1097,11 @@ export class AssembledApp {
   #registerHandlerClasses(
     builder: ContainerBuilder,
     discovery: EndpointDiscovery,
-    bundles: readonly Bundle[],
+    bundles: readonly ResolvedBundle[],
     modules: readonly Module[],
   ): void {
     const registered = new Set<HandlerClass>();
-    const rootProviders = [
-      ...this.#plan.spec.providers,
-      ...this.#plan.extraProviders,
-    ];
+    const stubs = this.#plan.extraProviders;
 
     for (const { endpoint, moduleName } of discovery.endpoints) {
       const cls = handlerClassOf(endpoint);
@@ -928,9 +1110,9 @@ export class AssembledApp {
         continue;
       }
 
-      const listedIn = modulesListing(cls, modules);
-      if (rootProviders.some((provider) => providedClass(provider) === cls)) {
-        listedIn.push('(root providers)');
+      const listedIn = modulesListing(cls, modules, this.#switches);
+      if (stubs.some((provider) => providedClass(provider) === cls)) {
+        listedIn.push('(test stubs)');
       }
 
       if (listedIn.length > 0) {
@@ -1044,7 +1226,7 @@ export class AssembledApp {
     const seen = new Set<TransportRef>();
 
     for (const token of [
-      ...transportTokensOf(this.#plan.spec),
+      ...transportTokensOf(this.#transports),
       ...discovery.transports.keys(),
     ]) {
       if (seen.has(token)) {
@@ -1100,7 +1282,8 @@ export class AssembledApp {
 
     if (
       !intercom ||
-      mapOperations(discovery, this.#bundles(), intercom.name).length > 0
+      mapOperations(discovery, this.#bundles(), this.#switches, intercom.name)
+        .length > 0
     ) {
       return;
     }
@@ -1162,7 +1345,7 @@ export class AssembledApp {
       // объявления у неё нет, а формы её endpoint'ов сверяются на той же
       // фазе, что и у прочих. Объявление корня перекрывает эту запись
       [BusTransport$ as TransportRef, BUS_CAPABILITIES],
-      ...this.#plan.spec.transports.map(
+      ...this.#transports.map(
         (declaration) => [declaration.token, declaration.capabilities] as const,
       ),
     ]);
@@ -1250,11 +1433,20 @@ export class AssembledApp {
   #announce(discovery: EndpointDiscovery, logger: Logger): void {
     const features = this.#selectedFeatures().map((feature) => feature.name);
     const transports = this.#serving.map(({ token }) => transportNameOf(token));
+    const switches = this.#switches;
+
+    // Выбор веток печатается рядом с фичами: это второе измерение состава,
+    // и читать его надо там же, где первое. Приложение без переключателей
+    // даёт строку прежнего вида
+    const chosen = Object.entries(switches)
+      .map(([name, value]) => `${name}=${value}`)
+      .join(' ');
 
     logger.info(
       `features: ${features.join(', ') || '(none)'}; ` +
+        (chosen ? `${chosen}; ` : '') +
         `transports: ${transports.join(', ') || '(none)'}`,
-      { features, transports },
+      { features, switches, transports },
     );
 
     // Фактический состав при замыкании — не украшение: выбор назвал одни

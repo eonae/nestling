@@ -52,8 +52,8 @@ export interface OperationReport {
 
 /** Отчёт одной топологии матрицы — тоже структурно */
 export interface TopologyOperationReport {
-  /** Значение `select`, с которым топология собиралась */
-  readonly select?: unknown;
+  /** Аргумент сборки, с которым топология собиралась */
+  readonly args?: unknown;
 
   /** Отчёт `check()` этой топологии */
   readonly report?: OperationReport;
@@ -64,18 +64,18 @@ export type SnapshotSource = OperationReport | TopologyOperationReport;
 
 /** Читаемое имя топологии: им подписан операция в снапшоте */
 function nameOfTopology(source: SnapshotSource, index: number): string {
-  const select = (source as TopologyOperationReport).select;
+  const args = (source as TopologyOperationReport).args;
 
-  if (typeof select === 'string') {
-    return select;
+  if (typeof args === 'string') {
+    return args;
   }
-  if (Array.isArray(select)) {
-    return `[${select.map(String).join(', ')}]`;
+  if (Array.isArray(args)) {
+    return `[${args.map(String).join(', ')}]`;
   }
 
-  // Объектная форма выбора: имя топологии даёт её список фич, а не
+  // Объектная форма аргумента: имя топологии даёт её список фич, а не
   // порядковый номер — иначе снапшот зависел бы от порядка матрицы
-  const features = (select as { features?: unknown } | undefined)?.features;
+  const features = (args as { features?: unknown } | undefined)?.features;
 
   if (typeof features === 'string') {
     return features;

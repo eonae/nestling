@@ -30,6 +30,7 @@ import {
   classProvider,
   Component,
   Handler,
+  makeSwitch,
   makeToken,
   makeTokenFamily,
   OnStart,
@@ -427,13 +428,49 @@ describe('app.call — полный пайплайн in-proc', () => {
         transports: [asHttpTransport(new SpyTransport())],
       }),
       {
-        select: 'module:users',
+        args: 'module:users',
       },
     );
 
     await expect(app.call(Invoices)).rejects.toThrow(
       /GET \/invoices.*not part of the assembled application.*GET \/users\/:id/s,
     );
+  });
+
+  it('ветка переключателя раскрывается тем же аргументом, что в бою', async () => {
+    const Storage = makeSwitch('storage', ['s3', 'local']);
+    const S3$ = makeToken<string>('TestS3Storage');
+    const Local$ = makeToken<string>('TestLocalStorage');
+
+    const Uploads = makeFeature({
+      name: 'uploads',
+      providers: [
+        Storage.pick({
+          s3: [valueProvider(S3$, 's3')],
+          local: [valueProvider(Local$, 'local')],
+        }),
+      ],
+      endpoints: [
+        httpEndpoint({
+          method: 'POST',
+          path: '/uploads',
+          handler: async () => new Ok({}),
+        }),
+      ],
+    });
+
+    const app = makeApp({
+      features: [Uploads],
+      switches: [Storage],
+      transports: [asHttpTransport(new SpyTransport())],
+    });
+
+    await using local = await assembleTest(app, {
+      args: { storage: 'local' },
+    });
+
+    expect(local.get(Local$)).toBe('local');
+    expect(local.get(S3$)).toBeNull();
   });
 
   it('взводит ctx.signal незавершённого вызова на close()', async () => {
@@ -489,6 +526,7 @@ describe('vars и familyOverride', () => {
 
     await using app = await assembleTest(
       makeApp({
+        endpoints: [],
         providers: [
           {
             provide: Page,
@@ -514,6 +552,7 @@ describe('vars и familyOverride', () => {
 
     await using app = await assembleTest(
       makeApp({
+        endpoints: [],
         providers: [
           {
             provide: Runtime,
