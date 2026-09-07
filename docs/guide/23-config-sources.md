@@ -184,7 +184,7 @@ export const HealthConfig = makeConfig('health', {
 
 Снимок отдаёт описания, умолчания и перечисления полей, если передать ему
 конвертер схем — тот же `zodConverter` из `@nestling/openapi.zod`, что
-строит документ OpenAPI в главе [11](./11-openapi-and-client.md):
+строит документ OpenAPI в главе [12](./12-openapi-and-client.md):
 
 ```typescript
 import { zodConverter } from '@nestling/openapi.zod';
@@ -270,7 +270,7 @@ export class RateLimiter {
 
 ## Вычисляемое поле при перезагрузке
 
-Вычисляемое поле секции описано в главе [6](./06-config.md). У
+Вычисляемое поле секции описано в главе [7](./07-config.md). У
 reloadable-секции у него есть своё поведение: оно пересчитывается, когда
 изменилось значение хотя бы одной зависимости.
 
