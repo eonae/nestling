@@ -11,11 +11,15 @@ import type {
   ConfigRecord,
   ConfigSectionToken,
   ConfigValues,
+  DerivedConstructor,
+  DerivedRecord,
+  DeriveFn,
   ReloadableConfig,
   SectionDeclaration,
+  SectionDerived,
   SectionField,
 } from './declaration.js';
-import { FromField, SecretField } from './declaration.js';
+import { DerivedField, FromField, SecretField } from './declaration.js';
 import { ConfigSection } from './families.js';
 import { ConfigKeys, deriveKey, derivePrefix } from './keys.js';
 import { registerSection } from './registry.js';
@@ -74,22 +78,82 @@ const toField = (prefix: string, name: string, leaf: unknown): SectionField => {
 };
 
 /**
+ * Реализация конструктора вычисляемого поля.
+ *
+ * Одна на все секции: типы задаёт {@link DerivedConstructor}, а в рантайме
+ * конструктор только заворачивает аргументы в {@link DerivedField}.
+ */
+const derived = (
+  deps: readonly string[],
+  fn: (...values: unknown[]) => unknown,
+): DerivedField => new DerivedField(deps, fn);
+
+/**
+ * Разбирает рекорд вычисляемых полей, разрешая имена зависимостей в ключи.
+ *
+ * Имя, занятое полем рекорда, — ошибка объявления: проекция потеряла бы одно
+ * из двух значений, и заметить это можно было бы только в рантайме.
+ */
+const toDerived = (
+  prefix: string,
+  fields: readonly SectionField[],
+  record: DerivedRecord,
+): SectionDerived[] =>
+  Object.entries(record).map(([name, field]) => {
+    if (fields.some((declared) => declared.name === name)) {
+      throw new Error(
+        `Config section '${prefix}' declares a derived field named '${name}', but a field with that name is already declared in the record. Rename one of them.`,
+      );
+    }
+
+    return {
+      name,
+      deps: field.deps,
+      depKeys: field.deps.map((dep) => {
+        const target = fields.find((declared) => declared.name === dep);
+
+        if (!target) {
+          throw new Error(
+            `Derived field '${name}' of config section '${prefix}' depends on '${dep}', which is not a field of the section record.`,
+          );
+        }
+
+        return target.key;
+      }),
+      compute: field.compute,
+    };
+  });
+
+/**
  * Строит декларацию и её DI-токен.
  *
  * DI-токен — сам член семейства `ConfigSection`, на который дописан `.keys`.
  * Инжект DI-токена и упоминание члена — одно и то же ребро графа, потому что
  * это одно и то же значение.
  */
-const declare = <R extends ConfigRecord, P extends string, Values>(
+const declare = <
+  R extends ConfigRecord,
+  D extends DerivedRecord,
+  P extends string,
+  Values,
+>(
   prefix: P,
   record: R,
+  derive: DeriveFn<R, D> | undefined,
   reloadable: boolean,
 ): ConfigSectionToken<Values, P> => {
   const fields = Object.entries(record).map(([name, leaf]) =>
     toField(prefix, name, leaf),
   );
 
-  if (reloadable && fields.some((f) => f.name === RELOADABLE_RESERVED)) {
+  const computed = derive
+    ? toDerived(prefix, fields, derive(derived as DerivedConstructor<R>))
+    : [];
+
+  if (
+    reloadable &&
+    [...fields, ...computed].some((f) => f.name === RELOADABLE_RESERVED)
+  ) {
     throw new Error(
       `Config section '${prefix}' declares a field named '${RELOADABLE_RESERVED}', which is the subscription member of a reloadable section. Rename the field.`,
     );
@@ -104,6 +168,7 @@ const declare = <R extends ConfigRecord, P extends string, Values>(
     prefix,
     reloadable,
     fields,
+    derived: computed,
     keys,
     consumed: false,
   };
@@ -124,6 +189,7 @@ const declare = <R extends ConfigRecord, P extends string, Values>(
  *
  * @param prefix - Префикс имён ключей (`'orders'` → `ORDERS_*`)
  * @param record - Рекорд полей; лист — любая Standard Schema v1 или `from()`
+ * @param derive - Рекорд вычисляемых полей, собранный конструктором `derived`
  * @returns DI-токен секции; наружу из пакета отдают только `.keys`
  *
  * @example
@@ -139,12 +205,29 @@ const declare = <R extends ConfigRecord, P extends string, Values>(
  *   constructor(private cfg: Config<typeof OrdersConfig>) {}
  * }
  * ```
+ *
+ * @example Вычисляемое поле
+ * ```typescript
+ * const PgConfig = makeConfig('pg', {
+ *   host: z.string().default('localhost'),
+ *   port: z.coerce.number().int().default(5432),
+ *   password: secret(z.string()),
+ * }, (derived) => ({
+ *   url: derived(['host', 'port', 'password'],
+ *     (host, port, password) => `postgresql://app:${password}@${host}:${port}/app`),
+ * }));
+ * ```
  */
-export const makeConfig = <R extends ConfigRecord, P extends string>(
+export const makeConfig = <
+  R extends ConfigRecord,
+  P extends string,
+  D extends DerivedRecord = Record<never, never>,
+>(
   prefix: P,
   record: R,
-): ConfigSectionToken<ConfigValues<R>, P> =>
-  declare<R, P, ConfigValues<R>>(prefix, record, false);
+  derive?: DeriveFn<R, D>,
+): ConfigSectionToken<ConfigValues<R, D>, P> =>
+  declare<R, D, P, ConfigValues<R, D>>(prefix, record, derive, false);
 
 /**
  * Объявляет секцию, значения полей которой могут меняться в течение жизни
@@ -158,11 +241,21 @@ export const makeConfig = <R extends ConfigRecord, P extends string>(
  * остаётся ответственностью потребителя: значение, скопированное в
  * конструкторе, не обновится.
  */
-makeConfig.reloadable = <R extends ConfigRecord, P extends string>(
+makeConfig.reloadable = <
+  R extends ConfigRecord,
+  P extends string,
+  D extends DerivedRecord = Record<never, never>,
+>(
   prefix: P,
   record: R,
-): ConfigSectionToken<ConfigValues<R> & ReloadableConfig<R>, P> =>
-  declare<R, P, ConfigValues<R> & ReloadableConfig<R>>(prefix, record, true);
+  derive?: DeriveFn<R, D>,
+): ConfigSectionToken<ConfigValues<R, D> & ReloadableConfig<R, D>, P> =>
+  declare<R, D, P, ConfigValues<R, D> & ReloadableConfig<R, D>>(
+    prefix,
+    record,
+    derive,
+    true,
+  );
 
 /**
  * Объявляет секцию-семейство: одна секция на каждый экземпляр пакета.
@@ -180,6 +273,7 @@ makeConfig.reloadable = <R extends ConfigRecord, P extends string>(
  *
  * @param prefix - Префикс пакета (`'http'`)
  * @param record - Рекорд полей; тот же, что у `makeConfig`
+ * @param derive - Рекорд вычисляемых полей; тот же, что у `makeConfig`
  * @returns Функция «имя экземпляра → DI-токен его секции»
  *
  * @example
@@ -193,13 +287,18 @@ makeConfig.reloadable = <R extends ConfigRecord, P extends string>(
  * HttpServerConfig('admin').keys;   // HTTP_ADMIN_PORT, HTTP_ADMIN_HOST
  * ```
  */
-makeConfig.family = <R extends ConfigRecord, P extends string>(
+makeConfig.family = <
+  R extends ConfigRecord,
+  P extends string,
+  D extends DerivedRecord = Record<never, never>,
+>(
   prefix: P,
   record: R,
-): ((instance: string) => ConfigSectionToken<ConfigValues<R>, string>) => {
+  derive?: DeriveFn<R, D>,
+): ((instance: string) => ConfigSectionToken<ConfigValues<R, D>, string>) => {
   const declared = new Map<
     string,
-    ConfigSectionToken<ConfigValues<R>, string>
+    ConfigSectionToken<ConfigValues<R, D>, string>
   >();
 
   return (instance: string) => {
@@ -209,9 +308,10 @@ makeConfig.family = <R extends ConfigRecord, P extends string>(
       return existing;
     }
 
-    const token = declare<R, string, ConfigValues<R>>(
+    const token = declare<R, D, string, ConfigValues<R, D>>(
       derivePrefix(prefix, instance),
       record,
+      derive,
       false,
     );
 

@@ -1,22 +1,22 @@
 /**
- * Конвертер — операция схемного слоя, а не механизм валидации.
+ * Конвертер — операция над схемой, а не механизм валидации.
  *
  * Тест сторожит обе стороны этого утверждения: диспетчер выбирает по
- * вендору и молчит, когда конвертера нет, — и ни одна схемная граница от
- * присутствия конвертеров не зависит.
+ * вендору и молчит, когда конвертера нет, — а валидация от присутствия
+ * конвертеров не зависит вовсе. Граница разбора входа проверяется у
+ * себя, в `@nestling/app`.
  */
 
-import type { SchemaDocConverter } from './converter.js';
+import { jsonSchema, jsonSchemaOf } from './json-schema.js';
+import type { SchemaDocConverter } from './schema-doc.js';
 import {
   assertConverters,
   leafJsonSchema,
   pickConverter,
   schemaVendorOf,
-} from './converter.js';
-import { parsePayload } from './parse.js';
+} from './schema-doc.js';
 
 import { SchemaValidationError, validateSync } from '@common/misc';
-import { jsonSchema, jsonSchemaOf } from '@nestling/operations';
 import { z } from 'zod';
 
 const zodConverter = (): SchemaDocConverter => ({
@@ -188,17 +188,5 @@ describe('конвертеры к валидации отношения не и�
     expect(() => validateSync(schema, { id: 1 }, 'failed')).toThrow(
       SchemaValidationError,
     );
-  });
-
-  it('на схемной границе конвертеров нет ни в одной сигнатуре', () => {
-    // Регрессия: `parsePayload` — та же функция двух аргументов, что была
-    // до появления конвертеров
-    expect(parsePayload.length).toBe(2);
-    expect(
-      parsePayload(z.object({ id: z.string() }), {
-        payload: { id: '1' },
-        metadata: {},
-      }),
-    ).toEqual({ id: '1' });
   });
 });

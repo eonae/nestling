@@ -13,6 +13,12 @@ export type {
   ConfigRecord,
   ConfigSectionToken,
   ConfigValues,
+  // Конструктор `derived` приходит третьим аргументом `makeConfig`, поэтому
+  // значением наружу не выходит: снаружи нужны только его типы.
+  DerivedConstructor,
+  DerivedField,
+  DeriveFn,
+  DerivedRecord,
   // Типы обёрток `from()` и `secret()` видны снаружи не для ручного
   // конструирования, а потому что попадают в выведенный тип секции: без них
   // объявление с обёрткой нельзя было бы назвать в `.d.ts` потребителя.
@@ -22,6 +28,7 @@ export type {
 } from './declaration.js';
 export { from, secret } from './declaration.js';
 export {
+  ConfigDerivedError,
   ConfigSharedKeyError,
   ConfigSourceError,
   ConfigValidationError,
@@ -59,6 +66,8 @@ export type { ConfigReader } from './kernel.js';
 export { load } from './load.js';
 export { describeConfig, keysGlob } from './registry.js';
 export type {
+  ConfigDerivedDescription,
+  ConfigDescribeOptions,
   ConfigDescription,
   ConfigKeyDescription,
   ConfigKeyReader,
@@ -66,10 +75,11 @@ export type {
   ConfigSharedKeyDescription,
 } from './registry.js';
 export { makeConfig } from './section.js';
-export { objectSource, toBindings } from './source.js';
+export { env, objectSource, toBindings } from './source.js';
 export type {
   ConfigBinding,
   ConfigInput,
   ConfigSource,
+  EnvSourceOptions,
   ObjectSource,
 } from './source.js';

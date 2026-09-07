@@ -13,10 +13,10 @@
  * `Secret<T>`, отвергнутый журналом.
  */
 
-import type { SectionField } from './declaration.js';
+import type { SectionDeclaration, SectionField } from './declaration.js';
 import type { ConfigFieldFailure } from './errors.js';
 import { REDACTED } from './errors.js';
-import { isSecretKey } from './registry.js';
+import { isSecretDerived, isSecretKey } from './registry.js';
 
 import type { SchemaIssue } from '@common/misc';
 
@@ -57,11 +57,18 @@ export const toFieldFailure = (
 /**
  * Имена полей секции, секретных **эффективно** — с учётом всех читателей
  * ключа, а не только объявления этой секции.
+ *
+ * Вычисляемые поля входят наравне с обычными: их секретность считается по
+ * ключам зависимостей.
  */
 export const secretFieldsOf = (
-  fields: readonly SectionField[],
-): readonly string[] =>
-  fields.filter((field) => isSecretKey(field.key)).map((field) => field.name);
+  declaration: SectionDeclaration,
+): readonly string[] => [
+  ...declaration.fields
+    .filter((field: SectionField) => isSecretKey(field.key))
+    .map((field) => field.name),
+  ...declaration.derived.filter(isSecretDerived).map((derived) => derived.name),
+];
 
 /**
  * Ставит на проекцию `toJSON()` и `inspect.custom`, отдающие копию значений

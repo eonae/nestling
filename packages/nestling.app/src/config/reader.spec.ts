@@ -7,7 +7,7 @@ import { ConfigKeys } from './keys.js';
 import { ConfigReader } from './reader.js';
 import { registerSection, resetConfigRegistry } from './registry.js';
 import type { ConfigSource } from './source.js';
-import { objectSource } from './source.js';
+import { env, objectSource } from './source.js';
 
 import { jest } from '@jest/globals';
 
@@ -26,6 +26,7 @@ const declaration = (prefix: string, keys: readonly string[]) =>
       schema,
       secret: false,
     })),
+    derived: [],
     keys: new ConfigKeys(prefix, keys),
     consumed: false,
   }) satisfies SectionDeclaration;
@@ -47,6 +48,9 @@ beforeEach(() => {
   resetConfigRegistry();
   spy = spyLogger();
   delete process.env.ORDERS_MAX_ITEMS;
+  delete process.env.SERVICE_1_ORDERS_MAX_ITEMS;
+  delete process.env.DATABASE_URL;
+  delete process.env.SERVICE_1_DATABASE_URL;
 });
 
 describe('разрешение ключа', () => {
@@ -295,5 +299,60 @@ describe('objectSource', () => {
     source.assign({ A: '9', C: '3' });
     expect(source.get('A')).toBe('9');
     expect(notified).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('env({ prefix })', () => {
+  /** Один `.env` на два сервиса: приставка перекрывает неявный `process.env` */
+  it('значение под приставкой выигрывает у общего', async () => {
+    process.env.ORDERS_MAX_ITEMS = 'shared';
+    process.env.SERVICE_1_ORDERS_MAX_ITEMS = 'mine';
+
+    registerSection(declaration('orders', ['ORDERS_MAX_ITEMS']));
+
+    const reader = new ConfigReader([[env({ prefix: 'SERVICE_1_' }), '*']]);
+    await reader.init();
+
+    expect(reader.read('ORDERS_MAX_ITEMS')).toBe('mine');
+  });
+
+  it('ключ без приставки читается неявным `process.env`', async () => {
+    process.env.DATABASE_URL = 'postgresql://shared';
+
+    registerSection(declaration('orders', ['DATABASE_URL']));
+
+    const reader = new ConfigReader([[env({ prefix: 'SERVICE_1_' }), '*']]);
+    await reader.init();
+
+    expect(reader.read('DATABASE_URL')).toBe('postgresql://shared');
+  });
+
+  it('имена ключей секции приставка не меняет', () => {
+    const section = declaration('orders', ['ORDERS_MAX_ITEMS']);
+
+    registerSection(section);
+
+    expect(section.keys.names).toEqual(['ORDERS_MAX_ITEMS']);
+  });
+
+  it('без приставки читает имя ключа как есть', () => {
+    process.env.ORDERS_MAX_ITEMS = 'plain';
+
+    expect(env().get('ORDERS_MAX_ITEMS')).toBe('plain');
+  });
+
+  it('источник не объявляет ни init, ни watch, ни close', () => {
+    const source = env({ prefix: 'SERVICE_1_' });
+
+    expect(source.init).toBeUndefined();
+    expect(source.watch).toBeUndefined();
+    expect(source.close).toBeUndefined();
+    expect(source.name).toBe('env(SERVICE_1_*)');
+  });
+
+  it('приставка попадает в перечень опрошенных источников', () => {
+    const reader = new ConfigReader([[env({ prefix: 'SERVICE_1_' }), '*']]);
+
+    expect(reader.sources).toEqual(['env(SERVICE_1_*)', 'process.env']);
   });
 });

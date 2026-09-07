@@ -4,7 +4,7 @@
 
 import type { SectionDeclaration } from './declaration.js';
 import type { ConfigFieldFailure } from './errors.js';
-import { ConfigValidationError } from './errors.js';
+import { ConfigDerivedError, ConfigValidationError } from './errors.js';
 import type { ConfigReader, Reloadable } from './reader.js';
 import {
   defineDisplayHooks,
@@ -17,6 +17,54 @@ import { Topic } from '@nestling/operations';
 
 /** Значения секции — сырой рекорд до заморозки/обёртки геттерами */
 type Values = Record<string, unknown>;
+
+/**
+ * Дописывает вычисляемые поля к уже провалидированным значениям секции.
+ *
+ * Зовётся после валидации всех полей и только при её успехе: иначе функция
+ * поля получила бы значения, которые проверку не прошли, и падала бы вторым,
+ * более невнятным сообщением. Порядок членов проекции сохраняется — сначала
+ * поля рекорда, затем вычисляемые.
+ *
+ * С `previous` поле пересчитывается, только если хотя бы одна зависимость
+ * изменилась. Сравнение поверхностное, по `Object.is`: схема, отдающая новый
+ * объект на каждой проверке, всегда считается изменившейся, и это принятая
+ * цена — функция чистая, а устаревшее значение стоит дороже лишнего вызова.
+ *
+ * @param declaration - Объявление секции
+ * @param values - Значения полей рекорда; пополняются на месте
+ * @param previous - Прошлый снапшот секции при перезагрузке
+ * @throws {ConfigDerivedError} Если функция поля бросила
+ */
+export const applyDerived = (
+  declaration: SectionDeclaration,
+  values: Values,
+  previous?: Values,
+): void => {
+  for (const field of declaration.derived) {
+    const args = field.deps.map((dep) => values[dep]);
+
+    if (
+      previous &&
+      field.deps.every((dep, index) => Object.is(args[index], previous[dep]))
+    ) {
+      values[field.name] = previous[field.name];
+
+      continue;
+    }
+
+    try {
+      values[field.name] = field.compute(...args);
+    } catch (error) {
+      throw new ConfigDerivedError(
+        declaration.prefix,
+        field.name,
+        field.deps,
+        error,
+      );
+    }
+  }
+};
 
 /**
  * Читает и валидирует все поля секции.
@@ -86,6 +134,7 @@ class ReloadableSection implements Reloadable {
     this.#declaration = declaration;
     this.#reader = reader;
     this.#snapshot = readValues(declaration, reader);
+    applyDerived(declaration, this.#snapshot);
     this.view = this.#makeView();
   }
 
@@ -105,12 +154,17 @@ class ReloadableSection implements Reloadable {
    * Асимметрия со стартом: невалидное горячее значение не роняет процесс —
    * снапшот остаётся last-good, подписчики не вызываются, уходит warn.
    * Частичного применения не бывает: снапшот заменяется только целиком.
+   *
+   * Ошибка вычисляемого поля идёт тем же путём, что и невалидное значение
+   * ключа: чинится она в другом месте, а вести себя по-разному два отказа
+   * одной перезагрузки не должны.
    */
   refresh(): void {
     let next: Values;
 
     try {
       next = readValues(this.#declaration, this.#reader);
+      applyDerived(this.#declaration, next, this.#snapshot);
     } catch (error) {
       this.#reader.warn(
         `keeping last known good values of reloadable config section '${this.#declaration.prefix}': ${
@@ -127,10 +181,14 @@ class ReloadableSection implements Reloadable {
 
   #makeView(): unknown {
     const view: Record<string, unknown> = {};
+    const names = [
+      ...this.#declaration.fields.map((field) => field.name),
+      ...this.#declaration.derived.map((field) => field.name),
+    ];
 
-    for (const field of this.#declaration.fields) {
-      Object.defineProperty(view, field.name, {
-        get: () => this.#snapshot[field.name],
+    for (const name of names) {
+      Object.defineProperty(view, name, {
+        get: () => this.#snapshot[name],
         enumerable: true,
       });
     }
@@ -146,7 +204,7 @@ class ReloadableSection implements Reloadable {
     // которого даёт настоящие новые значения.
     defineDisplayHooks(
       view,
-      secretFieldsOf(this.#declaration.fields),
+      secretFieldsOf(this.#declaration),
       () => this.#snapshot,
     );
 
@@ -195,11 +253,9 @@ export const projectSection = (
   if (!declaration.reloadable) {
     const values = readValues(declaration, reader);
 
-    defineDisplayHooks(
-      values,
-      secretFieldsOf(declaration.fields),
-      () => values,
-    );
+    applyDerived(declaration, values);
+
+    defineDisplayHooks(values, secretFieldsOf(declaration), () => values);
 
     return Object.freeze(values);
   }

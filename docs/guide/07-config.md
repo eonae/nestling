@@ -3,8 +3,9 @@
 > Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-08] Kernel/user
-> space; конфиг как token-families; плагины» и «[2026-07-13] Конфиг:
-> `secret()` и общие ключи».
+> space; конфиг как token-families; плагины», «[2026-07-13] Конфиг:
+> `secret()` и общие ключи» и «[2026-09-06] Конфиг: `derived`,
+> `env({ prefix })`, описания полей через конвертеры».
 
 Порт, адрес базы и Bearer-токен API должны приходить из переменных
 окружения. Секреты не должны попадать в логи. Если обязательной
@@ -16,29 +17,35 @@
 import { from, makeConfig, secret } from '@nestling/app';
 import { z } from 'zod';
 
-export const AppConfig = makeConfig('app', {
-  pageSize: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(20)
-    .describe('Размер страницы списка пользователей'),
-  databaseUrl: secret(
-    from(
-      'DATABASE_URL',
-      z
-        .url()
-        .default('postgresql://localhost:5432/users')
-        .describe('Адрес базы данных'),
+export const AppConfig = makeConfig(
+  'app',
+  {
+    pageSize: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(20)
+      .describe('Размер страницы списка пользователей'),
+    databaseUrl: secret(
+      from(
+        'DATABASE_URL',
+        z
+          .url()
+          .default('postgresql://localhost:5432/users')
+          .describe('Адрес базы данных'),
+      ),
     ),
-  ),
-  apiToken: secret(
-    from(
-      'API_TOKEN',
-      z.string().min(1).describe('Bearer-токен для запросов, меняющих данные'),
+    apiToken: secret(
+      from(
+        'API_TOKEN',
+        z.string().min(1).describe('Bearer-токен для запросов, меняющих данные'),
+      ),
     ),
-  ),
-});
+  },
+  (derived) => ({
+    databaseHost: derived(['databaseUrl'], (url) => new URL(url).host),
+  }),
+);
 ```
 
 Секция — объект с префиксом, где каждому полю соответствует схема. Имя
@@ -59,6 +66,29 @@ export const AppConfig = makeConfig('app', {
 
 Значения окружения приходят строками. Число из строки делает схема,
 поэтому у `pageSize` стоит `z.coerce.number()`.
+
+## Вычисляемое поле
+
+Третий аргумент `makeConfig` объявляет поля, значения которых считаются
+из других полей той же секции. `databaseHost` получает хост из адреса
+базы, поэтому разбирать URL в каждом потребителе не нужно.
+
+```typescript
+// examples/users-service/src/app.config.ts
+  (derived) => ({
+    databaseHost: derived(['databaseUrl'], (url) => new URL(url).host),
+  }),
+```
+
+`derived(deps, fn)` называет зависимости именами полей первого рекорда, а
+`fn` получает их значения по порядку. Компилятор проверяет и имена, и
+типы: `'databaseUrll'` не соберётся, и аннотация `(url: number)` тоже.
+Переменной окружения у поля нет — в таблице выше его нет, и в `.keys`
+секции оно не входит. Значение считается один раз, при валидации секции.
+
+`databaseUrl` помечен `secret()`, поэтому `databaseHost` тоже секретен:
+поле наследует секретность своих зависимостей. Правило одностороннее и
+намеренно грубое — снять пометку нечем.
 
 ## Секция как зависимость
 
@@ -105,10 +135,9 @@ export class Database {
     logger: Logger,
     _signal: AbortSignal,
   ): Promise<Database> {
-    // В лог уходит только хост: значение поля секретное
-    logger.info('database connected', {
-      host: new URL(config.databaseUrl).host,
-    });
+    // В лог уходит только хост, а не адрес целиком: хост считает
+    // вычисляемое поле секции
+    logger.info('database connected', { host: config.databaseHost });
     // …
   }
 }
@@ -128,9 +157,11 @@ curl 'localhost:3000/users'
 валидации заменяет сообщение валидатора на `<redacted>`.
 
 За свои строки отвечает потребитель: `Database` пишет в лог только хост,
-а не URL целиком. Секретное поле не печатается фреймворком ни в отчётах,
-ни в ошибках — строки, которые пишет сам потребитель, фреймворк не
-контролирует.
+а не URL целиком. `databaseHost` унаследовал секретность от адреса,
+поэтому печать секции покажет вместо него `'***'`; в лог его пишет
+потребитель, и это его осознанное решение. Секретное поле не печатается
+фреймворком ни в отчётах, ни в ошибках — строки, которые пишет сам
+потребитель, фреймворк не контролирует.
 
 ## Обязательные значения
 
