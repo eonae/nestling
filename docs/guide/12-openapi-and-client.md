@@ -78,7 +78,7 @@ export const DeleteUser = httpEndpoint({
     tags: ['users'],
     status: 'no_content',
   },
-  pipeline: authed,
+  pipeline: transactional,
   handler: DeleteUserHandler,
 });
 ```
@@ -191,7 +191,8 @@ export const GetUser = httpEndpoint({
 в декларации не компилируется, поэтому сервер не может разойтись с
 клиентом в схемах. Остаются `pipeline` и `handler`. Так же
 устроен `CreateUser` в `create-user.endpoint.ts`: он подключает слой
-`authed` и отвечает `Ok.created`.
+`transactional` ([глава 27](./27-database-and-transaction.md)) и отвечает
+`Ok.created`.
 
 ## Клиент
 

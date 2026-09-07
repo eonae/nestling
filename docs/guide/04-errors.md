@@ -112,7 +112,7 @@ async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
 ## Успех со статусом и заголовками
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.ts
+// шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.ts
 async function handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
   if (await users.byEmail(input.email)) {
     return EmailTaken({ email: input.email });

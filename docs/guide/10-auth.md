@@ -157,7 +157,7 @@ curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 объявляет политики сборки:
 
 ```typescript
-// examples/users-service/src/app.ts
+// шаг главы 9; итоговая версия: examples/users-service/src/app.ts
 import { everyEndpoint } from '@nestling/app';
 import { http, HttpTransport$ } from '@nestling/transport.http';
 
@@ -237,6 +237,11 @@ everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
 глубины графа. Устроены они одинаково: фильтр отбирает endpoint'ы,
 предикат проверяет пайплайн, нарушения всех политик собираются в одно
 сообщение.
+
+Политика — обычное значение, поэтому отдавать её может и плагин.
+`@nestling/outbox` так требует, чтобы изменяющий endpoint был
+композирован от слоя транзакции: фильтр задаёт корень, переменную
+называет плагин ([глава 27](./27-database-and-transaction.md)).
 
 ## Исключение из политик и подсказка в редакторе
 

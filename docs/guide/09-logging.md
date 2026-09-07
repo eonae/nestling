@@ -184,7 +184,7 @@ export const ListUsers = httpEndpoint({
 сборку на фазе ASSEMBLE, до открытия сокета.
 
 ```typescript
-// examples/users-service/src/users.feature.ts
+// шаг главы 8; итоговая версия: examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [Database, DbUsersRepository, AuditOutcome, Authenticate],
@@ -219,7 +219,7 @@ curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 `requestId` параметром: хранилище читает значение из контекста само.
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// шаг главы 8; итоговая версия: examples/users-service/src/users/users.repository.ts
 import type { CtxReader, Logger } from '@nestling/app';
 import { Ctx, Logger$, RequestId } from '@nestling/app';
 

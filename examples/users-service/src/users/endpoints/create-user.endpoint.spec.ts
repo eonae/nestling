@@ -5,16 +5,39 @@
 
 import { inMemoryUsersRepo } from '../../testing.js';
 import { EmailTaken } from '../users.errors.js';
+import type { UserCreated } from '../users.events.js';
 
 import { CreateUserHandler } from './create-user.endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
+import type { Emitter } from '@nestling/operations';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 
+/**
+ * Фейк транзакционного эмиттера: юнит-тест собирает хендлер через `new`,
+ * поэтому вместо DI-токена в конструктор идёт обычное значение.
+ */
+function fakeEmitter(): Emitter<typeof UserCreated> & {
+  readonly emitted: unknown[];
+} {
+  const emitted: unknown[] = [];
+
+  return {
+    emitted,
+    emit: async (payload?: unknown) => {
+      emitted.push(payload);
+    },
+  } as Emitter<typeof UserCreated> & { readonly emitted: unknown[] };
+}
+
 describe('CreateUserHandler', () => {
   it('создаёт пользователя и отвечает created с заголовком Location', async () => {
-    const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
+    const userCreated = fakeEmitter();
+    const handler = new CreateUserHandler(
+      inMemoryUsersRepo([alice]),
+      userCreated,
+    );
 
     const result = await handler.handle({
       name: 'Carol',
@@ -26,10 +49,19 @@ describe('CreateUserHandler', () => {
       value: { id: '2', name: 'Carol' },
       headers: { Location: '/users/2' },
     });
+
+    // Событие отправлено транзакционным эмиттером: в шину оно уйдёт
+    // после коммита, а здесь важно, что хендлер его отправил
+    expect(userCreated.emitted).toEqual([
+      { id: '2', name: 'Carol', email: 'carol@example.com' },
+    ]);
   });
 
   it('возвращает отказ EmailTaken для занятого email', async () => {
-    const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
+    const handler = new CreateUserHandler(
+      inMemoryUsersRepo([alice]),
+      fakeEmitter(),
+    );
 
     const result = await handler.handle({
       name: 'Alice II',
@@ -45,7 +77,8 @@ describe('CreateUserHandler', () => {
 
   it('с dryRun проверяет данные, не создавая запись', async () => {
     const repo = inMemoryUsersRepo([alice]);
-    const handler = new CreateUserHandler(repo);
+    const userCreated = fakeEmitter();
+    const handler = new CreateUserHandler(repo, userCreated);
 
     const result = await handler.handle({
       name: 'Carol',
@@ -55,5 +88,6 @@ describe('CreateUserHandler', () => {
 
     expect(result).toMatchObject({ id: 'dry-run', name: 'Carol' });
     expect(await repo.all()).toHaveLength(1);
+    expect(userCreated.emitted).toEqual([]);
   });
 });

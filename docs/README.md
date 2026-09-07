@@ -68,7 +68,7 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
-Семнадцать каталогов `packages/`. Ядро — три из них: `@nestling/container`,
+Восемнадцать каталогов `packages/`. Ядро — три из них: `@nestling/container`,
 `@nestling/operations` и `@nestling/app`; их ставят вместе, поэтому и имён
 у ядра три.
 
@@ -96,6 +96,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestling/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
 | [`@nestling/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
 | [`@nestling/openapi.zod`](../packages/nestling.openapi.zod/) | Конвертер схем zod для `@nestling/openapi` |
+| [`@nestling/outbox`](../packages/nestling.outbox/) | Транзакционный emit: событие пишется в базу транзакцией запроса, relay публикует его после коммита |
 | [`@nestling/subscriptions`](../packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
 | [`@nestling/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
 | [`@nestling/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, подсказки по декларациям endpoint'ов |

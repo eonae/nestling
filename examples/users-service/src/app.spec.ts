@@ -17,6 +17,7 @@ import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { RootLogger$ } from '@nestling/app';
+import { OutboxRelay$ } from '@nestling/outbox';
 import { assembleTest, spyLogger, unwrap, vars } from '@nestling/testing';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
@@ -55,9 +56,11 @@ describe('users-service', () => {
       overrides: [[UsersRepository$, inMemoryUsersRepo()]],
     });
 
-    // Соединение с базой нужно только боевому хранилищу: после подмены
-    // контейнер его не создаёт, и `acquire` не вызывается
-    expect(testApp.pruned).toContain('Database');
+    // Логгер и ридер контекста нужны только боевому хранилищу: после
+    // подмены контейнер их не создаёт. Соединение с базой в списке не
+    // окажется — его делит хранилище outbox'а
+    expect(testApp.pruned).toContain('Logger:DbUsersRepository');
+    expect(testApp.pruned).toContain('Ctx:requestId');
   });
 
   it('читает размер страницы из конфига', async () => {
@@ -101,6 +104,59 @@ describe('users-service', () => {
       status: 'created',
       value: { name: 'Carol' },
       headers: { Location: '/users/1' },
+    });
+  });
+
+  it('кладёт событие в outbox и доставляет его проходом relay', async () => {
+    const spy = spyLogger();
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
+      overrides: [[RootLogger$, spy.logger]],
+    });
+
+    await testApp.call(
+      CreateUser,
+      { name: 'Carol', email: 'carol@example.com' },
+      { attributes: { authorization: 'Bearer test-token' } },
+    );
+
+    // Во время запроса в шину не ушло ничего: запись легла в хранилище
+    expect(spy.entries).not.toContainEqual(
+      expect.objectContaining({ message: 'welcome email sent' }),
+    );
+
+    // Тестовая сборка останавливается после WIRE, `@OnStart` не
+    // выполняется — проход по партии делает сам тест
+    const relay = testApp.get(OutboxRelay$);
+    expect(await relay?.drain()).toMatchObject({ claimed: 1, published: 1 });
+
+    expect(spy.entries).toContainEqual({
+      level: 'info',
+      message: 'welcome email sent',
+      fields: {
+        scope: 'WelcomeEmailHandler',
+        id: '3',
+        email: 'carol@example.com',
+      },
+    });
+  });
+
+  it('откат транзакции убирает и пользователя, и запись outbox', async () => {
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
+    });
+
+    // Bearer-токен не тот: слой `authed` отвечает отказом, слой транзакции
+    // откатывает её, и до хендлера дело не доходит
+    const rejected = await testApp.call(
+      CreateUser,
+      { name: 'Carol', email: 'carol@example.com' },
+      { attributes: { authorization: 'Bearer wrong' } },
+    );
+
+    expect(rejected.isSuccess).toBe(false);
+    expect(await testApp.get(OutboxRelay$)?.drain()).toMatchObject({
+      claimed: 0,
     });
   });
 

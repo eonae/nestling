@@ -89,7 +89,7 @@ rest-параметром — любая.
 Реализация репозитория объявляется так же:
 
 ```typescript
-// examples/users-service/src/users/users.repository.ts
+// шаг главы 5; итоговая версия: examples/users-service/src/users/users.repository.ts
 @Component([Database, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
@@ -126,7 +126,7 @@ DI-токена декоратор не принимает: класс реги�
 классы-юниты пайплайна:
 
 ```typescript
-// examples/users-service/src/users.feature.ts
+// шаг главы 5; итоговая версия: examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
@@ -161,7 +161,7 @@ export const UsersFeature = makeFeature({
 ресурс:
 
 ```typescript
-// examples/users-service/src/database.ts
+// шаг главы 5; итоговая версия: examples/users-service/src/database.ts
 @Resource([AppConfig, Logger$.auto])
 export class Database {
   static async acquire(
@@ -184,6 +184,8 @@ export class Database {
     /** Таблица пользователей */
     readonly users: User[],
   ) {}
+
+  // …
 
   release(): void {
     this.users.length = 0;

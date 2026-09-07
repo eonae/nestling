@@ -1,4 +1,4 @@
-import { authed } from '../../auth.js';
+import { transactional } from '../../persistence.js';
 import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
@@ -39,6 +39,6 @@ export const DeleteUser = httpEndpoint({
     tags: ['users'],
     status: 'no_content',
   },
-  pipeline: authed,
+  pipeline: transactional,
   handler: DeleteUserHandler,
 });

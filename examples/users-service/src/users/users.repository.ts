@@ -1,4 +1,6 @@
+import type { Transaction } from '../database.js';
 import { Database } from '../database.js';
+import { Tx } from '../persistence.js';
 
 import type { User } from './user.js';
 
@@ -25,18 +27,21 @@ export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
 /**
  * Хранилище поверх соединения `Database`.
  *
- * `Ctx(RequestId)` читает идентификатор запроса из контекста: в лог он
- * попадает без передачи параметром. Значение кладёт слой `observability`.
+ * Читает из контекста две переменные. `Ctx(RequestId)` даёт идентификатор
+ * запроса: в лог он попадает без передачи параметром. `Ctx(Tx)` даёт
+ * транзакцию: изменяющий метод пишет ею, а не мимо неё, и потому попадает
+ * в один коммит с записью outbox'а. Обе переменные кладут слои пайплайна.
  *
  * Привязку к DI-токену интерфейса записывает `classProvider(UsersRepository$,
  * DbUsersRepository)` в `providers:` фичи.
  */
-@Component([Database, Logger$.auto, Ctx(RequestId)])
+@Component([Database, Logger$.auto, Ctx(RequestId), Ctx(Tx)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
     private readonly db: Database,
     private readonly logger: Logger,
     private readonly requestId: CtxReader<string>,
+    private readonly tx: CtxReader<Transaction>,
   ) {}
 
   async all(): Promise<User[]> {
@@ -58,8 +63,10 @@ export class DbUsersRepository implements UsersRepository {
   async insert(data: Omit<User, 'id'>): Promise<User> {
     this.trace(`insert ${data.email}`);
 
-    const user: User = { id: String(this.db.users.length + 1), ...data };
-    this.db.users.push(user);
+    const user: User = { id: this.db.nextId(), ...data };
+
+    // Запись идёт транзакцией запроса: откат её не выполнит
+    this.tx.get().onCommit(() => this.db.users.push(user));
 
     return user;
   }
@@ -73,9 +80,12 @@ export class DbUsersRepository implements UsersRepository {
       return null;
     }
 
-    this.db.users[index] = { ...this.db.users[index], ...data };
+    const patched: User = { ...this.db.users[index], ...data };
+    this.tx.get().onCommit(() => {
+      this.db.users[index] = patched;
+    });
 
-    return this.db.users[index];
+    return patched;
   }
 
   async remove(id: string): Promise<boolean> {
@@ -84,7 +94,7 @@ export class DbUsersRepository implements UsersRepository {
       return false;
     }
 
-    this.db.users.splice(index, 1);
+    this.tx.get().onCommit(() => this.db.users.splice(index, 1));
 
     return true;
   }
