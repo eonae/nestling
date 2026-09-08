@@ -1,4 +1,3 @@
-import { Health } from './health.endpoint.js';
 import {
   SubscriptionClosedInOps,
   SubscriptionOpenedInOps,
@@ -16,13 +15,13 @@ import { makeFeature } from '@nestling/app';
  * пользователя API.
  *
  * Своих провайдеров у неё нет. Логирование, аутентификация и реестр
- * подписок приходят плагинами и доступны DI-токенами.
+ * подписок приходят плагинами и доступны DI-токенами. Пробы живости и
+ * готовности сюда не входят: их даёт плагин `httpProbes()` в корне.
  */
 export const OpsFeature = makeFeature({
   name: 'ops',
   providers: [],
   endpoints: [
-    Health,
     ListSubscriptions,
     KillSubscription,
     WatchSubscriptions,

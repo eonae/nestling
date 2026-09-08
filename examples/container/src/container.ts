@@ -11,6 +11,7 @@ import {
   loggerKernel,
   makeKernelLogger,
   objectSource,
+  registerHealth,
   RootLogger$,
 } from '@nestling/app';
 import type { BuiltContainer } from '@nestling/container';
@@ -40,18 +41,22 @@ export const makeContainer = async (
     [runtime, runtimeConfigKeys],
   ]);
 
-  return (
-    new ContainerBuilder()
-      .register(configKernel(config))
-      // Корневой логгер живёт вне графа: `makeApp` создаёт его на фазе 0 и
-      // регистрирует значением сам, здесь это делает вызывающий код
-      .register(valueProvider(RootLogger$, makeKernelLogger(config)))
-      // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
-      // секцию `nestlingLog` и идентификатор запроса из контекста
-      .register(contextKernel(), loggerKernel())
-      // Веток переключателей у примера нет, поэтому карта значений пуста
-      .register(...resolveBranches(appCounters.modules, {}))
-      .register(AppModule)
-      .build()
-  );
+  const builder = new ContainerBuilder()
+    .register(configKernel(config))
+    // Корневой логгер живёт вне графа: `makeApp` создаёт его на фазе 0 и
+    // регистрирует значением сам, здесь это делает вызывающий код
+    .register(valueProvider(RootLogger$, makeKernelLogger(config)))
+    // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
+    // секцию `nestlingLog` и идентификатор запроса из контекста
+    .register(contextKernel(), loggerKernel())
+    // Веток переключателей у примера нет, поэтому карта значений пуста
+    .register(...resolveBranches(appCounters.modules, {}))
+    .register(AppModule);
+
+  // Пробы — после модулей: узел ядра называет каждый вклад поимённо.
+  // Фазы здесь нет вовсе, поэтому её читалка отвечает RUN, как и в
+  // тестовом прогоне
+  registerHealth(builder, () => 'RUN');
+
+  return builder.build();
 };

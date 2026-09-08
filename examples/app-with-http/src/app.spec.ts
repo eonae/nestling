@@ -368,10 +368,11 @@ describe('матрица select-топологий', () => {
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
     ).toEqual([
       'DELETE /ops/subscriptions/:id',
-      'GET /health',
+      'GET /healthz',
       'GET /openapi.json',
       'GET /ops/subscriptions',
       'GET /ops/subscriptions/live',
+      'GET /readyz',
       'subscriptions.closed@ops',
       'subscriptions.opened@ops',
     ]);
@@ -401,7 +402,12 @@ describe('матрица select-топологий', () => {
         .filter(({ detached }) => detached !== undefined)
         .map(({ pattern }) => pattern)
         .sort(),
-    ).toEqual(['GET /health', 'POST /hooks/users', 'POST /login']);
+    ).toEqual([
+      'GET /healthz',
+      'GET /readyz',
+      'POST /hooks/users',
+      'POST /login',
+    ]);
   });
 });
 

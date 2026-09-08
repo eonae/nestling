@@ -1,28 +1,32 @@
 import { makePlugin } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint, httpProbes } from '@nestling/transport.http';
 import { z } from 'zod';
 
 /**
- * Проба живости для балансировщика.
+ * Версия сборки для эксплуатации.
  *
  * `detached` выводит endpoint из-под политик сборки с указанием причины.
  * `doc.hidden` убирает его из документа OpenAPI, тоже с причиной.
  */
-export const CheckHealth = httpEndpoint({
+export const BuildInfo = httpEndpoint({
   method: 'GET',
-  path: '/health',
-  output: z.object({ status: z.string() }),
+  path: '/ops/version',
+  output: z.object({ version: z.string() }),
   detached:
-    'проба балансировщика: строка аудита на каждый запрос заслоняет полезные записи',
-  doc: { hidden: 'служебная проба, не часть публичного API' },
-  handler: async () => ({ status: 'up' }),
+    'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
+  doc: { hidden: 'служебный endpoint, не часть публичного API' },
+  handler: async () => ({ version: process.env.BUILD_VERSION ?? 'dev' }),
 });
 
 /**
  * Плагин эксплуатации: служебные endpoint'ы, которые есть в каждом
  * процессе. Плагин подключён всегда и в выборе фич не участвует.
+ *
+ * Пробы живости и готовности он не пишет сам: их даёт `httpProbes()`
+ * поверх узла ядра `Health$`.
  */
 export const ops = makePlugin({
   name: 'ops',
-  endpoints: [CheckHealth],
+  endpoints: [BuildInfo],
+  dependsOn: [httpProbes()],
 });

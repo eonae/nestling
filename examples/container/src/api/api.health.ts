@@ -1,13 +1,18 @@
-import type { HealthCheck } from '../health/index.js';
 import type { ApiClient } from '../interfaces.js';
 import { ApiClient$ } from '../interfaces.js';
 
+import type { HealthCheck, HealthStatus } from '@nestling/app';
 import { Component } from '@nestling/container';
 
-/** Проверка внешнего API: второй вклад в семейство `HealthCheck` */
+/**
+ * Проверка внешнего API: второй вклад в семейство ядра.
+ *
+ * Некритичная: внешний API отвалился, но своё приложение обслуживает
+ * запросы — уводить с него трафик не за что.
+ */
 @Component([ApiClient$])
 export class ApiHealthCheck implements HealthCheck {
-  readonly name = 'api';
+  readonly critical = false;
 
   #client: ApiClient;
 
@@ -15,7 +20,7 @@ export class ApiHealthCheck implements HealthCheck {
     this.#client = client;
   }
 
-  async check(): Promise<string> {
+  async check(_signal: AbortSignal): Promise<HealthStatus> {
     await this.#client.get('/health');
 
     return 'ok';

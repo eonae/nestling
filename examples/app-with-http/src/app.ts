@@ -17,7 +17,7 @@ import { makeSwitch } from '@nestling/container';
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 import { subscriptions } from '@nestling/subscriptions';
-import { http, HttpTransport$ } from '@nestling/transport.http';
+import { http, httpProbes, HttpTransport$ } from '@nestling/transport.http';
 
 /**
  * Декларация приложения: одно значение для `main.ts`, тестов и проверки
@@ -58,6 +58,9 @@ export const app = makeApp({
     appObservability,
     appAuth,
     appSubscriptions,
+    // Пробы `GET /healthz` и `GET /readyz` поверх узла ядра `Health$`:
+    // правило готовности принадлежит ядру, плагину — только адреса и коды
+    httpProbes(),
     // Документ строится на фазе ASSEMBLE из тех же деклараций, которые
     // обслуживают запросы. При `docs=off` плагина в сборке нет целиком
     Docs.when(appOpenapi),

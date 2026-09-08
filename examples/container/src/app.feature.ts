@@ -1,5 +1,4 @@
 import { ApiModule } from './api/index.js';
-import { HealthModule } from './health/index.js';
 import { RuntimeModule } from './runtime/index.js';
 import { UsersModule } from './users/index.js';
 import { AppService } from './app.service.js';
@@ -12,7 +11,7 @@ import { makeModule } from '@nestling/container';
 export const AppModule = makeModule({
   name: 'module:app',
   providers: [AppService],
-  dependsOn: [UsersModule, ApiModule, HealthModule, RuntimeModule],
+  dependsOn: [UsersModule, ApiModule, RuntimeModule],
 });
 
 /**

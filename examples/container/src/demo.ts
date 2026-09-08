@@ -1,15 +1,14 @@
 import { AppConfig } from './config/app.config.js';
 import type { Counter } from './counters/index.js';
 import { Counter$ } from './counters/index.js';
-import { HealthService } from './health/index.js';
 import { RateLimiter } from './runtime/index.js';
 import { UserService } from './users/index.js';
 import { AppService } from './app.service.js';
 import type { ApiClient, Database } from './interfaces.js';
 import { ApiClient$, Database$ } from './interfaces.js';
 
-import type { Config, Logger } from '@nestling/app';
-import { Logger$ } from '@nestling/app';
+import type { Config, Health, HealthCheck, Logger } from '@nestling/app';
+import { Health$, HealthCheck$, Logger$ } from '@nestling/app';
 import { Component, OnStart } from '@nestling/container';
 
 /**
@@ -26,7 +25,8 @@ import { Component, OnStart } from '@nestling/container';
   ApiClient$,
   Logger$('app'),
   AppService,
-  HealthService,
+  Health$,
+  HealthCheck$.all,
   RateLimiter,
   AppConfig,
   Counter$('users'),
@@ -39,7 +39,8 @@ export class Demo {
     private readonly api: ApiClient,
     private readonly logger: Logger,
     private readonly app: AppService,
-    private readonly health: HealthService,
+    private readonly health: Health,
+    private readonly checks: readonly HealthCheck[],
     private readonly limiter: RateLimiter,
     private readonly config: Config<typeof AppConfig>,
     private readonly userCalls: Counter,
@@ -61,8 +62,17 @@ export class Demo {
     this.logger.info('App Info', { info: await this.app.getAppInfo() });
     this.logger.info('Rate limit', { rps: this.limiter.limit });
 
-    // Вклады из module:database и module:api собраны в массив на build()
-    this.logger.info('Health', { report: await this.health.report() });
+    // Вклады из module:database и module:api собраны в массив на build():
+    // `.all` работает на ядерном семействе так же, как на своём
+    this.logger.info('Health checks', {
+      critical: this.checks.filter((check) => check.critical).length,
+      total: this.checks.length,
+    });
+
+    // Узел ядра отдаёт отчёт значением. `@OnStart` выполняется на фазе
+    // START, а готовность наступает в RUN — поэтому итог здесь `not_ready`,
+    // и проверки не запускаются вовсе
+    this.logger.info('Health', { report: await this.health.readiness() });
 
     // Члены одного семейства из одного рецепта: у каждого свой счёт
     this.logger.info('Counters', {
