@@ -103,12 +103,22 @@ const res = await testApp.call(CreateUser, { name: 'Alice' });
   из декларации, `raw.attributes` равен `{}`, пока тест не передал
   `options.attributes`. Слой, который читает HTTP-заголовки, ничего не
   увидит.
+- Стартовый контекст запроса пуст, пока тест не передал `options.input`.
+  Поле общее для всех транспортов: пакет не зависит от пакета транспорта
+  и его типов не называет.
+
+  ```typescript
+  await app.call(Login, body, {
+    input: { http: { method: 'POST', url: '/login', headers: {} } },
+  });
+  ```
 - Разбор запроса из path, query и body не выполняется: `call` принимает
   готовый payload. Раскладку полей проверяют e2e-тесты и юнит-тесты
   bind-карты.
 - `exposeErrorDetails` по умолчанию включён: в тесте детали ошибок нужны.
 
-Опции `call` (`TestCallOptions`): `attributes`, `exposeErrorDetails`.
+Опции `call` (`TestCallOptions`): `attributes`, `input`,
+`exposeErrorDetails`.
 Незадекларированный отказ уходит записью `error` в логгер ядра; в тесте
 его перехватывает `spyLogger()` через подмену `RootLogger$`.
 

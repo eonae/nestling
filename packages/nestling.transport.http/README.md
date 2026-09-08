@@ -14,6 +14,7 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
 > Гайды: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
 > [глава 6. Хендлеру нужен репозиторий](../../docs/guide/06-repository.md),
+> [глава 10. Пускать только своих](../../docs/guide/10-auth.md),
 > [глава 13. Выделить вторую область](../../docs/guide/13-features.md).
 
 ## Установка
@@ -92,6 +93,82 @@ Bind-карта переносится из операции тем же зна�
 на первом запросе. Поле `doc:` транспорт не читает, а только передаёт в
 `makeEndpoint`; его читает генератор документации
 ([`@nestling/openapi`](../nestling.openapi)).
+
+## HTTP-форма хендлера
+
+Хендлеру анонимной декларации доступны запрос и HTTP-форма ответа:
+
+```ts
+import { httpEndpoint, HttpResponse } from '@nestling/transport.http';
+import type { HttpHandlerMeta, HttpOutput } from '@nestling/transport.http';
+
+export const Login = httpEndpoint({
+  method: 'POST',
+  path: '/login',
+  input: Credentials,
+  redirect: 303,
+  handler: async (input, meta: HttpHandlerMeta): HttpOutput<never> =>
+    HttpResponse.redirect('/app', {
+      cookies: [{ name: 'sid', value: await open(input), httpOnly: true }],
+    }),
+});
+```
+
+`meta.http` — `HttpRequest`: метод, url с query-строкой, заголовки и
+адрес сокета (`ip`, читается по требованию). Транспорт кладёт его в
+стартовый контекст запроса, поэтому его видят и `.pre`-юниты
+(`ctx.input.http`).
+
+`HttpResponse` — конверт транспортного ответа с именем `http`.
+`HttpResponse.of(ok, { headers, cookies })` даёт обычный ответ,
+`HttpResponse.redirect(location, { status, headers, cookies })` —
+редирект. Каждая cookie уходит отдельным заголовком `Set-Cookie`;
+заголовок хендлера перекрывает заголовок формы `output` независимо от
+регистра имени. Результат такого хендлера описывают `HttpOutputSync<T, E>`
+и `HttpOutput<T, E>` — `OutputSync` и `Output`, дополненные
+`HttpResponse<T>`.
+
+Редирект объявляется декларацией полем `redirect`. Оно даёт статус, если
+вызов свой не задал, и попадает в документ OpenAPI ответом 3xx с
+заголовком `Location`. Хендлер, вернувший редирект у декларации без этого
+поля, получает `internal_error`. Вместе с потоковой формой `output` поле
+`redirect` не объявляется.
+
+HTTP-форма допустима **только** в анонимной декларации: адрес там объявлен
+транспортом. В `implement` и в форму с `operation:` класс с `meta.http`
+или `HttpResponse` не проходит по типам — реализация операции обязана
+оставаться переносимой на шину. Интерфейс `HttpHandler<typeof Op>`
+повторяет `Handler<typeof Op>` из [`@nestling/app`](../nestling.app) с
+`meta` типа `HttpHandlerMeta` и результатом `HttpOutput`.
+
+## Юниты транспорта
+
+Стартовый контекст HTTP-запроса экспортируется типом `HttpStartContext`:
+поле `http`, а также `rawBody` и `lastEventId`, которые добавляют пометка
+`rawBody: true` и форма `output: events(...)`. Юнит, типизированный им,
+попадает только в слот `pipeline` HTTP-декларации; в `implement` слот
+принимает литерал ошибки с недостающими полями.
+
+```ts
+const httpBase = makePipeline<HttpStartContext>()
+  .pre(withHeader('x-tenant'))
+  .pre(withClientIp())
+  .finally(httpAccessLog(logger));
+```
+
+| Юнит | Что делает |
+|---|---|
+| `withHeader(name)` | кладёт значение заголовка в контекст под тем же именем; тип поля `string \| undefined` |
+| `withClientIp()` | кладёт адрес сокета в поле `clientIp`; заголовки прокси юнит не читает |
+| `httpAccessLog(logger)` | юнит фазы `.finally`: метод, путь, статус, исход, `bytesIn` и `bytesOut` |
+
+Логгер приходит аргументом, поэтому `TNeeds` пайплайна не растёт и такой
+пайплайн исполним без контейнера. Транспорт юниты не приставляет: слой
+всегда виден в декларации.
+
+Длительности в строке доступа нет: часы на каждый запрос стоят около 2%
+пропускной способности `GET`, а юнит фазы `.finally` вызывается один раз
+и дешевле измерить не может.
 
 ## Размещение полей входа
 
@@ -361,6 +438,13 @@ await makeApp({
 | Имя | Что это |
 |---|---|
 | `httpEndpoint(declaration)` | конструктор декларации (анонимная форма и форма с операцией) |
+| `HttpResponse` | HTTP-форма ответа: `of(ok, options?)` и `redirect(location, options?)` |
+| `HttpRequest`, `HttpHandlerMeta`, `HttpHandler<Op>` | запрос в контексте, `meta` HTTP-хендлера и его интерфейс |
+| `HttpOutputSync<T, E>`, `HttpOutput<T, E>` | результат HTTP-хендлера: `OutputSync`/`Output` плюс `HttpResponse` |
+| `Cookie`, `HttpResponseOptions`, `RedirectOptions`, `RedirectStatus` | cookie ответа и опции обеих форм |
+| `HttpStartContext` | стартовый контекст HTTP-запроса; им типизируются юниты транспорта |
+| `withHeader(name)`, `withClientIp()`, `httpAccessLog(logger)` | юниты транспорта |
+| `HttpRequestListener` | обработчик, присоединяемый к `HttpServer` |
 | `http(options?)` | объявление транспорта для `transports:` или `providers:` |
 | `httpServer(options?)` | объявление сервера для `transports:` |
 | `HttpTransport` | класс транспорта для ручного запуска |

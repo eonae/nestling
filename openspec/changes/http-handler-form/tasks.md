@@ -102,26 +102,26 @@
 
 ## 9. Документация и журнал
 
-- [ ] 9.1 README `@nestling/transport.http`: HTTP-форма хендлера, юниты,
+- [x] 9.1 README `@nestling/transport.http`: HTTP-форма хендлера, юниты,
       запись ответа, плашка статуса
-- [ ] 9.2 README `@nestling/app` и `@nestling/operations`: интерфейсы
+- [x] 9.2 README `@nestling/app` и `@nestling/operations`: интерфейсы
       хендлера, конверт ответа, `Ok` без заголовков
-- [ ] 9.3 README `@nestling/openapi`: редирект в документе
-- [ ] 9.4 `docs/design/transports.md`: сигнатура `httpAccessLog(logger)`
+- [x] 9.3 README `@nestling/openapi`: редирект в документе
+- [x] 9.4 `docs/design/transports.md`: сигнатура `httpAccessLog(logger)`
       в §1.2
-- [ ] 9.5 `docs/decisions/deferred.md`: переформулировать под-тему
+- [x] 9.5 `docs/decisions/deferred.md`: переформулировать под-тему
       «типизация ответных заголовков»
-- [ ] 9.6 `docs/decisions/ideas.md`: отметить запись [2026-09-06]
+- [x] 9.6 `docs/decisions/ideas.md`: отметить запись [2026-09-06]
       реализованной; пометка superseded на записи [2026-09-03] уже стоит
-- [ ] 9.7 `docs/decisions/roadmap.md`: статус change'а 50
+- [x] 9.7 `docs/decisions/roadmap.md`: статус change'а 50
 
 ## 10. Definition of Done
 
-- [ ] 10.1 Все задачи выше отмечены
-- [ ] 10.2 `yarn verify` зелёный
-- [ ] 10.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 10.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
-- [ ] 10.5 `yarn docs:audit` — 0 ERROR
-- [ ] 10.6 Затронутые `examples/*` мигрированы, главы гайда пересверены с
+- [x] 10.1 Все задачи выше отмечены
+- [x] 10.2 `yarn verify` зелёный
+- [x] 10.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 10.4 `design/` и `decisions/` синхронизированы по правилам CLAUDE.md
+- [x] 10.5 `yarn docs:audit` — 0 ERROR
+- [x] 10.6 Затронутые `examples/*` мигрированы, главы гайда пересверены с
       обновлённой датой в плашке «сверено с кодом»
 - [ ] 10.7 Коммиты осмысленные, ветка `change/http-handler-form` запушена

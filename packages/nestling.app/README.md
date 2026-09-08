@@ -562,6 +562,33 @@ export const GetOrder = httpEndpoint({
 | функция | `(input, meta) => …`; зависимостей нет, декларация исполнима сразу |
 | класс-хендлер | класс с `@Handler` и методом `handle`; экземпляр создаёт контейнер, а провайдером класса endpoint регистрирует себя сам |
 
+Второй параметр хендлера описывает `HandlerMeta`: обязательное поле
+`signal: AbortSignal` и поля контекста, накопленные `.pre`-юнитами.
+Класс-хендлер операции объявляет `implements Handler<typeof Op>`: типы
+входа, результата и множества отказов берутся с операции и руками не
+переписываются. `implements` даёт раннюю ошибку в самом классе;
+окончательная сверка со схемами остаётся в слоте `handler:`, потому что у
+анонимного `httpEndpoint` операции нет.
+
+Имя `Handler` пакет экспортирует в двух формах: интерфейс выше и декоратор
+роли из `@nestling/container`. Один импорт даёт обе, поэтому
+класс-хендлер операции пишется без псевдонимов. Код без операций
+импортирует декоратор из [`@nestling/container`](../nestling.container).
+
+```typescript
+@Handler([OrdersService])
+export class CreateOrderHandler implements Handler<typeof CreateOrder> {
+  constructor(private orders: OrdersService) {}
+  async handle(input: NewOrder, meta: HandlerMeta) { /* … */ }
+}
+```
+
+Хендлер, которому нужны запрос или ответ HTTP, объявляет это сигнатурой —
+`HttpHandler<typeof Op>` из
+[`@nestling/transport.http`](../nestling.transport.http). Такой класс
+допустим только в анонимной HTTP-декларации: в `implement` и в форму с
+`operation:` он не проходит по типам.
+
 Зависимости из контейнера получает класс — то же правило, что у юнитов
 пайплайна. Объект `{ deps, handle }` в поле `handler` — ошибка
 компиляции и ошибка рантайма при создании декларации; текст ошибки
@@ -597,9 +624,26 @@ export const GetOrder = httpEndpoint({
 контекст запроса; его вызывает транспорт после разбора запроса. Четвёртый
 аргумент — стартовый `input`: то, что транспорт знает до первого
 `.pre`-юнита. По умолчанию он пуст, и тип контекста —
-`ExtendableContext<EmptyInput>`. `@nestling/transport.http` использует его
-для `rawBody: true`; тогда слой `makePipeline<{ rawBody: Uint8Array }>()`
-компилируется только там, где байты действительно запрошены.
+`ExtendableContext<EmptyInput>`. `@nestling/transport.http` кладёт туда
+запрос под ключом `http`, а при `rawBody: true` — ещё и байты тела; тогда
+слой `makePipeline<{ rawBody: Uint8Array }>()` компилируется только там,
+где байты действительно запрошены.
+
+Слот `pipeline` у `implement` отвергает пайплайн, требующий полей
+стартового контекста: у шины его нет. При несовпадении слот принимает
+литерал ошибки с полями `__error`, `missing` и `hint` — та же форма, что
+у соседних проверок пайплайна.
+
+#### Контекст ответа
+
+`SuccessResponseContext` несёт `status`, `value` и необязательное поле
+`transport`: имя транспорта и метаданные протокола из конверта
+`TransportResponse` ([`@nestling/operations`](../nestling.operations)).
+Рантайм пайплайна распознаёт конверт по метке, разбирает его `result` тем
+же кодом, что и обычный ответ, а `meta` не читает. Транспорт читает
+метаданные, только если имя совпало с его собственным; иначе отвечает
+`internal_error`, называя endpoint и оба имени. Заголовков в контексте
+ответа нет: они принадлежат форме ответа своего транспорта.
 
 ### Фазы пайплайна
 
@@ -1757,6 +1801,8 @@ console.log(formatCompatibility(report));
 | Экспорт | Что это |
 |---|---|
 | `implement(operation, declaration)` | декларация реализации операции |
+| `Handler` | интерфейс хендлера операции и декоратор роли под одним именем |
+| `HandlerMeta` | второй параметр хендлера: `signal` и поля контекста |
 | `deadlineIn(ms)`, `deadlineFromTimeout(ms?)`, `isExhausted(deadline?)` | работа с моментом `deadline` |
 | `Deadline`, `IdempotencyKey`, `withDeadline()`, `withIdempotencyKey()` | переменные контекста параметров вызова и `.pre`-юниты, которые их заполняют |
 | `profileAttributes`, `startBudget`, `CallBudget`, `failureResponse` | инструменты автора реализации шины |

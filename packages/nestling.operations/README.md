@@ -103,8 +103,8 @@ export const CreateUser = makeRequest({
 которое переживает сериализацию, в отличие от `instanceof`.
 
 ```typescript
-new Ok(value, headers?);                 // статус OK
-new Ok('created', value, headers?);      // явный успешный статус
+new Ok(value);                           // статус OK
+new Ok('created', value);                // явный успешный статус
 Ok.created(value); Ok.accepted(value); Ok.noContent();
 
 new Fail('conflict:email_taken', 'Email taken', { details?, cause? });
@@ -118,6 +118,20 @@ Fail.notFound('Order 42 not found');     // анонимный отказ: ко�
 (`Fail.badRequest(...)` и другие фабрики) несут код, равный категории; в
 `errors:` их обычно нет, и на выходе из пайплайна такой отказ заменяется
 на `InternalError`.
+
+Заголовков `Ok` не несёт: `Location` и `Set-Cookie` осмысленны только в
+HTTP, а хендлер операции переносим между транспортами. Их задаёт форма
+ответа своего транспорта — `HttpResponse` из
+[`@nestling/transport.http`](../nestling.transport.http). Статусы успеха
+от транспорта не зависят и остаются у обеих форм хендлера.
+
+`TransportResponse<T>` — протокол такой формы: метка
+`Symbol.for('nestling:transport-response')`, имя транспорта `transport`,
+метаданные протокола `meta` и результат `result`. Ядро `meta` не читает,
+а транспорт читает, только если имя совпало с его собственным; иначе
+отвечает `internal_error`. Предикат — `isTransportResponse(value)`.
+В `OutputSync` конверт не входит: хендлер, не знающий транспорта, вернуть
+его не может.
 
 `Output<T, E>` и `OutputSync<T, E>` — типы возврата хендлера: `Ok<T>`,
 голое `T`, отказ из `E` или отказ ядра. Множество `E` записывается
