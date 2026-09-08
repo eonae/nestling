@@ -359,9 +359,11 @@ function httpMetaOf(response: ResponseContext): HttpResponseMeta | undefined {
  * Статус берётся из вызова `HttpResponse.redirect`, затем из поля
  * `redirect` декларации, затем `302`.
  */
-function statusOf(response: ResponseContext, options: SendOptions): number {
-  const meta = httpMetaOf(response);
-
+function statusOf(
+  response: ResponseContext,
+  meta: HttpResponseMeta | undefined,
+  options: SendOptions,
+): number {
   return meta?.location === undefined
     ? httpCodeOf(response.status)
     : (meta.status ?? options.redirect ?? DEFAULT_REDIRECT_STATUS);
@@ -410,7 +412,7 @@ export async function sendResponse(
     : context;
 
   const meta = httpMetaOf(response);
-  const status = statusOf(response, options);
+  const status = statusOf(response, meta, options);
   const kind = options.kind ?? 'value';
   const streaming =
     response.isSuccess &&
@@ -422,8 +424,10 @@ export async function sendResponse(
     setStreamHeaders(res, kind);
     // Заголовки ответа уходят до первого кадра: после него статус и
     // заголовки уже отправлены клиенту
-    for (const [key, value] of Object.entries(meta?.headers ?? {})) {
-      res.setHeader(key, value);
+    if (meta?.headers) {
+      for (const [key, value] of Object.entries(meta.headers)) {
+        res.setHeader(key, value);
+      }
     }
     if (meta?.cookies?.length) {
       res.setHeader('set-cookie', meta.cookies.map(serializeCookie));
@@ -442,14 +446,18 @@ export async function sendResponse(
   if (!empty) {
     headers['content-type'] = 'application/json';
   }
-  for (const [key, value] of Object.entries(meta?.headers ?? {})) {
-    headers[key.toLowerCase()] = value;
-  }
-  if (meta?.cookies?.length) {
-    headers['set-cookie'] = meta.cookies.map(serializeCookie);
-  }
-  if (meta?.location !== undefined) {
-    headers.location = meta.location;
+  if (meta) {
+    if (meta.headers) {
+      for (const [key, value] of Object.entries(meta.headers)) {
+        headers[key.toLowerCase()] = value;
+      }
+    }
+    if (meta.cookies?.length) {
+      headers['set-cookie'] = meta.cookies.map(serializeCookie);
+    }
+    if (meta.location !== undefined) {
+      headers.location = meta.location;
+    }
   }
 
   if (empty) {

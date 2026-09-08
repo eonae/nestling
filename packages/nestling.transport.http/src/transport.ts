@@ -277,12 +277,16 @@ export class HttpTransport implements ITransport {
           : {};
 
       // Запрос собирается из уже прочитанных значений: заголовки — та же
-      // ссылка, что уходит в `raw.attributes`
+      // ссылка, что уходит в `raw.attributes`. Адрес сокета читается по
+      // требованию: `remoteAddress` идёт в libuv, а нужен он только
+      // юниту `withClientIp`
       const http: HttpRequest = {
         method: nativeReq.method || 'GET',
         url: rawUrl,
         headers: nativeReq.headers as Record<string, string>,
-        ip: nativeReq.socket.remoteAddress,
+        get ip() {
+          return nativeReq.socket.remoteAddress;
+        },
         receivedAt: Date.now(),
       };
       startInput = { http };
