@@ -12,6 +12,7 @@ import { connect } from 'node:net';
 
 import { query } from './binding.js';
 import { httpEndpoint } from './helpers.js';
+import { HttpResponse } from './response.js';
 import type { HttpServerOptions } from './server.js';
 import { HttpServer } from './server.js';
 import type { HttpTransportOptions } from './transport.js';
@@ -487,13 +488,12 @@ describe('HttpTransport — категория отказа и заголовк�
         path: '/orders',
         output: z.object({ id: z.string() }),
         handler: async () =>
-          Ok.created(
-            { id: '42' },
-            {
+          HttpResponse.of(Ok.created({ id: '42' }), {
+            headers: {
               Location: '/orders/42',
               'content-type': 'application/vnd.orders+json',
             },
-          ),
+          }),
       }),
     );
     baseUrl = await listen(transport);
@@ -1516,9 +1516,11 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
         path: '/plain',
         pipeline: makePipeline(),
         handler: () =>
-          Ok.created('hello', {
-            'Content-Type': 'text/plain',
-            Location: '/plain/1',
+          HttpResponse.of(Ok.created('hello'), {
+            headers: {
+              'Content-Type': 'text/plain',
+              Location: '/plain/1',
+            },
           }),
       }),
     );

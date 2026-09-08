@@ -5,6 +5,9 @@ export * from './router.js';
 export * from './parser.js';
 export * from './adapter.js';
 export * from './helpers.js';
+export * from './request.js';
+export * from './response.js';
+export * from './units.js';
 export * from './binding.js';
 export * from './errors.js';
 

@@ -20,7 +20,6 @@
 import { NatsConfig } from './config.js';
 import type {
   NatsConnector,
-  NatsHeadersLike,
   NatsJetStreamManagerLike,
   NatsJsMsgLike,
   NatsLike,
@@ -449,10 +448,7 @@ export class NatsBus implements IMessageBus, ITransport {
       );
 
       if (response) {
-        msg.respond(
-          this.#codec.encode(encodeReply(response)),
-          this.#replyOptions(response),
-        );
+        msg.respond(this.#codec.encode(encodeReply(response)));
       }
     } catch (error) {
       this.#reportDelivery({ subject: msg.subject, error });
@@ -714,27 +710,6 @@ export class NatsBus implements IMessageBus, ITransport {
         code: 'service_unavailable',
       },
     };
-  }
-
-  /**
-   * Заголовки ответного сообщения: заголовки `Ok` как есть.
-   *
-   * Это метаданные ответа, не зависящие от транспорта; у отказа заголовков
-   * нет. Без соединения (двойник закрыт) ответ уходит без заголовков.
-   */
-  #replyOptions(
-    response: ResponseContext,
-  ): { headers?: NatsHeadersLike } | undefined {
-    if (!response.isSuccess || !response.headers || !this.#connection) {
-      return undefined;
-    }
-
-    const headers = this.#connection.headers();
-    for (const [key, value] of Object.entries(response.headers)) {
-      headers.set(key, value);
-    }
-
-    return { headers };
   }
 
   /** Конверт отправки в заголовках */

@@ -103,7 +103,6 @@ describe('users-service', () => {
       isSuccess: true,
       status: 'created',
       value: { name: 'Carol' },
-      headers: { Location: '/users/1' },
     });
   });
 

@@ -32,7 +32,7 @@ function fakeEmitter(): Emitter<typeof UserCreated> & {
 }
 
 describe('CreateUserHandler', () => {
-  it('создаёт пользователя и отвечает created с заголовком Location', async () => {
+  it('создаёт пользователя и отвечает статусом created', async () => {
     const userCreated = fakeEmitter();
     const handler = new CreateUserHandler(
       inMemoryUsersRepo([alice]),
@@ -47,7 +47,6 @@ describe('CreateUserHandler', () => {
     expect(result).toMatchObject({
       status: 'created',
       value: { id: '2', name: 'Carol' },
-      headers: { Location: '/users/2' },
     });
 
     // Событие отправлено транзакционным эмиттером: в шину оно уйдёт

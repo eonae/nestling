@@ -152,8 +152,12 @@ export interface SuccessResponseContext<TValue = unknown> {
   /** Статус успешного ответа */
   status: SuccessStatus;
 
-  /** HTTP заголовки (для HTTP transport) */
-  headers?: Record<string, string>;
+  /**
+   * Метаданные протокола из конверта транспортного ответа: имя транспорта
+   * и его значение. Ядро `meta` не читает; транспорт читает его, только
+   * если `name` совпадает с его собственным именем.
+   */
+  transport?: { name: string; meta: unknown };
 
   /**
    * Данные успешного ответа. Для потоковой формы —
@@ -171,9 +175,6 @@ export interface ErrorResponseContext {
 
   /** Категория отказа: первый сегмент его кода */
   status: Category;
-
-  /** HTTP заголовки (для HTTP transport) */
-  headers?: Record<string, string>;
 
   /** Детали ошибки */
   value: ErrorDetails;

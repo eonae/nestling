@@ -54,8 +54,11 @@ export const HttpServer$ = makeTokenFamily<HttpServer, [instance: string]>(
  * Возвращает `true`, если ответ отправлен, и `false`, если запрос не его:
  * без этого признака два транспорта на одном сокете невозможны — первый
  * отвечал бы `404` на чужие маршруты.
+ *
+ * Имя `HttpHandler` принадлежит интерфейсу HTTP-хендлера операции: этот
+ * тип — слушатель сокета, а не хендлер endpoint'а.
  */
-export type HttpHandler = (
+export type HttpRequestListener = (
   request: IncomingMessage,
   response: ServerResponse,
 ) => Promise<boolean>;
@@ -106,7 +109,7 @@ export class HttpServer implements IListener {
   private readonly closeTimeout: number;
 
   /** Обработчики в порядке присоединения; цепочку строит `listen()` */
-  private readonly handlers: HttpHandler[] = [];
+  private readonly handlers: HttpRequestListener[] = [];
 
   /**
    * Цепочка обработчиков, выбранная один раз на `listen()`.
@@ -114,7 +117,7 @@ export class HttpServer implements IListener {
    * Ветка выбирается здесь, а не на каждый запрос: при единственном
    * обработчике цепочка вырождается в прямой вызов.
    */
-  private chain?: HttpHandler;
+  private chain?: HttpRequestListener;
 
   /** Фактический адрес; не задан до `listen()` и после дренажа */
   private listening?: { host: string; port: number };
@@ -159,7 +162,7 @@ export class HttpServer implements IListener {
    * @param handler - Обработчик; `false` означает «маршрут не мой»
    * @throws {Error} Присоединение после открытия сокета
    */
-  attach(handler: HttpHandler): void {
+  attach(handler: HttpRequestListener): void {
     if (this.chain) {
       throw new Error(
         'HTTP server is already listening, so a handler cannot be attached: ' +
@@ -327,7 +330,7 @@ export class HttpServer implements IListener {
  * транспортом не платит за возможность иметь второй. Ни одного — сервер
  * отвечает `404` на всё.
  */
-function chainOf(handlers: readonly HttpHandler[]): HttpHandler {
+function chainOf(handlers: readonly HttpRequestListener[]): HttpRequestListener {
   if (handlers.length === 0) {
     return async () => false;
   }

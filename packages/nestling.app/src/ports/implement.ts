@@ -16,10 +16,12 @@ import type {
   AnyInput,
   AnyOutput,
   AnyPayload,
+  EmptyInput,
   EndpointDefinition,
   FailsOf,
   HandlerClass,
   HandlerFn,
+  MissingFields,
   Pipeline,
 } from '../pipeline/index.js';
 import { assertLayerFailsDeclared, makeEndpoint } from '../pipeline/index.js';
@@ -34,6 +36,28 @@ import type {
 } from '@nestling/operations';
 
 /**
+ * Проверяет слот `pipeline` реализации: стартового контекста у шины нет,
+ * поэтому пайплайн, требующий полей транспорта, сюда не проходит.
+ *
+ * Простой тип слота этого не ловит: `TReq` у `Pipeline` ковариантен через
+ * фантомное `$types`, и `Pipeline<HttpStartContext, …>` присваивался бы
+ * слоту `Pipeline<EmptyInput, …>` без ошибки. Условный тип в позиции слота
+ * решает это так же, как проверка стартового контекста у `httpEndpoint`.
+ *
+ * Форма литерала ошибки (`__error` и `missing` с типами полей) общая для
+ * всех проверок пайплайна; `hint` называет действие, которое чинит ошибку.
+ */
+type ValidateStart<PR extends AnyInput, Start extends AnyInput> = [
+  Start,
+] extends [PR]
+  ? unknown
+  : {
+      __error: 'Pipeline requires context that the start context does not provide';
+      missing: MissingFields<Start, PR>;
+      hint: 'implement() runs on the bus and its start context is empty: a unit that reads transport fields belongs to a transport declaration';
+    };
+
+/**
  * Словарь реализации: только исполнение.
  *
  * `input`, `output` и `errors` объявлены как `never`, потому что интерфейс
@@ -45,6 +69,7 @@ export interface ImplementDictionary<
   P extends AnyInput = AnyInput,
   PN = never,
   PF extends AnyFail = never,
+  PR extends AnyInput = EmptyInput,
 > {
   /**
    * Pipeline этой реализации. Классы-юниты допустимы: они попадают в
@@ -55,7 +80,9 @@ export interface ImplementDictionary<
    * реализации она не видит. У события `errors:` нет, поэтому слой с
    * доменным отказом там не компилируется.
    */
-  pipeline?: Pipeline<AnyInput, P, PN, PF> & ValidateOperationFails<C, PF>;
+  pipeline?: Pipeline<PR, P, PN, PF> &
+    ValidateOperationFails<C, PF> &
+    ValidateStart<PR, EmptyInput>;
 
   /** Причина вывода реализации из-под инвариантов сборки */
   detached?: string;
@@ -193,9 +220,10 @@ export function implement<
   P extends AnyInput = AnyInput,
   PN = never,
   PF extends AnyFail = never,
+  PR extends AnyInput = EmptyInput,
 >(
   operation: Operation<I, O, E, K>,
-  declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF> &
+  declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF, PR> &
     SubscriberSlot<K> & {
       handler: HandlerFn<I, O, P, FailsOf<E>>;
     },
@@ -214,16 +242,17 @@ export function implement<
     P,
     FailsOf<E>
   >,
+  PR extends AnyInput = EmptyInput,
 >(
   operation: Operation<I, O, E, K>,
-  declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF> &
+  declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF, PR> &
     SubscriberSlot<K> & {
       handler: C;
     },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function implement(
   operation: AnyOperation,
-  declaration: ImplementDictionary<AnyOperation, any, unknown, AnyFail> & {
+  declaration: ImplementDictionary<AnyOperation, any, unknown, AnyFail, any> & {
     subscriber?: string;
     handler: unknown;
   },

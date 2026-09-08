@@ -15,6 +15,7 @@ import {
   parseNdjson,
   readBody,
 } from './parser.js';
+import type { HttpRequest } from './request.js';
 import { HttpRouter } from './router.js';
 import type { HttpServer } from './server.js';
 import { httpServer, HttpServer$ } from './server.js';
@@ -218,8 +219,8 @@ export class HttpTransport implements ITransport {
     let multipart: MultipartResult | undefined;
     let payload: unknown;
 
-    // Стартовый контекст: пуст, если декларация не просила `rawBody` и не
-    // отдаёт SSE
+    // Стартовый контекст: запрос есть всегда, `rawBody` и `lastEventId`
+    // добавляют пометка декларации и форма `events`
     let startInput: AnyInput | undefined;
 
     // Байты входа копятся локально, пока нет контекста, затем пишутся в
@@ -275,6 +276,17 @@ export class HttpTransport implements ITransport {
             )
           : {};
 
+      // Запрос собирается из уже прочитанных значений: заголовки — та же
+      // ссылка, что уходит в `raw.attributes`
+      const http: HttpRequest = {
+        method: nativeReq.method || 'GET',
+        url: rawUrl,
+        headers: nativeReq.headers as Record<string, string>,
+        ip: nativeReq.socket.remoteAddress,
+        receivedAt: Date.now(),
+      };
+      startInput = { http };
+
       // Потоковый вход оборачивается ядром только после создания контекста:
       // счётчики живут в нём
       let streamSource: AsyncIterable<unknown> | undefined;
@@ -313,7 +325,7 @@ export class HttpTransport implements ITransport {
             const raw = await readBody(nativeReq, this.maxBodySize);
             addBytesIn(raw.length);
             if (binding.rawBody) {
-              startInput = { rawBody: raw };
+              startInput = { ...startInput, rawBody: raw };
             }
             payload = inputForm.leaf === 'binary' ? raw : raw.toString();
             break;
@@ -326,7 +338,7 @@ export class HttpTransport implements ITransport {
             // из того же буфера
             const raw = await readBody(nativeReq, this.maxBodySize);
             addBytesIn(raw.length);
-            startInput = { rawBody: raw };
+            startInput = { ...startInput, rawBody: raw };
             body = parseJsonBuffer(raw);
           } else if (inputForm.leaf && route.needsBody) {
             // Тело читается только тогда, когда его требует карта: у GET
@@ -382,6 +394,8 @@ export class HttpTransport implements ITransport {
         sendResponse(nativeRes, response, {
           kind: outputForm.kind,
           sse: binding.sse,
+          redirect: binding.redirect,
+          pattern: declaration.pattern,
           heartbeat: this.sseHeartbeat,
           summary: ctx.summary,
           signal,

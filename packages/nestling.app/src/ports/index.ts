@@ -73,6 +73,12 @@ export type {
   PortResult,
   PortToken,
 } from '@nestling/operations';
+/**
+ * `Handler` экспортируется одним именем в двух формах: интерфейс хендлера
+ * операции и декоратор роли из `@nestling/container`.
+ */
+export { Handler } from './handler.js';
+export type { HandlerMeta } from './handler.js';
 export { implement } from './implement.js';
 export type { ImplementDictionary } from './implement.js';
 export { bindPorts, portsKernel, undurableOperations } from './kernel.js';

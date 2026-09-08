@@ -1,14 +1,20 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'node:http';
 
+import type { Cookie, HttpResponseMeta } from './response.js';
+import { DEFAULT_REDIRECT_STATUS } from './response.js';
+import { HTTP_TRANSPORT_NAME } from './token.js';
+
 import type {
+  ErrorResponseContext,
   FormKind,
   ProcessingStatus,
   ResponseContext,
   StreamSummary,
+  SuccessResponseContext,
 } from '@nestling/app';
 import { isAsyncIterable, isMidStreamFailure } from '@nestling/app';
-import type { SseConfig } from '@nestling/operations';
-import { untilAborted } from '@nestling/operations';
+import type { RedirectStatus, SseConfig } from '@nestling/operations';
+import { InternalError, untilAborted } from '@nestling/operations';
 
 /** Соответствие статусов ответа кодам HTTP */
 
@@ -65,6 +71,12 @@ export interface SendOptions {
 
   /** Сигнал отмены запроса: дисконнект клиента или остановка транспорта */
   signal?: AbortSignal;
+
+  /** Объявленный декларацией статус редиректа (поле `redirect`) */
+  redirect?: RedirectStatus;
+
+  /** Адрес endpoint'а; попадает в текст ошибки транспорта */
+  pattern?: string;
 }
 
 /**
@@ -250,10 +262,116 @@ async function writeSse(
 }
 
 /**
+ * Сериализует cookie в значение заголовка `Set-Cookie`.
+ *
+ * Значение пишется как есть: кодирование — дело автора, потому что
+ * сервер не знает, что клиент ожидает получить обратно.
+ */
+function serializeCookie(cookie: Cookie): string {
+  const parts = [`${cookie.name}=${cookie.value}`];
+
+  if (cookie.maxAge !== undefined) {
+    parts.push(`Max-Age=${cookie.maxAge}`);
+  }
+  if (cookie.expires !== undefined) {
+    parts.push(`Expires=${cookie.expires.toUTCString()}`);
+  }
+  if (cookie.path !== undefined) {
+    parts.push(`Path=${cookie.path}`);
+  }
+  if (cookie.domain !== undefined) {
+    parts.push(`Domain=${cookie.domain}`);
+  }
+  if (cookie.secure === true) {
+    parts.push('Secure');
+  }
+  if (cookie.httpOnly === true) {
+    parts.push('HttpOnly');
+  }
+  if (cookie.sameSite !== undefined) {
+    parts.push(
+      `SameSite=${cookie.sameSite[0].toUpperCase()}${cookie.sameSite.slice(1)}`,
+    );
+  }
+
+  return parts.join('; ');
+}
+
+/** Ответ-отказ транспорта: программная ошибка автора endpoint'а */
+function transportFailure(message: string): ErrorResponseContext {
+  return {
+    isSuccess: false,
+    status: 'internal_error',
+    value: { error: message, code: InternalError.code },
+  };
+}
+
+/**
+ * Проверяет метаданные протокола в контексте ответа.
+ *
+ * Транспорт читает их, только если имя совпадает с его собственным:
+ * иначе endpoint вернул ответ чужого транспорта, и это ошибка автора, а
+ * не клиента. Редирект без объявленного `redirect` — та же ошибка: без
+ * поля документ разошёлся бы с поведением.
+ *
+ * @returns Ответ-отказ, если метаданные читать нельзя
+ */
+function checkTransportMeta(
+  response: SuccessResponseContext,
+  options: SendOptions,
+): ErrorResponseContext | undefined {
+  const carried = response.transport;
+  if (!carried) {
+    return undefined;
+  }
+
+  const where = `Endpoint '${options.pattern ?? 'unknown'}'`;
+
+  if (carried.name !== HTTP_TRANSPORT_NAME) {
+    return transportFailure(
+      `${where} is served by transport '${HTTP_TRANSPORT_NAME}', but its ` +
+        `handler returned a response of transport '${carried.name}'.`,
+    );
+  }
+
+  const meta = carried.meta as HttpResponseMeta;
+
+  if (meta.location !== undefined && options.redirect === undefined) {
+    return transportFailure(
+      `${where} returned a redirect, but its declaration does not declare ` +
+        `'redirect' — add 'redirect: <status>' to it.`,
+    );
+  }
+
+  return undefined;
+}
+
+/** Метаданные HTTP-ответа из контекста; у ответа без конверта их нет */
+function httpMetaOf(response: ResponseContext): HttpResponseMeta | undefined {
+  return response.isSuccess
+    ? (response.transport?.meta as HttpResponseMeta | undefined)
+    : undefined;
+}
+
+/**
+ * Код ответа: статус редиректа перекрывает статус результата.
+ *
+ * Статус берётся из вызова `HttpResponse.redirect`, затем из поля
+ * `redirect` декларации, затем `302`.
+ */
+function statusOf(response: ResponseContext, options: SendOptions): number {
+  const meta = httpMetaOf(response);
+
+  return meta?.location === undefined
+    ? httpCodeOf(response.status)
+    : (meta.status ?? options.redirect ?? DEFAULT_REDIRECT_STATUS);
+}
+
+/**
  * Заголовки потокового ответа по форме `output`.
  *
- * Ставятся до заголовков `Ok`: заголовки ответа принадлежат хендлеру и
- * перекрывают заголовки формы.
+ * Ставятся до заголовков `HttpResponse`: заголовки ответа принадлежат
+ * хендлеру и перекрывают заголовки формы.
  */
 function setStreamHeaders(res: ServerResponse, kind: FormKind): void {
   if (kind === 'events') {
@@ -271,9 +389,10 @@ function setStreamHeaders(res: ServerResponse, kind: FormKind): void {
  *
  * Способ кадрирования выбирается по объявленной форме `output`, а не по
  * типу значения: `stream` даёт NDJSON, `events` — SSE, остальное — JSON.
- * Заголовки `Ok` перекрывают заголовки формы; имя приводится к нижнему
- * регистру, поэтому `'Content-Type'` хендлера заменяет `content-type`
- * формы, а не добавляется вторым заголовком.
+ * Заголовки `HttpResponse` перекрывают заголовки формы; имя приводится к
+ * нижнему регистру, поэтому `'Content-Type'` хендлера заменяет
+ * `content-type` формы, а не добавляется вторым заголовком. Каждая cookie
+ * уходит отдельным заголовком `Set-Cookie`.
  *
  * Ответ формы `value` уходит одним `writeHead` с `content-length` и телом
  * в буфере: так `node:http` не проверяет имена заголовков по одному и не
@@ -281,10 +400,17 @@ function setStreamHeaders(res: ServerResponse, kind: FormKind): void {
  */
 export async function sendResponse(
   res: ServerResponse,
-  response: ResponseContext,
+  context: ResponseContext,
   options: SendOptions = {},
 ): Promise<void> {
-  const status = httpCodeOf(response.status);
+  // Метаданные чужого транспорта и незаявленный редирект — ошибка автора
+  // endpoint'а: ответ заменяется отказом до записи заголовков
+  const response = context.isSuccess
+    ? (checkTransportMeta(context, options) ?? context)
+    : context;
+
+  const meta = httpMetaOf(response);
+  const status = statusOf(response, options);
   const kind = options.kind ?? 'value';
   const streaming =
     response.isSuccess &&
@@ -294,10 +420,13 @@ export async function sendResponse(
   if (streaming) {
     res.statusCode = status;
     setStreamHeaders(res, kind);
-    if (response.headers) {
-      for (const [key, value] of Object.entries(response.headers)) {
-        res.setHeader(key, value);
-      }
+    // Заголовки ответа уходят до первого кадра: после него статус и
+    // заголовки уже отправлены клиенту
+    for (const [key, value] of Object.entries(meta?.headers ?? {})) {
+      res.setHeader(key, value);
+    }
+    if (meta?.cookies?.length) {
+      res.setHeader('set-cookie', meta.cookies.map(serializeCookie));
     }
 
     await (kind === 'events'
@@ -313,10 +442,14 @@ export async function sendResponse(
   if (!empty) {
     headers['content-type'] = 'application/json';
   }
-  if (response.headers) {
-    for (const [key, value] of Object.entries(response.headers)) {
-      headers[key.toLowerCase()] = value;
-    }
+  for (const [key, value] of Object.entries(meta?.headers ?? {})) {
+    headers[key.toLowerCase()] = value;
+  }
+  if (meta?.cookies?.length) {
+    headers['set-cookie'] = meta.cookies.map(serializeCookie);
+  }
+  if (meta?.location !== undefined) {
+    headers.location = meta.location;
   }
 
   if (empty) {

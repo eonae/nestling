@@ -128,13 +128,12 @@ describe('cliEndpoint', () => {
     await cli.close();
   });
 
-  it('заголовки Ok отбрасываются: в stdout уходит только значение', async () => {
+  it('в stdout уходит только значение, без статуса и обёрток', async () => {
     const Greet = cliEndpoint({
       command: 'greet',
       output: z.object({ message: z.string() }),
       pipeline: makePipeline(),
-      handler: async () =>
-        new Ok({ message: 'hello' }, { 'X-Trace': 'trace-1' }),
+      handler: async () => new Ok('created', { message: 'hello' }),
     });
 
     const printed: string[] = [];
@@ -152,7 +151,7 @@ describe('cliEndpoint', () => {
 
     expect(printed).toHaveLength(1);
     expect(JSON.parse(printed[0])).toEqual({ message: 'hello' });
-    expect(printed[0]).not.toContain('X-Trace');
+    expect(printed[0]).not.toContain('created');
   });
 
   it('класс-хендлер обслуживается после получения зависимостей', async () => {

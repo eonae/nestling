@@ -1,5 +1,7 @@
 import type { BindMap, BindMark } from './binding.js';
 import { assertHttpPath, computeHttpBinding } from './binding.js';
+import type { HttpRequest } from './request.js';
+import type { HttpOutput, HttpOutputSync } from './response.js';
 import { HttpTransport$ } from './token.js';
 
 import type {
@@ -28,9 +30,12 @@ import type {
   AnyOperation,
   DeclarationDoc,
   HttpMethod,
+  InferInput,
+  InferOutput,
   InputFormOf,
   OperationFailsOf,
   OutputFormOf,
+  RedirectStatus,
   SseConfig,
   ValidateOperationFails,
 } from '@nestling/operations';
@@ -43,16 +48,69 @@ import type {
  * Стартовый контекст декларации: поля, которые транспорт кладёт в контекст
  * до первого `.pre`-юнита.
  *
- * `rawBody: true` добавляет сырые байты тела, `output: events(...)` —
- * заголовок реконнекта `Last-Event-ID`.
+ * Поле `http` есть у каждого HTTP-запроса. `rawBody: true` добавляет сырые
+ * байты тела, `output: events(...)` — заголовок реконнекта
+ * `Last-Event-ID`.
  */
 export type StartContext<
   RB extends boolean | undefined,
   O = unknown,
-> = (RB extends true ? { rawBody: Uint8Array } : EmptyInput) &
+> = { http: HttpRequest } & (RB extends true
+  ? { rawBody: Uint8Array }
+  : EmptyInput) &
   (O extends StreamForm<any, any, 'events'>
     ? { lastEventId?: string }
     : EmptyInput);
+
+/**
+ * Стартовый контекст HTTP-запроса — публичное имя {@link StartContext}.
+ *
+ * Им типизируются юниты транспорта: `makePipeline<HttpStartContext>()`
+ * читает `ctx.input.http`. Такой пайплайн допустим в слоте `pipeline`
+ * HTTP-декларации и не проходит в `implement`.
+ *
+ * @param RB - Пометка `rawBody` декларации
+ * @param O - Форма `output` декларации
+ *
+ * @example
+ * ```typescript
+ * const httpBase = makePipeline<HttpStartContext>().pre(withClientIp());
+ * ```
+ */
+export type HttpStartContext<
+  RB extends boolean | undefined = undefined,
+  O = unknown,
+> = StartContext<RB, O>;
+
+/**
+ * Хендлер анонимной HTTP-декларации.
+ *
+ * Отличий от `HandlerFn` два: `meta` содержит запрос, а результат
+ * допускает `HttpResponse`. Пересечение с `{ http }` добавляется
+ * независимо от слота `pipeline`, поэтому декларация без пайплайна тоже
+ * даёт хендлеру `meta.http`. Хендлер, не читающий `http` и не
+ * возвращающий `HttpResponse`, в этом слоте остаётся допустимым.
+ */
+export type HttpHandlerFn<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  E extends AnyFail = never,
+> = (
+  payload: InferInput<I>,
+  meta: (P extends { payload: unknown } ? Omit<P, 'payload'> : P) & {
+    signal: AbortSignal;
+    http: HttpRequest;
+  },
+) => HttpOutputSync<InferOutput<O>, E> | HttpOutput<InferOutput<O>, E>;
+
+/** Класс-хендлер анонимной HTTP-декларации: класс с методом `handle` */
+export type HttpHandlerClass<
+  I extends AnyPayload = AnyPayload,
+  O extends AnyOutput = AnyOutput,
+  P extends AnyInput = AnyInput,
+  E extends AnyFail = never,
+> = new (...args: any[]) => { handle: HttpHandlerFn<I, O, P, E> };
 
 /**
  * Проверяет слот `pipeline`: всё, что пайплайн требует от внешнего
@@ -151,6 +209,19 @@ export interface HttpEndpointDictionary<
    * компилируется.
    */
   rawBody?: RB;
+
+  /**
+   * Статус редиректа, который отдаёт endpoint.
+   *
+   * Поле объявляет редирект декларацией: по нему генератор документации
+   * строит ответ 3xx с заголовком `Location`, а транспорт берёт статус,
+   * если вызов `HttpResponse.redirect` его не задал. Хендлер, вернувший
+   * редирект у декларации без этого поля, получает `internal_error`.
+   *
+   * Вместе с потоковой формой `output` не объявляется: у редиректа нет
+   * тела.
+   */
+  redirect?: RedirectStatus;
 
   /**
    * Пайплайн endpoint'а. Юниты-классы допустимы: они попадают в `TNeeds`
@@ -453,7 +524,7 @@ export function httpEndpoint<
   PF extends AnyFail = never,
 >(
   declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
-    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
+    handler: HttpHandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function httpEndpoint<
@@ -464,12 +535,12 @@ export function httpEndpoint<
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
-  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>> = HandlerClass<
+  C extends HttpHandlerClass<
     I,
     O,
     P,
     FailsOf<E> | NoInfer<PF>
-  >,
+  > = HttpHandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>>,
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = EmptyInput,
 >(
@@ -504,7 +575,8 @@ export function httpEndpoint(
     );
   }
 
-  const { method, path, bind, rawBody, sse, on, ...rest } = declaration;
+  const { method, path, bind, rawBody, sse, redirect, on, ...rest } =
+    declaration;
 
   assertHttpPath(path, `httpEndpoint({ method: '${method}', … })`);
 
@@ -519,6 +591,7 @@ export function httpEndpoint(
     input: declaration.input,
     output: declaration.output,
     sse,
+    redirect,
     where: `httpEndpoint({ method: '${method}', path: '${path}' })`,
   });
 

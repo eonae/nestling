@@ -29,6 +29,7 @@ export * from './result.js';
 export * from './schema-doc.js';
 export * from './status.js';
 export * from './streams/index.js';
+export * from './transport-response.js';
 
 /**
  * Из реестра имён экспортируется только чтение. `registerOperation`

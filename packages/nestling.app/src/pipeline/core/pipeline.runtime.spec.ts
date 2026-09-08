@@ -29,7 +29,14 @@ import type {
   AnyInput,
   EmptyInput,
 } from '@nestling/operations';
-import { BadRequest, Fail, makeFail, Ok, Timeout } from '@nestling/operations';
+import {
+  BadRequest,
+  Fail,
+  makeFail,
+  Ok,
+  Timeout,
+  TRANSPORT_RESPONSE,
+} from '@nestling/operations';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
@@ -132,16 +139,49 @@ describe('Pipeline v2 — normalization', () => {
     });
   });
 
-  it('сохраняет статус и заголовки из Ok', async () => {
+  it('сохраняет статус из Ok', async () => {
     const response = await run(makePipeline(), () => {
-      return new Ok('created', { id: 1 }, { 'x-test': '1' });
+      return new Ok('created', { id: 1 });
     });
 
     expect(response).toEqual({
       isSuccess: true,
       status: 'created',
       value: { id: 1 },
-      headers: { 'x-test': '1' },
+    });
+  });
+
+  it('разбирает конверт транспортного ответа и несёт его метаданные', () => {
+    const meta = { headers: { location: '/users/1' } };
+
+    return expect(
+      run(makePipeline(), () => ({
+        [TRANSPORT_RESPONSE]: true as const,
+        transport: 'http',
+        meta,
+        result: new Ok('created', { id: 1 }),
+      })),
+    ).resolves.toEqual({
+      isSuccess: true,
+      status: 'created',
+      value: { id: 1 },
+      transport: { name: 'http', meta },
+    });
+  });
+
+  it('конверт без Ok внутри даёт статус ok', () => {
+    return expect(
+      run(makePipeline(), () => ({
+        [TRANSPORT_RESPONSE]: true as const,
+        transport: 'http',
+        meta: {},
+        result: { id: 1 },
+      })),
+    ).resolves.toEqual({
+      isSuccess: true,
+      status: 'ok',
+      value: { id: 1 },
+      transport: { name: 'http', meta: {} },
     });
   });
 });

@@ -18,6 +18,7 @@ import type {
   ErrorResponseContext,
   ExtendableContext,
   ResponseContext,
+  SuccessResponseContext,
 } from './types/context.js';
 import type {
   AnyAddition,
@@ -53,6 +54,7 @@ import {
   isFailDefinition,
   isKernelFailCode,
   isStreamKind,
+  isTransportResponse,
   Ok,
 } from '@nestling/operations';
 
@@ -1073,6 +1075,10 @@ class PipelineImpl {
   /**
    * Превращает результат хендлера в `ResponseContext`.
    *
+   * Конверт транспортного ответа разбирается здесь же: значение внутри
+   * него проходит тот же код, что и ответ без конверта, а имя транспорта
+   * и метаданные протокола уходят в поле `transport` контекста.
+   *
    * При потоковой форме `output` возвращённый `AsyncIterable` оборачивается
    * здесь: сначала выходная item-цепочка, затем валидация каждого элемента
    * схемой, затем счётчик `itemsOut`. Транспорт получает готовый итератор
@@ -1082,19 +1088,30 @@ class PipelineImpl {
     result: T,
     ctx: ExtendableContext<AnyInput>,
   ): ResponseContext<T> {
-    const base: ResponseContext<T> =
-      result instanceof Ok
+    // Конверт транспортного ответа. Символ проверяется после `Ok`:
+    // обычный ответ — самая частая ветка, и до чтения символа она не
+    // доходит.
+    const envelope =
+      result instanceof Ok || !isTransportResponse(result) ? undefined : result;
+
+    const payload = (envelope ? envelope.result : result) as T;
+
+    const base: SuccessResponseContext<T> =
+      payload instanceof Ok
         ? {
             isSuccess: true,
-            status: result.status,
-            value: result.value as T,
-            headers: result.headers,
+            status: payload.status,
+            value: payload.value as T,
           }
         : {
             isSuccess: true,
             status: 'ok',
-            value: result,
+            value: payload,
           };
+
+    if (envelope) {
+      base.transport = { name: envelope.transport, meta: envelope.meta };
+    }
 
     const form = describeForm(ctx.endpoint.output);
     if (!isStreamKind(form.kind) || !isAsyncIterable(base.value)) {

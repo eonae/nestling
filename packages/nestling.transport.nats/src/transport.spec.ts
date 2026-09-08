@@ -211,23 +211,22 @@ describe('NatsBus — адресация и группы', () => {
     await caller.close();
   });
 
-  it('заголовки Ok попадают в заголовки ответного сообщения', async () => {
+  it('ответ уходит телом: заголовков у него нет', async () => {
     const broker = new Broker();
     const Tagged = implement(Claim, {
-      handler: async (input) =>
-        Ok.created({ granted: input.amount }, { 'X-Trace': 'trace-1' }),
+      handler: async (input) => Ok.created({ granted: input.amount }),
     });
     const owner = await process(broker, [Tagged]);
 
-    // Ответ читается с брокера напрямую: заголовки — метаданные сообщения,
-    // а не тело, и порт на вызывающей стороне их не разбирает
     const reply = await broker.request(
       'quotas.claim',
       new TextEncoder().encode(JSON.stringify({ amount: 2 })),
       { timeout: 500 },
     );
 
-    expect(reply.headers?.get('X-Trace')).toBe('trace-1');
+    // Заголовки ответа принадлежат HTTP-форме ответа, а не `Ok`: на шине
+    // их не откуда взять
+    expect(reply.headers).toBeUndefined();
     expect(JSON.parse(new TextDecoder().decode(reply.data))).toMatchObject({
       isSuccess: true,
       status: 'created',

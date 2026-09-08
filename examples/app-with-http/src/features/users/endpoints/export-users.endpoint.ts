@@ -3,10 +3,10 @@ import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Output } from '@nestling/app';
 import { Handler } from '@nestling/container';
-import { Ok, stream } from '@nestling/operations';
-import { httpEndpoint } from '@nestling/transport.http';
+import { stream } from '@nestling/operations';
+import type { HttpOutput } from '@nestling/transport.http';
+import { httpEndpoint, HttpResponse } from '@nestling/transport.http';
 
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
 const MAX_ROWS = 100_000;
@@ -23,7 +23,7 @@ const MAX_ROWS = 100_000;
 export class ExportUsersHandler {
   constructor(private readonly users: UsersRepository) {}
 
-  async handle(): Output<AsyncIterableIterator<User>> {
+  async handle(): HttpOutput<AsyncIterableIterator<User>> {
     const users = this.users;
 
     async function* rows(): AsyncIterableIterator<User> {
@@ -32,8 +32,9 @@ export class ExportUsersHandler {
       }
     }
 
-    return new Ok(rows(), {
-      'Content-Disposition': 'attachment; filename="users.ndjson"',
+    // Заголовки потокового ответа уходят до первого кадра
+    return HttpResponse.of(rows(), {
+      headers: { 'Content-Disposition': 'attachment; filename="users.ndjson"' },
     });
   }
 }

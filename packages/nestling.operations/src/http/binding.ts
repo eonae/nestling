@@ -52,6 +52,18 @@ export interface SseConfig<T = any> {
   heartbeat?: number;
 }
 
+/**
+ * Статус редиректа: перечень закрыт.
+ *
+ * `303` меняет метод на `GET`, `307` и `308` сохраняют метод и тело;
+ * `301` и `308` объявляют переезд постоянным.
+ *
+ * Объявлен рядом с картой по той же причине, что и {@link SseConfig}:
+ * значение хранится на карте, и его читает генератор документации, у
+ * которого серверного кода нет.
+ */
+export type RedirectStatus = 301 | 302 | 303 | 307 | 308;
+
 /** Часть HTTP-запроса, в которой живёт поле payload */
 export type BindPlace = 'path' | 'query' | 'body';
 
@@ -97,6 +109,13 @@ export interface HttpBinding {
    * не читает.
    */
   readonly sse?: SseConfig;
+
+  /**
+   * Объявленный статус редиректа. Транспорт берёт его, когда вызов
+   * `HttpResponse.redirect` статуса не задал; генератор документации —
+   * как код ответа 3xx.
+   */
+  readonly redirect?: RedirectStatus;
 }
 
 /**
@@ -269,6 +288,9 @@ export interface ComputeHttpBindingOptions {
 
   /** Секция `sse` */
   sse?: SseConfig;
+
+  /** Объявленный статус редиректа */
+  redirect?: RedirectStatus;
 
   /**
    * Имя операции, которой принадлежит адрес. Задаёт только
@@ -449,6 +471,27 @@ function assertSse(options: ComputeHttpBindingOptions): void {
 }
 
 /**
+ * Проверяет поле `redirect`: редирект и поток вместе не объявляются.
+ *
+ * У потокового ответа заголовки уходят до первого кадра, а редирект тело
+ * отменяет: две формы ответа исключают друг друга.
+ */
+function assertRedirect(options: ComputeHttpBindingOptions): void {
+  const { redirect, output } = options;
+  if (redirect === undefined) {
+    return;
+  }
+
+  const { kind } = describeForm(output);
+  if (kind === 'stream' || kind === 'events') {
+    throw new Error(
+      `${whereOf(options)}: 'redirect' is not compatible with a ${kind === 'events' ? 'events(...)' : 'stream(...)'} ` +
+        `output — a redirect has no body.`,
+    );
+  }
+}
+
+/**
  * Собирает bind-карту без проверок.
  *
  * Экспортируется для одного потребителя: транспорт строит карту для
@@ -459,7 +502,15 @@ function assertSse(options: ComputeHttpBindingOptions): void {
 export function buildHttpBinding(
   options: ComputeHttpBindingOptions,
 ): HttpBinding {
-  const { method, path, bind, rawBody = false, sse, operation } = options;
+  const {
+    method,
+    path,
+    bind,
+    rawBody = false,
+    sse,
+    redirect,
+    operation,
+  } = options;
 
   const fields: Record<string, BindPlacement> = {};
 
@@ -483,6 +534,7 @@ export function buildHttpBinding(
     rest: METHODS_WITHOUT_BODY.has(method.toUpperCase()) ? 'query' : 'body',
     rawBody: Boolean(rawBody),
     ...(sse === undefined ? {} : { sse: Object.freeze({ ...sse }) }),
+    ...(redirect === undefined ? {} : { redirect }),
     ...(operation === undefined ? {} : { operation }),
   };
 
@@ -512,6 +564,7 @@ export function computeHttpBinding(
 ): HttpBinding {
   assertBindable(options);
   assertSse(options);
+  assertRedirect(options);
   return buildHttpBinding(options);
 }
 

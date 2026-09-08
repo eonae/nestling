@@ -65,13 +65,11 @@ describe('Ok — статусы успеха', () => {
     expect(Ok.noContent().value).toBeNull();
   });
 
-  it('заголовки — метаданные ответа, транспорт им не назначен', () => {
+  it('заголовков у Ok нет: второй аргумент не принимается', () => {
+    // @ts-expect-error заголовки задаёт форма ответа своего транспорта
     const ok = Ok.created({ id: 1 }, { Location: '/orders/1' });
 
-    expect(ok.headers).toEqual({ Location: '/orders/1' });
-    expect(
-      new Ok('accepted', { id: 1 }, { 'Retry-After': '5' }).headers,
-    ).toEqual({ 'Retry-After': '5' });
+    expect(Object.keys(ok)).toEqual(['isFail', 'status', 'value']);
   });
 });
 

@@ -23,11 +23,11 @@ export type AnyFail = Fail<FailCode, any>;
 type NotFail<T> = [T] extends [AnyFail] ? never : unknown;
 
 /**
- * Успешный ответ: статус, значение и необязательные заголовки.
+ * Успешный ответ: статус и значение.
  *
- * Заголовки — метаданные ответа, не зависящие от транспорта. HTTP пишет
- * их в заголовки ответа, NATS — в заголовки ответного сообщения, CLI
- * отбрасывает.
+ * Заголовков у `Ok` нет: они принадлежат HTTP, а не результату обработки.
+ * Заголовки, cookie и редирект задаёт форма ответа своего транспорта —
+ * `HttpResponse` в `@nestling/transport.http`.
  */
 export class Ok<TValue = unknown> {
   /**
@@ -38,60 +38,40 @@ export class Ok<TValue = unknown> {
 
   public readonly status: SuccessStatus;
   public readonly value: TValue;
-  public readonly headers?: Record<string, string>;
 
   /**
    * `new Ok(fail)` не компилируется: тип значения — `TValue &
    * NotFail<TValue>`. Пересечение, а не условный тип: из `TValue` вывод
    * типа работает, из условного типа — нет.
    */
-  constructor(
-    status: SuccessStatus,
-    value: TValue & NotFail<TValue>,
-    headers?: Record<string, string>,
-  );
-  constructor(
-    value: TValue & NotFail<TValue>,
-    headers?: Record<string, string>,
-  );
-  constructor(
-    statusOrValue: SuccessStatus | TValue,
-    valueOrHeaders?: TValue | Record<string, string>,
-    headers?: Record<string, string>,
-  ) {
+  constructor(status: SuccessStatus, value: TValue & NotFail<TValue>);
+  constructor(value: TValue & NotFail<TValue>);
+  constructor(statusOrValue: SuccessStatus | TValue, value?: TValue) {
     const isStatus =
       typeof statusOrValue === 'string' &&
       successStatuses.includes(statusOrValue as SuccessStatus);
 
     if (isStatus) {
-      // Первая перегрузка: (status, value, headers?)
+      // Первая перегрузка: (status, value)
       this.status = statusOrValue as SuccessStatus;
-      this.value = valueOrHeaders as TValue;
-      this.headers = headers;
+      this.value = value as TValue;
     } else {
-      // Вторая перегрузка: (value, headers?)
+      // Вторая перегрузка: (value)
       this.status = 'ok';
       this.value = statusOrValue as TValue;
-      this.headers = valueOrHeaders as Record<string, string> | undefined;
     }
   }
 
-  static created<T>(
-    value: T & NotFail<T>,
-    headers?: Record<string, string>,
-  ): Ok<T> {
-    return new Ok('created', value, headers);
+  static created<T>(value: T & NotFail<T>): Ok<T> {
+    return new Ok('created', value);
   }
 
-  static accepted<T>(
-    value: T & NotFail<T>,
-    headers?: Record<string, string>,
-  ): Ok<T> {
-    return new Ok('accepted', value, headers);
+  static accepted<T>(value: T & NotFail<T>): Ok<T> {
+    return new Ok('accepted', value);
   }
 
-  static noContent(headers?: Record<string, string>): Ok<null> {
-    return new Ok('no_content', null, headers);
+  static noContent(): Ok<null> {
+    return new Ok('no_content', null);
   }
 }
 
