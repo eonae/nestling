@@ -85,9 +85,9 @@
       `HttpResponse.of`
 - [x] 7.2 `examples/app-with-http`: `create-user.endpoint.ts` на
       `HttpResponse.of`; проверить `activity-stream.endpoint.ts`
-- [ ] 7.3 Пример HTTP-хендлера с редиректом и cookie в
+- [x] 7.3 Пример HTTP-хендлера с редиректом и cookie в
       `examples/app-with-http`
-- [ ] 7.4 `yarn bench:http` под Node 24 до и после; результат в записи
+- [x] 7.4 `yarn bench:http` под Node 24 до и после; результат в записи
       change'а, порог — не хуже 2% на `GET` и `POST`
 
 ## 8. Гайд

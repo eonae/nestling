@@ -27,14 +27,6 @@ export interface HttpRequest {
 
   /** Адрес сокета; у запроса через прокси это адрес прокси */
   readonly ip?: string;
-
-  /**
-   * Момент приёма запроса (`Date.now()`).
-   *
-   * От него `httpAccessLog` считает длительность обработки: другого
-   * per-request якоря у юнита фазы `.finally` нет.
-   */
-  readonly receivedAt: number;
 }
 
 /**

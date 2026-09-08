@@ -46,6 +46,43 @@ import {
 } from '@nestling/app';
 import { factoryProvider } from '@nestling/container';
 
+/**
+ * Запрос, который транспорт кладёт в стартовый контекст.
+ *
+ * Класс, а не литерал: адрес сокета читается по требованию, а аксессор
+ * живёт на прототипе и создание объекта не удорожает. `remoteAddress`
+ * идёт в libuv, нужен он только юниту `withClientIp`, а платил бы за него
+ * каждый запрос.
+ *
+ * Часов на запросе нет по той же причине: `Date.now()` на каждый запрос
+ * стоит около 2% пропускной способности `GET` — больше, чем весь бюджет
+ * этой правки.
+ *
+ * Поля объявлены `declare`: значения им присваивает конструктор, и
+ * предварительное определение под `useDefineForClassFields` было бы
+ * второй записью в тот же слот.
+ */
+class HttpRequestValue implements HttpRequest {
+  declare readonly method: string;
+  declare readonly url: string;
+  declare readonly headers: Readonly<Record<string, string>>;
+
+  readonly #socket: IncomingMessage['socket'];
+
+  constructor(request: IncomingMessage, url: string) {
+    (this as { method: string }).method = request.method || 'GET';
+    (this as { url: string }).url = url;
+    (this as { headers: Readonly<Record<string, string>> }).headers =
+      request.headers as Record<string, string>;
+    this.#socket = request.socket;
+  }
+
+  /** Адрес сокета; у запроса через прокси это адрес прокси */
+  get ip(): string | undefined {
+    return this.#socket.remoteAddress;
+  }
+}
+
 /** Лимит размера буферизуемого тела запроса по умолчанию (1 MiB) */
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
 
@@ -277,19 +314,8 @@ export class HttpTransport implements ITransport {
           : {};
 
       // Запрос собирается из уже прочитанных значений: заголовки — та же
-      // ссылка, что уходит в `raw.attributes`. Адрес сокета читается по
-      // требованию: `remoteAddress` идёт в libuv, а нужен он только
-      // юниту `withClientIp`
-      const http: HttpRequest = {
-        method: nativeReq.method || 'GET',
-        url: rawUrl,
-        headers: nativeReq.headers as Record<string, string>,
-        get ip() {
-          return nativeReq.socket.remoteAddress;
-        },
-        receivedAt: Date.now(),
-      };
-      startInput = { http };
+      // ссылка, что уходит в `raw.attributes`
+      startInput = { http: new HttpRequestValue(nativeReq, rawUrl) };
 
       // Потоковый вход оборачивается ядром только после создания контекста:
       // счётчики живут в нём

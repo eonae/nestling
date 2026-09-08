@@ -42,8 +42,13 @@ export function withClientIp(): PreUnitFn<
 }
 
 /**
- * Пишет строку доступа в фазе `.finally`: метод, путь, статус,
- * длительность и счётчики байтов.
+ * Пишет строку доступа в фазе `.finally`: метод, путь, статус, исход и
+ * счётчики байтов.
+ *
+ * Длительности в записи нет: часы на запрос стоят около 2% пропускной
+ * способности `GET`, а измерить их дешевле неоткуда — юнит фазы
+ * `.finally` вызывается один раз. Длительность запроса меряет слой
+ * приложения, которому она нужна.
  *
  * Логгер приходит аргументом, как у `withRequestLogging`: так юнит
  * остаётся функцией и не растит `TNeeds` пайплайна.
@@ -64,7 +69,6 @@ export function httpAccessLog(logger: Logger): FinallyUnitFn<HttpStartContext> {
       url: http.url,
       status: response.status,
       outcome,
-      duration: Date.now() - http.receivedAt,
       bytesIn: ctx.summary.bytesIn ?? 0,
       bytesOut: ctx.summary.bytesOut ?? 0,
     });

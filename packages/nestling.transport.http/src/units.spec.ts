@@ -25,7 +25,6 @@ const http: HttpRequest = {
   url: '/users?limit=10',
   headers: { 'x-tenant': 'acme', 'user-agent': 'jest' },
   ip: '10.0.0.7',
-  receivedAt: Date.now() - 25,
 };
 
 const raw: Raw = {
@@ -127,7 +126,7 @@ describe('withClientIp — адрес сокета', () => {
 });
 
 describe('httpAccessLog — строка доступа', () => {
-  it('несёт метод, путь, статус, длительность и счётчики байтов', async () => {
+  it('несёт метод, путь, статус, исход и счётчики байтов', async () => {
     const { logger, entries } = spyLogger();
     const ctx = contextOf();
     ctx.summary.bytesIn = 12;
@@ -149,6 +148,6 @@ describe('httpAccessLog — строка доступа', () => {
       bytesIn: 12,
       bytesOut: 34,
     });
-    expect(entries[0].duration).toBeGreaterThanOrEqual(25);
+    expect(entries[0].duration).toBeUndefined();
   });
 });
