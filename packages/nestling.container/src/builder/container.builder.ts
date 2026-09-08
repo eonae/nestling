@@ -9,20 +9,24 @@ import type {
   FactoryProviderDefinition,
   FamilyMemberToken,
   FamilyProviderDefinition,
+  HealthStatus,
   ModuleProvider,
   Provider,
   ProviderDefinition,
   ProvidersFactory,
   ResourceClass,
+  ResourceProviderDefinition,
   TokenFamily,
 } from '../providers/index.js';
 import {
   asFamilyMember,
+  classProvider,
   decoratorOf,
   getAllSentinelFamily,
   getAutoSentinelFamily,
   isDefinition,
   isFamilyDefinition,
+  isResourceDefinition,
   isValueDefinition,
   readRoleMeta,
 } from '../providers/index.js';
@@ -79,6 +83,25 @@ export type FamilyOverrideEntry<
   Params extends [param: string] = [param: string],
 > = FamilyProviderDefinition<T, Params>;
 
+/**
+ * Провайдер-ресурс, объявивший проверку состояния.
+ *
+ * Пара «DI-токен и его идентификатор»: по DI-токену узел вклада получает
+ * захваченное значение, идентификатор становится именем проверки в отчёте.
+ */
+export interface HealthResource {
+  /** DI-токен ресурса */
+  readonly token: InjectionToken;
+  /** Идентификатор DI-токена — то же имя, под которым узел виден в графе */
+  readonly id: string;
+  /**
+   * Проверка из определения провайдера: она принимает захваченное значение
+   * и сигнал. Функциональная форма ресурса объявляет её словарём, поэтому
+   * читать её с самого значения нельзя.
+   */
+  readonly health: (value: any, signal: AbortSignal) => Promise<HealthStatus>;
+}
+
 /** Опции {@link ContainerBuilder}. */
 export interface ContainerBuilderOptions {
   /**
@@ -134,6 +157,16 @@ export class ContainerBuilder {
   readonly #switches: SwitchValues;
 
   #isBuilt = false;
+
+  /**
+   * Фабрики провайдеров модулей уже развёрнуты в обычные регистрации.
+   *
+   * Разворачивание идёт первым шагом `build()`, но читающие методы состава
+   * (`healthResources`, `familyMembers`) обязаны видеть полный перечень
+   * провайдеров, поэтому первый из них разворачивает фабрики сам. Флаг
+   * держит обещание «фабрика модуля вызывается один раз».
+   */
+  #factoriesExpanded = false;
 
   /**
    * @param options - Опции билдера; см. {@link ContainerBuilderOptions}
@@ -209,6 +242,70 @@ export class ContainerBuilder {
     }
 
     return this;
+  }
+
+  /**
+   * Перечисляет провайдеры-ресурсы, объявившие проверку состояния.
+   *
+   * Читающий метод: он ничего не регистрирует и порядка сборки не меняет.
+   * Про пробы контейнер не знает — он отвечает на вопрос «у каких ресурсов
+   * есть `health`», а узлы вкладов заводит тот, кто задаёт им смысл
+   * (`@nestling/app`).
+   *
+   * Ветки `when` в `providers:` к этому моменту уже раскрыты, а фабрики
+   * провайдеров модулей разворачиваются здесь же: перечень видит ровно тот
+   * состав, который попадёт в граф.
+   *
+   * @returns DI-токен ресурса, его идентификатор и объявленная проверка —
+   * в порядке регистрации
+   *
+   * @example
+   * ```typescript
+   * for (const { token, id, health } of builder.healthResources()) {
+   *   builder.register(
+   *     factoryProvider(HealthCheck$(id), (value) => ({ … }), [token]),
+   *   );
+   * }
+   * ```
+   */
+  healthResources(): readonly HealthResource[] {
+    this.appendFactoryProviders();
+
+    const resources: HealthResource[] = [];
+
+    for (const [token, provider] of this.#providers) {
+      const { health } = provider as ResourceProviderDefinition;
+
+      if (isResourceDefinition(provider) && health !== undefined) {
+        resources.push({ token, id: tokenId(token), health });
+      }
+    }
+
+    return resources;
+  }
+
+  /**
+   * Перечисляет зарегистрированных членов семейства DI-токенов.
+   *
+   * Читающий метод, как и {@link ContainerBuilder.healthResources}. Нужен
+   * тому, кто заводит узел над всем семейством и обязан назвать каждого
+   * члена: `Family.all` отдаёт значения, а имя члена живёт в его DI-токене.
+   *
+   * Члены, которых создаст рецепт семейства в `build()`, сюда не входят:
+   * они появляются от спроса, а спрос известен только внутри `build()`.
+   *
+   * @template T - Тип значения члена
+   * @param family - Семейство, созданное `makeTokenFamily`
+   * @returns DI-токены членов в порядке регистрации
+   */
+  familyMembers<T>(
+    family: TokenFamily<T, any>,
+  ): readonly FamilyMemberToken<T>[] {
+    this.appendFactoryProviders();
+
+    return this.collectFamilyMemberTokens(
+      family,
+    ) as readonly FamilyMemberToken<T>[];
   }
 
   /**
@@ -381,15 +478,13 @@ export class ContainerBuilder {
     }
 
     if (meta.role === 'resource') {
-      const resource = cls as unknown as ResourceClass;
-
-      return {
-        provide: cls,
-        deps: meta.dependencies,
-        acquire: (...args: unknown[]) => resource.acquire(...args),
-        release: (value: unknown) =>
-          (value as { release(): void | Promise<void> }).release(),
-      };
+      // Определение ресурса строит `classProvider`: перенос `release` и
+      // `health` из прототипа один на обе позиции. Класс здесь и DI-токен,
+      // и реализация — он зарегистрирован сам под собой
+      return classProvider(
+        cls as unknown as InjectionToken,
+        cls as unknown as ResourceClass,
+      );
     }
 
     return {
@@ -633,12 +728,14 @@ export class ContainerBuilder {
    */
   private collectFamilyMemberTokens(
     family: TokenFamily<any, any>,
-  ): InjectionToken[] {
-    const tokens: InjectionToken[] = [];
+  ): FamilyMemberToken<any>[] {
+    const tokens: FamilyMemberToken<any>[] = [];
 
     for (const token of this.#providers.keys()) {
-      if (asFamilyMember(token)?.family === family) {
-        tokens.push(token);
+      const member = asFamilyMember(token);
+
+      if (member?.family === family) {
+        tokens.push(member);
       }
     }
 
@@ -858,6 +955,11 @@ export class ContainerBuilder {
 
   /** Разворачивает фабрики провайдеров модулей в обычные регистрации. */
   private appendFactoryProviders(): void {
+    if (this.#factoriesExpanded) {
+      return;
+    }
+    this.#factoriesExpanded = true;
+
     for (const [moduleName, factory] of this.#providersFactories.entries()) {
       const providers = factory();
 

@@ -106,6 +106,15 @@ export interface FactoryProviderDefinition<T> extends BaseDefinition<T> {
 }
 
 /**
+ * Исход проверки состояния ресурса.
+ *
+ * Объединение объявлено здесь, а не берётся из `@nestling/app`: контейнер
+ * от ядра не зависит. Смысл значений задаёт ядро — оно же и собирает
+ * исходы в отчёт пробы.
+ */
+export type HealthStatus = 'ok' | 'degraded' | 'down';
+
+/**
  * Класс-ресурс: значение создаёт `static acquire`, а не конструктор.
  *
  * Конструктор ресурса контейнеру недоступен и может быть приватным,
@@ -154,6 +163,15 @@ export interface ResourceProviderDefinition<T = unknown>
    * присваиваемым `ProviderDefinition<unknown>`.
    */
   release: (value: any) => void | Promise<void>;
+  /**
+   * Проверка состояния захваченного значения.
+   *
+   * Объявивший её ресурс становится вкладом в пробы: узел проверки заводит
+   * сборка приложения, а контейнер только перечисляет такие провайдеры
+   * (`ContainerBuilder.healthResources()`). Параметр значения типизирован
+   * `any` по той же причине, что у `release`.
+   */
+  health?: (value: any, signal: AbortSignal) => Promise<HealthStatus>;
 }
 
 /**
@@ -194,6 +212,35 @@ export type FactoryProviderWithDeps<
   useFactory: (...args: UnwrapTokens<TDeps>) => SyncValue<T>;
   deps: TDeps;
 };
+
+/**
+ * Поле `health` определения ресурса, если класс объявил одноимённый метод.
+ *
+ * Метод переносится в поле тем же приёмом, что и `release`: определение
+ * провайдера — значение, и знание «у этого ресурса есть проверка» должно
+ * читаться из него, а не из прототипа. Класса без метода поле не касается,
+ * поэтому результат — либо пустой словарь, либо словарь с одним полем.
+ *
+ * @param cls - Класс-ресурс
+ * @returns `{ health }` или пустой словарь
+ */
+function healthOf<T>(
+  cls: Constructor<T> | ResourceClass<T>,
+): Pick<ResourceProviderDefinition<T>, 'health'> {
+  const method = (cls as { prototype?: { health?: unknown } }).prototype
+    ?.health;
+
+  return typeof method === 'function'
+    ? {
+        health: (value: T, signal: AbortSignal) =>
+          (
+            value as {
+              health(signal: AbortSignal): Promise<HealthStatus>;
+            }
+          ).health(signal),
+      }
+    : {};
+}
 
 /**
  * Создаёт провайдер класса: привязывает DI-токен интерфейса к реализации.
@@ -248,6 +295,7 @@ export function classProvider<T>(
       acquire: (...args: unknown[]) => cls.acquire(...args),
       release: (value: T) =>
         (value as { release(): void | Promise<void> }).release(),
+      ...healthOf(useClass),
     };
   }
 
@@ -331,6 +379,7 @@ export type ResourceProviderWithDeps<
 > = ResourceProviderDefinition<T> & {
   acquire: (...args: [...UnwrapTokens<TDeps>, AbortSignal]) => T | Promise<T>;
   deps: TDeps;
+  health?: (value: T, signal: AbortSignal) => Promise<HealthStatus>;
 };
 
 /**
@@ -367,6 +416,11 @@ export function resourceProvider<T, TDeps extends readonly InjectionToken[]>(
     ) => T | Promise<T>;
     /** Освобождение захваченного значения */
     readonly release: (value: T) => void | Promise<void>;
+    /**
+     * Проверка состояния захваченного значения. Объявившего её ресурса
+     * сборка приложения делает вкладом в пробы.
+     */
+    readonly health?: (value: T, signal: AbortSignal) => Promise<HealthStatus>;
   },
 ): ResourceProviderWithDeps<T, TDeps> {
   return {
@@ -374,6 +428,7 @@ export function resourceProvider<T, TDeps extends readonly InjectionToken[]>(
     deps: definition.deps,
     acquire: definition.acquire,
     release: definition.release,
+    ...(definition.health === undefined ? {} : { health: definition.health }),
   };
 }
 

@@ -453,6 +453,49 @@ class DatabaseService {
 сигнал, переданный в `acquire`, и роняет старт исходной ошибкой; ошибки
 `release` прикладываются к ней и причину не подменяют.
 
+#### `health`: проверка состояния ресурса
+
+Ресурс может объявить проверку своего состояния — методом `health(signal)`
+у класса-ресурса или одноимённым полем у `resourceProvider`:
+
+```typescript
+@Resource([])
+class DatabaseService {
+  static async acquire(signal: AbortSignal): Promise<DatabaseService> { … }
+
+  async release(): Promise<void> { … }
+
+  async health(signal: AbortSignal): Promise<'ok' | 'degraded' | 'down'> {
+    await this.pool.query('SELECT 1', { signal });
+    return 'ok';
+  }
+}
+
+// или функциональной формой
+resourceProvider(Pool$, {
+  deps: [DbConfig],
+  acquire: (cfg, signal) => createPool(cfg.url, { signal }),
+  release: (pool) => pool.end(),
+  health: async (pool, signal) => (await pool.ping({ signal })) ? 'ok' : 'down',
+});
+```
+
+Метод прототипа переносится в поле определения провайдера тем же приёмом,
+каким переносится `release`, поэтому обе формы дальше неразличимы.
+
+Сам контейнер проверок не запускает и о пробах не знает: он только
+перечисляет такие провайдеры читающим методом билдера.
+
+```typescript
+for (const { token, id, health } of builder.healthResources()) {
+  // id — идентификатор DI-токена, то же имя, под которым узел виден в графе
+}
+```
+
+Смысл исходам задаёт тот, кто их собирает: в приложении Nestling это узел
+`Health$` из [`@nestling/app`](../nestling.app), который заводит по вкладу
+на каждый такой ресурс.
+
 Единственный хук — `@OnStart`. В нём запускают то, чему нужен полностью
 собранный граф: планировщики, потребители очередей, подписки. Аргументом
 приходит сигнал остановки — тот же, что получают транспорты, поэтому
@@ -613,22 +656,22 @@ class UserRepository {
 DI-токеном члена, зарегистрированный там, где ему место:
 
 ```typescript
-const IHealthCheck = makeTokenFamily<HealthCheck, [name: string]>('HealthCheck');
+const ICounter = makeTokenFamily<Counter, [name: string]>('Counter');
 
-// database.module.ts
-providers: [classProvider(IHealthCheck('database'), DatabaseHealthCheck)],
+// users.module.ts
+providers: [classProvider(ICounter('users'), UsersCounter)],
 
-// api.module.ts — другой модуль, первый не меняется
-providers: [classProvider(IHealthCheck('api'), ApiHealthCheck)],
+// queries.module.ts — другой модуль, первый не меняется
+providers: [classProvider(ICounter('queries'), QueriesCounter)],
 ```
 
-Агрегатор зависит от маркера `IHealthCheck.all` с типом
-`Token<readonly HealthCheck[]>`:
+Агрегатор зависит от маркера `ICounter.all` с типом
+`Token<readonly Counter[]>`:
 
 ```typescript
-@Component([IHealthCheck.all])
-class HealthService {
-  constructor(private checks: readonly HealthCheck[]) {}
+@Component([ICounter.all])
+class Metrics {
+  constructor(private counters: readonly Counter[]) {}
 }
 ```
 
@@ -646,10 +689,10 @@ class HealthService {
   `familyProvider` не обязателен: семейство из одних явных вкладов
   агрегируется так же.
 - `.all` не создаёт членов сам. Член, созданный вызовом
-  `IHealthCheck('orphan')`, но нигде не зарегистрированный и никому не
+  `ICounter('orphan')`, но нигде не зарегистрированный и никому не
   нужный, в массив не попадает.
 - Если от `.all` никто не зависит, узел не создаётся:
-  `container.get(IHealthCheck.all)` возвращает `null`.
+  `container.get(ICounter.all)` возвращает `null`.
 - Пустое семейство — пустой массив, а не ошибка: «фича не выбрана, её
   вкладов нет» — нормальное состояние.
 - Порядок — порядок регистрации: модули и провайдеры в том порядке, в каком
@@ -662,8 +705,8 @@ class HealthService {
   ограничены: вклад чужого модуля попадает в массив без дополнительных
   объявлений.
 - DI-токен `.all` — выделенное значение, а не член с зарезервированным
-  параметром: `IHealthCheck('all')` — обычный член и с агрегатом не
-  сталкивается. Провайдер с `provide: IHealthCheck.all` — ошибка
+  параметром: `ICounter('all')` — обычный член и с агрегатом не
+  сталкивается. Провайдер с `provide: ICounter.all` — ошибка
   регистрации: этот узел создаёт сборка.
 
 #### Жизненный цикл членов
@@ -905,7 +948,7 @@ main().catch(console.error);
 | `classProvider(token, Class)` | класс с ролью компонента или ресурса под DI-токеном интерфейса |
 | `valueProvider(token, value)` | готовое значение |
 | `factoryProvider(token, factory, deps)` | значение из фабрики, которая получает `deps` |
-| `resourceProvider(token, { deps, acquire, release })` | ресурс: `acquire` получает `deps` и сигнал последним аргументом, `release` — захваченное значение |
+| `resourceProvider(token, { deps, acquire, release, health? })` | ресурс: `acquire` получает `deps` и сигнал последним аргументом, `release` — захваченное значение, `health` — его и сигнал |
 | `familyProvider(family, recipe)` | рецепт семейства: `(param) => ProviderDefinition<T>`, вызывается при сборке по одному разу на каждого запрошенного члена |
 | `dependenciesOf(provider)` | DI-токены, которые провайдер запрашивает: `deps` определения или метаданные декоратора роли. Читает значение, ничего не вызывая — рецепт семейства зависимостей не отдаёт |
 
@@ -915,6 +958,8 @@ main().catch(console.error);
 |---|---|
 | `new ContainerBuilder(options?)` | билдер; опции `overrides`, `familyOverrides`, `switches` |
 | `.register(...items)` | регистрирует провайдеры, рецепты семейств и модули |
+| `.healthResources()` | читающий: провайдеры-ресурсы с `health` — `{ token, id, health }` в порядке регистрации |
+| `.familyMembers(family)` | читающий: DI-токены зарегистрированных членов семейства в порядке регистрации |
 | `.build()` | синхронно: строит и проверяет граф, не создавая экземпляров; возвращает `BuiltContainer` |
 | `container.get(token)` | экземпляр или `null`, если DI-токен не зарегистрирован; до `init()` бросает ошибку фазы |
 | `container.getOrThrow(token)` | экземпляр; бросает ошибку, если DI-токен не зарегистрирован или `init()` не завершён |
