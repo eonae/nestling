@@ -110,10 +110,15 @@ satellite.
 Для формы `output` вида `value` транспорт SHALL отправлять заголовки одним
 `writeHead(status, headers)` и SHALL ставить `content-type:
 application/json` и `content-length` по длине сериализованного тела.
-Заголовки `Ok` SHALL входить в тот же объект; имя заголовка `Ok` SHALL
-приводиться к нижнему регистру до слияния, поэтому заголовок хендлера
-перекрывает заголовок формы независимо от регистра имени. Пустой ответ
+Заголовки `HttpResponse` SHALL входить в тот же объект; имя заголовка
+SHALL приводиться к нижнему регистру до слияния, поэтому заголовок
+хендлера перекрывает заголовок формы независимо от регистра имени.
+Каждая cookie из `HttpResponse` SHALL добавляться отдельным заголовком
+`Set-Cookie` и SHALL NOT перекрывать предыдущую. Пустой ответ
 (`value === null`) SHALL уходить без тела и без `content-type`.
+
+При потоковой форме `output` заголовки `HttpResponse` SHALL записываться
+до первого кадра ответа.
 
 #### Scenario: JSON-ответ несёт content-length
 
@@ -123,9 +128,15 @@ application/json` и `content-length` по длине сериализованн
 
 #### Scenario: Заголовок хендлера перекрывает заголовок формы в любом регистре
 
-- **WHEN** хендлер вернул `Ok.created(value, { 'Content-Type': 'text/plain' })`
+- **WHEN** хендлер вернул `HttpResponse.of(value, { headers: { 'Content-Type': 'text/plain' } })`
 - **THEN** ответ содержит один заголовок `content-type` со значением
   `text/plain`
+
+#### Scenario: Заголовки потока уходят до первого кадра
+
+- **WHEN** хендлер формы `events` вернул `HttpResponse.of(stream, { headers: { 'x-feed': 'live' } })`
+- **THEN** заголовок `x-feed` присутствует в ответе до первого
+  SSE-кадра
 
 ### Requirement: `raw.pattern` несёт путь запроса как прислан клиентом
 
