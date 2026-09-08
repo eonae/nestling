@@ -62,6 +62,24 @@ export interface TestCallOptions extends DispatchOptions {
    * сети, а не дефект.
    */
   attributes?: Record<string, unknown>;
+
+  /**
+   * Стартовый контекст запроса: то, что транспорт кладёт в контекст до
+   * первого `.pre`-юнита.
+   *
+   * `testApp.call` собирает контекст сам и стартовых полей не заполняет,
+   * поэтому юнит и хендлер, читающие их, получают значения отсюда. Поле
+   * общее для всех транспортов: пакет не зависит от пакета транспорта и
+   * его типов не называет.
+   *
+   * @example
+   * ```typescript
+   * await app.call('POST /login', body, {
+   *   input: { http: { method: 'POST', url: '/login', headers: {} } },
+   * });
+   * ```
+   */
+  input?: AnyInput;
 }
 
 /**
@@ -363,6 +381,7 @@ export class TestApp {
       raw,
       meta,
       this.#wired.signal,
+      options.input,
     ) as ExtendableContext<AnyInput>;
 
     return await wired.dispatch.call(executable.pattern, ctx, {

@@ -23,7 +23,7 @@
       приходили одним импортом
 - [x] 2.4 `@nestling/app`: параметр `PR` и `ValidateStart<PR, EmptyInput>`
       в слоте `pipeline` у `implement`; литерал ошибки в форме соседей
-- [ ] 2.5 Type-tests: `implements Handler<typeof Op>` ловит расхождение с
+- [x] 2.5 Type-tests: `implements Handler<typeof Op>` ловит расхождение с
       операцией; HTTP-пайплайн не проходит в `implement`
 
 ## 3. HTTP: запрос в стартовом контексте
@@ -37,7 +37,7 @@
       `meta` как `P & { http: HttpRequest }`; форма с `operation:`
       остаётся без пересечения
 - [x] 3.4 `HttpHandlerMeta` и `HttpHandler<C>`
-- [ ] 3.5 Type-tests: HTTP-класс не проходит в форму с `operation:` и в
+- [x] 3.5 Type-tests: HTTP-класс не проходит в форму с `operation:` и в
       `implement`; нейтральный класс проходит в обе формы
 
 ## 4. HTTP: форма ответа
@@ -56,28 +56,28 @@
       текст называет endpoint и поле
 - [x] 4.7 Ответ `internal_error` на метаданные чужого транспорта; текст
       называет endpoint и оба имени
-- [ ] 4.8 Спеки транспорта: cookie двумя заголовками, редирект со
+- [x] 4.8 Спеки транспорта: cookie двумя заголовками, редирект со
       статусом и `Location`, статус вызова перекрывает объявленный
 
 ## 5. HTTP: юниты транспорта
 
 - [x] 5.1 `src/units.ts`: `withHeader(name)`, `withClientIp()`,
       `httpAccessLog(logger)`; экспорт из `index.ts`
-- [ ] 5.2 Спеки юнитов: поле под именем заголовка, `clientIp` из адреса
+- [x] 5.2 Спеки юнитов: поле под именем заголовка, `clientIp` из адреса
       сокета, строка доступа со счётчиками байтов
-- [ ] 5.3 Type-tests: юнит транспорта не растит `TNeeds`; пайплайн с ним
+- [x] 5.3 Type-tests: юнит транспорта не растит `TNeeds`; пайплайн с ним
       не проходит в `implement`
 
 ## 6. Соседние пакеты
 
-- [ ] 6.1 `@nestling/openapi`: ответ 3xx с `Location` по полю `redirect`,
+- [x] 6.1 `@nestling/openapi`: ответ 3xx с `Location` по полю `redirect`,
       успешный ответ по `doc.status` в этом случае не добавляется
 - [x] 6.2 `@nestling/transport.nats`: убрать чтение `response.headers`
 - [x] 6.3 `@nestling/transport.cli`: убрать чтение `response.headers`,
       если оно есть
-- [ ] 6.4 `@nestling/testing`: поле `input` в `TestCallOptions`, передача
+- [x] 6.4 `@nestling/testing`: поле `input` в `TestCallOptions`, передача
       в `makeEmptyContext`
-- [ ] 6.5 Спека OpenAPI и спека тестового вызова
+- [x] 6.5 Спека OpenAPI и спека тестового вызова
 
 ## 7. Примеры и замер
 

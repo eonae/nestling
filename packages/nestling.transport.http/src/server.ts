@@ -330,7 +330,9 @@ export class HttpServer implements IListener {
  * транспортом не платит за возможность иметь второй. Ни одного — сервер
  * отвечает `404` на всё.
  */
-function chainOf(handlers: readonly HttpRequestListener[]): HttpRequestListener {
+function chainOf(
+  handlers: readonly HttpRequestListener[],
+): HttpRequestListener {
   if (handlers.length === 0) {
     return async () => false;
   }

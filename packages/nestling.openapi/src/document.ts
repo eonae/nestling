@@ -226,6 +226,7 @@ function operationOf(
       errors: endpoint.errors,
       doc,
       hasInputSchema: describeForm(endpoint.input).leaf !== undefined,
+      ...(binding.redirect === undefined ? {} : { redirect: binding.redirect }),
     },
     context,
   );

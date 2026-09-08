@@ -52,12 +52,9 @@ import type {
  * байты тела, `output: events(...)` — заголовок реконнекта
  * `Last-Event-ID`.
  */
-export type StartContext<
-  RB extends boolean | undefined,
-  O = unknown,
-> = { http: HttpRequest } & (RB extends true
-  ? { rawBody: Uint8Array }
-  : EmptyInput) &
+export type StartContext<RB extends boolean | undefined, O = unknown> = {
+  http: HttpRequest;
+} & (RB extends true ? { rawBody: Uint8Array } : EmptyInput) &
   (O extends StreamForm<any, any, 'events'>
     ? { lastEventId?: string }
     : EmptyInput);

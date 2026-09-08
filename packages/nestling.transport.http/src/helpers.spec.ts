@@ -14,6 +14,7 @@ import {
   isEndpointDefinition,
   makePipeline,
   Ok,
+  stream,
   transportNameOf,
 } from '@nestling/app';
 import { z } from 'zod';
@@ -313,6 +314,31 @@ describe('httpEndpoint — типы bind и rawBody', () => {
         handler: handle,
       }),
     ).toThrow(/'detached' must state a reason/);
+  });
+
+  it('редирект и поток вместе не объявляются', () => {
+    expect(() =>
+      httpEndpoint({
+        method: 'GET',
+        path: '/go',
+        redirect: 302,
+        output: stream(z.object({ id: z.string() })),
+        handler: async function* () {
+          yield { id: '1' };
+        } as never,
+      }),
+    ).toThrow(/'redirect' is not compatible with a stream\(\.{3}\) output/);
+  });
+
+  it('объявленный редирект хранится на bind-карте', () => {
+    const Go = httpEndpoint({
+      method: 'GET',
+      path: '/go',
+      redirect: 303,
+      handler: handle,
+    });
+
+    expect(httpBindingOf(Go).redirect).toBe(303);
   });
 
   it('непрозрачный input деградирует до отсутствия подсказок, а не до ошибки', () => {

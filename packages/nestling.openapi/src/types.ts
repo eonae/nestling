@@ -57,9 +57,19 @@ export interface OpenApiRequestBody {
   readonly content: OpenApiContent;
 }
 
+/** Заголовок ответа: описание и схема значения */
+export interface OpenApiHeader {
+  readonly description?: string;
+  readonly schema: JsonValue;
+}
+
 /** Один ответ операции */
 export interface OpenApiResponse {
   readonly description: string;
+
+  /** Заголовки ответа; сейчас это `Location` у редиректа */
+  readonly headers?: Readonly<Record<string, OpenApiHeader>>;
+
   readonly content?: OpenApiContent;
 }
 

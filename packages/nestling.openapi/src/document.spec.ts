@@ -25,7 +25,7 @@ import { zodConverter } from '@nestling/openapi.zod';
 import type { StandardSchemaV1 } from '@nestling/operations';
 import { makeRequest, query } from '@nestling/operations';
 import { cliEndpoint } from '@nestling/transport.cli';
-import { httpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint, HttpResponse } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const info = { title: 'Test API', version: '1.0.0' };
@@ -397,6 +397,39 @@ describe('responses покрывают все ответы границы', () =
       },
       required: ['error', 'code'],
     });
+  });
+
+  it('объявленный редирект становится ответом 3xx с Location', () => {
+    const Login = httpEndpoint({
+      method: 'POST',
+      path: '/login',
+      input: z.object({ email: z.string() }),
+      redirect: 303,
+      handler: async () => HttpResponse.redirect('/app'),
+    });
+
+    const responses = documentOf([Login]).paths['/login'].post.responses;
+
+    // Редирект и есть успешный исход: ответа по `doc.status` в операции нет
+    expect(Object.keys(responses).sort()).toEqual(['303', '400', 'default']);
+    expect(responses['303'].content).toBeUndefined();
+    expect(responses['303'].headers?.Location.schema).toEqual({
+      type: 'string',
+    });
+  });
+
+  it('endpoint без редиректа сохраняет состав ответов', () => {
+    const Get = httpEndpoint({
+      method: 'GET',
+      path: '/users/:id',
+      input: z.object({ id: z.string() }),
+      output: User,
+      handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
+    });
+
+    expect(
+      Object.keys(documentOf([Get]).paths['/users/{id}'].get.responses).sort(),
+    ).toEqual(['200', '400', 'default']);
   });
 
   it('отказ слоя становится ответом без errors: у декларации', () => {

@@ -39,6 +39,7 @@ import {
   Timeout,
   upload,
 } from '@nestling/app';
+import { TRANSPORT_RESPONSE } from '@nestling/operations';
 import { z } from 'zod';
 
 /** Серверы тестовых транспортов: сокет держит сервер, а не транспорт */
@@ -1531,6 +1532,125 @@ describe('HttpTransport — ответ формы value и raw.pattern', () => {
     expect(status).toBe(201);
     expect(headers.get('content-type')).toEqual(['text/plain']);
     expect(headers.get('location')).toEqual(['/plain/1']);
+
+    await shutdown(transport);
+  });
+
+  it('две cookie уходят двумя заголовками Set-Cookie', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/session',
+        output: z.object({ ok: z.boolean() }),
+        handler: () =>
+          HttpResponse.of(new Ok({ ok: true }), {
+            cookies: [
+              { name: 'sid', value: 'abc', httpOnly: true, sameSite: 'lax' },
+              { name: 'locale', value: 'ru', path: '/', maxAge: 60 },
+            ],
+          }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, headers } = await rawGet(baseUrl, '/session');
+
+    expect(status).toBe(200);
+    expect(headers.get('set-cookie')).toEqual([
+      'sid=abc; HttpOnly; SameSite=Lax',
+      'locale=ru; Max-Age=60; Path=/',
+    ]);
+
+    await shutdown(transport);
+  });
+
+  it('редирект отвечает объявленным статусом и заголовком Location', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/go',
+        redirect: 303,
+        handler: () => HttpResponse.redirect('/app'),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, headers, body } = await rawGet(baseUrl, '/go');
+
+    expect(status).toBe(303);
+    expect(headers.get('location')).toEqual(['/app']);
+    expect(body).toBe('');
+
+    await shutdown(transport);
+  });
+
+  it('статус вызова перекрывает объявленный', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/go-307',
+        redirect: 303,
+        handler: () => HttpResponse.redirect('/app', { status: 307 }),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const response = await rawGet(baseUrl, '/go-307');
+
+    expect(response.status).toBe(307);
+
+    await shutdown(transport);
+  });
+
+  it('редирект без объявленного redirect — internal_error', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/undeclared',
+        handler: () => HttpResponse.redirect('/app'),
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, body } = await rawGet(baseUrl, '/undeclared');
+
+    expect(status).toBe(500);
+    expect(JSON.parse(body)).toMatchObject({ code: 'internal_error' });
+    expect(JSON.parse(body).error).toContain('GET /undeclared');
+    expect(JSON.parse(body).error).toContain("'redirect'");
+
+    await shutdown(transport);
+  });
+
+  it('метаданные чужого транспорта — internal_error с обоими именами', async () => {
+    const transport = makeTransport();
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/foreign',
+        // Форму чужого транспорта типы отвергают; здесь проверяется
+        // рантайм-граница, до которой значение может дойти из JS-кода
+        handler: (() => ({
+          [TRANSPORT_RESPONSE]: true,
+          transport: 'cli',
+          meta: {},
+          result: new Ok({ ok: true }),
+        })) as never,
+      }),
+    );
+    const baseUrl = await listen(transport);
+
+    const { status, body } = await rawGet(baseUrl, '/foreign');
+
+    expect(status).toBe(500);
+    expect(JSON.parse(body)).toMatchObject({ code: 'internal_error' });
+    expect(JSON.parse(body).error).toContain('GET /foreign');
+    expect(JSON.parse(body).error).toContain("'http'");
+    expect(JSON.parse(body).error).toContain("'cli'");
 
     await shutdown(transport);
   });

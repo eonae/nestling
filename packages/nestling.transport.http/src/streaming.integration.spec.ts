@@ -9,6 +9,7 @@
 import { request } from 'node:http';
 
 import { httpEndpoint } from './helpers.js';
+import { HttpResponse } from './response.js';
 import { HttpServer } from './server.js';
 import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
@@ -341,6 +342,22 @@ describe('framing по форме output', () => {
     routesOf(transport).push(
       httpEndpoint({
         method: 'GET',
+        path: '/feed',
+        output: events(Event),
+        pipeline: makePipeline(),
+        handler: async () =>
+          HttpResponse.of(
+            (async function* (): AsyncIterableIterator<Event> {
+              yield { id: '9', kind: 'created' };
+            })(),
+            { headers: { 'x-feed': 'live' } },
+          ),
+      }),
+    );
+
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
         path: '/live',
         output: events(Event),
         sse: { id: (item) => item.id, event: (item) => item.kind },
@@ -380,6 +397,16 @@ describe('framing по форме output', () => {
     await until(() => outcomes.length > 0);
 
     expect(outcomes).toEqual(['rows:completed']);
+  });
+
+  it('заголовки потока уходят до первого кадра', async () => {
+    const response = await get(baseUrl, '/feed');
+
+    // Заголовок в ответе есть, и кадр за ним: поставленный после первого
+    // write он стоил бы ERR_HTTP_HEADERS_SENT
+    expect(response.headers['x-feed']).toBe('live');
+    expect(response.headers['content-type']).toBe('text/event-stream');
+    expect(response.body).toContain('data: {"id":"9","kind":"created"}');
   });
 
   it('events отдаётся SSE с id и именем события', async () => {

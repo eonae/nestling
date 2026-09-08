@@ -17,7 +17,11 @@ import { convertLeaf } from './schema.js';
 import type { JsonValue, OpenApiResponse } from './types.js';
 
 import { describeForm, mediaTypeOf } from '@nestling/app';
-import type { AnyFailDefinition, DeclarationDoc } from '@nestling/operations';
+import type {
+  AnyFailDefinition,
+  DeclarationDoc,
+  RedirectStatus,
+} from '@nestling/operations';
 import { BadRequest, InternalError } from '@nestling/operations';
 import { httpCodeOf } from '@nestling/transport.http';
 
@@ -29,6 +33,12 @@ export interface ResponsesInput {
 
   /** Объявлена ли у endpoint'а схема входа: от неё зависит автоматический 400 */
   readonly hasInputSchema: boolean;
+
+  /**
+   * Объявленный статус редиректа (поле `redirect` декларации). Есть —
+   * успешный ответ и есть редирект.
+   */
+  readonly redirect?: RedirectStatus;
 }
 
 /** Ответы операции по кодам ответа плюс `default` */
@@ -96,11 +106,31 @@ const sameCode =
  * Код — из `doc.status`; по умолчанию `ok`, а у endpoint'а без `output` —
  * `no_content`. Перевод статуса в код делает та же таблица, что и в бою
  * (`httpCodeOf` транспорта): второй копии таблицы у генератора нет.
+ *
+ * Объявленный редирект и есть успешный исход: ответ несёт заголовок
+ * `Location` и не несёт тела, а ответа по `doc.status` в операции нет.
+ * Значение берётся с декларации: типы результата хендлера генератор не
+ * видит.
  */
 function planSuccess(
   input: ResponsesInput,
   context: ConvertContext,
 ): [string, OpenApiResponse] {
+  if (input.redirect !== undefined) {
+    return [
+      String(input.redirect),
+      {
+        description: 'Redirect',
+        headers: {
+          Location: {
+            description: 'Where the client is redirected to',
+            schema: { type: 'string' },
+          },
+        },
+      },
+    ];
+  }
+
   const form = describeForm(input.output);
   const hasOutput = form.leaf !== undefined;
 

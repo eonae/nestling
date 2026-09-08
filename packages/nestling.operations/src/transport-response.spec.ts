@@ -1,6 +1,9 @@
 import { Ok } from './result.js';
 import type { TransportResponse } from './transport-response.js';
-import { isTransportResponse, TRANSPORT_RESPONSE } from './transport-response.js';
+import {
+  isTransportResponse,
+  TRANSPORT_RESPONSE,
+} from './transport-response.js';
 
 /** Конверт транспорта: так его собирает пакет транспорта */
 const envelope: TransportResponse<{ id: number }> = {
@@ -26,6 +29,6 @@ describe('TransportResponse — конверт транспортного отв
     expect(isTransportResponse(Ok.created({ id: 1 }))).toBe(false);
     expect(isTransportResponse({ id: 1 })).toBe(false);
     expect(isTransportResponse(null)).toBe(false);
-    expect(isTransportResponse(undefined)).toBe(false);
+    expect(isTransportResponse('http')).toBe(false);
   });
 });

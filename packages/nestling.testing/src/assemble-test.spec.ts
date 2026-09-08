@@ -410,6 +410,32 @@ describe('app.call — полный пайплайн in-proc', () => {
     ).toMatchObject({ attributes: { trace: 'x' } });
   });
 
+  it('кладёт стартовый контекст вызова в meta хендлера', async () => {
+    const Start = httpEndpoint({
+      method: 'POST',
+      path: '/start',
+      output: z.object({ method: z.string(), url: z.string() }),
+      handler: async (_payload, meta) => new Ok(meta.http),
+    });
+
+    await using app = await assembleTest(
+      makeApp({
+        features: [makeFeature({ name: 'start', endpoints: [Start] })],
+        transports: [asHttpTransport(new SpyTransport())],
+      }),
+    );
+
+    // Поле общее для всех транспортов: `@nestling/testing` не знает типов
+    // HTTP-пакета и называть их не может
+    expect(
+      unwrap(
+        await app.call(Start, undefined, {
+          input: { http: { method: 'POST', url: '/start', headers: {} } },
+        }),
+      ),
+    ).toEqual({ method: 'POST', url: '/start', headers: {} });
+  });
+
   it("перечисляет доступные endpoint'ы, если декларации в приложении нет", async () => {
     const Invoices = httpEndpoint({
       method: 'GET',

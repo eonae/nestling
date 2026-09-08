@@ -19,11 +19,12 @@ import type { FinallyUnitFn, Logger, PreUnitFn } from '@nestling/app';
  */
 export function withHeader<const Name extends string>(
   name: Name,
-): PreUnitFn<HttpStartContext, { [K in Name]: string | undefined }> {
+): PreUnitFn<HttpStartContext, Record<Name, string | undefined>> {
   return (ctx) =>
-    ({ [name]: ctx.input.http.headers[name] }) as {
-      [K in Name]: string | undefined;
-    };
+    ({ [name]: ctx.input.http.headers[name] }) as Record<
+      Name,
+      string | undefined
+    >;
 }
 
 /**
@@ -54,9 +55,7 @@ export function withClientIp(): PreUnitFn<
  * const pipeline = makePipeline<HttpStartContext>().finally(httpAccessLog(logger));
  * ```
  */
-export function httpAccessLog(
-  logger: Logger,
-): FinallyUnitFn<HttpStartContext> {
+export function httpAccessLog(logger: Logger): FinallyUnitFn<HttpStartContext> {
   return (outcome, response, ctx) => {
     const { http } = ctx.input;
 
