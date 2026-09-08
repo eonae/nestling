@@ -10,6 +10,7 @@ export * from './response.js';
 export * from './units.js';
 export * from './binding.js';
 export * from './errors.js';
+export * from './probes.js';
 
 /**
  * Из конфиг-секции наружу уходит только дескриптор ключей: право

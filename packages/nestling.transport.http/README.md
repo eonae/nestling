@@ -15,7 +15,8 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 > Гайды: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
 > [глава 6. Хендлеру нужен репозиторий](../../docs/guide/06-repository.md),
 > [глава 10. Пускать только своих](../../docs/guide/10-auth.md),
-> [глава 13. Выделить вторую область](../../docs/guide/13-features.md).
+> [глава 13. Выделить вторую область](../../docs/guide/13-features.md),
+> [глава 24. Кто сейчас подключён и как его отключить](../../docs/guide/24-ops.md).
 
 ## Установка
 
@@ -377,6 +378,50 @@ await makeApp({
 `address()` сервера возвращает фактический адрес после `listen()` и
 `null` до него и после дренажа. Это нужно тестам с `HTTP_PORT=0`.
 
+## Пробы: `httpProbes(options?)`
+
+```typescript
+import { http, httpProbes } from '@nestling/transport.http';
+
+export const app = makeApp({
+  features: [UsersFeature],
+  plugins: [httpProbes()],
+  transports: [http()],
+});
+```
+
+```bash
+curl localhost:3000/healthz
+# {"status":"ok"}                                                    200
+
+curl -i localhost:3000/readyz
+# {"status":"ready","phase":"RUN","checks":[{"name":"db",…}]}         200
+# {"code":"service_unavailable:not_ready","details":{…}}             503
+```
+
+| Опция | Умолчание | Что задаёт |
+|---|---|---|
+| `liveness` | `/healthz` | путь пробы живости |
+| `readiness` | `/readyz` | путь пробы готовности |
+| `on` | `'default'` | имя экземпляра транспорта, который их обслуживает |
+
+`GET /healthz` отвечает 200, пока процесс отвечает вообще: проверок он не
+запускает. `GET /readyz` при итоге `ready` отвечает 200 и телом отчёта, а
+при `not_ready` — отказом `NotReady`, который транспорт переводит в 503;
+`details` отказа несёт тот же отчёт. Отказ объявлен в `errors:`
+декларации, поэтому `details` уходит клиенту независимо от
+`exposeErrorDetails`.
+
+Обе декларации объявлены без пайплайна, с `detached` и `doc.hidden`:
+политика сборки, требующая слоя на каждом HTTP-endpoint'е, пробы не
+роняет, а причина печатается на старте и попадает в отчёт `check()`.
+Провайдеров плагин не объявляет: узел `Health$` уже в графе у любого
+приложения.
+
+Вклады в отчёт объявляет приложение — провайдером члена `HealthCheck$` или
+методом `health` у ресурса; см. раздел «Пробы» в
+[`@nestling/app`](../nestling.app).
+
 ## Безопасность и лимиты
 
 По умолчанию транспорт можно открывать наружу.
@@ -454,6 +499,8 @@ await makeApp({
 | `query(options?)`, `body()` | пометки размещения полей (реэкспорт из `@nestling/operations`) |
 | `httpBindingOf(definition)` | bind-карта декларации |
 | `httpCodeOf(status)` | HTTP-код для статуса успеха или категории отказа |
+| `httpProbes(options?)` | плагин проб: `GET /healthz` и `GET /readyz` поверх узла ядра `Health$` |
+| `NotReady`, `HttpProbesOptions` | отказ `service_unavailable:not_ready` и опции плагина |
 | `httpServerKeys(name?)` | ключи секции сервера: `HTTP_PORT`, `HTTP_HOST` |
 | `HTTP_CAPABILITIES` | формы io транспорта; их же отдаёт `HttpTransport.capabilities` |
 | `PathParams<Path>` | тип имён `:param` из шаблона пути |
@@ -506,6 +553,11 @@ new HttpServer({
   `close()` транспорта отменяет запросы в обработке.
 - **Адрес из секции конфига.** Порт и хост приходят из `HTTP_PORT` и
   `HTTP_HOST`; фактический адрес после старта даёт `address()` сервера.
+- **Пробы тонким слоем.** `httpProbes()` отдаёт состояние приложения двумя
+  endpoint'ами поверх узла ядра `Health$`. Правило «когда приложение
+  готово», таймаут и кэш проверок принадлежат ядру
+  ([`@nestling/app`](../nestling.app), раздел «Пробы»), пакету — только
+  адреса и коды ответа.
 
 В пакет не входят:
 
