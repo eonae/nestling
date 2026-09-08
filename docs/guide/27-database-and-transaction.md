@@ -1,6 +1,6 @@
 # 27. База данных и транзакция
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/operations.md](../design/operations.md),
 > раздел «Транзакционный emit». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-09-07] Транзакционный outbox:
@@ -187,7 +187,7 @@ export class CreateUserHandler {
       email: user.email,
     });
 
-    return Ok.created(user, { Location: `/users/${user.id}` });
+    return Ok.created(user);
   }
 }
 ```

@@ -1,6 +1,6 @@
 # 10. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
@@ -294,6 +294,93 @@ export default [
 Правило синтаксическое и видит только текст декларации, поэтому его
 уровень `warn`. Гарантию даёт политика на собранном графе.
 
+## HTTP-форма хендлера: cookie и редирект
+
+Вход выдаёт сессию: ответ ставит cookie и уводит браузер на приложение.
+Ни того, ни другого `Ok` не выражает — заголовки и статус 3xx принадлежат
+HTTP. Их задаёт форма ответа своего транспорта:
+
+```typescript
+// examples/app-with-http/src/features/users/endpoints/login.endpoint.ts
+@Handler([UsersRepository$])
+export class LoginHandler {
+  constructor(private readonly users: UsersRepository) {}
+
+  async handle(
+    input: { email: string },
+    meta: HttpHandlerMeta,
+  ): HttpOutput<never, typeof UserNotFound> {
+    const user = await this.users.byEmail(input.email);
+    if (!user) {
+      return UserNotFound({ id: input.email });
+    }
+
+    const secure = meta.http.headers['x-forwarded-proto'] === 'https';
+
+    return HttpResponse.redirect('/app', {
+      cookies: [
+        { name: 'sid', value: user.id, path: '/', httpOnly: true, secure },
+      ],
+    });
+  }
+}
+
+export const Login = httpEndpoint({
+  method: 'POST',
+  path: '/login',
+  input: Credentials,
+  redirect: 303,
+  errors: [UserNotFound],
+  detached: 'вход выдаёт сессию, поэтому Bearer-токена у него ещё нет',
+  pipeline: observability,
+  handler: LoginHandler,
+});
+```
+
+`meta.http` — запрос: метод, url, заголовки и адрес сокета.
+`HttpResponse.of(ok, { headers, cookies })` даёт обычный ответ с
+заголовками, `HttpResponse.redirect(location, { status, cookies })` —
+редирект. Каждая cookie уходит отдельным заголовком `Set-Cookie`.
+
+Редирект объявляется декларацией полем `redirect`. По нему документ
+OpenAPI показывает ответ 3xx с заголовком `Location`, а транспорт берёт
+статус, если вызов свой не задал. Хендлер, вернувший редирект у
+декларации без этого поля, получает `internal_error`: документ разошёлся
+бы с поведением.
+
+HTTP-форма допустима только там, где адрес объявлен транспортом, — в
+анонимном `httpEndpoint`. В `implement` и в форму `httpEndpoint({
+operation })` такой класс не проходит по типам: реализация операции
+обязана оставаться переносимой на шину. Хендлер без `meta.http` и без
+`HttpResponse` годится всюду.
+
+Класс-хендлер объявляет интерфейс: `implements Handler<typeof Op>` берёт
+типы входа, результата и отказов с операции, `implements HttpHandler<typeof
+Op>` — то же с `meta.http` и `HttpOutput`. Оба имени приходят одним
+импортом с декоратором роли.
+
+## Юниты транспорта
+
+Юниту, которому нужен запрос, транспорт даёт стартовый контекст
+`HttpStartContext`:
+
+```typescript
+const httpBase = makePipeline<HttpStartContext>()
+  .pre(withHeader('x-tenant'))
+  .pre(withClientIp())
+  .finally(httpAccessLog(logger));
+```
+
+`withHeader(name)` кладёт значение заголовка в контекст под тем же именем;
+переименования нет. `withClientIp()` кладёт адрес сокета в поле
+`clientIp` — за прокси это адрес прокси, и разбор `X-Forwarded-For` пишет
+приложение. `httpAccessLog(logger)` пишет строку доступа с методом,
+путём, статусом, исходом и счётчиками байтов.
+
+Такой пайплайн допустим в HTTP-декларации и не компилируется в
+`implement`: слот называет недостающие поля литералом ошибки. Транспорт
+юниты не приставляет — слой всегда виден в декларации.
+
 ## Проверка
 
 ```typescript
@@ -349,7 +436,7 @@ curl -X POST http://localhost:3000/users \
 curl -X POST http://localhost:3000/users \
   -H 'authorization: Bearer secret' -H 'content-type: application/json' \
   -d '{"name":"Carol","email":"carol@example.com"}'
-# 201, Location: /users/3
+# 201
 ```
 
 Файлы, выгрузки и импорт, которые не помещаются в память:

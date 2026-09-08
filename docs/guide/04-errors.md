@@ -1,11 +1,13 @@
 # 4. Сказать клиенту, что пошло не так
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/errors.md](../design/errors.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-10] Модель ошибок:
 > Fail — значение, code-идентичность, `makeFail`, ошибки в контракте»,
 > «[2026-09-03] Код отказа: категория и уточнение; `makeFail`» и
-> «[2026-09-03] Заголовки `Ok` не зависят от транспорта».
+> «[2026-09-06] HTTP-хендлер явной формой: `Handler<Op>`,
+> `HttpHandler<Op>`, `HttpResponse`; `Ok` без заголовков; юниты
+> транспорта».
 
 `GET /users/:id` должен отвечать `404`, если пользователя нет, а
 `POST /users` должен отвечать `409`, если email занят. Клиент должен
@@ -109,7 +111,7 @@ async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
 У endpoint'а без `output` значения нет, и хендлер компилируется без
 `return`.
 
-## Успех со статусом и заголовками
+## Успех со статусом
 
 ```typescript
 // шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.ts
@@ -120,20 +122,26 @@ async function handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
 
   const user = await users.insert(input);
 
-  // Статус `created` и заголовок — метаданные ответа
-  return Ok.created(user, { Location: `/users/${user.id}` });
+  // Статус `created` — часть результата обработки, а не транспорта
+  return Ok.created(user);
 }
 ```
 
 Голое значение из хендлера превращается в `Ok` со статусом `ok`. Когда
-нужен другой статус или заголовки, хендлер возвращает `Ok` явно:
-`Ok.created(value, headers)` отвечает `201`, `Ok.accepted(value)`
-отвечает `202`, `new Ok(value, headers)` отвечает `200` с заголовками.
+нужен другой статус, хендлер возвращает `Ok` явно: `Ok.created(value)`
+отвечает `201`, `Ok.accepted(value)` отвечает `202`.
 
-Заголовки `Ok` — метаданные ответа, а не HTTP-заголовки: хендлер о
-транспорте не знает. Что с ними делать, решает транспорт. HTTP пишет их в
-заголовки ответа, NATS кладёт в заголовки ответного сообщения, CLI
-отбрасывает.
+Заголовков `Ok` не несёт: `Location` и `Set-Cookie` осмысленны только в
+HTTP, а хендлер операции переносим между транспортами. Заголовок, cookie
+и редирект задаёт HTTP-форма ответа — `HttpResponse` из
+`@nestling/transport.http` ([глава 10](./10-auth.md)). Она допустима там,
+где адрес объявлен транспортом:
+
+```typescript
+return HttpResponse.of(Ok.created(user), {
+  headers: { Location: `/users/${user.id}` },
+});
+```
 
 ```typescript
 // examples/users-service/src/users/endpoints/delete-user.endpoint.ts

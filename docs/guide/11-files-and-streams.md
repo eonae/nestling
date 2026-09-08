@@ -1,6 +1,6 @@
 # 11. Файлы и большие выгрузки
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
 > [design/streaming.md](../design/streaming.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Стриминг: `stream(T)` ≠ `events(T)`,
@@ -119,7 +119,8 @@ curl -X POST http://localhost:3000/users/1/avatar \
 
 ```typescript
 // examples/users-service/src/users/endpoints/export-users.endpoint.ts
-import { Ok, stream } from '@nestling/operations';
+import { stream } from '@nestling/operations';
+import { HttpResponse } from '@nestling/transport.http';
 
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
 const MAX_ROWS = 100_000;
@@ -128,9 +129,9 @@ const MAX_ROWS = 100_000;
 export class ExportUsersHandler {
   constructor(private readonly users: UsersRepository) {}
 
-  async handle(): Output<AsyncIterableIterator<User>> {
-    return new Ok(this.rows(), {
-      'Content-Disposition': 'attachment; filename="users.ndjson"',
+  async handle(): HttpOutput<AsyncIterableIterator<User>> {
+    return HttpResponse.of(this.rows(), {
+      headers: { 'Content-Disposition': 'attachment; filename="users.ndjson"' },
     });
   }
 
@@ -155,7 +156,9 @@ export const ExportUsers = httpEndpoint({
 Хендлер возвращает обычный `AsyncIterable`; транспорт отдаёт его как
 NDJSON, по одному JSON-объекту на строку, с chunked-кодированием.
 Заголовок `Content-Type` ставит форма. Свой заголовок хендлер добавляет
-вторым аргументом `new Ok(value, headers)`.
+формой ответа `HttpResponse.of(value, { headers })`; транспорт пишет его
+до первого кадра. Такой хендлер знает HTTP, поэтому живёт в анонимной
+декларации: адрес там объявлен транспортом ([глава 10](./10-auth.md)).
 
 Элементы отдаются по мере чтения клиентом: производитель не обгоняет
 потребителя, и в памяти не накапливается вся выгрузка.

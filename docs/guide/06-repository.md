@@ -1,6 +1,6 @@
 # 6. Откуда хендлер берёт репозиторий
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Token families + модули
@@ -243,8 +243,8 @@ const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
 const result = await handler.handle({ name: 'Carol', email: 'carol@example.com' });
 
 expect(result).toMatchObject({
+  status: 'created',
   value: { id: '2', name: 'Carol' },
-  headers: { Location: '/users/2' },
 });
 ```
 

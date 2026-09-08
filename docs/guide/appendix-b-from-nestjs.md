@@ -1,6 +1,6 @@
 # Приложение Б. Из NestJS
 
-> Соответствия сверены с design/ и README пакетов (2026-09-06).
+> Соответствия сверены с design/ и README пакетов (2026-09-08).
 
 Таблицы ниже отвечают на вопрос «чем в Nestling записывается то, что в
 NestJS я делал вот так». В колонке «Чем отличается» одна фраза о
@@ -43,7 +43,8 @@ NestJS я делал вот так». В колонке «Чем отличае�
 | `Interceptor` | юниты `.pre`, `.ok`, `.finally` | вместо обёртки вокруг вызова три отдельные фазы | [9](./09-logging.md) |
 | `ExceptionFilter` | юнит `.catch` | заменяет один отказ другим; превратить отказ в успех нельзя | [приложение А](./appendix-a-alternatives.md) |
 | `HttpException` | `makeFail` и список `errors:` | отказ это значение с машинным кодом; отказ вне списка становится `internal_error` | [4](./04-errors.md) |
-| `@HttpCode(201)`, `@Header()` | `Ok.created(value, headers)`, `new Ok(value, headers)` | статус и заголовки задаются на значении ответа | [4](./04-errors.md) |
+| `@HttpCode(201)` | `Ok.created(value)` | статус успеха задаётся на значении ответа и от транспорта не зависит | [4](./04-errors.md) |
+| `@Header()`, `@Res().cookie()`, `@Redirect()` | `HttpResponse.of(ok, { headers, cookies })`, `HttpResponse.redirect(location)` | заголовок, cookie и редирект — HTTP-форма ответа; она допустима там, где адрес объявлен транспортом | [10](./10-auth.md) |
 | `StreamableFile`, ответ через `@Res()` | формы io `stream(T)`, `events(T)`, `multipart()` | хендлер возвращает `AsyncIterable`, транспорт выбирает NDJSON или SSE | [11](./11-files-and-streams.md), [15](./15-live-feed.md) |
 | `FileInterceptor` | `multipart({ fields, files })` и `upload({ maxSize, mime })` | лимит и тип проверяются во время разбора, файл сверх лимита не буферизуется | [11](./11-files-and-streams.md) |
 | `@nestjs/swagger` декораторы | плагин `openapi()` и слот `doc:` | документ выводится из тех же схем, что проверяют запросы | [12](./12-openapi-and-client.md) |

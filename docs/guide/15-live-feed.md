@@ -1,6 +1,6 @@
 # 15. Живая лента для клиента
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-08).
 > Целевое описание: [design/streaming.md](../design/streaming.md), разделы
 > «`stream(T)` и `events(T)`» и «Источники событий». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Стриминг: `stream(T)` ≠
@@ -179,8 +179,8 @@ export const ActivityStream = httpEndpoint({
     // Лента активности: `publish` не ждёт ни одного подписчика
     this.activity.publish('created', user.id);
 
-    // Статус 201 и заголовок задаются на успешном ответе
-    return Ok.created(user, { Location: `/users/${user.id}` });
+    // Статус 201 задаётся на успешном ответе
+    return Ok.created(user);
 ```
 
 `ActivityHub` инжектируется в хендлер регистрации списком зависимостей

@@ -1,6 +1,6 @@
 # 13. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-08).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -214,7 +214,7 @@ class CreateUserHandler {
       email: payload.email,
     });
     // …
-    return Ok.created(user, { Location: `/users/${user.id}` });
+    return Ok.created(user);
   }
 }
 
