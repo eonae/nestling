@@ -1,6 +1,6 @@
 # 12. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -99,14 +99,14 @@ endpoint реализует операцию, иначе из метода и п
 
 ```typescript
 // examples/users-service/src/ops.plugin.ts
-export const CheckHealth = httpEndpoint({
+export const BuildInfo = httpEndpoint({
   method: 'GET',
-  path: '/health',
-  output: z.object({ status: z.string() }),
+  path: '/ops/version',
+  output: z.object({ version: z.string() }),
   detached:
-    'проба балансировщика: строка аудита на каждый запрос заслоняет полезные записи',
-  doc: { hidden: 'служебная проба, не часть публичного API' },
-  handler: async () => ({ status: 'up' }),
+    'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
+  doc: { hidden: 'служебный endpoint, не часть публичного API' },
+  handler: async () => ({ version: process.env.BUILD_VERSION ?? 'dev' }),
 });
 ```
 
@@ -115,7 +115,7 @@ export const CheckHealth = httpEndpoint({
 endpoint'ов плагин печатает при старте:
 
 ```
-[nestling] hidden from the API document: GET /health (declared in 'users') — служебная проба, не часть публичного API
+[nestling] hidden from the API document: GET /ops/version (declared in 'ops') — служебный endpoint, не часть публичного API
 ```
 
 Печать отключается опцией `announceHidden: false`.

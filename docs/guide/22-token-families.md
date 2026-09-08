@@ -1,12 +1,13 @@
 # 22. Зависимости по имени и сбор вкладов из модулей
 
-> Гайд по текущему API; сверено с кодом `container` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `container` (2026-09-09).
 > Целевое описание: [design/container.md](../design/container.md), разделы
 > «Семейства DI-токенов» и «Логгер ядра». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Token families + модули без
 > рантайм-инкапсуляции» [2026-07-06], «Multi-injection через token
-> families: `Family.all`» [2026-07-10] и «Логгер ядра: `RootLogger$`,
-> семейство `Logger$` с `.auto` и `child`» [2026-09-06].
+> families: `Family.all`» [2026-07-10], «Логгер ядра: `RootLogger$`,
+> семейство `Logger$` с `.auto` и `child`» [2026-09-06] и «Пробы:
+> `HealthCheck$` и `Health$` в ядре, транспорты адаптируют» [2026-09-06].
 
 Сервисам нужны счётчики: один считает вызовы, другой считает запросы к
 базе. Счётчики одинаковы, различаются только именем, и регистрировать
@@ -174,22 +175,30 @@ export class UserRepository {
 
 ## Вклады из разных модулей: `.all`
 
-Объявите семейство вкладов:
+Семейство вкладов в пробы объявляет ядро — `HealthCheck$(name)` из
+`@nestling/app`. Своё объявлять не нужно: вклад пишется под членом
+ядерного семейства, и его увидит узел проб.
+
+Вклад — обычный класс с интерфейсом `HealthCheck`: признак критичности и
+метод проверки. Имя проверки задаёт член семейства, поэтому в самом классе
+имени нет:
 
 ```typescript
-// examples/container/src/health/registry.ts
-export interface HealthCheck {
-  readonly name: string;
-  check(): Promise<string>;
-}
+// examples/container/src/database/database.health.ts (фрагмент)
+@Component([Database$, HealthConfig])
+export class DatabaseHealthCheck implements HealthCheck {
+  readonly critical = true;
 
-export const HealthCheck = makeTokenFamily<HealthCheck, [name: string]>(
-  'HealthCheck',
-);
+  async check(_signal: AbortSignal): Promise<HealthStatus> {
+    const rows = await this.#database.query('SELECT 1');
+
+    return rows.length > 0 ? 'ok' : 'down';
+  }
+}
 ```
 
-Вклад — обычный провайдер с DI-токеном члена, зарегистрированный там, где
-ему место:
+Регистрируется он обычным провайдером с DI-токеном члена — там, где ему
+место:
 
 ```typescript
 // examples/container/src/database/database.module.ts
@@ -197,7 +206,7 @@ export const DatabaseModule = makeModule({
   name: 'module:database',
   providers: [
     classProvider(Database$, InMemoryDatabase),
-    classProvider(HealthCheck('database'), DatabaseHealthCheck),
+    classProvider(HealthCheck$('database'), DatabaseHealthCheck),
   ],
 });
 ```
@@ -207,42 +216,32 @@ export const DatabaseModule = makeModule({
 
 ```typescript
 // examples/container/src/api/api.module.ts (фрагмент)
-classProvider(HealthCheck('api'), ApiHealthCheck),
+classProvider(HealthCheck$('api'), ApiHealthCheck),
 ```
 
-Агрегатор зависит от `HealthCheck.all` и получает массив всех вкладов:
+Состояние приложения целиком отдаёт узел ядра `Health$`: он собирает
+исходы вкладов в отчёт, считает итог по фазе и критичности и кэширует
+прогон. Обычному приложению этого достаточно — глава
+[24](./24-ops.md) показывает пробы на HTTP.
+
+Но `.all` работает и на ядерном семействе: зависимость от
+`HealthCheck$.all` даёт массив всех вкладов, где бы они ни были
+зарегистрированы.
 
 ```typescript
-// examples/container/src/health/health.service.ts (фрагмент)
-@Component([HealthCheck.all, HealthConfig, Logger$.auto])
-export class HealthService {
-  #checks: readonly HealthCheck[];
-  #config: Config<typeof HealthConfig>;
-  #logger: Logger;
-
+// examples/container/src/demo.ts (фрагмент)
+@Component([Health$, HealthCheck$.all, /* … */])
+export class Demo {
   constructor(
-    checks: readonly HealthCheck[],
-    config: Config<typeof HealthConfig>,
-    logger: Logger,
-  ) {
-    this.#checks = checks;
-    this.#config = config;
-    this.#logger = logger;
-  }
-
-  async report(): Promise<string[]> {
+    private readonly health: Health,
+    private readonly checks: readonly HealthCheck[],
     // …
-    return await Promise.all(
-      this.#checks.map(
-        async (check) => `${check.name}: ${await check.check()}`,
-      ),
-    );
-  }
+  ) {}
 }
 ```
 
-`HealthCheck.all` стоит в `deps` рядом с секцией конфига и членом
-семейства логгеров: агрегат ничем не привилегирован. Тип зависимости —
+`HealthCheck$.all` стоит в `deps` рядом с узлом и членом семейства
+логгеров: агрегат ничем не привилегирован. Тип зависимости —
 `readonly HealthCheck[]`.
 
 При `build()`, когда рецепты перестали создавать новых членов, контейнер
@@ -255,7 +254,7 @@ export class HealthService {
 
 - в массив попадает каждый член с провайдером: явные вклады, члены из
   рецепта, члены из `.auto`; рецепт семейству не обязателен;
-- `.all` не создаёт членов; вызов `HealthCheck('orphan')` без провайдера
+- `.all` не создаёт членов; вызов `HealthCheck$('orphan')` без провайдера
   в массив не попадает;
 - пустое семейство даёт пустой массив, а не ошибку: фичу не выбрали, и
   её вкладов нет;
@@ -264,7 +263,7 @@ export class HealthService {
 - массив заморожен и общий для всех потребителей `.all`;
 - узел-агрегат не принадлежит модулю, и вклад чужого модуля попадает в
   массив без дополнительных объявлений;
-- провайдера с `provide: HealthCheck.all` не бывает: этот узел создаёт
+- провайдера с `provide: HealthCheck$.all` не бывает: этот узел создаёт
   сборка, а ручная регистрация под тем же DI-токеном — ошибка
   регистрации.
 
@@ -275,15 +274,19 @@ export class HealthService {
 ## Проверка
 
 Запустите пример и прочитайте вывод. Каждая запись подписана областью
-логгера, который её написал, отчёт о здоровье содержит оба вклада, а
-последняя запись — счётчики из одного рецепта, каждый со своим значением:
+логгера, который её написал, агрегат содержит оба вклада, а последняя
+запись — счётчики из одного рецепта, каждый со своим значением:
 
 ```
-2026-09-06T17:43:18.018Z INFO  UserRepository Loading all users
-2026-09-06T17:43:18.019Z INFO  HealthService Running health checks checks=2 host=localhost:5432
-2026-09-06T17:43:18.019Z INFO  app Health report=["database: ok","api: ok"]
-2026-09-06T17:43:18.019Z INFO  app Counters demo.users=1 demo.queries=2
+2026-09-08T22:26:13.997Z INFO  UserRepository Loading all users
+2026-09-08T22:26:13.997Z INFO  app Health checks critical=1 total=2
+2026-09-08T22:26:13.997Z INFO  app Health report={"status":"not_ready","phase":"START","checks":[]}
+2026-09-08T22:26:13.997Z INFO  app Counters demo.users=1 demo.queries=1
 ```
+
+Итог здесь `not_ready`, и список проверок пуст: `@OnStart` выполняется на
+фазе START, а готовность наступает только в RUN. Само это и есть правило
+узла — до RUN и на SHUTDOWN проверки не запускаются вовсе.
 
 Префикс `demo` пришёл из секции конфига через рецепт: `metricsPrefix`
 читается из `APP_METRICS_PREFIX`, который пример привязывает в `main.ts`.

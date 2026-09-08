@@ -1,6 +1,6 @@
 # 17. Запускать только часть фич
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-08).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-09).
 > Целевое описание: [design/composition.md](../design/composition.md)
 > «L2 — фичи, выбор и переключатели» и «`check()`». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Модульный монолит: фичи,
@@ -264,10 +264,11 @@ const checked = makeApp({
       reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
     ).toEqual([
       'DELETE /ops/subscriptions/:id',
-      'GET /health',
+      'GET /healthz',
       'GET /openapi.json',
       'GET /ops/subscriptions',
       'GET /ops/subscriptions/live',
+      'GET /readyz',
       'subscriptions.closed@ops',
       'subscriptions.opened@ops',
     ]);
@@ -290,7 +291,12 @@ const checked = makeApp({
         .filter(({ detached }) => detached !== undefined)
         .map(({ pattern }) => pattern)
         .sort(),
-    ).toEqual(['GET /health', 'POST /hooks/users']);
+    ).toEqual([
+      'GET /healthz',
+      'GET /readyz',
+      'POST /hooks/users',
+      'POST /login',
+    ]);
   });
 ```
 

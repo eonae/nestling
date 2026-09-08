@@ -1,6 +1,6 @@
 # 10. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
@@ -245,19 +245,19 @@ everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
 
 ## Исключение из политик и подсказка в редакторе
 
-Проба живости для балансировщика не должна писать строку аудита на каждый
-запрос. Endpoint выводится из-под политик полем `detached`:
+Служебный endpoint эксплуатации не должен писать строку аудита на
+каждый опрос. Endpoint выводится из-под политик полем `detached`:
 
 ```typescript
 // examples/users-service/src/ops.plugin.ts
-export const CheckHealth = httpEndpoint({
+export const BuildInfo = httpEndpoint({
   method: 'GET',
-  path: '/health',
-  output: z.object({ status: z.string() }),
+  path: '/ops/version',
+  output: z.object({ version: z.string() }),
   detached:
-    'проба балансировщика: строка аудита на каждый запрос заслоняет полезные записи',
-  doc: { hidden: 'служебная проба, не часть публичного API' },
-  handler: async () => ({ status: 'up' }),
+    'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
+  doc: { hidden: 'служебный endpoint, не часть публичного API' },
+  handler: async () => ({ version: process.env.BUILD_VERSION ?? 'dev' }),
 });
 ```
 
@@ -266,8 +266,12 @@ true` нет. Причина видна в диффе, печатается пр
 отчёт `check()`:
 
 ```
-[nestling] detached from policies: GET /health (http) — проба балансировщика: …
+[nestling] detached from policies: GET /ops/version (http) — служебный endpoint эксплуатации: …
 ```
+
+Пробы живости и готовности своими руками писать не нужно: их даёт плагин
+`httpProbes()` поверх узла ядра `Health$`, и обе они объявлены с тем же
+`detached` и `doc.hidden` ([глава 24](./24-ops.md)).
 
 Поле `doc.hidden` управляет документом OpenAPI, а не политиками сборки.
 

@@ -1,6 +1,6 @@
 # 9. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/container.md](../design/container.md), раздел «Логгер ядра».
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Pipeline v2:
@@ -177,7 +177,8 @@ export const ListUsers = httpEndpoint({
 ```
 
 Поле `pipeline:` принимает слой. Endpoint без этого поля тоже работает:
-у `CheckHealth` из [главы 1](./01-first-service.md) пайплайна нет.
+у `BuildInfo` из [главы 10](./10-auth.md) пайплайна нет, как и у проб
+`httpProbes()` из [главы 24](./24-ops.md).
 
 Класс-юнит создаёт контейнер, поэтому `AuditOutcome` регистрируется в
 `providers:` фичи. Класс-юнит, которого нет в `providers:`, останавливает
