@@ -1,6 +1,6 @@
 # 6. Откуда хендлер берёт репозиторий
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Token families + модули
@@ -237,7 +237,7 @@ DI-токен, который удалось импортировать: инк�
 Хендлер создаётся с фейком репозитория, без контейнера и без транспорта:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// шаг главы 6; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
 
 const result = await handler.handle({ name: 'Carol', email: 'carol@example.com' });

@@ -1,6 +1,6 @@
 # 13. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-08).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -68,12 +68,12 @@ endpoint'ы. `QuotaService` не экспортируется наружу и в
 ```
 1 edge(s) cross a feature boundary:
 
-  - Feature 'users' depends on feature 'quotas' by token: 'UsersReport'
-    injects 'QuotaService'. Features are connected by operations only — a token does
-    not survive a process boundary, so this edge breaks the moment the two
-    features are deployed apart. Declare the call as an operation
-    (makeRequest / makeCommand), inject its '.caller' and implement it in
-    'quotas'.
+  - Feature 'users' depends on feature 'quotas' by DI token: 'UsersReport'
+    injects 'QuotaService'. Features are connected by operations only — a
+    DI token does not survive a process boundary, so this edge breaks the
+    moment the two features are deployed apart. Declare the call as an
+    operation (makeRequest / makeCommand), inject its '.caller' and
+    implement it in 'quotas'.
 ```
 
 Проверка выполняется на собранном графе и различает три вида рёбер.

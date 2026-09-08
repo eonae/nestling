@@ -41,30 +41,40 @@ export const appSubscriptions = subscriptions({
 });
 
 // 2. Слой: добавляется в пайплайн endpoint'а, как любое сквозное поведение
+@Handler([EventHub])
+class FeedHandler {
+  constructor(private readonly hub: EventHub) {}
+
+  // общий сигнал: отключение клиента, остановка приложения, закрытие администратором
+  async handle(_payload: unknown, meta: { subscription: TrackedSubscription }) {
+    return new Ok(this.hub.subscribe(meta.subscription.signal));
+  }
+}
+
 export const Feed = httpEndpoint({
   method: 'GET',
   path: '/api/feed',
   output: events(Event),
   pipeline: compose(basePipeline, tracked),
-  handler: {
-    deps: [EventHub],
-    // общий сигнал: отключение клиента, остановка приложения, закрытие администратором
-    handle: (hub: EventHub) => async (_payload, meta) =>
-      new Ok(hub.subscribe(meta.subscription.signal)),
-  },
+  handler: FeedHandler,
 });
 
 // 3. Реестр: обычный singleton, инжектируется обычным DI-токеном
+@Handler([SubscriptionRegistry])
+class ListSubscriptionsHandler {
+  constructor(private readonly registry: SubscriptionRegistry) {}
+
+  async handle() {
+    return new Ok(this.registry.list());
+  }
+}
+
 export const ListSubscriptions = httpEndpoint({
   method: 'GET',
   path: '/api/ops/subscriptions',
   output: z.array(SubscriptionSchema),
   pipeline: basePipeline,
-  handler: {
-    deps: [SubscriptionRegistry],
-    handle: (registry: SubscriptionRegistry) => async () =>
-      new Ok(registry.list()),
-  },
+  handler: ListSubscriptionsHandler,
 });
 ```
 

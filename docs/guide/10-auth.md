@@ -1,6 +1,6 @@
 # 10. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
@@ -31,7 +31,7 @@ export const Unauthorized = makeFail('unauthorized', {
 // examples/users-service/src/auth.ts
 import type { Config, EmptyInput, ExtendableContext } from '@nestling/app';
 import { compose, makePipeline } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 
 /** Тот, от чьего имени выполняется запрос */
 export interface Caller {

@@ -1,6 +1,6 @@
 # 12. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -127,7 +127,7 @@ endpoint'ов плагин печатает при старте:
 
 ```typescript
 // examples/users-service/src/api/operations.ts
-import { makeRequest } from '@nestling/operations';
+import { body, makeRequest, query } from '@nestling/operations';
 
 export const GetUserInput = z.object({ id: z.string() });
 
@@ -142,7 +142,11 @@ export const GetUser = makeRequest({
 
 export const CreateUser = makeRequest({
   name: 'users.create',
-  http: { method: 'POST', path: '/users' },
+  http: {
+    method: 'POST',
+    path: '/users',
+    bind: { dryRun: query(), name: body() },
+  },
   input: CreateUserInput,
   output: User,
   errors: [EmailTaken, Unauthorized],

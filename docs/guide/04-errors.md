@@ -1,6 +1,6 @@
 # 4. Сказать клиенту, что пошло не так
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/errors.md](../design/errors.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-10] Модель ошибок:
 > Fail — значение, code-идентичность, `makeFail`, ошибки в контракте»,
@@ -91,7 +91,7 @@ curl localhost:3000/users/9
 Тип возвращаемого значения записывается определениями отказов:
 
 ```typescript
-// examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
 async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
   const user = await users.byId(input.id);
 
@@ -136,7 +136,7 @@ async function handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
 отбрасывает.
 
 ```typescript
-// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
 async function handle(
   input: DeleteUserInput,
 ): Output<null, typeof UserNotFound> {

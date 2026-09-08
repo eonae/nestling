@@ -1,6 +1,6 @@
 # 25. Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-07)
+> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-08)
 > и `container` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
@@ -160,7 +160,8 @@ export const makeContainer = async (
     // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
     // секцию `nestlingLog` и идентификатор запроса из контекста
     .register(contextKernel(), loggerKernel())
-    .register(...appCounters.modules)
+    // Веток переключателей у примера нет, поэтому карта значений пуста
+    .register(...resolveBranches(appCounters.modules, {}))
     .register(AppModule)
     .build();
 };
@@ -175,8 +176,10 @@ export const makeContainer = async (
 его на фазе 0 сам, а без `App` его создаёт вызывающий код —
 `makeKernelLogger(config)` — и регистрирует значением под `RootLogger$`.
 Kernel-модули `contextKernel()` и `loggerKernel()` тоже регистрируются
-руками. Плагин `appCounters` регистрируется своими модулями:
-`appCounters.modules` — обычный массив значений. `build()` синхронен: он
+руками. Плагин `appCounters` регистрируется своими модулями. В списке
+`modules` могут стоять ветки переключателей, поэтому его раскрывает
+`resolveBranches(modules, values)`: у примера веток нет, и карта значений
+пуста. `build()` синхронен: он
 строит граф и проверяет его целиком — отсутствующая зависимость и цикл
 останавливают сборку одной ошибкой со списком узлов. Экземпляров он не
 создаёт: их создаёт `init()`.

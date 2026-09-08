@@ -1,6 +1,6 @@
 # 19. Не сломать соседей при изменении операции
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-08).
 > Целевое описание: [design/operations.md](../design/operations.md) §1.6 и
 > §1.7. Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-31]
 > Версионирование контрактов: снапшот, вердикт по слоту,
@@ -28,6 +28,7 @@
 const checked = makeApp({
   features: app.spec.features,
   plugins: app.spec.plugins,
+  switches: app.spec.switches,
   policies: app.spec.policies,
   transports: app.spec.transports,
   config: [

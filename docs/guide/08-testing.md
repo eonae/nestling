@@ -1,6 +1,6 @@
 # 8. Убедиться, что работает, без запуска сервера
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-08).
 > Целевое описание: [design/testing.md](../design/testing.md). Почему так:
 > запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestling/testing`)».
@@ -146,7 +146,7 @@ it('читает размер страницы из конфига', async () =>
 ## Юнит-тест хендлера
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// шаг главы 8; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 describe('CreateUserHandler', () => {
   it('создаёт пользователя и отвечает created с заголовком Location', async () => {
     const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));

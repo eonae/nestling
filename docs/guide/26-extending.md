@@ -1,6 +1,6 @@
 # 26. Расширить ядро своим пакетом
 
-> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-07).
+> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-08).
 > Целевое описание: [design/principles.md](../design/principles.md), раздел
 > «Граница ядра», и [design/streaming.md](../design/streaming.md) §4.1.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-07-14]
@@ -178,13 +178,17 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
     ? [SubscriptionOpened.emitter, SubscriptionClosed.emitter]
     : [];
 
-  const registry: FactoryProviderDefinition<SubscriptionRegistry> = {
+  // Реестр — ресурс: он держит ленту, которую надо закрыть на SHUTDOWN.
+  // Функциональная форма, а не класс под `@Resource`: список зависимостей
+  // здесь зависит от решения композиции (`publish`), а декоратор статичен
+  const registry: ResourceProviderDefinition<SubscriptionRegistry> = {
     provide: SubscriptionRegistry,
-    useFactory: (
+    deps,
+    acquire: (
       opened?: Emitter<typeof SubscriptionOpened>,
       closed?: Emitter<typeof SubscriptionClosed>,
     ) => new SubscriptionRegistry(options, opened, closed),
-    deps,
+    release: (value: SubscriptionRegistry) => value.release(),
   };
 
   return makePlugin({
@@ -201,7 +205,7 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 останавливает сборку на фазе ASSEMBLE: класс-юнит слоя не получает
 зависимостей. Второе значение `subscriptions({ … })` в одном и том же
 корне тоже останавливает сборку: два плагина с одним именем. Список
-`deps` фабрики зависит от опции `publish`: при выключенной публикации
+`deps` ресурса зависит от опции `publish`: при выключенной публикации
 вызывателей операций в графе нет.
 
 ## Тестовые двойники через subpath `./testing`

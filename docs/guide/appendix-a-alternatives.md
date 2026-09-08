@@ -1,6 +1,6 @@
 # Приложение А. Альтернативные формы
 
-> Каждая форма показана в одном месте примера `app-with-http` (2026-09-06).
+> Каждая форма показана в одном месте примера `app-with-http` (2026-09-08).
 
 Главы гайда используют одну форму записи для каждой задачи. Фреймворк
 допускает и другие. Здесь они собраны в одном месте: где показана
@@ -49,7 +49,7 @@ makePipeline().pre(Authenticate, { errors: [Unauthorized] });
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/delete-user.endpoint.ts
-@Component([Logger$.auto])
+@Handler([Logger$.auto])
 export class AuditDeletion {
   constructor(private readonly logger: Logger) {}
 
