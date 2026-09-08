@@ -1,0 +1,162 @@
+## ADDED Requirements
+
+### Requirement: `HealthCheck$` — семейство вкладов ядра
+
+`@nestling/app` SHALL экспортировать семейство DI-токенов
+`HealthCheck$(name)` с интерфейсом
+`HealthCheck { critical: boolean; check(signal: AbortSignal): Promise<HealthStatus> }`,
+где `HealthStatus` — `'ok' | 'degraded' | 'down'`.
+
+Вклад SHALL регистрироваться обычным провайдером члена
+(`classProvider(HealthCheck$('db'), DbHealthCheck)`) в том модуле, которому
+он принадлежит. Дополнительных объявлений вклад SHALL NOT требовать.
+
+Вклады невыбранных фич SHALL отсутствовать в списке тем же механизмом,
+который убирает из графа их провайдеры. Приложение без единого вклада SHALL
+собираться, а список проверок SHALL быть пуст.
+
+#### Scenario: Вклады из разных модулей
+
+- **WHEN** модуль `db` регистрирует `classProvider(HealthCheck$('db'), DbCheck)`,
+  а модуль `cache` — `classProvider(HealthCheck$('cache'), CacheCheck)`
+- **THEN** отчёт `readiness()` в фазе RUN содержит исходы обеих проверок
+
+#### Scenario: Невыбранная фича вкладов не даёт
+
+- **WHEN** фича с вкладом `HealthCheck$('cache')` не выбрана сборкой
+- **THEN** в отчёте `readiness()` проверки `cache` нет
+
+#### Scenario: Приложение без вкладов
+
+- **WHEN** в графе нет ни одного вклада `HealthCheck$`
+- **THEN** `readiness()` в фазе RUN отвечает `ready` со списком проверок `[]`
+
+### Requirement: `Health$` — узел ядра с `liveness` и `readiness`
+
+Сборка SHALL регистрировать узел `Health$` всегда, без полей в `makeApp` и
+без условий. `container.getOrThrow(Health$)` после фазы INIT SHALL возвращать
+узел у любого приложения.
+
+`liveness()` SHALL быть синхронным, SHALL возвращать `{ status: 'ok' }` и
+SHALL NOT запускать проверки: ответ и есть признак жизни процесса.
+
+`readiness(signal)` SHALL возвращать отчёт
+`{ status, phase, checks }`, где `status` — `'ready' | 'not_ready'`, `phase` —
+текущая фаза приложения, `checks` — исходы проверок
+`{ name, critical, status, durationMs, reason? }`.
+
+Реализация узла и DI-токен секции конфига SHALL оставаться приватными:
+наружу пакет SHALL отдавать DI-токены, типы отчёта и `healthConfigKeys`.
+
+#### Scenario: Узел есть у приложения без проб на транспорте
+
+- **WHEN** приложение собрано без плагина проб
+- **THEN** `container.getOrThrow(Health$)` возвращает узел
+
+#### Scenario: Liveness не трогает зависимости
+
+- **WHEN** вклад `HealthCheck$('db')` бросает на каждый вызов `check`
+- **THEN** `liveness()` возвращает `{ status: 'ok' }`, а `check` не вызывается
+
+### Requirement: Итог readiness даёт фаза и критичность
+
+Итог SHALL быть `ready` тогда и только тогда, когда приложение в фазе RUN и
+ни одна критичная проверка не вернула `down`.
+
+До RUN и в фазе SHUTDOWN итог SHALL быть `not_ready`, проверки SHALL NOT
+запускаться, а список `checks` SHALL быть пуст.
+
+Статус `degraded` критичной проверки итога SHALL NOT менять. Статус `down`
+некритичной проверки итога SHALL NOT менять.
+
+#### Scenario: Готово в RUN
+
+- **WHEN** приложение в фазе RUN, обе критичные проверки вернули `ok`
+- **THEN** отчёт — `{ status: 'ready', phase: 'RUN', checks: [ок, ок] }`
+
+#### Scenario: Критичная проверка упала
+
+- **WHEN** приложение в фазе RUN, критичная проверка `db` вернула `down`
+- **THEN** итог `not_ready`, а исход `db` в списке помечен `down`
+
+#### Scenario: Некритичная проверка упала
+
+- **WHEN** приложение в фазе RUN, проверка `cache` с `critical: false`
+  вернула `down`
+- **THEN** итог `ready`, исход `cache` в списке помечен `down`
+
+#### Scenario: Дренаж
+
+- **WHEN** приложение перешло в SHUTDOWN
+- **THEN** итог `not_ready`, `phase` равна `'SHUTDOWN'`, список проверок пуст,
+  и ни один `check` не вызван
+
+### Requirement: Проверки выполняются с таймаутом, кэшем и одним прогоном на всех
+
+Проверки одного вызова SHALL запускаться параллельно. Каждая SHALL получать
+свой таймаут `NESTLING_HEALTH_TIMEOUT`; превышение SHALL давать исход `down`
+с `reason: 'timeout'`, а брошенная ошибка — исход `down` с `reason: 'error'`.
+
+Исходы прогона SHALL кэшироваться на `NESTLING_HEALTH_CACHE` миллисекунд.
+Фаза и итог SHALL вычисляться на каждый вызов, а не браться из кэша. Значение
+кэша `0` SHALL отключать кэширование.
+
+Вызовы, пришедшие во время незавершённого прогона, SHALL получать его
+результат, а не запускать второй прогон.
+
+`signal` вызова SHALL передаваться в каждую проверку: отмена запроса SHALL
+прекращать прогон.
+
+#### Scenario: Проба чаще срока кэша не нагружает зависимость
+
+- **WHEN** `NESTLING_HEALTH_CACHE=1000`, `readiness()` вызван трижды за 300 мс
+- **THEN** каждый вклад вызван один раз, а все три отчёта содержат одни исходы
+
+#### Scenario: Проверка не уложилась в таймаут
+
+- **WHEN** `NESTLING_HEALTH_TIMEOUT=50`, а `check` вклада `db` длится 500 мс
+- **THEN** исход `db` — `{ status: 'down', reason: 'timeout' }`, и отчёт
+  возвращён без ожидания 500 мс
+
+#### Scenario: Параллельные пробы делят прогон
+
+- **WHEN** два вызова `readiness()` пришли до окончания первого прогона
+- **THEN** вклад вызван один раз, и оба вызова получили один список исходов
+
+### Requirement: Отчёт не раскрывает деталей отказа
+
+Отчёт SHALL содержать только имя проверки, признак критичности, статус,
+длительность и `reason`. Сообщение ошибки, стек и любые значения из вклада
+SHALL NOT попадать в отчёт.
+
+Оригинал SHALL уходить в `Logger$('nestling:health')`: `down` критичной
+проверки — записью `error`, `down` некритичной — записью `warn`, с полями
+`check`, `reason` и оригиналом в `err`.
+
+#### Scenario: Ошибка проверки уходит в лог, а не в отчёт
+
+- **WHEN** `check` вклада `db` бросает `new Error('password authentication failed')`
+- **THEN** исход `db` содержит `reason: 'error'` без текста ошибки, а запись
+  уровня `error` в `Logger$('nestling:health')` несёт оригинал в `err`
+
+### Requirement: Секция `nestlingHealth` задаёт таймаут и срок кэша
+
+Ядро SHALL объявлять kernel-секцию `nestlingHealth` с ключами
+`NESTLING_HEALTH_TIMEOUT` (умолчание `2000`) и `NESTLING_HEALTH_CACHE`
+(умолчание `1000`), обе в миллисекундах. Значение вне диапазона
+неотрицательных целых SHALL быть ошибкой сборки с именем ключа.
+
+Секция SHALL читаться узлом из графа обычной зависимостью. Наружу пакет
+SHALL отдавать только `healthConfigKeys` — право привязать источник в
+`config:` корня; DI-токен секции SHALL оставаться приватным.
+
+#### Scenario: Источник привязан к ключам секции
+
+- **WHEN** корень объявляет `config: [[envSource(), healthConfigKeys]]`, а в
+  окружении `NESTLING_HEALTH_TIMEOUT=50`
+- **THEN** каждая проверка отменяется через 50 мс
+
+#### Scenario: Умолчания без единой привязки
+
+- **WHEN** приложение не объявляет `config:` вовсе
+- **THEN** таймаут проверки — 2000 мс, срок кэша — 1000 мс
