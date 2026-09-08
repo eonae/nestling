@@ -30,7 +30,8 @@ node .claude/skills/docs-audit/scripts/check.mjs
 карта в `docs/design/README.md`), битые относительные ссылки,
 незакоммиченные правки замороженного `docs/history/`, посторонние `.md`
 в корне, отслеживание git'ом собранного сайта `docs/.site/`, нумерацию
-`history/discussions/NN-*`. Exit 1 — есть ERROR.
+`history/discussions/NN-*`, пометку «РЕАЛИЗОВАНО … change `имя`» в записи
+`ideas.md` у каждого сделанного change'а. Exit 1 — есть ERROR.
 Findings скрипта переноси в отчёт как есть, не перепроверяя вручную.
 
 ## Слой 2 — семантический дрейф
