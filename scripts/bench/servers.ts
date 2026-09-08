@@ -35,7 +35,12 @@ import { z } from 'zod';
 
 import { makePipeline, Ok, withRequestId } from '@nestling/app';
 import { makeDispatch } from '@nestling/app';
-import { httpEndpoint, HttpTransport } from '@nestling/transport.http';
+import type { ExecutableDeclaration } from '@nestling/app';
+import {
+  httpEndpoint,
+  HttpServer,
+  HttpTransport,
+} from '@nestling/transport.http';
 
 const HOST = '127.0.0.1';
 
@@ -86,6 +91,38 @@ const closeServer = (server: Server) => (): Promise<void> =>
     server.close((error) => (error ? reject(error) : resolve()));
   });
 
+/**
+ * Поднимает HTTP-транспорт Nestling на эфемерном порту.
+ *
+ * Сокет транспорту не принадлежит: его держит `HttpServer`, поэтому порт
+ * задаётся серверу, а транспорт присоединяет к нему обработчик в `serve`.
+ */
+async function startNestling(
+  endpoints: readonly ExecutableDeclaration[],
+): Promise<RunningServer> {
+  const server = new HttpServer({ port: 0, host: HOST });
+  const transport = new HttpTransport(server);
+
+  await transport.serve(
+    makeDispatch([...endpoints]),
+    new AbortController().signal,
+  );
+  await server.listen();
+
+  const address = server.address();
+  if (!address) {
+    throw new Error('HttpServer did not report an address after listen()');
+  }
+
+  return {
+    port: address.port,
+    stop: async () => {
+      await server.drain();
+      await transport.close();
+    },
+  };
+}
+
 const nestling: ServerStarter = async () => {
   const GetUser = httpEndpoint({
     method: 'GET',
@@ -103,18 +140,7 @@ const nestling: ServerStarter = async () => {
     handler: (body) => new Ok(createdOf(body)),
   });
 
-  const transport = new HttpTransport({ port: 0, host: HOST });
-  await transport.serve(
-    makeDispatch([GetUser, CreateUser]),
-    new AbortController().signal,
-  );
-
-  const address = transport.address();
-  if (!address) {
-    throw new Error('HttpTransport did not report an address after serve()');
-  }
-
-  return { port: address.port, stop: () => transport.close() };
+  return startNestling([GetUser, CreateUser]);
 };
 
 /** Счётчик исходов: `.finally` и `onResponse` пишут сюда */
@@ -150,18 +176,7 @@ const nestlingLayers: ServerStarter = async () => {
     handler: (body) => new Ok(createdOf(body)),
   });
 
-  const transport = new HttpTransport({ port: 0, host: HOST });
-  await transport.serve(
-    makeDispatch([GetUser, CreateUser]),
-    new AbortController().signal,
-  );
-
-  const address = transport.address();
-  if (!address) {
-    throw new Error('HttpTransport did not report an address after serve()');
-  }
-
-  return { port: address.port, stop: () => transport.close() };
+  return startNestling([GetUser, CreateUser]);
 };
 
 /** Fastify; `sameDuties` добавляет проверку параметра и область запроса */

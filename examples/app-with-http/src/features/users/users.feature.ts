@@ -7,6 +7,7 @@ import {
   GetUser,
   ImportUsers,
   ListUsers,
+  Login,
   UpdateUser,
   UploadAvatar,
   UserWebhook,
@@ -49,6 +50,7 @@ export const UsersFeature = makeFeature({
   endpoints: [
     ListUsers,
     GetUser,
+    Login,
     CreateUser,
     UpdateUser,
     DeleteUser,

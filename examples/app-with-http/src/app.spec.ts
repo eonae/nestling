@@ -15,6 +15,7 @@ import {
   DeleteUser,
   GetUser,
   ListUsers,
+  Login,
 } from './features/users/endpoints/index.js';
 import { UsersRepository$ } from './features/users/users.repository.js';
 import { appAuth } from './plugins/auth/index.js';
@@ -92,6 +93,40 @@ describe('app-тесты через assembleTest', () => {
     expect(unwrap(await testApp.call(ListUsers, {}))).toHaveLength(2);
     expect(unwrap(await createUser(testApp, 'carol'))).toMatchObject({
       name: 'User carol',
+    });
+  });
+
+  it('доносит HTTP-форму ответа и стартовый контекст до хендлера', async () => {
+    await using testApp = await assembleTest(app, {
+      ...testConfig,
+      overrides: [[UsersRepository$, inMemoryUsersRepo([alice])]],
+    });
+
+    // `testApp.call` собирает контекст сам, поэтому стартовые поля
+    // запроса задаёт вызов
+    const response = await testApp.call(
+      Login,
+      { email: alice.email },
+      {
+        input: {
+          http: {
+            method: 'POST',
+            url: '/login',
+            headers: { 'x-forwarded-proto': 'https' },
+          },
+        },
+      },
+    );
+
+    expect(response).toMatchObject({
+      isSuccess: true,
+      transport: {
+        name: 'http',
+        meta: {
+          location: '/app',
+          cookies: [{ name: 'sid', value: alice.id, secure: true }],
+        },
+      },
     });
   });
 
@@ -366,7 +401,7 @@ describe('матрица select-топологий', () => {
         .filter(({ detached }) => detached !== undefined)
         .map(({ pattern }) => pattern)
         .sort(),
-    ).toEqual(['GET /health', 'POST /hooks/users']);
+    ).toEqual(['GET /health', 'POST /hooks/users', 'POST /login']);
   });
 });
 
@@ -408,6 +443,7 @@ describe('документ OpenAPI', () => {
 
     expect(Object.keys(paths).sort()).toEqual([
       '/hooks/users',
+      '/login',
       '/ops/subscriptions',
       '/ops/subscriptions/live',
       '/ops/subscriptions/{id}',
