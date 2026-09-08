@@ -15,6 +15,7 @@ import type {
   ConfigReader,
 } from '../config/index.js';
 import { bootstrapConfig, configKernel, toBindings } from '../config/index.js';
+import { registerHealth } from '../health/index.js';
 import type { Logger } from '../logger/index.js';
 import {
   Logger$,
@@ -72,6 +73,7 @@ import {
 } from './feature.js';
 import type { CheckedOperation } from './operations.js';
 import { mapOperations } from './operations.js';
+import type { AppPhase } from './phase.js';
 import type {
   AppSpec,
   AssemblyPlan,
@@ -492,6 +494,14 @@ export class AssembledApp {
   #started = false;
   #closed = false;
 
+  /**
+   * Текущая фаза приложения.
+   *
+   * Читается узлами ядра — сегодня узлом проб. Начальное значение INIT:
+   * первый узел появляется именно на ней, а фаз 0 и 1 он не наблюдает.
+   */
+  #phase: AppPhase = 'INIT';
+
   /** Снятие обработчиков сигналов процесса: закрытое приложение молчит */
   #detachSignals?: () => void;
 
@@ -536,9 +546,11 @@ export class AssembledApp {
     const logger = container.getOrThrow(Logger$('nestling'));
 
     // 3 WIRE — резолв зависимостей деклараций и `dispatch` на транспорт
+    this.#phase = 'WIRE';
     const { dispatches } = this.#wire(container, discovery, logger);
 
     // 4 START, шаг 1 — хуки графа
+    this.#phase = 'START';
     await container.start(signal);
 
     // 4 START, шаг 2 — транспорты присоединяют обработчики; сокета ещё нет
@@ -558,6 +570,10 @@ export class AssembledApp {
       await server.listen();
       this.#listening.push(server);
     }
+
+    // 5 RUN — приложение обслуживает запросы: сокет открыт, обработчики
+    // присоединены. Отсюда и только отсюда проба готовности отвечает `ready`
+    this.#phase = 'RUN';
 
     this.#announce(discovery, logger);
     this.#attachSignals(logger);
@@ -652,6 +668,11 @@ export class AssembledApp {
       container.getOrThrow(Logger$('nestling')),
     );
 
+    // Шов останавливается после WIRE, но `testApp.call` — это и есть приём
+    // запроса. Поэтому в тестовом прогоне фаза RUN: без этого проба
+    // готовности в app-тесте всегда отвечала бы `not_ready`
+    this.#phase = 'RUN';
+
     return {
       container,
       endpoints: wired,
@@ -685,6 +706,11 @@ export class AssembledApp {
       return;
     }
     this.#closed = true;
+
+    // Фаза меняется первой: проба готовности обязана ответить `not_ready`
+    // раньше, чем закроется первый сокет, — иначе балансировщик успеет
+    // прислать запрос в дренаж
+    this.#phase = 'SHUTDOWN';
 
     // 1. Новые запросы не принимаем, in-flight отменяем кооперативно
     this.#shutdown?.abort();
@@ -975,6 +1001,11 @@ export class AssembledApp {
     if (nodes.length > 0) {
       builder.register(...(nodes as Provider[]));
     }
+
+    // Пробы — после всего, что может объявить вклад: узел проб называет
+    // каждый вклад поимённо, а вклад приходит и провайдером члена из
+    // модуля, и методом `health` любого ресурса, включая серверы
+    registerHealth(builder, () => this.#phase);
 
     // Корень логгера — последним: провайдер приложения под `RootLogger$`
     // обязан упасть ошибкой, называющей опцию корня, а не общей ошибкой
