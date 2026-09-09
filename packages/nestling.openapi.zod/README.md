@@ -1,7 +1,8 @@
 # @nestling/openapi.zod
 
-Конвертер схем zod в JSON Schema для `@nestling/openapi`: обёртка над
-штатным `z.toJSONSchema()`.
+Конвертер схем zod в JSON Schema для `@nestling/openapi`: обёртка над штатным
+`z.toJSONSchema()`. Конвертер указывается явно даже в приложении целиком на
+zod: реестра «вендор — конвертер» в генераторе нет.
 
 > 🚧 Активная разработка, API может меняться.
 > Дизайн: [`docs/design/schemas.md`](../../docs/design/schemas.md) §2.
@@ -13,46 +14,33 @@
 npm install @nestling/openapi.zod zod
 ```
 
-`zod` — peer-зависимость: установите ту версию, которой пользуетесь.
+`zod` — peer-зависимость: ставится та версия, которой пользуется приложение.
 
-## Использование
+## Минимальный пример
 
 ```typescript
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 
-openapi({ info, converters: [zodConverter()] });
+openapi({
+  info: { title: 'users', version: '1.0.0' },
+  converters: [zodConverter({ unrepresentable: 'any' })],
+});
 ```
 
-Конвертер указывается явно даже в приложении целиком на zod: встроенного
-реестра «вендор → конвертер» в `@nestling/openapi` нет.
+## Экспорты
 
-## Направление конвертации
-
-Схема с преобразованием (`z.string().transform(Number)`,
-`z.stringbool()`) описывает две формы: ту, что приходит в запросе, и ту,
-что получает хендлер. Какую из них описать, выбирает вызывающий:
-генератор передаёт `io: 'input'` для тела запроса и `io: 'output'` для
-тела ответа, а конвертер передаёт подсказку в `z.toJSONSchema()`. Без
-подсказки результат совпадает с обычным `z.toJSONSchema()`.
-
-## Опции
-
-Остальные опции `z.toJSONSchema` (`unrepresentable`, `cycles`, `reused` и
-другие) передаются аргументом:
-
-```typescript
-zodConverter({ unrepresentable: 'any' });
-```
-
-## Справочник
-
-| Имя | Что это |
+| Имя | Что делает |
 |---|---|
-| `zodConverter(options?)` | возвращает `SchemaDocConverter` с `vendor: 'zod'` |
+| `zodConverter` | возвращает `SchemaDocConverter` с `vendor: 'zod'` |
 | `ZodConverterOptions` | опции `z.toJSONSchema` без `io` |
+
+Схема с преобразованием (`z.string().transform(Number)`, `z.stringbool()`)
+описывает две формы: ту, что приходит в запросе, и ту, что получает хендлер.
+Какую описать, выбирает вызывающий: генератор передаёт `io: 'input'` для тела
+запроса и `io: 'output'` для тела ответа.
 
 ## Границы пакета
 
-Пакет конвертирует только схемы zod; для другого валидатора нужен свой
+Пакет конвертирует только схемы zod. Для другого валидатора нужен свой
 конвертер.

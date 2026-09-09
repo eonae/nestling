@@ -14,7 +14,7 @@ npm install @nestling/openapi @nestling/openapi.zod
 ```
 
 `@nestling/openapi.zod` нужен, если схемы написаны на zod. Для другого
-валидатора подключите его конвертер (раздел «Конвертеры»).
+валидатора подключается его конвертер.
 
 ## Минимальный пример
 
@@ -28,7 +28,7 @@ makeApp({
     openapi({
       info: { title: 'Users API', version: '1.0.0' },
       converters: [zodConverter()],
-      pipeline: observability,        // если политика корня требует слой от каждого endpoint'а
+      pipeline: observability, // если политика корня требует слой
     }),
   ],
   transports: [http()],
@@ -36,113 +36,27 @@ makeApp({
 // GET /openapi.json
 ```
 
-## Три способа получить документ
+## Экспорты
 
-| Что | Когда использовать |
+| Имя | Что делает |
 |---|---|
-| `buildOpenApiDocument(app.discover(args).endpoints, options)` | чистая функция; CI кладёт `openapi.json` в артефакты, не поднимая приложение |
-| `openapi(options)` | плагин: строит документ на фазе ASSEMBLE и отдаёт его endpoint'ом `GET /openapi.json` |
-| `OpenApiDocument$` | DI-токен готового документа для провайдера, которому документ нужен значением |
-
-Вход чистой функции — поле `endpoints` результата `app.discover(args?)`.
-Метод выполняет фазу 0 и останавливается: разбирает аргумент сборки,
-раскрывает ветки переключателей и разрешает выбор фич, не поднимая ни
-источников конфига, ни графа.
-
-```typescript
-// Аргумент сборки — тот же, что поднимает процесс: документ описывает
-// состав, который приложение и обслуживает
-const { endpoints } = app.discover(process.argv[2]);
-
-writeFileSync('openapi.json', JSON.stringify(
-  buildOpenApiDocument(endpoints, { info, converters: [zodConverter()] }),
-));
-```
-
-Без аргумента в документ попадают все объявленные фичи и умолчания
-переключателей. С `app.discover('users')` — только пути фичи `users` и
-подключённых плагинов.
-
-## Откуда берётся каждая часть документа
-
-| Часть | Источник |
-|---|---|
-| путь и метод, `parameter` или `requestBody` | bind-карта декларации (`:param` становится `{param}`) |
-| media types | `mediaTypeOf` — то же правило, что у транспорта и клиента |
-| `responses` | `output`, эффективное множество отказов декларации (`errors:` плюс отказы слоёв пайплайна), автоматический `400` и `default` (`internal_error`) |
-| ответ 3xx с заголовком `Location` | поле `redirect` HTTP-декларации |
-| HTTP-коды | `httpCodeOf` из `@nestling/transport.http` |
-| `summary`, `tags`, `deprecated`, успешный статус | слот `doc:` декларации или операции |
-| `operationId` | имя операции, иначе слаг из метода и пути; отдельно не объявляется |
-| JSON Schema листьев | конвертер вендора или аннотация `jsonSchema(schema, json)` |
-
-Endpoint, объявивший `redirect`, получает ответ с кодом объявленного
-статуса, заголовком `Location` и без тела; успешный ответ по `doc.status`
-в этом случае не добавляется — редирект и есть успешный исход. Значение
-генератор читает с декларации: типы результата хендлера ему недоступны.
-
-Множество отказов генератор читает с декларации и повторно не собирает:
-endpoint со слоем, объявившим `Unauthorized`, несёт ответ `401`, даже
-если в его `errors:` этого определения нет. Определение, объявленное и
-слоем, и декларацией, даёт один ответ.
-
-## Проверка на старте
-
-Документ строит провайдер жадного контейнера, то есть фаза ASSEMBLE.
-Схема, для вендора которой не передан конвертер, роняет сборку до
-INIT и до открытия сокета. Ленивого построения нет.
-
-Проверяется каждый endpoint, а не первый попавшийся; нарушения собираются
-в одно сообщение. Кроме отсутствующего конвертера проверяются
-path-параметр, которому нет свойства в схеме, и пометка `bind` на
-несуществующем поле.
-
-Скрыть HTTP-endpoint из документа можно только с причиной:
-`doc: { hidden: '<причина>' }`. Список скрытых endpoint'ов плагин пишет
-на старте в логгер ядра `Logger$('nestling:openapi')` записями `info`
-с полями `pattern`, `module` и `reason` (опция `announceHidden`); в
-документ он не попадает.
-
-## Конвертеры
-
-Конвертер переводит схему конкретного валидатора в JSON Schema. Список
-конвертеров передаётся опцией `converters`; встроенного реестра по
-вендорам нет, и даже в приложении целиком на zod конвертер указывается
-явно. Конвертеры поставляются отдельными пакетами:
-[`@nestling/openapi.zod`](../nestling.openapi.zod) и подобные. Свой
-конвертер пишется против типа `SchemaDocConverter`, который пакет
-реэкспортирует.
-
-Валидатора среди зависимостей пакета нет; это проверяет тест границы
-`boundary.spec.ts`.
-
-## Справочник
-
-### Опции `openapi()` и `buildOpenApiDocument()`
-
-| Опция | Что делает |
-|---|---|
-| `info` | секция `info` документа; единственное обязательное поле |
-| `converters` | конвертеры схем по вендорам |
-| `servers` | секция `servers`; переносится как есть, из конфига транспорта не выводится |
-| `security`, `securitySchemes`, `externalDocs` | переносятся в документ как есть |
-
-Только у плагина `openapi()`:
-
-| Опция | Что делает |
-|---|---|
-| `path` | путь endpoint'а с документом; по умолчанию `/openapi.json` |
-| `pipeline` | пайплайн этого endpoint'а, чтобы он проходил политики корня |
-| `detached` | причина вывода endpoint'а из-под политик |
-| `announceHidden` | писать ли на старте список скрытых endpoint'ов в логгер ядра; по умолчанию пишет |
-
-### Экспорты
-
-`buildOpenApiDocument`, `hiddenEndpoints`, `openapi`, `OpenApiDocument$`;
-типы `OpenApiOptions`, `OpenApiServeOptions`, `OpenApiDocument`,
-`OpenApiInfo`, `OpenApiOperation`, `OpenApiParameter`,
-`OpenApiRequestBody`, `OpenApiResponse`, `OpenApiPathItem`,
-`OpenApiContent`, `DocumentedEndpoint`, `JsonValue`, `SchemaDocConverter`.
+| `openapi` | плагин: строит документ на фазе ASSEMBLE и отдаёт его endpoint'ом |
+| `buildOpenApiDocument` | чистая функция: документ из `app.discover(args).endpoints` |
+| `OpenApiDocument$` | DI-токен готового документа |
+| `hiddenEndpoints` | endpoint'ы, скрытые полем `doc.hidden` |
+| `OpenApiOptions` | `info`, `converters`, `servers`, `security`, `externalDocs` |
+| `OpenApiServeOptions` | опции плагина: `path`, `pipeline`, `detached`, `announceHidden` |
+| `OpenApiDocument` | документ целиком |
+| `OpenApiInfo` | секция `info` |
+| `OpenApiPathItem` | один путь документа |
+| `OpenApiOperation` | одна операция пути |
+| `OpenApiParameter` | параметр пути или query |
+| `OpenApiRequestBody` | тело запроса |
+| `OpenApiResponse` | один ответ операции |
+| `OpenApiContent` | карта «media type — схема» |
+| `DocumentedEndpoint` | вход генератора: декларация endpoint'а с секцией `doc:` |
+| `JsonValue` | значение JSON в документе |
+| Реэкспорт [`@nestling/app`](../nestling.app/) | `SchemaDocConverter` — интерфейс конвертера схем |
 
 ## Границы пакета
 
