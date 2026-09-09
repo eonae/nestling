@@ -507,6 +507,97 @@ describe('SSE: heartbeat, реконнект, дисконнект', () => {
   });
 });
 
+describe('дисконнект до первого кадра', () => {
+  let transport: HttpTransport;
+  let baseUrl: string;
+  let hub: Topic<Event>;
+  let feed: Topic<Row>;
+  const outcomes: string[] = [];
+  let handled = 0;
+
+  beforeAll(async () => {
+    hub = new Topic<Event>({ buffer: 8 });
+    feed = new Topic<Row>({ buffer: 8 });
+    transport = makeTransport({ sseHeartbeat: 0 });
+
+    /**
+     * Хендлер, отдающий ответ уже после отвала клиента: сигнал взведён
+     * раньше, чем транспорт запишет первый кадр.
+     *
+     * Подписка берётся **без** сигнала — иначе тема завершила бы её сама,
+     * и закрытие итератора ответа осталось бы непроверенным.
+     */
+    const respondAfterDisconnect =
+      <T>(topic: Topic<T>) =>
+      async (
+        _payload: unknown,
+        meta: { signal: AbortSignal },
+      ): Promise<Ok<AsyncIterableIterator<T>>> => {
+        handled += 1;
+        await until(() => meta.signal.aborted);
+
+        return new Ok(topic.subscribe());
+      };
+
+    routesOf(transport).push(
+      httpEndpoint({
+        method: 'GET',
+        path: '/late-events',
+        output: events(Event),
+        pipeline: observing((outcome) => outcomes.push(outcome)),
+        handler: respondAfterDisconnect(hub),
+      }),
+      httpEndpoint({
+        method: 'GET',
+        path: '/late-rows',
+        output: stream(Row),
+        pipeline: observing((outcome) => outcomes.push(outcome)),
+        handler: respondAfterDisconnect(feed),
+      }),
+    );
+
+    baseUrl = await listen(transport);
+  });
+
+  afterAll(async () => {
+    hub.close();
+    feed.close();
+    await shutdown(transport);
+  });
+
+  it('events: .finally выполняется с исходом disconnected', async () => {
+    outcomes.length = 0;
+    handled = 0;
+
+    const connection = open(baseUrl, '/late-events');
+    await until(() => handled === 1);
+    connection.abort();
+    await connection.done;
+
+    await until(() => outcomes.length > 0);
+
+    expect(outcomes).toEqual(['disconnected']);
+    // Ни одного кадра клиент не получил, а подписка снята
+    expect(connection.chunks.join('')).not.toContain('data:');
+    expect(hub.subscribers).toBe(0);
+  });
+
+  it('stream: итератор непрочитанного NDJSON-ответа закрыт', async () => {
+    outcomes.length = 0;
+    handled = 0;
+
+    const connection = open(baseUrl, '/late-rows');
+    await until(() => handled === 1);
+    connection.abort();
+    await connection.done;
+
+    await until(() => outcomes.length > 0);
+
+    expect(outcomes).toEqual(['disconnected']);
+    expect(feed.subscribers).toBe(0);
+  });
+});
+
 describe('mid-stream политика', () => {
   let transport: HttpTransport;
   let baseUrl: string;
