@@ -278,18 +278,24 @@ capabilities = {
 Поля SSE-кадра задаёт секция `sse` декларации:
 
 ```ts
+@Handler([ActivityHub])
+class ActivityHandler {
+  constructor(private readonly hub: ActivityHub) {}
+
+  async handle(
+    _payload: unknown,
+    meta: { signal: AbortSignal; lastEventId?: string },
+  ) {
+    return new Ok(this.hub.subscribe(meta.signal));
+  }
+}
+
 export const Activity = httpEndpoint({
   method: 'GET',
   path: '/activity/live',
   output: events(ActivityEvent),
   sse: { id: (e) => e.id, event: (e) => e.kind, heartbeat: 15_000 },
-  handler: {
-    deps: [ActivityHub],
-    handle:
-      (hub) =>
-      async (_p, meta: { signal: AbortSignal; lastEventId?: string }) =>
-        new Ok(hub.subscribe(meta.signal)),
-  },
+  handler: ActivityHandler,
 });
 ```
 

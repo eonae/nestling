@@ -12,9 +12,9 @@
 которое видно тесту и в которое дальше можно добавить зависимости.
 
 ```typescript
-// examples/users-service/src/users/endpoints/list-users.endpoint.ts
+// шаг главы 5; итоговая версия: examples/users-service/src/users/endpoints/list-users.endpoint.ts
 import type { Output } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 import { httpEndpoint } from '@nestling/transport.http';
 import { z } from 'zod';
 
@@ -89,7 +89,7 @@ endpoint'ам, и они разделят один экземпляр: клас�
 Класс — обычное значение, поэтому тест создаёт его через `new`:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// шаг главы 5; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 import { CreateUserHandler } from './create-user.endpoint.js';
 
 it('возвращает отказ EmailTaken для занятого email', async () => {

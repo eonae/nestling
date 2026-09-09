@@ -237,7 +237,7 @@ DI-токен, который удалось импортировать: инк�
 Хендлер создаётся с фейком репозитория, без контейнера и без транспорта:
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// шаг главы 6; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
 
 const result = await handler.handle({ name: 'Carol', email: 'carol@example.com' });

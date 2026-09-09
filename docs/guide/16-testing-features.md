@@ -19,20 +19,20 @@
 // examples/split-nats/src/isolated.spec.ts (фрагмент)
 const isolated = makeApp({ features: [UsersFeature, QuotasFeature] });
 
-await using testApp = await assembleTest(isolated, { select: 'users' });
+await using testApp = await assembleTest(isolated, { args: 'users' });
 ```
 
-Поле `select` в тестовой сборке работает так же, как в корне: в графе
-остаются только выбранные фичи. Такая сборка останавливается на фазе
-ASSEMBLE:
+Аргумент сборки в тесте тот же, что в бою: в графе остаются только
+выбранные фичи ([глава 17](./17-select.md)). Такая сборка
+останавливается на фазе ASSEMBLE:
 
 ```
 Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
 selected feature implements it and this assembly has no intercom, so the
-call has nowhere to go. Either add the feature that implements it to
-'select' (or close the selection over calls with
-'select: { features, includeDeps: true }'), or assign the intercom role to
-a bus transport ('transports: [nats({ name: "events" })]' with
+call has nowhere to go. Either add the feature that implements it to the
+assembly argument (or close the selection over calls with
+'assemble({ features, includeDeps: true })'), or assign the intercom role
+to a bus transport ('transports: [nats({ name: "events" })]' with
 'intercom: "events"') when the owner lives in another process.
 ```
 
@@ -49,7 +49,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
     const registered: { id: string; email: string }[] = [];
 
     await using testApp = await assembleTest(isolated, {
-      select: 'users',
+      args: 'users',
       // Ни владельца `quotas.claim`, ни подписчика `users.registered` в
       // сборке нет: обе стороны заменены стабами
       stubs: [
@@ -150,7 +150,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
 // examples/split-nats/src/isolated.spec.ts
   it('каждая застабанная операция реализована в одной из топологий', async () => {
     await using testApp = await assembleTest(isolated, {
-      select: 'users',
+      args: 'users',
       stubs: [
         stub(ClaimQuota, async () => ({ remaining: 1 })),
         // Подписчик события ничего не возвращает: у события нет `output`
@@ -218,7 +218,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
     // есть в любой сборке
     await using testApp = await assembleTest(app, {
       ...testConfig,
-      select: 'ops',
+      args: 'ops',
     });
 
     expect(testApp.get(AuditOutcome)).not.toBeNull();
@@ -229,7 +229,7 @@ a bus transport ('transports: [nats({ name: "events" })]' with
   it('замыкает выбор по вызываемым операциям', async () => {
     await using testApp = await assembleTest(app, {
       ...testConfig,
-      select: { features: 'users', includeDeps: true },
+      args: { features: 'users', includeDeps: true },
     });
 
     expect(testApp.features).toEqual(['users', 'quotas']);

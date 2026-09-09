@@ -146,7 +146,7 @@ it('читает размер страницы из конфига', async () =>
 ## Юнит-тест хендлера
 
 ```typescript
-// examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
+// шаг главы 8; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.spec.ts
 describe('CreateUserHandler', () => {
   it('создаёт пользователя и отвечает статусом created', async () => {
     const handler = new CreateUserHandler(inMemoryUsersRepo([alice]));
