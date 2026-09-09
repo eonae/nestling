@@ -31,7 +31,7 @@ export const Unauthorized = makeFail('unauthorized', {
 // examples/users-service/src/auth.ts
 import type { Config, EmptyInput, ExtendableContext } from '@nestling/app';
 import { compose, makePipeline } from '@nestling/app';
-import { Injectable } from '@nestling/container';
+import { Handler } from '@nestling/container';
 
 /** Тот, от чьего имени выполняется запрос */
 export interface Caller {

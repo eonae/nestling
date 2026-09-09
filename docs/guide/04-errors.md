@@ -93,7 +93,7 @@ curl localhost:3000/users/9
 Тип возвращаемого значения записывается определениями отказов:
 
 ```typescript
-// examples/users-service/src/users/endpoints/get-user.endpoint.ts
+// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
 async function handle(input: GetUserInput): Output<User, typeof UserNotFound> {
   const user = await users.byId(input.id);
 
@@ -144,7 +144,7 @@ return HttpResponse.of(Ok.created(user), {
 ```
 
 ```typescript
-// examples/users-service/src/users/endpoints/delete-user.endpoint.ts
+// шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
 async function handle(
   input: DeleteUserInput,
 ): Output<null, typeof UserNotFound> {

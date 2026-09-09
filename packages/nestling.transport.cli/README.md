@@ -17,8 +17,7 @@ npm install @nestling/transport.cli
 ## Минимальный пример
 
 ```ts
-import { assemble } from '@nestling/app';
-import { Ok } from '@nestling/app';
+import { makeApp, Ok } from '@nestling/app';
 import { cli, cliEndpoint } from '@nestling/transport.cli';
 import { z } from 'zod';
 

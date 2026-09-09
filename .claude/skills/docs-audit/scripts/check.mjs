@@ -235,6 +235,35 @@ for (const f of discFiles.filter((f) => !/^\d{2}-/.test(f))) {
   add('WARN', 'discussions-numbering', join(discDir, f), 'файл без префикса NN-');
 }
 
+// ── 7. Реализованный change отмечен в журнале решений ───────────────────────
+// Запись ideas.md, по которой сделан change, несёт пометку «РЕАЛИЗОВАНО …
+// change `имя`». Проверяются те change'и, чья строка roadmap ссылается на
+// журнал: значит запись существует и пометке есть где стоять.
+
+const roadmapPath = join(DOCS, 'decisions', 'roadmap.md');
+const ideasPath = join(DOCS, 'decisions', 'ideas.md');
+
+if (existsSync(roadmapPath) && existsSync(ideasPath)) {
+  const ideasLines = readFileSync(ideasPath, 'utf8').split('\n');
+  const marked = new Set();
+
+  // Имя change'а может уехать на следующую строку переносом — берём окно.
+  for (const [i, line] of ideasLines.entries()) {
+    if (!line.includes('РЕАЛИЗОВАНО')) continue;
+    const window = ideasLines.slice(i, i + 3).join(' ');
+    for (const m of window.matchAll(/`([a-z0-9.+-]+)`/g)) marked.add(m[1]);
+  }
+
+  for (const line of readFileSync(roadmapPath, 'utf8').split('\n')) {
+    const m = /^\| \d+ \| `([a-z0-9.+-]+)` \|/.exec(line);
+    if (!m || !line.includes('**done**') || !line.includes('ideas.md')) continue;
+    if (!marked.has(m[1])) {
+      add('ERROR', 'ideas-implemented', ideasPath,
+        `change \`${m[1]}\` сделан, но записи журнала о нём нет пометки РЕАЛИЗОВАНО`);
+    }
+  }
+}
+
 // ── Вывод ────────────────────────────────────────────────────────────────────
 
 const errors = findings.filter((f) => f.severity === 'ERROR');

@@ -68,12 +68,12 @@ endpoint'ы. `QuotaService` не экспортируется наружу и в
 ```
 1 edge(s) cross a feature boundary:
 
-  - Feature 'users' depends on feature 'quotas' by token: 'UsersReport'
-    injects 'QuotaService'. Features are connected by operations only — a token does
-    not survive a process boundary, so this edge breaks the moment the two
-    features are deployed apart. Declare the call as an operation
-    (makeRequest / makeCommand), inject its '.caller' and implement it in
-    'quotas'.
+  - Feature 'users' depends on feature 'quotas' by DI token: 'UsersReport'
+    injects 'QuotaService'. Features are connected by operations only — a
+    DI token does not survive a process boundary, so this edge breaks the
+    moment the two features are deployed apart. Declare the call as an
+    operation (makeRequest / makeCommand), inject its '.caller' and
+    implement it in 'quotas'.
 ```
 
 Проверка выполняется на собранном графе и различает три вида рёбер.

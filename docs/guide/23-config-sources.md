@@ -76,10 +76,14 @@ export const makeContainer = async (
 
   return new ContainerBuilder()
     .register(configKernel(config))
+    // Корневой логгер живёт вне графа: `makeApp` создаёт его на фазе 0 и
+    // регистрирует значением сам, здесь это делает вызывающий код
+    .register(valueProvider(RootLogger$, makeKernelLogger(config)))
     // Kernel-модули, которые `assemble` регистрирует сам: логгер ядра читает
     // секцию `nestlingLog` и идентификатор запроса из контекста
     .register(contextKernel(), loggerKernel())
-    .register(...appCounters.modules)
+    // Веток переключателей у примера нет, поэтому карта значений пуста
+    .register(...resolveBranches(appCounters.modules, {}))
     .register(AppModule)
     .build();
 };
@@ -92,7 +96,9 @@ export const makeContainer = async (
 подключает ядро конфигурации, а `contextKernel()` и `loggerKernel()` —
 контекст запроса и логгер ядра. При сборке через `makeApp` все три
 регистрирует сама сборка. Плагин `appCounters` регистрируется своими
-модулями: `appCounters.modules` — обычный массив значений.
+модулями. В списке `modules` могут стоять ветки переключателей, поэтому его
+раскрывает `resolveBranches(modules, values)`: у примера веток нет, и карта
+значений пуста.
 
 ## Один `.env` на несколько сервисов
 
