@@ -280,6 +280,63 @@ describe('потоковый выход в stdout', () => {
       await cli.close();
     }
   });
+
+  it('остановка с взведённым сигналом закрывает непрочитанный ответ', async () => {
+    const outcomes: Outcome[] = [];
+    const stdout = captureStdout();
+    let closed = false;
+
+    // Источник занимает ресурс до начала итерации, поэтому он
+    // объект-итератор: тело генератора до первого `next()` не выполняется,
+    // и его закрытие ничего бы не показало
+    const source: AsyncIterableIterator<Row> = {
+      [Symbol.asyncIterator]: () => source,
+
+      next: async () => ({ value: { id: '1' }, done: false }),
+
+      return: async () => {
+        closed = true;
+
+        return { value: undefined, done: true };
+      },
+
+      throw: async (error?: unknown) => {
+        closed = true;
+
+        throw error;
+      },
+    };
+
+    const Export = cliEndpoint({
+      command: 'export-stopped',
+      output: stream(Row),
+      pipeline: observing((outcome) => outcomes.push(outcome)),
+      handler: async () => new Ok(source),
+    });
+
+    // Транспорт останавливается раньше, чем команда дошла до записи
+    const controller = new AbortController();
+    controller.abort();
+
+    const cli = new CliTransport({ argv: [] });
+    await cli.serve(makeDispatch([Export]), controller.signal);
+
+    try {
+      const response = await cli.execute({
+        command: 'export-stopped',
+        args: [],
+        options: {},
+      });
+
+      expect(response).toMatchObject({ isSuccess: true, value: null });
+      expect(stdout.written.join('')).toBe('');
+      expect(closed).toBe(true);
+      expect(outcomes).toEqual(['aborted']);
+    } finally {
+      stdout.restore();
+      await cli.close();
+    }
+  });
 });
 
 describe('отказ регистрации несовместимых форм', () => {

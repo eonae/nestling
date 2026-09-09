@@ -10,6 +10,7 @@
 import { makeCtx } from './__fixtures__/context.js';
 import type { TrackSubscription, UntrackSubscription } from './layer.js';
 import { tracked } from './layer.js';
+import type { SubscriptionClosed } from './operations.js';
 import { SubscriptionRegistry } from './registry.js';
 import type { TrackedSubscription } from './types.js';
 
@@ -17,7 +18,8 @@ import type { Constructor } from '@common/misc';
 import { describe, expect, it } from '@jest/globals';
 import type { ExtendableContext, ResponseContext } from '@nestling/app';
 import { compose, makePipeline } from '@nestling/app';
-import { events, Ok } from '@nestling/operations';
+import type { Emitter } from '@nestling/operations';
+import { events, Ok, Topic } from '@nestling/operations';
 import { spyLogger } from '@nestling/testing';
 import { z } from 'zod';
 
@@ -138,6 +140,39 @@ describe('tracked: запись живёт столько же, сколько �
     await iterator.return?.();
 
     expect(registry.size).toBe(0);
+  });
+
+  it('для потоковой формы снимается, когда поток закрыт непрочитанным', async () => {
+    const facts: { reason: string; itemsOut: number }[] = [];
+    // Вызыватель факта — заглушка: в графе его создаёт модуль, а спека
+    // слоя графа не собирает
+    const closed: Emitter<typeof SubscriptionClosed> = {
+      emit: async (payload) => {
+        facts.push({ reason: payload.reason, itemsOut: payload.itemsOut });
+      },
+    };
+
+    const registry = new SubscriptionRegistry({}, undefined, closed);
+    // Тема занимает место подписчика в момент вызова: закрытие обязано
+    // дойти до неё
+    const topic = new Topic<Item>();
+
+    const response = await boundTo(registry).executeWithHandler(
+      async () => new Ok(topic.subscribe()),
+      ctxFor({ output: events(Item) }),
+    );
+
+    expect(registry.list()).toHaveLength(1);
+
+    const iterator = (response as { value: AsyncIterableIterator<Item> }).value;
+    await iterator.return?.();
+
+    expect(registry.list()).toEqual([]);
+    expect(topic.subscribers).toBe(0);
+
+    // Публикация факта не блокирует закрытие: она стоит в очереди
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(facts).toEqual([{ reason: 'completed', itemsOut: 0 }]);
   });
 
   it('снимается, даже если хендлер не выполнялся', async () => {

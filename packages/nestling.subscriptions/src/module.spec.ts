@@ -218,9 +218,8 @@ describe('subscriptions(): реестр в собранном приложени
     const first = await feed.next();
     expect(first.value).toEqual({ type: 'opened', id: watched.id });
 
-    // Один элемент прочитан — поток начат, и его закрытие исполнит
-    // `.finally` (см. `core-limits.spec.ts`, находка №4)
-    await stream.next();
+    // Поток закрывается непрочитанным: снятие записи от числа
+    // прочитанных элементов не зависит
     registry.abort(watched.id);
     await stream.return?.();
     await waitFor(() => registry.list({ pattern: 'ticks:watch' }).length === 0);

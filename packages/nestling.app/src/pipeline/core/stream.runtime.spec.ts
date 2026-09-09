@@ -12,7 +12,7 @@ import type { Outcome } from './types/unit.js';
 import { ClientDisconnectedError, TransportClosingError } from './abort.js';
 import { isMidStreamFailure, makePipeline } from './pipeline.js';
 
-import { events, Ok, stream } from '@nestling/operations';
+import { events, Ok, stream, Topic } from '@nestling/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
@@ -56,6 +56,45 @@ async function* rows(...ids: string[]): AsyncIterableIterator<Row> {
   }
 }
 
+/**
+ * Источник-объект: считает закрытия и отдаёт элементы без генератора.
+ *
+ * Генератор для этих сценариев не годится — его тело не выполняется до
+ * первого `next()`, и закрытие до старта было бы не видно.
+ */
+function counted(...ids: string[]): AsyncIterableIterator<Row> & {
+  closes: number;
+} {
+  let index = 0;
+
+  const source = {
+    closes: 0,
+
+    [Symbol.asyncIterator](): AsyncIterableIterator<Row> {
+      return source;
+    },
+
+    next: async (): Promise<IteratorResult<Row>> =>
+      index < ids.length
+        ? { value: { id: ids[index++] }, done: false }
+        : { value: undefined, done: true },
+
+    return: async (): Promise<IteratorResult<Row>> => {
+      source.closes += 1;
+
+      return { value: undefined, done: true };
+    },
+
+    throw: async (error?: unknown): Promise<IteratorResult<Row>> => {
+      source.closes += 1;
+
+      throw error;
+    },
+  };
+
+  return source;
+}
+
 /** Поток, отдающий элемент и падающий: mid-stream отказ */
 async function* failing(): AsyncIterableIterator<Row> {
   yield { id: '1' };
@@ -75,6 +114,38 @@ async function* brokenOnly(): AsyncIterableIterator<unknown> {
 
 /** Логгер-шпион: умолчание ядра шумит в выводе тестов */
 const silent = { logger: spyLogger().logger };
+
+/** Что увидел наблюдатель исхода потокового ответа */
+interface Seen {
+  outcomes: Outcome[];
+  itemsOut?: number;
+}
+
+/** Отдаёт потоковый ответ endpoint'а вместе с наблюдателем исхода */
+async function respond(
+  source: AsyncIterable<Row>,
+  seen: Seen,
+  options: { signal?: AbortSignal; output?: EndpointMeta['output'] } = {},
+): Promise<AsyncIterableIterator<Row>> {
+  const pipeline = makePipeline().finally((outcome, _response, ctx) => {
+    seen.outcomes.push(outcome);
+    seen.itemsOut = ctx.summary.itemsOut;
+  });
+
+  const ctx = makeEmptyContext(
+    raw(),
+    meta(undefined, options.output ?? events(Row)),
+    options.signal,
+  );
+
+  const response = await pipeline.executeWithHandler(
+    async () => new Ok(source),
+    ctx,
+    silent,
+  );
+
+  return (response as unknown as { value: AsyncIterableIterator<Row> }).value;
+}
 
 describe('отложенный .finally у потокового ответа', () => {
   it('вызывается после последнего элемента, а не после ответной фазы', async () => {
@@ -219,6 +290,117 @@ describe('отложенный .finally у потокового ответа', (
     await pipeline.executeWithHandler(async () => new Ok({ id: '1' }), ctx);
 
     expect(outcomes).toEqual(['completed']);
+  });
+});
+
+describe('закрытие непрочитанного потокового ответа', () => {
+  it('.finally выполняется с исходом completed и нулевым itemsOut', async () => {
+    const seen: Seen = { outcomes: [] };
+    const iterator = await respond(rows('1', '2'), seen);
+
+    await iterator.return?.();
+
+    expect(seen.outcomes).toEqual(['completed']);
+    expect(seen.itemsOut).toBe(0);
+  });
+
+  it('дисконнект до первого элемента даёт disconnected', async () => {
+    const seen: Seen = { outcomes: [] };
+    const controller = new AbortController();
+    const iterator = await respond(rows('1', '2'), seen, {
+      signal: controller.signal,
+    });
+
+    controller.abort(new ClientDisconnectedError());
+    await iterator.return?.();
+
+    expect(seen.outcomes).toEqual(['disconnected']);
+  });
+
+  it('иное взведение сигнала до первого элемента даёт aborted', async () => {
+    const seen: Seen = { outcomes: [] };
+    const controller = new AbortController();
+    const iterator = await respond(rows('1', '2'), seen, {
+      signal: controller.signal,
+    });
+
+    controller.abort(new TransportClosingError());
+    await iterator.return?.();
+
+    expect(seen.outcomes).toEqual(['aborted']);
+  });
+
+  it('двойной return() выполняет .finally ровно один раз', async () => {
+    const seen: Seen = { outcomes: [] };
+    const iterator = await respond(rows('1', '2'), seen);
+
+    await iterator.return?.();
+    await expect(iterator.return?.()).resolves.toMatchObject({ done: true });
+
+    expect(seen.outcomes).toEqual(['completed']);
+  });
+
+  it('throw() до первого элемента даёт failed и бросает MidStreamFailure', async () => {
+    const seen: Seen = { outcomes: [] };
+    const iterator = await respond(rows('1', '2'), seen);
+
+    let thrown: unknown;
+    try {
+      await iterator.throw?.(new Error('boom'));
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(isMidStreamFailure(thrown)).toBe(true);
+
+    expect(seen.outcomes).toEqual(['failed']);
+  });
+
+  it('источник закрыт, хотя не прочитан ни один элемент', async () => {
+    const seen: Seen = { outcomes: [] };
+    const source = counted('1', '2');
+    const iterator = await respond(source, seen);
+
+    await iterator.return?.();
+
+    expect(source.closes).toBe(1);
+  });
+
+  it('подписка на тему снимается закрытием непрочитанного ответа', async () => {
+    const seen: Seen = { outcomes: [] };
+    const topic = new Topic<Row>();
+    const iterator = await respond(topic.subscribe(), seen);
+
+    expect(topic.subscribers).toBe(1);
+    await iterator.return?.();
+
+    expect(topic.subscribers).toBe(0);
+    expect(seen.outcomes).toEqual(['completed']);
+  });
+
+  it('объявленная item-цепочка закрытию не мешает', async () => {
+    const seen: Seen = { outcomes: [] };
+    const topic = new Topic<Row>();
+    const iterator = await respond(topic.subscribe(), seen, {
+      output: events(Row).throttle(10),
+    });
+
+    expect(topic.subscribers).toBe(1);
+    await iterator.return?.();
+
+    expect(topic.subscribers).toBe(0);
+  });
+
+  it('после прочитанного элемента источник закрывается ровно один раз', async () => {
+    const seen: Seen = { outcomes: [] };
+    const source = counted('1', '2', '3');
+    const iterator = await respond(source, seen);
+
+    await iterator.next();
+    await iterator.return?.();
+
+    expect(source.closes).toBe(1);
+    expect(seen.itemsOut).toBe(1);
   });
 });
 
