@@ -1,6 +1,6 @@
 # 25. Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-08)
+> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-09)
 > и `container` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
@@ -152,7 +152,7 @@ export const makeContainer = async (
     [runtime, runtimeConfigKeys],
   ]);
 
-  return new ContainerBuilder()
+  const builder = new ContainerBuilder()
     .register(configKernel(config))
     // Корневой логгер живёт вне графа: `makeApp` создаёт его на фазе 0 и
     // регистрирует значением сам, здесь это делает вызывающий код
@@ -162,8 +162,14 @@ export const makeContainer = async (
     .register(contextKernel(), loggerKernel())
     // Веток переключателей у примера нет, поэтому карта значений пуста
     .register(...resolveBranches(appCounters.modules, {}))
-    .register(AppModule)
-    .build();
+    .register(AppModule);
+
+  // Пробы — после модулей: узел ядра называет каждый вклад поимённо.
+  // Фазы здесь нет вовсе, поэтому её читалка отвечает RUN, как и в
+  // тестовом прогоне
+  registerHealth(builder, () => 'RUN');
+
+  return builder.build();
 };
 ```
 
@@ -179,7 +185,9 @@ Kernel-модули `contextKernel()` и `loggerKernel()` тоже регист�
 руками. Плагин `appCounters` регистрируется своими модулями. В списке
 `modules` могут стоять ветки переключателей, поэтому его раскрывает
 `resolveBranches(modules, values)`: у примера веток нет, и карта значений
-пуста. `build()` синхронен: он
+пуста. Пробы подключает `registerHealth`: узел `Health$` собирается и без
+`makeApp`, а фазу ему называет вызывающий код ([глава 24](./24-ops.md)).
+`build()` синхронен: он
 строит граф и проверяет его целиком — отсутствующая зависимость и цикл
 останавливают сборку одной ошибкой со списком узлов. Экземпляров он не
 создаёт: их создаёт `init()`.

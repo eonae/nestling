@@ -5639,6 +5639,13 @@ Composition root на L0 повторяет состав одной фичи б�
 
 ## [2026-09-06] Пробы: `HealthCheck$` и `Health$` в ядре, транспорты адаптируют
 
+> **РЕАЛИЗОВАНО 2026-09-09** — change `health` (#53 roadmap). Реализовано
+> целиком: узел `Health$` с `liveness()` и `readiness()`, семейство
+> `HealthCheck$`, kernel-секция `nestlingHealth` и плагин `httpProbes()`.
+> Узел регистрируется всегда, без полей в `makeApp`, а вклады перечислены
+> в `deps` поимённо, а не собраны агрегатом `.all`: отчёт называет каждую
+> проверку.
+
 ### Контекст
 
 Ревью ([d/12](../history/discussions/12-lifecycle-and-composition-review.md), пункт 1).
