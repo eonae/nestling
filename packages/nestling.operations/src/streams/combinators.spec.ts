@@ -35,6 +35,45 @@ function tracked<T>(items: readonly T[]): {
   return { source: generate(), closed: () => finished };
 }
 
+/**
+ * Источник, занявший ресурс в момент создания: объект-итератор, а не
+ * генератор.
+ *
+ * Тело генератора до первого `next()` не выполняется, поэтому закрытие
+ * неначатого генератора его `finally` не исполнит и ничего бы не показало.
+ * Так же устроен `Topic.subscribe`.
+ */
+function holding<T>(items: readonly T[]): {
+  source: AsyncIterableIterator<T>;
+  closed: () => boolean;
+} {
+  let index = 0;
+  let finished = false;
+
+  const source: AsyncIterableIterator<T> = {
+    [Symbol.asyncIterator]: () => source,
+
+    next: async () =>
+      index < items.length
+        ? { value: items[index++], done: false }
+        : { value: undefined, done: true },
+
+    return: async () => {
+      finished = true;
+
+      return { value: undefined, done: true };
+    },
+
+    throw: async (error?: unknown) => {
+      finished = true;
+
+      throw error;
+    },
+  };
+
+  return { source, closed: () => finished };
+}
+
 const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -165,5 +204,23 @@ describe('комбинаторы item-цепочки', () => {
     expect(
       await collect(untilAborted(from([1, 2]), controller.signal)),
     ).toEqual([]);
+  });
+
+  it('untilAborted на уже взведённом сигнале закрывает источник', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const { source, closed } = holding([1, 2]);
+
+    expect(await collect(untilAborted(source, controller.signal))).toEqual([]);
+    expect(closed()).toBe(true);
+  });
+
+  it('untilAborted без сигнала остаётся прозрачной', async () => {
+    const { source, closed } = holding([1, 2, 3]);
+
+    expect(await collect(untilAborted(source))).toEqual([1, 2, 3]);
+    // Источник дотёк сам: закрывать его обёртке незачем
+    expect(closed()).toBe(false);
   });
 });
