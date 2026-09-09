@@ -191,6 +191,21 @@ export function bindInputStream<T>(
  *
  * Обёртку завершения (`.finally`) навешивает пайплайн отдельно и позже —
  * она обязана быть самой внешней.
+ *
+ * Возвращается объект-итератор поверх собранной цепочки, а не сама цепочка.
+ * Причина — закрытие до первого `next()`: звенья цепочки суть асинхронные
+ * генераторы, и `return()` на неначатом генераторе его тела не исполняет,
+ * поэтому до источника такое закрытие не доходит. Пока итерация не
+ * началась, источник закрывает обёртка формы — она собрала цепочку, ей и
+ * отвечать за то, что под ней. После первого `next()` закрытие идёт
+ * обычным путём: начатые генераторы выполняют свои `finally` и закрывают
+ * нижележащее звено сами.
+ *
+ * Инвариант, на котором это держится: неначатый генератор ресурсов не
+ * держит. Он верен и для обёрток ядра, и для шагов цепочки — таймер
+ * `gapTimeout`, буфер `batch` и счётчик `limit` создаются в теле итерации.
+ * Того же требует от пользовательского шага `.through(fn)` дизайн
+ * потоков (`docs/design/streaming.md`).
  */
 export function bindOutputStream<T>(
   form: FormDescriptor,
@@ -203,16 +218,70 @@ export function bindOutputStream<T>(
     current = validateItems(current, form.leaf as FormLeaf, false);
   }
 
-  return countItems(
+  const chain = countItems(
     current,
     ctx.summary,
     'itemsOut',
   ) as AsyncIterableIterator<T>;
+
+  let started = false;
+
+  /** Закрытие в обход неначатой цепочки — сквозь неё оно бы не прошло */
+  const closeSource = async (): Promise<void> => {
+    await source[Symbol.asyncIterator]().return?.();
+  };
+
+  return {
+    [Symbol.asyncIterator](): AsyncIterableIterator<T> {
+      return this;
+    },
+
+    async next(...args): Promise<IteratorResult<T>> {
+      started = true;
+
+      return chain.next(...args);
+    },
+
+    async return(value?: unknown): Promise<IteratorResult<T>> {
+      if (!started) {
+        await closeSource();
+      }
+
+      return (
+        (await chain.return?.(value)) ??
+        ({ value, done: true } as IteratorResult<T>)
+      );
+    },
+
+    async throw(error?: unknown): Promise<IteratorResult<T>> {
+      if (!started) {
+        await closeSource();
+      }
+
+      if (!chain.throw) {
+        throw error;
+      }
+
+      return chain.throw(error);
+    },
+  };
 }
 
 /**
  * Обёртка завершения: выполняет `onSettled` ровно один раз — на нормальном
- * конце потока, на ошибке и на закрытии потребителем (`return()`).
+ * конце потока, на ошибке источника и на закрытии потребителем (`return()`
+ * или `throw()`).
+ *
+ * Не генератор, а явный объект-итератор. Тело асинхронного генератора
+ * начинает выполняться с первого `next()`, поэтому `return()` на неначатом
+ * генераторе не исполнил бы ни `try`, ни `finally` — а значит, и
+ * отложенные `.finally`-юниты. Объект-итератор финализирует запрос
+ * независимо от того, читал ли потребитель поток. Тот же приём и по той же
+ * причине применён в `Topic.subscribe`.
+ *
+ * Итератор источника берётся лениво: в первом `next()` либо в закрытии,
+ * если оно пришло раньше. Закрытие доходит до источника и тогда, когда
+ * не прочитано ни одного элемента.
  *
  * Именно закрытие итератора выполняет отложенные `.finally`-юниты, поэтому
  * операция с транспортом прост: потребить итератор до конца **либо**
@@ -221,27 +290,97 @@ export function bindOutputStream<T>(
  * @param onSettled - получает ошибку потока (или `undefined`) и возвращает
  * значение, которое нужно бросить вместо неё
  */
-export async function* withFinish<T>(
+export function withFinish<T>(
   source: AsyncIterable<T>,
   onSettled: (error: unknown) => Promise<unknown> | unknown,
 ): AsyncIterableIterator<T> {
-  let failure: unknown;
-  let failed = false;
+  let iterator: AsyncIterator<T> | undefined;
+  let settled = false;
 
-  try {
-    yield* source;
-  } catch (error) {
-    failed = true;
-    failure = error;
-  } finally {
-    const replacement = await onSettled(failed ? failure : undefined);
-    if (failed) {
-      // Единственный способ пробросить отказ наружу: в catch он намеренно
-      // перехвачен, чтобы finally-юниты увидели исход до его
-      // распространения. Ветка сама «съесть» ничего не может — `failed`
-      // взводится только в catch.
-      // eslint-disable-next-line no-unsafe-finally
-      throw replacement === undefined ? failure : replacement;
+  const iterate = (): AsyncIterator<T> =>
+    (iterator ??= source[Symbol.asyncIterator]());
+
+  /** Финализация ровно один раз; отдаёт замену ошибки от `onSettled` */
+  const settle = async (error?: unknown): Promise<unknown> => {
+    if (settled) {
+      return undefined;
     }
-  }
+    settled = true;
+
+    return onSettled(error);
+  };
+
+  const finished = (value?: unknown): IteratorResult<T> =>
+    ({ value, done: true }) as IteratorResult<T>;
+
+  return {
+    [Symbol.asyncIterator](): AsyncIterableIterator<T> {
+      return this;
+    },
+
+    async next(...args): Promise<IteratorResult<T>> {
+      if (settled) {
+        return finished();
+      }
+
+      let result: IteratorResult<T>;
+
+      try {
+        result = await iterate().next(...args);
+      } catch (error) {
+        const replacement = await settle(error);
+        throw replacement === undefined ? error : replacement;
+      }
+
+      if (result.done) {
+        await settle();
+      }
+
+      return result;
+    },
+
+    async return(value?: unknown): Promise<IteratorResult<T>> {
+      if (settled) {
+        return finished(value);
+      }
+
+      // Источник закрывается до финализации: `.finally`-юниты видят
+      // освобождённые им ресурсы и итоговый `itemsOut`
+      try {
+        await iterate().return?.();
+      } finally {
+        await settle();
+      }
+
+      return finished(value);
+    },
+
+    async throw(error?: unknown): Promise<IteratorResult<T>> {
+      if (settled) {
+        throw error;
+      }
+
+      let result: IteratorResult<T>;
+
+      try {
+        const current = iterate();
+        // Источник может обработать бросок сам — тогда поток продолжается.
+        // Источника без `throw` закрытие завершает, а ошибка идёт наружу
+        if (!current.throw) {
+          await current.return?.();
+          throw error;
+        }
+        result = await current.throw(error);
+      } catch (error_) {
+        const replacement = await settle(error_);
+        throw replacement === undefined ? error_ : replacement;
+      }
+
+      if (result.done) {
+        await settle();
+      }
+
+      return result;
+    },
+  };
 }
