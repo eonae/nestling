@@ -2,9 +2,12 @@
  * `buildOpenApiDocument` — чистая функция из деклараций в документ.
  *
  * Ни контейнера, ни транспортов, ни поднятого приложения ей не нужно: на
- * входе то же значение, что отдаёт `discoverEndpoints`. Поэтому документ
+ * входе то же значение, что отдаёт `app.discover(args)`. Поэтому документ
  * кладётся в артефакты CI тремя строками — и той же функцией пользуется
  * модуль-издатель, когда строит документ на ASSEMBLE.
+ *
+ * Аргумент сборки задаёт состав документа: при том же `args` документ
+ * описывает те endpoint'ы, которые обслуживает `app.assemble(args).run()`.
  */
 
 import { Diagnostics, whereOf } from './diagnostics.js';
@@ -39,8 +42,8 @@ interface Documented {
  * помеченный `doc: { hidden: '<причина>' }`, исключается вместе со своими
  * схемами: это единственный способ не документировать HTTP-endpoint.
  *
- * @param endpoints - Результат `discoverEndpoints(...).endpoints` (или
- * любой структурно совпадающий список)
+ * @param endpoints - Поле `endpoints` результата `app.discover(args?)`
+ * (или любой структурно совпадающий список)
  * @param options - `info` (обязательно), конвертеры и поля, переносимые
  * в документ как есть
  * @returns JSON-сериализуемый документ
@@ -50,7 +53,7 @@ interface Documented {
  *
  * @example
  * ```typescript
- * const { endpoints } = discoverEndpoints([...features, ...plugins]);
+ * const { endpoints } = app.discover(process.argv[2]);
  * writeFileSync('openapi.json', JSON.stringify(
  *   buildOpenApiDocument(endpoints, { info, converters: [zodConverter()] }),
  * ));
