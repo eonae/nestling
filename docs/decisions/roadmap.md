@@ -429,7 +429,7 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | 49 | `http-server` | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-09-07-http-server/); transports.md противоречил себе про порт, два экземпляра читали один `HTTP_PORT`, а дубликат паттерна ловился на START после захвата ресурсов |
 | 50 | `http-handler-form` | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-09-08-http-handler-form/); `Location` в заголовках `Ok` был HTTP под чужим именем, редирект и cookie не выражались вовсе; юниты, знающие транспорт, не имели правила |
 | 51 | `config-derived` | S–M | **done** — [архив](../../openspec/changes/archive/2026-09-07-config-derived/); вычисляемые поля требовали класса-прокси, общий `.env` на несколько сервисов не поддерживался, описания полей не попадали в документацию |
-| 52 | `openapi-declaration` | S | документ для CI собирался тремя строками через `discoverEndpoints` без учёта аргумента сборки |
+| 52 | `openapi-declaration` | S | документ для CI собирался тремя строками через `discoverEndpoints` без учёта аргумента сборки; вход генератора — метод декларации `app.discover(args?)`, а не вторая сигнатура `buildOpenApiDocument` |
 | 53 | `health` | M | **done** — [архив](../../openspec/changes/archive/2026-09-09-health/); deferred выводил liveness из фазы, а гайд делал пробу endpoint'ом с `detached`; два дизайна жили параллельно |
 | 54 | `outbox` | L | **done** — [архив](../../openspec/changes/archive/2026-09-07-outbox/); событие, отправленное соседу, не переживало падение процесса между коммитом и отправкой — дыра в главном обещании модульного монолита; второй мотив — замер границы ядра на задаче тяжелее реестра подписок |
 
