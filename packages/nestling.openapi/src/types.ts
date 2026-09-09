@@ -111,8 +111,8 @@ export interface OpenApiDocument {
  *
  * Структурно совпадает с `DiscoveredEndpoint` discovery (и с
  * `PolicySubject` политик) — тем же приёмом, которым `PolicySubject` уже
- * избегает конвертации между пакетами: результат `discoverEndpoints`
- * скармливается генератору как есть.
+ * избегает конвертации между пакетами: поле `endpoints` результата
+ * `app.discover(args?)` скармливается генератору как есть.
  */
 export type DocumentedEndpoint = DiscoveredEndpoint;
 

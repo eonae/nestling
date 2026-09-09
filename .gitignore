@@ -53,5 +53,8 @@ memory-bank/
 # Синтетический граф бюджета типов (генерируется type-tests/bench)
 type-tests/.generated
 
+# Документ OpenAPI примеров (генерируется `yarn workspace … openapi`)
+openapi.json
+
 # Рабочие копии git worktree сессий Claude Code
 .claude/worktrees/

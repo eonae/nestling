@@ -1,6 +1,6 @@
 # 12. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `users-service`, `app-with-http` (2026-09-09).
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки
@@ -60,6 +60,60 @@ curl -s http://localhost:3000/openapi.json | jq '.paths["/users"].post.responses
 Ответы выведены из декларации: `201` из статуса успеха, `400` для
 проверки входа, `401` и `409` из `errors:`, `default` для `internal_error`.
 Форма `stream(User)` выгрузки описана как `application/x-ndjson`.
+
+## Документ в CI
+
+Плагин отдаёт документ работающего приложения. В CI приложение поднимать
+незачем: документ строится из декларации чистой функцией.
+
+```typescript
+// examples/app-with-http/src/openapi.ts
+import { writeFileSync } from 'node:fs';
+
+import { app, openapiOptions } from './app.js';
+
+import { buildOpenApiDocument } from '@nestling/openapi';
+
+/** Аргумент сборки — аргумент командной строки; без него выбраны все фичи */
+const args = process.argv[2];
+
+const { endpoints } = app.discover(args);
+
+const document = buildOpenApiDocument(endpoints, openapiOptions);
+
+// `file` — `openapi.json` в корне пакета примера
+writeFileSync(file, `${JSON.stringify(document, undefined, 2)}\n`);
+```
+
+`app.discover(args)` выполняет фазу 0 и останавливается: разбирает
+аргумент сборки, раскрывает ветки переключателей, разрешает выбор фич и
+проходит discovery. Дальше он не идёт — источники конфига не
+поднимаются, граф не строится, транспорты не создаются. Поэтому вызов
+синхронный, и `await` ему не нужен.
+
+Аргумент сборки нужен ему по той же причине, по какой нужен `assemble`:
+без аргумента документ описывал бы все объявленные фичи, а процесс
+поднимал бы выбранные. `app-with-http` объявляет три фичи и переключатель
+`docs`, и разница видна сразу:
+
+```bash
+yarn workspace @examples/app-with-http openapi
+# …/openapi.json: 11 path(s)
+
+yarn workspace @examples/app-with-http openapi users
+# …/openapi.json: 8 path(s) — три пути `/ops/subscriptions…` в документ не попали
+```
+
+Опции документа лежат рядом с плагином одним значением: `info` и
+`converters` объявлены в `src/app.ts` как `openapiOptions`, а плагин
+добавляет к ним только `pipeline`. Документ из CI и документ по
+`GET /openapi.json` описывают одно API, и второго `info` рядом не заводится.
+
+Метод бросает ошибки фазы 0: неизвестное имя фичи, значение переключателя
+вне словаря, дубликат паттерна на экземпляре транспорта. Соберётся ли
+граф — вопрос к `app.check(args)` из [главы 17](./17-select.md):
+неудовлетворённая зависимость и нарушенная политика `discover()` не
+мешают.
 
 ## Слот `doc:`
 

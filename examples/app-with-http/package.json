@@ -11,6 +11,7 @@
     "start": "yarn run build && node dist/bundle.js",
     "start:dev": "run -T tsx src/main.ts",
     "client": "run -T tsx src/api/client.ts",
+    "openapi": "run -T tsx src/openapi.ts",
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",

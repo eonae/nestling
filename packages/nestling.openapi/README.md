@@ -40,18 +40,28 @@ makeApp({
 
 | Что | Когда использовать |
 |---|---|
-| `buildOpenApiDocument(endpoints, options)` | чистая функция; CI кладёт `openapi.json` в артефакты, не поднимая приложение |
+| `buildOpenApiDocument(app.discover(args).endpoints, options)` | чистая функция; CI кладёт `openapi.json` в артефакты, не поднимая приложение |
 | `openapi(options)` | плагин: строит документ на фазе ASSEMBLE и отдаёт его endpoint'ом `GET /openapi.json` |
 | `OpenApiDocument$` | DI-токен готового документа для провайдера, которому документ нужен значением |
 
-Вход чистой функции — то же значение, что возвращает `discoverEndpoints`:
+Вход чистой функции — поле `endpoints` результата `app.discover(args?)`.
+Метод выполняет фазу 0 и останавливается: разбирает аргумент сборки,
+раскрывает ветки переключателей и разрешает выбор фич, не поднимая ни
+источников конфига, ни графа.
 
 ```typescript
-const { endpoints } = discoverEndpoints([...features, ...plugins]);
+// Аргумент сборки — тот же, что поднимает процесс: документ описывает
+// состав, который приложение и обслуживает
+const { endpoints } = app.discover(process.argv[2]);
+
 writeFileSync('openapi.json', JSON.stringify(
   buildOpenApiDocument(endpoints, { info, converters: [zodConverter()] }),
 ));
 ```
+
+Без аргумента в документ попадают все объявленные фичи и умолчания
+переключателей. С `app.discover('users')` — только пути фичи `users` и
+подключённых плагинов.
 
 ## Откуда берётся каждая часть документа
 

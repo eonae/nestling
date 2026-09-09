@@ -57,20 +57,16 @@ import type {
   TransportDeclaration,
   TransportEntry,
 } from '../transport/index.js';
-import { isTransport, makeDispatch } from '../transport/index.js';
+import { makeDispatch } from '../transport/index.js';
 
-import type { AssembleArgs, ParsedArgs } from './args.js';
-import { parseArgs, resolveSwitchValues, undeclaredSwitch } from './args.js';
+import type { AssembleArgs } from './args.js';
+import { undeclaredSwitch } from './args.js';
 import { assertFeatureBoundary, buildOwnerMap } from './boundary.js';
+import { resolveComposition } from './composition.js';
 import type { EndpointDiscovery } from './discovery.js';
 import { discoverEndpoints, Discovery$ } from './discovery.js';
-import type { Bundle, Feature, ResolvedBundle } from './feature.js';
-import {
-  modulesOf,
-  reachablePlugins,
-  resolveBundle,
-  resolveSelection,
-} from './feature.js';
+import type { ResolvedBundle } from './feature.js';
+import { modulesOf } from './feature.js';
 import type { CheckedOperation } from './operations.js';
 import { mapOperations } from './operations.js';
 import type { AppPhase } from './phase.js';
@@ -83,13 +79,11 @@ import type {
 } from './plan.js';
 import {
   CHECK_SEAM,
-  collectServers,
   makePlan,
   normalizeSpec,
   TEST_SEAM,
   transportTokensOf,
 } from './plan.js';
-import { closeOverCalls } from './selection.js';
 
 import type {
   AnySwitch,
@@ -227,7 +221,8 @@ const APP_BRAND = Symbol.for('nestling:app');
  * интерком среди транспортов.
  *
  * @param spec - Словарь декларации. Все поля опциональны
- * @returns Декларация приложения с методами `assemble()` и `check()`
+ * @returns Декларация приложения с методами `assemble()`, `discover()` и
+ * `check()`
  * @throws {TypeError} Неизвестное поле словаря, смешанная форма состава,
  * не фича в `features`, не плагин в `plugins`
  * @throws {Error} Одноимённые разные фичи или переключатели, интерком вне
@@ -281,8 +276,9 @@ export function isApp(value: unknown): value is App<any> {
  * Декларация приложения: результат `makeApp`.
  *
  * Значение, а не процесс: одна декларация собирается сколько угодно раз с
- * разным аргументом. Публичная поверхность — `assemble(args?)` и
- * `check(args?, options?)`.
+ * разным аргументом. Публичная поверхность — три входа с одним и тем же
+ * аргументом сборки, различающиеся глубиной: `discover(args?)` — фаза 0,
+ * `check(args?, options?)` — фазы 0–1, `assemble(args?).run()` — фазы 0–5.
  *
  * @template S - Переключатели декларации; из них выведен тип аргумента
  */
@@ -317,6 +313,44 @@ export class App<S extends readonly AnySwitch[] = readonly AnySwitch[]> {
    */
   assemble(args?: AssembleArgs<S>): AssembledApp {
     return new AssembledApp(makePlan(this.spec, args));
+  }
+
+  /**
+   * Состав приложения при этом аргументе: фаза 0 BOOTSTRAP — и остановка.
+   *
+   * Выполняется: разбор аргумента сборки, расчёт значений переключателей,
+   * раскрытие веток, разрешение выбора фич с замыканием по вызываемым
+   * операциям при `includeDeps` и проход discovery по выбранным единицам.
+   *
+   * Вызов синхронный и без ввода-вывода: источники конфига не
+   * поднимаются, граф не строится, экземпляры транспортов не создаются.
+   * Отсюда назначение метода — вход генератора документа: `openapi.json`
+   * описывает тот состав, которым процесс и поднимется.
+   *
+   * Метод отвечает на вопрос «что обслуживается», а не «соберётся ли».
+   * Ошибки собранного графа он не бросает: неудовлетворённая
+   * зависимость, нарушенная политика, форма io вне способностей
+   * транспорта и отсутствие требуемого транспорта — исходы `check()`.
+   *
+   * @param args - Аргумент сборки в тех же формах, что у `assemble`
+   * @returns Endpoint'ы с атрибуцией к единице и карта требуемых
+   * транспортов — то же значение, что сборка кладёт под `Discovery$`
+   * @throws {TypeError} Неизвестное поле аргумента сборки
+   * @throws {Error} Неизвестное имя фичи, значение переключателя вне
+   * словаря, ветка на необъявленном переключателе, элемент `endpoints:`
+   * не является декларацией, две разные единицы под одним именем,
+   * дубликат паттерна на экземпляре транспорта
+   *
+   * @example
+   * ```typescript
+   * const document = buildOpenApiDocument(app.discover(args).endpoints, {
+   *   info: { title: 'Users API', version: '1.0.0' },
+   *   converters: [zodConverter()],
+   * });
+   * ```
+   */
+  discover(args?: AssembleArgs<S>): EndpointDiscovery {
+    return discoverEndpoints(resolveComposition(this.spec, args).bundles);
   }
 
   /**
@@ -771,13 +805,12 @@ export class AssembledApp {
   }
 
   /**
-   * Фаза 0: разбор аргумента сборки, значения переключателей, раскрытие
-   * веток и резолв выбора — до построения контейнера.
+   * Фаза 0: состав приложения по аргументу сборки — до построения
+   * контейнера.
    *
-   * Порядок задан фазовой моделью: значения считаются первыми, ветки
-   * раскрываются вторыми, замыкание по вызовам — последним. Так замыкание
-   * видит уже выбранный состав: ветка может привезти endpoint, который
-   * зовёт операцию соседней фичи.
+   * Счёт делает `resolveComposition`: тот же код, что стоит за
+   * `app.discover(args)`. Метод только присваивает поля, чтобы состав
+   * сборки и состав генератора документа не могли разойтись.
    *
    * Опечатка в имени фичи или значение вне словаря переключателя падают
    * раньше любого захвата.
@@ -787,72 +820,15 @@ export class AssembledApp {
       return;
     }
 
-    const { spec } = this.#plan;
+    const composition = resolveComposition(this.#plan.spec, this.#plan.args);
 
-    const parsed: ParsedArgs = parseArgs(this.#plan.args, spec.switches);
-    const values = resolveSwitchValues(spec.switches, parsed);
-
-    this.#switches = values;
-
-    const resolve = (bundle: Bundle): ResolvedBundle =>
-      resolveBundle(bundle, values, undeclaredSwitch);
-
-    // Плагины замыкаются по `dependsOn` уже после раскрытия: ветка в
-    // `plugins:` корня может привезти плагин со своими зависимостями
-    const plugins = reachablePlugins(
-      resolveBranches(spec.plugins, values, undeclaredSwitch),
-    );
-
-    this.#alwaysOn = [
-      ...(spec.root ? [resolve(spec.root)] : []),
-      ...plugins.map((plugin) => resolve(plugin)),
-    ];
-
-    // Транспорты и серверы разделяются здесь: до раскрытия веток состав
-    // списка неизвестен
-    const entries = resolveBranches(spec.transports, values, undeclaredSwitch);
-
-    this.#transports = entries.filter(isTransport);
-    this.#serverDecls = collectServers(entries);
-
-    const selection = resolveSelection(
-      spec.features,
-      parsed.features,
-      parsed.includeDeps,
-    );
-
-    // Раскрытие делается один раз на фичу и запоминается: discovery и
-    // карта владельцев сверяют единицы по идентичности значения
-    const resolved = new Map<Feature, ResolvedBundle>();
-    const of = (feature: Feature): ResolvedBundle => {
-      const known = resolved.get(feature);
-
-      if (known) {
-        return known;
-      }
-
-      const fresh = resolve(feature);
-      resolved.set(feature, fresh);
-
-      return fresh;
-    };
-
-    const selected = selection.features.map((feature) => of(feature));
-
-    this.#named = selected.map((feature) => feature.name);
-    this.#includeDeps = selection.includeDeps;
-    this.#features = selection.includeDeps
-      ? closeOverCalls(
-          selected,
-          new Map(
-            [...selection.declared].map(([name, feature]) => [
-              name,
-              of(feature),
-            ]),
-          ),
-          values,
-        )
-      : selected;
+    this.#switches = composition.switches;
+    this.#alwaysOn = composition.alwaysOn;
+    this.#transports = composition.transports;
+    this.#serverDecls = composition.servers;
+    this.#named = composition.named;
+    this.#includeDeps = composition.includeDeps;
+    this.#features = composition.features;
   }
 
   /**

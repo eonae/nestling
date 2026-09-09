@@ -14,18 +14,22 @@ import type { AnyEndpointDefinition } from '@nestling/app';
 import {
   events,
   jsonSchema,
+  makeApp,
   makeFail,
+  makeFeature,
   makePipeline,
+  makePlugin,
   multipart,
   Ok,
   stream,
   upload,
 } from '@nestling/app';
+import { makeSwitch } from '@nestling/container';
 import { zodConverter } from '@nestling/openapi.zod';
 import type { StandardSchemaV1 } from '@nestling/operations';
 import { makeRequest, query } from '@nestling/operations';
 import { cliEndpoint } from '@nestling/transport.cli';
-import { httpEndpoint, HttpResponse } from '@nestling/transport.http';
+import { http, httpEndpoint, HttpResponse } from '@nestling/transport.http';
 import { z } from 'zod';
 
 const info = { title: 'Test API', version: '1.0.0' };
@@ -700,5 +704,74 @@ describe('конвертер, отказавшийся переводить сх
     expect(() => documentOf([Report])).toThrow(
       /'GET \/report'.*'output' schema could not be converted.*jsonSchema\(schema/s,
     );
+  });
+});
+
+describe('вход генератора — декларация приложения', () => {
+  const ListUsers = httpEndpoint({
+    method: 'GET',
+    path: '/users',
+    output: z.array(User),
+    handler: async () => new Ok([]),
+  });
+
+  const ListInvoices = httpEndpoint({
+    method: 'GET',
+    path: '/invoices',
+    output: z.array(z.object({ id: z.string() })),
+    handler: async () => new Ok([]),
+  });
+
+  const OpenApiJson = httpEndpoint({
+    method: 'GET',
+    path: '/openapi.json',
+    output: z.object({ openapi: z.string() }),
+    handler: async () => new Ok({ openapi: '3.1.0' }),
+  });
+
+  const Docs = makeSwitch('docs', { default: 'on' });
+
+  const app = makeApp({
+    features: [
+      makeFeature({ name: 'users', endpoints: [ListUsers] }),
+      makeFeature({ name: 'billing', endpoints: [ListInvoices] }),
+    ],
+    plugins: [
+      Docs.when(makePlugin({ name: 'docs', endpoints: [OpenApiJson] })),
+    ],
+    switches: [Docs],
+    transports: [http()],
+  });
+
+  const documentFor = (args?: Parameters<typeof app.discover>[0]) =>
+    buildOpenApiDocument(app.discover(args).endpoints, {
+      info,
+      converters: [zodConverter()],
+    });
+
+  it('без поднятия приложения: все объявленные фичи и плагины', () => {
+    const document = documentFor();
+
+    expect(document.openapi).toBe('3.1.0');
+    expect(Object.keys(document.paths).sort()).toEqual([
+      '/invoices',
+      '/openapi.json',
+      '/users',
+    ]);
+  });
+
+  it('аргумент сборки меняет состав paths', () => {
+    const document = documentFor({ features: 'users' });
+
+    expect(Object.keys(document.paths).sort()).toEqual([
+      '/openapi.json',
+      '/users',
+    ]);
+  });
+
+  it('невыбранная ветка переключателя в документ не попадает', () => {
+    const document = documentFor({ features: 'users', docs: 'off' });
+
+    expect(Object.keys(document.paths)).toEqual(['/users']);
   });
 });
