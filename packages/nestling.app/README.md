@@ -113,6 +113,7 @@ await app.assemble().run();
 
 | Метод | Где | Что делает |
 |---|---|---|
+| `discover(args?)` | `App` | фаза 0 и остановка: состав приложения значением, синхронно и без ввода-вывода |
 | `assemble(args?)` | `App` | синхронно возвращает `AssembledApp`; ничего не читает и граф не строит |
 | `check(args?, options?)` | `App` | фазы 0–1 и отчёт о составе; граф не сохраняется |
 | `run()` | `AssembledApp` | фазы 0–5, затем приложение остаётся в RUN |
@@ -301,9 +302,13 @@ Endpoint обслуживается, только если он указан в 
 (раздел «[Транспорт](#транспорт)»). Транспорт получает его аргументом
 `serve` на фазе START.
 
-Discovery доступен и отдельно: `discoverEndpoints(bundles)` возвращает
-endpoint'ы с именами объявивших единиц и карту требуемых транспортов, без
-контейнера и без транспортов.
+Discovery доступен и отдельно — методом декларации: `app.discover(args?)`
+возвращает endpoint'ы с именами объявивших единиц и карту требуемых
+транспортов, без контейнера и без транспортов. Аргумент тот же, что у
+`assemble` и `check`, поэтому состав документа совпадает с составом
+процесса. Вызов синхронный: источники конфига не поднимаются. Ошибки
+графа метод не бросает — неудовлетворённая зависимость и нарушенная
+политика остаются исходами `check()`.
 
 ### Транспорты приложения
 
@@ -485,7 +490,7 @@ await app.check('orders', { config: vars({ ORDERS_MAX_ITEMS: '10' }) });
 | Экспорт | Что это |
 |---|---|
 | `makeApp(spec?)` | объявляет приложение; возвращает `App` |
-| `App` | `spec`, `assemble(args?)`, `check(args?, options?)` |
+| `App` | `spec`, `assemble(args?)`, `discover(args?)`, `check(args?, options?)` |
 | `AssembledApp` | `run()`, `close()` |
 | `isApp(value)` | предикат декларации приложения |
 | `AppSpec`, `NormalizedAppSpec` | типы словаря декларации |
@@ -496,8 +501,7 @@ await app.check('orders', { config: vars({ ORDERS_MAX_ITEMS: '10' }) });
 | `Feature`, `Plugin`, `Bundle`, `FeatureOptions`, `PluginOptions`, `FeatureSelection` | типы единиц и выбора |
 | `resolveSelection`, `modulesOf`, `reachablePlugins`, `reachableModules`, `injectedTokens` | разбор выбора фич, модули набора единиц, замыкание плагинов, модули единицы и DI-токены её зависимостей |
 | `buildOwnerMap`, `assertFeatureBoundary` | карта «модуль → владелец» и проверка границы фич |
-| `discoverEndpoints(bundles)` | плоский проход по фичам и плагинам без контейнера |
-| `Discovery$`, `EndpointDiscovery`, `DiscoveredEndpoint` | DI-токен и типы результата discovery |
+| `Discovery$`, `EndpointDiscovery`, `DiscoveredEndpoint` | DI-токен и типы результата discovery; вход — `app.discover(args?)` |
 
 Subpath `@nestling/app/testing`: `wireApp(app, options?)`, типы
 `WireOptions`, `WiredApp`, `WiredEndpoint`, `TestSubstitutions`.

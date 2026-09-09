@@ -34,6 +34,8 @@ exports[`pipeline type diagnostics compose-wrong-type 1`] = `
   Type 'PipelineBuilder<{ requestId: number; }, { requestId: number; }, never, never>' is missing the following properties from type '{ __error: "Layer requires context that outer layers do not provide"; missing: { requestId: number; }; }': __error, missing"
 `;
 
+exports[`pipeline type diagnostics discover-endpoints-not-exported 1`] = `"packages/nestling.app/type-tests/fixtures/discover-endpoints-not-exported.ts(9,10): error TS2724: '"@nestling/app"' has no exported member named 'discoverEndpoints'. Did you mean 'DiscoveredEndpoint'?"`;
+
 exports[`pipeline type diagnostics endpoint-missing-rawbody 1`] = `
 "packages/nestling.app/type-tests/fixtures/endpoint-missing-rawbody.ts(16,3): error TS2769: No overload matches this call.
   The last overload gave the following error.

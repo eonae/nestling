@@ -104,3 +104,14 @@ const branchedFeatures = makeApp({
   features: [Users, Debug.when(Users)],
   switches: [Debug],
 });
+
+/** Тот же аргумент у `discover`: поле без умолчания обязательно */
+// @ts-expect-error 'storage' не имеет умолчания и обязано быть передано
+const discoverMissing = app.discover({ tier: 'pro' });
+
+/** Перечень полей у `discover` тот же и так же закрыт */
+// @ts-expect-error поля 'storag' у аргумента сборки нет
+const discoverTypo = app.discover({ storage: 's3', storag: 'local' });
+
+/** Строковая форма аргумента у `discover` тоже принимается */
+const discoverByName = app.discover('users');
