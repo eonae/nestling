@@ -14,6 +14,7 @@ import {
   makeApp,
 } from '@nestling/app';
 import { makeSwitch } from '@nestling/container';
+import type { OpenApiOptions } from '@nestling/openapi';
 import { openapi } from '@nestling/openapi';
 import { zodConverter } from '@nestling/openapi.zod';
 import { subscriptions } from '@nestling/subscriptions';
@@ -45,10 +46,20 @@ export const appSubscriptions = subscriptions({
  */
 export const Docs = makeSwitch('docs', { default: 'on' });
 
-/** Плагин документации: обе ветки переключателя видны статически */
-export const appOpenapi = openapi({
+/**
+ * Опции документа: одно значение для плагина и для скрипта `src/openapi.ts`.
+ *
+ * Второго `info` и второго списка конвертеров рядом не заводится: документ
+ * из CI и документ по `GET /openapi.json` описывают одно API.
+ */
+export const openapiOptions: OpenApiOptions = {
   info: { title: 'Users API', version: '1.0.0' },
   converters: [zodConverter()],
+};
+
+/** Плагин документации: обе ветки переключателя видны статически */
+export const appOpenapi = openapi({
+  ...openapiOptions,
   pipeline: observability,
 });
 
