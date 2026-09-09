@@ -11,9 +11,9 @@ exports[`pipeline type diagnostics compose-fails-union 1`] = `
     Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'OutputSync<{ id: string; }, NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>> | Output<{ id: string; }, NoInfer<Fail<"unauthorized", undefined> | Fail<...>>>'.
       Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'Output<{ id: string; }, NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>>'.
         Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'OutputSync<{ id: string; }, NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>>'.
-          Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"internal_error", undefined> | Fail<"timeout", undefined> | NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>'.
-            Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"internal_error", undefined>'.
-              Type '"payment_required:card_declined"' is not assignable to type '"internal_error"'.
+          Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined> | Fail<"internal_error", undefined> | NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>'.
+            Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined>'.
+              Type '"payment_required:card_declined"' is not assignable to type '"timeout"'.
   Overload 2 of 2, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, EmptyInput, never, [], Fail<"unauthorized", undefined> | Fail<...>> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HandlerClass<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, EmptyInput, NoInfer<Fail<"unauthorized", undefined> | Fail<"forbidden", undefined>>>'.
       Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, EmptyInput, NoInfer<Fail<"unauthorized", undefined> | Fail<...>>>; }'."
@@ -58,9 +58,9 @@ exports[`pipeline type diagnostics endpoint-undeclared-fail 1`] = `
     Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'OutputSync<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>> | Output<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>>'.
       Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'Output<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>>'.
         Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'OutputSync<{ id: string; }, Fail<"conflict:order_limit_reached", undefined>>'.
-          Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"internal_error", undefined> | Fail<"timeout", undefined> | Fail<"conflict:order_limit_reached", undefined>'.
-            Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"internal_error", undefined>'.
-              Type '"payment_required:card_declined"' is not assignable to type '"internal_error"'.
+          Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined> | Fail<"internal_error", undefined> | Fail<"conflict:order_limit_reached", undefined>'.
+            Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined>'.
+              Type '"payment_required:card_declined"' is not assignable to type '"timeout"'.
   Overload 2 of 2, '(options: EndpointOptions<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, FailDefinitionWithoutDetails<"conflict:order_limit_reached">[], never> & { ...; }): EndpointDefinition<...>', gave the following error.
     Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HandlerClass<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, Fail<"conflict:order_limit_reached", undefined>>'.
       Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<AnyPayload, ZodObject<{ id: ZodString; }, $strip>, AnyInput, Fail<"conflict:order_limit_reached", undefined>>; }'."

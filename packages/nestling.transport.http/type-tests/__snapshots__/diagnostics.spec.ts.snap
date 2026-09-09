@@ -9,9 +9,9 @@ exports[`httpEndpoint type diagnostics class-undeclared-fail 1`] = `
           Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>> | HttpOutput<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
             Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HttpOutput<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
               Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
-                Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"internal_error", undefined> | Fail<"timeout", undefined> | Fail<"conflict:email_taken", undefined>'.
-                  Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"internal_error", undefined>'.
-                    Type '"payment_required:card_declined"' is not assignable to type '"internal_error"'."
+                Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined> | Fail<"internal_error", undefined> | Fail<"conflict:email_taken", undefined>'.
+                  Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined>'.
+                    Type '"payment_required:card_declined"' is not assignable to type '"timeout"'."
 `;
 
 exports[`httpEndpoint type diagnostics class-wrong-input 1`] = `

@@ -3,16 +3,8 @@
   "version": "0.1.0",
   "description": "Interactive 3D visualization tool for Nestling DI container",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "bin": {
     "nestling-viz": "./dist/cli.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
   },
   "scripts": {
     "clear": "rm -rf dist",
