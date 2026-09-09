@@ -11,8 +11,10 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+
+import { collectPackageExports } from './package-exports.mjs';
 
 const ROOT = process.cwd();
 const DOCS = join(ROOT, 'docs');
@@ -261,6 +263,230 @@ if (existsSync(roadmapPath) && existsSync(ideasPath)) {
       add('ERROR', 'ideas-implemented', ideasPath,
         `change \`${m[1]}\` сделан, но записи журнала о нём нет пометки РЕАЛИЗОВАНО`);
     }
+  }
+}
+
+// ── 9. README пакетов: структура, потолок, плашка, перечень экспортов ────────
+// Правила 10 и 11 «Правил ведения» из docs/README.md. README пакета отвечает
+// на вопрос «что в пакете сегодня и как называется»: шесть разделов, потолок
+// строк, плашка со ссылками и полный перечень публичных имён.
+
+const PACKAGES = join(ROOT, 'packages');
+const README_SECTIONS = ['Установка', 'Минимальный пример', 'Экспорты', 'Границы пакета'];
+const README_MAX_LINES = 120;
+const EXPORTS_MAX_LINES = 60;
+const PLATE_MAX_LINKS = 3;
+const IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+/**
+ * Имена в разделе «Экспорты»: первая колонка таблицы и пункты списка групп.
+ *
+ * Прочая проза раздела не разбирается: иначе идентификатор в поясняющей
+ * фразе («бросает `TypeError`») читался бы как имя экспорта.
+ */
+function readmeExportNames(lines) {
+  const names = new Set();
+  const take = (text) => {
+    for (const m of text.matchAll(/`([^`]+)`/g)) {
+      if (IDENT.test(m[1])) names.add(m[1]);
+    }
+  };
+  let inBullet = false;
+  for (const raw of lines) {
+    if (/^\s*$/.test(raw)) {
+      inBullet = false;
+      continue;
+    }
+    const line = raw.trim();
+    if (line.startsWith('#')) continue;
+    if (line.startsWith('|')) {
+      inBullet = false;
+      const first = line.split('|')[1] ?? '';
+      if (/^\s*:?-{2,}/.test(first)) continue; // разделитель шапки
+      take(first);
+      continue;
+    }
+    if (/^[-*] /.test(line)) {
+      inBullet = true;
+      take(line);
+      continue;
+    }
+    if (inBullet && /^\s{2,}\S/.test(raw)) take(line);
+    else inBullet = false;
+  }
+  return names;
+}
+
+const listNames = (set, limit = 12) => {
+  const all = [...set].sort();
+  return all.length > limit
+    ? `${all.slice(0, limit).join(', ')} и ещё ${all.length - limit}`
+    : all.join(', ');
+};
+
+const packageDirs = existsSync(PACKAGES)
+  ? readdirSync(PACKAGES)
+      .map((d) => join(PACKAGES, d))
+      .filter((d) => statSync(d).isDirectory() && existsSync(join(d, 'package.json')))
+      .sort()
+  : [];
+
+for (const dir of packageDirs) {
+  const file = join(dir, 'README.md');
+  if (!existsSync(file)) {
+    add('ERROR', 'pkg-readme', dir, 'нет README.md');
+    continue;
+  }
+  const lines = readFileSync(file, 'utf8').split('\n');
+  const scope = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).name.split('/')[0];
+
+  // 9.1 Состав и порядок разделов второго уровня
+  const headings = [];
+  let fenced = false;
+  lines.forEach((raw, i) => {
+    if (/^\s*(```|~~~)/.test(raw)) fenced = !fenced;
+    if (fenced) return;
+    const m = /^##\s+(.+?)\s*$/.exec(raw);
+    if (m) headings.push({ title: m[1], line: i + 1 });
+  });
+  const titles = headings.map((h) => h.title);
+  if (titles.join(' ') !== README_SECTIONS.join(' ')) {
+    for (const h of headings) {
+      if (!README_SECTIONS.includes(h.title)) {
+        add('ERROR', 'pkg-readme-sections', file,
+          `строка ${h.line}: лишний раздел «${h.title}» — обучение живёт в docs/guide/, семантика в docs/design/`);
+      }
+    }
+    const known = titles.filter((t) => README_SECTIONS.includes(t));
+    if (known.join(' ') !== README_SECTIONS.join(' ')) {
+      add('ERROR', 'pkg-readme-sections', file,
+        `порядок разделов «${titles.join(', ') || 'разделов нет'}», нужен «${README_SECTIONS.join(', ')}»`);
+    }
+  }
+
+  // 9.2 Потолок строк
+  const length = lines.at(-1) === '' ? lines.length - 1 : lines.length;
+  if (length > README_MAX_LINES) {
+    add('ERROR', 'pkg-readme-length', file, `${length} строк при потолке ${README_MAX_LINES}`);
+  }
+
+  // 9.3 Плашка статуса — блок цитаты за первым абзацем
+  const firstHeading = headings[0]?.line ?? lines.length;
+  const plateStart = lines.findIndex((l, i) => i < firstHeading && l.startsWith('>'));
+  if (plateStart === -1) {
+    add('ERROR', 'pkg-readme-plate', file,
+      'нет плашки статуса — блока цитаты перед первым разделом');
+  } else {
+    let plateEnd = plateStart;
+    while (plateEnd + 1 < lines.length && lines[plateEnd + 1].startsWith('>')) plateEnd += 1;
+    const plate = lines.slice(plateStart, plateEnd + 1);
+    const prose = lines.slice(0, plateStart).filter((l) => l.trim() && !l.startsWith('#'));
+    if (prose.length === 0) {
+      add('ERROR', 'pkg-readme-plate', file, 'плашка статуса стоит раньше абзаца «что это»');
+    }
+    const links = (dirName) =>
+      plate.join('\n').match(new RegExp(`\\]\\([^)]*docs/${dirName}/[^)]+\\)`, 'g')) ?? [];
+    const design = links('design');
+    const guide = links('guide');
+    if (scope === '@common') {
+      if (plate.length > 1) {
+        add('ERROR', 'pkg-readme-plate', file,
+          `плашка внутреннего пакета занимает ${plate.length} строк вместо одной`);
+      }
+      if (design.length || guide.length) {
+        add('ERROR', 'pkg-readme-plate', file,
+          'у внутреннего пакета нет ни design-дока, ни главы гайда — ссылки из плашки лишние');
+      }
+    } else {
+      if (!design.length) {
+        add('ERROR', 'pkg-readme-plate', file, 'в плашке нет ссылки в docs/design/');
+      }
+      if (!guide.length) {
+        add('ERROR', 'pkg-readme-plate', file, 'в плашке нет ссылки в docs/guide/');
+      }
+      if (design.length > PLATE_MAX_LINKS) {
+        add('ERROR', 'pkg-readme-plate', file,
+          `${design.length} ссылок на design-доки при потолке ${PLATE_MAX_LINKS}`);
+      }
+      if (guide.length > PLATE_MAX_LINKS) {
+        add('ERROR', 'pkg-readme-plate', file,
+          `${guide.length} ссылок на главы гайда при потолке ${PLATE_MAX_LINKS}`);
+      }
+    }
+  }
+
+  // 9.4 «Минимальный пример» — ровно один блок кода
+  const exampleHeading = headings.find((h) => h.title === 'Минимальный пример');
+  if (exampleHeading) {
+    const after = headings[headings.indexOf(exampleHeading) + 1]?.line ?? lines.length + 1;
+    const fences = lines
+      .slice(exampleHeading.line, after - 1)
+      .filter((l) => /^\s*(```|~~~)/.test(l)).length;
+    if (fences !== 2) {
+      add('ERROR', 'pkg-readme-sections', file,
+        `в «Минимальном примере» ${fences / 2} блоков кода вместо одного`);
+    }
+  }
+
+  // 9.5 Раздел «Экспорты»: бюджет строк и полнота перечня
+  const exportsHeading = headings.find((h) => h.title === 'Экспорты');
+  if (!exportsHeading) continue;
+  const next = headings[headings.indexOf(exportsHeading) + 1]?.line ?? lines.length + 1;
+  const section = lines.slice(exportsHeading.line - 1, next - 1);
+  while (section.length && !section.at(-1).trim()) section.pop();
+  if (section.length > EXPORTS_MAX_LINES) {
+    add('ERROR', 'pkg-exports-budget', file,
+      `раздел «Экспорты» занимает ${section.length} строк при потолке ${EXPORTS_MAX_LINES}`);
+  }
+
+  const pkg = collectPackageExports(dir);
+  const sectionText = section.join('\n');
+
+  for (const s of pkg.subpaths) {
+    if (!s.barrel) {
+      add('ERROR', 'pkg-exports', join(dir, 'package.json'),
+        `подпуть «${s.key}» из exports не ведёт ни в один файл src`);
+      continue;
+    }
+    if (s.key !== '.' && !sectionText.includes(s.key)) {
+      add('ERROR', 'pkg-exports', file, `в разделе «Экспорты» нет группы подпути «${s.key}»`);
+    }
+    for (const m of s.missing) {
+      add('ERROR', 'pkg-exports', file, `не разрешён реэкспорт ${m}`);
+    }
+  }
+
+  if (!pkg.subpaths.some((s) => s.barrel)) {
+    // Пакет-инструмент: вместо перечня имён README называет команду.
+    for (const command of pkg.bin) {
+      if (!sectionText.includes(command)) {
+        add('ERROR', 'pkg-exports', file, `в разделе «Экспорты» не названа команда ${command}`);
+      }
+    }
+    continue;
+  }
+
+  const barrelNames = new Set();
+  const sources = new Set();
+  for (const s of pkg.subpaths) {
+    for (const n of s.names) barrelNames.add(n);
+    for (const r of s.reexports) sources.add(r);
+  }
+  for (const source of sources) {
+    if (!sectionText.includes(source)) {
+      add('ERROR', 'pkg-exports', file,
+        `имена реэкспортированы из ${source}, а ссылки на этот пакет в разделе «Экспорты» нет`);
+    }
+  }
+
+  const documented = readmeExportNames(section);
+  const missing = new Set([...barrelNames].filter((n) => !documented.has(n)));
+  const unknown = new Set([...documented].filter((n) => !barrelNames.has(n)));
+  if (missing.size) {
+    add('ERROR', 'pkg-exports', file, `нет в README (${missing.size}): ${listNames(missing)}`);
+  }
+  if (unknown.size) {
+    add('ERROR', 'pkg-exports', file, `нет в коде (${unknown.size}): ${listNames(unknown)}`);
   }
 }
 
