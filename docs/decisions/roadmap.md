@@ -118,7 +118,7 @@ change'ы серии, начатой `examples-out`.
 | 61 | `docs-publish` | волна 5 уборки: публикация через GitHub Actions и Pages, домен, новые инварианты `docs:audit` | S–M | план — [ideas.md [2026-09-05]](./ideas.md) «Структура документации»; после 60 |
 | 62 | `barrels-by-name` | остальные шестнадцать барелей поимённым `export`: правило `packages-layout` действует на все пакеты, а `export *` остался везде, кроме `app` и `operations` | S | план — открытый вопрос записи [ideas.md [2026-09-09]](./ideas.md) «Публичное имя — имя с читателем»; после 58 |
 | 63 | `npm-publish` | скоуп `@nestlingjs` в реестре, `LICENSE` в каждом пакете, `files` и проверка упаковки `pack:check`, релиз тегом из GitHub Actions | M, breaking | план — [ideas.md [2026-09-10]](./ideas.md) «Публикация в npm» |
-| 64 | `agent-skill` | пакет `@nestlingjs/agent-skill`: скилл Claude Code про Nestling, команда `npx @nestlingjs/agent-skill`, сниппеты скилла компилируемыми файлами и проверка `bin` в `pack-check` | M | план — [ideas.md [2026-09-11]](./ideas.md) «Скилл для агента»; после 63 |
+| 64 | `agent-skill` | пакет `@nestlingjs/agent-skill`: скилл Claude Code про Nestling, команда `npx @nestlingjs/agent-skill`, сниппеты скилла компилируемыми файлами и проверка `bin` в `pack-check` | M | **done** — [архив](../../openspec/changes/archive/2026-09-11-agent-skill/), новые спеки [`agent-skill-content`](../../openspec/specs/agent-skill-content/spec.md), [`agent-skill-package`](../../openspec/specs/agent-skill-package/spec.md) и [`agent-skill-snippet-check`](../../openspec/specs/agent-skill-snippet-check/spec.md), [ideas.md [2026-09-11]](./ideas.md) «Скилл для агента» |
 
 ## Порядок и зависимости
 
@@ -457,7 +457,7 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | 61 | `docs-publish` | S–M | документация собирается локально и никуда не публикуется |
 | 62 | `barrels-by-name` | S | правило про поимённый барель записано, но выполняют его два пакета из восемнадцати |
 | 63 | `npm-publish` | M, breaking | скоуп `@nestling` в реестре занят чужим аккаунтом, тарбол уносил исходники и конфиги, `LICENSE` не было ни одного при `"license": "MIT"` в каждом манифесте; решение — [ideas.md [2026-09-10]](./ideas.md) «Публикация в npm» |
-| 64 | `agent-skill` | M | пакеты вышли в реестр, и у фреймворка появились пользователи вне репозитория; агенту в чужом проекте документации нет — в `node_modules` только `dist` и README, а гайд и `design/` остались здесь, на русском, и агент пишет по привычкам NestJS |
+| 64 | `agent-skill` | M | **done** — [архив](../../openspec/changes/archive/2026-09-11-agent-skill/); пакеты вышли в реестр, и у фреймворка появились пользователи вне репозитория; агенту в чужом проекте документации нет — в `node_modules` только `dist` и README, а гайд и `design/` остались здесь, на русском, и агент пишет по привычкам NestJS |
 
 Change'и 29–38 ломающие, хотя окно фиксации публичного API закрыто
 волной 2. Это осознанно: они правят гарантии, а не добавляют способности,
