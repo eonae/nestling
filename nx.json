@@ -11,6 +11,8 @@
     "sources": [
       "{projectRoot}/src/**/*",
       "{projectRoot}/e2e/**/*",
+      "{projectRoot}/snippets/**/*",
+      "{projectRoot}/skill/**/*",
       "{projectRoot}/type-tests/**/*",
       "!{projectRoot}/type-tests/.generated/**/*"
     ],
