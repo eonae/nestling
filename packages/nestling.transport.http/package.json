@@ -1,14 +1,41 @@
 {
-  "name": "@nestling/transport.http",
+  "name": "@nestlingjs/transport.http",
   "version": "0.1.0",
-  "description": "",
+  "description": "HTTP-транспорт Nestling на node:http: маршрутизация, разбор тела по io-декларации endpoint'а и выбор формата ответа по ней же",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "http",
+    "server",
+    "router"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.transport.http"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.transport.http#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,19 +45,17 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@nestling/app": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*",
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
     "busboy": "^1.6.0",
     "find-my-way": "^8.2.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@common/misc": "workspace:*",
-    "@nestling/client": "workspace:*",
+    "@nestlingjs/client": "workspace:*",
+    "@nestlingjs/common.misc": "workspace:*",
     "@types/busboy": "^1.5.4"
   }
 }

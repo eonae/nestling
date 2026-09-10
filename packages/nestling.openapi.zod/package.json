@@ -1,14 +1,41 @@
 {
-  "name": "@nestling/openapi.zod",
+  "name": "@nestlingjs/openapi.zod",
   "version": "0.1.0",
-  "description": "zod converter for @nestling/openapi — ten lines over z.toJSONSchema()",
+  "description": "Конвертер схем zod в JSON Schema для @nestlingjs/openapi — обёртка над штатным z.toJSONSchema()",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "openapi",
+    "zod",
+    "json-schema"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.openapi.zod"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.openapi.zod#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,13 +45,11 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "@nestling/app": "workspace:*"
-  },
   "peerDependencies": {
     "zod": "^4.0.0"
+  },
+  "dependencies": {
+    "@nestlingjs/app": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.7.3",

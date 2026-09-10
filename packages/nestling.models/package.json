@@ -1,14 +1,41 @@
 {
-  "name": "@nestling/models",
+  "name": "@nestlingjs/models",
   "version": "0.1.0",
-  "description": "Type-safe input/output models with validation, type inference, and transformations. Built on Zod v4.",
+  "description": "Модели входных и выходных данных на zod: схема с валидацией и выводом типов, которую компилятор сверяет с уже существующим TypeScript-типом",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "zod",
+    "validation",
+    "schema"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.models"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.models#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,8 +45,6 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "peerDependencies": {
     "zod": "^4.0.0"
   }

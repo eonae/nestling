@@ -1,14 +1,41 @@
 {
-  "name": "@nestling/client",
+  "name": "@nestlingjs/client",
   "version": "0.1.0",
-  "description": "Typed HTTP client built from Nestling operations — no server code, no runtime dependencies beyond @nestling/operations",
+  "description": "Типизированный HTTP-клиент из деклараций операций: вызов метода API устроен так же, как вызов порта, а зависимостей у пакета нет, кроме @nestlingjs/operations",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "http-client",
+    "typed-client",
+    "contracts"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.client"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.client#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,10 +45,8 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.7.3",

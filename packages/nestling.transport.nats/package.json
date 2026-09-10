@@ -1,9 +1,30 @@
 {
-  "name": "@nestling/transport.nats",
+  "name": "@nestlingjs/transport.nats",
   "version": "0.1.0",
-  "description": "NATS as an inbound and outbound bus transport for Nestling",
+  "description": "NATS как шина приложения: доставляет вызовы операций между процессами в обе стороны",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "nats",
+    "message-bus",
+    "events"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.transport.nats"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.transport.nats#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -16,6 +37,12 @@
       }
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc -p tsconfig.json",
@@ -24,12 +51,10 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@nestling/app": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*",
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
     "nats": "^2.29.3",
     "zod": "^4.0.0"
   },

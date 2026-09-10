@@ -1,14 +1,41 @@
 {
-  "name": "@nestling/operations",
+  "name": "@nestlingjs/operations",
   "version": "0.1.0",
-  "description": "Direction-neutral declarations for Nestling: operations, fail definitions, io forms, the HTTP bind map and stream primitives — no server code, no runtime dependencies",
+  "description": "Декларации, общие для сервера и клиента: операции, отказы, формы io, HTTP bind-карта и комбинаторы потоков — без серверного кода и модулей Node",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "contracts",
+    "schema",
+    "rpc"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.operations"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.operations#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,11 +45,9 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*",
-    "@nestling/container": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*",
+    "@nestlingjs/container": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.7.3",

@@ -1,15 +1,41 @@
 {
-  "name": "@common/graphs",
+  "name": "@nestlingjs/common.graphs",
   "version": "0.1.0",
-  "description": "",
+  "description": "Направленный ациклический граф: топологический обход и обнаружение циклов — внутренний пакет Nestling",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "graph",
+    "dag",
+    "internal"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/common.graphs"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/common.graphs#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/out.js",
-  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,7 +44,5 @@
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
-  },
-  "author": "",
-  "license": "MIT"
+  }
 }

@@ -1,14 +1,41 @@
 {
-  "name": "@nestling/openapi",
+  "name": "@nestlingjs/openapi",
   "version": "0.1.0",
-  "description": "OpenAPI 3.1 document generated from Nestling endpoint declarations — no validator dependency, converters come as data",
+  "description": "Документ OpenAPI 3.1 из тех же деклараций endpoint'ов, которые обслуживают запросы: конвертеры схем приходят данными, зависимости от валидатора нет",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "openapi",
+    "swagger",
+    "schema"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.openapi"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.openapi#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,17 +45,15 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@nestling/app": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*",
-    "@nestling/transport.http": "workspace:*"
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/openapi.zod": "workspace:*",
-    "@nestling/transport.cli": "workspace:*",
+    "@nestlingjs/openapi.zod": "workspace:*",
+    "@nestlingjs/transport.cli": "workspace:*",
     "typescript": "5.7.3",
     "zod": "^4.0.0"
   },
