@@ -118,7 +118,7 @@ change'ы серии, начатой `examples-out`.
 | 61 | `docs-publish` | волна 5 уборки: публикация через GitHub Actions и Pages, домен, новые инварианты `docs:audit` | S–M | план — [ideas.md [2026-09-05]](./ideas.md) «Структура документации»; после 60 |
 | 62 | `barrels-by-name` | остальные шестнадцать барелей поимённым `export`: правило `packages-layout` действует на все пакеты, а `export *` остался везде, кроме `app` и `operations` | S | план — открытый вопрос записи [ideas.md [2026-09-09]](./ideas.md) «Публичное имя — имя с читателем»; после 58 |
 | 63 | `npm-publish` | скоуп `@nestlingjs` в реестре, `LICENSE` в каждом пакете, `files` и проверка упаковки `pack:check`, релиз тегом из GitHub Actions | M, breaking | план — [ideas.md [2026-09-10]](./ideas.md) «Публикация в npm» |
-| 64 | `agent-skill` | пакет `@nestlingjs/agent-skill`: скилл Claude Code про Nestling, команда `npx @nestlingjs/agent-skill`, сниппеты скилла компилируемыми файлами и проверка `bin` в `pack-check` | M | план — [proposal](../../openspec/changes/agent-skill/proposal.md); после 63 |
+| 64 | `agent-skill` | пакет `@nestlingjs/agent-skill`: скилл Claude Code про Nestling, команда `npx @nestlingjs/agent-skill`, сниппеты скилла компилируемыми файлами и проверка `bin` в `pack-check` | M | план — [ideas.md [2026-09-11]](./ideas.md) «Скилл для агента»; после 63 |
 
 ## Порядок и зависимости
 
