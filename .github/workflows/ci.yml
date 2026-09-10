@@ -1,0 +1,27 @@
+# Проверка изменений. Тег публикуется из состояния, которое прошло эти шаги
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Yarn берётся из репозитория (`yarnPath` в `.yarnrc.yml`), запустить
+      # его умеет corepack — на runner'е предустановлен yarn другой версии
+      - run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - run: yarn install --immutable
+
+      # build, typecheck, lint, test, type-budget и smoke — по всем пакетам
+      - run: yarn verify
