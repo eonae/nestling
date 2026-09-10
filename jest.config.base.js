@@ -49,6 +49,17 @@ export function createJestConfig(fileUrl, overrides = {}) {
           diagnostics: { exclude: [`!${rootDir}/**`] },
           tsconfig: {
             target: 'es2022',
+            // Резолв тот же, что у `tsc` пакета: пакеты репозитория —
+            // ESM без поля `main`, и точку входа задаёт только `exports`.
+            // Без этих двух строк ts-jest резолвит по своему умолчанию,
+            // `exports` не читает и соседа не находит — падение зависит от
+            // того, что оказалось рядом на диске
+            module: 'esnext',
+            moduleResolution: 'bundler',
+            // Тестовые subpath'ы (`@nestlingjs/app/testing`) объявлены
+            // conditional export'ом; условие включено и в резолве типов,
+            // иначе `tsc` внутри jest их не видит
+            customConditions: ['testing'],
             // `await using` в тестах: `Symbol.asyncDispose` есть в рантайме
             // Node 20+, но типам нужна отдельная библиотека. `dom` —
             // то, что подтягивал бы умолчательный `es2022.full`
