@@ -6,7 +6,7 @@
     // Сборка идёт по `tsconfig.build.json`
     "noEmit": true,
 
-    // Тесты берут тестовый корень (`@nestling/testing`), который живёт по ту
+    // Тесты берут тестовый корень (`@nestlingjs/testing`), который живёт по ту
     // сторону условия: без него subpath-шов не резолвится при typecheck.
     // Прод-код пакета к нему не обращается — в `dependencies` его нет
     "customConditions": ["testing"]

@@ -10,7 +10,7 @@
 
 import { num, optionalStr, record, str } from './schema.js';
 
-import { makeEvent } from '@nestling/operations';
+import { makeEvent } from '@nestlingjs/operations';
 
 /** Полезная нагрузка факта «запись опубликована» */
 export interface OutboxPublishedFact {

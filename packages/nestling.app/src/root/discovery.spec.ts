@@ -14,7 +14,7 @@ import type { Bundle, ResolvedBundle } from './feature.js';
 import { makeFeature, makePlugin, resolveBundle } from './feature.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeToken } from '@nestling/container';
+import { makeToken } from '@nestlingjs/container';
 import { z } from 'zod';
 
 /** DI-токены транспортов фикстур: ссылка декларации — значение, а не строка */

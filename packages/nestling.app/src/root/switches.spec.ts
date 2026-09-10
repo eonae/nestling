@@ -29,8 +29,8 @@ import {
   makeModule,
   makeSwitch,
   makeToken,
-} from '@nestling/container';
-import { makeRequest } from '@nestling/operations';
+} from '@nestlingjs/container';
+import { makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport = new MockTransport()) =>

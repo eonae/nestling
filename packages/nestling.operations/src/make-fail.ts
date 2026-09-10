@@ -3,13 +3,13 @@ import { Fail, isFail } from './result.js';
 import type { Category, FailCode } from './status.js';
 import { assertFailCode, categoryOf } from './status.js';
 
-import type { StandardSchemaV1 } from '@common/misc';
-import { validateSync } from '@common/misc';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
+import { validateSync } from '@nestlingjs/common.misc';
 
 /**
  * Контекст ответа в том виде, в каком его видит предикат `is`.
  *
- * Это структурный тип, а не `ResponseContext` из `@nestling/app`:
+ * Это структурный тип, а не `ResponseContext` из `@nestlingjs/app`:
  * пакет операций не импортирует серверный код. `ResponseContext`
  * удовлетворяет этому типу, поэтому сужение в `.catch`-юните работает.
  *

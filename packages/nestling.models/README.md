@@ -1,4 +1,4 @@
-# @nestling/models
+# @nestlingjs/models
 
 Модели входных и выходных данных на zod: схема с валидацией и выводом типов,
 которую компилятор сверяет с уже существующим TypeScript-типом. Нужно это
@@ -13,7 +13,7 @@
 ## Установка
 
 ```bash
-npm install @nestling/models zod
+npm install @nestlingjs/models zod
 ```
 
 Пакет требует `zod@^4.0.0` как peer-зависимость.
@@ -21,7 +21,7 @@ npm install @nestling/models zod
 ## Минимальный пример
 
 ```typescript
-import { fromType } from '@nestling/models';
+import { fromType } from '@nestlingjs/models';
 import { z } from 'zod';
 
 // Тип уже существует: например, сгенерирован из proto

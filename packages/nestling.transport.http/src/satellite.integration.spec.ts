@@ -2,7 +2,7 @@
  * Satellite-транспорт: проверка границы пакета.
  *
  * Тест собирает `ITransport` поверх собственного `node:http`-сервера из
- * одних публичных экспортов `@nestling/transport.http` и сверяет его
+ * одних публичных экспортов `@nestlingjs/transport.http` и сверяет его
  * ответы с ответами `HttpTransport` на тех же декларациях. Импорт идёт
  * через `./index.js`: satellite видит ровно то, что видит внешний автор
  * транспорта. Не хватает части — экспорт добавляется в пакет, а не
@@ -34,14 +34,14 @@ import type {
   ITransport,
   Raw,
   TransportCapabilities,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   assertFormsSupported,
   describeForm,
   makeDispatch,
   makeEmptyContext,
   Ok,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import { z } from 'zod';
 
 /**

@@ -1,6 +1,6 @@
-# @nestling/openapi.zod
+# @nestlingjs/openapi.zod
 
-Конвертер схем zod в JSON Schema для `@nestling/openapi`: обёртка над штатным
+Конвертер схем zod в JSON Schema для `@nestlingjs/openapi`: обёртка над штатным
 `z.toJSONSchema()`. Конвертер указывается явно даже в приложении целиком на
 zod: реестра «вендор — конвертер» в генераторе нет.
 
@@ -11,7 +11,7 @@ zod: реестра «вендор — конвертер» в генерато�
 ## Установка
 
 ```bash
-npm install @nestling/openapi.zod zod
+npm install @nestlingjs/openapi.zod zod
 ```
 
 `zod` — peer-зависимость: ставится та версия, которой пользуется приложение.
@@ -19,8 +19,8 @@ npm install @nestling/openapi.zod zod
 ## Минимальный пример
 
 ```typescript
-import { openapi } from '@nestling/openapi';
-import { zodConverter } from '@nestling/openapi.zod';
+import { openapi } from '@nestlingjs/openapi';
+import { zodConverter } from '@nestlingjs/openapi.zod';
 
 openapi({
   info: { title: 'users', version: '1.0.0' },

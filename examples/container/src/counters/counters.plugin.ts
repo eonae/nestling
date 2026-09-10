@@ -3,9 +3,9 @@ import { AppConfig } from '../config/app.config.js';
 import type { Counter } from './registry.js';
 import { Counter$ } from './registry.js';
 
-import type { Config } from '@nestling/app';
-import { makePlugin } from '@nestling/app';
-import { factoryProvider, familyProvider } from '@nestling/container';
+import type { Config } from '@nestlingjs/app';
+import { makePlugin } from '@nestlingjs/app';
+import { factoryProvider, familyProvider } from '@nestlingjs/container';
 
 /** Счётчик в памяти; полное имя складывается из префикса и имени члена */
 class InMemoryCounter implements Counter {

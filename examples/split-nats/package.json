@@ -21,13 +21,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@nestling/app": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*",
-    "@nestling/transport.nats": "workspace:*",
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/transport.nats": "workspace:*",
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@nestling/testing": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
   }
 }

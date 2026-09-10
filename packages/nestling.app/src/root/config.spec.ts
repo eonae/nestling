@@ -18,7 +18,7 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Component, Resource } from '@nestling/container';
+import { Component, Resource } from '@nestlingjs/container';
 import { z } from 'zod';
 
 const RootConfig = makeConfig('rootapp', {

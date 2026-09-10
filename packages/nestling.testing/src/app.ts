@@ -2,7 +2,7 @@
  * `assembleTest` — тестовый composition root и `TestApp` вокруг него.
  *
  * Собственного фазового рантайма здесь нет: пакет собирает **ту же**
- * декларацию `makeApp` через шов `@nestling/app/testing` и останавливает
+ * декларацию `makeApp` через шов `@nestlingjs/app/testing` и останавливает
  * приложение после фазы 3 WIRE. Второй рантайм рядом с первым разошёлся
  * бы с ним уже на первом change'е.
  */
@@ -28,7 +28,7 @@ import type {
   InferOutput,
   Raw,
   ResponseContext,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   busBindingOf,
   isApp,
@@ -36,16 +36,16 @@ import {
   profileAttributes,
   toBindings,
   transportNameOf,
-} from '@nestling/app';
-import type { WiredApp, WiredEndpoint } from '@nestling/app/testing';
-import { wireApp } from '@nestling/app/testing';
-import type { AnySwitch, InjectionToken } from '@nestling/container';
-import { valueProvider } from '@nestling/container';
+} from '@nestlingjs/app';
+import type { WiredApp, WiredEndpoint } from '@nestlingjs/app/testing';
+import { wireApp } from '@nestlingjs/app/testing';
+import type { AnySwitch, InjectionToken } from '@nestlingjs/container';
+import { valueProvider } from '@nestlingjs/container';
 import type {
   CommandMeta,
   EmittingOperation,
   InvokeArgs,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * Свойства границы для одного `call`.

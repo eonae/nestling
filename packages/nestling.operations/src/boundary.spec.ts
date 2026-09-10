@@ -23,16 +23,16 @@ const repoRoot = resolve(here, '../../..');
 /**
  * Разрешённые импорты.
  *
- * `@nestling/container/tokens` записан subpath'ом: баррель пакета в список
+ * `@nestlingjs/container/tokens` записан subpath'ом: баррель пакета в список
  * не входит, и импорт из него — нарушение.
  */
 const ALLOW = [
-  '@common/misc',
-  '@nestling/container/tokens',
+  '@nestlingjs/common.misc',
+  '@nestlingjs/container/tokens',
   '@standard-schema/spec',
 ];
 
-describe('@nestling/operations: package boundary', () => {
+describe('@nestlingjs/operations: package boundary', () => {
   it('does not reach server code, the container barrel or node built-ins', () => {
     const violations = collectForbiddenImports({
       repoRoot,
@@ -60,15 +60,15 @@ describe('@nestling/operations: package boundary', () => {
         [
           "export * from './leaf.js';",
           // Упоминание запрещённого пакета в комментарии импортом не является
-          '// см. @nestling/app — from "@nestling/app"',
-          "export { ok } from '@common/misc';",
+          '// см. @nestlingjs/app — from "@nestlingjs/app"',
+          "export { ok } from '@nestlingjs/common.misc';",
         ].join('\n'),
       );
       writeFileSync(
         resolve(fixture, 'dist/leaf.js'),
         [
           "import { createHash } from 'node:crypto';",
-          "import { Fail } from '@nestling/app';",
+          "import { Fail } from '@nestlingjs/app';",
           'export const leaf = () => [createHash, Fail];',
         ].join('\n'),
       );
@@ -81,14 +81,14 @@ describe('@nestling/operations: package boundary', () => {
 
       expect(violations).toHaveLength(2);
       expect(violations.map((v) => v.specifier).sort()).toEqual([
-        '@nestling/app',
+        '@nestlingjs/app',
         'node:crypto',
       ]);
       expect(violations.every((v) => v.module === 'dist/leaf.js')).toBe(true);
 
       const text = formatViolations(violations);
       expect(text).toContain('dist/leaf.js');
-      expect(text).toContain('@nestling/app');
+      expect(text).toContain('@nestlingjs/app');
       expect(text).toContain('node:crypto');
     } finally {
       rmSync(fixture, { recursive: true, force: true });

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import { app, openapiOptions } from './app.js';
 
-import { buildOpenApiDocument } from '@nestling/openapi';
+import { buildOpenApiDocument } from '@nestlingjs/openapi';
 
 /** Аргумент сборки — аргумент командной строки; без него выбраны все фичи */
 const args = process.argv[2];

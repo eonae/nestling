@@ -9,8 +9,8 @@ import type {
   EmptyInput,
   StreamSummary,
   SuccessStatus,
-} from '@nestling/operations';
-import { makeSummary } from '@nestling/operations';
+} from '@nestlingjs/operations';
+import { makeSummary } from '@nestlingjs/operations';
 
 export * from './raw.js';
 

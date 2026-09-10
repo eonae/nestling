@@ -1,7 +1,7 @@
 /**
  * Шов тестового корня: тот же `AssembledApp`, остановленный на фазе 3 WIRE.
  *
- * Живёт conditional subpath'ом `@nestling/app/testing` — условие
+ * Живёт conditional subpath'ом `@nestlingjs/app/testing` — условие
  * `"testing"` включено только в тест-раннере, поэтому прод-импорт не
  * резолвится **на уровне Node**, а не по договорённости. Это та же граница,
  * которую §5 design-дока предписывает пользовательским модулям; ядро её
@@ -10,7 +10,7 @@
  *
  * Наружу шов отдаёт ровно одно: прохождение фаз 0–3 по декларации
  * `makeApp` с подстановками и доступ к контейнеру, карте endpoint'ов и
- * общему `AbortController`. Всё остальное — дело `@nestling/testing`.
+ * общему `AbortController`. Всё остальное — дело `@nestlingjs/testing`.
  */
 
 import type { App } from '../root/app.js';
@@ -19,7 +19,7 @@ import type { AssembleArgs } from '../root/args.js';
 import type { TestSubstitutions, WiredApp } from '../root/plan.js';
 import { makePlan, TEST_SEAM } from '../root/plan.js';
 
-import type { AnySwitch } from '@nestling/container';
+import type { AnySwitch } from '@nestlingjs/container';
 
 export type {
   TestSubstitutions,

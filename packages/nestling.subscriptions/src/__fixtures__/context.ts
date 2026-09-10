@@ -6,9 +6,9 @@
  * транспорт, честнее, чем городить объект руками.
  */
 
-import type { AnyInput, ExtendableContext } from '@nestling/app';
-import { makeEmptyContext } from '@nestling/app';
-import type { AnyOutput } from '@nestling/operations';
+import type { AnyInput, ExtendableContext } from '@nestlingjs/app';
+import { makeEmptyContext } from '@nestlingjs/app';
+import type { AnyOutput } from '@nestlingjs/operations';
 
 export interface ContextOptions {
   transport?: string;

@@ -11,10 +11,10 @@
 
 import { httpEndpoint } from './helpers.js';
 
-import type { StandardSchemaV1 } from '@common/misc';
-import type { Health, HealthReport, Plugin } from '@nestling/app';
-import { Health$, makeFail, makePlugin, Ok } from '@nestling/app';
-import { Handler } from '@nestling/container';
+import type { Health, HealthReport, Plugin } from '@nestlingjs/app';
+import { Health$, makeFail, makePlugin, Ok } from '@nestlingjs/app';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
+import { Handler } from '@nestlingjs/container';
 
 /** Причина, по которой пробы выведены из-под инвариантов сборки */
 const REASON = 'проба балансировщика: до пайплайна приложения не доходит';
@@ -106,7 +106,7 @@ export function httpProbes(options: HttpProbesOptions = {}): Plugin {
   }
 
   return makePlugin({
-    name: '@nestling/transport.http/probes',
+    name: '@nestlingjs/transport.http/probes',
     endpoints: [
       httpEndpoint({
         method: 'GET',

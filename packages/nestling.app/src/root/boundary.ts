@@ -13,7 +13,7 @@
 import type { ResolvedBundle } from './feature.js';
 import { reachableModules } from './feature.js';
 
-import type { BuiltContainer, SwitchValues } from '@nestling/container';
+import type { BuiltContainer, SwitchValues } from '@nestlingjs/container';
 
 /** Владелец модуля: единица, из состава которой он достижим */
 export interface ModuleOwner {

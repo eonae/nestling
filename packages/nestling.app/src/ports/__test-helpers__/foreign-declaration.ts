@@ -10,7 +10,7 @@
 import type { AnyEndpointDefinition } from '../../pipeline/index.js';
 import { makeEndpoint, Ok } from '../../pipeline/index.js';
 
-import { makeToken } from '@nestling/container';
+import { makeToken } from '@nestlingjs/container';
 
 const ForeignTransport$ = makeToken('transport:foreign');
 

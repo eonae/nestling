@@ -18,7 +18,11 @@ import { makeApp } from './app.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { factoryProvider, makeToken, valueProvider } from '@nestling/container';
+import {
+  factoryProvider,
+  makeToken,
+  valueProvider,
+} from '@nestlingjs/container';
 import { z } from 'zod';
 
 /** Объявляет готовый инстанс транспорта экземпляром по умолчанию */

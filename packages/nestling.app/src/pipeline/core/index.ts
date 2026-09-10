@@ -5,7 +5,7 @@ export * from './pipeline.js';
 export * from './types/index.js';
 
 /**
- * Реэкспорт декларативного слоя, переехавшего в `@nestling/operations`.
+ * Реэкспорт декларативного слоя, переехавшего в `@nestlingjs/operations`.
  *
  * Поверхность пакета сохраняется: `Ok`/`Fail` и словарь статусов — рабочий
  * словарь любого хендлера, и заставлять его автора добавлять импорт из
@@ -46,7 +46,7 @@ export {
   successStatuses,
   Timeout,
   upload,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 export type {
   AnyFail,
   AnyFailDefinition,
@@ -99,4 +99,4 @@ export type {
   UploadOptions,
   UploadSpec,
   ValidateOutputForm,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';

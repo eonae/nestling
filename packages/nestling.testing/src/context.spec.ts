@@ -13,7 +13,7 @@ import { contextValue } from './context.js';
 import { unwrap } from './unwrap.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { CtxReader } from '@nestling/app';
+import type { CtxReader } from '@nestlingjs/app';
 import {
   Ctx,
   makeApp,
@@ -22,9 +22,9 @@ import {
   Ok,
   RequestId,
   transportValue,
-} from '@nestling/app';
-import { Component, Handler } from '@nestling/container';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+} from '@nestlingjs/app';
+import { Component, Handler } from '@nestlingjs/container';
+import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: SpyTransport) =>

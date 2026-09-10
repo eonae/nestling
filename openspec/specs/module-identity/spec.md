@@ -14,7 +14,7 @@
 
 ### Requirement: Модуль описывает только группировку провайдеров
 
-Интерфейс `Module` в `@nestling/container` SHALL состоять из `name`,
+Интерфейс `Module` в `@nestlingjs/container` SHALL состоять из `name`,
 `providers` и `dependsOn`. Поля `endpoints` у модуля SHALL NOT существовать
 ни на одном уровне: декларации объявляются на фиче и на плагине.
 

@@ -5,7 +5,7 @@
  * обязано доводить до строки с кодом, которого нет в `errors:`.
  */
 
-import { httpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 import { CardDeclined, EmailTaken, User } from '../support/fixture-kit.js';
 

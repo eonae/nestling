@@ -4,7 +4,7 @@ import { SignupJournal } from './signup.journal.js';
 import { SignupRecordedImpl } from './signup-recorded.endpoint.js';
 import { UserRegisteredInQuotas } from './user-registered-in-quotas.endpoint.js';
 
-import { makeFeature } from '@nestling/app';
+import { makeFeature } from '@nestlingjs/app';
 
 /**
  * Фича квот: владелец `quotas.claim` и `quotas.record-signup`, подписчик

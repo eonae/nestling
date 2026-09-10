@@ -14,7 +14,7 @@ import type { Handler as HandlerOf, HandlerMeta } from './handler.js';
 import { Handler } from './handler.js';
 import { implement } from './implement.js';
 
-import { makeFail, makeRequest } from '@nestling/operations';
+import { makeFail, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const CardDeclined = makeFail('payment_required:handler_card_declined', {

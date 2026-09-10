@@ -26,8 +26,8 @@ import type {
   HealthResource,
   Module,
   ModuleProvider,
-} from '@nestling/container';
-import { factoryProvider } from '@nestling/container';
+} from '@nestlingjs/container';
+import { factoryProvider } from '@nestlingjs/container';
 
 /** Опции kernel-модуля проб */
 export interface HealthKernelOptions {

@@ -4,8 +4,8 @@ import { busBindingOf } from '../ports/index.js';
 
 import type { ResolvedBundle } from './feature.js';
 
-import type { InjectionToken } from '@nestling/container';
-import { makeToken } from '@nestling/container';
+import type { InjectionToken } from '@nestlingjs/container';
+import { makeToken } from '@nestlingjs/container';
 
 /**
  * Обнаруженный endpoint с атрибуцией к объявившей единице

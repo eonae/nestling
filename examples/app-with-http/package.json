@@ -19,25 +19,25 @@
     "test:all": "yarn run test && yarn run test:e2e"
   },
   "dependencies": {
-    "@nestling/app": "workspace:*",
-    "@nestling/client": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/openapi": "workspace:*",
-    "@nestling/openapi.zod": "workspace:*",
-    "@nestling/operations": "workspace:*",
-    "@nestling/subscriptions": "workspace:*",
-    "@nestling/transport.http": "workspace:*",
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/client": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/openapi": "workspace:*",
+    "@nestlingjs/openapi.zod": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/subscriptions": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*",
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@nestling/eslint-plugin": "workspace:*",
-    "@nestling/testing": "workspace:*"
+    "@nestlingjs/eslint-plugin": "workspace:*",
+    "@nestlingjs/testing": "workspace:*"
   },
   "nx": {
     "targets": {
       "lint": {
         "dependsOn": [
-          "@nestling/eslint-plugin:build"
+          "@nestlingjs/eslint-plugin:build"
         ]
       }
     }

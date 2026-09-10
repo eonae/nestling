@@ -31,8 +31,8 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Handler, makeToken, OnStart, Resource } from '@nestling/container';
-import { makeEvent, makeRequest } from '@nestling/operations';
+import { Handler, makeToken, OnStart, Resource } from '@nestlingjs/container';
+import { makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>

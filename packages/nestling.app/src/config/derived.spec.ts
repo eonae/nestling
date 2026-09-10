@@ -23,7 +23,7 @@ import type { ObjectSource } from './source.js';
 import { objectSource } from './source.js';
 
 import { jest } from '@jest/globals';
-import type { SchemaDocConverter } from '@nestling/operations';
+import type { SchemaDocConverter } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const PgConfig = makeConfig(

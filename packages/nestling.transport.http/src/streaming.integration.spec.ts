@@ -22,7 +22,7 @@ import type {
   LogLevel,
   Outcome,
   PhasedPipeline,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   events,
   makeDispatch,
@@ -31,8 +31,8 @@ import {
   Ok,
   stream,
   upload,
-} from '@nestling/app';
-import { Topic } from '@nestling/operations';
+} from '@nestlingjs/app';
+import { Topic } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

@@ -22,7 +22,7 @@ type Equal<A, B> =
 const assertType = <T extends true>(assertion: T): T => assertion;
 
 /**
- * Сигнатура потребителя: тип `Schema` приходит реэкспортом из `@common/misc`,
+ * Сигнатура потребителя: тип `Schema` приходит реэкспортом из `@nestlingjs/common.misc`,
  * пакет `@standard-schema/spec` в зависимостях этого пакета не значится.
  */
 const describeSchema = (schema: Schema): string => schema['~standard'].vendor;

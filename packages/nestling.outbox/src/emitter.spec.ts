@@ -12,9 +12,9 @@ import { OutboxTransactionMissingError } from './errors.js';
 import { InMemoryOutboxStore } from './memory-store.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { CtxReader } from '@nestling/app';
-import { isFail } from '@nestling/app';
-import { makeCommand, makeEvent } from '@nestling/operations';
+import type { CtxReader } from '@nestlingjs/app';
+import { isFail } from '@nestlingjs/app';
+import { makeCommand, makeEvent } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const UserCreated = makeEvent({

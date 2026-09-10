@@ -1,5 +1,5 @@
 /**
- * Бенчмарк `@nestling/transport.http` относительно Fastify, Express и Hono.
+ * Бенчмарк `@nestlingjs/transport.http` относительно Fastify, Express и Hono.
  *
  * Каждый сервер поднимается в отдельном процессе (`bench/server.ts`), по
  * нему прогоняется autocannon из этого процесса, затем сервер

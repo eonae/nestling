@@ -17,7 +17,7 @@
 
 ```typescript
 // examples/users-service/src/users/users.errors.ts
-import { makeFail } from '@nestling/operations';
+import { makeFail } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 export const UserNotFound = makeFail('not_found:user', {
@@ -134,7 +134,7 @@ async function handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
 Заголовков `Ok` не несёт: `Location` и `Set-Cookie` осмысленны только в
 HTTP, а хендлер операции переносим между транспортами. Заголовок, cookie
 и редирект задаёт HTTP-форма ответа — `HttpResponse` из
-`@nestling/transport.http` ([глава 10](./10-auth.md)). Она допустима там,
+`@nestlingjs/transport.http` ([глава 10](./10-auth.md)). Она допустима там,
 где адрес объявлен транспортом:
 
 ```typescript

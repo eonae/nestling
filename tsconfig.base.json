@@ -11,7 +11,7 @@
     // даёт TS1542 в каждом пакете, где zod оказался в области видимости
     "module": "esnext",
     "moduleResolution": "bundler",
-    // `await using` есть в тестах и в публичном API `@nestling/testing`:
+    // `await using` есть в тестах и в публичном API `@nestlingjs/testing`:
     // рантайм даёт `Symbol.asyncDispose` начиная с Node 20, типам нужна
     // библиотека. `dom`/`dom.iterable` — то, что подтягивал бы умолчательный
     // `es2022.full`: перечислив `lib` явно, приходится назвать и их

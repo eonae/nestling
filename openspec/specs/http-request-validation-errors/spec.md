@@ -27,7 +27,7 @@
 `400 Bad Request` с деталями issue'ов, называющими отсутствующее поле.
 Отдельного класса ошибок «конфликт источников payload» SHALL NOT
 существовать: `PayloadConflictError` и функция слияния источников
-`mergePayload` SHALL быть удалены из `@nestling/transport.http`.
+`mergePayload` SHALL быть удалены из `@nestlingjs/transport.http`.
 
 #### Scenario: Обязательное поле прислано в query вместо тела
 
@@ -46,7 +46,7 @@
 #### Scenario: Класс ошибки конфликта недоступен
 
 - **WHEN** код импортирует `PayloadConflictError` или `mergePayload` из
-  `@nestling/transport.http`
+  `@nestlingjs/transport.http`
 - **THEN** импорт не резолвится (ошибка компиляции)
 
 ### Requirement: Schema validation failures keep 400

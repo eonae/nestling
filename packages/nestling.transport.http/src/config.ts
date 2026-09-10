@@ -3,11 +3,11 @@
  *
  * Наружу уходит только `httpServerKeys(name?)` (право привязать источник);
  * DI-токен секции остаётся приватным, и инжектировать её может только
- * этот пакет (см. `@nestling/app`).
+ * этот пакет (см. `@nestlingjs/app`).
  */
 
-import type { ConfigKeys } from '@nestling/app';
-import { DEFAULT_INSTANCE, makeConfig } from '@nestling/app';
+import type { ConfigKeys } from '@nestlingjs/app';
+import { DEFAULT_INSTANCE, makeConfig } from '@nestlingjs/app';
 import { z } from 'zod';
 
 /**

@@ -1,20 +1,20 @@
 /**
  * Интерфейсы хендлера: `HandlerMeta` и `Handler<C>`.
  *
- * Оба живут здесь, а не в `@nestling/operations`: интерфейсу нужны и
+ * Оба живут здесь, а не в `@nestlingjs/operations`: интерфейсу нужны и
  * операция, и типы пайплайна. Имя `Handler` носят интерфейс и декоратор
- * роли — декоратор реэкспортируется из `@nestling/container` тем же
+ * роли — декоратор реэкспортируется из `@nestlingjs/container` тем же
  * именем, поэтому класс-хендлер объявляется одним импортом.
  */
 
-import { Handler as HandlerDecorator } from '@nestling/container';
+import { Handler as HandlerDecorator } from '@nestlingjs/container';
 import type {
   AnyOperation,
   InputOf,
   OperationFailsOf,
   Output,
   OutputOf,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * Второй параметр хендлера: сигнал отмены и поля контекста.
@@ -43,7 +43,7 @@ export interface HandlerMeta {
  *
  * HTTP-специфики здесь нет: класс с этим интерфейсом переносим между
  * транспортами. Хендлеру, которому нужен запрос или ответ HTTP, служит
- * `HttpHandler<C>` из `@nestling/transport.http`.
+ * `HttpHandler<C>` из `@nestlingjs/transport.http`.
  *
  * @param C - Тип операции (`typeof CreateOrder`)
  *
@@ -66,9 +66,9 @@ export interface Handler<C extends AnyOperation> {
 /**
  * Декоратор роли `@Handler([deps])`.
  *
- * Значение то же, что в `@nestling/container`: реэкспорт объединяет
+ * Значение то же, что в `@nestlingjs/container`: реэкспорт объединяет
  * декоратор с одноимённым интерфейсом, и класс-хендлер операции берёт обе
  * формы одним импортом. Код без операций импортирует декоратор из
- * `@nestling/container`.
+ * `@nestlingjs/container`.
  */
 export const Handler = HandlerDecorator;

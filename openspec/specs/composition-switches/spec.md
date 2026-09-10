@@ -4,7 +4,7 @@
 
 Переключатель состава выбирает одну из объявленных веток состава по
 значению, известному до сборки. Конструктор `makeSwitch` живёт в
-`@nestling/container`, ветки объявляют `pick` и `when`, а стоят они в
+`@nestlingjs/container`, ветки объявляют `pick` и `when`, а стоят они в
 списках единиц: `providers:` и `dependsOn:` модуля, `modules:` и
 `endpoints:` фичи и плагина, `endpoints:`, `providers:`, `modules:`,
 `plugins:` и `transports:` корня. Словарь переключателей объявляет корень
@@ -20,7 +20,7 @@
 
 ### Requirement: `makeSwitch` — переключатель состава как значение
 
-`@nestling/container` SHALL экспортировать `makeSwitch(name, values?, options?)`,
+`@nestlingjs/container` SHALL экспортировать `makeSwitch(name, values?, options?)`,
 создающий переключатель — значение, которое выбирает одну из объявленных
 веток состава по значению, известному до сборки. Переключатель SHALL
 импортироваться и модулем, и корнем, как секция конфига.
@@ -40,7 +40,7 @@
 
 Переключатель SHALL нести поле `schema` — Standard Schema его значений с
 умолчанием. Схема SHALL строиться пакетом самостоятельно и SHALL NOT
-требовать валидатора: `zod` и его аналоги в зависимости `@nestling/container`
+требовать валидатора: `zod` и его аналоги в зависимости `@nestlingjs/container`
 SHALL NOT добавляться.
 
 DI-токена у переключателя SHALL NOT существовать: выбор SHALL NOT

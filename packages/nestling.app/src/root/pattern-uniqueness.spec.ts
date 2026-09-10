@@ -19,8 +19,8 @@ import { makeFeature, resolveBundle } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Resource } from '@nestling/container';
-import { makeEvent, makeRequest } from '@nestling/operations';
+import { Resource } from '@nestlingjs/container';
+import { makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Discovery видит состав с раскрытыми ветками: единицы приходят к ней резолвнутыми */

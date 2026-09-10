@@ -1,4 +1,4 @@
-import type { EmptyInput, PreUnitFn } from '@nestling/app';
+import type { EmptyInput, PreUnitFn } from '@nestlingjs/app';
 
 /**
  * Кладёт в контекст момент начала обработки запроса.

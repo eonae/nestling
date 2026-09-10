@@ -15,7 +15,7 @@ import { spyLogger } from '../../logger/__fixtures__/spy.js';
 // Публичная поверхность пакета: `AfterUnitFn` удалён вместе с фазой `.after`
 // (change pipeline-drop-after). Если тип вернётся в экспорт — директива
 // станет неиспользованной и tsc сообщит об этом.
-// @ts-expect-error: AfterUnitFn больше не экспортируется из @nestling/app
+// @ts-expect-error: AfterUnitFn больше не экспортируется из @nestlingjs/app
 import type { AfterUnitFn } from '../index.js';
 import { withIdentity, withPermissions } from '../middlewares/index.js';
 import { withRequestLogging } from '../middlewares/logging.js';
@@ -27,7 +27,7 @@ import type { PreUnitFn } from './types/unit.js';
 import type { AnyPipeline, Pipeline, PipelineTypes } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
-import type { AnyInput, EmptyInput } from '@nestling/operations';
+import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 
 // ============================================================================
 // Mock типы для тестов
@@ -437,7 +437,7 @@ describe('Pipeline v2 — compose', () => {
     // пайплайн с требованиями присваивается слоту без них. Именно поэтому
     // транспорту недостаточно типизировать слот
     // `pipeline?: Pipeline<Start, …>`, и потребовалась отдельная проверка
-    // `ValidateStart` (@nestling/transport.http).
+    // `ValidateStart` (@nestlingjs/transport.http).
     const slot: Pipeline<EmptyInput, AnyInput, never> = composed;
 
     expect(slot).toBeDefined();

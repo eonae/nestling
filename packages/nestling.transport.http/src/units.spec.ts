@@ -17,8 +17,8 @@ import type {
   Logger,
   Raw,
   ResponseContext,
-} from '@nestling/app';
-import { makeEmptyContext, makePipeline, Ok } from '@nestling/app';
+} from '@nestlingjs/app';
+import { makeEmptyContext, makePipeline, Ok } from '@nestlingjs/app';
 
 const http: HttpRequest = {
   method: 'GET',

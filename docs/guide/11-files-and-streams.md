@@ -27,8 +27,8 @@
 
 ```typescript
 // examples/users-service/src/users/endpoints/upload-avatar.endpoint.ts
-import type { FilePart } from '@nestling/operations';
-import { multipart, upload } from '@nestling/operations';
+import type { FilePart } from '@nestlingjs/operations';
+import { multipart, upload } from '@nestlingjs/operations';
 
 const MiB = 1024 * 1024;
 
@@ -119,8 +119,8 @@ curl -X POST http://localhost:3000/users/1/avatar \
 
 ```typescript
 // examples/users-service/src/users/endpoints/export-users.endpoint.ts
-import { stream } from '@nestling/operations';
-import { HttpResponse } from '@nestling/transport.http';
+import { stream } from '@nestlingjs/operations';
+import { HttpResponse } from '@nestlingjs/transport.http';
 
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
 const MAX_ROWS = 100_000;
@@ -186,7 +186,7 @@ curl -N http://localhost:3000/users/export
 
 ```typescript
 // examples/users-service/src/users/endpoints/import-users.endpoint.ts
-import { stream } from '@nestling/operations';
+import { stream } from '@nestlingjs/operations';
 
 const ImportResult = z.object({
   imported: z.number(),

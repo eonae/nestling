@@ -1,10 +1,10 @@
 import { appConfigKeys } from '../../src/app.config.js';
 import { app } from '../../src/app.js';
 
-import type { AssembledApp } from '@nestling/app';
-import { makeApp, objectSource } from '@nestling/app';
-import type { HttpServer } from '@nestling/transport.http';
-import { http, httpServer, httpServerKeys } from '@nestling/transport.http';
+import type { AssembledApp } from '@nestlingjs/app';
+import { makeApp, objectSource } from '@nestlingjs/app';
+import type { HttpServer } from '@nestlingjs/transport.http';
+import { http, httpServer, httpServerKeys } from '@nestlingjs/transport.http';
 
 /** Bearer-токен, который e2e-тесты передают в заголовке `authorization` */
 export const E2E_TOKEN = 'e2e-token';

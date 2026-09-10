@@ -14,7 +14,7 @@
 
 ### Requirement: `makeApp` — единственный публичный composition root
 
-`@nestling/app` SHALL экспортировать функцию `makeApp(spec): App` —
+`@nestlingjs/app` SHALL экспортировать функцию `makeApp(spec): App` —
 единственный публичный composition root. Приложение уровня L0 (endpoint'ы
 и транспорт) SHALL NOT упоминать ни фич, ни выбора, ни конфиг-привязок, ни
 инвариантов.

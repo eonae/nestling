@@ -1,7 +1,7 @@
 import { parseMetadata, parsePayload } from './parse.js';
 import type { InputSources } from './types.js';
 
-import { SchemaValidationError } from '@common/misc';
+import { SchemaValidationError } from '@nestlingjs/common.misc';
 import { z } from 'zod';
 
 describe('parsePayload', () => {
@@ -181,7 +181,7 @@ describe('конвертеры не входят в схемную границ�
   it('на схемной границе конвертеров нет ни в одной сигнатуре', () => {
     // Регрессия: `parsePayload` — та же функция двух аргументов, что была
     // до появления конвертеров. Сам диспетчер JSON Schema живёт в
-    // `@nestling/operations` и проверяется там.
+    // `@nestlingjs/operations` и проверяется там.
     expect(parsePayload.length).toBe(2);
     expect(
       parsePayload(z.object({ id: z.string() }), {

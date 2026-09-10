@@ -3,8 +3,8 @@
 
 import { CreateUser, ExportLogs, SayHello } from './endpoints/index.js';
 
-import { makeDispatch } from '@nestling/app';
-import { HttpServer, HttpTransport } from '@nestling/transport.http';
+import { makeDispatch } from '@nestlingjs/app';
+import { HttpServer, HttpTransport } from '@nestlingjs/transport.http';
 
 /**
  * HTTP-сервер без `assemble`: сервер и транспорт создаются напрямую,

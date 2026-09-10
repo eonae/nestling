@@ -3,7 +3,7 @@
  * создании.
  *
  * Чтение карты (`readQuery`, `assemblePayload`, `httpBindingOf`)
- * проверяется в `@nestling/transport.http`.
+ * проверяется в `@nestlingjs/transport.http`.
  */
 
 import { events, multipart, stream, upload } from '../io/index.js';

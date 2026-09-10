@@ -7,13 +7,13 @@
  * отказы обоих слоёв попали в тип хендлера.
  */
 
-import { makeToken } from '@nestling/container';
+import { makeToken } from '@nestlingjs/container';
 import {
   compose,
   makeEndpoint,
   makeFail,
   makePipeline,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import { z } from 'zod';
 
 const HttpTransport$ = makeToken('transport:http');

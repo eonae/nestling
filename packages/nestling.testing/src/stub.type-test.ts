@@ -15,9 +15,9 @@ import type { EmitDelivery } from './app.js';
 import { assembleTest } from './app.js';
 import { stub } from './stub.js';
 
-import type { Port, PortResult } from '@nestling/app';
-import { makeApp, makeFail, Ok } from '@nestling/app';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
+import type { Port, PortResult } from '@nestlingjs/app';
+import { makeApp, makeFail, Ok } from '@nestlingjs/app';
+import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 type Equal<A, B> =

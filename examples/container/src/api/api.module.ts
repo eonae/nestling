@@ -4,13 +4,13 @@ import { ApiClient$ } from '../interfaces.js';
 
 import { ApiHealthCheck } from './api.health.js';
 
-import type { Config, Logger } from '@nestling/app';
-import { HealthCheck$, Logger$ } from '@nestling/app';
+import type { Config, Logger } from '@nestlingjs/app';
+import { HealthCheck$, Logger$ } from '@nestlingjs/app';
 import {
   classProvider,
   factoryProvider,
   makeModule,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 
 export const ApiModule = makeModule({
   name: 'module:api',

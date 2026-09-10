@@ -437,27 +437,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@common/graphs@workspace:*, @common/graphs@workspace:packages/common.graphs":
-  version: 0.0.0-use.local
-  resolution: "@common/graphs@workspace:packages/common.graphs"
-  languageName: unknown
-  linkType: soft
-
-"@common/misc@workspace:*, @common/misc@workspace:packages/common.misc":
-  version: 0.0.0-use.local
-  resolution: "@common/misc@workspace:packages/common.misc"
-  dependencies:
-    "@standard-schema/spec": "npm:^1.1.0"
-    zod: "npm:^4.0.0"
-  languageName: unknown
-  linkType: soft
-
-"@common/static-server@workspace:*, @common/static-server@workspace:packages/common.static-server":
-  version: 0.0.0-use.local
-  resolution: "@common/static-server@workspace:packages/common.static-server"
-  languageName: unknown
-  linkType: soft
-
 "@cspotcode/source-map-support@npm:^0.8.0":
   version: 0.8.1
   resolution: "@cspotcode/source-map-support@npm:0.8.1"
@@ -1096,16 +1075,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@examples/app-with-http@workspace:examples/app-with-http"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/client": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/eslint-plugin": "workspace:*"
-    "@nestling/openapi": "workspace:*"
-    "@nestling/openapi.zod": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/subscriptions": "workspace:*"
-    "@nestling/testing": "workspace:*"
-    "@nestling/transport.http": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/client": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/eslint-plugin": "workspace:*"
+    "@nestlingjs/openapi": "workspace:*"
+    "@nestlingjs/openapi.zod": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/subscriptions": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
+    "@nestlingjs/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1114,8 +1093,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@examples/container@workspace:examples/container"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/container": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1124,9 +1103,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@examples/simple-cli@workspace:examples/simple-cli"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/transport.cli": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/transport.cli": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1135,9 +1114,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@examples/simple-http-server@workspace:examples/simple-http-server"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/transport.http": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1146,11 +1125,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@examples/split-nats@workspace:examples/split-nats"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/testing": "workspace:*"
-    "@nestling/transport.nats": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
+    "@nestlingjs/transport.nats": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1159,16 +1138,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@examples/users-service@workspace:examples/users-service"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/client": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/eslint-plugin": "workspace:*"
-    "@nestling/openapi": "workspace:*"
-    "@nestling/openapi.zod": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/outbox": "workspace:*"
-    "@nestling/testing": "workspace:*"
-    "@nestling/transport.http": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/client": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/eslint-plugin": "workspace:*"
+    "@nestlingjs/openapi": "workspace:*"
+    "@nestlingjs/openapi.zod": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/outbox": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
+    "@nestlingjs/transport.http": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
@@ -1719,39 +1698,60 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestling/app@workspace:*, @nestling/app@workspace:packages/nestling.app":
+"@nestlingjs/app@workspace:*, @nestlingjs/app@workspace:packages/nestling.app":
   version: 0.0.0-use.local
-  resolution: "@nestling/app@workspace:packages/nestling.app"
+  resolution: "@nestlingjs/app@workspace:packages/nestling.app"
   dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/client@workspace:*, @nestling/client@workspace:packages/nestling.client":
+"@nestlingjs/client@workspace:*, @nestlingjs/client@workspace:packages/nestling.client":
   version: 0.0.0-use.local
-  resolution: "@nestling/client@workspace:packages/nestling.client"
+  resolution: "@nestlingjs/client@workspace:packages/nestling.client"
   dependencies:
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/container@workspace:*, @nestling/container@workspace:packages/nestling.container":
+"@nestlingjs/common.graphs@workspace:*, @nestlingjs/common.graphs@workspace:packages/common.graphs":
   version: 0.0.0-use.local
-  resolution: "@nestling/container@workspace:packages/nestling.container"
+  resolution: "@nestlingjs/common.graphs@workspace:packages/common.graphs"
+  languageName: unknown
+  linkType: soft
+
+"@nestlingjs/common.misc@workspace:*, @nestlingjs/common.misc@workspace:packages/common.misc":
+  version: 0.0.0-use.local
+  resolution: "@nestlingjs/common.misc@workspace:packages/common.misc"
   dependencies:
-    "@common/graphs": "workspace:*"
+    "@standard-schema/spec": "npm:^1.1.0"
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@nestlingjs/common.static-server@workspace:*, @nestlingjs/common.static-server@workspace:packages/common.static-server":
+  version: 0.0.0-use.local
+  resolution: "@nestlingjs/common.static-server@workspace:packages/common.static-server"
+  languageName: unknown
+  linkType: soft
+
+"@nestlingjs/container@workspace:*, @nestlingjs/container@workspace:packages/nestling.container":
+  version: 0.0.0-use.local
+  resolution: "@nestlingjs/container@workspace:packages/nestling.container"
+  dependencies:
+    "@nestlingjs/common.graphs": "workspace:*"
     "@standard-schema/spec": "npm:^1.1.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/eslint-plugin@workspace:*, @nestling/eslint-plugin@workspace:packages/nestling.eslint-plugin":
+"@nestlingjs/eslint-plugin@workspace:*, @nestlingjs/eslint-plugin@workspace:packages/nestling.eslint-plugin":
   version: 0.0.0-use.local
-  resolution: "@nestling/eslint-plugin@workspace:packages/nestling.eslint-plugin"
+  resolution: "@nestlingjs/eslint-plugin@workspace:packages/nestling.eslint-plugin"
   dependencies:
     eslint: "npm:^9.2.5"
     typescript: "npm:5.7.3"
@@ -1761,19 +1761,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestling/models@workspace:packages/nestling.models":
+"@nestlingjs/models@workspace:packages/nestling.models":
   version: 0.0.0-use.local
-  resolution: "@nestling/models@workspace:packages/nestling.models"
+  resolution: "@nestlingjs/models@workspace:packages/nestling.models"
   peerDependencies:
     zod: ^4.0.0
   languageName: unknown
   linkType: soft
 
-"@nestling/openapi.zod@workspace:*, @nestling/openapi.zod@workspace:packages/nestling.openapi.zod":
+"@nestlingjs/openapi.zod@workspace:*, @nestlingjs/openapi.zod@workspace:packages/nestling.openapi.zod":
   version: 0.0.0-use.local
-  resolution: "@nestling/openapi.zod@workspace:packages/nestling.openapi.zod"
+  resolution: "@nestlingjs/openapi.zod@workspace:packages/nestling.openapi.zod"
   dependencies:
-    "@nestling/app": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   peerDependencies:
@@ -1781,93 +1781,93 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestling/openapi@workspace:*, @nestling/openapi@workspace:packages/nestling.openapi":
+"@nestlingjs/openapi@workspace:*, @nestlingjs/openapi@workspace:packages/nestling.openapi":
   version: 0.0.0-use.local
-  resolution: "@nestling/openapi@workspace:packages/nestling.openapi"
+  resolution: "@nestlingjs/openapi@workspace:packages/nestling.openapi"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/openapi.zod": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/transport.cli": "workspace:*"
-    "@nestling/transport.http": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/openapi.zod": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/transport.cli": "workspace:*"
+    "@nestlingjs/transport.http": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/operations@workspace:*, @nestling/operations@workspace:packages/nestling.operations":
+"@nestlingjs/operations@workspace:*, @nestlingjs/operations@workspace:packages/nestling.operations":
   version: 0.0.0-use.local
-  resolution: "@nestling/operations@workspace:packages/nestling.operations"
+  resolution: "@nestlingjs/operations@workspace:packages/nestling.operations"
   dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/container": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/outbox@workspace:*, @nestling/outbox@workspace:packages/nestling.outbox":
+"@nestlingjs/outbox@workspace:*, @nestlingjs/outbox@workspace:packages/nestling.outbox":
   version: 0.0.0-use.local
-  resolution: "@nestling/outbox@workspace:packages/nestling.outbox"
+  resolution: "@nestlingjs/outbox@workspace:packages/nestling.outbox"
   dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/app": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/testing": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/subscriptions@workspace:*, @nestling/subscriptions@workspace:packages/nestling.subscriptions":
+"@nestlingjs/subscriptions@workspace:*, @nestlingjs/subscriptions@workspace:packages/nestling.subscriptions":
   version: 0.0.0-use.local
-  resolution: "@nestling/subscriptions@workspace:packages/nestling.subscriptions"
+  resolution: "@nestlingjs/subscriptions@workspace:packages/nestling.subscriptions"
   dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/app": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/testing": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/testing@workspace:*, @nestling/testing@workspace:packages/nestling.testing":
+"@nestlingjs/testing@workspace:*, @nestlingjs/testing@workspace:packages/nestling.testing":
   version: 0.0.0-use.local
-  resolution: "@nestling/testing@workspace:packages/nestling.testing"
+  resolution: "@nestlingjs/testing@workspace:packages/nestling.testing"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
-    "@nestling/transport.http": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/transport.http": "workspace:*"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/transport.cli@workspace:*, @nestling/transport.cli@workspace:packages/nestling.transport.cli":
+"@nestlingjs/transport.cli@workspace:*, @nestlingjs/transport.cli@workspace:packages/nestling.transport.cli":
   version: 0.0.0-use.local
-  resolution: "@nestling/transport.cli@workspace:packages/nestling.transport.cli"
+  resolution: "@nestlingjs/transport.cli@workspace:packages/nestling.transport.cli"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/transport.http@workspace:*, @nestling/transport.http@workspace:packages/nestling.transport.http":
+"@nestlingjs/transport.http@workspace:*, @nestlingjs/transport.http@workspace:packages/nestling.transport.http":
   version: 0.0.0-use.local
-  resolution: "@nestling/transport.http@workspace:packages/nestling.transport.http"
+  resolution: "@nestlingjs/transport.http@workspace:packages/nestling.transport.http"
   dependencies:
-    "@common/misc": "workspace:*"
-    "@nestling/app": "workspace:*"
-    "@nestling/client": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/client": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
     "@types/busboy": "npm:^1.5.4"
     busboy: "npm:^1.6.0"
     find-my-way: "npm:^8.2.0"
@@ -1875,26 +1875,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestling/transport.nats@workspace:*, @nestling/transport.nats@workspace:packages/nestling.transport.nats":
+"@nestlingjs/transport.nats@workspace:*, @nestlingjs/transport.nats@workspace:packages/nestling.transport.nats":
   version: 0.0.0-use.local
-  resolution: "@nestling/transport.nats@workspace:packages/nestling.transport.nats"
+  resolution: "@nestlingjs/transport.nats@workspace:packages/nestling.transport.nats"
   dependencies:
-    "@nestling/app": "workspace:*"
-    "@nestling/container": "workspace:*"
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
     nats: "npm:^2.29.3"
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@nestling/viz@workspace:packages/nestling.viz":
+"@nestlingjs/viz@workspace:packages/nestling.viz":
   version: 0.0.0-use.local
-  resolution: "@nestling/viz@workspace:packages/nestling.viz"
+  resolution: "@nestlingjs/viz@workspace:packages/nestling.viz"
   dependencies:
     3d-force-graph: "npm:^1.71.0"
-    "@common/static-server": "workspace:*"
-    "@nestling/eslint-plugin": "workspace:*"
+    "@nestlingjs/common.static-server": "workspace:*"
+    "@nestlingjs/eslint-plugin": "workspace:*"
     "@types/three": "npm:^0.160.0"
     chalk: "npm:^5.3.0"
     commander: "npm:^12.0.0"
@@ -9178,7 +9178,7 @@ __metadata:
     "@eslint/compat": "npm:~1.1.1"
     "@eslint/js": "npm:^9.10.0"
     "@hono/node-server": "npm:^2.1.1"
-    "@nestling/eslint-plugin": "workspace:*"
+    "@nestlingjs/eslint-plugin": "workspace:*"
     "@rsdk/prettier-config": "npm:^6.0.0-next.14"
     "@tanstack/eslint-plugin-router": "npm:^1.132.21"
     "@types/autocannon": "npm:^7.12.7"

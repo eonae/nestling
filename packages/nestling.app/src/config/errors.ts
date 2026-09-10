@@ -1,4 +1,4 @@
-import type { SchemaIssue } from '@common/misc';
+import type { SchemaIssue } from '@nestlingjs/common.misc';
 
 /** Текст, которым заменяется сообщение issue'а секретного поля */
 export const REDACTED = '<redacted>';

@@ -6,12 +6,12 @@ import { UserCreated } from '../users.events.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Output } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import type { Emitter } from '@nestling/operations';
-import { Ok } from '@nestling/operations';
-import { outboxed } from '@nestling/outbox';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Output } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import type { Emitter } from '@nestlingjs/operations';
+import { Ok } from '@nestlingjs/operations';
+import { outboxed } from '@nestlingjs/outbox';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 /**
  * `outboxed(UserCreated)` вместо `UserCreated.emitter` — одна строка в

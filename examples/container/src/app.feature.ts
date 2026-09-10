@@ -4,8 +4,8 @@ import { UsersModule } from './users/index.js';
 import { AppService } from './app.service.js';
 import { Demo } from './demo.js';
 
-import { makeFeature } from '@nestling/app';
-import { makeModule } from '@nestling/container';
+import { makeFeature } from '@nestlingjs/app';
+import { makeModule } from '@nestlingjs/container';
 
 /** Корневой модуль: сервис приложения и модули, от которых он зависит */
 export const AppModule = makeModule({

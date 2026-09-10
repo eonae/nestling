@@ -3,10 +3,10 @@ import { NewUser } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Output } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { stream } from '@nestling/operations';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Output } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { stream } from '@nestlingjs/operations';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const ImportResult = z.object({

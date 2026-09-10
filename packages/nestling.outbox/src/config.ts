@@ -8,7 +8,7 @@
 
 import { flag, int } from './schema.js';
 
-import { makeConfig } from '@nestling/app';
+import { makeConfig } from '@nestlingjs/app';
 
 /**
  * Секция relay.

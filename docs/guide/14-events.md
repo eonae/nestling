@@ -199,7 +199,7 @@ export class SignupJournal {
 }
 ```
 
-`withIdempotencyKey()` — готовый pre-юнит из `@nestling/app`: он
+`withIdempotencyKey()` — готовый pre-юнит из `@nestlingjs/app`: он
 берёт ключ из параметров вызова и объявляет переменную контекста
 `IdempotencyKey`. Журнал читает её через `Ctx(IdempotencyKey)` так же,
 как хранилище читало `RequestId` в [главе 9](./09-logging.md).

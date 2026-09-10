@@ -3,10 +3,10 @@ import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import { Handler } from '@nestling/container';
-import { stream } from '@nestling/operations';
-import type { HttpOutput } from '@nestling/transport.http';
-import { httpEndpoint, HttpResponse } from '@nestling/transport.http';
+import { Handler } from '@nestlingjs/container';
+import { stream } from '@nestlingjs/operations';
+import type { HttpOutput } from '@nestlingjs/transport.http';
+import { httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
 
 /** Верхняя граница строк одной выгрузки: сверх неё поток обрывается */
 const MAX_ROWS = 100_000;

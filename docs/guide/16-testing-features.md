@@ -3,7 +3,7 @@
 > Гайд по текущему API; сверено с кодом `app-with-http`, `split-nats` (2026-09-09).
 > Целевое описание: [design/testing.md](../design/testing.md) §3 и §4.
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
-> тестирования (`@nestling/testing`)».
+> тестирования (`@nestlingjs/testing`)».
 
 Фича `users` вызывает `quotas.claim` и отправляет `users.registered` и
 `quotas.record-signup`. Команда квот ещё не написала реализацию, а тесты

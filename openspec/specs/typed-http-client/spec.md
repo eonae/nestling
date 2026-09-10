@@ -18,7 +18,7 @@
 
 ### Requirement: `makeClient` строит API-объект из record'а операций
 
-`@nestling/client` SHALL экспортировать
+`@nestlingjs/client` SHALL экспортировать
 `makeClient(record, { baseUrl, headers?, fetch?, validateOutput? })`,
 возвращающий объект с методом на каждый ключ `record`.
 
@@ -37,7 +37,7 @@
 #### Scenario: Клиент собирается без приложения
 
 - **WHEN** клиент создан в скрипте, импортировавшем только
-  `@nestling/operations` и `@nestling/client`
+  `@nestlingjs/operations` и `@nestlingjs/client`
 - **THEN** он работает: ни контейнер, ни транспорт, ни `makeApp` не нужны
 
 ### Requirement: Call-site метода эквивалентен вызывателю вида операции

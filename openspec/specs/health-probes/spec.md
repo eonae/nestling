@@ -17,7 +17,7 @@
 
 ### Requirement: `HealthCheck$` — семейство вкладов ядра
 
-`@nestling/app` SHALL экспортировать семейство DI-токенов
+`@nestlingjs/app` SHALL экспортировать семейство DI-токенов
 `HealthCheck$(name)` с интерфейсом
 `HealthCheck { critical: boolean; check(signal: AbortSignal): Promise<HealthStatus> }`,
 где `HealthStatus` — `'ok' | 'degraded' | 'down'`.

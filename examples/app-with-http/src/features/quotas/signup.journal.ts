@@ -1,6 +1,6 @@
-import type { CtxReader, Logger } from '@nestling/app';
-import { Ctx, IdempotencyKey, Logger$ } from '@nestling/app';
-import { Component } from '@nestling/container';
+import type { CtxReader, Logger } from '@nestlingjs/app';
+import { Ctx, IdempotencyKey, Logger$ } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
 
 /**
  * Журнал регистраций: читает ключ идемпотентности из контекста.

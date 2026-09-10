@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`stub(Operation, impl)` из `@nestling/testing` — фейк-вызыватель как значение:
+`stub(Operation, impl)` из `@nestlingjs/testing` — фейк-вызыватель как значение:
 пара «токен вызывателя → фейк», едущая в тестовый корень тем же полем
 `stubs:`, что и обычные пары «токен → значение». Она позволяет тестировать
 фичу без соседей — операция, которую никто в этой сборке не реализует и
@@ -18,7 +18,7 @@
 
 ### Requirement: `stub(Operation, impl)` — фейк-вызыватель как значение
 
-`@nestling/testing` SHALL экспортировать `stub(contract, impl)`, возвращающую
+`@nestlingjs/testing` SHALL экспортировать `stub(contract, impl)`, возвращающую
 пару «токен вызывателя → фейк»: `[operation.caller, Port<C>]` для операции вида
 `request` и `[operation.emitter, Emitter<C>]` для видов `command` и `event`.
 

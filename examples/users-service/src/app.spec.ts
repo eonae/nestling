@@ -16,9 +16,9 @@ import { app } from './app.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { RootLogger$ } from '@nestling/app';
-import { OutboxRelay$ } from '@nestling/outbox';
-import { assembleTest, spyLogger, unwrap, vars } from '@nestling/testing';
+import { RootLogger$ } from '@nestlingjs/app';
+import { OutboxRelay$ } from '@nestlingjs/outbox';
+import { assembleTest, spyLogger, unwrap, vars } from '@nestlingjs/testing';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };

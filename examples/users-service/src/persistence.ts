@@ -2,15 +2,15 @@ import { authed } from './auth.js';
 import type { Transaction } from './database.js';
 import { Database } from './database.js';
 
-import type { ExtendableContext, Plugin } from '@nestling/app';
-import { compose, contextVar, makePipeline, makePlugin } from '@nestling/app';
-import { Handler, makeToken } from '@nestling/container';
-import type { OutboxStore } from '@nestling/outbox';
+import type { ExtendableContext, Plugin } from '@nestlingjs/app';
+import { compose, contextVar, makePipeline, makePlugin } from '@nestlingjs/app';
+import { Handler, makeToken } from '@nestlingjs/container';
+import type { OutboxStore } from '@nestlingjs/outbox';
 
 /**
  * Транзакция запроса.
  *
- * Переменную объявляет приложение своим типом: `@nestling/outbox` её
+ * Переменную объявляет приложение своим типом: `@nestlingjs/outbox` её
  * только читает и передаёт хранилищу непрозрачно.
  */
 export const Tx = contextVar<Transaction>()('tx');

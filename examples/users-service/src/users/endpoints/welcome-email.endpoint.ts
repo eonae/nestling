@@ -1,14 +1,14 @@
 import { UserCreated } from '../users.events.js';
 
-import type { Logger, Output } from '@nestling/app';
+import type { Logger, Output } from '@nestlingjs/app';
 import {
   implement,
   Logger$,
   makePipeline,
   withIdempotencyKey,
-} from '@nestling/app';
-import { Handler, makeToken } from '@nestling/container';
-import { Ok } from '@nestling/operations';
+} from '@nestlingjs/app';
+import { Handler, makeToken } from '@nestlingjs/container';
+import { Ok } from '@nestlingjs/operations';
 
 /** Уже обработанные ключи: дедупликация — обязанность подписчика */
 export const SeenKeys$ = makeToken<Set<string>>('SeenKeys');

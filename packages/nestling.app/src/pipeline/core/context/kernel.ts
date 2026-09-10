@@ -10,8 +10,8 @@
 
 import { CtxFamily, makeCtxReader } from './reader.js';
 
-import type { Module } from '@nestling/container';
-import { familyProvider, valueProvider } from '@nestling/container';
+import type { Module } from '@nestlingjs/container';
+import { familyProvider, valueProvider } from '@nestlingjs/container';
 
 /**
  * Собирает kernel-модуль ридеров ambient-контекста.

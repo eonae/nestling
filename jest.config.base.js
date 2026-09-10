@@ -22,7 +22,7 @@ export function createJestConfig(fileUrl, overrides = {}) {
     preset: 'ts-jest/presets/default-esm',
     testEnvironment: 'node',
     // Условие `"testing"` включено во всех тестах репозитория: тестовые
-    // subpath'ы пакетов (`@nestling/app/testing` и его аналоги в
+    // subpath'ы пакетов (`@nestlingjs/app/testing` и его аналоги в
     // пользовательских модулях) резолвятся только здесь, а прод-импорт
     // падает на резолве
     testEnvironmentOptions: {
@@ -70,15 +70,18 @@ export function createJestConfig(fileUrl, overrides = {}) {
       // Пути к исходникам пакетов отсчитываются от корня монорепы, а не от
       // каталога пакета под тестом: тесты примеров лежат в `examples/`, и
       // соседей у них там нет
-      // Тестовый subpath — до общего правила ниже: иначе `@nestling/app/testing`
+      // Тестовый subpath — до общего правила ниже: иначе `@nestlingjs/app/testing`
       // уехал бы в несуществующий `nestling.app/testing/src/index.ts`
-      '^@nestling/([^/]*)/testing$': `${repoRoot}/packages/nestling.$1/src/testing/index.ts`,
-      // Subpath токенов (`@nestling/container/tokens`) — тоже до общего
+      '^@nestlingjs/([^/]*)/testing$': `${repoRoot}/packages/nestling.$1/src/testing/index.ts`,
+      // Subpath токенов (`@nestlingjs/container/tokens`) — тоже до общего
       // правила: его точка входа лежит файлом `src/tokens.ts`, а не каталогом
-      '^@nestling/([^/]*)/tokens$': `${repoRoot}/packages/nestling.$1/src/tokens.ts`,
+      '^@nestlingjs/([^/]*)/tokens$': `${repoRoot}/packages/nestling.$1/src/tokens.ts`,
+      // Внутренние пакеты — до общего правила: их каталог называется
+      // `common.<имя>`, а не `nestling.<имя>`, и общее правило увело бы
+      // `@nestlingjs/common.misc` в несуществующий `nestling.common.misc`
+      '^@nestlingjs/common\\.(.*)$': `${repoRoot}/packages/common.$1/src/index.ts`,
       // Маппинг всех workspace пакетов на исходники
-      '^@nestling/(.*)$': `${repoRoot}/packages/nestling.$1/src/index.ts`,
-      '^@common/(.*)$': `${repoRoot}/packages/common.$1/src/index.ts`,
+      '^@nestlingjs/(.*)$': `${repoRoot}/packages/nestling.$1/src/index.ts`,
     },
     ...overrides,
   };

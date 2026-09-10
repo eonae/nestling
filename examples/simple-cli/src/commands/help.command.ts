@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { cliEndpoint } from '@nestling/transport.cli';
+import { cliEndpoint } from '@nestlingjs/transport.cli';
 import { z } from 'zod';
 
 const HelpOutput = z.object({

@@ -43,12 +43,12 @@ Nestling собирает приложение из декларативных �
 ## Быстрый старт
 
 ```bash
-npm install @nestling/app @nestling/transport.http zod
+npm install @nestlingjs/app @nestlingjs/transport.http zod
 ```
 
 ```typescript
-import { makeApp, makeFeature } from '@nestling/app';
-import { http, httpEndpoint } from '@nestling/transport.http';
+import { makeApp, makeFeature } from '@nestlingjs/app';
+import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 // Endpoint — значение: адрес, схемы и хендлер в одном объекте

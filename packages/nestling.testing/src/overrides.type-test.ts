@@ -11,10 +11,10 @@
 import { assembleTest } from './app.js';
 import { familyOverride } from './overrides.js';
 
-import type { ResponseContext } from '@nestling/app';
-import { makeApp, Ok } from '@nestling/app';
-import { makeToken, makeTokenFamily } from '@nestling/container';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { ResponseContext } from '@nestlingjs/app';
+import { makeApp, Ok } from '@nestlingjs/app';
+import { makeToken, makeTokenFamily } from '@nestlingjs/container';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 type Equal<A, B> =

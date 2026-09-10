@@ -1,6 +1,6 @@
 import type { HttpStartContext } from './helpers.js';
 
-import type { FinallyUnitFn, Logger, PreUnitFn } from '@nestling/app';
+import type { FinallyUnitFn, Logger, PreUnitFn } from '@nestlingjs/app';
 
 /**
  * Кладёт значение заголовка запроса в контекст под тем же именем.

@@ -12,8 +12,8 @@ import {
   toFieldFailure,
 } from './redact.js';
 
-import { SchemaValidationError, validateSync } from '@common/misc';
-import { Topic } from '@nestling/operations';
+import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
+import { Topic } from '@nestlingjs/operations';
 
 /** Значения секции — сырой рекорд до заморозки/обёртки геттерами */
 type Values = Record<string, unknown>;

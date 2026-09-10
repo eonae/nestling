@@ -6,8 +6,8 @@
 import { CreateUser, ExportLogs, SayHello } from './endpoints/index.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { EndpointMeta, ExecutableDeclaration, Raw } from '@nestling/app';
-import { makeDispatch, makeEmptyContext } from '@nestling/app';
+import type { EndpointMeta, ExecutableDeclaration, Raw } from '@nestlingjs/app';
+import { makeDispatch, makeEmptyContext } from '@nestlingjs/app';
 
 const dispatch = makeDispatch([SayHello, CreateUser, ExportLogs]);
 

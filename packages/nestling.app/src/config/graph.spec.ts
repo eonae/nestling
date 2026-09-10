@@ -12,8 +12,8 @@ import { describeConfig } from './registry.js';
 import { makeConfig } from './section.js';
 import { objectSource } from './source.js';
 
-import type { BuiltContainer } from '@nestling/container';
-import { Component, ContainerBuilder, makeToken } from '@nestling/container';
+import type { BuiltContainer } from '@nestlingjs/container';
+import { Component, ContainerBuilder, makeToken } from '@nestlingjs/container';
 import { z } from 'zod';
 
 const OrdersConfig = makeConfig('orders', {

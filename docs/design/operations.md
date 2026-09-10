@@ -105,18 +105,18 @@ export const OrderPlaced = makeEvent({
 ### 1.5. Пакеты
 
 `makeRequest` / `makeCommand` / `makeEvent`, `makeFail`, `Ok`/`Fail`, перечень статусов, формы io и
-bind-карта живут в `@nestling/operations`. У пакета нет runtime-зависимостей
+bind-карта живут в `@nestlingjs/operations`. У пакета нет runtime-зависимостей
 (транзитивно — только типы Standard Schema), поэтому операцию можно
 импортировать во фронтенд и в скрипты. Этот инвариант проверяет тест,
 который обходит граф импортов собранного пакета. Примитив `InjectionToken`
-пакет получает из subpath `@nestling/container/tokens` — листовых модулей
+пакет получает из subpath `@nestlingjs/container/tokens` — листовых модулей
 без runtime-импортов; благодаря этому `.caller` и `.emitter` — настоящие члены
 семейств DI-токенов.
 
-Рантайм (вызыватели, шина, биндинг) живёт в `@nestling/app`. Он
+Рантайм (вызыватели, шина, биндинг) живёт в `@nestlingjs/app`. Он
 реэкспортирует типы вызывателей (`Port`, `Emitter`, `PortMeta`), но не
 `makeRequest` / `makeCommand` / `makeEvent`: объявление операции импортируется только из
-`@nestling/operations`.
+`@nestlingjs/operations`.
 
 Копия пакета в приложении обязана быть одна. Пакет держит модульное
 состояние: члены семейств DI-токенов вызывателей и реестр имён операций. Две
@@ -263,7 +263,7 @@ remote-биндинга; у операции два владельца; у со�
 после коммита.
 
 Ядро этого не делает: ему пришлось бы тянуть хранилище. Механизм живёт
-сателлитом [`@nestling/outbox`](../../packages/nestling.outbox/) и собран
+сателлитом [`@nestlingjs/outbox`](../../packages/nestling.outbox/) и собран
 целиком на публичных примитивах — семействах DI-токенов, переменных
 контекста, роли `@Resource`, хуке `@OnStart` и интерфейсе `IMessageBus`.
 
@@ -307,7 +307,7 @@ export class CreateUserHandler {
 Ядро зависит только от интерфейса `IMessageBus` с операциями `request`,
 `publish` и `subscribe` — минимальным набором, который есть у любого
 брокера. Реализации: `InProcessBus` без зависимостей и
-`@nestling/transport.nats` (queue-group для реплик, JetStream для
+`@nestlingjs/transport.nats` (queue-group для реплик, JetStream для
 `durable`). Специфика NATS в API операций не попадает.
 
 `InProcessBus` — одно значение с двумя интерфейсами: `IMessageBus`
@@ -409,7 +409,7 @@ in-process шина не упоминается: её регистрирует k
 
 ```typescript
 import { CreateUser, GetUser } from '@acme/billing-operations'; // пакет без runtime-зависимостей
-import { makeClient } from '@nestling/client';
+import { makeClient } from '@nestlingjs/client';
 
 const api = makeClient(
   { createUser: CreateUser, getUser: GetUser },  // методы именует потребитель
@@ -447,7 +447,7 @@ const result = await api.createUser({ ... });
 - `makeClient` отвергает в момент создания, называя ключ метода в record:
   операцию без `http:`, вид `event`, потоковую или `multipart`-форму io,
   не-JSON тело, неабсолютный `baseUrl`.
-- `makeClient` живёт в `@nestling/client`: построен на `fetch`, без
+- `makeClient` живёт в `@nestlingjs/client`: построен на `fetch`, без
   Node-специфики; граница пакета проверяется тем же обходом графа
   импортов.
 - Для потребителей не на TypeScript остаётся путь через OpenAPI

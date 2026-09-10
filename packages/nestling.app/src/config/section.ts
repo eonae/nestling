@@ -24,8 +24,8 @@ import { ConfigSection } from './families.js';
 import { ConfigKeys, deriveKey, derivePrefix } from './keys.js';
 import { registerSection } from './registry.js';
 
-import type { Schema } from '@common/misc';
-import { assertStandardSchema } from '@common/misc';
+import type { Schema } from '@nestlingjs/common.misc';
+import { assertStandardSchema } from '@nestlingjs/common.misc';
 
 /**
  * Имя члена проекции reloadable-секции, занятое подпиской.

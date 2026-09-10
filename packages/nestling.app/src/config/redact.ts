@@ -18,7 +18,7 @@ import type { ConfigFieldFailure } from './errors.js';
 import { REDACTED } from './errors.js';
 import { isSecretDerived, isSecretKey } from './registry.js';
 
-import type { SchemaIssue } from '@common/misc';
+import type { SchemaIssue } from '@nestlingjs/common.misc';
 
 /** Чем заменяется значение секретного поля при печати проекции */
 export const SECRET_MASK = '***';

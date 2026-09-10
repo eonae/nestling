@@ -17,9 +17,9 @@
  * их оттуда, поэтому подвинуть порог, не оставив записи, нельзя.
  *
  * Запуск:
- *   yarn workspace @nestling/app type-budget
- *   yarn workspace @nestling/app type-budget --report       # без падения
- *   yarn workspace @nestling/app type-budget --layers=20    # другой размер
+ *   yarn workspace @nestlingjs/app type-budget
+ *   yarn workspace @nestlingjs/app type-budget --report       # без падения
+ *   yarn workspace @nestlingjs/app type-budget --layers=20    # другой размер
  */
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -146,7 +146,7 @@ async function main(): Promise<void> {
   console.log(
     [
       '',
-      `Бюджет типов @nestling/app — TypeScript ${ts.version}`,
+      `Бюджет типов @nestlingjs/app — TypeScript ${ts.version}`,
       `Граф: ${budget.layers} слоёв вложенной композицией, ${budget.endpoints} эндпоинтов`,
       '',
       `  Instantiations  база ${formatNumber(base.instantiations)}  граф ${formatNumber(graph.instantiations)}  Δ ${formatNumber(instantiationsDelta)}  (порог ${formatNumber(budget.instantiationsDelta)})`,

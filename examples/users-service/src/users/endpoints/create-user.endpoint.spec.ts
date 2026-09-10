@@ -10,7 +10,7 @@ import type { UserCreated } from '../users.events.js';
 import { CreateUserHandler } from './create-user.endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Emitter } from '@nestling/operations';
+import type { Emitter } from '@nestlingjs/operations';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 

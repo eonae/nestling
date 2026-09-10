@@ -15,7 +15,7 @@ import { BUS_CAPABILITIES, nats, NatsBus } from './transport.js';
 import { CONTEXT_HEADER, IDEMPOTENCY_HEADER, TIMEOUT_HEADER } from './wire.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Fields, Logger, LogLevel } from '@nestling/app';
+import type { Fields, Logger, LogLevel } from '@nestlingjs/app';
 import {
   BusTransport$,
   implement,
@@ -23,8 +23,8 @@ import {
   makeFail,
   makePipeline,
   Ok,
-} from '@nestling/app';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
+} from '@nestlingjs/app';
+import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const QuotaExceeded = makeFail('conflict:quota_exceeded', {

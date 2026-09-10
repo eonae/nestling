@@ -13,16 +13,16 @@ import { appConfigKeys } from './app.config.js';
 import { app } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, objectSource } from '@nestling/app';
-import { zodConverter } from '@nestling/openapi.zod';
-import type { OperationSnapshot } from '@nestling/testing';
+import { makeApp, objectSource } from '@nestlingjs/app';
+import { zodConverter } from '@nestlingjs/openapi.zod';
+import type { OperationSnapshot } from '@nestlingjs/testing';
 import {
   checkTopologies,
   diffOperations,
   formatCompatibility,
   serializeSnapshot,
   snapshotOperations,
-} from '@nestling/testing';
+} from '@nestlingjs/testing';
 
 /**
  * Та же декларация с секретами из объекта: `check()` собирает граф, и

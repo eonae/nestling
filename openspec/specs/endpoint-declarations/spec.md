@@ -21,8 +21,8 @@
 
 Декларация endpoint'а SHALL быть значением. Каждый транспорт SHALL
 экспортировать свой конструктор деклараций, принимающий типизированный
-словарь этого транспорта: `@nestling/transport.http` SHALL экспортировать
-`httpEndpoint({ method, path, … })`, `@nestling/transport.cli` SHALL
+словарь этого транспорта: `@nestlingjs/transport.http` SHALL экспортировать
+`httpEndpoint({ method, path, … })`, `@nestlingjs/transport.cli` SHALL
 экспортировать `cliEndpoint({ command, … })`. Конструктор SHALL возвращать
 `EndpointDefinition`, пригодный и для объявления в модуле, и (если у
 декларации нет неразрешённых зависимостей) для прямой передачи в
@@ -30,7 +30,7 @@
 
 Поле `transport` декларации SHALL нести **токен** транспорта, а не строку:
 конструктор проставляет токен своего пакета. Чтобы слой пайплайна не
-зависел от слоя транспорта внутри `@nestling/app`, ядро SHALL
+зависел от слоя транспорта внутри `@nestlingjs/app`, ядро SHALL
 типизировать поле как токен неуточнённого типа, а слой транспорта SHALL
 уточнять его как токен `ITransport`. Строковое имя транспорта SHALL
 выводиться из идентификатора токена и SHALL продолжать передаваться в
@@ -79,9 +79,9 @@
 ### Requirement: Декораторных деклараций, `IEndpoint` и метаданных на классах не существует
 
 Публичный API SHALL NOT содержать декораторов-носителей метаданных
-эндпоинта и связанных с ними сущностей. Из `@nestling/app` SHALL быть
+эндпоинта и связанных с ними сущностей. Из `@nestlingjs/app` SHALL быть
 удалены `Endpoint`, `getEndpointMetadata`, `EndpointMetadata` и интерфейс
-`IEndpoint`; из `@nestling/transport.http` SHALL быть удалены
+`IEndpoint`; из `@nestlingjs/transport.http` SHALL быть удалены
 `HttpEndpoint`, `HttpEndpointOptions`, `HttpEndpointMetadata`,
 `getHttpEndpointMetadata` и `makeHttpEndpoint`. Ключ
 `Symbol.for('nestling:handler')` SHALL NOT записываться ни на один класс.
@@ -89,8 +89,8 @@
 #### Scenario: Декораторы недоступны
 
 - **WHEN** код импортирует `Endpoint` или `getEndpointMetadata` из
-  `@nestling/app`, либо `HttpEndpoint`, `makeHttpEndpoint` или
-  `getHttpEndpointMetadata` из `@nestling/transport.http`
+  `@nestlingjs/app`, либо `HttpEndpoint`, `makeHttpEndpoint` или
+  `getHttpEndpointMetadata` из `@nestlingjs/transport.http`
 - **THEN** импорт не резолвится (ошибка компиляции)
 
 #### Scenario: Интерфейс реализации не нужен
@@ -271,7 +271,7 @@ SHALL дублировать эту проверку для JS-потребит�
 
 ### Requirement: `makeEndpoint` — kernel-примитив транспортных конструкторов
 
-`@nestling/app` SHALL экспортировать `makeEndpoint` как
+`@nestlingjs/app` SHALL экспортировать `makeEndpoint` как
 транспорт-нейтральный примитив, несущий весь общий код деклараций
 (нормализация форм `handler`, получение зависимостей, бренд, объявленные
 отказы `errors:`, пометка `detached`). Транспортные конструкторы SHALL
@@ -280,7 +280,7 @@ SHALL дублировать эту проверку для JS-потребит�
 `makeEndpoint` SHALL принимать и переносить на значение декларации
 непрозрачное поле `binding` — транспорт-специфичный биндинг, который
 кладёт транспортный конструктор. Ядро SHALL NOT интерпретировать его
-содержимое: понятий частей HTTP-запроса в `@nestling/app` SHALL не
+содержимое: понятий частей HTTP-запроса в `@nestlingjs/app` SHALL не
 быть.
 
 Поле `errors:`, в отличие от `binding`, SHALL быть транспорт-нейтральным
@@ -428,26 +428,26 @@ capability `pipeline-type-diagnostics`, и декларация SHALL NOT
 
 ### Requirement: `Handler<C>` и `HandlerMeta` выводятся из операции
 
-`@nestling/app` SHALL экспортировать `HandlerMeta` — тип второго
+`@nestlingjs/app` SHALL экспортировать `HandlerMeta` — тип второго
 параметра хендлера: обязательное поле `signal: AbortSignal` и поля
 контекста, накопленные `.pre`-юнитами.
 
-`@nestling/app` SHALL экспортировать интерфейс `Handler<C>`, где `C` —
+`@nestlingjs/app` SHALL экспортировать интерфейс `Handler<C>`, где `C` —
 тип операции. Типы входа, результата и множества отказов SHALL браться с
 операции и SHALL NOT переписываться руками. `implements Handler<typeof
 Op>` SHALL давать раннюю ошибку в классе; окончательная сверка со схемами
 SHALL оставаться в слоте `handler:` декларации.
 
 Имя `Handler` SHALL быть одним и тем же для интерфейса и для декоратора
-роли: `@nestling/app` SHALL экспортировать под этим именем и интерфейс, и
-декоратор из `@nestling/container`, чтобы класс-хендлер объявлялся одним
+роли: `@nestlingjs/app` SHALL экспортировать под этим именем и интерфейс, и
+декоратор из `@nestlingjs/container`, чтобы класс-хендлер объявлялся одним
 импортом.
 
 #### Scenario: Один импорт даёт декоратор и интерфейс
 
 - **WHEN** файл объявляет `@Handler([UserService]) class CreateUserHandler
   implements Handler<typeof CreateUser>` и импортирует `Handler` из
-  `@nestling/app`
+  `@nestlingjs/app`
 - **THEN** код компилируется
 
 #### Scenario: Расхождение с операцией ловится в классе

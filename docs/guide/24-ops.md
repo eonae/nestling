@@ -14,7 +14,7 @@
 наблюдать открытия и закрытия в реальном времени. Хендлер ленты при этом
 не должен знать, кто и зачем его закрыл.
 
-Реестр подписок живёт в отдельном пакете `@nestling/subscriptions`. Он
+Реестр подписок живёт в отдельном пакете `@nestlingjs/subscriptions`. Он
 написан на публичных примитивах ядра и подключается как плагин; ядро о
 нём не знает.
 
@@ -22,7 +22,7 @@
 
 ```typescript
 // examples/app-with-http/src/app.ts (фрагмент)
-import { subscriptions } from '@nestling/subscriptions';
+import { subscriptions } from '@nestlingjs/subscriptions';
 // …
 
 export const appSubscriptions = subscriptions({
@@ -268,7 +268,7 @@ split-развёртывании из [главы 18](./18-split.md) один п
 
 ```typescript
 // examples/app-with-http/src/app.ts (фрагмент)
-import { http, httpProbes } from '@nestling/transport.http';
+import { http, httpProbes } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],

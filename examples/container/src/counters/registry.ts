@@ -1,4 +1,4 @@
-import { makeTokenFamily } from '@nestling/container';
+import { makeTokenFamily } from '@nestlingjs/container';
 
 /** Счётчик с именем: считает события одного вида */
 export interface Counter {

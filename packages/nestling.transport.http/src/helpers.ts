@@ -20,12 +20,12 @@ import type {
   Pipeline,
   StreamForm,
   ValidateOutputForm,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   assertLayerFailsDeclared,
   DEFAULT_INSTANCE,
   makeEndpoint,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import type {
   AnyOperation,
   DeclarationDoc,
@@ -38,10 +38,10 @@ import type {
   RedirectStatus,
   SseConfig,
   ValidateOperationFails,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 // Типы разметки пути и ключей `bind` (`PathParams`, `BindMap`) общие с
-// секцией `http:` операции и живут в `@nestling/operations`;
+// секцией `http:` операции и живут в `@nestlingjs/operations`;
 // `./binding.js` их реэкспортирует.
 
 /**
@@ -118,7 +118,7 @@ export type HttpHandlerClass<
  * и `Pipeline<{ rawBody }, …>` присваивался бы слоту
  * `Pipeline<EmptyInput, …>` даже без пометки `rawBody: true`. Условный
  * тип в позиции слота решает это так же, как проверка точки композиции
- * в `@nestling/app`.
+ * в `@nestlingjs/app`.
  *
  * Форма литерала ошибки (`__error` и `missing` с типами полей) общая для
  * всех проверок пайплайна; `hint` называет действие, которое чинит ошибку.

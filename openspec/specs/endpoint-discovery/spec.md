@@ -28,7 +28,7 @@ discovery SHALL видеть уже выбранный состав (capability
 
 Глобальных реестров, наполняемых при импорте модуля с декларациями, в
 публичном API SHALL не быть: функции `registerEndpoint`, `getAllEndpoints`,
-`clearEndpointRegistry` SHALL быть удалены из `@nestling/app`. Декларация
+`clearEndpointRegistry` SHALL быть удалены из `@nestlingjs/app`. Декларация
 эндпоинта SHALL быть значением (см. capability `endpoint-declarations`);
 создание декларации SHALL NOT иметь побочных эффектов, а
 декораторов-носителей метаданных эндпоинта SHALL NOT существовать.
@@ -63,7 +63,7 @@ discovery SHALL видеть уже выбранный состав (capability
 #### Scenario: Реестра нет в публичном API
 
 - **WHEN** код импортирует `registerEndpoint`, `getAllEndpoints` или
-  `clearEndpointRegistry` из `@nestling/app`
+  `clearEndpointRegistry` из `@nestlingjs/app`
 - **THEN** импорт не резолвится (ошибка компиляции)
 
 ### Requirement: Эндпоинты объявляет единица, а не модуль
@@ -209,7 +209,7 @@ SHALL быть выполнимо без DI-контейнера и без тр�
 Публичным входом в discovery SHALL быть `app.discover(args?)`: только у
 декларации есть аргумент сборки, а без него состав документа расходится с
 составом сборки. Функция прохода по единицам SHALL оставаться внутренней:
-`discoverEndpoints` SHALL NOT быть публичным экспортом `@nestling/app`.
+`discoverEndpoints` SHALL NOT быть публичным экспортом `@nestlingjs/app`.
 
 Публичными SHALL оставаться тип результата `EndpointDiscovery`, тип
 элемента `DiscoveredEndpoint` и DI-токен `Discovery$`.
@@ -245,7 +245,7 @@ SHALL быть выполнимо без DI-контейнера и без тр�
 
 #### Scenario: Функции прохода нет в публичном API
 
-- **WHEN** код импортирует `discoverEndpoints` из `@nestling/app`
+- **WHEN** код импортирует `discoverEndpoints` из `@nestlingjs/app`
 - **THEN** импорт не резолвится (ошибка компиляции)
 
 ### Requirement: Отсутствие требуемого транспорта — ошибка старта

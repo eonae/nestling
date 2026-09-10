@@ -1,5 +1,5 @@
 /**
- * Схемный кернел живёт в `@common/misc`, а `@nestling/app` его
+ * Схемный кернел живёт в `@nestlingjs/common.misc`, а `@nestlingjs/app` его
  * реэкспортирует. Тест сторожит именно это: перечень перемещённых имён и
  * их идентичность прямому импорту из нового дома.
  *
@@ -7,10 +7,10 @@
  * задумывался невидимым для потребителя.
  */
 
-import * as commonMisc from '@common/misc';
-import * as app from '@nestling/app';
+import * as app from '@nestlingjs/app';
+import * as commonMisc from '@nestlingjs/common.misc';
 
-/** Значения, переехавшие из схемного слоя пайплайна в `@common/misc`. */
+/** Значения, переехавшие из схемного слоя пайплайна в `@nestlingjs/common.misc`. */
 const MOVED_VALUES = [
   'validateSync',
   'assertStandardSchema',
@@ -20,11 +20,14 @@ const MOVED_VALUES = [
   'NotAStandardSchemaError',
 ] as const;
 
-describe('схемный кернел реэкспортируется из @nestling/app', () => {
-  it.each(MOVED_VALUES)('%s — тот же объект, что в @common/misc', (name) => {
-    expect(app[name]).toBeDefined();
-    expect(app[name]).toBe(commonMisc[name]);
-  });
+describe('схемный кернел реэкспортируется из @nestlingjs/app', () => {
+  it.each(MOVED_VALUES)(
+    '%s — тот же объект, что в @nestlingjs/common.misc',
+    (name) => {
+      expect(app[name]).toBeDefined();
+      expect(app[name]).toBe(commonMisc[name]);
+    },
+  );
 
   it('SchemaIssue и DomainType доступны как типы', () => {
     // Типы стираются, поэтому проверка — компиляционная: файл не собрался бы,
@@ -36,7 +39,7 @@ describe('схемный кернел реэкспортируется из @nes
     expect(domain).toBeUndefined();
   });
 
-  it('ошибка от реэкспортнутой функции ловится классом из @common/misc', () => {
+  it('ошибка от реэкспортнутой функции ловится классом из @nestlingjs/common.misc', () => {
     const schema: commonMisc.Schema = {
       '~standard': {
         version: 1,

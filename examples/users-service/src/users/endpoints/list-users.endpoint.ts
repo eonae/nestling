@@ -4,9 +4,9 @@ import { User } from '../user.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Config, Output } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Config, Output } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 // GET без тела: поля `input` читаются из query-строки. Query несёт строки,

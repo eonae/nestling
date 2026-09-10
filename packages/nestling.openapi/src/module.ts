@@ -24,11 +24,11 @@ import type {
   Logger,
   Pipeline,
   Plugin,
-} from '@nestling/app';
-import { Discovery$, Logger$, makePlugin, Ok } from '@nestling/app';
-import type { InjectionToken } from '@nestling/container';
-import { factoryProvider, Handler, makeToken } from '@nestling/container';
-import { httpEndpoint } from '@nestling/transport.http';
+} from '@nestlingjs/app';
+import { Discovery$, Logger$, makePlugin, Ok } from '@nestlingjs/app';
+import type { InjectionToken } from '@nestlingjs/container';
+import { factoryProvider, Handler, makeToken } from '@nestlingjs/container';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 /**
  * DI-токен готового документа.
@@ -126,7 +126,7 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
   });
 
   return makePlugin({
-    name: '@nestling/openapi',
+    name: '@nestlingjs/openapi',
     providers: [
       factoryProvider(
         OpenApiDocument$,

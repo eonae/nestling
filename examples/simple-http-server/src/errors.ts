@@ -1,4 +1,4 @@
-import { makeFail } from '@nestling/operations';
+import { makeFail } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /**

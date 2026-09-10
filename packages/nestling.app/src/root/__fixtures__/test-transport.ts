@@ -5,7 +5,7 @@
  * Спеки этого пакета проверяют сборку приложения, а не работу конкретного
  * транспорта: им нужна декларация, привязанная к DI-токену, и транспорт,
  * который эту декларацию получит. Настоящий HTTP или CLI дал бы то же
- * самое ценой зависимости на пакет, который сам зависит от `@nestling/app`.
+ * самое ценой зависимости на пакет, который сам зависит от `@nestlingjs/app`.
  */
 
 import type {
@@ -25,8 +25,8 @@ import { makeEndpoint } from '../../pipeline/index.js';
 import type { ITransport } from '../../transport/index.js';
 import { DEFAULT_INSTANCE } from '../../transport/index.js';
 
-import type { TokenFamily } from '@nestling/container';
-import { makeTokenFamily } from '@nestling/container';
+import type { TokenFamily } from '@nestlingjs/container';
+import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
  * Семейство DI-токенов транспорта-фейка: один член на экземпляр.

@@ -18,14 +18,14 @@ import { loggerKernel, makeKernelLogger } from './kernel.js';
 import { Logger$, RootLogger$ } from './tokens.js';
 
 import { jest } from '@jest/globals';
-import type { ContainerBuilderOptions } from '@nestling/container';
+import type { ContainerBuilderOptions } from '@nestlingjs/container';
 import {
   Component,
   ContainerBuilder,
   factoryProvider,
   makeToken,
   valueProvider,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 
 const Service$ = makeToken<Logger>('Service');
 

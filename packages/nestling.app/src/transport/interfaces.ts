@@ -1,6 +1,6 @@
 import type { Dispatch } from './dispatch.js';
 
-import type { Token } from '@nestling/container';
+import type { Token } from '@nestlingjs/container';
 
 /**
  * DI-токен транспорта: уточнение kernel-типа `TransportRef` до `ITransport`.
@@ -54,8 +54,8 @@ export type ServerToken = Token<IListener>;
  * Слушатель: узел графа, который владеет сокетом.
  *
  * Ядро знает роль, а не протокол: ни `node:http`, ни `net` в
- * `@nestling/app` не входят. Реализация живёт в транспортном пакете
- * (`HttpServer` в `@nestling/transport.http`), а корень отвечает только за
+ * `@nestlingjs/app` не входят. Реализация живёт в транспортном пакете
+ * (`HttpServer` в `@nestlingjs/transport.http`), а корень отвечает только за
  * порядок шагов: `listen` — последний шаг START, `drain` — первый шаг
  * SHUTDOWN.
  *

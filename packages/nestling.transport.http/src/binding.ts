@@ -2,15 +2,15 @@
  * Серверная половина bind-карты: разбор запроса по ней.
  *
  * Пометки `query()` и `body()`, тип карты и её вычисление
- * (`computeHttpBinding`) живут в `@nestling/operations`, чтобы клиент
+ * (`computeHttpBinding`) живут в `@nestlingjs/operations`, чтобы клиент
  * получал карту вместе с операцией без серверного кода. Здесь — разбор
  * query-строки, сборка payload из канонических мест и чтение карты с
  * декларации. Пометки и тип карты реэкспортированы для авторов
  * HTTP-деклараций.
  */
 
-import type { BindPlacement, HttpBinding } from '@nestling/operations';
-import { buildHttpBinding, isHttpBinding } from '@nestling/operations';
+import type { BindPlacement, HttpBinding } from '@nestlingjs/operations';
+import { buildHttpBinding, isHttpBinding } from '@nestlingjs/operations';
 
 export {
   assertHttpPath,
@@ -22,7 +22,7 @@ export {
   METHODS_WITHOUT_BODY,
   query,
   readPathParams,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 export type {
   BindMap,
   BindMark,
@@ -32,7 +32,7 @@ export type {
   HttpBinding,
   HttpMethod,
   PathParams,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * Разбирает query-строку, сохраняя все вхождения ключа.
@@ -144,7 +144,7 @@ export function bindingNeedsBody(binding: HttpBinding): boolean {
 /**
  * Носитель карты: декларация или её проекция для транспорта.
  *
- * Транспорт читает карту с `RouteDeclaration`, `@nestling/openapi` и
+ * Транспорт читает карту с `RouteDeclaration`, `@nestlingjs/openapi` и
  * клиент — с декларации; всем нужны одни и те же два поля.
  */
 export interface BindingBearer {

@@ -8,7 +8,7 @@ import type {
   UploadSpec,
 } from './forms.js';
 
-import type { Infer, Optional, Schema } from '@common/misc';
+import type { Infer, Optional, Schema } from '@nestlingjs/common.misc';
 
 /**
  * Конфигурация `input`: форма io.

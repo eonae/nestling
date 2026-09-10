@@ -8,8 +8,8 @@ subpath-экспортом `./testing` с conditional export по условию
 Условие включается только в тест-раннере, поэтому прод-импорт не резолвится
 на уровне Node module resolution: граница структурная, а не конвенция
 (**guarantee over convention**). Ядро догфудит собственную конвенцию —
-внутренний шов, которым `@nestling/testing` заводит фазы 0–3 приложения,
-живёт в `@nestling/app/testing`, а не в главном экспорте, поэтому в
+внутренний шов, которым `@nestlingjs/testing` заводит фазы 0–3 приложения,
+живёт в `@nestlingjs/app/testing`, а не в главном экспорте, поэтому в
 поверхности боевого пакета нет ни `overrides`, ни способа остановить
 приложение на WIRE.
 
@@ -40,20 +40,20 @@ subpath-экспортом `./testing` с conditional export по условию
 
 ### Requirement: Ядро следует собственной конвенции
 
-Внутренний шов, которым `@nestling/testing` заводит фазы 0–3 приложения,
-SHALL жить в `@nestling/app` как conditional subpath `./testing`, а не в
-главном экспорте пакета. `@nestling/app` SHALL NOT экспортировать
+Внутренний шов, которым `@nestlingjs/testing` заводит фазы 0–3 приложения,
+SHALL жить в `@nestlingjs/app` как conditional subpath `./testing`, а не в
+главном экспорте пакета. `@nestlingjs/app` SHALL NOT экспортировать
 `overrides`-совместимый вход из `.`.
 
 #### Scenario: Шов не виден проду
 
-- **WHEN** прод-приложение импортирует `@nestling/app`
+- **WHEN** прод-приложение импортирует `@nestlingjs/app`
 - **THEN** в поверхности пакета нет ни `overrides`, ни способа остановить
   приложение на фазе WIRE
 
 #### Scenario: Тестовый пакет шов видит
 
-- **WHEN** `@nestling/testing` импортирует `@nestling/app/testing` в
+- **WHEN** `@nestlingjs/testing` импортирует `@nestlingjs/app/testing` в
   тест-раннере или при сборке с включённым условием
 - **THEN** импорт резолвится, и тестовый корень строится поверх того же
   `App`, что и боевой
@@ -67,7 +67,7 @@ subpath'ы workspace-пакетов на исходники и SHALL подде�
 
 #### Scenario: Subpath резолвится на исходники
 
-- **WHEN** тест импортирует `@nestling/app/testing`
+- **WHEN** тест импортирует `@nestlingjs/app/testing`
 - **THEN** резолв ведёт на исходники пакета, как и для главного экспорта
 
 #### Scenario: `await using` компилируется и работает

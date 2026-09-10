@@ -39,15 +39,15 @@ import type { PortRuntime } from './runtime.js';
 import { BUS_TRANSPORT_NAME } from './transport.js';
 import { WireCopyError } from './wire.js';
 
-import type { Schema } from '@common/misc';
-import { SchemaValidationError } from '@common/misc';
+import type { Schema } from '@nestlingjs/common.misc';
+import { SchemaValidationError } from '@nestlingjs/common.misc';
 import type {
   AnyOperation,
   CommandMeta,
   Emitter,
   Port,
   PortMeta,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /** Маркер отмены: вызов не ждёт обработчика, проигнорировавшего сигнал */
 const ABORTED = Symbol('nestling:port-aborted');

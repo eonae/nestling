@@ -15,8 +15,8 @@ import { OutboxRelay } from './relay.js';
 import type { OutboxRecord } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Emitter } from '@nestling/operations';
-import { spyLogger } from '@nestling/testing';
+import type { Emitter } from '@nestlingjs/operations';
+import { spyLogger } from '@nestlingjs/testing';
 
 /** Конфиг relay: повторов без пауз хватает, чтобы тест не ждал таймера */
 const config = (

@@ -4,7 +4,7 @@
  * Ожидаемая диагностика называет `identity` вместе с его типом.
  */
 
-import { compose, makePipeline, withRequestId } from '@nestling/app';
+import { compose, makePipeline, withRequestId } from '@nestlingjs/app';
 
 import type { User } from '../support/fixture-kit.js';
 

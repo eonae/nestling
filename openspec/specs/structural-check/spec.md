@@ -165,7 +165,7 @@ SHALL быть значениями (capability `contract-compatibility`); пр�
 
 ### Requirement: `checkTopologies` — матрица `select`-топологий
 
-`@nestling/testing` SHALL экспортировать
+`@nestlingjs/testing` SHALL экспортировать
 `checkTopologies(app, topologies, options?)`, принимающую декларацию
 `makeApp` и прогоняющую `app.check(args, options)` по каждой топологии
 из списка. Элемент списка SHALL быть аргументом сборки в любой из его

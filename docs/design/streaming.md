@@ -195,7 +195,7 @@ export class OrdersHub {
 ```
 
 `Topic` — небольшой broadcast-примитив: ограниченный буфер плюс
-`AbortSignal`. Он живёт в пакете `@nestling/operations`, у которого нет
+`AbortSignal`. Он живёт в пакете `@nestlingjs/operations`, у которого нет
 внешних зависимостей; на него опираются также конфигурация (`reloadable`,
 [config.md](./config.md)) и шина портов.
 
@@ -225,7 +225,7 @@ class Topic<T> {
 
 ### 4.1 Реестр подписок
 
-Реестр подписок — пакет `@nestling/subscriptions`, satellite ядра. Он
+Реестр подписок — пакет `@nestlingjs/subscriptions`, satellite ядра. Он
 показывает активные подписки, завершает конкретную и отдаёт ленту
 изменений. Пакет построен целиком на публичных примитивах: фазах
 `.pre`/`.finally`, класс-форме юнита, `AbortSignal`, DI, `Topic` и

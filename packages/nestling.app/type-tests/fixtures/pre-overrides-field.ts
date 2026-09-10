@@ -3,7 +3,7 @@
  * другим типом. Накопление input монотонно — перезапись запрещена.
  */
 
-import { makePipeline } from '@nestling/app';
+import { makePipeline } from '@nestlingjs/app';
 
 import { addField } from '../support/fixture-kit.js';
 

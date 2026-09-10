@@ -1,11 +1,11 @@
 /**
- * `@nestling/app`: публичный API ядра.
+ * `@nestlingjs/app`: публичный API ядра.
  *
  * Барель перечисляет имена поимённо, а не через `export *`. Список имён —
  * это и есть граница пакета: имя, которого здесь нет, остаётся внутренним,
  * и его можно менять без ломающей правки для тех, кто установил пакет.
  * Реэкспорт соседних пакетов идёт отдельными операторами, поэтому видно,
- * что пришло из `@nestling/operations` и `@common/misc`, а что своё.
+ * что пришло из `@nestlingjs/operations` и `@nestlingjs/common.misc`, а что своё.
  *
  * Полный перечень с разбивкой по подсистемам — в README пакета.
  */
@@ -212,7 +212,7 @@ export type {
   TransportEntry,
 } from './transport/index.js';
 
-// @common/misc — 8
+// @nestlingjs/common.misc — 8
 export {
   assertStandardSchema,
   AsyncSchemaNotSupportedError,
@@ -220,10 +220,10 @@ export {
   NotAStandardSchemaError,
   SchemaValidationError,
   validateSync,
-} from '@common/misc';
-export type { DomainType, SchemaIssue } from '@common/misc';
+} from '@nestlingjs/common.misc';
+export type { DomainType, SchemaIssue } from '@nestlingjs/common.misc';
 
-// @nestling/operations — 45
+// @nestlingjs/operations — 45
 export {
   assertConverters,
   assertFormsSupported,
@@ -244,7 +244,7 @@ export {
   stream,
   Timeout,
   upload,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 export type {
   AnyFail,
   AnyFailDefinition,
@@ -272,4 +272,4 @@ export type {
   TransportCapabilities,
   UploadSpec,
   ValidateOutputForm,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';

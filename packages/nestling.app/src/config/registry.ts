@@ -8,8 +8,11 @@
 import type { SectionDeclaration, SectionDerived } from './declaration.js';
 import type { ConfigGlob } from './keys.js';
 
-import type { LeafJsonSchema, SchemaDocConverter } from '@nestling/operations';
-import { assertConverters, leafJsonSchema } from '@nestling/operations';
+import type {
+  LeafJsonSchema,
+  SchemaDocConverter,
+} from '@nestlingjs/operations';
+import { assertConverters, leafJsonSchema } from '@nestlingjs/operations';
 
 /** Префикс → декларация */
 const sections = new Map<string, SectionDeclaration>();

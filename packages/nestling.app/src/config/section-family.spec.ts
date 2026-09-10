@@ -8,12 +8,12 @@ import { makeConfig } from './section.js';
 import { objectSource } from './source.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { InjectionToken } from '@nestling/container';
+import type { InjectionToken } from '@nestlingjs/container';
 import {
   ContainerBuilder,
   factoryProvider,
   makeToken,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 import { z } from 'zod';
 
 const ListenerConfig = makeConfig.family('listener', {

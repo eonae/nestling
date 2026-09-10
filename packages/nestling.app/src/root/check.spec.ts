@@ -29,8 +29,8 @@ import {
   makeToken,
   OnStart,
   Resource,
-} from '@nestling/container';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
+} from '@nestlingjs/container';
+import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const asTransport = (transport: ITransport) =>
@@ -310,7 +310,7 @@ describe('App.check() — опубликованные операции в от�
   });
 });
 
-describe('шов @nestling/app/testing — фазы 0–3', () => {
+describe('шов @nestlingjs/app/testing — фазы 0–3', () => {
   it('доводит до WIRE и останавливается', async () => {
     const events: string[] = [];
 

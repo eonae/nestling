@@ -7,16 +7,16 @@ import { testUnit } from './unit.js';
 import { unwrap } from './unwrap.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { ITransport } from '@nestling/app';
-import { makeFeature, Ok, transportValue } from '@nestling/app';
-import { Component, Handler, makeToken } from '@nestling/container';
-import type { HttpServer } from '@nestling/transport.http';
+import type { ITransport } from '@nestlingjs/app';
+import { makeFeature, Ok, transportValue } from '@nestlingjs/app';
+import { Component, Handler, makeToken } from '@nestlingjs/container';
+import type { HttpServer } from '@nestlingjs/transport.http';
 import {
   http,
   httpEndpoint,
   HttpServer$,
   HttpTransport$,
-} from '@nestling/transport.http';
+} from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>

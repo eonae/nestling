@@ -6,10 +6,10 @@
  * `app.call`. Транспорт собирает значение, рантайм его проверяет.
  */
 
-import type { Schema } from '@common/misc';
-import { SchemaValidationError, validateSync } from '@common/misc';
-import type { FormDescriptor } from '@nestling/operations';
-import { BadRequest, isPrimitiveLeaf } from '@nestling/operations';
+import type { Schema } from '@nestlingjs/common.misc';
+import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
+import type { FormDescriptor } from '@nestlingjs/operations';
+import { BadRequest, isPrimitiveLeaf } from '@nestlingjs/operations';
 
 /** Payload формы `multipart`: поля формы и файлы */
 interface MultipartPayload {

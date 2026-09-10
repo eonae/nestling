@@ -8,8 +8,8 @@ import type {
   SuccessResponseContext,
 } from './context.js';
 
-import type { Constructor, Optional } from '@common/misc';
-import type { AnyFail, AnyInput, EmptyInput } from '@nestling/operations';
+import type { Constructor, Optional } from '@nestlingjs/common.misc';
+import type { AnyFail, AnyInput, EmptyInput } from '@nestlingjs/operations';
 
 /**
  * Добавка pre-юнита к накопленному input

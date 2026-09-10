@@ -23,8 +23,8 @@ import { makeConfig } from './section.js';
 import type { ObjectSource } from './source.js';
 import { objectSource } from './source.js';
 
-import type { BuiltContainer } from '@nestling/container';
-import { Component, ContainerBuilder } from '@nestling/container';
+import type { BuiltContainer } from '@nestlingjs/container';
+import { Component, ContainerBuilder } from '@nestlingjs/container';
 import { z } from 'zod';
 
 /** Сообщение вендора, по которому видно утечку значения. */

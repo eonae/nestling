@@ -6,7 +6,7 @@
 `subscribe`), выраженный интерфейсом `IMessageBus`; вендорская специфика
 брокера за него не протекает. Реализация по умолчанию — `InProcessBus`: одно
 значение, которое одновременно исходящая шина и входящий транспорт,
-построенное на `Topic` из `@nestling/operations`. Её регистрирует kernel-модуль
+построенное на `Topic` из `@nestlingjs/operations`. Её регистрирует kernel-модуль
 портов — но только если корень не поставил транспорт шины сам (так
 подключается брокер); в эфир шина выходит только когда её требует
 обнаруженная декларация. Способности реализации — `remote` и `durable` —
@@ -16,7 +16,7 @@
 
 ### Requirement: `IMessageBus` — LCD глаголов шины и граница вендорской специфики
 
-`@nestling/app` SHALL экспортировать интерфейс `IMessageBus` с тремя
+`@nestlingjs/app` SHALL экспортировать интерфейс `IMessageBus` с тремя
 глаголами: `request(subject, payload, options?)`, `publish(subject, payload,
 options?)` и `subscribe(subject, handler, options?)`, где `options` подписки
 несёт принадлежность к группе доставки (in-proc аналог queue-group).
@@ -52,7 +52,7 @@ NOT протекать ни в `IMessageBus`, ни в API операций — �
 
 #### Scenario: Ядро не знает о брокере
 
-- **WHEN** читается публичная поверхность `@nestling/app`
+- **WHEN** читается публичная поверхность `@nestlingjs/app`
 - **THEN** в ней нет ни одного понятия конкретного брокера, а зависимость
   выражена только `IMessageBus`
 
@@ -87,7 +87,7 @@ NOT протекать ни в `IMessageBus`, ни в API операций — �
 входящие сообщения в `dispatch.call`. Отдельных сущностей «шина» и «транспорт
 шины» SHALL NOT существовать.
 
-Broadcast SHALL строиться на `Topic` из `@nestling/operations` — с его
+Broadcast SHALL строиться на `Topic` из `@nestlingjs/operations` — с его
 bounded-буфером и политикой медленного подписчика. Реализация SHALL быть
 zero-dependency в смысле внешних пакетов.
 

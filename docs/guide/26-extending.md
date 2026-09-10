@@ -15,7 +15,7 @@
 хранилища.
 
 Такой пакет называется сателлитом: он собран поверх публичных примитивов
-ядра и живёт вне него. Образец в этой главе — `@nestling/subscriptions`,
+ядра и живёт вне него. Образец в этой главе — `@nestlingjs/subscriptions`,
 реестр подписок из [главы 24](./24-ops.md).
 
 ## Публичные примитивы
@@ -25,15 +25,15 @@
 
 | Примитив | Пакет | Для чего реестру |
 |---|---|---|
-| `makePlugin` | `@nestling/app` | подключение к корню через `plugins:` |
-| `@Handler`, `resourceProvider` | `@nestling/container` | реестр как ресурс графа, класс-юниты слоя |
-| `makePipeline`, фазы `.pre` и `.finally` | `@nestling/app` | слой `tracked`: запись живёт столько, сколько подписка |
+| `makePlugin` | `@nestlingjs/app` | подключение к корню через `plugins:` |
+| `@Handler`, `resourceProvider` | `@nestlingjs/container` | реестр как ресурс графа, класс-юниты слоя |
+| `makePipeline`, фазы `.pre` и `.finally` | `@nestlingjs/app` | слой `tracked`: запись живёт столько, сколько подписка |
 | `AbortSignal` | стандарт языка | сигнал подписки, объединяющий три причины отмены |
-| `Topic` | `@nestling/operations` | лента изменений реестра |
-| `makeEvent`, `jsonSchema` | `@nestling/operations` | факты жизненного цикла для других фич и процессов |
+| `Topic` | `@nestlingjs/operations` | лента изменений реестра |
+| `makeEvent`, `jsonSchema` | `@nestlingjs/operations` | факты жизненного цикла для других фич и процессов |
 
-В `dependencies` пакета только эти пакеты и `@common/misc` с типами
-Standard Schema. `@nestling/app` нужен только тестам и лежит в
+В `dependencies` пакета только эти пакеты и `@nestlingjs/common.misc` с типами
+Standard Schema. `@nestlingjs/app` нужен только тестам и лежит в
 `devDependencies`.
 
 Критерий границы ядра: сателлит пишется без правок ядра. Если
@@ -192,7 +192,7 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
   };
 
   return makePlugin({
-    name: '@nestling/subscriptions',
+    name: '@nestlingjs/subscriptions',
     providers: [registry, TrackSubscription, UntrackSubscription],
   });
 };
@@ -229,7 +229,7 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
 Если сателлит поставляет двойники для тестов, как `NatsDouble` из
 [главы 18](./18-split.md), положите их в subpath `./testing` под условием
 экспорта `"testing"`. В production-сборке условие не включено, и импорт
-`@nestling/transport.nats/testing` не разрешается на уровне Node. Раннер
+`@nestlingjs/transport.nats/testing` не разрешается на уровне Node. Раннер
 включает условие сам:
 
 ```javascript
@@ -266,7 +266,7 @@ export const testTransport = (): TransportDeclaration =>
   });
 ```
 
-Транспорт реализует интерфейс `ITransport` из `@nestling/app`:
+Транспорт реализует интерфейс `ITransport` из `@nestlingjs/app`:
 `serve(dispatch, signal)` получает таблицу маршрутов и общий сигнал
 остановки, `close()` освобождает ресурсы. Метода запуска без маршрутов в
 интерфейсе нет.
@@ -329,7 +329,7 @@ Endpoint `Ticks` в тесте объявлен через `makeEndpoint` на �
 ленты завершается нормально.
 
 ```bash
-yarn workspace @nestling/subscriptions test
+yarn workspace @nestlingjs/subscriptions test
 ```
 
 Подключение в приложении:

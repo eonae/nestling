@@ -7,14 +7,14 @@
  * переводчиком байтов.
  */
 
-import type { Schema } from '@common/misc';
-import { SchemaValidationError, validateSync } from '@common/misc';
+import type { Schema } from '@nestlingjs/common.misc';
+import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
 import type {
   ChainStep,
   FormDescriptor,
   FormLeaf,
   StreamSummary,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import {
   BadRequest,
   batch,
@@ -27,7 +27,7 @@ import {
   throttle,
   Timeout,
   untilAborted,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /** Что рантайму нужно от контекста запроса, чтобы обернуть поток */
 export interface StreamBindContext {

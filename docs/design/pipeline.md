@@ -300,7 +300,7 @@ makeApp({
   тестовом корне `assembleTest`. Это последняя проверка фазы: после сверки
   транспортов и форм io и до INIT. В CI политики прогоняются
   `.check()`-матрицей топологий ([testing.md](./testing.md)).
-- ESLint-правило `endpoint-has-layer` из `@nestling/eslint-plugin`
+- ESLint-правило `endpoint-has-layer` из `@nestlingjs/eslint-plugin`
   (уровень `warn`) подсказывает в редакторе простые случаи. Гарантию даёт
   policy-check: пайплайны — значения, они проходят через фабрики и
   параметры, и в точке объявления статически не проверяются.

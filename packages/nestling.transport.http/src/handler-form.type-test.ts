@@ -15,9 +15,9 @@ import type { HttpOutput } from './response.js';
 import { HttpResponse } from './response.js';
 import { withClientIp, withHeader } from './units.js';
 
-import type { Handler, HandlerMeta, Pipeline } from '@nestling/app';
-import { implement, makePipeline, Ok } from '@nestling/app';
-import { makeRequest } from '@nestling/operations';
+import type { Handler, HandlerMeta, Pipeline } from '@nestlingjs/app';
+import { implement, makePipeline, Ok } from '@nestlingjs/app';
+import { makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const Login = makeRequest({

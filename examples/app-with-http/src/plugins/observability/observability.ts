@@ -3,9 +3,9 @@ import type {
   Logger,
   Outcome,
   ResponseContext,
-} from '@nestling/app';
-import { Logger$, makePipeline, withRequestId } from '@nestling/app';
-import { Handler } from '@nestling/container';
+} from '@nestlingjs/app';
+import { Logger$, makePipeline, withRequestId } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
 
 /**
  * Юнит `.finally`: пишет строку аудита по завершении каждого запроса.

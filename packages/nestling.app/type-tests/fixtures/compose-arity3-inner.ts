@@ -10,7 +10,7 @@ import {
   makePipeline,
   withIdentity,
   withRequestId,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 
 import type { User } from '../support/fixture-kit.js';
 import { authenticate } from '../support/fixture-kit.js';

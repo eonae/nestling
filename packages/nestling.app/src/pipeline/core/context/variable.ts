@@ -12,7 +12,7 @@ import type { PreUnitFn } from '../types/unit.js';
 
 import { currentCell } from './store.js';
 
-import type { AnyInput, EmptyInput } from '@nestling/operations';
+import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 
 /**
  * Ключ, зарезервированный под встроенную переменную `Signal`.
@@ -162,7 +162,7 @@ function assertKey(key: string): void {
 
 /**
  * Реестр провозимых переменных: состояние модуля, как реестр операций в
- * `@nestling/app`.
+ * `@nestlingjs/app`.
  *
  * Множество провозимого известно из объявлений, а не из конфигурации, и
  * вызывающему порту нужно знать его целиком без инжекта. Два объявления с
@@ -184,7 +184,7 @@ export const propagatedKeys = (): readonly string[] => [
  *
  * @returns Объект «ключ: значение» или `undefined`, если провозить нечего
  *
- * @internal Единственный потребитель — порт из `@nestling/app`
+ * @internal Единственный потребитель — порт из `@nestlingjs/app`
  */
 export function collectPropagatedContext():
   | Record<string, unknown>

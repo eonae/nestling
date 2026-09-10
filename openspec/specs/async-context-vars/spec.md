@@ -16,7 +16,7 @@
 
 ### Requirement: `contextVar<T>('key')` — ambient-переменная объявляется значением
 
-`@nestling/app` SHALL экспортировать `contextVar<T>()`, возвращающий
+`@nestlingjs/app` SHALL экспортировать `contextVar<T>()`, возвращающий
 объявитель `(key: string, options?: ContextVarOptions)` — значение-декларацию
 ambient-переменной. Вызов SHALL быть двойным: первый фиксирует тип значения,
 второй — ключ литералом, потому что частичного вывода тип-аргументов в
@@ -136,7 +136,7 @@ SHALL сохраняться: писатель всегда строится с�
 
 ### Requirement: `Signal` — well-known переменная; ключ `'signal'` зарезервирован
 
-`@nestling/app` SHALL экспортировать well-known переменную
+`@nestlingjs/app` SHALL экспортировать well-known переменную
 `Signal: ReadonlyContextVar<AbortSignal>`, дающую `Ctx(Signal)` — сигнал
 отмены запроса для кода любой глубины.
 
@@ -148,7 +148,7 @@ SHALL сохраняться: писатель всегда строится с�
 пользовательского кода SHALL бросать ошибку, называющую `Signal` как
 готовую переменную.
 
-`@nestling/app` SHALL также экспортировать well-known переменную
+`@nestlingjs/app` SHALL также экспортировать well-known переменную
 `RequestId: ContextVar<string>`, а штатный `withRequestId()` SHALL быть
 реализован через `RequestId.provide(…)` и SHALL сохранить прежнюю сигнатуру
 `PreUnitFn<EmptyInput, { requestId: string }>`.

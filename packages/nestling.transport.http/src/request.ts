@@ -1,12 +1,12 @@
 import type { HttpOutput } from './response.js';
 
-import type { HandlerMeta } from '@nestling/app';
+import type { HandlerMeta } from '@nestlingjs/app';
 import type {
   AnyOperation,
   InputOf,
   OperationFailsOf,
   OutputOf,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * HTTP-запрос в стартовом контексте.
@@ -44,7 +44,7 @@ export interface HttpHandlerMeta extends HandlerMeta {
 /**
  * Интерфейс HTTP-хендлера операции.
  *
- * Повторяет `Handler<C>` из `@nestling/app` с двумя отличиями: `meta`
+ * Повторяет `Handler<C>` из `@nestlingjs/app` с двумя отличиями: `meta`
  * содержит запрос, а результат допускает `HttpResponse`. Класс с этим
  * интерфейсом на шину не переносится, и это видно при компиляции.
  *

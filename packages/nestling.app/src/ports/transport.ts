@@ -10,8 +10,8 @@
 import { transportNameOf } from '../pipeline/index.js';
 import type { TransportToken } from '../transport/index.js';
 
-import { makeToken } from '@nestling/container';
-import type { OperationKind } from '@nestling/operations';
+import { makeToken } from '@nestlingjs/container';
+import type { OperationKind } from '@nestlingjs/operations';
 
 /**
  * DI-токен транспорта шины.

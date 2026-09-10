@@ -30,12 +30,12 @@ import { ClaimQuota, QuotaExceeded } from './operations.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, objectSource, RequestId, RootLogger$ } from '@nestling/app';
-import type { InjectionToken } from '@nestling/container';
-import type { OpenApiDocument } from '@nestling/openapi';
-import { openapi, OpenApiDocument$ } from '@nestling/openapi';
-import { zodConverter } from '@nestling/openapi.zod';
-import { SubscriptionRegistry } from '@nestling/subscriptions';
+import { makeApp, objectSource, RequestId, RootLogger$ } from '@nestlingjs/app';
+import type { InjectionToken } from '@nestlingjs/container';
+import type { OpenApiDocument } from '@nestlingjs/openapi';
+import { openapi, OpenApiDocument$ } from '@nestlingjs/openapi';
+import { zodConverter } from '@nestlingjs/openapi.zod';
+import { SubscriptionRegistry } from '@nestlingjs/subscriptions';
 import {
   assembleTest,
   checkTopologies,
@@ -43,8 +43,8 @@ import {
   spyLogger,
   unwrap,
   vars,
-} from '@nestling/testing';
-import { HttpTransport$ } from '@nestling/transport.http';
+} from '@nestlingjs/testing';
+import { HttpTransport$ } from '@nestlingjs/transport.http';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };

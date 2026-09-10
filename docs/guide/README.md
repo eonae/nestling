@@ -156,7 +156,7 @@ Nestling переносит проверки как можно раньше: ч�
 | [23. Конфиг из файла и без перезапуска](./23-config-sources.md) | источники и привязка, `.keys`, общие ключи, `reloadable` | `container` |
 | [24. Кто сейчас подключён и как его отключить](./24-ops.md) | реестр подписок, `tracked`, административные endpoint'ы | `app-with-http` |
 | [25. Без `makeApp`](./25-standalone.md) | `makeDispatch`, `serve`, `ContainerBuilder` | `simple-http-server`, `container` |
-| [26. Расширить ядро своим пакетом](./26-extending.md) | граница ядра, satellite, subpath `./testing` | `@nestling/subscriptions` |
+| [26. Расширить ядро своим пакетом](./26-extending.md) | граница ядра, satellite, subpath `./testing` | `@nestlingjs/subscriptions` |
 | [27. База данных и транзакция](./27-database-and-transaction.md) | транзакция переменной контекста, `outboxed(Op)`, relay, ключ идемпотентности | `users-service` |
 
 ## Приложения

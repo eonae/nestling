@@ -94,7 +94,7 @@ import type {
   ModuleProvider,
   Provider,
   SwitchValues,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 import {
   branchCandidates,
   ContainerBuilder,
@@ -102,7 +102,7 @@ import {
   switchesUsed,
   tokenId,
   valueProvider,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 
 export type { AppSpec, NormalizedAppSpec } from './plan.js';
 export type { AssembleArgs, AssembleObject, SwitchFields } from './args.js';
@@ -667,7 +667,7 @@ export class AssembledApp {
    * Внутренний шов тестового корня: фазы 0–3 и остановка.
    *
    * Ключ — символ из непубличного модуля, поэтому назвать этот метод из
-   * прод-кода нечем. Единственный его вызыватель — `@nestling/app/testing`.
+   * прод-кода нечем. Единственный его вызыватель — `@nestlingjs/app/testing`.
    *
    * @internal
    */

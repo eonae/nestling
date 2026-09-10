@@ -18,7 +18,6 @@ import { HttpServer } from './server.js';
 import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
-import type { Schema } from '@common/misc';
 import type {
   ExecutableDeclaration,
   Fields,
@@ -26,7 +25,7 @@ import type {
   Logger,
   LogLevel,
   PreUnitFn,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   Fail,
   makeDispatch,
@@ -38,8 +37,9 @@ import {
   stream,
   Timeout,
   upload,
-} from '@nestling/app';
-import { TRANSPORT_RESPONSE } from '@nestling/operations';
+} from '@nestlingjs/app';
+import type { Schema } from '@nestlingjs/common.misc';
+import { TRANSPORT_RESPONSE } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Серверы тестовых транспортов: сокет держит сервер, а не транспорт */

@@ -13,9 +13,9 @@
 
 ```typescript
 // шаг главы 5; итоговая версия: examples/users-service/src/users/endpoints/list-users.endpoint.ts
-import type { Output } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Output } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const ListUsersInput = z.object({
@@ -101,7 +101,7 @@ it('возвращает отказ EmailTaken для занятого email', a
 });
 ```
 
-Ни контейнера, ни транспорта, ни импортов из `@nestling/app` такому
+Ни контейнера, ни транспорта, ни импортов из `@nestlingjs/app` такому
 тесту не нужно. Аргумент конструктора здесь — фейк хранилища. Тест,
 который вызывает endpoint через полный пайплайн, проверяет тот же класс
 другим способом — через декларацию, а не через `new`.

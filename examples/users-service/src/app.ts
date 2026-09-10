@@ -5,11 +5,11 @@ import { ops } from './ops.plugin.js';
 import { OutboxStore$, persistence, Tx } from './persistence.js';
 import { UsersFeature } from './users.feature.js';
 
-import { everyEndpoint, makeApp, RequestId } from '@nestling/app';
-import { openapi } from '@nestling/openapi';
-import { zodConverter } from '@nestling/openapi.zod';
-import { outbox } from '@nestling/outbox';
-import { http, HttpTransport$ } from '@nestling/transport.http';
+import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
+import { openapi } from '@nestlingjs/openapi';
+import { zodConverter } from '@nestlingjs/openapi.zod';
+import { outbox } from '@nestlingjs/outbox';
+import { http, HttpTransport$ } from '@nestlingjs/transport.http';
 
 /**
  * Транзакционный emit: событие уходит в шину после коммита.

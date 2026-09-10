@@ -6,7 +6,7 @@
     // Сборку делает esbuild
     "noEmit": true,
 
-    // Пример импортирует `@nestling/testing`: его subpath виден только под
+    // Пример импортирует `@nestlingjs/testing`: его subpath виден только под
     // условием экспорта `testing`
     "customConditions": ["testing"]
   },

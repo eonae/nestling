@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Тестовый composition root `assembleTest(spec)` из `@nestling/testing` — та же
+Тестовый composition root `assembleTest(spec)` из `@nestlingjs/testing` — та же
 сборка, что боевая, остановленная после фазы `3 WIRE`: граф собран,
 экземпляры созданы, ресурсы захвачены, `dispatch` рождён, но START не
 наступает — транспорты не в эфире,
@@ -23,7 +23,7 @@
 
 ### Requirement: `assembleTest` — тестовый composition root
 
-`@nestling/testing` SHALL экспортировать
+`@nestlingjs/testing` SHALL экспортировать
 `assembleTest(app, options?): Promise<TestApp>`, принимающую декларацию
 приложения `makeApp` первым аргументом и словарь опций вторым: `args`,
 `overrides`, `stubs`, `config`, `contextValue`. Функция SHALL проводить
@@ -262,7 +262,7 @@ co-located.
 
 ### Requirement: `unwrap` и доступ к графу
 
-`@nestling/testing` SHALL экспортировать `unwrap(response)`, возвращающую
+`@nestlingjs/testing` SHALL экспортировать `unwrap(response)`, возвращающую
 значение успешного ответа и бросающую ошибку с деталями отказа — включая
 `status` и `code` — на ветке неуспеха.
 
@@ -326,7 +326,7 @@ co-located.
 
 ### Requirement: `vars()` — конфиг теста объектом, а не `process.env`
 
-`@nestling/testing` SHALL экспортировать `vars(record)`, возвращающую
+`@nestlingjs/testing` SHALL экспортировать `vars(record)`, возвращающую
 именованный объектный `ConfigSource` с `watch`, `set` и `assign`.
 `process.env` SHALL NOT изменяться ни `vars`, ни тестовым корнем.
 
@@ -346,7 +346,7 @@ co-located.
 
 ### Requirement: `familyOverride` подменяет рецепт семейства
 
-`@nestling/testing` SHALL экспортировать
+`@nestlingjs/testing` SHALL экспортировать
 `familyOverride(Family, (param) => value)`, значение которого принимается в
 том же списке `overrides`. Подмена SHALL применяться **до** материализации
 членов, поэтому ни один член SHALL NOT создаваться боевым рецептом.
@@ -359,7 +359,7 @@ co-located.
 
 ### Requirement: `contextValue` — request-контекст подставляется подменой провайдера
 
-`@nestling/testing` SHALL экспортировать `contextValue(variable, value)` —
+`@nestlingjs/testing` SHALL экспортировать `contextValue(variable, value)` —
 сахар над `valueProvider(Ctx(variable), …)`, дающий ридер с фиксированным
 значением (`get()` возвращает его, `peek()` — то же значение).
 

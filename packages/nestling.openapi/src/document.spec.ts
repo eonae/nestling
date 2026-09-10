@@ -10,7 +10,7 @@ import { buildOpenApiDocument } from './document.js';
 import type { DocumentedEndpoint, OpenApiDocument } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { AnyEndpointDefinition } from '@nestling/app';
+import type { AnyEndpointDefinition } from '@nestlingjs/app';
 import {
   events,
   jsonSchema,
@@ -23,13 +23,13 @@ import {
   Ok,
   stream,
   upload,
-} from '@nestling/app';
-import { makeSwitch } from '@nestling/container';
-import { zodConverter } from '@nestling/openapi.zod';
-import type { StandardSchemaV1 } from '@nestling/operations';
-import { makeRequest, query } from '@nestling/operations';
-import { cliEndpoint } from '@nestling/transport.cli';
-import { http, httpEndpoint, HttpResponse } from '@nestling/transport.http';
+} from '@nestlingjs/app';
+import { makeSwitch } from '@nestlingjs/container';
+import { zodConverter } from '@nestlingjs/openapi.zod';
+import type { StandardSchemaV1 } from '@nestlingjs/operations';
+import { makeRequest, query } from '@nestlingjs/operations';
+import { cliEndpoint } from '@nestlingjs/transport.cli';
+import { http, httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const info = { title: 'Test API', version: '1.0.0' };

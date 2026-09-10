@@ -16,7 +16,7 @@
 
 ### Requirement: `everyEndpoint(filter)` — универсальное утверждение над ручками
 
-`@nestling/app` SHALL экспортировать `everyEndpoint(filter?)`, дающий
+`@nestlingjs/app` SHALL экспортировать `everyEndpoint(filter?)`, дающий
 билдер политик над множеством обнаруженных ручек. Фильтр SHALL принимать два
 опциональных поля:
 

@@ -23,7 +23,7 @@
 
 ```typescript
 // examples/container/src/counters/registry.ts
-import { makeTokenFamily } from '@nestling/container';
+import { makeTokenFamily } from '@nestlingjs/container';
 
 /** Счётчик с именем: считает события одного вида */
 export interface Counter {
@@ -176,7 +176,7 @@ export class UserRepository {
 ## Вклады из разных модулей: `.all`
 
 Семейство вкладов в пробы объявляет ядро — `HealthCheck$(name)` из
-`@nestling/app`. Своё объявлять не нужно: вклад пишется под членом
+`@nestlingjs/app`. Своё объявлять не нужно: вклад пишется под членом
 ядерного семейства, и его увидит узел проб.
 
 Вклад — обычный класс с интерфейсом `HealthCheck`: признак критичности и
@@ -292,7 +292,7 @@ export class Demo {
 читается из `APP_METRICS_PREFIX`, который пример привязывает в `main.ts`.
 
 В app-тесте семейство подменяется целиком, а не по члену:
-`familyOverride(Counter$, () => …)` из `@nestling/testing` заменяет рецепт
+`familyOverride(Counter$, () => …)` из `@nestlingjs/testing` заменяет рецепт
 до создания членов. Записи логгера перехватывает `spyLogger()` подменой
 `RootLogger$`: глава [16](./16-testing-features.md).
 

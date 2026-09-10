@@ -1,6 +1,6 @@
 import type { DINode } from './node.class.js';
 
-import { DAG } from '@common/graphs';
+import { DAG } from '@nestlingjs/common.graphs';
 
 /** Узел графа зависимостей в виде JSON. */
 export interface JsonDINode {

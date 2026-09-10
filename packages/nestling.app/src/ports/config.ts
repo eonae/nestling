@@ -14,7 +14,7 @@
 
 import { makeConfig } from '../config/index.js';
 
-import type { StandardSchemaV1 } from '@common/misc';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 
 /**
  * Политика диспатча.

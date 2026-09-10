@@ -1,5 +1,5 @@
-import { Ok, stream } from '@nestling/operations';
-import { httpEndpoint } from '@nestling/transport.http';
+import { Ok, stream } from '@nestlingjs/operations';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const LogLine = z.object({

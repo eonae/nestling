@@ -8,7 +8,7 @@
 
 import type { Logger } from './interface.js';
 
-import { makeToken, makeTokenFamily } from '@nestling/container';
+import { makeToken, makeTokenFamily } from '@nestlingjs/container';
 
 /**
  * Корень логгера.

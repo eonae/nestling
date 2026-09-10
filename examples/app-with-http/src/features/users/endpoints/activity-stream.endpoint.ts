@@ -1,13 +1,13 @@
 import { observability } from '../../../plugins/observability/index.js';
 import { ActivityHub } from '../activity.hub.js';
 
-import type { Output } from '@nestling/app';
-import { compose } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { events, Ok } from '@nestling/operations';
-import type { TrackedSubscription } from '@nestling/subscriptions';
-import { tracked } from '@nestling/subscriptions';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Output } from '@nestlingjs/app';
+import { compose } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { events, Ok } from '@nestlingjs/operations';
+import type { TrackedSubscription } from '@nestlingjs/subscriptions';
+import { tracked } from '@nestlingjs/subscriptions';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const ActivityEvent = z.object({

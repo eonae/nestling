@@ -33,7 +33,7 @@ import type {
   Operation,
   OperationKind,
   ValidateOperationFails,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * Проверяет слот `pipeline` реализации: стартового контекста у шины нет,

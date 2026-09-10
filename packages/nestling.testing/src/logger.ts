@@ -7,7 +7,7 @@
  * же список. Тест проверяет `entries`, а не разбирает `stderr`.
  */
 
-import type { Fields, Logger, LogLevel } from '@nestling/app';
+import type { Fields, Logger, LogLevel } from '@nestlingjs/app';
 
 /** Одна запись логгера-шпиона */
 export interface LogEntry {

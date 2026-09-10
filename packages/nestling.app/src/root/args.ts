@@ -7,7 +7,7 @@
  * обязательно.
  */
 
-import type { AnySwitch, SwitchValues } from '@nestling/container';
+import type { AnySwitch, SwitchValues } from '@nestlingjs/container';
 
 /** Поля аргумента сборки, занятые выбором фич */
 export const RESERVED_ARG_FIELDS = ['features', 'includeDeps'] as const;

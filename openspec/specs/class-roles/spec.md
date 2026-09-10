@@ -11,7 +11,7 @@ ASSEMBLE, поэтому ошибка расстановки видна до з�
 
 ### Requirement: Три роли класса объявляются тремя декораторами
 
-`@nestling/container` SHALL экспортировать три декоратора роли и SHALL NOT
+`@nestlingjs/container` SHALL экспортировать три декоратора роли и SHALL NOT
 экспортировать `@Injectable`:
 
 | Роль | Декоратор | Форма класса | Позиция |
@@ -44,7 +44,7 @@ DI-токеном SHALL годиться и класс с приватным к�
 
 #### Scenario: Декоратора `@Injectable` больше нет
 
-- **WHEN** код импортирует `Injectable` из `@nestling/container`
+- **WHEN** код импортирует `Injectable` из `@nestlingjs/container`
 - **THEN** это ошибка компиляции: такого экспорта не существует
 
 ### Requirement: Декоратор роли ограничивает форму класса

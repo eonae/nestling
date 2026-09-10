@@ -28,8 +28,8 @@ import type { NormalizedAppSpec } from './plan.js';
 import { collectServers } from './plan.js';
 import { closeOverCalls } from './selection.js';
 
-import type { SwitchValues } from '@nestling/container';
-import { resolveBranches } from '@nestling/container';
+import type { SwitchValues } from '@nestlingjs/container';
+import { resolveBranches } from '@nestlingjs/container';
 
 /**
  * Состав приложения при данном аргументе сборки.

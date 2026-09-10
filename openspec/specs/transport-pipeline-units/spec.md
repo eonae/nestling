@@ -56,7 +56,7 @@ HTTP-запрос, в реализацию операции на шине не �
 
 ### Requirement: HTTP-транспорт поставляет три юнита
 
-`@nestling/transport.http` SHALL экспортировать:
+`@nestlingjs/transport.http` SHALL экспортировать:
 
 - `withHeader(name)` — кладёт значение заголовка в контекст под тем же
   именем; тип поля `string | undefined`; переименования нет;

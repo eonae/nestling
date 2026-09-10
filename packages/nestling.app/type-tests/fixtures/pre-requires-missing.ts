@@ -3,7 +3,7 @@
  * (`withPermissions` читает `identity`, а `withIdentity` не вызван).
  */
 
-import { makePipeline, withPermissions } from '@nestling/app';
+import { makePipeline, withPermissions } from '@nestlingjs/app';
 
 import type { User } from '../support/fixture-kit.js';
 

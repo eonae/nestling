@@ -5,7 +5,7 @@
  * диагностика класс-формы называет тот же код.
  */
 
-import { httpEndpoint } from '@nestling/transport.http';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 import { CardDeclined, EmailTaken, User } from '../support/fixture-kit.js';
 

@@ -6,15 +6,15 @@ import type {
   OutputSync,
   RedirectStatus,
   TransportResponse,
-} from '@nestling/operations';
-import { Ok, TRANSPORT_RESPONSE } from '@nestling/operations';
+} from '@nestlingjs/operations';
+import { Ok, TRANSPORT_RESPONSE } from '@nestlingjs/operations';
 
 /**
- * Статус редиректа объявлен рядом с bind-картой в `@nestling/operations`;
+ * Статус редиректа объявлен рядом с bind-картой в `@nestlingjs/operations`;
  * здесь он реэкспортирован, чтобы автор декларации брал его оттуда же,
  * откуда `httpEndpoint`.
  */
-export type { RedirectStatus } from '@nestling/operations';
+export type { RedirectStatus } from '@nestlingjs/operations';
 
 /** Статус редиректа по умолчанию: ни вызов, ни декларация его не задали */
 export const DEFAULT_REDIRECT_STATUS: RedirectStatus = 302;

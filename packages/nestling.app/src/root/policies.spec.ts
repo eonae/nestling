@@ -30,7 +30,7 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Component, makeToken } from '@nestling/container';
+import { Component, makeToken } from '@nestlingjs/container';
 
 const asTransport = (transport: ITransport) =>
   transportValue(TestTransport$('default'), transport, {

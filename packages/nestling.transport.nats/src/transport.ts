@@ -56,7 +56,7 @@ import type {
   RouteDeclaration,
   SubscribeOptions,
   TransportCapabilities,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   assertFormsSupported,
   BUS_TRANSPORT_NAME,
@@ -73,9 +73,9 @@ import {
   profileAttributes,
   startBudget,
   Timeout,
-} from '@nestling/app';
-import type { InjectionToken } from '@nestling/container';
-import { resourceProvider } from '@nestling/container';
+} from '@nestlingjs/app';
+import type { InjectionToken } from '@nestlingjs/container';
+import { resourceProvider } from '@nestlingjs/container';
 
 /** Проекция конфиг-секции транспорта — то, что инжектится в фабрику */
 type NatsConfigValues = ConfigProjection<typeof NatsConfig>;

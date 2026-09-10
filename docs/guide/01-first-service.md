@@ -15,8 +15,8 @@
 
 ```typescript
 // шаг главы 1; итоговая версия: examples/users-service/src/main.ts
-import { makeApp } from '@nestling/app';
-import { http, httpEndpoint } from '@nestling/transport.http';
+import { makeApp } from '@nestlingjs/app';
+import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), name: z.string() });

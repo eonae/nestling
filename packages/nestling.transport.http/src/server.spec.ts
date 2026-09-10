@@ -7,8 +7,8 @@ import { httpServerKeys } from './config.js';
 import { HttpServer, httpServer, HttpServer$ } from './server.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { bootstrapConfig, configKernel } from '@nestling/app';
-import { ContainerBuilder } from '@nestling/container';
+import { bootstrapConfig, configKernel } from '@nestlingjs/app';
+import { ContainerBuilder } from '@nestlingjs/container';
 
 /** Строит контейнер с kernel-модулем конфига и объявленными серверами */
 async function build(...declarations: ReturnType<typeof httpServer>[]) {

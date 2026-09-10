@@ -3,8 +3,8 @@ import { SignupRecorded } from '../../operations.js';
 
 import { SignupJournal } from './signup.journal.js';
 
-import { implement, makePipeline, withIdempotencyKey } from '@nestling/app';
-import { Handler } from '@nestling/container';
+import { implement, makePipeline, withIdempotencyKey } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
 
 @Handler([SignupJournal])
 class SignupRecordedHandler {

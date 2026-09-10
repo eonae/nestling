@@ -10,7 +10,7 @@ import {
   makeEvent,
   makeFail,
   makeRequest,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Отказ владельца квот: лимит арендатора исчерпан */

@@ -15,8 +15,8 @@
 
 ```typescript
 // examples/users-service/src/app.ts
-import { openapi } from '@nestling/openapi';
-import { zodConverter } from '@nestling/openapi.zod';
+import { openapi } from '@nestlingjs/openapi';
+import { zodConverter } from '@nestlingjs/openapi.zod';
 
 export const app = makeApp({
   features: [UsersFeature],
@@ -72,7 +72,7 @@ import { writeFileSync } from 'node:fs';
 
 import { app, openapiOptions } from './app.js';
 
-import { buildOpenApiDocument } from '@nestling/openapi';
+import { buildOpenApiDocument } from '@nestlingjs/openapi';
 
 /** Аргумент сборки — аргумент командной строки; без него выбраны все фичи */
 const args = process.argv[2];
@@ -181,7 +181,7 @@ endpoint'ов плагин печатает при старте:
 
 ```typescript
 // examples/users-service/src/api/operations.ts
-import { body, makeRequest, query } from '@nestling/operations';
+import { body, makeRequest, query } from '@nestlingjs/operations';
 
 export const GetUserInput = z.object({ id: z.string() });
 
@@ -218,7 +218,7 @@ export const CreateUser = makeRequest({
 `EmailTaken`: клиент должен знать те же отказы, что получает от сервера,
 а слой `authed` для него невидим.
 
-Файл импортирует только `@nestling/operations`, `zod` и определения
+Файл импортирует только `@nestlingjs/operations`, `zod` и определения
 отказов. В нём нет ни контейнера, ни пайплайна, ни транспорта, поэтому
 его можно импортировать во фронтенд.
 
@@ -256,7 +256,7 @@ export const GetUser = httpEndpoint({
 
 ```typescript
 // examples/users-service/src/api/client.ts
-import { makeClient } from '@nestling/client';
+import { makeClient } from '@nestlingjs/client';
 
 /** Имена методов задаёт потребитель: ключи объекта */
 const api = makeClient(
@@ -322,7 +322,7 @@ API_TOKEN=secret yarn workspace @examples/users-service client
 # fetched Carol
 ```
 
-Скрипт импортирует два пакета: операции приложения и `@nestling/client`.
+Скрипт импортирует два пакета: операции приложения и `@nestlingjs/client`.
 Контейнер, пайплайн и транспорт в его граф импортов не попадают.
 
 ## Проверка
@@ -332,7 +332,7 @@ API_TOKEN=secret yarn workspace @examples/users-service client
 
 ```typescript
 // иллюстрация; в src/app.spec.ts этого теста нет
-import { OpenApiDocument$ } from '@nestling/openapi';
+import { OpenApiDocument$ } from '@nestlingjs/openapi';
 
 it('описывает каждый публичный endpoint и скрывает служебный', async () => {
   await using testApp = await assembleTest(app, {

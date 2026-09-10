@@ -22,8 +22,8 @@ import type {
   Module,
   ModuleProvider,
   SwitchValues,
-} from '@nestling/container';
-import { dependenciesOf, resolveBranches } from '@nestling/container';
+} from '@nestlingjs/container';
+import { dependenciesOf, resolveBranches } from '@nestlingjs/container';
 
 /**
  * Состав фичи или плагина: не больше одной из двух форм.

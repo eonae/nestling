@@ -5,7 +5,7 @@
  * Спеки этого пакета проверяют порядок шагов, а не работу конкретного
  * сервера: им нужен узел графа, который отмечает `acquire`, `listen`,
  * `drain` и `release`. Настоящий `HttpServer` дал бы то же самое ценой
- * зависимости на пакет, который сам зависит от `@nestling/app`.
+ * зависимости на пакет, который сам зависит от `@nestlingjs/app`.
  */
 
 import type { TransportCapabilities } from '../../pipeline/index.js';
@@ -23,12 +23,12 @@ import {
 
 import { TestTransport$ } from './test-transport.js';
 
-import type { TokenFamily } from '@nestling/container';
+import type { TokenFamily } from '@nestlingjs/container';
 import {
   makeTokenFamily,
   resourceProvider,
   valueProvider,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 
 /** Семейство DI-токенов слушателя-фейка: один член на экземпляр */
 export const TestServer$: TokenFamily<TestListener, [instance: string]> =

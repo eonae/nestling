@@ -12,8 +12,8 @@ import { ConfigReader } from './reader.js';
 import { lookupSection } from './registry.js';
 import type { ConfigBinding } from './source.js';
 
-import type { Module } from '@nestling/container';
-import { familyProvider, makeToken } from '@nestling/container';
+import type { Module } from '@nestlingjs/container';
+import { familyProvider, makeToken } from '@nestlingjs/container';
 
 /**
  * Приватный DI-токен читалки: из `index.ts` не экспортируется, поэтому

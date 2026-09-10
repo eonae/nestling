@@ -6,15 +6,15 @@
  * дописывают поля, поэтому обновлять ссылку после юнита не нужно.
  * Публичного сеттера пакет не экспортирует.
  *
- * Хранилище — состояние модуля `@nestling/app`, как реестры семейств
- * в `@nestling/container`. Две копии пакета в `node_modules` дадут два
+ * Хранилище — состояние модуля `@nestlingjs/app`, как реестры семейств
+ * в `@nestlingjs/container`. Две копии пакета в `node_modules` дадут два
  * хранилища, и чтение из чужого вернёт `undefined`: копия пакета должна
  * быть одна.
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-import type { AnyInput } from '@nestling/operations';
+import type { AnyInput } from '@nestlingjs/operations';
 
 /**
  * Фаза выполнения запроса. Нужна только для текста ошибки `get()`: по ней
@@ -112,7 +112,7 @@ export function iterateInScope<T>(
  * «контекста нет», поэтому поведение сервиса не зависит от того, есть ли
  * у endpoint'а пайплайн. `Ctx(Signal)` работает одинаково в обоих случаях.
  *
- * @internal Единственный потребитель — прямой путь в `@nestling/app`
+ * @internal Единственный потребитель — прямой путь в `@nestlingjs/app`
  */
 export const runInRequestScope = <R>(signal: AbortSignal, fn: () => R): R =>
   runInScope(makeCell(signal, {}, 'handler'), fn);

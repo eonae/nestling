@@ -4,11 +4,11 @@ import { AvatarRequired, UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Output } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import type { FilePart } from '@nestling/operations';
-import { multipart, upload } from '@nestling/operations';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Output } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import type { FilePart } from '@nestlingjs/operations';
+import { multipart, upload } from '@nestlingjs/operations';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const MiB = 1024 * 1024;

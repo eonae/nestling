@@ -1,6 +1,6 @@
-import type { ITransport } from '@nestling/app';
-import { DEFAULT_INSTANCE, transportNameOf } from '@nestling/app';
-import { makeTokenFamily } from '@nestling/container';
+import type { ITransport } from '@nestlingjs/app';
+import { DEFAULT_INSTANCE, transportNameOf } from '@nestlingjs/app';
+import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
  * Семейство DI-токенов HTTP-транспорта: один член на экземпляр.

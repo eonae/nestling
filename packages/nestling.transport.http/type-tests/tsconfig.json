@@ -10,8 +10,8 @@
     // Пакеты резолвятся на исходники: снапшот снимается с той же формы
     // типов, что видит разработчик в редакторе, а не со сборки `dist`.
     "paths": {
-      "@nestling/*": ["../../nestling.*/src/index.ts"],
-      "@common/*": ["../../common.*/src/index.ts"]
+      "@nestlingjs/*": ["../../nestling.*/src/index.ts"],
+      "@nestlingjs/common.*": ["../../common.*/src/index.ts"]
     }
   },
   "include": ["fixtures"]

@@ -1,4 +1,4 @@
-import { StaticServer } from '@common/static-server';
+import { StaticServer } from '@nestlingjs/common.static-server';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import open from 'open';

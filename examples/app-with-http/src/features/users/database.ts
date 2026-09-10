@@ -2,9 +2,9 @@ import { AppConfig } from '../../app.config.js';
 
 import type { User } from './user.js';
 
-import type { Config, Logger } from '@nestling/app';
-import { Logger$ } from '@nestling/app';
-import { Resource } from '@nestling/container';
+import type { Config, Logger } from '@nestlingjs/app';
+import { Logger$ } from '@nestlingjs/app';
+import { Resource } from '@nestlingjs/container';
 
 /**
  * Соединение с базой. В примере это таблица в памяти.

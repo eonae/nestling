@@ -12,13 +12,13 @@ import {
   everyEndpoint,
   IdempotencyKey,
   makeApp,
-} from '@nestling/app';
-import { makeSwitch } from '@nestling/container';
-import type { OpenApiOptions } from '@nestling/openapi';
-import { openapi } from '@nestling/openapi';
-import { zodConverter } from '@nestling/openapi.zod';
-import { subscriptions } from '@nestling/subscriptions';
-import { http, httpProbes, HttpTransport$ } from '@nestling/transport.http';
+} from '@nestlingjs/app';
+import { makeSwitch } from '@nestlingjs/container';
+import type { OpenApiOptions } from '@nestlingjs/openapi';
+import { openapi } from '@nestlingjs/openapi';
+import { zodConverter } from '@nestlingjs/openapi.zod';
+import { subscriptions } from '@nestlingjs/subscriptions';
+import { http, httpProbes, HttpTransport$ } from '@nestlingjs/transport.http';
 
 /**
  * Декларация приложения: одно значение для `main.ts`, тестов и проверки
@@ -27,7 +27,7 @@ import { http, httpProbes, HttpTransport$ } from '@nestling/transport.http';
  */
 
 /**
- * Реестр подписок из пакета `@nestling/subscriptions`.
+ * Реестр подписок из пакета `@nestlingjs/subscriptions`.
  *
  * `identity` и `labels` вычисляются из контекста запроса: что считать
  * подписчиком, решает приложение. `publish: true` включает публикацию

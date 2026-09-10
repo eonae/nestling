@@ -1,4 +1,4 @@
-import { makeFail } from '@nestling/operations';
+import { makeFail } from '@nestlingjs/operations';
 
 /**
  * Отказ проверки Bearer-токена. Его возвращает pre-юнит слоя `authed`.

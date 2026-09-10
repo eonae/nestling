@@ -2,7 +2,7 @@ import type {
   Dispatch,
   ITransport,
   TransportCapabilities,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 
 /**
  * Способности фикстуры: те же формы входа, что у HTTP, кроме потоковых.

@@ -42,9 +42,9 @@ import type {
   FailDefinitionWithoutDetails,
   PreUnitFn,
   UnitResolver,
-} from '@nestling/app';
-import { compose, makePipeline, Ok } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+} from '@nestlingjs/app';
+import { compose, makePipeline, Ok } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 declare const resolve: UnitResolver;
 `;

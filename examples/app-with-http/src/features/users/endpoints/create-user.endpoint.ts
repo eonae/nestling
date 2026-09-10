@@ -13,11 +13,11 @@ import { EmailTaken } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Emitter, Output, Port } from '@nestling/app';
-import { deadlineIn } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { Ok } from '@nestling/operations';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Emitter, Output, Port } from '@nestlingjs/app';
+import { deadlineIn } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { Ok } from '@nestlingjs/operations';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 /**
  * Бюджет вызова фичи квот, в миллисекундах.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Граница пакета `@nestling/transport.http`: что транспорт обещает и что
+Граница пакета `@nestlingjs/transport.http`: что транспорт обещает и что
 остаётся за его пределами. Байтовый уровень HTTP пакет держит сам, поверх
 `node:http`: разбор тела по форме io, лимиты, таймауты, кадрирование
 потокового ответа. HTTP/2, WebSocket и TLS-терминацию пакет не реализует,
@@ -14,7 +14,7 @@ HTTP-сервера можно собрать из публичных экспо
 
 ### Requirement: Обещания и границы HTTP-транспорта
 
-`@nestling/transport.http` SHALL поддерживать HTTP/1.1 поверх `node:http`,
+`@nestlingjs/transport.http` SHALL поддерживать HTTP/1.1 поверх `node:http`,
 формы io `value`, `stream`, `multipart` на входе и `value`, `stream`,
 `events` на выходе, `rawBody`, лимиты тела и файлов, настраиваемые
 таймауты `node:http`, дренаж соединений при остановке и адрес из
@@ -33,7 +33,7 @@ readiness, таймаут и кэш проверок SHALL принадлежа�
 
 Пакет SHALL NOT реализовывать HTTP/2, WebSocket и TLS-терминацию. Эти
 задачи SHALL решаться обратным прокси перед сервисом или отдельным
-транспортом, а не расширением `@nestling/transport.http`.
+транспортом, а не расширением `@nestlingjs/transport.http`.
 
 #### Scenario: Транспорт объявляет свои формы io
 
@@ -57,7 +57,7 @@ readiness, таймаут и кэш проверок SHALL принадлежа�
 
 - **WHEN** приложению нужны HTTP/2, WebSocket или TLS-терминация
 - **THEN** эти возможности предоставляет обратный прокси перед сервисом
-  или отдельный транспорт, а не `@nestling/transport.http`
+  или отдельный транспорт, а не `@nestlingjs/transport.http`
 
 ### Requirement: Байтовые части транспорта — публичная поверхность пакета
 
@@ -72,7 +72,7 @@ readiness, таймаут и кэш проверок SHALL принадлежа�
 #### Scenario: Разбор тела по форме доступен без класса транспорта
 
 - **WHEN** внешний код импортирует `parseJson`, `parseNdjson` и
-  `parseMultipartForm` из `@nestling/transport.http`, не создавая
+  `parseMultipartForm` из `@nestlingjs/transport.http`, не создавая
   `HttpTransport`
 - **THEN** каждая функция читает `IncomingMessage` и форму декларации так
   же, как их использует сам транспорт
@@ -95,7 +95,7 @@ readiness, таймаут и кэш проверок SHALL принадлежа�
 
 Реализация `ITransport` поверх HTTP-сервера, созданного независимо от
 `HttpTransport` (в частности, отдельного `node:http`-сервера), SHALL
-собираться из экспортов `@nestling/transport.http`, не изменяя файлы
+собираться из экспортов `@nestlingjs/transport.http`, не изменяя файлы
 пакета. Критерий SHALL проверяться тестом пакета: если тесту не хватает
 экспорта, добавляется экспорт в пакет, а не обходной код внутри
 satellite.

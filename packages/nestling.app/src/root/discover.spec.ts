@@ -20,7 +20,7 @@ import { makeFeature, makePlugin } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Component, makeSwitch, makeToken } from '@nestling/container';
+import { Component, makeSwitch, makeToken } from '@nestlingjs/container';
 import { z } from 'zod';
 
 const Docs = makeSwitch('docs', { default: 'on' });

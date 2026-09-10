@@ -1,4 +1,4 @@
-# @nestling/operations
+# @nestlingjs/operations
 
 Декларации, общие для сервера и клиента: операции, отказы, `Ok`/`Fail` и
 статусы, формы io, HTTP bind-карта и комбинаторы потоков. Пакет не
@@ -14,13 +14,13 @@
 ## Установка
 
 ```bash
-npm install @nestling/operations
+npm install @nestlingjs/operations
 ```
 
 ## Минимальный пример
 
 ```typescript
-import { makeFail, makeRequest, query } from '@nestling/operations';
+import { makeFail, makeRequest, query } from '@nestlingjs/operations';
 
 export const EmailTaken = makeFail('conflict:email_taken', {
   details: z.object({ email: z.string() }),
@@ -38,7 +38,7 @@ export const CreateUser = makeRequest({
 ```
 
 Операция — значение: она ничего не регистрирует. В приложение она попадает
-двумя способами: её реализует `implement` из `@nestling/app`, а вызыватель
+двумя способами: её реализует `implement` из `@nestlingjs/app`, а вызыватель
 `CreateUser.caller` инжектится DI-токеном.
 
 ## Экспорты
@@ -85,10 +85,10 @@ export const CreateUser = makeRequest({
   `filter`, `gapTimeout`, `limit`, `tap`, `throttle`, `Topic`, `untilAborted`.
 - **Ответ транспорта** — `isTransportResponse`, `TRANSPORT_RESPONSE`,
   `TransportResponse`.
-- **Реэкспорт [`@common/misc`](../common.misc/)** — типы Standard Schema, чтобы
+- **Реэкспорт [`@nestlingjs/common.misc`](../common.misc/)** — типы Standard Schema, чтобы
   клиенту и генератору документации не ставить пакет спецификации.
 
 ## Границы пакета
 
 Пакет описывает операции и не выполняет их. Реализация, контейнер, пайплайн
-и транспорты живут в `@nestling/app` и пакетах транспортов.
+и транспорты живут в `@nestlingjs/app` и пакетах транспортов.

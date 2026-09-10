@@ -13,7 +13,7 @@ import { makePipeline } from '../core/pipeline.js';
 import { makeEndpoint } from './endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeToken } from '@nestling/container';
+import { makeToken } from '@nestlingjs/container';
 import { z } from 'zod';
 
 /** DI-токен транспорта фикстур: декларация ссылается на транспорт значением */

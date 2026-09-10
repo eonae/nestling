@@ -12,7 +12,7 @@
  * тесте, а не в проде.
  */
 
-import type { AnyFail, AnyFailDefinition } from '@nestling/app';
+import type { AnyFail, AnyFailDefinition } from '@nestlingjs/app';
 import {
   BadRequest,
   describeForm,
@@ -23,9 +23,9 @@ import {
   parsePayload,
   SchemaValidationError,
   Timeout,
-} from '@nestling/app';
-import type { InjectionToken } from '@nestling/container';
-import { asFamilyMember } from '@nestling/container';
+} from '@nestlingjs/app';
+import type { InjectionToken } from '@nestlingjs/container';
+import { asFamilyMember } from '@nestlingjs/container';
 import type {
   AnyOperation,
   CommandMeta,
@@ -41,8 +41,8 @@ import type {
   PortToken,
   RequestOperation,
   Schema,
-} from '@nestling/operations';
-import { EmitterFamily, PortFamily } from '@nestling/operations';
+} from '@nestlingjs/operations';
+import { EmitterFamily, PortFamily } from '@nestlingjs/operations';
 
 /**
  * Стаб операции: пара `DI-токен вызывателя → фейк`.

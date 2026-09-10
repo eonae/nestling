@@ -78,7 +78,7 @@ DI-токенами. Подробно — [13. Выделить вторую
 Переключатель — второе: какой из вариантов одной и той же области.
 
 ```typescript
-import { makeSwitch } from '@nestling/container';
+import { makeSwitch } from '@nestlingjs/container';
 
 export const Storage = makeSwitch('storage', ['s3', 'local']);
 

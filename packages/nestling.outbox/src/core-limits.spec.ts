@@ -13,15 +13,15 @@ import { testTransport } from './__fixtures__/transport.js';
 import { outbox } from './plugin.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Raw } from '@nestling/app';
+import type { Raw } from '@nestlingjs/app';
 import {
   makeApp,
   makeEmptyContext,
   makeFeature,
   makePipeline,
-} from '@nestling/app';
-import { Ok } from '@nestling/operations';
-import { assembleTest } from '@nestling/testing';
+} from '@nestlingjs/app';
+import { Ok } from '@nestlingjs/operations';
+import { assembleTest } from '@nestlingjs/testing';
 
 const raw: Raw = {
   transport: 'test',

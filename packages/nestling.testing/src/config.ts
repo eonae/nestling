@@ -1,12 +1,12 @@
 /**
  * Конфиг тестового прогона: объектом, а не через `process.env`.
  *
- * Форм у поля `config:` три, и живут они в `@nestling/app` (`ConfigInput`,
+ * Форм у поля `config:` три, и живут они в `@nestlingjs/app` (`ConfigInput`,
  * `toBindings`): их принимает и проверка состава, и тестовый корень.
  */
 
-import type { ObjectSource } from '@nestling/app';
-import { objectSource } from '@nestling/app';
+import type { ObjectSource } from '@nestlingjs/app';
+import { objectSource } from '@nestlingjs/app';
 
 /**
  * Именованный объектный источник конфигурации.

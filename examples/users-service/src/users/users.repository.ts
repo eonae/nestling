@@ -4,9 +4,9 @@ import { Tx } from '../persistence.js';
 
 import type { User } from './user.js';
 
-import type { CtxReader, Logger } from '@nestling/app';
-import { Ctx, Logger$, RequestId } from '@nestling/app';
-import { Component, makeToken } from '@nestling/container';
+import type { CtxReader, Logger } from '@nestlingjs/app';
+import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
+import { Component, makeToken } from '@nestlingjs/container';
 
 /** Хранилище пользователей: всё, что endpoint'ам нужно от базы */
 export interface UsersRepository {

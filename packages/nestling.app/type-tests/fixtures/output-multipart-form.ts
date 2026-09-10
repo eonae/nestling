@@ -6,8 +6,8 @@
  * увидеть её в точке декларации.
  */
 
-import { makePipeline, multipart, Ok, upload } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import { makePipeline, multipart, Ok, upload } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 export const BuildReport = httpEndpoint({
   method: 'POST',

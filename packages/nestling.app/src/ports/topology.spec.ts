@@ -8,7 +8,7 @@ import { httpLikeDeclaration } from './__test-helpers__/foreign-declaration.js';
 import { implement } from './implement.js';
 import { collectImplementations } from './topology.js';
 
-import { makeEvent, makeRequest } from '@nestling/operations';
+import { makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const ChargeCard = makeRequest({

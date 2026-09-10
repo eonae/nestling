@@ -9,9 +9,9 @@ import { HealthConfig } from '../health/index.js';
 
 import { AppConfig } from './app.config.js';
 
-import type { Config } from '@nestling/app';
-import { describeConfig } from '@nestling/app';
-import type { BuiltContainer } from '@nestling/container';
+import type { Config } from '@nestlingjs/app';
+import { describeConfig } from '@nestlingjs/app';
+import type { BuiltContainer } from '@nestlingjs/container';
 
 const PASSWORD = 'sup3r-s3cret';
 const DB_URL = `postgresql://user:${PASSWORD}@db:5432/app`;

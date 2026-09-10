@@ -1,8 +1,8 @@
 import { RuntimeConfig } from './runtime.config.js';
 
-import type { Config, Logger } from '@nestling/app';
-import { Logger$ } from '@nestling/app';
-import { Component, OnStart } from '@nestling/container';
+import type { Config, Logger } from '@nestlingjs/app';
+import { Logger$ } from '@nestlingjs/app';
+import { Component, OnStart } from '@nestlingjs/container';
 
 /**
  * Потребитель reloadable-секции.

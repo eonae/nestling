@@ -13,13 +13,13 @@ import { SubscriptionClosed, SubscriptionOpened } from './operations.js';
 import type { RegistryOptions } from './registry.js';
 import { SubscriptionRegistry } from './registry.js';
 
-import type { Plugin } from '@nestling/app';
-import { makePlugin } from '@nestling/app';
+import type { Plugin } from '@nestlingjs/app';
+import { makePlugin } from '@nestlingjs/app';
 import type {
   InjectionToken,
   ResourceProviderDefinition,
-} from '@nestling/container';
-import type { Emitter } from '@nestling/operations';
+} from '@nestlingjs/container';
+import type { Emitter } from '@nestlingjs/operations';
 
 /**
  * Опции модуля — только решения композиции.
@@ -79,7 +79,7 @@ export const subscriptions = (options: SubscriptionsOptions = {}): Plugin => {
   };
 
   return makePlugin({
-    name: '@nestling/subscriptions',
+    name: '@nestlingjs/subscriptions',
     // Юниты слоя едут вместе с плагином: слой без своего реестра не
     // соберётся, и это отказ на ASSEMBLE, а не на первом запросе
     providers: [registry, TrackSubscription, UntrackSubscription],

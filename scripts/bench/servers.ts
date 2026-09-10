@@ -33,14 +33,14 @@ import Fastify from 'fastify';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { makePipeline, Ok, withRequestId } from '@nestling/app';
-import { makeDispatch } from '@nestling/app';
-import type { ExecutableDeclaration } from '@nestling/app';
+import { makePipeline, Ok, withRequestId } from '@nestlingjs/app';
+import { makeDispatch } from '@nestlingjs/app';
+import type { ExecutableDeclaration } from '@nestlingjs/app';
 import {
   httpEndpoint,
   HttpServer,
   HttpTransport,
-} from '@nestling/transport.http';
+} from '@nestlingjs/transport.http';
 
 const HOST = '127.0.0.1';
 

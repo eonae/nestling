@@ -16,7 +16,7 @@ endpoint'е должно быть нельзя.
 
 ```typescript
 // examples/users-service/src/errors.ts
-import { makeFail } from '@nestling/operations';
+import { makeFail } from '@nestlingjs/operations';
 
 /** Отказ проверки Bearer-токена. Его возвращает pre-юнит слоя `authed`. */
 export const Unauthorized = makeFail('unauthorized', {
@@ -29,9 +29,9 @@ export const Unauthorized = makeFail('unauthorized', {
 
 ```typescript
 // examples/users-service/src/auth.ts
-import type { Config, EmptyInput, ExtendableContext } from '@nestling/app';
-import { compose, makePipeline } from '@nestling/app';
-import { Handler } from '@nestling/container';
+import type { Config, EmptyInput, ExtendableContext } from '@nestlingjs/app';
+import { compose, makePipeline } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
 
 /** Тот, от чьего имени выполняется запрос */
 export interface Caller {
@@ -158,8 +158,8 @@ curl -X DELETE -H 'authorization: Bearer secret' http://localhost:3000/users/2
 
 ```typescript
 // шаг главы 9; итоговая версия: examples/users-service/src/app.ts
-import { everyEndpoint } from '@nestling/app';
-import { http, HttpTransport$ } from '@nestling/transport.http';
+import { everyEndpoint } from '@nestlingjs/app';
+import { http, HttpTransport$ } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
   features: [UsersFeature],
@@ -239,7 +239,7 @@ everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
 сообщение.
 
 Политика — обычное значение, поэтому отдавать её может и плагин.
-`@nestling/outbox` так требует, чтобы изменяющий endpoint был
+`@nestlingjs/outbox` так требует, чтобы изменяющий endpoint был
 композирован от слоя транзакции: фильтр задаёт корень, переменную
 называет плагин ([глава 27](./27-database-and-transaction.md)).
 
@@ -275,7 +275,7 @@ true` нет. Причина видна в диффе, печатается пр
 
 Поле `doc.hidden` управляет документом OpenAPI, а не политиками сборки.
 
-Правило `endpoint-has-layer` из `@nestling/eslint-plugin` подсказывает
+Правило `endpoint-has-layer` из `@nestlingjs/eslint-plugin` подсказывает
 про тот же инвариант прямо в редакторе:
 
 ```javascript
@@ -284,9 +284,9 @@ export default [
   ...createEslintConfig(import.meta.url),
   {
     files: ['src/**/*.ts'],
-    plugins: { '@nestling': nestling },
+    plugins: { '@nestlingjs': nestling },
     rules: {
-      '@nestling/endpoint-has-layer': [
+      '@nestlingjs/endpoint-has-layer': [
         'warn',
         { layer: 'observability', constructorName: 'httpEndpoint' },
       ],

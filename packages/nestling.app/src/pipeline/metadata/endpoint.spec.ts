@@ -16,8 +16,8 @@ import {
 } from './endpoint.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import type { Token } from '@nestling/container';
-import { makeToken } from '@nestling/container';
+import type { Token } from '@nestlingjs/container';
+import { makeToken } from '@nestlingjs/container';
 import { z } from 'zod';
 
 /** DI-токен транспорта фикстур: декларация ссылается на транспорт значением */
@@ -383,7 +383,7 @@ describe('makeEndpoint — носитель binding', () => {
   });
 });
 
-describe('@nestling/app — HTTP-слепота ядра', () => {
+describe('@nestlingjs/app — HTTP-слепота ядра', () => {
   it('публичные экспорты не содержат понятий частей HTTP-запроса', async () => {
     const kernel = await import('../index.js');
 

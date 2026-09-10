@@ -14,7 +14,7 @@
 
 ```typescript
 // examples/users-service/src/app.config.ts
-import { from, makeConfig, secret } from '@nestling/app';
+import { from, makeConfig, secret } from '@nestlingjs/app';
 import { z } from 'zod';
 
 export const AppConfig = makeConfig(

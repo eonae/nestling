@@ -10,8 +10,8 @@
 import type { FormKind } from './forms.js';
 import { describeForm } from './forms.js';
 
-import type { Token } from '@nestling/container/tokens';
-import { tokenId } from '@nestling/container/tokens';
+import type { Token } from '@nestlingjs/container/tokens';
+import { tokenId } from '@nestlingjs/container/tokens';
 
 /**
  * Формы io, которые транспорт умеет принимать и отдавать.
@@ -40,7 +40,7 @@ export interface FormBearingDefinition {
  * Короткое имя транспорта из id DI-токена (`transport:http:default` →
  * `'http'`, `transport:http:admin` → `'http:admin'`).
  *
- * Повторяет `transportNameOf` из `@nestling/app`: импортировать его
+ * Повторяет `transportNameOf` из `@nestlingjs/app`: импортировать его
  * сюда нельзя, а правило умещается в несколько строк.
  */
 const shortTransportName = (token: Token<any>): string => {

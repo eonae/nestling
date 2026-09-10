@@ -1,5 +1,5 @@
 /**
- * `@nestling/testing` — тестовый composition root.
+ * `@nestlingjs/testing` — тестовый composition root.
  *
  * Пакет тонкий по построению: тестируемость здесь следствие архитектуры,
  * а не механизма пакета. Раннера, матчеров и snapshot-механики он не
@@ -38,12 +38,12 @@ export { unwrap, UnwrapFailedError } from './unwrap.js';
 /**
  * Отчёт `app.check()` и его опции — реэкспорт типов: матрица топологий
  * их принимает и возвращает, и тест не должен ради одной аннотации
- * импортировать `@nestling/app`.
+ * импортировать `@nestlingjs/app`.
  */
-export type { CheckOptions, CheckReport } from '@nestling/app';
+export type { CheckOptions, CheckReport } from '@nestlingjs/app';
 
 /**
- * Снапшот и дифф операций — реэкспорт из `@nestling/app`.
+ * Снапшот и дифф операций — реэкспорт из `@nestlingjs/app`.
  *
  * CI-тест матрицы («собери снапшот, сравни с baseline, напечатай отчёт»)
  * пишется одним импортом: топологии, сведение и сравнение живут в разных
@@ -54,7 +54,7 @@ export {
   formatCompatibility,
   serializeSnapshot,
   snapshotOperations,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 export type {
   CompatibilityChange,
   CompatibilityReport,
@@ -62,7 +62,7 @@ export type {
   OperationDescriptor,
   OperationSnapshot,
   SnapshotOperation,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 
 /** Интерфейс вендор-конвертера: его принимает `checkTopologies` */
-export type { SchemaDocConverter } from '@nestling/app';
+export type { SchemaDocConverter } from '@nestlingjs/app';

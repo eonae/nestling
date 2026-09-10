@@ -8,7 +8,7 @@ import {
   isValueDefinition,
 } from '../providers/index.js';
 
-import type { INode } from '@common/graphs';
+import type { INode } from '@nestlingjs/common.graphs';
 
 /** Метаданные узла графа зависимостей. */
 export interface DINodeMetadata {

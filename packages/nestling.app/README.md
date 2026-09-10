@@ -1,4 +1,4 @@
-# @nestling/app
+# @nestlingjs/app
 
 Ядро Nestling одним пакетом: пайплайн обработки запроса, конфигурация, порты
 между фичами, абстракция транспорта и композиционный корень. `makeApp(spec)`
@@ -17,19 +17,19 @@
 ## Установка
 
 ```bash
-npm install @nestling/app @nestling/container @nestling/operations
+npm install @nestlingjs/app @nestlingjs/container @nestlingjs/operations
 ```
 
 Три пакета ядра ставятся вместе. Транспорт выбирается отдельно:
-`@nestling/transport.http`, `@nestling/transport.cli`,
-`@nestling/transport.nats`.
+`@nestlingjs/transport.http`, `@nestlingjs/transport.cli`,
+`@nestlingjs/transport.nats`.
 
 ## Минимальный пример
 
 ```typescript
 // app.ts — чем приложение является
-import { makeApp } from '@nestling/app';
-import { http } from '@nestling/transport.http';
+import { makeApp } from '@nestlingjs/app';
+import { http } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
   features: [UsersFeature],
@@ -90,9 +90,9 @@ await app.assemble().run();
   `HealthReport`, `HealthStatus`, `registerHealth`.
 - **Логгер** — `Fields`, `Logger`, `Logger$`, `loggerKernel`, `LogLevel`,
   `makeKernelLogger`, `RootLogger$`.
-- **Реэкспорт [`@nestling/operations`](../nestling.operations/)** — операции,
+- **Реэкспорт [`@nestlingjs/operations`](../nestling.operations/)** — операции,
   отказы и формы io: 45 имён, перечень в README пакета-соседа.
-- **Реэкспорт [`@common/misc`](../common.misc/)** — схемный кернел: 8 имён,
+- **Реэкспорт [`@nestlingjs/common.misc`](../common.misc/)** — схемный кернел: 8 имён,
   перечень в README пакета-соседа.
 - **Подпуть `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
   `WiredEndpoint`, `WireOptions`.
@@ -100,8 +100,10 @@ await app.assemble().run();
 ## Границы пакета
 
 Реального транспорта в пакете нет: HTTP, CLI и NATS живут в
-`@nestling/transport.*`. Валидатора схем в нём тоже нет. Готовые источники
+`@nestlingjs/transport.*`. Валидатора схем в нём тоже нет. Готовые источники
 конфигурации реализуют интерфейс `ConfigSource` отдельными пакетами. Порты не
 дедуплицируют команды по ключу идемпотентности, не хранят снапшоты и не
 доставляют сообщения за пределы процесса: для этого нужен транспорт брокера.
-Тестовые подстановки живут в [`@nestling/testing`](../nestling.testing/).
+Тестовые подстановки живут в [`@nestlingjs/testing`](../nestling.testing/).
+Подпуть `./testing` резолвится только под условием `testing` — тест-раннер
+включает его сам, Node принимает флагом `--conditions=testing`.

@@ -1,5 +1,5 @@
 /**
- * `@nestling/operations`: публичный API деклараций, общих для сервера и
+ * `@nestlingjs/operations`: публичный API деклараций, общих для сервера и
  * клиента.
  *
  * Здесь лежит всё, из чего состоит операция: `Ok`/`Fail` и статусы,
@@ -12,7 +12,7 @@
  * это и есть граница пакета: имя, которого здесь нет, остаётся внутренним.
  * Из реестра имён экспортируется только чтение: `registerOperation`
  * вызывает один `makeRequest`, а `lookupOperation` нужен рецептам семейств
- * в `@nestling/app`, которые получают параметром имя операции.
+ * в `@nestlingjs/app`, которые получают параметром имя операции.
  *
  * Полный перечень с разбивкой по подсистемам — в README пакета.
  */
@@ -219,5 +219,5 @@ export {
 } from './transport-response.js';
 export type { TransportResponse } from './transport-response.js';
 
-// @common/misc — 2
-export type { Schema, StandardSchemaV1 } from '@common/misc';
+// @nestlingjs/common.misc — 2
+export type { Schema, StandardSchemaV1 } from '@nestlingjs/common.misc';

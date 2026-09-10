@@ -1,4 +1,4 @@
-import { from, makeConfig, secret } from '@nestling/app';
+import { from, makeConfig, secret } from '@nestlingjs/app';
 import { z } from 'zod';
 
 /**

@@ -13,7 +13,7 @@ import { assembleTest } from './app.js';
 import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { ITransport } from '@nestling/app';
+import type { ITransport } from '@nestlingjs/app';
 import {
   compose,
   everyEndpoint,
@@ -22,9 +22,9 @@ import {
   makePipeline,
   Ok,
   transportValue,
-} from '@nestling/app';
-import { Component } from '@nestling/container';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+} from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
+import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
 
 const asHttpTransport = (transport: ITransport) =>
   transportValue(HttpTransport$('default'), transport, {

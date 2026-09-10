@@ -2,12 +2,12 @@ export type * from './types.js';
 export * from './parse.js';
 
 /**
- * Диспетчер JSON Schema листа переехал в `@nestling/operations`, к
+ * Диспетчер JSON Schema листа переехал в `@nestlingjs/operations`, к
  * аннотации `jsonSchema`, которую он читает первым источником. Снимок
  * конфига строится до существования запроса, поэтому обращаться за
  * диспетчером в слой пайплайна конфиг не может.
  *
- * Реэкспорт сохраняется — для потребителя `@nestling/app` ничего
+ * Реэкспорт сохраняется — для потребителя `@nestlingjs/app` ничего
  * не меняется.
  */
 export {
@@ -15,19 +15,19 @@ export {
   leafJsonSchema,
   pickConverter,
   schemaVendorOf,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 export type {
   LeafJsonSchema,
   SchemaDocConverter,
   SchemaDocOptions,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
- * Схемный кернел переехал в `@common/misc`: конфигурация читается и
+ * Схемный кернел переехал в `@nestlingjs/common.misc`: конфигурация читается и
  * валидируется до существования запроса, поэтому единственная точка
  * валидации не может жить в пакете request-пайплайна.
  *
- * Реэкспорт сохраняется — для потребителя `@nestling/app` ничего
+ * Реэкспорт сохраняется — для потребителя `@nestlingjs/app` ничего
  * не меняется.
  */
 export {
@@ -37,5 +37,5 @@ export {
   NotAStandardSchemaError,
   SchemaValidationError,
   validateSync,
-} from '@common/misc';
-export type { DomainType, SchemaIssue } from '@common/misc';
+} from '@nestlingjs/common.misc';
+export type { DomainType, SchemaIssue } from '@nestlingjs/common.misc';

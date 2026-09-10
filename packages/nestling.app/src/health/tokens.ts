@@ -7,7 +7,7 @@
 
 import type { Health, HealthCheck } from './interface.js';
 
-import { makeToken, makeTokenFamily } from '@nestling/container';
+import { makeToken, makeTokenFamily } from '@nestlingjs/container';
 
 /**
  * Узел проб ядра.

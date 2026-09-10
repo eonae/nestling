@@ -1,11 +1,11 @@
-# @nestling/transport.cli
+# @nestlingjs/transport.cli
 
 CLI-транспорт Nestling: те же endpoint'ы и пайплайны, что в HTTP, но вместо
 маршрутов — команды, а stdin служит потоковым входом. Процесс выполняет одну
 команду и завершается либо остаётся в REPL.
 
 > 🚧 Активная разработка, API может меняться. Валидатора среди зависимостей
-> нет: команды проверяются через `@nestling/app` любой схемой
+> нет: команды проверяются через `@nestlingjs/app` любой схемой
 > [Standard Schema](https://standardschema.dev).
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
 > Гайд: [глава 21. CLI-утилита на тех же примитивах](../../docs/guide/21-cli.md).
@@ -13,14 +13,14 @@ CLI-транспорт Nestling: те же endpoint'ы и пайплайны, ч
 ## Установка
 
 ```bash
-npm install @nestling/transport.cli
+npm install @nestlingjs/transport.cli
 ```
 
 ## Минимальный пример
 
 ```typescript
-import { makeApp, Ok } from '@nestling/app';
-import { cli, cliEndpoint } from '@nestling/transport.cli';
+import { makeApp, Ok } from '@nestlingjs/app';
+import { cli, cliEndpoint } from '@nestlingjs/transport.cli';
 import { z } from 'zod';
 
 export const Hello = cliEndpoint({

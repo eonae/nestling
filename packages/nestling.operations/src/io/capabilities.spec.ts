@@ -3,7 +3,7 @@
  * транспорт умеет принимать и отдавать.
  *
  * Проверки форм в конструкторе декларации живут рядом с конструктором:
- * `@nestling/app`, `metadata/endpoint.form-slots.spec.ts`.
+ * `@nestlingjs/app`, `metadata/endpoint.form-slots.spec.ts`.
  */
 
 import type {
@@ -13,7 +13,7 @@ import type {
 import { assertFormsSupported } from './capabilities.js';
 import { events, multipart, stream, upload } from './forms.js';
 
-import { makeToken } from '@nestling/container/tokens';
+import { makeToken } from '@nestlingjs/container/tokens';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
