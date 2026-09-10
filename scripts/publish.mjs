@@ -47,7 +47,12 @@ mkdirSync(tarballs);
 
 console.log(`[publish] ${packages.length} пакетов, версия ${packages[0]?.pkg.version}`);
 
-for (const { name } of packages) {
+for (const { name, pkg } of packages) {
+  if (await isPublished(name, pkg.version)) {
+    console.log(`[publish] ${name}@${pkg.version} уже в реестре — пропуск`);
+    continue;
+  }
+
   const out = join(tarballs, `${slugOf(name)}.tgz`);
 
   await run('yarn', ['workspace', name, 'pack', '--out', out], { cwd: repoRoot });
@@ -60,3 +65,22 @@ for (const { name } of packages) {
 }
 
 console.log(`[publish] ${packages.length} package(s) published: ok`);
+
+/**
+ * Есть ли эта версия в реестре.
+ *
+ * Публикация идёт пакет за пакетом и не атомарна: упавшая на середине
+ * оставляет часть версий опубликованной, а повторный запуск без этой
+ * проверки падал бы на первой из них с `EPUBLISHCONFLICT`. Пропуск делает
+ * прогон повторяемым — тот же тег доводит релиз до конца.
+ */
+async function isPublished(name, version) {
+  try {
+    await run('npm', ['view', `${name}@${version}`, 'version'], { cwd: repoRoot });
+
+    return true;
+  } catch {
+    // Реестр отвечает 404 и на неизвестный пакет, и на неизвестную версию
+    return false;
+  }
+}

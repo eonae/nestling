@@ -18,7 +18,7 @@ import { collectPackageExports } from './package-exports.mjs';
 
 const ROOT = process.cwd();
 const DOCS = join(ROOT, 'docs');
-const ALLOWED_ROOT_MD = new Set(['README.md', 'README.ru.md', 'CLAUDE.md']);
+const ALLOWED_ROOT_MD = new Set(['README.md', 'README.ru.md', 'CLAUDE.md', 'RELEASING.md']);
 
 if (!existsSync(DOCS) || !existsSync(join(ROOT, '.git'))) {
   console.error('Запускайте из корня репозитория (не найдены docs/ или .git).');

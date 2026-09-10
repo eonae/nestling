@@ -62,6 +62,9 @@
   `yarn pack:check` и `lerna publish from-package`
 - [x] 5.3 В workflow публикации: `permissions: id-token: write`,
   `NPM_CONFIG_PROVENANCE: true`, ключ доступа из секрета `NPM_TOKEN`
+- [x] 5.5 `RELEASING.md`: порядок выпуска версии, разбор сбоев и
+  разовая настройка; публикация повторяема — `publish.mjs` пропускает
+  версии, которые уже в реестре
 - [ ] 5.4 Секрет `NPM_TOKEN` типа automation заведён в настройках
   репозитория *(действие человека, не кода)*
 
