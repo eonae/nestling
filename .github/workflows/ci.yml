@@ -23,5 +23,34 @@ jobs:
 
       - run: yarn install --immutable
 
+      # ВРЕМЕННО: диагностика резолва соседнего пакета в CI
+      - name: Диагностика до verify
+        run: |
+          yarn nx run @nestlingjs/client:build
+          node -e '
+            const ts = require("typescript");
+            const from = process.cwd() + "/packages/nestling.transport.http/src/client.integration.spec.ts";
+            const opts = { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, customConditions: ["testing"] };
+            const r = ts.resolveModuleName("@nestlingjs/client", from, opts, ts.sys);
+            const fs = require("fs");
+            const parts = [
+              "link=" + (fs.existsSync("node_modules/@nestlingjs/client") ? fs.realpathSync("node_modules/@nestlingjs/client") : "НЕТ"),
+              "dts=" + fs.existsSync("packages/nestling.client/dist/index.d.ts"),
+              "resolve=" + (r.resolvedModule?.resolvedFileName ?? "НЕ НАЙДЕН"),
+              "ts=" + ts.version,
+            ];
+            console.log("::error::ДО VERIFY " + parts.join(" | "));
+          '
+
       # build, typecheck, lint, test, type-budget и smoke — по всем пакетам
       - run: yarn verify
+
+      # ВРЕМЕННО: то же состояние после падения
+      - name: Диагностика после verify
+        if: always()
+        run: |
+          node -e '
+            const fs = require("fs");
+            const list = fs.existsSync("packages/nestling.client/dist") ? fs.readdirSync("packages/nestling.client/dist").join(",") : "КАТАЛОГА НЕТ";
+            console.log("::error::ПОСЛЕ VERIFY dist=" + list.slice(0, 300));
+          '
