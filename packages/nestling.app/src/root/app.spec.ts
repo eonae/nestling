@@ -35,7 +35,7 @@ import {
   OnStart,
   Resource,
   valueProvider,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 import { z } from 'zod';
 
 /** Регистрирует готовый инстанс транспорта под его DI-токеном, способный на всё */

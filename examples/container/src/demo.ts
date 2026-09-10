@@ -7,9 +7,9 @@ import { AppService } from './app.service.js';
 import type { ApiClient, Database } from './interfaces.js';
 import { ApiClient$, Database$ } from './interfaces.js';
 
-import type { Config, Health, HealthCheck, Logger } from '@nestling/app';
-import { Health$, HealthCheck$, Logger$ } from '@nestling/app';
-import { Component, OnStart } from '@nestling/container';
+import type { Config, Health, HealthCheck, Logger } from '@nestlingjs/app';
+import { Health$, HealthCheck$, Logger$ } from '@nestlingjs/app';
+import { Component, OnStart } from '@nestlingjs/container';
 
 /**
  * Компонент с `@OnStart`: показывает собранный граф.

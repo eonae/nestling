@@ -5,7 +5,7 @@
  * (у `PhasedPipeline` нет метода `.pre`).
  */
 
-import { makePipeline, withRequestId } from '@nestling/app';
+import { makePipeline, withRequestId } from '@nestlingjs/app';
 
 export const phased = makePipeline()
   .catch(() => {

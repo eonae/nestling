@@ -1,5 +1,5 @@
-import { Resource } from '@nestling/container';
-import { Topic } from '@nestling/operations';
+import { Resource } from '@nestlingjs/container';
+import { Topic } from '@nestlingjs/operations';
 
 /** Событие ленты активности: его получает каждый подписчик SSE-endpoint'а */
 export interface ActivityEvent {

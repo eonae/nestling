@@ -1,14 +1,41 @@
 {
-  "name": "@nestling/testing",
+  "name": "@nestlingjs/testing",
   "version": "0.1.0",
-  "description": "Test composition root for nestling applications",
+  "description": "Тестовый composition root: та же декларация приложения проходит фазы до WIRE и останавливается — dispatch создан, сокеты не открыты",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "testing",
+    "jest",
+    "integration-testing"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.testing"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.testing#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,15 +45,13 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@nestling/app": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/transport.http": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*",
     "typescript": "5.7.3",
     "zod": "^4.0.0"
   }

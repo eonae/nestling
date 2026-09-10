@@ -1,7 +1,7 @@
 import { EmailTaken } from '../errors.js';
 
-import type { Output } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Output } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({

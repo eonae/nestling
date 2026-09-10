@@ -3,21 +3,21 @@
 ## Purpose
 
 Декларативный слой — операции, отказы, io-формы, пометки размещения —
-живёт в `@nestling/operations`: пакете, у которого в замыкании импортов нет
+живёт в `@nestlingjs/operations`: пакете, у которого в замыкании импортов нет
 ни контейнера, ни серверного кода, ни `node:*`. Это делает операцию
 значением, которое можно импортировать во фронтовую сборку рядом с
-`@nestling/client`, не таща за собой сервер. Гарантия держится тестом на
+`@nestlingjs/client`, не таща за собой сервер. Гарантия держится тестом на
 графе импортов, а не обещанием в README и не надеждой на tree-shaking.
 Прежние места импорта сохраняются реэкспортом — кроме конструкторов
-операций: реэкспорт из `@nestling/app` вернул бы декларацию в пакет с
+операций: реэкспорт из `@nestlingjs/app` вернул бы декларацию в пакет с
 серверными зависимостями и превратил бы упаковочный инвариант в вопрос
 дисциплины.
 
 ## Requirements
 
-### Requirement: `@nestling/operations` — единственный дом декларативного слоя
+### Requirement: `@nestlingjs/operations` — единственный дом декларативного слоя
 
-Пакет `@nestling/operations` SHALL быть домом направление-нейтральных
+Пакет `@nestlingjs/operations` SHALL быть домом направление-нейтральных
 деклараций и SHALL экспортировать:
 
 - `makeRequest`, `makeCommand`, `makeEvent` и типы операций;
@@ -33,23 +33,23 @@
 #### Scenario: Операция объявляется из одного пакета
 
 - **WHEN** модуль импортирует `makeRequest`, `makeFail` и формы io
-- **THEN** все они доступны из `@nestling/operations`
+- **THEN** все они доступны из `@nestlingjs/operations`
 
 #### Scenario: Идентичность значений не двоится
 
-- **WHEN** `Fail`, полученный из `@nestling/operations`, и `Fail`,
-  полученный реэкспортом из `@nestling/app`, сравниваются
+- **WHEN** `Fail`, полученный из `@nestlingjs/operations`, и `Fail`,
+  полученный реэкспортом из `@nestlingjs/app`, сравниваются
 - **THEN** это одно и то же значение
 
 ### Requirement: Граф импортов пакета не содержит серверного кода
 
-Замыкание импортов `@nestling/operations` SHALL NOT содержать
-`@nestling/container` (главный экспорт), `@nestling/app`, транспортов и
+Замыкание импортов `@nestlingjs/operations` SHALL NOT содержать
+`@nestlingjs/container` (главный экспорт), `@nestlingjs/app`, транспортов и
 модулей `node:*`. Внешних runtime-зависимостей у пакета SHALL NOT быть:
 транзитивно допустим только `@standard-schema/spec` (типы).
 
 Примитив токена инжекции SHALL импортироваться subpath-экспортом
-`@nestling/container/tokens`, отдающим листовые модули без
+`@nestlingjs/container/tokens`, отдающим листовые модули без
 runtime-импортов, — чтобы членство `.caller`/`.emitter` в семействах
 регистрировалось штатно, а билдер графа в замыкание не попадал.
 
@@ -59,60 +59,60 @@ tree-shaking в инструменте потребителя.
 
 #### Scenario: Тест ловит запрещённый импорт
 
-- **WHEN** в исходники `@nestling/operations` добавлен импорт
-  `@nestling/app` или `node:crypto`
+- **WHEN** в исходники `@nestlingjs/operations` добавлен импорт
+  `@nestlingjs/app` или `node:crypto`
 - **THEN** тест границы падает, называя модуль и запрещённый импорт
 
 #### Scenario: Операции импортируются во фронтовую сборку
 
-- **WHEN** фронтовый бандл импортирует `@nestling/operations` и
-  `@nestling/client`
+- **WHEN** фронтовый бандл импортирует `@nestlingjs/operations` и
+  `@nestlingjs/client`
 - **THEN** в бандл не попадают контейнер, пайплайн, транспорты и
   Node-специфика
 
 #### Scenario: Вызывающие стороны остаются членами семейств
 
-- **WHEN** операция, созданная из `@nestling/operations`, реализована и её
+- **WHEN** операция, созданная из `@nestlingjs/operations`, реализована и её
   `.caller` инжектирован
 - **THEN** токен распознаётся как член семейства вызывающих сторон — так же,
   как до переезда
 
 ### Requirement: Реэкспорт сохраняет прежнюю поверхность, кроме конструкторов операций
 
-Символы, переехавшие в `@nestling/operations`, SHALL оставаться доступными
+Символы, переехавшие в `@nestlingjs/operations`, SHALL оставаться доступными
 из пакетов, которые экспортировали их прежде:
 
-- `@nestling/app` SHALL реэкспортировать `Ok`, `Fail`, `isFail`,
+- `@nestlingjs/app` SHALL реэкспортировать `Ok`, `Fail`, `isFail`,
   статусы, `makeFail`, kernel-отказы и формы io;
-- `@nestling/transport.http` SHALL реэкспортировать `query()`, `body()` и
+- `@nestlingjs/transport.http` SHALL реэкспортировать `query()`, `body()` и
   тип bind-карты.
 
-`@nestling/app` SHALL NOT реэкспортировать конструкторы операций и их
+`@nestlingjs/app` SHALL NOT реэкспортировать конструкторы операций и их
 типы: этот реэкспорт вернул бы декларацию операции в пакет с
 серверными зависимостями и сделал бы упаковочную гарантию вопросом
 дисциплины импортов. Каноническим импортом конструкторов SHALL быть
-`@nestling/operations`, и примеры с гайдами SHALL использовать его.
+`@nestlingjs/operations`, и примеры с гайдами SHALL использовать его.
 
 #### Scenario: Хендлер не меняет импортов
 
 - **WHEN** существующий код импортирует `Fail` и `makeFail` из
-  `@nestling/app`
+  `@nestlingjs/app`
 - **THEN** он компилируется и работает как прежде
 
-#### Scenario: `makeRequest` из `@nestling/app` не резолвится
+#### Scenario: `makeRequest` из `@nestlingjs/app` не резолвится
 
-- **WHEN** код импортирует `makeRequest` из `@nestling/app`
+- **WHEN** код импортирует `makeRequest` из `@nestlingjs/app`
 - **THEN** это ошибка компиляции, а сообщение о недоступном экспорте
-  указывает на `@nestling/operations`
+  указывает на `@nestlingjs/operations`
 
-### Requirement: `@nestling/client` не зависит от серверных пакетов
+### Requirement: `@nestlingjs/client` не зависит от серверных пакетов
 
-`@nestling/client` SHALL зависеть только от `@nestling/operations` и SHALL
+`@nestlingjs/client` SHALL зависеть только от `@nestlingjs/operations` и SHALL
 использовать `fetch` без Node-специфики. Замыкание импортов SHALL
 проверяться тем же тестом границы, что и у пакета операций.
 
 #### Scenario: Клиент собирается для браузера
 
-- **WHEN** `@nestling/client` собирается в бандл без Node-полифиллов
+- **WHEN** `@nestlingjs/client` собирается в бандл без Node-полифиллов
 - **THEN** сборка проходит: ни `node:*`, ни серверных пакетов в замыкании
   нет

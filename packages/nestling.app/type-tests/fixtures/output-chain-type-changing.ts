@@ -6,8 +6,8 @@
  * трассировку дженериков формы.
  */
 
-import { makePipeline, Ok, stream } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import { makePipeline, Ok, stream } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

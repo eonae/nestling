@@ -15,7 +15,7 @@ JSON-сериализуемые `issues` вместо вендорской ош�
 ### Requirement: Core accepts any Standard Schema
 
 Схемные границы ядра (`parsePayload`, `parseMetadata`, `DomainType`,
-`Schema`/`Infer` из `@common/misc`, `EndpointMeta.input`/`output`,
+`Schema`/`Infer` из `@nestlingjs/common.misc`, `EndpointMeta.input`/`output`,
 `input`/`output` в декларации endpoint'а) SHALL быть типизированы через
 `StandardSchemaV1` и SHALL валидировать значения вызовом
 `schema['~standard'].validate(value)`. Вендорские типы (`z.ZodType`,
@@ -108,7 +108,7 @@ Schema v1 (нет `~standard` либо `~standard.version !== 1`), ядро SHAL
 ### Requirement: Validation logic has a single implementation
 
 Валидация SHALL выполняться единственной функцией `validateSync`
-(`@common/misc`; `@nestling/app` SHALL реэкспортировать её и
+(`@nestlingjs/common.misc`; `@nestlingjs/app` SHALL реэкспортировать её и
 сопутствующие `SchemaValidationError`, `SchemaIssue`, `normalizeIssues`,
 `assertStandardSchema`, `AsyncSchemaNotSupportedError`,
 `NotAStandardSchemaError` из прежнего места, чтобы публичный API не менялся).
@@ -120,9 +120,9 @@ endpoint'а рантаймом пайплайна (capability `endpoint-input-va
 Транспорты SHALL NOT содержать собственных веток валидации payload: они
 собирают значение, а проверяет его рантайм.
 
-Дом функции — `@common/misc`, а не `@nestling/app`, потому что
+Дом функции — `@nestlingjs/common.misc`, а не `@nestlingjs/app`, потому что
 конфигурация читается и валидируется до существования запроса: слой
-конфигурации внутри `@nestling/app` не зависит от слоя пайплайна, и
+конфигурации внутри `@nestlingjs/app` не зависит от слоя пайплайна, и
 общая функция не может лежать ни в одном из них.
 
 #### Scenario: Одинаковая ошибка на разных путях
@@ -141,9 +141,9 @@ endpoint'а рантаймом пайплайна (capability `endpoint-input-va
 #### Scenario: Прежние импорты продолжают работать
 
 - **WHEN** код импортирует `validateSync` или `SchemaValidationError` из
-  `@nestling/app`
+  `@nestlingjs/app`
 - **THEN** импорт разрешается реэкспортом, поведение идентично прямому импорту
-  из `@common/misc`
+  из `@nestlingjs/common.misc`
 
 #### Scenario: Конфиг валидирует той же функцией
 
@@ -153,13 +153,13 @@ endpoint'а рантаймом пайплайна (capability `endpoint-input-va
 
 ### Requirement: Core does not depend on a validator
 
-Пакеты ядра (`@common/misc`, `@nestling/container`,
-`@nestling/operations`, `@nestling/app`, `@nestling/transport.http`,
-`@nestling/transport.cli`) SHALL NOT объявлять
+Пакеты ядра (`@nestlingjs/common.misc`, `@nestlingjs/container`,
+`@nestlingjs/operations`, `@nestlingjs/app`, `@nestlingjs/transport.http`,
+`@nestlingjs/transport.cli`) SHALL NOT объявлять
 валидатор схем в `dependencies` или `peerDependencies` и SHALL NOT
 импортировать его в рантайме. Единственной схемной зависимостью SHALL быть
 types-only `@standard-schema/spec`, а тип `StandardSchemaV1` SHALL
-реэкспортироваться из `@common/misc` — чтобы потребителю не требовалось ставить
+реэкспортироваться из `@nestlingjs/common.misc` — чтобы потребителю не требовалось ставить
 пакет спеки.
 
 #### Scenario: Установка без валидатора
@@ -177,14 +177,14 @@ types-only `@standard-schema/spec`, а тип `StandardSchemaV1` SHALL
 #### Scenario: Тип доступен без установки спеки
 
 - **WHEN** потребитель объявляет собственную функцию с параметром типа
-  `Schema`, импортированного из `@common/misc`
+  `Schema`, импортированного из `@nestlingjs/common.misc`
 - **THEN** код компилируется без прямой зависимости на
   `@standard-schema/spec`
 
 #### Scenario: Конфиг принимает схему любого вендора
 
 - **WHEN** секция объявлена со схемами разных валидаторов в разных полях
-- **THEN** `@nestling/app` работает с ними одинаково и не объявляет ни один
+- **THEN** `@nestlingjs/app` работает с ними одинаково и не объявляет ни один
   валидатор в зависимостях
 
 ### Requirement: Явная JSON Schema объявляется аннотацией рядом со схемой

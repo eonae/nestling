@@ -6,7 +6,7 @@
  * показать `requestId` с требуемым типом.
  */
 
-import { compose, makePipeline, withRequestId } from '@nestling/app';
+import { compose, makePipeline, withRequestId } from '@nestlingjs/app';
 
 const outer = makePipeline().pre(withRequestId());
 

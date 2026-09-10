@@ -1,6 +1,6 @@
 # 7. Порт и адрес базы из окружения
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-08] Kernel/user
 > space; конфиг как token-families; плагины», «[2026-07-13] Конфиг:
@@ -14,7 +14,7 @@
 
 ```typescript
 // examples/users-service/src/app.config.ts
-import { from, makeConfig, secret } from '@nestling/app';
+import { from, makeConfig, secret } from '@nestlingjs/app';
 import { z } from 'zod';
 
 export const AppConfig = makeConfig(

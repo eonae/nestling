@@ -3,7 +3,7 @@
 ## Purpose
 
 Источник событий — обычный провайдер, а не особый вид декларации.
-Broadcast-примитивом служит `Topic<T>` из пакета `@nestling/operations`,
+Broadcast-примитивом служит `Topic<T>` из пакета `@nestlingjs/operations`,
 не имеющего внешних зависимостей: его переиспользуют модуль конфигурации
 (`reloadable`), внутрипроцессная шина портов и `events`-ручки. Подписка —
 стандартный `AsyncIterableIterator`, завершаемый `AbortSignal`;
@@ -16,7 +16,7 @@ per-подписчик, а политика переполнения объяв�
 
 ### Requirement: `Topic` — broadcast-примитив без внешних зависимостей
 
-`Topic<T>` SHALL поставляться пакетом `@nestling/operations`, не имеющим
+`Topic<T>` SHALL поставляться пакетом `@nestlingjs/operations`, не имеющим
 внешних зависимостей и не зависящим от серверного кода: его
 переиспользуют слой конфигурации (`reloadable`) и внутрипроцессная шина
 портов, которым пайплайн не нужен.
@@ -30,7 +30,7 @@ SHALL NOT появляться.
 
 #### Scenario: Примитив доступен без серверных пакетов
 
-- **WHEN** приложение импортирует `@nestling/operations` без остальных
+- **WHEN** приложение импортирует `@nestlingjs/operations` без остальных
   пакетов фреймворка
 - **THEN** `Topic` работает, и внешних зависимостей у пакета нет
 
@@ -115,7 +115,7 @@ SHALL NOT появляться.
 
 ### Requirement: Утилиты потоков живут рядом с `Topic`
 
-`@nestling/operations` SHALL содержать реализацию комбинаторов
+`@nestlingjs/operations` SHALL содержать реализацию комбинаторов
 item-цепочек (capability `stream-item-chains`) и утилиты итерации под
 `AbortSignal`, чтобы у ядра и satellite-пакетов была одна реализация, а
 не по копии на пакет.
@@ -128,5 +128,5 @@ item-цепочек (capability `stream-item-chains`) и утилиты итер
 
 - **WHEN** satellite-пакет применяет тот же `limit`/`gapTimeout` к
   собственному потоку
-- **THEN** он импортирует их из `@nestling/operations`, не затягивая
-  `@nestling/app`
+- **THEN** он импортирует их из `@nestlingjs/operations`, не затягивая
+  `@nestlingjs/app`

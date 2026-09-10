@@ -20,8 +20,8 @@ import {
   isEndpointDefinition,
   makePipeline,
   Ok,
-} from '@nestling/app';
-import { makeFail, makeRequest } from '@nestling/operations';
+} from '@nestlingjs/app';
+import { makeFail, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const CreateUserInput = z.object({

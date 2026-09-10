@@ -43,12 +43,12 @@ Nestling собирает приложение из декларативных �
 ## Быстрый старт
 
 ```bash
-npm install @nestling/app @nestling/transport.http zod
+npm install @nestlingjs/app @nestlingjs/transport.http zod
 ```
 
 ```typescript
-import { makeApp, makeFeature } from '@nestling/app';
-import { http, httpEndpoint } from '@nestling/transport.http';
+import { makeApp, makeFeature } from '@nestlingjs/app';
+import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 // Endpoint — значение: адрес, схемы и хендлер в одном объекте
@@ -99,10 +99,14 @@ yarn install
 yarn verify          # build + typecheck + lint + test по всем пакетам
 yarn docs:audit      # проверка консистентности документации
 yarn docs:build      # сборка HTML-сайта документации
+yarn pack:check      # установка тарболов в проект вне репозитория
 ```
 
 Монорепозиторий на Yarn workspaces и Nx: пакеты лежат в `packages/`,
 примеры в `examples/`, документация в `docs/`.
+
+Выпуск версии — [RELEASING.md](./RELEASING.md): версию поднимает человек,
+публикует GitHub Actions по тегу.
 
 ## Участие
 
@@ -111,4 +115,4 @@ issue.
 
 ## Лицензия
 
-MIT © 2025
+MIT © 2026

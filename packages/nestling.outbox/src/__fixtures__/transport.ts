@@ -11,10 +11,10 @@ import type {
   ITransport,
   TransportCapabilities,
   TransportDeclaration,
-} from '@nestling/app';
-import { transportValue } from '@nestling/app';
-import type { Token } from '@nestling/container';
-import { makeToken } from '@nestling/container';
+} from '@nestlingjs/app';
+import { transportValue } from '@nestlingjs/app';
+import type { Token } from '@nestlingjs/container';
+import { makeToken } from '@nestlingjs/container';
 
 /** Транспорт умеет и значения, и потоки: подписка — его штатная форма */
 const STREAMING: TransportCapabilities = {

@@ -19,8 +19,8 @@ import { contextVar, declaredVarOf } from './variable.js';
 import { RequestId, Signal } from './well-known.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Token } from '@nestling/container';
-import type { AnyInput, EmptyInput } from '@nestling/operations';
+import type { Token } from '@nestlingjs/container';
+import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 
 /** Проверка типов: `Expect<Equal<A, B>>` */
 type Equal<X, Y> =

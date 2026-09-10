@@ -1,5 +1,5 @@
-import { makePlugin } from '@nestling/app';
-import { httpEndpoint, httpProbes } from '@nestling/transport.http';
+import { makePlugin } from '@nestlingjs/app';
+import { httpEndpoint, httpProbes } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 /**

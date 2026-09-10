@@ -1,6 +1,6 @@
 # 17. Запускать только часть фич
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-10).
 > Целевое описание: [design/composition.md](../design/composition.md)
 > «L2 — фичи, выбор и переключатели» и «`check()`». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Модульный монолит: фичи,
@@ -20,7 +20,7 @@ endpoint'ы разворачиваются отдельно, и каждый п�
 // examples/app-with-http/src/main.ts
 import { app } from './app.js';
 
-import { from, load, makeConfig } from '@nestling/app';
+import { from, load, makeConfig } from '@nestlingjs/app';
 import { z } from 'zod';
 
 /**
@@ -238,7 +238,7 @@ const checked = makeApp({
 выполняется, `acquire`, `@OnStart` и `serve` не вызываются, ресурсы не
 захватываются. Он бросает те же ошибки, что
 бросил бы `run()` на фазах 0 и 1, и не влияет на последующий `run()` того
-же приложения. `checkTopologies(app, topologies)` из `@nestling/testing`
+же приложения. `checkTopologies(app, topologies)` из `@nestlingjs/testing`
 вызывает `check()` для каждого аргумента сборки и собирает ошибки всех
 вариантов в одно сообщение.
 

@@ -8,8 +8,8 @@ import type {
   InjectionToken,
   TokenFamily,
   TokenOverride,
-} from '@nestling/container';
-import { valueProvider } from '@nestling/container';
+} from '@nestlingjs/container';
+import { valueProvider } from '@nestlingjs/container';
 
 /**
  * Элемент списка `overrides:`: пара либо подмена рецепта семейства.

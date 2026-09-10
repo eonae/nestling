@@ -18,15 +18,15 @@ import {
 } from '../core/index.js';
 import type { HandlerFn } from '../core/types/index.js';
 
-import type { Constructor } from '@common/misc';
-import type { InjectionToken, Token } from '@nestling/container';
-import { tokenId } from '@nestling/container';
+import type { Constructor } from '@nestlingjs/common.misc';
+import type { InjectionToken, Token } from '@nestlingjs/container';
+import { tokenId } from '@nestlingjs/container';
 
 /**
  * DI-токен транспорта, который обслуживает декларацию.
  *
  * Здесь тип не уточнён (`Token<any>`): `ITransport` живёт в
- * `@nestling/app`, который сам зависит от этого пакета. Уточнённый
+ * `@nestlingjs/app`, который сам зависит от этого пакета. Уточнённый
  * `Token<ITransport>` объявляет транспортный пакет
  * (`TransportToken`). Строковое имя транспорта для `Raw` и `EndpointMeta`
  * выводится из id DI-токена функцией `transportNameOf`.
@@ -59,7 +59,7 @@ const TRANSPORT_PREFIX = 'transport:';
 /**
  * Хвост id DI-токена экземпляра по умолчанию.
  *
- * Имя экземпляра по умолчанию объявляет `@nestling/app`, который
+ * Имя экземпляра по умолчанию объявляет `@nestlingjs/app`, который
  * зависит от этого пакета; здесь оно повторено строкой, чтобы зависимость
  * не пошла в обратную сторону.
  */
@@ -176,9 +176,9 @@ export interface EndpointDefinition<
    * конструктор (для HTTP это bind-карта «поле: место»).
    *
    * Ядро переносит его на значение и сохраняет при `resolve`, но не
-   * читает: понятий частей HTTP-запроса в `@nestling/app` нет.
+   * читает: понятий частей HTTP-запроса в `@nestlingjs/app` нет.
    * Типизирует и читает его тот транспорт, который его положил
-   * (`httpBindingOf` в `@nestling/transport.http`).
+   * (`httpBindingOf` в `@nestlingjs/transport.http`).
    */
   readonly binding?: unknown;
 
@@ -187,7 +187,7 @@ export interface EndpointDefinition<
    * описания.
    *
    * Ядро переносит её как `binding` и не читает: выполнение запроса от
-   * `doc` не зависит. Читают её генераторы описаний (`@nestling/openapi`),
+   * `doc` не зависит. Читают её генераторы описаний (`@nestlingjs/openapi`),
    * поэтому полей, осмысленных только для одного формата, здесь нет.
    */
   readonly doc?: DeclarationDoc;

@@ -22,29 +22,29 @@ import type {
   Logger,
   Plugin,
   Policy,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   Ctx,
   everyEndpoint,
   Logger$,
   makePlugin,
   MessageBus$,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import type {
   InjectionToken,
   ModuleProvider,
   ResourceProviderDefinition,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 import {
   factoryProvider,
   familyProvider,
   makeToken,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 import type {
   AnyOperation,
   Emitter,
   EmittingOperation,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /** Операция, у которой есть транзакционный эмиттер */
 type OutboxableOperation = EmittingOperation<any, any, any, any>;
@@ -114,7 +114,7 @@ export interface OutboxPlugin extends Plugin {
  * приложение без шины видит их в той же строке, что и саму нехватку.
  */
 const OutboxBus$ = makeToken<IMessageBus>(
-  "@nestling/outbox relay (add a bus transport to 'transports:', or remove " +
+  "@nestlingjs/outbox relay (add a bus transport to 'transports:', or remove " +
     'the outbox plugin)',
 );
 
@@ -229,7 +229,7 @@ export function outbox(options: OutboxOptions): OutboxPlugin {
     relay,
   ];
 
-  const plugin = makePlugin({ name: '@nestling/outbox', providers });
+  const plugin = makePlugin({ name: '@nestlingjs/outbox', providers });
 
   return Object.freeze({
     ...plugin,

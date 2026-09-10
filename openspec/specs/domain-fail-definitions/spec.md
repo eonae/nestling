@@ -14,7 +14,7 @@ details? })` возвращает определение, которое одн�
 
 ### Requirement: `makeFail` создаёт доменный отказ как значение
 
-`@nestling/operations` SHALL экспортировать `makeFail(code, { message?,
+`@nestlingjs/operations` SHALL экспортировать `makeFail(code, { message?,
 details? }?)`, возвращающий **значение-определение**, которое
 одновременно является конструктором отказа. Определение SHALL нести
 `code`, производную `category`, схему `details` (если объявлена) и
@@ -145,7 +145,7 @@ SHALL давать `true` для значения, потерявшего про
 ### Requirement: Kernel-коды входят в контракт неявно
 
 Ядро SHALL определять встроенные отказы тем же `makeFail` и экспортировать
-их из `@nestling/app`: `BadRequest` (код `bad_request`, детали —
+их из `@nestlingjs/app`: `BadRequest` (код `bad_request`, детали —
 `issues` проверки входа), `PayloadTooLarge` (код `payload_too_large`,
 детали `{ limit }`), `Timeout` (код `timeout`) и `InternalError` (код
 `internal_error`). Код отказа ядра SHALL быть голой категорией без
@@ -158,7 +158,7 @@ endpoint'а без объявления в `errors:`. Пользовательс
 же кодом (`makeFail('bad_request')`) SHALL быть тем же отказом по
 идентичности и SHALL проходить страж границы.
 
-`Timeout` SHALL реэкспортироваться из `@nestling/app` для потребителей,
+`Timeout` SHALL реэкспортироваться из `@nestlingjs/app` для потребителей,
 разбирающих результат вызова порта. Регистрации определения в наборе
 **из другого пакета** SHALL NOT существовать.
 

@@ -7,9 +7,9 @@ import type {
   AssembleArgs,
   CheckOptions,
   CheckReport,
-} from '@nestling/app';
-import { isApp } from '@nestling/app';
-import type { AnySwitch } from '@nestling/container';
+} from '@nestlingjs/app';
+import { isApp } from '@nestlingjs/app';
+import type { AnySwitch } from '@nestlingjs/container';
 
 /** Отчёт одной топологии матрицы */
 export interface TopologyReport<

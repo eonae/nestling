@@ -1,5 +1,5 @@
 /**
- * `@nestling/openapi` — документ OpenAPI 3.1 из деклараций.
+ * `@nestlingjs/openapi` — документ OpenAPI 3.1 из деклараций.
  *
  * Три поверхности и ни одной больше:
  *
@@ -14,7 +14,7 @@
  *
  * Зависимости от валидатора у пакета нет: перевод схемы в JSON Schema
  * приходит **данными** — списком `SchemaDocConverter`, который поставляют
- * отдельные пакеты (`@nestling/openapi.zod` и подобные).
+ * отдельные пакеты (`@nestlingjs/openapi.zod` и подобные).
  */
 
 export { buildOpenApiDocument, hiddenEndpoints } from './document.js';
@@ -42,4 +42,4 @@ export type {
  * ради удобства импорта было бы ровно тем расщеплением, от которого этот
  * операция и защищает.
  */
-export type { SchemaDocConverter } from '@nestling/app';
+export type { SchemaDocConverter } from '@nestlingjs/app';

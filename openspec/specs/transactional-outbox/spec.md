@@ -12,7 +12,7 @@
 изменяющие endpoint'ы композированы от слоя транзакции. Без этого окно
 между коммитом и отправкой теряет событие, а согласованность между фичами
 модульный монолит держит именно событиями. Возможность живёт отдельным
-пакетом `@nestling/outbox` поверх публичных примитивов: ядро ради неё не
+пакетом `@nestlingjs/outbox` поверх публичных примитивов: ядро ради неё не
 меняется.
 
 ## Requirements
@@ -20,24 +20,24 @@
 ### Requirement: Транзакционный emit — satellite-пакет, ядро не изменяется
 
 Транзакционный emit SHALL поставляться отдельным пакетом
-`@nestling/outbox` и SHALL быть построен целиком на публичных примитивах:
+`@nestlingjs/outbox` и SHALL быть построен целиком на публичных примитивах:
 семействах DI-токенов, переменных контекста и их ридерах, роли `@Resource`
 с `acquire` и `release`, хуке `@OnStart`, `AbortSignal`, интерфейсе шины
 `IMessageBus`, операциях и `makePlugin`.
 
 Пакет SHALL NOT иметь внешних зависимостей и SHALL NOT зависеть ни от
 одного драйвера базы данных; перечень внутренних зависимостей —
-`@nestling/container`, `@nestling/app`, `@nestling/operations`,
-`@common/misc`.
+`@nestlingjs/container`, `@nestlingjs/app`, `@nestlingjs/operations`,
+`@nestlingjs/common.misc`.
 
 Реализация change'а SHALL NOT вносить изменений ни в один пакет ядра
-(`@nestling/container`, `@nestling/operations`, `@nestling/app`,
-`@nestling/transport*`). Потребность в такой правке SHALL быть
+(`@nestlingjs/container`, `@nestlingjs/operations`, `@nestlingjs/app`,
+`@nestlingjs/transport*`). Потребность в такой правке SHALL быть
 зафиксирована записью журнала решений как находка замера.
 
 #### Scenario: Пакет самодостаточен
 
-- **WHEN** приложение устанавливает `@nestling/outbox`
+- **WHEN** приложение устанавливает `@nestlingjs/outbox`
 - **THEN** в графе зависимостей пакета нет внешних библиотек и нет
   драйверов базы данных
 

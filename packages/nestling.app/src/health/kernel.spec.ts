@@ -15,14 +15,14 @@ import type { Health, HealthCheck, HealthStatus } from './interface.js';
 import { registerHealth } from './kernel.js';
 import { Health$, HealthCheck$ } from './tokens.js';
 
-import type { BuiltContainer, ModuleProvider } from '@nestling/container';
+import type { BuiltContainer, ModuleProvider } from '@nestlingjs/container';
 import {
   ContainerBuilder,
   factoryProvider,
   makeToken,
   resourceProvider,
   valueProvider,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 
 /** Вклад-заглушка: считает вызовы и отдаёт заданный исход */
 class StubCheck implements HealthCheck {

@@ -28,13 +28,13 @@ import type {
   OutputOf,
   RequestOperation,
   Timeout,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import {
   describeForm,
   isFail,
   isPrimitiveLeaf,
   Timeout as TimeoutFail,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * Отказы, которые клиент добавляет к объявленным операцией.

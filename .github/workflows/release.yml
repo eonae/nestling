@@ -1,0 +1,40 @@
+# Публикация в реестр. Версию поднимает человек (`yarn lerna version`),
+# тег ставит человек — workflow только публикует то, что уже в манифестах
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  # Provenance: подпись выдаёт OIDC-обмен, без этого права его не получить
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+          # Пишет .npmrc, который берёт ключ доступа из NODE_AUTH_TOKEN
+          registry-url: https://registry.npmjs.org
+
+      - run: yarn install --immutable
+
+      - run: yarn verify
+
+      # Установка тарболов в проект вне репозитория: последняя проверка
+      # перед публикацией, которую отменить уже нельзя
+      - run: yarn pack:check
+
+      - run: node scripts/publish.mjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true

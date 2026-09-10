@@ -11,8 +11,8 @@ import type { TransportCapabilities, TransportRef } from '../pipeline/index.js';
 
 import type { IListener, ITransport, ServerToken } from './interfaces.js';
 
-import type { Provider } from '@nestling/container';
-import { valueProvider } from '@nestling/container';
+import type { Provider } from '@nestlingjs/container';
+import { valueProvider } from '@nestlingjs/container';
 
 /**
  * Объявление экземпляра транспорта.

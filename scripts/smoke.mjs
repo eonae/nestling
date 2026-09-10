@@ -24,8 +24,8 @@ const root = resolve(import.meta.dirname, '..');
 
 /**
  * Условие `testing` включено для всех: тестовые subpath'ы пакетов
- * (`@nestling/app/testing`) резолвятся только под ним, и без него
- * `@nestling/testing` не грузится by design.
+ * (`@nestlingjs/app/testing`) резолвятся только под ним, и без него
+ * `@nestlingjs/testing` не грузится by design.
  */
 const NODE_ARGS = ['--conditions=testing'];
 

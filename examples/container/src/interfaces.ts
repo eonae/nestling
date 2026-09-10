@@ -1,4 +1,4 @@
-import { makeToken } from '@nestling/container';
+import { makeToken } from '@nestlingjs/container';
 
 /**
  * Интерфейсы и их DI-токены.

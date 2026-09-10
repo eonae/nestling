@@ -1,6 +1,6 @@
 # 23. Конфиг из файла и без перезапуска
 
-> Гайд по текущему API; сверено с кодом `container` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `container` (2026-09-10).
 > Целевое описание: [design/config.md](../design/config.md), разделы 2–8.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Конфиг:
 > keys-capability вместо `configs:`-владения» [2026-07-10], «Конфиг:
@@ -197,11 +197,11 @@ export const HealthConfig = makeConfig('health', {
 ## Описания полей в снимке
 
 Снимок отдаёт описания, умолчания и перечисления полей, если передать ему
-конвертер схем — тот же `zodConverter` из `@nestling/openapi.zod`, что
+конвертер схем — тот же `zodConverter` из `@nestlingjs/openapi.zod`, что
 строит документ OpenAPI в главе [12](./12-openapi-and-client.md):
 
 ```typescript
-import { zodConverter } from '@nestling/openapi.zod';
+import { zodConverter } from '@nestlingjs/openapi.zod';
 
 const snapshot = describeConfig({ converters: [zodConverter()] });
 

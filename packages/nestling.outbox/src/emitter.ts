@@ -11,21 +11,21 @@
 import { OutboxTransactionMissingError } from './errors.js';
 import type { OutboxRecord, OutboxStore } from './types.js';
 
-import type { Schema } from '@common/misc';
-import { SchemaValidationError, validateSync } from '@common/misc';
-import type { CtxReader } from '@nestling/app';
+import type { CtxReader } from '@nestlingjs/app';
 import {
   BadRequest,
   collectPropagatedContext,
   describeForm,
-} from '@nestling/app';
-import type { Token } from '@nestling/container';
-import { makeTokenFamily } from '@nestling/container';
+} from '@nestlingjs/app';
+import type { Schema } from '@nestlingjs/common.misc';
+import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
+import type { Token } from '@nestlingjs/container';
+import { makeTokenFamily } from '@nestlingjs/container';
 import type {
   AnyOperation,
   Emitter,
   EmittingOperation,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * Семейство транзакционных эмиттеров: один член на операцию.

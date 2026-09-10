@@ -12,7 +12,7 @@ import type { Outcome } from './types/unit.js';
 import { ClientDisconnectedError, TransportClosingError } from './abort.js';
 import { isMidStreamFailure, makePipeline } from './pipeline.js';
 
-import { events, Ok, stream, Topic } from '@nestling/operations';
+import { events, Ok, stream, Topic } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

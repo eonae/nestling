@@ -7,8 +7,8 @@ import {
   PayloadTooLargeError,
 } from './errors.js';
 
-import type { FilePart, UploadSpec } from '@nestling/app';
-import { PayloadTooLarge } from '@nestling/app';
+import type { FilePart, UploadSpec } from '@nestlingjs/app';
+import { PayloadTooLarge } from '@nestlingjs/app';
 import Busboy from 'busboy';
 
 /**

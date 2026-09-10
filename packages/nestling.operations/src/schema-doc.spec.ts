@@ -4,7 +4,7 @@
  * Тест сторожит обе стороны этого утверждения: диспетчер выбирает по
  * вендору и молчит, когда конвертера нет, — а валидация от присутствия
  * конвертеров не зависит вовсе. Граница разбора входа проверяется у
- * себя, в `@nestling/app`.
+ * себя, в `@nestlingjs/app`.
  */
 
 import { jsonSchema, jsonSchemaOf } from './json-schema.js';
@@ -16,7 +16,7 @@ import {
   schemaVendorOf,
 } from './schema-doc.js';
 
-import { SchemaValidationError, validateSync } from '@common/misc';
+import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
 import { z } from 'zod';
 
 const zodConverter = (): SchemaDocConverter => ({

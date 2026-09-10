@@ -30,8 +30,8 @@ import { PortRuntime } from './runtime.js';
 // Только `jest`: остальные глобали инъектируются раннером, а объект
 // `jest` в ESM-режиме — нет
 import { jest } from '@jest/globals';
-import type { Emitter, Port } from '@nestling/operations';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
+import type { Emitter, Port } from '@nestlingjs/operations';
+import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const CardDeclined = makeFail('payment_required:card_declined', {

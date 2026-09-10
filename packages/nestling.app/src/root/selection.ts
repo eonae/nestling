@@ -16,9 +16,9 @@ import { busBindingOf } from '../ports/index.js';
 import type { ResolvedBundle } from './feature.js';
 import { injectedTokens } from './feature.js';
 
-import type { SwitchValues } from '@nestling/container';
-import { asFamilyMember } from '@nestling/container';
-import { EmitterFamily, PortFamily } from '@nestling/operations';
+import type { SwitchValues } from '@nestlingjs/container';
+import { asFamilyMember } from '@nestlingjs/container';
+import { EmitterFamily, PortFamily } from '@nestlingjs/operations';
 
 /**
  * Имена операций видов `request` и `command`, которые вызывает фича.

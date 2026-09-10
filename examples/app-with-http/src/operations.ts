@@ -12,7 +12,7 @@ import {
   makeEvent,
   makeFail,
   makeRequest,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Отказ «квота исчерпана». По сети приходит кодом и восстанавливается в `Fail` */

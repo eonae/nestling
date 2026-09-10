@@ -16,8 +16,8 @@ import {
 import { Authenticate } from './auth.js';
 import { AuditOutcome } from './observability.js';
 
-import { makeFeature } from '@nestling/app';
-import { classProvider, valueProvider } from '@nestling/container';
+import { makeFeature } from '@nestlingjs/app';
+import { classProvider, valueProvider } from '@nestlingjs/container';
 
 /**
  * Фича пользователей: провайдеры и endpoint'ы.

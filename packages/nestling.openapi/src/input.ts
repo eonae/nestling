@@ -20,8 +20,8 @@ import type {
   OpenApiRequestBody,
 } from './types.js';
 
-import { describeForm, isPrimitiveLeaf, mediaTypeOf } from '@nestling/app';
-import type { HttpBinding, UploadSpec } from '@nestling/operations';
+import { describeForm, isPrimitiveLeaf, mediaTypeOf } from '@nestlingjs/app';
+import type { HttpBinding, UploadSpec } from '@nestlingjs/operations';
 
 /** Вход операции: параметры и тело */
 export interface InputPlan {

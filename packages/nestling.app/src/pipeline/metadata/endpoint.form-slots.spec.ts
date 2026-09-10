@@ -1,15 +1,15 @@
 /**
  * Fail-fast форм io в конструкторе декларации.
  *
- * Правило (`assertFormSlots`) живёт в `@nestling/operations` вместе с формами;
+ * Правило (`assertFormSlots`) живёт в `@nestlingjs/operations` вместе с формами;
  * здесь проверяется, что kernel-примитив его применяет — и потому оно
  * одинаково работает для `httpEndpoint`, `cliEndpoint` и прямого вызова.
  */
 
 import { makeEndpoint } from './endpoint.js';
 
-import { makeToken } from '@nestling/container';
-import { multipart, Ok, stream, upload } from '@nestling/operations';
+import { makeToken } from '@nestlingjs/container';
+import { multipart, Ok, stream, upload } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

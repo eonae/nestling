@@ -16,7 +16,7 @@
 
 ### Requirement: `testModule` поднимает один модуль в изоляции
 
-`@nestling/testing` SHALL экспортировать
+`@nestlingjs/testing` SHALL экспортировать
 `testModule(module, options?): Promise<TestApp>`, собирающую мини-приложение
 вокруг одного модуля (с его `imports`), kernel-модулем конфига и
 перечисленными стабами. Результат SHALL быть тем же `TestApp`, что у

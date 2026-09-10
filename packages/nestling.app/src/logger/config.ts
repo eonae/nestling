@@ -12,7 +12,7 @@ import { makeConfig } from '../config/index.js';
 
 import type { LogLevel } from './interface.js';
 
-import type { StandardSchemaV1 } from '@common/misc';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 
 /** Формат записи в `stderr` */
 export type LogFormat = 'text' | 'json';

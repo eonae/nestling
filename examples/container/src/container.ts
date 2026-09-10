@@ -3,7 +3,7 @@ import { appCounters } from './counters/index.js';
 import { runtimeConfigKeys } from './runtime/index.js';
 import { AppModule } from './app.feature.js';
 
-import type { ConfigSource } from '@nestling/app';
+import type { ConfigSource } from '@nestlingjs/app';
 import {
   bootstrapConfig,
   configKernel,
@@ -13,13 +13,13 @@ import {
   objectSource,
   registerHealth,
   RootLogger$,
-} from '@nestling/app';
-import type { BuiltContainer } from '@nestling/container';
+} from '@nestlingjs/app';
+import type { BuiltContainer } from '@nestlingjs/container';
 import {
   ContainerBuilder,
   resolveBranches,
   valueProvider,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 
 /**
  * Сборка контейнера без приложения: тот же граф, что собирает `main.ts`

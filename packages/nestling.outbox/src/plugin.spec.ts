@@ -24,17 +24,17 @@ import { outbox } from './plugin.js';
 import { OutboxRelay$ } from './relay.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { App, Output } from '@nestling/app';
+import type { App, Output } from '@nestlingjs/app';
 import {
   implement,
   makeApp,
   makeFeature,
   makePipeline,
   withIdempotencyKey,
-} from '@nestling/app';
-import { Ok } from '@nestling/operations';
-import type { TestApp } from '@nestling/testing';
-import { assembleTest, vars } from '@nestling/testing';
+} from '@nestlingjs/app';
+import { Ok } from '@nestlingjs/operations';
+import type { TestApp } from '@nestlingjs/testing';
+import { assembleTest, vars } from '@nestlingjs/testing';
 
 /** Подписчики события; наполняется прямым эмиттером и relay */
 const delivered: { id: string; idempotencyKey?: string }[] = [];
@@ -208,7 +208,7 @@ describe('outbox(): отказы сборки', () => {
     // рецепта семейства, но запрещает ровно то же: двух плагинов outbox'а
     // в приложении быть не может
     await expect(assembleTest(twice)).rejects.toThrow(
-      /Two different plugins are named '@nestling\/outbox'/,
+      /Two different plugins are named '@nestlingjs\/outbox'/,
     );
   });
 

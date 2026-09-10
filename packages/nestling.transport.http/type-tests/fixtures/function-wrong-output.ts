@@ -5,8 +5,8 @@
  * доводить до несовпавшего поля, а не тонуть в раскрытии дженериков.
  */
 
-import { Ok } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import { Ok } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 import { User, UserInput } from '../support/fixture-kit.js';
 

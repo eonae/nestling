@@ -19,7 +19,7 @@ import type {
   AssembledApp,
   HealthCheck,
   HealthStatus,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   everyEndpoint,
   HealthCheck$,
@@ -27,8 +27,8 @@ import {
   makeFeature,
   makePipeline,
   objectSource,
-} from '@nestling/app';
-import { classProvider, Component, makeModule } from '@nestling/container';
+} from '@nestlingjs/app';
+import { classProvider, Component, makeModule } from '@nestlingjs/container';
 
 /** Ответ пробы: код и тело — разобранное, если оно JSON */
 interface Probe {

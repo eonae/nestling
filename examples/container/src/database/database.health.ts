@@ -2,8 +2,8 @@ import { HealthConfig } from '../health/index.js';
 import type { Database } from '../interfaces.js';
 import { Database$ } from '../interfaces.js';
 
-import type { Config, HealthCheck, HealthStatus } from '@nestling/app';
-import { Component } from '@nestling/container';
+import type { Config, HealthCheck, HealthStatus } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
 
 /**
  * Проверка базы: вклад в семейство ядра `HealthCheck$`.

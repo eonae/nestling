@@ -17,8 +17,8 @@ import { QuotasFeature } from './quotas.js';
 import { UsersFeature } from './users.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp } from '@nestling/app';
-import { assembleTest, checkTopologies, stub } from '@nestling/testing';
+import { makeApp } from '@nestlingjs/app';
+import { assembleTest, checkTopologies, stub } from '@nestlingjs/testing';
 
 /**
  * Декларация для изоляции: те же фичи без шины. Соседние операции

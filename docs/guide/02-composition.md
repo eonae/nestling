@@ -1,6 +1,6 @@
 # 2. Из чего состоит приложение
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
 > Целевое описание: [design/composition.md](../design/composition.md).
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-09-02]
 > Модель композиции: фича, плагин, операция», «[2026-09-03] Декларация
@@ -78,7 +78,7 @@ DI-токенами. Подробно — [13. Выделить вторую
 Переключатель — второе: какой из вариантов одной и той же области.
 
 ```typescript
-import { makeSwitch } from '@nestling/container';
+import { makeSwitch } from '@nestlingjs/container';
 
 export const Storage = makeSwitch('storage', ['s3', 'local']);
 

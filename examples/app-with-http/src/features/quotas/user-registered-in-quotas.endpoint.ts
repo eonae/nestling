@@ -1,9 +1,9 @@
 import type { UserRegisteredInput } from '../../operations.js';
 import { UserRegistered } from '../../operations.js';
 
-import type { Logger } from '@nestling/app';
-import { implement, Logger$ } from '@nestling/app';
-import { Handler } from '@nestling/container';
+import type { Logger } from '@nestlingjs/app';
+import { implement, Logger$ } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
 
 @Handler([Logger$.auto])
 class UserRegisteredInQuotasHandler {

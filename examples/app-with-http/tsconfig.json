@@ -6,7 +6,7 @@
     // Сборка идёт по `tsconfig.build.json`
     "noEmit": true,
 
-    // Пример импортирует `@nestling/testing`, который живёт по ту сторону
+    // Пример импортирует `@nestlingjs/testing`, который живёт по ту сторону
     // условия: без него subpath-шов не резолвится при typecheck
     "customConditions": ["testing"]
   },

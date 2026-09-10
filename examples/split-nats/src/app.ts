@@ -8,10 +8,10 @@
 import { QuotasFeature } from './quotas.js';
 import { UsersFeature } from './users.js';
 
-import type { App } from '@nestling/app';
-import { makeApp } from '@nestling/app';
-import type { NatsTransportOptions } from '@nestling/transport.nats';
-import { nats } from '@nestling/transport.nats';
+import type { App } from '@nestlingjs/app';
+import { makeApp } from '@nestlingjs/app';
+import type { NatsTransportOptions } from '@nestlingjs/transport.nats';
+import { nats } from '@nestlingjs/transport.nats';
 
 /**
  * Объявляет приложение с заданными опциями брокера.

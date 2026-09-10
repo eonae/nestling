@@ -23,8 +23,8 @@
     "visualize:large": "node ../nestling.viz/dist/cli.js graph-data-large.json"
   },
   "dependencies": {
-    "@nestling/app": "workspace:*",
-    "@nestling/container": "workspace:*"
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*"
   },
   "devDependencies": {
     "zod": "^4.0.0"

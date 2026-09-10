@@ -1,8 +1,8 @@
 import { AppConfig } from '../../app.config.js';
 import { Unauthorized } from '../../errors.js';
 
-import type { Config, EmptyInput, ExtendableContext } from '@nestling/app';
-import { Handler } from '@nestling/container';
+import type { Config, EmptyInput, ExtendableContext } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
 
 /** Тот, от чьего имени выполняется запрос */
 export interface Caller {

@@ -19,8 +19,8 @@ import { makeFeature, resolveBundle } from './feature.js';
 import { closeOverCalls } from './selection.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Component, Handler } from '@nestling/container';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
+import { Component, Handler } from '@nestlingjs/container';
+import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const ClaimQuota = makeRequest({

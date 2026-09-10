@@ -1,4 +1,4 @@
-# @nestling/subscriptions
+# @nestlingjs/subscriptions
 
 Реестр активных подписок: список, принудительное закрытие одной или
 нескольких, лента изменений. Пакет написан целиком на публичных примитивах
@@ -12,13 +12,13 @@
 ## Установка
 
 ```bash
-npm install @nestling/subscriptions
+npm install @nestlingjs/subscriptions
 ```
 
 ## Минимальный пример
 
 ```typescript
-import { subscriptions, SubscriptionRegistry, tracked } from '@nestling/subscriptions';
+import { subscriptions, SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
 
 // 1. Плагин: создаётся один раз в композиционном корне
 export const appSubscriptions = subscriptions({

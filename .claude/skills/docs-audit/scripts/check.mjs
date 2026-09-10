@@ -18,7 +18,7 @@ import { collectPackageExports } from './package-exports.mjs';
 
 const ROOT = process.cwd();
 const DOCS = join(ROOT, 'docs');
-const ALLOWED_ROOT_MD = new Set(['README.md', 'README.ru.md', 'CLAUDE.md']);
+const ALLOWED_ROOT_MD = new Set(['README.md', 'README.ru.md', 'CLAUDE.md', 'RELEASING.md']);
 
 if (!existsSync(DOCS) || !existsSync(join(ROOT, '.git'))) {
   console.error('Запускайте из корня репозитория (не найдены docs/ или .git).');
@@ -338,7 +338,10 @@ for (const dir of packageDirs) {
     continue;
   }
   const lines = readFileSync(file, 'utf8').split('\n');
-  const scope = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).name.split('/')[0];
+  const { name } = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+  // Внутренний пакет узнаётся по имени: скоуп у всех общий, а `common.`
+  // в имени означает, что пакет ставится вместе с потребителем
+  const internal = name.startsWith('@nestlingjs/common.');
 
   // 9.1 Состав и порядок разделов второго уровня
   const headings = [];
@@ -388,7 +391,7 @@ for (const dir of packageDirs) {
       plate.join('\n').match(new RegExp(`\\]\\([^)]*docs/${dirName}/[^)]+\\)`, 'g')) ?? [];
     const design = links('design');
     const guide = links('guide');
-    if (scope === '@common') {
+    if (internal) {
       if (plate.length > 1) {
         add('ERROR', 'pkg-readme-plate', file,
           `плашка внутреннего пакета занимает ${plate.length} строк вместо одной`);

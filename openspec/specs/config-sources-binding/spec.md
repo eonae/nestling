@@ -124,7 +124,7 @@ SHALL NOT обращаться к нему.
 
 ### Requirement: `env({ prefix })` — источник окружения с префиксом
 
-Пакет `@nestling/app` SHALL экспортировать `env(options?)` — источник, который
+Пакет `@nestlingjs/app` SHALL экспортировать `env(options?)` — источник, который
 читает ключ `<prefix><KEY>` из `process.env` и отдаёт значение под именем
 `KEY`. Без `prefix` он SHALL читать имя ключа как есть.
 

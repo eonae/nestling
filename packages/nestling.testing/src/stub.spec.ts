@@ -12,7 +12,7 @@ import { stub } from './stub.js';
 import { testUnit } from './unit.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Emitter, Port } from '@nestling/app';
+import type { Emitter, Port } from '@nestlingjs/app';
 import {
   implement,
   InternalError,
@@ -20,10 +20,10 @@ import {
   makeFail,
   makeFeature,
   Ok,
-} from '@nestling/app';
-import { Component, makeToken } from '@nestling/container';
-import type { CommandMeta, PortMeta } from '@nestling/operations';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
+} from '@nestlingjs/app';
+import { Component, makeToken } from '@nestlingjs/container';
+import type { CommandMeta, PortMeta } from '@nestlingjs/operations';
+import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Квота исчерпана — задекларированный отказ операции */

@@ -33,7 +33,7 @@ import type {
 } from './types/unit.js';
 import { computeOutcome } from './abort.js';
 
-import type { Constructor } from '@common/misc';
+import type { Constructor } from '@nestlingjs/common.misc';
 import type {
   AnyFail,
   AnyFailDefinition,
@@ -44,7 +44,7 @@ import type {
   KernelFail,
   Output,
   OutputSync,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import {
   categoryOf,
   describeForm,
@@ -56,7 +56,7 @@ import {
   isStreamKind,
   isTransportResponse,
   Ok,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * Ошибка, которая произошла после начала отдачи потокового ответа.

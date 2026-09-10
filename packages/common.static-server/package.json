@@ -1,15 +1,40 @@
 {
-  "name": "@common/static-server",
+  "name": "@nestlingjs/common.static-server",
   "version": "0.1.0",
-  "description": "Very simple (no deps) server for serving static files in dev",
+  "description": "Сервер статических файлов на node:http без внешних зависимостей — внутренний пакет Nestling",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "static-server",
+    "internal"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/common.static-server"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/common.static-server#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/out.js",
-  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,7 +43,5 @@
     "lint": "run -T eslint .",
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
-  },
-  "author": "",
-  "license": "MIT"
+  }
 }

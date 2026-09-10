@@ -12,8 +12,8 @@ import type { AnyContextVar } from './variable.js';
 import { isContextVar, SIGNAL_KEY } from './variable.js';
 import { RequestId } from './well-known.js';
 
-import type { Token } from '@nestling/container';
-import { makeTokenFamily } from '@nestling/container';
+import type { Token } from '@nestlingjs/container';
+import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
  * Ридер контекстной переменной: два метода чтения, записи нет.

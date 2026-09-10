@@ -1,13 +1,13 @@
 /**
  * Граница пакета: генератор не знает ни одного валидатора.
  *
- * Обещание из предложения — «в `@nestling/openapi` зависимости ни от
+ * Обещание из предложения — «в `@nestlingjs/openapi` зависимости ни от
  * одного валидатора нет» — проверяется, а не декларируется в README. Обход
- * тот же, что у `@nestling/operations`, но с двумя отличиями, и оба
+ * тот же, что у `@nestlingjs/operations`, но с двумя отличиями, и оба
  * намеренные:
  *
  * - **обход не спускается в зависимости.** Генератор серверный: он зависит
- *   от `@nestling/transport.http`, чья конфиг-секция читает zod. Утверждать
+ *   от `@nestlingjs/transport.http`, чья конфиг-секция читает zod. Утверждать
  *   «валидатора нет во всём транзитивном замыкании» было бы просто неправдой,
  *   а тест, проверяющий неправду, зелёным быть не может;
  * - **`node:*` не нарушение.** Под браузер этот пакет не собирается, и
@@ -15,7 +15,7 @@
  *
  * Плюс вторая половина того же обещания — на манифесте: валидатора нет ни
  * в `dependencies`, ни в `peerDependencies`. Конвертер приходит **данными**,
- * и его пакет (`@nestling/openapi.zod`) остаётся зависимостью пользователя.
+ * и его пакет (`@nestlingjs/openapi.zod`) остаётся зависимостью пользователя.
  */
 
 import { readFileSync } from 'node:fs';
@@ -34,10 +34,10 @@ const packageDir = resolve(here, '..');
 
 /** Пакеты, которые генератору положено импортировать, и ничего сверх них */
 const ALLOW = [
-  '@nestling/app',
-  '@nestling/container',
-  '@nestling/operations',
-  '@nestling/transport.http',
+  '@nestlingjs/app',
+  '@nestlingjs/container',
+  '@nestlingjs/operations',
+  '@nestlingjs/transport.http',
 ];
 
 /** Валидаторы: их отсутствие в манифесте и есть предмет обещания */
@@ -51,7 +51,7 @@ const VALIDATORS = new Set([
   'joi',
 ]);
 
-describe('@nestling/openapi: package boundary', () => {
+describe('@nestlingjs/openapi: package boundary', () => {
   it('импортирует только объявленные пакеты фреймворка', () => {
     const violations = collectForbiddenImports({
       repoRoot: resolve(here, '../../..'),

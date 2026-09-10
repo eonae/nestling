@@ -11,9 +11,9 @@ import { TenantId } from './context.js';
 import type { UserRegisteredInput } from './operations.js';
 import { ClaimQuota, QuotaExceeded, UserRegistered } from './operations.js';
 
-import type { CtxReader } from '@nestling/app';
-import { Ctx, implement, makeFeature, makePipeline } from '@nestling/app';
-import { Component, Handler } from '@nestling/container';
+import type { CtxReader } from '@nestlingjs/app';
+import { Ctx, implement, makeFeature, makePipeline } from '@nestlingjs/app';
+import { Component, Handler } from '@nestlingjs/container';
 
 /**
  * Учёт квот по арендаторам: сколько мест занято и кто заархивирован.

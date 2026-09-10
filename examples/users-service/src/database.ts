@@ -1,10 +1,10 @@
 import type { User } from './users/user.js';
 import { AppConfig } from './app.config.js';
 
-import type { Config, Logger } from '@nestling/app';
-import { Logger$ } from '@nestling/app';
-import { Resource } from '@nestling/container';
-import { InMemoryOutboxStore } from '@nestling/outbox';
+import type { Config, Logger } from '@nestlingjs/app';
+import { Logger$ } from '@nestlingjs/app';
+import { Resource } from '@nestlingjs/container';
+import { InMemoryOutboxStore } from '@nestlingjs/outbox';
 
 /**
  * Транзакция: то, что в настоящем сервисе даёт драйвер базы.

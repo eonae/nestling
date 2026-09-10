@@ -4,9 +4,9 @@ import { EmailTaken, NothingToUpdate, UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { Output } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { Output } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const UpdateUserInput = z.object({

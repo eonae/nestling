@@ -36,18 +36,18 @@ import type {
   Module,
   ModuleProvider,
   Token,
-} from '@nestling/container';
+} from '@nestlingjs/container';
 import {
   factoryProvider,
   familyProvider,
   makeTokenFamily,
-} from '@nestling/container';
-import type { AnyOperation, Emitter, Port } from '@nestling/operations';
+} from '@nestlingjs/container';
+import type { AnyOperation, Emitter, Port } from '@nestlingjs/operations';
 import {
   EmitterFamily,
   lookupOperation,
   PortFamily,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /**
  * Семейство DI-токенов держателя исполнителей с единственным членом.

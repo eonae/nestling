@@ -114,7 +114,7 @@
 ### Requirement: Фаза 0 — единственное пред-сборочное чтение конфига
 
 Вычисление `select` SHALL происходить до построения контейнера. Для этого
-`@nestling/app` SHALL экспортировать первичное чтение секции
+`@nestlingjs/app` SHALL экспортировать первичное чтение секции
 `load(section)`: синхронное чтение её ключей из `process.env`, валидация
 схемой и fail-fast на невалидном значении, без контейнера и без привязанных
 источников.
@@ -144,7 +144,7 @@ SHALL NOT обращаться к нему.
 
 ### Requirement: `@OnStart` — единственный хук жизненного цикла
 
-`@nestling/container` SHALL экспортировать декоратор `@OnStart` и метод
+`@nestlingjs/container` SHALL экспортировать декоратор `@OnStart` и метод
 `BuiltContainer.start(signal)`. Других хуков SHALL NOT существовать:
 `@OnInit` и `@OnDestroy` удалены, их место занимают `acquire` и `release`
 ресурса (capability `resource-lifecycle`).

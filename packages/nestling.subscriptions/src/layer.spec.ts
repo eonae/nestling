@@ -14,13 +14,13 @@ import type { SubscriptionClosed } from './operations.js';
 import { SubscriptionRegistry } from './registry.js';
 import type { TrackedSubscription } from './types.js';
 
-import type { Constructor } from '@common/misc';
 import { describe, expect, it } from '@jest/globals';
-import type { ExtendableContext, ResponseContext } from '@nestling/app';
-import { compose, makePipeline } from '@nestling/app';
-import type { Emitter } from '@nestling/operations';
-import { events, Ok, Topic } from '@nestling/operations';
-import { spyLogger } from '@nestling/testing';
+import type { ExtendableContext, ResponseContext } from '@nestlingjs/app';
+import { compose, makePipeline } from '@nestlingjs/app';
+import type { Constructor } from '@nestlingjs/common.misc';
+import type { Emitter } from '@nestlingjs/operations';
+import { events, Ok, Topic } from '@nestlingjs/operations';
+import { spyLogger } from '@nestlingjs/testing';
 import { z } from 'zod';
 
 const Item = z.object({ id: z.string() });

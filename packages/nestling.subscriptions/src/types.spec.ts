@@ -11,7 +11,7 @@ import type { CloseReason } from './types.js';
 import { kindOfOutput } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { events, stream } from '@nestling/operations';
+import { events, stream } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Причины закрытия, перечисленные значением */

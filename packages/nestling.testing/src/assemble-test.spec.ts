@@ -11,7 +11,7 @@ import { familyOverride } from './overrides.js';
 import { unwrap, UnwrapFailedError } from './unwrap.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import type { Config, FilePart, ITransport, Logger } from '@nestling/app';
+import type { Config, FilePart, ITransport, Logger } from '@nestlingjs/app';
 import {
   Discovery$,
   Logger$,
@@ -25,7 +25,7 @@ import {
   RootLogger$,
   transportValue,
   upload,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   classProvider,
   Component,
@@ -36,8 +36,8 @@ import {
   OnStart,
   Resource,
   valueProvider,
-} from '@nestling/container';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+} from '@nestlingjs/container';
+import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
@@ -425,7 +425,7 @@ describe('app.call — полный пайплайн in-proc', () => {
       }),
     );
 
-    // Поле общее для всех транспортов: `@nestling/testing` не знает типов
+    // Поле общее для всех транспортов: `@nestlingjs/testing` не знает типов
     // HTTP-пакета и называть их не может
     expect(
       unwrap(

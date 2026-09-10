@@ -3,8 +3,8 @@
 
 import { Greet, Help, ProcessStdin } from './commands/index.js';
 
-import { makeDispatch } from '@nestling/app';
-import { CliTransport } from '@nestling/transport.cli';
+import { makeDispatch } from '@nestlingjs/app';
+import { CliTransport } from '@nestlingjs/transport.cli';
 
 /**
  * CLI без `assemble`: аргументы есть — выполняется одна команда, аргументов

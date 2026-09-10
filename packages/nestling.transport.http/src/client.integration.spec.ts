@@ -16,11 +16,11 @@ import { HttpServer } from './server.js';
 import { HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { ExecutableDeclaration } from '@nestling/app';
-import { Fail, makeDispatch, Ok } from '@nestling/app';
-import { makeClient } from '@nestling/client';
-import type { HttpBinding } from '@nestling/operations';
-import { makeFail, makeRequest } from '@nestling/operations';
+import type { ExecutableDeclaration } from '@nestlingjs/app';
+import { Fail, makeDispatch, Ok } from '@nestlingjs/app';
+import { makeClient } from '@nestlingjs/client';
+import type { HttpBinding } from '@nestlingjs/operations';
+import { makeFail, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@ import { vars } from './config.js';
 import { checkTopologies } from './topologies.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Config, ITransport, SchemaDocConverter } from '@nestling/app';
+import type { Config, ITransport, SchemaDocConverter } from '@nestlingjs/app';
 import {
   diffOperations,
   formatCompatibility,
@@ -20,15 +20,15 @@ import {
   Ok,
   snapshotOperations,
   transportValue,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   Handler,
   makeSwitch,
   makeToken,
   valueProvider,
-} from '@nestling/container';
-import { makeRequest } from '@nestling/operations';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+} from '@nestlingjs/container';
+import { makeRequest } from '@nestlingjs/operations';
+import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const asHttpTransport = (transport: ITransport) =>
@@ -49,7 +49,7 @@ const ILogger = makeToken<{ log(): void }>('TopologyLogger');
  * DI-токеном. В словарь `select` плагин не входит.
  */
 const loggingPlugin = makePlugin({
-  name: '@nestling/topology-logging',
+  name: '@nestlingjs/topology-logging',
   providers: [valueProvider(ILogger, { log: (): void => undefined })],
 });
 

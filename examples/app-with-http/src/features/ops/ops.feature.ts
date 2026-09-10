@@ -8,7 +8,7 @@ import {
   WatchSubscriptions,
 } from './subscriptions.endpoint.js';
 
-import { makeFeature } from '@nestling/app';
+import { makeFeature } from '@nestlingjs/app';
 
 /**
  * Эксплуатационная фича: endpoint'ы для инфраструктуры, а не для

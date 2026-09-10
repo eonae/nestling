@@ -1,8 +1,8 @@
-# @nestling/eslint-plugin
+# @nestlingjs/eslint-plugin
 
 Два правила ESLint для кода на Nestling: граница модуля по баррель-файлу и
 подсказка про слой в декларации endpoint'а. Правила разбирают синтаксис и
-файловую структуру, поэтому рантайм `@nestling/*` в зависимости не входит.
+файловую структуру, поэтому рантайм `@nestlingjs/*` в зависимости не входит.
 
 > 🚧 Активная разработка, API может меняться.
 > Дизайн: [`docs/design/pipeline.md`](../../docs/design/pipeline.md).
@@ -11,22 +11,22 @@
 ## Установка
 
 ```bash
-npm install --save-dev @nestling/eslint-plugin
+npm install --save-dev @nestlingjs/eslint-plugin
 ```
 
 ## Минимальный пример
 
 ```javascript
 // eslint.config.js
-import nestling from '@nestling/eslint-plugin';
+import nestling from '@nestlingjs/eslint-plugin';
 
 export default [
   {
     files: ['src/**/*.ts'],
-    plugins: { '@nestling': nestling },
+    plugins: { '@nestlingjs': nestling },
     rules: {
-      '@nestling/import-through-barrel': 'error',
-      '@nestling/endpoint-has-layer': [
+      '@nestlingjs/import-through-barrel': 'error',
+      '@nestlingjs/endpoint-has-layer': [
         'warn',
         { layer: 'observability', constructorName: 'httpEndpoint' },
       ],

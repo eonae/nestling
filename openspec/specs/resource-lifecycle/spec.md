@@ -45,7 +45,7 @@
 
 ### Requirement: Функциональная форма ресурса — `resourceProvider`
 
-`@nestling/container` SHALL экспортировать
+`@nestlingjs/container` SHALL экспортировать
 `resourceProvider(Token, { deps, acquire, release })` — форму для классов
 чужих пакетов и для значений без класса. `acquire` SHALL получать
 зависимости из `deps` и сигнал последним аргументом; `release` SHALL
@@ -180,6 +180,6 @@ SHALL объявляться обычным провайдером члена с
 
 #### Scenario: Контейнер не знает про пробы
 
-- **WHEN** внешний код ищет в `@nestling/container` семейство `HealthCheck$`
+- **WHEN** внешний код ищет в `@nestlingjs/container` семейство `HealthCheck$`
 - **THEN** его там нет: контейнер отдаёт перечень ресурсов с `health`, а
-  члены семейства регистрирует `@nestling/app`
+  члены семейства регистрирует `@nestlingjs/app`

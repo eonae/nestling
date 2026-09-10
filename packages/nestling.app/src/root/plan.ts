@@ -40,8 +40,8 @@ import type {
   ModuleProvider,
   Provider,
   TokenOverride,
-} from '@nestling/container';
-import { branchCandidates } from '@nestling/container';
+} from '@nestlingjs/container';
+import { branchCandidates } from '@nestlingjs/container';
 
 /**
  * Имена транспортов, годных в роль интеркома.
@@ -238,7 +238,7 @@ export interface NormalizedAppSpec {
 /**
  * Подстановки тестового корня.
  *
- * Их принимает только шов `@nestling/app/testing`; `assemble` о них не
+ * Их принимает только шов `@nestlingjs/app/testing`; `assemble` о них не
  * знает и не пробрасывает — подстановка есть свойство тестового прогона,
  * а не боевого.
  */

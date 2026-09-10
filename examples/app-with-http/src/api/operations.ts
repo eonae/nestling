@@ -1,7 +1,7 @@
 /**
  * Публичные операции HTTP-API. Их импортирует и сервер, и клиент.
  *
- * Файл тянет только `@nestling/operations`, `zod` и определения отказов,
+ * Файл тянет только `@nestlingjs/operations`, `zod` и определения отказов,
  * поэтому его можно импортировать во фронтенд. Секция `http:` описывает
  * адрес; реализация подключает операцию через `httpEndpoint({ operation })`.
  */
@@ -11,7 +11,7 @@ import { NewUser, User } from '../features/users/user.js';
 import { EmailTaken, UserNotFound } from '../features/users/users.errors.js';
 import { QuotaExceeded } from '../operations.js';
 
-import { makeRequest, query } from '@nestling/operations';
+import { makeRequest, query } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 export const GetUserInput = z.object({ id: z.string() });

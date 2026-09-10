@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { fixupPluginRules } from '@eslint/compat';
 import eslint from '@eslint/js';
-import nestling from '@nestling/eslint-plugin';
+import nestling from '@nestlingjs/eslint-plugin';
 import importPlugin from 'eslint-plugin-import';
 import prettier from 'eslint-plugin-prettier/recommended';
 import sortImports from 'eslint-plugin-simple-import-sort';
@@ -69,7 +69,7 @@ export function createEslintConfig(fileUrl) {
       },
     },
     {
-      plugins: { '@nestling': nestling },
+      plugins: { '@nestlingjs': nestling },
       rules: {
         /*
          * Граница модуля внутри пакета: войти в папку с баррелем можно
@@ -82,7 +82,7 @@ export function createEslintConfig(fileUrl) {
          * Правило полно (спецификаторы импорта — литералы), поэтому после
          * разбора его место — `error`.
          */
-        '@nestling/import-through-barrel': 'warn',
+        '@nestlingjs/import-through-barrel': 'warn',
       },
     },
     {

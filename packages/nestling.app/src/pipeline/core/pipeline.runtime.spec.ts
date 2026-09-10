@@ -28,7 +28,7 @@ import type {
   AnyFailDefinition,
   AnyInput,
   EmptyInput,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import {
   BadRequest,
   Fail,
@@ -36,7 +36,7 @@ import {
   Ok,
   Timeout,
   TRANSPORT_RESPONSE,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------

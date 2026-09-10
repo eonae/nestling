@@ -6,6 +6,6 @@
  * `discoverEndpoints` пакет не экспортирует.
  */
 
-import { discoverEndpoints } from '@nestling/app';
+import { discoverEndpoints } from '@nestlingjs/app';
 
 export const discovered = discoverEndpoints([]);

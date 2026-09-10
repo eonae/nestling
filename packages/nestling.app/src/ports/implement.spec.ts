@@ -13,8 +13,8 @@ import {
 import { implement } from './implement.js';
 import { busBindingOf, BusTransport$ } from './transport.js';
 
-import { makeToken } from '@nestling/container';
-import { makeEvent, makeFail, makeRequest } from '@nestling/operations';
+import { makeToken } from '@nestlingjs/container';
+import { makeEvent, makeFail, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const Ledger = makeToken<{ charge: (amount: number) => string }>('Ledger');

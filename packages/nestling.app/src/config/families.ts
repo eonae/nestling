@@ -7,7 +7,7 @@
 
 import type { ConfigSectionToken } from './declaration.js';
 
-import { makeTokenFamily } from '@nestling/container';
+import { makeTokenFamily } from '@nestlingjs/container';
 
 /**
  * Узел на секцию. Рецепт семейства принадлежит фреймворку: он находит

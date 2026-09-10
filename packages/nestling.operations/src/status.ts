@@ -19,7 +19,7 @@ export const successStatuses = [
  *
  * Категория говорит, как отвечать. Уточнение кода после двоеточия говорит,
  * что случилось. В HTTP-код категорию переводит `STATUS_MAP` в
- * `@nestling/transport.http`.
+ * `@nestlingjs/transport.http`.
  */
 export const categories = [
   'bad_request', // 400

@@ -7,8 +7,8 @@
  * с конкретным действием.
  */
 
-import { makePipeline, Ok } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import { makePipeline, Ok } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 export const StripeHook = httpEndpoint({
   method: 'POST',

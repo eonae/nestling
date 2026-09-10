@@ -17,8 +17,8 @@ import { ActivityHub } from './activity.hub.js';
 import { Database } from './database.js';
 import { DbUsersRepository, UsersRepository$ } from './users.repository.js';
 
-import { makeFeature } from '@nestling/app';
-import { classProvider, makeModule } from '@nestling/container';
+import { makeFeature } from '@nestlingjs/app';
+import { classProvider, makeModule } from '@nestlingjs/container';
 
 /**
  * Модуль пользователей: группирует провайдеры фичи под именем.

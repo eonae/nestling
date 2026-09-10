@@ -9,19 +9,19 @@
 import { assembleTest } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeApp, makeFeature } from '@nestling/app';
-import { wireApp } from '@nestling/app/testing';
-import { BuiltContainer, Resource } from '@nestling/container';
+import { makeApp, makeFeature } from '@nestlingjs/app';
+import { wireApp } from '@nestlingjs/app/testing';
+import { BuiltContainer, Resource } from '@nestlingjs/container';
 
 describe('условие "testing" в тест-раннере', () => {
-  it('резолвит @nestling/app/testing на исходники', async () => {
+  it('резолвит @nestlingjs/app/testing на исходники', async () => {
     const wired = await wireApp(
       makeApp({
         features: [makeFeature({ name: 'module:wiring' })],
       }),
     );
 
-    // Класс из исходников `@nestling/container`: если бы subpath резолвился
+    // Класс из исходников `@nestlingjs/container`: если бы subpath резолвился
     // в `dist`, он притащил бы вторую копию пакета, и `instanceof` не
     // сошёлся бы
     expect(wired.container).toBeInstanceOf(BuiltContainer);

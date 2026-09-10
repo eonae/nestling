@@ -7,7 +7,7 @@
  * тонуть в раскрытии дженериков пайплайна.
  */
 
-import { makeFail, makePipeline } from '@nestling/app';
+import { makeFail, makePipeline } from '@nestlingjs/app';
 
 const Unauthorized = makeFail('unauthorized', { message: 'No token' });
 

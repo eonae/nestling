@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`httpProbes()` — плагин `@nestling/transport.http`, отдающий состояние
+`httpProbes()` — плагин `@nestlingjs/transport.http`, отдающий состояние
 приложения по HTTP: `GET /healthz` для liveness и `GET /readyz` для
 readiness. Плагин ничего не решает сам: хендлеры читают узел ядра `Health$`
 и переводят его итог в коды 200 и 503. Обе декларации выведены из-под
@@ -14,7 +14,7 @@ readiness. Плагин ничего не решает сам: хендлеры 
 
 ### Requirement: `httpProbes()` — плагин пакета с двумя endpoint'ами
 
-`@nestling/transport.http` SHALL экспортировать `httpProbes(options?)`,
+`@nestlingjs/transport.http` SHALL экспортировать `httpProbes(options?)`,
 возвращающий `Plugin` с двумя HTTP-декларациями: `GET /healthz` (liveness) и
 `GET /readyz` (readiness). Пути SHALL задаваться опциями `liveness` и
 `readiness`; без опций SHALL действовать умолчания.

@@ -12,9 +12,9 @@ import { TenantId } from './context.js';
 import type { RegisterUserInput } from './operations.js';
 import { ClaimQuota, RegisterUser, UserRegistered } from './operations.js';
 
-import type { Emitter, Port } from '@nestling/app';
-import { implement, makeFeature, makePipeline } from '@nestling/app';
-import { Component, Handler } from '@nestling/container';
+import type { Emitter, Port } from '@nestlingjs/app';
+import { implement, makeFeature, makePipeline } from '@nestlingjs/app';
+import { Component, Handler } from '@nestlingjs/container';
 
 /**
  * Регистрирует пользователей.

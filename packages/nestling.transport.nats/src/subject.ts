@@ -8,7 +8,7 @@
  * существует.
  */
 
-import type { BusBinding } from '@nestling/app';
+import type { BusBinding } from '@nestlingjs/app';
 
 /**
  * Группа доставки — та же карта, что считает in-proc шина.

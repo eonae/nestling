@@ -68,47 +68,47 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
-Восемнадцать каталогов `packages/`. Ядро — три из них: `@nestling/container`,
-`@nestling/operations` и `@nestling/app`; их ставят вместе, поэтому и имён
+Восемнадцать каталогов `packages/`. Ядро — три из них: `@nestlingjs/container`,
+`@nestlingjs/operations` и `@nestlingjs/app`; их ставят вместе, поэтому и имён
 у ядра три.
 
 Для автора приложения:
 
 | Пакет | Что делает |
 |---|---|
-| [`@nestling/app`](../packages/nestling.app/) | Ядро одним пакетом: пайплайн, конфигурация, порты, абстракция транспорта и composition root (`assemble`, фичи и плагины, `select`, фазы жизненного цикла, политики) |
-| [`@nestling/container`](../packages/nestling.container/) | Контейнер зависимостей: DI-токены, провайдеры, семейства DI-токенов, модули, хуки жизненного цикла |
-| [`@nestling/operations`](../packages/nestling.operations/) | Общее для сервера и клиента: операции, `makeFail`, `Ok`/`Fail`, формы io, `Topic` и комбинаторы потоков |
-| [`@nestling/transport.http`](../packages/nestling.transport.http/) | HTTP на `node:http`: `httpEndpoint`, маршрутизация, JSON, NDJSON, SSE, multipart |
-| [`@nestling/testing`](../packages/nestling.testing/) | Тестовый composition root: `assembleTest`, `overrides`, стабы операций, `checkTopologies` |
+| [`@nestlingjs/app`](../packages/nestling.app/) | Ядро одним пакетом: пайплайн, конфигурация, порты, абстракция транспорта и composition root (`assemble`, фичи и плагины, `select`, фазы жизненного цикла, политики) |
+| [`@nestlingjs/container`](../packages/nestling.container/) | Контейнер зависимостей: DI-токены, провайдеры, семейства DI-токенов, модули, хуки жизненного цикла |
+| [`@nestlingjs/operations`](../packages/nestling.operations/) | Общее для сервера и клиента: операции, `makeFail`, `Ok`/`Fail`, формы io, `Topic` и комбинаторы потоков |
+| [`@nestlingjs/transport.http`](../packages/nestling.transport.http/) | HTTP на `node:http`: `httpEndpoint`, маршрутизация, JSON, NDJSON, SSE, multipart |
+| [`@nestlingjs/testing`](../packages/nestling.testing/) | Тестовый composition root: `assembleTest`, `overrides`, стабы операций, `checkTopologies` |
 
 Транспорты и шина:
 
 | Пакет | Что делает |
 |---|---|
-| [`@nestling/transport.cli`](../packages/nestling.transport.cli/) | Команды CLI как endpoint'ы: однократный запуск и REPL |
-| [`@nestling/transport.nats`](../packages/nestling.transport.nats/) | NATS как шина приложения: операции между процессами, `durable`-доставка |
+| [`@nestlingjs/transport.cli`](../packages/nestling.transport.cli/) | Команды CLI как endpoint'ы: однократный запуск и REPL |
+| [`@nestlingjs/transport.nats`](../packages/nestling.transport.nats/) | NATS как шина приложения: операции между процессами, `durable`-доставка |
 
 Инструменты и сателлиты:
 
 | Пакет | Что делает |
 |---|---|
-| [`@nestling/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
-| [`@nestling/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
-| [`@nestling/openapi.zod`](../packages/nestling.openapi.zod/) | Конвертер схем zod для `@nestling/openapi` |
-| [`@nestling/outbox`](../packages/nestling.outbox/) | Транзакционный emit: событие пишется в базу транзакцией запроса, relay публикует его после коммита |
-| [`@nestling/subscriptions`](../packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
-| [`@nestling/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
-| [`@nestling/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, подсказки по декларациям endpoint'ов |
-| [`@nestling/models`](../packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
+| [`@nestlingjs/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
+| [`@nestlingjs/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
+| [`@nestlingjs/openapi.zod`](../packages/nestling.openapi.zod/) | Конвертер схем zod для `@nestlingjs/openapi` |
+| [`@nestlingjs/outbox`](../packages/nestling.outbox/) | Транзакционный emit: событие пишется в базу транзакцией запроса, relay публикует его после коммита |
+| [`@nestlingjs/subscriptions`](../packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
+| [`@nestlingjs/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
+| [`@nestlingjs/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, подсказки по декларациям endpoint'ов |
+| [`@nestlingjs/models`](../packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
 
-Внутренние, вне скоупа `@nestling`:
+Внутренние — их имя начинается с `common.`:
 
 | Пакет | Что делает |
 |---|---|
-| [`@common/misc`](../packages/common.misc/) | Схемный кернел (`validateSync` и ошибки схем) и общие вспомогательные типы |
-| [`@common/graphs`](../packages/common.graphs/) | Утилиты направленных ациклических графов: ими пользуется контейнер |
-| [`@common/static-server`](../packages/common.static-server/) | Сервер статических файлов без зависимостей: им пользуется `@nestling/viz` |
+| [`@nestlingjs/common.misc`](../packages/common.misc/) | Схемный кернел (`validateSync` и ошибки схем) и общие вспомогательные типы |
+| [`@nestlingjs/common.graphs`](../packages/common.graphs/) | Утилиты направленных ациклических графов: ими пользуется контейнер |
+| [`@nestlingjs/common.static-server`](../packages/common.static-server/) | Сервер статических файлов без зависимостей: им пользуется `@nestlingjs/viz` |
 
 ## Правила ведения
 
@@ -127,7 +127,9 @@ design-доки описывают **только целевое V1** (как б
 5. **Каждый design-док начинается с плашки** «Целевое состояние V1» со
    ссылками на записи журнала и roadmap.
 6. **Новые дискуссии** — сразу в `history/discussions/NN-тема.md`.
-   Корень репозитория для документации закрыт (кроме README и `CLAUDE.md`).
+   Корень репозитория для документации закрыт: там лежат README,
+   `CLAUDE.md` и `RELEASING.md` — последний описывает выпуск версии,
+   то есть работу с репозиторием, а не фреймворк.
 7. **Главы гайда сверяются с примерами.** Каждая глава в `guide/`
    начинается с плашки «сверено с кодом <пример> (дата)». Изменил пример —
    обнови главу и дату.
@@ -151,10 +153,10 @@ design-доки описывают **только целевое V1** (как б
     120 строк, раздел «Экспорты» — не больше 60, то есть не больше половины
     файла. «Минимальный пример»
     содержит один блок кода: README открывают на странице npm, где ни
-    гайда, ни `design/` рядом нет. Плашка пакета `@nestling` называет
+    гайда, ни `design/` рядом нет. Плашка публичного пакета называет
     статус разработки и ведёт на design-док и главу гайда, не больше трёх
-    ссылок каждого вида; плашка пакета `@common` состоит из одной строки о
-    том, что пакет внутренний.
+    ссылок каждого вида; плашка внутреннего пакета — того, чьё имя несёт
+    `common.`, — состоит из одной строки о том, что пакет внутренний.
 11. **Раздел «Экспорты» называет каждое публичное имя пакета** — значения,
     классы, типы и интерфейсы. Публичное имя — это имя, экспортированное
     барелем из поля `exports` файла `package.json`. Формат перечня выбирается

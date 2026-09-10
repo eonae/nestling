@@ -2,7 +2,7 @@
 /**
  * Внешний потребитель API: скрипт, который создаёт и читает пользователя.
  *
- * Импортирует операции и `@nestling/client`. Контейнер, пайплайн и
+ * Импортирует операции и `@nestlingjs/client`. Контейнер, пайплайн и
  * транспорт сюда не попадают.
  *
  * Запуск при поднятом сервере:
@@ -13,7 +13,7 @@ import { EmailTaken, UserNotFound } from '../users/users.errors.js';
 
 import { CreateUser, GetUser } from './operations.js';
 
-import { makeClient } from '@nestling/client';
+import { makeClient } from '@nestlingjs/client';
 
 /** Имена методов задаёт потребитель: ключи объекта */
 const api = makeClient(

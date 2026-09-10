@@ -2,7 +2,7 @@ import type { InjectionToken } from '../common.js';
 import { tokenId } from '../common.js';
 import type { DIGraph, DINode, JsonDIGraph } from '../graph/index.js';
 
-import type { VisitCallback, VisitOptions } from '@common/graphs';
+import type { VisitCallback, VisitOptions } from '@nestlingjs/common.graphs';
 
 /**
  * Текст ошибки обращения к значению до фазы INIT.

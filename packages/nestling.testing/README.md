@@ -1,4 +1,4 @@
-# @nestling/testing
+# @nestlingjs/testing
 
 Тестовый composition root. `assembleTest(app, options)` собирает ту же
 декларацию `makeApp`, что запускает `main.ts`, проводит приложение по фазам
@@ -14,15 +14,31 @@
 ## Установка
 
 ```bash
-npm install --save-dev @nestling/testing
+npm install --save-dev @nestlingjs/testing
 ```
+
+Тест-раннер обязан включать условие резолва `testing`. Тестовые
+поверхности пакетов объявлены subpath'ами под этим условием, поэтому без
+него импорт падает на резолве с `ERR_PACKAGE_PATH_NOT_EXPORTED`: граница
+между тестовым и боевым кодом структурная, а не по договорённости.
+
+```javascript
+// jest.config.js
+export default {
+  testEnvironmentOptions: {
+    customExportConditions: ['testing', 'node', 'node-addons'],
+  },
+};
+```
+
+Node включает условие флагом `--conditions=testing`.
 
 ## Минимальный пример
 
 ```typescript
 import { app } from './app'; // та же декларация makeApp, что у main.ts
 
-import { assembleTest, stub, unwrap, vars } from '@nestling/testing';
+import { assembleTest, stub, unwrap, vars } from '@nestlingjs/testing';
 
 await using testApp = await assembleTest(app, {
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
@@ -46,7 +62,7 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
 - **Логгер** — `spyLogger`, `SpyLogger`, `LogEntry`.
 - **Топологии и юниты** — `checkTopologies`, `TopologyReport`, `testUnit`,
   `TestUnitOptions`.
-- **Реэкспорт [`@nestling/app`](../nestling.app/)** — имена ядра, чтобы тест
+- **Реэкспорт [`@nestlingjs/app`](../nestling.app/)** — имена ядра, чтобы тест
   импортировал один пакет.
 
 Список `transports` в опциях не принимается: тестовая сборка не выполняет

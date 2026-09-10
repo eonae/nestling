@@ -1,7 +1,7 @@
 import { jsonSchema } from './json-schema.js';
 import { makeFail } from './make-fail.js';
 
-import type { SchemaIssue, StandardSchemaV1 } from '@common/misc';
+import type { SchemaIssue, StandardSchemaV1 } from '@nestlingjs/common.misc';
 
 /**
  * Схема деталей отказа проверки входа, написанная вручную.
@@ -117,8 +117,8 @@ export const PayloadTooLarge = makeFail('payload_too_large', {
  * Отказ по истечении срока: бюджет вызова порта (`meta.deadline`) или
  * молчание потока дольше `.gapTimeout(ms)`.
  *
- * Объявлен здесь, а не в `@nestling/app`: набор кодов ядра закрыт и не
- * пополняется из других пакетов. `@nestling/app` его реэкспортирует.
+ * Объявлен здесь, а не в `@nestlingjs/app`: набор кодов ядра закрыт и не
+ * пополняется из других пакетов. `@nestlingjs/app` его реэкспортирует.
  */
 export const Timeout = makeFail('timeout', {
   message: 'Operation timed out',

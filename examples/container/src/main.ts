@@ -3,7 +3,7 @@ import { appCounters } from './counters/index.js';
 import { runtimeConfigKeys } from './runtime/index.js';
 import { AppFeature } from './app.feature.js';
 
-import { makeApp, objectSource } from '@nestling/app';
+import { makeApp, objectSource } from '@nestlingjs/app';
 
 /**
  * Composition root без транспорта: приложение проходит фазы и остаётся в

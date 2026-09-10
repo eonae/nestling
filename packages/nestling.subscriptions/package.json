@@ -1,14 +1,41 @@
 {
-  "name": "@nestling/subscriptions",
+  "name": "@nestlingjs/subscriptions",
   "version": "0.1.0",
-  "description": "Registry of active subscriptions — a satellite package built entirely on public primitives",
+  "description": "Реестр активных подписок: список, принудительное закрытие и лента изменений — сателлит целиком на публичных примитивах ядра",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "subscriptions",
+    "streaming",
+    "registry"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.subscriptions"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.subscriptions#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,16 +45,14 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*",
-    "@nestling/app": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/common.misc": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*"
   },
   "devDependencies": {
-    "@nestling/testing": "workspace:*",
+    "@nestlingjs/testing": "workspace:*",
     "typescript": "5.7.3",
     "zod": "^4.0.0"
   }

@@ -21,10 +21,10 @@ import type {
   ConfigProjection,
   IListener,
   ServerDeclaration,
-} from '@nestling/app';
-import { DEFAULT_INSTANCE, makeServerDeclaration } from '@nestling/app';
-import type { InjectionToken } from '@nestling/container';
-import { makeTokenFamily, resourceProvider } from '@nestling/container';
+} from '@nestlingjs/app';
+import { DEFAULT_INSTANCE, makeServerDeclaration } from '@nestlingjs/app';
+import type { InjectionToken } from '@nestlingjs/container';
+import { makeTokenFamily, resourceProvider } from '@nestlingjs/container';
 
 /** Сколько `drain()` ждёт активные соединения по умолчанию (10 с) */
 const DEFAULT_CLOSE_TIMEOUT = 10_000;

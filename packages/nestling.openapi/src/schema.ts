@@ -10,8 +10,8 @@
 import type { Diagnostics } from './diagnostics.js';
 import type { JsonSchemaObject, JsonValue } from './types.js';
 
-import type { SchemaDocConverter } from '@nestling/app';
-import { isPrimitiveLeaf, leafJsonSchema } from '@nestling/app';
+import type { SchemaDocConverter } from '@nestlingjs/app';
+import { isPrimitiveLeaf, leafJsonSchema } from '@nestlingjs/app';
 
 /** Контекст конвертации одного endpoint'а */
 export interface ConvertContext {
@@ -82,7 +82,7 @@ export function convertLeaf(
       `the '${slot}' schema is a '${resolved.vendor}' schema, and no ` +
         `converter for that vendor was passed. Either add one to ` +
         `'converters' (for example zodConverter() from ` +
-        `@nestling/openapi.zod), or declare the schema explicitly with ` +
+        `@nestlingjs/openapi.zod), or declare the schema explicitly with ` +
         `jsonSchema(schema, { … }).`,
     );
     return undefined;

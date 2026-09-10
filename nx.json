@@ -67,7 +67,7 @@
         "check"
       ],
       "dependsOn": [
-        "@nestling/eslint-plugin:build"
+        "@nestlingjs/eslint-plugin:build"
       ],
       "cache": true
     },

@@ -20,7 +20,7 @@ JSDoc, комментариях кода, заголовках тестов и �
 Правило не действует в `docs/history/` и `docs/decisions/`: первая папка
 заморожена, вторая пополняется только новыми записями. Идентификаторы кода
 и имена файлов правилу не подчиняются: `makeToken`, `tokenId`, `API_TOKEN`,
-`@nestling/container/tokens`, `token-family.ts`.
+`@nestlingjs/container/tokens`, `token-family.ts`.
 
 #### Scenario: Глава об аутентификации различает два значения
 

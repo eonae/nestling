@@ -18,7 +18,7 @@ import { SubscriptionRegistry } from './registry.js';
 import type { SubscriptionEvent } from './types.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Output } from '@nestling/app';
+import type { Output } from '@nestlingjs/app';
 import {
   compose,
   implement,
@@ -26,10 +26,10 @@ import {
   makeEndpoint,
   makeFeature,
   makePipeline,
-} from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { events, Ok } from '@nestling/operations';
-import { assembleTest } from '@nestling/testing';
+} from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { events, Ok } from '@nestlingjs/operations';
+import { assembleTest } from '@nestlingjs/testing';
 import { z } from 'zod';
 
 const Tick = z.object({ n: z.number() });
@@ -250,7 +250,7 @@ describe('subscriptions(): реестр в собранном приложени
           transports: [testTransport()],
         }),
       ),
-    ).rejects.toThrow(/@nestling\/subscriptions/);
+    ).rejects.toThrow(/@nestlingjs\/subscriptions/);
   });
 });
 

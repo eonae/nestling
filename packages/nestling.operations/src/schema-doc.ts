@@ -11,8 +11,8 @@
  *
  * | Потребитель | Нет конвертера для вендора |
  * |---|---|
- * | генератор документации (`@nestling/openapi`) | fail-fast на boot |
- * | снапшот операций (`@nestling/app`) | лист непрозрачен → вердикт `unknown` |
+ * | генератор документации (`@nestlingjs/openapi`) | fail-fast на boot |
+ * | снапшот операций (`@nestlingjs/app`) | лист непрозрачен → вердикт `unknown` |
  * | снимок конфига (`describeConfig`) | исход `unconvertible` в описании ключа |
  *
  * Поэтому диспетчер строгость не зашивает: он возвращает «конвертера
@@ -26,7 +26,7 @@
 
 import { jsonSchemaOf } from './json-schema.js';
 
-import type { StandardSchemaV1 } from '@common/misc';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 
 /**
  * Конвертер схем одного вендора в JSON Schema.

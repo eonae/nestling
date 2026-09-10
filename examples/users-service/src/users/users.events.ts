@@ -1,6 +1,6 @@
 import { User } from './user.js';
 
-import { makeEvent } from '@nestling/operations';
+import { makeEvent } from '@nestlingjs/operations';
 
 /**
  * Пользователь создан.

@@ -20,7 +20,7 @@ import type {
   Logger,
   LogLevel,
   TransportCapabilities,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   compose,
   everyEndpoint,
@@ -30,15 +30,15 @@ import {
   makePipeline,
   Ok,
   transportValue,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   factoryProvider,
   makeToken,
   resourceProvider,
-} from '@nestling/container';
-import { zodConverter } from '@nestling/openapi.zod';
-import type { StandardSchemaV1 } from '@nestling/operations';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+} from '@nestlingjs/container';
+import { zodConverter } from '@nestlingjs/openapi.zod';
+import type { StandardSchemaV1 } from '@nestlingjs/operations';
+import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 /** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */
@@ -211,7 +211,7 @@ describe('openapi(...) — плагин-издатель', () => {
         fields: {
           scope: 'nestling:openapi',
           pattern: 'GET /openapi.json',
-          module: '@nestling/openapi',
+          module: '@nestlingjs/openapi',
           reason: 'служебная ручка: сам документ',
         },
       },

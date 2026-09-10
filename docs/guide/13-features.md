@@ -1,6 +1,6 @@
 # 13. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-10).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -97,7 +97,7 @@ import {
   makeCommand,
   makeEvent,
   makeRequest,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Отказ «квота исчерпана». По сети приходит кодом и восстанавливается в `Fail` */
@@ -122,7 +122,7 @@ export const ClaimQuota = makeRequest({
 Операция — единица общения между фичами: имя, схемы `input` и `output`,
 список `errors`. Она объявлена в файле вне обеих фич, потому что не
 принадлежит ни вызывающему, ни реализующему. Файл импортирует только
-`@nestling/operations` и `zod`, поэтому операцию может импортировать и
+`@nestlingjs/operations` и `zod`, поэтому операцию может импортировать и
 фронтенд.
 
 `makeRequest` объявляет операцию вида `request`: вызывающий ждёт ответ
@@ -309,7 +309,7 @@ export const appSubscriptions = subscriptions({
 });
 ```
 
-`subscriptions(options)` из пакета `@nestling/subscriptions` собирает
+`subscriptions(options)` из пакета `@nestlingjs/subscriptions` собирает
 реестр подписок. Параметры `identity` и `labels` — функции, которые
 вычисляют подписчика и метки записи из контекста запроса. Параметр
 `node` — имя узла в реестре. Флаг `publish: true` включает публикацию

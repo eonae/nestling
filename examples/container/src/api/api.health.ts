@@ -1,8 +1,8 @@
 import type { ApiClient } from '../interfaces.js';
 import { ApiClient$ } from '../interfaces.js';
 
-import type { HealthCheck, HealthStatus } from '@nestling/app';
-import { Component } from '@nestling/container';
+import type { HealthCheck, HealthStatus } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
 
 /**
  * Проверка внешнего API: второй вклад в семейство ядра.

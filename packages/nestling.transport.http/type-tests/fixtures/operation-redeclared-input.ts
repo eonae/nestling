@@ -8,8 +8,8 @@
  * точнее.
  */
 
-import { Ok } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import { Ok } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 import { CreateUser as CreateUserOperation } from '../support/fixture-kit.js';
 

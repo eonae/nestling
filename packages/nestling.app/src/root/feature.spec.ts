@@ -14,7 +14,7 @@ import {
 } from './feature.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeModule } from '@nestling/container';
+import { makeModule } from '@nestlingjs/container';
 
 const moduleNamed = (name: string) => makeModule({ name });
 

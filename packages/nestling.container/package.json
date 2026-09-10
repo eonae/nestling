@@ -1,9 +1,30 @@
 {
-  "name": "@nestling/container",
+  "name": "@nestlingjs/container",
   "version": "0.1.0",
-  "description": "",
+  "description": "Контейнер зависимостей на стандартных декораторах ECMAScript с полной проверкой графа на сборке",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "dependency-injection",
+    "ioc",
+    "decorators"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.container"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.container#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/out.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -14,6 +35,12 @@
       "import": "./dist/tokens.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc -p tsconfig.json",
@@ -22,10 +49,8 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@common/graphs": "workspace:*",
+    "@nestlingjs/common.graphs": "workspace:*",
     "@standard-schema/spec": "^1.1.0"
   }
 }

@@ -21,7 +21,7 @@ import {
 import { canonicalizeJson, describeOperation } from './describe.js';
 import { implement } from './implement.js';
 
-import { makeCommand, makeRequest } from '@nestling/operations';
+import { makeCommand, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const zodConverter = (): SchemaDocConverter => ({

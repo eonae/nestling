@@ -6,8 +6,8 @@
  * "conflict:order_limit_reached"», а не тонуть в раскрытии дженериков.
  */
 
-import { makeToken } from '@nestling/container';
-import { makeFail, makeEndpoint } from '@nestling/app';
+import { makeToken } from '@nestlingjs/container';
+import { makeFail, makeEndpoint } from '@nestlingjs/app';
 import { z } from 'zod';
 
 const HttpTransport$ = makeToken('transport:http');

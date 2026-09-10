@@ -9,10 +9,10 @@
 import { declareApp } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { AssembledApp } from '@nestling/app';
-import { spyLogger } from '@nestling/testing';
-import { NatsBus } from '@nestling/transport.nats';
-import { NatsDouble, natsDouble } from '@nestling/transport.nats/testing';
+import type { AssembledApp } from '@nestlingjs/app';
+import { spyLogger } from '@nestlingjs/testing';
+import { NatsBus } from '@nestlingjs/transport.nats';
+import { NatsDouble, natsDouble } from '@nestlingjs/transport.nats/testing';
 
 /** Арендатор из конверта сообщения, отправленного на этот subject */
 function tenantOf(broker: NatsDouble, subject: string): unknown {

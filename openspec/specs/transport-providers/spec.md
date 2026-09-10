@@ -16,8 +16,8 @@
 ### Requirement: Транспорт — обычный провайдер с токеном
 
 Каждый транспортный пакет SHALL экспортировать токен своего транспорта и
-фабрику объявления: `@nestling/transport.http` — `http(options?)`,
-`@nestling/transport.cli` — `cli(options?)`. Фабрика SHALL возвращать
+фабрику объявления: `@nestlingjs/transport.http` — `http(options?)`,
+`@nestlingjs/transport.cli` — `cli(options?)`. Фабрика SHALL возвращать
 **объявление** с провайдером, токеном, именем экземпляра и способностями
 (capability `transport-form-capabilities`), а не инстанс: зависимости
 транспорта SHALL инжектироваться контейнером, а его создание и остановка
@@ -108,7 +108,7 @@ SHALL проверяться регистрацией (`container.has(token)`), 
 ### Requirement: Порт и адрес транспорта приходят из конфиг-секции
 
 Сокетом SHALL владеть сервер, а не транспорт (capability
-`http-server-resource`). `@nestling/transport.http` SHALL объявлять
+`http-server-resource`). `@nestlingjs/transport.http` SHALL объявлять
 конфиг-секцию сервера с префиксом по имени экземпляра (`HTTP_PORT`,
 `HTTP_HOST`, `HTTP_ADMIN_PORT`, `HTTP_ADMIN_HOST`) и читать её в
 провайдере сервера. Опций `port` и `host` у фабрик `httpServer()` и

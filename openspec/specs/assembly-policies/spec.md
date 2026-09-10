@@ -112,7 +112,7 @@ endpoint'ы
 
 ### Requirement: `Policy` — открытый интерфейс словаря предикатов
 
-`@nestling/app` SHALL экспортировать типы `Policy`, `PolicySubject` и
+`@nestlingjs/app` SHALL экспортировать типы `Policy`, `PolicySubject` и
 `PolicyViolation`. `Policy` SHALL нести `describe(): string` (описание для
 диагностики) и `check(subjects: readonly PolicySubject[]): readonly
 PolicyViolation[]`. `PolicySubject` SHALL нести декларацию и имя
@@ -123,7 +123,7 @@ PolicyViolation[]`. `PolicySubject` SHALL нести декларацию и и�
 прохода по дискавери и без второго поля в корне: любой новый инвариант
 приезжает значением того же типа `Policy`.
 
-`@nestling/app` SHALL NOT интерпретировать содержимое политик: его роль —
+`@nestlingjs/app` SHALL NOT интерпретировать содержимое политик: его роль —
 собрать `PolicySubject[]` из дискавери, вызвать `check` и отформатировать
 результат.
 
@@ -136,7 +136,7 @@ PolicyViolation[]`. `PolicySubject` SHALL нести декларацию и и�
 #### Scenario: Приложение не знает о содержимом политики
 
 - **WHEN** политика возвращает нарушения
-- **THEN** `@nestling/app` только форматирует их, не разбирая ни пайплайны,
+- **THEN** `@nestlingjs/app` только форматирует их, не разбирая ни пайплайны,
   ни фильтры
 
 ### Requirement: Политики проверяются на каждом входе, строящем граф

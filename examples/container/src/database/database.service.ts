@@ -3,9 +3,9 @@ import type { Counter } from '../counters/index.js';
 import { Counter$ } from '../counters/index.js';
 import type { Database } from '../interfaces.js';
 
-import type { Config, Logger } from '@nestling/app';
-import { Logger$ } from '@nestling/app';
-import { Component } from '@nestling/container';
+import type { Config, Logger } from '@nestlingjs/app';
+import { Logger$ } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
 
 /**
  * База данных в памяти: реализация DI-токена `Database$`.

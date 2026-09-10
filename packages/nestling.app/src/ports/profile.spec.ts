@@ -49,9 +49,9 @@ import {
 import { PortRuntime } from './runtime.js';
 import { BusTransport$ } from './transport.js';
 
-import { ContainerBuilder, makeToken } from '@nestling/container';
-import type { Emitter, Port } from '@nestling/operations';
-import { makeCommand, makeRequest } from '@nestling/operations';
+import { ContainerBuilder, makeToken } from '@nestlingjs/container';
+import type { Emitter, Port } from '@nestlingjs/operations';
+import { makeCommand, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const sleep = (ms: number): Promise<void> =>

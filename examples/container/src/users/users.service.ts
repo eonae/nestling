@@ -3,9 +3,9 @@ import { Counter$ } from '../counters/index.js';
 
 import { UserRepository } from './users.repository.js';
 
-import type { Logger } from '@nestling/app';
-import { Logger$ } from '@nestling/app';
-import { Component, OnStart } from '@nestling/container';
+import type { Logger } from '@nestlingjs/app';
+import { Logger$ } from '@nestlingjs/app';
+import { Component, OnStart } from '@nestlingjs/container';
 
 @Component([UserRepository, Counter$('users'), Logger$('users')])
 export class UserService {

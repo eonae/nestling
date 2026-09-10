@@ -9,9 +9,9 @@
  * без `app.call` и без открытого scope'а запроса.
  */
 
-import type { AnyContextVar, CtxReader } from '@nestling/app';
-import { Ctx } from '@nestling/app';
-import type { Token } from '@nestling/container';
+import type { AnyContextVar, CtxReader } from '@nestlingjs/app';
+import { Ctx } from '@nestlingjs/app';
+import type { Token } from '@nestlingjs/container';
 
 /**
  * Подставляет фиксированное значение ambient-переменной.

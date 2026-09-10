@@ -6,7 +6,7 @@
  * `packages/nestling.pipeline/type-tests/support/fixture-kit.ts`.
  */
 
-import { makeFail, makeRequest } from '@nestling/operations';
+import { makeFail, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 export const UserInput = z.object({ id: z.string() });

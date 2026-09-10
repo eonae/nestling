@@ -184,7 +184,7 @@ export const CreateOrderImpl = implement(CreateOrder, {
 
 Unit-тест хендлера не требует фреймворка: класс создаётся через
 `new CreateOrderHandler(fakes…)`, функция вызывается напрямую. Импортов из
-`@nestling/*` в таком тесте нет.
+`@nestlingjs/*` в таком тесте нет.
 
 ### HTTP-хендлер
 

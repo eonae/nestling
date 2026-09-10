@@ -46,12 +46,12 @@ The principles behind the design are described in
 ## Quick start
 
 ```bash
-npm install @nestling/app @nestling/transport.http zod
+npm install @nestlingjs/app @nestlingjs/transport.http zod
 ```
 
 ```typescript
-import { makeApp, makeFeature } from '@nestling/app';
-import { http, httpEndpoint } from '@nestling/transport.http';
+import { makeApp, makeFeature } from '@nestlingjs/app';
+import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 // An endpoint is a value: address, schemas and handler in one object
@@ -105,10 +105,14 @@ yarn verify          # build + typecheck + lint + test across all packages
 yarn docs:audit      # documentation consistency check
 yarn docs:build      # build the HTML documentation site
 yarn bench:http      # HTTP transport against Fastify; a reference point, not a gate
+yarn pack:check      # install the tarballs into a project outside the repo
 ```
 
 A monorepo on Yarn workspaces and Nx: packages live in `packages/`,
 examples in `examples/`, documentation in `docs/`.
+
+Releasing a version — [RELEASING.md](./RELEASING.md): a human bumps the
+version, GitHub Actions publishes on the tag.
 
 ## Contributing
 
@@ -117,4 +121,4 @@ issue.
 
 ## License
 
-MIT © 2025
+MIT © 2026

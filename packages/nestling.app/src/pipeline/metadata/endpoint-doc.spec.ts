@@ -11,7 +11,7 @@ import { Ok } from '../core/index.js';
 import { makeEndpoint } from './endpoint.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeToken } from '@nestling/container';
+import { makeToken } from '@nestlingjs/container';
 
 const HttpTransport$ = makeToken('transport:http');
 

@@ -12,7 +12,7 @@ import { ConsoleLogger, defaultLogger } from './console.js';
 import type { LogLevel } from './interface.js';
 
 import { jest } from '@jest/globals';
-import { makeFail } from '@nestling/operations';
+import { makeFail } from '@nestlingjs/operations';
 
 const UserNotFound = makeFail('not_found:user', { message: 'User not found' });
 

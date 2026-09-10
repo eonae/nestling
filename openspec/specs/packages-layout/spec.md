@@ -54,8 +54,8 @@
 ### Requirement: Объявленные зависимости совпадают с импортируемыми
 
 Для каждого пакета множество внутренних зависимостей, объявленных в
-`package.json` (`dependencies` и `peerDependencies` скоупов `@nestling`
-и `@common`), SHALL совпадать с множеством пакетов, которые импортирует
+`package.json` (`dependencies` и `peerDependencies` скоупа `@nestlingjs`),
+SHALL совпадать с множеством пакетов, которые импортирует
 его `src/` вне тестовых файлов.
 
 Тестовыми SHALL считаться `*.spec.ts`, `*.test.ts`, `*.type-test.ts` и
@@ -67,19 +67,19 @@ SHALL быть объявлен в `devDependencies`.
 
 #### Scenario: Лишнее объявление
 
-- **WHEN** `package.json` пакета объявляет `@nestling/operations`, а ни один
+- **WHEN** `package.json` пакета объявляет `@nestlingjs/operations`, а ни один
   модуль `src/` вне тестовых файлов его не импортирует
 - **THEN** это расхождение с требованием
 
 #### Scenario: Недостающее объявление
 
-- **WHEN** модуль `src/` импортирует `@nestling/app`, а `package.json`
+- **WHEN** модуль `src/` импортирует `@nestlingjs/app`, а `package.json`
   пакета его не объявляет
 - **THEN** это расхождение с требованием
 
 #### Scenario: Импорт только из проверки типов
 
-- **WHEN** пакет импортирует `@nestling/transport.http` только в
+- **WHEN** пакет импортирует `@nestlingjs/transport.http` только в
   `*.type-test.ts`
 - **THEN** зависимость остаётся в `devDependencies` и в `dependencies`
   не переносится
@@ -93,8 +93,8 @@ SHALL быть объявлен в `devDependencies`.
 
 #### Scenario: Лишнее имя в списке
 
-- **WHEN** список разрешённых импортов `@nestling/operations` называет
-  `@nestling/app`, а пакет его не импортирует
+- **WHEN** список разрешённых импортов `@nestlingjs/operations` называет
+  `@nestlingjs/app`, а пакет его не импортирует
 - **THEN** имя убирается, и тест границы остаётся зелёным
 
 ### Requirement: Корневой барель пакета перечисляет публичные имена поимённо
@@ -118,18 +118,18 @@ SHALL оставаться экспортом своего модуля и SHALL
 
 - **WHEN** функция `readSectionSnapshot` экспортируется модулем
   `src/config/registry.ts`, но не названа в `src/index.ts`
-- **THEN** `import { readSectionSnapshot } from '@nestling/app'` не
+- **THEN** `import { readSectionSnapshot } from '@nestlingjs/app'` не
   компилируется, а внутри пакета имя работает как раньше
 
 #### Scenario: Имя соседа видно в бареле
 
-- **WHEN** `@nestling/app` отдаёт `Ok` и `Fail` из `@nestling/operations`
+- **WHEN** `@nestlingjs/app` отдаёт `Ok` и `Fail` из `@nestlingjs/operations`
 - **THEN** в `src/index.ts` они перечислены оператором
-  `export { … } from '@nestling/operations'`, а не приходят через `export *`
+  `export { … } from '@nestlingjs/operations'`, а не приходят через `export *`
   собственного модуля
 
 #### Scenario: У имени появился читатель
 
-- **WHEN** новый пакет импортирует `withRequestLogging` из `@nestling/app`
+- **WHEN** новый пакет импортирует `withRequestLogging` из `@nestlingjs/app`
 - **THEN** имя возвращается в `src/index.ts` одной строкой, и это не ломающее
   изменение

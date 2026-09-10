@@ -1,9 +1,30 @@
 {
-  "name": "@nestling/app",
+  "name": "@nestlingjs/app",
   "version": "0.1.0",
-  "description": "",
+  "description": "Ядро Nestling одним пакетом: пайплайн обработки запроса, конфигурация, порты между фичами, абстракция транспорта и композиционный корень",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "framework",
+    "dependency-injection",
+    "backend"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.app"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.app#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -16,6 +37,12 @@
       }
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc -p tsconfig.json",
@@ -25,12 +52,10 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
     "type-budget": "run -T tsx type-tests/bench/run.ts"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@common/misc": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*"
   },
   "devDependencies": {
     "zod": "^4.0.0"

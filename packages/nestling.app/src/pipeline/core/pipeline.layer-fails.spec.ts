@@ -29,8 +29,8 @@ import type {
   AnyFailDefinition,
   AnyInput,
   EmptyInput,
-} from '@nestling/operations';
-import { BadRequest, Fail, makeFail, Ok } from '@nestling/operations';
+} from '@nestlingjs/operations';
+import { BadRequest, Fail, makeFail, Ok } from '@nestlingjs/operations';
 
 const Unauthorized = makeFail('unauthorized', { message: 'No token' });
 

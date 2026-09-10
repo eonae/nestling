@@ -11,7 +11,7 @@ import type {
   IMessageBus,
   PublishOptions,
   ResponseContext,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 
 /** Одна публикация в том виде, в котором её сделал relay */
 export interface PublishedMessage {

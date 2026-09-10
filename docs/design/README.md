@@ -22,4 +22,4 @@
 | [schemas.md](./schemas.md) | Standard Schema на границах, OpenAPI/AsyncAPI через конвертеры |
 | [streaming.md](./streaming.md) | стриминг: `stream`/`events`, item-цепочки, `Topic`, граница с RxJS |
 | [transports.md](./transports.md) | транспорты: `serve(dispatch)`, сервер как ресурс, юниты транспорта, пробы, байтовый уровень (сжатие, CORS, парсинг по io-декларации) |
-| [testing.md](./testing.md) | `@nestling/testing`: `assembleTest(app, …)`, стабы, `check(args)` |
+| [testing.md](./testing.md) | `@nestlingjs/testing`: `assembleTest(app, …)`, стабы, `check(args)` |

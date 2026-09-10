@@ -1,4 +1,4 @@
-# @common/misc
+# @nestlingjs/common.misc
 
 Схемный кернел Nestling и общие вспомогательные типы. Пакет задаёт словарь
 схем поверх [Standard Schema v1](https://standardschema.dev) и держит
@@ -7,17 +7,17 @@
 и поля секций конфигурации, поэтому ошибка валидации везде выглядит
 одинаково.
 
-> Внутренний пакет Nestling: ставится вместе с ядром, весь его API реэкспортирует `@nestling/app`.
+> Внутренний пакет Nestling: ставится вместе с ядром, весь его API реэкспортирует `@nestlingjs/app`.
 
 ## Установка
 
 Пакет внутренний и приходит зависимостью ядра. Отдельно устанавливать его не
-нужно: перечисленные имена доступны из `@nestling/app`.
+нужно: перечисленные имена доступны из `@nestlingjs/app`.
 
 ## Минимальный пример
 
 ```typescript
-import { SchemaValidationError, validateSync } from '@common/misc';
+import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
 import { z } from 'zod';
 
 const schema = z.object({ id: z.string() });
@@ -54,4 +54,4 @@ try {
 ## Границы пакета
 
 Ядро не заглядывает внутрь схемы: спецификация даёт только валидацию и вывод
-типов. Разбор схемы в JSON Schema делают конвертеры `@nestling/openapi`.
+типов. Разбор схемы в JSON Schema делают конвертеры `@nestlingjs/openapi`.

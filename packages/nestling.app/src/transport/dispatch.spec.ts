@@ -27,7 +27,7 @@ import {
 import { makeDispatch } from './dispatch.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import { ContainerBuilder, makeToken } from '@nestling/container';
+import { ContainerBuilder, makeToken } from '@nestlingjs/container';
 import { z } from 'zod';
 
 const TestTransport$ = makeToken('transport:test');

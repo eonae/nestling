@@ -1,9 +1,9 @@
-# @nestling/client
+# @nestlingjs/client
 
 Типизированный HTTP-клиент из деклараций операций. `makeClient(record, config)`
 возвращает объект API, метод которого вызывается так же, как порт операции:
 `Ok | Fail` для `request`, `Promise<void>` для `command`. Пакет зависит только
-от `@nestling/operations` и глобального `fetch`, поэтому собирается для
+от `@nestlingjs/operations` и глобального `fetch`, поэтому собирается для
 браузера.
 
 > 🚧 Активная разработка, API может меняться.
@@ -13,14 +13,14 @@
 ## Установка
 
 ```bash
-npm install @nestling/client
+npm install @nestlingjs/client
 ```
 
 ## Минимальный пример
 
 ```typescript
 import { CreateUser, GetUser } from '@acme/billing-operations';
-import { makeClient } from '@nestling/client';
+import { makeClient } from '@nestlingjs/client';
 
 const api = makeClient(
   { createUser: CreateUser, getUser: GetUser }, // имена методов задаёте вы

@@ -19,7 +19,7 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Component, makeToken } from '@nestling/container';
+import { Component, makeToken } from '@nestlingjs/container';
 
 /** DI-токен транспорта-заглушки: приёма запросов в тестовом прогоне нет */
 const MockTransport$ = makeToken<MockTransport>('transport:mock');

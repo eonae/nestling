@@ -1,9 +1,9 @@
 /**
- * `@nestling/eslint-plugin` — фидбек в редакторе по коду на Nestling.
+ * `@nestlingjs/eslint-plugin` — фидбек в редакторе по коду на Nestling.
  *
  * Пакет отдельный намеренно: плагин ESLint обязан быть отдельной точкой
  * установки, и у него другой цикл релиза, чем у рантайма. Рантайм
- * `@nestling/*` в зависимостях не появляется — правила разбирают синтаксис
+ * `@nestlingjs/*` в зависимостях не появляется — правила разбирают синтаксис
  * и файловую структуру.
  *
  * Правила отличаются полнотой, и от неё зависит рекомендуемый уровень.
@@ -13,15 +13,15 @@
  *
  * @example flat config
  * ```javascript
- * import nestling from '@nestling/eslint-plugin';
+ * import nestling from '@nestlingjs/eslint-plugin';
  *
  * export default [
  *   {
  *     files: ['src/**\/*.ts'],
- *     plugins: { '@nestling': nestling },
+ *     plugins: { '@nestlingjs': nestling },
  *     rules: {
- *       '@nestling/import-through-barrel': 'error',
- *       '@nestling/endpoint-has-layer': [
+ *       '@nestlingjs/import-through-barrel': 'error',
+ *       '@nestlingjs/endpoint-has-layer': [
  *         'warn',
  *         { layer: 'authedBase', constructorName: 'httpEndpoint' },
  *       ],
@@ -39,7 +39,7 @@ export { importThroughBarrel } from './import-through-barrel.js';
 
 const plugin = {
   meta: {
-    name: '@nestling/eslint-plugin',
+    name: '@nestlingjs/eslint-plugin',
     version: '0.1.0',
   },
   rules: {

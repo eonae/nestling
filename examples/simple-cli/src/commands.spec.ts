@@ -13,8 +13,8 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import { makeDispatch } from '@nestling/app';
-import { CliTransport, parseArgv } from '@nestling/transport.cli';
+import { makeDispatch } from '@nestlingjs/app';
+import { CliTransport, parseArgv } from '@nestlingjs/transport.cli';
 
 /** Глушит вывод справки в тесте */
 const drop = (): void => undefined;

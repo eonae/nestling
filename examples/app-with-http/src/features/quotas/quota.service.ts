@@ -1,4 +1,4 @@
-import { Component } from '@nestling/container';
+import { Component } from '@nestlingjs/container';
 
 /**
  * Счётчик квоты: сервис фичи квот.

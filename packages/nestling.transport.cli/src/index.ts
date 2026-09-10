@@ -22,7 +22,7 @@ import type {
   TransportCapabilities,
   TransportDeclaration,
   ValidateOutputForm,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   assertFormsSupported,
   bindInputStream,
@@ -34,9 +34,9 @@ import {
   makeTransportDeclaration,
   TransportClosingError,
   transportNameOf,
-} from '@nestling/app';
-import { factoryProvider, makeTokenFamily } from '@nestling/container';
-import { untilAborted } from '@nestling/operations';
+} from '@nestlingjs/app';
+import { factoryProvider, makeTokenFamily } from '@nestlingjs/container';
+import { untilAborted } from '@nestlingjs/operations';
 
 /**
  * Семейство DI-токенов CLI-транспорта: один член на экземпляр.

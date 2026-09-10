@@ -4,9 +4,9 @@ import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import { Handler } from '@nestling/container';
-import type { HttpHandlerMeta, HttpOutput } from '@nestling/transport.http';
-import { httpEndpoint, HttpResponse } from '@nestling/transport.http';
+import { Handler } from '@nestlingjs/container';
+import type { HttpHandlerMeta, HttpOutput } from '@nestlingjs/transport.http';
+import { httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
 
 /** Вход по email: пароля у примера нет, важна форма ответа */
 const Credentials = User.pick({ email: true });

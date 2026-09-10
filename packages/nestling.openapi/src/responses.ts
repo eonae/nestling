@@ -16,14 +16,14 @@ import type { ConvertContext } from './schema.js';
 import { convertLeaf } from './schema.js';
 import type { JsonValue, OpenApiResponse } from './types.js';
 
-import { describeForm, mediaTypeOf } from '@nestling/app';
+import { describeForm, mediaTypeOf } from '@nestlingjs/app';
 import type {
   AnyFailDefinition,
   DeclarationDoc,
   RedirectStatus,
-} from '@nestling/operations';
-import { BadRequest, InternalError } from '@nestling/operations';
-import { httpCodeOf } from '@nestling/transport.http';
+} from '@nestlingjs/operations';
+import { BadRequest, InternalError } from '@nestlingjs/operations';
+import { httpCodeOf } from '@nestlingjs/transport.http';
 
 /** Что генератор знает об ответах endpoint'а */
 export interface ResponsesInput {

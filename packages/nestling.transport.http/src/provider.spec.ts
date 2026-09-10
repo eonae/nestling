@@ -9,15 +9,15 @@ import { HttpTransport$ } from './token.js';
 import { http, HttpTransport } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { ExecutableDeclaration } from '@nestling/app';
+import type { ExecutableDeclaration } from '@nestlingjs/app';
 import {
   bootstrapConfig,
   configKernel,
   makeDispatch,
   makePipeline,
   Ok,
-} from '@nestling/app';
-import { ContainerBuilder } from '@nestling/container';
+} from '@nestlingjs/app';
+import { ContainerBuilder } from '@nestlingjs/container';
 
 /** Строит контейнер с kernel-модулем конфига, транспортом и его сервером */
 async function build(declaration: ReturnType<typeof http>) {

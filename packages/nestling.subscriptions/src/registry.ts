@@ -24,9 +24,9 @@ import type {
 } from './types.js';
 import { kindOfOutput } from './types.js';
 
-import type { AnyInput, ExtendableContext, Outcome } from '@nestling/app';
-import type { Emitter } from '@nestling/operations';
-import { Topic } from '@nestling/operations';
+import type { AnyInput, ExtendableContext, Outcome } from '@nestlingjs/app';
+import type { Emitter } from '@nestlingjs/operations';
+import { Topic } from '@nestlingjs/operations';
 
 /** Контекст запроса в терминах реестра: конкретный input ему безразличен */
 export type SubscriptionContext = ExtendableContext<AnyInput>;

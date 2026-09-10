@@ -1,21 +1,21 @@
-# @common/static-server
+# @nestlingjs/common.static-server
 
 Сервер статических файлов на `node:http` без внешних зависимостей: отдаёт
 каталог по HTTP, подставляет MIME-тип по расширению и закрывается по
-сигналу. Им пользуется `@nestling/viz`, чтобы отдавать фронтенд
+сигналу. Им пользуется `@nestlingjs/viz`, чтобы отдавать фронтенд
 визуализации.
 
-> Внутренний пакет Nestling: ставится вместе с `@nestling/viz`, отдельно не публикуется.
+> Внутренний пакет Nestling: приходит зависимостью `@nestlingjs/viz`, отдельно ставить его незачем.
 
 ## Установка
 
-Пакет внутренний и приходит зависимостью `@nestling/viz`. Отдельно
+Пакет внутренний и приходит зависимостью `@nestlingjs/viz`. Отдельно
 устанавливать его не нужно.
 
 ## Минимальный пример
 
 ```typescript
-import { StaticServer } from '@common/static-server';
+import { StaticServer } from '@nestlingjs/common.static-server';
 
 const server = new StaticServer({
   port: 3333,
@@ -36,4 +36,4 @@ await server.start();
 ## Границы пакета
 
 Сервер отдаёт файлы с диска. Маршрутизации, шаблонов, сжатия и HTTPS у него
-нет: приложение на Nestling обслуживает `@nestling/transport.http`.
+нет: приложение на Nestling обслуживает `@nestlingjs/transport.http`.

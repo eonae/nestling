@@ -11,22 +11,22 @@
  *
  * ```bash
  * docker run --rm -p 4222:4222 nats:2 -js
- * NATS_TEST_SERVERS=nats://127.0.0.1:4222 yarn workspace @nestling/transport.nats test
+ * NATS_TEST_SERVERS=nats://127.0.0.1:4222 yarn workspace @nestlingjs/transport.nats test
  * ```
  */
 
 import { NatsBus } from './transport.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { Logger } from '@nestling/app';
+import type { Logger } from '@nestlingjs/app';
 import {
   implement,
   makeDispatch,
   makeFail,
   makePipeline,
   Ok,
-} from '@nestling/app';
-import { makeCommand, makeEvent, makeRequest } from '@nestling/operations';
+} from '@nestlingjs/app';
+import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const servers = process.env.NATS_TEST_SERVERS;

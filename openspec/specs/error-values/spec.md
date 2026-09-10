@@ -75,7 +75,7 @@ union: проверка `res.isFail` SHALL сужать тип без приве
 `Ok<TValue>`, голое значение `TValue`, отказ из множества `E` и отказ
 ядра из закрытого перечня определений ядра (`BadRequest`,
 `PayloadTooLarge`, `Timeout`, `InternalError`); объединение определений
-ядра SHALL экспортироваться из `@nestling/operations`. Тип-параметр `E`
+ядра SHALL экспортироваться из `@nestlingjs/operations`. Тип-параметр `E`
 SHALL принимать определения отказов (`typeof OrderNotFound`, юнион через
 `|`) и типы `Fail`; определение SHALL разворачиваться в тип своего отказа.
 Тип `FailOf` SHALL оставаться внутренним: множество отказов в коде
@@ -151,7 +151,7 @@ SHALL быть ошибкой компиляции.
 объединением `SuccessStatus | Category`; поле `status` контекста ответа
 SHALL равняться статусу успеха либо категории отказа.
 
-`@nestling/transport.http` SHALL отображать `bad_request → 400`,
+`@nestlingjs/transport.http` SHALL отображать `bad_request → 400`,
 `unauthorized → 401`, `payment_required → 402`, `forbidden → 403`,
 `not_found → 404`, `conflict → 409`, `payload_too_large → 413`,
 `too_many_requests → 429`, `internal_error → 500`, `not_implemented → 501`,

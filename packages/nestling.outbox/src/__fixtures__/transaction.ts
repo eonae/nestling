@@ -8,7 +8,7 @@
 
 import type { StagingTransaction } from '../memory-store.js';
 
-import { contextVar } from '@nestling/app';
+import { contextVar } from '@nestlingjs/app';
 
 /** Транзакция тестов: отложенные действия плюс коммит и откат */
 export class TestTransaction implements StagingTransaction {

@@ -170,14 +170,14 @@ Standard Schema v1 (`NotAStandardSchemaError`), рантайм SHALL NOT
 
 ### Requirement: Юнита `validate()` в публичном API нет
 
-Пакет `@nestling/app` SHALL NOT экспортировать юнит `validate()`.
+Пакет `@nestlingjs/app` SHALL NOT экспортировать юнит `validate()`.
 Сигнатура `Pipeline.executeWithHandler` SHALL типизировать аргумент
 `payload` хендлера как `unknown`; тип `meta` SHALL по-прежнему исключать
 ключ `payload`.
 
 #### Scenario: Импорт не компилируется
 
-- **WHEN** код импортирует `validate` из `@nestling/app`
+- **WHEN** код импортирует `validate` из `@nestlingjs/app`
 - **THEN** импорт не резолвится (ошибка компиляции)
 
 #### Scenario: Пользовательский `payload` не попадает в мету

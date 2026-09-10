@@ -17,8 +17,8 @@ import type { Raw } from './types/raw.js';
 import type { AnyPipeline, Pipeline } from './pipeline.js';
 import { compose, derivesFrom, makePipeline } from './pipeline.js';
 
-import type { AnyInput, EmptyInput } from '@nestling/operations';
-import { Ok } from '@nestling/operations';
+import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
+import { Ok } from '@nestlingjs/operations';
 
 function makeCtx(): ExtendableContext<EmptyInput> {
   const raw: Raw = {

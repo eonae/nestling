@@ -18,7 +18,7 @@ Standard Schema v1 или обёртка `from(key, schema)` с точным и�
 
 ### Requirement: Секция конфига — рекорд полей со Standard-Schema-листьями
 
-`makeConfig(prefix, record)` (пакет `@nestling/app`) SHALL объявлять секцию
+`makeConfig(prefix, record)` (пакет `@nestlingjs/app`) SHALL объявлять секцию
 конфигурации, где `record` — **объект полей**, а значение каждого поля — либо
 произвольная схема Standard Schema v1, либо обёртка `from(key, schema)`, либо
 обёртка `secret(leaf)` поверх любой из них.

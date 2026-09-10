@@ -17,7 +17,7 @@ import {
 } from './redact.js';
 import { lookupSection } from './registry.js';
 
-import { SchemaValidationError, validateSync } from '@common/misc';
+import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
 
 /**
  * Читает секцию из `process.env` синхронно, без контейнера.

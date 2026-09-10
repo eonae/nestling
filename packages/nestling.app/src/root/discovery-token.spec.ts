@@ -22,7 +22,7 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
-import { factoryProvider, makeToken } from '@nestling/container';
+import { factoryProvider, makeToken } from '@nestlingjs/container';
 
 const asTransport = (transport: ITransport) =>
   transportValue(TestTransport$('default'), transport, {

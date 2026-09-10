@@ -1,6 +1,6 @@
 import { createEslintConfig } from '../../.config/eslint.config.js';
 
-import nestling from '@nestling/eslint-plugin';
+import nestling from '@nestlingjs/eslint-plugin';
 
 /**
  * Правило `endpoint-has-layer` подсказывает в редакторе про тот же
@@ -12,9 +12,9 @@ export default [
   ...createEslintConfig(import.meta.url),
   {
     files: ['src/**/*.ts'],
-    plugins: { '@nestling': nestling },
+    plugins: { '@nestlingjs': nestling },
     rules: {
-      '@nestling/endpoint-has-layer': [
+      '@nestlingjs/endpoint-has-layer': [
         'warn',
         { layer: 'observability', constructorName: 'httpEndpoint' },
       ],

@@ -31,7 +31,7 @@ import type {
   StreamSummary,
   TransportCapabilities,
   TransportDeclaration,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import {
   assertFormsSupported,
   BadRequest,
@@ -43,8 +43,8 @@ import {
   makeTransportDeclaration,
   PayloadTooLarge,
   TransportClosingError,
-} from '@nestling/app';
-import { factoryProvider } from '@nestling/container';
+} from '@nestlingjs/app';
+import { factoryProvider } from '@nestlingjs/container';
 
 /**
  * Запрос, который транспорт кладёт в стартовый контекст.

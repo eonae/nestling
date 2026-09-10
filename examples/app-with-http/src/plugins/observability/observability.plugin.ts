@@ -1,7 +1,7 @@
 import { AuditOutcome } from './observability.js';
 
-import type { Plugin } from '@nestling/app';
-import { makePlugin } from '@nestling/app';
+import type { Plugin } from '@nestlingjs/app';
+import { makePlugin } from '@nestlingjs/app';
 
 /**
  * Плагин наблюдаемости: класс-юнит слоя `observability`.

@@ -5,7 +5,7 @@
 import { cliEndpoint, CliTransport, CliTransport$ } from './index.js';
 
 import { describe, expect, it, jest } from '@jest/globals';
-import type { Fields, Logger, LogLevel } from '@nestling/app';
+import type { Fields, Logger, LogLevel } from '@nestlingjs/app';
 import {
   isEndpointDefinition,
   makeDispatch,
@@ -13,7 +13,7 @@ import {
   makePipeline,
   Ok,
   transportNameOf,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import { z } from 'zod';
 
 /** Логгер-шпион: записи ядра копятся значениями, а не уходят в stderr */

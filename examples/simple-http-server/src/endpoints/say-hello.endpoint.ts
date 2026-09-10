@@ -1,7 +1,7 @@
 import { withStartedAt } from '../common/units.js';
 
-import { makePipeline } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import { makePipeline } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const SayHelloOutput = z.object({

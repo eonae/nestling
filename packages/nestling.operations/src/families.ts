@@ -3,7 +3,7 @@
  * `Port`, `Emitter`, `PortMeta`, `CommandMeta`.
  *
  * Отдельный файл: на семейства ссылаются и операция (`.caller` / `.emitter`
- * — члены семейств), и модуль ядра в `@nestling/app` (рецепты). Общий
+ * — члены семейств), и модуль ядра в `@nestlingjs/app` (рецепты). Общий
  * модуль-лист разрывает цикл импортов.
  */
 
@@ -19,8 +19,8 @@ import type {
 } from './operation.js';
 import type { Ok } from './result.js';
 
-import type { Token } from '@nestling/container/tokens';
-import { makeTokenFamily } from '@nestling/container/tokens';
+import type { Token } from '@nestlingjs/container/tokens';
+import { makeTokenFamily } from '@nestlingjs/container/tokens';
 
 /**
  * Параметры вызова порта: отмена и срок. Транспортных настроек здесь нет.
@@ -131,7 +131,7 @@ export interface Emitter<C extends EmittingOperation<any, any, any, any>> {
 /**
  * Семейство портов: один член на операцию вида `request`.
  *
- * Рецепт регистрирует модуль ядра в `@nestling/app`. `deps: [C.caller]`
+ * Рецепт регистрирует модуль ядра в `@nestlingjs/app`. `deps: [C.caller]`
  * создаёт один узел графа для этой операции; операция, которую никто не
  * вызывает, узлов не создаёт.
  *

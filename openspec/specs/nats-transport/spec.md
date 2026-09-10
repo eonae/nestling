@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`@nestling/transport.nats` — шина приложения, поставляемая корнем обычным
+`@nestlingjs/transport.nats` — шина приложения, поставляемая корнем обычным
 транспорт-провайдером: `nats()` перечисляется в `transports:`, новой оси в
 корне не появляется, а kernel-модуль портов свой `InProcessBus` тогда не
 регистрирует. `NatsBus` объявляет себя remote-шиной, и этого достаточно,
@@ -15,11 +15,11 @@ JSON по умолчанию. Клиент брокера изолирован �
 
 ## Requirements
 
-### Requirement: `@nestling/transport.nats` — шина приложения, поставляемая корнем
+### Requirement: `@nestlingjs/transport.nats` — шина приложения, поставляемая корнем
 
-Пакет `@nestling/transport.nats` SHALL экспортировать фабрику `nats(options?)`,
+Пакет `@nestlingjs/transport.nats` SHALL экспортировать фабрику `nats(options?)`,
 возвращающую **обычный транспорт-провайдер** под токеном транспорта шины
-(`BusTransport$` из `@nestling/app`), и класс `NatsBus`, реализующий
+(`BusTransport$` из `@nestlingjs/app`), и класс `NatsBus`, реализующий
 одновременно `IMessageBus` (исходящая сторона) и `ITransport` (входящая).
 Отдельной сущности «messaging» рядом с «transports» SHALL NOT существовать.
 

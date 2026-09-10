@@ -16,9 +16,15 @@ import type { Raw } from './types/raw.js';
 import type { PreUnitFn } from './types/unit.js';
 import { compose, makePipeline } from './pipeline.js';
 
-import type { Schema, StandardSchemaV1 } from '@common/misc';
-import type { AnyPayload } from '@nestling/operations';
-import { makeFail, multipart, Ok, stream, upload } from '@nestling/operations';
+import type { Schema, StandardSchemaV1 } from '@nestlingjs/common.misc';
+import type { AnyPayload } from '@nestlingjs/operations';
+import {
+  makeFail,
+  multipart,
+  Ok,
+  stream,
+  upload,
+} from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });

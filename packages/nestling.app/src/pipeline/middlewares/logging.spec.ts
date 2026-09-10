@@ -5,7 +5,7 @@ import { makeEmptyContext } from '../core/types/index.js';
 
 import { withRequestLogging } from './logging.js';
 
-import { Ok } from '@nestling/operations';
+import { Ok } from '@nestlingjs/operations';
 
 describe('withRequestLogging', () => {
   it('пишет info о начале обработки с транспортом и паттерном', async () => {

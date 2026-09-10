@@ -5,9 +5,9 @@ context: |
   Tech stack: TypeScript 5.7 strict, ESM, стандартные ES-декораторы (НЕ experimentalDecorators,
   без reflect-metadata), zod v4 (peer dependency), Node.js 24, jest
   (NODE_OPTIONS=--experimental-vm-modules; тесты запускаются per-package: `yarn test`).
-  Пакеты: @nestling/container (DI), @nestling/pipeline (типизированный пайплайн, Ok/Fail,
-  endpoints), @nestling/app (сборка приложения), @nestling/transport.http (node:http +
-  find-my-way + busboy), @nestling/transport.cli, @nestling/models, @nestling/viz.
+  Пакеты: @nestlingjs/container (DI), @nestlingjs/pipeline (типизированный пайплайн, Ok/Fail,
+  endpoints), @nestlingjs/app (сборка приложения), @nestlingjs/transport.http (node:http +
+  find-my-way + busboy), @nestlingjs/transport.cli, @nestlingjs/models, @nestlingjs/viz.
 
   Принципы: explicit over implicit; zero magic; минимум зависимостей; schema-first
   (схемы описывают провод); стриминговые границы — стандартный AsyncIterable, не RxJS.

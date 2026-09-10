@@ -8,7 +8,7 @@
 
 import { app } from './app.js';
 
-import { load, makeConfig } from '@nestling/app';
+import { load, makeConfig } from '@nestlingjs/app';
 import { z } from 'zod';
 
 /**

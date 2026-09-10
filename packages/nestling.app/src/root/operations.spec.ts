@@ -19,8 +19,8 @@ import { makeFeature } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { Handler, makeToken } from '@nestling/container';
-import { makeRequest } from '@nestling/operations';
+import { Handler, makeToken } from '@nestlingjs/container';
+import { makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const asTransport = (transport: MockTransport) =>

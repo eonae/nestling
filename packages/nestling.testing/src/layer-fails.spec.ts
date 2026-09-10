@@ -17,8 +17,8 @@ import {
   makePipeline,
   Ok,
   transportValue,
-} from '@nestling/app';
-import { httpEndpoint, HttpTransport$ } from '@nestling/transport.http';
+} from '@nestlingjs/app';
+import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const Unauthorized = makeFail('unauthorized', { message: 'No token' });

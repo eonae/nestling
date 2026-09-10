@@ -22,10 +22,10 @@ import type {
   OpenApiPathItem,
 } from './types.js';
 
-import type { AnyEndpointDefinition } from '@nestling/app';
-import { assertConverters, busBindingOf, describeForm } from '@nestling/app';
-import type { HttpBinding } from '@nestling/transport.http';
-import { httpBindingOf, isHttpBinding } from '@nestling/transport.http';
+import type { AnyEndpointDefinition } from '@nestlingjs/app';
+import { assertConverters, busBindingOf, describeForm } from '@nestlingjs/app';
+import type { HttpBinding } from '@nestlingjs/transport.http';
+import { httpBindingOf, isHttpBinding } from '@nestlingjs/transport.http';
 
 /** Endpoint, отобранный для документа: его карта уже прочитана */
 interface Documented {

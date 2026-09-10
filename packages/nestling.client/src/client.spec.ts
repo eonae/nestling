@@ -18,7 +18,7 @@ import {
   multipart,
   query,
   upload,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), email: z.string() });

@@ -10,7 +10,7 @@
 
 import { busBindingOf } from './transport.js';
 
-import type { OperationKind } from '@nestling/operations';
+import type { OperationKind } from '@nestlingjs/operations';
 
 /** Одна co-located реализация операции */
 export interface OperationImplementation {

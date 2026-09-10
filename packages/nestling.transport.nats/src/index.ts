@@ -1,9 +1,9 @@
 /**
- * `@nestling/transport.nats` — NATS как inbound и outbound транспорт шины.
+ * `@nestlingjs/transport.nats` — NATS как inbound и outbound транспорт шины.
  *
  * Пакет экспортирует фабрику транспорта, класс шины, шов коннектора и
  * ключи конфиг-секции. DI-токен транспорта пакет не объявляет: шина
- * регистрируется под `BusTransport$` из `@nestling/app` — тем же,
+ * регистрируется под `BusTransport$` из `@nestlingjs/app` — тем же,
  * которым пользуется in-proc шина, потому что шина в приложении ровно
  * одна.
  */

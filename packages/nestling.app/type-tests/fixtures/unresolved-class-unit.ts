@@ -6,10 +6,10 @@
  * `endpoint.resolve(resolver)` или запуском под `App`.
  */
 
-import type { ExtendableContext, EmptyInput } from '@nestling/app';
-import { makePipeline, Ok } from '@nestling/app';
-import { makeDispatch } from '@nestling/app';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { ExtendableContext, EmptyInput } from '@nestlingjs/app';
+import { makePipeline, Ok } from '@nestlingjs/app';
+import { makeDispatch } from '@nestlingjs/app';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 
 class WithTracing {
   handle(_ctx: ExtendableContext<EmptyInput>): { traceId: string } {

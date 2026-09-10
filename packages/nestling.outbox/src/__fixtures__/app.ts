@@ -14,11 +14,11 @@ import type { OutboxStore } from '../types.js';
 import { TestTransaction, Tx } from './transaction.js';
 import { TestTransport$ } from './transport.js';
 
-import type { ExtendableContext, Output, Plugin } from '@nestling/app';
-import { makeEndpoint, makePipeline, makePlugin } from '@nestling/app';
-import { Component, Handler, makeToken } from '@nestling/container';
-import type { Emitter } from '@nestling/operations';
-import { makeEvent, Ok } from '@nestling/operations';
+import type { ExtendableContext, Output, Plugin } from '@nestlingjs/app';
+import { makeEndpoint, makePipeline, makePlugin } from '@nestlingjs/app';
+import { Component, Handler, makeToken } from '@nestlingjs/container';
+import type { Emitter } from '@nestlingjs/operations';
+import { makeEvent, Ok } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** DI-токен адаптера хранилища; в приложении его объявляет приложение */

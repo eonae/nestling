@@ -1,16 +1,16 @@
 import { authed } from '../../plugins/auth/index.js';
 import { observability } from '../../plugins/observability/index.js';
 
-import type { Output } from '@nestling/app';
-import { compose } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { events, makeFail, Ok } from '@nestling/operations';
+import type { Output } from '@nestlingjs/app';
+import { compose } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { events, makeFail, Ok } from '@nestlingjs/operations';
 import type {
   SubscriptionInfo,
   TrackedSubscription,
-} from '@nestling/subscriptions';
-import { SubscriptionRegistry, tracked } from '@nestling/subscriptions';
-import { httpEndpoint } from '@nestling/transport.http';
+} from '@nestlingjs/subscriptions';
+import { SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 /** Подписка в ответе API: то же, что отдаёт `registry.list()` */

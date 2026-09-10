@@ -14,7 +14,7 @@ import { testEndpoint } from './__fixtures__/test-transport.js';
 import { makeApp } from './app.js';
 import { makeFeature } from './feature.js';
 
-import { makeSwitch } from '@nestling/container';
+import { makeSwitch } from '@nestlingjs/container';
 import { z } from 'zod';
 
 const Storage = makeSwitch('storage', ['s3', 'local']);

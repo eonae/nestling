@@ -1,4 +1,4 @@
-# @nestling/openapi
+# @nestlingjs/openapi
 
 Документ OpenAPI 3.1, собранный из тех же деклараций endpoint'ов, которые
 обслуживают запросы. Второго описания API рядом с кодом не нужно.
@@ -10,17 +10,17 @@
 ## Установка
 
 ```bash
-npm install @nestling/openapi @nestling/openapi.zod
+npm install @nestlingjs/openapi @nestlingjs/openapi.zod
 ```
 
-`@nestling/openapi.zod` нужен, если схемы написаны на zod. Для другого
+`@nestlingjs/openapi.zod` нужен, если схемы написаны на zod. Для другого
 валидатора подключается его конвертер.
 
 ## Минимальный пример
 
 ```typescript
-import { openapi } from '@nestling/openapi';
-import { zodConverter } from '@nestling/openapi.zod';
+import { openapi } from '@nestlingjs/openapi';
+import { zodConverter } from '@nestlingjs/openapi.zod';
 
 makeApp({
   features: [UsersFeature],
@@ -56,7 +56,7 @@ makeApp({
 | `OpenApiContent` | карта «media type — схема» |
 | `DocumentedEndpoint` | вход генератора: декларация endpoint'а с секцией `doc:` |
 | `JsonValue` | значение JSON в документе |
-| Реэкспорт [`@nestling/app`](../nestling.app/) | `SchemaDocConverter` — интерфейс конвертера схем |
+| Реэкспорт [`@nestlingjs/app`](../nestling.app/) | `SchemaDocConverter` — интерфейс конвертера схем |
 
 ## Границы пакета
 

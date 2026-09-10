@@ -16,7 +16,7 @@ import {
   Ok,
   stream,
   transportNameOf,
-} from '@nestling/app';
+} from '@nestlingjs/app';
 import { z } from 'zod';
 
 type Equal<A, B> =

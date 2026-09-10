@@ -2,9 +2,9 @@
 
 import { EmptyStdin } from '../errors.js';
 
-import type { Output } from '@nestling/app';
-import { stream } from '@nestling/operations';
-import { cliEndpoint } from '@nestling/transport.cli';
+import type { Output } from '@nestlingjs/app';
+import { stream } from '@nestlingjs/operations';
+import { cliEndpoint } from '@nestlingjs/transport.cli';
 import { z } from 'zod';
 
 const ProcessStdinOutput = z.object({

@@ -7,8 +7,8 @@
 
 import type { ConfigKeys } from './keys.js';
 
-import type { Schema, StandardSchemaV1 } from '@common/misc';
-import type { Token } from '@nestling/container/tokens';
+import type { Schema, StandardSchemaV1 } from '@nestlingjs/common.misc';
+import type { Token } from '@nestlingjs/container/tokens';
 
 /**
  * Обёртка листа, задающая **точное** имя ключа: префикс секции не

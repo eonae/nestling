@@ -1,15 +1,41 @@
 {
-  "name": "@common/misc",
+  "name": "@nestlingjs/common.misc",
   "version": "0.1.0",
-  "description": "",
+  "description": "Схемный кернел Nestling поверх Standard Schema и общие вспомогательные типы — внутренний пакет",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "standard-schema",
+    "validation",
+    "internal"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/common.misc"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/common.misc#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/out.js",
-  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -19,8 +45,6 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "@standard-schema/spec": "^1.1.0"
   },

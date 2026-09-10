@@ -1,9 +1,9 @@
 import type { Database } from '../interfaces.js';
 import { Database$ } from '../interfaces.js';
 
-import type { Logger } from '@nestling/app';
-import { Logger$ } from '@nestling/app';
-import { Component } from '@nestling/container';
+import type { Logger } from '@nestlingjs/app';
+import { Logger$ } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
 
 /**
  * `Logger$.auto` подставляет член `Logger$('UserRepository')`: имя берётся

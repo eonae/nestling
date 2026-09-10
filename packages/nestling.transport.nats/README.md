@@ -1,4 +1,4 @@
-# @nestling/transport.nats
+# @nestlingjs/transport.nats
 
 NATS как шина приложения: доставляет вызовы операций между процессами в обе
 стороны. `NatsBus` реализует `IMessageBus` наружу и `ITransport` внутрь,
@@ -11,7 +11,7 @@ NATS как шина приложения: доставляет вызовы о�
 ## Установка
 
 ```bash
-npm install @nestling/transport.nats nats
+npm install @nestlingjs/transport.nats nats
 ```
 
 `nats` — peer-зависимость: ставится клиент той версии, что у брокера.
@@ -19,7 +19,7 @@ npm install @nestling/transport.nats nats
 ## Минимальный пример
 
 ```typescript
-import { nats } from '@nestling/transport.nats';
+import { nats } from '@nestlingjs/transport.nats';
 
 export const app = makeApp({
   features: [OrdersFeature, BillingFeature],
@@ -51,6 +51,8 @@ await app.assemble(load(RootConfig).features).run();
 
 Двойник из `./testing` подставляется опцией `connector` и проигрывает
 доставку в памяти: тест видит те же subject'ы, заголовки и повторы.
+Подпуть резолвится только под условием `testing` — тест-раннер включает его
+сам, Node принимает флагом `--conditions=testing`.
 
 ## Границы пакета
 

@@ -10,7 +10,7 @@
  * `kind`, созданный вручную, формой не считается.
  */
 
-import type { Infer, Optional, Schema } from '@common/misc';
+import type { Infer, Optional, Schema } from '@nestlingjs/common.misc';
 
 /** Вид формы io */
 export type FormKind = 'value' | 'stream' | 'events' | 'multipart';

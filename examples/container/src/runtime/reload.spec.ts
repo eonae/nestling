@@ -8,9 +8,9 @@ import { makeContainer } from '../container.js';
 import { RateLimiter } from './rate-limiter.js';
 
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import type { ObjectSource } from '@nestling/app';
-import { objectSource } from '@nestling/app';
-import type { BuiltContainer } from '@nestling/container';
+import type { ObjectSource } from '@nestlingjs/app';
+import { objectSource } from '@nestlingjs/app';
+import type { BuiltContainer } from '@nestlingjs/container';
 
 /** Даёт уведомлениям подписки выполниться */
 const settle = async (): Promise<void> => {

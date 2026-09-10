@@ -7,8 +7,8 @@ import { load } from './load.js';
 import { describeConfig } from './registry.js';
 import { makeConfig } from './section.js';
 
-import type { InjectionToken } from '@nestling/container';
-import { tokenId } from '@nestling/container';
+import type { InjectionToken } from '@nestlingjs/container';
+import { tokenId } from '@nestlingjs/container';
 import { z } from 'zod';
 
 /** Тип-утверждение: ложный `Equal<…>` не проходит компиляцию. */

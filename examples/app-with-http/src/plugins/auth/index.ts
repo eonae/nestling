@@ -10,7 +10,7 @@ import { observability } from '../observability/index.js';
 
 import { Authenticate } from './authenticate.js';
 
-import { compose, makePipeline, makePlugin } from '@nestling/app';
+import { compose, makePipeline, makePlugin } from '@nestlingjs/app';
 
 export { type Caller } from './authenticate.js';
 

@@ -11,7 +11,7 @@ import { makeDispatch } from '../transport/index.js';
 import { InProcessBus } from './bus.js';
 import { implement } from './implement.js';
 
-import { makeCommand, makeRequest } from '@nestling/operations';
+import { makeCommand, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 /** Даёт насосам доставки провернуться */

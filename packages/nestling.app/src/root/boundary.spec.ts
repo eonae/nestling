@@ -27,9 +27,9 @@ import { makeFeature, makePlugin, resolveBundle } from './feature.js';
 import { MockTransport } from './helpers.js';
 
 import { describe, expect, it } from '@jest/globals';
-import type { InjectionToken } from '@nestling/container';
-import { Component, Handler, makeToken } from '@nestling/container';
-import { makeRequest } from '@nestling/operations';
+import type { InjectionToken } from '@nestlingjs/container';
+import { Component, Handler, makeToken } from '@nestlingjs/container';
+import { makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const asTransport = () =>

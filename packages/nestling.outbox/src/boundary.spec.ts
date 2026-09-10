@@ -1,5 +1,5 @@
 /**
- * Граница сателлита: из `@nestling/app` пакет берёт примитивы, а не
+ * Граница сателлита: из `@nestlingjs/app` пакет берёт примитивы, а не
  * композиционный корень.
  *
  * До слияния ядра границу держал состав зависимостей — пайплайн и корень
@@ -52,9 +52,9 @@ function shippedFiles(directory: string): string[] {
   });
 }
 
-/** Имена, импортированные файлом из `@nestling/app` */
+/** Имена, импортированные файлом из `@nestlingjs/app` */
 function importedFromApp(source: string): string[] {
-  const named = /import\s+(?:type\s+)?{([^}]*)}\s+from\s+'@nestling\/app';/g;
+  const named = /import\s+(?:type\s+)?{([^}]*)}\s+from\s+'@nestlingjs\/app';/g;
 
   return [...source.matchAll(named)].flatMap(([, clause]) =>
     clause
@@ -73,7 +73,7 @@ const imported = new Map(
   ]),
 );
 
-describe('@nestling/outbox: композиционный корень не импортируется', () => {
+describe('@nestlingjs/outbox: композиционный корень не импортируется', () => {
   it('среди импортированных имён нет сборки приложения и объявления фичи', () => {
     const found = [...imported].flatMap(([file, names]) =>
       names
@@ -90,7 +90,7 @@ describe('@nestling/outbox: композиционный корень не им�
 
   it('импорт целиком (`import * as`) не обходит проверку', () => {
     const wildcard = shippedFiles(srcDir).filter((path) =>
-      /import\s+\*\s+as\s+\w+\s+from\s+'@nestling\/app';/.test(
+      /import\s+\*\s+as\s+\w+\s+from\s+'@nestlingjs\/app';/.test(
         readFileSync(path, 'utf8'),
       ),
     );
@@ -109,13 +109,13 @@ const manifest = JSON.parse(
 
 /** Всё, чем пакету разрешено пользоваться в поставляемом коде */
 const ALLOWED_DEPENDENCIES = new Set([
-  '@common/misc',
-  '@nestling/app',
-  '@nestling/container',
-  '@nestling/operations',
+  '@nestlingjs/common.misc',
+  '@nestlingjs/app',
+  '@nestlingjs/container',
+  '@nestlingjs/operations',
 ]);
 
-describe('@nestling/outbox: пакет самодостаточен', () => {
+describe('@nestlingjs/outbox: пакет самодостаточен', () => {
   it('в зависимостях нет ничего, кроме пакетов монорепы', () => {
     expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual(
       [...ALLOWED_DEPENDENCIES].sort(),
@@ -128,7 +128,7 @@ describe('@nestling/outbox: пакет самодостаточен', () => {
     const found = shippedFiles(srcDir).flatMap((path) =>
       [...readFileSync(path, 'utf8').matchAll(external)]
         .map(([, specifier]) => specifier)
-        // Subpath пакета монорепы (`@nestling/container/tokens`) считается
+        // Subpath пакета монорепы (`@nestlingjs/container/tokens`) считается
         // тем же пакетом
         .map((specifier) =>
           specifier.startsWith('@')

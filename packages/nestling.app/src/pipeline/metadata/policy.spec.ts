@@ -14,7 +14,7 @@ import type { PolicySubject } from './policy.js';
 import { everyEndpoint } from './policy.js';
 
 import { describe, expect, it } from '@jest/globals';
-import { makeToken } from '@nestling/container';
+import { makeToken } from '@nestlingjs/container';
 
 const HttpTransport$ = makeToken('transport:http');
 const CliTransport$ = makeToken('transport:cli');

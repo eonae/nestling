@@ -1,7 +1,7 @@
 /**
  * Граница пакета: клиент собирается для браузера.
  *
- * Тот же обход замыкания `dist/`, что у `@nestling/operations`: белый список
+ * Тот же обход замыкания `dist/`, что у `@nestlingjs/operations`: белый список
  * расширен ровно на сам пакет операций, потому что его замыкание клиент
  * наследует целиком.
  */
@@ -16,15 +16,15 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-describe('@nestling/client: граница пакета', () => {
+describe('@nestlingjs/client: граница пакета', () => {
   it('не импортирует серверный код и Node-специфику', () => {
     const violations = collectForbiddenImports({
       repoRoot: resolve(here, '../../..'),
       packageDir: resolve(here, '..'),
       allow: [
-        '@common/misc',
-        '@nestling/container/tokens',
-        '@nestling/operations',
+        '@nestlingjs/common.misc',
+        '@nestlingjs/container/tokens',
+        '@nestlingjs/operations',
         '@standard-schema/spec',
       ],
     });

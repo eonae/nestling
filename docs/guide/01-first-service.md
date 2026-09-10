@@ -1,6 +1,6 @@
 # 1. Поднять сервис, который отвечает на запрос
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-09-02] Модель композиции: фича,
@@ -15,8 +15,8 @@
 
 ```typescript
 // шаг главы 1; итоговая версия: examples/users-service/src/main.ts
-import { makeApp } from '@nestling/app';
-import { http, httpEndpoint } from '@nestling/transport.http';
+import { makeApp } from '@nestlingjs/app';
+import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const User = z.object({ id: z.string(), name: z.string() });

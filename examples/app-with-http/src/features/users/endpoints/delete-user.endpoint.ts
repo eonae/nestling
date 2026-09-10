@@ -3,11 +3,11 @@ import { UserNotFound } from '../users.errors.js';
 import type { UsersRepository } from '../users.repository.js';
 import { UsersRepository$ } from '../users.repository.js';
 
-import type { ErrorResponseContext, Logger, Output } from '@nestling/app';
-import { compose, Logger$, makePipeline } from '@nestling/app';
-import { Handler } from '@nestling/container';
-import { Ok } from '@nestling/operations';
-import { httpEndpoint } from '@nestling/transport.http';
+import type { ErrorResponseContext, Logger, Output } from '@nestlingjs/app';
+import { compose, Logger$, makePipeline } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+import { Ok } from '@nestlingjs/operations';
+import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 const DeleteUserInput = z.object({ id: z.string() });

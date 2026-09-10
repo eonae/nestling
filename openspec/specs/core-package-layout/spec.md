@@ -3,14 +3,14 @@
 ## Purpose
 
 Из чего состоит ядро и что гарантирует его раскладка. Ядро — три пакета:
-`@nestling/container` держит контейнер зависимостей,
-`@nestling/operations` — декларативный слой, `@nestling/app` — пайплайн,
+`@nestlingjs/container` держит контейнер зависимостей,
+`@nestlingjs/operations` — декларативный слой, `@nestlingjs/app` — пайплайн,
 конфигурацию, порты, транспортный интерфейс и композиционный корень.
 Слитые пакеты не оставляют за собой ни обёрток-реэкспортов, ни алиасов:
-имя, которого нет в `packages/`, не резолвится. Внутри `@nestling/app`
+имя, которого нет в `packages/`, не резолвится. Внутри `@nestlingjs/app`
 слой — каталог `src` со своим баррелем, а направление зависимостей между
 слоями держит правило ESLint пакета: раскладка слоёв есть свойство этого
-пакета, а не репозитория. Тесты `@nestling/app` объявляют транспорт
+пакета, а не репозитория. Тесты `@nestlingjs/app` объявляют транспорт
 фикстурой — обратная зависимость на транспорт замкнула бы цикл в графе
 проектов.
 
@@ -23,18 +23,18 @@
 
 | Пакет | Состав |
 |---|---|
-| `@nestling/container` | контейнер зависимостей: DI-токены, провайдеры, семейства, модули, переключатели состава |
-| `@nestling/operations` | операции, отказы, формы io, пометки размещения, `Topic` и комбинаторы потоков |
-| `@nestling/app` | пайплайн, конфигурация, порты, транспортный интерфейс, композиционный корень |
+| `@nestlingjs/container` | контейнер зависимостей: DI-токены, провайдеры, семейства, модули, переключатели состава |
+| `@nestlingjs/operations` | операции, отказы, формы io, пометки размещения, `Topic` и комбинаторы потоков |
+| `@nestlingjs/app` | пайплайн, конфигурация, порты, транспортный интерфейс, композиционный корень |
 
-Переключатели состава SHALL жить в `@nestling/container`: ветка стоит в
+Переключатели состава SHALL жить в `@nestlingjs/container`: ветка стоит в
 `providers:` и `dependsOn:` модуля, а тип `Module` объявлен этим пакетом
-(capability `composition-switches`). `@nestling/app` SHALL импортировать
+(capability `composition-switches`). `@nestlingjs/app` SHALL импортировать
 их оттуда и SHALL NOT реэкспортировать `makeSwitch`: имя экспортирует один
 пакет.
 
-Пакетов `@nestling/pipeline`, `@nestling/config`, `@nestling/ports`,
-`@nestling/transport` и `@nestling/streams` SHALL NOT существовать.
+Пакетов `@nestlingjs/pipeline`, `@nestlingjs/config`, `@nestlingjs/ports`,
+`@nestlingjs/transport` и `@nestlingjs/streams` SHALL NOT существовать.
 Пакетов-заглушек, реэкспортирующих слитый код под прежним именем, SHALL
 NOT создаваться: имя, которого нет в `packages/`, SHALL NOT резолвиться.
 
@@ -43,27 +43,27 @@ NOT создаваться: имя, которого нет в `packages/`, SHAL
 
 #### Scenario: Прежнее имя не резолвится
 
-- **WHEN** код импортирует что-либо из `@nestling/pipeline`
+- **WHEN** код импортирует что-либо из `@nestlingjs/pipeline`
 - **THEN** импорт не резолвится, и в `packages/` нет каталога с этим
   пакетом
 
 #### Scenario: Приложение импортирует из трёх пакетов
 
 - **WHEN** читаются `dependencies` примера, поднимающего HTTP-сервис
-- **THEN** из ядра там названы `@nestling/app`, `@nestling/container` и
-  `@nestling/operations`, а транспорт добавлен четвёртым
+- **THEN** из ядра там названы `@nestlingjs/app`, `@nestlingjs/container` и
+  `@nestlingjs/operations`, а транспорт добавлен четвёртым
 
 #### Scenario: Переключатель импортируется из контейнера
 
 - **WHEN** приложение объявляет `makeSwitch('storage', ['s3', 'local'])`
-- **THEN** имя импортируется из `@nestling/container`, а из
-  `@nestling/app` не экспортируется
+- **THEN** имя импортируется из `@nestlingjs/container`, а из
+  `@nestlingjs/app` не экспортируется
 
 ### Requirement: Слой внутри пакета — каталог со своим баррелем
 
 Слитый код SHALL лежать каталогами `src`, по каталогу на слой:
-`@nestling/app` SHALL содержать `pipeline`, `config`, `transport`,
-`ports`, `root` и `testing`; `@nestling/operations` SHALL содержать
+`@nestlingjs/app` SHALL содержать `pipeline`, `config`, `transport`,
+`ports`, `root` и `testing`; `@nestlingjs/operations` SHALL содержать
 `streams` рядом с `io` и `http`. Собственный код композиционного корня
 SHALL лежать в `src/root`, а не файлами верхнего уровня: тогда каждая
 зона правила направления — каталог, и новый файл корня не требует правки
@@ -71,7 +71,7 @@ SHALL лежать в `src/root`, а не файлами верхнего уро
 
 Единственным файлом верхнего уровня `src` SHALL быть `index.ts`. Вход в
 каталог SHALL идти через его баррель — как того требует правило
-`@nestling/import-through-barrel`.
+`@nestlingjs/import-through-barrel`.
 
 #### Scenario: Слой виден по специфаеру импорта
 
@@ -87,7 +87,7 @@ SHALL лежать в `src/root`, а не файлами верхнего уро
 
 ### Requirement: Направление зависимостей между слоями проверяет линтер
 
-Направление зависимостей внутри `@nestling/app` SHALL проверяться
+Направление зависимостей внутри `@nestlingjs/app` SHALL проверяться
 правилом ESLint в `eslint.config.js` пакета. Разрешённое направление:
 
 | Слой | Не импортирует |
@@ -101,8 +101,8 @@ SHALL лежать в `src/root`, а не файлами верхнего уро
 раскладка слоёв есть свойство этого пакета.
 
 Тест границы, обходящий замыкание импортов собранного `dist`, SHALL
-оставаться средством проверки границ **пакета** (`@nestling/operations`,
-`@nestling/client`, `@nestling/openapi`) и SHALL NOT применяться к
+оставаться средством проверки границ **пакета** (`@nestlingjs/operations`,
+`@nestlingjs/client`, `@nestlingjs/openapi`) и SHALL NOT применяться к
 направлению между каталогами.
 
 #### Scenario: Импорт против направления не проходит линтер
@@ -115,22 +115,22 @@ SHALL лежать в `src/root`, а не файлами верхнего уро
 - **WHEN** модуль в `src/ports` импортирует `../pipeline/index.js`
 - **THEN** линтер молчит
 
-### Requirement: Тесты `@nestling/app` не зависят от транспортов
+### Requirement: Тесты `@nestlingjs/app` не зависят от транспортов
 
-Спеки `@nestling/app` SHALL NOT импортировать `@nestling/transport.http`
-и `@nestling/transport.cli`, а сам пакет SHALL NOT объявлять их в
+Спеки `@nestlingjs/app` SHALL NOT импортировать `@nestlingjs/transport.http`
+и `@nestlingjs/transport.cli`, а сам пакет SHALL NOT объявлять их в
 `devDependencies`. Транспорт для тестов композиционного корня SHALL
 объявляться внутри пакета фикстурой: токен транспорта, конструктор
 декларации поверх `makeEndpoint` и значение `capabilities`.
 
-Причина — граф проектов: транспорты зависят от `@nestling/app`, и
+Причина — граф проектов: транспорты зависят от `@nestlingjs/app`, и
 обратная зависимость замкнула бы цикл, на котором `nx run-many -t build`
 останавливается.
 
 #### Scenario: Граф проектов ацикличен
 
 - **WHEN** выполняется `yarn verify`
-- **THEN** сборка проходит, и цикла между `@nestling/app` и транспортами
+- **THEN** сборка проходит, и цикла между `@nestlingjs/app` и транспортами
   в графе нет
 
 #### Scenario: Композиционный корень проверяется без HTTP

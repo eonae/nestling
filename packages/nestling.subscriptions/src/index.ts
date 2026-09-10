@@ -1,10 +1,10 @@
 /**
- * `@nestling/subscriptions` — реестр активных подписок.
+ * `@nestlingjs/subscriptions` — реестр активных подписок.
  *
  * Satellite-пакет: ни строки в ядре. Всё, из чего он собран, — публичные
  * примитивы: фазы `.pre`/`.finally` и класс-форма юнита
- * (`@nestling/app`), `AbortSignal`, DI (`@nestling/container`),
- * `Topic` (`@nestling/operations`) и операции (`@nestling/operations`).
+ * (`@nestlingjs/app`), `AbortSignal`, DI (`@nestlingjs/container`),
+ * `Topic` (`@nestlingjs/operations`) и операции (`@nestlingjs/operations`).
  *
  * Наружу уходят четыре вещи: реестр (DI-токен и его API), слой `tracked`,
  * фабрика модуля и типы модели — плюс две `event`-операции, которыми

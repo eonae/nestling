@@ -120,7 +120,7 @@ ruleTester.run('import-through-barrel', importThroughBarrel, {
     {
       name: 'межпакетный импорт — его границу стережёт поле exports',
       filename: file('consumer.ts'),
-      code: "import { assemble } from '@nestling/app';",
+      code: "import { assemble } from '@nestlingjs/app';",
     },
     {
       name: 'спецификатор не резолвится — правило молчит',

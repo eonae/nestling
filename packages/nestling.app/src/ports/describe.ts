@@ -33,7 +33,7 @@ import {
 import type { BusBindingBearer } from './transport.js';
 import { busBindingOf } from './transport.js';
 
-import type { AnyOperation, OperationKind } from '@nestling/operations';
+import type { AnyOperation, OperationKind } from '@nestlingjs/operations';
 
 /** JSON-значение: всё, что переживает `JSON.parse(JSON.stringify(...))` */
 export type JsonValue =

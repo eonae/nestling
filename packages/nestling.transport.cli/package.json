@@ -1,14 +1,40 @@
 {
-  "name": "@nestling/transport.cli",
+  "name": "@nestlingjs/transport.cli",
   "version": "0.1.0",
-  "description": "",
+  "description": "CLI-транспорт Nestling: те же endpoint'ы и пайплайны, что в HTTP, но вместо маршрутов — команды, а stdin служит потоковым входом",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "cli",
+    "command-line"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.transport.cli"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.transport.cli#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
-  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "clear": "rm -rf dist",
@@ -18,12 +44,10 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@nestling/app": "workspace:*",
-    "@nestling/container": "workspace:*",
-    "@nestling/operations": "workspace:*"
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*"
   },
   "devDependencies": {
     "zod": "^4.0.0"

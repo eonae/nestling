@@ -1,11 +1,37 @@
 {
-  "name": "@nestling/viz",
+  "private": true,
+  "name": "@nestlingjs/viz",
   "version": "0.1.0",
-  "description": "Interactive 3D visualization tool for Nestling DI container",
+  "description": "Интерактивная визуализация графа зависимостей контейнера в браузере",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "visualization",
+    "dependency-graph",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.viz"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.viz#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "bin": {
     "nestling-viz": "./dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "clear": "rm -rf dist",
     "typecheck": "run -T tsc -p tsconfig.json",
@@ -18,11 +44,9 @@
     "lint:fix": "yarn run lint --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "3d-force-graph": "^1.71.0",
-    "@common/static-server": "workspace:*",
+    "@nestlingjs/common.static-server": "workspace:*",
     "chalk": "^5.3.0",
     "commander": "^12.0.0",
     "open": "^10.0.0",
@@ -31,7 +55,7 @@
     "three": "^0.160.0"
   },
   "devDependencies": {
-    "@nestling/eslint-plugin": "workspace:*",
+    "@nestlingjs/eslint-plugin": "workspace:*",
     "@types/three": "^0.160.0"
   }
 }

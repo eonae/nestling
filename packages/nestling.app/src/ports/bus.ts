@@ -44,8 +44,8 @@ import { followSignal } from './signal.js';
 import { BUS_TRANSPORT_NAME, busBindingOf } from './transport.js';
 import { structuralCopy } from './wire.js';
 
-import { makeToken } from '@nestling/container';
-import { Topic } from '@nestling/operations';
+import { makeToken } from '@nestlingjs/container';
+import { Topic } from '@nestlingjs/operations';
 
 /** Метаданные доставленного сообщения, доступные обработчику */
 export interface BusMessageMeta {
@@ -332,7 +332,7 @@ class SubjectHub {
 /**
  * Шина внутри одного процесса: реализует `IMessageBus` и `ITransport`.
  *
- * Рассылка построена на `Topic` из `@nestling/operations`: у каждого
+ * Рассылка построена на `Topic` из `@nestlingjs/operations`: у каждого
  * подписчика свой ограниченный буфер, поэтому публикация никогда не ждёт
  * обработчика. Долговечной доставки, повторов и персистентности нет: для
  * них нужен внешний брокер.

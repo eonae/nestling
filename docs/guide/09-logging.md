@@ -1,6 +1,6 @@
 # 9. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/container.md](../design/container.md), раздел «Логгер ядра».
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Pipeline v2:
@@ -20,9 +20,9 @@
 
 ```typescript
 // examples/users-service/src/database.ts
-import type { Config, Logger } from '@nestling/app';
-import { Logger$ } from '@nestling/app';
-import { Resource } from '@nestling/container';
+import type { Config, Logger } from '@nestlingjs/app';
+import { Logger$ } from '@nestlingjs/app';
+import { Resource } from '@nestlingjs/container';
 
 @Resource([AppConfig, Logger$.auto])
 export class Database {
@@ -43,7 +43,7 @@ export class Database {
 }
 ```
 
-`Logger` — интерфейс из `@nestling/app`. `Logger$` — семейство
+`Logger` — интерфейс из `@nestlingjs/app`. `Logger$` — семейство
 DI-токенов: `Logger$('db')` даёт логгер с областью `db`, а `Logger$.auto`
 — с областью по имени класса-потребителя, здесь `Database`. Область
 попадает в каждую запись полем `scope`, поэтому по логу видно, кто
@@ -102,9 +102,9 @@ import type {
   Logger,
   Outcome,
   ResponseContext,
-} from '@nestling/app';
-import { Logger$, makePipeline, withRequestId } from '@nestling/app';
-import { Handler } from '@nestling/container';
+} from '@nestlingjs/app';
+import { Logger$, makePipeline, withRequestId } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
 
 /**
  * Юнит `.finally`: пишет строку аудита по завершении каждого запроса.
@@ -129,7 +129,7 @@ export const observability = makePipeline()
   .finally(AuditOutcome);
 ```
 
-`withRequestId()` — готовый pre-юнит из `@nestling/app`. Он берёт
+`withRequestId()` — готовый pre-юнит из `@nestlingjs/app`. Он берёт
 идентификатор из заголовка `x-request-id` или генерирует случайный и
 кладёт его в контекст полем `requestId`.
 
@@ -221,8 +221,8 @@ curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 
 ```typescript
 // шаг главы 8; итоговая версия: examples/users-service/src/users/users.repository.ts
-import type { CtxReader, Logger } from '@nestling/app';
-import { Ctx, Logger$, RequestId } from '@nestling/app';
+import type { CtxReader, Logger } from '@nestlingjs/app';
+import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
 
 @Component([Database, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
@@ -321,7 +321,7 @@ it('пишет запись аудита через логгер ядра', asyn
 });
 ```
 
-`spyLogger()` из `@nestling/testing` возвращает логгер, который копит
+`spyLogger()` из `@nestlingjs/testing` возвращает логгер, который копит
 записи в `entries` вместо `stderr`. Подмена `RootLogger$` в `overrides`
 тестового корня перехватывает записи всех членов `Logger$` — и сервисов, и
 ядра — начиная с фазы INIT. Вызов

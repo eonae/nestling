@@ -1,4 +1,4 @@
-# @nestling/transport.http
+# @nestlingjs/transport.http
 
 HTTP-транспорт Nestling на `node:http`: маршрутизация через `find-my-way`,
 разбор тела запроса по io-декларации endpoint'а (JSON, сырые байты, NDJSON,
@@ -7,7 +7,7 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 
 > 🚧 Активная разработка, API может меняться. CORS, ограничение частоты
 > запросов и сжатие не реализованы. Валидатор для схем приложения пакет не
-> выбирает: данные проверяет `@nestling/app`.
+> выбирает: данные проверяет `@nestlingjs/app`.
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
 > Гайд: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
 > [глава 11. Файлы и потоки](../../docs/guide/11-files-and-streams.md).
@@ -15,7 +15,7 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 ## Установка
 
 ```bash
-npm install @nestling/transport.http
+npm install @nestlingjs/transport.http
 ```
 
 Пакет `zod` в зависимостях нужен только конфиг-секции сервера (`HTTP_PORT`,
@@ -24,8 +24,8 @@ npm install @nestling/transport.http
 ## Минимальный пример
 
 ```typescript
-import { makeApp, Ok } from '@nestling/app';
-import { http, httpEndpoint } from '@nestling/transport.http';
+import { makeApp, Ok } from '@nestlingjs/app';
+import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 export const GetUser = httpEndpoint({
@@ -68,11 +68,11 @@ await makeApp({
   `httpAccessLog`, `withClientIp`, `withHeader`.
 - **Ошибки транспорта** — `JsonParseError`, `MultipartFieldError`,
   `PayloadTooLargeError`.
-- **Реэкспорт [`@nestling/operations`](../nestling.operations/)** — две формы
+- **Реэкспорт [`@nestlingjs/operations`](../nestling.operations/)** — две формы
   bind-карты приходят из пакета-соседа.
 
 ## Границы пакета
 
 Транспорт разбирает запрос и отдаёт ответ. Проверку данных схемой, политики
-и пайплайн выполняет `@nestling/app`; байтовый уровень — сжатие, CORS,
+и пайплайн выполняет `@nestlingjs/app`; байтовый уровень — сжатие, CORS,
 ограничение частоты — остаётся за обратным прокси.

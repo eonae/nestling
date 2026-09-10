@@ -3,8 +3,8 @@ import { Database$ } from '../interfaces.js';
 import { DatabaseHealthCheck } from './database.health.js';
 import { InMemoryDatabase } from './database.service.js';
 
-import { HealthCheck$ } from '@nestling/app';
-import { classProvider, makeModule } from '@nestling/container';
+import { HealthCheck$ } from '@nestlingjs/app';
+import { classProvider, makeModule } from '@nestlingjs/container';
 
 export const DatabaseModule = makeModule({
   name: 'module:database',

@@ -18,7 +18,7 @@ OpenAPI.
 
 ### Requirement: Конверт транспортного ответа — расширение ядра
 
-`@nestling/operations` SHALL объявлять `TransportResponse<TValue>` —
+`@nestlingjs/operations` SHALL объявлять `TransportResponse<TValue>` —
 ответ, оформленный транспортом. Конверт SHALL нести четыре поля: метку
 `Symbol.for('nestling:transport-response')`, имя транспорта `transport`,
 метаданные протокола `meta` и результат `result` (`Ok<TValue>` либо
@@ -55,7 +55,7 @@ SHALL быть убрано из обоих контекстов ответа.
 
 ### Requirement: Анонимная HTTP-декларация даёт хендлеру `meta.http`
 
-`@nestling/transport.http` SHALL экспортировать `HttpRequest` с полями
+`@nestlingjs/transport.http` SHALL экспортировать `HttpRequest` с полями
 `method`, `url` (путь с query-строкой, как прислан клиентом), `headers` и
 `ip` (адрес сокета, необязательный). Транспорт SHALL класть значение в
 стартовый контекст запроса под ключом `http`.
@@ -85,7 +85,7 @@ SHALL тоже давать хендлеру `meta.http`.
 
 ### Requirement: `HttpResponse` задаёт заголовки, cookie и редирект
 
-`@nestling/transport.http` SHALL экспортировать `HttpResponse` —
+`@nestlingjs/transport.http` SHALL экспортировать `HttpResponse` —
 значение, реализующее конверт транспортного ответа с именем `http`. Класс
 SHALL иметь два конструктора:
 
@@ -156,7 +156,7 @@ SHALL иметь два конструктора:
 стартового контекста: при несовпадении слот SHALL принимать литерал
 ошибки с полями `__error`, `missing` и `hint`.
 
-`@nestling/transport.http` SHALL экспортировать `HttpHandlerMeta`
+`@nestlingjs/transport.http` SHALL экспортировать `HttpHandlerMeta`
 (расширяет `HandlerMeta` полем `http: HttpRequest`) и `HttpHandler<C>` —
 интерфейс HTTP-хендлера операции с результатом `HttpOutput`.
 
@@ -180,7 +180,7 @@ SHALL иметь два конструктора:
 ### Requirement: Стартовый контекст задаётся в тестовом вызове
 
 `TestCallOptions` SHALL принимать поле `input` — стартовый контекст
-запроса. Поле SHALL быть общим для всех транспортов: `@nestling/testing`
+запроса. Поле SHALL быть общим для всех транспортов: `@nestlingjs/testing`
 SHALL NOT зависеть от пакета транспорта и SHALL NOT называть его типы.
 
 #### Scenario: Тест задаёт HTTP-метаданные

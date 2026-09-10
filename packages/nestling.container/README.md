@@ -1,4 +1,4 @@
-# @nestling/container
+# @nestlingjs/container
 
 Контейнер зависимостей на стандартных декораторах ECMAScript с полной
 проверкой графа на сборке. `build()` строит граф и останавливается на
@@ -15,14 +15,14 @@ Nestling; работает и отдельно.
 ## Установка
 
 ```bash
-npm install @nestling/container
+npm install @nestlingjs/container
 ```
 
 ## Минимальный пример
 
 ```typescript
 import { classProvider, Component, ContainerBuilder, makeModule, makeToken }
-  from '@nestling/container';
+  from '@nestlingjs/container';
 
 // DI-токен даёт интерфейсу имя во время выполнения
 const ILogger = makeToken<ILogger>('ILogger');
@@ -89,4 +89,4 @@ await container.destroy();
 ## Границы пакета
 
 Контейнер держит граф и жизненный цикл. Запросов, транспортов и
-конфигурации он не знает: их приносит `@nestling/app`.
+конфигурации он не знает: их приносит `@nestlingjs/app`.

@@ -15,8 +15,8 @@ import { ConsoleLogger } from './console.js';
 import type { Logger } from './interface.js';
 import { Logger$, RootLogger$ } from './tokens.js';
 
-import type { Module } from '@nestling/container';
-import { factoryProvider, familyProvider } from '@nestling/container';
+import type { Module } from '@nestlingjs/container';
+import { factoryProvider, familyProvider } from '@nestlingjs/container';
 
 /** Член семейства как дочерний логгер корня с привязкой области */
 const memberOf = (scope: string) =>

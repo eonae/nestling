@@ -12,14 +12,14 @@ import type { EndpointDiscovery } from './discovery.js';
 import type { ResolvedBundle } from './feature.js';
 import { injectedTokens } from './feature.js';
 
-import type { SwitchValues } from '@nestling/container';
-import { asFamilyMember } from '@nestling/container';
-import type { OperationKind } from '@nestling/operations';
+import type { SwitchValues } from '@nestlingjs/container';
+import { asFamilyMember } from '@nestlingjs/container';
+import type { OperationKind } from '@nestlingjs/operations';
 import {
   EmitterFamily,
   lookupOperation,
   PortFamily,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 
 /** Операция в отчёте `check()` */
 export interface CheckedOperation {

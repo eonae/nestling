@@ -24,20 +24,20 @@ import { bindPorts, portsKernel, undurableOperations } from './kernel.js';
 import { collectImplementations } from './topology.js';
 import { BusTransport$ } from './transport.js';
 
-import type { BuiltContainer } from '@nestling/container';
+import type { BuiltContainer } from '@nestlingjs/container';
 import {
   ContainerBuilder,
   factoryProvider,
   makeToken,
   valueProvider,
-} from '@nestling/container';
-import type { Emitter, Port } from '@nestling/operations';
+} from '@nestlingjs/container';
+import type { Emitter, Port } from '@nestlingjs/operations';
 import {
   EmitterFamily,
   makeEvent,
   makeRequest,
   PortFamily,
-} from '@nestling/operations';
+} from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const Echo = makeRequest({

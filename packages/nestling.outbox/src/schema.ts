@@ -11,8 +11,8 @@
  * вложенностью идут к настоящему вендору.
  */
 
-import type { StandardSchemaV1 } from '@common/misc';
-import { jsonSchema } from '@nestling/operations';
+import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
+import { jsonSchema } from '@nestlingjs/operations';
 
 /** Один отказ схемы — форма, которую ждёт Standard Schema */
 const issue = (message: string): { issues: [{ message: string }] } => ({

@@ -1,6 +1,6 @@
 # 14. Оповещать соседей о случившемся
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-10).
 > Целевое описание: [design/operations.md](../design/operations.md),
 > разделы «Три вида» и «Профиль вызова». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Порты: межфичевое
@@ -199,7 +199,7 @@ export class SignupJournal {
 }
 ```
 
-`withIdempotencyKey()` — готовый pre-юнит из `@nestling/app`: он
+`withIdempotencyKey()` — готовый pre-юнит из `@nestlingjs/app`: он
 берёт ключ из параметров вызова и объявляет переменную контекста
 `IdempotencyKey`. Журнал читает её через `Ctx(IdempotencyKey)` так же,
 как хранилище читало `RequestId` в [главе 9](./09-logging.md).

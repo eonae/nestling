@@ -5,7 +5,7 @@
  * диагностики отсюда в снапшоты не попадают.
  */
 
-import type { AnyInput, PreUnitFn } from '@nestling/app';
+import type { AnyInput, PreUnitFn } from '@nestlingjs/app';
 
 export interface User {
   id: string;

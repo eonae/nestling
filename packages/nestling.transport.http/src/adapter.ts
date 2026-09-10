@@ -11,10 +11,10 @@ import type {
   ResponseContext,
   StreamSummary,
   SuccessResponseContext,
-} from '@nestling/app';
-import { isAsyncIterable, isMidStreamFailure } from '@nestling/app';
-import type { RedirectStatus, SseConfig } from '@nestling/operations';
-import { InternalError, untilAborted } from '@nestling/operations';
+} from '@nestlingjs/app';
+import { isAsyncIterable, isMidStreamFailure } from '@nestlingjs/app';
+import type { RedirectStatus, SseConfig } from '@nestlingjs/operations';
+import { InternalError, untilAborted } from '@nestlingjs/operations';
 
 /** Соответствие статусов ответа кодам HTTP */
 
@@ -49,11 +49,11 @@ export const SSE_ERROR_EVENT = 'error';
 /**
  * Настройки SSE-ответа.
  *
- * Тип объявлен в `@nestling/operations` рядом с bind-картой; здесь он
+ * Тип объявлен в `@nestlingjs/operations` рядом с bind-картой; здесь он
  * реэкспортирован, чтобы автор декларации брал его оттуда же, откуда
  * `httpEndpoint`.
  */
-export type { SseConfig } from '@nestling/operations';
+export type { SseConfig } from '@nestlingjs/operations';
 
 /** Параметры отправки ответа помимо самого значения */
 export interface SendOptions {
@@ -82,7 +82,7 @@ export interface SendOptions {
 /**
  * Переводит статус ответа в код HTTP.
  *
- * Функция публична: генератор документации (`@nestling/openapi`) берёт
+ * Функция публична: генератор документации (`@nestlingjs/openapi`) берёт
  * коды отсюда, чтобы документ совпадал с тем, что отдаёт сервер.
  * Неизвестный статус даёт `200`; из типизированного кода этот случай
  * недостижим, так как набор статусов закрыт.

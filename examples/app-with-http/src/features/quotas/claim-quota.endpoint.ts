@@ -3,9 +3,9 @@ import { ClaimQuota, QuotaExceeded } from '../../operations.js';
 
 import { QuotaService } from './quota.service.js';
 
-import type { Logger } from '@nestling/app';
-import { implement, Logger$ } from '@nestling/app';
-import { Handler } from '@nestling/container';
+import type { Logger } from '@nestlingjs/app';
+import { implement, Logger$ } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
 
 @Handler([QuotaService, Logger$.auto])
 class ClaimQuotaHandler {

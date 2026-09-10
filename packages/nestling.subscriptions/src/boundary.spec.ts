@@ -1,5 +1,5 @@
 /**
- * Граница сателлита: из `@nestling/app` пакет берёт примитивы, а не
+ * Граница сателлита: из `@nestlingjs/app` пакет берёт примитивы, а не
  * композиционный корень.
  *
  * До слияния ядра границу держал состав зависимостей — пайплайн и корень
@@ -52,9 +52,9 @@ function shippedFiles(directory: string): string[] {
   });
 }
 
-/** Имена, импортированные файлом из `@nestling/app` */
+/** Имена, импортированные файлом из `@nestlingjs/app` */
 function importedFromApp(source: string): string[] {
-  const named = /import\s+(?:type\s+)?{([^}]*)}\s+from\s+'@nestling\/app';/g;
+  const named = /import\s+(?:type\s+)?{([^}]*)}\s+from\s+'@nestlingjs\/app';/g;
 
   return [...source.matchAll(named)].flatMap(([, clause]) =>
     clause
@@ -73,7 +73,7 @@ const imported = new Map(
   ]),
 );
 
-describe('@nestling/subscriptions: композиционный корень не импортируется', () => {
+describe('@nestlingjs/subscriptions: композиционный корень не импортируется', () => {
   it('среди импортированных имён нет сборки приложения и объявления фичи', () => {
     const found = [...imported].flatMap(([file, names]) =>
       names
@@ -90,7 +90,7 @@ describe('@nestling/subscriptions: композиционный корень н�
 
   it('импорт целиком (`import * as`) не обходит проверку', () => {
     const wildcard = shippedFiles(srcDir).filter((path) =>
-      /import\s+\*\s+as\s+\w+\s+from\s+'@nestling\/app';/.test(
+      /import\s+\*\s+as\s+\w+\s+from\s+'@nestlingjs\/app';/.test(
         readFileSync(path, 'utf8'),
       ),
     );

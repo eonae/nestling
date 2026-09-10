@@ -27,7 +27,7 @@ type NotFail<T> = [T] extends [AnyFail] ? never : unknown;
  *
  * Заголовков у `Ok` нет: они принадлежат HTTP, а не результату обработки.
  * Заголовки, cookie и редирект задаёт форма ответа своего транспорта —
- * `HttpResponse` в `@nestling/transport.http`.
+ * `HttpResponse` в `@nestlingjs/transport.http`.
  */
 export class Ok<TValue = unknown> {
   /**

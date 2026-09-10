@@ -1,6 +1,6 @@
 # 3. Принять данные и не пропустить мусор
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-09).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md),
 > [design/schemas.md](../design/schemas.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-13] Канонизация HTTP-input:
@@ -150,7 +150,7 @@ export const CreateUser = httpEndpoint({
 `body()` у `name` записывает вслух то же, что дало бы умолчание: у
 POST-запроса непомеченные поля читаются из тела.
 
-Пометки — значения из `@nestling/operations`: `query()`,
+Пометки — значения из `@nestlingjs/operations`: `query()`,
 `query({ multiple: true })` для повторяющегося параметра и `body()`.
 Карта `bind` вычисляется при создании декларации, поэтому нарушение
 правила видно сразу: `body()` у метода без тела, пометка на

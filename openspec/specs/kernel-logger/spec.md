@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Логгер ядра — единственный канал вывода Nestling. `@nestling/app`
+Логгер ядра — единственный канал вывода Nestling. `@nestlingjs/app`
 экспортирует интерфейс `Logger`, корневой DI-токен `RootLogger$` и семейство
 `Logger$` с параметром `scope`; ядро пишет только через члены семейства и не
 обращается к `console`. Умолчание — `ConsoleLogger`, настраиваемый
@@ -13,7 +13,7 @@ kernel-секцией `nestlingLog` и подменяемый одним про�
 
 ### Requirement: Интерфейс `Logger` — четыре уровня, три формы вызова, `child`
 
-`@nestling/app` SHALL экспортировать интерфейс `Logger` с методами
+`@nestlingjs/app` SHALL экспортировать интерфейс `Logger` с методами
 `debug`, `info`, `warn`, `error` и `child(bindings)`, а также типы
 `Fields = Record<string, unknown> & { err?: unknown }` и
 `LogLevel = 'debug' | 'info' | 'warn' | 'error'`. Каждый метод уровня SHALL
@@ -54,7 +54,7 @@ SHALL накладываться поверх родительских, поля
 
 ### Requirement: `RootLogger$` и семейство `Logger$`
 
-`@nestling/app` SHALL экспортировать DI-токен `RootLogger$` типа `Logger`
+`@nestlingjs/app` SHALL экспортировать DI-токен `RootLogger$` типа `Logger`
 и семейство DI-токенов `Logger$` с параметром `scope`.
 
 Корневой логгер SHALL создаваться **вне графа**, до построения контейнера:
@@ -231,7 +231,7 @@ INIT.
 
 ### Requirement: `withRequestLogging` принимает `Logger` ядра
 
-`withRequestLogging(logger)` SHALL принимать `Logger` из `@nestling/app`
+`withRequestLogging(logger)` SHALL принимать `Logger` из `@nestlingjs/app`
 и писать `info` с сообщением о начале обработки и полями `transport` и
 `pattern`. Локального интерфейса `Logger` у юнита SHALL NOT существовать.
 
@@ -244,7 +244,7 @@ INIT.
 
 ### Requirement: `spyLogger()` — записи значениями
 
-`@nestling/testing` SHALL экспортировать `spyLogger()`, возвращающий
+`@nestlingjs/testing` SHALL экспортировать `spyLogger()`, возвращающий
 `{ logger, entries }`, где `entries` — список записей
 `{ level, message, fields }`. `child(bindings)` такого логгера SHALL
 писать в тот же список, объединяя привязки с полями записи. Подмена
