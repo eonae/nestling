@@ -20,19 +20,19 @@
 
 ## 2. HTTP-форма ответа: `references/http.md`
 
-- [ ] 2.1 Написать сниппет `snippets/redirect.endpoint.ts`: `GET`-декларация с
+- [x] 2.1 Написать сниппет `snippets/redirect.endpoint.ts`: `GET`-декларация с
   полем `redirect: 302`, хендлер возвращает `HttpResponse.redirect(location)`,
   слой `observability`
-- [ ] 2.2 Объявить его в `endpoints:` `UsersFeature` в
+- [x] 2.2 Объявить его в `endpoints:` `UsersFeature` в
   `snippets/users.feature.ts` — endpoint входит в приложение и проверяется
   сборкой
-- [ ] 2.3 Написать сниппет с `HttpResponse.of(value, { headers, cookies })` и
+- [x] 2.3 Написать сниппет с `HttpResponse.of(value, { headers, cookies })` и
   `Ok.created` либо показать обе формы в одном сниппете, если он остаётся
   читаемым
-- [ ] 2.4 Написать `skill/references/http.md`: редирект, заголовки и cookie,
+- [x] 2.4 Написать `skill/references/http.md`: редирект, заголовки и cookie,
   статусы успеха (`Ok.created`, `Ok.accepted`, `Ok.noContent`, поле `status:`
   в `doc:`), цена пропущенного `redirect:`; ≤ 200 строк
-- [ ] 2.5 Убрать из `references/endpoints.md` абзац об `HttpResponse` и
+- [x] 2.5 Убрать из `references/endpoints.md` абзац об `HttpResponse` и
   поставить вместо него ссылку на `references/http.md`; проверить, что файл
   остался в потолке 200 строк
 

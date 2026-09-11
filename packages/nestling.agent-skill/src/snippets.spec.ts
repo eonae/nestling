@@ -7,8 +7,8 @@
  * проверяет каждый файл по отдельности; сборка проверяет их как одно
  * приложение — политику корня, слои endpoint'ов, рёбра между фичами.
  */
-import { app } from '../snippets/app.js';
 import { checkSnippets } from '../scripts/snippets.mjs';
+import { app } from '../snippets/app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { RootLogger$ } from '@nestlingjs/app';

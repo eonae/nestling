@@ -13,9 +13,11 @@ import {
   QuotaService,
   UserRegisteredInQuotas,
 } from './claim-quota.endpoint.js';
+import { CreateSession } from './create-session.endpoint.js';
 import { CreateUser } from './create-user.endpoint.js';
 import { GetUser } from './get-user.endpoint.js';
 import { ListUsers } from './list-users.endpoint.js';
+import { GetAvatar } from './redirect.endpoint.js';
 import { UsersModule } from './users.module.js';
 
 import { makeFeature } from '@nestlingjs/app';
@@ -23,7 +25,7 @@ import { makeFeature } from '@nestlingjs/app';
 export const UsersFeature = makeFeature({
   name: 'users',
   modules: [UsersModule],
-  endpoints: [GetUser, ListUsers, CreateUser],
+  endpoints: [GetUser, GetAvatar, ListUsers, CreateUser, CreateSession],
 });
 
 export const QuotasFeature = makeFeature({
@@ -144,9 +146,8 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 ```
 
 `subscriber:` is required for an event: it names the subscription inside
-the process and becomes the queue group name at the broker. The caller
-injects `Operation.caller` for a request and `Operation.emitter` for an
-event or a command.
+the process and becomes the queue group name at the broker. On the calling
+side stand `Operation.caller` and `Operation.emitter`.
 
 <!-- snippet: call-neighbour.ts -->
 ```typescript
@@ -194,6 +195,5 @@ travel back.
   keeps a plugin in one branch only, `Switch.pick({ … })` chooses between
   values. Both branches stay visible to the compiler.
 - Splitting across processes changes one field: `intercom: 'events'` next
-  to `transports: [nats({ name: 'events' })]`. A call to an operation whose
-  owner is not in this assembly then goes over the bus, and the calling
-  code does not change.
+  to `transports: [nats({ name: 'events' })]`. A call whose owner is not in
+  this assembly then goes over the bus, and the calling code stays as it is.

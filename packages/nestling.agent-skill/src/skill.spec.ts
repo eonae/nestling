@@ -20,6 +20,7 @@ const REFERENCES = [
   'errors.md',
   'features.md',
   'from-nest.md',
+  'http.md',
   'pipeline.md',
   'testing.md',
 ];

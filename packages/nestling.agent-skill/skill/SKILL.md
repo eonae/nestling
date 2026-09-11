@@ -149,6 +149,7 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
 | Need | Read |
 |---|---|
 | declare an endpoint, place input fields, pick an io form | `references/endpoints.md` |
+| set a success status, headers, cookies or a redirect | `references/http.md` |
 | DI tokens, providers, class roles, modules, lifecycle phases | `references/container.md` |
 | layers, `.pre` / `.ok` / `.catch` / `.finally`, context, policies | `references/pipeline.md` |
 | define a failure, return it, read it, map it to a status | `references/errors.md` |

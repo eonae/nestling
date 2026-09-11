@@ -123,8 +123,7 @@ and the failure definitions. That keeps it importable from a frontend
 bundle, which is the reason it exists.
 
 `doc:` feeds the OpenAPI document, which is built from the same
-declarations that validate requests. `status: 'created'` is the documented
-success status; the handler still has to return `Ok.created(value)`.
+declarations that validate requests.
 
 ## Two forms of handler
 
@@ -179,9 +178,9 @@ export const GetUser = httpEndpoint({
 ```
 
 The second parameter of `handle` is `meta`: it carries what the `.pre`
-units of the layer put into the context, typed. HTTP specifics — headers,
-cookies, redirects — are set by returning `HttpResponse.of(ok, { … })`
-instead of a bare value.
+units of the layer put into the context, typed. The status of a success,
+headers, cookies and a redirect are the HTTP shape of the response and
+live in `references/http.md`.
 
 ## Forms of io
 
