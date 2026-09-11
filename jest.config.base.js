@@ -49,6 +49,22 @@ export function createJestConfig(fileUrl, overrides = {}) {
           diagnostics: { exclude: [`!${rootDir}/**`] },
           tsconfig: {
             target: 'es2022',
+            module: 'esnext',
+            // `bundler` разрешает относительные специфаеры с `.js`, которыми
+            // написаны исходники: сосед приезжает сюда исходником, а не `dist`
+            moduleResolution: 'bundler',
+            // Резолв типов повторяет `moduleNameMapper` ниже: сосед и
+            // компилируется, и исполняется из `src`. Через `node_modules`
+            // тип соседа приезжал бы из его `dist` — то есть из сборки,
+            // которой в момент прогона может не быть, и тип тогда
+            // расходится с кодом, который тест реально исполняет
+            baseUrl: repoRoot,
+            paths: {
+              '@nestlingjs/common.*': ['packages/common.*/src/index.ts'],
+              '@nestlingjs/*/testing': ['packages/nestling.*/src/testing/index.ts'],
+              '@nestlingjs/*/tokens': ['packages/nestling.*/src/tokens.ts'],
+              '@nestlingjs/*': ['packages/nestling.*/src/index.ts'],
+            },
             // `await using` в тестах: `Symbol.asyncDispose` есть в рантайме
             // Node 20+, но типам нужна отдельная библиотека. `dom` —
             // то, что подтягивал бы умолчательный `es2022.full`
