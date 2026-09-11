@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/common.graphs",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Направленный ациклический граф: топологический обход и обнаружение циклов — внутренний пакет Nestling",
   "keywords": [
     "nestling",

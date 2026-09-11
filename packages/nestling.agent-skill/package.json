@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/agent-skill",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Скилл Claude Code про Nestling и команда, которая кладёт его в проект: форма кода и правила, которых агент не знает по NestJS",
   "keywords": [
     "nestling",

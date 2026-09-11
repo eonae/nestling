@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/container",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Контейнер зависимостей на стандартных декораторах ECMAScript с полной проверкой графа на сборке",
   "keywords": [
     "nestling",

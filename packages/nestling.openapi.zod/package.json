@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/openapi.zod",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Конвертер схем zod в JSON Schema для @nestlingjs/openapi — обёртка над штатным z.toJSONSchema()",
   "keywords": [
     "nestling",
