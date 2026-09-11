@@ -480,10 +480,7 @@ describe.each([
 });
 
 describe.each([
-  [
-    'local',
-    (h: Harness) => makeLocalEmitter(placedContext(h)) as Emitter<any>,
-  ],
+  ['local', (h: Harness) => makeLocalEmitter(placedContext(h)) as Emitter<any>],
   [
     'remote',
     (h: Harness) => makeRemoteEmitter(placedContext(h)) as Emitter<any>,

@@ -9,6 +9,9 @@
  * диагностики — каждый обязан называть починку, иначе он бесполезен.
  */
 
+import type { DeferredPreUnitFn } from '../deferred.js';
+import { deferredOf, UNIT_NEEDS } from '../deferred.js';
+import type { ExtendableContext } from '../types/context.js';
 import type { PreUnitFn } from '../types/unit.js';
 
 import type { CtxReader } from './reader.js';
@@ -20,6 +23,7 @@ import { RequestId, Signal } from './well-known.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Token } from '@nestlingjs/container';
+import { makeToken, makeTokenFamily } from '@nestlingjs/container';
 import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 
 /** Проверка типов: `Expect<Equal<A, B>>` */
@@ -202,5 +206,89 @@ describe('Ctx — типизированный аксессор', () => {
     >;
 
     expect(declaredVarOf(unit)).toBe(RequestId);
+  });
+});
+
+describe('Var.provide(deps, compute) — писатель с зависимостями', () => {
+  const Database$ = makeToken<{ begin(): string }>('Database');
+  const Tx = contextVar<string>()('tx');
+
+  it('до bind() юнит — заглушка, называющая починку', () => {
+    const unit = Tx.provide([Database$], (_ctx, db) => db.begin());
+
+    expect(() => unit({} as never)).toThrow(/tx\.provide.*bind\(\)/);
+  });
+
+  it('несёт метку переменной и список DI-токенов — неперечислимо', () => {
+    const unit = Tx.provide([Database$], (_ctx, db) => db.begin());
+
+    expect(declaredVarOf(unit)).toBe(Tx);
+    expect(unit[UNIT_NEEDS]).toEqual([Database$]);
+    expect(deferredOf(unit)?.deps).toEqual([Database$]);
+    expect(Object.keys(unit)).toEqual([]);
+    expect(unit.name).toBe('tx.provide');
+  });
+
+  it('фабрика собирает добавку из контекста и значений зависимостей', async () => {
+    const unit = Tx.provide(
+      [Database$],
+      (ctx: ExtendableContext<{ tenant: string }>, db) =>
+        `${ctx.input.tenant}:${db.begin()}`,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const fn = deferredOf(unit)!.make([{ begin: () => 'tx-1' }]);
+
+    await expect(
+      (fn as (ctx: unknown) => Promise<unknown>)({ input: { tenant: 'acme' } }),
+    ).resolves.toEqual({ tx: 'acme:tx-1' });
+  });
+
+  it('Family.auto в списке зависимостей отвергается с починкой', () => {
+    const Logger$ = makeTokenFamily<string>('Logger');
+
+    expect(() =>
+      Tx.provide([Logger$.auto], (_ctx, logger) => String(logger)),
+    ).toThrow(/'tx'.*'Logger\.auto'.*Logger\('<name>'\)/);
+  });
+
+  it('список не из DI-токенов и compute не-функция отвергаются', () => {
+    const loose = Tx.provide as unknown as (a: unknown, b: unknown) => unknown;
+
+    expect(() => loose(['db'], () => 'x')).toThrow(
+      /'tx'.*list of DI tokens.*string at index 0/,
+    );
+    expect(() => loose([Database$], 'x')).toThrow(
+      /'tx'.*function as the second argument/,
+    );
+  });
+
+  it('типы: зависимость выводится из списка, требования — из аннотации ctx', () => {
+    const withTenant = Tx.provide(
+      [Database$],
+      (ctx: ExtendableContext<{ tenant: string }>, db) =>
+        `${ctx.input.tenant}:${db.begin()}`,
+    );
+    type _Annotated = Expect<
+      Equal<
+        typeof withTenant,
+        DeferredPreUnitFn<{ tenant: string }, { tx: string }, typeof Database$>
+      >
+    >;
+
+    const plain = Tx.provide([Database$], (_ctx, db) => db.begin());
+    type _Plain = Expect<
+      Equal<
+        typeof plain,
+        DeferredPreUnitFn<EmptyInput, { tx: string }, typeof Database$>
+      >
+    >;
+
+    // @ts-expect-error: параметр зависимости типизирован значением DI-токена
+    Tx.provide([Database$], (_ctx, db: number) => String(db));
+
+    // @ts-expect-error: писатель типизирован значением переменной
+    Tx.provide([Database$], () => 1);
+
+    expect(declaredVarOf(plain)).toBe(Tx);
   });
 });

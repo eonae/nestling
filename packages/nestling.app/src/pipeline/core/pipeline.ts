@@ -32,8 +32,12 @@ import type {
   UnitLike,
 } from './types/unit.js';
 import { computeOutcome } from './abort.js';
+import type { DeferredUnit, UNIT_NEEDS } from './deferred.js';
+import { deferredOf } from './deferred.js';
 
 import type { Constructor } from '@nestlingjs/common.misc';
+import type { InjectionToken } from '@nestlingjs/container';
+import { tokenId } from '@nestlingjs/container';
 import type {
   AnyFail,
   AnyFailDefinition,
@@ -285,10 +289,16 @@ type NormalizeAddition<TAdd> = [TAdd] extends [never]
 type ExtractAddition<M> = AdditionOf<PreUnitResult<M>>;
 
 /**
- * Отложенная зависимость юнита: для класс-формы это её конструктор,
- * для остальных форм — `never`.
+ * Отложенные зависимости юнита: для класс-формы это её конструктор, для
+ * писателя переменной с зависимостями — его DI-токены, для остальных форм
+ * — `never`.
  */
-type ExtractNeeds<M> = M extends Constructor<UnitInstance<any>> ? M : never;
+type ExtractNeeds<M> =
+  M extends Constructor<UnitInstance<any>>
+    ? M
+    : M extends { readonly [UNIT_NEEDS]: readonly (infer N)[] }
+      ? N
+      : never;
 
 /**
  * Тип-параметры пайплайна в виде объекта. Существует только в типах:
@@ -306,8 +316,14 @@ export interface PipelineTypes<
   fails: TFails;
 }
 
-/** Создаёт инстанс класса-юнита для `bind()`; обычно это контейнер */
-export type UnitResolver = (ctor: Constructor<unknown>) => unknown;
+/**
+ * Даёт `bind()` значение по DI-токену; обычно это контейнер.
+ *
+ * Резолвер один на оба вида отложенных зависимостей: класс-юнит — DI-токен,
+ * которым служит сам класс, писатель переменной — список DI-токенов из
+ * `Var.provide(deps, compute)`.
+ */
+export type UnitResolver = (token: InjectionToken) => unknown;
 
 /**
  * Пайплайн: иммутабельное значение, которое умеет выполнить запрос.
@@ -315,9 +331,9 @@ export type UnitResolver = (ctor: Constructor<unknown>) => unknown;
  * @template TReq - Требования слоя к внешнему контексту. Задаются
  * `makePipeline<TReq>()` и проверяются компилятором в `compose`
  * @template TAcc - `input`, накопленный `.pre`-юнитами (включает `TReq`)
- * @template TNeeds - Классы-юниты, которым ещё нужен инстанс. `never` —
- * пайплайн готов к выполнению; иначе нужен `bind()` (`App` вызывает его
- * на фазе WIRE)
+ * @template TNeeds - Отложенные зависимости: классы-юниты без инстанса и
+ * DI-токены писателей переменных. `never` — пайплайн готов к выполнению;
+ * иначе нужен `bind()` (`App` вызывает его на фазе WIRE)
  * @template TFails - Отказы, объявленные при подключении `.pre`-юнитов.
  * Декларация складывает их со своим `errors:` в эффективное множество
  */
@@ -331,8 +347,10 @@ export interface Pipeline<
   readonly $types?: PipelineTypes<TReq, TAcc, TNeeds, TFails>;
 
   /**
-   * Создаёт инстансы классов-юнитов через `resolve` (обычно это контейнер)
-   * и возвращает пайплайн, готовый к выполнению (`TNeeds = never`).
+   * Резолвит отложенные зависимости через `resolve` (обычно это контейнер)
+   * — создаёт инстансы классов-юнитов и подставляет значения писателям
+   * переменных — и возвращает пайплайн, готовый к выполнению
+   * (`TNeeds = never`).
    */
   bind(resolve: UnitResolver): Pipeline<TReq, TAcc, never, TFails>;
 
@@ -467,7 +485,13 @@ interface UnitEntry {
   fn?: AnyUnitFn;
   /** Класс юнита, пока `bind()` не создал инстанс */
   ctor?: Constructor<UnitInstance<AnyUnitFn>>;
+  /** Отложенный юнит, пока `bind()` не подставил значения зависимостей */
+  deferred?: DeferredUnit;
 }
+
+/** Имя юнита, которому ещё нужен `bind()`; `undefined` — юнит готов */
+const pendingUnitName = (entry: UnitEntry): string | undefined =>
+  entry.fn ? undefined : (entry.ctor?.name ?? entry.deferred?.name);
 
 type ResponsePhase = 'ok' | 'catch';
 
@@ -483,6 +507,12 @@ interface Layer {
 
 function normalizeUnit(unit: unknown): UnitEntry {
   if (typeof unit === 'function') {
+    // Писатель с зависимостями — заглушка до `bind()`: исполнять её нельзя
+    const deferred = deferredOf(unit);
+    if (deferred) {
+      return { deferred };
+    }
+
     // У класса-юнита есть handle в прототипе; обычная функция — сама юнит
     const proto = (unit as { prototype?: { handle?: unknown } }).prototype;
     if (proto && typeof proto.handle === 'function') {
@@ -645,12 +675,13 @@ class PipelineImpl {
     // проверялись на каждый запрос, считаются здесь один раз
     this.unresolvedUnit = layers
       .flatMap((layer) => [...layer.pre, ...layer.responses, ...layer.finals])
-      .find((entry) => entry.ctor)?.ctor;
+      .map(pendingUnitName)
+      .find((name) => name !== undefined);
     this.hasFinals = layers.some((layer) => layer.finals.length > 0);
   }
 
-  /** Первый класс-юнит без экземпляра; `execute` отказывает по нему */
-  private readonly unresolvedUnit: UnitEntry['ctor'];
+  /** Имя первого юнита, которому нужен `bind()`; `execute` отказывает по нему */
+  private readonly unresolvedUnit: string | undefined;
 
   /** Есть ли хоть один `.finally`-юнит; без них ответная фаза их не ждёт */
   private readonly hasFinals: boolean;
@@ -792,6 +823,22 @@ class PipelineImpl {
 
   bind(resolve: UnitResolver): PipelineImpl {
     const resolveEntry = <E extends UnitEntry>(entry: E): E => {
+      if (entry.deferred) {
+        const { name, deps, make } = entry.deferred;
+        // Значения берутся один раз: писатель — синглтон, как класс-юнит
+        const values = deps.map((token) => {
+          const value = resolve(token);
+          if (value === undefined) {
+            throw new Error(
+              `Cannot bind pipeline unit ${name}: resolver returned no value ` +
+                `for '${tokenId(token)}'`,
+            );
+          }
+          return value;
+        });
+
+        return { ...entry, deferred: undefined, fn: make(values) as AnyUnitFn };
+      }
       if (!entry.ctor) {
         return entry;
       }
@@ -853,9 +900,9 @@ class PipelineImpl {
     ctx: ExtendableContext<AnyInput>,
     options: ExecuteOptions = {},
   ): Promise<ResponseContext<unknown>> {
-    if (this.unresolvedUnit) {
+    if (this.unresolvedUnit !== undefined) {
       throw new Error(
-        `Pipeline has unresolved class units (${this.unresolvedUnit.name}); ` +
+        `Pipeline has unresolved units (${this.unresolvedUnit}); ` +
           'call bind() or run under App',
       );
     }

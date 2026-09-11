@@ -103,6 +103,7 @@ export type {
   ContextVarDeclarator,
   ContextVarOptions,
   CtxReader,
+  DeferredPreUnitFn,
   EndpointDefinition,
   EndpointFilter,
   EndpointMeta,
