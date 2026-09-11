@@ -6,7 +6,7 @@
  * в репозитории нет. Человек запускает скрипт с `--interactive`, когда имя
  * публикуется впервые: доверенного издателя нельзя привязать к пакету,
  * которого ещё нет в реестре, поэтому первую версию имени отправляет
- * человек, отвечая на запрос кода 2FA.
+ * человек, проходя проверку второго фактора на каждый пакет.
  *
  * Тарбол делает `yarn pack`: он подставляет версии вместо протокола
  * `workspace:` и отбирает файлы по `files`. Отправляет тарбол `npm publish`
@@ -21,11 +21,10 @@
  * Прогон: `node scripts/publish.mjs [--interactive]`. Переменные окружения —
  * `GITHUB_REF_NAME` (тег) и `NPM_CONFIG_PROVENANCE`.
  */
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createInterface } from 'node:readline/promises';
 import { promisify } from 'node:util';
 
 import { publishablePackages, repoRoot, slugOf } from './packages.mjs';
@@ -51,13 +50,6 @@ if (tag) {
   }
 }
 
-const prompt = interactive
-  ? createInterface({ input: process.stdin, output: process.stdout })
-  : null;
-
-// Код 2FA живёт между пакетами: см. комментарий у publish()
-let otp = null;
-
 if (interactive) {
   console.log(`[publish] аккаунт ${await whoami()}`);
   console.log('[publish] publish идёт не из CI, поэтому provenance у этих версий не будет');
@@ -77,62 +69,40 @@ for (const { name, pkg } of packages) {
   const out = join(tarballs, `${slugOf(name)}.tgz`);
 
   await run('yarn', ['workspace', name, 'pack', '--out', out], { cwd: repoRoot });
-  await publish(name, out);
+  await publish(out);
 
   console.log(`[publish] ${name} опубликован`);
 }
-
-prompt?.close();
 
 console.log(`[publish] ${packages.length} package(s) published: ok`);
 
 /**
  * Отправляет тарбол в реестр.
  *
- * Введённый код 2FA переиспользуется, пока реестр его принимает. Код живёт
- * полминуты, а публикация всех пакетов занимает дольше, поэтому одного
- * ввода на весь прогон не хватит. Отказ по коду означает, что он истёк:
- * скрипт спрашивает следующий и повторяет отправку того же тарбола.
+ * В интерактивном режиме ввод и вывод достаются `npm publish` как есть:
+ * второй фактор спрашивает он сам и по-разному. Passkey он подтверждает
+ * адресом, который печатает в терминал и открывает в браузере, код
+ * приложения — запросом в том же терминале. Перехватить вывод значило бы
+ * спрятать от человека и адрес, и запрос.
  */
-async function publish(name, tarball) {
-  for (;;) {
-    if (interactive && otp === null) otp = await askOtp(name);
+async function publish(tarball) {
+  const args = ['publish', tarball, '--access', 'public'];
 
-    const args = ['publish', tarball, '--access', 'public'];
+  if (!interactive) {
+    await run('npm', args, { cwd: repoRoot, maxBuffer: 32 * 1024 * 1024 });
 
-    if (otp !== null) args.push('--otp', otp);
-
-    try {
-      await run('npm', args, { cwd: repoRoot, maxBuffer: 32 * 1024 * 1024 });
-
-      return;
-    } catch (error) {
-      if (!interactive || !rejectedOtp(error)) throw error;
-
-      console.log('[publish] реестр не принял код');
-      otp = null;
-    }
-  }
-}
-
-/** Спрашивает код 2FA. Пустой ответ останавливает публикацию. */
-async function askOtp(name) {
-  const answer = (await prompt.question(`[publish] код 2FA (${name}): `)).trim();
-
-  if (answer === '') {
-    console.error('[publish] код не введён, публикация остановлена');
-    prompt.close();
-    process.exit(1);
+    return;
   }
 
-  return answer;
-}
+  await new Promise((resolve, reject) => {
+    const npm = spawn('npm', args, { cwd: repoRoot, stdio: 'inherit' });
 
-/** Отличает отказ по коду 2FA от прочих ошибок реестра. */
-function rejectedOtp(error) {
-  const output = `${error.stderr ?? ''}${error.stdout ?? ''}`;
-
-  return output.includes('EOTP') || output.includes('one-time pass');
+    npm.on('error', reject);
+    npm.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`[publish] npm publish завершился с кодом ${code}`));
+    });
+  });
 }
 
 /** Имя аккаунта, под которым выполнен вход в реестр. */
