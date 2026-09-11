@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/eslint-plugin",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Правила ESLint для кода на Nestling: граница модуля по баррель-файлу и подсказка про слой в декларации endpoint'а",
   "keywords": [
     "nestling",

@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/client",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Типизированный HTTP-клиент из деклараций операций: вызов метода API устроен так же, как вызов порта, а зависимостей у пакета нет, кроме @nestlingjs/operations",
   "keywords": [
     "nestling",
