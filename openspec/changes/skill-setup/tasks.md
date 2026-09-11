@@ -38,21 +38,38 @@
 
 ## 3. Настройка проекта: `references/setup.md`
 
-- [ ] 3.1 Закрыть открытый вопрос 1 из `design.md`: собрать отдельный проект
+- [x] 3.1 Закрыть открытый вопрос 1 из `design.md`: собрать отдельный проект
   на актуальных zod v4 и TypeScript по `module: "nodenext"` и по
   `"esnext"` + `moduleResolution: "bundler"`; записать результат в комментарий
   задачи и выбрать тот, что компилируется без TS1542
-- [ ] 3.2 Написать `skill/references/setup.md`: `tsconfig.json` выбранного
+
+  > **Результат.** Отдельный проект на Node 24.10.0, TypeScript 5.9.3,
+  > zod 4.6.2 и `@nestlingjs/*` 0.1.3 с npm. TS1542 не даёт ни один
+  > вариант — ни при `--noEmit`, ни при эмите деклараций, ни при
+  > `skipLibCheck: false`. Выбран `nodenext`: он ловит относительный импорт
+  > без `.js` (TS2835), а `bundler` такой файл компилирует, и собранный
+  > `dist` падает первым же импортом. К обоим вариантам нужен
+  > `customConditions: ["testing"]`: типы `@nestlingjs/testing` ссылаются на
+  > `@nestlingjs/app/testing` за условием экспорта, иначе TS2307.
+- [x] 3.2 Написать `skill/references/setup.md`: `tsconfig.json` выбранного
   варианта (`lib` с `esnext.disposable`, без `experimentalDecorators` и
   `emitDecoratorMetadata`, `.js` в относительных импортах), скрипты
   `package.json` (`build` через `tsc`, `dev` через `tsx watch src/main.ts`,
   `test`), конфиг `@nestlingjs/eslint-plugin` с обоими правилами, одна фраза о
   том, почему type stripping в Node не подходит; ≤ 200 строк
-- [ ] 3.3 Проверить написанный `tsconfig.json` и скрипты на том же отдельном
+- [x] 3.3 Проверить написанный `tsconfig.json` и скрипты на том же отдельном
   проекте: `build`, `dev` и `test` выполняются
-- [ ] 3.4 Добавить `@nestlingjs/eslint-plugin` в `devDependencies` пакета
+
+  > **Результат.** `build`, `start`, `dev`, `test` и `lint` из `setup.md`
+  > выполнены на том же проекте. Два факта уточнили текст: `node src/main.ts`
+  > падает на первом декораторе с `SyntaxError: Invalid or unexpected token`
+  > (type stripping оставляет декоратор синтаксисом, которого нет у V8), а
+  > `node --test` по исходникам не резолвит `./app.js` из `.ts`-файла —
+  > поэтому и `dev`, и `test` идут через `tsx`. Без `--conditions=testing`
+  > прогон падает с `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+- [x] 3.4 Добавить `@nestlingjs/eslint-plugin` в `devDependencies` пакета
   скилла через `workspace:*`
-- [ ] 3.5 Добавить в `src/skill.spec.ts` проверку: каждое имя вида
+- [x] 3.5 Добавить в `src/skill.spec.ts` проверку: каждое имя вида
   `@nestlingjs/<rule>` в файлах скилла есть среди ключей экспорта плагина
 
 ## 4. `SKILL.md`: правила и пакеты
@@ -61,7 +78,7 @@
   с `hasLayer` обязывает каждый endpoint — включая форму с операцией и
   `implement` — объявить `pipeline:` либо `detached: '<reason>'`
 - [ ] 4.2 Добавить в тот же список правило о поле `redirect:`
-- [ ] 4.3 Дополнить таблицу «Where to look next» строками `references/setup.md`
+- [x] 4.3 Дополнить таблицу «Where to look next» строками `references/setup.md`
   и `references/http.md`
 - [ ] 4.4 Добавить в «Where to look next» вторую таблицу — шесть пакетов
   (`outbox`, `subscriptions`, `models`, `transport.cli`, `client`,
@@ -80,7 +97,7 @@
 
 ## 6. Спеки состава и конфигурация пакета
 
-- [ ] 6.1 Обновить перечень `REFERENCES` в `src/skill.spec.ts` до десяти файлов
+- [x] 6.1 Обновить перечень `REFERENCES` в `src/skill.spec.ts` до десяти файлов
 - [ ] 6.2 Прогнать `yarn workspace @nestlingjs/agent-skill test` и
   `yarn workspace @nestlingjs/agent-skill typecheck`
 - [ ] 6.3 Проверить `yarn pack:check`: новые файлы скилла едут в тарбол,

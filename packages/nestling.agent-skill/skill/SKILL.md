@@ -148,6 +148,7 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
 
 | Need | Read |
 |---|---|
+| set up `tsconfig.json`, the scripts, the runner and the linter | `references/setup.md` |
 | declare an endpoint, place input fields, pick an io form | `references/endpoints.md` |
 | set a success status, headers, cookies or a redirect | `references/http.md` |
 | DI tokens, providers, class roles, modules, lifecycle phases | `references/container.md` |

@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { SKILL_DIR, SNIPPETS_DIR } from '../scripts/snippets.mjs';
 
 import { describe, expect, it } from '@jest/globals';
+import nestlingPlugin from '@nestlingjs/eslint-plugin';
 
 /** Файлы `references/`, которые обязан содержать скилл */
 const REFERENCES = [
@@ -22,6 +23,7 @@ const REFERENCES = [
   'from-nest.md',
   'http.md',
   'pipeline.md',
+  'setup.md',
   'testing.md',
 ];
 
@@ -53,7 +55,7 @@ describe('состав скилла', () => {
     ]);
   });
 
-  it('references/ содержит ровно восемь файлов перечня', () => {
+  it('references/ содержит ровно десять файлов перечня', () => {
     expect(readdirSync(join(SKILL_DIR, 'references')).sort()).toEqual(
       REFERENCES,
     );
@@ -69,6 +71,25 @@ describe('состав скилла', () => {
     ].sort();
 
     expect(linked).toEqual(REFERENCES);
+  });
+});
+
+describe('имена правил ESLint', () => {
+  it('каждое имя из скилла есть среди правил плагина', () => {
+    // Имя правила отличает двоеточие сразу за кавычкой: так пишут ключ в
+    // `rules:`, а импорт пакета за кавычкой несёт `;` либо конец строки
+    const named = [
+      ...new Set(
+        skillFiles().flatMap(([, path]) =>
+          [
+            ...readFileSync(path, 'utf8').matchAll(/'@nestlingjs\/([\w-]+)':/g),
+          ].map(([, rule]) => rule),
+        ),
+      ),
+    ].sort();
+
+    expect(named).not.toEqual([]);
+    expect(named.filter((rule) => !(rule in nestlingPlugin.rules))).toEqual([]);
   });
 });
 
@@ -115,7 +136,12 @@ function lines(...path: string[]): number {
 
 /** Пары «имя, путь» для всех файлов скилла и всех сниппетов */
 function skillAndSnippets(): [string, string][] {
-  return [...collect(SKILL_DIR, 'skill'), ...collect(SNIPPETS_DIR, 'snippets')];
+  return [...skillFiles(), ...collect(SNIPPETS_DIR, 'snippets')];
+}
+
+/** Пары «имя, путь» для файлов скилла: `SKILL.md` и `references/` */
+function skillFiles(): [string, string][] {
+  return collect(SKILL_DIR, 'skill');
 }
 
 /** Файлы каталога парами «имя с префиксом, полный путь» */

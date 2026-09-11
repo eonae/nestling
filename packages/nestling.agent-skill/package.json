@@ -54,6 +54,7 @@
   "devDependencies": {
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/eslint-plugin": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
     "@nestlingjs/testing": "workspace:*",
     "@nestlingjs/transport.http": "workspace:*",
