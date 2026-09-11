@@ -74,26 +74,26 @@
 
 ## 4. `SKILL.md`: правила и пакеты
 
-- [ ] 4.1 Добавить правило 6 в «Rules the compiler or ASSEMBLE catches»: корень
+- [x] 4.1 Добавить правило 6 в «Rules the compiler or ASSEMBLE catches»: корень
   с `hasLayer` обязывает каждый endpoint — включая форму с операцией и
   `implement` — объявить `pipeline:` либо `detached: '<reason>'`
-- [ ] 4.2 Добавить в тот же список правило о поле `redirect:`
+- [x] 4.2 Добавить в тот же список правило о поле `redirect:`
 - [x] 4.3 Дополнить таблицу «Where to look next» строками `references/setup.md`
   и `references/http.md`
-- [ ] 4.4 Добавить в «Where to look next» вторую таблицу — шесть пакетов
+- [x] 4.4 Добавить в «Where to look next» вторую таблицу — шесть пакетов
   (`outbox`, `subscriptions`, `models`, `transport.cli`, `client`,
   `eslint-plugin`) с одним предложением «когда нужен» на каждый; для `outbox` и
   `client` назвать их первыми запросами после первого сервиса
-- [ ] 4.5 Проверить, что заголовков второго уровня по-прежнему пять и файл
+- [x] 4.5 Проверить, что заголовков второго уровня по-прежнему пять и файл
   в потолке 250 строк
 
 ## 5. `references/testing.md`: второй раннер
 
-- [ ] 5.1 Написать сниппет `snippets/node-test.ts`: один тест на `node:test` и
+- [x] 5.1 Написать сниппет `snippets/node-test.ts`: один тест на `node:test` и
   `node:assert/strict`, собирающий то же `app` через `assembleTest`
-- [ ] 5.2 Добавить в `testing.md` блок с этим сниппетом после блока jest и
+- [x] 5.2 Добавить в `testing.md` блок с этим сниппетом после блока jest и
   строку запуска `node --test --conditions=testing`
-- [ ] 5.3 Проверить потолок 200 строк
+- [x] 5.3 Проверить потолок 200 строк
 
 ## 6. Спеки состава и конфигурация пакета
 
