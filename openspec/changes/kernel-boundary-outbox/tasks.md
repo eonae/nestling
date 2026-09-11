@@ -100,7 +100,7 @@
 - [x] 6.2 `src/app.ts`: опция `partitionKey` убрана из `outbox({ … })`
 - [x] 6.3 `src/users/endpoints/create-user.endpoint.ts`: раздел передаётся
   вызовом `emit(user, { partitionKey: user.id })`
-- [ ] 6.4 `src/app.spec.ts` зелёный; `yarn smoke` проходит
+- [x] 6.4 `src/app.spec.ts` зелёный; `yarn smoke` проходит
 
 ## 7. Документация
 
@@ -129,13 +129,13 @@
 
 ## 8. Definition of Done
 
-- [ ] 8.1 Все задачи выше отмечены
-- [ ] 8.2 `yarn verify` зелёный (build, typecheck, lint, test, type-budget)
-- [ ] 8.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 8.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
-- [ ] 8.5 Запись `ideas.md`, по которой шёл change, несёт пометку
+- [x] 8.1 Все задачи выше отмечены
+- [x] 8.2 `yarn verify` зелёный (build, typecheck, lint, test, type-budget)
+- [x] 8.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 8.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
+- [x] 8.5 Запись `ideas.md`, по которой шёл change, несёт пометку
   «РЕАЛИЗОВАНО»
-- [ ] 8.6 `yarn docs:audit` — 0 ERROR
-- [ ] 8.7 Затронутые `examples/*` мигрированы, главы гайда пересверены с
+- [x] 8.6 `yarn docs:audit` — 0 ERROR
+- [x] 8.7 Затронутые `examples/*` мигрированы, главы гайда пересверены с
   обновлённой датой в плашке «сверено с кодом»
-- [ ] 8.8 Коммиты осмысленные, ветка запушена
+- [x] 8.8 Коммиты осмысленные, ветка запушена
