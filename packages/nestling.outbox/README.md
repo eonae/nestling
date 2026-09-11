@@ -27,7 +27,6 @@ export const appOutbox = outbox({
   transaction: Tx,
   store: OutboxStore$,
   operations: [UserCreated],
-  partitionKey: (payload) => (payload as { id: string }).id,
 });
 
 export const app = makeApp({
@@ -37,15 +36,17 @@ export const app = makeApp({
   policies: [appOutbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
 });
 
-// В хендлере эмиттер приходит DI-токеном outboxed(UserCreated):
-// строка пользователя и строка outbox коммитятся вместе.
+// В хендлере эмиттер приходит DI-токеном outboxed(UserCreated): строка
+// пользователя и строка outbox коммитятся вместе. Раздел записи называет
+// место вызова: emit(user, { partitionKey: user.id }).
 ```
 
 ## Экспорты
 
 - **Подключение** — `outbox`, `OutboxOptions`, `OutboxPlugin`, `outboxed`,
-  `outboxConfigKeys`, `OutboxConfigValues`, `StagingTransaction`,
-  `PartitionKeyOf`, `OutboxTransactionMissingError`.
+  `OutboxEmitter`, `OutboxEmitMeta`, `outboxConfigKeys`,
+  `OutboxConfigValues`, `StagingTransaction`,
+  `OutboxTransactionMissingError`.
 - **Хранилище** — `OutboxStore`, `InMemoryOutboxStore`, `OutboxRecord`,
   `OutboxRecordSnapshot`, `ClaimedRecord`, `OutboxClaimOptions`,
   `OutboxSettlement`.

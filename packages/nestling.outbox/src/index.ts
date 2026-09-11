@@ -8,10 +8,10 @@
  * атомарность недостижима в принципе. Транзакция открывается пайплайном,
  * репозиторий читает её из контекста.
  *
- * Satellite-пакет: ни строки в ядре. Всё, из чего он собран, — публичные
- * примитивы: семейства DI-токенов и переменные контекста с их ридерами
- * (`@nestlingjs/app`), ресурс с `acquire`/`release` и хук `@OnStart`
- * (`@nestlingjs/container`), интерфейс шины, операции и `makePlugin`.
+ * Satellite-пакет поверх публичных примитивов: семейства DI-токенов и
+ * переменные контекста с их ридерами (`@nestlingjs/app`), ресурс с
+ * `acquire`/`release` и хук `@OnStart` (`@nestlingjs/container`),
+ * интерфейс шины, операции и `makePlugin`.
  *
  * Наружу уходят пять вещей: плагин, DI-токен транзакционного эмиттера,
  * типы хранилища с реализацией в памяти, relay со своим DI-токеном и две
@@ -21,7 +21,7 @@
 export { outboxConfigKeys } from './config.js';
 export type { OutboxConfigValues } from './config.js';
 export { outboxed } from './emitter.js';
-export type { PartitionKeyOf } from './emitter.js';
+export type { OutboxEmitMeta, OutboxEmitter } from './emitter.js';
 export { OutboxTransactionMissingError } from './errors.js';
 export { InMemoryOutboxStore } from './memory-store.js';
 export type {

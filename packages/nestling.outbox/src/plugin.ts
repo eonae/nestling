@@ -8,7 +8,6 @@
 
 import type { OutboxConfigValues } from './config.js';
 import { OutboxConfig } from './config.js';
-import type { PartitionKeyOf } from './emitter.js';
 import { makeOutboxEmitter, OutboxedFamily } from './emitter.js';
 import { OutboxPublished, OutboxStuck } from './operations.js';
 import { OutboxRelay, OutboxRelay$ } from './relay.js';
@@ -71,15 +70,6 @@ export interface OutboxOptions {
    * вызовами `outboxed(Op)` при импорте, у пакета нет.
    */
   readonly operations: readonly OutboxableOperation[];
-
-  /**
-   * Как записи получают раздел — единицу порядка.
-   *
-   * Записи одного раздела публикуются в порядке создания. Без этой
-   * функции раздела нет ни у одной записи, и порядок не гарантируется
-   * нигде.
-   */
-  readonly partitionKey?: PartitionKeyOf;
 }
 
 /** Плагин outbox'а: обычный плагин плюс политика предпосылки */
@@ -108,15 +98,15 @@ export interface OutboxPlugin extends Plugin {
 /**
  * DI-токен шины для relay.
  *
- * Алиас `MessageBus$`, а не прямая зависимость: текст ошибки о
- * недостающей зависимости задаёт контейнер, и единственное, что пакет в
- * нём выбирает, — имя потребителя. Поэтому починки записаны сюда, и
- * приложение без шины видит их в той же строке, что и саму нехватку.
+ * Алиас `MessageBus$` ради имени потребителя: в ошибке о недостающей
+ * зависимости relay назван пакетом, а не классом. Первую починку —
+ * подключить транспорт шины — печатает ядро подсказкой `MessageBus$`;
+ * вторую, убрать плагин, знает только пакет, и она стоит подсказкой здесь.
+ * Идентификатор остаётся именем.
  */
-const OutboxBus$ = makeToken<IMessageBus>(
-  "@nestlingjs/outbox relay (add a bus transport to 'transports:', or remove " +
-    'the outbox plugin)',
-);
+const OutboxBus$ = makeToken<IMessageBus>('@nestlingjs/outbox relay', {
+  hint: 'or remove the outbox plugin',
+});
 
 /** Проверяет словарь объявления; всё — до создания единого значения */
 function assertOptions(options: OutboxOptions): void {
@@ -190,14 +180,7 @@ export function outbox(options: OutboxOptions): OutboxPlugin {
     return {
       provide: OutboxedFamily(name),
       useFactory: (store: OutboxStore, transaction: CtxReader<unknown>) =>
-        makeOutboxEmitter(operation, {
-          store,
-          transaction,
-          transactionKey,
-          ...(options.partitionKey === undefined
-            ? {}
-            : { partitionKey: options.partitionKey }),
-        }),
+        makeOutboxEmitter(operation, { store, transaction, transactionKey }),
       deps: [options.store, Ctx(options.transaction)],
     };
   });

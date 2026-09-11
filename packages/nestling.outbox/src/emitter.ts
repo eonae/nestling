@@ -25,7 +25,38 @@ import type {
   AnyOperation,
   Emitter,
   EmittingOperation,
+  MetaOf,
 } from '@nestlingjs/operations';
+
+/** Операция, у которой есть транзакционный эмиттер */
+type OutboxableOperation = EmittingOperation<any, any, any, any>;
+
+/**
+ * Словарь `meta` транзакционного эмиттера: словарь ядра плюс раздел.
+ *
+ * Раздел называет место вызова — тот, кто знает, чем упорядочена запись.
+ * Поле пакета в конверт транспорта не попадает: его читает только
+ * эмиттер, который его и объявил.
+ */
+export type OutboxEmitMeta<C extends OutboxableOperation> = MetaOf<C> & {
+  /**
+   * Раздел записи: записи одного раздела публикуются в порядке создания.
+   * Между разделами порядок не гарантируется; запись без раздела не
+   * упорядочена ничем.
+   */
+  readonly partitionKey?: string;
+};
+
+/**
+ * Транзакционный эмиттер: эмиттер ядра с расширенным словарём `meta`.
+ *
+ * Значение присваивается переменной типа `Emitter<C>`, поэтому хендлер,
+ * которому раздел не нужен, объявляет зависимость прежним типом.
+ */
+export type OutboxEmitter<C extends OutboxableOperation> = Emitter<
+  C,
+  OutboxEmitMeta<C>
+>;
 
 /**
  * Семейство транзакционных эмиттеров: один член на операцию.
@@ -42,45 +73,39 @@ export const OutboxedFamily = makeTokenFamily<Emitter<any>, [name: string]>(
 /**
  * DI-токен транзакционного эмиттера операции.
  *
- * Значение имеет тот же тип `Emitter<C>`, что и `Operation.emitter`,
- * поэтому тело хендлера от замены DI-токена не меняется. Меняется семантика
- * `emit`: промис завершается по факту записи в хранилище, а не по факту
- * доставки — публикует запись relay после коммита.
+ * Значение — {@link OutboxEmitter}: эмиттер ядра, чей словарь `meta`
+ * дополнен разделом. Оно присваивается `Emitter<C>`, поэтому тело
+ * хендлера от замены DI-токена не меняется. Меняется семантика `emit`:
+ * промис завершается по факту записи в хранилище, а не по факту доставки
+ * — публикует запись relay после коммита.
  *
  * Операция вида `request` сюда не проходит: у неё есть вызывающая
  * сторона `.caller`, а откладывать запрос-ответ до коммита нечем.
  *
  * @param operation - Операция вида `command` или `event`
- * @returns DI-токен со значением `Emitter<C>`
+ * @returns DI-токен со значением `OutboxEmitter<C>`
  *
  * @example
  * ```typescript
  * @Handler([outboxed(UserCreated), UsersRepository$])
  * export class CreateUserHandler {
  *   constructor(
- *     private readonly userCreated: Emitter<typeof UserCreated>,
+ *     private readonly userCreated: OutboxEmitter<typeof UserCreated>,
  *     private readonly users: UsersRepository,
  *   ) {}
+ *
+ *   async handle(input: CreateUserInput) {
+ *     const user = await this.users.insert(input);
+ *     // Раздел — идентификатор пользователя: его события едут по порядку
+ *     await this.userCreated.emit(user, { partitionKey: user.id });
+ *   }
  * }
  * ```
  */
-export const outboxed = <C extends EmittingOperation<any, any, any, any>>(
+export const outboxed = <C extends OutboxableOperation>(
   operation: C,
-): Token<Emitter<C>> =>
-  OutboxedFamily(operation.name) as unknown as Token<Emitter<C>>;
-
-/**
- * Как записи получают раздел.
- *
- * Функция композиции, а не аргумент `emit`: тип `meta` задаёт ядро
- * (`PortMeta`/`EmitMeta`), и лишнего поля в нём не выразить.
- *
- * @returns Ключ раздела или `undefined`, если запись ничем не упорядочена
- */
-export type PartitionKeyOf = (
-  payload: unknown,
-  operation: AnyOperation,
-) => string | undefined;
+): Token<OutboxEmitter<C>> =>
+  OutboxedFamily(operation.name) as unknown as Token<OutboxEmitter<C>>;
 
 /** Схема-лист формы `input` или `undefined`, если проверять нечем */
 function leafSchemaOf(io: unknown): Schema | undefined {
@@ -130,9 +155,6 @@ export interface OutboxEmitterContext {
 
   /** Ключ переменной транзакции — им называется починка в тексте ошибки */
   readonly transactionKey: string;
-
-  /** Как записи получают раздел; без неё раздела нет ни у одной */
-  readonly partitionKey?: PartitionKeyOf;
 }
 
 /**
@@ -143,11 +165,11 @@ export interface OutboxEmitterContext {
 export function makeOutboxEmitter(
   operation: AnyOperation,
   context: OutboxEmitterContext,
-): Emitter<any> {
-  const { store, transaction, transactionKey, partitionKey } = context;
+): OutboxEmitter<any> {
+  const { store, transaction, transactionKey } = context;
 
   return {
-    async emit(payload?: unknown) {
+    async emit(payload?: unknown, meta?: { partitionKey?: string }) {
       const input = validatePayload(operation, payload);
       const tx = transaction.peek();
 
@@ -156,7 +178,9 @@ export function makeOutboxEmitter(
       }
 
       const propagated = collectPropagatedContext();
-      const partition = partitionKey?.(input, operation);
+      // Раздел называет место вызова; ядро этого поля не знает и в конверт
+      // его не кладёт
+      const partition = meta?.partitionKey;
 
       const record: OutboxRecord = {
         id: crypto.randomUUID(),

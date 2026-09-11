@@ -79,26 +79,26 @@
 
 ## 5. `@nestlingjs/outbox` переезжает на новые примитивы
 
-- [ ] 5.1 `src/emitter.ts`: тип `OutboxEmitMeta<C>` и `OutboxEmitter<C>`;
+- [x] 5.1 `src/emitter.ts`: тип `OutboxEmitMeta<C>` и `OutboxEmitter<C>`;
   `emit` читает `partitionKey` из `meta`. Тип `PartitionKeyOf` и поле
   `partitionKey` в `OutboxEmitterContext` удалены
-- [ ] 5.2 `src/plugin.ts`: опция `partitionKey` у `outbox({ … })`
+- [x] 5.2 `src/plugin.ts`: опция `partitionKey` у `outbox({ … })`
   удалена вместе с её проверкой в `assertOptions`
-- [ ] 5.3 `src/plugin.ts`: идентификатор `OutboxBus$` становится именем
+- [x] 5.3 `src/plugin.ts`: идентификатор `OutboxBus$` становится именем
   (`'@nestlingjs/outbox relay'`), починка переезжает в `hint`
-- [ ] 5.4 `src/core-limits.spec.ts` удалён: все четыре находки закрыты
-- [ ] 5.5 `src/emitter.spec.ts` и `src/plugin.spec.ts`: раздел из места
+- [x] 5.4 `src/core-limits.spec.ts` удалён: все четыре находки закрыты
+- [x] 5.5 `src/emitter.spec.ts` и `src/plugin.spec.ts`: раздел из места
   вызова, запись без раздела, текст ошибки без шины с обеими подсказками
-- [ ] 5.6 `src/index.ts`: `OutboxEmitter` экспортируется, `PartitionKeyOf`
+- [x] 5.6 `src/index.ts`: `OutboxEmitter` экспортируется, `PartitionKeyOf`
   — нет
 
 ## 6. Пример `examples/users-service`
 
-- [ ] 6.1 `src/persistence.ts`: класс `ProvideDb` удалён из кода и из
+- [x] 6.1 `src/persistence.ts`: класс `ProvideDb` удалён из кода и из
   `providers:`, слой транзакции состоит из одного писателя
   `Tx.provide([Database], (_ctx, db) => db.begin())`
-- [ ] 6.2 `src/app.ts`: опция `partitionKey` убрана из `outbox({ … })`
-- [ ] 6.3 `src/users/endpoints/create-user.endpoint.ts`: раздел передаётся
+- [x] 6.2 `src/app.ts`: опция `partitionKey` убрана из `outbox({ … })`
+- [x] 6.3 `src/users/endpoints/create-user.endpoint.ts`: раздел передаётся
   вызовом `emit(user, { partitionKey: user.id })`
 - [ ] 6.4 `src/app.spec.ts` зелёный; `yarn smoke` проходит
 
