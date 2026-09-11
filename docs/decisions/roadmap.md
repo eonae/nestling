@@ -52,6 +52,8 @@ change'ы серии, начатой `examples-out`.
 записи [2026-07-13](./ideas.md) «Контракт первичен», 57 — четыре места
 границы ядра из замера [2026-09-07](./ideas.md), 58–61 — волны 2–5 уборки
 документации по записи [2026-09-05](./ideas.md) «Структура документации».
+66 добавлен 2026-09-12 по записи [ideas.md [2026-09-12]](./ideas.md)
+«Транзакционный приём»: вторая половина гарантии outbox'а, идёт после 57.
 
 | # | Change | Суть | Размер | Статус |
 |---|---|---|---|---|
@@ -120,6 +122,7 @@ change'ы серии, начатой `examples-out`.
 | 63 | `npm-publish` | скоуп `@nestlingjs` на все пакеты, внутренние с `common.` в имени, `LICENSE` и `files` в каждом манифесте, поле `main` удалено, проверка упаковки `pack:check` установкой тарболов вне репозитория, релиз тегом `v*` из GitHub Actions | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-09-11-npm-publish/), новая спека [`package-publication`](../../openspec/specs/package-publication/spec.md), расширены [`packages-layout`](../../openspec/specs/packages-layout/spec.md) и [`testing-subpath-convention`](../../openspec/specs/testing-subpath-convention/spec.md), [ideas.md [2026-09-10]](./ideas.md) «Публикация в npm» |
 | 64 | `agent-skill` | пакет `@nestlingjs/agent-skill`: скилл Claude Code про Nestling, команда `npx @nestlingjs/agent-skill`, сниппеты скилла компилируемыми файлами и проверка `bin` в `pack-check` | M | **done** — [архив](../../openspec/changes/archive/2026-09-11-agent-skill/), новые спеки [`agent-skill-content`](../../openspec/specs/agent-skill-content/spec.md), [`agent-skill-package`](../../openspec/specs/agent-skill-package/spec.md) и [`agent-skill-snippet-check`](../../openspec/specs/agent-skill-snippet-check/spec.md), [ideas.md [2026-09-11]](./ideas.md) «Скилл для агента» |
 | 65 | `trusted-publishing` | публикация по OIDC-обмену с доверенным издателем вместо ключа доступа, права `publish` и `stage publish` у издателя, первая версия нового имени с рабочей машины режимом `--interactive`, коммит подъёма версии проверяется один раз | S | **done** — [архив](../../openspec/changes/archive/2026-09-12-trusted-publishing/), обновлены спеки [`package-publication`](../../openspec/specs/package-publication/spec.md) и [`examples-layout`](../../openspec/specs/examples-layout/spec.md), [ideas.md [2026-09-10]](./ideas.md) «Публикация в npm» |
+| 66 | `inbox` | пакет `@nestlingjs/inbox`: плагин `inbox({ transaction, store })` со слоем для подписчиков, интерфейс `InboxStore` с реализацией в памяти, составной ключ «подписчик + ключ идемпотентности», политика `requiresInbox`; глава 27 гайда | M | план — [ideas.md [2026-09-12]](./ideas.md) «Транзакционный приём»; после 57 — слой читает типизированный `meta.idempotencyKey` события |
 
 ## Порядок и зависимости
 
@@ -460,6 +463,7 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | 63 | `npm-publish` | M, breaking | **done** — [архив](../../openspec/changes/archive/2026-09-11-npm-publish/); скоуп `@nestling` в реестре занят чужим аккаунтом, тарбол уносил исходники и конфиги, `LICENSE` не было ни одного при `"license": "MIT"` в каждом манифесте |
 | 64 | `agent-skill` | M | **done** — [архив](../../openspec/changes/archive/2026-09-11-agent-skill/); пакеты вышли в реестр, и у фреймворка появились пользователи вне репозитория; агенту в чужом проекте документации нет — в `node_modules` только `dist` и README, а гайд и `design/` остались здесь, на русском, и агент пишет по привычкам NestJS |
 | 65 | `trusted-publishing` | S | **done** — [архив](../../openspec/changes/archive/2026-09-12-trusted-publishing/); первый релиз упал на `403`: реестр требует 2FA от любой публикации, а ключ доступа секретом репозитория этого не даёт и в январе 2027 теряет право публиковать вовсе |
+| 66 | `inbox` | M | outbox превратил «может потеряться» в «может продублироваться», а дедупликация на приёме осталась соглашением: в примере это `Set` в памяти, который живёт до перезапуска и не разделяется репликами |
 
 Change'и 29–38 ломающие, хотя окно фиксации публичного API закрыто
 волной 2. Это осознанно: они правят гарантии, а не добавляют способности,
