@@ -98,21 +98,21 @@
 ## 6. Спеки состава и конфигурация пакета
 
 - [x] 6.1 Обновить перечень `REFERENCES` в `src/skill.spec.ts` до десяти файлов
-- [ ] 6.2 Прогнать `yarn workspace @nestlingjs/agent-skill test` и
+- [x] 6.2 Прогнать `yarn workspace @nestlingjs/agent-skill test` и
   `yarn workspace @nestlingjs/agent-skill typecheck`
-- [ ] 6.3 Проверить `yarn pack:check`: новые файлы скилла едут в тарбол,
+- [x] 6.3 Проверить `yarn pack:check`: новые файлы скилла едут в тарбол,
   сниппеты — нет
 
 ## 7. Документация
 
-- [ ] 7.1 Обновить `packages/nestling.agent-skill/README.md`: число файлов
+- [x] 7.1 Обновить `packages/nestling.agent-skill/README.md`: число файлов
   `references/` в разделе «Установка»
-- [ ] 7.2 Поставить на записи `docs/decisions/ideas.md` [2026-09-12] «Скилл
+- [x] 7.2 Поставить на записи `docs/decisions/ideas.md` [2026-09-12] «Скилл
   после первого внешнего прогона» пометку «РЕАЛИЗОВАНО» с тем, что вышло
   целиком, что уехало дальше и чем реализация уточнила решение (в том числе
   ответ на вопрос о `module` из задачи 3.1)
-- [ ] 7.3 Обновить статус change'а 66 в `docs/decisions/roadmap.md`
-- [ ] 7.4 Прогнать `node .claude/skills/docs-style/scripts/lint.mjs` по
+- [x] 7.3 Обновить статус change'а 66 в `docs/decisions/roadmap.md`
+- [x] 7.4 Прогнать `node .claude/skills/docs-style/scripts/lint.mjs` по
   изменённым русским текстам — 0 запрещённых слов
 
 ## 8. Definition of Done
