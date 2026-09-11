@@ -111,9 +111,10 @@ export type PortResult<C extends AnyOperation> =
 export type InvokeArgs<
   C extends AnyOperation,
   M extends MetaOf<C> = MetaOf<C>,
-> = undefined extends InputOf<C>
-  ? [payload?: InputOf<C>, meta?: M]
-  : [payload: InputOf<C>, meta?: M];
+> =
+  undefined extends InputOf<C>
+    ? [payload?: InputOf<C>, meta?: M]
+    : [payload: InputOf<C>, meta?: M];
 
 /**
  * Порт: вызывающая сторона операции вида `request`.

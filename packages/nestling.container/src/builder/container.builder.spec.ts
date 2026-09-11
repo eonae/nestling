@@ -25,6 +25,17 @@ const logging = (options: { pretty: boolean }) =>
     providers: [valueProvider(LoggingOptions$, options)],
   });
 
+/** Возвращает текст ошибки сборки — целиком, вместе с подсказками. */
+const buildFailure = (builder: ContainerBuilder): string => {
+  try {
+    builder.build();
+  } catch (error) {
+    return (error as Error).message;
+  }
+
+  throw new Error('build() did not throw');
+};
+
 describe('ContainerBuilder', () => {
   interface IServiceA {
     readonly id: string;
@@ -450,17 +461,6 @@ describe('ContainerBuilder', () => {
   });
 
   describe('подсказки объявлений', () => {
-    /** Возвращает текст ошибки сборки — целиком, вместе с подсказками. */
-    const buildFailure = (builder: ContainerBuilder): string => {
-      try {
-        builder.build();
-      } catch (error) {
-        return (error as Error).message;
-      }
-
-      throw new Error('build() did not throw');
-    };
-
     it('печатает подсказку недостающего DI-токена', () => {
       const Bus$ = makeToken<{ publish(): void }>('MessageBus', {
         hint: "add a bus transport to 'transports:'",
