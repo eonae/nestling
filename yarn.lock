@@ -1698,6 +1698,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nestlingjs/agent-skill@workspace:packages/nestling.agent-skill":
+  version: 0.0.0-use.local
+  resolution: "@nestlingjs/agent-skill@workspace:packages/nestling.agent-skill"
+  dependencies:
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
+    "@nestlingjs/transport.http": "workspace:*"
+    typescript: "npm:5.7.3"
+    zod: "npm:^4.0.0"
+  bin:
+    nestling-agent-skill: ./dist/cli.js
+  languageName: unknown
+  linkType: soft
+
 "@nestlingjs/app@workspace:*, @nestlingjs/app@workspace:packages/nestling.app":
   version: 0.0.0-use.local
   resolution: "@nestlingjs/app@workspace:packages/nestling.app"
@@ -6645,7 +6661,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"globals@npm:^15.7.0":
+"globals@npm:^15.7.0, globals@npm:^15.9.0":
   version: 15.15.0
   resolution: "globals@npm:15.15.0"
   checksum: 10/7f561c87b2fd381b27fc2db7df8a4ea7a9bb378667b8a7193e61fd2ca3a876479174e2a303a74345fbea6e1242e16db48915c1fd3bf35adcf4060a795b425e18
@@ -9202,6 +9218,7 @@ __metadata:
     eslint-plugin-unused-imports: "npm:^4.2.0"
     express: "npm:^5.2.1"
     fastify: "npm:^5.12.3"
+    globals: "npm:^15.9.0"
     hono: "npm:^4.13.7"
     jest: "npm:^29.7.0"
     jest-mock-extended: "npm:^4.0.0"

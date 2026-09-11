@@ -80,6 +80,19 @@ against it on receipt. Continue with the
 [guide](./docs/guide/README.md): it grows this file into an application of
 several features running in several processes.
 
+## Working with an agent
+
+```bash
+npx @nestlingjs/agent-skill
+```
+
+The command writes a Claude Code skill into `.claude/skills/nestling/` of
+the current project. The skill tells an agent the shape of Nestling code and
+the rules it cannot guess from NestJS habits — declarations as values, an
+explicit dependency list, failures returned instead of thrown, neighbouring
+features reached through operations. Details in
+[`@nestlingjs/agent-skill`](./packages/nestling.agent-skill/).
+
 ## Documentation
 
 The entry point is [`docs/README.md`](./docs/README.md): the folder map, the

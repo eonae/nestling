@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { fixupPluginRules } from '@eslint/compat';
 import eslint from '@eslint/js';
 import nestling from '@nestlingjs/eslint-plugin';
+import globals from 'globals';
 import importPlugin from 'eslint-plugin-import';
 import prettier from 'eslint-plugin-prettier/recommended';
 import sortImports from 'eslint-plugin-simple-import-sort';
@@ -41,6 +42,7 @@ export function createEslintConfig(fileUrl) {
         '**/*.config.js',
         '**/*.config.ts',
         '**/*.d.ts',
+        '**/*.d.mts',
         // Фикстуры type-tests обязаны не компилироваться: их диагностики —
         // предмет снапшотов, и в проект пакета они не входят
         'type-tests/fixtures/**',
@@ -83,6 +85,14 @@ export function createEslintConfig(fileUrl) {
          * разбора его место — `error`.
          */
         '@nestlingjs/import-through-barrel': 'warn',
+      },
+    },
+    {
+      // Скрипты пакета на голом Node: `console`, `process` и веб-глобали
+      // вроде `URL` объявлены средой, а не импортом
+      files: ['**/*.mjs', '**/*.cjs'],
+      languageOptions: {
+        globals: globals.node,
       },
     },
     {
