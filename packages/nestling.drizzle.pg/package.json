@@ -49,6 +49,8 @@
   },
   "scripts": {
     "clear": "rm -rf dist",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down -v",
     "typecheck": "run -T tsc -p tsconfig.json",
     "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
     "lint": "run -T eslint .",
