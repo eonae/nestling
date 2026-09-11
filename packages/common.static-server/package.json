@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/common.static-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Сервер статических файлов на node:http без внешних зависимостей — внутренний пакет Nestling",
   "keywords": [
     "nestling",

@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/common.misc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Схемный кернел Nestling поверх Standard Schema и общие вспомогательные типы — внутренний пакет",
   "keywords": [
     "nestling",
