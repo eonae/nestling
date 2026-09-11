@@ -1,6 +1,6 @@
 # 7. Порт и адрес базы из окружения
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-11).
 > Целевое описание: [design/config.md](../design/config.md). Почему так:
 > записи [ideas.md](../decisions/ideas.md) «[2026-07-08] Kernel/user
 > space; конфиг как token-families; плагины», «[2026-07-13] Конфиг:
@@ -17,36 +17,26 @@
 import { from, makeConfig, secret } from '@nestlingjs/app';
 import { z } from 'zod';
 
-export const AppConfig = makeConfig(
-  'app',
-  {
-    pageSize: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(20)
-      .describe('Размер страницы списка пользователей'),
-    databaseUrl: secret(
-      from(
-        'DATABASE_URL',
-        z
-          .url()
-          .default('postgresql://localhost:5432/users')
-          .describe('Адрес базы данных'),
-      ),
+export const AppConfig = makeConfig('app', {
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(20)
+    .describe('Размер страницы списка пользователей'),
+  apiToken: secret(
+    from(
+      'API_TOKEN',
+      z.string().min(1).describe('Bearer-токен для запросов, меняющих данные'),
     ),
-    apiToken: secret(
-      from(
-        'API_TOKEN',
-        z.string().min(1).describe('Bearer-токен для запросов, меняющих данные'),
-      ),
-    ),
-  },
-  (derived) => ({
-    databaseHost: derived(['databaseUrl'], (url) => new URL(url).host),
-  }),
-);
+  ),
+});
 ```
+
+Адреса базы здесь нет, и это не пропуск. Секцию соединения объявляет
+пакет `@nestlingjs/drizzle.pg`, а приложение получает от него только
+право привязать источник к его ключам. Так же устроены порт и хост
+HTTP-сервера: их читает сервер, а не приложение.
 
 Секция — объект с префиксом, где каждому полю соответствует схема. Имя
 переменной выводится из префикса и имени поля, `from('NAME', schema)`
@@ -59,7 +49,8 @@ export const AppConfig = makeConfig(
 | Переменная | Поле | Что задаёт | По умолчанию |
 |---|---|---|---|
 | `APP_PAGE_SIZE` | `pageSize` | размер страницы списка пользователей | `20` |
-| `DATABASE_URL` | `databaseUrl` | адрес базы данных | `postgresql://localhost:5432/users` |
+| `DATABASE_URL` | секция соединения | адрес базы данных | нет, переменная обязательна |
+| `DATABASE_POOL_MAX` | секция соединения | размер пула соединений | `10` |
 | `API_TOKEN` | `apiToken` | Bearer-токен для запросов, меняющих данные | нет, переменная обязательна |
 | `HTTP_PORT` | секция сервера | порт HTTP-сервера | `3000` |
 | `HTTP_HOST` | секция сервера | адрес прослушивания | `0.0.0.0` |
@@ -70,25 +61,39 @@ export const AppConfig = makeConfig(
 ## Вычисляемое поле
 
 Третий аргумент `makeConfig` объявляет поля, значения которых считаются
-из других полей той же секции. `databaseHost` получает хост из адреса
-базы, поэтому разбирать URL в каждом потребителе не нужно.
+из других полей той же секции. Так устроена секция соединения в
+`@nestlingjs/drizzle.pg`: хост считается из адреса, поэтому разбирать URL
+в каждом потребителе не нужно.
 
 ```typescript
-// examples/users-service/src/app.config.ts
+// packages/nestling.drizzle.pg/src/config.ts
+export const DatabaseConfig = makeConfig.family(
+  'database',
+  {
+    url: secret(str()),
+    poolMax: int(10, 1),
+    // …
+  },
   (derived) => ({
-    databaseHost: derived(['databaseUrl'], (url) => new URL(url).host),
+    host: derived(['url'], (url) => new URL(String(url)).host),
   }),
+);
 ```
 
 `derived(deps, fn)` называет зависимости именами полей первого рекорда, а
 `fn` получает их значения по порядку. Компилятор проверяет и имена, и
-типы: `'databaseUrll'` не соберётся, и аннотация `(url: number)` тоже.
-Переменной окружения у поля нет — в таблице выше его нет, и в `.keys`
-секции оно не входит. Значение считается один раз, при валидации секции.
+типы: `'urll'` не соберётся, и аннотация `(url: number)` тоже. Переменной
+окружения у поля нет — в таблице выше его нет, и в `.keys` секции оно не
+входит. Значение считается один раз, при валидации секции.
 
-`databaseUrl` помечен `secret()`, поэтому `databaseHost` тоже секретен:
-поле наследует секретность своих зависимостей. Правило одностороннее и
-намеренно грубое — снять пометку нечем.
+`url` помечен `secret()`, поэтому `host` тоже секретен: поле наследует
+секретность своих зависимостей. Правило одностороннее и намеренно
+грубое — снять пометку нечем.
+
+`makeConfig.family` вместо `makeConfig` — потому что соединений в
+процессе может быть несколько, и у каждого свой адрес. Имя экземпляра
+вставляется в ключи: `DATABASE_ANALYTICS_URL` у экземпляра `analytics`.
+Тем же способом получает свои ключи второй HTTP-сервер.
 
 ## Секция как зависимость
 
@@ -124,24 +129,9 @@ export const ListUsers = httpEndpoint({
 графа создаётся самим фактом упоминания. Тип значения даёт
 `Config<typeof AppConfig>`: поле `config.pageSize` имеет тип `number`.
 
-Так же секцию читает `Database`, как в главе 6:
-
-```typescript
-// examples/users-service/src/database.ts
-@Resource([AppConfig, Logger$.auto])
-export class Database {
-  static async acquire(
-    config: Config<typeof AppConfig>,
-    logger: Logger,
-    _signal: AbortSignal,
-  ): Promise<Database> {
-    // В лог уходит только хост, а не адрес целиком: хост считает
-    // вычисляемое поле секции
-    logger.info('database connected', { host: config.databaseHost });
-    // …
-  }
-}
-```
+Так же секцию читает любой другой потребитель — компонент, ресурс или
+фабрика: DI-токен секции стоит в списке зависимостей, и контейнер
+подставляет проверенное значение.
 
 ```bash
 API_TOKEN=secret APP_PAGE_SIZE=1 yarn workspace @examples/users-service start:dev
@@ -151,13 +141,13 @@ curl 'localhost:3000/users'
 ## Секреты
 
 `secret()` помечает поле, значение которого не должно попадать в вывод.
-Для потребителя ничего не меняется: `config.databaseUrl` возвращает
+Для потребителя ничего не меняется: `config.apiToken` возвращает
 настоящую строку. Меняется то, что печатает фреймворк. `console.log` и
 `JSON.stringify` секции показывают `'***'` вместо значения, а ошибка
 валидации заменяет сообщение валидатора на `<redacted>`.
 
-За свои строки отвечает потребитель: `Database` пишет в лог только хост,
-а не URL целиком. `databaseHost` унаследовал секретность от адреса,
+За свои строки отвечает потребитель: соединение пишет в лог подключения
+только хост, а не адрес целиком. Хост унаследовал секретность от адреса,
 поэтому печать секции покажет вместо него `'***'`; в лог его пишет
 потребитель, и это его осознанное решение. Секретное поле не печатается
 фреймворком ни в отчётах, ни в ошибках — строки, которые пишет сам
@@ -197,5 +187,5 @@ curl localhost:8080/users
 ```
 
 Сервис работает, и пора закрепить это тестами, которые не поднимают
-сокет и не требуют базы. Следующая глава: [8. Убедиться, что работает,
-без запуска сервера](./08-testing.md).
+сокет. Следующая глава: [8. Убедиться, что работает, без запуска
+сервера](./08-testing.md).

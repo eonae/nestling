@@ -1,6 +1,6 @@
 # 6. Откуда хендлер берёт репозиторий
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-11).
 > Целевое описание: [design/container.md](../design/container.md),
 > [design/endpoints.md](../design/endpoints.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Token families + модули
@@ -90,10 +90,10 @@ rest-параметром — любая.
 
 ```typescript
 // шаг главы 5; итоговая версия: examples/users-service/src/users/users.repository.ts
-@Component([Database, Logger$.auto, Ctx(RequestId)])
+@Component([db.connection, Logger$.auto, Ctx(RequestId)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
-    private readonly db: Database,
+    private readonly connection: PgConnection<typeof schema>,
     private readonly logger: Logger,
     private readonly requestId: CtxReader<string>,
   ) {}
@@ -101,12 +101,23 @@ export class DbUsersRepository implements UsersRepository {
   async byId(id: string): Promise<User | null> {
     this.trace(`byId ${id}`);
 
-    return this.db.users.find((user) => user.id === id) ?? null;
+    const [row] = await this.connection.db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+
+    return row ? toUser(row) : null;
   }
 
   // …
 }
 ```
+
+`db.connection` — DI-токен соединения с PostgreSQL. Соединение объявляет
+пакет `@nestlingjs/drizzle.pg` одним вызовом `drizzlePg({ schema })`; как
+это устроено и почему изменяющий метод пишет транзакцией запроса, а не
+соединением из пула, — [глава 27](./27-database-and-transaction.md).
 
 Декоратор называет **роль** класса, а не способность быть зависимостью.
 Ролей три: `@Component` — обычный класс, `@Resource` — то, что надо
@@ -130,7 +141,6 @@ DI-токена декоратор не принимает: класс реги�
 export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
-    Database,
     classProvider(UsersRepository$, DbUsersRepository),
     AuditOutcome,
     Authenticate,
@@ -157,39 +167,32 @@ export const UsersFeature = makeFeature({
 недостающих DI-токенов, цикл зависимостей тоже её останавливает. Во время
 обработки запросов контейнер ничего не резолвит.
 
-База держит соединение, а соединение надо открыть и закрыть. Это и есть
-ресурс:
+База держит пул соединений, а пул надо открыть и закрыть. Это и есть
+роль `@Resource`:
 
 ```typescript
-// шаг главы 5; итоговая версия: examples/users-service/src/database.ts
+// форма роли; соединение примера объявляет @nestlingjs/drizzle.pg
 @Resource([AppConfig, Logger$.auto])
-export class Database {
+export class SearchIndex {
   static async acquire(
     config: Config<typeof AppConfig>,
     logger: Logger,
-    _signal: AbortSignal,
-  ): Promise<Database> {
-    // В лог уходит только хост, а не адрес целиком: хост считает
-    // вычисляемое поле секции
-    logger.info('database connected', { host: config.databaseHost });
+    signal: AbortSignal,
+  ): Promise<SearchIndex> {
+    const client = await connect(config.searchUrl, { signal });
+    logger.info('search index connected');
 
-    return new Database(logger, [
-      { id: '1', name: 'Alice', email: 'alice@example.com' },
-      { id: '2', name: 'Bob', email: 'bob@example.com' },
-    ]);
+    return new SearchIndex(logger, client);
   }
 
   private constructor(
     private readonly logger: Logger,
-    /** Таблица пользователей */
-    readonly users: User[],
+    private readonly client: SearchClient,
   ) {}
 
-  // …
-
-  release(): void {
-    this.users.length = 0;
-    this.logger.info('database disconnected');
+  async release(): Promise<void> {
+    await this.client.close();
+    this.logger.info('search index disconnected');
   }
 }
 ```
@@ -202,9 +205,13 @@ export class Database {
 обратном захвату.
 
 Отсюда главное свойство: потребитель ресурса создаётся **после** захвата и
-получает готовое значение. Поэтому у `users` нет ни `| undefined`, ни
-геттера с проверкой — состояния «ещё не подключились» у поля просто нет. В
-примере вместо соединения — таблица в памяти.
+получает готовое значение. Поэтому у поля нет ни `| undefined`, ни геттера
+с проверкой — состояния «ещё не подключились» у него просто нет.
+
+Соединение с базой в примере объявлено ровно этой ролью, но не в коде
+приложения: `drizzlePg({ schema })` создаёт ресурс внутри себя и отдаёт
+наружу DI-токен. Приложение ставит значение в `plugins:` и больше о пуле
+не думает.
 
 ## Провайдеры без класса
 
@@ -253,5 +260,5 @@ API_TOKEN=secret yarn workspace @examples/users-service start:dev
 curl localhost:3000/users/1
 ```
 
-`Database` читает адрес базы из секции конфига. Следующая глава: [7. Порт
-и адрес базы из окружения](./07-config.md).
+Адрес базы и Bearer-токен приходят из окружения, а не из кода. Следующая
+глава: [7. Порт и адрес базы из окружения](./07-config.md).

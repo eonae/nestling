@@ -1,13 +1,13 @@
 # 8. Убедиться, что работает, без запуска сервера
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-11).
 > Целевое описание: [design/testing.md](../design/testing.md). Почему так:
 > запись [ideas.md](../decisions/ideas.md) «[2026-07-10] Пакет
 > тестирования (`@nestlingjs/testing`)».
 
 Тесты должны вызывать endpoint'ы через тот же пайплайн, что и запросы по
-сети, но без сокета, без базы и без переменных окружения. Отдельно нужен
-быстрый юнит-тест хендлера, в котором нет ни контейнера, ни приложения.
+сети, но без сокета и без переменных окружения. Отдельно нужен быстрый
+юнит-тест хендлера, в котором нет ни контейнера, ни приложения, ни базы.
 
 ```typescript
 // examples/users-service/src/app.ts (фрагмент)
@@ -28,12 +28,23 @@ export const app = makeApp({
 import { app } from './app.js';
 
 /** Конфиг теста: объект вместо `process.env` */
-const testConfig = vars({ API_TOKEN: 'test-token' });
+const testConfig = vars({
+  API_TOKEN: 'test-token',
+  DATABASE_URL: TEST_DATABASE_URL ?? '',
+});
 ```
 
 Тест задаёт только то, что относится к прогону: подмены, выбор фич и
 конфиг. Транспорты подменять не нужно: тестовая сборка не выполняет
 START, поэтому сокет не открывается и порт не занимается.
+
+База в этом наборе настоящая. Пул открывается на фазе INIT, а слой
+транзакции и хранилище outbox'а пишут SQL, поэтому подменить их фейком
+значило бы проверять не тот код, который работает в проде. Спеки
+приложения пропускаются без `TEST_DATABASE_URL`: локально базу поднимает
+`yarn db:up`, в CI — сервис workflow'а ([глава
+27](./27-database-and-transaction.md)). Юнит-тест хендлера базы не
+требует и не пропускается никогда.
 
 ## Условие резолва в тест-раннере
 
@@ -150,7 +161,11 @@ DI-токена, которого нет в графе, останавливае
 // examples/users-service/src/app.spec.ts
 it('читает размер страницы из конфига', async () => {
   await using testApp = await assembleTest(app, {
-    config: vars({ API_TOKEN: 'test-token', APP_PAGE_SIZE: '1' }),
+    config: vars({
+      API_TOKEN: 'test-token',
+      APP_PAGE_SIZE: '1',
+      DATABASE_URL: TEST_DATABASE_URL ?? '',
+    }),
     overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
   });
 

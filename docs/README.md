@@ -68,7 +68,7 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
-Восемнадцать каталогов `packages/`. Ядро — три из них: `@nestlingjs/container`,
+Девятнадцать каталогов `packages/`. Ядро — три из них: `@nestlingjs/container`,
 `@nestlingjs/operations` и `@nestlingjs/app`; их ставят вместе, поэтому и имён
 у ядра три.
 
@@ -96,6 +96,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
 | [`@nestlingjs/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
 | [`@nestlingjs/openapi.zod`](../packages/nestling.openapi.zod/) | Конвертер схем zod для `@nestlingjs/openapi` |
+| [`@nestlingjs/drizzle.pg`](../packages/nestling.drizzle.pg/) | PostgreSQL на drizzle-orm: соединение, транзакция запроса и адаптер хранилища outbox'а |
 | [`@nestlingjs/outbox`](../packages/nestling.outbox/) | Транзакционный emit: событие пишется в базу транзакцией запроса, relay публикует его после коммита |
 | [`@nestlingjs/subscriptions`](../packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
 | [`@nestlingjs/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |

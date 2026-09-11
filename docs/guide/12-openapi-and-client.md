@@ -1,6 +1,6 @@
 # 12. Отдать фронтенду документацию и клиент
 
-> Гайд по текущему API; сверено с кодом `users-service`, `app-with-http` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `users-service`, `app-with-http` (2026-09-11).
 > Целевое описание: [design/schemas.md](../design/schemas.md) §2.1 и
 > [design/operations.md](../design/operations.md) §5. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Схемы: Standard Schema вместо привязки

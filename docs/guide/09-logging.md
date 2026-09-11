@@ -1,6 +1,6 @@
 # 9. Видеть каждый запрос в логе
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-11).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/container.md](../design/container.md), раздел «Логгер ядра».
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Pipeline v2:
@@ -19,36 +19,35 @@
 фреймворк, и приложение. Сервис берёт его как обычную зависимость:
 
 ```typescript
-// examples/users-service/src/database.ts
-import type { Config, Logger } from '@nestlingjs/app';
-import { Logger$ } from '@nestlingjs/app';
-import { Resource } from '@nestlingjs/container';
+// examples/users-service/src/users/users.repository.ts
+import type { CtxReader, Logger } from '@nestlingjs/app';
+import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
 
-@Resource([AppConfig, Logger$.auto])
-export class Database {
-  static async acquire(
-    config: Config<typeof AppConfig>,
-    logger: Logger,
-    _signal: AbortSignal,
-  ): Promise<Database> {
-    // В лог уходит только хост, а не адрес целиком: хост считает
-    // вычисляемое поле секции
-    logger.info('database connected', { host: config.databaseHost });
+@Component([db.connection, Logger$.auto, Ctx(RequestId), Ctx(db.tx)])
+export class DbUsersRepository implements UsersRepository {
+  constructor(
+    private readonly connection: PgConnection<typeof schema>,
+    private readonly logger: Logger,
     // …
-  }
+  ) {}
 
-  release(): void {
-    this.logger.info('database disconnected');
+  private trace(operation: string): void {
+    this.logger.debug(operation, { requestId: this.requestId.peek() ?? 'n/a' });
   }
 }
 ```
 
 `Logger` — интерфейс из `@nestlingjs/app`. `Logger$` — семейство
 DI-токенов: `Logger$('db')` даёт логгер с областью `db`, а `Logger$.auto`
-— с областью по имени класса-потребителя, здесь `Database`. Область
-попадает в каждую запись полем `scope`, поэтому по логу видно, кто
-написал строку. Как устроены семейства DI-токенов, рассказывает глава
-[22](./22-token-families.md).
+— с областью по имени класса-потребителя, здесь `DbUsersRepository`.
+Область попадает в каждую запись полем `scope`, поэтому по логу видно,
+кто написал строку. Как устроены семейства DI-токенов, рассказывает
+глава [22](./22-token-families.md).
+
+Тем же логгером пользуются пакеты: соединение с базой пишет
+`database connected` с хостом, а не с адресом целиком — адрес несёт
+пароль.
 
 У логгера четыре уровня: `debug`, `info`, `warn`, `error`. У каждого три
 формы вызова:
@@ -188,7 +187,7 @@ export const ListUsers = httpEndpoint({
 // шаг главы 8; итоговая версия: examples/users-service/src/users.feature.ts
 export const UsersFeature = makeFeature({
   name: 'users',
-  providers: [Database, DbUsersRepository, AuditOutcome, Authenticate],
+  providers: [DbUsersRepository, AuditOutcome, Authenticate],
   // …
 });
 ```
@@ -224,21 +223,20 @@ curl -H 'x-request-id: req-42' http://localhost:3000/users/1
 import type { CtxReader, Logger } from '@nestlingjs/app';
 import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
 
-@Component([Database, Logger$.auto, Ctx(RequestId)])
+@Component([db.connection, Logger$.auto, Ctx(RequestId), Ctx(db.tx)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
-    private readonly db: Database,
+    private readonly connection: PgConnection<typeof schema>,
     private readonly logger: Logger,
     private readonly requestId: CtxReader<string>,
+    private readonly tx: CtxReader<PgTx<typeof schema>>,
   ) {}
 
   async byId(id: string): Promise<User | null> {
     this.trace(`byId ${id}`);
 
-    return this.db.users.find((user) => user.id === id) ?? null;
+    // …
   }
-
-  // …
 
   private trace(operation: string): void {
     this.logger.debug(operation, { requestId: this.requestId.peek() ?? 'n/a' });
