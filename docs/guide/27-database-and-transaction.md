@@ -1,6 +1,6 @@
 # 27. База данных и транзакция
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
 > Целевое описание: [design/operations.md](../design/operations.md),
 > раздел «Транзакционный emit». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-09-07] Транзакционный outbox:
@@ -37,25 +37,15 @@
 export const Tx = contextVar<Transaction>()('tx');
 ```
 
-Кладёт значение слой пайплайна. Он состоит из двух `.pre`-юнитов, и
-первый из них — мост:
+Кладёт значение слой пайплайна. Писатель переменной получает соединение
+из контейнера списком зависимостей:
 
 ```typescript
 // examples/users-service/src/persistence.ts
-@Handler([Database])
-export class ProvideDb {
-  constructor(private readonly db: Database) {}
-
-  handle(): { db: Database } {
-    return { db: this.db };
-  }
-}
-
 export const transactional = compose(
   authed,
   makePipeline()
-    .pre(ProvideDb)
-    .pre(Tx.provide<{ db: Database }>((ctx) => ctx.input.db.begin()))
+    .pre(Tx.provide([Database], (_ctx, db) => db.begin()))
     .ok((_res, ctx: ExtendableContext<{ tx: Transaction }>) => {
       ctx.input.tx.commit();
     })
@@ -67,13 +57,12 @@ export const transactional = compose(
 );
 ```
 
-Мост нужен потому, что `Tx.provide(compute)` принимает функцию от
-контекста и зависимостей из контейнера не получает, а соединение приходит
-именно оттуда. Класс-юнит зависимости получает, поэтому он кладёт
-соединение в контекст, а писатель переменной уже читает его оттуда.
-Требование второго юнита к контексту (`{ db: Database }`) проверяет
-компилятор в точке композиции: `transactional` без `ProvideDb` не
-соберётся.
+`Tx.provide([Database], compute)` — вторая форма писателя переменной:
+список DI-токенов резолвится на сборке тем же резолвером, что и
+классы-юниты, а значения приходят в `compute` следом за контекстом.
+Класса-моста, который клал бы соединение в контекст, не нужно.
+Соединение, которого нет в `providers:`, роняет сборку до первого
+запроса — с паттерном endpoint'а и именем недостающей зависимости.
 
 `.ok` коммитит, `.catch` откатывает. Оба видят накопленный контекст,
 поэтому транзакция им доступна без единого параметра.
@@ -127,7 +116,6 @@ export const persistence: Plugin = makePlugin({
   name: 'persistence',
   providers: [
     Database,
-    ProvideDb,
     {
       provide: OutboxStore$,
       useFactory: (db: Database) => db.outbox,
@@ -155,14 +143,12 @@ export const appOutbox = outbox({
   transaction: Tx,
   store: OutboxStore$,
   operations: [UserCreated],
-  partitionKey: (payload) => (payload as { id: string }).id,
 });
 ```
 
 Список операций явный: рецепту нужна сама операция — схема входа, чтобы
-проверить payload, и имя, чтобы знать subject. `partitionKey` называет
-единицу порядка: события одного пользователя доставляются в порядке
-создания, между разными пользователями порядка нет.
+проверить payload, и имя, чтобы знать subject. Раздел записи плагин не
+назначает: его называет место вызова `emit`, и об этом ниже.
 
 В хендлере меняется одна строка — та, что называет зависимость:
 
@@ -172,7 +158,7 @@ export const appOutbox = outbox({
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly userCreated: Emitter<typeof UserCreated>,
+    private readonly userCreated: OutboxEmitter<typeof UserCreated>,
   ) {}
 
   async handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
@@ -180,21 +166,26 @@ export class CreateUserHandler {
     const user = await this.users.insert(data);
 
     // Запись пользователя и запись события — одна транзакция. Упади
-    // процесс сразу после коммита, событие всё равно доедет
-    await this.userCreated.emit({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    });
+    // процесс сразу после коммита, событие всё равно уйдёт. Раздел —
+    // идентификатор пользователя: его события доставляются по порядку
+    await this.userCreated.emit(
+      { id: user.id, name: user.name, email: user.email },
+      { partitionKey: user.id },
+    );
 
     return Ok.created(user);
   }
 }
 ```
 
-`outboxed(UserCreated)` вместо `UserCreated.emitter`. Тип значения тот
-же — `Emitter<typeof UserCreated>`, — поэтому тело метода не меняется.
-Меняется, что делает `emit`: он пишет одну строку в хранилище
+`outboxed(UserCreated)` вместо `UserCreated.emitter`. Значение —
+`OutboxEmitter<typeof UserCreated>`: эмиттер ядра, чей словарь `meta`
+дополнен разделом записи. Оно присваивается `Emitter<typeof UserCreated>`,
+поэтому хендлер, которому раздел не нужен, объявляет зависимость прежним
+типом. Раздел — единица порядка: события одного пользователя доставляются
+в порядке создания, между разными пользователями порядка нет. Называет
+его место вызова, потому что только оно знает, чем упорядочена запись.
+Меняется и то, что делает `emit`: он пишет одну строку в хранилище
 транзакцией вызывающего и в шину во время запроса не отправляет ничего.
 
 DI-токен ядра остаётся на месте: `UserCreated.emitter` по-прежнему
@@ -260,8 +251,10 @@ export const WelcomeEmail = implement(UserCreated, {
 
 `withIdempotencyKey()` — штатный писатель ядра: он кладёт ключ из
 конверта сообщения в контекст, и хендлер читает его как обычное поле
-`meta`. У события типизированного `meta.idempotencyKey` нет — ключ есть
-у любой публикации на шине, а в типе `meta` его даёт только `command`.
+`meta`. Ключ у события есть и в типе `meta`: relay передаёт его так же,
+как передал бы издатель. Недостающий ключ событию вызыватель не чеканит,
+поэтому подписчик события без ключа получает от `withIdempotencyKey()`
+собственный.
 
 Relay объявлен ресурсом, а не компонентом. Фаза SHUTDOWN взводит сигнал
 и освобождает ресурсы в обратном топологическом порядке, а завершения
@@ -350,5 +343,7 @@ OUTBOX_RELAY=false OUTBOX_POLL_INTERVAL_MS=200 \
 Дедупликацию на приёме тоже: ключ доставляется, а решение остаётся за
 обработчиком.
 
-Как такой пакет устроен изнутри и почему он не потребовал ни строчки в
-ядре — [глава 26](./26-extending.md).
+Как такой пакет устроен изнутри и как замер границы ядра нашёл четыре
+места, которые потом закрыл change `kernel-boundary-outbox`, —
+[глава 26](./26-extending.md) и запись
+[ideas.md [2026-09-07]](../decisions/ideas.md).
