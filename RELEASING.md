@@ -29,7 +29,7 @@
 
 ```bash
 npm login
-yarn build && yarn pack:check
+yarn nx run-many -t build && yarn pack:check
 node scripts/publish.mjs --interactive
 ```
 
@@ -124,7 +124,7 @@ npm deprecate @nestlingjs/app@X.Y.Z "сломанная сборка, испол
 ## Проверить упаковку до релиза
 
 ```bash
-yarn build && yarn pack:check
+yarn nx run-many -t build && yarn pack:check
 ```
 
 Упаковывает публикуемые пакеты, ставит тарболы в проект вне репозитория и
