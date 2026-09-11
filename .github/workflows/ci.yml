@@ -7,7 +7,29 @@ on:
   pull_request:
 
 jobs:
+  # Коммит подъёма версии уходит в ветку и тегом одной командой, и каждый
+  # ref запускает свой workflow. Проверять такой коммит дважды незачем:
+  # verify по нему прогоняет релиз, и его результат решает, публиковать ли
+  tagged:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - id: check
+        run: |
+          if git tag --points-at HEAD | grep -q '^v'; then
+            echo 'version=yes' >> "$GITHUB_OUTPUT"
+          else
+            echo 'version=no' >> "$GITHUB_OUTPUT"
+          fi
+
   verify:
+    needs: tagged
+    if: needs.tagged.outputs.version == 'no'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
