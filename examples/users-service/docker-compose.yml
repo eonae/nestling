@@ -1,0 +1,18 @@
+# PostgreSQL для локального прогона примера.
+#
+# `yarn db:up` поднимает базу, `yarn db:migrate` накатывает миграции.
+# Адрес базы приложение читает из `DATABASE_URL`.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: users
+      POSTGRES_PASSWORD: users
+      POSTGRES_DB: users
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U users -d users']
+      interval: 2s
+      timeout: 2s
+      retries: 15

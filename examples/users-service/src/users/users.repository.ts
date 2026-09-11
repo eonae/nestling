@@ -1,12 +1,14 @@
-import type { Transaction } from '../database.js';
-import { Database } from '../database.js';
-import { Tx } from '../persistence.js';
+import { db } from '../persistence.js';
+import type { schema } from '../schema.js';
+import { users } from '../schema.js';
 
 import type { User } from './user.js';
 
 import type { CtxReader, Logger } from '@nestlingjs/app';
 import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
 import { Component, makeToken } from '@nestlingjs/container';
+import type { PgConnection, PgTx } from '@nestlingjs/drizzle.pg';
+import { eq } from 'drizzle-orm';
 
 /** Хранилище пользователей: всё, что endpoint'ам нужно от базы */
 export interface UsersRepository {
@@ -24,79 +26,105 @@ export interface UsersRepository {
  */
 export const UsersRepository$ = makeToken<UsersRepository>('UsersRepository');
 
+/** Строка таблицы в значение ответа: пустая колонка — отсутствие поля */
+const toUser = (row: typeof users.$inferSelect): User => ({
+  id: row.id,
+  name: row.name,
+  email: row.email,
+  ...(row.avatarUrl === null ? {} : { avatarUrl: row.avatarUrl }),
+});
+
 /**
- * Хранилище поверх соединения `Database`.
+ * Хранилище поверх соединения с PostgreSQL.
  *
- * Читает из контекста две переменные. `Ctx(RequestId)` даёт идентификатор
- * запроса: в лог он попадает без передачи параметром. `Ctx(Tx)` даёт
- * транзакцию: изменяющий метод пишет ею, а не мимо неё, и потому попадает
- * в один коммит с записью outbox'а. Обе переменные кладут слои пайплайна.
+ * Читающий метод берёт соединение из пула (`connection.db`), изменяющий —
+ * транзакцию запроса (`Ctx(db.tx)`): так запись пользователя и запись
+ * события попадают в один коммит. Обе переменные контекста кладут слои
+ * пайплайна, а `Ctx(RequestId)` даёт идентификатор запроса — в лог он
+ * попадает без передачи параметром.
  *
  * Привязку к DI-токену интерфейса записывает `classProvider(UsersRepository$,
  * DbUsersRepository)` в `providers:` фичи.
  */
-@Component([Database, Logger$.auto, Ctx(RequestId), Ctx(Tx)])
+@Component([db.connection, Logger$.auto, Ctx(RequestId), Ctx(db.tx)])
 export class DbUsersRepository implements UsersRepository {
   constructor(
-    private readonly db: Database,
+    private readonly connection: PgConnection<typeof schema>,
     private readonly logger: Logger,
     private readonly requestId: CtxReader<string>,
-    private readonly tx: CtxReader<Transaction>,
+    private readonly tx: CtxReader<PgTx<typeof schema>>,
   ) {}
 
   async all(): Promise<User[]> {
     this.trace('all');
 
-    return this.db.users;
+    const rows = await this.connection.db.select().from(users);
+
+    return rows.map((row) => toUser(row));
   }
 
   async byId(id: string): Promise<User | null> {
     this.trace(`byId ${id}`);
 
-    return this.db.users.find((user) => user.id === id) ?? null;
+    const [row] = await this.connection.db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+
+    return row ? toUser(row) : null;
   }
 
   async byEmail(email: string): Promise<User | null> {
-    return this.db.users.find((user) => user.email === email) ?? null;
+    const [row] = await this.connection.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    return row ? toUser(row) : null;
   }
 
   async insert(data: Omit<User, 'id'>): Promise<User> {
     this.trace(`insert ${data.email}`);
 
-    const user: User = { id: this.db.nextId(), ...data };
+    // Запись идёт транзакцией запроса: откат её не сохранит
+    const [row] = await this.tx
+      .get()
+      .insert(users)
+      .values({
+        id: crypto.randomUUID(),
+        name: data.name,
+        email: data.email,
+        avatarUrl: data.avatarUrl ?? null,
+      })
+      .returning();
 
-    // Запись идёт транзакцией запроса: откат её не выполнит
-    this.tx.get().onCommit(() => this.db.users.push(user));
-
-    return user;
+    return toUser(row);
   }
 
   async patch(
     id: string,
     data: Partial<Omit<User, 'id'>>,
   ): Promise<User | null> {
-    const index = this.db.users.findIndex((user) => user.id === id);
-    if (index === -1) {
-      return null;
-    }
+    const [row] = await this.tx
+      .get()
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
 
-    const patched: User = { ...this.db.users[index], ...data };
-    this.tx.get().onCommit(() => {
-      this.db.users[index] = patched;
-    });
-
-    return patched;
+    return row ? toUser(row) : null;
   }
 
   async remove(id: string): Promise<boolean> {
-    const index = this.db.users.findIndex((user) => user.id === id);
-    if (index === -1) {
-      return false;
-    }
+    const removed = await this.tx
+      .get()
+      .delete(users)
+      .where(eq(users.id, id))
+      .returning({ id: users.id });
 
-    this.tx.get().onCommit(() => this.db.users.splice(index, 1));
-
-    return true;
+    return removed.length > 0;
   }
 
   /**

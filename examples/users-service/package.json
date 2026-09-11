@@ -6,6 +6,10 @@
   "main": "dist/bundle.js",
   "scripts": {
     "clear": "rm -rf dist",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down -v",
+    "db:migrate": "run -T drizzle-kit migrate",
+    "db:generate": "run -T drizzle-kit generate",
     "typecheck": "run -T tsc -p tsconfig.json",
     "build": "yarn run typecheck && yarn run clear && node esbuild.config.js",
     "start": "yarn run build && node dist/bundle.js",
@@ -19,16 +23,21 @@
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/client": "workspace:*",
     "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/drizzle.pg": "workspace:*",
     "@nestlingjs/openapi": "workspace:*",
     "@nestlingjs/openapi.zod": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
     "@nestlingjs/outbox": "workspace:*",
     "@nestlingjs/transport.http": "workspace:*",
+    "drizzle-orm": "^0.45.0",
+    "pg": "^8.16.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@nestlingjs/eslint-plugin": "workspace:*",
-    "@nestlingjs/testing": "workspace:*"
+    "@nestlingjs/testing": "workspace:*",
+    "@types/pg": "^8.23.0",
+    "drizzle-kit": "^0.31.10"
   },
   "nx": {
     "targets": {

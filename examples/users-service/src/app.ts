@@ -2,7 +2,7 @@ import { UserCreated } from './users/users.events.js';
 import { authed } from './auth.js';
 import { observability } from './observability.js';
 import { ops } from './ops.plugin.js';
-import { OutboxStore$, persistence, Tx } from './persistence.js';
+import { db, outboxStore } from './persistence.js';
 import { UsersFeature } from './users.feature.js';
 
 import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
@@ -19,8 +19,8 @@ import { http, HttpTransport$ } from '@nestlingjs/transport.http';
  * доставляются в порядке создания.
  */
 export const appOutbox = outbox({
-  transaction: Tx,
-  store: OutboxStore$,
+  transaction: db.tx,
+  store: outboxStore.token,
   operations: [UserCreated],
   partitionKey: (payload) => (payload as { id: string }).id,
 });
@@ -35,7 +35,8 @@ export const app = makeApp({
   features: [UsersFeature],
   plugins: [
     ops,
-    persistence,
+    db,
+    outboxStore,
     appOutbox,
     // Документ строится на фазе ASSEMBLE из тех же деклараций, которые
     // обслуживают запросы. Схема без конвертера роняет старт
@@ -59,9 +60,12 @@ export const app = makeApp({
       authed,
       'authed',
     ),
-    // Тот же endpoint обязан быть в транзакции: без неё транзакционный
-    // emit падал бы на первом запросе, а не на сборке
-    appOutbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / }),
+    // Тот же endpoint обязан быть в транзакции: без неё и запись
+    // пользователя, и транзакционный emit падали бы на первом запросе, а
+    // не на сборке. Ту же политику под тем же именем переменной отдаёт
+    // плагин outbox'а — здесь она объявлена соединением, которому
+    // транзакция принадлежит
+    db.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / }),
     // Хранилище читает `requestId` из контекста запроса. Политика требует,
     // чтобы пайплайн эту переменную объявлял: иначе чтение вернуло бы
     // `undefined` на том маршруте, где слой забыли подключить

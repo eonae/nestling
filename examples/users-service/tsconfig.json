@@ -6,6 +6,10 @@
     // Сборку делает esbuild
     "noEmit": true,
 
+    // `drizzle-orm` везёт объявления всех своих диалектов одним пакетом, и
+    // среди них — типы драйверов, которых здесь нет (`gel`, `mysql2`)
+    "skipLibCheck": true,
+
     // Пример импортирует `@nestlingjs/testing`: его subpath виден только под
     // условием экспорта `testing`
     "customConditions": ["testing"]

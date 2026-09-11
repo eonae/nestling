@@ -3,6 +3,15 @@
  *
  * Тест собирает ту же декларацию, что `main.ts`: `assembleTest(app, …)`
  * принимает подмены, выбор фич и конфиг теста.
+ *
+ * Приложению нужна настоящая база: пул открывается на фазе INIT, а слой
+ * транзакции и хранилище outbox'а пишут SQL. Адрес приходит переменной
+ * `TEST_DATABASE_URL`; без неё прогон пропускается, и `yarn verify` на
+ * машине без базы остаётся зелёным. База поднимается локально
+ * `yarn db:up` и мигрируется `yarn db:migrate`; CI поднимает её сервисом.
+ *
+ * Имя переменной своё, а не `DATABASE_URL`: прогон тестов не должен
+ * зависеть от того, что лежит в окружении под именем боевого ключа.
  */
 
 import {
@@ -13,20 +22,57 @@ import {
 } from './users/endpoints/index.js';
 import { UsersRepository$ } from './users/users.repository.js';
 import { app } from './app.js';
+import { db } from './persistence.js';
+import { outbox as outboxRecords, users } from './schema.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { RootLogger$ } from '@nestlingjs/app';
 import { OutboxRelay$ } from '@nestlingjs/outbox';
+import type { TestApp } from '@nestlingjs/testing';
 import { assembleTest, spyLogger, unwrap, vars } from '@nestlingjs/testing';
 
 const alice = { id: '1', name: 'Alice', email: 'alice@example.com' };
 const bob = { id: '2', name: 'Bob', email: 'bob@example.com' };
 
-/** Конфиг теста: объект вместо `process.env` */
-const testConfig = vars({ API_TOKEN: 'test-token' });
+/** Адрес базы; без него весь набор пропускается */
+const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 
-describe('users-service', () => {
+/** `describe`, который молчит без базы */
+const describeWithDatabase: (title: string, suite: () => void) => void =
+  TEST_DATABASE_URL ? describe : describe.skip;
+
+/** Конфиг теста: объект вместо `process.env` */
+const testConfig = vars({
+  API_TOKEN: 'test-token',
+  DATABASE_URL: TEST_DATABASE_URL ?? '',
+});
+
+/**
+ * Убирает данные прошлого теста и кладёт нужные этому.
+ *
+ * Соединение берётся из собранного графа: это то же соединение, которым
+ * работают endpoint'ы, поэтому засев виден им без отдельного пула.
+ */
+async function seed(
+  testApp: TestApp,
+  rows: readonly (typeof users.$inferInsert)[] = [],
+): Promise<void> {
+  const connection = testApp.get(db.connection);
+
+  if (!connection) {
+    throw new Error('в графе нет соединения с базой');
+  }
+
+  await connection.db.delete(outboxRecords);
+  await connection.db.delete(users);
+
+  if (rows.length > 0) {
+    await connection.db.insert(users).values([...rows]);
+  }
+}
+
+describeWithDatabase('users-service', () => {
   it('отдаёт пользователя через полный пайплайн', async () => {
     await using testApp = await assembleTest(app, {
       config: testConfig,
@@ -65,7 +111,11 @@ describe('users-service', () => {
 
   it('читает размер страницы из конфига', async () => {
     await using testApp = await assembleTest(app, {
-      config: vars({ API_TOKEN: 'test-token', APP_PAGE_SIZE: '1' }),
+      config: vars({
+        API_TOKEN: 'test-token',
+        APP_PAGE_SIZE: '1',
+        DATABASE_URL: TEST_DATABASE_URL ?? '',
+      }),
       overrides: [[UsersRepository$, inMemoryUsersRepo([alice, bob])]],
     });
 
@@ -92,6 +142,9 @@ describe('users-service', () => {
       config: testConfig,
       overrides: [[UsersRepository$, inMemoryUsersRepo()]],
     });
+    // Хранилище подменено, но запись outbox'а всё равно идёт в базу:
+    // транзакционный emit пишет её той же транзакцией запроса
+    await seed(testApp);
 
     const created = await testApp.call(
       CreateUser,
@@ -112,6 +165,7 @@ describe('users-service', () => {
       config: testConfig,
       overrides: [[RootLogger$, spy.logger]],
     });
+    await seed(testApp);
 
     await testApp.call(
       CreateUser,
@@ -134,7 +188,8 @@ describe('users-service', () => {
       message: 'welcome email sent',
       fields: {
         scope: 'WelcomeEmailHandler',
-        id: '3',
+        // Идентификатор выдаёт хранилище, и он перестал быть счётчиком
+        id: expect.any(String),
         email: 'carol@example.com',
       },
     });
@@ -144,6 +199,7 @@ describe('users-service', () => {
     await using testApp = await assembleTest(app, {
       config: testConfig,
     });
+    await seed(testApp);
 
     // Bearer-токен не тот: слой `authed` отвечает отказом, слой транзакции
     // откатывает её, и до хендлера дело не доходит
@@ -186,6 +242,7 @@ describe('users-service', () => {
       config: testConfig,
       overrides: [[RootLogger$, spy.logger]],
     });
+    await seed(testApp, [alice]);
 
     unwrap(await testApp.call(GetUser, { id: '1' }));
 
