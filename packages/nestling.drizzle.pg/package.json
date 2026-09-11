@@ -1,0 +1,83 @@
+{
+  "name": "@nestlingjs/drizzle.pg",
+  "version": "0.1.0",
+  "description": "Соединение с PostgreSQL, транзакция запроса переменной контекста и адаптер хранилища outbox'а поверх drizzle-orm",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "postgresql",
+    "drizzle",
+    "transaction",
+    "outbox"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.drizzle.pg"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.drizzle.pg#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./outbox": {
+      "types": "./dist/outbox/index.d.ts",
+      "import": "./dist/outbox/index.js"
+    },
+    "./outbox/table": {
+      "types": "./dist/outbox/table.d.ts",
+      "import": "./dist/outbox/table.js",
+      "default": "./dist/outbox/table.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/common.misc": "workspace:*",
+    "@nestlingjs/container": "workspace:*"
+  },
+  "peerDependencies": {
+    "@nestlingjs/outbox": "workspace:*",
+    "drizzle-orm": "^0.45.0",
+    "pg": "^8.16.0"
+  },
+  "peerDependenciesMeta": {
+    "@nestlingjs/outbox": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/outbox": "workspace:*",
+    "@nestlingjs/testing": "workspace:*",
+    "@types/pg": "^8.23.0",
+    "drizzle-orm": "^0.45.0",
+    "pg": "^8.16.0",
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
+  }
+}

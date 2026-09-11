@@ -1,0 +1,21 @@
+{
+  // Проект пакета: по нему работают редактор и ESLint. Покрывает весь
+  // TypeScript пакета — спеки и `e2e` в том числе, иначе у них нет типов
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Сборка идёт по `tsconfig.build.json`
+    "noEmit": true,
+
+    // `drizzle-orm` везёт объявления всех своих диалектов одним пакетом, и
+    // среди них — типы драйверов, которых здесь нет (`gel`, `mysql2`).
+    // Проверять чужие `.d.ts` нечем и незачем: пакету нужен один диалект
+    "skipLibCheck": true,
+
+    // Тесты берут тестовый корень (`@nestlingjs/testing`), который живёт по ту
+    // сторону условия: без него subpath-шов не резолвится при typecheck.
+    // Прод-код пакета к нему не обращается — в `dependencies` его нет
+    "customConditions": ["testing"]
+  },
+  "include": ["src", "e2e"],
+  "exclude": ["dist", "node_modules"]
+}
