@@ -1,5 +1,8 @@
 # Публикация в реестр. Версию поднимает человек (`yarn lerna version`),
-# тег ставит человек — workflow только публикует то, что уже в манифестах
+# тег ставит человек — workflow только публикует то, что уже в манифестах.
+# Ключа доступа к реестру здесь нет: и право публиковать, и подпись
+# provenance даёт OIDC-обмен с доверенным издателем, который заведён на
+# странице каждого пакета
 name: Release
 
 on:
@@ -8,7 +11,7 @@ on:
 
 permissions:
   contents: read
-  # Provenance: подпись выдаёт OIDC-обмен, без этого права его не получить
+  # Без этого права OIDC-обмен не состоится
   id-token: write
 
 jobs:
@@ -23,8 +26,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: yarn
-          # Пишет .npmrc, который берёт ключ доступа из NODE_AUTH_TOKEN
+          # Пишет .npmrc с адресом реестра
           registry-url: https://registry.npmjs.org
+
+      # Доверенного издателя npm понимает с версии 11.5.1, а с Node 24
+      # на runner'е приезжает та, что попала в образ
+      - run: npm install -g npm@latest
 
       - run: yarn install --immutable
 
@@ -36,5 +43,4 @@ jobs:
 
       - run: node scripts/publish.mjs
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
