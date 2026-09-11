@@ -22,7 +22,7 @@ import {
   Ok,
 } from '@nestlingjs/app';
 import { Component, makeToken } from '@nestlingjs/container';
-import type { CommandMeta, PortMeta } from '@nestlingjs/operations';
+import type { EmitMeta, PortMeta } from '@nestlingjs/operations';
 import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
@@ -235,7 +235,7 @@ describe('stub — профиль вызова', () => {
   });
 
   it('чеканит idempotencyKey у emit команды', async () => {
-    const seen: CommandMeta[] = [];
+    const seen: EmitMeta[] = [];
     const [, orders] = stub(PlaceOrder, (_payload, meta) => {
       seen.push(meta);
     });
@@ -247,7 +247,7 @@ describe('stub — профиль вызова', () => {
   });
 
   it('сохраняет ключ вызывающего', async () => {
-    const seen: CommandMeta[] = [];
+    const seen: EmitMeta[] = [];
     const [, orders] = stub(PlaceOrder, (_payload, meta) => {
       seen.push(meta);
     });

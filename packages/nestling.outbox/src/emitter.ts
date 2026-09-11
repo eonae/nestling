@@ -73,7 +73,7 @@ export const outboxed = <C extends EmittingOperation<any, any, any, any>>(
  * Как записи получают раздел.
  *
  * Функция композиции, а не аргумент `emit`: тип `meta` задаёт ядро
- * (`PortMeta`/`CommandMeta`), и лишнего поля в нём не выразить.
+ * (`PortMeta`/`EmitMeta`), и лишнего поля в нём не выразить.
  *
  * @returns Ключ раздела или `undefined`, если запись ничем не упорядочена
  */

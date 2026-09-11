@@ -24,7 +24,7 @@ export type { DeclarationDoc } from './doc.js';
 // ./families.js — 12
 export { EmitterFamily, PortFamily } from './families.js';
 export type {
-  CommandMeta,
+  EmitMeta,
   Emitter,
   EmitterToken,
   InvokeArgs,

@@ -28,7 +28,7 @@ import type { InjectionToken } from '@nestlingjs/container';
 import { asFamilyMember } from '@nestlingjs/container';
 import type {
   AnyOperation,
-  CommandMeta,
+  EmitMeta,
   Emitter,
   EmitterToken,
   EmittingOperation,
@@ -303,8 +303,8 @@ function makePortStub(
  */
 function stubMeta(
   operation: AnyOperation,
-  meta: CommandMeta | undefined,
-): CommandMeta {
+  meta: EmitMeta | undefined,
+): EmitMeta {
   return operation.kind === 'command'
     ? { ...meta, idempotencyKey: meta?.idempotencyKey ?? crypto.randomUUID() }
     : { ...meta };
@@ -316,7 +316,7 @@ function makeEmitterStub(
   impl: (payload: any, meta: any) => unknown,
 ): Emitter<any> {
   return {
-    async emit(payload?: unknown, meta?: CommandMeta) {
+    async emit(payload?: unknown, meta?: EmitMeta) {
       const input = parseInput(operation, payload);
       if (!input.ok) {
         throw input.fail;

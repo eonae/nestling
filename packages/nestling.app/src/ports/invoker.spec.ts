@@ -107,8 +107,15 @@ const ShipOrderImpl = implement(ShipOrder, {
 
 const subscribers: string[] = [];
 
+/** Ключи идемпотентности, полученные подписчиком события */
+const placedKeys: (string | undefined)[] = [];
+
 const OrderPlacedBilling = implement(OrderPlaced, {
   subscriber: 'billing',
+  // Ключ едет тем же каналом, что и у команды: транспортными атрибутами
+  pipeline: makePipeline().pre((ctx) => {
+    placedKeys.push(ctx.raw.attributes.idempotencyKey as string | undefined);
+  }),
   handler: async () => {
     subscribers.push('billing');
 
@@ -168,6 +175,12 @@ const commandContext = (harnessed: Harness): InvokerContext => ({
   operation: ShipOrder,
   runtime: harnessed.runtime,
   patterns: [ShipOrderImpl.pattern],
+});
+
+const placedContext = (harnessed: Harness): InvokerContext => ({
+  operation: OrderPlaced,
+  runtime: harnessed.runtime,
+  patterns: [OrderPlacedBilling.pattern],
 });
 
 /** Даёт обработчикам, поставленным в очередь, доработать */
@@ -466,6 +479,45 @@ describe.each([
   });
 });
 
+describe.each([
+  [
+    'local',
+    (h: Harness) => makeLocalEmitter(placedContext(h)) as Emitter<any>,
+  ],
+  [
+    'remote',
+    (h: Harness) => makeRemoteEmitter(placedContext(h)) as Emitter<any>,
+  ],
+])('ключ идемпотентности события (%s)', (_name, build) => {
+  let harnessed: Harness;
+  let emitter: Emitter<any>;
+
+  beforeEach(async () => {
+    placedKeys.length = 0;
+    subscribers.length = 0;
+    harnessed = await harness([OrderPlacedBilling]);
+    emitter = build(harnessed);
+  });
+
+  afterEach(async () => {
+    await harnessed.close();
+  });
+
+  it('ключ издателя приходит подписчику без подмены', async () => {
+    await emitter.emit({ orderId: 'o-1' }, { idempotencyKey: 'outbox-7' });
+    await settle();
+
+    expect(placedKeys).toEqual(['outbox-7']);
+  });
+
+  it('emit без ключа едет без него: чеканки у события нет', async () => {
+    await emitter.emit({ orderId: 'o-1' });
+    await settle();
+
+    expect(placedKeys).toEqual([undefined]);
+  });
+});
+
 /**
  * Тип-тесты словаря `meta`: предмет проверки — компилятор, а не рантайм.
  *
@@ -478,13 +530,11 @@ function metaDictionaryTypeTests(
   event: Emitter<typeof OrderPlaced>,
   request: Port<typeof ChargeCard>,
 ): void {
-  // Компилируется: идентичность намерения есть у вида `command`
+  // Компилируется у обоих видов, уходящих без ответа
   void command.emit({ orderId: 'o-1' }, { idempotencyKey: 'k' });
-
-  // @ts-expect-error: у вида `event` идентичности намерения нет
   void event.emit({ orderId: 'o-1' }, { idempotencyKey: 'k' });
 
-  // @ts-expect-error: у вида `request` поле не введено (открытый вопрос)
+  // @ts-expect-error: у вида `request` ретрай — забота вызывателя
   void request.call({ amount: 1 }, { idempotencyKey: 'k' });
 
   // Бюджет есть у всех трёх видов — и только моментом

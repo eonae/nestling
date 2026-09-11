@@ -43,7 +43,7 @@ import type { Schema } from '@nestlingjs/common.misc';
 import { SchemaValidationError } from '@nestlingjs/common.misc';
 import type {
   AnyOperation,
-  CommandMeta,
+  EmitMeta,
   Emitter,
   Port,
   PortMeta,
@@ -522,7 +522,7 @@ export function makeLocalEmitter(context: InvokerContext): Emitter<any> {
   const { operation, runtime, patterns } = context;
 
   return {
-    async emit(payload?: unknown, meta?: CommandMeta) {
+    async emit(payload?: unknown, meta?: EmitMeta) {
       const input = requireValidPayload(operation, payload);
       requireLiveBudget(meta);
 
@@ -574,7 +574,7 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
   const { operation, runtime } = context;
 
   return {
-    async emit(payload?: unknown, meta?: CommandMeta) {
+    async emit(payload?: unknown, meta?: EmitMeta) {
       const input = requireValidPayload(operation, payload);
       requireLiveBudget(meta);
 
@@ -602,7 +602,7 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
 }
 
 /**
- * Ключ идемпотентности отправляемой команды.
+ * Ключ идемпотентности отправляемого сообщения.
  *
  * `emit` команды всегда идёт с ключом: переданным вызывающим либо
  * сгенерированным здесь. Ключ создаётся в вызывателе, а не в транспорте,
@@ -611,18 +611,28 @@ export function makeRemoteEmitter(context: InvokerContext): Emitter<any> {
  * `emit` — разные. Транспорт не знает, где кончается один `emit`, и такой
  * гарантии дать не может.
  *
- * У `event` ключа нет: у факта, доставляемого 0..N подписчикам, нет
- * идентичности намерения, которую можно было бы дедуплицировать.
+ * `emit` события идёт с ключом только тогда, когда его передал издатель.
+ * Чеканить недостающий вызыватель не вправе: ключ команды — идентичность
+ * намерения, и вызывающий может её выдумать, а у факта такой идентичности
+ * нет. Сгенерированный ключ выглядел бы основанием для дедупликации, не
+ * будучи им.
+ *
+ * У `request` ключа нет вовсе: ответа ждёт живой вызывающий, и ретрай —
+ * его забота.
  */
 function idempotencyKeyOf(
   operation: AnyOperation,
-  meta: CommandMeta | undefined,
+  meta: EmitMeta | undefined,
 ): string | undefined {
-  if (operation.kind !== 'command') {
-    return undefined;
+  if (operation.kind === 'command') {
+    return meta?.idempotencyKey ?? crypto.randomUUID();
   }
 
-  return meta?.idempotencyKey ?? crypto.randomUUID();
+  if (operation.kind === 'event') {
+    return meta?.idempotencyKey;
+  }
+
+  return undefined;
 }
 
 /**

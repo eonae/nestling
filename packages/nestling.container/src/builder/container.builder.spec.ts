@@ -448,4 +448,128 @@ describe('ContainerBuilder', () => {
       );
     });
   });
+
+  describe('подсказки объявлений', () => {
+    /** Возвращает текст ошибки сборки — целиком, вместе с подсказками. */
+    const buildFailure = (builder: ContainerBuilder): string => {
+      try {
+        builder.build();
+      } catch (error) {
+        return (error as Error).message;
+      }
+
+      throw new Error('build() did not throw');
+    };
+
+    it('печатает подсказку недостающего DI-токена', () => {
+      const Bus$ = makeToken<{ publish(): void }>('MessageBus', {
+        hint: "add a bus transport to 'transports:'",
+      });
+      const Relay$ = makeToken<object>('Relay');
+
+      const builder = new ContainerBuilder().register(
+        factoryProvider(Relay$, () => ({}), [Bus$] as const),
+      );
+
+      expect(buildFailure(builder)).toBe(
+        [
+          'Unsatisfied dependencies (1):',
+          "  - 'MessageBus' required by 'Relay'",
+          "    MessageBus: add a bus transport to 'transports:'",
+          "Register a provider for each of them (in 'providers:' of a module, or via register()).",
+        ].join('\n'),
+      );
+    });
+
+    it('печатает подсказку потребителя', () => {
+      const Bus$ = makeToken<{ publish(): void }>('MessageBus');
+      const Relay$ = makeToken<object>('@nestlingjs/outbox relay', {
+        hint: 'or remove the outbox plugin',
+      });
+
+      const builder = new ContainerBuilder().register(
+        factoryProvider(Relay$, () => ({}), [Bus$] as const),
+      );
+
+      expect(buildFailure(builder)).toBe(
+        [
+          'Unsatisfied dependencies (1):',
+          "  - 'MessageBus' required by '@nestlingjs/outbox relay'",
+          '    @nestlingjs/outbox relay: or remove the outbox plugin',
+          "Register a provider for each of them (in 'providers:' of a module, or via register()).",
+        ].join('\n'),
+      );
+    });
+
+    it('печатает обе подсказки по строке на DI-токен', () => {
+      const Bus$ = makeToken<{ publish(): void }>('MessageBus', {
+        hint: "add a bus transport to 'transports:'",
+      });
+      const Relay$ = makeToken<object>('@nestlingjs/outbox relay', {
+        hint: 'or remove the outbox plugin',
+      });
+
+      const builder = new ContainerBuilder().register(
+        factoryProvider(Relay$, () => ({}), [Bus$] as const),
+      );
+
+      expect(buildFailure(builder)).toBe(
+        [
+          'Unsatisfied dependencies (1):',
+          "  - 'MessageBus' required by '@nestlingjs/outbox relay'",
+          "    MessageBus: add a bus transport to 'transports:'",
+          '    @nestlingjs/outbox relay: or remove the outbox plugin',
+          "Register a provider for each of them (in 'providers:' of a module, or via register()).",
+        ].join('\n'),
+      );
+    });
+
+    it('не меняет текст, когда подсказок нет', () => {
+      const builder = new ContainerBuilder().register(
+        classProvider(TokenB, ServiceB),
+      );
+
+      expect(buildFailure(builder)).toBe(
+        [
+          'Unsatisfied dependencies (1):',
+          "  - 'TokenA' required by 'TokenB'",
+          "Register a provider for each of them (in 'providers:' of a module, or via register()).",
+        ].join('\n'),
+      );
+    });
+
+    it('перечисляет три дыры, печатая подсказку у своего DI-токена', () => {
+      const First$ = makeToken<object>('First', { hint: 'declare it' });
+      const Second$ = makeToken<object>('Second');
+      const Third$ = makeToken<object>('Third');
+      const Consumer$ = makeToken<object>('Consumer');
+
+      const builder = new ContainerBuilder().register(
+        factoryProvider(Consumer$, () => ({}), [
+          First$,
+          Second$,
+          Third$,
+        ] as const),
+      );
+
+      expect(buildFailure(builder)).toBe(
+        [
+          'Unsatisfied dependencies (3):',
+          "  - 'First' required by 'Consumer'",
+          '    First: declare it',
+          "  - 'Second' required by 'Consumer'",
+          "  - 'Third' required by 'Consumer'",
+          "Register a provider for each of them (in 'providers:' of a module, or via register()).",
+        ].join('\n'),
+      );
+    });
+
+    it('не считает подсказку частью идентичности DI-токена', () => {
+      const first = makeToken<object>('Same', { hint: 'one' });
+      const second = makeToken<object>('Same', { hint: 'two' });
+
+      expect(first).not.toBe(second);
+      expect(Object.isFrozen(first)).toBe(true);
+    });
+  });
 });

@@ -2,7 +2,7 @@
 
 ## Why
 
-Замер границы ядра на `@nestling/outbox` нашёл четыре места, в которые
+Замер границы ядра на `@nestlingjs/outbox` нашёл четыре места, в которые
 сателлит упёрся, и намеренно не починил ни одного: правка ядра ради
 сателлита обесценила бы сам замер. Места остались, а вместе с ними —
 цена, которую платит каждое приложение с транзакционным emit'ом: лишний
@@ -45,7 +45,7 @@ Change закрывает их правкой ядра — теперь, ког�
   `Emitter<C, MetaOf<C> & { partitionKey?: string }>` присваивается
   переменной типа `Emitter<C>`, потому что параметр метода
   контравариантен.
-- **BREAKING** `@nestling/outbox` переезжает на новые примитивы: раздел
+- **BREAKING** `@nestlingjs/outbox` переезжает на новые примитивы: раздел
   записи задаётся аргументом `emit` (`emit(payload, { partitionKey })`),
   опция `partitionKey` у `outbox({ … })` удаляется, DI-токен-алиас шины
   удаляется, `core-limits.spec.ts` удаляется целиком.
@@ -94,13 +94,13 @@ Change закрывает их правкой ядра — теперь, ког�
   в `port-idempotency`.
 - Понятие раздела и упорядоченной доставки в ядре. Шина V1 порядка не
   обещает, и поле в `meta` ядра было бы обещанием без гарантии. Раздел
-  остаётся словарём `@nestling/outbox`, который его и исполняет.
+  остаётся словарём `@nestlingjs/outbox`, который его и исполняет.
 - Подсказка на семействах DI-токенов (`makeTokenFamily`) и на классах.
   Класс несёт имя, семейство — имя и параметр; отдельного места для
   текста починки у них нет.
 - Открытые вопросы записи об outbox'е: константа DDL, факт
   `outbox.lag`, правило о значениях композиционного корня в
-  `conventions.md` и третье правило `@nestling/eslint-plugin`.
+  `conventions.md` и третье правило `@nestlingjs/eslint-plugin`.
 
 ## Impact
 
@@ -122,7 +122,7 @@ Change закрывает их правкой ядра — теперь, ког�
   `src/users/endpoints/create-user.endpoint.ts`.
 - Документация: `docs/design/pipeline.md`, `docs/design/operations.md`,
   `docs/design/container.md`, главы гайда 14 и 27, README пакетов
-  `@nestling/app`, `@nestling/container`, `@nestling/operations` и
-  `@nestling/outbox`, находки записи
+  `@nestlingjs/app`, `@nestlingjs/container`, `@nestlingjs/operations` и
+  `@nestlingjs/outbox`, находки записи
   [ideas.md [2026-09-07]](../../../docs/decisions/ideas.md), строка 57 в
   [roadmap.md](../../../docs/decisions/roadmap.md).

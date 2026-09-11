@@ -10,15 +10,15 @@
 ### Requirement: Транзакционный emit — satellite-пакет поверх публичных примитивов
 
 Транзакционный emit SHALL поставляться отдельным пакетом
-`@nestling/outbox` и SHALL быть построен целиком на публичных примитивах:
+`@nestlingjs/outbox` и SHALL быть построен целиком на публичных примитивах:
 семействах DI-токенов, переменных контекста и их ридерах, роли `@Resource`
 с `acquire` и `release`, хуке `@OnStart`, `AbortSignal`, интерфейсе шины
 `IMessageBus`, операциях и `makePlugin`.
 
 Пакет SHALL NOT иметь внешних зависимостей и SHALL NOT зависеть ни от
 одного драйвера базы данных; перечень внутренних зависимостей —
-`@nestling/container`, `@nestling/app`, `@nestling/operations`,
-`@common/misc`.
+`@nestlingjs/container`, `@nestlingjs/app`, `@nestlingjs/operations`,
+`@nestlingjs/common.misc`.
 
 Правка ядра ради пакета SHALL идти отдельным change'ем: место, в которое
 пакет упёрся, SHALL сначала фиксироваться записью журнала решений как
@@ -28,7 +28,7 @@
 
 #### Scenario: Пакет самодостаточен
 
-- **WHEN** приложение устанавливает `@nestling/outbox`
+- **WHEN** приложение устанавливает `@nestlingjs/outbox`
 - **THEN** в графе зависимостей пакета нет внешних библиотек и нет
   драйверов базы данных
 

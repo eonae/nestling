@@ -1,55 +1,56 @@
-## 1. Подсказки DI-токенов (`@nestling/container`)
+## 1. Подсказки DI-токенов (`@nestlingjs/container`)
 
-- [ ] 1.1 `src/common.ts`: `makeToken<T>(id, options?)` принимает
+- [x] 1.1 `src/common.ts`: `makeToken<T>(id, options?)` принимает
   `{ hint }`; значение остаётся замороженным, идентичность DI-токена
   ссылочная. JSDoc говорит, что подсказка — текст починки, а не описание
-- [ ] 1.2 `src/builder/container.builder.ts`,
+- [x] 1.2 `src/builder/container.builder.ts`,
   `assertDependenciesSatisfied`: под строкой перечня печатаются
   подсказки — недостающего DI-токена и каждого потребителя, у которого
   она объявлена, по строке на DI-токен с его идентификатором
-- [ ] 1.3 Формат для DI-токенов без подсказок не меняется: перечень,
+- [x] 1.3 Формат для DI-токенов без подсказок не меняется: перечень,
   потребители и завершающая строка про `providers:` остаются прежними
-- [ ] 1.4 Рантайм-тесты в `src/builder/container.builder.spec.ts`:
+- [x] 1.4 Рантайм-тесты в `src/builder/container.builder.spec.ts`:
   подсказка недостающего, подсказка потребителя, обе сразу, ни одной;
   три дыры перечисляются по-прежнему
-- [ ] 1.5 Существующие спеки формата ошибки (`token-families.spec.ts`,
+- [x] 1.5 Существующие спеки формата ошибки (`token-families.spec.ts`,
   `overrides-pruning.spec.ts`, `instantiation.spec.ts`,
-  `@nestling/testing` `unit.spec.ts`) прогнаны без правок
+  `@nestlingjs/testing` `unit.spec.ts`) прогнаны без правок
 
-## 2. Словарь `meta` вызова (`@nestling/operations`)
+## 2. Словарь `meta` вызова (`@nestlingjs/operations`)
 
-- [ ] 2.1 `src/families.ts`: `CommandMeta` переименован в `EmitMeta`;
+- [x] 2.1 `src/families.ts`: `CommandMeta` переименован в `EmitMeta`;
   `MetaOf<C>` выбирает `PortMeta` по дискриминанту `kind: 'request'` и
   `EmitMeta` в остальных случаях. Имени `CommandMeta` не остаётся ни в
   одном пакете
-- [ ] 2.2 `InvokeArgs<C, M = MetaOf<C>>`, `Port<C, M = MetaOf<C>>` и
+- [x] 2.2 `InvokeArgs<C, M = MetaOf<C>>`, `Port<C, M = MetaOf<C>>` и
   `Emitter<C, M = MetaOf<C>>`; рантайм не меняется
-- [ ] 2.3 Тип-тесты: `emit(payload, { idempotencyKey })` компилируется у
+- [x] 2.3 Тип-тесты: `emit(payload, { idempotencyKey })` компилируется у
   события и не компилируется у `request`; расширенный
   `Emitter<C, MetaOf<C> & { partitionKey?: string }>` присваивается
   `Emitter<C>`; payload остаётся обязательным там, где был
-- [ ] 2.4 `yarn type-budget` замерен до и после правки `families.ts`;
-  результат записан в `tasks.md` этой строкой. Порог превышен — тип-параметр
-  остаётся только у `Emitter`
+- [x] 2.4 `yarn type-budget` замерен до и после правки `families.ts`:
+  инстанциации 119 753 → 120 293 (+0.5 %), типы 33 633 → 33 746 (+0.3 %),
+  hover 140 → 139 мс. Пороги не тронуты, тип-параметр остаётся у обоих —
+  и у `Port`, и у `Emitter`
 
-## 3. Ключ идемпотентности события (`@nestling/app`)
+## 3. Ключ идемпотентности события (`@nestlingjs/app`)
 
-- [ ] 3.1 `src/ports/invoker.ts`, `idempotencyKeyOf`: команда получает
+- [x] 3.1 `src/ports/invoker.ts`, `idempotencyKeyOf`: команда получает
   переданный либо чеканенный ключ, событие — только переданный;
   `request` ключа не имеет. Обе ветки — и локальный эмиттер, и
   remote-эмиттер
-- [ ] 3.2 JSDoc, где ключ назван «командой»: `PublishOptions`,
+- [x] 3.2 JSDoc, где ключ назван «командой»: `PublishOptions`,
   `BusMessageMeta`, `Envelope` в `src/ports/bus.ts` и
   `profileAttributes` в `src/ports/profile.ts` — текст приведён к «без
   ответа», конверт не меняется
-- [ ] 3.3 Рантайм-тесты в `src/ports/bus.spec.ts` и
+- [x] 3.3 Рантайм-тесты в `src/ports/bus.spec.ts` и
   `src/ports/profile.spec.ts`: событие с переданным ключом приходит
   подписчику на обоих путях биндинга; событие без ключа едет без него;
   команда без ключа по-прежнему получает чеканенный
-- [ ] 3.4 `withIdempotencyKey()` не меняется: подписчик события без
+- [x] 3.4 `withIdempotencyKey()` не меняется: подписчик события без
   присланного ключа получает собственный — тест это фиксирует
 
-## 4. Писатель переменной с зависимостями (`@nestling/app`)
+## 4. Писатель переменной с зависимостями (`@nestlingjs/app`)
 
 - [ ] 4.1 `src/pipeline/core/context/variable.ts`: вторая форма
   `provide(deps, compute)`. Юнит несёт прежнюю неперечислимую пометку
@@ -70,11 +71,11 @@
 - [ ] 4.6 Рантайм-тесты пайплайна: писатель кладёт значение, полученное
   из контейнера; резолв случается один раз на `bind()`, а не на запрос;
   `hasVar` засчитывает такого писателя
-- [ ] 4.7 Тест сборки в `@nestling/app`: endpoint с писателем, чья
+- [ ] 4.7 Тест сборки в `@nestlingjs/app`: endpoint с писателем, чья
   зависимость не зарегистрирована, роняет ASSEMBLE с паттерном,
   модулем-объявителем и недостающей зависимостью
 
-## 5. `@nestling/outbox` переезжает на новые примитивы
+## 5. `@nestlingjs/outbox` переезжает на новые примитивы
 
 - [ ] 5.1 `src/emitter.ts`: тип `OutboxEmitMeta<C>` и `OutboxEmitter<C>`;
   `emit` читает `partitionKey` из `meta`. Тип `PartitionKeyOf` и поле
@@ -82,7 +83,7 @@
 - [ ] 5.2 `src/plugin.ts`: опция `partitionKey` у `outbox({ … })`
   удалена вместе с её проверкой в `assertOptions`
 - [ ] 5.3 `src/plugin.ts`: идентификатор `OutboxBus$` становится именем
-  (`'@nestling/outbox relay'`), починка переезжает в `hint`
+  (`'@nestlingjs/outbox relay'`), починка переезжает в `hint`
 - [ ] 5.4 `src/core-limits.spec.ts` удалён: все четыре находки закрыты
 - [ ] 5.5 `src/emitter.spec.ts` и `src/plugin.spec.ts`: раздел из места
   вызова, запись без раздела, текст ошибки без шины с обеими подсказками
@@ -108,8 +109,8 @@
   чеканка только у команды, словарь `meta` как точка расширения
 - [ ] 7.3 `docs/design/container.md`: подсказка на объявлении DI-токена и
   её место в тексте ошибки сборки
-- [ ] 7.4 README `@nestling/app`, `@nestling/container`,
-  `@nestling/operations` и `@nestling/outbox` сверены, включая плашки
+- [ ] 7.4 README `@nestlingjs/app`, `@nestlingjs/container`,
+  `@nestlingjs/operations` и `@nestlingjs/outbox` сверены, включая плашки
   статуса; из README outbox'а уходит абзац про юнит-мост
 - [ ] 7.5 Главы гайда 14 и 27 перечитаны и правлены: слой транзакции в
   один юнит, раздел записи в месте вызова, ключ идемпотентности события;

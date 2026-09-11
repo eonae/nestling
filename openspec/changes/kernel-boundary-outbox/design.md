@@ -1,6 +1,6 @@
 ## Context
 
-`@nestling/outbox` написан целиком поверх публичных примитивов: `git diff`
+`@nestlingjs/outbox` написан целиком поверх публичных примитивов: `git diff`
 по kernel-пакетам за тот change пуст. Замер границы, ради которого пакет
 писался, нашёл четыре места, где примитивов не хватило, и пакет обошёл
 каждое своими силами. Обходы работают, но стоят приложению лишнего кода:
@@ -170,9 +170,9 @@ export const MessageBus$ = makeToken<IMessageBus>('MessageBus', {
 
 ```
 Unsatisfied dependencies (1):
-  - 'MessageBus' required by '@nestling/outbox relay'
+  - 'MessageBus' required by '@nestlingjs/outbox relay'
     MessageBus: add a bus transport to 'transports:'
-    @nestling/outbox relay: or remove the outbox plugin
+    @nestlingjs/outbox relay: or remove the outbox plugin
 Register a provider for each of them (in 'providers:' of a module, or via register()).
 ```
 
@@ -181,7 +181,7 @@ Register a provider for each of them (in 'providers:' of a module, or via regist
 
 Пакет-сателлит перестаёт вписывать текст починки в идентификатор:
 `OutboxBus$` остаётся алиасом ради имени потребителя, но идентификатор
-становится именем (`'@nestling/outbox relay'`), а починка — подсказкой.
+становится именем (`'@nestlingjs/outbox relay'`), а починка — подсказкой.
 
 *Отвергнуто:*
 
@@ -236,7 +236,7 @@ export interface Emitter<C extends EmittingOperation<any, any, any, any>, M exte
 
 ### 6. Раздел записи задаётся местом вызова
 
-В `@nestling/outbox` опция `partitionKey` у `outbox({ … })` удаляется, а
+В `@nestlingjs/outbox` опция `partitionKey` у `outbox({ … })` удаляется, а
 раздел передаётся аргументом:
 
 ```typescript
@@ -297,7 +297,7 @@ await this.userCreated.emit(user, { partitionKey: user.id });
    словаря у `Port` и `Emitter`; замер бюджета типов.
 3. Приложение: вторая форма `provide`, резолв зависимостей юнита на
    `bind`, ключ идемпотентности события на обоих путях биндинга.
-4. `@nestling/outbox`: раздел аргументом `emit`, удаление опции
+4. `@nestlingjs/outbox`: раздел аргументом `emit`, удаление опции
    плагина и алиаса шины, удаление `core-limits.spec.ts`.
 5. `examples/users-service`: `ProvideDb` уходит из кода и из
    `providers:`, раздел переезжает в вызов `emit`.

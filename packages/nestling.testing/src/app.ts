@@ -42,7 +42,7 @@ import { wireApp } from '@nestlingjs/app/testing';
 import type { AnySwitch, InjectionToken } from '@nestlingjs/container';
 import { valueProvider } from '@nestlingjs/container';
 import type {
-  CommandMeta,
+  EmitMeta,
   EmittingOperation,
   InvokeArgs,
 } from '@nestlingjs/operations';
@@ -316,13 +316,10 @@ export class TestApp {
     const attributes = profileAttributes({
       subject: operation.name,
       deadline: meta?.deadline,
-      ...(operation.kind === 'command'
-        ? {
-            idempotencyKey:
-              (meta as CommandMeta | undefined)?.idempotencyKey ??
-              crypto.randomUUID(),
-          }
-        : {}),
+      // Команда едет с ключом всегда, событие — только с переданным
+      idempotencyKey:
+        (meta as EmitMeta | undefined)?.idempotencyKey ??
+        (operation.kind === 'command' ? crypto.randomUUID() : undefined),
     });
 
     return await Promise.all(

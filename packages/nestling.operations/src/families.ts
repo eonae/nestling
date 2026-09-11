@@ -1,6 +1,6 @@
 /**
  * Семейства DI-токенов `PortFamily` и `EmitterFamily` и типы их значений:
- * `Port`, `Emitter`, `PortMeta`, `CommandMeta`.
+ * `Port`, `Emitter`, `PortMeta`, `EmitMeta`.
  *
  * Отдельный файл: на семейства ссылаются и операция (`.caller` / `.emitter`
  * — члены семейств), и модуль ядра в `@nestlingjs/app` (рецепты). Общий
@@ -45,16 +45,20 @@ export interface PortMeta {
 }
 
 /**
- * Параметры вызова команды: `PortMeta` плюс ключ идемпотентности.
+ * Параметры вызова без ответа: `PortMeta` плюс ключ идемпотентности.
  *
- * Отдельный тип, потому что ключ есть только у `command`. У `request` и
- * `event` поля нет в типе, и `{ idempotencyKey }` там — ошибка компиляции,
- * а не молча проигнорированное поле.
+ * Отдельный тип, потому что ключ есть у `command` и `event` — обоих видов,
+ * у которых сообщение уходит без ответа. У `request` поля нет в типе, и
+ * `{ idempotencyKey }` там — ошибка компиляции, а не молча
+ * проигнорированное поле.
  */
-export interface CommandMeta extends PortMeta {
+export interface EmitMeta extends PortMeta {
   /**
-   * Ключ идемпотентности команды. Если не задан, вызывающая сторона
-   * генерирует свой: `emit` команды всегда отправляется с ключом.
+   * Ключ идемпотентности сообщения.
+   *
+   * У команды ключ есть всегда: не задан вызывающим — вызыватель чеканит
+   * свой. У события ключ едет тогда, и только тогда, когда его передал
+   * издатель: у факта нет идентичности намерения, которую можно выдумать.
    *
    * Ядро гарантирует только доставку ключа обработчику. Дедупликацию
    * делает satellite-пакет поверх хранилища.
@@ -63,17 +67,16 @@ export interface CommandMeta extends PortMeta {
 }
 
 /**
- * Тип `meta` по виду операции: `CommandMeta` для `command`, иначе
- * `PortMeta`.
+ * Тип `meta` по виду операции: `PortMeta` для `request`, иначе `EmitMeta`.
  *
- * Условие проверяет поле `kind`, а не `C extends CommandOperation`:
+ * Условие проверяет поле `kind`, а не `C extends RequestOperation`:
  * операция содержит DI-токен вызывающей стороны, тот — `InvokeArgs`, а тот
  * снова `MetaOf`. Структурная проверка операции целиком уходит в
  * бесконечную рекурсию и роняет `tsc`; проверка дискриминанта — нет.
  */
-export type MetaOf<C extends AnyOperation> = C extends { kind: 'command' }
-  ? CommandMeta
-  : PortMeta;
+export type MetaOf<C extends AnyOperation> = C extends { kind: 'request' }
+  ? PortMeta
+  : EmitMeta;
 
 /**
  * Отказы ядра, которые вызов порта может вернуть помимо объявленных в
@@ -100,11 +103,17 @@ export type PortResult<C extends AnyOperation> =
 /**
  * Аргументы вызова. У операции без `input` payload необязателен, у
  * остальных обязателен: пропущенный payload не компилируется.
+ *
+ * Словарь `meta` — второй тип-параметр со значением по умолчанию
+ * `MetaOf<C>`: обёртка вызывающей стороны объявляет свой словарь
+ * пересечением и не переписывает условие про payload.
  */
-export type InvokeArgs<C extends AnyOperation> =
-  undefined extends InputOf<C>
-    ? [payload?: InputOf<C>, meta?: MetaOf<C>]
-    : [payload: InputOf<C>, meta?: MetaOf<C>];
+export type InvokeArgs<
+  C extends AnyOperation,
+  M extends MetaOf<C> = MetaOf<C>,
+> = undefined extends InputOf<C>
+  ? [payload?: InputOf<C>, meta?: M]
+  : [payload: InputOf<C>, meta?: M];
 
 /**
  * Порт: вызывающая сторона операции вида `request`.
@@ -112,9 +121,16 @@ export type InvokeArgs<C extends AnyOperation> =
  * Вызов всегда асинхронный и всегда может вернуть `Fail`, даже если
  * реализация работает в том же процессе. Поэтому код вызывающей стороны не
  * меняется, когда реализацию выносят в другой процесс.
+ *
+ * Второй тип-параметр — словарь `meta`: точка расширения для
+ * satellite-пакета. Рантайм ядра чужих полей не читает и в конверт их не
+ * кладёт.
  */
-export interface Port<C extends RequestOperation<any, any, any>> {
-  call(...args: InvokeArgs<C>): Promise<PortResult<C>>;
+export interface Port<
+  C extends RequestOperation<any, any, any>,
+  M extends MetaOf<C> = MetaOf<C>,
+> {
+  call(...args: InvokeArgs<C, M>): Promise<PortResult<C>>;
 }
 
 /**
@@ -123,9 +139,16 @@ export interface Port<C extends RequestOperation<any, any, any>> {
  * `emit` возвращает `Promise<void>`, а не `Ok | Fail`: у вызова без ответа
  * нет результата, который нужно разбирать. Promise завершается после
  * доставки сообщения, а не после его обработки.
+ *
+ * Второй тип-параметр — словарь `meta` (см. {@link Port}). Значение
+ * расширенного типа присваивается переменной типа `Emitter<C>`, потому что
+ * параметр метода в TypeScript бивариантен.
  */
-export interface Emitter<C extends EmittingOperation<any, any, any, any>> {
-  emit(...args: InvokeArgs<C>): Promise<void>;
+export interface Emitter<
+  C extends EmittingOperation<any, any, any, any>,
+  M extends MetaOf<C> = MetaOf<C>,
+> {
+  emit(...args: InvokeArgs<C, M>): Promise<void>;
 }
 
 /**
