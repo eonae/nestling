@@ -129,9 +129,9 @@ export default [
   constructor parameters: `@Component()` next to a non-empty constructor,
   a missing token, an extra one. The expected list is derived from the
   parameter types by name — `Database` for a class, `UsersRepository$` for
-  an interface whose token is in scope, `Logger$.auto` for `Logger`,
+  an interface and `Logger$.auto` for `Logger` when that token is in scope,
   `AppConfig` for `Config<typeof AppConfig>`, `ClaimQuota.caller` for
-  `Port<typeof ClaimQuota>` — so an empty list is filled in by `--fix`. A
-  type the rule does not know is accepted as written. The check is
-  syntactic, so the level is `warn`; the guarantee is the compiler, which
-  rejects a list that does not match.
+  `Port<typeof ClaimQuota>` — so an empty list is filled in by `--fix`
+  from names the file already imports. A type the rule does not know is
+  accepted as written. The check is syntactic, so the level is `warn`; the
+  guarantee is the compiler, which rejects a list that does not match.

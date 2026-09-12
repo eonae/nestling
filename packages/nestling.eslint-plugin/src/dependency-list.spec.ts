@@ -146,6 +146,17 @@ ruleTester.run('dependency-list', dependencyList, {
         }`,
     },
     {
+      name: 'Logger без видимого Logger$ — позиция непрозрачна',
+      code: `
+        import type { Logger } from '@nestlingjs/app';
+        import { RootLogger$ } from '@nestlingjs/app';
+        import { Component } from '@nestlingjs/container';
+        @Component([RootLogger$])
+        class AppService {
+          constructor(private readonly logger: Logger) {}
+        }`,
+    },
+    {
       name: 'многострочный список из всех строк таблицы',
       code: `${prelude}
         @Component([
@@ -524,6 +535,18 @@ ruleTester.run('dependency-list', dependencyList, {
         @Component([Database])
         class DbUsersRepository {
           constructor(db: Database, requestId: CtxReader<string>) {}
+        }`,
+      output: null,
+      errors: [{ messageId: 'length' }],
+    },
+    {
+      name: 'пустой список при Logger без видимого Logger$ — без автофикса',
+      code: `
+        import type { Logger } from '@nestlingjs/app';
+        import { Component } from '@nestlingjs/container';
+        @Component()
+        class AppService {
+          constructor(private readonly logger: Logger) {}
         }`,
       output: null,
       errors: [{ messageId: 'length' }],

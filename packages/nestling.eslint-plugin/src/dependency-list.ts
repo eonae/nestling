@@ -6,10 +6,12 @@
  * Ожидаемый список правило выводит из аннотаций типов параметров по
  * таблице имён ядра: класс `X` даёт `X`, `Config<typeof X>` даёт `X`,
  * `Port<typeof Op>` даёт `Op.caller`, `Emitter<typeof Op>` даёт
- * `Op.emitter`, `Logger` даёт `Logger$.auto`, тип `X` при видимом в файле
- * `X$` даёт `X$`, массив `X[]` при видимом `X$` даёт `X$.all`. Эталон у
- * `@Component` и `@Handler` — собственный конструктор, у `@Resource` —
- * параметры `static acquire` без последнего, сигнала.
+ * `Op.emitter`, тип `X` при видимом в файле `X$` даёт `X$` (для `Logger`
+ * это `Logger$.auto`), массив `X[]` при видимом `X$` даёт `X$.all`.
+ * Правило пишет только имена, которые в файле уже есть, и документированные
+ * члены `.auto`, `.all`, `.caller`, `.emitter`. Эталон у `@Component` и
+ * `@Handler` — собственный конструктор, у `@Resource` — параметры
+ * `static acquire` без последнего, сигнала.
  *
  * Правило **синтаксическое**, как `endpoint-has-layer`: класс от
  * интерфейса оно отличает по форме объявления и импорта (`class`,
@@ -282,10 +284,11 @@ function arrayElementOf(
  * Ожидаемый элемент по типу параметра — таблица правила.
  *
  * Строки проверяются по порядку: массив, тип при видимом `X$`, класс,
- * `Logger`, `Config`/`Port`/`Emitter` с `typeof`. Видимый `X$` сильнее
+ * `Config`/`Port`/`Emitter` с `typeof`. Видимый `X$` сильнее
  * классификации: класс тоже бывает зарегистрирован под DI-токеном
- * интерфейса. Класс сильнее строки `Logger`: класс с таким именем,
- * объявленный в файле или импортированный значением, — обычный класс.
+ * интерфейса. Имён, которых в файле нет, правило не пишет: `Logger` без
+ * импортированного `Logger$` — непрозрачная позиция, а класс с таким
+ * именем — обычный класс.
  */
 function expectedOf(
   type: TSESTree.TypeNode | undefined,
@@ -315,26 +318,17 @@ function expectedOf(
 
   if (args.length === 0) {
     const token = `${name}${TOKEN_SUFFIX}`;
-    // `Logger$` — семейство: голый `Logger$` не компилируется, канон — `.auto`
-    const logger = {
-      kind: 'family',
-      head: token,
-      canonical: `${token}.auto`,
-    } as const;
 
     if (lookup.visible(token)) {
-      return name === LOGGER
-        ? logger
-        : { kind: 'family', head: token, canonical: token };
+      // `Logger$` — семейство: голый `Logger$` не компилируется, канон — `.auto`
+      return {
+        kind: 'family',
+        head: token,
+        canonical: name === LOGGER ? `${token}.auto` : token,
+      };
     }
 
-    if (lookup.isClass(name)) {
-      return { kind: 'identifier', name };
-    }
-
-    // Тип `Logger` импортируют через `import type`, и без видимого `Logger$`
-    // строка таблицы срабатывает по имени
-    return name === LOGGER ? logger : OPAQUE;
+    return lookup.isClass(name) ? { kind: 'identifier', name } : OPAQUE;
   }
 
   const query = args.length === 1 ? typeQueryName(args[0]) : undefined;
