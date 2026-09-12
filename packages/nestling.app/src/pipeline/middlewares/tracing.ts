@@ -1,5 +1,7 @@
 import type { EmptyInput, TraceContext } from '../core/index.js';
 import {
+  ambientTrace,
+  formatTraceparent,
   newSpanId,
   newTraceId,
   parsePropagatedTrace,
@@ -54,4 +56,29 @@ export function withTracing(): PreUnitFn<EmptyInput, { trace: TraceContext }> {
       sampled: parent?.sampled ?? true,
     };
   });
+}
+
+/**
+ * Трасса текущего запроса строкой W3C или `undefined`, если её нет.
+ *
+ * Значение для заголовка `traceparent` исходящего запроса: идентификатор
+ * участка берётся собственный, и получатель становится его ребёнком.
+ *
+ * Читалка отдаётся значением, потому что её потребитель живёт в другом
+ * пакете: типизированный HTTP-клиент зависит только от
+ * `@nestlingjs/operations` и собирается для браузера, поэтому ambient-
+ * контекст ему недоступен. Клиент принимает эту функцию опцией `trace`.
+ *
+ * @example
+ * ```typescript
+ * const api = makeClient(
+ *   { getUser: GetUser },
+ *   { baseUrl, trace: traceparent },
+ * );
+ * ```
+ */
+export function traceparent(): string | undefined {
+  const trace = ambientTrace();
+
+  return trace === undefined ? undefined : formatTraceparent(trace);
 }

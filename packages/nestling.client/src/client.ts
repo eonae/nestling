@@ -167,6 +167,24 @@ async function resolveHeaders(
 }
 
 /**
+ * Заголовки запроса: трасса под ambient-заголовками.
+ *
+ * Порядок и есть правило «конфигурация сильнее»: `traceparent`, заданный
+ * полем `headers`, перекрывает подставленный читалкой. Вне запроса
+ * читалка возвращает `undefined`, и заголовка не появляется вовсе.
+ */
+async function resolveRequestHeaders(
+  config: ClientConfig,
+): Promise<Record<string, string>> {
+  const headers = await resolveHeaders(config.headers);
+  const traceparent = config.trace?.();
+
+  return traceparent === undefined
+    ? headers
+    : { traceparent, ...headers };
+}
+
+/**
  * Композирует сигнал отмены из пользовательского и бюджетного.
  *
  * Бюджет — абсолютный момент, поэтому в таймер передаётся остаток, а не
@@ -219,7 +237,7 @@ async function invoke(
 
   let response: Response;
   try {
-    const headers = await resolveHeaders(config.headers);
+    const headers = await resolveRequestHeaders(config);
     const doFetch = config.fetch ?? globalThis.fetch;
 
     response = await doFetch(request.url, {

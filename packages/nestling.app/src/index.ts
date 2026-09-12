@@ -97,6 +97,7 @@ export {
   RequestId,
   Signal,
   Trace,
+  traceparent,
   TransportClosingError,
   transportNameOf,
   UndeclaredDoneError,
