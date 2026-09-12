@@ -90,7 +90,7 @@
 - [x] 5.2 `skill/SKILL.md`: строка `@nestlingjs/eslint-plugin` в таблице
   пакетов называет три правила; заголовков второго уровня по-прежнему
   пять
-- [ ] 5.3 `yarn workspace @nestlingjs/agent-skill test` зелёный: имена
+- [x] 5.3 `yarn workspace @nestlingjs/agent-skill test` зелёный: имена
   правил в скилле совпадают с ключами плагина, потолки строк соблюдены
 
 ## 6. Документация

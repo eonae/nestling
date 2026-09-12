@@ -110,6 +110,7 @@ export default [
         'warn',
         { layer: 'observability', constructorName: 'httpEndpoint' },
       ],
+      '@nestlingjs/dependency-list': 'warn',
     },
   },
 ];
@@ -124,3 +125,13 @@ export default [
   the check is incomplete by design and the level is `warn`. The guarantee
   is the policy in the root — `everyEndpoint({ … }).hasLayer(observability)`
   — which stops the process instead of printing a hint.
+- `dependency-list` catches a decorator list that does not match the
+  constructor parameters: `@Component()` next to a non-empty constructor,
+  a missing token, an extra one. The expected list is derived from the
+  parameter types by name — `Database` for a class, `UsersRepository$` for
+  an interface whose token is in scope, `Logger$.auto` for `Logger`,
+  `AppConfig` for `Config<typeof AppConfig>`, `ClaimQuota.caller` for
+  `Port<typeof ClaimQuota>` — so an empty list is filled in by `--fix`. A
+  type the rule does not know is accepted as written. The check is
+  syntactic, so the level is `warn`; the guarantee is the compiler, which
+  rejects a list that does not match.
