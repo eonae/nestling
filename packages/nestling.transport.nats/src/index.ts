@@ -6,9 +6,18 @@
  * регистрируется под `BusTransport$` из `@nestlingjs/app` — тем же,
  * которым пользуется in-proc шина, потому что шина в приложении ровно
  * одна.
+ *
+ * Барель перечисляет имена поимённо, а не через `export *`. Имя, которого
+ * здесь нет, остаётся внутренним: его можно менять, не ломая тех, кто
+ * установил пакет.
  */
 
-export * from './connector.js';
+// ./connector.js — 3
+export type {
+  NatsConnectOptions,
+  NatsConnector,
+  NatsLike,
+} from './connector.js';
 export { consumerNameOf, groupOf, streamNameOf } from './subject.js';
 export { nats, NatsBus } from './transport.js';
 export type {
