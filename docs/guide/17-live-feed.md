@@ -1,4 +1,4 @@
-# 15. Живая лента для клиента
+# 17. Живая лента для клиента
 
 > Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-10).
 > Целевое описание: [design/streaming.md](../design/streaming.md), разделы
@@ -141,7 +141,7 @@ export const ActivityStream = httpEndpoint({
 ```
 
 `events(T)` — форма io для открытой подписки. Она отличается от
-`stream(T)` из [главы 11](./11-files-and-streams.md):
+`stream(T)` из [главы 12](./12-files-and-streams.md):
 
 | | `stream(T)` | `events(T)` |
 |---|---|---|
@@ -262,4 +262,4 @@ it('отдаёт событие создания по SSE', async () => {
 `app.spec.ts`.
 
 Фича `users` зависит от квот, но тест фичи не должен поднимать соседа:
-[16. Тестировать фичу без соседей](./16-testing-features.md).
+[18. Тестировать фичу без соседей](./18-testing-features.md).

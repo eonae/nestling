@@ -8,7 +8,7 @@ CLI-транспорт Nestling: те же endpoint'ы и пайплайны, ч
 > нет: команды проверяются через `@nestlingjs/app` любой схемой
 > [Standard Schema](https://standardschema.dev).
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
-> Гайд: [глава 21. CLI-утилита на тех же примитивах](../../docs/guide/21-cli.md).
+> Гайд: [рецепт «CLI-утилита на тех же примитивах»](../../docs/recipes/cli.md).
 
 ## Установка
 

@@ -7,7 +7,7 @@ force-directed графом.
 > 🚧 Активная разработка, API может меняться. В реестр пока не публикуется:
 > ставится из репозитория.
 > Дизайн: [`docs/design/container.md`](../../docs/design/container.md).
-> Гайд: [глава 25. Сателлиты и инструменты](../../docs/guide/25-standalone.md).
+> Гайд: [рецепт «Без `makeApp`»](../../docs/recipes/standalone.md).
 
 ## Установка
 

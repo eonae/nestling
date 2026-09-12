@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 /**
- * Сборка гайда: главы `docs/guide/*.md` → один файл `docs/.site/index.html`.
+ * Сборка документации: источники из `sections.mjs` → один файл
+ * `docs/.site/index.html`.
  *
- * Источник текста один — гайд. Состав и порядок разделов берутся из
- * `docs/guide/README.md`: заголовки `## Часть N. …` и `## Приложения`
- * дают группы сайдбара, строки таблиц под ними — главы. Каркас документа
- * и тема лежат рядом со скриптом, в `scripts/site/`; оформление,
- * поведение и подсветка кода попадают внутрь собранного файла, поэтому он
- * открывается в одиночку. Каталог `docs/.site/` — результат сборки, git
- * его не отслеживает.
+ * Источников два вида: папка с оглавлением `README.md` и отдельная
+ * страница. У папки состав и порядок разделов берутся из её README:
+ * заголовки `## Часть N. …` дают группы сайдбара, строки таблиц под ними
+ * — файлы папки; папка без таких заголовков даёт одну группу. Каркас
+ * документа и тема лежат рядом со скриптом, в `scripts/site/`;
+ * оформление, поведение и подсветка кода попадают внутрь собранного
+ * файла, поэтому он открывается в одиночку. Каталог `docs/.site/` —
+ * результат сборки, git его не отслеживает.
  *
  *   yarn docs:build   — собрать один раз
- *   yarn docs:dev     — пересобирать при изменении docs/guide/ и scripts/site/
+ *   yarn docs:dev     — пересобирать при изменении источников и scripts/site/
  */
 
 import {
@@ -22,24 +24,22 @@ import {
   watch,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import MarkdownIt from 'markdown-it';
 import attrs from 'markdown-it-attrs';
 import container from 'markdown-it-container';
 
+import { SECTIONS } from './sections.mjs';
+
 /** Каталог скрипта: рядом лежат каркас документа и тема */
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
 const OUT = join(ROOT, 'docs', '.site');
-const GUIDE = join(ROOT, 'docs', 'guide');
 
 /** Единственный файл вывода */
 const FILE = 'index.html';
-
-/** Раздел README гайда: он открывает документ */
-const INDEX_SLUG = 'index';
 
 /**
  * Разделитель приставки главы в идентификаторе заголовка.
@@ -227,23 +227,38 @@ for (const rule of ['bullet_list_open', 'ordered_list_open']) {
 md.renderer.rules.table_open = () => '<div class="tbl-wrap">\n<table>\n';
 md.renderer.rules.table_close = () => '</table>\n</div>\n';
 
-/* ------------------------------------------------------- состав из README */
+/* ------------------------------------------------------- состав источников */
+
+/** Заголовок первого уровня файла: он же заголовок его пункта в сайдбаре */
+function titleOf(text, path) {
+  const m = /^#\s+(.+?)\s*$/m.exec(text);
+
+  if (!m) {
+    throw new BuildError(`${path}: нет заголовка первого уровня`);
+  }
+
+  return m[1].replace(/`/g, '');
+}
+
+/** Путь файла от корня репозитория: он попадает в сообщения об ошибках */
+const rel = (path) => relative(ROOT, path);
 
 /**
- * Читает состав документа из README гайда.
+ * Читает состав папки-источника из её README.
  *
- * Группа — заголовок `## Часть N. …` или `## Приложения`; главы группы —
- * строки таблицы под ним: первая ячейка несёт ссылку на главу и её
- * заголовок.
+ * Группа — заголовок `## Часть N. …`; файлы группы — строки таблицы под
+ * ним: первая ячейка несёт ссылку на файл и его заголовок. У папки без
+ * таких заголовков группа одна и названа в `sections.mjs`.
  *
- * @returns Главы в порядке README: `{ slug, title, group }`
+ * @returns Файлы в порядке README: `{ slug, title, group }`
  */
-function readOutline(readme) {
-  const chapters = [];
+function readOutline(readme, readmePath, fallbackGroup) {
+  const parted = /^##\s+Часть\s+\d+\./m.test(readme);
+  const files = [];
   let group;
 
   for (const line of readme.split('\n')) {
-    const heading = /^##\s+(Часть\s+\d+\.[^\n]*|Приложения)\s*$/.exec(line);
+    const heading = /^##\s+(Часть\s+\d+\.[^\n]*)\s*$/.exec(line);
     if (heading) {
       group = heading[1].replace(/\.$/, '');
       continue;
@@ -254,43 +269,43 @@ function readOutline(readme) {
       continue;
     }
 
-    if (!group) {
+    if (parted && !group) {
       throw new BuildError(
-        `docs/guide/README.md: глава '${cell[2]}' стоит вне раздела ` +
-          `«Часть N» или «Приложения»`,
+        `${rel(readmePath)}: файл '${cell[2]}' стоит вне раздела «Часть N»`,
       );
     }
 
-    chapters.push({ slug: cell[2], title: cell[1], group });
+    files.push({ slug: cell[2], title: cell[1], group: group ?? fallbackGroup });
   }
 
-  if (chapters.length === 0) {
+  if (files.length === 0) {
     throw new BuildError(
-      'docs/guide/README.md: в таблицах нет ни одной ссылки на главу',
+      `${rel(readmePath)}: в таблицах нет ни одной ссылки на файл папки`,
     );
   }
 
-  return chapters;
+  return files;
 }
 
 /**
- * Сверяет состав README с файлами `docs/guide`.
+ * Сверяет состав README с файлами папки-источника.
  *
- * Расхождение в любую сторону — ошибка сборки: раздел без главы собрался
- * бы пустым, а глава без строки README не попала бы в навигацию и
- * осталась бы недоступной.
+ * Расхождение в любую сторону — ошибка сборки: раздел без файла собрался
+ * бы пустым, а файл без строки README не попал бы в навигацию и остался
+ * бы недоступным. Проверка идёт по каждой папке отдельно.
  */
-function assertComplete(chapters) {
-  const listed = new Set(chapters.map((chapter) => chapter.slug));
+function assertComplete(entries, dir) {
+  const listed = new Set(entries.map((entry) => entry.slug));
 
-  const files = readdirSync(GUIDE)
+  const files = readdirSync(dir)
     .filter((name) => name.endsWith('.md') && name !== 'README.md')
     .map((name) => name.replace(/\.md$/, ''));
 
-  for (const { slug } of chapters) {
+  for (const { slug } of entries) {
     if (!files.includes(slug)) {
       throw new BuildError(
-        `docs/guide/README.md называет главу '${slug}.md', которой нет в docs/guide`,
+        `${rel(join(dir, 'README.md'))} называет файл '${slug}.md', ` +
+          `которого нет в ${rel(dir)}`,
       );
     }
   }
@@ -298,10 +313,75 @@ function assertComplete(chapters) {
   for (const file of files) {
     if (!listed.has(file)) {
       throw new BuildError(
-        `docs/guide/${file}.md не упомянут в таблицах docs/guide/README.md`,
+        `${rel(join(dir, file))}.md не упомянут в таблицах ` +
+          `${rel(join(dir, 'README.md'))}`,
       );
     }
   }
+}
+
+/**
+ * Разворачивает `sections.mjs` в плоский список разделов документа.
+ *
+ * Слаг раздела — имя файла без папки: слаг главы начинается с цифры,
+ * слаг рецепта и страницы — с буквы, поэтому столкнуться они не могут.
+ * Оглавление папки получает слагом имя самой папки.
+ *
+ * @returns `{ slug, title, group, path, source }` в порядке `sections.mjs`
+ */
+function readSections() {
+  const sections = [];
+
+  for (const source of SECTIONS) {
+    const path = join(ROOT, source.path);
+
+    if (source.kind === 'page') {
+      const text = readFileSync(path, 'utf8');
+      sections.push({
+        slug: basename(source.path, '.md'),
+        title: titleOf(text, source.path),
+        group: source.group,
+        path,
+        source: text,
+      });
+      continue;
+    }
+
+    const readmePath = join(path, 'README.md');
+    const readme = readFileSync(readmePath, 'utf8');
+    const entries = readOutline(readme, readmePath, source.group);
+    assertComplete(entries, path);
+
+    sections.push({
+      slug: basename(source.path),
+      title: titleOf(readme, `${source.path}/README.md`),
+      group: source.group,
+      path: readmePath,
+      source: readme,
+    });
+
+    for (const entry of entries) {
+      const filePath = join(path, `${entry.slug}.md`);
+      sections.push({
+        ...entry,
+        path: filePath,
+        source: readFileSync(filePath, 'utf8'),
+      });
+    }
+  }
+
+  const seen = new Map();
+  for (const section of sections) {
+    if (seen.has(section.slug)) {
+      throw new BuildError(
+        `слаг '${section.slug}' занят дважды: ${rel(seen.get(section.slug))} ` +
+          `и ${rel(section.path)}`,
+      );
+    }
+    seen.set(section.slug, section.path);
+  }
+
+  return sections;
 }
 
 /* ------------------------------------------------------------------ ссылки */
@@ -318,38 +398,55 @@ function anchorId(slug, anchor) {
 }
 
 /**
- * Переписывает ссылки главы в якоря одного документа.
+ * Переписывает ссылки раздела в якоря одного документа.
  *
- * `./NN-имя.md#якорь` → `#NN-имя--якорь`, `./NN-имя.md` → `#NN-имя`,
- * `](#якорь)` внутри главы → `#NN-имя--якорь`. Ссылки в другие папки
- * `docs/` остаются как есть: `guide/` и `.site/` — соседние папки, и
- * относительный путь у них совпадает.
+ * Ссылка на файл источника становится якорем по имени файла:
+ * `./NN-имя.md#якорь` → `#NN-имя--якорь`, `../recipes/имя.md` → `#имя`,
+ * `./README.md` → начало своего источника. Ссылка `](#якорь)` внутри
+ * файла получает приставку раздела.
  *
- * @throws {BuildError} Ссылка на главу, которой нет среди разделов
+ * Ссылка в файл вне источников разрешается относительно каталога
+ * исходного файла и записывается относительно `docs/.site/`. У файла из
+ * `docs/guide/` запись не меняется: `guide/` и `.site/` лежат на одной
+ * глубине. У страницы из корня `docs/` путь получает ведущий `../`.
+ *
+ * @throws {BuildError} Ссылка на файл источника, которого нет
  */
-function rewriteLinks(text, slug, slugs) {
-  // Сначала ссылки внутрь своей главы: иначе приставку получил бы и
-  // результат переписывания ссылок на соседние главы
+function rewriteLinks(text, section, byPath, dirs) {
+  // Сначала ссылки внутрь своего файла: иначе приставку получил бы и
+  // результат переписывания ссылок на соседние разделы
   const local = text.replace(
     /\]\(#([^)\s]+)\)/g,
-    (all, anchor) => `](#${anchorId(slug, anchor)})`,
+    (all, anchor) => `](#${anchorId(section.slug, anchor)})`,
   );
 
-  return local.replace(
-    /\(\.\/([\w-]+)\.md(?:#([^)]*))?\)/g,
-    (all, target, anchor) => {
-      const chapter = target === 'README' ? INDEX_SLUG : target;
+  const dir = dirname(section.path);
 
-      if (chapter !== INDEX_SLUG && !slugs.has(chapter)) {
-        throw new BuildError(
-          `docs/guide/${slug}.md ссылается на './${target}.md', которого нет ` +
-            `среди глав документа`,
-        );
-      }
+  return local.replace(/\]\((\.{1,2}\/[^)\s]+?)\)/g, (all, target) => {
+    const [raw, anchor] = target.split('#');
+    if (!raw) {
+      return all;
+    }
 
-      return `(#${anchor ? anchorId(chapter, anchor) : chapter})`;
-    },
-  );
+    const abs = resolve(dir, decodeURI(raw));
+    const slug = byPath.get(abs);
+
+    if (slug) {
+      return `](#${anchor ? anchorId(slug, anchor) : slug})`;
+    }
+
+    if (raw.endsWith('.md') && dirs.has(dirname(abs))) {
+      throw new BuildError(
+        `${rel(section.path)} ссылается на '${raw}', которого нет ` +
+          `среди разделов документа`,
+      );
+    }
+
+    const outside = relative(OUT, abs);
+    const written = outside.startsWith('.') ? outside : `./${outside}`;
+
+    return `](${written}${anchor ? `#${anchor}` : ''})`;
+  });
 }
 
 /* ------------------------------------------------------------------ каркас */
@@ -484,58 +581,54 @@ function build() {
   const layout = readFileSync(join(HERE, 'layout.html'), 'utf8');
   const styles = readFileSync(join(HERE, 'styles.css'), 'utf8');
   const script = readFileSync(join(HERE, 'app.js'), 'utf8');
-  const readme = readFileSync(join(GUIDE, 'README.md'), 'utf8');
 
-  const outline = readOutline(readme);
-  assertComplete(outline);
+  const sections = readSections().map((section) => ({
+    ...section,
+    sections: sectionsOf(section.source, section.slug),
+  }));
 
   // Каталог собирается заново: файл прошлой сборки иначе остался бы лежать
   // в выводе и открываться по прежнему адресу
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
 
-  const slugs = new Set(outline.map((chapter) => chapter.slug));
+  const byPath = new Map(sections.map((s) => [s.path, s.slug]));
 
-  // Документ открывает README гайда; в сайдбаре он — группа «Гайд»
-  const chapters = [
-    { slug: INDEX_SLUG, title: 'Гайд по Nestling', group: 'Гайд', source: readme },
-    ...outline.map((chapter) => ({
-      ...chapter,
-      source: readFileSync(join(GUIDE, `${chapter.slug}.md`), 'utf8'),
-    })),
-  ].map((chapter) => ({
-    ...chapter,
-    sections: sectionsOf(chapter.source, chapter.slug),
-  }));
+  // Папки-источники: файл `.md` в них обязан быть разделом, иначе ссылка
+  // на него битая. Страницы корня перечислены поимённо, и соседний файл
+  // `docs/` разделом быть не обязан
+  const dirs = new Set(
+    SECTIONS.filter((s) => s.kind === 'folder').map((s) => join(ROOT, s.path)),
+  );
 
-  const body = chapters
-    .map((chapter, index) => {
-      const text = rewriteLinks(chapter.source, chapter.slug, slugs);
+  const body = sections
+    .map((section, index) => {
+      const text = rewriteLinks(section.source, section, byPath, dirs);
       const article = anchorHeadings(
         md.render(text),
-        chapter.sections,
-        chapter.slug,
+        section.sections,
+        section.slug,
       );
       const pager = renderPager({
-        prev: chapters[index - 1],
-        next: chapters[index + 1],
+        prev: sections[index - 1],
+        next: sections[index + 1],
       });
 
       return (
-        `<section class="chapter" id="${escapeAttr(chapter.slug)}">\n` +
+        `<section class="chapter" id="${escapeAttr(section.slug)}">\n` +
         `${article}${pager}</section>`
       );
     })
     .join('\n');
 
-  let html = fill(layout, '{{title}}', escapeHtml('Nestling — гайд'));
+  let html = fill(layout, '{{title}}', escapeHtml('Nestling — документация'));
   html = fill(html, '{{styles}}', styles);
-  html = fill(html, '{{sidebar}}', renderSidebar(chapters));
+  html = fill(html, '{{sidebar}}', renderSidebar(sections));
   html = fill(html, '{{chapters}}', body);
   html = fill(html, '{{script}}', script);
 
   writeFileSync(join(OUT, FILE), html);
-  console.log(`  docs/.site/${FILE} — глав: ${chapters.length}`);
+  console.log(`  docs/.site/${FILE} — разделов: ${sections.length}`);
 }
 
 /** Ошибка гайда печатается строкой: стектрейс генератора читателю не нужен */
@@ -569,7 +662,12 @@ if (process.argv.includes('--watch')) {
     }, 50);
   };
 
-  watch(GUIDE, { recursive: true }, rebuild);
+  for (const source of SECTIONS) {
+    watch(join(ROOT, source.path), { recursive: true }, rebuild);
+  }
+
   watch(HERE, { recursive: true }, rebuild);
-  console.log('\nЖду изменений в docs/guide/ и scripts/site/ …  (Ctrl+C — выход)');
+
+  const watched = SECTIONS.map((source) => source.path).join(', ');
+  console.log(`\nЖду изменений в ${watched} и scripts/site/ …  (Ctrl+C — выход)`);
 }

@@ -9,7 +9,7 @@
  * Запуск из корня репозитория:
  *   node .claude/skills/docs-style/scripts/lint.mjs [--warn] [--json] [путь ...]
  *
- * Без путей проверяет docs/design, docs/guide, docs/glossary.md,
+ * Без путей проверяет docs/design, docs/guide, docs/recipes, docs/glossary.md,
  * docs/conventions.md, docs/README.md, README пакетов и src/ всех пакетов. docs/history и
  * docs/decisions не проверяются никогда: первая папка заморожена, вторая —
  * append-only.
@@ -85,8 +85,11 @@ const IGNORED_DIRS = new Set(['node_modules', 'dist', '.git', 'history', 'decisi
 const DEFAULT_TARGETS = [
   'docs/design',
   'docs/guide',
+  'docs/recipes',
   'docs/glossary.md',
   'docs/conventions.md',
+  'docs/guarantees.md',
+  'docs/from-nestjs.md',
   'docs/README.md',
   'scripts/site',
   'README.ru.md',

@@ -1,4 +1,4 @@
-# 11. Файлы и большие выгрузки
+# 12. Файлы и большие выгрузки
 
 > Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
 > Целевое описание: [design/endpoints.md](../design/endpoints.md) §5 и
@@ -73,7 +73,7 @@ export const UploadAvatar = httpEndpoint({
 });
 ```
 
-Слой `transactional` — из [главы 27](./27-database-and-transaction.md):
+Слой `transactional` — из [главы 11](./11-database.md):
 он открывает транзакцию запроса и приносит с собой проверку
 Bearer-токена, потому что композирован от `authed`.
 
@@ -308,4 +308,4 @@ it('импортирует строки и пропускает занятые e
 является `AsyncIterable`, который читается тем же `for await`.
 
 Документ OpenAPI и типизированный клиент из тех же деклараций:
-[глава 12](./12-openapi-and-client.md).
+[глава 13](./13-openapi-and-client.md).

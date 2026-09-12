@@ -9,8 +9,8 @@ Nestling; работает и отдельно.
 > 🚧 Активная разработка, API может меняться. Декораторы стандартные:
 > `experimentalDecorators` и `reflect-metadata` не нужны.
 > Дизайн: [`docs/design/container.md`](../../docs/design/container.md).
-> Гайд: [глава 22. Логгер с именем потребителя и сбор вкладов](../../docs/guide/22-token-families.md),
-> [глава 17. Запускать только часть фич](../../docs/guide/17-select.md).
+> Гайд: [рецепт «Зависимости по имени и сбор вкладов из модулей»](../../docs/recipes/token-families.md),
+> [глава 19. Запускать только часть фич](../../docs/guide/19-select.md).
 
 ## Установка
 

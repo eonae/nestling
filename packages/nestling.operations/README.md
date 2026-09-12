@@ -8,8 +8,8 @@
 > 🚧 Активная разработка, API может меняться.
 > Дизайн: [`docs/design/operations.md`](../../docs/design/operations.md),
 > [`docs/design/streaming.md`](../../docs/design/streaming.md).
-> Гайд: [глава 13. Соседняя фича вызывает операцию](../../docs/guide/13-features.md),
-> [глава 12. Отдать фронтенду документацию и клиент](../../docs/guide/12-openapi-and-client.md).
+> Гайд: [глава 14. Соседняя фича вызывает операцию](../../docs/guide/14-features.md),
+> [глава 13. Отдать фронтенду документацию и клиент](../../docs/guide/13-openapi-and-client.md).
 
 ## Установка
 

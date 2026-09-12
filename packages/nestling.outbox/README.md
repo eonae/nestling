@@ -7,7 +7,8 @@
 > 🚧 Активная разработка, API может меняться.
 > Дизайн: [`docs/design/operations.md`](../../docs/design/operations.md),
 > раздел «Транзакционный emit».
-> Гайд: [глава 27. База данных и транзакция](../../docs/guide/27-database-and-transaction.md).
+> Гайд: [глава 16. Не потерять событие при падении
+> процесса](../../docs/guide/16-durable-events.md).
 
 ## Установка
 

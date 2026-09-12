@@ -1,4 +1,4 @@
-# 14. Оповещать соседей о случившемся
+# 15. Оповещать соседей о случившемся
 
 > Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
 > Целевое описание: [design/operations.md](../design/operations.md),
@@ -32,7 +32,7 @@ export const UserRegistered = makeEvent({
 У события есть имя и схема `input`, а `output` и `errors` нет: ответа
 у факта не бывает. Подписчиков у события может быть сколько угодно,
 включая ноль — тогда `emit` завершается сразу. Событие лежит в том же
-файле, что запрос `ClaimQuota` из [главы 13](./13-features.md).
+файле, что запрос `ClaimQuota` из [главы 14](./14-features.md).
 
 ```typescript
 // examples/app-with-http/src/features/quotas/user-registered-in-quotas.endpoint.ts
@@ -66,7 +66,7 @@ export const UserRegisteredInQuotas = implement(UserRegistered, {
 значения — `void`, поэтому `return` в конце не нужен.
 
 Подписчик перечисляется в `endpoints:` фичи рядом с реализацией
-запроса; список из [главы 13](./13-features.md) уже содержит его.
+запроса; список из [главы 14](./14-features.md) уже содержит его.
 
 ## Публикация
 
@@ -144,7 +144,7 @@ export const SignupRecorded = makeCommand({
 `idempotencyKey`: тип `meta` выбирается по виду операции, и обращение к
 этому полю у запроса не компилируется. У события поле тоже есть, но ключ
 ему никто не чеканит: он едет только тогда, когда его передал издатель
-([глава 27](./27-database-and-transaction.md)).
+([глава 16](./16-durable-events.md)).
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts
@@ -299,4 +299,4 @@ it('доставляет ключ идемпотентности команды 
 вызывающий, дошло до сервиса в глубине графа без параметра.
 
 О новом пользователе хочет знать не только сосед по процессу, но и
-клиент в браузере: [15. Живая лента для клиента](./15-live-feed.md).
+клиент в браузере: [17. Живая лента для клиента](./17-live-feed.md).
