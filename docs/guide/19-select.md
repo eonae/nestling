@@ -83,7 +83,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples
 ```
 
 ```
-[nestling] features: users, quotas; transports: http, bus
+[nestling] features: users, quotas; docs=on; transports: http, mcp, bus
 [nestling] selection closed over calls: users + quotas
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
@@ -104,7 +104,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples
 приходит только явным выбором.
 
 ```
-[nestling] features: ops; transports: http, bus
+[nestling] features: ops; docs=on; transports: http, mcp, bus
 [nestling] selection closed over calls: ops (nothing added)
 ```
 
@@ -191,7 +191,7 @@ DI-токена у переключателя нет: инжектировать
 Выбор виден в строке старта рядом с фичами:
 
 ```
-[nestling] features: users, quotas; docs=off; transports: http, bus
+[nestling] features: users, quotas; docs=off; transports: http, mcp, bus
 ```
 
 и в отчёте `check()` полем `switches`.

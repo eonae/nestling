@@ -90,7 +90,7 @@ APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples
 ```
 
 ```
-[nestling] features: users, quotas; transports: http, bus
+[nestling] features: users, quotas; docs=on; transports: http, mcp, bus
 [nestling] selection closed over calls: users + quotas
 [nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
 ```
@@ -113,7 +113,7 @@ The `ops` feature does not connect: nobody calls its operations, and it
 arrives only by an explicit selection.
 
 ```
-[nestling] features: ops; transports: http, bus
+[nestling] features: ops; docs=on; transports: http, mcp, bus
 [nestling] selection closed over calls: ops (nothing added)
 ```
 
@@ -204,7 +204,7 @@ assembled: instead, it is absent from the graph entirely.
 The selection is visible in the start line next to the features:
 
 ```
-[nestling] features: users, quotas; docs=off; transports: http, bus
+[nestling] features: users, quotas; docs=off; transports: http, mcp, bus
 ```
 
 and in the `check()` report as the `switches` field.
