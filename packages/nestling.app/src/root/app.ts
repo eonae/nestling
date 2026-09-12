@@ -712,6 +712,7 @@ export class AssembledApp {
       container,
       discovery,
       container.getOrThrow(Logger$('nestling')),
+      configuredMetrics(container.getOrThrow(RootMetrics$)),
     );
 
     // Шов останавливается после WIRE, но `testApp.call` — это и есть приём

@@ -22,6 +22,8 @@ export { testUnit } from './unit.js';
 export type { TestUnitOptions } from './unit.js';
 export { spyLogger } from './logger.js';
 export type { LogEntry, SpyLogger } from './logger.js';
+export { spyMetrics } from './metrics.js';
+export type { MetricRecord, SpyMetrics } from './metrics.js';
 export { familyOverride } from './overrides.js';
 export type { TestOverride } from './overrides.js';
 export { stub } from './stub.js';
