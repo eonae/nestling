@@ -34,8 +34,7 @@ import {
   watch,
   writeFileSync,
 } from 'node:fs';
-import { basename, dirname, join, relative, resolve } from 'node:path';
-import { posix } from 'node:path';
+import { basename, dirname, join, posix, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import MarkdownIt from 'markdown-it';
@@ -140,7 +139,7 @@ const LANGUAGES = {
         '|(^|[|&;]\\s*)([\\w.:@/-]+)', // 6+7 команда в начале строки или конвейера
       'gm',
     ),
-    classes: ['tok-com', 'tok-str', 'tok-deco', 'tok-num', 'tok-key', null, 'tok-fn'],
+    classes: ['tok-com', 'tok-str', 'tok-deco', 'tok-type', 'tok-key', null, 'tok-fn'],
   },
   json: {
     re: new RegExp(
@@ -162,9 +161,17 @@ LANGUAGES.javascript = LANGUAGES.typescript;
  * Группа правила красится классом с тем же номером. Класс `null` означает
  * «часть совпадения, которая цветом не выделяется»: так `bash` отличает
  * команду от предшествующего ей разделителя конвейера.
+ *
+ * Язык без правил остаётся текстом: блок без забора-языка — это вывод
+ * команды или схема, и раскраска по правилам TypeScript в них врёт.
  */
 function highlight(code, lang) {
-  const rules = LANGUAGES[lang] ?? LANGUAGES.typescript;
+  const rules = LANGUAGES[lang];
+
+  if (!rules) {
+    return escapeHtml(code);
+  }
+
   let out = '';
   let last = 0;
   let m;
@@ -267,11 +274,9 @@ function fileOf(code) {
 function renderCodeHead(file, lang) {
   const dots = '<span class="dot"></span>'.repeat(3);
   const name = file ? `<span class="fname">${escapeHtml(file)}</span>` : '';
+  const label = lang ? `<span class="lang">${escapeHtml(lang)}</span>` : '';
 
-  return (
-    `<div class="code-head">${dots}${name}` +
-    `<span class="lang">${escapeHtml(lang)}</span></div>`
-  );
+  return `<div class="code-head">${dots}${name}${label}</div>`;
 }
 
 /**
@@ -291,8 +296,8 @@ md.renderer.rules.fence = (tokens, idx) => {
 
   return (
     `<div class="code"${fileAttr}${langAttr}>` +
-    renderCodeHead(file, lang || 'ts') +
-    `<pre><code>${highlight(code, lang || 'typescript')}</code></pre></div>\n`
+    renderCodeHead(file, lang) +
+    `<pre><code>${highlight(code, lang)}</code></pre></div>\n`
   );
 };
 
@@ -447,10 +452,12 @@ const filesIn = (dir) =>
     .filter((name) => name.endsWith('.md') && name !== 'README.md')
     .map((name) => name.replace(/\.md$/, ''));
 
-/** Каталоги `packages/`: у каждого обязан быть README */
+/** Каталоги `packages/`: пакетом считается каталог с манифестом */
 const packageDirs = (dir) =>
-  readdirSync(dir).filter((name) =>
-    statSync(join(dir, name)).isDirectory(),
+  readdirSync(dir).filter(
+    (name) =>
+      statSync(join(dir, name)).isDirectory() &&
+      existsSync(join(dir, name, 'package.json')),
   );
 
 /**
@@ -494,9 +501,11 @@ function summaryOf(text) {
 }
 
 /**
- * Якорь заголовка по правилам `markdown-it-anchor`, которых здесь нет:
- * ссылки внутри документа строит сам генератор, поэтому правило одно и то
- * же для сайдбара и для разметки заголовка.
+ * Якорь заголовка по правилам GitHub: нижний регистр, знаки препинания
+ * выброшены, пробел заменён дефисом и подряд идущие пробелы не схлопнуты.
+ *
+ * Правило чужое, потому что ссылки на заголовки пишутся один раз и
+ * читаются в двух местах: на сайте и в репозитории.
  */
 function slugifyAnchor(label) {
   return label
@@ -553,7 +562,12 @@ function plainTextOf(text) {
     .trim();
 }
 
-/** Адрес раздела: сегменты пути от корня вывода */
+/**
+ * Адрес раздела: сегменты пути от корня вывода.
+ *
+ * У оглавления источника адрес совпадает с секцией — `/guide/` открывает
+ * `docs/guide/README.md`. У стартовой страницы сегментов нет вовсе.
+ */
 function routeOf(kind, section, slug) {
   if (kind === 'home') return [];
   if (kind === 'index') return [section];
@@ -586,10 +600,7 @@ function makePage({ kind, section, slug, path, source, group, badge }) {
     summary: summaryOf(source),
     headings,
     heads: headings.filter((heading) => heading.level === 2),
-    // Адрес раздела: сегменты пути от корня вывода. У оглавления источника
-    // адрес совпадает с его секцией: `/guide/` открывает `docs/guide/README.md`
     route: routeOf(kind, section, slug),
-    // Идентификатор раздела в форме одного файла
     id: idOf(kind, section, slug),
   };
 }
@@ -975,6 +986,13 @@ const SEARCH_BOX =
   '    <div class="results" id="results" hidden></div>\n' +
   '  </div>';
 
+/** Птенец из шапки, отрисованный в иконку вкладки */
+const FAVICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">\n' +
+  '  <rect width="64" height="64" rx="14" fill="#e07a3e"/>\n' +
+  '  <text x="32" y="45" font-size="38" text-anchor="middle">🐣</text>\n' +
+  '</svg>\n';
+
 /* ------------------------------------------------------------- метаданные */
 
 /** `title`, `description`, Open Graph и favicon одной страницы */
@@ -1010,12 +1028,11 @@ const absoluteUrl = (base, route) =>
 
 /* ------------------------------------------------------------------ печать */
 
-/** Разметка одного раздела: статья, бейдж и пейджер */
-function renderArticle(page, neighbours, byPath, form, from) {
+/** Разметка одного раздела: бейдж, статья и пейджер */
+function renderArticle(page, neighbours, byPath, form) {
   const text = rewriteLinks(page.source, page, byPath, form);
   const article = anchorHeadings(md.render(text), page, form);
-  const pager =
-    page.kind === 'home' ? '' : renderPager(neighbours, from ?? page, form);
+  const pager = page.kind === 'home' ? '' : renderPager(neighbours, page, form);
 
   return renderBadge(page) + article + pager;
 }
@@ -1059,7 +1076,6 @@ function renderSingleFile(pages, options) {
         { prev: pages[index - 1], next: pages[index + 1] },
         byPath,
         SINGLE,
-        page,
       );
 
       return (
@@ -1069,11 +1085,15 @@ function renderSingleFile(pages, options) {
     })
     .join('\n');
 
+  // Иконка идёт строкой данных: соседних файлов у этой формы нет
+  const icon = `data:image/svg+xml;base64,${Buffer.from(FAVICON).toString('base64')}`;
+
   let html = fill(
     layout,
     '{{head}}',
     `<title>${escapeHtml(`${SITE_NAME} — документация`)}</title>\n` +
-      `<meta name="description" content="${escapeAttr(home.summary)}">`,
+      `<meta name="description" content="${escapeAttr(home.summary)}">\n` +
+      `<link rel="icon" href="${escapeAttr(icon)}" type="image/svg+xml">`,
   );
   html = fill(html, '{{styles}}', styles);
   html = fill(html, '{{root}}', '');
@@ -1089,13 +1109,6 @@ function renderSingleFile(pages, options) {
 }
 
 /* ------------------------------------------------------- файлы публикации */
-
-/** Птенец из шапки, отрисованный в иконку вкладки */
-const FAVICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">\n' +
-  '  <rect width="64" height="64" rx="14" fill="#e07a3e"/>\n' +
-  '  <text x="32" y="45" font-size="38" text-anchor="middle">🐣</text>\n' +
-  '</svg>\n';
 
 const robotsTxt = (base) =>
   ['User-agent: *', 'Allow: /', base ? `Sitemap: ${base}/sitemap.xml` : '']
@@ -1130,6 +1143,11 @@ const notFoundHtml = (styles, base) =>
   `<title>Страница не найдена — ${SITE_NAME}</title>\n` +
   '<meta name="robots" content="noindex">\n' +
   `<style>\n${styles}\n</style>\n</head>\n<body class="home">\n` +
+  '<header class="topbar">\n' +
+  `  <a class="brand" href="${escapeAttr(base ? `${base}/` : '/')}">` +
+  '<span class="logo">🐣</span> Nestling ' +
+  '<span class="tag hide-sm">документация</span></a>\n' +
+  '</header>\n' +
   '<main class="content"><article class="article">\n' +
   '<h1>Такой страницы нет</h1>\n' +
   '<p>Адрес раздела мог измениться: документация собирается заново на ' +

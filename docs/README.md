@@ -141,7 +141,7 @@ design-доки описывают **только целевое V1** (как б
 |---|---|
 | [`@nestlingjs/common.misc`](../packages/common.misc/) | Схемный кернел (`validateSync` и ошибки схем) и общие вспомогательные типы |
 | [`@nestlingjs/common.graphs`](../packages/common.graphs/) | Утилиты направленных ациклических графов: ими пользуется контейнер |
-| [`@nestlingjs/common.static-server`](../packages/common.static-server/) | Сервер статических файлов без зависимостей: им пользуется `@nestlingjs/viz` |
+| [`@nestlingjs/common.static-server`](../packages/common.static-server/) | Сервер статических файлов без зависимостей: им пользуются `@nestlingjs/viz` и `yarn docs:dev` |
 
 ## Правила ведения
 
