@@ -28,7 +28,7 @@
 
 ## 4. Перевод: страницы корня и рецепты
 
-- [ ] 4.1 `docs/en/guarantees.md`, `docs/en/from-nestjs.md`, `docs/en/conventions.md`
+- [x] 4.1 `docs/en/guarantees.md`, `docs/en/from-nestjs.md`, `docs/en/conventions.md`
 - [ ] 4.2 Рецепты, пачка 1: `alternatives.md`, `cli.md`, `config-sources.md`, `extending.md`
 - [ ] 4.3 Рецепты, пачка 2: `ops.md`, `standalone.md`, `token-families.md`, `webhook.md`
 - [ ] 4.4 Линтер и `docs:audit` по переведённому; ссылки внутри языка, плашки на месте

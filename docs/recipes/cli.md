@@ -261,7 +261,7 @@ async function main() {
 зависимостей. Команде с классом-хендлером нужен контейнер: объявите её в
 фиче и объявите приложение через `makeApp` с транспортом `cli()` в
 `transports:`. Минимальный пример — в [README
-пакета](../../packages/nestling.transport.cli/README.md).
+пакета](../../packages/nestling.transport.cli/README.ru.md).
 
 ## Проверка
 

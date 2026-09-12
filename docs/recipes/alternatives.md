@@ -15,7 +15,7 @@
 | Подмена успешного ответа | хендлер формирует ответ | `.ok`-юнит | в примере нет |
 | Успех без тела | голое значение | `Ok.noContent()`, `Ok.accepted()` | `delete-user.endpoint.ts` |
 | Состав фичи | `providers:` | `modules:` | `features/users/users.feature.ts` |
-| Выбор фич | объект `{ features, includeDeps }` | строка через запятую | `packages/nestling.app/README.md` |
+| Выбор фич | объект `{ features, includeDeps }` | строка через запятую | `packages/nestling.app/README.ru.md` |
 
 ## Отказ из юнита
 
