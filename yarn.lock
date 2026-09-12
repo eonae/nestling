@@ -2353,6 +2353,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nestlingjs/inbox@workspace:packages/nestling.inbox":
+  version: 0.0.0-use.local
+  resolution: "@nestlingjs/inbox@workspace:packages/nestling.inbox"
+  dependencies:
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
+    typescript: "npm:5.7.3"
+  languageName: unknown
+  linkType: soft
+
 "@nestlingjs/models@workspace:packages/nestling.models":
   version: 0.0.0-use.local
   resolution: "@nestlingjs/models@workspace:packages/nestling.models"

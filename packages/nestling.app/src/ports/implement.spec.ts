@@ -4,6 +4,7 @@
  * реализация операции без `output` ничего не возвращает: пустое тело —
  * поддерживаемая форма хендлера */
 import {
+  done,
   isEndpointDefinition,
   makePipeline,
   Ok,
@@ -254,5 +255,32 @@ describe('implement', () => {
     expect(busBindingOf(declaration)?.subject).toBe(AddressedBoth.name);
     expect(declaration.pattern).toBe(AddressedBoth.name);
     expect(declaration.binding).not.toBe(AddressedBoth.http);
+  });
+});
+
+describe('implement — слой с досрочным успехом', () => {
+  const claiming = makePipeline().pre(() => done(), { done: true });
+
+  it('подписчик события композируется от слоя', () => {
+    const declaration = implement(OrderPlaced, {
+      subscriber: 'billing',
+      pipeline: claiming,
+      handler: async () => {},
+    });
+
+    expect(isEndpointDefinition(declaration)).toBe(true);
+    expect(declaration.pattern).toBe('impl.orders.placed@billing');
+  });
+
+  it('реализация операции с output падает при создании', () => {
+    const create = () =>
+      implement(ChargeCard, {
+        pipeline: claiming,
+        handler: async () => new Ok({ chargeId: 'c-3' }),
+      });
+
+    expect(create).toThrow(/impl\.billing\.charge/);
+    expect(create).toThrow(/done: true/);
+    expect(create).toThrow(/carries no value/);
   });
 });

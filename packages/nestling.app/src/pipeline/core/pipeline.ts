@@ -34,6 +34,8 @@ import type {
 import { computeOutcome } from './abort.js';
 import type { DeferredUnit, UNIT_NEEDS } from './deferred.js';
 import { deferredOf } from './deferred.js';
+import type { Done } from './done.js';
+import { isDone } from './done.js';
 
 import type { Constructor } from '@nestlingjs/common.misc';
 import type { InjectionToken } from '@nestlingjs/container';
@@ -84,6 +86,24 @@ export class MidStreamFailure extends Error {
 /** Проверяет, что значение — `MidStreamFailure` */
 export function isMidStreamFailure(value: unknown): value is MidStreamFailure {
   return value instanceof MidStreamFailure;
+}
+
+/**
+ * Pre-юнит вернул `done()` из пайплайна без признака досрочного успеха.
+ *
+ * Это ошибка композиции, а не отказ домена: клиент получает
+ * `internal_error`, а текст называет починку.
+ */
+export class UndeclaredDoneError extends Error {
+  constructor(unitName: string) {
+    super(
+      `Pre-unit '${unitName}' returned done(), but the pipeline does not ` +
+        `declare an early success. Connect the unit as ` +
+        `.pre(${unitName}, { done: true }): the declaration with such a ` +
+        `pipeline is checked for having no 'output'.`,
+    );
+    this.name = 'UndeclaredDoneError';
+  }
 }
 
 /**
@@ -243,10 +263,10 @@ type ReturnedFails<TResult> = 0 extends 1 & TResult
   ? never
   : Extract<TResult, AnyFail>;
 
-/** Добавка юнита: результат без отказа и без «ничего» */
+/** Добавка юнита: результат без отказа, без досрочного успеха и без «ничего» */
 type AdditionOf<TResult> = NormalizeAddition<
   /* eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- `void` в результате юнита — поддерживаемая форма: юнит-наблюдатель пишется как обычная функция без `return` (см. `PreUnitFn`) */
-  Exclude<TResult, AnyFail | undefined | void>
+  Exclude<TResult, AnyFail | Done | undefined | void>
 >;
 
 /** Отказы, которые `.pre` разрешает вернуть: объявленные плюс отказы ядра */
@@ -408,7 +428,10 @@ export interface PhasedPipeline<
   ): PhasedPipeline<TReq, TAcc, TNeeds | ExtractNeeds<M>, TFails>;
 }
 
-/** Второй аргумент `.pre`: объявление отказов подключаемого юнита */
+/**
+ * Второй аргумент `.pre`: объявление отказов и досрочного успеха
+ * подключаемого юнита.
+ */
 export interface PreOptions<
   F extends readonly AnyFailDefinition[] = readonly AnyFailDefinition[],
 > {
@@ -420,7 +443,16 @@ export interface PreOptions<
    * получает эти отказы в своё эффективное множество и не перечисляет их
    * в `errors:`.
    */
-  errors: F;
+  errors?: F;
+
+  /**
+   * Право юнита завершить endpoint досрочным успехом — вернуть `done()`.
+   *
+   * Признак ставится на пайплайн-значение. Декларация с таким пайплайном
+   * обязана быть без `output`: значения досрочный успех не несёт.
+   * Возврат `done()` из юнита без признака роняет запрос ошибкой.
+   */
+  done?: boolean;
 }
 
 /** Пайплайн, к которому ещё можно добавлять `.pre`-юниты */
@@ -487,6 +519,14 @@ interface UnitEntry {
   ctor?: Constructor<UnitInstance<AnyUnitFn>>;
   /** Отложенный юнит, пока `bind()` не подставил значения зависимостей */
   deferred?: DeferredUnit;
+  /**
+   * Имя юнита в той форме, в какой его подключили.
+   *
+   * Считается один раз при подключении и переживает `bind()`: у инстанса
+   * `handle.bind(instance)` называется `bound handle`, и текст ошибки по
+   * такому имени адресата не находит.
+   */
+  name: string;
 }
 
 /** Имя юнита, которому ещё нужен `bind()`; `undefined` — юнит готов */
@@ -506,19 +546,21 @@ interface Layer {
 }
 
 function normalizeUnit(unit: unknown): UnitEntry {
+  const name = describeUnit(unit);
+
   if (typeof unit === 'function') {
     // Писатель с зависимостями — заглушка до `bind()`: исполнять её нельзя
     const deferred = deferredOf(unit);
     if (deferred) {
-      return { deferred };
+      return { deferred, name: deferred.name };
     }
 
     // У класса-юнита есть handle в прототипе; обычная функция — сама юнит
     const proto = (unit as { prototype?: { handle?: unknown } }).prototype;
     if (proto && typeof proto.handle === 'function') {
-      return { ctor: unit as Constructor<UnitInstance<AnyUnitFn>> };
+      return { ctor: unit as Constructor<UnitInstance<AnyUnitFn>>, name };
     }
-    return { fn: unit as AnyUnitFn };
+    return { fn: unit as AnyUnitFn, name };
   }
 
   if (
@@ -527,7 +569,7 @@ function normalizeUnit(unit: unknown): UnitEntry {
     typeof (unit as UnitInstance<AnyUnitFn>).handle === 'function'
   ) {
     const instance = unit as UnitInstance<AnyUnitFn>;
-    return { fn: instance.handle.bind(instance) };
+    return { fn: instance.handle.bind(instance), name };
   }
 
   throw new TypeError(
@@ -587,6 +629,33 @@ function readPreFails(
   }
 
   return errors as readonly AnyFailDefinition[];
+}
+
+/**
+ * Читает признак досрочного успеха второго аргумента `.pre`.
+ *
+ * Правило то же, что у `errors`: значение проверяется там, где объявлено,
+ * и текст ошибки называет юнит.
+ */
+function readPreDone(
+  options: { done?: unknown } | undefined,
+  unit: unknown,
+): boolean {
+  const done = options?.done;
+
+  if (done === undefined) {
+    return false;
+  }
+
+  if (typeof done !== 'boolean') {
+    throw new TypeError(
+      `pre(${describeUnit(unit)}, { done }): 'done' must be a boolean — ` +
+        `it declares that the unit may finish the endpoint with an early ` +
+        `success.`,
+    );
+  }
+
+  return done;
 }
 
 /**
@@ -669,6 +738,16 @@ class PipelineImpl {
      * эффективное множество отказов endpoint'а.
      */
     private readonly declaredFails: ReadonlySet<AnyFailDefinition> = new Set(),
+    /**
+     * Подключён ли хоть один `.pre`-юнит с правом досрочного успеха
+     * (`.pre(unit, { done: true })`).
+     *
+     * Правила те же, что у `declaredFails`: `compose` берёт дизъюнкцию,
+     * методы билдера и `bind()` признак сохраняют. Читают его
+     * {@link PipelineImpl.declaresDone} и само исполнение: возврат
+     * `done()` из пайплайна без признака — ошибка.
+     */
+    private readonly declaredDone: boolean = false,
   ) {
     // Слои после конструктора не меняются: методы билдера и `bind()`
     // возвращают новый экземпляр. Поэтому инварианты, которые раньше
@@ -703,6 +782,8 @@ class PipelineImpl {
       new Set(pipelines.flatMap((p) => [...p.declared])),
       // Отказы объединяются по тому же правилу; совпадение — по `code`
       mergeFails(pipelines.map((p) => p.declaredFails)),
+      // Признак досрочного успеха — дизъюнкция признаков аргументов
+      pipelines.some((p) => p.declaredDone),
     );
   }
 
@@ -749,11 +830,17 @@ class PipelineImpl {
     return [...pipeline.declaredFails];
   }
 
+  /** Несёт ли пайплайн признак досрочного успеха */
+  static declaresDone(pipeline: PipelineImpl): boolean {
+    return pipeline.declaredDone;
+  }
+
   private withOwnLayer(
     mutate: (layer: Layer) => void,
     sealed: boolean,
     declares?: AnyContextVar,
     fails: readonly AnyFailDefinition[] = [],
+    declaresDone = false,
   ): PipelineImpl {
     if (this.composed) {
       throw new Error(
@@ -782,10 +869,14 @@ class PipelineImpl {
       [this],
       declared,
       declaredFails,
+      this.declaredDone || declaresDone,
     );
   }
 
-  pre(unit: unknown, options?: { errors?: unknown }): PipelineImpl {
+  pre(
+    unit: unknown,
+    options?: { errors?: unknown; done?: unknown },
+  ): PipelineImpl {
     if (this.sealed) {
       throw new Error(
         'pre() is not available after a response-phase method (.ok/.catch/.finally)',
@@ -793,6 +884,7 @@ class PipelineImpl {
     }
     // Список проверяется здесь же, где объявлен: ошибка называет юнит
     const fails = readPreFails(options, unit);
+    const done = readPreDone(options, unit);
 
     // Объявителем переменной считается только юнит из `<Var>.provide(…)`
     return this.withOwnLayer(
@@ -800,6 +892,7 @@ class PipelineImpl {
       false,
       declaredVarOf(unit),
       fails,
+      done,
     );
   }
 
@@ -869,6 +962,7 @@ class PipelineImpl {
       [this],
       this.declared,
       this.declaredFails,
+      this.declaredDone,
     );
   }
 
@@ -916,6 +1010,9 @@ class PipelineImpl {
     // префикс `layers`, и ответной фазе хватает его длины
     let activatedCount = 0;
 
+    /** Один из pre-юнитов вернул `done()`: хендлера не будет */
+    let earlySuccess = false;
+
     /**
      * Исходная ошибка текущего ответа-ошибки: `enforceDeclaredFails` передаёт
      * её хуку целиком. В самом ответе остаётся только то, что можно
@@ -933,10 +1030,21 @@ class PipelineImpl {
     try {
       // `.pre`-юниты слоёв, снаружи внутрь. Слой активирован с первого
       // своего `.pre`-юнита: его `.ok`/`.catch`/`.finally` выполнятся.
-      for (const layer of this.layers) {
+      layers: for (const layer of this.layers) {
         activatedCount += 1;
         for (const entry of layer.pre) {
           const result = await materialized(entry)(ctx);
+
+          // Досрочный успех проверяется первым и до записи в контекст:
+          // значение не добавка и не отказ, в `ctx.input` ему места нет
+          if (isDone(result)) {
+            if (!this.declaredDone) {
+              throw new UndeclaredDoneError(entry.name);
+            }
+
+            earlySuccess = true;
+            break layers;
+          }
 
           // Отказ, возвращённый юнитом, идёт тем же путём, что брошенный:
           // в контекст он не пишется, следующие юниты и хендлер не
@@ -954,39 +1062,46 @@ class PipelineImpl {
         }
       }
 
-      const finalInput = ctx.input;
-      const { payload, ...meta } = finalInput as AnyAddition & {
-        payload?: unknown;
-      };
-
-      // Кандидат проверки: `.pre`-юнит мог подменить значение для
-      // хендлера, положив в контекст ключ `payload`
-      const candidate = 'payload' in finalInput ? payload : ctx.raw.payload;
-
-      // Проверка входа стоит после всех `.pre`-юнитов и до хендлера: к
-      // этому моменту активированы все слои, поэтому отказ 400 видят их
-      // `.catch` и `.finally`
-      const effectivePayload = validateInput(
-        describeForm(ctx.endpoint.input),
-        candidate,
-      );
-
-      setPhase(cell, 'handler');
-
-      // Ключ `signal` зарезервирован: значение пайплайна перекрывает
-      // одноимённое поле из `.pre`-юнитов
-      const result = await handler(effectivePayload, {
-        ...meta,
-        signal: ctx.signal,
-      });
-
-      // Возвращённый `Fail` обрабатывается как брошенный: `.ok`-юниты не
-      // выполняются ни в одном из двух случаев
-      if (isFail(result)) {
-        originalError = result;
-        response = this.errorToResponse(result, exposeErrorDetails);
+      if (earlySuccess) {
+        // Проверка входа и хендлер пропускаются: их результат некому
+        // читать. Ответ — успех без значения, как у декларации без
+        // `output`
+        response = { isSuccess: true, status: 'ok', value: undefined };
       } else {
-        response = this.normalizeResponse(result, ctx);
+        const finalInput = ctx.input;
+        const { payload, ...meta } = finalInput as AnyAddition & {
+          payload?: unknown;
+        };
+
+        // Кандидат проверки: `.pre`-юнит мог подменить значение для
+        // хендлера, положив в контекст ключ `payload`
+        const candidate = 'payload' in finalInput ? payload : ctx.raw.payload;
+
+        // Проверка входа стоит после всех `.pre`-юнитов и до хендлера: к
+        // этому моменту активированы все слои, поэтому отказ 400 видят их
+        // `.catch` и `.finally`
+        const effectivePayload = validateInput(
+          describeForm(ctx.endpoint.input),
+          candidate,
+        );
+
+        setPhase(cell, 'handler');
+
+        // Ключ `signal` зарезервирован: значение пайплайна перекрывает
+        // одноимённое поле из `.pre`-юнитов
+        const result = await handler(effectivePayload, {
+          ...meta,
+          signal: ctx.signal,
+        });
+
+        // Возвращённый `Fail` обрабатывается как брошенный: `.ok`-юниты не
+        // выполняются ни в одном из двух случаев
+        if (isFail(result)) {
+          originalError = result;
+          response = this.errorToResponse(result, exposeErrorDetails);
+        } else {
+          response = this.normalizeResponse(result, ctx);
+        }
       }
     } catch (error) {
       originalError = error;
@@ -1417,6 +1532,21 @@ export function declaredFailsOf(
   return pipeline instanceof PipelineImpl
     ? PipelineImpl.declaredFailsOf(pipeline)
     : [];
+}
+
+/**
+ * Проверяет, что `pipeline` несёт признак досрочного успеха: хоть один
+ * его `.pre`-юнит подключён как `.pre(unit, { done: true })`.
+ *
+ * Значение не пайплайна даёт `false`.
+ *
+ * @internal По этому признаку `makeEndpoint` проверяет, что у декларации
+ * со слоем нет `output`
+ */
+export function declaresDone(pipeline: unknown): boolean {
+  return pipeline instanceof PipelineImpl
+    ? PipelineImpl.declaresDone(pipeline)
+    : false;
 }
 
 /**

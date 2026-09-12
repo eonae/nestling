@@ -81,15 +81,19 @@ export function generateGraph({
   const lines: string[] = HEADER.split('\n');
 
   // Каждый слой объявляет свой отказ: множество `TFails` растёт вместе с
-  // числом слоёв, и бюджет меряет именно эту цену
+  // числом слоёв, и бюджет меряет именно эту цену. Первый слой подключён
+  // ещё и с признаком досрочного успеха: признак живёт в значении, и
+  // замер показывает, что на типах он не сказывается
   for (let i = 0; i < layers; i++) {
     const fail = `f${i}Fail`;
+    const options =
+      i === 0 ? `{ errors: [${fail}], done: true }` : `{ errors: [${fail}] }`;
     lines.push(
       `declare const u${i}: PreUnitFn<AnyInput, { f${i}: string }>;`,
       `declare const ${fail}: FailDefinitionWithoutDetails<'conflict:bench_${codeSuffix(i)}'>;`,
       i === 0
-        ? `const l${i} = makePipeline().pre(u${i}, { errors: [${fail}] });`
-        : `const l${i} = makePipeline<{ f${i - 1}: string }>().pre(u${i}, { errors: [${fail}] });`,
+        ? `const l${i} = makePipeline().pre(u${i}, ${options});`
+        : `const l${i} = makePipeline<{ f${i - 1}: string }>().pre(u${i}, ${options});`,
     );
   }
 

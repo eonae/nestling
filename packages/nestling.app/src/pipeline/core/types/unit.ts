@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-invalid-void-type --
  * void в union'ах возвратов — осознанно: юниты-наблюдатели пишутся как
  * обычные функции без return, и это поддерживаемая форма API */
+import type { Done } from '../done.js';
+
 import type {
   ErrorResponseContext,
   ExtendableContext,
@@ -45,20 +47,25 @@ export type ResponseTrackInput<
 > = TReq & Partial<Omit<TAcc, keyof TReq>>;
 
 /**
- * Результат pre-юнита: добавка к накопленному input, отказ или ничего.
+ * Результат pre-юнита: добавка к накопленному input, отказ, досрочный
+ * успех или ничего.
  */
 export type PreResult<
   TAddition extends Optional<AnyAddition>,
   TFail extends AnyFail,
-> = TAddition | TFail | undefined | void;
+> = TAddition | TFail | Done | undefined | void;
 
 /**
  * Pre-юнит (функциональная форма): получает контекст, возвращает добавку
- * к накопленному input, отказ или ничего.
+ * к накопленному input, отказ, досрочный успех или ничего.
  *
  * Отказ объявляется вторым аргументом `.pre(unit, { errors })`: вернуть
  * можно только объявленный там отказ или отказ ядра. Возвращённый отказ
  * начинает ответную фазу, и в накопленный input он не попадает.
+ *
+ * Досрочный успех (`done()`) объявляется там же признаком
+ * `{ done: true }`: он завершает endpoint успехом без значения и в
+ * накопленный input тоже не попадает.
  */
 export type PreUnitFn<
   TInput extends AnyInput = EmptyInput,

@@ -13,6 +13,7 @@ import {
   assertDoc,
   assertFormSlots,
   declaredFailsOf,
+  declaresDone,
   isFailDefinition,
   isKernelFailCode,
 } from '../core/index.js';
@@ -503,6 +504,37 @@ function effectiveErrors(
 }
 
 /**
+ * Проверяет, что декларация с пайплайном досрочного успеха объявлена без
+ * `output`.
+ *
+ * Досрочный успех значения не несёт, а `output` требует его: ответ такого
+ * endpoint'а не прошёл бы проверку выхода и стал бы `internal_error` на
+ * первом же срабатывании слоя. Проверка стоит при создании декларации, то
+ * есть на импорте модуля — до фазы ASSEMBLE и до первого запроса.
+ *
+ * Проверки типом здесь нет намеренно: признак в типе означал бы пятый
+ * тип-параметр `Pipeline`, размноженный по перегрузкам `compose`, а бюджет
+ * типов — измеренный порог (`type-tests/BUDGET.md`).
+ */
+function assertDoneWithoutOutput(
+  pipeline: unknown,
+  output: unknown,
+  pattern: string,
+): void {
+  if (output === undefined || !declaresDone(pipeline)) {
+    return;
+  }
+
+  throw new Error(
+    `Endpoint '${pattern}': its pipeline has a layer connected with ` +
+      `{ done: true }, and the declaration has an 'output'. An early ` +
+      `success carries no value, so there would be nothing to check ` +
+      `against the output schema. Either drop 'output' from the ` +
+      `declaration, or keep that layer out of this pipeline.`,
+  );
+}
+
+/**
  * Проверяет, что отказы, объявленные слоями пайплайна, входят в список
  * `declared`.
  *
@@ -756,6 +788,7 @@ export function makeEndpoint(
   // от транспорта не зависит, и `makeEndpoint` обязан проверять то же, что
   // `httpEndpoint` и `cliEndpoint`
   assertFormSlots(options.pattern, options.input, options.output);
+  assertDoneWithoutOutput(options.pipeline, options.output, options.pattern);
 
   const state: EndpointState = {
     transport: options.transport,

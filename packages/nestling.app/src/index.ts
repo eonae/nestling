@@ -67,7 +67,7 @@ export {
 } from './logger/index.js';
 export type { Fields, Logger, LogLevel } from './logger/index.js';
 
-// ./pipeline/index.js — 56
+// ./pipeline/index.js — 60
 export {
   assertLayerFailsDeclared,
   bindInputStream,
@@ -78,9 +78,11 @@ export {
   contextVar,
   ContextVarUnavailableError,
   Ctx,
+  done,
   everyEndpoint,
   handlerClassOf,
   isAsyncIterable,
+  isDone,
   isEndpointDefinition,
   isMidStreamFailure,
   makeEmptyContext,
@@ -92,6 +94,7 @@ export {
   Signal,
   TransportClosingError,
   transportNameOf,
+  UndeclaredDoneError,
   withIdentity,
   withPermissions,
   withRequestId,
@@ -106,6 +109,7 @@ export type {
   ContextVarOptions,
   CtxReader,
   DeferredPreUnitFn,
+  Done,
   EndpointDefinition,
   EndpointFilter,
   EndpointMeta,
@@ -130,7 +134,7 @@ export type {
   UnitResolver,
 } from './pipeline/index.js';
 
-// ./ports/index.js — 35
+// ./ports/index.js — 36
 export {
   BUS_TRANSPORT_NAME,
   busBindingOf,
@@ -142,6 +146,7 @@ export {
   failureResponse,
   formatCompatibility,
   Handler,
+  IDEMPOTENCY_KEY_ATTRIBUTE,
   IdempotencyKey,
   implement,
   InProcessBus,
