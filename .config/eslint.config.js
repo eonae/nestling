@@ -21,6 +21,33 @@ const plugins = {
 };
 
 /**
+ * Селекторы esquery для кириллицы в значении строки.
+ *
+ * Правило смотрит на строковый литерал и на кусок шаблонной строки, то
+ * есть на значение, а не на текст файла: комментарий и JSDoc остаются
+ * русскими. Сравнение с регулярным выражением esquery применяет только к
+ * строковому значению, поэтому число и регулярное выражение под селектор
+ * не попадают.
+ */
+const cyrillicStringSelectors = [
+  {
+    selector: String.raw`Literal[value=/[\u0400-\u04FF]/]`,
+    message:
+      'Строка, которую процесс отдаёт наружу, пишется по-английски: ' +
+      'сообщения ошибок, логи, причины `hidden` и `detached`, `summary` и ' +
+      '`description` операций. Правило — capability ' +
+      '`runtime-message-language`. Русскими остаются README, JSDoc, ' +
+      'комментарии и спеки.',
+  },
+  {
+    selector: String.raw`TemplateElement[value.raw=/[\u0400-\u04FF]/]`,
+    message:
+      'Шаблонная строка, которую процесс отдаёт наружу, пишется ' +
+      'по-английски. Правило — capability `runtime-message-language`.',
+  },
+];
+
+/**
  * Базовая конфигурация ESLint для пакета.
  *
  * Пакет передаёт `import.meta.url`, и правила с типами получают его
@@ -28,10 +55,18 @@ const plugins = {
  * редактор: `customConditions` пакета работают, а программа не раздувается
  * до всей монорепы.
  *
+ * Второй аргумент объявляет факт о пакете, из которого следует правило.
+ * `published: false` выключает проверку языка строк — её выключают
+ * примеры: их `summary` и `description` цитируются главами русского
+ * гайда, и перевод разошёлся бы с прозой главы. Умолчание `true`: пакет,
+ * ничего не объявивший, проверяется. Остальные правила флаг не трогает.
+ *
  * @param fileUrl - `import.meta.url` конфига пакета
+ * @param options - `{ published }`: публикуется ли пакет в npm
  */
-export function createEslintConfig(fileUrl) {
+export function createEslintConfig(fileUrl, options = {}) {
   const packageRoot = dirname(fileURLToPath(fileUrl));
+  const { published = true } = options;
 
   return [
     {
@@ -87,6 +122,28 @@ export function createEslintConfig(fileUrl) {
         '@nestlingjs/import-through-barrel': 'warn',
       },
     },
+    ...(published
+      ? [
+          {
+            /*
+             * Язык строк, которые процесс отдаёт наружу. Область — `src`
+             * пакета, то есть код, который уезжает в `dist`. Спеки,
+             * проверки типов и фикстуры под правило не попадают: их
+             * читает тот, кто открыл репозиторий.
+             */
+            files: ['src/**/*.ts'],
+            ignores: [
+              'src/**/*.spec.ts',
+              'src/**/*.test.ts',
+              'src/**/*.type-test.ts',
+              'src/**/__fixtures__/**',
+            ],
+            rules: {
+              'no-restricted-syntax': ['error', ...cyrillicStringSelectors],
+            },
+          },
+        ]
+      : []),
     {
       // Скрипты пакета на голом Node: `console`, `process` и веб-глобали
       // вроде `URL` объявлены средой, а не импортом

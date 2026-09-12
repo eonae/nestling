@@ -1,0 +1,173 @@
+## MODIFIED Requirements
+
+### Requirement: Скилл состоит из `SKILL.md` и каталога `references/`
+
+Скилл SHALL состоять из файла `SKILL.md` и каталога `references/` рядом с ним.
+Других файлов и вложенных каталогов в скилле SHALL NOT быть.
+
+Каталог `references/` SHALL содержать десять файлов: `setup.md`, `endpoints.md`,
+`http.md`, `container.md`, `pipeline.md`, `errors.md`, `config.md`,
+`features.md`, `testing.md`, `from-nest.md`. Каждый файл SHALL быть назван в
+таблице «куда смотреть дальше» в `SKILL.md`.
+
+Файл `references/`, на который `SKILL.md` не ссылается, SHALL быть ошибкой:
+агент читает эти файлы по ссылке из `SKILL.md` и без ссылки не найдёт файл.
+
+#### Scenario: Файл без ссылки
+
+- **WHEN** в `skill/references/` лежит `streaming.md`, которого нет в таблице
+  `SKILL.md`
+- **THEN** `yarn verify` печатает ошибку с именем файла
+
+#### Scenario: Ссылка без файла
+
+- **WHEN** таблица `SKILL.md` называет `references/openapi.md`, а файла нет
+- **THEN** `yarn verify` печатает ошибку с именем ссылки
+
+#### Scenario: Полный состав
+
+- **WHEN** каталог содержит десять файлов перечня и все они названы в таблице
+- **THEN** `yarn verify` по составу скилла молчит
+
+### Requirement: В скилл попадает то, что модель напишет неправильно без него
+
+Текст скилла SHALL описывать форму кода и правила, которые нельзя вывести из
+практики NestJS и Express. Скилл SHALL называть по меньшей мере:
+
+- список зависимостей значением у декоратора `@Component`, `@Resource`
+  и `@Handler`, совпадающий с параметрами конструктора по типам, порядку
+  и длине;
+- отказ значением `Fail` вместо `throw`, объявленный в `errors:` операции;
+- обращение к соседней фиче через операцию, а не через её сервис;
+- синхронную сборку: фабрики провайдеров не делают I/O, источники конфигурации
+  читаются до контейнера;
+- endpoint как значение `httpEndpoint({ … })`, а не класс с декораторами;
+- слой в декларации endpoint'а, когда корень объявил политику `hasLayer`:
+  каждый endpoint, включая форму с операцией и `implement`, объявляет
+  `pipeline:` либо `detached: '<причина>'`;
+- поле `redirect:` в декларации, без которого редирект хендлера становится
+  `internal_error`.
+
+Правила, которые ловит компилятор или фаза ASSEMBLE, SHALL быть собраны в
+`SKILL.md` одним списком: их агент читает до того, как напишет первую строку.
+
+Скилл SHALL NOT содержать историю решений, сравнение с отвергнутыми вариантами
+и объяснения «почему так»: они живут в `docs/decisions/` и в `docs/design/`.
+Скилл SHALL NOT пересказывать главы гайда: он даёт форму кода и ссылается на
+README пакета за перечнем имён.
+
+#### Scenario: Правило без объяснения
+
+- **WHEN** агент читает раздел про отказы
+- **THEN** он видит, как объявить отказ и как его вернуть, и не видит истории
+  того, почему отказы не бросаются исключением
+
+#### Scenario: Ссылка вместо перечня
+
+- **WHEN** агенту нужен полный перечень публичных имён `@nestlingjs/app`
+- **THEN** `references/container.md` называет README пакета, а не повторяет
+  перечень
+
+#### Scenario: Политика корня и endpoint без слоя
+
+- **WHEN** агент пишет приложение, корень которого объявил
+  `everyEndpoint(…).hasLayer(observability)`
+- **THEN** список правил `SKILL.md` называет обязанность каждого endpoint'а
+  объявить `pipeline:` или `detached:`, и агент не узнаёт об этом от ASSEMBLE
+
+## ADDED Requirements
+
+### Requirement: Скилл описывает настройку проекта
+
+`references/setup.md` SHALL описывать, чем собирают и запускают приложение на
+Nestling. Файл SHALL называть:
+
+- `tsconfig.json` проекта: цель и `lib` с `esnext.disposable` для `await using`,
+  отсутствие `experimentalDecorators` и `emitDecoratorMetadata`, требование к
+  относительным импортам нести расширение `.js`;
+- скрипты `package.json`: сборка через `tsc`, разработка через `tsx`, тесты;
+- запуск тестов с условием резолва `testing` — флагом `--conditions=testing`
+  для `node --test` либо полем `customExportConditions` для jest;
+- установку и конфигурацию `@nestlingjs/eslint-plugin` с правилами
+  `import-through-barrel` и `endpoint-has-layer`.
+
+Файл SHALL содержать одно утверждение о декораторах: type stripping в Node их не
+исполняет, поэтому для разработки берут `tsx`.
+
+Файл SHALL NOT предлагать шаблон проекта, генератор и выбор сборщика: он
+описывает настройку существующего проекта.
+
+#### Scenario: Запуск тестов без условия
+
+- **WHEN** агент читает `setup.md` перед тем, как написать скрипт тестов
+- **THEN** он видит флаг `--conditions=testing` и не получает
+  `ERR_PACKAGE_PATH_NOT_EXPORTED` на импорте `@nestlingjs/testing`
+
+#### Scenario: Разработка с декораторами
+
+- **WHEN** агент ищет, чем запустить исходники без сборки
+- **THEN** `setup.md` называет `tsx` и причину, по которой
+  `node --experimental-strip-types` здесь не работает
+
+### Requirement: Скилл описывает HTTP-форму ответа
+
+`references/http.md` SHALL описывать, как хендлер задаёт то, что относится к
+HTTP, а не к значению ответа. Файл SHALL называть:
+
+- редирект: поле `redirect:` в декларации и `HttpResponse.redirect(location)`;
+- заголовки и cookie: `HttpResponse.of(value, { headers, cookies })`;
+- статус успеха: `Ok.created`, `Ok.accepted`, `Ok.noContent` и поле `status:`
+  в `doc:` операции.
+
+Файл SHALL называть цену пропущенного поля `redirect:`: редирект хендлера
+становится `internal_error`.
+
+`references/endpoints.md` SHALL NOT описывать HTTP-форму ответа и SHALL
+ссылаться на `references/http.md`.
+
+#### Scenario: Редирект
+
+- **WHEN** агент пишет endpoint, который отвечает редиректом
+- **THEN** `http.md` даёт и поле декларации, и вызов `HttpResponse.redirect`,
+  и агент не получает `internal_error` в рантайме
+
+#### Scenario: Тема описана один раз
+
+- **WHEN** читатель ищет `HttpResponse` в скилле
+- **THEN** он находит описание в `http.md`, а в `endpoints.md` — ссылку на него
+
+### Requirement: Скилл называет каждый публикуемый пакет фреймворка
+
+Раздел «Where to look next» в `SKILL.md` SHALL содержать таблицу публикуемых
+пакетов: имя пакета и одно предложение о том, когда он нужен. Таблица SHALL
+называть по меньшей мере `@nestlingjs/outbox`, `@nestlingjs/subscriptions`,
+`@nestlingjs/models`, `@nestlingjs/transport.cli`, `@nestlingjs/client` и
+`@nestlingjs/eslint-plugin`.
+
+Таблица SHALL стоять внутри раздела «Where to look next»: новых заголовков
+второго уровня в `SKILL.md` SHALL NOT появляться.
+
+#### Scenario: Пакет без упоминания
+
+- **WHEN** агенту нужна гарантированная доставка события наружу
+- **THEN** `SKILL.md` называет `@nestlingjs/outbox` и повод его взять
+
+#### Scenario: Состав частей не изменился
+
+- **WHEN** в `SKILL.md` добавлена таблица пакетов
+- **THEN** заголовков второго уровня по-прежнему пять, и `yarn verify` по
+  структуре `SKILL.md` молчит
+
+### Requirement: Скилл показывает оба раннера тестов
+
+`references/testing.md` SHALL показывать запуск тестов и на jest, и на
+встроенном раннере `node:test` с `node:assert/strict`. Блок jest SHALL стоять
+первым.
+
+Для каждого раннера SHALL быть названо, чем включается условие резолва
+`testing`.
+
+#### Scenario: Проект без jest
+
+- **WHEN** агент пишет тесты в проекте на Node 24, где jest не установлен
+- **THEN** `testing.md` даёт форму теста на `node:test` и команду запуска

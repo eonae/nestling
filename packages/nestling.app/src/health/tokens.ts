@@ -19,7 +19,7 @@ import { makeToken, makeTokenFamily } from '@nestlingjs/container';
  *   constructor(private readonly health: Health) {}
  *
  *   async handle(_: unknown, meta: { signal: AbortSignal }) {
- *     return Ok.of(await this.health.readiness(meta.signal));
+ *     return new Ok(await this.health.readiness(meta.signal));
  *   }
  * }
  * ```

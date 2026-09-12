@@ -107,8 +107,12 @@ function stubTypesPayloadByOperation(): void {
     return { granted: payload.amount };
   });
 
-  // `idempotencyKey` есть только у вида `command`
+  // `idempotencyKey` есть у видов `command` и `event`
   stub(PlaceOrder, async (_payload, meta) => {
+    type _Key = Expect<Equal<typeof meta.idempotencyKey, string | undefined>>;
+  });
+
+  stub(OrderPlaced, async (_payload, meta) => {
     type _Key = Expect<Equal<typeof meta.idempotencyKey, string | undefined>>;
   });
 }
@@ -153,6 +157,6 @@ async function emitTypes(): Promise<void> {
   // @ts-expect-error: у `request`-операции нет подписчиков
   await app.emit(ClaimQuota, { tenantId: 't1', amount: 1 });
 
-  // @ts-expect-error: ключ идемпотентности есть только у вида `command`
+  // Ключ идемпотентности есть и у события: его передаёт издатель
   await app.emit(OrderPlaced, { orderId: 'o-1' }, { idempotencyKey: 'k1' });
 }

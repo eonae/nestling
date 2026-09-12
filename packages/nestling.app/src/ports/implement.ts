@@ -13,14 +13,15 @@ import type {
   AnyEndpointDefinition,
   AnyFail,
   AnyFailDefinition,
+  AnyHandlerResult,
   AnyInput,
   AnyOutput,
   AnyPayload,
+  CheckedHandlerFn,
   EmptyInput,
   EndpointDefinition,
   FailsOf,
   HandlerClass,
-  HandlerFn,
   MissingFields,
   Pipeline,
 } from '../pipeline/index.js';
@@ -30,8 +31,10 @@ import { BusTransport$, makeBusBinding } from './transport.js';
 
 import type {
   AnyOperation,
+  HandlerResultOf,
   Operation,
   OperationKind,
+  ValidateHandlerFails,
   ValidateOperationFails,
 } from '@nestlingjs/operations';
 
@@ -221,11 +224,12 @@ export function implement<
   PN = never,
   PF extends AnyFail = never,
   PR extends AnyInput = EmptyInput,
+  R extends AnyHandlerResult<O> = AnyHandlerResult<O>,
 >(
   operation: Operation<I, O, E, K>,
   declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF, PR> &
     SubscriberSlot<K> & {
-      handler: HandlerFn<I, O, P, FailsOf<E>>;
+      handler: CheckedHandlerFn<I, P, FailsOf<E>, R>;
     },
 ): EndpointDefinition<I, O, P, PN>;
 export function implement<
@@ -236,18 +240,13 @@ export function implement<
   P extends AnyInput = AnyInput,
   PN = never,
   PF extends AnyFail = never,
-  C extends HandlerClass<I, O, P, FailsOf<E>> = HandlerClass<
-    I,
-    O,
-    P,
-    FailsOf<E>
-  >,
+  C extends HandlerClass<I, O, P, AnyFail> = HandlerClass<I, O, P, AnyFail>,
   PR extends AnyInput = EmptyInput,
 >(
   operation: Operation<I, O, E, K>,
   declaration: ImplementDictionary<Operation<I, O, E, K>, P, PN, PF, PR> &
     SubscriberSlot<K> & {
-      handler: C;
+      handler: C & ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E>>;
     },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function implement(

@@ -15,6 +15,7 @@
 
 import { spyLogger } from '../../logger/__fixtures__/spy.js';
 
+import { contextVar } from './context/variable.js';
 import type { EndpointMeta, ExtendableContext } from './types/context.js';
 import { makeEmptyContext } from './types/context.js';
 import type { Raw } from './types/raw.js';
@@ -24,6 +25,7 @@ import type { AnyPipeline, ExecuteOptions, Pipeline } from './pipeline.js';
 import { compose, makePipeline } from './pipeline.js';
 
 import { jest } from '@jest/globals';
+import { makeToken } from '@nestlingjs/container';
 import type {
   AnyFailDefinition,
   AnyInput,
@@ -675,7 +677,7 @@ describe('Pipeline v2 — формы юнитов и bind', () => {
     const pipeline = makePipeline().pre(WithTracing);
 
     await expect(run(pipeline, () => new Ok({}))).rejects.toThrow(
-      /unresolved class units \(WithTracing\)/,
+      /unresolved units \(WithTracing\)/,
     );
   });
 
@@ -1104,5 +1106,71 @@ describe('Pipeline v2 — проверка операции отказов', () 
     } finally {
       write.mockRestore();
     }
+  });
+});
+
+describe('Pipeline v2 — писатель переменной с зависимостями', () => {
+  const Database$ = makeToken<{ begin(): string }>('Database');
+  const Tx = contextVar<string>()('tx');
+
+  it('без bind — ошибка выполнения, называющая юнит', async () => {
+    const pipeline = makePipeline().pre(
+      Tx.provide([Database$], (_ctx, db) => db.begin()),
+    );
+
+    await expect(run(pipeline, () => new Ok({}))).rejects.toThrow(
+      /unresolved units \(tx\.provide\)/,
+    );
+  });
+
+  it('bind резолвит зависимости один раз, писатель кладёт значение', async () => {
+    const resolved: unknown[] = [];
+    let began = 0;
+
+    const pipeline = makePipeline()
+      .pre(Tx.provide([Database$], (_ctx, db) => db.begin()))
+      .bind((token) => {
+        resolved.push(token);
+
+        return { begin: () => `tx-${++began}` };
+      });
+
+    const first = await run(pipeline, (_payload, meta) => ({ tx: meta.tx }));
+    const second = await run(pipeline, (_payload, meta) => ({ tx: meta.tx }));
+
+    // Резолв — на bind, а не на запрос; значение зависимости — то же
+    expect(resolved).toEqual([Database$]);
+    expect(first).toMatchObject({ value: { tx: 'tx-1' } });
+    expect(second).toMatchObject({ value: { tx: 'tx-2' } });
+  });
+
+  it('значения зависимостей приходят по порядку списка', async () => {
+    const Prefix$ = makeToken<string>('Prefix');
+    const Both = contextVar<string>()('both');
+
+    const pipeline = makePipeline()
+      .pre(
+        Both.provide(
+          [Prefix$, Database$],
+          (_ctx, prefix, db) => `${prefix}:${db.begin()}`,
+        ),
+      )
+      .bind((token) => (token === Prefix$ ? 'p' : { begin: () => 'tx' }));
+
+    const response = await run(pipeline, (_payload, meta) => ({
+      both: meta.both,
+    }));
+
+    expect(response).toMatchObject({ value: { both: 'p:tx' } });
+  });
+
+  it('bind с резолвером без значения — понятная ошибка', () => {
+    const pipeline = makePipeline().pre(
+      Tx.provide([Database$], (_ctx, db) => db.begin()),
+    );
+
+    expect(() => pipeline.bind(() => {})).toThrow(
+      /Cannot bind pipeline unit tx\.provide.*'Database'/,
+    );
   });
 });

@@ -7,6 +7,7 @@
  * получает и то и другое параметрами плагина.
  */
 
+import type { OutboxEmitter } from '../emitter.js';
 import { outboxed } from '../emitter.js';
 import { InMemoryOutboxStore } from '../memory-store.js';
 import type { OutboxStore } from '../types.js';
@@ -50,25 +51,13 @@ export class TestDatabase {
 }
 
 /**
- * Юнит-мост: кладёт соединение в контекст.
+ * Слой транзакции: открывает её до хендлера, закрывает после ответа.
  *
- * Он нужен, потому что `Var.provide(compute)` принимает функцию от
- * контекста и зависимостей из контейнера не получает, а соединение
- * приходит именно оттуда.
+ * Писатель получает соединение из контейнера сам: класса-моста, который
+ * клал бы его в контекст, не нужно.
  */
-@Handler([TestDatabase])
-export class ProvideDb {
-  constructor(private readonly db: TestDatabase) {}
-
-  handle(): { db: TestDatabase } {
-    return { db: this.db };
-  }
-}
-
-/** Слой транзакции: открывает её до хендлера, закрывает после ответа */
 export const transactional = makePipeline()
-  .pre(ProvideDb)
-  .pre(Tx.provide<{ db: TestDatabase }>((ctx) => ctx.input.db.begin()))
+  .pre(Tx.provide([TestDatabase], (_ctx, db) => db.begin()))
   .ok((_res, ctx: ExtendableContext<{ tx: TestTransaction }>) => {
     ctx.input.tx.commit();
   })
@@ -87,17 +76,21 @@ const NewUser = z.object({
  * Хендлер с обоими эмиттерами: транзакционным и прямым.
  *
  * Оба резолвятся и работают рядом. Тело метода одинаковое — различается
- * только строка списка зависимостей.
+ * строка списка зависимостей и словарь `meta`: раздел записи называет
+ * место вызова.
  */
 @Handler([outboxed(UserCreated), UserCreated.emitter])
 export class CreateUserHandler {
   constructor(
-    private readonly deferred: Emitter<typeof UserCreated>,
+    private readonly deferred: OutboxEmitter<typeof UserCreated>,
     private readonly direct: Emitter<typeof UserCreated>,
   ) {}
 
   async handle(input: z.infer<typeof NewUser>): Output<{ id: string }> {
-    await this.deferred.emit({ id: input.id, email: input.email });
+    await this.deferred.emit(
+      { id: input.id, email: input.email },
+      { partitionKey: input.id },
+    );
     await this.direct.emit({ id: input.id, email: input.email });
 
     if (input.fail) {
@@ -151,7 +144,6 @@ export const databasePlugin: Plugin = makePlugin({
   name: 'spec:database',
   providers: [
     TestDatabase,
-    ProvideDb,
     {
       provide: OutboxStore$,
       useFactory: (db: TestDatabase) => db.outbox,

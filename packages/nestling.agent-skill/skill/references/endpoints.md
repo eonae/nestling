@@ -13,8 +13,8 @@ Use the inline form while the address is server-side only.
 <!-- snippet: list-users.endpoint.ts -->
 ```typescript
 import { User } from './api-operations.js';
+import { observability } from './pipeline.js';
 
-import { makePipeline, withRequestId } from '@nestlingjs/app';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
@@ -33,13 +33,16 @@ const page: z.infer<typeof User>[] = [
  * `limit` is not in the path and `GET` has no body, so it comes from the
  * query string. A function handler cannot inject anything — take a handler
  * class as soon as it needs a dependency.
+ *
+ * `pipeline:` names a layer the application already declares: the policy of
+ * the root requires this one from every HTTP endpoint.
  */
 export const ListUsers = httpEndpoint({
   method: 'GET',
   path: '/users',
   input: ListUsersInput,
   output: z.array(User),
-  pipeline: makePipeline().pre(withRequestId()),
+  pipeline: observability,
   handler: async ({ limit }) => page.slice(0, limit),
 });
 ```
@@ -120,8 +123,7 @@ and the failure definitions. That keeps it importable from a frontend
 bundle, which is the reason it exists.
 
 `doc:` feeds the OpenAPI document, which is built from the same
-declarations that validate requests. `status: 'created'` is the documented
-success status; the handler still has to return `Ok.created(value)`.
+declarations that validate requests.
 
 ## Two forms of handler
 
@@ -140,6 +142,7 @@ takes the class itself — not an instance.
 import type { GetUserInput, User } from './api-operations.js';
 import { GetUser as GetUserOperation } from './api-operations.js';
 import { UserNotFound } from './errors.js';
+import { observability } from './pipeline.js';
 import type { UsersRepository } from './users.repository.js';
 import { UsersRepository$ } from './users.repository.js';
 
@@ -167,16 +170,16 @@ export class GetUserHandler {
  * The address, the schemas and `errors:` belong to the operation, which the
  * client imports too. Only execution is declared here.
  */
-export const GetUser = httpEndpoint({
-  operation: GetUserOperation,
+export const GetUser = httpEndpoint.implement(GetUserOperation, {
+  pipeline: observability,
   handler: GetUserHandler,
 });
 ```
 
 The second parameter of `handle` is `meta`: it carries what the `.pre`
-units of the layer put into the context, typed. HTTP specifics — headers,
-cookies, redirects — are set by returning `HttpResponse.of(ok, { … })`
-instead of a bare value.
+units of the layer put into the context, typed. The status of a success,
+headers, cookies and a redirect are the HTTP shape of the response and
+live in `references/http.md`.
 
 ## Forms of io
 

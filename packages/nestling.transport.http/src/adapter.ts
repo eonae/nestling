@@ -461,6 +461,16 @@ export async function sendResponse(
   }
 
   if (empty) {
+    // Без длины `node:http` дописывает пустому ответу
+    // `transfer-encoding: chunked` и отправляет пустой кадр. Заметили на
+    // редиректе, но причина одна на все пустые ответы.
+    //
+    // 204 и 304 исключены: тела у них нет по протоколу, и заголовки тела
+    // `node:http` убирает сам.
+    if (status !== 204 && status !== 304) {
+      headers['content-length'] = 0;
+    }
+
     res.writeHead(status, headers);
     res.end();
     return;

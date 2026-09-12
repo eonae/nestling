@@ -63,7 +63,7 @@ export interface BusMessageMeta {
    */
   readonly deadline?: Date;
 
-  /** Ключ идемпотентности доставленной команды */
+  /** Ключ идемпотентности доставленного сообщения */
   readonly idempotencyKey?: string;
 
   /**
@@ -134,7 +134,10 @@ export interface PublishOptions {
   /** Остаток бюджета обработчика в миллисекундах (см. `RequestOptions`) */
   timeoutMs?: number;
 
-  /** Ключ идемпотентности команды. Передаётся обработчику без дедупликации */
+  /**
+   * Ключ идемпотентности сообщения. Передаётся обработчику без
+   * дедупликации: дедупликацию делает satellite-пакет поверх хранилища.
+   */
   idempotencyKey?: string;
 
   /** Передаваемый контекст (см. `RequestOptions.context`) */
@@ -205,8 +208,16 @@ export interface IMessageBus {
   ): BusSubscription;
 }
 
-/** DI-токен шины. Ядро запрашивает по нему `IMessageBus`, а не реализацию */
-export const MessageBus$ = makeToken<IMessageBus>('MessageBus');
+/**
+ * DI-токен шины. Ядро запрашивает по нему `IMessageBus`, а не реализацию.
+ *
+ * Подсказка называет то, что знает ядро: шина попадает в граф транспортом
+ * из `transports:`. Зачем она понадобилась потребителю — знает потребитель,
+ * и это его подсказка.
+ */
+export const MessageBus$ = makeToken<IMessageBus>('MessageBus', {
+  hint: "add a bus transport to 'transports:'",
+});
 
 /** Опции шины внутри процесса */
 export interface InProcessBusOptions {

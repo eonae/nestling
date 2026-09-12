@@ -17,7 +17,7 @@ import type { TrackedSubscription } from './types.js';
 import { describe, expect, it } from '@jest/globals';
 import type { ExtendableContext, ResponseContext } from '@nestlingjs/app';
 import { compose, makePipeline } from '@nestlingjs/app';
-import type { Constructor } from '@nestlingjs/common.misc';
+import type { InjectionToken } from '@nestlingjs/container';
 import type { Emitter } from '@nestlingjs/operations';
 import { events, Ok, Topic } from '@nestlingjs/operations';
 import { spyLogger } from '@nestlingjs/testing';
@@ -54,8 +54,10 @@ const needsBothUnits: [
 /** Резолвер-заглушка: то же, что делает контейнер на WIRE */
 const boundTo = (registry: SubscriptionRegistry) =>
   tracked.bind(
-    (ctor: Constructor<unknown>) =>
-      new (ctor as new (r: SubscriptionRegistry) => unknown)(registry),
+    (token: InjectionToken) =>
+      new (token as unknown as new (r: SubscriptionRegistry) => unknown)(
+        registry,
+      ),
   );
 
 /** Контекст отслеживаемого endpoint'а в типах слоя */
@@ -187,8 +189,10 @@ describe('tracked: запись живёт столько же, сколько �
     );
 
     const pipeline = compose(tracked, refusing).bind(
-      (ctor: Constructor<unknown>) =>
-        new (ctor as new (r: SubscriptionRegistry) => unknown)(registry),
+      (token: InjectionToken) =>
+        new (token as unknown as new (r: SubscriptionRegistry) => unknown)(
+          registry,
+        ),
     );
 
     const response: ResponseContext = await pipeline.executeWithHandler(

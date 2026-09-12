@@ -1,14 +1,9 @@
 /**
  * Фикстура: слой объявляет отказ, которого нет в `errors:` операции.
  *
- * Слот `pipeline` в форме с `operation:` принимает литерал `__error`,
- * поэтому декларация не компилируется. Снапшот фиксирует текст, который
- * автор увидит в этом месте: TypeScript печатает ошибку последней
- * перегрузки — анонимной формы, — и до литерала с `hint` не доходит.
- * Незадекларированный код в тексте назван (`Fail<"unauthorized">` против
- * `never` в слоте `pipeline`), а полный текст с подсказкой даёт ошибка
- * при создании декларации. Диф снапшота покажет, когда текст станет
- * точнее.
+ * Слот `pipeline` реализации принимает литерал `__error`, поэтому
+ * декларация не компилируется. Снапшот фиксирует текст, который автор
+ * увидит в этом месте.
  */
 
 import { makePipeline, Ok } from '@nestlingjs/app';
@@ -29,8 +24,7 @@ class CreateUserHandler {
   }
 }
 
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: authed,
   handler: CreateUserHandler,
 });

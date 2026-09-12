@@ -54,9 +54,14 @@ await makeApp({
   `HttpServerSpec`, `NotReady`.
 - **Декларация endpoint'а** ([design](../../docs/design/endpoints.md)) —
   `assemblePayload`, `BindingBearer`, `bindingNeedsBody`, `httpBindingOf`,
-  `httpEndpoint`, `HttpEndpointDictionary`, `HttpHandlerClass`, `HttpHandlerFn`,
-  `HttpOperationDictionary`, `HttpRouter`, `HttpStartContext`, `PayloadSources`,
-  `readQuery`, `RouteEntry`, `StartContext`.
+  `httpEndpoint`, `httpEndpoint.implement`, `HttpEndpointDictionary`,
+  `HttpHandlerClass`, `HttpHandlerFn`, `HttpImplementDictionary`, `HttpRouter`,
+  `HttpStartContext`, `PayloadSources`, `readQuery`, `RouteEntry`,
+  `StartContext`.
+
+  Конструкторов два. `httpEndpoint({ method, path, … })` объявляет адрес
+  сам. `httpEndpoint.implement(Operation, { … })` реализует операцию с
+  секцией `http:`: адрес, схемы, `errors` и `doc` берутся с неё.
 - **Запрос и ответ** — `BytesObserver`, `collectFileParts`, `Cookie`,
   `DEFAULT_REDIRECT_STATUS`, `DEFAULT_SSE_HEARTBEAT`, `httpCodeOf`,
   `HttpHandler`, `HttpHandlerMeta`, `HttpOutput`, `HttpOutputSync`,

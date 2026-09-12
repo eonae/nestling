@@ -1,6 +1,6 @@
 # 14. Оповещать соседей о случившемся
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
 > Целевое описание: [design/operations.md](../design/operations.md),
 > разделы «Три вида» и «Профиль вызова». Почему так: записи
 > [ideas.md](../decisions/ideas.md) «[2026-07-08] Порты: межфичевое
@@ -104,8 +104,7 @@ class CreateUserHandler {
   }
 }
 
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: authed,
   handler: CreateUserHandler,
 });
@@ -143,7 +142,9 @@ export const SignupRecorded = makeCommand({
 `makeCommand` объявляет операцию вида `command`: сообщение без ответа,
 у которого ровно один владелец. У команды в `meta` есть поле
 `idempotencyKey`: тип `meta` выбирается по виду операции, и обращение к
-этому полю у события или запроса не компилируется.
+этому полю у запроса не компилируется. У события поле тоже есть, но ключ
+ему никто не чеканит: он едет только тогда, когда его передал издатель
+([глава 27](./27-database-and-transaction.md)).
 
 ```typescript
 // examples/app-with-http/src/features/users/endpoints/create-user.endpoint.ts

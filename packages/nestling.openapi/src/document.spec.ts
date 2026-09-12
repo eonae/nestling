@@ -227,8 +227,7 @@ describe('operationId выводится, а не объявляется', () =>
       output: User,
     });
 
-    const declaration = httpEndpoint({
-      operation: CreateUser,
+    const declaration = httpEndpoint.implement(CreateUser, {
       handler: async ({ email }) => new Ok({ id: '1', email }),
     });
 

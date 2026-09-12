@@ -82,8 +82,8 @@ export type TxLayerInput<S extends PgSchema, N extends string> = Record<
 /**
  * Класс-мост слоя: единственное, что слой берёт из контейнера.
  *
- * Он нужен, потому что `Var.provide(compute)` зависимостей из контейнера
- * не получает, а соединение приходит именно оттуда.
+ * Он кладёт в контекст сессию, а не значение переменной: сессию читают
+ * `.ok`, `.catch` и `.finally`, а выдаёт её соединение из контейнера.
  */
 export type TxBridgeClass<S extends PgSchema, N extends string> = Constructor<{
   handle: PreUnitFn<EmptyInput, Record<SessionKey<N>, PgSession<S>>>;

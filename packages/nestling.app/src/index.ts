@@ -67,7 +67,7 @@ export {
 } from './logger/index.js';
 export type { Fields, Logger, LogLevel } from './logger/index.js';
 
-// ./pipeline/index.js — 54
+// ./pipeline/index.js — 56
 export {
   assertLayerFailsDeclared,
   bindInputStream,
@@ -99,10 +99,13 @@ export {
 export type {
   AnyContextVar,
   AnyEndpointDefinition,
+  AnyHandlerResult,
+  CheckedHandlerFn,
   ContextVar,
   ContextVarDeclarator,
   ContextVarOptions,
   CtxReader,
+  DeferredPreUnitFn,
   EndpointDefinition,
   EndpointFilter,
   EndpointMeta,

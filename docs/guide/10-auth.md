@@ -1,6 +1,6 @@
 # 10. Пускать только своих
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-11).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
 > Целевое описание: [design/pipeline.md](../design/pipeline.md) и
 > [design/composition.md](../design/composition.md). Почему так: записи
 > [ideas.md](../decisions/ideas.md) «Pipeline v2: плоские фазы, слои,
@@ -353,9 +353,9 @@ OpenAPI показывает ответ 3xx с заголовком `Location`, 
 бы с поведением.
 
 HTTP-форма допустима только там, где адрес объявлен транспортом, — в
-анонимном `httpEndpoint`. В `implement` и в форму `httpEndpoint({
-operation })` такой класс не проходит по типам: реализация операции
-обязана оставаться переносимой на шину. Хендлер без `meta.http` и без
+`httpEndpoint`. В `implement` и в `httpEndpoint.implement` такой класс не
+проходит по типам: реализация операции обязана оставаться переносимой на
+шину. Хендлер без `meta.http` и без
 `HttpResponse` годится всюду.
 
 Класс-хендлер объявляет интерфейс: `implements Handler<typeof Op>` берёт

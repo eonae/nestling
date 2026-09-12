@@ -183,7 +183,7 @@ describe('validateSync — объект не является Standard Schema', 
       expect(error).toBeInstanceOf(NotAStandardSchemaError);
       expect(error).not.toBeInstanceOf(SchemaValidationError);
       expect((error as Error).message).toMatch(/Standard Schema/);
-      expect((error as Error).message).toMatch(/zod ≥ 3\.24/);
+      expect((error as Error).message).toMatch(/zod >= 3\.24/);
     }
   });
 

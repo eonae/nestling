@@ -62,7 +62,7 @@ export type {
  * вопросом дисциплины импортов. Канонический импорт — `@nestlingjs/operations`.
  */
 export type {
-  CommandMeta,
+  EmitMeta,
   Emitter,
   EmitterToken,
   InvokeArgs,

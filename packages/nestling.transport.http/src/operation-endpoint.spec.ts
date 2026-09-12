@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/consistent-function-scoping --
  * фабрики вызова замыкают фикстуры своего теста */
 /**
- * Операция-форма `httpEndpoint`: вторая сторона одного значения.
+ * `httpEndpoint.implement`: вторая сторона одного значения.
  *
  * Проверяется, что декларация получается **обычной** (тот же бренд, тот же
  * транспорт, тот же паттерн), что карта берётся с операции тем же значением
@@ -58,10 +58,9 @@ const ClaimQuota = makeRequest({
   output: z.object({ granted: z.boolean() }),
 });
 
-describe('httpEndpoint({ operation, … })', () => {
+describe('httpEndpoint.implement(Operation, { … })', () => {
   it('строит обычную HTTP-декларацию по адресу операции', () => {
-    const declaration = httpEndpoint({
-      operation: CreateUser,
+    const declaration = httpEndpoint.implement(CreateUser, {
       handler: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
@@ -71,8 +70,7 @@ describe('httpEndpoint({ operation, … })', () => {
   });
 
   it('карта не пересчитывается — на декларации то же значение', () => {
-    const declaration = httpEndpoint({
-      operation: CreateUser,
+    const declaration = httpEndpoint.implement(CreateUser, {
       handler: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
@@ -81,8 +79,7 @@ describe('httpEndpoint({ operation, … })', () => {
   });
 
   it('схемы и errors: берутся с операции', () => {
-    const declaration = httpEndpoint({
-      operation: CreateUser,
+    const declaration = httpEndpoint.implement(CreateUser, {
       handler: async ({ email }) => new Ok({ id: 'u-1', email }),
     });
 
@@ -92,8 +89,7 @@ describe('httpEndpoint({ operation, … })', () => {
   });
 
   it('работают обе формы хендлера', () => {
-    const asFunction = httpEndpoint({
-      operation: GetUser,
+    const asFunction = httpEndpoint.implement(GetUser, {
       handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
@@ -107,8 +103,7 @@ describe('httpEndpoint({ operation, … })', () => {
       }
     }
 
-    const asClass = httpEndpoint({
-      operation: CreateUser,
+    const asClass = httpEndpoint.implement(CreateUser, {
       handler: CreateUserHandler,
     });
 
@@ -117,8 +112,7 @@ describe('httpEndpoint({ operation, … })', () => {
   });
 
   it('detached передаётся в декларацию, как у любой другой', () => {
-    const declaration = httpEndpoint({
-      operation: GetUser,
+    const declaration = httpEndpoint.implement(GetUser, {
       detached: 'legacy route, migrated separately',
       handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
@@ -128,8 +122,7 @@ describe('httpEndpoint({ operation, … })', () => {
 
   it('операция без http: отвергается в момент создания декларации', () => {
     expect(() =>
-      httpEndpoint({
-        operation: ClaimQuota,
+      httpEndpoint.implement(ClaimQuota, {
         handler: async () => new Ok({ granted: true }),
       }),
     ).toThrow(
@@ -146,8 +139,7 @@ describe('httpEndpoint({ operation, … })', () => {
       doc: { summary: 'Documented operation', tags: ['users'] },
     });
 
-    const declaration = httpEndpoint({
-      operation: Documented,
+    const declaration = httpEndpoint.implement(Documented, {
       handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
     });
 
@@ -161,21 +153,20 @@ describe('httpEndpoint({ operation, … })', () => {
     );
   });
 
-  it('не-операция в слоте отвергается', () => {
-    const declare = httpEndpoint as unknown as (
+  it('не-операция в первом аргументе отвергается', () => {
+    const declare = httpEndpoint.implement as unknown as (
+      operation: unknown,
       options: Record<string, unknown>,
     ) => unknown;
 
     expect(() =>
-      declare({
-        operation: { name: 'looks-like' },
-        handle: async () => new Ok({}),
-      }),
-    ).toThrow(/'operation' must be a value created by makeRequest/);
+      declare({ name: 'looks-like' }, { handle: async () => new Ok({}) }),
+    ).toThrow(/the first argument must be an operation value/);
   });
 
   it('переобъявление интерфейса отвергается и рантаймом', () => {
-    const declare = httpEndpoint as unknown as (
+    const declare = httpEndpoint.implement as unknown as (
+      operation: unknown,
       options: Record<string, unknown>,
     ) => unknown;
 
@@ -188,8 +179,7 @@ describe('httpEndpoint({ operation, … })', () => {
       'doc',
     ]) {
       expect(() =>
-        declare({
-          operation: CreateUser,
+        declare(CreateUser, {
           [field]: 'whatever',
           handle: async () => new Ok({ id: 'u-1', email: 'a@b.c' }),
         }),
@@ -203,10 +193,9 @@ describe('httpEndpoint({ operation, … })', () => {
 });
 
 /**
- * Хендлер с явно типизированным параметром: перегрузок больше трёх, и при
- * неудачном резолвинге TypeScript элаборирует последнюю (класс-форму) —
- * контекстный тип параметра при этом теряется, и неявный `any` шумел бы
- * поверх проверяемой диагностики.
+ * Хендлер с явно типизированным параметром: словарь ниже не подходит ни
+ * под одну перегрузку, контекстный тип параметра при этом теряется, и
+ * неявный `any` шумел бы поверх проверяемой диагностики.
  */
 const create = async (input: { email: string }) =>
   new Ok({ id: 'u-1', email: input.email });
@@ -217,44 +206,40 @@ const read = async (input: { id: string }) =>
 /**
  * Объявляется, но **не вызывается**: рантайм на этих словарях бросает
  * (та же проверка, что в блоке выше), а предмет проверки здесь — типы.
+ *
+ * Директива стоит над вызовом: поля, которого словарь не знает, хватает,
+ * чтобы не подошла ни одна перегрузка, и ошибка садится на вызов целиком.
  */
 const typeOnly = (): void => {
-  httpEndpoint({
-    operation: CreateUser,
+  // @ts-expect-error: 'input' принадлежит операции
+  httpEndpoint.implement(CreateUser, {
     input: z.object({ other: z.string() }),
-    // @ts-expect-error: 'input' принадлежит операции; ошибка садится на
-    // последний аргумент — элаборация последней перегрузки
     handler: create,
   });
 
-  httpEndpoint({
-    operation: GetUser,
+  // @ts-expect-error: 'path' принадлежит операции
+  httpEndpoint.implement(GetUser, {
     path: '/other',
-    // @ts-expect-error: 'path' принадлежит операции
     handler: read,
   });
 
-  httpEndpoint({
-    operation: CreateUser,
-    // @ts-expect-error: 'errors' принадлежит операции
+  // @ts-expect-error: 'errors' принадлежит операции
+  httpEndpoint.implement(CreateUser, {
     errors: [EmailTaken],
-    // @ts-expect-error: элаборация последней перегрузки садится и сюда
     handler: create,
   });
 
-  httpEndpoint({
-    operation: CreateUser,
+  // @ts-expect-error: 'bind' принадлежит операции
+  httpEndpoint.implement(CreateUser, {
     bind: { dryRun: query() },
-    // @ts-expect-error: 'bind' принадлежит операции
     handler: create,
   });
 };
 
-describe('операция-форма: отказы слоя сверяются с операцией', () => {
+describe('реализация операции: отказы слоя сверяются с операцией', () => {
   it('слой с отказом вне операции отвергается при создании декларации', () => {
     const create = () =>
-      httpEndpoint({
-        operation: CreateUser,
+      httpEndpoint.implement(CreateUser, {
         pipeline: makePipeline().pre(() => Unauthorized(), {
           errors: [Unauthorized],
         }) as never,
@@ -267,8 +252,7 @@ describe('операция-форма: отказы слоя сверяются 
   });
 
   it('слой, согласованный с операцией, создаёт декларацию', () => {
-    const declaration = httpEndpoint({
-      operation: CreateUser,
+    const declaration = httpEndpoint.implement(CreateUser, {
       pipeline: makePipeline().pre(() => EmailTaken(), {
         errors: [EmailTaken],
       }),
@@ -279,8 +263,7 @@ describe('операция-форма: отказы слоя сверяются 
   });
 
   it('отказ ядра на слое объявления в операции не требует', () => {
-    const declaration = httpEndpoint({
-      operation: CreateUser,
+    const declaration = httpEndpoint.implement(CreateUser, {
       pipeline: makePipeline().pre(() => BadRequest([{ message: 'bad' }]), {
         errors: [BadRequest],
       }),
@@ -291,14 +274,13 @@ describe('операция-форма: отказы слоя сверяются 
   });
 });
 
-describe('операция-форма: типы', () => {
+describe('реализация операции: типы', () => {
   it('переобъявление интерфейса не компилируется', () => {
     expect(typeof typeOnly).toBe('function');
   });
 
   it('payload и возврат хендлера выведены из операции', () => {
-    httpEndpoint({
-      operation: CreateUser,
+    httpEndpoint.implement(CreateUser, {
       handler: async (input) => {
         // Тип payload — из формы `input` операции
         const email: string = input.email;
@@ -306,8 +288,7 @@ describe('операция-форма: типы', () => {
       },
     });
 
-    httpEndpoint({
-      operation: CreateUser,
+    httpEndpoint.implement(CreateUser, {
       // Отказ из `errors:` операции — разрешённый возврат
       handler: async () => EmailTaken(),
     });

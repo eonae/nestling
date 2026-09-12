@@ -51,7 +51,7 @@ import { BusTransport$ } from './transport.js';
 
 import { ContainerBuilder, makeToken } from '@nestlingjs/container';
 import type { Emitter, Port } from '@nestlingjs/operations';
-import { makeCommand, makeRequest } from '@nestlingjs/operations';
+import { makeCommand, makeEvent, makeRequest } from '@nestlingjs/operations';
 import { z } from 'zod';
 
 const sleep = (ms: number): Promise<void> =>
@@ -343,6 +343,60 @@ describe('IdempotencyKey — чтение ключа из глубины', () =>
   });
 
   it('команда без ключа получает ключ, сгенерированный вызывателем', async () => {
+    await emitter.emit({ orderId: 'o-1' });
+    await sleep(0);
+
+    expect(typeof seen).toBe('string');
+  });
+});
+
+describe('IdempotencyKey — ключ у подписчика события', () => {
+  const Placed = makeEvent({
+    name: 'profile.orders.placed',
+    input: z.object({ orderId: z.string() }),
+  });
+
+  let reader: CtxReader<string>;
+  let seen: string | undefined;
+
+  const PlacedImpl = implement(Placed, {
+    subscriber: 'billing',
+    pipeline: makePipeline().pre(withIdempotencyKey()),
+    handler: async () => {
+      seen = reader.get();
+
+      return undefined;
+    },
+  });
+
+  let harnessed: Awaited<ReturnType<typeof harness>>;
+  let emitter: Emitter<any>;
+
+  beforeEach(async () => {
+    seen = undefined;
+    ({ key: reader } = await contextReaders());
+    harnessed = await harness([PlacedImpl]);
+    emitter = makeLocalEmitter({
+      operation: Placed,
+      runtime: harnessed.runtime,
+      patterns: [PlacedImpl.pattern],
+    }) as Emitter<any>;
+  });
+
+  afterEach(async () => {
+    await harnessed.close();
+  });
+
+  it('get() даёт ключ, присланный издателем', async () => {
+    await emitter.emit({ orderId: 'o-1' }, { idempotencyKey: 'outbox-7' });
+    await sleep(0);
+
+    expect(seen).toBe('outbox-7');
+  });
+
+  it('без присланного ключа писатель чеканит собственный', async () => {
+    // Вызыватель событию ключа не чеканит, поэтому идентичность даёт
+    // получатель — как любому сообщению, пришедшему без ключа
     await emitter.emit({ orderId: 'o-1' });
     await sleep(0);
 

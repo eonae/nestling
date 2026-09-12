@@ -5,15 +5,16 @@ import type {
   AnyEndpointDefinition,
   AnyFail,
   AnyFailDefinition,
+  AnyHandlerResult,
   AnyInput,
   AnyOutput,
   AnyPayload,
+  CheckedHandlerFn,
   Dispatch,
   EndpointDefinition,
   EndpointMeta,
   FailsOf,
   HandlerClass,
-  HandlerFn,
   ITransport,
   Pipeline,
   Raw,
@@ -36,6 +37,10 @@ import {
   transportNameOf,
 } from '@nestlingjs/app';
 import { factoryProvider, makeTokenFamily } from '@nestlingjs/container';
+import type {
+  HandlerResultOf,
+  ValidateHandlerFails,
+} from '@nestlingjs/operations';
 import { untilAborted } from '@nestlingjs/operations';
 
 /**
@@ -130,9 +135,10 @@ export function cliEndpoint<
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
+  R extends AnyHandlerResult<O> = AnyHandlerResult<O>,
 >(
   declaration: CliEndpointDictionary<I, O, P, PN, E, PF> & {
-    handler: HandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
+    handler: CheckedHandlerFn<I, P, FailsOf<E> | NoInfer<PF>, R>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function cliEndpoint<
@@ -142,15 +148,11 @@ export function cliEndpoint<
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
-  C extends HandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>> = HandlerClass<
-    I,
-    O,
-    P,
-    FailsOf<E> | NoInfer<PF>
-  >,
+  C extends HandlerClass<I, O, P, AnyFail> = HandlerClass<I, O, P, AnyFail>,
 >(
   declaration: CliEndpointDictionary<I, O, P, PN, E, PF> & {
-    handler: C;
+    handler: C &
+      ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E> | NoInfer<PF>>;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function cliEndpoint(

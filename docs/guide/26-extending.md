@@ -1,6 +1,6 @@
 # 26. Расширить ядро своим пакетом
 
-> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `nestling.subscriptions` (2026-09-12).
 > Целевое описание: [design/principles.md](../design/principles.md), раздел
 > «Граница ядра», и [design/streaming.md](../design/streaming.md) §4.1.
 > Почему так: записи [ideas.md](../decisions/ideas.md) «[2026-07-14]
@@ -159,10 +159,11 @@ export const SubscriptionOpened = makeEvent({
     startedAt: num(),
   }),
   doc: {
-    summary: 'Подписка открыта',
+    summary: 'Subscription opened',
     description:
-      'Факт публикуется реестром подписок при регистрации подписки. ' +
-      'Наблюдение кластерное: имя узла едет полем `node`.',
+      'Published by the subscription registry when a subscription is ' +
+      'registered. Observation is cluster-wide: the node name travels in ' +
+      'the `node` field.',
   },
 });
 ```

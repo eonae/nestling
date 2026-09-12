@@ -143,12 +143,26 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
    listed in `endpoints:` of a feature. There is no `@Controller`, no
    `@Get`, no `@Body`, and no separate controller layer: the handler is a
    function, or a class marked `@Handler([…])` with a `handle` method.
+6. **A policy in the root obliges every endpoint.** When `makeApp` declares
+   `everyEndpoint(…).hasLayer(observability)`, every endpoint it selects
+   names that layer in `pipeline:` — `httpEndpoint.implement` and
+   `implement` included, where it is often the only field they add — or
+   opts out with
+   `detached: '<reason>'`. ASSEMBLE names the ones that did neither and
+   stops the process before a socket is open.
+7. **A redirect is declared, not only returned.** `redirect: 302` in the
+   declaration and `HttpResponse.redirect(url)` in the handler. Without the
+   field the answer is `internal_error`: the declaration is what the
+   transport and the OpenAPI document read, and nothing catches the
+   mismatch at compile time.
 
 ## Where to look next
 
 | Need | Read |
 |---|---|
+| set up `tsconfig.json`, the scripts, the runner and the linter | `references/setup.md` |
 | declare an endpoint, place input fields, pick an io form | `references/endpoints.md` |
+| set a success status, headers, cookies or a redirect | `references/http.md` |
 | DI tokens, providers, class roles, modules, lifecycle phases | `references/container.md` |
 | layers, `.pre` / `.ok` / `.catch` / `.finally`, context, policies | `references/pipeline.md` |
 | define a failure, return it, read it, map it to a status | `references/errors.md` |
@@ -156,7 +170,20 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
 | features, operations, callers, emitters, subscribers, split | `references/features.md` |
 | assemble an app in a test, override, stub, check topologies | `references/testing.md` |
 | the NestJS name for a thing and its Nestling counterpart | `references/from-nest.md` |
+| read a diagnostic the compiler or ASSEMBLE printed | `references/diagnostics.md` |
 
 Every reference points at the README of the package that owns the names it
 mentions. Read that README for the full list of exports; the reference only
 shows the shape of the code.
+
+Beyond the core and a transport, the framework publishes six more packages.
+Take one when its line describes the problem at hand:
+
+| Package | When you need it |
+|---|---|
+| `@nestlingjs/outbox` | an event must leave even if the process dies right after the commit: the record goes into the transaction that changed the data, and the send happens after it. The first thing asked for once a service has both a database and a bus |
+| `@nestlingjs/client` | a browser or another service calls these operations: `makeClient(record, config)` turns the declarations into a typed API. The other first request, and the reason an operation file imports nothing but schemas |
+| `@nestlingjs/subscriptions` | streams and SSE are open and someone has to list them, close one, or watch the list change |
+| `@nestlingjs/models` | the TypeScript type exists already — generated from proto, GraphQL or OpenAPI — and a schema has to describe exactly it |
+| `@nestlingjs/transport.cli` | the same endpoints and layers are wanted as commands, with stdin as the stream |
+| `@nestlingjs/eslint-plugin` | the two rules an editor can check: an import past a barrel, and a declaration without the required layer |

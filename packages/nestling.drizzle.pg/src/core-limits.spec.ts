@@ -7,7 +7,9 @@
  * построению, поэтому находки живут здесь и в `docs/decisions/ideas.md`.
  *
  * Четвёртая находка замера — про типы, а не про рантайм, и живёт в
- * `plugin.type-test.ts`.
+ * `plugin.type-test.ts`. Первая — писатель переменной без зависимостей —
+ * здесь не фиксируется: ядро закрыло её формой `provide(deps, compute)`
+ * в change'е `kernel-boundary-outbox`.
  */
 
 import { FakePool } from './__fixtures__/pool.js';
@@ -18,7 +20,7 @@ import { drizzlePg } from './plugin.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Output, Raw } from '@nestlingjs/app';
-import { makeEmptyContext, makePipeline } from '@nestlingjs/app';
+import { makeEmptyContext } from '@nestlingjs/app';
 import { resourceProvider } from '@nestlingjs/container';
 import { Ok } from '@nestlingjs/operations';
 
@@ -32,36 +34,6 @@ const raw: Raw = {
 };
 
 const endpoint = { transport: 'test', pattern: 'core-limits' };
-
-/**
- * Находка №1: `Var.provide(compute)` получает только контекст.
- *
- * Зависимостей из контейнера у писателя переменной нет, а соединение
- * приходит именно оттуда. Поэтому слой транзакции состоит минимум из двух
- * юнитов: класс-мост берёт соединение, писатель кладёт значение. Цена —
- * один юнит-мост; второй потребитель той же находки после outbox'а.
- */
-describe('граница ядра: писатель переменной не видит контейнера', () => {
-  it('в compute приходит один аргумент — накопленный контекст', async () => {
-    let seen: readonly unknown[] = [];
-
-    const pipeline = makePipeline().pre(
-      db.tx.provide((...args: unknown[]) => {
-        seen = args;
-
-        return undefined as never;
-      }),
-    );
-
-    await pipeline.executeWithHandler(
-      async (): Output<undefined> => new Ok(undefined),
-      makeEmptyContext(raw, endpoint),
-    );
-
-    expect(seen).toHaveLength(1);
-    expect(seen[0]).toHaveProperty('input');
-  });
-});
 
 /**
  * Находка №2: `.ok`-юнит не превращает успех в объявленный отказ.

@@ -1,6 +1,6 @@
 # 27. База данных и транзакция
 
-> Гайд по текущему API; сверено с кодом `users-service` (2026-09-11).
+> Гайд по текущему API; сверено с кодом `users-service` (2026-09-12).
 > Целевое описание: [design/persistence.md](../design/persistence.md).
 > Почему так: запись [ideas.md](../decisions/ideas.md) «[2026-09-11]
 > Соединение с базой: сателлит `drizzle.pg`».
@@ -89,11 +89,11 @@ drizzle, привязанный к этой транзакции. `.ok` комм
 откатывает, а `.finally` возвращает клиента в пул — на любом исходе,
 включая обрыв связи с клиентом и остановку приложения.
 
-Первый юнит — класс, и это не случайность: `Var.provide(compute)`
-принимает функцию от контекста и зависимостей из контейнера не получает,
-а соединение приходит именно оттуда. Раньше такой мост писало
-приложение ([глава 26](./26-extending.md)); теперь он объявлен внутри
-`drizzlePg` рядом с DI-токеном соединения и наружу не виден.
+Первый юнит — класс, потому что кладёт в контекст не значение
+переменной, а сессию: её читают и `.ok`, и `.catch`, и `.finally`, а
+соединение, которое её выдаёт, приходит из контейнера. Раньше такой мост
+писало приложение ([глава 26](./26-extending.md)); теперь он объявлен
+внутри `drizzlePg` рядом с DI-токеном соединения и наружу не виден.
 
 Ключ переменной выводится из имени соединения: `tx` у соединения по
 умолчанию, `analyticsTx` у экземпляра с именем `analytics`. Поэтому два
@@ -170,14 +170,12 @@ export const appOutbox = outbox({
   transaction: db.tx,
   store: outboxStore.token,
   operations: [UserCreated],
-  partitionKey: (payload) => (payload as { id: string }).id,
 });
 ```
 
 Список операций явный: рецепту нужна сама операция — схема входа, чтобы
-проверить payload, и имя, чтобы знать subject. `partitionKey` называет
-единицу порядка: события одного пользователя доставляются в порядке
-создания, между разными пользователями порядка нет.
+проверить payload, и имя, чтобы знать subject. Раздел записи плагин не
+назначает: его называет место вызова `emit`, и об этом ниже.
 
 В хендлере меняется одна строка — та, что называет зависимость:
 
@@ -187,7 +185,7 @@ export const appOutbox = outbox({
 export class CreateUserHandler {
   constructor(
     private readonly users: UsersRepository,
-    private readonly userCreated: Emitter<typeof UserCreated>,
+    private readonly userCreated: OutboxEmitter<typeof UserCreated>,
   ) {}
 
   async handle(input: CreateUserInput): Output<User, typeof EmailTaken> {
@@ -195,21 +193,26 @@ export class CreateUserHandler {
     const user = await this.users.insert(data);
 
     // Запись пользователя и запись события — одна транзакция. Упади
-    // процесс сразу после коммита, событие всё равно доедет
-    await this.userCreated.emit({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    });
+    // процесс сразу после коммита, событие всё равно уйдёт. Раздел —
+    // идентификатор пользователя: его события доставляются по порядку
+    await this.userCreated.emit(
+      { id: user.id, name: user.name, email: user.email },
+      { partitionKey: user.id },
+    );
 
     return Ok.created(user);
   }
 }
 ```
 
-`outboxed(UserCreated)` вместо `UserCreated.emitter`. Тип значения тот
-же — `Emitter<typeof UserCreated>`, — поэтому тело метода не меняется.
-Меняется, что делает `emit`: он пишет одну строку в таблицу записей
+`outboxed(UserCreated)` вместо `UserCreated.emitter`. Значение —
+`OutboxEmitter<typeof UserCreated>`: эмиттер ядра, чей словарь `meta`
+дополнен разделом записи. Оно присваивается `Emitter<typeof UserCreated>`,
+поэтому хендлер, которому раздел не нужен, объявляет зависимость прежним
+типом. Раздел — единица порядка: события одного пользователя доставляются
+в порядке создания, между разными пользователями порядка нет. Называет
+его место вызова, потому что только оно знает, чем упорядочена запись.
+Меняется и то, что делает `emit`: он пишет одну строку в хранилище
 транзакцией вызывающего и в шину во время запроса не отправляет ничего.
 
 DI-токен ядра остаётся на месте: `UserCreated.emitter` по-прежнему
@@ -222,8 +225,7 @@ Endpoint переключается на слой транзакции:
 
 ```typescript
 // examples/users-service/src/users/endpoints/create-user.endpoint.ts
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: transactional,
   handler: CreateUserHandler,
 });
@@ -295,8 +297,10 @@ export const WelcomeEmail = implement(UserCreated, {
 
 `withIdempotencyKey()` — штатный писатель ядра: он кладёт ключ из
 конверта сообщения в контекст, и хендлер читает его как обычное поле
-`meta`. У события типизированного `meta.idempotencyKey` нет — ключ есть
-у любой публикации на шине, а в типе `meta` его даёт только `command`.
+`meta`. Ключ у события есть и в типе `meta`: relay передаёт его так же,
+как передал бы издатель. Недостающий ключ событию вызыватель не чеканит,
+поэтому подписчик события без ключа получает от `withIdempotencyKey()`
+собственный.
 
 Выдачу партии адаптер делает одним запросом с пропуском заблокированных
 строк, поэтому две реплики relay, читающие одну таблицу, не получат одну
@@ -395,5 +399,7 @@ outbox'ом. Диалект пока один — PostgreSQL: выдача се�
 Дедупликацию на приёме тоже: ключ доставляется, а решение остаётся за
 обработчиком.
 
-Как такой пакет устроен изнутри и почему он не потребовал ни строчки в
-ядре — [глава 26](./26-extending.md).
+Как такой пакет устроен изнутри и как замер границы ядра нашёл четыре
+места, которые потом закрыл change `kernel-boundary-outbox`, —
+[глава 26](./26-extending.md) и запись
+[ideas.md [2026-09-07]](../decisions/ideas.md).

@@ -2,25 +2,24 @@
 
 exports[`httpEndpoint type diagnostics class-undeclared-fail 1`] = `
 "packages/nestling.transport.http/type-tests/fixtures/class-undeclared-fail.ts(23,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Type 'typeof CreateUserHandler' is not assignable to type 'HttpHandlerClass<AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, Fail<"conflict:email_taken", undefined>>'.
-      Construct signature return types 'CreateUserHandler' and '{ handle: HttpHandlerFn<AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, Fail<"conflict:email_taken", undefined>>; }' are incompatible.
-        The types returned by 'handle(...)' are incompatible between these types.
-          Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>> | HttpOutput<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
-            Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HttpOutput<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
-              Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, Fail<"conflict:email_taken", undefined>>'.
-                Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined> | Fail<"internal_error", undefined> | Fail<"conflict:email_taken", undefined>'.
-                  Type 'Fail<"payment_required:card_declined", undefined>' is not assignable to type 'Fail<"timeout", undefined>'.
-                    Type '"payment_required:card_declined"' is not assignable to type '"timeout"'."
+  Overload 1 of 2, '(declaration: HttpEndpointDictionary<"/users", AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never, undefined, EmptyInput, FailDefinitionWithoutDetails<...>[], never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof CreateUserHandler' is not assignable to type 'CheckedHttpHandlerFn<AnyPayload, AnyInput, Fail<"conflict:email_taken", undefined>, AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>>'.
+      Type 'typeof CreateUserHandler' provides no match for the signature '(payload: unknown, meta: HttpMetaOf<AnyInput>): AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>'.
+  Overload 2 of 2, '(declaration: HttpEndpointDictionary<"/users", AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never, undefined, EmptyInput, FailDefinitionWithoutDetails<...>[], never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof CreateUserHandler' is not assignable to type 'typeof CreateUserHandler & { __error: "Handler returns a failure that is not declared in 'errors:'"; returned: "payment_required:card_declined"; declared: "conflict:email_taken"; hint: "add the definitions to 'errors:', or stop returning them from the handler"; }'.
+      Type 'typeof CreateUserHandler' is missing the following properties from type '{ __error: "Handler returns a failure that is not declared in 'errors:'"; returned: "payment_required:card_declined"; declared: "conflict:email_taken"; hint: "add the definitions to 'errors:', or stop returning them from the handler"; }': __error, returned, declared, hint"
 `;
 
 exports[`httpEndpoint type diagnostics class-wrong-input 1`] = `
 "packages/nestling.transport.http/type-tests/fixtures/class-wrong-input.ts(25,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Type 'typeof GetUserHandler' is not assignable to type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>'.
-      Construct signature return types 'GetUserHandler' and '{ handle: HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>; }' are incompatible.
+  Overload 1 of 2, '(declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof GetUserHandler' is not assignable to type 'CheckedHttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>>'.
+      Type 'typeof GetUserHandler' provides no match for the signature '(payload: { id: string; }, meta: HttpMetaOf<AnyInput>): AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>'.
+  Overload 2 of 2, '(declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof GetUserHandler' is not assignable to type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>'.
+      Construct signature return types 'GetUserHandler' and '{ handle: HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>; }' are incompatible.
         The types of 'handle' are incompatible between these types.
-          Type '(payload: { id: number; }) => Promise<Ok<{ id: string; email: string; }>>' is not assignable to type 'HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>'.
+          Type '(payload: { id: number; }) => Promise<Ok<{ id: string; email: string; }>>' is not assignable to type 'HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>'.
             Types of parameters 'payload' and 'payload' are incompatible.
               Type '{ id: string; }' is not assignable to type '{ id: number; }'.
                 Types of property 'id' are incompatible.
@@ -29,74 +28,92 @@ exports[`httpEndpoint type diagnostics class-wrong-input 1`] = `
 
 exports[`httpEndpoint type diagnostics class-wrong-output 1`] = `
 "packages/nestling.transport.http/type-tests/fixtures/class-wrong-output.ts(24,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Type 'typeof GetUserHandler' is not assignable to type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>'.
-      Construct signature return types 'GetUserHandler' and '{ handle: HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>; }' are incompatible.
+  Overload 1 of 2, '(declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof GetUserHandler' is not assignable to type 'CheckedHttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>>'.
+      Type 'typeof GetUserHandler' provides no match for the signature '(payload: { id: string; }, meta: HttpMetaOf<AnyInput>): AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>'.
+  Overload 2 of 2, '(declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof GetUserHandler' is not assignable to type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>'.
+      Construct signature return types 'GetUserHandler' and '{ handle: HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>; }' are incompatible.
         The types returned by 'handle(...)' are incompatible between these types.
-          Type 'Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, never> | HttpOutput<{ id: string; email: string; }, never>'.
-            Type 'Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'HttpOutput<{ id: string; email: string; }, never>'.
-              Type 'Ok<{ unexpected: boolean; }>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, never>'.
+          Type 'Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, AnyFail> | HttpOutput<{ id: string; email: string; }, AnyFail>'.
+            Type 'Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'HttpOutput<{ id: string; email: string; }, AnyFail>'.
+              Type 'Ok<{ unexpected: boolean; }>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, AnyFail>'.
                 Type 'Ok<{ unexpected: boolean; }>' is not assignable to type 'Ok<{ id: string; email: string; }>'.
                   Type '{ unexpected: boolean; }' is missing the following properties from type '{ id: string; email: string; }': id, email"
 `;
 
 exports[`httpEndpoint type diagnostics function-undeclared-fail 1`] = `
-"packages/nestling.transport.http/type-tests/fixtures/function-undeclared-fail.ts(17,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HttpHandlerClass<AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, Fail<"conflict:email_taken", undefined>>'.
-      Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HttpHandlerFn<AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, Fail<"conflict:email_taken", undefined>>; }'."
+"packages/nestling.transport.http/type-tests/fixtures/function-undeclared-fail.ts(12,27): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(declaration: HttpEndpointDictionary<"/users", AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never, undefined, EmptyInput, FailDefinitionWithoutDetails<...>[], never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'Promise<Fail<"payment_required:card_declined", undefined>> & { __error: "Handler returns a failure that is not declared in 'errors:'"; returned: "payment_required:card_declined"; declared: "conflict:email_taken"; hint: "add the definitions to 'errors:', or stop returning them from the handler"; }'.
+      Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is missing the following properties from type '{ __error: "Handler returns a failure that is not declared in 'errors:'"; returned: "payment_required:card_declined"; declared: "conflict:email_taken"; hint: "add the definitions to 'errors:', or stop returning them from the handler"; }': __error, returned, declared, hint
+  Overload 2 of 2, '(declaration: HttpEndpointDictionary<"/users", AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never, undefined, EmptyInput, FailDefinitionWithoutDetails<...>[], never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HttpHandlerClass<AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>'.
+      Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HttpHandlerFn<AnyPayload, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>; }'."
 `;
 
 exports[`httpEndpoint type diagnostics function-wrong-output 1`] = `
-"packages/nestling.transport.http/type-tests/fixtures/function-wrong-output.ts(18,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Type '() => Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>'.
-      Type '() => Promise<Ok<{ unexpected: boolean; }>>' provides no match for the signature 'new (...args: any[]): { handle: HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>; }'."
+"packages/nestling.transport.http/type-tests/fixtures/function-wrong-output.ts(13,24): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>'.
+      Type 'Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'HttpOutput<{ id: string; email: string; }, AnyFail>'.
+        Type 'Ok<{ unexpected: boolean; }>' is not assignable to type 'HttpOutputSync<{ id: string; email: string; }, AnyFail>'.
+          Type 'Ok<{ unexpected: boolean; }>' is not assignable to type 'Ok<{ id: string; email: string; }>'.
+            Type '{ unexpected: boolean; }' is missing the following properties from type '{ id: string; email: string; }': id, email
+  Overload 2 of 2, '(declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type '() => Promise<Ok<{ unexpected: boolean; }>>' is not assignable to type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>'.
+      Type '() => Promise<Ok<{ unexpected: boolean; }>>' provides no match for the signature 'new (...args: any[]): { handle: HttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>; }'."
+`;
+
+exports[`httpEndpoint type diagnostics implement-class-undeclared-fail 1`] = `
+"packages/nestling.transport.http/type-tests/fixtures/implement-class-undeclared-fail.ts(20,3): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(operation: RequestOperation<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, FailDefinitionWithoutDetails<...>[]>, declaration: HttpImplementDictionary<...> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof CreateUserHandler' is not assignable to type 'CheckedHandlerFn<ZodObject<{ email: ZodString; }, $strip>, AnyInput, Fail<"conflict:email_taken", undefined>, AnyHandlerResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>>'.
+      Type 'typeof CreateUserHandler' provides no match for the signature '(payload: { email: string; }, meta: HandlerMetaOf<AnyInput>): AnyHandlerResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>'.
+  Overload 2 of 2, '(operation: RequestOperation<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, FailDefinitionWithoutDetails<...>[]>, declaration: HttpImplementDictionary<...> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof CreateUserHandler' is not assignable to type 'typeof CreateUserHandler & { __error: "Handler returns a failure that is not declared in 'errors:'"; returned: "payment_required:card_declined"; declared: "conflict:email_taken"; hint: "add the definitions to 'errors:', or stop returning them from the handler"; }'.
+      Type 'typeof CreateUserHandler' is missing the following properties from type '{ __error: "Handler returns a failure that is not declared in 'errors:'"; returned: "payment_required:card_declined"; declared: "conflict:email_taken"; hint: "add the definitions to 'errors:', or stop returning them from the handler"; }': __error, returned, declared, hint"
+`;
+
+exports[`httpEndpoint type diagnostics implement-function-undeclared-fail 1`] = `
+"packages/nestling.transport.http/type-tests/fixtures/implement-function-undeclared-fail.ts(14,40): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(operation: RequestOperation<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, FailDefinitionWithoutDetails<...>[]>, declaration: HttpImplementDictionary<...> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'Promise<Fail<"payment_required:card_declined", undefined>> & { __error: "Handler returns a failure that is not declared in 'errors:'"; returned: "payment_required:card_declined"; declared: "conflict:email_taken"; hint: "add the definitions to 'errors:', or stop returning them from the handler"; }'.
+      Type 'Promise<Fail<"payment_required:card_declined", undefined>>' is missing the following properties from type '{ __error: "Handler returns a failure that is not declared in 'errors:'"; returned: "payment_required:card_declined"; declared: "conflict:email_taken"; hint: "add the definitions to 'errors:', or stop returning them from the handler"; }': __error, returned, declared, hint
+  Overload 2 of 2, '(operation: RequestOperation<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, FailDefinitionWithoutDetails<...>[]>, declaration: HttpImplementDictionary<...> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' is not assignable to type 'HandlerClass<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>'.
+      Type '() => Promise<Fail<"payment_required:card_declined", undefined>>' provides no match for the signature 'new (...args: any[]): { handle: HandlerFn<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>; }'."
 `;
 
 exports[`httpEndpoint type diagnostics object-form-removed 1`] = `
 "packages/nestling.transport.http/type-tests/fixtures/object-form-removed.ts(25,5): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Object literal may only specify known properties, and 'deps' does not exist in type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, never>'."
+  Overload 1 of 2, '(declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Object literal may only specify known properties, and 'deps' does not exist in type 'CheckedHttpHandlerFn<ZodObject<{ id: ZodString; }, $strip>, AnyInput, never, AnyHttpResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>>'.
+  Overload 2 of 2, '(declaration: HttpEndpointDictionary<"/users/:id", ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, ... 5 more ..., never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Object literal may only specify known properties, and 'deps' does not exist in type 'HttpHandlerClass<ZodObject<{ id: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, AnyInput, AnyFail>'."
+`;
+
+exports[`httpEndpoint type diagnostics operation-key-removed 1`] = `
+"packages/nestling.transport.http/type-tests/fixtures/operation-key-removed.ts(14,27): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(declaration: HttpEndpointDictionary<string, AnyPayload, AnyOutput, AnyInput, never, undefined, EmptyInput, [], never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Object literal may only specify known properties, and 'operation' does not exist in type 'HttpEndpointDictionary<string, AnyPayload, AnyOutput, AnyInput, never, undefined, EmptyInput, [], never> & { ...; }'.
+  Overload 2 of 2, '(declaration: HttpEndpointDictionary<string, AnyPayload, AnyOutput, AnyInput, never, undefined, EmptyInput, [], never> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type '() => Promise<Ok<{ id: string; email: string; }>>' is not assignable to type 'HttpHandlerClass<AnyPayload, AnyOutput, AnyInput, AnyFail>'.
+      Type '() => Promise<Ok<{ id: string; email: string; }>>' provides no match for the signature 'new (...args: any[]): { handle: HttpHandlerFn<AnyPayload, AnyOutput, AnyInput, AnyFail>; }'."
 `;
 
 exports[`httpEndpoint type diagnostics operation-layer-fail-undeclared 1`] = `
-"packages/nestling.transport.http/type-tests/fixtures/operation-layer-fail-undeclared.ts(34,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Type 'PipelineBuilder<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'Pipeline<EmptyInput, AnyInput, never, never>'.
-      Types of property '$types' are incompatible.
-        Type 'PipelineTypes<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>> | undefined' is not assignable to type 'PipelineTypes<EmptyInput, AnyInput, never, never> | undefined'.
-          Type 'PipelineTypes<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'PipelineTypes<EmptyInput, AnyInput, never, never>'.
-            Type 'Fail<"unauthorized", undefined>' is not assignable to type 'never'.
-              Type 'typeof CreateUserHandler' is not assignable to type 'HttpHandlerClass<AnyPayload, AnyOutput, AnyInput, never>'.
-                Construct signature return types 'CreateUserHandler' and '{ handle: HttpHandlerFn<AnyPayload, AnyOutput, AnyInput, never>; }' are incompatible.
-                  The types of 'handle' are incompatible between these types.
-                    Type '(payload: { email: string; }) => Promise<Ok<{ id: string; email: string; }>>' is not assignable to type 'HttpHandlerFn<AnyPayload, AnyOutput, AnyInput, never>'.
-                      Types of parameters 'payload' and 'payload' are incompatible.
-                        Type 'unknown' is not assignable to type '{ email: string; }'.
-
-packages/nestling.transport.http/type-tests/fixtures/operation-layer-fail-undeclared.ts(35,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Type 'PipelineBuilder<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'Pipeline<EmptyInput, AnyInput, never, never>'.
-      Types of property '$types' are incompatible.
-        Type 'PipelineTypes<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>> | undefined' is not assignable to type 'PipelineTypes<EmptyInput, AnyInput, never, never> | undefined'.
-          Type 'PipelineTypes<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'PipelineTypes<EmptyInput, AnyInput, never, never>'.
-            Type 'Fail<"unauthorized", undefined>' is not assignable to type 'never'.
-              Type 'typeof CreateUserHandler' is not assignable to type 'HttpHandlerClass<AnyPayload, AnyOutput, AnyInput, never>'.
-                Construct signature return types 'CreateUserHandler' and '{ handle: HttpHandlerFn<AnyPayload, AnyOutput, AnyInput, never>; }' are incompatible.
-                  The types of 'handle' are incompatible between these types.
-                    Type '(payload: { email: string; }) => Promise<Ok<{ id: string; email: string; }>>' is not assignable to type 'HttpHandlerFn<AnyPayload, AnyOutput, AnyInput, never>'.
-                      Types of parameters 'payload' and 'payload' are incompatible.
-                        Type 'unknown' is not assignable to type '{ email: string; }'."
+"packages/nestling.transport.http/type-tests/fixtures/operation-layer-fail-undeclared.ts(28,3): error TS2769: No overload matches this call.
+  Overload 2 of 2, '(operation: RequestOperation<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, FailDefinitionWithoutDetails<...>[]>, declaration: HttpImplementDictionary<...> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'PipelineBuilder<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is not assignable to type 'Pipeline<AnyInput, EmptyInput, never, Fail<"unauthorized", undefined>> & { __error: "Layer may fail with errors the operation does not declare"; undeclared: Fail<...>; hint: "add the definitions to 'errors:' of the operation"; }'.
+      Type 'PipelineBuilder<EmptyInput, EmptyInput, never, Fail<"unauthorized", undefined>>' is missing the following properties from type '{ __error: "Layer may fail with errors the operation does not declare"; undeclared: Fail<"unauthorized", undefined>; hint: "add the definitions to 'errors:' of the operation"; }': __error, undeclared, hint"
 `;
 
 exports[`httpEndpoint type diagnostics operation-redeclared-input 1`] = `
-"packages/nestling.transport.http/type-tests/fixtures/operation-redeclared-input.ts(27,3): error TS2769: No overload matches this call.
-  The last overload gave the following error.
-    Type 'typeof CreateUserHandler' is not assignable to type 'HttpHandlerClass<AnyPayload, AnyOutput, AnyInput, never>'.
-      Construct signature return types 'CreateUserHandler' and '{ handle: HttpHandlerFn<AnyPayload, AnyOutput, AnyInput, never>; }' are incompatible.
-        The types of 'handle' are incompatible between these types.
-          Type '(payload: { email: string; }) => Promise<Ok<{ id: string; email: string; }>>' is not assignable to type 'HttpHandlerFn<AnyPayload, AnyOutput, AnyInput, never>'.
-            Types of parameters 'payload' and 'payload' are incompatible.
-              Type 'unknown' is not assignable to type '{ email: string; }'."
+"packages/nestling.transport.http/type-tests/fixtures/operation-redeclared-input.ts(22,40): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(operation: RequestOperation<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, FailDefinitionWithoutDetails<...>[]>, declaration: HttpImplementDictionary<...> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Type 'typeof CreateUserHandler' is not assignable to type 'CheckedHandlerFn<ZodObject<{ email: ZodString; }, $strip>, AnyInput, Fail<"conflict:email_taken", undefined>, AnyHandlerResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>>'.
+      Type 'typeof CreateUserHandler' provides no match for the signature '(payload: { email: string; }, meta: HandlerMetaOf<AnyInput>): AnyHandlerResult<ZodObject<{ id: ZodString; email: ZodString; }, $strip>>'.
+  Overload 2 of 2, '(operation: RequestOperation<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, FailDefinitionWithoutDetails<...>[]>, declaration: HttpImplementDictionary<...> & { ...; }): EndpointDefinition<...>', gave the following error.
+    Object literal may only specify known properties, and 'input' does not exist in type 'HttpImplementDictionary<RequestOperation<ZodObject<{ email: ZodString; }, $strip>, ZodObject<{ id: ZodString; email: ZodString; }, $strip>, FailDefinitionWithoutDetails<...>[]>, AnyInput, never, never> & { ...; }'."
 `;

@@ -26,6 +26,9 @@ const repoRoot = resolve(typeTestsDir, '..', '..', '..');
 
 const fixturesDir = resolve(typeTestsDir, 'fixtures');
 
+/** Каталог верных деклараций: они обязаны компилироваться молча */
+const validDir = resolve(typeTestsDir, 'valid');
+
 /**
  * Читает tsconfig и возвращает разобранные опции вместе со списком файлов.
  */
@@ -77,48 +80,78 @@ function formatDiagnostic(diagnostic: ts.Diagnostic): string {
   return ts.formatDiagnostic(diagnostic, formatHost).replace(/\n+$/, '');
 }
 
-/** Имена файлов фикстур (без расширения), отсортированные */
-export function fixtureNames(): string[] {
-  return readdirSync(fixturesDir)
+/** Имена файлов каталога (без расширения), отсортированные */
+function namesIn(dir: string): string[] {
+  return readdirSync(dir)
     .filter((name) => name.endsWith('.ts'))
     .map((name) => name.replace(/\.ts$/, ''))
     .sort();
 }
 
-/**
- * Компилирует весь каталог фикстур одной программой и группирует
- * нормализованные тексты диагностик по файлу.
- *
- * @returns карта «имя фикстуры → текст всех её диагностик»
- */
-export function compileFixtures(): Map<string, string> {
-  const program = createProgram(resolve(typeTestsDir, 'tsconfig.json'));
-  const diagnostics = ts.getPreEmitDiagnostics(program);
+/** Имена фикстур с намеренными ошибками — предмет снапшотов */
+export function fixtureNames(): string[] {
+  return namesIn(fixturesDir);
+}
 
-  const byFixture = new Map<string, string[]>();
-  for (const name of fixtureNames()) {
-    byFixture.set(name, []);
+/** Имена верных деклараций — предмет проверки «диагностик нет» */
+export function validNames(): string[] {
+  return namesIn(validDir);
+}
+
+/** Диагностики одной компиляции, разложенные по каталогам */
+export interface CompiledDiagnostics {
+  /** «имя фикстуры → текст всех её диагностик» для `fixtures/` */
+  fixtures: Map<string, string>;
+
+  /** то же для `valid/` */
+  valid: Map<string, string>;
+}
+
+/** Раскладывает тексты диагностик каталога по файлам */
+function group(
+  dir: string,
+  names: string[],
+  diagnostics: readonly ts.Diagnostic[],
+): Map<string, string> {
+  const byFile = new Map<string, string[]>();
+  for (const name of names) {
+    byFile.set(name, []);
   }
 
   for (const diagnostic of diagnostics) {
     const fileName = diagnostic.file?.fileName;
-    if (!fileName?.startsWith(fixturesDir)) {
+    if (!fileName?.startsWith(dir)) {
       // Диагностики из исходников пакетов (если появятся) — не предмет
       // этих снапшотов; их ловит `build`.
       continue;
     }
 
-    const fixture = fileName.slice(fixturesDir.length + 1).replace(/\.ts$/, '');
-    const bucket = byFixture.get(fixture);
+    const bucket = byFile.get(
+      fileName.slice(dir.length + 1).replace(/\.ts$/, ''),
+    );
     if (bucket) {
       bucket.push(formatDiagnostic(diagnostic));
     }
   }
 
   return new Map(
-    [...byFixture].map(([name, texts]) => [
+    [...byFile].map(([name, texts]) => [
       name,
       texts.length > 0 ? texts.join('\n\n') : '(no diagnostics)',
     ]),
   );
+}
+
+/**
+ * Компилирует оба каталога одной программой и группирует нормализованные
+ * тексты диагностик по файлу.
+ */
+export function compileFixtures(): CompiledDiagnostics {
+  const program = createProgram(resolve(typeTestsDir, 'tsconfig.json'));
+  const diagnostics = ts.getPreEmitDiagnostics(program);
+
+  return {
+    fixtures: group(fixturesDir, fixtureNames(), diagnostics),
+    valid: group(validDir, validNames(), diagnostics),
+  };
 }

@@ -15,6 +15,7 @@ import type { Pipeline } from './pipeline.js';
 import { compose, declaresVar, makePipeline } from './pipeline.js';
 
 import { describe, expect, it } from '@jest/globals';
+import { makeToken } from '@nestlingjs/container';
 import type { EmptyInput } from '@nestlingjs/operations';
 
 const RequestId = contextVar<string>()('requestId');
@@ -85,5 +86,20 @@ describe('множество объявленных переменных', () =>
   it('не-пайплайн и не-переменная предикату не подходят', () => {
     expect(declaresVar({}, RequestId)).toBe(false);
     expect(declaresVar(makePipeline(), 'requestId')).toBe(false);
+  });
+});
+
+describe('писатель с зависимостями', () => {
+  const Database$ = makeToken<{ begin(): string }>('Database');
+  const Tx = contextVar<string>()('tx');
+
+  it('объявляет переменную до bind() и после', () => {
+    const layer = makePipeline().pre(
+      Tx.provide([Database$], (_ctx, db) => db.begin()),
+    );
+    const bound = layer.bind(() => ({ begin: () => 'tx-1' }));
+
+    expect(declaresVar(layer, Tx)).toBe(true);
+    expect(declaresVar(bound, Tx)).toBe(true);
   });
 });

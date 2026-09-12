@@ -43,6 +43,17 @@ dependency container verifies the whole graph at startup.
 The principles behind the design are described in
 [docs/design/principles.md](./docs/design/principles.md) (Russian).
 
+## When Nestling is not the tool
+
+The guarantees above are paid for up front, in declarations. A service
+that will never be split across processes, that is called by no typed
+client, and whose documentation nobody reads is cheaper to write on
+Fastify: the container, the operations and the schemas buy nothing there,
+and the declaration stays a cost. Nestling starts paying off where a
+feature has to survive a move to another process, where the caller wants
+a client generated from the contract, and where the OpenAPI document has
+to follow the code rather than trail behind it.
+
 ## Quick start
 
 ```bash
