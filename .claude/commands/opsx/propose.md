@@ -20,6 +20,14 @@ When ready to implement, run /opsx:apply
 
 **Input**: The argument after `/opsx:propose` is the change name (kebab-case), OR a description of what the user wants to build.
 
+**Sync with local `main` first.** A fresh worktree usually starts behind the
+local `main` (pushes do not run from sessions, so the base the worktree was
+created from is stale). Before step 1, when the current branch is not `main`
+and the worktree is clean (`git status --porcelain` prints nothing), run
+`git rebase main` and say so in one line. On conflict: `git rebase --abort`
+and tell the user. Dirty worktree: skip the rebase and say so. Never touch
+`main` itself: it is written only by the Merger session.
+
 **Steps**
 
 1. **If no input provided, ask what they want to build**

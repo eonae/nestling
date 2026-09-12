@@ -11,6 +11,14 @@ Implement tasks from an OpenSpec change.
 
 **Input**: Optionally specify a change name (e.g., `/opsx:apply add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
+**Sync with local `main` first.** A fresh worktree usually starts behind the
+local `main` (pushes do not run from sessions, so the base the worktree was
+created from is stale). Before step 1, when the current branch is not `main`
+and the worktree is clean (`git status --porcelain` prints nothing), run
+`git rebase main` and say so in one line. On conflict: `git rebase --abort`
+and tell the user. Dirty worktree: skip the rebase and say so. Never touch
+`main` itself: it is written only by the Merger session.
+
 **Steps**
 
 1. **Select the change**
