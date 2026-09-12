@@ -37,18 +37,44 @@
 `Raw.transport` и `EndpointMeta.transport` — пайплайн-слои, читающие имя
 транспорта, SHALL NOT ломаться.
 
+Реализация операции SHALL объявляться **отдельным конструктором**, а не
+ключом в словаре анонимной формы: `@nestlingjs/transport.http` SHALL
+экспортировать `httpEndpoint.implement(Operation, { pipeline?, handler,
+detached?, on? })`. Операция SHALL идти первым аргументом, как у
+`implement(Operation, { … })`. Словарь `httpEndpoint` SHALL NOT принимать
+ключ `operation`, а словарь `httpEndpoint.implement` SHALL NOT принимать
+поля, которыми владеет операция (`method`, `path`, `input`, `output`,
+`errors`, `bind`, `rawBody`, `sse`, `doc`).
+
+У каждого из двух конструкторов SHALL быть ровно две перегрузки — по
+одной на форму хендлера. Это граница, за которой TypeScript печатает
+только последнюю перегрузку: диагностика неверной декларации SHALL
+называть форму, в которой ошиблись, а не ту, что стоит последней.
+
 Транспортный словарь SHALL быть допустим только в декларации. Хендлер и
 пайплайн SHALL получать поля транспорта только через стартовый контекст и
-только там, где адрес объявлен транспортом: анонимная форма
-`httpEndpoint` SHALL давать хендлеру `meta.http`, а `implement` и форма с
-`operation:` SHALL NOT. Зависимость от транспорта SHALL быть видна в
-сигнатуре хендлера и SHALL проверяться компилятором.
+только там, где адрес объявлен транспортом: `httpEndpoint` SHALL давать
+хендлеру `meta.http`, а `implement` и `httpEndpoint.implement` SHALL NOT.
+Зависимость от транспорта SHALL быть видна в сигнатуре хендлера и SHALL
+проверяться компилятором.
 
 #### Scenario: HTTP-декларация создаётся конструктором
 
 - **WHEN** объявлено `httpEndpoint({ method: 'POST', path: '/api/users', input: CreateUserInput, output: UserOutput, pipeline: basePipeline, handler })`
 - **THEN** результат — значение с токеном HTTP-транспорта в `transport` и
   `pattern === 'POST /api/users'`, готовое к объявлению в `endpoints:` модуля
+
+#### Scenario: Реализация операции создаётся вторым конструктором
+
+- **WHEN** объявлено `httpEndpoint.implement(CreateUser, { pipeline: basePipeline, handler })`,
+  где операция `CreateUser` несёт `http: 'POST /users'`
+- **THEN** результат — обычная HTTP-декларация: адрес, схемы, `errors` и
+  `doc` взяты с операции, `pattern === 'POST /users'`
+
+#### Scenario: Ключа `operation` в словаре нет
+
+- **WHEN** объявлено `httpEndpoint({ operation: CreateUser, handler })`
+- **THEN** это ошибка компиляции: словарь такого ключа не знает
 
 #### Scenario: CLI-декларация создаётся своим конструктором
 
@@ -352,79 +378,29 @@ SHALL дублировать эту проверку для JS-потребит�
 - **WHEN** словарь `implement` пытается задать собственный `input`
 - **THEN** это ошибка компиляции: интерфейс принадлежит операции
 
-### Requirement: Форма с `operation:` HTTP-декларации
+### Requirement: Реализация операции по HTTP — обычная декларация
 
-`httpEndpoint` SHALL принимать форму с `operation:` словаря —
-`httpEndpoint({ operation, pipeline?, handler, detached? })`, — в
-которой интерфейс операции и её HTTP-адрес берутся с операции.
+`httpEndpoint.implement` SHALL отвергать операцию без секции `http:` в
+момент создания декларации. Текст ошибки SHALL называть операцию и SHALL
+предлагать две починки: объявить `http:` на операции либо реализовать её
+на шине через `implement`.
 
-В этой форме поля `method`, `path`, `bind`, `rawBody`, `sse`, `input`,
-`output` и `errors` SHALL быть объявлены как `never`: переобъявление того,
-что принадлежит операции, SHALL быть ошибкой компиляции в точке
-декларации — той же дисциплиной, что в `ImplementDictionary`.
-
-Bind-карта SHALL браться с операции как есть и SHALL NOT вычисляться
-повторно. Операция без секции `http:` SHALL отвергаться в момент создания
-декларации; текст ошибки SHALL называть операцию и предлагать объявить
-`http:` либо реализовать операцию через `implement` (шина).
-
-Обе формы `handler`, `pipeline`, `detached` и участие в discovery,
-политиках и визуализации SHALL работать как у любой HTTP-декларации:
-форма с `operation:` — форма записи, а не новый примитив.
-
-#### Scenario: Реализация операции по HTTP
-
-- **WHEN** объявлено `httpEndpoint({ operation: CreateUser, handler: CreateUserHandler })`,
-  где операция несёт `http: 'POST /users'`, а `CreateUserHandler` — класс
-  под `@Handler([UserService])` с методом `handle`
-- **THEN** создаётся обычная HTTP-декларация на `POST /users` со схемами и
-  `errors:` операции
-
-#### Scenario: Переобъявление интерфейса не компилируется
-
-- **WHEN** в форме с `operation:` указаны `input`, `path` или `errors`
-- **THEN** это ошибка компиляции
+Созданная декларация SHALL участвовать в discovery, политиках и
+визуализации наравне с декларацией, у которой свой адрес. Обе формы
+хендлера, слот `pipeline` и признак `detached` SHALL работать так же:
+второй конструктор — форма записи, а не новый примитив.
 
 #### Scenario: Операция без `http:`
 
-- **WHEN** в форму с `operation:` передана операция без секции `http`
+- **WHEN** в `httpEndpoint.implement` передана операция без секции `http`
 - **THEN** вызов бросает ошибку в момент создания декларации, называя
   операцию
-
-#### Scenario: Карта не пересчитывается
-
-- **WHEN** форма с `operation:` создала декларацию
-- **THEN** её bind-карта — то же значение, что несёт операция
 
 #### Scenario: Декларация ведёт себя как обычная
 
 - **WHEN** такая декларация объявлена в `endpoints:` модуля
 - **THEN** discovery, `policies`, визуализация и pipeline работают так же,
-  как для анонимной HTTP-декларации
-
-### Requirement: Форма с `operation:` сверяет отказы пайплайна с операцией
-
-В форме `httpEndpoint({ operation, pipeline, handler })` слот `pipeline`
-SHALL принимать только пайплайн, все объявленные отказы которого (за
-вычетом отказов ядра) входят в `errors:` операции. Иначе слот SHALL
-принимать литерал `{ __error: …; undeclared: …; hint: … }` в форме
-capability `pipeline-type-diagnostics`, и декларация SHALL NOT
-компилироваться. Конструктор SHALL повторять проверку при создании
-декларации и бросать ошибку, называющую операцию, слой и недостающие коды.
-
-#### Scenario: Слой с отказом вне операции
-
-- **WHEN** объявлено `httpEndpoint({ operation: GetUser, pipeline: authed, handler })`,
-  где `authed` объявляет `Unauthorized`, а `GetUser` его не объявляет
-- **THEN** это ошибка компиляции на слоте `pipeline` с подсказкой добавить
-  `Unauthorized` в `errors:` операции; из JS — ошибка при создании
-  декларации
-
-#### Scenario: Слой согласован с операцией
-
-- **WHEN** операция объявляет все отказы слоя
-- **THEN** декларация компилируется, а её эффективное множество равно
-  `errors:` операции
+  как для декларации со своим адресом
 
 ### Requirement: `Handler<C>` и `HandlerMeta` выводятся из операции
 
