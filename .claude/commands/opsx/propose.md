@@ -32,6 +32,20 @@ and tell the user. Dirty worktree: skip the rebase and say so. Never touch
 
 1. **If no input provided, ask what they want to build**
 
+   **Changes already started are off the table.** Other sessions work in
+   parallel, each in its own worktree, and a started change has a branch.
+   Before suggesting roadmap items or accepting a name, list them:
+
+   ```bash
+   git branch --list 'change/*'    # started: one branch per change, visible from every worktree
+   git worktree list               # where each one lives
+   ```
+
+   Do not offer those names. If the user names one that is already started,
+   say which worktree has it and stop: the work continues there, not in a
+   second copy. A change with an archive under `openspec/changes/archive/*-<name>`
+   is finished; do not offer it either.
+
    Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
 
@@ -40,6 +54,9 @@ and tell the user. Dirty worktree: skip the rebase and say so. Never touch
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
 2. **Create the change directory**
+
+   First make sure the name is free: no branch `change/<name>` and no archive
+   `openspec/changes/archive/*-<name>`. Then:
    ```bash
    openspec new change "<name>"
    ```
