@@ -21,6 +21,7 @@
  *   STATE   <ветка> …   снимок при старте, по строке на worktree
  *   READY   <ветка> …   ветка стала готовой к слиянию
  *   MERGED  <ветка>     коммиты ветки оказались в main
+ *   UNLOCKED <ветка> …  с влитого worktree снят лок: сессия закрылась, можно убирать
  *   NEW     <ветка> …   появился worktree
  *   GONE    <ветка>     worktree исчез
  *   CHANGED <ветка> …   другой переход: ready → working, переименование ветки,
@@ -230,6 +231,7 @@ for (;;) {
       const prev = previous.get(path);
       if (first) console.log(`STATE ${describe(e)}`);
       else if (!prev) console.log(`NEW ${describe(e)}`);
+      else if (e.state === 'merged' && prev.locked && !e.locked) console.log(`UNLOCKED ${describe(e)}`);
       else if (stateKey(prev) !== stateKey(e)) {
         if (e.state === 'ready') console.log(`READY ${describe(e)}`);
         else if (e.state === 'merged') console.log(`MERGED ${e.branch}`);
