@@ -176,7 +176,7 @@ removed from the registry at this point: the `.finally` of the
 `tracked` layer removes it when the stream actually closes. The
 registry reflects the fact rather than getting ahead of it. The
 endpoint stands under the `authed` layer: only someone who presented a
-DI token can remove someone else's subscription.
+Bearer token can remove someone else's subscription.
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscriptions.endpoint.ts (fragment)
