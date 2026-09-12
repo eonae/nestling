@@ -5,7 +5,6 @@ import {
   GetUser,
   ImportUsers,
   ListUsers,
-  SeenKeys$,
   UploadAvatar,
   WelcomeEmail,
 } from './users/endpoints/index.js';
@@ -17,7 +16,7 @@ import { Authenticate } from './auth.js';
 import { AuditOutcome } from './observability.js';
 
 import { makeFeature } from '@nestlingjs/app';
-import { classProvider, valueProvider } from '@nestlingjs/container';
+import { classProvider } from '@nestlingjs/container';
 
 /**
  * Фича пользователей: провайдеры и endpoint'ы.
@@ -32,7 +31,6 @@ export const UsersFeature = makeFeature({
   name: 'users',
   providers: [
     classProvider(UsersRepository$, DbUsersRepository),
-    valueProvider(SeenKeys$, new Set<string>()),
     AuditOutcome,
     Authenticate,
   ],

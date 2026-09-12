@@ -14,10 +14,12 @@
  * ридеры, конструктор пайплайна, словарь политик (`@nestlingjs/app`),
  * роль ресурса и хук `@OnStart` (`@nestlingjs/container`).
  *
- * Наружу уходят четыре вещи: плагин, типы хранилища с реализацией в
- * памяти, уборщик со своим DI-токеном и ключи секции конфигурации.
+ * Наружу уходят пять вещей: плагин, типы хранилища с реализацией в
+ * памяти, уборщик со своим DI-токеном, ключи секции конфигурации и класс
+ * юнита отметки — его имя стоит в `TNeeds` декларации со слоем.
  */
 
+export { InboxClaimUnit } from './claim.js';
 export { inboxConfigKeys } from './config.js';
 export type { InboxConfigValues } from './config.js';
 export { InboxKeyMissingError } from './errors.js';

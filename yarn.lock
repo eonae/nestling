@@ -1688,6 +1688,7 @@ __metadata:
     "@nestlingjs/container": "workspace:*"
     "@nestlingjs/drizzle.pg": "workspace:*"
     "@nestlingjs/eslint-plugin": "workspace:*"
+    "@nestlingjs/inbox": "workspace:*"
     "@nestlingjs/openapi": "workspace:*"
     "@nestlingjs/openapi.zod": "workspace:*"
     "@nestlingjs/operations": "workspace:*"

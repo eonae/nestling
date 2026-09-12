@@ -2,10 +2,15 @@ import { UserCreated } from './users/users.events.js';
 import { authed } from './auth.js';
 import { observability } from './observability.js';
 import { ops } from './ops.plugin.js';
-import { db, outboxStore } from './persistence.js';
+import { appInbox, db, inboxStore, outboxStore } from './persistence.js';
 import { UsersFeature } from './users.feature.js';
 
-import { everyEndpoint, makeApp, RequestId } from '@nestlingjs/app';
+import {
+  BusTransport$,
+  everyEndpoint,
+  makeApp,
+  RequestId,
+} from '@nestlingjs/app';
 import { openapi } from '@nestlingjs/openapi';
 import { zodConverter } from '@nestlingjs/openapi.zod';
 import { outbox } from '@nestlingjs/outbox';
@@ -36,6 +41,8 @@ export const app = makeApp({
     db,
     outboxStore,
     appOutbox,
+    inboxStore,
+    appInbox,
     // Документ строится на фазе ASSEMBLE из тех же деклараций, которые
     // обслуживают запросы. Схема без конвертера роняет старт
     openapi({
@@ -71,5 +78,9 @@ export const app = makeApp({
       RequestId,
       'requestId',
     ),
+    // Каждый подписчик шины дедуплицирует доставку. Без слоя повтор
+    // относился бы к обязанностям подписчика соглашением, а здесь это
+    // проверка сборки: нарушение видно до открытия сокета
+    appInbox.requiresInbox({ transport: BusTransport$ }, 'inbox'),
   ],
 });
