@@ -16,7 +16,8 @@
  *   node .claude/skills/docs-audit/scripts/package-exports.mjs packages/nestling.app
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 
 import ts from 'typescript';
@@ -75,10 +76,16 @@ const hasExportModifier = (node) =>
 /**
  * Имена одного барреля вместе с раскрытыми `export *`.
  *
- * @returns {{ names: Set<string>, reexports: Set<string>, missing: string[] }}
+ * Сами операторы `export *` барреля попадают в `stars` специфаерами: спека
+ * `packages-layout` их запрещает, а раскрытие имён их не сохраняет. Звёздочки
+ * внутренних модулей туда не идут — правило про барель, а не про его нутро.
+ *
+ * @returns {{ names: Set<string>, reexports: Set<string>, missing: string[],
+ *             stars: string[] }}
  */
 function collectBarrel(file, seen = new Set(), acc = null) {
-  const state = acc ?? { names: new Set(), reexports: new Set(), missing: [] };
+  const state = acc ?? { names: new Set(), reexports: new Set(), missing: [], stars: [] };
+  const isBarrel = acc === null;
   if (seen.has(file)) return state;
   seen.add(file);
 
@@ -97,6 +104,7 @@ function collectBarrel(file, seen = new Set(), acc = null) {
       if (!clause) {
         // export * from '...'
         if (!spec) continue;
+        if (isBarrel) state.stars.push(spec);
         if (isRelative(spec)) {
           const next = resolveRelative(file, spec);
           if (next) collectBarrel(next, seen, state);
@@ -131,7 +139,7 @@ function collectBarrel(file, seen = new Set(), acc = null) {
  *   name: string,
  *   bin: string[],
  *   subpaths: Array<{ key: string, barrel: string | null, names: Set<string>,
- *                     reexports: Set<string>, missing: string[] }>,
+ *                     reexports: Set<string>, missing: string[], stars: string[] }>,
  * }}
  */
 export function collectPackageExports(pkgDir) {
@@ -146,7 +154,14 @@ export function collectPackageExports(pkgDir) {
     const target = firstTarget(entry);
     const barrel = target ? distToSrc(pkgDir, target) : null;
     if (!barrel) {
-      subpaths.push({ key, barrel: null, names: new Set(), reexports: new Set(), missing: [] });
+      subpaths.push({
+        key,
+        barrel: null,
+        names: new Set(),
+        reexports: new Set(),
+        missing: [],
+        stars: [],
+      });
       continue;
     }
     subpaths.push({ key, barrel, ...collectBarrel(barrel) });
@@ -171,6 +186,43 @@ export function allReexports(pkg) {
 
 // ── Запуск из командной строки ───────────────────────────────────────────────
 
+/**
+ * Барель с `export *` на временном пакете: в репозитории такого барреля нет,
+ * и случай пришлось бы выдумывать заново при каждой правке скрипта.
+ *
+ * @returns {string[]} описания расхождений, пустой массив — случай пройден
+ */
+function starCaseFailures() {
+  const dir = mkdtempSync(join(tmpdir(), 'package-exports-'));
+  try {
+    mkdirSync(join(dir, 'src'));
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'star-fixture', exports: { '.': './dist/index.js' } }),
+    );
+    writeFileSync(
+      join(dir, 'src', 'index.ts'),
+      "export * from './inner.js';\nexport { named } from './inner.js';\n",
+    );
+    writeFileSync(join(dir, 'src', 'inner.ts'), "export * from './deep.js';\nexport const named = 1;\n");
+    writeFileSync(join(dir, 'src', 'deep.ts'), 'export const deep = 2;\n');
+
+    const [root] = collectPackageExports(dir).subpaths;
+    const failures = [];
+    if (root.stars.join(', ') !== './inner.js') {
+      failures.push(`фикстура: звёздочки барреля ${JSON.stringify(root.stars)} вместо ['./inner.js']`);
+    }
+    for (const expected of ['named', 'deep']) {
+      if (!root.names.has(expected)) failures.push(`фикстура: нет имени ${expected}`);
+    }
+    return failures;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+
+
 const invokedDirectly =
   process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname);
 
@@ -186,6 +238,7 @@ if (invokedDirectly) {
       { dir: 'packages/nestling.transport.nats', subpath: './testing', expect: ['nats', 'natsDouble'] },
     ];
     const failures = [];
+    for (const f of starCaseFailures()) failures.push(f);
     for (const c of cases) {
       const pkg = collectPackageExports(join(root, c.dir));
       const keys = pkg.subpaths.map((s) => s.key);
@@ -223,6 +276,7 @@ if (invokedDirectly) {
     console.log(`\n${s.key} → ${s.barrel ? relative(root, s.barrel) : 'НЕТ БАРЕЛЯ'}`);
     console.log(`  имён ${s.names.size}: ${[...s.names].sort().join(', ')}`);
     if (s.reexports.size) console.log(`  реэкспорт: ${[...s.reexports].join(', ')}`);
+    if (s.stars.length) console.log(`  export *: ${s.stars.join(', ')}`);
     if (s.missing.length) console.log(`  не разрешены: ${s.missing.join(', ')}`);
   }
 }
