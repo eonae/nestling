@@ -21,7 +21,10 @@
  *   STATE   <ветка> …   снимок при старте, по строке на worktree
  *   READY   <ветка> …   ветка стала готовой к слиянию
  *   MERGED  <ветка>     коммиты ветки оказались в main
- *   UNLOCKED <ветка> …  с влитого worktree снят лок: сессия закрылась, можно убирать
+ *   FREE    <ветка> …   сессия влитого worktree закрылась (процесса с сокетом
+ *                       больше нет): worktree можно убирать
+ *   UNLOCKED <ветка> …  с влитого worktree снят лок; запасной признак, bridge
+ *                       лок обычно не снимает
  *   NEW     <ветка> …   появился worktree
  *   GONE    <ветка>     worktree исчез
  *   CHANGED <ветка> …   другой переход: ready → working, переименование ветки,
@@ -33,6 +36,8 @@
  *
  * Поле session — подсказка для ListAgents: имя сессии worktree начинается
  * с имени его папки строчными буквами, где «_» заменён на «-».
+ * Поле alive — есть ли в worktree живая сессия: процесс с cwd в нём и
+ * сокетом /tmp/cc-socks/<pid>.sock (через lsof).
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -70,6 +75,40 @@ function gitLines(argv, cwd) {
   }
 }
 
+// Живая сессия Claude Code: процесс с cwd в worktree, у которого есть сокет
+// /tmp/cc-socks/<pid>.sock — по нему сессия принимает сообщения. Возвращает
+// карту cwd → pid[] только для таких процессов.
+function liveSessions() {
+  let out = '';
+  try {
+    out = execFileSync('lsof', ['-a', '-d', 'cwd', '-Fpn'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch (err) {
+    out = typeof err.stdout === 'string' ? err.stdout : '';
+  }
+  const byCwd = new Map();
+  let pid = null;
+  for (const line of out.split('\n')) {
+    if (line.startsWith('p')) pid = line.slice(1);
+    else if (line.startsWith('n') && pid && fs.existsSync(`/tmp/cc-socks/${pid}.sock`)) {
+      const cwd = line.slice(1);
+      if (!byCwd.has(cwd)) byCwd.set(cwd, []);
+      byCwd.get(cwd).push(pid);
+    }
+  }
+  return byCwd;
+}
+
+function sessionsIn(byCwd, path) {
+  const pids = [];
+  for (const [cwd, list] of byCwd) {
+    if (cwd === path || cwd.startsWith(path + '/')) pids.push(...list);
+  }
+  return pids;
+}
+
 function listWorktrees(root) {
   const entries = [];
   let current = null;
@@ -93,8 +132,10 @@ function scan(root) {
     gitLines(['ls-tree', '--name-only', 'main:openspec/changes/archive'], root),
   );
   const result = [];
+  const sessions = liveSessions();
   for (const wt of listWorktrees(root)) {
     if (wt.branch === 'main') continue;
+    const alive = sessionsIn(sessions, wt.path).length > 0;
     if (!wt.branch) {
       // Без ветки: идёт rebase (HEAD отсоединён на время переигрывания) или detached HEAD.
       let rebasing = false;
@@ -108,6 +149,7 @@ function scan(root) {
         branch: '(detached)',
         path: wt.path,
         locked: wt.locked,
+        alive,
         state: rebasing ? 'rebasing' : 'detached',
         ahead: 0,
         behind: 0,
@@ -151,6 +193,7 @@ function scan(root) {
       branch: b,
       path: wt.path,
       locked: wt.locked,
+      alive,
       state,
       ahead,
       behind,
@@ -178,6 +221,7 @@ function describe(e) {
     `dirty=${e.dirty}`,
     `ff=${yesNo(e.ffable)}`,
     `locked=${yesNo(e.locked)}`,
+    `alive=${yesNo(e.alive)}`,
     `archive=${e.newArchives.join(',') || '-'}`,
     `archlog=${yesNo(e.archlog)}`,
     `active=${e.active.join(',') || '-'}`,
@@ -188,7 +232,7 @@ function describe(e) {
 
 function printTable(entries) {
   const rows = [
-    ['state', 'branch', 'ahead/behind', 'dirty', 'ff', 'locked', 'archive', 'archlog', 'session'],
+    ['state', 'branch', 'ahead/behind', 'dirty', 'ff', 'locked', 'alive', 'archive', 'archlog', 'session'],
     ...entries.map((e) => [
       e.state,
       e.branch,
@@ -196,6 +240,7 @@ function printTable(entries) {
       String(e.dirty),
       yesNo(e.ffable),
       yesNo(e.locked),
+      yesNo(e.alive),
       e.newArchives.join(',') || '-',
       yesNo(e.archlog),
       e.session,
@@ -231,6 +276,7 @@ for (;;) {
       const prev = previous.get(path);
       if (first) console.log(`STATE ${describe(e)}`);
       else if (!prev) console.log(`NEW ${describe(e)}`);
+      else if (e.state === 'merged' && prev.alive && !e.alive) console.log(`FREE ${describe(e)}`);
       else if (e.state === 'merged' && prev.locked && !e.locked) console.log(`UNLOCKED ${describe(e)}`);
       else if (stateKey(prev) !== stateKey(e)) {
         if (e.state === 'ready') console.log(`READY ${describe(e)}`);
