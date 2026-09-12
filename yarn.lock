@@ -2350,6 +2350,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@nestlingjs/eslint-plugin@workspace:packages/nestling.eslint-plugin"
   dependencies:
+    "@typescript-eslint/utils": "npm:8.44.1"
     eslint: "npm:^9.2.5"
     typescript: "npm:5.7.3"
     typescript-eslint: "npm:^8.5.0"
