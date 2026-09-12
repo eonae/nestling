@@ -170,8 +170,7 @@ export class GetUserHandler {
  * The address, the schemas and `errors:` belong to the operation, which the
  * client imports too. Only execution is declared here.
  */
-export const GetUser = httpEndpoint({
-  operation: GetUserOperation,
+export const GetUser = httpEndpoint.implement(GetUserOperation, {
   pipeline: observability,
   handler: GetUserHandler,
 });

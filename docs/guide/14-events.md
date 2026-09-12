@@ -104,8 +104,7 @@ class CreateUserHandler {
   }
 }
 
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: authed,
   handler: CreateUserHandler,
 });

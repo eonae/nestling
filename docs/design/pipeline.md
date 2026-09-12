@@ -160,7 +160,7 @@ export const authed = compose(
   своего `errors:` и отказов пайплайна. Оно входит в тип хендлера, в
   `EndpointMeta` для проверки на границе и в документ OpenAPI. Хендлер
   может вернуть отказ, объявленный слоем.
-- В форме с операцией (`httpEndpoint({ operation, pipeline })`,
+- В реализации операции (`httpEndpoint.implement(Operation, { pipeline })`,
   `implement(Operation, { pipeline })`) отказы пайплайна обязаны входить в
   `errors:` операции: операция описывает всё, что получит клиент.
   Нарушение — ошибка компиляции в точке декларации в формате §4 с
