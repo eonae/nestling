@@ -1,13 +1,12 @@
 /**
  * Потоковый вход и выход CLI и отказ регистрации несовместимых форм.
  *
- * stdin/stdout подменяются на время теста: транспорт читает и пишет
- * реальные каналы процесса, а проверять надо именно его поведение, а не
- * обёртку вокруг него.
+ * Потоки подставляются опциями транспорта: каналы процесса трогать не
+ * нужно, а проверяется именно поведение транспорта, а не обёртка вокруг
+ * него.
  */
 
-import { Readable } from 'node:stream';
-
+import { sink, source } from './__fixtures__/streams.js';
 import { cliEndpoint, CliTransport } from './index.js';
 
 import { describe, expect, it } from '@jest/globals';
@@ -31,43 +30,6 @@ import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
 type Row = z.infer<typeof Row>;
-
-/** Подменяет `process.stdin` готовым потоком; возвращает откат */
-function withStdin(content: string): () => void {
-  const original = Object.getOwnPropertyDescriptor(process, 'stdin');
-  const readable = Readable.from([Buffer.from(content)]);
-
-  Object.defineProperty(process, 'stdin', {
-    value: readable,
-    configurable: true,
-  });
-
-  return () => {
-    if (original) {
-      Object.defineProperty(process, 'stdin', original);
-    }
-  };
-}
-
-/** Перехватывает `process.stdout.write`; возвращает буфер и откат */
-function captureStdout(): { written: string[]; restore: () => void } {
-  const written: string[] = [];
-  const original = process.stdout.write.bind(process.stdout);
-
-  process.stdout.write = ((chunk: string | Uint8Array): boolean => {
-    written.push(
-      typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString(),
-    );
-    return true;
-  }) as typeof process.stdout.write;
-
-  return {
-    written,
-    restore: () => {
-      process.stdout.write = original;
-    },
-  };
-}
 
 /**
  * Пайплайн-наблюдатель исхода — значение, а не инлайн в декларации:
@@ -126,7 +88,6 @@ interface LogEntry {
 
 describe('потоковый вход через stdin', () => {
   it('NDJSON-строки передаются в хендлер валидированными, счётчики растут', async () => {
-    const restore = withStdin('{"id":"1"}\n{"id":"2"}\n');
     const summaries: { itemsIn: number }[] = [];
 
     const Import = cliEndpoint({
@@ -145,7 +106,10 @@ describe('потоковый вход через stdin', () => {
       },
     });
 
-    const cli = new CliTransport({ argv: [] });
+    const cli = new CliTransport({
+      argv: [],
+      input: source('{"id":"1"}\n', '{"id":"2"}\n'),
+    });
     await cli.serve(makeDispatch([Import]), new AbortController().signal);
 
     try {
@@ -161,14 +125,11 @@ describe('потоковый вход через stdin', () => {
       });
       expect(summaries).toEqual([{ itemsIn: 2 }]);
     } finally {
-      restore();
       await cli.close();
     }
   });
 
   it('невалидный элемент отказывает kernel-кодом валидации', async () => {
-    const restore = withStdin('{"id":"1"}\n{"id":42}\n');
-
     const Import = cliEndpoint({
       command: 'import',
       input: stream(Row),
@@ -183,7 +144,10 @@ describe('потоковый вход через stdin', () => {
       },
     });
 
-    const cli = new CliTransport({ argv: [] });
+    const cli = new CliTransport({
+      argv: [],
+      input: source('{"id":"1"}\n', '{"id":42}\n'),
+    });
     // Умолчание ядра пишет в stderr и шумит в выводе тестов
     await cli.serve(
       makeDispatch([Import], { logger: spyLogger().logger }),
@@ -203,13 +167,11 @@ describe('потоковый вход через stdin', () => {
         value: { code: 'bad_request' },
       });
     } finally {
-      restore();
       await cli.close();
     }
   });
 
   it("stream('binary') остаётся рабочей формой: чанки как есть", async () => {
-    const restore = withStdin('raw bytes');
     let bytes = 0;
 
     const Count = cliEndpoint({
@@ -225,7 +187,7 @@ describe('потоковый вход через stdin', () => {
       },
     });
 
-    const cli = new CliTransport({ argv: [] });
+    const cli = new CliTransport({ argv: [], input: source('raw bytes') });
     await cli.serve(makeDispatch([Count]), new AbortController().signal);
 
     try {
@@ -237,7 +199,6 @@ describe('потоковый вход через stdin', () => {
 
       expect(response).toMatchObject({ isSuccess: true, value: { bytes: 9 } });
     } finally {
-      restore();
       await cli.close();
     }
   });
@@ -246,7 +207,7 @@ describe('потоковый вход через stdin', () => {
 describe('потоковый выход в stdout', () => {
   it('элементы уходят NDJSON, а .finally срабатывает после последнего', async () => {
     const outcomes: Outcome[] = [];
-    const stdout = captureStdout();
+    const output = sink();
 
     const Export = cliEndpoint({
       command: 'export',
@@ -261,7 +222,7 @@ describe('потоковый выход в stdout', () => {
         ),
     });
 
-    const cli = new CliTransport({ argv: [] });
+    const cli = new CliTransport({ argv: [], output });
     await cli.serve(makeDispatch([Export]), new AbortController().signal);
 
     try {
@@ -271,19 +232,18 @@ describe('потоковый выход в stdout', () => {
         options: {},
       });
 
-      // Поток уже отдан в stdout — печатать его ещё раз REPL'у нечего
+      // Поток уже отдан в вывод — печатать его ещё раз REPL'у нечего
       expect(response).toMatchObject({ isSuccess: true, value: null });
-      expect(stdout.written.join('')).toBe('{"id":"1"}\n{"id":"2"}\n');
+      expect(output.text).toBe('{"id":"1"}\n{"id":"2"}\n');
       expect(outcomes).toEqual(['completed']);
     } finally {
-      stdout.restore();
       await cli.close();
     }
   });
 
   it('остановка с взведённым сигналом закрывает непрочитанный ответ', async () => {
     const outcomes: Outcome[] = [];
-    const stdout = captureStdout();
+    const output = sink();
     let closed = false;
 
     // Источник занимает ресурс до начала итерации, поэтому он
@@ -318,7 +278,7 @@ describe('потоковый выход в stdout', () => {
     const controller = new AbortController();
     controller.abort();
 
-    const cli = new CliTransport({ argv: [] });
+    const cli = new CliTransport({ argv: [], output });
     await cli.serve(makeDispatch([Export]), controller.signal);
 
     try {
@@ -329,11 +289,10 @@ describe('потоковый выход в stdout', () => {
       });
 
       expect(response).toMatchObject({ isSuccess: true, value: null });
-      expect(stdout.written.join('')).toBe('');
+      expect(output.text).toBe('');
       expect(closed).toBe(true);
       expect(outcomes).toEqual(['aborted']);
     } finally {
-      stdout.restore();
       await cli.close();
     }
   });

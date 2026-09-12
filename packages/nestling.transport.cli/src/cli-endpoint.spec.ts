@@ -2,9 +2,10 @@
  * Конструктор CLI-деклараций и обслуживание команды транспортом.
  */
 
+import { sink } from './__fixtures__/streams.js';
 import { cliEndpoint, CliTransport, CliTransport$ } from './index.js';
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import type { Fields, Logger, LogLevel } from '@nestlingjs/app';
 import {
   isEndpointDefinition,
@@ -128,7 +129,7 @@ describe('cliEndpoint', () => {
     await cli.close();
   });
 
-  it('в stdout уходит только значение, без статуса и обёрток', async () => {
+  it('в поток вывода уходит только значение, без статуса и обёрток', async () => {
     const Greet = cliEndpoint({
       command: 'greet',
       output: z.object({ message: z.string() }),
@@ -136,22 +137,14 @@ describe('cliEndpoint', () => {
       handler: async () => new Ok('created', { message: 'hello' }),
     });
 
-    const printed: string[] = [];
-    const log = jest
-      .spyOn(console, 'log')
-      .mockImplementation((line: string) => void printed.push(line));
+    const output = sink();
+    const cli = new CliTransport({ argv: ['greet'], output });
 
-    try {
-      const cli = new CliTransport({ argv: ['greet'] });
-      await cli.serve(makeDispatch([Greet]), new AbortController().signal);
-      await cli.close();
-    } finally {
-      log.mockRestore();
-    }
+    await cli.serve(makeDispatch([Greet]), new AbortController().signal);
+    await cli.close();
 
-    expect(printed).toHaveLength(1);
-    expect(JSON.parse(printed[0])).toEqual({ message: 'hello' });
-    expect(printed[0]).not.toContain('created');
+    expect(JSON.parse(output.text)).toEqual({ message: 'hello' });
+    expect(output.text).not.toContain('created');
   });
 
   it('класс-хендлер обслуживается после получения зависимостей', async () => {
