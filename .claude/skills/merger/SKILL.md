@@ -91,7 +91,10 @@ worktree чистый и есть коммиты, которых нет в `main
    `git reset --hard ORIG_HEAD`, сообщение сессии change'а с тем, что упало,
    и отчёт пользователю.
 5. **Уборка.** Worktree без `locked` и без живой сессии в `ListAgents`:
-   `git worktree remove <path>`, затем `git branch -d change/X`. Worktree с
+   `git worktree remove <path>`, затем `git branch --unset-upstream change/X`
+   и `git branch -d change/X`. Ветка, которую когда-то пушили, помнит
+   `origin/change/X`, и без `--unset-upstream` мягкое удаление отказывает,
+   хотя ветка целиком в `main`. Worktree с
    `locked` или с сессией остаётся, это отмечается в отчёте. Worktree с
    незакоммиченными файлами не удаляется никогда.
 6. **Отчёт пользователю.** Одна строка в чате и `PushNotification` с тем же
@@ -104,6 +107,27 @@ worktree чистый и есть коммиты, которых нет в `main
 
    Число M: `git rev-list --count origin/main..main`. `git fetch` из сессии
    не проходит, поэтому `origin/main` может отставать от настоящего origin.
+
+## Разрешения
+
+Auto-режим без правил останавливает слияние и уборку как вмешательство в
+чужую работу, а править `settings.local.json` сессии запрещено. Правила
+добавляет пользователь. Нужный набор в `.claude/settings.local.json`,
+раздел `permissions.allow`:
+
+```text
+Bash(git merge *)
+Bash(git -C * rebase *)
+Bash(git reset --hard ORIG_HEAD)
+Bash(git worktree remove *)
+Bash(git branch --unset-upstream *)
+Bash(git branch -d *)
+Bash(yarn verify)
+Bash(yarn docs:audit)
+```
+
+Правил нет — Merger делает всё, что может, и отдаёт пользователю команду
+с префиксом `!`.
 
 ## Чего Merger не делает
 
