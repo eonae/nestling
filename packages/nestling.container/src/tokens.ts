@@ -9,9 +9,19 @@
  * Нужен пакету `@nestlingjs/operations`: операция создаёт `.caller` и
  * `.emitter` как членов семейств, а членство регистрируется только в самом
  * семействе. Импорт через основной вход пакета втянул бы весь контейнер
- * в бандл, куда импортируют операцию. Основной вход экспортирует те же
- * символы.
+ * в бандл, куда импортируют операцию. Перечень подпути — подмножество
+ * перечня основного входа.
+ *
+ * Барель перечисляет имена поимённо, а не через `export *`: подпуть — такая
+ * же точка входа, и обещает он наравне с корнем.
  */
 
-export * from './common.js';
-export * from './providers/token-family.js';
+// ./common.js — 3
+export { makeToken, tokenId } from './common.js';
+export type { Token } from './common.js';
+
+// ./providers/token-family.js — 2
+export { makeTokenFamily } from './providers/token-family.js';
+// `TokenFamily` — тип результата `makeTokenFamily`: без него объявление
+// семейства у потребителя не выводится (TS2742).
+export type { TokenFamily } from './providers/token-family.js';

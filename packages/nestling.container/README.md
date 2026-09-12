@@ -55,36 +55,23 @@ await container.destroy();
 ## Экспорты
 
 - **DI-токены и общее** ([design](../../docs/design/container.md)) —
-  `ClassToken`, `Constructor`, `InjectionToken`, `isToken`, `makeToken`,
-  `Token`, `tokenId`, `TokenOptions`, `UnwrapInjectionTokens`.
+  `Constructor`, `InjectionToken`, `isToken`, `makeToken`, `Token`,
+  `tokenId`, `UnwrapInjectionTokens`.
 - **Сборка контейнера** — `BuiltContainer`, `ContainerBuilder`,
   `ContainerBuilderOptions`, `FamilyOverrideEntry`, `HealthResource`,
   `TokenOverride`.
-- **Провайдеры** — `asFamilyMember`, `classProvider`, `ClassProviderDefinition`,
-  `ClassRole`, `Component`, `decoratorOf`, `dependenciesOf`, `factoryProvider`,
-  `FactoryProviderDefinition`, `FactoryProviderWithDeps`, `FamilyAllToken`,
-  `FamilyAutoToken`, `FamilyMemberToken`, `familyOf`, `familyProvider`,
-  `FamilyProviderDefinition`, `getAllSentinelFamily`, `getAutoSentinelFamily`,
-  `Handler`, `HealthStatus`, `isClassDefinition`, `isDefinition`,
-  `isFactoryProvider`, `isFamilyDefinition`, `isResourceDefinition`,
-  `isTokenFamily`, `isValueDefinition`, `makeTokenFamily`, `ModuleProvider`,
-  `Provider`, `ProviderDefinition`, `ProvidersFactory`, `readRoleMeta`,
-  `resolveAutoDependency`, `Resource`, `ResourceClass`, `resourceProvider`,
-  `ResourceProviderDefinition`, `ResourceProviderWithDeps`, `RoleMetadata`,
-  `SyncValue`, `TokenFamily`, `UnwrapTokens`, `valueProvider`,
-  `ValueProviderDefinition`.
-- **Жизненный цикл** — `getLifecycleHooks`, `Hook`, `LifecycleHooks`,
-  `LifecycleMetadata`, `OnStart`, `resolveHook`.
-- **Модули** — `isModule`, `makeModule`, `Module`.
-- **Переключатели** — `AnySwitch`, `BRANCH`, `Branchable`, `branchCandidates`,
-  `BranchMeta`, `isSwitch`, `isSwitchBranch`, `makeSwitch`, `NoExtraValues`,
-  `PickTable`, `resolveBranches`, `Switch`, `SwitchBranch`, `switchesUsed`,
-  `switchOf`, `SwitchOptions`, `SwitchValues`, `TableItems`, `Toggle`,
-  `ToggleSwitch`, `Unbranch`, `unknownValueMessage`.
-- **Граф** — `DIGraph`, `DINode`, `DINodeData`, `DINodeMetadata`, `JsonDIGraph`,
-  `JsonDINode`.
-- **Подпуть `./tokens`** — те же имена группы «DI-токены и общее» плюс
-  семейства, без графа и провайдеров: фронтенду хватает объявления DI-токена.
+- **Провайдеры** — `asFamilyMember`, `classProvider`, `Component`,
+  `dependenciesOf`, `factoryProvider`, `familyProvider`,
+  `getAutoSentinelFamily`, `Handler`, `HealthStatus`, `makeTokenFamily`,
+  `ModuleProvider`, `Provider`, `Resource`, `resourceProvider`,
+  `ResourceProviderDefinition`, `TokenFamily`, `valueProvider`.
+- **Жизненный цикл** — `OnStart`.
+- **Модули** — `makeModule`, `Module`.
+- **Переключатели** — `AnySwitch`, `Branchable`, `branchCandidates`,
+  `makeSwitch`, `resolveBranches`, `switchesUsed`, `SwitchValues`.
+- **Подпуть `./tokens`** — `makeToken`, `makeTokenFamily`, `Token`,
+  `TokenFamily`, `tokenId`: объявление DI-токена и семейства без билдера,
+  графа и провайдеров.
 
 ## Границы пакета
 
