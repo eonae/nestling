@@ -1,23 +1,26 @@
 # @nestlingjs/schema.zod
 
-Конвертер схем zod в JSON Schema: обёртка над штатным `z.toJSONSchema()`.
-JSON Schema читают генератор OpenAPI, структурная проверка контрактов и
-вопросы CLI-транспорта. Конвертер указывается явно даже в приложении целиком
-на zod: реестра «вендор — конвертер» у потребителей нет.
+A converter of zod schemas into JSON Schema: a wrapper around the
+built-in `z.toJSONSchema()`. JSON Schema is read by the OpenAPI
+generator, the structural check of contracts and the questions of the
+CLI transport. The converter is named explicitly even in an
+application written entirely in zod: consumers have no «vendor —
+converter» registry.
 
-> 🚧 Активная разработка, API может меняться.
-> Дизайн: [`docs/design/schemas.md`](../../docs/design/schemas.md) §2.
-> Гайд: [глава 13. Отдать фронтенду документацию и клиент](../../docs/guide/13-openapi-and-client.md).
+> 🚧 Active development, the API may change.
+> Design: [`docs/en/design/schemas.md`](../../docs/en/design/schemas.md) §2.
+> Guide: [chapter 13. Give the frontend the documentation and the client](../../docs/en/guide/13-openapi-and-client.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/schema.zod zod
 ```
 
-`zod` — peer-зависимость: ставится та версия, которой пользуется приложение.
+`zod` is a peer dependency: the version used by the application is
+installed.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { openapi } from '@nestlingjs/openapi';
@@ -29,26 +32,28 @@ openapi({
 });
 ```
 
-Тот же конвертер принимает CLI-транспорт: командам с политикой
-`missing: 'prompt'` он даёт формы полей для вопросов в терминале —
-`cli({ converters: [zodConverter()] })`.
+The CLI transport accepts the same converter: for commands with the
+`missing: 'prompt'` policy it gives the field forms for the questions
+in the terminal — `cli({ converters: [zodConverter()] })`.
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `zodConverter` | возвращает `SchemaDocConverter` с `vendor: 'zod'` |
-| `ZodConverterOptions` | опции `z.toJSONSchema` без `io` |
+| `zodConverter` | returns a `SchemaDocConverter` with `vendor: 'zod'` |
+| `ZodConverterOptions` | the options of `z.toJSONSchema` without `io` |
 
-Схема с преобразованием (`z.string().transform(Number)`, `z.stringbool()`)
-описывает две формы: ту, что приходит в запросе, и ту, что получает хендлер.
-Какую описать, выбирает вызывающий: генератор OpenAPI передаёт `io: 'input'`
-для тела запроса и `io: 'output'` для тела ответа. Схему параметра пути или
-query он берёт из формы `io: 'output'`, когда та скалярная, а форма
-`io: 'input'` строковая. CLI-транспорт берёт форму `io: 'input'`: вход
-команды приходит строками из argv.
+A schema with a transform (`z.string().transform(Number)`,
+`z.stringbool()`) describes two forms: the one that arrives in the
+request, and the one the handler receives. The caller chooses which one
+to describe: the OpenAPI generator passes `io: 'input'` for the request
+body and `io: 'output'` for the response body. It takes the schema of a
+path or query parameter from the `io: 'output'` form when that one is
+scalar, and the `io: 'input'` form is a string. The CLI transport takes
+the `io: 'input'` form: the input of a command arrives as strings from
+argv.
 
-## Границы пакета
+## Package boundaries
 
-Пакет конвертирует только схемы zod. Для другого валидатора нужен свой
-конвертер.
+The package converts only zod schemas. Another validator needs its own
+converter.

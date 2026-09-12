@@ -1,23 +1,24 @@
 # @nestlingjs/transport.cli
 
-CLI-транспорт Nestling: те же endpoint'ы и пайплайны, что в HTTP, но вместо
-маршрутов — команды, а поток ввода служит потоковым входом. Процесс выполняет
-одну команду и завершается либо остаётся в REPL. Недостающий обязательный
-вход команда спрашивает в терминале, если объявила `missing: 'prompt'`.
+The Nestling CLI transport: the same endpoints and pipelines as HTTP,
+but commands replace routes, and the input stream serves as the
+streamed input. The process runs one command and exits, or stays in a
+REPL. A command that declares `missing: 'prompt'` asks in the terminal
+for a missing required input.
 
-> 🚧 Активная разработка, API может меняться. Валидатора среди зависимостей
-> нет: команды проверяются через `@nestlingjs/app` любой схемой
-> [Standard Schema](https://standardschema.dev).
-> Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
-> Гайд: [рецепт «CLI-утилита на тех же примитивах»](../../docs/recipes/cli.md).
+> 🚧 Active development, the API may change. There is no validator
+> among the dependencies: commands are validated through
+> `@nestlingjs/app` by any [Standard Schema](https://standardschema.dev).
+> Design: [`docs/en/design/transports.md`](../../docs/en/design/transports.md).
+> Guide: [recipe "A CLI tool on the same primitives"](../../docs/en/recipes/cli.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/transport.cli
 ```
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { makeApp, Ok } from '@nestlingjs/app';
@@ -31,7 +32,7 @@ export const Deploy = cliEndpoint('deploy', {
     force: z.boolean(),
   }),
   output: z.object({ done: z.boolean() }),
-  // Недостающий флаг спрашивается в терминале; без поля — отказ валидации
+  // a missing flag is asked in the terminal; without it, validation fails
   missing: 'prompt',
   handler: async ({ env, force }) => new Ok({ done: await deploy(env, force) }),
 });
@@ -45,43 +46,45 @@ await makeApp({
   .run();
 ```
 
-Команде с политикой `missing: 'prompt'` нужен конвертер схем в
-`cli({ converters })`: вопрос выводится из JSON Schema формы `input`, а
-Standard Schema интроспекции не даёт. Конвертера нет — `serve` падает с
-именем команды и вендором её схемы. Поток на входе вместе с политикой тоже
-роняет `serve`: вопросы и поток читают один и тот же ввод.
+A command with the `missing: 'prompt'` policy needs a schema converter
+in `cli({ converters })`: the question is derived from the JSON Schema
+of the `input` form, and Standard Schema gives no introspection.
+Without a converter, `serve` fails, naming the command and the vendor
+of its schema. An input stream together with the policy also fails
+`serve`: the questions and the stream read the same input.
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `cli` | провайдер транспорта для `transports:`; принимает опции |
-| `cliEndpoint` | декларация endpoint'а: имя команды первым аргументом вместо маршрута |
-| `cliBindingOf` | читает политику `missing` с декларации или проекции маршрута |
-| `CliTransport` | реализация `ITransport`: разбор argv, запуск, REPL, вопросы |
-| `CliTransport$` | DI-токен транспорта |
-| `CLI_TRANSPORT_NAME` | короткое имя транспорта (`'cli'`) |
-| `CliTransportOptions` | режим, аргументы, потоки, конвертеры, вопросы |
-| `CliEndpointDictionary` | словарь CLI-декларации для `cliEndpoint` |
-| `CliBinding` | политика биндинга в поле `binding` декларации |
-| `CliMissingPolicy` | `'error'` или `'prompt'` |
-| `CliInput` | разобранный вход команды: позиционные аргументы и флаги |
-| `CliInputStream` | поток ввода транспорта |
-| `CLI_CAPABILITIES` | что транспорт умеет: потоковый вход и NDJSON на выходе |
-| `parseArgv` | разбирает argv в `CliInput` без запуска приложения |
-| `buildPromptPlan` | строит план вопросов команды из её схемы |
-| `PromptPlan` | план вопросов команды |
-| `PromptQuestion` | вопрос по одному полю входа |
-| `PromptKind` | форма вопроса: список, подтверждение, строка |
+| `cli` | the transport provider for `transports:`; takes options |
+| `cliEndpoint` | an endpoint declaration: the command name as the first argument instead of a route |
+| `cliBindingOf` | reads the `missing` policy from the declaration or the route projection |
+| `CliTransport` | the `ITransport` implementation: argv parsing, run, REPL, questions |
+| `CliTransport$` | the DI token of the transport |
+| `CLI_TRANSPORT_NAME` | the short name of the transport (`'cli'`) |
+| `CliTransportOptions` | the mode, the arguments, the streams, the converters, the questions |
+| `CliEndpointDictionary` | the dictionary of the CLI declaration for `cliEndpoint` |
+| `CliBinding` | the binding policy in the `binding` field of the declaration |
+| `CliMissingPolicy` | `'error'` or `'prompt'` |
+| `CliInput` | the parsed input of the command: positional arguments and flags |
+| `CliInputStream` | the input stream of the transport |
+| `CLI_CAPABILITIES` | what the transport supports: a streamed input and NDJSON on output |
+| `parseArgv` | parses argv into `CliInput` without running the application |
+| `buildPromptPlan` | builds the question plan of a command from its schema |
+| `PromptPlan` | the question plan of a command |
+| `PromptQuestion` | a question about one input field |
+| `PromptKind` | the shape of a question: a list, a confirmation, a string |
 
-`CliTransportOptions` принимает `mode` и `argv` (режим запуска), `input`,
-`output` и `errorOutput` (умолчания — каналы процесса), `converters` и
-`interactive`. Потоки подставляются значением, поэтому вопросы и печать
-результата проверяются тестом без терминала.
+`CliTransportOptions` takes `mode` and `argv` (the run mode), `input`,
+`output` and `errorOutput` (the defaults are the process channels),
+`converters` and `interactive`. The streams are substituted by value, so
+a test checks the questions and the result output without a terminal.
 
-## Границы пакета
+## Package boundaries
 
-Транспорт не разбирает подкоманды, не печатает справку и не рисует прогресс.
-Формат вывода — JSON и NDJSON. Вопросы собирают только скалярные поля
-верхнего уровня: массив и вложенный объект остаются за флагами. Скрытого
-ввода нет — пароль в терминале печатается как есть.
+The transport does not parse subcommands, does not print help and does
+not draw progress. The output format is JSON and NDJSON. The questions
+collect only the top-level scalar fields: an array and a nested object
+stay with the flags. There is no hidden input: a password is printed in
+the terminal as is.

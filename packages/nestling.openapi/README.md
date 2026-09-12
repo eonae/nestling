@@ -1,22 +1,23 @@
 # @nestlingjs/openapi
 
-Документ OpenAPI 3.1, собранный из тех же деклараций endpoint'ов, которые
-обслуживают запросы. Второго описания API рядом с кодом не нужно.
+An OpenAPI 3.1 document assembled from the same endpoint declarations
+that serve the requests. A second description of the API next to the
+code is not needed.
 
-> 🚧 Активная разработка, API может меняться.
-> Дизайн: [`docs/design/schemas.md`](../../docs/design/schemas.md) §2.1.
-> Гайд: [глава 13. Отдать фронтенду документацию и клиент](../../docs/guide/13-openapi-and-client.md).
+> 🚧 Active development, the API may change.
+> Design: [`docs/en/design/schemas.md`](../../docs/en/design/schemas.md) §2.1.
+> Guide: [chapter 13. Give the frontend the documentation and the client](../../docs/en/guide/13-openapi-and-client.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/openapi @nestlingjs/schema.zod
 ```
 
-`@nestlingjs/schema.zod` нужен, если схемы написаны на zod. Для другого
-валидатора подключается его конвертер.
+`@nestlingjs/schema.zod` is needed if the schemas are written in zod.
+For another validator, its converter is connected.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { openapi } from '@nestlingjs/openapi';
@@ -28,7 +29,7 @@ makeApp({
     openapi({
       info: { title: 'Users API', version: '1.0.0' },
       converters: [zodConverter()],
-      pipeline: observability, // если политика корня требует слой
+      pipeline: observability, // if the root policy requires the layer
     }),
   ],
   transports: [http()],
@@ -36,29 +37,29 @@ makeApp({
 // GET /openapi.json
 ```
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `openapi` | плагин: строит документ на фазе ASSEMBLE и отдаёт его endpoint'ом |
-| `buildOpenApiDocument` | чистая функция: документ из `app.discover(args).endpoints` |
-| `OpenApiDocument$` | DI-токен готового документа |
-| `hiddenEndpoints` | endpoint'ы, скрытые полем `doc.hidden` |
+| `openapi` | a plugin: builds the document on the ASSEMBLE phase and serves it as an endpoint |
+| `buildOpenApiDocument` | a pure function: the document from `app.discover(args).endpoints` |
+| `OpenApiDocument$` | the DI token of the ready document |
+| `hiddenEndpoints` | the endpoints hidden by the `doc.hidden` field |
 | `OpenApiOptions` | `info`, `converters`, `servers`, `security`, `externalDocs` |
-| `OpenApiServeOptions` | опции плагина: `path`, `pipeline`, `detached`, `announceHidden` |
-| `OpenApiDocument` | документ целиком |
-| `OpenApiInfo` | секция `info` |
-| `OpenApiPathItem` | один путь документа |
-| `OpenApiOperation` | одна операция пути |
-| `OpenApiParameter` | параметр пути или query |
-| `OpenApiRequestBody` | тело запроса |
-| `OpenApiResponse` | один ответ операции |
-| `OpenApiContent` | карта «media type — схема» |
-| `DocumentedEndpoint` | вход генератора: декларация endpoint'а с секцией `doc:` |
-| `JsonValue` | значение JSON в документе |
-| Реэкспорт [`@nestlingjs/app`](../nestling.app/) | `SchemaDocConverter` — интерфейс конвертера схем |
+| `OpenApiServeOptions` | the plugin options: `path`, `pipeline`, `detached`, `announceHidden` |
+| `OpenApiDocument` | the whole document |
+| `OpenApiInfo` | the `info` section |
+| `OpenApiPathItem` | one path of the document |
+| `OpenApiOperation` | one operation of a path |
+| `OpenApiParameter` | a path or query parameter |
+| `OpenApiRequestBody` | the request body |
+| `OpenApiResponse` | one response of an operation |
+| `OpenApiContent` | the «media type — schema» map |
+| `DocumentedEndpoint` | the generator's input: an endpoint declaration with a `doc:` section |
+| `JsonValue` | a JSON value in the document |
+| Re-export of [`@nestlingjs/app`](../nestling.app/) | `SchemaDocConverter` — the schema converter interface |
 
-## Границы пакета
+## Package boundaries
 
-Пакет не поставляет Swagger UI, не выводит `servers` из конфигурации и не
-генерирует AsyncAPI.
+The package does not ship Swagger UI, does not derive `servers` from
+the configuration, and does not generate AsyncAPI.

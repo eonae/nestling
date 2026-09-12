@@ -43,13 +43,13 @@
 
 ## 6. Перевод: design
 
-- [ ] 6.1 Пачка 1: `principles.md`, `container.md`, `composition.md`, `pipeline.md`, `operations.md`, `endpoints.md`, `errors.md`
+- [x] 6.1 Пачка 1: `principles.md`, `container.md`, `composition.md`, `pipeline.md`, `operations.md`, `endpoints.md`, `errors.md`
 - [ ] 6.2 Пачка 2: `config.md`, `schemas.md`, `persistence.md`, `streaming.md`, `transports.md`, `testing.md`
-- [ ] 6.3 Бейдж «целевое состояние V1» английского раздела приходит из `sections.mjs`; линтер и `docs:audit` по папке
+- [x] 6.3 Бейдж «целевое состояние V1» английского раздела приходит из `sections.mjs`; линтер и `docs:audit` по папке
 
 ## 7. README пакетов парами
 
-- [ ] 7.1 Пачка 1 — `nestling.app`, `nestling.container`, `nestling.operations`, `nestling.client`, `nestling.models`, `nestling.testing`, `nestling.viz`: русский текст переезжает в `README.ru.md`, английский встаёт в `README.md`
+- [x] 7.1 Пачка 1 — `nestling.app`, `nestling.container`, `nestling.operations`, `nestling.client`, `nestling.models`, `nestling.testing`, `nestling.viz`: русский текст переезжает в `README.ru.md`, английский встаёт в `README.md`
 - [ ] 7.2 Пачка 2 — `nestling.transport.http`, `nestling.transport.cli`, `nestling.transport.nats`, `nestling.openapi`, `nestling.schema.zod`, `nestling.subscriptions`, `nestling.eslint-plugin`
 - [ ] 7.3 Пачка 3 — `nestling.outbox`, `nestling.inbox`, `nestling.drizzle.pg`, `nestling.agent-skill`, `common.graphs`, `common.misc`, `common.static-server`
 - [ ] 7.4 Плашки ведут в `docs/en/`, перечни экспортов совпадают у пар, потолок 120 строк держат оба файла
