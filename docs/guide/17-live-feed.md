@@ -1,6 +1,6 @@
 # 17. Живая лента для клиента
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
 > Целевое описание: [design/streaming.md](../design/streaming.md), разделы
 > «`stream(T)` и `events(T)`» и «Источники событий». Почему так: запись
 > [ideas.md](../decisions/ideas.md) «[2026-07-06] Стриминг: `stream(T)` ≠
@@ -126,9 +126,7 @@ class ActivityStreamHandler {
   }
 }
 
-export const ActivityStream = httpEndpoint({
-  method: 'GET',
-  path: '/users/activity',
+export const ActivityStream = httpEndpoint.get('/users/activity', {
   output: events(ActivityEvent),
   sse: {
     id: (event) => event.id,

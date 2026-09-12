@@ -173,7 +173,7 @@ bind-карта живут в `@nestlingjs/operations`. У пакета нет r
 
 `implement(Operation, { pipeline?, handler, subscriber?, detached? })`
 ([endpoints.md](./endpoints.md)) создаёт декларацию endpoint'а поверх того
-же примитива ядра, что `httpEndpoint` и `cliEndpoint`. Реализация кладётся
+же примитива ядра, что `httpEndpoint.<method>` и `cliEndpoint`. Реализация кладётся
 в `endpoints:` модуля и получает всё, что есть у любого endpoint'а:
 discovery, `dispatch`, пайплайн, проверку отказов на выходе, `policies` и
 `detached`, отчёт `check()` и вызов по значению в тестах. `input`, `output`
@@ -182,9 +182,9 @@ discovery, `dispatch`, пайплайн, проверку отказов на в
 
 Операция с секцией `http:` реализуется вторым конструктором транспорта:
 `httpEndpoint.implement(Operation, { pipeline?, handler, detached?, on? })`.
-Операция идёт первым аргументом, как у `implement`. Полей `method`, `path`,
-`bind`, `rawBody`, `sse`, `input`, `output`, `errors` и `doc` в словаре
-реализации нет вовсе: адрес и схемы берутся с операции, bind-карта — тем же
+Операция идёт первым аргументом — там же, где у конструктора по методу
+стоит путь. Полей `bind`, `rawBody`, `sse`, `input`, `output`, `errors` и
+`doc` в словаре реализации нет вовсе: адрес и схемы берутся с операции, bind-карта — тем же
 значением, без повторного вычисления. Операцию без `http:` конструктор
 отвергает при создании декларации; текст ошибки предлагает объявить секцию
 или реализовать операцию на интеркоме через `implement`.

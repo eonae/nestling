@@ -49,9 +49,7 @@ arktype. В примерах используется zod.
 
 ```typescript
 // шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/create-user.endpoint.ts
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+export const CreateUser = httpEndpoint.post('/users', {
   input: CreateUserInput,
   output: User,
   handler: async (input) => ({ id: '1', ...input }),
@@ -78,9 +76,7 @@ curl -X POST localhost:3000/users \
 
 ```typescript
 // шаг главы 3; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
-export const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+export const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
   handler: async ({ id }) => ({ id, name: 'Alice', email: 'alice@example.com' }),
@@ -97,9 +93,7 @@ const ListUsersInput = z.object({
   limit: z.coerce.number().int().positive().optional(),
 });
 
-export const ListUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users',
+export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
   handler: async (input) => [alice, bob].slice(0, input.limit ?? 20),
@@ -135,9 +129,7 @@ query-строки. Query несёт строки, число из строки 
 
 ```typescript
 // шаг главы 3; итоговая версия: examples/users-service/src/api/operations.ts
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+export const CreateUser = httpEndpoint.post('/users', {
   bind: { dryRun: query(), name: body() },
   input: CreateUserInput,
   output: User,
@@ -166,7 +158,7 @@ path-параметре и `bind` при неструктурном входе (
 
 В итоговом примере хендлеры этих трёх endpoint'ов — классы, которые
 получают зависимости из контейнера. `GetUser` и `CreateUser` объявлены не
-через `method` и `path`, а через операцию: адрес, схемы и пометки `bind`
+конструктором по методу, а через операцию: адрес, схемы и пометки `bind`
 вынесены в `api/operations.ts`.
 
 Тест вызывает `GetUser` и `ListUsers` через полный пайплайн без открытия

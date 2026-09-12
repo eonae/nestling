@@ -24,8 +24,7 @@ const GreetOutput = z.object({
   greeting: z.string(),
 });
 
-export const Greet = cliEndpoint({
-  command: 'greet',
+export const Greet = cliEndpoint('greet', {
   input: GreetInput,
   output: GreetOutput,
   handler: async ({ args, shout }) => {
@@ -67,8 +66,7 @@ yarn workspace @examples/simple-cli start:dev greet Alice --shout
 
 ```typescript
 // examples/simple-cli/src/commands/help.command.ts (фрагмент)
-export const Help = cliEndpoint({
-  command: 'help',
+export const Help = cliEndpoint('help', {
   output: HelpOutput,
   handler: async () => {
     console.log('Available commands:');
@@ -92,8 +90,7 @@ const DeployInput = z.object({
   host: z.string().describe('Deployment host').meta({ default: 'localhost' }),
 });
 
-export const Deploy = cliEndpoint({
-  command: 'deploy',
+export const Deploy = cliEndpoint('deploy', {
   input: DeployInput,
   output: DeployOutput,
   missing: 'prompt',
@@ -163,8 +160,7 @@ host (localhost):
 
 ```typescript
 // examples/simple-cli/src/commands/process-stdin.command.ts (фрагмент)
-export const ProcessStdin = cliEndpoint({
-  command: 'process-stdin',
+export const ProcessStdin = cliEndpoint('process-stdin', {
   input: stream('binary'),
   output: ProcessStdinOutput,
   errors: [EmptyStdin],

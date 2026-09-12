@@ -57,9 +57,7 @@ export class GetUserHandler {
   }
 }
 
-export const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+export const GetUser = httpEndpoint.get('/users/:id', {
   input: GetUserInput,
   output: User,
   errors: [UserNotFound],

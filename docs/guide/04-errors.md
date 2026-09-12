@@ -65,9 +65,7 @@ export const EmailTaken = makeFail('conflict:email_taken', {
 
 ```typescript
 // шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/get-user.endpoint.ts
-export const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+export const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
   errors: [UserNotFound],
@@ -159,9 +157,7 @@ async function handle(
 
 ```typescript
 // шаг главы 4; итоговая версия: examples/users-service/src/users/endpoints/delete-user.endpoint.ts
-export const DeleteUser = httpEndpoint({
-  method: 'DELETE',
-  path: '/users/:id',
+export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
   handler: async ({ id }) =>

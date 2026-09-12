@@ -52,9 +52,7 @@ import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 // Endpoint — значение: адрес, схемы и хендлер в одном объекте
-const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }), // `id` берётся из пути
   output: z.object({ id: z.string(), name: z.string() }),
   handler: async ({ id }) => ({ id, name: 'Alice' }),

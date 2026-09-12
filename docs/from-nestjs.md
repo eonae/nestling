@@ -17,7 +17,7 @@ NestJS я делал вот так». В колонке «Чем отличае�
 | `exports` модуля | нет | видимость держат ES-модули: DI-токен, который не экспортирован из файла, нельзя инжектировать | [6](./guide/06-repository.md) |
 | `@Global()` | `makePlugin` и поле `plugins:` корня | плагин есть в каждом процессе, и к нему обращаются DI-токеном | [14](./guide/14-features.md) |
 | `DynamicModule`, `forRoot(options)` | функция, которая возвращает модуль или плагин | значение создаётся один раз и передаётся в корень | [14](./guide/14-features.md) |
-| `@Controller()` с `@Get()`, `@Post()` | `httpEndpoint({ method, path, input, output, handler })` | endpoint это значение с адресом, схемами и хендлером; хендлер — функция или класс с методом `handle` | [1](./guide/01-first-service.md), [5](./guide/05-handler-class.md) |
+| `@Controller()` с `@Get()`, `@Post()` | `httpEndpoint.get(path, { input, output, handler })` | endpoint это значение с адресом, схемами и хендлером; HTTP-метод называет имя конструктора, путь идёт первым аргументом; хендлер — функция или класс с методом `handle` | [1](./guide/01-first-service.md), [5](./guide/05-handler-class.md) |
 
 ## Зависимости
 

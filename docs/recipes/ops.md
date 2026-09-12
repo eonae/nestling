@@ -1,6 +1,6 @@
 # Кто сейчас подключён и как его отключить
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
 > Целевое описание: [design/streaming.md](../design/streaming.md), раздел
 > «4.1 Реестр подписок», и [design/composition.md](../design/composition.md)
 > §6 «Узлы ядра: пробы и логгер». Почему так: записи
@@ -77,9 +77,7 @@ class ActivityStreamHandler {
   }
 }
 
-export const ActivityStream = httpEndpoint({
-  method: 'GET',
-  path: '/users/activity',
+export const ActivityStream = httpEndpoint.get('/users/activity', {
   output: events(ActivityEvent),
   sse: {
     id: (event) => event.id,
@@ -128,9 +126,7 @@ class ListSubscriptionsHandler {
   }
 }
 
-export const ListSubscriptions = httpEndpoint({
-  method: 'GET',
-  path: '/ops/subscriptions',
+export const ListSubscriptions = httpEndpoint.get('/ops/subscriptions', {
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
   pipeline: observability,
@@ -157,9 +153,7 @@ class KillSubscriptionHandler {
   }
 }
 
-export const KillSubscription = httpEndpoint({
-  method: 'DELETE',
-  path: '/ops/subscriptions/:id',
+export const KillSubscription = httpEndpoint.delete('/ops/subscriptions/:id', {
   input: z.object({ id: z.string() }),
   errors: [SubscriptionNotFound],
   doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
@@ -197,9 +191,7 @@ class WatchSubscriptionsHandler {
   }
 }
 
-export const WatchSubscriptions = httpEndpoint({
-  method: 'GET',
-  path: '/ops/subscriptions/live',
+export const WatchSubscriptions = httpEndpoint.get('/ops/subscriptions/live', {
   output: events(SubscriptionChange),
   sse: {
     id: (change) => change.subscription.id,

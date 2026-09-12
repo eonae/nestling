@@ -170,9 +170,10 @@
 
 ## Endpoint'ы и декларации
 
-- **Декларация** — значение, описывающее endpoint: `httpEndpoint({ … })`,
-  `cliEndpoint({ … })`, `implement(Operation, { … })`,
-  `httpEndpoint.implement(Operation, { … })`. Не класс и не декоратор.
+- **Декларация** — значение, описывающее endpoint:
+  `httpEndpoint.<method>(path, { … })`, `cliEndpoint(command, { … })`,
+  `implement(Operation, { … })`, `httpEndpoint.implement(Operation, { … })`.
+  Не класс и не декоратор.
 - **Endpoint** — то, что приложение обслуживает по адресу: HTTP-маршрут,
   CLI-команда, реализация операции.
 - **Хендлер** — поле `handler` endpoint'а: функция без зависимостей или
@@ -181,7 +182,8 @@
   `implements Handler<typeof Op>`.
 - **HTTP-хендлер** — хендлер, чей `meta` содержит `http` (заголовки,
   метод, url, адрес клиента), а результат — `HttpOutput` с `HttpResponse`
-  для редиректа, заголовков и cookie. Допустим только в `httpEndpoint`.
+  для редиректа, заголовков и cookie. Допустим только в конструкторах по
+  HTTP-методу.
 - **Стартовый контекст транспорта** — тип контекста, который транспорт
   даёт пайплайну до первого юнита: у HTTP `HttpStartContext`. Юнит,
   типизированный им, допустим только в декларациях этого транспорта.

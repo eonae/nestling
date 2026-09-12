@@ -241,9 +241,7 @@ const appSubscriptions = subscriptions({          // параметризова�
   node: process.env.HOSTNAME,
 });
 
-export const Feed = httpEndpoint({
-  method: 'GET',
-  path: '/api/feed',
+export const Feed = httpEndpoint.get('/api/feed', {
   output: events(Event),
   pipeline: compose(base, tracked),               // слой ставится композицией
   handler: {
@@ -330,9 +328,7 @@ const WindowAggregate = z.object({
   count: z.number(), avg: z.number(), max: z.number(), windowEnd: z.iso.datetime(),
 });
 
-export const AggregateMetrics = httpEndpoint({
-  method: 'POST',
-  path: '/metrics/aggregate',
+export const AggregateMetrics = httpEndpoint.post('/metrics/aggregate', {
   input: guardedStream(MetricPoint),   // item-цепочка: лимиты/таймауты — без Rx
   output: stream(WindowAggregate),
   pipeline: base,
@@ -367,9 +363,7 @@ export class ActivityFeedHandler {
   }
 }
 
-export const ActivityFeed = httpEndpoint({
-  method: 'GET',
-  path: '/activity/live',
+export const ActivityFeed = httpEndpoint.get('/activity/live', {
   output: events(ActivityEvent).tap(e => console.debug('out:', e.kind)),
   pipeline: base,
   handler: ActivityFeedHandler,      // класс-хендлер: endpoint создаёт экземпляр сам

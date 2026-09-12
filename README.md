@@ -66,9 +66,7 @@ import { http, httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
 // An endpoint is a value: address, schemas and handler in one object
-const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }), // `id` comes from the path
   output: z.object({ id: z.string(), name: z.string() }),
   handler: async ({ id }) => ({ id, name: 'Alice' }),

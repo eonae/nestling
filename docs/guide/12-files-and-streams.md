@@ -56,9 +56,7 @@ export class UploadAvatarHandler {
   }
 }
 
-export const UploadAvatar = httpEndpoint({
-  method: 'POST',
-  path: '/users/:id/avatar',
+export const UploadAvatar = httpEndpoint.post('/users/:id/avatar', {
   input: multipart({
     fields: AvatarFields,
     files: {
@@ -142,9 +140,7 @@ export class ExportUsersHandler {
   }
 }
 
-export const ExportUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users/export',
+export const ExportUsers = httpEndpoint.get('/users/export', {
   output: stream(User).limit(MAX_ROWS),
   doc: { summary: 'Выгрузка пользователей в NDJSON', tags: ['users'] },
   pipeline: observability,
@@ -221,9 +217,7 @@ export class ImportUsersHandler {
   }
 }
 
-export const ImportUsers = httpEndpoint({
-  method: 'POST',
-  path: '/users/import',
+export const ImportUsers = httpEndpoint.post('/users/import', {
   input: stream(ImportRow).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
   output: ImportResult,
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },
