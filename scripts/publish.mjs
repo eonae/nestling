@@ -18,7 +18,10 @@
  * человек (`yarn lerna version`), тег ставит человек. Скрипт лишь сверяет,
  * что тег и манифесты говорят одно и то же.
  *
- * Прогон: `node scripts/publish.mjs [--interactive]`. Переменные окружения —
+ * Прогон: `node scripts/publish.mjs [--interactive] [--only имя,имя]`.
+ * `--only` сужает список до перечисленных пакетов: так первую версию нового
+ * имени отправляют с машины, не публикуя оттуда же остальные. Имя можно
+ * дать без скоупа (`inbox` = `@nestlingjs/inbox`). Переменные окружения —
  * `GITHUB_REF_NAME` (тег) и `NPM_CONFIG_PROVENANCE`.
  */
 import { execFile, spawn } from 'node:child_process';
@@ -32,7 +35,7 @@ import { publishablePackages, repoRoot, slugOf } from './packages.mjs';
 const run = promisify(execFile);
 
 const interactive = process.argv.includes('--interactive');
-const packages = publishablePackages();
+const packages = onlyRequested(publishablePackages());
 const tag = process.env.GITHUB_REF_NAME;
 
 // Тег `v0.1.0` и версия `0.1.0` в манифестах — одно и то же число.
@@ -103,6 +106,31 @@ async function publish(tarball) {
       else reject(new Error(`[publish] npm publish завершился с кодом ${code}`));
     });
   });
+}
+
+/**
+ * Оставляет из списка пакеты, названные в `--only`. Без флага список не
+ * меняется. Имя, которого среди публикуемых пакетов нет, останавливает прогон:
+ * опечатка в имени не должна превращаться в публикацию всего списка.
+ */
+function onlyRequested(all) {
+  const at = process.argv.indexOf('--only');
+
+  if (at < 0) return all;
+
+  const wanted = (process.argv[at + 1] ?? '').split(',').map((n) => n.trim()).filter(Boolean);
+  const scoped = (n) => (n.startsWith('@') ? n : `@nestlingjs/${n}`);
+  const unknown = wanted.filter((n) => !all.some(({ name }) => name === scoped(n)));
+
+  if (wanted.length === 0 || unknown.length > 0) {
+    console.error(
+      `[publish] --only ждёт имена публикуемых пакетов через запятую` +
+        (unknown.length ? `; не найдены: ${unknown.join(', ')}` : ''),
+    );
+    process.exit(1);
+  }
+
+  return all.filter(({ name }) => wanted.some((n) => scoped(n) === name));
 }
 
 /** Имя аккаунта, под которым выполнен вход в реестр. */
