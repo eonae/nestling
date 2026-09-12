@@ -151,6 +151,13 @@ change'ы серии, начатой `examples-out`.
 | 73 | `drizzle-pg` | пакет `@nestlingjs/drizzle.pg`: соединение значением `drizzlePg({ schema })` с DI-токеном, переменной транзакции, конструктором слоя `db.transaction()`, политикой `requiresTransaction` и ключами конфига семейства `database`; пул — ресурс с пробой; адаптер `OutboxStore` подпутём `./outbox`, таблица записей объявлением drizzle и строкой DDL; пример `users-service` на PostgreSQL | L | **done** — [архив](../../openspec/changes/archive/2026-09-12-drizzle-pg/), новые спеки [`database-connections`](../../openspec/specs/database-connections/spec.md), [`request-transaction`](../../openspec/specs/request-transaction/spec.md) и [`sql-outbox-store`](../../openspec/specs/sql-outbox-store/spec.md), [ideas.md [2026-09-11]](./ideas.md) «Соединение с базой: сателлит `drizzle.pg`» |
 | 74 | `nats-msg-id` | ключ идемпотентности конверта отображается на заголовок `Nats-Msg-Id` транспорта NATS: окно дедупликации JetStream снимает повторы relay без участия приложения. Транзакционной гарантии не даёт — у транспорта нет транзакции приложения, — поэтому дополняет слой приёма, а не заменяет его | S | **done** — [архив](../../openspec/changes/archive/2026-09-12-nats-msg-id/), обновлены спеки [`nats-transport`](../../openspec/specs/nats-transport/spec.md), [`durable-delivery`](../../openspec/specs/durable-delivery/spec.md) и [`transactional-inbox`](../../openspec/specs/transactional-inbox/spec.md), [ideas.md [2026-09-12]](./ideas.md) «Транзакционный приём», открытый вопрос 2 (помечен РЕАЛИЗОВАНО) |
 | 75 | `nats-connector-adapter` | `defaultConnector` собирает `NatsLike` из клиента `nats` явным адаптером вместо приведения через `unknown`: `headers()` импортом модуля, `subscribe` через `consumerOpts()`, `StreamInfo` и `ConsumerInfo` разворачиваются до конфигурации, сообщение потока оборачивается до `NatsJsMsgLike`. Интеграционный прогон становится воротами релиза | M | план — [ideas.md [2026-09-12]](./ideas.md) «Коннектор к живому клиенту `nats`»; независим от 74 |
+| 76 | `errors-of` | хелпер `errorsOf(Operation)`: список отказов вызывающей операции — производное значение, а не копия чужого `errors:` | S | план — [ideas.md [2026-09-12]](./ideas.md) «Разбор обзоров d/10 и d/13» |
+| 77 | `observability` | W3C trace-context через `propagate`; семейство `Metrics$` в ядре с пустой реализацией по умолчанию, сателлит подменяет корень; счётчик и длительность на endpoint и вызов порта из `.finally` с `outcome` | M–L | план — [ideas.md [2026-09-12]](./ideas.md) «Разбор обзоров d/10 и d/13» |
+| 78 | `auth-layer` | слой JWT/OIDC с типизированной переменной `Caller`, типизированный HTTP-контекст для pre-юнитов | M | план — [ideas.md [2026-09-12]](./ideas.md) «Разбор обзоров d/10 и d/13» |
+| 79 | `adapter-transport` | `ITransport` без сокета: `toNodeHandler(app)` отдаёт `(req, res)`, вторая форма — `(Request) => Promise<Response>` | M | план — [ideas.md [2026-09-12]](./ideas.md) «Разбор обзоров d/10 и d/13» |
+| 80 | `readme-positioning` | первый абзац README — три гарантии, аудитория названа явно вместе с теми, кому фреймворк не нужен | S | план — [ideas.md [2026-09-12]](./ideas.md) «Разбор обзоров d/10 и d/13» |
+| 81 | `pipeline-stale-units` | `withIdentity`, `withPermissions`, `withRequestLogging`: удалить или переписать под `.pre(unit, { errors })` | S | план — [ideas.md [2026-09-12]](./ideas.md) «Разбор обзоров d/10 и d/13» |
+| 82 | `mcp-satellite` | сервер MCP из деклараций операций: имя, схемы входа и выхода, отказы и `doc` — готовое определение инструмента | M | план — [ideas.md [2026-09-12]](./ideas.md) «Разбор обзоров d/10 и d/13» |
 
 ## Порядок и зависимости
 
@@ -501,6 +508,19 @@ OpenAPI (#20), и порты (#11) — для `stub(Contract)` (#18, остат�
 | 73 | `drizzle-pg` | L | **done** — [архив](../../openspec/changes/archive/2026-09-12-drizzle-pg/); база данных — первая инфраструктура каждого сервиса, а Nestling не давал для неё ничего: пример держал таблицу в памяти, слой транзакции писался руками, адаптер `OutboxStore` был работой приложения; решение — [ideas.md [2026-09-11]](./ideas.md) «Соединение с базой: сателлит `drizzle.pg`» |
 | 74 | `nats-msg-id` | S | **done** — [архив](../../openspec/changes/archive/2026-09-12-nats-msg-id/); повторы relay в пределах окна брокера снимаются без участия приложения: JetStream уже умеет дедуплицировать по `Nats-Msg-Id`, а транспорт везёт ключ собственным заголовком |
 | 75 | `nats-connector-adapter` | M | транспорт NATS ни разу не работал против живого брокера: `defaultConnector` приводит клиента к `NatsLike` через `unknown`, а интеграционный прогон без `NATS_TEST_SERVERS` пропускается — расхождений пять, и пакет с ними опубликован |
+| 76 | `errors-of` | S | d/13 §4.1, §6.6: на пяти операциях копирование — дисциплина, на пятидесяти — то, чего компилятор требует, но в чём не помогает |
+| 77 | `observability` | M–L | d/10 §3.3: фреймворк продаёт split-развёртывание через NATS, а трассировки и метрик нет вовсе |
+| 78 | `auth-layer` | M | d/10 §3.6: гайд проверяет Bearer руками, заголовки читаются через `ctx.raw.attributes` с `typeof` |
+| 79 | `adapter-transport` | M | d/13 §6.1: монтирование в чужое приложение и рантаймы кроме Node; публичных экспортов `transport.http` для стороннего транспорта хватает — доказано `satellite.integration.spec.ts` |
+| 80 | `readme-positioning` | S | d/13 §6.2: `docs/guarantees.md` есть, README на него не ведёт |
+| 81 | `pipeline-stale-units` | S | d/10 §3.5: несут свой интерфейс логгера и отказывают броском, в примерах и гайде не используются |
+| 82 | `mcp-satellite` | M | d/13 §6.5: тот же механизм, что OpenAPI и типизированный клиент; преимущество, которого нет у других фреймворков на Node |
+
+Строки 76–82 взяты из обзоров [d/10](../history/discussions/10-framework-review-2.md)
+и [d/13](../history/discussions/13-framework-review-3.md) одним разбором —
+запись [ideas.md [2026-09-12]](./ideas.md) «Разбор обзоров d/10 и d/13». Порядок
+строк — по отдаче. Английский обзор дизайна (d/10 §3.9) закрывается полным
+переводом документации отдельным change'ем.
 
 Change'и 29–38 ломающие, хотя окно фиксации публичного API закрыто
 волной 2. Это осознанно: они правят гарантии, а не добавляют способности,
