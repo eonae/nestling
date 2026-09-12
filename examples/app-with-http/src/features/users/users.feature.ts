@@ -13,6 +13,7 @@ import {
   UserWebhook,
   VerifySignature,
 } from './endpoints/index.js';
+import { CreateUserTool, GetUserTool, SearchUsersTool } from './tools/index.js';
 import { ActivityHub } from './activity.hub.js';
 import { Database } from './database.js';
 import { DbUsersRepository, UsersRepository$ } from './users.repository.js';
@@ -43,6 +44,10 @@ export const UsersModule = makeModule({
  *
  * Связь с фичей `quotas` не объявляется полем: она выводится из операций,
  * которые endpoint'ы вызывают через зависимости хендлера.
+ *
+ * Инструменты агента лежат в том же списке: у транспорта MCP endpoint'ы
+ * такие же, как у HTTP, и состав инструментов виден там же, где состав
+ * любого другого транспорта.
  */
 export const UsersFeature = makeFeature({
   name: 'users',
@@ -59,5 +64,8 @@ export const UsersFeature = makeFeature({
     ImportUsers,
     ActivityStream,
     UserWebhook,
+    GetUserTool,
+    CreateUserTool,
+    SearchUsersTool,
   ],
 });

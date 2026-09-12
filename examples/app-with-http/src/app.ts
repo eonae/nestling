@@ -14,11 +14,17 @@ import {
   makeApp,
 } from '@nestlingjs/app';
 import { makeSwitch } from '@nestlingjs/container';
+import { mcp, McpTransport$ } from '@nestlingjs/mcp';
 import type { OpenApiOptions } from '@nestlingjs/openapi';
 import { openapi } from '@nestlingjs/openapi';
 import { zodConverter } from '@nestlingjs/schema.zod';
 import { subscriptions } from '@nestlingjs/subscriptions';
-import { http, httpProbes, HttpTransport$ } from '@nestlingjs/transport.http';
+import {
+  http,
+  httpProbes,
+  httpServer,
+  HttpTransport$,
+} from '@nestlingjs/transport.http';
 
 /**
  * Декларация приложения: одно значение для `main.ts`, тестов и проверки
@@ -63,6 +69,14 @@ export const appOpenapi = openapi({
   pipeline: observability,
 });
 
+/**
+ * Сервер приложения: сокетом владеет он, а не транспорт.
+ *
+ * Объявлен явно, потому что транспортов на этом сокете два. Порт и хост
+ * сервер читает из своей секции — `HTTP_PORT` и `HTTP_HOST`.
+ */
+export const api = httpServer();
+
 export const app = makeApp({
   features: [UsersFeature, QuotasFeature, OpsFeature],
   plugins: [
@@ -77,14 +91,30 @@ export const app = makeApp({
     Docs.when(appOpenapi),
   ],
   switches: [Docs],
-  // Сокетом владеет сервер: `http()` объявляет его сам, а порт и хост
-  // сервер читает из своей секции — `HTTP_PORT`, `HTTP_HOST`
-  transports: [http()],
+  // Два протокола на одном сокете: HTTP-endpoint'ы и сообщения MCP по
+  // `POST /mcp`. Сервер объявлен отдельно и передан обоим транспортам;
+  // второго слушателя не появляется
+  transports: [
+    api,
+    http({ server: api }),
+    mcp({
+      server: api,
+      info: { name: 'users-service', version: '1.0.0' },
+      // Те же конвертеры, что у документа: схемы переводит один механизм
+      converters: openapiOptions.converters,
+    }),
+  ],
   // Инварианты проверяются на собранном графе до фазы INIT и до открытия
   // сокета. Слой сравнивается по ссылке
   policies: [
     // У каждого HTTP-endpoint'а есть слой наблюдаемости
     everyEndpoint({ transport: HttpTransport$('default') }).hasLayer(
+      observability,
+      'observability',
+    ),
+    // И у каждого инструмента агента: слой объявляет декларация, а не
+    // транспорт, поэтому проверяет его политика
+    everyEndpoint({ transport: McpTransport$('default') }).hasLayer(
       observability,
       'observability',
     ),

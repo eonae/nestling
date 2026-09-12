@@ -1624,6 +1624,7 @@ __metadata:
     "@nestlingjs/client": "workspace:*"
     "@nestlingjs/container": "workspace:*"
     "@nestlingjs/eslint-plugin": "workspace:*"
+    "@nestlingjs/mcp": "workspace:*"
     "@nestlingjs/openapi": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
     "@nestlingjs/schema.zod": "workspace:*"
@@ -2406,7 +2407,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nestlingjs/mcp@workspace:packages/nestling.mcp":
+"@nestlingjs/mcp@workspace:*, @nestlingjs/mcp@workspace:packages/nestling.mcp":
   version: 0.0.0-use.local
   resolution: "@nestlingjs/mcp@workspace:packages/nestling.mcp"
   dependencies:

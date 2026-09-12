@@ -11,7 +11,7 @@ import { Handler } from '@nestlingjs/container';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
 @Handler([UsersRepository$])
-class GetUserHandler {
+export class GetUserHandler {
   constructor(private readonly users: UsersRepository) {}
 
   async handle(payload: GetUserInput): Output<User, typeof UserNotFound> {
