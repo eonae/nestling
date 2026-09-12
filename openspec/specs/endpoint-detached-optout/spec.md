@@ -29,17 +29,17 @@ detached-ручек на старте, а `CheckReport` несёт причин�
 
 #### Scenario: Ручка помечена причиной
 
-- **WHEN** объявлено `httpEndpoint({ method: 'GET', path: '/health', detached: 'liveness-проба балансировщика: до auth не доходит', handler: handle })`
+- **WHEN** объявлено `httpEndpoint.get('/health', { detached: 'liveness-проба балансировщика: до auth не доходит', handler: handle })`
 - **THEN** декларация создаётся и несёт причину значением
 
 #### Scenario: `detached: true` невыразим
 
-- **WHEN** написано `httpEndpoint({ …, detached: true })`
+- **WHEN** написано `httpEndpoint.get(path, { …, detached: true })`
 - **THEN** это ошибка компиляции
 
 #### Scenario: Пустая причина отвергается при создании
 
-- **WHEN** написано `httpEndpoint({ …, detached: '   ' })`
+- **WHEN** написано `httpEndpoint.get(path, { …, detached: '   ' })`
 - **THEN** вызов бросает ошибку в момент создания декларации, называя ручку
 
 ### Requirement: Detached-ручка исключается из всех политик

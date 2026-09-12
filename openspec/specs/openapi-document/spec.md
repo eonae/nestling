@@ -125,7 +125,7 @@ bind-карта выносит хотя бы одно поле в путь ил�
 
 #### Scenario: Path-параметр становится параметром пути
 
-- **WHEN** документируется `httpEndpoint({ method: 'GET', path: '/users/:id', input: z.object({ id: z.string() }) })`
+- **WHEN** документируется `httpEndpoint.get('/users/:id', { input: z.object({ id: z.string() }) })`
 - **THEN** операция `get` пути `/users/{id}` несёт параметр `id` в `path`
   с `required: true` и схемой строки, а `requestBody` отсутствует
 

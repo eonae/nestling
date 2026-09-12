@@ -31,18 +31,18 @@ bind-карту в момент создания декларации и дал�
 
 #### Scenario: Path-параметр выигрывает у правила по умолчанию
 
-- **WHEN** объявлено `httpEndpoint({ method: 'PATCH', path: '/users/:id', input: UpdateUser, … })`, где схема содержит `id` и `name`
+- **WHEN** объявлено `httpEndpoint.patch('/users/:id', { input: UpdateUser, … })`, где схема содержит `id` и `name`
 - **THEN** `id` размещается в пути, `name` — в теле
 
 #### Scenario: Метод без тела кладёт остальное в query
 
-- **WHEN** объявлено `httpEndpoint({ method: 'GET', path: '/users', input: ListUsers, … })`
+- **WHEN** объявлено `httpEndpoint.get('/users', { input: ListUsers, … })`
 - **THEN** все поля схемы, кроме path-параметров и помеченных, размещаются
   в query
 
 #### Scenario: Метод с телом кладёт остальное в body
 
-- **WHEN** объявлено `httpEndpoint({ method: 'POST', path: '/users', input: CreateUser, … })`
+- **WHEN** объявлено `httpEndpoint.post('/users', { input: CreateUser, … })`
 - **THEN** все поля схемы, кроме path-параметров и помеченных, размещаются
   в теле
 
@@ -63,7 +63,7 @@ path-параметров шаблона: неизвестное имя поля
 
 #### Scenario: Поле вытянуто в query из тела
 
-- **WHEN** объявлено `httpEndpoint({ method: 'POST', path: '/users', input: CreateUser, bind: { dryRun: query() }, … })`
+- **WHEN** объявлено `httpEndpoint.post('/users', { input: CreateUser, bind: { dryRun: query() }, … })`
 - **THEN** `dryRun` читается из query-строки, остальные поля — из тела
 
 #### Scenario: Опечатка в имени поля не компилируется
@@ -164,23 +164,23 @@ path-параметры и помеченные query-поля подмешив�
 
 #### Scenario: `body()` у GET
 
-- **WHEN** вызвано `httpEndpoint({ method: 'GET', path: '/users', input: ListUsers, bind: { filter: body() }, … })`
+- **WHEN** вызвано `httpEndpoint.get('/users', { input: ListUsers, bind: { filter: body() }, … })`
 - **THEN** вызов бросает ошибку в момент создания декларации, называя метод
   и поле
 
 #### Scenario: Path-параметр при потоковом input
 
-- **WHEN** вызвано `httpEndpoint({ method: 'POST', path: '/users/:id/logs', input: stream(LogChunk), … })`
+- **WHEN** вызвано `httpEndpoint.post('/users/:id/logs', { input: stream(LogChunk), … })`
 - **THEN** вызов бросает ошибку: path-параметру негде оказаться в payload
 
 #### Scenario: Path-параметр при multipart допустим
 
-- **WHEN** вызвано `httpEndpoint({ method: 'POST', path: '/users/:id/avatar', input: multipart({ fields: z.object({ id: z.string() }), files: { avatar: upload() } }), … })`
+- **WHEN** вызвано `httpEndpoint.post('/users/:id/avatar', { input: multipart({ fields: z.object({ id: z.string() }), files: { avatar: upload() } }), … })`
 - **THEN** декларация создаётся: `multipart` — структурная форма
 
 #### Scenario: `rawBody` со стримом
 
-- **WHEN** вызвано `httpEndpoint({ method: 'POST', path: '/hooks', input: stream(Chunk), rawBody: true, … })`
+- **WHEN** вызвано `httpEndpoint.post('/hooks', { input: stream(Chunk), rawBody: true, … })`
 - **THEN** вызов бросает ошибку в момент создания декларации
 
 ### Requirement: Транспорт собирает payload только из канонических мест
@@ -298,7 +298,7 @@ HTTP-словарь SHALL принимать необязательное `rawBo
 
 #### Scenario: Слой проверки подписи получает байты
 
-- **WHEN** объявлено `httpEndpoint({ method: 'POST', path: '/hooks/stripe', rawBody: true, pipeline: <слой, объявленный makePipeline<{ rawBody: Uint8Array }>()>, … })` и приходит запрос
+- **WHEN** объявлено `httpEndpoint.post('/hooks/stripe', { rawBody: true, pipeline: <слой, объявленный makePipeline<{ rawBody: Uint8Array }>()>, … })` и приходит запрос
 - **THEN** слой видит в контексте `rawBody` с байтами исходного тела, а
   хендлер получает разобранный по схеме payload
 
