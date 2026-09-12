@@ -431,7 +431,7 @@ function fromOperation(
  *   path: '/health',
  *   output: HealthOutput,
  *   pipeline: basePipeline,
- *   handler: async () => Ok.of({ status: 'up' }),
+ *   handler: async () => new Ok({ status: 'up' }),
  * });
  * ```
  *
@@ -457,7 +457,7 @@ function fromOperation(
  *   rawBody: true,                           // байты в стартовом контексте
  *   pipeline: compose(makePipeline<{ rawBody: Uint8Array }>()
  *     .pre(verifySignature(secret)), basePipeline),
- *   handler: async (event) => Ok.of({ received: event.id }),
+ *   handler: async (event) => new Ok({ received: event.id }),
  * });
  * ```
  *
