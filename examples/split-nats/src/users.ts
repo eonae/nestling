@@ -8,12 +8,12 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { TenantId } from './context.js';
+import { base } from './base.js';
 import type { RegisterUserInput } from './operations.js';
 import { ClaimQuota, RegisterUser, UserRegistered } from './operations.js';
 
-import type { Emitter, Port } from '@nestlingjs/app';
-import { implement, makeFeature, makePipeline } from '@nestlingjs/app';
+import type { Emitter, Logger, Port } from '@nestlingjs/app';
+import { implement, Logger$, makeFeature } from '@nestlingjs/app';
 import { Component, Handler } from '@nestlingjs/container';
 
 /**
@@ -23,15 +23,20 @@ import { Component, Handler } from '@nestlingjs/container';
  * фичи. Вызов `this.quotas.call(...)` выглядит одинаково, когда владелец
  * работает в этом же процессе и когда он в другом.
  */
-@Component([ClaimQuota.caller, UserRegistered.emitter])
+@Component([ClaimQuota.caller, UserRegistered.emitter, Logger$.auto])
 export class RegistrationService {
   constructor(
     private readonly quotas: Port<typeof ClaimQuota>,
     private readonly registered: Emitter<typeof UserRegistered>,
+    private readonly logger: Logger,
   ) {}
 
   /** Регистрирует пользователя; возвращает `false`, если квота исчерпана */
   async register(email: string): Promise<boolean> {
+    // Идентификатор трассы в запись кладёт логгер ядра: он читает его из
+    // контекста сам, и руками поле не пишется
+    this.logger.info('register');
+
     const claim = await this.quotas.call({ email });
 
     if (claim.isFail) {
@@ -60,9 +65,10 @@ export const UsersFeature = makeFeature({
   providers: [RegistrationService],
   endpoints: [
     implement(RegisterUser, {
-      // Арендатор приходит в конверте сообщения. Юнит кладёт его в контекст
-      // запроса, откуда вызыватель `quotas.claim` передаст его дальше
-      pipeline: makePipeline().pre(TenantId.propagated()),
+      // Базовый слой возвращает в контекст трассу и арендатора: оба
+      // приехали в конверте сообщения, и вызыватель `quotas.claim`
+      // передаст их дальше
+      pipeline: base,
       handler: RegisterUserHandler,
     }),
   ],

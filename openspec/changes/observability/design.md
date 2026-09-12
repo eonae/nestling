@@ -242,7 +242,12 @@ const api = makeClient({ getUser: GetUser }, { baseUrl, trace: traceparent });
 
 ## Open Questions
 
-1. Попадает ли `withTracing()` в шаблон базового слоя каждого примера или
-   только в `split-nats` и `app-with-http`. Решается при миграции примеров.
+1. ~~Попадает ли `withTracing()` в шаблон базового слоя каждого примера или
+   только в `split-nats` и `app-with-http`.~~ Решено при миграции: юнит
+   стоит там, где у примера уже есть слой наблюдаемости — `split-nats`
+   (базовый слой), `app-with-http` и `users-service` (слой
+   `observability`). Минимальные примеры (`simple-http-server`,
+   `simple-cli`, `container`) его не получают: слоя у них нет, а CLI трассу
+   не переносит.
 2. Нужен ли `gauge` в интерфейсе — вернуться к вопросу в change'е
    сателлита `otel`, когда появится первый потребитель.

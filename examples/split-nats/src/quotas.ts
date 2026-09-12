@@ -7,31 +7,39 @@
  * Транспортом служит шина, которую поставил корень.
  */
 
+import { base } from './base.js';
 import { TenantId } from './context.js';
 import type { UserRegisteredInput } from './operations.js';
 import { ClaimQuota, QuotaExceeded, UserRegistered } from './operations.js';
 
-import type { CtxReader } from '@nestlingjs/app';
-import { Ctx, implement, makeFeature, makePipeline } from '@nestlingjs/app';
+import type { CtxReader, Logger } from '@nestlingjs/app';
+import { Ctx, implement, Logger$, makeFeature } from '@nestlingjs/app';
 import { Component, Handler } from '@nestlingjs/container';
 
 /**
  * Учёт квот по арендаторам: сколько мест занято и кто заархивирован.
  *
  * Арендатор не передаётся параметром: сервис читает его из контекста
- * запроса ридером `Ctx(TenantId)`. Значение в контекст кладёт юнит
- * `TenantId.propagated()` в пайплайне реализации.
+ * запроса ридером `Ctx(TenantId)`. Значение в контекст кладёт базовый
+ * слой реализации.
  */
-@Component([Ctx(TenantId)])
+@Component([Ctx(TenantId), Logger$.auto])
 export class QuotaLedger {
   readonly limit = 100;
   readonly used = new Map<string, number>();
   readonly archived: string[] = [];
 
-  constructor(private readonly tenant: CtxReader<string>) {}
+  constructor(
+    private readonly tenant: CtxReader<string>,
+    private readonly logger: Logger,
+  ) {}
 
   /** Занимает место у текущего арендатора; возвращает остаток или `undefined` */
   claim(): number | undefined {
+    // Запись этого процесса несёт тот же `traceId`, что запись соседнего:
+    // трассу привёз конверт вызова, а базовый слой вернул её в контекст
+    this.logger.info('claim');
+
     const tenantId = this.tenant.get();
     const used = this.used.get(tenantId) ?? 0;
 
@@ -77,9 +85,9 @@ export const QuotasFeature = makeFeature({
   providers: [QuotaLedger],
   endpoints: [
     implement(ClaimQuota, {
-      // Арендатор пришёл в конверте сообщения: юнит возвращает его в
-      // контекст запроса, и `QuotaLedger` читает его оттуда
-      pipeline: makePipeline().pre(TenantId.propagated()),
+      // Базовый слой вернул арендатора в контекст запроса, и
+      // `QuotaLedger` читает его оттуда
+      pipeline: base,
       handler: ClaimQuotaHandler,
     }),
 
@@ -88,7 +96,7 @@ export const QuotasFeature = makeFeature({
       // подписки на одно событие, у брокера становится именем queue-группы
       // и durable-потребителя
       subscriber: 'archive',
-      pipeline: makePipeline().pre(TenantId.propagated()),
+      pipeline: base,
       handler: UserRegisteredInArchiveHandler,
     }),
   ],
