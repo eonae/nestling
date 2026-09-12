@@ -58,7 +58,7 @@ export { OnStart } from './lifecycle/index.js';
 export { makeModule } from './modules/index.js';
 export type { Module } from './modules/index.js';
 
-// ./switches/index.js — 9
+// ./switches/index.js — 12
 export {
   branchCandidates,
   makeSwitch,
@@ -72,6 +72,9 @@ export type {
   AnySwitch,
   Branchable,
   Switch,
+  SwitchBranch,
+  SwitchOptions,
   SwitchValues,
+  Toggle,
   ToggleSwitch,
 } from './switches/index.js';

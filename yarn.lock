@@ -10163,6 +10163,7 @@ __metadata:
     "@eslint/compat": "npm:~1.1.1"
     "@eslint/js": "npm:^9.10.0"
     "@hono/node-server": "npm:^2.1.1"
+    "@nestlingjs/common.static-server": "workspace:*"
     "@nestlingjs/eslint-plugin": "workspace:*"
     "@rsdk/prettier-config": "npm:^6.0.0-next.14"
     "@tanstack/eslint-plugin-router": "npm:^1.132.21"
