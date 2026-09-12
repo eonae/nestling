@@ -55,7 +55,7 @@ export const transactional = compose(authed, db.transaction());
  * Слой транзакции для подписчика шины.
  *
  * Bearer-токена у сообщения нет: его отправил relay, а не клиент,
- * поэтому проверки токена в этом слое тоже нет. Наблюдаемость остаётся —
- * подписчик пишет ту же строку аудита, что и HTTP-endpoint.
+ * поэтому и проверки в этом слое нет. Наблюдаемость остаётся — подписчик
+ * пишет ту же строку аудита, что и HTTP-endpoint.
  */
 export const subscribed = compose(observability, db.transaction());
