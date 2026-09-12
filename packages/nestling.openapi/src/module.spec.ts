@@ -36,8 +36,8 @@ import {
   makeToken,
   resourceProvider,
 } from '@nestlingjs/container';
-import { zodConverter } from '@nestlingjs/openapi.zod';
 import type { StandardSchemaV1 } from '@nestlingjs/operations';
+import { zodConverter } from '@nestlingjs/schema.zod';
 import { httpEndpoint, HttpTransport$ } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 

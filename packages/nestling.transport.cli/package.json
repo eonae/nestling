@@ -50,6 +50,7 @@
     "@nestlingjs/operations": "workspace:*"
   },
   "devDependencies": {
+    "@nestlingjs/schema.zod": "workspace:*",
     "zod": "^4.0.0"
   }
 }

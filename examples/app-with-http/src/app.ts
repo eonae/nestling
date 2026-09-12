@@ -16,7 +16,7 @@ import {
 import { makeSwitch } from '@nestlingjs/container';
 import type { OpenApiOptions } from '@nestlingjs/openapi';
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/openapi.zod';
+import { zodConverter } from '@nestlingjs/schema.zod';
 import { subscriptions } from '@nestlingjs/subscriptions';
 import { http, httpProbes, HttpTransport$ } from '@nestlingjs/transport.http';
 

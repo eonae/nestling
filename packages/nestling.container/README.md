@@ -68,7 +68,8 @@ await container.destroy();
 - **Жизненный цикл** — `OnStart`.
 - **Модули** — `makeModule`, `Module`.
 - **Переключатели** — `AnySwitch`, `Branchable`, `branchCandidates`,
-  `makeSwitch`, `resolveBranches`, `switchesUsed`, `SwitchValues`.
+  `makeSwitch`, `resolveBranches`, `Switch`, `switchesUsed`, `SwitchValues`,
+  `ToggleSwitch`.
 - **Подпуть `./tokens`** — `makeToken`, `makeTokenFamily`, `Token`,
   `TokenFamily`, `tokenId`: объявление DI-токена и семейства без билдера,
   графа и провайдеров.

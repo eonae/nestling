@@ -1,6 +1,6 @@
 # CLI-утилита на тех же примитивах
 
-> Гайд по текущему API; сверено с кодом `simple-cli` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `simple-cli` (2026-09-12).
 > Целевое описание: [design/transports.md](../design/transports.md) §5,
 > [design/endpoints.md](../design/endpoints.md). Почему так: запись
 > [ideas.md](../decisions/ideas.md) «Endpoint-декларации: per-transport
@@ -82,6 +82,83 @@ export const Help = cliEndpoint({
 сам, потому что это его вывод для человека, а результатом отдаёт
 подтверждение по схеме `output`.
 
+## Недостающий вход
+
+```typescript
+// examples/simple-cli/src/commands/deploy.command.ts
+const DeployInput = z.object({
+  env: z.enum(['dev', 'prod']).describe('Target environment'),
+  force: z.boolean().describe('Skip the safety checks'),
+  host: z.string().describe('Deployment host').meta({ default: 'localhost' }),
+});
+
+export const Deploy = cliEndpoint({
+  command: 'deploy',
+  input: DeployInput,
+  output: DeployOutput,
+  missing: 'prompt',
+  handler: async ({ env, force, host }) => ({ env, host, forced: force }),
+});
+```
+
+Поле `missing` решает, что делает команда без обязательного флага.
+Умолчание `'error'` оставляет отказ `bad_request` с путём поля.
+`'prompt'` спрашивает недостающее в терминале и выполняет команду с
+достроенным входом.
+
+Вопросы выводятся из схемы, а не объявляются рядом с ней. `enum` даёт
+нумерованный список, `boolean` — подтверждение `[y/n]`, строка и число —
+ввод строки. `description` печатается подсказкой, `default` узла
+показывается в скобках и подставляется по пустому вводу.
+
+Умолчание объявляется аннотацией `meta`, а не `default`. Поле с
+`.default('localhost')` необязательно: схема подставляет значение сама, и
+недостающим оно не бывает. `meta({ default: 'localhost' })` оставляет поле
+обязательным и говорит другое — «вот значение, которое я бы взял; спроси,
+но предложи его».
+
+Ответ кладётся в той же форме, в какой его дал бы флаг: строка для
+скаляра, `true` или `false` для подтверждения, элемент списка для выбора.
+Схема, написанная под аргументы командной строки (`z.coerce.number()` там,
+где нужно число), работает с вопросами без единой правки.
+
+```bash
+yarn workspace @examples/simple-cli start:dev deploy
+```
+
+```
+Target environment
+  1) dev
+  2) prod
+env: 2
+Skip the safety checks
+force [y/n]: y
+Deployment host
+host (localhost):
+{
+  "env": "prod",
+  "host": "localhost",
+  "forced": true
+}
+```
+
+Команде с политикой нужен конвертер схем: вопрос выводится из JSON Schema
+формы `input`, а Standard Schema интроспекции не даёт. Список передаётся
+опцией транспорта — `cli({ converters: [zodConverter()] })` из
+`@nestlingjs/schema.zod`. Конвертера нет — `serve` падает с именем
+команды и вендором её схемы, а не молча задаёт вопросы по одним именам
+полей.
+
+Вопросы задаются, пока ввод — терминал и переменная `CI` не задана. В
+конвейере команда доходит до валидации и отвечает отказом, как команда без
+политики: процесс не зависает на вопросе, которого никто не увидит.
+Решить явно позволяет опция `cli({ interactive })`.
+
+Спрашиваются только обязательные поля понятной формы. Массив и вложенный
+объект вопроса не дают: такое поле остаётся пустым и даёт отказ валидации.
+Поток на входе вместе с политикой роняет `serve` — вопросы и поток читают
+один и тот же ввод.
+
 ## Поток из stdin
 
 ```typescript
@@ -151,9 +228,10 @@ const argv = process.argv.slice(2);
 const cli = new CliTransport({
   mode: argv.length > 0 ? 'argv' : 'repl',
   argv,
+  converters: [zodConverter()],
 });
 
-const dispatch = makeDispatch([Help, Greet, ProcessStdin]);
+const dispatch = makeDispatch([Help, Greet, Deploy, ProcessStdin]);
 
 const shutdown = new AbortController();
 
@@ -173,6 +251,10 @@ async function main() {
 чего `serve` возвращается. В режиме `'repl'` команды читаются из stdin
 до `exit`, `quit` или конца ввода. Пример выбирает режим по наличию
 аргументов.
+
+Потоки ввода, вывода и ошибок — тоже опции: `input`, `output` и
+`errorOutput`. Умолчания — каналы процесса, а подстановка нужна тесту:
+вопросы и печать результата проверяются без терминала.
 
 Формы `events` и `multipart` транспорт отклоняет при регистрации.
 Ошибка называет команду и форму: у команды нет соединения, обрыв
@@ -197,9 +279,13 @@ describe('команды через execute', () => {
 
   beforeEach(async () => {
     // Пустой `argv`: `serve` регистрирует команды и ничего не выполняет
-    cli = new CliTransport({ mode: 'argv', argv: [] });
+    cli = new CliTransport({
+      mode: 'argv',
+      argv: [],
+      converters: [zodConverter()],
+    });
     await cli.serve(
-      makeDispatch([Help, Greet, ProcessStdin]),
+      makeDispatch([Help, Greet, Deploy, ProcessStdin]),
       new AbortController().signal,
     );
   });
@@ -223,8 +309,8 @@ describe('команды через execute', () => {
   });
 
   it('не знает команду, которой нет в dispatch', async () => {
-    await expect(cli.execute(parseArgv(['deploy']))).rejects.toThrow(
-      'Command "deploy" not found',
+    await expect(cli.execute(parseArgv(['release']))).rejects.toThrow(
+      'Command "release" not found',
     );
   });
   // …
@@ -232,10 +318,35 @@ describe('команды через execute', () => {
 ```
 
 `parseArgv` собирает вход из массива строк по тем же правилам, что и
-запуск из терминала. Команда `process-stdin` читает `process.stdin`
-напрямую, поэтому в тест через `execute` она не попала. Команда,
-которой нет в `dispatch`, — не отказ значением, а исключение с её
-именем: `execute` в этом случае не строит контекст запроса.
+запуск из терминала. Команда, которой нет в `dispatch`, — не отказ
+значением, а исключение с её именем: `execute` в этом случае не строит
+контекст запроса.
+
+Вопросы проверяются тем же `execute` с подставленными потоками. Ответы
+передаются готовыми строками, а `interactive: true` включает вопросы явно:
+подставленный поток терминалом не является.
+
+```typescript
+// examples/simple-cli/src/commands.spec.ts (фрагмент)
+const cli = new CliTransport({
+  mode: 'argv',
+  argv: [],
+  input: answers('2\n', 'y\n', '\n'),
+  output: collecting(printed),
+  interactive: true,
+  converters: [zodConverter()],
+});
+
+await cli.serve(makeDispatch([Deploy]), new AbortController().signal);
+
+const response = await cli.execute(parseArgv(['deploy']));
+
+expect(response.value).toEqual({
+  env: 'prod',
+  host: 'localhost',
+  forced: true,
+});
+```
 
 ```bash
 yarn workspace @examples/simple-cli start:dev            # REPL

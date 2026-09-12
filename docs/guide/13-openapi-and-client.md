@@ -16,7 +16,7 @@
 ```typescript
 // examples/users-service/src/app.ts
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/openapi.zod';
+import { zodConverter } from '@nestlingjs/schema.zod';
 
 export const app = makeApp({
   features: [UsersFeature],

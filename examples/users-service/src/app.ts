@@ -12,8 +12,8 @@ import {
   RequestId,
 } from '@nestlingjs/app';
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/openapi.zod';
 import { outbox } from '@nestlingjs/outbox';
+import { zodConverter } from '@nestlingjs/schema.zod';
 import { http, HttpTransport$ } from '@nestlingjs/transport.http';
 
 /**

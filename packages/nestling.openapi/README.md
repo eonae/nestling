@@ -10,17 +10,17 @@
 ## Установка
 
 ```bash
-npm install @nestlingjs/openapi @nestlingjs/openapi.zod
+npm install @nestlingjs/openapi @nestlingjs/schema.zod
 ```
 
-`@nestlingjs/openapi.zod` нужен, если схемы написаны на zod. Для другого
+`@nestlingjs/schema.zod` нужен, если схемы написаны на zod. Для другого
 валидатора подключается его конвертер.
 
 ## Минимальный пример
 
 ```typescript
 import { openapi } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/openapi.zod';
+import { zodConverter } from '@nestlingjs/schema.zod';
 
 makeApp({
   features: [UsersFeature],

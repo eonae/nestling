@@ -23,6 +23,12 @@ export const Help = cliEndpoint({
       '    Example: yarn workspace @examples/simple-cli start:dev greet Alice --shout',
     );
     console.log('');
+    console.log('  deploy [--env dev|prod] [--force] [--host <host>]');
+    console.log('    Deploy; missing options are asked in the terminal');
+    console.log(
+      '    Example: yarn workspace @examples/simple-cli start:dev deploy',
+    );
+    console.log('');
     console.log('  process-stdin');
     console.log('    Count lines and bytes read from stdin');
     console.log(

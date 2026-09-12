@@ -34,7 +34,7 @@ import { makeApp, objectSource, RequestId, RootLogger$ } from '@nestlingjs/app';
 import type { InjectionToken } from '@nestlingjs/container';
 import type { OpenApiDocument } from '@nestlingjs/openapi';
 import { openapi, OpenApiDocument$ } from '@nestlingjs/openapi';
-import { zodConverter } from '@nestlingjs/openapi.zod';
+import { zodConverter } from '@nestlingjs/schema.zod';
 import { SubscriptionRegistry } from '@nestlingjs/subscriptions';
 import {
   assembleTest,

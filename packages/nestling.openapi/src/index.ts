@@ -14,7 +14,7 @@
  *
  * Зависимости от валидатора у пакета нет: перевод схемы в JSON Schema
  * приходит **данными** — списком `SchemaDocConverter`, который поставляют
- * отдельные пакеты (`@nestlingjs/openapi.zod` и подобные).
+ * отдельные пакеты (`@nestlingjs/schema.zod` и подобные).
  */
 
 export { buildOpenApiDocument, hiddenEndpoints } from './document.js';
