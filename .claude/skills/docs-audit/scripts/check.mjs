@@ -546,6 +546,22 @@ for (const dir of packageDirs) {
   }
 }
 
+// ── 10. Барели перечисляют имена поимённо ───────────────────────────────────
+// Спека packages-layout: файл, названный полем `exports`, состоит из операторов
+// `export { … }`. Со специфаером на свой модуль `export *` делает публичной
+// каждую его строку, с именем соседнего пакета — прячет состав реэкспорта.
+// Пакет без поля `exports` проверку проходит: барреля у него нет.
+
+for (const dir of packageDirs) {
+  for (const s of collectPackageExports(dir).subpaths) {
+    if (!s.barrel) continue;
+    for (const spec of s.stars) {
+      add('ERROR', 'pkg-barrel-star', s.barrel,
+        `подпуть «${s.key}»: оператор «export * from '${spec}'» — перечислите имена поимённо`);
+    }
+  }
+}
+
 // ── Вывод ────────────────────────────────────────────────────────────────────
 
 const errors = findings.filter((f) => f.severity === 'ERROR');
