@@ -37,6 +37,7 @@ import type {
 import { isFailDefinition } from './make-fail.js';
 import { registerOperation } from './registry.js';
 import type { AnyFail } from './result.js';
+import type { FailCode } from './status.js';
 
 /**
  * Вид операции. Определяет, как доставляется вызов.
@@ -230,6 +231,78 @@ export type ValidateOperationFails<
       undeclared: UndeclaredOperationFails<C, PF>;
       hint: "add the definitions to 'errors:' of the operation";
     };
+
+/**
+ * Коды отказов, которые встречаются в результате хендлера.
+ *
+ * `Awaited` снимает `Promise`: асинхронный и синхронный хендлеры дают один
+ * набор кодов.
+ */
+type ReturnedFailCodes<R> = Extract<Awaited<R>, AnyFail>['code'];
+
+/**
+ * Тип результата класса-хендлера: то, что возвращает его метод `handle`.
+ *
+ * Нужен там, где проверка стоит в слоте: слот принимает класс, а проверять
+ * надо результат его метода.
+ */
+export type HandlerResultOf<H> = H extends abstract new (...args: any) => {
+  handle(...args: any): infer R;
+}
+  ? R
+  : never;
+
+/**
+ * Коды отказов хендлера, которых нет в объявленном множестве.
+ *
+ * Отказы ядра вычитаются: граница пропускает их у любой декларации, и
+ * правило типов повторяет правило границы.
+ */
+export type UndeclaredHandlerFails<R, E extends AnyFail> = Exclude<
+  ReturnedFailCodes<R>,
+  E['code'] | FailOf<KernelFail>['code']
+>;
+
+/**
+ * Проверяет слот `handler`: отказы, которые возвращает хендлер, входят в
+ * объявленное множество.
+ *
+ * При успехе — `unknown`, который в пересечении ничего не меняет. При
+ * нарушении — литерал ошибки: `__error` называет правило, `returned` и
+ * `declared` дают коды, `hint` — починку. Литерал анонимный, а не
+ * именованный алиас: компилятор печатает имя алиаса вместо содержимого, и
+ * правило до читателя не доходит.
+ *
+ * Позиция проверки у двух форм хендлера разная, и по-другому не работает.
+ * У класса проверка стоит в слоте. У функции — в возвращаемом типе:
+ * тип-параметр слота нужен компилятору, чтобы контекстно типизировать
+ * параметры стрелки, поэтому он фиксируется на своём ограничении, и
+ * проверка в слоте видит всё множество отказов вместо возвращённого.
+ * Такая проверка отвергала бы каждый хендлер, включая верный. Случай
+ * закрепляет фикстура
+ * `packages/nestling.transport.http/type-tests/valid/function-declared-fail.ts`.
+ *
+ * Первое условие — отсечка. Коды, равные всему множеству `FailCode`,
+ * означают, что `R` откатился на ограничение слота и брендировать нечего.
+ * Без отсечки текст литерала попадал бы в диагностику о неверном значении,
+ * где отказов нет вовсе. Сравнение идёт именно с `FailCode`: это
+ * шаблонный литерал, и сравнение со `string` отката не ловит.
+ *
+ * @param R - Тип результата хендлера
+ * @param E - Объявленное множество отказов
+ */
+export type ValidateHandlerFails<R, E extends AnyFail> = [FailCode] extends [
+  ReturnedFailCodes<R>,
+]
+  ? unknown
+  : [UndeclaredHandlerFails<R, E>] extends [never]
+    ? unknown
+    : {
+        __error: "Handler returns a failure that is not declared in 'errors:'";
+        returned: UndeclaredHandlerFails<R, E>;
+        declared: E['code'];
+        hint: "add the definitions to 'errors:', or stop returning them from the handler";
+      };
 
 /** Полная спецификация операции: общий вход трёх конструкторов */
 export interface OperationSpec<

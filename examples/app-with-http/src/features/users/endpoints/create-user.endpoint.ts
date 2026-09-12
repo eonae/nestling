@@ -102,8 +102,7 @@ class CreateUserHandler {
  * Вызыватели соседней фичи перечислены в `@Handler` как обычные
  * зависимости.
  */
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: authed,
   handler: CreateUserHandler,
 });

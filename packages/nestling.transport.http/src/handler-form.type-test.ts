@@ -52,17 +52,15 @@ const onBus = implement(Login, {
   handler: LoginHttpHandler,
 });
 
-/** HTTP-класс не проходит в форму с `operation:` */
-const byOperation = httpEndpoint({
-  operation: Login,
+/** HTTP-класс не проходит в реализацию операции */
+const byOperation = httpEndpoint.implement(Login, {
   // @ts-expect-error та же причина: адрес принадлежит операции
   handler: LoginHttpHandler,
 });
 
-/** Нейтральный класс проходит в обе формы */
+/** Нейтральный класс проходит в обе реализации */
 const neutralOnBus = implement(Login, { handler: LoginHandler });
-const neutralByOperation = httpEndpoint({
-  operation: Login,
+const neutralByOperation = httpEndpoint.implement(Login, {
   handler: LoginHandler,
 });
 

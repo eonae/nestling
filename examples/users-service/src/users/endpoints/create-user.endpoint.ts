@@ -61,8 +61,7 @@ export class CreateUserHandler {
  * Bearer-токена он приносит с собой — `transactional` композирован от
  * `authed`.
  */
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: transactional,
   handler: CreateUserHandler,
 });

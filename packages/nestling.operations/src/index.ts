@@ -141,13 +141,14 @@ export type {
   ResponseLike,
 } from './make-fail.js';
 
-// ./operation.js — 17
+// ./operation.js — 20
 export { makeCommand, makeEvent, makeRequest } from './operation.js';
 export type {
   AnyOperation,
   CommandOperation,
   EmittingOperation,
   EventOperation,
+  HandlerResultOf,
   InputFormOf,
   InputOf,
   Operation,
@@ -157,6 +158,8 @@ export type {
   OutputFormOf,
   OutputOf,
   RequestOperation,
+  UndeclaredHandlerFails,
+  ValidateHandlerFails,
   ValidateOperationFails,
 } from './operation.js';
 

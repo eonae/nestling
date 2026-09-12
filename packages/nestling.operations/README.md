@@ -46,11 +46,12 @@ export const CreateUser = makeRequest({
 - **Операция** ([design](../../docs/design/operations.md)) — `AnyOperation`,
   `assertDoc`, `CommandOperation`, `DeclarationDoc`, `EmitMeta`, `Emitter`,
   `EmitterFamily`, `EmitterToken`, `EmittingOperation`, `EventOperation`,
-  `InputFormOf`, `InputOf`, `InvokeArgs`, `KernelPortFail`, `lookupOperation`,
-  `makeCommand`, `makeEvent`, `makeRequest`, `MetaOf`, `Operation`,
-  `OperationFailsOf`, `OperationKind`, `OperationSpec`, `OutputFormOf`,
-  `OutputOf`, `Port`, `PortFamily`, `PortMeta`, `PortResult`, `PortToken`,
-  `RequestOperation`, `ValidateOperationFails`.
+  `HandlerResultOf`, `InputFormOf`, `InputOf`, `InvokeArgs`, `KernelPortFail`,
+  `lookupOperation`, `makeCommand`, `makeEvent`, `makeRequest`, `MetaOf`,
+  `Operation`, `OperationFailsOf`, `OperationKind`, `OperationSpec`,
+  `OutputFormOf`, `OutputOf`, `Port`, `PortFamily`, `PortMeta`, `PortResult`,
+  `PortToken`, `RequestOperation`, `UndeclaredHandlerFails`,
+  `ValidateHandlerFails`, `ValidateOperationFails`.
 - **Результат и отказы** ([design](../../docs/design/errors.md)) — `AnyFail`,
   `AnyFailDefinition`, `assertFailCode`, `BadRequest`, `categories`, `Category`,
   `categoryOf`, `DeclaredFail`, `Fail`, `FailCode`, `FailCreateOptions`,

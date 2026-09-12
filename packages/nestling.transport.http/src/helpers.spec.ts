@@ -205,9 +205,6 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       input: UpdateUserInput,
       // @ts-expect-error: поля 'expnd' в схеме нет
       bind: { expnd: query() },
-      // @ts-expect-error: перегрузок больше трёх — TypeScript печатает ошибку
-      // последней (класс-формы), и она садится на этот аргумент. Настоящая
-      // причина (несошедшийся 'bind') в тексте сообщения на месте.
       handler: handle,
     });
 
@@ -222,7 +219,6 @@ describe('httpEndpoint — типы bind и rawBody', () => {
         input: UpdateUserInput,
         // @ts-expect-error: 'id' — path-параметр шаблона, перебиндить нельзя
         bind: { id: query() },
-        // @ts-expect-error: см. выше — элаборация последней перегрузки
         handler: handle,
       }),
     ).toThrow(/'id' is the path parameter ':id'/);
@@ -250,7 +246,6 @@ describe('httpEndpoint — типы bind и rawBody', () => {
       // Текст диагностики зафиксирован снапшотом:
       // packages/nestling.pipeline/type-tests/fixtures/endpoint-missing-rawbody.ts
       pipeline: makePipeline<{ rawBody: Uint8Array }>(),
-      // @ts-expect-error: см. выше — элаборация последней перегрузки
       handler: handle,
     });
 
