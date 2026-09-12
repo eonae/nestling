@@ -97,10 +97,7 @@
 
 - [x] 7.1 Все задачи выше отмечены
 - [x] 7.2 `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` +
-      `type-budget` по всем пакетам). Кроме `@examples/app-with-http`
-      (`typecheck` и `build`, TS2742 на выводе типов `makeApp`): та же
-      пара падает на `e05cb3dd` до change'а, к нему отношения не имеет и
-      воспроизводится только в worktree
+      `type-budget` по всем пакетам)
 - [x] 7.3 README затронутых пакетов обновлены, включая плашки статуса
 - [x] 7.4 `design/` и `decisions/` синхронизированы по правилам
       `CLAUDE.md`; запись `ideas.md`, по которой шёл change, несёт пометку
