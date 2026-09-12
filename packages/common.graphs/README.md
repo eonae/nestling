@@ -1,17 +1,17 @@
 # @nestlingjs/common.graphs
 
-Направленный ациклический граф: добавление узлов, обход в топологическом и
-обратном топологическом порядке, обнаружение циклов. Им пользуется
-`@nestlingjs/container` для графа зависимостей и порядка жизненного цикла.
+A directed acyclic graph: adding nodes, traversal in topological and
+reverse topological order, cycle detection. It is used by
+`@nestlingjs/container` for the dependency graph and the lifecycle order.
 
-> Внутренний пакет Nestling: приходит зависимостью `@nestlingjs/container`, отдельно ставить его незачем.
+> Internal Nestling package: arrives as a dependency of `@nestlingjs/container`, no need to install it separately.
 
-## Установка
+## Install
 
-Пакет внутренний и приходит зависимостью `@nestlingjs/container`. Отдельно
-устанавливать его не нужно.
+The package is internal and arrives as a dependency of
+`@nestlingjs/container`. There is no need to install it separately.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { DAG } from '@nestlingjs/common.graphs';
@@ -28,22 +28,23 @@ const graph = new DAG<Service>();
 graph.addNode(db);
 graph.addNode(repo);
 
-// Сначала `db`, затем `repo`: зависимость идёт раньше зависимого.
+// First `db`, then `repo`: the dependency comes before the dependent.
 await graph.traverse((node) => console.log(node.id), {
   direction: 'topological',
 });
 ```
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `DAG` | граф узлов: добавление, поиск по `id`, обход, обнаружение циклов |
-| `INode` | интерфейс узла: `id` и список зависимостей |
-| `VisitOptions` | параметры обхода: фильтр узлов и направление |
-| `VisitCallback` | колбэк обхода; может вернуть промис |
+| `DAG` | a graph of nodes: adding, lookup by `id`, traversal, cycle detection |
+| `INode` | the node interface: `id` and the list of dependencies |
+| `VisitOptions` | traversal parameters: a node filter and a direction |
+| `VisitCallback` | the traversal callback; may return a promise |
 
-## Границы пакета
+## Package boundaries
 
-Граф хранит узлы и порядок между ними. Создание экземпляров, разрешение
-зависимостей и хуки жизненного цикла живут в `@nestlingjs/container`.
+The graph holds the nodes and the order between them. Instance creation,
+dependency resolution and lifecycle hooks live in
+`@nestlingjs/container`.

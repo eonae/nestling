@@ -1,20 +1,21 @@
 # @nestlingjs/common.misc
 
-Схемный кернел Nestling и общие вспомогательные типы. Пакет задаёт словарь
-схем поверх [Standard Schema v1](https://standardschema.dev) и держит
-единственное место, где ядро проверяет данные схемой, — `validateSync`.
-Через него проходят разбор входа пайплайном, поэлементная проверка потоков
-и поля секций конфигурации, поэтому ошибка валидации везде выглядит
-одинаково.
+The schema kernel of Nestling and shared helper types. The package sets
+the vocabulary of schemas over [Standard Schema v1](https://standardschema.dev)
+and holds the single place where the kernel validates data by a schema —
+`validateSync`. Input parsing by the pipeline, item-by-item stream
+checking and configuration section fields all pass through it, so a
+validation error looks the same everywhere.
 
-> Внутренний пакет Nestling: ставится вместе с ядром, часть его имён реэкспортирует `@nestlingjs/app`.
+> Internal Nestling package: installed together with the kernel, part of its names are re-exported by `@nestlingjs/app`.
 
-## Установка
+## Install
 
-Пакет внутренний и приходит зависимостью ядра. Отдельно устанавливать его не
-нужно: перечисленные имена доступны из `@nestlingjs/app`.
+The package is internal and arrives as a dependency of the kernel. There
+is no need to install it separately: the listed names are available from
+`@nestlingjs/app`.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { SchemaValidationError, validateSync } from '@nestlingjs/common.misc';
@@ -26,30 +27,32 @@ try {
   const value = validateSync(schema, { id: 42 }, 'bad payload');
   console.log(value.id);
 } catch (error) {
-  // issues уже нормализованы: путь развёрнут, символы приведены к строкам.
+  // issues are already normalized: the path is unfolded, symbols are
+  // cast to strings.
   if (error instanceof SchemaValidationError) console.log(error.issues);
 }
 ```
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `Schema` | псевдоним `StandardSchemaV1`: подходит любой валидатор спецификации |
-| `Infer` | выходной тип схемы, либо `undefined`, если схемы нет |
-| `DomainType` | выходной тип схемы, которая задана всегда |
-| `SchemaIssue` | одна претензия валидатора после нормализации |
-| `validateSync` | проверяет значение схемой и возвращает разобранное |
-| `assertStandardSchema` | проверяет, что значение реализует спецификацию |
-| `normalizeIssues` | нормализует `issues` собственного кода так же, как ядро |
-| `SchemaValidationError` | значение не прошло схему; несёт `issues` |
-| `AsyncSchemaNotSupportedError` | схема вернула промис: асинхронная проверка не поддержана |
-| `NotAStandardSchemaError` | у объекта нет `~standard` с `version: 1` |
-| `Constructor` | конструктор класса как значение |
-| `Optional` | `T` либо `undefined` |
-| Реэкспорт `@standard-schema/spec` | `StandardSchemaV1`, чтобы не ставить пакет спецификации |
+| `Schema` | an alias of `StandardSchemaV1`: any validator of the spec fits |
+| `Infer` | the output type of a schema, or `undefined` when there is no schema |
+| `DomainType` | the output type of a schema that is always set |
+| `SchemaIssue` | one validator complaint after normalization |
+| `validateSync` | validates a value by a schema and returns the parsed result |
+| `assertStandardSchema` | checks that a value implements the spec |
+| `normalizeIssues` | normalizes `issues` of own code the same way as the kernel |
+| `SchemaValidationError` | a value did not pass the schema; carries `issues` |
+| `AsyncSchemaNotSupportedError` | the schema returned a promise: asynchronous validation is not supported |
+| `NotAStandardSchemaError` | the object has no `~standard` with `version: 1` |
+| `Constructor` | a class constructor as a value |
+| `Optional` | `T` or `undefined` |
+| Re-export of `@standard-schema/spec` | `StandardSchemaV1`, so the spec package does not need to be installed |
 
-## Границы пакета
+## Package boundaries
 
-Ядро не заглядывает внутрь схемы: спецификация даёт только валидацию и вывод
-типов. Разбор схемы в JSON Schema делают конвертеры `@nestlingjs/openapi`.
+The kernel does not look inside a schema: the spec gives only validation
+and type inference. Parsing a schema into JSON Schema is done by the
+`@nestlingjs/openapi` converters.

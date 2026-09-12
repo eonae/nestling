@@ -1,18 +1,18 @@
 # @nestlingjs/common.static-server
 
-Сервер статических файлов на `node:http` без внешних зависимостей: отдаёт
-каталог по HTTP, подставляет MIME-тип по расширению и закрывается по
-сигналу. Им пользуется `@nestlingjs/viz`, чтобы отдавать фронтенд
-визуализации, и сборка документации — чтобы отдавать дерево страниц.
+A static file server on `node:http` with no external dependencies:
+serves a directory over HTTP, sets the MIME type by extension and closes
+on a signal. It is used by `@nestlingjs/viz` to serve the visualization
+frontend, and by the documentation build to serve the page tree.
 
-> Внутренний пакет Nestling: приходит зависимостью `@nestlingjs/viz`, отдельно ставить его незачем.
+> Internal Nestling package: arrives as a dependency of `@nestlingjs/viz`, no need to install it separately.
 
-## Установка
+## Install
 
-Пакет внутренний и приходит зависимостью `@nestlingjs/viz`. Отдельно
-устанавливать его не нужно.
+The package is internal and arrives as a dependency of
+`@nestlingjs/viz`. There is no need to install it separately.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { StaticServer } from '@nestlingjs/common.static-server';
@@ -26,16 +26,18 @@ const server = new StaticServer({
 await server.start();
 ```
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `StaticServer` | отдаёт файлы каталога по HTTP; `start()` и `stop()` |
+| `StaticServer` | serves the files of a directory over HTTP; `start()` and `stop()` |
 
-Опции конструктора — порт, каталог, заголовки, файл по умолчанию и таймаут
-остановки — выводятся из объекта в точке вызова; отдельного имени у них нет.
+The constructor options — the port, the directory, the headers, the
+default file and the shutdown timeout — are inferred from the object at
+the call site; they have no separate name.
 
-## Границы пакета
+## Package boundaries
 
-Сервер отдаёт файлы с диска. Маршрутизации, шаблонов, сжатия и HTTPS у него
-нет: приложение на Nestling обслуживает `@nestlingjs/transport.http`.
+The server serves files from disk. It has no routing, templates,
+compression or HTTPS: an application on Nestling is served by
+`@nestlingjs/transport.http`.

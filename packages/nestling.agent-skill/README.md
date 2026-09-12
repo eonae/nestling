@@ -1,29 +1,32 @@
 # @nestlingjs/agent-skill
 
-Скилл Claude Code про Nestling и команда, которая кладёт его в проект.
-Скилл даёт агенту форму кода и правила, которых нельзя вывести из практики
-NestJS: декларации значениями, явный список зависимостей, отказы значениями,
-вызов соседней фичи операцией.
+A Claude Code skill about Nestling, and the command that puts it into a
+project. The skill gives the agent the shape of the code and the rules
+that cannot be derived from NestJS practice: declarations as values, an
+explicit dependency list, failures as values, calling a neighbouring
+feature by an operation.
 
-> 🚧 Активная разработка, API может меняться. Текст скилла английский:
-> его читает модель, а не разработчик.
-> Дизайн: [`docs/design/principles.md`](../../docs/design/principles.md).
-> Гайд: [оглавление](../../docs/guide/README.md).
+> 🚧 Active development, the API may change. The text of the skill is
+> English: it is read by the model, not by the developer.
+> Design: [`docs/en/design/principles.md`](../../docs/en/design/principles.md).
+> Guide: [table of contents](../../docs/en/guide/README.md).
 
-## Установка
+## Install
 
 ```bash
 npx @nestlingjs/agent-skill
 ```
 
-Команда пишет `.claude/skills/nestling/` в текущем каталоге: `SKILL.md` и
-одиннадцать файлов `references/`. Другой каталог задаёт `--dir <путь>`.
+The command writes `.claude/skills/nestling/` in the current directory:
+`SKILL.md` and eleven `references/` files. Another directory is set by
+`--dir <path>`.
 
-Файла нет — команда его создаёт. Файл совпадает с источником — не трогает.
-Файл отличается — называет его и завершается кодом 1, потому что правки
-пользователя молча не теряются; `--force` перезаписывает.
+A missing file is created by the command. A file that matches the source
+is left untouched. A file that differs is named and the command finishes
+with exit code 1, because a user's edits are not silently lost; `--force`
+overwrites it.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { installSkill } from '@nestlingjs/agent-skill';
@@ -33,36 +36,38 @@ const report = await installSkill({ dir: './apps/api', force: false });
 console.log(report.created.length, report.unchanged.length);
 
 if (report.diverged.length > 0) {
-  console.log(`расходятся: ${report.diverged.join(', ')}`);
+  console.log(`diverged: ${report.diverged.join(', ')}`);
 }
 ```
 
-## Экспорты
+## Exports
 
-| Имя | Что делает |
+| Name | What it does |
 |---|---|
-| `installSkill` | кладёт файлы скилла в `.claude/skills/nestling/` внутри каталога проекта и возвращает отчёт значением |
-| `InstallOptions` | опции установки: каталог проекта и разрешение перезаписать расходящиеся файлы |
-| `InstallReport` | отчёт: каталог назначения, созданные, совпавшие и разошедшиеся файлы |
-| `SKILL_PATH` | путь скилла внутри проекта — `.claude/skills/nestling` |
+| `installSkill` | puts the skill files into `.claude/skills/nestling/` inside the project directory and returns the report as a value |
+| `InstallOptions` | install options: the project directory and the permission to overwrite diverged files |
+| `InstallReport` | the report: the destination directory, the created, matched and diverged files |
+| `SKILL_PATH` | the path of the skill inside the project — `.claude/skills/nestling` |
 
-Команда `nestling-agent-skill` — та же установка из терминала. Её и
-запускает `npx @nestlingjs/agent-skill`: команда в пакете одна, и имя ей
-указывать не нужно.
+The `nestling-agent-skill` command is the same install from the terminal.
+It is what `npx @nestlingjs/agent-skill` runs: the package has one
+command, and there is no need to name it.
 
-## Границы пакета
+## Package boundaries
 
-Пакет несёт текст и копирует файлы. Кода фреймворка в нём нет: `dist` не
-зависит ни от чего, кроме модулей Node. Скилл описывает только написание
-приложения на Nestling — работу над самим фреймворком ведут скиллы
-репозитория.
+The package carries text and copies files. There is no framework code in
+it: `dist` depends on nothing but Node modules. The skill describes only
+writing an application on Nestling; work on the framework itself is
+carried by the skills of the repository.
 
-Сниппеты скилла лежат в `snippets/` компилируемыми файлами и в тарбол не
-едут: они существуют ради того, чтобы `yarn verify` роняло скилл,
-разошедшийся с API. Блоки кода сверяет `scripts/snippets.mjs`, переписывает
-их `yarn workspace @nestlingjs/agent-skill snippets`.
+The snippets of the skill live in `snippets/` as compiled files and do
+not travel into the tarball: they exist so that `yarn verify` fails the
+skill that diverges from the API. The code blocks are checked by
+`scripts/snippets.mjs`, and rewritten by
+`yarn workspace @nestlingjs/agent-skill snippets`.
 
-Сниппеты проверяются не только компиляцией. Те из них, до которых
-`snippets/app.ts` достаёт импортами, спека собирает в приложение через
-`assembleTest`: политика корня, слой endpoint'а, ребро между фичами и
-провайдер юнита слоя ловятся так же, как у пользователя.
+The snippets are checked by more than compilation. The ones that
+`snippets/app.ts` reaches by imports are assembled into an application by
+the spec through `assembleTest`: the root policy, the endpoint layer, the
+edge between features and the provider of the layer unit are caught the
+same way as for a user.
