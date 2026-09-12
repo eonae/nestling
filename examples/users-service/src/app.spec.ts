@@ -23,11 +23,16 @@ import {
 import { UsersRepository$ } from './users/users.repository.js';
 import { app } from './app.js';
 import { db } from './persistence.js';
-import { outbox as outboxRecords, users } from './schema.js';
+import {
+  inbox as inboxMarks,
+  outbox as outboxRecords,
+  users,
+} from './schema.js';
 import { inMemoryUsersRepo } from './testing.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { RootLogger$ } from '@nestlingjs/app';
+import { InboxSweeper$ } from '@nestlingjs/inbox';
 import { OutboxRelay$ } from '@nestlingjs/outbox';
 import type { TestApp } from '@nestlingjs/testing';
 import { assembleTest, spyLogger, unwrap, vars } from '@nestlingjs/testing';
@@ -65,12 +70,43 @@ async function seed(
   }
 
   await connection.db.delete(outboxRecords);
+  await connection.db.delete(inboxMarks);
   await connection.db.delete(users);
 
   if (rows.length > 0) {
     await connection.db.insert(users).values([...rows]);
   }
 }
+
+/**
+ * Ждёт, пока условие станет истинным.
+ *
+ * Доставка шины асинхронна: `publish` кладёт сообщение в тему, а
+ * подписчик разбирает её отдельной задачей. Проверять его след сразу
+ * после прохода relay — гонка, и слой транзакции подписчика делает её
+ * заметной: открытие транзакции уходит за границу микротасков.
+ */
+async function waitFor(
+  condition: () => boolean | Promise<boolean>,
+  what: string,
+  timeoutMs = 5000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (!(await condition())) {
+    if (Date.now() > deadline) {
+      throw new Error(`не дождались: ${what}`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+/** Сколько раз запись с этим сообщением попала в логгер */
+const countOf = (
+  entries: readonly { message: string }[],
+  message: string,
+): number => entries.filter((entry) => entry.message === message).length;
 
 describeWithDatabase('users-service', () => {
   it('отдаёт пользователя через полный пайплайн', async () => {
@@ -183,6 +219,11 @@ describeWithDatabase('users-service', () => {
     const relay = testApp.get(OutboxRelay$);
     expect(await relay?.drain()).toMatchObject({ claimed: 1, published: 1 });
 
+    await waitFor(
+      () => countOf(spy.entries, 'welcome email sent') === 1,
+      'письмо подписчика',
+    );
+
     expect(spy.entries).toContainEqual({
       level: 'info',
       message: 'welcome email sent',
@@ -191,6 +232,8 @@ describeWithDatabase('users-service', () => {
         // Идентификатор выдаёт хранилище, и он перестал быть счётчиком
         id: expect.any(String),
         email: 'carol@example.com',
+        // Ключ идемпотентности равен идентификатору записи outbox'а
+        idempotencyKey: expect.any(String),
       },
     });
   });
@@ -258,5 +301,86 @@ describeWithDatabase('users-service', () => {
         fields: expect.objectContaining({ requestId: 'n/a' }),
       }),
     );
+  });
+
+  it('повторная публикация записи не вызывает хендлер второй раз', async () => {
+    const spy = spyLogger();
+    await using testApp = await assembleTest(app, {
+      config: testConfig,
+      overrides: [[RootLogger$, spy.logger]],
+    });
+    await seed(testApp);
+
+    await testApp.call(
+      CreateUser,
+      { name: 'Carol', email: 'carol@example.com' },
+      { attributes: { authorization: 'Bearer test-token' } },
+    );
+
+    const relay = testApp.get(OutboxRelay$);
+    expect(await relay?.drain()).toMatchObject({ claimed: 1, published: 1 });
+    await waitFor(
+      () => countOf(spy.entries, 'welcome email sent') === 1,
+      'первое письмо подписчика',
+    );
+
+    const connection = testApp.get(db.connection);
+
+    if (!connection) {
+      throw new Error('в графе нет соединения с базой');
+    }
+
+    // Relay упал между публикацией и отметкой: запись снова ждёт выдачи.
+    // Ключ идемпотентности у неё прежний — это её идентификатор
+    await connection.db
+      .update(outboxRecords)
+      .set({ state: 'pending', publishedAt: null });
+
+    expect(await relay?.drain()).toMatchObject({ claimed: 1, published: 1 });
+
+    // Слой приёма узнал повтор по паре «паттерн и ключ»
+    await waitFor(
+      () => countOf(spy.entries, 'inbox skipped a duplicate') === 1,
+      'запись о повторе',
+    );
+
+    // Письмо ушло ровно один раз
+    expect(countOf(spy.entries, 'welcome email sent')).toBe(1);
+  });
+
+  it('проход уборщика удаляет отметку приёма', async () => {
+    await using testApp = await assembleTest(app, {
+      config: vars({
+        API_TOKEN: 'test-token',
+        DATABASE_URL: TEST_DATABASE_URL ?? '',
+        INBOX_RETENTION_MS: '0',
+      }),
+    });
+    await seed(testApp);
+
+    await testApp.call(
+      CreateUser,
+      { name: 'Carol', email: 'carol@example.com' },
+      { attributes: { authorization: 'Bearer test-token' } },
+    );
+    await testApp.get(OutboxRelay$)?.drain();
+
+    const connection = testApp.get(db.connection);
+
+    if (!connection) {
+      throw new Error('в графе нет соединения с базой');
+    }
+
+    await waitFor(async () => {
+      const marks = await connection.db.select().from(inboxMarks);
+
+      return marks.length === 1;
+    }, 'отметка приёма');
+
+    // Тестовая сборка останавливается после WIRE, `@OnStart` не
+    // выполняется — проход делает сам тест, не дожидаясь таймера
+    const sweeper = testApp.get(InboxSweeper$);
+
+    expect(await sweeper?.sweepOnce()).toBe(1);
   });
 });

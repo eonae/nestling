@@ -1688,6 +1688,7 @@ __metadata:
     "@nestlingjs/container": "workspace:*"
     "@nestlingjs/drizzle.pg": "workspace:*"
     "@nestlingjs/eslint-plugin": "workspace:*"
+    "@nestlingjs/inbox": "workspace:*"
     "@nestlingjs/openapi": "workspace:*"
     "@nestlingjs/openapi.zod": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
@@ -2323,6 +2324,7 @@ __metadata:
     "@nestlingjs/app": "workspace:*"
     "@nestlingjs/common.misc": "workspace:*"
     "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/inbox": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
     "@nestlingjs/outbox": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
@@ -2332,10 +2334,13 @@ __metadata:
     typescript: "npm:5.7.3"
     zod: "npm:^4.0.0"
   peerDependencies:
+    "@nestlingjs/inbox": "workspace:*"
     "@nestlingjs/outbox": "workspace:*"
     drizzle-orm: ^0.45.0
     pg: ^8.16.0
   peerDependenciesMeta:
+    "@nestlingjs/inbox":
+      optional: true
     "@nestlingjs/outbox":
       optional: true
   languageName: unknown
@@ -2350,6 +2355,18 @@ __metadata:
     typescript-eslint: "npm:^8.5.0"
   peerDependencies:
     eslint: ">=9"
+  languageName: unknown
+  linkType: soft
+
+"@nestlingjs/inbox@workspace:*, @nestlingjs/inbox@workspace:packages/nestling.inbox":
+  version: 0.0.0-use.local
+  resolution: "@nestlingjs/inbox@workspace:packages/nestling.inbox"
+  dependencies:
+    "@nestlingjs/app": "workspace:*"
+    "@nestlingjs/common.misc": "workspace:*"
+    "@nestlingjs/container": "workspace:*"
+    "@nestlingjs/testing": "workspace:*"
+    typescript: "npm:5.7.3"
   languageName: unknown
   linkType: soft
 

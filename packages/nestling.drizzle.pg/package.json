@@ -1,7 +1,7 @@
 {
   "name": "@nestlingjs/drizzle.pg",
   "version": "0.1.3",
-  "description": "Соединение с PostgreSQL, транзакция запроса переменной контекста и адаптер хранилища outbox'а поверх drizzle-orm",
+  "description": "Соединение с PostgreSQL, транзакция запроса переменной контекста и адаптеры хранилищ outbox'а и приёма поверх drizzle-orm",
   "keywords": [
     "nestling",
     "typescript",
@@ -9,7 +9,8 @@
     "postgresql",
     "drizzle",
     "transaction",
-    "outbox"
+    "outbox",
+    "inbox"
   ],
   "license": "MIT",
   "author": "eonae",
@@ -39,6 +40,15 @@
       "types": "./dist/outbox/table.d.ts",
       "import": "./dist/outbox/table.js",
       "default": "./dist/outbox/table.js"
+    },
+    "./inbox": {
+      "types": "./dist/inbox/index.d.ts",
+      "import": "./dist/inbox/index.js"
+    },
+    "./inbox/table": {
+      "types": "./dist/inbox/table.d.ts",
+      "import": "./dist/inbox/table.js",
+      "default": "./dist/inbox/table.js"
     }
   },
   "files": [
@@ -63,16 +73,21 @@
     "@nestlingjs/container": "workspace:*"
   },
   "peerDependencies": {
+    "@nestlingjs/inbox": "workspace:*",
     "@nestlingjs/outbox": "workspace:*",
     "drizzle-orm": "^0.45.0",
     "pg": "^8.16.0"
   },
   "peerDependenciesMeta": {
+    "@nestlingjs/inbox": {
+      "optional": true
+    },
     "@nestlingjs/outbox": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@nestlingjs/inbox": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
     "@nestlingjs/outbox": "workspace:*",
     "@nestlingjs/testing": "workspace:*",

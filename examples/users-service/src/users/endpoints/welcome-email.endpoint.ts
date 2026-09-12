@@ -1,49 +1,31 @@
+import { appInbox, subscribed } from '../../persistence.js';
 import { UserCreated } from '../users.events.js';
 
 import type { Logger, Output } from '@nestlingjs/app';
-import {
-  implement,
-  Logger$,
-  makePipeline,
-  withIdempotencyKey,
-} from '@nestlingjs/app';
-import { Handler, makeToken } from '@nestlingjs/container';
+import { compose, implement, Logger$ } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
 import { Ok } from '@nestlingjs/operations';
-
-/** Уже обработанные ключи: дедупликация — обязанность подписчика */
-export const SeenKeys$ = makeToken<Set<string>>('SeenKeys');
 
 /**
  * Подписчик факта: отправляет приветственное письмо.
  *
- * Ключ идемпотентности кладёт в контекст штатный писатель ядра
- * `withIdempotencyKey()`: он берёт ключ из конверта, а сообщению без
- * ключа чеканит собственный. Relay ставит ключом идентификатор записи
- * outbox'а, поэтому повтор доставки узнаётся по нему.
+ * Дедупликацию хендлер не делает: повтор до него не доходит. Ключ
+ * идемпотентности кладёт в контекст слой приёма — он берёт его из
+ * конверта сообщения, а relay ставит ключом идентификатор записи
+ * outbox'а.
  */
-@Handler([Logger$.auto, SeenKeys$])
+@Handler([Logger$.auto])
 export class WelcomeEmailHandler {
-  constructor(
-    private readonly logger: Logger,
-    private readonly seen: Set<string>,
-  ) {}
+  constructor(private readonly logger: Logger) {}
 
   async handle(
     payload: { id: string; name: string; email: string },
     meta: { idempotencyKey: string },
   ): Output<undefined> {
-    if (this.seen.has(meta.idempotencyKey)) {
-      this.logger.info('welcome email skipped as duplicate', {
-        id: payload.id,
-      });
-
-      return new Ok(undefined);
-    }
-
-    this.seen.add(meta.idempotencyKey);
     this.logger.info('welcome email sent', {
       id: payload.id,
       email: payload.email,
+      idempotencyKey: meta.idempotencyKey,
     });
 
     return new Ok(undefined);
@@ -53,12 +35,16 @@ export class WelcomeEmailHandler {
 /**
  * Реализация события: имя подписчика — часть адреса внутри процесса.
  *
+ * Слой приёма композируется **внутрь** слоя транзакции: отметка
+ * «обработано» и письмо коммитятся вместе, а отметка живёт по паре
+ * «паттерн endpoint'а и ключ идемпотентности».
+ *
  * В настоящем приложении подписчик жил бы в соседней фиче: сосед узнаёт о
  * случившемся операцией, а не DI-токеном. Здесь фича одна, и подписчик
  * лежит рядом.
  */
 export const WelcomeEmail = implement(UserCreated, {
   subscriber: 'welcome-email',
-  pipeline: makePipeline().pre(withIdempotencyKey()),
+  pipeline: compose(subscribed, appInbox.layer),
   handler: WelcomeEmailHandler,
 });

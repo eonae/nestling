@@ -1,0 +1,58 @@
+{
+  "name": "@nestlingjs/inbox",
+  "version": "0.1.3",
+  "description": "Транзакционный приём: отметка «обработано» коммитится той же транзакцией, что и бизнес-изменение, и повтор не доходит до хендлера",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "inbox",
+    "idempotency",
+    "transactional-messaging",
+    "deduplication"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.inbox"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.inbox#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/common.misc": "workspace:*",
+    "@nestlingjs/container": "workspace:*"
+  },
+  "devDependencies": {
+    "@nestlingjs/testing": "workspace:*",
+    "typescript": "5.7.3"
+  }
+}

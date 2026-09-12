@@ -87,6 +87,7 @@ export {
   Deadline,
   deadlineFromTimeout,
   deadlineIn,
+  IDEMPOTENCY_KEY_ATTRIBUTE,
   IdempotencyKey,
   isExhausted,
   profileAttributes,

@@ -22,5 +22,5 @@
 | [schemas.md](./schemas.md) | Standard Schema на границах, OpenAPI/AsyncAPI через конвертеры |
 | [streaming.md](./streaming.md) | стриминг: `stream`/`events`, item-цепочки, `Topic`, граница с RxJS |
 | [transports.md](./transports.md) | транспорты: `serve(dispatch)`, сервер как ресурс, юниты транспорта, пробы, байтовый уровень (сжатие, CORS, парсинг по io-декларации) |
-| [persistence.md](./persistence.md) | база данных: соединение значением, транзакция запроса переменной контекста, адаптер хранилища outbox'а |
+| [persistence.md](./persistence.md) | база данных: соединение значением, транзакция запроса переменной контекста, адаптеры хранилищ outbox'а и приёма |
 | [testing.md](./testing.md) | `@nestlingjs/testing`: `assembleTest(app, …)`, стабы, `check(args)` |

@@ -1,7 +1,8 @@
 # @nestlingjs/drizzle.pg
 
 Соединение с PostgreSQL, транзакция запроса переменной контекста и
-адаптер `OutboxStore` поверх drizzle-orm. Соединение объявляется
+адаптеры `OutboxStore` и `InboxStore` поверх drizzle-orm. Соединение
+объявляется
 значением: `drizzlePg({ schema })` отдаёт плагин с DI-токеном соединения,
 переменной транзакции, слоем пайплайна и политикой предпосылки.
 
@@ -16,10 +17,10 @@ npm install @nestlingjs/drizzle.pg drizzle-orm pg
 ```
 
 `drizzle-orm` и `pg` — peer-зависимости: версию драйвера выбирает
-приложение, и двух копий драйвера в процессе быть не должно. Адаптер
-хранилища outbox'а живёт в подпуте `./outbox`, и `@nestlingjs/outbox` для
-него — необязательная peer-зависимость: приложение без outbox'а ставит
-пакет и о хранилище не знает.
+приложение, и двух копий драйвера в процессе быть не должно. Адаптеры
+хранилищ живут в подпутях `./outbox` и `./inbox`, а `@nestlingjs/outbox` и
+`@nestlingjs/inbox` для них — необязательные peer-зависимости: приложение
+без них ставит пакет и о хранилищах не знает.
 
 Схему накатывает drizzle-kit вне процесса приложения: миграция при старте
 требует блокировки между репликами.
@@ -77,6 +78,12 @@ export class DbUsersRepository {
   `outboxDdl`, `DEFAULT_OUTBOX_TABLE`. Отдельный подпуть нужен
   drizzle-kit: он собирает схему как CJS, и из пакета ему годится только
   то, что не тянет за собой ядро.
+- **Подпуть `./inbox`** — `pgInboxStore`, `PgInboxStorePlugin`,
+  `PgInboxStoreOptions`, `PgInboxStore`, `PgInboxTransactionError`, а
+  также всё из группы ниже.
+- **Подпуть `./inbox/table`** — `inboxTable`, `InboxTable`, `inboxDdl`,
+  `DEFAULT_INBOX_TABLE`. Отдельный подпуть нужен по той же причине, что у
+  таблицы outbox'а.
 
 Секция конфига соединения по умолчанию читает `DATABASE_URL`,
 `DATABASE_POOL_MAX` и остальные ключи без вставки имени; экземпляр с

@@ -5,7 +5,7 @@
  * зависимостей и бренд. Плюс типовые тесты на `TNeeds`.
  */
 
-import { Ok } from '../core/index.js';
+import { done, Ok } from '../core/index.js';
 import { makePipeline } from '../core/pipeline.js';
 
 import type { EndpointDefinition } from './endpoint.js';
@@ -516,5 +516,44 @@ describe('makeEndpoint — типы', () => {
     };
 
     expect(compileOnly).toBeInstanceOf(Function);
+  });
+});
+
+describe('слой с досрочным успехом', () => {
+  const claiming = makePipeline().pre(() => done(), { done: true });
+
+  it('декларация без output создаётся', () => {
+    const Endpoint = makeEndpoint({
+      transport: HttpTransport$,
+      pattern: 'POST /events',
+      pipeline: claiming,
+      handler: async () => new Ok(undefined),
+    });
+
+    expect(isEndpointDefinition(Endpoint)).toBe(true);
+  });
+
+  it('декларация с output падает с текстом про слой и причину', () => {
+    expect(() =>
+      makeEndpoint({
+        transport: HttpTransport$,
+        pattern: 'POST /events',
+        output: z.object({ id: z.string() }),
+        pipeline: claiming,
+        handler: async () => new Ok({ id: '1' }),
+      }),
+    ).toThrow(/POST \/events.+done: true.+carries no value/s);
+  });
+
+  it('пайплайн без признака с output проходит', () => {
+    const Endpoint = makeEndpoint({
+      transport: HttpTransport$,
+      pattern: 'POST /events',
+      output: z.object({ id: z.string() }),
+      pipeline: makePipeline().pre(() => undefined),
+      handler: async () => new Ok({ id: '1' }),
+    });
+
+    expect(isEndpointDefinition(Endpoint)).toBe(true);
   });
 });
