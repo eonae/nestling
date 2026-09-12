@@ -262,6 +262,12 @@ async function assemble(options: {
   };
 }
 
+/** Записи счётчика вызовов порта */
+const counters = (
+  spy: ReturnType<typeof spyMetrics>,
+): ReturnType<typeof spyMetrics>['records'] =>
+  spy.records.filter(({ name }) => name === KERNEL_METRICS.portCalls);
+
 const portConsumer = factoryProvider(
   Consumer,
   (port: Port<any>) => ({ port }),
@@ -549,9 +555,6 @@ describe('portsKernel', () => {
 });
 
 describe('portsKernel — метрики вызова', () => {
-  const counters = (spy: ReturnType<typeof spyMetrics>) =>
-    spy.records.filter(({ name }) => name === KERNEL_METRICS.portCalls);
-
   it.each([
     ['local-first', 'local'],
     ['always-remote', 'remote'],

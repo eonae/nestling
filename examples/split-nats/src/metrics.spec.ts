@@ -75,7 +75,7 @@ describe('метрики ядра в экспорте примера', () => {
 
     expect(text).toContain('nestling_requests{');
     expect(text).toContain('nestling_request_duration_count{');
-    expect(text).toMatch(/nestling_port_calls\{[^}]*binding="local"/);
+    expect(text).toMatch(/nestling_port_calls{[^}]*binding="local"/);
   });
 
   it('endpoint /metrics отдаёт накопленный текст', async () => {

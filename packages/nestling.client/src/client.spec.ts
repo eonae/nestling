@@ -82,6 +82,23 @@ function stubFetch(
   return { fetch: fake, calls };
 }
 
+/** Заголовки первого запроса стаба */
+const headersOf = (
+  stub: ReturnType<typeof stubFetch>,
+): Record<string, string> =>
+  stub.calls[0].init.headers as Record<string, string>;
+
+/**
+ * Читалка трассы, отдающая заранее заданное значение.
+ *
+ * Без значения ведёт себя как читалка вне запроса: трассы нет, и заголовку
+ * неоткуда взяться.
+ */
+const traceReader =
+  (value?: string): (() => string | undefined) =>
+  () =>
+    value;
+
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {
     status,
@@ -577,18 +594,13 @@ describe('makeClient: meta и конфигурация', () => {
 });
 
 describe('makeClient — трасса за границей клиента', () => {
-  const TRACEPARENT =
-    '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
-
-  /** Заголовки первого запроса стаба */
-  const headersOf = (stub: ReturnType<typeof stubFetch>) =>
-    stub.calls[0].init.headers as Record<string, string>;
+  const TRACEPARENT = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
 
   it('читалка ставит заголовок traceparent', async () => {
     const stub = stubFetch(() => json(200, { id: 'u-1', email: 'a@b.c' }));
     const api = makeClient(
       { createUser: CreateUser },
-      { baseUrl, fetch: stub.fetch, trace: () => TRACEPARENT },
+      { baseUrl, fetch: stub.fetch, trace: traceReader(TRACEPARENT) },
     );
 
     await api.createUser({ email: 'a@b.c' });
@@ -628,7 +640,7 @@ describe('makeClient — трасса за границей клиента', () 
         baseUrl,
         fetch: stub.fetch,
         headers: { traceparent: 'explicit' },
-        trace: () => TRACEPARENT,
+        trace: traceReader(TRACEPARENT),
       },
     );
 
@@ -641,7 +653,7 @@ describe('makeClient — трасса за границей клиента', () 
     const stub = stubFetch(() => json(200, { id: 'u-1', email: 'a@b.c' }));
     const api = makeClient(
       { createUser: CreateUser },
-      { baseUrl, fetch: stub.fetch, trace: () => undefined },
+      { baseUrl, fetch: stub.fetch, trace: traceReader() },
     );
 
     await api.createUser({ email: 'a@b.c' });

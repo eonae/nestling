@@ -229,11 +229,7 @@ export class ConsoleLogger implements Logger {
     }
 
     const traceId = ambientTraceId();
-    if (
-      traceId !== undefined &&
-      !('traceId' in rest) &&
-      !('traceId' in data)
-    ) {
+    if (traceId !== undefined && !('traceId' in rest) && !('traceId' in data)) {
       data.traceId = traceId;
     }
 

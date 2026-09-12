@@ -16,7 +16,9 @@ import type { PreUnitFn } from '../core/types/index.js';
  * Порядок источников — от точного к общему: значение, привезённое шиной,
  * уже является трассой, а заголовок HTTP её только кодирует.
  */
-function parentOf(attributes: Record<string, unknown>): TraceContext | undefined {
+function parentOf(
+  attributes: Record<string, unknown>,
+): TraceContext | undefined {
   return (
     parsePropagatedTrace(attributes[Trace.key]) ??
     parseTraceparent(attributes.traceparent)

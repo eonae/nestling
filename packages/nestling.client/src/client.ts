@@ -179,9 +179,7 @@ async function resolveRequestHeaders(
   const headers = await resolveHeaders(config.headers);
   const traceparent = config.trace?.();
 
-  return traceparent === undefined
-    ? headers
-    : { traceparent, ...headers };
+  return traceparent === undefined ? headers : { traceparent, ...headers };
 }
 
 /**

@@ -23,9 +23,7 @@ const SAMPLED_FLAG = 0b0000_0001;
 
 /** Шестнадцатеричная строка заданной длины, не состоящая из одних нулей */
 const isHexId = (value: string, length: number): boolean =>
-  value.length === length &&
-  /^[\da-f]+$/.test(value) &&
-  !/^0+$/.test(value);
+  value.length === length && /^[\da-f]+$/.test(value) && !/^0+$/.test(value);
 
 /** Случайные байты шестнадцатеричной строкой */
 function randomHex(bytes: number): string {
@@ -100,9 +98,7 @@ export const formatTraceparent = (trace: TraceContext): string =>
  * инварианты, что у разобранной строки: длины идентификаторов и вид
  * знаков.
  */
-export function parsePropagatedTrace(
-  value: unknown,
-): TraceContext | undefined {
+export function parsePropagatedTrace(value: unknown): TraceContext | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined;
   }
@@ -113,10 +109,7 @@ export function parsePropagatedTrace(
     return undefined;
   }
 
-  if (
-    !isHexId(traceId, TRACE_ID_LENGTH) ||
-    !isHexId(spanId, SPAN_ID_LENGTH)
-  ) {
+  if (!isHexId(traceId, TRACE_ID_LENGTH) || !isHexId(spanId, SPAN_ID_LENGTH)) {
     return undefined;
   }
 

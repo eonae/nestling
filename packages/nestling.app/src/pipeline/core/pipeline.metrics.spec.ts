@@ -58,10 +58,17 @@ const run = (
     pipeline as unknown as Pipeline<EmptyInput, AnyInput, never>
   ).executeWithHandler(handler, ctxOf(signal, output), options);
 
-/** Собирает поток целиком */
+async function* rows(): AsyncIterableIterator<{ id: string }> {
+  yield { id: 'a' };
+  yield { id: 'b' };
+}
+
+/** Собирает поток целиком: предмет проверки — момент записи, не элементы */
 const drain = async (value: unknown): Promise<void> => {
-  for await (const _item of value as AsyncIterable<unknown>) {
-    // намеренно: предмет проверки — момент записи, а не элементы
+  const items: unknown[] = [];
+
+  for await (const item of value as AsyncIterable<unknown>) {
+    items.push(item);
   }
 };
 
@@ -86,12 +93,12 @@ describe('метрики запроса — исходы', () => {
       attributes,
     });
 
-    const [duration] = spy.records.filter(
+    const duration = spy.records.find(
       ({ name }) => name === KERNEL_METRICS.requestDuration,
     );
 
     expect(duration).toMatchObject({ kind: 'histogram', attributes });
-    expect(duration.value).toBeGreaterThanOrEqual(0);
+    expect(duration?.value).toBeGreaterThanOrEqual(0);
   });
 
   it('отказ учитывается отдельно', async () => {
@@ -146,11 +153,6 @@ describe('метрики запроса — исходы', () => {
 
 describe('метрики запроса — поток', () => {
   const Row = z.object({ id: z.string() });
-
-  async function* rows(): AsyncIterableIterator<{ id: string }> {
-    yield { id: 'a' };
-    yield { id: 'b' };
-  }
 
   it('запись появляется после закрытия итератора', async () => {
     const spy = spyMetrics();

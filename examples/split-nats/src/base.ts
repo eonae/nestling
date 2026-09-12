@@ -21,8 +21,11 @@ import { makePipeline, withTracing } from '@nestlingjs/app';
  *
  * Тип написан явно, а не выведен: без аннотации TypeScript печатает
  * внутренний путь пакета и отказывается называть тип экспортируемого
- * значения.
+ * значения. Алиас, а не интерфейс: параметр `Pipeline` требует
+ * совместимости с `AnyInput`, а у интерфейса нет неявной индексной
+ * сигнатуры.
  */
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type BaseContext = {
   trace: TraceContext;
   tenantId: string;

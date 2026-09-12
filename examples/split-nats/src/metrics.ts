@@ -32,7 +32,10 @@ const nameOf = (name: string): string => name.replaceAll('.', '_');
 function labelsOf(attributes: MetricAttributes): string {
   const pairs = Object.entries(attributes)
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `${key}="${String(value).replaceAll('"', '\\"')}"`);
+    .map(
+      ([key, value]) =>
+        `${key}="${String(value).replaceAll('"', String.raw`\"`)}"`,
+    );
 
   return pairs.length === 0 ? '' : `{${pairs.join(',')}}`;
 }
@@ -69,10 +72,12 @@ export function prometheusExporter(): MetricsExporter {
 
       for (const [key, { count, sum }] of histograms) {
         // Метки уже в ключе, поэтому суффикс вставляется перед ними
-        const [name, labels = ''] = key.split(/(?=\{)/);
+        const [name, labels = ''] = key.split(/(?={)/);
 
-        lines.push(`${name}_count${labels} ${count}`);
-        lines.push(`${name}_sum${labels} ${sum.toFixed(3)}`);
+        lines.push(
+          `${name}_count${labels} ${count}`,
+          `${name}_sum${labels} ${sum.toFixed(3)}`,
+        );
       }
 
       return `${lines.join('\n')}\n`;
