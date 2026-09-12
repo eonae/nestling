@@ -8,7 +8,7 @@
 > and `Типизированные клиенты из контрактов`.
 
 The frontend team needs an OpenAPI document to look at the API and
-generate code from it. A neighboring TypeScript service needs a client
+generate code from it. A neighbouring TypeScript service needs a client
 with types for requests, responses and failures. Neither the document nor
 the client should be described a second time by hand: the server already
 has the schemas, the addresses and the failure lists in the declarations.

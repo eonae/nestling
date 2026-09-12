@@ -110,7 +110,7 @@ export const UserWebhook = httpEndpoint.post('/hooks/users', {
     'webhook: подлинность проверяется подписью тела, а не Bearer-токеном',
   doc: { summary: 'Webhook о событиях пользователя', tags: ['users'] },
   // The layer with a requirement on the start context stands outside:
-  // the transport meets its requirement, not a neighboring layer
+  // the transport meets its requirement, not a neighbouring layer
   pipeline: compose(
     makePipeline<{ rawBody: Uint8Array }>().pre(VerifySignature),
     observability,

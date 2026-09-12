@@ -368,7 +368,7 @@ A redirect is declared by the `redirect` field of the declaration. By it
 the OpenAPI document shows a 3xx response with the `Location` header, and
 the transport takes the status if the call did not set its own. A handler
 that returns a redirect on a declaration without this field gets
-`internal_error`: the document would have diverged from the behavior.
+`internal_error`: the document would have diverged from the behaviour.
 
 The HTTP form is allowed only where the transport declares the address —
 in `httpEndpoint`. In `implement` and in `httpEndpoint.implement` such a

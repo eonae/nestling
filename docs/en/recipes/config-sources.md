@@ -304,7 +304,7 @@ from the start:
 
 A section's derived field is described in chapter
 [7](../guide/07-config.md). A reloadable section gives it its own
-behavior: it recomputes when the value of at least one dependency
+behaviour: it recomputes when the value of at least one dependency
 changes.
 
 ```typescript

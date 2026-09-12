@@ -120,7 +120,7 @@ A class is not the only shape. The `handler` field accepts two:
 A class gets dependencies from the container, the same rule as for providers
 and pipeline units. A function remains for a handler that has nothing to
 receive: a utility endpoint like `/ops/version`, and chapter one of this guide.
-The choice of shape does not affect the behavior of the endpoint.
+The choice of shape does not affect the behaviour of the endpoint.
 
 There are no `deps` and `handle` fields at the top level of the declaration
 dictionary: the dependencies belong to the handler, not to the address and the
