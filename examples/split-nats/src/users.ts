@@ -66,7 +66,7 @@ export const UsersFeature = makeFeature({
   endpoints: [
     implement(RegisterUser, {
       // Базовый слой возвращает в контекст трассу и арендатора: оба
-      // приехали в конверте сообщения, и вызыватель `quotas.claim`
+      // пришли в конверте сообщения, и вызыватель `quotas.claim`
       // передаст их дальше
       pipeline: base,
       handler: RegisterUserHandler,

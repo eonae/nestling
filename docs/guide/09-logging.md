@@ -5,8 +5,9 @@
 > [design/container.md](../design/container.md), раздел «Логгер ядра».
 > Почему так: записи [ideas.md](../decisions/ideas.md) «Pipeline v2:
 > плоские фазы, слои, композиция константами», «Асинхронный контекст:
-> read-only ALS-проекция pipeline-контекста» и «Логгер ядра: `RootLogger$`,
-> семейство `Logger$` с `.auto` и `child`» [2026-09-06].
+> read-only ALS-проекция pipeline-контекста», «Логгер ядра: `RootLogger$`,
+> семейство `Logger$` с `.auto` и `child`» [2026-09-06] и «Разбор обзоров
+> d/10 и d/13» [2026-09-12], пункт 2.
 
 Сервис отвечает клиентам, но что с ним происходит, видно только по
 ответам. Каждый запрос должен оставлять запись в логе: адрес, статус и
@@ -92,8 +93,8 @@ DI-токенов: `Logger$('db')` даёт логгер с областью `db
 | `.catch(unit)` | только для ответа-отказа | поля своего слоя как необязательные |
 | `.finally(unit)` | всегда, последним | то же, что `.catch`, плюс исход запроса |
 
-Для лога нужны две фазы: `.pre`, чтобы положить идентификатор запроса в
-контекст, и `.finally`, чтобы записать итог.
+Для лога нужны две фазы: `.pre`, чтобы положить идентификаторы запроса и
+трассы в контекст, и `.finally`, чтобы записать итог.
 
 ```typescript
 // examples/users-service/src/observability.ts
@@ -103,7 +104,12 @@ import type {
   Outcome,
   ResponseContext,
 } from '@nestlingjs/app';
-import { Logger$, makePipeline, withRequestId } from '@nestlingjs/app';
+import {
+  Logger$,
+  makePipeline,
+  withRequestId,
+  withTracing,
+} from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 
 /**
@@ -126,6 +132,7 @@ export class AuditOutcome {
 
 export const observability = makePipeline()
   .pre(withRequestId())
+  .pre(withTracing())
   .finally(AuditOutcome);
 ```
 
@@ -267,6 +274,42 @@ export class DbUsersRepository implements UsersRepository {
 
 Что переменная объявлена на каждом маршруте, где её читают, проверяет
 политика сборки `hasVar`: [глава 10](./10-auth.md).
+
+## Трасса запроса
+
+`withTracing()` — второй юнит слоя. Он кладёт в контекст переменную
+`Trace` со значением вида `{ traceId, spanId, parentSpanId?, sampled }`, а
+логгер ядра добавляет `traceId` полем к каждой записи внутри запроса —
+так же, как `requestId`:
+
+```text
+2026-09-12T20:03:49.400Z INFO  UsersService created requestId=7f3a… traceId=4bf92f35…
+```
+
+Юнит продолжает трассу вызывающего, если она пришла заголовком
+`traceparent`, и начинает новую, если нет. Идентификатор участка
+создаётся на каждый запрос, а участок вызывающего уходит в
+`parentSpanId`. Непонятный заголовок запрос не ломает: трасса просто
+начинается заново.
+
+Внутри одного процесса разница между `requestId` и `traceId` невелика.
+Она становится важной, когда запрос проходит через несколько сервисов:
+`requestId` у каждого свой, а `traceId` один на всю цепочку. Как трасса
+переходит границу процесса, показывает [глава 20](./20-split.md).
+
+Значение доступно и прикладному коду — читателем `Ctx(Trace)`, как
+`RequestId`:
+
+```typescript
+@Component([Ctx(Trace)])
+export class AuditTrail {
+  constructor(private readonly trace: CtxReader<TraceContext>) {}
+
+  record(action: string): void {
+    this.store.put({ action, traceId: this.trace.get().traceId });
+  }
+}
+```
 
 Слой можно расширить другим слоем функцией `compose`: `pre`-юниты
 внешнего слоя выполняются раньше, а `.finally` внешнего слоя выполняется

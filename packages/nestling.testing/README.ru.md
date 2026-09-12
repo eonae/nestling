@@ -9,7 +9,8 @@
 > 🚧 Активная разработка, API может меняться. Раннера, матчеров и
 > snapshot-механики пакет не вводит: jest остаётся jest'ом.
 > Дизайн: [`docs/design/testing.md`](../../docs/design/testing.md).
-> Гайд: [глава 8. Убедиться, что работает, без запуска сервера](../../docs/guide/08-testing.md).
+> Гайд: [глава 8. Убедиться, что работает, без запуска сервера](../../docs/guide/08-testing.md),
+> [глава 22. Считать запросы и вызовы](../../docs/guide/22-metrics.md).
 
 ## Установка
 
@@ -59,7 +60,8 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
 - **Подстановки** — `TestOverride`, `TestStub`, `stub`, `OperationStub`,
   `RequestStubImpl`, `EmitStubImpl`, `StubOutput`, `familyOverride`,
   `contextValue`, `vars`.
-- **Логгер** — `spyLogger`, `SpyLogger`, `LogEntry`.
+- **Логгер и метрики** — `spyLogger`, `SpyLogger`, `LogEntry`, `spyMetrics`,
+  `SpyMetrics`, `MetricRecord`.
 - **Топологии и юниты** — `checkTopologies`, `TopologyReport`, `testUnit`,
   `TestUnitOptions`.
 - **Реэкспорт [`@nestlingjs/app`](../nestling.app/)** — имена ядра, чтобы тест

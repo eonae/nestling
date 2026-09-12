@@ -67,8 +67,8 @@ export {
 } from './logger/index.js';
 export type { Fields, Logger, LogLevel } from './logger/index.js';
 
-// ./metrics/index.js — 4
-export { Metrics$, metricsKernel, RootMetrics$ } from './metrics/index.js';
+// ./metrics/index.js — 3
+export { Metrics$, RootMetrics$ } from './metrics/index.js';
 export type { MetricAttributes, Metrics } from './metrics/index.js';
 
 // ./pipeline/index.js — 60
