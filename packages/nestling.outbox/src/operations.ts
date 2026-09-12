@@ -69,10 +69,10 @@ export const OutboxPublished = makeEvent({
     publishedAt: num(),
   }),
   doc: {
-    summary: 'Запись outbox опубликована',
+    summary: 'Outbox record published',
     description:
-      'Факт публикуется relay после успешной отправки записи в шину. ' +
-      'Разница между `publishedAt` и `createdAt` — задержка доставки.',
+      'Published by the relay once the record has reached the bus. The ' +
+      'gap between `publishedAt` and `createdAt` is the delivery delay.',
   },
 });
 
@@ -94,9 +94,9 @@ export const OutboxStuck = makeEvent({
     reason: optionalStr(),
   }),
   doc: {
-    summary: 'Запись outbox застряла',
+    summary: 'Outbox record stuck',
     description:
-      'Факт публикуется relay, когда число попыток публикации исчерпано. ' +
-      'Запись остаётся в хранилище и больше не выдаётся.',
+      'Published by the relay once the publish attempts are exhausted. ' +
+      'The record stays in the store and is no longer handed out.',
   },
 });

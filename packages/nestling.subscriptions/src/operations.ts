@@ -65,10 +65,11 @@ export const SubscriptionOpened = makeEvent({
     startedAt: num(),
   }),
   doc: {
-    summary: 'Подписка открыта',
+    summary: 'Subscription opened',
     description:
-      'Факт публикуется реестром подписок при регистрации подписки. ' +
-      'Наблюдение кластерное: имя узла едет полем `node`.',
+      'Published by the subscription registry when a subscription is ' +
+      'registered. Observation is cluster-wide: the node name travels in ' +
+      'the `node` field.',
   },
 });
 
@@ -89,10 +90,10 @@ export const SubscriptionClosed = makeEvent({
     closedAt: num(),
   }),
   doc: {
-    summary: 'Подписка закрыта',
+    summary: 'Subscription closed',
     description:
-      'Факт публикуется реестром подписок при снятии записи. ' +
-      '`reason` — словарь реестра: completed | disconnected | aborted | ' +
-      'failed | killed.',
+      'Published by the subscription registry when the entry is removed. ' +
+      '`reason` comes from the registry vocabulary: completed | ' +
+      'disconnected | aborted | failed | killed.',
   },
 });

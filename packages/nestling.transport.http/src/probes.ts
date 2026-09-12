@@ -17,7 +17,7 @@ import type { StandardSchemaV1 } from '@nestlingjs/common.misc';
 import { Handler } from '@nestlingjs/container';
 
 /** Причина, по которой пробы выведены из-под инвариантов сборки */
-const REASON = 'проба балансировщика: до пайплайна приложения не доходит';
+const REASON = 'load balancer probe: never reaches the application pipeline';
 
 /**
  * Схема деталей отказа: отчёт проходит как есть.

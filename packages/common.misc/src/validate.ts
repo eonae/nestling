@@ -26,9 +26,9 @@ export function assertStandardSchema(
     throw new NotAStandardSchemaError(
       'Schema does not implement Standard Schema v1 ' +
         '(no `~standard` property with `version: 1`). ' +
-        'Вероятная причина — валидатор старой версии: ' +
-        'спеку реализуют zod ≥ 3.24, valibot ≥ 1.0, arktype ≥ 2.0. ' +
-        'См. https://standardschema.dev',
+        'The likely cause is an older validator: the spec is implemented ' +
+        'by zod >= 3.24, valibot >= 1.0, arktype >= 2.0. ' +
+        'See https://standardschema.dev',
     );
   }
 }
@@ -66,9 +66,9 @@ export function validateSync<S extends StandardSchemaV1>(
   if (typeof (result as PromiseLike<unknown>)?.then === 'function') {
     throw new AsyncSchemaNotSupportedError(
       'Schema validation must be synchronous, but `~standard.validate` ' +
-        'returned a Promise. Асинхронные refinement’ы в схемах endpoint’ов ' +
-        'не поддерживаются: перенесите асинхронную проверку в `.pre`-юнит ' +
-        'или в handler.',
+        'returned a Promise. Async refinements in endpoint schemas are ' +
+        'not supported: move the async check into a `.pre` unit or into ' +
+        'the handler.',
     );
   }
 

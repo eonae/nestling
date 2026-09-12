@@ -212,7 +212,7 @@ describe('openapi(...) — плагин-издатель', () => {
           scope: 'nestling:openapi',
           pattern: 'GET /openapi.json',
           module: '@nestlingjs/openapi',
-          reason: 'служебная ручка: сам документ',
+          reason: 'service endpoint: the document itself',
         },
       },
     ]);
