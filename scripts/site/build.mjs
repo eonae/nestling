@@ -766,7 +766,6 @@ const TREE = {
     return anchor ? `${base}#${anchor}` : base || './';
   },
   root: (from) => routeRoot(from.route),
-  search: true,
 };
 
 const SINGLE = {
@@ -775,7 +774,6 @@ const SINGLE = {
   href: (from, to, anchor) =>
     anchor ? `#${to.id}${ANCHOR_SEP}${anchor}` : `#${to.id}`,
   root: () => '',
-  search: false,
 };
 
 /* ------------------------------------------------------------------ ссылки */
@@ -848,7 +846,7 @@ function rewriteLinks(text, page, byPath, form) {
   });
 }
 
-/** Ставит `id` заголовкам `##` и приставляет раздел к явным `{#id}` */
+/** Ставит `id` заголовкам `##` и `###`, а явным `{#id}` — приставку раздела */
 function anchorHeadings(html, page, form) {
   let index = 0;
 
@@ -914,7 +912,13 @@ function renderNavItem(page, from, form, active) {
   );
 }
 
-/** Сайдбар страницы: все группы и разделы, адреса — по правилам формы */
+/**
+ * Сайдбар страницы: все группы и разделы, адреса — по правилам формы.
+ *
+ * В дереве `from` — открытая страница: от неё считаются относительные
+ * адреса, и её пункт печатается активным. В одном файле открытой страницы
+ * нет, `from` пуст, а активный пункт находит встроенный скрипт.
+ */
 function renderSidebar(pages, from, form) {
   const groups = [];
 
@@ -1038,8 +1042,8 @@ function renderArticle(page, neighbours, byPath, form) {
 }
 
 function renderTreePage(page, parts, options) {
-  const { layout, home, styles, script, byId, byPath, base } = options;
-  const template = page.kind === 'home' ? home : layout;
+  const { layout, homeLayout, styles, script, byId, byPath, base } = options;
+  const template = page.kind === 'home' ? homeLayout : layout;
   const root = TREE.root(page);
   const canonical = base ? absoluteUrl(base, page.route) : '';
 
@@ -1067,7 +1071,7 @@ function renderTreePage(page, parts, options) {
 
 function renderSingleFile(pages, options) {
   const { layout, styles, script, byId, byPath } = options;
-  const home = byId.get('home');
+  const start = byId.get('home');
 
   const body = pages
     .map((page, index) => {
@@ -1092,14 +1096,14 @@ function renderSingleFile(pages, options) {
     layout,
     '{{head}}',
     `<title>${escapeHtml(`${SITE_NAME} — документация`)}</title>\n` +
-      `<meta name="description" content="${escapeAttr(home.summary)}">\n` +
+      `<meta name="description" content="${escapeAttr(start.summary)}">\n` +
       `<link rel="icon" href="${escapeAttr(icon)}" type="image/svg+xml">`,
   );
   html = fill(html, '{{styles}}', styles);
   html = fill(html, '{{root}}', '');
   html = fill(html, '{{mode}}', 'single');
-  html = fill(html, '{{home}}', `#${escapeAttr(home.id)}`);
-  html = fill(html, '{{toplinks}}', renderTopLinks(byId, home, SINGLE));
+  html = fill(html, '{{home}}', `#${escapeAttr(start.id)}`);
+  html = fill(html, '{{toplinks}}', renderTopLinks(byId, start, SINGLE));
   html = fill(html, '{{search}}', '');
   html = fill(html, '{{sidebar}}', renderSidebar(pages, null, SINGLE));
   html = fill(html, '{{article}}', body);
@@ -1175,7 +1179,7 @@ function readBase(argv) {
 
 function build(base) {
   const layout = readFileSync(join(HERE, 'layout.html'), 'utf8');
-  const home = readFileSync(join(HERE, 'home.html'), 'utf8');
+  const homeLayout = readFileSync(join(HERE, 'home.html'), 'utf8');
   const styles = readFileSync(join(HERE, 'styles.css'), 'utf8');
   const script = readFileSync(join(HERE, 'app.js'), 'utf8');
 
@@ -1197,7 +1201,7 @@ function build(base) {
     }
   }
 
-  const options = { layout, home, styles, script, byId, byPath, base, pages };
+  const options = { layout, homeLayout, styles, script, byId, byPath, base, pages };
 
   for (const [index, page] of pages.entries()) {
     const parts = { prev: pages[index - 1], next: pages[index + 1] };
