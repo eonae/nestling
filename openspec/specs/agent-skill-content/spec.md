@@ -177,7 +177,8 @@ Nestling. Файл SHALL называть:
 - запуск тестов с условием резолва `testing` — флагом `--conditions=testing`
   для `node --test` либо полем `customExportConditions` для jest;
 - установку и конфигурацию `@nestlingjs/eslint-plugin` с правилами
-  `import-through-barrel` и `endpoint-has-layer`.
+  `import-through-barrel`, `endpoint-has-layer` и `dependency-list`; у
+  каждого правила — одно предложение о том, что оно ловит, и уровень.
 
 Файл SHALL содержать одно утверждение о декораторах: type stripping в Node их не
 исполняет, поэтому для разработки берут `tsx`.
@@ -196,6 +197,14 @@ Nestling. Файл SHALL называть:
 - **WHEN** агент ищет, чем запустить исходники без сборки
 - **THEN** `setup.md` называет `tsx` и причину, по которой
   `node --experimental-strip-types` здесь не работает
+
+#### Scenario: Список зависимостей из привычки NestJS
+
+- **WHEN** агент пишет `@Component()` с пустым списком при непустом
+  конструкторе в проекте, настроенном по `setup.md`
+- **THEN** правило `dependency-list` подсвечивает декоратор в редакторе и
+  дописывает список автофиксом, а имя правила в `setup.md` совпадает с
+  ключом экспорта плагина
 
 ### Requirement: Скилл описывает HTTP-форму ответа
 
