@@ -82,7 +82,7 @@ export function convertLeaf(
       `the '${slot}' schema is a '${resolved.vendor}' schema, and no ` +
         `converter for that vendor was passed. Either add one to ` +
         `'converters' (for example zodConverter() from ` +
-        `@nestlingjs/openapi.zod), or declare the schema explicitly with ` +
+        `@nestlingjs/schema.zod), or declare the schema explicitly with ` +
         `jsonSchema(schema, { … }).`,
     );
     return undefined;

@@ -23,8 +23,8 @@
     "@nestlingjs/client": "workspace:*",
     "@nestlingjs/container": "workspace:*",
     "@nestlingjs/openapi": "workspace:*",
-    "@nestlingjs/openapi.zod": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/schema.zod": "workspace:*",
     "@nestlingjs/subscriptions": "workspace:*",
     "@nestlingjs/transport.http": "workspace:*",
     "zod": "^4.0.0"

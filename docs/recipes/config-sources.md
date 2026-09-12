@@ -197,11 +197,11 @@ export const HealthConfig = makeConfig('health', {
 ## Описания полей в снимке
 
 Снимок отдаёт описания, умолчания и перечисления полей, если передать ему
-конвертер схем — тот же `zodConverter` из `@nestlingjs/openapi.zod`, что
+конвертер схем — тот же `zodConverter` из `@nestlingjs/schema.zod`, что
 строит документ OpenAPI в главе [13](../guide/13-openapi-and-client.md):
 
 ```typescript
-import { zodConverter } from '@nestlingjs/openapi.zod';
+import { zodConverter } from '@nestlingjs/schema.zod';
 
 const snapshot = describeConfig({ converters: [zodConverter()] });
 

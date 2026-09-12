@@ -14,7 +14,7 @@ import { app } from './app.js';
 
 import { describe, expect, it } from '@jest/globals';
 import { makeApp, objectSource } from '@nestlingjs/app';
-import { zodConverter } from '@nestlingjs/openapi.zod';
+import { zodConverter } from '@nestlingjs/schema.zod';
 import type { OperationSnapshot } from '@nestlingjs/testing';
 import {
   checkTopologies,

@@ -1,17 +1,17 @@
 ## 1. Переименование пакета конвертера
 
-- [ ] 1.1 `git mv packages/nestling.openapi.zod packages/nestling.schema.zod`
-- [ ] 1.2 Манифест пакета: `name`, `description`, `keywords`,
+- [x] 1.1 `git mv packages/nestling.openapi.zod packages/nestling.schema.zod`
+- [x] 1.2 Манифест пакета: `name`, `description`, `keywords`,
       `repository.directory`, `homepage`
-- [ ] 1.3 Заменить имя в `@nestlingjs/openapi` — `devDependencies`, спеки,
+- [x] 1.3 Заменить имя в `@nestlingjs/openapi` — `devDependencies`, спеки,
       текст ошибки про отсутствующий конвертер в `src/schema.ts`
-- [ ] 1.4 Заменить имя в `examples/app-with-http` и `examples/users-service`
+- [x] 1.4 Заменить имя в `examples/app-with-http` и `examples/users-service`
       (манифесты и импорты)
-- [ ] 1.5 `yarn install` — обновить `yarn.lock`; убедиться, что имя
+- [x] 1.5 `yarn install` — обновить `yarn.lock`; убедиться, что имя
       `@nestlingjs/openapi.zod` не встречается нигде вне `docs/history/` и
       `openspec/changes/archive/`
-- [ ] 1.6 README пакета: заголовок, установка, примеры; плашка статуса
-- [ ] 1.7 `yarn verify` зелёный на переименовании отдельным коммитом
+- [x] 1.6 README пакета: заголовок, установка, примеры; плашка статуса
+- [x] 1.7 `yarn verify` зелёный на переименовании отдельным коммитом
 
 ## 2. Политика в декларации
 
@@ -82,7 +82,7 @@
       политика реализована, отсылки к отдельной работе сняты
 - [ ] 7.3 `docs/recipes/cli.md`: раздел о недостающем входе; плашка «сверено
       с кодом» с новой датой
-- [ ] 7.4 `docs/guide/13-openapi-and-client.md`, `docs/design/schemas.md`,
+- [x] 7.4 `docs/guide/13-openapi-and-client.md`, `docs/design/schemas.md`,
       `docs/recipes/config-sources.md`, `docs/README.md`, манифесты
       `scripts/waves/*.manifest` — новое имя пакета
 - [ ] 7.5 README `@nestlingjs/transport.cli`: политика, опции транспорта,

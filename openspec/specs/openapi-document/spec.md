@@ -390,7 +390,7 @@ SHALL отсутствовать в документе так же, как он�
 ### Requirement: Конвертеры поставляются отдельными пакетами
 
 Конвертер вендора SHALL жить отдельным пакетом с peer-зависимостью на свой
-валидатор. `@nestlingjs/openapi.zod` SHALL экспортировать `zodConverter()`,
+валидатор. `@nestlingjs/schema.zod` SHALL экспортировать `zodConverter()`,
 возвращающий `SchemaDocConverter` с `vendor: 'zod'` поверх штатного
 `z.toJSONSchema()`.
 

@@ -25,9 +25,9 @@ import {
   upload,
 } from '@nestlingjs/app';
 import { makeSwitch } from '@nestlingjs/container';
-import { zodConverter } from '@nestlingjs/openapi.zod';
 import type { StandardSchemaV1 } from '@nestlingjs/operations';
 import { body, makeRequest, query } from '@nestlingjs/operations';
+import { zodConverter } from '@nestlingjs/schema.zod';
 import { cliEndpoint } from '@nestlingjs/transport.cli';
 import { http, httpEndpoint, HttpResponse } from '@nestlingjs/transport.http';
 import { z } from 'zod';

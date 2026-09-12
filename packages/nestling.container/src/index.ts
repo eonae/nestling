@@ -58,11 +58,20 @@ export { OnStart } from './lifecycle/index.js';
 export { makeModule } from './modules/index.js';
 export type { Module } from './modules/index.js';
 
-// ./switches/index.js — 7
+// ./switches/index.js — 9
 export {
   branchCandidates,
   makeSwitch,
   resolveBranches,
   switchesUsed,
 } from './switches/index.js';
-export type { AnySwitch, Branchable, SwitchValues } from './switches/index.js';
+// `Switch` и `ToggleSwitch` — типы результата `makeSwitch`: без них
+// переключатель, объявленный значением в приложении, не выводится у
+// потребителя (TS2742). Это поймал typecheck `examples/app-with-http`.
+export type {
+  AnySwitch,
+  Branchable,
+  Switch,
+  SwitchValues,
+  ToggleSwitch,
+} from './switches/index.js';
