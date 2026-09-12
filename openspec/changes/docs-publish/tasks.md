@@ -57,20 +57,20 @@
 
 ## 8. Публикация
 
-- [ ] 8.1 `.github/workflows/docs.yml`: триггеры `push` тега `v*` и `workflow_dispatch`; права `pages: write` и `id-token: write`; `concurrency: pages` без отмены
-- [ ] 8.2 Шаги сборки и выкладки: `yarn docs:build --base https://eonae.github.io/nestling`, `upload-pages-artifact` с `docs/.site`, `deploy-pages` в окружении `github-pages`
-- [ ] 8.3 `.github/workflows/ci.yml`: шаги `yarn docs:audit` и `yarn docs:build` рядом с `yarn verify`
+- [x] 8.1 `.github/workflows/docs.yml`: триггеры `push` тега `v*` и `workflow_dispatch`; права `pages: write` и `id-token: write`; `concurrency: pages` без отмены
+- [x] 8.2 Шаги сборки и выкладки: `yarn docs:build --base https://eonae.github.io/nestling`, `upload-pages-artifact` с `docs/.site`, `deploy-pages` в окружении `github-pages`
+- [x] 8.3 `.github/workflows/ci.yml`: шаги `yarn docs:audit` и `yarn docs:build` рядом с `yarn verify`
 - [ ] 8.4 Пользователь включает Pages с источником «GitHub Actions» в настройках репозитория — единственное действие вне репозитория
 - [ ] 8.5 Ручной запуск workflow проверяет выкладку до первого тега: сайт открывается по адресу, переключатель языка работает, поиск находит разделы своего языка
 
 ## 9. Документация change'а
 
-- [ ] 9.1 `scripts/site/README.md`: языки, раскладка источников, две формы вывода на язык, файлы публикации
-- [ ] 9.2 `README.md` и `README.ru.md` репозитория: ссылка на сайт, строка «Documentation and examples are in Russian» больше не нужна
-- [ ] 9.3 `CLAUDE.md`: правка документации идёт парами языков; линтер по обоим спискам
-- [ ] 9.4 `docs/decisions/ideas.md`: запись [2026-09-05] «Структура документации» получает пометку о закрытии волны 5 — что вышло целиком, что уехало дальше, чем реализация уточнила решение; открытые вопросы 1 и 2 закрыты
-- [ ] 9.5 `docs/decisions/roadmap.md`: строка 61 `docs-publish` — **done** со ссылкой на архив; заодно вторая таблица («После волны 6») приводится в соответствие с первой по строкам 71 и 72
-- [ ] 9.6 `docs/decisions/archlog.md`: абзац о публикации и двуязычии
+- [x] 9.1 `scripts/site/README.md`: языки, раскладка источников, две формы вывода на язык, файлы публикации
+- [x] 9.2 `README.md` и `README.ru.md` репозитория: ссылка на сайт, строка «Documentation and examples are in Russian» больше не нужна
+- [x] 9.3 `CLAUDE.md`: правка документации идёт парами языков; линтер по обоим спискам
+- [x] 9.4 `docs/decisions/ideas.md`: запись [2026-09-05] «Структура документации» получает пометку о закрытии волны 5 — что вышло целиком, что уехало дальше, чем реализация уточнила решение; открытые вопросы 1 и 2 закрыты
+- [x] 9.5 `docs/decisions/roadmap.md`: строка 61 `docs-publish` — **done** со ссылкой на архив; заодно вторая таблица («После волны 6») приводится в соответствие с первой по строкам 71 и 72
+- [x] 9.6 `docs/decisions/archlog.md`: абзац о публикации и двуязычии
 
 ## 10. Definition of Done
 

@@ -102,7 +102,7 @@ export const BANNED_EN = [
   [/\bdive[sd]?\s+(in|into)\b/i, '«describes», «starts with»'],
   [/\beffortless(ly)?\b/i, 'say what code is not written'],
   [/\bintuitive(ly)?\b/i, 'show the record instead of calling it intuitive'],
-  [/(?<!runtime )\bmagic(al)?\b/i, 'name the mechanism; «no runtime magic» is the principle, not praise'],
+  [/(?<!(?:runtime|no) )\bmagic(al)?\b/i, 'name the mechanism; «no runtime magic» is the principle, not praise'],
   [/\bblazing(ly)?\b|\blightning[- ]fast\b/i, 'give the number or drop it'],
   [/\bcutting[- ]edge\b|\bstate[- ]of[- ]the[- ]art\b/i, 'say what is new about it'],
   [/\bgame[- ]chang(er|ing)\b/i, 'say what changes for the reader'],

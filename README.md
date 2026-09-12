@@ -9,8 +9,7 @@
 ## Status
 
 Nestling is under active development towards V1; APIs change. Use in
-production at your own risk. Documentation and examples are in Russian.
-Requires Node 24.
+production at your own risk. Requires Node 24.
 
 ## What it is
 
@@ -41,7 +40,7 @@ dependency container verifies the whole graph at startup.
   for this process and `run()` drives it through the lifecycle phases.
 
 The principles behind the design are described in
-[docs/design/principles.md](./docs/design/principles.md) (Russian).
+[docs/en/design/principles.md](./docs/en/design/principles.md).
 
 ## When Nestling is not the tool
 
@@ -86,7 +85,7 @@ The application answers `GET /users/42`, validates the input against the
 `input` schema and shuts down on `SIGTERM`. The `output` schema types the
 handler and describes the response; the typed client checks the body
 against it on receipt. Continue with the
-[guide](./docs/guide/README.md): it grows this file into an application of
+[guide](./docs/en/guide/README.md): it grows this file into an application of
 several features running in several processes.
 
 ## Working with an agent
@@ -104,20 +103,24 @@ features reached through operations. Details in
 
 ## Documentation
 
-The entry point is [`docs/README.md`](./docs/README.md): the folder map, the
-package list and the rules for keeping documentation in sync. The folder
-defines the status of a document:
+The site is **<https://eonae.github.io/nestling>**; it is published on the
+release tag and describes the released version. The same texts live in the
+repository: English in [`docs/en/`](./docs/en/index.md), Russian in
+[`docs/`](./docs/index.md). The folder defines the status of a document:
 
-- [`docs/guide/`](./docs/guide/README.md) — the guide to the current API; its
-  table of contents lists every chapter, the parts they form and the example
-  each chapter is verified against;
-- [`docs/design/`](./docs/design/README.md) — the target V1 state, the full
-  API description;
+- [`docs/en/guide/`](./docs/en/guide/README.md) — the guide to the current
+  API; its table of contents lists every chapter, the parts they form and
+  the example each chapter is verified against;
+- [`docs/en/design/`](./docs/en/design/README.md) — the target V1 state, the
+  full API description;
+- [`docs/en/glossary.md`](./docs/en/glossary.md) — terms and how they are
+  written; next to every English term stands its Russian original;
 - [`docs/decisions/`](./docs/decisions/ideas.md) — the decision log: what,
-  when and why;
-- [`docs/glossary.md`](./docs/glossary.md) — terms and how they are written.
+  when and why. It is written by whoever works inside the repository and
+  stays in Russian, as do the code comments and the examples.
 
-Package READMEs document the current state of the code.
+Package READMEs document the current state of the code. The rules for
+keeping the documentation live in [`docs/README.md`](./docs/README.md).
 
 ## Development
 
