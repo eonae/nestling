@@ -105,8 +105,8 @@ features reached through operations. Details in
 
 The site is **<https://eonae.github.io/nestling>**; it is published on the
 release tag and describes the released version. The same texts live in the
-repository: English in [`docs/en/`](./docs/en/index.md), Russian in
-[`docs/`](./docs/index.md). The folder defines the status of a document:
+repository: English in [`docs/en/`](./docs/en/index.md), Russian in `docs/`
+next to it. The folder defines the status of a document:
 
 - [`docs/en/guide/`](./docs/en/guide/README.md) — the guide to the current
   API; its table of contents lists every chapter, the parts they form and

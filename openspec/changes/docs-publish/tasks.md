@@ -53,7 +53,7 @@
 - [x] 7.2 Пачка 2 — `nestling.transport.http`, `nestling.transport.cli`, `nestling.transport.nats`, `nestling.openapi`, `nestling.schema.zod`, `nestling.subscriptions`, `nestling.eslint-plugin`
 - [x] 7.3 Пачка 3 — `nestling.outbox`, `nestling.inbox`, `nestling.drizzle.pg`, `nestling.agent-skill`, `common.graphs`, `common.misc`, `common.static-server`
 - [x] 7.4 Плашки ведут в `docs/en/`, перечни экспортов совпадают у пар, потолок 120 строк держат оба файла
-- [ ] 7.5 `yarn pack:check`: тарбол по-прежнему уносит только `dist`, README реестра английский
+- [x] 7.5 `yarn pack:check`: тарбол по-прежнему уносит только `dist`, README реестра английский
 
 ## 8. Публикация
 

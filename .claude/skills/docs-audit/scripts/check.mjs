@@ -850,6 +850,31 @@ for (const source of SECTIONS.filter((s) => s.kind === 'folder')) {
   }
 }
 
+/** Ссылки строки: относительные адреса без якоря */
+function linksOf(raw, file) {
+  const found = [];
+
+  for (const m of raw.replace(/`[^`]*`/g, '').matchAll(/\]\((\.{1,2}\/[^)\s]+?)\)/g)) {
+    const target = decodeURI(m[1].split('#')[0]);
+    if (target) found.push({ text: m[1], abs: resolve(dirname(file), target).replace(/\/$/, '') });
+  }
+
+  return found;
+}
+
+/**
+ * Строка-переключатель языка: она ведёт в пару этого же файла.
+ *
+ * Переключателю положено пересекать границу языка — в этом его работа, — и
+ * подпись на нём пишется языком, в который он ведёт. Такая строка выходит
+ * из-под `lang-link` и `lang-cyrillic`; корневые README связаны ею.
+ */
+const isLanguageSwitch = (raw, file) => {
+  const pair = counterpart(file);
+
+  return Boolean(pair) && linksOf(raw, file).some((link) => link.abs === pair);
+};
+
 // 12.3 lang-link: ссылка не пересекает границу языка
 // Ссылка в непубликуемый файл остаётся относительной в обоих языках:
 // генератор переписывает её в адрес GitHub при сборке.
@@ -864,18 +889,14 @@ for (const [file, lang] of published) {
       inFence = !inFence;
       return;
     }
-    if (inFence) return;
+    if (inFence || isLanguageSwitch(raw, file)) return;
 
-    for (const m of raw.replace(/`[^`]*`/g, '').matchAll(/\]\((\.{1,2}\/[^)\s]+?)\)/g)) {
-      const target = decodeURI(m[1].split('#')[0]);
-      if (!target) continue;
-
-      const abs = resolve(dirname(file), target).replace(/\/$/, '');
-      const other = published.get(abs);
+    for (const link of linksOf(raw, file)) {
+      const other = published.get(link.abs);
       if (other && other !== lang) {
         const where = other === 'ru' ? 'русский' : 'английский';
         add('ERROR', 'lang-link', file,
-          `строка ${i + 1}: ссылка ${m[1]} ведёт в ${where} файл`);
+          `строка ${i + 1}: ссылка ${link.text} ведёт в ${where} файл`);
       }
     }
   });
@@ -895,7 +916,7 @@ for (const [file, lang] of published) {
       inFence = !inFence;
       return;
     }
-    if (inFence) return;
+    if (inFence || isLanguageSwitch(raw, file)) return;
 
     const m = raw.replace(/`[^`]*`/g, '').match(/[\u0400-\u04FF]+/);
     if (m) {

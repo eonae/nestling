@@ -103,10 +103,9 @@ npx @nestlingjs/agent-skill
   и почему;
 - [`docs/glossary.md`](./docs/glossary.md) — термины и правила их написания.
 
-Публикуемый текст существует парой: английский перевод лежит в
-[`docs/en/`](./docs/en/index.md), README пакета — в `README.md` рядом с
-русским `README.ru.md`. Правило раскладки — раздел «Два языка» файла
-[`docs/README.md`](./docs/README.md).
+Публикуемый текст существует парой: английский перевод лежит в `docs/en/`,
+README пакета — в `README.md` рядом с русским `README.ru.md`. Правило
+раскладки — раздел «Два языка» файла [`docs/README.md`](./docs/README.md).
 
 Актуальное состояние кода описывают README пакетов.
 
