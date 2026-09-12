@@ -88,7 +88,7 @@
   name matches the `RootConfig` field the value comes from:
   `storage: Storage.schema`.
 - A two-position switch is named after what it turns on:
-  `Metrics = makeSwitch('metrics')`.
+  `Audit = makeSwitch('audit')`.
 
 ## Pipeline
 

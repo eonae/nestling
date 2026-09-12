@@ -51,6 +51,11 @@ there too.
 | user code | `пользовательский код` | user space, application layer |
 | Standard Schema | `Standard Schema` | standard schema, validation standard |
 | io shape | `форма io` | io form, input-output kind |
+| trace | `трасса` | distributed trace, tracing |
+| span | `участок трассы` | trace segment, hop |
+| W3C trace-context | `w3c trace-context` | trace context, traceparent format |
+| metric | `метрика` | measurement, telemetry value |
+| metric attributes | `атрибуты метрики` | metric tags, metric labels |
 <!-- docs-style: on -->
 
 ## Container (`@nestlingjs/container`)
@@ -123,7 +128,7 @@ there too.
   token, so the choice is not injected.
 - **Composition branch** (`ветка состава`, `Switch.pick`, `Switch.when`) —
   the elements that go into the list at one of the values of a switch:
-  `Storage.pick({ s3: […], local: […] })`, `Metrics.when(…)`. A value, not
+  `Storage.pick({ s3: […], local: […] })`, `Audit.when(…)`. A value, not
   a function: both branches are read without running code. It is expanded
   on the ASSEMBLE phase, before discovery.
 - **Assembled application** (`собранное приложение`, `AssembledApp`) — the
@@ -242,6 +247,28 @@ there too.
 - **Item chain** (`item-цепочка`) — the processing of the elements of a
   stream (`tap`, `filter`, `limit`, `batch`, …), as opposed to the
   pipeline, which processes the request as a whole.
+
+## Observability (`@nestlingjs/app`)
+
+- **Trace** (`трасса`, `Trace`, `traceId`) — the chain of processing of
+  one request across every process it touched. The `withTracing()` unit
+  puts it into the context; the trace identifier reaches every log
+  record inside the request as the `traceId` field.
+- **Span** (`участок трассы`, `spanId`) — the processing of the request by
+  one process. A span is created for every request, and the span of the
+  caller goes into the `parentSpanId` field. The trace assembles into a
+  tree from them.
+- **W3C trace-context** — the format for carrying the trace over HTTP: the
+  `traceparent` header of the shape `00-<traceId>-<spanId>-<flags>`. Over
+  the bus the trace travels as an envelope field, not a string.
+- **Metric** (`метрика`) — a number that the application or the kernel
+  writes by name with attributes. There are two kinds: a counter
+  (`counter`) and a histogram (`histogram`). The implementation is set by
+  the `makeApp({ metrics })` option; without it, the record goes nowhere.
+- **Metric attributes** (`атрибуты метрики`) — «name: scalar» pairs at the
+  moment of the record. The kernel takes them only from declarations
+  (`pattern`, `operation`, `transport`, `outcome`), so the row count at
+  the exporter does not grow with traffic.
 
 ## Failures (`@nestlingjs/operations`)
 

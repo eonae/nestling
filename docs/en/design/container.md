@@ -14,6 +14,7 @@
 > `[2026-09-06] Ресурсы и роли классов: @Component, @Resource, @Handler; экземпляры на INIT`,
 > `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки`,
 > `[2026-09-06] Логгер ядра: RootLogger$, семейство Logger$ с .auto и child`,
+> `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2,
 > `[2026-09-06] Термины и гайд: DI-токен, суффикс $ одним правилом`.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
@@ -309,7 +310,7 @@ export const OrdersModule = makeModule({
 - The `providers` of a module can be a synchronous factory; it is
   called in `build()`. A composition branch by a value known before
   assembly is not a factory, it is a switch:
-  `Storage.pick({ … })` and `Metrics.when(…)` in `providers` and
+  `Storage.pick({ … })` and `Audit.when(…)` in `providers` and
   `dependsOn` ([composition.md §3](./composition.md)).
 - The container is used standalone too, with no `App`: grouping
   providers under a label is useful on its own there.
@@ -403,16 +404,69 @@ interface Logger {
   `Logger$(scope)` and `Logger$.auto` are family members with the
   recipe `root.child({ scope })`, so replacing the root changes every
   member.
-- The request identifier is not part of the interface: the
-  implementation reads it itself. The kernel's `ConsoleLogger` reads
-  `requestId` from the ambient context directly, not through the
-  `Ctx(RequestId)` node: the root exists before the graph and cannot
-  depend on its nodes.
+- The request and trace identifiers are not part of the interface: the
+  implementation reads them itself. The kernel's `ConsoleLogger` reads
+  `requestId` and `traceId` from the ambient context directly, not
+  through the `Ctx(RequestId)` and `Ctx(Trace)` nodes: the root exists
+  before the graph and cannot depend on its nodes. The fields are added
+  to a record when the context has the values and the call did not set
+  them. Outside a request there are no such fields. `traceId` is what
+  ties together records from different processes: the bus envelope
+  carries the trace, and on receipt `withTracing()` returns it into the
+  context ([pipeline.md §3](./pipeline.md)).
 - The container does not depend on the logger: it has no logger. It
   gives the assembly warnings (matching DI token `id`s) as the value
   `BuiltContainer.warnings`, and the application assembly writes them to
   the root logger after `build()`. A consumer of the container with no
   `App` reads the list itself, the same technique as `pruned`.
+
+## The kernel metrics
+
+`Metrics` is the metrics interface both the kernel and the application
+work with.
+
+```typescript
+type MetricAttributes = Record<string, string | number | boolean>;
+
+interface Metrics {
+  counter(name: string, value?: number, attributes?: MetricAttributes): void;
+  histogram(name: string, value: number, attributes?: MetricAttributes): void;
+}
+```
+
+The shape repeats the shape of the logger, so the application recognizes
+it by an already familiar form.
+
+- Both methods write a value and return `void`. There is no instrument
+  object: the kernel names a metric, and caching the instruments stays
+  the implementation's job. `counter` with no value increments the
+  counter by one. There is no `gauge` method in V1.
+- `RootMetrics$` is the DI token of the root. Its value is set by the
+  `makeApp({ metrics })` option; without it, an empty implementation
+  whose methods do nothing stands under the DI token. The node is always
+  in the graph, so a feature that writes a metric assembles without an
+  installed satellite. An application provider under `RootMetrics$` is a
+  duplicate error, the same as for the logger.
+- `Metrics$(scope)` and `Metrics$.auto` are family members. A member adds
+  the `scope` attribute to every record; the interface has no `child`
+  method, the family recipe makes the wrapper.
+- The kernel counts four metrics: `nestling.requests` and
+  `nestling.request.duration` for handling a request
+  ([pipeline.md §2](./pipeline.md)), `nestling.port.calls` and
+  `nestling.port.duration` for calling a port
+  ([operations.md](./operations.md)). Duration is measured in
+  milliseconds, the same as `timeoutMs` and `deadline`.
+- Attributes come from declarations, not from the request: `pattern` is
+  the route pattern of the endpoint, `operation` is the name of the
+  operation. The number of rows at the exporter is therefore finite and
+  does not grow with traffic.
+- Kernel instrumentation is enabled together with a real implementation.
+  Without the `metrics` option, the runtime does not measure time and
+  does not call the recording methods; there is no enabling flag in the
+  interface.
+- The kernel does not know the export format. The application or a
+  satellite writes the `/metrics` endpoint and the export to a collector
+  on top of this interface.
 
 ## The kernel and user code
 
@@ -486,6 +540,14 @@ export const RequestId = contextVar<string>()('requestId');
   `everyEndpoint(…).hasVar(Var)` ([pipeline.md §7](./pipeline.md)).
   Types close off reading from a unit, the policy closes off reading
   from deep in the graph, where there are no input types.
+- The kernel declares three variables and reserves their keys. `Signal`
+  is the cancellation signal of the request, read-only. `RequestId` is
+  the request identifier, written by `withRequestId()`. `Trace` is the
+  trace, written by `withTracing()` ([pipeline.md §3](./pipeline.md)).
+  Declaring a user variable under the key `'signal'` or `'trace'` throws
+  an error naming the reserved variable. `Trace` is declared with
+  `{ propagate: true }`, so the caller of a port puts it into the bus
+  envelope.
 - Propagating a variable through a port is opt-in, at declaration:
   `contextVar<T>()('tenantId', { propagate: true })`. The flag sits on
   the declaration, not at the connection point: it is exactly the

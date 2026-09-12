@@ -11,9 +11,11 @@ on `SIGTERM` and `SIGINT`.
 > 🚧 Active development, the API may change. The package includes no
 > schema validator: any [Standard Schema](https://standardschema.dev) fits.
 > Design: [`docs/en/design/composition.md`](../../docs/en/design/composition.md),
-> [`docs/en/design/pipeline.md`](../../docs/en/design/pipeline.md).
+> [`docs/en/design/pipeline.md`](../../docs/en/design/pipeline.md),
+> [`docs/en/design/container.md`](../../docs/en/design/container.md).
 > Guide: [chapter 2. Assemble the application from features](../../docs/en/guide/02-composition.md),
-> [chapter 7. Configuration in sections](../../docs/en/guide/07-config.md).
+> [chapter 9. See every request in the log](../../docs/en/guide/09-logging.md),
+> [chapter 22. Count requests and calls](../../docs/en/guide/22-metrics.md).
 
 ## Install
 
@@ -72,9 +74,10 @@ await app.assemble().run();
   `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`, `parseMetadata`,
   `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreUnitFn`,
   `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
-  `ResponseContext`, `Signal`, `SuccessResponseContext`,
-  `TransportClosingError`, `transportNameOf`, `UndeclaredDoneError`,
-  `UnitResolver`, `withIdentity`, `withPermissions`, `withRequestId`.
+  `ResponseContext`, `Signal`, `SuccessResponseContext`, `Trace`,
+  `TraceContext`, `traceparent`, `TransportClosingError`, `transportNameOf`,
+  `UndeclaredDoneError`, `UnitResolver`, `withIdentity`, `withPermissions`,
+  `withRequestId`, `withTracing`.
 - **Ports and bus** ([design](../../docs/en/design/operations.md)) —
   `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`,
   `BusMessageMeta`, `BusSubscription`, `BusTransport$`, `CompatibilityChange`,
@@ -86,20 +89,19 @@ await app.assemble().run();
   `profileAttributes`, `PublishOptions`, `RequestOptions`, `serializeSnapshot`,
   `SnapshotOperation`, `snapshotOperations`, `startBudget`, `SubscribeOptions`,
   `withIdempotencyKey`.
-- **Transport** ([design](../../docs/en/design/transports.md)) —
-  `BusDeclaration`, `DEFAULT_INSTANCE`, `Dispatch`, `DispatchOptions`,
-  `ExecutableDeclaration`, `IListener`, `ITransport`, `makeDispatch`,
-  `makeServerDeclaration`, `makeTransportDeclaration`, `RouteDeclaration`,
-  `ServerDeclaration`, `TransportDeclaration`, `TransportEntry`,
-  `transportValue`.
-- **Probes** — `Health`, `Health$`, `HealthCheck`, `HealthCheck$`,
-  `HealthReport`, `HealthStatus`, `registerHealth`.
-- **Logger** — `Fields`, `Logger`, `Logger$`, `loggerKernel`, `LogLevel`,
-  `makeKernelLogger`, `RootLogger$`.
-- **Re-export of [`@nestlingjs/operations`](../nestling.operations/)** —
-  operations, failures and io shapes: 45 names in the neighbour's README.
-- **Re-export of [`@nestlingjs/common.misc`](../common.misc/)** — the schema
-  kernel: 8 names, the list is in the neighbouring package's README.
+- **Transport** ([design](../../docs/en/design/transports.md)) — `BusDeclaration`,
+  `DEFAULT_INSTANCE`, `Dispatch`, `DispatchOptions`, `ExecutableDeclaration`,
+  `IListener`, `ITransport`, `makeDispatch`, `makeServerDeclaration`,
+  `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
+  `TransportDeclaration`, `TransportEntry`, `transportValue`.
+- **Observability and probes** ([design](../../docs/en/design/container.md)) —
+  `Fields`, `Health`, `Health$`, `HealthCheck`, `HealthCheck$`, `HealthReport`,
+  `HealthStatus`, `Logger`, `Logger$`, `loggerKernel`, `LogLevel`,
+  `makeKernelLogger`, `MetricAttributes`, `Metrics`, `Metrics$`,
+  `registerHealth`, `RootLogger$`, `RootMetrics$`.
+- **Re-export of neighbours** — [`@nestlingjs/operations`](../nestling.operations/)
+  (45 names) and [`@nestlingjs/common.misc`](../common.misc/) (8 names); the
+  lists are in their README.
 - **Subpath `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
   `WiredEndpoint`, `WireOptions`.
 

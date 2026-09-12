@@ -9,7 +9,8 @@ handlers are set, and nothing is printed to stdout.
 > 🚧 Active development, the API may change. The package introduces no
 > runner, no matchers and no snapshot mechanics: jest stays jest.
 > Design: [`docs/en/design/testing.md`](../../docs/en/design/testing.md).
-> Guide: [chapter 8. Make sure it works without starting a server](../../docs/en/guide/08-testing.md).
+> Guide: [chapter 8. Make sure it works without starting a server](../../docs/en/guide/08-testing.md),
+> [chapter 22. Count requests and calls](../../docs/en/guide/22-metrics.md).
 
 ## Install
 
@@ -60,7 +61,8 @@ expect(user).toEqual({ id: '1', name: 'Alice' });
 - **Substitutions** — `TestOverride`, `TestStub`, `stub`, `OperationStub`,
   `RequestStubImpl`, `EmitStubImpl`, `StubOutput`, `familyOverride`,
   `contextValue`, `vars`.
-- **Logger** — `spyLogger`, `SpyLogger`, `LogEntry`.
+- **Logger and metrics** — `spyLogger`, `SpyLogger`, `LogEntry`,
+  `spyMetrics`, `SpyMetrics`, `MetricRecord`.
 - **Topologies and units** — `checkTopologies`, `TopologyReport`,
   `testUnit`, `TestUnitOptions`.
 - **Re-export of [`@nestlingjs/app`](../nestling.app/)** — the core

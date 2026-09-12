@@ -284,7 +284,7 @@ export const OrdersModule = makeModule({
   сборку.
 - `providers` модуля может быть синхронной фабрикой; она вызывается в
   `build()`. Ветка состава по значению, известному до сборки, — не
-  фабрика, а переключатель: `Storage.pick({ … })` и `Metrics.when(…)` в
+  фабрика, а переключатель: `Storage.pick({ … })` и `Audit.when(…)` в
   `providers` и `dependsOn` ([composition.md §3](./composition.md)).
 - Контейнер используется и автономно, без `App`: группировка провайдеров с
   меткой нужна там сама по себе.

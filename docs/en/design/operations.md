@@ -264,6 +264,17 @@ created. There the bus also subscribes to the subjects of its own
 routes, so `@OnStart` can already call a port. A call before WIRE ends
 with an error, not a wait.
 
+The port node counts two metrics: `nestling.port.calls` and
+`nestling.port.duration` with the attributes `operation`, `kind`,
+`binding` and `outcome` ([container.md](./container.md), "The kernel
+metrics"). The record is written at the caller, because it alone sees
+both binding paths, and it covers both call shapes — `call` and `emit`.
+The set of metrics is the same for `local-first` and `always-remote`;
+the `binding` attribute tells them apart. A port call with a co-located
+implementation goes through `dispatch` and therefore produces both
+groups of records: its own and the record of the implementation's
+endpoint.
+
 ### 2.4. Rules
 
 A port is never transactional, even in one process: the call runs in
@@ -496,7 +507,7 @@ presence of the profile is checked at assembly:
 inherit the budget, the same way it does not inherit `meta.signal`; a
 handler that hands the remainder further on passes it explicitly.
 
-### 4.4. Context propagation
+### 4.4. Context and trace propagation
 
 A variable declared with `{ propagate: true }` is passed across a port
 boundary in the envelope of the bus (one `Nl-Ctx` header, in NATS). The
@@ -508,6 +519,14 @@ implementation". On receipt, the values are put into
 them into the asynchronous context — the same two-channel receipt as
 the profile. The behavior is the same for both binding paths. Details
 are in [container.md](./container.md), "Asynchronous context".
+
+The trace is propagated by the same mechanism: the kernel variable
+`Trace` is declared with `{ propagate: true }`, and its value travels in
+the `trace` field of the envelope. On receipt, the standard writer
+`withTracing()` ([pipeline.md §3](./pipeline.md)) returns it into the
+context, not `Trace.propagated()`: the same unit continues the trace
+over HTTP too, so the implementation of an operation and an HTTP
+endpoint are assembled from one layer.
 
 ## 5. The external client: `makeClient`
 
@@ -521,7 +540,7 @@ import { makeClient } from '@nestlingjs/client';
 
 const api = makeClient(
   { createUser: CreateUser, getUser: GetUser },  // the consumer names the methods
-  { baseUrl, fetch?, headers? },                 // shared headers: auth, tracing
+  { baseUrl, fetch?, headers?, trace? },         // shared headers and a trace reader
 );
 
 const result = await api.createUser({ ... });
@@ -539,6 +558,12 @@ const result = await api.createUser({ ... });
   is created. The consumer names the methods through a record; the name
   of the operation (`'users.create'`) is not parsed into the shape of
   the object.
+- The `traceparent` header is set by the `trace` option — a function
+  that returns a W3C trace-context string or `undefined`. The
+  application supplies the reader: the client is built for a browser,
+  and the ambient context of a request is not available to it. A ready
+  reader is exported by `@nestlingjs/app` under the name `traceparent`.
+  A header set by the `headers` field takes precedence.
 - Response validation is on by default. It is turned off explicitly:
   `makeClient(record, { validateOutput: false })`.
 - Query serialization is closed: `undefined` and `null` are not

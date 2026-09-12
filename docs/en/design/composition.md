@@ -413,7 +413,7 @@ root import it, like a configuration section.
 ```typescript
 // switches.ts
 export const Storage = makeSwitch('storage', ['s3', 'local']);   // an enumeration
-export const Metrics = makeSwitch('metrics');                     // 'on' | 'off'
+export const Audit   = makeSwitch('audit');                      // 'on' | 'off'
 export const Debug   = makeSwitch('debug', { default: 'off' });
 
 // storage.module.ts — both branches are listed as a table
@@ -422,7 +422,7 @@ export const StorageModule = makeModule({
   providers: [
     UploadsService,
     Storage.pick({ s3: [S3Client, S3Storage], local: [LocalStorage] }),
-    Metrics.when(StorageMetrics),          // the same as pick({ on: StorageMetrics, off: [] })
+    Audit.when(StorageAudit),              // the same as pick({ on: StorageAudit, off: [] })
   ],
 });
 
@@ -436,16 +436,16 @@ export const UploadsFeature = makeFeature({
 // app.ts — the dictionary of switches is declared next to the features
 export const app = makeApp({
   features: [UsersFeature, UploadsFeature],
-  plugins: [appLogging, Metrics.when(appMetrics)],
+  plugins: [appLogging, Audit.when(appAudit)],
   transports: [http(), Debug.when(http({ name: 'admin' }))],
-  switches: [Storage, Metrics, Debug],
+  switches: [Storage, Audit, Debug],
 });
 
 // config.ts — a switch has a schema for its values, with a default
 export const RootConfig = makeConfig('app', {
   features: z.string().default('all'),   // APP_FEATURES
   storage: Storage.schema,               // APP_STORAGE: 's3' | 'local', required
-  metrics: Metrics.schema,               // APP_METRICS: 'on' | 'off', required
+  audit: Audit.schema,                   // APP_AUDIT: 'on' | 'off', required
   debug: Debug.schema,                   // APP_DEBUG, defaults to 'off'
 });
 
