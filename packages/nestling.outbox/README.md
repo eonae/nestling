@@ -1,30 +1,33 @@
 # @nestlingjs/outbox
 
-Транзакционный emit: событие записывается в базу той же транзакцией, что и
-бизнес-изменение, и уходит в шину после коммита. Транзакцию открывает и
-закрывает приложение — пакет её не создаёт, не коммитит и не откатывает.
+Transactional emit: the event is written to the database by the same
+transaction as the business change, and leaves through the bus after the
+commit. The application opens and closes the transaction; the package
+neither creates it, nor commits it, nor rolls it back.
 
-> 🚧 Активная разработка, API может меняться.
-> Дизайн: [`docs/design/operations.md`](../../docs/design/operations.md),
-> раздел «Транзакционный emit».
-> Гайд: [глава 16. Не потерять событие при падении
-> процесса](../../docs/guide/16-durable-events.md).
+> 🚧 Active development, the API may change.
+> Design: [`docs/en/design/operations.md`](../../docs/en/design/operations.md),
+> section "Transactional emit".
+> Guide: [chapter 16. Not losing an event on a process
+> crash](../../docs/en/guide/16-durable-events.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/outbox
 ```
 
-Хранилище пакет не выбирает: адаптер `OutboxStore` приходит извне.
-Для PostgreSQL его отдаёт `@nestlingjs/drizzle.pg/outbox`, для тестов
-есть `InMemoryOutboxStore`, для остальных баз адаптер пишет приложение.
+The package does not choose the storage: the `OutboxStore` adapter comes
+from outside. For PostgreSQL it is given by `@nestlingjs/drizzle.pg/outbox`,
+for tests there is `InMemoryOutboxStore`, for other databases the
+application writes the adapter.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
-// Плагин собирается в композиционном корне: переменная транзакции,
-// DI-токен хранилища и перечень операций, которые едут через outbox.
+// The plugin is assembled in the composition root: the transaction
+// variable, the DI token of the storage and the list of operations that
+// travel through the outbox.
 export const appOutbox = outbox({
   transaction: Tx,
   store: OutboxStore$,
@@ -38,39 +41,42 @@ export const app = makeApp({
   policies: [appOutbox.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
 });
 
-// В хендлере эмиттер приходит DI-токеном outboxed(UserCreated): строка
-// пользователя и строка outbox коммитятся вместе. Раздел записи называет
-// место вызова: emit(user, { partitionKey: user.id }).
+// In the handler the emitter arrives by the DI token outboxed(UserCreated):
+// the user row and the outbox row are committed together. The section of
+// the record names the call site: emit(user, { partitionKey: user.id }).
 ```
 
-## Экспорты
+## Exports
 
-- **Подключение** — `outbox`, `OutboxOptions`, `OutboxPlugin`, `outboxed`,
+- **Connection** — `outbox`, `OutboxOptions`, `OutboxPlugin`, `outboxed`,
   `OutboxEmitter`, `OutboxEmitMeta`, `outboxConfigKeys`,
   `OutboxConfigValues`, `StagingTransaction`,
   `OutboxTransactionMissingError`.
-- **Хранилище** — `OutboxStore`, `InMemoryOutboxStore`, `OutboxRecord`,
+- **Storage** — `OutboxStore`, `InMemoryOutboxStore`, `OutboxRecord`,
   `OutboxRecordSnapshot`, `ClaimedRecord`, `OutboxClaimOptions`,
   `OutboxSettlement`.
 - **Relay** — `OutboxRelay`, `OutboxRelay$`, `OutboxRelayOptions`,
   `OutboxDrainReport`.
-- **Факты жизненного цикла** — `OutboxPublished`, `OutboxStuck`,
+- **Lifecycle facts** — `OutboxPublished`, `OutboxStuck`,
   `OutboxPublishedFact`, `OutboxStuckFact`.
 
-`emit` через outbox завершается по факту записи в базу, а не по факту
-доставки: публикацию делает relay после коммита.
+`emit` through the outbox finishes on the fact of the database write, not
+on the fact of delivery: the relay does the publishing after the commit.
 
-## Границы пакета
+## Package boundaries
 
-Пакет не открывает транзакцию, не создаёт таблицу и не гарантирует порядок
-между партициями. Порядок внутри одной партиции сохраняется.
+The package does not open the transaction, does not create the table and
+does not guarantee an order between partitions. The order inside one
+partition is kept.
 
-Готовый адаптер `OutboxStore` для PostgreSQL отдаёт
-[`@nestlingjs/drizzle.pg/outbox`](../nestling.drizzle.pg/): он пишет
-транзакцией вызывающего и приносит с собой и таблицу записей, и её DDL.
+The ready `OutboxStore` adapter for PostgreSQL is given by
+[`@nestlingjs/drizzle.pg/outbox`](../nestling.drizzle.pg/): it writes by
+the transaction of the caller and brings both the record table and its
+DDL.
 
-Доставка получается at-least-once: relay может упасть между публикацией и
-отметкой, и тогда подписчик получит событие второй раз. Вторую половину
-гарантии даёт [`@nestlingjs/inbox`](../nestling.inbox/) — слой, который
-отмечает сообщение обработанным транзакцией подписчика и не пускает повтор
-в хендлер.
+The delivery comes out at-least-once: the relay may crash between the
+publish and the mark, and then the subscriber gets the event a second
+time. The other half of the guarantee is given by
+[`@nestlingjs/inbox`](../nestling.inbox/) — the layer that marks a message
+processed by the transaction of the subscriber and does not let a repeat
+reach the handler.

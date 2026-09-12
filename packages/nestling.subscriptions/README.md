@@ -1,57 +1,59 @@
 # @nestlingjs/subscriptions
 
-Реестр активных подписок: список, принудительное закрытие одной или
-нескольких, лента изменений. Пакет написан целиком на публичных примитивах
-ядра — плагин, слой пайплайна и singleton в контейнере, — поэтому ядро о нём
-не знает.
+The registry of active subscriptions: the list, the forced closing of
+one or several, the feed of changes. The package is written entirely
+on public primitives of the kernel — a plugin, a pipeline layer and a
+singleton in the container — so the kernel does not know about it.
 
-> 🚧 Активная разработка, API может меняться.
-> Дизайн: [`docs/design/streaming.md`](../../docs/design/streaming.md) §4.1.
-> Гайд: [рецепт «Кто сейчас подключён и как его отключить»](../../docs/recipes/ops.md).
+> 🚧 Active development, the API may change.
+> Design: [`docs/en/design/streaming.md`](../../docs/en/design/streaming.md) §4.1.
+> Guide: [recipe "Who is connected right now and how to disconnect them"](../../docs/en/recipes/ops.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/subscriptions
 ```
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { subscriptions, SubscriptionRegistry, tracked } from '@nestlingjs/subscriptions';
 
-// 1. Плагин: создаётся один раз в композиционном корне
+// 1. The plugin: created once in the composition root
 export const appSubscriptions = subscriptions({
   identity: (ctx) => (ctx.input as { userId?: string }).userId,
   labels: (ctx) => ({ transport: ctx.endpoint.transport }),
-  publish: true, // факты жизненного цикла как операции
+  publish: true, // lifecycle facts as operations
   node: process.env.HOSTNAME,
 });
 
-// 2. Слой: добавляется в пайплайн endpoint'а, как любое сквозное поведение
+// 2. The layer: added to the endpoint's pipeline, like any cross-cutting behaviour
 export const Feed = httpEndpoint.get('/api/feed', {
   output: events(Event),
   pipeline: compose(basePipeline, tracked),
-  handler: FeedHandler, // получает meta.subscription с общим signal
+  handler: FeedHandler, // receives meta.subscription with the shared signal
 });
 
-// 3. Реестр инжектируется обычным DI-токеном: registry.list(), registry.kill()
+// 3. The registry is injected by an ordinary DI token: registry.list(), registry.kill()
 ```
 
-## Экспорты
+## Exports
 
-- **Подключение** — `subscriptions`, `SubscriptionsOptions`, `tracked`,
+- **Connection** — `subscriptions`, `SubscriptionsOptions`, `tracked`,
   `TrackSubscription`, `UntrackSubscription`.
-- **Реестр** — `SubscriptionRegistry`, `SubscriptionInfo`,
+- **Registry** — `SubscriptionRegistry`, `SubscriptionInfo`,
   `SubscriptionFilter`, `SubscriptionKind`, `TrackedSubscription`,
   `SubscriptionKilledError`, `CloseReason`.
-- **Факты жизненного цикла** ([design](../../docs/design/operations.md)) —
+- **Lifecycle facts** ([design](../../docs/en/design/operations.md)) —
   `SubscriptionOpened`, `SubscriptionClosed`, `SubscriptionOpenedFact`,
   `SubscriptionClosedFact`, `SubscriptionEvent`.
 
-Факты публикуются операциями, только если у плагина задано `publish: true`.
+The facts are published as operations only if the plugin has
+`publish: true` set.
 
-## Границы пакета
+## Package boundaries
 
-Реестр знает подписки своего процесса. Общего состояния между репликами у
-него нет: список из соседнего процесса собирается вызовом операции.
+The registry knows the subscriptions of its own process. It has no
+shared state between replicas: the list from a neighbouring process is
+collected by an operation call.

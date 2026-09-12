@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- СГЕНЕРИРОВАНО scripts/site/build.mjs из источников scripts/site/sections.mjs. Правки вносить в исходные файлы. -->
-<html lang="ru" data-theme="">
+<html lang="{{lang}}" data-theme="">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,15 +9,16 @@
 {{styles}}
 </style>
 </head>
-<body data-root="{{root}}" data-mode="{{mode}}">
+<body data-root="{{root}}" data-lang-root="{{langroot}}" data-mode="{{mode}}">
 
 <header class="topbar">
-  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="Меню">☰</button>
-  <a class="brand" href="{{home}}"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">документация</span></a>
+  <button class="icon-btn menu-btn" onclick="__toggleMenu()" aria-label="{{menu}}">☰</button>
+  <a class="brand" href="{{home}}"><span class="logo">🐣</span> Nestling <span class="tag hide-sm">{{tagline}}</span></a>
   <span class="spacer"></span>
 {{toplinks}}
 {{search}}
-  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="Тема">☾</button>
+{{langs}}
+  <button class="icon-btn" id="theme-btn" onclick="__toggleTheme()" aria-label="{{themelabel}}">☾</button>
 </header>
 
 <div class="backdrop" onclick="__closeMenu()"></div>

@@ -1,0 +1,359 @@
+# 19. Start only a part of the features
+
+> Guide to the current API; verified against `app-with-http` (2026-09-10).
+> Target description: [design/composition.md](../design/composition.md), the
+> "L2 — features, selection and switches" and "`check()`" sections. Why:
+> entries [ideas.md](../../decisions/ideas.md)
+> `[2026-07-08] Модульный монолит: фичи, select`,
+> `[2026-09-02] Модель композиции: фича, плагин, операция` and
+> `[2026-09-06] Переключатели состава: makeSwitch, pick и when, аргумент сборки; формы корня без фич`.
+
+The application consists of the `users`, `quotas` and `ops` features.
+Locally it starts as one process. In production the user API and the
+operational endpoints are deployed separately, and each process must
+bring up only its own features. The same code must assemble into all
+three roles, and a wrong composition must stop the assembly, not the
+first request.
+
+## Read the assembly argument before the container
+
+```typescript
+// examples/app-with-http/src/main.ts
+import { app } from './app.js';
+
+import { from, load, makeConfig } from '@nestlingjs/app';
+import { z } from 'zod';
+
+/**
+ * The root's section: the assembly argument is read before the
+ * container.
+ *
+ * The `root` prefix tells it apart from the `app` section in
+ * `app.config.ts`, the feature selection key is set exactly
+ * (`APP_FEATURES`), and the switch values are described by their
+ * schemas.
+ */
+const RootConfig = makeConfig('root', {
+  features: from('APP_FEATURES', z.string().default('all')),
+  docs: from('APP_DOCS', Docs.schema),
+});
+
+/**
+ * The entry point. `APP_FEATURES=users` brings up the users feature
+ * and the features whose operations it calls. `APP_FEATURES=all`
+ * brings up all of them. `APP_DOCS=off` removes the documentation
+ * from the composition.
+ */
+const cfg = load(RootConfig);
+
+await app.assemble({ ...cfg, includeDeps: true }).run();
+```
+
+`load(section)` reads the values before the container is assembled:
+synchronously and only from `process.env`. It works this way because
+the assembly argument determines the composition of the container, and
+a section inside the container would appear only after the selection.
+The sources bound in `config:` take no part in this read. This is the
+only configuration read before the assembly.
+
+The `APP_FEATURES` key is set through `from()`: the root has its own
+`root` prefix, because the `app` prefix is already taken by the
+application's section.
+
+The section's fields are named the same as the assembly argument's
+fields, so `cfg` fits `assemble` whole. The name `docs` is the switch's
+name, and an extra field in this object does not compile.
+
+## Argument shapes and the closure over calls
+
+| Form | What it selects |
+|---|---|
+| `'all'` | every feature from `features:` |
+| `'users,ops'` | features by name (spaces around the names are ignored) |
+| `['users', 'ops']` | the same as a list |
+| `{ features, includeDeps: true }` | features by name plus the features whose operations they call |
+| `{ features, docs: 'off' }` | the same features plus switch values |
+
+The string form is needed because the selection comes from an
+environment variable. With it, the switch values are taken from their
+defaults. If `features:` is set and there is no selection, every
+feature is selected. The plugins from `plugins:` do not enter the
+selection: they are in every process. A feature that is not selected
+is absent from the process entirely: its providers are not created,
+its endpoints are not registered, its implementations of operations do
+not subscribe. An unknown feature name stops the assembly, and the
+error lists the available ones, the same as two features with one
+name, an empty selection, and a selection with no `features:`.
+
+```bash
+APP_FEATURES=users API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+```
+
+```
+[nestling] features: users, quotas; transports: http, bus
+[nestling] selection closed over calls: users + quotas
+[nestling] detached from policies: POST /hooks/users (http) — webhook: подлинность проверяется подписью тела, а не Bearer-токеном
+```
+
+One feature was selected, and there are two in the process.
+`includeDeps: true` closes the selection over the called operations:
+the `users` feature injects `ClaimQuota.caller` and
+`SignupRecorded.emitter`, the owner of both operations lives in
+`quotas`, and it connects on its own. The second line of the output
+shows what the closure added.
+
+A call counts as a mention of `.caller` or `.emitter` in the
+dependencies of a handler class or of any other provider. The closure
+goes over `request` and `command`: they have exactly one owner. Events
+take no part in the closure. An event may have no subscriber at all,
+and a process with no subscriber for `users.registered` remains a
+correct topology.
+
+The `ops` feature does not connect: nobody calls its operations, and it
+arrives only by an explicit selection.
+
+```
+[nestling] features: ops; transports: http, bus
+[nestling] selection closed over calls: ops (nothing added)
+```
+
+An assembly with the `'users'` selection and no `includeDeps` stops on
+the ASSEMBLE phase:
+
+```
+Operation 'quotas.claim' (kind 'request') is injected as '.caller', but no
+selected feature implements it and this assembly has no intercom, so the
+call has nowhere to go. Either add the feature that implements it to the
+assembly argument (or close the selection over calls with
+'assemble({ features, includeDeps: true })'), or assign the intercom role
+to a bus transport ('transports: [nats({ name: "events" })]' with
+'intercom: "events"') when the owner lives in another process.
+```
+
+The error names the operation, the caller and two ways to fix it:
+include the owner in the selection, or assign the intercom when the
+owner works in another process.
+
+## Switches: the second dimension of composition
+
+The feature selection answers which areas a process brings up. A
+switch answers which variant of the same area. The documentation is
+needed in the dev environment and is not needed outside the perimeter,
+and that is not a reason to set up a feature for the sake of one
+plugin.
+
+```typescript
+// examples/app-with-http/src/app.ts
+export const Docs = makeSwitch('docs', { default: 'on' });
+
+export const app = makeApp({
+  features: [UsersFeature, QuotasFeature, OpsFeature],
+  plugins: [
+    appObservability,
+    appAuth,
+    appSubscriptions,
+    // With `docs=off` the plugin is entirely absent from the assembly
+    Docs.when(appOpenapi),
+  ],
+  switches: [Docs],
+  transports: [http()],
+});
+```
+
+`makeSwitch('docs', { default: 'on' })` declares a two-position switch
+with the values `'on'` and `'off'`. An enumeration has a different
+form: `makeSwitch('storage', ['s3', 'local'])`, and a branch is
+declared by the table `Storage.pick({ s3: [...], local: [...] })`,
+which must list every value. `when(x)` is short for
+`pick({ on: x, off: [] })`.
+
+A branch is a value, not a function: the composition of both branches
+is read with no code running. So `check()` sees both, and so does a
+person reading `app.ts`.
+
+A branch stands in any list of units: a module's `providers:` and
+`dependsOn:`, a feature's and a plugin's `modules:` and `endpoints:`,
+the root's `endpoints:`, `providers:`, `modules:`, `plugins:` and
+`transports:`. It is not in `features:`: the assembly argument chooses
+the composition of features. It is not in `policies:`: an invariant is
+either declared or it is not.
+
+The root declares the `switches:` dictionary, and the type of the
+assembly argument is derived from it. A switch field with a default is
+optional, one with no default is required, and a value outside the
+dictionary does not compile:
+
+```typescript
+app.assemble({ features: 'all', docs: 'off' }); // ok
+app.assemble({ features: 'all', doc: 'off' }); // does not compile: no such field
+app.assemble({ features: 'all', docs: 'no' }); // does not compile: no such value
+```
+
+The runtime repeats the same four checks on the ASSEMBLE phase, for JS
+consumers and for values that came from the environment: a value not
+from the dictionary, a `pick` on a switch outside `switches:`, two
+switches with one name, a value with no default that was not passed.
+
+A switch has no DI token: the choice cannot be injected. The
+composition does not leak into the application's code, so a provider
+cannot behave differently depending on how the application was
+assembled: instead, it is absent from the graph entirely.
+
+The selection is visible in the start line next to the features:
+
+```
+[nestling] features: users, quotas; docs=off; transports: http, bus
+```
+
+and in the `check()` report as the `switches` field.
+
+## Plugins and checking every role with no sockets
+
+```typescript
+// examples/app-with-http/src/app.spec.ts
+  it('подключает плагины и только выбранную фичу', async () => {
+    // `ops` is selected alone: there are no providers of the `users`
+    // feature in the graph, and plugins are in every assembly
+    await using testApp = await assembleTest(app, {
+      ...testConfig,
+      args: 'ops',
+    });
+
+    expect(testApp.get(AuditOutcome)).not.toBeNull();
+    expect(testApp.get(SubscriptionRegistry)).not.toBeNull();
+    expect(testApp.get(ActivityHub)).toBeNull();
+  });
+```
+
+Observability, authentication and the subscription registry connect
+through `plugins:` and do not depend on the feature selection. There
+are no providers of the `users` feature in this assembly.
+
+```typescript
+// examples/app-with-http/src/app.spec.ts
+/**
+ * The declaration for `check()`: the structural check has no
+ * overrides, so the secret values are bound to the section's keys by
+ * a source
+ */
+const checked = makeApp({
+  features: app.spec.features,
+  plugins: app.spec.plugins,
+  switches: app.spec.switches,
+  policies: app.spec.policies,
+  transports: app.spec.transports,
+  config: [[objectSource(testEnv, 'test'), appConfigKeys]],
+});
+```
+
+The application's `check()` runs phases 0 and 1: parsing the assembly
+argument, expanding the switch branches, registration, discovery,
+`build()` and checking the policies. No constructor runs, `acquire`,
+`@OnStart` and `serve` are not called, and no resource is acquired. It
+throws the same errors that `run()` would throw on phases 0 and 1, and
+it does not affect a later `run()` of the same application.
+`checkTopologies(app, topologies)` from `@nestlingjs/testing` calls
+`check()` for every assembly argument and collects the errors of every
+variant into one message.
+
+The composition with no graph gives the declaration's third entry
+point: `discover(args)`. It runs only phase 0 and returns the
+endpoints with the names of the units that declared them: what the
+application would answer with this argument. The call is synchronous,
+and it brings up no configuration sources. Graph errors remain the job
+of `check()`. The OpenAPI document in CI is built from it
+([chapter 13](./13-openapi-and-client.md)).
+
+`check()` accepts no overrides: it checks the honest graph. So the
+secrets come not from `vars()` but from binding a source to the
+section's keys right in the declaration. The `API_TOKEN` and
+`WEBHOOK_SECRET` secrets are needed here too, because `build()` creates
+the configuration section.
+
+```typescript
+// examples/app-with-http/src/app.spec.ts
+  it('собирает каждый вариант деплоя без сокетов', async () => {
+    const usersWithDeps = { features: 'users', includeDeps: true } as const;
+    const reports = await checkTopologies(checked, [
+      'all',
+      usersWithDeps,
+      'ops',
+    ]);
+
+    // `users` calls `quotas.claim`, so the closure over the operations
+    // pulls in the quotas feature. Nobody calls `ops`, and it arrives
+    // only by an explicit selection
+    expect(reports[1].report.features).toEqual(['users', 'quotas']);
+    expect(
+      reports[2].report.endpoints.map(({ pattern }) => pattern).sort(),
+    ).toEqual([
+      'DELETE /ops/subscriptions/:id',
+      'GET /healthz',
+      'GET /openapi.json',
+      'GET /ops/subscriptions',
+      'GET /ops/subscriptions/live',
+      'GET /readyz',
+      'subscriptions.closed@ops',
+      'subscriptions.opened@ops',
+    ]);
+  });
+```
+
+The result contains a `{ args, report }` pair for every variant. The
+report lists `features`, `switches`, `endpoints` with the pattern, the
+transport and the `detached` reason, `transports`, and `operations`.
+In the `ops` role's report, the `GET /openapi.json` endpoint belongs
+to the documentation plugin, and the implementations of operations are
+visible under names like `subscriptions.opened@ops`.
+
+```typescript
+// examples/app-with-http/src/app.spec.ts
+  it("проверяет политики и перечисляет detached-endpoint'ы в отчёте", async () => {
+    const [{ report }] = await checkTopologies(checked, ['all']);
+
+    expect(
+      report.endpoints
+        .filter(({ detached }) => detached !== undefined)
+        .map(({ pattern }) => pattern)
+        .sort(),
+    ).toEqual([
+      'GET /healthz',
+      'GET /readyz',
+      'POST /hooks/users',
+      'POST /login',
+    ]);
+  });
+```
+
+```typescript
+// examples/app-with-http/src/app.spec.ts
+  it('проверяет обе ветки переключателя документации', async () => {
+    const [withDocs, withoutDocs] = await checkTopologies(checked, [
+      { features: 'all', docs: 'on' },
+      { features: 'all', docs: 'off' },
+    ]);
+
+    expect(withDocs.report.switches).toEqual({ docs: 'on' });
+    expect(withoutDocs.report.switches).toEqual({ docs: 'off' });
+  });
+```
+
+A topology is described by the whole assembly argument, so the matrix
+goes through the feature selection and the switch branches as one
+list. A branch that assembles only in the dev environment is checked
+by the same test as the rest.
+
+The policies from chapter [10](./10-auth.md) are checked in every
+topology of the matrix, not only in the full assembly. An invariant
+that holds at the `'all'` selection and breaks on a subset is visible
+in the test, not at deployment. The `detached` reasons arrive as
+values in the report: the test compares a list rather than reading
+console output.
+
+```bash
+yarn workspace @examples/app-with-http test
+APP_FEATURES=ops API_TOKEN=secret WEBHOOK_SECRET=hook yarn workspace @examples/app-with-http start:dev
+```
+
+The roles assemble separately, but for now they run in one process:
+[20. Spread the features across processes](./20-split.md).

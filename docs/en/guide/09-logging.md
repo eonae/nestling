@@ -1,0 +1,350 @@
+# 9. See every request in the log
+
+> Guide to the current API; verified against `users-service` (2026-09-12).
+> Target description: [design/pipeline.md](../design/pipeline.md) and
+> [design/container.md](../design/container.md), the "Kernel logger" section.
+> Why: entries [ideas.md](../../decisions/ideas.md)
+> `Pipeline v2: плоские фазы, слои, композиция константами`,
+> `Асинхронный контекст: read-only ALS-проекция pipeline-контекста` and
+> `[2026-09-06] Логгер ядра: RootLogger$, семейство Logger$ с.auto и child`.
+
+The service answers clients, but what happens to it is visible only through
+the responses. Every request must leave a record in the log: the address,
+the status and how it ended. The records of one request, even from deep
+inside the code, must connect to each other by a shared identifier.
+
+## The kernel logger
+
+There is no need to declare your own logger: the kernel has one, and both
+the framework and the application use it. The service takes it as an
+ordinary dependency:
+
+```typescript
+// examples/users-service/src/users/users.repository.ts
+import type { CtxReader, Logger } from '@nestlingjs/app';
+import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
+import { Component } from '@nestlingjs/container';
+
+@Component([db.connection, Logger$.auto, Ctx(RequestId), Ctx(db.tx)])
+export class DbUsersRepository implements UsersRepository {
+  constructor(
+    private readonly connection: PgConnection<typeof schema>,
+    private readonly logger: Logger,
+    // …
+  ) {}
+
+  private trace(operation: string): void {
+    this.logger.debug(operation, { requestId: this.requestId.peek() ?? 'n/a' });
+  }
+}
+```
+
+`Logger` is an interface from `@nestlingjs/app`. `Logger$` is a DI token
+family: `Logger$('db')` gives a logger with the `db` scope, and
+`Logger$.auto` gives one with the scope named after the consumer class,
+here `DbUsersRepository`. The scope reaches every record in the `scope`
+field, so the log shows who wrote the line. The recipe
+["Dependencies by name and contributions collected from
+modules"](../recipes/token-families.md) tells how DI token families work.
+
+Packages use the same logger: the database connection writes
+`database connected` with the host, not the whole address — the address
+carries the password.
+
+The logger has four levels: `debug`, `info`, `warn`, `error`. Each has
+three call forms:
+
+| Form | What comes out |
+|---|---|
+| `logger.info('database connected', { host })` | a message and fields |
+| `logger.error(error, { operation })` | a message from `error.message`, the error itself in the `err` field |
+| `logger.debug({ rows: 3 })` | only fields, no message |
+
+A failure from [chapter 4](./04-errors.md) passes as the error form:
+`logger.warn(UserNotFound({ id }))`. The `err` key is reserved for the
+error: the logger records its name, message, stack and `cause`.
+
+`logger.child({ orderId })` returns a logger that adds `orderId` to every
+record. This is how a series of records about one object is written.
+
+Records leave for `stderr` one line each. Two environment variables set the
+level and the format:
+
+| Variable | Values | Default |
+|---|---|---|
+| `NESTLING_LOG_LEVEL` | `debug`, `info`, `warn`, `error` | `info` |
+| `NESTLING_LOG_FORMAT` | `text`, `json` | `text` |
+
+A record below the set level is dropped. A typo in the value stops the
+start: this is an ordinary config section, and an invalid value is checked
+at assembly, as in [chapter 7](./07-config.md).
+
+## The observability layer
+
+The pipeline — a sequence of units — describes everything that happens
+around the handler. A unit is one function or class. The pipeline is
+declared by a `makePipeline()` call and reads top to bottom as the order of
+execution:
+
+| Method | When it runs | What it sees |
+|---|---|---|
+| `.pre(unit)` | before the handler, in declaration order | the accumulated context; each unit adds its own fields to it |
+| `.ok(unit)` | only for a successful response | the full context |
+| `.catch(unit)` | only for a failure response | the fields of its own layer as optional |
+| `.finally(unit)` | always, last | the same as `.catch`, plus the outcome of the request |
+
+The log needs two phases: `.pre`, to put the request identifier into the
+context, and `.finally`, to record the outcome.
+
+```typescript
+// examples/users-service/src/observability.ts
+import type {
+  ExtendableContext,
+  Logger,
+  Outcome,
+  ResponseContext,
+} from '@nestlingjs/app';
+import { Logger$, makePipeline, withRequestId } from '@nestlingjs/app';
+import { Handler } from '@nestlingjs/container';
+
+/**
+ * A `.finally` unit: writes an audit line when every request finishes.
+ */
+@Handler([Logger$.auto])
+export class AuditOutcome {
+  constructor(private readonly logger: Logger) {}
+
+  handle(
+    outcome: Outcome,
+    res: ResponseContext,
+    ctx: ExtendableContext<{ requestId?: string }>,
+  ): void {
+    // The kernel logger puts the request identifier into the record: it
+    // reads it from the context itself, and no prefix is written by hand
+    this.logger.info(`${ctx.raw.pattern} ${res.status}`, { outcome });
+  }
+}
+
+export const observability = makePipeline()
+  .pre(withRequestId())
+  .finally(AuditOutcome);
+```
+
+`withRequestId()` is a ready pre-unit from `@nestlingjs/app`. It takes the
+identifier from the `x-request-id` header or generates a random one and
+puts it into the context as the `requestId` field.
+
+`AuditOutcome` is a `.finally` unit in the form of a class. A class is
+needed because the unit needs the logger from the container: the
+dependencies are declared in the role decorator. The role here is
+`@Handler` — the class has a `handle` method; in the `providers:` of the
+feature it stays an ordinary graph node. The `handle` method gets three
+arguments.
+
+- `outcome` — how the request ended: `completed`, `failed`,
+  `disconnected` or `aborted`. `.finally` is called on any of them,
+  including a dropped connection and an application stop, and an error
+  inside `.finally` does not change the response.
+- `res` — the final response. `res.status` does not depend on the
+  transport: `ok`, `created`, `not_found`. The transport translates it into
+  an HTTP code.
+- `ctx` — the context of the request. `ctx.input` holds the fields
+  accumulated by the pre-units; `ctx.raw.pattern` is the pattern of the
+  endpoint, for example `GET /users/:id`.
+
+The type `ExtendableContext<{ requestId?: string }>` describes what the
+unit expects from the context: the field is declared optional, because
+`.finally` also gets requests on which the pre-unit did not manage to run.
+A field outside the declared type does not compile.
+
+The request identifier is in the audit record even though the unit does
+not pass it. The kernel logger reads `requestId` from the context of the
+request itself and adds it as a field to every record made inside the
+request. Outside a request, for example during a resource acquisition, the
+field is absent.
+
+`observability` is a layer: one `makePipeline()` call with a chain of
+methods, an ordinary value. It is exported and connected to every endpoint.
+
+## Connecting to endpoints
+
+```typescript
+// examples/users-service/src/users/endpoints/list-users.endpoint.ts
+export const ListUsers = httpEndpoint.get('/users', {
+  input: ListUsersInput,
+  output: z.array(User),
+  doc: { summary: 'Список пользователей', tags: ['users'] },
+  pipeline: observability,
+  handler: ListUsersHandler,
+});
+```
+
+The `pipeline:` field accepts a layer. An endpoint without this field works
+too: `BuildInfo` from [chapter 10](./10-auth.md) has no pipeline, and
+neither do the `httpProbes()` probes from the recipe ["Who is connected
+right now and how to disconnect them"](../recipes/ops.md).
+
+The container creates the unit class, so `AuditOutcome` is registered in
+the `providers:` of the feature. A unit class missing from `providers:`
+stops the assembly on the ASSEMBLE phase, before the socket opens.
+
+```typescript
+// chapter 8 step; final version: examples/users-service/src/users.feature.ts
+export const UsersFeature = makeFeature({
+  name: 'users',
+  providers: [DbUsersRepository, AuditOutcome, Authenticate],
+  // …
+});
+```
+
+Start the service and make a request:
+
+```bash
+API_TOKEN=secret NESTLING_LOG_LEVEL=debug \
+  yarn workspace @examples/users-service start:dev
+curl -H 'x-request-id: req-42' http://localhost:3000/users/1
+```
+
+Two records with one identifier appear in the log:
+
+```
+2026-09-06T12:00:00.000Z DEBUG DbUsersRepository byId 1 requestId=req-42
+2026-09-06T12:00:00.001Z INFO  AuditOutcome GET /users/:id ok requestId=req-42 outcome=completed
+```
+
+The store writes the first record, `AuditOutcome` writes the second.
+Without the `x-request-id` header, a random UUID stands where `req-42` is.
+Without `NESTLING_LOG_LEVEL=debug` there is no first record: the default
+level is `info`. With `NESTLING_LOG_FORMAT=json` the same records come out
+as objects with the `time`, `level`, `scope`, `requestId`, `msg` fields and
+the fields of the call.
+
+## The request identifier deep in the graph
+
+`DbUsersRepository` writes the `byId 1` record. The handler does not pass
+it `requestId` as a parameter: the store reads the value from the context
+itself.
+
+```typescript
+// chapter 8 step; final version: examples/users-service/src/users/users.repository.ts
+import type { CtxReader, Logger } from '@nestlingjs/app';
+import { Ctx, Logger$, RequestId } from '@nestlingjs/app';
+
+@Component([db.connection, Logger$.auto, Ctx(RequestId), Ctx(db.tx)])
+export class DbUsersRepository implements UsersRepository {
+  constructor(
+    private readonly connection: PgConnection<typeof schema>,
+    private readonly logger: Logger,
+    private readonly requestId: CtxReader<string>,
+    private readonly tx: CtxReader<PgTx<typeof schema>>,
+  ) {}
+
+  async byId(id: string): Promise<User | null> {
+    this.trace(`byId ${id}`);
+
+    // …
+  }
+
+  private trace(operation: string): void {
+    this.logger.debug(operation, { requestId: this.requestId.peek() ?? 'n/a' });
+  }
+}
+```
+
+`RequestId` is the context variable that `withRequestId()` declares.
+`Ctx(RequestId)` is the DI token of the reader of this variable, typed by
+the value of the variable as `CtxReader<string>`. The reader is an
+ordinary graph node: the dependency of the store on the context of the
+request is visible in `deps` and in the visualization of the graph, and a
+test replaces it through `contextValue`.
+
+While a request runs, the accumulated context of the pipeline is available
+to any code called from the handler, at any depth. The reader gives two
+methods.
+
+- `get()` returns the value or throws an error naming the reason, if there
+  is no request or the variable is not declared in the pipeline.
+- `peek()` returns the value or `undefined`. The store uses it because the
+  same method can be called during a resource acquisition, where there is
+  no request yet.
+
+The store puts `requestId` into the record field itself, because it needs
+the value: this is its own way of reading the context. A logger record
+does not need this: the field that a call did not set, the kernel logger
+adds on its own. This is how `AuditOutcome` above works.
+
+The `hasVar` assembly policy checks that the variable is declared on every
+route where it is read: [chapter 10](./10-auth.md).
+
+A layer can be extended by another layer with the `compose` function: the
+`pre` units of the outer layer run earlier, and the `.finally` of the
+outer layer runs later than that of the inner one.
+
+## Your own logger
+
+By default the kernel logger writes to `stderr` as text or JSON. A logging
+library connects through the `logger` field of the root:
+
+```typescript
+// app.ts
+export const app = makeApp({
+  features: [UsersFeature],
+  transports: [http()],
+  logger: pinoAdapter(pino()),
+});
+```
+
+Replacing the root changes every member of `Logger$`: both `Logger$.auto`
+in the services and the records of the kernel itself, including assembly
+warnings. The value is ready-made: the root logger is created before the
+graph, so it cannot depend on its nodes — everything it needs is passed to
+it. There is no second way to declare the root: a provider under
+`RootLogger$` in `providers:` is an assembly error, and its text names the
+`logger` option.
+
+## Check
+
+```typescript
+// examples/users-service/src/app.spec.ts
+it('пишет запись аудита через логгер ядра', async () => {
+  // The override of the root intercepts the records of every member of
+  // Logger$: both the kernel and the application. The scope of the record
+  // is the name of the class that took Logger$.auto
+  const spy = spyLogger();
+  await using testApp = await assembleTest(app, {
+    config: testConfig,
+    overrides: [
+      [UsersRepository$, inMemoryUsersRepo([alice])],
+      [RootLogger$, spy.logger],
+    ],
+  });
+
+  unwrap(await testApp.call(GetUser, { id: '1' }));
+
+  expect(spy.entries).toContainEqual({
+    level: 'info',
+    message: 'GET /users/:id ok',
+    fields: { scope: 'AuditOutcome', outcome: 'completed' },
+  });
+});
+```
+
+`spyLogger()` from `@nestlingjs/testing` returns a logger that collects
+records in `entries` instead of `stderr`. The override of `RootLogger$` in
+the `overrides` of the test root intercepts the records of every member of
+`Logger$` — both the services and the kernel — starting from the INIT
+phase. The `testApp.call` call passes through the whole pipeline, so
+`.finally` runs, and the audit record ends up in `spy.entries`. Each record
+is `{ level, message, fields }`; the `scope` field carries the scope of the
+family member.
+
+A request for a nonexistent user leaves a `GET /users/:id not_found`
+record in the log with the `outcome=failed` field: a handler failure
+passes through the same `.finally`.
+
+```bash
+curl http://localhost:3000/users/404
+```
+
+The layer that checks a DI token and does not let you forget it on a new
+endpoint: [chapter 10](./10-auth.md).

@@ -1,0 +1,56 @@
+# Публикация сайта документации на GitHub Pages. Выкладка идёт по тегу
+# релиза — тем же событием, что публикует пакеты в реестр: сайт и реестр
+# показывают одно состояние. Ручной запуск выкладывает состояние ветки по
+# умолчанию, когда это нужно без релиза.
+#
+# Источником Pages в настройках репозитория выбран «GitHub Actions».
+name: Docs
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Права требует `deploy-pages`: выкладка идёт по OIDC, ключа доступа нет
+  pages: write
+  id-token: write
+
+# Две выкладки подряд не перегоняют друг друга: начатая доходит до конца,
+# следующая ждёт её
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Yarn берётся из репозитория (`yarnPath` в `.yarnrc.yml`), запустить
+      # его умеет corepack — на runner'е предустановлен yarn другой версии
+      - run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - run: yarn install --immutable
+
+      # Базовый адрес сайта записан здесь одной строкой: второго места,
+      # где сайт знает свой адрес, не существует
+      - run: yarn docs:build --base https://eonae.github.io/nestling
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

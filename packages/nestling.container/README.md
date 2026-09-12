@@ -1,30 +1,31 @@
 # @nestlingjs/container
 
-Контейнер зависимостей на стандартных декораторах ECMAScript с полной
-проверкой графа на сборке. `build()` строит граф и останавливается на
-отсутствующей зависимости, цикле или классе не той роли; экземпляры создаёт
-`init()` — целиком и в топологическом порядке. Основа остальных пакетов
-Nestling; работает и отдельно.
+A dependency container on standard ECMAScript decorators, with a full
+check of the graph at assembly. `build()` builds the graph and stops on a
+missing dependency, a cycle or a class of the wrong role. `init()`
+creates the instances, as a whole and in topological order. It is the
+basis of the other Nestling packages, and it also works on its own.
 
-> 🚧 Активная разработка, API может меняться. Декораторы стандартные:
-> `experimentalDecorators` и `reflect-metadata` не нужны.
-> Дизайн: [`docs/design/container.md`](../../docs/design/container.md).
-> Гайд: [рецепт «Зависимости по имени и сбор вкладов из модулей»](../../docs/recipes/token-families.md),
-> [глава 19. Запускать только часть фич](../../docs/guide/19-select.md).
+> 🚧 Active development, the API may change. The decorators are
+> standard: `experimentalDecorators` and `reflect-metadata` are not
+> needed.
+> Design: [`docs/en/design/container.md`](../../docs/en/design/container.md).
+> Guide: [recipe "Dependencies by name and contributions collected from modules"](../../docs/en/recipes/token-families.md),
+> [chapter 19. Start only a part of the features](../../docs/en/guide/19-select.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/container
 ```
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { classProvider, Component, ContainerBuilder, makeModule, makeToken }
   from '@nestlingjs/container';
 
-// DI-токен даёт интерфейсу имя во время выполнения
+// a DI token gives the interface a name at runtime
 const ILogger = makeToken<ILogger>('ILogger');
 
 @Component([])
@@ -34,7 +35,7 @@ class ConsoleLogger implements ILogger {
   }
 }
 
-// Зависимости перечисляются явно; порядок совпадает с конструктором
+// dependencies are listed explicitly, in the order of the constructor
 @Component([ILogger])
 class UserService {
   constructor(private logger: ILogger) {}
@@ -52,30 +53,30 @@ container.getOrThrow(UserService);
 await container.destroy();
 ```
 
-## Экспорты
+## Exports
 
-- **DI-токены и общее** ([design](../../docs/design/container.md)) —
+- **DI tokens and common** ([design](../../docs/en/design/container.md)) —
   `Constructor`, `InjectionToken`, `isToken`, `makeToken`, `Token`,
   `tokenId`, `UnwrapInjectionTokens`.
-- **Сборка контейнера** — `BuiltContainer`, `ContainerBuilder`,
+- **Container assembly** — `BuiltContainer`, `ContainerBuilder`,
   `ContainerBuilderOptions`, `FamilyOverrideEntry`, `HealthResource`,
   `TokenOverride`.
-- **Провайдеры** — `asFamilyMember`, `classProvider`, `Component`,
+- **Providers** — `asFamilyMember`, `classProvider`, `Component`,
   `dependenciesOf`, `factoryProvider`, `familyProvider`,
   `getAutoSentinelFamily`, `Handler`, `HealthStatus`, `makeTokenFamily`,
   `ModuleProvider`, `Provider`, `Resource`, `resourceProvider`,
   `ResourceProviderDefinition`, `TokenFamily`, `valueProvider`.
-- **Жизненный цикл** — `OnStart`.
-- **Модули** — `makeModule`, `Module`.
-- **Переключатели** — `AnySwitch`, `Branchable`, `branchCandidates`,
+- **Lifecycle** — `OnStart`.
+- **Modules** — `makeModule`, `Module`.
+- **Switches** — `AnySwitch`, `Branchable`, `branchCandidates`,
   `makeSwitch`, `resolveBranches`, `Switch`, `SwitchBranch`,
   `switchesUsed`, `SwitchOptions`, `SwitchValues`, `Toggle`,
   `ToggleSwitch`.
-- **Подпуть `./tokens`** — `makeToken`, `makeTokenFamily`, `Token`,
-  `TokenFamily`, `tokenId`: объявление DI-токена и семейства без билдера,
-  графа и провайдеров.
+- **Subpath `./tokens`** — `makeToken`, `makeTokenFamily`, `Token`,
+  `TokenFamily`, `tokenId`: the declaration of a DI token and a family
+  without the builder, the graph and providers.
 
-## Границы пакета
+## Package boundaries
 
-Контейнер держит граф и жизненный цикл. Запросов, транспортов и
-конфигурации он не знает: их приносит `@nestlingjs/app`.
+The container holds the graph and the lifecycle. It knows nothing about
+requests, transports and configuration: `@nestlingjs/app` brings them.

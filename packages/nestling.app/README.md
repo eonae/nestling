@@ -1,113 +1,116 @@
 # @nestlingjs/app
 
-Ядро Nestling одним пакетом: пайплайн обработки запроса, конфигурация, порты
-между фичами, абстракция транспорта и композиционный корень. `makeApp(spec)`
-объявляет приложение значением, `app.assemble(select)` собирает его для этого
-процесса, а `run()` строит контейнер, находит endpoint'ы обходом фич и
-плагинов, проводит приложение по фазам жизненного цикла и останавливает его
-по `SIGTERM` и `SIGINT`.
+The core of Nestling in one package: the request pipeline, configuration,
+ports between features, the transport abstraction and the composition
+root. `makeApp(spec)` declares the application as a value,
+`app.assemble(select)` assembles it for this process, and `run()` builds
+the container, finds the endpoints by walking the features and the
+plugins, takes the application through the lifecycle phases and stops it
+on `SIGTERM` and `SIGINT`.
 
-> 🚧 Активная разработка, API может меняться. Валидатор схем в пакет не
-> входит: подходит любая [Standard Schema](https://standardschema.dev).
-> Дизайн: [`docs/design/composition.md`](../../docs/design/composition.md),
-> [`docs/design/pipeline.md`](../../docs/design/pipeline.md).
-> Гайд: [глава 2. Собрать приложение из фич](../../docs/guide/02-composition.md),
-> [глава 7. Конфигурация секциями](../../docs/guide/07-config.md).
+> 🚧 Active development, the API may change. The package includes no
+> schema validator: any [Standard Schema](https://standardschema.dev) fits.
+> Design: [`docs/en/design/composition.md`](../../docs/en/design/composition.md),
+> [`docs/en/design/pipeline.md`](../../docs/en/design/pipeline.md).
+> Guide: [chapter 2. Assemble the application from features](../../docs/en/guide/02-composition.md),
+> [chapter 7. Configuration in sections](../../docs/en/guide/07-config.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/app @nestlingjs/container @nestlingjs/operations
 ```
 
-Три пакета ядра ставятся вместе. Транспорт выбирается отдельно:
-`@nestlingjs/transport.http`, `@nestlingjs/transport.cli`,
+The three core packages install together. The transport is chosen
+separately: `@nestlingjs/transport.http`, `@nestlingjs/transport.cli`,
 `@nestlingjs/transport.nats`.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
-// app.ts — чем приложение является
+// app.ts — what the application is
 import { makeApp } from '@nestlingjs/app';
 import { http } from '@nestlingjs/transport.http';
 
 export const app = makeApp({
   features: [UsersFeature],
   plugins: [appLogging],
-  transports: [http()], // объявление экземпляра, а не экземпляр
+  transports: [http()], // an instance declaration, not an instance
 });
 
-// main.ts — что запускает этот процесс
+// main.ts — what starts this process
 await app.assemble().run();
 ```
 
-## Экспорты
+## Exports
 
-- **Композиционный корень** ([design](../../docs/design/composition.md)) —
-  `App`, `AssembleArgs`, `AssembledApp`, `Bundle`, `CheckOptions`,
-  `CheckReport`, `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`,
-  `Feature`, `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`,
-  `Plugin`, `PluginOptions`.
-- **Конфигурация** ([design](../../docs/design/config.md)) — `bootstrapConfig`,
-  `Config`, `ConfigBinding`, `ConfigDerivedError`, `ConfigField`, `ConfigGlob`,
-  `ConfigInput`, `configKernel`, `ConfigKeys`, `ConfigProjection`,
-  `ConfigRecord`, `ConfigSectionToken`, `ConfigSharedKeyError`, `ConfigSource`,
-  `ConfigTarget`, `ConfigValidationError`, `ConfigValues`, `DerivedConstructor`,
+- **Composition root** ([design](../../docs/en/design/composition.md)) — `App`,
+  `AssembleArgs`, `AssembledApp`, `Bundle`, `CheckOptions`, `CheckReport`,
+  `DiscoveredEndpoint`, `Discovery$`, `EndpointDiscovery`, `Feature`,
+  `FeatureOptions`, `isApp`, `makeApp`, `makeFeature`, `makePlugin`, `Plugin`,
+  `PluginOptions`.
+- **Configuration** ([design](../../docs/en/design/config.md)) —
+  `bootstrapConfig`, `Config`, `ConfigBinding`, `ConfigDerivedError`,
+  `ConfigField`, `ConfigGlob`, `ConfigInput`, `configKernel`, `ConfigKeys`,
+  `ConfigProjection`, `ConfigRecord`, `ConfigSectionToken`,
+  `ConfigSharedKeyError`, `ConfigSource`, `ConfigTarget`,
+  `ConfigValidationError`, `ConfigValues`, `DerivedConstructor`,
   `DerivedField`, `DerivedRecord`, `DeriveFn`, `describeConfig`, `env`, `from`,
   `FromField`, `load`, `makeConfig`, `objectSource`, `ObjectSource`,
   `ReloadableConfig`, `secret`, `SecretField`, `toBindings`.
-- **Пайплайн и endpoint'ы** ([design](../../docs/design/pipeline.md)) —
+- **Pipeline and endpoints** ([design](../../docs/en/design/pipeline.md)) —
   `AnyContextVar`, `AnyEndpointDefinition`, `AnyHandlerResult`,
   `assertLayerFailsDeclared`, `bindInputStream`, `CheckedHandlerFn`,
-  `ClientDisconnectedError`, `collectPropagatedContext`,
-  `compose`, `contextKernel`, `contextVar`, `ContextVar`,
-  `ContextVarDeclarator`, `ContextVarOptions`, `ContextVarUnavailableError`,
-  `Ctx`, `CtxReader`, `DeferredPreUnitFn`, `done`, `Done`,
-  `EndpointDefinition`, `EndpointFilter`, `EndpointMeta`,
-  `EndpointOptions`, `ErrorDetails`, `ErrorResponseContext`, `everyEndpoint`,
-  `ExtendableContext`, `FinallyUnitFn`, `HandlerClass`, `handlerClassOf`,
-  `HandlerFn`, `isAsyncIterable`, `isDone`, `isEndpointDefinition`,
-  `isMidStreamFailure`, `makeEmptyContext`, `makeEndpoint`, `makePipeline`,
-  `MissingFields`,
-  `Outcome`, `parseMetadata`, `parsePayload`, `PhasedPipeline`, `Pipeline`,
-  `Policy`, `PreUnitFn`, `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`,
-  `RequestId`, `ResponseContext`, `Signal`, `SuccessResponseContext`,
+  `ClientDisconnectedError`, `collectPropagatedContext`, `compose`,
+  `contextKernel`, `contextVar`, `ContextVar`, `ContextVarDeclarator`,
+  `ContextVarOptions`, `ContextVarUnavailableError`, `Ctx`, `CtxReader`,
+  `DeferredPreUnitFn`, `done`, `Done`, `EndpointDefinition`, `EndpointFilter`,
+  `EndpointMeta`, `EndpointOptions`, `ErrorDetails`, `ErrorResponseContext`,
+  `everyEndpoint`, `ExtendableContext`, `FinallyUnitFn`, `HandlerClass`,
+  `handlerClassOf`, `HandlerFn`, `isAsyncIterable`, `isDone`,
+  `isEndpointDefinition`, `isMidStreamFailure`, `makeEmptyContext`,
+  `makeEndpoint`, `makePipeline`, `MissingFields`, `Outcome`, `parseMetadata`,
+  `parsePayload`, `PhasedPipeline`, `Pipeline`, `Policy`, `PreUnitFn`,
+  `PropagatedContextVar`, `Raw`, `ReadonlyContextVar`, `RequestId`,
+  `ResponseContext`, `Signal`, `SuccessResponseContext`,
   `TransportClosingError`, `transportNameOf`, `UndeclaredDoneError`,
   `UnitResolver`, `withIdentity`, `withPermissions`, `withRequestId`.
-- **Порты и шина** ([design](../../docs/design/operations.md)) —
+- **Ports and bus** ([design](../../docs/en/design/operations.md)) —
   `BUS_TRANSPORT_NAME`, `BusBinding`, `busBindingOf`, `BusHandler`,
   `BusMessageMeta`, `BusSubscription`, `BusTransport$`, `CompatibilityChange`,
   `CompatibilityReport`, `CompatibilityVerdict`, `Deadline`,
   `deadlineFromTimeout`, `deadlineIn`, `diffOperations`, `failureResponse`,
-  `formatCompatibility`, `Handler`, `HandlerMeta`,
-  `IDEMPOTENCY_KEY_ATTRIBUTE`, `IdempotencyKey`, `IMessageBus`, `implement`,
-  `InProcessBus`, `isExhausted`, `MessageBus$`,
-  `OperationDescriptor`, `OperationSnapshot`, `profileAttributes`,
-  `PublishOptions`, `RequestOptions`, `serializeSnapshot`, `SnapshotOperation`,
-  `snapshotOperations`, `startBudget`, `SubscribeOptions`, `withIdempotencyKey`.
-- **Транспорт** ([design](../../docs/design/transports.md)) — `BusDeclaration`,
-  `DEFAULT_INSTANCE`, `Dispatch`, `DispatchOptions`, `ExecutableDeclaration`,
-  `IListener`, `ITransport`, `makeDispatch`, `makeServerDeclaration`,
-  `makeTransportDeclaration`, `RouteDeclaration`, `ServerDeclaration`,
-  `TransportDeclaration`, `TransportEntry`, `transportValue`.
-- **Пробы** — `Health`, `Health$`, `HealthCheck`, `HealthCheck$`,
+  `formatCompatibility`, `Handler`, `HandlerMeta`, `IDEMPOTENCY_KEY_ATTRIBUTE`,
+  `IdempotencyKey`, `IMessageBus`, `implement`, `InProcessBus`, `isExhausted`,
+  `MessageBus$`, `OperationDescriptor`, `OperationSnapshot`,
+  `profileAttributes`, `PublishOptions`, `RequestOptions`, `serializeSnapshot`,
+  `SnapshotOperation`, `snapshotOperations`, `startBudget`, `SubscribeOptions`,
+  `withIdempotencyKey`.
+- **Transport** ([design](../../docs/en/design/transports.md)) —
+  `BusDeclaration`, `DEFAULT_INSTANCE`, `Dispatch`, `DispatchOptions`,
+  `ExecutableDeclaration`, `IListener`, `ITransport`, `makeDispatch`,
+  `makeServerDeclaration`, `makeTransportDeclaration`, `RouteDeclaration`,
+  `ServerDeclaration`, `TransportDeclaration`, `TransportEntry`,
+  `transportValue`.
+- **Probes** — `Health`, `Health$`, `HealthCheck`, `HealthCheck$`,
   `HealthReport`, `HealthStatus`, `registerHealth`.
-- **Логгер** — `Fields`, `Logger`, `Logger$`, `loggerKernel`, `LogLevel`,
+- **Logger** — `Fields`, `Logger`, `Logger$`, `loggerKernel`, `LogLevel`,
   `makeKernelLogger`, `RootLogger$`.
-- **Реэкспорт [`@nestlingjs/operations`](../nestling.operations/)** — операции,
-  отказы и формы io: 45 имён, перечень в README пакета-соседа.
-- **Реэкспорт [`@nestlingjs/common.misc`](../common.misc/)** — схемный кернел: 8 имён,
-  перечень в README пакета-соседа.
-- **Подпуть `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
+- **Re-export of [`@nestlingjs/operations`](../nestling.operations/)** —
+  operations, failures and io shapes: 45 names in the neighbour's README.
+- **Re-export of [`@nestlingjs/common.misc`](../common.misc/)** — the schema
+  kernel: 8 names, the list is in the neighbouring package's README.
+- **Subpath `./testing`** — `TestSubstitutions`, `wireApp`, `WiredApp`,
   `WiredEndpoint`, `WireOptions`.
 
-## Границы пакета
+## Package boundaries
 
-Реального транспорта в пакете нет: HTTP, CLI и NATS живут в
-`@nestlingjs/transport.*`. Валидатора схем в нём тоже нет. Готовые источники
-конфигурации реализуют интерфейс `ConfigSource` отдельными пакетами. Порты не
-дедуплицируют команды по ключу идемпотентности, не хранят снапшоты и не
-доставляют сообщения за пределы процесса: для этого нужен транспорт брокера.
-Тестовые подстановки живут в [`@nestlingjs/testing`](../nestling.testing/).
-Подпуть `./testing` резолвится только под условием `testing` — тест-раннер
-включает его сам, Node принимает флагом `--conditions=testing`.
+The package has no real transport: HTTP, CLI and NATS live in
+`@nestlingjs/transport.*`. It has no schema validator either. Ready-made
+configuration sources implement the `ConfigSource` interface in separate
+packages. Ports do not deduplicate commands by the idempotency key, do not
+store snapshots and do not deliver messages outside the process: this
+needs a broker transport. Test substitutions live in
+[`@nestlingjs/testing`](../nestling.testing/). The `./testing` subpath
+resolves only under the `testing` condition: the test runner turns it on
+by itself, and Node accepts it with the `--conditions=testing` flag.

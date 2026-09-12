@@ -1,49 +1,52 @@
 # @nestlingjs/drizzle.pg
 
-Соединение с PostgreSQL, транзакция запроса переменной контекста и
-адаптеры `OutboxStore` и `InboxStore` поверх drizzle-orm. Соединение
-объявляется
-значением: `drizzlePg({ schema })` отдаёт плагин с DI-токеном соединения,
-переменной транзакции, слоем пайплайна и политикой предпосылки.
+A PostgreSQL connection, a request transaction context variable and
+`OutboxStore`/`InboxStore` adapters over drizzle-orm. The connection is
+declared as a value: `drizzlePg({ schema })` gives a plugin with the
+connection DI token, the transaction variable, a pipeline layer and a
+precondition policy.
 
-> 🚧 Активная разработка, API может меняться.
-> Дизайн: [`docs/design/persistence.md`](../../docs/design/persistence.md).
-> Гайд: [глава 11. Писать в базу транзакцией
-> запроса](../../docs/guide/11-database.md).
+> 🚧 Active development, the API may change.
+> Design: [`docs/en/design/persistence.md`](../../docs/en/design/persistence.md).
+> Guide: [chapter 11. Writing to the database by the request
+> transaction](../../docs/en/guide/11-database.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/drizzle.pg drizzle-orm pg
 ```
 
-`drizzle-orm` и `pg` — peer-зависимости: версию драйвера выбирает
-приложение, и двух копий драйвера в процессе быть не должно. Адаптеры
-хранилищ живут в подпутях `./outbox` и `./inbox`, а `@nestlingjs/outbox` и
-`@nestlingjs/inbox` для них — необязательные peer-зависимости: приложение
-без них ставит пакет и о хранилищах не знает.
+`drizzle-orm` and `pg` are peer dependencies: the application chooses the
+driver version, and there must be no two copies of the driver in the
+process. The storage adapters live in the `./outbox` and `./inbox`
+subpaths, and `@nestlingjs/outbox` and `@nestlingjs/inbox` are optional
+peer dependencies for them: an application without them installs the
+package and knows nothing about the storages.
 
-Схему накатывает drizzle-kit вне процесса приложения: миграция при старте
-требует блокировки между репликами.
+drizzle-kit rolls out the schema outside the process of the application:
+a migration on startup would need a lock between replicas.
 
-Тесты пакета, которым нужна работающая база, читают её адрес из
-`TEST_DATABASE_URL` и без неё пропускаются. База для них поднимается
-рядом, на своём порту, и схемы не требует — таблицы тесты создают сами:
+The tests of the package that need a working database read its address
+from `TEST_DATABASE_URL` and are skipped without it. The database for
+them is started next to it, on its own port, and needs no schema: the
+tests create the tables themselves.
 
 ```bash
 yarn db:up
 TEST_DATABASE_URL=postgresql://nestling:nestling@localhost:55432/nestling yarn test
 ```
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
-// Соединение — значение: DI-токен, переменная транзакции, слой и
-// политика создаются одним вызовом и несут тип схемы.
+// The connection is a value: the DI token, the transaction variable, the
+// layer and the policy are created by one call and carry the schema type.
 export const db = drizzlePg({ schema });
 
-// Слой транзакции композируется в пайплайн endpoint'а. `BEGIN` уходит до
-// хендлера, `COMMIT` — после него, соединение возвращается в пул всегда.
+// The transaction layer is composed into the endpoint pipeline. `BEGIN`
+// runs before the handler, `COMMIT` after it, the connection always
+// returns to the pool.
 export const transactional = compose(authed, db.transaction());
 
 export const app = makeApp({
@@ -53,8 +56,9 @@ export const app = makeApp({
   policies: [db.requiresTransaction({ pattern: /^(POST|PATCH|DELETE) / })],
 });
 
-// В репозитории: чтение — соединением из пула, запись — транзакцией
-// запроса. `Ctx(db.tx)` отдаёт экземпляр drizzle, привязанный к ней.
+// In the repository: reading by a connection from the pool, writing by
+// the request transaction. `Ctx(db.tx)` gives the drizzle instance bound
+// to it.
 @Component([db.connection, Ctx(db.tx)])
 export class DbUsersRepository {
   constructor(
@@ -64,45 +68,48 @@ export class DbUsersRepository {
 }
 ```
 
-## Экспорты
+## Exports
 
-- **Соединение** — `drizzlePg`, `DrizzlePgOptions`, `DrizzlePgPlugin`,
+- **Connection** — `drizzlePg`, `DrizzlePgOptions`, `DrizzlePgPlugin`,
   `PgConnection`, `PgSchema`, `databaseConfigKeys`,
   `DatabaseConfigValues`, `PgConnectionFailedError`,
   `PgDuplicateConnectionError`.
-- **Транзакция запроса** — `PgSession`, `PgTx`, `BeginOptions`,
+- **Request transaction** — `PgSession`, `PgTx`, `BeginOptions`,
   `IsolationLevel`, `TxLayer`, `TxLayerInput`, `TxBridgeClass`.
-- **Подпуть `./outbox`** — `pgOutboxStore`, `PgOutboxStorePlugin`,
-  `PgOutboxStoreOptions`, `PgOutboxStore`, `PgOutboxTransactionError`, а
-  также всё из группы ниже.
-- **Подпуть `./outbox/table`** — `outboxTable`, `OutboxTable`,
-  `outboxDdl`, `DEFAULT_OUTBOX_TABLE`. Отдельный подпуть нужен
-  drizzle-kit: он собирает схему как CJS, и из пакета ему годится только
-  то, что не тянет за собой ядро.
-- **Подпуть `./inbox`** — `pgInboxStore`, `PgInboxStorePlugin`,
-  `PgInboxStoreOptions`, `PgInboxStore`, `PgInboxTransactionError`, а
-  также всё из группы ниже.
-- **Подпуть `./inbox/table`** — `inboxTable`, `InboxTable`, `inboxDdl`,
-  `DEFAULT_INBOX_TABLE`. Отдельный подпуть нужен по той же причине, что у
-  таблицы outbox'а.
+- **Subpath `./outbox`** — `pgOutboxStore`, `PgOutboxStorePlugin`,
+  `PgOutboxStoreOptions`, `PgOutboxStore`, `PgOutboxTransactionError`, plus
+  everything from the group below.
+- **Subpath `./outbox/table`** — `outboxTable`, `OutboxTable`,
+  `outboxDdl`, `DEFAULT_OUTBOX_TABLE`. A separate subpath is needed by
+  drizzle-kit: it assembles the schema as CJS, and only what does not pull
+  in the kernel suits it from the package.
+- **Subpath `./inbox`** — `pgInboxStore`, `PgInboxStorePlugin`,
+  `PgInboxStoreOptions`, `PgInboxStore`, `PgInboxTransactionError`, plus
+  everything from the group below.
+- **Subpath `./inbox/table`** — `inboxTable`, `InboxTable`, `inboxDdl`,
+  `DEFAULT_INBOX_TABLE`. A separate subpath is needed for the same reason
+  as the outbox table.
 
-Секция конфига соединения по умолчанию читает `DATABASE_URL`,
-`DATABASE_POOL_MAX` и остальные ключи без вставки имени; экземпляр с
-именем `analytics` — `DATABASE_ANALYTICS_URL`. Адрес помечен секретом:
-печать секции и текст ошибки показывают маску, а лог подключения пишет
-хост.
+The configuration section of the default connection reads `DATABASE_URL`,
+`DATABASE_POOL_MAX` and the other keys with no name inserted; an instance
+named `analytics` reads `DATABASE_ANALYTICS_URL`. The address is marked a
+secret: printing the section and the error text show a mask, and the
+connection log writes the host.
 
-## Границы пакета
+## Package boundaries
 
-Пакет не мигрирует схему, не даёт своего query builder'а и не открывает
-одну транзакцию на два соединения: согласованность между базами держится
-событиями и outbox'ом. Другие диалекты в V1 не поддерживаются — выдача
-сессии у каждого драйвера своя.
+The package does not migrate the schema, does not give its own query
+builder and does not open one transaction over two connections:
+consistency between databases rests on events and the outbox. Other
+dialects are not supported in V1: the session issuance is specific to
+each driver.
 
-Слой транзакции не применяется к потоковому ответу: юнит `.ok`
-выполняется в начале ответной фазы, поэтому у форм вывода `stream` и
-`events` коммит прошёл бы раньше, чем хендлер дочитал курсор.
+The transaction layer does not apply to a streaming response: the `.ok`
+unit runs at the start of the response phase, so for the `stream` and
+`events` output shapes the commit would pass before the handler finished
+reading the cursor.
 
-Долгая транзакция держит соединение пула. Соединений столько, сколько
-задано `DATABASE_POOL_MAX`, поэтому потолок времени запроса задаётся
-ключом `DATABASE_STATEMENT_TIMEOUT_MS` и ставится на время транзакции.
+A long transaction holds a pool connection. There are as many
+connections as `DATABASE_POOL_MAX` sets, so the ceiling on request time is
+set by the `DATABASE_STATEMENT_TIMEOUT_MS` key and applies for the
+duration of the transaction.

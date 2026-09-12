@@ -1,22 +1,24 @@
 # @nestlingjs/transport.nats
 
-NATS как шина приложения: доставляет вызовы операций между процессами в обе
-стороны. `NatsBus` реализует `IMessageBus` наружу и `ITransport` внутрь,
-поэтому отдельной сущности «messaging» рядом с транспортами нет.
+NATS as the application bus: it delivers operation calls between
+processes in both directions. `NatsBus` implements `IMessageBus`
+outward and `ITransport` inward, so there is no separate «messaging»
+entity next to the transports.
 
-> 🚧 Активная разработка, API может меняться.
-> Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md) §5.
-> Гайд: [глава 20. Разнести фичи по процессам](../../docs/guide/20-split.md).
+> 🚧 Active development, the API may change.
+> Design: [`docs/en/design/transports.md`](../../docs/en/design/transports.md) §5.
+> Guide: [chapter 20. Spread the features across processes](../../docs/en/guide/20-split.md).
 
-## Установка
+## Install
 
 ```bash
 npm install @nestlingjs/transport.nats nats
 ```
 
-`nats` — peer-зависимость: ставится клиент той версии, что у брокера.
+`nats` is a peer dependency: the client of the version used by the
+broker is installed.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
 import { nats } from '@nestlingjs/transport.nats';
@@ -27,46 +29,50 @@ export const app = makeApp({
   intercom: 'events',
 });
 
-// Декларации, операции и код вызовов при добавлении nats() не меняются.
+// the declarations, the operations and the call code stay the same when nats() is added
 await app.assemble(load(RootConfig).features).run();
 ```
 
-## Экспорты
+## Exports
 
-- **Транспорт** ([design](../../docs/design/transports.md)) — `nats`,
-  `NatsBus`, `NatsTransportOptions`, `natsConfigKeys`.
-- **Соединение** — `NatsConnectionInfo`, `NatsDeliveryFailure`.
-- **Шов коннектора** — `NatsConnector`, `NatsConnectOptions`, `NatsLike`.
-  Свой клиент брокера подставляется опцией фабрики; формы сообщений и
-  JetStream входят в `NatsLike`, называть их для этого не нужно.
-- **Адресация** — `consumerNameOf`, `groupOf`, `streamNameOf`,
-  `SUBJECT_HEADER`, `CONTEXT_HEADER`, `IDEMPOTENCY_HEADER`, `TIMEOUT_HEADER`,
-  `MSG_ID_HEADER`. Последний — заголовок брокера: по нему поток снимает
-  повтор публикации.
-- **Кодек** — `jsonCodec`, `NatsCodec`.
-- **Подпуть `./testing`** — `natsDouble`, `NatsDouble`, `NatsDoubleOptions`,
-  `NatsDoubleError`, `HeadersDouble`, `subjectMatches`,
-  `DEFAULT_MAX_DELIVER`, `NATS_CONNECTION_CLOSED`, `NATS_NO_RESPONDERS`,
-  `NATS_TIMEOUT`.
+- **Transport** ([design](../../docs/en/design/transports.md)) —
+  `nats`, `NatsBus`, `NatsTransportOptions`, `natsConfigKeys`.
+- **Connection** — `NatsConnectionInfo`, `NatsDeliveryFailure`.
+- **Connector seam** — `NatsConnector`, `NatsConnectOptions`,
+  `NatsLike`. A custom broker client is substituted through the factory
+  option; message shapes and JetStream are part of `NatsLike`, and do
+  not need to be named for this.
+- **Addressing** — `consumerNameOf`, `groupOf`, `streamNameOf`,
+  `SUBJECT_HEADER`, `CONTEXT_HEADER`, `IDEMPOTENCY_HEADER`,
+  `TIMEOUT_HEADER`, `MSG_ID_HEADER`. The last one is a broker header:
+  the stream uses it to recognize a repeated publication.
+- **Codec** — `jsonCodec`, `NatsCodec`.
+- **Subpath `./testing`** — `natsDouble`, `NatsDouble`,
+  `NatsDoubleOptions`, `NatsDoubleError`, `HeadersDouble`,
+  `subjectMatches`, `DEFAULT_MAX_DELIVER`, `NATS_CONNECTION_CLOSED`,
+  `NATS_NO_RESPONDERS`, `NATS_TIMEOUT`.
 
-Двойник из `./testing` подставляется опцией `connector` и проигрывает
-доставку в памяти: тест видит те же subject'ы, заголовки и повторы.
-Подпуть резолвится только под условием `testing` — тест-раннер включает его
-сам, Node принимает флагом `--conditions=testing`.
+The double from `./testing` is substituted through the `connector`
+option and replays the delivery in memory: the test sees the same
+subjects, headers and repeats. The subpath resolves only under the
+`testing` condition: the test runner turns it on by itself, and Node
+accepts it with the `--conditions=testing` flag.
 
-## Границы пакета
+## Package boundaries
 
-Пакет не поднимает брокер и не заводит стримы за пределами тех, что нужны
-операциям. Формат сообщения задаёт кодек, а семантику доставки —
-`docs/design/transports.md`.
+The package does not start a broker and does not create streams beyond
+those the operations need. The codec sets the message format, and
+`docs/en/design/transports.md` sets the delivery semantics.
 
-Поток собственного создания несёт окно дедупликации: повтор долговечной
-публикации с тем же ключом идемпотентности внутри окна брокер снимает сам.
-Умолчание — 5 минут, другая величина задаётся опцией фабрики
-`dedupeWindowMs`, `0` выключает дедупликацию. Чужой поток транспорт не
-переписывает: окно меньше настроенного даёт запись `warn`, а правится оно
-командой `nats stream edit <имя> --dupe-window=5m`.
+A stream created by the package carries a deduplication window: a
+repeat of a durable publication with the same idempotency key inside
+the window is removed by the broker itself. The default is 5 minutes,
+another value is set by the factory option `dedupeWindowMs`, and `0`
+turns off deduplication. The transport does not rewrite a foreign
+stream: a window smaller than configured gives a `warn` record, and it
+is fixed by the `nats stream edit <name> --dupe-window=5m` command.
 
-Гарантии «ровно один раз» окно не даёт: у транспорта нет транзакции
-приложения, поэтому повтор позже окна доходит до подписчика. За гарантию
-отвечает [`@nestlingjs/inbox`](../nestling.inbox/).
+The window gives no «exactly once» guarantee: the transport has no
+application transaction, so a repeat past the window reaches the
+subscriber. [`@nestlingjs/inbox`](../nestling.inbox/) is responsible for
+the guarantee.

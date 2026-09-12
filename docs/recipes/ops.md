@@ -167,7 +167,7 @@ export const KillSubscription = httpEndpoint.delete('/ops/subscriptions/:id', {
 снимет `.finally` слоя `tracked`, когда поток действительно закроется.
 Реестр отражает факт, а не опережает его. Endpoint стоит под слоем
 `authed`: удалять чужие подписки может только тот, кто предъявил
-DI-токен.
+Bearer-токен.
 
 ```typescript
 // examples/app-with-http/src/features/ops/subscriptions.endpoint.ts (фрагмент)

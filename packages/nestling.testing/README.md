@@ -1,26 +1,27 @@
 # @nestlingjs/testing
 
-Тестовый composition root. `assembleTest(app, options)` собирает ту же
-декларацию `makeApp`, что запускает `main.ts`, проводит приложение по фазам
-`0 BOOTSTRAP`, `1 ASSEMBLE`, `2 INIT`, `3 WIRE` и останавливается: `dispatch`
-создан, сокеты не открыты, обработчики сигналов не установлены, в stdout
-ничего не напечатано.
+A test composition root. `assembleTest(app, options)` assembles the same
+`makeApp` declaration that `main.ts` starts, takes the application
+through the phases `0 BOOTSTRAP`, `1 ASSEMBLE`, `2 INIT`, `3 WIRE` and
+stops: `dispatch` is created, the sockets are not open, no signal
+handlers are set, and nothing is printed to stdout.
 
-> 🚧 Активная разработка, API может меняться. Раннера, матчеров и
-> snapshot-механики пакет не вводит: jest остаётся jest'ом.
-> Дизайн: [`docs/design/testing.md`](../../docs/design/testing.md).
-> Гайд: [глава 8. Убедиться, что работает, без запуска сервера](../../docs/guide/08-testing.md).
+> 🚧 Active development, the API may change. The package introduces no
+> runner, no matchers and no snapshot mechanics: jest stays jest.
+> Design: [`docs/en/design/testing.md`](../../docs/en/design/testing.md).
+> Guide: [chapter 8. Make sure it works without starting a server](../../docs/en/guide/08-testing.md).
 
-## Установка
+## Install
 
 ```bash
 npm install --save-dev @nestlingjs/testing
 ```
 
-Тест-раннер обязан включать условие резолва `testing`. Тестовые
-поверхности пакетов объявлены subpath'ами под этим условием, поэтому без
-него импорт падает на резолве с `ERR_PACKAGE_PATH_NOT_EXPORTED`: граница
-между тестовым и боевым кодом структурная, а не по договорённости.
+The test runner must turn on the `testing` resolution condition. The
+test surfaces of the packages are declared as subpaths under this
+condition, so without it the import fails to resolve with
+`ERR_PACKAGE_PATH_NOT_EXPORTED`: the boundary between the test code and
+the production code is structural, not a matter of convention.
 
 ```javascript
 // jest.config.js
@@ -31,18 +32,18 @@ export default {
 };
 ```
 
-Node включает условие флагом `--conditions=testing`.
+Node turns on the condition with the `--conditions=testing` flag.
 
-## Минимальный пример
+## Minimal example
 
 ```typescript
-import { app } from './app'; // та же декларация makeApp, что у main.ts
+import { app } from './app'; // the same makeApp declaration that main.ts uses
 
 import { assembleTest, stub, unwrap, vars } from '@nestlingjs/testing';
 
 await using testApp = await assembleTest(app, {
   overrides: [[UsersRepository, inMemoryUsersRepo()]],
-  // заглушка операции, которую эта сборка не реализует
+  // a stub for an operation that this assembly does not implement
   stubs: [stub(ChargeCard, async ({ amount }) => ({ chargeId: `c-${amount}` }))],
   config: vars({ USERS_PAGE_SIZE: '10' }),
 });
@@ -52,23 +53,25 @@ const user = unwrap(await testApp.call(GetUser, { id: '1' }));
 expect(user).toEqual({ id: '1', name: 'Alice' });
 ```
 
-## Экспорты
+## Exports
 
-- **Сборка** — `assembleTest`, `TestApp`, `TestAssemblyOptions`,
+- **Assembly** — `assembleTest`, `TestApp`, `TestAssemblyOptions`,
   `TestCallOptions`, `EmitDelivery`, `UnwrapFailedError`, `unwrap`.
-- **Подстановки** — `TestOverride`, `TestStub`, `stub`, `OperationStub`,
+- **Substitutions** — `TestOverride`, `TestStub`, `stub`, `OperationStub`,
   `RequestStubImpl`, `EmitStubImpl`, `StubOutput`, `familyOverride`,
   `contextValue`, `vars`.
-- **Логгер** — `spyLogger`, `SpyLogger`, `LogEntry`.
-- **Топологии и юниты** — `checkTopologies`, `TopologyReport`, `testUnit`,
-  `TestUnitOptions`.
-- **Реэкспорт [`@nestlingjs/app`](../nestling.app/)** — имена ядра, чтобы тест
-  импортировал один пакет.
+- **Logger** — `spyLogger`, `SpyLogger`, `LogEntry`.
+- **Topologies and units** — `checkTopologies`, `TopologyReport`,
+  `testUnit`, `TestUnitOptions`.
+- **Re-export of [`@nestlingjs/app`](../nestling.app/)** — the core
+  names, so that a test imports one package.
 
-Список `transports` в опциях не принимается: тестовая сборка не выполняет
-START, поэтому сокеты не открываются и подменять порт незачем.
+The `transports` list in the options is not accepted: the test assembly
+does not run START, so no sockets open and there is no need to
+substitute a port.
 
-## Границы пакета
+## Package boundaries
 
-Пакет собирает приложение и даёт к нему доступ. Он не запускает транспорты,
-не поднимает базу и не заменяет раннер тестов.
+The package assembles the application and gives access to it. It does
+not start transports, does not bring up a database and does not replace
+the test runner.
