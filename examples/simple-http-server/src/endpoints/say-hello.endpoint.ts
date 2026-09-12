@@ -15,9 +15,7 @@ const SayHelloOutput = z.object({
  * Значение, которое положил pre-юнит, хендлер читает из второго
  * аргумента `meta`.
  */
-export const SayHello = httpEndpoint({
-  method: 'GET',
-  path: '/',
+export const SayHello = httpEndpoint.get('/', {
   output: SayHelloOutput,
   pipeline: makePipeline().pre(withStartedAt),
   handler: async (_payload, meta) => ({

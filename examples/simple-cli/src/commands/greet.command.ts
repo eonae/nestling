@@ -19,8 +19,7 @@ const GreetOutput = z.object({
  *
  * Результат команды транспорт печатает в stdout как JSON.
  */
-export const Greet = cliEndpoint({
-  command: 'greet',
+export const Greet = cliEndpoint('greet', {
   input: GreetInput,
   output: GreetOutput,
   handler: async ({ args, shout }) => {

@@ -21,9 +21,7 @@ import { z } from 'zod';
 
 const User = z.object({ id: z.string(), name: z.string() });
 
-const ListUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users',
+const ListUsers = httpEndpoint.get('/users', {
   output: z.array(User),
   handler: async () => [
     { id: '1', name: 'Alice' },
@@ -42,7 +40,8 @@ await app.assemble().run();
 Приложение состоит из двух значений плюс сборка.
 
 Декларация endpoint'а `ListUsers` описывает адрес, схему ответа и хендлер.
-`httpEndpoint` собирает паттерн из `method` и `path`: `GET /users`. Схема
+Метод назван именем конструктора, путь идёт первым аргументом, и вместе
+они дают паттерн `GET /users`. Схема
 `output` задаёт форму ответа и заодно тип возвращаемого значения: хендлер,
 который вернёт объект другой формы, не скомпилируется. Сам хендлер отдаёт
 обычный массив, транспорт сериализует его в JSON.
@@ -77,9 +76,7 @@ Endpoint'ы стоят прямо в корне: единицы с именем 
 
 ```typescript
 // examples/users-service/src/users/endpoints/list-users.endpoint.ts
-export const ListUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users',
+export const ListUsers = httpEndpoint.get('/users', {
   output: z.array(User),
   handler: ListUsersHandler,
 });

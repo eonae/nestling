@@ -8,8 +8,7 @@ const HelpOutput = z.object({
 });
 
 /** `help`: печатает список команд */
-export const Help = cliEndpoint({
-  command: 'help',
+export const Help = cliEndpoint('help', {
   output: HelpOutput,
   handler: async () => {
     console.log('Available commands:');

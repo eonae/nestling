@@ -9,9 +9,7 @@
 import { makePipeline, multipart, Ok, upload } from '@nestlingjs/app';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
-export const BuildReport = httpEndpoint({
-  method: 'POST',
-  path: '/reports',
+export const BuildReport = httpEndpoint.post('/reports', {
   output: multipart({ files: { report: upload() } }),
   pipeline: makePipeline(),
   handler: async () => new Ok(undefined),

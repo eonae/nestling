@@ -1,6 +1,6 @@
 # Без `makeApp`
 
-> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-10)
+> Гайд по текущему API; сверено с кодом `simple-http-server` (2026-09-12)
 > и `container` (2026-09-06).
 > Целевое описание: [design/transports.md](../design/transports.md) §1,
 > [design/composition.md](../design/composition.md) §1,
@@ -80,9 +80,7 @@ process.on('SIGINT', () => void stop('SIGINT'));
 
 ```typescript
 // examples/simple-http-server/src/endpoints/create-user.endpoint.ts
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+export const CreateUser = httpEndpoint.post('/users', {
   input: CreateUserInput,
   output: CreateUserOutput,
   errors: [EmailTaken],
@@ -112,9 +110,7 @@ export const withStartedAt: PreUnitFn<
 
 ```typescript
 // examples/simple-http-server/src/endpoints/say-hello.endpoint.ts
-export const SayHello = httpEndpoint({
-  method: 'GET',
-  path: '/',
+export const SayHello = httpEndpoint.get('/', {
   output: SayHelloOutput,
   pipeline: makePipeline().pre(withStartedAt),
   handler: async (_payload, meta) => ({

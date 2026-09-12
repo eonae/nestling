@@ -52,9 +52,7 @@ export class ImportUsersHandler {
 }
 
 /** Форма `stream(T)` на входе: тело запроса читается построчно как NDJSON */
-export const ImportUsers = httpEndpoint({
-  method: 'POST',
-  path: '/users/import',
+export const ImportUsers = httpEndpoint.post('/users/import', {
   input: stream(ImportRow).limit(MAX_ROWS).gapTimeout(GAP_TIMEOUT_MS),
   output: ImportResult,
   doc: { summary: 'Импорт пользователей из NDJSON', tags: ['users'] },

@@ -22,8 +22,7 @@ const Deploy = z.object({
 
 /** Команда со всеми тремя формами вопроса */
 function deployCommand(seen: Record<string, unknown>[]) {
-  return cliEndpoint({
-    command: 'deploy',
+  return cliEndpoint('deploy', {
     input: Deploy,
     output: z.object({ done: z.boolean() }),
     missing: 'prompt',
@@ -38,8 +37,7 @@ function deployCommand(seen: Record<string, unknown>[]) {
 
 describe('политика в декларации', () => {
   it('команда без поля missing поля binding не несёт', () => {
-    const Status = cliEndpoint({
-      command: 'status',
+    const Status = cliEndpoint('status', {
       output: z.object({ ok: z.boolean() }),
       handler: async () => new Ok({ ok: true }),
     });
@@ -58,8 +56,7 @@ describe('политика в декларации', () => {
 
   it('неизвестная политика — ошибка в момент создания', () => {
     expect(() =>
-      cliEndpoint({
-        command: 'deploy',
+      cliEndpoint('deploy', {
         // @ts-expect-error политик две, третьей не бывает
         missing: 'ask',
         handler: async () => new Ok({}),
@@ -68,8 +65,7 @@ describe('политика в декларации', () => {
   });
 
   it('команда без политики отказывает валидацией, вопросов не задаёт', async () => {
-    const Plain = cliEndpoint({
-      command: 'deploy',
+    const Plain = cliEndpoint('deploy', {
       input: Deploy,
       output: z.object({ done: z.boolean() }),
       pipeline: makePipeline(),
@@ -178,8 +174,7 @@ describe('вопросы в терминале', () => {
   it('число вводится строкой и приводится схемой, как флаг', async () => {
     const seen: number[] = [];
 
-    const Repeat = cliEndpoint({
-      command: 'repeat',
+    const Repeat = cliEndpoint('repeat', {
       input: z.object({ count: z.coerce.number() }),
       output: z.object({ count: z.number() }),
       missing: 'prompt',
@@ -216,8 +211,7 @@ describe('вопросы в терминале', () => {
   });
 
   it('поле непонятной формы вопроса не даёт: его забирает валидация', async () => {
-    const Tag = cliEndpoint({
-      command: 'tag',
+    const Tag = cliEndpoint('tag', {
       input: z.object({ tags: z.array(z.string()) }),
       output: z.object({ tagged: z.number() }),
       missing: 'prompt',
@@ -437,8 +431,7 @@ describe('ошибки serve', () => {
   });
 
   it('поток на входе вместе с политикой', async () => {
-    const Import = cliEndpoint({
-      command: 'import',
+    const Import = cliEndpoint('import', {
       input: stream('binary'),
       output: z.object({ bytes: z.number() }),
       missing: 'prompt',
@@ -459,8 +452,7 @@ describe('ошибки serve', () => {
   });
 
   it('конвертер нужен только командам с политикой', async () => {
-    const Status = cliEndpoint({
-      command: 'status',
+    const Status = cliEndpoint('status', {
       input: z.object({ verbose: z.boolean().optional() }),
       output: z.object({ ok: z.boolean() }),
       pipeline: makePipeline(),

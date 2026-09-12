@@ -8,9 +8,7 @@ import { z } from 'zod';
  * `detached` выводит endpoint из-под политик сборки с указанием причины.
  * `doc.hidden` убирает его из документа OpenAPI, тоже с причиной.
  */
-export const BuildInfo = httpEndpoint({
-  method: 'GET',
-  path: '/ops/version',
+export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
     'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',

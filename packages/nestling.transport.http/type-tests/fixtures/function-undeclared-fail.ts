@@ -9,9 +9,7 @@ import { httpEndpoint } from '@nestlingjs/transport.http';
 
 import { CardDeclined, EmailTaken, User } from '../support/fixture-kit.js';
 
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+export const CreateUser = httpEndpoint.post('/users', {
   output: User,
   errors: [EmailTaken],
   handler: async () => CardDeclined(),

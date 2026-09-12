@@ -43,9 +43,7 @@ export class ExportUsersHandler {
  * Форма `stream(T)` на выходе: хендлер возвращает `AsyncIterable`,
  * транспорт отдаёт NDJSON. `Content-Type` задаёт форма, не хендлер.
  */
-export const ExportUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users/export',
+export const ExportUsers = httpEndpoint.get('/users/export', {
   output: stream(User).limit(MAX_ROWS),
   doc: { summary: 'Выгрузка пользователей в NDJSON', tags: ['users'] },
   pipeline: observability,

@@ -330,9 +330,7 @@ describe('framing по форме output', () => {
     transport = makeTransport({ sseHeartbeat: 0 });
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/rows',
+      httpEndpoint.get('/rows', {
         output: stream(Row),
         pipeline: observing((outcome) => outcomes.push(`rows:${outcome}`)),
         handler: async () => new Ok(rows('1', '2', '3')),
@@ -340,9 +338,7 @@ describe('framing по форме output', () => {
     );
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/feed',
+      httpEndpoint.get('/feed', {
         output: events(Event),
         pipeline: makePipeline(),
         handler: async () =>
@@ -356,9 +352,7 @@ describe('framing по форме output', () => {
     );
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/live',
+      httpEndpoint.get('/live', {
         output: events(Event),
         sse: { id: (item) => item.id, event: (item) => item.kind },
         pipeline: makePipeline(),
@@ -434,9 +428,7 @@ describe('SSE: heartbeat, реконнект, дисконнект', () => {
     transport = makeTransport({ sseHeartbeat: 20 });
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/hub',
+      httpEndpoint.get('/hub', {
         output: events(Event),
         pipeline: observing((outcome) => outcomes.push(outcome)),
         handler: async (
@@ -540,16 +532,12 @@ describe('дисконнект до первого кадра', () => {
       };
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/late-events',
+      httpEndpoint.get('/late-events', {
         output: events(Event),
         pipeline: observing((outcome) => outcomes.push(outcome)),
         handler: respondAfterDisconnect(hub),
       }),
-      httpEndpoint({
-        method: 'GET',
-        path: '/late-rows',
+      httpEndpoint.get('/late-rows', {
         output: stream(Row),
         pipeline: observing((outcome) => outcomes.push(outcome)),
         handler: respondAfterDisconnect(feed),
@@ -607,9 +595,7 @@ describe('mid-stream политика', () => {
     transport = makeTransport({ sseHeartbeat: 0 });
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/rows-broken',
+      httpEndpoint.get('/rows-broken', {
         output: stream(Row),
         pipeline: observing((outcome) => outcomes.push(`ndjson:${outcome}`)),
         handler: async () =>
@@ -623,9 +609,7 @@ describe('mid-stream политика', () => {
     );
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/live-broken',
+      httpEndpoint.get('/live-broken', {
         output: events(Event),
         pipeline: observing((outcome) => outcomes.push(`sse:${outcome}`)),
         handler: async () =>
@@ -682,9 +666,7 @@ describe('приём потокового входа и multipart', () => {
     });
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/import',
+      httpEndpoint.post('/import', {
         input: stream(Row).limit(3),
         output: z.object({ imported: z.number() }),
         pipeline: summarizing,
@@ -699,9 +681,7 @@ describe('приём потокового входа и multipart', () => {
     );
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'POST',
-        path: '/avatars/:id',
+      httpEndpoint.post('/avatars/:id', {
         input: multipart({
           fields: z.object({ id: z.string() }),
           files: {
@@ -854,9 +834,7 @@ describe('остановка завершает открытые events-соед
     const transport = makeTransport({ sseHeartbeat: 0, closeTimeout: 1000 });
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/hub',
+      httpEndpoint.get('/hub', {
         output: events(Event),
         pipeline: observing((outcome) => outcomes.push(outcome)),
         handler: async (_payload: unknown, meta: { signal: AbortSignal }) =>
@@ -882,16 +860,12 @@ describe('способности транспорта при регистрац�
     const transport = makeTransport();
 
     routesOf(transport).push(
-      httpEndpoint({
-        method: 'GET',
-        path: '/rows',
+      httpEndpoint.get('/rows', {
         output: stream(Row),
         pipeline: makePipeline(),
         handler: async () => new Ok(rows('1')),
       }),
-      httpEndpoint({
-        method: 'GET',
-        path: '/live',
+      httpEndpoint.get('/live', {
         output: events(Event),
         pipeline: makePipeline(),
         handler: async () =>

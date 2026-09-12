@@ -8,12 +8,7 @@
  */
 
 import { makeToken } from '@nestlingjs/container';
-import {
-  compose,
-  makeEndpoint,
-  makeFail,
-  makePipeline,
-} from '@nestlingjs/app';
+import { compose, makeEndpoint, makeFail, makePipeline } from '@nestlingjs/app';
 import { z } from 'zod';
 
 const HttpTransport$ = makeToken('transport:http');

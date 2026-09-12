@@ -37,15 +37,17 @@ const page: z.infer<typeof User>[] = [
  * `pipeline:` names a layer the application already declares: the policy of
  * the root requires this one from every HTTP endpoint.
  */
-export const ListUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users',
+export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
   pipeline: observability,
   handler: async ({ limit }) => page.slice(0, limit),
 });
 ```
+
+The HTTP method is the name of the constructor: `httpEndpoint.get`, `.head`,
+`.post`, `.put`, `.patch`, `.delete`; the path is its first argument. The
+dictionary has neither `method` nor `path`, and `httpEndpoint` is not callable.
 
 `input` is a Standard Schema — zod, valibot or arktype. The request is
 validated against it before the handler runs, so the handler receives a

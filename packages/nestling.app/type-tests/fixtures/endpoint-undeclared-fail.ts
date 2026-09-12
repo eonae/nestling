@@ -14,10 +14,12 @@ const HttpTransport$ = makeToken('transport:http');
 
 const OrderOutput = z.object({ id: z.string() });
 
-const OrderLimitReached = makeFail('conflict:order_limit_reached', { message: 'Order limit reached',
+const OrderLimitReached = makeFail('conflict:order_limit_reached', {
+  message: 'Order limit reached',
 });
 
-const CardDeclined = makeFail('payment_required:card_declined', { message: 'Card declined',
+const CardDeclined = makeFail('payment_required:card_declined', {
+  message: 'Card declined',
 });
 
 export const CreateOrder = makeEndpoint({

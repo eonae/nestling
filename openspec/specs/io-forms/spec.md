@@ -210,7 +210,7 @@ item-цепочки в `output` (проверяется типами, а в ра
 
 #### Scenario: Ошибка называет слот и форму
 
-- **WHEN** вызвано `httpEndpoint({ method: 'POST', path: '/x', output:
+- **WHEN** вызвано `httpEndpoint.post('/x', { output:
   multipart({ files: { f: upload() } }), … })`
 - **THEN** ошибка создания декларации называет ручку `POST /x`, слот
   `output` и форму `multipart`

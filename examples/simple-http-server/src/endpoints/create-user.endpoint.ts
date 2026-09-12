@@ -25,9 +25,7 @@ const taken = new Set(['taken@example.com']);
  * `POST /users`: вход проверяется схемой до вызова хендлера, отказ
  * возвращается значением.
  */
-export const CreateUser = httpEndpoint({
-  method: 'POST',
-  path: '/users',
+export const CreateUser = httpEndpoint.post('/users', {
   input: CreateUserInput,
   output: CreateUserOutput,
   errors: [EmailTaken],

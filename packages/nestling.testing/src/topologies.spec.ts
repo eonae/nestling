@@ -58,9 +58,7 @@ describe('checkTopologies', () => {
     const UsersFeature = makeFeature({
       name: 'users',
       endpoints: [
-        httpEndpoint({
-          method: 'GET',
-          path: '/users',
+        httpEndpoint.get('/users', {
           handler: async () => new Ok({}),
         }),
       ],
@@ -114,17 +112,13 @@ describe('checkTopologies', () => {
 
     const UsersFeature = makeFeature({
       name: 'users',
-      endpoints: [
-        httpEndpoint({ method: 'GET', path: '/users', handler: UsersHandler }),
-      ],
+      endpoints: [httpEndpoint.get('/users', { handler: UsersHandler })],
     });
 
     const ReportsFeature = makeFeature({
       name: 'reports',
       endpoints: [
-        httpEndpoint({
-          method: 'GET',
-          path: '/reports',
+        httpEndpoint.get('/reports', {
           handler: ReportsHandler,
         }),
       ],
@@ -163,9 +157,7 @@ describe('checkTopologies', () => {
 
     const UsersFeature = makeFeature({
       name: 'users',
-      endpoints: [
-        httpEndpoint({ method: 'GET', path: '/users', handler: UsersHandler }),
-      ],
+      endpoints: [httpEndpoint.get('/users', { handler: UsersHandler })],
     });
 
     const declared = objectSource({ TOPOLOGY_PAGE_SIZE: '5' }, 'declared');
@@ -286,9 +278,7 @@ describe('checkTopologies — операции и снапшот', () => {
         }),
       ],
       endpoints: [
-        httpEndpoint({
-          method: 'POST',
-          path: '/uploads',
+        httpEndpoint.post('/uploads', {
           handler: async () => new Ok({}),
         }),
       ],

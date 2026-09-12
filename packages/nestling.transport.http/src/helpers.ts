@@ -181,10 +181,10 @@ type InferStreamItem<O> =
 /**
  * Поля HTTP-декларации, которые принадлежат транспорту.
  *
- * Только здесь известны метод и путь; пайплайн и хендлер о транспорте не
- * знают. `path` — литеральный тип: из него выводятся path-параметры
- * (`PathParams<Path>`), а по ним — правило размещения «поле с именем
- * path-параметра берётся из пути».
+ * Адреса среди них нет: метод называет имя конструктора, путь идёт его
+ * первым аргументом. Параметр `Path` приходит оттуда литеральным типом:
+ * из него выводятся path-параметры (`PathParams<Path>`), а по ним —
+ * правило размещения «поле с именем path-параметра берётся из пути».
  */
 export interface HttpEndpointDictionary<
   Path extends string = string,
@@ -197,12 +197,6 @@ export interface HttpEndpointDictionary<
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
 > {
-  /** HTTP-метод endpoint'а */
-  method: HttpMethod;
-
-  /** Шаблон пути; path-параметры объявляются `:name` */
-  path: Path;
-
   /** Форма io для input: значение, `stream`/`events` или `multipart` */
   input?: I;
 
@@ -380,19 +374,31 @@ function assertOperationOwned(
 }
 
 /**
- * Создаёт анонимную HTTP-декларацию: адрес объявляет она сама.
+ * Конструктор HTTP-декларации по методу: `httpEndpoint.get`, `.head`,
+ * `.post`, `.put`, `.patch`, `.delete`.
  *
- * Надстройка над `makeEndpoint` из ядра: добавляет поля транспорта,
- * собирает `pattern` как `` `${method} ${path}` `` и проверяет поля при
- * создании. Общая часть деклараций (обе формы `handler`, `resolve`,
- * бренд) живёт в `makeEndpoint`. Реализацию операции создаёт второй
- * конструктор — {@link httpEndpoint.implement}.
+ * Метод назван именем конструктора, путь идёт первым аргументом, словарь
+ * транспорта — вторым. Надстройка над `makeEndpoint` из ядра: добавляет
+ * поля транспорта, собирает `pattern` как `` `${method} ${path}` `` и
+ * проверяет поля при создании. Общая часть деклараций (обе формы
+ * `handler`, `resolve`, бренд) живёт в `makeEndpoint`. Реализацию
+ * операции создаёт второй конструктор — {@link httpEndpoint.implement}.
+ *
+ * Сигнатур вызова две — по одной на форму хендлера, и это граница, за
+ * которой TypeScript печатает только последнюю. Пока их две, диагностика
+ * называет обе формы, и автор видит ту, в которой ошибся.
+ *
+ * Порядок задаёт резолвинг: форма с функцией стоит раньше формы с
+ * классом. Аргумент `handler` контекстно-чувствителен, первый проход
+ * резолвинга его не проверяет, и класс-форма, стоящая раньше, побеждала
+ * бы; параметр функции оставался бы без контекстного типа.
+ *
+ * Одно объявление типа на шесть конструкторов: сигнатуры у них
+ * одинаковы, и копии разошлись бы.
  *
  * @example Функция-хендлер: декларация исполнима сразу
  * ```typescript
- * export const Health = httpEndpoint({
- *   method: 'GET',
- *   path: '/health',
+ * export const Health = httpEndpoint.get('/health', {
  *   output: HealthOutput,
  *   pipeline: basePipeline,
  *   handler: async () => new Ok({ status: 'up' }),
@@ -401,9 +407,7 @@ function assertOperationOwned(
  *
  * @example Класс-хендлер: endpoint создаёт экземпляр сам
  * ```typescript
- * export const CreateUser = httpEndpoint({
- *   method: 'POST',
- *   path: '/users',
+ * export const CreateUser = httpEndpoint.post('/users', {
  *   input: CreateUserInput,
  *   output: User,
  *   pipeline: basePipeline,
@@ -413,9 +417,7 @@ function assertOperationOwned(
  *
  * @example Пометка и сырые байты тела
  * ```typescript
- * export const StripeHook = httpEndpoint({
- *   method: 'POST',
- *   path: '/hooks/stripe',
+ * export const StripeHook = httpEndpoint.post('/hooks/stripe', {
  *   input: HookEvent,
  *   bind: { verbose: query() },              // поле читается из query
  *   rawBody: true,                           // байты в стартовом контексте
@@ -425,103 +427,115 @@ function assertOperationOwned(
  * });
  * ```
  *
- * @throws {Error} Пустой `path`, `path` без ведущего `/`, повторяющееся
- * имя path-параметра, нарушение правила размещения (пометка на
+ * @throws {Error} Пустой путь, путь без ведущего `/`, повторяющееся имя
+ * path-параметра, нарушение правила размещения (пометка на
  * path-параметре, `body()` у метода без тела, `bind`/path-параметр при
  * неструктурном `input`, `rawBody` при потоковой или multipart-форме)
  */
+export interface HttpMethodConstructor {
+  <
+    Path extends string,
+    I extends AnyPayload = AnyPayload,
+    O extends AnyOutput = AnyOutput,
+    P extends AnyInput = AnyInput,
+    PN = never,
+    RB extends boolean | undefined = undefined,
+    PR extends AnyInput = EmptyInput,
+    E extends readonly AnyFailDefinition[] = [],
+    PF extends AnyFail = never,
+    R extends AnyHttpResult<O> = AnyHttpResult<O>,
+  >(
+    path: Path,
+    declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
+      handler: CheckedHttpHandlerFn<I, P, FailsOf<E> | NoInfer<PF>, R>;
+    },
+  ): EndpointDefinition<I, O, P, PN>;
+  <
+    Path extends string,
+    I extends AnyPayload = AnyPayload,
+    O extends AnyOutput = AnyOutput,
+    P extends AnyInput = AnyInput,
+    PN = never,
+    E extends readonly AnyFailDefinition[] = [],
+    PF extends AnyFail = never,
+    C extends HttpHandlerClass<I, O, P, AnyFail> = HttpHandlerClass<
+      I,
+      O,
+      P,
+      AnyFail
+    >,
+    RB extends boolean | undefined = undefined,
+    PR extends AnyInput = EmptyInput,
+  >(
+    path: Path,
+    declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
+      handler: C &
+        ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E> | NoInfer<PF>>;
+    },
+  ): EndpointDefinition<I, O, P, PN | C>;
+}
+
 /**
- * Перегрузок две — по одной на форму хендлера, и это граница, за которой
- * TypeScript печатает только последнюю. Пока их две, диагностика называет
- * обе формы, и автор видит ту, в которой ошибся.
+ * Собирает конструктор одного HTTP-метода.
  *
- * Порядок задаёт резолвинг: форма с функцией стоит раньше формы с
- * классом. Аргумент `handler` контекстно-чувствителен, первый проход
- * резолвинга его не проверяет, и класс-форма, стоящая раньше, побеждала
- * бы; параметр функции оставался бы без контекстного типа.
+ * Конструкторы различаются только строкой метода: она уходит в `pattern`,
+ * в `computeHttpBinding` и в тексты ошибок. Поэтому тип от метода не
+ * зависит, а шесть значений создаются одной фабрикой.
+ *
+ * @param method - HTTP-метод, который называет имя конструктора
  */
-export function httpEndpoint<
-  Path extends string,
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  RB extends boolean | undefined = undefined,
-  PR extends AnyInput = EmptyInput,
-  E extends readonly AnyFailDefinition[] = [],
-  PF extends AnyFail = never,
-  R extends AnyHttpResult<O> = AnyHttpResult<O>,
->(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
-    handler: CheckedHttpHandlerFn<I, P, FailsOf<E> | NoInfer<PF>, R>;
-  },
-): EndpointDefinition<I, O, P, PN>;
-export function httpEndpoint<
-  Path extends string,
-  I extends AnyPayload = AnyPayload,
-  O extends AnyOutput = AnyOutput,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  E extends readonly AnyFailDefinition[] = [],
-  PF extends AnyFail = never,
-  C extends HttpHandlerClass<I, O, P, AnyFail> = HttpHandlerClass<
-    I,
-    O,
-    P,
-    AnyFail
-  >,
-  RB extends boolean | undefined = undefined,
-  PR extends AnyInput = EmptyInput,
->(
-  declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
-    handler: C &
-      ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E> | NoInfer<PF>>;
-  },
-): EndpointDefinition<I, O, P, PN | C>;
-export function httpEndpoint(
-  declaration: HttpEndpointDictionary<
-    string,
-    any,
-    any,
-    any,
-    unknown,
-    boolean | undefined,
-    any,
-    readonly AnyFailDefinition[],
-    AnyFail
-  > & {
-    handler: unknown;
-  },
-): AnyEndpointDefinition {
-  const { method, path, bind, rawBody, sse, redirect, on, ...rest } =
-    declaration;
+function makeMethodConstructor(method: HttpMethod): HttpMethodConstructor {
+  // Имя конструктора в текстах ошибок — то, в котором его пишут:
+  // `httpEndpoint.get`, а не `HTTP binding ({ method: 'GET' })`
+  const name = `httpEndpoint.${method.toLowerCase()}`;
 
-  assertHttpPath(path, `httpEndpoint({ method: '${method}', … })`);
+  const create = (
+    path: string,
+    declaration: HttpEndpointDictionary<
+      string,
+      any,
+      any,
+      any,
+      unknown,
+      boolean | undefined,
+      any,
+      readonly AnyFailDefinition[],
+      AnyFail
+    > & {
+      handler: unknown;
+    },
+  ): AnyEndpointDefinition => {
+    const { bind, rawBody, sse, redirect, on, ...rest } = declaration;
 
-  // Карта вычисляется при создании декларации и хранится на ней: её читают
-  // транспорт, OpenAPI и клиент, которому нужен один импорт без серверного
-  // кода.
-  const binding = computeHttpBinding({
-    method,
-    path,
-    bind: bind as Readonly<Record<string, BindMark>> | undefined,
-    rawBody,
-    input: declaration.input,
-    output: declaration.output,
-    sse,
-    redirect,
-    where: `httpEndpoint({ method: '${method}', path: '${path}' })`,
-  });
+    assertHttpPath(path, `${name}('<path>', { … })`);
 
-  return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
-    ...rest,
-    // DI-токен, а не строка: приложение выводит список транспортов из графа,
-    // поэтому ссылка должна совпадать со значением, под которым транспорт
-    // зарегистрирован
-    transport: HttpTransport$(on ?? DEFAULT_INSTANCE),
-    pattern: `${method} ${path}`,
-    binding,
-  });
+    // Карта вычисляется при создании декларации и хранится на ней: её читают
+    // транспорт, OpenAPI и клиент, которому нужен один импорт без серверного
+    // кода.
+    const binding = computeHttpBinding({
+      method,
+      path,
+      bind: bind as Readonly<Record<string, BindMark>> | undefined,
+      rawBody,
+      input: declaration.input,
+      output: declaration.output,
+      sse,
+      redirect,
+      where: `${name}('${path}', { … })`,
+    });
+
+    return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
+      ...rest,
+      // DI-токен, а не строка: приложение выводит список транспортов из графа,
+      // поэтому ссылка должна совпадать со значением, под которым транспорт
+      // зарегистрирован
+      transport: HttpTransport$(on ?? DEFAULT_INSTANCE),
+      pattern: `${method} ${path}`,
+      binding,
+    });
+  };
+
+  return create as HttpMethodConstructor;
 }
 
 /**
@@ -623,7 +637,45 @@ function implementOperation(
   });
 }
 
-// Статик на конструкторе, а не отдельная функция: имена транспорта —
-// существительные, называющие значение, и реализация остаётся в том же
-// пространстве имён, что анонимная форма.
-httpEndpoint.implement = implementOperation;
+/**
+ * Пространство имён HTTP-деклараций: конструктор на каждый HTTP-метод и
+ * реализация операции.
+ *
+ * Тип объявлен отдельно, чтобы состав проверялся при создании значения:
+ * пропущенный метод стал бы ошибкой компиляции, а не тихой дырой в
+ * публичном имени.
+ */
+interface HttpEndpointNamespace {
+  get: HttpMethodConstructor;
+  head: HttpMethodConstructor;
+  post: HttpMethodConstructor;
+  put: HttpMethodConstructor;
+  patch: HttpMethodConstructor;
+  delete: HttpMethodConstructor;
+  implement: typeof implementOperation;
+}
+
+/**
+ * Конструкторы HTTP-деклараций.
+ *
+ * Значение, а не функция: декларацию создаёт статик, названный
+ * HTTP-методом ({@link HttpMethodConstructor}), а реализацию операции —
+ * `implement`. Метод в имени вместо поля словаря убирает строку `'GET'`
+ * из ряда других строк и ставит адрес первым аргументом.
+ *
+ * @example
+ * ```typescript
+ * const ListUsers = httpEndpoint.get('/users', { output: Users, handler });
+ * const CreateUser = httpEndpoint.post('/users', { input, output, handler });
+ * const Impl = httpEndpoint.implement(CreateUserOperation, { handler });
+ * ```
+ */
+export const httpEndpoint = {
+  get: makeMethodConstructor('GET'),
+  head: makeMethodConstructor('HEAD'),
+  post: makeMethodConstructor('POST'),
+  put: makeMethodConstructor('PUT'),
+  patch: makeMethodConstructor('PATCH'),
+  delete: makeMethodConstructor('DELETE'),
+  implement: implementOperation,
+} satisfies HttpEndpointNamespace;

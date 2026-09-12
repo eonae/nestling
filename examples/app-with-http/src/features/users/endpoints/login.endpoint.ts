@@ -61,9 +61,7 @@ export class LoginHandler {
  * статус, если вызов `HttpResponse.redirect` свой не задал. Без поля
  * ответ был бы `internal_error`.
  */
-export const Login = httpEndpoint({
-  method: 'POST',
-  path: '/login',
+export const Login = httpEndpoint.post('/login', {
   input: Credentials,
   redirect: 303,
   errors: [UserNotFound],

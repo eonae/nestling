@@ -165,9 +165,7 @@ export const observability = makePipeline()
 
 ```typescript
 // examples/users-service/src/users/endpoints/list-users.endpoint.ts
-export const ListUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users',
+export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
   doc: { summary: 'Список пользователей', tags: ['users'] },

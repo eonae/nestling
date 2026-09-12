@@ -64,7 +64,7 @@
 
 #### Scenario: `events` на CLI
 
-- **WHEN** объявлено `cliEndpoint({ command: 'watch', output:
+- **WHEN** объявлено `cliEndpoint('watch', { output:
   events(Tick), … })` и приложение стартует
 - **THEN** старт падает на фазе ASSEMBLE ошибкой, называющей команду,
   транспорт `cli`, слот `output` и форму `events`

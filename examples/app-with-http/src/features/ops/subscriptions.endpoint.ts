@@ -69,9 +69,7 @@ class ListSubscriptionsHandler {
 }
 
 /** Список активных подписок узла. Реестр инжектируется обычным DI-токеном */
-export const ListSubscriptions = httpEndpoint({
-  method: 'GET',
-  path: '/ops/subscriptions',
+export const ListSubscriptions = httpEndpoint.get('/ops/subscriptions', {
   output: z.array(Subscription),
   doc: { summary: 'Активные подписки этого узла', tags: ['ops'] },
   pipeline: observability,
@@ -97,9 +95,7 @@ class KillSubscriptionHandler {
  * `abort` подаёт сигнал отмены. Запись из реестра снимает `.finally`
  * пайплайна, когда поток закроется.
  */
-export const KillSubscription = httpEndpoint({
-  method: 'DELETE',
-  path: '/ops/subscriptions/:id',
+export const KillSubscription = httpEndpoint.delete('/ops/subscriptions/:id', {
   input: z.object({ id: z.string() }),
   errors: [SubscriptionNotFound],
   doc: { summary: 'Завершить подписку', tags: ['ops'], status: 'no_content' },
@@ -138,9 +134,7 @@ class WatchSubscriptionsHandler {
  * показывает. Своё событие `opened` он не видит: оно опубликовано до
  * вызова хендлера.
  */
-export const WatchSubscriptions = httpEndpoint({
-  method: 'GET',
-  path: '/ops/subscriptions/live',
+export const WatchSubscriptions = httpEndpoint.get('/ops/subscriptions/live', {
   output: events(SubscriptionChange),
   sse: {
     id: (change) => change.subscription.id,

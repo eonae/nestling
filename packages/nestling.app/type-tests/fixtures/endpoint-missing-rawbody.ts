@@ -10,9 +10,7 @@
 import { makePipeline, Ok } from '@nestlingjs/app';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
-export const StripeHook = httpEndpoint({
-  method: 'POST',
-  path: '/hooks/stripe',
+export const StripeHook = httpEndpoint.post('/hooks/stripe', {
   pipeline: makePipeline<{ rawBody: Uint8Array }>(),
   handler: async () => new Ok({ received: true }),
 });

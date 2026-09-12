@@ -31,9 +31,7 @@ export class ListUsersHandler {
   }
 }
 
-export const ListUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users',
+export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
   handler: ListUsersHandler,

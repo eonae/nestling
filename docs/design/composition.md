@@ -266,9 +266,7 @@ export class CreateOrderHandler {
   }
 }
 
-export const CreateOrder = httpEndpoint({
-  method: 'POST',
-  path: '/orders',
+export const CreateOrder = httpEndpoint.post('/orders', {
   input: NewOrder,
   output: Order,
   handler: CreateOrderHandler,

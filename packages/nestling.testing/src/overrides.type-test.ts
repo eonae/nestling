@@ -37,17 +37,13 @@ const ILogger = makeTokenFamily<ILoggerService, [scope: string]>(
   'TypeTestLogger',
 );
 
-const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: z.object({ id: z.string(), name: z.string() }),
   handler: async (input) => new Ok({ id: input.id, name: 'Alice' }),
 });
 
-const Ping = httpEndpoint({
-  method: 'GET',
-  path: '/ping',
+const Ping = httpEndpoint.get('/ping', {
   output: z.object({ pong: z.boolean() }),
   handler: async () => new Ok({ pong: true }),
 });

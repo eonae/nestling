@@ -48,9 +48,7 @@ const User = z.object({ id: z.string(), email: z.string() });
 
 describe('документ строится из деклараций', () => {
   it("несёт версию спеки, переданный info и операции всех HTTP-endpoint'ов", () => {
-    const List = httpEndpoint({
-      method: 'GET',
-      path: '/users',
+    const List = httpEndpoint.get('/users', {
       output: z.array(User),
       handler: async () => new Ok([]),
     });
@@ -64,15 +62,12 @@ describe('документ строится из деклараций', () => {
   });
 
   it('декларации прочих транспортов молча исключаются', () => {
-    const Http = httpEndpoint({
-      method: 'GET',
-      path: '/users',
+    const Http = httpEndpoint.get('/users', {
       output: z.array(User),
       handler: async () => new Ok([]),
     });
 
-    const Cli = cliEndpoint({
-      command: 'seed-users',
+    const Cli = cliEndpoint('seed-users', {
       handler: async () => new Ok({ seeded: 0 }),
     });
 
@@ -105,9 +100,7 @@ describe('документ строится из деклараций', () => {
 
 describe('адрес операции и её параметры', () => {
   it('path-параметр становится параметром пути, тела нет', () => {
-    const Get = httpEndpoint({
-      method: 'GET',
-      path: '/users/:id',
+    const Get = httpEndpoint.get('/users/:id', {
       input: z.object({ id: z.string() }),
       output: User,
       handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
@@ -127,9 +120,7 @@ describe('адрес операции и её параметры', () => {
   });
 
   it('помеченное поле уходит из тела в query', () => {
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       input: z.object({
         name: z.string(),
         dryRun: z.stringbool().optional(),
@@ -160,9 +151,7 @@ describe('адрес операции и её параметры', () => {
   });
 
   it('path-параметр с разбором в число несёт тип разобранной формы', () => {
-    const Page = httpEndpoint({
-      method: 'GET',
-      path: '/pages/:page',
+    const Page = httpEndpoint.get('/pages/:page', {
       input: z.object({
         page: z.string().pipe(z.coerce.number<string>().int().min(1).max(100)),
       }),
@@ -183,9 +172,7 @@ describe('адрес операции и её параметры', () => {
   });
 
   it('совпадающие формы параметр не меняют', () => {
-    const Search = httpEndpoint({
-      method: 'GET',
-      path: '/users/search',
+    const Search = httpEndpoint.get('/users/search', {
       input: z.object({ q: z.string(), limit: z.coerce.number().optional() }),
       output: z.array(User),
       handler: async () => new Ok([]),
@@ -200,9 +187,7 @@ describe('адрес операции и её параметры', () => {
   });
 
   it('преобразование в схеме оставляет параметры входной формой', () => {
-    const List = httpEndpoint({
-      method: 'GET',
-      path: '/users',
+    const List = httpEndpoint.get('/users', {
       input: z.object({
         dryRun: z.stringbool().optional(),
         tags: z.string().transform((value) => value.split(',')),
@@ -220,9 +205,7 @@ describe('адрес операции и её параметры', () => {
   });
 
   it('поле, помеченное телом, остаётся в теле входной формой', () => {
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       input: z.object({ dryRun: z.stringbool() }),
       bind: { dryRun: body() },
       output: User,
@@ -238,9 +221,7 @@ describe('адрес операции и её параметры', () => {
   });
 
   it('выбранное свойство приносит описание и умолчание разобранной формы', () => {
-    const List = httpEndpoint({
-      method: 'GET',
-      path: '/users',
+    const List = httpEndpoint.get('/users', {
       input: z.object({
         dryRun: z.stringbool().default(true).describe('пробный прогон'),
       }),
@@ -258,9 +239,7 @@ describe('адрес операции и её параметры', () => {
   });
 
   it('метод без тела раскладывает весь вход в query', () => {
-    const Search = httpEndpoint({
-      method: 'GET',
-      path: '/users/search',
+    const Search = httpEndpoint.get('/users/search', {
       input: z.object({ q: z.string(), limit: z.coerce.number().optional() }),
       output: z.array(User),
       handler: async () => new Ok([]),
@@ -276,9 +255,7 @@ describe('адрес операции и её параметры', () => {
   });
 
   it('пометка multiple даёт схему-массив', () => {
-    const List = httpEndpoint({
-      method: 'GET',
-      path: '/users',
+    const List = httpEndpoint.get('/users', {
       input: z.object({ tags: z.array(z.string()).optional() }),
       bind: { tags: query({ multiple: true }) },
       output: z.array(User),
@@ -293,14 +270,10 @@ describe('адрес операции и её параметры', () => {
   });
 
   it("дубль адреса — ошибка, называющая оба endpoint'а и их модули", () => {
-    const first = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const first = httpEndpoint.post('/users', {
       handler: async () => new Ok({}),
     });
-    const second = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const second = httpEndpoint.post('/users', {
       handler: async () => new Ok({}),
     });
 
@@ -335,9 +308,7 @@ describe('operationId выводится, а не объявляется', () =>
   });
 
   it('без операции — детерминированный слаг от метода и пути', () => {
-    const Get = httpEndpoint({
-      method: 'GET',
-      path: '/api/users/:id',
+    const Get = httpEndpoint.get('/api/users/:id', {
       input: z.object({ id: z.string() }),
       output: User,
       handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
@@ -351,9 +322,7 @@ describe('operationId выводится, а не объявляется', () =>
 
 describe('media types выводятся из форм io', () => {
   it('потоковый выход описан элементом', () => {
-    const Export = httpEndpoint({
-      method: 'GET',
-      path: '/users/export',
+    const Export = httpEndpoint.get('/users/export', {
       output: stream(User),
       handler: async function* () {
         yield { id: '1', email: 'a@b.c' };
@@ -373,9 +342,7 @@ describe('media types выводятся из форм io', () => {
   });
 
   it('SSE-выход описан text/event-stream, схема элемента — в описании', () => {
-    const Activity = httpEndpoint({
-      method: 'GET',
-      path: '/users/activity',
+    const Activity = httpEndpoint.get('/users/activity', {
       output: events(z.object({ kind: z.string() })),
       handler: async function* () {
         yield { kind: 'created' };
@@ -390,9 +357,7 @@ describe('media types выводятся из форм io', () => {
   });
 
   it('multipart описан полями и файлами', () => {
-    const Upload = httpEndpoint({
-      method: 'POST',
-      path: '/users/:id/avatar',
+    const Upload = httpEndpoint.post('/users/:id/avatar', {
       input: multipart({
         fields: z.object({ id: z.string(), title: z.string() }),
         files: { avatar: upload({ mime: ['image/png'] }) },
@@ -416,9 +381,7 @@ describe('media types выводятся из форм io', () => {
   });
 
   it('multiple-файл даёт массив', () => {
-    const Upload = httpEndpoint({
-      method: 'POST',
-      path: '/users/photos',
+    const Upload = httpEndpoint.post('/users/photos', {
       input: multipart({ files: { photos: upload({ multiple: true }) } }),
       handler: async () => new Ok({ ok: true }),
     });
@@ -436,9 +399,7 @@ describe('media types выводятся из форм io', () => {
   });
 
   it('rawBody на media type не влияет', () => {
-    const Hook = httpEndpoint({
-      method: 'POST',
-      path: '/hooks/stripe',
+    const Hook = httpEndpoint.post('/hooks/stripe', {
       input: z.object({ id: z.string() }),
       rawBody: true,
       handler: async () => new Ok({ received: true }),
@@ -470,9 +431,7 @@ const Unauthorized = makeFail('unauthorized', { message: 'No token' });
 
 describe('responses покрывают все ответы границы', () => {
   it('объявленный отказ становится ответом своего кода', () => {
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       input: z.object({ email: z.string() }),
       output: User,
       errors: [EmailTaken],
@@ -501,9 +460,7 @@ describe('responses покрывают все ответы границы', () =
   });
 
   it('объявленный редирект становится ответом 3xx с Location', () => {
-    const Login = httpEndpoint({
-      method: 'POST',
-      path: '/login',
+    const Login = httpEndpoint.post('/login', {
       input: z.object({ email: z.string() }),
       redirect: 303,
       handler: async () => HttpResponse.redirect('/app'),
@@ -520,9 +477,7 @@ describe('responses покрывают все ответы границы', () =
   });
 
   it('endpoint без редиректа сохраняет состав ответов', () => {
-    const Get = httpEndpoint({
-      method: 'GET',
-      path: '/users/:id',
+    const Get = httpEndpoint.get('/users/:id', {
       input: z.object({ id: z.string() }),
       output: User,
       handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
@@ -538,9 +493,7 @@ describe('responses покрывают все ответы границы', () =
       errors: [Unauthorized],
     });
 
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       output: User,
       pipeline: authed,
       handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
@@ -564,9 +517,7 @@ describe('responses покрывают все ответы границы', () =
       errors: [Unauthorized],
     });
 
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       output: User,
       errors: [Unauthorized],
       pipeline: authed,
@@ -580,9 +531,7 @@ describe('responses покрывают все ответы границы', () =
   });
 
   it('два отказа на одном коде сводятся в oneOf', () => {
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       output: User,
       errors: [TooLong, TooShort],
       handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
@@ -595,9 +544,7 @@ describe('responses покрывают все ответы границы', () =
   });
 
   it('валидация и неизвестный отказ описаны всегда', () => {
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       input: z.object({ email: z.string() }),
       output: User,
       handler: async () => new Ok({ id: '1', email: 'a@b.c' }),
@@ -623,9 +570,7 @@ describe('responses покрывают все ответы границы', () =
   });
 
   it('endpoint без выхода отвечает 204 без тела', () => {
-    const Remove = httpEndpoint({
-      method: 'DELETE',
-      path: '/users/:id',
+    const Remove = httpEndpoint.delete('/users/:id', {
       input: z.object({ id: z.string() }),
       handler: async () => new Ok(null),
     });
@@ -653,9 +598,7 @@ const exotic = <T>(vendor: string): StandardSchemaV1<unknown, T> => ({
 
 describe('недокументируемая схема роняет построение', () => {
   it('нет конвертера — ошибка называет endpoint, слот, вендор и оба способа починки', () => {
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       input: exotic<{ id: string }>('valibot'),
       handler: async () => new Ok({}),
     });
@@ -666,9 +609,7 @@ describe('недокументируемая схема роняет постр�
   });
 
   it('аннотация снимает требование конвертера', () => {
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       input: jsonSchema(exotic<{ id: string }>('valibot'), {
         type: 'object',
         properties: { id: { type: 'string' } },
@@ -683,9 +624,7 @@ describe('недокументируемая схема роняет постр�
   });
 
   it('path-параметр без свойства в схеме — ошибка', () => {
-    const Get = httpEndpoint({
-      method: 'GET',
-      path: '/users/:id',
+    const Get = httpEndpoint.get('/users/:id', {
       input: z.object({ userId: z.string() }),
       handler: async () => new Ok({}),
     });
@@ -696,9 +635,7 @@ describe('недокументируемая схема роняет постр�
   });
 
   it('bind-пометка на несуществующем поле — ошибка', () => {
-    const List = httpEndpoint({
-      method: 'GET',
-      path: '/users',
+    const List = httpEndpoint.get('/users', {
       input: z.object({ id: z.string() }),
       bind: { missing: query() } as never,
       handler: async () => new Ok({}),
@@ -710,21 +647,15 @@ describe('недокументируемая схема роняет постр�
   });
 
   it('нарушения перечисляются вместе, а не по одному', () => {
-    const first = httpEndpoint({
-      method: 'POST',
-      path: '/a',
+    const first = httpEndpoint.post('/a', {
       input: exotic<{ id: string }>('valibot'),
       handler: async () => new Ok({}),
     });
-    const second = httpEndpoint({
-      method: 'POST',
-      path: '/b',
+    const second = httpEndpoint.post('/b', {
       input: exotic<{ id: string }>('valibot'),
       handler: async () => new Ok({}),
     });
-    const third = httpEndpoint({
-      method: 'POST',
-      path: '/c',
+    const third = httpEndpoint.post('/c', {
       output: exotic<{ id: string }>('valibot'),
       handler: async () => new Ok({ id: '1' }),
     });
@@ -748,9 +679,7 @@ describe('недокументируемая схема роняет постр�
       details: exotic<{ id: string }>('valibot'),
     });
 
-    const Create = httpEndpoint({
-      method: 'POST',
-      path: '/users',
+    const Create = httpEndpoint.post('/users', {
       errors: [Exotic],
       handler: async () => new Ok({}),
     });
@@ -762,9 +691,7 @@ describe('недокументируемая схема роняет постр�
 });
 
 describe('скрытый endpoint', () => {
-  const Health = httpEndpoint({
-    method: 'GET',
-    path: '/health',
+  const Health = httpEndpoint.get('/health', {
     output: z.object({ status: z.string() }),
     doc: { hidden: 'liveness-проба балансировщика' },
     handler: async () => new Ok({ status: 'up' }),
@@ -775,9 +702,7 @@ describe('скрытый endpoint', () => {
   });
 
   it('её схемы не проверяются на конвертируемость', () => {
-    const Hidden = httpEndpoint({
-      method: 'GET',
-      path: '/internal',
+    const Hidden = httpEndpoint.get('/internal', {
       input: exotic<{ id: string }>('arktype'),
       doc: { hidden: 'внутренняя ручка' },
       handler: async () => new Ok({}),
@@ -791,9 +716,7 @@ describe('конвертер, отказавшийся переводить сх
   it("даёт диагностику с координатами endpoint'а, а не голый бросок", () => {
     // `z.date()` на выходе непредставим в JSON Schema: zod бросает, и без
     // ветки-перехватчика автор увидел бы ошибку без имени endpoint'а и слота
-    const Report = httpEndpoint({
-      method: 'GET',
-      path: '/report',
+    const Report = httpEndpoint.get('/report', {
       output: z.object({ generatedAt: z.date() }),
       handler: async () => new Ok({ generatedAt: new Date(0) }),
     });
@@ -805,23 +728,17 @@ describe('конвертер, отказавшийся переводить сх
 });
 
 describe('вход генератора — декларация приложения', () => {
-  const ListUsers = httpEndpoint({
-    method: 'GET',
-    path: '/users',
+  const ListUsers = httpEndpoint.get('/users', {
     output: z.array(User),
     handler: async () => new Ok([]),
   });
 
-  const ListInvoices = httpEndpoint({
-    method: 'GET',
-    path: '/invoices',
+  const ListInvoices = httpEndpoint.get('/invoices', {
     output: z.array(z.object({ id: z.string() })),
     handler: async () => new Ok([]),
   });
 
-  const OpenApiJson = httpEndpoint({
-    method: 'GET',
-    path: '/openapi.json',
+  const OpenApiJson = httpEndpoint.get('/openapi.json', {
     output: z.object({ openapi: z.string() }),
     handler: async () => new Ok({ openapi: '3.1.0' }),
   });

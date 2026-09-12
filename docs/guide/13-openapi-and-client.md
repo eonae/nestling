@@ -129,9 +129,7 @@ JSON Schema описывает данные, но не саму операцию
 
 ```typescript
 // examples/users-service/src/users/endpoints/delete-user.endpoint.ts
-export const DeleteUser = httpEndpoint({
-  method: 'DELETE',
-  path: '/users/:id',
+export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
   doc: {
@@ -160,9 +158,7 @@ endpoint реализует операцию, иначе из метода и п
 
 ```typescript
 // examples/users-service/src/ops.plugin.ts
-export const BuildInfo = httpEndpoint({
-  method: 'GET',
-  path: '/ops/version',
+export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
     'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
@@ -250,10 +246,10 @@ export const GetUser = httpEndpoint.implement(GetUserOperation, {
 });
 ```
 
-Первый аргумент `httpEndpoint.implement` заменяет `method`, `path`,
-`input`, `output`, `errors` и `doc`: всё это берётся с операции. Полей для
-их повторного объявления в словаре нет, поэтому сервер не может разойтись
-с клиентом в схемах. Остаются `pipeline` и `handler`. Так же устроен
+Первый аргумент `httpEndpoint.implement` заменяет путь, метод, `input`,
+`output`, `errors` и `doc`: всё это берётся с операции. Полей для их
+повторного объявления в словаре нет, поэтому сервер не может разойтись с
+клиентом в схемах. Остаются `pipeline` и `handler`. Так же устроен
 `CreateUser` в `create-user.endpoint.ts`: он подключает слой
 `transactional` ([глава 11](./11-database.md)) и отвечает
 `Ok.created`.

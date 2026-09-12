@@ -12,9 +12,7 @@ import { z } from 'zod';
 
 const Row = z.object({ id: z.string() });
 
-export const ExportRows = httpEndpoint({
-  method: 'GET',
-  path: '/rows',
+export const ExportRows = httpEndpoint.get('/rows', {
   output: stream(Row).batch(100),
   pipeline: makePipeline(),
   handler: async () => new Ok((async function* () {})()),

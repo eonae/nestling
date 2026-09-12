@@ -39,9 +39,7 @@ async function build(declaration: ReturnType<typeof http>) {
 
 /** Endpoint-заглушка: отвечает своим именем на своём пути */
 const ping = (path: string, body: string): ExecutableDeclaration =>
-  httpEndpoint({
-    method: 'GET',
-    path,
+  httpEndpoint.get(path, {
     pipeline: makePipeline(),
     handler: () => new Ok({ body }),
   }) as unknown as ExecutableDeclaration;

@@ -51,9 +51,7 @@ class UpdateUserHandler {
   }
 }
 
-export const UpdateUser = httpEndpoint({
-  method: 'PATCH',
-  path: '/users/:id',
+export const UpdateUser = httpEndpoint.patch('/users/:id', {
   input: UpdateUserInput,
   output: User,
   errors: [NothingToUpdate, EmailTaken, UserNotFound],

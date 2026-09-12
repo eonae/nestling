@@ -36,7 +36,7 @@
 
 #### Scenario: Декларация с документацией
 
-- **WHEN** объявлено `httpEndpoint({ method: 'GET', path: '/users', doc: { summary: 'List users', tags: ['users'] }, … })`
+- **WHEN** объявлено `httpEndpoint.get('/users', { doc: { summary: 'List users', tags: ['users'] }, … })`
 - **THEN** значение декларации несёт `doc` с этими полями, а исполнение
   запроса не меняется ни в чём
 
@@ -63,7 +63,7 @@ diff'е.
 
 #### Scenario: Пустая причина скрытия
 
-- **WHEN** объявлено `httpEndpoint({ …, doc: { hidden: '' } })`
+- **WHEN** объявлено `httpEndpoint.get(path, { …, doc: { hidden: '' } })`
 - **THEN** создание декларации бросает ошибку: причина обязательна
 
 #### Scenario: `hidden: true` отвергается

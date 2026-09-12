@@ -59,9 +59,7 @@ class ReportHandler {
   }
 }
 
-const Report = httpEndpoint({
-  method: 'GET',
-  path: '/report',
+const Report = httpEndpoint.get('/report', {
   output: z.object({ at: z.number(), users: z.array(z.string()) }),
   handler: ReportHandler,
 });

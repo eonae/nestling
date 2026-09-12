@@ -29,9 +29,7 @@ const handle = async () => new Ok({});
 
 describe('httpEndpoint', () => {
   it('собирает pattern из метода и пути и ставит бренд', () => {
-    const CreateUser = httpEndpoint({
-      method: 'POST',
-      path: '/api/users',
+    const CreateUser = httpEndpoint.post('/api/users', {
       input: z.object({ name: z.string() }),
       handler: async (input) => new Ok({ name: input.name }),
     });
@@ -44,9 +42,7 @@ describe('httpEndpoint', () => {
   });
 
   it('`on:` выбирает именованный экземпляр транспорта', () => {
-    const Metrics = httpEndpoint({
-      method: 'GET',
-      path: '/metrics',
+    const Metrics = httpEndpoint.get('/metrics', {
       on: 'admin',
       handler: handle,
     });
@@ -56,32 +52,68 @@ describe('httpEndpoint', () => {
   });
 
   it('пустой path — ошибка в момент создания', () => {
-    expect(() =>
-      httpEndpoint({ method: 'GET', path: '' as string, handler: handle }),
-    ).toThrow(/'path' must be a non-empty string/);
+    expect(() => httpEndpoint.get('' as string, { handler: handle })).toThrow(
+      /'path' must be a non-empty string/,
+    );
   });
 
   it('path без ведущего слэша — ошибка в момент создания', () => {
-    expect(() =>
-      httpEndpoint({ method: 'GET', path: 'users', handler: handle }),
-    ).toThrow(/'path' must start with '\/', got 'users'/);
+    expect(() => httpEndpoint.get('users', { handler: handle })).toThrow(
+      /'path' must start with '\/', got 'users'/,
+    );
   });
 
   it('повторяющийся path-параметр — ошибка с именем параметра', () => {
-    expect(() =>
-      httpEndpoint({ method: 'GET', path: '/a/:id/b/:id', handler: handle }),
-    ).toThrow(/path parameter ':id' is declared twice/);
+    expect(() => httpEndpoint.get('/a/:id/b/:id', { handler: handle })).toThrow(
+      /path parameter ':id' is declared twice/,
+    );
   });
 
   it('разные path-параметры в одном шаблоне допустимы', () => {
-    const GetOrder = httpEndpoint({
-      method: 'GET',
-      path: '/users/:id/orders/:orderId',
+    const GetOrder = httpEndpoint.get('/users/:id/orders/:orderId', {
       input: z.object({ id: z.string(), orderId: z.string() }),
       handler: handle,
     });
 
     expect(GetOrder.pattern).toBe('GET /users/:id/orders/:orderId');
+  });
+});
+
+describe('httpEndpoint — конструктор на каждый HTTP-метод', () => {
+  // Третий столбец — размещение полей без пометки: методы без тела кладут
+  // остаток в query, остальные в тело. Он и показывает, что метод дошёл
+  // до `computeHttpBinding` тем, каким назван конструктор
+  const constructors = [
+    { name: 'get', method: 'GET', rest: 'query' },
+    { name: 'head', method: 'HEAD', rest: 'query' },
+    { name: 'post', method: 'POST', rest: 'body' },
+    { name: 'put', method: 'PUT', rest: 'body' },
+    { name: 'patch', method: 'PATCH', rest: 'body' },
+    { name: 'delete', method: 'DELETE', rest: 'query' },
+  ] as const;
+
+  for (const { name, method, rest } of constructors) {
+    it(`httpEndpoint.${name} несёт метод ${method} в pattern и считает по нему bind`, () => {
+      const Endpoint = httpEndpoint[name]('/things/:id', {
+        input: z.object({ id: z.string(), filter: z.string().optional() }),
+        handler: handle,
+      });
+
+      expect(Endpoint.pattern).toBe(`${method} /things/:id`);
+      expect(httpBindingOf(Endpoint)).toEqual({
+        method,
+        path: '/things/:id',
+        fields: { id: { in: 'path' } },
+        rest,
+        rawBody: false,
+      });
+    });
+  }
+
+  it('текст ошибки называет вызванный конструктор', () => {
+    expect(() => httpEndpoint.delete('users/:id', { handler: handle })).toThrow(
+      "httpEndpoint.delete('<path>', { … }): 'path' must start with '/', got 'users/:id'.",
+    );
   });
 });
 
@@ -99,9 +131,7 @@ describe('PathParams', () => {
   });
 
   it('path остаётся литеральным типом декларации', () => {
-    const GetUser = httpEndpoint({
-      method: 'GET',
-      path: '/users/:id',
+    const GetUser = httpEndpoint.get('/users/:id', {
       input: z.object({ id: z.string() }),
       handler: handle,
     });
@@ -116,9 +146,7 @@ describe('PathParams', () => {
 
 describe('httpEndpoint — bind-карта на значении', () => {
   it('карта вычислена при создании и лежит на декларации', () => {
-    const UpdateUser = httpEndpoint({
-      method: 'PATCH',
-      path: '/api/users/:id',
+    const UpdateUser = httpEndpoint.patch('/api/users/:id', {
       input: z.object({
         id: z.string(),
         name: z.string().optional(),
@@ -158,9 +186,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
       }
     }
 
-    const GetUser = httpEndpoint({
-      method: 'GET',
-      path: '/api/users/:id',
+    const GetUser = httpEndpoint.get('/api/users/:id', {
       input: z.object({ id: z.string() }),
       handler: GetUserHandler,
     });
@@ -174,9 +200,7 @@ describe('httpEndpoint — bind-карта на значении', () => {
 
   it('нарушение правила размещения — ошибка в момент создания', () => {
     expect(() =>
-      httpEndpoint({
-        method: 'GET',
-        path: '/api/users',
+      httpEndpoint.get('/api/users', {
         input: z.object({ filter: z.string() }),
         // По типам допустимо (место с методом не сверяется) — правило
         // проверяется в рантайме, при создании значения
@@ -199,9 +223,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
   });
 
   it('неизвестное поле в bind не компилируется', () => {
-    httpEndpoint({
-      method: 'PATCH',
-      path: '/users/:id',
+    httpEndpoint.patch('/users/:id', {
       input: UpdateUserInput,
       // @ts-expect-error: поля 'expnd' в схеме нет
       bind: { expnd: query() },
@@ -213,9 +235,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
 
   it('пометка на path-параметре не компилируется (и падает в рантайме)', () => {
     expect(() =>
-      httpEndpoint({
-        method: 'PATCH',
-        path: '/users/:id',
+      httpEndpoint.patch('/users/:id', {
         input: UpdateUserInput,
         // @ts-expect-error: 'id' — path-параметр шаблона, перебиндить нельзя
         bind: { id: query() },
@@ -225,9 +245,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
   });
 
   it('известное поле в bind компилируется', () => {
-    const Ok200 = httpEndpoint({
-      method: 'PATCH',
-      path: '/users/:id',
+    const Ok200 = httpEndpoint.patch('/users/:id', {
       input: UpdateUserInput,
       bind: { expand: query() },
       handler: handle,
@@ -237,9 +255,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
   });
 
   it('pipeline с требованием rawBody без пометки не компилируется', () => {
-    httpEndpoint({
-      method: 'POST',
-      path: '/hooks/stripe',
+    httpEndpoint.post('/hooks/stripe', {
       input: z.object({ id: z.string() }),
       // @ts-expect-error: { __error; missing: { rawBody: Uint8Array }; hint }
       // — слой требует { rawBody }, а 'rawBody: true' не объявлен.
@@ -253,9 +269,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
   });
 
   it('он же с rawBody: true компилируется', () => {
-    const Hook = httpEndpoint({
-      method: 'POST',
-      path: '/hooks/stripe',
+    const Hook = httpEndpoint.post('/hooks/stripe', {
       input: z.object({ id: z.string() }),
       rawBody: true,
       pipeline: makePipeline<{ rawBody: Uint8Array }>(),
@@ -266,18 +280,14 @@ describe('httpEndpoint — типы bind и rawBody', () => {
   });
 
   it('обычный pipeline остаётся совместим с любым словарём', () => {
-    const WithRawBody = httpEndpoint({
-      method: 'POST',
-      path: '/hooks/plain',
+    const WithRawBody = httpEndpoint.post('/hooks/plain', {
       input: z.object({ id: z.string() }),
       rawBody: true,
       pipeline: makePipeline(),
       handler: handle,
     });
 
-    const WithoutRawBody = httpEndpoint({
-      method: 'POST',
-      path: '/plain',
+    const WithoutRawBody = httpEndpoint.post('/plain', {
       input: z.object({ id: z.string() }),
       pipeline: makePipeline(),
       handler: handle,
@@ -290,9 +300,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
   it('detached передаётся в значение декларации, пустая причина отвергается', () => {
     const reason = 'liveness-проба балансировщика: до auth не доходит';
 
-    const Health = httpEndpoint({
-      method: 'GET',
-      path: '/health',
+    const Health = httpEndpoint.get('/health', {
       detached: reason,
       handler: handle,
     });
@@ -302,9 +310,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
     // Текст — тот же, что у kernel-примитива: транспорт причину не
     // интерпретирует и своей проверки не заводит
     expect(() =>
-      httpEndpoint({
-        method: 'GET',
-        path: '/health',
+      httpEndpoint.get('/health', {
         detached: '  ',
         handler: handle,
       }),
@@ -313,9 +319,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
 
   it('редирект и поток вместе не объявляются', () => {
     expect(() =>
-      httpEndpoint({
-        method: 'GET',
-        path: '/go',
+      httpEndpoint.get('/go', {
         redirect: 302,
         output: stream(z.object({ id: z.string() })),
         handler: async function* () {
@@ -326,9 +330,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
   });
 
   it('объявленный редирект хранится на bind-карте', () => {
-    const Go = httpEndpoint({
-      method: 'GET',
-      path: '/go',
+    const Go = httpEndpoint.get('/go', {
       redirect: 303,
       handler: handle,
     });
@@ -339,9 +341,7 @@ describe('httpEndpoint — типы bind и rawBody', () => {
   it('непрозрачный input деградирует до отсутствия подсказок, а не до ошибки', () => {
     // Схемы нет — ключей не вывести; `bind` принимает любые имена, правила
     // остаются за рантаймом
-    const Opaque = httpEndpoint({
-      method: 'POST',
-      path: '/opaque',
+    const Opaque = httpEndpoint.post('/opaque', {
       input: 'text',
       handler: handle,
     });

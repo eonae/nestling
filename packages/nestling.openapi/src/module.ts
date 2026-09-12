@@ -114,9 +114,7 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
     }
   }
 
-  const document = httpEndpoint({
-    method: 'GET',
-    path: path ?? '/openapi.json',
+  const document = httpEndpoint.get(path ?? '/openapi.json', {
     ...(pipeline === undefined ? {} : { pipeline }),
     ...(detached === undefined ? {} : { detached }),
     // Документ не описывает сам себя: endpoint служебный, и в списке операций

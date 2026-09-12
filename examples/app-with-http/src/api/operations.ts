@@ -3,7 +3,7 @@
  *
  * Файл тянет только `@nestlingjs/operations`, `zod` и определения отказов,
  * поэтому его можно импортировать во фронтенд. Секция `http:` описывает
- * адрес; реализация подключает операцию через `httpEndpoint({ operation })`.
+ * адрес; реализация подключает операцию через `httpEndpoint.implement`.
  */
 
 import { Unauthorized } from '../errors.js';

@@ -46,12 +46,12 @@ SHALL сверяться не только со схемой `output`, но и �
 
 #### Scenario: Функция без зависимостей
 
-- **WHEN** объявлено `httpEndpoint({ …, handler: async (input, meta) => Ok.of(…) })`
+- **WHEN** объявлено `httpEndpoint.post(path, { …, handler: async (input, meta) => Ok.of(…) })`
 - **THEN** декларация исполнима сразу, без получения зависимостей
 
 #### Scenario: Класс-хендлер
 
-- **WHEN** объявлено `httpEndpoint({ …, handler: CreateUserHandler })`, где
+- **WHEN** объявлено `httpEndpoint.post(path, { …, handler: CreateUserHandler })`, где
   `CreateUserHandler` — класс под `@Handler([UserService])` с методом
   `handle`
 - **THEN** код компилируется без `implements`, сигнатура `handle` сверяется
@@ -66,13 +66,13 @@ SHALL сверяться не только со схемой `output`, но и �
 
 #### Scenario: Объектная форма не принимается
 
-- **WHEN** объявлено `httpEndpoint({ …, handler: { deps: [UserService], handle: (users) => … } })`
+- **WHEN** объявлено `httpEndpoint.post(path, { …, handler: { deps: [UserService], handle: (users) => … } })`
 - **THEN** это ошибка компиляции, а из JS — ошибка при создании
   декларации, называющая паттерн endpoint'а и класс-форму как замену
 
 #### Scenario: Старые поля не принимаются
 
-- **WHEN** объявлено `httpEndpoint({ …, deps: [UserService], handle: (users) => … })`
+- **WHEN** объявлено `httpEndpoint.post(path, { …, deps: [UserService], handle: (users) => … })`
 - **THEN** это ошибка компиляции, а из JS — ошибка при создании
   декларации, называющая поле `handler`
 

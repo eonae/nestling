@@ -18,9 +18,7 @@ const SESSION_TTL = 3600;
  * in one sentence: this is the call that issues the token, so the `authed`
  * layer the root requires of every `POST` cannot run before it.
  */
-export const CreateSession = httpEndpoint({
-  method: 'POST',
-  path: '/sessions',
+export const CreateSession = httpEndpoint.post('/sessions', {
   input: z.object({ email: z.email() }),
   output: Session,
   pipeline: observability,

@@ -17,9 +17,7 @@ class GetUserHandler {
   }
 }
 
-export const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+export const GetUser = httpEndpoint.get('/users/:id', {
   input: UserInput,
   output: User,
   handler: GetUserHandler,

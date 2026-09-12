@@ -29,13 +29,13 @@
 
 #### Scenario: Декларация с объявленными отказами
 
-- **WHEN** объявлено `httpEndpoint({ …, errors: [OrderLimitReached, CardDeclined] })`
+- **WHEN** объявлено `httpEndpoint.post(path, { …, errors: [OrderLimitReached, CardDeclined] })`
 - **THEN** значение декларации несёт оба определения, а хендлер получает
   их как множество допустимых отказов
 
 #### Scenario: Отказы слоя добавляются к списку
 
-- **WHEN** объявлено `httpEndpoint({ …, errors: [OrderLimitReached], pipeline: authed })`,
+- **WHEN** объявлено `httpEndpoint.post(path, { …, errors: [OrderLimitReached], pipeline: authed })`,
   где `authed` объявляет `Unauthorized`
 - **THEN** значение декларации несёт оба определения
 

@@ -21,9 +21,7 @@ async function* generate(count: number): AsyncIterableIterator<LogLine> {
  * Хендлер возвращает `AsyncIterable`; транспорт отдаёт его как NDJSON.
  * `.limit(1000)` обрывает поток после тысячного элемента.
  */
-export const ExportLogs = httpEndpoint({
-  method: 'GET',
-  path: '/logs/export',
+export const ExportLogs = httpEndpoint.get('/logs/export', {
   output: stream(LogLine).limit(1000),
   handler: async () => new Ok(generate(5)),
 });

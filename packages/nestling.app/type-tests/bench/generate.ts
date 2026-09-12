@@ -106,9 +106,7 @@ export function generateGraph({
 
   for (let i = 0; i < endpoints; i++) {
     lines.push(
-      `export const e${i} = httpEndpoint({`,
-      `  method: 'GET',`,
-      `  path: '/bench/${i}',`,
+      `export const e${i} = httpEndpoint.get('/bench/${i}', {`,
       `  pipeline: composed,`,
       `  handler: async () => new Ok({ n: ${i} }),`,
       `});`,

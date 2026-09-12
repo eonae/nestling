@@ -8,7 +8,10 @@
 
 import { httpEndpoint } from '@nestlingjs/transport.http';
 
-import { CardDeclined, CreateUser as CreateUserOperation } from '../support/fixture-kit.js';
+import {
+  CardDeclined,
+  CreateUser as CreateUserOperation,
+} from '../support/fixture-kit.js';
 
 class CreateUserHandler {
   async handle() {

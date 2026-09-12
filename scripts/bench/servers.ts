@@ -124,17 +124,13 @@ async function startNestling(
 }
 
 const nestling: ServerStarter = async () => {
-  const GetUser = httpEndpoint({
-    method: 'GET',
-    path: '/users/:id',
+  const GetUser = httpEndpoint.get( '/users/:id',{
     input: IdParam,
     output: User,
     handler: ({ id }) => new Ok(userOf(id)),
   });
 
-  const CreateUser = httpEndpoint({
-    method: 'POST',
-    path: '/users',
+  const CreateUser = httpEndpoint.post( '/users',{
     input: NewUser,
     output: User,
     handler: (body) => new Ok(createdOf(body)),
@@ -158,18 +154,14 @@ const nestlingLayers: ServerStarter = async () => {
     }))
     .finally((outcome) => countOutcome(outcome));
 
-  const GetUser = httpEndpoint({
-    method: 'GET',
-    path: '/users/:id',
+  const GetUser = httpEndpoint.get( '/users/:id',{
     input: IdParam,
     output: User,
     pipeline: layered,
     handler: ({ id }) => new Ok(userOf(id)),
   });
 
-  const CreateUser = httpEndpoint({
-    method: 'POST',
-    path: '/users',
+  const CreateUser = httpEndpoint.post( '/users',{
     input: NewUser,
     output: User,
     pipeline: layered,

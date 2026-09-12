@@ -100,9 +100,7 @@ Pre-юниты внешнего слоя выполняются раньше, п
 
 ```typescript
 // examples/users-service/src/users/endpoints/delete-user.endpoint.ts
-export const DeleteUser = httpEndpoint({
-  method: 'DELETE',
-  path: '/users/:id',
+export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
   doc: {
@@ -265,9 +263,7 @@ everyEndpoint({ transport: HttpTransport$('default') }).hasVar(
 
 ```typescript
 // examples/users-service/src/ops.plugin.ts
-export const BuildInfo = httpEndpoint({
-  method: 'GET',
-  path: '/ops/version',
+export const BuildInfo = httpEndpoint.get('/ops/version', {
   output: z.object({ version: z.string() }),
   detached:
     'служебный endpoint эксплуатации: строка аудита на каждый опрос заслоняет полезные записи',
@@ -345,9 +341,7 @@ export class LoginHandler {
   }
 }
 
-export const Login = httpEndpoint({
-  method: 'POST',
-  path: '/login',
+export const Login = httpEndpoint.post('/login', {
   input: Credentials,
   redirect: 303,
   errors: [UserNotFound],
