@@ -1,9 +1,8 @@
 # Configuration from a file and without a restart
 
 > Guide to the current API; verified against `container` (2026-09-12).
-> Target description: [design/config.md](../design/config.md),
-> sections 2–8. Rationale: the entries
-> [ideas.md](../../decisions/ideas.md)
+> Target description: [design/config.md](../design/config.md), sections 2–8.
+> Rationale: the entries [ideas.md](../../decisions/ideas.md)
 > `Конфиг: keys-capability вместо configs:-владения` [2026-07-10],
 > `Конфиг: secret() и общие ключи` [2026-07-13] and
 > `Конфиг: derived, env({ prefix }), описания полей через конвертеры`

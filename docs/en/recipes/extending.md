@@ -1,12 +1,11 @@
 # Extend the kernel with your own package
 
 > Guide to the current API; verified against `nestling.subscriptions` (2026-09-12).
-> Target description: [design/principles.md](../design/principles.md),
-> the "Kernel boundary" section, and
-> [design/streaming.md](../design/streaming.md) §4.1. Rationale: the
-> entries [ideas.md](../../decisions/ideas.md)
-> `«Kernel 1.0» — граница ядра` [2026-07-14] and
-> `Реестр подписок: результат dogfooding-замера` [2026-08-01].
+> Target description: [design/principles.md](../design/principles.md), the
+> "Kernel boundary" section, and [design/streaming.md](../design/streaming.md)
+> §4.1. Rationale: the entries [ideas.md](../../decisions/ideas.md)
+> `[2026-07-14] «Kernel 1.0» — граница ядра` and
+> `[2026-08-01] Реестр подписок: результат dogfooding-замера`.
 
 An application needs a capability that the kernel does not have:
 deduplicating commands by an idempotency key, an outbox, a registry of

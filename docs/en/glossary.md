@@ -5,9 +5,9 @@ called by one word from this list. A term that is missing here is defined
 by the document at first use and then added here.
 
 This file is also the translation dictionary: next to every English term
-stands its Russian original from [glossary.md](../glossary.md). Chapters,
-recipes and design documents are translated by these names, so that `Fail`
-and «feature» are called the same in every file.
+stands its Russian original from `docs/glossary.md`. Chapters, recipes and
+design documents are translated by these names, so that `Fail` and
+«feature» are called the same in every file.
 
 Text style rules live in the `docs-style` skill
 (`.claude/skills/docs-style/SKILL.md`); the table of words we avoid is

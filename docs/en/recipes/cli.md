@@ -1,9 +1,9 @@
 # A CLI tool on the same primitives
 
 > Guide to the current API; verified against `simple-cli` (2026-09-12).
-> Target description: [design/transports.md](../design/transports.md)
-> §5, [design/endpoints.md](../design/endpoints.md). Rationale: the
-> entry [ideas.md](../../decisions/ideas.md)
+> Target description: [design/transports.md](../design/transports.md) §5,
+> [design/endpoints.md](../design/endpoints.md). Rationale: the entry
+> [ideas.md](../../decisions/ideas.md)
 > `Endpoint-декларации: per-transport конструкторы, deps-инжект, формы хендлера`.
 
 A service needs a console tool alongside it: a one-off command with
