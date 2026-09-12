@@ -49,7 +49,10 @@ const both = makePipeline().pre(() => done(), {
 });
 
 /** Композиция слоёв с признаком и без него компилируется как обычно */
-const guarded = compose(makePipeline().pre(() => ({ tx: 1 })), claiming);
+const guarded = compose(
+  makePipeline().pre(() => ({ tx: 1 })),
+  claiming,
+);
 
 /**
  * Декларация с `output` и слоем досрочного успеха компилятору видна

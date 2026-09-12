@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-empty-function --
+ * noop-юниты — часть тестов порядка исполнения */
+/* eslint-disable unicorn/no-useless-undefined --
+ * `undefined` в предмете проверки: досрочный успех — успех без значения,
+ * и явная запись отличает его от пропущенного поля */
 /**
  * Досрочный успех pre-юнита: третий исход.
  *
@@ -86,7 +91,11 @@ describe('досрочный успех: исполнение', () => {
 
     const response = await run(pipeline, handler);
 
-    expect(response).toEqual({ isSuccess: true, status: 'ok', value: undefined });
+    expect(response).toEqual({
+      isSuccess: true,
+      status: 'ok',
+      value: undefined,
+    });
     expect(third).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
     expect(okUnit).toHaveBeenCalledTimes(1);
@@ -122,7 +131,10 @@ describe('досрочный успех: исполнение', () => {
   });
 
   it('пропускает проверку входа', async () => {
-    const ctx = makeCtx({ amount: 'не число' }, z.object({ amount: z.number() }));
+    const ctx = makeCtx(
+      { amount: 'не число' },
+      z.object({ amount: z.number() }),
+    );
 
     const response = await run(
       makePipeline().pre(() => done(), { done: true }),
@@ -130,7 +142,11 @@ describe('досрочный успех: исполнение', () => {
       ctx,
     );
 
-    expect(response).toEqual({ isSuccess: true, status: 'ok', value: undefined });
+    expect(response).toEqual({
+      isSuccess: true,
+      status: 'ok',
+      value: undefined,
+    });
   });
 
   it('роняет запрос, если признак не объявлен', async () => {

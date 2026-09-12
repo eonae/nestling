@@ -13,7 +13,7 @@ declare const resolve: UnitResolver;
 
 declare const u0: PreUnitFn<AnyInput, { f0: string }>;
 declare const f0Fail: FailDefinitionWithoutDetails<'conflict:bench_a'>;
-const l0 = makePipeline().pre(u0, { errors: [f0Fail] });
+const l0 = makePipeline().pre(u0, { errors: [f0Fail], done: true });
 declare const u1: PreUnitFn<AnyInput, { f1: string }>;
 declare const f1Fail: FailDefinitionWithoutDetails<'conflict:bench_b'>;
 const l1 = makePipeline<{ f0: string }>().pre(u1, { errors: [f1Fail] });

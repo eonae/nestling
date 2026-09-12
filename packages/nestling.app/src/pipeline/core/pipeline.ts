@@ -747,7 +747,7 @@ class PipelineImpl {
      * {@link PipelineImpl.declaresDone} и само исполнение: возврат
      * `done()` из пайплайна без признака — ошибка.
      */
-    private readonly declaredDone: boolean = false,
+    private readonly declaredDone = false,
   ) {
     // Слои после конструктора не меняются: методы билдера и `bind()`
     // возвращают новый экземпляр. Поэтому инварианты, которые раньше
