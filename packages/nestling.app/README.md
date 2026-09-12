@@ -57,8 +57,9 @@ await app.assemble().run();
   `FromField`, `load`, `makeConfig`, `objectSource`, `ObjectSource`,
   `ReloadableConfig`, `secret`, `SecretField`, `toBindings`.
 - **Пайплайн и endpoint'ы** ([design](../../docs/design/pipeline.md)) —
-  `AnyContextVar`, `AnyEndpointDefinition`, `assertLayerFailsDeclared`,
-  `bindInputStream`, `ClientDisconnectedError`, `collectPropagatedContext`,
+  `AnyContextVar`, `AnyEndpointDefinition`, `AnyHandlerResult`,
+  `assertLayerFailsDeclared`, `bindInputStream`, `CheckedHandlerFn`,
+  `ClientDisconnectedError`, `collectPropagatedContext`,
   `compose`, `contextKernel`, `contextVar`, `ContextVar`,
   `ContextVarDeclarator`, `ContextVarOptions`, `ContextVarUnavailableError`,
   `Ctx`, `CtxReader`, `DeferredPreUnitFn`, `EndpointDefinition`, `EndpointFilter`, `EndpointMeta`,

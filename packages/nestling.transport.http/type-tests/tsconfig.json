@@ -2,6 +2,9 @@
   // Конфиг фикстур: файлы под `fixtures/` намеренно НЕ компилируются —
   // их диагностики и есть предмет снапшот-тестов. Каталог исключён из
   // проекта пакета и из линта (см. tsconfig.json пакета и .config/eslint.config.js).
+  //
+  // `valid/` компилируется молча — это обратная проверка, и каталог
+  // входит и в проект пакета, и в линт.
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
@@ -14,5 +17,5 @@
       "@nestlingjs/common.*": ["../../common.*/src/index.ts"]
     }
   },
-  "include": ["fixtures"]
+  "include": ["fixtures", "valid"]
 }

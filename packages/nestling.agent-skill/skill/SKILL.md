@@ -145,8 +145,9 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
    function, or a class marked `@Handler([…])` with a `handle` method.
 6. **A policy in the root obliges every endpoint.** When `makeApp` declares
    `everyEndpoint(…).hasLayer(observability)`, every endpoint it selects
-   names that layer in `pipeline:` — the operation form and `implement`
-   included, where it is often the only field they add — or opts out with
+   names that layer in `pipeline:` — `httpEndpoint.implement` and
+   `implement` included, where it is often the only field they add — or
+   opts out with
    `detached: '<reason>'`. ASSEMBLE names the ones that did neither and
    stops the process before a socket is open.
 7. **A redirect is declared, not only returned.** `redirect: 302` in the
@@ -169,6 +170,7 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
 | features, operations, callers, emitters, subscribers, split | `references/features.md` |
 | assemble an app in a test, override, stub, check topologies | `references/testing.md` |
 | the NestJS name for a thing and its Nestling counterpart | `references/from-nest.md` |
+| read a diagnostic the compiler or ASSEMBLE printed | `references/diagnostics.md` |
 
 Every reference points at the README of the package that owns the names it
 mentions. Read that README for the full list of exports; the reference only

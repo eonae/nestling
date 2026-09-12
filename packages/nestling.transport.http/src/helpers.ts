@@ -8,14 +8,15 @@ import type {
   AnyEndpointDefinition,
   AnyFail,
   AnyFailDefinition,
+  AnyHandlerResult,
   AnyInput,
   AnyOutput,
   AnyPayload,
+  CheckedHandlerFn,
   EmptyInput,
   EndpointDefinition,
   FailsOf,
   HandlerClass,
-  HandlerFn,
   MissingFields,
   Pipeline,
   StreamForm,
@@ -29,6 +30,7 @@ import {
 import type {
   AnyOperation,
   DeclarationDoc,
+  HandlerResultOf,
   HttpMethod,
   InferInput,
   InferOutput,
@@ -37,6 +39,7 @@ import type {
   OutputFormOf,
   RedirectStatus,
   SseConfig,
+  ValidateHandlerFails,
   ValidateOperationFails,
 } from '@nestlingjs/operations';
 
@@ -80,13 +83,24 @@ export type HttpStartContext<
 > = StartContext<RB, O>;
 
 /**
+ * Второй параметр HTTP-хендлера: поля пайплайна, сигнал отмены и запрос.
+ *
+ * Пересечение с `{ http }` добавляется независимо от слота `pipeline`,
+ * поэтому декларация без пайплайна тоже даёт хендлеру `meta.http`.
+ */
+type HttpMetaOf<P extends AnyInput> = (P extends { payload: unknown }
+  ? Omit<P, 'payload'>
+  : P) & {
+  signal: AbortSignal;
+  http: HttpRequest;
+};
+
+/**
  * Хендлер анонимной HTTP-декларации.
  *
  * Отличий от `HandlerFn` два: `meta` содержит запрос, а результат
- * допускает `HttpResponse`. Пересечение с `{ http }` добавляется
- * независимо от слота `pipeline`, поэтому декларация без пайплайна тоже
- * даёт хендлеру `meta.http`. Хендлер, не читающий `http` и не
- * возвращающий `HttpResponse`, в этом слоте остаётся допустимым.
+ * допускает `HttpResponse`. Хендлер, не читающий `http` и не возвращающий
+ * `HttpResponse`, в этом слоте остаётся допустимым.
  */
 export type HttpHandlerFn<
   I extends AnyPayload = AnyPayload,
@@ -95,10 +109,7 @@ export type HttpHandlerFn<
   E extends AnyFail = never,
 > = (
   payload: InferInput<I>,
-  meta: (P extends { payload: unknown } ? Omit<P, 'payload'> : P) & {
-    signal: AbortSignal;
-    http: HttpRequest;
-  },
+  meta: HttpMetaOf<P>,
 ) => HttpOutputSync<InferOutput<O>, E> | HttpOutput<InferOutput<O>, E>;
 
 /** Класс-хендлер анонимной HTTP-декларации: класс с методом `handle` */
@@ -108,6 +119,36 @@ export type HttpHandlerClass<
   P extends AnyInput = AnyInput,
   E extends AnyFail = never,
 > = new (...args: any[]) => { handle: HttpHandlerFn<I, O, P, E> };
+
+/**
+ * Результат HTTP-хендлера с любым отказом: ограничение слота `handler`
+ * формы с функцией.
+ *
+ * Ограничение пропускает любой отказ, потому что множество отказов
+ * проверяет бренд `ValidateHandlerFails` в возвращаемом типе.
+ */
+type AnyHttpResult<O extends AnyOutput> =
+  | HttpOutputSync<InferOutput<O>, AnyFail>
+  | HttpOutput<InferOutput<O>, AnyFail>;
+
+/**
+ * Слот `handler` анонимной формы: сигнатура `HttpHandlerFn` с проверкой
+ * множества отказов в возвращаемом типе.
+ *
+ * Причина, по которой проверка стоит здесь, а не в слоте, — в JSDoc
+ * `ValidateHandlerFails`.
+ *
+ * @param R - Тип результата, выведенный из тела хендлера
+ */
+type CheckedHttpHandlerFn<
+  I extends AnyPayload,
+  P extends AnyInput,
+  E extends AnyFail,
+  R,
+> = (
+  payload: InferInput<I>,
+  meta: HttpMetaOf<P>,
+) => R & ValidateHandlerFails<R, E>;
 
 /**
  * Проверяет слот `pipeline`: всё, что пайплайн требует от внешнего
@@ -256,25 +297,22 @@ export interface HttpEndpointDictionary<
 }
 
 /**
- * Операция-форма HTTP-декларации: адрес, схемы и `errors` берутся с
- * операции, а декларация задаёт только `pipeline`, `deps` и `handle`.
+ * Словарь реализации операции по HTTP: только исполнение.
  *
- * Результат — обычная HTTP-декларация: discovery, `policies`, визуализация
- * и пайплайн работают с ней как с любой другой.
+ * Адрес, схемы, `errors` и `doc` берутся с операции. Полей, которыми
+ * владеет операция, здесь нет вовсе: лишний ключ в объектном литерале
+ * TypeScript отвергает и без объявления полей как `never`.
  *
  * Слот `pipeline` типизирован как у `implement`, без проверки стартового
  * контекста: операция несёт `rawBody` данными, а не типом, и проверка
  * отвергала бы реализацию webhook.
  */
-export interface HttpOperationDictionary<
+export interface HttpImplementDictionary<
   C extends AnyOperation = AnyOperation,
   P extends AnyInput = AnyInput,
   PN = never,
   PF extends AnyFail = never,
 > {
-  /** Операция, объявленный `makeRequest` с секцией `http:` */
-  operation: C;
-
   /**
    * Пайплайн декларации. Юниты-классы допустимы: они попадают в `TNeeds`
    * декларации и получают зависимости из контейнера вместе с `deps`.
@@ -290,39 +328,9 @@ export interface HttpOperationDictionary<
 
   /** Имя экземпляра транспорта, обслуживающего endpoint; по умолчанию `'default'` */
   on?: string;
-
-  /** @internal адрес операции принадлежит операции */
-  method?: never;
-
-  /** @internal адрес операции принадлежит операции */
-  path?: never;
-
-  /** @internal размещение полей принадлежит операции */
-  bind?: never;
-
-  /** @internal размещение полей принадлежит операции */
-  rawBody?: never;
-
-  /** @internal настройки SSE принадлежат операции */
-  sse?: never;
-
-  /** @internal интерфейс операции принадлежит операции */
-  input?: never;
-
-  /** @internal интерфейс операции принадлежит операции */
-  output?: never;
-
-  /** @internal интерфейс операции принадлежит операции */
-  errors?: never;
-
-  /**
-   * @internal документация операции принадлежит операции: две реализации
-   * одной операции не могут описывать её по-разному
-   */
-  doc?: never;
 }
 
-/** Поля, которые в операция-форме объявляет сама операция */
+/** Поля, которые в реализации операции объявляет сама операция */
 const OPERATION_OWNED = [
   'method',
   'path',
@@ -344,8 +352,8 @@ function assertOperation(
 
   if (typeof name !== 'string' || typeof kind !== 'string') {
     throw new TypeError(
-      `httpEndpoint({ operation, … }): 'operation' must be a value ` +
-        `created by makeRequest / makeCommand / makeEvent.`,
+      `httpEndpoint.implement(operation, { … }): the first argument must be ` +
+        `an operation value created by makeRequest / makeCommand / makeEvent.`,
     );
   }
 }
@@ -353,8 +361,8 @@ function assertOperation(
 /**
  * Отвергает поля операции, повторно объявленные в реализации.
  *
- * Типы такое не компилируют; проверка нужна для JS-кода, где переданное
- * поле иначе молча игнорировалось бы.
+ * Словарь таких полей не знает, поэтому типы их не компилируют. Проверка
+ * нужна для JS-кода, где переданное поле иначе молча игнорировалось бы.
  */
 function assertOperationOwned(
   declaration: Record<string, unknown>,
@@ -363,7 +371,7 @@ function assertOperationOwned(
   for (const field of OPERATION_OWNED) {
     if (declaration[field] !== undefined) {
       throw new TypeError(
-        `httpEndpoint({ operation: ${operation.name}, … }): '${field}' ` +
+        `httpEndpoint.implement(${operation.name}, { … }): '${field}' ` +
           `belongs to the operation and cannot be redeclared by its ` +
           `implementation.`,
       );
@@ -372,57 +380,13 @@ function assertOperationOwned(
 }
 
 /**
- * Строит декларацию из операции: bind-карта, схемы и `errors` берутся с
- * него.
- *
- * Карта не пересчитывается: декларация получает то же значение, которое
- * несёт операция, поэтому клиент и сервер читают одну и ту же карту.
- */
-function fromOperation(
-  declaration: Record<string, unknown> & { operation: unknown },
-): AnyEndpointDefinition {
-  const { operation, on, ...rest } = declaration as Record<string, unknown> & {
-    operation: unknown;
-    on?: string;
-  };
-
-  assertOperation(operation);
-  assertOperationOwned(rest, operation);
-  assertLayerFailsDeclared(
-    rest.pipeline,
-    operation.errors,
-    `httpEndpoint({ operation: ${operation.name}, … })`,
-  );
-
-  const binding = operation.http;
-  if (!binding) {
-    throw new Error(
-      `httpEndpoint({ operation: ${operation.name}, … }): the operation has ` +
-        `no 'http:' section, so it carries no HTTP address. Declare ` +
-        `'http: <METHOD> <path>' on it, or implement it on the bus with ` +
-        `implement(${operation.name}, { … }).`,
-    );
-  }
-
-  return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
-    ...rest,
-    transport: HttpTransport$(on ?? DEFAULT_INSTANCE),
-    pattern: `${binding.method} ${binding.path}`,
-    binding,
-    input: operation.input,
-    output: operation.output,
-    errors: operation.errors,
-    doc: operation.doc,
-  });
-}
-
-/**
- * Создаёт HTTP-декларацию.
+ * Создаёт анонимную HTTP-декларацию: адрес объявляет она сама.
  *
  * Надстройка над `makeEndpoint` из ядра: добавляет поля транспорта,
  * собирает `pattern` как `` `${method} ${path}` `` и проверяет поля при
  * создании. Общая часть деклараций (обе формы `handler`, `resolve`,
- * бренд) живёт в `makeEndpoint`.
+ * бренд) живёт в `makeEndpoint`. Реализацию операции создаёт второй
+ * конструктор — {@link httpEndpoint.implement}.
  *
  * @example Функция-хендлер: декларация исполнима сразу
  * ```typescript
@@ -467,48 +431,15 @@ function fromOperation(
  * неструктурном `input`, `rawBody` при потоковой или multipart-форме)
  */
 /**
- * Порядок перегрузок задают два ограничения.
+ * Перегрузок две — по одной на форму хендлера, и это граница, за которой
+ * TypeScript печатает только последнюю. Пока их две, диагностика называет
+ * обе формы, и автор видит ту, в которой ошибся.
  *
- * Резолвинг: форма с функцией-хендлером стоит раньше формы с
- * класс-хендлером. Аргумент `handler` контекстно-чувствителен, первый проход
- * резолвинга его не проверяет, и класс-форма, стоящая раньше, побеждала бы;
- * параметр функции оставался бы без контекстного типа.
- *
- * Диагностика: TypeScript печатает ошибку только последней перегрузки.
- * Последней стоит класс-форма, поэтому к настоящей причине (несошедшийся
- * `bind`, литерал `__error` слота `pipeline`) добавляется шум про
- * `HandlerClass`.
- *
- * Операция-форма стоит первой: её поля не пересекаются с анонимной формой
- * (`operation` против `method` и `path`), поэтому на резолвинг она не
- * влияет.
+ * Порядок задаёт резолвинг: форма с функцией стоит раньше формы с
+ * классом. Аргумент `handler` контекстно-чувствителен, первый проход
+ * резолвинга его не проверяет, и класс-форма, стоящая раньше, побеждала
+ * бы; параметр функции оставался бы без контекстного типа.
  */
-export function httpEndpoint<
-  C extends AnyOperation,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  PF extends AnyFail = never,
->(
-  declaration: HttpOperationDictionary<C, P, PN, PF> & {
-    handler: HandlerFn<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>;
-  },
-): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN>;
-export function httpEndpoint<
-  C extends AnyOperation,
-  P extends AnyInput = AnyInput,
-  PN = never,
-  PF extends AnyFail = never,
-  H extends HandlerClass<
-    InputFormOf<C>,
-    OutputFormOf<C>,
-    P,
-    OperationFailsOf<C>
-  > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, OperationFailsOf<C>>,
->(
-  declaration: HttpOperationDictionary<C, P, PN, PF> & {
-    handler: H;
-  },
-): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN | H>;
 export function httpEndpoint<
   Path extends string,
   I extends AnyPayload = AnyPayload,
@@ -519,9 +450,10 @@ export function httpEndpoint<
   PR extends AnyInput = EmptyInput,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
+  R extends AnyHttpResult<O> = AnyHttpResult<O>,
 >(
   declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
-    handler: HttpHandlerFn<I, O, P, FailsOf<E> | NoInfer<PF>>;
+    handler: CheckedHttpHandlerFn<I, P, FailsOf<E> | NoInfer<PF>, R>;
   },
 ): EndpointDefinition<I, O, P, PN>;
 export function httpEndpoint<
@@ -532,46 +464,35 @@ export function httpEndpoint<
   PN = never,
   E extends readonly AnyFailDefinition[] = [],
   PF extends AnyFail = never,
-  C extends HttpHandlerClass<
+  C extends HttpHandlerClass<I, O, P, AnyFail> = HttpHandlerClass<
     I,
     O,
     P,
-    FailsOf<E> | NoInfer<PF>
-  > = HttpHandlerClass<I, O, P, FailsOf<E> | NoInfer<PF>>,
+    AnyFail
+  >,
   RB extends boolean | undefined = undefined,
   PR extends AnyInput = EmptyInput,
 >(
   declaration: HttpEndpointDictionary<Path, I, O, P, PN, RB, PR, E, PF> & {
-    handler: C;
+    handler: C &
+      ValidateHandlerFails<HandlerResultOf<C>, FailsOf<E> | NoInfer<PF>>;
   },
 ): EndpointDefinition<I, O, P, PN | C>;
 export function httpEndpoint(
-  declaration: (
-    | HttpEndpointDictionary<
-        string,
-        any,
-        any,
-        any,
-        unknown,
-        boolean | undefined,
-        any,
-        readonly AnyFailDefinition[],
-        AnyFail
-      >
-    | HttpOperationDictionary<any, any, unknown, AnyFail>
-  ) & {
+  declaration: HttpEndpointDictionary<
+    string,
+    any,
+    any,
+    any,
+    unknown,
+    boolean | undefined,
+    any,
+    readonly AnyFailDefinition[],
+    AnyFail
+  > & {
     handler: unknown;
   },
 ): AnyEndpointDefinition {
-  // Операция-форму отличает ключ `operation`: в анонимной форме его нет
-  if ('operation' in declaration) {
-    return fromOperation(
-      declaration as unknown as Record<string, unknown> & {
-        operation: unknown;
-      },
-    );
-  }
-
   const { method, path, bind, rawBody, sse, redirect, on, ...rest } =
     declaration;
 
@@ -602,3 +523,107 @@ export function httpEndpoint(
     binding,
   });
 }
+
+/**
+ * Создаёт HTTP-декларацию, реализующую операцию.
+ *
+ * Адрес, схемы, `errors` и `doc` берутся с операции; декларация задаёт
+ * только исполнение. Bind-карта не пересчитывается: декларация получает то
+ * же значение, которое несёт операция, поэтому клиент и сервер читают одну
+ * карту.
+ *
+ * Результат — обычная HTTP-декларация: discovery, `policies`, визуализация
+ * и пайплайн работают с ней как с любой другой.
+ *
+ * @param operation - Операция с секцией `http:`
+ * @param declaration - Словарь исполнения: `pipeline`, `handler`,
+ * `detached`, `on`
+ * @returns Декларация-значение для `endpoints:` модуля
+ * @throws {TypeError} Первый аргумент создан не `makeRequest`; поле
+ * операции переобъявлено реализацией
+ * @throws {Error} У операции нет секции `http:`
+ *
+ * @example
+ * ```typescript
+ * export const CreateUserImpl = httpEndpoint.implement(CreateUser, {
+ *   pipeline: basePipeline,
+ *   handler: CreateUserHandler,
+ * });
+ * ```
+ */
+function implementOperation<
+  C extends AnyOperation,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  PF extends AnyFail = never,
+  R extends AnyHandlerResult<OutputFormOf<C>> = AnyHandlerResult<
+    OutputFormOf<C>
+  >,
+>(
+  operation: C,
+  declaration: HttpImplementDictionary<C, P, PN, PF> & {
+    handler: CheckedHandlerFn<InputFormOf<C>, P, OperationFailsOf<C>, R>;
+  },
+): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN>;
+function implementOperation<
+  C extends AnyOperation,
+  P extends AnyInput = AnyInput,
+  PN = never,
+  PF extends AnyFail = never,
+  H extends HandlerClass<
+    InputFormOf<C>,
+    OutputFormOf<C>,
+    P,
+    AnyFail
+  > = HandlerClass<InputFormOf<C>, OutputFormOf<C>, P, AnyFail>,
+>(
+  operation: C,
+  declaration: HttpImplementDictionary<C, P, PN, PF> & {
+    handler: H & ValidateHandlerFails<HandlerResultOf<H>, OperationFailsOf<C>>;
+  },
+): EndpointDefinition<InputFormOf<C>, OutputFormOf<C>, P, PN | H>;
+function implementOperation(
+  operation: unknown,
+  declaration: HttpImplementDictionary<AnyOperation, any, unknown, AnyFail> & {
+    handler: unknown;
+  },
+): AnyEndpointDefinition {
+  assertOperation(operation);
+
+  const { on, ...rest } = declaration as unknown as Record<string, unknown> & {
+    on?: string;
+  };
+
+  assertOperationOwned(rest, operation);
+  assertLayerFailsDeclared(
+    rest.pipeline,
+    operation.errors,
+    `httpEndpoint.implement(${operation.name}, { … })`,
+  );
+
+  const binding = operation.http;
+  if (!binding) {
+    throw new Error(
+      `httpEndpoint.implement(${operation.name}, { … }): the operation has ` +
+        `no 'http:' section, so it carries no HTTP address. Declare ` +
+        `'http: <METHOD> <path>' on it, or implement it on the bus with ` +
+        `implement(${operation.name}, { … }).`,
+    );
+  }
+
+  return (makeEndpoint as (options: unknown) => AnyEndpointDefinition)({
+    ...rest,
+    transport: HttpTransport$(on ?? DEFAULT_INSTANCE),
+    pattern: `${binding.method} ${binding.path}`,
+    binding,
+    input: operation.input,
+    output: operation.output,
+    errors: operation.errors,
+    doc: operation.doc,
+  });
+}
+
+// Статик на конструкторе, а не отдельная функция: имена транспорта —
+// существительные, называющие значение, и реализация остаётся в том же
+// пространстве имён, что анонимная форма.
+httpEndpoint.implement = implementOperation;

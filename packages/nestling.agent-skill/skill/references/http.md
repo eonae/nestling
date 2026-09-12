@@ -7,7 +7,7 @@ in `HttpResponse`. Names live in the README of
 [`@nestlingjs/transport.http`](https://www.npmjs.com/package/@nestlingjs/transport.http).
 
 `HttpResponse` is allowed where the address is declared by the transport:
-the inline form `httpEndpoint({ method, path, … })`. The operation form and
+`httpEndpoint({ method, path, … })`. `httpEndpoint.implement` and
 `implement` take a handler without HTTP in it, and a handler that has HTTP
 in it does not compile there — the same operation is callable over a bus,
 where a cookie means nothing.

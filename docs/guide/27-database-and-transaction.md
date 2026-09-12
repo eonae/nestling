@@ -198,8 +198,7 @@ Endpoint переключается на слой транзакции:
 
 ```typescript
 // examples/users-service/src/users/endpoints/create-user.endpoint.ts
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: transactional,
   handler: CreateUserHandler,
 });

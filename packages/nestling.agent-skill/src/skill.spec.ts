@@ -17,6 +17,7 @@ import nestlingPlugin from '@nestlingjs/eslint-plugin';
 const REFERENCES = [
   'config.md',
   'container.md',
+  'diagnostics.md',
   'endpoints.md',
   'errors.md',
   'features.md',
@@ -55,7 +56,7 @@ describe('состав скилла', () => {
     ]);
   });
 
-  it('references/ содержит ровно десять файлов перечня', () => {
+  it('references/ содержит ровно одиннадцать файлов перечня', () => {
     expect(readdirSync(join(SKILL_DIR, 'references')).sort()).toEqual(
       REFERENCES,
     );

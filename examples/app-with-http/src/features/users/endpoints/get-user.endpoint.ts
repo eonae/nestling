@@ -26,8 +26,7 @@ class GetUserHandler {
  * Адрес, схемы и `errors:` живут в операции `api/operations.ts`: ту же
  * операцию импортирует клиент. Здесь остаётся только исполнение.
  */
-export const GetUser = httpEndpoint({
-  operation: GetUserOperation,
+export const GetUser = httpEndpoint.implement(GetUserOperation, {
   pipeline: observability,
   handler: GetUserHandler,
 });

@@ -1,11 +1,9 @@
 /**
- * Фикстура: форма с `operation:` переобъявляет интерфейс операции.
+ * Фикстура: реализация операции переобъявляет её интерфейс.
  *
- * `input` в этой форме объявлен как `never`, поэтому словарь не подходит
- * ни под одну перегрузку. Снапшот фиксирует текст, который автор увидит
- * в этом месте: TypeScript печатает ошибку последней перегрузки, и поле
- * `input` в ней не названо. Диф снапшота покажет, когда текст станет
- * точнее.
+ * Поля `input` в словаре реализации нет, поэтому словарь не подходит ни
+ * под одну перегрузку. Снапшот фиксирует текст, который автор увидит в
+ * этом месте.
  */
 
 import { Ok } from '@nestlingjs/app';
@@ -21,8 +19,7 @@ class CreateUserHandler {
   }
 }
 
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   input: z.object({ email: z.string() }),
   handler: CreateUserHandler,
 });

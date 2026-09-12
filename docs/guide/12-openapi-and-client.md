@@ -210,7 +210,7 @@ export const CreateUser = makeRequest({
 
 Операция — значение: имя, схемы `input` и `output`, список `errors:` и
 слот `doc:`. Секция `http:` описывает адрес; операция без неё отвергается
-в момент создания декларации `httpEndpoint({ operation })`. Строка
+в момент создания декларации `httpEndpoint.implement`. Строка
 `'GET /users/:id'` подходит для операции без пометок; объект
 `{ method, path }` нужен, когда есть `bind`, `rawBody` или `sse`.
 
@@ -222,7 +222,7 @@ export const CreateUser = makeRequest({
 отказов. В нём нет ни контейнера, ни пайплайна, ни транспорта, поэтому
 его можно импортировать во фронтенд.
 
-Реализация подключает операцию через `operation:`:
+Реализация подключает операцию вторым конструктором транспорта:
 
 ```typescript
 // examples/users-service/src/users/endpoints/get-user.endpoint.ts
@@ -237,18 +237,17 @@ export class GetUserHandler {
   }
 }
 
-export const GetUser = httpEndpoint({
-  operation: GetUserOperation,
+export const GetUser = httpEndpoint.implement(GetUserOperation, {
   pipeline: observability,
   handler: GetUserHandler,
 });
 ```
 
-Поле `operation:` заменяет `method`, `path`, `input`, `output`, `errors`
-и `doc`: всё это берётся из операции. Повторное объявление любого из них
-в декларации не компилируется, поэтому сервер не может разойтись с
-клиентом в схемах. Остаются `pipeline` и `handler`. Так же
-устроен `CreateUser` в `create-user.endpoint.ts`: он подключает слой
+Первый аргумент `httpEndpoint.implement` заменяет `method`, `path`,
+`input`, `output`, `errors` и `doc`: всё это берётся с операции. Полей для
+их повторного объявления в словаре нет, поэтому сервер не может разойтись
+с клиентом в схемах. Остаются `pipeline` и `handler`. Так же устроен
+`CreateUser` в `create-user.endpoint.ts`: он подключает слой
 `transactional` ([глава 27](./27-database-and-transaction.md)) и отвечает
 `Ok.created`.
 

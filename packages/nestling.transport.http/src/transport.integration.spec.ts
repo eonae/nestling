@@ -19,9 +19,14 @@ import type { HttpTransportOptions } from './transport.js';
 import { HttpTransport } from './transport.js';
 
 import type {
+  AnyFail,
+  AnyInput,
+  AnyOutput,
+  AnyPayload,
   ExecutableDeclaration,
   Fields,
   FilePart,
+  HandlerFn,
   Logger,
   LogLevel,
   PreUnitFn,
@@ -436,6 +441,42 @@ describe('HttpTransport — error response safety', () => {
           },
         },
       ]);
+    } finally {
+      await shutdown(hooked);
+    }
+  });
+
+  it('отказ, которого не увидел бренд слота, снимает граница', async () => {
+    const CardDeclined = makeFail('payment_required:card_declined', {
+      message: 'Card declined',
+    });
+
+    // Тип переменной скрывает от проверки слота, какие отказы возвращает
+    // хендлер: бренд видит всё множество кодов и молчит. Декларация
+    // компилируется, и единственной гарантией остаётся граница.
+    const handler: HandlerFn<
+      AnyPayload,
+      AnyOutput,
+      AnyInput,
+      AnyFail
+    > = async () => CardDeclined();
+
+    const hooked = makeTransport();
+    routesOf(hooked).push(
+      httpEndpoint({
+        method: 'POST',
+        path: '/brand-blind',
+        pipeline: makePipeline(),
+        handler,
+      }),
+    );
+    const url = await listen(hooked);
+
+    try {
+      const response = await fetch(`${url}/brand-blind`, { method: 'POST' });
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toMatchObject({ code: 'internal_error' });
     } finally {
       await shutdown(hooked);
     }

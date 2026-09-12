@@ -1,6 +1,6 @@
 # 13. Выделить вторую область и не дать ей лезть в чужие сервисы
 
-> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `app-with-http` (2026-09-12).
 > Целевое описание: [design/composition.md](../design/composition.md),
 > разделы «Граница фичи» и «Плагин», и
 > [design/operations.md](../design/operations.md). Почему так: записи
@@ -218,8 +218,7 @@ class CreateUserHandler {
   }
 }
 
-export const CreateUser = httpEndpoint({
-  operation: CreateUserOperation,
+export const CreateUser = httpEndpoint.implement(CreateUserOperation, {
   pipeline: authed,
   handler: CreateUserHandler,
 });
@@ -259,12 +258,11 @@ export const CreateUser = makeRequest({
 });
 ```
 
-Реализация с формой `operation:` сверяет два множества: каждый отказ,
-объявленный слоями её пайплайна, обязан входить в `errors:` операции.
-Слой `authed` объявляет `Unauthorized`, поэтому операция перечисляет его.
-Если бы не перечисляла, слот `pipeline` не скомпилировался бы, а
-`httpEndpoint` бросил бы ошибку при создании декларации с недостающими
-кодами.
+`httpEndpoint.implement` сверяет два множества: каждый отказ, объявленный
+слоями её пайплайна, обязан входить в `errors:` операции. Слой `authed`
+объявляет `Unauthorized`, поэтому операция перечисляет его. Если бы не
+перечисляла, слот `pipeline` не скомпилировался бы, а конструктор бросил
+бы ошибку при создании декларации с недостающими кодами.
 
 Шестая регистрация подряд получает `429`:
 

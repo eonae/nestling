@@ -190,8 +190,7 @@ const GetUser = makeRequest({
   output: User,
 });
 
-const CreateUserRoute = httpEndpoint({
-  operation: CreateUser,
+const CreateUserRoute = httpEndpoint.implement(CreateUser, {
   handler: async ({ email, dryRun }) => {
     if (email === 'taken@example.com') {
       return EmailTaken({ email });
@@ -206,8 +205,7 @@ const CreateUserRoute = httpEndpoint({
   },
 });
 
-const GetUserRoute = httpEndpoint({
-  operation: GetUser,
+const GetUserRoute = httpEndpoint.implement(GetUser, {
   handler: async ({ id }) =>
     new Promise<Ok<{ id: string; email: string }>>((resolve) => {
       // Достаточно медленно, чтобы успеть отменить
