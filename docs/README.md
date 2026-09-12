@@ -102,7 +102,7 @@ design-доки описывают **только целевое V1** (как б
 | [`@nestlingjs/outbox`](../packages/nestling.outbox/) | Транзакционный emit: событие пишется в базу транзакцией запроса, relay публикует его после коммита |
 | [`@nestlingjs/subscriptions`](../packages/nestling.subscriptions/) | Реестр активных подписок: список, принудительное закрытие, наблюдение |
 | [`@nestlingjs/viz`](../packages/nestling.viz/) | Интерактивная визуализация графа зависимостей в браузере |
-| [`@nestlingjs/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, подсказки по декларациям endpoint'ов |
+| [`@nestlingjs/eslint-plugin`](../packages/nestling.eslint-plugin/) | Правила ESLint: граница модуля по баррелю, слой в декларации endpoint'а, список зависимостей класса против параметров конструктора |
 | [`@nestlingjs/models`](../packages/nestling.models/) | Модели ввода-вывода на zod со сверкой с TypeScript-типом |
 
 Внутренние — их имя начинается с `common.`:
