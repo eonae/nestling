@@ -1,10 +1,16 @@
 /**
- * Разложение входа: одна конвертация — и разбор по bind-карте.
+ * Разложение входа: конвертация — и разбор по bind-карте.
  *
  * Карта уже отвечает на вопрос «где живёт каждое поле» (её развернул
  * конструктор декларации либо `makeRequest`), поэтому генератору остаётся
  * применить её к **конвертированной** схеме: `parameter` и `requestBody`
  * это две проекции одного значения, а не два независимых описания.
+ *
+ * Конвертаций до двух. Прогон `io: 'input'` описывает вход как получено по
+ * сети — из него берутся тело и обязательность параметров. Прогон
+ * `io: 'output'` описывает вход после разбора — из него берётся схема
+ * параметра, когда формы расходятся. Поле `z.stringbool()` в query приходит
+ * строкой и разбирается в `boolean`, и параметру верна вторая форма.
  *
  * Здесь же появляются две диагностики, которых раньше не было нигде:
  * path-параметр, которому нет свойства в схеме, и `bind`-пометка на
@@ -12,9 +18,11 @@
  * до вендор-конвертера структуру схемы узнать было нечем.
  */
 
-import type { ConvertContext } from './schema.js';
+import { Diagnostics } from './diagnostics.js';
+import type { ConvertContext, ObjectSchema } from './schema.js';
 import { convertLeaf, readObjectSchema } from './schema.js';
 import type {
+  JsonSchemaObject,
   JsonValue,
   OpenApiParameter,
   OpenApiRequestBody,
@@ -75,8 +83,25 @@ export function planInput(
     return NOTHING;
   }
 
+  // Разобранная форма — только там, где есть что описывать: у endpoint'а
+  // без параметров второй прогон конвертера ничего не даёт. Отказ прогона
+  // штатен (`transform` в направлении `output` непредставим), поэтому его
+  // диагностики уходят в выброшенную копилку: вход уже описан первым
+  // прогоном, и endpoint остаётся документируемым
+  const parsed =
+    object && takesParameters(binding)
+      ? readObjectSchema(
+          convertLeaf(
+            structural,
+            slot,
+            { ...context, diagnostics: new Diagnostics() },
+            'output',
+          ),
+        )
+      : undefined;
+
   const taken = new Set<string>();
-  const parameters = planParameters(binding, object, taken, context);
+  const parameters = planParameters(binding, object, parsed, taken, context);
 
   const remaining: Decomposed | undefined = object && {
     properties: Object.fromEntries(
@@ -91,6 +116,14 @@ export function planInput(
   return requestBody === undefined
     ? { parameters }
     : { parameters, requestBody };
+}
+
+/** Выносит ли карта хотя бы одно поле в путь или в query */
+function takesParameters(binding: HttpBinding): boolean {
+  return (
+    binding.rest === 'query' ||
+    Object.values(binding.fields).some((placement) => placement.in !== 'body')
+  );
 }
 
 /** Диагностика «выносить некуда»: та же ситуация, что ловит `assertBindable` */
@@ -117,11 +150,17 @@ function reportUndecomposable(
  * Параметры операции: явные размещения карты плюс правило `rest`.
  *
  * Помеченные вынесенными записываются в `taken` — из тела они вычитаются
- * и из `properties`, и из `required`.
+ * и из `properties`, и из `required`. Считаются `taken`, `required` и
+ * вычитание по входной форме: тело описывается только ею, а набор свойств
+ * у двух форм может не совпадать.
+ *
+ * @param object - Входная форма: что приходит по сети
+ * @param parsed - Разобранная форма; `undefined` — второго прогона не было
  */
 function planParameters(
   binding: HttpBinding,
-  object: ReturnType<typeof readObjectSchema>,
+  object: ObjectSchema | undefined,
+  parsed: ObjectSchema | undefined,
   taken: Set<string>,
   context: ConvertContext,
 ): OpenApiParameter[] {
@@ -151,9 +190,11 @@ function planParameters(
 
     taken.add(name);
 
+    const schema = parameterSchema(property, parsed?.properties[name]);
+
     parameters.push(
       placement.in === 'path'
-        ? { name, in: 'path', required: true, schema: property }
+        ? { name, in: 'path', required: true, schema }
         : {
             name,
             in: 'query',
@@ -162,8 +203,8 @@ function planParameters(
             explode: true,
             schema:
               placement.multiple === true
-                ? { type: 'array', items: property }
-                : property,
+                ? { type: 'array', items: schema }
+                : schema,
           },
     );
   }
@@ -185,11 +226,62 @@ function planParameters(
       required: object.required.includes(name),
       style: 'form',
       explode: true,
-      schema: property,
+      schema: parameterSchema(property, parsed?.properties[name]),
     });
   }
 
   return parameters;
+}
+
+/** Типы разобранной формы, которым query-параметр соответствует лучше строки */
+const SCALAR_TYPES: ReadonlySet<string> = new Set([
+  'boolean',
+  'number',
+  'integer',
+]);
+
+/**
+ * Схема параметра: свойство разобранной формы, если оно скалярное.
+ *
+ * Расхождение форм означает разбор строки: `type: 'string'` на входе и
+ * скаляр после разбора — это `z.stringbool()` или `z.coerce.*` за
+ * строковой схемой. Параметру верна разобранная форма: читатель документа
+ * узнаёт, какое значение стоит за строкой в query.
+ *
+ * Свойство переносится целиком, вместе с `description`, `default` и
+ * ограничениями: строковые ограничения входной формы (`minLength`,
+ * `pattern`) с числовым `type` дали бы схему, которой не соответствует ни
+ * одно значение. Массив и объект правилу не подходят — их сериализация в
+ * query другая; `format` и `pattern` разобранной формы его не касаются,
+ * потому что тип они не меняют.
+ */
+function parameterSchema(
+  input: JsonValue,
+  parsed: JsonValue | undefined,
+): JsonValue {
+  if (typeOf(input) !== 'string' || parsed === undefined) {
+    return input;
+  }
+
+  const type = typeOf(parsed);
+
+  return type !== undefined && SCALAR_TYPES.has(type) ? parsed : input;
+}
+
+/** Читает `type` свойства — или `undefined`, если свойство не объект схемы */
+function typeOf(property: JsonValue | undefined): string | undefined {
+  if (
+    property === null ||
+    property === undefined ||
+    typeof property !== 'object' ||
+    Array.isArray(property)
+  ) {
+    return undefined;
+  }
+
+  const type = (property as JsonSchemaObject).type;
+
+  return typeof type === 'string' ? type : undefined;
 }
 
 /**
