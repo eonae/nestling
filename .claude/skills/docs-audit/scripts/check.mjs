@@ -15,6 +15,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
 import { collectPackageExports } from './package-exports.mjs';
+import { PACKAGES_OUTLINE, SECTIONS } from '../../../../scripts/site/sections.mjs';
 
 const ROOT = process.cwd();
 const DOCS = join(ROOT, 'docs');
@@ -560,6 +561,89 @@ for (const dir of packageDirs) {
         `подпуть «${s.key}»: оператор «export * from '${spec}'» — перечислите имена поимённо`);
     }
   }
+}
+
+// ── 11. Источники сайта: состав оглавлений и вывод сборки ───────────────────
+// Сборка сайта проверяет то же самое, но `docs:audit` запускается без неё и
+// без node_modules генератора. Источники читаются из scripts/site/sections.mjs:
+// второго списка источников не существует.
+
+const SITE_OUT = join(DOCS, '.site');
+
+/** Ссылки `](./имя.md)` в оглавлении: состав источника-папки */
+const listedFiles = (text) =>
+  new Set([...text.matchAll(/\]\(\.\/([^)#/]+\.md)/g)].map((m) => m[1]));
+
+for (const source of SECTIONS) {
+  const path = join(ROOT, source.path);
+
+  if (source.kind === 'home' || source.kind === 'page') {
+    if (!existsSync(path)) {
+      add('ERROR', 'site-source', path,
+        `источник сайта не найден: sections.mjs называет ${source.path}`);
+    }
+    continue;
+  }
+
+  if (source.kind === 'folder') {
+    const tocPath = join(path, 'README.md');
+    if (!existsSync(tocPath)) {
+      add('ERROR', 'site-source', path, 'нет оглавления README.md');
+      continue;
+    }
+    const listed = listedFiles(readFileSync(tocPath, 'utf8'));
+    const files = mdFiles(path).filter((f) => f !== 'README.md');
+    for (const f of files) {
+      if (!listed.has(f)) {
+        add('ERROR', 'site-source', tocPath,
+          `${relative(ROOT, join(path, f))} не назван в оглавлении источника`);
+      }
+    }
+    for (const f of listed) {
+      if (!files.includes(f)) {
+        add('ERROR', 'site-source', tocPath,
+          `оглавление называет ${relative(ROOT, join(path, f))}, которого нет`);
+      }
+    }
+    continue;
+  }
+
+  if (source.kind === 'packages') {
+    const outlinePath = join(ROOT, PACKAGES_OUTLINE);
+    const outline = readFileSync(outlinePath, 'utf8');
+    const start = outline.indexOf('\n## Пакеты\n');
+    const section = start === -1
+      ? ''
+      : outline.slice(start + 1).split(/\n##\s(?!#)/)[0];
+    const listed = new Set(
+      [...section.matchAll(/\]\(\.\.\/packages\/([\w.-]+)\/?\)/g)].map((m) => m[1]),
+    );
+    const dirs = packageDirs.map((d) => relative(PACKAGES, d));
+
+    if (start === -1) {
+      add('ERROR', 'site-source', outlinePath, 'нет раздела «## Пакеты»');
+    }
+    for (const d of dirs) {
+      if (!listed.has(d)) {
+        add('ERROR', 'site-source', outlinePath,
+          `packages/${d} не назван в разделе «Пакеты» — каталог не попадёт в справочник`);
+      }
+    }
+    for (const d of listed) {
+      if (!dirs.includes(d)) {
+        add('ERROR', 'site-source', outlinePath,
+          `раздел «Пакеты» называет packages/${d}, которого нет`);
+      }
+    }
+  }
+}
+
+// Вывод сборки — не источник истины: под git он рассинхронизируется с текстом
+const tracked = git('ls-files', '--', 'docs/.site');
+if (tracked) {
+  const files = tracked.split('\n').filter(Boolean);
+  add('ERROR', 'site-output', SITE_OUT,
+    `вывод сборки отслеживается git (${files.length}): ${files.slice(0, 3).join(', ')}`);
 }
 
 // ── Вывод ────────────────────────────────────────────────────────────────────
