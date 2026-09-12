@@ -127,8 +127,8 @@ MAY вернуть отказ, объявленный слоем.
 
 ### Requirement: Форма с операцией требует вхождения отказов пайплайна в `errors:` операции
 
-`httpEndpoint({ operation, pipeline })` и `implement(Operation,
-{ pipeline })` SHALL требовать, чтобы каждое определение из множества
+`httpEndpoint.implement(Operation, { pipeline })` и
+`implement(Operation, { pipeline })` SHALL требовать, чтобы каждое определение из множества
 объявленных отказов пайплайна (за вычетом отказов ядра) входило в
 `errors:` операции. Нарушение SHALL быть ошибкой компиляции в точке
 декларации: слот `pipeline` принимает литерал
@@ -141,7 +141,7 @@ MAY вернуть отказ, объявленный слоем.
 #### Scenario: Операция не объявляет отказ слоя
 
 - **WHEN** операция `users.get` объявляет `errors: [UserNotFound]`, а
-  реализация объявлена `httpEndpoint({ operation: GetUser, pipeline: authed })`,
+  реализация объявлена `httpEndpoint.implement(GetUser, { pipeline: authed })`,
   где `authed` объявляет `Unauthorized`
 - **THEN** это ошибка компиляции на слоте `pipeline`, называющая
   `unauthorized` и предлагающая добавить `Unauthorized` в `errors:`

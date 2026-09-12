@@ -136,8 +136,8 @@ SHALL проверяться тестом.
 
 #### Scenario: Имя операции берётся с операции
 
-- **WHEN** документируется `httpEndpoint({ operation: CreateUser })` с
-  операцией имени `users.create`
+- **WHEN** документируется `httpEndpoint.implement(CreateUser, { handler })`
+  с операцией имени `users.create`
 - **THEN** `operationId` операции равен `users.create`
 
 ### Requirement: Media types выводятся из форм io
