@@ -98,6 +98,13 @@ After completing all artifacts, summarize:
 - List of artifacts created with brief descriptions
 - What's ready: "All artifacts created! Ready for implementation."
 - Prompt: "Run `/opsx:apply` to start implementing."
+- Rename offer, as a copy-ready line on its own — the session cannot rename itself:
+
+  ```text
+  /rename change/<name>
+  ```
+
+  The name lets the user and the Merger session tell this session apart from the others.
 
 **Artifact Creation Guidelines**
 

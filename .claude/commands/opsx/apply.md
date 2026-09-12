@@ -30,6 +30,14 @@ and tell the user. Dirty worktree: skip the rebase and say so. Never touch
 
    Always announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
 
+   The session cannot rename itself, so offer the user a copy-ready line on its own, right after the announcement:
+
+   ```text
+   /rename change/<name>
+   ```
+
+   The name lets the user and the Merger session tell this session apart from the others. Skip the offer when the session already has that name (the header of `ListAgents` names the current session).
+
 2. **Check status to understand the schema**
    ```bash
    openspec status --change "<name>" --json

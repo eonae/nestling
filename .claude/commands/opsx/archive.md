@@ -30,6 +30,14 @@ and tell the user. Dirty worktree: skip the rebase and say so. Never touch
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
+   Once the change is known, announce "Using change: <name>". The session cannot rename itself, so offer the user a copy-ready line on its own, right after the announcement:
+
+   ```text
+   /rename change/<name>
+   ```
+
+   The name lets the user and the Merger session tell this session apart from the others. Skip the offer when the session already has that name (the header of `ListAgents` names the current session).
+
 2. **Check artifact completion status**
 
    Run `openspec status --change "<name>" --json` to check artifact completion.
