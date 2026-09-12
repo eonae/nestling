@@ -13,10 +13,12 @@
  * `durable`.
  */
 
-import type { HttpBinding } from './http/binding.js';
-import { assertHttpPath, computeHttpBinding } from './http/binding.js';
-import type { OperationHttp } from './http/section.js';
-import { parseHttpSection } from './http/section.js';
+import type { HttpBinding, OperationHttp } from './http/index.js';
+import {
+  assertHttpPath,
+  computeHttpBinding,
+  parseHttpSection,
+} from './http/index.js';
 import type {
   AnyOutput,
   AnyPayload,

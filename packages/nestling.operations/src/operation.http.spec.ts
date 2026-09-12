@@ -3,7 +3,7 @@
  * создании, проверки и независимость от шины.
  */
 
-import { body, computeHttpBinding, query } from './http/binding.js';
+import { body, computeHttpBinding, query } from './http/index.js';
 import { events, multipart, stream, upload } from './io/index.js';
 import { makeFail } from './make-fail.js';
 import { makeCommand, makeEvent, makeRequest } from './operation.js';

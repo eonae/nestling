@@ -15,8 +15,8 @@
  * (path-параметры и пометки) или общее `rest`.
  */
 
-import { describeForm, isPrimitiveLeaf } from '../io/forms.js';
-import type { BindableFields } from '../io/io.js';
+import type { BindableFields } from '../io/index.js';
+import { describeForm, isPrimitiveLeaf } from '../io/index.js';
 
 /**
  * HTTP-метод: методы HTTP/1.1.
