@@ -919,22 +919,22 @@ endpoints, контракты, конфиг-как-данные. Граница 
 
 - ~~Recipe / reloadable-watching / секция-vs-unbound~~ — **РЕШЕНО 2026-07-08**
   (финал в [discussions/05 §15](../history/discussions/05-modular-monolith-features-ports.md)):
-  - **источники — не провайдеры**, а объекты `ConfigSource { get; init?; close?; watch? }`
+  - ~~**источники — не провайдеры**, а объекты `ConfigSource { get; init?; close?; watch? }`
     в одной приватной читалке (kernel); env — база; свои координаты (`path`, `addr`)
     источник читает из примордиального `process.env` в `init()` — единственный контакт
-    источника с `process.env`; цикла нет (env — floor);
+    источника с `process.env`; цикла нет (env — floor);~~ — РЕШЕНО 2026-07-31 — change `config-module` (#9): `ConfigSource` в `design/config.md`.
   - ~~**приватность конфига** — `configs: [X]` = владение; чужой инжект → ошибка на
     `build()` (структурная, ловится в любом тесте/CI); токен *referenceable* в привязке,
     но не *injectable* чужим (право зависит от позиции: привязка vs deps)~~ —
     **СУПЕРСИД 2026-07-10** (keys-capability: приватный токен + экспортируемый
     хэндл ключей, `configs:` удалён — см. запись ниже);
-  - **привязка в корне** — плоский список `config: [[vault(), [Cfg | '*_KEY']]]`,
+  - ~~**привязка в корне** — плоский список `config: [[vault(), [Cfg | '*_KEY']]]`,
     env неявный пол, `default` не пишем, порядок = приоритет; прогрессивно
     (`.env` → ничего); *(цель привязки с 2026-07-10 — keys-хэндлы/глобы, не
-    токены; плоский список/приоритет/прогрессивность — в силе)*;
-  - **reloadable** — `makeConfig.reloadable`, read-latest (геттер) без подписки,
+    токены; плоский список/приоритет/прогрессивность — в силе)*;~~ — РЕШЕНО 2026-07-31 — change `config-module` (#9): `config:` в корне.
+  - ~~**reloadable** — `makeConfig.reloadable`, read-latest (геттер) без подписки,
     `onChange(signal, cb)` на `Topic`+`AbortSignal` (живой хэндл, ноль зависимостей),
-    невалидный reload → keep-last + warn;
+    невалидный reload → keep-last + warn;~~ — РЕШЕНО 2026-07-31 — change `config-module` (#9): `makeConfig.reloadable`.
   - **доки** — из реестра свойств, тег фичи + флаг (core / под-флагом), без значений/сети.
 - ~~Ambient policy-check («каждый pipeline содержит tracing»)~~ — **РЕШЕНО
   2026-07-14**, реализовано change'ом #28 `policy-check`: инвариант
@@ -1216,7 +1216,7 @@ rsdk-идея `@Throws`, но как контракт, а не конвенци�
 
 - `new Ok(fail)` типами не запрещён и уедет как успех — закрыть типом
   (`TValue extends Fail ? never : …`) или зафиксировать как «не делайте так».
-- `Fail` посреди стрима — к streaming-v2, сейчас не обещаем.
+- ~~`Fail` посреди стрима — к streaming-v2, сейчас не обещаем.~~ — РЕШЕНО 2026-07-31 — change `streaming-v2` (#6): раздел «Отказ посреди потока» в `design/streaming.md`.
 - ~~Точный API `defineFail`: форма message-фабрики, связь details-схемы с
   типом аргументов.~~ — РЕШЕНО 2026-09-03 — запись «Код отказа: категория и уточнение; `makeFail`».
 - ~~Форма привязки `E` к классовому endpoint'у~~ — СНЯТО: классовый стиль
@@ -1634,7 +1634,7 @@ using`), `vars()`, `stub()`, `familyOverride()`, `.check()`, `testModule()`.
 - ~~Форма `overrides` для членов семейств (`Cfg('KEY')` точечно vs только
   рецепт).~~ — РЕШЕНО change'ом `testing-package`: точечно поверх
   материализованного члена **и** `familyOverride` для рецепта целиком.
-- `app.port(Contract)` — типизированный порт для теста потребителя.
+- ~~`app.port(Contract)` — типизированный порт для теста потребителя.~~ — РЕШЕНО 2026-07-31 — change `testing-package` (#18): `app.call`/`app.emit` по схемам контракта.
 - Включение `"testing"`-condition в vitest/jest из коробки. Частично снят:
   рецепт для обоих раннеров есть в [гайде](../history/superseded/guides/testing.md), репо
   включает условие в `jest.config.base.js`; автоматизации не делаем.
@@ -1781,7 +1781,7 @@ per-validator resolvers у hono-openapi, конвертеры oRPC.
   `assemble` (так показано в preview) vs обычный модуль/фича.~~ —
   **РЕШЕНО 2026-08-01**: обычный модуль в `modules:` (см. блок реализации
   ниже).
-- AsyncAPI: форма io-декларации stream/events для доков (после roadmap 6).
+- ~~AsyncAPI: форма io-декларации stream/events для доков (после roadmap 6).~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-08-01]](./deferred.md) «Content-negotiation клиента».
 
 ### РЕАЛИЗОВАНО 2026-08-01 — change `openapi` (#20 roadmap)
 
@@ -2028,9 +2028,9 @@ const result = await api.createUser({ ... });
 
 ### Открытые вопросы
 
-- **Streaming-клиент**: `stream` → NDJSON `AsyncIterable<T>`, `events` → SSE
+- ~~**Streaming-клиент**: `stream` → NDJSON `AsyncIterable<T>`, `events` → SSE
   с реконнектом по `Last-Event-ID` — v2, проектировать вместе с AsyncAPI
-  (после roadmap 6).
+  (после roadmap 6).~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-08-01]](./deferred.md) «Content-negotiation клиента».
 - ~~Валидация ответа: по умолчанию или opt-in~~ — РЕШЕНО: по умолчанию, с
   явным opt-out `validateOutput: false`; см. [2026-08-01] «Клиенты из
   контрактов: реализация».
@@ -2092,10 +2092,10 @@ location transparency без эксплуатационного профиля �
 
 ### Открытые вопросы
 
-- Дефолтный deadline: отсутствует (бюджет только явный) или framework default.
-- Где живёт снапшот схем для сравнения: файл в репо или внешний registry.
-- `idempotencyKey` для `request`-контрактов (retry POST-подобных запросов) —
-  пока только `command`.
+- ~~Дефолтный deadline: отсутствует (бюджет только явный) или framework default.~~ — РЕШЕНО 2026-07-31 — change `port-deadline-idempotency` (#27): бюджета по умолчанию нет, только явный.
+- ~~Где живёт снапшот схем для сравнения: файл в репо или внешний registry.~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-09-12]](./deferred.md) «Снапшот схем контрактов: файл в репозитории или registry».
+- ~~`idempotencyKey` для `request`-контрактов (retry POST-подобных запросов) —
+  пока только `command`.~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-08-01]](./deferred.md) «`idempotencyKey` и `deadline` по HTTP».
 
 ---
 
@@ -2356,8 +2356,8 @@ DI/lifecycle/модульный монолит» — пуста.
 
 ### Открытые вопросы
 
-- Перегрузка типов `handle` по наличию `deps` (инференс между соседними
-  полями объекта) — прототип до фиксации API.
+- ~~Перегрузка типов `handle` по наличию `deps` (инференс между соседними
+  полями объекта) — прототип до фиксации API.~~ — РЕШЕНО 2026-09-03 — записи «Поле `handler`» и «Две формы хендлера», change `handler-two-forms` (#33).
 - ~~Имена конструкторов: `httpEndpoint` vs `makeHttpEndpoint` (конвенция
   `make*`).~~ — РЕШЕНО — `httpEndpoint` без `make*` (change `endpoint-model`, #24), статики по HTTP-методу — change `http-method-constructors` (#72).
 - `.auto` в `deps` endpoint'а: потребитель = синтетический id ручки
@@ -2524,7 +2524,7 @@ tsserver, хрупкость при обновлениях TS. Без специ
 - NATS (к change 12): гипотеза — вся inbound-поверхность = контракты
   (queue-group-воркеры) + сантехника (wildcard-аудиторы), `natsEndpoint` как
   третье понятие не нужен. Проверить при реализации.
-- Streaming через шину — v2 (после 6, проектировать вместе с AsyncAPI).
+- ~~Streaming через шину — v2 (после 6, проектировать вместе с AsyncAPI).~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-08-01]](./deferred.md) «Content-negotiation клиента».
 
 ---
 
@@ -2980,9 +2980,9 @@ export const OrdersConfig = makeConfig('orders', {
 
 ### Открытые вопросы
 
-- **`idempotencyKey` для `request`** (ретрай POST-подобных вызовов)
+- ~~**`idempotencyKey` для `request`** (ретрай POST-подобных вызовов)
   остаётся открытым: форма `MetaOf<C>` выбрана так, что расширение вида не
-  ломает call-site.
+  ломает call-site.~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-08-01]](./deferred.md) «`idempotencyKey` и `deadline` по HTTP».
 - **Собственный статус бюджета на проводе, отличный от 504** («мой бюджет
   истёк» против «апстрим не ответил») — вопрос к #12, когда появится
   настоящий remote hop.
@@ -3097,10 +3097,10 @@ export const OrdersConfig = makeConfig('orders', {
 
 ### Открытые вопросы
 
-- **Где живёт снапшот** — файл в репозитории или внешний registry. Перенесено
+- ~~**Где живёт снапшот** — файл в репозитории или внешний registry. Перенесено
   из [2026-07-13] без изменений: форма API выбрана так, чтобы ответ не менял
   ни одну сигнатуру — baseline приходит **значением**, читает его
-  пользователь.
+  пользователь.~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-09-12]](./deferred.md) «Снапшот схем контрактов: файл в репозитории или registry».
 - **Стоит ли расширять разбираемое подмножество JSON Schema** (`oneOf` как
   сумма, `allOf` как пересечение) — решать после #20, когда станет видно,
   что конвертеры реально порождают.
@@ -3387,13 +3387,13 @@ webhook-реализацию. Тот же компромисс уже приня
 
 ### Открытые вопросы
 
-- **`idempotencyKey` по HTTP** — нужен согласованный слот (заголовок
+- ~~**`idempotencyKey` по HTTP** — нужен согласованный слот (заголовок
   `Idempotency-Key`?) и его чтение серверной границей; см.
-  [deferred.md](./deferred.md).
-- **Провоз `deadline` по проводу** — у портов через NATS относительный
-  timeout уже есть, для HTTP слота нет; см. [deferred.md](./deferred.md).
-- **Content-negotiation**: v1 говорит только JSON, контракт с `'binary'`/
-  `'text'` телом клиент отвергает; см. [deferred.md](./deferred.md).
+  [deferred.md](./deferred.md).~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-08-01]](./deferred.md) «`idempotencyKey` и `deadline` по HTTP».
+- ~~**Провоз `deadline` по проводу** — у портов через NATS относительный
+  timeout уже есть, для HTTP слота нет; см. [deferred.md](./deferred.md).~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-08-01]](./deferred.md) «`idempotencyKey` и `deadline` по HTTP».
+- ~~**Content-negotiation**: v1 говорит только JSON, контракт с `'binary'`/
+  `'text'` телом клиент отвергает; см. [deferred.md](./deferred.md).~~ — СВЕДЕНО 2026-09-12 в [deferred [2026-08-01]](./deferred.md) «Content-negotiation клиента».
 
 ---
 
