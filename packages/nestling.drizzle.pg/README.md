@@ -8,7 +8,8 @@
 
 > 🚧 Активная разработка, API может меняться.
 > Дизайн: [`docs/design/persistence.md`](../../docs/design/persistence.md).
-> Гайд: [глава 27. База данных и транзакция](../../docs/guide/27-database-and-transaction.md).
+> Гайд: [глава 11. Писать в базу транзакцией
+> запроса](../../docs/guide/11-database.md).
 
 ## Установка
 

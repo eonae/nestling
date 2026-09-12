@@ -128,7 +128,7 @@ export class DbUsersRepository implements UsersRepository {
 `db.connection` — DI-токен соединения с PostgreSQL. Соединение объявляет
 пакет `@nestlingjs/drizzle.pg` одним вызовом `drizzlePg({ schema })`; как
 это устроено и почему изменяющий метод пишет транзакцией запроса, а не
-соединением из пула, — [глава 27](./27-database-and-transaction.md).
+соединением из пула, — [глава 11](./11-database.md).
 
 Декоратор называет **роль** класса, а не способность быть зависимостью.
 Ролей три: `@Component` — обычный класс, `@Resource` — то, что надо

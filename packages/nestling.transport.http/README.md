@@ -10,7 +10,7 @@ NDJSON для `stream(T)`, SSE для `events(T)`.
 > выбирает: данные проверяет `@nestlingjs/app`.
 > Дизайн: [`docs/design/transports.md`](../../docs/design/transports.md).
 > Гайд: [глава 1. Поднять сервис, который отвечает на запрос](../../docs/guide/01-first-service.md),
-> [глава 11. Файлы и потоки](../../docs/guide/11-files-and-streams.md).
+> [глава 12. Файлы и потоки](../../docs/guide/12-files-and-streams.md).
 
 ## Установка
 

@@ -6,62 +6,62 @@
 
 ## 1. Переезд файлов
 
-- [ ] 1.1 Создать `docs/recipes/` и перенести `git mv` семь глав части 5:
+- [x] 1.1 Создать `docs/recipes/` и перенести `git mv` семь глав части 5:
       `20-webhook.md` → `webhook.md`, `21-cli.md` → `cli.md`,
       `22-token-families.md` → `token-families.md`,
       `23-config-sources.md` → `config-sources.md`, `24-ops.md` →
       `ops.md`, `25-standalone.md` → `standalone.md`,
       `26-extending.md` → `extending.md`
-- [ ] 1.2 Перенести `git mv docs/guide/appendix-a-alternatives.md
+- [x] 1.2 Перенести `git mv docs/guide/appendix-a-alternatives.md
       docs/recipes/alternatives.md`
-- [ ] 1.3 Перенести `git mv docs/guide/appendix-b-from-nestjs.md
+- [x] 1.3 Перенести `git mv docs/guide/appendix-b-from-nestjs.md
       docs/from-nestjs.md`
-- [ ] 1.4 Переименовать главы пути `git mv` в порядке убывания номера:
+- [x] 1.4 Переименовать главы пути `git mv` в порядке убывания номера:
       `19-compatibility` → `21-compatibility`, `18-split` → `20-split`,
       `17-select` → `19-select`, `16-testing-features` →
       `18-testing-features`, `15-live-feed` → `17-live-feed`,
       `14-events` → `15-events`, `13-features` → `14-features`,
       `12-openapi-and-client` → `13-openapi-and-client`,
       `11-files-and-streams` → `12-files-and-streams`
-- [ ] 1.5 Снять номер с заголовка первого уровня у восьми рецептов:
+- [x] 1.5 Снять номер с заголовка первого уровня у восьми рецептов:
       `# 20. Webhook с проверкой подписи` → `# Webhook с проверкой
       подписи`; у `alternatives.md` — `# Альтернативные формы`
-- [ ] 1.6 Обновить номер в заголовке первого уровня у девяти
+- [x] 1.6 Обновить номер в заголовке первого уровня у девяти
       переименованных глав пути
 
 ## 2. Деление главы о базе и транзакции
 
-- [ ] 2.1 Создать `docs/guide/11-database.md` из разделов главы 27:
+- [x] 2.1 Создать `docs/guide/11-database.md` из разделов главы 27:
       соединение, транзакция пайплайном, репозиторий, предпосылка на
       сборке без абзаца про плагин outbox'а, схема вне процесса
-- [ ] 2.2 Создать `docs/guide/16-durable-events.md` из разделов: событие
+- [x] 2.2 Создать `docs/guide/16-durable-events.md` из разделов: событие
       в ту же транзакцию, кто отправляет запись, повтор не доходит до
       хендлера, тест не ждёт таймера
-- [ ] 2.3 Разделить раздел «Что настраивается»: секция `database` в 11,
+- [x] 2.3 Разделить раздел «Что настраивается»: секция `database` в 11,
       секции `outbox` и `inbox` в 16
-- [ ] 2.4 Разделить раздел «Что осталось за кадром» по теме абзаца
-- [ ] 2.5 Написать вступление и раздел «Проверка» каждой половине; плашка
+- [x] 2.4 Разделить раздел «Что осталось за кадром» по теме абзаца
+- [x] 2.5 Написать вступление и раздел «Проверка» каждой половине; плашка
       «сверено с кодом `users-service`» получает дату сверки
-- [ ] 2.6 Удалить `docs/guide/27-database-and-transaction.md`
+- [x] 2.6 Удалить `docs/guide/27-database-and-transaction.md`
 
 ## 3. Документы корня `docs/`
 
-- [ ] 3.1 Вынести раздел «Что проверяется до первого запроса» из
+- [x] 3.1 Вынести раздел «Что проверяется до первого запроса» из
       `docs/guide/README.md` в `docs/guarantees.md`; номера глав в
       таблице — целевые
-- [ ] 3.2 Переписать заголовок и плашку `docs/from-nestjs.md`: приложения
+- [x] 3.2 Переписать заголовок и плашку `docs/from-nestjs.md`: приложения
       с буквой больше нет
-- [ ] 3.3 Обновить карту папок и правило 7 в `docs/README.md`: обе папки
+- [x] 3.3 Обновить карту папок и правило 7 в `docs/README.md`: обе папки
       жанра и оба документа корня
 
 ## 4. Оглавления
 
-- [ ] 4.1 Переписать `docs/guide/README.md`: две части вместо пяти,
+- [x] 4.1 Переписать `docs/guide/README.md`: две части вместо пяти,
       таблица глав с целевыми номерами, ссылки на `../guarantees.md`,
       `../from-nestjs.md` и `../recipes/README.md`
-- [ ] 4.2 Обновить карту понятий: понятия рецептов из неё уходят,
+- [x] 4.2 Обновить карту понятий: понятия рецептов из неё уходят,
       понятия обеих половин главы о базе называют новые главы
-- [ ] 4.3 Написать `docs/recipes/README.md`: одна таблица из восьми строк
+- [x] 4.3 Написать `docs/recipes/README.md`: одна таблица из восьми строк
       в порядке от webhook к расширению ядра, вводный абзац о том, что
       рецепт самостоятелен
 
@@ -70,19 +70,19 @@
 Правка механическая: цель каждой ссылки известна из таблицы решения 2.
 Раздел стоит отдавать паре дешёвых агентов по готовому списку замен.
 
-- [ ] 5.1 Ссылки внутри `docs/guide/`: 250 вхождений вида `./NN-имя.md`,
+- [x] 5.1 Ссылки внутри `docs/guide/`: 250 вхождений вида `./NN-имя.md`,
       из них на рецепты — `../recipes/имя.md`
-- [ ] 5.2 Ссылки внутри `docs/recipes/`: на главы — `../guide/NN-имя.md`,
+- [x] 5.2 Ссылки внутри `docs/recipes/`: на главы — `../guide/NN-имя.md`,
       на соседний рецепт — `./имя.md`
-- [ ] 5.3 Номера глав в прозе: каждое вхождение слова «глав» рядом с
+- [x] 5.3 Номера глав в прозе: каждое вхождение слова «глав» рядом с
       числом сверяется со ссылкой, которая стоит рядом
-- [ ] 5.4 README пакетов, 13 файлов с изменившейся целью: `client`,
+- [x] 5.4 README пакетов, 13 файлов с изменившейся целью: `client`,
       `container`, `drizzle.pg`, `inbox`, `openapi`, `openapi.zod`,
       `operations`, `outbox`, `subscriptions`, `transport.cli`,
       `transport.http`, `transport.nats`, `viz`
-- [ ] 5.5 `docs/design/streaming.md` → `../recipes/ops.md`,
+- [x] 5.5 `docs/design/streaming.md` → `../recipes/ops.md`,
       `docs/design/principles.md` → `../recipes/extending.md`
-- [ ] 5.6 Скиллы: `.claude/skills/docs-style/SKILL.md` ссылается на
+- [x] 5.6 Скиллы: `.claude/skills/docs-style/SKILL.md` ссылается на
       несуществующую главу `11-features.md` — цель `14-features.md`;
       `.claude/skills/docs-audit/SKILL.md` называет обе папки в правиле
       плашки README
@@ -111,7 +111,7 @@
 - [ ] 7.3 Новая проверка: нумерация глав пути сквозная и без пропусков
 - [ ] 7.4 Ссылка плашки README пакета принимается в `docs/guide/` или в
       `docs/recipes/`
-- [ ] 7.5 `DEFAULT_TARGETS` линтера стиля: `docs/recipes`,
+- [x] 7.5 `DEFAULT_TARGETS` линтера стиля: `docs/recipes`,
       `docs/guarantees.md`, `docs/from-nestjs.md`
 
 ## 8. Документация решений
