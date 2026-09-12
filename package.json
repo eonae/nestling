@@ -28,7 +28,7 @@
     "@eslint/compat": "~1.1.1",
     "@eslint/js": "^9.10.0",
     "@hono/node-server": "^2.1.1",
-    "@jest/globals": "^30.5.1",
+    "@jest/globals": "^29.7.0",
     "@nestlingjs/common.static-server": "workspace:*",
     "@nestlingjs/eslint-plugin": "workspace:*",
     "@rsdk/prettier-config": "^6.0.0-next.14",
