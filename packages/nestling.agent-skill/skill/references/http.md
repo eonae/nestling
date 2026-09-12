@@ -7,7 +7,7 @@ in `HttpResponse`. Names live in the README of
 [`@nestlingjs/transport.http`](https://www.npmjs.com/package/@nestlingjs/transport.http).
 
 `HttpResponse` is allowed where the address is declared by the transport:
-`httpEndpoint({ method, path, … })`. `httpEndpoint.implement` and
+`httpEndpoint.<method>(path, { … })`. `httpEndpoint.implement` and
 `implement` take a handler without HTTP in it, and a handler that has HTTP
 in it does not compile there — the same operation is callable over a bus,
 where a cookie means nothing.
@@ -54,9 +54,7 @@ const SESSION_TTL = 3600;
  * in one sentence: this is the call that issues the token, so the `authed`
  * layer the root requires of every `POST` cannot run before it.
  */
-export const CreateSession = httpEndpoint({
-  method: 'POST',
-  path: '/sessions',
+export const CreateSession = httpEndpoint.post('/sessions', {
   input: z.object({ email: z.email() }),
   output: Session,
   pipeline: observability,
@@ -127,9 +125,7 @@ import { z } from 'zod';
  *
  * There is no `output:`: a 3xx carries no body.
  */
-export const GetAvatar = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id/avatar',
+export const GetAvatar = httpEndpoint.get('/users/:id/avatar', {
   input: z.object({ id: z.string() }),
   redirect: 302,
   pipeline: observability,

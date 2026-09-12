@@ -17,9 +17,7 @@ const UserNotFound = makeFail('not_found:user', {
 const users = new Map<string, User>([['1', { id: '1', name: 'Alice' }]]);
 
 /** An endpoint is a value: address, schemas, declared failures, handler */
-const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
   errors: [UserNotFound],

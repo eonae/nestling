@@ -28,9 +28,7 @@ const authed = makePipeline().pre(
   { errors: [Unauthorized] },
 );
 
-const Profile = httpEndpoint({
-  method: 'GET',
-  path: '/profile',
+const Profile = httpEndpoint.get('/profile', {
   output: z.object({ caller: z.string() }),
   pipeline: authed,
   handler: async (_payload, meta) => new Ok({ caller: meta.caller }),

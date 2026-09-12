@@ -14,7 +14,8 @@ rest is reference.
 
 - **A declaration is a value.** An endpoint, a module, a feature, a config
   section, an operation and a failure are all objects returned by a
-  function — `httpEndpoint({ … })`, `makeModule({ … })`, `makeFail(…)`.
+  function — `httpEndpoint.get(path, { … })`, `makeModule({ … })`,
+  `makeFail(…)`.
   There is no decorator that registers anything and no metadata to reflect
   over. The value goes into a list of some other declaration, or it takes
   no part in the application.
@@ -97,9 +98,7 @@ const UserNotFound = makeFail('not_found:user', {
 const users = new Map<string, User>([['1', { id: '1', name: 'Alice' }]]);
 
 /** An endpoint is a value: address, schemas, declared failures, handler */
-const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
   errors: [UserNotFound],
@@ -140,11 +139,14 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
    no I/O; anything that opens a connection is a `@Resource` with
    `static acquire` and `release`. Config sources are read before the
    container is built, so `process.env` is never read from a factory.
-5. **An endpoint is a value, not a controller.** `httpEndpoint({ method,
-   path, input, output, errors, handler })`, exported from its file and
-   listed in `endpoints:` of a feature. There is no `@Controller`, no
-   `@Get`, no `@Body`, and no separate controller layer: the handler is a
-   function, or a class marked `@Handler([…])` with a `handle` method.
+5. **An endpoint is a value, not a controller.** `httpEndpoint.post(path,
+   { input, output, errors, handler })`, exported from its file and listed
+   in `endpoints:` of a feature. The HTTP method is the name of the
+   constructor — `get`, `head`, `post`, `put`, `patch`, `delete` — and the
+   path is its first argument; the dictionary has no `method` and no
+   `path`. There is no `@Controller`, no `@Get`, no `@Body`, and no
+   separate controller layer: the handler is a function, or a class marked
+   `@Handler([…])` with a `handle` method.
 6. **A policy in the root obliges every endpoint.** When `makeApp` declares
    `everyEndpoint(…).hasLayer(observability)`, every endpoint it selects
    names that layer in `pipeline:` — `httpEndpoint.implement` and

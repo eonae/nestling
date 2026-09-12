@@ -67,9 +67,7 @@ describe('assembleTest — приложение собрано, но запро�
       }
     }
 
-    const Ping = httpEndpoint({
-      method: 'GET',
-      path: '/ping',
+    const Ping = httpEndpoint.get('/ping', {
       output: z.object({ pong: z.boolean() }),
       handler: async () => new Ok({ pong: true }),
     });
@@ -127,9 +125,7 @@ describe('assembleTest — приложение собрано, но запро�
       }
     }
 
-    const Orphan = httpEndpoint({
-      method: 'GET',
-      path: '/orphan',
+    const Orphan = httpEndpoint.get('/orphan', {
       handler: async () => new Ok({}),
     });
 
@@ -232,9 +228,7 @@ describe('assembleTest — overrides и прунинг', () => {
     }
   }
 
-  const ListUsers = httpEndpoint({
-    method: 'GET',
-    path: '/users',
+  const ListUsers = httpEndpoint.get('/users', {
     output: z.object({ users: z.array(z.string()) }),
     handler: ListUsersHandler,
   });
@@ -284,9 +278,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     message: 'User not found',
   });
 
-  const GetUser = httpEndpoint({
-    method: 'GET',
-    path: '/users/:id',
+  const GetUser = httpEndpoint.get('/users/:id', {
     input: z.object({ id: z.string() }),
     output: z.object({ id: z.string(), name: z.string() }),
     errors: [NotFound],
@@ -297,9 +289,7 @@ describe('app.call — полный пайплайн in-proc', () => {
 
   let uploadCalls = 0;
 
-  const UploadAvatar = httpEndpoint({
-    method: 'POST',
-    path: '/users/:id/avatar',
+  const UploadAvatar = httpEndpoint.post('/users/:id/avatar', {
     input: multipart({
       fields: z.object({ id: z.string(), title: z.string().min(1) }),
       files: { avatar: upload() },
@@ -314,9 +304,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     },
   });
 
-  const Frame = httpEndpoint({
-    method: 'GET',
-    path: '/frame',
+  const Frame = httpEndpoint.get('/frame', {
     output: z.object({
       transport: z.string(),
       pattern: z.string(),
@@ -411,9 +399,7 @@ describe('app.call — полный пайплайн in-proc', () => {
   });
 
   it('кладёт стартовый контекст вызова в meta хендлера', async () => {
-    const Start = httpEndpoint({
-      method: 'POST',
-      path: '/start',
+    const Start = httpEndpoint.post('/start', {
       output: z.object({ method: z.string(), url: z.string() }),
       handler: async (_payload, meta) => new Ok(meta.http),
     });
@@ -437,9 +423,7 @@ describe('app.call — полный пайплайн in-proc', () => {
   });
 
   it("перечисляет доступные endpoint'ы, если декларации в приложении нет", async () => {
-    const Invoices = httpEndpoint({
-      method: 'GET',
-      path: '/invoices',
+    const Invoices = httpEndpoint.get('/invoices', {
       handler: async () => new Ok({}),
     });
 
@@ -477,9 +461,7 @@ describe('app.call — полный пайплайн in-proc', () => {
         }),
       ],
       endpoints: [
-        httpEndpoint({
-          method: 'POST',
-          path: '/uploads',
+        httpEndpoint.post('/uploads', {
           handler: async () => new Ok({}),
         }),
       ],
@@ -505,9 +487,7 @@ describe('app.call — полный пайплайн in-proc', () => {
     let onAborted!: () => void;
     const aborted = new Promise<void>((resolve) => (onAborted = resolve));
 
-    const Wait = httpEndpoint({
-      method: 'GET',
-      path: '/wait',
+    const Wait = httpEndpoint.get('/wait', {
       pipeline: makePipeline(),
       handler: async (_payload, meta) => {
         onStarted();
@@ -656,9 +636,7 @@ describe('vars и familyOverride', () => {
 
 describe('Discovery$ в тестовом корне', () => {
   it('тестовый корень видит тот же состав приложения, что и боевой', async () => {
-    const Ping = httpEndpoint({
-      method: 'GET',
-      path: '/ping',
+    const Ping = httpEndpoint.get('/ping', {
       handler: async () => new Ok({ pong: true }),
     });
 
@@ -711,9 +689,7 @@ describe('assembleTest — логгер ядра', () => {
   });
 
   it('незадекларированный отказ — запись error с транспортом, паттерном и кодом', async () => {
-    const Boom = httpEndpoint({
-      method: 'GET',
-      path: '/boom',
+    const Boom = httpEndpoint.get('/boom', {
       handler: async () => {
         throw makeFail('not_found:nope', { message: 'nope' })();
       },

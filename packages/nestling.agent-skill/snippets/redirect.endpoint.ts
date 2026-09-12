@@ -11,9 +11,7 @@ import { z } from 'zod';
  *
  * There is no `output:`: a 3xx carries no body.
  */
-export const GetAvatar = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id/avatar',
+export const GetAvatar = httpEndpoint.get('/users/:id/avatar', {
   input: z.object({ id: z.string() }),
   redirect: 302,
   pipeline: observability,

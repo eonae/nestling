@@ -58,9 +58,7 @@ class WhoamiHandler {
 }
 
 /** Endpoint, чей пайплайн кладёт **свой** requestId */
-const Whoami = httpEndpoint({
-  method: 'GET',
-  path: '/whoami',
+const Whoami = httpEndpoint.get('/whoami', {
   output: z.object({ requestId: z.string() }),
   pipeline: makePipeline().pre(RequestId.provide(() => 'from-pipeline')),
   handler: WhoamiHandler,

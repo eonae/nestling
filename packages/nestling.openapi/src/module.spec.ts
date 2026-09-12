@@ -140,18 +140,14 @@ const serve = async (transport: SpyTransport): Promise<OpenApiDocument> => {
 
 const User = z.object({ id: z.string(), email: z.string() });
 
-const GetUser = httpEndpoint({
-  method: 'GET',
-  path: '/users/:id',
+const GetUser = httpEndpoint.get('/users/:id', {
   input: z.object({ id: z.string() }),
   output: User,
   doc: { summary: 'Get user', tags: ['users'] },
   handler: async ({ id }) => new Ok({ id, email: 'a@b.c' }),
 });
 
-const Health = httpEndpoint({
-  method: 'GET',
-  path: '/health',
+const Health = httpEndpoint.get('/health', {
   output: z.object({ status: z.string() }),
   doc: { hidden: 'liveness-проба балансировщика' },
   handler: async () => new Ok({ status: 'up' }),
@@ -162,9 +158,7 @@ const UsersModule = makeFeature({
   endpoints: [GetUser, Health],
 });
 
-const ListInvoices = httpEndpoint({
-  method: 'GET',
-  path: '/invoices',
+const ListInvoices = httpEndpoint.get('/invoices', {
   output: z.array(z.object({ id: z.string() })),
   handler: async () => new Ok([]),
 });
@@ -279,9 +273,7 @@ describe('openapi(...) — плагин-издатель', () => {
       },
     };
 
-    const Exotic = httpEndpoint({
-      method: 'POST',
-      path: '/exotic',
+    const Exotic = httpEndpoint.post('/exotic', {
       input: exotic,
       handler: async () => new Ok({ ok: true }),
     });
@@ -368,9 +360,7 @@ describe('endpoint документации подчиняется полити�
     transport: HttpTransport$('default'),
   }).hasLayer(observability, 'observability');
 
-  const Traced = httpEndpoint({
-    method: 'GET',
-    path: '/traced',
+  const Traced = httpEndpoint.get('/traced', {
     output: z.object({ ok: z.boolean() }),
     pipeline: compose(observability, makePipeline<{ traced: boolean }>()),
     handler: async () => new Ok({ ok: true }),

@@ -19,7 +19,7 @@ behind each replacement, read the README of the package that owns it —
 | `exports` of a module | nothing | ES modules hold visibility: an unexported token cannot be injected |
 | `@Global()` | `makePlugin` and `plugins:` of the root | a plugin is present in every process and is reached by token |
 | `DynamicModule`, `forRoot(options)` | a function returning a module or a plugin | the value is created once and passed to the root |
-| `@Controller` with `@Get`, `@Post` | `httpEndpoint({ method, path, input, output, handler })` | an endpoint is a value; the handler is a function or a class with `handle` |
+| `@Controller` with `@Get`, `@Post` | `httpEndpoint.get(path, { input, output, handler })` | an endpoint is a value; the HTTP method is the name of the constructor and the path is its first argument; the handler is a function or a class with `handle` |
 
 ## Dependencies
 

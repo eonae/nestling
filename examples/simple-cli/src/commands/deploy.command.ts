@@ -29,8 +29,7 @@ const DeployOutput = z.object({
  * и под `CI` команда доходит до валидации и отвечает отказом, как команда
  * без политики.
  */
-export const Deploy = cliEndpoint({
-  command: 'deploy',
+export const Deploy = cliEndpoint('deploy', {
   input: DeployInput,
   output: DeployOutput,
   missing: 'prompt',

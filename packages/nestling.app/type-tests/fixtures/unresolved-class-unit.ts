@@ -17,9 +17,7 @@ class WithTracing {
   }
 }
 
-const endpoint = httpEndpoint({
-  method: 'GET',
-  path: '/health',
+const endpoint = httpEndpoint.get('/health', {
   pipeline: makePipeline().pre(WithTracing),
   handler: async () => new Ok({ status: 'up' }),
 });

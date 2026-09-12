@@ -29,9 +29,7 @@ export const appSubscriptions = subscriptions({
 });
 
 // 2. Слой: добавляется в пайплайн endpoint'а, как любое сквозное поведение
-export const Feed = httpEndpoint({
-  method: 'GET',
-  path: '/api/feed',
+export const Feed = httpEndpoint.get('/api/feed', {
   output: events(Event),
   pipeline: compose(basePipeline, tracked),
   handler: FeedHandler, // получает meta.subscription с общим signal

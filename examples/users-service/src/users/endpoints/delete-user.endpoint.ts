@@ -29,9 +29,7 @@ export class DeleteUserHandler {
  * эффективное множество endpoint'а складывается из этого списка и отказов
  * его слоёв.
  */
-export const DeleteUser = httpEndpoint({
-  method: 'DELETE',
-  path: '/users/:id',
+export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
   doc: {

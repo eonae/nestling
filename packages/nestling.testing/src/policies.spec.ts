@@ -40,16 +40,12 @@ const hasAuth = () =>
     'authedBase',
   );
 
-const Authed = httpEndpoint({
-  method: 'GET',
-  path: '/me',
+const Authed = httpEndpoint.get('/me', {
   pipeline: compose(observability, authedBase),
   handler: async () => new Ok({ id: '1' }),
 });
 
-const Unauthed = httpEndpoint({
-  method: 'GET',
-  path: '/admin/users',
+const Unauthed = httpEndpoint.get('/admin/users', {
   pipeline: observability,
   handler: async () => new Ok({ users: [] }),
 });

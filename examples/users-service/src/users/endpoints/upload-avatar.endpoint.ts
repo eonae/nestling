@@ -42,9 +42,7 @@ export class UploadAvatarHandler {
 }
 
 /** Форма `multipart`: поля проверяет схема `fields`, файлы приходят под объявленными именами */
-export const UploadAvatar = httpEndpoint({
-  method: 'POST',
-  path: '/users/:id/avatar',
+export const UploadAvatar = httpEndpoint.post('/users/:id/avatar', {
   input: multipart({
     fields: AvatarFields,
     files: {

@@ -71,9 +71,7 @@ class UserWebhookHandler {
  * Подлинность проверяется подписью, а не Bearer-токеном, поэтому endpoint
  * выведен из-под политики `authed` через `detached` с причиной.
  */
-export const UserWebhook = httpEndpoint({
-  method: 'POST',
-  path: '/hooks/users',
+export const UserWebhook = httpEndpoint.post('/hooks/users', {
   input: UserEventInput,
   output: UserEventOutput,
   errors: [InvalidSignature],

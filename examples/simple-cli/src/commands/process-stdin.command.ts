@@ -20,8 +20,7 @@ type ProcessStdinOutput = z.infer<typeof ProcessStdinOutput>;
  * Запуск:
  *   printf "a\nb\n" | yarn workspace @examples/simple-cli start:dev process-stdin
  */
-export const ProcessStdin = cliEndpoint({
-  command: 'process-stdin',
+export const ProcessStdin = cliEndpoint('process-stdin', {
   input: stream('binary'),
   output: ProcessStdinOutput,
   errors: [EmptyStdin],

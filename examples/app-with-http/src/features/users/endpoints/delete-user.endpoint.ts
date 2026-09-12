@@ -47,9 +47,7 @@ class DeleteUserHandler {
  * Отказ `Unauthorized` бросает слой, а не хендлер, но объявляет его
  * endpoint: список `errors:` описывает всё, что может получить клиент.
  */
-export const DeleteUser = httpEndpoint({
-  method: 'DELETE',
-  path: '/users/:id',
+export const DeleteUser = httpEndpoint.delete('/users/:id', {
   input: DeleteUserInput,
   errors: [UserNotFound],
   doc: {

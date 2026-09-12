@@ -23,9 +23,7 @@ const page: z.infer<typeof User>[] = [
  * `pipeline:` names a layer the application already declares: the policy of
  * the root requires this one from every HTTP endpoint.
  */
-export const ListUsers = httpEndpoint({
-  method: 'GET',
-  path: '/users',
+export const ListUsers = httpEndpoint.get('/users', {
   input: ListUsersInput,
   output: z.array(User),
   pipeline: observability,

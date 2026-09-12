@@ -46,9 +46,7 @@ class ActivityStreamHandler {
  * с административной отменой из реестра. Заголовок `Last-Event-ID`
  * приходит типизированным полем `meta.lastEventId`.
  */
-export const ActivityStream = httpEndpoint({
-  method: 'GET',
-  path: '/users/activity',
+export const ActivityStream = httpEndpoint.get('/users/activity', {
   output: events(ActivityEvent),
   sse: {
     id: (event) => event.id,
