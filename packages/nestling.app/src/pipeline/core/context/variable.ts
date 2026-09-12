@@ -31,6 +31,15 @@ import type { AnyInput, EmptyInput } from '@nestlingjs/operations';
 export const SIGNAL_KEY = 'signal';
 
 /**
+ * Ключ, зарезервированный под встроенную переменную `Trace`.
+ *
+ * Трассировку кладёт штатный юнит `withTracing()`, и политика адресует
+ * именно эту переменную, поэтому одноимённое объявление из прикладного
+ * кода запрещено.
+ */
+export const TRACE_KEY = 'trace';
+
+/**
  * Переменная только для чтения: `provide` у неё нет ни в типе, ни в
  * рантайме (см. {@link Signal}).
  *
@@ -188,7 +197,7 @@ export const isContextVar = (value: unknown): value is AnyContextVar =>
   typeof (value as AnyContextVar).key === 'string';
 
 /** Проверяет ключ при объявлении переменной */
-function assertKey(key: string): void {
+function assertKey(key: string, reserved: boolean): void {
   if (typeof key !== 'string') {
     throw new TypeError(
       `contextVar<T>()(key): key must be a string naming a field of the ` +
@@ -203,11 +212,23 @@ function assertKey(key: string): void {
     );
   }
 
+  if (reserved) {
+    return;
+  }
+
   if (key === SIGNAL_KEY) {
     throw new TypeError(
       `contextVar<T>()('${SIGNAL_KEY}'): the key '${SIGNAL_KEY}' is reserved. ` +
         `The abort signal is not part of the accumulated input — import the ` +
         `ready-made variable Signal and inject Ctx(Signal).`,
+    );
+  }
+
+  if (key === TRACE_KEY) {
+    throw new TypeError(
+      `contextVar<T>()('${TRACE_KEY}'): the key '${TRACE_KEY}' is reserved. ` +
+        `Tracing is carried by the ready-made variable Trace — import it, ` +
+        `compose withTracing() into the pipeline and inject Ctx(Trace).`,
     );
   }
 }
@@ -348,11 +369,31 @@ export function contextVar<T>(...misuse: []): ContextVarDeclarator<T> {
     );
   }
 
+  return makeDeclarator<T>(false);
+}
+
+/**
+ * Объявляет well-known переменную ядра под зарезервированным ключом.
+ *
+ * Отличие от {@link contextVar} одно: проверка занятых ключей пропускается.
+ * Их и занимают объявления, сделанные этой функцией.
+ *
+ * @internal Единственные потребители — переменные из `well-known.ts`
+ */
+export const kernelContextVar = <T>(): ContextVarDeclarator<T> =>
+  makeDeclarator<T>(true);
+
+/**
+ * Общее тело обоих объявителей.
+ *
+ * @param reserved - Объявление принадлежит ядру: занятый ключ разрешён
+ */
+function makeDeclarator<T>(reserved: boolean): ContextVarDeclarator<T> {
   return (<const K extends string>(
     key: K,
     options: ContextVarOptions = {},
   ): ContextVar<T, K> => {
-    assertKey(key);
+    assertKey(key, reserved);
 
     const propagate = options.propagate === true;
 

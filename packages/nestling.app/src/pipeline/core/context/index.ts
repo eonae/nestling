@@ -10,7 +10,13 @@
 
 export { contextKernel } from './kernel.js';
 export type { CtxReader } from './reader.js';
-export { ambientRequestId, Ctx, ContextVarUnavailableError } from './reader.js';
+export {
+  ambientRequestId,
+  ambientTrace,
+  ambientTraceId,
+  Ctx,
+  ContextVarUnavailableError,
+} from './reader.js';
 export { runInRequestScope } from './store.js';
 export type {
   AnyContextVar,
@@ -25,4 +31,12 @@ export {
   contextVar,
   propagatedKeys,
 } from './variable.js';
-export { RequestId, Signal } from './well-known.js';
+export {
+  formatTraceparent,
+  newSpanId,
+  newTraceId,
+  parsePropagatedTrace,
+  parseTraceparent,
+} from './w3c.js';
+export type { TraceContext } from './well-known.js';
+export { RequestId, Signal, Trace } from './well-known.js';

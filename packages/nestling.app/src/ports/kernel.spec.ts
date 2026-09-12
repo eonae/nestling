@@ -10,6 +10,14 @@ import {
 import { spyLogger } from '../logger/__fixtures__/spy.js';
 import { loggerKernel } from '../logger/kernel.js';
 import { RootLogger$ } from '../logger/tokens.js';
+import { spyMetrics } from '../metrics/__fixtures__/spy.js';
+import type { Metrics } from '../metrics/index.js';
+import {
+  KERNEL_METRICS,
+  metricsKernel,
+  noopMetrics,
+  RootMetrics$,
+} from '../metrics/index.js';
 import { contextKernel } from '../pipeline/core/context/index.js';
 import type { AnyEndpointDefinition, TransportRef } from '../pipeline/index.js';
 import { Ok } from '../pipeline/index.js';
@@ -35,10 +43,13 @@ import type { Emitter, Port } from '@nestlingjs/operations';
 import {
   EmitterFamily,
   makeEvent,
+  makeFail,
   makeRequest,
   PortFamily,
 } from '@nestlingjs/operations';
 import { z } from 'zod';
+
+const NotReady = makeFail('conflict:not_ready', { message: 'not ready' });
 
 const Echo = makeRequest({
   name: 'kernel.echo',
@@ -114,6 +125,17 @@ const PlacedImpl = implement(Placed, {
   },
 });
 
+/** Операция, чья реализация всегда отказывает: на ней виден исход `failed` */
+const Failing = makeRequest({
+  name: 'kernel.failing',
+  output: z.object({ ok: z.boolean() }),
+  errors: [NotReady],
+});
+
+const FailingImpl = implement(Failing, {
+  handler: async () => NotReady(),
+});
+
 const Consumer = makeToken<{ port: Port<any> }>('Consumer');
 const EventConsumer = makeToken<{ emitter: Emitter<any> }>('EventConsumer');
 
@@ -157,6 +179,8 @@ async function assemble(options: {
   wire?: boolean;
   /** Корень поставил remote-шину — то же, что `nats()` в `transports:` */
   rootBus?: FakeRemoteBus;
+  /** Метрики корня; без них инструментовка выключена, как в бою */
+  metrics?: Metrics;
 }): Promise<Assembled> {
   const declarations = options.declarations ?? [];
   const source = objectSource(
@@ -166,9 +190,9 @@ async function assemble(options: {
   );
 
   // Записи логгера здесь не наблюдаются: отказы вызывателей и доставки
-  // проверяются отдельными тестами, а тест смотрит на биндинг. Корень
-  // логгера живёт вне графа, поэтому регистрируется значением — так же,
-  // как это делает сборка приложения
+  // проверяются отдельными тестами, а тест смотрит на биндинг. Корни
+  // логгера и метрик живут вне графа, поэтому регистрируются значениями —
+  // так же, как это делает сборка приложения
   const builder = new ContainerBuilder();
   builder.register(
     configKernel(await bootstrapConfig([[source, portsConfigKeys]])),
@@ -177,6 +201,8 @@ async function assemble(options: {
     contextKernel(),
     loggerKernel(),
     valueProvider(RootLogger$, spyLogger().logger),
+    metricsKernel(),
+    valueProvider(RootMetrics$, options.metrics ?? noopMetrics),
   );
   builder.register(
     portsKernel({
@@ -218,6 +244,7 @@ async function assemble(options: {
     declarations.map((declaration) =>
       declaration.resolve((token) => container.get(token) ?? undefined),
     ),
+    options.metrics === undefined ? {} : { metrics: options.metrics },
   );
 
   const dispatches = new Map<TransportRef, Dispatch>([
@@ -245,6 +272,12 @@ const passthroughConsumer = factoryProvider(
   Consumer,
   (port: Port<any>) => ({ port }),
   [Passthrough.caller],
+);
+
+const failingConsumer = factoryProvider(
+  Consumer,
+  (port: Port<any>) => ({ port }),
+  [Failing.caller],
 );
 
 describe('portsKernel', () => {
@@ -510,6 +543,141 @@ describe('portsKernel', () => {
     await expect(port.call({ items: [1] })).rejects.toThrow(
       /'kernel\.echo' was called before phase 3 WIRE/,
     );
+
+    await app.close();
+  });
+});
+
+describe('portsKernel — метрики вызова', () => {
+  const counters = (spy: ReturnType<typeof spyMetrics>) =>
+    spy.records.filter(({ name }) => name === KERNEL_METRICS.portCalls);
+
+  it.each([
+    ['local-first', 'local'],
+    ['always-remote', 'remote'],
+  ] as const)(
+    'политика %s даёт тот же набор метрик, различая биндинг',
+    async (dispatch, binding) => {
+      const spy = spyMetrics();
+      const app = await assemble({
+        declarations: [EchoImpl],
+        consumers: [portConsumer],
+        metrics: spy.metrics,
+        dispatch,
+      });
+
+      const { port } = app.container.getOrThrow(Consumer);
+      await port.call({ items: [1] });
+
+      const attributes = {
+        operation: 'kernel.echo',
+        kind: 'request',
+        binding,
+        outcome: 'completed',
+      };
+
+      expect(counters(spy)).toContainEqual({
+        kind: 'counter',
+        name: KERNEL_METRICS.portCalls,
+        value: 1,
+        attributes,
+      });
+      expect(
+        spy.records.filter(({ name }) => name === KERNEL_METRICS.portDuration),
+      ).toContainEqual(expect.objectContaining({ attributes }));
+
+      await app.close();
+    },
+  );
+
+  it('emit события учитывается', async () => {
+    const spy = spyMetrics();
+    const eventConsumer = factoryProvider(
+      EventConsumer,
+      (emitter: Emitter<any>) => ({ emitter }),
+      [Placed.emitter],
+    );
+
+    const app = await assemble({
+      declarations: [PlacedImpl],
+      consumers: [eventConsumer],
+      metrics: spy.metrics,
+    });
+
+    const { emitter } = app.container.getOrThrow(EventConsumer);
+    await emitter.emit({ id: 'o-1' });
+
+    expect(counters(spy)).toContainEqual(
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          operation: 'kernel.placed',
+          kind: 'event',
+          outcome: 'completed',
+        }),
+      }),
+    );
+
+    await app.close();
+  });
+
+  it('объявленный отказ реализации даёт outcome failed', async () => {
+    const spy = spyMetrics();
+    const app = await assemble({
+      declarations: [FailingImpl],
+      consumers: [failingConsumer],
+      metrics: spy.metrics,
+    });
+
+    const { port } = app.container.getOrThrow(Consumer);
+    await port.call();
+
+    expect(counters(spy)).toContainEqual(
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          operation: 'kernel.failing',
+          outcome: 'failed',
+        }),
+      }),
+    );
+
+    await app.close();
+  });
+
+  it('локальный вызов даёт и метрику порта, и метрику endpoint’а', async () => {
+    const spy = spyMetrics();
+    const app = await assemble({
+      declarations: [EchoImpl],
+      consumers: [portConsumer],
+      metrics: spy.metrics,
+      dispatch: 'local-first',
+    });
+
+    const { port } = app.container.getOrThrow(Consumer);
+    await port.call({ items: [1] });
+
+    expect(counters(spy)).toContainEqual(
+      expect.objectContaining({
+        attributes: expect.objectContaining({ binding: 'local' }),
+      }),
+    );
+    expect(
+      spy.records.filter(({ name }) => name === KERNEL_METRICS.requests),
+    ).toHaveLength(1);
+
+    await app.close();
+  });
+
+  it('без метрик корня ни один метод не вызван', async () => {
+    const spy = spyMetrics();
+    const app = await assemble({
+      declarations: [EchoImpl],
+      consumers: [portConsumer],
+    });
+
+    const { port } = app.container.getOrThrow(Consumer);
+    await port.call({ items: [1] });
+
+    expect(spy.records).toEqual([]);
 
     await app.close();
   });

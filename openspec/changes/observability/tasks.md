@@ -1,70 +1,70 @@
 ## 1. Переменная `Trace` и юнит `withTracing()`
 
-- [ ] 1.1 Объявить тип `TraceContext` и well-known переменную `Trace` в
+- [x] 1.1 Объявить тип `TraceContext` и well-known переменную `Trace` в
   `pipeline/core/context/well-known.ts` с флагом `{ propagate: true }`
-- [ ] 1.2 Зарезервировать ключ `'trace'` там же, где зарезервированы
+- [x] 1.2 Зарезервировать ключ `'trace'` там же, где зарезервированы
   `'signal'` и `'requestId'`, с текстом ошибки, называющим `Trace`
-- [ ] 1.3 Написать разбор и сборку строки W3C trace-context: 32 знака
+- [x] 1.3 Написать разбор и сборку строки W3C trace-context: 32 знака
   `traceId`, 16 знаков `spanId`, флаг `sampled`; неизвестный вид даёт
   `undefined`, а не исключение
-- [ ] 1.4 Реализовать `withTracing()` через `Trace.provide(…)`: источник
+- [x] 1.4 Реализовать `withTracing()` через `Trace.provide(…)`: источник
   родителя — поле `trace` атрибутов, затем заголовок `traceparent`, затем
   новая трасса
-- [ ] 1.5 Экспортировать `Trace`, `TraceContext` и `withTracing` из
+- [x] 1.5 Экспортировать `Trace`, `TraceContext` и `withTracing` из
   `@nestlingjs/app`
-- [ ] 1.6 Рантайм-тесты: продолжение трассы по заголовку, продолжение по
+- [x] 1.6 Рантайм-тесты: продолжение трассы по заголовку, продолжение по
   атрибуту шины, новая трасса, непонятный заголовок, `parentSpanId`
   предыдущего участка
-- [ ] 1.7 Рантайм-тест политики `everyEndpoint(…).hasVar(Trace)`
+- [x] 1.7 Рантайм-тест политики `everyEndpoint(…).hasVar(Trace)`
 
 ## 2. `traceId` в записях логгера
 
-- [ ] 2.1 Добавить `ambientTraceId()` рядом с `ambientRequestId()` в
+- [x] 2.1 Добавить `ambientTraceId()` рядом с `ambientRequestId()` в
   `pipeline/core/context/reader.ts`
-- [ ] 2.2 Научить `ConsoleLogger` добавлять поле `traceId`, если трасса
+- [x] 2.2 Научить `ConsoleLogger` добавлять поле `traceId`, если трасса
   есть и поле не задано вызовом
-- [ ] 2.3 Рантайм-тесты: поле внутри трассируемого запроса, отсутствие поля
+- [x] 2.3 Рантайм-тесты: поле внутри трассируемого запроса, отсутствие поля
   вне запроса, значение вызова сильнее ambient
 
 ## 3. Интерфейс `Metrics`, корень и семейство
 
-- [ ] 3.1 Создать подсистему `packages/nestling.app/src/metrics/`:
+- [x] 3.1 Создать подсистему `packages/nestling.app/src/metrics/`:
   `interface.ts` (`Metrics`, `MetricAttributes`), `noop.ts`, `tokens.ts`
   (`RootMetrics$`, `Metrics$`), `kernel.ts`, `index.ts`
-- [ ] 3.2 Реализовать рецепт семейства: член `Metrics$(scope)` добавляет
+- [x] 3.2 Реализовать рецепт семейства: член `Metrics$(scope)` добавляет
   атрибут `scope`, `Metrics$.auto` даёт члена по имени класса
-- [ ] 3.3 Добавить опцию `metrics` в `root/plan.ts` и `root/app.ts` по
+- [x] 3.3 Добавить опцию `metrics` в `root/plan.ts` и `root/app.ts` по
   образцу опции `logger`
-- [ ] 3.4 Сделать провайдер под `RootMetrics$` ошибкой дубля с текстом,
+- [x] 3.4 Сделать провайдер под `RootMetrics$` ошибкой дубля с текстом,
   называющим опцию `metrics`
-- [ ] 3.5 Зарегистрировать kernel-модуль метрик в корне безусловно
-- [ ] 3.6 Экспортировать `Metrics`, `MetricAttributes`, `RootMetrics$` и
+- [x] 3.5 Зарегистрировать kernel-модуль метрик в корне безусловно
+- [x] 3.6 Экспортировать `Metrics`, `MetricAttributes`, `RootMetrics$` и
   `Metrics$` из `@nestlingjs/app`
 - [ ] 3.7 Рантайм-тесты: член добавляет `scope`, `.auto` даёт члена по
   имени класса, провайдер под корнем падает, подмена в `overrides` работает
 
 ## 4. Инструментовка endpoint'ов
 
-- [ ] 4.1 Добавить `metrics?: Metrics` в `ExecuteOptions` и
+- [x] 4.1 Добавить `metrics?: Metrics` в `ExecuteOptions` и
   `MakeDispatchOptions`; заполнять поле только при заданной опции
   `makeApp({ metrics })`
-- [ ] 4.2 Писать `nestling.requests` и `nestling.request.duration` в
+- [x] 4.2 Писать `nestling.requests` и `nestling.request.duration` в
   `executeWithHandler` рядом с вычислением `outcome`
-- [ ] 4.3 Провести запись через путь потокового ответа: метрика появляется
+- [x] 4.3 Провести запись через путь потокового ответа: метрика появляется
   после закрытия итератора, вместе с `.finally`
-- [ ] 4.4 Рантайм-тесты: успех, отказ, разрыв соединения, отмена, поток;
+- [x] 4.4 Рантайм-тесты: успех, отказ, разрыв соединения, отмена, поток;
   `pattern` равен шаблону маршрута, а не адресу запроса
-- [ ] 4.5 Рантайм-тест: без опции `metrics` ни один метод не вызван
+- [x] 4.5 Рантайм-тест: без опции `metrics` ни один метод не вызван
 
 ## 5. Инструментовка вызовов порта
 
-- [ ] 5.1 Обернуть узел порта в `ports/kernel.ts` в обеих точках выбора
+- [x] 5.1 Обернуть узел порта в `ports/kernel.ts` в обеих точках выбора
   биндинга: одна обёртка покрывает все четыре формы вызывателя
-- [ ] 5.2 Писать `nestling.port.calls` и `nestling.port.duration` с
+- [x] 5.2 Писать `nestling.port.calls` и `nestling.port.duration` с
   атрибутами `operation`, `kind`, `binding`, `outcome`
-- [ ] 5.3 Рантайм-тесты: `local` и `remote` дают одинаковый набор метрик,
+- [x] 5.3 Рантайм-тесты: `local` и `remote` дают одинаковый набор метрик,
   `emit` учитывается, отказ даёт `outcome: 'failed'`
-- [ ] 5.4 Рантайм-тест: локальный вызов даёт и метрику порта, и метрику
+- [x] 5.4 Рантайм-тест: локальный вызов даёт и метрику порта, и метрику
   endpoint'а реализации
 
 ## 6. Клиент и тестовый пакет

@@ -10,7 +10,10 @@
  * конфига и портов. Наружу идут интерфейс, DI-токены и ключи секции.
  */
 
-import { ambientRequestId } from '../pipeline/core/context/index.js';
+import {
+  ambientRequestId,
+  ambientTraceId,
+} from '../pipeline/core/context/index.js';
 
 import type { LogConfig, LogFormat } from './config.js';
 import type { Fields, Logger, LogLevel, LogMethod } from './interface.js';
@@ -161,12 +164,14 @@ function formatError(err: unknown): string {
  *   значения-объекты через `JSON.stringify`; `err` — `err=<name>: <message>`
  *   и стек на следующих строках.
  * - `json`: одна строка с полями `time`, `level`, привязками, `requestId`,
- *   `msg`, полями вызова и `err` в виде `{ name, message, stack, cause? }`.
+ *   `traceId`, `msg`, полями вызова и `err` в виде
+ *   `{ name, message, stack, cause? }`.
  *
- * `requestId` читается из ambient-контекста запроса в момент записи и
- * добавляется полем, если он есть и поле не задано вызовом. Вне запроса
- * поля нет. Узлом графа логгер не является: корень создаётся на фазе 0,
- * раньше первого узла, поэтому зависеть от `Ctx(RequestId)` он не может.
+ * `requestId` и `traceId` читаются из ambient-контекста запроса в момент
+ * записи и добавляются полями, если они есть и поля не заданы вызовом. Вне
+ * запроса полей нет. Узлом графа логгер не является: корень создаётся на
+ * фазе 0, раньше первого узла, поэтому зависеть от `Ctx(RequestId)` и
+ * `Ctx(Trace)` он не может.
  */
 export class ConsoleLogger implements Logger {
   readonly #config: LogConfig;
@@ -210,7 +215,8 @@ export class ConsoleLogger implements Logger {
     const { err, ...rest } = fields;
 
     // Порядок полей и есть порядок в строке: время, уровень, привязки
-    // (`scope` среди них), идентификатор запроса, сообщение, поля, ошибка
+    // (`scope` среди них), идентификаторы запроса и трассы, сообщение,
+    // поля, ошибка
     const data: Record<string, unknown> = { ...this.#bindings };
 
     const requestId = ambientRequestId();
@@ -220,6 +226,15 @@ export class ConsoleLogger implements Logger {
       !('requestId' in data)
     ) {
       data.requestId = requestId;
+    }
+
+    const traceId = ambientTraceId();
+    if (
+      traceId !== undefined &&
+      !('traceId' in rest) &&
+      !('traceId' in data)
+    ) {
+      data.traceId = traceId;
     }
 
     Object.assign(data, rest);

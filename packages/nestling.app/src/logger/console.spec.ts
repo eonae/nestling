@@ -291,3 +291,63 @@ describe('ConsoleLogger: идентификатор запроса', () => {
     expect(record).toMatchObject({ scope: 'users', requestId: 'req-1' });
   });
 });
+
+describe('ConsoleLogger: идентификатор трассы', () => {
+  const TRACE = {
+    traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+    spanId: '00f067aa0ba902b7',
+    sampled: true,
+  };
+
+  /** Ячейка запроса, прошедшего через `withTracing()` */
+  const traced = (): ReturnType<typeof makeCell> =>
+    makeCell(new AbortController().signal, { trace: TRACE });
+
+  it('внутри трассируемого запроса запись несёт traceId', () => {
+    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
+
+    const record = single(() =>
+      runInScope(traced(), () => logger.info('select')),
+    );
+
+    expect(record).toMatchObject({ traceId: TRACE.traceId, msg: 'select' });
+  });
+
+  it('поле вызова важнее значения из контекста', () => {
+    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
+
+    const record = single(() =>
+      runInScope(traced(), () => logger.info('select', { traceId: 'mine' })),
+    );
+
+    expect(record.traceId).toBe('mine');
+  });
+
+  it('вне запроса поля нет', () => {
+    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
+
+    expect(single(() => logger.info('started'))).not.toHaveProperty('traceId');
+  });
+
+  it('в запросе без withTracing() поля нет', () => {
+    const logger = new ConsoleLogger({ level: 'info', format: 'json' });
+    const cell = makeCell(new AbortController().signal, { requestId: 'req-1' });
+
+    const record = single(() => runInScope(cell, () => logger.info('x')));
+
+    expect(record).toMatchObject({ requestId: 'req-1' });
+    expect(record).not.toHaveProperty('traceId');
+  });
+
+  it('оба идентификатора стоят рядом', () => {
+    const logger = new ConsoleLogger({ level: 'info', format: 'text' });
+    const cell = makeCell(new AbortController().signal, {
+      requestId: 'req-1',
+      trace: TRACE,
+    });
+
+    const [line] = capture(() => runInScope(cell, () => logger.info('x')));
+
+    expect(line).toContain(`requestId=req-1 traceId=${TRACE.traceId}`);
+  });
+});
