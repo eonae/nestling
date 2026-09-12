@@ -73,12 +73,13 @@ Explore-субагентами; каждый возвращает findings в ф
    плашках нет). Проверь и обратное: всё «что» в доке обязано опираться на
    записи, перечисленные в его плашке.
 
-### S3. roadmap.md ↔ openspec + archlog.md
+### S3. roadmap.md ↔ openspec
 
 Сравни список и статусы changes в `docs/decisions/roadmap.md` с содержимым
 `openspec/changes/` (активные и архив). Заархивированный change обязан иметь
-финальный статус в roadmap.md **и** абзац в `docs/decisions/archlog.md`;
-активный — не должен числиться завершённым.
+финальный статус в единственной таблице roadmap.md; активный — не должен
+числиться завершённым. Оглавление `ideas.md` скрипт проверяет сам
+(`ideas-toc`); починка — `node .claude/skills/docs-audit/scripts/ideas-toc.mjs`.
 
 ### S4. deferred.md ↔ ideas.md
 
@@ -89,7 +90,7 @@ Explore-субагентами; каждый возвращает findings в ф
 ### S5. decisions/ append-only
 
 `git diff HEAD -- docs/decisions/` плюс последние коммиты по этим файлам:
-удаление содержательных строк из `ideas.md`/`archlog.md`/`deferred.md` без
+удаление содержательных строк из `ideas.md`/`deferred.md` без
 пометки `~~…~~ — РЕШЕНО/СУПЕРСИД` = finding. Уровень WARN — возможны ложные
 срабатывания на правках опечаток.
 

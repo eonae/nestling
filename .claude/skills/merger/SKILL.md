@@ -44,7 +44,7 @@ worktree чистый и есть коммиты, которых нет в `main
 Скрипт печатает по строке на событие. Поля строки: ветка, `state`,
 `ahead`/`behind` относительно `main`, `dirty` (число незакоммиченных
 файлов), `ff` (можно ли слить fast-forward), `locked`, `archive` (новые
-архивы change'ей), `archlog` (есть ли абзац в `archlog.md`), `session`
+архивы change'ей), `roadmap` (закрыта ли строка change'а в `roadmap.md`), `session`
 (подсказка имени сессии) и `path`.
 
 | Событие | Что делать |
@@ -66,8 +66,9 @@ worktree чистый и есть коммиты, которых нет в `main
 
 Для ветки `change/X` в состоянии `ready`:
 
-1. **`archlog=no`** — абзац в `docs/decisions/archlog.md` не добавлен.
-   Попроси сессию change'а дописать его (шаг 2, тот же текст сообщения) и
+1. **`roadmap=no`** — строка change'а в `docs/decisions/roadmap.md` не
+   переведена в **done**. Попроси сессию change'а закрыть её и поставить
+   пометку «РЕАЛИЗОВАНО» в `ideas.md` (шаг 2, тот же текст сообщения) и
    вернись к началу. Сессии нет — скажи пользователю, ветку не сливай.
 2. **Ветка отстала от `main`** (`ff=no`). Найди сессию worktree в
    `ListAgents`: сначала по имени `change/X` (команды opsx просят
@@ -77,15 +78,15 @@ worktree чистый и есть коммиты, которых нет в `main
 
    ```text
    Merger: перебазируй change/X на свежий main и сообщи о результате.
-   Шаги: git rebase main; конфликты в docs/decisions/archlog.md, roadmap.md
-   и ideas.md решай «оставить обе записи»; yarn verify; yarn docs:audit;
+   Шаги: git rebase main; конфликты в docs/decisions/roadmap.md и ideas.md
+   решай «оставить обе записи»; yarn verify; yarn docs:audit;
    коммит. В main не пиши, сливать буду я. Когда закончишь, ответь одной
    строкой: «готово» или что мешает.
    ```
 
    Дождись ответа или уведомления об idle, прогони скан и начни процедуру
    заново. Сессии нет — перебазируй сам: `git -C <path> rebase main`.
-   Конфликт только в `archlog.md`, `roadmap.md`, `ideas.md` — оставь обе
+   Конфликт только в `roadmap.md`, `ideas.md` — оставь обе
    записи и продолжи rebase. Конфликт в коде — `git -C <path> rebase --abort`,
    отчёт пользователю, ветка ждёт.
 3. **Слияние.** `git merge --no-ff change/X -m "Merge branch 'change/X' into main"`.

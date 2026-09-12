@@ -11,6 +11,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { applyToc } from './ideas-toc.mjs';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
@@ -314,6 +315,17 @@ if (existsSync(roadmapPath) && existsSync(ideasPath)) {
       add('ERROR', 'ideas-implemented', ideasPath,
         `change \`${m[1]}\` сделан, но записи журнала о нём нет пометки РЕАЛИЗОВАНО`);
     }
+  }
+}
+
+// ── 8b. Оглавление ideas.md совпадает с заголовками записей ──────────────────
+// Правило 14 «Правил ведения»: блок между маркерами пишет ideas-toc.mjs.
+
+if (existsSync(ideasPath)) {
+  const text = readFileSync(ideasPath, 'utf8');
+  if (applyToc(text) !== text) {
+    add('ERROR', 'ideas-toc', ideasPath,
+      'оглавление устарело или отсутствует — запусти node .claude/skills/docs-audit/scripts/ideas-toc.mjs');
   }
 }
 

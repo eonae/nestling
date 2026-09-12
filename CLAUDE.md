@@ -115,6 +115,8 @@ worktree, сливает заархивированные ветки merge-ко�
 7. коммиты осмысленные, `main` не тронут: слияние делает Merger после
    `/opsx:archive`.
 
-После `/opsx:archive` обнови статус в `roadmap.md`, добавь абзац в
-`archlog.md`, закоммить всё в ветке change'а и передай ветку Merger'у:
+После `/opsx:archive` обнови строку в `roadmap.md` (таблица одна), поставь
+пометку «РЕАЛИЗОВАНО» в `ideas.md` по правилу 9 `docs/README.md`, обнови
+оглавление `ideas.md` (`node .claude/skills/docs-audit/scripts/ideas-toc.mjs`),
+закоммить всё в ветке change'а и передай ветку Merger'у:
 сообщение сессии `Merger: Main` через SendMessage. Merger сольёт ветку сам.

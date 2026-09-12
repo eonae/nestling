@@ -157,7 +157,7 @@ function scan(root) {
         ffable: null,
         newArchives: [],
         active: [],
-        archlog: null,
+        roadmap: null,
         session: basename(wt.path).toLowerCase().replaceAll('_', '-'),
       });
       continue;
@@ -177,16 +177,19 @@ function scan(root) {
     if (ahead === 0) state = 'merged';
     else if (newArchives.length > 0 && dirty === 0) state = 'ready';
 
-    // Архивированный change обязан оставить абзац в archlog.md.
-    let archlog = null;
+    // Архивированный change обязан закрыть свою строку roadmap: имя и **done** в одной строке.
+    let roadmap = null;
     if (state === 'ready') {
-      let text = '';
+      let rows = [];
       try {
-        text = git(['show', `${b}:docs/decisions/archlog.md`], root);
+        rows = git(['show', `${b}:docs/decisions/roadmap.md`], root).split('\n');
       } catch {
-        text = '';
+        rows = [];
       }
-      archlog = newArchives.every((a) => text.includes(a.replace(/^\d{4}-\d{2}-\d{2}-/, '')));
+      roadmap = newArchives.every((a) => {
+        const name = a.replace(/^\d{4}-\d{2}-\d{2}-/, '');
+        return rows.some((l) => l.includes(`\`${name}\``) && l.includes('**done**'));
+      });
     }
 
     result.push({
@@ -201,7 +204,7 @@ function scan(root) {
       ffable,
       newArchives,
       active,
-      archlog,
+      roadmap,
       session: basename(wt.path).toLowerCase().replaceAll('_', '-'),
     });
   }
@@ -223,7 +226,7 @@ function describe(e) {
     `locked=${yesNo(e.locked)}`,
     `alive=${yesNo(e.alive)}`,
     `archive=${e.newArchives.join(',') || '-'}`,
-    `archlog=${yesNo(e.archlog)}`,
+    `roadmap=${yesNo(e.roadmap)}`,
     `active=${e.active.join(',') || '-'}`,
     `session=${e.session}`,
     `path=${e.path}`,
@@ -232,7 +235,7 @@ function describe(e) {
 
 function printTable(entries) {
   const rows = [
-    ['state', 'branch', 'ahead/behind', 'dirty', 'ff', 'locked', 'alive', 'archive', 'archlog', 'session'],
+    ['state', 'branch', 'ahead/behind', 'dirty', 'ff', 'locked', 'alive', 'archive', 'roadmap', 'session'],
     ...entries.map((e) => [
       e.state,
       e.branch,
@@ -242,7 +245,7 @@ function printTable(entries) {
       yesNo(e.locked),
       yesNo(e.alive),
       e.newArchives.join(',') || '-',
-      yesNo(e.archlog),
+      yesNo(e.roadmap),
       e.session,
     ]),
   ];

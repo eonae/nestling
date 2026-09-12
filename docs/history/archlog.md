@@ -1,3 +1,8 @@
+> **Заморожен 2026-09-12.** Лог заархивированных change'ей вёлся здесь до
+> этого дня. Теперь рассказ о результате change'а — пометка «РЕАЛИЗОВАНО» в
+> [ideas.md](../decisions/ideas.md) (правило 9 в [docs/README.md](../README.md))
+> и `proposal.md` в архиве change'а. Файл не редактируется.
+
 [12.09.2026] Повтор публикации снимает брокер: `Nats-Msg-Id` и окно потока (nats-msg-id).
 
 Change #74 отдал брокеру повторы, которые прежде доходили до подписчика.
@@ -471,8 +476,8 @@ query, и пишет диагностики в отдельную копилку
 схемы нельзя.
 
 Повод — пункт B5 первого внешнего прогона
-[d/14](../history/discussions/14-first-external-run.md). Канон записи
-query-поля, закреплённый [ideas.md [2026-08-01]](./ideas.md) «Клиенты из
+[d/14](./discussions/14-first-external-run.md). Канон записи
+query-поля, закреплённый [ideas.md [2026-08-01]](../decisions/ideas.md) «Клиенты из
 контрактов: реализация», — `z.stringbool()` и `z.coerce.*`: query несёт
 строки, и схема поля обязана принимать строковую форму. Документ описывал
 такое поле строкой, генератор клиента читал схему и объявлял
@@ -1478,7 +1483,7 @@ Change #41 закрыл два дефекта упаковки. Оба не бы
 [05.09.2026] Структура документации: сайт вне git, правила ведения одним экземпляром (docs-layout-cleanup).
 
 Change #40 — первая из пяти волн уборки документации, начатой разбором
-[d/11](../history/discussions/11-docs-structure-and-site.md). Волна
+[d/11](./discussions/11-docs-structure-and-site.md). Волна
 трогает инфраструктуру и не переписывает ни одного абзаца.
 
 Разбор нашёл три дубля. Сгенерированный HTML лежал в git: `docs/preview/`
@@ -1573,7 +1578,7 @@ pre-юнит.
 добавляя кода. Ряд Nestling: `GET /users/:id` +15%, `POST /users` +13%;
 отношение к Fastify на `GET` выросло с 0.82 до 0.92, на `POST` Nestling
 идёт впереди. Числа по пунктам, итоговая таблица всех серверов и перечень
-того, что осталось нетронутым, — [ideas.md [2026-09-05]](./ideas.md)
+того, что осталось нетронутым, — [ideas.md [2026-09-05]](../decisions/ideas.md)
 «Горячий путь».
 
 Наблюдаемое поведение изменилось в трёх местах, и каждое записано
@@ -1615,7 +1620,7 @@ Change #37 — первый из двух, выросших из профиля 
 область `AsyncLocalStorage` на запрос. Замер показал и цену
 `AsyncLocalStorage` в Node 22 — около 14% пропускной способности из-за
 хуков промисов на весь процесс. Репозиторий переведён на Node 24, где
-хранилище работает на `AsyncContextFrame`: [ideas.md [2026-09-05]](./ideas.md)
+хранилище работает на `AsyncContextFrame`: [ideas.md [2026-09-05]](../decisions/ideas.md)
 «Целевая версия Node — 24». Дельта-спеки влиты в
 `http-request-cancellation`, `message-bus` и `port-deadline`.
 
@@ -1964,19 +1969,19 @@ endpoint'а с пайплайном тот же лимит давал 500 — п
 `standard-schema-validation`, `http-request-validation-errors`,
 `http-request-cancellation`, `http-transport-limits`, `domain-fail-definitions`,
 `error-response-safety`). Логика решения и пять уточнений реализации —
-[ideas.md [2026-08-29]](./ideas.md) и блок «РЕАЛИЗОВАНО 2026-09-01» под ней.
+[ideas.md [2026-08-29]](../decisions/ideas.md) и блок «РЕАЛИЗОВАНО 2026-09-01» под ней.
 См. change [`input-validation-builtin`](../../openspec/changes/archive/2026-09-01-input-validation-builtin/).
 
 [01.08.2026] Реестр подписок: замер удался, ядро пусто в диффе, четыре находки — не дыры в примитивах (subscriptions-registry).
 
 Change #7 — последний в roadmap и единственный, чей продукт не столько код,
-сколько **измерение** тезиса [«Kernel 1.0», п. 1](./ideas.md): satellite
+сколько **измерение** тезиса [«Kernel 1.0», п. 1](../decisions/ideas.md): satellite
 пишется поверх публичных примитивов, не трогая ядро. Результат: пакет
 [`@nestling/subscriptions`](../../packages/nestling.subscriptions/) собран
 целиком на `.pre`/`.finally`, класс-форме юнита, `AbortSignal`, DI, `Topic` и
 контрактах; `git diff` по kernel-пакетам за весь change пуст; внешних
 зависимостей нет, `@nestling/app` в зависимостях тоже нет. Полный отчёт —
-[ideas.md, секция «[2026-08-01] Реестр подписок: результат dogfooding-замера»](./ideas.md).
+[ideas.md, секция «[2026-08-01] Реестр подписок: результат dogfooding-замера»](../decisions/ideas.md).
 
 **Половина ценности замера — то, что не потребовало исключений.** Момент
 `.finally` у потоковых форм снял запись ровно тогда, когда поток дотёк,
@@ -1999,7 +2004,7 @@ Change #7 — последний в roadmap и единственный, чей 
 широковещания без queue-group) — реестр node-local, наблюдение кластерное
 фактами с именем узла; имитация `request`-контрактом отвергнута, потому что
 молчаливо неверный ответ хуже отсутствующей возможности; триггер возврата — в
-[deferred.md](./deferred.md). (4) Найдено по ходу: `.finally` не исполняется
+[deferred.md](../decisions/deferred.md). (4) Найдено по ходу: `.finally` не исполняется
 у **непрочитанного** потокового ответа — `return()` на неначатом генераторе
 тела не запускает. Это дефект рантайма потоков, а не дыра в примитивах
 (контракт «потребить итератор либо закрыть его» из `design/transports.md`
@@ -2016,7 +2021,7 @@ change'ем — правка ядра ради satellite'а обесценила
 строкой — второй после #7 догфудинг тезиса «satellite пишется, не трогая
 ядро», и заготовленное ядром пакета поле `stubs:` приняло контрактные стабы
 без единой правки. Подробности решения — [ideas.md, секция «[2026-07-10]
-Пакет тестирования»](./ideas.md), отметка «РЕАЛИЗОВАНО 2026-08-01 (остаток)».
+Пакет тестирования»](../decisions/ideas.md), отметка «РЕАЛИЗОВАНО 2026-08-01 (остаток)».
 
 **Механизм — свойство контейнера, а не новая машинерия.** Стаб есть обычный
 провайдер на токен-член семейства вызывателей, зарегистрированный корневым, то
@@ -2205,9 +2210,9 @@ Change #22 доводит до кода запись [2026-07-13] «Типизи
 `contract-http-binding`, `contracts-package-boundary`, `typed-http-client`;
 расширены `contract-declarations`, `endpoint-declarations`,
 `http-input-binding`. См. change `contract-clients`,
-[гайд](../history/superseded/guides/typed-client.md), ideas.md «[2026-08-01] Клиенты из
+[гайд](./superseded/guides/typed-client.md), ideas.md «[2026-08-01] Клиенты из
 контрактов: реализация», дискуссия
-[d/07](../history/discussions/07-typed-clients.md),
+[d/07](./discussions/07-typed-clients.md),
 [архив change'а](../../openspec/changes/archive/2026-08-01-contract-clients/).
 
 [31.07.2026] NATS: брокер **является** шиной приложения, а не встаёт рядом с ней (transport-nats). ~~Закрывает волну 5.~~ — УТОЧНЕНО: последним change'ем волны 5 идёт #22 `contract-clients`, см. запись [01.08.2026].
@@ -2222,7 +2227,7 @@ Change #12 — проверка тезиса L4 («location transparency»): spl
 in-proc шину только если корень не поставил транспорт шины сам; `MessageBus$`
 становится алиасом инстанса `BusTransport$` (направление алиаса развёрнуто
 один раз и одинаково для обеих реализаций). Довод — дихотомия «messaging vs
-transports» уже признана ложной в [d/05 §4](../history/discussions/05-modular-monolith-features-ports.md),
+transports» уже признана ложной в [d/05 §4](./discussions/05-modular-monolith-features-ports.md),
 и две шины воскресили бы её как «локальная» и «сетевая». К тому же
 `local-first` и так не ходит на шину для co-located вызовов — роль «локальной
 шины» в модели исполняет диспетчер, а не шина. **Отвергнут собственный токен
@@ -2310,7 +2315,7 @@ ambient-переменной — имя поля накопленного `input
 `NATS_TEST_SERVERS`. Дельта-спеки влиты: новые capability `nats-transport`,
 `durable-delivery`, `context-propagation`; расширены `message-bus`,
 `port-binding`, `contract-declarations`, `async-context-vars`. См. change
-`transport-nats`, [гайд](../history/superseded/guides/ports.md) (разделы про split-развёртывание
+`transport-nats`, [гайд](./superseded/guides/ports.md) (разделы про split-развёртывание
 и провоз контекста), ideas.md «[2026-07-31] NATS: шина приложения»,
 [архив change'а](../../openspec/changes/archive/2026-07-31-transport-nats/).
 
@@ -2365,7 +2370,7 @@ Change #26 закрыл вторую половину записи [2026-07-13] 
 
 [31.07.2026] Эксплуатационный профиль вызова: бюджет — момент, ключ — только у команд (port-deadline-idempotency).
 
-Change #27 закрыл ровно то, на чём, по [d/06 §5](../history/discussions/06-critical-design-review.md),
+Change #27 закрыл ровно то, на чём, по [d/06 §5](./discussions/06-critical-design-review.md),
 сломалась Service Weaver: location transparency, отданная без
 **эксплуатационного профиля**. После #11 call-site co-located и remote вызова
 совпадал до последнего дженерика, но ограничить hop бюджетом было нечем, а
@@ -2420,7 +2425,7 @@ Change #27 закрыл ровно то, на чём, по [d/06 §5](../history
 `timeoutMs` в момент на приёме, отказ по исчерпанию в транзите без вызова
 `dispatch.call`, ключ в атрибутах. Wire-часть для NATS едет с change #12, но
 форма LCD уже зафиксирована и интерфейс под неё расширять не придётся.
-См. change `port-deadline-idempotency`, [гайд](../history/superseded/guides/ports.md),
+См. change `port-deadline-idempotency`, [гайд](./superseded/guides/ports.md),
 ideas.md «[2026-07-31] Порты: бюджет вызова моментом, ключ идемпотентности
 у команд».
 
@@ -3006,7 +3011,7 @@ BREAKING по четырём пунктам: `withFiles()`/`files()` удале�
 `http-request-cancellation`, `error-values`, `domain-fail-definitions`.
 Открытые вопросы, оставшиеся после реализации (гранулярность байтов в
 `summary`, `events` во входе, семантика `throttle` при переполнении), —
-в [deferred.md](./deferred.md). Запись в `ideas.md`, закрывающая вопросы
+в [deferred.md](../decisions/deferred.md). Запись в `ideas.md`, закрывающая вопросы
 журнала (политика `Topic` для медленного подписчика; дефолт и форма opt-out
 поэлементной валидации; политика невалидного элемента), подготовлена, но
 **не внесена**: по правилу CLAUDE.md она ждёт явного «запиши» — до тех пор
@@ -3071,7 +3076,7 @@ remote-`Fail` (едет с #11 `ports`), wire-формат RFC 9457 (отлож�
 Шестой и последний change окна: снапшоты диагностик и порог tsserver имеют
 смысл только поверх уже зафиксированных типов, поэтому он шёл после
 #19/#17/#8/#24/#21. Замеры показали, что риск, названный внешним ревью
-([d/06 §6](../history/discussions/06-critical-design-review.md)), не
+([d/06 §6](./discussions/06-critical-design-review.md)), не
 гипотетический, а уже реализовавшийся: 50 слоёв вложенной композиции —
 476 561 514 инстанциаций, 41.55 s проверки, `34× TS2589` и hover ~40 s. То
 есть заявленный потолок вложенности не «медленный», а **не компилируется**.
@@ -3131,14 +3136,14 @@ TS, нельзя. Прогон — отдельный nx-таргет в сос�
 его нечем), но и прямая блокировка двух даунстримов: генератору OpenAPI (#20)
 неоткуда взять `parameter` vs `requestBody`, типизированному клиенту (#22) —
 куда класть поле при сборке запроса. Внешнее ревью назвало HTTP-модель
-слабейшим местом дизайна ([d/06 П.4](../history/discussions/06-critical-design-review.md)).
+слабейшим местом дизайна ([d/06 П.4](./discussions/06-critical-design-review.md)).
 
 Канон — детерминированная функция `(шаблон пути, метод, пометки) → место` с
 приоритетом: совпадение имени поля с path-параметром шаблона → путь; явная
 пометка → её место; всё остальное → query для методов без тела
 (`GET`/`HEAD`/`DELETE`/`OPTIONS`/`TRACE`) и body для остальных. Заголовки —
 только по пометке и никогда конвенцией (`header()` отложен, см.
-[deferred.md](./deferred.md)). Пометки — значения-марки `query()`/`body()` в
+[deferred.md](../decisions/deferred.md)). Пометки — значения-марки `query()`/`body()` в
 поле `bind` словаря, а не обёртки схемы и не строки: марку внутрь вендорского
 shape не положить (zod принимает только `ZodType`, а прочитать чужой shape
 нечем ни у одного вендора — граница, зафиксированная `standard-schema`, #19),
@@ -3344,7 +3349,7 @@ depth-first обход `modules` + `imports`, `imports` раньше собст�
 [design/container.md](../design/container.md) («глобальных реестров-при-импорте
 нет») и [design/composition.md](../design/composition.md) §1; логика —
 ideas.md «[2026-07-08] Модульный монолит: фичи, `select`, дискавери из дерева
-модулей», разбор — [discussions/05 §1](../history/discussions/05-modular-monolith-features-ports.md).
+модулей», разбор — [discussions/05 §1](./discussions/05-modular-monolith-features-ports.md).
 См. [архив change'а](../../openspec/changes/archive/2026-07-29-endpoint-discovery/).
 
 [29.07.2026] Pipeline: отказ от фазы `.after` (pipeline-drop-after). BREAKING.
@@ -3462,7 +3467,7 @@ factory-провайдер с deps = токены всех зарегистри�
 на ранее невозможных формах записи; поведение собранных контейнеров не менялось.
 Демонстрация — семейство health-check'ов в `examples.simple-app` с вкладами из
 `module:database` и `module:api`; гайд —
-[guides/di-token-families.md](../history/superseded/guides/di-token-families.md). См. change
+[guides/di-token-families.md](./superseded/guides/di-token-families.md). См. change
 `multi-injection`.
 
 [28.07.2026] Token families, `.auto` и strictExports в контейнере (token-families).
@@ -3503,7 +3508,7 @@ factory-провайдер с deps = токены всех зарегистри�
 расширение типов `Module.exports`/`providers`); поведение по умолчанию не
 изменилось. `examples.simple-app` мигрирован с ручного `Set` + `ProvidersFactory`
 на семейство, `UserRepository` демонстрирует `.auto`. Гайд —
-[guides/di-token-families.md](../history/superseded/guides/di-token-families.md). См.
+[guides/di-token-families.md](./superseded/guides/di-token-families.md). См.
 [архив change'а](../../openspec/changes/archive/2026-07-29-token-families/).
 
 [07.07.2026] Pipeline v2: плоские фазы, слои, compose (pipeline-v2). BREAKING.

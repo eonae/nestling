@@ -102,9 +102,12 @@ and tell the user. Dirty worktree: skip the rebase and say so. Never touch
    The archive commit lives in the change branch, never in `main`. `main` is
    written only by the Merger session (`.claude/skills/merger/SKILL.md`).
 
-   - Update the change's status row in `docs/decisions/roadmap.md` and add the
-     paragraph to `docs/decisions/archlog.md` (see CLAUDE.md, «Workflow
-     изменений»). Commit everything in the change branch:
+   - Update the change's row in `docs/decisions/roadmap.md` (one table) and put
+     the «РЕАЛИЗОВАНО» mark on the `ideas.md` entry the change was made from
+     (rule 9 in `docs/README.md`: what shipped, what moved on, what the
+     implementation clarified). Then regenerate the `ideas.md` table of
+     contents: `node .claude/skills/docs-audit/scripts/ideas-toc.mjs`. Commit
+     everything in the change branch:
      `openspec: архив <name>, дельты влиты в спеки`.
    - Make sure the worktree is clean: `git status --porcelain` prints nothing.
    - Send a message to the Merger session with SendMessage
