@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/transport.cli",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "CLI-транспорт Nestling: те же endpoint'ы и пайплайны, что в HTTP, но вместо маршрутов — команды, а stdin служит потоковым входом",
   "keywords": [
     "nestling",

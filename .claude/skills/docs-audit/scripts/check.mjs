@@ -95,12 +95,16 @@ for (const f of chapterFiles) {
         `нет ни examples/${example}, ни packages/${example}`);
       continue;
     }
-    const lastCommit = git('log', '-1', '--format=%cs', '--', pkg);
+    // Манифест не в счёт: `lerna version` меняет в нём одно поле `version`,
+    // и без этого исключения каждый релиз помечал бы устаревшими все главы
+    // сразу. Сниппеты сверяются с кодом примера, а не с его манифестом
+    const code = [pkg, `:(exclude)${pkg}/package.json`];
+    const lastCommit = git('log', '-1', '--format=%cs', '--', ...code);
     if (lastCommit && lastCommit > checkedAt) {
       add('WARN', 'guide-stale', file,
         `пример ${example} менялся ${lastCommit}, глава сверена ${checkedAt} — нужна пересверка`);
     }
-    if (git('status', '--porcelain', '--', pkg)) {
+    if (git('status', '--porcelain', '--', ...code)) {
       add('WARN', 'guide-stale', file,
         `в ${pkg} есть незакоммиченные изменения — после них пересверь главу`);
     }

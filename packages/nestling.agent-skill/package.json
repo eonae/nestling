@@ -1,0 +1,63 @@
+{
+  "name": "@nestlingjs/agent-skill",
+  "version": "0.1.3",
+  "description": "Скилл Claude Code про Nestling и команда, которая кладёт его в проект: форма кода и правила, которых агент не знает по NestJS",
+  "keywords": [
+    "nestling",
+    "typescript",
+    "esm",
+    "claude",
+    "claude-code",
+    "agent",
+    "skill"
+  ],
+  "license": "MIT",
+  "author": "eonae",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eonae/nestling.git",
+    "directory": "packages/nestling.agent-skill"
+  },
+  "homepage": "https://github.com/eonae/nestling/tree/main/packages/nestling.agent-skill#readme",
+  "bugs": {
+    "url": "https://github.com/eonae/nestling/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "nestling-agent-skill": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skill"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clear": "rm -rf dist",
+    "typecheck": "run -T tsc -p tsconfig.json",
+    "build": "yarn run clear && run -T tsc -p tsconfig.build.json",
+    "lint": "run -T eslint .",
+    "lint:fix": "yarn run lint --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules run -T jest --passWithNoTests",
+    "snippets": "node scripts/snippets.mjs --write"
+  },
+  "devDependencies": {
+    "@nestlingjs/app": "workspace:*",
+    "@nestlingjs/container": "workspace:*",
+    "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/testing": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*",
+    "typescript": "5.7.3",
+    "zod": "^4.0.0"
+  }
+}

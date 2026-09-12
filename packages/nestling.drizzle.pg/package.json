@@ -1,6 +1,6 @@
 {
   "name": "@nestlingjs/drizzle.pg",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "Соединение с PostgreSQL, транзакция запроса переменной контекста и адаптер хранилища outbox'а поверх drizzle-orm",
   "keywords": [
     "nestling",

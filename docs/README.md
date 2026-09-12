@@ -68,7 +68,7 @@ design-доки описывают **только целевое V1** (как б
 
 ## Пакеты
 
-Девятнадцать каталогов `packages/`. Ядро — три из них: `@nestlingjs/container`,
+Двадцать каталогов `packages/`. Ядро — три из них: `@nestlingjs/container`,
 `@nestlingjs/operations` и `@nestlingjs/app`; их ставят вместе, поэтому и имён
 у ядра три.
 
@@ -93,6 +93,7 @@ design-доки описывают **только целевое V1** (как б
 
 | Пакет | Что делает |
 |---|---|
+| [`@nestlingjs/agent-skill`](../packages/nestling.agent-skill/) | Скилл Claude Code про Nestling и команда, которая кладёт его в проект |
 | [`@nestlingjs/client`](../packages/nestling.client/) | Типизированный HTTP-клиент из операций для фронтенда и других сервисов |
 | [`@nestlingjs/openapi`](../packages/nestling.openapi/) | Документ OpenAPI 3.1 из деклараций endpoint'ов |
 | [`@nestlingjs/openapi.zod`](../packages/nestling.openapi.zod/) | Конвертер схем zod для `@nestlingjs/openapi` |

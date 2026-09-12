@@ -3,7 +3,7 @@
  * вне репозитория и импортируется оттуда.
  *
  * Ловит класс «собралось и грузится здесь, но не работает у установившего».
- * Таких поломок три, и ни одну не видит `scripts/smoke.mjs`: он грузит
+ * Таких поломок четыре, и ни одной не видит `scripts/smoke.mjs`: он грузит
  * `dist/index.js` на месте, где рядом лежат и `src`, и соседние пакеты по
  * симлинкам workspace'а.
  *
@@ -13,6 +13,8 @@
  *    понимает, установка падает на резолве.
  * 3. Зависимость, объявленная в `devDependencies`, но импортируемая из
  *    `src` — у установившего её нет.
+ * 4. Команда из поля `bin`, которой нет в тарболе или которая не
+ *    запускается: `npx <пакет>` падает у первого, кто её позвал.
  *
  * Прогон: `yarn pack:check`. В `yarn verify` не входит: ставит пакеты из
  * сети и занимает минуты. Требует собранных `dist` — запускать после
@@ -37,6 +39,20 @@ const NODE_ARGS = ['--conditions=testing'];
 
 const failures = [];
 const fail = (name, message) => failures.push({ name, message });
+
+/** Команды пакета: имя команды и путь файла. Строка в `bin` — команда с именем пакета */
+const binCommands = (pkg) => {
+  if (!pkg.bin) {
+    return [];
+  }
+
+  return typeof pkg.bin === 'string'
+    ? [[pkg.name.split('/').at(-1), pkg.bin]]
+    : Object.entries(pkg.bin);
+};
+
+/** Команды, которые дальше запускаются из установленного пакета */
+const binTargets = [];
 
 const packages = publishablePackages();
 
@@ -79,6 +95,16 @@ for (const { name } of packages) {
 
   const listing = await run('tar', ['-tzf', out], { maxBuffer: 8 * 1024 * 1024 });
   const entries = listing.stdout.split('\n').filter(Boolean);
+
+  // Команда из `bin` обязана быть в тарболе: `files` легко забыть
+  for (const [command, file] of binCommands(packed)) {
+    if (entries.includes(`package/${file.replace(/^\.\//, '')}`)) {
+      binTargets.push({ name, command });
+    } else {
+      fail(name, `команда ${command} объявлена в bin, но файла ${file} нет в тарболе`);
+    }
+  }
+
   const testCode = entries.filter(
     (entry) =>
       entry.startsWith('package/src/') ||
@@ -134,6 +160,23 @@ await Promise.all(
     }
   }),
 );
+
+// 4. Запуск команды из установленного пакета. Её запускает шим
+//    `node_modules/.bin`, поэтому проверяется и строка `#!/usr/bin/env node`
+if (binTargets.length > 0) {
+  console.log(`[pack-check] запуск ${binTargets.length} команд(ы)`);
+}
+
+for (const { name, command } of binTargets) {
+  // Каждая команда работает в своём пустом каталоге: она пишет в текущий
+  const sandbox = mkdtempSync(join(work, 'bin-'));
+
+  try {
+    await run(join(consumer, 'node_modules', '.bin', command), [], { cwd: sandbox });
+  } catch (error) {
+    fail(name, `команда ${command} не запускается: ${String(error.stderr || error.message).trim()}`);
+  }
+}
 
 report();
 

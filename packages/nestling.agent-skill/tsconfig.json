@@ -1,0 +1,17 @@
+{
+  // Проект пакета: по нему работают редактор и ESLint. Покрывает весь
+  // TypeScript пакета — `src` со спеками и `snippets` с примерами кода для
+  // скилла. Сниппеты входят сюда, потому что их смысл в том, чтобы
+  // компилироваться против настоящего API соседних пакетов
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Сборка идёт по `tsconfig.build.json`
+    "noEmit": true,
+
+    // Сниппет теста импортирует `@nestlingjs/testing`, который живёт по ту
+    // сторону условия: без него subpath-шов не резолвится при typecheck
+    "customConditions": ["testing"]
+  },
+  "include": ["src", "snippets"],
+  "exclude": ["dist", "node_modules"]
+}

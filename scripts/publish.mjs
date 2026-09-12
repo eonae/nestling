@@ -1,20 +1,27 @@
 /**
- * Публикация пакетов в реестр. Запускается workflow'ом релиза по тегу `v*`;
- * с рабочей машины не работает — ключ доступа живёт секретом репозитория.
+ * Публикация пакетов в реестр.
+ *
+ * Режима два. Workflow релиза запускает скрипт по тегу `v*` без аргументов:
+ * право публиковать даёт OIDC-обмен с доверенным издателем, ключа доступа
+ * в репозитории нет. Человек запускает скрипт с `--interactive`, когда имя
+ * публикуется впервые: доверенного издателя нельзя привязать к пакету,
+ * которого ещё нет в реестре, поэтому первую версию имени отправляет
+ * человек, проходя проверку второго фактора на каждый пакет.
  *
  * Тарбол делает `yarn pack`: он подставляет версии вместо протокола
  * `workspace:` и отбирает файлы по `files`. Отправляет тарбол `npm publish`
- * — ради provenance, которого yarn не умеет: подпись выдаёт OIDC-обмен,
- * доступный только npm CLI внутри GitHub Actions.
+ * ради provenance, которого yarn не умеет. Подпись выдаёт тот же
+ * OIDC-обмен, поэтому у версии, опубликованной с рабочей машины,
+ * provenance нет.
  *
  * Версии скрипт не поднимает и ничего не коммитит: версию поднимает
  * человек (`yarn lerna version`), тег ставит человек. Скрипт лишь сверяет,
  * что тег и манифесты говорят одно и то же.
  *
- * Прогон: `node scripts/publish.mjs`. Переменные окружения — `GITHUB_REF_NAME`
- * (тег), `NODE_AUTH_TOKEN` (ключ доступа), `NPM_CONFIG_PROVENANCE`.
+ * Прогон: `node scripts/publish.mjs [--interactive]`. Переменные окружения —
+ * `GITHUB_REF_NAME` (тег) и `NPM_CONFIG_PROVENANCE`.
  */
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,6 +31,7 @@ import { publishablePackages, repoRoot, slugOf } from './packages.mjs';
 
 const run = promisify(execFile);
 
+const interactive = process.argv.includes('--interactive');
 const packages = publishablePackages();
 const tag = process.env.GITHUB_REF_NAME;
 
@@ -42,6 +50,11 @@ if (tag) {
   }
 }
 
+if (interactive) {
+  console.log(`[publish] аккаунт ${await whoami()}`);
+  console.log('[publish] publish идёт не из CI, поэтому provenance у этих версий не будет');
+}
+
 const tarballs = join(mkdtempSync(join(tmpdir(), 'nestling-publish-')), 'tarballs');
 mkdirSync(tarballs);
 
@@ -56,15 +69,53 @@ for (const { name, pkg } of packages) {
   const out = join(tarballs, `${slugOf(name)}.tgz`);
 
   await run('yarn', ['workspace', name, 'pack', '--out', out], { cwd: repoRoot });
-  await run('npm', ['publish', out, '--access', 'public'], {
-    cwd: repoRoot,
-    maxBuffer: 32 * 1024 * 1024,
-  });
+  await publish(out);
 
   console.log(`[publish] ${name} опубликован`);
 }
 
 console.log(`[publish] ${packages.length} package(s) published: ok`);
+
+/**
+ * Отправляет тарбол в реестр.
+ *
+ * В интерактивном режиме ввод и вывод достаются `npm publish` как есть:
+ * второй фактор спрашивает он сам и по-разному. Passkey он подтверждает
+ * адресом, который печатает в терминал и открывает в браузере, код
+ * приложения — запросом в том же терминале. Перехватить вывод значило бы
+ * спрятать от человека и адрес, и запрос.
+ */
+async function publish(tarball) {
+  const args = ['publish', tarball, '--access', 'public'];
+
+  if (!interactive) {
+    await run('npm', args, { cwd: repoRoot, maxBuffer: 32 * 1024 * 1024 });
+
+    return;
+  }
+
+  await new Promise((resolve, reject) => {
+    const npm = spawn('npm', args, { cwd: repoRoot, stdio: 'inherit' });
+
+    npm.on('error', reject);
+    npm.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`[publish] npm publish завершился с кодом ${code}`));
+    });
+  });
+}
+
+/** Имя аккаунта, под которым выполнен вход в реестр. */
+async function whoami() {
+  try {
+    const { stdout } = await run('npm', ['whoami'], { cwd: repoRoot });
+
+    return stdout.trim();
+  } catch {
+    console.error('[publish] входа в реестр нет: выполните `npm login`');
+    process.exit(1);
+  }
+}
 
 /**
  * Есть ли эта версия в реестре.
