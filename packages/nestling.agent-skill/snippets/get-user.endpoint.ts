@@ -1,6 +1,7 @@
 import type { GetUserInput, User } from './api-operations.js';
 import { GetUser as GetUserOperation } from './api-operations.js';
 import { UserNotFound } from './errors.js';
+import { observability } from './pipeline.js';
 import type { UsersRepository } from './users.repository.js';
 import { UsersRepository$ } from './users.repository.js';
 
@@ -30,5 +31,6 @@ export class GetUserHandler {
  */
 export const GetUser = httpEndpoint({
   operation: GetUserOperation,
+  pipeline: observability,
   handler: GetUserHandler,
 });

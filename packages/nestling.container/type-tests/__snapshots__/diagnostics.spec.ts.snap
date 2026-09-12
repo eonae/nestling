@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`class role type diagnostics component-extra-dependency 1`] = `
+"packages/nestling.container/type-tests/fixtures/component-extra-dependency.ts(16,2): error TS1238: Unable to resolve signature of class decorator when called as an expression.
+  Argument of type 'typeof UserService' is not assignable to parameter of type 'typeof UserService & DependencyLengthError<1, 2>'.
+    Type 'typeof UserService' is missing the following properties from type 'DependencyLengthError<1, 2>': __error, expected, actual"
+`;
+
+exports[`class role type diagnostics component-with-handle 1`] = `
+"packages/nestling.container/type-tests/fixtures/component-with-handle.ts(12,2): error TS1238: Unable to resolve signature of class decorator when called as an expression.
+  Argument of type 'typeof CreateUserHandler' is not assignable to parameter of type 'typeof CreateUserHandler & RoleShapeError<"A class with a handle method is a handler, not a component", "@Handler">'.
+    Type 'typeof CreateUserHandler' is missing the following properties from type 'RoleShapeError<"A class with a handle method is a handler, not a component", "@Handler">': __error, use"
+`;
+
+exports[`class role type diagnostics component-wrong-order 1`] = `
+"packages/nestling.container/type-tests/fixtures/component-wrong-order.ts(19,2): error TS1238: Unable to resolve signature of class decorator when called as an expression.
+  Argument of type 'typeof UserService' is not assignable to parameter of type 'new (args_0: ILogger, args_1: Database) => any'.
+    Types of construct signatures are incompatible.
+      Type 'new (db: Database, logger: { log(message: string): void; }) => UserService' is not assignable to type 'new (args_0: ILogger, args_1: Database) => any'.
+        Types of parameters 'db' and 'args_0' are incompatible.
+          Property 'query' is missing in type 'ILogger' but required in type 'Database'.
+
+packages/nestling.container/type-tests/fixtures/component-wrong-order.ts(19,2): error TS1270: Decorator function return type 'new (args_0: ILogger, args_1: Database) => any' is not assignable to type 'void | typeof UserService'.
+  Type 'new (args_0: ILogger, args_1: Database) => any' is not assignable to type 'typeof UserService'.
+    Types of construct signatures are incompatible.
+      Type 'new (args_0: ILogger, args_1: Database) => any' is not assignable to type 'new (db: Database, logger: { log(message: string): void; }) => UserService'.
+        Types of parameters 'args_0' and 'db' are incompatible.
+          Property 'log' is missing in type 'Database' but required in type 'ILogger'."
+`;

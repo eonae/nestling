@@ -9,7 +9,7 @@ import nestling from '@nestlingjs/eslint-plugin';
  * графе.
  */
 export default [
-  ...createEslintConfig(import.meta.url),
+  ...createEslintConfig(import.meta.url, { published: false }),
   {
     files: ['src/**/*.ts'],
     plugins: { '@nestlingjs': nestling },

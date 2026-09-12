@@ -105,17 +105,32 @@ type ValidAcquireLength<
  *
  * Запрет выражается пересечением, а не ограничением `extends`: ограничение
  * умеет требовать член, но не умеет его запрещать.
+ *
+ * Форма хендлера сравнивается с типом экземпляра, и `any` в этой позиции
+ * совпадением не считается. Когда класс не проходит ограничение параметра
+ * декоратора, TypeScript печатает само ограничение — `new (...) => any`, —
+ * и `any` в позиции экземпляра подходит под любую форму. Без отсечки текст
+ * про `@Handler` попадал бы в диагностику любой другой причины, например
+ * неверной длины списка зависимостей. Приём `0 extends 1 & Instance`
+ * истинен только для `any`.
+ *
+ * Хендлеру такая отсечка не нужна: у `@Handler` наличие `handle` —
+ * требование, а не запрет, и `any` проходит под требование молча.
  */
 type ValidComponentShape<T> = T extends { acquire(...args: any[]): any }
   ? RoleShapeError<
       'A class with a static acquire is a resource, not a component',
       '@Resource'
     >
-  : T extends abstract new (...args: any) => HandlerShape
-    ? RoleShapeError<
-        'A class with a handle method is a handler, not a component',
-        '@Handler'
-      >
+  : T extends abstract new (...args: any) => infer Instance
+    ? 0 extends 1 & Instance
+      ? unknown
+      : Instance extends HandlerShape
+        ? RoleShapeError<
+            'A class with a handle method is a handler, not a component',
+            '@Handler'
+          >
+        : unknown
     : unknown;
 
 /**

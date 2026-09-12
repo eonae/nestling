@@ -121,7 +121,7 @@ export function openapi<P extends AnyInput = AnyInput, PN = never>(
     ...(detached === undefined ? {} : { detached }),
     // Документ не описывает сам себя: endpoint служебный, и в списке операций
     // API ей делать нечего
-    doc: { hidden: 'служебная ручка: сам документ' },
+    doc: { hidden: 'service endpoint: the document itself' },
     handler: DocumentHandler,
   });
 

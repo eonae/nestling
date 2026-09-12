@@ -1,6 +1,6 @@
 import { User } from './api-operations.js';
+import { observability } from './pipeline.js';
 
-import { makePipeline, withRequestId } from '@nestlingjs/app';
 import { httpEndpoint } from '@nestlingjs/transport.http';
 import { z } from 'zod';
 
@@ -19,12 +19,15 @@ const page: z.infer<typeof User>[] = [
  * `limit` is not in the path and `GET` has no body, so it comes from the
  * query string. A function handler cannot inject anything — take a handler
  * class as soon as it needs a dependency.
+ *
+ * `pipeline:` names a layer the application already declares: the policy of
+ * the root requires this one from every HTTP endpoint.
  */
 export const ListUsers = httpEndpoint({
   method: 'GET',
   path: '/users',
   input: ListUsersInput,
   output: z.array(User),
-  pipeline: makePipeline().pre(withRequestId()),
+  pipeline: observability,
   handler: async ({ limit }) => page.slice(0, limit),
 });

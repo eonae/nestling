@@ -6,6 +6,6 @@
     // Сборка идёт по `tsconfig.build.json`
     "noEmit": true
   },
-  "include": ["src"],
-  "exclude": ["dist", "node_modules"]
+  "include": ["src", "type-tests"],
+  "exclude": ["dist", "node_modules", "type-tests/fixtures"]
 }

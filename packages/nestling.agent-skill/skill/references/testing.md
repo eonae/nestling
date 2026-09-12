@@ -7,7 +7,8 @@ installed and nothing is printed. Names live in the README of
 [`@nestlingjs/testing`](https://www.npmjs.com/package/@nestlingjs/testing).
 
 The runner must enable the `testing` resolve condition, or the import fails
-with `ERR_PACKAGE_PATH_NOT_EXPORTED`:
+with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Jest takes it as a field, `node --test`
+as the flag `--conditions=testing`; both are in `references/setup.md`.
 
 ```
 // jest.config.js
@@ -95,6 +96,42 @@ describe('users', () => {
   which is what a test wants when the failure is not the subject.
 - A failure is asserted as data: `{ isSuccess: false, status: 'not_found',
   value: { code: 'not_found:user' } }`.
+
+The built-in runner needs no adapter. The same test, with `node:test` and
+`node:assert/strict`:
+
+<!-- snippet: node-test.ts -->
+```typescript
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+import { app } from './app.js';
+import { GetUser } from './get-user.endpoint.js';
+
+import { assembleTest, unwrap, vars } from '@nestlingjs/testing';
+
+/**
+ * The same assembly under the runner built into Node. Nothing about the
+ * framework changes: only the names of the test function and of the
+ * assertion, and `--conditions=testing` on the command line instead of a
+ * field in a config.
+ */
+test('calls an endpoint through the whole pipeline, without a socket', async () => {
+  await using testApp = await assembleTest(app, {
+    config: vars({ API_TOKEN: 'test-token' }),
+  });
+
+  assert.deepEqual(unwrap(await testApp.call(GetUser, { id: '1' })), {
+    id: '1',
+    name: 'Alice',
+    email: 'a@example.com',
+  });
+});
+```
+
+Run it with `node --import tsx --test --conditions=testing
+"src/**/*.test.ts"`: the loader is there because Node strips types without
+compiling them, and a decorator is syntax it cannot parse.
 
 ## Substitutions
 

@@ -50,7 +50,7 @@
     "@nestlingjs/container": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
     "busboy": "^1.6.0",
-    "find-my-way": "^8.2.0",
+    "find-my-way": "^9.7.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
