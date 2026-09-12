@@ -474,13 +474,16 @@ describe('документ OpenAPI', () => {
       summary: 'Создать пользователя',
       tags: ['users'],
     });
-    // `dryRun` описан как query-параметр, а не как поле тела
+    // `dryRun` описан как query-параметр, а не как поле тела, и несёт тип
+    // разобранной формы: по сети приходит строка, схема разбирает её в
+    // булево
     expect(
-      paths['/users'].post.parameters?.map(({ name, in: where }) => [
+      paths['/users'].post.parameters?.map(({ name, in: where, schema }) => [
         name,
         where,
+        schema,
       ]),
-    ).toEqual([['dryRun', 'query']]);
+    ).toEqual([['dryRun', 'query', { type: 'boolean' }]]);
   });
 
   it('коды ответов совпадают с тем, что отвечает транспорт', async () => {
