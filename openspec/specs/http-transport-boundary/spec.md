@@ -129,6 +129,11 @@ SHALL приводиться к нижнему регистру до слиян�
 `Set-Cookie` и SHALL NOT перекрывать предыдущую. Пустой ответ
 (`value === null`) SHALL уходить без тела и без `content-type`.
 
+Пустой ответ SHALL нести `content-length: 0` при любом статусе, кроме
+204 и 304: у этих двух тела нет по протоколу, и заголовок длины убирает
+сам `node:http`. Без заголовка длины `node:http` добавляет пустому ответу
+`transfer-encoding: chunked`.
+
 При потоковой форме `output` заголовки `HttpResponse` SHALL записываться
 до первого кадра ответа.
 
@@ -143,6 +148,17 @@ SHALL приводиться к нижнему регистру до слиян�
 - **WHEN** хендлер вернул `HttpResponse.of(value, { headers: { 'Content-Type': 'text/plain' } })`
 - **THEN** ответ содержит один заголовок `content-type` со значением
   `text/plain`
+
+#### Scenario: Редирект уходит без chunked
+
+- **WHEN** endpoint объявлен с `redirect:` и хендлер вернул пустой ответ
+- **THEN** ответ содержит `location`, `content-length: 0` и не содержит
+  `transfer-encoding`
+
+#### Scenario: Ответ 204 идёт без заголовка длины
+
+- **WHEN** хендлер вернул `Ok.noContent()`
+- **THEN** в ответе нет ни `content-length`, ни `transfer-encoding`
 
 #### Scenario: Заголовки потока уходят до первого кадра
 
