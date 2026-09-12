@@ -44,7 +44,7 @@ if (EmailTaken.is(created)) {
 |---|---|
 | `makeClient` | собирает объект API из записи операций и конфигурации |
 | `Client` | тип собранного объекта API |
-| `ClientConfig` | `baseUrl`, `headers`, своя реализация `fetch`, `validateOutput` |
+| `ClientConfig` | `baseUrl`, `headers`, читалка трассы `trace`, своя реализация `fetch`, `validateOutput` |
 | `ClientMeta` | второй аргумент метода: `signal` и `deadline` |
 | `ClientMethod` | тип одного метода клиента |
 | `ClientArgs` | аргументы метода, выведенные из операции |
@@ -55,6 +55,12 @@ if (EmailTaken.is(created)) {
 `makeClient` бросает `TypeError` сразу, называя ключ метода: операция без
 секции `http:`, операция вида `event`, потоковая или `multipart` форма io,
 не-JSON тело, неабсолютный `baseUrl`.
+
+Заголовок `traceparent` ставит опция `trace` — функция, возвращающая строку
+W3C trace-context или `undefined`. Готовую читалку экспортирует
+`@nestlingjs/app` под именем `traceparent`; клиент её не добывает сам,
+потому что ambient-контекст запроса в браузере недоступен. Заголовок,
+заданный полем `headers`, сильнее.
 
 ## Границы пакета
 

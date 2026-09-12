@@ -8,7 +8,7 @@
 
 import { declareApp } from './app.js';
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import type { AssembledApp } from '@nestlingjs/app';
 import { spyLogger } from '@nestlingjs/testing';
 import { NatsBus } from '@nestlingjs/transport.nats';
@@ -65,7 +65,11 @@ async function run(
   ...selects: string[]
 ): Promise<{ close: () => Promise<void> }> {
   const apps: AssembledApp[] = selects.map((select) =>
-    declareApp({ connect: natsDouble(broker) }).assemble(select),
+    // Порт `0` — эфемерный: два процесса одного теста поднимают по
+    // серверу метрик, и фиксированный порт занял бы первый из них
+    declareApp({ nats: { connect: natsDouble(broker) }, httpPort: 0 }).assemble(
+      select,
+    ),
   );
 
   for (const app of apps) {
@@ -79,6 +83,38 @@ async function run(
       }
     },
   };
+}
+
+/**
+ * Перехватывает строки `stderr` на время вызова и разбирает их как JSON.
+ *
+ * Логгер ядра — единственное место, которое пишет в поток процесса, и
+ * поле `traceId` ставит именно он: узлом графа он не является и читает
+ * трассу из контекста запроса сам.
+ */
+async function captureLog(
+  body: () => Promise<void>,
+): Promise<Record<string, unknown>[]> {
+  const lines: string[] = [];
+  const spy = jest
+    .spyOn(process.stderr, 'write')
+    .mockImplementation((chunk: unknown) => {
+      lines.push(String(chunk));
+
+      return true;
+    });
+
+  try {
+    await body();
+  } finally {
+    spy.mockRestore();
+  }
+
+  return lines
+    .join('')
+    .split('\n')
+    .filter((line) => line.startsWith('{'))
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 describe('split-развёртывание через NATS', () => {
@@ -143,6 +179,44 @@ describe('split-развёртывание через NATS', () => {
 
     await outside.close();
     await topology.close();
+  });
+
+  it('записи двух процессов несут один traceId', async () => {
+    const broker = new NatsDouble();
+
+    // Формат `json` и уровень `info` задаются окружением: секция логгера
+    // читается на фазе 0, до контейнера
+    const previous = process.env.NESTLING_LOG_FORMAT;
+    process.env.NESTLING_LOG_FORMAT = 'json';
+
+    const records = await captureLog(async () => {
+      const topology = await run(broker, 'quotas', 'users');
+      const outside = await outsideClient(broker);
+
+      await outside.publish(
+        'users.register',
+        { email: 'carol@example.com' },
+        { context: { tenantId: 'acme' } },
+      );
+      await untilPublished(broker, 'users.registered');
+
+      await outside.close();
+      await topology.close();
+    });
+
+    if (previous === undefined) {
+      delete process.env.NESTLING_LOG_FORMAT;
+    } else {
+      process.env.NESTLING_LOG_FORMAT = previous;
+    }
+
+    const users = records.find(({ msg }) => msg === 'register');
+    const quotas = records.find(({ msg }) => msg === 'claim');
+
+    // Трасса началась в процессе `users` и продолжилась в `quotas`: её
+    // привёз конверт вызова, а базовый слой вернул в контекст
+    expect(users?.traceId).toMatch(/^[\da-f]{32}$/);
+    expect(quotas?.traceId).toBe(users?.traceId);
   });
 
   it('процесс users собирается без владельца quotas.claim', async () => {

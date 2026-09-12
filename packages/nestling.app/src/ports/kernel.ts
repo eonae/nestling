@@ -12,6 +12,8 @@
 
 import type { Logger } from '../logger/interface.js';
 import { Logger$ } from '../logger/tokens.js';
+import type { Metrics } from '../metrics/index.js';
+import { configuredMetrics, RootMetrics$ } from '../metrics/index.js';
 import type { TransportRef } from '../pipeline/index.js';
 import type { Dispatch, ITransport } from '../transport/index.js';
 
@@ -26,6 +28,7 @@ import {
   makeRemoteEmitter,
   makeRemotePort,
 } from './invoker.js';
+import { observeEmitter, observePort } from './observe.js';
 import { PortRuntime } from './runtime.js';
 import type { OperationTopology } from './topology.js';
 import type { BusBindingBearer } from './transport.js';
@@ -182,6 +185,7 @@ function buildPort(
   runtime: PortRuntime,
   policy: DispatchPolicy,
   remote: boolean,
+  metrics?: Metrics,
 ): Port<any> {
   const operation = requireOperation(name);
 
@@ -199,9 +203,15 @@ function buildPort(
 
   // Решение принимается один раз, при создании узла, и замыкается в
   // константу. При вызове выбор уже не повторяется
-  return bindsRemote(operation, patterns, policy, remote)
-    ? makeRemotePort(context)
-    : makeLocalPort(context);
+  const binding = bindsRemote(operation, patterns, policy, remote)
+    ? 'remote'
+    : 'local';
+  const port =
+    binding === 'remote' ? makeRemotePort(context) : makeLocalPort(context);
+
+  // Обёртка тоже выбирается один раз: приложение без настроенных метрик
+  // получает исходный вызыватель и не платит за наблюдаемость
+  return metrics ? observePort(port, operation, binding, metrics) : port;
 }
 
 /** Строит эмиттер `command`/`event`-операции по топологии, шине и политике */
@@ -211,6 +221,7 @@ function buildEmitter(
   runtime: PortRuntime,
   policy: DispatchPolicy,
   remote: boolean,
+  metrics?: Metrics,
 ): Emitter<any> {
   const operation = requireOperation(name);
 
@@ -226,9 +237,17 @@ function buildEmitter(
 
   const context: InvokerContext = { operation, runtime, patterns };
 
-  return bindsRemote(operation, patterns, policy, remote)
-    ? makeRemoteEmitter(context)
-    : makeLocalEmitter(context);
+  const binding = bindsRemote(operation, patterns, policy, remote)
+    ? 'remote'
+    : 'local';
+  const emitter =
+    binding === 'remote'
+      ? makeRemoteEmitter(context)
+      : makeLocalEmitter(context);
+
+  return metrics
+    ? observeEmitter(emitter, operation, binding, metrics)
+    : emitter;
 }
 
 /**
@@ -259,8 +278,8 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
    * и биндинг ведёт себя так же, как до появления удалённой стороны.
    */
   const invokerDeps = busInGraph
-    ? [PortRuntimeToken, NestlingPortsConfig, MessageBus$]
-    : [PortRuntimeToken, NestlingPortsConfig];
+    ? [PortRuntimeToken, NestlingPortsConfig, RootMetrics$, MessageBus$]
+    : [PortRuntimeToken, NestlingPortsConfig, RootMetrics$];
 
   const providers: ModuleProvider[] = [
     factoryProvider(
@@ -273,8 +292,17 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
       useFactory: (
         runtime: PortRuntime,
         config: PortsConfig,
+        metrics: Metrics,
         bus?: IMessageBus,
-      ) => buildPort(name, topology, runtime, config.dispatch, isRemote(bus)),
+      ) =>
+        buildPort(
+          name,
+          topology,
+          runtime,
+          config.dispatch,
+          isRemote(bus),
+          configuredMetrics(metrics),
+        ),
       deps: invokerDeps,
     })),
     familyProvider(EmitterFamily, (name) => ({
@@ -282,9 +310,17 @@ export const portsKernel = (options: PortsKernelOptions = {}): Module => {
       useFactory: (
         runtime: PortRuntime,
         config: PortsConfig,
+        metrics: Metrics,
         bus?: IMessageBus,
       ) =>
-        buildEmitter(name, topology, runtime, config.dispatch, isRemote(bus)),
+        buildEmitter(
+          name,
+          topology,
+          runtime,
+          config.dispatch,
+          isRemote(bus),
+          configuredMetrics(metrics),
+        ),
       deps: invokerDeps,
     })),
   ];

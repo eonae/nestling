@@ -82,6 +82,23 @@ function stubFetch(
   return { fetch: fake, calls };
 }
 
+/** Заголовки первого запроса стаба */
+const headersOf = (
+  stub: ReturnType<typeof stubFetch>,
+): Record<string, string> =>
+  stub.calls[0].init.headers as Record<string, string>;
+
+/**
+ * Читалка трассы, отдающая заранее заданное значение.
+ *
+ * Без значения ведёт себя как читалка вне запроса: трассы нет, и заголовку
+ * неоткуда взяться.
+ */
+const traceReader =
+  (value?: string): (() => string | undefined) =>
+  () =>
+    value;
+
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {
     status,
@@ -573,5 +590,86 @@ describe('makeClient: meta и конфигурация', () => {
     expect(
       (stub.calls[2].init.headers as Record<string, string>).authorization,
     ).toBe('Bearer t-2');
+  });
+});
+
+describe('makeClient — трасса за границей клиента', () => {
+  const TRACEPARENT = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+
+  it('читалка ставит заголовок traceparent', async () => {
+    const stub = stubFetch(() => json(200, { id: 'u-1', email: 'a@b.c' }));
+    const api = makeClient(
+      { createUser: CreateUser },
+      { baseUrl, fetch: stub.fetch, trace: traceReader(TRACEPARENT) },
+    );
+
+    await api.createUser({ email: 'a@b.c' });
+
+    expect(headersOf(stub).traceparent).toBe(TRACEPARENT);
+  });
+
+  it('читалка зовётся на каждый запрос: участок трассы свой у каждого', async () => {
+    const stub = stubFetch(() => json(200, { id: 'u-1', email: 'a@b.c' }));
+    let issued = 0;
+    const api = makeClient(
+      { createUser: CreateUser },
+      {
+        baseUrl,
+        fetch: stub.fetch,
+        trace: () => {
+          issued += 1;
+
+          return `span-${issued}`;
+        },
+      },
+    );
+
+    await api.createUser({ email: 'a@b.c' });
+    await api.createUser({ email: 'c@d.e' });
+
+    expect(
+      (stub.calls[1].init.headers as Record<string, string>).traceparent,
+    ).toBe('span-2');
+  });
+
+  it('заголовок конфигурации сильнее', async () => {
+    const stub = stubFetch(() => json(200, { id: 'u-1', email: 'a@b.c' }));
+    const api = makeClient(
+      { createUser: CreateUser },
+      {
+        baseUrl,
+        fetch: stub.fetch,
+        headers: { traceparent: 'explicit' },
+        trace: traceReader(TRACEPARENT),
+      },
+    );
+
+    await api.createUser({ email: 'a@b.c' });
+
+    expect(headersOf(stub).traceparent).toBe('explicit');
+  });
+
+  it('вне запроса заголовка нет', async () => {
+    const stub = stubFetch(() => json(200, { id: 'u-1', email: 'a@b.c' }));
+    const api = makeClient(
+      { createUser: CreateUser },
+      { baseUrl, fetch: stub.fetch, trace: traceReader() },
+    );
+
+    await api.createUser({ email: 'a@b.c' });
+
+    expect(headersOf(stub)).not.toHaveProperty('traceparent');
+  });
+
+  it('без опции trace заголовка нет вовсе', async () => {
+    const stub = stubFetch(() => json(200, { id: 'u-1', email: 'a@b.c' }));
+    const api = makeClient(
+      { createUser: CreateUser },
+      { baseUrl, fetch: stub.fetch },
+    );
+
+    await api.createUser({ email: 'a@b.c' });
+
+    expect(headersOf(stub)).not.toHaveProperty('traceparent');
   });
 });

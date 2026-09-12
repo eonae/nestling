@@ -1,5 +1,7 @@
 import { defaultLogger } from '../../logger/console.js';
 import type { Logger } from '../../logger/interface.js';
+import type { Metrics } from '../../metrics/interface.js';
+import { KERNEL_METRICS } from '../../metrics/names.js';
 
 import type { RequestCell } from './context/store.js';
 import {
@@ -126,6 +128,35 @@ export interface ExecuteOptions {
    * в логгер ядра по умолчанию, чтобы такой отказ не терялся молча.
    */
   logger?: Logger;
+
+  /**
+   * Метрики обработки запроса. Поле заполняется только тогда, когда
+   * приложение задало реализацию опцией `makeApp({ metrics })`: без неё
+   * рантайм не снимает время и не вызывает ни одного метода записи.
+   */
+  metrics?: Metrics;
+}
+
+/**
+ * Пишет счётчик и длительность обработки запроса.
+ *
+ * Атрибуты берутся из декларации endpoint'а, а не из запроса: `pattern` —
+ * шаблон маршрута, поэтому количество рядов у экспортёра конечно.
+ */
+function recordRequest(
+  metrics: Metrics,
+  endpoint: EndpointMeta,
+  outcome: Outcome,
+  durationMs: number,
+): void {
+  const attributes = {
+    transport: endpoint.transport,
+    pattern: endpoint.pattern,
+    outcome,
+  };
+
+  metrics.counter(KERNEL_METRICS.requests, 1, attributes);
+  metrics.histogram(KERNEL_METRICS.requestDuration, durationMs, attributes);
 }
 
 /**
@@ -1003,6 +1034,11 @@ class PipelineImpl {
 
     const exposeErrorDetails = options.exposeErrorDetails ?? false;
     const logger = options.logger ?? defaultLogger;
+    const { metrics } = options;
+
+    // Часы заводятся только под настроенные метрики: приложение без них
+    // не платит за наблюдаемость ни одним вызовом
+    const startedAt = metrics ? performance.now() : 0;
 
     let response: ResponseContext<unknown>;
 
@@ -1179,6 +1215,31 @@ class PipelineImpl {
       }
     };
 
+    /**
+     * Завершение запроса: метрика и наблюдатели, в этом порядке.
+     *
+     * Метрика — до `.finally`-юнитов: их ошибки проглатываются, и запись
+     * не должна зависеть от того, чем занят наблюдатель. Исход у обеих
+     * сторон один и тот же.
+     */
+    const settle = async (
+      outcome: Outcome,
+      settled: ResponseContext<unknown>,
+    ): Promise<void> => {
+      if (metrics) {
+        recordRequest(
+          metrics,
+          ctx.endpoint,
+          outcome,
+          performance.now() - startedAt,
+        );
+      }
+
+      if (this.hasFinals) {
+        await runFinals(outcome, settled);
+      }
+    };
+
     // Потоковый ответ: исход известен только после доставки, поэтому
     // `.finally` откладывается до закрытия итератора. Транспорт обязан
     // дочитать итератор или закрыть его через `return()`
@@ -1197,7 +1258,7 @@ class PipelineImpl {
         response.value as AsyncIterable<unknown>,
         async (error) => {
           if (error === undefined) {
-            await runFinals(computeOutcome(ctx.signal, delivered), delivered);
+            await settle(computeOutcome(ctx.signal, delivered), delivered);
             return;
           }
 
@@ -1211,7 +1272,7 @@ class PipelineImpl {
             logger,
           ) as ErrorResponseContext;
 
-          await runFinals(computeOutcome(ctx.signal, delivered, true), failure);
+          await settle(computeOutcome(ctx.signal, delivered, true), failure);
 
           return new MidStreamFailure(failure, { cause: error });
         },
@@ -1227,8 +1288,8 @@ class PipelineImpl {
 
     setPhase(cell, 'finally');
 
-    if (this.hasFinals) {
-      await runFinals(computeOutcome(ctx.signal, response), response);
+    if (this.hasFinals || metrics) {
+      await settle(computeOutcome(ctx.signal, response), response);
     }
 
     return response;

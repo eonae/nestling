@@ -59,6 +59,7 @@ introduces are not in the map — the map describes the reading order.
 | layer (of a pipeline) | One `makePipeline()` call with a chain of methods that `compose` puts together with the others | [9](./09-logging.md) |
 | context (`ctx`) | The typed object of the request that `.pre` units extend and the handler and the other units read | [9](./09-logging.md) |
 | kernel logger | The `Logger` interface, the root `RootLogger$` and the family `Logger$` with `.auto`: both the kernel and the application write through it | [9](./09-logging.md) |
+| trace | The chain of processing of one request across every process it touched; `withTracing()` puts it into the context | [9](./09-logging.md) |
 | policy | An invariant over the assembled graph that is checked on the ASSEMBLE phase | [10](./10-auth.md) |
 | early success | The third outcome of a pre-unit: `done()` finishes the endpoint with a success without reaching the handler | [10](./10-auth.md) |
 | HTTP shape of a handler | A handler whose `meta` contains the request and whose result allows an `HttpResponse`: headers, cookies and a redirect | [10](./10-auth.md) |
@@ -75,9 +76,10 @@ introduces are not in the map — the map describes the reading order.
 | inbox mark | The record «this consumer has processed this message», committed by the request transaction | [16](./16-durable-events.md) |
 | feature selection | Which features to include in the assembly: `'all'`, a list of names or the `features` field of the argument | [19](./19-select.md) |
 | composition switch | A value that chooses one of the declared composition branches by a value known before assembly | [19](./19-select.md) |
-| composition branch | The elements that go into the list at one of the values of a switch: `Storage.pick({ … })`, `Metrics.when(…)` | [19](./19-select.md) |
+| composition branch | The elements that go into the list at one of the values of a switch: `Storage.pick({ … })`, `Audit.when(…)` | [19](./19-select.md) |
 | intercom | The role of the carrier of operations between processes, assigned to a declared transport | [20](./20-split.md) |
 | split deployment | The features of one application are started in different processes and talk through a broker | [20](./20-split.md) |
+| metric | A number that the application or the kernel writes by name with attributes: a counter or a histogram | [22](./22-metrics.md) |
 
 ## Part 1. The service
 
@@ -109,3 +111,4 @@ introduces are not in the map — the map describes the reading order.
 | [19. Start only a part of the features](./19-select.md) | `assemble(args)`, `includeDeps`, composition switches, `load()` before assembly, `check()` | `app-with-http` |
 | [20. Spread the features across processes](./20-split.md) | `nats()`, `intercom`, `durable`, `propagate` | `split-nats` |
 | [21. Do not break the neighbours when an operation changes](./21-compatibility.md) | the version in the name, the snapshot of operations, `diffOperations` | `app-with-http` |
+| [22. Count requests and calls between processes](./22-metrics.md) | `Metrics`, the `metrics` option, `Metrics$.auto`, kernel metrics, the adapter and `/metrics` | `split-nats` |

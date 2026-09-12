@@ -11,6 +11,7 @@
 
 import type { ConfigBinding } from '../config/index.js';
 import type { Logger } from '../logger/index.js';
+import type { Metrics } from '../metrics/index.js';
 import type {
   AnyEndpointDefinition,
   Policy,
@@ -93,6 +94,16 @@ export interface AppSpecCommon<
    * сборки, уходят сюда, а члены `Logger$(scope)` строятся от него.
    */
   logger?: Logger;
+
+  /**
+   * Корень метрик приложения — готовое значение.
+   *
+   * Единственный способ заменить пустую реализацию ядра: провайдер под
+   * `RootMetrics$` в `providers:` становится ошибкой дубля. Опция и
+   * включает инструментовку ядра: без неё рантайм не снимает время и не
+   * вызывает методы записи, а члены `Metrics$(scope)` пишут в никуда.
+   */
+  metrics?: Metrics;
 
   /**
    * Транспорты корня — объявления экземпляров (`http()`, `cli()`,
@@ -194,6 +205,7 @@ export const APP_SPEC_FIELDS = [
   'config',
   'policies',
   'logger',
+  'metrics',
 ] as const;
 
 /**
@@ -233,6 +245,9 @@ export interface NormalizedAppSpec {
 
   /** Корневой логгер корня; без него им служит `ConsoleLogger` ядра */
   readonly logger?: Logger;
+
+  /** Корень метрик; без него им служит пустая реализация ядра */
+  readonly metrics?: Metrics;
 }
 
 /**
@@ -621,6 +636,7 @@ export function normalizeSpec(spec: AppSpec<any, any> = {}): NormalizedAppSpec {
     config: [...(spec.config ?? [])],
     policies: [...(spec.policies ?? [])],
     ...(spec.logger ? { logger: spec.logger } : {}),
+    ...(spec.metrics ? { metrics: spec.metrics } : {}),
   };
 }
 

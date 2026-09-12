@@ -45,7 +45,7 @@ if (EmailTaken.is(created)) {
 |---|---|
 | `makeClient` | builds the API object from a record of operations and configuration |
 | `Client` | the type of the assembled API object |
-| `ClientConfig` | `baseUrl`, `headers`, a custom `fetch` implementation, `validateOutput` |
+| `ClientConfig` | `baseUrl`, `headers`, a trace reader `trace`, a custom `fetch` implementation, `validateOutput` |
 | `ClientMeta` | the second argument of the method: `signal` and `deadline` |
 | `ClientMethod` | the type of one client method |
 | `ClientArgs` | the method arguments, derived from the operation |
@@ -57,6 +57,13 @@ if (EmailTaken.is(created)) {
 operation without an `http:` section, an operation of the `event` kind,
 a streaming or `multipart` io shape, a non-JSON body, a non-absolute
 `baseUrl`.
+
+The `trace` option sets the `traceparent` header — a function that
+returns a W3C trace-context string or `undefined`. A ready reader is
+exported by `@nestlingjs/app` under the name `traceparent`; the client
+does not obtain it itself, because the ambient context of a request is
+not available in a browser. A header set by the `headers` field takes
+precedence.
 
 ## Package boundaries
 

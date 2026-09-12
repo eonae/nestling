@@ -14,7 +14,8 @@
 > `[2026-09-03] Поле handler: зависимости принадлежат хендлеру; канон return; Output<T, typeof Def>`,
 > `[2026-09-04] Отказы слоя: объявление в .pre(unit, { errors }), канал return у pre-юнита, эффективное множество errors`,
 > `[2026-09-06] HTTP-хендлер явной формой: Handler<Op>, HttpHandler<Op>, HttpResponse; Ok без заголовков; юниты транспорта`,
-> `[2026-09-12] Транзакционный приём: отметка в базе, слой подписчика, досрочный успех pre-юнита`.
+> `[2026-09-12] Транзакционный приём: отметка в базе, слой подписчика, досрочный успех pre-юнита`,
+> `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2.
 > Implementation status: [roadmap](../../decisions/roadmap.md).
 
 ## 1. The model: flat phases
@@ -111,6 +112,19 @@ the same rule: the signal armed by a disconnect gives `disconnected`,
 armed another way gives `aborted`, not armed gives `completed`. How many
 items reached the client, an observer reads from `ctx.summary.itemsOut`.
 
+Right where the outcome becomes known, the runtime writes the request
+metrics: the counter `nestling.requests` and the histogram
+`nestling.request.duration` with the attributes `transport`, `pattern`
+and `outcome` ([container.md](./container.md), "The kernel metrics").
+The record is written by the runtime, not by a `.finally` unit, so an
+endpoint with no pipeline gets it too. For a streaming output, the
+record follows the delayed `.finally` and therefore measures the whole
+delivery, not only the work of the handler.
+
+An application that has not set a metrics implementation through the
+`makeApp({ metrics })` option does not pay for this record: the runtime
+does not measure time and does not call the recording methods.
+
 The builder tracks the order of methods: after the first `.ok`,
 `.catch` or `.finally`, the `.pre` method is unavailable in the types.
 So the order in which the declaration reads always matches the order of
@@ -134,7 +148,10 @@ The pipeline of an endpoint is a stack of layers, assembled by the
 `compose` function from constants:
 
 ```typescript
-export const base = makePipeline().pre(withRequestId()).finally(audit);
+export const base = makePipeline()
+  .pre(withRequestId())
+  .pre(withTracing())
+  .finally(audit);
 export const authed = compose(
   base,
   makePipeline().pre(withIdentity()),
@@ -159,6 +176,37 @@ export const authed = compose(
   are reused (`authedWith(verifyFn)`). A module with endpoints accepts a
   pipeline as a factory parameter, and the type of the parameter
   describes the required context.
+
+### Standard observability units
+
+The base layer is assembled from two kernel units. `withRequestId()`
+puts the request identifier into the context: it takes it from the
+`x-request-id` header or creates a new one. `withTracing()` puts the
+trace — the value of the `Trace` variable with the fields `traceId`,
+`spanId`, `parentSpanId` and `sampled` ([container.md](./container.md),
+"Asynchronous context").
+
+```typescript
+interface TraceContext {
+  readonly traceId: string;
+  readonly spanId: string;
+  readonly parentSpanId?: string;
+  readonly sampled: boolean;
+}
+```
+
+`withTracing()` continues the trace of the caller, when it arrived: in
+the `trace` field of the bus envelope or the `traceparent` header over
+HTTP. Otherwise it starts a new one. A span identifier is created for
+every request, and the previous span goes into `parentSpanId`. A header
+value that cannot be parsed is not an error: it arrives from across a
+trust boundary and has no schema, so it is ignored, and the trace starts
+over.
+
+Both units are written as `<Var>.provide(…)`, so the policy
+`everyEndpoint(…).hasVar(Trace)` counts them (§7). No substitution into
+the pipeline happens by default: the layer is declared through
+composition.
 
 ### Layer failures
 

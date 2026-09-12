@@ -24,6 +24,7 @@
     "@nestlingjs/app": "workspace:*",
     "@nestlingjs/container": "workspace:*",
     "@nestlingjs/operations": "workspace:*",
+    "@nestlingjs/transport.http": "workspace:*",
     "@nestlingjs/transport.nats": "workspace:*",
     "zod": "^4.0.0"
   },

@@ -202,6 +202,12 @@ SHALL сохраняться: писатель всегда строится с�
 реализован через `RequestId.provide(…)` и SHALL сохранить прежнюю сигнатуру
 `PreUnitFn<EmptyInput, { requestId: string }>`.
 
+Третья well-known переменная — `Trace: ContextVar<TraceContext, 'trace'>`
+со штатным писателем `withTracing()` (capability `trace-context`). Ключ
+`'trace'` SHALL быть зарезервирован тем же способом, что `'signal'`:
+`contextVar()('trace')` из прикладного кода SHALL бросать ошибку,
+называющую `Trace` как готовую переменную.
+
 #### Scenario: Отмена доступна из глубины
 
 - **WHEN** сервис объявил `Ctx(Signal)` в `deps` и запрос отменён клиентом
@@ -222,4 +228,10 @@ SHALL сохраняться: писатель всегда строится с�
 
 - **WHEN** пайплайн композирован от слоя с `withRequestId()`
 - **THEN** `Ctx(RequestId)` читается из глубины, а политика
-  `hasVar(RequestId)` на этой ручке соблюдена
+  `hasVar(RequestId)` на этом endpoint'е соблюдена
+
+#### Scenario: Ключ трассы зарезервирован
+
+- **WHEN** написано `contextVar<TraceContext>()('trace')`
+- **THEN** вызов бросает ошибку, отсылающую к готовой переменной `Trace`
+

@@ -5,8 +5,9 @@
 > [design/container.md](../design/container.md), the "Kernel logger" section.
 > Why: entries [ideas.md](../../decisions/ideas.md)
 > `Pipeline v2: плоские фазы, слои, композиция константами`,
-> `Асинхронный контекст: read-only ALS-проекция pipeline-контекста` and
-> `[2026-09-06] Логгер ядра: RootLogger$, семейство Logger$ с.auto и child`.
+> `Асинхронный контекст: read-only ALS-проекция pipeline-контекста`,
+> `[2026-09-06] Логгер ядра: RootLogger$, семейство Logger$ с.auto и child` and
+> `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2.
 
 The service answers clients, but what happens to it is visible only through
 the responses. Every request must leave a record in the log: the address,
@@ -93,8 +94,8 @@ execution:
 | `.catch(unit)` | only for a failure response | the fields of its own layer as optional |
 | `.finally(unit)` | always, last | the same as `.catch`, plus the outcome of the request |
 
-The log needs two phases: `.pre`, to put the request identifier into the
-context, and `.finally`, to record the outcome.
+The log needs two phases: `.pre`, to put the request and trace
+identifiers into the context, and `.finally`, to record the outcome.
 
 ```typescript
 // examples/users-service/src/observability.ts
@@ -104,7 +105,12 @@ import type {
   Outcome,
   ResponseContext,
 } from '@nestlingjs/app';
-import { Logger$, makePipeline, withRequestId } from '@nestlingjs/app';
+import {
+  Logger$,
+  makePipeline,
+  withRequestId,
+  withTracing,
+} from '@nestlingjs/app';
 import { Handler } from '@nestlingjs/container';
 
 /**
@@ -127,6 +133,7 @@ export class AuditOutcome {
 
 export const observability = makePipeline()
   .pre(withRequestId())
+  .pre(withTracing())
   .finally(AuditOutcome);
 ```
 
@@ -275,6 +282,44 @@ adds on its own. This is how `AuditOutcome` above works.
 
 The `hasVar` assembly policy checks that the variable is declared on every
 route where it is read: [chapter 10](./10-auth.md).
+
+## Trace of the request
+
+`withTracing()` is the second unit of the layer. It puts the `Trace`
+variable into the context, with a value of the shape
+`{ traceId, spanId, parentSpanId?, sampled }`, and the kernel logger adds
+`traceId` as a field to every record inside the request — the same way
+it adds `requestId`:
+
+```text
+2026-09-12T20:03:49.400Z INFO  UsersService created requestId=7f3a… traceId=4bf92f35…
+```
+
+The unit continues the trace of the caller, if it arrived in the
+`traceparent` header, and starts a new one if it did not. A span
+identifier is created for every request, and the span of the caller goes
+into `parentSpanId`. A header that cannot be parsed does not break the
+request: the trace starts over.
+
+Inside one process the difference between `requestId` and `traceId` is
+small. It becomes important when a request passes through several
+services: `requestId` is its own at each one, and `traceId` is the same
+for the whole chain. How the trace crosses a process boundary is shown in
+[chapter 20](./20-split.md).
+
+The value is also available to application code, through the
+`Ctx(Trace)` reader, the same way as `RequestId`:
+
+```typescript
+@Component([Ctx(Trace)])
+export class AuditTrail {
+  constructor(private readonly trace: CtxReader<TraceContext>) {}
+
+  record(action: string): void {
+    this.store.put({ action, traceId: this.trace.get().traceId });
+  }
+}
+```
 
 A layer can be extended by another layer with the `compose` function: the
 `pre` units of the outer layer run earlier, and the `.finally` of the

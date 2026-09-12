@@ -67,6 +67,10 @@ export {
 } from './logger/index.js';
 export type { Fields, Logger, LogLevel } from './logger/index.js';
 
+// ./metrics/index.js — 3
+export { Metrics$, RootMetrics$ } from './metrics/index.js';
+export type { MetricAttributes, Metrics } from './metrics/index.js';
+
 // ./pipeline/index.js — 60
 export {
   assertLayerFailsDeclared,
@@ -92,12 +96,15 @@ export {
   parsePayload,
   RequestId,
   Signal,
+  Trace,
+  traceparent,
   TransportClosingError,
   transportNameOf,
   UndeclaredDoneError,
   withIdentity,
   withPermissions,
   withRequestId,
+  withTracing,
 } from './pipeline/index.js';
 export type {
   AnyContextVar,
@@ -131,6 +138,7 @@ export type {
   ReadonlyContextVar,
   ResponseContext,
   SuccessResponseContext,
+  TraceContext,
   UnitResolver,
 } from './pipeline/index.js';
 

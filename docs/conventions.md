@@ -81,7 +81,7 @@
   регистре совпадает с полем `RootConfig`, из которого приходит значение:
   `storage: Storage.schema`.
 - Двухпозиционный переключатель называется по тому, что включает:
-  `Metrics = makeSwitch('metrics')`.
+  `Audit = makeSwitch('audit')`.
 
 ## Пайплайн
 

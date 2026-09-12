@@ -19,7 +19,7 @@ import { ContextVarUnavailableError, Ctx, makeCtxReader } from './reader.js';
 import type { ContextPhase } from './store.js';
 import { makeCell, runInScope } from './store.js';
 import { contextVar, declaredVarOf } from './variable.js';
-import { RequestId, Signal } from './well-known.js';
+import { RequestId, Signal, Trace } from './well-known.js';
 
 import { describe, expect, it } from '@jest/globals';
 import type { Token } from '@nestlingjs/container';
@@ -77,6 +77,16 @@ describe('contextVar — объявление переменной', () => {
 
   it("ключ 'signal' зарезервирован и отсылает к готовой переменной", () => {
     expect(() => contextVar<AbortSignal>()('signal')).toThrow(/Signal/);
+  });
+
+  it("ключ 'trace' зарезервирован и отсылает к готовой переменной", () => {
+    expect(() => contextVar<unknown>()('trace')).toThrow(/Trace/);
+    expect(() => contextVar<unknown>()('trace')).toThrow(/withTracing/);
+  });
+
+  it('переменная ядра Trace занимает свой ключ и провозится', () => {
+    expect(Trace.key).toBe('trace');
+    expect(Trace.propagate).toBe(true);
   });
 
   it('однократный вызов с ключом — ошибка с указанием формы', () => {

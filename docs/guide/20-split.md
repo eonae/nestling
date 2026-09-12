@@ -1,12 +1,13 @@
 # 20. Разнести фичи по процессам, не меняя их код
 
-> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-10).
+> Гайд по текущему API; сверено с кодом `split-nats` (2026-09-12).
 > Целевое описание: [design/composition.md](../design/composition.md) «L4»,
 > [design/operations.md](../design/operations.md) §3 и §4.4,
 > [design/transports.md](../design/transports.md) §7. Почему так: записи
 > [ideas.md](../decisions/ideas.md) «NATS: шина приложения, а не сосед;
-> `durable` в контракте; `propagate` двумя каналами» и «Модель композиции:
-> фича, плагин, операция».
+> `durable` в контракте; `propagate` двумя каналами», «Модель композиции:
+> фича, плагин, операция» и «Разбор обзоров d/10 и d/13» [2026-09-12],
+> пункт 2.
 
 Фичи `users` и `quotas` работают в одном процессе и общаются операциями.
 Нагрузка на квоты другая, и их хочется развернуть отдельным сервисом.
@@ -25,14 +26,18 @@
 
 ```typescript
 // examples/split-nats/src/app.ts
-export function declareApp(transport: NatsTransportOptions = {}): App {
+export function declareApp(options: DeclareOptions = {}): App {
+  const exporter = prometheusExporter();
+
   return makeApp({
     features: [UsersFeature, QuotasFeature],
+    plugins: [metricsPlugin(exporter)],
     // Шина приложения — обычный транспорт. `intercom:` назначает ему роль
     // переносчика операций между процессами: вызов операции, владелец
     // которой не выбран в этой сборке, уходит через этот транспорт
-    transports: [nats({ ...transport, name: 'events' })],
+    transports: [nats({ ...options.nats, name: 'events' }), http()],
     intercom: 'events',
+    metrics: exporter,
   });
 }
 
@@ -42,7 +47,9 @@ export const app = declareApp();
 
 Декларация одна на все процессы развёртывания: между ними меняется
 только аргумент `app.assemble(select)`. Функция `declareApp` нужна тесту:
-он передаёт в транспорт соединение с двойником брокера.
+он передаёт в транспорт соединение с двойником брокера, а серверу метрик
+— эфемерный порт. Про метрики и endpoint `/metrics` — [глава
+22](./22-metrics.md).
 
 `nats({ name })` объявляет транспорт так же, как `http()`. Адрес брокера
 транспорт читает из своей секции конфига: ключ `NATS_SERVERS`, по
@@ -134,7 +141,7 @@ class UserRegisteredInArchiveHandler {
       // подписки на одно событие, у брокера становится именем queue-группы
       // и durable-потребителя
       subscriber: 'archive',
-      pipeline: makePipeline().pre(TenantId.propagated()),
+      pipeline: base,
       handler: UserRegisteredInArchiveHandler,
     }),
 ```
@@ -168,28 +175,42 @@ class RegisterUserHandler {
 }
 
     implement(RegisterUser, {
-      // Арендатор приходит в конверте сообщения. Юнит кладёт его в контекст
-      // запроса, откуда вызыватель `quotas.claim` передаст его дальше
-      pipeline: makePipeline().pre(TenantId.propagated()),
+      // Базовый слой возвращает в контекст трассу и арендатора: оба
+      // пришли в конверте сообщения, и вызыватель `quotas.claim`
+      // передаст их дальше
+      pipeline: base,
       handler: RegisterUserHandler,
     }),
 ```
 
 На принимающей стороне значение лежит в атрибутах сообщения. Юнит
-`TenantId.propagated()` переносит его в асинхронный контекст запроса. Тот
-же юнит стоит в пайплайне обеих реализаций фичи `quotas`, потому что и
-`quotas.claim`, и `users.registered` приходят из другого процесса.
+`TenantId.propagated()` переносит его в асинхронный контекст запроса. Он
+входит в базовый слой примера, который стоит в пайплайне каждой
+реализации: и `quotas.claim`, и `users.registered` приходят из другого
+процесса.
+
+```typescript
+// examples/split-nats/src/base.ts
+export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
+  .pre(withTracing())
+  .pre(TenantId.propagated());
+```
 
 ```typescript
 // examples/split-nats/src/quotas.ts (фрагмент)
-@Component([Ctx(TenantId)])
+@Component([Ctx(TenantId), Logger$.auto])
 export class QuotaLedger {
   readonly limit = 100;
   readonly used = new Map<string, number>();
 
-  constructor(private readonly tenant: CtxReader<string>) {}
+  constructor(
+    private readonly tenant: CtxReader<string>,
+    private readonly logger: Logger,
+  ) {}
 
   claim(): number | undefined {
+    this.logger.info('claim');
+
     const tenantId = this.tenant.get();
     // …
   }
@@ -201,6 +222,39 @@ export class QuotaLedger {
 зависимостях провайдера. Значение прошло два перехода: внешний клиент
 положил его в заголовок, процесс `users` прочитал и передал дальше при
 вызове `quotas.claim`, процесс `quotas` прочитал снова.
+
+## Сквозная трасса между процессами
+
+Базовый слой кладёт в контекст не только арендатора. Первым в нём стоит
+`withTracing()` из [главы 9](./09-logging.md), и он же отвечает за то,
+чтобы записи обоих процессов сошлись:
+
+```text
+INFO  RegistrationService register traceId=feabb90b363acc5bff69c317824a65ae
+INFO  QuotaLedger         claim    traceId=feabb90b363acc5bff69c317824a65ae
+```
+
+Первая запись сделана в процессе `users`, вторая — в процессе `quotas`.
+Значение одно, и по нему запись из любого процесса находится вместе с
+остальными.
+
+Переносится трасса тем же механизмом, что арендатор: переменная `Trace`
+объявлена ядром с `propagate: true`, поэтому вызыватель `quotas.claim`
+кладёт её в конверт сообщения. Отличается только приём: на принимающей
+стороне трассу возвращает в контекст `withTracing()`, а не
+`Trace.propagated()`. Один и тот же юнит продолжает трассу и с шины, и по
+HTTP-заголовку `traceparent`, поэтому реализация операции и
+HTTP-endpoint собираются от одного слоя.
+
+`traceId` у двух процессов общий, а `spanId` у каждого свой: участок
+вызывающего уходит в `parentSpanId` вызываемого. По этой паре трасса
+собирается в дерево вызовов.
+
+Что трасса объявлена на каждом маршруте, проверяет политика сборки:
+
+```typescript
+policies: [everyEndpoint().hasVar(Trace, 'trace')],
+```
 
 ## Запустите и проверьте два процесса
 
@@ -276,7 +330,8 @@ nats pub users.register '{"email":"alice@example.com"}' -H 'Nl-Ctx:{"tenantId":"
 нему тест проверяет subject'ы и арендатора в `Nl-Ctx`, а через
 `broker.jetstreamManager()` находит поток `nestling_users_registered`.
 Второй тест того же файла поднимает выбор `'all'` и проверяет, что
-`quotas.claim` на брокер не выходит. Третий собирает процесс `users` без
+`quotas.claim` на брокер не выходит. Третий читает записи логгера обоих
+процессов и сверяет их `traceId`. Четвёртый собирает процесс `users` без
 владельца `quotas.claim` и убеждается, что сборка проходит.
 
 ```bash

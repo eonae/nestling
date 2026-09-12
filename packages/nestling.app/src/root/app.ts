@@ -23,6 +23,13 @@ import {
   makeKernelLogger,
   RootLogger$,
 } from '../logger/index.js';
+import type { Metrics } from '../metrics/index.js';
+import {
+  configuredMetrics,
+  metricsKernel,
+  noopMetrics,
+  RootMetrics$,
+} from '../metrics/index.js';
 import type {
   AnyEndpointDefinition,
   HandlerClass,
@@ -579,9 +586,14 @@ export class AssembledApp {
     // прогоне действует с INIT, и записи фазы RUN обязаны её видеть
     const logger = container.getOrThrow(Logger$('nestling'));
 
+    // Инструментовка включается вместе с настоящей реализацией: корень
+    // читается из графа, поэтому подмена `[RootMetrics$, …]` в тестовом
+    // прогоне включает её так же, как опция корня
+    const metrics = configuredMetrics(container.getOrThrow(RootMetrics$));
+
     // 3 WIRE — резолв зависимостей деклараций и `dispatch` на транспорт
     this.#phase = 'WIRE';
-    const { dispatches } = this.#wire(container, discovery, logger);
+    const { dispatches } = this.#wire(container, discovery, logger, metrics);
 
     // 4 START, шаг 1 — хуки графа
     this.#phase = 'START';
@@ -700,6 +712,7 @@ export class AssembledApp {
       container,
       discovery,
       container.getOrThrow(Logger$('nestling')),
+      configuredMetrics(container.getOrThrow(RootMetrics$)),
     );
 
     // Шов останавливается после WIRE, но `testApp.call` — это и есть приём
@@ -915,6 +928,11 @@ export class AssembledApp {
     // регистрируется провайдером значения ниже, последним
     builder.register(loggerKernel());
 
+    // Kernel-модуль метрик — по тем же правилам и той же ценой: один
+    // рецепт семейства, ни одного узла без запроса. Корень метрик, как и
+    // корень логгера, регистрируется значением ниже
+    builder.register(metricsKernel());
+
     // Discovery — плоским проходом по выбранным фичам и подключённым
     // плагинам: невыбранные фичи в нём не участвуют вовсе. Считается до
     // регистрации модулей, потому что топология реализаций операций нужна
@@ -983,10 +1001,11 @@ export class AssembledApp {
     // модуля, и методом `health` любого ресурса, включая серверы
     registerHealth(builder, () => this.#phase);
 
-    // Корень логгера — последним: провайдер приложения под `RootLogger$`
+    // Корни логгера и метрик — последними: провайдер приложения под ними
     // обязан упасть ошибкой, называющей опцию корня, а не общей ошибкой
     // дубля
     this.#registerRootLogger(builder, root);
+    this.#registerRootMetrics(builder, spec.metrics ?? noopMetrics);
 
     const container = builder.build();
 
@@ -1090,6 +1109,28 @@ export class AssembledApp {
   }
 
   /**
+   * Регистрирует корень метрик провайдером значения.
+   *
+   * Второго способа задать его нет — по той же причине, что у логгера:
+   * инструментовка ядра пишет в этот корень, и вопрос «чью реализацию она
+   * видит» не должен возникать.
+   */
+  #registerRootMetrics(builder: ContainerBuilder, metrics: Metrics): void {
+    try {
+      builder.register(valueProvider(RootMetrics$, metrics));
+    } catch (error) {
+      throw new Error(
+        `A provider for 'RootMetrics' is declared by the application, but the ` +
+          `metrics root is set by the 'metrics' option of makeApp({ … }) — ` +
+          `the kernel writes its own counters into it, so there is one root ` +
+          `and one way to name it. Remove the provider and pass the ` +
+          `implementation as 'metrics: <value>'.`,
+        { cause: error },
+      );
+    }
+  }
+
+  /**
    * Регистрирует классы-хендлеры провайдерами модулей-объявителей.
    *
    * Класс — DI-токен, поэтому один класс у двух endpoint'ов регистрируется
@@ -1154,6 +1195,7 @@ export class AssembledApp {
     container: BuiltContainer,
     discovery: EndpointDiscovery,
     logger: Logger,
+    metrics?: Metrics,
   ): {
     dispatches: Map<TransportRef, Dispatch>;
     wired: Map<AnyEndpointDefinition, WiredEndpoint>;
@@ -1187,13 +1229,17 @@ export class AssembledApp {
       });
     }
 
-    // Логгер незадекларированных отказов живёт в `dispatch`, а не в опциях
-    // вызова: у сборки он есть один раз, а транспорту ради одного вызова
-    // зависимость от логгера не нужна
+    // Логгер незадекларированных отказов и метрики живут в `dispatch`, а
+    // не в опциях вызова: у сборки они есть по одному разу, а транспорту
+    // ради одного вызова зависимость от них не нужна
+    const dispatchOptions = {
+      logger,
+      ...(metrics === undefined ? {} : { metrics }),
+    };
     const dispatches = new Map(
       [...executable].map(([token, endpoints]) => [
         token,
-        makeDispatch(endpoints, { logger }),
+        makeDispatch(endpoints, dispatchOptions),
       ]),
     );
 

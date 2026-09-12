@@ -16,7 +16,8 @@
 > `[2026-09-06] HTTP-сервер как ресурс: httpServer({ name }), http({ server }); дубликат паттерна на ASSEMBLE`,
 > `[2026-09-06] Пробы: HealthCheck$ и Health$ в ядре, транспорты адаптируют`,
 > `[2026-09-12] Транзакционный приём: inbox как вторая половина гарантии outbox'а`,
-> open question 2 (the stream deduplication window and `Nats-Msg-Id`).
+> open question 2 (the stream deduplication window and `Nats-Msg-Id`),
+> `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2.
 > Implementation status: [roadmap](../../decisions/roadmap.md); the
 > implemented behaviour of the HTTP transport is in the README of the
 > `@nestlingjs/transport.http` package and the openspec specs.
@@ -173,6 +174,25 @@ context, `withClientIp()` puts the address of the client,
 function and does not grow the pipeline's `TNeeds`. A transport never
 attaches units implicitly: the layer is always visible in the
 declaration ([pipeline.md §5](./pipeline.md)).
+
+### 1.3 Trace propagation
+
+Two transports propagate the trace: the bus, in the `trace` field of the
+envelope, and HTTP, in the `traceparent` header in the W3C trace-context
+format. On receipt, both put the value into `ctx.raw.attributes`, from
+where the `withTracing()` unit reads it ([pipeline.md §3](./pipeline.md)).
+No code is needed for this in the transports: HTTP puts every request
+header into the attributes, and the bus puts every propagated value
+under its own key.
+
+The caller of a port and the typed HTTP client send the trace outward.
+The client receives a string through the `trace` option: it is built for
+a browser, and the ambient context of a request is not available to it,
+so the application supplies the reader
+([operations.md §5](./operations.md)).
+
+CLI does not propagate the trace: a person launches the command, and it
+has no parent span.
 
 ## 2. Accepting input: the bind map and strict acceptance
 
@@ -402,12 +422,12 @@ durable messages to the stream.
 
 The body is encoded by a codec (JSON by default; the codec is replaced
 by a factory option). The envelope travels in headers: a relative
-`timeoutMs`, `idempotencyKey`, the propagated context. The context
-travels in one `Nl-Ctx` header as a whole JSON object: the broker
-canonicalizes header names, and the key of a variable in a header name
-would not survive. The req-reply response is a `ResponseContext` with
-the same codec, so a declared `Fail` is restored by code through the
-same procedure as locally.
+`timeoutMs`, `idempotencyKey`, the propagated context together with the
+trace. The context travels in one `Nl-Ctx` header as a whole JSON
+object: the broker canonicalizes header names, and the key of a
+variable in a header name would not survive. The req-reply response is
+a `ResponseContext` with the same codec, so a declared `Fail` is
+restored by code through the same procedure as locally.
 
 A durable publication with an idempotency key additionally carries the
 broker header `Nats-Msg-Id` with the same value: the stream uses it to

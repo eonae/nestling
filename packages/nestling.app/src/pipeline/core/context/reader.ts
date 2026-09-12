@@ -10,7 +10,8 @@
 import { currentCell } from './store.js';
 import type { AnyContextVar } from './variable.js';
 import { isContextVar, SIGNAL_KEY } from './variable.js';
-import { RequestId } from './well-known.js';
+import type { TraceContext } from './well-known.js';
+import { RequestId, Trace } from './well-known.js';
 
 import type { Token } from '@nestlingjs/container';
 import { makeTokenFamily } from '@nestlingjs/container';
@@ -174,3 +175,27 @@ export const ambientRequestId = (): string | undefined => {
 
   return typeof value === 'string' ? value : undefined;
 };
+
+/**
+ * Трасса текущего запроса из ambient-контекста или `undefined` вне запроса
+ * и в запросе без `withTracing()`.
+ *
+ * Чтение мимо графа, по той же причине, что у {@link ambientRequestId}.
+ *
+ * @internal
+ */
+export const ambientTrace = (): TraceContext | undefined => {
+  const value = currentCell()?.input[Trace.key] as TraceContext | undefined;
+
+  return typeof value?.traceId === 'string' ? value : undefined;
+};
+
+/**
+ * Идентификатор трассы текущего запроса или `undefined`, если трассы нет.
+ *
+ * Им корневой логгер ставит поле `traceId`: зависеть от ридера
+ * `Ctx(Trace)` он не может — он существует раньше узлов графа.
+ *
+ * @internal
+ */
+export const ambientTraceId = (): string | undefined => ambientTrace()?.traceId;

@@ -3,7 +3,7 @@
  *
  * Всё, что клиент передаёт **на каждый вызов**, живёт в декларации (`input`
  * плюс bind-карта). Здесь — только то, что общее для всех вызовов: адрес
- * сервиса, ambient-заголовки и реализация `fetch`.
+ * сервиса, ambient-заголовки, читалка трассы и реализация `fetch`.
  */
 
 /**
@@ -29,6 +29,27 @@ export interface ClientConfig {
 
   /** Заголовки, общие для всех вызовов (авторизация, трассировка) */
   headers?: ClientHeaders;
+
+  /**
+   * Читалка трассы: строка W3C trace-context на каждый запрос или
+   * `undefined`, если трассы нет.
+   *
+   * Клиент сам её не добывает: он зависит только от
+   * `@nestlingjs/operations` и собирается для браузера, а трасса живёт в
+   * ambient-контексте запроса. Приложение на Nestling передаёт сюда
+   * готовую `traceparent` из `@nestlingjs/app`.
+   *
+   * Заголовок `traceparent`, заданный полем `headers`, сильнее: явное
+   * значение конфигурации важнее подставленного.
+   *
+   * @example
+   * ```typescript
+   * import { traceparent } from '@nestlingjs/app';
+   *
+   * const api = makeClient({ getUser: GetUser }, { baseUrl, trace: traceparent });
+   * ```
+   */
+  trace?: () => string | undefined;
 
   /** Реализация `fetch`; по умолчанию — глобальная */
   fetch?: typeof globalThis.fetch;

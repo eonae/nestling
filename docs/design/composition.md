@@ -384,7 +384,7 @@ endpoint'ы не регистрируются (discovery видит только
 ```typescript
 // switches.ts
 export const Storage = makeSwitch('storage', ['s3', 'local']);   // перечисление
-export const Metrics = makeSwitch('metrics');                     // 'on' | 'off'
+export const Audit   = makeSwitch('audit');                      // 'on' | 'off'
 export const Debug   = makeSwitch('debug', { default: 'off' });
 
 // storage.module.ts — обе ветки перечислены таблицей
@@ -393,7 +393,7 @@ export const StorageModule = makeModule({
   providers: [
     UploadsService,
     Storage.pick({ s3: [S3Client, S3Storage], local: [LocalStorage] }),
-    Metrics.when(StorageMetrics),          // то же, что pick({ on: StorageMetrics, off: [] })
+    Audit.when(StorageAudit),              // то же, что pick({ on: StorageAudit, off: [] })
   ],
 });
 
@@ -407,16 +407,16 @@ export const UploadsFeature = makeFeature({
 // app.ts — словарь переключателей объявлен рядом с фичами
 export const app = makeApp({
   features: [UsersFeature, UploadsFeature],
-  plugins: [appLogging, Metrics.when(appMetrics)],
+  plugins: [appLogging, Audit.when(appAudit)],
   transports: [http(), Debug.when(http({ name: 'admin' }))],
-  switches: [Storage, Metrics, Debug],
+  switches: [Storage, Audit, Debug],
 });
 
 // config.ts — у переключателя есть схема его значений с умолчанием
 export const RootConfig = makeConfig('app', {
   features: z.string().default('all'),   // APP_FEATURES
   storage: Storage.schema,               // APP_STORAGE: 's3' | 'local', обязательна
-  metrics: Metrics.schema,               // APP_METRICS: 'on' | 'off', обязательна
+  audit: Audit.schema,                   // APP_AUDIT: 'on' | 'off', обязательна
   debug: Debug.schema,                   // APP_DEBUG, по умолчанию 'off'
 });
 

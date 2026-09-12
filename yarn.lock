@@ -1675,6 +1675,7 @@ __metadata:
     "@nestlingjs/container": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
     "@nestlingjs/testing": "workspace:*"
+    "@nestlingjs/transport.http": "workspace:*"
     "@nestlingjs/transport.nats": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown

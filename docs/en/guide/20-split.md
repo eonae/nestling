@@ -1,12 +1,13 @@
 # 20. Spread the features across processes
 
-> Guide to the current API; verified against `split-nats` (2026-09-10).
+> Guide to the current API; verified against `split-nats` (2026-09-12).
 > Target description: [design/composition.md](../design/composition.md) "L4",
 > [design/operations.md](../design/operations.md) §3 and §4.4,
 > [design/transports.md](../design/transports.md) §7. Why: entries
 > [ideas.md](../../decisions/ideas.md)
-> `NATS: шина приложения, а не сосед; durable в контракте; propagate двумя каналами`
-> and `Модель композиции: фича, плагин, операция`.
+> `NATS: шина приложения, а не сосед; durable в контракте; propagate двумя каналами`,
+> `Модель композиции: фича, плагин, операция` and
+> `[2026-09-12] Разбор обзоров d/10 и d/13`, point 2.
 
 The `users` and `quotas` features work in one process and talk through
 operations. The load on quotas is different, and there is a wish to
@@ -27,15 +28,19 @@ spread across services on staging.
 
 ```typescript
 // examples/split-nats/src/app.ts
-export function declareApp(transport: NatsTransportOptions = {}): App {
+export function declareApp(options: DeclareOptions = {}): App {
+  const exporter = prometheusExporter();
+
   return makeApp({
     features: [UsersFeature, QuotasFeature],
+    plugins: [metricsPlugin(exporter)],
     // The application's bus is an ordinary transport. `intercom:`
     // assigns it the role of carrying operations between processes:
     // a call to an operation whose owner is not selected in this
     // assembly goes out through this transport
-    transports: [nats({ ...transport, name: 'events' })],
+    transports: [nats({ ...options.nats, name: 'events' }), http()],
     intercom: 'events',
+    metrics: exporter,
   });
 }
 
@@ -45,8 +50,10 @@ export const app = declareApp();
 
 There is one declaration for every process of the deployment: only the
 `app.assemble(select)` argument changes between them. The `declareApp`
-function is needed by the test: it passes the transport a connection
-to the broker's double.
+function is needed by the test: it passes the transport a connection to
+the broker's double, and the metrics server an ephemeral port. Metrics
+and the `/metrics` endpoint are covered in [chapter
+22](./22-metrics.md).
 
 `nats({ name })` declares a transport the same way `http()` does. The
 transport reads the broker's address from its own configuration
@@ -145,7 +152,7 @@ class UserRegisteredInArchiveHandler {
       // at a broker it becomes the name of the queue group and of
       // the durable consumer
       subscriber: 'archive',
-      pipeline: makePipeline().pre(TenantId.propagated()),
+      pipeline: base,
       handler: UserRegisteredInArchiveHandler,
     }),
 ```
@@ -180,30 +187,42 @@ class RegisterUserHandler {
 }
 
     implement(RegisterUser, {
-      // The tenant arrives in the message envelope. The unit puts it
-      // into the request's context, from where the `quotas.claim`
-      // caller will pass it on
-      pipeline: makePipeline().pre(TenantId.propagated()),
+      // The base layer returns the trace and the tenant into the
+      // context: both arrived in the message envelope, and the
+      // `quotas.claim` caller will pass them on
+      pipeline: base,
       handler: RegisterUserHandler,
     }),
 ```
 
 On the receiving side the value lies in the message's attributes. The
 `TenantId.propagated()` unit carries it into the request's
-asynchronous context. The same unit stands in the pipeline of both
-implementations of the `quotas` feature, because both `quotas.claim`
-and `users.registered` arrive from another process.
+asynchronous context. It is part of the example's base layer, which
+stands in the pipeline of every implementation: both `quotas.claim` and
+`users.registered` arrive from another process.
+
+```typescript
+// examples/split-nats/src/base.ts
+export const base: Pipeline<EmptyInput, BaseContext> = makePipeline()
+  .pre(withTracing())
+  .pre(TenantId.propagated());
+```
 
 ```typescript
 // examples/split-nats/src/quotas.ts (fragment)
-@Component([Ctx(TenantId)])
+@Component([Ctx(TenantId), Logger$.auto])
 export class QuotaLedger {
   readonly limit = 100;
   readonly used = new Map<string, number>();
 
-  constructor(private readonly tenant: CtxReader<string>) {}
+  constructor(
+    private readonly tenant: CtxReader<string>,
+    private readonly logger: Logger,
+  ) {}
 
   claim(): number | undefined {
+    this.logger.info('claim');
+
     const tenantId = this.tenant.get();
     // …
   }
@@ -216,6 +235,41 @@ reader is declared in the provider's dependencies. The value crossed
 two hops: the external client put it into the header, the `users`
 process read it and passed it on when calling `quotas.claim`, and the
 `quotas` process read it again.
+
+## The trace across process boundaries
+
+The base layer puts more into the context than the tenant alone.
+`withTracing()` from [chapter 9](./09-logging.md) comes first in it, and
+it is the one that makes the records of both processes line up:
+
+```text
+INFO  RegistrationService register traceId=feabb90b363acc5bff69c317824a65ae
+INFO  QuotaLedger         claim    traceId=feabb90b363acc5bff69c317824a65ae
+```
+
+The first record is written by the `users` process, the second by the
+`quotas` process. The value is the same, so searching by it finds the
+record from any process together with the rest.
+
+The trace is carried by the same mechanism as the tenant: the kernel
+declares the `Trace` variable with `propagate: true`, so the
+`quotas.claim` caller puts it into the message envelope. Only the
+receiving side differs: `withTracing()`, not `Trace.propagated()`,
+returns the trace into the context there. The same unit continues the
+trace both from the bus and from the HTTP `traceparent` header, so the
+implementation of an operation and an HTTP endpoint are built from the
+same layer.
+
+`traceId` is shared by the two processes, while `spanId` is its own for
+each: the span of the caller goes into the `parentSpanId` of the
+callee. From this pair the trace assembles into a tree of calls.
+
+That the trace is declared on every route is checked by the assembly
+policy:
+
+```typescript
+policies: [everyEndpoint().hasVar(Trace, 'trace')],
+```
 
 ## Start and check two processes
 
@@ -294,8 +348,10 @@ checks the subjects and the tenant in `Nl-Ctx` against it, and finds
 the `nestling_users_registered` stream through
 `broker.jetstreamManager()`. The second test of the same file brings
 up the `'all'` selection and checks that `quotas.claim` does not go
-out to the broker. The third assembles the `users` process with no
-owner of `quotas.claim` and makes sure the assembly goes through.
+out to the broker. The third reads the logger records of both
+processes and matches their `traceId`. The fourth assembles the `users`
+process with no owner of `quotas.claim` and makes sure the assembly
+goes through.
 
 ```bash
 yarn workspace @examples/split-nats test
