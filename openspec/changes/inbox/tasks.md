@@ -58,19 +58,19 @@
 
 ## 3. Адаптер PostgreSQL
 
-- [ ] 3.1 Подпуть `./inbox` в `@nestlingjs/drizzle.pg`: `exports`,
+- [x] 3.1 Подпуть `./inbox` в `@nestlingjs/drizzle.pg`: `exports`,
       `@nestlingjs/inbox` необязательным peer'ом, барель подпути
-- [ ] 3.2 `inboxTable()`, `inboxDdl()`, `DEFAULT_INBOX_TABLE`: составной
+- [x] 3.2 `inboxTable()`, `inboxDdl()`, `DEFAULT_INBOX_TABLE`: составной
       первичный ключ и индекс по моменту для прохода уборщика
-- [ ] 3.3 `PgInboxStore implements InboxStore`: `claim` вставкой
+- [x] 3.3 `PgInboxStore implements InboxStore`: `claim` вставкой
       `ON CONFLICT DO NOTHING RETURNING`, `sweep` партией по сроку хранения
-- [ ] 3.4 `pgInboxStore(connection, options?)` — плагин-обёртка по образцу
+- [x] 3.4 `pgInboxStore(connection, options?)` — плагин-обёртка по образцу
       `pgOutboxStore`
-- [ ] 3.5 Общий набор проверок хранилища гоняется и на реализации в памяти, и
+- [x] 3.5 Общий набор проверок хранилища гоняется и на реализации в памяти, и
       на `PgInboxStore` в `e2e/`
-- [ ] 3.6 E2E: две реплики с одной парой дают одну обработку, и транзакция
+- [x] 3.6 E2E: две реплики с одной парой дают одну обработку, и транзакция
       проигравшей коммитится без ошибки
-- [ ] 3.7 Тест границы drizzle.pg расширен: вне `inbox/` пакет приёма не
+- [x] 3.7 Тест границы drizzle.pg расширен: вне `inbox/` пакет приёма не
       импортируется, внутри — только типом
 
 ## 4. Пример `users-service`

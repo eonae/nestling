@@ -65,6 +65,8 @@ export function createJestConfig(fileUrl, overrides = {}) {
               '@nestlingjs/*/tokens': ['packages/nestling.*/src/tokens.ts'],
               '@nestlingjs/*/outbox': ['packages/nestling.*/src/outbox/index.ts'],
               '@nestlingjs/*/outbox/table': ['packages/nestling.*/src/outbox/table.ts'],
+              '@nestlingjs/*/inbox': ['packages/nestling.*/src/inbox/index.ts'],
+              '@nestlingjs/*/inbox/table': ['packages/nestling.*/src/inbox/table.ts'],
               '@nestlingjs/*': ['packages/nestling.*/src/index.ts'],
             },
             // `await using` в тестах: `Symbol.asyncDispose` есть в рантайме
@@ -94,12 +96,14 @@ export function createJestConfig(fileUrl, overrides = {}) {
       // Subpath токенов (`@nestlingjs/container/tokens`) — тоже до общего
       // правила: его точка входа лежит файлом `src/tokens.ts`, а не каталогом
       '^@nestlingjs/([^/]*)/tokens$': `${repoRoot}/packages/nestling.$1/src/tokens.ts`,
-      // Subpath адаптера хранилища (`@nestlingjs/drizzle.pg/outbox`) и
-      // листовой subpath его таблицы: их точки входа лежат внутри `src`, и
-      // общее правило увело бы их в несуществующий
-      // `nestling.drizzle.pg/outbox/src/index.ts`
+      // Subpath'ы адаптеров хранилищ (`@nestlingjs/drizzle.pg/outbox`,
+      // `@nestlingjs/drizzle.pg/inbox`) и листовые subpath'ы их таблиц: их
+      // точки входа лежат внутри `src`, и общее правило увело бы их в
+      // несуществующий `nestling.drizzle.pg/outbox/src/index.ts`
       '^@nestlingjs/([^/]*)/outbox/table$': `${repoRoot}/packages/nestling.$1/src/outbox/table.ts`,
       '^@nestlingjs/([^/]*)/outbox$': `${repoRoot}/packages/nestling.$1/src/outbox/index.ts`,
+      '^@nestlingjs/([^/]*)/inbox/table$': `${repoRoot}/packages/nestling.$1/src/inbox/table.ts`,
+      '^@nestlingjs/([^/]*)/inbox$': `${repoRoot}/packages/nestling.$1/src/inbox/index.ts`,
       // Внутренние пакеты — до общего правила: их каталог называется
       // `common.<имя>`, а не `nestling.<имя>`, и общее правило увело бы
       // `@nestlingjs/common.misc` в несуществующий `nestling.common.misc`
