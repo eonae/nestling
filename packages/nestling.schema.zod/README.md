@@ -29,15 +29,9 @@ openapi({
 });
 ```
 
-Тот же конвертер принимает CLI-транспорт — командам с политикой
-`missing: 'prompt'` он даёт формы полей для вопросов:
-
-```typescript
-import { cli } from '@nestlingjs/transport.cli';
-import { zodConverter } from '@nestlingjs/schema.zod';
-
-cli({ converters: [zodConverter()] });
-```
+Тот же конвертер принимает CLI-транспорт: командам с политикой
+`missing: 'prompt'` он даёт формы полей для вопросов в терминале —
+`cli({ converters: [zodConverter()] })`.
 
 ## Экспорты
 

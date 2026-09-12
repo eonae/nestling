@@ -1650,6 +1650,7 @@ __metadata:
   dependencies:
     "@nestlingjs/app": "workspace:*"
     "@nestlingjs/operations": "workspace:*"
+    "@nestlingjs/schema.zod": "workspace:*"
     "@nestlingjs/transport.cli": "workspace:*"
     zod: "npm:^4.0.0"
   languageName: unknown

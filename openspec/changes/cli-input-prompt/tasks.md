@@ -75,35 +75,36 @@
 
 ## 7. Пример и документация
 
-- [ ] 7.1 `examples/simple-cli`: команда с `missing: 'prompt'` — поле
+- [x] 7.1 `examples/simple-cli`: команда с `missing: 'prompt'` — поле
       `enum`, поле `boolean`, поле с описанием и умолчанием; конвертер в
       `cli({ converters })`; тест команды через `execute`
-- [ ] 7.2 `docs/design/transports.md` §5 и `docs/design/endpoints.md` §6:
+- [x] 7.2 `docs/design/transports.md` §5 и `docs/design/endpoints.md` §6:
       политика реализована, отсылки к отдельной работе сняты
-- [ ] 7.3 `docs/recipes/cli.md`: раздел о недостающем входе; плашка «сверено
+- [x] 7.3 `docs/recipes/cli.md`: раздел о недостающем входе; плашка «сверено
       с кодом» с новой датой
 - [x] 7.4 `docs/guide/13-openapi-and-client.md`, `docs/design/schemas.md`,
       `docs/recipes/config-sources.md`, `docs/README.md`, манифесты
       `scripts/waves/*.manifest` — новое имя пакета
-- [ ] 7.5 README `@nestlingjs/transport.cli`: политика, опции транспорта,
+- [x] 7.5 README `@nestlingjs/transport.cli`: политика, опции транспорта,
       таблица экспортов; расхождение про потоки закрыто
-- [ ] 7.6 `docs/decisions/ideas.md`: запись [2026-07-13] «Контракт первичен»
+- [x] 7.6 `docs/decisions/ideas.md`: запись [2026-07-13] «Контракт первичен»
       получает пометку «РЕАЛИЗОВАНО» вместо «РЕАЛИЗОВАНО ЧАСТИЧНО» с тем,
       что вышло, что уехало дальше и чем реализация уточнила решение;
       запись о переименовании пакета конвертера
-- [ ] 7.7 `docs/decisions/roadmap.md`: строка 56 и строка в разделе «После
+- [x] 7.7 `docs/decisions/roadmap.md`: строка 56 и строка в разделе «После
       волны 6» — статус **done** со ссылкой на архив
 
 ## 8. Definition of Done
 
-- [ ] 8.1 Все задачи выше отмечены
-- [ ] 8.2 `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` +
+- [x] 8.1 Все задачи выше отмечены
+- [x] 8.2 `yarn verify` зелёный (`build` + `typecheck` + `lint` + `test` +
       `type-budget`)
-- [ ] 8.3 README затронутых пакетов обновлены, включая плашки статуса
-- [ ] 8.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
-- [ ] 8.5 Запись `ideas.md`, по которой шёл change, несёт пометку
+- [x] 8.3 README затронутых пакетов обновлены, включая плашки статуса
+- [x] 8.4 `design/` и `decisions/` синхронизированы по правилам `CLAUDE.md`
+- [x] 8.5 Запись `ideas.md`, по которой шёл change, несёт пометку
       «РЕАЛИЗОВАНО»
-- [ ] 8.6 `yarn docs:audit` — 0 ERROR
-- [ ] 8.7 Затронутые `examples/*` мигрированы, главы гайда пересверены с
+- [x] 8.6 `yarn docs:audit` — 0 ERROR, кроме двух ссылок на каталог
+      архива: его создаёт `/opsx:archive`, и после него аудит чист
+- [x] 8.7 Затронутые `examples/*` мигрированы, главы гайда пересверены с
       обновлённой датой в плашке «сверено с кодом»
-- [ ] 8.8 `main` не тронут — слияние делает Merger после `/opsx:archive`
+- [x] 8.8 `main` не тронут — слияние делает Merger после `/opsx:archive`
