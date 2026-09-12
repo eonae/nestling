@@ -7,9 +7,11 @@
  * и файловую структуру.
  *
  * Правила отличаются полнотой, и от неё зависит рекомендуемый уровень.
- * `endpoint-has-layer` неполно by design (пайплайн — значение, текущее через
- * фабрики) и потому рекомендуется как `warn`. `import-through-barrel`
- * полно: спецификаторы импорта — литералы.
+ * `import-through-barrel` полно: спецификаторы импорта — литералы, уровень
+ * `error`. `endpoint-has-layer` неполно by design (пайплайн — значение,
+ * текущее через фабрики), уровень `warn`. `dependency-list` выводит список
+ * зависимостей из типов параметров синтаксической таблицей и на типе вне
+ * неё молчит; гарантией остаётся компилятор, уровень `warn`.
  *
  * @example flat config
  * ```javascript
@@ -25,15 +27,18 @@
  *         'warn',
  *         { layer: 'authedBase', constructorName: 'httpEndpoint' },
  *       ],
+ *       '@nestlingjs/dependency-list': 'warn',
  *     },
  *   },
  * ];
  * ```
  */
 
+import { dependencyList } from './dependency-list.js';
 import { endpointHasLayer } from './endpoint-has-layer.js';
 import { importThroughBarrel } from './import-through-barrel.js';
 
+export { dependencyList } from './dependency-list.js';
 export { endpointHasLayer } from './endpoint-has-layer.js';
 export { importThroughBarrel } from './import-through-barrel.js';
 
@@ -43,6 +48,7 @@ const plugin = {
     version: '0.1.0',
   },
   rules: {
+    'dependency-list': dependencyList,
     'endpoint-has-layer': endpointHasLayer,
     'import-through-barrel': importThroughBarrel,
   },

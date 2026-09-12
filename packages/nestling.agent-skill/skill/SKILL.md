@@ -123,7 +123,9 @@ await makeApp({ features: [UsersFeature], transports: [http()] })
    `@Component([Database, Logger$.auto])` next to
    `constructor(db: Database, logger: Logger)`. A wrong order, a wrong
    length or a missing token is a compile error; a token nobody provides
-   stops `assemble()`. `@Injectable()` does not exist.
+   stops `assemble()`. `@Injectable()` does not exist. With
+   `@nestlingjs/eslint-plugin` installed the editor shows the expected
+   list, and `--fix` fills an empty one in (`references/setup.md`).
 2. **A failure is returned, never thrown.** `return UserNotFound({ id })`,
    and `UserNotFound` is listed in `errors:` of the endpoint or of its
    operation. `throw new NotFoundException()` has no equivalent: a thrown
@@ -186,4 +188,4 @@ Take one when its line describes the problem at hand:
 | `@nestlingjs/subscriptions` | streams and SSE are open and someone has to list them, close one, or watch the list change |
 | `@nestlingjs/models` | the TypeScript type exists already — generated from proto, GraphQL or OpenAPI — and a schema has to describe exactly it |
 | `@nestlingjs/transport.cli` | the same endpoints and layers are wanted as commands, with stdin as the stream |
-| `@nestlingjs/eslint-plugin` | the two rules an editor can check: an import past a barrel, and a declaration without the required layer |
+| `@nestlingjs/eslint-plugin` | the three rules an editor can check: an import past a barrel, a declaration without the required layer, and a dependency list that does not match the constructor; the last one fills an empty `@Component()` in with `--fix` |
